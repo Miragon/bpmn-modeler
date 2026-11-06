@@ -546,6 +546,533 @@
         }
       ]
     },
+    "host-text": {
+      "version": 1,
+      "findings": [
+        {
+          "key": "apps/modeler-bridge/src/adapters.ts — ${…} only (${…} diagram${…})",
+          "path": "apps/modeler-bridge/src/adapters.ts",
+          "line": 821,
+          "message": "`${…} only (${…} diagram${…})`"
+        },
+        {
+          "key": "apps/modeler-bridge/src/adapters.ts — ${…} only (${…} diagram${…})",
+          "path": "apps/modeler-bridge/src/adapters.ts",
+          "line": 822,
+          "message": "`${…} only (${…} diagram${…})`"
+        },
+        {
+          "key": "apps/modeler-bridge/src/adapters.ts — Both (${…} diagram${…})",
+          "path": "apps/modeler-bridge/src/adapters.ts",
+          "line": 823,
+          "message": "`Both (${…} diagram${…})`"
+        },
+        {
+          "key": "apps/modeler-bridge/src/adapters.ts — Which diagrams do you want to migrate?",
+          "path": "apps/modeler-bridge/src/adapters.ts",
+          "line": 826,
+          "message": "`Which diagrams do you want to migrate?`"
+        },
+        {
+          "key": "apps/modeler-bridge/src/adapters.ts — Select ${…} engine version",
+          "path": "apps/modeler-bridge/src/adapters.ts",
+          "line": 845,
+          "message": "`Select ${…} engine version`"
+        },
+        {
+          "key": "apps/modeler-bridge/src/adapters.ts — Select a payload file",
+          "path": "apps/modeler-bridge/src/adapters.ts",
+          "line": 872,
+          "message": "`Select a payload file`"
+        },
+        {
+          "key": "apps/modeler-bridge/src/adapters.ts — Script Language",
+          "path": "apps/modeler-bridge/src/adapters.ts",
+          "line": 893,
+          "message": "`Script Language`"
+        },
+        {
+          "key": "apps/modeler-bridge/src/adapters.ts — Select the scripting language",
+          "path": "apps/modeler-bridge/src/adapters.ts",
+          "line": 894,
+          "message": "`Select the scripting language`"
+        },
+        {
+          "key": "apps/modeler-bridge/src/adapters.ts — (none — use form values)",
+          "path": "apps/modeler-bridge/src/adapters.ts",
+          "line": 925,
+          "message": "`(none — use form values)`"
+        },
+        {
+          "key": "apps/modeler-bridge/src/adapters.ts — Select the active deployment target",
+          "path": "apps/modeler-bridge/src/adapters.ts",
+          "line": 927,
+          "message": "`Select the active deployment target`"
+        },
+        {
+          "key": "apps/modeler-bridge/src/adapters.ts — Switch deployment target…",
+          "path": "apps/modeler-bridge/src/adapters.ts",
+          "line": 944,
+          "message": "`Switch deployment target…`"
+        },
+        {
+          "key": "apps/modeler-bridge/src/adapters.ts — Verify on ${…}",
+          "path": "apps/modeler-bridge/src/adapters.ts",
+          "line": 945,
+          "message": "`Verify on ${…}`"
+        },
+        {
+          "key": "apps/modeler-bridge/src/adapters.ts — Deployment target \"${…}\"",
+          "path": "apps/modeler-bridge/src/adapters.ts",
+          "line": 949,
+          "message": "`Deployment target \"${…}\"`"
+        },
+        {
+          "key": "apps/modeler-bridge/src/adapters.ts — No deployment target selected",
+          "path": "apps/modeler-bridge/src/adapters.ts",
+          "line": 950,
+          "message": "`No deployment target selected`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/composition/editorFeature.ts — Dmn modeler is ready",
+          "path": "apps/vscode-plugin/src/composition/editorFeature.ts",
+          "line": 78,
+          "message": "`Dmn modeler is ready`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/composition/editorFeature.ts — Form editor is ready",
+          "path": "apps/vscode-plugin/src/composition/editorFeature.ts",
+          "line": 91,
+          "message": "`Form editor is ready`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/deployment/infrastructure/DeploymentWebviewHtml.ts — <!DOCTYPE html> <html lang=\"en\"> <head> <meta charset=\"UTF-8\"/> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"/> <meta http-equiv=\"Content-Security-Policy\" content=\"${…}\"/> <link href=\"${…}\" rel=\"stylesheet\"/> <title>Deploy Diagram</title> </head> <body> <div id=\"app\"></div> <script nonce=\"${…}\" src=\"${…}\"></script> </body> </html>",
+          "path": "apps/vscode-plugin/src/deployment/infrastructure/DeploymentWebviewHtml.ts",
+          "line": 28,
+          "message": "`<!DOCTYPE html> <html lang=\"en\"> <head> <meta charset=\"UTF-8\"/> <meta name=\"viewport\" content=\"widt…`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/diff/controller/BpmnCompareController.ts — BPMN Modeler: ${…} selected for compare",
+          "path": "apps/vscode-plugin/src/diff/controller/BpmnCompareController.ts",
+          "line": 79,
+          "message": "`BPMN Modeler: ${…} selected for compare`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/diff/controller/BpmnCompareController.ts — No file selected for compare. Right-click a .bpmn file and choose \"Select for Compare (BPMN)\" first.",
+          "path": "apps/vscode-plugin/src/diff/controller/BpmnCompareController.ts",
+          "line": 104,
+          "message": "`No file selected for compare. Right-click a .bpmn file and choose \"Select for Compare (BPMN)\" first.`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/diff/controller/BpmnCompareController.ts — Cannot compare a file with itself.",
+          "path": "apps/vscode-plugin/src/diff/controller/BpmnCompareController.ts",
+          "line": 110,
+          "message": "`Cannot compare a file with itself.`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/diff/controller/BpmnCompareController.ts — Select exactly two .bpmn files to compare.",
+          "path": "apps/vscode-plugin/src/diff/controller/BpmnCompareController.ts",
+          "line": 136,
+          "message": "`Select exactly two .bpmn files to compare.`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/diff/controller/BpmnCompareController.ts — Cannot compare a file with itself.",
+          "path": "apps/vscode-plugin/src/diff/controller/BpmnCompareController.ts",
+          "line": 142,
+          "message": "`Cannot compare a file with itself.`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/diff/controller/BpmnDiffController.ts — Failed to open compare view: ${…}",
+          "path": "apps/vscode-plugin/src/diff/controller/BpmnDiffController.ts",
+          "line": 90,
+          "message": "`Failed to open compare view: ${…}`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/scriptTask/controller/ScriptCompletionProvider.ts — local function",
+          "path": "apps/vscode-plugin/src/scriptTask/controller/ScriptCompletionProvider.ts",
+          "line": 306,
+          "message": "`local function`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/scriptTask/controller/ScriptCompletionProvider.ts — local variable",
+          "path": "apps/vscode-plugin/src/scriptTask/controller/ScriptCompletionProvider.ts",
+          "line": 306,
+          "message": "`local variable`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/scriptTask/controller/ScriptCompletionProvider.ts — process variable",
+          "path": "apps/vscode-plugin/src/scriptTask/controller/ScriptCompletionProvider.ts",
+          "line": 312,
+          "message": "`process variable`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/scriptTask/controller/ScriptCompletionProvider.ts — - `${…}` — `${…}`",
+          "path": "apps/vscode-plugin/src/scriptTask/controller/ScriptCompletionProvider.ts",
+          "line": 335,
+          "message": "`` - `${…}` — `${…}` ``"
+        },
+        {
+          "key": "apps/vscode-plugin/src/scriptTask/controller/ScriptCompletionProvider.ts — - `${…}` — `${…}`",
+          "path": "apps/vscode-plugin/src/scriptTask/controller/ScriptCompletionProvider.ts",
+          "line": 352,
+          "message": "`` - `${…}` — `${…}` ``"
+        },
+        {
+          "key": "apps/vscode-plugin/src/shared/infrastructure/VsCodeEditorHandle.ts — write to",
+          "path": "apps/vscode-plugin/src/shared/infrastructure/VsCodeEditorHandle.ts",
+          "line": 97,
+          "message": "`write to`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/shared/infrastructure/VsCodeNotifier.ts — Reload Window",
+          "path": "apps/vscode-plugin/src/shared/infrastructure/VsCodeNotifier.ts",
+          "line": 53,
+          "message": "`Reload Window`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/shared/infrastructure/VsCodePicker.ts — ${…} only (${…} diagram${…})",
+          "path": "apps/vscode-plugin/src/shared/infrastructure/VsCodePicker.ts",
+          "line": 150,
+          "message": "`${…} only (${…} diagram${…})`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/shared/infrastructure/VsCodePicker.ts — ${…} only (${…} diagram${…})",
+          "path": "apps/vscode-plugin/src/shared/infrastructure/VsCodePicker.ts",
+          "line": 151,
+          "message": "`${…} only (${…} diagram${…})`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/shared/infrastructure/VsCodePicker.ts — Both (${…} diagram${…})",
+          "path": "apps/vscode-plugin/src/shared/infrastructure/VsCodePicker.ts",
+          "line": 152,
+          "message": "`Both (${…} diagram${…})`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/shared/infrastructure/VsCodePicker.ts — Which diagrams do you want to migrate?",
+          "path": "apps/vscode-plugin/src/shared/infrastructure/VsCodePicker.ts",
+          "line": 156,
+          "message": "`Which diagrams do you want to migrate?`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/shared/infrastructure/VsCodePicker.ts — Select ${…} engine version",
+          "path": "apps/vscode-plugin/src/shared/infrastructure/VsCodePicker.ts",
+          "line": 176,
+          "message": "`Select ${…} engine version`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/shared/infrastructure/VsCodePicker.ts — Select a payload file",
+          "path": "apps/vscode-plugin/src/shared/infrastructure/VsCodePicker.ts",
+          "line": 232,
+          "message": "`Select a payload file`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/shared/infrastructure/VsCodePicker.ts — Select the scripting language",
+          "path": "apps/vscode-plugin/src/shared/infrastructure/VsCodePicker.ts",
+          "line": 267,
+          "message": "`Select the scripting language`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/shared/infrastructure/VsCodePicker.ts — Script Language",
+          "path": "apps/vscode-plugin/src/shared/infrastructure/VsCodePicker.ts",
+          "line": 268,
+          "message": "`Script Language`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/shared/infrastructure/VsCodePicker.ts — (none — use form values)",
+          "path": "apps/vscode-plugin/src/shared/infrastructure/VsCodePicker.ts",
+          "line": 351,
+          "message": "`(none — use form values)`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/shared/infrastructure/VsCodePicker.ts — Select the active deployment target",
+          "path": "apps/vscode-plugin/src/shared/infrastructure/VsCodePicker.ts",
+          "line": 356,
+          "message": "`Select the active deployment target`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/shared/infrastructure/VsCodePicker.ts — $(arrow-swap) Switch deployment target…",
+          "path": "apps/vscode-plugin/src/shared/infrastructure/VsCodePicker.ts",
+          "line": 373,
+          "message": "`$(arrow-swap) Switch deployment target…`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/shared/infrastructure/VsCodePicker.ts — $(cloud) Verify on ${…}",
+          "path": "apps/vscode-plugin/src/shared/infrastructure/VsCodePicker.ts",
+          "line": 377,
+          "message": "`$(cloud) Verify on ${…}`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/shared/infrastructure/VsCodePicker.ts — Deployment target \"${…}\"",
+          "path": "apps/vscode-plugin/src/shared/infrastructure/VsCodePicker.ts",
+          "line": 386,
+          "message": "`Deployment target \"${…}\"`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/shared/infrastructure/VsCodePicker.ts — No deployment target selected",
+          "path": "apps/vscode-plugin/src/shared/infrastructure/VsCodePicker.ts",
+          "line": 387,
+          "message": "`No deployment target selected`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/shared/infrastructure/VsCodeStatusBar.ts — — verified ${…}",
+          "path": "apps/vscode-plugin/src/shared/infrastructure/VsCodeStatusBar.ts",
+          "line": 70,
+          "message": "`— verified ${…}`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/shared/infrastructure/VsCodeStatusBar.ts — Deployed — last deployed ${…}",
+          "path": "apps/vscode-plugin/src/shared/infrastructure/VsCodeStatusBar.ts",
+          "line": 75,
+          "message": "`Deployed — last deployed ${…}`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/shared/infrastructure/VsCodeStatusBar.ts — Deployed — matches the last deployment",
+          "path": "apps/vscode-plugin/src/shared/infrastructure/VsCodeStatusBar.ts",
+          "line": 76,
+          "message": "`Deployed — matches the last deployment`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/shared/infrastructure/VsCodeStatusBar.ts — Undeployed changes — last deployed ${…}",
+          "path": "apps/vscode-plugin/src/shared/infrastructure/VsCodeStatusBar.ts",
+          "line": 81,
+          "message": "`Undeployed changes — last deployed ${…}`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/shared/infrastructure/VsCodeStatusBar.ts — Undeployed changes since the last deployment",
+          "path": "apps/vscode-plugin/src/shared/infrastructure/VsCodeStatusBar.ts",
+          "line": 82,
+          "message": "`Undeployed changes since the last deployment`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/shared/infrastructure/VsCodeStatusBar.ts — Deployed version differs from your diagram (deployed ${…})",
+          "path": "apps/vscode-plugin/src/shared/infrastructure/VsCodeStatusBar.ts",
+          "line": 87,
+          "message": "`Deployed version differs from your diagram (deployed ${…})`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/shared/infrastructure/VsCodeStatusBar.ts — Deployed version differs from your diagram",
+          "path": "apps/vscode-plugin/src/shared/infrastructure/VsCodeStatusBar.ts",
+          "line": 88,
+          "message": "`Deployed version differs from your diagram`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/shared/infrastructure/VsCodeStatusBar.ts — Never deployed to this target from this machine — click to switch target",
+          "path": "apps/vscode-plugin/src/shared/infrastructure/VsCodeStatusBar.ts",
+          "line": 91,
+          "message": "`Never deployed to this target from this machine — click to switch target`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/shared/infrastructure/VsCodeStatusBar.ts — Loading element templates…",
+          "path": "apps/vscode-plugin/src/shared/infrastructure/VsCodeStatusBar.ts",
+          "line": 127,
+          "message": "`Loading element templates…`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/shared/infrastructure/VsCodeStatusBar.ts — Element templates (${…})",
+          "path": "apps/vscode-plugin/src/shared/infrastructure/VsCodeStatusBar.ts",
+          "line": 135,
+          "message": "`Element templates (${…})`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/shared/infrastructure/VsCodeStatusBar.ts — Click to change engine version",
+          "path": "apps/vscode-plugin/src/shared/infrastructure/VsCodeStatusBar.ts",
+          "line": 150,
+          "message": "`Click to change engine version`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/shared/infrastructure/VsCodeStatusBar.ts — No deployment target",
+          "path": "apps/vscode-plugin/src/shared/infrastructure/VsCodeStatusBar.ts",
+          "line": 167,
+          "message": "`No deployment target`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/shared/infrastructure/WebviewHtml.ts — properties-panel-parent collapsed",
+          "path": "apps/vscode-plugin/src/shared/infrastructure/WebviewHtml.ts",
+          "line": 38,
+          "message": "`properties-panel-parent collapsed`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/shared/infrastructure/WebviewHtml.ts — panel-resizer collapsed",
+          "path": "apps/vscode-plugin/src/shared/infrastructure/WebviewHtml.ts",
+          "line": 39,
+          "message": "`panel-resizer collapsed`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/shared/infrastructure/WebviewHtml.ts — style=\"width: 0\"",
+          "path": "apps/vscode-plugin/src/shared/infrastructure/WebviewHtml.ts",
+          "line": 40,
+          "message": "`style=\"width: 0\"`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/shared/infrastructure/WebviewHtml.ts — <!DOCTYPE html> <html lang=\"en\"> <head> <meta charset=\"UTF-8\"/> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"/> <meta http-equiv=\"Content-Security-Policy\" content=\"${…}\"/> <link href=\"${…}\" rel=\"stylesheet\"/> <title>BPMN Modeler</title> </head> <body> <div class=\"content with-diagram\" id=\"js-drop-zone\"> <div class=\"canvas\" id=\"js-canvas\"></div> <div id=\"js-panel-resizer\" class=\"${…}\"></div> <div class=\"${…}\" id=\"js-properties-panel\"${…}></div> </div> <script type=\"module\" nonce=\"${…}\" src=\"${…}\"></script> </body> </html>",
+          "path": "apps/vscode-plugin/src/shared/infrastructure/WebviewHtml.ts",
+          "line": 45,
+          "message": "`<!DOCTYPE html> <html lang=\"en\"> <head> <meta charset=\"UTF-8\"/> <meta name=\"viewport\" content=\"widt…`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/shared/infrastructure/WebviewHtml.ts — properties-panel-parent collapsed",
+          "path": "apps/vscode-plugin/src/shared/infrastructure/WebviewHtml.ts",
+          "line": 90,
+          "message": "`properties-panel-parent collapsed`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/shared/infrastructure/WebviewHtml.ts — panel-resizer collapsed",
+          "path": "apps/vscode-plugin/src/shared/infrastructure/WebviewHtml.ts",
+          "line": 91,
+          "message": "`panel-resizer collapsed`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/shared/infrastructure/WebviewHtml.ts — style=\"width: 0\"",
+          "path": "apps/vscode-plugin/src/shared/infrastructure/WebviewHtml.ts",
+          "line": 92,
+          "message": "`style=\"width: 0\"`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/shared/infrastructure/WebviewHtml.ts — <!DOCTYPE html> <html lang=\"en\"> <head> <meta charset=\"utf-8\" /> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"/> <meta http-equiv=\"Content-Security-Policy\" content=\"${…}\"/> <link href=\"${…}\" rel=\"stylesheet\"> <link href=\"${…}\" rel=\"stylesheet\" type=\"text/css\" /> <title>DMN Modeler</title> </head> <body> <div class=\"content with-diagram\" id=\"js-drop-zone\"> <div class=\"canvas\" id=\"js-canvas\"></div> <div id=\"js-panel-resizer\" class=\"${…}\"></div> <div class=\"${…}\" id=\"js-properties-panel\"${…}></div> </div> <script type=\"module\" nonce=\"${…}\" src=\"${…}\"></script> </body> </html>",
+          "path": "apps/vscode-plugin/src/shared/infrastructure/WebviewHtml.ts",
+          "line": 94,
+          "message": "`<!DOCTYPE html> <html lang=\"en\"> <head> <meta charset=\"utf-8\" /> <meta name=\"viewport\" content=\"wid…`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/shared/infrastructure/WebviewHtml.ts — <!DOCTYPE html> <html lang=\"en\"> <head> <meta charset=\"UTF-8\" /> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" /> <meta http-equiv=\"Content-Security-Policy\" content=\"${…}\"/> <link href=\"${…}\" rel=\"stylesheet\" /> <title>Form Editor</title> </head> <body> <div id=\"app\"></div> <script nonce=\"${…}\" src=\"${…}\"></script> </body> </html>",
+          "path": "apps/vscode-plugin/src/shared/infrastructure/WebviewHtml.ts",
+          "line": 127,
+          "message": "`<!DOCTYPE html> <html lang=\"en\"> <head> <meta charset=\"UTF-8\" /> <meta name=\"viewport\" content=\"wid…`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/shared/infrastructure/releaseNotes.ts — View Release Notes",
+          "path": "apps/vscode-plugin/src/shared/infrastructure/releaseNotes.ts",
+          "line": 7,
+          "message": "`View Release Notes`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/shared/infrastructure/releaseNotes.ts — BPMN Modeler updated to v${…}. See what's new!",
+          "path": "apps/vscode-plugin/src/shared/infrastructure/releaseNotes.ts",
+          "line": 33,
+          "message": "`BPMN Modeler updated to v${…}. See what's new!`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts — User and Workspace settings",
+          "path": "apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts",
+          "line": 43,
+          "message": "`User and Workspace settings`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts — User settings",
+          "path": "apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts",
+          "line": 45,
+          "message": "`User settings`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts — Workspace settings",
+          "path": "apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts",
+          "line": 45,
+          "message": "`Workspace settings`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts — Add Marketplace",
+          "path": "apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts",
+          "line": 86,
+          "message": "`Add Marketplace`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts — GitHub or GitLab repository, or a local folder, holding a marketplace.json",
+          "path": "apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts",
+          "line": 87,
+          "message": "`GitHub or GitLab repository, or a local folder, holding a marketplace.json`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts — https://github.com/owner/repo or ~/path/to/folder",
+          "path": "apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts",
+          "line": 88,
+          "message": "`https://github.com/owner/repo or ~/path/to/folder`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts — Enter a GitHub or GitLab repository URL, or a local folder path,",
+          "path": "apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts",
+          "line": 97,
+          "message": "`Enter a GitHub or GitLab repository URL, or a local folder path,`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts — holding a marketplace.json. Self-hosted hosts go in settings.json.",
+          "path": "apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts",
+          "line": 98,
+          "message": "`holding a marketplace.json. Self-hosted hosts go in settings.json.`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts — not a registered configuration",
+          "path": "apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts",
+          "line": 125,
+          "message": "`not a registered configuration`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts — The BPMN Modeler extension was just updated. Reload the window to",
+          "path": "apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts",
+          "line": 127,
+          "message": "`The BPMN Modeler extension was just updated. Reload the window to`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts — finish enabling marketplaces, then add it again.",
+          "path": "apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts",
+          "line": 128,
+          "message": "`finish enabling marketplaces, then add it again.`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts — This workspace",
+          "path": "apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts",
+          "line": 147,
+          "message": "`This workspace`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts — Saved in .vscode/settings.json",
+          "path": "apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts",
+          "line": 148,
+          "message": "`Saved in .vscode/settings.json`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts — All my projects",
+          "path": "apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts",
+          "line": 152,
+          "message": "`All my projects`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts — Saved in your user settings",
+          "path": "apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts",
+          "line": 153,
+          "message": "`Saved in your user settings`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts — Add Marketplace",
+          "path": "apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts",
+          "line": 157,
+          "message": "`Add Marketplace`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts — No marketplaces registered.",
+          "path": "apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts",
+          "line": 174,
+          "message": "`No marketplaces registered.`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts — Remove Marketplace",
+          "path": "apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts",
+          "line": 186,
+          "message": "`Remove Marketplace`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts — Select marketplaces to remove",
+          "path": "apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts",
+          "line": 188,
+          "message": "`Select marketplaces to remove`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/templateMarketplace/infrastructure/VsCodeTokenPrompt.ts — Personal Access Token for ${…}",
+          "path": "apps/vscode-plugin/src/templateMarketplace/infrastructure/VsCodeTokenPrompt.ts",
+          "line": 15,
+          "message": "`Personal Access Token for ${…}`"
+        }
+      ]
+    },
     "hotspots": {
       "version": 1,
       "findings": [
