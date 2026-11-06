@@ -669,6 +669,13 @@ an id, and no new port method, RPC or Kotlin handler. A new kind of input, such
 as the masked one, needs its own port method, RPC and Kotlin handler, as the
 token prompt has.
 
+Two kinds of text belong to the host and are written there: its chrome, such as
+VS Code's "Reload Window" button, and messages about its own failure, such as
+the bridge process dying (`ProcessSupervisor.kt`) or VS Code failing to open a
+compare view. The core builds every other user-visible text. The `host-text`
+fitness function reports the texts host code writes
+([Host text](engineering-practices.md#host-text)).
+
 The BPMN, DMN and Form editors synchronize their document through one core
 module, `EditorDocumentSync`: own-write echo suppression, revision-checked
 syncs, and a single, snapshot-checked initialization of an empty file. A
