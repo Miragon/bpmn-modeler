@@ -82,7 +82,6 @@ describeMarketplacePromptContract(
         const replies: MarketplacePromptReply[] = [];
         const repliedTo: (() => void)[] = [];
         let shown: AddQuestion | undefined;
-        // `MarketplaceRouter.handleAddForm` answers from the EDT, after the frame is read.
         const rpc: Rpc = new Rpc((line) => {
             const { id, method, params } = JSON.parse(line) as {
                 id: number;
@@ -98,6 +97,7 @@ describeMarketplacePromptContract(
                 if (!user) throw new Error("No reply is scripted for the add form.");
                 return answerAsTheDialog(shown, user);
             });
+            // `MarketplaceRouter.handleAddForm` answers from the EDT, after the frame is read.
             queueMicrotask(() => {
                 void rpc.handleLine(reply);
                 repliedTo.shift()?.();
