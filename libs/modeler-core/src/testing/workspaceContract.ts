@@ -181,10 +181,11 @@ export function describeWorkspaceContract(
             });
 
             // VS Code answers in the folder's spelling, the bridge in the document's.
-            it("resolves a file:// document in either spelling", () => {
+            it("resolves a file:// document in either spelling, its directory spelled like its folder", () => {
                 const { workspace, root } = fixture;
                 fixture.openFolder(root);
                 const document = `file://${root}/a/order.bpmn`;
+                const directory = workspace.getDocumentDirectory(document);
 
                 expect([root, `file://${root}`]).toContain(
                     workspace.findWorkspaceFolderForDocument(document),
@@ -192,9 +193,10 @@ export function describeWorkspaceContract(
                 expect([root, `file://${root}`]).toContain(
                     workspace.getWorkspaceFolderForDocument(document),
                 );
-                expect([`${root}/a`, `file://${root}/a`]).toContain(
-                    workspace.getDocumentDirectory(document),
-                );
+                expect([`${root}/a`, `file://${root}/a`]).toContain(directory);
+                expect(
+                    isWithinRoot(directory, workspace.getWorkspaceFolderForDocument(directory)),
+                ).toBe(true);
             });
         });
 
