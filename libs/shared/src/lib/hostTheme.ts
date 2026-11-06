@@ -14,8 +14,10 @@
  * forbid them inside the published package sources.
  */
 
-export type HostThemeKind = "light" | "dark";
-export type HostThemeMode = "automatic" | "light" | "dark";
+import type { ResolvedThemeKind, SurfaceThemeMode } from "@miragon/bpmn-modeler-types";
+
+export type HostThemeKind = ResolvedThemeKind;
+export type HostThemeMode = SurfaceThemeMode;
 
 /** Resolves the IDE theme from the VS Code `<body>` classes. */
 export function resolveHostThemeKind(): HostThemeKind {

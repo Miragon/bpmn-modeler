@@ -1,7 +1,7 @@
 # DMN modeler
 
 - Status: accepted
-- Last reviewed: 2026-11-01
+- Last reviewed: 2026-11-06
 
 ## Context
 
@@ -93,6 +93,9 @@ stays inside the theme scope. The private shared `hostTheme` adapter maps IDE
 body classes to the package-specific attribute and themes page chrome. The
 theme controller is the one BPMN uses, shared through `modeler-types` with the
 attribute name as a parameter, so a theme fix lands in both packages.
+`DmnThemeMode` is an alias of the controller's `SurfaceThemeMode`, as BPMN's
+`ThemeMode` is, and `publicApi.spec.ts` pins it to its three values
+([BPMN modeler](bpmn-modeler.md#themes-and-locale)).
 
 ### Locale
 

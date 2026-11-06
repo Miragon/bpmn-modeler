@@ -12,6 +12,8 @@ import org.junit.jupiter.api.Test
 import javax.swing.JComboBox
 import javax.swing.JCheckBox
 import javax.swing.JComponent
+import javax.swing.JLabel
+import javax.swing.JList
 
 @TestApplication
 class ModelerSettingsConfigurableTest {
@@ -95,6 +97,59 @@ class ModelerSettingsConfigurableTest {
             assertEquals("fr", stored.language)
             assertEquals(listOf(ADDED_MEANWHILE), stored.marketplaces)
         }
+    }
+
+    @Test
+    fun `offers the default modes of the VS Code setting, labelled as it labels them, in its order`() {
+        withSettingsPage { page ->
+            assertEquals(manifestDefaultModes(), defaultModeChoices(page.createComponent()))
+        }
+    }
+
+    @Test
+    fun `labels the default modes as the modeler's mode strip labels them`() {
+        withSettingsPage { page ->
+            assertEquals(modeStripLabels(), defaultModeChoices(page.createComponent()).toMap())
+        }
+    }
+
+    /** Each mode the Default mode box offers, with its label: the DSL renderer's accessible name is its cell text. */
+    private fun defaultModeChoices(page: JComponent): List<Pair<String?, String?>> {
+        @Suppress("UNCHECKED_CAST")
+        val combo =
+            UIUtil.findComponentsOfType(page, JLabel::class.java)
+                .first { it.text == "Default mode:" }
+                .labelFor as JComboBox<String?>
+        val list = JList<String?>()
+        return (0 until combo.itemCount).map { index ->
+            val mode = combo.getItemAt(index)
+            val cell = combo.renderer.getListCellRendererComponent(list, mode, index, false, false)
+            mode to cell.accessibleContext.accessibleName
+        }
+    }
+
+    /** `MODE_LABEL` in `modeStrip.ts`, the labels the modeler's mode strip shows. */
+    private fun modeStripLabels(): Map<String, String> {
+        val source = readTypeScriptFile("miragon.modeLabels")
+        val entries =
+            requireNotNull(Regex("""export const MODE_LABEL\b[^=]*=\s*\{([^}]*)}""").find(source)) {
+                "modeStrip.ts declares no MODE_LABEL object literal"
+            }.groupValues[1]
+        return Regex(""""?(\w+)"?\s*:\s*"([^"]*)"""").findAll(entries)
+            .associate { it.groupValues[1] to it.groupValues[2] }
+    }
+
+    /** `manifest.contract.spec.ts` holds these modes to `SURFACE_MODES`. */
+    private fun manifestDefaultModes(): List<Pair<String, String>> {
+        val defaultMode =
+            readTypeScriptJson("miragon.vscodeManifest").asJsonObject
+                .getAsJsonObject("contributes")
+                .getAsJsonObject("configuration")
+                .getAsJsonObject("properties")
+                .getAsJsonObject("miragon.bpmnModeler.defaultMode")
+        val modes = defaultMode.getAsJsonArray("enum").map { it.asString }
+        val labels = defaultMode.getAsJsonArray("enumItemLabels").map { it.asString }
+        return modes.zip(labels)
     }
 
     private fun languageCombo(page: JComponent): JComboBox<*> =
