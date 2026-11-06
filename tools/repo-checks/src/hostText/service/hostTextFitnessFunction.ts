@@ -22,7 +22,7 @@ export function createHostTextFitnessFunction({ sources }: HostTextPorts): Fitne
             "Text assembled in another file and handed to host code: a constant or a builder that a host file imports from a file that is not host code.",
             "Kotlin that imports no com.intellij package, such as the locale names of ModelerLocales.kt (17 of 89 files in src/main/kotlin at cd48f2cd, holding 2 user texts and 25 technical ones), Kotlin outside src/main/kotlin, and Kotlin scripts (.kts).",
             "Bridge code that neither imports `vscode` nor implements a core interface, such as its RPC handler tables in adapter/in/.",
-            "A text a host shows through a function named log…, through a method of an object named log, LOG, logger or console or of the result of thisLogger(), or inside a call a Kotlin throw raises.",
+            "A text a host shows through a function named log…, through a method of an object named log, LOG, logger, thisLogger or console, or, in Kotlin, of the result of a call with one of those names, such as thisLogger(), or inside a call a Kotlin throw raises.",
         ],
         reportsWrongly: [
             "Host chrome and messages about the host's own failure, which belong to the host: VS Code's `Reload Window` button, `Failed to open compare view: ${…}` when vscode.diff fails, IntelliJ's action, editor, file type and status widget names, the JCEF-unavailable labels and ProcessSupervisor.kt's crash balloons. The 33 texts of the IntelliJ settings page, ModelerSettingsConfigurable.kt, describe the settings VS Code's package.json describes; whether the two are pinned to each other is a separate decision.",
