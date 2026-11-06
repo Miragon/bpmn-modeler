@@ -8,14 +8,13 @@ import {
     Command,
     DmnFileQuery,
     DmnModelerSettingQuery,
-    HostApi,
     HostApiImpl,
     MockHostApi,
     PropertiesPanelStateQuery,
     Query,
     TakeFocusQuery,
 } from "@miragon/bpmn-modeler-shared";
-import type { WebviewState } from "./webviewState";
+import type { DmnHost, WebviewState } from "../../port/dmnHost";
 
 declare const process: { env: { NODE_ENV: string } };
 
@@ -30,7 +29,7 @@ type MessageType = Command | Query;
  * the desktop app all inject the same `acquireVsCodeApi()` shim, so they share
  * this path).
  */
-export function getHostApi(): HostApi<StateType, MessageType> {
+export function getHostApi(): DmnHost {
     if (process.env.NODE_ENV === "development") {
         return new MockHost();
     }
@@ -88,14 +87,6 @@ class MockHost extends MockHostApi<StateType, MessageType> {
             }
             // The webview forwards log entries to the host; in a standalone
             // browser run there's no host, so mirror them onto the dev console.
-            case "LogDebugCommand": {
-                console.debug(command.message);
-                break;
-            }
-            case "LogInfoCommand": {
-                console.info(command.message);
-                break;
-            }
             case "LogWarningCommand": {
                 console.warn(command.message);
                 break;

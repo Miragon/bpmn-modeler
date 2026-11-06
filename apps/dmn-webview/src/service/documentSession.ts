@@ -1,18 +1,17 @@
 import {
-    createInertLock,
     createResolver,
     type DmnEditorCommand,
     type DmnFileQuery,
-    type HostApi,
+    type InertLock,
     LogErrorCommand,
     WebviewDocumentSync,
 } from "@miragon/bpmn-modeler-shared";
 import { NoModelerError } from "@miragon/bpmn-modeler-types";
 import type { DmnModelerHandle, DmnPendingInputHandle } from "@miragon/dmn-modeler";
 
-import type { WebviewState } from "./webviewState";
+import type { DmnHost } from "../port/dmnHost";
 
-type HostChannel = Pick<HostApi<WebviewState, DmnEditorCommand>, "postMessage">;
+type HostChannel = Pick<DmnHost, "postMessage">;
 
 function holdsPendingInput(
     modeler: DmnModelerHandle | undefined,
@@ -31,7 +30,10 @@ export class DmnDocumentSession {
 
     readonly respondToFlush: WebviewDocumentSync["respondToFlush"];
 
-    constructor(private readonly host: HostChannel) {
+    constructor(
+        private readonly host: HostChannel,
+        flushLock: InertLock,
+    ) {
         this.document = new WebviewDocumentSync(host, {
             surface: {
                 importDocument: async (content) => {
@@ -49,7 +51,7 @@ export class DmnDocumentSession {
                     }
                 },
             },
-            flushLock: createInertLock(document.body),
+            flushLock,
             isReady: () => this.initialDocumentImported,
         });
         this.respondToFlush = this.document.respondToFlush;

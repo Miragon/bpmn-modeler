@@ -1,7 +1,7 @@
 // css — webview page chrome first, then the package's own light base + scoped
 // dark theme (folded into the bundle via `@miragon/dmn-modeler`'s styles import),
 // matching the previous `styles.css`-then-`#theme-link` cascade order.
-import "./styles.css";
+import "../adapter/in/styles.css";
 
 import {
     applyPageThemeScope,
@@ -9,6 +9,7 @@ import {
     bindPanelWidth,
     Command,
     createHostThemeAdapter,
+    createInertLock,
     createResolver,
     createWebviewStateStore,
     DmnModelerSettingQuery,
@@ -32,10 +33,9 @@ import {
 import { i18n, type SupportedLocale } from "@miragon/bpmn-modeler-i18n";
 import { createModeler, type DmnAdditionalModules } from "@miragon/dmn-modeler";
 
-import type { DmnEditorCommand, HostApi } from "@miragon/bpmn-modeler-shared";
-import { DmnDocumentSession } from "./documentSession";
-import { routeDmnHostMessage } from "./hostMessageRouter";
-import type { WebviewState } from "./webviewState";
+import { DmnDocumentSession } from "../service/documentSession";
+import { routeDmnHostMessage } from "../adapter/in/hostMessageRouter";
+import type { DmnHost } from "../port/dmnHost";
 
 /**
  * Injection seam for the entry. `theme`/`locale` seed the initial
@@ -48,8 +48,6 @@ interface BootstrapOptions {
     additionalModules?: DmnAdditionalModules;
 }
 
-type DmnHost = HostApi<WebviewState, DmnEditorCommand>;
-
 /**
  * Starts the DMN webview against the given host. The entry chooses the host
  * and, optionally, seeds the initial theme mode / locale when it has no host
@@ -59,7 +57,7 @@ type DmnHost = HostApi<WebviewState, DmnEditorCommand>;
  *   drops its pending syncs, and destroys its modeler.
  */
 export function bootstrap(host: DmnHost, opts: BootstrapOptions = {}): () => void {
-    const session = new DmnDocumentSession(host);
+    const session = new DmnDocumentSession(host, createInertLock(document.body));
     const lifetime = new AbortController();
     const stopErrorForwarding = installGlobalErrorForwarding((command) =>
         host.postMessage(command),
