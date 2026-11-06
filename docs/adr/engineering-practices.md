@@ -25,6 +25,7 @@ need compatibility proof for the paths the build and plugin installer exercise.
 - [Size and complexity](#size-and-complexity)
 - [Hotspots](#hotspots)
 - [Missed partner](#missed-partner)
+- [Host text](#host-text)
 - [Private upstream APIs](#private-upstream-apis)
 - [Dependency compatibility and security](#dependency-compatibility-and-security)
 - [Consequences](#consequences)
@@ -912,6 +913,77 @@ Alternatives considered:
 - **Added value** (confidence minus P's change rate, in Moonen et al.'s top
   group). In the throwaway replay it widened the margin to 8 points against 13
   for lift 4.
+
+### Host text
+
+`host-text` (#2052) reports user-visible text written in host code: atomic,
+triggered, static, reported. When a host words a text of its own, the hosts
+drift apart: VS Code and IntelliJ built the engine-version label separately
+and the labels differed (#2000), and both hosts built the token prompt's title
+until #2046 moved it into the core. The rule it relies on is in the
+`architecture` skill: the core builds every user-visible text, and a host
+renders it. Host chrome and messages about the host's own failure belong to
+the host ([Host integrations](architecture-and-hosts.md#host-integrations)),
+and a rule over host text would fire on them, so the function reports and
+never blocks. The pure measure lives in
+`tools/repo-checks/src/hostText/domain`.
+
+- **Host code.** Every tracked `.ts`, `.tsx`, `.mts` and `.cts` file, without
+  specs, tests, `__fixtures__/` folders and declaration files, that imports
+  `vscode`, or that sits outside `libs/modeler-core` and holds a class whose
+  `implements` clause names an interface declared there, through barrels and
+  the `tsconfig.base.json` paths (`findImplementations` of the engine). The
+  second form reaches the bridge's RPC adapters, which do not import
+  `vscode`. It reads imports, types and one workspace folder,
+  `libs/modeler-core`, and no file name. Kotlin is not read: a regex that
+  pairs quotes misreads raw strings and templates with quotes inside `${}`.
+  The Kotlin routers hold no multi-word text, but IntelliJ's own actions do,
+  such as `AddMarketplaceAction.kt`. A follow-up issue adds Kotlin.
+- **Texts.** `readTextLiterals` of the engine: every string literal, plain
+  template literal and template expression, with its line, its literal
+  stretches and the calls whose arguments hold it. A literal in a type or a
+  module specifier is not read. A text is a literal one of whose stretches
+  holds whitespace between two non-space characters. A placeholder is no word,
+  so formats such as `${a}: ${b}` and `$(${icon}) ${label}` hold no text; at
+  `8d75923b` judging the joined template instead added 9 findings, all such
+  formats, and no text. A literal anywhere inside the arguments of
+  `new Error(…)`, of `log` or a `log` + capital function (`logError`, not
+  `login`), or of a call on `logger` or `console` is not read.
+- **Identity and delta.** One finding per literal, keyed by its path and its
+  whitespace-collapsed text, not its line; the message is the text, cut at
+  100 characters. Moved code stays existing, the same text twice in a file
+  counts twice, and a changed text shows as new and its old wording as
+  resolved. No allowlist: host chrome stays visible as existing.
+
+First run at `8d75923b`: 862 files read, 65 of them host code. 48 import
+`vscode`; 17 only implement a core interface, 14 of them the bridge's RPC
+adapters, which hold no text. 49 findings in 11 files, all in the VS Code host:
+30 texts the host builds (18 in `TemplateMarketplaceController.ts`, the add and
+remove marketplace flow, which IntelliJ words again in `AddMarketplaceAction.kt`
+and already differently: "Add Template Marketplace" against "Add Marketplace";
+5 in `BpmnCompareController.ts`; 3 completion labels; 2 each in
+`ElementTemplateEditorController.ts` and `releaseNotes.ts`), 3 correct host
+texts ("Reload Window", the compare view's failure, the `write to` fragment
+of a write error) and 16 technical strings or log text (the HTML shells and
+CSS class lists of the webview HTML, Markdown formats, an error text a host
+matches, two ready messages passed to a logger as a parameter). The name scope
+`infrastructure/VsCode*.ts` the issue first proposed matched 27 files at
+`3d1b19b3` and matches none since the role-folder move. At `3d1b19b3` (#2047)
+the report lists the 7 texts of `ElementTemplateEditorController.ts`, which sat
+in `controller/` outside that scope, among them `${…} already exists in ${…}.`
+and the folder-pick placeholder. Reading and measuring takes about 0.35 s per
+tree.
+
+Alternatives considered:
+
+- **An ESLint rule with an allowlist.** Host chrome is correct, so the rule
+  fires on correct code and its allowlist is work in every PR that adds a
+  button; the delta shows what is new without one.
+- **A name scope** (`infrastructure/VsCode*.ts`). It saw 12 of 44 files that
+  import `vscode` at `773f8014`, missed the controller of #2047, and the move
+  to role folders emptied it.
+- **Every literal of a template joined with its placeholders.** It reports
+  format strings that hold no word, as measured above.
 
 ### Private upstream APIs
 

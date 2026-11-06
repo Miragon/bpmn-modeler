@@ -7,6 +7,8 @@ import { EngineRoleFolderSources } from "../../conventionCoverage/adapter/out/en
 import { createConventionCoverageFitnessFunction } from "../../conventionCoverage/service/conventionCoverageFitnessFunction";
 import { GitCommitHistory } from "../../history/adapter/out/gitCommitHistory";
 import { createHotspotsFitnessFunction } from "../../hotspots/service/hotspotsFitnessFunction";
+import { EngineHostTextSources } from "../../hostText/adapter/out/engineHostTextSources";
+import { createHostTextFitnessFunction } from "../../hostText/service/hostTextFitnessFunction";
 import { EngineValueSetSources } from "../../repeatedValueSets/adapter/out/engineValueSetSources";
 import { createRepeatedValueSetsFitnessFunction } from "../../repeatedValueSets/service/repeatedValueSetsFitnessFunction";
 import { createSizeAndComplexityFitnessFunction } from "../../sizeAndComplexity/service/sizeAndComplexityFitnessFunction";
@@ -22,6 +24,7 @@ export const FITNESS_FUNCTIONS: readonly FitnessFunction[] = [
     createMissedPartnerFitnessFunction({ history: commitHistory, sources: sourceStructure }),
     createConventionCoverageFitnessFunction({ sources: new EngineRoleFolderSources() }),
     createRepeatedValueSetsFitnessFunction({ sources: new EngineValueSetSources() }),
+    createHostTextFitnessFunction({ sources: new EngineHostTextSources() }),
     createSizeAndComplexityFitnessFunction({ sources: sourceMeasures }),
     createHotspotsFitnessFunction({ history: commitHistory, sources: sourceMeasures }),
     createMutationScoreFitnessFunction({ runs: new GitMutationRuns() }),

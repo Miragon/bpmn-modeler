@@ -46,6 +46,17 @@ fitness function reports every set written in two or more files that no
 from its home shows as resolved, not new: a resolved set is a fix only where its
 copies are gone, import their home or are pinned to it.
 
+The core builds every user-visible text, and a host renders it: prompts, status
+views, notifications and their buttons. A text a host would write goes into the
+owning feature's `domain/` with a builder, as `tokenPromptFor` builds the token
+prompt, so both hosts show the same words. Only two kinds of text stay in the
+host: its chrome, such as VS Code's "Reload Window" button, and messages about
+its own failure, such as the bridge process dying. The `host-text` fitness
+function reports every literal with two words in host code: a file that imports
+`vscode`, or a class outside the core that implements a core interface. A text a
+branch adds shows as new. It also lists host chrome and technical strings
+(HTML, CSS classes); judge each, and leave the host's own text where it is.
+
 ## Preserve the boundaries
 
 - Let applications consume packages and libraries, and packages consume reusable
