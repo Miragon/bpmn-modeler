@@ -108,8 +108,18 @@ describeEditorHandleContract("RpcEditorHandle", ({ fileName, content }) => {
         },
         content,
     );
+    const otherPath = "/work/other.bpmn";
+    const otherMeta: SessionMeta = {
+        ...host.meta,
+        editorId: `file://${otherPath}`,
+        sessionId: 2,
+        uriString: `file://${otherPath}`,
+        path: otherPath,
+        fsPath: otherPath,
+    };
     const mirror = new DocumentMirror();
     mirror.register(host.meta, content);
+    mirror.register(otherMeta, content);
     const settings = new BridgeSettings();
     const handle = new RpcEditorHandle(host.meta, mirror, host.rpc, settings);
 
@@ -121,6 +131,7 @@ describeEditorHandleContract("RpcEditorHandle", ({ fileName, content }) => {
         focus: () => handle.setActive(true),
         blur: () => handle.setActive(false),
         editElsewhere: (edited) => mirror.setContent(host.meta.editorId, host.edit(edited)),
+        editAnotherDocument: (edited) => mirror.setContent(otherMeta.editorId, edited),
         changeSettings: (values) => settings.apply(values),
         refuseWrites: () => {
             host.refusesWrites = true;

@@ -1,9 +1,12 @@
 import { ModelerSettingsSnapshot, settingKeyOf } from "../kernel/domain/modelerSettings";
 import { describeEditorHandleContract } from "./editorHandleContract";
-import { FakeEditorHandle } from "./FakeEditorHandle";
+import { DocumentChangeStream, FakeEditorHandle } from "./FakeEditorHandle";
 
 describeEditorHandleContract("FakeEditorHandle", ({ fileName, content }) => {
-    const handle = new FakeEditorHandle(`/work/${fileName}`, { content });
+    // Both documents share one change stream, as VS Code's global change event does.
+    const documentChanges = new DocumentChangeStream();
+    const handle = new FakeEditorHandle(`/work/${fileName}`, { content, documentChanges });
+    const otherHandle = new FakeEditorHandle("/work/other.bpmn", { content, documentChanges });
     return {
         handle,
         sendFromWebview: (message) => handle.receive(message),
@@ -11,6 +14,7 @@ describeEditorHandleContract("FakeEditorHandle", ({ fileName, content }) => {
         focus: () => handle.becomeActive(),
         blur: () => handle.loseFocus(),
         editElsewhere: (edited) => handle.changeDocument(edited),
+        editAnotherDocument: (edited) => otherHandle.changeDocument(edited),
         changeSettings: (values) =>
             handle.changeSetting(
                 ...Object.keys(values).map((key) =>

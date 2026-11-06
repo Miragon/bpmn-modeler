@@ -156,6 +156,11 @@ describeEditorHandleContract("VsCodeEditorHandle", ({ fileName, content }) => {
     const textDocumentChanges = new Emitter<unknown>();
     const configurationChanges = new Emitter<unknown>();
     const document = new FakeTextDocument(Uri.file(`/work/${fileName}`), content, textDocumentChanges);
+    const otherDocument = new FakeTextDocument(
+        Uri.file("/work/other.bpmn"),
+        content,
+        textDocumentChanges,
+    );
     const panel = new FakeWebviewPanel();
     let refusesEdits = false;
 
@@ -186,6 +191,8 @@ describeEditorHandleContract("VsCodeEditorHandle", ({ fileName, content }) => {
         focus: () => panel.show({ active: true, visible: true }),
         blur: () => panel.show({ active: false, visible: true }),
         editElsewhere: (edited) => document.replace(0, document.getText().length, edited),
+        editAnotherDocument: (edited) =>
+            otherDocument.replace(0, otherDocument.getText().length, edited),
         changeSettings: (values) => {
             const sections = Object.keys(values).map(
                 (key) =>

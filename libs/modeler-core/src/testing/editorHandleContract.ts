@@ -34,6 +34,8 @@ export interface EditorHandleContractFixture {
     blur(): void;
     /** Another editor or program changes the document. */
     editElsewhere(content: string): void;
+    /** Another open document of the same host changes. */
+    editAnotherDocument(content: string): void;
     /** The user gives modeler settings these values. */
     changeSettings(values: RawModelerSettings): void;
     /** The host refuses every later write and leaves the document as it was. */
@@ -103,7 +105,8 @@ const HANDLE_EVENTS: readonly HandleEvent[] = [
  * Left out, because the hosts differ and the core relies on neither:
  * - Whether an edit of another document reaches a listener: VS Code's event is
  *   global, the bridge's is per document; the participants filter by
- *   `documentUriString()`.
+ *   `documentUriString()`. The suite asserts only that such an edit is never
+ *   reported as a change of this document.
  * - The focus before the first change, and whether a repeated focus fires
  *   again: VS Code opens a panel active, the bridge opens one inactive and its
  *   register handler activates it.
@@ -332,6 +335,20 @@ export function describeEditorHandleContract(
                 fixture.editElsewhere(EDITED);
 
                 expect(changes).toEqual([changeOfThisDocument(EDITED)]);
+            });
+
+            // Each participant acts on every change that names its session's document.
+            it("never reports an edit of another document as a change of this document", () => {
+                const changes = recordChanges();
+
+                fixture.editAnotherDocument(EDITED);
+
+                expect(
+                    changes.filter(
+                        (change) => change.documentUriString === fixture.handle.documentUriString(),
+                    ),
+                ).toEqual([]);
+                expect(fixture.handle.getContent()).toBe(DOCUMENT.content);
             });
 
             // `SaveBeforeDeploy` deploys only a saved document.
