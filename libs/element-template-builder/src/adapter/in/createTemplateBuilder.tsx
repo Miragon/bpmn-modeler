@@ -1,8 +1,8 @@
 /** @jsxImportSource @bpmn-io/properties-panel/preact */
 import { render } from "@bpmn-io/properties-panel/preact";
 
-import type { TemplateBuilderState } from "../domain/editorPage";
-import type { TemplateEdit } from "../domain/templateText";
+import type { TemplateBuilderState } from "../../domain/editorPage";
+import type { TemplateEdit } from "../../domain/templateText";
 import type { Translate } from "./settings";
 import { TemplateBuilder } from "./TemplateBuilder";
 import "./builder.css";

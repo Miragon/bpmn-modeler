@@ -1,4 +1,4 @@
-import type { BindingSpec, EngineCatalog } from "../catalog";
+import type { BindingSpec, EngineCatalog } from "./catalog";
 import { arrayOf, objectOf, type Json } from "./json";
 
 /** The element types a binding works on; `undefined` for any. */

@@ -1,7 +1,7 @@
 # Architecture and hosts
 
 - Status: accepted
-- Last reviewed: 2026-11-04
+- Last reviewed: 2026-11-06
 
 ## Context
 
@@ -245,9 +245,8 @@ imports show the role it has. Each workspace declares its kind once, in the
 | `diagram-js` | the diagram-js feature libraries in `libs/` and `packages/bpmn-modeler`, `packages/dmn-modeler`, which follow the bpmn-js module layout |
 | `flat` | `modeler-types`, `shared`, `bpmn-diff`, `bpmn-i18n-extras`, `standalone-extension`, `tools/architecture-testing`, `docs`, `apps/standalone` |
 
-The DMN, Form and deployment webviews sit in their role folders. The BPMN
-webview (#2129) and the template builder (#2130) move in their own
-migrations.
+The template builder (#2130) and the DMN, Form and deployment webviews sit in
+their role folders. The BPMN webview moves in its own migration (#2129).
 
 In a `hexagonal` workspace the first role folder in a file's path is its role,
 and the path before it is its context, so `modeler/bpmn/service/x.ts` sits in
@@ -377,7 +376,14 @@ VS Code's input UI, settings writes and reload hint; the bridge's
 workspace-root registration, acknowledged marketplace persistence and
 rendering on `document/didChange`, because the host owns the document revision
 there. Host classes depend on the core ports, not
-on concrete adapters, so the in-memory test kit fits every one of them. Inbound
+on concrete adapters, so the in-memory test kit fits every one of them. Once
+a second class implements a port the core reads back from, the port has one
+contract suite in the test kit that every adapter runs, the in-memory fake
+included, as `describeWorkspaceContract` runs against `InMemoryWorkspace` and
+`NodeWorkspace`; a port that only renders and a strategy the core chooses
+between need none. The
+[`contract-suites`](engineering-practices.md#contract-suites) report lists the
+adapters that run no suite of their port. Inbound
 adapters never import outbound ones (rule 6 of the
 [role folders](#workspace-kinds-and-role-folders)): a VS Code controller gets a
 port (`ModelerPreferences`), a factory (`EditorHandleFactory`,
@@ -403,14 +409,18 @@ a lint-style summary whose list opens upwards without covering a field. The JSON
 stays one toggle away beside it, where the host's own JSON support (`$schema`
 IntelliSense, undo, diagnostics) applies.
 
-The builder library keeps its layers pointing one way, and its
-`architecture.spec.ts` enforces it: `catalog/` is the engines' data, `domain/` the
-rules over it as pure code, `ui/` renders both. The catalog's conformance and
-coverage specs hold it to the official schemas in both directions, so a schema bump
-fails until someone decides what the builder does with a new binding. It depends
-on `jsonc-parser`, because an edit must keep the file's formatting, comments and
-unknown keys, so it changes the text rather than reprinting a parsed template, and
-on `@bpmn-io/element-templates-validator`, so it does not restate the schemas.
+The builder library is a `hexagonal` workspace: `domain/catalog/` is the
+engines' data, the rest of `domain/` the rules over it as pure code, and
+`adapter/in/` the UI that renders both. The repo-level role-folder rules hold
+that direction; the library's own `architecture.spec.ts` adds what they do not
+read: the catalog imports no rule and declares no function but `catalogFor`,
+the domain names no DOM global, and only `adapter/in/` imports the panel's
+Preact or a stylesheet. The catalog's conformance and coverage specs hold it to
+the official schemas in both directions, so a schema bump fails until someone
+decides what the builder does with a new binding. It depends on `jsonc-parser`,
+because an edit must keep the file's formatting, comments and unknown keys, so
+it changes the text rather than reprinting a parsed template, and on
+`@bpmn-io/element-templates-validator`, so it does not restate the schemas.
 Its Preact is the one `@bpmn-io/properties-panel` bundles, so the page ships no
 second copy. `applyTemplateEdits` returns a result instead of throwing: valid JSON
 that breaks the schema can make an edit impossible, and the page then writes
@@ -971,7 +981,14 @@ Kotlin copy of the normalisation, because the IDE's Settings page stores and
 shows the values without the bridge.
 `settingsNormalization.cases.json` beside the rule holds the rows all three
 hosts run (see [test-first for rules](engineering-practices.md#test-first-for-rules));
-the Kotlin test also compares its defaults with the manifest's.
+the Kotlin test also compares its defaults with the manifest's and its modes
+with `SURFACE_MODES`, the set the core accepts. The manifest contract spec holds
+the manifest's `defaultMode` choices to the same set in both directions and
+requires a label for each. The IntelliJ Settings page offers the manifest's
+modes and labels in its order and labels each mode as the modeler's mode strip
+does (`MODE_LABEL` in `modeStrip.ts`); its test reads both from the rendered
+page. `apps/vscode-plugin` does not depend on `@miragon/bpmn-modeler`, so the
+manifest's labels reach `MODE_LABEL` only through that Kotlin test.
 
 The lint choice is a snapshot setting like the others, but the IntelliJ
 Settings page has no field for it: the editor's lint toggle and the BPMNlint

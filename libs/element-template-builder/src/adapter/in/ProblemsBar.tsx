@@ -1,5 +1,6 @@
 /** @jsxImportSource @bpmn-io/properties-panel/preact */
-import type { Diagnostic } from "../domain/diagnostics";
+import type { Diagnostic } from "../../domain/diagnostics";
+import { bySeverity } from "../../domain/severity";
 import type { Translate } from "./settings";
 
 export interface Problem extends Diagnostic {
@@ -43,8 +44,6 @@ const ICONS: Readonly<Record<IconKind, { viewBox: string; path: string }>> = {
     },
 };
 
-const SEVERITY_ORDER: readonly Diagnostic["severity"][] = ["error", "warning", "info"];
-
 export function SeverityIcon({ kind }: { kind: IconKind }) {
     const { viewBox, path } = ICONS[kind];
     return (
@@ -74,9 +73,7 @@ export function ProblemsBar({
     const warnings = problems.filter((problem) => problem.severity === "warning").length;
     const state: IconKind = errors ? "error" : warnings ? "warning" : "success";
     const expanded = open && problems.length > 0;
-    const listed = [...problems].sort(
-        (a, b) => SEVERITY_ORDER.indexOf(a.severity) - SEVERITY_ORDER.indexOf(b.severity),
-    );
+    const listed = [...problems].sort(bySeverity);
     return (
         <div class="etb-problems">
             {expanded ? (

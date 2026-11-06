@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 
-import { C8_SCHEMA, mountFile } from "./__fixtures__/builderHarness";
+import { C8_SCHEMA, mountFile } from "../../__fixtures__/builderHarness";
 
 type Json = Record<string, unknown>;
 

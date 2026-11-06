@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, expectTypeOf } from "vitest";
 import type { ModelNavigationPort } from "@miragon/bpmn-model-navigation";
 import { BpmnModeler } from "./modeler";
 import { BpmnViewer } from "./viewer/viewer";
@@ -139,7 +139,8 @@ void _scenarioAsyncNav;
 
 const _formAwareNavigation = {
     openReference: (_reference) => undefined,
-    isReferenceAvailable: ({ id, kind }) => kind !== "form" || id === "Form_Request",
+    isReferenceAvailable: ({ id, kind }) =>
+        ({ process: true, decision: true, form: id === "Form_Request" })[kind],
     onReferenceAvailabilityChanged: (_listener) => () => undefined,
 } satisfies ModelNavigationPort;
 void _formAwareNavigation;
@@ -198,8 +199,8 @@ type _EntryConformsToLintModule = typeof import("./bpmnlint") extends LintModule
 const _entryConforms: _EntryConformsToLintModule = true;
 void _entryConforms;
 
-const _themes = ["light", "dark", "automatic"] satisfies ThemeMode[];
-void _themes;
+// ThemeMode aliases the private SurfaceThemeMode, so an edit there would change the published type.
+expectTypeOf<ThemeMode>().toEqualTypeOf<"light" | "dark" | "automatic">();
 const _lintOff: LintingOptions = false;
 const _lintExternal: LintingOptions = { module: _lintModule, results: "external" };
 const _lintConfig: LintingOptions = { module: _lintModule, config: {} };

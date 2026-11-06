@@ -2,7 +2,10 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
+import { ENGINES } from "@miragon/bpmn-modeler-types";
+
 import { DisallowedEnvReferenceError } from "./errors";
+import { TARGET_AUTH_TYPES } from "./deploymentTarget";
 import { assertEnvRefsValid, isWholeEnvRef } from "./envRef";
 
 const SCHEMA_PATH = resolve(__dirname, "../../../../shared/src/lib/deploymentTargets.schema.json");
@@ -18,39 +21,80 @@ const TEMPLATE_FIELDS = [
     "endpoints.startInstance",
 ];
 
+const ENUMERATED_FIELD_HOMES: readonly (readonly [string, readonly string[]])[] = [
+    ["engine", ENGINES],
+    ["auth.type", TARGET_AUTH_TYPES],
+];
+
+interface SchemaProperty {
+    readonly field: string;
+    readonly schemaNode: Record<string, unknown>;
+}
+
 interface PatternedProperty {
     readonly field: string;
     readonly pattern: string;
     readonly patternErrorMessage: unknown;
 }
 
-/** Dotted property path below `node`, e.g. `auth.username` from a target entry. */
-function patternedProperties(node: unknown, path: readonly string[] = []): PatternedProperty[] {
+interface EnumeratedProperty {
+    readonly field: string;
+    readonly values: readonly unknown[];
+}
+
+const PROPERTY_NAMING_KEYWORDS = new Set([
+    "properties",
+    "patternProperties",
+    "definitions",
+    "$defs",
+]);
+
+/**
+ * Every object below `node` by dotted path, e.g. `auth.username` from a target entry.
+ * It enters every value, not a list of subschema keywords, so no keyword hides an enum.
+ */
+function schemaProperties(node: unknown, path: readonly string[] = []): SchemaProperty[] {
+    if (Array.isArray(node)) {
+        return node.flatMap((child) => schemaProperties(child, path));
+    }
     if (typeof node !== "object" || node === null) {
         return [];
     }
     const schemaNode = node as Record<string, unknown>;
-    const own: PatternedProperty[] =
+    const below = Object.entries(schemaNode).flatMap(([keyword, value]) =>
+        PROPERTY_NAMING_KEYWORDS.has(keyword) && typeof value === "object" && value !== null
+            ? Object.entries(value).flatMap(([name, child]) =>
+                  schemaProperties(child, [...path, name]),
+              )
+            : schemaProperties(value, path),
+    );
+    return [{ field: path.join("."), schemaNode }, ...below];
+}
+
+function patternedProperties(node: unknown): PatternedProperty[] {
+    return schemaProperties(node).flatMap(({ field, schemaNode }) =>
         typeof schemaNode.pattern === "string"
             ? [
                   {
-                      field: path.join("."),
+                      field,
                       pattern: schemaNode.pattern,
                       patternErrorMessage: schemaNode.patternErrorMessage,
                   },
               ]
-            : [];
-    const nested = Object.entries(schemaNode.properties ?? {}).flatMap(([name, child]) =>
-        patternedProperties(child, [...path, name]),
+            : [],
     );
-    const items = patternedProperties(schemaNode.items, path);
-    return [...own, ...nested, ...items];
+}
+
+function enumeratedProperties(node: unknown): EnumeratedProperty[] {
+    return schemaProperties(node).flatMap(({ field, schemaNode }) =>
+        Array.isArray(schemaNode.enum) ? [{ field, values: schemaNode.enum }] : [],
+    );
 }
 
 const schema: unknown = JSON.parse(readFileSync(SCHEMA_PATH, "utf8"));
-const targetProperties = patternedProperties(
-    (schema as { properties: { targets: unknown } }).properties.targets,
-);
+const targetsNode = (schema as { properties: { targets: unknown } }).properties.targets;
+const targetProperties = patternedProperties(targetsNode);
+const targetEnums = enumeratedProperties(targetsNode);
 
 function patternsOf(fields: string[]): string[] {
     const patterns = targetProperties
@@ -87,6 +131,45 @@ describe("deployment targets schema", () => {
     // Editors validate against the schema while typing, the modeler against the
     // parser on load: a value only one accepts is a false squiggle or a silent pass.
     describe("agrees with the parser", () => {
+        it("enumerates exactly the fields whose values the parser takes from a list", () => {
+            expect(enumeratedProperties(schema)).toHaveLength(targetEnums.length);
+            expect(targetEnums.map((property) => property.field).sort()).toEqual(
+                ENUMERATED_FIELD_HOMES.map(([field]) => field).sort(),
+            );
+        });
+
+        // The check above is only as complete as the walk that collects the enums.
+        it.each<[string, unknown, string]>([
+            [
+                "oneOf",
+                { properties: { auth: { oneOf: [{ properties: { type: { enum: ["x"] } } }] } } },
+                "auth.type",
+            ],
+            [
+                "a nested if/then",
+                {
+                    allOf: [
+                        {
+                            if: { properties: { type: { const: "basic" } } },
+                            then: { properties: { username: { enum: ["x"] } } },
+                        },
+                    ],
+                },
+                "username",
+            ],
+            ["prefixItems", { prefixItems: [{ type: "string" }, { enum: ["x"] }] }, ""],
+        ])("finds an enum under %s at its property path", (_keyword, schemaFragment, field) => {
+            expect(enumeratedProperties(schemaFragment)).toEqual([{ field, values: ["x"] }]);
+        });
+
+        it.each(ENUMERATED_FIELD_HOMES)(
+            "offers exactly the values the parser accepts as %s",
+            (field, home) => {
+                const offered = targetEnums.find((property) => property.field === field)?.values;
+                expect([...(offered ?? [])].sort()).toEqual([...home].sort());
+            },
+        );
+
         const [credentialPattern] = patternsOf(CREDENTIAL_FIELDS);
         const [templatePattern] = patternsOf(TEMPLATE_FIELDS);
 

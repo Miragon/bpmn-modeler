@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { BusinessObjectLike, extractReference } from "./extractReference";
+import type { ReferenceKind } from "@miragon/bpmn-modeler-types";
+
+import { BusinessObjectLike, extractModelReference, extractReference } from "./extractReference";
 
 function businessObject(attrs: Record<string, unknown>): BusinessObjectLike {
     return {
@@ -128,4 +130,39 @@ describe("extractReference", () => {
     it("returns undefined for missing business object", () => {
         expect(extractReference(undefined, "process")).toBeUndefined();
     });
+});
+
+describe("extractModelReference", () => {
+    const definitions = { $attrs: { "xmlns:child": "urn:example:child" } };
+    const elementReferencing = (attrs: Record<string, unknown>): BusinessObjectLike => ({
+        ...businessObject(attrs),
+        $parent: definitions,
+    });
+
+    it.each<{ kind: ReferenceKind; attrs: Record<string, unknown>; expected: object }>([
+        {
+            kind: "process",
+            attrs: { calledElement: "child:Process_Target" },
+            expected: { id: "Process_Target", namespace: "urn:example:child", kind: "process" },
+        },
+        {
+            kind: "decision",
+            attrs: { "camunda:decisionRef": "child:Decision_1" },
+            expected: { id: "child:Decision_1", kind: "decision" },
+        },
+        {
+            kind: "form",
+            attrs: {
+                extensionElements: {
+                    values: [{ $type: "zeebe:FormDefinition", formId: "child:Form_1" }],
+                },
+            },
+            expected: { id: "child:Form_1", kind: "form" },
+        },
+    ])(
+        "resolves a prefix only where the $kind reference is a QName",
+        ({ kind, attrs, expected }) => {
+            expect(extractModelReference(elementReferencing(attrs), kind)).toEqual(expected);
+        },
+    );
 });

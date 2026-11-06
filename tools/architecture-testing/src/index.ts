@@ -1,5 +1,16 @@
 export type { ArchitectureRule } from "./architectureRule";
 export { readComments, stripComments } from "./comments";
+export { findContractSuites } from "./contractSuites";
+export type {
+    AdapterSpec,
+    ContractHelper,
+    ContractSuites,
+    ContractSuiteScope,
+    DeclarationName,
+    PortAdapter,
+    PortDeclaration,
+    PortMember,
+} from "./contractSuites";
 export { buildDeclarationGraph } from "./declarationGraph";
 export type { DeclarationEdge, DeclarationGraphOptions } from "./declarationGraph";
 export { filesReaching, isHostModule } from "./hostReach";
@@ -51,6 +62,7 @@ export type { CallSite, TextLiteral } from "./textLiterals";
 export { findTypeEqualityPins } from "./typeEqualityPins";
 export type { TypeEqualityPin, TypeEqualityPinOptions } from "./typeEqualityPins";
 export { readTypeProgram } from "./typeProgram";
+export type { TypeProgramOptions } from "./typeProgram";
 export { readValueSets } from "./valueSets";
 export type { ValueSetLiteral } from "./valueSets";
 export { isWorkspaceKind, RULES_BY_KIND } from "./workspaceKinds";
