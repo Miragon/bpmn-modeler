@@ -170,12 +170,15 @@ export class InMemoryWorkspace implements WorkspacePort {
     async findFiles(pattern: string, exclude?: string | null): Promise<string[]> {
         const include = globToRegExp(pattern);
         const excluded = exclude ? globToRegExp(exclude) : undefined;
+        const folderPaths = this.folders.map((folder) => withoutFileScheme(folder));
         const found: string[] = [];
-        for (const folder of this.folders) {
-            const folderPath = withoutFileScheme(folder);
+        for (const folderPath of folderPaths) {
+            // A folder open inside this one lists its own files, as in VS Code.
+            const nestedFolders = folderPaths.filter((other) => relativeToRoot(other, folderPath));
             for (const filePath of this.files.keys()) {
                 const relative = relativeToRoot(filePath, folderPath);
                 if (!relative || !include.test(relative) || excluded?.test(relative)) continue;
+                if (nestedFolders.some((nested) => isWithinRoot(filePath, nested))) continue;
                 found.push(filePath);
             }
         }
