@@ -6,7 +6,6 @@ import {
     DeploymentConfigPayload,
     DeploymentFormDefaults,
     DeploymentResultQuery,
-    type DeploymentSidebarCommand,
     DeploymentTargetPayload,
     DeploymentTargetsQuery,
     LogInfoCommand,
@@ -16,7 +15,6 @@ import {
     SaveTargetCommand,
     SelectTargetCommand,
     StoredCredentialsQuery,
-    HostApi,
 } from "@miragon/bpmn-modeler-shared";
 import { Engine, isEngine } from "@miragon/bpmn-modeler-types";
 
@@ -27,7 +25,7 @@ import {
     draftControls,
     executionBlockedReason,
 } from "../../domain/deploymentDraft";
-import type { WebviewState } from "../../port/deploymentHost";
+import type { DeploymentHost } from "../../port/deploymentHost";
 
 const CONVENTION_DEPLOY_URL: Record<Engine, string> = {
     c7: "<endpoint>/deployment/create",
@@ -40,7 +38,7 @@ const CONVENTION_START_URL: Record<Engine, string> = {
 
 /**
  * Intentionally framework-free — manipulates the DOM directly and talks to
- * the extension host via the `postMessage` API wrapped by {@link HostApi}.
+ * the extension host via the `postMessage` API wrapped by {@link DeploymentHost}.
  */
 export class DeploymentForm {
     private static readonly DEFAULT_COLLAPSED_SECTIONS: string[] = [];
@@ -128,7 +126,7 @@ export class DeploymentForm {
     /**
      * @throws {Error} If any expected DOM element is missing.
      */
-    constructor(private readonly host: HostApi<WebviewState, DeploymentSidebarCommand>) {
+    constructor(private readonly host: DeploymentHost) {
         this.deploymentNameInput = this.requireElement<HTMLInputElement>("#deployment-name");
         this.targetSelect = this.requireElement<HTMLSelectElement>("#target-select");
         this.targetNewBtn = this.requireElement<HTMLButtonElement>("#target-new");
