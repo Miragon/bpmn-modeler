@@ -1,4 +1,6 @@
 import { spawnSync } from "node:child_process";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -13,5 +15,23 @@ describe("the fitness bin", () => {
 
         expect(stderr).toContain("fitness: unknown command no-such-command");
         expect(status).toBe(2);
+    });
+
+    it("measures the checkout --repo names, and exits 1 on a folder that is none", () => {
+        const folder = mkdtempSync(join(tmpdir(), "fitness-spec-plain-"));
+
+        try {
+            const { status, stdout, stderr } = spawnSync(
+                process.execPath,
+                [BIN, "--repo", folder],
+                { encoding: "utf8" },
+            );
+
+            expect(stderr).toContain(`fitness: ${folder} is not a git checkout`);
+            expect(stdout).toBe("");
+            expect(status).toBe(1);
+        } finally {
+            rmSync(folder, { recursive: true, force: true });
+        }
     });
 });

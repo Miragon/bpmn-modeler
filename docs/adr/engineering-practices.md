@@ -1,7 +1,7 @@
 # Engineering practices
 
 - Status: accepted
-- Last reviewed: 2026-11-03
+- Last reviewed: 2026-11-06
 
 ## Context
 
@@ -17,6 +17,7 @@ need compatibility proof for the paths the build and plugin installer exercise.
 - [Coverage gates](#coverage-gates)
 - [Mutation testing](#mutation-testing)
 - [CI test targets](#ci-test-targets)
+- [Architecture erosion](#architecture-erosion)
 - [Architecture tests](#architecture-tests)
 - [Fitness function report](#fitness-function-report)
 - [Change coupling](#change-coupling)
@@ -26,6 +27,7 @@ need compatibility proof for the paths the build and plugin installer exercise.
 - [Hotspots](#hotspots)
 - [Missed partner](#missed-partner)
 - [Host text](#host-text)
+- [Architecture review](#architecture-review)
 - [Private upstream APIs](#private-upstream-apis)
 - [Dependency compatibility and security](#dependency-compatibility-and-security)
 - [Consequences](#consequences)
@@ -303,6 +305,42 @@ release-please PR (changelogs, manifests) gets none. A manual
 from March 2026 it processed none of the uploads, and nobody noticed, because
 the thresholds are the gate and nothing read its numbers.
 
+### Architecture erosion
+
+The goal: the architecture and the software design do not erode over time.
+Erosion is the gap between the intended architecture and the code. #1799
+restored the intended design: one rule in one place, decisions in the domain
+model, hosts that only render, no message left unhandled. No single strategy
+controls erosion. A survey groups the approaches into minimising, preventing
+and repairing it, and concludes that they have to be combined (de Silva and
+Balasubramaniam, "Controlling software architecture erosion: A survey", JSS
+85(1), 2012). Three parts are combined here, named in the terms of Böckeler
+("Harness engineering for coding agent users", martinfowler.com, 2026),
+because coding agents write most changes:
+
+1. **Rules for agents**, a guide: where code goes and how a rule is named,
+   read before the change. They live in the skills in `.agents/skills/`,
+   which Codex and Claude Code both load when a task needs them. Agents do not
+   always follow them; they are what the fitness functions rely on.
+2. **Fitness functions**, computational sensors: deterministic checks of the
+   result (Ford, Parsons, Kua, Building Evolutionary Architectures, 2017),
+   the blocking [architecture tests](#architecture-tests) and the reported
+   ones of the [fitness function report](#fitness-function-report).
+3. **The [architecture review](#architecture-review)**, an inferential
+   sensor: a model's judgement of the result, which reads the report and
+   reviews what no fitness function sees.
+
+**When a fitness function blocks.** Only when it is static and never fires on
+correct code: the architecture specs (import direction, role folders, cycles,
+stability, the webview command scan), the ESLint rules for an empty function
+in an adapter and a guarded value compared outside its home, the command
+coverage tables and the type check. A blocking function misses code outside
+its scope; a miss is a reason to report that code, not to stop blocking what
+it catches. Every other fitness function, each dynamic one and each static one
+that can fire on correct code (a size limit, host text), is reported and never
+fails a build. A gate on a heuristic needs an exception list, and that list is
+work in every PR: #2094 measured 50 of 200 PRs editing one.
+
 ### Architecture tests
 
 Every `architecture.spec.ts` reads its sources through one engine,
@@ -449,14 +487,31 @@ Alternatives considered:
 
 ### Fitness function report
 
-A fitness function that never fires on correct code is static and blocks the
-build, as the architecture tests do. Every other one is reported: it plugs into
+A reported fitness function ([which ones block](#architecture-erosion)) plugs
+into
 [`tools/repo-checks/src/fitness`](../../tools/repo-checks/src/fitness/composition/fitnessFunctions.ts)
 and never fails a build. `corepack yarn fitness` prints the report of the
 current checkout against `git merge-base HEAD origin/main` as Markdown, or as
-JSON with `--format json` for the review agent. It exits non-zero only on
-broken input: no `origin/main`, no merge base (a shallow clone), a corrupt
-snapshot, or a fitness function that throws or returns a malformed finding.
+JSON with `--format json` for the [architecture review](#architecture-review).
+It exits non-zero only on broken input: a base that names no commit (no
+`origin/main` before a fetch), no merge base (a shallow clone), a `--repo`
+that is no checkout root, a corrupt snapshot, or a fitness function that
+throws or returns a malformed finding.
+
+**Another base or tree.** `--base <rev>` compares with
+`git merge-base HEAD <rev>`; `<rev>` need not be an ancestor of HEAD, so a
+PR's head with its `baseRefOid` compares with the commit the PR branched
+from. `--repo <dir>` measures another checkout of this repository, such as a
+worktree of an old commit: today's code of every fitness function reads that
+tree, so it needs no install, and HEAD, the refs, the snapshot branch and the
+base worktree are that checkout's. A relative `<dir>` is read from the
+repository root. The review's measurement on known cases needs both. A function
+that cannot measure an old tree throws `InsufficientHistory` and is reported
+as not measurable there, and the others report as usual. At `3d1b19b3` (#2047)
+with `--base 452b6440` the merge base is `fb89b28e`; 6 of 8 functions
+measured against the stored snapshot of the merge base,
+`convention-coverage` (no workspace declared a kind yet) and `mutation-score`
+(no stored run on that chain) did not, and a run took 4 to 6 s on a laptop.
 
 **Contract.** A fitness function declares `id`, `version`, its categories
 (scope atomic or holistic, cadence triggered, result static or dynamic), what
@@ -985,6 +1040,46 @@ Alternatives considered:
 - **Every literal of a template joined with its placeholders.** It reports
   format strings that hold no word, as measured above.
 
+### Architecture review
+
+The [`architecture-review` skill](../../.agents/skills/architecture-review/SKILL.md)
+(#2058) is the inferential sensor of
+[architecture erosion](#architecture-erosion). It runs
+`corepack yarn fitness --format json` on a branch, a PR (`--repo` on a
+worktree of its head, `--base` its base) or a past commit, and reads per
+fitness function the findings with their status (new, existing, resolved),
+the trend of the declared values and the function's limits (categories,
+measures, the rule it relies on, misses, false reports, evidence) from the
+same output, so no second document drifts from the code. It searches for
+copies of a rule with one `git grep` over the tracked TypeScript, Kotlin,
+docs and JSON, and takes the `change-coupling` and `missed-partner` findings
+of the touched files as the search for copies whose spelling is unknown. It
+reviews what no fitness function sees, #1799's structural causes: a rule in
+another spelling, logic in the wrong layer, wiring per host, catch-all
+modules and silently ignored commands. It proposes measures from trends, and
+each finding names `path:line`, its evidence and the fitness function or limit
+that applies. "Already duplicated before this PR" is never a reason to keep a
+copy: the PR fixes it, or an issue names `path:line` of each copy.
+
+It is not a fitness function: a model's judgement is not deterministic, and
+two runs on one tree can differ. It comments and never blocks. A CI job that
+runs it on every PR is out of scope until it is measured; it needs a
+workflow, an API secret and possibly a dependency.
+
+**Measurement (TODO, #2058).** _Placeholder: the results on #2040
+(`e12239f4` against `a313ddab`), #2047 (`3d1b19b3` against `452b6440`) and
+#1799's structural causes, each run more than once, with what the skill
+found, what it missed and what it reported beyond the reference, replace this
+paragraph._
+
+Alternatives considered:
+
+- **A search script**, grouped by area: it needs a spec and a `knip` entry
+  for what one `git grep` does; it can follow if the command proves too
+  coarse.
+- **Review steps in the `architecture` and `tdd` skills**: a skill of its
+  own loads only on a review and costs no context elsewhere.
+
 ### Private upstream APIs
 
 Confine access to undocumented upstream members behind small typed adapters,
@@ -1126,7 +1221,8 @@ The mutation run is one more workflow to keep green, and its score says
 little until rules move from services into `domain/`.
 Reported fitness functions never block a merge, so reviewers and the review
 agent read their new findings; the report is as complete as the functions
-plugged into it. The data branch is one more ref to keep: deleting it costs a
+plugged into it. The review's comments vary between runs, so it is trusted
+only as far as its measurement on known cases shows. The data branch is one more ref to keep: deleting it costs a
 backfill, and nothing but convention keeps people from pushing to it.
 Rules move into `domain/` before or together with the feature that needs
 them, so services shrink to orchestration. No gate enforces test-first;

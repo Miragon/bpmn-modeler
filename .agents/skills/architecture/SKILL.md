@@ -28,7 +28,8 @@ Decisions (rules, state transitions, validations) go into the owning feature's
 `domain/` as pure code, or into `libs/modeler-types` when browser code applies
 the same rule, written test-first with the [tdd](../tdd/SKILL.md) skill.
 
-A service orchestrates; a rule lives in `domain/`, named after the rule. A
+A service orchestrates; a rule lives in `domain/`, named after the rule it
+decides (for example `canVerifyDeployment`, not `check` or `validate`). A
 service that grows usually holds a rule in the wrong home. The
 `size-and-complexity` fitness function reports each file's code lines and
 highest complexity with their trend; `hotspots` ranks the files that are large
@@ -179,6 +180,7 @@ their resources on disposal. The store, router and lifecycle live in the core's
 Consult only the specialist guidance needed for the task:
 
 - [tdd](../tdd/SKILL.md): failing spec first, rules in the domain model.
+- [architecture-review](../architecture-review/SKILL.md): review a branch or PR against the fitness function report.
 - [bpmn-js](../bpmn-js/SKILL.md): DI modules and diagram interactions.
 - [vscode-webviews](../vscode-webviews/SKILL.md) and [vscode-custom-editors](../vscode-custom-editors/SKILL.md): transport, document sync, and lifecycle.
 - [intellij-plugin](../intellij-plugin/SKILL.md): bridge contracts, Gradle, and JCEF.

@@ -114,7 +114,7 @@ MCP format is needed. See the [Conductor MCP reference](https://conductor.build/
 1. Restart the client after changing instructions or tool configuration. Ask
    it to summarize the repository instructions: it should identify the shared
    source, `corepack yarn`, the ADR rule, and the commit conventions.
-2. Check that all ten repository skills are available, including `architecture`,
+2. Check that all twelve repository skills are available, including `architecture`,
    `commit`, and `bpmn-browser-testing`. Use `/skills` or `$` in Codex and the
    `/` menu in Claude Code. Merely checking the commit skill should not commit
    anything.
