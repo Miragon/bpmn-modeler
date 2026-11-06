@@ -131,10 +131,12 @@ export function describeEditorHandleContract(
         });
 
         describe("identity", () => {
-            // `/c:/…` on VS Code and `C:/…` on IntelliJ are both absolute.
-            it("names the session by its document's URI, and a file on disk by an absolute, /-separated path", () => {
+            // `/c:/…` on VS Code and `C:/…` on IntelliJ are both absolute. The OS path goes to
+            // `getDocumentDirectory` and the code-link handlers, and may also be a `\\…` share.
+            it("names the session by its document's URI, and a file on disk by an absolute, /-separated path and an absolute OS path", () => {
                 const { handle } = fixture;
                 const path = handle.documentPath();
+                const fsPath = handle.documentFsPath();
 
                 expect({
                     id: handle.id,
@@ -143,7 +145,8 @@ export function describeEditorHandleContract(
                     absolutePath: /^(\/|[A-Za-z]:\/)/.test(path),
                     backslashInPath: path.includes("\\"),
                     pathFile: path.split("/").pop(),
-                    fsPathFile: handle.documentFsPath().split(/[\\/]/).pop(),
+                    absoluteFsPath: /^(\/|[A-Za-z]:[\\/]|\\\\)/.test(fsPath),
+                    fsPathFile: fsPath.split(/[\\/]/).pop(),
                 }).toEqual({
                     id: handle.documentUriString(),
                     scheme: "file",
@@ -151,6 +154,7 @@ export function describeEditorHandleContract(
                     absolutePath: true,
                     backslashInPath: false,
                     pathFile: DOCUMENT.fileName,
+                    absoluteFsPath: true,
                     fsPathFile: DOCUMENT.fileName,
                 });
             });
