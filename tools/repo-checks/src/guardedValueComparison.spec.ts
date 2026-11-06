@@ -121,14 +121,28 @@ export const guardedIsC8 = "c8" == guardedEngine;`,
         expect(await lintAppended(file, snippet)).toHaveLength(errors);
     });
 
-    it("names the home and the fix", async () => {
-        const [message] = await lintAppended(
-            DEPLOYMENT_SERVICE,
-            `declare const guardedEngine: ${ENGINE};
+    it.each([
+        {
+            type: "Engine",
+            snippet: `declare const guardedEngine: ${ENGINE};
 export const guardedIsC7 = guardedEngine === "c7";`,
-        );
-        expect(message.message).toContain("libs/modeler-types/src/engine.ts");
-        expect(message.message).toContain("Add a capability");
+            fragments: ["libs/modeler-types/src/engine.ts", "Add a capability"],
+        },
+        {
+            type: "ReferenceKind",
+            snippet: `declare const guardedKind: import("@miragon/bpmn-modeler-types").ReferenceKind;
+export const guardedIsForm = guardedKind === "form";`,
+            fragments: [
+                "libs/modeler-types/src/referenceKind.ts",
+                "Add a capability",
+                "Record<ReferenceKind",
+            ],
+        },
+    ])("names the home and the fix for $type", async ({ snippet, fragments }) => {
+        const [message] = await lintAppended(DEPLOYMENT_SERVICE, snippet);
+        for (const fragment of fragments) {
+            expect(message.message).toContain(fragment);
+        }
     });
 
     it.each([
