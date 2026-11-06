@@ -20,7 +20,7 @@ verify details against source because older guides and ADRs may be outdated.
 | Public-facing types, browser utilities and pure rules browser code shares with the core | `libs/modeler-types`; keep the surface suitable for publication. |
 | Private messages and webview chrome | `libs/shared/src/lib/`; base/sync messages in `messages.ts`, feature payloads in their corresponding files, host channel in `host.ts`. |
 | Host-independent domain logic and services | Feature folders in `libs/modeler-core/src/`, with the shared vocabulary in `kernel/` and the editor-session core in `editorSession/`; consumers use its `index.ts`. |
-| IDE protocol-to-modeler adaptation | `apps/bpmn-webview/src/bootstrap.ts` and its `src/session/` modules, `apps/dmn-webview/src/composition/bootstrap.ts`. |
+| IDE protocol-to-modeler adaptation | `apps/bpmn-webview/src/composition/bootstrap.ts` and the adapters and services it wires, `apps/dmn-webview/src/composition/bootstrap.ts`. |
 | Form editing and deployment UI | `apps/form-webview`; `apps/deployment-webview`, whose markup lives in `src/adapter/in/formTemplate.ts`. |
 | Host integration and lifecycle | `apps/vscode-plugin/src/main.ts` and `src/composition/`; `apps/modeler-bridge/src/server.ts` and `src/composition/` (`bridge.ts`); Kotlin host in `apps/intellij-plugin`. |
 
@@ -175,9 +175,11 @@ file or type name:
 9. Only `testing/` imports `testing/`; nothing imports an entry.
 
 In a webview the UI, its markup and the router for the host's queries are
-`adapter/in/`, the host channel `adapter/out/`, the channel's type and the
-state it persists `port/`, a document session `service/`, pure rules
-`domain/`, the bootstrap `composition/`, and `main.ts` the entry.
+`adapter/in/`, the host channel and the modeler-library wrappers
+`adapter/out/`, the channel's type, the state it persists and the ports a
+session calls `port/`, a session that syncs with the host through injected
+handles `service/`, pure rules `domain/`, the bootstrap `composition/`, and
+`main.ts` the entry.
 
 A `diagram-js` or `flat` workspace holds no role folder (same spec). ESLint
 bans `() => {}` in `adapter/` (`eslint.config.cjs`). A workspace not yet moved
