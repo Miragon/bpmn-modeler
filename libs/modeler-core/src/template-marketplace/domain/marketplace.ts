@@ -14,7 +14,11 @@
  * rather than silently dropping it.
  */
 
-import { MarketplaceSettingsEntry } from "../../kernel/domain/modelerSettings";
+import {
+    isMarketplaceProvider,
+    MarketplaceSettingsEntry,
+} from "../../kernel/domain/modelerSettings";
+import { publicHostOf, repositoryHostOf } from "./repositorySourceConfig";
 
 /**
  * Thrown when a `marketplace.json` (or the URL desugared into a registration)
@@ -202,7 +206,7 @@ function extractHost(input: string): string | undefined {
 /**
  * Validates a self-hosted `baseUrl` to an http(s) URL, returned with any
  * trailing slash stripped so an adapter can append `/api/...` without doubling
- * it. Validating with `new URL` here means `hostForConfig` can re-parse it
+ * it. Validating with `new URL` here means `repositoryHostOf` can re-parse it
  * without a try/catch.
  */
 function parseBaseUrl(raw: unknown, context: string): string {
@@ -485,7 +489,7 @@ export function parseMarketplaceEntry(entry: MarketplaceSettingsEntry): Marketpl
 
 function parseMarketplaceObject(entry: Record<string, unknown>): MarketplaceRegistration {
     const { provider } = entry;
-    if (provider !== "github" && provider !== "gitlab") {
+    if (!isMarketplaceProvider(provider)) {
         throw new InvalidMarketplaceError(
             `marketplace entry "provider" must be "github" or "gitlab"`,
         );
@@ -500,11 +504,7 @@ function parseMarketplaceObject(entry: Record<string, unknown>): MarketplaceRegi
     }
     const baseUrl =
         entry.baseUrl !== undefined ? parseBaseUrl(entry.baseUrl, "marketplace entry") : undefined;
-    const host = baseUrl
-        ? new URL(baseUrl).host
-        : provider === "gitlab"
-          ? "gitlab.com"
-          : "github.com";
+    const host = repositoryHostOf(provider, baseUrl);
 
     const segments = repo
         .trim()
@@ -558,16 +558,13 @@ export function marketplaceEntryLabel(entry: MarketplaceSettingsEntry): string {
     if (entry === null || typeof entry !== "object" || typeof entry.repo !== "string") {
         return JSON.stringify(entry);
     }
+    const provider = isMarketplaceProvider(entry.provider) ? entry.provider : "github";
+    const baseUrl = typeof entry.baseUrl === "string" ? entry.baseUrl : undefined;
     let host: string;
     try {
-        host =
-            typeof entry.baseUrl === "string" && entry.baseUrl.length > 0
-                ? new URL(entry.baseUrl).host
-                : entry.provider === "gitlab"
-                  ? "gitlab.com"
-                  : "github.com";
+        host = repositoryHostOf(provider, baseUrl);
     } catch {
-        host = entry.provider === "gitlab" ? "gitlab.com" : "github.com";
+        host = publicHostOf(provider);
     }
     const ref = typeof entry.ref === "string" ? entry.ref : undefined;
     return entryLabel(host, entry.repo, ref);

@@ -218,6 +218,31 @@ describe("marketplaceEntryLabel", () => {
         ).toBe("gl.acme.com/g/p");
     });
 
+    it.each([
+        {
+            behaviour: "falls back to GitHub's public host for a baseUrl that is not a URL",
+            entry: { provider: "github", repo: "a/b", baseUrl: "not a url" },
+            label: "github.com/a/b",
+        },
+        {
+            behaviour: "falls back to GitLab's public host for a baseUrl that is not a URL",
+            entry: { provider: "gitlab", repo: "g/p", baseUrl: "not a url" },
+            label: "gitlab.com/g/p",
+        },
+        {
+            behaviour: "ignores a baseUrl that is not a string",
+            entry: { provider: "github", repo: "a/b", baseUrl: ["https://ghe.acme.com"] },
+            label: "github.com/a/b",
+        },
+        {
+            behaviour: "reads a provider the parser rejects as GitHub",
+            entry: { provider: "bitbucket", repo: "a/b" },
+            label: "github.com/a/b",
+        },
+    ])("$behaviour", ({ entry, label }) => {
+        expect(marketplaceEntryLabel(entry as never)).toBe(label);
+    });
+
     it("never throws on a malformed object, falling back to a JSON dump", () => {
         // updateAll needs a label before validation runs, so a garbage entry
         // still yields *some* label rather than crashing the whole update.
