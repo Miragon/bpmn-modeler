@@ -41,11 +41,15 @@ boundary) is pinned to it in a spec by
 `expectTypeOf<Copy>().toEqualTypeOf<Home>()`; a copy outside TypeScript (a
 manifest, Kotlin) by a spec that reads both, as
 `apps/vscode-plugin/src/manifest.contract.spec.ts` pins the languages and the
-default modes. A Kotlin test reads the home's file, which Gradle passes in, as
-`ModelerSettingsStoreTest` reads `SURFACE_MODES`. A pin is a fix, not an
-exception. The `repeated-value-sets`
-fitness function reports every set written in two or more files that no
-`expectTypeOf` pin links; a copy a branch adds shows as new. A copy that drifts
+default modes. A Kotlin test reads the home's file, as `ModelerSettingsStoreTest`
+reads `SURFACE_MODES`: `apps/intellij-plugin/build.gradle.kts` passes the file to
+`tasks.test` as a declared input, and the `intellij-plugin` filter in
+`.github/workflows/build.yml` lists it, or a PR that changes only the home skips
+the Kotlin job. `tools/repo-checks/src/kotlinTestInputs.spec.ts` fails when the
+filter misses an input. A pin is a fix, not an exception. The
+`repeated-value-sets` fitness function reports every set written in two or more
+files that no `expectTypeOf` pin links; a copy a branch adds shows as new. A
+copy that drifts
 from its home shows as resolved, not new: a resolved set is a fix only where its
 copies are gone, import their home or are pinned to it.
 

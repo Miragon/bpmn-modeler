@@ -44,6 +44,9 @@ jobs:
               - 'libs/modeler-types/src/surfaceMode.ts'
               # StatusSlotPlacementTest checks every status slot and view value has a Kotlin home.
               - 'libs/modeler-core/src/kernel/domain/statusView.ts'
+              # ElementTemplateFilesTest and ElementTemplatePreviewMessagesTest run these rows.
+              - 'libs/modeler-types/src/elementTemplateFile.cases.json'
+              - 'libs/shared/src/lib/elementTemplatePreviewMessages.cases.json'
             standalone:
               - 'apps/standalone/**'
               - 'libs/standalone-extension/**'
