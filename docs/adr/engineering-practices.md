@@ -74,6 +74,10 @@ IntelliJ runs over an RPC loopback that answers as the Kotlin side does. So a
 run pins each adapter's own mapping, not the host itself: where a fake and its
 host part, the suite cannot tell, and the Kotlin half is #2056.
 
+- `describeDeploymentStateContract`: `InMemoryDeploymentState`,
+  `VsCodeDeploymentState` over a fake `Memento` that keeps a rejected value in
+  memory, as VS Code's does, and the bridge's `RpcDeploymentState` over a
+  loopback that answers as `DeploymentRouter` and `IntellijDeploymentState` do.
 - `describeEditorHandleContract`: `FakeEditorHandle`, `VsCodeEditorHandle`
   over a fake panel, text document and `workspace` events, and the bridge's
   `RpcEditorHandle` over a loopback that answers as `EditorSessionRouter.kt`

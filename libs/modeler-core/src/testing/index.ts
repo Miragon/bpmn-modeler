@@ -1,4 +1,5 @@
 export * from "./createTestHost";
+export * from "./deploymentStateContract";
 export * from "./editorHandleContract";
 export * from "./FakeEditorHandle";
 export * from "./InMemoryCredentials";
