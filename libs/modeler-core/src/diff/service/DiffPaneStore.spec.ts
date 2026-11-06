@@ -1,21 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { DiffPaneHandle } from "../port/DiffPaneHandle";
+import { FakeDiffPaneHandle } from "../../testing";
 import { DiffPaneStore } from "./DiffPaneStore";
 
-function fakeHandle(uri: string): DiffPaneHandle {
-    let ready = false;
-    return {
-        uri,
-        isReady: () => ready,
-        setReady: () => {
-            ready = true;
-        },
-        getText: vi.fn(() => ""),
-        postMessage: vi.fn().mockResolvedValue(true),
-        dispose: vi.fn(),
-    };
-}
+const fakeHandle = (uri: string) => new FakeDiffPaneHandle(uri);
 
 const LEFT = "git:/repo/diagram.bpmn?ref=HEAD";
 const RIGHT = "file:///repo/diagram.bpmn";
