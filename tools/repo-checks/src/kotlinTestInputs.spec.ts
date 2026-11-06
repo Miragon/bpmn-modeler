@@ -2,11 +2,6 @@ import { readFileSync } from "node:fs";
 import { join, normalize, posix } from "node:path";
 import { describe, expect, it } from "vitest";
 
-/**
- * The Kotlin job runs only when the `intellij-plugin` filter matches, so a
- * TypeScript-side file a Kotlin test reads, changed on its own, skips that test
- * unless the filter lists the file.
- */
 const REPO_ROOT = normalize(join(__dirname, "../../.."));
 const GRADLE_PROJECT = "apps/intellij-plugin";
 
@@ -51,6 +46,9 @@ const matchesFilter = (path: string, pattern: string): boolean =>
 const inputs = kotlinTestInputs();
 const filter = intellijPluginFilter();
 
+// The Kotlin job runs only when the `intellij-plugin` filter matches, so a
+// TypeScript-side file a Kotlin test reads, changed on its own, skips that test
+// unless the filter lists the file.
 describe("files the Kotlin tests read", () => {
     it("reads the test inputs and the filter", () => {
         expect(inputs).toContain("apps/modeler-bridge/src/protocol/domain/protocol.json");
