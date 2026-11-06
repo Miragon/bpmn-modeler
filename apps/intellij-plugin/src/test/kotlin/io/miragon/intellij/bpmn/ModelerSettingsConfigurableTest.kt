@@ -12,6 +12,8 @@ import org.junit.jupiter.api.Test
 import javax.swing.JComboBox
 import javax.swing.JCheckBox
 import javax.swing.JComponent
+import javax.swing.JLabel
+import javax.swing.JList
 
 @TestApplication
 class ModelerSettingsConfigurableTest {
@@ -99,10 +101,24 @@ class ModelerSettingsConfigurableTest {
 
     @Test
     fun `offers the default modes of the VS Code setting, labelled as it labels them, in its order`() {
-        assertEquals(
-            manifestDefaultModes(),
-            ModelerSettingsStore.DEFAULT_MODES.map { mode -> mode to ModelerSettingsConfigurable.MODE_LABELS[mode] },
-        )
+        withSettingsPage { page ->
+            assertEquals(manifestDefaultModes(), defaultModeChoices(page.createComponent()))
+        }
+    }
+
+    /** Each mode the Default mode box offers, with its label: the DSL renderer's accessible name is its cell text. */
+    private fun defaultModeChoices(page: JComponent): List<Pair<String?, String?>> {
+        @Suppress("UNCHECKED_CAST")
+        val combo =
+            UIUtil.findComponentsOfType(page, JLabel::class.java)
+                .first { it.text == "Default mode:" }
+                .labelFor as JComboBox<String?>
+        val list = JList<String?>()
+        return (0 until combo.itemCount).map { index ->
+            val mode = combo.getItemAt(index)
+            val cell = combo.renderer.getListCellRendererComponent(list, mode, index, false, false)
+            mode to cell.accessibleContext.accessibleName
+        }
     }
 
     /** `manifest.contract.spec.ts` holds these modes to `SURFACE_MODES`. */

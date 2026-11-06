@@ -248,9 +248,9 @@ class ModelerSettingsConfigurable : Configurable {
     private fun parseMarketplaces(text: String): List<String> =
         text.lines().map { it.trim() }.filter { it.isNotEmpty() }
 
-    internal companion object {
-        private const val FAVOURITES_ROWS = 5
-        private const val MARKETPLACES_ROWS = 4
+    private companion object {
+        const val FAVOURITES_ROWS = 5
+        const val MARKETPLACES_ROWS = 4
 
         val MODE_LABELS = mapOf("implement" to "Implement", "design" to "Design", "view" to "View")
     }
