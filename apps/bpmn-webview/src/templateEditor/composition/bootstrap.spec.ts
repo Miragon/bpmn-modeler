@@ -12,6 +12,7 @@ import {
     GetElementTemplateFileCommand,
     LanguageQuery,
     LogErrorCommand,
+    ReleaseDocumentFlushQuery,
     SyncDocumentCommand,
 } from "@miragon/bpmn-modeler-shared";
 
@@ -115,6 +116,7 @@ const syncs = () => posted.filter((message) => message instanceof SyncDocumentCo
 beforeEach(() => {
     vi.useFakeTimers();
     document.body.className = "";
+    document.body.inert = false;
     document.body.innerHTML = '<div id="app"></div>';
     posted = [];
     revision = 0;
@@ -535,6 +537,24 @@ describe("bootstrapTemplateEditor", () => {
         await vi.advanceTimersByTimeAsync(0);
 
         expect(posted).toContainEqual(new DocumentFlushedCommand(3, undefined, "clean", 1));
+    });
+
+    it("locks the page for a destructive save until the host releases it", async () => {
+        await start();
+        receive(JSON.stringify(STATUS));
+        await vi.advanceTimersByTimeAsync(0);
+
+        window.dispatchEvent(
+            new MessageEvent("message", { data: new FlushDocumentQuery(3, true) }),
+        );
+        await vi.advanceTimersByTimeAsync(0);
+        expect(document.body.inert).toBe(true);
+
+        window.dispatchEvent(
+            new MessageEvent("message", { data: new ReleaseDocumentFlushQuery(3) }),
+        );
+        await vi.advanceTimersByTimeAsync(0);
+        expect(document.body.inert).toBe(false);
     });
 
     it("reports a failing preview to the host log", async () => {

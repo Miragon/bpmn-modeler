@@ -1,7 +1,7 @@
 import {
-    createInertLock,
     type ElementTemplateFileQuery,
     type FlushDocumentQuery,
+    type InertLock,
     LogErrorCommand,
     type ReleaseDocumentFlushQuery,
     WebviewDocumentSync,
@@ -31,6 +31,7 @@ export class TemplateDocumentSession {
     constructor(
         private readonly host: HostChannel,
         private readonly onText: (text: string, origin: SessionTextOrigin) => void,
+        flushLock: InertLock,
     ) {
         this.document = new WebviewDocumentSync(host, {
             surface: {
@@ -40,7 +41,7 @@ export class TemplateDocumentSession {
                 },
                 exportDocument: async () => this.currentText,
             },
-            flushLock: createInertLock(document.body),
+            flushLock,
             isReady: () => this.imported,
         });
         this.respondToFlush = this.document.respondToFlush;

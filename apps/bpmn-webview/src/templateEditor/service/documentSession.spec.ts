@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 
 import {
     type Command,
@@ -12,15 +12,18 @@ import { TemplateDocumentSession } from "./documentSession";
 
 let posted: Command[];
 let shown: { text: string; origin: string }[];
+let flushLock: { acquire: Mock<() => void>; release: Mock<() => void> };
 let session: TemplateDocumentSession;
 
 beforeEach(() => {
     vi.useFakeTimers();
     posted = [];
     shown = [];
+    flushLock = { acquire: vi.fn(), release: vi.fn() };
     session = new TemplateDocumentSession(
         { postMessage: (message) => posted.push(message) },
         (text, origin) => shown.push({ text, origin }),
+        flushLock,
     );
 });
 
@@ -97,6 +100,19 @@ describe("TemplateDocumentSession", () => {
         expect(posted.at(-1)).toEqual(
             new DocumentFlushedCommand(7, '{"id":"saved"}', "flushed", 1),
         );
+    });
+
+    it("holds the injected lock while a destructive save exports the pending edit", async () => {
+        await session.receive(new ElementTemplateFileQuery('{"id":"a"}', undefined, 1));
+        session.edit('{"id":"closing"}');
+
+        await session.respondToFlush(new FlushDocumentQuery(8, true));
+
+        expect(posted.at(-1)).toEqual(
+            new DocumentFlushedCommand(8, '{"id":"closing"}', "flushed", 1),
+        );
+        expect(flushLock.acquire).toHaveBeenCalledOnce();
+        expect(flushLock.release).not.toHaveBeenCalled();
     });
 
     it("tells the host it has nothing to save before the file arrived", async () => {

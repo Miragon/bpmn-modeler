@@ -27,6 +27,7 @@ import { extras as i18nExtras } from "@miragon/bpmn-modeler-i18n-extras";
 import {
     applyPageThemeScope,
     createHostThemeAdapter,
+    createInertLock,
     GetElementTemplateFileCommand,
     initResizer,
     LogErrorCommand,
@@ -113,7 +114,11 @@ export async function bootstrapTemplateEditor(
     const say = ({ text, replacements, verbatim }: PageMessage) =>
         verbatim ? text : translate(text, replacements);
 
-    const session = new TemplateDocumentSession(host, (_text, origin) => refresh(origin));
+    const session = new TemplateDocumentSession(
+        host,
+        (_text, origin) => refresh(origin),
+        createInertLock(document.body),
+    );
     const stopRelabelling = i18n.onChange(() => {
         view.relabel();
         // The first file brings the language just before its text; it renders itself.
