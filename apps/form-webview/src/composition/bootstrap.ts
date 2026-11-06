@@ -12,7 +12,7 @@ import { createFlushableDebounceInput } from "@miragon/bpmn-modeler-types";
 
 import { FormEditorApp } from "../adapter/in/FormEditorApp";
 import { FORM_TEMPLATE } from "../adapter/in/formTemplate";
-import type { FormHost } from "../adapter/out/host";
+import type { FormHost } from "../port/formHost";
 import { shouldHandleHostMessage } from "../adapter/in/hostMessage";
 
 const FORM_JS_DEFAULT_DEBOUNCE_MS = 300;

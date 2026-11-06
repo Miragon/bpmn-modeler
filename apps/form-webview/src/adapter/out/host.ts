@@ -1,23 +1,17 @@
 import {
     Command,
-    type FormEditorCommand,
     FormFileQuery,
     FormInputValuesQuery,
     GetFormFileCommand,
     GetFormInputValuesCommand,
-    HostApi,
     HostApiImpl,
     MockHostApi,
     Query,
 } from "@miragon/bpmn-modeler-shared";
 
+import type { FormHost, WebviewState } from "../../port/formHost";
+
 declare const process: { env: { NODE_ENV: string } };
-
-export interface WebviewState {
-    mode: "edit" | "preview";
-}
-
-export type FormHost = HostApi<WebviewState, FormEditorCommand>;
 
 export function getHostApi(): FormHost {
     return process.env.NODE_ENV === "development"
