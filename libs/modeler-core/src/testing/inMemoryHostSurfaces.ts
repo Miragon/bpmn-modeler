@@ -34,9 +34,12 @@ export class InMemoryPropertiesPanelState implements PropertiesPanelStatePort {
 
 /** Stores the choice in the settings the core reads it back from, as the hosts do. */
 export class InMemoryLintingPreference implements LintingPreferencePort {
+    readonly storedChoices: boolean[] = [];
+
     constructor(private readonly settings: InMemorySettings) {}
 
     setLintingEnabled(enabled: boolean): void {
+        this.storedChoices.push(enabled);
         this.settings.values.lintingEnabled = enabled;
     }
 }
