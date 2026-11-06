@@ -17,19 +17,23 @@ function documentUri(uri: string) {
 }
 
 /**
- * The panel VS Code hands a custom editor. Once disposed, its webview drops a
- * post and answers `false`, as VS Code's does.
+ * The panel VS Code hands a custom editor. Once disposed, reading its webview
+ * throws, as VS Code's panel does.
  */
 class FakeWebviewPanel {
     readonly posted: unknown[] = [];
     private disposed = false;
-    readonly webview = {
+    private readonly liveWebview = {
         postMessage: async (message: unknown) => {
-            if (this.disposed) return false;
             this.posted.push(message);
             return true;
         },
     };
+
+    get webview() {
+        if (this.disposed) throw new Error("Webview is disposed");
+        return this.liveWebview;
+    }
 
     dispose(): void {
         this.disposed = true;
