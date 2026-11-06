@@ -27,6 +27,7 @@ describe("findFiles of the vscode workspace fake through symbolic links", () => 
         await fs.symlink(join(outside, "models"), join(root, "src/linked"), "dir");
         await fs.symlink(join(outside, "c.bpmn"), join(root, "src/c.bpmn"));
         await fs.symlink(join(outside, "pkg"), join(root, "web/node_modules"), "dir");
+        await fs.symlink(join(outside, "pkg"), join(root, "web/vendor"), "dir");
         await fs.symlink(root, join(root, "src/loop"), "dir");
         await fs.symlink(join(outside, "missing.bpmn"), join(root, "src/broken/gone.bpmn"));
         await fs.symlink("self", join(root, "src/broken/self"));
@@ -60,6 +61,13 @@ describe("findFiles of the vscode workspace fake through symbolic links", () => 
             join(root, "src/a.bpmn"),
             join(root, "src/c.bpmn"),
             join(root, "src/linked/b.bpmn"),
+            join(root, "web/vendor/d.bpmn"),
+        ]);
+    });
+
+    it("does not follow a symlinked folder the exclude names", async () => {
+        await expect(findPaths("web/**", "**/vendor")).resolves.toEqual([
+            join(root, "web/node_modules/d.bpmn"),
         ]);
     });
 
