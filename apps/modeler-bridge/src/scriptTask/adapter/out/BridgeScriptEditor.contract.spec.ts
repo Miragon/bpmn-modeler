@@ -2,7 +2,11 @@ import { describeScriptEditorContract } from "@miragon/bpmn-modeler-core/testing
 
 import { bindHandlers } from "../../../composition/bindHandlers";
 import { METHODS } from "../../../protocol/domain/descriptor";
-import { ScriptCloseParams, ScriptOpenParams } from "../../../protocol/domain/types";
+import {
+    ScriptCloseParams,
+    ScriptDidOpenExternalParams,
+    ScriptOpenParams,
+} from "../../../protocol/domain/types";
 import { Rpc } from "../../../transport/adapter/out/Rpc";
 import { scriptHandlers } from "../in/scriptHandlers";
 import { BridgeScriptEditor } from "./BridgeScriptEditor";
@@ -17,7 +21,8 @@ interface Frame {
  * the bridge: `script/open` opens a tab per `scriptId`, or reveals the one
  * open; `script/close` closes it and acks with `script/didClose` from a later
  * EDT turn, also for a tab it never opened; a tab the user closes reports
- * `script/didClose` at once.
+ * `script/didClose` at once; a file under a `tmp/scripting` folder the user
+ * opens, and no tab shows yet, reports `script/didOpenExternal`.
  */
 class IntelliJScriptTabs {
     private readonly filePathByScript = new Map<string, string | undefined>();
@@ -35,6 +40,14 @@ class IntelliJScriptTabs {
         }
     }
 
+    async openByUser(filePath: string): Promise<void> {
+        if (!filePath.includes("/tmp/scripting/") || this.shows(filePath)) return;
+        await this.sendToBridge({
+            method: METHODS.scriptDidOpenExternal,
+            params: { filePath } satisfies ScriptDidOpenExternalParams,
+        });
+    }
+
     async closeByUser(filePath: string): Promise<void> {
         const scriptId = [...this.filePathByScript].find(([, path]) => path === filePath)?.[0];
         if (scriptId === undefined) {
@@ -42,6 +55,10 @@ class IntelliJScriptTabs {
         }
         this.filePathByScript.delete(scriptId);
         await this.sendToBridge(didClose(scriptId));
+    }
+
+    private shows(filePath: string): boolean {
+        return [...this.filePathByScript.values()].includes(filePath);
     }
 }
 
@@ -66,6 +83,7 @@ describeScriptEditorContract(
         bindHandlers(rpc, scriptHandlers({ scriptTabs: editor, store, notifier }));
         return {
             scriptEditor: editor,
+            openFileByUser: (filePath) => intellij.openByUser(filePath),
             closeTab: (filePath) => intellij.closeByUser(filePath),
         };
     },

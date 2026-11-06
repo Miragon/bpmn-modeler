@@ -1,6 +1,8 @@
+import { EditorSessionStore } from "../editorSession/service/EditorSessionStore";
 import { PickerPort } from "../kernel/port/hostPorts";
 import { InlineScript, ScriptAddress, ScriptSourceChange } from "../scriptTask/domain/inlineScript";
 import { ScriptMaterialization } from "../scriptTask/domain/scriptBatchSummary";
+import { matchScriptFile } from "../scriptTask/domain/scriptFileMatching";
 import { ScriptLanguage, scriptLanguagePrompt } from "../scriptTask/domain/scriptLanguage";
 import { ScriptUri } from "../scriptTask/domain/ScriptUri";
 import { ScriptEditorPort } from "../scriptTask/port/ScriptEditorPort";
@@ -19,8 +21,9 @@ interface OpenTab extends ScriptAddress {
  * A host's script tabs in memory: holds what was opened, written, changed,
  * resynced and closed, and keeps the `ScriptEditorPort` contract
  * (`describeScriptEditorContract`). It asks `picker` for a language the model
- * lacks, writes through `scriptFiles` and answers `alreadyOpen` for a script
- * whose tab is open. `materializations` answers the next writes in order
+ * lacks, writes through `scriptFiles`, adopts a script file the user opens
+ * from its editor's script folder and answers `alreadyOpen` for a script whose
+ * tab is open. `materializations` answers the next writes in order
  * instead, writing nothing; an `Error` in it rejects that write.
  */
 export class RecordingScriptEditor implements ScriptEditorPort {
@@ -39,6 +42,7 @@ export class RecordingScriptEditor implements ScriptEditorPort {
     private readonly openTabs = new Map<string, OpenTab>();
 
     constructor(
+        private readonly store: EditorSessionStore,
         private readonly scriptFiles: ScriptFileStore,
         private readonly picker: PickerPort,
     ) {}
@@ -98,6 +102,15 @@ export class RecordingScriptEditor implements ScriptEditorPort {
         this.closeTabsWhere((tab) => tab.editorId === editorId);
         const editorScriptDir = this.scriptFiles.releaseEditor(editorId);
         if (editorScriptDir !== undefined) void this.scriptFiles.deleteFolder(editorScriptDir);
+    }
+
+    /** The user opened the file at `filePath` outside `open`; a script file in its editor's script folder gets a tab. */
+    async openFileByUser(filePath: string): Promise<void> {
+        const match = matchScriptFile(filePath, this.store.getEditorIds());
+        if (match === undefined) return;
+        if (!(await this.scriptFiles.adopt(match.editorId, filePath))) return;
+        const { editorId, elementId, kind, listenerIndex } = match;
+        this.openTabs.set(filePath, { editorId, elementId, kind, listenerIndex });
     }
 
     /** The user closed the tab of the script file at `filePath`. */

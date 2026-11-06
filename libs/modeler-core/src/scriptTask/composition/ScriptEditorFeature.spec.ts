@@ -31,7 +31,7 @@ function createFeature() {
         "/tmp",
         (path) => path,
     );
-    const scriptEditor = new RecordingScriptEditor(scriptFiles, host.picker);
+    const scriptEditor = new RecordingScriptEditor(host.store, scriptFiles, host.picker);
     const variables = new ScriptVariableStore();
     const { editorContribution } = new ScriptEditorFeature({
         scriptEditor,

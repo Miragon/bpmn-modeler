@@ -49,7 +49,7 @@ async function createHandlers(resolvedFor: string[] = [EDITOR]) {
     for (const editorId of resolvedFor) {
         await scriptFiles.baseDirFor(editorId);
     }
-    const scriptEditor = new RecordingScriptEditor(scriptFiles, host.picker);
+    const scriptEditor = new RecordingScriptEditor(host.store, scriptFiles, host.picker);
     const variables = new ScriptVariableStore();
     return { notifier: host.notifier, scriptEditor, variables, scriptFiles };
 }

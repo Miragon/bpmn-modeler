@@ -26,6 +26,8 @@ export interface ScriptEditorContractHost {
 /** One {@link ScriptEditorPort} adapter under the {@link describeScriptEditorContract} scenarios. */
 export interface ScriptEditorContractFixture {
     readonly scriptEditor: ScriptEditorPort;
+    /** Opens the file at `filePath` the way the user would, outside `open`: from the Explorer or the Project view. */
+    openFileByUser(filePath: string): Promise<void>;
     /** Closes the tab of the script file at `filePath` the way the user would. */
     closeTab(filePath: string): Promise<void>;
 }
@@ -45,6 +47,7 @@ const BASE_DIR = `${ROOT}/${FOLDER}`;
 const HASH = ScriptUri.hashEditorId(EDITOR);
 const OTHER_HASH = ScriptUri.hashEditorId(OTHER_EDITOR);
 const TASK_FILE = `${BASE_DIR}/${HASH}/Task_1/script-task/Task_1.groovy`;
+const TASK_FILE_OUTSIDE = `${ROOT}/docs/tmp/scripting/${HASH}/Task_1/script-task/Task_1.groovy`;
 const LANGUAGE_PROMPT = scriptLanguagePrompt("").id;
 
 function scriptTask(fields: Partial<InlineScript> = {}): InlineScript {
@@ -104,11 +107,12 @@ function createContractHost() {
  * The rules of {@link ScriptEditorPort} the core relies on, run against one
  * adapter. The core reads back only `materialize`: "Generate Script Files"
  * counts its answers, names the folder the shared {@link ScriptFileStore}
- * resolved, and asks the user to open the files, which both hosts adopt by
- * their path. So the scenarios pin where a file goes and how its path is
- * spelled, when an open tab owns a script, the dismissal value and that a
- * failed write rejects. `open`, `applyModelChange`, a tab the user closes and
- * `disposeEditor` take part as far as they change those answers or the files.
+ * resolved, and asks the user to open the files; a file the user opens from
+ * that folder then owns its script. So the scenarios pin where a file goes and
+ * how its path is spelled, when an open tab owns a script, the dismissal value
+ * and that a failed write rejects. `open`, `applyModelChange`, a file the user
+ * opens or closes and `disposeEditor` take part as far as they change those
+ * answers or the files.
  * Where the hosts differ, VS Code is the reference.
  *
  * Left out, as the core reads none of it back: `resync` and `variablesChanged`,
@@ -283,6 +287,49 @@ export function describeScriptEditorContract(
                 ).resolves.toEqual({ kind: "written" });
                 expect(host.workspace.files.get(path)).toBe("generated");
             });
+
+            it.each<{
+                opened: string;
+                openByUser: (
+                    fixture: ScriptEditorContractFixture,
+                    workspace: ReturnType<typeof createContractHost>["workspace"],
+                ) => Promise<void>;
+                answer: ScriptMaterialization["kind"];
+            }>([
+                {
+                    opened: "a file it wrote",
+                    openByUser: ({ openFileByUser }) => openFileByUser(TASK_FILE),
+                    answer: "alreadyOpen",
+                },
+                {
+                    opened: "a file of that name outside the script folder",
+                    openByUser: async ({ openFileByUser }, workspace) => {
+                        await workspace.writeFile(TASK_FILE_OUTSIDE, "generated");
+                        await openFileByUser(TASK_FILE_OUTSIDE);
+                    },
+                    answer: "written",
+                },
+            ])(
+                "answers $answer on the next run once the user opened $opened",
+                async ({ openByUser, answer }) => {
+                    await fixture.scriptEditor.materialize(
+                        EDITOR,
+                        scriptTask({ content: "generated" }),
+                    );
+                    await openByUser(fixture, host.workspace);
+                    await settle();
+
+                    await expect(
+                        fixture.scriptEditor.materialize(
+                            EDITOR,
+                            scriptTask({ content: "regenerated" }),
+                        ),
+                    ).resolves.toEqual({ kind: answer });
+                    expect(host.workspace.files.get(TASK_FILE)).toBe(
+                        answer === "written" ? "regenerated" : "generated",
+                    );
+                },
+            );
 
             it.each<{
                 after: string;

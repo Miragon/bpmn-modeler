@@ -9,6 +9,7 @@ import { describeScriptEditorContract } from "@miragon/bpmn-modeler-core/testing
 
 import {
     closeTabByUser,
+    openFileByUser,
     resetVscodeEditorTabs,
 } from "../../../__fixtures__/vscodeEditorTabsFake";
 import { ScriptTaskService } from "./ScriptTaskService";
@@ -35,6 +36,7 @@ describeScriptEditorContract(
         service.register({ subscriptions: [] } as unknown as ExtensionContext);
         return {
             scriptEditor: service,
+            openFileByUser,
             closeTab: async (filePath) => closeTabByUser(filePath),
         };
     },

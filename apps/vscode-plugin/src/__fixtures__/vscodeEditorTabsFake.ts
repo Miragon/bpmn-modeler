@@ -86,6 +86,11 @@ export function resetVscodeEditorTabs(read: (path: string) => Promise<string>): 
     readFromDisk = read;
 }
 
+/** The user opens the file at `path` from the Explorer, which shows it in a tab. */
+export async function openFileByUser(path: string): Promise<void> {
+    await window.showTextDocument(await openTextDocument(Uri.file(path)));
+}
+
 /** The user closes the tab showing the file at `path`. */
 export function closeTabByUser(path: string): void {
     const uri = Uri.file(path);
