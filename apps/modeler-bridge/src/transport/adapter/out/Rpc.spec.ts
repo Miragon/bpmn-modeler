@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { settle } from "../../../__fixtures__/bridgeHarness";
 import { METHODS } from "../../../protocol/domain/descriptor";
-import { Rpc } from "./Rpc";
+import { Rpc, RpcErrorReply } from "./Rpc";
 
 /** Parses the single most-recent frame a write spy captured. */
 function lastFrame(write: ReturnType<typeof vi.fn>): any {
@@ -56,6 +56,7 @@ describe("Rpc framing", () => {
         await rpc.handleLine(JSON.stringify({ id, error: "disk full" }));
 
         await expect(pending).rejects.toThrow("disk full");
+        await expect(pending).rejects.toBeInstanceOf(RpcErrorReply);
     });
 
     it("concurrent requests resolve independently by id", async () => {

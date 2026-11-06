@@ -1,7 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
-import { createTestHost } from "../../testing";
-import { DiffPaneHandle } from "../port/DiffPaneHandle";
+import { createTestHost, FakeDiffPaneHandle } from "../../testing";
 import { DiffPaneStore } from "./DiffPaneStore";
 import { BpmnDiffService } from "./BpmnDiffService";
 
@@ -28,22 +27,7 @@ const RIGHT = "file:///repo/diagram.bpmn";
 
 // ─── Fakes ──────────────────────────────────────────────────────────────────
 
-function fakeHandle(
-    uri: string,
-    text = "",
-): DiffPaneHandle & { postMessage: ReturnType<typeof vi.fn> } {
-    let ready = false;
-    return {
-        uri,
-        isReady: () => ready,
-        setReady: () => {
-            ready = true;
-        },
-        getText: () => text,
-        postMessage: vi.fn().mockResolvedValue(true),
-        dispose: vi.fn(),
-    };
-}
+const fakeHandle = (uri: string, text = "") => new FakeDiffPaneHandle(uri, text);
 
 function createService() {
     const { notifier, settings } = createTestHost();
@@ -62,14 +46,10 @@ function attachedPair(store: DiffPaneStore, beforeText = "", afterText = "") {
     return { session, before, after };
 }
 
-const messageTypes = (handle: { postMessage: ReturnType<typeof vi.fn> }): string[] =>
-    handle.postMessage.mock.calls.map(([msg]) => (msg as { type: string }).type);
+const messageTypes = (handle: FakeDiffPaneHandle): string[] =>
+    handle.posted.map((msg) => (msg as { type: string }).type);
 
 describe("BpmnDiffService", () => {
-    beforeEach(() => {
-        vi.clearAllMocks();
-    });
-
     // ─── Viewer file ──────────────────────────────────────────────────────────
 
     it("sendViewerFile replies with a viewer-mode BpmnFileQuery", async () => {
@@ -78,10 +58,9 @@ describe("BpmnDiffService", () => {
 
         await service.sendViewerFile(handle);
 
-        expect(handle.postMessage).toHaveBeenCalledTimes(1);
-        const msg = handle.postMessage.mock.calls[0][0] as { type: string; viewerMode: string };
-        expect(msg.type).toBe("BpmnFileQuery");
-        expect(msg.viewerMode).toBe("viewer");
+        expect(handle.posted).toEqual([
+            expect.objectContaining({ type: "BpmnFileQuery", viewerMode: "viewer" }),
+        ]);
     });
 
     // ─── Viewport / cursor forwarding ──────────────────────────────────────────
@@ -93,7 +72,7 @@ describe("BpmnDiffService", () => {
         await service.forwardViewport(before, { x: 1, y: 2, width: 3, height: 4 });
 
         expect(messageTypes(after)).toEqual(["SyncViewportQuery"]);
-        expect(before.postMessage).not.toHaveBeenCalled();
+        expect(before.posted).toEqual([]);
     });
 
     it("forwardCursor posts a SyncCursorQuery to the partner pane", async () => {
@@ -113,7 +92,7 @@ describe("BpmnDiffService", () => {
 
         await service.forwardViewport(before, { x: 0, y: 0, width: 0, height: 0 });
 
-        expect(before.postMessage).not.toHaveBeenCalled();
+        expect(before.posted).toEqual([]);
     });
 
     // ─── markReady arming ──────────────────────────────────────────────────────
@@ -139,8 +118,8 @@ describe("BpmnDiffService", () => {
         expect(messageTypes(after)).toContain("ApplyDiffHighlightsQuery");
 
         // The added task lands on the after side only.
-        const afterHighlights = after.postMessage.mock.calls
-            .map(([m]) => m as { type: string; added?: string[] })
+        const afterHighlights = after.posted
+            .map((m) => m as { type: string; added?: string[] })
             .find((m) => m.type === "ApplyDiffHighlightsQuery");
         expect(afterHighlights?.added).toContain("Task_1");
     });
@@ -167,6 +146,6 @@ describe("BpmnDiffService", () => {
         service.rebroadcastLanguage();
 
         expect(messageTypes(before)).toEqual(["LanguageQuery"]);
-        expect(after.postMessage).not.toHaveBeenCalled();
+        expect(after.posted).toEqual([]);
     });
 });

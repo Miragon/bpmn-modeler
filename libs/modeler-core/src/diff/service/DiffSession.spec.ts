@@ -1,26 +1,14 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
-import { DiffPaneHandle } from "../port/DiffPaneHandle";
+import { FakeDiffPaneHandle } from "../../testing";
 import { DiffSession } from "./DiffSession";
 
 // ─── Fakes ──────────────────────────────────────────────────────────────────
 
-/**
- * Minimal {@link DiffPaneHandle} stand-in — the session only reads `uri` and
- * `isReady()`, so the rest are inert spies.
- */
-function fakeHandle(uri: string, ready = false): DiffPaneHandle {
-    let readyFlag = ready;
-    return {
-        uri,
-        isReady: () => readyFlag,
-        setReady: () => {
-            readyFlag = true;
-        },
-        getText: vi.fn(() => ""),
-        postMessage: vi.fn().mockResolvedValue(true),
-        dispose: vi.fn(),
-    };
+function fakeHandle(uri: string, ready = false): FakeDiffPaneHandle {
+    const handle = new FakeDiffPaneHandle(uri);
+    if (ready) handle.setReady();
+    return handle;
 }
 
 const BEFORE = "git:/repo/diagram.bpmn?ref=HEAD";
