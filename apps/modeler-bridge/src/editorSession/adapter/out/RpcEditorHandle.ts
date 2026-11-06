@@ -12,14 +12,15 @@ import { HostEditorHandle } from "../../port/HostEditorHandle";
  * mutators forward to the host over RPC; `getContent` reads the mirror.
  *
  * {@link receive} is the inbound hook: when the host forwards a webview message,
- * the server calls it, which fires the `onDidReceiveMessage` callback the
- * `EditorSessionStore` wired to the `WebviewMessageRouter` — i.e. the exact same
- * dispatch path the VS Code host uses, just driven from a different transport.
+ * the server calls it, which fires every `onDidReceiveMessage` subscription, the
+ * one the `EditorSessionStore` wired to the `WebviewMessageRouter` among them —
+ * i.e. the exact same dispatch path the VS Code host uses, just driven from a
+ * different transport.
  */
 export class RpcEditorHandle implements HostEditorHandle {
     readonly id: string;
 
-    private receiveCallback?: (message: Command) => void;
+    private readonly receiveCallbacks = new Set<(message: Command) => void>();
     private readonly disposeCallbacks = new Set<() => void>();
     private readonly activeCallbacks = new Set<(active: boolean) => void>();
     private readonly subscriptions: EditorSubscription[] = [];
@@ -111,14 +112,8 @@ export class RpcEditorHandle implements HostEditorHandle {
     }
 
     onDidReceiveMessage(callback: (message: Command) => void): EditorSubscription {
-        this.receiveCallback = callback;
-        return {
-            dispose: () => {
-                if (this.receiveCallback === callback) {
-                    this.receiveCallback = undefined;
-                }
-            },
-        };
+        this.receiveCallbacks.add(callback);
+        return { dispose: () => this.receiveCallbacks.delete(callback) };
     }
 
     onDidDispose(callback: () => void): EditorSubscription {
@@ -159,7 +154,7 @@ export class RpcEditorHandle implements HostEditorHandle {
 
     /** Delivers a host-forwarded webview command into the core's dispatch path. */
     receive(message: Command): void {
-        this.receiveCallback?.(message);
+        [...this.receiveCallbacks].forEach((callback) => callback(message));
     }
 }
 
