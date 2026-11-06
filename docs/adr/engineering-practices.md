@@ -104,6 +104,9 @@ host part, the suite cannot tell, and the Kotlin half is #2056.
   `RecordingNotifier`, `VsCodeNotifier` over `vscodeWindowFake.ts` and the
   bridge's `RpcNotifier` over a loopback that answers as `HostUiRouter.kt`
   does.
+- `describePickerContract`: `ScriptedPicker`, `VsCodePicker` over mocks of
+  the `vscode` window and the bridge's `RpcPicker` over the
+  `intellijPromptHost.ts` loopback, which answers as `HostUiRouter` does.
 - `describePropertiesPanelStateContract`: `InMemoryPropertiesPanelState` and
   VS Code's `PropertiesPanelStateRepository` over an in-memory `Memento`. The
   bridge has no adapter of this port.
@@ -115,9 +118,14 @@ host part, the suite cannot tell, and the Kotlin half is #2056.
   over the `InMemorySecretStorage` fake and the bridge's `RpcSecretStore` over
   the `intellijCredentialHost.ts` loopback, which answers as
   `SecretStoreRouter` does.
+- `describeTokenPromptContract`: `ScriptedTokenPrompt`, `VsCodeTokenPrompt`
+  over a mocked `showInputBox` and the bridge's `RpcTokenPrompt` over the
+  `intellijPromptHost.ts` loopback as well, which answers as
+  `MarketplaceRouter` does.
 - `describeTokenStoreContract`: `InMemoryTokenStore`, `VsCodeTokenStore` over
-  the same storage fake and the bridge's `RpcTokenStore` over the same
-  loopback, which answers `tokenStore/*` as `MarketplaceRouter` does.
+  the `InMemorySecretStorage` fake as well and the bridge's `RpcTokenStore`
+  over the `intellijCredentialHost.ts` loopback as well, which answers
+  `tokenStore/*` as `MarketplaceRouter` does.
 - `describeWorkspaceContract`: `InMemoryWorkspace`, the bridge's
   `NodeWorkspace` and `VsCodeWorkspace`, both hosts on a temporary directory.
   `VsCodeWorkspace` runs over `vscodeWorkspaceFake.ts`, which serves

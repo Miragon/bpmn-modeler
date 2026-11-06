@@ -378,13 +378,13 @@ describe("DeploymentService.selectAdditionalFiles", () => {
                 "/work/element-templates/task.json": "[]",
             },
             promptAnswers: {
-                additionalFiles: ["/work/forms/order.form", "/work/decisions/discount.dmn"],
+                additionalFiles: ["/work/decisions/discount.dmn", "/work/forms/order.form"],
             },
         });
 
         const result = await service.selectAdditionalFiles();
 
-        expect(result).toEqual(["/work/forms/order.form", "/work/decisions/discount.dmn"]);
+        expect(result).toEqual(["/work/decisions/discount.dmn", "/work/forms/order.form"]);
         expect(host.picker.prompts).toEqual([
             {
                 method: "chooseMany",
