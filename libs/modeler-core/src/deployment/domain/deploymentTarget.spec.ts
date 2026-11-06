@@ -1,4 +1,4 @@
-import { Engine } from "@miragon/bpmn-modeler-types";
+import { Engine, ENGINES } from "@miragon/bpmn-modeler-types";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -22,6 +22,7 @@ import {
     OAuth2TargetAuth,
     parseDeploymentTargetsFile,
     serializeDeploymentTargets,
+    TARGET_AUTH_TYPES,
     TargetAuthType,
     TargetChange,
     TargetRequest,
@@ -561,6 +562,20 @@ describe("DeploymentTarget", () => {
 
             expect(error).toBeInstanceOf(InvalidDeploymentTargetError);
             expect(error).toMatchObject({ field, message: `"${field}" ${reason}` });
+        });
+
+        it.each([
+            ...ENGINES.map((value) => ({ value, field: "engine", fields: { engine: "x" } })),
+            ...TARGET_AUTH_TYPES.map((value) => ({
+                value,
+                field: "auth.type",
+                fields: { authType: "x" },
+            })),
+        ])("names $value among the allowed values of $field", ({ value, field, fields }) => {
+            const error = errorFrom(() => DeploymentTarget.create({ ...FIELDS, ...fields }));
+
+            expect(error).toBeInstanceOf(InvalidDeploymentTargetError);
+            expect(error).toMatchObject({ field, message: expect.stringContaining(`"${value}"`) });
         });
 
         it.each<[string, Partial<DeploymentTargetFields>]>([

@@ -1,4 +1,4 @@
-import { Engine, engineSupports, isEngine } from "@miragon/bpmn-modeler-types";
+import { Engine, ENGINES, engineSupports, isEngine } from "@miragon/bpmn-modeler-types";
 
 import {
     DeploymentTargetChangedError,
@@ -32,6 +32,14 @@ export function isTargetAuthType(raw: unknown): raw is TargetAuthType {
 }
 
 const NON_EMPTY_STRING = "must be a non-empty string";
+
+function mustBeOneOf(allowed: readonly string[]): string {
+    const quoted = allowed.map((value) => `"${value}"`);
+    if (quoted.length <= 2) {
+        return `must be ${quoted.join(" or ")}`;
+    }
+    return `must be ${quoted.slice(0, -1).join(", ")}, or ${quoted[quoted.length - 1]}`;
+}
 
 export interface StoredCredentials {
     readonly username?: string;
@@ -262,16 +270,13 @@ export class DeploymentTarget {
             throw new InvalidDeploymentTargetError("name", NON_EMPTY_STRING);
         }
         if (!isEngine(engine)) {
-            throw new InvalidDeploymentTargetError("engine", 'must be "c7" or "c8"');
+            throw new InvalidDeploymentTargetError("engine", mustBeOneOf(ENGINES));
         }
         if (fields.endpoint.trim() === "") {
             throw new InvalidDeploymentTargetError("endpoint", NON_EMPTY_STRING);
         }
         if (!isTargetAuthType(authType)) {
-            throw new InvalidDeploymentTargetError(
-                "auth.type",
-                'must be "none", "basic", or "oauth2"',
-            );
+            throw new InvalidDeploymentTargetError("auth.type", mustBeOneOf(TARGET_AUTH_TYPES));
         }
         const target = new DeploymentTarget(
             name,

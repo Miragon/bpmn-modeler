@@ -68,6 +68,7 @@ import {
 import { InMemorySettings } from "@miragon/bpmn-modeler-core/testing";
 import { supportedModelerLanguages } from "@miragon/bpmn-modeler-i18n-extras";
 import {
+    COLOR_THEMES,
     ELEMENT_TEMPLATE_FOLDER_NAME,
     ELEMENT_TEMPLATE_SCHEMA_URL,
     SURFACE_MODES,
@@ -384,13 +385,14 @@ describe("package.json ↔ code contract", () => {
         expect(parseSetting(key, value)).toBe(value);
     });
 
-    it("offers exactly the surface modes as the default mode, each with a label", () => {
+    it.each([
+        { key: "colorTheme", accepted: COLOR_THEMES },
+        { key: "defaultMode", accepted: SURFACE_MODES },
+    ])("offers exactly the $key values the core accepts, each with a label", ({ key, accepted }) => {
         const { enum: offered = [], enumItemLabels: labels = [] } =
-            manifest.contributes.configuration.properties[
-                `${MODELER_SETTINGS_SECTION}.defaultMode`
-            ];
+            manifest.contributes.configuration.properties[`${MODELER_SETTINGS_SECTION}.${key}`];
 
-        expect([...offered].sort()).toEqual([...SURFACE_MODES].sort());
+        expect([...offered].sort()).toEqual([...accepted].sort());
         expect(labels).toHaveLength(offered.length);
     });
 

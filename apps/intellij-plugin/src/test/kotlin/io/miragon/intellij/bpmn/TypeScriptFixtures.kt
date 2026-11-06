@@ -12,3 +12,13 @@ internal fun readTypeScriptFile(property: String): String {
 }
 
 internal fun readTypeScriptJson(property: String): JsonElement = JsonParser.parseString(readTypeScriptFile(property))
+
+/** The string literals of the array literal the file behind [property] exports as `const [name]`. */
+internal fun readTypeScriptStringArray(property: String, name: String): List<String> {
+    val source = readTypeScriptFile(property)
+    val entries =
+        requireNotNull(Regex("""export const $name\b[^=]*=\s*\[([^\]]*)]""").find(source)) {
+            "$property declares no $name array literal"
+        }.groupValues[1]
+    return Regex(""""([^"]+)"""").findAll(entries).map { it.groupValues[1] }.toList()
+}

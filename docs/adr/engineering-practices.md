@@ -219,15 +219,13 @@ and every TypeScript host runs them beside the JSON rows. A value set the
 Kotlin host copies is pinned the same way, to the TypeScript source file itself:
 `StatusSlotPlacementTest` reads the unions in `statusView.ts`,
 `ModelerSettingsStoreTest` the `SURFACE_MODES` array in `surfaceMode.ts` and
+the `COLOR_THEMES` array in `settings.ts` of `libs/modeler-types`,
 `ModelerSettingsConfigurableTest` the `MODE_LABEL` table in the modeler's
-`modeStrip.ts`, and each fails when the Kotlin copy differs. No generated file
-sits in between that could go stale. Two Kotlin copies do not follow this yet.
+`modeStrip.ts`; each fails when the Kotlin copy differs. No generated file
+sits in between that could go stale. One Kotlin copy does not follow this yet:
 `ModelerLocalesTest` pins the languages to the VS Code manifest, which
 `manifest.contract.spec.ts` pins to the shipped catalogue, so the Kotlin list
-holds only through that chain. `ModelerSettingsStore.COLOR_THEMES` is not
-pinned yet; only the settings rows that name a theme check it. The Kotlin test
-could read the core's `COLOR_THEMES` in `modelerSettings.ts` as it reads
-`SURFACE_MODES`; a manifest pin needs that set exported first.
+holds only through that chain.
 
 ### Coverage gates
 
