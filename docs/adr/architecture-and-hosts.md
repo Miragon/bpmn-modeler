@@ -371,7 +371,14 @@ VS Code's input UI, settings writes and reload hint; the bridge's
 workspace-root registration, acknowledged marketplace persistence and
 rendering on `document/didChange`, because the host owns the document revision
 there. Host classes depend on the core ports, not
-on concrete adapters, so the in-memory test kit fits every one of them. Inbound
+on concrete adapters, so the in-memory test kit fits every one of them. Once
+a second class implements a port the core reads back from, the port has one
+contract suite in the test kit that every adapter runs, the in-memory fake
+included, as `describeWorkspaceContract` runs against `InMemoryWorkspace` and
+`NodeWorkspace`; a port that only renders and a strategy the core chooses
+between need none. The
+[`contract-suites`](engineering-practices.md#contract-suites) report lists the
+adapters that run no suite of their port. Inbound
 adapters never import outbound ones (rule 6 of the
 [role folders](#workspace-kinds-and-role-folders)): a VS Code controller gets a
 port (`ModelerPreferences`), a factory (`EditorHandleFactory`,

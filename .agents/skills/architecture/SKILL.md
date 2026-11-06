@@ -73,6 +73,20 @@ function reports every literal with two words in host code: a file that imports
 branch adds shows as new. It also lists host chrome and technical strings
 (HTML, CSS classes); judge each, and leave the host's own text where it is.
 
+A port the core reads back from has a contract suite in the core's test kit
+once a second class implements it, and every adapter of the port runs it, the
+in-memory fake included. A suite is a function exported from
+`@miragon/bpmn-modeler-core/testing` that takes a factory of the adapter, or of
+a fixture that holds it, and runs the rules the core relies on (sorting, path
+spelling, the dismissal value), not one adapter's quirks;
+`describeWorkspaceContract` is the model. A port whose methods only return
+`void` or `Promise<void>` renders and needs none, and neither does a strategy
+the core chooses between, such as the engine clients. The `contract-suites`
+fitness function lists every adapter of a core port whose specs do not import
+it and call a suite of that port; it sets ports with one adapter and
+render-only ports aside in collapsed groups, and a new adapter of a port with a
+suite shows as new until its spec runs the suite.
+
 ## Preserve the boundaries
 
 - Let applications consume packages and libraries, and packages consume reusable
