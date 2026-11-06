@@ -7,9 +7,12 @@ import {
     MarketplaceAddAnswer,
     marketplaceAddPrompt,
     marketplaceRemoval,
-    registrableLocation,
 } from "../domain/marketplacePrompts";
-import { isAlreadyRegistered, registeredMarketplaces } from "../domain/marketplaceRegistrations";
+import {
+    isAlreadyRegistered,
+    registeredMarketplaces,
+    registrableLocation,
+} from "../domain/marketplaceRegistrations";
 import { MarketplacePromptPort, MarketplaceRegistrationsPort } from "../port/marketplacePorts";
 import { TemplateMarketplaceService } from "./TemplateMarketplaceService";
 

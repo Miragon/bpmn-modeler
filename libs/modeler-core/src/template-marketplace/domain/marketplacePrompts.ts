@@ -1,11 +1,13 @@
 import { MarketplaceSettingsEntry } from "../../kernel/domain/modelerSettings";
 import { ChoicePrompt } from "../../kernel/domain/prompts";
-import { expandHomePath, marketplaceEntryLabel, parseMarketplaceUrl } from "./marketplace";
+import { marketplaceEntryLabel } from "./marketplace";
 import {
+    JoinPath,
     MARKETPLACE_SCOPES,
     MarketplaceRegistrations,
     MarketplaceScope,
     RegisteredMarketplace,
+    registrableLocation,
     SettingsPlace,
 } from "./marketplaceRegistrations";
 
@@ -45,27 +47,10 @@ export type MarketplaceRemoval =
     | { readonly kind: "nothingRegistered"; readonly message: string }
     | { readonly kind: "choose"; readonly prompt: ChoicePrompt<MarketplaceSettingsEntry> };
 
-type JoinPath = (base: string, rest: string) => string;
-
 const SCOPE_LABEL: Record<MarketplaceScope, string> = {
     project: "Register for this project",
     allProjects: "Register for all my projects",
 };
-
-/** The location an add fetches and saves, or `undefined` when `parseMarketplaceUrl` refuses it. */
-export function registrableLocation(
-    input: string,
-    homeDir: string,
-    joinPath?: JoinPath,
-): string | undefined {
-    const location = expandHomePath(input.trim(), homeDir, joinPath);
-    try {
-        parseMarketplaceUrl(location);
-        return location;
-    } catch {
-        return undefined;
-    }
-}
 
 /** @param refused the answer whose location the core refused, to ask again about */
 export function marketplaceAddPrompt(

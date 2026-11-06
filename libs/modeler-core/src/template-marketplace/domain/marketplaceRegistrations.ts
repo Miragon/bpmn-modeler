@@ -1,4 +1,5 @@
 import { MarketplaceSettingsEntry } from "../../kernel/domain/modelerSettings";
+import { expandHomePath, parseMarketplaceUrl } from "./marketplace";
 
 /**
  * For the open project only, or for every project the user opens; in the
@@ -44,6 +45,23 @@ export interface MarketplaceRegistrations {
      * name one; absent on a host that cannot register one.
      */
     readonly selfHostedIn?: SettingsPlace;
+}
+
+export type JoinPath = (base: string, rest: string) => string;
+
+/** The location an add fetches and saves, or `undefined` when `parseMarketplaceUrl` refuses it. */
+export function registrableLocation(
+    input: string,
+    homeDir: string,
+    joinPath?: JoinPath,
+): string | undefined {
+    const location = expandHomePath(input.trim(), homeDir, joinPath);
+    try {
+        parseMarketplaceUrl(location);
+        return location;
+    } catch {
+        return undefined;
+    }
 }
 
 /** All-projects entries first, as both hosts union their lists for the fetch. */

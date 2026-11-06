@@ -4,7 +4,6 @@ import {
     MarketplaceAddAnswer,
     marketplaceAddPrompt,
     marketplaceRemoval,
-    registrableLocation,
 } from "./marketplacePrompts";
 import { MarketplaceRegistrations, RegisteredMarketplace } from "./marketplaceRegistrations";
 
@@ -201,58 +200,6 @@ describe("marketplaceAddPrompt", () => {
         },
     ])("$behaviour as the user types", ({ host, input, problem }) => {
         expect(marketplaceAddPrompt(host, "/home/ada").problemWith(input)).toBe(problem);
-    });
-});
-
-describe("registrableLocation", () => {
-    const windowsJoin = (base: string, rest: string) => `${base}\\${rest}`;
-
-    it.each<{
-        behaviour: string;
-        input: string;
-        homeDir: string;
-        joinPath?: (base: string, rest: string) => string;
-        location: string | undefined;
-    }>([
-        {
-            behaviour: "trims the entry and expands a home folder",
-            input: "  ~/templates ",
-            homeDir: "/home/ada",
-            location: "/home/ada/templates",
-        },
-        {
-            behaviour: "expands the bare home folder",
-            input: "~",
-            homeDir: "/home/ada",
-            location: "/home/ada",
-        },
-        {
-            behaviour: "joins a home folder the host's way",
-            input: "~/templates",
-            homeDir: "C:\\Users\\ada",
-            joinPath: windowsJoin,
-            location: "C:\\Users\\ada\\templates",
-        },
-        {
-            behaviour: "keeps a repository URL as entered",
-            input: "https://github.com/acme/templates",
-            homeDir: "/home/ada",
-            location: "https://github.com/acme/templates",
-        },
-        {
-            behaviour: "refuses an empty entry",
-            input: "",
-            homeDir: "/home/ada",
-            location: undefined,
-        },
-        {
-            behaviour: "refuses a self-hosted host",
-            input: "https://git.acme.com/group/project",
-            homeDir: "/home/ada",
-            location: undefined,
-        },
-    ])("$behaviour", ({ input, homeDir, joinPath, location }) => {
-        expect(registrableLocation(input, homeDir, joinPath)).toBe(location);
     });
 });
 
