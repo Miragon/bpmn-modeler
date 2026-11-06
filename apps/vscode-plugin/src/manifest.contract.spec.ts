@@ -384,13 +384,14 @@ describe("package.json ↔ code contract", () => {
         expect(parseSetting(key, value)).toBe(value);
     });
 
-    it("offers exactly the surface modes as the default mode", () => {
-        const { enum: offered = [] } =
+    it("offers exactly the surface modes as the default mode, each with a label", () => {
+        const { enum: offered = [], enumItemLabels: labels = [] } =
             manifest.contributes.configuration.properties[
                 `${MODELER_SETTINGS_SECTION}.defaultMode`
             ];
 
         expect([...offered].sort()).toEqual([...SURFACE_MODES].sort());
+        expect(labels).toHaveLength(offered.length);
     });
 
     it("offers every language the modeler ships, labelled as the language picker labels it", () => {

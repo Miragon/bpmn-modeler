@@ -166,6 +166,9 @@ misses one. A rule change edits the rows, the
 TypeScript rule and the Kotlin copy in one PR. `ModelerLocalesTest` holds the
 language list of `ModelerLocales` to the manifest's `miragon.bpmnModeler.language`
 codes and labels, which `manifest.contract.spec.ts` holds to the shipped catalogue.
+`ModelerSettingsConfigurableTest` holds `DEFAULT_MODES` and the page's
+`MODE_LABELS` to the manifest's `miragon.bpmnModeler.defaultMode` modes and
+labels in the same way.
 
 **Host-replicated mirrors.** `BpmnModelerService.display()` reads
 `DocumentPort.getContent()` *synchronously* — impossible over async RPC. The host

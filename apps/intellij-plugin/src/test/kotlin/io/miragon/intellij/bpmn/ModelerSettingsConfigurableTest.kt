@@ -97,6 +97,27 @@ class ModelerSettingsConfigurableTest {
         }
     }
 
+    @Test
+    fun `offers the default modes of the VS Code setting, labelled as it labels them, in its order`() {
+        assertEquals(
+            manifestDefaultModes(),
+            ModelerSettingsStore.DEFAULT_MODES.map { mode -> mode to ModelerSettingsConfigurable.MODE_LABELS[mode] },
+        )
+    }
+
+    /** `manifest.contract.spec.ts` holds these modes to `SURFACE_MODES`. */
+    private fun manifestDefaultModes(): List<Pair<String, String>> {
+        val defaultMode =
+            readTypeScriptJson("miragon.vscodeManifest").asJsonObject
+                .getAsJsonObject("contributes")
+                .getAsJsonObject("configuration")
+                .getAsJsonObject("properties")
+                .getAsJsonObject("miragon.bpmnModeler.defaultMode")
+        val modes = defaultMode.getAsJsonArray("enum").map { it.asString }
+        val labels = defaultMode.getAsJsonArray("enumItemLabels").map { it.asString }
+        return modes.zip(labels)
+    }
+
     private fun languageCombo(page: JComponent): JComboBox<*> =
         UIUtil.findComponentsOfType(page, JComboBox::class.java)
             .first { combo -> (0 until combo.itemCount).any { combo.getItemAt(it) == "de" } }
