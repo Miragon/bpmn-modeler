@@ -228,7 +228,8 @@ class ContractSuiteReader {
         type: ts.Type,
         ports: ReadonlyMap<ts.Symbol, PortDeclaration>,
     ): PortDeclaration[] {
-        if (type.isTypeParameter()) {
+        // A flag test, as the type guard isTypeParameter() narrows every other type to never.
+        if ((type.flags & ts.TypeFlags.TypeParameter) !== 0) {
             const constraint = this.checker.getBaseConstraintOfType(type);
             return constraint === undefined ? [] : this.portsReachedBy(constraint, ports);
         }
