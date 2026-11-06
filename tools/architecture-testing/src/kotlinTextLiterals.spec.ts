@@ -174,6 +174,18 @@ describe("readKotlinTextLiterals", () => {
             source: 'fun <T> List<T>.log(a: String = "the text"): Int { b = "the text" }',
         },
         {
+            form: "a generic extension function with a bound",
+            source: 'fun <T : Any> List<T>.log(a: String = "the text")',
+        },
+        {
+            form: "a generic function whose bound is a function type",
+            source: 'fun <T : suspend () -> Unit> log(a: String = "the text")',
+        },
+        {
+            form: "an extension function whose receiver type holds a function type",
+            source: 'fun <T> Map<String, (T) -> Unit>.log(a: String = "the text")',
+        },
+        {
             form: "a class header and body",
             source: 'class A(val t: String = "the text") : B {\n    val c = "the text"\n}',
         },
@@ -188,7 +200,7 @@ describe("readKotlinTextLiterals", () => {
             source: 'log.run(object : R { val a = "the text" })',
         },
     ])("names no call around a literal in $form", ({ source }) => {
-        expect(callsAround(source).every((calls) => calls.length === 0)).toBe(true);
+        expect(callsAround(source).flat()).toEqual([]);
     });
 
     it("names only the calls inside the nearest lambda or block: the code a callee runs is no value it is handed", () => {
