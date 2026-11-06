@@ -32,10 +32,9 @@ import {
 import { i18n, type SupportedLocale } from "@miragon/bpmn-modeler-i18n";
 import { createModeler, type DmnAdditionalModules } from "@miragon/dmn-modeler";
 
-import type { DmnEditorCommand, HostApi } from "@miragon/bpmn-modeler-shared";
 import { DmnDocumentSession } from "../service/documentSession";
 import { routeDmnHostMessage } from "../adapter/in/hostMessageRouter";
-import type { WebviewState } from "../port/webviewState";
+import type { DmnHost } from "../port/dmnHost";
 
 /**
  * Injection seam for the entry. `theme`/`locale` seed the initial
@@ -47,8 +46,6 @@ interface BootstrapOptions {
     locale?: SupportedLocale;
     additionalModules?: DmnAdditionalModules;
 }
-
-type DmnHost = HostApi<WebviewState, DmnEditorCommand>;
 
 /**
  * Starts the DMN webview against the given host. The entry chooses the host

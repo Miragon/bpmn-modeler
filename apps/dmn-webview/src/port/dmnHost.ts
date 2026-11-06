@@ -5,6 +5,12 @@
  * DMN persists only properties-panel UI state; viewport and selection
  * round-tripping is not implemented for dmn-js.
  */
-import type { PropertiesPanelUiState } from "@miragon/bpmn-modeler-shared";
+import type {
+    DmnEditorCommand,
+    HostApi,
+    PropertiesPanelUiState,
+} from "@miragon/bpmn-modeler-shared";
 
 export type WebviewState = PropertiesPanelUiState;
+
+export type DmnHost = HostApi<WebviewState, DmnEditorCommand>;
