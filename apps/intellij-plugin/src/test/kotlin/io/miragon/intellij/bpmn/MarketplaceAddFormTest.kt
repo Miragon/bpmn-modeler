@@ -56,6 +56,15 @@ class MarketplaceAddFormTest {
     }
 
     @Test
+    fun `names the location field with the core's prompt for a screen reader`() {
+        runInEdtAndWait {
+            val panel = marketplaceAddPanel(question(), MarketplaceAddForm(question()))
+
+            assertEquals(question().prompt, locationField(panel).accessibleContext.accessibleName)
+        }
+    }
+
+    @Test
     fun `selects the core's scope and answers the location and scope the user enters`() {
         runInEdtAndWait {
             val form = MarketplaceAddForm(question())
