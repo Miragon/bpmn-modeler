@@ -77,7 +77,8 @@ an ancestor. When the head lags `<rev>`, the diff from the merge base also
 holds changes that reached `<rev>` another way, such as a stacked PR squashed
 into it, so the block lists the change as it would land on `<rev>` instead.
 Findings keep their status against the merge base: a `new` finding outside
-`touched.txt` came with such a change. Say so in the review's header. Run
+`touched.txt` may have come with such a change; check the function's
+`reportsWrongly` first. Say so in the review's header. Run
 `git worktree remove --force "$OUT/worktree"` when done.
 
 ## 2. Read the report
@@ -227,7 +228,9 @@ A value that rose in each of the last PRs that changed it is a lead:
 "`X.ts` grew in each of the last five PRs that touched it (300 → 330 → 348
 code lines); move the rule it holds into `domain/`". The first point is the
 oldest stored snapshot that holds the file, not necessarily a PR that changed
-it; each later point is a commit that changed the value.
+it. Each later point except the last is a commit that changed the value; the
+last holds HEAD's values, and when it names HEAD's commit it stands for every
+change since the newest stored snapshot, on a branch the whole branch.
 
 ```sh
 OUT="${TMPDIR:-/tmp}/architecture-review"; TREE=$(cat "$OUT/tree.txt"); R="$OUT/report.json"
