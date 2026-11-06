@@ -58,13 +58,19 @@ one fake per port), not through hand-rolled partial mocks cast to the port.
 The fakes keep state, so specs assert what the host shows or holds rather than
 which methods were called. They follow each port's documented conventions, so a
 port change breaks every spec that relies on it. Each fake is a third adapter
-beside VS Code and the bridge. One contract suite holds the workspace fake to a
-real adapter: `describeWorkspaceContract` runs the same scenarios against
-`InMemoryWorkspace` and the bridge's `NodeWorkspace` on a temporary directory,
-so within those scenarios a spec that passes on the fake cannot rely on a rule
-the bridge breaks. Where the hosts differ, VS Code is the reference; its adapter
-needs a running VS Code and stays outside the suite, so the suite does not
-prove VS Code keeps the same rules. The entry is test-only: production code
+beside VS Code and the bridge. Contract suites hold the fakes to the real
+adapters: each runs the same scenarios against the adapters of one port, so
+within those scenarios a spec that passes on a fake cannot rely on a rule a
+host breaks. Where the hosts differ, VS Code is the reference.
+`describeWorkspaceContract` runs against `InMemoryWorkspace` and the bridge's
+`NodeWorkspace` on a temporary directory; `VsCodeWorkspace` needs a running VS
+Code and stays outside it, so that suite does not prove VS Code keeps the same
+rules. `describeDocumentContract` runs against `EditorSessionDocuments` over
+the kit's `FakeEditorHandle`, as `createTestHost` composes it, and over
+`VsCodeEditorHandle` on a fake of the `vscode` text document, which pins the
+adapter's own mapping rather than VS Code, and against the bridge's
+`RpcDocumentPort` over an RPC loopback that answers as IntelliJ does (#2054).
+The entry is test-only: production code
 does not import it, and specs that test a host adapter itself keep mocking the
 host API underneath. A spec spies on a fake only to inject a failure or hang,
 or when the call itself is the behaviour under test.
