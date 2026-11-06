@@ -303,6 +303,15 @@ module.exports = [
                 {
                     guardedTypes: [
                         {
+                            name: "ReferenceKind",
+                            module: path.join(__dirname, "libs/modeler-types/src/referenceKind.ts"),
+                            homes: [
+                                path.join(__dirname, "libs/modeler-types/src/referenceKind.ts"),
+                            ],
+                            message:
+                                "`ReferenceKind` compared outside its home. Add a capability to `libs/modeler-types/src/referenceKind.ts` and ask it, or look the kind up in a `Record<ReferenceKind, …>`.",
+                        },
+                        {
                             name: "Engine",
                             module: path.join(__dirname, "libs/modeler-types/src/engine.ts"),
                             homes: [path.join(__dirname, "libs/modeler-types/src/engine.ts")],

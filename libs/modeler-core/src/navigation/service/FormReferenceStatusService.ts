@@ -8,11 +8,12 @@ import { WatcherEventKind } from "../../kernel/domain/watcherEvents";
 import { EditorSessionStore } from "../../editorSession/service/EditorSessionStore";
 import { CreatedFolderWalks } from "../../kernel/service/CreatedFolderWalks";
 import { resolveSearchScope } from "../../kernel/service/workspaceFileSearch";
+import { declaringFileExtension } from "../domain/modelDeclaration";
 import { FormDeclarationsResult, ReferencedModelLocator } from "./ReferencedModelLocator";
 
 const WATCH_DEBOUNCE_MS = 150;
 
-const isFormFile = (path: string) => path.endsWith(".form");
+const isFormFile = (path: string) => path.endsWith(declaringFileExtension("form"));
 
 interface EditorState {
     sourcePath: string;

@@ -31,6 +31,36 @@ interface ExtensionElementLike {
     formId?: string;
 }
 
+/** Where an element writes a reference of one kind. */
+interface ReferenceSource {
+    /** The Camunda 7 attribute on the element itself. */
+    readonly attribute?: string;
+    /** The Camunda 8 extension element and its property that holds the id. */
+    readonly extensionElement: {
+        readonly type: string;
+        readonly property: Exclude<keyof ExtensionElementLike, "$type">;
+    };
+    /** BPMN types `calledElement` as `xsd:QName`, so a prefix resolves to a namespace. */
+    readonly qualifiedName: boolean;
+}
+
+const REFERENCE_SOURCES: Readonly<Record<ReferenceKind, ReferenceSource>> = {
+    process: {
+        attribute: "calledElement",
+        extensionElement: { type: "zeebe:CalledElement", property: "processId" },
+        qualifiedName: true,
+    },
+    decision: {
+        attribute: "camunda:decisionRef",
+        extensionElement: { type: "zeebe:CalledDecision", property: "decisionId" },
+        qualifiedName: false,
+    },
+    form: {
+        extensionElement: { type: "zeebe:FormDefinition", property: "formId" },
+        qualifiedName: false,
+    },
+};
+
 /**
  * Looks up the first extension element whose `$type` matches `type`.
  *
@@ -48,6 +78,10 @@ function findExtensionElement(
     return values.find((extensionElement) => extensionElement.$type === type);
 }
 
+function nonEmptyString(value: unknown): string | undefined {
+    return typeof value === "string" && value.length > 0 ? value : undefined;
+}
+
 /**
  * Resolves the referenced process, decision, or form id. Returns `undefined`
  * when the element has no reference set or the reference is empty.
@@ -62,39 +96,11 @@ export function extractReference(
     if (!businessObject) {
         return undefined;
     }
-
-    if (kind === "process") {
-        // Camunda 7: <bpmn:callActivity calledElement="…">
-        const camunda7Reference = businessObject.get("calledElement");
-        if (typeof camunda7Reference === "string" && camunda7Reference.length > 0) {
-            return camunda7Reference;
-        }
-        // Camunda 8: <zeebe:calledElement processId="…">
-        const camunda8Reference = findExtensionElement(businessObject, "zeebe:CalledElement");
-        if (camunda8Reference?.processId) {
-            return camunda8Reference.processId;
-        }
-        return undefined;
-    }
-
-    if (kind === "form") {
-        const formDefinition = findExtensionElement(businessObject, "zeebe:FormDefinition");
-        return typeof formDefinition?.formId === "string" && formDefinition.formId.length > 0
-            ? formDefinition.formId
-            : undefined;
-    }
-
-    // Camunda 7: <bpmn:businessRuleTask camunda:decisionRef="…">
-    const camunda7Reference = businessObject.get("camunda:decisionRef");
-    if (typeof camunda7Reference === "string" && camunda7Reference.length > 0) {
-        return camunda7Reference;
-    }
-    // Camunda 8: <zeebe:calledDecision decisionId="…">
-    const camunda8Reference = findExtensionElement(businessObject, "zeebe:CalledDecision");
-    if (camunda8Reference?.decisionId) {
-        return camunda8Reference.decisionId;
-    }
-    return undefined;
+    const { attribute, extensionElement } = REFERENCE_SOURCES[kind];
+    const camunda7Reference =
+        attribute === undefined ? undefined : nonEmptyString(businessObject.get(attribute));
+    const camunda8Element = findExtensionElement(businessObject, extensionElement.type);
+    return camunda7Reference ?? nonEmptyString(camunda8Element?.[extensionElement.property]);
 }
 
 /**
@@ -109,7 +115,7 @@ export function extractModelReference(
     if (!businessObject || !reference) {
         return undefined;
     }
-    return kind === "process"
+    return REFERENCE_SOURCES[kind].qualifiedName
         ? { ...resolveQualifiedReference(reference, businessObject), kind }
         : { id: reference, kind };
 }
