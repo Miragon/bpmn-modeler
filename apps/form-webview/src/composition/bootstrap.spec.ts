@@ -9,8 +9,8 @@ import {
     type Query,
 } from "@miragon/bpmn-modeler-shared";
 
-import packageJson from "../package.json";
-import type { FormHost, WebviewState } from "./app/host";
+import packageJson from "../../package.json";
+import type { FormHost, WebviewState } from "../adapter/out/host";
 import { bootstrap } from "./bootstrap";
 
 const mocks = vi.hoisted(() => {

@@ -8,7 +8,7 @@ import {
 } from "@miragon/bpmn-modeler-shared";
 import { serializeAsync } from "@miragon/bpmn-modeler-types";
 
-import { FormHost } from "./host";
+import { FormHost } from "../out/host";
 
 type Schema = Record<string, unknown>;
 type ImportResult = { warnings?: unknown[] };

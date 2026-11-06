@@ -21,7 +21,7 @@ export default defineConfig({
         rollupOptions: {
             input: {
                 index: resolve(__dirname, "src/main.ts"),
-                styles: resolve(__dirname, "src/styles/index.css"),
+                styles: resolve(__dirname, "src/adapter/in/styles/index.css"),
             },
             output: {
                 entryFileNames: "[name].js",
