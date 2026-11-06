@@ -1,4 +1,4 @@
-import type { BindingSpec, FeelSupport, PropertyType } from "../catalog";
+import type { BindingSpec, FeelSupport, PropertyType } from "./catalog";
 import { feelSupport } from "./bindingRules";
 
 interface TypeCapabilities {

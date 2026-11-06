@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { SurfaceFactories } from "@miragon/bpmn-modeler/mode";
+import type { ModelerSurfaceContext, SurfaceFactories } from "@miragon/bpmn-modeler/mode";
 import {
     type Command,
     createInertLockGroup,
@@ -58,6 +58,11 @@ function fakeModeler(initialMode: "design" | "implement", overrides: Record<stri
             mode = next;
         }),
         getMode: () => mode,
+        /** As `createModeler` opens in the mode its options name. */
+        openIn(opened: "design" | "implement") {
+            mode = opened;
+            return modeler;
+        },
     };
     return Object.assign(modeler, overrides);
 }
@@ -127,11 +132,11 @@ function controllerWith({
     const binder = fakeBinder();
     const stripHost = document.createElement("div");
     const stripEl = document.createElement("div");
-    const modeler = fakeModeler(initialMode === "design" ? "design" : "implement");
+    const modeler = fakeModeler("implement");
     const viewer = fakeViewer();
     const factories = {
         view: vi.fn(async () => viewer),
-        implement: vi.fn(async () => modeler),
+        implement: vi.fn(async ({ mode }: ModelerSurfaceContext) => modeler.openIn(mode)),
         ...surfaces,
     } as unknown as SurfaceFactories;
     const modes = createModeController(host, {

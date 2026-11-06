@@ -50,10 +50,39 @@ describe("readTypeProgram", () => {
         expect(lib).toBeDefined();
     });
 
+    it("type-checks the given files in place of the config's own, with the given types", () => {
+        const program = readTypeProgram(join(root, "app/tsconfig.json"), {
+            files: [join(root, "lib/lib.ts")],
+            types: [],
+        });
+
+        expect(program.getCompilerOptions()).toMatchObject({
+            strict: true,
+            noEmit: true,
+            types: [],
+        });
+        expect(program.getRootFileNames().map((fileName) => fileName.slice(root.length))).toEqual([
+            "/lib/lib.ts",
+        ]);
+    });
+
     it.each([
-        { case: "a config that does not exist", config: "app/tsconfig.missing.json" },
-        { case: "a config that matches no file", config: "app/tsconfig.empty.json" },
-    ])("throws on $case", ({ config }) => {
-        expect(() => readTypeProgram(join(root, config))).toThrow(join(root, config));
+        {
+            case: "a config that does not exist",
+            config: "app/tsconfig.missing.json",
+            files: undefined,
+        },
+        {
+            case: "a config that does not exist, given files",
+            config: "app/tsconfig.missing.json",
+            files: ["lib/lib.ts"],
+        },
+        {
+            case: "a config that matches no file",
+            config: "app/tsconfig.empty.json",
+            files: undefined,
+        },
+    ])("throws on $case", ({ config, files }) => {
+        expect(() => readTypeProgram(join(root, config), { files })).toThrow(join(root, config));
     });
 });

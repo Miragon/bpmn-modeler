@@ -20,8 +20,8 @@ verify details against source because older guides and ADRs may be outdated.
 | Public-facing types, browser utilities and pure rules browser code shares with the core | `libs/modeler-types`; keep the surface suitable for publication. |
 | Private messages and webview chrome | `libs/shared/src/lib/`; base/sync messages in `messages.ts`, feature payloads in their corresponding files, host channel in `host.ts`. |
 | Host-independent domain logic and services | Feature folders in `libs/modeler-core/src/`, with the shared vocabulary in `kernel/` and the editor-session core in `editorSession/`; consumers use its `index.ts`. |
-| IDE protocol-to-modeler adaptation | `apps/bpmn-webview/src/bootstrap.ts` and its `src/session/` modules, `apps/dmn-webview/src/bootstrap.ts`. |
-| Form editing and deployment UI | `apps/form-webview`; `apps/deployment-webview`, whose markup lives in `src/app/formTemplate.ts`. |
+| IDE protocol-to-modeler adaptation | `apps/bpmn-webview/src/bootstrap.ts` and its `src/session/` modules, `apps/dmn-webview/src/composition/bootstrap.ts`. |
+| Form editing and deployment UI | `apps/form-webview`; `apps/deployment-webview`, whose markup lives in `src/adapter/in/formTemplate.ts`. |
 | Host integration and lifecycle | `apps/vscode-plugin/src/main.ts` and `src/composition/`; `apps/modeler-bridge/src/server.ts` and `src/composition/` (`bridge.ts`); Kotlin host in `apps/intellij-plugin`. |
 
 Decisions (rules, state transitions, validations) go into the owning feature's
@@ -37,14 +37,30 @@ a protocol type file is large and holds no rule.
 
 A value set (auth types, theme modes, languages) has one home. Every other use
 imports it. A TypeScript copy that cannot (a protocol type behind a package
-boundary) is pinned to it in a spec by
-`expectTypeOf<Copy>().toEqualTypeOf<Home>()`; a copy outside TypeScript (a
-manifest, Kotlin) by a spec, as `apps/vscode-plugin/src/manifest.contract.spec.ts`
-pins the languages. A pin is a fix, not an exception. The `repeated-value-sets`
-fitness function reports every set written in two or more files that no
-`expectTypeOf` pin links; a copy a branch adds shows as new. A copy that drifts
-from its home shows as resolved, not new: a resolved set is a fix only where its
-copies are gone, import their home or are pinned to it.
+boundary) is pinned to it by `expectTypeOf<Copy>().toEqualTypeOf<Home>()` in
+the spec of the code that maps between them, as `DeploymentTargetService.spec.ts`
+pins `AuthTypePayload` to `TargetAuthType`. A copy outside TypeScript (a
+manifest, a JSON schema, Kotlin) is pinned by a spec that reads it and compares
+it with the home's runtime list, as `apps/vscode-plugin/src/manifest.contract.spec.ts`
+pins the languages and the default modes, and `deploymentTargetsSchema.spec.ts`
+the schema's engines and auth types. A Kotlin test reads the home's file, as
+`ModelerSettingsStoreTest` reads `SURFACE_MODES`:
+`apps/intellij-plugin/build.gradle.kts` passes the file to `tasks.test` as a
+declared input, and the `intellij-plugin` filter in
+`.github/workflows/build.yml` lists it, or a PR that changes only the home
+skips the Kotlin job. `tools/repo-checks/src/kotlinTestInputs.spec.ts` fails
+when the filter misses an input. A home that has only a type gets that list as
+a readonly tuple its type derives from (`TARGET_AUTH_TYPES`), not as a second
+spelling. A type a published package re-exports from an inlined library, such
+as `Engine`, cannot derive from an `as const` list: the package's declaration
+roll-up (API Extractor) reads the library's source and fails on it. Its list is
+typed as the home instead, and a spec checks that it names every value, as
+`engine.spec.ts` checks `ENGINES` against the `Record<Engine, …>` tables. A pin
+is a fix, not an exception. The `repeated-value-sets` fitness function reports
+every set written in two or more files that no `expectTypeOf` pin links; a copy
+a branch adds shows as new. A copy that drifts from its home shows as resolved,
+not new: a resolved set is a fix only where its copies are gone, import their
+home or are pinned to it.
 
 The core builds every user-visible text, and a host renders it: prompts, status
 views, notifications and their buttons. A text a host would write goes into the
@@ -53,9 +69,25 @@ prompt, so both hosts show the same words. Only two kinds of text stay in the
 host: its chrome, such as VS Code's "Reload Window" button, and messages about
 its own failure, such as the bridge process dying. The `host-text` fitness
 function reports every literal with two words in host code: a file that imports
-`vscode`, or a class outside the core that implements a core interface. A text a
-branch adds shows as new. It also lists host chrome and technical strings
-(HTML, CSS classes); judge each, and leave the host's own text where it is.
+`vscode`, a class outside the core that implements a core interface, or a Kotlin
+file in `src/main/kotlin` that imports `com.intellij`, so IntelliJ's dialogs,
+actions and settings page count too. A text a branch adds shows as new. It also
+lists host chrome and technical strings (HTML, CSS classes, scripts); judge
+each, and leave the host's own text where it is.
+
+A port the core reads back from has a contract suite in the core's test kit
+once a second class implements it, and every adapter of the port runs it, the
+in-memory fake included. A suite is a function exported from
+`@miragon/bpmn-modeler-core/testing` that takes a factory of the adapter, or of
+a fixture that holds it, and runs the rules the core relies on (sorting, path
+spelling, the dismissal value), not one adapter's quirks;
+`describeWorkspaceContract` is the model. A port whose methods only return
+`void` or `Promise<void>` renders and needs none, and neither does a strategy
+the core chooses between, such as the engine clients. The `contract-suites`
+fitness function lists every adapter of a core port whose specs do not import
+it and call a suite of that port; it sets ports with one adapter and
+render-only ports aside in collapsed groups, and a new adapter of a port with a
+suite shows as new until its spec runs the suite.
 
 ## Preserve the boundaries
 
@@ -141,6 +173,11 @@ file or type name:
    `fs` or `http`.
 8. Only `composition/` and entries import `composition/`.
 9. Only `testing/` imports `testing/`; nothing imports an entry.
+
+In a webview the UI, its markup and the router for the host's queries are
+`adapter/in/`, the host channel `adapter/out/`, the channel's type and the
+state it persists `port/`, a document session `service/`, pure rules
+`domain/`, the bootstrap `composition/`, and `main.ts` the entry.
 
 A `diagram-js` or `flat` workspace holds no role folder (same spec). ESLint
 bans `() => {}` in `adapter/` (`eslint.config.cjs`). A workspace not yet moved

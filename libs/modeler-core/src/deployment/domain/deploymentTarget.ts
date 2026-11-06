@@ -23,7 +23,7 @@ import {
     wholeEnvRefOf,
 } from "./envRef";
 
-const TARGET_AUTH_TYPES = ["none", "basic", "oauth2"] as const;
+export const TARGET_AUTH_TYPES = ["none", "basic", "oauth2"] as const;
 
 export type TargetAuthType = (typeof TARGET_AUTH_TYPES)[number];
 

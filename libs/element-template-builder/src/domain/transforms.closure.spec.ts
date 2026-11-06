@@ -4,7 +4,7 @@ import { validate, validateZeebe } from "@bpmn-io/element-templates-validator";
 
 import c7Samples from "../__fixtures__/c7-samples.json";
 import c8Samples from "../__fixtures__/c8-samples.json";
-import { catalogFor, type EngineCatalog } from "../catalog";
+import { catalogFor, type EngineCatalog } from "./catalog";
 import { applyTemplateEdits, type JsonPath, type TemplateEdit } from "./templateText";
 import { allowedTypes, bindingSpecOf } from "./bindingRules";
 import { ruleDiagnostics } from "./diagnostics";

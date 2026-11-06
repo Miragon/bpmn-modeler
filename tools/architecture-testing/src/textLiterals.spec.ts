@@ -132,6 +132,23 @@ describe("readTextLiterals", () => {
         ]);
     });
 
+    it("names only the calls inside the nearest function: the code a callee runs is no value it is handed", () => {
+        expect(
+            callsAround(
+                "logAndRethrow(async () => { window.showQuickPick(items, { placeHolder: 'the text' }); });\n" +
+                    "logger.info(function () { return 'lazy text'; });\n" +
+                    "logger.info(items.map((item) => item.name).join(', '));",
+            ),
+        ).toEqual([
+            [{ construct: false, callee: "showQuickPick", receiver: "window" }],
+            [],
+            [
+                { construct: false, callee: "info", receiver: "logger" },
+                { construct: false, callee: "join" },
+            ],
+        ]);
+    });
+
     it("reads no arguments of a `new` without an argument list", () => {
         expect(callsAround("const e = new Thing;\nconst a = 'after it';")).toEqual([[]]);
     });

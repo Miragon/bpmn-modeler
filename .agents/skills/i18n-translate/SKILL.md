@@ -154,7 +154,7 @@ overlay dictionary. So adding a language is three moves:
    contribution to the external repo first — you cannot add a whole language from here.
 2. **In this repo**: add `libs/bpmn-i18n-extras/src/languages/<locale>.ts` translating the current overlay
    key set, and register it in the generated `languages/index.ts` barrel (import + entry in `extras`).
-   The QuickPick then picks it up automatically via `supportedModelerLanguages`.
+   The QuickPick and `tools/build-overlay.mjs` then pick it up through `supportedModelerLanguages`.
 3. **The static copies**: add the locale with its catalogue label to `miragon.bpmnModeler.language` in
    `apps/vscode-plugin/package.json` (`enum` + `enumItemLabels`, same position in both), to the table in
    `docs/vscode/features/language-support.md`, and to `ModelerLocales.kt` in the IntelliJ plugin, at the

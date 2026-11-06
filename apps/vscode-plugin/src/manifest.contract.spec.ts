@@ -70,6 +70,7 @@ import { supportedModelerLanguages } from "@miragon/bpmn-modeler-i18n-extras";
 import {
     ELEMENT_TEMPLATE_FOLDER_NAME,
     ELEMENT_TEMPLATE_SCHEMA_URL,
+    SURFACE_MODES,
 } from "@miragon/bpmn-modeler-types";
 import { MODELER_SETTINGS_SECTION } from "./shared/domain/modelerSettingsSection";
 
@@ -381,6 +382,16 @@ describe("package.json ↔ code contract", () => {
         ),
     )("reads the $key $value the manifest offers as itself", ({ key, value }) => {
         expect(parseSetting(key, value)).toBe(value);
+    });
+
+    it("offers exactly the surface modes as the default mode, each with a label", () => {
+        const { enum: offered = [], enumItemLabels: labels = [] } =
+            manifest.contributes.configuration.properties[
+                `${MODELER_SETTINGS_SECTION}.defaultMode`
+            ];
+
+        expect([...offered].sort()).toEqual([...SURFACE_MODES].sort());
+        expect(labels).toHaveLength(offered.length);
     });
 
     it("offers every language the modeler ships, labelled as the language picker labels it", () => {

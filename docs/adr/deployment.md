@@ -1,7 +1,7 @@
 # Deployment
 
 - Status: accepted
-- Last reviewed: 2026-11-01
+- Last reviewed: 2026-11-06
 
 ## Context
 
@@ -35,14 +35,30 @@ hand-edited file; URL overrides trimmed, or dropped when blank; an auth type of
 `none`, `basic` or `oauth2`, keeping only its own fields and credential refs
 (`TargetAuth`); and valid environment references
 ([target tests](../../libs/modeler-core/src/deployment/domain/deploymentTarget.spec.ts)).
-`create` checks the engine and auth type at runtime, because the protocol
-payload of a form save is not checked on arrival: a malformed save is rejected
-before it writes a file that would no longer load. Parse the team-editable file
-defensively: the parser checks the JSON shape and reports a broken value rule
-as `targets[i]` plus the field. Register the file's
+`create` checks the engine and auth type at runtime against their homes,
+`ENGINES` (`@miragon/bpmn-modeler-types`) and `TARGET_AUTH_TYPES`
+(`deploymentTarget.ts`, from which `TargetAuthType` derives), because the
+protocol payload of a form save is not checked on arrival: a malformed save is
+rejected before it writes a file that would no longer load. Parse the
+team-editable file defensively: the parser checks the JSON shape and reports a
+broken value rule as `targets[i]` plus the field. Register the file's
 [JSON schema](../../libs/shared/src/lib/deploymentTargets.schema.json)
 for editor validation. A malformed file reports an error and yields no targets
 rather than crashing the sidebar.
+
+Two copies that cannot import these homes are pinned to them. The
+[schema tests](../../libs/modeler-core/src/deployment/domain/deploymentTargetsSchema.spec.ts)
+compare the schema's `engine` and `auth.type` enums with the homes and fail on
+any other enum in the schema. A type equality assertion in the spec of the
+mapper `toTargetPayload` pins the protocol's `AuthTypePayload` (`libs/shared`,
+which must not import the core); without it, an auth type only the protocol
+knows compiles and falls back to no auth in `toAuthConfig`. The deployment
+form's `<option>` values in `formTemplate.ts` are a third copy of both sets and
+are not pinned yet. The form rejects an engine outside `ENGINES` with
+`isEngine`, but casts the selected auth type unchecked, so an auth option the
+domain lacks still falls back to no auth. A runtime list in `libs/shared`, which
+the form already imports, would let it guard the auth type the same way, and
+the type pin would keep that list tied to `TargetAuthType`.
 
 Credentials stay in the host secret store under `<targetsFilePath>::<name>`.
 The file path prevents same-named targets in different projects from sharing

@@ -1,3 +1,5 @@
+import type { SurfaceThemeMode } from "@miragon/bpmn-modeler-types";
+
 /**
  * [B] Theme selection for a single instance. The modeler toggles a
  * `data-bpmn-theme` attribute on its container + panel parent (the authoritative
@@ -9,4 +11,4 @@
  * (VS Code `<body>` classes) maps that signal to a forced mode in its adapter —
  * the package does not read host chrome.
  */
-export type ThemeMode = "light" | "dark" | "automatic";
+export type ThemeMode = SurfaceThemeMode;
