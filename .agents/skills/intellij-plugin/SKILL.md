@@ -156,8 +156,9 @@ so a new slot, icon, tone or action fails until Kotlin knows it.
 `normalizeSettings`; `ModelerSettingsStore` keeps the Kotlin copy.
 `ModelerSettingsStoreTest` runs the rows of
 `libs/modeler-core/src/kernel/domain/settingsNormalization.cases.json` against
-the store and compares its defaults with `apps/vscode-plugin/package.json`, both
-passed in as Gradle system properties. A rule change edits the rows, the
+the store and compares its defaults with `apps/vscode-plugin/package.json` and
+its `DEFAULT_MODES` with `SURFACE_MODES` in `libs/modeler-types/src/surfaceMode.ts`,
+all passed in as Gradle system properties. A rule change edits the rows, the
 TypeScript rule and the Kotlin copy in one PR. `ModelerLocalesTest` holds the
 language list of `ModelerLocales` to the manifest's `miragon.bpmnModeler.language`
 codes and labels, which `manifest.contract.spec.ts` holds to the shipped catalogue.

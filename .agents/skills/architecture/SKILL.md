@@ -39,8 +39,11 @@ A value set (auth types, theme modes, languages) has one home. Every other use
 imports it. A TypeScript copy that cannot (a protocol type behind a package
 boundary) is pinned to it in a spec by
 `expectTypeOf<Copy>().toEqualTypeOf<Home>()`; a copy outside TypeScript (a
-manifest, Kotlin) by a spec, as `apps/vscode-plugin/src/manifest.contract.spec.ts`
-pins the languages. A pin is a fix, not an exception. The `repeated-value-sets`
+manifest, Kotlin) by a spec that reads both, as
+`apps/vscode-plugin/src/manifest.contract.spec.ts` pins the languages and the
+default modes. A Kotlin test reads the home's file, which Gradle passes in, as
+`ModelerSettingsStoreTest` reads `SURFACE_MODES`. A pin is a fix, not an
+exception. The `repeated-value-sets`
 fitness function reports every set written in two or more files that no
 `expectTypeOf` pin links; a copy a branch adds shows as new. A copy that drifts
 from its home shows as resolved, not new: a resolved set is a fix only where its

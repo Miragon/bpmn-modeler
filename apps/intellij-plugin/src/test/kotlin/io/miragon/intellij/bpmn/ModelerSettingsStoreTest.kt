@@ -60,6 +60,11 @@ class ModelerSettingsStoreTest {
     }
 
     @Test
+    fun `offers and keeps exactly the surface modes the core reads as a default mode`() {
+        assertEquals(coreSurfaceModes().sorted(), ModelerSettingsStore.DEFAULT_MODES.sorted())
+    }
+
+    @Test
     fun `addMarketplace appends once`() {
         store.addMarketplace("https://a")
         store.addMarketplace("https://b")
@@ -244,6 +249,16 @@ class ModelerSettingsStoreTest {
                     .map { (key, property) -> snapshotName(key.removePrefix(NAMESPACE)) to property.asJsonObject.get("default") }
                     .forEach { (name, default) -> add(name, default) }
             }
+        }
+
+        /** `SURFACE_MODES` in `surfaceMode.ts`, the modes the core's `normalizeSettings` keeps. */
+        private fun coreSurfaceModes(): List<String> {
+            val source = readTypeScriptFile("miragon.surfaceModes")
+            val modes =
+                requireNotNull(Regex("""export const SURFACE_MODES\b[^=]*=\s*\[([^\]]*)]""").find(source)) {
+                    "surfaceMode.ts declares no SURFACE_MODES array literal"
+                }.groupValues[1]
+            return Regex(""""([^"]+)"""").findAll(modes).map { it.groupValues[1] }.toList()
         }
 
         /** `scripting.spin` → `scriptingSpin`. */

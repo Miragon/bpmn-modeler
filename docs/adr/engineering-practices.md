@@ -1,7 +1,7 @@
 # Engineering practices
 
 - Status: accepted
-- Last reviewed: 2026-11-03
+- Last reviewed: 2026-11-06
 
 ## Context
 
@@ -149,7 +149,12 @@ copies. The settings rows in `settingsNormalization.cases.json` are the first
 such file (see [host-replicated state](architecture-and-hosts.md#host-replicated-state)).
 Rows whose shapes the typed Kotlin side cannot hold, such as a value of the
 wrong type, live in the core's testing kit (`TYPESCRIPT_ONLY_SETTINGS_CASES`),
-and every TypeScript host runs them beside the JSON rows.
+and every TypeScript host runs them beside the JSON rows. A value set the
+Kotlin host copies is pinned the same way, to the TypeScript source file itself:
+`StatusSlotPlacementTest` reads the unions in `statusView.ts` and
+`ModelerSettingsStoreTest` the `SURFACE_MODES` array in `surfaceMode.ts`, and
+each fails when the Kotlin copy differs. No generated file sits in between that
+could go stale.
 
 ### Coverage gates
 
