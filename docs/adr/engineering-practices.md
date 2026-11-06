@@ -1414,100 +1414,130 @@ Each run was a separate agent session that followed the skill without the
 reference, and one judge per run scored each reference item exact, partial or
 missed and each further finding true, plausible or false. Round 1 ran the
 skill as first written, three times per case. Round 2 ran it twice per case
-after the 15 changes round 1 proposed (two of them in part), as this section
-describes it, except the row check and the proposals for the fitness
-functions, which came after both rounds and are not measured.
+after the 15 changes round 1 proposed (two of them in part). Round 3 ran it
+once per case as this section describes it, with the row check and the
+proposals for the fitness functions, and a second judge per run checked in
+the code each row the run set aside, each proposal and each row it cited as
+erosion. One run per case shows that the step runs and what its feedback is
+worth, not a trend.
 
 | Case (items) | Round | Matched per run (exact) | Added: true / plausible / false | Mean run time |
 | --- | --- | --- | --- | --- |
 | #2040 (4) | 1 | 3 (1), 3 (3), 1 (1) | 3 / 10 / 2 | 401 s |
 | #2040 (4) | 2 | 4 (4), 4 (4) | 2 / 8 / 0 | 624 s |
+| #2040 (4) | 3 | 3 (3) | 1 / 4 / 0 | 606 s |
 | #2047 (15) | 1 | 8 (3), 8 (0), 8 (1) | 8 / 10 / 0 | 705 s |
 | #2047 (15) | 2 | 10 (2), 9 (2) | 5 / 7 / 0 | 796 s |
+| #2047 (15) | 3 | 9 (3) | 3 / 5 / 0 | 1016 s |
 | #1799 (20) | 1 | 4 (0) in each run | 15 / 3 / 1 | 565 s |
 | #1799 (20) | 2 | 4 (0) in each run | 12 / 3 / 0 | 674 s |
+| #1799 (20) | 3 | 4 (0) | 3 / 1 / 0 | 873 s |
 
-Two of #2047's round-2 plausible findings are trend notes, which one judge
-counted and the other did not.
+Two of #2047's round-2 and three of its round-3 plausible findings are trend
+notes, which those two judges counted and the others did not. #1799's
+round-3 judge scored three findings as support for S1 and S2, not as added.
 
-- **Stability.** Coverage is stable within a round: #2047 1.5 and 1.8 were
-  half found in all five runs, #1799 matched S1 to S4 partly in all five.
-  Depth and the added findings vary: #2047 1.2 and 1.6 and most added
-  findings came and went between runs, and the exact/partial split moves by
+- **Stability.** Coverage is mostly stable across rounds: #2047 1.5 was half
+  found in all six runs and 1.8 in five, #1799 matched S1 to S4 partly in all
+  six. Depth and the added findings vary: #2047 1.2, 1.6, 1.8 and 3.1 and
+  most added findings came and went between runs, #2040 R2 was exact in both
+  round-2 runs and missed in round 3, and the exact/partial split moves by
   about one item per run between judges, who scored one observation as a
   match in one run and as an addition in the other.
-- **What it finds**, in at least 4 of 5 runs: a rule written twice in
+- **What it finds**, in at least 5 of 6 runs: a rule written twice in
   different spellings near the diff (#2040's verify rule, #2047 1.1, the
   deployable-file rule as a glob and as an extension list), text built per
   host (#2047 3.4), the CI path filter that misses the Kotlin test inputs
-  (5 of 5, not in the reference) and #1799's structural causes, partly. Its
-  triage of report rows against `reportsWrongly` was right in every run.
-  Round 2's checks matched exactly, in both runs, the home that moved code
-  bypasses, the host that cuts a list before the core sorts it, the two
-  derivations of one state and the two type declarations that disagree;
-  round 1 matched each exactly in at most one of three runs.
+  (not in the reference) and #1799's structural causes, partly. Round 2's
+  checks matched exactly, in both runs, the home that moved code bypasses,
+  the host that cuts a list before the core sorts it, the two derivations of
+  one state and the two type declarations that disagree; round 1 matched each
+  exactly in at most one of three runs, round 3 all but the two derivations.
 - **What it misses:** a second copy it must discover rather than follow from
   the diff, with another name and other members (#2047 3.5 and #1799 D10 and
-  D15 in 0 of 5 runs, the key lists of #2047 1.4 in 1); the guards a new
-  workspace lacks (#2047 1.7, 0 of 5); wiring compared with the sibling
-  feature's (the VS Code half of #2047 1.2, 0 of 5); the second halves of
-  bundled items (#2047 1.5 and 1.8); and most of a whole tree: both round-2
-  runs compared 4 or 5 of about 15 ports and listed the rest as not covered,
-  and D1 to D16 were missed in all 80 run-items. Defects inside one copy
-  (#2047 3.1, 3.3 and 3.6, most D items) belong to code review, not to this
+  D15 in 0 of 6 runs, the key lists of #2047 1.4 in 1); the guards a new
+  workspace lacks (#2047 1.7, 0 of 6); wiring compared with the sibling
+  feature's (the VS Code half of #2047 1.2, 0 of 6); the second halves of
+  bundled items (#2047 1.5 and 1.8); and most of a whole tree: each
+  whole-tree run since round 2 listed 7 or 8 of about 15 ports as not
+  compared, and D1 to D16 were missed in all 96 run-items. Defects inside one
+  copy (#2047 3.3 and 3.6, most D items) belong to code review, not to this
   skill.
-- **False findings:** 3 of 89 added findings (3.4 %), 0 of 37 in round 2,
-  which still allows up to about 8 % at 95 % confidence. 41 of the 89 are
-  only plausible, real but arguable or minor, and about five round-2 findings
-  carry one wrong sub-claim, so about half the added findings are worth
-  acting on.
-- **Cost:** 9.8 to 14.5 min per round-2 run (mean 11.6 min, 25 % more than
-  round 1's 9.3 min), plus 5 to 13 s for the report; tokens were not
-  recorded. The PR's author then triages 9 to 15 numbered findings and 6 to
-  16 marked rows.
-- **What round 2 shows.** Most of its checks were written from round 1's
-  misses on the same cases, so it shows that they fire, not that they
-  generalize. Matched items per run rose (#2040 from 2.3 to 4.0, #2047 from
-  8.0 to 9.5), all on items a change aimed at; the seven #2047 items no
+- **False findings:** 3 of 106 added findings (2.8 %), none of 54 in rounds
+  2 and 3, which still allows up to about 6 % at 95 % confidence. 51 of the
+  106 are only plausible, real but arguable or minor, and about five findings
+  in each of rounds 2 and 3 carry one wrong sub-claim, so about half the added
+  findings are worth acting on.
+- **Fitness function feedback** (round 3). Each run kept its proposals apart
+  from its findings and named the function's `id` and version in each. Of
+  the 40 report rows the runs set aside, 25 are false alarms an entry already
+  declares, 4 undeclared ones (the runs proposed a fix for 2, and claimed 2
+  declared ones as undeclared), 5 unclear and 6 true findings wrongly
+  dismissed, at least one per run. The worst: the #1799 run called the
+  lint-config copy, which `change-coupling`'s evidence names, two halves of
+  one protocol and proposed a `reportsWrongly` entry that declares it false.
+  Of 17 proposals, 6 are correct and actionable, 3 right but vague, 7 wrong
+  (an entry that would mark correct rows false or restates an existing one,
+  or a rule on a false premise) and 1 would read a type name, which no
+  fitness function may. Two rows the runs cited as applying to a finding are
+  declared false alarms. The step finds real gaps in the functions, but each
+  proposal needs a maintainer's check before it becomes an issue, the row
+  check does not stop true findings from being dismissed, and a whole tree
+  has more rows than one run checks (331 for `repeated-value-sets` and
+  `host-text` at #1799).
+- **Cost:** 10.1 to 16.9 min per round-3 run (mean 13.9 min; round 2 11.6,
+  round 1 9.3), plus 5 to 13 s for the report; tokens were not recorded. One
+  run per case cannot say how much of the rise step 6 causes. The PR's author
+  then triages 8 to 15 numbered findings, the marked rows and the feedback.
+- **What rounds 2 and 3 show.** Most of round 2's checks were written from
+  round 1's misses on the same cases, so it shows that they fire, not that
+  they generalize. Matched items per run rose (#2040 from 2.3 to 4.0, #2047
+  from 8.0 to 9.5), all on items a change aimed at; the seven #2047 items no
   change aimed at went from 12 of 21 run-items to 7 of 14, and #1799's score
   did not move. Two runs per case cannot tell a one-item difference from
-  judge noise. False findings fell from 3 to 0: two were dropped report rows,
+  judge noise, and round 3's single runs (#2040 3, #2047 9 and #1799 4
+  matched; 3 of the 7 untargeted #2047 items) lie within that spread. False
+  findings fell from 3 to 0 and stayed there: two were dropped report rows,
   which now have their own section, and one an "unpinned" claim that the
   pin-check rule now catches.
-- **Contamination.** Both rounds ran with some answers in the tree. The
+- **Contamination.** All rounds ran with some answers in the tree. The
   `tdd` skill and [Architecture tests](#architecture-tests) name
   `verifiesDeployments`, #2040's fix, and this change had added it as the
-  `architecture` skill's naming example before measuring, so #2040 R1's
-  exact match in all five runs is contaminated in part by this change
-  itself; that example now names another rule. The limits of
-  `change-coupling` and `repeated-value-sets` name a structural cause and a
-  defect of #1799 and parts of #2047; round-2 runs quoted them. This section
-  now names the answers of all three cases, so a further measurement needs
-  held-out PRs.
+  `architecture` skill's naming example before rounds 1 and 2, so #2040 R1's
+  exact match in those five runs is contaminated in part by this change
+  itself; round 3 ran with another example there and matched R1 exactly too.
+  The limits of `change-coupling` and `repeated-value-sets` name a structural
+  cause and a defect of #1799 and parts of #2047; round-2 runs quoted them,
+  and the round-3 run on #1799 flagged them. This section now names the
+  answers of all three cases, so a further measurement needs held-out PRs.
 
 **No CI job yet.** A job that runs the review on every PR is not worth it
 now. The evidence is three calibration cases, the second round was tuned on
 them, and the tree states their answers. Runs differ, so the comment would
-change from push to push. At about 12 minutes per run, most PRs would get a
+change from push to push. At 10 to 17 minutes per run, most PRs would get a
 long review that mixes their own findings with older debt in the files they
 touch. Stacked PRs feed it a touched list with files the PR never changed:
-both round-2 runs on #2047 got 54 merge-tree conflicts, 20 of them in such
-files, and had to find the PR's own change by hand. A job needs a workflow,
-an API secret and possibly a dependency. The review runs by hand, on PRs that
-move rules between layers, add a host feature or add a workspace: the shape
-of #2040 and #2047, where it scored best.
+all three runs on #2047 since round 2 got 54 merge-tree conflicts, 20 of them
+in such files, and had to find the PR's own change by hand. A job needs a
+workflow, an API secret and possibly a dependency. The review runs by hand,
+on PRs that move rules between layers, add a host feature or add a
+workspace: the shape of #2040 and #2047, where it scored best. Its fitness
+function proposals go to a maintainer, who files the ones that hold.
 
 _Proposed, not decided:_ tell the reviewer to run its own commands under
-bash and name the hazards (in 5 of 6 round-2 runs on macOS the reviewer's
-own commands hit zsh or BSD regex hazards; no block of the skill failed),
-take a stacked PR's own change from the last merge of its base, shard a
-whole tree by port family or give it a port budget, and find second copies
-by their values; then measure on 3 to 5 held-out merged PRs whose erosion a
-later issue documented, with one judge per case and architecture items
-scored apart from correctness bugs. If that run matches most architectural
-items at a false rate under 10 %, a non-blocking, path-triggered job that
-posts only the top findings a PR introduced is worth a pilot. The 10 % bar
-is a judgement, not a measurement.
+bash and name the hazards (in 5 of 6 round-2 runs and in the round-3 run on
+#1799 on macOS the reviewer's own commands hit zsh or BSD regex hazards; no
+block of the skill failed), take a stacked PR's own change from the last
+merge of its base, shard a whole tree by port family or give it a port and
+row budget, find second copies by their values, print each function's
+version in step 2 for step 6's proposals, and check that a row is not one
+rule in two places before proposing to declare it a false report; then
+measure on 3 to 5 held-out merged PRs whose erosion a later issue
+documented, with one judge per case and architecture items scored apart from
+correctness bugs. If that run matches most architectural items at a false
+rate under 10 %, a non-blocking, path-triggered job that posts only the top
+findings a PR introduced is worth a pilot. The 10 % bar is a judgement, not
+a measurement.
 
 Alternatives considered:
 
