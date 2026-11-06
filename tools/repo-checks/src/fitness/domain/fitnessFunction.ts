@@ -14,6 +14,8 @@ export interface MeasurementContext {
     /** The tree to measure: the working tree for HEAD, a temporary checkout otherwise. */
     readonly repoRoot: string;
     readonly commit: string;
+    /** The merge base for HEAD; the commit itself for the base and a snapshot, which measure no change. */
+    readonly changeBase: string;
 }
 
 type NonEmptyList<T> = readonly [T, ...T[]];

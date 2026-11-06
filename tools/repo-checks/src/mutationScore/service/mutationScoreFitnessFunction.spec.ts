@@ -20,7 +20,9 @@ describe("the mutation score fitness function", () => {
     it("reports the runs on the measured commit's chain", () => {
         const fitnessFunction = createMutationScoreFitnessFunction({ runs: RUNS });
 
-        expect(measure(fitnessFunction, { repoRoot: "/repo", commit: "c3" })).toMatchObject({
+        expect(
+            measure(fitnessFunction, { repoRoot: "/repo", commit: "c3", changeBase: "c3" }),
+        ).toMatchObject({
             findings: [
                 {
                     key: "libs/modeler-core",
@@ -35,7 +37,9 @@ describe("the mutation score fitness function", () => {
     it("is not measurable before the first stored run", () => {
         const fitnessFunction = createMutationScoreFitnessFunction({ runs: RUNS });
 
-        expect(measure(fitnessFunction, { repoRoot: "/repo", commit: "c0" })).toEqual({
+        expect(
+            measure(fitnessFunction, { repoRoot: "/repo", commit: "c0", changeBase: "c0" }),
+        ).toEqual({
             unmeasurable:
                 "none of the 2 stored mutation runs measured a commit on this first-parent chain",
         });

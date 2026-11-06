@@ -33,8 +33,8 @@ function reportOf(inventoryByRoot: Record<"base" | "head", ValueSetInventory>) {
     const fitnessFunction = createRepeatedValueSetsFitnessFunction({
         sources: new InMemoryValueSetSources(inventoryByRoot),
     });
-    const head = measure(fitnessFunction, { repoRoot: "head", commit: "head" });
-    const base = measure(fitnessFunction, { repoRoot: "base", commit: "base" });
+    const head = measure(fitnessFunction, { repoRoot: "head", commit: "head", changeBase: "head" });
+    const base = measure(fitnessFunction, { repoRoot: "base", commit: "base", changeBase: "base" });
     return functionReport(fitnessFunction, head, { source: "checkout", measurement: base });
 }
 

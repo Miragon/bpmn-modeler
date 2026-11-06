@@ -18,7 +18,7 @@ class InMemoryRoleFolderSources implements RoleFolderSources {
     }
 }
 
-const CONTEXT = { repoRoot: "/repo", commit: "head" };
+const CONTEXT = { repoRoot: "/repo", commit: "head", changeBase: "head" };
 
 describe("the convention coverage fitness function", () => {
     it("reports the files of the measured tree that break a convention", () => {

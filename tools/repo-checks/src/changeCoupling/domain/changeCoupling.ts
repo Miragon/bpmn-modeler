@@ -72,7 +72,11 @@ export function changeCouplingInTree(
 }
 
 export function measureChangeCoupling(input: ChangeCouplingInput): CoupledPair[] {
-    const counted = countedChangesets(input);
+    const counted = countedChangesets(
+        input.changesets,
+        input.measuredFiles,
+        input.thresholds.maxChangesetSize,
+    );
     const revisions = new Map<string, number>();
     const shared = new Map<string, number>();
     for (const files of counted) {
@@ -121,16 +125,16 @@ export function measureChangeCoupling(input: ChangeCouplingInput): CoupledPair[]
         );
 }
 
-/** The measured files of each changeset that is counted, sorted. */
-function countedChangesets({
-    changesets,
-    measuredFiles,
-    thresholds,
-}: ChangeCouplingInput): string[][] {
+/** The measured files of each changeset that is counted, sorted; one without a measured file is not counted. */
+export function countedChangesets(
+    changesets: readonly Pick<Changeset, "subject" | "paths">[],
+    measuredFiles: ReadonlySet<string>,
+    maxChangesetSize: number,
+): string[][] {
     return changesets
         .filter(({ subject }) => !isMechanicalCommit(subject))
         .map(({ paths }) => paths.filter((path) => measuredFiles.has(path)).sort(compareText))
-        .filter((files) => files.length <= thresholds.maxChangesetSize);
+        .filter((files) => files.length > 0 && files.length <= maxChangesetSize);
 }
 
 function importsByFile(links: readonly ImportLink[]): Map<string, Set<string>> {

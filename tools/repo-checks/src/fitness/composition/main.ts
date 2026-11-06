@@ -1,6 +1,10 @@
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { runMissedPartnerCli } from "../../changeCoupling/adapter/in/missedPartnerCli";
+import { EngineSourceStructure } from "../../changeCoupling/adapter/out/engineSourceStructure";
+import { replayMissedPartnersAtHead } from "../../changeCoupling/service/missedPartnerReplayService";
+import { GitCommitHistory } from "../../history/adapter/out/gitCommitHistory";
 import { runMutationCli } from "../../mutationScore/adapter/in/mutationCli";
 import { MutationRunDirectory } from "../../mutationScore/adapter/out/mutationRunDirectory";
 import { StrykerReportFile } from "../../mutationScore/adapter/out/strykerReportFile";
@@ -49,9 +53,21 @@ function runMutation(args: readonly string[]): number {
     );
 }
 
+function runMissedPartner(args: readonly string[]): number {
+    const ports = { history: new GitCommitHistory(), sources: new EngineSourceStructure() };
+    return runMissedPartnerCli(
+        args,
+        { replay: () => replayMissedPartnersAtHead(ports, REPO_ROOT) },
+        OUTPUT,
+    );
+}
+
 export function run(args: readonly string[]): number {
     if (args[0] === "mutation") {
         return runMutation(args.slice(1));
+    }
+    if (args[0] === "missed-partner") {
+        return runMissedPartner(args.slice(1));
     }
     const ports = {
         repoRoot: REPO_ROOT,

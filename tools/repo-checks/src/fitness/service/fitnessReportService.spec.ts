@@ -8,7 +8,7 @@ import {
     InMemorySnapshots,
     WORKING_TREE,
 } from "../__fixtures__/inMemoryPorts";
-import { InsufficientHistory } from "../domain/fitnessFunction";
+import { InsufficientHistory, type MeasurementContext } from "../domain/fitnessFunction";
 import { createFitnessReport } from "./fitnessReportService";
 
 const HEAD = "head000";
@@ -76,6 +76,33 @@ describe("the fitness report", () => {
             },
         });
         expect(checkout.checkedOut).toEqual([BASE]);
+    });
+});
+
+describe("the change the fitness report measures", () => {
+    it("measures HEAD against the merge base and the merge base against itself", () => {
+        const contexts: MeasurementContext[] = [];
+        const recording = fakeFitnessFunction(
+            {},
+            {
+                findFindings: (context) => {
+                    contexts.push(context);
+                    return [];
+                },
+            },
+        );
+
+        createFitnessReport([recording], "origin/main", {
+            repoRoot: WORKING_TREE,
+            history: new InMemoryHistory([HEAD, BASE]),
+            snapshots: new InMemorySnapshots(),
+            checkout: new InMemoryCheckout(),
+        });
+
+        expect(contexts).toEqual([
+            { repoRoot: WORKING_TREE, commit: HEAD, changeBase: BASE },
+            { repoRoot: `/checkout/${BASE}`, commit: BASE, changeBase: BASE },
+        ]);
     });
 });
 
