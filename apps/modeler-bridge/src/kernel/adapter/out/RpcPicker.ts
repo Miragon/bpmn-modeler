@@ -4,8 +4,9 @@ import { METHODS } from "../../../protocol/domain/descriptor";
 import { ConfirmShowParams, ConfirmShowResult, PickerShowParams, PickerShowResult } from "../../../protocol/domain/types";
 
 /**
- * Real {@link PickerPort} over RPC: the host shows a native `JBPopup` list and
- * replies with the chosen indices (or `null` on dismissal); this class maps them
+ * Real {@link PickerPort} over RPC: the host shows a native `JBPopup` list, or
+ * a checkbox dialog for `chooseMany`, and replies with the chosen indices (or
+ * `null` on dismissal); this class maps them
  * back to the prompt's values. The core builds every prompt, so the host carries
  * no per-prompt logic.
  */

@@ -63,7 +63,7 @@ module.exports = {
 
         const guardedEntryOf = (expression) => {
             const tsNode = parserServices.esTreeNodeToTSNodeMap.get(expression);
-            const literals = stringLiteralsOf(checker, checker.getTypeAtLocation(tsNode));
+            const literals = comparedLiteralsOf(checker, tsNode, guarded);
             if (literals === undefined) {
                 return undefined;
             }
@@ -117,6 +117,50 @@ function isStringLiteral(node) {
         (node.type === "Literal" && typeof node.value === "string") ||
         (node.type === "TemplateLiteral" && node.expressions.length === 0)
     );
+}
+
+/**
+ * The declared literals decide, because after `tab !== "diff"` an unrelated
+ * `"view" | "diff"` narrows to `"view"`, a `SurfaceMode` literal. The narrowed
+ * type decides when a guard can turn the declared type into the guarded one:
+ * `unknown`, `string`, or a wider union holding all of it (`Engine | "both"`).
+ */
+function comparedLiteralsOf(checker, node, guarded) {
+    const declared = stringLiteralsOf(checker, declaredTypeOf(checker, node));
+    const holdsGuardedType =
+        declared !== undefined &&
+        guarded.some(({ values }) => [...values].every((value) => declared.includes(value)));
+    return declared !== undefined && !holdsGuardedType
+        ? declared
+        : stringLiteralsOf(checker, checker.getTypeAtLocation(node));
+}
+
+/** The type a reference was declared with, before control flow narrowed it. */
+function declaredTypeOf(checker, node) {
+    if (ts.isParenthesizedExpression(node) || ts.isNonNullExpression(node)) {
+        return declaredTypeOf(checker, node.expression);
+    }
+    if (ts.isIdentifier(node)) {
+        const symbol = checker.getSymbolAtLocation(node);
+        return symbol ? checker.getTypeOfSymbol(symbol) : checker.getTypeAtLocation(node);
+    }
+    const propertyName = accessedPropertyNameOf(node);
+    if (propertyName !== undefined) {
+        const owner = checker.getNonNullableType(declaredTypeOf(checker, node.expression));
+        const property = checker.getPropertyOfType(owner, propertyName);
+        return property ? checker.getTypeOfSymbol(property) : checker.getTypeAtLocation(node);
+    }
+    return checker.getTypeAtLocation(node);
+}
+
+function accessedPropertyNameOf(node) {
+    if (ts.isPropertyAccessExpression(node)) {
+        return node.name.text;
+    }
+    if (ts.isElementAccessExpression(node) && ts.isStringLiteralLike(node.argumentExpression)) {
+        return node.argumentExpression.text;
+    }
+    return undefined;
 }
 
 /** `undefined` unless the type, nullish parts removed, holds only string literals. */

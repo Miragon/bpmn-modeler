@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { catalogFor } from "../catalog";
+import { catalogFor } from "./catalog";
 import { groupTitle, problemPlace, propertyTitle } from "./titles";
 
 const C8 = catalogFor("c8");

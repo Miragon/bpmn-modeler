@@ -75,7 +75,7 @@
             // the bare specifier from this workspace, so it must be declared.
             "ignoreDependencies": ["bpmn-auto-layout"],
             // Wired in by the `lazy-svg-to-image` resolveId plugin, not by an import.
-            "entry": ["src/index.ts", "src/lazySvgToImage.ts"]
+            "entry": ["src/index.ts", "src/adapter/out/lazySvgToImage.ts"]
         },
         "packages/bpmn-modeler": {
             // `src/bpmnlint/index.ts` is the public `@miragon/bpmn-modeler/lint`

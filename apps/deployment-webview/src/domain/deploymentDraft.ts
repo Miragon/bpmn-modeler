@@ -63,3 +63,14 @@ export function draftControls(draft: DraftSnapshot): DraftControls {
         inputsDisabled: busy,
     };
 }
+
+/**
+ * Env references in credentials are saved to the shared targets file, so
+ * changing one needs Save like a connection change. Literal edits stay free;
+ * anything containing `${env:` counts, leaving the exact rule to the host.
+ */
+export function credentialRefSignatureOf(values: (string | undefined)[]): string {
+    return JSON.stringify(
+        values.map((value = "") => (value.includes("${env:") ? value.trim() : "")),
+    );
+}

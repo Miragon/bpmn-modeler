@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { catalogFor } from "../catalog";
+import { catalogFor } from "./catalog";
 import { applyTemplateEdits, type JsonPath, type TemplateEdit } from "./templateText";
 import {
     addChoice,

@@ -424,13 +424,16 @@ The typed ESLint rule `miragon/no-guarded-value-comparison`
 reports `===`, `!==`, `==`, `!=` and each `case` that compares such a value
 with a string literal outside its home, in every folder. Each registry entry in
 `eslint.config.cjs` names the type, its module, its homes and an error message
-that names the fix. Two types are registered, and code elsewhere asks their
+that names the fix. Three types are registered, and code elsewhere asks their
 home:
 
 - **`Engine`:** a capability in the `Record<Engine, …>` table of
   `libs/modeler-types/src/engine.ts` (`engineSupports`), a method named after
   the rule (`DeploymentTarget.verifiesDeployments()`), or a `Record<Engine, …>`
   lookup.
+- **`SurfaceMode`:** a capability in the table of
+  `libs/modeler-types/src/surfaceMode.ts` (`surfaceModeSupports`), or a
+  `Record<SurfaceMode, …>` lookup.
 - **`ReferenceKind`:** a capability in the `Record<ReferenceKind, …>` table of
   `libs/modeler-types/src/referenceKind.ts` (`referenceKindSupports`: only a
   form reference has an availability status and a preview), or a
@@ -446,20 +449,32 @@ home:
   `model-navigation`, the declarations only in the core.
 
 A lookup keyed by the union makes the compiler report a missing member, so a
-new engine or reference kind is decided in every table before it builds.
+new engine, surface mode or reference kind is decided in every table before it
+builds.
 
 - **Typed, not name-based.** The rule reads the type checker through the parser
   services typescript-eslint already provides, so it sees the value under any
   name: a local, a parameter, a type parameter (resolved to its constraint),
-  with `null` and `undefined` removed. A value of raw `string` or `unknown` is
-  invisible; it is parsed with `isEngine` or `isReferenceKind` first (parse,
-  don't validate).
+  with `null` and `undefined` removed. A union whose literals all belong to a
+  registered type counts as that type, so `ModelerMode` and
+  `PropertiesPanelMode` (`"design" | "implement"`) are guarded as `SurfaceMode`.
+  It reads the type a local or property (`change.kind`, `change["kind"]`) was
+  declared with, not the narrowed one: after `tab === "diff"` fails, an
+  unrelated `"view" | "diff"` narrows to `"view"`, which would match
+  `SurfaceMode`. The narrowed type counts where the declared type is no
+  string-literal union, or holds every value of a registered type
+  (`MigrationScope`, which is `Engine | "both"`). A value of raw `string` or
+  `unknown` is invisible until a guard such as `isEngine` or `isReferenceKind`
+  or a parse such as `parseEditableMode` turns it into the type (parse, don't
+  validate).
 - **Opt-in.** Discriminated unions a domain function returns (`kind`, `status`,
   `AuthConfig`) are narrowed by design and stay unregistered. A type joins the
   registry when review or the change-coupling report shows a decision on it in
-  two places. `ReferenceKind` joined because the form-only availability rule
-  was written in both the context pad and the webview's navigation port, and a
-  core service chose the files to search by comparing it.
+  two places. `SurfaceMode` joined when its decisions were spread over the
+  webview, the properties panel and the modeler package. `ReferenceKind` joined
+  because the form-only availability rule was written in both the context pad
+  and the webview's navigation port, and a core service chose the files to
+  search by comparing it.
 - **Never vacuous.** The registry is resolved against the program on every run:
   a missing module, a missing export or a type that is no string-literal union
   throws, and so does a file without type information.
@@ -471,10 +486,26 @@ new engine or reference kind is decided in every table before it builds.
 - **Cost.** `eslint .` took 10.1 s before and 9.2 to 10.4 s after, within
   run-to-run noise: the type program was built anyway for
   `parserOptions.project`. `tsconfigRootDir` pins that program to the repo
-  root, so a run from a workspace directory gets type information too.
+  root, so a run from a workspace directory gets type information too. The
+  rule's own time (`TIMING=all`) is 0.52 to 0.57 s of an 11 to 12 s
+  `eslint .` in five runs on a loaded machine; neither the second entry nor
+  the declared and narrowed reading changed it beyond run-to-run noise.
 - **Known misses.** `["c7"].includes(engine)`, `Set.has`, a comparison on a
   value typed `string`, a value used as data instead of compared (such as a
-  kind spelled into a regex as an XML element name), and Kotlin.
+  kind spelled into a regex as an XML element name), a wider union compared
+  before it is narrowed (`scope === "c7"` on a `MigrationScope`), a union
+  holding only part of a registered type plus other values, narrowed into that
+  part (`ModelerMode | "diff"`), which the rule cannot tell from the unrelated
+  `"view" | "diff"`, and Kotlin.
+- **False alarms.** Matching by value set reports an unrelated type whose
+  literals all belong to a registered one (`type Tab = "view"`), or hold all
+  of one and are narrowed into it. A local inferred from a narrowed value
+  keeps the narrowed type, so the `"view" | "diff"` case above fires there
+  too. Such a site takes the exception form above. None fires on the tree
+  today: `corepack yarn lint` reports no error without a directive. The rule
+  blocks anyway, because matching by value set is what found the
+  `ModelerMode` and `PropertiesPanelMode` sites, 4 of the 11 `SurfaceMode`
+  decisions, and a false alarm costs one issue-named directive.
 
 Alternatives considered:
 
@@ -973,17 +1004,20 @@ Alternatives considered:
 
 ### Host text
 
-`host-text` (#2052) reports user-visible text written in host code: atomic,
-triggered, static, reported. When a host words a text of its own, the hosts
-drift apart: VS Code and IntelliJ built the engine-version label separately
-and the labels differed (#2000), and both hosts built the token prompt's title
-until #2046 moved it into the core. The rule it relies on is in the
-`architecture` skill: the core builds every user-visible text, and a host
-renders it. Host chrome and messages about the host's own failure belong to
-the host ([Host integrations](architecture-and-hosts.md#host-integrations)),
-and a rule over host text would fire on them, so the function reports and
-never blocks. The pure measure lives in
-`tools/repo-checks/src/hostText/domain`.
+`host-text` (#2052, #2167) reports user-visible text written in host code:
+atomic, triggered, static, reported. When a host words a text of its own, the
+hosts drift apart: VS Code and IntelliJ built the engine-version label
+separately and the labels differed (#2000), both hosts built the token
+prompt's title until #2046 moved it into the core, and the add-marketplace
+dialog is "Add Marketplace" in VS Code and "Add Template Marketplace" in
+IntelliJ. The rule it relies on is in the `architecture` skill: the core builds
+every user-visible text, and a host renders it. Host chrome and messages about
+the host's own failure belong to the host
+([Host integrations](architecture-and-hosts.md#host-integrations)), and a rule
+over host text would fire on them, so the function reports and never blocks.
+The pure measure lives in `tools/repo-checks/src/hostText/domain`. Version 2
+reads Kotlin; a new version restarts the series, which the engine recomputes
+from git.
 
 - **Host code.** Every tracked `.ts`, `.tsx`, `.mts` and `.cts` file, without
   specs, tests, `__fixtures__/` folders and declaration files, that imports
@@ -991,45 +1025,110 @@ never blocks. The pure measure lives in
   `implements` clause names an interface declared there, through barrels and
   the `tsconfig.base.json` paths (`findImplementations` of the engine). The
   second form reaches the bridge's RPC adapters, which do not import
-  `vscode`. It reads imports, types and one workspace folder,
-  `libs/modeler-core`, and no file name. Kotlin is not read: a regex that
-  pairs quotes misreads raw strings and templates with quotes inside `${}`.
-  The Kotlin routers hold no multi-word text, but IntelliJ's own actions do,
-  such as `AddMarketplaceAction.kt`. A follow-up issue adds Kotlin.
-- **Texts.** `readTextLiterals` of the engine: every string literal, plain
-  template literal and template expression, with its line, its literal
-  stretches and the calls whose arguments hold it. A literal in a type or a
-  module specifier is not read. A text is a literal one of whose stretches
-  holds whitespace between two non-space characters. A placeholder is no word,
-  so formats such as `${a}: ${b}` and `$(${icon}) ${label}` hold no text; at
-  `8d75923b` judging the joined template instead added 9 findings, all such
-  formats, and no text. A literal anywhere inside the arguments of
-  `new Error(…)`, of `log` or a `log` + capital function (`logError`, not
-  `login`), or of a call on `logger` or `console` is not read.
+  `vscode`. Every tracked `.kt` file in a `src/main/kotlin` folder, Gradle's
+  main source set, that imports a `com.intellij` package, the IntelliJ
+  Platform API, as a TypeScript file imports `vscode`. `apps/intellij-plugin`
+  is no Yarn workspace, so the folder is matched wherever it sits. The function
+  reads imports, types, one workspace folder, `libs/modeler-core`, and the
+  source set folder; no file name and no folder below the source set.
+- **Texts.** `readTextLiterals` of the engine reads TypeScript: every string
+  literal, plain template literal and template expression, with its line, its
+  literal stretches and the calls whose arguments hold it. A literal in a type
+  or a module specifier is not read. `readKotlinTextLiterals` reads Kotlin
+  through a small lexer in `tools/architecture-testing` (`kotlinLexer.ts`), no
+  new dependency: strings, raw strings (`"""`, no escapes, the last three
+  quotes of a run close it), multi-dollar strings, nested block comments,
+  character literals and `${…}` with braces, strings and comments inside, so a
+  quote inside a placeholder never ends the string around it. A call's callee
+  is the name before its `(`, its receiver the name before the `.` or, on a
+  call's result, that call's callee (`thisLogger` in `thisLogger().warn(…)`);
+  a `(` after `fun`, `class` or a keyword such as `if` opens no call, past
+  type parameters whatever their bounds hold (`fun <T : Any> List<T>.f(…)`).
+  `readKotlinImports` reads the imports with the same lexer; a line break, a
+  `;` or `as` ends one. Neither reads types. In both languages the calls
+  around a literal end at the nearest function or lambda (in Kotlin, the
+  nearest brace): code a callee runs is no argument it is handed.
+- **A text** is a literal one of whose stretches holds two words: two
+  whitespace-separated tokens that each hold a letter or a digit. A placeholder
+  is no word, so formats such as `${a}: ${b}` and `$(${icon}) ${label}` hold no
+  text; at `8d75923b` judging the joined template instead added 9 findings,
+  all such formats, and no text. Punctuation around whitespace is no text
+  either: at `cd48f2cd` requiring a letter or a digit on both sides dropped 9
+  findings, 3 CSS selector lines such as `:root {`, 4 scripts
+  `window.postMessage(${…}, '*');` and 2 Markdown formats, and no text.
+- **Not read.** A literal inside the arguments of `new Error(…)`, of a call a
+  Kotlin `throw` raises (Kotlin constructs without `new`), of `log` or a
+  `log` + capital function (`logError`, not `login`), or of a call on `log`,
+  `LOG`, `logger`, `thisLogger` or `console`, up to the nearest function or
+  lambda. `thisLogger()` is the logger IntelliJ recommends, so new Kotlin
+  host code logs through `thisLogger().warn(…)`; the tree holds none yet.
+  Version 1 read through functions, so it skipped every text inside
+  `logAndRethrow(async () => …)`: 5 texts of `CommandController.ts` at
+  `cd48f2cd`. Kotlin's `error(…)`, `require(…)` and `check(…)` throw, but the
+  UI DSL's validation `error(…)` shows its text, and a callee name cannot tell
+  them apart, so they are read. An exception Kotlin constructs without
+  throwing it, as in `completeExceptionally(IllegalStateException(…))` or
+  `Result.failure(IOException(…))`, is read too: without `new` a constructor
+  cannot be told from a call. A Kotlin log message built in a lambda or in a
+  braced `if`, `when` or `try` block, such as `log.debug { … }` or
+  `log.warn(if (a) { … } else { … })`, is read as well, because the calls
+  around a literal end at any brace. At `cd48f2cd` the tree holds neither.
 - **Identity and delta.** One finding per literal, keyed by its path and its
   whitespace-collapsed text, not its line; the message is the text, cut at
   100 characters. Moved code stays existing, the same text twice in a file
   counts twice, and a changed text shows as new and its old wording as
   resolved. No allowlist: host chrome stays visible as existing.
 
-First run at `8d75923b`: 862 files read, 65 of them host code. 48 import
-`vscode`; 17 only implement a core interface, 14 of them the bridge's RPC
-adapters, which hold no text. 49 findings in 11 files, all in the VS Code host:
-30 texts the host builds (18 in `TemplateMarketplaceController.ts`, the add and
-remove marketplace flow, which IntelliJ words again in `AddMarketplaceAction.kt`
-and already differently: "Add Template Marketplace" against "Add Marketplace";
-5 in `BpmnCompareController.ts`; 3 completion labels; 2 each in
-`ElementTemplateEditorController.ts` and `releaseNotes.ts`), 3 correct host
-texts ("Reload Window", the compare view's failure, the `write to` fragment
-of a write error) and 16 technical strings or log text (the HTML shells and
-CSS class lists of the webview HTML, Markdown formats, an error text a host
-matches, two ready messages passed to a logger as a parameter). The name scope
-`infrastructure/VsCode*.ts` the issue first proposed matched 27 files at
+First run of version 2 at `cd48f2cd`: 956 files read, 89 of them Kotlin. 137
+host files: 48 import `vscode`, 17 only implement a core interface (14 of them
+the bridge's RPC adapters, which hold no text), and 72 Kotlin files import
+`com.intellij`. The other 17 Kotlin files are not host code; they hold 27
+two-word texts, 2 of them user text (the locale names of `ModelerLocales.kt`)
+and 25 technical (the CSP and bridge script of
+`WebviewContentSecurityPolicy.kt`, MIME types, two developer errors). 197
+findings in 43 files:
+
+- TypeScript, 52 in 12 files, all in the VS Code host: 35 texts the host
+  builds (18 in `TemplateMarketplaceController.ts`, the add and remove
+  marketplace flow; 5 each in `BpmnCompareController.ts` and
+  `CommandController.ts`, the language picker and the new-file dialogs; 3
+  completion labels; 2 each in `ElementTemplateEditorController.ts` and
+  `releaseNotes.ts`), 3 correct host texts ("Reload Window", the compare
+  view's failure, the `write to` fragment of a write error) and 14 technical
+  strings or log text (the HTML shells and CSS class lists of the webview
+  HTML, Markdown formats, an error text a host matches, two ready messages
+  passed to a logger as a parameter).
+- Kotlin, 145 in 31 files: 25 texts the IntelliJ host builds (8 in
+  `AddMarketplaceAction.kt` and 7 in `RemoveMarketplaceAction.kt`, among them
+  "No marketplaces registered.", which `TemplateMarketplaceController.ts`
+  words as well; the new-file dialogs, the language picker, the SVG copy and
+  save texts, and the completion type text "process variable"), 33 on the
+  settings page (`ModelerSettingsConfigurable.kt`), 13 host chrome (editor,
+  file type, diff tool, tool window and status widget names, notification
+  group ids), 24 messages about the host's own failure (JCEF unavailable, the
+  bridge crash balloons of `ProcessSupervisor.kt`, the out-of-process JCEF
+  notice, RPC error replies, the missing-bridge `error(…)`) and 50 technical
+  strings (39 HTML, MIME and 404 strings in `WebviewServer.kt`, the JavaScript
+  the JCEF editors run, the DMN template, two credential service names, a log
+  redaction marker). Not read: 35 two-word texts in Kotlin log calls and 1 in
+  a thrown constructor.
+
+Both hosts word the same dialogs: "New BPMN Model", "New DMN Model" and
+"process variable" are written in each, and the language picker already
+differs ("Select the modeler language" against "Select the modeler UI
+language"). The naive quote-pairing count of #2167 expected most Kotlin
+findings to be CSS (41 in `IdeThemeSignal.kt`); the placeholder and word rules
+leave 2 there, both JavaScript. The settings page describes the settings that
+VS Code's `package.json` describes, which no fitness function reads; whether
+the two are pinned to each other is a separate decision. The name scope
+`infrastructure/VsCode*.ts` the first issue proposed matched 27 files at
 `3d1b19b3` and matches none since the role-folder move. At `3d1b19b3` (#2047)
 the report lists the 7 texts of `ElementTemplateEditorController.ts`, which sat
 in `controller/` outside that scope, among them `${…} already exists in ${…}.`
-and the folder-pick placeholder. Reading and measuring takes about 0.35 s per
-tree.
+and the folder-pick placeholder; version 2 finds 205 findings there, 58
+TypeScript and 147 Kotlin. Reading and measuring takes 0.46 to 0.70 s per
+tree on a loaded machine; version 1 took 0.40 to 0.68 s in the same runs, so
+Kotlin adds less than 0.1 s.
 
 Alternatives considered:
 
@@ -1041,6 +1140,22 @@ Alternatives considered:
   to role folders emptied it.
 - **Every literal of a template joined with its placeholders.** It reports
   format strings that hold no word, as measured above.
+- **A regex that pairs quotes in Kotlin.** It splits a raw string with quotes
+  inside and a template whose placeholder holds a quote, such as
+  `"Saved ${names.joinToString(", ")} files"`, into wrong literals.
+- **A Kotlin parser.** It is a new dependency (#2049), and the measure needs
+  only strings, comments, placeholders and the name before a `(`.
+- **A second function for Kotlin.** Same rule, same skill and one report
+  section; a version bump restarts the series instead.
+- **Kotlin trailing lambdas as arguments of their call.** It keeps lazy log
+  messages unread, but hides the UI a wrapper runs, as `logAndRethrow` did in
+  TypeScript, and needs class-body tracking to keep `class A : B(x) { … }` out
+  of `B`'s arguments.
+- **Excluding `error(…)`, `require(…)` and `check(…)` by name.** It hides the
+  validation text of `AddMarketplaceAction.kt` to drop one developer error.
+- **Excluding markup or arguments of `executeJavaScript`.** Markup also wraps
+  user text (`<code>`, `<b>` on the settings page), and a callee name is not
+  call shape; the technical strings stay reported.
 
 ### Contract suites
 
