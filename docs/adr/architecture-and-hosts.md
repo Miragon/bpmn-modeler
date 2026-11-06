@@ -641,7 +641,10 @@ files add `element-templates` and the config folder. The exclude matches a
 file's path below its workspace folder. VS Code hands it to ripgrep, and the
 bridge walks with `readdir` and never reads a folder the exclude covers whole
 (`coveredFolderRegExp`), so both hosts prune the same folders and list the
-same files; `testing/workspaceContract.ts` runs the same rows against the
+same files. Each host leaves a folder open inside another to its own search,
+as VS Code's search excludes nested root folders, so a file is listed once:
+the core does not dedupe `findFiles` results.
+`testing/workspaceContract.ts` runs the same rows against the
 in-memory workspace, the bridge adapter and `VsCodeWorkspace`. On both hosts
 `findFiles` follows a symlinked folder, as ripgrep does under VS Code's
 default `search.followSymlinks`. The bridge prunes an excluded name before it
