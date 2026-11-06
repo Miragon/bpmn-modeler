@@ -22,7 +22,7 @@ export interface Declared {
     readonly name: string;
 }
 
-export interface PortMember {
+interface PortMember {
     readonly name: string;
     /** Every signature returns `void` or a promise of it, so the core reads nothing back. */
     readonly returnsNothing: boolean;
@@ -87,7 +87,7 @@ function sameDeclaration(left: Declared): (right: Declared) => boolean {
     return (right) => idOf(right) === idOf(left);
 }
 
-export function isRenderOnly({ members }: Port): boolean {
+function isRenderOnly({ members }: Port): boolean {
     return members.every(({ returnsNothing }) => returnsNothing);
 }
 
