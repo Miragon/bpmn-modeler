@@ -10,6 +10,9 @@ describeWorkspaceContract("InMemoryWorkspace", async () => {
         createDirectory: async (path) => workspace.createDirectory(path),
         moveDirectoryIn: async (path, files) => workspace.createDirectory(path, files),
         removeFile: async (path) => workspace.deleteFile(path),
+        createSymbolicLink: async (path) => {
+            workspace.symbolicLinks.add(path);
+        },
         watchersReady: async () => undefined,
         eventsDelivered: async () => undefined,
         dispose: async () => undefined,

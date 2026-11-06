@@ -396,8 +396,8 @@ core ports, not on concrete adapters, so the in-memory test kit fits every one
 of them. Once a second class implements a port the core reads back from, the
 port has one contract suite in the test kit that every adapter runs, the
 in-memory fake included, as `describeWorkspaceContract` runs against
-`InMemoryWorkspace` and `NodeWorkspace`; a port that only renders and a
-strategy the core chooses between need none. The
+`InMemoryWorkspace`, `NodeWorkspace` and `VsCodeWorkspace`; a port that only
+renders and a strategy the core chooses between need none. The
 [`contract-suites`](engineering-practices.md#contract-suites) report lists the
 adapters that run no suite of their port. Inbound
 adapters never import outbound ones (rule 6 of the
@@ -667,19 +667,24 @@ files add `element-templates` and the config folder. The exclude matches a
 file's path below its workspace folder. VS Code hands it to ripgrep, and the
 bridge walks with `readdir` and never reads a folder the exclude covers whole
 (`coveredFolderRegExp`), so both hosts prune the same folders and list the
-same files; `testing/workspaceContract.ts` runs the same rows against the
-bridge adapter and the in-memory workspace. On both hosts `findFiles` follows
-a symlinked folder, as ripgrep does under VS Code's default
-`search.followSymlinks`. The bridge prunes an excluded name before it follows
-a link, so a `node_modules` link is never read, does not follow a link back
-to a folder the walk came through, and skips a link it cannot resolve. These
-rows run in `nodeAdapters.spec.ts` only, as the in-memory workspace has no
-links. The core's fs-walk fallback and `watchedChangeOf` skip the same
-folders, so a live update agrees with the listing. Dot-folders are left out on
-every host because VS Code's ripgrep searched them and the bridge's former
-`fs.glob` did not; none of these listings needs a file in one, as element
-templates, targets, payloads and code-link maps are read by path. The pickers
-offer every match with no cap.
+same files. Each host leaves a folder open inside another to its own search,
+as VS Code's search excludes nested root folders, so a file is listed once:
+the core does not dedupe `findFiles` results.
+`testing/workspaceContract.ts` runs the same rows against the
+in-memory workspace, the bridge adapter and `VsCodeWorkspace`. On both hosts
+`findFiles` follows a symlinked folder, as ripgrep does under VS Code's
+default `search.followSymlinks`. The bridge prunes an excluded name before it
+follows a link, so a `node_modules` link is never read, does not follow a link
+back to a folder the walk came through, and skips a link it cannot resolve.
+These rows stay out of the workspace contract, as the in-memory workspace has
+no link targets and `VsCodeWorkspace` only forwards to VS Code's search:
+`nodeAdapters.spec.ts` pins the bridge, and `vscodeWorkspaceFake.spec.ts` the
+fake the VS Code adapter's contract run uses. The core's fs-walk fallback and
+`watchedChangeOf` skip the same folders, so a live update agrees with the
+listing. Dot-folders are left out on every host because VS Code's ripgrep
+searched them and the bridge's former `fs.glob` did not; none of these
+listings needs a file in one, as element templates, targets, payloads and
+code-link maps are read by path. The pickers offer every match with no cap.
 
 One prompt stays outside `PickerPort`: the template marketplace asks for a
 personal access token in a masked input, which a chooser cannot show. Its port
@@ -1315,8 +1320,8 @@ a cached result must equal an uncached run.
   a pruned walk 3-5 ms. Handing the host the exclude costs a stricter port
   contract: an adapter that ignores the exclude, or matches it against
   absolute paths, lists those folders again. The workspace contract checks
-  the bridge and the in-memory workspace; `VsCodeWorkspace` only forwards to
-  VS Code.
+  all three adapters; on VS Code it checks that `VsCodeWorkspace` forwards the
+  exclude, while a fake of `findFiles` stands in for VS Code's own matching.
 - The additional files picker capped its listing at 20, and each host cut the
   list before the core sorted it, so the hosts offered different files. The
   pickers offer every match instead, at the cost of reading every match of

@@ -1,59 +1,35 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// The store reaches secret storage only through `getContext().secrets`; mock the
-// accessor so the key scheme and round-trip are observable without VS Code.
-const secrets = { get: vi.fn(), store: vi.fn() };
+import { describeTokenStoreContract } from "@miragon/bpmn-modeler-core/testing";
+
+import { InMemorySecretStorage } from "../../../__fixtures__/vscodeStorage";
+
+// The store reaches secret storage only through `getContext().secrets`.
+let secrets = new InMemorySecretStorage();
 vi.mock("../../../shared/adapter/out/extensionContext", () => ({
-    getContext: vi.fn(() => ({ secrets })),
+    getContext: () => ({ secrets }),
 }));
 
 import { VsCodeTokenStore } from "./VsCodeTokenStore";
 
 beforeEach(() => {
-    vi.clearAllMocks();
+    secrets = new InMemorySecretStorage();
 });
+
+describeTokenStoreContract("VsCodeTokenStore", async () => new VsCodeTokenStore());
 
 describe("VsCodeTokenStore", () => {
     it("reads a token under the per-host key scheme", async () => {
-        secrets.get.mockResolvedValue("tok");
+        await secrets.store("bpmn-modeler.marketplace.token.github.com", "tok");
 
-        expect(await new VsCodeTokenStore().getToken("github.com")).toBe("tok");
-        expect(secrets.get).toHaveBeenCalledWith("bpmn-modeler.marketplace.token.github.com");
+        await expect(new VsCodeTokenStore().getToken("github.com")).resolves.toBe("tok");
     });
 
     it("stores a token under the per-host key scheme", async () => {
         await new VsCodeTokenStore().setToken("github.com", "tok");
 
-        expect(secrets.store).toHaveBeenCalledWith(
-            "bpmn-modeler.marketplace.token.github.com",
-            "tok",
-        );
-    });
-
-    it("round-trips get after set through the secret store", async () => {
-        const backing = new Map<string, string>();
-        secrets.store.mockImplementation(async (key: string, value: string) => {
-            backing.set(key, value);
-        });
-        secrets.get.mockImplementation(async (key: string) => backing.get(key));
-
-        const store = new VsCodeTokenStore();
-        await store.setToken("github.com", "round-trip");
-        expect(await store.getToken("github.com")).toBe("round-trip");
-    });
-
-    it("scopes keys by host so two origins never collide", async () => {
-        const store = new VsCodeTokenStore();
-        await store.setToken("github.com", "a");
-        await store.setToken("gitlab.com", "b");
-
-        expect(secrets.store).toHaveBeenCalledWith(
-            "bpmn-modeler.marketplace.token.github.com",
-            "a",
-        );
-        expect(secrets.store).toHaveBeenCalledWith(
-            "bpmn-modeler.marketplace.token.gitlab.com",
-            "b",
-        );
+        expect([...secrets.entries]).toEqual([
+            ["bpmn-modeler.marketplace.token.github.com", "tok"],
+        ]);
     });
 });
