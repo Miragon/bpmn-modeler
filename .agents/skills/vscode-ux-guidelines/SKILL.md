@@ -106,7 +106,7 @@ notifier.logWarning('No element templates found in workspace');
 notifier.logError(new Error('Failed to parse element template: invalid JSON'));  // Error object, not string
 ```
 
-The webview sends `LogInfoCommand` / `LogWarningCommand` / `LogErrorCommand` messages to the host, which writes them to the output channel. This project uses a single channel for the modeler. In the BPMN webview the document lines come from `apps/bpmn-webview/src/session/documentSession.ts` (open and refresh failures) and the shared `libs/shared/src/lib/webviewDocumentSync.ts` (sync failures) and `session/surfaceDocument.ts` (import warnings), the surface-creation and mode-switch failures from `session/modeController.ts`, and a failed host message is prefixed with its type by `session/messageRouter.ts`.
+The webview sends `LogInfoCommand` / `LogWarningCommand` / `LogErrorCommand` messages to the host, which writes them to the output channel. This project uses a single channel for the modeler. In the BPMN webview the document lines come from `apps/bpmn-webview/src/service/documentSession.ts` (open and refresh failures) and the shared `libs/shared/src/lib/webviewDocumentSync.ts` (sync failures) and `adapter/out/surfaceDocument.ts` (import warnings), the surface-creation and mode-switch failures from `adapter/in/modeController.ts`, and a failed host message is prefixed with its type by `adapter/in/messageRouter.ts`.
 
 ## Clipboard Access
 
@@ -144,7 +144,7 @@ The BPMN `WebviewMessageRouter` dispatches incoming `GetClipboardCommand` / `Set
 The webview runs two **bpmn-js DI modules** (from the shared
 `libs/bpmn-clipboard` package, `@miragon/bpmn-modeler-clipboard`) because diagram
 elements and contenteditable labels have different event handling. The webview
-only supplies the `clipboard` option (`apps/bpmn-webview/src/session/protocolClipboard.ts`);
+only supplies the `clipboard` option (`apps/bpmn-webview/src/adapter/out/protocolClipboard.ts`);
 `@miragon/bpmn-modeler` builds the DI modules from it via
 `createClipboardModules` in `packages/bpmn-modeler/src/modeler.ts`. Each module
 receives its host bridge through didi value injection: a `{ requestClipboard,
@@ -179,9 +179,9 @@ installed by `@miragon/bpmn-modeler` from the `clipboard` option).
 
 The native browser clipboard is the default (#1374); the bridge modules are only
 built when the webview can't reach the system clipboard.
-`resolveClipboard` (`apps/bpmn-webview/src/session/protocolClipboard.ts`) wires
+`resolveClipboard` (`apps/bpmn-webview/src/adapter/out/protocolClipboard.ts`) wires
 one host channel per clipboard with a promise-based resolver pattern into a
-`ClipboardOptions` value. The surface factories (`session/surfaceFactories.ts`)
+`ClipboardOptions` value. The surface factories (`adapter/out/surfaceFactories.ts`)
 pass it as `clipboard` to `createModeler` / `createDesigner`, and the session
 router routes each `ClipboardQuery` / `TextClipboardQuery` reply to its channel:
 
@@ -230,8 +230,8 @@ Webviews **must** respect the user's VS Code theme:
 - The properties panel uses standard HTML form elements with labels
 - Keyboard shortcuts (Cmd/Ctrl+C/V/A) work in both diagram and properties panel via the polyfills described above
 - The select-all guard (`onSelectAllKeydown` in `packages/bpmn-modeler/src/propertiesPanelClipboard.ts`) ensures Cmd/Ctrl+A works correctly in contenteditable fields
-- The BPMN webview makes the page `inert` while a mode switch, a destructive flush or an engine reload runs. Take every such lock from the one `createInertLockGroup(document.body)` in `apps/bpmn-webview/src/bootstrap.ts` (the document session and `session/modeController.ts` each create theirs from it), so the last release restores the page's own `inert` state
-- Escape on the closed mode strip returns focus to the canvas (`session/modeController.ts`)
+- The BPMN webview makes the page `inert` while a mode switch, a destructive flush or an engine reload runs. Take every such lock from the one `createInertLockGroup(document.body)` in `apps/bpmn-webview/src/composition/bootstrap.ts` (the document session and `adapter/in/modeController.ts` each create theirs from it), so the last release restores the page's own `inert` state
+- Escape on the closed mode strip returns focus to the canvas (`adapter/in/modeController.ts`)
 
 ### `setContext` for Keybinding Visibility
 
