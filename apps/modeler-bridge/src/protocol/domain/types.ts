@@ -13,6 +13,11 @@
 import {
     DeploymentStatePatch,
     GlobalFunctionDef,
+    MarketplaceAddAnswer,
+    MarketplaceAddPrompt,
+    MarketplaceRegistrations,
+    MarketplaceScope,
+    MarketplaceSettingsEntry,
     MethodDef,
     RawDeploymentState,
     RawModelerSettings,
@@ -155,41 +160,14 @@ export interface ScriptDidOpenExternalParams {
 }
 
 /**
- * `marketplace/add` — a Tools-menu "Add Template Marketplace" action. `settings`
- * piggybacks the host's fresh snapshot so the fetch never depends on a prior
- * `session/register` seed (the run may fire before any editor is open).
- *
- * `scope` is the host's persist target, opaque to the bridge: persistence happens
- * in `marketplaceState/save` *after* the fetch succeeds, so the choice must ride
- * the round trip and be echoed back. Absent = `"project"` so an older host that
- * never sends it stays compatible.
+ * `marketplace/add`, `marketplace/update` and `marketplace/remove` — the
+ * Tools-menu actions. The core runs each flow and asks the host for what it
+ * needs. `settings` piggybacks the host's fresh snapshot so a flow never
+ * depends on a prior `session/register` seed (an action may fire before any
+ * editor is open).
  */
-export interface MarketplaceAddParams {
-    location: string;
+export interface MarketplaceCommandParams {
     settings: RawModelerSettings;
-    scope?: "project" | "application";
-}
-
-/**
- * `marketplace/update` — re-fetch every configured marketplace. `settings`
- * piggybacks the snapshot for the same reason as {@link MarketplaceAddParams}.
- */
-export interface MarketplaceUpdateParams {
-    settings: RawModelerSettings;
-}
-
-/**
- * `marketplace/remove` — drop one or more marketplaces the host already
- * unregistered, pruning their orphaned cache slots **without** re-fetching the
- * survivors (the local counterpart to {@link MarketplaceUpdateParams}). `settings`
- * carries the *post-removal* snapshot, so the core prunes against the reduced
- * marketplace list. `removedCount` is the host's selection count, echoed straight
- * into the summary toast — the prune count would understate it (a removed entry
- * may have had no cache slot).
- */
-export interface MarketplaceRemoveParams {
-    settings: RawModelerSettings;
-    removedCount: number;
 }
 
 /**
@@ -319,18 +297,33 @@ export interface SecretSaveApprovedDestinationsParams {
 }
 
 /**
- * `marketplaceState/save` — the host persists the added registration and fans the
- * new snapshot to every open bridge. No result: the host acks an empty reply and
- * the core awaits only the round-trip (like `deploymentState/save`).
- *
- * `scope` is echoed straight back from {@link MarketplaceAddParams} — the bridge
- * never interprets it; only the host knows what its scopes mean. Absent =
- * `"project"` so an add that carried no scope persists per-project as before.
+ * `marketplaceState/read` — each scope's own list, the scopes the host can
+ * write and where it saves each, as facts the core words. No `selfHostedIn`:
+ * IntelliJ's lists hold URL strings, which cannot name a self-hosted host.
+ */
+export type MarketplaceStateReadResult = Omit<MarketplaceRegistrations, "selfHostedIn">;
+
+/**
+ * `marketplaceState/save` and `marketplaceState/remove` — acknowledged writes:
+ * the host writes its store and pushes the fresh settings snapshot to every
+ * affected bridge before it acks an empty reply, so the core's next settings
+ * read sees the change.
  */
 export interface MarketplaceStateSaveParams {
     location: string;
-    scope?: "project" | "application";
+    scope: MarketplaceScope;
 }
+export interface MarketplaceStateRemoveParams {
+    entries: MarketplaceSettingsEntry[];
+}
+
+/**
+ * `marketplacePrompt/show` — the add question the core builds, without the
+ * check it can only run in-process. Result is the answer as entered, or `null`
+ * on cancel; the core checks the location and asks again.
+ */
+export type MarketplacePromptShowParams = Omit<MarketplaceAddPrompt, "problemWith">;
+export type MarketplacePromptShowResult = MarketplaceAddAnswer;
 
 /** `tokenStore/get` — read a per-host PAT; result carries the token, or `null` when none. */
 export interface TokenStoreGetParams {

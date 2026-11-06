@@ -1,4 +1,4 @@
-import type { BpmnlintConfig, Engine } from "@miragon/bpmn-modeler-types";
+import { surfaceModeSupports, type BpmnlintConfig, type Engine } from "@miragon/bpmn-modeler-types";
 import { getDefaultLintConfig } from "@miragon/bpmnlint-plugin-rules";
 
 import type { ModelerMode } from "../mode/mode";
@@ -45,7 +45,7 @@ export function isLintConfigByMode(config: LintConfigOption): config is LintConf
  *
  * The mode default drops the Camunda engine layer in Design (there is no
  * execution platform to bind on the engine-neutral surface) and keeps it in
- * Implement — `getDefaultLintConfig({ engine: mode === "implement" ? engine : undefined, preset: "modeling" })`.
+ * Implement.
  */
 export function resolveLintConfig(
     mode: ModelerMode,
@@ -60,7 +60,7 @@ export function resolveLintConfig(
         return perMode;
     }
     return getDefaultLintConfig({
-        engine: mode === "implement" ? engine : undefined,
+        engine: surfaceModeSupports(mode, "engineLintRules") ? engine : undefined,
         preset: "modeling",
     });
 }

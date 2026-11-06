@@ -82,7 +82,7 @@ Place a slot as VS Code's [status bar guideline](https://code.visualstudio.com/a
 
 ## Quick Picks
 
-`VsCodePicker` (`apps/vscode-plugin/src/shared/adapter/out/VsCodePicker.ts`) implements the core's `PickerPort`, so every quick pick a core service asks for goes through it. A new prompt uses its `choose`, `chooseMany`, `confirm` or `searchAndChoose` with a prompt the core builds (`libs/modeler-core/src/kernel/domain/prompts.ts`). `VsCodePicker` shows an item's file path relative to the workspace, filters on descriptions too, draws an icon as its codicon, and reveals a search's busy list only after 150 ms. The core builds the execution platform of a new BPMN model (`newModelEnginePrompt`), the engine version (`engineVersionPrompt`), the migration scope (`migrationScopePrompt`), a script's language (`scriptLanguagePrompt`), the cleanup confirmation (`confirmation`, which summarises the affected items), the choice among the files a navigation found (`locatedFileChoices`) and every deployment prompt (`libs/modeler-core/src/deployment/domain/deploymentPrompts.ts`: the payload file, the active target, the status-bar menu, the files to deploy, the additional files, and the confirmations to delete a target and to send credentials to a new host). The core orders a file list by the workspace-relative path `VsCodePicker` shows (`fileChoicesInWorkspaceOrder`), except the payload files, which stay nearest first; either way, keep the order a prompt gives. A prompt only a VS Code command needs (the UI language, the marketplace scope) calls `window.showQuickPick` in its controller:
+`VsCodePicker` (`apps/vscode-plugin/src/shared/adapter/out/VsCodePicker.ts`) implements the core's `PickerPort`, so every quick pick a core service asks for goes through it. A new prompt uses its `choose`, `chooseMany`, `confirm` or `searchAndChoose` with a prompt the core builds (`libs/modeler-core/src/kernel/domain/prompts.ts`). `VsCodePicker` shows an item's file path relative to the workspace, filters on descriptions too, draws an icon as its codicon, and reveals a search's busy list only after 150 ms. The core builds the execution platform of a new BPMN model (`newModelEnginePrompt`), the engine version (`engineVersionPrompt`), the migration scope (`migrationScopePrompt`), a script's language (`scriptLanguagePrompt`), the cleanup confirmation (`confirmation`, which summarises the affected items), the choice among the files a navigation found (`locatedFileChoices`) and every deployment prompt (`libs/modeler-core/src/deployment/domain/deploymentPrompts.ts`: the payload file, the active target, the status-bar menu, the files to deploy, the additional files, and the confirmations to delete a target and to send credentials to a new host). The core orders a file list by the workspace-relative path `VsCodePicker` shows (`fileChoicesInWorkspaceOrder`), except the payload files, which stay nearest first; either way, keep the order a prompt gives. The marketplace's add question (`MarketplaceAddPrompt`) takes an input box and a quick pick; see below. A prompt only a VS Code command needs (the UI language) calls `window.showQuickPick` in its controller:
 
 ```typescript
 const result = await window.showQuickPick(items, {
@@ -92,7 +92,9 @@ const result = await window.showQuickPick(items, {
 
 If the user cancels (Escape), the generic prompts answer `undefined`, `[]` or `false` and the caller decides what that means: dismissing an engine, migration or deployment choice writes nothing and shows no message, while declining to send credentials to a new host reports that nothing was sent. Use quick picks for selection from a list. Don't abuse notification buttons for this.
 
-The one input box a core service asks for is the marketplace's personal access token. `VsCodeTokenPrompt` (`apps/vscode-plugin/src/templateMarketplace/adapter/out/VsCodeTokenPrompt.ts`) implements `TokenPromptPort` and shows the `TokenPrompt` the core builds (`libs/modeler-core/src/template-marketplace/domain/tokenPrompt.ts`: the title, the prompt and `password: true`) in `window.showInputBox`. It adds only `ignoreFocusOut: true`, because the user leaves VS Code to create the token. It returns the answer as typed, and the core takes a blank answer for no token, so the adapter does not trim.
+Two input boxes come from core services, both for the template marketplace. `VsCodeTokenPrompt` (`apps/vscode-plugin/src/templateMarketplace/adapter/out/VsCodeTokenPrompt.ts`) implements `TokenPromptPort` and shows the `TokenPrompt` the core builds (`libs/modeler-core/src/template-marketplace/domain/tokenPrompt.ts`: the title, the prompt and `password: true`) in `window.showInputBox`. It adds only `ignoreFocusOut: true`, because the user leaves VS Code to create the token. It returns the answer as typed, and the core takes a blank answer for no token, so the adapter does not trim.
+
+`VsCodeMarketplacePrompt` (same folder) implements `MarketplacePromptPort` and asks the add question `marketplaceAddPrompt` builds (`libs/modeler-core/src/template-marketplace/domain/marketplacePrompts.ts`) in steps: an input box with the core's title, prompt, placeholder and current entry, whose `validateInput` is the prompt's `problemWith`, so the box shows the core's message as the user types and accepts only a location the core registers; then, when the prompt offers scopes, a quick pick with the core's labels and "Saved in …" descriptions under the same title. Without a folder open only the User settings are writable, the core offers no choice, and no quick pick appears. Escape on either step answers `undefined`, and the core adds nothing. The remove choice is an ordinary `chooseMany` prompt (`marketplaceRemoval`) through `VsCodePicker`; with nothing registered the core shows "No marketplaces registered." instead.
 
 ## Output Channel
 
@@ -104,7 +106,7 @@ notifier.logWarning('No element templates found in workspace');
 notifier.logError(new Error('Failed to parse element template: invalid JSON'));  // Error object, not string
 ```
 
-The webview sends `LogInfoCommand` / `LogWarningCommand` / `LogErrorCommand` messages to the host, which writes them to the output channel. This project uses a single channel for the modeler. In the BPMN webview the document lines come from `apps/bpmn-webview/src/session/documentSession.ts` (open and refresh failures) and the shared `libs/shared/src/lib/webviewDocumentSync.ts` (sync failures) and `session/surfaceDocument.ts` (import warnings), the surface-creation and mode-switch failures from `session/modeController.ts`, and a failed host message is prefixed with its type by `session/messageRouter.ts`.
+The webview sends `LogInfoCommand` / `LogWarningCommand` / `LogErrorCommand` messages to the host, which writes them to the output channel. This project uses a single channel for the modeler. In the BPMN webview the document lines come from `apps/bpmn-webview/src/service/documentSession.ts` (open and refresh failures) and the shared `libs/shared/src/lib/webviewDocumentSync.ts` (sync failures) and `adapter/out/surfaceDocument.ts` (import warnings), the surface-creation and mode-switch failures from `adapter/in/modeController.ts`, and a failed host message is prefixed with its type by `adapter/in/messageRouter.ts`.
 
 ## Clipboard Access
 
@@ -142,7 +144,7 @@ The BPMN `WebviewMessageRouter` dispatches incoming `GetClipboardCommand` / `Set
 The webview runs two **bpmn-js DI modules** (from the shared
 `libs/bpmn-clipboard` package, `@miragon/bpmn-modeler-clipboard`) because diagram
 elements and contenteditable labels have different event handling. The webview
-only supplies the `clipboard` option (`apps/bpmn-webview/src/session/protocolClipboard.ts`);
+only supplies the `clipboard` option (`apps/bpmn-webview/src/adapter/out/protocolClipboard.ts`);
 `@miragon/bpmn-modeler` builds the DI modules from it via
 `createClipboardModules` in `packages/bpmn-modeler/src/modeler.ts`. Each module
 receives its host bridge through didi value injection: a `{ requestClipboard,
@@ -177,9 +179,9 @@ installed by `@miragon/bpmn-modeler` from the `clipboard` option).
 
 The native browser clipboard is the default (#1374); the bridge modules are only
 built when the webview can't reach the system clipboard.
-`resolveClipboard` (`apps/bpmn-webview/src/session/protocolClipboard.ts`) wires
+`resolveClipboard` (`apps/bpmn-webview/src/adapter/out/protocolClipboard.ts`) wires
 one host channel per clipboard with a promise-based resolver pattern into a
-`ClipboardOptions` value. The surface factories (`session/surfaceFactories.ts`)
+`ClipboardOptions` value. The surface factories (`adapter/out/surfaceFactories.ts`)
 pass it as `clipboard` to `createModeler` / `createDesigner`, and the session
 router routes each `ClipboardQuery` / `TextClipboardQuery` reply to its channel:
 
@@ -228,8 +230,8 @@ Webviews **must** respect the user's VS Code theme:
 - The properties panel uses standard HTML form elements with labels
 - Keyboard shortcuts (Cmd/Ctrl+C/V/A) work in both diagram and properties panel via the polyfills described above
 - The select-all guard (`onSelectAllKeydown` in `packages/bpmn-modeler/src/propertiesPanelClipboard.ts`) ensures Cmd/Ctrl+A works correctly in contenteditable fields
-- The BPMN webview makes the page `inert` while a mode switch, a destructive flush or an engine reload runs. Take every such lock from the one `createInertLockGroup(document.body)` in `apps/bpmn-webview/src/bootstrap.ts` (the document session and `session/modeController.ts` each create theirs from it), so the last release restores the page's own `inert` state
-- Escape on the closed mode strip returns focus to the canvas (`session/modeController.ts`)
+- The BPMN webview makes the page `inert` while a mode switch, a destructive flush or an engine reload runs. Take every such lock from the one `createInertLockGroup(document.body)` in `apps/bpmn-webview/src/composition/bootstrap.ts` (the document session and `adapter/in/modeController.ts` each create theirs from it), so the last release restores the page's own `inert` state
+- Escape on the closed mode strip returns focus to the canvas (`adapter/in/modeController.ts`)
 
 ### `setContext` for Keybinding Visibility
 

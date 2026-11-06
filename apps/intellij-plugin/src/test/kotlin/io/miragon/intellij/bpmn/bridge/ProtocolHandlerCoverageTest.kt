@@ -159,9 +159,9 @@ class ProtocolHandlerCoverageTest {
                 HostToCoreMethod.SCRIPT_DID_CLOSE to { script.notifyScriptClosed("script-1") },
                 HostToCoreMethod.SCRIPT_OPEN_ALL to { script.openAllScriptTasks() },
                 HostToCoreMethod.SCRIPT_DID_OPEN_EXTERNAL to { script.notifyDidOpenExternal("/ws/.camunda/tmp/scripting/h/T/T.js") },
-                HostToCoreMethod.MARKETPLACE_ADD to { marketplace.addMarketplace("https://github.com/owner/repo", appWide = false) },
+                HostToCoreMethod.MARKETPLACE_ADD to { marketplace.addMarketplace() },
                 HostToCoreMethod.MARKETPLACE_UPDATE to { marketplace.updateMarketplaces() },
-                HostToCoreMethod.MARKETPLACE_REMOVE to { marketplace.removeMarketplaces(1) },
+                HostToCoreMethod.MARKETPLACE_REMOVE to { marketplace.removeMarketplaces() },
                 HostToCoreMethod.MODELER_CHANGE_ENGINE_VERSION to { modelerCommands.changeEngineVersion(session.editorId) },
                 HostToCoreMethod.LINTING_TOGGLE to { modelerCommands.toggleLinting() },
                 HostToCoreMethod.MIGRATION_MIGRATE_ALL to { modelerCommands.migrateAllDiagrams() },
@@ -208,6 +208,12 @@ class ProtocolHandlerCoverageTest {
                 "secretStore/getApprovedDestinations" to SecretApprovedDestinations(listOf("https://a.example")),
                 "tokenStore/get" to TokenStoreGetResult(token = "ghp_stored"),
                 "tokenPrompt/show" to TokenPromptShowResult(token = "ghp_typed"),
+                "marketplacePrompt/show" to MarketplacePromptShowResult(location = "/work/t", scope = "project"),
+                "marketplaceState/read" to
+                    MarketplaceStateReadResult(
+                        registered = mapOf("project" to listOf("/work/t"), "allProjects" to emptyList()),
+                        writable = listOf(WritableScope("project", SettingsPlace("file", listOf(".idea")))),
+                    ),
             )
         return resultsByMethod.entries.withIndex().associate { (requestId, entry) ->
             wired.channel.reply(wired.requestId(requestId), entry.value)
