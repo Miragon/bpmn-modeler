@@ -67,11 +67,15 @@ const ENGINES: ChoicePrompt<string> = {
     ],
 };
 
-/** Two files of the same name, offered by name as `fileChoice` offers them. */
+/**
+ * Two files of the same name, offered by name as `fileChoice` offers them. Out
+ * of label and path order, so a host that sorted or reversed its rows would
+ * answer another file from the first row.
+ */
 const LOCATED_FILES: ChoicePrompt<string> = {
     id: "locatedFile",
     placeholder: "Select the file to open",
-    items: ["/work/b/order.bpmn", "/work/a/order.bpmn", "/work/a/ship.bpmn"].map((path) => ({
+    items: ["/work/b/order.bpmn", "/work/a/order.bpmn", "/work/a/invoice.bpmn"].map((path) => ({
         label: path.slice(path.lastIndexOf("/") + 1),
         path,
         value: path,
@@ -178,7 +182,7 @@ const CONFIRM_ANSWERS: readonly ConfirmAnswer[] = [
     },
 ];
 
-/** Row 0 is where a reversed or path-sorted choice shows another file; row 1 shares its label with row 0. */
+/** Row 0 is where a reversed, path- or label-sorted choice shows another file; row 1 shares its label with row 0. */
 const SEARCH_PICKS: readonly SearchPick[] = [
     {
         behaviour: "the first row, so the choice keeps the prompt's order",
@@ -233,8 +237,8 @@ function expectOfferedValues(chosen: readonly unknown[], offered: readonly unkno
  *   sends absolute paths and no icon. Each adapter's own spec pins its layout.
  * - The labels a search's choice lists: the kit's fake shows none, so only the
  *   rows of `choose` and `chooseMany` are read back. A search's choice is held
- *   to the prompt's order through its first row, which a reversed or re-sorted
- *   list fills with another file.
+ *   to the prompt's order through its first row, which a reversed, path- or
+ *   label-sorted list fills with another file.
  * - That a confirmation is modal, and what shows while a search runs: VS Code
  *   reveals a busy list after 150 ms, the bridge brackets the search with
  *   status-bar progress. Neither reaches the core.
