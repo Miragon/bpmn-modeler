@@ -1,5 +1,4 @@
 import { FormReferenceStatusQuery } from "@miragon/bpmn-modeler-shared";
-import { REFERENCED_MODEL_FILE_EXTENSION } from "@miragon/bpmn-modeler-types";
 
 import { DocumentPort, NotifierPort, WorkspacePort } from "../../kernel/port/hostPorts";
 import { isWithinRoot } from "../../kernel/domain/rootContainment";
@@ -9,11 +8,12 @@ import { WatcherEventKind } from "../../kernel/domain/watcherEvents";
 import { EditorSessionStore } from "../../editorSession/service/EditorSessionStore";
 import { CreatedFolderWalks } from "../../kernel/service/CreatedFolderWalks";
 import { resolveSearchScope } from "../../kernel/service/workspaceFileSearch";
+import { declaringFileExtension } from "../domain/modelDeclaration";
 import { FormDeclarationsResult, ReferencedModelLocator } from "./ReferencedModelLocator";
 
 const WATCH_DEBOUNCE_MS = 150;
 
-const isFormFile = (path: string) => path.endsWith(REFERENCED_MODEL_FILE_EXTENSION.form);
+const isFormFile = (path: string) => path.endsWith(declaringFileExtension("form"));
 
 interface EditorState {
     sourcePath: string;

@@ -11,14 +11,26 @@ export interface ReferencedModel {
 
 type Declares = (content: string, reference: ReferencedModel) => boolean;
 
-const DECLARES: Readonly<Record<ReferenceKind, Declares>> = {
-    process: declaresXmlElement("process"),
-    decision: declaresXmlElement("decision"),
-    form: (content, { id }) => formIdDeclaredIn(content) === id,
+interface Declaration {
+    readonly fileExtension: string;
+    readonly declares: Declares;
+}
+
+const DECLARATIONS: Readonly<Record<ReferenceKind, Declaration>> = {
+    process: { fileExtension: ".bpmn", declares: declaresXmlElement("process") },
+    decision: { fileExtension: ".dmn", declares: declaresXmlElement("decision") },
+    form: {
+        fileExtension: ".form",
+        declares: (content, { id }) => formIdDeclaredIn(content) === id,
+    },
 };
 
+export function declaringFileExtension(kind: ReferenceKind): string {
+    return DECLARATIONS[kind].fileExtension;
+}
+
 export function declaresReferencedModel(content: string, reference: ReferencedModel): boolean {
-    return DECLARES[reference.kind](content, reference);
+    return DECLARATIONS[reference.kind].declares(content, reference);
 }
 
 /** The non-empty top-level id of a Camunda Form schema; a component's id declares nothing. */

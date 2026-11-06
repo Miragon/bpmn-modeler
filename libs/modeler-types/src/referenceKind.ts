@@ -38,10 +38,3 @@ export function referenceKindSupports(
 ): boolean {
     return REFERENCE_KIND_CAPABILITIES[kind][capability];
 }
-
-/** The extension of the files that declare a referenced model. */
-export const REFERENCED_MODEL_FILE_EXTENSION: Readonly<Record<ReferenceKind, string>> = {
-    process: ".bpmn",
-    decision: ".dmn",
-    form: ".form",
-};

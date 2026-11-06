@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { declaresReferencedModel, formIdDeclaredIn } from "./modelDeclaration";
+import type { ReferenceKind } from "@miragon/bpmn-modeler-types";
+
+import {
+    declaresReferencedModel,
+    declaringFileExtension,
+    formIdDeclaredIn,
+} from "./modelDeclaration";
 
 const bpmn = (processId: string, targetNamespace = "http://bpmn.io/schema/bpmn") =>
     `<?xml version="1.0"?>
@@ -136,6 +142,16 @@ describe("declaresReferencedModel", () => {
         },
     ])("$behaviour", ({ content, reference, expected }) => {
         expect(declaresReferencedModel(content, reference)).toBe(expected);
+    });
+});
+
+describe("declaringFileExtension", () => {
+    it.each<[ReferenceKind, string]>([
+        ["process", ".bpmn"],
+        ["decision", ".dmn"],
+        ["form", ".form"],
+    ])("finds a %s in a %s file", (kind, extension) => {
+        expect(declaringFileExtension(kind)).toBe(extension);
     });
 });
 

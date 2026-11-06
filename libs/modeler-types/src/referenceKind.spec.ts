@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import {
-    REFERENCED_MODEL_FILE_EXTENSION,
     isReferenceKind,
     referenceKindSupports,
     type ReferenceKind,
@@ -37,15 +36,5 @@ describe("referenceKindSupports", () => {
         { kind: "form", capability: "preview", supported: true },
     ])("answers $supported for $kind and $capability", ({ kind, capability, supported }) => {
         expect(referenceKindSupports(kind, capability)).toBe(supported);
-    });
-});
-
-describe("REFERENCED_MODEL_FILE_EXTENSION", () => {
-    it.each<[ReferenceKind, string]>([
-        ["process", ".bpmn"],
-        ["decision", ".dmn"],
-        ["form", ".form"],
-    ])("finds a %s in a %s file", (kind, extension) => {
-        expect(REFERENCED_MODEL_FILE_EXTENSION[kind]).toBe(extension);
     });
 });

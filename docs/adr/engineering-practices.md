@@ -404,11 +404,13 @@ home:
 - **`ReferenceKind`:** a capability in the `Record<ReferenceKind, …>` table of
   `libs/modeler-types/src/referenceKind.ts` (`referenceKindSupports`: only a
   form reference has an availability status and a preview), or a
-  `Record<ReferenceKind, …>` lookup: the file extension
-  (`REFERENCED_MODEL_FILE_EXTENSION`), where an element writes each kind and
-  whether it is a QName (`libs/model-navigation/src/extractReference.ts`), and
-  what declares each kind in a file (the core's
-  `navigation/domain/modelDeclaration.ts`).
+  `Record<ReferenceKind, …>` lookup where the knowledge lives: where an element
+  writes each kind and whether it is a QName
+  (`libs/model-navigation/src/extractReference.ts`), and which file declares
+  each kind, its extension and what in its content declares it (the core's
+  `navigation/domain/modelDeclaration.ts`: `declaringFileExtension`,
+  `declaresReferencedModel`). Only the capabilities live in `modeler-types`,
+  because only they are read by browser code.
 
 A lookup keyed by the union makes the compiler report a missing member, so a
 new engine or reference kind is decided in every table before it builds.

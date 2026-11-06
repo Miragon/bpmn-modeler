@@ -1,10 +1,14 @@
-import { REFERENCED_MODEL_FILE_EXTENSION, type ReferenceKind } from "@miragon/bpmn-modeler-types";
+import type { ReferenceKind } from "@miragon/bpmn-modeler-types";
 
 import { NotifierPort, WorkspacePort } from "../../kernel/port/hostPorts";
 import { LocateResult, SearchOutcome } from "../../kernel/domain/locateResult";
 import { referenceForDisplay } from "../../kernel/domain/truncateForDisplay";
 import { scanWorkspaceFiles, WorkspaceFileQuery } from "../../kernel/service/workspaceFileSearch";
-import { declaresReferencedModel, formIdDeclaredIn } from "../domain/modelDeclaration";
+import {
+    declaresReferencedModel,
+    declaringFileExtension,
+    formIdDeclaredIn,
+} from "../domain/modelDeclaration";
 
 export interface FormDeclaration {
     id: string;
@@ -42,7 +46,7 @@ export class ReferencedModelLocator {
         const reference = { id: referenceId, kind, namespace };
         return scanWorkspaceFiles(
             this.vsWorkspace,
-            this.filesEndingWith(REFERENCED_MODEL_FILE_EXTENSION[kind], sourceDocumentPath),
+            this.filesEndingWith(declaringFileExtension(kind), sourceDocumentPath),
             (content, path) => (declaresReferencedModel(content, reference) ? path : undefined),
             (paths) => ({ paths }),
         );
@@ -52,7 +56,7 @@ export class ReferencedModelLocator {
     findFormDeclarations(sourceDocumentPath?: string): Promise<FormDeclarationsResult> {
         return scanWorkspaceFiles(
             this.vsWorkspace,
-            this.filesEndingWith(REFERENCED_MODEL_FILE_EXTENSION.form, sourceDocumentPath),
+            this.filesEndingWith(declaringFileExtension("form"), sourceDocumentPath),
             declarationIn,
             (declarations) => ({ declarations }),
         );
