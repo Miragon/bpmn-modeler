@@ -1498,8 +1498,8 @@ describe("DeploymentTargetService.getStoredCredentials", () => {
 });
 
 describe("toTargetPayload", () => {
-    // The protocol cannot import the domain; a type the form could send but the
-    // domain lacks would fall back to no auth in toAuthConfig.
+    // The protocol cannot import the domain; an auth type only the protocol
+    // knows would compile and fall back to no auth in toAuthConfig.
     it("carries exactly the auth types a target has", () => {
         expectTypeOf<AuthTypePayload>().toEqualTypeOf<TargetAuthType>();
     });

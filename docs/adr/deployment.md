@@ -46,15 +46,19 @@ rather than crashing the sidebar.
 
 `create` checks the engine and the auth type against one list each, their
 home: `ENGINES` (`@miragon/bpmn-modeler-types`) and `TARGET_AUTH_TYPES`
-(`deploymentTarget.ts`), from which `TargetAuthType` derives. Copies that
-cannot import them are pinned to them: the schema's `engine` and `auth.type`
-enums by the
-[schema tests](../../libs/modeler-core/src/deployment/domain/deploymentTargetsSchema.spec.ts),
-which also fail on an enum they do not pin, and the protocol's
-`AuthTypePayload` (`libs/shared`, which must not import the core) by a type
-equality assertion in the spec of the mapper `toTargetPayload`. Without that
-assertion, an auth type only the protocol knows compiles and falls back to no
-auth in `toAuthConfig`.
+(`deploymentTarget.ts`), from which `TargetAuthType` derives. Two copies that
+cannot import them are pinned to them. The
+[schema tests](../../libs/modeler-core/src/deployment/domain/deploymentTargetsSchema.spec.ts)
+compare the schema's `engine` and `auth.type` enums with the homes and fail on
+any other enum in the schema. A type equality assertion in the spec of the
+mapper `toTargetPayload` pins the protocol's `AuthTypePayload` (`libs/shared`,
+which must not import the core); without it, an auth type only the protocol
+knows compiles and falls back to no auth in `toAuthConfig`. The deployment
+form's `<option>` values in `formTemplate.ts` are a third copy of both sets and
+are not pinned yet. The form rejects an engine outside `ENGINES` with
+`isEngine`, but casts the selected auth type unchecked, so an auth option the
+domain lacks still falls back to no auth. A guard needs a runtime list that
+browser code can import, and `TARGET_AUTH_TYPES` lives in the core.
 
 Credentials stay in the host secret store under `<targetsFilePath>::<name>`.
 The file path prevents same-named targets in different projects from sharing
