@@ -54,8 +54,31 @@ class MarketplaceRouterTest {
     ): Pair<WiredBridge, MarketplaceRouter> {
         val wired = wireChannel().also { this.wired = it }
         val deps = bridgeDeps(projectFixture.get(), wired.channel, wired.handlers)
-        val router = MarketplaceRouter(deps, prompt, addForm).also { it.register() }
+        val router = MarketplaceRouter(deps, prompt, addForm, pushToRunningBridges = {}, pushToOwnBridge = {}).also { it.register() }
         return wired to router
+    }
+
+    /**
+     * A router whose pushes send the snapshot as `EditorSessionRouter.pushSettings`
+     * does, recording whether a push went to every running bridge or only to this
+     * project's.
+     */
+    private fun routerRecordingPushes(): Pair<WiredBridge, List<String>> {
+        val wired = wireChannel().also { this.wired = it }
+        val pushedTo = mutableListOf<String>()
+        fun push(bridges: String): () -> Unit = {
+            pushedTo += bridges
+            wired.channel.notify(
+                HostToCoreMethod.SETTINGS_DID_CHANGE,
+                linkedMapOf("settings" to ModelerSettingsStore.getInstance().snapshotMap(projectFixture.get())),
+            )
+        }
+        MarketplaceRouter(
+            bridgeDeps(projectFixture.get(), wired.channel, wired.handlers),
+            pushToRunningBridges = push(EVERY_BRIDGE),
+            pushToOwnBridge = push(OWN_BRIDGE),
+        ).register()
+        return wired to pushedTo
     }
 
     @Test
@@ -292,6 +315,71 @@ class MarketplaceRouterTest {
     }
 
     @Test
+    fun `marketplaceState remove of a project entry pushes the reduced list to this project's bridge before it acks`() {
+        val (wired, pushedTo) = routerRecordingPushes()
+        val projectStore = ProjectMarketplacesStore.getInstance(projectFixture.get())
+        val drop = "https://github.com/owner/pdrop-${System.nanoTime()}"
+        val keep = "https://github.com/owner/pkeep-${System.nanoTime()}"
+        projectStore.add(drop)
+        projectStore.add(keep)
+
+        wired.handlers.dispatch("marketplaceState/remove", entriesParams(drop), wired.requestId(50))
+
+        val pushed = marketplacesPushedBeforeAck(wired, 50)
+        assertFalse(pushed.contains(drop), "the prune must read the list without the removed entry")
+        assertTrue(pushed.contains(keep), "the push must carry the entries that stay")
+        assertEquals(listOf(OWN_BRIDGE), pushedTo)
+    }
+
+    @Test
+    fun `marketplaceState remove of an app-level entry pushes the reduced list to every running bridge before it acks`() {
+        val (wired, pushedTo) = routerRecordingPushes()
+        val drop = "https://github.com/owner/drop-${System.nanoTime()}"
+        val store = ModelerSettingsStore.getInstance()
+        val before = store.current()
+        store.update { before.copy(marketplaces = before.marketplaces + drop) }
+        try {
+            wired.handlers.dispatch("marketplaceState/remove", entriesParams(drop), wired.requestId(51))
+
+            assertFalse(marketplacesPushedBeforeAck(wired, 51).contains(drop), "every window's list lost the entry")
+            assertEquals(listOf(EVERY_BRIDGE), pushedTo)
+        } finally {
+            store.update { before }
+        }
+    }
+
+    @Test
+    fun `marketplaceState save for this project pushes the new list to this project's bridge before it acks`() {
+        val (wired, pushedTo) = routerRecordingPushes()
+        val location = "https://github.com/owner/psave-${System.nanoTime()}"
+
+        wired.handlers.dispatch("marketplaceState/save", obj("location" to location, "scope" to "project"), wired.requestId(52))
+
+        assertTrue(marketplacesPushedBeforeAck(wired, 52).contains(location), "the core must read the new entry")
+        assertEquals(listOf(OWN_BRIDGE), pushedTo)
+    }
+
+    @Test
+    fun `marketplaceState save for all projects pushes the new list to every running bridge before it acks`() {
+        val (wired, pushedTo) = routerRecordingPushes()
+        val location = "https://github.com/owner/asave-${System.nanoTime()}"
+        val store = ModelerSettingsStore.getInstance()
+        val before = store.current()
+        try {
+            wired.handlers.dispatch(
+                "marketplaceState/save",
+                obj("location" to location, "scope" to "allProjects"),
+                wired.requestId(53),
+            )
+
+            assertTrue(marketplacesPushedBeforeAck(wired, 53).contains(location), "every window's list gained the entry")
+            assertEquals(listOf(EVERY_BRIDGE), pushedTo)
+        } finally {
+            store.update { before }
+        }
+    }
+
+    @Test
     fun `addMarketplace notification carries only the settings snapshot`() {
         val (wired, router) = router()
         router.addMarketplace()
@@ -408,6 +496,17 @@ class MarketplaceRouterTest {
             }""",
         )
 
+    private fun entriesParams(vararg locations: String): JsonObject =
+        JsonObject().apply { add("entries", gson.toJsonTree(locations.toList())) }
+
+    /** The marketplaces of the snapshot pushed right before the ack of [id]. */
+    private fun marketplacesPushedBeforeAck(wired: WiredBridge, id: Int): List<String> {
+        val push = parse(wired.fake.nextFrame())
+        assertEquals("settings/didChange", push.get("method")?.asString, "the push must precede the ack")
+        assertAck(wired, id)
+        return push.getAsJsonObject("params").getAsJsonObject("settings").getAsJsonArray("marketplaces").map { it.asString }
+    }
+
     private fun scopesOf(registered: JsonObject): List<String> = registered.getAsJsonArray("scopes").map { it.asString }
 
     /** A null RPC result: Gson (serializeNulls off) omits the key entirely on the wire. */
@@ -424,4 +523,9 @@ class MarketplaceRouterTest {
 
     private fun obj(vararg pairs: Pair<String, String>): JsonObject =
         gson.toJsonTree(mapOf(*pairs)).asJsonObject
+
+    private companion object {
+        const val EVERY_BRIDGE = "every running bridge"
+        const val OWN_BRIDGE = "this project's bridge"
+    }
 }

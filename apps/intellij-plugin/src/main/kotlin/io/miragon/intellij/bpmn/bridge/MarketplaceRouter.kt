@@ -33,6 +33,11 @@ internal class MarketplaceRouter(
     private val addForm: (MarketplaceAddQuestion) -> MarketplaceAddAnswer? = { question ->
         AddMarketplaceDialog(deps.project, question).ask()
     },
+    // No CoreProcess runs under the test fixture, so a test observes the pushes here.
+    private val pushToRunningBridges: () -> Unit = ::pushSettingsToRunningBridges,
+    private val pushToOwnBridge: () -> Unit = {
+        deps.project.getServiceIfCreated(CoreProcess::class.java)?.pushSettings()
+    },
 ) {
     private val tokenStore by lazy { IntellijMarketplaceTokenStore() }
 
@@ -98,10 +103,10 @@ internal class MarketplaceRouter(
     private fun handleStateSave(location: String, scope: MarketplaceScope, id: CoreRequestId?) {
         if (scope == MarketplaceScope.ALL_PROJECTS) {
             ModelerSettingsStore.getInstance().addMarketplace(location)
-            pushSettingsToRunningBridges()
+            pushToRunningBridges()
         } else {
             ProjectMarketplacesStore.getInstance(deps.project).add(location)
-            deps.project.getServiceIfCreated(CoreProcess::class.java)?.pushSettings()
+            pushToOwnBridge()
         }
         id?.let { deps.channel.reply(it, null) }
     }
@@ -117,9 +122,9 @@ internal class MarketplaceRouter(
         appStore.removeMarketplaces(locations)
         ProjectMarketplacesStore.getInstance(deps.project).remove(locations)
         if (appChanged) {
-            pushSettingsToRunningBridges()
+            pushToRunningBridges()
         } else {
-            deps.project.getServiceIfCreated(CoreProcess::class.java)?.pushSettings()
+            pushToOwnBridge()
         }
         id?.let { deps.channel.reply(it, null) }
     }
