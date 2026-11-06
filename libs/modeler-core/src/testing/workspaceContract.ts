@@ -253,6 +253,21 @@ export function describeWorkspaceContract(
                 await expect(workspace.isSymbolicLink(`${root}/missing`)).resolves.toBe(false);
             });
 
+            // The core's walks catch only DirectoryNotFound to skip a path that holds
+            // no directory, so a config folder or a typo'd source path that names a
+            // file must not fail the walk.
+            it("rejects listing a file, or a path through one, with DirectoryNotFound", async () => {
+                const { workspace, root } = fixture;
+                await workspace.writeFile(`${root}/sources/order.json`, "{}");
+
+                await expect(workspace.readDirectory(`${root}/sources/order.json`)).rejects.toThrow(
+                    DirectoryNotFound,
+                );
+                await expect(
+                    workspace.readDirectory(`${root}/sources/order.json/sub`),
+                ).rejects.toThrow(DirectoryNotFound);
+            });
+
             // FileNotFound reads as "absent, use the defaults"; a `.env` that is a
             // Python virtualenv directory must be reported instead (EnvValueResolver).
             it("rejects reading a directory with an error other than FileNotFound", async () => {

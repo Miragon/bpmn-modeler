@@ -160,7 +160,7 @@ export interface WorkspacePort {
     /**
      * An empty directory lists as `[]`.
      *
-     * @throws {DirectoryNotFound} if `path` is missing.
+     * @throws {DirectoryNotFound} if `path` is missing or is not a directory.
      */
     readDirectory(path: string): Promise<[string, "file" | "directory"][]>;
     /**
