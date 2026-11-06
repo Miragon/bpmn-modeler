@@ -1,5 +1,5 @@
 import { DocumentPort } from "@miragon/bpmn-modeler-core";
-import { Rpc } from "../../../transport/adapter/out/Rpc";
+import { Rpc, RpcErrorReply } from "../../../transport/adapter/out/Rpc";
 import { METHODS } from "../../../protocol/domain/descriptor";
 import { DocumentSaveResult, DocumentWriteResult } from "../../../protocol/domain/types";
 import { DocumentMirror } from "../../domain/DocumentMirror";
@@ -25,12 +25,19 @@ export class RpcDocumentPort implements DocumentPort {
         expectedDocumentRevision?: number,
     ): Promise<boolean> {
         const sessionId = this.mirror.require(editorId).sessionId;
-        const result = (await this.rpc.request(METHODS.documentWrite, {
-            editorId,
-            sessionId,
-            content,
-            expectedDocumentRevision,
-        })) as DocumentWriteResult | null;
+        let result: DocumentWriteResult | null;
+        try {
+            result = (await this.rpc.request(METHODS.documentWrite, {
+                editorId,
+                sessionId,
+                content,
+                expectedDocumentRevision,
+            })) as DocumentWriteResult | null;
+        } catch (error) {
+            // The host answers an edit its Document failed with an error and logs it.
+            if (error instanceof RpcErrorReply) return false;
+            throw error;
+        }
         return this.mirror.completeWrite(editorId, sessionId, content, result);
     }
 

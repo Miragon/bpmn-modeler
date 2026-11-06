@@ -103,18 +103,13 @@ vi.mock("./extensionContext", () => ({
 }));
 
 import { ChoicePrompt, LocateResult, SearchPrompt } from "@miragon/bpmn-modeler-core";
+import { describePickerContract } from "@miragon/bpmn-modeler-core/testing";
 
 import { VsCodePicker } from "./VsCodePicker";
 
 interface ShownItem {
     label: string;
     description?: string;
-}
-
-function acceptQuickPickItemStartingWith(labelPrefix: string): void {
-    showQuickPickMock.mockImplementation(async (items: ShownItem[]) =>
-        items.find((item) => item.label.startsWith(labelPrefix)),
-    );
 }
 
 function dismissQuickPick(): void {
@@ -135,6 +130,42 @@ beforeEach(() => {
     asRelativePathMock.mockImplementation((uri: { path: string }) => uri.path.replace(/^\//, ""));
     vi.useRealTimers();
 });
+
+// VS Code hands back the very items it was shown, the checked ones in list order.
+describePickerContract("VsCodePicker", async () => ({
+    picker: new VsCodePicker(),
+    userPicks: (_prompt, row) => {
+        showQuickPickMock.mockImplementationOnce(async (items: ShownItem[]) => items[row]);
+        pickBehavior = { action: "accept", index: row };
+    },
+    userChecks: (_prompt, rows) => {
+        showQuickPickMock.mockImplementationOnce(async (items: ShownItem[]) =>
+            items.filter((_item, row) => rows.includes(row)),
+        );
+    },
+    userDismisses: () => {
+        showQuickPickMock.mockResolvedValueOnce(undefined);
+        showWarningMessageMock.mockResolvedValueOnce(undefined);
+        pickBehavior = { action: "hide" };
+    },
+    // VS Code answers with the button pressed, and only a button the adapter offered can be.
+    userConfirms: (request) => {
+        showWarningMessageMock.mockImplementationOnce(
+            async (_message: string, _options: unknown, ...buttons: string[]) => {
+                if (!buttons.includes(request.confirmLabel)) {
+                    throw new Error(`No "${request.confirmLabel}" button shown`);
+                }
+                return request.confirmLabel;
+            },
+        );
+    },
+    // A modal warning's other button is the Cancel VS Code adds, which answers undefined.
+    userDeclines: () => {
+        showWarningMessageMock.mockResolvedValueOnce(undefined);
+    },
+    shownLabels: () =>
+        (showQuickPickMock.mock.lastCall?.[0] as ShownItem[]).map((item) => item.label),
+}));
 
 describe("VsCodePicker generic prompts", () => {
     const engines: ChoicePrompt<string> = {
@@ -221,26 +252,6 @@ describe("VsCodePicker generic prompts", () => {
             );
         });
 
-        it("returns the chosen item's value, also when it is empty", async () => {
-            acceptQuickPickItemStartingWith("(none");
-
-            const chosen = await new VsCodePicker().choose({
-                id: "deploymentTarget",
-                placeholder: "Select the active deployment target",
-                items: [
-                    { label: "(none — use form values)", value: "" },
-                    { label: "dev", value: "dev" },
-                ],
-            });
-
-            expect(chosen).toBe("");
-        });
-
-        it("resolves undefined on dismissal", async () => {
-            dismissQuickPick();
-
-            await expect(new VsCodePicker().choose(engines)).resolves.toBeUndefined();
-        });
     });
 
     describe("chooseMany", () => {
@@ -263,12 +274,6 @@ describe("VsCodePicker generic prompts", () => {
                 matchOnDescription: true,
                 canPickMany: true,
             });
-        });
-
-        it("resolves [] on dismissal", async () => {
-            dismissQuickPick();
-
-            await expect(new VsCodePicker().chooseMany(forms)).resolves.toEqual([]);
         });
     });
 
@@ -331,16 +336,6 @@ describe("VsCodePicker generic prompts", () => {
                           })),
                       }
                     : undefined,
-        });
-
-        it("returns the untouched outcome and the chosen value when the outcome leaves a choice", async () => {
-            pickBehavior = { action: "accept", index: 1 };
-            const outcome = matches(["/repo/lib/a.bpmn", "/repo/src/b.bpmn"]);
-
-            const result = await new VsCodePicker().searchAndChoose(locate(async () => outcome));
-
-            expect(result.outcome).toBe(outcome);
-            expect(result.chosen).toBe("/repo/src/b.bpmn");
         });
 
         it("reveals the choice the outcome leaves, in the prompt's order", async () => {
