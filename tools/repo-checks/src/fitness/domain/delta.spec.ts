@@ -157,21 +157,31 @@ describe("the delta across files renamed since the merge base", () => {
         expect(statuses(head, base, renames)).toEqual(expected);
     });
 
-    it("reports a finding without the paths it names", () => {
-        const { findings } = markDelta(
+    it("reports a new and a resolved finding without the paths they name", () => {
+        const { findings, resolved } = markDelta(
             [naming("src/b.ts ↔ src/c.ts", ["src/b.ts", "src/c.ts"], { pathOrder: "code-unit" })],
-            [],
+            [naming("src/a.ts ↔ src/c.ts", ["src/a.ts", "src/c.ts"], { pathOrder: "code-unit" })],
             [],
         );
 
-        expect(findings).toEqual([
-            {
-                key: "src/b.ts ↔ src/c.ts",
-                path: "src/b.ts",
-                line: 1,
-                message: "src/b.ts ↔ src/c.ts",
-                status: "new",
-            },
-        ]);
+        expect({ findings, resolved }).toEqual({
+            findings: [
+                {
+                    key: "src/b.ts ↔ src/c.ts",
+                    path: "src/b.ts",
+                    line: 1,
+                    message: "src/b.ts ↔ src/c.ts",
+                    status: "new",
+                },
+            ],
+            resolved: [
+                {
+                    key: "src/a.ts ↔ src/c.ts",
+                    path: "src/a.ts",
+                    line: 1,
+                    message: "src/a.ts ↔ src/c.ts",
+                },
+            ],
+        });
     });
 });
