@@ -9,6 +9,7 @@ import {
     NoWorkspaceFolderFoundError,
 } from "../kernel/domain/errors";
 import { ChoicePrompt, SearchPrompt } from "../kernel/domain/prompts";
+import { MarketplaceScope } from "../template-marketplace/domain/marketplaceRegistrations";
 import { tokenPromptFor } from "../template-marketplace/domain/tokenPrompt";
 import { createTestHost } from "./createTestHost";
 import { InMemorySettings } from "./InMemorySettings";
@@ -400,6 +401,86 @@ describe("createTestHost", () => {
         expect(host.tokenPrompt.prompts).toEqual(
             ["github.com", "gitlab.com", "gitea.com"].map(promptFor),
         );
+    });
+
+    it("keeps marketplace registrations per scope and the settings on their union", async () => {
+        const host = createTestHost({
+            settings: { marketplaces: ["https://github.com/acme/shared"] },
+        });
+        const selfHosted = {
+            provider: "gitlab",
+            repo: "group/proj",
+            baseUrl: "https://gl.acme.com",
+        } as const;
+        const registrations = host.marketplaceRegistrations;
+        const marketplaces = host.settings.values.marketplaces;
+
+        await registrations.register("/work/templates", "project");
+        await registrations.register("/work/templates", "project");
+        await registrations.register("https://github.com/acme/shared", "project");
+        registrations.lists.project.push(selfHosted);
+        await registrations.unregister([{ ...selfHosted }, "https://github.com/acme/gone"]);
+
+        await expect(registrations.read()).resolves.toEqual({
+            registered: {
+                project: ["/work/templates", "https://github.com/acme/shared"],
+                allProjects: ["https://github.com/acme/shared"],
+            },
+            writable: [
+                { scope: "project", savedIn: { kind: "file", path: [".host", "settings.json"] } },
+                {
+                    scope: "allProjects",
+                    savedIn: { kind: "settingsPage", path: ["Settings", "Marketplaces"] },
+                },
+            ],
+            selfHostedIn: { kind: "file", path: ["settings.json"] },
+        });
+        expect(marketplaces).toEqual(["https://github.com/acme/shared", "/work/templates"]);
+
+        await registrations.unregister(["https://github.com/acme/shared"]);
+        registrations.selfHostedIn = undefined;
+
+        await expect(registrations.read()).resolves.toEqual({
+            registered: { project: ["/work/templates"], allProjects: [] },
+            writable: registrations.writable,
+        });
+        expect(marketplaces).toEqual(["/work/templates"]);
+    });
+
+    it("answers the add prompts in order and refuses a scope the prompt does not offer", async () => {
+        const host = createTestHost({
+            marketplaceAnswers: [
+                { location: "/work/a", scope: "allProjects" },
+                { location: "/work/b", scope: "project" },
+                { location: "/work/c", scope: "project" },
+            ],
+        });
+        const prompt = (scopes: MarketplaceScope[], scope: MarketplaceScope) => ({
+            title: "Add",
+            prompt: "Where",
+            placeholder: "",
+            location: "",
+            scopes: scopes.map((offered) => ({ scope: offered, label: offered, description: "" })),
+            scope,
+            problemWith: () => undefined,
+        });
+        const asked = [prompt(["project", "allProjects"], "project"), prompt([], "project")];
+
+        await expect(host.marketplacePrompt.promptForMarketplace(asked[0])).resolves.toEqual({
+            location: "/work/a",
+            scope: "allProjects",
+        });
+        await expect(host.marketplacePrompt.promptForMarketplace(asked[1])).resolves.toEqual({
+            location: "/work/b",
+            scope: "project",
+        });
+        await expect(
+            host.marketplacePrompt.promptForMarketplace(prompt([], "allProjects")),
+        ).rejects.toThrow('The add prompt offers no "project" scope.');
+        await expect(
+            host.marketplacePrompt.promptForMarketplace(asked[1]),
+        ).resolves.toBeUndefined();
+        expect(host.marketplacePrompt.prompts).toHaveLength(4);
     });
 
     it("keeps approved destinations per slot and drops them with the slot's credentials", async () => {

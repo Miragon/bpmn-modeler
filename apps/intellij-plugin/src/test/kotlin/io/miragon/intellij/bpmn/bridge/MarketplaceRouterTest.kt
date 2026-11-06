@@ -4,6 +4,9 @@ import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.testFramework.junit5.TestApplication
+import io.miragon.intellij.bpmn.MarketplaceAddAnswer
+import io.miragon.intellij.bpmn.MarketplaceAddQuestion
+import io.miragon.intellij.bpmn.MarketplaceScopeChoice
 import io.miragon.intellij.bpmn.ModelerSettingsStore
 import io.miragon.intellij.bpmn.ProjectMarketplacesStore
 import io.miragon.intellij.bpmn.projectFixtureWithoutServicePreload
@@ -19,9 +22,10 @@ import org.junit.jupiter.api.Test
  * [FakeProcess], per [RouterTestSupport]).
  *
  * The persist path writes through the genuine application-level
- * [ModelerSettingsStore]; the token prompt injects a deterministic stand-in for
- * the modal password dialog (EDT-only, not headless-stubbable). Uniquely-suffixed
- * locations keep the app-level settings from bleeding between assertions.
+ * [ModelerSettingsStore]; the token prompt and the add form inject deterministic
+ * stand-ins for their modal dialogs (EDT-only, not headless-stubbable).
+ * Uniquely-suffixed locations keep the app-level settings from bleeding between
+ * assertions.
  */
 @TestApplication
 class MarketplaceRouterTest {
@@ -42,11 +46,39 @@ class MarketplaceRouterTest {
 
     private fun parse(line: String): JsonObject = gson.fromJson(line, JsonObject::class.java)
 
-    private fun router(prompt: (String, String) -> String? = { _, _ -> null }): Pair<WiredBridge, MarketplaceRouter> {
+    private fun <T> parse(json: String, type: Class<T>): T = gson.fromJson(json, type)
+
+    private fun router(
+        prompt: (String, String) -> String? = { _, _ -> null },
+        addForm: (MarketplaceAddQuestion) -> MarketplaceAddAnswer? = { null },
+    ): Pair<WiredBridge, MarketplaceRouter> {
         val wired = wireChannel().also { this.wired = it }
         val deps = bridgeDeps(projectFixture.get(), wired.channel, wired.handlers)
-        val router = MarketplaceRouter(deps, prompt).also { it.register() }
+        val router = MarketplaceRouter(deps, prompt, addForm, pushToRunningBridges = {}, pushToOwnBridge = {}).also { it.register() }
         return wired to router
+    }
+
+    /**
+     * A router whose pushes send the snapshot as `EditorSessionRouter.pushSettings`
+     * does, recording whether a push went to every running bridge or only to this
+     * project's.
+     */
+    private fun routerRecordingPushes(): Pair<WiredBridge, List<String>> {
+        val wired = wireChannel().also { this.wired = it }
+        val pushedTo = mutableListOf<String>()
+        fun push(bridges: String): () -> Unit = {
+            pushedTo += bridges
+            wired.channel.notify(
+                HostToCoreMethod.SETTINGS_DID_CHANGE,
+                linkedMapOf("settings" to ModelerSettingsStore.getInstance().snapshotMap(projectFixture.get())),
+            )
+        }
+        MarketplaceRouter(
+            bridgeDeps(projectFixture.get(), wired.channel, wired.handlers),
+            pushToRunningBridges = push(EVERY_BRIDGE),
+            pushToOwnBridge = push(OWN_BRIDGE),
+        ).register()
+        return wired to pushedTo
     }
 
     @Test
@@ -65,14 +97,14 @@ class MarketplaceRouterTest {
     }
 
     @Test
-    fun `marketplaceState save with application scope lands in the app-level list, not the project store`() {
+    fun `marketplaceState save for all projects lands in the app-level list, not the project store`() {
         val (wired, _) = router()
         val location = "https://github.com/owner/app-wide-${System.nanoTime()}"
         // App-level settings are shared across the @TestApplication; restore them.
         val store = ModelerSettingsStore.getInstance()
         val before = store.current()
         try {
-            dispatchSave(wired, location, id = 30, scope = "application")
+            dispatchSave(wired, location, id = 30, scope = "allProjects")
 
             assertTrue(
                 store.current().marketplaces.contains(location),
@@ -88,19 +120,20 @@ class MarketplaceRouterTest {
     }
 
     @Test
-    fun `marketplaceState save is a no-op when the location already lives in the app-level list`() {
+    fun `marketplaceState save for this project writes the project list even when the app-level list holds the location`() {
         val (wired, _) = router()
         val location = "https://github.com/owner/app-repo-${System.nanoTime()}"
-        // Seed the app-level list; the save must dedupe against the union.
+        // The core decides whether an add registers anything; the store only appends.
         val store = ModelerSettingsStore.getInstance()
         val before = store.current()
         store.update { before.copy(marketplaces = before.marketplaces + location) }
         try {
             dispatchSave(wired, location, id = 9)
 
-            assertFalse(
-                ProjectMarketplacesStore.getInstance(projectFixture.get()).list().contains(location),
-                "a location already in the app-level list must not be re-added per project",
+            assertEquals(
+                listOf(location),
+                ProjectMarketplacesStore.getInstance(projectFixture.get()).list().filter { it == location },
+                "the save must land in the project list once",
             )
         } finally {
             // App-level settings are shared across the @TestApplication; restore them.
@@ -176,31 +209,187 @@ class MarketplaceRouterTest {
     }
 
     @Test
-    fun `addMarketplace notification carries the location, scope, and the settings snapshot`() {
+    fun `marketplacePrompt shows the core's question in one form and replies the answer as entered`() {
+        val asked = mutableListOf<MarketplaceAddQuestion>()
+        val (wired, _) =
+            router(addForm = { question -> MarketplaceAddAnswer(" ~/templates ", "allProjects").also { asked += question } })
+
+        wired.handlers.dispatch("marketplacePrompt/show", addQuestionParams(), wired.requestId(40))
+        ApplicationManager.getApplication().invokeAndWait { }
+
+        assertEquals(
+            listOf(
+                MarketplaceAddQuestion(
+                    title = "Add Template Marketplace",
+                    prompt = "GitHub or GitLab repository, or a local folder, holding a marketplace.json",
+                    placeholder = "https://github.com/owner/repo  or  ~/path/to/folder",
+                    location = "acme",
+                    invalidLocation = "Enter a GitHub or GitLab repository URL.",
+                    scopes =
+                        listOf(
+                            MarketplaceScopeChoice("project", "Register for this project", "Saved in .idea/workspace.xml"),
+                            MarketplaceScopeChoice("allProjects", "Register for all my projects", "Saved in Settings"),
+                        ),
+                    scope = "project",
+                ),
+            ),
+            asked,
+        )
+        val reply = parse(wired.fake.nextFrame())
+        assertEquals(40, reply.get("id").asInt)
+        val result = reply.getAsJsonObject("result")
+        assertEquals(" ~/templates ", result.get("location").asString)
+        assertEquals("allProjects", result.get("scope").asString)
+    }
+
+    @Test
+    fun `marketplacePrompt reply is null on cancel`() {
+        val (wired, _) = router(addForm = { null })
+
+        wired.handlers.dispatch("marketplacePrompt/show", addQuestionParams(), wired.requestId(41))
+        ApplicationManager.getApplication().invokeAndWait { }
+
+        val reply = parse(wired.fake.nextFrame())
+        assertEquals(41, reply.get("id").asInt)
+        assertNullResult(reply)
+    }
+
+    @Test
+    fun `marketplaceState read replies each scope's own list and where IntelliJ saves each scope`() {
+        val (wired, _) = router()
+        val shared = "https://github.com/owner/shared-${System.nanoTime()}"
+        val projectOnly = "https://github.com/owner/project-${System.nanoTime()}"
+        val store = ModelerSettingsStore.getInstance()
+        val before = store.current()
+        store.update { before.copy(marketplaces = before.marketplaces + shared) }
+        val projectStore = ProjectMarketplacesStore.getInstance(projectFixture.get())
+        projectStore.add(projectOnly)
+        try {
+            wired.handlers.dispatch("marketplaceState/read", JsonObject(), wired.requestId(42))
+
+            val result = parse(wired.fake.nextFrame()).getAsJsonObject("result")
+            val registered = result.getAsJsonObject("registered")
+            assertEquals(store.current().marketplaces, entriesOf(registered, "allProjects"))
+            assertEquals(projectStore.list(), entriesOf(registered, "project"))
+            assertTrue(entriesOf(registered, "allProjects").contains(shared))
+            assertTrue(entriesOf(registered, "project").contains(projectOnly))
+            assertEquals(
+                parse(
+                    """[
+                    {"scope":"project","savedIn":{"kind":"file","path":[".idea","workspace.xml"]}},
+                    {"scope":"allProjects","savedIn":{"kind":"settingsPage",
+                     "path":["Settings","Tools","Miragon BPMN Modeler","Template Marketplaces"]}}
+                    ]""",
+                    com.google.gson.JsonArray::class.java,
+                ),
+                result.getAsJsonArray("writable"),
+            )
+            assertFalse(result.has("selfHostedIn"), "IntelliJ has no place for a self-hosted marketplace")
+        } finally {
+            store.update { before }
+        }
+    }
+
+    @Test
+    fun `marketplaceState remove drops the entries from both stores and acks`() {
+        val (wired, _) = router()
+        val shared = "https://github.com/owner/shared-${System.nanoTime()}"
+        val keep = "https://github.com/owner/keep-${System.nanoTime()}"
+        val store = ModelerSettingsStore.getInstance()
+        val before = store.current()
+        store.update { before.copy(marketplaces = before.marketplaces + shared) }
+        val projectStore = ProjectMarketplacesStore.getInstance(projectFixture.get())
+        projectStore.add(keep)
+        try {
+            val params = JsonObject().apply { add("entries", gson.toJsonTree(listOf(shared))) }
+            wired.handlers.dispatch("marketplaceState/remove", params, wired.requestId(43))
+            assertAck(wired, 43)
+
+            assertFalse(store.current().marketplaces.contains(shared), "the app-level entry must be removed")
+            assertEquals(listOf(keep), projectStore.list().filter { it == keep }, "an unchosen entry must survive")
+        } finally {
+            store.update { before }
+        }
+    }
+
+    @Test
+    fun `marketplaceState remove of a project entry pushes the reduced list to this project's bridge before it acks`() {
+        val (wired, pushedTo) = routerRecordingPushes()
+        val projectStore = ProjectMarketplacesStore.getInstance(projectFixture.get())
+        val drop = "https://github.com/owner/pdrop-${System.nanoTime()}"
+        val keep = "https://github.com/owner/pkeep-${System.nanoTime()}"
+        projectStore.add(drop)
+        projectStore.add(keep)
+
+        wired.handlers.dispatch("marketplaceState/remove", entriesParams(drop), wired.requestId(50))
+
+        val pushed = marketplacesPushedBeforeAck(wired, 50)
+        assertFalse(pushed.contains(drop), "the prune must read the list without the removed entry")
+        assertTrue(pushed.contains(keep), "the push must carry the entries that stay")
+        assertEquals(listOf(OWN_BRIDGE), pushedTo)
+    }
+
+    @Test
+    fun `marketplaceState remove of an app-level entry pushes the reduced list to every running bridge before it acks`() {
+        val (wired, pushedTo) = routerRecordingPushes()
+        val drop = "https://github.com/owner/drop-${System.nanoTime()}"
+        val store = ModelerSettingsStore.getInstance()
+        val before = store.current()
+        store.update { before.copy(marketplaces = before.marketplaces + drop) }
+        try {
+            wired.handlers.dispatch("marketplaceState/remove", entriesParams(drop), wired.requestId(51))
+
+            assertFalse(marketplacesPushedBeforeAck(wired, 51).contains(drop), "every window's list lost the entry")
+            assertEquals(listOf(EVERY_BRIDGE), pushedTo)
+        } finally {
+            store.update { before }
+        }
+    }
+
+    @Test
+    fun `marketplaceState save for this project pushes the new list to this project's bridge before it acks`() {
+        val (wired, pushedTo) = routerRecordingPushes()
+        val location = "https://github.com/owner/psave-${System.nanoTime()}"
+
+        wired.handlers.dispatch("marketplaceState/save", obj("location" to location, "scope" to "project"), wired.requestId(52))
+
+        assertTrue(marketplacesPushedBeforeAck(wired, 52).contains(location), "the core must read the new entry")
+        assertEquals(listOf(OWN_BRIDGE), pushedTo)
+    }
+
+    @Test
+    fun `marketplaceState save for all projects pushes the new list to every running bridge before it acks`() {
+        val (wired, pushedTo) = routerRecordingPushes()
+        val location = "https://github.com/owner/asave-${System.nanoTime()}"
+        val store = ModelerSettingsStore.getInstance()
+        val before = store.current()
+        try {
+            wired.handlers.dispatch(
+                "marketplaceState/save",
+                obj("location" to location, "scope" to "allProjects"),
+                wired.requestId(53),
+            )
+
+            assertTrue(marketplacesPushedBeforeAck(wired, 53).contains(location), "every window's list gained the entry")
+            assertEquals(listOf(EVERY_BRIDGE), pushedTo)
+        } finally {
+            store.update { before }
+        }
+    }
+
+    @Test
+    fun `addMarketplace notification carries only the settings snapshot`() {
         val (wired, router) = router()
-        router.addMarketplace("~/local/marketplace", appWide = false)
+        router.addMarketplace()
 
         val frame = parse(wired.fake.nextFrame())
         assertEquals("marketplace/add", frame.get("method").asString)
         val params = frame.getAsJsonObject("params")
-        assertEquals("~/local/marketplace", params.get("location").asString)
-        // Unchecked "Register for all projects" → per-project scope.
-        assertEquals("project", params.get("scope").asString)
-        // The piggybacked snapshot must be the full settings map (so the run never
-        // depends on a prior register seed), including the marketplace list itself.
+        assertEquals(setOf("settings"), params.keySet())
+        // The full settings map, so the run never depends on a prior register seed.
         val settings = params.getAsJsonObject("settings")
         assertTrue(settings.has("marketplaces"), "snapshot must carry the marketplace list")
         assertTrue(settings.has("configFolder"), "snapshot must be the full settings map")
-    }
-
-    @Test
-    fun `addMarketplace notification carries the application scope when registered app-wide`() {
-        val (wired, router) = router()
-        router.addMarketplace("~/local/marketplace", appWide = true)
-
-        val params = parse(wired.fake.nextFrame()).getAsJsonObject("params")
-        // Checked "Register for all projects" → app-level scope.
-        assertEquals("application", params.get("scope").asString)
     }
 
     @Test
@@ -217,20 +406,15 @@ class MarketplaceRouterTest {
     }
 
     @Test
-    fun `removeMarketplaces notification carries the settings snapshot and the removed count`() {
+    fun `removeMarketplaces notification carries only the settings snapshot`() {
         val (wired, router) = router()
-        router.removeMarketplaces(removedCount = 3)
+        router.removeMarketplaces()
 
         val frame = parse(wired.fake.nextFrame())
         assertEquals("marketplace/remove", frame.get("method").asString)
         val params = frame.getAsJsonObject("params")
-        // The core prunes against the post-removal list, so the snapshot must ride along.
-        assertTrue(
-            params.getAsJsonObject("settings").has("marketplaces"),
-            "remove must piggyback the post-removal marketplace list the core prunes against",
-        )
-        // The selection count feeds the summary toast (not the prune count).
-        assertEquals(3, params.get("removedCount").asInt)
+        assertEquals(setOf("settings"), params.keySet())
+        assertTrue(params.getAsJsonObject("settings").has("marketplaces"), "remove must piggyback the marketplace list")
     }
 
     @Test
@@ -289,12 +473,40 @@ class MarketplaceRouterTest {
         }
     }
 
-    private fun dispatchSave(wired: WiredBridge, location: String, id: Int, scope: String? = null) {
-        val params = obj("location" to location)
-        if (scope != null) params.addProperty("scope", scope)
-        wired.handlers.dispatch("marketplaceState/save", params, wired.requestId(id))
+    private fun dispatchSave(wired: WiredBridge, location: String, id: Int, scope: String = "project") {
+        wired.handlers.dispatch("marketplaceState/save", obj("location" to location, "scope" to scope), wired.requestId(id))
         assertAck(wired, id)
     }
+
+    private fun addQuestionParams(): JsonObject =
+        parse(
+            """{
+            "title":"Add Template Marketplace",
+            "prompt":"GitHub or GitLab repository, or a local folder, holding a marketplace.json",
+            "placeholder":"https://github.com/owner/repo  or  ~/path/to/folder",
+            "location":"acme",
+            "invalidLocation":"Enter a GitHub or GitLab repository URL.",
+            "scopes":[
+              {"scope":"project","label":"Register for this project","description":"Saved in .idea/workspace.xml"},
+              {"scope":"allProjects","label":"Register for all my projects","description":"Saved in Settings"}
+            ],
+            "scope":"project"
+            }""",
+        )
+
+    private fun entriesParams(vararg locations: String): JsonObject =
+        JsonObject().apply { add("entries", gson.toJsonTree(locations.toList())) }
+
+    /** The marketplaces of the snapshot pushed right before the ack of [id]. */
+    private fun marketplacesPushedBeforeAck(wired: WiredBridge, id: Int): List<String> {
+        val push = parse(wired.fake.nextFrame())
+        assertEquals("settings/didChange", push.get("method")?.asString, "the push must precede the ack")
+        assertAck(wired, id)
+        return push.getAsJsonObject("params").getAsJsonObject("settings").getAsJsonArray("marketplaces").map { it.asString }
+    }
+
+    private fun entriesOf(registered: JsonObject, scope: String): List<String> =
+        registered.getAsJsonArray(scope).map { it.asString }
 
     /** A null RPC result: Gson (serializeNulls off) omits the key entirely on the wire. */
     private fun assertNullResult(reply: JsonObject) {
@@ -310,4 +522,9 @@ class MarketplaceRouterTest {
 
     private fun obj(vararg pairs: Pair<String, String>): JsonObject =
         gson.toJsonTree(mapOf(*pairs)).asJsonObject
+
+    private companion object {
+        const val EVERY_BRIDGE = "every running bridge"
+        const val OWN_BRIDGE = "this project's bridge"
+    }
 }

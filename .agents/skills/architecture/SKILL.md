@@ -20,8 +20,8 @@ verify details against source because older guides and ADRs may be outdated.
 | Public-facing types, browser utilities and pure rules browser code shares with the core | `libs/modeler-types`; keep the surface suitable for publication. |
 | Private messages and webview chrome | `libs/shared/src/lib/`; base/sync messages in `messages.ts`, feature payloads in their corresponding files, host channel in `host.ts`. |
 | Host-independent domain logic and services | Feature folders in `libs/modeler-core/src/`, with the shared vocabulary in `kernel/` and the editor-session core in `editorSession/`; consumers use its `index.ts`. |
-| IDE protocol-to-modeler adaptation | `apps/bpmn-webview/src/bootstrap.ts` and its `src/session/` modules, `apps/dmn-webview/src/bootstrap.ts`. |
-| Form editing and deployment UI | `apps/form-webview`; `apps/deployment-webview`, whose markup lives in `src/app/formTemplate.ts`. |
+| IDE protocol-to-modeler adaptation | `apps/bpmn-webview/src/composition/bootstrap.ts` and the adapters and services it wires, `apps/dmn-webview/src/composition/bootstrap.ts`. |
+| Form editing and deployment UI | `apps/form-webview`; `apps/deployment-webview`, whose markup lives in `src/adapter/in/formTemplate.ts`. |
 | Host integration and lifecycle | `apps/vscode-plugin/src/main.ts` and `src/composition/`; `apps/modeler-bridge/src/server.ts` and `src/composition/` (`bridge.ts`); Kotlin host in `apps/intellij-plugin`. |
 
 Decisions (rules, state transitions, validations) go into the owning feature's
@@ -105,10 +105,13 @@ suite shows as new until its spec runs the suite.
   Cross-cutting host ports live in the core's `kernel/port/hostPorts.ts`; a
   port one feature owns lives in that feature's `port/`, which holds only
   interfaces, and the prompts it asks are built in its `domain/`, the
-  marketplace's masked token prompt (`tokenPrompt.ts`) included. A host only
-  renders a prompt and returns the answer; the core reads it, and takes a
-  blank token for no token. Wire concrete adapters in the applications using
-  constructor composition.
+  marketplace's masked token prompt (`tokenPrompt.ts`) and its add question
+  and remove choice (`marketplacePrompts.ts`) included. A host only renders a
+  prompt in its own layout and returns the answer; the core reads it, takes a
+  blank token for no token, and checks an entered location and asks again. A
+  fact that differs per host, such as where a scope is saved, reaches the core
+  as a typed value (`SettingsPlace`), never as host-built prose. Wire concrete
+  adapters in the applications using constructor composition.
 - Preserve factory/handle API compatibility and package exports. Supply optional
   BPMN capabilities through ports; keep linting injectable and browser themes
   container-scoped. Use feature barrels for cross-feature access.
@@ -170,6 +173,13 @@ file or type name:
    `fs` or `http`.
 8. Only `composition/` and entries import `composition/`.
 9. Only `testing/` imports `testing/`; nothing imports an entry.
+
+In a webview the UI, its markup and the router for the host's queries are
+`adapter/in/`, the host channel and the modeler-library wrappers
+`adapter/out/`, the channel's type, the state it persists and the ports a
+session calls `port/`, a session that syncs with the host through injected
+handles `service/`, pure rules `domain/`, the bootstrap `composition/`, and
+`main.ts` the entry.
 
 A `diagram-js` or `flat` workspace holds no role folder (same spec). ESLint
 bans `() => {}` in `adapter/` (`eslint.config.cjs`). A workspace not yet moved

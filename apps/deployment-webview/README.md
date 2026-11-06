@@ -14,8 +14,8 @@ extension host via the typed Query/Command protocol from
 ## Single-source markup
 
 The form markup lives in **one** place:
-`src/app/formTemplate.ts` (`FORM_TEMPLATE`), injected into `#app` by
-`main.ts` at runtime. Every host shell — the Vite `index.html`,
+`src/adapter/in/formTemplate.ts` (`FORM_TEMPLATE`), injected into `#app` by
+`src/composition/bootstrap.ts` at runtime. Every host shell — the Vite `index.html`,
 `apps/vscode-plugin/src/deployment/adapter/in/DeploymentWebviewHtml.ts`,
 and the IntelliJ deployment tool-window shell — ships only an empty
 `<div id="app"></div>`. When modifying form markup, edit `formTemplate.ts`
@@ -31,6 +31,8 @@ The pure functions in `src/domain/deploymentDraft.ts` decide, from a
 - why Deploy and Start Instance are blocked (a save or load in flight,
   credentials loading, unsaved target changes).
 
+`credentialRefSignatureOf` in the same file decides which credential edits
+count as a target change: an `${env:…}` reference does, a literal does not.
 `form.ts` builds the snapshot from its flags and applies the result to the DOM.
 Each request button also stays disabled while its own request is in flight:
 Deploy while `deploying` (`form.ts`), Start Instance while `starting`

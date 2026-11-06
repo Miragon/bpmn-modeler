@@ -155,12 +155,19 @@ export * from "./template-marketplace/domain/fetchReport";
 export * from "./template-marketplace/domain/marketplace";
 export * from "./template-marketplace/domain/repositoryAccessError";
 export * from "./template-marketplace/domain/repositorySourceConfig";
+export * from "./template-marketplace/domain/marketplaceRegistrations";
+export type {
+    MarketplaceAddAnswer,
+    MarketplaceAddPrompt,
+    MarketplaceScopeChoice,
+} from "./template-marketplace/domain/marketplacePrompts";
 export type { TokenPrompt } from "./template-marketplace/domain/tokenPrompt";
 export * from "./template-marketplace/port/marketplacePorts";
 export * from "./template-marketplace/adapter/out/GitHubSource";
 export * from "./template-marketplace/adapter/out/GitLabSource";
 export * from "./template-marketplace/adapter/out/LocalFileSource";
 export * from "./template-marketplace/service/MarketplaceCache";
+export * from "./template-marketplace/service/MarketplaceCommands";
 export * from "./template-marketplace/service/TemplateMarketplaceService";
 export * from "./template-marketplace/composition/MarketplaceFeature";
 

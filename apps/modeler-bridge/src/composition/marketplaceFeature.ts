@@ -5,10 +5,10 @@ import {
     TemplateMarketplaceService,
 } from "@miragon/bpmn-modeler-core";
 
+import { RpcMarketplacePrompt } from "../templateMarketplace/adapter/out/RpcMarketplacePrompt";
+import { RpcMarketplaceRegistrations } from "../templateMarketplace/adapter/out/RpcMarketplaceRegistrations";
 import { RpcTokenPrompt } from "../templateMarketplace/adapter/out/RpcTokenPrompt";
 import { RpcTokenStore } from "../templateMarketplace/adapter/out/RpcTokenStore";
-import { METHODS } from "../protocol/domain/descriptor";
-import { MarketplaceAddParams } from "../protocol/domain/types";
 import { marketplaceHandlers } from "../templateMarketplace/adapter/in/marketplaceHandlers";
 import { bindHandlers } from "./bindHandlers";
 import { BridgeSharedDeps } from "./sharedDeps";
@@ -38,7 +38,7 @@ export interface MarketplaceOptions {
  * The template-marketplace feature: builds the host-agnostic
  * {@link TemplateMarketplaceService} over the two RPC-backed token ports and, in
  * a second phase, maps the `marketplace/*` notifications onto the core
- * {@link MarketplaceCommands} — the flows VS Code runs.
+ * {@link MarketplaceCommands}, which ask IntelliJ and keep its stores over RPC.
  *
  * Split into two phases to break the same construction cycle the VS Code host
  * has: the service must exist before the templates feature (which merges its
@@ -75,33 +75,16 @@ export function registerHandlers(
     bindHandlers(
         deps.rpc,
         marketplaceHandlers({
-            commands: new MarketplaceCommands(
-                handles.marketplaceSvc,
-                handles.templatesSvc,
-                deps.notifier,
-                handles.homeDir,
-            ),
+            commands: new MarketplaceCommands({
+                marketplaces: handles.marketplaceSvc,
+                templates: handles.templatesSvc,
+                registrations: new RpcMarketplaceRegistrations(deps.rpc),
+                prompt: new RpcMarketplacePrompt(deps.rpc),
+                picker: deps.picker,
+                notifier: deps.notifier,
+                homeDir: handles.homeDir,
+            }),
             settingsMirror: deps.settings,
-            notifier: deps.notifier,
-            persistRegistration: (location, scope) => persistRegistration(deps, location, scope),
         }),
     );
-}
-
-/**
- * Acknowledged persist: the host adds the entry to settings and fans the fresh
- * snapshot to every open bridge. A rejection must reach the core so the add
- * fails as it does on VS Code — otherwise the marketplace silently vanishes on
- * the next IDE restart.
- *
- * `scope` is echoed straight back from the add — the bridge never interprets it.
- * Persistence has to wait for the fetch to succeed, but only the host knows what
- * "project" vs "application" means, so the choice rides the round trip opaquely.
- */
-async function persistRegistration(
-    deps: BridgeSharedDeps,
-    location: string,
-    scope: MarketplaceAddParams["scope"],
-): Promise<void> {
-    await deps.rpc.request(METHODS.marketplaceStateSave, { location, scope });
 }

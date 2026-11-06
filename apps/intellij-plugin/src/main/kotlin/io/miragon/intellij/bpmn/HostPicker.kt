@@ -8,12 +8,12 @@ import com.intellij.ui.ColoredListCellRenderer
 import com.intellij.ui.SimpleTextAttributes
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.swing.JList
-import javax.swing.ListSelectionModel
 
 /**
- * Renders the core's `PickerPort` as a native list popup (`JBPopup`). The host
- * owns only the UI: it shows the items the core supplied and reports back the
- * chosen indices, or `null` when the user dismissed the popup.
+ * Renders the core's `PickerPort` as a native list popup (`JBPopup`), or as a
+ * [PickManyDialog] when the core asks for several items. The host owns only the
+ * UI: it shows the items the core supplied and reports back the chosen indices,
+ * or `null` when the user dismissed the chooser.
  *
  * The caller decides what a dismissal means (for the core's prompts, the core),
  * so this object is deliberately domain-agnostic — it never maps a choice to an
@@ -26,7 +26,8 @@ object HostPicker {
     /**
      * Shows the chooser centered in the project window and invokes [onResult]
      * exactly once: the chosen indices on confirmation, or `null` on dismissal.
-     * Must be called on the EDT.
+     * Must be called on the EDT. With [canPickMany] it shows a modal
+     * [PickManyDialog] and returns once the user closed it.
      *
      * Confirm and cancel are told apart by [LightweightWindowEvent.isOk], not by
      * callback ordering. On the OK path `AbstractPopup.closeOk` fires
@@ -44,6 +45,10 @@ object HostPicker {
         items: List<PickItem>,
         onResult: (List<Int>?) -> Unit,
     ) {
+        if (canPickMany) {
+            onResult(PickManyDialog(project, title, placeholder, items).ask())
+            return
+        }
         val reported = AtomicBoolean(false)
         fun report(result: List<Int>?) {
             if (reported.compareAndSet(false, true)) onResult(result)
@@ -72,12 +77,7 @@ object HostPicker {
                     },
                 )
 
-        if (canPickMany) {
-            builder.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION)
-            builder.setItemsChosenCallback { set -> report(set.map { it.index }.sorted()) }
-        } else {
-            builder.setItemChosenCallback { item -> report(listOf(item.index)) }
-        }
+        builder.setItemChosenCallback { item -> report(listOf(item.index)) }
 
         val popup = builder.createPopup()
         popup.addListener(
