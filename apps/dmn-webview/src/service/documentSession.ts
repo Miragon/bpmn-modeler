@@ -1,8 +1,8 @@
 import {
-    createInertLock,
     createResolver,
     type DmnEditorCommand,
     type DmnFileQuery,
+    type InertLock,
     LogErrorCommand,
     WebviewDocumentSync,
 } from "@miragon/bpmn-modeler-shared";
@@ -30,7 +30,10 @@ export class DmnDocumentSession {
 
     readonly respondToFlush: WebviewDocumentSync["respondToFlush"];
 
-    constructor(private readonly host: HostChannel) {
+    constructor(
+        private readonly host: HostChannel,
+        flushLock: InertLock,
+    ) {
         this.document = new WebviewDocumentSync(host, {
             surface: {
                 importDocument: async (content) => {
@@ -48,7 +51,7 @@ export class DmnDocumentSession {
                     }
                 },
             },
-            flushLock: createInertLock(document.body),
+            flushLock,
             isReady: () => this.initialDocumentImported,
         });
         this.respondToFlush = this.document.respondToFlush;

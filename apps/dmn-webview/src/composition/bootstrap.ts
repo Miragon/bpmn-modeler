@@ -9,6 +9,7 @@ import {
     bindPanelWidth,
     Command,
     createHostThemeAdapter,
+    createInertLock,
     createResolver,
     createWebviewStateStore,
     DmnModelerSettingQuery,
@@ -56,7 +57,7 @@ interface BootstrapOptions {
  *   drops its pending syncs, and destroys its modeler.
  */
 export function bootstrap(host: DmnHost, opts: BootstrapOptions = {}): () => void {
-    const session = new DmnDocumentSession(host);
+    const session = new DmnDocumentSession(host, createInertLock(document.body));
     const lifetime = new AbortController();
     const stopErrorForwarding = installGlobalErrorForwarding((command) =>
         host.postMessage(command),

@@ -14,7 +14,11 @@ import { DmnDocumentSession } from "./documentSession";
 
 function setup() {
     const posted: (Command | Query)[] = [];
-    const session = new DmnDocumentSession({ postMessage: (message) => posted.push(message) });
+    const flushLock = { acquire: vi.fn(), release: vi.fn() };
+    const session = new DmnDocumentSession(
+        { postMessage: (message) => posted.push(message) },
+        flushLock,
+    );
     let documentXml = "<before />";
     let heldInput: string | undefined;
     const modeler = {
@@ -36,7 +40,7 @@ function setup() {
     const holdInput = (typed: string): void => {
         heldInput = typed;
     };
-    return { session, posted, modeler, holdInput };
+    return { session, posted, modeler, holdInput, flushLock };
 }
 
 async function openSession(context: ReturnType<typeof setup>, revision: number): Promise<void> {
@@ -98,6 +102,20 @@ describe("DmnDocumentSession input an editor still holds", () => {
             new DocumentFlushedCommand(4, undefined, "clean", 6),
         ]);
         expect(context.modeler.flushPendingInput).not.toHaveBeenCalled();
+    });
+
+    it("holds the injected lock while a destructive save exports it", async () => {
+        context = setup();
+        await openSession(context, 6);
+        context.holdInput("<typed />");
+
+        await context.session.respondToFlush(new FlushDocumentQuery(5, true));
+
+        expect(flushReplies(context.posted)).toEqual([
+            new DocumentFlushedCommand(5, "<typed />", "flushed", 6),
+        ]);
+        expect(context.flushLock.acquire).toHaveBeenCalledOnce();
+        expect(context.flushLock.release).not.toHaveBeenCalled();
     });
 
     it("holds no input once its modeler is gone", async () => {
