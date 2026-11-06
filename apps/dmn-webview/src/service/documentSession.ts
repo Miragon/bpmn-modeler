@@ -10,7 +10,7 @@ import {
 import { NoModelerError } from "@miragon/bpmn-modeler-types";
 import type { DmnModelerHandle, DmnPendingInputHandle } from "@miragon/dmn-modeler";
 
-import type { WebviewState } from "./webviewState";
+import type { WebviewState } from "../port/webviewState";
 
 type HostChannel = Pick<HostApi<WebviewState, DmnEditorCommand>, "postMessage">;
 

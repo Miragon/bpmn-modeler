@@ -13,11 +13,13 @@ The host-free modeler facade now lives in the publishable
 [`packages/dmn-modeler`](../../packages/dmn-modeler/README.md); this app is the
 thin host adapter that consumes it.
 
-The adapter is a flat `src/` layout mirroring
-[`apps/bpmn-webview`](../bpmn-webview/README.md): `bootstrap.ts` runs the
-protocol dispatch and handshake, `host.ts` selects the `HostApi`, and
-`webviewState.ts` types the persisted properties-panel UI state, whose
-restore/persist logic lives in `libs/shared` (`propertiesPanelUiState.ts`).
+Each file sits in its role folder under `src/`:
+`composition/bootstrap.ts` runs the handshake and wires the page,
+`service/documentSession.ts` keeps the document in sync with the host,
+`adapter/in/hostMessageRouter.ts` dispatches the host's queries,
+`adapter/out/host.ts` selects the `HostApi`, and `port/webviewState.ts` types
+the persisted properties-panel UI state, whose restore/persist logic lives in
+`libs/shared` (`propertiesPanelUiState.ts`). `main.ts` is the entry.
 
 ## Local development
 

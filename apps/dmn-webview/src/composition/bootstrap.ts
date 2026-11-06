@@ -1,7 +1,7 @@
 // css — webview page chrome first, then the package's own light base + scoped
 // dark theme (folded into the bundle via `@miragon/dmn-modeler`'s styles import),
 // matching the previous `styles.css`-then-`#theme-link` cascade order.
-import "./styles.css";
+import "../adapter/in/styles.css";
 
 import {
     applyPageThemeScope,
@@ -33,9 +33,9 @@ import { i18n, type SupportedLocale } from "@miragon/bpmn-modeler-i18n";
 import { createModeler, type DmnAdditionalModules } from "@miragon/dmn-modeler";
 
 import type { DmnEditorCommand, HostApi } from "@miragon/bpmn-modeler-shared";
-import { DmnDocumentSession } from "./documentSession";
-import { routeDmnHostMessage } from "./hostMessageRouter";
-import type { WebviewState } from "./webviewState";
+import { DmnDocumentSession } from "../service/documentSession";
+import { routeDmnHostMessage } from "../adapter/in/hostMessageRouter";
+import type { WebviewState } from "../port/webviewState";
 
 /**
  * Injection seam for the entry. `theme`/`locale` seed the initial

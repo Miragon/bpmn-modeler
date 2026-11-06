@@ -8,7 +8,7 @@ import {
     takeFocus,
 } from "@miragon/bpmn-modeler-shared";
 
-import type { DmnDocumentSession } from "./documentSession";
+import type { DmnDocumentSession } from "../../service/documentSession";
 
 type DmnMessageSession = Pick<
     DmnDocumentSession,

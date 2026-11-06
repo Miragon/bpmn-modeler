@@ -15,8 +15,8 @@ import {
 import type { DmnModelerOptions } from "@miragon/dmn-modeler";
 
 import { bootstrap } from "./bootstrap";
-import { getHostApi } from "./host";
-import type { WebviewState } from "./webviewState";
+import { getHostApi } from "../adapter/out/host";
+import type { WebviewState } from "../port/webviewState";
 
 const mocks = vi.hoisted(() => {
     const handle = {

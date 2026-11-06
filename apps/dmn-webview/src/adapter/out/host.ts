@@ -15,7 +15,7 @@ import {
     Query,
     TakeFocusQuery,
 } from "@miragon/bpmn-modeler-shared";
-import type { WebviewState } from "./webviewState";
+import type { WebviewState } from "../../port/webviewState";
 
 declare const process: { env: { NODE_ENV: string } };
 
