@@ -31,6 +31,15 @@ beforeEach(() => {
             'window.showErrorMessage("Could not save");',
         ].join("\n"),
         "apps/host/src/adapter/in/Controller.spec.ts": 'import { window } from "vscode";',
+        "apps/intellij/src/main/kotlin/x/Action.kt": [
+            "package x",
+            "",
+            "import com.intellij.openapi.ui.Messages",
+            "import com.intellij.openapi.ui.Messages",
+            "",
+            'fun ask(name: String) = Messages.showInfoMessage(null, "Could not save $name", "Save")',
+        ].join("\n"),
+        "apps/intellij/src/test/kotlin/x/ActionTest.kt": "import com.intellij.testFramework.X",
         "apps/host/scripts/package.mjs": 'import { window } from "vscode";',
         "apps/host/src/deleted.ts": 'import { window } from "vscode";',
     };
@@ -48,7 +57,7 @@ afterEach(() => {
 });
 
 describe("the engine host text sources", () => {
-    it("read what each tracked TypeScript source imports and whose interfaces its classes implement", () => {
+    it("read what each tracked TypeScript and Kotlin source imports and whose interfaces its classes implement", () => {
         expect(new EngineHostTextSources().readDependencies(repository.root)).toEqual([
             {
                 path: "apps/bridge/src/adapter/out/RpcNotifier.ts",
@@ -58,6 +67,11 @@ describe("the engine host text sources", () => {
             {
                 path: "apps/host/src/adapter/in/Controller.ts",
                 importedSpecifiers: ["vscode"],
+                implementedInterfaceFiles: [],
+            },
+            {
+                path: "apps/intellij/src/main/kotlin/x/Action.kt",
+                importedSpecifiers: ["com.intellij.openapi.ui.Messages"],
                 implementedInterfaceFiles: [],
             },
             {
@@ -84,6 +98,30 @@ describe("the engine host text sources", () => {
                 line: 3,
                 parts: ["Could not save"],
                 argumentOf: [{ construct: false, callee: "showErrorMessage", receiver: "window" }],
+            },
+        ]);
+    });
+
+    it("read the texts written in one Kotlin file", () => {
+        expect(
+            new EngineHostTextSources().readTexts(
+                repository.root,
+                "apps/intellij/src/main/kotlin/x/Action.kt",
+            ),
+        ).toEqual([
+            {
+                line: 6,
+                parts: ["Could not save ", ""],
+                argumentOf: [
+                    { construct: false, callee: "showInfoMessage", receiver: "Messages" },
+                ],
+            },
+            {
+                line: 6,
+                parts: ["Save"],
+                argumentOf: [
+                    { construct: false, callee: "showInfoMessage", receiver: "Messages" },
+                ],
             },
         ]);
     });

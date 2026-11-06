@@ -50,7 +50,7 @@ overlay.
 `apps/bpmn-webview` and `apps/dmn-webview` adapt the public modeler APIs to host
 messages, theme signals, and persisted view state. `apps/form-webview` integrates
 form-js editing and preview; `apps/deployment-webview` renders the deployment UI,
-with its markup owned by `src/app/formTemplate.ts`.
+with its markup owned by `src/adapter/in/formTemplate.ts`.
 
 ## Boundaries and extension points
 

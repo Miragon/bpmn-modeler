@@ -2,10 +2,42 @@ import { describe, expect, it } from "vitest";
 import {
     defaultMode,
     isModeAvailable,
+    parseEditableMode,
     planTransition,
     resolveInitialMode,
+    surfaceModeSupports,
     type SurfaceMode,
 } from "./surfaceMode";
+
+describe("surfaceModeSupports", () => {
+    it.each([
+        { mode: "view", capability: "engineProperties", supported: false },
+        { mode: "design", capability: "engineProperties", supported: false },
+        { mode: "implement", capability: "engineProperties", supported: true },
+        { mode: "view", capability: "elementTemplates", supported: false },
+        { mode: "design", capability: "elementTemplates", supported: false },
+        { mode: "implement", capability: "elementTemplates", supported: true },
+        { mode: "view", capability: "engineLintRules", supported: false },
+        { mode: "design", capability: "engineLintRules", supported: false },
+        { mode: "implement", capability: "engineLintRules", supported: true },
+    ] as const)("$mode supports $capability: $supported", ({ mode, capability, supported }) => {
+        expect(surfaceModeSupports(mode, capability)).toBe(supported);
+    });
+});
+
+describe("parseEditableMode", () => {
+    it.each([
+        { setting: "implement", mode: "implement" },
+        { setting: "design", mode: "design" },
+        { setting: "view", mode: "design" },
+        { setting: "Implement", mode: "design" },
+        { setting: undefined, mode: "design" },
+        { setting: null, mode: "design" },
+        { setting: 1, mode: "design" },
+    ])("reads $setting as $mode", ({ setting, mode }) => {
+        expect(parseEditableMode(setting)).toBe(mode);
+    });
+});
 
 describe("isModeAvailable", () => {
     it("always allows view and design regardless of engine", () => {

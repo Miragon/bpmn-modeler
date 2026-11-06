@@ -28,6 +28,8 @@ import { RpcNotifier } from "./kernel/adapter/out/RpcNotifier";
 import { RpcPicker } from "./kernel/adapter/out/RpcPicker";
 import { RpcSecretStore } from "./deployment/adapter/out/RpcSecretStore";
 import { RpcStatusBar } from "./kernel/adapter/out/RpcStatusBar";
+import { RpcMarketplacePrompt } from "./templateMarketplace/adapter/out/RpcMarketplacePrompt";
+import { RpcMarketplaceRegistrations } from "./templateMarketplace/adapter/out/RpcMarketplaceRegistrations";
 import { RpcTokenPrompt } from "./templateMarketplace/adapter/out/RpcTokenPrompt";
 import { BridgeSettings } from "./kernel/adapter/out/BridgeSettings";
 import { SessionMeta } from "./protocol/domain/types";
@@ -869,6 +871,76 @@ describe("RpcTokenPrompt", () => {
         await answerLast(null);
 
         await expect(pending).resolves.toBeUndefined();
+    });
+});
+
+describe("RpcMarketplacePrompt", () => {
+    const QUESTION = {
+        title: "Add Template Marketplace",
+        prompt: "Where",
+        placeholder: "https://github.com/owner/repo",
+        location: "acme",
+        invalidLocation: "Enter a repository URL.",
+        scopes: [],
+        scope: "project",
+    } as const;
+
+    it("sends the add question without the check that runs only in-process, and returns the answer as entered", async () => {
+        const { frames, rpc, answerLast } = harness();
+
+        const pending = new RpcMarketplacePrompt(rpc).promptForMarketplace({
+            ...QUESTION,
+            problemWith: () => "never sent",
+        });
+        expect(last(frames)).toEqual({
+            id: expect.any(Number),
+            method: "marketplacePrompt/show",
+            params: QUESTION,
+        });
+        await answerLast({ location: " ~/t ", scope: "project" });
+
+        await expect(pending).resolves.toEqual({ location: " ~/t ", scope: "project" });
+    });
+
+    it("resolves undefined when the form is cancelled", async () => {
+        const { rpc, answerLast } = harness();
+
+        const pending = new RpcMarketplacePrompt(rpc).promptForMarketplace({
+            ...QUESTION,
+            problemWith: () => undefined,
+        });
+        await answerLast(null);
+
+        await expect(pending).resolves.toBeUndefined();
+    });
+});
+
+describe("RpcMarketplaceRegistrations", () => {
+    it("reads the host's registrations and writes each change as an acknowledged request", async () => {
+        const { frames, rpc, answerLast } = harness();
+        const registrations = new RpcMarketplaceRegistrations(rpc);
+        const held = { registered: { project: ["/work/t"], allProjects: [] }, writable: [] };
+
+        const read = registrations.read();
+        expect(last(frames)).toMatchObject({ method: "marketplaceState/read", params: {} });
+        await answerLast(held);
+        await expect(read).resolves.toEqual(held);
+
+        const register = registrations.register("/work/t", "allProjects");
+        expect(last(frames)).toMatchObject({
+            method: "marketplaceState/save",
+            params: { location: "/work/t", scope: "allProjects" },
+        });
+        await answerLast(null);
+        await expect(register).resolves.toBeUndefined();
+
+        const unregister = registrations.unregister(["/work/t"]);
+        expect(last(frames)).toMatchObject({
+            method: "marketplaceState/remove",
+            params: { entries: ["/work/t"] },
+        });
+        await answerLast(null);
+        await expect(unregister).resolves.toBeUndefined();
     });
 });
 

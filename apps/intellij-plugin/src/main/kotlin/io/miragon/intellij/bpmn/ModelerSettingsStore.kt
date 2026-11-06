@@ -109,11 +109,9 @@ class ModelerSettingsStore {
     }
 
     /**
-     * Appends a registration to the app-level ("all my projects") list, de-duping
-     * against that list *alone*. Per the promotion rule, an entry that already
-     * lives in some project's [ProjectMarketplacesStore] may still be lifted
-     * app-wide, so the merged union is intentionally not consulted here — backs the
-     * "Register for all projects" add scope.
+     * Appends a registration to the app-level ("all my projects") list unless that
+     * list holds it; backs the all-projects add scope. Whether an add registers
+     * anything is the core's decision.
      */
     fun addMarketplace(location: String) {
         synchronized(writeLock) {

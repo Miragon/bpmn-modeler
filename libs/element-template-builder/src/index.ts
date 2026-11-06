@@ -1,4 +1,4 @@
-export { catalogFor } from "./catalog";
+export { catalogFor } from "./domain/catalog";
 export {
     builderStateOf,
     choicesOf,
@@ -25,5 +25,8 @@ export { elementTypeName } from "./domain/elementTypes";
 export { newTemplateText, templateIdentity, withSchema } from "./domain/skeleton";
 export { applyTemplateEdits } from "./domain/templateText";
 export type { TemplateEdit, TemplateEditResult } from "./domain/templateText";
-export { createTemplateBuilder } from "./ui/createTemplateBuilder";
-export type { TemplateBuilderHandle, TemplateBuilderOptions } from "./ui/createTemplateBuilder";
+export { createTemplateBuilder } from "./adapter/in/createTemplateBuilder";
+export type {
+    TemplateBuilderHandle,
+    TemplateBuilderOptions,
+} from "./adapter/in/createTemplateBuilder";

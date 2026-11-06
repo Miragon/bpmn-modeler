@@ -2,7 +2,6 @@ package io.miragon.intellij.bpmn
 
 import com.google.gson.Gson
 import com.google.gson.JsonObject
-import com.google.gson.JsonParser
 import com.intellij.ide.util.PropertiesComponent
 import com.intellij.testFramework.junit5.TestApplication
 import org.junit.jupiter.api.AfterEach
@@ -13,8 +12,6 @@ import org.junit.jupiter.api.Named
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
-import java.nio.file.Files
-import java.nio.file.Path
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
@@ -57,6 +54,11 @@ class ModelerSettingsStoreTest {
 
         assertEquals("automatic", store.current().colorTheme)
         assertEquals("implement", store.current().defaultMode)
+    }
+
+    @Test
+    fun `offers and keeps exactly the surface modes the core reads as a default mode`() {
+        assertEquals(coreSurfaceModes().sorted(), ModelerSettingsStore.DEFAULT_MODES.sorted())
     }
 
     @Test
@@ -223,7 +225,7 @@ class ModelerSettingsStoreTest {
 
         @JvmStatic
         fun settingsNormalizationCases(): List<Named<SettingsNormalizationCase>> =
-            readJson("miragon.settingsNormalizationCases").getAsJsonArray("cases").map { row ->
+            readTypeScriptJson("miragon.settingsNormalizationCases").asJsonObject.getAsJsonArray("cases").map { row ->
                 val case = row.asJsonObject
                 Named.of(
                     case.get("name").asString,
@@ -234,7 +236,7 @@ class ModelerSettingsStoreTest {
         /** The manifest's `miragon.bpmnModeler.*` defaults under their snapshot names. */
         private fun manifestDefaults(): JsonObject {
             val properties =
-                readJson("miragon.vscodeManifest")
+                readTypeScriptJson("miragon.vscodeManifest").asJsonObject
                     .getAsJsonObject("contributes")
                     .getAsJsonObject("configuration")
                     .getAsJsonObject("properties")
@@ -244,6 +246,16 @@ class ModelerSettingsStoreTest {
                     .map { (key, property) -> snapshotName(key.removePrefix(NAMESPACE)) to property.asJsonObject.get("default") }
                     .forEach { (name, default) -> add(name, default) }
             }
+        }
+
+        /** `SURFACE_MODES` in `surfaceMode.ts`, the modes the core's `normalizeSettings` keeps. */
+        private fun coreSurfaceModes(): List<String> {
+            val source = readTypeScriptFile("miragon.surfaceModes")
+            val modes =
+                requireNotNull(Regex("""export const SURFACE_MODES\b[^=]*=\s*\[([^\]]*)]""").find(source)) {
+                    "surfaceMode.ts declares no SURFACE_MODES array literal"
+                }.groupValues[1]
+            return Regex(""""([^"]+)"""").findAll(modes).map { it.groupValues[1] }.toList()
         }
 
         /** `scripting.spin` → `scriptingSpin`. */
@@ -259,11 +271,6 @@ class ModelerSettingsStoreTest {
                 merged.add(key, value)
             }
             return GSON.fromJson(merged, ModelerSettings::class.java)
-        }
-
-        private fun readJson(property: String): JsonObject {
-            val path = requireNotNull(System.getProperty(property)) { "$property is unset; run the test through Gradle" }
-            return JsonParser.parseString(Files.readString(Path.of(path))).asJsonObject
         }
     }
 }

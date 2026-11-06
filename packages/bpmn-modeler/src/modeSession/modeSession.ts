@@ -8,14 +8,8 @@ import {
 } from "@miragon/bpmn-modeler-types";
 import type { ModelerMode, ThemeMode } from "../publicApi";
 import type { PendingInputHandle, PendingSaveHandle } from "../surfaceHandle";
-import type {
-    ModeSession,
-    ModeSessionOptions,
-    ModelerSurfaceContext,
-    SurfaceContext,
-    SurfaceFactories,
-    SurfaceHandle,
-} from "./publicApi";
+import type { ModeSession, ModeSessionOptions, SurfaceHandle } from "./publicApi";
+import { servingSurfaces } from "./servingSurfaces";
 
 function canToggleMode(handle: SurfaceHandle): handle is SurfaceHandle & {
     setMode(mode: ModelerMode): void;
@@ -44,7 +38,10 @@ export async function createModeSession(options: ModeSessionOptions): Promise<Mo
     const { container, engine, surfaces } = options;
     let theme: ThemeMode = options.theme ?? "automatic";
 
-    const available = computeAvailableModes(surfaces, engine);
+    const serving = servingSurfaces(surfaces, engine);
+    const available = SURFACE_MODES.filter(
+        (mode) => isModeAvailable(mode, engine) && serving[mode] !== undefined,
+    );
     if (available.length === 0) {
         throw new Error(
             "createModeSession: no surface factory is available for this engine — " +
@@ -78,21 +75,9 @@ export async function createModeSession(options: ModeSessionOptions): Promise<Mo
         }
     }
 
+    // Only an available mode is built, and each available mode has a serving surface.
     function buildSurface(mode: SurfaceMode): Promise<SurfaceHandle> {
-        const base: SurfaceContext = { container, engine, theme };
-        if (mode === "view") {
-            return surfaces.view!(base);
-        }
-        if (mode === "implement") {
-            // The engine rule makes implement available only on a tagged model.
-            const context: ModelerSurfaceContext = { ...base, engine: engine!, mode: "implement" };
-            return surfaces.implement!(context);
-        }
-        if (engine !== undefined && surfaces.implement) {
-            const context: ModelerSurfaceContext = { ...base, engine, mode: "design" };
-            return surfaces.implement(context);
-        }
-        return surfaces.design!(base);
+        return serving[mode]!({ container, engine, theme });
     }
 
     function isAvailable(mode: SurfaceMode): boolean {
@@ -263,25 +248,4 @@ export async function createModeSession(options: ModeSessionOptions): Promise<Mo
             }
         },
     };
-}
-
-function computeAvailableModes(
-    surfaces: SurfaceFactories,
-    engine: SurfaceContext["engine"],
-): readonly SurfaceMode[] {
-    return SURFACE_MODES.filter((mode) => {
-        if (!isModeAvailable(mode, engine)) {
-            return false;
-        }
-        if (mode === "view") {
-            return surfaces.view !== undefined;
-        }
-        if (mode === "implement") {
-            return surfaces.implement !== undefined;
-        }
-        return (
-            (engine !== undefined && surfaces.implement !== undefined) ||
-            surfaces.design !== undefined
-        );
-    });
 }

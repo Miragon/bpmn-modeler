@@ -31,3 +31,15 @@ internal class SecretApprovedDestinations(val origins: List<String>) : RpcResult
 internal class TokenStoreGetResult(val token: String) : RpcResult
 
 internal class TokenPromptShowResult(val token: String) : RpcResult
+
+internal class MarketplacePromptShowResult(val location: String, val scope: String) : RpcResult
+
+/** [registered] holds each scope's own list, keyed by the scope's wire name. */
+internal class MarketplaceStateReadResult(
+    val registered: Map<String, List<String>>,
+    val writable: List<WritableScope>,
+) : RpcResult
+
+internal class WritableScope(val scope: String, val savedIn: SettingsPlace)
+
+internal class SettingsPlace(val kind: String, val path: List<String>)
