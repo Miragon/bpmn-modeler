@@ -398,11 +398,9 @@ the home: a capability table read through one function (`engineSupports` in
 `libs/modeler-types/src/engine.ts`, `surfaceModeSupports` in
 `libs/modeler-types/src/surfaceMode.ts`), a method named after the rule
 (`DeploymentTarget.verifiesDeployments()`), or a `Record<Engine, …>` or
-`Record<SurfaceMode, …>` lookup, so the compiler reports a missing value. The
-mode session's `servingSurfaces` is such a lookup: it names the factory that
-builds each mode, and a tagged model's Design runs on the Implement modeler.
-Each registry entry in `eslint.config.cjs` names the type, its module, its
-homes and an error message that names the fix.
+`Record<SurfaceMode, …>` lookup, so the compiler reports a missing value. Each
+registry entry in `eslint.config.cjs` names the type, its module, its homes
+and an error message that names the fix.
 
 - **Typed, not name-based.** The rule reads the type checker through the parser
   services typescript-eslint already provides, so it sees the value under any
@@ -419,8 +417,8 @@ homes and an error message that names the fix.
 - **Opt-in.** Discriminated unions a domain function returns (`kind`, `status`,
   `AuthConfig`) are narrowed by design and stay unregistered. A type joins the
   registry when review or the change-coupling report shows a decision on it in
-  two places. `SurfaceMode` joined with 11 comparisons in 5 files of the
-  webview, the properties panel and the modeler package, plus 1 in a spec.
+  two places. `SurfaceMode` joined when its decisions were spread over the
+  webview, the properties panel and the modeler package.
 - **Never vacuous.** The registry is resolved against the program on every run:
   a missing module, a missing export or a type that is no string-literal union
   throws, and so does a file without type information.

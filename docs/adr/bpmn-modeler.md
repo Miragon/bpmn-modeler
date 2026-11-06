@@ -542,7 +542,9 @@ arithmetic and positive text metrics rather than inert layout stubs.
 ### Mode session and lifecycle
 
 `/mode` publishes the shared session and optional mode strip. Consumers inject
-View/Design/Implement factories; the entry imports no modeling stack. Available
+View/Design/Implement factories; the entry imports no modeling stack.
+`servingSurfaces`, a `Record<SurfaceMode, …>`, names the factory that builds
+each mode: on a tagged model Design runs on the Implement modeler. Available
 factories and engine determine available modes. A single mode needs no control;
 hosts can offer all modes with unavailable Implement disabled for neutral
 documents. The strip is a chip on the canvas next to the token-simulation
