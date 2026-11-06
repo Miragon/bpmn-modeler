@@ -35,7 +35,7 @@ import { dirname, join } from "node:path";
 
 import { dictionaries as shared } from "@miragon/bpmn-modeler-i18n";
 
-import { supportedModelerLanguages } from "../src/index.ts";
+import { extras, supportedModelerLanguages } from "../src/index.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const LANG_DIR = join(HERE, "..", "src", "languages");
@@ -141,8 +141,7 @@ const SOURCE_ONLY = new Set([
     "Java delegate",
 ]);
 
-const load = async (locale) => (await import(join(LANG_DIR, `${locale}.ts`))).default;
-const en = await load("en");
+const en = extras.en;
 
 const keep = (k) =>
     SOURCE_ONLY.has(k) || (!sharedByNorm.has(norm(k)) && harvestedByNorm.has(norm(k)));
@@ -175,7 +174,7 @@ const HEADER = `/*
  */`;
 
 for (const { locale } of supportedModelerLanguages) {
-    const dict = await load(locale);
+    const dict = extras[locale];
     const pruned = Object.fromEntries(Object.entries(dict).filter(([k]) => !deadSet.has(k)));
     const body = `${HEADER}\nconst dictionary: Record<string, string> = ${JSON.stringify(pruned, null, 4)};\n\nexport default dictionary;\n`;
     writeFileSync(join(LANG_DIR, `${locale}.ts`), body);
