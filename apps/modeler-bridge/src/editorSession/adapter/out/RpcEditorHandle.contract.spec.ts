@@ -1,0 +1,121 @@
+import { describeEditorHandleContract } from "@miragon/bpmn-modeler-core/testing";
+
+import { BridgeSettings } from "../../../kernel/adapter/out/BridgeSettings";
+import { METHODS } from "../../../protocol/domain/descriptor";
+import {
+    DocumentSaveParams,
+    DocumentSaveResult,
+    DocumentWriteParams,
+    DocumentWriteResult,
+    EditorPostMessageParams,
+    SessionMeta,
+} from "../../../protocol/domain/types";
+import { Rpc } from "../../../transport/adapter/out/Rpc";
+import { DocumentMirror } from "../../domain/DocumentMirror";
+import { RpcEditorHandle } from "./RpcEditorHandle";
+
+interface Frame {
+    readonly id?: number;
+    readonly method?: string;
+    readonly params?: unknown;
+}
+
+/**
+ * The IntelliJ host's side of one editor session, answering the core as
+ * `EditorSessionRouter.kt` does: a write stores LF line endings and, with no
+ * page flush in flight, reports a change only when the Document's text
+ * differs; a save reports whether the Document is left saved; a post reaches
+ * the session's webview.
+ */
+class IntelliJEditorSession {
+    readonly rpc = new Rpc((line) => this.answer(JSON.parse(line) as Frame));
+    readonly delivered: unknown[] = [];
+    private documentRevision = 0;
+    private unsaved = false;
+
+    constructor(
+        readonly meta: SessionMeta,
+        private text: string,
+    ) {}
+
+    /** The Document changes outside the core; the host counts a revision and sends the text. */
+    edit(content: string): string {
+        this.text = content;
+        this.unsaved = true;
+        this.documentRevision++;
+        return content;
+    }
+
+    private answer({ id, method, params }: Frame): void {
+        if (method === METHODS.editorPostMessage) {
+            const post = params as EditorPostMessageParams;
+            if (this.addresses(post)) this.delivered.push(post.message);
+            return;
+        }
+        const result =
+            method === METHODS.documentWrite
+                ? this.write(params as DocumentWriteParams)
+                : method === METHODS.documentSave
+                  ? this.save(params as DocumentSaveParams)
+                  : null;
+        // Replies arrive on a later read of the host's output.
+        queueMicrotask(() => void this.rpc.handleLine(JSON.stringify({ id, result })));
+    }
+
+    private write(params: DocumentWriteParams): DocumentWriteResult {
+        const content = params.content.replace(/\r\n?/g, "\n");
+        const staleRevision =
+            params.expectedDocumentRevision !== undefined &&
+            params.expectedDocumentRevision !== this.documentRevision;
+        if (!this.addresses(params) || staleRevision) return { changed: false, accepted: false };
+        const changed = this.text !== content;
+        if (changed) {
+            this.text = content;
+            this.unsaved = true;
+        }
+        const normalizedContent = changed && content !== params.content ? content : undefined;
+        return { changed, accepted: true, normalizedContent };
+    }
+
+    private save(params: DocumentSaveParams): DocumentSaveResult {
+        if (this.addresses(params)) this.unsaved = false;
+        return { saved: this.addresses(params) && !this.unsaved };
+    }
+
+    private addresses({ sessionId }: { sessionId?: number }): boolean {
+        return sessionId === undefined || sessionId === this.meta.sessionId;
+    }
+}
+
+describeEditorHandleContract("RpcEditorHandle", ({ fileName, content }) => {
+    const path = `/work/${fileName}`;
+    // `session/register` as the IntelliJ host sends it: the file's URL is the editor id.
+    const host = new IntelliJEditorSession(
+        {
+            editorId: `file://${path}`,
+            sessionId: 1,
+            uriString: `file://${path}`,
+            path,
+            fsPath: path,
+            scheme: "file",
+            workspaceRoot: "/work",
+        },
+        content,
+    );
+    const mirror = new DocumentMirror();
+    mirror.register(host.meta, content);
+    const settings = new BridgeSettings();
+    const handle = new RpcEditorHandle(host.meta, mirror, host.rpc, settings);
+
+    // Each control does what the bridge's handler for the host's notification does.
+    return {
+        handle,
+        sendFromWebview: (message) => handle.receive(JSON.parse(JSON.stringify(message))),
+        receivedByWebview: () => host.delivered,
+        focus: () => handle.setActive(true),
+        blur: () => handle.setActive(false),
+        editElsewhere: (edited) => mirror.setContent(host.meta.editorId, host.edit(edited)),
+        changeSettings: (values) => settings.apply(values),
+        close: () => handle.dispose(),
+    };
+});
