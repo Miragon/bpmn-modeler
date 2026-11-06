@@ -171,6 +171,13 @@ file or type name:
 8. Only `composition/` and entries import `composition/`.
 9. Only `testing/` imports `testing/`; nothing imports an entry.
 
+In a webview the UI, its markup and the router for the host's queries are
+`adapter/in/`, the host channel and the modeler-library wrappers
+`adapter/out/`, the channel's type, the state it persists and the ports a
+session calls `port/`, a session that syncs with the host through injected
+handles `service/`, pure rules `domain/`, the bootstrap `composition/`, and
+`main.ts` the entry.
+
 A `diagram-js` or `flat` workspace holds no role folder (same spec). ESLint
 bans `() => {}` in `adapter/` (`eslint.config.cjs`). A workspace not yet moved
 has one blanket exception in the repo-level spec naming its migration issue.

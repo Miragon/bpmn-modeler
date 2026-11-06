@@ -155,7 +155,7 @@ Element templates are JSON files that define custom property configurations for 
 1. Extension host sends `ElementTemplatesQuery` with template JSON to webview
 2. Webview calls `bpmnModeler.setElementTemplates(templates)` → `modeler.get('elementTemplatesLoader').setTemplates(templates)`
 
-The webview's handler, and the report of templates the modeler rejects, live in `apps/bpmn-webview/src/adapter/in/surfaceRequests.ts`.
+The webview's handler lives in `apps/bpmn-webview/src/adapter/in/surfaceRequests.ts`; the report of templates the modeler rejects is built by `domain/elementTemplateRejectionReport.ts`.
 
 ## Modeler Settings
 
@@ -194,7 +194,7 @@ through `@miragon/dmn-modeler` with a `data-dmn-theme` attribute — [DMN modele
 - **Clipboard option** (native, override or host protocol): `apps/bpmn-webview/src/adapter/out/protocolClipboard.ts`
 - **Lint wiring** (lint options, host lint pushes, config token echo): `apps/bpmn-webview/src/adapter/out/lintBridge.ts`
 - **Host surface requests** (SVG, format, cleanup, scripts, element templates, settings): `apps/bpmn-webview/src/adapter/in/surfaceRequests.ts`
-- **Host message routing** (type-keyed handler table, engine-reload allow-list, held import-bound replies): `apps/bpmn-webview/src/adapter/in/messageRouter.ts`
+- **Host message routing** (type-keyed handler table, held import-bound replies): `apps/bpmn-webview/src/adapter/in/messageRouter.ts`; which messages an engine reload drops and which wait for the import: `apps/bpmn-webview/src/domain/sessionMessageAdmission.ts`
 - **Surface factories and binding** (View/Design/Implement factories; per-surface sync, format reports, C7 variable publisher, state manager): `apps/bpmn-webview/src/adapter/out/surfaceFactories.ts`, `apps/bpmn-webview/src/adapter/in/surfaceBinding.ts`
 - **Editor chrome** (mode strip and panel mount, resizer, saved panel visibility): `apps/bpmn-webview/src/adapter/in/editorChrome.ts`
 - **Element clipboard module** (priority 2051, `createReviver`): `libs/bpmn-clipboard/src/BridgedClipboardModule.ts` (built via `createClipboardModules`)

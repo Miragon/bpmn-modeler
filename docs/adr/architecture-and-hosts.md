@@ -138,11 +138,11 @@ switch narrows them once (`asProtocolMessage`) and ignores unknown types, and a
 handler table finds no entry for them. Code that owns a closed set makes a
 missing type a compile error: a handler table has a mapped type that needs an
 entry for every type (the BPMN webview's session messages in
-`apps/bpmn-webview/src/adapter/in/messageRouter.ts`, a host's `CommandTable`). TypeScript does not check
-the keys a table gets through spreads, so a spec checks that no two spread
-handler groups name the same type. The classes remain the constructors and the
-wire format is unchanged: the same `type` strings and fields, which the
-IntelliJ host matches.
+`apps/bpmn-webview/src/adapter/in/messageRouter.ts`, a host's
+`CommandTable`). TypeScript does not check the keys a table gets through
+spreads, so a spec checks that no two spread handler groups name the same
+type. The classes remain the constructors and the wire format is unchanged:
+the same `type` strings and fields, which the IntelliJ host matches.
 
 The commands the BPMN editor webview may post are a closed set, kept as a value
 so a host can iterate it: `BPMN_EDITOR_COMMAND_TYPES` in
@@ -245,8 +245,8 @@ imports show the role it has. Each workspace declares its kind once, in the
 | `diagram-js` | the diagram-js feature libraries in `libs/` and `packages/bpmn-modeler`, `packages/dmn-modeler`, which follow the bpmn-js module layout |
 | `flat` | `modeler-types`, `shared`, `bpmn-diff`, `bpmn-i18n-extras`, `standalone-extension`, `tools/architecture-testing`, `docs`, `apps/standalone` |
 
-The template builder sits in its role folders (#2130). The webviews move into
-theirs in their own migration (#2129).
+The template builder (#2130) and the BPMN webview sit in their role folders.
+The DMN, Form and deployment webviews move in their own migration (#2129).
 
 In a `hexagonal` workspace the first role folder in a file's path is its role,
 and the path before it is its context, so `modeler/bpmn/service/x.ts` sits in
@@ -294,10 +294,28 @@ technology spans contexts, and the rules between contexts stay per workspace.
 The core's session participants are in-core reactions that
 `EditorSessionLifecycle` drives, so they sit in `service/`, which the core
 always treated as one application layer with them. Webviews
-follow the same roles: the UI and host queries are `adapter/in/`, the host
-channel and the modeler-library wrappers `adapter/out/`, the reducers
-`domain/` and the bootstrap `composition/`. Each webview maps its files in its
-own migration (#2129).
+follow the same roles: the UI, its markup and stylesheet and the router for
+the host's queries are `adapter/in/`, the host channel and the
+modeler-library wrappers `adapter/out/`, the reducers and pure rules
+`domain/`, and the bootstrap `composition/`; `main.ts` stays the entry. The
+host channel's type and the state it persists are `port/`, so the UI and the
+host adapter share them without importing each other. A document session that
+keeps the modeler in sync with the host through injected handles is
+`service/` (the BPMN webview's `BpmnDocumentSession`).
+
+The BPMN webview splits its adapters on the live surface by direction: the
+host's requests on the surface, the mode strip and the binding of a surface's
+events to the session are `adapter/in/`; the modules that implement the
+modeler library's ports over the host channel (capabilities, clipboard,
+linting, the form preview) or wrap the library (surface factories and
+modules, the document I/O of the live surface) are `adapter/out/`. The ports
+the document session calls, such as `BpmnDocumentSurface`, are `port/`, so
+the surface's document adapter implements one without importing the service.
+The view-state manager and the process-variable publisher sync with the host
+through injected handles like the document session, so they are `service/`.
+The template editor is a context of its own, `templateEditor/`, with the same
+roles and its own entry, `templateEditorMain.ts`. The DMN, Form and
+deployment webviews map their files in their own migration (#2129).
 
 The bridge serves the host's RPC through handler tables in
 `<context>/adapter/in/` (`editorSessionHandlers`, `deploymentHandlers`, …),

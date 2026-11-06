@@ -39,8 +39,8 @@ Each file sits in a role folder under `src/`:
   selects the host channel.
 - `service/` keeps the document and the view state in sync with the host and
   publishes the process variables.
-- `port/` types the host channel and the state it persists; `domain/` holds
-  the pure rules.
+- `port/` types the host channel, the state it persists and the ports the
+  document session calls; `domain/` holds the pure rules.
 - `templateEditor/` is the element template editor's page, in the same role
   folders.
 
