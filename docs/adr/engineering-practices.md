@@ -1,7 +1,7 @@
 # Engineering practices
 
 - Status: accepted
-- Last reviewed: 2026-11-03
+- Last reviewed: 2026-11-06
 
 ## Context
 
@@ -26,6 +26,7 @@ need compatibility proof for the paths the build and plugin installer exercise.
 - [Hotspots](#hotspots)
 - [Missed partner](#missed-partner)
 - [Host text](#host-text)
+- [Contract suites](#contract-suites)
 - [Private upstream APIs](#private-upstream-apis)
 - [Dependency compatibility and security](#dependency-compatibility-and-security)
 - [Consequences](#consequences)
@@ -324,7 +325,15 @@ rule that needs types, not syntax, gets a type-checked `ts.Program`:
 finds every `new` of a subclass of a named base class, through intermediate and
 generic bases, with the literal type of a discriminant property. It throws when
 the base class is not declared in the named file, so a moved base cannot match
-nothing and pass. Only `sourceTree.ts` and `typeProgram.ts` touch the file
+nothing and pass. Given a file list, `readTypeProgram` uses it in place of the
+config's own, so `tsconfig.base.json`, which has no `include`, globs nothing,
+and `types: []` loads no `@types` package. `findContractSuites` reads from such
+a program the interfaces of the port files a caller names, the named classes
+whose `implements` clause reaches one through extended interfaces, the
+functions a helper module exports with a parameter that produces a port, and
+the specs that import such a class as a value, with the helpers they call. It
+throws when the helper module is not in the program, so a moved kit cannot
+leave every adapter without a suite. Only `sourceTree.ts` and `typeProgram.ts` touch the file
 system; the rest are pure functions over source text or a program. The engine
 also holds one rule set per workspace kind (`HEXAGONAL_RULES`, `FLAT_RULES`)
 over role folders that `roleOf` reads from the path, so no rule reads a file or
@@ -984,6 +993,123 @@ Alternatives considered:
   to role folders emptied it.
 - **Every literal of a template joined with its placeholders.** It reports
   format strings that hold no word, as measured above.
+
+### Contract suites
+
+`contract-suites` (#2054) reports each adapter of a core port whose specs run
+no contract suite of that port: atomic, triggered, static, reported. When two
+hosts implement a port, each decides its rules again, and the in-memory fakes
+of the test kit can disagree with both: the script folder policy differed
+between VS Code and the bridge (#1830), and file lists came in a different
+order per host (#2034, #2040). A contract suite runs the same scenarios
+against every adapter, so a rule one adapter breaks fails a spec: every
+implementation has to keep the specification of the type it implements
+(Liskov and Wing, A Behavioral Notion of Subtyping, 1994). The rule it relies
+on is in the `architecture` skill: a port the core reads back from has a
+contract suite in the core's test kit, and every adapter of the port runs it,
+the in-memory fake included. A port that only renders and a strategy the core
+chooses between are correct without one, so a rule over every port would fire
+on correct code; the function reports and never blocks. The pure measure
+lives in `tools/repo-checks/src/contractSuites/domain`.
+
+- **Ports.** An interface declared in a `port/` folder of the hexagonal
+  workspace that holds `@miragon/bpmn-modeler-core/testing`, resolved through
+  the `tsconfig.base.json` paths: the core. The rule is about ports the core
+  reads back from, and only a helper of the core's kit can cover them, so the
+  `port/` folders of the hosts and the tooling are not read. At `cd48f2cd`
+  they would add 18 pairs no helper can cover: 12 without a suite (11
+  adapters of `tools/repo-checks` ports and `RpcEditorHandle` as the bridge's
+  `HostEditorHandle`) and 6 render-only pairs of bridge and tooling ports.
+- **Adapters.** A named class outside specs, tests, `__fixtures__/` and
+  declaration files of any hexagonal workspace whose `implements` clause
+  reaches the port, also through an interface that extends it:
+  `RpcEditorHandle` implements the bridge's `HostEditorHandle`, which extends
+  `EditorHandle`, and every `NotifierPort` adapter is a `LoggerPort` adapter.
+  Host adapters and the in-memory kit count alike.
+- **Helpers.** A function the kit exports with a parameter that produces the
+  port: a factory whose awaited return is the port or an object one of whose
+  properties holds it, as `WorkspaceContractFixture.workspace` holds
+  `WorkspacePort`. A parameter typed as the port itself does not count. At
+  `cd48f2cd` it would add `readSettingsSnapshot(settings: SettingsPort)`, which
+  the VS Code and bridge settings specs call over the shared normalization
+  cases, and it would make any kit function that reads a port a suite.
+- **Coverage.** A spec covers a pair when it imports the adapter class as a
+  value and calls a helper of the port. The label argument is free, the call
+  need not pass the class, and a type-only import does not count.
+- **Render-only.** A port whose members all return `void` or `Promise<void>`,
+  `void | Promise<void>` and `PromiseLike<void>` included, is render-only: its
+  pairs are marked in a collapsed group, not listed as missing a suite. A
+  property that is no function, an overload that returns a value and a generic
+  `Promise<T>` are reads. A port that has a suite lists every adapter that
+  skips it, render-only or not. On the ports the issue names, `StatusBarPort`
+  (`show`, `hide`) and `DiagnosticsPort` (`publish`, `clear`) are render-only.
+  `NotifierPort` is not: `withProgress<T>` returns the task's `Promise<T>`, so
+  its three adapters are listed, while its base `LoggerPort` is render-only.
+  `LintingPreferencePort.setLintingEnabled` returns `void | Promise<void>`, so
+  that port is marked render-only although the core reads the value back
+  through `SettingsPort.getLintingEnabled`.
+- **Types, not names.** The type checker resolves every implemented
+  interface, helper parameter, member and import over one program: the
+  tracked sources of every hexagonal workspace, specs included, with the
+  compiler options of `tsconfig.base.json` and no `@types` package. Every path
+  is taken under the real repository root, because the compiler joins alias
+  targets to the config's directory and would otherwise load a file under a
+  symlinked temp dir twice. Only specs that import an adapter have their calls
+  resolved; resolving the calls of every spec took the spec pass two to four
+  times as long in three trials.
+- **Identity and delta.** One finding per pair without a suite, at the
+  adapter's class, keyed by the adapter's and the port's path and name, not
+  the line. The groups are adapters that skip their port's suite, ports the
+  core reads back from without a suite, and render-only ports. Within a group
+  the rows are ranked by the port's number of adapters, so the ports whose
+  adapters can drift apart come first. A new adapter of a port with a suite
+  shows as new until its spec runs the suite; a spec that starts running it
+  resolves the pair.
+- **History.** Until #2139 moved the core into role folders, the core declares
+  no interface in a `port/` folder, and the function is unmeasurable there
+  (`12ff0d9d`) instead of reading an empty tree as clean.
+
+First run at `cd48f2cd`: 23 ports in the core's `port/` folders, each with an
+adapter; 55 adapters; one helper, `describeWorkspaceContract`; 73 specs that
+import an adapter. Of 59 pairs, 2 run the suite (`InMemoryWorkspace`,
+`NodeWorkspace`), and 57 are findings. `VsCodeWorkspace` is the only adapter
+that skips an existing suite, and the report names it first. 45 pairs of 18
+ports have no suite: 12 ports with three adapters (36 pairs), `DiffPaneHandle`,
+`DocumentPort` and `PropertiesPanelStatePort` with two, and
+`EngineInspectionPort`, `HttpClient` and `LintRunnerPort` with one. 11 pairs
+are render-only: `StatusBarPort`, `DiagnosticsPort` and `LoggerPort` with three
+adapters each and `LintingPreferencePort` with two. Against the issue's survey
+by name, the types add `DiffPaneHandle` (no `Port` in its name),
+`RepositorySource` (the GitHub, GitLab and local template sources),
+`LoggerPort` and the three ports with one adapter, and today
+`RpcLintingPreference`, not `BridgeSettings`, implements
+`LintingPreferencePort`. 11 listed pairs are none of the issue's backfill
+ports, render-only ports or engine strategies: `NotifierPort` (3),
+`RepositorySource` (3, strategies of their own), `DiffPaneHandle` (2) and the
+three single-adapter ports. Building the program and reading took 1.4 to
+2.6 s on the working tree and 1.1 to 1.8 s on a checkout without
+`node_modules` (six runs each), with the same 57 findings. `corepack yarn
+fitness` took 6.8 to 7.9 s in six runs instead of 3.5 to 4.0 s in three, and
+18.3 s once under a load average above 16, while it measures the base on a
+checkout; once the push job stores this function in the base snapshot, only
+the working tree is read.
+
+Alternatives considered:
+
+- **A gate with an exception list**, every port needing a suite. It fires on
+  render-only ports and strategies, so the list is work in every PR that adds
+  a port, the cost #2049 rejects.
+- **Names** (`*Port`, `describe*Contract`). They miss `EditorHandle`,
+  `DiffPaneHandle`, `HttpClient` and `RepositorySource`, and a helper renamed
+  for readability would drop out.
+- **The `port/` folders of every hexagonal workspace.** 18 more pairs at
+  `cd48f2cd`, none of which a helper of the core's kit can cover.
+- **A parameter typed as the port counts as a helper.** It would clear the two
+  settings pairs above, and it would count any kit function that reads a port.
+- **Syntax only, as `findImplementations`.** It resolves the file of an
+  implemented interface, but not a helper's parameter type or a member's
+  return type through generics, unions and promises, which the factory rule
+  and the render-only derivation need.
 
 ### Private upstream APIs
 
