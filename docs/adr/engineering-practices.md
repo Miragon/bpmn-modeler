@@ -588,11 +588,10 @@ is read from the repository root. The review's measurement on known cases
 needs both. A function that cannot measure an old tree throws
 `InsufficientHistory` and is reported as not measurable there, and the others
 report as usual. At `3d1b19b3` (#2047) with `--base 452b6440` the merge base
-is `fb89b28e`; 6 of 9 functions measured, 5 against the stored snapshot of
-the merge base and `host-text` against a checkout of it, because that
-snapshot holds its version 1. `convention-coverage` and `contract-suites` (no
-workspace declared a kind yet) and `mutation-score` (no stored run on that
-chain) did not, and a run took about 3 to 6 s on a laptop.
+is `fb89b28e`; 6 of 9 functions measured against the stored snapshot of the
+merge base. `convention-coverage` and `contract-suites` (no workspace declared
+a kind yet) and `mutation-score` (no stored run on that chain) did not, and a
+run took about 3 to 6 s on a laptop.
 
 **Contract.** A fitness function declares `id`, `version`, its categories
 (scope atomic or holistic, cadence triggered, result static or dynamic), what
@@ -1368,29 +1367,130 @@ The [`architecture-review` skill](../../.agents/skills/architecture-review/SKILL
 worktree of its head, `--base` its base), a commit on main (`--base` its
 first parent) or a whole tree (`--base` the commit itself), and reads per
 fitness function the findings with their status (new, existing, resolved),
-the trend of the declared values and the function's limits (categories,
-measures, the rule it relies on, misses, false reports, evidence) from the
-same output, so no second document drifts from the code. It searches for
-copies of a rule with one `git grep` over the tracked TypeScript, Kotlin,
-docs and JSON, and takes the `change-coupling` and `missed-partner` findings
+the trend of the declared values and the limits a review needs (misses and
+false reports) from the same output, so no second document drifts from the
+code. It searches for copies of a rule with one `git grep` over the tracked
+TypeScript, Kotlin, build scripts, CI workflows, docs and JSON, looks for an
+existing home by concept, compares the other callers of each function the
+change calls, and takes the `change-coupling` and `missed-partner` findings
 of the touched files as the search for copies whose spelling is unknown. It
-reviews what no fitness function sees, #1799's structural causes: a rule in
-another spelling, logic in the wrong layer, wiring per host, catch-all
-modules and silently ignored commands. It proposes measures from trends, and
-each finding names `path:line`, its evidence and the fitness function or limit
-that applies. "Already duplicated before this PR" is never a reason to keep a
-copy: the PR fixes it, or an issue names `path:line` of each copy.
+reviews what no fitness function sees: a rule in another spelling, copies
+that already disagree, adapters of one port that disagree, two derivations of
+one state, logic in the wrong layer, wiring per host, a workspace without its
+siblings' guards, catch-all modules and silently ignored commands. On a whole
+tree it names what it did not cover. It proposes measures from trends. Each
+finding names `path:line`, its evidence and the fitness function or limit
+that applies; a report row it drops goes under "Marked, no action". "Already
+duplicated before this PR" is never a reason to keep a copy: the PR fixes it,
+or an issue names `path:line` of each copy.
 
 It is not a fitness function: a model's judgement is not deterministic, and
-two runs on one tree can differ. It comments and never blocks. A CI job that
-runs it on every PR is out of scope until it is measured; it needs a
-workflow, an API secret and possibly a dependency.
+two runs on one tree differ. It comments and never blocks.
 
-**Measurement (TODO, #2058).** _Placeholder: the results on #2040
-(`e12239f4` against `a313ddab`), #2047 (`3d1b19b3` against `452b6440`) and
-#1799's structural causes, each run more than once, with what the skill
-found, what it missed and what it reported beyond the reference, replace this
-paragraph._
+**Measurement (#2058).** Three cases, each scored against a reference list
+compiled from its sources before the runs:
+
+- #2040 at its squash commit `16225419` against its first parent: 4 items,
+  the verify rule written in two spellings (#2051) and three defects that
+  later issues documented and later PRs fixed.
+- #2047 at its unsquashed head `3d1b19b3` against `452b6440`: the 15 items of
+  sections 1 and 3 of
+  [its review](https://github.com/Miragon/bpmn-modeler/pull/2047#pullrequestreview-5734313138),
+  9 of them architectural.
+- #1799's tree `4d58fabd` as a whole tree: 20 items, the issue's four
+  structural causes (S1 to S4) and 16 defects from its lists that fit none of
+  them (D1 to D16).
+
+Each run was a separate agent session that followed the skill without the
+reference, and one judge per run scored each reference item exact, partial or
+missed and each further finding true, plausible or false. Round 1 ran the
+skill as first written, three times per case. Round 2 ran it twice per case
+after the 15 changes round 1 proposed (two of them in part), as this section
+describes it.
+
+| Case (items) | Round | Matched per run (exact) | Added: true / plausible / false | Mean run time |
+| --- | --- | --- | --- | --- |
+| #2040 (4) | 1 | 3 (1), 3 (3), 1 (1) | 3 / 10 / 2 | 401 s |
+| #2040 (4) | 2 | 4 (4), 4 (4) | 2 / 8 / 0 | 624 s |
+| #2047 (15) | 1 | 8 (3), 8 (0), 8 (1) | 8 / 10 / 0 | 705 s |
+| #2047 (15) | 2 | 10 (2), 9 (2) | 5 / 7 / 0 | 796 s |
+| #1799 (20) | 1 | 4 (0) in each run | 15 / 3 / 1 | 565 s |
+| #1799 (20) | 2 | 4 (0) in each run | 12 / 3 / 0 | 674 s |
+
+Two of #2047's round-2 plausible findings are trend notes, which one judge
+counted and the other did not.
+
+- **Stability.** Coverage is stable within a round: #2047 1.5 and 1.8 were
+  half found in all five runs, #1799 matched S1 to S4 partly in all five.
+  Depth and the added findings vary: #2047 1.2 and 1.6 and most added
+  findings came and went between runs, and the exact/partial split moves by
+  about one item per run between judges, who scored one observation as a
+  match in one run and as an addition in the other.
+- **What it finds**, in at least 4 of 5 runs: a rule written twice in
+  different spellings near the diff (#2040's verify rule, #2047 1.1, the
+  deployable-file rule as a glob and as an extension list), text built per
+  host (#2047 3.4), the CI path filter that misses the Kotlin test inputs
+  (5 of 5, not in the reference) and #1799's structural causes, partly. Its
+  triage of report rows against `reportsWrongly` was right in every run.
+  Round 2's checks matched exactly, in both runs, the home that moved code
+  bypasses, the host that cuts a list before the core sorts it, the two
+  derivations of one state and the two type declarations that disagree;
+  round 1 matched each exactly in at most one of three runs.
+- **What it misses:** a second copy it must discover rather than follow from
+  the diff, with another name and other members (#2047 3.5 and #1799 D10 and
+  D15 in 0 of 5 runs, the key lists of #2047 1.4 in 1); the guards a new
+  workspace lacks (#2047 1.7, 0 of 5); wiring compared with the sibling
+  feature's (the VS Code half of #2047 1.2, 0 of 5); the second halves of
+  bundled items (#2047 1.5 and 1.8); and most of a whole tree: both round-2
+  runs compared 4 or 5 of about 15 ports and listed the rest as not covered,
+  and D1 to D16 were missed in all 80 run-items. Defects inside one copy
+  (#2047 3.1, 3.3 and 3.6, most D items) belong to code review, not to this
+  skill.
+- **False findings:** 3 of 89 added findings (3.4 %), 0 of 37 in round 2,
+  which still allows up to about 8 % at 95 % confidence. 41 of the 89 are
+  only plausible, real but arguable or minor, and about five round-2 findings
+  carry one wrong sub-claim, so about half the added findings are worth
+  acting on.
+- **Cost:** 9.8 to 14.5 min per round-2 run (mean 11.6 min, 25 % more than
+  round 1's 9.3 min), plus 5 to 13 s for the report; tokens were not
+  recorded. The PR's author then triages 9 to 15 numbered findings and 6 to
+  16 marked rows.
+- **What round 2 shows.** Most of its checks were written from round 1's
+  misses on the same cases, so it shows that they fire, not that they
+  generalize. Matched items per run rose (#2040 from 2.3 to 4.0, #2047 from
+  8.0 to 9.5), all on items a change aimed at; the seven #2047 items no
+  change aimed at went from 12 of 21 run-items to 7 of 14, and #1799's score
+  did not move. Two runs per case cannot tell a one-item difference from
+  judge noise. False findings fell from 3 to 0 once dropped report rows had
+  their own section.
+- **Contamination.** The tree states some answers: the `architecture` and
+  `tdd` skills name `verifiesDeployments`, #2040's fix, and the limits of
+  `change-coupling` and `repeated-value-sets` name a structural cause and a
+  defect of #1799 and parts of #2047; round-2 runs quoted them. This section
+  now names the answers of all three cases, so a further measurement needs
+  held-out PRs.
+
+**No CI job yet.** A job that runs the review on every PR is not worth it
+now. The evidence is three calibration cases, the second round was tuned on
+them, and the tree states their answers. Runs differ, so the comment would
+change from push to push. At about 12 minutes per run, most PRs would get a
+long review that mixes their own findings with older debt in the files they
+touch. Stacked PRs (54 merge-tree conflicts in both round-2 runs on #2047)
+and the blocks' shell assumptions (5 of 6 round-2 runs hit zsh hazards)
+would break it in CI, and a job needs a workflow, an API secret and possibly
+a dependency. The review runs by hand, on PRs that move rules between
+layers, add a host feature or add a workspace: the shape of #2040 and #2047,
+where it scored best.
+
+_Proposed, not decided:_ make the blocks shell-safe, take a stacked PR's own
+change from the last merge of its base, shard a whole tree by port family or
+give it a port budget, and find second copies by their values; then measure
+on 3 to 5 held-out merged PRs whose erosion a later issue documented, with
+one judge per case and architecture items scored apart from correctness
+bugs. If that run matches most architectural items at a false rate under
+10 %, a non-blocking, path-triggered job that posts only the top findings a
+PR introduced is worth a pilot. The 10 % bar is a judgement, not a
+measurement.
 
 Alternatives considered:
 
@@ -1541,8 +1641,9 @@ The mutation run is one more workflow to keep green, and its score says
 little until rules move from services into `domain/`.
 Reported fitness functions never block a merge, so reviewers and the review
 agent read their new findings; the report is as complete as the functions
-plugged into it. The review's comments vary between runs, so it is trusted
-only as far as its measurement on known cases shows. The data branch is one
+plugged into it. The review's findings vary between runs and about half its
+additions are arguable, so the PR's author triages them, and it runs by hand
+until a held-out measurement shows more. The data branch is one
 more ref to keep: deleting it costs a backfill, and nothing but convention
 keeps people from pushing to it.
 Rules move into `domain/` before or together with the feature that needs
