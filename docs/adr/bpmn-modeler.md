@@ -1,7 +1,7 @@
 # BPMN modeler
 
 - Status: accepted
-- Last reviewed: 2026-11-04
+- Last reviewed: 2026-11-06
 
 ## Context
 
@@ -357,6 +357,16 @@ A host root theme must not be allowed to override differently themed instances.
 A destroyed instance ignores `setTheme` rather than throwing `NoModelerError`:
 a mode session forwards theme changes to the outgoing surface while a recreate
 is in flight, then applies its current theme to the surface it builds.
+
+The theme modes have one home, `SurfaceThemeMode` in `modeler-types`, the mode
+the controller takes. The public `ThemeMode`, DMN's `DmnThemeMode` and the
+shared host adapter's `HostThemeMode` are aliases of it, so a new mode widens
+all three at once, and the compiler names each place that must handle it: the
+controller's `setMode`, the host adapter's `setMode` and the
+`publicApi.spec.ts` pin in each package. The pins exist because the alias puts
+a published type in an inlined private library: an edit there changes the npm
+surface, so each spec pins its public name to the three values and such an edit
+fails the package's typecheck.
 
 Author dark overrides once, scoped under the attribute. The main stylesheet
 combines them with the upstream light base; derive unscoped legacy light/dark
