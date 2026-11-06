@@ -400,6 +400,17 @@ export function describeScriptEditorContract(
                     answer: "alreadyOpen",
                 },
                 {
+                    after: "the model removed the same script in another diagram",
+                    change: async ({ scriptEditor }) => {
+                        await scriptEditor.applyModelChange(OTHER_EDITOR, {
+                            ...scriptTask(),
+                            content: undefined,
+                        });
+                        await settle();
+                    },
+                    answer: "alreadyOpen",
+                },
+                {
                     after: "the model removed another script of the element",
                     change: async ({ scriptEditor }) => {
                         await scriptEditor.open(EDITOR, startListener);
