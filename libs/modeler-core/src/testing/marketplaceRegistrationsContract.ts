@@ -74,6 +74,8 @@ function isWordable({ kind, path }: SettingsPlace): boolean {
  *   stores one after another without a rollback, so the suite refuses every write.
  * - What the settings read holds before a write: only the moment a write
  *   resolves is this port's rule; the rest is `SettingsPort`'s.
+ * - The order of the settings read: the prune keeps a set of ids and the
+ *   update fetches every entry, so only which entries it holds, each once, matters.
  */
 export function describeMarketplaceRegistrationsContract(
     adapter: string,
@@ -229,13 +231,13 @@ export function describeMarketplaceRegistrationsContract(
                 settingsRead: [ALL_PROJECTS_URL, PROJECT_PATH],
             },
         ])(
-            "resolves $change only once the settings read holds the union, all projects first",
+            "resolves $change only once the settings read holds the union, each entry once",
             async ({ stored, write, settingsRead }) => {
                 const fixture = await createFixture(stored);
 
                 await write(fixture.registrations);
 
-                expect(fixture.settingsRead()).toEqual(settingsRead);
+                expect([...fixture.settingsRead()].sort()).toEqual([...settingsRead].sort());
             },
         );
 
