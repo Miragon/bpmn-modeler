@@ -148,8 +148,16 @@ describePickerContract("VsCodePicker", async () => ({
         showWarningMessageMock.mockResolvedValueOnce(undefined);
         pickBehavior = { action: "hide" };
     },
+    // VS Code answers with the button pressed, and only a button the adapter offered can be.
     userConfirms: (request) => {
-        showWarningMessageMock.mockResolvedValueOnce(request.confirmLabel);
+        showWarningMessageMock.mockImplementationOnce(
+            async (_message: string, _options: unknown, ...buttons: string[]) => {
+                if (!buttons.includes(request.confirmLabel)) {
+                    throw new Error(`No "${request.confirmLabel}" button shown`);
+                }
+                return request.confirmLabel;
+            },
+        );
     },
     // A modal warning's other button is the Cancel VS Code adds, which answers undefined.
     userDeclines: () => {
