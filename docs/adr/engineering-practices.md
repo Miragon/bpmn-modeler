@@ -513,8 +513,8 @@ needs both. A function that cannot measure an old tree throws
 report as usual. At `3d1b19b3` (#2047) with `--base 452b6440` the merge base
 is `fb89b28e`; 6 of 8 functions measured against the stored snapshot of the
 merge base, `convention-coverage` (no workspace declared a kind yet) and
-`mutation-score` (no stored run on that chain) did not, and a run took 4 to
-6 s on a laptop.
+`mutation-score` (no stored run on that chain) did not, and a run took about
+3 to 6 s on a laptop.
 
 **Contract.** A fitness function declares `id`, `version`, its categories
 (scope atomic or holistic, cadence triggered, result static or dynamic), what
