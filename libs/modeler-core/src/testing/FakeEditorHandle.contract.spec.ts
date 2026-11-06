@@ -13,6 +13,12 @@ describeEditorHandleContract("FakeEditorHandle", ({ fileName, content }) => {
         editElsewhere: (edited) => handle.changeDocument(edited),
         changeSettings: (values) =>
             handle.changeSetting(...Object.keys(values).map((key) => settingKeyOf(key as never))),
+        refuseWrites: () => {
+            handle.refusesWrites = true;
+        },
+        refuseSaves: () => {
+            handle.refusesSaves = true;
+        },
         close: () => handle.dispose(),
         hideWebview: () => {
             handle.hidden = true;

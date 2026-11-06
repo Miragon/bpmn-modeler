@@ -75,6 +75,7 @@ class Emitter<T> {
 /** A text document that reports each change through VS Code's global `onDidChangeTextDocument`. */
 class FakeTextDocument {
     isDirty = false;
+    refusesSave = false;
 
     constructor(
         readonly uri: Uri,
@@ -90,8 +91,12 @@ class FakeTextDocument {
         return { offset };
     }
 
-    /** VS Code reports the dirty flag a save clears as a change with no content changes. */
+    /**
+     * A refused save resolves false and leaves the document dirty. VS Code reports
+     * the dirty flag a save clears as a change with no content changes.
+     */
     async save(): Promise<boolean> {
+        if (this.refusesSave) return false;
         if (this.isDirty) {
             this.isDirty = false;
             this.changes.fire({ document: this, contentChanges: [] });
@@ -152,12 +157,14 @@ describeEditorHandleContract("VsCodeEditorHandle", ({ fileName, content }) => {
     const configurationChanges = new Emitter<unknown>();
     const document = new FakeTextDocument(Uri.file(`/work/${fileName}`), content, textDocumentChanges);
     const panel = new FakeWebviewPanel();
+    let refusesEdits = false;
 
     vscodeHost.onDidChangeTextDocument = textDocumentChanges.event;
     vscodeHost.onDidChangeConfiguration = configurationChanges.event;
     // VS Code applies an edit in another process and reports the change before the edit resolves.
     vscodeHost.applyEdit = async (edit) => {
         await new Promise((resolve) => setTimeout(resolve, 0));
+        if (refusesEdits) return false;
         for (const { range, text } of (edit as { replacements: { range: FakeRange; text: string }[] })
             .replacements) {
             document.replace(range.start.offset, range.end.offset, text);
@@ -190,6 +197,12 @@ describeEditorHandleContract("VsCodeEditorHandle", ({ fileName, content }) => {
                         (changed) => changed === section || changed.startsWith(`${section}.`),
                     ),
             });
+        },
+        refuseWrites: () => {
+            refusesEdits = true;
+        },
+        refuseSaves: () => {
+            document.refusesSave = true;
         },
         close: () => panel.dispose(),
         hideWebview: () => panel.show({ active: false, visible: false }),

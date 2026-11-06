@@ -30,6 +30,10 @@ interface Frame {
 class IntelliJEditorSession {
     readonly rpc = new Rpc((line) => this.answer(JSON.parse(line) as Frame));
     readonly delivered: unknown[] = [];
+    /** As for a stale session or revision, or a pending external update. */
+    refusesWrites = false;
+    /** As when a veto or a failed disk write leaves the Document unsaved. */
+    refusesSaves = false;
     private documentRevision = 0;
     private unsaved = false;
 
@@ -67,7 +71,9 @@ class IntelliJEditorSession {
         const staleRevision =
             params.expectedDocumentRevision !== undefined &&
             params.expectedDocumentRevision !== this.documentRevision;
-        if (!this.addresses(params) || staleRevision) return { changed: false, accepted: false };
+        if (!this.addresses(params) || staleRevision || this.refusesWrites) {
+            return { changed: false, accepted: false };
+        }
         const changed = this.text !== content;
         if (changed) {
             this.text = content;
@@ -78,7 +84,7 @@ class IntelliJEditorSession {
     }
 
     private save(params: DocumentSaveParams): DocumentSaveResult {
-        if (this.addresses(params)) this.unsaved = false;
+        if (this.addresses(params) && !this.refusesSaves) this.unsaved = false;
         return { saved: this.addresses(params) && !this.unsaved };
     }
 
@@ -116,6 +122,12 @@ describeEditorHandleContract("RpcEditorHandle", ({ fileName, content }) => {
         blur: () => handle.setActive(false),
         editElsewhere: (edited) => mirror.setContent(host.meta.editorId, host.edit(edited)),
         changeSettings: (values) => settings.apply(values),
+        refuseWrites: () => {
+            host.refusesWrites = true;
+        },
+        refuseSaves: () => {
+            host.refusesSaves = true;
+        },
         close: () => handle.dispose(),
     };
 });

@@ -36,6 +36,10 @@ export interface EditorHandleContractFixture {
     editElsewhere(content: string): void;
     /** The user gives modeler settings these values. */
     changeSettings(values: RawModelerSettings): void;
+    /** The host refuses every later write and leaves the document as it was. */
+    refuseWrites(): void;
+    /** The host refuses every later save, as on a veto or a failed disk write, and leaves the document unsaved. */
+    refuseSaves(): void;
     /** The user closes the editor's tab. */
     close(): void;
     /** The user switches away and the host hides the webview; absent where the host never hides one. */
@@ -106,9 +110,11 @@ const HANDLE_EVENTS: readonly HandleEvent[] = [
  * - The path of a document on a Windows drive or share: the host that builds
  *   the identity spells it (VS Code's `canonicalPath`, IntelliJ's file path),
  *   and the bridge and the fake take it as given.
- * - The expected document revision of a write, a refused write or save, and a
- *   read-only document: the core checks the revision before the handle, only a
- *   host refuses, and core specs spy on the fake's `save` for a refusal.
+ * - The expected document revision of a write, and a write to a read-only
+ *   document: the core checks the revision before it calls the handle, and a
+ *   read-only document opens in a viewer that does not write. VS Code ignores
+ *   the revision and throws on a read-only file system; the bridge leaves both
+ *   to its host.
  * - `reload`: optional, and the bridge cannot restart its webview.
  */
 export function describeEditorHandleContract(
@@ -278,14 +284,26 @@ export function describeEditorHandleContract(
                 expect(reportedBeforeResolving).toEqual([changeOfThisDocument(EDITED)]);
             });
 
-            it("answers a write of the content it holds with false and no change", async () => {
-                const changes = recordChanges();
+            // `writeAndConfirm` reads the content back after a false to tell a skipped write from a refused one.
+            it.each([
+                { write: "of the content it holds", prepare: () => undefined, content: DOCUMENT.content },
+                {
+                    write: "the host refuses",
+                    prepare: (host: EditorHandleContractFixture) => host.refuseWrites(),
+                    content: EDITED,
+                },
+            ])(
+                "answers a write $write with false, no change and the content it held",
+                async ({ prepare, content }) => {
+                    prepare(fixture);
+                    const changes = recordChanges();
 
-                await expect(fixture.handle.writeContent(DOCUMENT.content)).resolves.toBe(false);
+                    await expect(fixture.handle.writeContent(content)).resolves.toBe(false);
 
-                expect(changes).toEqual([]);
-                expect(fixture.handle.getContent()).toBe(DOCUMENT.content);
-            });
+                    expect(changes).toEqual([]);
+                    expect(fixture.handle.getContent()).toBe(DOCUMENT.content);
+                },
+            );
 
             it("reports an edit made elsewhere as a change of this document that reads the new content", () => {
                 const changes = recordChanges();
@@ -295,23 +313,36 @@ export function describeEditorHandleContract(
                 expect(changes).toEqual([changeOfThisDocument(EDITED)]);
             });
 
+            // `SaveBeforeDeploy` deploys only a saved document.
             it.each([
                 {
-                    state: "after an edit",
-                    prepare: async (handle: EditorHandle) => {
-                        await handle.writeContent(EDITED);
+                    save: "after an edit",
+                    prepare: async (host: EditorHandleContractFixture) => {
+                        await host.handle.writeContent(EDITED);
                     },
+                    saved: true,
                 },
-                { state: "with nothing to save", prepare: async () => undefined },
-            ])("reports a save $state as saved and as no content change", async ({ prepare }) => {
-                await prepare(fixture.handle);
-                const changes = recordChanges();
+                { save: "with nothing to save", prepare: async () => undefined, saved: true },
+                {
+                    save: "the host refuses after an edit",
+                    prepare: async (host: EditorHandleContractFixture) => {
+                        await host.handle.writeContent(EDITED);
+                        host.refuseSaves();
+                    },
+                    saved: false,
+                },
+            ])(
+                "answers a save $save with $saved and reports no content change",
+                async ({ prepare, saved }) => {
+                    await prepare(fixture);
+                    const changes = recordChanges();
 
-                await expect(fixture.handle.save()).resolves.toBe(true);
+                    await expect(fixture.handle.save()).resolves.toBe(saved);
 
-                // VS Code reports the dirty flag a save clears as a change without content changes.
-                expect(changes.filter((change) => change.hasContentChanges)).toEqual([]);
-            });
+                    // VS Code reports the dirty flag a save clears as a change without content changes.
+                    expect(changes.filter((change) => change.hasContentChanges)).toEqual([]);
+                },
+            );
         });
 
         describe("settings", () => {
