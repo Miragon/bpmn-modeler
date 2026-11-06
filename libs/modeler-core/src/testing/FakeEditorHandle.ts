@@ -52,6 +52,10 @@ export class FakeEditorHandle implements EditorHandle {
     active = false;
     /** A hidden webview rejects posts the way a host handle does. */
     hidden = false;
+    /** The host refuses writes and leaves the content as it is. */
+    refusesWrites = false;
+    /** The host refuses saves, as on a veto or a failed disk write. */
+    refusesSaves = false;
     saveCount = 0;
     reloadCount = 0;
     disposed = false;
@@ -99,14 +103,14 @@ export class FakeEditorHandle implements EditorHandle {
     }
 
     async writeContent(content: string): Promise<boolean> {
-        if (content === this.content) return false;
+        if (this.refusesWrites || content === this.content) return false;
         this.changeDocument(content);
         return true;
     }
 
     async save(): Promise<boolean> {
         this.saveCount++;
-        return true;
+        return !this.refusesSaves;
     }
 
     async postMessage(message: Command | Query): Promise<boolean> {

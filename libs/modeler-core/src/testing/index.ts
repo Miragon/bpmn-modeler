@@ -1,4 +1,5 @@
 export * from "./createTestHost";
+export * from "./editorHandleContract";
 export * from "./FakeEditorHandle";
 export * from "./InMemoryCredentials";
 export * from "./InMemoryDeploymentState";
@@ -10,6 +11,8 @@ export * from "./RecordingNotifier";
 export * from "./RecordingScriptEditor";
 export * from "./RecordingStatusBar";
 export * from "./ScriptedPicker";
+export * from "./secretStoreContract";
 export * from "./settingsContract";
+export * from "./tokenStoreContract";
 export * from "./workspaceContract";
 export * from "./surfaceCoverage";
