@@ -124,14 +124,14 @@ const SELF_HOSTED = {
  * each marketplace once and reports one it cannot parse instead of pruning
  * its cache.
  *
- * Left out, as the core does not decide them: which scope wins for a setting
- * other than the marketplaces (VS Code lets a workspace value shadow the
- * user's, IntelliJ keeps every setting for all projects); a marketplace scope
- * that holds no list, which only VS Code's `settings.json` can hold, so its
- * own spec reads it; and whether a caller may change a list it was handed, as
- * no core caller does. Change events reach the core through
- * `EditorHandle.onDidChangeSetting` and the lint choice is written through
- * `LintingPreferencePort`, so they belong to those ports.
+ * Left out: which scope wins for a setting other than the marketplaces, as the
+ * core reads only the result (VS Code lets a workspace value shadow the
+ * user's, IntelliJ keeps every setting for all projects); a project
+ * marketplace value that is no list, which only VS Code's Workspace
+ * `settings.json` can hold, so its own spec reads it; and whether a caller may
+ * change a list it was handed, as no core caller does. Change events reach the
+ * core through `EditorHandle.onDidChangeSetting` and the lint choice is
+ * written through `LintingPreferencePort`, so they belong to those ports.
  */
 export function describeSettingsContract(
     adapter: string,

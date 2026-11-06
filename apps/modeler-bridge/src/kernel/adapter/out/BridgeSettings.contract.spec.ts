@@ -14,12 +14,13 @@ import { BridgeSettings } from "./BridgeSettings";
 
 /**
  * Pushes settings as IntelliJ's `EditorSessionRouter.pushSettings` does after
- * the user stores them: one `settings/didChange` carrying the whole snapshot of
+ * the user stores them: one `settings/didChange` carrying every key of
  * `ModelerSettingsStore.snapshotMap`, a key the user left unset at its default,
- * and `marketplaces` as `ProjectMarketplacesStore.merged()` lists them. Values
- * pass through as stored, so the bridge's own reading meets every shape JSON
- * can carry; the Kotlin store's normalisation runs the shared rows in
- * `ModelerSettingsStoreTest`.
+ * and `marketplaces` merged as `ProjectMarketplacesStore.merged()` merges them.
+ * Unlike `snapshotMap`, which sends `ModelerSettingsStore.current()` already
+ * normalised and holds marketplaces as strings only, the loopback passes values
+ * unnormalised, so the bridge's own reading meets every shape JSON can carry;
+ * `ModelerSettingsStoreTest` runs the shared rows against the Kotlin store.
  */
 class IntellijSettingsHost {
     readonly settings = new BridgeSettings();
@@ -50,8 +51,8 @@ class IntellijSettingsHost {
 }
 
 /**
- * The app-level list, then the project's own entries, each once. A value that
- * is no list passes through: IntelliJ's store holds lists, another host may not.
+ * The app-level list, then the project's own entries, each once. An app-level
+ * value that is no list passes through unmerged, like every unnormalised value.
  */
 function mergedMarketplaces(appLevel: unknown, projectLevel: readonly unknown[]): unknown {
     if (appLevel !== undefined && !Array.isArray(appLevel)) {
