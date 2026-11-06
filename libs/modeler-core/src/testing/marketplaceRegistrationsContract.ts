@@ -181,18 +181,18 @@ export function describeMarketplaceRegistrationsContract(
             await expect(registeredIn(registrations)).resolves.toEqual(registered);
         });
 
-        it("removes a self-hosted entry given as an equal copy of the one read, where the host keeps one", async (context) => {
+        it("reads a self-hosted entry as stored and removes an equal copy of it, where the host keeps one", async (context) => {
             const { selfHostedIn } = await (
                 await createFixture(NOTHING_STORED)
             ).registrations.read();
             if (!selfHostedIn) context.skip();
-            const { registrations } = await createFixture({
-                project: [SELF_HOSTED],
-                allProjects: [ALL_PROJECTS_URL, SELF_HOSTED],
-            });
-            const [listed] = (await registrations.read()).registered.project;
+            const stored = { project: [SELF_HOSTED], allProjects: [ALL_PROJECTS_URL, SELF_HOSTED] };
+            const { registrations } = await createFixture(stored);
+            const listed = await registeredIn(registrations);
+            // The removal picker offers only what `read` returns.
+            expect(listed).toEqual(stored);
 
-            await registrations.unregister([structuredClone(listed)]);
+            await registrations.unregister([structuredClone(listed.project[0])]);
 
             await expect(registeredIn(registrations)).resolves.toEqual({
                 project: [],
