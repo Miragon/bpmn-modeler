@@ -13,23 +13,26 @@ const moduleLoaders: Record<PrefetchableModule, () => Promise<unknown>> = {
     lint: loadLintModule,
 };
 
+interface PrefetchOptions {
+    linting: boolean;
+}
+
 /**
- * The chunks a saved mode predicts. Design predicts none: a tagged model's
- * Design is served by the modeler, and the engine is unknown until the host
- * replies.
+ * Design predicts none: a tagged model's Design is served by the modeler, and
+ * the engine is unknown until the host replies.
  */
+const PREDICTED_MODULES: Record<SurfaceMode, (options: PrefetchOptions) => PrefetchableModule[]> = {
+    view: () => ["viewer"],
+    design: () => [],
+    implement: ({ linting }) => (linting ? ["modeler", "lint"] : ["modeler"]),
+};
+
+/** The chunks a saved mode predicts. */
 export function modulesToPrefetch(
     mode: SurfaceMode,
-    options: { linting: boolean },
+    options: PrefetchOptions,
 ): PrefetchableModule[] {
-    switch (mode) {
-        case "view":
-            return ["viewer"];
-        case "implement":
-            return options.linting ? ["modeler", "lint"] : ["modeler"];
-        case "design":
-            return [];
-    }
+    return PREDICTED_MODULES[mode](options);
 }
 
 /**
@@ -37,7 +40,7 @@ export function modulesToPrefetch(
  * is still pending. The factory's own `import()` joins the in-flight load; a
  * failure is left for that import to report.
  */
-export function prefetchSurfaceModules(mode: SurfaceMode, options: { linting: boolean }): void {
+export function prefetchSurfaceModules(mode: SurfaceMode, options: PrefetchOptions): void {
     for (const module of modulesToPrefetch(mode, options)) {
         moduleLoaders[module]().catch(() => undefined);
     }

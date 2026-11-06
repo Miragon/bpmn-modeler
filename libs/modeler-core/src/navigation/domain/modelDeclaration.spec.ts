@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { declaresReferencedModel } from "./modelDeclaration";
+import type { ReferenceKind } from "@miragon/bpmn-modeler-types";
+
+import {
+    declaresReferencedModel,
+    declaringFileExtension,
+    formIdDeclaredIn,
+} from "./modelDeclaration";
 
 const bpmn = (processId: string, targetNamespace = "http://bpmn.io/schema/bpmn") =>
     `<?xml version="1.0"?>
@@ -13,6 +19,8 @@ const dmn = (decisionId: string) =>
 <definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" namespace="http://camunda.org/schema/1.0/dmn">
   <decision id = '${decisionId}' name="d"/>
 </definitions>`;
+
+const form = (schema: Record<string, unknown>) => JSON.stringify(schema);
 
 describe("declaresReferencedModel", () => {
     it.each([
@@ -102,7 +110,77 @@ describe("declaresReferencedModel", () => {
             reference: { id: "Process_Target", kind: "process" as const },
             expected: false,
         },
+        {
+            behaviour: "rejects a process when a decision is referenced",
+            content: bpmn("Decision_1"),
+            reference: { id: "Decision_1", kind: "decision" as const },
+            expected: false,
+        },
+        {
+            behaviour: "matches the top-level id of a form",
+            content: form({ id: "Form_Request", components: [] }),
+            reference: { id: "Form_Request", kind: "form" as const },
+            expected: true,
+        },
+        {
+            behaviour: "rejects another form id",
+            content: form({ id: "Form_Other" }),
+            reference: { id: "Form_Request", kind: "form" as const },
+            expected: false,
+        },
+        {
+            behaviour: "rejects a form that only nests the id in a component",
+            content: form({ components: [{ id: "Form_Request" }] }),
+            reference: { id: "Form_Request", kind: "form" as const },
+            expected: false,
+        },
+        {
+            behaviour: "rejects a BPMN file whose process has the form id",
+            content: bpmn("Form_Request"),
+            reference: { id: "Form_Request", kind: "form" as const },
+            expected: false,
+        },
     ])("$behaviour", ({ content, reference, expected }) => {
         expect(declaresReferencedModel(content, reference)).toBe(expected);
+    });
+});
+
+describe("declaringFileExtension", () => {
+    it.each<[ReferenceKind, string]>([
+        ["process", ".bpmn"],
+        ["decision", ".dmn"],
+        ["form", ".form"],
+    ])("finds a %s in a %s file", (kind, extension) => {
+        expect(declaringFileExtension(kind)).toBe(extension);
+    });
+});
+
+describe("formIdDeclaredIn", () => {
+    it.each([
+        {
+            behaviour: "reads the top-level id",
+            content: form({ id: "Form_A" }),
+            expected: "Form_A",
+        },
+        { behaviour: "ignores an empty id", content: form({ id: "" }), expected: undefined },
+        {
+            behaviour: "ignores an id that is no string",
+            content: form({ id: 7 }),
+            expected: undefined,
+        },
+        {
+            behaviour: "ignores an id that is a list",
+            content: form({ id: ["Form_A"] }),
+            expected: undefined,
+        },
+        {
+            behaviour: "ignores an id nested in a component",
+            content: form({ components: [{ id: "Form_A" }] }),
+            expected: undefined,
+        },
+        { behaviour: "ignores malformed JSON", content: "{", expected: undefined },
+        { behaviour: "ignores JSON null", content: "null", expected: undefined },
+    ])("$behaviour", ({ content, expected }) => {
+        expect(formIdDeclaredIn(content)).toBe(expected);
     });
 });

@@ -1,6 +1,8 @@
 import { EngineSourceStructure } from "../../changeCoupling/adapter/out/engineSourceStructure";
 import { createChangeCouplingFitnessFunction } from "../../changeCoupling/service/changeCouplingFitnessFunction";
 import { createMissedPartnerFitnessFunction } from "../../changeCoupling/service/missedPartnerFitnessFunction";
+import { EngineContractSuiteSources } from "../../contractSuites/adapter/out/engineContractSuiteSources";
+import { createContractSuitesFitnessFunction } from "../../contractSuites/service/contractSuitesFitnessFunction";
 import { GitMutationRuns } from "../../mutationScore/adapter/out/gitMutationRuns";
 import { createMutationScoreFitnessFunction } from "../../mutationScore/service/mutationScoreFitnessFunction";
 import { EngineRoleFolderSources } from "../../conventionCoverage/adapter/out/engineRoleFolderSources";
@@ -25,6 +27,7 @@ export const FITNESS_FUNCTIONS: readonly FitnessFunction[] = [
     createConventionCoverageFitnessFunction({ sources: new EngineRoleFolderSources() }),
     createRepeatedValueSetsFitnessFunction({ sources: new EngineValueSetSources() }),
     createHostTextFitnessFunction({ sources: new EngineHostTextSources() }),
+    createContractSuitesFitnessFunction({ sources: new EngineContractSuiteSources() }),
     createSizeAndComplexityFitnessFunction({ sources: sourceMeasures }),
     createHotspotsFitnessFunction({ history: commitHistory, sources: sourceMeasures }),
     createMutationScoreFitnessFunction({ runs: new GitMutationRuns() }),

@@ -225,6 +225,7 @@
                 ".github/workflows/sync-release-markers.yml",
                 "packages/bpmn-modeler/inlined-libraries.json",
                 "packages/dmn-modeler/vite.config.mts",
+                "apps/intellij-plugin/build.gradle.kts",
                 "eslint.config.cjs",
                 "**/eslint.config.cjs"
             ],
