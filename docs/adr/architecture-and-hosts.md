@@ -968,8 +968,11 @@ hosts run (see [test-first for rules](engineering-practices.md#test-first-for-ru
 the Kotlin test also compares its defaults with the manifest's and its modes
 with `SURFACE_MODES`, the set the core accepts. The manifest contract spec holds
 the manifest's `defaultMode` choices to the same set in both directions and
-requires a label for each; the Settings page's mode list and labels must match
-the manifest's in order.
+requires a label for each. The IntelliJ Settings page offers the manifest's
+modes and labels in its order and labels each mode as the modeler's mode strip
+does (`MODE_LABEL` in `modeStrip.ts`); its test reads both from the rendered
+page. `apps/vscode-plugin` does not depend on `@miragon/bpmn-modeler`, so the
+manifest's labels reach `MODE_LABEL` only through that Kotlin test.
 
 The lint choice is a snapshot setting like the others, but the IntelliJ
 Settings page has no field for it: the editor's lint toggle and the BPMNlint

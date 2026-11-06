@@ -83,12 +83,14 @@ val elementTemplateFileCases =
 val elementTemplatePreviewMessages =
     layout.projectDirectory.file("../../libs/shared/src/lib/elementTemplatePreviewMessages.cases.json")
 val surfaceModes = layout.projectDirectory.file("../../libs/modeler-types/src/surfaceMode.ts")
+val modeLabels = layout.projectDirectory.file("../../packages/bpmn-modeler/src/modeSession/modeStrip.ts")
 
 tasks.test {
     useJUnitPlatform()
     // The tests read these TypeScript-side files: ProtocolHandlerCoverageTest the bridge's
     // protocol descriptor, ModelerSettingsStoreTest the core's settings rows, the VS Code
     // manifest's defaults and the surface modes, ModelerLocalesTest the manifest's languages,
+    // ModelerSettingsConfigurableTest the manifest's default modes and the mode strip's labels,
     // StatusSlotPlacementTest the core's status slots and view values, ElementTemplateFilesTest the
     // rows the TypeScript template rule runs, ElementTemplatePreviewMessagesTest the preview page's
     // messages. As declared inputs, a change on the TypeScript side alone reruns the tests instead of
@@ -101,6 +103,7 @@ tasks.test {
         "elementTemplateFileCases" to elementTemplateFileCases,
         "elementTemplatePreviewMessages" to elementTemplatePreviewMessages,
         "surfaceModes" to surfaceModes,
+        "modeLabels" to modeLabels,
     ).forEach { (name, file) ->
         inputs.file(file).withPropertyName(name).withPathSensitivity(PathSensitivity.RELATIVE)
         systemProperty("miragon.$name", file.asFile.absolutePath)

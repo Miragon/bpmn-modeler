@@ -106,6 +106,13 @@ class ModelerSettingsConfigurableTest {
         }
     }
 
+    @Test
+    fun `labels the default modes as the modeler's mode strip labels them`() {
+        withSettingsPage { page ->
+            assertEquals(modeStripLabels(), defaultModeChoices(page.createComponent()).toMap())
+        }
+    }
+
     /** Each mode the Default mode box offers, with its label: the DSL renderer's accessible name is its cell text. */
     private fun defaultModeChoices(page: JComponent): List<Pair<String?, String?>> {
         @Suppress("UNCHECKED_CAST")
@@ -119,6 +126,17 @@ class ModelerSettingsConfigurableTest {
             val cell = combo.renderer.getListCellRendererComponent(list, mode, index, false, false)
             mode to cell.accessibleContext.accessibleName
         }
+    }
+
+    /** `MODE_LABEL` in `modeStrip.ts`, the labels the modeler's mode strip shows. */
+    private fun modeStripLabels(): Map<String, String> {
+        val source = readTypeScriptFile("miragon.modeLabels")
+        val entries =
+            requireNotNull(Regex("""export const MODE_LABEL\b[^=]*=\s*\{([^}]*)}""").find(source)) {
+                "modeStrip.ts declares no MODE_LABEL object literal"
+            }.groupValues[1]
+        return Regex(""""?(\w+)"?\s*:\s*"([^"]*)"""").findAll(entries)
+            .associate { it.groupValues[1] to it.groupValues[2] }
     }
 
     /** `manifest.contract.spec.ts` holds these modes to `SURFACE_MODES`. */

@@ -38,10 +38,12 @@ jobs:
               # ModelerSettingsStoreTest runs the core's settings rows and checks
               # the Kotlin defaults against the VS Code manifest and the Kotlin
               # default modes against SURFACE_MODES, ModelerLocalesTest the Kotlin
-              # languages.
+              # languages, ModelerSettingsConfigurableTest the Settings page's
+              # modes and labels against the manifest and the mode strip.
               - 'libs/modeler-core/src/kernel/domain/settingsNormalization.cases.json'
               - 'apps/vscode-plugin/package.json'
               - 'libs/modeler-types/src/surfaceMode.ts'
+              - 'packages/bpmn-modeler/src/modeSession/modeStrip.ts'
               # StatusSlotPlacementTest checks every status slot and view value has a Kotlin home.
               - 'libs/modeler-core/src/kernel/domain/statusView.ts'
               # ElementTemplateFilesTest and ElementTemplatePreviewMessagesTest run these rows.
