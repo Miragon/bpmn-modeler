@@ -105,14 +105,15 @@ function createContractHost() {
 
 /**
  * The rules of {@link ScriptEditorPort} the core relies on, run against one
- * adapter. The core reads back only `materialize`: "Generate Script Files"
- * counts its answers, names the folder the shared {@link ScriptFileStore}
- * resolved, and asks the user to open the files; a file the user opens from
- * that folder then owns its script. So the scenarios pin where a file goes and
- * how its path is spelled, when an open tab owns a script, the dismissal value
- * and that a failed write rejects. `open`, `applyModelChange`, a file the user
- * opens or closes and `disposeEditor` take part as far as they change those
- * answers or the files.
+ * adapter. The core reads back `materialize`: "Generate Script Files" counts
+ * its answers, names the folder the shared {@link ScriptFileStore} resolved,
+ * and asks the user to open the files; a file the user opens from that folder
+ * then owns its script. Of `open` it reads only a rejection, which it logs
+ * with the element. So the scenarios pin where a file goes and how its path is
+ * spelled, when an open tab owns a script, the dismissal value and that a
+ * failed write in `materialize` rejects. `open`, `applyModelChange`, a file the
+ * user opens or closes and `disposeEditor` take part as far as they change
+ * those answers or the files.
  * Where the hosts differ, VS Code is the reference.
  *
  * Left out, as the core reads none of it back: `resync` and `variablesChanged`,
@@ -126,6 +127,12 @@ function createContractHost() {
  * backslash spellings are left to each host's own spec (VS Code's
  * `canonicalPath.spec.ts` and `uriPath.spec.ts`, the bridge's `win32` block in
  * `BridgeScriptEditor.spec.ts`), as the shared in-memory workspace speaks POSIX.
+ *
+ * Also left out, though the core logs a rejected `open`: a failed write in
+ * `open`. VS Code rejects, and the core logs it with the element; the bridge
+ * logs the error itself and has IntelliJ open the tab from the content without
+ * a file. That fallback is deliberate, and pinning VS Code's rejection would
+ * remove it.
  *
  * The scenarios run on real timers: a host may answer a turn later, as
  * IntelliJ does.
