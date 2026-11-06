@@ -20,6 +20,13 @@ const NOT_CALLED: ReadonlySet<string> = new Set([
 const NOT_RECEIVERS: ReadonlySet<string> = new Set(["this", "super"]);
 const DECLARES_PARAMETERS: ReadonlySet<string> = new Set(["fun", "class"]);
 const TYPE_ARGUMENT_SYMBOLS: ReadonlySet<string> = new Set([",", ".", "?", "*"]);
+interface BracketPair {
+    readonly opener: string;
+    readonly closer: string;
+}
+
+const ANGLE_BRACKETS: BracketPair = { opener: "<", closer: ">" };
+const PARENTHESES: BracketPair = { opener: "(", closer: ")" };
 const CLOSERS: ReadonlyMap<string, string> = new Map([
     ["(", ")"],
     ["[", "]"],
@@ -50,18 +57,19 @@ function acceptsAnyToken(): boolean {
     return true;
 }
 
-/** The `<` that opens the angle brackets a `>` closes, if every token between them is accepted. */
-function angleBracketsStart(
+/** The opener of the brackets that close at `closeIndex`, if every token between them is accepted. */
+function openerOf(
     tokens: readonly KotlinToken[],
     closeIndex: number,
-    accepts: (token: KotlinToken) => boolean,
+    { opener, closer }: BracketPair,
+    accepts: (token: KotlinToken) => boolean = acceptsAnyToken,
 ): number | undefined {
     let depth = 0;
     for (let index = closeIndex; index >= 0; index -= 1) {
         const token = tokens[index];
-        if (isSymbol(token, ">")) {
+        if (isSymbol(token, closer)) {
             depth += 1;
-        } else if (isSymbol(token, "<")) {
+        } else if (isSymbol(token, opener)) {
             depth -= 1;
             if (depth === 0) {
                 return index;
@@ -78,14 +86,22 @@ function typeArgumentsStart(
     tokens: readonly KotlinToken[],
     closeIndex: number,
 ): number | undefined {
-    return angleBracketsStart(tokens, closeIndex, isTypeArgumentToken);
+    return openerOf(tokens, closeIndex, ANGLE_BRACKETS, isTypeArgumentToken);
 }
 
 // Before a `.` or a declared name, a `>` closes a receiver type or type parameters, whose bounds may hold any token: `<T : suspend () -> Unit>`.
 function skipAngleBrackets(tokens: readonly KotlinToken[], index: number): number {
     return isSymbol(tokens[index], ">")
-        ? (angleBracketsStart(tokens, index, acceptsAnyToken) ?? 0) - 1
+        ? (openerOf(tokens, index, ANGLE_BRACKETS) ?? 0) - 1
         : index;
+}
+
+/** The name a `(` calls, past its type arguments: `of` in `Pair.of<A, B>(`. */
+function calleeBefore(tokens: readonly KotlinToken[], openIndex: number): number | undefined {
+    const start = isSymbol(tokens[openIndex - 1], ">")
+        ? typeArgumentsStart(tokens, openIndex - 1)
+        : openIndex;
+    return start === undefined ? undefined : start - 1;
 }
 
 /** The index of what a `.` before `index` is called on: `a!!.b`, `List<T>.b`. */
@@ -98,6 +114,20 @@ function targetBeforeDot(tokens: readonly KotlinToken[], index: number): number 
         target -= 1;
     }
     return target;
+}
+
+/** What a `.` before `calleeIndex` calls on: `log` in `log!!.warn`, the callee `thisLogger` in `thisLogger().warn`. */
+function receiverOf(tokens: readonly KotlinToken[], calleeIndex: number): string | undefined {
+    const target = targetBeforeDot(tokens, calleeIndex);
+    if (target === undefined) {
+        return undefined;
+    }
+    if (!isSymbol(tokens[target], ")")) {
+        return nameAt(tokens, target);
+    }
+    const open = openerOf(tokens, target, PARENTHESES);
+    const callee = open === undefined ? undefined : calleeBefore(tokens, open);
+    return callee === undefined ? undefined : nameAt(tokens, callee);
 }
 
 /** The first name of the chain `a.b.c` that ends at `calleeIndex`. */
@@ -125,8 +155,7 @@ function namedCall(tokens: readonly KotlinToken[], calleeIndex: number): CallSit
     if (keyword !== undefined && DECLARES_PARAMETERS.has(keyword)) {
         return undefined;
     }
-    const target = targetBeforeDot(tokens, calleeIndex);
-    const receiver = target === undefined ? undefined : nameAt(tokens, target);
+    const receiver = receiverOf(tokens, calleeIndex);
     return {
         construct: false,
         callee,
@@ -140,8 +169,8 @@ function callOpenedBy(tokens: readonly KotlinToken[], index: number): CallSite |
     if (isSymbol(before, ")") || isSymbol(before, "]")) {
         return { construct: false };
     }
-    const calleeIndex = isSymbol(before, ">") ? typeArgumentsStart(tokens, index - 1) : index;
-    return calleeIndex === undefined ? undefined : namedCall(tokens, calleeIndex - 1);
+    const calleeIndex = calleeBefore(tokens, index);
+    return calleeIndex === undefined ? undefined : namedCall(tokens, calleeIndex);
 }
 
 interface Bracket {
@@ -186,8 +215,9 @@ function readTokens(
 /**
  * The string literals and templates of Kotlin source, raw strings included,
  * with the calls whose arguments hold them up to the nearest brace. A callee
- * is the name before its `(`; Kotlin has no `new`, so a call that `throw`
- * raises is marked thrown. Tokens only: no types are read.
+ * is the name before its `(`, a receiver the name or the callee before its
+ * `.`; Kotlin has no `new`, so a call that `throw` raises is marked thrown.
+ * Tokens only: no types are read.
  */
 export function readKotlinTextLiterals(text: string): TextLiteral[] {
     const literals: TextLiteral[] = [];

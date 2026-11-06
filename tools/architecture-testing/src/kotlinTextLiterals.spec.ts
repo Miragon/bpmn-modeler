@@ -135,6 +135,11 @@ describe("readKotlinTextLiterals", () => {
             site: { construct: false, callee: "show" },
         },
         {
+            call: "a method on a grouping after a comparison",
+            source: 'val a = b > (c).show("the text")',
+            site: { construct: false, callee: "show" },
+        },
+        {
             call: "a method after an unmatched parenthesis",
             source: ').show("the text")',
             site: { construct: false, callee: "show" },

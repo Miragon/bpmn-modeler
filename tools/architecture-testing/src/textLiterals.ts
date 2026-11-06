@@ -7,7 +7,11 @@ export interface CallSite {
     readonly construct: boolean;
     /** Unset when the callee is neither a name nor a property, such as `handlers[0]`. */
     readonly callee?: string;
-    /** Unset for a bare name and for a property of `this` or of a call's result. */
+    /**
+     * Unset for a bare name and for a property of `this`. A property of a call's
+     * result has none in TypeScript; in Kotlin it has that call's callee, the
+     * `thisLogger` of `thisLogger().warn`.
+     */
     readonly receiver?: string;
     /** Kotlin, which constructs without `new`: the call is what a `throw` raises. */
     readonly thrown?: boolean;

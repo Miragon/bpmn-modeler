@@ -952,8 +952,9 @@ from git.
   quotes of a run close it), multi-dollar strings, nested block comments,
   character literals and `${…}` with braces, strings and comments inside, so a
   quote inside a placeholder never ends the string around it. A call's callee
-  is the name before its `(`, its receiver the name before the `.`; a `(`
-  after `fun`, `class` or a keyword such as `if` opens no call.
+  is the name before its `(`, its receiver the name before the `.` or, on a
+  call's result, that call's callee (`thisLogger` in `thisLogger().warn(…)`);
+  a `(` after `fun`, `class` or a keyword such as `if` opens no call.
   `readKotlinImports` reads the imports with the same lexer. Neither reads
   types. In both languages the calls around a literal end at the nearest
   function or lambda (in Kotlin, the nearest brace): code a callee runs is no
@@ -969,8 +970,10 @@ from git.
 - **Not read.** A literal inside the arguments of `new Error(…)`, of a call a
   Kotlin `throw` raises (Kotlin constructs without `new`), of `log` or a
   `log` + capital function (`logError`, not `login`), or of a call on `log`,
-  `LOG`, `logger` or `console`, up to the nearest function or lambda. Version
-  1 read through functions, so it skipped every text inside
+  `LOG`, `logger`, `thisLogger` or `console`, up to the nearest function or
+  lambda. `thisLogger()` is the logger IntelliJ recommends, so new Kotlin
+  host code logs through `thisLogger().warn(…)`; the tree holds none yet.
+  Version 1 read through functions, so it skipped every text inside
   `logAndRethrow(async () => …)`: 5 texts of `CommandController.ts` at
   `cd48f2cd`. Kotlin's `error(…)`, `require(…)` and `check(…)` throw, but the
   UI DSL's validation `error(…)` shows its text, and a callee name cannot tell

@@ -40,7 +40,13 @@ const CORE_DIR = "libs/modeler-core/";
 const WORD = /[\p{L}\p{N}]/u;
 const WHITESPACE = /\s+/;
 const LOGGING_CALLEE = /^log(?![a-z])/;
-const LOGGING_RECEIVERS: ReadonlySet<string> = new Set(["log", "LOG", "logger", "console"]);
+const LOGGING_RECEIVERS: ReadonlySet<string> = new Set([
+    "log",
+    "LOG",
+    "logger",
+    "thisLogger",
+    "console",
+]);
 const PLACEHOLDER = "${…}";
 const MESSAGE_LENGTH = 100;
 
