@@ -1,6 +1,6 @@
 ---
 name: architecture-review
-description: Reviews a branch, a pull request or a past commit for architecture and design erosion. Reads the fitness function report (findings, delta, trends and each function's limits), searches for copies of a rule and judges what no fitness function sees. Use when asked to review a branch or PR for architecture, design, layering, duplicated rules or erosion.
+description: Reviews a branch, a pull request or a past commit for architecture and design erosion. Reads the fitness function report (findings, delta, trends and each function's limits) and checks its rows in the code, searches for copies of a rule, judges what no fitness function sees and proposes how to make the fitness functions more accurate. Use when asked to review a branch or PR for architecture, design, layering, duplicated rules or erosion.
 ---
 
 # Architecture review
@@ -118,8 +118,9 @@ jq -r --rawfile touched "$OUT/touched.txt" '
   | @tsv' "$R"
 ```
 
-A row you drop under a `reportsWrongly` entry, or check and find harmless,
-goes under **Marked, no action** in the output, never under Findings.
+Each row is a claim about the code, not yet a finding: check it as step 6
+says. A row that matches a `reportsWrongly` entry, proves wrong or is
+harmless goes under **Marked, no action** in the output, never under Findings.
 
 A whole tree has no new findings and no touched files: count the findings per
 function and group, then list those under each area step 4 walks.
@@ -241,12 +242,39 @@ jq -r --arg path '<path>' '.functions[] | select(.values) | .id as $id | .outcom
 A hotspot's `rank` counts each branch commit as a revision until the PR is
 squash-merged, so read a hotspot's growth from its size trend, not its rank.
 
+## 6. Improve the fitness functions
+
+A fitness function can report code wrongly, or miss erosion, beyond what its
+`reportsWrongly` and `misses` declare. Each review checks its rows and feeds
+what it learns back.
+
+- Before you report a row as erosion or drop it, read the function's
+  `reportsWrongly` and `misses`, then open the row's `path:line` and check
+  that the code is what its `message` claims. Never drop a row unchecked: a
+  true finding dismissed is as bad as a false one reported.
+- A row the code disproves is a false alarm. List it under Marked, no action
+  with the evidence: the code that disproves it, and the `reportsWrongly`
+  entry it matches, if any.
+- Propose a correction for each false alarm no `reportsWrongly` entry
+  describes, and for each erosion you found that a function's `measures`
+  covers but it did not report and its `misses` do not name. Prefer a
+  narrower rule, then an exclusion derived from types, folders, imports or
+  configuration; at the least, a `reportsWrongly` or `misses` entry. Every
+  fitness function stays deterministic, adds no dependency and never reads a
+  file or type name (#2049), so a proposal does not either.
+- Each proposal names the function's `id` and `version`, the row's `key` (for
+  a miss, the `path:line` of the erosion), the case, and whether it is a fix
+  in this PR (one that adds or changes that function) or an issue to file.
+
+These proposals go under Fitness function feedback, never among the findings.
+
 ## Rules
 
 - Each finding names `path:line`, its evidence (the code, a grep hit, a
   report row) and what applies: each fitness function's `id` and status, each
   limit quoted from its `misses` or `reportsWrongly`, or no fitness function.
-- A finding a `reportsWrongly` entry describes goes under Marked, no action.
+- A row a `reportsWrongly` entry describes goes under Marked, no action once
+  the code shows it is that case.
 - "Already duplicated before this PR" is never a reason to keep a copy.
   `existing` only says the branch did not add it. Fix the copy in the PR, or
   file an issue that names `path:line` of each copy.
@@ -279,11 +307,16 @@ Measured: <ids>. Not measured: `<id>` (<reason>).
 
 ### Marked, no action
 
-- `<id>` `<path:line>`: <the `reportsWrongly` entry it matches, the planned step that records it, or why it is harmless>.
+- `<id>` `<path:line>`: <the `reportsWrongly` entry it matches, a false alarm and the code that disproves it, the planned step that records it, or why it is harmless>.
 
 ### Measures from trends
 
 - `<path>`: <value> <a → b → c> over <n> PRs; <measure>.
+
+### Fitness function feedback
+
+- `<id>` v<version>, `<key>` or the missed `<path:line>`: <false alarm | missed erosion>, <the case and its evidence>.
+  Proposal: <narrower rule | exclusion derived from types, folders, imports or configuration | `reportsWrongly` or `misses` entry>; <fix in this PR | issue to file>.
 
 Comments only; this review does not block.
 ```

@@ -125,9 +125,11 @@ nothing outside itself) and `editorSession/` (which imports only `kernel/`)
 against known exceptions that may only shrink. VS Code checks that a context
 reaches another only through `shared/`. The repo-level spec bans import cycles
 in and between every workspace and a dependency on a less stable workspace, and
-applies the role-folder rules below. Fitness functions that are not static
-plug into `corepack yarn fitness` (`tools/repo-checks/src/fitness/`), which
-reports new and existing findings and never fails a build.
+applies the role-folder rules below. A fitness function that can fire on
+correct code, each dynamic one and a static one such as host text or a size
+limit, plugs into `corepack yarn fitness` (`tools/repo-checks/src/fitness/`),
+which reports new and existing findings and never fails a build
+([ADR](../../../docs/adr/engineering-practices.md#architecture-erosion)).
 
 A webview posts only the commands of its surface list in `libs/shared`, and
 narrows its host channel to that list. A new webview surface registers in
