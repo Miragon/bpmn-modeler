@@ -1461,10 +1461,15 @@ counted and the other did not.
   8.0 to 9.5), all on items a change aimed at; the seven #2047 items no
   change aimed at went from 12 of 21 run-items to 7 of 14, and #1799's score
   did not move. Two runs per case cannot tell a one-item difference from
-  judge noise. False findings fell from 3 to 0 once dropped report rows had
-  their own section.
-- **Contamination.** The tree states some answers: the `architecture` and
-  `tdd` skills name `verifiesDeployments`, #2040's fix, and the limits of
+  judge noise. False findings fell from 3 to 0: two were dropped report rows,
+  which now have their own section, and one an "unpinned" claim that the
+  pin-check rule now catches.
+- **Contamination.** Both rounds ran with some answers in the tree. The
+  `tdd` skill and [Architecture tests](#architecture-tests) name
+  `verifiesDeployments`, #2040's fix, and this change had added it as the
+  `architecture` skill's naming example before measuring, so #2040 R1's
+  exact match in all five runs is contaminated in part by this change
+  itself; that example now names another rule. The limits of
   `change-coupling` and `repeated-value-sets` name a structural cause and a
   defect of #1799 and parts of #2047; round-2 runs quoted them. This section
   now names the answers of all three cases, so a further measurement needs
@@ -1476,21 +1481,22 @@ them, and the tree states their answers. Runs differ, so the comment would
 change from push to push. At about 12 minutes per run, most PRs would get a
 long review that mixes their own findings with older debt in the files they
 touch. Stacked PRs (54 merge-tree conflicts in both round-2 runs on #2047)
-and the blocks' shell assumptions (5 of 6 round-2 runs hit zsh hazards)
 would break it in CI, and a job needs a workflow, an API secret and possibly
 a dependency. The review runs by hand, on PRs that move rules between
 layers, add a host feature or add a workspace: the shape of #2040 and #2047,
 where it scored best.
 
-_Proposed, not decided:_ make the blocks shell-safe, take a stacked PR's own
-change from the last merge of its base, shard a whole tree by port family or
-give it a port budget, and find second copies by their values; then measure
-on 3 to 5 held-out merged PRs whose erosion a later issue documented, with
-one judge per case and architecture items scored apart from correctness
-bugs. If that run matches most architectural items at a false rate under
-10 %, a non-blocking, path-triggered job that posts only the top findings a
-PR introduced is worth a pilot. The 10 % bar is a judgement, not a
-measurement.
+_Proposed, not decided:_ tell the reviewer to run its own commands under
+bash and name the hazards (in 5 of 6 round-2 runs on macOS the reviewer's
+own commands hit zsh or BSD regex hazards; no block of the skill failed),
+take a stacked PR's own change from the last merge of its base, shard a
+whole tree by port family or give it a port budget, and find second copies
+by their values; then measure on 3 to 5 held-out merged PRs whose erosion a
+later issue documented, with one judge per case and architecture items
+scored apart from correctness bugs. If that run matches most architectural
+items at a false rate under 10 %, a non-blocking, path-triggered job that
+posts only the top findings a PR introduced is worth a pilot. The 10 % bar
+is a judgement, not a measurement.
 
 Alternatives considered:
 

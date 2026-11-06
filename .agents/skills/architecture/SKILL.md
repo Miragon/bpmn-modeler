@@ -29,7 +29,7 @@ Decisions (rules, state transitions, validations) go into the owning feature's
 the same rule, written test-first with the [tdd](../tdd/SKILL.md) skill.
 
 A service orchestrates; a rule lives in `domain/`, named after the rule it
-decides (for example `DeploymentTarget.verifiesDeployments()`, not `check` or
+decides (for example `isModeAvailable(mode, engine)`, not `check` or
 `validate`). A service that grows usually holds a rule in the wrong home. The
 `size-and-complexity` fitness function reports each file's code lines and
 highest complexity with their trend; `hotspots` ranks the files that are large
