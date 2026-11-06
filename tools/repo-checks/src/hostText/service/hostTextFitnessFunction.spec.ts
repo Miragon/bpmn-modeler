@@ -52,6 +52,79 @@ function controller(...body: string[]): string {
     ].join("\n");
 }
 
+const ACTION = "x/src/main/kotlin/FakeAction.kt";
+
+function action(...body: string[]): string {
+    return [
+        "package x",
+        "",
+        "import com.intellij.openapi.ui.DialogWrapper",
+        "",
+        "class FakeAction(project: Project) : DialogWrapper(project) {",
+        "    fun ask(host: Host, names: List<String>, a: String, b: String) {",
+        ...body.map((line) => `        ${line}`),
+        "    }",
+        "}",
+    ].join("\n");
+}
+
+function messagesOf(files: Readonly<Record<string, string>>): string[] {
+    return findingsOf(files).map(({ message }) => message);
+}
+
+describe("the host text fitness function on a hand-built Kotlin tree", () => {
+    it("reports a dialog title in a file that imports com.intellij, at its path and line", () => {
+        expect(findingsOf({ [ACTION]: action('title = "Add Template Marketplace"') })).toEqual([
+            {
+                key: `${ACTION} — Add Template Marketplace`,
+                path: ACTION,
+                line: 7,
+                message: "`Add Template Marketplace`",
+            },
+        ]);
+    });
+
+    it("does not read the same text logged through log.info", () => {
+        expect(findingsOf({ [ACTION]: action('log.info("Add Template Marketplace")') })).toEqual(
+            [],
+        );
+    });
+
+    it("reports a template and a raw string around a placeholder, but not a format of placeholders", () => {
+        expect(
+            messagesOf({
+                [ACTION]: action(
+                    'val prompt = "Token for ${host.name}"',
+                    'val raw = """Token for $host"""',
+                    'val format = "${a}: ${b}"',
+                ),
+            }),
+        ).toEqual(["`Token for ${…}`", "`Token for ${…}`"]);
+    });
+
+    it("reads a quote inside a placeholder as part of one literal, not as two", () => {
+        expect(
+            messagesOf({
+                [ACTION]: action('val saved = "Saved ${names.joinToString(", ")} files to disk"'),
+            }),
+        ).toEqual(["`Saved ${…} files to disk`"]);
+    });
+
+    it("does not read the same text in a file that does not import com.intellij", () => {
+        expect(
+            findingsOf({
+                "x/src/main/kotlin/TokenTitle.kt": [
+                    "package x",
+                    "",
+                    "import java.io.File",
+                    "",
+                    'fun tokenTitle(host: String) = "Token for $host"',
+                ].join("\n"),
+            }),
+        ).toEqual([]);
+    });
+});
+
 describe("the host text fitness function on a hand-built tree", () => {
     it("reports the title a template builds in a file that imports vscode, at its path and line", () => {
         expect(
@@ -74,6 +147,18 @@ describe("the host text fitness function on a hand-built tree", () => {
         expect(
             findingsOf({ [CONTROLLER]: controller("this.logger.info(`Token for ${host}`);") }),
         ).toEqual([]);
+    });
+
+    it("reports a text shown inside a callback that a log-named wrapper runs", () => {
+        expect(
+            findingsOf({
+                [CONTROLLER]: controller(
+                    "await logAndRethrow(async () => {",
+                    '    await window.showQuickPick([], { placeHolder: "Select the modeler language" });',
+                    "});",
+                ),
+            }),
+        ).toEqual([expect.objectContaining({ line: 8, message: "`Select the modeler language`" })]);
     });
 
     it("does not read a union of literal types", () => {

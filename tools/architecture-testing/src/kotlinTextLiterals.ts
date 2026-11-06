@@ -1,0 +1,180 @@
+import { type KotlinToken, lexKotlin } from "./kotlinLexer";
+import type { CallSite, TextLiteral } from "./textLiterals";
+
+// A parenthesis after these is a condition, a parameter list or a grouping, never a call.
+const NOT_CALLED: ReadonlySet<string> = new Set([
+    "if",
+    "while",
+    "for",
+    "when",
+    "catch",
+    "return",
+    "in",
+    "is",
+    "as",
+    "else",
+    "throw",
+    "fun",
+    "constructor",
+]);
+const NOT_RECEIVERS: ReadonlySet<string> = new Set(["this", "super"]);
+const DECLARES_PARAMETERS: ReadonlySet<string> = new Set(["fun", "class"]);
+const TYPE_ARGUMENT_SYMBOLS: ReadonlySet<string> = new Set([",", ".", "?", "*"]);
+const CLOSERS: ReadonlyMap<string, string> = new Map([
+    ["(", ")"],
+    ["[", "]"],
+    ["{", "}"],
+]);
+
+function isSymbol(token: KotlinToken | undefined, text: string): boolean {
+    return token?.kind === "symbol" && token.text === text;
+}
+
+function nameAt(tokens: readonly KotlinToken[], index: number): string | undefined {
+    const token = tokens[index];
+    return token?.kind === "name" ? token.text : undefined;
+}
+
+// `A::class` names a class; it declares none.
+function keywordAt(tokens: readonly KotlinToken[], index: number): string | undefined {
+    return isSymbol(tokens[index - 1], "::") ? undefined : nameAt(tokens, index);
+}
+
+function isTypeArgumentToken(token: KotlinToken): boolean {
+    return (
+        token.kind === "name" || (token.kind === "symbol" && TYPE_ARGUMENT_SYMBOLS.has(token.text))
+    );
+}
+
+/** The `<` that opens the type arguments a `>` closes; unset when the `>` compares. */
+function typeArgumentsStart(
+    tokens: readonly KotlinToken[],
+    closeIndex: number,
+): number | undefined {
+    let depth = 0;
+    for (let index = closeIndex; index >= 0; index -= 1) {
+        const token = tokens[index];
+        if (isSymbol(token, ">")) {
+            depth += 1;
+        } else if (isSymbol(token, "<")) {
+            depth -= 1;
+            if (depth === 0) {
+                return index;
+            }
+        } else if (!isTypeArgumentToken(token)) {
+            return undefined;
+        }
+    }
+    return undefined;
+}
+
+function skipTypeArguments(tokens: readonly KotlinToken[], index: number): number {
+    return isSymbol(tokens[index], ">") ? (typeArgumentsStart(tokens, index) ?? 0) - 1 : index;
+}
+
+/** The index of what a `.` before `index` is called on: `a!!.b`, `List<T>.b`. */
+function targetBeforeDot(tokens: readonly KotlinToken[], index: number): number | undefined {
+    if (!isSymbol(tokens[index - 1], ".")) {
+        return undefined;
+    }
+    let target = index - 2;
+    while (isSymbol(tokens[target], "!")) {
+        target -= 1;
+    }
+    return target;
+}
+
+/** The first name of the chain `a.b.c` that ends at `calleeIndex`. */
+function chainStart(tokens: readonly KotlinToken[], calleeIndex: number): number {
+    let start = calleeIndex;
+    for (;;) {
+        const target = targetBeforeDot(tokens, start);
+        const name = target === undefined ? undefined : skipTypeArguments(tokens, target);
+        if (name === undefined || nameAt(tokens, name) === undefined) {
+            return start;
+        }
+        start = name;
+    }
+}
+
+function namedCall(tokens: readonly KotlinToken[], calleeIndex: number): CallSite | undefined {
+    const callee = nameAt(tokens, calleeIndex);
+    if (callee === undefined || NOT_CALLED.has(callee)) {
+        return undefined;
+    }
+    const keyword = keywordAt(
+        tokens,
+        skipTypeArguments(tokens, chainStart(tokens, calleeIndex) - 1),
+    );
+    if (keyword !== undefined && DECLARES_PARAMETERS.has(keyword)) {
+        return undefined;
+    }
+    const target = targetBeforeDot(tokens, calleeIndex);
+    const receiver = target === undefined ? undefined : nameAt(tokens, target);
+    return {
+        construct: false,
+        callee,
+        ...(receiver === undefined || NOT_RECEIVERS.has(receiver) ? {} : { receiver }),
+        ...(keyword === "throw" ? { thrown: true } : {}),
+    };
+}
+
+function callOpenedBy(tokens: readonly KotlinToken[], index: number): CallSite | undefined {
+    const before = tokens[index - 1];
+    if (isSymbol(before, ")") || isSymbol(before, "]")) {
+        return { construct: false };
+    }
+    const calleeIndex = isSymbol(before, ">") ? typeArgumentsStart(tokens, index - 1) : index;
+    return calleeIndex === undefined ? undefined : namedCall(tokens, calleeIndex - 1);
+}
+
+interface Bracket {
+    readonly closer: string;
+    readonly call: CallSite | undefined;
+}
+
+// A brace opens a lambda, a block or a body: code a callee runs is no value it is handed.
+function callsAround(outerCalls: readonly CallSite[], open: readonly Bracket[]): CallSite[] {
+    const lastBrace = open.map(({ closer }) => closer).lastIndexOf("}");
+    const calls = open
+        .slice(lastBrace + 1)
+        .flatMap(({ call }) => (call === undefined ? [] : [call]));
+    return lastBrace === -1 ? [...outerCalls, ...calls] : calls;
+}
+
+function readTokens(
+    tokens: readonly KotlinToken[],
+    outerCalls: readonly CallSite[],
+    literals: TextLiteral[],
+): void {
+    const open: Bracket[] = [];
+    tokens.forEach((token, index) => {
+        if (token.kind === "string") {
+            const argumentOf = callsAround(outerCalls, open);
+            literals.push({ line: token.line, parts: token.parts, argumentOf });
+            token.placeholders.forEach((placeholder) =>
+                readTokens(placeholder, argumentOf, literals),
+            );
+            return;
+        }
+        const closer = token.kind === "symbol" ? CLOSERS.get(token.text) : undefined;
+        if (closer !== undefined) {
+            const call = token.text === "(" ? callOpenedBy(tokens, index) : undefined;
+            open.push({ closer, call });
+        } else if (open[open.length - 1]?.closer === token.text) {
+            open.pop();
+        }
+    });
+}
+
+/**
+ * The string literals and templates of Kotlin source, raw strings included,
+ * with the calls whose arguments hold them up to the nearest brace. A callee
+ * is the name before its `(`; Kotlin has no `new`, so a call that `throw`
+ * raises is marked thrown. Tokens only: no types are read.
+ */
+export function readKotlinTextLiterals(text: string): TextLiteral[] {
+    const literals: TextLiteral[] = [];
+    readTokens(lexKotlin(text), [], literals);
+    return literals;
+}

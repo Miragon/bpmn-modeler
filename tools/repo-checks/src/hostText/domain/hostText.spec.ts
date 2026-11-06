@@ -4,6 +4,7 @@ import {
     type CallSite,
     hostTextFindings,
     isHostFile,
+    isKotlinSource,
     isScannedSource,
     type WrittenText,
 } from "./hostText";
@@ -30,8 +31,23 @@ describe("isScannedSource", () => {
         ["apps/vscode-plugin/src/__fixtures__/fakeWindow.ts", false],
         ["apps/vscode-plugin/src/types/vscode.d.ts", false],
         ["apps/vscode-plugin/scripts/package.mjs", false],
+        ["apps/intellij-plugin/src/main/kotlin/io/miragon/x/Action.kt", true],
+        ["x/src/main/kotlin/Action.kt", true],
+        ["apps/intellij-plugin/src/test/kotlin/io/miragon/x/ActionTest.kt", false],
+        ["apps/intellij-plugin/build.gradle.kts", false],
+        ["apps/intellij-plugin/src/main/kotlin/x/script.kts", false],
     ])("reads %s: %s", (path, scanned) => {
         expect(isScannedSource(path)).toBe(scanned);
+    });
+});
+
+describe("isKotlinSource", () => {
+    it.each([
+        ["apps/intellij-plugin/src/main/kotlin/io/miragon/x/Action.kt", true],
+        ["apps/intellij-plugin/src/test/kotlin/io/miragon/x/ActionTest.kt", false],
+        ["apps/vscode-plugin/src/main.ts", false],
+    ])("reads %s as Kotlin: %s", (path, kotlin) => {
+        expect(isKotlinSource(path)).toBe(kotlin);
     });
 });
 
@@ -66,6 +82,27 @@ describe("isHostFile", () => {
             host: false,
         },
         {
+            file: "a Kotlin file that imports the IntelliJ Platform",
+            path: "apps/intellij-plugin/src/main/kotlin/x/Action.kt",
+            importedSpecifiers: ["java.io.File", "com.intellij.openapi.ui.DialogWrapper"],
+            implementedInterfaceFiles: [],
+            host: true,
+        },
+        {
+            file: "a Kotlin file that imports the IntelliJ Platform with a wildcard",
+            path: "apps/intellij-plugin/src/main/kotlin/x/Panel.kt",
+            importedSpecifiers: ["com.intellij.ui.dsl.builder.*"],
+            implementedInterfaceFiles: [],
+            host: true,
+        },
+        {
+            file: "a Kotlin file without an IntelliJ Platform import",
+            path: "apps/intellij-plugin/src/main/kotlin/x/RpcParams.kt",
+            importedSpecifiers: ["kotlinx.serialization.json.JsonObject", "com.intellijx.Other"],
+            implementedInterfaceFiles: [],
+            host: false,
+        },
+        {
             file: "a file that only names vscode in a longer specifier",
             path: "libs/x/src/a.ts",
             importedSpecifiers: ["vscode-uri", "@types/vscode"],
@@ -83,6 +120,9 @@ describe("hostTextFindings", () => {
         { form: "words around a placeholder", parts: ["Token for ", ""] },
         { form: "words in a later stretch", parts: ["", " was saved to ", "."] },
         { form: "words across a line break", parts: ["Reload the\n    window"] },
+        { form: "words beside a symbol", parts: ["Settings ▸ Tools"] },
+        { form: "a word and a number", parts: ["Camunda 8"] },
+        { form: "words in markup", parts: ["<code>marketplace.json</code>, one per line"] },
     ])("reports $form", ({ parts }) => {
         expect(messagesOf(written(parts))).toHaveLength(1);
     });
@@ -94,6 +134,12 @@ describe("hostTextFindings", () => {
         { form: "a format of placeholders", parts: ["", ": ", ""] },
         { form: "a codicon and a placeholder", parts: ["$(", ") ", ""] },
         { form: "an empty text", parts: [""] },
+        { form: "punctuation after a word", parts: [":root {"] },
+        {
+            form: "a script's punctuation after a placeholder",
+            parts: ["window.postMessage(", ", '*');"],
+        },
+        { form: "a Markdown format", parts: ["- `", "` — `", "`"] },
     ])("skips $form", ({ parts }) => {
         expect(messagesOf(written(parts))).toEqual([]);
     });
@@ -114,6 +160,12 @@ describe("hostTextFindings", () => {
             site: { construct: false, callee: "error", receiver: "console" },
         },
         { call: "new Error(…)", site: { construct: true, callee: "Error" } },
+        { call: "log.warn(…)", site: { construct: false, callee: "warn", receiver: "log" } },
+        { call: "LOG.info(…)", site: { construct: false, callee: "info", receiver: "LOG" } },
+        {
+            call: "throw IOException(…), a Kotlin constructor",
+            site: { construct: false, callee: "IOException", thrown: true },
+        },
     ])("does not read an argument of $call", ({ site }) => {
         expect(messagesOf(written(["Could not save"], site))).toEqual([]);
     });

@@ -53,9 +53,11 @@ prompt, so both hosts show the same words. Only two kinds of text stay in the
 host: its chrome, such as VS Code's "Reload Window" button, and messages about
 its own failure, such as the bridge process dying. The `host-text` fitness
 function reports every literal with two words in host code: a file that imports
-`vscode`, or a class outside the core that implements a core interface. A text a
-branch adds shows as new. It also lists host chrome and technical strings
-(HTML, CSS classes); judge each, and leave the host's own text where it is.
+`vscode`, a class outside the core that implements a core interface, or a Kotlin
+file in `src/main/kotlin` that imports `com.intellij`, so IntelliJ's dialogs,
+actions and settings page count too. A text a branch adds shows as new. It also
+lists host chrome and technical strings (HTML, CSS classes, scripts); judge
+each, and leave the host's own text where it is.
 
 ## Preserve the boundaries
 
