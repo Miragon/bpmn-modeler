@@ -1,4 +1,4 @@
-export interface KotlinString {
+interface KotlinString {
     readonly kind: "string";
     readonly line: number;
     /** The literal stretches around the placeholders, in order, escapes decoded. */
