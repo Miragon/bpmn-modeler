@@ -30,12 +30,12 @@ export interface PortDeclaration extends DeclarationName {
 
 export interface PortAdapter extends DeclarationName {
     readonly line: number;
-    /** Through the interfaces its implemented interfaces extend. */
+    /** Through the interfaces its implemented interfaces extend, and the parts of an implemented intersection. */
     readonly ports: readonly DeclarationName[];
 }
 
 export interface ContractHelper extends DeclarationName {
-    /** The ports a parameter produces: a factory returning the port, or returning an object one of whose properties holds it. */
+    /** The ports a parameter produces: a factory returning the port, or returning an object one of whose properties holds it; a type parameter counts as its constraint. */
     readonly ports: readonly DeclarationName[];
 }
 
@@ -223,10 +223,18 @@ class ContractSuiteReader {
             .flatMap((type) => this.portsReachedBy(type, ports));
     }
 
+    /** A type parameter reaches what its constraint reaches, an intersection what each part does. */
     private portsReachedBy(
         type: ts.Type,
         ports: ReadonlyMap<ts.Symbol, PortDeclaration>,
     ): PortDeclaration[] {
+        if (type.isTypeParameter()) {
+            const constraint = this.checker.getBaseConstraintOfType(type);
+            return constraint === undefined ? [] : this.portsReachedBy(constraint, ports);
+        }
+        if (type.isIntersection()) {
+            return type.types.flatMap((part) => this.portsReachedBy(part, ports));
+        }
         return [...this.declaredTypes(type)].flatMap((symbol) => {
             const port = ports.get(symbol);
             return port === undefined ? [] : [port];

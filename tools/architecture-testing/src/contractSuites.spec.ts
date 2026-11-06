@@ -158,7 +158,11 @@ export function describeDisposableFoo(create: () => Foo & { dispose(): void }): 
     void create;
 }
 
-export function describeAnything<F>(create: () => F): void {
+export function describeAnything<F>(create: () => Promise<{ readonly anything: F }>): void {
+    void create;
+}
+
+export function describeBoundFoo<F extends Foo>(create: () => F): void {
     void create;
 }
 
@@ -332,9 +336,10 @@ describe("findContractSuites", () => {
     it("lists each exported function whose parameter is a factory of a port or of a fixture holding one, bounded by it, in an intersection or re-exported", () => {
         expect(suites.helpers).toEqual([
             { ...DESCRIBE_FOO, ports: [FOO] },
-            { fileName: KIT, name: "runFoo", ports: [FOO] },
             { fileName: KIT, name: "describeGenericFoo", ports: [FOO] },
             { fileName: KIT, name: "describeDisposableFoo", ports: [FOO] },
+            { fileName: KIT, name: "describeBoundFoo", ports: [FOO] },
+            { fileName: KIT, name: "runFoo", ports: [FOO] },
             { fileName: RE_EXPORTED_KIT, name: "describeBox", ports: [BOX] },
             { fileName: MORE_KIT, name: "describeHandle", ports: [HANDLE, RENDERER] },
         ]);

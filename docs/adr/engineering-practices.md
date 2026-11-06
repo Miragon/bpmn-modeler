@@ -329,8 +329,9 @@ nothing and pass. Given a file list, `readTypeProgram` uses it in place of the
 config's own, so `tsconfig.base.json`, which has no `include`, globs nothing,
 and `types: []` loads no `@types` package. `findContractSuites` reads from such
 a program the interfaces of the port files a caller names, the named classes
-whose `implements` clause reaches one through extended interfaces, the
-functions a helper module exports with a parameter that produces a port, and
+whose `implements` clause reaches one through extended interfaces or an
+intersection, the functions a helper module exports with a parameter that
+produces a port, a type parameter standing for its constraint, and
 the specs that import such a class as a value, with the helpers they call. It
 throws when the helper module is not in the program, so a moved kit cannot
 leave every adapter without a suite. Only `sourceTree.ts` and `typeProgram.ts` touch the file
@@ -1025,14 +1026,18 @@ lives in `tools/repo-checks/src/contractSuites/domain`.
   folders (`__fixtures__`, `__tests__`, `test`, `tests`, the patterns of
   [Size and complexity](#size-and-complexity)) of any hexagonal workspace
   whose `implements` clause reaches the port, also through an interface that
-  extends it: `RpcEditorHandle` implements the bridge's `HostEditorHandle`,
-  which extends `EditorHandle`, and every `NotifierPort` adapter is a
-  `LoggerPort` adapter.
-  Host adapters and the in-memory kit count alike.
+  extends it or an intersection that holds it: `RpcEditorHandle` implements
+  the bridge's `HostEditorHandle`, which extends `EditorHandle`, and every
+  `NotifierPort` adapter is a `LoggerPort` adapter. Host adapters and the
+  in-memory kit count alike.
 - **Helpers.** A function the kit exports with a parameter that produces the
   port: a factory whose awaited return is the port or an object one of whose
   properties holds it, as `WorkspaceContractFixture.workspace` holds
-  `WorkspacePort`. A parameter typed as the port itself does not count. At
+  `WorkspacePort`. A type parameter stands for its constraint, so a generic
+  fixture `{ workspace: W }` with `W extends WorkspacePort` holds the port,
+  and an intersection for each of its parts; an unconstrained one holds none.
+  A helper the kit re-exports by name or by `export *` counts like one it
+  declares. A parameter typed as the port itself does not count. At
   `cd48f2cd` it would add `readSettingsSnapshot(settings: SettingsPort)`, which
   the VS Code and bridge settings specs call over the shared normalization
   cases, and it would make any kit function that reads a port a suite. A
