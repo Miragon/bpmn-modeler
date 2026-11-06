@@ -1384,6 +1384,15 @@ that applies; a report row it drops goes under "Marked, no action". "Already
 duplicated before this PR" is never a reason to keep a copy: the PR fixes it,
 or an issue names `path:line` of each copy.
 
+A fitness function can report wrongly or miss erosion beyond its declared
+limits, so the review checks each row in the code before it reports or drops
+it, and marks a row the code disproves as a false alarm, with the evidence.
+For each false alarm no `reportsWrongly` entry declares, and each erosion a
+function's `measures` covers but it missed, it proposes, apart from its
+findings, a narrower rule, an exclusion derived from types, folders, imports
+or configuration, or at least a `reportsWrongly` or `misses` entry, and says
+whether that is a fix in the PR or an issue.
+
 It is not a fitness function: a model's judgement is not deterministic, and
 two runs on one tree differ. It comments and never blocks.
 
@@ -1406,7 +1415,8 @@ reference, and one judge per run scored each reference item exact, partial or
 missed and each further finding true, plausible or false. Round 1 ran the
 skill as first written, three times per case. Round 2 ran it twice per case
 after the 15 changes round 1 proposed (two of them in part), as this section
-describes it.
+describes it, except the row check and the proposals for the fitness
+functions, which came after both rounds and are not measured.
 
 | Case (items) | Round | Matched per run (exact) | Added: true / plausible / false | Mean run time |
 | --- | --- | --- | --- | --- |
@@ -1480,11 +1490,12 @@ now. The evidence is three calibration cases, the second round was tuned on
 them, and the tree states their answers. Runs differ, so the comment would
 change from push to push. At about 12 minutes per run, most PRs would get a
 long review that mixes their own findings with older debt in the files they
-touch. Stacked PRs (54 merge-tree conflicts in both round-2 runs on #2047)
-would break it in CI, and a job needs a workflow, an API secret and possibly
-a dependency. The review runs by hand, on PRs that move rules between
-layers, add a host feature or add a workspace: the shape of #2040 and #2047,
-where it scored best.
+touch. Stacked PRs feed it a touched list with files the PR never changed:
+both round-2 runs on #2047 got 54 merge-tree conflicts, 20 of them in such
+files, and had to find the PR's own change by hand. A job needs a workflow,
+an API secret and possibly a dependency. The review runs by hand, on PRs that
+move rules between layers, add a host feature or add a workspace: the shape
+of #2040 and #2047, where it scored best.
 
 _Proposed, not decided:_ tell the reviewer to run its own commands under
 bash and name the hazards (in 5 of 6 round-2 runs on macOS the reviewer's
