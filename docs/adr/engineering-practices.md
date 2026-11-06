@@ -1,7 +1,7 @@
 # Engineering practices
 
 - Status: accepted
-- Last reviewed: 2026-11-03
+- Last reviewed: 2026-11-06
 
 ## Context
 
@@ -408,14 +408,15 @@ and an error message that names the fix.
   with `null` and `undefined` removed. A union whose literals all belong to a
   registered type counts as that type, so `ModelerMode` and
   `PropertiesPanelMode` (`"design" | "implement"`) are guarded as `SurfaceMode`.
-  It reads the type a local or property was declared with, not the narrowed
-  one: after `tab === "diff"` fails, an unrelated `"view" | "diff"` narrows to
-  `"view"`, which would match `SurfaceMode`. The narrowed type counts where a
-  guard can turn the declared type into a registered one. A value of raw
-  `string` or `unknown` is invisible until a guard such as `isEngine` or a
-  parse such as `parseEditableMode` turns it into the type (parse, don't
-  validate). A wider union holding every value of a registered type
-  (`MigrationScope`, which is `Engine | "both"`) counts once narrowed into it.
+  It reads the type a local or property (`change.kind`, `change["kind"]`) was
+  declared with, not the narrowed one: after `tab === "diff"` fails, an
+  unrelated `"view" | "diff"` narrows to `"view"`, which would match
+  `SurfaceMode`. The narrowed type counts where a guard can turn the declared
+  type into a registered one. A value of raw `string` or `unknown` is
+  invisible until a guard such as `isEngine` or a parse such as
+  `parseEditableMode` turns it into the type (parse, don't validate). A wider
+  union holding every value of a registered type (`MigrationScope`, which is
+  `Engine | "both"`) counts once narrowed into it.
 - **Opt-in.** Discriminated unions a domain function returns (`kind`, `status`,
   `AuthConfig`) are narrowed by design and stay unregistered. A type joins the
   registry when review or the change-coupling report shows a decision on it in
@@ -436,15 +437,17 @@ and an error message that names the fix.
   second entry adds no measurable cost: the rule's own time (`TIMING=all`) was
   0.52 to 1.21 s with `SurfaceMode` and 0.55 to 1.24 s without, five runs each
   on a loaded machine. Nor does reading the declared type: 0.52 to 0.67 s with
-  it and 0.55 to 1.68 s without, five interleaved runs each.
+  it and 0.55 to 1.68 s without, five interleaved runs each. Letting the
+  narrowed type decide a wider union and reading a bracket access as a
+  property: 0.47 to 0.54 s with both, 0.47 to 0.83 s without.
 - **Known misses.** `["c7"].includes(engine)`, `Set.has`, a comparison on a
   value typed `string`, a wider union compared before it is narrowed
   (`scope === "c7"` on a `MigrationScope`), and Kotlin.
 - **False alarms.** Matching by value set reports an unrelated type whose
   literals all belong to a registered one (`type Tab = "view"`). A local
-  inferred from a narrowed value and a bracket access (`change["kind"]`) keep
-  the narrowed type, so the `"view" | "diff"` case above fires there too. Such
-  a site takes the exception form above.
+  inferred from a narrowed value keeps the narrowed type, so the
+  `"view" | "diff"` case above fires there too. Such a site takes the
+  exception form above.
 
 Alternatives considered:
 

@@ -144,12 +144,23 @@ function declaredTypeOf(checker, node) {
         const symbol = checker.getSymbolAtLocation(node);
         return symbol ? checker.getTypeOfSymbol(symbol) : checker.getTypeAtLocation(node);
     }
-    if (ts.isPropertyAccessExpression(node)) {
+    const propertyName = accessedPropertyNameOf(node);
+    if (propertyName !== undefined) {
         const owner = checker.getNonNullableType(declaredTypeOf(checker, node.expression));
-        const property = checker.getPropertyOfType(owner, node.name.text);
+        const property = checker.getPropertyOfType(owner, propertyName);
         return property ? checker.getTypeOfSymbol(property) : checker.getTypeAtLocation(node);
     }
     return checker.getTypeAtLocation(node);
+}
+
+function accessedPropertyNameOf(node) {
+    if (ts.isPropertyAccessExpression(node)) {
+        return node.name.text;
+    }
+    if (ts.isElementAccessExpression(node) && ts.isStringLiteralLike(node.argumentExpression)) {
+        return node.argumentExpression.text;
+    }
+    return undefined;
 }
 
 /** `undefined` unless the type, nullish parts removed, holds only string literals. */
