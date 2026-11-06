@@ -118,6 +118,46 @@ if (guardedMode === "view") { void guardedMode; }`,
 if (guardedMode !== "design") { void guardedMode; }`,
             errors: 1,
         },
+        {
+            comparison: "a surface mode narrowed before each comparison",
+            file: DEPLOYMENT_SERVICE,
+            snippet: `declare const guardedMode: ${SURFACE_MODE};
+if (guardedMode !== "view" && guardedMode === "design") { void guardedMode; }`,
+            errors: 2,
+        },
+        {
+            comparison: "a surface mode read through this",
+            file: DEPLOYMENT_SERVICE,
+            snippet: `export class GuardedPanel {
+    constructor(private readonly mode: "design" | "implement") {}
+    isDesign(): boolean { return this.mode === "design"; }
+}`,
+            errors: 1,
+        },
+        {
+            comparison: "an unknown parsed by a guard",
+            file: DEPLOYMENT_SERVICE,
+            snippet: `declare const guardedRaw: unknown;
+declare function guardedIsEngine(value: unknown): value is ${ENGINE};
+if (guardedIsEngine(guardedRaw) && guardedRaw === "c7") { void guardedRaw; }`,
+            errors: 1,
+        },
+        {
+            comparison: "an unregistered union narrowed into the surface modes",
+            file: DEPLOYMENT_SERVICE,
+            snippet: `declare const guardedTab: "view" | "diff";
+if (guardedTab === "diff") { void guardedTab; } else if (guardedTab === "view") { void guardedTab; }`,
+            errors: 0,
+        },
+        {
+            comparison: "an unregistered discriminant narrowed into the surface modes",
+            file: DEPLOYMENT_SERVICE,
+            snippet: `declare const guardedChange:
+    | { readonly kind: "view"; readonly at: number }
+    | { readonly kind: "diff"; readonly against: string };
+if (guardedChange.kind === "diff") { void guardedChange; } else if (guardedChange.kind === "view") { void guardedChange; }`,
+            errors: 0,
+        },
     ])("reports $errors for $comparison", async ({ file, snippet, errors }) => {
         expect(await lintAppended(file, snippet)).toHaveLength(errors);
     });
