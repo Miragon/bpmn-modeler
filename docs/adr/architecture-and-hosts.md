@@ -637,17 +637,21 @@ caller decides whether it cancels. `confirmation()` in
 hosts show every line. The core also orders a file list by the path VS Code
 shows for it (`fileChoicesInWorkspaceOrder` in `kernel/domain/fileChoices.ts`,
 over `relativeToWorkspace`), and both hosts keep the order a prompt gives, so
-they list the files alike. Only the payload files stay nearest first, as their
-lookup finds them. VS Code
+they list the files alike, and return the rows the user checked in that order,
+whatever order they were checked in. Only the payload files stay nearest first,
+as their lookup finds them. VS Code
 shows a path relative to the workspace, filters on descriptions too, draws an
 icon as its codicon and reveals the busy list of a search after 150 ms. The
 bridge sends a choice over the existing `picker/show` request with the path as
 its description and no icon, maps the chosen indices back to values, and
 brackets a search with status-bar progress, so neither the protocol nor Kotlin
 changes. IntelliJ's `HostPicker` shows a `choose` as a list popup and a
-`chooseMany` as a `PickManyDialog`, one checkbox per item and OK. The test kit's `ScriptedPicker` answers a prompt by its id and fails
-a test whose answer the prompt does not offer, so the prompts of one run carry
-distinct ids: each engine's version prompt has its own. The new-model engine,
+`chooseMany` as a `PickManyDialog`, one checkbox per item and OK. The test
+kit's `ScriptedPicker` answers a prompt by its id, returns several values in the
+prompt's order and fails a test whose answer the prompt does not offer, so the
+prompts of one run carry distinct ids: each engine's version prompt has its
+own. `describePickerContract` and `describeTokenPromptContract` hold the kit's
+fakes and the adapters of both hosts to these rules. The new-model engine,
 engine-version, migration-scope, script-language and cleanup prompts, the choice
 among located files and every deployment prompt
 (`deployment/domain/deploymentPrompts.ts`: the payload file, the active target,
@@ -771,6 +775,9 @@ cannot name a self-hosted host, so it reports none, and the result of
 `marketplaceState/read` has no such field. VS Code's reload hint after
 an in-place update, and the `not a registered configuration` match that
 triggers it, stay in its `TemplateMarketplaceController`.
+`describeMarketplaceRegistrationsContract` runs these rules against the test
+fake, VS Code's adapter over its settings and the bridge's adapter over a
+loopback that answers as `MarketplaceRouter` does; the Kotlin half is #2056.
 
 No adapter builds prompt text. A new choice or confirmation needs a builder and
 an id, and no new port method, RPC or Kotlin handler. A new kind of input, such
