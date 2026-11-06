@@ -30,8 +30,7 @@ const DEPLOYED_SNAPSHOT: EngineDeploymentSnapshot = {
 const VALUES: readonly { readonly behaviour: string; readonly value: unknown }[] = [
     { behaviour: "the update outcome the marketplace summary counts", value: UPDATE_OUTCOME },
     { behaviour: "the engine snapshot a verification reconciles", value: DEPLOYED_SNAPSHOT },
-    // A deploy resolves nothing, and a lookup of a process the engine lacks resolves undefined.
-    { behaviour: "undefined", value: undefined },
+    { behaviour: "undefined, the snapshot of a process the engine lacks", value: undefined },
 ];
 
 /** Each case is an error a core call site tells apart by its class or its fields. */
@@ -41,7 +40,7 @@ const FAILURES: readonly { readonly behaviour: string; readonly error: Error }[]
         error: new EngineInspectionFailedError(401, "Unauthorized"),
     },
     {
-        behaviour: "a cancelled prompt the verification hands on to its caller",
+        behaviour: "a cancelled approval prompt the deploy command drops silently",
         error: new UserCancelledError(),
     },
     {
@@ -62,13 +61,11 @@ const OVERLAPS: readonly {
         endsFirst: 0,
     },
     {
-        // A second update queues behind the first under the same title.
         behaviour: "keeps showing a title while a later run of it is still going",
         titles: ["Updating marketplaces…", "Updating marketplaces…"],
         endsFirst: 0,
     },
     {
-        // Two verifications on one target share a title and may end in either order.
         behaviour: "keeps showing a title while an earlier run of it is still going",
         titles: ['Verifying on "dev"…', 'Verifying on "dev"…'],
         endsFirst: 1,
@@ -109,14 +106,12 @@ function pendingTask<T>(): PendingTask<T> {
 
 /**
  * The rules of {@link NotifierPort.withProgress} the core relies on, run
- * against one adapter. The deploy, verification and marketplace services read
- * back what the task settles with: `withProgress` runs the task once, resolves
- * with its value and rejects with its error, the very instance, so a caller
- * can still tell an auth failure or a cancelled prompt by its class and fields.
- * The progress shows from the task's start until it settles, and ends either
- * way, also while another run is still going. Runs overlap: the marketplace
- * queues an update behind another under the same title, and two verifications
- * on one target share theirs, so a title shows while any run of it is going.
+ * against one adapter. `withProgress` runs the task once, resolves with its
+ * value and rejects with its error, the very instance, so a caller can still
+ * tell an error by its class and fields. The progress shows from the task's
+ * start until it settles, and ends either way, also while another run is still
+ * going. Runs of one title may overlap, so a title shows while any run of it
+ * is going.
  *
  * Left out:
  * - The notifier's other members: they only render (toasts, log lines, the
