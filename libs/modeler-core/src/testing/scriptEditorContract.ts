@@ -113,7 +113,8 @@ function createContractHost() {
  * spelled, when an open tab owns a script, the dismissal value and that a
  * failed write in `materialize` rejects. `open`, `applyModelChange`, a file the
  * user opens or closes and `disposeEditor` take part as far as they change
- * those answers or the files.
+ * those answers or the files: `open` writes the script's file, and a reveal
+ * leaves it to the tab.
  * Where the hosts differ, VS Code is the reference.
  *
  * Left out, as the core reads none of it back: `resync` and `variablesChanged`,
@@ -251,8 +252,11 @@ export function describeScriptEditorContract(
         });
 
         describe("a script an open tab owns", () => {
-            it("answers alreadyOpen and leaves the tab's file untouched", async () => {
+            it("writes the file on open, then leaves it to the tab on a reveal and on a run that answers alreadyOpen", async () => {
                 await fixture.scriptEditor.open(EDITOR, scriptTask({ content: "in the tab" }));
+                expect(host.workspace.files.get(TASK_FILE)).toBe("in the tab");
+                await fixture.scriptEditor.open(EDITOR, scriptTask({ content: "revealed" }));
+                expect(host.workspace.files.get(TASK_FILE)).toBe("in the tab");
                 const filesBefore = new Map(host.workspace.files);
 
                 await expect(
