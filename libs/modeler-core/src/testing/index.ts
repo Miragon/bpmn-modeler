@@ -6,6 +6,7 @@ export * from "./InMemoryMarketplaceRegistrations";
 export * from "./inMemoryHostSurfaces";
 export * from "./InMemorySettings";
 export * from "./InMemoryWorkspace";
+export * from "./marketplaceRegistrationsContract";
 export * from "./RecordingNotifier";
 export * from "./RecordingScriptEditor";
 export * from "./RecordingStatusBar";

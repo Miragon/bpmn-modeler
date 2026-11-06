@@ -744,6 +744,9 @@ cannot name a self-hosted host, so it reports none, and the result of
 `marketplaceState/read` has no such field. VS Code's reload hint after
 an in-place update, and the `not a registered configuration` match that
 triggers it, stay in its `TemplateMarketplaceController`.
+`describeMarketplaceRegistrationsContract` runs these rules against the test
+fake, VS Code's adapter over its settings and the bridge's adapter over a
+loopback that answers as `MarketplaceRouter` does; the Kotlin half is #2056.
 
 No adapter builds prompt text. A new choice or confirmation needs a builder and
 an id, and no new port method, RPC or Kotlin handler. A new kind of input, such
