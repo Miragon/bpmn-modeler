@@ -156,6 +156,63 @@ describe("a report of a function that declares values", () => {
         expect(markdownReport(report)).toContain("| A breaks the rule | unchanged |");
     });
 
+    it("continues a renamed file's trend from the values stored under its old path", () => {
+        const file = (path: string, codeLines: number) => ({
+            key: path,
+            path,
+            line: 1,
+            message: `${path} is large`,
+            values: { codeLines, complexity: 4 },
+        });
+        const storedUnderOldPath = {
+            headCommit: HEAD,
+            commitsNewestFirst: [BASE, "c1"],
+            snapshots: new Map([
+                [
+                    BASE,
+                    withEntry(emptySnapshot(BASE), "size", {
+                        version: 2,
+                        findings: [file("src/a.ts", 330)],
+                    }),
+                ],
+                [
+                    "c1",
+                    withEntry(emptySnapshot("c1"), "size", {
+                        version: 2,
+                        findings: [file("src/a.ts", 300)],
+                    }),
+                ],
+            ]),
+        };
+
+        const reported = functionReport(
+            sized,
+            { findings: [{ ...file("src/b.ts", 348), paths: ["src/b.ts"] }] },
+            {
+                source: "snapshot",
+                measurement: { findings: [file("src/a.ts", 330)] },
+                renames: [{ previousPath: "src/a.ts", path: "src/b.ts" }],
+            },
+            storedUnderOldPath,
+        );
+
+        expect(reported.outcome).toEqual({
+            kind: "measured",
+            findings: [
+                {
+                    ...file("src/b.ts", 348),
+                    status: "existing",
+                    trend: [
+                        { commit: "c1", values: { codeLines: 300, complexity: 4 } },
+                        { commit: BASE, values: { codeLines: 330, complexity: 4 } },
+                        { commit: HEAD, values: { codeLines: 348, complexity: 4 } },
+                    ],
+                },
+            ],
+            resolved: [],
+        });
+    });
+
     it("prints a finding that no stored snapshot holds as no trend, not as unchanged", () => {
         const added = { ...finding("B"), values: { codeLines: 5 } };
 

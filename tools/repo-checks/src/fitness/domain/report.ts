@@ -55,27 +55,31 @@ function deltaAgainst(
 
 function withTrends(
     fitnessFunction: FitnessFunction,
-    delta: Delta,
+    { findings, keysAtBase, resolved }: Delta,
     history: TrendHistory | undefined,
 ): { readonly findings: readonly ReportedFinding[]; readonly resolved: readonly Finding[] } {
     if (history === undefined || !declaresValues(fitnessFunction)) {
-        return delta;
+        return { findings, resolved };
     }
+    // The stored snapshots go back from the merge base, so a renamed file's series lies under its old key.
     const trends = findingTrends(
-        { commit: history.headCommit, findings: delta.findings },
+        {
+            commit: history.headCommit,
+            findings: findings.map((finding, index) => ({ ...finding, key: keysAtBase[index] })),
+        },
         storedFindingsOf(history.commitsNewestFirst, history.snapshots, fitnessFunction),
     );
     return {
-        findings: delta.findings.map((finding) => {
-            const trend = trends.get(finding.key);
+        findings: findings.map((finding, index) => {
+            const trend = trends.get(keysAtBase[index]);
             return trend === undefined ? finding : { ...finding, trend };
         }),
-        resolved: delta.resolved,
+        resolved,
     };
 }
 
 /**
- * `base.renames` are the files renamed since the merge base, whose findings stay existing;
+ * `base.renames` are the files renamed since the merge base, which the delta and the trend follow;
  * `history` gives a function that declares values the trend of each finding.
  */
 export function functionReport(

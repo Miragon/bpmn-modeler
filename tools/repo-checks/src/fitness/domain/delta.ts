@@ -4,6 +4,8 @@ export type MarkedFinding = Finding & { readonly status: "new" | "existing" };
 
 export interface Delta {
     readonly findings: readonly MarkedFinding[];
+    /** The key each of `findings` had at the merge base, in their order: where its stored series lies. */
+    readonly keysAtBase: readonly string[];
     readonly resolved: readonly Finding[];
 }
 
@@ -48,8 +50,10 @@ export function markDelta(
 ): Delta {
     const previousPathOf = new Map(renames.map(({ previousPath, path }) => [path, previousPath]));
     const unmatchedBase = countByKey(base);
-    const findings = sortFindings(head).map((finding): MarkedFinding => {
-        const key = keyAtBase(finding, previousPathOf);
+    const sortedHead = sortFindings(head);
+    const keysAtBase = sortedHead.map((finding) => keyAtBase(finding, previousPathOf));
+    const findings = sortedHead.map((finding, index): MarkedFinding => {
+        const key = keysAtBase[index];
         const unmatched = unmatchedBase.get(key) ?? 0;
         if (unmatched === 0) {
             return { ...findingFields(finding), status: "new" };
@@ -68,5 +72,5 @@ export function markDelta(
         })
         .reverse()
         .map(findingFields);
-    return { findings, resolved };
+    return { findings, keysAtBase, resolved };
 }
