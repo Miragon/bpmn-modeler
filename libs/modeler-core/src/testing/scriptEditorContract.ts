@@ -117,7 +117,11 @@ function createContractHost() {
  * hides, and the bridge pushes the variables to its tabs); what a tab shows
  * and streams back, VS Code's JavaScript typings beside a script included; the
  * language pick sent back to the webview; and the file of a script the model
- * removed, which both hosts delete once its tab has closed.
+ * removed, which both hosts delete once its tab has closed, while the port
+ * promises deleted files only from `disposeEditor`. Windows drive-letter and
+ * backslash spellings are left to each host's own spec (VS Code's
+ * `canonicalPath.spec.ts` and `uriPath.spec.ts`, the bridge's `win32` block in
+ * `BridgeScriptEditor.spec.ts`), as the shared in-memory workspace speaks POSIX.
  *
  * The scenarios run on real timers: a host may answer a turn later, as
  * IntelliJ does.
@@ -324,6 +328,30 @@ export function describeScriptEditorContract(
                         });
                     },
                     answer: "written",
+                },
+                {
+                    after: "the user reopened the script the model removed, while the host still closes its tab",
+                    change: async ({ scriptEditor }) => {
+                        await scriptEditor.applyModelChange(EDITOR, {
+                            ...scriptTask(),
+                            content: undefined,
+                        });
+                        await scriptEditor.open(EDITOR, scriptTask({ content: "reopened" }));
+                        await settle();
+                    },
+                    answer: "alreadyOpen",
+                },
+                {
+                    after: "the model removed another script of the element",
+                    change: async ({ scriptEditor }) => {
+                        await scriptEditor.open(EDITOR, startListener);
+                        await scriptEditor.applyModelChange(EDITOR, {
+                            ...startListener,
+                            content: undefined,
+                        });
+                        await settle();
+                    },
+                    answer: "alreadyOpen",
                 },
             ])("answers $answer once $after", async ({ change, answer }) => {
                 await fixture.scriptEditor.open(EDITOR, scriptTask({ content: "in the tab" }));
