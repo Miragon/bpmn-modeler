@@ -2,41 +2,33 @@ import { buildImportGraph, readSourceTree, stripComments } from "@miragon/archit
 import { describe, expect, it } from "vitest";
 
 /**
- * The library's layers point one way: the catalog is the engines' data, the
- * domain holds the rules over it as pure code, and the UI renders both. The
- * page (`apps/bpmn-webview`) only reaches them through `index.ts`.
+ * What the repo-level role-folder rules do not read: inside `domain/`, the
+ * catalog is the engines' data and the rest the rules over it; the domain
+ * names no DOM global; and the panel's Preact and the stylesheet stay in the
+ * UI. The page (`apps/bpmn-webview`) only reaches the library through
+ * `index.ts`.
  */
+const CATALOG = "domain/catalog/";
+const DOMAIN = "domain/";
+const UI = "adapter/in/";
+
 const tree = readSourceTree(__dirname);
 const { edges } = buildImportGraph(tree);
 
-const LAYER_FOLDERS = { catalog: "domain/catalog/", ui: "adapter/in/" } as const;
+describe("the template builder", () => {
+    it("keeps the catalog free of the rules over it", () => {
+        const offenders = edges.filter(
+            ({ from, to }) =>
+                from.startsWith(CATALOG) && to !== undefined && !to.startsWith(CATALOG),
+        );
 
-function isIn(path: string, layer: string): boolean {
-    if (layer === "domain") {
-        return path.startsWith("domain/") && !isIn(path, "catalog");
-    }
-    return path.startsWith(LAYER_FOLDERS[layer as keyof typeof LAYER_FOLDERS]);
-}
-
-function reachesOut(from: string, to: string): string[] {
-    return edges
-        .filter((edge) => isIn(edge.from, from) && edge.to !== undefined && isIn(edge.to, to))
-        .map((edge) => `${edge.from} -> ${edge.to}`);
-}
-
-describe("the template builder's layers", () => {
-    it.each([
-        ["catalog", "domain"],
-        ["catalog", "ui"],
-        ["domain", "ui"],
-    ])("%s does not import %s", (from, to) => {
-        expect(reachesOut(from, to)).toEqual([]);
+        expect(offenders.map(({ from, to }) => `${from} -> ${to}`)).toEqual([]);
     });
 
     it("keeps the UI toolkit in the UI", () => {
         const offenders = edges.filter(
             ({ from, specifier }) =>
-                !isIn(from, "ui") &&
+                !from.startsWith(UI) &&
                 (specifier.startsWith("@bpmn-io/properties-panel") || specifier.endsWith(".css")),
         );
 
@@ -47,7 +39,7 @@ describe("the template builder's layers", () => {
         const browserGlobal = /\b(document|window|HTMLElement|navigator)\b/;
         const offenders = tree.filter(
             ({ path, text }) =>
-                isIn(path, "domain") && browserGlobal.test(stripComments(path, text)),
+                path.startsWith(DOMAIN) && browserGlobal.test(stripComments(path, text)),
         );
 
         expect(offenders.map(({ path }) => path)).toEqual([]);
@@ -55,7 +47,7 @@ describe("the template builder's layers", () => {
 
     it("keeps rules out of the catalog, which only looks up an engine's data", () => {
         const functions = tree
-            .filter(({ path }) => isIn(path, "catalog"))
+            .filter(({ path }) => path.startsWith(CATALOG))
             .flatMap(({ text }) =>
                 [...text.matchAll(/\bfunction\s+(\w+)/g)].map(([, name]) => name),
             );
