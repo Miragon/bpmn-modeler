@@ -428,7 +428,7 @@ function parseGitHubRepoUrl(input: string): MarketplaceRegistration {
         // Legacy (no host prefix): a github.com URL never carries a baseUrl, so
         // the same repo added by URL or by a baseUrl-less object entry shares one
         // cache slot.
-        id: marketplaceId("github.com", `${owner}/${repo}`, ref, true),
+        id: marketplaceId(publicHostOf("github"), `${owner}/${repo}`, ref, true),
         location: { kind: "github", owner, repo, ref },
         url: trimmed,
     };
@@ -467,7 +467,7 @@ function parseGitLabRepoUrl(input: string): MarketplaceRegistration {
 
     const projectPath = projectSegments.join("/");
     return {
-        id: marketplaceId("gitlab.com", projectPath, ref, false),
+        id: marketplaceId(publicHostOf("gitlab"), projectPath, ref, false),
         location: { kind: "gitlab", projectPath, ref },
         url: trimmed,
     };

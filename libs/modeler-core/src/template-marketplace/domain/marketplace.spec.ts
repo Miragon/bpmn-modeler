@@ -172,6 +172,13 @@ describe("parseMarketplaceEntry (object entries)", () => {
         expect(obj.id).toBe(url.id);
     });
 
+    it("gives a baseUrl-less gitlab object entry the cache slot of the pasted gitlab.com URL", () => {
+        const obj = parseMarketplaceEntry({ provider: "gitlab", repo: "acme/templates" });
+        const url = parseMarketplaceUrl("https://gitlab.com/acme/templates");
+        expect(obj.id).toBe("gitlab.com__acme__templates");
+        expect(obj.id).toBe(url.id);
+    });
+
     it("delegates a string entry to the URL parser", () => {
         expect(parseMarketplaceEntry("https://github.com/acme/templates").location).toMatchObject({
             kind: "github",
