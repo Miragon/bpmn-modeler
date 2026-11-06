@@ -410,10 +410,12 @@ and an error message that names the fix.
   `PropertiesPanelMode` (`"design" | "implement"`) are guarded as `SurfaceMode`.
   It reads the type a local or property was declared with, not the narrowed
   one: after `tab === "diff"` fails, an unrelated `"view" | "diff"` narrows to
-  `"view"`, which would match `SurfaceMode`. A value of raw `string` or
-  `unknown` is invisible until a guard such as `isEngine` or a parse such as
-  `parseEditableMode` turns it into the type (parse, don't validate); the
-  narrowed type counts there.
+  `"view"`, which would match `SurfaceMode`. The narrowed type counts where a
+  guard can turn the declared type into a registered one. A value of raw
+  `string` or `unknown` is invisible until a guard such as `isEngine` or a
+  parse such as `parseEditableMode` turns it into the type (parse, don't
+  validate). A wider union holding every value of a registered type
+  (`MigrationScope`, which is `Engine | "both"`) counts once narrowed into it.
 - **Opt-in.** Discriminated unions a domain function returns (`kind`, `status`,
   `AuthConfig`) are narrowed by design and stay unregistered. A type joins the
   registry when review or the change-coupling report shows a decision on it in
@@ -436,7 +438,8 @@ and an error message that names the fix.
   on a loaded machine. Nor does reading the declared type: 0.52 to 0.67 s with
   it and 0.55 to 1.68 s without, five interleaved runs each.
 - **Known misses.** `["c7"].includes(engine)`, `Set.has`, a comparison on a
-  value typed `string`, and Kotlin.
+  value typed `string`, a wider union compared before it is narrowed
+  (`scope === "c7"` on a `MigrationScope`), and Kotlin.
 - **False alarms.** Matching by value set reports an unrelated type whose
   literals all belong to a registered one (`type Tab = "view"`). A local
   inferred from a narrowed value and a bracket access (`change["kind"]`) keep

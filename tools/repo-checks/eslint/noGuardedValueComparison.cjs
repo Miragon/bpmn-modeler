@@ -63,9 +63,7 @@ module.exports = {
 
         const guardedEntryOf = (expression) => {
             const tsNode = parserServices.esTreeNodeToTSNodeMap.get(expression);
-            const literals =
-                stringLiteralsOf(checker, declaredTypeOf(checker, tsNode)) ??
-                stringLiteralsOf(checker, checker.getTypeAtLocation(tsNode));
+            const literals = comparedLiteralsOf(checker, tsNode, guarded);
             if (literals === undefined) {
                 return undefined;
             }
@@ -122,11 +120,22 @@ function isStringLiteral(node) {
 }
 
 /**
- * The type a reference was declared with, before control flow narrowed it: after
- * `tab !== "diff"`, an unrelated `"view" | "diff"` narrows to `"view"`, a
- * `SurfaceMode` literal. The narrowed type still decides a value declared
- * `unknown` or `string` that a guard such as `isEngine` parsed.
+ * The declared literals decide, because after `tab !== "diff"` an unrelated
+ * `"view" | "diff"` narrows to `"view"`, a `SurfaceMode` literal. The narrowed
+ * type decides when a guard can turn the declared type into the guarded one:
+ * `unknown`, `string`, or a wider union holding all of it (`Engine | "both"`).
  */
+function comparedLiteralsOf(checker, node, guarded) {
+    const declared = stringLiteralsOf(checker, declaredTypeOf(checker, node));
+    const holdsGuardedType =
+        declared !== undefined &&
+        guarded.some(({ values }) => [...values].every((value) => declared.includes(value)));
+    return declared !== undefined && !holdsGuardedType
+        ? declared
+        : stringLiteralsOf(checker, checker.getTypeAtLocation(node));
+}
+
+/** The type a reference was declared with, before control flow narrowed it. */
 function declaredTypeOf(checker, node) {
     if (ts.isParenthesizedExpression(node) || ts.isNonNullExpression(node)) {
         return declaredTypeOf(checker, node.expression);
