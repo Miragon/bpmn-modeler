@@ -14,17 +14,15 @@ import {
 } from "../../mutationScore/service/mutationRunService";
 
 import { type FitnessUseCases, runFitnessCli } from "../adapter/in/cli";
-import { GitRepository } from "../adapter/out/gitRepository";
+import { checkoutRoot, GitRepository } from "../adapter/out/gitRepository";
 import { GitSnapshotBranch } from "../adapter/out/gitSnapshotBranch";
 import { GitWorktreeCheckout } from "../adapter/out/gitWorktreeCheckout";
 import { SnapshotDirectory } from "../adapter/out/snapshotDirectory";
-import { createFitnessReport } from "../service/fitnessReportService";
+import { createFitnessReport, type FitnessReportPorts } from "../service/fitnessReportService";
 import { recordSnapshots } from "../service/snapshotService";
 import { FITNESS_FUNCTIONS } from "./fitnessFunctions";
 
-const BASE_REF = "origin/main";
-
-// The checkout that holds this code is the one measured, wherever the command was started.
+// Without --repo, the checkout that holds this code is the one measured, wherever the command was started.
 const REPO_ROOT = fileURLToPath(new URL("../../../../..", import.meta.url));
 
 // Yarn runs the script in the workspace dir, so a relative path means one from the repository root.
@@ -62,6 +60,15 @@ function runMissedPartner(args: readonly string[]): number {
     );
 }
 
+function reportPorts(repoRoot: string): FitnessReportPorts {
+    return {
+        repoRoot,
+        history: new GitRepository(repoRoot),
+        snapshots: new GitSnapshotBranch(repoRoot),
+        checkout: new GitWorktreeCheckout(repoRoot),
+    };
+}
+
 export function run(args: readonly string[]): number {
     if (args[0] === "mutation") {
         return runMutation(args.slice(1));
@@ -69,17 +76,16 @@ export function run(args: readonly string[]): number {
     if (args[0] === "missed-partner") {
         return runMissedPartner(args.slice(1));
     }
-    const ports = {
-        repoRoot: REPO_ROOT,
-        history: new GitRepository(REPO_ROOT),
-        snapshots: new GitSnapshotBranch(REPO_ROOT),
-        checkout: new GitWorktreeCheckout(REPO_ROOT),
-    };
     const useCases: FitnessUseCases = {
-        report: () => createFitnessReport(FITNESS_FUNCTIONS, BASE_REF, ports),
+        report: ({ baseRef, repo }) =>
+            createFitnessReport(
+                FITNESS_FUNCTIONS,
+                baseRef,
+                reportPorts(repo === undefined ? REPO_ROOT : checkoutRoot(callerPath(repo))),
+            ),
         recordSnapshots: (outDir) =>
             recordSnapshots(FITNESS_FUNCTIONS, {
-                ...ports,
+                ...reportPorts(REPO_ROOT),
                 writer: new SnapshotDirectory(callerPath(outDir)),
             }),
     };
