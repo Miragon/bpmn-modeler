@@ -1,14 +1,15 @@
 import { realpathSync, statSync } from "node:fs";
 
-import { GitCommitHistory } from "../../../history/adapter/out/gitCommitHistory";
+import type { CommitHistory } from "../../../history/port/CommitHistory";
 import type { Rename } from "../../domain/delta";
 import type { RepositoryHistory } from "../../port/RepositoryHistory";
 import { git, gitSucceeds, lines } from "./git";
 
 export class GitRepository implements RepositoryHistory {
-    private readonly commitHistory = new GitCommitHistory();
-
-    constructor(private readonly repoRoot: string) {}
+    constructor(
+        private readonly repoRoot: string,
+        private readonly commitHistory: CommitHistory,
+    ) {}
 
     headCommit(): string {
         return git(this.repoRoot, ["rev-parse", "HEAD"]).trim();

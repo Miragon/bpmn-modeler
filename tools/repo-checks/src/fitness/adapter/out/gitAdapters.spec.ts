@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
+import { GitCommitHistory } from "../../../history/adapter/out/gitCommitHistory";
 import { TempGitRepository } from "../../__fixtures__/tempGitRepository";
 import { emptySnapshot, serializeSnapshot, withEntry } from "../../domain/snapshot";
 import { checkoutRoot, GitRepository } from "./gitRepository";
@@ -20,13 +21,17 @@ afterEach(() => {
     repository.remove();
 });
 
+function gitRepository(root: string): GitRepository {
+    return new GitRepository(root, new GitCommitHistory());
+}
+
 describe("the git history", () => {
     it("finds the merge base of HEAD with origin/main", () => {
         const base = repository.commit("a.ts", "1");
         repository.git("update-ref", "refs/remotes/origin/main", base);
         repository.git("checkout", "--quiet", "-b", "feature");
         const head = repository.commit("a.ts", "2");
-        const history = new GitRepository(repository.root);
+        const history = gitRepository(repository.root);
 
         expect(history.headCommit()).toBe(head);
         expect(history.mergeBase("origin/main")).toBe(base);
@@ -35,7 +40,7 @@ describe("the git history", () => {
     it("fails when origin/main is missing", () => {
         repository.commit("a.ts", "1");
 
-        expect(() => new GitRepository(repository.root).mergeBase("origin/main")).toThrow(
+        expect(() => gitRepository(repository.root).mergeBase("origin/main")).toThrow(
             "origin/main does not exist; fetch it first",
         );
     });
@@ -48,13 +53,13 @@ describe("the git history", () => {
         const laterMain = repository.commit("a.ts", "2");
         repository.git("checkout", "--quiet", "feature");
 
-        expect(new GitRepository(repository.root).mergeBase(laterMain.slice(0, 8))).toBe(base);
+        expect(gitRepository(repository.root).mergeBase(laterMain.slice(0, 8))).toBe(base);
     });
 
     it("fails and names a base that is no commit", () => {
         repository.commit("a.ts", "1");
 
-        expect(() => new GitRepository(repository.root).mergeBase("no-such-rev")).toThrow(
+        expect(() => gitRepository(repository.root).mergeBase("no-such-rev")).toThrow(
             "no-such-rev does not exist; fetch it first",
         );
     });
@@ -66,7 +71,7 @@ describe("the git history", () => {
         repository.git("update-ref", "refs/remotes/origin/main", unrelated);
         repository.git("checkout", "--quiet", "main");
 
-        expect(() => new GitRepository(repository.root).mergeBase("origin/main")).toThrow(
+        expect(() => gitRepository(repository.root).mergeBase("origin/main")).toThrow(
             "HEAD and origin/main share no commit",
         );
     });
@@ -81,7 +86,7 @@ describe("the git history", () => {
         clone.git("checkout", "--quiet", "feature");
 
         try {
-            expect(() => new GitRepository(clone.root).mergeBase("origin/main")).toThrow(
+            expect(() => gitRepository(clone.root).mergeBase("origin/main")).toThrow(
                 "share no commit in this shallow clone; run git fetch --unshallow",
             );
         } finally {
@@ -98,7 +103,7 @@ describe("the git history", () => {
         repository.git("merge", "--quiet", "--no-ff", "-m", "merge", "side");
         const merge = repository.git("rev-parse", "HEAD");
 
-        const history = new GitRepository(repository.root);
+        const history = gitRepository(repository.root);
 
         expect(history.firstParentCommits("HEAD", 10)).toEqual([merge, second, first]);
         expect(history.firstParentCommits("HEAD", 2)).toEqual([merge, second]);
@@ -116,7 +121,7 @@ describe("the git history", () => {
         repository.git("mv", "src/b.ts", "src/moved b.ts");
         repository.write("src/c.ts", "changed");
 
-        expect(new GitRepository(repository.root).renamesSince(base)).toEqual([
+        expect(gitRepository(repository.root).renamesSince(base)).toEqual([
             { previousPath: "src/a.ts", path: "src/moved a.ts" },
             { previousPath: "src/b.ts", path: "src/moved b.ts" },
         ]);
@@ -124,7 +129,7 @@ describe("the git history", () => {
 
     it("sees uncommitted and untracked changes", () => {
         repository.commit("a.ts", "1");
-        const history = new GitRepository(repository.root);
+        const history = gitRepository(repository.root);
         expect(history.hasUncommittedChanges()).toBe(false);
 
         repository.write("new.ts", "1");
