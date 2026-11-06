@@ -72,8 +72,12 @@ IntelliJ runs over an RPC loopback that answers as the Kotlin side does. So a
 run pins each adapter's own mapping, not the host itself: where a fake and its
 host part, the suite cannot tell, and the Kotlin half is #2056.
 
-- `describeDocumentContract`: `EditorSessionDocuments` over the kit's
-  `FakeEditorHandle`, as `createTestHost` composes it, and over
+- `describeDeploymentStateContract`: `InMemoryDeploymentState`,
+  `VsCodeDeploymentState` over a fake `Memento` that keeps a rejected value in
+  memory, as VS Code's does, and the bridge's `RpcDeploymentState` over a
+  loopback that answers as `DeploymentRouter` and `IntellijDeploymentState` do.
+- `describeDocumentContract`: `EditorSessionDocuments` twice, over the kit's
+  `FakeEditorHandle` as `createTestHost` composes it and over
   `VsCodeEditorHandle` on a fake `vscode` text document, and the bridge's
   `RpcDocumentPort` over a loopback that answers as `EditorSessionRouter.kt`
   does. The kit has no `DocumentPort` fake of its own.
@@ -81,6 +85,10 @@ host part, the suite cannot tell, and the Kotlin half is #2056.
   over a fake panel, text document and `workspace` events, and the bridge's
   `RpcEditorHandle` over a loopback that answers as `EditorSessionRouter.kt`
   does.
+- `describeScriptEditorContract`: `RecordingScriptEditor`, VS Code's
+  `ScriptTaskService` over a fake of the editor tabs
+  (`vscodeEditorTabsFake.ts`) and the bridge's `BridgeScriptEditor` over a
+  loopback that answers as `ScriptRouter` and `ScriptEditorManager` do.
 - `describeSecretStoreContract`: `InMemorySecretStore`, `VsCodeSecretStore`
   over the `InMemorySecretStorage` fake and the bridge's `RpcSecretStore` over
   the `intellijCredentialHost.ts` loopback, which answers as
