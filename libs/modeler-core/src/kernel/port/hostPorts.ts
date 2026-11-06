@@ -67,9 +67,9 @@ export interface NotifierPort extends LoggerPort {
  * dismissal is an answer the caller handles.
  */
 export interface PickerPort {
-    /** @returns the chosen item's value, or `undefined` on dismissal. */
+    /** @returns the offered value of the chosen item itself, or `undefined` on dismissal. */
     choose<V>(prompt: ChoicePrompt<V>): Promise<V | undefined>;
-    /** @returns the chosen items' values, or `[]` on dismissal. */
+    /** @returns the offered values of the checked items, in the prompt's order, or `[]` on dismissal. */
     chooseMany<V>(prompt: ChoicePrompt<V>): Promise<readonly V[]>;
     /**
      * Modal by contract: the caller is about to remove something on the user's
