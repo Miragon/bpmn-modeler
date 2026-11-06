@@ -22,8 +22,10 @@ here is safe to publish; everything protocol-shaped stays in
   A package entry's `.d.ts` ships what it re-exports by name and, unnamed,
   every declaration here that a public type references, so an edit to such a
   declaration changes the published types. A shared rule adds nothing while no
-  public type references its types. `check-dts` checks the whole `.d.ts`;
-  `publicApi.spec.ts` pins only the public names it lists.
+  public type references its types. `check-dts` scans the whole `.d.ts` for
+  protocol symbols and private-lib imports but does not notice a changed
+  declaration; `publicApi.spec.ts` pins only the public names it lists, so an
+  edit to an unpinned one that still compiles ships without a failing check.
 - **Protocol (in `@miragon/bpmn-modeler-shared`):** `Query`/`Command` bases,
   the concrete message classes, `HostApi`, document-flush plumbing.
 

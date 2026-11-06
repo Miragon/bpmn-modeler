@@ -6,8 +6,10 @@
  * VS Code's injected --vscode-* variables.
  *
  * Every rule is scoped under `[data-bpmn-theme="dark"]`, which the instance's
- * ThemeController sets, so the "colorTheme: light" setting keeps the overlay
- * light even when VS Code itself uses a dark theme.
+ * ThemeController and a host's page-level scope on <html> set from the
+ * resolved mode, so the "colorTheme: light" setting keeps the overlay light
+ * even when VS Code itself uses a dark theme. The legacy dist/darkTheme.css
+ * strips the scope (see overrides.css).
  */
 @import "colors.css";
 

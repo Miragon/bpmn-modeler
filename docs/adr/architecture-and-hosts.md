@@ -62,15 +62,18 @@ package is private and inlined. A package entry's declaration roll-up ships
 what the entry re-exports by name and, unnamed, every declaration a public type
 references, such as the `SurfaceThemeMode` behind `ThemeMode`. A consumer
 cannot import such a declaration, but an edit to it changes the published types
-without a change in the package. `check-dts` checks the whole roll-up, unnamed
-declarations included; `publicApi.spec.ts` pins only the public names it lists.
-A shared rule adds nothing to the npm surface while no public type references
-its types. A rule there keeps its module free of top-level side effects, so a
-bundle that does not use it leaves it out. A rule only the core applies stays
-in the core's `domain/`. DOM-id-coupled panel resizers,
-focus/shortcut bindings and the VS Code body-class theme adapter belong in
-`shared`. This deliberately mixes private browser chrome with the protocol to
-avoid another workspace for a few helpers.
+of `@miragon/bpmn-modeler` or `@miragon/dmn-modeler` without a change in their
+own sources. `check-dts` scans the whole roll-up, unnamed declarations
+included, for protocol symbols, private-lib imports and ambient functions with
+a body; it does not notice a changed declaration. `publicApi.spec.ts` pins only
+the public names it lists, so an edit to an unpinned unnamed declaration that
+still compiles ships without a failing check. A shared rule adds nothing to the
+npm surface while no public type references its types. A rule there keeps its
+module free of top-level side effects, so a bundle that does not use it leaves
+it out. A rule only the core applies stays in the core's `domain/`.
+DOM-id-coupled panel resizers, focus/shortcut bindings and the VS Code
+body-class theme adapter belong in `shared`. This deliberately mixes private
+browser chrome with the protocol to avoid another workspace for a few helpers.
 
 `modeler-core` owns domain/services, the editor-session core
 (`EditorSessionStore`, `WebviewMessageRouter`, `EditorSessionLifecycle`) and
