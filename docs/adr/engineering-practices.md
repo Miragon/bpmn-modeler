@@ -78,6 +78,11 @@ host part, the suite cannot tell, and the Kotlin half is #2056.
   `VsCodeDeploymentState` over a fake `Memento` that keeps a rejected value in
   memory, as VS Code's does, and the bridge's `RpcDeploymentState` over a
   loopback that answers as `DeploymentRouter` and `IntellijDeploymentState` do.
+- `describeDocumentContract`: `EditorSessionDocuments` twice, over the kit's
+  `FakeEditorHandle` as `createTestHost` composes it and over
+  `VsCodeEditorHandle` on a fake `vscode` text document, and the bridge's
+  `RpcDocumentPort` over a loopback that answers as `EditorSessionRouter.kt`
+  does. The kit has no `DocumentPort` fake of its own.
 - `describeEditorHandleContract`: `FakeEditorHandle`, `VsCodeEditorHandle`
   over a fake panel, text document and `workspace` events, and the bridge's
   `RpcEditorHandle` over a loopback that answers as `EditorSessionRouter.kt`
