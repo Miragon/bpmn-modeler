@@ -16,6 +16,7 @@
 
 import {
     isMarketplaceProvider,
+    MARKETPLACE_PROVIDERS,
     MarketplaceSettingsEntry,
 } from "../../kernel/domain/modelerSettings";
 import { publicHostOf, repositoryHostOf } from "./repositorySourceConfig";
@@ -490,9 +491,8 @@ export function parseMarketplaceEntry(entry: MarketplaceSettingsEntry): Marketpl
 function parseMarketplaceObject(entry: Record<string, unknown>): MarketplaceRegistration {
     const { provider } = entry;
     if (!isMarketplaceProvider(provider)) {
-        throw new InvalidMarketplaceError(
-            `marketplace entry "provider" must be "github" or "gitlab"`,
-        );
+        const knownProviders = MARKETPLACE_PROVIDERS.map((known) => `"${known}"`).join(" or ");
+        throw new InvalidMarketplaceError(`marketplace entry "provider" must be ${knownProviders}`);
     }
     const { repo } = entry;
     if (typeof repo !== "string" || repo.trim().length === 0) {
