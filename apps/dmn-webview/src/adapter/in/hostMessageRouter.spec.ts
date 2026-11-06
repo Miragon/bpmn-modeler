@@ -4,6 +4,7 @@ import {
     DmnFileQuery,
     DmnModelerSettingQuery,
     FlushDocumentQuery,
+    type FlushQuery,
     LanguageQuery,
     PropertiesPanelStateQuery,
     ReleaseDocumentFlushQuery,
@@ -16,9 +17,7 @@ function createTargets() {
     return {
         session: {
             receiveHostFile: vi.fn(async (_query: DmnFileQuery) => undefined),
-            respondToFlush: vi.fn(
-                async (_query: FlushDocumentQuery | ReleaseDocumentFlushQuery) => undefined,
-            ),
+            respondToFlush: vi.fn(async (_query: FlushQuery) => undefined),
             applyLanguage: vi.fn(async (_locale: string) => undefined),
             focusCanvas: vi.fn(),
         },
