@@ -411,12 +411,11 @@ and an error message that names the fix.
   It reads the type a local or property (`change.kind`, `change["kind"]`) was
   declared with, not the narrowed one: after `tab === "diff"` fails, an
   unrelated `"view" | "diff"` narrows to `"view"`, which would match
-  `SurfaceMode`. The narrowed type counts where a guard can turn the declared
-  type into a registered one. A value of raw `string` or `unknown` is
-  invisible until a guard such as `isEngine` or a parse such as
-  `parseEditableMode` turns it into the type (parse, don't validate). A wider
-  union holding every value of a registered type (`MigrationScope`, which is
-  `Engine | "both"`) counts once narrowed into it.
+  `SurfaceMode`. The narrowed type counts where the declared type is no
+  string-literal union, or holds every value of a registered type
+  (`MigrationScope`, which is `Engine | "both"`). A value of raw `string` or
+  `unknown` is invisible until a guard such as `isEngine` or a parse such as
+  `parseEditableMode` turns it into the type (parse, don't validate).
 - **Opt-in.** Discriminated unions a domain function returns (`kind`, `status`,
   `AuthConfig`) are narrowed by design and stay unregistered. A type joins the
   registry when review or the change-coupling report shows a decision on it in
@@ -433,16 +432,16 @@ and an error message that names the fix.
 - **Cost.** `eslint .` took 10.1 s before and 9.2 to 10.4 s after, within
   run-to-run noise: the type program was built anyway for
   `parserOptions.project`. `tsconfigRootDir` pins that program to the repo
-  root, so a run from a workspace directory gets type information too. A
-  second entry adds no measurable cost: the rule's own time (`TIMING=all`) was
-  0.52 to 1.21 s with `SurfaceMode` and 0.55 to 1.24 s without, five runs each
-  on a loaded machine. Nor does reading the declared type: 0.52 to 0.67 s with
-  it and 0.55 to 1.68 s without, five interleaved runs each. Letting the
-  narrowed type decide a wider union and reading a bracket access as a
-  property: 0.47 to 0.54 s with both, 0.47 to 0.83 s without.
+  root, so a run from a workspace directory gets type information too. The
+  rule's own time (`TIMING=all`) is 0.52 to 0.57 s of an 11 to 12 s
+  `eslint .` in five runs on a loaded machine; neither the second entry nor
+  the declared and narrowed reading changed it beyond run-to-run noise.
 - **Known misses.** `["c7"].includes(engine)`, `Set.has`, a comparison on a
   value typed `string`, a wider union compared before it is narrowed
-  (`scope === "c7"` on a `MigrationScope`), and Kotlin.
+  (`scope === "c7"` on a `MigrationScope`), a union holding only part of a
+  registered type plus other values, narrowed into that part
+  (`ModelerMode | "diff"`), which the rule cannot tell from the unrelated
+  `"view" | "diff"`, and Kotlin.
 - **False alarms.** Matching by value set reports an unrelated type whose
   literals all belong to a registered one (`type Tab = "view"`), or hold all
   of one and are narrowed into it. A local inferred from a narrowed value
