@@ -35,10 +35,12 @@ const sorted = (origins: readonly string[]) => [...origins].sort();
  * The rules of {@link SecretStorePort} the core relies on, run against one
  * adapter: a pair or an approval comes back as saved, a second save replaces
  * it, and nothing saved for one slot, the unnamed ad-hoc one included, is
- * returned for another or removed with it. A pair with an empty half may come
- * back as saved, as in VS Code, or not at all, as IntelliJ's PasswordSafe reads
- * an empty half back as absent; the core stores a target's env references
- * beside its literals to cope with the second, so both pass, a part never does.
+ * returned for another or removed with it. A pair with an empty half replaces
+ * the earlier one too: it may come back as saved, as in VS Code, or not at all,
+ * as IntelliJ's PasswordSafe reads an empty half back as absent; the core
+ * stores a target's env references beside its literals to cope with the
+ * second, so both pass. The earlier pair or a part never does: a password the
+ * user cleared would still be sent on the next deploy.
  *
  * Left out:
  * - "Both halves or neither" and a store that rejects: only a host-specific
@@ -106,8 +108,10 @@ export function describeSecretStoreContract(
                 { half: "secret", name: "demo", secret: "" },
                 { half: "name", name: "", secret: "secret" },
             ])(
-                "returns a pair with an empty $half as saved or not at all, never in part",
+                "replaces an earlier pair with one that has an empty $half: as saved or not at all, never the old pair or a part",
                 async ({ name, secret }) => {
+                    await credentials.save(store, "old-name", "old-secret", DEV);
+
                     await credentials.save(store, name, secret, DEV);
 
                     expect([credentials.pair(name, secret), undefined]).toContainEqual(
