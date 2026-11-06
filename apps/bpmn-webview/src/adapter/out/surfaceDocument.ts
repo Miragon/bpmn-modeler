@@ -1,17 +1,20 @@
 import { LogWarningCommand } from "@miragon/bpmn-modeler-shared";
 import { formatErrors } from "@miragon/bpmn-modeler-types";
 
-import type { WebviewStateManager } from "../../service/state";
 import {
     isEditableHandle,
     isModelerHandle,
     isPendingInputHandle,
     type SurfaceHandle,
 } from "../../domain/surface";
-import type { BpmnDocumentSurface } from "../../service/documentSession";
+import type { BpmnDocumentSurface } from "../../port/documentSessionPorts";
 import type { HostChannel } from "../../port/hostChannel";
+import type { CanvasViewState } from "../../port/webviewState";
 
-type ViewStateKeeper = Pick<WebviewStateManager, "captureViewState" | "applyViewState">;
+interface ViewStateKeeper {
+    captureViewState(): CanvasViewState;
+    applyViewState(snapshot: CanvasViewState): void;
+}
 
 interface SurfaceDocumentPorts {
     getSurface(): SurfaceHandle;

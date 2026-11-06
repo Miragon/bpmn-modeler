@@ -27,8 +27,9 @@ import {
 import type { LintRunEvent } from "@miragon/bpmn-modeler-types";
 import { installHostEditorActions } from "../adapter/in/hostEditorActions";
 import { HostModelerState } from "../domain/hostModelerState";
-import { BpmnDocumentSession, type Translator } from "../service/documentSession";
+import { BpmnDocumentSession } from "../service/documentSession";
 import { mountEditorChrome } from "../adapter/in/editorChrome";
+import type { Translator } from "../port/documentSessionPorts";
 import type { HostChannel } from "../port/hostChannel";
 import { createLintBridge } from "../adapter/out/lintBridge";
 import {

@@ -14,11 +14,8 @@ import {
     ReleaseDocumentFlushQuery,
 } from "@miragon/bpmn-modeler-shared";
 
-import {
-    type BpmnDocumentSurface,
-    BpmnDocumentSession,
-    type BpmnPageLifecycle,
-} from "./documentSession";
+import type { BpmnDocumentSurface, BpmnPageLifecycle } from "../port/documentSessionPorts";
+import { BpmnDocumentSession } from "./documentSession";
 
 function deferred<T = void>() {
     let resolve!: (value: T) => void;

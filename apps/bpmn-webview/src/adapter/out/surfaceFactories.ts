@@ -6,7 +6,6 @@ import type { HostModelerState } from "../../domain/hostModelerState";
 import { loadDesignerModule, loadModelerModule, loadViewerModule } from "./surfaceModules";
 import type { HostChannel } from "../../port/hostChannel";
 import type { LintBridge } from "./lintBridge";
-import type { SurfaceRequests } from "../in/surfaceRequests";
 
 interface SurfaceFactoryPorts {
     propertiesPanelParent: HTMLElement;
@@ -18,7 +17,7 @@ interface SurfaceFactoryPorts {
         HostModelerState,
         "settings" | "applySettingsPushedSince" | "applyFavouritesPushedSince"
     >;
-    reportElementTemplateErrors: SurfaceRequests["reportElementTemplateErrors"];
+    reportElementTemplateErrors(errors: readonly unknown[] | undefined): void;
     onModelerModeChanged(mode: ModelerMode): void;
 }
 
