@@ -35,8 +35,10 @@ isn't talking to VS Code.
 | host → core | `deployment/switchTarget`, `deployment/deployFiles` | status-bar/action → switch the active target, or pick + deploy files to it (carries `workspaceRoot`) |
 | host → core | `deployment/verify`, `deployment/statusBarMenu` | verify the active diagram against the C7 engine; status-bar click menu (switch/verify) (carries `workspaceRoot`) |
 | core → host | `deploymentState/save`                  | `DeploymentStatePort.save(patch)` → `PropertiesComponent` writes exactly the patched fields and ledger rows (non-secret form state, incl. active target + ledger) |
-| host → core | `marketplace/add`, `marketplace/update` | Tools-menu actions → `TemplateMarketplaceService` (settings snapshot piggybacked)             |
-| core → host | `marketplaceState/save`                 | persist the added registration + fan the snapshot to every open bridge                        |
+| host → core | `marketplace/add`, `marketplace/update`, `marketplace/remove` | Tools-menu actions → the core's `MarketplaceCommands` flows (settings snapshot piggybacked) |
+| core → host | `marketplaceState/read`                 | `MarketplaceRegistrationsPort.read` → the registrations per scope, the writable scopes and where each is saved |
+| core → host | `marketplaceState/save`, `marketplaceState/remove` | `MarketplaceRegistrationsPort` writes → the app or project store; the host pushes the snapshot to every affected bridge, then acks |
+| core → host | `marketplacePrompt/show`                | `MarketplacePromptPort` → one form with the core's add question; replies the location and scope as entered (`null` on cancel), the core checks the location and asks again |
 | core → host | `tokenStore/*`                          | `TokenStorePort` → `PasswordSafe` (per-host marketplace PATs, distinct subsystem)             |
 | core → host | `tokenPrompt/show`                      | `TokenPromptPort` → modal password dialog with the core's title and prompt; replies the answer as typed (`null` on cancel), the core judges a blank one |
 | host → core | `script/openAll`                        | Tools-menu action → post `OpenAllScriptTasksQuery` to the active webview, bulk-open the reply |
@@ -93,7 +95,7 @@ existing settings snapshot.
 BPMN editor render + `Ctrl+S` write-back + element templates (real, filesystem-
 backed) + the Notifier/StatusBar display ports + diff + Camunda 7/8 deployment
 (the shared core `DeploymentFeature` + REST stack, driven by the IntelliJ
-deployment tool window) + the template marketplace (add/update GitHub/GitLab/local
+deployment tool window) + the template marketplace (add/update/remove GitHub/GitLab/local
 sources into the element-template cache, with per-host PATs in `PasswordSafe`) +
 inline script editing (C7 script tasks/listeners, via `scriptFeature`). The DMN
 editor is not wired here.
@@ -138,7 +140,8 @@ The bridge follows the role folders of the
 - `src/<context>/adapter/out/` — the RPC-backed ports (`RpcEditorHandle`,
   `RpcDocumentPort`, `RpcNotifier`, `RpcStatusBar`, `RpcClipboard`,
   `RpcPicker`, `RpcSecretStore`, `RpcDeploymentState`, `RpcTokenStore`,
-  `RpcTokenPrompt`, `RpcLintingPreference`, `RpcDiffPaneHandle`,
+  `RpcTokenPrompt`, `RpcMarketplacePrompt`, `RpcMarketplaceRegistrations`,
+  `RpcLintingPreference`, `RpcDiffPaneHandle`,
   `BridgeScriptEditor`) and the pure-`fs` `NodeWorkspace` / `BridgeSettings`.
 - `src/<context>/port/` — what the handlers feed: the settings and
   deployment-state mirrors, the workspace roots, the editor-handle and

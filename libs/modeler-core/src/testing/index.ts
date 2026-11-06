@@ -4,6 +4,7 @@ export * from "./FakeDiffPaneHandle";
 export * from "./FakeEditorHandle";
 export * from "./InMemoryCredentials";
 export * from "./InMemoryDeploymentState";
+export * from "./InMemoryMarketplaceRegistrations";
 export * from "./inMemoryHostSurfaces";
 export * from "./InMemorySettings";
 export * from "./InMemoryWorkspace";

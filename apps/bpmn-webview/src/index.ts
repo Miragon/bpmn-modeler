@@ -1,2 +1,2 @@
-export { bootstrap } from "./bootstrap";
-export type { WebviewState } from "./webviewState";
+export { bootstrap } from "./composition/bootstrap";
+export type { WebviewState } from "./port/webviewState";
