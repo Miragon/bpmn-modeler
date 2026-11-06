@@ -544,6 +544,20 @@ describe("RpcDocumentPort", () => {
         await expect(write).resolves.toBe(false);
         expect(mirror.content(META.editorId)).toBe("host");
     });
+
+    // Only the host's error reply reads as a refused write.
+    it("rejects a write the host can no longer answer", async () => {
+        const { rpc } = harness();
+        const mirror = new DocumentMirror();
+        mirror.register(META, "host");
+        const port = new RpcDocumentPort(rpc, mirror);
+
+        const write = port.write(META.editorId, "next", 1);
+        rpc.handleEnd();
+
+        await expect(write).rejects.toThrow("No reply to document/write: the input ended");
+        expect(mirror.content(META.editorId)).toBe("host");
+    });
 });
 
 describe("RpcDeploymentState", () => {

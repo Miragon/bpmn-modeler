@@ -68,7 +68,9 @@ accepts the write only while it is still current and reports the decision as
 The host reports only **external** document changes. The core's own
 `document/write` is acknowledged by its reply alone: an accepted, changed write
 updates the mirror (with `normalizedContent` when the host rewrote line
-separators), so the full XML is not echoed back over the pipe. The reply never
+separators), so the full XML is not echoed back over the pipe. An error reply,
+which the host sends when its Document fails the edit, reads as a refused
+write: `DocumentPort.write` answers `false`, as on VS Code. The reply never
 re-renders; a command that writes content the page did not produce (Change
 Engine Version, Migrate All) renders it afterwards at the unchanged revision.
 The core's `ModelerSession` guard stays wired as a second line of defence.
