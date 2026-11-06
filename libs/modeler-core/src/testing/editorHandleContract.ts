@@ -98,9 +98,7 @@ const HANDLE_EVENTS: readonly HandleEvent[] = [
 
 /**
  * The rules of {@link EditorHandle} the core relies on, run against one
- * adapter: what `EditorSessionStore`, `EditorSessionLifecycle`, the document
- * sync and the session participants read back from a handle. Where the hosts
- * differ, VS Code is the reference.
+ * adapter. Where the hosts differ, VS Code is the reference.
  *
  * Left out, because the hosts differ and the core relies on neither:
  * - Whether a change of the dirty flag is reported: VS Code reports one as a
@@ -134,8 +132,8 @@ export function describeEditorHandleContract(
         });
 
         describe("identity", () => {
-            // `/c:/…` on VS Code and `C:/…` on IntelliJ are both absolute. The OS path goes to
-            // `getDocumentDirectory` and the code-link handlers, and may also be a `\\…` share.
+            // `/c:/…` on VS Code and `C:/…` on IntelliJ are both absolute.
+            // The OS path may also be a `\\…` share.
             it("names the session by its document's URI, and a file on disk by an absolute, /-separated path and an absolute OS path", () => {
                 const { handle } = fixture;
                 const path = handle.documentPath();
@@ -317,7 +315,7 @@ export function describeEditorHandleContract(
                 expect(reportedBeforeResolving).toEqual([changeOfThisDocument(EDITED)]);
             });
 
-            // `writeAndConfirm` reads the content back after a false to tell a skipped write from a refused one.
+            // After a false the core reads the content back to tell a skipped write from a refused one.
             it.each([
                 {
                     write: "of the content it holds",
@@ -364,7 +362,7 @@ export function describeEditorHandleContract(
                 expect(fixture.handle.getContent()).toBe(DOCUMENT.content);
             });
 
-            // `SaveBeforeDeploy` deploys only a saved document.
+            // The core deploys only after a save that resolves true.
             it.each([
                 {
                     save: "after an edit",

@@ -184,7 +184,7 @@ describeEditorHandleContract("VsCodeEditorHandle", ({ fileName, content }) => {
         return true;
     };
 
-    // The editor id is the document URI, as `ModelerEditorController` names it.
+    // The editor id is the document URI, as the VS Code host names it.
     const handle = VsCodeEditorHandle.create(
         "bpmn",
         document.uri.toString(),
