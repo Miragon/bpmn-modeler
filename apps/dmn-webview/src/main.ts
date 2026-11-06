@@ -1,5 +1,5 @@
-import { getHostApi } from "./host";
-import { bootstrap } from "./bootstrap";
+import { getHostApi } from "./adapter/out/host";
+import { bootstrap } from "./composition/bootstrap";
 import { createHarvestRecorder } from "@miragon/bpmn-modeler-shared";
 
 // DEV-only: one recorder per dmn-js view so a translate-harvest drain can walk

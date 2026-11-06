@@ -164,7 +164,7 @@ class WebviewServer : Disposable {
      * colors (the id `applyJs` rewrites live) so the form follows the IDE theme,
      * not the OS. The body
      * is just `<div id="app"></div>` because the deployment bundle
-     * (`src/app/formTemplate.ts`) renders the form itself. Assets resolve under
+     * (`src/adapter/in/formTemplate.ts`) renders the form itself. Assets resolve under
      * `/deployment/...` → classpath `/webview-deployment`.
      *
      * The off-EDT palette read on the HTTP pool thread is safe for the same reason

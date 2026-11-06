@@ -6,8 +6,8 @@ export const TEST_FOLDERS: ReadonlySet<string> = new Set([
 ]);
 export const SPEC_FILE = /\.(spec|test)\.[cm]?[jt]sx?$/;
 
-const TYPESCRIPT_FILE = /\.(ts|tsx|mts|cts)$/;
-const DECLARATION_FILE = /\.d\.[cm]?ts$/;
+export const TYPESCRIPT_FILE = /\.(ts|tsx|mts|cts)$/;
+export const DECLARATION_FILE = /\.d\.[cm]?ts$/;
 
 function isMeasuredTypeScript(pathInWorkspace: string): boolean {
     const folders = pathInWorkspace.split("/");

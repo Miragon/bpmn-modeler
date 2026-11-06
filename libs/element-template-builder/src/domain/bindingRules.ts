@@ -4,7 +4,7 @@ import type {
     EngineCatalog,
     FeelSupport,
     PropertyType,
-} from "../catalog";
+} from "./catalog";
 
 export function bindingSpecOf(
     catalog: EngineCatalog,

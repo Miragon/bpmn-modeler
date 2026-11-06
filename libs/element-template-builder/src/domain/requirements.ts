@@ -1,4 +1,4 @@
-import type { ElementTypeChoice, Requirement } from "../catalog";
+import type { ElementTypeChoice, Requirement } from "./catalog";
 import { arrayOf, objectOf, type Json } from "./json";
 
 /** Whether the template holds what a binding needs elsewhere. */

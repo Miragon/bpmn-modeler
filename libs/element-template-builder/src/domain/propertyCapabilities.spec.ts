@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { catalogFor } from "../catalog";
+import { catalogFor } from "./catalog";
 import { bindingSpecOf } from "./bindingRules";
 import { propertyCapabilities, typeCapabilities } from "./propertyCapabilities";
 

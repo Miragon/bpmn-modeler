@@ -1,12 +1,8 @@
-import { MarketplaceCommands, NotifierPort } from "@miragon/bpmn-modeler-core";
+import { MarketplaceCommands } from "@miragon/bpmn-modeler-core";
 
 import { METHODS } from "../../../protocol/domain/descriptor";
 import { RpcHandlerTable } from "../../../protocol/domain/rpcHandler";
-import {
-    MarketplaceAddParams,
-    MarketplaceRemoveParams,
-    MarketplaceUpdateParams,
-} from "../../../protocol/domain/types";
+import { MarketplaceCommandParams } from "../../../protocol/domain/types";
 import { HostSettingsMirror } from "../../../kernel/port/HostSettingsMirror";
 
 /**
@@ -19,32 +15,17 @@ import { HostSettingsMirror } from "../../../kernel/port/HostSettingsMirror";
 export function marketplaceHandlers({
     commands,
     settingsMirror,
-    notifier,
-    persistRegistration,
 }: {
     commands: MarketplaceCommands;
     settingsMirror: HostSettingsMirror;
-    notifier: NotifierPort;
-    persistRegistration: (location: string, scope: MarketplaceAddParams["scope"]) => Promise<void>;
 }): RpcHandlerTable {
+    const run = (flow: () => Promise<void>) => (params: MarketplaceCommandParams) => {
+        settingsMirror.apply(params.settings);
+        void flow();
+    };
     return {
-        [METHODS.marketplaceAdd]: (params: MarketplaceAddParams) => {
-            settingsMirror.apply(params.settings);
-            notifier.logInfo("Add Marketplace command invoked");
-            void commands.add(params.location, (location) =>
-                persistRegistration(location, params.scope),
-            );
-        },
-        [METHODS.marketplaceUpdate]: (params: MarketplaceUpdateParams) => {
-            settingsMirror.apply(params.settings);
-            void commands.update();
-        },
-        // The host already unregistered the entries; the applied snapshot is the
-        // post-removal list the prune reads.
-        [METHODS.marketplaceRemove]: (params: MarketplaceRemoveParams) => {
-            settingsMirror.apply(params.settings);
-            notifier.logInfo("Remove Marketplace command invoked");
-            void commands.remove(params.removedCount);
-        },
+        [METHODS.marketplaceAdd]: run(() => commands.add()),
+        [METHODS.marketplaceUpdate]: run(() => commands.update()),
+        [METHODS.marketplaceRemove]: run(() => commands.remove()),
     };
 }

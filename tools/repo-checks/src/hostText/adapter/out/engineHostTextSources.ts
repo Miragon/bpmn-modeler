@@ -1,5 +1,7 @@
 import {
     findImplementations,
+    readKotlinImports,
+    readKotlinTextLiterals,
     readModuleImports,
     readPathAliases,
     readTextLiterals,
@@ -9,11 +11,38 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { trackedFiles } from "../../../fitness/adapter/out/git";
-import { isScannedSource, type SourceDependencies, type WrittenText } from "../../domain/hostText";
+import {
+    isKotlinSource,
+    isScannedSource,
+    type SourceDependencies,
+    type WrittenText,
+} from "../../domain/hostText";
 import type { HostTextSources } from "../../port/HostTextSources";
 
 function readSource(repoRoot: string, path: string): string {
     return readFileSync(join(repoRoot, path), "utf8");
+}
+
+function importedSpecifiers({ path, text }: SourceFile): string[] {
+    const specifiers = isKotlinSource(path)
+        ? readKotlinImports(text)
+        : readModuleImports(path, text).map(({ specifier }) => specifier);
+    return [...new Set(specifiers)];
+}
+
+function interfaceFilesByPath(
+    repoRoot: string,
+    typeScriptTree: readonly SourceFile[],
+): Map<string, Set<string>> {
+    const tsconfig = join(repoRoot, "tsconfig.base.json");
+    const aliases = existsSync(tsconfig) ? readPathAliases(readFileSync(tsconfig, "utf8")) : [];
+    const filesByPath = new Map<string, Set<string>>();
+    for (const { path, interfaceFiles } of findImplementations(typeScriptTree, { aliases })) {
+        const files = filesByPath.get(path) ?? new Set<string>();
+        interfaceFiles.forEach((file) => files.add(file));
+        filesByPath.set(path, files);
+    }
+    return filesByPath;
 }
 
 export class EngineHostTextSources implements HostTextSources {
@@ -21,24 +50,19 @@ export class EngineHostTextSources implements HostTextSources {
         const tree = trackedFiles(repoRoot)
             .filter(isScannedSource)
             .map((path): SourceFile => ({ path, text: readSource(repoRoot, path) }));
-        const tsconfig = join(repoRoot, "tsconfig.base.json");
-        const aliases = existsSync(tsconfig) ? readPathAliases(readFileSync(tsconfig, "utf8")) : [];
-        const interfaceFilesByPath = new Map<string, Set<string>>();
-        for (const { path, interfaceFiles } of findImplementations(tree, { aliases })) {
-            const files = interfaceFilesByPath.get(path) ?? new Set<string>();
-            interfaceFiles.forEach((file) => files.add(file));
-            interfaceFilesByPath.set(path, files);
-        }
-        return tree.map(({ path, text }) => ({
-            path,
-            importedSpecifiers: [
-                ...new Set(readModuleImports(path, text).map(({ specifier }) => specifier)),
-            ],
-            implementedInterfaceFiles: [...(interfaceFilesByPath.get(path) ?? [])],
+        const implemented = interfaceFilesByPath(
+            repoRoot,
+            tree.filter(({ path }) => !isKotlinSource(path)),
+        );
+        return tree.map((file) => ({
+            path: file.path,
+            importedSpecifiers: importedSpecifiers(file),
+            implementedInterfaceFiles: [...(implemented.get(file.path) ?? [])],
         }));
     }
 
     readTexts(repoRoot: string, path: string): readonly WrittenText[] {
-        return readTextLiterals(path, readSource(repoRoot, path));
+        const text = readSource(repoRoot, path);
+        return isKotlinSource(path) ? readKotlinTextLiterals(text) : readTextLiterals(path, text);
     }
 }

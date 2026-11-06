@@ -1,4 +1,4 @@
-import type { EngineCatalog } from "../catalog";
+import type { EngineCatalog } from "./catalog";
 import { bindingSpecOf } from "./bindingRules";
 import { arrayOf, objectOf, stringOf, type Json } from "./json";
 import type { JsonPath } from "./templateText";

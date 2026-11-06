@@ -1,7 +1,7 @@
 # BPMN modeler
 
 - Status: accepted
-- Last reviewed: 2026-11-04
+- Last reviewed: 2026-11-06
 
 ## Context
 
@@ -132,7 +132,7 @@ retain retryable feedback rather than inheriting automatic failure handling.
 The optional port keeps form-js and IDE transport out of embedders. Enforcement
 lives in the [service](../../libs/modeler-core/src/navigation/service/FormPreviewService.spec.ts),
 [reducer](../../libs/model-navigation/src/formPreviewState.spec.ts),
-[webview](../../apps/bpmn-webview/src/session/formPreview.spec.ts) and
+[webview](../../apps/bpmn-webview/src/adapter/out/formPreview.spec.ts) and
 [browser](../../packages/bpmn-modeler/src/formPreview.browser.spec.ts) tests.
 
 ### Surfaces and modes
@@ -358,6 +358,16 @@ A destroyed instance ignores `setTheme` rather than throwing `NoModelerError`:
 a mode session forwards theme changes to the outgoing surface while a recreate
 is in flight, then applies its current theme to the surface it builds.
 
+The theme modes have one home, `SurfaceThemeMode` in `modeler-types`, the mode
+the controller takes. The public `ThemeMode`, DMN's `DmnThemeMode` and the
+shared host adapter's `HostThemeMode` are aliases of it, so a new mode widens
+all three at once, and the compiler names each place that must handle it: the
+controller's `setMode`, the host adapter's `setMode` and the
+`publicApi.spec.ts` pin in each package. The pins exist because the alias puts
+a published type in an inlined private library: an edit there changes the npm
+surface, so each spec pins its public name to the three values and such an edit
+fails the package's typecheck.
+
 Author dark overrides once, scoped under the attribute. The main stylesheet
 combines them with the upstream light base; derive unscoped legacy light/dark
 sheets by stripping that scope. The light base imports each plugin's own
@@ -542,13 +552,15 @@ arithmetic and positive text metrics rather than inert layout stubs.
 ### Mode session and lifecycle
 
 `/mode` publishes the shared session and optional mode strip. Consumers inject
-View/Design/Implement factories; the entry imports no modeling stack. Available
+View/Design/Implement factories; the entry imports no modeling stack.
+`servingSurfaces`, a `Record<SurfaceMode, …>`, names the factory that builds
+each mode: on a tagged model Design runs on the Implement modeler. Available
 factories and engine determine available modes. A single mode needs no control;
 hosts can offer all modes with unavailable Implement disabled for neutral
 documents. The strip is a chip on the canvas next to the token-simulation
 toggle that opens a mode menu, not a permanent row above the properties panel:
 modes are switched rarely, so the control stays small, and living on the canvas
-keeps it a single control that stays reachable while the panel is collapsed. Portable mode types and transition planning live in `modeler-types`.
+keeps it a single control that stays reachable while the panel is collapsed. Portable mode types, what each mode offers (`surfaceModeSupports`: engine properties, element templates, engine lint rules) and transition planning live in `modeler-types`.
 Mode-strip translation keys remain on the i18n overlay's source-only allowlist
 because hosts can render the strip before a surface exists for harvesting.
 

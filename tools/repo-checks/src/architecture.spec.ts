@@ -41,13 +41,7 @@ const SKIP_DIRS = ["node_modules", "dist", "coverage"];
 const STABILITY_EXCEPTIONS: readonly KnownException[] = [];
 
 /** One per workspace not yet moved into role folders, naming the issue that moves it. */
-const ROLE_EXCEPTIONS: readonly KnownException[] = [
-    { from: "apps/bpmn-webview", to: "*", until: "#2129" },
-    { from: "apps/dmn-webview", to: "*", until: "#2129" },
-    { from: "apps/form-webview", to: "*", until: "#2129" },
-    { from: "apps/deployment-webview", to: "*", until: "#2129" },
-    { from: "libs/element-template-builder", to: "*", until: "#2130" },
-];
+const ROLE_EXCEPTIONS: readonly KnownException[] = [];
 
 const workspaces = readWorkspaces(REPO_ROOT);
 const workspacesWithSources = requireMatches(
