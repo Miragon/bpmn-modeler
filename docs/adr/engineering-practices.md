@@ -410,8 +410,11 @@ homes and an error message that names the fix.
   with `null` and `undefined` removed. A union whose literals all belong to a
   registered type counts as that type, so `ModelerMode` and
   `PropertiesPanelMode` (`"design" | "implement"`) are guarded as `SurfaceMode`.
-  A value of raw `string` or `unknown` is invisible; it is parsed with a guard
-  such as `isEngine` first (parse, don't validate).
+  It reads the type a local or property was declared with, not the narrowed
+  one: after `tab === "diff"` fails, an unrelated `"view" | "diff"` narrows to
+  `"view"`, which would match `SurfaceMode`. A value of raw `string` or
+  `unknown` is invisible until a guard such as `isEngine` turns it into the
+  type (parse, don't validate); the narrowed type counts there.
 - **Opt-in.** Discriminated unions a domain function returns (`kind`, `status`,
   `AuthConfig`) are narrowed by design and stay unregistered. A type joins the
   registry when review or the change-coupling report shows a decision on it in
@@ -431,10 +434,16 @@ homes and an error message that names the fix.
   root, so a run from a workspace directory gets type information too. A
   second entry adds no measurable cost: the rule's own time (`TIMING=all`) was
   0.52 to 1.21 s with `SurfaceMode` and 0.55 to 1.24 s without, five runs each
-  on a loaded machine.
+  on a loaded machine. Nor does reading the declared type: 0.52 to 0.67 s with
+  it and 0.55 to 1.68 s without, five interleaved runs each.
 - **Known misses.** `["c7"].includes(engine)`, `Set.has`, a comparison on a
   value typed `string` (the panel's parse of `config.propertiesPanelMode`), and
   Kotlin.
+- **False alarms.** Matching by value set reports an unrelated type whose
+  literals all belong to a registered one (`type Tab = "view"`). A local
+  inferred from a narrowed value and a bracket access (`change["kind"]`) keep
+  the narrowed type, so the `"view" | "diff"` case above fires there too. Such
+  a site takes the exception form above.
 
 Alternatives considered:
 

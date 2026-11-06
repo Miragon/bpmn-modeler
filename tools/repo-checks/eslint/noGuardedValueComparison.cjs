@@ -63,7 +63,9 @@ module.exports = {
 
         const guardedEntryOf = (expression) => {
             const tsNode = parserServices.esTreeNodeToTSNodeMap.get(expression);
-            const literals = stringLiteralsOf(checker, checker.getTypeAtLocation(tsNode));
+            const literals =
+                stringLiteralsOf(checker, declaredTypeOf(checker, tsNode)) ??
+                stringLiteralsOf(checker, checker.getTypeAtLocation(tsNode));
             if (literals === undefined) {
                 return undefined;
             }
@@ -117,6 +119,28 @@ function isStringLiteral(node) {
         (node.type === "Literal" && typeof node.value === "string") ||
         (node.type === "TemplateLiteral" && node.expressions.length === 0)
     );
+}
+
+/**
+ * The type a reference was declared with, before control flow narrowed it: after
+ * `tab !== "diff"`, an unrelated `"view" | "diff"` narrows to `"view"`, a
+ * `SurfaceMode` literal. The narrowed type still decides a value declared
+ * `unknown` or `string` that a guard such as `isEngine` parsed.
+ */
+function declaredTypeOf(checker, node) {
+    if (ts.isParenthesizedExpression(node) || ts.isNonNullExpression(node)) {
+        return declaredTypeOf(checker, node.expression);
+    }
+    if (ts.isIdentifier(node)) {
+        const symbol = checker.getSymbolAtLocation(node);
+        return symbol ? checker.getTypeOfSymbol(symbol) : checker.getTypeAtLocation(node);
+    }
+    if (ts.isPropertyAccessExpression(node)) {
+        const owner = checker.getNonNullableType(declaredTypeOf(checker, node.expression));
+        const property = checker.getPropertyOfType(owner, node.name.text);
+        return property ? checker.getTypeOfSymbol(property) : checker.getTypeAtLocation(node);
+    }
+    return checker.getTypeAtLocation(node);
 }
 
 /** `undefined` unless the type, nullish parts removed, holds only string literals. */
