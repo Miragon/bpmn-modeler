@@ -1,8 +1,5 @@
 import {
-    asProtocolMessage,
     Command,
-    type DeploymentSidebarCommand,
-    HostApi,
     LogErrorCommand,
     Query,
     RequestFormDefaultsCommand,
@@ -10,25 +7,10 @@ import {
 
 import { DeploymentForm } from "../adapter/in/form";
 import { FORM_TEMPLATE } from "../adapter/in/formTemplate";
-import type { WebviewState } from "../adapter/out/host";
+import { routeHostMessage } from "../adapter/in/hostMessageRouter";
 import { StartInstanceForm } from "../adapter/in/startInstanceForm";
-
-type DeploymentHost = HostApi<WebviewState, DeploymentSidebarCommand>;
-
-type DeploymentFormPort = Pick<
-    DeploymentForm,
-    | "populate"
-    | "setAdditionalFiles"
-    | "populateCredentials"
-    | "setTargets"
-    | "showTargetResult"
-    | "showResult"
->;
-
-type StartInstanceFormPort = Pick<
-    StartInstanceForm,
-    "setProcessDefinitionKey" | "setPayloadFile" | "showResult"
->;
+import { initTabs } from "../adapter/in/tabs";
+import type { DeploymentHost } from "../port/deploymentHost";
 
 export function bootstrap(host: DeploymentHost): void {
     let form: DeploymentForm;
@@ -64,79 +46,4 @@ export function bootstrap(host: DeploymentHost): void {
     });
 
     host.postMessage(new RequestFormDefaultsCommand());
-}
-
-function initTabs(host: DeploymentHost): void {
-    const tabBtns = document.querySelectorAll<HTMLButtonElement>(".tab-btn");
-    const tabPanels = document.querySelectorAll<HTMLElement>(".tab-panel");
-
-    const savedTab = host.getState()?.activeTab;
-    if (savedTab) {
-        activateTab(savedTab, tabBtns, tabPanels);
-    }
-
-    for (const btn of tabBtns) {
-        btn.addEventListener("click", () => {
-            const tab = btn.dataset.tab;
-            if (!tab) return;
-            activateTab(tab, tabBtns, tabPanels);
-            host.updateState({ activeTab: tab });
-        });
-    }
-}
-
-function activateTab(
-    tab: string,
-    tabBtns: NodeListOf<HTMLButtonElement>,
-    tabPanels: NodeListOf<HTMLElement>,
-): void {
-    for (const btn of tabBtns) {
-        btn.classList.toggle("active", btn.dataset.tab === tab);
-    }
-    for (const panel of tabPanels) {
-        panel.classList.toggle("active", panel.id === `tab-${tab}`);
-    }
-}
-
-export function routeHostMessage(
-    msg: Query | Command,
-    form: DeploymentFormPort,
-    startForm: StartInstanceFormPort,
-): void {
-    const query = asProtocolMessage(msg);
-    switch (query.type) {
-        case "FormDefaultsQuery":
-            form.populate(query.defaults);
-            break;
-        case "AdditionalFilesQuery":
-            form.setAdditionalFiles(query.filePaths);
-            break;
-        case "StoredCredentialsQuery":
-            form.populateCredentials(query);
-            break;
-        case "DeploymentTargetsQuery":
-            form.setTargets(query);
-            break;
-        case "TargetSavedQuery": {
-            const saved = query;
-            form.showTargetResult(saved.success, saved.message);
-            break;
-        }
-        case "DeploymentResultQuery":
-            form.showResult(query);
-            break;
-        case "ProcessDefinitionKeyQuery":
-            startForm.setProcessDefinitionKey(query.processDefinitionKey);
-            break;
-        case "SelectedPayloadFileQuery": {
-            const payload = query;
-            startForm.setPayloadFile(payload.filePath, payload.label);
-            break;
-        }
-        case "StartInstanceResultQuery":
-            startForm.showResult(query);
-            break;
-        default:
-            console.debug("[DeploymentWebview] Unhandled message type:", msg.type);
-    }
 }

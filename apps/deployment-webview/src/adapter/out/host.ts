@@ -17,16 +17,9 @@ import {
     TargetSavedQuery,
 } from "@miragon/bpmn-modeler-shared";
 
-declare const process: { env: { NODE_ENV: string } };
+import type { WebviewState } from "../../port/deploymentHost";
 
-/**
- * Shape of the data persisted via `host.setState` / `host.getState`.
- */
-export interface WebviewState {
-    formData?: Record<string, string>;
-    collapsedSections?: string[];
-    activeTab?: string;
-}
+declare const process: { env: { NODE_ENV: string } };
 
 type StateType = WebviewState;
 type MessageType = Command | Query;
