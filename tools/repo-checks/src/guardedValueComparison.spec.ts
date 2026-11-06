@@ -9,6 +9,7 @@ const REPO_ROOT = join(__dirname, "../../..");
 const RULE = "miragon/no-guarded-value-comparison";
 const ENGINE_HOME = join(REPO_ROOT, "libs/modeler-types/src/engine.ts");
 const ENGINE = 'import("@miragon/bpmn-modeler-types").Engine';
+const SURFACE_MODE = 'import("@miragon/bpmn-modeler-types").SurfaceMode';
 
 const VERIFICATION_SERVICE =
     "libs/modeler-core/src/deployment/service/DeploymentVerificationService.ts";
@@ -101,6 +102,20 @@ export const guardedIsC8 = "c8" == guardedEngine;`,
             comparison: "a type parameter constrained to an engine",
             file: CAPABILITY_MODULES,
             snippet: `export const guardedIsC8 = <E extends ${ENGINE}>(engine: E) => engine === "c8";`,
+            errors: 1,
+        },
+        {
+            comparison: "a surface mode",
+            file: DEPLOYMENT_SERVICE,
+            snippet: `declare const guardedMode: ${SURFACE_MODE};
+if (guardedMode === "view") { void guardedMode; }`,
+            errors: 1,
+        },
+        {
+            comparison: "a union of some surface modes",
+            file: DEPLOYMENT_SERVICE,
+            snippet: `declare const guardedMode: "design" | "implement";
+if (guardedMode !== "design") { void guardedMode; }`,
             errors: 1,
         },
     ])("reports $errors for $comparison", async ({ file, snippet, errors }) => {

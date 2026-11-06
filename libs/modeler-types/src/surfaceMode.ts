@@ -13,6 +13,38 @@ export type SurfaceMode = "view" | "design" | "implement";
 export const SURFACE_MODES: readonly SurfaceMode[] = ["view", "design", "implement"];
 
 /**
+ * What a mode offers. Every rule that tells the modes apart lives here or in a
+ * `Record<SurfaceMode, …>`, so code asks {@link surfaceModeSupports} instead of
+ * comparing a {@link SurfaceMode}.
+ */
+export interface SurfaceModeCapabilities {
+    /** The properties panel shows the engine's groups and entries, not only the engine-neutral ones. */
+    readonly engineProperties: boolean;
+    /** Element templates can be applied, and the popup menus list them. */
+    readonly elementTemplates: boolean;
+    /** The default lint config adds the engine's deployability rules. */
+    readonly engineLintRules: boolean;
+}
+
+export type SurfaceModeCapability = keyof SurfaceModeCapabilities;
+
+const ENGINE_NEUTRAL: SurfaceModeCapabilities = {
+    engineProperties: false,
+    elementTemplates: false,
+    engineLintRules: false,
+};
+
+const SURFACE_MODE_CAPABILITIES: Record<SurfaceMode, SurfaceModeCapabilities> = {
+    view: ENGINE_NEUTRAL,
+    design: ENGINE_NEUTRAL,
+    implement: { engineProperties: true, elementTemplates: true, engineLintRules: true },
+};
+
+export function surfaceModeSupports(mode: SurfaceMode, capability: SurfaceModeCapability): boolean {
+    return SURFACE_MODE_CAPABILITIES[mode][capability];
+}
+
+/**
  * Whether a mode can be entered for the given engine. `view` and `design` are
  * engine-neutral and always available; `implement` needs a detected engine
  * (an execution-platform-tagged model).

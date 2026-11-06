@@ -388,27 +388,35 @@ rule scoped to a folder or file set fails when the scope matches nothing
 The engine lives under `tools/`, not `libs/`: it is dev-only tooling that no
 host or webview ships.
 
-A domain value that describes the world, such as `Engine`, keeps its rules in
-one home module. The typed ESLint rule `miragon/no-guarded-value-comparison`
+A domain value that describes the world keeps its rules in one home module.
+The registered types are `Engine` and `SurfaceMode`. The typed ESLint rule
+`miragon/no-guarded-value-comparison`
 ([`tools/repo-checks/eslint`](../../tools/repo-checks/eslint/noGuardedValueComparison.cjs))
 reports `===`, `!==`, `==`, `!=` and each `case` that compares such a value
 with a string literal outside its home, in every folder. Code elsewhere asks
-the home: a capability in the `Record<Engine, …>` table of
-`libs/modeler-types/src/engine.ts` (`engineSupports`), a method named after the
-rule (`DeploymentTarget.verifiesDeployments()`), or a `Record<Engine, …>`
-lookup, so the compiler reports a missing engine. Each registry entry in
-`eslint.config.cjs` names the type, its module, its homes and an error message
-that names the fix.
+the home: a capability table read through one function (`engineSupports` in
+`libs/modeler-types/src/engine.ts`, `surfaceModeSupports` in
+`libs/modeler-types/src/surfaceMode.ts`), a method named after the rule
+(`DeploymentTarget.verifiesDeployments()`), or a `Record<Engine, …>` or
+`Record<SurfaceMode, …>` lookup, so the compiler reports a missing value. The
+mode session's `servingSurfaces` is such a lookup: it names the factory that
+builds each mode, and a tagged model's Design runs on the Implement modeler.
+Each registry entry in `eslint.config.cjs` names the type, its module, its
+homes and an error message that names the fix.
 
 - **Typed, not name-based.** The rule reads the type checker through the parser
   services typescript-eslint already provides, so it sees the value under any
   name: a local, a parameter, a type parameter (resolved to its constraint),
-  with `null` and `undefined` removed. A value of raw `string` or `unknown` is
-  invisible; it is parsed with `isEngine` first (parse, don't validate).
+  with `null` and `undefined` removed. A union whose literals all belong to a
+  registered type counts as that type, so `ModelerMode` and
+  `PropertiesPanelMode` (`"design" | "implement"`) are guarded as `SurfaceMode`.
+  A value of raw `string` or `unknown` is invisible; it is parsed with a guard
+  such as `isEngine` first (parse, don't validate).
 - **Opt-in.** Discriminated unions a domain function returns (`kind`, `status`,
   `AuthConfig`) are narrowed by design and stay unregistered. A type joins the
   registry when review or the change-coupling report shows a decision on it in
-  two places.
+  two places. `SurfaceMode` joined with 11 comparisons in 5 files of the
+  webview, the properties panel and the modeler package, plus 1 in a spec.
 - **Never vacuous.** The registry is resolved against the program on every run:
   a missing module, a missing export or a type that is no string-literal union
   throws, and so does a file without type information.
@@ -420,9 +428,13 @@ that names the fix.
 - **Cost.** `eslint .` took 10.1 s before and 9.2 to 10.4 s after, within
   run-to-run noise: the type program was built anyway for
   `parserOptions.project`. `tsconfigRootDir` pins that program to the repo
-  root, so a run from a workspace directory gets type information too.
+  root, so a run from a workspace directory gets type information too. A
+  second entry adds no measurable cost: the rule's own time (`TIMING=all`) was
+  0.52 to 1.21 s with `SurfaceMode` and 0.55 to 1.24 s without, five runs each
+  on a loaded machine.
 - **Known misses.** `["c7"].includes(engine)`, `Set.has`, a comparison on a
-  value typed `string`, and Kotlin.
+  value typed `string` (the panel's parse of `config.propertiesPanelMode`), and
+  Kotlin.
 
 Alternatives considered:
 

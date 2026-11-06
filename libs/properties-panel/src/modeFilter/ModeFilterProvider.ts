@@ -16,6 +16,8 @@
  * The mode is switchable at runtime via {@link setMode}, which fires
  * `propertiesPanel.providersChanged` so a live panel re-derives immediately.
  */
+import { surfaceModeSupports } from "@miragon/bpmn-modeler-types";
+
 import {
     NEUTRAL_GROUP_IDS,
     ENGINE_APPENDED_ENTRY_IDS,
@@ -93,7 +95,7 @@ export class ModeFilterProvider {
 
     getGroups(_element: unknown) {
         return (groups: PropertiesGroup[]) => {
-            if (this.mode === "implement") {
+            if (surfaceModeSupports(this.mode, "engineProperties")) {
                 return groups;
             }
             return this.filterDesignGroups(groups);

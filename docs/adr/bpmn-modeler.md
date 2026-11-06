@@ -548,7 +548,7 @@ hosts can offer all modes with unavailable Implement disabled for neutral
 documents. The strip is a chip on the canvas next to the token-simulation
 toggle that opens a mode menu, not a permanent row above the properties panel:
 modes are switched rarely, so the control stays small, and living on the canvas
-keeps it a single control that stays reachable while the panel is collapsed. Portable mode types and transition planning live in `modeler-types`.
+keeps it a single control that stays reachable while the panel is collapsed. Portable mode types, what each mode offers (`surfaceModeSupports`: engine properties, element templates, engine lint rules) and transition planning live in `modeler-types`.
 Mode-strip translation keys remain on the i18n overlay's source-only allowlist
 because hosts can render the strip before a surface exists for harvesting.
 
