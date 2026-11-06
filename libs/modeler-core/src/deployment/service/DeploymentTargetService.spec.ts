@@ -1,6 +1,10 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, expectTypeOf, it, vi } from "vitest";
 
-import { AuthConfigPayload, DeploymentTargetPayload } from "@miragon/bpmn-modeler-shared";
+import {
+    AuthConfigPayload,
+    AuthTypePayload,
+    DeploymentTargetPayload,
+} from "@miragon/bpmn-modeler-shared";
 import { Engine } from "@miragon/bpmn-modeler-types";
 
 import { DisallowedEnvReferenceError, InvalidDeploymentTargetError } from "../domain/errors";
@@ -1494,6 +1498,12 @@ describe("DeploymentTargetService.getStoredCredentials", () => {
 });
 
 describe("toTargetPayload", () => {
+    // The protocol cannot import the domain; a type the form could send but the
+    // domain lacks would fall back to no auth in toAuthConfig.
+    it("carries exactly the auth types a target has", () => {
+        expectTypeOf<AuthTypePayload>().toEqualTypeOf<TargetAuthType>();
+    });
+
     it.each([
         ["none", target("dev"), { authType: "none" }],
         ["basic", target("dev", { authType: "basic" }), { authType: "basic" }],

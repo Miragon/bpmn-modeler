@@ -37,10 +37,15 @@ a protocol type file is large and holds no rule.
 
 A value set (auth types, theme modes, languages) has one home. Every other use
 imports it. A TypeScript copy that cannot (a protocol type behind a package
-boundary) is pinned to it in a spec by
-`expectTypeOf<Copy>().toEqualTypeOf<Home>()`; a copy outside TypeScript (a
-manifest, Kotlin) by a spec, as `apps/vscode-plugin/src/manifest.contract.spec.ts`
-pins the languages. A pin is a fix, not an exception. The `repeated-value-sets`
+boundary) is pinned to it by `expectTypeOf<Copy>().toEqualTypeOf<Home>()` in
+the spec of the code that maps between them, as `DeploymentTargetService.spec.ts`
+pins `AuthTypePayload` to `TargetAuthType`. A copy outside TypeScript (a
+manifest, a JSON schema, Kotlin) is pinned by a spec that reads it and compares
+it with the home's runtime list, as `apps/vscode-plugin/src/manifest.contract.spec.ts`
+pins the languages and `deploymentTargetsSchema.spec.ts` the schema's engines
+and auth types. A home that has only a type gets that list as a readonly tuple
+its type derives from (`TARGET_AUTH_TYPES`), not as a second spelling. A pin is
+a fix, not an exception. The `repeated-value-sets`
 fitness function reports every set written in two or more files that no
 `expectTypeOf` pin links; a copy a branch adds shows as new. A copy that drifts
 from its home shows as resolved, not new: a resolved set is a fix only where its

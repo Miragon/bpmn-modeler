@@ -1,7 +1,7 @@
 # Deployment
 
 - Status: accepted
-- Last reviewed: 2026-11-01
+- Last reviewed: 2026-11-06
 
 ## Context
 
@@ -43,6 +43,18 @@ as `targets[i]` plus the field. Register the file's
 [JSON schema](../../libs/shared/src/lib/deploymentTargets.schema.json)
 for editor validation. A malformed file reports an error and yields no targets
 rather than crashing the sidebar.
+
+`create` checks the engine and the auth type against one list each, their
+home: `ENGINES` (`@miragon/bpmn-modeler-types`) and `TARGET_AUTH_TYPES`
+(`deploymentTarget.ts`), from which `TargetAuthType` derives. Copies that
+cannot import them are pinned to them: the schema's `engine` and `auth.type`
+enums by the
+[schema tests](../../libs/modeler-core/src/deployment/domain/deploymentTargetsSchema.spec.ts),
+which also fail on an enum they do not pin, and the protocol's
+`AuthTypePayload` (`libs/shared`, which must not import the core) by a type
+equality assertion in the spec of the mapper `toTargetPayload`. Without that
+assertion, an auth type only the protocol knows compiles and falls back to no
+auth in `toAuthConfig`.
 
 Credentials stay in the host secret store under `<targetsFilePath>::<name>`.
 The file path prevents same-named targets in different projects from sharing
