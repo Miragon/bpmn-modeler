@@ -435,7 +435,8 @@ export class NodeWorkspace implements WorkspacePort, WorkspaceRoots {
     /**
      * The absolute paths of the files below the registered workspace roots
      * whose path below their root matches `pattern`. Mirrors
-     * `VsCodeWorkspace.findFiles`: `exclude` drops matches.
+     * `VsCodeWorkspace.findFiles`: `exclude` drops matches, and a root
+     * registered inside another is left to its own walk.
      *
      * Walks with `readdir` rather than `fs.glob`: under Bun, `fs.glob` reads
      * every folder an exclude covers.
@@ -444,12 +445,16 @@ export class NodeWorkspace implements WorkspacePort, WorkspaceRoots {
         const included = globToRegExp(pattern);
         const excluded = exclude ? globToRegExp(exclude) : undefined;
         const coveredFolder = exclude ? coveredFolderRegExp(exclude) : undefined;
+        const rootDirs = [...this.roots.keys()].map((root) => withoutFileScheme(root));
         const results: string[] = [];
-        for (const root of this.roots.keys()) {
-            const rootDir = withoutFileScheme(root);
+        for (const rootDir of rootDirs) {
+            const nestedRoots = rootDirs.flatMap((other) => {
+                const below = relativeToRoot(other, rootDir);
+                return below ? [below] : [];
+            });
             const files = await listFilesBelow(
                 rootDir,
-                (folder) => coveredFolder?.test(folder) ?? false,
+                (folder) => nestedRoots.includes(folder) || (coveredFolder?.test(folder) ?? false),
             );
             for (const relative of files) {
                 if (!included.test(relative) || excluded?.test(relative)) {
