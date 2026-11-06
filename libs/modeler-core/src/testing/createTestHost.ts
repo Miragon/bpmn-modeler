@@ -13,6 +13,7 @@ import {
 import { InMemoryDeploymentState } from "./InMemoryDeploymentState";
 import {
     InMemoryClipboard,
+    InMemoryLintingPreference,
     InMemoryPropertiesPanelState,
     RecordingDiagnostics,
 } from "./inMemoryHostSurfaces";
@@ -48,6 +49,7 @@ export function createTestHost(options: TestHostOptions = {}) {
     const lifecycles = new Map<string, EditorSessionLifecycle>();
     const documentChanges = new DocumentChangeStream();
     const openHandles = new Set<FakeEditorHandle>();
+    const settings = new InMemorySettings(options.settings);
     const registerHandle = (handle: FakeEditorHandle, focused: boolean): void => {
         handle.active = focused;
         store.register(handle);
@@ -65,7 +67,7 @@ export function createTestHost(options: TestHostOptions = {}) {
         documents: new EditorSessionDocuments(store),
         notifier,
         picker: new ScriptedPicker(options.promptAnswers),
-        settings: new InMemorySettings(options.settings),
+        settings,
         workspace: new InMemoryWorkspace(options.folders, options.files),
         statusBar: new RecordingStatusBar(),
         clipboard: new InMemoryClipboard(),
@@ -74,6 +76,7 @@ export function createTestHost(options: TestHostOptions = {}) {
         tokenPrompt: new ScriptedTokenPrompt(options.tokenAnswers),
         deploymentState: new InMemoryDeploymentState(),
         propertiesPanelState: new InMemoryPropertiesPanelState(),
+        lintingPreference: new InMemoryLintingPreference(settings),
         diagnostics: new RecordingDiagnostics(),
         openEditor(
             path: string,

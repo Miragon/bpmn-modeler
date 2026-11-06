@@ -1,7 +1,12 @@
 import { LintResults } from "@miragon/bpmn-modeler-types";
 
-import { DiagnosticsPort, PropertiesPanelStatePort } from "../modeler/bpmn/port/bpmnPorts";
+import {
+    DiagnosticsPort,
+    LintingPreferencePort,
+    PropertiesPanelStatePort,
+} from "../modeler/bpmn/port/bpmnPorts";
 import { ClipboardPort } from "../kernel/port/hostPorts";
+import { InMemorySettings } from "./InMemorySettings";
 
 export class InMemoryClipboard implements ClipboardPort {
     text = "";
@@ -24,6 +29,15 @@ export class InMemoryPropertiesPanelState implements PropertiesPanelStatePort {
 
     async setVisibility(visible: boolean): Promise<void> {
         this.visible = visible;
+    }
+}
+
+/** Stores the choice in the settings the core reads it back from, as the hosts do. */
+export class InMemoryLintingPreference implements LintingPreferencePort {
+    constructor(private readonly settings: InMemorySettings) {}
+
+    setLintingEnabled(enabled: boolean): void {
+        this.settings.values.lintingEnabled = enabled;
     }
 }
 
