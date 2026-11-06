@@ -444,10 +444,14 @@ and an error message that names the fix.
   value typed `string`, a wider union compared before it is narrowed
   (`scope === "c7"` on a `MigrationScope`), and Kotlin.
 - **False alarms.** Matching by value set reports an unrelated type whose
-  literals all belong to a registered one (`type Tab = "view"`). A local
-  inferred from a narrowed value keeps the narrowed type, so the
-  `"view" | "diff"` case above fires there too. Such a site takes the
-  exception form above.
+  literals all belong to a registered one (`type Tab = "view"`), or hold all
+  of one and are narrowed into it. A local inferred from a narrowed value
+  keeps the narrowed type, so the `"view" | "diff"` case above fires there
+  too. Such a site takes the exception form above. None fires on the tree
+  today: `corepack yarn lint` reports no error without a directive. The rule
+  blocks anyway, because matching by value set is what found the
+  `ModelerMode` and `PropertiesPanelMode` sites, 4 of the 11 `SurfaceMode`
+  decisions, and a false alarm costs one issue-named directive.
 
 Alternatives considered:
 
