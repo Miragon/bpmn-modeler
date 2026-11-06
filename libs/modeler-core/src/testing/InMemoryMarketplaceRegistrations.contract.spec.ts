@@ -10,5 +10,9 @@ describeMarketplaceRegistrationsContract("InMemoryMarketplaceRegistrations", asy
         registrations,
         settingsRead: () => settings.getMarketplaces(),
         refuseWrites: (reason) => registrations.refuseWrites(new Error(reason)),
+        storeElsewhere: (changed) => {
+            registrations.lists.project.splice(0, Infinity, ...changed.project);
+            registrations.lists.allProjects.splice(0, Infinity, ...changed.allProjects);
+        },
     };
 });

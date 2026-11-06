@@ -46,16 +46,20 @@ function asString(entry: MarketplaceSettingsEntry): string {
  * throws turns into an error reply.
  */
 class IntellijMarketplaceStores {
-    private readonly application: string[];
-    private readonly project: string[];
+    private readonly application: string[] = [];
+    private readonly project: string[] = [];
     private refusal: string | undefined;
 
     constructor(
         stored: RegistrationsByScope,
         private readonly sendToBridge: (chunk: string) => void,
     ) {
-        this.application = stored.allProjects.map(asString);
-        this.project = stored.project.map(asString);
+        this.store(stored);
+    }
+
+    store(stored: RegistrationsByScope): void {
+        this.application.splice(0, Infinity, ...stored.allProjects.map(asString));
+        this.project.splice(0, Infinity, ...stored.project.map(asString));
     }
 
     refuseWrites(reason: string): void {
@@ -145,6 +149,7 @@ describeMarketplaceRegistrationsContract(
             registrations: new RpcMarketplaceRegistrations(rpc),
             settingsRead: () => settings.getMarketplaces(),
             refuseWrites: (reason) => host.refuseWrites(reason),
+            storeElsewhere: (changed) => host.store(changed),
         };
     },
 );

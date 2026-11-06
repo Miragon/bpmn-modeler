@@ -55,12 +55,16 @@ const WINDOWS: Record<Window, Pick<typeof vscodeHost, "workspaceFolders" | "work
 const settingValue = (list: readonly MarketplaceSettingsEntry[]) =>
     list.length > 0 ? structuredClone(list) : undefined;
 
-function openWindow(window: Window, stored: RegistrationsByScope): VsCodeSettings {
-    Object.assign(vscodeHost, WINDOWS[window], { refusal: undefined });
+function storeMarketplaces(stored: RegistrationsByScope): void {
     vscodeHost.marketplaces = {
         globalValue: settingValue(stored.allProjects),
         workspaceValue: settingValue(stored.project),
     };
+}
+
+function openWindow(window: Window, stored: RegistrationsByScope): VsCodeSettings {
+    Object.assign(vscodeHost, WINDOWS[window], { refusal: undefined });
+    storeMarketplaces(stored);
     return new VsCodeSettings();
 }
 
@@ -74,6 +78,7 @@ describeMarketplaceRegistrationsContract(
             refuseWrites: (reason) => {
                 vscodeHost.refusal = reason;
             },
+            storeElsewhere: storeMarketplaces,
         };
     },
 );

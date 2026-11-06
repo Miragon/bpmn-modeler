@@ -17,6 +17,8 @@ export interface MarketplaceRegistrationsContractFixture {
     settingsRead(): readonly MarketplaceSettingsEntry[];
     /** The host's stores refuse every later write with `reason` and keep what they hold. */
     refuseWrites(reason: string): void;
+    /** The host's stores hold `stored` now, as after another window or the user changed them. */
+    storeElsewhere(stored: RegistrationsByScope): void;
 }
 
 const ALL_PROJECTS_URL = "https://github.com/acme/shared-templates";
@@ -57,16 +59,19 @@ function isWordable({ kind, path }: SettingsPlace): boolean {
 /**
  * The rules of {@link MarketplaceRegistrationsPort} the core relies on, run
  * against one adapter: `MarketplaceCommands` decides with `isAlreadyRegistered`
- * on a fresh `read`, so each scope's list must come back as stored, `read`
- * must reflect every earlier write made through the same adapter (the core
- * reads before and after each write on one instance), a
- * `register` must append to its own scope's list without looking at the other,
- * an `unregister` must remove exactly the given entries from every list, the
- * prune that follows a write must read the new union through `SettingsPort`,
- * and a refused write must reject with the host's reason, which the core shows,
- * and leave a refused location out of that read, as the failed add prunes by it.
+ * on a fresh `read`, so each scope's list must come back as stored, and `read`
+ * must return what the stores hold now, including changes made outside the
+ * adapter (another window, the user editing the place the core names). A
+ * `register` must append to its own scope's list, for all projects even when
+ * this project's list holds the location, an `unregister` must remove exactly
+ * the given entries from every list, the prune that follows a write must read
+ * the new union through `SettingsPort`, and a refused write must reject with
+ * the host's reason, which the core shows, and leave a refused location out of
+ * that read, as the failed add prunes by it.
  *
  * Left out, as the core does not rely on them:
+ * - A registration for this project of a location all projects hold: the core
+ *   never asks for one, as `isAlreadyRegistered` checks both lists for this project.
  * - Which places a host names and which scopes it can write without a project:
  *   host facts, pinned in each host's own spec. The suite asks only that both
  *   scopes are writable with a project open and that the core can word each place.
@@ -148,13 +153,6 @@ export function describeMarketplaceRegistrationsContract(
             },
             {
                 behaviour:
-                    "appends to this project's list an entry of all projects, as no host checks the other list",
-                stored: { project: [PROJECT_PATH], allProjects: [ADDED_URL] },
-                write: register(ADDED_URL, "project"),
-                registered: { project: [PROJECT_PATH, ADDED_URL], allProjects: [ADDED_URL] },
-            },
-            {
-                behaviour:
                     "removes the given entries from every list and keeps the others in order",
                 stored: {
                     project: [PROJECT_PATH, ADDED_URL, OTHER_PROJECT_PATH],
@@ -186,6 +184,24 @@ export function describeMarketplaceRegistrationsContract(
             await write(registrations);
 
             await expect(registeredIn(registrations)).resolves.toEqual(registered);
+        });
+
+        it("reads the lists as changed outside the adapter and appends to the changed list", async () => {
+            const fixture = await createFixture(ONE_EACH);
+            await expect(registeredIn(fixture.registrations)).resolves.toEqual(ONE_EACH);
+            const changed = {
+                project: [OTHER_PROJECT_PATH],
+                allProjects: [ALL_PROJECTS_URL, OTHER_ALL_PROJECTS_URL],
+            };
+            fixture.storeElsewhere(changed);
+
+            await expect(registeredIn(fixture.registrations)).resolves.toEqual(changed);
+            await fixture.registrations.register(ADDED_URL, "project");
+
+            await expect(registeredIn(fixture.registrations)).resolves.toEqual({
+                project: [OTHER_PROJECT_PATH, ADDED_URL],
+                allProjects: [ALL_PROJECTS_URL, OTHER_ALL_PROJECTS_URL],
+            });
         });
 
         it("reads a self-hosted entry as stored and removes an equal copy of it, where the host keeps one", async (context) => {
