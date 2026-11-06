@@ -2,10 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
     DeploymentTargetsQuery,
+    FormDefaultsQuery,
     HostApiImpl,
     ProcessDefinitionKeyQuery,
     SelectedPayloadFileQuery,
     StoredCredentialsQuery,
+    type AuthConfigPayload,
     type Command,
     type Query,
     type RequestStoredCredentialsCommand,
@@ -116,6 +118,59 @@ describe("deployment webview bootstrap", () => {
             ),
         );
         expect(element("start-instance-btn").disabled).toBe(false);
+    });
+
+    it.each<[string, AuthConfigPayload, string]>([
+        [
+            "Basic auth without a username",
+            { authType: "basic", username: "  ", password: "p" },
+            "Username is required for Basic Auth.",
+        ],
+        [
+            "OAuth2 without a token endpoint",
+            { authType: "oauth2", clientId: "client", clientSecret: "secret" },
+            "Token Endpoint is required for OAuth2.",
+        ],
+    ])("refuses to start an instance with %s, as Deploy does", (_, credentials, reason) => {
+        const host = fakeHost();
+        bootstrap(host as never);
+        dispatch(
+            new FormDefaultsQuery({
+                deploymentName: "order",
+                endpoint: "",
+                tenantId: "",
+                engine: "c7",
+                authType: "none",
+            }),
+        );
+        dispatch(
+            new DeploymentTargetsQuery(
+                [
+                    {
+                        name: "dev",
+                        endpoint: "https://dev.test",
+                        tenantId: "",
+                        engine: "c7",
+                        authType: credentials.authType,
+                    },
+                ],
+                "dev",
+            ),
+        );
+        const [lookup] = sentOfType(
+            host,
+            "RequestStoredCredentialsCommand",
+        ) as unknown as RequestStoredCredentialsCommand[];
+        dispatch(new StoredCredentialsQuery(credentials, lookup.targetName, lookup.requestId));
+        dispatch(new ProcessDefinitionKeyQuery("Order_Process"));
+
+        element("deploy-btn").click();
+        element("start-instance-btn").click();
+
+        expect(element("status-banner").textContent).toBe(reason);
+        expect(element("start-status-banner").textContent).toBe(reason);
+        expect(sentOfType(host, "DeployCommand")).toEqual([]);
+        expect(sentOfType(host, "StartInstanceCommand")).toEqual([]);
     });
 
     describe("tabs", () => {
