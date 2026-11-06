@@ -148,7 +148,8 @@ The commands the BPMN editor webview may post are a closed set, kept as a value
 so a host can iterate it: `BPMN_EDITOR_COMMAND_TYPES` in
 `libs/shared/src/lib/bpmnEditorCommands.ts`. The webview's `HostChannel` takes
 only those, and the bootstrap narrows its host to it once, so neither the
-bootstrap nor a session module can post another surface's command or a query.
+bootstrap nor an adapter or service it hands that channel can post another
+surface's command or a query.
 `HostApi` declares its members as properties, not methods, because TypeScript
 compares a method's parameters bivariantly: the narrowed channel could
 otherwise be handed to a helper typed for every message. The shared
