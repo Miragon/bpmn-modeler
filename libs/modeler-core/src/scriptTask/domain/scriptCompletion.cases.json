@@ -44,6 +44,24 @@
             "variableStringArg": null
         },
         {
+            "name": "a one-letter name asks for its members",
+            "linePrefix": "S.",
+            "memberAccess": "S",
+            "variableStringArg": null
+        },
+        {
+            "name": "a camelCase name asks for its members",
+            "linePrefix": "orderService.",
+            "memberAccess": "orderService",
+            "variableStringArg": null
+        },
+        {
+            "name": "a snake_case name asks for its members",
+            "linePrefix": "order_total.",
+            "memberAccess": "order_total",
+            "variableStringArg": null
+        },
+        {
             "name": "a name without a dot asks for nothing",
             "linePrefix": "execution",
             "memberAccess": null,
@@ -116,6 +134,12 @@
             "variableStringArg": null
         },
         {
+            "name": "a closed single quote ends the argument",
+            "linePrefix": "execution.getVariable('amount'",
+            "memberAccess": null,
+            "variableStringArg": null
+        },
+        {
             "name": "a closed call ends the argument",
             "linePrefix": "execution.getVariable(\"amount\")",
             "memberAccess": null,
@@ -124,6 +148,24 @@
         {
             "name": "an escaped quote is no variable name",
             "linePrefix": "execution.getVariable(\"a\\\"b",
+            "memberAccess": null,
+            "variableStringArg": null
+        },
+        {
+            "name": "a backslash in the argument is no variable name",
+            "linePrefix": "execution.getVariable(\"a\\b",
+            "memberAccess": null,
+            "variableStringArg": null
+        },
+        {
+            "name": "a variable passed without quotes is no variable name",
+            "linePrefix": "execution.getVariable(name",
+            "memberAccess": null,
+            "variableStringArg": null
+        },
+        {
+            "name": "a repeated Local suffix is no variable method",
+            "linePrefix": "execution.setVariableLocalLocal(\"x",
             "memberAccess": null,
             "variableStringArg": null
         },
