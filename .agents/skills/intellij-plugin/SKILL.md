@@ -220,6 +220,8 @@ Kotlin (`apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/`):
 - **JCEF editor**: `BpmnFileEditorProvider.kt`, `BpmnFileEditor.kt`; asset server `WebviewServer.kt`
 - **Element templates**: `ElementTemplatePreviewEditor(Provider).kt` and `ElementTemplatePreviewMessages.kt` (the page's protocol, answered in Kotlin);
   `ElementTemplateFiles.kt` and `NewElementTemplates.kt` copy the TypeScript rules and run their `*.cases.json` rows in tests
+- **Script tabs**: `ScriptCompletionContributor.kt` renders the catalog the bridge ships; `ScriptCompletion.kt` copies the core's
+  two line-prefix matchers and runs `scriptCompletion.cases.json` in `ScriptCompletionMatchersTest`
 - **Shell CSP**: `WebviewContentSecurityPolicy.kt` — the header `WebviewServer` sends with both HTML shells; it allows the
   inline `acquireVsCodeApi` shim by hash, so editing the shim updates the hash pinned in `WebviewContentSecurityPolicyTest`
 - **Transport**: `bridge/RpcChannel.kt`, `bridge/ProcessSupervisor.kt`, `bridge/BridgeBinaryResolver.kt`, `bridge/BridgeProcessLauncher.kt`; routers `bridge/*Router.kt`, composed in `bridge/BridgeRouters.kt`

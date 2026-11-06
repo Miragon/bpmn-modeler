@@ -1,0 +1,143 @@
+{
+    "$comment": "Run by scriptCompletion.spec.ts and IntelliJ's ScriptCompletionMatchersTest against its Kotlin port. A line prefix reads memberAccess from matchMemberAccess and variableStringArg from matchVariableStringArg; null is no match. Rows stay ASCII: Java's \\s and $ read non-ASCII whitespace and U+0085 unlike JavaScript's.",
+    "cases": [
+        {
+            "name": "a bean before a trailing dot asks for its members",
+            "linePrefix": "execution.",
+            "memberAccess": "execution",
+            "variableStringArg": null
+        },
+        {
+            "name": "an indented bean asks for its members",
+            "linePrefix": "  task.",
+            "memberAccess": "task",
+            "variableStringArg": null
+        },
+        {
+            "name": "a bean on the right of an assignment asks for its members",
+            "linePrefix": "def x = execution.",
+            "memberAccess": "execution",
+            "variableStringArg": null
+        },
+        {
+            "name": "a chain asks for the members of its deepest segment",
+            "linePrefix": "foo.bar.",
+            "memberAccess": "bar",
+            "variableStringArg": null
+        },
+        {
+            "name": "spaces after the dot still ask for the members",
+            "linePrefix": "execution.  ",
+            "memberAccess": "execution",
+            "variableStringArg": null
+        },
+        {
+            "name": "a tab after the dot still asks for the members",
+            "linePrefix": "execution.\t",
+            "memberAccess": "execution",
+            "variableStringArg": null
+        },
+        {
+            "name": "a name with an underscore and digits asks for its members",
+            "linePrefix": "_task2.",
+            "memberAccess": "_task2",
+            "variableStringArg": null
+        },
+        {
+            "name": "a name without a dot asks for nothing",
+            "linePrefix": "execution",
+            "memberAccess": null,
+            "variableStringArg": null
+        },
+        {
+            "name": "a member typed after the dot asks for nothing",
+            "linePrefix": "execution.get",
+            "memberAccess": null,
+            "variableStringArg": null
+        },
+        {
+            "name": "a number before the dot asks for nothing",
+            "linePrefix": "1.",
+            "memberAccess": null,
+            "variableStringArg": null
+        },
+        {
+            "name": "an empty line asks for nothing",
+            "linePrefix": "",
+            "memberAccess": null,
+            "variableStringArg": null
+        },
+        {
+            "name": "an open getVariable argument asks for the variables starting with its partial",
+            "linePrefix": "execution.getVariable(\"am",
+            "memberAccess": null,
+            "variableStringArg": { "methodName": "getVariable", "partial": "am" }
+        },
+        {
+            "name": "a single quote right after the parenthesis has an empty partial",
+            "linePrefix": "execution.setVariable('",
+            "memberAccess": null,
+            "variableStringArg": { "methodName": "setVariable", "partial": "" }
+        },
+        {
+            "name": "the Local suffix belongs to the method name",
+            "linePrefix": "execution.setVariableLocal('x",
+            "memberAccess": null,
+            "variableStringArg": { "methodName": "setVariableLocal", "partial": "x" }
+        },
+        {
+            "name": "hasVariable takes a variable name",
+            "linePrefix": "execution.hasVariable(\"",
+            "memberAccess": null,
+            "variableStringArg": { "methodName": "hasVariable", "partial": "" }
+        },
+        {
+            "name": "removeVariable takes a variable name",
+            "linePrefix": "execution.removeVariable(\"",
+            "memberAccess": null,
+            "variableStringArg": { "methodName": "removeVariable", "partial": "" }
+        },
+        {
+            "name": "spaces around the parenthesis keep the argument open",
+            "linePrefix": "execution.getVariable ( \"am",
+            "memberAccess": null,
+            "variableStringArg": { "methodName": "getVariable", "partial": "am" }
+        },
+        {
+            "name": "a dot typed inside the argument also reads as a member access",
+            "linePrefix": "execution.getVariable(\"order.",
+            "memberAccess": "order",
+            "variableStringArg": { "methodName": "getVariable", "partial": "order." }
+        },
+        {
+            "name": "a closed quote ends the argument",
+            "linePrefix": "execution.getVariable(\"amount\"",
+            "memberAccess": null,
+            "variableStringArg": null
+        },
+        {
+            "name": "a closed call ends the argument",
+            "linePrefix": "execution.getVariable(\"amount\")",
+            "memberAccess": null,
+            "variableStringArg": null
+        },
+        {
+            "name": "an escaped quote is no variable name",
+            "linePrefix": "execution.getVariable(\"a\\\"b",
+            "memberAccess": null,
+            "variableStringArg": null
+        },
+        {
+            "name": "getVariables takes no variable name",
+            "linePrefix": "execution.getVariables(\"",
+            "memberAccess": null,
+            "variableStringArg": null
+        },
+        {
+            "name": "an ordinary string literal is no variable name",
+            "linePrefix": "def label = \"hello",
+            "memberAccess": null,
+            "variableStringArg": null
+        }
+    ]
+}

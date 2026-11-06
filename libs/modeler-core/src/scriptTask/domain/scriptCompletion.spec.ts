@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import {
@@ -8,59 +11,21 @@ import {
     parseScriptPath,
 } from "./scriptCompletion";
 
-/**
- * Pure-function tests for the variable-completion helpers behind the script
- * completion provider — exercised without the `vscode`-bound provider class.
- */
-describe("matchVariableStringArg", () => {
-    it("matches getVariable with a double quote and a partial name", () => {
-        expect(matchVariableStringArg(`execution.getVariable("am`)).toEqual({
-            methodName: "getVariable",
-            partial: "am",
-        });
-    });
+interface ScriptCompletionCase {
+    readonly name: string;
+    readonly linePrefix: string;
+    readonly memberAccess: string | null;
+    readonly variableStringArg: { readonly methodName: string; readonly partial: string } | null;
+}
 
-    it("matches a single quote and an empty partial right after the quote", () => {
-        expect(matchVariableStringArg(`execution.setVariable('`)).toEqual({
-            methodName: "setVariable",
-            partial: "",
-        });
-    });
+const { cases: SCRIPT_COMPLETION_CASES } = JSON.parse(
+    readFileSync(resolve(__dirname, "scriptCompletion.cases.json"), "utf8"),
+) as { cases: ScriptCompletionCase[] };
 
-    it("recognises the Local suffix", () => {
-        expect(matchVariableStringArg(`execution.setVariableLocal("x`)?.methodName).toBe(
-            "setVariableLocal",
-        );
-    });
-
-    it("recognises has/remove variants", () => {
-        expect(matchVariableStringArg(`execution.hasVariable("`)?.methodName).toBe("hasVariable");
-        expect(matchVariableStringArg(`execution.removeVariable("`)?.methodName).toBe(
-            "removeVariable",
-        );
-    });
-
-    it("returns undefined once the string argument is closed", () => {
-        expect(matchVariableStringArg(`execution.getVariable("amount")`)).toBeUndefined();
-    });
-
-    it("returns undefined for an ordinary string literal", () => {
-        expect(matchVariableStringArg(`def label = "hello`)).toBeUndefined();
-    });
-});
-
-describe("matchMemberAccess", () => {
-    it.each([
-        { linePrefix: "execution.", bean: "execution" },
-        { linePrefix: "  task.", bean: "task" },
-        { linePrefix: "def x = execution.", bean: "execution" },
-        { linePrefix: "foo.bar.", bean: "bar" },
-        { linePrefix: "execution. ", bean: "execution" },
-        { linePrefix: "execution", bean: undefined },
-        { linePrefix: "execution.get", bean: undefined },
-        { linePrefix: "1.", bean: undefined },
-    ])("'$linePrefix' asks for the members of $bean", ({ linePrefix, bean }) => {
-        expect(matchMemberAccess(linePrefix)).toBe(bean);
+describe("matchMemberAccess and matchVariableStringArg", () => {
+    it.each(SCRIPT_COMPLETION_CASES)("$name", ({ linePrefix, memberAccess, variableStringArg }) => {
+        expect(matchMemberAccess(linePrefix)).toBe(memberAccess ?? undefined);
+        expect(matchVariableStringArg(linePrefix)).toEqual(variableStringArg ?? undefined);
     });
 });
 
