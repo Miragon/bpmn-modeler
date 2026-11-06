@@ -25,13 +25,13 @@ class ProjectMarketplacesStore(private val project: Project) {
     fun list(): List<String> = props.getList(MARKETPLACES) ?: emptyList()
 
     /**
-     * Appends a registration, de-duping against [merged] so re-adding one that
-     * already lives in the app-level list is a no-op — it would otherwise fetch
-     * the same repo twice into the same cache slot.
+     * Appends a registration unless this list holds it. Whether an add registers
+     * anything, given the app-level list, is the core's decision.
      */
     fun add(location: String) {
-        if (merged().contains(location)) return
-        props.setList(MARKETPLACES, list() + location)
+        val current = list()
+        if (current.contains(location)) return
+        props.setList(MARKETPLACES, current + location)
     }
 
     /**

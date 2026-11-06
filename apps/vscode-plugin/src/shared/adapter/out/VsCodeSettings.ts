@@ -1,12 +1,19 @@
+import { posix } from "node:path";
+
 import { ConfigurationTarget, workspace } from "vscode";
 
 import {
     ColorThemeSetting,
+    MarketplaceScope,
     MarketplaceSettingsEntry,
     ModelerSettingsSnapshot,
     parseSetting,
+    registeredMarketplaces,
+    RegistrationsByScope,
     settingKeyOf,
+    SettingsPlace,
     SettingsPort,
+    withoutMarketplaceEntries,
 } from "@miragon/bpmn-modeler-core";
 import { SurfaceMode } from "@miragon/bpmn-modeler-types";
 
@@ -82,9 +89,10 @@ export class VsCodeSettings implements SettingsPort {
     }
 
     /**
-     * The union of the User- and Workspace-level marketplace lists (User first),
-     * deduped structurally. Forwards the raw entries (URL/path strings, or object
-     * entries for self-hosted GHE / GitLab); the domain parser validates each shape.
+     * The union of the User- and Workspace-level marketplace lists, as the
+     * core's `registeredMarketplaces` merges them. Forwards the raw entries
+     * (URL/path strings, or object entries for self-hosted GHE / GitLab); the
+     * domain parser validates each shape.
      *
      * `get()` returns only the effective scope — for an array VS Code shadow-
      * *replaces* rather than merges across scopes, so a workspace list would hide
@@ -93,46 +101,13 @@ export class VsCodeSettings implements SettingsPort {
      * project-specific ones.
      */
     getMarketplaces(): MarketplaceSettingsEntry[] {
-        return this.getMarketplacesWithScopes().map((e) => e.entry);
+        return registeredMarketplaces(this.getMarketplacesByScope()).map(({ entry }) => entry);
     }
 
-    /**
-     * The deduped union of registered marketplaces, each annotated with the
-     * scope(s) it lives in (User first, since the union orders User before
-     * Workspace). The Remove Marketplace command needs this: one picker item per
-     * union entry, with a description naming where the entry is registered, and a
-     * removal that deletes it from *every* scope it appears in.
-     *
-     * Dedup is by {@link entryKey} — the same structural key {@link getMarketplaces}
-     * uses — so the picker's identity can never drift from what removal matches.
-     */
-    getMarketplacesWithScopes(): {
-        entry: MarketplaceSettingsEntry;
-        scopes: ("user" | "workspace")[];
-    }[] {
+    /** User settings hold "all my projects", Workspace settings "this project". */
+    getMarketplacesByScope(): RegistrationsByScope {
         const { userEntries, workspaceEntries } = marketplacesByScope(modelerConfiguration());
-        // User first so a shared "all my projects" entry annotated with both
-        // scopes still reads "User and Workspace settings", not the reverse.
-        const scoped: [MarketplaceSettingsEntry, "user" | "workspace"][] = [
-            ...userEntries.map((entry) => [entry, "user"] as [MarketplaceSettingsEntry, "user"]),
-            ...workspaceEntries.map(
-                (entry) => [entry, "workspace"] as [MarketplaceSettingsEntry, "workspace"],
-            ),
-        ];
-        const byKey = new Map<
-            string,
-            { entry: MarketplaceSettingsEntry; scopes: ("user" | "workspace")[] }
-        >();
-        for (const [entry, scope] of scoped) {
-            const key = entryKey(entry);
-            const existing = byKey.get(key);
-            if (existing) {
-                existing.scopes.push(scope);
-            } else {
-                byKey.set(key, { entry, scopes: [scope] });
-            }
-        }
-        return [...byKey.values()];
+        return { allProjects: userEntries, project: workspaceEntries };
     }
 
     /**
@@ -142,24 +117,15 @@ export class VsCodeSettings implements SettingsPort {
      * `undefined` so the `marketplaces` key is removed from that `settings.json`
      * rather than left as a stray `[]`.
      *
-     * Matching is by {@link entryKey}, the same structural key the picker dedups
-     * on, so an object entry (self-hosted GHE/GitLab) is matched by shape, not
-     * reference. No-workspace safety is implicit: with no folder open the
-     * Workspace scope holds no entries, so its update is never attempted and
-     * VS Code never throws.
+     * No-workspace safety is implicit: with no folder open the Workspace scope
+     * holds no entries, so its update is never attempted and VS Code never throws.
      */
     async removeMarketplaces(entries: readonly MarketplaceSettingsEntry[]): Promise<void> {
         const config = modelerConfiguration();
         const { userEntries, workspaceEntries } = marketplacesByScope(config);
-        const removeKeys = new Set(entries.map((entry) => entryKey(entry)));
 
-        await this.removeFromScope(config, userEntries, removeKeys, ConfigurationTarget.Global);
-        await this.removeFromScope(
-            config,
-            workspaceEntries,
-            removeKeys,
-            ConfigurationTarget.Workspace,
-        );
+        await this.removeFromScope(config, userEntries, entries, ConfigurationTarget.Global);
+        await this.removeFromScope(config, workspaceEntries, entries, ConfigurationTarget.Workspace);
     }
 
     /**
@@ -171,10 +137,10 @@ export class VsCodeSettings implements SettingsPort {
     private async removeFromScope(
         config: ModelerConfiguration,
         current: MarketplaceSettingsEntry[],
-        removeKeys: ReadonlySet<string>,
+        removed: readonly MarketplaceSettingsEntry[],
         target: ConfigurationTarget,
     ): Promise<void> {
-        const filtered = current.filter((entry) => !removeKeys.has(entryKey(entry)));
+        const filtered = withoutMarketplaceEntries(current, removed);
         if (filtered.length === current.length) {
             return;
         }
@@ -182,65 +148,48 @@ export class VsCodeSettings implements SettingsPort {
     }
 
     /**
-     * Registers a marketplace at the caller-chosen scope. The controller decides
-     * (via a quick pick), because scope is a user intent — `"workspace"` keeps the
-     * entry a per-project concern in `.vscode/settings.json`; `"user"` promotes it
-     * to "all my projects". A `"workspace"` request with no folder/workspace open
-     * falls back to Global, because `update()` to Workspace throws without one.
-     *
-     * Dedup follows the effective-union rule: a `"workspace"` add is a no-op if the
-     * URL exists in *either* scope (it already resolves for this project); a
-     * `"user"` add de-dups only against the User list, so an entry that lives
-     * workspace-level can still be promoted user-wide. Either way it appends only
-     * to the **target scope's own** list from `inspect()` — never the union — so a
-     * workspace write can't copy User-level entries into the repo's settings.
+     * Where `ConfigurationTarget.Workspace` writes: the `.code-workspace` file a
+     * window opened, else the folder's `.vscode/settings.json`. A workspace not
+     * saved yet keeps its settings where only the Settings editor reaches them.
+     */
+    workspaceSettingsPlace(): SettingsPlace | undefined {
+        const { workspaceFile } = workspace;
+        if (workspaceFile?.scheme === "untitled") {
+            return { kind: "settingsPage", path: ["Settings", "Workspace"] };
+        }
+        if (workspaceFile) {
+            return { kind: "file", path: [posix.basename(workspaceFile.path)] };
+        }
+        return hasWorkspace() ? { kind: "file", path: [".vscode", "settings.json"] } : undefined;
+    }
+
+    /**
+     * Appends the URL to the chosen scope's own list from `inspect()`, never the
+     * union, so a Workspace write cannot copy User entries into the repository's
+     * settings. Whether the add registers anything is the core's decision. A
+     * `"project"` add with no folder or workspace open goes to the User settings,
+     * because `update()` to Workspace throws without one.
      *
      * String `includes` de-dups only against other strings, which is all the Add
      * command writes; a string that resolves to the same repo as an object entry
      * slips through, costing only a redundant fetch into the same cache slot.
      */
-    async addMarketplace(url: string, scope: "workspace" | "user"): Promise<void> {
+    async addMarketplace(url: string, scope: MarketplaceScope): Promise<void> {
         const config = modelerConfiguration();
         const { userEntries, workspaceEntries } = marketplacesByScope(config);
-        const hasWorkspace =
-            workspace.workspaceFolders !== undefined || workspace.workspaceFile !== undefined;
-        const target =
-            scope === "user" || !hasWorkspace
-                ? ConfigurationTarget.Global
-                : ConfigurationTarget.Workspace;
-        if (target === ConfigurationTarget.Global) {
-            // Promotion rule: only the User list de-dups a "user" add, so an entry
-            // present workspace-level can still be lifted to "all my projects".
-            if (userEntries.includes(url)) {
-                return;
-            }
-            await config.update("marketplaces", [...userEntries, url], target);
+        const [target, current] =
+            scope === "allProjects" || !hasWorkspace()
+                ? [ConfigurationTarget.Global, userEntries]
+                : [ConfigurationTarget.Workspace, workspaceEntries];
+        if (current.includes(url)) {
             return;
         }
-        // Workspace add: a no-op if the URL already resolves for this project via
-        // either scope's list.
-        if (userEntries.includes(url) || workspaceEntries.includes(url)) {
-            return;
-        }
-        await config.update(
-            "marketplaces",
-            [...workspaceEntries, url],
-            ConfigurationTarget.Workspace,
-        );
+        await config.update("marketplaces", [...current, url], target);
     }
 }
 
-/**
- * The structural identity of a settings entry, shared by the picker's dedup and
- * the removal's matching so the two can never drift. Objects (self-hosted
- * GHE/GitLab) can't use referential/`Set<string>` identity, so a serialized key
- * is the simplest stable comparison. Key order is significant for object entries
- * — two entries differing only in field order read as distinct — which is
- * consistent across dedup, the picker, and removal because all three route
- * through this one function.
- */
-function entryKey(entry: MarketplaceSettingsEntry): string {
-    return JSON.stringify(entry);
+function hasWorkspace(): boolean {
+    return workspace.workspaceFolders !== undefined || workspace.workspaceFile !== undefined;
 }
 
 /** Each scope's own list, read as the core reads `marketplaces`. */

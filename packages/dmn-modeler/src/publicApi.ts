@@ -1,3 +1,5 @@
+import type { SurfaceThemeMode } from "@miragon/bpmn-modeler-types";
+
 /** A view editor supported by dmn-js. */
 export type DmnViewType = "drd" | "decisionTable" | "literalExpression" | "boxedExpression";
 
@@ -73,7 +75,7 @@ export interface DmnKeyboardOptions {
  * (VS Code `<body>` classes) maps that signal to a forced mode in its adapter —
  * the package does not read host chrome.
  */
-export type DmnThemeMode = "light" | "dark" | "automatic";
+export type DmnThemeMode = SurfaceThemeMode;
 
 /** Per-instance configuration for {@link createModeler}. */
 export interface DmnModelerOptions {

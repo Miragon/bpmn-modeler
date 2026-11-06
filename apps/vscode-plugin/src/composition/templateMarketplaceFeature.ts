@@ -9,6 +9,8 @@ import {
 } from "@miragon/bpmn-modeler-core";
 import { getContext } from "../shared/adapter/out/extensionContext";
 import { TemplateMarketplaceController } from "../templateMarketplace/adapter/in/TemplateMarketplaceController";
+import { VsCodeMarketplacePrompt } from "../templateMarketplace/adapter/out/VsCodeMarketplacePrompt";
+import { VsCodeMarketplaceRegistrations } from "../templateMarketplace/adapter/out/VsCodeMarketplaceRegistrations";
 import { VsCodeTokenPrompt } from "../templateMarketplace/adapter/out/VsCodeTokenPrompt";
 import { VsCodeTokenStore } from "../templateMarketplace/adapter/out/VsCodeTokenStore";
 import { SharedDeps } from "./sharedDeps";
@@ -55,9 +57,14 @@ export function registerCommands(
     },
 ): void {
     new TemplateMarketplaceController(
-        handles.marketplaceSvc,
-        handles.templatesSvc,
-        deps.vsSettings,
+        {
+            marketplaces: handles.marketplaceSvc,
+            templates: handles.templatesSvc,
+            registrations: new VsCodeMarketplaceRegistrations(deps.vsSettings),
+            prompt: new VsCodeMarketplacePrompt(),
+            picker: deps.picker,
+            homeDir: homedir(),
+        },
         deps.notifier,
     ).register(context);
 }

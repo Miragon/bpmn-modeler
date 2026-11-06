@@ -16,6 +16,8 @@
  * The mode is switchable at runtime via {@link setMode}, which fires
  * `propertiesPanel.providersChanged` so a live panel re-derives immediately.
  */
+import { parseEditableMode, surfaceModeSupports } from "@miragon/bpmn-modeler-types";
+
 import {
     NEUTRAL_GROUP_IDS,
     ENGINE_APPENDED_ENTRY_IDS,
@@ -73,8 +75,7 @@ export class ModeFilterProvider {
         private readonly eventBus: ModeFilterEventBus,
         private readonly injector: ModeFilterInjector,
     ) {
-        const configured = injector.get<string>("config.propertiesPanelMode", false);
-        this.mode = configured === "implement" ? "implement" : "design";
+        this.mode = parseEditableMode(injector.get<unknown>("config.propertiesPanelMode", false));
 
         propertiesPanel.registerProvider(MODE_FILTER_PRIORITY, this);
     }
@@ -93,7 +94,7 @@ export class ModeFilterProvider {
 
     getGroups(_element: unknown) {
         return (groups: PropertiesGroup[]) => {
-            if (this.mode === "implement") {
+            if (surfaceModeSupports(this.mode, "engineProperties")) {
                 return groups;
             }
             return this.filterDesignGroups(groups);

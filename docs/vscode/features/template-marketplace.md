@@ -8,7 +8,7 @@ A marketplace is any location with a `marketplace.json` at its root. The file po
 
 1. Run **Miragon BPMN Modeler: Add Marketplace**.
 2. Paste a repository URL or a local folder path.
-3. Choose **This workspace** (`.vscode/settings.json`, the default) or **All my projects** (User settings). Without an open folder the entry goes to User settings.
+3. Choose **Register for this project** (the default: `.vscode/settings.json`, or the `.code-workspace` file of a multi-root workspace) or **Register for all my projects** (User settings). Without an open folder the entry goes to User settings.
 
 The marketplace is fetched and checked before it is saved, so a missing or broken `marketplace.json` never lands in your settings. Open editors pick up the templates right away. If some or all of its sources cannot be fetched, the marketplace is still saved and a warning names each of those sources and why. **Update Marketplaces** tries them again.
 
