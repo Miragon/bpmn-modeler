@@ -118,6 +118,11 @@ host part, the suite cannot tell, and the Kotlin half is #2056.
   over the `InMemorySecretStorage` fake and the bridge's `RpcSecretStore` over
   the `intellijCredentialHost.ts` loopback, which answers as
   `SecretStoreRouter` does.
+- `describeSettingsContract`: `InMemorySettings`, `VsCodeSettings` over a
+  `vscode` configuration mock and the bridge's `BridgeSettings`, which a
+  loopback feeds `settings/didChange` as `EditorSessionRouter.pushSettings`
+  does. Each also runs the shared normalization rows
+  ([test-first for rules](#test-first-for-rules)).
 - `describeTokenPromptContract`: `ScriptedTokenPrompt`, `VsCodeTokenPrompt`
   over a mocked `showInputBox` and the bridge's `RpcTokenPrompt` over the
   `intellijPromptHost.ts` loopback as well, which answers as
