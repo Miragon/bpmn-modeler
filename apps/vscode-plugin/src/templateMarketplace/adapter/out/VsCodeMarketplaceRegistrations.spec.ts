@@ -1,75 +1,129 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { MarketplaceScope, MarketplaceSettingsEntry, SettingsPlace } from "@miragon/bpmn-modeler-core";
+/** VS Code's window and its User and Workspace values of `marketplaces`, as `inspect` reports them. */
+const vscodeHost = vi.hoisted(() => ({
+    workspaceFolders: undefined as readonly unknown[] | undefined,
+    workspaceFile: undefined as { scheme: string; path: string } | undefined,
+    marketplaces: { globalValue: undefined as unknown, workspaceValue: undefined as unknown },
+    refusal: undefined as string | undefined,
+}));
 
-import { MarketplaceSettings, VsCodeMarketplaceRegistrations } from "./VsCodeMarketplaceRegistrations";
+vi.mock("vscode", () => {
+    const ConfigurationTarget = { Global: 1, Workspace: 2, WorkspaceFolder: 3 };
+    return {
+        ConfigurationTarget,
+        workspace: {
+            get workspaceFolders() {
+                return vscodeHost.workspaceFolders;
+            },
+            get workspaceFile() {
+                return vscodeHost.workspaceFile;
+            },
+            getConfiguration: () => ({
+                get: () => undefined,
+                inspect: (key: string) =>
+                    key === "marketplaces" ? structuredClone(vscodeHost.marketplaces) : undefined,
+                update: async (key: string, value: unknown, target: number) => {
+                    if (vscodeHost.refusal) throw new Error(vscodeHost.refusal);
+                    if (key !== "marketplaces") return;
+                    const scope = target === ConfigurationTarget.Global ? "globalValue" : "workspaceValue";
+                    vscodeHost.marketplaces[scope] = structuredClone(value);
+                },
+            }),
+        },
+    };
+});
 
-/** The User and Workspace lists as `VsCodeSettings` reads and writes them. */
-class SettingsLists implements MarketplaceSettings {
-    readonly added: [string, MarketplaceScope][] = [];
-    readonly removed: MarketplaceSettingsEntry[][] = [];
+import { MarketplaceSettingsEntry, RegistrationsByScope } from "@miragon/bpmn-modeler-core";
+import { describeMarketplaceRegistrationsContract } from "@miragon/bpmn-modeler-core/testing";
 
-    constructor(private readonly workspaceSettings: SettingsPlace | undefined) {}
+import { VsCodeSettings } from "../../../shared/adapter/out/VsCodeSettings";
+import { VsCodeMarketplaceRegistrations } from "./VsCodeMarketplaceRegistrations";
 
-    getMarketplacesByScope() {
-        return { project: [], allProjects: ["https://github.com/acme/shared"] };
-    }
+type Window = "folder" | "workspaceFile" | "empty";
 
-    workspaceSettingsPlace(): SettingsPlace | undefined {
-        return this.workspaceSettings;
-    }
+const WINDOWS: Record<Window, Pick<typeof vscodeHost, "workspaceFolders" | "workspaceFile">> = {
+    folder: { workspaceFolders: [{}], workspaceFile: undefined },
+    workspaceFile: {
+        workspaceFolders: [{}],
+        workspaceFile: { scheme: "file", path: "/work/acme.code-workspace" },
+    },
+    empty: { workspaceFolders: undefined, workspaceFile: undefined },
+};
 
-    async addMarketplace(location: string, scope: MarketplaceScope): Promise<void> {
-        this.added.push([location, scope]);
-    }
+// A list nobody wrote is unset in VS Code's settings, not empty.
+const settingValue = (list: readonly MarketplaceSettingsEntry[]) =>
+    list.length > 0 ? structuredClone(list) : undefined;
 
-    async removeMarketplaces(entries: readonly MarketplaceSettingsEntry[]): Promise<void> {
-        this.removed.push([...entries]);
-    }
+function storeMarketplaces(stored: RegistrationsByScope): void {
+    vscodeHost.marketplaces = {
+        globalValue: settingValue(stored.allProjects),
+        workspaceValue: settingValue(stored.project),
+    };
 }
 
-const FOLDER_SETTINGS: SettingsPlace = { kind: "file", path: [".vscode", "settings.json"] };
-const WORKSPACE_FILE: SettingsPlace = { kind: "file", path: ["acme.code-workspace"] };
+function openWindow(window: Window, stored: RegistrationsByScope): VsCodeSettings {
+    Object.assign(vscodeHost, WINDOWS[window], { refusal: undefined });
+    storeMarketplaces(stored);
+    return new VsCodeSettings();
+}
+
+describeMarketplaceRegistrationsContract(
+    "VsCodeMarketplaceRegistrations over the User and Workspace settings",
+    async (stored) => {
+        const settings = openWindow("folder", stored);
+        return {
+            registrations: new VsCodeMarketplaceRegistrations(settings),
+            settingsRead: () => settings.getMarketplaces(),
+            refuseWrites: (reason) => {
+                vscodeHost.refusal = reason;
+            },
+            storeElsewhere: storeMarketplaces,
+        };
+    },
+);
+
 const IN_USER_SETTINGS = {
     scope: "allProjects",
     savedIn: { kind: "settingsPage", path: ["Settings", "User"] },
 } as const;
 
 describe("VsCodeMarketplaceRegistrations", () => {
-    it.each([
+    it.each<{ behaviour: string; window: Window; places: unknown[] }>([
         {
             behaviour: "both settings while a folder is open",
-            workspaceSettings: FOLDER_SETTINGS,
-            places: [{ scope: "project", savedIn: FOLDER_SETTINGS }, IN_USER_SETTINGS],
+            window: "folder",
+            places: [
+                { scope: "project", savedIn: { kind: "file", path: [".vscode", "settings.json"] } },
+                IN_USER_SETTINGS,
+            ],
         },
         {
             behaviour: "the workspace file and the User settings while a workspace file is open",
-            workspaceSettings: WORKSPACE_FILE,
-            places: [{ scope: "project", savedIn: WORKSPACE_FILE }, IN_USER_SETTINGS],
+            window: "workspaceFile",
+            places: [
+                { scope: "project", savedIn: { kind: "file", path: ["acme.code-workspace"] } },
+                IN_USER_SETTINGS,
+            ],
         },
         {
             behaviour: "only the User settings without a workspace",
-            workspaceSettings: undefined,
+            window: "empty",
             places: [IN_USER_SETTINGS],
         },
-    ])("reports $behaviour, where self-hosted entries go and what is registered", async ({ workspaceSettings, places }) => {
-        const registrations = new VsCodeMarketplaceRegistrations(new SettingsLists(workspaceSettings));
+    ])(
+        "reports $behaviour, where self-hosted entries go and what is registered",
+        async ({ window, places }) => {
+            const settings = openWindow(window, {
+                project: [],
+                allProjects: ["https://github.com/acme/shared"],
+            });
 
-        await expect(registrations.read()).resolves.toEqual({
-            registered: { project: [], allProjects: ["https://github.com/acme/shared"] },
-            writable: places,
-            selfHostedIn: { kind: "file", path: ["settings.json"] },
-        });
-    });
-
-    it("writes registrations to the settings of the chosen scope and removes them from every scope", async () => {
-        const settings = new SettingsLists(FOLDER_SETTINGS);
-        const registrations = new VsCodeMarketplaceRegistrations(settings);
-
-        await registrations.register("/work/templates", "project");
-        await registrations.unregister(["https://github.com/acme/shared"]);
-
-        expect(settings.added).toEqual([["/work/templates", "project"]]);
-        expect(settings.removed).toEqual([["https://github.com/acme/shared"]]);
-    });
+            await expect(new VsCodeMarketplaceRegistrations(settings).read()).resolves.toEqual({
+                registered: { project: [], allProjects: ["https://github.com/acme/shared"] },
+                writable: places,
+                selfHostedIn: { kind: "file", path: ["settings.json"] },
+            });
+        },
+    );
 });

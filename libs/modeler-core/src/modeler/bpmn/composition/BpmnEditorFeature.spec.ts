@@ -88,14 +88,6 @@ const BARE_HOST_ROUTES: Record<BpmnEditorCommandType, MessageRoute> = {
     SetPropertiesPanelStateCommand: ignored("the host does not keep the panel visibility"),
 };
 
-class RecordingLintingPreference {
-    readonly choices: boolean[] = [];
-
-    setLintingEnabled(enabled: boolean): void {
-        this.choices.push(enabled);
-    }
-}
-
 /** Contributions whose handlers and participants only record that they ran. */
 function recordingContributions(
     calls: string[],
@@ -156,7 +148,6 @@ function createFeature(
     const host = createTestHost({ folders: ["/work"] });
     const calls: string[] = [];
     const servedExtensions: string[] = [];
-    const lintingPreference = new RecordingLintingPreference();
     const contributions = recordingContributions(calls, onScriptResync);
     const extensions: BpmnEditorHostExtensions =
         capabilities === "full"
@@ -166,7 +157,7 @@ function createFeature(
                       flushes: new DocumentFlushService(host.store, host.notifier),
                       pendingEdits: { serve: (extension) => servedExtensions.push(extension) },
                   },
-                  lintingPreference,
+                  lintingPreference: host.lintingPreference,
                   propertiesPanelState: host.propertiesPanelState,
               }
             : { rendering };
@@ -185,7 +176,7 @@ function createFeature(
         extensions,
         contributions,
     );
-    return { host, feature, calls, contributions, lintingPreference, servedExtensions };
+    return { host, feature, calls, contributions, servedExtensions };
 }
 
 async function settle(): Promise<void> {
@@ -365,34 +356,45 @@ describe("BpmnEditorFeature", () => {
     });
 
     it("stores a changed linting choice without pushing the lint state again", async () => {
-        const { host, feature, lintingPreference } = createFeature("full");
+        const { host, feature } = createFeature("full");
         const editor = host.openEditor(DIAGRAM, C7_XML);
 
         await feature.router.dispatch(new SetLintingEnabledCommand(false), editor.id);
 
-        expect(lintingPreference.choices).toEqual([false]);
+        expect(host.lintingPreference.storedChoices).toEqual([false]);
         expect(editor.posted).toEqual([]);
     });
 
     it("pushes the lint state again when the page asks for the choice already stored", async () => {
-        const { host, feature, lintingPreference } = createFeature("full");
+        const { host, feature } = createFeature("full");
         const editor = host.openEditor(DIAGRAM, C7_XML);
 
         await feature.router.dispatch(new SetLintingEnabledCommand(true), editor.id);
 
-        expect(lintingPreference.choices).toEqual([]);
+        expect(host.lintingPreference.storedChoices).toEqual([]);
         expect(editor.postedOfType("BpmnlintInPageQuery")).toHaveLength(1);
     });
 
     it("compares the page's choice with the one the host stored", async () => {
-        const { host, feature, lintingPreference } = createFeature("full");
+        const { host, feature } = createFeature("full");
         host.settings.values.lintingEnabled = false;
         const editor = host.openEditor(DIAGRAM, C7_XML);
 
         await feature.router.dispatch(new SetLintingEnabledCommand(false), editor.id);
         await feature.router.dispatch(new SetLintingEnabledCommand(true), editor.id);
 
-        expect(lintingPreference.choices).toEqual([true]);
+        expect(host.lintingPreference.storedChoices).toEqual([true]);
+        expect(editor.postedOfType("BpmnLintDisabledQuery")).toHaveLength(1);
+    });
+
+    it("does not store a choice again once the host reads it back", async () => {
+        const { host, feature } = createFeature("full");
+        const editor = host.openEditor(DIAGRAM, C7_XML);
+
+        await feature.router.dispatch(new SetLintingEnabledCommand(false), editor.id);
+        await feature.router.dispatch(new SetLintingEnabledCommand(false), editor.id);
+
+        expect(host.lintingPreference.storedChoices).toEqual([false]);
         expect(editor.postedOfType("BpmnLintDisabledQuery")).toHaveLength(1);
     });
 
