@@ -18,6 +18,8 @@ export interface DocumentContractFixture {
     revision(editorId: string): number;
     /** The text the host's document holds, read on the host's side. */
     hostContent(editorId: string): string;
+    /** The host fails every later edit of the document, as on a read-only file; the document keeps its text. */
+    failEdits(editorId: string): void;
     /** The host fails every later save of the document, as on a veto or a conflict with the file on disk. */
     failSaves(editorId: string): void;
 }
@@ -83,11 +85,11 @@ const APPLIED_WRITES: readonly WriteBasis[] = [
  *   webview: IntelliJ refuses it to keep an edit the page has not shown, VS
  *   Code applies it. The migration, the only caller without a revision, skips
  *   a refused write.
- * - A failed edit: VS Code answers `false`, IntelliJ answers the request with
- *   an error, so the write rejects. The migration skips the diagram either way.
  * - A write in flight when its editor closes or reopens: IntelliJ refuses it,
- *   VS Code applies it to the same `TextDocument`. The core checks the session
- *   again after every write (`DocumentSnapshot.isCurrent`).
+ *   VS Code applies it to the same `TextDocument`. The callers that act on the
+ *   result check the session again (`DocumentSnapshot.isCurrent`,
+ *   `PendingEditsFlush`); the webview sync ignores the result, and the
+ *   migration counts a refused write as skipped.
  * - The text of an editor that is not open: the bridge reads an empty text,
  *   `EditorSessionDocuments` throws. The core reads only editors the store
  *   holds or catches the throw.
@@ -177,6 +179,19 @@ export function describeDocumentContract(
                     content: CHANGED_ELSEWHERE,
                     hostContent: CHANGED_ELSEWHERE,
                 });
+            });
+
+            // The document sync and the version change read `false` as a refusal; a
+            // rejection shows the user an error instead.
+            it("refuses a write the host fails to apply, and keeps the document's text", async () => {
+                const order = fixture.open(ORDER.path, ORDER.content);
+                fixture.failEdits(order);
+
+                await expect(
+                    fixture.documents.write(order, EDITED, fixture.revision(order)),
+                ).resolves.toBe(false);
+
+                expect(read(order)).toEqual({ content: ORDER.content, hostContent: ORDER.content });
             });
 
             // The document sync tells this apart from a refusal by reading the content.

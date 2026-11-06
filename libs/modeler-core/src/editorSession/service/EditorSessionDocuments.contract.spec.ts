@@ -29,6 +29,9 @@ describeDocumentContract("EditorSessionDocuments over FakeEditorHandle", () => {
         },
         revision: (editorId) => store.currentHostDocumentRevision(editorId),
         hostContent: (editorId) => handleOf(editorId).content,
+        failEdits: (editorId) => {
+            vi.spyOn(handleOf(editorId), "writeContent").mockResolvedValue(false);
+        },
         failSaves: (editorId) => {
             vi.spyOn(handleOf(editorId), "save").mockResolvedValue(false);
         },

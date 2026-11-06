@@ -24,6 +24,7 @@ interface IntelliJDocument {
     text: string;
     documentRevision: number;
     unsaved: boolean;
+    editsFail: boolean;
     savesFail: boolean;
 }
 
@@ -34,8 +35,10 @@ interface IntelliJDocument {
  * write reports a change only when the text differs, with the stored text when
  * it is not the written one. A save reports whether the Document is left
  * saved. An edit outside the core counts a revision; the core's own write does
- * not. It leaves out the refusal of a write without a revision while a host
- * change has not reached the webview: the loopback has no webview.
+ * not. An edit the Document fails throws from `setText`, and the host answers
+ * the request with the error (`RpcChannel.answerOnce`). It leaves out the
+ * refusal of a write without a revision while a host change has not reached
+ * the webview: the loopback has no webview.
  */
 class IntelliJDocuments {
     readonly rpc = new Rpc((line) => this.answer(JSON.parse(line) as Frame));
@@ -59,6 +62,7 @@ class IntelliJDocuments {
             text: content,
             documentRevision: 0,
             unsaved: false,
+            editsFail: false,
             savesFail: false,
         });
         return meta;
@@ -76,19 +80,29 @@ class IntelliJDocuments {
         return this.documentOf(editorId).text;
     }
 
+    failEdits(editorId: string): void {
+        this.documentOf(editorId).editsFail = true;
+    }
+
     failSaves(editorId: string): void {
         this.documentOf(editorId).savesFail = true;
     }
 
     private answer({ id, method, params }: Frame): void {
-        const result =
-            method === METHODS.documentWrite
-                ? this.write(params as DocumentWriteParams)
-                : method === METHODS.documentSave
-                  ? this.save(params as DocumentSaveParams)
-                  : null;
+        let reply: { id?: number; result?: unknown; error?: string };
+        try {
+            reply = { id, result: this.resultOf(method, params) };
+        } catch (failure) {
+            reply = { id, error: (failure as Error).message };
+        }
         // Replies arrive on a later read of the host's output.
-        queueMicrotask(() => void this.rpc.handleLine(JSON.stringify({ id, result })));
+        queueMicrotask(() => void this.rpc.handleLine(JSON.stringify(reply)));
+    }
+
+    private resultOf(method: string | undefined, params: unknown): unknown {
+        if (method === METHODS.documentWrite) return this.write(params as DocumentWriteParams);
+        if (method === METHODS.documentSave) return this.save(params as DocumentSaveParams);
+        return null;
     }
 
     private write(params: DocumentWriteParams): DocumentWriteResult {
@@ -104,6 +118,7 @@ class IntelliJDocuments {
         }
         const changed = document.text !== content;
         if (changed) {
+            if (document.editsFail) throw new Error("The Document did not take the edit.");
             document.text = content;
             document.unsaved = true;
         }
@@ -150,6 +165,7 @@ describeDocumentContract("RpcDocumentPort", () => {
         },
         revision: (editorId) => revisions.get(editorId) ?? 0,
         hostContent: (editorId) => host.text(editorId),
+        failEdits: (editorId) => host.failEdits(editorId),
         failSaves: (editorId) => host.failSaves(editorId),
     };
 });

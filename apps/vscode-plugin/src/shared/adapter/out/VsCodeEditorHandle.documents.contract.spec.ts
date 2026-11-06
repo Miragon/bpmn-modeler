@@ -46,6 +46,7 @@ vi.mock("./bootstrapWebview", () => ({
 /** A `TextDocument` as the handle reads it: VS Code keeps a failed save's document dirty and answers `false`. */
 class FakeTextDocument {
     isDirty = false;
+    editsFail = false;
     savesFail = false;
 
     constructor(
@@ -82,8 +83,11 @@ describeDocumentContract("EditorSessionDocuments over VsCodeEditorHandle", () =>
         return document;
     };
 
+    // VS Code applies a `WorkspaceEdit` whole or not at all, and answers `false` when it does not.
     vscodeHost.applyEdit = async (edit) => {
-        for (const { uri, range, text } of (edit as { replacements: Replacement[] }).replacements) {
+        const { replacements } = edit as { replacements: Replacement[] };
+        if (replacements.some(({ uri }) => documentOf(uri.toString()).editsFail)) return false;
+        for (const { uri, range, text } of replacements) {
             documentOf(uri.toString()).replace(range.start.offset, range.end.offset, text);
         }
         return true;
@@ -115,6 +119,9 @@ describeDocumentContract("EditorSessionDocuments over VsCodeEditorHandle", () =>
         },
         revision: (editorId) => store.currentHostDocumentRevision(editorId),
         hostContent: (editorId) => documentOf(editorId).getText(),
+        failEdits: (editorId) => {
+            documentOf(editorId).editsFail = true;
+        },
         failSaves: (editorId) => {
             documentOf(editorId).savesFail = true;
         },
