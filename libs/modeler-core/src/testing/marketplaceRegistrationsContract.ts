@@ -61,7 +61,8 @@ function isWordable({ kind, path }: SettingsPlace): boolean {
  * `register` must append to its own scope's list without looking at the other,
  * an `unregister` must remove exactly the given entries from every list, the
  * prune that follows a write must read the new union through `SettingsPort`,
- * and a refused write must reject with the host's reason, which the core shows.
+ * and a refused write must reject with the host's reason, which the core shows,
+ * and leave a refused location out of that read, as the failed add prunes by it.
  *
  * Left out, as the core does not rely on them:
  * - Which places a host names and which scopes it can write without a project:
@@ -257,5 +258,14 @@ export function describeMarketplaceRegistrationsContract(
                 await expect(registeredIn(fixture.registrations)).resolves.toEqual(ONE_EACH);
             },
         );
+
+        it("keeps a refused registration out of the settings read the failed add prunes by", async () => {
+            const fixture = await createFixture(ONE_EACH);
+            fixture.refuseWrites("settings.json holds errors");
+
+            await expect(fixture.registrations.register(ADDED_URL, "project")).rejects.toThrow();
+
+            expect(fixture.settingsRead()).not.toContainEqual(ADDED_URL);
+        });
     });
 }
