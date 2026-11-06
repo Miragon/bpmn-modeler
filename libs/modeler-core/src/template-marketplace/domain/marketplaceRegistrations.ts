@@ -102,9 +102,19 @@ export function isAlreadyRegistered(
     entry: MarketplaceSettingsEntry,
     scope: MarketplaceScope,
 ): boolean {
+    return scopesHolding(registered, entry).some((holding) =>
+        LISTS_A_SCOPE_REACHES[scope].includes(holding),
+    );
+}
+
+/** All projects first; entries match by their fields, as {@link registeredMarketplaces} matches them. */
+export function scopesHolding(
+    registered: RegistrationsByScope,
+    entry: MarketplaceSettingsEntry,
+): MarketplaceScope[] {
     const key = entryKey(entry);
-    return LISTS_A_SCOPE_REACHES[scope].some((reached) =>
-        registered[reached].some((listed) => entryKey(listed) === key),
+    return LISTING_ORDER.filter((scope) =>
+        registered[scope].some((listed) => entryKey(listed) === key),
     );
 }
 

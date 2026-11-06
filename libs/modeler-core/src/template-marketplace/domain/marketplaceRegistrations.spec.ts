@@ -8,6 +8,7 @@ import {
     registeredMarketplaces,
     registrableLocation,
     RegistrationsByScope,
+    scopesHolding,
     withoutMarketplaceEntries,
 } from "./marketplaceRegistrations";
 
@@ -131,6 +132,54 @@ describe("isAlreadyRegistered", () => {
         },
     ])("$behaviour", ({ registered, entry, scope, already }) => {
         expect(isAlreadyRegistered(registered, entry, scope)).toBe(already);
+    });
+});
+
+describe("scopesHolding", () => {
+    it.each<{
+        behaviour: string;
+        registered: RegistrationsByScope;
+        entry: MarketplaceSettingsEntry;
+        scopes: MarketplaceScope[];
+    }>([
+        {
+            behaviour: "no scope when neither list holds the entry",
+            registered: { project: ["/work/other"], allProjects: ["/work/other"] },
+            entry: "/work/a",
+            scopes: [],
+        },
+        {
+            behaviour: "all my projects when only their list holds the entry",
+            registered: { project: ["/work/other"], allProjects: ["/work/a"] },
+            entry: "/work/a",
+            scopes: ["allProjects"],
+        },
+        {
+            behaviour: "this project when only its list holds the entry",
+            registered: { project: ["/work/a"], allProjects: ["/work/other"] },
+            entry: "/work/a",
+            scopes: ["project"],
+        },
+        {
+            behaviour: "both scopes, all my projects first, when both lists hold the entry",
+            registered: { project: ["/work/a"], allProjects: ["/work/a"] },
+            entry: "/work/a",
+            scopes: ["allProjects", "project"],
+        },
+        {
+            behaviour: "a scope once when its list holds the entry twice",
+            registered: { project: ["/work/a", "/work/a"], allProjects: [] },
+            entry: "/work/a",
+            scopes: ["project"],
+        },
+        {
+            behaviour: "the scopes of a self-hosted entry, matched by its fields",
+            registered: { project: [selfHosted()], allProjects: [] },
+            entry: selfHosted(),
+            scopes: ["project"],
+        },
+    ])("names $behaviour", ({ registered, entry, scopes }) => {
+        expect(scopesHolding(registered, entry)).toStrictEqual(scopes);
     });
 });
 

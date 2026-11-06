@@ -744,7 +744,10 @@ for this project changes nothing when either list holds the entry, and an add
 for all projects only when the all-projects list does, so an entry of this
 project can still be shared with all projects. The core decides on a read made
 once the marketplace is fetched, as a removal may have run while the question
-was open. `register` only appends to the scope's own list unless that list holds
+was open. An add that registers nothing still fetches, because the cache is per
+workspace and only an add or an update fills it; `marketplaceAddNotice` then
+says where the entry is registered (`scopesHolding`) instead of that it was
+added. `register` only appends to the scope's own list unless that list holds
 the entry; no host and not the test fake checks the other list. The core merges the lists with `registeredMarketplaces`
 (`template-marketplace/domain/marketplaceRegistrations.ts`): each entry once,
 matched by its fields, with every scope that holds it, all-projects entries
@@ -1312,6 +1315,11 @@ a cached result must equal an uncached run.
   copies of the rule, and the test fake followed neither, so the core's specs
   pinned a behaviour no host had. Deciding in the core costs one more `read` per
   add, a `marketplaceState/read` round trip on IntelliJ.
+- An add could check `isAlreadyRegistered` before it fetches and skip the
+  fetch for an entry already registered, saving one fetch of a marketplace the
+  user named. Nothing fetches when a workspace opens, so in a workspace opened
+  after an entry was registered for all projects, that add would say the entry
+  is registered and still offer none of its templates.
 - A port for `MarketplaceCache` or `DiffPaneStore` would add an interface with
   one implementation that no host or spec substitutes; the specs already run
   the real stores over the in-memory host kit. A second implementation is the

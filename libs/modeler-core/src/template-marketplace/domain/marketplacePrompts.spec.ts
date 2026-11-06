@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 
+import { FetchReport } from "./fetchReport";
 import {
     MarketplaceAddAnswer,
+    MarketplaceAddNotice,
+    marketplaceAddNotice,
+    MarketplaceAddOutcome,
     marketplaceAddPrompt,
     marketplaceRemoval,
 } from "./marketplacePrompts";
@@ -200,6 +204,115 @@ describe("marketplaceAddPrompt", () => {
         },
     ])("$behaviour as the user types", ({ host, input, problem }) => {
         expect(marketplaceAddPrompt(host, "/home/ada").problemWith(input)).toBe(problem);
+    });
+});
+
+describe("marketplaceAddNotice", () => {
+    const unreachable = 'github github.com/acme/two path "b": offline';
+    const skippedType =
+        'sources[2]: content type "palette-entries" is not supported by this version';
+    const futureType =
+        'sources[0]: content type "palette-entries" is not supported by this version';
+    const fetched = FetchReport.of({
+        usableSources: 1,
+        cached: 2,
+        sourceFailures: [],
+        skippedTypes: [],
+    });
+    const fetchedInPart = FetchReport.of({
+        usableSources: 2,
+        cached: 2,
+        sourceFailures: [{ source: 'github github.com/acme/two path "b"', reason: "offline" }],
+        skippedTypes: [skippedType],
+    });
+    const fetchedNothing = FetchReport.of({
+        usableSources: 0,
+        cached: 0,
+        sourceFailures: [],
+        skippedTypes: [futureType],
+    });
+
+    it.each<{
+        behaviour: string;
+        outcome: MarketplaceAddOutcome;
+        report: FetchReport;
+        notice: MarketplaceAddNotice;
+    }>([
+        {
+            behaviour: "confirms an added marketplace whose sources were all fetched",
+            outcome: { kind: "registered" },
+            report: fetched,
+            notice: { severity: "info", message: "Marketplace added." },
+        },
+        {
+            behaviour: "warns with the sources an added marketplace could not fetch",
+            outcome: { kind: "registered" },
+            report: fetchedInPart,
+            notice: {
+                severity: "warning",
+                message: `Marketplace added, but some of its sources could not be fetched:\n${unreachable}\n${skippedType}`,
+            },
+        },
+        {
+            behaviour: "warns why an added marketplace fetched nothing",
+            outcome: { kind: "registered" },
+            report: fetchedNothing,
+            notice: {
+                severity: "warning",
+                message: `Marketplace added, but none of its sources could be fetched:\n${futureType}`,
+            },
+        },
+        {
+            behaviour: "says a marketplace is already registered for all my projects",
+            outcome: { kind: "alreadyRegistered", registeredIn: ["allProjects"] },
+            report: fetched,
+            notice: {
+                severity: "info",
+                message: "Marketplace already registered for all my projects.",
+            },
+        },
+        {
+            behaviour: "says a marketplace is already registered for this project",
+            outcome: { kind: "alreadyRegistered", registeredIn: ["project"] },
+            report: fetched,
+            notice: {
+                severity: "info",
+                message: "Marketplace already registered for this project.",
+            },
+        },
+        {
+            behaviour: "names both scopes, all my projects first, when both hold the marketplace",
+            outcome: { kind: "alreadyRegistered", registeredIn: ["project", "allProjects"] },
+            report: fetched,
+            notice: {
+                severity: "info",
+                message: "Marketplace already registered for all my projects and this project.",
+            },
+        },
+        {
+            behaviour: "warns with the sources a registered marketplace could not fetch again",
+            outcome: { kind: "alreadyRegistered", registeredIn: ["allProjects"] },
+            report: fetchedInPart,
+            notice: {
+                severity: "warning",
+                message:
+                    "Marketplace already registered for all my projects, " +
+                    `but some of its sources could not be fetched:\n${unreachable}\n${skippedType}`,
+            },
+        },
+        {
+            behaviour: "warns why a registered marketplace fetched nothing",
+            outcome: { kind: "alreadyRegistered", registeredIn: ["project"] },
+            report: fetchedNothing,
+            notice: {
+                severity: "warning",
+                message:
+                    "Marketplace already registered for this project, " +
+                    `but none of its sources could be fetched:\n${futureType}`,
+            },
+        },
+    ])("$behaviour", ({ outcome, report, notice }) => {
+        expect(marketplaceAddNotice(outcome, report)).toStrictEqual(notice);
     });
 });
 

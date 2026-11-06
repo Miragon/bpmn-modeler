@@ -2,16 +2,20 @@ import { join } from "path";
 
 import { MarketplaceSettingsEntry } from "../../kernel/domain/modelerSettings";
 import { NotifierPort, PickerPort } from "../../kernel/port/hostPorts";
-import { FetchReport } from "../domain/fetchReport";
 import {
     MarketplaceAddAnswer,
+    MarketplaceAddNotice,
+    marketplaceAddNotice,
+    MarketplaceAddOutcome,
     marketplaceAddPrompt,
     marketplaceRemoval,
 } from "../domain/marketplacePrompts";
 import {
     isAlreadyRegistered,
+    MarketplaceScope,
     registeredMarketplaces,
     registrableLocation,
+    scopesHolding,
 } from "../domain/marketplaceRegistrations";
 import { MarketplacePromptPort, MarketplaceRegistrationsPort } from "../port/marketplacePorts";
 import { TemplateMarketplaceService } from "./TemplateMarketplaceService";
@@ -61,6 +65,8 @@ export class MarketplaceCommands {
      * location without one never lands in the host's settings. A valid manifest
      * whose sources all failed is still registered: a later update may reach
      * them. The location is registered expanded, so a later update never sees a `~`.
+     * An entry already registered is still fetched: the cache is per workspace,
+     * and only an add or an update fills it.
      */
     async add(): Promise<void> {
         const { notifier } = this.ports;
@@ -71,10 +77,10 @@ export class MarketplaceCommands {
                 notifier.logDebug("Add Marketplace cancelled");
                 return;
             }
-            const report = await notifier.withProgress("Adding marketplace…", () =>
+            const notice = await notifier.withProgress("Adding marketplace…", () =>
                 this.oneAtATime(() => this.fetchAndRegister(answer)),
             );
-            this.reportAdded(report);
+            this.showNotice(notice);
         } catch (error) {
             await this.reportAddFailure(error as Error);
         }
@@ -187,35 +193,37 @@ export class MarketplaceCommands {
     private async fetchAndRegister({
         location,
         scope,
-    }: MarketplaceAddAnswer): Promise<FetchReport> {
-        const { marketplaces, registrations, notifier, templates } = this.ports;
+    }: MarketplaceAddAnswer): Promise<MarketplaceAddNotice> {
+        const { marketplaces, templates } = this.ports;
         try {
             const report = await marketplaces.addMarketplace(location);
-            if (isAlreadyRegistered((await registrations.read()).registered, location, scope)) {
-                notifier.logDebug(`Marketplace already registered: ${location}`);
-            } else {
-                await registrations.register(location, scope);
-                notifier.logDebug(`Marketplace registration persisted: ${location}`);
-            }
+            const outcome = await this.registerUnlessRegistered(location, scope);
             await templates.reloadMarketplaceTemplates();
-            return report;
+            return marketplaceAddNotice(outcome, report);
         } catch (error) {
             await marketplaces.pruneOrphanedCaches();
             throw error;
         }
     }
 
-    private reportAdded(report: FetchReport): void {
-        const verdict = report.verdict();
-        if (verdict === "complete") {
-            this.ports.notifier.showInfo("Marketplace added.");
-            return;
+    private async registerUnlessRegistered(
+        location: string,
+        scope: MarketplaceScope,
+    ): Promise<MarketplaceAddOutcome> {
+        const { registrations, notifier } = this.ports;
+        const { registered } = await registrations.read();
+        if (isAlreadyRegistered(registered, location, scope)) {
+            notifier.logDebug(`Marketplace already registered: ${location}`);
+            return { kind: "alreadyRegistered", registeredIn: scopesHolding(registered, location) };
         }
-        const headline =
-            verdict === "partial"
-                ? "Marketplace added, but some of its sources could not be fetched:"
-                : "Marketplace added, but none of its sources could be fetched:";
-        this.ports.notifier.showWarning(`${headline}\n${report.reasons().join("\n")}`);
+        await registrations.register(location, scope);
+        notifier.logDebug(`Marketplace registration persisted: ${location}`);
+        return { kind: "registered" };
+    }
+
+    private showNotice({ severity, message }: MarketplaceAddNotice): void {
+        if (severity === "warning") this.ports.notifier.showWarning(message);
+        else this.ports.notifier.showInfo(message);
     }
 
     // Outside the queue: a host's explanation may wait for a click.

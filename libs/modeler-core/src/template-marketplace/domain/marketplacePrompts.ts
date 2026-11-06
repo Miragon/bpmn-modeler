@@ -1,5 +1,6 @@
 import { MarketplaceSettingsEntry } from "../../kernel/domain/modelerSettings";
 import { ChoicePrompt } from "../../kernel/domain/prompts";
+import { FetchReport, FetchVerdict } from "./fetchReport";
 import { marketplaceEntryLabel } from "./marketplace";
 import {
     JoinPath,
@@ -43,13 +44,28 @@ export interface MarketplaceAddAnswer {
     readonly scope: MarketplaceScope;
 }
 
+/** `registeredIn` names every scope whose list holds the entry, not only those the add reaches. */
+export type MarketplaceAddOutcome =
+    | { readonly kind: "registered" }
+    | { readonly kind: "alreadyRegistered"; readonly registeredIn: readonly MarketplaceScope[] };
+
+export interface MarketplaceAddNotice {
+    readonly severity: "info" | "warning";
+    readonly message: string;
+}
+
 export type MarketplaceRemoval =
     | { readonly kind: "nothingRegistered"; readonly message: string }
     | { readonly kind: "choose"; readonly prompt: ChoicePrompt<MarketplaceSettingsEntry> };
 
-const SCOPE_LABEL: Record<MarketplaceScope, string> = {
-    project: "Register for this project",
-    allProjects: "Register for all my projects",
+const SCOPE_NAME: Record<MarketplaceScope, string> = {
+    project: "this project",
+    allProjects: "all my projects",
+};
+
+const FETCH_SHORTFALL: Record<Exclude<FetchVerdict, "complete">, string> = {
+    partial: "some of its sources could not be fetched",
+    nothingFetched: "none of its sources could be fetched",
 };
 
 /** @param refused the answer whose location the core refused, to ask again about */
@@ -64,7 +80,7 @@ export function marketplaceAddPrompt(
             .filter((writable) => writable.scope === scope)
             .map((writable) => ({
                 scope,
-                label: SCOPE_LABEL[scope],
+                label: `Register for ${SCOPE_NAME[scope]}`,
                 description: `Saved in ${placeName(writable.savedIn)}`,
             })),
     );
@@ -84,6 +100,24 @@ export function marketplaceAddPrompt(
     };
 }
 
+export function marketplaceAddNotice(
+    outcome: MarketplaceAddOutcome,
+    report: FetchReport,
+): MarketplaceAddNotice {
+    const headline =
+        outcome.kind === "registered"
+            ? "Marketplace added"
+            : `Marketplace already registered for ${scopesPhrase(outcome.registeredIn)}`;
+    const verdict = report.verdict();
+    if (verdict === "complete") {
+        return { severity: "info", message: `${headline}.` };
+    }
+    return {
+        severity: "warning",
+        message: `${headline}, but ${FETCH_SHORTFALL[verdict]}:\n${report.reasons().join("\n")}`,
+    };
+}
+
 export function marketplaceRemoval(
     registered: readonly RegisteredMarketplace[],
 ): MarketplaceRemoval {
@@ -98,7 +132,7 @@ export function marketplaceRemoval(
             placeholder: "Select marketplaces to remove",
             items: registered.map(({ entry, scopes }) => ({
                 label: marketplaceEntryLabel(entry),
-                description: registeredIn(scopes),
+                description: sentenceCase(scopesPhrase(scopes)),
                 value: entry,
             })),
         },
@@ -117,10 +151,14 @@ function placeName(place: SettingsPlace): string {
     return place.path.join(place.kind === "file" ? "/" : " ▸ ");
 }
 
-function registeredIn(scopes: readonly MarketplaceScope[]): string {
+function scopesPhrase(scopes: readonly MarketplaceScope[]): string {
     const inAllProjects = scopes.includes("allProjects");
     if (inAllProjects && scopes.includes("project")) {
-        return "All my projects and this project";
+        return `${SCOPE_NAME.allProjects} and ${SCOPE_NAME.project}`;
     }
-    return inAllProjects ? "All my projects" : "This project";
+    return SCOPE_NAME[inAllProjects ? "allProjects" : "project"];
+}
+
+function sentenceCase(phrase: string): string {
+    return phrase.charAt(0).toUpperCase() + phrase.slice(1);
 }
