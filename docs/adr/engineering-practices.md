@@ -418,13 +418,16 @@ The typed ESLint rule `miragon/no-guarded-value-comparison`
 reports `===`, `!==`, `==`, `!=` and each `case` that compares such a value
 with a string literal outside its home, in every folder. Each registry entry in
 `eslint.config.cjs` names the type, its module, its homes and an error message
-that names the fix. Two types are registered, and code elsewhere asks their
+that names the fix. Three types are registered, and code elsewhere asks their
 home:
 
 - **`Engine`:** a capability in the `Record<Engine, …>` table of
   `libs/modeler-types/src/engine.ts` (`engineSupports`), a method named after
   the rule (`DeploymentTarget.verifiesDeployments()`), or a `Record<Engine, …>`
   lookup.
+- **`SurfaceMode`:** a capability in the table of
+  `libs/modeler-types/src/surfaceMode.ts` (`surfaceModeSupports`), or a
+  `Record<SurfaceMode, …>` lookup.
 - **`ReferenceKind`:** a capability in the `Record<ReferenceKind, …>` table of
   `libs/modeler-types/src/referenceKind.ts` (`referenceKindSupports`: only a
   form reference has an availability status and a preview), or a
@@ -440,20 +443,32 @@ home:
   `model-navigation`, the declarations only in the core.
 
 A lookup keyed by the union makes the compiler report a missing member, so a
-new engine or reference kind is decided in every table before it builds.
+new engine, surface mode or reference kind is decided in every table before it
+builds.
 
 - **Typed, not name-based.** The rule reads the type checker through the parser
   services typescript-eslint already provides, so it sees the value under any
   name: a local, a parameter, a type parameter (resolved to its constraint),
-  with `null` and `undefined` removed. A value of raw `string` or `unknown` is
-  invisible; it is parsed with `isEngine` or `isReferenceKind` first (parse,
-  don't validate).
+  with `null` and `undefined` removed. A union whose literals all belong to a
+  registered type counts as that type, so `ModelerMode` and
+  `PropertiesPanelMode` (`"design" | "implement"`) are guarded as `SurfaceMode`.
+  It reads the type a local or property (`change.kind`, `change["kind"]`) was
+  declared with, not the narrowed one: after `tab === "diff"` fails, an
+  unrelated `"view" | "diff"` narrows to `"view"`, which would match
+  `SurfaceMode`. The narrowed type counts where the declared type is no
+  string-literal union, or holds every value of a registered type
+  (`MigrationScope`, which is `Engine | "both"`). A value of raw `string` or
+  `unknown` is invisible until a guard such as `isEngine` or `isReferenceKind`
+  or a parse such as `parseEditableMode` turns it into the type (parse, don't
+  validate).
 - **Opt-in.** Discriminated unions a domain function returns (`kind`, `status`,
   `AuthConfig`) are narrowed by design and stay unregistered. A type joins the
   registry when review or the change-coupling report shows a decision on it in
-  two places. `ReferenceKind` joined because the form-only availability rule
-  was written in both the context pad and the webview's navigation port, and a
-  core service chose the files to search by comparing it.
+  two places. `SurfaceMode` joined when its decisions were spread over the
+  webview, the properties panel and the modeler package. `ReferenceKind` joined
+  because the form-only availability rule was written in both the context pad
+  and the webview's navigation port, and a core service chose the files to
+  search by comparing it.
 - **Never vacuous.** The registry is resolved against the program on every run:
   a missing module, a missing export or a type that is no string-literal union
   throws, and so does a file without type information.
@@ -465,10 +480,26 @@ new engine or reference kind is decided in every table before it builds.
 - **Cost.** `eslint .` took 10.1 s before and 9.2 to 10.4 s after, within
   run-to-run noise: the type program was built anyway for
   `parserOptions.project`. `tsconfigRootDir` pins that program to the repo
-  root, so a run from a workspace directory gets type information too.
+  root, so a run from a workspace directory gets type information too. The
+  rule's own time (`TIMING=all`) is 0.52 to 0.57 s of an 11 to 12 s
+  `eslint .` in five runs on a loaded machine; neither the second entry nor
+  the declared and narrowed reading changed it beyond run-to-run noise.
 - **Known misses.** `["c7"].includes(engine)`, `Set.has`, a comparison on a
   value typed `string`, a value used as data instead of compared (such as a
-  kind spelled into a regex as an XML element name), and Kotlin.
+  kind spelled into a regex as an XML element name), a wider union compared
+  before it is narrowed (`scope === "c7"` on a `MigrationScope`), a union
+  holding only part of a registered type plus other values, narrowed into that
+  part (`ModelerMode | "diff"`), which the rule cannot tell from the unrelated
+  `"view" | "diff"`, and Kotlin.
+- **False alarms.** Matching by value set reports an unrelated type whose
+  literals all belong to a registered one (`type Tab = "view"`), or hold all
+  of one and are narrowed into it. A local inferred from a narrowed value
+  keeps the narrowed type, so the `"view" | "diff"` case above fires there
+  too. Such a site takes the exception form above. None fires on the tree
+  today: `corepack yarn lint` reports no error without a directive. The rule
+  blocks anyway, because matching by value set is what found the
+  `ModelerMode` and `PropertiesPanelMode` sites, 4 of the 11 `SurfaceMode`
+  decisions, and a false alarm costs one issue-named directive.
 
 Alternatives considered:
 

@@ -318,6 +318,13 @@ module.exports = [
                             message:
                                 "`Engine` compared outside its home. Add a capability to `libs/modeler-types/src/engine.ts` and ask it.",
                         },
+                        {
+                            name: "SurfaceMode",
+                            module: path.join(__dirname, "libs/modeler-types/src/surfaceMode.ts"),
+                            homes: [path.join(__dirname, "libs/modeler-types/src/surfaceMode.ts")],
+                            message:
+                                "`SurfaceMode` compared outside its home. Add a capability to `libs/modeler-types/src/surfaceMode.ts` and ask it, or look the mode up in a `Record<SurfaceMode, …>`.",
+                        },
                     ],
                 },
             ],

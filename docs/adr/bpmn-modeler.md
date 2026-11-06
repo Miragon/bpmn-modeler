@@ -552,13 +552,15 @@ arithmetic and positive text metrics rather than inert layout stubs.
 ### Mode session and lifecycle
 
 `/mode` publishes the shared session and optional mode strip. Consumers inject
-View/Design/Implement factories; the entry imports no modeling stack. Available
+View/Design/Implement factories; the entry imports no modeling stack.
+`servingSurfaces`, a `Record<SurfaceMode, …>`, names the factory that builds
+each mode: on a tagged model Design runs on the Implement modeler. Available
 factories and engine determine available modes. A single mode needs no control;
 hosts can offer all modes with unavailable Implement disabled for neutral
 documents. The strip is a chip on the canvas next to the token-simulation
 toggle that opens a mode menu, not a permanent row above the properties panel:
 modes are switched rarely, so the control stays small, and living on the canvas
-keeps it a single control that stays reachable while the panel is collapsed. Portable mode types and transition planning live in `modeler-types`.
+keeps it a single control that stays reachable while the panel is collapsed. Portable mode types, what each mode offers (`surfaceModeSupports`: engine properties, element templates, engine lint rules) and transition planning live in `modeler-types`.
 Mode-strip translation keys remain on the i18n overlay's source-only allowlist
 because hosts can render the strip before a surface exists for harvesting.
 

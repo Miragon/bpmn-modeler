@@ -9,6 +9,7 @@ const REPO_ROOT = join(__dirname, "../../..");
 const RULE = "miragon/no-guarded-value-comparison";
 const ENGINE_HOME = join(REPO_ROOT, "libs/modeler-types/src/engine.ts");
 const ENGINE = 'import("@miragon/bpmn-modeler-types").Engine';
+const SURFACE_MODE = 'import("@miragon/bpmn-modeler-types").SurfaceMode';
 
 const VERIFICATION_SERVICE =
     "libs/modeler-core/src/deployment/service/DeploymentVerificationService.ts";
@@ -115,6 +116,84 @@ export const guardedIsC8 = "c8" == guardedEngine;`,
             comparison: "a type parameter constrained to an engine",
             file: CAPABILITY_MODULES,
             snippet: `export const guardedIsC8 = <E extends ${ENGINE}>(engine: E) => engine === "c8";`,
+            errors: 1,
+        },
+        {
+            comparison: "a surface mode",
+            file: DEPLOYMENT_SERVICE,
+            snippet: `declare const guardedMode: ${SURFACE_MODE};
+if (guardedMode === "view") { void guardedMode; }`,
+            errors: 1,
+        },
+        {
+            comparison: "a union of some surface modes",
+            file: DEPLOYMENT_SERVICE,
+            snippet: `declare const guardedMode: "design" | "implement";
+if (guardedMode !== "design") { void guardedMode; }`,
+            errors: 1,
+        },
+        {
+            comparison: "a surface mode narrowed before each comparison",
+            file: DEPLOYMENT_SERVICE,
+            snippet: `declare const guardedMode: ${SURFACE_MODE};
+if (guardedMode !== "view" && guardedMode === "design") { void guardedMode; }`,
+            errors: 2,
+        },
+        {
+            comparison: "a surface mode read through this",
+            file: DEPLOYMENT_SERVICE,
+            snippet: `export class GuardedPanel {
+    constructor(private readonly mode: "design" | "implement") {}
+    isDesign(): boolean { return this.mode === "design"; }
+}`,
+            errors: 1,
+        },
+        {
+            comparison: "an unknown parsed by a guard",
+            file: DEPLOYMENT_SERVICE,
+            snippet: `declare const guardedRaw: unknown;
+declare function guardedIsEngine(value: unknown): value is ${ENGINE};
+if (guardedIsEngine(guardedRaw) && guardedRaw === "c7") { void guardedRaw; }`,
+            errors: 1,
+        },
+        {
+            comparison: "an unregistered union narrowed into the surface modes",
+            file: DEPLOYMENT_SERVICE,
+            snippet: `declare const guardedTab: "view" | "diff";
+if (guardedTab === "diff") { void guardedTab; } else if (guardedTab === "view") { void guardedTab; }`,
+            errors: 0,
+        },
+        {
+            comparison: "an unregistered discriminant narrowed into the surface modes",
+            file: DEPLOYMENT_SERVICE,
+            snippet: `declare const guardedChange:
+    | { readonly kind: "view"; readonly at: number }
+    | { readonly kind: "diff"; readonly against: string };
+if (guardedChange.kind === "diff") { void guardedChange; } else if (guardedChange.kind === "view") { void guardedChange; }`,
+            errors: 0,
+        },
+        {
+            comparison: "an unregistered discriminant read by bracket access",
+            file: DEPLOYMENT_SERVICE,
+            snippet: `declare const guardedChange:
+    | { readonly kind: "view"; readonly at: number }
+    | { readonly kind: "diff"; readonly against: string };
+if (guardedChange["kind"] === "diff") { void guardedChange; } else if (guardedChange["kind"] === "view") { void guardedChange; }`,
+            errors: 0,
+        },
+        {
+            comparison: "a wider union narrowed into the engines",
+            file: DEPLOYMENT_SERVICE,
+            snippet: `declare const guardedScope: ${ENGINE} | "both";
+if (guardedScope !== "both" && guardedScope === "c7") { void guardedScope; }`,
+            errors: 1,
+        },
+        {
+            comparison: "a wider union narrowed into the surface modes by a guard",
+            file: DEPLOYMENT_SERVICE,
+            snippet: `declare const guardedRaw: ${SURFACE_MODE} | "diff";
+declare function guardedIsSurfaceMode(value: unknown): value is ${SURFACE_MODE};
+if (guardedIsSurfaceMode(guardedRaw) && guardedRaw === "view") { void guardedRaw; }`,
             errors: 1,
         },
     ])("reports $errors for $comparison", async ({ file, snippet, errors }) => {
