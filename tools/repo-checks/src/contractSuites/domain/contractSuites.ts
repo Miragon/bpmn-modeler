@@ -55,6 +55,23 @@ export interface ContractSuiteInventory {
     readonly specs: readonly AdapterSpec[];
 }
 
+export interface KitLayout {
+    /** The kit's file, through the `tsconfig.base.json` paths. */
+    readonly helperModule: string | undefined;
+    readonly hexagonalWorkspaceDirs: readonly string[];
+}
+
+/** Source roots end in a slash. The core is the hexagonal workspace that holds the kit. */
+export interface CoreScope {
+    readonly helperModule: string;
+    readonly coreSourceRoot: string;
+    readonly hexagonalSourceRoots: readonly string[];
+}
+
+export type CoreScopeOutcome =
+    | { readonly kind: "measurable"; readonly scope: CoreScope }
+    | { readonly kind: "unmeasurable"; readonly reason: string };
+
 type ContractSuiteGroup = "skips-suite" | "no-suite" | "render-only";
 
 const SPEC_SOURCE = /\.(spec|test)\.[^/]+$/;
@@ -70,12 +87,43 @@ export function isProductionSource(path: string): boolean {
     return !isSpecSource(path) && !TEST_INPUT.test(path);
 }
 
-/** `coreSourceRoot` ends in a slash; below it the first role folder decides. */
-export function isPortSource(path: string, coreSourceRoot: string): boolean {
+export function coreScopeOf({ helperModule, hexagonalWorkspaceDirs }: KitLayout): CoreScopeOutcome {
+    if (helperModule === undefined) {
+        return {
+            kind: "unmeasurable",
+            reason: `no tsconfig.base.json path resolves ${CONTRACT_HELPER_MODULE}`,
+        };
+    }
+    const coreDir = hexagonalWorkspaceDirs.find((dir) => helperModule.startsWith(`${dir}/`));
+    if (coreDir === undefined) {
+        return {
+            kind: "unmeasurable",
+            reason: `the workspace of ${CONTRACT_HELPER_MODULE} declares no hexagonal architecture`,
+        };
+    }
+    return {
+        kind: "measurable",
+        scope: {
+            helperModule,
+            coreSourceRoot: `${coreDir}/src/`,
+            hexagonalSourceRoots: hexagonalWorkspaceDirs.map((dir) => `${dir}/src/`),
+        },
+    };
+}
+
+/** Below the core's source root the first role folder decides. */
+export function isPortSource(path: string, { coreSourceRoot }: CoreScope): boolean {
     return (
         path.startsWith(coreSourceRoot) &&
         isProductionSource(path) &&
         roleOf(path.slice(coreSourceRoot.length))?.role === "port"
+    );
+}
+
+export function isAdapterSource(path: string, { hexagonalSourceRoots }: CoreScope): boolean {
+    return (
+        hexagonalSourceRoots.some((sourceRoot) => path.startsWith(sourceRoot)) &&
+        isProductionSource(path)
     );
 }
 

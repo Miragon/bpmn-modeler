@@ -1052,11 +1052,12 @@ lives in `tools/repo-checks/src/contractSuites/domain`.
   interface, helper parameter, member and import over one program: the
   tracked sources of every hexagonal workspace, specs included, with the
   compiler options of `tsconfig.base.json` and no `@types` package. Every path
-  is taken under the real repository root, because the compiler joins alias
-  targets to the config's directory and would otherwise load a file under a
-  symlinked temp dir twice. Only specs that import an adapter have their calls
-  resolved; resolving the calls of every spec took the spec pass two to four
-  times as long in three trials.
+  is taken under the real repository root: the compiler resolves an import
+  through `node_modules` to its real path, so under a symlinked root a spec
+  that imports a workspace package by name would get a second copy of the
+  adapter class and lose its pair. Only specs that import an adapter have
+  their calls resolved; resolving the calls of every spec took the spec pass
+  two to four times as long in three trials.
 - **Identity and delta.** One finding per pair without a suite, at the
   adapter's class, keyed by the adapter's and the port's path and name, not
   the line. The groups are adapters that skip their port's suite, ports the
@@ -1065,9 +1066,12 @@ lives in `tools/repo-checks/src/contractSuites/domain`.
   adapters can drift apart come first. A new adapter of a port with a suite
   shows as new until its spec runs the suite; a spec that starts running it
   resolves the pair.
-- **History.** Until #2139 moved the core into role folders, the core declares
-  no interface in a `port/` folder, and the function is unmeasurable there
-  (`12ff0d9d`) instead of reading an empty tree as clean.
+- **History.** The function says why it cannot measure a commit instead of
+  reading an empty tree as clean. Before the workspaces declared their kinds,
+  the kit's workspace declares no hexagonal architecture (`bb6ae7ae`); until
+  #2139 moved the core into role folders, the core declares no interface in a
+  `port/` folder (`12ff0d9d`). The domain decides the core from the kit's file
+  and the hexagonal workspaces, and words both reasons.
 
 First run at `cd48f2cd`: 23 ports in the core's `port/` folders, each with an
 adapter; 55 adapters; one helper, `describeWorkspaceContract`; 73 specs that

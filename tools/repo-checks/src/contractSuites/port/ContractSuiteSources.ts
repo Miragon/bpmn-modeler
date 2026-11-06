@@ -1,5 +1,6 @@
-import type { ContractSuiteInventory } from "../domain/contractSuites";
+import type { ContractSuiteInventory, CoreScope, KitLayout } from "../domain/contractSuites";
 
 export interface ContractSuiteSources {
-    read(repoRoot: string): ContractSuiteInventory | undefined;
+    readLayout(repoRoot: string): KitLayout;
+    read(repoRoot: string, scope: CoreScope): ContractSuiteInventory;
 }

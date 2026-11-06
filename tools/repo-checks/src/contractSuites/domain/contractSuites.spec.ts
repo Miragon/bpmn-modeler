@@ -7,14 +7,22 @@ import {
     type ContractHelper,
     type ContractSuiteInventory,
     contractSuiteFindings,
+    type CoreScope,
+    coreScopeOf,
     type Declared,
+    isAdapterSource,
     isPortSource,
     isProductionSource,
     isSpecSource,
     type Port,
 } from "./contractSuites";
 
-const CORE_SOURCE = "libs/modeler-core/src/";
+const KIT = "libs/modeler-core/src/testing/index.ts";
+const SCOPE: CoreScope = {
+    helperModule: KIT,
+    coreSourceRoot: "libs/modeler-core/src/",
+    hexagonalSourceRoots: ["apps/modeler-bridge/src/", "libs/modeler-core/src/"],
+};
 const PORTS = "libs/modeler-core/src/kernel/port/hostPorts.ts";
 
 function port(name: string, ...members: [string, boolean][]): Port {
@@ -269,6 +277,42 @@ describe("contractSuiteFindings", () => {
     });
 });
 
+describe("coreScopeOf", () => {
+    it("takes the hexagonal workspace that holds the kit as the core", () => {
+        expect(
+            coreScopeOf({
+                helperModule: KIT,
+                hexagonalWorkspaceDirs: ["apps/modeler-bridge", "libs/modeler-core"],
+            }),
+        ).toEqual({ kind: "measurable", scope: SCOPE });
+    });
+
+    it.each([
+        {
+            case: "no path resolves the kit",
+            helperModule: undefined,
+            reason: "no tsconfig.base.json path resolves @miragon/bpmn-modeler-core/testing",
+        },
+        {
+            case: "the kit lies in no hexagonal workspace",
+            helperModule: KIT,
+            reason: "the workspace of @miragon/bpmn-modeler-core/testing declares no hexagonal architecture",
+        },
+        {
+            case: "only a sibling directory's name starts like a hexagonal workspace",
+            helperModule: "libs/modeler-core-next/src/testing/index.ts",
+            reason: "the workspace of @miragon/bpmn-modeler-core/testing declares no hexagonal architecture",
+        },
+    ])("is unmeasurable when $case", ({ helperModule, reason }) => {
+        expect(
+            coreScopeOf({
+                helperModule,
+                hexagonalWorkspaceDirs: helperModule === KIT ? [] : ["libs/modeler-core"],
+            }),
+        ).toEqual({ kind: "unmeasurable", reason });
+    });
+});
+
 describe("the source kinds", () => {
     it.each([
         ["libs/modeler-core/src/kernel/port/hostPorts.ts", true],
@@ -279,7 +323,17 @@ describe("the source kinds", () => {
         ["libs/modeler-core/src/kernel/port/__fixtures__/ports.ts", false],
         ["apps/modeler-bridge/src/kernel/port/WorkspaceRoots.ts", false],
     ])("a port may be declared in %s: %s", (path, accepted) => {
-        expect(isPortSource(path, CORE_SOURCE)).toBe(accepted);
+        expect(isPortSource(path, SCOPE)).toBe(accepted);
+    });
+
+    it.each([
+        ["apps/modeler-bridge/src/kernel/adapter/out/NodeWorkspace.ts", true],
+        ["libs/modeler-core/src/testing/InMemoryWorkspace.ts", true],
+        ["apps/modeler-bridge/test/NodeWorkspace.ts", false],
+        ["apps/flat/src/FlatWorkspace.ts", false],
+        ["apps/modeler-bridge/src/kernel/adapter/out/NodeWorkspace.spec.ts", false],
+    ])("an adapter may be declared in %s: %s", (path, accepted) => {
+        expect(isAdapterSource(path, SCOPE)).toBe(accepted);
     });
 
     it.each([

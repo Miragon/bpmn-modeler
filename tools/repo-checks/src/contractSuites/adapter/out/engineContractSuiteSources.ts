@@ -13,10 +13,12 @@ import { trackedFiles } from "../../../fitness/adapter/out/git";
 import {
     CONTRACT_HELPER_MODULE,
     type ContractSuiteInventory,
+    type CoreScope,
     type Declared,
+    isAdapterSource,
     isPortSource,
-    isProductionSource,
     isSpecSource,
+    type KitLayout,
 } from "../../domain/contractSuites";
 import type { ContractSuiteSources } from "../../port/ContractSuiteSources";
 
@@ -24,58 +26,53 @@ const TYPESCRIPT_SOURCE = /\.[mc]?tsx?$/;
 const DECLARATION_FILE = /\.d\.[mc]?ts$/;
 
 export class EngineContractSuiteSources implements ContractSuiteSources {
-    read(repoRoot: string): ContractSuiteInventory | undefined {
-        // One spelling for every path: under a symlinked temp dir the compiler would load a file twice.
+    readLayout(repoRoot: string): KitLayout {
+        const tsconfig = join(repoRoot, "tsconfig.base.json");
+        return {
+            helperModule: existsSync(tsconfig)
+                ? resolveAliasImport(
+                      CONTRACT_HELPER_MODULE,
+                      readPathAliases(readFileSync(tsconfig, "utf8")),
+                      new Set(trackedFiles(repoRoot)),
+                  )
+                : undefined,
+            hexagonalWorkspaceDirs: readWorkspaces(repoRoot)
+                .filter(({ kind }) => kind === "hexagonal")
+                .map(({ dir }) => dir),
+        };
+    }
+
+    read(repoRoot: string, scope: CoreScope): ContractSuiteInventory {
+        // An import through node_modules resolves to the real path, so a symlinked root loads it twice.
         const root = realpathSync(repoRoot);
-        const tsconfig = join(root, "tsconfig.base.json");
-        if (!existsSync(tsconfig)) {
-            return undefined;
-        }
-        const tracked = trackedFiles(root);
-        const helperModule = resolveAliasImport(
-            CONTRACT_HELPER_MODULE,
-            readPathAliases(readFileSync(tsconfig, "utf8")),
-            new Set(tracked),
-        );
-        const sourceRoots = readWorkspaces(root)
-            .filter(({ kind }) => kind === "hexagonal")
-            .map(({ dir }) => `${dir}/src/`);
-        const coreSourceRoot = sourceRoots.find((sourceRoot) => helperModule?.startsWith(sourceRoot));
-        if (helperModule === undefined || coreSourceRoot === undefined) {
-            return undefined;
-        }
-        const sources = new Set(
-            tracked.filter(
-                (path) =>
-                    TYPESCRIPT_SOURCE.test(path) &&
-                    !DECLARATION_FILE.test(path) &&
-                    sourceRoots.some((sourceRoot) => path.startsWith(sourceRoot)),
-            ),
+        const tracked = new Set(trackedFiles(root));
+        const sources = [...tracked].filter(
+            (path) =>
+                TYPESCRIPT_SOURCE.test(path) &&
+                !DECLARATION_FILE.test(path) &&
+                scope.hexagonalSourceRoots.some((sourceRoot) => path.startsWith(sourceRoot)),
         );
         const pathOf = (fileName: string): string => relative(root, fileName).split(sep).join("/");
-        const sourcePath = (fileName: string): string | undefined => {
+        const trackedPathOf = (fileName: string): string | undefined => {
             const path = pathOf(fileName);
-            return sources.has(path) ? path : undefined;
+            return tracked.has(path) ? path : undefined;
         };
+        const accepts =
+            (rule: (path: string) => boolean) =>
+            (fileName: string): boolean => {
+                const path = trackedPathOf(fileName);
+                return path !== undefined && rule(path);
+            };
         const suites = findContractSuites(
-            readTypeProgram(tsconfig, {
-                files: [...sources].map((path) => join(root, path)),
+            readTypeProgram(join(root, "tsconfig.base.json"), {
+                files: sources.map((path) => join(root, path)),
                 types: [],
             }),
             {
-                isPortFile: (fileName) => {
-                    const path = sourcePath(fileName);
-                    return path !== undefined && isPortSource(path, coreSourceRoot);
-                },
-                isAdapterFile: (fileName) => {
-                    const path = sourcePath(fileName);
-                    return path !== undefined && isProductionSource(path);
-                },
-                isSpecFile: (fileName) => {
-                    const path = sourcePath(fileName);
-                    return path !== undefined && isSpecSource(path);
-                },
-                helperModule: join(root, helperModule),
+                isPortFile: accepts((path) => isPortSource(path, scope)),
+                isAdapterFile: accepts((path) => isAdapterSource(path, scope)),
+                isSpecFile: accepts(isSpecSource),
+                helperModule: join(root, scope.helperModule),
             },
         );
         const declared = ({ fileName, name }: DeclarationName): Declared => ({

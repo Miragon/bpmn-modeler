@@ -7,6 +7,7 @@ import {
     CONTRACT_HELPER_MODULE,
     CONTRACT_SUITE_GROUPS,
     contractSuiteFindings,
+    coreScopeOf,
 } from "../domain/contractSuites";
 import type { ContractSuiteSources } from "../port/ContractSuiteSources";
 
@@ -57,17 +58,16 @@ export function createContractSuitesFitnessFunction({
                 kind: "trial",
                 commit: "12ff0d9d",
                 outcome:
-                    "before the core moved into role folders it declares no interface in a port/ folder, so the function is unmeasurable there; at ad3bc359, after the hosts moved too, it lists the same 57 finding keys as at cd48f2cd",
+                    "before the core moved into role folders it declares no interface in a port/ folder, so the function is unmeasurable there, and at bb6ae7ae, before the workspaces declared their kinds, the kit's workspace declares no hexagonal architecture; at ad3bc359, after the hosts moved too, it lists the same 57 finding keys as at cd48f2cd",
             },
         ],
         groups: CONTRACT_SUITE_GROUPS,
         findFindings: ({ repoRoot }) => {
-            const inventory = sources.read(repoRoot);
-            if (inventory === undefined) {
-                throw new InsufficientHistory(
-                    `no tsconfig.base.json path resolves ${CONTRACT_HELPER_MODULE}`,
-                );
+            const core = coreScopeOf(sources.readLayout(repoRoot));
+            if (core.kind === "unmeasurable") {
+                throw new InsufficientHistory(core.reason);
             }
+            const inventory = sources.read(repoRoot, core.scope);
             if (inventory.ports.length === 0) {
                 throw new InsufficientHistory(
                     `the workspace of ${CONTRACT_HELPER_MODULE} declares no interface in a port/ folder`,
