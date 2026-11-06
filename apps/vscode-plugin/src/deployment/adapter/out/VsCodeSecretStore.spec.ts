@@ -1,10 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { describeSecretStoreContract } from "@miragon/bpmn-modeler-core/testing";
+
 import { InMemorySecretStorage } from "../../../__fixtures__/vscodeStorage";
 import { VsCodeSecretStore } from "./VsCodeSecretStore";
 
 const SLOT = "/ws/.camunda/deployment-targets.json::dev";
-const OTHER_SLOT = "/ws/.camunda/deployment-targets.json::prod";
 const APPROVED_DESTINATIONS_KEY = `bpmn-modeler.deployment.${SLOT}.approvedDestinations`;
 
 function slotKey(field: string): string {
@@ -15,6 +16,8 @@ function createStore() {
     const secrets = new InMemorySecretStorage();
     return { secrets, store: new VsCodeSecretStore(secrets) };
 }
+
+describeSecretStoreContract("VsCodeSecretStore", async () => createStore().store);
 
 describe("VsCodeSecretStore", () => {
     it("reads the unnamed ad-hoc credentials earlier releases stored", async () => {
@@ -52,17 +55,6 @@ describe("VsCodeSecretStore", () => {
             clientId: "client",
             clientSecret: "client-secret",
         });
-    });
-
-    it("keeps the ad-hoc credentials and each target's slot apart", async () => {
-        const { store } = createStore();
-
-        await store.saveBasicAuth("adhoc", "a");
-        await store.saveBasicAuth("dev", "d", SLOT);
-
-        await expect(store.getBasicAuth()).resolves.toEqual({ username: "adhoc", password: "a" });
-        await expect(store.getBasicAuth(SLOT)).resolves.toEqual({ username: "dev", password: "d" });
-        await expect(store.getBasicAuth(OTHER_SLOT)).resolves.toBeUndefined();
     });
 
     describe("pairs earlier releases stored under two keys", () => {
@@ -155,25 +147,7 @@ describe("VsCodeSecretStore", () => {
         await expect(store.getBasicAuth(SLOT)).resolves.toEqual({ username: "demo", password: "" });
     });
 
-    it("deletes every credential of one slot and leaves the others", async () => {
-        const { store } = createStore();
-        await store.saveBasicAuth("adhoc", "a");
-        await store.saveBasicAuth("dev", "d", SLOT);
-        await store.saveOAuth2("dev-client", "dev-secret", SLOT);
-        await store.saveBasicAuth("prod", "p", OTHER_SLOT);
-
-        await store.delete(SLOT);
-
-        await expect(store.getBasicAuth(SLOT)).resolves.toBeUndefined();
-        await expect(store.getOAuth2(SLOT)).resolves.toBeUndefined();
-        await expect(store.getBasicAuth()).resolves.toEqual({ username: "adhoc", password: "a" });
-        await expect(store.getBasicAuth(OTHER_SLOT)).resolves.toEqual({
-            username: "prod",
-            password: "p",
-        });
-    });
-
-    it("removes the slot's approved destinations alongside its credentials", async () => {
+    it("leaves no key of the slot behind on delete", async () => {
         const { secrets, store } = createStore();
         await store.saveBasicAuth("demo", "basic-secret", SLOT);
         await store.saveOAuth2("client", "client-secret", SLOT);
@@ -182,19 +156,6 @@ describe("VsCodeSecretStore", () => {
         await store.delete(SLOT);
 
         expect(secrets.entries.size).toBe(0);
-        await expect(store.getApprovedDestinations(SLOT)).resolves.toEqual([]);
-    });
-
-    it("leaves another slot's approved destinations in place on delete", async () => {
-        const { store } = createStore();
-        await store.saveApprovedDestinations(SLOT, ["https://engine.example"]);
-        await store.saveApprovedDestinations(OTHER_SLOT, ["https://staging.example"]);
-
-        await store.delete(SLOT);
-
-        await expect(store.getApprovedDestinations(OTHER_SLOT)).resolves.toEqual([
-            "https://staging.example",
-        ]);
     });
 
     describe("when SecretStorage rejects", () => {
@@ -346,12 +307,6 @@ describe("VsCodeSecretStore", () => {
     });
 
     describe("approved destinations", () => {
-        it("returns no origins when the slot has none stored", async () => {
-            const { store } = createStore();
-
-            await expect(store.getApprovedDestinations(SLOT)).resolves.toEqual([]);
-        });
-
         it("stores the origins as a JSON array under the slot's approvedDestinations key", async () => {
             const { secrets, store } = createStore();
 
@@ -363,22 +318,6 @@ describe("VsCodeSecretStore", () => {
             expect([...secrets.entries]).toEqual([
                 [APPROVED_DESTINATIONS_KEY, '["https://engine.example","https://login.example"]'],
             ]);
-        });
-
-        it("reads back the origins it saved", async () => {
-            const { store } = createStore();
-            await store.saveApprovedDestinations(SLOT, ["https://engine.example"]);
-
-            await expect(store.getApprovedDestinations(SLOT)).resolves.toEqual([
-                "https://engine.example",
-            ]);
-        });
-
-        it("keeps each slot's approvals separate", async () => {
-            const { store } = createStore();
-            await store.saveApprovedDestinations(SLOT, ["https://engine.example"]);
-
-            await expect(store.getApprovedDestinations(OTHER_SLOT)).resolves.toEqual([]);
         });
 
         it.each([

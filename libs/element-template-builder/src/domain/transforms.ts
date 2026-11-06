@@ -1,4 +1,4 @@
-import type { BindingSpec, EngineCatalog, PropertyType, Requirement } from "../catalog";
+import type { BindingSpec, EngineCatalog, PropertyType, Requirement } from "./catalog";
 import { bindingOptions } from "./bindingOptions";
 import { allowedTypes, bindingSpecOf, initialBinding, sampleValue } from "./bindingRules";
 import { isObject, objectOf, valueAt, type Json } from "./json";

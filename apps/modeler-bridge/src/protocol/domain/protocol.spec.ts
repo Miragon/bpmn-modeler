@@ -145,7 +145,10 @@ describe("RPC protocol descriptor", () => {
                     "  secretStore/saveApprovedDestinations",
                     "  secretStore/delete",
                     "  deploymentState/save",
+                    "  marketplaceState/read",
                     "  marketplaceState/save",
+                    "  marketplaceState/remove",
+                    "  marketplacePrompt/show",
                     "  tokenStore/get",
                     "  tokenStore/set",
                     "  tokenPrompt/show",
@@ -175,17 +178,20 @@ describe("RPC protocol descriptor", () => {
     });
 
     describe("reply deadlines", () => {
-        it.each([METHODS.pickerShow, METHODS.confirmShow, METHODS.tokenPromptShow])(
-            "waits for the user to answer %s",
-            (method) => {
-                expect(replyDeadlineMs(method)).toBeUndefined();
-            },
-        );
+        it.each([
+            METHODS.pickerShow,
+            METHODS.confirmShow,
+            METHODS.tokenPromptShow,
+            METHODS.marketplacePromptShow,
+        ])("waits for the user to answer %s", (method) => {
+            expect(replyDeadlineMs(method)).toBeUndefined();
+        });
 
         it.each([
             { method: METHODS.documentWrite, state: "the document mirror" },
             { method: METHODS.deploymentStateSave, state: "the deployment-state mirror" },
             { method: METHODS.marketplaceStateSave, state: "the fetched marketplace cache" },
+            { method: METHODS.marketplaceStateRemove, state: "the marketplace cache prune" },
         ])(
             "waits for the reply to $method, so $state stays in step with the host",
             ({ method }) => {
@@ -206,6 +212,7 @@ describe("RPC protocol descriptor", () => {
             METHODS.tokenStoreGet,
             METHODS.tokenStoreSet,
             METHODS.settingsSetLintingEnabled,
+            METHODS.marketplaceStateRead,
         ])("gives up on %s after the host-work deadline", (method) => {
             expect(replyDeadlineMs(method)).toBe(HOST_WORK_REPLY_DEADLINE_MS);
         });

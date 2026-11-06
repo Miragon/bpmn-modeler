@@ -28,7 +28,8 @@ import io.miragon.intellij.bpmn.bridge.orderedCredentialStoreExecutor
  *  - satisfy the document port (`document/write` / `document/save`) against the
  *    real IntelliJ `Document`;
  *  - render the core's `NotifierPort` and status-bar ports as IntelliJ UI, and
- *    its pickers (`picker/show`) as a native `JBPopup` chooser.
+ *    its pickers (`picker/show`) as a native `JBPopup` chooser, or a checkbox
+ *    dialog for several picks.
  *
  * **Role.** This service is the composition root + façade. It wires the bridge
  * collaborators in `io.miragon.intellij.bpmn.bridge` — the [RpcChannel]
@@ -166,21 +167,14 @@ class CoreProcess(private val project: Project) : Disposable {
 
     // ── template marketplace ───────────────────────────────────────────────────
 
-    /**
-     * Fires `marketplace/add` for the pasted location; backs the Tools-menu Add
-     * action. `appWide` carries the dialog's scope choice through to the persist.
-     */
-    fun addMarketplace(location: String, appWide: Boolean) = routers.marketplace.addMarketplace(location, appWide)
+    /** Fires `marketplace/add`; the core asks for the location and scope, then fetches and registers. */
+    fun addMarketplace() = routers.marketplace.addMarketplace()
 
     /** Fires `marketplace/update` to re-fetch every configured marketplace. */
     fun updateMarketplaces() = routers.marketplace.updateMarketplaces()
 
-    /**
-     * Fires `marketplace/remove` to prune the caches of already-unregistered
-     * marketplaces without re-fetching the rest; backs the Tools-menu Remove
-     * action. `removedCount` is the selection size, echoed into the summary toast.
-     */
-    fun removeMarketplaces(removedCount: Int) = routers.marketplace.removeMarketplaces(removedCount)
+    /** Fires `marketplace/remove`; the core offers the registrations, unregisters the chosen ones and prunes. */
+    fun removeMarketplaces() = routers.marketplace.removeMarketplaces()
 
     // ── modeler commands ───────────────────────────────────────────────────────
 

@@ -1,5 +1,8 @@
 export type BuilderTab = "template" | "groups" | "properties";
 
+/** The tabs that list items, each named after the template's list it shows. */
+export type ItemTab = Exclude<BuilderTab, "template">;
+
 export const BUILDER_TABS: readonly BuilderTab[] = ["template", "groups", "properties"];
 
 /** Where the user is in the form. Rendering reads it; only {@link navigate} changes it. */
@@ -20,7 +23,7 @@ export type NavigationEvent =
     | { kind: "tab"; tab: BuilderTab }
     /** The form goes to an item, for example after adding or moving it. */
     | { kind: "open"; tab: "template" }
-    | { kind: "open"; tab: "groups" | "properties"; index?: number; focus?: string }
+    | { kind: "open"; tab: ItemTab; index?: number; focus?: string }
     /** A problem's "Show": its field wins over what the search hides. */
     | { kind: "show"; tab: BuilderTab; index?: number; focus: string }
     | { kind: "search"; query: string }
