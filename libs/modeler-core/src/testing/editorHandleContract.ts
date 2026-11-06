@@ -169,6 +169,24 @@ export function describeEditorHandleContract(
                     expect(heard).toEqual({ first: true, disposed: false, last: true });
                 },
             );
+
+            // A one-shot reply listener disposes itself when the reply arrives.
+            it.each(HANDLE_EVENTS)(
+                "reports $event to the next subscription every time when one disposes itself on hearing it",
+                ({ subscribe, happen }) => {
+                    const heard = { before: 0, next: 0 };
+                    subscribe(fixture.handle, () => heard.before++);
+                    const selfDisposing: EditorSubscription = subscribe(fixture.handle, () =>
+                        selfDisposing.dispose(),
+                    );
+                    subscribe(fixture.handle, () => heard.next++);
+
+                    happen(fixture);
+
+                    expect(heard.before).toBeGreaterThan(0);
+                    expect(heard.next).toBe(heard.before);
+                },
+            );
         });
 
         describe("webview messages", () => {
