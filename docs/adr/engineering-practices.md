@@ -72,14 +72,43 @@ IntelliJ runs over an RPC loopback that answers as the Kotlin side does. So a
 run pins each adapter's own mapping, not the host itself: where a fake and its
 host part, the suite cannot tell, and the Kotlin half is #2056.
 
+- `describeClipboardContract`: `InMemoryClipboard`, `VsCodeClipboard` over a
+  fake `env.clipboard` and the bridge's `RpcClipboard` over a loopback that
+  answers as `HostUiRouter` does.
+- `describeDeploymentStateContract`: `InMemoryDeploymentState`,
+  `VsCodeDeploymentState` over a fake `Memento` that keeps a rejected value in
+  memory, as VS Code's does, and the bridge's `RpcDeploymentState` over a
+  loopback that answers as `DeploymentRouter` and `IntellijDeploymentState` do.
+- `describeDiffPaneContract`: `FakeDiffPaneHandle`, VS Code's
+  `WebviewPaneHandle` over a fake panel and document, and the bridge's
+  `RpcDiffPaneHandle` over a loopback that routes posts as `DiffRouter.kt`
+  does.
+- `describeDocumentContract`: `EditorSessionDocuments` twice, over the kit's
+  `FakeEditorHandle` as `createTestHost` composes it and over
+  `VsCodeEditorHandle` on a fake `vscode` text document, and the bridge's
+  `RpcDocumentPort` over a loopback that answers as `EditorSessionRouter.kt`
+  does. The kit has no `DocumentPort` fake of its own.
 - `describeEditorHandleContract`: `FakeEditorHandle`, `VsCodeEditorHandle`
   over a fake panel, text document and `workspace` events, and the bridge's
   `RpcEditorHandle` over a loopback that answers as `EditorSessionRouter.kt`
   does.
+- `describeLintingPreferenceContract`: `InMemoryLintingPreference`,
+  `VsCodeLintingPreference` and the bridge's `RpcLintingPreference`. The setter
+  returns nothing, so each reads the choice back through its host's settings
+  adapter (`InMemorySettings`, `VsCodeSettings`, `BridgeSettings`). VS Code's
+  pair runs over a configuration fake with a user and a workspace scope, the
+  bridge's over a loopback that answers as `SettingsRouter` does.
 - `describeNotifierContract`, which covers `withProgress`:
   `RecordingNotifier`, `VsCodeNotifier` over `vscodeWindowFake.ts` and the
   bridge's `RpcNotifier` over a loopback that answers as `HostUiRouter.kt`
   does.
+- `describePropertiesPanelStateContract`: `InMemoryPropertiesPanelState` and
+  VS Code's `PropertiesPanelStateRepository` over an in-memory `Memento`. The
+  bridge has no adapter of this port.
+- `describeScriptEditorContract`: `RecordingScriptEditor`, VS Code's
+  `ScriptTaskService` over a fake of the editor tabs
+  (`vscodeEditorTabsFake.ts`) and the bridge's `BridgeScriptEditor` over a
+  loopback that answers as `ScriptRouter` and `ScriptEditorManager` do.
 - `describeSecretStoreContract`: `InMemorySecretStore`, `VsCodeSecretStore`
   over the `InMemorySecretStorage` fake and the bridge's `RpcSecretStore` over
   the `intellijCredentialHost.ts` loopback, which answers as
