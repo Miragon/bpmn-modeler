@@ -1,3 +1,4 @@
+export * from "./clipboardContract";
 export * from "./createTestHost";
 export * from "./deploymentStateContract";
 export * from "./documentContract";
@@ -9,6 +10,8 @@ export * from "./InMemoryMarketplaceRegistrations";
 export * from "./inMemoryHostSurfaces";
 export * from "./InMemorySettings";
 export * from "./InMemoryWorkspace";
+export * from "./lintingPreferenceContract";
+export * from "./propertiesPanelStateContract";
 export * from "./RecordingNotifier";
 export * from "./RecordingScriptEditor";
 export * from "./RecordingStatusBar";
