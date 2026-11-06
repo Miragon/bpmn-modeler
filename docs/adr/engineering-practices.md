@@ -156,7 +156,14 @@ Kotlin host copies is pinned the same way, to the TypeScript source file itself:
 `StatusSlotPlacementTest` reads the unions in `statusView.ts` and
 `ModelerSettingsStoreTest` the `SURFACE_MODES` array in `surfaceMode.ts`, and
 each fails when the Kotlin copy differs. No generated file sits in between that
-could go stale.
+could go stale. Three Kotlin copies do not follow this yet.
+`ModelerLocalesTest` pins the languages to the VS Code manifest, which
+`manifest.contract.spec.ts` pins to the shipped catalogue, so the Kotlin list
+holds only through that chain. The mode labels of the IntelliJ Settings page
+have no TypeScript home; `ModelerSettingsConfigurableTest` pins them to the
+manifest's `enumItemLabels`. `ModelerSettingsStore.COLOR_THEMES` has no set
+pin: the core's `COLOR_THEMES` is not exported, and only the settings rows
+that name a theme check the Kotlin list.
 
 ### Coverage gates
 
