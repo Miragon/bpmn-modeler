@@ -127,12 +127,21 @@ export function authPayloadOf(fields: AuthFields): AuthConfigPayload {
     return AUTH_PAYLOAD_OF[fields.authType](fields);
 }
 
-/** Judged on the sent payload: a username of spaces is missing, a password of spaces is not. */
-export function missingAuthFieldReason(fields: AuthFields): string | undefined {
-    const payload = authPayloadOf(fields);
-    return REQUIRED_AUTH_FIELDS[fields.authType].find(({ field }) => !payload[field])?.reason;
+function missingEndpointReason(endpoint: string): string | undefined {
+    return endpoint.trim() ? undefined : "REST endpoint is required.";
 }
 
-export function missingEndpointReason(endpoint: string): string | undefined {
-    return endpoint.trim() ? undefined : "REST endpoint is required.";
+/** Judged on the sent payload: a username of spaces is missing, a password of spaces is not. */
+function missingAuthFieldReason(auth: AuthConfigPayload): string | undefined {
+    return REQUIRED_AUTH_FIELDS[auth.authType].find(({ field }) => !auth[field])?.reason;
+}
+
+/** Deploy and Start Instance both need the endpoint, then the fields the auth type requires. */
+export function requestAuthOf(
+    endpoint: string,
+    fields: AuthFields,
+): { readonly auth: AuthConfigPayload } | { readonly reason: string } {
+    const auth = authPayloadOf(fields);
+    const reason = missingEndpointReason(endpoint) ?? missingAuthFieldReason(auth);
+    return reason === undefined ? { auth } : { reason };
 }

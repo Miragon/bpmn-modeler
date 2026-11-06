@@ -27,8 +27,7 @@ import {
     type DraftSnapshot,
     draftControls,
     executionBlockedReason,
-    missingAuthFieldReason,
-    missingEndpointReason,
+    requestAuthOf,
 } from "../../domain/deploymentDraft";
 import type { DeploymentHost } from "../../port/deploymentHost";
 
@@ -272,9 +271,8 @@ export class DeploymentForm {
         if (!deploymentName) {
             throw new Error("Deployment name is required.");
         }
-        const authFields = this.getAuthFields();
-        const missingField = missingEndpointReason(endpoint) ?? missingAuthFieldReason(authFields);
-        if (missingField) throw new Error(missingField);
+        const request = requestAuthOf(endpoint, this.getAuthFields());
+        if ("reason" in request) throw new Error(request.reason);
 
         return {
             deploymentName,
@@ -283,7 +281,7 @@ export class DeploymentForm {
             engine: this.selectedEngine(),
             mainFilePath: "", // Populated by the extension host from the active editor
             additionalFilePaths: [...this.additionalFilePaths],
-            auth: authPayloadOf(authFields),
+            auth: request.auth,
             targetName: this.editingTargetName,
             deployUrl: this.deployUrlInput.value.trim() || undefined,
         };
@@ -335,7 +333,7 @@ export class DeploymentForm {
         this.statusBanner.style.display = "block";
     }
 
-    /** Unchecked: a target save stores what was typed, a request checks it first. */
+    /** Unchecked: New and Save send these without a check; a request checks them first. */
     getAuthFields(): AuthFields {
         return {
             authType: this.selectedAuthType(),

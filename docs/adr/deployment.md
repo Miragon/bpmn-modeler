@@ -299,14 +299,15 @@ them the same way before either posts its request: a non-blank endpoint and the
 fields the auth type requires (a username and password for Basic, a client ID,
 client secret and token endpoint for OAuth2). Names, ids and URLs are trimmed
 before the check and in the request; secrets are judged and sent as typed.
-`missingEndpointReason` and `missingAuthFieldReason` in the webview's
-`domain/deploymentDraft.ts` own the rule and its texts, and `authPayloadOf`
-builds the auth payload of both requests and of a target save
-([draft tests](../../apps/deployment-webview/src/domain/deploymentDraft.spec.ts)).
+`requestAuthOf` in the webview's `domain/deploymentDraft.ts` owns the rule
+and its texts: it returns the auth payload a request sends or the first reason
+to refuse it. A target save sends the payload of the same builder,
+`authPayloadOf` ([draft tests](../../apps/deployment-webview/src/domain/deploymentDraft.spec.ts)).
 **New** and **Save** check no credential: the targets file holds the
 connection, the credentials are per machine and may be entered later without a
 save, and the request checks them before anything is sent. The core checks no
-credential field either; it builds the request from the payload it receives.
+credential field for presence; an empty token endpoint only fails its generic
+credential-destination check.
 
 The core independently resolves the submitted target name within the captured
 document context and rejects missing targets or mismatching operation settings

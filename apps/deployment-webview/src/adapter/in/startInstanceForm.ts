@@ -7,12 +7,7 @@ import {
 } from "@miragon/bpmn-modeler-shared";
 import { Engine } from "@miragon/bpmn-modeler-types";
 
-import {
-    type AuthFields,
-    authPayloadOf,
-    missingAuthFieldReason,
-    missingEndpointReason,
-} from "../../domain/deploymentDraft";
+import { type AuthFields, requestAuthOf } from "../../domain/deploymentDraft";
 import type { DeploymentHost } from "../../port/deploymentHost";
 
 /**
@@ -136,16 +131,14 @@ export class StartInstanceForm {
         }
 
         const connection = this.getSharedConnection();
-        const authFields = this.getSharedAuthFields();
-        const missingField =
-            missingEndpointReason(connection.endpoint) ?? missingAuthFieldReason(authFields);
-        if (missingField) throw new Error(missingField);
+        const request = requestAuthOf(connection.endpoint, this.getSharedAuthFields());
+        if ("reason" in request) throw new Error(request.reason);
 
         return {
             processDefinitionKey,
             endpoint: connection.endpoint,
             engine: connection.engine,
-            auth: authPayloadOf(authFields),
+            auth: request.auth,
             payloadFilePath: this.payloadFilePath,
             targetName: connection.targetName,
             startInstanceUrl: connection.startInstanceUrl,

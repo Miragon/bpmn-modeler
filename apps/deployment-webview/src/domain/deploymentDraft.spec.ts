@@ -9,8 +9,7 @@ import {
     type DraftSnapshot,
     draftControls,
     executionBlockedReason,
-    missingAuthFieldReason,
-    missingEndpointReason,
+    requestAuthOf,
     saveBlockedReason,
 } from "./deploymentDraft";
 
@@ -190,7 +189,9 @@ describe("authPayloadOf", () => {
     });
 });
 
-describe("missingAuthFieldReason", () => {
+describe("requestAuthOf", () => {
+    const ENDPOINT = "https://engine.test";
+    const ENDPOINT_REQUIRED = "REST endpoint is required.";
     const USERNAME = "Username is required for Basic Auth.";
     const PASSWORD = "Password is required for Basic Auth.";
     const CLIENT_ID = "Client ID is required for OAuth2.";
@@ -213,6 +214,8 @@ describe("missingAuthFieldReason", () => {
         tokenEndpoint: "",
         audience: "",
     };
+    const reasonOf = (request: ReturnType<typeof requestAuthOf>) =>
+        "reason" in request ? request.reason : undefined;
 
     it.each<[string, Partial<AuthFields>, string | undefined]>([
         ["no auth with every field empty", { authType: "none", ...empty }, undefined],
@@ -258,17 +261,27 @@ describe("missingAuthFieldReason", () => {
             undefined,
         ],
     ])("names the first missing field for %s", (_, overrides, reason) => {
-        expect(missingAuthFieldReason({ ...complete, ...overrides })).toBe(reason);
+        expect(reasonOf(requestAuthOf(ENDPOINT, { ...complete, ...overrides }))).toBe(reason);
     });
-});
 
-describe("missingEndpointReason", () => {
     it.each<[string, string, string | undefined]>([
-        ["an empty endpoint", "", "REST endpoint is required."],
-        ["a blank endpoint", "   ", "REST endpoint is required."],
-        ["a URL", "https://engine.test", undefined],
+        ["an empty endpoint", "", ENDPOINT_REQUIRED],
+        ["a blank endpoint", "   ", ENDPOINT_REQUIRED],
+        ["a URL", ENDPOINT, undefined],
         ["an env reference", "${env:MIRAGON_ENGINE_URL}", undefined],
     ])("requires the REST endpoint for %s", (_, endpoint, reason) => {
-        expect(missingEndpointReason(endpoint)).toBe(reason);
+        expect(reasonOf(requestAuthOf(endpoint, { ...complete, authType: "basic" }))).toBe(reason);
+    });
+
+    it("names a missing endpoint before a missing auth field", () => {
+        expect(requestAuthOf("", { ...complete, authType: "basic", username: "" })).toEqual({
+            reason: ENDPOINT_REQUIRED,
+        });
+    });
+
+    it("carries the auth payload of a complete request", () => {
+        expect(
+            requestAuthOf(ENDPOINT, { ...complete, authType: "basic", username: " user " }),
+        ).toEqual({ auth: { authType: "basic", username: "user", password: "pass" } });
     });
 });
