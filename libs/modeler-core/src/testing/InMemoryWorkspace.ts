@@ -25,7 +25,9 @@ export interface WorkspaceWatcher {
 
 /**
  * Workspace folders and files held in memory. Paths are accepted plain or as
- * `file://` URIs, as the hosts accept them, and are held and reported plain.
+ * `file://` URIs, as the hosts accept them, and are held and reported plain,
+ * except the directory and the folder of a `file://` document, which keep its
+ * scheme, as the bridge answers.
  * Writing a file creates its parent directories, which outlive their last
  * file as on a disk.
  * File mutations, through the port or through {@link deleteFile}, notify the
@@ -75,9 +77,11 @@ export class InMemoryWorkspace implements WorkspacePort {
 
     findWorkspaceFolderForDocument(document: string): string | undefined {
         const documentPath = withoutFileScheme(document);
-        return this.folders
-            .filter((folder) => isWithinRoot(documentPath, withoutFileScheme(folder)))
+        const folder = this.folders
+            .map((known) => withoutFileScheme(known))
+            .filter((known) => isWithinRoot(documentPath, known))
             .sort((a, b) => b.length - a.length)[0];
+        return folder !== undefined && document !== documentPath ? `file://${folder}` : folder;
     }
 
     getWorkspaceFolderPaths(): string[] {
