@@ -211,6 +211,19 @@ describe("FormEditorApp", () => {
         });
     });
 
+    it("reports input values that are not valid JSON", async () => {
+        const { app, host } = setup();
+
+        await app.setInputValues("not json");
+
+        expect(host.postMessage).toHaveBeenCalledExactlyOnceWith(
+            expect.objectContaining({
+                type: "LogErrorCommand",
+                message: expect.stringContaining("The form input values contain invalid JSON."),
+            }),
+        );
+    });
+
     it("publishes current submit data when preview values or instances change", async () => {
         const { app, viewer, host } = setup();
         await app.load(ORIGINAL);

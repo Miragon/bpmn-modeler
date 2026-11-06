@@ -1,7 +1,6 @@
 import { FormEditor } from "@bpmn-io/form-js-editor";
 import { Form } from "@bpmn-io/form-js-viewer";
 import {
-    asProtocolMessage,
     Command,
     createFlushResponder,
     GetFormFileCommand,
@@ -12,8 +11,8 @@ import { createFlushableDebounceInput } from "@miragon/bpmn-modeler-types";
 
 import { FormEditorApp } from "../adapter/in/FormEditorApp";
 import { FORM_TEMPLATE } from "../adapter/in/formTemplate";
+import { routeFormHostMessage } from "../adapter/in/hostMessageRouter";
 import type { FormHost } from "../port/formHost";
-import { shouldHandleHostMessage } from "../adapter/in/hostMessage";
 
 const FORM_JS_DEFAULT_DEBOUNCE_MS = 300;
 
@@ -52,20 +51,9 @@ export function bootstrap(host: FormHost): void {
     document.addEventListener("visibilitychange", () => {
         if (document.visibilityState === "hidden") void app.flushPendingSync();
     });
-    window.addEventListener("message", (event: MessageEvent<Query | Command>) => {
-        if (!shouldHandleHostMessage(event)) return;
-        const query = asProtocolMessage(event.data);
-        if (query.type === "FormFileQuery") {
-            void app.load(query.content, query.documentRevision);
-        } else if (query.type === "FormInputValuesQuery") {
-            void app.setInputValues(query.content);
-        } else if (
-            query.type === "FlushDocumentQuery" ||
-            query.type === "ReleaseDocumentFlushQuery"
-        ) {
-            void respondToFlush(query);
-        }
-    });
+    window.addEventListener("message", (event: MessageEvent<Query | Command>) =>
+        routeFormHostMessage(event, app, respondToFlush),
+    );
     host.postMessage(new GetFormFileCommand());
     host.postMessage(new GetFormInputValuesCommand());
 }
