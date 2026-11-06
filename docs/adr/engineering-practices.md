@@ -500,18 +500,21 @@ throws or returns a malformed finding.
 
 **Another base or tree.** `--base <rev>` compares with
 `git merge-base HEAD <rev>`; `<rev>` need not be an ancestor of HEAD, so a
-PR's head with its `baseRefOid` compares with the commit the PR branched
-from. `--repo <dir>` measures another checkout of this repository, such as a
-worktree of an old commit: today's code of every fitness function reads that
-tree, so it needs no install, and HEAD, the refs, the snapshot branch and the
-base worktree are that checkout's. A relative `<dir>` is read from the
-repository root. The review's measurement on known cases needs both. A function
-that cannot measure an old tree throws `InsufficientHistory` and is reported
-as not measurable there, and the others report as usual. At `3d1b19b3` (#2047)
-with `--base 452b6440` the merge base is `fb89b28e`; 6 of 8 functions
-measured against the stored snapshot of the merge base,
-`convention-coverage` (no workspace declared a kind yet) and `mutation-score`
-(no stored run on that chain) did not, and a run took 4 to 6 s on a laptop.
+PR's head with its `baseRefOid` compares with the commit the PR branched from.
+A squash commit on main compares with its first parent (its PR's `baseRefOid`
+would add every PR merged in between), and a whole tree with itself, so every
+finding is existing. `--repo <dir>` measures another checkout of this
+repository, such as a worktree of an old commit: today's code of every fitness
+function reads that tree, so it needs no install, and HEAD, the refs, the
+snapshot branch and the base worktree are that checkout's. A relative `<dir>`
+is read from the repository root. The review's measurement on known cases
+needs both. A function that cannot measure an old tree throws
+`InsufficientHistory` and is reported as not measurable there, and the others
+report as usual. At `3d1b19b3` (#2047) with `--base 452b6440` the merge base
+is `fb89b28e`; 6 of 8 functions measured against the stored snapshot of the
+merge base, `convention-coverage` (no workspace declared a kind yet) and
+`mutation-score` (no stored run on that chain) did not, and a run took 4 to
+6 s on a laptop.
 
 **Contract.** A fitness function declares `id`, `version`, its categories
 (scope atomic or holistic, cadence triggered, result static or dynamic), what
@@ -1046,7 +1049,8 @@ The [`architecture-review` skill](../../.agents/skills/architecture-review/SKILL
 (#2058) is the inferential sensor of
 [architecture erosion](#architecture-erosion). It runs
 `corepack yarn fitness --format json` on a branch, a PR (`--repo` on a
-worktree of its head, `--base` its base) or a past commit, and reads per
+worktree of its head, `--base` its base), a commit on main (`--base` its
+first parent) or a whole tree (`--base` the commit itself), and reads per
 fitness function the findings with their status (new, existing, resolved),
 the trend of the declared values and the function's limits (categories,
 measures, the rule it relies on, misses, false reports, evidence) from the
@@ -1222,8 +1226,9 @@ little until rules move from services into `domain/`.
 Reported fitness functions never block a merge, so reviewers and the review
 agent read their new findings; the report is as complete as the functions
 plugged into it. The review's comments vary between runs, so it is trusted
-only as far as its measurement on known cases shows. The data branch is one more ref to keep: deleting it costs a
-backfill, and nothing but convention keeps people from pushing to it.
+only as far as its measurement on known cases shows. The data branch is one
+more ref to keep: deleting it costs a backfill, and nothing but convention
+keeps people from pushing to it.
 Rules move into `domain/` before or together with the feature that needs
 them, so services shrink to orchestration. No gate enforces test-first;
 reviewers check the failing output in the PR description.

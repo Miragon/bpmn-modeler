@@ -13,21 +13,24 @@ not deterministic, so it comments and never blocks.
 
 ## 1. Measure the tree
 
-| Review | Tree (`<dir>`) | Base (`<rev>`) |
-| --- | --- | --- |
-| The current branch | `.`, this checkout (omit `--repo`) | `origin/main` (omit `--base`) |
-| PR `<n>` | `git fetch origin pull/<n>/head`, then `git worktree add --detach <dir> FETCH_HEAD` | `baseRefOid` of `gh pr view <n> --json baseRefOid` |
-| A past commit | `git worktree add --detach <dir> <commit>` | `baseRefOid` of its PR |
-
 ```sh
-OUT=$(mktemp -d)   # an untracked file in the checkout would count as a change
-corepack yarn fitness --format json [--repo <dir>] [--base <rev>] > "$OUT/report.json"
-git -C <dir> diff --name-only "$(jq -r .base.commit "$OUT/report.json")" > "$OUT/touched.txt"
+OUT=$(mktemp -d)   # outside the checkout: an untracked file in it would count as a change
+TREE=$(git rev-parse --show-toplevel)   # always absolute; for a worktree from the table:
+# git worktree add --detach "$OUT/tree" <commit>; TREE="$OUT/tree"
+corepack yarn fitness --format json --repo "$TREE" --base <rev> > "$OUT/report.json"
+git -C "$TREE" diff --name-only "$(jq -r .base.commit "$OUT/report.json")" > "$OUT/touched.txt"
 ```
 
-The report runs this checkout's fitness functions on `<dir>`; `<dir>` needs
-no install. It compares with `git merge-base HEAD <rev>`, so `<rev>` need not
-be an ancestor. Remove the worktree when done.
+| Review                            | `TREE`                                                          | `<rev>`                                                                         |
+| --------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| The current branch                | this checkout                                                   | `origin/main`                                                                   |
+| PR `<n>`, open or merged          | worktree of `FETCH_HEAD` after `git fetch origin pull/<n>/head` | `baseRefOid` of `gh pr view <n> --json baseRefOid`                              |
+| A commit on main                  | worktree of `<commit>`                                          | `<commit>^`, its first parent (its PR's `baseRefOid` adds the PRs merged since) |
+| A whole tree, no change (#1799's) | worktree of `<commit>`                                          | `<commit>`: every finding is `existing`, `touched.txt` is empty                 |
+
+The report runs this checkout's fitness functions on `TREE`, which needs no
+install. It compares with `git merge-base HEAD <rev>`, so `<rev>` need not be
+an ancestor. Run `git worktree remove "$OUT/tree"` when done.
 
 ## 2. Read the report
 
@@ -40,20 +43,20 @@ the registry grows, so never assume which functions exist.
 - Limits: `categories` (`scope`, `cadence`, `result`), `measures`,
   `reliesOn` (`skill`, `rule`), `misses`, `reportsWrongly` and `evidence`
   (`kind` `published` with `reference`, or `trial` with `commit` and `outcome`).
-- `base.source` is `snapshot` or `checkout`; with `base.unmeasurable` every
-  finding counts as new.
+- A function's own `base.source` is `snapshot` or `checkout`; with its
+  `base.unmeasurable` every finding counts as new.
 - `outcome.kind` is `measured` (`findings`, `resolved`) or `unmeasurable`
   (`reason`). An unmeasurable function says nothing about this tree.
 - A finding: `key` (what it is about, never the line), `path`, `line`,
-  `message`, `status` (`new` or `existing`), and optionally `group`, `rank`,
-  `values` and `trend`: points `{ commit, values }`, oldest first, HEAD last.
-  `resolved` lists base findings HEAD lacks; check `reportsWrongly` before
-  calling one a fix.
+  `message`, `status` (`new` or `existing`), and optionally `group` (one of
+  the function's `groups`), `rank`, `values` and `trend`: points
+  `{ commit, values }`, oldest first, HEAD last. `resolved` lists base
+  findings HEAD lacks; check `reportsWrongly` before calling one a fix.
 
 ```sh
 R="$OUT/report.json"
 jq -r '.functions[] | [.id, .outcome.kind, ([.outcome.findings[]? | select(.status == "new")] | length), (.outcome.resolved // [] | length), (.outcome.reason // "")] | @tsv' "$R"
-jq '.functions[] | {id, categories, reliesOn, misses, reportsWrongly, evidence}' "$R"
+jq '.functions[] | {id, categories, measures, reliesOn, misses, reportsWrongly, evidence}' "$R"
 # new and resolved findings, and every finding whose key names a touched file
 jq -r --rawfile touched "$OUT/touched.txt" '
   ($touched | split("\n") | map(select(. != ""))) as $paths
@@ -64,13 +67,21 @@ jq -r --rawfile touched "$OUT/touched.txt" '
   | @tsv' "$R"
 ```
 
+A whole tree has no new findings: count them per function and group, then
+list those under the paths you review.
+
+```sh
+jq -c '.functions[] | {id, groups: (.outcome.findings // [] | group_by(.group) | map({group: .[0].group, count: length}))}' "$R"
+jq -r --arg path '<path prefix>' '.functions[] | .id as $id | .outcome.findings[]? | select(.path | startswith($path)) | [$id, .group // "", "\(.path):\(.line)", .message] | @tsv' "$R"
+```
+
 ## 3. Search for copies
 
 For each rule, value set or text the branch adds or changes, search its
 values and its words in the measured tree:
 
 ```sh
-git -C <dir> grep -n -E '<regex>' -- '*.ts' '*.tsx' '*.mts' '*.mjs' '*.kt' '*.md' '*.json' ':!*.spec.ts' ':!*Test.kt'
+git -C "$TREE" grep -n -E '<regex>' -- '*.ts' '*.tsx' '*.mts' '*.mjs' '*.kt' '*.md' '*.json' ':!*.spec.ts' ':!*Test.kt'
 ```
 
 Use `-F` instead of `-E` for a literal (`oauth2`, `Personal Access Token`).
@@ -132,12 +143,14 @@ with a `rank` (a hotspot) that grows is a lead too.
 Measured: <ids>. Not measured: `<id>` (<reason>).
 
 ### Findings
+
 1. `<path:line>`: <what erodes the design, and how>.
    Evidence: <code, grep hit or report row>.
    Applies: <`id` new | existing | resolved> or <limit of `id`: "<quote>"> or <no fitness function>.
    Proposal: <fix in this PR> or <issue naming `path:line` of each copy>.
 
 ### Measures from trends
+
 - `<path>`: <value> <a → b → c> over <n> PRs; <measure>.
 
 Comments only; this review does not block.
