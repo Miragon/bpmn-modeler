@@ -10,6 +10,8 @@ export interface FileMeasure {
     readonly codeLines: number;
     /** ESLint's `complexity` per function, field initializer and static block, in source order. */
     readonly functions: readonly FunctionMeasure[];
+    /** No statement other than imports and re-exports. */
+    readonly barrel: boolean;
 }
 
 /** The first of the most complex, so a tie points at the one higher up. */

@@ -1,6 +1,7 @@
 import {
     readCodeLines,
     readFunctionComplexities,
+    readModuleSymbols,
     readWorkspaceDirs,
 } from "@miragon/architecture-testing";
 import { readFileSync } from "node:fs";
@@ -21,6 +22,7 @@ export class EngineSourceMeasures implements SourceMeasures {
                     path,
                     codeLines: readCodeLines(path, text),
                     functions: readFunctionComplexities(path, text),
+                    barrel: readModuleSymbols(path, text).declaresNothing,
                 };
             });
     }

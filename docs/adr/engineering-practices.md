@@ -1,7 +1,7 @@
 # Engineering practices
 
 - Status: accepted
-- Last reviewed: 2026-11-06
+- Last reviewed: 2026-11-07
 
 ## Context
 
@@ -982,19 +982,47 @@ in the wrong home (Tornhill, Your Code as a Crime Scene, 2015, 2nd ed. 2024).
   area = code lines and fill opacity = revisions ÷ max revisions. The score is
   the product of those two dimensions; normalising does not change the order.
   The product is ours, not his script's, and the output says so.
+- **Barrels.** A barrel, a file with no statement other than imports and
+  re-exports (`readModuleSymbols`, the test that keeps barrels out of
+  [change coupling](#change-coupling)), is not ranked (version 2). It changes
+  whenever its exports change, and it holds no rule, so it only pushes a file
+  with code out of the top 20. At `add816a2` version 1 ranked
+  `libs/modeler-core/src/index.ts` 8th (60 revisions × 161 code lines) and
+  `ArtifactService.ts` (24 × 197) 21st; version 2 ranks `ArtifactService.ts`
+  20th. The flag travels with each file's measures (`FileMeasure.barrel`). A
+  file of declarations, such as `libs/shared/src/lib/modeler.ts`, is no
+  barrel and stays ranked, and so does a file that re-exports through
+  declarations of its own (`export const DiffViewer = DiffViewerImpl` in
+  `packages/bpmn-modeler/src/index.ts`, 60th at `add816a2`), which the
+  function names as a false report. Leaving out every file without a function
+  as well would also drop `apps/modeler-bridge/src/protocol/domain/types.ts`
+  (9th at `add816a2`); that needs a trial of its own.
 - **No trend of its own.** Findings carry no values; the per-file trend is
   `size-and-complexity`'s, joined by path.
 
 Trial at `e8c92425`, 924 commits, 835 measured files: the product's top 20
 holds 5 of the 8 `libs/modeler-core` services over 300 lines that #2057 names
-(`DeploymentMessageDispatcher` 11th, `DeploymentTargetService` 14th,
-`CodeLinkMapService` 17th, `BpmnLintConfigService` 18th, `DeploymentService`
-19th; `TemplateMarketplaceService` 23rd, `EditorSessionStore` 24th,
-`SourceIndex` 62nd). Ranking by revisions alone holds none of them and puts
-three barrels, `apps/bpmn-webview/vitest.config.ts` and the 60-line
+(`DeploymentMessageDispatcher` 10th, `DeploymentTargetService` 13th,
+`CodeLinkMapService` 16th, `BpmnLintConfigService` 17th, `DeploymentService`
+18th; `TemplateMarketplaceService` 22nd, `EditorSessionStore` 23rd,
+`SourceIndex` 61st; version 1 ranked the barrel
+`libs/modeler-core/src/index.ts` 9th and each of them one place lower).
+Ranking by revisions alone holds none of them and puts three barrels,
+`apps/bpmn-webview/vitest.config.ts` and the 60-line
 `apps/vscode-plugin/src/main.ts` in its top 20. The first places go to
 `libs/shared/src/lib/modeler.ts` (46 × 794), a type-only protocol file that
 holds no rules, which the function names as a false report.
+
+Trial of version 2 over the 428 stored snapshots with version 1 findings,
+`0966e35f` (2026-09-30) to `eb4fe899` (2026-11-06), each tree checked out:
+version 1 recomputed matched every stored top 20, so the comparison measures
+the barrel rule alone. Version 2 drops `libs/modeler-core/src/index.ts` from
+197 of them, where it ranked 8th to 20th; no other file leaves, though each
+tree holds 15 to 23 barrels. Every file below it moves up one place, and the
+next file enters 20th: `DeploymentService.ts` 59 times, `ArtifactService.ts`
+38, `BpmnLintConfigService.ts` 32, `AppendMenuOverlay.tsx` 24 and six other
+files 44. Nothing else changes. A version bump restarts the series, which the
+backfill recomputes from git.
 
 ### Missed partner
 

@@ -29,12 +29,35 @@ describe("the engine's source measures", () => {
         repository.write("libs/core/src/untracked.ts", "export const c = 3;");
 
         expect(new EngineSourceMeasures().read(repository.root)).toEqual([
-            { path: "libs/core/src/a.ts", codeLines: 1, functions: [] },
+            { path: "libs/core/src/a.ts", codeLines: 1, functions: [], barrel: false },
             {
                 path: "libs/core/src/b.ts",
                 codeLines: 3,
                 functions: [{ name: "f", line: 2, complexity: 2 }],
+                barrel: false,
             },
+        ]);
+    });
+
+    it("tells a barrel, which only imports and re-exports, from a file of type declarations", () => {
+        const files: Record<string, string> = {
+            "package.json": JSON.stringify({ name: "root", workspaces: ["libs/*"] }),
+            "libs/core/src/index.ts":
+                'import { b } from "./b";\nexport * from "./a";\nexport type { Message } from "./types";\nexport { b };\n',
+            "libs/core/src/types.ts": 'export interface Message {\n    kind: "save";\n}\n',
+        };
+        for (const [path, content] of Object.entries(files)) {
+            repository.write(path, content);
+        }
+        repository.git("add", "--all");
+
+        expect(
+            new EngineSourceMeasures()
+                .read(repository.root)
+                .map(({ path, barrel }) => [path, barrel]),
+        ).toEqual([
+            ["libs/core/src/index.ts", true],
+            ["libs/core/src/types.ts", false],
         ]);
     });
 });

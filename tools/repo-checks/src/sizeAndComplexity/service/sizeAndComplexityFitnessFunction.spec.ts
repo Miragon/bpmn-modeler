@@ -11,6 +11,7 @@ describe("the size and complexity fitness function", () => {
                 path: "libs/core/src/a.ts",
                 codeLines: 12,
                 functions: [{ name: "f", line: 3, complexity: 4 }],
+                barrel: false,
             },
         ]);
 

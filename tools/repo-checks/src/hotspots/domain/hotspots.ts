@@ -55,7 +55,10 @@ export function rankHotspots(
     return files
         .flatMap((file): UnrankedHotspot[] => {
             const count = revisions.get(file.path) ?? 0;
-            return count === 0 ? [] : [{ file, revisions: count, score: count * file.codeLines }];
+            // A barrel changes whenever its exports change and holds no rule to find.
+            return count === 0 || file.barrel
+                ? []
+                : [{ file, revisions: count, score: count * file.codeLines }];
         })
         .sort(compareHotspots)
         .slice(0, limit)
