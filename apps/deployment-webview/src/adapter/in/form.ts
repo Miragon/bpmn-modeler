@@ -21,6 +21,7 @@ import {
 import { Engine, isEngine } from "@miragon/bpmn-modeler-types";
 
 import {
+    credentialRefSignatureOf,
     type DraftActivity,
     type DraftSnapshot,
     draftControls,
@@ -855,15 +856,4 @@ export class DeploymentForm {
         }
         return el;
     }
-}
-
-/**
- * Env references in credentials are saved to the shared targets file, so
- * changing one needs Save like a connection change. Literal edits stay free;
- * anything containing `${env:` counts, leaving the exact rule to the host.
- */
-function credentialRefSignatureOf(values: (string | undefined)[]): string {
-    return JSON.stringify(
-        values.map((value = "") => (value.includes("${env:") ? value.trim() : "")),
-    );
 }
