@@ -1,7 +1,7 @@
 # Engineering practices
 
 - Status: accepted
-- Last reviewed: 2026-11-03
+- Last reviewed: 2026-11-06
 
 ## Context
 
@@ -144,12 +144,26 @@ A rule the Kotlin host must apply too keeps its rows in a JSON file beside its
 TypeScript home, and the TypeScript specs and the Kotlin test run the same
 file. Gradle hands the Kotlin test its path as a system property and declares
 it a test input, so a changed row reruns the test, and the `intellij-plugin`
-CI filter lists the file. A mirrored Kotlin table would drift like the rule it
+CI filter lists the file, or a PR that changes only the rows skips the Kotlin
+job; `tools/repo-checks/src/kotlinTestInputs.spec.ts` fails when the filter
+misses a test input. A mirrored Kotlin table would drift like the rule it
 copies. The settings rows in `settingsNormalization.cases.json` are the first
 such file (see [host-replicated state](architecture-and-hosts.md#host-replicated-state)).
 Rows whose shapes the typed Kotlin side cannot hold, such as a value of the
 wrong type, live in the core's testing kit (`TYPESCRIPT_ONLY_SETTINGS_CASES`),
-and every TypeScript host runs them beside the JSON rows.
+and every TypeScript host runs them beside the JSON rows. A value set the
+Kotlin host copies is pinned the same way, to the TypeScript source file itself:
+`StatusSlotPlacementTest` reads the unions in `statusView.ts`,
+`ModelerSettingsStoreTest` the `SURFACE_MODES` array in `surfaceMode.ts` and
+`ModelerSettingsConfigurableTest` the `MODE_LABEL` table in the modeler's
+`modeStrip.ts`, and each fails when the Kotlin copy differs. No generated file
+sits in between that could go stale. Two Kotlin copies do not follow this yet.
+`ModelerLocalesTest` pins the languages to the VS Code manifest, which
+`manifest.contract.spec.ts` pins to the shipped catalogue, so the Kotlin list
+holds only through that chain. `ModelerSettingsStore.COLOR_THEMES` is not
+pinned yet; only the settings rows that name a theme check it. The Kotlin test
+could read the core's `COLOR_THEMES` in `modelerSettings.ts` as it reads
+`SURFACE_MODES`; a manifest pin needs that set exported first.
 
 ### Coverage gates
 

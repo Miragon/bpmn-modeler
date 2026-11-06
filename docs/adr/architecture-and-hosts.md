@@ -1,7 +1,7 @@
 # Architecture and hosts
 
 - Status: accepted
-- Last reviewed: 2026-11-04
+- Last reviewed: 2026-11-06
 
 ## Context
 
@@ -965,7 +965,14 @@ Kotlin copy of the normalisation, because the IDE's Settings page stores and
 shows the values without the bridge.
 `settingsNormalization.cases.json` beside the rule holds the rows all three
 hosts run (see [test-first for rules](engineering-practices.md#test-first-for-rules));
-the Kotlin test also compares its defaults with the manifest's.
+the Kotlin test also compares its defaults with the manifest's and its modes
+with `SURFACE_MODES`, the set the core accepts. The manifest contract spec holds
+the manifest's `defaultMode` choices to the same set in both directions and
+requires a label for each. The IntelliJ Settings page offers the manifest's
+modes and labels in its order and labels each mode as the modeler's mode strip
+does (`MODE_LABEL` in `modeStrip.ts`); its test reads both from the rendered
+page. `apps/vscode-plugin` does not depend on `@miragon/bpmn-modeler`, so the
+manifest's labels reach `MODE_LABEL` only through that Kotlin test.
 
 The lint choice is a snapshot setting like the others, but the IntelliJ
 Settings page has no field for it: the editor's lint toggle and the BPMNlint
