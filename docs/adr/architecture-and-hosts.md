@@ -718,8 +718,9 @@ reads its stores. The scope vocabulary is the core's `MarketplaceScope`
 settings adapter and Kotlin's `MarketplaceScope` speak it too. Where a scope is
 saved differs per host, so it reaches the core as a typed `SettingsPlace`, a
 file by its path segments or a settings page by the names that lead to it, and
-the core words it: `Saved in .vscode/settings.json` and `Saved in Settings ▸
-User` on VS Code, `Saved in .idea/workspace.xml` and `Saved in Settings ▸ Tools
+the core words it: `Saved in .vscode/settings.json` (or the open
+`.code-workspace` file, or `Settings ▸ Workspace` for a workspace not saved yet)
+and `Saved in Settings ▸ User` on VS Code, `Saved in .idea/workspace.xml` and `Saved in Settings ▸ Tools
 ▸ Miragon BPMN Modeler ▸ Template Marketplaces` on IntelliJ. The
 invalid-location message names a place for self-hosted hosts only where there
 is one: VS Code's `settings.json`. IntelliJ's lists hold URL strings, which

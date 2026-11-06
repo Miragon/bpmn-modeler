@@ -1,3 +1,5 @@
+import { posix } from "node:path";
+
 import { ConfigurationTarget, workspace } from "vscode";
 
 import {
@@ -145,8 +147,19 @@ export class VsCodeSettings implements SettingsPort {
         await config.update("marketplaces", filtered.length > 0 ? filtered : undefined, target);
     }
 
-    /** Where Workspace settings are saved; nowhere unless a folder or workspace is open. */
+    /**
+     * Where `ConfigurationTarget.Workspace` writes: the `.code-workspace` file a
+     * window opened, else the folder's `.vscode/settings.json`. A workspace not
+     * saved yet keeps its settings where only the Settings editor reaches them.
+     */
     workspaceSettingsPlace(): SettingsPlace | undefined {
+        const { workspaceFile } = workspace;
+        if (workspaceFile?.scheme === "untitled") {
+            return { kind: "settingsPage", path: ["Settings", "Workspace"] };
+        }
+        if (workspaceFile) {
+            return { kind: "file", path: [posix.basename(workspaceFile.path)] };
+        }
         return hasWorkspace() ? { kind: "file", path: [".vscode", "settings.json"] } : undefined;
     }
 
