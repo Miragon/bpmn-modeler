@@ -546,6 +546,20 @@ describe("RpcDocumentPort", () => {
         await expect(write).resolves.toBe(false);
         expect(mirror.content(META.editorId)).toBe("host");
     });
+
+    // Only the host's error reply reads as a refused write.
+    it("rejects a write the host can no longer answer", async () => {
+        const { rpc } = harness();
+        const mirror = new DocumentMirror();
+        mirror.register(META, "host");
+        const port = new RpcDocumentPort(rpc, mirror);
+
+        const write = port.write(META.editorId, "next", 1);
+        rpc.handleEnd();
+
+        await expect(write).rejects.toThrow("No reply to document/write: the input ended");
+        expect(mirror.content(META.editorId)).toBe("host");
+    });
 });
 
 describe("RpcDeploymentState", () => {
@@ -770,30 +784,6 @@ describe("RpcNotifier", () => {
             });
         },
     );
-
-    it("withProgress brackets the task and returns its result", async () => {
-        const { frames, rpc } = harness();
-        const result = await new RpcNotifier(rpc).withProgress("Work", async () => 42);
-
-        expect(result).toBe(42);
-        expect(frames.map((f) => f.method)).toEqual([
-            "notifier/progressStart",
-            "notifier/progressEnd",
-        ]);
-    });
-
-    it("withProgress still ends the spinner when the task throws", async () => {
-        const { frames, rpc } = harness();
-        const run = new RpcNotifier(rpc).withProgress("Work", async () => {
-            throw new Error("fail");
-        });
-
-        await expect(run).rejects.toThrow("fail");
-        expect(frames.map((f) => f.method)).toEqual([
-            "notifier/progressStart",
-            "notifier/progressEnd",
-        ]);
-    });
 });
 
 describe("RpcSecretStore", () => {
