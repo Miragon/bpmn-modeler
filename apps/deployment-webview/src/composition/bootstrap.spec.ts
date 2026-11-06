@@ -41,6 +41,31 @@ const tabButton = (tab: string) =>
     document.querySelector<HTMLButtonElement>(`.tab-btn[data-tab="${tab}"]`)!;
 const isActive = (node: Element) => node.classList.contains("active");
 
+function dispatchAdHocDefaults(): void {
+    dispatch(
+        new FormDefaultsQuery({
+            deploymentName: "order",
+            endpoint: "",
+            tenantId: "",
+            engine: "c7",
+            authType: "none",
+        }),
+    );
+}
+
+function clickDeployAndStart(host: ReturnType<typeof fakeHost>) {
+    element("deploy-btn").click();
+    element("start-instance-btn").click();
+    return {
+        deployBanner: element("status-banner").textContent,
+        startBanner: element("start-status-banner").textContent,
+        requests: [
+            ...sentOfType(host, "DeployCommand"),
+            ...sentOfType(host, "StartInstanceCommand"),
+        ],
+    };
+}
+
 describe("deployment webview bootstrap", () => {
     let windowAddEventListener: ReturnType<typeof vi.spyOn>;
 
@@ -134,15 +159,7 @@ describe("deployment webview bootstrap", () => {
     ])("refuses to start an instance with %s, as Deploy does", (_, credentials, reason) => {
         const host = fakeHost();
         bootstrap(host as never);
-        dispatch(
-            new FormDefaultsQuery({
-                deploymentName: "order",
-                endpoint: "",
-                tenantId: "",
-                engine: "c7",
-                authType: "none",
-            }),
-        );
+        dispatchAdHocDefaults();
         dispatch(
             new DeploymentTargetsQuery(
                 [
@@ -164,13 +181,25 @@ describe("deployment webview bootstrap", () => {
         dispatch(new StoredCredentialsQuery(credentials, lookup.targetName, lookup.requestId));
         dispatch(new ProcessDefinitionKeyQuery("Order_Process"));
 
-        element("deploy-btn").click();
-        element("start-instance-btn").click();
+        expect(clickDeployAndStart(host)).toEqual({
+            deployBanner: reason,
+            startBanner: reason,
+            requests: [],
+        });
+    });
 
-        expect(element("status-banner").textContent).toBe(reason);
-        expect(element("start-status-banner").textContent).toBe(reason);
-        expect(sentOfType(host, "DeployCommand")).toEqual([]);
-        expect(sentOfType(host, "StartInstanceCommand")).toEqual([]);
+    it("refuses to deploy or start an instance without a REST endpoint", () => {
+        const host = fakeHost();
+        bootstrap(host as never);
+        dispatchAdHocDefaults();
+        dispatch(new DeploymentTargetsQuery([], ""));
+        dispatch(new ProcessDefinitionKeyQuery("Order_Process"));
+
+        expect(clickDeployAndStart(host)).toEqual({
+            deployBanner: "REST endpoint is required.",
+            startBanner: "REST endpoint is required.",
+            requests: [],
+        });
     });
 
     describe("tabs", () => {
