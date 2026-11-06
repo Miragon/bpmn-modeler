@@ -3,7 +3,6 @@ import { DiffPaneHandle } from "../diff/port/DiffPaneHandle";
 /** One diff pane whose document and webview live in memory; `posted` records what reached the webview. */
 export class FakeDiffPaneHandle implements DiffPaneHandle {
     readonly posted: unknown[] = [];
-    disposed = false;
     private ready = false;
 
     constructor(
@@ -29,6 +28,6 @@ export class FakeDiffPaneHandle implements DiffPaneHandle {
     }
 
     dispose(): void {
-        this.disposed = true;
+        // Nothing to release, and the core never disposes a pane: its host does.
     }
 }
