@@ -55,7 +55,10 @@ const STORED: DeploymentState = {
     },
 };
 
-/** Each case saves `patch` over {@link STORED}, in the shapes the core's call sites send. */
+/**
+ * Each case saves `patch` over {@link STORED}: the shapes the core's call sites send,
+ * plus the undefined fields the patch type allows.
+ */
 const PATCHES: readonly {
     readonly write: string;
     readonly behaviour: string;
@@ -132,7 +135,7 @@ function patchStoring({ ledger, ...fields }: DeploymentState): DeploymentStatePa
  * two saves in flight together both land, and that a rejected save rejects with
  * the host's reason and leaves the patch stored whole or not at all.
  *
- * Left out, because no core call relies on them or the core does not decide them:
+ * Left out:
  * - what `load` shows while a save is pending: the port leaves it open, and the
  *   bridge applies a patch only once the host accepts it;
  * - a ledger patch that both removes and puts one key: no core call sends one,
