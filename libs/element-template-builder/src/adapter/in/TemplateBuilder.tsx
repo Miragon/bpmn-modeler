@@ -23,7 +23,7 @@ import {
     removeGroup,
     removeProperty,
 } from "../../domain/transforms";
-import { diagnosticsByEntry, entryIdOf } from "../../domain/entryIds";
+import { diagnosticsByEntry, entryIdOf, entryPrefix, entryTarget } from "../../domain/entryIds";
 import { mostSevere } from "../../domain/severity";
 import { Action, Heading, Index, OtherMatches } from "./parts";
 import { type Problem, ProblemsBar, SeverityIcon } from "./ProblemsBar";
@@ -102,16 +102,8 @@ export function TemplateBuilder({ state, onEdit, translate }: TemplateBuilderPro
     });
 
     const showProblem = ({ entryId }: Problem) => {
-        if (!entryId) {
-            return;
-        }
-        const [kind, index] = entryId.split("-");
-        if (kind === "property") {
-            dispatch({ kind: "show", tab: "properties", index: Number(index), focus: entryId });
-        } else if (kind === "group") {
-            dispatch({ kind: "show", tab: "groups", index: Number(index), focus: entryId });
-        } else {
-            dispatch({ kind: "show", tab: "template", focus: entryId });
+        if (entryId) {
+            dispatch({ kind: "show", ...entryTarget(entryId), focus: entryId });
         }
     };
 
@@ -207,7 +199,7 @@ export function TemplateBuilder({ state, onEdit, translate }: TemplateBuilderPro
                 items={matchingGroups.map((at) => ({
                     index: at,
                     title: groupTitle(groups[at], translate),
-                    severity: worstUnder(`group-${at}-`),
+                    severity: worstUnder(entryPrefix("groups", at)),
                 }))}
                 selected={groupIndex}
                 onSelect={(at) => dispatch({ kind: "open", tab: "groups", index: at })}
@@ -279,7 +271,7 @@ export function TemplateBuilder({ state, onEdit, translate }: TemplateBuilderPro
                 items={matchingProperties.map((at) => ({
                     index: at,
                     title: titleOfProperty(properties[at]),
-                    severity: worstUnder(`property-${at}-`),
+                    severity: worstUnder(entryPrefix("properties", at)),
                 }))}
                 selected={propertyIndex}
                 onSelect={(at) => dispatch({ kind: "open", tab: "properties", index: at })}
@@ -427,13 +419,7 @@ export function TemplateBuilder({ state, onEdit, translate }: TemplateBuilderPro
                     aria-label={translate("Parts of the template")}
                 >
                     {BUILDER_TABS.map((key) => {
-                        const severity = worstUnder(
-                            key === "template"
-                                ? "template-"
-                                : key === "groups"
-                                  ? "group-"
-                                  : "property-",
-                        );
+                        const severity = worstUnder(entryPrefix(key));
                         return (
                             <button
                                 type="button"
