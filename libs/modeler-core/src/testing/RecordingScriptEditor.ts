@@ -23,8 +23,11 @@ interface OpenTab extends ScriptAddress {
  * (`describeScriptEditorContract`). It asks `picker` for a language the model
  * lacks, writes through `scriptFiles`, adopts a script file the user opens
  * from its editor's script folder and answers `alreadyOpen` for a script whose
- * tab is open. `materializations` answers the next writes in order
- * instead, writing nothing; an `Error` in it rejects that write.
+ * tab is open. A spec steers it only to inject a failure or a hang:
+ * `writeInterruptions` fails or holds the next writes in order (an `Error`
+ * rejects that write; a `Promise` holds it until it settles, then the write
+ * goes on), and `openFailure` and `resyncFailure` reject `open` and `resync`
+ * while set.
  */
 export class RecordingScriptEditor implements ScriptEditorPort {
     readonly opened: ScriptEditorCall<InlineScript>[] = [];
@@ -33,8 +36,7 @@ export class RecordingScriptEditor implements ScriptEditorPort {
     readonly resynced: string[] = [];
     readonly variablePushes: string[] = [];
     readonly disposedEditors: string[] = [];
-    readonly materializations: (ScriptMaterialization | Error | Promise<ScriptMaterialization>)[] =
-        [];
+    readonly writeInterruptions: (Error | Promise<void>)[] = [];
     openFailure: Error | undefined;
     resyncFailure: Error | undefined;
 
@@ -63,9 +65,9 @@ export class RecordingScriptEditor implements ScriptEditorPort {
 
     async materialize(editorId: string, script: InlineScript): Promise<ScriptMaterialization> {
         this.written.push({ editorId, script: inlineScriptOf(script) });
-        const scripted = this.materializations.shift();
-        if (scripted instanceof Error) throw scripted;
-        if (scripted !== undefined) return scripted;
+        const interruption = this.writeInterruptions.shift();
+        if (interruption instanceof Error) throw interruption;
+        await interruption;
 
         const uri = await this.scriptUriOf(editorId, script);
         if (uri === undefined) return { kind: "cancelled" };
