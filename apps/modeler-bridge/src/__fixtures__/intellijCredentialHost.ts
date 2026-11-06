@@ -32,14 +32,44 @@ const serviceName = (subsystem: string, key: string) => `IntelliJ Platform ${sub
 const deploymentEntry = (kind: string, slot: string | undefined) =>
     serviceName(DEPLOYMENT, slot === undefined ? kind : `${kind}:${slot}`);
 
+/** The params each router reads with `params.string` or `params.jsonArray`. */
+const REQUIRED_PARAMS: Readonly<Record<string, readonly string[]>> = {
+    [METHODS.secretStoreSaveBasicAuth]: ["username", "password"],
+    [METHODS.secretStoreSaveOAuth2]: ["clientId", "clientSecret"],
+    [METHODS.secretStoreGetApprovedDestinations]: ["slot"],
+    [METHODS.secretStoreSaveApprovedDestinations]: ["slot", "origins"],
+    [METHODS.secretStoreDelete]: ["slot"],
+    [METHODS.tokenStoreGet]: ["host"],
+    [METHODS.tokenStoreSet]: ["host", "token"],
+};
+
+/** `JsonRpcParams.missing`: an absent or null required param fails the request. */
+function assertRequiredParams(method: string, params: Readonly<Record<string, unknown>>): void {
+    for (const key of REQUIRED_PARAMS[method] ?? []) {
+        if (params[key] === undefined || params[key] === null) {
+            throw new Error(`Param '${key}' is missing or not of the expected type`);
+        }
+    }
+}
+
+/** `RpcChannel.reply` and `replyError`: a handler that throws still answers its request. */
+function replyTo(id: number, answer: () => unknown): string {
+    try {
+        return JSON.stringify({ id, result: answer() ?? null });
+    } catch (error) {
+        return JSON.stringify({ id, error: (error as Error).message });
+    }
+}
+
 /**
  * Answers `secretStore/*` and `tokenStore/*` as the IntelliJ host's
  * `SecretStoreRouter` and `MarketplaceRouter` do: entries keyed as
  * `IntellijSecretStore` and `IntellijMarketplaceTokenStore` key them, `null`
- * for nothing stored, and one reply per request in request order, as the
- * host's single credential-store thread sends them. A map stands in for
- * PasswordSafe and returns every entry as set; what PasswordSafe does with an
- * entry is the Kotlin half.
+ * for nothing stored, an error reply for a required param that is missing
+ * (a slotless approvals read or delete included), and one reply per request
+ * in request order, as the host's single credential-store thread sends them.
+ * A map stands in for PasswordSafe and returns every entry as set; what
+ * PasswordSafe does with an entry is the Kotlin half.
  */
 export function intellijCredentialHost(): Rpc {
     const passwordSafe = new Map<string, Credentials>();
@@ -114,7 +144,10 @@ export function intellijCredentialHost(): Rpc {
             method: string;
             params: never;
         };
-        const reply = JSON.stringify({ id, result: handlers[method](params) ?? null });
+        const reply = replyTo(id, () => {
+            assertRequiredParams(method, params);
+            return handlers[method](params);
+        });
         queueMicrotask(() => void rpc.handleLine(reply));
     });
     return rpc;
