@@ -1,5 +1,7 @@
 export * from "./clipboardContract";
 export * from "./createTestHost";
+export * from "./deploymentStateContract";
+export * from "./documentContract";
 export * from "./editorHandleContract";
 export * from "./FakeEditorHandle";
 export * from "./InMemoryCredentials";
@@ -13,6 +15,7 @@ export * from "./propertiesPanelStateContract";
 export * from "./RecordingNotifier";
 export * from "./RecordingScriptEditor";
 export * from "./RecordingStatusBar";
+export * from "./scriptEditorContract";
 export * from "./ScriptedPicker";
 export * from "./secretStoreContract";
 export * from "./settingsNormalization";
