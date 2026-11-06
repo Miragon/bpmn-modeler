@@ -688,7 +688,9 @@ button per scope, and the refusal under the location field when the core asks
 again. Both show every scope with the core's label and "Saved in …"
 description. The bridge sends the prompt without the function over
 `marketplacePrompt/show`, and IntelliJ's `MarketplaceRouter` shows its
-`AddMarketplaceDialog`.
+`AddMarketplaceDialog`. A command started again while its own question is open
+asks nothing: on IntelliJ, two clicks while the bridge starts would otherwise
+queue a second modal dialog behind the first.
 
 Each host keeps its marketplace registrations behind
 `MarketplaceRegistrationsPort`. `read` returns each scope's own list as the

@@ -1,5 +1,6 @@
 import { join } from "path";
 
+import { MarketplaceSettingsEntry } from "../../kernel/domain/modelerSettings";
 import { NotifierPort, PickerPort } from "../../kernel/port/hostPorts";
 import { FetchReport } from "../domain/fetchReport";
 import {
@@ -43,9 +44,12 @@ export interface MarketplaceCommandPorts {
  * cached a marketplace it has not registered yet, nor while an update works
  * from the registrations it read before a removal. The questions are asked
  * before a flow queues, so a user who takes their time holds up no other flow.
+ * A command started again while its question is open asks nothing: IntelliJ
+ * would queue a second modal dialog behind the first.
  */
 export class MarketplaceCommands {
     private runs: Promise<unknown> = Promise.resolve();
+    private readonly asking = new Set<string>();
 
     constructor(private readonly ports: MarketplaceCommandPorts) {}
 
@@ -59,7 +63,7 @@ export class MarketplaceCommands {
         const { notifier } = this.ports;
         notifier.logInfo("Add Marketplace command invoked");
         try {
-            const answer = await this.askForMarketplace();
+            const answer = await this.askAlone("Add Marketplace", () => this.askForMarketplace());
             if (!answer) {
                 notifier.logDebug("Add Marketplace cancelled");
                 return;
@@ -109,18 +113,11 @@ export class MarketplaceCommands {
      * removed entry may have had none.
      */
     async remove(): Promise<void> {
-        const { notifier, registrations, picker, marketplaces, templates } = this.ports;
+        const { notifier, registrations, marketplaces, templates } = this.ports;
         notifier.logInfo("Remove Marketplace command invoked");
         try {
-            const removal = marketplaceRemoval(
-                registeredMarketplaces((await registrations.read()).registered),
-            );
-            if (removal.kind === "nothingRegistered") {
-                notifier.showInfo(removal.message);
-                return;
-            }
-            const chosen = await picker.chooseMany(removal.prompt);
-            if (chosen.length === 0) {
+            const chosen = await this.askAlone("Remove Marketplace", () => this.askForRemoval());
+            if (!chosen?.length) {
                 notifier.logDebug("Remove Marketplace cancelled");
                 return;
             }
@@ -135,6 +132,32 @@ export class MarketplaceCommands {
         } catch (error) {
             notifier.notifyError("Failed to remove marketplace(s).", error as Error);
         }
+    }
+
+    private async askAlone<T>(command: string, ask: () => Promise<T>): Promise<T | undefined> {
+        if (this.asking.has(command)) {
+            this.ports.notifier.logDebug(`${command} is already asking`);
+            return undefined;
+        }
+        this.asking.add(command);
+        try {
+            return await ask();
+        } finally {
+            this.asking.delete(command);
+        }
+    }
+
+    /** The entries the user chose, or none when nothing is registered. */
+    private async askForRemoval(): Promise<readonly MarketplaceSettingsEntry[]> {
+        const { registrations, picker, notifier } = this.ports;
+        const removal = marketplaceRemoval(
+            registeredMarketplaces((await registrations.read()).registered),
+        );
+        if (removal.kind === "nothingRegistered") {
+            notifier.showInfo(removal.message);
+            return [];
+        }
+        return picker.chooseMany(removal.prompt);
     }
 
     /** Asks again, with the refused entry, until the location is one the core can register. */

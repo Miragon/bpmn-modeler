@@ -112,6 +112,26 @@ function marketplaceHost({
         });
         return held;
     };
+    const holdAddQuestion = () => {
+        const held = gate();
+        const ask = host.marketplacePrompt.promptForMarketplace.bind(host.marketplacePrompt);
+        vi.spyOn(host.marketplacePrompt, "promptForMarketplace").mockImplementation(
+            async (question) => {
+                await held.opened;
+                return ask(question);
+            },
+        );
+        return held;
+    };
+    const holdRemoveChoice = () => {
+        const held = gate();
+        const chooseMany = host.picker.chooseMany.bind(host.picker);
+        vi.spyOn(host.picker, "chooseMany").mockImplementation(async (prompt) => {
+            await held.opened;
+            return chooseMany(prompt);
+        });
+        return held;
+    };
     const lockCachedMarketplaces = (error: Error) => {
         const deleteDirectory = host.workspace.deleteDirectory.bind(host.workspace);
         vi.spyOn(host.workspace, "deleteDirectory").mockImplementation(async (path) => {
@@ -130,6 +150,8 @@ function marketplaceHost({
         templates,
         holdRead,
         holdRegistration,
+        holdAddQuestion,
+        holdRemoveChoice,
         lockCachedMarketplaces,
         registered: async () =>
             registeredMarketplaces((await host.marketplaceRegistrations.read()).registered),
@@ -432,6 +454,47 @@ describe("MarketplaceCommands.remove", () => {
     });
 });
 
+describe("MarketplaceCommands started while its question is open", () => {
+    it("asks one add question at a time and asks again once it is answered", async () => {
+        const { commands, prompt, registered, holdAddQuestion, notifier } = marketplaceHost({
+            answers: [{ location: "/work/b", scope: "project" }],
+        });
+        const question = holdAddQuestion();
+
+        const first = commands.add();
+        await letPendingWorkRun();
+        const second = commands.add();
+        question.open();
+        await Promise.all([first, second]);
+        await commands.add();
+
+        expect(prompt.prompts).toHaveLength(2);
+        expect(await registered()).toContainEqual({ entry: "/work/b", scopes: ["project"] });
+        expect(notifier.infos).toEqual(["Marketplace added."]);
+        expect(notifier.logged("debug")).toContain("Add Marketplace is already asking");
+    });
+
+    it("offers one remove choice at a time and offers it again once it is answered", async () => {
+        const { commands, registrations, picker, holdRemoveChoice, notifier } = marketplaceHost({
+            registered: ["/work/a", "/work/b"],
+            promptAnswers: { marketplaceRemoval: ["/work/a"] },
+        });
+        const choice = holdRemoveChoice();
+
+        const first = commands.remove();
+        await letPendingWorkRun();
+        const second = commands.remove();
+        choice.open();
+        await Promise.all([first, second]);
+        await registrations.register("/work/a", "allProjects");
+        await commands.remove();
+
+        expect(picker.prompts).toHaveLength(2);
+        expect(notifier.infos).toEqual(["Removed 1 marketplace(s).", "Removed 1 marketplace(s)."]);
+        expect(notifier.logged("debug")).toContain("Remove Marketplace is already asking");
+    });
+});
+
 describe("MarketplaceCommands started while another one runs", () => {
     it("keeps the cache of a marketplace added while an update runs", async () => {
         const { commands, marketplaces, holdRead, cachedTemplateNames } = marketplaceHost({
@@ -489,14 +552,20 @@ describe("MarketplaceCommands started while another one runs", () => {
     });
 
     it("still runs a command started while a failing one runs", async () => {
-        const { commands, marketplaces, cachedTemplateNames } = marketplaceHost({
+        const { commands, marketplaces, holdRead, cachedTemplateNames } = marketplaceHost({
             answers: [
                 { location: "/work/missing", scope: "allProjects" },
                 { location: "/work/b", scope: "allProjects" },
             ],
         });
+        const failingFetch = holdRead("/work/missing/marketplace.json");
 
-        await Promise.all([commands.add(), commands.add()]);
+        const failing = commands.add();
+        await letPendingWorkRun();
+        const later = commands.add();
+        await letPendingWorkRun();
+        failingFetch.open();
+        await Promise.all([failing, later]);
 
         expect(marketplaces).toEqual(["/work/a", "/work/b"]);
         expect(await cachedTemplateNames()).toEqual(["b.json"]);
