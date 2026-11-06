@@ -432,7 +432,7 @@ export function describeEditorHandleContract(
                 expect(counts).toEqual({ listened: 1, released: 1 });
             });
 
-            it("hands no webview message to a subscription added to a disposed handle", () => {
+            it("stops a message subscription in its bag once disposed", () => {
                 const { handle } = fixture;
                 const received: Command[] = [];
                 handle.addSubscription(
