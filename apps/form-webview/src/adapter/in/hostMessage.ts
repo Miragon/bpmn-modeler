@@ -1,3 +1,5 @@
+import { isFlushQuery } from "@miragon/bpmn-modeler-shared";
+
 /** Rejects malformed events and messages posted by form iframe components. */
 export function shouldHandleHostMessage(
     event: MessageEvent<unknown>,
@@ -19,7 +21,7 @@ export function shouldHandleHostMessage(
     if (data.type === "FormFileQuery" || data.type === "FormInputValuesQuery") {
         return "content" in data && typeof data.content === "string";
     }
-    if (data.type === "FlushDocumentQuery" || data.type === "ReleaseDocumentFlushQuery") {
+    if (isFlushQuery(data)) {
         return "token" in data && Number.isInteger(data.token);
     }
     return false;

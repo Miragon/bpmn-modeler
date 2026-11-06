@@ -1,7 +1,19 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, expectTypeOf, it, vi } from "vitest";
 
-import { createFlushResponder, FlushSource } from "./documentFlush";
-import { DocumentFlushedCommand, FlushDocumentQuery, ReleaseDocumentFlushQuery } from "./messages";
+import {
+    createFlushResponder,
+    FLUSH_QUERY_TYPES,
+    type FlushQuery,
+    FlushSource,
+    isFlushQuery,
+} from "./documentFlush";
+import {
+    DocumentFlushedCommand,
+    FlushDocumentQuery,
+    ReleaseDocumentFlushQuery,
+    SyncDocumentCommand,
+    TakeFocusQuery,
+} from "./messages";
 
 /**
  * Covers the webview-side flush responder — the piece both the BPMN and (untested
@@ -372,5 +384,30 @@ describe("createFlushResponder", () => {
         await createFlushResponder(source, post)(new FlushDocumentQuery(99));
 
         expect(post.mock.calls[0][0].token).toBe(99);
+    });
+});
+
+describe("isFlushQuery", () => {
+    it.each([new FlushDocumentQuery(1, true), new ReleaseDocumentFlushQuery(1)])(
+        "admits a $type",
+        (message) => {
+            expect(isFlushQuery(message)).toBe(true);
+        },
+    );
+
+    it.each<{ type: unknown }>([
+        new DocumentFlushedCommand(1, undefined, "clean"),
+        new SyncDocumentCommand("<xml/>"),
+        new TakeFocusQuery(),
+        { type: "flushDocumentQuery" },
+        { type: "FlushDocumentQuery " },
+        { type: undefined },
+        { type: 1 },
+    ])("turns away a message of type $type", (message) => {
+        expect(isFlushQuery(message)).toBe(false);
+    });
+
+    it("lists every query the flush responder answers", () => {
+        expectTypeOf<(typeof FLUSH_QUERY_TYPES)[number]>().toEqualTypeOf<FlushQuery["type"]>();
     });
 });

@@ -6,6 +6,7 @@ import { OPEN_SCRIPT_EDITOR_EVENT } from "./scriptEditorEvents";
 import {
     listenerScriptKind,
     listenerScriptOpenEvent,
+    PANEL_LISTENER_TYPES,
     type PanelListenerType,
     readScriptField,
     scriptTaskOpenEvent,
@@ -64,7 +65,7 @@ export class ScriptEditorOpener {
         if (this.openScriptTask(element)) {
             return true;
         }
-        for (const listenerType of ["executionListener", "taskListener"] as PanelListenerType[]) {
+        for (const listenerType of PANEL_LISTENER_TYPES) {
             if (findListenerAt(element?.businessObject, listenerScriptKind(listenerType), 0)) {
                 return this.openListener(element.id, listenerType, 0);
             }

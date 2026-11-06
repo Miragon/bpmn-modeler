@@ -1,9 +1,9 @@
 import {
     asProtocolMessage,
     type Command,
-    type FlushDocumentQuery,
+    type FlushQuery,
+    isFlushQuery,
     type Query,
-    type ReleaseDocumentFlushQuery,
 } from "@miragon/bpmn-modeler-shared";
 
 import type { FormEditorApp } from "./FormEditorApp";
@@ -11,7 +11,7 @@ import { shouldHandleHostMessage } from "./hostMessage";
 
 type FormMessageApp = Pick<FormEditorApp, "load" | "setInputValues">;
 
-type FlushResponder = (query: FlushDocumentQuery | ReleaseDocumentFlushQuery) => Promise<void>;
+type FlushResponder = (query: FlushQuery) => Promise<void>;
 
 export function routeFormHostMessage(
     event: MessageEvent<Query | Command>,
@@ -24,7 +24,7 @@ export function routeFormHostMessage(
         void app.load(query.content, query.documentRevision);
     } else if (query.type === "FormInputValuesQuery") {
         void app.setInputValues(query.content);
-    } else if (query.type === "FlushDocumentQuery" || query.type === "ReleaseDocumentFlushQuery") {
+    } else if (isFlushQuery(query)) {
         void respondToFlush(query);
     }
 }
