@@ -1,7 +1,7 @@
 /** @jsxImportSource @bpmn-io/properties-panel/preact */
 import type { ComponentChildren } from "@bpmn-io/properties-panel/preact";
 
-import type { EntryDiagnostic } from "./entryIds";
+import type { EntryDiagnostic } from "../../domain/entryIds";
 import { SeverityIcon } from "./ProblemsBar";
 import { Icon } from "./settings";
 

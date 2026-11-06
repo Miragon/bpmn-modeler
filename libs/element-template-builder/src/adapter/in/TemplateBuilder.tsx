@@ -2,19 +2,19 @@
 import type { ComponentChildren, ComponentType } from "@bpmn-io/properties-panel/preact";
 import { useEffect, useReducer, useRef } from "@bpmn-io/properties-panel/preact/hooks";
 
-import { catalogFor } from "../catalog";
+import { catalogFor } from "../../domain/catalog";
 import {
     BUILDER_TABS,
     initialNavigation,
     navigate,
     shownItem,
     type BuilderTab,
-} from "../domain/builderNavigation";
-import type { TemplateBuilderState } from "../domain/editorPage";
-import { arrayOf, objectOf, stringOf, valueAt } from "../domain/json";
-import { problemSummary } from "../domain/problemSummary";
-import type { TemplateEdit } from "../domain/templateText";
-import { bindingTargets, groupTitle, problemPlace, propertyTitle } from "../domain/titles";
+} from "../../domain/builderNavigation";
+import type { TemplateBuilderState } from "../../domain/editorPage";
+import { arrayOf, objectOf, stringOf, valueAt } from "../../domain/json";
+import { problemSummary } from "../../domain/problemSummary";
+import type { TemplateEdit } from "../../domain/templateText";
+import { bindingTargets, groupTitle, problemPlace, propertyTitle } from "../../domain/titles";
 import {
     addGroup,
     addProperty,
@@ -22,8 +22,8 @@ import {
     moveProperty,
     removeGroup,
     removeProperty,
-} from "../domain/transforms";
-import { diagnosticsByEntry, entryIdOf, type EntryDiagnostic } from "./entryIds";
+} from "../../domain/transforms";
+import { diagnosticsByEntry, entryIdOf, type EntryDiagnostic } from "../../domain/entryIds";
 import { Action, Heading, Index, OtherMatches } from "./parts";
 import { type Problem, ProblemsBar, SeverityIcon } from "./ProblemsBar";
 import {

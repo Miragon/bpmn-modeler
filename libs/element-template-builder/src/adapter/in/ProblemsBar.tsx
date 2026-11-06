@@ -1,5 +1,5 @@
 /** @jsxImportSource @bpmn-io/properties-panel/preact */
-import type { Diagnostic } from "../domain/diagnostics";
+import type { Diagnostic } from "../../domain/diagnostics";
 import type { Translate } from "./settings";
 
 export interface Problem extends Diagnostic {

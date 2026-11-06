@@ -9,8 +9,13 @@ import { describe, expect, it } from "vitest";
 const tree = readSourceTree(__dirname);
 const { edges } = buildImportGraph(tree);
 
+const LAYER_FOLDERS = { catalog: "domain/catalog/", ui: "adapter/in/" } as const;
+
 function isIn(path: string, layer: string): boolean {
-    return path.startsWith(`${layer}/`);
+    if (layer === "domain") {
+        return path.startsWith("domain/") && !isIn(path, "catalog");
+    }
+    return path.startsWith(LAYER_FOLDERS[layer as keyof typeof LAYER_FOLDERS]);
 }
 
 function reachesOut(from: string, to: string): string[] {

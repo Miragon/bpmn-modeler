@@ -1,23 +1,23 @@
 import type { ComponentType } from "@bpmn-io/properties-panel/preact";
 
-import type { BindingField, EngineCatalog } from "../catalog";
-import { bindingOptions } from "../domain/bindingOptions";
-import { allowedTypes, bindingSpecOf } from "../domain/bindingRules";
-import { conditionOf, conditionRows } from "../domain/conditions";
-import { elementTypeName } from "../domain/elementTypes";
-import { arrayOf, objectOf, stringOf, stringsOf, valueAt, type Json } from "../domain/json";
-import { normalizedNumberText, readNumberText } from "../domain/numberText";
+import type { BindingField, EngineCatalog } from "../../domain/catalog";
+import { bindingOptions } from "../../domain/bindingOptions";
+import { allowedTypes, bindingSpecOf } from "../../domain/bindingRules";
+import { conditionOf, conditionRows } from "../../domain/conditions";
+import { elementTypeName } from "../../domain/elementTypes";
+import { arrayOf, objectOf, stringOf, stringsOf, valueAt, type Json } from "../../domain/json";
+import { normalizedNumberText, readNumberText } from "../../domain/numberText";
 import {
     propertyCapabilities,
     typeCapabilities,
     type PropertyCapabilities,
-} from "../domain/propertyCapabilities";
+} from "../../domain/propertyCapabilities";
 import {
     jsonOnlyGroupKeys,
     jsonOnlyPropertyKeys,
     jsonOnlyTemplateKeys,
-} from "../domain/templateKeys";
-import type { JsonPath, TemplateEdit } from "../domain/templateText";
+} from "../../domain/templateKeys";
+import type { JsonPath, TemplateEdit } from "../../domain/templateText";
 import {
     addChoice,
     changeBindingField,
@@ -29,7 +29,7 @@ import {
     setConstraint,
     setField,
     updateChoice,
-} from "../domain/transforms";
+} from "../../domain/transforms";
 import {
     AppliesToEntry,
     ChoicesEntry,
@@ -37,7 +37,7 @@ import {
     JsonOnlyEntry,
     type Choice,
 } from "./entries";
-import { entryIdOf } from "./entryIds";
+import { entryIdOf } from "../../domain/entryIds";
 import {
     CheckSetting,
     SelectSetting,

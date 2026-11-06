@@ -1,5 +1,5 @@
-import type { Diagnostic } from "../domain/diagnostics";
-import type { JsonPath } from "../domain/templateText";
+import type { Diagnostic } from "./diagnostics";
+import type { JsonPath } from "./templateText";
 
 export interface EntryDiagnostic {
     severity: Diagnostic["severity"];

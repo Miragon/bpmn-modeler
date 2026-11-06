@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { catalogFor } from "../catalog";
-import { addProperty, changeBindingType, fixRequirement } from "../domain/transforms";
+import { catalogFor } from "../../domain/catalog";
+import { addProperty, changeBindingType, fixRequirement } from "../../domain/transforms";
 import {
     C7_SCHEMA,
     C8_SCHEMA,

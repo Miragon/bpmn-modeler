@@ -5,8 +5,8 @@ import {
     normalizedRowValue,
     type ConditionOperator,
     type ConditionRow,
-} from "../domain/conditions";
-import { elementTypeName } from "../domain/elementTypes";
+} from "../../domain/conditions";
+import { elementTypeName } from "../../domain/elementTypes";
 import { Icon, SettingRow, useDraft, type SettingProps, type Translate } from "./settings";
 
 export interface AppliesToEntryProps extends SettingProps {

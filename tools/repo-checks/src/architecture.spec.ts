@@ -46,7 +46,6 @@ const ROLE_EXCEPTIONS: readonly KnownException[] = [
     { from: "apps/dmn-webview", to: "*", until: "#2129" },
     { from: "apps/form-webview", to: "*", until: "#2129" },
     { from: "apps/deployment-webview", to: "*", until: "#2129" },
-    { from: "libs/element-template-builder", to: "*", until: "#2130" },
 ];
 
 const workspaces = readWorkspaces(REPO_ROOT);

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { catalogFor } from "../catalog";
+import { catalogFor } from "../../domain/catalog";
 import {
     addGroup,
     addProperty,
@@ -10,7 +10,7 @@ import {
     removeGroup,
     removeProperty,
     renameGroup,
-} from "../domain/transforms";
+} from "../../domain/transforms";
 import { C8_SCHEMA, mountBuilder, type BuilderHarness } from "./__fixtures__/builderHarness";
 
 type Json = Record<string, unknown>;

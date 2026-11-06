@@ -10,7 +10,7 @@ import {
     type ElementTypeChoice,
     type EngineCatalog,
     type Requirement,
-} from "../catalog";
+} from "./catalog";
 import { bindingFits } from "./bindingOptions";
 import { bindingSpecOf } from "./bindingRules";
 import { deprecationAdvice } from "./deprecations";
