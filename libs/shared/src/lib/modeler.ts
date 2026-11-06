@@ -1015,7 +1015,9 @@ export class UpdateScriptVariablesCommand extends Command<"UpdateScriptVariables
 /**
  * Discriminant values for supported authentication types.
  */
-export type AuthTypePayload = "none" | "basic" | "oauth2";
+export const AUTH_TYPE_PAYLOADS = ["none", "basic", "oauth2"] as const;
+
+export type AuthTypePayload = (typeof AUTH_TYPE_PAYLOADS)[number];
 
 /**
  * Serialisable auth configuration exchanged between extension host and webview.

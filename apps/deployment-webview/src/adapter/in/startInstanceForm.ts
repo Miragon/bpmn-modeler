@@ -1,5 +1,4 @@
 import {
-    AuthConfigPayload,
     LogInfoCommand,
     RequestPayloadFilesCommand,
     StartInstanceCommand,
@@ -8,6 +7,12 @@ import {
 } from "@miragon/bpmn-modeler-shared";
 import { Engine } from "@miragon/bpmn-modeler-types";
 
+import {
+    type AuthFields,
+    authPayloadOf,
+    missingAuthFieldReason,
+    missingEndpointReason,
+} from "../../domain/deploymentDraft";
 import type { DeploymentHost } from "../../port/deploymentHost";
 
 /**
@@ -37,7 +42,7 @@ export class StartInstanceForm {
     /** Resolves DOM references and binds events; throws if an expected element is missing. */
     constructor(
         private readonly host: Pick<DeploymentHost, "postMessage">,
-        private readonly getSharedAuth: () => AuthConfigPayload,
+        private readonly getSharedAuthFields: () => AuthFields,
         private readonly getSharedConnection: () => {
             endpoint: string;
             engine: Engine;
@@ -131,15 +136,16 @@ export class StartInstanceForm {
         }
 
         const connection = this.getSharedConnection();
-        if (!connection.endpoint) {
-            throw new Error("REST endpoint is required.");
-        }
+        const authFields = this.getSharedAuthFields();
+        const missingField =
+            missingEndpointReason(connection.endpoint) ?? missingAuthFieldReason(authFields);
+        if (missingField) throw new Error(missingField);
 
         return {
             processDefinitionKey,
             endpoint: connection.endpoint,
             engine: connection.engine,
-            auth: this.getSharedAuth(),
+            auth: authPayloadOf(authFields),
             payloadFilePath: this.payloadFilePath,
             targetName: connection.targetName,
             startInstanceUrl: connection.startInstanceUrl,

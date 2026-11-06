@@ -1,11 +1,16 @@
 import { describe, expect, it } from "vitest";
+import type { AuthConfigPayload, AuthTypePayload } from "@miragon/bpmn-modeler-shared";
 import {
+    type AuthFields,
+    authPayloadOf,
     credentialRefSignatureOf,
     type DraftActivity,
     type DraftControls,
     type DraftSnapshot,
     draftControls,
     executionBlockedReason,
+    missingAuthFieldReason,
+    missingEndpointReason,
     saveBlockedReason,
 } from "./deploymentDraft";
 
@@ -153,5 +158,117 @@ describe("credentialRefSignatureOf", () => {
         ["whitespace around a reference", [PASSWORD_REF], [`  ${PASSWORD_REF} `]],
     ])("leaves %s free", (_, saved, current) => {
         expect(signaturesDiffer(saved, current)).toBe(false);
+    });
+});
+
+describe("authPayloadOf", () => {
+    const typed: AuthFields = {
+        authType: "none",
+        username: " user ",
+        password: " pass ",
+        clientId: " client ",
+        clientSecret: " secret ",
+        tokenEndpoint: " https://login.test/token ",
+        audience: " api ",
+    };
+
+    it.each<[AuthTypePayload, AuthConfigPayload]>([
+        ["none", { authType: "none" }],
+        ["basic", { authType: "basic", username: "user", password: " pass " }],
+        [
+            "oauth2",
+            {
+                authType: "oauth2",
+                clientId: "client",
+                clientSecret: " secret ",
+                tokenEndpoint: "https://login.test/token",
+                audience: "api",
+            },
+        ],
+    ])("sends only the %s fields, trimmed except for the secrets", (authType, payload) => {
+        expect(authPayloadOf({ ...typed, authType })).toEqual(payload);
+    });
+});
+
+describe("missingAuthFieldReason", () => {
+    const USERNAME = "Username is required for Basic Auth.";
+    const PASSWORD = "Password is required for Basic Auth.";
+    const CLIENT_ID = "Client ID is required for OAuth2.";
+    const CLIENT_SECRET = "Client Secret is required for OAuth2.";
+    const TOKEN_ENDPOINT = "Token Endpoint is required for OAuth2.";
+    const complete: AuthFields = {
+        authType: "none",
+        username: "user",
+        password: "pass",
+        clientId: "client",
+        clientSecret: "secret",
+        tokenEndpoint: "https://login.test/token",
+        audience: "",
+    };
+    const empty = {
+        username: "",
+        password: "",
+        clientId: "",
+        clientSecret: "",
+        tokenEndpoint: "",
+        audience: "",
+    };
+
+    it.each<[string, Partial<AuthFields>, string | undefined]>([
+        ["no auth with every field empty", { authType: "none", ...empty }, undefined],
+        ["complete Basic auth", { authType: "basic" }, undefined],
+        ["Basic auth without a username", { authType: "basic", username: "" }, USERNAME],
+        ["Basic auth with a blank username", { authType: "basic", username: "   " }, USERNAME],
+        ["Basic auth without a password", { authType: "basic", password: "" }, PASSWORD],
+        ["Basic auth with a password of spaces", { authType: "basic", password: "  " }, undefined],
+        ["Basic auth with every field empty", { authType: "basic", ...empty }, USERNAME],
+        [
+            "Basic auth without the OAuth2 fields",
+            { authType: "basic", ...empty, username: "user", password: "pass" },
+            undefined,
+        ],
+        ["complete OAuth2 without an audience", { authType: "oauth2" }, undefined],
+        ["OAuth2 without a client ID", { authType: "oauth2", clientId: "" }, CLIENT_ID],
+        ["OAuth2 with a blank client ID", { authType: "oauth2", clientId: "   " }, CLIENT_ID],
+        ["OAuth2 without a client secret", { authType: "oauth2", clientSecret: "" }, CLIENT_SECRET],
+        [
+            "OAuth2 with a client secret of spaces",
+            { authType: "oauth2", clientSecret: "  " },
+            undefined,
+        ],
+        [
+            "OAuth2 without a token endpoint",
+            { authType: "oauth2", tokenEndpoint: "" },
+            TOKEN_ENDPOINT,
+        ],
+        [
+            "OAuth2 with a blank token endpoint",
+            { authType: "oauth2", tokenEndpoint: " " },
+            TOKEN_ENDPOINT,
+        ],
+        [
+            "OAuth2 with only the client ID",
+            { authType: "oauth2", ...empty, clientId: "client" },
+            CLIENT_SECRET,
+        ],
+        ["OAuth2 with every field empty", { authType: "oauth2", ...empty }, CLIENT_ID],
+        [
+            "OAuth2 without the Basic fields",
+            { authType: "oauth2", username: "", password: "" },
+            undefined,
+        ],
+    ])("names the first missing field for %s", (_, overrides, reason) => {
+        expect(missingAuthFieldReason({ ...complete, ...overrides })).toBe(reason);
+    });
+});
+
+describe("missingEndpointReason", () => {
+    it.each<[string, string, string | undefined]>([
+        ["an empty endpoint", "", "REST endpoint is required."],
+        ["a blank endpoint", "   ", "REST endpoint is required."],
+        ["a URL", "https://engine.test", undefined],
+        ["an env reference", "${env:MIRAGON_ENGINE_URL}", undefined],
+    ])("requires the REST endpoint for %s", (_, endpoint, reason) => {
+        expect(missingEndpointReason(endpoint)).toBe(reason);
     });
 });

@@ -46,19 +46,19 @@ broken value rule as `targets[i]` plus the field. Register the file's
 for editor validation. A malformed file reports an error and yields no targets
 rather than crashing the sidebar.
 
-Two copies that cannot import these homes are pinned to them. The
+Three copies that cannot import these homes are pinned to them. The
 [schema tests](../../libs/modeler-core/src/deployment/domain/deploymentTargetsSchema.spec.ts)
 compare the schema's `engine` and `auth.type` enums with the homes and fail on
 any other enum in the schema. A type equality assertion in the spec of the
 mapper `toTargetPayload` pins the protocol's `AuthTypePayload` (`libs/shared`,
 which must not import the core); without it, an auth type only the protocol
-knows compiles and falls back to no auth in `toAuthConfig`. The deployment
-form's `<option>` values in `formTemplate.ts` are a third copy of both sets and
-are not pinned yet. The form rejects an engine outside `ENGINES` with
-`isEngine`, but casts the selected auth type unchecked, so an auth option the
-domain lacks still falls back to no auth. A runtime list in `libs/shared`, which
-the form already imports, would let it guard the auth type the same way, and
-the type pin would keep that list tied to `TargetAuthType`.
+knows compiles and falls back to no auth in `toAuthConfig`. `AuthTypePayload`
+derives from the runtime list `AUTH_TYPE_PAYLOADS`, so the same pin ties that
+list to `TargetAuthType`. The deployment form's `<option>` values in
+`formTemplate.ts` are the third copy: the
+[form tests](../../apps/deployment-webview/src/adapter/in/form.spec.ts) compare
+them with `ENGINES` and `AUTH_TYPE_PAYLOADS`, and the form rejects a selected
+engine or auth type outside those lists instead of casting it.
 
 Credentials stay in the host secret store under `<targetsFilePath>::<name>`.
 The file path prevents same-named targets in different projects from sharing
@@ -293,6 +293,20 @@ Connection changes to a named target must be saved before Deploy or Start
 Instance. Literal credential edits remain executable; credential environment
 references are part of the saved target and must be saved. Both actions share readiness
 state and are unavailable during target switches or secret loading.
+
+Both actions send the same connection and credentials, so the webview checks
+them the same way before either posts its request: a non-blank endpoint and the
+fields the auth type requires (a username and password for Basic, a client ID,
+client secret and token endpoint for OAuth2). Names, ids and URLs are trimmed
+before the check and in the request; secrets are judged and sent as typed.
+`missingEndpointReason` and `missingAuthFieldReason` in the webview's
+`domain/deploymentDraft.ts` own the rule and its texts, and `authPayloadOf`
+builds the auth payload of both requests and of a target save
+([draft tests](../../apps/deployment-webview/src/domain/deploymentDraft.spec.ts)).
+**New** and **Save** check no credential: the targets file holds the
+connection, the credentials are per machine and may be entered later without a
+save, and the request checks them before anything is sent. The core checks no
+credential field either; it builds the request from the payload it receives.
 
 The core independently resolves the submitted target name within the captured
 document context and rejects missing targets or mismatching operation settings
