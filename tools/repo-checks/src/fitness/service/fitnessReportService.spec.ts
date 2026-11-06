@@ -106,6 +106,85 @@ describe("the change the fitness report measures", () => {
     });
 });
 
+describe("the base the fitness report compares with", () => {
+    it("compares with the merge base of the ref it is given and names that ref", () => {
+        const fake = fakeFitnessFunction({
+            [WORKING_TREE]: [finding("A"), finding("B")],
+            [`/checkout/${BASE}`]: [finding("A")],
+        });
+        const checkout = new InMemoryCheckout();
+
+        const report = createFitnessReport([fake], "452b6440", {
+            repoRoot: WORKING_TREE,
+            history: new InMemoryHistory([HEAD, BASE], BASE, false, ["452b6440"]),
+            snapshots: new InMemorySnapshots(),
+            checkout,
+        });
+
+        expect(report.base).toEqual({ commit: BASE, ref: "452b6440" });
+        expect(checkout.checkedOut).toEqual([BASE]);
+        expect(report.functions[0].outcome).toMatchObject({
+            findings: [
+                { key: "A", status: "existing" },
+                { key: "B", status: "new" },
+            ],
+        });
+    });
+
+    it("measures the tree it is given at HEAD", () => {
+        const roots: string[] = [];
+        const recording = fakeFitnessFunction(
+            {},
+            {
+                findFindings: ({ repoRoot }) => {
+                    roots.push(repoRoot);
+                    return [];
+                },
+            },
+        );
+
+        createFitnessReport([recording], "origin/main", {
+            repoRoot: "/checkouts/old",
+            history: new InMemoryHistory([HEAD, BASE]),
+            snapshots: new InMemorySnapshots(),
+            checkout: new InMemoryCheckout(),
+        });
+
+        expect(roots).toEqual(["/checkouts/old", `/checkout/${BASE}`]);
+    });
+
+    it("reports a function that cannot measure an old tree beside the ones that can", () => {
+        const kinds = fakeFitnessFunction(
+            {},
+            {
+                id: "kinds",
+                findFindings: () => {
+                    throw new InsufficientHistory("no workspace declares a kind");
+                },
+            },
+        );
+        const sizes = fakeFitnessFunction({ [WORKING_TREE]: [finding("A")] }, { id: "sizes" });
+
+        const report = createFitnessReport([kinds, sizes], "452b6440", {
+            repoRoot: WORKING_TREE,
+            history: new InMemoryHistory([HEAD, BASE]),
+            snapshots: new InMemorySnapshots(),
+            checkout: new InMemoryCheckout(),
+        });
+
+        expect(
+            report.functions.map(({ id, base, outcome }) => ({ id, base, kind: outcome.kind })),
+        ).toEqual([
+            {
+                id: "kinds",
+                base: { source: "checkout", unmeasurable: "no workspace declares a kind" },
+                kind: "unmeasurable",
+            },
+            { id: "sizes", base: { source: "checkout" }, kind: "measured" },
+        ]);
+    });
+});
+
 describe("the trend in the fitness report", () => {
     const measured = (codeLines: number) => ({ ...finding("A"), values: { codeLines } });
     const sized = fakeFitnessFunction(
