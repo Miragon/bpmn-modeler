@@ -7,8 +7,9 @@ import { DocumentPort } from "../kernel/port/hostPorts";
 export interface DocumentContractFixture {
     readonly documents: DocumentPort;
     /**
-     * The user opens the file at `path`, absolute and `/`-separated, in an
-     * editor whose document holds `content`; returns the editor's id.
+     * The user opens the file at `path`, absolute and `/`-separated
+     * (`//server/share/…` on a Windows share), in an editor whose document
+     * holds `content`; returns the editor's id.
      */
     open(path: string, content: string): string;
     /** Another editor or program changes the document, and the host reports the change to the core. */
@@ -37,6 +38,15 @@ const INVOICE: OpenFile = {
 const EDITED = '<definitions id="order">\n  <process id="pay"/>\n</definitions>\n';
 const EDITED_AGAIN = '<definitions id="order">\n  <process id="refund"/>\n</definitions>\n';
 const CHANGED_ELSEWHERE = '<definitions id="order">\n  <process id="return"/>\n</definitions>\n';
+
+const FILE_LOCATIONS = [
+    { location: "in a local folder", orderPath: ORDER.path, invoicePath: INVOICE.path },
+    {
+        location: "on a Windows share",
+        orderPath: "//server/share/order.bpmn",
+        invoicePath: "//server/share/invoice.bpmn",
+    },
+];
 
 interface WriteBasis {
     readonly basis: string;
@@ -81,8 +91,8 @@ const APPLIED_WRITES: readonly WriteBasis[] = [
  * - The text of an editor that is not open: the bridge reads an empty text,
  *   `EditorSessionDocuments` throws. The core reads only editors the store
  *   holds or catches the throw.
- * - The path of a file on a Windows drive or share: each host spells it as
- *   its file system does (VS Code `/c:/…`, IntelliJ `C:/…`).
+ * - The path of a file on a Windows drive: each host spells it as its file
+ *   system does (VS Code `/c:/…`, IntelliJ `C:/…`).
  *
  * A save is judged by the host's answer, not by the file on disk, which the
  * host owns.
@@ -109,19 +119,23 @@ export function describeDocumentContract(
         });
 
         describe("reading", () => {
-            // A path without a scheme: the core takes posix.dirname and basename of it.
-            it("reads each open editor's own text and the absolute, /-separated path of its file", () => {
-                const { documents } = fixture;
-                const { order, invoice } = openOrderAndInvoice();
+            // The core takes posix.dirname and basename of the path and compares it
+            // with workspace paths, which keep a share's leading `//` (toWorkspacePath).
+            it.each(FILE_LOCATIONS)(
+                "reads each open editor's own text and the path of its file $location unchanged",
+                ({ orderPath, invoicePath }) => {
+                    const { documents } = fixture;
+                    const order = fixture.open(orderPath, ORDER.content);
+                    const invoice = fixture.open(invoicePath, INVOICE.content);
 
-                expect([order, invoice].map((editorId) => documents.getContent(editorId))).toEqual([
-                    ORDER.content,
-                    INVOICE.content,
-                ]);
-                expect([order, invoice].map((editorId) => documents.getFilePath(editorId))).toEqual(
-                    [ORDER.path, INVOICE.path],
-                );
-            });
+                    expect(
+                        [order, invoice].map((editorId) => documents.getContent(editorId)),
+                    ).toEqual([ORDER.content, INVOICE.content]);
+                    expect(
+                        [order, invoice].map((editorId) => documents.getFilePath(editorId)),
+                    ).toEqual([orderPath, invoicePath]);
+                },
+            );
 
             it("reads a change the host reported for one editor at once and leaves the others", () => {
                 const { order, invoice } = openOrderAndInvoice();
