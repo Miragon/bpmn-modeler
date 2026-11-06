@@ -1,3 +1,5 @@
+import { surfaceModeSupports } from "@miragon/bpmn-modeler-types";
+
 import type { ModelerMode } from "./mode";
 
 // Run after the default-priority (1000) providers so their template entries can be removed.
@@ -55,7 +57,7 @@ export class PopupMenuModeFilter {
             popupMenu.registerProvider(id, POPUP_MODE_FILTER_PRIORITY, this);
         }
         eventBus.on("elementTemplates.select", TEMPLATE_SELECT_GUARD_PRIORITY, (event) => {
-            if (this.mode() === "design") {
+            if (!this.offersTemplates()) {
                 event.stopPropagation();
             }
         });
@@ -63,7 +65,11 @@ export class PopupMenuModeFilter {
 
     getPopupMenuEntries(_target: unknown) {
         return (entries: Record<string, PopupEntry>) =>
-            this.mode() === "design" ? stripTemplateEntries(entries) : entries;
+            this.offersTemplates() ? entries : stripTemplateEntries(entries);
+    }
+
+    private offersTemplates(): boolean {
+        return surfaceModeSupports(this.mode(), "elementTemplates");
     }
 
     // Read the panel filter each time so popup menus cannot retain a stale mode.
