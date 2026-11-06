@@ -400,25 +400,919 @@
       ]
     },
     "host-text": {
-      "version": 1,
+      "version": 2,
       "findings": [
         {
-          "key": "apps/modeler-bridge/src/adapters.ts — ${…} only (${…} diagram${…})",
-          "path": "apps/modeler-bridge/src/adapters.ts",
-          "line": 803,
-          "message": "`${…} only (${…} diagram${…})`"
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/AddMarketplaceAction.kt — Add Template Marketplace",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/AddMarketplaceAction.kt",
+          "line": 50,
+          "message": "`Add Template Marketplace`"
         },
         {
-          "key": "apps/modeler-bridge/src/adapters.ts — ${…} only (${…} diagram${…})",
-          "path": "apps/modeler-bridge/src/adapters.ts",
-          "line": 804,
-          "message": "`${…} only (${…} diagram${…})`"
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/AddMarketplaceAction.kt — GitHub or GitLab repository, or a local folder, holding a",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/AddMarketplaceAction.kt",
+          "line": 60,
+          "message": "`GitHub or GitLab repository, or a local folder, holding a`"
         },
         {
-          "key": "apps/modeler-bridge/src/adapters.ts — Both (${…} diagram${…})",
-          "path": "apps/modeler-bridge/src/adapters.ts",
-          "line": 805,
-          "message": "`Both (${…} diagram${…})`"
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/AddMarketplaceAction.kt — <code>marketplace.json</code>. Self-hosted hosts go in",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/AddMarketplaceAction.kt",
+          "line": 61,
+          "message": "`<code>marketplace.json</code>. Self-hosted hosts go in`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/AddMarketplaceAction.kt — Settings ▸ Tools ▸ Miragon BPMN Modeler.",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/AddMarketplaceAction.kt",
+          "line": 62,
+          "message": "`Settings ▸ Tools ▸ Miragon BPMN Modeler.`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/AddMarketplaceAction.kt — Enter a marketplace URL or folder.",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/AddMarketplaceAction.kt",
+          "line": 65,
+          "message": "`Enter a marketplace URL or folder.`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/AddMarketplaceAction.kt — Register for all projects",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/AddMarketplaceAction.kt",
+          "line": 69,
+          "message": "`Register for all projects`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/AddMarketplaceAction.kt — Also shown in Settings ▸ Tools ▸ Miragon BPMN Modeler and applied to",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/AddMarketplaceAction.kt",
+          "line": 72,
+          "message": "`Also shown in Settings ▸ Tools ▸ Miragon BPMN Modeler and applied to`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/AddMarketplaceAction.kt — every project. Leave unchecked to register for this project only.",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/AddMarketplaceAction.kt",
+          "line": 73,
+          "message": "`every project. Leave unchecked to register for this project only.`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/BpmnDiffTool.kt — BPMN Diagram Diff",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/BpmnDiffTool.kt",
+          "line": 28,
+          "message": "`BPMN Diagram Diff`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/BpmnDiffViewer.kt — <html><center>JCEF (embedded Chromium) is not available in this IDE.<br>",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/BpmnDiffViewer.kt",
+          "line": 103,
+          "message": "`<html><center>JCEF (embedded Chromium) is not available in this IDE.<br>`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/BpmnDiffViewer.kt — Use an IntelliJ 2024.2+ build that bundles JCEF.</center></html>",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/BpmnDiffViewer.kt",
+          "line": 104,
+          "message": "`Use an IntelliJ 2024.2+ build that bundles JCEF.</center></html>`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/BpmnDiffViewer.kt — window.__modelerSetSink(function (p) { ${…} });",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/BpmnDiffViewer.kt",
+          "line": 234,
+          "message": "`window.__modelerSetSink(function (p) { ${…} });`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/BpmnFileEditor.kt — JCEF (embedded Chromium) is not available in this IDE.<br>",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/BpmnFileEditor.kt",
+          "line": 58,
+          "message": "`JCEF (embedded Chromium) is not available in this IDE.<br>`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/BpmnFileEditor.kt — Use an IntelliJ 2024.2+ build that bundles JCEF.",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/BpmnFileEditor.kt",
+          "line": 59,
+          "message": "`Use an IntelliJ 2024.2+ build that bundles JCEF.`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/BpmnFileEditor.kt — The BPMN modeler could not start in this IDE.<br>",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/BpmnFileEditor.kt",
+          "line": 72,
+          "message": "`The BPMN modeler could not start in this IDE.<br>`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/BpmnFileEditor.kt — BPMN Modeler",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/BpmnFileEditor.kt",
+          "line": 149,
+          "message": "`BPMN Modeler`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/BpmnFileType.kt — BPMN 2.0 process diagram",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/BpmnFileType.kt",
+          "line": 29,
+          "message": "`BPMN 2.0 process diagram`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ChangeModelerLanguageAction.kt — Change Modeler Language",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ChangeModelerLanguageAction.kt",
+          "line": 32,
+          "message": "`Change Modeler Language`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ChangeModelerLanguageAction.kt — Select the modeler UI language",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ChangeModelerLanguageAction.kt",
+          "line": 33,
+          "message": "`Select the modeler UI language`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/CopyDiagramAsSvgAction.kt — Diagram copied to clipboard as SVG.",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/CopyDiagramAsSvgAction.kt",
+          "line": 26,
+          "message": "`Diagram copied to clipboard as SVG.`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/DeclareVariableIntention.kt — Declare variable in manifest",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/DeclareVariableIntention.kt",
+          "line": 31,
+          "message": "`Declare variable in manifest`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/DeclareVariableIntention.kt — Declare '${…}' in variable manifest",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/DeclareVariableIntention.kt",
+          "line": 34,
+          "message": "`Declare '${…}' in variable manifest`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/DeploymentTargetStatusBarWidget.kt — No deployment target",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/DeploymentTargetStatusBarWidget.kt",
+          "line": 81,
+          "message": "`No deployment target`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/DeploymentTargetStatusBarWidget.kt — Deployed — last deployed ${…}",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/DeploymentTargetStatusBarWidget.kt",
+          "line": 129,
+          "message": "`Deployed — last deployed ${…}`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/DeploymentTargetStatusBarWidget.kt — Deployed — matches the last deployment",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/DeploymentTargetStatusBarWidget.kt",
+          "line": 130,
+          "message": "`Deployed — matches the last deployment`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/DeploymentTargetStatusBarWidget.kt — Undeployed changes — last deployed ${…}",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/DeploymentTargetStatusBarWidget.kt",
+          "line": 134,
+          "message": "`Undeployed changes — last deployed ${…}`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/DeploymentTargetStatusBarWidget.kt — Undeployed changes since the last deployment",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/DeploymentTargetStatusBarWidget.kt",
+          "line": 135,
+          "message": "`Undeployed changes since the last deployment`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/DeploymentTargetStatusBarWidget.kt — Deployed version differs from your diagram (deployed ${…})",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/DeploymentTargetStatusBarWidget.kt",
+          "line": 139,
+          "message": "`Deployed version differs from your diagram (deployed ${…})`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/DeploymentTargetStatusBarWidget.kt — Deployed version differs from your diagram",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/DeploymentTargetStatusBarWidget.kt",
+          "line": 140,
+          "message": "`Deployed version differs from your diagram`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/DeploymentTargetStatusBarWidget.kt — Never deployed to this target from this machine — click to switch target",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/DeploymentTargetStatusBarWidget.kt",
+          "line": 142,
+          "message": "`Never deployed to this target from this machine — click to switch target`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/DeploymentTargetStatusBarWidgetFactory.kt — Miragon BPMN Modeler — Deployment Target",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/DeploymentTargetStatusBarWidgetFactory.kt",
+          "line": 17,
+          "message": "`Miragon BPMN Modeler — Deployment Target`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/DeploymentToolWindowFactory.kt — <html><center>JCEF (embedded Chromium) is not available in this IDE.<br>",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/DeploymentToolWindowFactory.kt",
+          "line": 38,
+          "message": "`<html><center>JCEF (embedded Chromium) is not available in this IDE.<br>`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/DeploymentToolWindowFactory.kt — Use an IntelliJ 2024.2+ build that bundles JCEF.</center></html>",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/DeploymentToolWindowFactory.kt",
+          "line": 39,
+          "message": "`Use an IntelliJ 2024.2+ build that bundles JCEF.</center></html>`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/DeploymentToolWindowFactory.kt — window.__modelerSetSink(function (p) { ${…} });",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/DeploymentToolWindowFactory.kt",
+          "line": 94,
+          "message": "`window.__modelerSetSink(function (p) { ${…} });`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/DeploymentToolWindowFactory.kt — Miragon Deployment",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/DeploymentToolWindowFactory.kt",
+          "line": 142,
+          "message": "`Miragon Deployment`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/EngineStatusBarWidget.kt — Loading element templates…",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/EngineStatusBarWidget.kt",
+          "line": 71,
+          "message": "`Loading element templates…`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/EngineStatusBarWidget.kt — Miragon BPMN modeler — engine version and element-template count",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/EngineStatusBarWidget.kt",
+          "line": 94,
+          "message": "`Miragon BPMN modeler — engine version and element-template count`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/EngineStatusBarWidgetFactory.kt — Miragon BPMN Modeler",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/EngineStatusBarWidgetFactory.kt",
+          "line": 17,
+          "message": "`Miragon BPMN Modeler`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/HostNotifications.kt — Miragon BPMN Modeler",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/HostNotifications.kt",
+          "line": 73,
+          "message": "`Miragon BPMN Modeler`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/IdeThemeSignal.kt — var c=document.body.classList;",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/IdeThemeSignal.kt",
+          "line": 203,
+          "message": "`var c=document.body.classList;`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/IdeThemeSignal.kt — var e=document.getElementById('ide-theme-vars');",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/IdeThemeSignal.kt",
+          "line": 206,
+          "message": "`var e=document.getElementById('ide-theme-vars');`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/IntellijMarketplaceTokenStore.kt — Miragon BPMN Modeler Marketplace",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/IntellijMarketplaceTokenStore.kt",
+          "line": 35,
+          "message": "`Miragon BPMN Modeler Marketplace`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/IntellijSecretStore.kt — Miragon BPMN Modeler Deployment",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/IntellijSecretStore.kt",
+          "line": 69,
+          "message": "`Miragon BPMN Modeler Deployment`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerBrowsers.kt — BPMN modeler rendering may lag",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerBrowsers.kt",
+          "line": 92,
+          "message": "`BPMN modeler rendering may lag`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerBrowsers.kt — This IDE runs embedded Chromium (JCEF) out-of-process, which can make the diagram",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerBrowsers.kt",
+          "line": 93,
+          "message": "`This IDE runs embedded Chromium (JCEF) out-of-process, which can make the diagram`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerBrowsers.kt — canvas feel one interaction behind on Windows. To fix it, open",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerBrowsers.kt",
+          "line": 94,
+          "message": "`canvas feel one interaction behind on Windows. To fix it, open`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerBrowsers.kt — <b>Help → Find Action → \"Registry…\"</b>, disable",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerBrowsers.kt",
+          "line": 95,
+          "message": "`<b>Help → Find Action → \"Registry…\"</b>, disable`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerBrowsers.kt — <code>ide.browser.jcef.out-of-process.enabled</code>, and restart the IDE.",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerBrowsers.kt",
+          "line": 96,
+          "message": "`<code>ide.browser.jcef.out-of-process.enabled</code>, and restart the IDE.`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerBrowsers.kt — Don't show again",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerBrowsers.kt",
+          "line": 100,
+          "message": "`Don't show again`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerBrowsers.kt — Miragon BPMN Modeler",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerBrowsers.kt",
+          "line": 109,
+          "message": "`Miragon BPMN Modeler`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerJsonSchemaProviderFactory.kt — BPMN Variable Manifest",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerJsonSchemaProviderFactory.kt",
+          "line": 25,
+          "message": "`BPMN Variable Manifest`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerJsonSchemaProviderFactory.kt — BPMN Deployment Targets",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerJsonSchemaProviderFactory.kt",
+          "line": 28,
+          "message": "`BPMN Deployment Targets`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerSettingsConfigurable.kt — Miragon BPMN Modeler",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerSettingsConfigurable.kt",
+          "line": 47,
+          "message": "`Miragon BPMN Modeler`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerSettingsConfigurable.kt — Align diagram to origin when opening",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerSettingsConfigurable.kt",
+          "line": 53,
+          "message": "`Align diagram to origin when opening`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerSettingsConfigurable.kt — Show transaction boundaries (Camunda 7 only)",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerSettingsConfigurable.kt",
+          "line": 57,
+          "message": "`Show transaction boundaries (Camunda 7 only)`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerSettingsConfigurable.kt — Config folder:",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerSettingsConfigurable.kt",
+          "line": 63,
+          "message": "`Config folder:`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerSettingsConfigurable.kt — Folder searched at each level from the BPMN file up to the project root.",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerSettingsConfigurable.kt",
+          "line": 67,
+          "message": "`Folder searched at each level from the BPMN file up to the project root.`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerSettingsConfigurable.kt — Element templates live under <code>&lt;config&gt;/element-templates/</code>.",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerSettingsConfigurable.kt",
+          "line": 68,
+          "message": "`Element templates live under <code>&lt;config&gt;/element-templates/</code>.`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerSettingsConfigurable.kt — Persist activity→code map to disk",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerSettingsConfigurable.kt",
+          "line": 72,
+          "message": "`Persist activity→code map to disk`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerSettingsConfigurable.kt — Writes the activity→code map to",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerSettingsConfigurable.kt",
+          "line": 78,
+          "message": "`Writes the activity→code map to`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerSettingsConfigurable.kt — <code>&lt;config&gt;/code-link/&lt;file&gt;.json</code> as an opt-in warm",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerSettingsConfigurable.kt",
+          "line": 79,
+          "message": "`<code>&lt;config&gt;/code-link/&lt;file&gt;.json</code> as an opt-in warm`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerSettingsConfigurable.kt — cache (faster re-open) and a machine-readable artifact for external/AI",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerSettingsConfigurable.kt",
+          "line": 80,
+          "message": "`cache (faster re-open) and a machine-readable artifact for external/AI`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerSettingsConfigurable.kt — tooling. The <b>Go to implementation</b> entry works in memory either way.",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerSettingsConfigurable.kt",
+          "line": 81,
+          "message": "`tooling. The <b>Go to implementation</b> entry works in memory either way.`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerSettingsConfigurable.kt — Camunda 8 API version:",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerSettingsConfigurable.kt",
+          "line": 84,
+          "message": "`Camunda 8 API version:`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerSettingsConfigurable.kt — Color theme:",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerSettingsConfigurable.kt",
+          "line": 87,
+          "message": "`Color theme:`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerSettingsConfigurable.kt — Default mode:",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerSettingsConfigurable.kt",
+          "line": 91,
+          "message": "`Default mode:`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerSettingsConfigurable.kt — The mode a BPMN editor opens in when it has no remembered mode. On an",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerSettingsConfigurable.kt",
+          "line": 97,
+          "message": "`The mode a BPMN editor opens in when it has no remembered mode. On an`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerSettingsConfigurable.kt — untagged (engine-neutral) model, <b>Implement</b> is unavailable and",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerSettingsConfigurable.kt",
+          "line": 98,
+          "message": "`untagged (engine-neutral) model, <b>Implement</b> is unavailable and`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerSettingsConfigurable.kt — falls back to <b>Design</b>.",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerSettingsConfigurable.kt",
+          "line": 99,
+          "message": "`falls back to <b>Design</b>.`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerSettingsConfigurable.kt — Enable Camunda SPIN script completion",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerSettingsConfigurable.kt",
+          "line": 109,
+          "message": "`Enable Camunda SPIN script completion`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerSettingsConfigurable.kt — Offer Camunda SPIN globals (<code>S(…)</code>, <code>JSON(…)</code>) and",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerSettingsConfigurable.kt",
+          "line": 112,
+          "message": "`Offer Camunda SPIN globals (<code>S(…)</code>, <code>JSON(…)</code>) and`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerSettingsConfigurable.kt — SpinJsonNode member completion in inline Camunda 7 scripts. Disable if",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerSettingsConfigurable.kt",
+          "line": 113,
+          "message": "`SpinJsonNode member completion in inline Camunda 7 scripts. Disable if`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerSettingsConfigurable.kt — your project does not have camunda-spin on the classpath.",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerSettingsConfigurable.kt",
+          "line": 114,
+          "message": "`your project does not have camunda-spin on the classpath.`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerSettingsConfigurable.kt — Favourite Elements",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerSettingsConfigurable.kt",
+          "line": 117,
+          "message": "`Favourite Elements`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerSettingsConfigurable.kt — BPMN element types pinned at the top of the append menu (max",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerSettingsConfigurable.kt",
+          "line": 124,
+          "message": "`BPMN element types pinned at the top of the append menu (max`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerSettingsConfigurable.kt — ${…}), one per line — e.g.",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerSettingsConfigurable.kt",
+          "line": 125,
+          "message": "`${…}), one per line — e.g.`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerSettingsConfigurable.kt — Template Marketplaces",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerSettingsConfigurable.kt",
+          "line": 130,
+          "message": "`Template Marketplaces`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerSettingsConfigurable.kt — GitHub / GitLab repositories or local folders holding a",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerSettingsConfigurable.kt",
+          "line": 137,
+          "message": "`GitHub / GitLab repositories or local folders holding a`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerSettingsConfigurable.kt — <code>marketplace.json</code>, one per line. This list applies",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerSettingsConfigurable.kt",
+          "line": 138,
+          "message": "`<code>marketplace.json</code>, one per line. This list applies`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerSettingsConfigurable.kt — to all projects; <b>Tools | Add Template Marketplace</b> instead",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerSettingsConfigurable.kt",
+          "line": 139,
+          "message": "`to all projects; <b>Tools | Add Template Marketplace</b> instead`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerSettingsConfigurable.kt — stores the entry <b>per project</b> (invisible here). Both lists",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerSettingsConfigurable.kt",
+          "line": 140,
+          "message": "`stores the entry <b>per project</b> (invisible here). Both lists`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerSettingsConfigurable.kt — are merged. Refresh via <b>Tools | Update Template Marketplaces</b>.",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ModelerSettingsConfigurable.kt",
+          "line": 141,
+          "message": "`are merged. Refresh via <b>Tools | Update Template Marketplaces</b>.`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/NewBpmnModelAction.kt — New BPMN Model",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/NewBpmnModelAction.kt",
+          "line": 23,
+          "message": "`New BPMN Model`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/NewBpmnModelAction.kt — Create a new empty BPMN diagram",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/NewBpmnModelAction.kt",
+          "line": 24,
+          "message": "`Create a new empty BPMN diagram`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/NewDmnModelAction.kt — New DMN Model",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/NewDmnModelAction.kt",
+          "line": 19,
+          "message": "`New DMN Model`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/NewDmnModelAction.kt — Create a new empty DMN decision",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/NewDmnModelAction.kt",
+          "line": 20,
+          "message": "`Create a new empty DMN decision`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/NewDmnModelAction.kt — <?xml version=\"1.0\" encoding=\"UTF-8\"?> <definitions xmlns=\"https://www.omg.org/spec/DMN/20191111/MODEL/\" xmlns:dmndi=\"https://www.omg.org/spec/DMN/20191111/DMNDI/\" xmlns:dc=\"http://www.omg.org/spec/DMN/20180521/DC/\" id=\"Definitions_1y42u6n\" name=\"DRD\" namespace=\"http://camunda.org/schema/1.0/dmn\" xmlns:modeler=\"http://camunda.org/schema/modeler/1.0\" exporter=\"Camunda Modeler\" exporterVersion=\"5.8.0\" modeler:executionPlatform=\"Camunda Platform\" modeler:executionPlatformVersion=\"7.18.0\"> <decision id=\"Decision_16wqg49\" name=\"Decision 1\"> <decisionTable id=\"DecisionTable_1wi1sbd\"> <input id=\"Input_1\"> <inputExpression id=\"InputExpression_1\" typeRef=\"string\"> <text></text> </inputExpression> </input> <output id=\"Output_1\" typeRef=\"string\" /> </decisionTable> </decision> <dmndi:DMNDI> <dmndi:DMNDiagram> <dmndi:DMNShape dmnElementRef=\"Decision_16wqg49\"> <dc:Bounds height=\"80\" width=\"180\" x=\"160\" y=\"100\" /> </dmndi:DMNShape> </dmndi:DMNDiagram> </dmndi:DMNDI> </definitions>",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/NewDmnModelAction.kt",
+          "line": 32,
+          "message": "`<?xml version=\"1.0\" encoding=\"UTF-8\"?> <definitions xmlns=\"https://www.omg.org/spec/DMN/20191111/MO…`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/RemoveMarketplaceAction.kt — No marketplaces registered.",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/RemoveMarketplaceAction.kt",
+          "line": 32,
+          "message": "`No marketplaces registered.`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/RemoveMarketplaceAction.kt — Remove Template Marketplace",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/RemoveMarketplaceAction.kt",
+          "line": 32,
+          "message": "`Remove Template Marketplace`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/RemoveMarketplaceAction.kt — All projects and this project",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/RemoveMarketplaceAction.kt",
+          "line": 86,
+          "message": "`All projects and this project`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/RemoveMarketplaceAction.kt — All projects",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/RemoveMarketplaceAction.kt",
+          "line": 87,
+          "message": "`All projects`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/RemoveMarketplaceAction.kt — This project",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/RemoveMarketplaceAction.kt",
+          "line": 88,
+          "message": "`This project`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/RemoveMarketplaceAction.kt — Remove Template Marketplace",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/RemoveMarketplaceAction.kt",
+          "line": 105,
+          "message": "`Remove Template Marketplace`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/RemoveMarketplaceAction.kt — Select the marketplaces to remove:",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/RemoveMarketplaceAction.kt",
+          "line": 115,
+          "message": "`Select the marketplaces to remove:`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/SaveDiagramAsSvgAction.kt — Save Diagram as SVG",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/SaveDiagramAsSvgAction.kt",
+          "line": 39,
+          "message": "`Save Diagram as SVG`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ScriptCompletionContributor.kt — process variable",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ScriptCompletionContributor.kt",
+          "line": 159,
+          "message": "`process variable`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ScriptDocumentationProvider.kt — process variable",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/ScriptDocumentationProvider.kt",
+          "line": 56,
+          "message": "`process variable`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/TextInputClipboardShortcuts.kt — (function () { function report(el) { var focused = el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement ? \"1\" : \"0\"; ${…} } document.addEventListener(\"focusin\", function (e) { report(e.target); }, true); document.addEventListener(\"focusout\", function (e) { report(e.relatedTarget); }, true); report(document.activeElement); })();",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/TextInputClipboardShortcuts.kt",
+          "line": 53,
+          "message": "`(function () { function report(el) { var focused = el instanceof HTMLInputElement || el instanceof …`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WarmBrowser.kt — window.__modelerTriggerEditorAction && window.__modelerTriggerEditorAction('${…}');",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WarmBrowser.kt",
+          "line": 150,
+          "message": "`window.__modelerTriggerEditorAction && window.__modelerTriggerEditorAction('${…}');`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WarmBrowser.kt — window.__modelerSetSink(function (p) { ${…} });",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WarmBrowser.kt",
+          "line": 160,
+          "message": "`window.__modelerSetSink(function (p) { ${…} });`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — Not found: ${…}",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
+          "line": 94,
+          "message": "`Not found: ${…}`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — text/plain; charset=utf-8",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
+          "line": 94,
+          "message": "`text/plain; charset=utf-8`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — text/plain; charset=utf-8",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
+          "line": 102,
+          "message": "`text/plain; charset=utf-8`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <!DOCTYPE html>",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
+          "line": 126,
+          "message": "`<!DOCTYPE html>`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <html lang=\"en\" data-bpmn-theme=\"${…}\">",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
+          "line": 127,
+          "message": "`<html lang=\"en\" data-bpmn-theme=\"${…}\">`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <meta charset=\"UTF-8\"/>",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
+          "line": 129,
+          "message": "`<meta charset=\"UTF-8\"/>`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"/>",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
+          "line": 130,
+          "message": "`<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"/>`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <link href=\"/index.css\" rel=\"stylesheet\"/>",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
+          "line": 131,
+          "message": "`<link href=\"/index.css\" rel=\"stylesheet\"/>`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <title>BPMN Modeler</title>",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
+          "line": 132,
+          "message": "`<title>BPMN Modeler</title>`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <style>html, body { margin: 0; height: 100%; } #app { height: 100vh; }</style>",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
+          "line": 133,
+          "message": "`<style>html, body { margin: 0; height: 100%; } #app { height: 100vh; }</style>`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <style id=\"ide-theme-vars\">${…}</style>",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
+          "line": 134,
+          "message": "`<style id=\"ide-theme-vars\">${…}</style>`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <body class=\"${…}\">",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
+          "line": 137,
+          "message": "`<body class=\"${…}\">`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <div id=\"app\">",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
+          "line": 138,
+          "message": "`<div id=\"app\">`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <div class=\"content with-diagram\" id=\"js-drop-zone\">",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
+          "line": 139,
+          "message": "`<div class=\"content with-diagram\" id=\"js-drop-zone\">`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <div class=\"canvas\" id=\"js-canvas\"></div>",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
+          "line": 140,
+          "message": "`<div class=\"canvas\" id=\"js-canvas\"></div>`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <div id=\"js-panel-resizer\" class=\"panel-resizer\"></div>",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
+          "line": 141,
+          "message": "`<div id=\"js-panel-resizer\" class=\"panel-resizer\"></div>`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <div class=\"properties-panel-parent\" id=\"js-properties-panel\"></div>",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
+          "line": 142,
+          "message": "`<div class=\"properties-panel-parent\" id=\"js-properties-panel\"></div>`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <script type=\"module\" src=\"/index.js\"></script>",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
+          "line": 145,
+          "message": "`<script type=\"module\" src=\"/index.js\"></script>`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <!DOCTYPE html>",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
+          "line": 167,
+          "message": "`<!DOCTYPE html>`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <html lang=\"en\">",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
+          "line": 168,
+          "message": "`<html lang=\"en\">`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <meta charset=\"UTF-8\"/>",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
+          "line": 170,
+          "message": "`<meta charset=\"UTF-8\"/>`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"/>",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
+          "line": 171,
+          "message": "`<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"/>`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <link href=\"/deployment/index.css\" rel=\"stylesheet\"/>",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
+          "line": 172,
+          "message": "`<link href=\"/deployment/index.css\" rel=\"stylesheet\"/>`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <title>Deploy Diagram</title>",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
+          "line": 173,
+          "message": "`<title>Deploy Diagram</title>`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <style id=\"ide-theme-vars\">${…}</style>",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
+          "line": 174,
+          "message": "`<style id=\"ide-theme-vars\">${…}</style>`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <body class=\"${…}\">",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
+          "line": 177,
+          "message": "`<body class=\"${…}\">`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <div id=\"app\"></div>",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
+          "line": 178,
+          "message": "`<div id=\"app\"></div>`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <script type=\"module\" src=\"/deployment/index.js\"></script>",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
+          "line": 179,
+          "message": "`<script type=\"module\" src=\"/deployment/index.js\"></script>`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — text/html; charset=utf-8",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
+          "line": 192,
+          "message": "`text/html; charset=utf-8`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — var outbox = [];",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
+          "line": 212,
+          "message": "`var outbox = [];`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — var sink = null;",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
+          "line": 213,
+          "message": "`var sink = null;`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — var state = {};",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
+          "line": 214,
+          "message": "`var state = {};`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — function flush() {",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
+          "line": 215,
+          "message": "`function flush() {`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — if (!sink) return;",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
+          "line": 216,
+          "message": "`if (!sink) return;`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — while (outbox.length) { sink(outbox.shift()); }",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
+          "line": 217,
+          "message": "`while (outbox.length) { sink(outbox.shift()); }`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — window.__modelerSetSink = function (fn) { sink = fn; flush(); };",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
+          "line": 219,
+          "message": "`window.__modelerSetSink = function (fn) { sink = fn; flush(); };`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — window.acquireVsCodeApi = function () {",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
+          "line": 220,
+          "message": "`window.acquireVsCodeApi = function () {`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — postMessage: function (msg) { outbox.push(JSON.stringify(msg)); flush(); },",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
+          "line": 222,
+          "message": "`postMessage: function (msg) { outbox.push(JSON.stringify(msg)); flush(); },`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — getState: function () { return state; },",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
+          "line": 223,
+          "message": "`getState: function () { return state; },`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — setState: function (s) { state = s; return s; }",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
+          "line": 224,
+          "message": "`setState: function (s) { state = s; return s; }`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/bridge/BridgeBinaryResolver.kt — No bundled modeler bridge (${…}).",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/bridge/BridgeBinaryResolver.kt",
+          "line": 72,
+          "message": "`No bundled modeler bridge (${…}).`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/bridge/BridgeBinaryResolver.kt — Build it with `corepack yarn workspace @miragon/bpmn-modeler-bridge compile`.",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/bridge/BridgeBinaryResolver.kt",
+          "line": 73,
+          "message": "`` Build it with `corepack yarn workspace @miragon/bpmn-modeler-bridge compile`. ``"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/bridge/HostUiRouter.kt — Camunda 7",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/bridge/HostUiRouter.kt",
+          "line": 43,
+          "message": "`Camunda 7`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/bridge/HostUiRouter.kt — Camunda 8",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/bridge/HostUiRouter.kt",
+          "line": 43,
+          "message": "`Camunda 8`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/bridge/MarketplaceRouter.kt — Personal Access Token for ${…}",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/bridge/MarketplaceRouter.kt",
+          "line": 29,
+          "message": "`Personal Access Token for ${…}`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/bridge/ProcessSupervisor.kt — Could not start the BPMN modeler engine. See idea.log.",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/bridge/ProcessSupervisor.kt",
+          "line": 122,
+          "message": "`Could not start the BPMN modeler engine. See idea.log.`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/bridge/ProcessSupervisor.kt — The BPMN modeler engine crashed repeatedly and will not be restarted.",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/bridge/ProcessSupervisor.kt",
+          "line": 152,
+          "message": "`The BPMN modeler engine crashed repeatedly and will not be restarted.`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/bridge/ProcessSupervisor.kt — Reopen the file or restart the IDE. See idea.log.",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/bridge/ProcessSupervisor.kt",
+          "line": 153,
+          "message": "`Reopen the file or restart the IDE. See idea.log.`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/bridge/RpcChannel.kt — No bridge writer",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/bridge/RpcChannel.kt",
+          "line": 133,
+          "message": "`No bridge writer`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/bridge/RpcChannel.kt — Bridge write failed",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/bridge/RpcChannel.kt",
+          "line": 147,
+          "message": "`Bridge write failed`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/bridge/RpcChannel.kt — host handler failed",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/bridge/RpcChannel.kt",
+          "line": 196,
+          "message": "`host handler failed`"
+        },
+        {
+          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/bridge/RpcChannel.kt — <redacted: credential-bearing frame>",
+          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/bridge/RpcChannel.kt",
+          "line": 262,
+          "message": "`<redacted: credential-bearing frame>`"
         },
         {
           "key": "apps/modeler-bridge/src/adapters.ts — Which diagrams do you want to migrate?",
@@ -565,6 +1459,42 @@
           "message": "`Focus a BPMN diagram tab, then run the command again.`"
         },
         {
+          "key": "apps/vscode-plugin/src/modeler/bpmn/controller/CommandController.ts — Select the modeler language",
+          "path": "apps/vscode-plugin/src/modeler/bpmn/controller/CommandController.ts",
+          "line": 172,
+          "message": "`Select the modeler language`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/modeler/bpmn/controller/CommandController.ts — New BPMN Model",
+          "path": "apps/vscode-plugin/src/modeler/bpmn/controller/CommandController.ts",
+          "line": 216,
+          "message": "`New BPMN Model`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/modeler/bpmn/controller/CommandController.ts — Select the execution platform.",
+          "path": "apps/vscode-plugin/src/modeler/bpmn/controller/CommandController.ts",
+          "line": 224,
+          "message": "`Select the execution platform.`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/modeler/bpmn/controller/CommandController.ts — New DMN Model",
+          "path": "apps/vscode-plugin/src/modeler/bpmn/controller/CommandController.ts",
+          "line": 242,
+          "message": "`New DMN Model`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/modeler/bpmn/controller/CommandController.ts — New Camunda Form",
+          "path": "apps/vscode-plugin/src/modeler/bpmn/controller/CommandController.ts",
+          "line": 255,
+          "message": "`New Camunda Form`"
+        },
+        {
+          "key": "apps/vscode-plugin/src/modeler/bpmn/controller/CommandController.ts — Camunda Form",
+          "path": "apps/vscode-plugin/src/modeler/bpmn/controller/CommandController.ts",
+          "line": 256,
+          "message": "`Camunda Form`"
+        },
+        {
           "key": "apps/vscode-plugin/src/modeler/bpmn/controller/editor-participants/ScriptManifestParticipant.ts — Failed to read process-variable manifest",
           "path": "apps/vscode-plugin/src/modeler/bpmn/controller/editor-participants/ScriptManifestParticipant.ts",
           "line": 62,
@@ -587,18 +1517,6 @@
           "path": "apps/vscode-plugin/src/scriptTask/controller/ScriptCompletionProvider.ts",
           "line": 314,
           "message": "`process variable`"
-        },
-        {
-          "key": "apps/vscode-plugin/src/scriptTask/controller/ScriptCompletionProvider.ts — - `${…}` — `${…}`",
-          "path": "apps/vscode-plugin/src/scriptTask/controller/ScriptCompletionProvider.ts",
-          "line": 342,
-          "message": "`` - `${…}` — `${…}` ``"
-        },
-        {
-          "key": "apps/vscode-plugin/src/scriptTask/controller/ScriptCompletionProvider.ts — - `${…}` — `${…}`",
-          "path": "apps/vscode-plugin/src/scriptTask/controller/ScriptCompletionProvider.ts",
-          "line": 359,
-          "message": "`` - `${…}` — `${…}` ``"
         },
         {
           "key": "apps/vscode-plugin/src/scriptTask/controller/ScriptDeclareVariableCodeAction.ts — Declare '${…}' in variable manifest",
@@ -629,24 +1547,6 @@
           "path": "apps/vscode-plugin/src/shared/infrastructure/VsCodeNotifier.ts",
           "line": 45,
           "message": "`Reload Window`"
-        },
-        {
-          "key": "apps/vscode-plugin/src/shared/infrastructure/VsCodePicker.ts — ${…} only (${…} diagram${…})",
-          "path": "apps/vscode-plugin/src/shared/infrastructure/VsCodePicker.ts",
-          "line": 50,
-          "message": "`${…} only (${…} diagram${…})`"
-        },
-        {
-          "key": "apps/vscode-plugin/src/shared/infrastructure/VsCodePicker.ts — ${…} only (${…} diagram${…})",
-          "path": "apps/vscode-plugin/src/shared/infrastructure/VsCodePicker.ts",
-          "line": 51,
-          "message": "`${…} only (${…} diagram${…})`"
-        },
-        {
-          "key": "apps/vscode-plugin/src/shared/infrastructure/VsCodePicker.ts — Both (${…} diagram${…})",
-          "path": "apps/vscode-plugin/src/shared/infrastructure/VsCodePicker.ts",
-          "line": 52,
-          "message": "`Both (${…} diagram${…})`"
         },
         {
           "key": "apps/vscode-plugin/src/shared/infrastructure/VsCodePicker.ts — Which diagrams do you want to migrate?",
@@ -719,12 +1619,6 @@
           "path": "apps/vscode-plugin/src/shared/infrastructure/VsCodePicker.ts",
           "line": 286,
           "message": "`No deployment target selected`"
-        },
-        {
-          "key": "apps/vscode-plugin/src/shared/infrastructure/VsCodeStatusBar.ts — — verified ${…}",
-          "path": "apps/vscode-plugin/src/shared/infrastructure/VsCodeStatusBar.ts",
-          "line": 23,
-          "message": "`— verified ${…}`"
         },
         {
           "key": "apps/vscode-plugin/src/shared/infrastructure/VsCodeStatusBar.ts — Deployed — last deployed ${…}",
