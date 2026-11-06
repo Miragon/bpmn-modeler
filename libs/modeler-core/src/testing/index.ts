@@ -22,7 +22,7 @@ export * from "./RecordingStatusBar";
 export * from "./scriptEditorContract";
 export * from "./ScriptedPicker";
 export * from "./secretStoreContract";
-export * from "./settingsNormalization";
+export * from "./settingsContract";
 export * from "./tokenPromptContract";
 export * from "./tokenStoreContract";
 export * from "./workspaceContract";

@@ -1,5 +1,5 @@
 {
-    "$comment": "Run by modelerSettings.spec.ts, the VS Code and bridge settings specs and the IntelliJ ModelerSettingsStoreTest. A host handed `raw` reads `normalized`; every key left out reads its default.",
+    "$comment": "Run by modelerSettings.spec.ts, describeSettingsContract (every SettingsPort adapter) and the IntelliJ ModelerSettingsStoreTest. A host handed `raw` reads `normalized`; every key left out reads its default.",
     "cases": [
         {
             "name": "reads no settings as the defaults",

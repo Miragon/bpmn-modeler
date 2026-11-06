@@ -118,6 +118,11 @@ host part, the suite cannot tell, and the Kotlin half is #2056.
   over the `InMemorySecretStorage` fake and the bridge's `RpcSecretStore` over
   the `intellijCredentialHost.ts` loopback, which answers as
   `SecretStoreRouter` does.
+- `describeSettingsContract`: `InMemorySettings`, `VsCodeSettings` over a
+  `vscode` configuration mock and the bridge's `BridgeSettings`, which a
+  loopback feeds `settings/didChange` as `EditorSessionRouter.pushSettings`
+  does. Each also runs the shared normalization rows
+  ([test-first for rules](#test-first-for-rules)).
 - `describeTokenPromptContract`: `ScriptedTokenPrompt`, `VsCodeTokenPrompt`
   over a mocked `showInputBox` and the bridge's `RpcTokenPrompt` over the
   `intellijPromptHost.ts` loopback as well, which answers as
@@ -215,7 +220,8 @@ copies. The settings rows in `settingsNormalization.cases.json` are the first
 such file (see [host-replicated state](architecture-and-hosts.md#host-replicated-state)).
 Rows whose shapes the typed Kotlin side cannot hold, such as a value of the
 wrong type, live in the core's testing kit (`TYPESCRIPT_ONLY_SETTINGS_CASES`),
-and every TypeScript host runs them beside the JSON rows. A value set the
+and `describeSettingsContract` runs them beside the JSON rows against every
+TypeScript adapter of `SettingsPort`, the in-memory fake included. A value set the
 Kotlin host copies is pinned the same way, to the TypeScript source file itself:
 `StatusSlotPlacementTest` reads the unions in `statusView.ts`,
 `ModelerSettingsStoreTest` the `SURFACE_MODES` array in `surfaceMode.ts` and

@@ -1,5 +1,4 @@
-import { readFileSync } from "node:fs";
-import { posix, resolve } from "node:path";
+import { posix } from "node:path";
 
 import { describe, expect, it, vi } from "vitest";
 
@@ -11,11 +10,7 @@ import {
     SearchPrompt,
     SettingChange,
 } from "@miragon/bpmn-modeler-core";
-import {
-    readSettingsSnapshot,
-    settingsNormalizationCases,
-    TYPESCRIPT_ONLY_SETTINGS_CASES,
-} from "@miragon/bpmn-modeler-core/testing";
+import { readSettingsSnapshot } from "@miragon/bpmn-modeler-core/testing";
 
 import { settle } from "./__fixtures__/bridgeHarness";
 import { DocumentMirror } from "./editorSession/domain/DocumentMirror";
@@ -44,16 +39,6 @@ const META: SessionMeta = {
     scheme: "file",
     workspaceRoot: "/w",
 };
-
-const SHARED_SETTINGS_CASES = settingsNormalizationCases(
-    readFileSync(
-        resolve(
-            __dirname,
-            "../../../libs/modeler-core/src/kernel/domain/settingsNormalization.cases.json",
-        ),
-        "utf8",
-    ),
-);
 
 /** Returns the last element (ES2021 target has no `Array.prototype.at`). */
 function last<T>(items: T[]): T {
@@ -369,26 +354,6 @@ describe("RpcEditorHandle", () => {
 });
 
 describe("BridgeSettings", () => {
-    it("reads the shared defaults before the host's first snapshot", () => {
-        const settings = new BridgeSettings();
-
-        expect(readSettingsSnapshot(settings)).toEqual(DEFAULT_MODELER_SETTINGS);
-    });
-
-    it.each([...SHARED_SETTINGS_CASES, ...TYPESCRIPT_ONLY_SETTINGS_CASES])(
-        "$name",
-        ({ raw, normalized }) => {
-            const settings = new BridgeSettings();
-
-            settings.apply(raw);
-
-            expect(readSettingsSnapshot(settings)).toEqual({
-                ...DEFAULT_MODELER_SETTINGS,
-                ...normalized,
-            });
-        },
-    );
-
     it("gives every instance lists of its own", () => {
         const defaults = structuredClone(readSettingsSnapshot(new BridgeSettings()));
 
@@ -419,23 +384,6 @@ describe("BridgeSettings", () => {
             language: "fr",
             configFolder: ".config",
         });
-    });
-
-    it("exposes the host snapshot through the SettingsPort getters", () => {
-        const settings = new BridgeSettings();
-        settings.apply({
-            alignToOrigin: true,
-            configFolder: ".config",
-            colorTheme: "light",
-            favouriteBpmnElements: ["bpmn:Task"],
-            language: "de",
-        });
-
-        expect(settings.getAlignToOrigin()).toBe(true);
-        expect(settings.getConfigFolder()).toBe(".config");
-        expect(settings.getColorTheme()).toBe("light");
-        expect(settings.getFavouriteBpmnElements()).toEqual(["bpmn:Task"]);
-        expect(settings.getLanguage()).toBe("de");
     });
 
     it("names only the settings that actually changed", () => {
