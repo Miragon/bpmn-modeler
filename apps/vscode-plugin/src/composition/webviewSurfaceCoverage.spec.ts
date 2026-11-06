@@ -134,22 +134,23 @@ function registerVsCodeSurfaces() {
         context,
         deps,
     );
+    const scriptFiles = new ScriptFileStore(
+        deps.editorStore,
+        deps.vsWorkspace,
+        deps.vsSettings,
+        deps.artifactSvc,
+        deps.notifier,
+        "/tmp",
+        (path) => path,
+    );
     const bpmnEditor = bpmnEditorFeature.register(context, deps, {
         diffController,
         marketplaceSvc: { getCachedTemplatePaths: () => Promise.resolve([]) },
         deploymentStatusParticipant,
         scriptEditor: new ScriptEditorFeature({
-            scriptEditor: new RecordingScriptEditor(),
+            scriptEditor: new RecordingScriptEditor(scriptFiles, deps.picker),
             variables: new ScriptVariableStore(),
-            scriptFiles: new ScriptFileStore(
-                deps.editorStore,
-                deps.vsWorkspace,
-                deps.vsSettings,
-                deps.artifactSvc,
-                deps.notifier,
-                "/tmp",
-                (path) => path,
-            ),
+            scriptFiles,
             notifier: deps.notifier,
         }).editorContribution,
     });

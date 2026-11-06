@@ -22,20 +22,21 @@ const VARIABLES: VariableDef[] = [
 
 function createFeature() {
     const host = createTestHost({ folders: ["/work"] });
-    const scriptEditor = new RecordingScriptEditor();
+    const scriptFiles = new ScriptFileStore(
+        host.store,
+        host.workspace,
+        host.settings,
+        new ArtifactService(host.workspace, host.settings),
+        host.notifier,
+        "/tmp",
+        (path) => path,
+    );
+    const scriptEditor = new RecordingScriptEditor(scriptFiles, host.picker);
     const variables = new ScriptVariableStore();
     const { editorContribution } = new ScriptEditorFeature({
         scriptEditor,
         variables,
-        scriptFiles: new ScriptFileStore(
-            host.store,
-            host.workspace,
-            host.settings,
-            new ArtifactService(host.workspace, host.settings),
-            host.notifier,
-            "/tmp",
-            (path) => path,
-        ),
+        scriptFiles,
         notifier: host.notifier,
     });
     return { host, scriptEditor, variables, editorContribution };

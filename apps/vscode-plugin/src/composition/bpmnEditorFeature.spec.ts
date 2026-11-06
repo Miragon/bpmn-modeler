@@ -60,7 +60,7 @@ function createVsCodeBpmnEditor(context = createExtensionContext()) {
         marketplaceSvc: { getCachedTemplatePaths: () => Promise.resolve([]) },
         deploymentStatusParticipant: deploymentStatus,
         scriptEditor: new ScriptEditorFeature({
-            scriptEditor: new RecordingScriptEditor(),
+            scriptEditor: new RecordingScriptEditor(scriptFiles, deps.picker),
             variables: new ScriptVariableStore(),
             scriptFiles,
             notifier: deps.notifier,
