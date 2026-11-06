@@ -1115,13 +1115,13 @@ by name, the types add `DiffPaneHandle` (no `Port` in its name),
 render-only ports or engine strategies: the 3 with one adapter, `NotifierPort`
 (3, whose `withProgress` the core reads back), `RepositorySource` (3,
 strategies of their own) and `DiffPaneHandle` (2).
-Building the program and reading took 1.5 to 1.7 s on the working tree and
-1.1 to 1.7 s on a checkout without `node_modules` (six runs each, load
-average 6 to 7), with the same 57 findings. `corepack yarn fitness` took 6.7
-to 8.0 s in nine runs instead of 3.3 to 4.0 s in three on the merge base, at
-a load average of 5 to 6, while it measures the base on a checkout; once the
-push job stores this function in the base snapshot, only the working tree is
-read.
+Building the program and reading took 1.3 to 1.8 s on the working tree and
+0.9 to 1.9 s on checkouts of the branch and of `cd48f2cd` without
+`node_modules` (six runs each, load average 2 to 4), with the same 57
+findings. `corepack yarn fitness` took 6.4 to 6.6 s in nine runs instead of
+3.0 to 3.8 s in three on the merge base, at a load average of 2 to 3, while it
+measures the base on a checkout; once the push job stores this function in the
+base snapshot, only the working tree is read.
 
 Alternatives considered:
 
