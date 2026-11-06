@@ -32,6 +32,11 @@ const GITLAB = tokenPromptFor("git.acme.io:8443", "declaredPrivate");
  *   pins that it shows them.
  * - A host that cannot ask, such as a disposed IntelliJ project, which answers
  *   as a dismissal: that is the Kotlin half of the bridge.
+ * - The port's "never throws" for an ask that fails rather than being
+ *   dismissed: an error reply or an ended bridge input rejects `RpcTokenPrompt`,
+ *   and a rejected input box rejects `VsCodeTokenPrompt`. Answering `undefined`
+ *   instead would log the failure as the user declining, so neither adapter is
+ *   held to it until the port settles what it means.
  */
 export function describeTokenPromptContract(
     adapter: string,
