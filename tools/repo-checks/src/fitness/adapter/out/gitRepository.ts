@@ -1,9 +1,13 @@
 import { realpathSync, statSync } from "node:fs";
 
+import { GitCommitHistory } from "../../../history/adapter/out/gitCommitHistory";
+import type { Rename } from "../../domain/delta";
 import type { RepositoryHistory } from "../../port/RepositoryHistory";
 import { git, gitSucceeds, lines } from "./git";
 
 export class GitRepository implements RepositoryHistory {
+    private readonly commitHistory = new GitCommitHistory();
+
     constructor(private readonly repoRoot: string) {}
 
     headCommit(): string {
@@ -32,6 +36,16 @@ export class GitRepository implements RepositoryHistory {
 
     firstParentCommits(ref: string, depth: number): readonly string[] {
         return lines(git(this.repoRoot, ["rev-list", "--first-parent", `--max-count=${depth}`, ref]));
+    }
+
+    renamesSince(commit: string): readonly Rename[] {
+        return this.commitHistory
+            .changesSince(this.repoRoot, commit)
+            .flatMap((change) =>
+                change.kind === "renamed"
+                    ? [{ previousPath: change.previousPath, path: change.path }]
+                    : [],
+            );
     }
 }
 

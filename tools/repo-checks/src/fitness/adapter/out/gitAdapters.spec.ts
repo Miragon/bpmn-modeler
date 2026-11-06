@@ -104,6 +104,24 @@ describe("the git history", () => {
         expect(history.firstParentCommits("HEAD", 2)).toEqual([merge, second]);
     });
 
+    it("lists the renames from a commit to the working tree, staged ones included, and no other change", () => {
+        repository.write("src/a.ts", "export const a = 1;\n".repeat(20));
+        repository.write("src/b.ts", "export const b = 2;\n".repeat(20));
+        repository.write("src/c.ts", "c");
+        repository.git("add", "--all");
+        repository.git("commit", "--quiet", "-m", "add");
+        const base = repository.git("rev-parse", "HEAD");
+        repository.git("mv", "src/a.ts", "src/moved a.ts");
+        repository.git("commit", "--quiet", "-m", "move a");
+        repository.git("mv", "src/b.ts", "src/moved b.ts");
+        repository.write("src/c.ts", "changed");
+
+        expect(new GitRepository(repository.root).renamesSince(base)).toEqual([
+            { previousPath: "src/a.ts", path: "src/moved a.ts" },
+            { previousPath: "src/b.ts", path: "src/moved b.ts" },
+        ]);
+    });
+
     it("sees uncommitted and untracked changes", () => {
         repository.commit("a.ts", "1");
         const history = new GitRepository(repository.root);

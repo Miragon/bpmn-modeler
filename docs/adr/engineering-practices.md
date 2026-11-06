@@ -648,8 +648,38 @@ fitness function builds from what the finding is about (paths, a symbol, a
 value), never the line, like SARIF `partialFingerprints`. The delta matches
 `key`s as a multiset: per key, as many head findings are existing as the base
 held, the rest are new, and the base's leftovers are resolved. An old finding
-stays visible as existing, so no fitness function keeps an allowlist. A finding
-in a renamed file shows as new.
+stays visible as existing, so no fitness function keeps an allowlist.
+
+**Renames.** A finding lists the files its key names as `paths`, in the key's
+order, with `pathOrder: "code-unit"` when the key sorts them whatever they are,
+as a change-coupling pair does; every function fills them except
+mutation-score, whose keys name folders. Before the delta the report reads the
+working tree's renames since the merge base with the history reader's pinned
+`git diff -M -l0 --name-status`, and matches each head finding by the key it
+had at the base: the text around its `paths` stays, each renamed path goes back
+to its old name, and a sorted key is sorted again. A finding in a renamed file
+stays existing; one whose text also changed is new and its old key resolved.
+Only head findings need `paths`, so a base finding matches by the key its
+snapshot stores: the snapshots stay as they are, store no `paths`, and the
+report shows none. `paths` the key does not name in their order are broken
+input. Not followed: a rename git does not pair (a file changed too much for
+its 50 % similarity index, or a new file not yet added), a key that names a
+folder, a text or set moved into another file, and the trend, which joins by
+key, so a renamed file's series starts again. The diff took under 30 ms at
+#2140 (`f08fb08a` against `2af0dd7d`, 85 renames), whose new and resolved
+counts it took from host-text 50 + 50, contract-suites 17 + 17,
+change-coupling 14 + 14, repeated-value-sets 9 + 9 and hotspots 2 + 2 to 0, and
+size-and-complexity from 47 + 50 to 3 + 6, the files the PR added and deleted.
+The role-folder moves #2179 to #2181 dropped likewise; what they still show are
+added and deleted files, sets moved into new files, and change-coupling pairs
+the other side holds under no name. Two PRs without renames, #2172 and #2192,
+report the same counts as before. Alternatives considered:
+
+- **Rewriting the base findings forward** needs `paths` on every stored
+  finding: 145 KB more on the 506 KB snapshot of `f08fb08a`, and the stored
+  snapshots have none.
+- **Replacing every renamed path in every key** can hit a path inside a text,
+  or the start of a longer path.
 
 **Base findings.** Per fitness function, the stored snapshot of the merge base
 when it holds the same `id` and `version`; otherwise today's code of the

@@ -58,6 +58,7 @@ describe("the convention coverage findings", () => {
             {
                 key: "libs/core/src/util/b.ts — every file sits in a role folder or is an entry",
                 path: "libs/core/src/util/b.ts",
+                paths: ["libs/core/src/util/b.ts"],
                 line: 1,
                 group: "unmapped",
                 message: "sits in no role folder and is no entry directly in `src/`",
@@ -65,6 +66,7 @@ describe("the convention coverage findings", () => {
             {
                 key: "libs/core/src/service/c.ts — only adapter/, composition/ and entries import a host module",
                 path: "libs/core/src/service/c.ts",
+                paths: ["libs/core/src/service/c.ts"],
                 line: 2,
                 group: "divergent-import",
                 message:
@@ -73,6 +75,7 @@ describe("the convention coverage findings", () => {
             {
                 key: "libs/core/src/service/e.ts — only adapter/, composition/ and entries import a host module",
                 path: "libs/core/src/service/e.ts",
+                paths: ["libs/core/src/service/e.ts"],
                 line: 2,
                 group: "divergent-import",
                 message:
@@ -81,6 +84,7 @@ describe("the convention coverage findings", () => {
             {
                 key: "libs/core/src/service/d.ts — implements a port",
                 path: "libs/core/src/service/d.ts",
+                paths: ["libs/core/src/service/d.ts"],
                 line: 2,
                 group: "misplaced-port-implementation",
                 message:
@@ -89,6 +93,7 @@ describe("the convention coverage findings", () => {
             {
                 key: "libs/core/src/service/e.ts — implements a port",
                 path: "libs/core/src/service/e.ts",
+                paths: ["libs/core/src/service/e.ts"],
                 line: 3,
                 group: "misplaced-port-implementation",
                 message:

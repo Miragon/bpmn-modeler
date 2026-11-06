@@ -1,10 +1,16 @@
-import { type Finding, sortFindings } from "./finding";
+import { compareText, type Finding, findingFields, keyAroundPaths, sortFindings } from "./finding";
 
 export type MarkedFinding = Finding & { readonly status: "new" | "existing" };
 
 export interface Delta {
     readonly findings: readonly MarkedFinding[];
     readonly resolved: readonly Finding[];
+}
+
+/** A file git saw renamed between the merge base and the working tree. */
+export interface Rename {
+    readonly previousPath: string;
+    readonly path: string;
 }
 
 function countByKey(findings: readonly Finding[]): Map<string, number> {
@@ -15,15 +21,41 @@ function countByKey(findings: readonly Finding[]): Map<string, number> {
     return counts;
 }
 
-export function markDelta(head: readonly Finding[], base: readonly Finding[]): Delta {
+/** The key a head finding had at the merge base, before the files it names were renamed. */
+function keyAtBase(
+    { key, paths, pathOrder }: Finding,
+    previousPathOf: ReadonlyMap<string, string>,
+): string {
+    if (paths === undefined || !paths.some((path) => previousPathOf.has(path))) {
+        return key;
+    }
+    const around = keyAroundPaths(key, paths);
+    if (around === undefined) {
+        return key;
+    }
+    const previousPaths = paths.map((path) => previousPathOf.get(path) ?? path);
+    if (pathOrder === "code-unit") {
+        previousPaths.sort(compareText);
+    }
+    return previousPaths.reduce((text, path, index) => text + path + around[index + 1], around[0]);
+}
+
+/** Matches each head finding by the key it had at the merge base, its `paths` under their names there. */
+export function markDelta(
+    head: readonly Finding[],
+    base: readonly Finding[],
+    renames: readonly Rename[] = [],
+): Delta {
+    const previousPathOf = new Map(renames.map(({ previousPath, path }) => [path, previousPath]));
     const unmatchedBase = countByKey(base);
     const findings = sortFindings(head).map((finding): MarkedFinding => {
-        const unmatched = unmatchedBase.get(finding.key) ?? 0;
+        const key = keyAtBase(finding, previousPathOf);
+        const unmatched = unmatchedBase.get(key) ?? 0;
         if (unmatched === 0) {
-            return { ...finding, status: "new" };
+            return { ...findingFields(finding), status: "new" };
         }
-        unmatchedBase.set(finding.key, unmatched - 1);
-        return { ...finding, status: "existing" };
+        unmatchedBase.set(key, unmatched - 1);
+        return { ...findingFields(finding), status: "existing" };
     });
 
     const resolvedCount = new Map(unmatchedBase);
@@ -34,6 +66,7 @@ export function markDelta(head: readonly Finding[], base: readonly Finding[]): D
             resolvedCount.set(key, remaining - 1);
             return remaining > 0;
         })
-        .reverse();
+        .reverse()
+        .map(findingFields);
     return { findings, resolved };
 }

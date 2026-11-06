@@ -79,6 +79,54 @@ describe("the fitness report", () => {
     });
 });
 
+describe("the fitness report across renamed files", () => {
+    it("keeps a finding existing whose file the working tree renamed since the merge base", () => {
+        const renamed = {
+            key: "src/b.ts — Save",
+            path: "src/b.ts",
+            line: 4,
+            message: "`Save`",
+            paths: ["src/b.ts"],
+        };
+        const fake = fakeFitnessFunction({ [WORKING_TREE]: [renamed] });
+        const history = new InMemoryHistory([HEAD, BASE]).withRenamesSince(BASE, [
+            { previousPath: "src/a.ts", path: "src/b.ts" },
+        ]);
+
+        const report = createFitnessReport([fake], "origin/main", {
+            repoRoot: WORKING_TREE,
+            history,
+            snapshots: new InMemorySnapshots([
+                {
+                    schemaVersion: 1,
+                    commit: BASE,
+                    entries: {
+                        [fake.id]: {
+                            version: fake.version,
+                            findings: [{ ...renamed, key: "src/a.ts — Save", path: "src/a.ts" }],
+                        },
+                    },
+                },
+            ]),
+            checkout: new InMemoryCheckout(),
+        });
+
+        expect(report.functions[0].outcome).toEqual({
+            kind: "measured",
+            findings: [
+                {
+                    key: "src/b.ts — Save",
+                    path: "src/b.ts",
+                    line: 4,
+                    message: "`Save`",
+                    status: "existing",
+                },
+            ],
+            resolved: [],
+        });
+    });
+});
+
 describe("the change the fitness report measures", () => {
     it("measures HEAD against the merge base and the merge base against itself", () => {
         const contexts: MeasurementContext[] = [];

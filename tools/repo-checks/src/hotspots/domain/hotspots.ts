@@ -66,6 +66,7 @@ export function hotspotFindings(hotspots: readonly Hotspot[]): Finding[] {
     return hotspots.map(({ file, revisions, score, rank }) => ({
         key: file.path,
         path: file.path,
+        paths: [file.path],
         line: findingLine(file),
         message: `${revisions} ${revisions === 1 ? "revision" : "revisions"} × ${file.codeLines} code lines = ${groupedDigits(score)}; ${complexityPhrase(file)}`,
         rank,

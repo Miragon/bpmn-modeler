@@ -88,6 +88,7 @@ export function createFitnessReport(
         ]),
     );
     const baseById = measureBase(functions, baseCommit, ports);
+    const renames = ports.history.renamesSince(baseCommit);
     const history = readTrendHistory(functions, headCommit, baseCommit, ports);
     return {
         head: { commit: headCommit, uncommittedChanges: ports.history.hasUncommittedChanges() },
@@ -96,7 +97,7 @@ export function createFitnessReport(
             functionReport(
                 fitnessFunction,
                 headById.get(fitnessFunction.id) as Measurement,
-                baseById.get(fitnessFunction.id) as BaseMeasurement,
+                { ...(baseById.get(fitnessFunction.id) as BaseMeasurement), renames },
                 history,
             ),
         ),

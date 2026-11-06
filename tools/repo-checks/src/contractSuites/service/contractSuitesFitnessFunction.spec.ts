@@ -140,6 +140,7 @@ describe("the contract suites fitness function on a hand-built tree", () => {
             {
                 key: "apps/b/src/adapter/out/FooB.ts#FooB → libs/core/src/foo/port/Foo.ts#Foo",
                 path: FOO_B,
+                paths: [FOO_B, "libs/core/src/foo/port/Foo.ts"],
                 line: 3,
                 message:
                     "`FooB`: runs no `Foo` suite (`describeFooContract`, `runFooScenarios`); `FooA` does",

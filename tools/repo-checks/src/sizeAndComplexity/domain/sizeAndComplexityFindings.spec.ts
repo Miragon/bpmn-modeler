@@ -20,6 +20,7 @@ describe("the size and complexity findings", () => {
             {
                 key: "libs/core/src/service/Verification.ts",
                 path: "libs/core/src/service/Verification.ts",
+                paths: ["libs/core/src/service/Verification.ts"],
                 line: 50,
                 message: "143 code lines; highest complexity 23 (verifyActive)",
                 values: { codeLines: 143, complexity: 23 },
@@ -37,6 +38,7 @@ describe("the size and complexity findings", () => {
             {
                 key: "libs/core/src/types.ts",
                 path: "libs/core/src/types.ts",
+                paths: ["libs/core/src/types.ts"],
                 line: 1,
                 message: "9 code lines; no function",
                 values: { codeLines: 9 },

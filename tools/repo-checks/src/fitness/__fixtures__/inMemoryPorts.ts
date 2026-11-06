@@ -1,3 +1,4 @@
+import type { Rename } from "../domain/delta";
 import type { Finding } from "../domain/finding";
 import type { FitnessFunction, MeasurementContext } from "../domain/fitnessFunction";
 import type { Snapshot } from "../domain/snapshot";
@@ -9,6 +10,8 @@ import type { TreeCheckout } from "../port/TreeCheckout";
 export const WORKING_TREE = "/repo";
 
 export class InMemoryHistory implements RepositoryHistory {
+    private readonly renamesByCommit = new Map<string, readonly Rename[]>();
+
     constructor(
         private readonly commits: readonly string[],
         private readonly base: string | null = commits.at(-1) ?? null,
@@ -36,6 +39,16 @@ export class InMemoryHistory implements RepositoryHistory {
     firstParentCommits(ref: string, depth: number): readonly string[] {
         const start = Math.max(this.commits.indexOf(ref), 0);
         return this.commits.slice(start, start + depth);
+    }
+
+    /** No renames since any other commit, so a spec shows which commit the renames are read since. */
+    withRenamesSince(commit: string, renames: readonly Rename[]): this {
+        this.renamesByCommit.set(commit, renames);
+        return this;
+    }
+
+    renamesSince(commit: string): readonly Rename[] {
+        return this.renamesByCommit.get(commit) ?? [];
     }
 }
 
