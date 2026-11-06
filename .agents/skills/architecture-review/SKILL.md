@@ -256,11 +256,15 @@ what it learns back.
 - Before you mark a row false or propose a `reportsWrongly` entry, look up
   the function's trials that name the row's files. A trial ran on a commit of
   this repository, so it can name a row that is still in the tree. A trial
-  that counts the row as true settles it.
+  that names the row and counts it as true, at a commit where the row's code
+  reads as it does now, makes the row a finding: quote the trial under
+  Applies. A trial that names only the row's file, or ran on other code, is a
+  lead, not a verdict.
 
     ```sh
-    OUT="${TMPDIR:-/tmp}/architecture-review"; R="$OUT/report.json"
+    OUT="${TMPDIR:-/tmp}/architecture-review"; TREE=$(cat "$OUT/tree.txt"); R="$OUT/report.json"
     jq -r --arg id '<id>' --arg file '<file name>' '.functions[] | select(.id == $id) | .evidence[]? | select(tostring | contains($file))' "$R"
+    git -C "$TREE" diff '<trial commit>' -- '<path>'   # a hunk at the row's lines, or an unknown commit: a lead
     ```
 
 - A row the code disproves is a false alarm. List it under Marked, no action
@@ -270,9 +274,11 @@ what it learns back.
   describes, and for each erosion you found that a function's `measures`
   covers but it did not report and its `misses` do not name. Prefer a
   narrower rule, then an exclusion derived from types, folders, imports or
-  configuration; at the least, a `reportsWrongly` or `misses` entry. Every
-  fitness function stays deterministic, adds no dependency and never reads a
-  file or type name (#2049), so a proposal does not either.
+  configuration; at the least, a `reportsWrongly` or `misses` entry. For a
+  row a `reportsWrongly` entry already describes, propose a narrower rule or
+  an exclusion only when the code can decide the case; do not restate the
+  entry. Every fitness function stays deterministic, adds no dependency and
+  never reads a file or type name (#2049), so a proposal does not either.
 - Each proposal names the function's `id` and `version`, the row's `key` (for
   a miss, the `path:line` of the erosion), the case, and whether it is a fix
   in this PR (one that adds or changes that function) or an issue for a
@@ -328,7 +334,7 @@ Measured: <ids>. Not measured: `<id>` (<reason>).
 
 ### Fitness function feedback
 
-- `<id>` v<version>, `<key>` or the missed `<path:line>`: <false alarm | missed erosion>, <the case and its evidence>.
+- `<id>` v<version>, `<key>` or the missed `<path:line>`: <false alarm | declared false alarm | missed erosion>, <the case and its evidence>.
   Proposal: <narrower rule | exclusion derived from types, folders, imports or configuration | `reportsWrongly` or `misses` entry>; <fix in this PR | issue for a maintainer>.
 
 Comments only; this review does not block.

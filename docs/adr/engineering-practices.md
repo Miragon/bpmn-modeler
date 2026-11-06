@@ -1386,15 +1386,19 @@ or an issue names `path:line` of each copy.
 
 A fitness function can report wrongly or miss erosion beyond its declared
 limits, so the review checks each row in the code before it reports or drops
-it, looks up the function's trials that name the row's files before it calls
-the row false, and marks a row the code disproves as a false alarm, with the
-evidence. For each false alarm no `reportsWrongly` entry declares, and each
-erosion a function's `measures` covers but it missed, it proposes, apart from
-its findings, a narrower rule, an exclusion derived from types, folders,
-imports or configuration, or at least a `reportsWrongly` or `misses` entry,
-and says whether that is a fix in the PR or an issue for a maintainer to check
-before it is filed. A proposal that changes a function's rule bumps its
-version and needs a measured trial.
+it, and marks a row the code disproves as a false alarm, with the evidence.
+Before it calls a row false, it looks up the function's trials that name the
+row's files: a trial that names the row and counts it as true, at a commit
+where the row's code reads as it does now, makes the row a finding, and any
+other trial is a lead. For each false alarm no `reportsWrongly` entry
+declares, and each erosion a function's `measures` covers but it missed, it
+proposes, apart from its findings, a narrower rule, an exclusion derived from
+types, folders, imports or configuration, or at least a `reportsWrongly` or
+`misses` entry. For a row an entry already declares, it proposes a narrower
+rule or an exclusion only when the code can decide the case. It says whether
+each proposal is a fix in the PR or an issue for a maintainer to check before
+it is filed. A proposal that changes a function's rule bumps its version and
+needs a measured trial.
 
 It is not a fitness function: a model's judgement is not deterministic, and
 two runs on one tree differ. It comments and never blocks.
@@ -1419,10 +1423,11 @@ missed and each further finding true, plausible or false. Round 1 ran the
 skill as first written, three times per case. Round 2 ran it twice per case
 after the 15 changes round 1 proposed (two of them in part). Round 3 ran it
 once per case with the row check and the proposals for the fitness functions
-(the trial lookup came from its results and is unmeasured), and a second
-judge per run checked in the code each row the run set aside, each proposal
-and each row it cited as erosion. One run per case shows that the step runs
-and what its feedback is worth, not a trend.
+(the trial lookup and the proposals for declared rows came from its results
+and are unmeasured), and a second judge per run checked in the code each row
+the run set aside, each proposal and each row it cited as erosion. One run
+per case shows that the step runs and what its feedback is worth, not a
+trend.
 
 | Case (items) | Round | Matched per run (exact) | Added: true / plausible / false | Mean run time |
 | --- | --- | --- | --- | --- |
@@ -1481,11 +1486,19 @@ round-3 judge scored three findings as support for S1 and S2, not as added.
   one protocol and proposed a `reportsWrongly` entry that declares it false.
   Two of the six, that copy and a `host-text` row of #2047, are rows the
   function's own trials count as true, so the review now looks those trials
-  up before it calls a row false. Of 17 proposals, 6 are correct and
-  actionable, 3 right but vague, 7 wrong (an entry that would mark correct
-  rows false or restates an existing one, or a rule on a false premise) and 1
-  would read a type name, which no fitness function may. One row a run cited
-  as applying to a finding is a declared false alarm (the hotspots rank of
+  up before it calls a row false. The trials ran on other commits, and the
+  #1799 run dismissed the copy although a `missed-partner` limit it read
+  names it, so a trial decides only where it names the row and the row's
+  code is unchanged. Of 17 proposals, 6 are correct and actionable, 3 right
+  but vague, 7 wrong (an entry that would mark correct rows false or
+  restates an existing one, or a rule on a false premise) and 1 would read a
+  type name, which no fitness function may. Two of the 6 correct ones narrow
+  rows an entry already declares (log text that reaches a logger through a
+  parameter, and adapters of one port that `change-coupling` lists as
+  explained by their shared import). Round 3's step did not ask for that, so
+  the review now asks for such a rule where the code can decide the case.
+  One row a run cited as applying to a finding is a declared false alarm
+  (the hotspots rank of
   `TemplateBuilder.tsx`, which comes from branch commits). #1799's judge
   also called its marketplace dialog titles host chrome, but `host-text`
   declares IntelliJ's action names, not dialog titles, and #2172 has since
@@ -1540,9 +1553,9 @@ block of the skill failed), take a stacked PR's own change from the last
 merge of its base, shard a whole tree by port family or give it a port and
 row budget, find second copies by their values, and check that a row is not
 one rule in two places before proposing to declare it a false report; then
-measure on 3 to 5 held-out merged PRs whose erosion a later issue
-documented, with one judge per case and architecture items scored apart from
-correctness bugs. If that run matches most architectural items at a false
+measure on 3 to 5 held-out merged PRs that no function's `evidence` names,
+whose erosion a later issue documented, with one judge per case and
+architecture items scored apart from correctness bugs. If that run matches most architectural items at a false
 rate under 10 %, a non-blocking, path-triggered job that posts only the top
 findings a PR introduced is worth a pilot. The 10 % bar is a judgement, not
 a measurement.
