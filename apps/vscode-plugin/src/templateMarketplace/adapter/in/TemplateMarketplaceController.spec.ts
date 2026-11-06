@@ -1,20 +1,11 @@
-import { homedir } from "node:os";
-import { join } from "node:path";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { beforeEach, describe, expect, it, Mock, vi } from "vitest";
+vi.mock("vscode", () => import("../../../__fixtures__/vscodeWindowFake"));
 
-// The controller touches only these `vscode` surfaces; progress and persistence
-// are on injected collaborators. `workspace` is read by the scope pick
-// to decide whether a quick pick is even shown.
-vi.mock("vscode", () => ({
-    window: { showInputBox: vi.fn(), showQuickPick: vi.fn() },
-    commands: { registerCommand: vi.fn(() => ({ dispose: vi.fn() })) },
-    workspace: { workspaceFolders: undefined, workspaceFile: undefined },
-}));
+import { createTemplateMarketplaceService, MarketplaceAddAnswer } from "@miragon/bpmn-modeler-core";
+import { createTestHost, RecordingNotifier } from "@miragon/bpmn-modeler-core/testing";
 
-import { FetchReport } from "@miragon/bpmn-modeler-core";
-import { RecordingNotifier } from "@miragon/bpmn-modeler-core/testing";
-import { commands, window, workspace } from "vscode";
+import { resetVscodeWindow, vscodeWindow } from "../../../__fixtures__/vscodeWindowFake";
 import {
     ADD_MARKETPLACE_CMD,
     REMOVE_MARKETPLACE_CMD,
@@ -31,344 +22,120 @@ class ReloadRecordingNotifier extends RecordingNotifier {
     }
 }
 
-const completeFetch = FetchReport.of({
-    usableSources: 1,
-    cached: 1,
-    sourceFailures: [],
-    skippedTypes: [],
-});
-
-/**
- * Exposes the captured command handlers so a test can invoke a command as VS
- * Code would; `withProgress` runs its task inline so the fetch is observable.
- */
-function createController() {
-    const marketplaceSvc = {
-        addMarketplace: vi.fn().mockResolvedValue(completeFetch),
-        updateAll: vi.fn().mockResolvedValue({ succeeded: 1, failures: [] }),
-        pruneOrphanedCaches: vi.fn().mockResolvedValue(undefined),
-    };
-    const templatesSvc = { reloadMarketplaceTemplates: vi.fn().mockResolvedValue(undefined) };
-    const settings = {
-        addMarketplace: vi.fn().mockResolvedValue(undefined),
-        removeMarketplaces: vi.fn().mockResolvedValue(undefined),
-        getMarketplacesWithScopes: vi.fn().mockReturnValue([]),
-    };
-    const notifier = new ReloadRecordingNotifier();
-
-    const handlers = new Map<string, () => Promise<void>>();
-    (commands.registerCommand as Mock).mockImplementation((id: string, cb: () => Promise<void>) => {
-        handlers.set(id, cb);
-        return { dispose: vi.fn() };
+/** The core's flows over an in-memory host: `/work/a` is registered, `/work/b` is not. */
+function registeredController(answers: MarketplaceAddAnswer[] = [], removed: string[] = []) {
+    const marketplace = (id: string) => ({
+        [`/work/${id}/marketplace.json`]: JSON.stringify({ sources: [{ path: "templates" }] }),
+        [`/work/${id}/templates/${id}.json`]: JSON.stringify({
+            id,
+            name: id,
+            appliesTo: ["bpmn:Task"],
+            properties: [],
+        }),
     });
-
-    const controller = new TemplateMarketplaceController(
-        marketplaceSvc as never,
-        templatesSvc as never,
-        settings as never,
-        notifier as never,
-    );
-    controller.register({ subscriptions: [] } as never);
-
-    return { handlers, marketplaceSvc, templatesSvc, settings, notifier };
-}
-
-/** Models an open workspace vs. an empty window for the scope pick. */
-function setWorkspaceOpen(open: boolean) {
-    (workspace as { workspaceFolders: unknown }).workspaceFolders = open ? [{}] : undefined;
-    (workspace as { workspaceFile: unknown }).workspaceFile = undefined;
+    const host = createTestHost({
+        folders: ["/work"],
+        files: { ...marketplace("a"), ...marketplace("b") },
+        settings: { marketplaces: ["/work/a"] },
+        marketplaceAnswers: answers,
+        promptAnswers: { marketplaceRemoval: removed },
+    });
+    const notifier = new ReloadRecordingNotifier();
+    const context = { subscriptions: [] as { dispose(): void }[] };
+    new TemplateMarketplaceController(
+        {
+            marketplaces: createTemplateMarketplaceService({
+                workspace: host.workspace,
+                settings: host.settings,
+                notifier,
+                tokens: host.tokens,
+                tokenPrompt: host.tokenPrompt,
+                cacheRoot: "/cache",
+                homeDir: "/home/ada",
+            }),
+            templates: { reloadMarketplaceTemplates: async () => undefined },
+            registrations: host.marketplaceRegistrations,
+            prompt: host.marketplacePrompt,
+            picker: host.picker,
+            homeDir: "/home/ada",
+        },
+        notifier,
+    ).register(context);
+    const run = (command: string) => vscodeWindow.registeredCommands.get(command)!();
+    return {
+        run,
+        context,
+        notifier,
+        registrations: host.marketplaceRegistrations,
+        marketplaces: host.settings.values.marketplaces,
+    };
 }
 
 beforeEach(() => {
-    vi.clearAllMocks();
-    // Default to an empty window: the scope pick resolves to "user" without a
-    // quick pick, so add tests unrelated to scope stay focused.
-    setWorkspaceOpen(false);
+    resetVscodeWindow();
 });
 
-describe("TemplateMarketplaceController.addMarketplace", () => {
-    it("expands ~ before fetching and persisting", async () => {
-        const { handlers, marketplaceSvc, settings } = createController();
-        (window.showInputBox as Mock).mockResolvedValue("~/templates");
+describe("TemplateMarketplaceController", () => {
+    it("registers its three commands with the extension", () => {
+        const { context } = registeredController();
 
-        await handlers.get(ADD_MARKETPLACE_CMD)!();
-
-        const expanded = join(homedir(), "templates");
-        expect(marketplaceSvc.addMarketplace).toHaveBeenCalledWith(expanded);
-        // Persisting the expanded path means a later Update never re-reads a `~`.
-        // No workspace is open, so the scope resolves to "user".
-        expect(settings.addMarketplace).toHaveBeenCalledWith(expanded, "user");
+        expect([...vscodeWindow.registeredCommands.keys()]).toEqual([
+            ADD_MARKETPLACE_CMD,
+            UPDATE_MARKETPLACES_CMD,
+            REMOVE_MARKETPLACE_CMD,
+        ]);
+        expect(context.subscriptions).toHaveLength(3);
     });
 
-    it("prompts for the scope when a workspace is open and passes the choice through", async () => {
-        const { handlers, marketplaceSvc, settings } = createController();
-        setWorkspaceOpen(true);
-        (window.showInputBox as Mock).mockResolvedValue("~/templates");
-        // The quick pick returns the chosen item; the controller reads its `scope`.
-        (window.showQuickPick as Mock).mockResolvedValue({ scope: "workspace" });
-
-        await handlers.get(ADD_MARKETPLACE_CMD)!();
-
-        const expanded = join(homedir(), "templates");
-        expect(window.showQuickPick).toHaveBeenCalledWith(
-            expect.any(Array),
-            expect.objectContaining({ title: "Add Marketplace" }),
+    it("runs the core's add, update and remove flows", async () => {
+        const { run, notifier, marketplaces } = registeredController(
+            [{ location: "/work/b", scope: "project" }],
+            ["/work/a"],
         );
-        expect(marketplaceSvc.addMarketplace).toHaveBeenCalledWith(expanded);
-        expect(settings.addMarketplace).toHaveBeenCalledWith(expanded, "workspace");
+
+        await run(ADD_MARKETPLACE_CMD);
+        await run(UPDATE_MARKETPLACES_CMD);
+        await run(REMOVE_MARKETPLACE_CMD);
+
+        expect(marketplaces).toEqual(["/work/b"]);
+        expect(notifier.infos).toEqual([
+            "Marketplace added.",
+            "Updated 2 marketplace(s).",
+            "Removed 1 marketplace(s).",
+        ]);
     });
 
-    it("aborts without fetching when the scope pick is dismissed", async () => {
-        const { handlers, marketplaceSvc, settings, notifier } = createController();
-        setWorkspaceOpen(true);
-        (window.showInputBox as Mock).mockResolvedValue("~/templates");
-        (window.showQuickPick as Mock).mockResolvedValue(undefined);
-
-        await handlers.get(ADD_MARKETPLACE_CMD)!();
-
-        // The pick runs before the fetch, so cancelling it touches neither.
-        expect(marketplaceSvc.addMarketplace).not.toHaveBeenCalled();
-        expect(settings.addMarketplace).not.toHaveBeenCalled();
-        expect(notifier.logged("debug")).toContain("Add Marketplace cancelled at scope pick");
-    });
-
-    it("does not persist when the fetch fails", async () => {
-        const { handlers, marketplaceSvc, settings, notifier } = createController();
-        (window.showInputBox as Mock).mockResolvedValue("/bad/folder");
-        marketplaceSvc.addMarketplace.mockRejectedValue(new Error("no marketplace.json"));
-
-        await handlers.get(ADD_MARKETPLACE_CMD)!();
-
-        expect(settings.addMarketplace).not.toHaveBeenCalled();
-        expect(notifier.errors).toEqual([expect.stringContaining("Failed to add marketplace.")]);
-    });
-
-    it("steers to a window reload and prunes the orphaned cache when the settings key is unregistered", async () => {
-        const { handlers, marketplaceSvc, settings, notifier } = createController();
-        (window.showInputBox as Mock).mockResolvedValue("~/templates");
-        // Models VS Code's ERROR_UNKNOWN_KEY: the `marketplaces` contribution is
-        // absent from a not-yet-reloaded window after an in-place update.
-        settings.addMarketplace.mockRejectedValue(
+    it("steers to a window reload instead of the failure toast when VS Code has not registered the settings key yet", async () => {
+        const { run, notifier, registrations } = registeredController([
+            { location: "/work/b", scope: "project" },
+        ]);
+        // VS Code's ERROR_UNKNOWN_KEY: the `marketplaces` contribution is absent
+        // from a window not reloaded since an in-place update.
+        vi.spyOn(registrations, "register").mockRejectedValue(
             new Error(
                 "Unable to write to Workspace Settings because " +
                     "miragon.bpmnModeler.marketplaces is not a registered configuration.",
             ),
         );
 
-        await handlers.get(ADD_MARKETPLACE_CMD)!();
+        await run(ADD_MARKETPLACE_CMD);
 
-        // The fetch already cached templates before the write failed, so the
-        // orphaned entry must be pruned rather than left as residue.
-        expect(marketplaceSvc.pruneOrphanedCaches).toHaveBeenCalledOnce();
-        expect(notifier.reloadErrors).toHaveLength(1);
+        expect(notifier.reloadErrors).toEqual([
+            "The BPMN Modeler extension was just updated. Reload the window to " +
+                "finish enabling marketplaces, then add it again.",
+        ]);
         expect(notifier.errors).toEqual([]);
     });
 
-    it("shows the generic failure toast for any other add error", async () => {
-        const { handlers, marketplaceSvc, notifier } = createController();
-        (window.showInputBox as Mock).mockResolvedValue("/bad/folder");
-        marketplaceSvc.addMarketplace.mockRejectedValue(new Error("no marketplace.json"));
+    it("leaves any other add failure to the core's toast", async () => {
+        const { run, notifier, registrations } = registeredController([
+            { location: "/work/b", scope: "project" },
+        ]);
+        vi.spyOn(registrations, "register").mockRejectedValue(new Error("disk full"));
 
-        await handlers.get(ADD_MARKETPLACE_CMD)!();
+        await run(ADD_MARKETPLACE_CMD);
 
         expect(notifier.reloadErrors).toEqual([]);
-        expect(notifier.errors).toEqual([expect.stringContaining("Failed to add marketplace.")]);
-    });
-
-    it("does nothing when the prompt is dismissed", async () => {
-        const { handlers, marketplaceSvc, notifier } = createController();
-        (window.showInputBox as Mock).mockResolvedValue(undefined);
-
-        await handlers.get(ADD_MARKETPLACE_CMD)!();
-
-        expect(marketplaceSvc.addMarketplace).not.toHaveBeenCalled();
-        expect(notifier.logged("debug")).toContain("Add Marketplace cancelled at input box");
-    });
-
-    it("accepts a ~ path in the input validator and rejects non-locations", async () => {
-        const { handlers } = createController();
-        (window.showInputBox as Mock).mockResolvedValue(undefined);
-
-        await handlers.get(ADD_MARKETPLACE_CMD)!();
-
-        // Exercise the validator captured at prompt time directly: `~/...` must
-        // validate, since it expands to a local path.
-        const options = (window.showInputBox as Mock).mock.calls[0][0];
-        expect(options.validateInput("~/templates")).toBeUndefined();
-        expect(options.validateInput("not-a-repo-or-path")).toEqual(expect.any(String));
-    });
-
-    it("accepts a gitlab.com URL in the input validator", async () => {
-        const { handlers } = createController();
-        (window.showInputBox as Mock).mockResolvedValue(undefined);
-
-        await handlers.get(ADD_MARKETPLACE_CMD)!();
-
-        const options = (window.showInputBox as Mock).mock.calls[0][0];
-        expect(options.validateInput("https://gitlab.com/group/project")).toBeUndefined();
-    });
-});
-
-describe("TemplateMarketplaceController.updateMarketplaces", () => {
-    it("re-fetches all marketplaces and refreshes open editors", async () => {
-        const { handlers, marketplaceSvc, templatesSvc } = createController();
-
-        await handlers.get(UPDATE_MARKETPLACES_CMD)!();
-
-        expect(marketplaceSvc.updateAll).toHaveBeenCalledOnce();
-        expect(templatesSvc.reloadMarketplaceTemplates).toHaveBeenCalledOnce();
-    });
-
-    it("shows a success toast with the refreshed count", async () => {
-        const { handlers, marketplaceSvc, notifier } = createController();
-        marketplaceSvc.updateAll.mockResolvedValue({ succeeded: 2, failures: [] });
-
-        await handlers.get(UPDATE_MARKETPLACES_CMD)!();
-
-        expect(notifier.infos).toEqual(["Updated 2 marketplace(s)."]);
-        expect(notifier.errors).toEqual([]);
-    });
-
-    it("notes when nothing is configured to update", async () => {
-        const { handlers, marketplaceSvc, notifier } = createController();
-        marketplaceSvc.updateAll.mockResolvedValue({ succeeded: 0, failures: [] });
-
-        await handlers.get(UPDATE_MARKETPLACES_CMD)!();
-
-        expect(notifier.infos).toEqual(["No marketplaces configured to update."]);
-    });
-
-    it("lists each failed marketplace and its reason on partial failure", async () => {
-        const { handlers, marketplaceSvc, notifier } = createController();
-        marketplaceSvc.updateAll.mockResolvedValue({
-            succeeded: 1,
-            failures: [
-                { label: "github.com/acme/broken", reason: "could not read marketplace.json" },
-            ],
-        });
-
-        await handlers.get(UPDATE_MARKETPLACES_CMD)!();
-
-        expect(notifier.infos).toEqual([]);
-        expect(notifier.errors).toEqual([
-            "Updated 1 of 2 marketplaces. Failed:\ngithub.com/acme/broken: could not read marketplace.json",
-        ]);
-    });
-});
-
-describe("TemplateMarketplaceController.removeMarketplace", () => {
-    it("informs and does nothing when no marketplaces are registered", async () => {
-        const { handlers, settings, notifier } = createController();
-        settings.getMarketplacesWithScopes.mockReturnValue([]);
-
-        await handlers.get(REMOVE_MARKETPLACE_CMD)!();
-
-        expect(notifier.infos).toEqual(["No marketplaces registered."]);
-        expect(window.showQuickPick).not.toHaveBeenCalled();
-        expect(settings.removeMarketplaces).not.toHaveBeenCalled();
-    });
-
-    it("offers a labelled, scope-described multi-select of every registered marketplace", async () => {
-        const { handlers, settings } = createController();
-        settings.getMarketplacesWithScopes.mockReturnValue([
-            { entry: "https://github.com/acme/user", scopes: ["user"] },
-            {
-                entry: { provider: "gitlab", repo: "group/proj", baseUrl: "https://gl.acme.com" },
-                scopes: ["user", "workspace"],
-            },
-            { entry: "https://github.com/acme/ws", scopes: ["workspace"] },
-        ]);
-        (window.showQuickPick as Mock).mockResolvedValue(undefined);
-
-        await handlers.get(REMOVE_MARKETPLACE_CMD)!();
-
-        const [items, options] = (window.showQuickPick as Mock).mock.calls[0];
-        expect(options).toEqual(
-            expect.objectContaining({ title: "Remove Marketplace", canPickMany: true }),
-        );
-        expect(items).toEqual([
-            expect.objectContaining({
-                label: "https://github.com/acme/user",
-                description: "User settings",
-            }),
-            expect.objectContaining({
-                label: "gl.acme.com/group/proj",
-                description: "User and Workspace settings",
-            }),
-            expect.objectContaining({
-                label: "https://github.com/acme/ws",
-                description: "Workspace settings",
-            }),
-        ]);
-    });
-
-    it("removes the picked entries, prunes the cache, refreshes editors, and reports the count", async () => {
-        const { handlers, settings, marketplaceSvc, templatesSvc, notifier } = createController();
-        settings.getMarketplacesWithScopes.mockReturnValue([
-            { entry: "https://github.com/acme/one", scopes: ["user"] },
-            { entry: "https://github.com/acme/two", scopes: ["workspace"] },
-            { entry: "https://github.com/acme/three", scopes: ["user"] },
-        ]);
-        // Pick two of the three offered items.
-        (window.showQuickPick as Mock).mockResolvedValue([
-            { entry: "https://github.com/acme/one" },
-            { entry: "https://github.com/acme/two" },
-        ]);
-
-        await handlers.get(REMOVE_MARKETPLACE_CMD)!();
-
-        expect(settings.removeMarketplaces).toHaveBeenCalledWith([
-            "https://github.com/acme/one",
-            "https://github.com/acme/two",
-        ]);
-        expect(marketplaceSvc.pruneOrphanedCaches).toHaveBeenCalledOnce();
-        expect(templatesSvc.reloadMarketplaceTemplates).toHaveBeenCalledOnce();
-        expect(notifier.infos).toEqual(["Removed 2 marketplace(s)."]);
-    });
-
-    it("treats Escape (undefined) as cancel", async () => {
-        const { handlers, settings, marketplaceSvc, notifier } = createController();
-        settings.getMarketplacesWithScopes.mockReturnValue([
-            { entry: "https://github.com/acme/one", scopes: ["user"] },
-        ]);
-        (window.showQuickPick as Mock).mockResolvedValue(undefined);
-
-        await handlers.get(REMOVE_MARKETPLACE_CMD)!();
-
-        expect(settings.removeMarketplaces).not.toHaveBeenCalled();
-        expect(marketplaceSvc.pruneOrphanedCaches).not.toHaveBeenCalled();
-        expect(notifier.infos).toEqual([]);
-    });
-
-    it("treats OK with nothing checked (empty array) as cancel", async () => {
-        const { handlers, settings, marketplaceSvc } = createController();
-        settings.getMarketplacesWithScopes.mockReturnValue([
-            { entry: "https://github.com/acme/one", scopes: ["user"] },
-        ]);
-        (window.showQuickPick as Mock).mockResolvedValue([]);
-
-        await handlers.get(REMOVE_MARKETPLACE_CMD)!();
-
-        expect(settings.removeMarketplaces).not.toHaveBeenCalled();
-        expect(marketplaceSvc.pruneOrphanedCaches).not.toHaveBeenCalled();
-    });
-
-    it("reports an error and shows no success toast when removal fails", async () => {
-        const { handlers, settings, marketplaceSvc, notifier } = createController();
-        settings.getMarketplacesWithScopes.mockReturnValue([
-            { entry: "https://github.com/acme/one", scopes: ["user"] },
-        ]);
-        (window.showQuickPick as Mock).mockResolvedValue([
-            { entry: "https://github.com/acme/one" },
-        ]);
-        settings.removeMarketplaces.mockRejectedValue(new Error("write failed"));
-
-        await handlers.get(REMOVE_MARKETPLACE_CMD)!();
-
-        expect(marketplaceSvc.pruneOrphanedCaches).not.toHaveBeenCalled();
-        expect(notifier.errors).toEqual([
-            expect.stringContaining("Failed to remove marketplace(s)."),
-        ]);
-        expect(notifier.infos).toEqual([]);
+        expect(notifier.errors).toEqual(["Failed to add marketplace.\ndisk full"]);
     });
 });

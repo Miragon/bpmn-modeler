@@ -138,17 +138,18 @@ switch narrows them once (`asProtocolMessage`) and ignores unknown types, and a
 handler table finds no entry for them. Code that owns a closed set makes a
 missing type a compile error: a handler table has a mapped type that needs an
 entry for every type (the BPMN webview's session messages in
-`apps/bpmn-webview/src/session/messageRouter.ts`, a host's `CommandTable`). TypeScript does not check
-the keys a table gets through spreads, so a spec checks that no two spread
-handler groups name the same type. The classes remain the constructors and the
-wire format is unchanged: the same `type` strings and fields, which the
-IntelliJ host matches.
+`apps/bpmn-webview/src/adapter/in/messageRouter.ts`, a host's
+`CommandTable`). TypeScript does not check the keys a table gets through
+spreads, so a spec checks that no two spread handler groups name the same
+type. The classes remain the constructors and the wire format is unchanged:
+the same `type` strings and fields, which the IntelliJ host matches.
 
 The commands the BPMN editor webview may post are a closed set, kept as a value
 so a host can iterate it: `BPMN_EDITOR_COMMAND_TYPES` in
 `libs/shared/src/lib/bpmnEditorCommands.ts`. The webview's `HostChannel` takes
 only those, and the bootstrap narrows its host to it once, so neither the
-bootstrap nor a session module can post another surface's command or a query.
+bootstrap nor an adapter or service it hands that channel can post another
+surface's command or a query.
 `HostApi` declares its members as properties, not methods, because TypeScript
 compares a method's parameters bivariantly: the narrowed channel could
 otherwise be handed to a helper typed for every message. The shared
@@ -245,8 +246,8 @@ imports show the role it has. Each workspace declares its kind once, in the
 | `diagram-js` | the diagram-js feature libraries in `libs/` and `packages/bpmn-modeler`, `packages/dmn-modeler`, which follow the bpmn-js module layout |
 | `flat` | `modeler-types`, `shared`, `bpmn-diff`, `bpmn-i18n-extras`, `standalone-extension`, `tools/architecture-testing`, `docs`, `apps/standalone` |
 
-The template builder sits in its role folders (#2130). The webviews move into
-theirs in their own migration (#2129).
+Every webview (#2129) and the template builder (#2130) sit in their role
+folders.
 
 In a `hexagonal` workspace the first role folder in a file's path is its role,
 and the path before it is its context, so `modeler/bpmn/service/x.ts` sits in
@@ -294,10 +295,30 @@ technology spans contexts, and the rules between contexts stay per workspace.
 The core's session participants are in-core reactions that
 `EditorSessionLifecycle` drives, so they sit in `service/`, which the core
 always treated as one application layer with them. Webviews
-follow the same roles: the UI and host queries are `adapter/in/`, the host
-channel and the modeler-library wrappers `adapter/out/`, the reducers
-`domain/` and the bootstrap `composition/`. Each webview maps its files in its
-own migration (#2129).
+follow the same roles: the UI, its markup and the router for the host's
+queries are `adapter/in/`, the host channel and the modeler-library wrappers
+`adapter/out/`, the reducers and pure rules `domain/`, and the bootstrap
+`composition/`; `main.ts` stays the entry. A stylesheet sits next to the
+module that imports it. The host channel's type and the state it persists are
+`port/`, so the UI and the host adapter share them without importing each
+other. A document session that keeps the modeler in sync with the host
+through injected handles is `service/` (the DMN webview's
+`DmnDocumentSession`, the BPMN webview's `BpmnDocumentSession`).
+
+The BPMN webview splits its adapters on the live surface by direction: the
+host's requests on the surface, the mode strip and the binding of a surface's
+events to the session are `adapter/in/`; the modules that implement the
+modeler library's ports over the host channel (capabilities, clipboard,
+linting, the form preview) or wrap the library (surface factories and
+modules, the document I/O of the live surface) are `adapter/out/`. The ports
+the document session calls, such as `BpmnDocumentSurface`, are `port/`, so
+the surface's document adapter implements one without importing the service.
+The view-state manager and the process-variable publisher sync with the host
+through injected handles like the document session, so they are `service/`.
+The surface binding builds the manager's state store and the properties
+panel's DOM adapter and hands them in, so the manager touches no DOM.
+The template editor is a context of its own, `templateEditor/`, with the same
+roles and its own entry, `templateEditorMain.ts`.
 
 The bridge serves the host's RPC through handler tables in
 `<context>/adapter/in/` (`editorSessionHandlers`, `deploymentHandlers`, …),
@@ -367,16 +388,16 @@ extension; the bridge leaves out the panel visibility.
 
 A host supplies adapters and maps its own surface (VS Code commands and views,
 bridge RPC) onto these modules. It keeps only what is genuinely host-specific:
-VS Code's input UI, settings writes and reload hint; the bridge's
-workspace-root registration, acknowledged marketplace persistence and
-rendering on `document/didChange`, because the host owns the document revision
-there. Host classes depend on the core ports, not
-on concrete adapters, so the in-memory test kit fits every one of them. Once
-a second class implements a port the core reads back from, the port has one
-contract suite in the test kit that every adapter runs, the in-memory fake
-included, as `describeWorkspaceContract` runs against `InMemoryWorkspace` and
-`NodeWorkspace`; a port that only renders and a strategy the core chooses
-between need none. The
+the layout of the prompts the core builds, its own stores (VS Code's settings,
+IntelliJ's application and project stores) and VS Code's reload hint; the
+bridge's workspace-root registration and rendering on `document/didChange`,
+because the host owns the document revision there. Host classes depend on the
+core ports, not on concrete adapters, so the in-memory test kit fits every one
+of them. Once a second class implements a port the core reads back from, the
+port has one contract suite in the test kit that every adapter runs, the
+in-memory fake included, as `describeWorkspaceContract` runs against
+`InMemoryWorkspace` and `NodeWorkspace`; a port that only renders and a
+strategy the core chooses between need none. The
 [`contract-suites`](engineering-practices.md#contract-suites) report lists the
 adapters that run no suite of their port. Inbound
 adapters never import outbound ones (rule 6 of the
@@ -623,7 +644,8 @@ icon as its codicon and reveals the busy list of a search after 150 ms. The
 bridge sends a choice over the existing `picker/show` request with the path as
 its description and no icon, maps the chosen indices back to values, and
 brackets a search with status-bar progress, so neither the protocol nor Kotlin
-changes. The test kit's `ScriptedPicker` answers a prompt by its id and fails
+changes. IntelliJ's `HostPicker` shows a `choose` as a list popup and a
+`chooseMany` as a `PickManyDialog`, one checkbox per item and OK. The test kit's `ScriptedPicker` answers a prompt by its id and fails
 a test whose answer the prompt does not offer, so the prompts of one run carry
 distinct ids: each engine's version prompt has its own. The new-model engine,
 engine-version, migration-scope, script-language and cleanup prompts, the choice
@@ -675,10 +697,74 @@ password dialog. Both hosts return the answer as typed, and
 the core (`enteredToken`) takes a blank answer for no token, so a blank token
 is never stored and no host trims.
 
+The template marketplace's add and remove flows run in the core's
+`MarketplaceCommands` (`template-marketplace/service/`) on both hosts, and
+`template-marketplace/domain/marketplacePrompts.ts` builds all their text.
+Removing is a choice: `marketplaceRemoval` returns the nothing-registered
+message, or a `chooseMany` prompt whose items name each entry and the scopes
+that hold it (`This project`, `All my projects`, or both), so it needed no new
+port method. Adding asks for free text and a scope together, which no
+`PickerPort` method can, so it is a new kind of input:
+`MarketplacePromptPort.promptForMarketplace` takes the `MarketplaceAddPrompt`
+that `marketplaceAddPrompt` builds (title, prompt, placeholder, the scopes to
+choose from with where each is saved, the current answer and, when the core
+asks again, why it refused the location) and returns the location and scope as
+entered, or `undefined`. The core checks the location with
+`registrableLocation` (`parseMarketplaceUrl` after the `~` expansion) and asks
+again with the refused entry until it can register one or the user cancels. The
+prompt also carries that check as a function, `problemWith`. VS Code runs it in
+its input box as the user types, so it never answers with a location the core
+refuses; a function cannot cross the bridge, so IntelliJ relies on the core
+asking again. Each host keeps its layout: VS Code asks in steps (an input box,
+then a quick pick when there is a choice), IntelliJ in one form with a radio
+button per scope, and the refusal under the location field when the core asks
+again. Both show every scope with the core's label and "Saved in …"
+description. The bridge sends the prompt without the function over
+`marketplacePrompt/show`, and IntelliJ's `MarketplaceRouter` shows its
+`AddMarketplaceDialog`. A command started again while its own question is open
+asks nothing: on IntelliJ, two clicks while the bridge starts would otherwise
+queue a second modal dialog behind the first.
+
+Each host keeps its marketplace registrations behind
+`MarketplaceRegistrationsPort`. `read` returns each scope's own list as the
+host stores it, the scopes the host can write now with where it saves each,
+and where a self-hosted marketplace is written by hand; `register` and
+`unregister` write. Whether an add registers anything is the core's
+`isAlreadyRegistered`: this project fetches the entries of both lists, so an add
+for this project changes nothing when either list holds the entry, and an add
+for all projects only when the all-projects list does, so an entry of this
+project can still be shared with all projects. The core decides on a read made
+once the marketplace is fetched, as a removal may have run while the question
+was open. `register` only appends to the scope's own list unless that list holds
+the entry; no host and not the test fake checks the other list. The core merges the lists with `registeredMarketplaces`
+(`template-marketplace/domain/marketplaceRegistrations.ts`): each entry once,
+matched by its fields, with every scope that holds it, all-projects entries
+first as both hosts union them for the fetch. VS Code's `getMarketplaces`
+unions its settings with the same function, and `withoutMarketplaceEntries`
+matches a removal the same way. A write resolves only once `SettingsPort` reads the new list, so the prune
+after a removal keeps exactly what is still registered: VS Code reads its
+settings live, and IntelliJ pushes the new snapshot before it acks
+`marketplaceState/save` or `marketplaceState/remove`; `marketplaceState/read`
+reads its stores. The scope vocabulary is the core's `MarketplaceScope`
+(`project`, `allProjects`), whose one home is `MARKETPLACE_SCOPES`; VS Code's
+settings adapter and Kotlin's `MarketplaceScope` speak it too. Where a scope is
+saved differs per host, so it reaches the core as a typed `SettingsPlace`, a
+file by its path segments or a settings page by the names that lead to it, and
+the core words it: `Saved in .vscode/settings.json` (or the open
+`.code-workspace` file, or `Settings ▸ Workspace` for a workspace not saved yet)
+and `Saved in Settings ▸ User` on VS Code, `Saved in .idea/workspace.xml` and `Saved in Settings ▸ Tools
+▸ Miragon BPMN Modeler ▸ Template Marketplaces` on IntelliJ. The
+invalid-location message names a place for self-hosted hosts only where there
+is one: VS Code's `settings.json`. IntelliJ's lists hold URL strings, which
+cannot name a self-hosted host, so it reports none, and the result of
+`marketplaceState/read` has no such field. VS Code's reload hint after
+an in-place update, and the `not a registered configuration` match that
+triggers it, stay in its `TemplateMarketplaceController`.
+
 No adapter builds prompt text. A new choice or confirmation needs a builder and
 an id, and no new port method, RPC or Kotlin handler. A new kind of input, such
-as the masked one, needs its own port method, RPC and Kotlin handler, as the
-token prompt has.
+as the masked token or the marketplace's free-text location, needs its own port
+method, RPC and Kotlin handler, as those two have.
 
 Two kinds of text belong to the host and are written there: its chrome, such as
 VS Code's "Reload Window" button, and messages about its own failure, such as
@@ -915,11 +1001,12 @@ because host work can queue behind a modal dialog or a keychain prompt. Prompts
 wait for the user. A write the core keeps its own state in step with has no
 deadline either, because giving up on a write the host still applies would
 leave that state out of step with the host: `document/write` and
-`deploymentState/save` update a bridge mirror only on their reply, and a failed
-`marketplaceState/save` drops the templates its add just fetched. Such a
-request holds its caller until the host answers. `document/write` runs on the
-EDT, so a modal dialog delays it; the host answers the other two on its reader
-thread, which runs no work that waits for the user. `Rpc` fails every
+`deploymentState/save` update a bridge mirror only on their reply, a failed
+`marketplaceState/save` drops the templates its add just fetched, and the prune
+after `marketplaceState/remove` reads the list the host pushed before its
+reply. Such a request holds its caller until the host answers.
+`document/write` runs on the EDT, so a modal dialog delays it; the host answers
+the others on its reader thread, which runs no work that waits for the user. `Rpc` fails every
 outstanding and later request once its input ends; the stdio binding signals
 the end of stdin and then exits the process.
 
@@ -1165,6 +1252,48 @@ a cached result must equal an uncached run.
   touched both adapters, the RPC and Kotlin. Core-built views and prompts cost
   the hosts per-item freedom: a host renders only what the shared shape
   carries, so a widget-specific touch needs a field in that shape first.
+- The marketplace's free-text location could have come through a generic
+  text-input port beside `TokenPromptPort`, with the scope through
+  `PickerPort.choose`. That costs the same protocol as the add question (one
+  port method, one RPC, one Kotlin handler) but splits IntelliJ's one form into
+  two dialogs and the question into two prompts the core has to sequence. A
+  text prompt with a `password` flag in place of `TokenPromptPort` adds no RPC,
+  but changes `tokenPrompt/show` and its handler, makes `RpcChannel`'s log
+  redaction depend on a flag instead of the method, and still splits the form.
+  The add question costs one RPC for one flow; another free-text question will
+  need its own method or a generalisation of this one.
+- Checking the location only after the answer would cost VS Code its check as
+  the user types and make it ask for the scope before saying the location is
+  wrong. The `problemWith` function in the prompt is the check the core applies
+  anyway, at the cost of a prompt that is not plain data: the bridge drops the
+  function and IntelliJ learns of a refusal only when the core asks again.
+- The hosts worded where a scope is saved themselves, and the words drifted
+  ("Saved in your user settings" against "Also shown in Settings ▸ Tools ▸
+  Miragon BPMN Modeler"); IntelliJ's hint even sent self-hosted hosts to a
+  settings page that accepts only URL strings. Wording both scopes alike
+  without the place would drop what tells the user whether an entry lands in
+  the repository or in their own settings. A typed `SettingsPlace` keeps that
+  fact per host and the words in the core; a text from the host would be host
+  prose again.
+- IntelliJ could have piggybacked its registrations on `marketplace/add` and
+  `marketplace/remove`, saving `marketplaceState/read`, but the bridge would
+  need a mirror for them and a read would hang off a trigger.
+- IntelliJ could show a `chooseMany` prompt in the list popup it uses for
+  `choose`, with Ctrl- and Shift-click for several rows. A plain click or Enter
+  chooses a popup row at once, so one stray click would remove a marketplace
+  or deploy one file. `HostPicker` shows `chooseMany` as a `PickManyDialog`
+  instead: a checkbox per item and OK, as IntelliJ's own remove dialog had
+  before the core built the choice. OK with nothing checked is a cancel.
+- `MarketplaceRegistrationsPort.read` could return the merged registrations
+  with their scopes. Each host and the test fake then merged the lists
+  themselves (one entry per structural key, its scopes, all-projects first):
+  three copies in TypeScript and Kotlin that no test compared. Each scope's own
+  list costs a host nothing and leaves one merge, in the core.
+- Each host's `register` could keep deciding whether an add registers anything,
+  as VS Code's settings adapter and IntelliJ's project store did. Those were two
+  copies of the rule, and the test fake followed neither, so the core's specs
+  pinned a behaviour no host had. Deciding in the core costs one more `read` per
+  add, a `marketplaceState/read` round trip on IntelliJ.
 - A port for `MarketplaceCache` or `DiffPaneStore` would add an interface with
   one implementation that no host or spec substitutes; the specs already run
   the real stores over the in-memory host kit. A second implementation is the

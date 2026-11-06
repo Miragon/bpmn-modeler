@@ -1,8 +1,9 @@
 /**
  * The slice of the `vscode` module the window adapters touch, for
  * `vi.mock("vscode", () => import(".../vscodeWindowFake"))`. It keeps what the
- * user would see: status bar items, toasts, log lines, progress indicators and
- * the commands that ran. Call {@link resetVscodeWindow} before each test.
+ * user would see: status bar items, toasts, input boxes, quick picks, log
+ * lines, progress indicators, and the commands registered and run. Call
+ * {@link resetVscodeWindow} before each test.
  */
 
 export { Uri } from "./vscodeFileSystemFake";
@@ -82,6 +83,78 @@ export class FakeToast {
     }
 }
 
+export interface InputBoxOptions {
+    readonly title?: string;
+    readonly prompt?: string;
+    readonly placeHolder?: string;
+    readonly value?: string;
+    readonly password?: boolean;
+    readonly ignoreFocusOut?: boolean;
+    readonly validateInput?: (value: string) => string | undefined | null;
+}
+
+/** An open input box: VS Code accepts no value its `validateInput` flags. */
+export class FakeInputBox {
+    private answer: (value: string | undefined) => void = () => undefined;
+
+    readonly answered = new Promise<string | undefined>((resolve) => (this.answer = resolve));
+
+    constructor(readonly options: InputBoxOptions) {}
+
+    /** The validation message the box shows under `value`. */
+    message(value = this.options.value ?? ""): string | undefined {
+        return this.options.validateInput?.(value) ?? undefined;
+    }
+
+    accept(value: string): void {
+        const message = this.message(value);
+        if (message) {
+            throw new Error(`The input box does not accept "${value}": ${message}`);
+        }
+        this.answer(value);
+    }
+
+    dismiss(): void {
+        this.answer(undefined);
+    }
+}
+
+export interface QuickPickItem {
+    readonly label: string;
+    readonly description?: string;
+}
+
+export interface QuickPickOptions {
+    readonly title?: string;
+    readonly placeHolder?: string;
+    readonly canPickMany?: boolean;
+    readonly matchOnDescription?: boolean;
+}
+
+export class FakeQuickPick {
+    private answer: (picked: unknown) => void = () => undefined;
+
+    readonly answered = new Promise<unknown>((resolve) => (this.answer = resolve));
+
+    constructor(
+        readonly items: readonly QuickPickItem[],
+        readonly options: QuickPickOptions,
+    ) {}
+
+    pick(...labels: string[]): void {
+        const picked = labels.map((label) => {
+            const item = this.items.find((offered) => offered.label === label);
+            if (!item) throw new Error(`The quick pick offers no "${label}".`);
+            return item;
+        });
+        this.answer(this.options.canPickMany ? picked : picked[0]);
+    }
+
+    dismiss(): void {
+        this.answer(undefined);
+    }
+}
+
 export type LogLevel = "debug" | "info" | "warning" | "error";
 
 export interface LogLine {
@@ -135,6 +208,9 @@ const toasts: FakeToast[] = [];
 const outputChannels: FakeLogOutputChannel[] = [];
 const progressIndicators: ProgressIndicator[] = [];
 const executedCommands: ExecutedCommand[] = [];
+const inputBoxes: FakeInputBox[] = [];
+const quickPicks: FakeQuickPick[] = [];
+const registeredCommands = new Map<string, (...args: unknown[]) => unknown>();
 
 export const vscodeWindow = {
     statusBarItems: statusBarItems as readonly FakeStatusBarItem[],
@@ -142,6 +218,9 @@ export const vscodeWindow = {
     outputChannels: outputChannels as readonly FakeLogOutputChannel[],
     progressIndicators: progressIndicators as readonly ProgressIndicator[],
     executedCommands: executedCommands as readonly ExecutedCommand[],
+    inputBoxes: inputBoxes as readonly FakeInputBox[],
+    quickPicks: quickPicks as readonly FakeQuickPick[],
+    registeredCommands: registeredCommands as ReadonlyMap<string, (...args: unknown[]) => unknown>,
 };
 
 export function resetVscodeWindow(): void {
@@ -150,6 +229,9 @@ export function resetVscodeWindow(): void {
     outputChannels.length = 0;
     progressIndicators.length = 0;
     executedCommands.length = 0;
+    inputBoxes.length = 0;
+    quickPicks.length = 0;
+    registeredCommands.clear();
 }
 
 /** The visible items left to right, as VS Code lays them out: left side first, higher priority further left. */
@@ -203,6 +285,19 @@ export const window = {
         showMessage("warning", message, actions),
     showErrorMessage: (message: string, ...actions: string[]) =>
         showMessage("error", message, actions),
+    showInputBox(options: InputBoxOptions): Promise<string | undefined> {
+        const box = new FakeInputBox(options);
+        inputBoxes.push(box);
+        return box.answered;
+    },
+    showQuickPick(
+        items: readonly QuickPickItem[],
+        options: QuickPickOptions = {},
+    ): Promise<unknown> {
+        const pick = new FakeQuickPick(items, options);
+        quickPicks.push(pick);
+        return pick.answered;
+    },
     createOutputChannel(name: string, options?: { log: true }): FakeLogOutputChannel {
         const channel = new FakeLogOutputChannel(name, options?.log === true);
         outputChannels.push(channel);
@@ -230,5 +325,12 @@ export const commands = {
     async executeCommand(command: string, ...args: unknown[]): Promise<undefined> {
         executedCommands.push({ command, args });
         return undefined;
+    },
+    registerCommand(
+        command: string,
+        handler: (...args: unknown[]) => unknown,
+    ): { dispose(): void } {
+        registeredCommands.set(command, handler);
+        return { dispose: () => registeredCommands.delete(command) };
     },
 };

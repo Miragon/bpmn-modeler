@@ -132,7 +132,7 @@ retain retryable feedback rather than inheriting automatic failure handling.
 The optional port keeps form-js and IDE transport out of embedders. Enforcement
 lives in the [service](../../libs/modeler-core/src/navigation/service/FormPreviewService.spec.ts),
 [reducer](../../libs/model-navigation/src/formPreviewState.spec.ts),
-[webview](../../apps/bpmn-webview/src/session/formPreview.spec.ts) and
+[webview](../../apps/bpmn-webview/src/adapter/out/formPreview.spec.ts) and
 [browser](../../packages/bpmn-modeler/src/formPreview.browser.spec.ts) tests.
 
 ### Surfaces and modes
