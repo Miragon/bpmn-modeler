@@ -7,7 +7,8 @@ workspaces**. This file holds only what the code and the skills do not say.
 ## Skills
 
 The skills in `.agents/skills/` carry the detail: `architecture` (where code
-belongs, package boundaries, ports), `tdd`, `adr`, `commit`, `bpmn-js`,
+belongs, package boundaries, ports), `architecture-review` (a branch or PR
+against the fitness function report), `tdd`, `adr`, `commit`, `bpmn-js`,
 `vscode-custom-editors`, `vscode-webviews`, `vscode-ux-guidelines`,
 `intellij-plugin`, `i18n-translate` and `bpmn-browser-testing`. Invoke them
 with `/skill-name` in Claude Code or `$skill-name` in Codex.

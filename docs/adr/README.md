@@ -14,7 +14,7 @@ share a topic document. Git preserves earlier decisions and their evolution.
 | [DMN modeler](dmn-modeler.md) | Separate embeddable package, public API, themes, locale |
 | [Deployment](deployment.md) | Targets, credentials, execution, freshness ledger, engine reconciliation |
 | [Release and publishing](release-and-publishing.md) | Release components, source markers, npm packing, authentication and consumer checks |
-| [Engineering practices](engineering-practices.md) | Test environments, coverage gates, CI test targets, private upstream APIs, dependency compatibility and security |
+| [Engineering practices](engineering-practices.md) | Test environments, coverage gates, CI test targets, architecture erosion (architecture tests, fitness functions, architecture review), private upstream APIs, dependency compatibility and security |
 
 ## Recording rules
 
