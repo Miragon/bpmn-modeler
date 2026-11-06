@@ -50,7 +50,7 @@ class ModelerSettingsConfigurable : Configurable {
     private val state = uiStateOf(loadedSettings)
     private var dialogPanel: DialogPanel? = null
 
-    override fun getDisplayName(): String = "Miragon BPMN Modeler"
+    override fun getDisplayName(): String = DISPLAY_NAME
 
     override fun createComponent(): JComponent {
         val builtPanel =
@@ -147,7 +147,7 @@ class ModelerSettingsConfigurable : Configurable {
                             )
                     }
                 }
-                group("Template Marketplaces") {
+                group(MARKETPLACES_GROUP) {
                     row {
                         textArea()
                             .align(AlignX.FILL)
@@ -248,10 +248,12 @@ class ModelerSettingsConfigurable : Configurable {
     private fun parseMarketplaces(text: String): List<String> =
         text.lines().map { it.trim() }.filter { it.isNotEmpty() }
 
-    private companion object {
-        const val FAVOURITES_ROWS = 5
-        const val MARKETPLACES_ROWS = 4
+    internal companion object {
+        const val DISPLAY_NAME = "Miragon BPMN Modeler"
+        const val MARKETPLACES_GROUP = "Template Marketplaces"
+        private const val FAVOURITES_ROWS = 5
+        private const val MARKETPLACES_ROWS = 4
 
-        val MODE_LABELS = mapOf("implement" to "Implement", "design" to "Design", "view" to "View")
+        private val MODE_LABELS = mapOf("implement" to "Implement", "design" to "Design", "view" to "View")
     }
 }

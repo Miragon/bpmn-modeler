@@ -110,7 +110,7 @@
         "method": "marketplace/add",
         "direction": "hostToCore",
         "kind": "notification",
-        "paramKeys": ["location", "scope", "settings"]
+        "paramKeys": ["settings"]
     },
     {
         "method": "marketplace/update",
@@ -122,7 +122,7 @@
         "method": "marketplace/remove",
         "direction": "hostToCore",
         "kind": "notification",
-        "paramKeys": ["removedCount", "settings"]
+        "paramKeys": ["settings"]
     },
     {
         "method": "modeler/changeEngineVersion",
@@ -271,10 +271,38 @@
         "paramKeys": ["patch"]
     },
     {
+        "method": "marketplaceState/read",
+        "direction": "coreToHost",
+        "kind": "request",
+        "paramKeys": [],
+        "resultKeys": ["registered", "writable"]
+    },
+    {
         "method": "marketplaceState/save",
         "direction": "coreToHost",
         "kind": "request",
         "paramKeys": ["location", "scope"]
+    },
+    {
+        "method": "marketplaceState/remove",
+        "direction": "coreToHost",
+        "kind": "request",
+        "paramKeys": ["entries"]
+    },
+    {
+        "method": "marketplacePrompt/show",
+        "direction": "coreToHost",
+        "kind": "request",
+        "paramKeys": [
+            "invalidLocation",
+            "location",
+            "placeholder",
+            "prompt",
+            "scope",
+            "scopes",
+            "title"
+        ],
+        "resultKeys": ["location", "scope"]
     },
     {
         "method": "tokenStore/get",

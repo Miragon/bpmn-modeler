@@ -105,10 +105,13 @@ suite shows as new until its spec runs the suite.
   Cross-cutting host ports live in the core's `kernel/port/hostPorts.ts`; a
   port one feature owns lives in that feature's `port/`, which holds only
   interfaces, and the prompts it asks are built in its `domain/`, the
-  marketplace's masked token prompt (`tokenPrompt.ts`) included. A host only
-  renders a prompt and returns the answer; the core reads it, and takes a
-  blank token for no token. Wire concrete adapters in the applications using
-  constructor composition.
+  marketplace's masked token prompt (`tokenPrompt.ts`) and its add question
+  and remove choice (`marketplacePrompts.ts`) included. A host only renders a
+  prompt in its own layout and returns the answer; the core reads it, takes a
+  blank token for no token, and checks an entered location and asks again. A
+  fact that differs per host, such as where a scope is saved, reaches the core
+  as a typed value (`SettingsPlace`), never as host-built prose. Wire concrete
+  adapters in the applications using constructor composition.
 - Preserve factory/handle API compatibility and package exports. Supply optional
   BPMN capabilities through ports; keep linting injectable and browser themes
   container-scoped. Use feature barrels for cross-feature access.
