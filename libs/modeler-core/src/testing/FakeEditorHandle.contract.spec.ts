@@ -1,4 +1,4 @@
-import { settingKeyOf } from "../kernel/domain/modelerSettings";
+import { ModelerSettingsSnapshot, settingKeyOf } from "../kernel/domain/modelerSettings";
 import { describeEditorHandleContract } from "./editorHandleContract";
 import { FakeEditorHandle } from "./FakeEditorHandle";
 
@@ -12,7 +12,11 @@ describeEditorHandleContract("FakeEditorHandle", ({ fileName, content }) => {
         blur: () => handle.loseFocus(),
         editElsewhere: (edited) => handle.changeDocument(edited),
         changeSettings: (values) =>
-            handle.changeSetting(...Object.keys(values).map((key) => settingKeyOf(key as never))),
+            handle.changeSetting(
+                ...Object.keys(values).map((key) =>
+                    settingKeyOf(key as keyof ModelerSettingsSnapshot),
+                ),
+            ),
         refuseWrites: () => {
             handle.refusesWrites = true;
         },
