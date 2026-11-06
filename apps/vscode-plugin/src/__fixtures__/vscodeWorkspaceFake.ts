@@ -7,8 +7,9 @@
  * one batch, coalesced per path, a directory moved in or deleted as one event
  * for the directory. A workspace folder is looked up ignoring case, as on
  * Windows, where a drive path can occur; the disk and the globs compare
- * case-sensitively, as on Linux. Symbolic links are not followed. Call
- * {@link resetVscodeWorkspace} before each test.
+ * case-sensitively, as on Linux. `stat` and `readDirectory` report a symbolic
+ * link with the `SymbolicLink` bit, and `findFiles` follows links as VS Code's
+ * search does. Call {@link resetVscodeWorkspace} before each test.
  */
 import { promises as fs } from "node:fs";
 import { tmpdir } from "node:os";
@@ -264,7 +265,7 @@ export const workspace = {
             });
             const skips = (below: string) =>
                 nestedFolders.includes(below) || excludes.some((glob) => glob.test(below));
-            for (const below of await filesBelow(folder.uri.fsPath, "", skips)) {
+            for (const below of await filesBelowFolder(folder.uri.fsPath, skips)) {
                 if (included.test(below)) found.push(Uri.joinPath(folder.uri, below));
             }
         }
@@ -378,21 +379,42 @@ async function pathsBelow(path: string): Promise<string[]> {
     return below.flat();
 }
 
-/** The files below `directory`, as paths below the folder searched. */
+/**
+ * The files below `folder`, as paths below it. A symbolic link is followed, as
+ * ripgrep's `--follow` does under VS Code's default `search.followSymlinks`:
+ * a linked file is listed under the link's path, a linked folder is searched
+ * unless the walk came through it, and a link that cannot be resolved is skipped.
+ */
+async function filesBelowFolder(
+    folder: string,
+    skips: (below: string) => boolean,
+): Promise<string[]> {
+    const real = await fs.realpath(folder).catch(() => undefined);
+    return real === undefined ? [] : filesBelow(folder, "", skips, [real]);
+}
+
+/** `walked` holds the real paths of the folders down to `directory`, its own last. */
 async function filesBelow(
     directory: string,
     prefix: string,
     skips: (below: string) => boolean,
+    walked: readonly string[],
 ): Promise<string[]> {
     const entries = await fs.readdir(directory, { withFileTypes: true }).catch(() => []);
     const files = await Promise.all(
         entries.map(async (entry) => {
             const below = prefix === "" ? entry.name : `${prefix}/${entry.name}`;
             if (skips(below)) return [];
-            if (entry.isDirectory()) {
-                return filesBelow(posix.join(directory, entry.name), below, skips);
-            }
-            return entry.isFile() ? [below] : [];
+            const path = posix.join(directory, entry.name);
+            const isLink = entry.isSymbolicLink();
+            const target = isLink ? await fs.stat(path).catch(() => undefined) : entry;
+            if (target?.isFile()) return [below];
+            if (!target?.isDirectory()) return [];
+            const real = isLink
+                ? await fs.realpath(path).catch(() => undefined)
+                : posix.join(walked[walked.length - 1], entry.name);
+            if (real === undefined || walked.includes(real)) return [];
+            return filesBelow(path, below, skips, [...walked, real]);
         }),
     );
     return files.flat();
