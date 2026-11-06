@@ -52,7 +52,11 @@ internal fun marketplaceAddPanel(
                 .bindText(form::location)
                 .comment(StringUtil.escapeXmlEntities(question.prompt))
                 .focused()
-                .applyToComponent { emptyText.setText(question.placeholder) }
+                .applyToComponent {
+                    emptyText.setText(question.placeholder)
+                    // No label names the field; the prompt under it is a comment, not tied to the field.
+                    accessibleContext.accessibleName = question.prompt
+                }
         }
         question.invalidLocation?.let { refusal ->
             row {
