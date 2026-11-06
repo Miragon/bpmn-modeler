@@ -612,7 +612,8 @@ icon as its codicon and reveals the busy list of a search after 150 ms. The
 bridge sends a choice over the existing `picker/show` request with the path as
 its description and no icon, maps the chosen indices back to values, and
 brackets a search with status-bar progress, so neither the protocol nor Kotlin
-changes. The test kit's `ScriptedPicker` answers a prompt by its id and fails
+changes. IntelliJ's `HostPicker` shows a `choose` as a list popup and a
+`chooseMany` as a `PickManyDialog`, one checkbox per item and OK. The test kit's `ScriptedPicker` answers a prompt by its id and fails
 a test whose answer the prompt does not offer, so the prompts of one run carry
 distinct ids: each engine's version prompt has its own. The new-model engine,
 engine-version, migration-scope, script-language and cleanup prompts, the choice
