@@ -2,6 +2,12 @@ import { roleOf } from "@miragon/architecture-testing";
 
 import { compareText, type Finding, sortFindings } from "../../fitness/domain/finding";
 import type { FindingGroup } from "../../fitness/domain/fitnessFunction";
+import {
+    DECLARATION_FILE,
+    SPEC_FILE,
+    TEST_FOLDERS,
+    TYPESCRIPT_FILE,
+} from "../../sourceFiles/domain/sourceFiles";
 
 /** The core's test kit: a contract helper is a function it exports. */
 export const CONTRACT_HELPER_MODULE = "@miragon/bpmn-modeler-core/testing";
@@ -79,17 +85,34 @@ export type CoreScopeOutcome =
 
 type ContractSuiteGroup = "skips-suite" | "no-suite" | "one-adapter" | "render-only";
 
-const SPEC_SOURCE = /\.(spec|test)\.[^/]+$/;
-// Fixtures are inputs of tests, and a declaration file only types code; neither holds an adapter.
-const TEST_INPUT = /(^|\/)__fixtures__\/|\.d\.[mc]?ts$/;
 const LISTED_MEMBERS = 3;
 
 export function isSpecSource(path: string): boolean {
-    return SPEC_SOURCE.test(path);
+    return SPEC_FILE.test(path);
 }
 
 export function isProductionSource(path: string): boolean {
-    return !isSpecSource(path) && !TEST_INPUT.test(path);
+    return (
+        !isSpecSource(path) &&
+        !DECLARATION_FILE.test(path) &&
+        !path
+            .split("/")
+            .slice(0, -1)
+            .some((folder) => TEST_FOLDERS.has(folder))
+    );
+}
+
+function inHexagonalWorkspace(path: string, { hexagonalSourceRoots }: CoreScope): boolean {
+    return hexagonalSourceRoots.some((sourceRoot) => path.startsWith(sourceRoot));
+}
+
+/** Specs included, so their imports and calls resolve. */
+export function isProgramSource(path: string, scope: CoreScope): boolean {
+    return (
+        TYPESCRIPT_FILE.test(path) &&
+        !DECLARATION_FILE.test(path) &&
+        inHexagonalWorkspace(path, scope)
+    );
 }
 
 export function coreScopeOf({ helperModule, hexagonalWorkspaceDirs }: KitLayout): CoreScopeOutcome {
@@ -125,11 +148,8 @@ export function isPortSource(path: string, { coreSourceRoot }: CoreScope): boole
     );
 }
 
-export function isAdapterSource(path: string, { hexagonalSourceRoots }: CoreScope): boolean {
-    return (
-        hexagonalSourceRoots.some((sourceRoot) => path.startsWith(sourceRoot)) &&
-        isProductionSource(path)
-    );
+export function isAdapterSource(path: string, scope: CoreScope): boolean {
+    return inHexagonalWorkspace(path, scope) && isProductionSource(path);
 }
 
 function idOf({ path, name }: Declared): string {

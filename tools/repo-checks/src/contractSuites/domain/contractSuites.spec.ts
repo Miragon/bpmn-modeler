@@ -13,6 +13,7 @@ import {
     isAdapterSource,
     isPortSource,
     isProductionSource,
+    isProgramSource,
     isSpecSource,
     type Port,
 } from "./contractSuites";
@@ -356,8 +357,20 @@ describe("the source kinds", () => {
         ["apps/vscode-plugin/src/shared/adapter/out/VsCodeWorkspace.spec.ts", false, true],
         ["apps/vscode-plugin/src/ui/View.test.tsx", false, true],
         ["apps/vscode-plugin/src/__fixtures__/vscodeStorage.ts", false, false],
+        ["apps/vscode-plugin/src/__tests__/helpers.ts", false, false],
         ["apps/vscode-plugin/src/types/vscode.d.ts", false, false],
     ])("%s holds adapters: %s, is a spec: %s", (path, production, specFile) => {
         expect([isProductionSource(path), isSpecSource(path)]).toEqual([production, specFile]);
+    });
+
+    it.each([
+        ["apps/modeler-bridge/src/kernel/adapter/out/NodeWorkspace.ts", true],
+        ["apps/modeler-bridge/src/kernel/adapter/out/NodeWorkspace.contract.spec.ts", true],
+        ["libs/modeler-core/src/ui/View.tsx", true],
+        ["libs/modeler-core/src/types/shims.d.ts", false],
+        ["libs/modeler-core/src/kernel/domain/cases.json", false],
+        ["apps/flat/src/FlatWorkspace.ts", false],
+    ])("the type program starts from %s: %s", (path, accepted) => {
+        expect(isProgramSource(path, SCOPE)).toBe(accepted);
     });
 });

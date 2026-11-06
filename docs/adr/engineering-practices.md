@@ -1021,11 +1021,13 @@ lives in `tools/repo-checks/src/contractSuites/domain`.
   they would add 18 pairs no helper can cover: 12 without a suite (11
   adapters of `tools/repo-checks` ports and `RpcEditorHandle` as the bridge's
   `HostEditorHandle`) and 6 render-only pairs of bridge and tooling ports.
-- **Adapters.** A named class outside specs, tests, `__fixtures__/` and
-  declaration files of any hexagonal workspace whose `implements` clause
-  reaches the port, also through an interface that extends it:
-  `RpcEditorHandle` implements the bridge's `HostEditorHandle`, which extends
-  `EditorHandle`, and every `NotifierPort` adapter is a `LoggerPort` adapter.
+- **Adapters.** A named class outside specs, declaration files and test
+  folders (`__fixtures__`, `__tests__`, `test`, `tests`, the patterns of
+  [Size and complexity](#size-and-complexity)) of any hexagonal workspace
+  whose `implements` clause reaches the port, also through an interface that
+  extends it: `RpcEditorHandle` implements the bridge's `HostEditorHandle`,
+  which extends `EditorHandle`, and every `NotifierPort` adapter is a
+  `LoggerPort` adapter.
   Host adapters and the in-memory kit count alike.
 - **Helpers.** A function the kit exports with a parameter that produces the
   port: a factory whose awaited return is the port or an object one of whose

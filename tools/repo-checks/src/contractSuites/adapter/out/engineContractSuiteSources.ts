@@ -17,13 +17,11 @@ import {
     type Declared,
     isAdapterSource,
     isPortSource,
+    isProgramSource,
     isSpecSource,
     type KitLayout,
 } from "../../domain/contractSuites";
 import type { ContractSuiteSources } from "../../port/ContractSuiteSources";
-
-const TYPESCRIPT_SOURCE = /\.[mc]?tsx?$/;
-const DECLARATION_FILE = /\.d\.[mc]?ts$/;
 
 export class EngineContractSuiteSources implements ContractSuiteSources {
     readLayout(repoRoot: string): KitLayout {
@@ -46,12 +44,7 @@ export class EngineContractSuiteSources implements ContractSuiteSources {
         // An import through node_modules resolves to the real path, so a symlinked root loads it twice.
         const root = realpathSync(repoRoot);
         const tracked = new Set(trackedFiles(root));
-        const sources = [...tracked].filter(
-            (path) =>
-                TYPESCRIPT_SOURCE.test(path) &&
-                !DECLARATION_FILE.test(path) &&
-                scope.hexagonalSourceRoots.some((sourceRoot) => path.startsWith(sourceRoot)),
-        );
+        const sources = [...tracked].filter((path) => isProgramSource(path, scope));
         const pathOf = (fileName: string): string => relative(root, fileName).split(sep).join("/");
         const trackedPathOf = (fileName: string): string | undefined => {
             const path = pathOf(fileName);
