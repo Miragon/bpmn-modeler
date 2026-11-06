@@ -9,6 +9,8 @@ import { METHODS } from "../../../protocol/domain/descriptor";
  * its text; the host only renders it.
  */
 export class RpcNotifier implements NotifierPort {
+    private readonly runningProgressByTitle = new Map<string, number>();
+
     constructor(private readonly rpc: Rpc) {}
 
     showInfo(message: string): void {
@@ -55,14 +57,32 @@ export class RpcNotifier implements NotifierPort {
      * The progress task runs core-side (that is where the work is); the host
      * only renders a spinner, so we bracket the local run with start/end
      * notifications and `finally` guarantees the spinner clears even on throw.
+     * The host keeps one spinner per title, so overlapping runs of a title
+     * share one bracket: the first run starts it and the last one ends it.
      */
     async withProgress<T>(title: string, task: () => Promise<T>): Promise<T> {
-        this.rpc.notify(METHODS.notifierProgressStart, { title });
+        this.startProgressRun(title);
         try {
             return await task();
         } finally {
-            this.rpc.notify(METHODS.notifierProgressEnd, { title });
+            this.endProgressRun(title);
         }
+    }
+
+    private startProgressRun(title: string): void {
+        const running = this.runningProgressByTitle.get(title) ?? 0;
+        this.runningProgressByTitle.set(title, running + 1);
+        if (running === 0) this.rpc.notify(METHODS.notifierProgressStart, { title });
+    }
+
+    private endProgressRun(title: string): void {
+        const stillRunning = (this.runningProgressByTitle.get(title) ?? 1) - 1;
+        if (stillRunning > 0) {
+            this.runningProgressByTitle.set(title, stillRunning);
+            return;
+        }
+        this.runningProgressByTitle.delete(title);
+        this.rpc.notify(METHODS.notifierProgressEnd, { title });
     }
 
     async openDocument(absolutePath: string): Promise<void> {

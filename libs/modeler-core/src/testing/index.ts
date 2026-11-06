@@ -13,6 +13,7 @@ export * from "./inMemoryHostSurfaces";
 export * from "./InMemorySettings";
 export * from "./InMemoryWorkspace";
 export * from "./lintingPreferenceContract";
+export * from "./notifierContract";
 export * from "./propertiesPanelStateContract";
 export * from "./RecordingNotifier";
 export * from "./RecordingScriptEditor";

@@ -100,6 +100,10 @@ host part, the suite cannot tell, and the Kotlin half is #2056.
   adapter (`InMemorySettings`, `VsCodeSettings`, `BridgeSettings`). VS Code's
   pair runs over a configuration fake with a user and a workspace scope, the
   bridge's over a loopback that answers as `SettingsRouter` does.
+- `describeNotifierContract`, which covers `withProgress`:
+  `RecordingNotifier`, `VsCodeNotifier` over `vscodeWindowFake.ts` and the
+  bridge's `RpcNotifier` over a loopback that answers as `HostUiRouter.kt`
+  does.
 - `describePropertiesPanelStateContract`: `InMemoryPropertiesPanelState` and
   VS Code's `PropertiesPanelStateRepository` over an in-memory `Memento`. The
   bridge has no adapter of this port.
@@ -1319,11 +1323,11 @@ lives in `tools/repo-checks/src/contractSuites/domain`.
   `Promise<T>` are reads. A port that has a suite lists every adapter that
   skips it, render-only or not. On the ports the issue names, `StatusBarPort`
   (`show`, `hide`) and `DiagnosticsPort` (`publish`, `clear`) are render-only.
-  `NotifierPort` is not: `withProgress<T>` returns the task's `Promise<T>`, and
-  its three adapters hand that result back in three ways (VS Code's progress
-  API, `try`/`finally` around the bridge's progress notifications, a direct
-  call in the fake), so they are listed as true findings, while its base
-  `LoggerPort` is render-only.
+  `NotifierPort` is not: `withProgress<T>` returns the task's `Promise<T>`, so
+  its three adapters were true findings until each ran
+  `describeNotifierContract`, while its base `LoggerPort` is render-only. That
+  suite clears the `LoggerPort` pairs too, because a `NotifierPort` fixture
+  holds a `LoggerPort`, though it calls no logging member.
   `LintingPreferencePort.setLintingEnabled` returns `void | Promise<void>`, so
   that port is marked render-only although the core reads the value back
   through `SettingsPort.getLintingEnabled`.
