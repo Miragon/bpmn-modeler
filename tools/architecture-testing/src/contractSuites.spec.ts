@@ -73,7 +73,7 @@ export interface HostHandle extends Handle {
     receive(): void;
 }
 `,
-    [ADAPTERS]: `import type { Alias, Box, Foo, Renderer } from "${corePorts}";
+    [ADAPTERS]: `import type { Alias, Box, Foo, Merged, Renderer } from "${corePorts}";
 import type { NotAPort } from "../core/domain/values";
 import type { HostHandle } from "./HostHandle";
 
@@ -110,6 +110,14 @@ export class StringBox implements Box<string> {
     get(): string { return "box"; }
     odd(): { then(resolve: string): void } { return { then: () => undefined }; }
 }
+
+type FooAndMerged = Foo & Merged;
+
+export class Combined implements FooAndMerged {
+    async read(): Promise<string> { return "combined"; }
+    first(): void { return; }
+    second(): string { return "second"; }
+}
 `,
     [DEFAULT_ADAPTER]: `import type { Foo } from "${corePorts}";
 
@@ -143,6 +151,14 @@ export function describeGenericFoo<F extends Foo>(
     create: () => Promise<{ readonly foo: F }>,
 ): void {
     void adapter;
+    void create;
+}
+
+export function describeDisposableFoo(create: () => Foo & { dispose(): void }): void {
+    void create;
+}
+
+export function describeAnything<F>(create: () => F): void {
     void create;
 }
 
@@ -253,6 +269,7 @@ const FOO = { fileName: PORTS, name: "Foo" };
 const RENDERER = { fileName: PORTS, name: "Renderer" };
 const HANDLE = { fileName: PORTS, name: "Handle" };
 const BOX = { fileName: PORTS, name: "Box" };
+const MERGED = { fileName: PORTS, name: "Merged" };
 const DESCRIBE_FOO = { fileName: KIT, name: "describeFoo" };
 const RENDERER_MEMBERS = [
     { name: "show", returnsNothing: true },
@@ -302,20 +319,22 @@ describe("findContractSuites", () => {
         ]);
     });
 
-    it("lists each named class outside specs whose implements clause reaches a port, generic or through extended interfaces", () => {
+    it("lists each named class outside specs whose implements clause reaches a port, generic, through extended interfaces or an intersection", () => {
         expect(suites.adapters).toEqual([
             { fileName: ADAPTERS, name: "FooAdapter", line: 5, ports: [FOO] },
             { fileName: ADAPTERS, name: "HostRenderer", line: 9, ports: [HANDLE, RENDERER] },
             { fileName: ADAPTERS, name: "StringBox", line: 34, ports: [BOX] },
+            { fileName: ADAPTERS, name: "Combined", line: 41, ports: [FOO, MERGED] },
             { fileName: DEFAULT_ADAPTER, name: "DefaultAdapter", line: 3, ports: [FOO] },
         ]);
     });
 
-    it("lists each exported function whose parameter is a factory of a port or of a fixture holding one, generic or re-exported", () => {
+    it("lists each exported function whose parameter is a factory of a port or of a fixture holding one, bounded by it, in an intersection or re-exported", () => {
         expect(suites.helpers).toEqual([
             { ...DESCRIBE_FOO, ports: [FOO] },
             { fileName: KIT, name: "runFoo", ports: [FOO] },
             { fileName: KIT, name: "describeGenericFoo", ports: [FOO] },
+            { fileName: KIT, name: "describeDisposableFoo", ports: [FOO] },
             { fileName: RE_EXPORTED_KIT, name: "describeBox", ports: [BOX] },
             { fileName: MORE_KIT, name: "describeHandle", ports: [HANDLE, RENDERER] },
         ]);
