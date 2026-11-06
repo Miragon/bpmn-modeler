@@ -1,4 +1,6 @@
 export * from "./createTestHost";
+export * from "./diffPaneContract";
+export * from "./FakeDiffPaneHandle";
 export * from "./FakeEditorHandle";
 export * from "./InMemoryCredentials";
 export * from "./InMemoryDeploymentState";
