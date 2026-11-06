@@ -11,15 +11,14 @@ import {
     TakeFocusQuery,
 } from "@miragon/bpmn-modeler-shared";
 
+import type { SessionMessageType } from "../../domain/sessionMessageAdmission";
 import {
-    admitSessionMessage,
     createHostMessageRouter,
     createSessionMessageRouter,
     type DiffPaneHostMessages,
     type HostMessage,
     type HostMessageHandlers,
     type SessionHostMessages,
-    type SessionMessageType,
 } from "./messageRouter";
 
 function createHost() {
@@ -67,24 +66,6 @@ function fakeSessionHandlers() {
 }
 
 const sessionMessageTypes = Object.keys(fakeSessionHandlers()) as SessionMessageType[];
-
-const importBoundTypes: SessionMessageType[] = [
-    "ElementTemplatesQuery",
-    "BpmnModelerSettingQuery",
-    "BpmnlintResultsQuery",
-    "BpmnLintDisabledQuery",
-    "BpmnlintInPageQuery",
-    "LanguageQuery",
-    "UpdateScriptContentQuery",
-    "UpdateScriptFormatQuery",
-    "UpdateOpenScriptEditorsQuery",
-    "ImplementationStatusQuery",
-];
-
-const flushHandshakeTypes: SessionMessageType[] = [
-    "FlushDocumentQuery",
-    "ReleaseDocumentFlushQuery",
-];
 
 const settingsQuery = () =>
     new BpmnModelerSettingQuery({
@@ -194,30 +175,6 @@ describe("diff pane router", () => {
         expect(followLanguage).toHaveBeenCalledExactlyOnceWith(languageChange);
         expect(host.sent).toEqual([]);
     });
-});
-
-describe("admitSessionMessage", () => {
-    it.each(importBoundTypes)("holds %s for the initial import", (type) => {
-        expect(admitSessionMessage(type, { engineReloading: false })).toBe("importBound");
-    });
-
-    it.each(sessionMessageTypes.filter((type) => !importBoundTypes.includes(type)))(
-        "routes %s right away",
-        (type) => {
-            expect(admitSessionMessage(type, { engineReloading: false })).toBe("route");
-        },
-    );
-
-    it.each(flushHandshakeTypes)("still routes %s while the engine reload is pending", (type) => {
-        expect(admitSessionMessage(type, { engineReloading: true })).toBe("route");
-    });
-
-    it.each(sessionMessageTypes.filter((type) => !flushHandshakeTypes.includes(type)))(
-        "drops %s while the engine reload is pending",
-        (type) => {
-            expect(admitSessionMessage(type, { engineReloading: true })).toBe("drop");
-        },
-    );
 });
 
 describe("createSessionMessageRouter", () => {

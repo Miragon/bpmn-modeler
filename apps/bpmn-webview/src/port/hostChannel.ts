@@ -12,8 +12,3 @@ export type HostChannel = Pick<HostApi<WebviewState, BpmnEditorCommand>, "postMe
 export type DiffPaneChannel = Pick<HostApi<WebviewState, DiffPaneCommand>, "postMessage">;
 
 export type ErrorLogChannel = Pick<HostApi<unknown, LogErrorCommand>, "postMessage">;
-
-/** Leads every host log line about a message the webview failed to handle. */
-export function receiveErrorPrefix(messageType: string): string {
-    return `Error receiving message: ${messageType} — `;
-}

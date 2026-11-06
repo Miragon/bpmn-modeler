@@ -14,7 +14,7 @@ import {
 } from "@miragon/bpmn-modeler-shared";
 
 import type { SurfaceHandle } from "../../domain/surface";
-import { createSurfaceRequests, elementTemplateRejectionReport } from "./surfaceRequests";
+import { createSurfaceRequests } from "./surfaceRequests";
 
 const scriptTaskDefinitions = {
     rootElements: [
@@ -105,29 +105,6 @@ const hostSettings = {
     colorTheme: "light" as const,
     favouriteBpmnElements: ["bpmn:UserTask"],
 };
-
-describe("elementTemplateRejectionReport", () => {
-    it.each([
-        ["no errors", []],
-        ["a missing error list", undefined],
-    ])("reports nothing for %s", (_case, errors) => {
-        expect(elementTemplateRejectionReport(errors)).toEqual({ logLines: [], notice: undefined });
-    });
-
-    it("logs a single rejection and announces it once", () => {
-        expect(elementTemplateRejectionReport([new Error("bad id")])).toEqual({
-            logLines: ["Element template rejected: bad id"],
-            notice: "An element template was rejected and is ignored. See the log for details.",
-        });
-    });
-
-    it("logs every rejection and announces their count", () => {
-        expect(elementTemplateRejectionReport([new Error("bad"), "worse"])).toEqual({
-            logLines: ["Element template rejected: bad", "Element template rejected: worse"],
-            notice: "2 element templates were rejected and are ignored. See the log for details.",
-        });
-    });
-});
 
 describe("createSurfaceRequests", () => {
     it("releases startup settings waiters even if applying preview policy fails", () => {

@@ -6,36 +6,11 @@ import {
 } from "@miragon/bpmn-modeler-shared";
 
 import { MessageGate } from "../../domain/messageGate";
-import { type ErrorLogChannel, type HostChannel, receiveErrorPrefix } from "../../port/hostChannel";
+import { receiveErrorPrefix } from "../../domain/receiveErrorPrefix";
+import { admitSessionMessage, type SessionMessageType } from "../../domain/sessionMessageAdmission";
+import type { ErrorLogChannel, HostChannel } from "../../port/hostChannel";
 
 export type HostMessage = Query | Command;
-
-export type SessionMessageType =
-    | "BpmnFileQuery"
-    | "ElementTemplatesQuery"
-    | "BpmnlintResultsQuery"
-    | "BpmnLintDisabledQuery"
-    | "BpmnlintInPageQuery"
-    | "BpmnModelerSettingQuery"
-    | "PropertiesPanelStateQuery"
-    | "ClipboardQuery"
-    | "TextClipboardQuery"
-    | "LanguageQuery"
-    | "GetDiagramAsSVGCommand"
-    | "OpenAllScriptTasksQuery"
-    | "FormatDiagramQuery"
-    | "CleanupDiagramQuery"
-    | "UpdateScriptContentQuery"
-    | "UpdateScriptFormatQuery"
-    | "UpdateOpenScriptEditorsQuery"
-    | "ImplementationStatusQuery"
-    | "FormReferenceStatusQuery"
-    | "FormPreviewQuery"
-    | "WorkspaceDefinitionsQuery"
-    | "FocusElementQuery"
-    | "TakeFocusQuery"
-    | "FlushDocumentQuery"
-    | "ReleaseDocumentFlushQuery";
 
 export type SessionHostMessages = { [Type in SessionMessageType]: MessageOfType<Type> };
 
@@ -53,43 +28,6 @@ export type HostMessageHandlers<Messages> = {
 type HostMessageRoute = (message: HostMessage) => Promise<void>;
 
 type AnyHostMessageHandler = (message: HostMessage) => void | Promise<void>;
-
-// The page only waits for its reload; the host's save/close flush still needs an answer.
-const ANSWERED_DURING_ENGINE_RELOAD: ReadonlySet<string> = new Set([
-    "FlushDocumentQuery",
-    "ReleaseDocumentFlushQuery",
-] satisfies readonly SessionMessageType[]);
-
-/**
- * Host replies that act on the imported diagram. The webview requests their
- * sources before the import so the host round trip overlaps it, which means
- * they can arrive before the surface exists; they are held until the initial
- * import has completed.
- */
-const IMPORT_BOUND_MESSAGE_TYPES: ReadonlySet<string> = new Set([
-    "ElementTemplatesQuery",
-    "BpmnModelerSettingQuery",
-    "BpmnlintResultsQuery",
-    "BpmnLintDisabledQuery",
-    "BpmnlintInPageQuery",
-    "LanguageQuery",
-    "UpdateScriptContentQuery",
-    "UpdateScriptFormatQuery",
-    "UpdateOpenScriptEditorsQuery",
-    "ImplementationStatusQuery",
-] satisfies readonly SessionMessageType[]);
-
-type SessionMessageAdmission = "drop" | "importBound" | "route";
-
-export function admitSessionMessage(
-    type: string,
-    { engineReloading }: { engineReloading: boolean },
-): SessionMessageAdmission {
-    if (engineReloading && !ANSWERED_DURING_ENGINE_RELOAD.has(type)) {
-        return "drop";
-    }
-    return IMPORT_BOUND_MESSAGE_TYPES.has(type) ? "importBound" : "route";
-}
 
 /** A type without a handler is ignored; a failing handler is reported to the host instead of rejecting. */
 export function createHostMessageRouter<Messages extends KeyedByType<Messages>>(

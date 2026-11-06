@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { modulesToPrefetch } from "./surfaceModules";
+import { modulesToPrefetch } from "./modulesToPrefetch";
 
 describe("modulesToPrefetch", () => {
     it("predicts the modeler and the lint stack for a saved Implement", () => {
