@@ -11,7 +11,7 @@ import {
 import type { FitnessFunction } from "../../domain/fitnessFunction";
 import type { Snapshot } from "../../domain/snapshot";
 import { createFitnessReport } from "../../service/fitnessReportService";
-import { type FitnessUseCases, runFitnessCli } from "./cli";
+import { type FitnessUseCases, type ReportRequest, runFitnessCli } from "./cli";
 
 const HEAD = "1111111111111111111111111111111111111111";
 const BASE = "2222222222222222222222222222222222222222";
@@ -23,12 +23,15 @@ const baseSnapshot: Snapshot = {
     entries: { [fake.id]: { version: fake.version, findings: [finding("A")] } },
 };
 
-function useCases(functions: readonly FitnessFunction[] = [fake]): FitnessUseCases {
+function useCases(
+    functions: readonly FitnessFunction[] = [fake],
+    history = new InMemoryHistory([HEAD, BASE]),
+): FitnessUseCases {
     return {
-        report: () =>
-            createFitnessReport(functions, "origin/main", {
+        report: ({ baseRef }) =>
+            createFitnessReport(functions, baseRef, {
                 repoRoot: WORKING_TREE,
-                history: new InMemoryHistory([HEAD, BASE]),
+                history,
                 snapshots: new InMemorySnapshots([baseSnapshot]),
                 checkout: new InMemoryCheckout(),
             }),
@@ -123,6 +126,10 @@ describe("the fitness command", () => {
             "snapshot does not take --format",
         ],
         [["--out", "/tmp/fitness"], "report does not take --out"],
+        [["snapshot", "--out", "/tmp/fitness", "--base", "v1"], "snapshot does not take --base"],
+        [["snapshot", "--out", "/tmp/fitness", "--repo", "/old"], "snapshot does not take --repo"],
+        [["--base", ""], "--base needs a revision"],
+        [["--repo", ""], "--repo needs a directory"],
         [["report", "extra"], "unexpected argument extra"],
         [["--colour"], "--colour"],
     ])("exits 2 on the usage error in %j", (args, message) => {
@@ -131,6 +138,48 @@ describe("the fitness command", () => {
         expect(exitCode).toBe(2);
         expect(error).toContain(message);
         expect(error).toContain("usage: fitness");
+    });
+
+    it.each<[readonly string[], ReportRequest]>([
+        [[], { baseRef: "origin/main" }],
+        [["--base", "v1.2.0"], { baseRef: "v1.2.0" }],
+        [
+            ["report", "--repo", "/checkouts/old", "--base", "452b6440"],
+            { baseRef: "452b6440", repo: "/checkouts/old" },
+        ],
+    ])("measures the tree and base %j names", (args, request) => {
+        const requests: ReportRequest[] = [];
+        const cases = useCases();
+
+        const { exitCode } = run(args, {
+            ...cases,
+            report: (received) => {
+                requests.push(received);
+                return cases.report(received);
+            },
+        });
+
+        expect(exitCode).toBe(0);
+        expect(requests).toEqual([request]);
+    });
+
+    it("names the base it compared with", () => {
+        const { out } = run(["--base", "v1.2.0"]);
+
+        expect(out).toContain("its merge base with `v1.2.0`.");
+        expect(JSON.parse(run(["--base", "v1.2.0", "--format", "json"]).out)).toMatchObject({
+            base: { commit: BASE, ref: "v1.2.0" },
+        });
+    });
+
+    it("exits 1 and names a base that is no commit", () => {
+        const history = new InMemoryHistory([HEAD, BASE], BASE, false, ["origin/main"]);
+
+        const { exitCode, out, error } = run(["--base", "no-such-rev"], useCases([fake], history));
+
+        expect(exitCode).toBe(1);
+        expect(out).toBe("");
+        expect(error).toBe("fitness: no-such-rev not found\n");
     });
 
     it("names every snapshot it wrote", () => {

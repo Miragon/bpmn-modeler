@@ -17,6 +17,7 @@ need compatibility proof for the paths the build and plugin installer exercise.
 - [Coverage gates](#coverage-gates)
 - [Mutation testing](#mutation-testing)
 - [CI test targets](#ci-test-targets)
+- [Architecture erosion](#architecture-erosion)
 - [Architecture tests](#architecture-tests)
 - [Fitness function report](#fitness-function-report)
 - [Change coupling](#change-coupling)
@@ -27,6 +28,7 @@ need compatibility proof for the paths the build and plugin installer exercise.
 - [Missed partner](#missed-partner)
 - [Host text](#host-text)
 - [Contract suites](#contract-suites)
+- [Architecture review](#architecture-review)
 - [Private upstream APIs](#private-upstream-apis)
 - [Dependency compatibility and security](#dependency-compatibility-and-security)
 - [Consequences](#consequences)
@@ -342,6 +344,42 @@ release-please PR (changelogs, manifests) gets none. A manual
 from March 2026 it processed none of the uploads, and nobody noticed, because
 the thresholds are the gate and nothing read its numbers.
 
+### Architecture erosion
+
+The goal: the architecture and the software design do not erode over time.
+Erosion is the gap between the intended architecture and the code. #1799
+restored the intended design: one rule in one place, decisions in the domain
+model, hosts that only render, no message left unhandled. No single strategy
+controls erosion. A survey groups the approaches into minimising, preventing
+and repairing it, and concludes that they have to be combined (de Silva and
+Balasubramaniam, "Controlling software architecture erosion: A survey", JSS
+85(1), 2012). Three parts are combined here, named in the terms of Böckeler
+("Harness engineering for coding agent users", martinfowler.com, 2026),
+because coding agents write most changes:
+
+1. **Rules for agents**, a guide: where code goes and how a rule is named,
+   read before the change. They live in the skills in `.agents/skills/`,
+   which Codex and Claude Code both load when a task needs them. Agents do not
+   always follow them; they are what the fitness functions rely on.
+2. **Fitness functions**, computational sensors: deterministic checks of the
+   result (Ford, Parsons, Kua, Building Evolutionary Architectures, 2017),
+   the blocking [architecture tests](#architecture-tests) and the reported
+   ones of the [fitness function report](#fitness-function-report).
+3. **The [architecture review](#architecture-review)**, an inferential
+   sensor: a model's judgement of the result, which reads the report and
+   reviews what no fitness function sees.
+
+**When a fitness function blocks.** Only when it is static and never fires on
+correct code: the architecture specs (import direction, role folders, cycles,
+stability, the webview command scan), the ESLint rules for an empty function
+in an adapter and a guarded value compared outside its home, the command
+coverage tables and the type check. A blocking function misses code outside
+its scope; a miss is a reason to report that code, not to stop blocking what
+it catches. Every other fitness function, each dynamic one and each static one
+that can fire on correct code (a size limit, host text), is reported and never
+fails a build. A gate on a heuristic needs an exception list, and that list is
+work in every PR: #2094 measured 50 of 200 PRs editing one.
+
 ### Architecture tests
 
 Every `architecture.spec.ts` reads its sources through one engine,
@@ -550,14 +588,34 @@ Alternatives considered:
 
 ### Fitness function report
 
-A fitness function that never fires on correct code is static and blocks the
-build, as the architecture tests do. Every other one is reported: it plugs into
+A reported fitness function ([which ones block](#architecture-erosion)) plugs
+into
 [`tools/repo-checks/src/fitness`](../../tools/repo-checks/src/fitness/composition/fitnessFunctions.ts)
 and never fails a build. `corepack yarn fitness` prints the report of the
 current checkout against `git merge-base HEAD origin/main` as Markdown, or as
-JSON with `--format json` for the review agent. It exits non-zero only on
-broken input: no `origin/main`, no merge base (a shallow clone), a corrupt
-snapshot, or a fitness function that throws or returns a malformed finding.
+JSON with `--format json` for the [architecture review](#architecture-review).
+It exits non-zero only on broken input: a base that names no commit (no
+`origin/main` before a fetch), no merge base (a shallow clone), a `--repo`
+that is no checkout root, a corrupt snapshot, or a fitness function that
+throws or returns a malformed finding.
+
+**Another base or tree.** `--base <rev>` compares with
+`git merge-base HEAD <rev>`; `<rev>` need not be an ancestor of HEAD, so a
+PR's head with its `baseRefOid` compares with the commit the PR branched from.
+A squash commit on main compares with its first parent (its PR's `baseRefOid`
+would add every PR merged in between), and a whole tree with itself, so every
+finding is existing. `--repo <dir>` measures another checkout of this
+repository, such as a worktree of an old commit: today's code of every fitness
+function reads that tree, so it needs no install, and HEAD, the refs, the
+snapshot branch and the base worktree are that checkout's. A relative `<dir>`
+is read from the repository root. The review's measurement on known cases
+needs both. A function that cannot measure an old tree throws
+`InsufficientHistory` and is reported as not measurable there, and the others
+report as usual. At `3d1b19b3` (#2047) with `--base 452b6440` the merge base
+is `fb89b28e`; 6 of 9 functions measured against the stored snapshot of the
+merge base. `convention-coverage` and `contract-suites` (no workspace declared
+a kind yet) and `mutation-score` (no stored run on that chain) did not, and a
+run took about 3 to 6 s on a laptop.
 
 **Contract.** A fitness function declares `id`, `version`, its categories
 (scope atomic or holistic, cadence triggered, result static or dynamic), what
@@ -1324,6 +1382,218 @@ Alternatives considered:
   return type through generics, unions and promises, which the factory rule
   and the render-only derivation need.
 
+### Architecture review
+
+The [`architecture-review` skill](../../.agents/skills/architecture-review/SKILL.md)
+(#2058) is the inferential sensor of
+[architecture erosion](#architecture-erosion). It runs
+`corepack yarn fitness --format json` on a branch, a PR (`--repo` on a
+worktree of its head, `--base` its base), a commit on main (`--base` its
+first parent) or a whole tree (`--base` the commit itself), and reads per
+fitness function the findings with their status (new, existing, resolved),
+the trend of the declared values and the limits a review needs (misses and
+false reports) from the same output, so no second document drifts from the
+code. It searches for copies of a rule with one `git grep` over the tracked
+TypeScript, Kotlin, build scripts, CI workflows, docs and JSON, looks for an
+existing home by concept, compares the other callers of each function the
+change calls, and takes the `change-coupling` and `missed-partner` findings
+of the touched files as the search for copies whose spelling is unknown. It
+reviews what no fitness function sees: a rule in another spelling, copies
+that already disagree, adapters of one port that disagree, two derivations of
+one state, logic in the wrong layer, wiring per host, a workspace without its
+siblings' guards, catch-all modules and silently ignored commands. On a whole
+tree it names what it did not cover. It proposes measures from trends. Each
+finding names `path:line`, its evidence and the fitness function, limit or
+trial that applies; a report row it drops goes under "Marked, no action".
+"Already duplicated before this PR" is never a reason to keep a copy: the PR
+fixes it, or an issue names `path:line` of each copy.
+
+A fitness function can report wrongly or miss erosion beyond its declared
+limits, so the review checks each row in the code before it reports or drops
+it, and marks a row the code disproves as a false alarm, with the evidence.
+Before it calls a row false, it looks up the function's trials that name the
+row's files: a trial that names the row and counts it as true, at a commit
+where the row's code reads as it does now, makes the row a finding, and any
+other trial is a lead. For each false alarm no `reportsWrongly` entry
+declares, and each erosion a function's `measures` covers but it missed, it
+proposes, apart from its findings, a narrower rule, an exclusion derived from
+types, folders, imports or configuration, or at least a `reportsWrongly` or
+`misses` entry. For a row an entry already declares, it proposes a narrower
+rule or an exclusion only when the code can decide the case. It says whether
+each proposal is a fix in the PR or an issue for a maintainer to check before
+it is filed. A proposal that changes a function's rule bumps its version and
+needs a measured trial.
+
+It is not a fitness function: a model's judgement is not deterministic, and
+two runs on one tree differ. It comments and never blocks.
+
+**Measurement (#2058).** Three cases, each scored against a reference list
+compiled from its sources before the runs:
+
+- #2040 at its squash commit `16225419` against its first parent: 4 items,
+  the verify rule written in two spellings (#2051) and three defects that
+  later issues documented and later PRs fixed.
+- #2047 at its unsquashed head `3d1b19b3` against `452b6440`: the 15 items of
+  sections 1 and 3 of
+  [its review](https://github.com/Miragon/bpmn-modeler/pull/2047#pullrequestreview-5734313138),
+  9 of them architectural.
+- #1799's tree `4d58fabd` as a whole tree: 20 items, the issue's four
+  structural causes (S1 to S4) and 16 defects from its lists that fit none of
+  them (D1 to D16).
+
+Each run was a separate agent session that followed the skill without the
+reference, and one judge per run scored each reference item exact, partial or
+missed and each further finding true, plausible or false. Round 1 ran the
+skill as first written, three times per case. Round 2 ran it twice per case
+after the 15 changes round 1 proposed (two of them in part). Round 3 ran it
+once per case with the row check and the proposals for the fitness functions
+(the trial lookup and the proposals for declared rows came from its results
+and are unmeasured), and a second judge per run checked in the code each row
+the run set aside, each proposal and each row it cited as erosion. One run
+per case shows that the step runs and what its feedback is worth, not a
+trend.
+
+| Case (items) | Round | Matched per run (exact) | Added: true / plausible / false | Mean run time |
+| --- | --- | --- | --- | --- |
+| #2040 (4) | 1 | 3 (1), 3 (3), 1 (1) | 3 / 10 / 2 | 401 s |
+| #2040 (4) | 2 | 4 (4), 4 (4) | 2 / 8 / 0 | 624 s |
+| #2040 (4) | 3 | 3 (3) | 1 / 4 / 0 | 606 s |
+| #2047 (15) | 1 | 8 (3), 8 (0), 8 (1) | 8 / 10 / 0 | 705 s |
+| #2047 (15) | 2 | 10 (2), 9 (2) | 5 / 7 / 0 | 796 s |
+| #2047 (15) | 3 | 9 (3) | 3 / 5 / 0 | 1016 s |
+| #1799 (20) | 1 | 4 (0) in each run | 15 / 3 / 1 | 565 s |
+| #1799 (20) | 2 | 4 (0) in each run | 12 / 3 / 0 | 674 s |
+| #1799 (20) | 3 | 4 (0) | 3 / 1 / 0 | 873 s |
+
+Two of #2047's round-2 and three of its round-3 plausible findings are trend
+notes, which those two judges counted and the others did not. #1799's
+round-3 judge scored three findings as support for S1 and S2, not as added.
+
+- **Stability.** Coverage is mostly stable across rounds: #2047 1.5 was half
+  found in all six runs and 1.8 in five, #1799 matched S1 to S4 partly in all
+  six. Depth and the added findings vary: #2047 1.2, 1.6, 1.8 and 3.1 and
+  most added findings came and went between runs, #2040 R2 was exact in both
+  round-2 runs and missed in round 3, and the exact/partial split moves by
+  about one item per run between judges, who scored one observation as a
+  match in one run and as an addition in the other.
+- **What it finds**, in at least 5 of 6 runs: a rule written twice in
+  different spellings near the diff (#2040's verify rule, #2047 1.1, the
+  deployable-file rule as a glob and as an extension list), text built per
+  host (#2047 3.4), the CI path filter that misses the Kotlin test inputs
+  (not in the reference) and #1799's structural causes, partly. Round 2's
+  checks matched exactly, in both runs, the home that moved code bypasses,
+  the host that cuts a list before the core sorts it, the two derivations of
+  one state and the two type declarations that disagree; round 1 matched each
+  exactly in at most one of three runs, round 3 all but the two derivations.
+- **What it misses:** a second copy it must discover rather than follow from
+  the diff, with another name and other members (#2047 3.5 and #1799 D10 and
+  D15 in 0 of 6 runs, the key lists of #2047 1.4 in 1); the guards a new
+  workspace lacks (#2047 1.7, 0 of 6); wiring compared with the sibling
+  feature's (the VS Code half of #2047 1.2, 0 of 6); the second halves of
+  bundled items (#2047 1.5 and 1.8); and most of a whole tree: each
+  whole-tree run since round 2 listed 7 or 8 of about 15 ports as not
+  compared, and D1 to D16 were missed in all 96 run-items. Defects inside one
+  copy (#2047 3.3 and 3.6, most D items) belong to code review, not to this
+  skill.
+- **False findings:** 3 of 106 added findings (2.8 %), none of 54 in rounds
+  2 and 3, which still allows up to about 6 % at 95 % confidence. 51 of the
+  106 are only plausible, real but arguable or minor, and about five findings
+  in each of rounds 2 and 3 carry one wrong sub-claim, so about half the added
+  findings are worth acting on.
+- **Fitness function feedback** (round 3). Each run kept its proposals apart
+  from its findings and named the function's `id` and version in each. Of
+  the 40 items the runs set aside (one item can hold several report rows),
+  25 are false alarms an entry already declares, 4 undeclared ones (the runs
+  proposed a fix for 2, and claimed 2 declared ones as undeclared), 5
+  unclear and 6 true findings wrongly dismissed, at least one per run. The
+  worst: the #1799 run called the lint-config copy, which `change-coupling`'s
+  evidence names, two halves of one protocol and proposed a `reportsWrongly`
+  entry that declares it false. Two of the six, that copy and a `host-text`
+  row of #2047, are rows the function's own trials count as true, so the
+  review now looks those trials up before it calls a row false. The
+  lint-config trial ran at `c53e97f0`, after #1799's tree. The `host-text`
+  trial ran at #2047's own commit but counts the file's 7 texts together,
+  and the judge rated one of them a declared false alarm and one unclear.
+  The #1799 run also dismissed the copy although a `missed-partner` limit it
+  read names it. So a trial decides only where it names the row and the
+  row's code is unchanged. Of 17 proposals, 6 are correct and actionable, 3
+  right but vague, 7 wrong (an entry that would mark correct rows false or
+  restates an existing one, or a rule on a false premise) and 1 would read a
+  type name, which no fitness function may. Two of the 6 correct ones narrow
+  rows an entry already declares (log text that reaches a logger through a
+  parameter, and adapters of one port that `change-coupling` lists as
+  explained by their shared import). Round 3's step did not ask for that, so
+  the review now asks for such a rule where the code can decide the case.
+  One row a run cited as applying to a finding is a declared false alarm
+  (the `hotspots` rank of `TemplateBuilder.tsx`, which comes from branch
+  commits). #1799's judge also called its marketplace dialog titles host
+  chrome, but `host-text` declares IntelliJ's action names, not dialog
+  titles, and #2172 has since moved those titles into the core. The step
+  finds real gaps in the functions, but each proposal needs a maintainer's
+  check before it becomes an issue, the row check does not stop true
+  findings from being dismissed, and a whole tree has more rows than one run
+  checks (331 for `repeated-value-sets` and `host-text` at #1799).
+- **Cost:** 10.1 to 16.9 min per round-3 run (mean 13.9 min; round 2 11.6,
+  round 1 9.3), plus 5 to 13 s for the report; tokens were not recorded. One
+  run per case cannot say how much of the rise step 6 causes. The PR's author
+  then triages 8 to 15 numbered findings, the marked rows and the feedback.
+- **What rounds 2 and 3 show.** Most of round 2's checks were written from
+  round 1's misses on the same cases, so it shows that they fire, not that
+  they generalize. Matched items per run rose (#2040 from 2.3 to 4.0, #2047
+  from 8.0 to 9.5), all on items a change aimed at; the seven #2047 items no
+  change aimed at went from 12 of 21 run-items to 7 of 14, and #1799's score
+  did not move. Two runs per case cannot tell a one-item difference from
+  judge noise, and round 3's single runs (#2040 3, #2047 9 and #1799 4
+  matched; 3 of the 7 untargeted #2047 items) lie within that spread. False
+  findings fell from 3 to 0 and stayed there: two were dropped report rows,
+  which now have their own section, and one an "unpinned" claim that the
+  pin-check rule now catches.
+- **Contamination.** All rounds ran with some answers in the tree. The
+  `tdd` skill and [Architecture tests](#architecture-tests) name
+  `verifiesDeployments`, #2040's fix, and this change had added it as the
+  `architecture` skill's naming example before rounds 1 and 2, so #2040 R1's
+  exact match in those five runs is contaminated in part by this change
+  itself; round 3 ran with another example there and matched R1 exactly too.
+  The limits of `change-coupling` and `repeated-value-sets` name a structural
+  cause and a defect of #1799 and parts of #2047; round-2 runs quoted them,
+  and the round-3 run on #1799 flagged them. This section now names the
+  answers of all three cases, so a further measurement needs held-out PRs.
+
+**No CI job yet.** A job that runs the review on every PR is not worth it
+now. The evidence is three calibration cases, the second round was tuned on
+them, and the tree states their answers. Runs differ, so the comment would
+change from push to push. At 10 to 17 minutes per run, most PRs would get a
+long review that mixes their own findings with older debt in the files they
+touch. Stacked PRs feed it a touched list with files the PR never changed:
+all three runs on #2047 since round 2 got 54 merge-tree conflicts, 20 of them
+in such files, and had to find the PR's own change by hand. A job needs a
+workflow, an API secret and possibly a dependency. The review runs by hand,
+on PRs that move rules between layers, add a host feature or add a
+workspace: the shape of #2040 and #2047, where it scored best. Its fitness
+function proposals go to a maintainer, who files the ones that hold.
+
+_Proposed, not decided:_ tell the reviewer to run its own commands under
+bash and name the hazards (in 5 of 6 round-2 runs and in the round-3 run on
+#1799 on macOS the reviewer's own commands hit zsh or BSD regex hazards; no
+block of the skill failed), take a stacked PR's own change from the last
+merge of its base, shard a whole tree by port family or give it a port and
+row budget, find second copies by their values, and check that a row is not
+one rule in two places before proposing to declare it a false report; then
+measure on 3 to 5 held-out merged PRs that no function's `evidence` names,
+whose erosion a later issue documented, with one judge per case and
+architecture items scored apart from correctness bugs. If that run matches
+most architectural items at a false rate under 10 %, a non-blocking,
+path-triggered job that posts only the top findings a PR introduced is worth
+a pilot. The 10 % bar is a judgement, not a measurement.
+
+Alternatives considered:
+
+- **A search script**, grouped by area: it needs a spec and a `knip` entry
+  for what one `git grep` does; it can follow if the command proves too
+  coarse.
+- **Review steps in the `architecture` and `tdd` skills**: a skill of its
+  own loads only on a review and costs no context elsewhere.
+
 ### Private upstream APIs
 
 Confine access to undocumented upstream members behind small typed adapters,
@@ -1465,8 +1735,11 @@ The mutation run is one more workflow to keep green, and its score says
 little until rules move from services into `domain/`.
 Reported fitness functions never block a merge, so reviewers and the review
 agent read their new findings; the report is as complete as the functions
-plugged into it. The data branch is one more ref to keep: deleting it costs a
-backfill, and nothing but convention keeps people from pushing to it.
+plugged into it. The review's findings vary between runs and about half its
+additions are arguable, so the PR's author triages them, and it runs by hand
+until a held-out measurement shows more. The data branch is one
+more ref to keep: deleting it costs a backfill, and nothing but convention
+keeps people from pushing to it.
 Rules move into `domain/` before or together with the feature that needs
 them, so services shrink to orchestration. No gate enforces test-first;
 reviewers check the failing output in the PR description.

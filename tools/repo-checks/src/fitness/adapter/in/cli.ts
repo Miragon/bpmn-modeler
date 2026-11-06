@@ -5,8 +5,15 @@ import { markdownReport } from "../../domain/markdownReport";
 import type { FitnessReport } from "../../domain/report";
 import type { Snapshot } from "../../domain/snapshot";
 
+export interface ReportRequest {
+    /** The report compares with `git merge-base HEAD <baseRef>`. */
+    readonly baseRef: string;
+    /** A checkout of this repository; the one that holds the code when left out. */
+    readonly repo?: string;
+}
+
 export interface FitnessUseCases {
-    report(): FitnessReport;
+    report(request: ReportRequest): FitnessReport;
     recordSnapshots(outDir: string): readonly Snapshot[];
 }
 
@@ -15,8 +22,10 @@ export interface CliOutput {
     error(text: string): void;
 }
 
+const DEFAULT_BASE_REF = "origin/main";
+
 const USAGE = [
-    "usage: fitness [report] [--format markdown|json]",
+    "usage: fitness [report] [--format markdown|json] [--base <rev>] [--repo <dir>]",
     "       fitness snapshot --out <dir>",
     "       fitness mutation record|summary ...",
     "       fitness missed-partner replay",
@@ -33,7 +42,12 @@ function parseCommand(args: readonly string[]) {
     try {
         parsed = parseArgs({
             args: [...args],
-            options: { format: { type: "string" }, out: { type: "string" } },
+            options: {
+                format: { type: "string" },
+                out: { type: "string" },
+                base: { type: "string" },
+                repo: { type: "string" },
+            },
             allowPositionals: true,
         });
     } catch (error) {
@@ -52,11 +66,23 @@ function parseCommand(args: readonly string[]) {
         if (format !== "markdown" && format !== "json") {
             throw new UsageError(`unknown format ${format}`);
         }
-        return { command, format } as const;
+        if (values.base === "") {
+            throw new UsageError("--base needs a revision");
+        }
+        if (values.repo === "") {
+            throw new UsageError("--repo needs a directory");
+        }
+        const request: ReportRequest = {
+            baseRef: values.base ?? DEFAULT_BASE_REF,
+            ...(values.repo === undefined ? {} : { repo: values.repo }),
+        };
+        return { command, format, request } as const;
     }
     if (command === "snapshot") {
-        if (values.format !== undefined) {
-            throw new UsageError("snapshot does not take --format");
+        for (const option of ["format", "base", "repo"] as const) {
+            if (values[option] !== undefined) {
+                throw new UsageError(`snapshot does not take --${option}`);
+            }
         }
         if (values.out === undefined) {
             throw new UsageError("snapshot needs --out <dir>");
@@ -75,7 +101,7 @@ export function runFitnessCli(
     try {
         const command = parseCommand(args);
         if (command.command === "report") {
-            const report = useCases.report();
+            const report = useCases.report(command.request);
             output.out(command.format === "json" ? jsonReport(report) : markdownReport(report));
         } else {
             const written = useCases.recordSnapshots(command.outDir);

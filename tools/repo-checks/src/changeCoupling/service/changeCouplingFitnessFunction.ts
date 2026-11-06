@@ -42,6 +42,7 @@ export function createChangeCouplingFitnessFunction({
             "Pairs around composition roots, which couple by design; they are marked, not dropped.",
             "Kotlin pairs: Kotlin files carry no import edges, so a Kotlin pair is never linked.",
             "A pair explained by a shared import can still hide a copy (VsCodeStatusBar.ts ↔ BpmnLintConfigService.ts, the structural cause of issue 1799); it is listed under explained, not dropped.",
+            "Each commit on a branch counts as one PR until it is squash-merged, so a branch with many commits raises its pairs' shared changes.",
             "Pairs that enter or leave the delta because the window slid, not because the branch touched them.",
         ],
         evidence: [
