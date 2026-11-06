@@ -20,7 +20,10 @@ export interface DocumentContractFixture {
     hostContent(editorId: string): string;
     /** The host fails every later edit of the document, as on a read-only file; the document keeps its text. */
     failEdits(editorId: string): void;
-    /** The host fails every later save of the document, as on a veto or a conflict with the file on disk. */
+    /**
+     * The host fails every later save of the document, as on a read-only file,
+     * a veto or a conflict with the file on disk.
+     */
     failSaves(editorId: string): void;
 }
 
@@ -252,17 +255,22 @@ export function describeDocumentContract(
         });
 
         describe("saving", () => {
+            // A deploy saves first and stops on `false`; VS Code refuses to save a
+            // read-only diagram even when it is clean.
             it.each([
                 {
                     state: "after a write",
-                    prepare: async (documents: DocumentPort, editorId: string) => {
-                        await documents.write(editorId, EDITED);
+                    prepare: async (editorId: string) => {
+                        await fixture.documents.write(editorId, EDITED);
                     },
                 },
-                { state: "with nothing to save", prepare: async () => undefined },
-            ])("reports a save $state as saved", async ({ prepare }) => {
+                {
+                    state: "when it had nothing to save, even where the host fails saves",
+                    prepare: async (editorId: string) => fixture.failSaves(editorId),
+                },
+            ])("reports the document saved $state", async ({ prepare }) => {
                 const order = fixture.open(ORDER.path, ORDER.content);
-                await prepare(fixture.documents, order);
+                await prepare(order);
 
                 await expect(fixture.documents.save(order)).resolves.toBe(true);
             });

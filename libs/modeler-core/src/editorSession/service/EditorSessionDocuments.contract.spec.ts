@@ -8,6 +8,7 @@ import { EditorSessionStore } from "./EditorSessionStore";
 describeDocumentContract("EditorSessionDocuments over FakeEditorHandle", () => {
     const store = new EditorSessionStore(() => undefined);
     const handles = new Map<string, FakeEditorHandle>();
+    const savedContents = new Map<string, string>();
     const handleOf = (editorId: string): FakeEditorHandle => {
         const handle = handles.get(editorId);
         if (!handle) throw new Error(`No editor is open for ${editorId}.`);
@@ -19,6 +20,7 @@ describeDocumentContract("EditorSessionDocuments over FakeEditorHandle", () => {
         open: (path, content) => {
             const handle = new FakeEditorHandle(path, { content });
             handles.set(handle.id, handle);
+            savedContents.set(handle.id, content);
             store.register(handle);
             return handle.id;
         },
@@ -33,7 +35,11 @@ describeDocumentContract("EditorSessionDocuments over FakeEditorHandle", () => {
             vi.spyOn(handleOf(editorId), "writeContent").mockResolvedValue(false);
         },
         failSaves: (editorId) => {
-            vi.spyOn(handleOf(editorId), "save").mockResolvedValue(false);
+            const handle = handleOf(editorId);
+            // The suite fails saves before any save, so the opened text is the saved one.
+            vi.spyOn(handle, "save").mockImplementation(
+                async () => handle.content === savedContents.get(editorId),
+            );
         },
     };
 });
