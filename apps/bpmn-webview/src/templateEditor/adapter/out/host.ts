@@ -2,18 +2,17 @@ import {
     asProtocolMessage,
     type Command,
     ElementTemplateFileQuery,
-    type HostApi,
     HostApiImpl,
     LanguageQuery,
     MockHostApi,
     type Query,
-    type TemplateEditorCommand,
 } from "@miragon/bpmn-modeler-shared";
 
 import { ELEMENT_TEMPLATE_SCHEMA_URL, type Engine, isEngine } from "@miragon/bpmn-modeler-types";
 
 import c7Samples from "../../../__fixtures__/c7-samples.json";
 import c8Samples from "../../../__fixtures__/c8-samples.json";
+import type { TemplateEditorHost } from "../../port/templateEditorHost";
 
 declare const process: { env: { NODE_ENV: string } };
 
@@ -21,7 +20,7 @@ type MessageType = Command | Query;
 
 const SAMPLES: Record<Engine, unknown> = { c7: c7Samples, c8: c8Samples };
 
-export function getTemplateEditorHostApi(): HostApi<unknown, TemplateEditorCommand> {
+export function getTemplateEditorHostApi(): TemplateEditorHost {
     if (process.env.NODE_ENV === "development") {
         return new MockTemplateEditorHost();
     }

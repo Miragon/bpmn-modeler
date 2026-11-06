@@ -2,14 +2,14 @@ import {
     createInertLock,
     type ElementTemplateFileQuery,
     type FlushDocumentQuery,
-    type HostApi,
     LogErrorCommand,
     type ReleaseDocumentFlushQuery,
-    type TemplateEditorCommand,
     WebviewDocumentSync,
 } from "@miragon/bpmn-modeler-shared";
 
-type HostChannel = Pick<HostApi<unknown, TemplateEditorCommand>, "postMessage">;
+import type { TemplateEditorHost } from "../port/templateEditorHost";
+
+type HostChannel = Pick<TemplateEditorHost, "postMessage">;
 
 /** Where the text came from: the host's document, or an edit in this page. */
 type SessionTextOrigin = "host" | "edit";

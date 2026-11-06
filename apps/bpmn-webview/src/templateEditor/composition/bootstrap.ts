@@ -28,20 +28,19 @@ import {
     applyPageThemeScope,
     createHostThemeAdapter,
     GetElementTemplateFileCommand,
-    type HostApi,
     initResizer,
     LogErrorCommand,
     type MessageOfType,
     resolveHostThemeKind,
-    type TemplateEditorCommand,
 } from "@miragon/bpmn-modeler-shared";
 
 import { createHostMessageRouter, type HostMessage } from "../../adapter/in/messageRouter";
 import { TemplateDocumentSession } from "../service/documentSession";
 import { mountEditorView } from "../adapter/in/editorView";
 import { fitPreview, INITIAL_PREVIEW_FIT } from "../domain/previewFit";
+import type { TemplateEditorHost } from "../port/templateEditorHost";
 
-type EditorHost = Pick<HostApi<unknown, TemplateEditorCommand>, "postMessage">;
+type EditorHost = Pick<TemplateEditorHost, "postMessage">;
 type Translate = (template: string, replacements?: Record<string, string>) => string;
 
 type TemplateEditorHostMessages = {
