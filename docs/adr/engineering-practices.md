@@ -599,7 +599,7 @@ history reader and the window in `tools/repo-checks/src/history`, which
   Workspaces are the dirs the root `workspaces` entries match, with or without
   a `package.json`, so the Gradle-built IntelliJ plugin is read. Read literally,
   the issue's "outside `src/`" exclusion would have read no `.mjs` file at
-  all; reading them catches the `check-*.mjs` scripts and the `LOCALES` copy in
+  all, such as the `check-*.mjs` scripts or
   `libs/bpmn-i18n-extras/tools/build-overlay.mjs`.
 - **Counted commits.** `chore(deps)`, `chore(main)`, `chore(format)` and
   `style` commits and commits with more than 30 read files are not counted.
@@ -705,7 +705,12 @@ TypeScript by a spec. The pure measure lives in
   `.mjs` and `.cjs` file, without specs, tests and `__fixtures__/` folders
   (inputs of tests, as convention coverage leaves them out), declaration files
   (third-party typings repeated per workspace) and build configs
-  (`*.config.*`). No home is declared. Kotlin and JSON are not read.
+  (`*.config.*`). No home is declared. Kotlin and JSON are not read, and
+  neither are dependencies: a set whose home is a package, such as the 12
+  locales of `@miragon/bpmn-modeler-i18n`, has one occurrence where a single
+  tracked file copies it. At `cd48f2cd` the `LOCALES` array of
+  `libs/bpmn-i18n-extras/tools/build-overlay.mjs` was such a copy and gave no
+  finding.
 - **Sets.** `readValueSets` of the engine: an array literal whose elements are
   all string or plain template literals, a union type whose members are all
   string literal types, a maximal `||` chain whose operands all compare one
