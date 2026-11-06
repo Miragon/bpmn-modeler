@@ -294,14 +294,15 @@ technology spans contexts, and the rules between contexts stay per workspace.
 The core's session participants are in-core reactions that
 `EditorSessionLifecycle` drives, so they sit in `service/`, which the core
 always treated as one application layer with them. Webviews
-follow the same roles: the UI, its markup and stylesheet and the router for
-the host's queries are `adapter/in/`, the host channel and the
-modeler-library wrappers `adapter/out/`, the reducers and pure rules
-`domain/`, and the bootstrap `composition/`; `main.ts` stays the entry. The
-host channel's type and the state it persists are `port/`, so the UI and the
-host adapter share them without importing each other. A document session that
-keeps the modeler in sync with the host through injected handles is
-`service/` (the BPMN webview's `BpmnDocumentSession`).
+follow the same roles: the UI, its markup and the router for the host's
+queries are `adapter/in/`, the host channel and the modeler-library wrappers
+`adapter/out/`, the reducers and pure rules `domain/`, and the bootstrap
+`composition/`; `main.ts` stays the entry. A stylesheet sits next to the
+module that imports it. The host channel's type and the state it persists are
+`port/`, so the UI and the host adapter share them without importing each
+other. A document session that keeps the modeler in sync with the host
+through injected handles is `service/` (the BPMN webview's
+`BpmnDocumentSession`).
 
 The BPMN webview splits its adapters on the live surface by direction: the
 host's requests on the surface, the mode strip and the binding of a surface's
