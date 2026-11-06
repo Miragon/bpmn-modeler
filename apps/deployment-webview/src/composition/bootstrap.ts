@@ -8,10 +8,10 @@ import {
     RequestFormDefaultsCommand,
 } from "@miragon/bpmn-modeler-shared";
 
-import { DeploymentForm } from "./app/form";
-import { FORM_TEMPLATE } from "./app/formTemplate";
-import type { WebviewState } from "./app/host";
-import { StartInstanceForm } from "./app/startInstanceForm";
+import { DeploymentForm } from "../adapter/in/form";
+import { FORM_TEMPLATE } from "../adapter/in/formTemplate";
+import type { WebviewState } from "../adapter/out/host";
+import { StartInstanceForm } from "../adapter/in/startInstanceForm";
 
 type DeploymentHost = HostApi<WebviewState, DeploymentSidebarCommand>;
 

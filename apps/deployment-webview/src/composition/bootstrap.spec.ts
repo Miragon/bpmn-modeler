@@ -16,7 +16,7 @@ import {
     type RequestStoredCredentialsCommand,
 } from "@miragon/bpmn-modeler-shared";
 
-import type { WebviewState } from "./app/host";
+import type { WebviewState } from "../adapter/out/host";
 import { bootstrap, routeHostMessage } from "./bootstrap";
 
 type Posted = { type: string } & Record<string, unknown>;

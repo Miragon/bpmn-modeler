@@ -25,8 +25,8 @@ import {
     type DraftSnapshot,
     draftControls,
     executionBlockedReason,
-} from "../domain/deploymentDraft";
-import { WebviewState } from "./host";
+} from "../../domain/deploymentDraft";
+import { WebviewState } from "../out/host";
 
 const CONVENTION_DEPLOY_URL: Record<Engine, string> = {
     c7: "<endpoint>/deployment/create",

@@ -14,8 +14,8 @@ extension host via the typed Query/Command protocol from
 ## Single-source markup
 
 The form markup lives in **one** place:
-`src/app/formTemplate.ts` (`FORM_TEMPLATE`), injected into `#app` by
-`main.ts` at runtime. Every host shell — the Vite `index.html`,
+`src/adapter/in/formTemplate.ts` (`FORM_TEMPLATE`), injected into `#app` by
+`src/composition/bootstrap.ts` at runtime. Every host shell — the Vite `index.html`,
 `apps/vscode-plugin/src/deployment/adapter/in/DeploymentWebviewHtml.ts`,
 and the IntelliJ deployment tool-window shell — ships only an empty
 `<div id="app"></div>`. When modifying form markup, edit `formTemplate.ts`

@@ -24,8 +24,8 @@ Webview HTML is generated at runtime by functions in the host adapters, not serv
 ### Deployment Webview (`DeploymentWebviewHtml.ts`)
 
 The deployment sidebar's form markup lives in **one** place:
-`apps/deployment-webview/src/app/formTemplate.ts` (`FORM_TEMPLATE`), which the
-bundle injects into `#app` at runtime. Every host shell (Vite `index.html`, the
+`apps/deployment-webview/src/adapter/in/formTemplate.ts` (`FORM_TEMPLATE`), which
+the bundle injects into `#app` at runtime. Every host shell (Vite `index.html`, the
 VS Code `DeploymentWebviewHtml.ts`, the IntelliJ tool-window `WebviewServer.kt`)
 ships only an empty `<div id="app"></div>`; none carries a copy of the form.
 `DeploymentWebviewHtml.ts` keeps only the CSP nonce + asset-URI injection.
@@ -321,7 +321,7 @@ See `apps/vscode-plugin/src/shared/adapter/out/WebviewHtml.ts`.
 - **BPMN/DMN HTML**: `apps/vscode-plugin/src/shared/adapter/out/WebviewHtml.ts`
 - **Deployment HTML shell**: `apps/vscode-plugin/src/deployment/adapter/in/DeploymentWebviewHtml.ts` (CSP + asset URIs only)
 - **Shell CSP builder**: `apps/vscode-plugin/src/shared/domain/webviewContentSecurityPolicy.ts`
-- **Deployment form markup (single source)**: `apps/deployment-webview/src/app/formTemplate.ts` (`FORM_TEMPLATE`)
+- **Deployment form markup (single source)**: `apps/deployment-webview/src/adapter/in/formTemplate.ts` (`FORM_TEMPLATE`)
 - **Message router**: `libs/modeler-core/src/editorSession/service/WebviewMessageRouter.ts`
 - **Base message types**: `libs/shared/src/lib/messages.ts`
 - **Modeler message types**: `libs/shared/src/lib/modeler.ts`

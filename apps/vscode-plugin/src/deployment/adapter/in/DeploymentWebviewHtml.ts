@@ -9,7 +9,7 @@ const DEPLOYMENT_WEBVIEW_PATH = "deployment-webview";
  *
  * Injects a nonce for the Content-Security-Policy `script-src` directive so only
  * the bundled script can execute. The form body itself is rendered by the bundle
- * (`src/app/formTemplate.ts`), so this shell ships only an empty `<div id="app">`
+ * (`src/adapter/in/formTemplate.ts`), so this shell ships only an empty `<div id="app">`
  * — the single-source-of-markup contract every host honours.
  */
 export function deploymentWebviewHtml(webview: Webview, extensionUri: Uri, nonce: string): string {

@@ -1,9 +1,9 @@
-import "./styles/default.css";
+import "./adapter/in/styles/default.css";
 
 import { installGlobalErrorForwarding } from "@miragon/bpmn-modeler-shared";
 
-import { getHostApi } from "./app/host";
-import { bootstrap } from "./bootstrap";
+import { getHostApi } from "./adapter/out/host";
+import { bootstrap } from "./composition/bootstrap";
 
 const host = getHostApi();
 
