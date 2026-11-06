@@ -29,6 +29,7 @@ import {
     DEFAULT_MODELER_SETTINGS,
     ModelerSettingsSnapshot,
     settingKeyOf,
+    SettingsPlace,
 } from "@miragon/bpmn-modeler-core";
 import {
     readSettingsSnapshot,
@@ -311,14 +312,42 @@ describe("VsCodeSettings.removeMarketplaces", () => {
     });
 });
 
-describe("VsCodeSettings.canWriteWorkspaceSettings", () => {
-    it.each([
-        { behaviour: "while a workspace is open", open: true },
-        { behaviour: "not without a workspace", open: false },
-    ])("writes Workspace settings $behaviour", ({ open }) => {
-        setWorkspaceOpen(open);
+describe("VsCodeSettings.workspaceSettingsPlace", () => {
+    it.each<{
+        behaviour: string;
+        workspaceFolders: unknown;
+        workspaceFile: unknown;
+        place: SettingsPlace | undefined;
+    }>([
+        {
+            behaviour: "nowhere without a workspace",
+            workspaceFolders: undefined,
+            workspaceFile: undefined,
+            place: undefined,
+        },
+        {
+            behaviour: "the folder's .vscode/settings.json",
+            workspaceFolders: [{}],
+            workspaceFile: undefined,
+            place: { kind: "file", path: [".vscode", "settings.json"] },
+        },
+        {
+            behaviour: "the workspace file a multi-root window opened",
+            workspaceFolders: [{}, {}],
+            workspaceFile: { scheme: "file", path: "/work/acme.code-workspace" },
+            place: { kind: "file", path: ["acme.code-workspace"] },
+        },
+        {
+            behaviour: "the Workspace settings of a workspace not saved yet",
+            workspaceFolders: [{}, {}],
+            workspaceFile: { scheme: "untitled", path: "1555503116870" },
+            place: { kind: "settingsPage", path: ["Settings", "Workspace"] },
+        },
+    ])("writes Workspace settings to $behaviour", ({ workspaceFolders, workspaceFile, place }) => {
+        (workspace as { workspaceFolders: unknown }).workspaceFolders = workspaceFolders;
+        (workspace as { workspaceFile: unknown }).workspaceFile = workspaceFile;
 
-        expect(new VsCodeSettings().canWriteWorkspaceSettings()).toBe(open);
+        expect(new VsCodeSettings().workspaceSettingsPlace()).toEqual(place);
     });
 });
 

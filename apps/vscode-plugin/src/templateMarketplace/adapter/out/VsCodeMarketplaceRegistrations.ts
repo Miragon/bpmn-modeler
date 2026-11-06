@@ -11,15 +11,10 @@ import {
 /** The User and Workspace settings lists, as `VsCodeSettings` reads and writes them. */
 export interface MarketplaceSettings {
     getMarketplacesByScope(): RegistrationsByScope;
-    canWriteWorkspaceSettings(): boolean;
+    workspaceSettingsPlace(): SettingsPlace | undefined;
     addMarketplace(location: string, scope: MarketplaceScope): Promise<void>;
     removeMarketplaces(entries: readonly MarketplaceSettingsEntry[]): Promise<void>;
 }
-
-const IN_WORKSPACE_SETTINGS: WritableScope = {
-    scope: "project",
-    savedIn: { kind: "file", path: [".vscode", "settings.json"] },
-};
 
 const IN_USER_SETTINGS: WritableScope = {
     scope: "allProjects",
@@ -33,10 +28,11 @@ export class VsCodeMarketplaceRegistrations implements MarketplaceRegistrationsP
     constructor(private readonly settings: MarketplaceSettings) {}
 
     async read(): Promise<MarketplaceRegistrations> {
+        const workspaceSettings = this.settings.workspaceSettingsPlace();
         return {
             registered: this.settings.getMarketplacesByScope(),
-            writable: this.settings.canWriteWorkspaceSettings()
-                ? [IN_WORKSPACE_SETTINGS, IN_USER_SETTINGS]
+            writable: workspaceSettings
+                ? [{ scope: "project", savedIn: workspaceSettings }, IN_USER_SETTINGS]
                 : [IN_USER_SETTINGS],
             selfHostedIn: SELF_HOSTED_IN,
         };

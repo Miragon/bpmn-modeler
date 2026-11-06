@@ -9,6 +9,7 @@ import {
     registeredMarketplaces,
     RegistrationsByScope,
     settingKeyOf,
+    SettingsPlace,
     SettingsPort,
     withoutMarketplaceEntries,
 } from "@miragon/bpmn-modeler-core";
@@ -144,9 +145,9 @@ export class VsCodeSettings implements SettingsPort {
         await config.update("marketplaces", filtered.length > 0 ? filtered : undefined, target);
     }
 
-    /** Workspace settings exist only while a folder or workspace is open. */
-    canWriteWorkspaceSettings(): boolean {
-        return hasWorkspace();
+    /** Where Workspace settings are saved; nowhere unless a folder or workspace is open. */
+    workspaceSettingsPlace(): SettingsPlace | undefined {
+        return hasWorkspace() ? { kind: "file", path: [".vscode", "settings.json"] } : undefined;
     }
 
     /**
