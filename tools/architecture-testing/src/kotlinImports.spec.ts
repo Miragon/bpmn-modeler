@@ -24,6 +24,13 @@ describe("readKotlinImports", () => {
         ]);
     });
 
+    it("reads imports a semicolon separates on one line", () => {
+        expect(readKotlinImports("import java.io.File; import com.intellij.X")).toEqual([
+            "java.io.File",
+            "com.intellij.X",
+        ]);
+    });
+
     it.each([
         { form: "a line comment", source: "// import com.intellij.A" },
         { form: "a block comment", source: "/*\nimport com.intellij.A\n*/" },
