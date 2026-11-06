@@ -72,6 +72,9 @@ IntelliJ runs over an RPC loopback that answers as the Kotlin side does. So a
 run pins each adapter's own mapping, not the host itself: where a fake and its
 host part, the suite cannot tell, and the Kotlin half is #2056.
 
+- `describeClipboardContract`: `InMemoryClipboard`, `VsCodeClipboard` over a
+  fake `env.clipboard` and the bridge's `RpcClipboard` over a loopback that
+  answers as `HostUiRouter` does.
 - `describeDeploymentStateContract`: `InMemoryDeploymentState`,
   `VsCodeDeploymentState` over a fake `Memento` that keeps a rejected value in
   memory, as VS Code's does, and the bridge's `RpcDeploymentState` over a
@@ -85,6 +88,15 @@ host part, the suite cannot tell, and the Kotlin half is #2056.
   over a fake panel, text document and `workspace` events, and the bridge's
   `RpcEditorHandle` over a loopback that answers as `EditorSessionRouter.kt`
   does.
+- `describeLintingPreferenceContract`: `InMemoryLintingPreference`,
+  `VsCodeLintingPreference` and the bridge's `RpcLintingPreference`. The setter
+  returns nothing, so each reads the choice back through its host's settings
+  adapter (`InMemorySettings`, `VsCodeSettings`, `BridgeSettings`). VS Code's
+  pair runs over a configuration fake with a user and a workspace scope, the
+  bridge's over a loopback that answers as `SettingsRouter` does.
+- `describePropertiesPanelStateContract`: `InMemoryPropertiesPanelState` and
+  VS Code's `PropertiesPanelStateRepository` over an in-memory `Memento`. The
+  bridge has no adapter of this port.
 - `describeScriptEditorContract`: `RecordingScriptEditor`, VS Code's
   `ScriptTaskService` over a fake of the editor tabs
   (`vscodeEditorTabsFake.ts`) and the bridge's `BridgeScriptEditor` over a
