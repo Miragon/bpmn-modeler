@@ -108,7 +108,8 @@ this shape. If there's nothing to add, add nothing.
 
 The deployment form's DOM lives only in
 `apps/deployment-webview/src/adapter/in/formTemplate.ts` (`FORM_TEMPLATE`),
-which `src/composition/bootstrap.ts` injects into `#app`. The host shells (`apps/deployment-webview/index.html`,
+which `src/composition/bootstrap.ts` injects into `#app`. The host shells
+(`apps/deployment-webview/index.html`,
 `apps/vscode-plugin/src/deployment/adapter/in/DeploymentWebviewHtml.ts`,
 IntelliJ's `WebviewServer.kt`) ship an empty `<div id="app"></div>`. Edit form
 markup only in `formTemplate.ts`.
