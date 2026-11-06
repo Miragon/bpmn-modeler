@@ -25,7 +25,9 @@ export interface WorkspaceWatcher {
 
 /**
  * Workspace folders and files held in memory. Paths are accepted plain or as
- * `file://` URIs, as the hosts accept them, and are held and reported plain.
+ * `file://` URIs, as the hosts accept them, and are held and reported plain,
+ * except the directory and the folder of a `file://` document, which keep its
+ * scheme, as the bridge answers.
  * Writing a file creates its parent directories, which outlive their last
  * file as on a disk.
  * File mutations, through the port or through {@link deleteFile}, notify the
@@ -75,9 +77,11 @@ export class InMemoryWorkspace implements WorkspacePort {
 
     findWorkspaceFolderForDocument(document: string): string | undefined {
         const documentPath = withoutFileScheme(document);
-        return this.folders
-            .filter((folder) => isWithinRoot(documentPath, withoutFileScheme(folder)))
+        const folder = this.folders
+            .map((known) => withoutFileScheme(known))
+            .filter((known) => isWithinRoot(documentPath, known))
             .sort((a, b) => b.length - a.length)[0];
+        return folder !== undefined && document !== documentPath ? `file://${folder}` : folder;
     }
 
     getWorkspaceFolderPaths(): string[] {
@@ -106,11 +110,15 @@ export class InMemoryWorkspace implements WorkspacePort {
     }
 
     async readFile(path: string): Promise<string> {
-        const content = this.files.get(withoutFileScheme(path));
-        if (content === undefined) {
-            throw new FileNotFound(path);
+        const filePath = withoutFileScheme(path);
+        const content = this.files.get(filePath);
+        if (content !== undefined) {
+            return content;
         }
-        return content;
+        if (this.directories.has(filePath)) {
+            throw new Error(`EISDIR: illegal operation on a directory, read '${path}'`);
+        }
+        throw new FileNotFound(path);
     }
 
     async isSymbolicLink(path: string): Promise<boolean> {
@@ -162,12 +170,15 @@ export class InMemoryWorkspace implements WorkspacePort {
     async findFiles(pattern: string, exclude?: string | null): Promise<string[]> {
         const include = globToRegExp(pattern);
         const excluded = exclude ? globToRegExp(exclude) : undefined;
+        const folderPaths = this.folders.map((folder) => withoutFileScheme(folder));
         const found: string[] = [];
-        for (const folder of this.folders) {
-            const folderPath = withoutFileScheme(folder);
+        for (const folderPath of folderPaths) {
+            // A folder open inside this one lists its own files, as in VS Code.
+            const nestedFolders = folderPaths.filter((other) => relativeToRoot(other, folderPath));
             for (const filePath of this.files.keys()) {
                 const relative = relativeToRoot(filePath, folderPath);
                 if (!relative || !include.test(relative) || excluded?.test(relative)) continue;
+                if (nestedFolders.some((nested) => isWithinRoot(filePath, nested))) continue;
                 found.push(filePath);
             }
         }

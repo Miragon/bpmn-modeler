@@ -1,11 +1,11 @@
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { TempGitRepository } from "../../__fixtures__/tempGitRepository";
 import { emptySnapshot, serializeSnapshot, withEntry } from "../../domain/snapshot";
-import { GitRepository } from "./gitRepository";
+import { checkoutRoot, GitRepository } from "./gitRepository";
 import { GitSnapshotBranch } from "./gitSnapshotBranch";
 import { GitWorktreeCheckout } from "./gitWorktreeCheckout";
 import { SnapshotDirectory } from "./snapshotDirectory";
@@ -37,6 +37,25 @@ describe("the git history", () => {
 
         expect(() => new GitRepository(repository.root).mergeBase("origin/main")).toThrow(
             "origin/main does not exist; fetch it first",
+        );
+    });
+
+    it("finds the merge base with a commit HEAD does not contain", () => {
+        const base = repository.commit("a.ts", "1");
+        repository.git("checkout", "--quiet", "-b", "feature");
+        repository.commit("b.ts", "1");
+        repository.git("checkout", "--quiet", "main");
+        const laterMain = repository.commit("a.ts", "2");
+        repository.git("checkout", "--quiet", "feature");
+
+        expect(new GitRepository(repository.root).mergeBase(laterMain.slice(0, 8))).toBe(base);
+    });
+
+    it("fails and names a base that is no commit", () => {
+        repository.commit("a.ts", "1");
+
+        expect(() => new GitRepository(repository.root).mergeBase("no-such-rev")).toThrow(
+            "no-such-rev does not exist; fetch it first",
         );
     });
 
@@ -93,6 +112,51 @@ describe("the git history", () => {
         repository.write("new.ts", "1");
 
         expect(history.hasUncommittedChanges()).toBe(true);
+    });
+});
+
+describe("the checkout to measure", () => {
+    it("is the root of a checkout", () => {
+        repository.commit("a.ts", "1");
+
+        expect(checkoutRoot(repository.root)).toBe(realpathSync(repository.root));
+    });
+
+    it("is the root of a worktree of an old commit", () => {
+        const old = repository.commit("a.ts", "1");
+        repository.commit("a.ts", "2");
+        const worktree = `${repository.root}-old`;
+        repository.git("worktree", "add", "--detach", "--quiet", worktree, old);
+
+        try {
+            expect(checkoutRoot(worktree)).toBe(realpathSync(worktree));
+        } finally {
+            repository.git("worktree", "remove", "--force", worktree);
+        }
+    });
+
+    it("fails on a folder inside a checkout and names its root", () => {
+        repository.commit("src/a.ts", "1");
+
+        expect(() => checkoutRoot(join(repository.root, "src"))).toThrow(
+            `is not the root of a checkout; its root is ${realpathSync(repository.root)}`,
+        );
+    });
+
+    it("fails on a folder that is no checkout", () => {
+        const folder = mkdtempSync(join(tmpdir(), "fitness-spec-plain-"));
+
+        try {
+            expect(() => checkoutRoot(folder)).toThrow(`${folder} is not a git checkout`);
+        } finally {
+            rmSync(folder, { recursive: true, force: true });
+        }
+    });
+
+    it("fails on a folder that does not exist", () => {
+        const missing = join(repository.root, "missing");
+
+        expect(() => checkoutRoot(missing)).toThrow(`${missing} is no directory`);
     });
 });
 
