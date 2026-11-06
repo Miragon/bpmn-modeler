@@ -54,10 +54,11 @@ export class ScriptEditorOpener {
     ) {}
 
     /**
-     * Opens the first script the element offers, in the order the properties
-     * panel presents them: the script-task inline script, then execution
-     * listeners, then task listeners. A deterministic order lets a single
-     * keyboard shortcut act on elements carrying several scripts.
+     * Opens the first script the element offers, in a fixed order: the
+     * script-task inline script, then execution listeners, then task
+     * listeners. The properties panel lists task listeners above execution
+     * listeners, so this is not the panel's order. A deterministic order lets
+     * a single keyboard shortcut act on elements carrying several scripts.
      *
      * @returns `true` if a script editor was opened.
      */
