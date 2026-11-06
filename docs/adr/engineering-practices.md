@@ -588,10 +588,11 @@ is read from the repository root. The review's measurement on known cases
 needs both. A function that cannot measure an old tree throws
 `InsufficientHistory` and is reported as not measurable there, and the others
 report as usual. At `3d1b19b3` (#2047) with `--base 452b6440` the merge base
-is `fb89b28e`; 6 of 8 functions measured against the stored snapshot of the
-merge base, `convention-coverage` (no workspace declared a kind yet) and
-`mutation-score` (no stored run on that chain) did not, and a run took about
-3 to 6 s on a laptop.
+is `fb89b28e`; 6 of 9 functions measured, 5 against the stored snapshot of
+the merge base and `host-text` against a checkout of it, because that
+snapshot holds its version 1. `convention-coverage` and `contract-suites` (no
+workspace declared a kind yet) and `mutation-score` (no stored run on that
+chain) did not, and a run took about 3 to 6 s on a laptop.
 
 **Contract.** A fitness function declares `id`, `version`, its categories
 (scope atomic or holistic, cadence triggered, result static or dynamic), what
