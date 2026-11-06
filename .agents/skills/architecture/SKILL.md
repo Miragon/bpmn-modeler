@@ -44,12 +44,17 @@ manifest, a JSON schema, Kotlin) is pinned by a spec that reads it and compares
 it with the home's runtime list, as `apps/vscode-plugin/src/manifest.contract.spec.ts`
 pins the languages and `deploymentTargetsSchema.spec.ts` the schema's engines
 and auth types. A home that has only a type gets that list as a readonly tuple
-its type derives from (`TARGET_AUTH_TYPES`), not as a second spelling. A pin is
-a fix, not an exception. The `repeated-value-sets`
-fitness function reports every set written in two or more files that no
-`expectTypeOf` pin links; a copy a branch adds shows as new. A copy that drifts
-from its home shows as resolved, not new: a resolved set is a fix only where its
-copies are gone, import their home or are pinned to it.
+its type derives from (`TARGET_AUTH_TYPES`), not as a second spelling. A type a
+published package re-exports from an inlined library, such as `Engine`, cannot
+derive from an `as const` list: the package's declaration roll-up (API
+Extractor) reads the library's source and fails on it. Its list is typed as the
+home instead, and a spec checks that it names every value, as `engine.spec.ts`
+checks `ENGINES` against the `Record<Engine, …>` tables. A pin is a fix, not an
+exception. The `repeated-value-sets` fitness function reports every set written
+in two or more files that no `expectTypeOf` pin links; a copy a branch adds
+shows as new. A copy that drifts from its home shows as resolved, not new: a
+resolved set is a fix only where its copies are gone, import their home or are
+pinned to it.
 
 The core builds every user-visible text, and a host renders it: prompts, status
 views, notifications and their buttons. A text a host would write goes into the
