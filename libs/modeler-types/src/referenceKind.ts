@@ -5,6 +5,9 @@ export type ReferenceKind = "process" | "decision" | "form";
  * What a reference kind supports. Every rule on a reference kind lives here or in a
  * `Record<ReferenceKind, …>` lookup, so code asks {@link referenceKindSupports} instead of
  * comparing a {@link ReferenceKind} value.
+ *
+ * Both capabilities are served by form-only stores (the host's form index and the form
+ * preview), so a kind that gains one needs its own store first.
  */
 export interface ReferenceKindCapabilities {
     /**

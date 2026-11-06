@@ -146,7 +146,7 @@ export class NavigateContextPadProvider {
                 title,
                 action: {
                     click: (_event, clickedElement) => {
-                        const current = extractReference(clickedElement.businessObject, "form");
+                        const current = extractReference(clickedElement.businessObject, kind);
                         if (current && this.formReferenceStatusClient.isResolved(current)) {
                             this.formPreviewController?.openManual(clickedElement);
                         }
