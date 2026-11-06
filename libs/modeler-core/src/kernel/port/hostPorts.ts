@@ -186,7 +186,8 @@ export interface WorkspacePort {
      *
      * `pattern` and `exclude` match a file's path relative to its workspace
      * folder, so the folders above a workspace folder exclude none of its
-     * files. `undefined` keeps the host's own default excludes (VS Code's
+     * files. A folder open inside another is searched on its own, so each file
+     * is listed once. `undefined` keeps the host's own default excludes (VS Code's
      * `files.exclude`), `null` drops them. A host need not read a folder that
      * `exclude` covers whole ({@link import("../domain/globToRegExp").coveredFolderRegExp}).
      */

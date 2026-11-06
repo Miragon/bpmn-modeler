@@ -382,6 +382,23 @@ export function describeWorkspaceContract(
                     `${root}/proj/order.bpmn`,
                 ]);
             });
+
+            // VS Code leaves a folder open inside another to its own search. The core
+            // does not dedupe, so a file found twice is offered as two candidates.
+            it("finds a file inside a folder open within another folder once", async () => {
+                const { workspace, root } = fixture;
+                await workspace.writeFile(`${root}/proj/order.bpmn`, "");
+                await workspace.writeFile(`${root}/proj/sub/ship.bpmn`, "");
+                fixture.openFolder(`${root}/proj`);
+                fixture.openFolder(`${root}/proj/sub`);
+
+                const found = await workspace.findFiles("**/*.bpmn", "**/node_modules/**");
+
+                expect(found.sort()).toEqual([
+                    `${root}/proj/order.bpmn`,
+                    `${root}/proj/sub/ship.bpmn`,
+                ]);
+            });
         });
 
         describe("watchers", () => {
