@@ -43,9 +43,10 @@ const REVISION = "git:/repo/order.bpmn?ref=HEAD";
  * The rules of {@link DiffPaneHandle} the diff core relies on, run against one
  * adapter. `DiffPaneStore` and `DiffSession` find a pane by its `uri`;
  * `BpmnDiffService` answers the webview's file request from `getText` before the
- * pane reports ready, runs the differ on `getText` once both panes are ready,
- * posts the locale only to ready panes, and forwards viewport and cursor to the
- * partner; a host detaches a pane from its session as the pane is disposed.
+ * pane reports ready, readies a pane only on its `DiffReadyCommand`, runs the
+ * differ on `getText` once both panes are ready, posts the locale only to ready
+ * panes, and forwards viewport and cursor to the partner; a host detaches a pane
+ * from its session as the pane is disposed.
  *
  * Left out, because the hosts differ and the core relies on none of it:
  * - What `postMessage` resolves to. VS Code answers whether the webview took the
@@ -111,8 +112,21 @@ export function describeDiffPaneContract(
             },
         );
 
-        it("opens not ready, and setReady makes only its own pane ready", () => {
-            const { before, after } = openScmDiff();
+        it("becomes ready only by its own setReady, not by serving its file", async () => {
+            const fixture = openScmDiff();
+            const { before, after } = fixture;
+
+            expect([before.isReady(), after.isReady()]).toEqual([false, false]);
+
+            // The core answers a pane's file request before the pane reports ready.
+            const beforeFile = new BpmnFileQuery(before.getText(), undefined, "viewer");
+            const afterFile = new BpmnFileQuery(after.getText(), undefined, "viewer");
+            await before.postMessage(beforeFile);
+            await after.postMessage(afterFile);
+            await eventually(() => {
+                expect(fixture.receivedBy("before")).toEqual([beforeFile]);
+                expect(fixture.receivedBy("after")).toEqual([afterFile]);
+            });
 
             expect([before.isReady(), after.isReady()]).toEqual([false, false]);
 
