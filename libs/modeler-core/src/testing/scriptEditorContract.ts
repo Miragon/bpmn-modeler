@@ -113,8 +113,10 @@ function createContractHost() {
  * spelled, when an open tab owns a script, the dismissal value and that a
  * failed write in `materialize` rejects. `open`, `applyModelChange`, a file the
  * user opens or closes and `disposeEditor` take part as far as they change
- * those answers or the files: `open` writes the script's file, and a reveal
- * leaves it to the tab.
+ * those answers or the files: `open` writes the script's file, a reveal leaves
+ * it to the tab, and a removal in the model and `disposeEditor` close tabs of
+ * their own editor only. The editor id is the diagram's URI, so a diagram the
+ * user closes and reopens keeps its id.
  * Where the hosts differ, VS Code is the reference.
  *
  * Left out, as the core reads none of it back: `resync` and `variablesChanged`,
@@ -477,6 +479,28 @@ export function describeScriptEditorContract(
             expect(scriptFilesOnDisk()).toEqual([
                 `${BASE_DIR}/${OTHER_HASH}/Task_1/script-task/Task_1.groovy`,
             ]);
+        });
+
+        it("closes only the closed editor's tabs: its scripts are written on the next run, another editor's open script stays open", async () => {
+            await fixture.scriptEditor.open(EDITOR, scriptTask());
+            await fixture.scriptEditor.open(OTHER_EDITOR, scriptTask());
+
+            fixture.scriptEditor.disposeEditor(EDITOR);
+            await settle();
+
+            await expect(
+                fixture.scriptEditor.materialize(
+                    EDITOR,
+                    scriptTask({ content: "reopened diagram" }),
+                ),
+            ).resolves.toEqual({ kind: "written" });
+            expect(host.workspace.files.get(TASK_FILE)).toBe("reopened diagram");
+            await expect(
+                fixture.scriptEditor.materialize(
+                    OTHER_EDITOR,
+                    scriptTask({ content: "regenerated" }),
+                ),
+            ).resolves.toEqual({ kind: "alreadyOpen" });
         });
     });
 }
