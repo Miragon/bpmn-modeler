@@ -9,17 +9,19 @@ class EmptyDmnDiagramTest {
         assertEquals(coreEmptyDmnDiagram(), NewDmnModelAction.EMPTY_DMN_DIAGRAM)
     }
 
-    /** `EMPTY_DMN_DIAGRAM` in `emptyDmn.ts`, the scaffold VS Code and the core's empty-file branch write. */
+    /** The value of the `EMPTY_DMN_DIAGRAM` template literal in `emptyDmn.ts`. */
     private fun coreEmptyDmnDiagram(): String {
         val source = readTypeScriptFile("miragon.emptyDmn")
         val template =
             requireNotNull(Regex("""export const EMPTY_DMN_DIAGRAM\b[^=]*=\s*`([^`]*)`""").find(source)) {
                 "emptyDmn.ts declares no EMPTY_DMN_DIAGRAM template literal"
             }.groupValues[1]
-        // The source text is the value only while the template holds no escape and no placeholder.
+        // Line endings aside, the source text is the value only while the template holds no escape
+        // and no placeholder.
         require('\\' !in template && "\${" !in template) {
             "EMPTY_DMN_DIAGRAM holds an escape or a placeholder; compare its value, not its source text"
         }
-        return template
+        // A template literal reads CRLF and CR as LF, so a CRLF checkout holds the same value.
+        return template.replace("\r\n", "\n").replace('\r', '\n')
     }
 }
