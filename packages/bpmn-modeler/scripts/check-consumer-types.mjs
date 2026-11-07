@@ -144,6 +144,32 @@ const CONSUMER_FIXTURES = {
             modeler.destroy();
         }
     `,
+    "plugins.ts": `
+        import { createModeler } from "${PKG}";
+
+        export async function usePlugins(
+            canvas: HTMLElement,
+            panel: HTMLElement,
+            scriptUrl: string,
+        ): Promise<number> {
+            const { buildWithPluginsOrWithout, loadPlugins } = await import("${PKG}/plugins");
+            const plugins = await loadPlugins([{ name: "smoke", scriptUrl }]);
+            const modeler = await buildWithPluginsOrWithout(
+                plugins,
+                "c7",
+                (modules) =>
+                    createModeler(canvas, {
+                        engine: "c7",
+                        propertiesPanel: { parent: panel },
+                        linting: false,
+                        ...modules,
+                    }),
+                (error: unknown) => console.warn(error),
+            );
+            modeler.destroy();
+            return plugins.failures.length;
+        }
+    `,
 };
 
 export function checkConsumerTypes({ consumerDir, fixtures = CONSUMER_FIXTURES }) {

@@ -250,15 +250,15 @@ export function bootstrap(
             return;
         }
 
-        // Modules are fixed when a surface is built, so the plugins come first.
-        // A diff pane never asks: it is a viewer, which takes no plugins.
+        // The first point that knows this is no diff pane, which takes no
+        // plugins. The editable surfaces wait for them while their modules load.
         editorHost.postMessage(new GetBpmnPluginsCommand());
+        const plugins = pluginsResolver
+            .wait(HOST_REPLY_TIMEOUT_MS)
+            .then((query) => loadSurfacePlugins(query?.plugins ?? [], editorHost));
 
         const chrome = mountEditorChrome(editorHost);
         if (!chrome) return;
-
-        const pluginsQuery = await pluginsResolver.wait(HOST_REPLY_TIMEOUT_MS);
-        const plugins = await loadSurfacePlugins(pluginsQuery?.plugins ?? [], editorHost);
 
         // The engine may be undefined here — an untagged (engine-neutral) model
         // is first-class now and opens in Design. The initial mode resolves from

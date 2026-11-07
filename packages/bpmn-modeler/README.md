@@ -890,6 +890,39 @@ interface). The lint chrome's CSS is not code-split — it always lands in
 `@miragon/bpmn-modeler/design.css`), which every consumer already loads — so importing the subpath
 brings no extra stylesheet wiring.
 
+## Plugins
+
+`@miragon/bpmn-modeler/plugins` loads bpmn-js plugins at runtime in the format of
+[Camunda Modeler plugins](https://github.com/camunda/camunda-modeler-plugin-helpers): a classic
+script that pushes `{ type, plugin }` onto `window.plugins`, plus an optional stylesheet. Like
+`/lint`, it is a separate subpath, so a consumer without plugins never bundles the loader.
+
+```ts
+import { createModeler } from "@miragon/bpmn-modeler";
+
+const { buildWithPluginsOrWithout, loadPlugins } = await import("@miragon/bpmn-modeler/plugins");
+const plugins = await loadPlugins( [ { name: "resize-tasks", scriptUrl, styleUrl } ] );
+// plugins.failures and plugins.ignored say what was left out and why.
+
+const modeler = await buildWithPluginsOrWithout(
+    plugins,
+    engine,
+    ( modules ) => createModeler( container, { engine, propertiesPanel: { parent }, ...modules } ),
+    ( error ) => console.warn( "opened without plugins", error ),
+);
+```
+
+`loadPlugins` runs one script at a time, attributes what each registers, restores
+`window.plugins`, and reports a failing plugin without stopping the others. `modulesFor(engine)`
+maps registrations to engines: `bpmn.modeler.*` applies to every engine, `bpmn.platform.modeler.*`
+to `"c7"` and `bpmn.cloud.modeler.*` to `"c8"`, for `additionalModules` and `moddleExtension`;
+anything else (such as a `client` React extension) is listed in `ignored`.
+`buildWithPluginsOrWithout` builds with those modules and, when that build throws or rejects, calls
+the callback and builds again without them, so a broken plugin never keeps a diagram from opening.
+
+The package decides no trust: plugin code runs with the page's full authority. Load only scripts
+the user or you approved, from a source you control.
+
 ## Caveats
 
 - **bpmn.io watermark.** bpmn-js renders the bpmn.io logo. Per the bpmn.io license you must keep it

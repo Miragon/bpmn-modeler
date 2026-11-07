@@ -42,7 +42,10 @@ export function readPluginManifest(
     }
     for (const path of [fields.script, fields.style]) {
         if (path !== undefined && !isPathInsidePluginFolder(path)) {
-            return { kind: "unreadable", reason: `"${path}" is not a path inside the plugin folder` };
+            return {
+                kind: "unreadable",
+                reason: `"${path}" is not a path inside the plugin folder`,
+            };
         }
     }
     const manifest: PluginManifest = {

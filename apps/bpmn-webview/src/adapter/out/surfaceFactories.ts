@@ -2,23 +2,23 @@ import type { ClipboardOptions, ModelerCapabilities, ModelerMode } from "@mirago
 import type { SurfaceFactories } from "@miragon/bpmn-modeler/mode";
 import { LogWarningCommand, ShowInfoCommand } from "@miragon/bpmn-modeler-shared";
 
-import type { Engine } from "@miragon/bpmn-modeler-types";
-import type { PluginModules } from "@miragon/bpmn-modeler/plugins";
-
 import { elementTemplateRejectionReport } from "../../domain/elementTemplateRejectionReport";
 import type { HostModelerState } from "../../domain/hostModelerState";
-import { pluginConstructionFailureReport } from "../../domain/pluginLoadReport";
 import { loadDesignerModule, loadModelerModule, loadViewerModule } from "./surfaceModules";
 import type { HostChannel } from "../../port/hostChannel";
 import type { LintBridge } from "./lintBridge";
-import { NO_PLUGINS, reportToHost, type SurfacePlugins } from "./surfacePlugins";
+import { NO_PLUGINS, type SurfacePlugins } from "./surfacePlugins";
 
 interface SurfaceFactoryPorts {
     propertiesPanelParent: HTMLElement;
     capabilities: ModelerCapabilities;
     extraModules: unknown[];
-    /** Design and Implement only: View is a NavigatedViewer, without the modeling services plugins build on. */
-    plugins?: SurfacePlugins;
+    /**
+     * Design and Implement only: View is a NavigatedViewer, without the modeling
+     * services plugins build on. A promise, so the plugins load while the
+     * surface modules do.
+     */
+    plugins?: Promise<SurfacePlugins>;
     clipboard: ClipboardOptions | undefined;
     lintBridge: Pick<LintBridge, "surfaceOptions">;
     hostModelerState: Pick<
@@ -49,26 +49,7 @@ export function createSurfaceFactories(
         }
     }
 
-    const plugins = ports.plugins ?? NO_PLUGINS;
-
-    /**
-     * Builds with the plugins and, when one breaks the construction, again
-     * without them: a broken plugin must never keep a diagram from opening.
-     */
-    async function withPlugins<Surface>(
-        engine: Engine | undefined,
-        build: (modules: PluginModules) => Promise<Surface>,
-    ): Promise<Surface> {
-        if (plugins.isEmpty) {
-            return build(NO_PLUGINS.modulesFor(engine));
-        }
-        try {
-            return await build(plugins.modulesFor(engine));
-        } catch (error) {
-            reportToHost(host, pluginConstructionFailureReport(error));
-            return build(NO_PLUGINS.modulesFor(engine));
-        }
-    }
+    const pluginsLoaded = ports.plugins ?? Promise.resolve(NO_PLUGINS);
 
     return {
         view: async ({ container, theme }) => {
@@ -81,12 +62,13 @@ export function createSurfaceFactories(
             });
         },
         design: async ({ container, theme }) => {
-            const [{ createDesigner }, linting] = await Promise.all([
+            const [{ createDesigner }, linting, plugins] = await Promise.all([
                 loadDesignerModule(),
                 ports.lintBridge.surfaceOptions(),
+                pluginsLoaded,
             ]);
             const settingsAtCreation = hostModelerState.settings;
-            const designer = await withPlugins(undefined, (pluginModules) =>
+            const designer = await plugins.build(undefined, (pluginModules) =>
                 createDesigner(container, {
                     theme,
                     favouriteBpmnElements: settingsAtCreation?.favouriteBpmnElements,
@@ -111,14 +93,15 @@ export function createSurfaceFactories(
                 // and createModeler's `engine` must not be faked.
                 throw new Error("implement surface requires a tagged model");
             }
-            const [{ createModeler }, linting] = await Promise.all([
+            const [{ createModeler }, linting, plugins] = await Promise.all([
                 loadModelerModule(),
                 ports.lintBridge.surfaceOptions(),
+                pluginsLoaded,
             ]);
             const settingsAtCreation = hostModelerState.settings;
             // A tagged model keeps one instance across Design and Implement, so
             // its engine's plugins stay loaded in Design too.
-            const modeler = await withPlugins(engine, (pluginModules) =>
+            const modeler = await plugins.build(engine, (pluginModules) =>
                 createModeler(container, {
                     engine,
                     mode,

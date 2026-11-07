@@ -6,8 +6,12 @@ import {
     approvalStateOf,
     approvedPlugins,
     cachedPluginFiles,
+    holdsCachedPluginFiles,
+    type PendingApproval,
     pendingApprovals,
+    PLUGIN_APPROVAL_NOTICE_ID,
     PLUGIN_APPROVAL_PROMPT_ID,
+    pluginApprovalNotice,
     pluginApprovalPrompt,
     type PluginApproval,
     type PluginApprovalState,
@@ -95,7 +99,7 @@ describe("pluginApprovalPrompt", () => {
             id: PLUGIN_APPROVAL_PROMPT_ID,
             title: "Allow BPMN plugins from this workspace?",
             placeholder:
-                "Plugins run their own code in the BPMN editor. Check only the ones you trust; the editor reloads with them.",
+                "Plugins run their own code in the BPMN editor. Check only the ones you trust; open editors reload with them.",
             items: [
                 { label: "Resize Tasks", description: "new", path: resize.id, value: resize.id },
                 {
@@ -119,6 +123,76 @@ describe("cachedPluginFiles", () => {
         expect(cachedPluginFiles("/storage/bpmn-plugins", resize)).toEqual({
             directory: "/storage/bpmn-plugins/aaa",
             script: "/storage/bpmn-plugins/aaa/plugin.js",
+        });
+    });
+});
+
+describe("holdsCachedPluginFiles", () => {
+    const withStyle = cachedPluginFiles("/storage", palette);
+    const scriptOnly = cachedPluginFiles("/storage", resize);
+
+    it.each<{
+        case: string;
+        entries: [name: string, type: string][];
+        files: typeof withStyle;
+        holds: boolean;
+    }>([
+        {
+            case: "a script-only copy with its script",
+            entries: [["plugin.js", "file"]],
+            files: scriptOnly,
+            holds: true,
+        },
+        {
+            case: "a copy with script and style",
+            entries: [
+                ["plugin.css", "file"],
+                ["plugin.js", "file"],
+            ],
+            files: withStyle,
+            holds: true,
+        },
+        {
+            case: "a copy whose style is missing, after an interrupted write",
+            entries: [["plugin.js", "file"]],
+            files: withStyle,
+            holds: false,
+        },
+        {
+            case: "a copy whose script is missing",
+            entries: [["plugin.css", "file"]],
+            files: withStyle,
+            holds: false,
+        },
+        {
+            case: "a directory named like the script",
+            entries: [["plugin.js", "directory"]],
+            files: scriptOnly,
+            holds: false,
+        },
+        { case: "an empty directory", entries: [], files: scriptOnly, holds: false },
+    ])("is $holds for $case", ({ entries, files, holds }) => {
+        expect(holdsCachedPluginFiles(entries, files)).toBe(holds);
+    });
+});
+
+describe("pluginApprovalNotice", () => {
+    const pendingOf = (count: number): PendingApproval[] =>
+        Array.from({ length: count }, (_, index) => ({
+            plugin: { ...resize, id: `${resize.id}-${index}` },
+            state: "new" as const,
+        }));
+
+    it.each([
+        { count: 1, message: "1 BPMN plugin in this workspace is not allowed yet." },
+        { count: 2, message: "2 BPMN plugins in this workspace are not allowed yet." },
+        { count: 5, message: "5 BPMN plugins in this workspace are not allowed yet." },
+    ])("counts $count pending plugin(s) and offers only the review", ({ count, message }) => {
+        expect(pluginApprovalNotice(pendingOf(count))).toEqual({
+            id: PLUGIN_APPROVAL_NOTICE_ID,
+            tone: "info",
+            message,
+            actions: [{ label: "Review…", value: "review" }],
         });
     });
 });

@@ -52,7 +52,7 @@ export function register(
     const codeLink = new CodeLinkFeature(ports);
     const plugins = new BpmnPluginsFeature({
         ...ports,
-        store: deps.editorStore,
+        actionNotifier: deps.actionNotifier,
         approvals: new VsCodePluginApprovalStore(context.globalState),
         hasher: new NodeContentHasher(),
         cacheRoot: bpmnPluginCacheUri(context.globalStorageUri).fsPath,
@@ -80,7 +80,7 @@ export function register(
             plugins: plugins.editorContribution,
         },
     );
-    context.subscriptions.push(editor, navigation, definitionSearch, codeLink);
+    context.subscriptions.push(editor, navigation, definitionSearch, codeLink, plugins);
 
     new ModelerEditorController(deps.editorStore, deps.notifier, deps.createEditorHandle, {
         viewType: BPMN_VIEW_TYPE,

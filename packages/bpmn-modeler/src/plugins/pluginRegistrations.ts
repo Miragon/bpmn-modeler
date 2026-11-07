@@ -21,6 +21,10 @@ export interface PluginModules {
     readonly moddleExtensions: Record<string, object>;
 }
 
+export function noPluginModules(): PluginModules {
+    return { additionalModules: [], moddleExtensions: {} };
+}
+
 /** A registration the modeler skips, such as a React client extension. */
 export interface IgnoredRegistration {
     readonly plugin: string;
