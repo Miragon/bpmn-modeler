@@ -8,7 +8,7 @@ import {
 } from "@miragon/bpmn-modeler-shared";
 import { serializeAsync } from "@miragon/bpmn-modeler-types";
 
-import type { FormHost } from "../../port/formHost";
+import type { FormHost, WebviewState } from "../../port/formHost";
 
 type Schema = Record<string, unknown>;
 type ImportResult = { warnings?: unknown[] };
@@ -43,7 +43,7 @@ export interface FormEditorElements {
 }
 
 export class FormEditorApp {
-    private mode: "edit" | "preview" = "edit";
+    private mode: WebviewState["mode"] = "edit";
     private activeHostUpdates = 0;
     private readonly importSchema = serializeAsync((schema: Schema) =>
         this.formEditor.importSchema(schema),
@@ -71,7 +71,7 @@ export class FormEditorApp {
         private readonly host: FormHost,
         private readonly elements: FormEditorElements,
         private readonly editorInput: PendingEditorInput,
-        initialMode: "edit" | "preview" = "edit",
+        initialMode: WebviewState["mode"] = "edit",
     ) {
         this.formEditor.on("changed", () => this.syncChangedContent());
         for (const event of [
@@ -181,7 +181,7 @@ export class FormEditorApp {
         return this.baseline !== "";
     }
 
-    async setMode(mode: "edit" | "preview"): Promise<void> {
+    async setMode(mode: WebviewState["mode"]): Promise<void> {
         if (this.baseline) this.hideError();
         this.mode = mode;
         if (mode === "edit") this.previewOutputActive = false;

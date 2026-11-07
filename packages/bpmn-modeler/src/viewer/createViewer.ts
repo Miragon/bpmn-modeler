@@ -1,3 +1,4 @@
+import { DEFAULT_THEME_MODE } from "@miragon/bpmn-modeler-types";
 import { BpmnViewer } from "./viewer";
 import type { ViewerOptions } from "./publicApi";
 import { createSurface } from "../createSurface";
@@ -16,7 +17,7 @@ export async function createViewer(
 
             // Always engage theming so the per-instance `data-bpmn-theme` attribute is
             // set from the first frame; `"automatic"` then follows `prefers-color-scheme`.
-            viewer.setTheme(options.theme ?? "automatic");
+            viewer.setTheme(options.theme ?? DEFAULT_THEME_MODE);
         },
     );
 }
