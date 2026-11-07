@@ -1,3 +1,8 @@
+// The modeler's sheets load with the page: the viewer brings none, and a read-only tab loads only it.
+import "../../../../packages/bpmn-modeler/src/styles/default.css";
+import "../../../../packages/bpmn-modeler/src/styles/diff.css";
+import "../../../../packages/bpmn-modeler/src/styles/canvasFocusIndicator.css";
+import "../../../../packages/bpmn-modeler/src/styles/themes.css";
 import "../../../../packages/bpmn-modeler/src/styles/mode.css";
 import "./orcaEditor.css";
 

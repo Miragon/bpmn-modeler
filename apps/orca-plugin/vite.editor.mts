@@ -1,5 +1,5 @@
 import { resolve } from "node:path";
-import { defineConfig, type Plugin, type UserConfig } from "vite";
+import { defineConfig, type Plugin } from "vite";
 import tsconfigPaths from "vite-tsconfig-paths";
 
 /**
@@ -42,64 +42,63 @@ function evalFree(): Plugin {
     };
 }
 
-/** One editor's bundle: unminified and with sourcemaps, but without the libraries' comments. */
-export function editorConfig(editor: "bpmn" | "dmn"): UserConfig {
-    return defineConfig({
-        root: __dirname,
-        // Chunks resolve against import.meta.url inside Orca's plugin frame.
-        base: "./",
-        cacheDir: `../../node_modules/.vite/orca-plugin-${editor}`,
-        plugins: [tsconfigPaths(), evalFree()],
-        oxc: { jsx: { runtime: "automatic", importSource: "preact" } },
-        resolve: {
-            alias: {
-                "@bpmn-io/properties-panel/preact/jsx-dev-runtime":
-                    "@bpmn-io/properties-panel/preact/jsx-runtime",
-            },
-            dedupe: [
-                "preact",
-                "inferno",
-                "bpmn-js",
-                "diagram-js",
-                "bpmn-moddle",
-                "moddle",
-                "bpmn-js-create-append-anything",
-                "@bpmn-io/properties-panel",
-                "@codemirror/state",
-                "@codemirror/view",
-                "@codemirror/language",
-                "@codemirror/autocomplete",
-                "@codemirror/commands",
-                "@codemirror/lint",
-                "@codemirror/search",
-                "@lezer/common",
-                "@lezer/highlight",
-                "@lezer/lr",
-            ],
+/**
+ * Both editor pages in one build, so the code they share ships once, in `editor/shared/`:
+ * unminified and with sourcemaps, but without the libraries' comments.
+ */
+export default defineConfig({
+    root: __dirname,
+    // Chunks resolve against import.meta.url inside Orca's plugin frame.
+    base: "./",
+    cacheDir: "../../node_modules/.vite/orca-plugin",
+    plugins: [tsconfigPaths(), evalFree()],
+    oxc: { jsx: { runtime: "automatic", importSource: "preact" } },
+    resolve: {
+        alias: {
+            "@bpmn-io/properties-panel/preact/jsx-dev-runtime":
+                "@bpmn-io/properties-panel/preact/jsx-runtime",
         },
-        build: {
-            target: "es2021",
-            minify: false,
-            sourcemap: true,
-            commonjsOptions: { transformMixedEsModules: true },
-            // The editor's page links one stylesheet.
-            cssCodeSplit: false,
-            chunkSizeWarningLimit: 10_000,
-            outDir: `plugin/editor/${editor}/dist`,
-            emptyOutDir: true,
-            rollupOptions: {
-                input: { main: resolve(__dirname, `src/${editor}.ts`) },
-                output: {
-                    entryFileNames: "[name].js",
-                    comments: { legal: true, annotation: false, jsdoc: false },
-                    chunkFileNames: "chunks/[name]-[hash].js",
-                    assetFileNames: (asset) =>
-                        asset.names.some((name) => name.endsWith(".css"))
-                            ? "main.css"
-                            : "assets/[name]-[hash][extname]",
-                },
+        dedupe: [
+            "preact",
+            "inferno",
+            "bpmn-js",
+            "diagram-js",
+            "bpmn-moddle",
+            "moddle",
+            "bpmn-js-create-append-anything",
+            "@bpmn-io/properties-panel",
+            "@codemirror/state",
+            "@codemirror/view",
+            "@codemirror/language",
+            "@codemirror/autocomplete",
+            "@codemirror/commands",
+            "@codemirror/lint",
+            "@codemirror/search",
+            "@lezer/common",
+            "@lezer/highlight",
+            "@lezer/lr",
+        ],
+    },
+    build: {
+        target: "es2021",
+        minify: false,
+        sourcemap: true,
+        commonjsOptions: { transformMixedEsModules: true },
+        chunkSizeWarningLimit: 10_000,
+        outDir: "plugin",
+        emptyOutDir: true,
+        rollupOptions: {
+            input: {
+                bpmn: resolve(__dirname, "editor/bpmn/index.html"),
+                dmn: resolve(__dirname, "editor/dmn/index.html"),
+            },
+            output: {
+                entryFileNames: "editor/[name]/main.js",
+                comments: { legal: true, annotation: false, jsdoc: false },
+                chunkFileNames: "editor/shared/[name]-[hash].js",
+                assetFileNames: "editor/shared/[name]-[hash][extname]",
             },
         },
-        define: { "process.env.NODE_ENV": JSON.stringify("production") },
-    });
-}
+    },
+    define: { "process.env.NODE_ENV": JSON.stringify("production") },
+});
