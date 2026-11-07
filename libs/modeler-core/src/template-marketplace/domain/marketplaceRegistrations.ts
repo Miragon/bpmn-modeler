@@ -92,23 +92,34 @@ const LISTS_A_SCOPE_REACHES: Record<MarketplaceScope, readonly MarketplaceScope[
     allProjects: ["allProjects"],
 };
 
+type HoldingScopes = readonly [MarketplaceScope, ...MarketplaceScope[]];
+
 /**
- * Whether adding `entry` for `scope` would change nothing, because a list that
- * scope reaches holds it already. An entry of this project can still be shared
- * with all projects.
+ * `registeredIn` names every scope whose list holds the entry, all projects
+ * first, not only those the add reaches.
  */
-export function isAlreadyRegistered(
+export type MarketplaceAddOutcome =
+    | { readonly kind: "registered" }
+    | { readonly kind: "alreadyRegistered"; readonly registeredIn: HoldingScopes };
+
+/**
+ * An add of `entry` for `scope` registers nothing when a list that scope reaches
+ * holds the entry already. An entry of this project can still be shared with all
+ * projects. Entries match by their fields, as {@link registeredMarketplaces}
+ * matches them.
+ */
+export function marketplaceAddOutcome(
     registered: RegistrationsByScope,
     entry: MarketplaceSettingsEntry,
     scope: MarketplaceScope,
-): boolean {
-    return scopesHolding(registered, entry).some((holding) =>
-        LISTS_A_SCOPE_REACHES[scope].includes(holding),
-    );
+): MarketplaceAddOutcome {
+    const registeredIn = scopesHolding(registered, entry);
+    return holdsAListReachedBy(scope, registeredIn)
+        ? { kind: "alreadyRegistered", registeredIn }
+        : { kind: "registered" };
 }
 
-/** All projects first; entries match by their fields, as {@link registeredMarketplaces} matches them. */
-export function scopesHolding(
+function scopesHolding(
     registered: RegistrationsByScope,
     entry: MarketplaceSettingsEntry,
 ): MarketplaceScope[] {
@@ -116,6 +127,14 @@ export function scopesHolding(
     return LISTING_ORDER.filter((scope) =>
         registered[scope].some((listed) => entryKey(listed) === key),
     );
+}
+
+// Sound as a guard: `some` holds only for a list with at least one scope.
+function holdsAListReachedBy(
+    scope: MarketplaceScope,
+    holding: readonly MarketplaceScope[],
+): holding is HoldingScopes {
+    return holding.some((held) => LISTS_A_SCOPE_REACHES[scope].includes(held));
 }
 
 /** The list without the removed entries, matched as {@link registeredMarketplaces} matches them. */

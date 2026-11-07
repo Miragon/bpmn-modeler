@@ -6,16 +6,15 @@ import {
     MarketplaceAddAnswer,
     MarketplaceAddNotice,
     marketplaceAddNotice,
-    MarketplaceAddOutcome,
     marketplaceAddPrompt,
     marketplaceRemoval,
 } from "../domain/marketplacePrompts";
 import {
-    isAlreadyRegistered,
+    marketplaceAddOutcome,
+    MarketplaceAddOutcome,
     MarketplaceScope,
     registeredMarketplaces,
     registrableLocation,
-    scopesHolding,
 } from "../domain/marketplaceRegistrations";
 import { MarketplacePromptPort, MarketplaceRegistrationsPort } from "../port/marketplacePorts";
 import { TemplateMarketplaceService } from "./TemplateMarketplaceService";
@@ -211,14 +210,18 @@ export class MarketplaceCommands {
         scope: MarketplaceScope,
     ): Promise<MarketplaceAddOutcome> {
         const { registrations, notifier } = this.ports;
-        const { registered } = await registrations.read();
-        if (isAlreadyRegistered(registered, location, scope)) {
+        const outcome = marketplaceAddOutcome(
+            (await registrations.read()).registered,
+            location,
+            scope,
+        );
+        if (outcome.kind === "alreadyRegistered") {
             notifier.logDebug(`Marketplace already registered: ${location}`);
-            return { kind: "alreadyRegistered", registeredIn: scopesHolding(registered, location) };
+            return outcome;
         }
         await registrations.register(location, scope);
         notifier.logDebug(`Marketplace registration persisted: ${location}`);
-        return { kind: "registered" };
+        return outcome;
     }
 
     private showNotice({ severity, message }: MarketplaceAddNotice): void {

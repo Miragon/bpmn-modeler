@@ -5,11 +5,14 @@ import {
     MarketplaceAddAnswer,
     MarketplaceAddNotice,
     marketplaceAddNotice,
-    MarketplaceAddOutcome,
     marketplaceAddPrompt,
     marketplaceRemoval,
 } from "./marketplacePrompts";
-import { MarketplaceRegistrations, RegisteredMarketplace } from "./marketplaceRegistrations";
+import {
+    MarketplaceAddOutcome,
+    MarketplaceRegistrations,
+    RegisteredMarketplace,
+} from "./marketplaceRegistrations";
 
 type HostScopes = Pick<MarketplaceRegistrations, "writable" | "selfHostedIn">;
 

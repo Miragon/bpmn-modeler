@@ -2,13 +2,13 @@ import { describe, expect, it } from "vitest";
 
 import { MarketplaceSettingsEntry } from "../../kernel/domain/modelerSettings";
 import {
-    isAlreadyRegistered,
+    marketplaceAddOutcome,
+    MarketplaceAddOutcome,
     MarketplaceScope,
     RegisteredMarketplace,
     registeredMarketplaces,
     registrableLocation,
     RegistrationsByScope,
-    scopesHolding,
     withoutMarketplaceEntries,
 } from "./marketplaceRegistrations";
 
@@ -72,114 +72,89 @@ describe("registeredMarketplaces", () => {
     });
 });
 
-describe("isAlreadyRegistered", () => {
+describe("marketplaceAddOutcome", () => {
     it.each<{
         behaviour: string;
         registered: RegistrationsByScope;
         entry: MarketplaceSettingsEntry;
         scope: MarketplaceScope;
-        already: boolean;
+        outcome: MarketplaceAddOutcome;
     }>([
         {
             behaviour: "registers an entry neither list holds for this project",
             registered: { project: [], allProjects: ["/work/other"] },
             entry: "/work/new",
             scope: "project",
-            already: false,
+            outcome: { kind: "registered" },
         },
         {
             behaviour: "registers an entry neither list holds for all projects",
             registered: { project: ["/work/other"], allProjects: [] },
             entry: "/work/new",
             scope: "allProjects",
-            already: false,
+            outcome: { kind: "registered" },
         },
         {
             behaviour: "registers nothing for this project when this project holds the entry",
-            registered: { project: ["/work/a"], allProjects: [] },
+            registered: { project: ["/work/a"], allProjects: ["/work/other"] },
             entry: "/work/a",
             scope: "project",
-            already: true,
+            outcome: { kind: "alreadyRegistered", registeredIn: ["project"] },
         },
         {
             behaviour:
                 "registers nothing for this project when all my projects hold the entry, as this project reaches them",
-            registered: { project: [], allProjects: ["/work/a"] },
+            registered: { project: ["/work/other"], allProjects: ["/work/a"] },
             entry: "/work/a",
             scope: "project",
-            already: true,
+            outcome: { kind: "alreadyRegistered", registeredIn: ["allProjects"] },
         },
         {
             behaviour: "shares an entry of this project with all my projects",
             registered: { project: ["/work/a"], allProjects: [] },
             entry: "/work/a",
             scope: "allProjects",
-            already: false,
+            outcome: { kind: "registered" },
         },
         {
             behaviour: "registers nothing for all projects when all my projects hold the entry",
             registered: { project: [], allProjects: ["/work/a"] },
             entry: "/work/a",
             scope: "allProjects",
-            already: true,
+            outcome: { kind: "alreadyRegistered", registeredIn: ["allProjects"] },
+        },
+        {
+            behaviour:
+                "names both scopes, all my projects first, when both lists hold the entry added for this project",
+            registered: { project: ["/work/a"], allProjects: ["/work/a"] },
+            entry: "/work/a",
+            scope: "project",
+            outcome: { kind: "alreadyRegistered", registeredIn: ["allProjects", "project"] },
+        },
+        {
+            behaviour:
+                "names this project too when both lists hold the entry added for all projects, which reach only their own",
+            registered: { project: ["/work/a"], allProjects: ["/work/a"] },
+            entry: "/work/a",
+            scope: "allProjects",
+            outcome: { kind: "alreadyRegistered", registeredIn: ["allProjects", "project"] },
+        },
+        {
+            behaviour: "names a scope once when its list holds the entry twice",
+            registered: { project: ["/work/a", "/work/a"], allProjects: [] },
+            entry: "/work/a",
+            scope: "project",
+            outcome: { kind: "alreadyRegistered", registeredIn: ["project"] },
         },
         {
             behaviour: "matches a self-hosted entry by its fields, not by its identity",
-            registered: { project: [], allProjects: [selfHosted()] },
+            registered: { project: [selfHosted()], allProjects: [selfHosted()] },
             entry: selfHosted(),
             scope: "project",
-            already: true,
+            outcome: { kind: "alreadyRegistered", registeredIn: ["allProjects", "project"] },
         },
-    ])("$behaviour", ({ registered, entry, scope, already }) => {
-        expect(isAlreadyRegistered(registered, entry, scope)).toBe(already);
-    });
-});
-
-describe("scopesHolding", () => {
-    it.each<{
-        behaviour: string;
-        registered: RegistrationsByScope;
-        entry: MarketplaceSettingsEntry;
-        scopes: MarketplaceScope[];
-    }>([
-        {
-            behaviour: "no scope when neither list holds the entry",
-            registered: { project: ["/work/other"], allProjects: ["/work/other"] },
-            entry: "/work/a",
-            scopes: [],
-        },
-        {
-            behaviour: "all my projects when only their list holds the entry",
-            registered: { project: ["/work/other"], allProjects: ["/work/a"] },
-            entry: "/work/a",
-            scopes: ["allProjects"],
-        },
-        {
-            behaviour: "this project when only its list holds the entry",
-            registered: { project: ["/work/a"], allProjects: ["/work/other"] },
-            entry: "/work/a",
-            scopes: ["project"],
-        },
-        {
-            behaviour: "both scopes, all my projects first, when both lists hold the entry",
-            registered: { project: ["/work/a"], allProjects: ["/work/a"] },
-            entry: "/work/a",
-            scopes: ["allProjects", "project"],
-        },
-        {
-            behaviour: "a scope once when its list holds the entry twice",
-            registered: { project: ["/work/a", "/work/a"], allProjects: [] },
-            entry: "/work/a",
-            scopes: ["project"],
-        },
-        {
-            behaviour: "the scopes of a self-hosted entry, matched by its fields",
-            registered: { project: [selfHosted()], allProjects: [] },
-            entry: selfHosted(),
-            scopes: ["project"],
-        },
-    ])("names $behaviour", ({ registered, entry, scopes }) => {
-        expect(scopesHolding(registered, entry)).toStrictEqual(scopes);
+    ])("$behaviour", ({ registered, entry, scope, outcome }) => {
+        expect(marketplaceAddOutcome(registered, entry, scope)).toStrictEqual(outcome);
     });
 });
 

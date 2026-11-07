@@ -5,6 +5,7 @@ import { marketplaceEntryLabel } from "./marketplace";
 import {
     JoinPath,
     MARKETPLACE_SCOPES,
+    MarketplaceAddOutcome,
     MarketplaceRegistrations,
     MarketplaceScope,
     RegisteredMarketplace,
@@ -43,11 +44,6 @@ export interface MarketplaceAddAnswer {
     readonly location: string;
     readonly scope: MarketplaceScope;
 }
-
-/** `registeredIn` names every scope whose list holds the entry, not only those the add reaches. */
-export type MarketplaceAddOutcome =
-    | { readonly kind: "registered" }
-    | { readonly kind: "alreadyRegistered"; readonly registeredIn: readonly MarketplaceScope[] };
 
 export interface MarketplaceAddNotice {
     readonly severity: "info" | "warning";
