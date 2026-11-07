@@ -84,6 +84,7 @@ val elementTemplatePreviewMessages =
     layout.projectDirectory.file("../../libs/shared/src/lib/elementTemplatePreviewMessages.cases.json")
 val surfaceModes = layout.projectDirectory.file("../../libs/modeler-types/src/surfaceMode.ts")
 val modeLabels = layout.projectDirectory.file("../../packages/bpmn-modeler/src/modeSession/modeStrip.ts")
+val emptyDmn = layout.projectDirectory.file("../../libs/modeler-core/src/modeler/dmn/domain/emptyDmn.ts")
 val scriptCompletionCases =
     layout.projectDirectory.file("../../libs/modeler-core/src/scriptTask/domain/scriptCompletion.cases.json")
 
@@ -95,9 +96,9 @@ tasks.test {
     // ModelerSettingsConfigurableTest the manifest's default modes and the mode strip's labels,
     // StatusSlotPlacementTest the core's status slots and view values, ElementTemplateFilesTest the
     // rows the TypeScript template rule runs, ElementTemplatePreviewMessagesTest the preview page's
-    // messages, ScriptCompletionMatchersTest the rows the core's script-completion matchers run. As
-    // declared inputs, a change on the TypeScript side alone reruns the tests instead of restoring
-    // them from the build cache.
+    // messages, EmptyDmnDiagramTest the core's DMN scaffold, ScriptCompletionMatchersTest the rows
+    // the core's script-completion matchers run. As declared inputs, a change on the TypeScript
+    // side alone reruns the tests instead of restoring them from the build cache.
     mapOf(
         "protocolDescriptor" to protocolDescriptor,
         "settingsNormalizationCases" to settingsNormalizationCases,
@@ -107,6 +108,7 @@ tasks.test {
         "elementTemplatePreviewMessages" to elementTemplatePreviewMessages,
         "surfaceModes" to surfaceModes,
         "modeLabels" to modeLabels,
+        "emptyDmn" to emptyDmn,
         "scriptCompletionCases" to scriptCompletionCases,
     ).forEach { (name, file) ->
         inputs.file(file).withPropertyName(name).withPathSensitivity(PathSensitivity.RELATIVE)

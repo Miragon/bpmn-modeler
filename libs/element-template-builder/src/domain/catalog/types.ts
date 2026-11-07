@@ -1,6 +1,22 @@
 import type { Engine } from "@miragon/bpmn-modeler-types";
 
-export type PropertyType = "String" | "Text" | "Hidden" | "Dropdown" | "Boolean" | "Number";
+export const PROPERTY_TYPES = [
+    "String",
+    "Text",
+    "Hidden",
+    "Dropdown",
+    "Boolean",
+    "Number",
+] as const;
+
+export type PropertyType = (typeof PROPERTY_TYPES)[number];
+
+export const TEXTUAL_PROPERTY_TYPES: readonly PropertyType[] = [
+    "String",
+    "Text",
+    "Hidden",
+    "Dropdown",
+];
 
 /** One field of a binding object besides its `type`. */
 export interface BindingField {

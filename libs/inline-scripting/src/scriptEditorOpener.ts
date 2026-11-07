@@ -6,6 +6,7 @@ import { OPEN_SCRIPT_EDITOR_EVENT } from "./scriptEditorEvents";
 import {
     listenerScriptKind,
     listenerScriptOpenEvent,
+    PANEL_LISTENER_TYPES,
     type PanelListenerType,
     readScriptField,
     scriptTaskOpenEvent,
@@ -53,10 +54,11 @@ export class ScriptEditorOpener {
     ) {}
 
     /**
-     * Opens the first script the element offers, in the order the properties
-     * panel presents them: the script-task inline script, then execution
-     * listeners, then task listeners. A deterministic order lets a single
-     * keyboard shortcut act on elements carrying several scripts.
+     * Opens the first script the element offers, in a fixed order: the
+     * script-task inline script, then execution listeners, then task
+     * listeners. The properties panel lists task listeners above execution
+     * listeners, so this is not the panel's order. A deterministic order lets
+     * a single keyboard shortcut act on elements carrying several scripts.
      *
      * @returns `true` if a script editor was opened.
      */
@@ -64,7 +66,7 @@ export class ScriptEditorOpener {
         if (this.openScriptTask(element)) {
             return true;
         }
-        for (const listenerType of ["executionListener", "taskListener"] as PanelListenerType[]) {
+        for (const listenerType of PANEL_LISTENER_TYPES) {
             if (findListenerAt(element?.businessObject, listenerScriptKind(listenerType), 0)) {
                 return this.openListener(element.id, listenerType, 0);
             }

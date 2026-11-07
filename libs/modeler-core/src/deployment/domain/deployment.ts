@@ -150,6 +150,11 @@ export function sensitiveDestinations(
         : credentialDestinations.union(CredentialDestinations.of(requestUrl));
 }
 
+/** What a server must not be able to echo back from a request: its credentials and `.env` values. */
+export function requestSecrets(auth: AuthConfig, envValues: readonly string[]): SecretRedactor {
+    return auth.redactor().and(SecretRedactor.of(...envValues));
+}
+
 /**
  * Use {@link DeploymentConfigBuilder} to construct instances with validation.
  */
@@ -196,9 +201,8 @@ export class DeploymentConfig {
         return this.envValues.length > 0;
     }
 
-    /** What a server must not be able to echo back from this request. */
     redactor(): SecretRedactor {
-        return this.auth.redactor().and(SecretRedactor.of(...this.envValues));
+        return requestSecrets(this.auth, this.envValues);
     }
 
     /**

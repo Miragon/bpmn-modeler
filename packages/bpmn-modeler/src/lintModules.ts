@@ -1,5 +1,6 @@
 import type { Engine } from "@miragon/bpmn-modeler-types";
 import type { LintCallbacks } from "./bpmnlint/LintConfigService";
+import type { LintTierInit } from "./bpmnlint/lintTierMachine";
 import type { ModelerMode } from "./mode/mode";
 import type { LintingOptions } from "./publicApi";
 
@@ -45,7 +46,7 @@ export function buildLintModules(
 
     // Only `{ results: "external" }` opts out of in-page; narrowing on `results`
     // keeps `config` off the external variant.
-    let tier: "external" | "in-page" = "in-page";
+    let tier: LintTierInit["tier"] = "in-page";
     let config;
     if (linting.results === "external") {
         tier = "external";

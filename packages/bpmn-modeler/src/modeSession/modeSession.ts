@@ -1,4 +1,5 @@
 import {
+    DEFAULT_THEME_MODE,
     SURFACE_MODES,
     defaultMode,
     isModeAvailable,
@@ -36,7 +37,7 @@ function holdsPendingSave(handle: SurfaceHandle): handle is SurfaceHandle & Pend
  */
 export async function createModeSession(options: ModeSessionOptions): Promise<ModeSession> {
     const { container, engine, surfaces } = options;
-    let theme: ThemeMode = options.theme ?? "automatic";
+    let theme: ThemeMode = options.theme ?? DEFAULT_THEME_MODE;
 
     const serving = servingSurfaces(surfaces, engine);
     const available = SURFACE_MODES.filter(

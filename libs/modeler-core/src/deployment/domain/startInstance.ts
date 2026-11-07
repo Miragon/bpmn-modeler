@@ -1,6 +1,6 @@
 import { InvalidDeploymentConfigError } from "./errors";
 import { CredentialDestinations } from "./credentialDestinations";
-import { AuthConfig, NoAuth, sensitiveDestinations } from "./deployment";
+import { AuthConfig, NoAuth, requestSecrets, sensitiveDestinations } from "./deployment";
 import {
     containsEnvRef,
     EnvLookup,
@@ -68,9 +68,8 @@ export class StartInstanceConfig {
         return this.envValues.length > 0;
     }
 
-    /** What a server must not be able to echo back from this request. */
     redactor(): SecretRedactor {
-        return this.auth.redactor().and(SecretRedactor.of(...this.envValues));
+        return requestSecrets(this.auth, this.envValues);
     }
 
     /**

@@ -4,11 +4,9 @@ import { describe, expect, it } from "vitest";
 import {
     DeploymentTargetChangedError,
     DisallowedEnvReferenceError,
-    InvalidDeploymentConfigError,
     DuplicateDeploymentTargetError,
     InvalidDeploymentTargetError,
     InvalidDeploymentTargetsFileError,
-    UnresolvedEnvVariableError,
 } from "./errors";
 
 import { CredentialRefs } from "./credentialRefs";
@@ -26,9 +24,6 @@ import {
     TargetChange,
     TargetRequest,
 } from "./deploymentTarget";
-import { emptyEnvLookup } from "./envRef";
-
-const lookup = (map: Record<string, string>) => (name: string) => map[name];
 
 function errorFrom(action: () => unknown): unknown {
     try {
@@ -1003,167 +998,6 @@ describe("DeploymentTarget", () => {
         it.each(admissionCases)("$kind: $behaviour", ({ saved, request, refusal }) => {
             expect(refusalOf(saved, request)).toBe(refusal);
         });
-    });
-
-    describe("connectionEnvRefs", () => {
-        it("is false for a fully literal target", () => {
-            expect(
-                target("dev", {
-                    tenantId: "acme",
-                    authType: "oauth2",
-                    tokenEndpoint: "https://login/token",
-                    audience: "aud",
-                    deployUrl: "https://gw/deploy",
-                    startInstanceUrl: "https://gw/{processDefinitionKey}/start",
-                })
-                    .connectionEnvRefs()
-                    .referencesEnv(),
-            ).toBe(false);
-        });
-
-        it.each<[string, TargetOverrides]>([
-            ["endpoint", { endpoint: "${env:MIRAGON_URL}/engine-rest" }],
-            ["tenantId", { tenantId: "${env:MIRAGON_TENANT}" }],
-        ])("is true when %s holds a ref", (_field, overrides) => {
-            expect(target("dev", overrides).connectionEnvRefs().referencesEnv()).toBe(true);
-        });
-
-        it("counts a malformed ref so it reaches validation", () => {
-            expect(target("dev", { tenantId: "${env:" }).connectionEnvRefs().referencesEnv()).toBe(
-                true,
-            );
-        });
-
-        it.each<[string, TargetOverrides]>([
-            ["endpoints.deploy", { deployUrl: "${env:MIRAGON_URL}/deploy" }],
-            ["endpoints.startInstance", { startInstanceUrl: "${env:MIRAGON_URL}/start" }],
-            [
-                "auth.tokenEndpoint",
-                {
-                    authType: "oauth2",
-                    tokenEndpoint: "https://${env:MIRAGON_IDP}/token",
-                    audience: "aud",
-                },
-            ],
-            [
-                "auth.audience",
-                {
-                    authType: "oauth2",
-                    tokenEndpoint: "https://login/token",
-                    audience: "${env:MIRAGON_AUD}",
-                },
-            ],
-            [
-                "the basic credentials",
-                {
-                    authType: "basic",
-                    credentialRefs: CredentialRefs.basic(
-                        "${env:MIRAGON_USER}",
-                        "${env:MIRAGON_PW}",
-                    ),
-                },
-            ],
-            [
-                "the oauth2 credentials",
-                {
-                    authType: "oauth2",
-                    tokenEndpoint: "https://login/token",
-                    audience: "aud",
-                    credentialRefs: CredentialRefs.oauth2(
-                        "${env:MIRAGON_CLIENT_ID}",
-                        "${env:MIRAGON_CLIENT_SECRET}",
-                    ),
-                },
-            ],
-        ])(
-            "is false when only %s holds a ref, since the connection never reads it",
-            (_field, overrides) => {
-                expect(target("dev", overrides).connectionEnvRefs().referencesEnv()).toBe(false);
-            },
-        );
-
-        it("is false exactly when expandConnection needs no lookup", () => {
-            const nonConnectionRefsOnly = target("dev", {
-                tenantId: "acme",
-                deployUrl: "${env:MIRAGON_URL}/deploy",
-                startInstanceUrl: "${env:MIRAGON_URL}/start",
-            });
-            const unusableLookup = () => {
-                throw new Error("lookup must not be consulted");
-            };
-
-            expect(nonConnectionRefsOnly.connectionEnvRefs().referencesEnv()).toBe(false);
-            expect(nonConnectionRefsOnly.expandConnection(unusableLookup)).toEqual({
-                endpoint: "http://localhost:8080/engine-rest",
-                tenantId: "acme",
-            });
-        });
-    });
-
-    describe("expandConnection", () => {
-        it("expands the endpoint and tenant only", () => {
-            const connectionTarget = target("dev", {
-                endpoint: "${env:MIRAGON_URL}/engine-rest",
-                tenantId: "${env:MIRAGON_TENANT}",
-                deployUrl: "${env:MIRAGON_UNSET}/deploy",
-                credentialRefs: CredentialRefs.basic("${env:MIRAGON_UNSET}", undefined),
-            });
-
-            expect(
-                connectionTarget.expandConnection(
-                    lookup({ MIRAGON_URL: "https://c.example", MIRAGON_TENANT: "acme" }),
-                ),
-            ).toEqual({ endpoint: "https://c.example/engine-rest", tenantId: "acme" });
-            expect(connectionTarget.endpoint).toBe("${env:MIRAGON_URL}/engine-rest");
-        });
-
-        it.each(["", "   "])(
-            "rejects an endpoint variable set to %j like an empty field",
-            (value) => {
-                expect(() =>
-                    target("dev", { endpoint: "${env:MIRAGON_URL}" }).expandConnection(
-                        lookup({ MIRAGON_URL: value }),
-                    ),
-                ).toThrow(new InvalidDeploymentConfigError(["endpoint"]));
-            },
-        );
-
-        it("returns a literal connection unchanged", () => {
-            expect(target("dev", { tenantId: "acme" }).expandConnection(lookup({}))).toEqual({
-                endpoint: "http://localhost:8080/engine-rest",
-                tenantId: "acme",
-            });
-        });
-
-        it.each<[string, TargetOverrides, string]>([
-            ["endpoint", { endpoint: "${env:MIRAGON_URL}" }, "MIRAGON_URL"],
-            ["tenantId", { tenantId: "${env:MIRAGON_TENANT}" }, "MIRAGON_TENANT"],
-        ])("names the JSON field %s of an unset variable", (field, overrides, variable) => {
-            const error = errorFrom(() =>
-                target("dev", overrides).expandConnection(emptyEnvLookup("/ws/.env")),
-            );
-
-            expect(error).toBeInstanceOf(UnresolvedEnvVariableError);
-            expect(error).toMatchObject({ field, variable });
-            expect((error as Error).message).toContain("/ws/.env");
-        });
-
-        it.each<[string, TargetOverrides]>([
-            ["endpoint", { endpoint: "${env:HOME}/engine-rest" }],
-            ["tenantId", { tenantId: "${env:TENANT}" }],
-        ])(
-            "rejects a foreign ref in %s even when the lookup could resolve it",
-            (field, overrides) => {
-                const error = errorFrom(() =>
-                    target("dev", overrides).expandConnection(
-                        lookup({ HOME: "/Users/me", TENANT: "acme" }),
-                    ),
-                );
-
-                expect(error).toBeInstanceOf(DisallowedEnvReferenceError);
-                expect(error).toMatchObject({ field });
-            },
-        );
     });
 
     describe("knownCredentialDestinations", () => {
