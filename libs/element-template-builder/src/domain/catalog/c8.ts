@@ -1,7 +1,10 @@
-import type { ElementTypeChoice, EngineCatalog, PropertyType, Requirement } from "./types";
-
-const ALL: readonly PropertyType[] = ["String", "Text", "Hidden", "Dropdown", "Boolean", "Number"];
-const TEXTUAL: readonly PropertyType[] = ["String", "Text", "Hidden", "Dropdown"];
+import {
+    type ElementTypeChoice,
+    type EngineCatalog,
+    PROPERTY_TYPES,
+    type Requirement,
+    TEXTUAL_PROPERTY_TYPES,
+} from "./types";
 
 const MESSAGE = "bpmn:MessageEventDefinition";
 const MESSAGE_ELEMENTS: readonly ElementTypeChoice[] = [
@@ -27,7 +30,7 @@ const USER_TASK_BINDING: Requirement = {
 /** Camunda 8 bindings the builder edits, the default for a new property first. */
 export const C8_CATALOG: EngineCatalog = {
     engine: "c8",
-    propertyTypes: ALL,
+    propertyTypes: PROPERTY_TYPES,
     propertyExtras: true,
     jsonOnlyBindings: [
         "zeebe:taskDefinition:type",
@@ -70,7 +73,7 @@ export const C8_CATALOG: EngineCatalog = {
             fields: [
                 { key: "name", label: "Target", kind: "text", required: true, initial: "input" },
             ],
-            types: ALL,
+            types: PROPERTY_TYPES,
             feel: "optional",
             optional: true,
         },
@@ -86,7 +89,7 @@ export const C8_CATALOG: EngineCatalog = {
                     initial: "=result",
                 },
             ],
-            types: ALL,
+            types: PROPERTY_TYPES,
             feel: "optional",
             optional: true,
         },
@@ -94,7 +97,7 @@ export const C8_CATALOG: EngineCatalog = {
             type: "zeebe:taskHeader",
             label: "Task header",
             fields: [{ key: "key", label: "Key", kind: "text", required: true, initial: "header" }],
-            types: ALL,
+            types: PROPERTY_TYPES,
             feel: "optional",
             optional: true,
         },
@@ -111,7 +114,7 @@ export const C8_CATALOG: EngineCatalog = {
                     initial: "type",
                 },
             ],
-            types: ALL,
+            types: PROPERTY_TYPES,
             feel: "optional",
             variants: { field: "property", values: { retries: { sample: "3" } } },
         },
@@ -121,7 +124,7 @@ export const C8_CATALOG: EngineCatalog = {
             fields: [
                 { key: "name", label: "Name", kind: "text", required: true, initial: "property" },
             ],
-            types: ALL,
+            types: PROPERTY_TYPES,
             feel: "optional",
             optional: true,
         },
@@ -131,7 +134,7 @@ export const C8_CATALOG: EngineCatalog = {
             fields: [
                 { key: "name", label: "Attribute", kind: "text", required: true, initial: "name" },
             ],
-            types: ALL,
+            types: PROPERTY_TYPES,
             feel: "optional",
         },
         {
@@ -147,7 +150,7 @@ export const C8_CATALOG: EngineCatalog = {
                     initial: "name",
                 },
             ],
-            types: ALL,
+            types: PROPERTY_TYPES,
             feel: "optional",
             requires: [{ kind: "elementType", oneOf: MESSAGE_ELEMENTS }],
         },
@@ -164,7 +167,7 @@ export const C8_CATALOG: EngineCatalog = {
                     initial: "correlationKey",
                 },
             ],
-            types: ALL,
+            types: PROPERTY_TYPES,
             feel: "optional",
             requires: [{ kind: "elementType", oneOf: SUBSCRIPTION_ELEMENTS }],
         },
@@ -186,7 +189,7 @@ export const C8_CATALOG: EngineCatalog = {
                     initial: "processId",
                 },
             ],
-            types: ALL,
+            types: PROPERTY_TYPES,
             feel: "optional",
             variants: {
                 field: "property",
@@ -225,7 +228,7 @@ export const C8_CATALOG: EngineCatalog = {
                     initial: "decisionId",
                 },
             ],
-            types: TEXTUAL,
+            types: TEXTUAL_PROPERTY_TYPES,
             feel: "optional",
             variants: { field: "property", values: { resultVariable: { feel: "none" } } },
             requires: [
@@ -255,7 +258,7 @@ export const C8_CATALOG: EngineCatalog = {
                     initial: "expression",
                 },
             ],
-            types: TEXTUAL,
+            types: TEXTUAL_PROPERTY_TYPES,
             variants: {
                 field: "property",
                 values: {
@@ -299,7 +302,7 @@ export const C8_CATALOG: EngineCatalog = {
                     initial: "formId",
                 },
             ],
-            types: TEXTUAL,
+            types: TEXTUAL_PROPERTY_TYPES,
             feel: "optional",
             variants: { field: "property", values: { formId: { feel: "none" } } },
             requires: [USER_TASK, USER_TASK_BINDING],
@@ -317,7 +320,7 @@ export const C8_CATALOG: EngineCatalog = {
                     initial: "assignee",
                 },
             ],
-            types: TEXTUAL,
+            types: TEXTUAL_PROPERTY_TYPES,
             feel: "optional",
             requires: [USER_TASK, USER_TASK_BINDING],
         },

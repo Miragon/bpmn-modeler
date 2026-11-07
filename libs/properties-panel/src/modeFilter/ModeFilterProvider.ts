@@ -16,7 +16,11 @@
  * The mode is switchable at runtime via {@link setMode}, which fires
  * `propertiesPanel.providersChanged` so a live panel re-derives immediately.
  */
-import { parseEditableMode, surfaceModeSupports } from "@miragon/bpmn-modeler-types";
+import {
+    type EditableSurfaceMode,
+    parseEditableMode,
+    surfaceModeSupports,
+} from "@miragon/bpmn-modeler-types";
 
 import {
     NEUTRAL_GROUP_IDS,
@@ -25,7 +29,7 @@ import {
     hasEngineGroups,
 } from "./engineGroupData";
 
-export type PropertiesPanelMode = "design" | "implement";
+export type PropertiesPanelMode = EditableSurfaceMode;
 
 // Structural slivers of the bpmn-js-properties-panel group/entry shapes and the
 // DI services this provider reads — only the members it touches.

@@ -137,7 +137,7 @@ describe("TemplateMarketplaceService.addMarketplace", () => {
             "/cache/acme__templates/1/1/element-templates/resources/t.json",
         ]);
         expect(notifier.logged("info")).toContain(
-            "Marketplace added: https://github.com/acme/templates (2 template file(s) cached)",
+            "Marketplace fetched: https://github.com/acme/templates (2 template file(s) cached)",
         );
     });
 

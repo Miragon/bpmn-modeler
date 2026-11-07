@@ -7,6 +7,7 @@ import { settingsNormalizationCases, TYPESCRIPT_ONLY_SETTINGS_CASES } from "../.
 import {
     changedSettingKeys,
     DEFAULT_MODELER_SETTINGS,
+    isMarketplaceProvider,
     ModelerSettingsSnapshot,
     normalizeSettings,
     SettingKey,
@@ -31,6 +32,18 @@ describe("DEFAULT_MODELER_SETTINGS", () => {
 
         expect(() => favourites.push("bpmn:Task")).toThrow(TypeError);
         expect(() => marketplaces.push("https://github.com/acme/templates")).toThrow(TypeError);
+    });
+});
+
+describe("isMarketplaceProvider", () => {
+    it.each([
+        { raw: "github", expected: true },
+        { raw: "gitlab", expected: true },
+        { raw: "GitHub", expected: false },
+        { raw: "bitbucket", expected: false },
+        { raw: undefined, expected: false },
+    ])("reads $raw as a provider: $expected", ({ raw, expected }) => {
+        expect(isMarketplaceProvider(raw)).toBe(expected);
     });
 });
 

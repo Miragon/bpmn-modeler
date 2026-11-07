@@ -1,4 +1,4 @@
-import type { BindingField, EngineCatalog } from "./types";
+import { type BindingField, type EngineCatalog, TEXTUAL_PROPERTY_TYPES } from "./types";
 
 const ELEMENT_TYPES: readonly string[] = [
     "bpmn:ServiceTask",
@@ -53,7 +53,7 @@ export const C7_CATALOG: EngineCatalog = {
                 { key: "name", label: "Name", kind: "text", required: true, initial: "input" },
                 { key: "scriptFormat", label: "Script Format", kind: "text" },
             ],
-            types: ["String", "Text", "Hidden", "Dropdown"],
+            types: TEXTUAL_PROPERTY_TYPES,
             elements: FLOW_NODES,
         },
         {
@@ -134,7 +134,7 @@ export const C7_CATALOG: EngineCatalog = {
                     kind: "flag",
                 },
             ],
-            types: ["String", "Text", "Hidden", "Dropdown"],
+            types: TEXTUAL_PROPERTY_TYPES,
             elements: SERVICE_TASK_LIKE,
         },
     ],

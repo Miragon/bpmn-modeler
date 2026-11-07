@@ -40,6 +40,7 @@ import {
     DirectoryNotFound,
     FileNotFound,
     globToRegExp,
+    isIgnoredWatchDirName,
     isWithinRoot,
     joinWorkspacePath,
     NoWorkspaceFolderFoundError,
@@ -69,31 +70,8 @@ interface SharedRootWatcher {
     subscribers: Set<WatchSubscriber>;
 }
 
-/**
- * Generated or tool-owned trees never hold templates, lint configs, forms or
- * worker sources, but can dwarf the sources on a big repo. Dot-dirs in general
- * must stay watched — templates live under `.camunda/`.
- */
-const IGNORED_WATCH_DIRS = new Set([
-    "node_modules",
-    ".git",
-    ".svn",
-    ".hg",
-    "dist",
-    "build",
-    "out",
-    "target",
-    "bin",
-    "coverage",
-    ".gradle",
-    ".idea",
-    ".angular",
-]);
-
 function isIgnoredWatchPath(root: string, path: string): boolean {
-    return relative(root, path)
-        .split(/[/\\]/)
-        .some((segment) => IGNORED_WATCH_DIRS.has(segment));
+    return relative(root, path).split(/[/\\]/).some(isIgnoredWatchDirName);
 }
 
 function watchWithChokidar(root: string, emit: WatchSubscriber): { close(): unknown } {
@@ -284,8 +262,9 @@ export class NodeWorkspace implements WorkspacePort, WorkspaceRoots {
      * when the watch began (fixed only in Bun ≥1.3.14). macOS uses one recursive
      * `fs.watch` instead, see {@link watchRecursivelyWithFsEvents}.
      *
-     * {@link IGNORED_WATCH_DIRS} are pruned so arming the recursive watch on a
-     * large repo stays within the OS watch-descriptor budget (inotify on Linux).
+     * The folders {@link isIgnoredWatchDirName} names are pruned so arming the
+     * recursive watch on a large repo stays within the OS watch-descriptor
+     * budget (inotify on Linux).
      */
     createWatcher(
         rootPath: string,

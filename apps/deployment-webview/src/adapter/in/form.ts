@@ -1,5 +1,6 @@
 import {
-    AuthConfigPayload,
+    AUTH_TYPE_PAYLOADS,
+    type AuthTypePayload,
     CreateTargetCommand,
     DeleteTargetCommand,
     DeployCommand,
@@ -19,11 +20,14 @@ import {
 import { Engine, isEngine } from "@miragon/bpmn-modeler-types";
 
 import {
+    type AuthFields,
+    authPayloadOf,
     credentialRefSignatureOf,
     type DraftActivity,
     type DraftSnapshot,
     draftControls,
     executionBlockedReason,
+    requestAuthOf,
 } from "../../domain/deploymentDraft";
 import type { DeploymentHost } from "../../port/deploymentHost";
 
@@ -257,7 +261,7 @@ export class DeploymentForm {
     }
 
     /**
-     * @throws {Error} If `deploymentName` or `endpoint` are empty.
+     * @throws {Error} If the deployment name, the endpoint or a required auth field is empty.
      */
     getConfigPayload(): DeploymentConfigPayload {
         this.assertExecutionReady();
@@ -267,43 +271,8 @@ export class DeploymentForm {
         if (!deploymentName) {
             throw new Error("Deployment name is required.");
         }
-        if (!endpoint) {
-            throw new Error("REST endpoint is required.");
-        }
-
-        const authType = this.authTypeSelect.value as AuthConfigPayload["authType"];
-        let auth: AuthConfigPayload = { authType };
-
-        if (authType === "basic") {
-            const username = this.authUsernameInput.value.trim();
-            const password = this.authPasswordInput.value;
-
-            if (!username) {
-                throw new Error("Username is required for Basic Auth.");
-            }
-            if (!password) {
-                throw new Error("Password is required for Basic Auth.");
-            }
-
-            auth = { authType, username, password };
-        } else if (authType === "oauth2") {
-            const clientId = this.authClientIdInput.value.trim();
-            const clientSecret = this.authClientSecretInput.value;
-            const tokenEndpoint = this.authTokenEndpointInput.value.trim();
-            const audience = this.authAudienceInput.value.trim();
-
-            if (!clientId) {
-                throw new Error("Client ID is required for OAuth2.");
-            }
-            if (!clientSecret) {
-                throw new Error("Client Secret is required for OAuth2.");
-            }
-            if (!tokenEndpoint) {
-                throw new Error("Token Endpoint is required for OAuth2.");
-            }
-
-            auth = { authType, clientId, clientSecret, tokenEndpoint, audience };
-        }
+        const request = requestAuthOf(endpoint, this.getAuthFields());
+        if ("reason" in request) throw new Error(request.reason);
 
         return {
             deploymentName,
@@ -312,7 +281,7 @@ export class DeploymentForm {
             engine: this.selectedEngine(),
             mainFilePath: "", // Populated by the extension host from the active editor
             additionalFilePaths: [...this.additionalFilePaths],
-            auth,
+            auth: request.auth,
             targetName: this.editingTargetName,
             deployUrl: this.deployUrlInput.value.trim() || undefined,
         };
@@ -325,7 +294,7 @@ export class DeploymentForm {
             engine: this.selectedEngine(),
             endpoint: this.endpointInput.value.trim(),
             tenantId: this.tenantIdInput.value.trim(),
-            authType: this.authTypeSelect.value as AuthConfigPayload["authType"],
+            authType: this.selectedAuthType(),
             tokenEndpoint: this.authTokenEndpointInput.value.trim() || undefined,
             audience: this.authAudienceInput.value.trim() || undefined,
             deployUrl: this.deployUrlInput.value.trim() || undefined,
@@ -364,27 +333,17 @@ export class DeploymentForm {
         this.statusBanner.style.display = "block";
     }
 
-    getAuthPayload(): AuthConfigPayload {
-        const authType = this.authTypeSelect.value as AuthConfigPayload["authType"];
-        let auth: AuthConfigPayload = { authType };
-
-        if (authType === "basic") {
-            auth = {
-                authType,
-                username: this.authUsernameInput.value.trim(),
-                password: this.authPasswordInput.value,
-            };
-        } else if (authType === "oauth2") {
-            auth = {
-                authType,
-                clientId: this.authClientIdInput.value.trim(),
-                clientSecret: this.authClientSecretInput.value,
-                tokenEndpoint: this.authTokenEndpointInput.value.trim(),
-                audience: this.authAudienceInput.value.trim(),
-            };
-        }
-
-        return auth;
+    /** Unchecked: New and Save send these without a check; a request checks them first. */
+    getAuthFields(): AuthFields {
+        return {
+            authType: this.selectedAuthType(),
+            username: this.authUsernameInput.value,
+            password: this.authPasswordInput.value,
+            clientId: this.authClientIdInput.value,
+            clientSecret: this.authClientSecretInput.value,
+            tokenEndpoint: this.authTokenEndpointInput.value,
+            audience: this.authAudienceInput.value,
+        };
     }
 
     getConnectionPayload(): {
@@ -525,7 +484,9 @@ export class DeploymentForm {
             }
             this.savingTarget = true;
             this.updateReadiness();
-            this.host.postMessage(new CreateTargetCommand(target, this.getAuthPayload()));
+            this.host.postMessage(
+                new CreateTargetCommand(target, authPayloadOf(this.getAuthFields())),
+            );
         });
 
         this.targetSaveBtn.addEventListener("click", () => {
@@ -542,7 +503,7 @@ export class DeploymentForm {
             this.savingTarget = true;
             this.updateReadiness();
             this.host.postMessage(
-                new SaveTargetCommand(target, this.getAuthPayload(), previousName),
+                new SaveTargetCommand(target, authPayloadOf(this.getAuthFields()), previousName),
             );
         });
 
@@ -697,6 +658,15 @@ export class DeploymentForm {
             throw new Error(`Unknown engine "${engine}".`);
         }
         return engine;
+    }
+
+    private selectedAuthType(): AuthTypePayload {
+        const selected = this.authTypeSelect.value;
+        const authType = AUTH_TYPE_PAYLOADS.find((type) => type === selected);
+        if (authType === undefined) {
+            throw new Error(`Unknown auth type "${selected}".`);
+        }
+        return authType;
     }
 
     private updateAdvancedPlaceholders(): void {

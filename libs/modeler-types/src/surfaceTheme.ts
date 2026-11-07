@@ -1,10 +1,4 @@
-/**
- * Theme selection for one modeler instance. `"automatic"` follows the
- * OS/browser `prefers-color-scheme` live; `"light"`/`"dark"` force a fixed kind.
- */
-export type SurfaceThemeMode = "light" | "dark" | "automatic";
-
-export type ResolvedThemeKind = "light" | "dark";
+import type { ResolvedThemeKind, SurfaceThemeMode } from "./surfaceThemeMode";
 
 /**
  * @internal Toggles one instance's theme attribute (`data-bpmn-theme`,

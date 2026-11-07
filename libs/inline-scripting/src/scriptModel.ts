@@ -105,8 +105,13 @@ export function scriptTaskOpenEvent(
     };
 }
 
-/** The listener-type token of a properties-panel listener entry id. */
-export type PanelListenerType = "executionListener" | "taskListener";
+/**
+ * The listener-type tokens of properties-panel listener entry ids. The order
+ * decides which listener script opens first; it is not the panel's order.
+ */
+export const PANEL_LISTENER_TYPES = ["executionListener", "taskListener"] as const;
+
+export type PanelListenerType = (typeof PANEL_LISTENER_TYPES)[number];
 
 /** The script kind a properties-panel listener entry addresses. */
 export function listenerScriptKind(

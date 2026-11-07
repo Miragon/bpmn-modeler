@@ -1,5 +1,6 @@
 import { i18n, type SupportedLocale } from "@miragon/bpmn-modeler-i18n";
 import { extras as i18nExtras } from "@miragon/bpmn-modeler-i18n-extras";
+import { DEFAULT_THEME_MODE } from "@miragon/bpmn-modeler-types";
 import type { CreateModelerOptions } from "./publicApi";
 import { BpmnModeler } from "./modeler";
 import { createSurface } from "./createSurface";
@@ -27,7 +28,7 @@ export async function createModeler(
                 modeler.setSettings(options.settings);
             }
             // Apply the default on the first frame, even when the caller omitted a theme.
-            modeler.setTheme(options.theme ?? "automatic");
+            modeler.setTheme(options.theme ?? DEFAULT_THEME_MODE);
             // Locale is page-global; an omitted option must preserve the host's existing language.
             if (options.locale) {
                 i18n.setLanguage(options.locale as SupportedLocale);
