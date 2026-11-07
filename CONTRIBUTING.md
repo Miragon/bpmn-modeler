@@ -219,13 +219,16 @@ table.
 | Product | Images in | Made |
 |---|---|---|
 | `bpmn-vscode` | `docs/public/shots/vscode/` | headless VS Code (`code serve-web`), on the Mac |
+| `bpmn-intellij` | `docs/public/shots/intellij/` | IntelliJ IDEA Community in a Linux container, with the plugin from the JetBrains Marketplace |
 | `bpmn-orca` | `apps/orca-plugin/images/` | Orca in a Linux container (Podman on the Mac) |
 
 Build first (the VSIX for VS Code, `apps/orca-plugin/plugin/` for Orca), then
 run the skill's `scripts/listing.mjs` from the repository root, as its
 `references/listing.md` describes. `--check` checks the images against each
 store's limits without taking new ones. When the skill is updated, make the
-images again and raise `skillVersion`.
+images again and raise `skillVersion`. The JetBrains Marketplace takes its images
+in the plugin's **Media** section, uploaded by hand: the cover first, then the
+gallery.
 
 A VS Code Marketplace listing is composed from two sources inside the
 extension's workspace (e.g. `apps/vscode-plugin/`):

@@ -27,6 +27,43 @@
       }
     },
     {
+      "id": "bpmn-intellij",
+      "target": "intellij",
+      "title": "BPMN",
+      "claim": "Processes from plain .bpmn files, right in IntelliJ and the other JetBrains IDEs.",
+      "icon": "apps/intellij-plugin/src/main/resources/META-INF/pluginIcon.svg",
+      "out": "docs/public/shots/intellij",
+      "intellij": {
+        "plugin": "io.miragon.bpmn-modeler",
+        "project": ".miragon/product-shots/order-service",
+        "themes": [
+          "light"
+        ]
+      },
+      "shots": {
+        "ready": ".djs-container",
+        "gallery": [
+          {
+            "name": "editor",
+            "open": "order-fulfilment.bpmn"
+          },
+          {
+            "name": "properties",
+            "open": "order-fulfilment.bpmn",
+            "journey": ".miragon/product-shots/intellij-select-pack-order.mjs"
+          },
+          {
+            "name": "linting",
+            "open": "return-handling.bpmn"
+          }
+        ],
+        "hero": {
+          "open": "order-fulfilment.bpmn",
+          "selector": "body"
+        }
+      }
+    },
+    {
       "id": "bpmn-orca",
       "target": "orca",
       "badge": "Experimental",
