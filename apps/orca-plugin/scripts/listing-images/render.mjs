@@ -41,7 +41,7 @@ const html = readFileSync(join(here, "cover.html"), "utf8")
     .replace("__ICON__", fileUrl(join(repository, "docs/public/favicon-bpmn.svg")))
     .replace("__WORDMARK__", fileUrl(join(repository, "docs/public/logo/miragon-logo-weiss.svg")))
     .replace("__EDITOR__", fileUrl(join(shots, "bpmn-editor.png")))
-    .replace("__TITLE__", "BPMN &amp; DMN")
+    .replace("__TITLE__", "BPMN")
     .replace(
         "__CLAIM__",
         "Processes and decisions from plain .bpmn and .dmn files, edited by you and your agents.",
