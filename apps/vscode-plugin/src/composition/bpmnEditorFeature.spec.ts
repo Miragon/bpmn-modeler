@@ -7,6 +7,7 @@ import { ExtensionContext, Uri } from "vscode";
 import {
     BpmnDiffService,
     BpmnEditorFeature,
+    BpmnPluginsFeature,
     CodeLinkFeature,
     DefinitionSearchFeature,
     DiffPaneStore,
@@ -90,6 +91,7 @@ describe("VS Code's BPMN editor", () => {
             NavigationFeature,
             DefinitionSearchFeature,
             CodeLinkFeature,
+            BpmnPluginsFeature,
         ].map((feature) => vi.spyOn(feature.prototype, "dispose"));
         const context = createExtensionContext();
         createVsCodeBpmnEditor(context);

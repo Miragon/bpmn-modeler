@@ -1,7 +1,7 @@
 # Architecture and hosts
 
 - Status: accepted
-- Last reviewed: 2026-11-06
+- Last reviewed: 2026-11-07
 
 ## Context
 
@@ -692,6 +692,21 @@ confirmations to delete a target and to approve a credential host) come from
 the core. The deployment services search the workspace through
 `WorkspacePort.findFiles` themselves and offer the found files through
 `chooseMany`.
+
+A notification with actions follows the same split (proposed with the
+[BPMN plugins](bpmn-modeler.md#user-supplied-plugins-proposed), not released).
+`NotifierPort` only shows text, and a `PickerPort` list is too heavy for a
+yes-or-later question, so the kernel adds a generic port
+(`ActionNotifierPort.offer(notice)` in `kernel/port/hostPorts.ts`). The core
+builds the `ActionNotice` in full (`kernel/domain/actionNotice.ts`): an id, a
+tone (`info` or `warning`), the message and the actions, each a label and the
+value it returns. The host shows the message with one button per action and
+returns the chosen value, or `undefined` when the user dismisses it; the
+caller decides what a dismissal means. VS Code renders it with
+`showInformationMessage` or `showWarningMessage`; IntelliJ implements it with
+[#2242](https://github.com/Miragon/bpmn-modeler/issues/2242). The test kit's
+fake answers a notice by its id, with a scripted action or a dismissal, as
+`ScriptedPicker` answers a prompt.
 
 The core also decides which folders a workspace listing leaves out.
 `excludedDirsGlob` (`kernel/domain/excludedDirs.ts`) builds one exclude glob

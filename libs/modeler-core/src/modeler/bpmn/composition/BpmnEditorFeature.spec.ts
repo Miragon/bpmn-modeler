@@ -4,6 +4,7 @@ import {
     BPMN_EDITOR_COMMAND_TYPES,
     BpmnEditorCommandType,
     BpmnFileQuery,
+    BpmnPluginsQuery,
     Command,
     GetBpmnModelerSettingCommand,
     GetPropertiesPanelStateCommand,
@@ -145,11 +146,26 @@ function createFeature(
     capabilities: HostCapabilities = "full",
     rendering: BpmnEditorHostExtensions["rendering"] = "host-driven",
     onScriptResync: () => void = () => undefined,
+    { servesPlugins = false }: { servesPlugins?: boolean } = {},
 ) {
     const host = createTestHost({ folders: ["/work"] });
     const calls: string[] = [];
     const servedExtensions: string[] = [];
-    const contributions = recordingContributions(calls, onScriptResync);
+    const contributions: BpmnEditorContributions = {
+        ...recordingContributions(calls, onScriptResync),
+        ...(servesPlugins
+            ? {
+                  plugins: {
+                      commandHandlers: {
+                          GetBpmnPluginsCommand: () => {
+                              calls.push("serve plugins");
+                          },
+                      },
+                      participant: { onResolve: () => undefined },
+                  },
+              }
+            : {}),
+    };
     const extensions: BpmnEditorHostExtensions =
         capabilities === "full"
             ? {
@@ -246,6 +262,36 @@ describe("BpmnEditorFeature", () => {
             "codeLink",
         ]);
     });
+
+    it("adds the plugins participant last on a host that serves plugins", () => {
+        const { feature, contributions } = createFeature("full", "host-driven", undefined, {
+            servesPlugins: true,
+        });
+
+        expect(feature.participants.at(-1)).toBe(contributions.plugins?.participant);
+    });
+
+    it.each([
+        { servesPlugins: true, posted: [], calls: ["serve plugins"] },
+        { servesPlugins: false, posted: [[]], calls: [] },
+    ])(
+        "answers the plugin request with the contributed handler or with no plugins (serves plugins: $servesPlugins)",
+        async ({ servesPlugins, posted, calls: expectedCalls }) => {
+            const { host, feature, calls } = createFeature("full", "host-driven", undefined, {
+                servesPlugins,
+            });
+            const editor = host.openEditor(DIAGRAM, C7_XML);
+
+            await feature.router.dispatch(new RecordedCommand("GetBpmnPluginsCommand"), editor.id);
+
+            expect(
+                editor
+                    .postedOfType<BpmnPluginsQuery>("BpmnPluginsQuery")
+                    .map(({ plugins }) => plugins),
+            ).toEqual(posted);
+            expect(calls).toEqual(expectedCalls);
+        },
+    );
 
     it.each<{ rendering: BpmnEditorHostExtensions["rendering"]; renders: number }>([
         { rendering: "on-host-document-change", renders: 1 },

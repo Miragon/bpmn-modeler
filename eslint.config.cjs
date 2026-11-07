@@ -30,7 +30,8 @@ module.exports = [
             "**/reports/mutation/**",
             "**/.stryker-tmp/**",
             "**/stryker-setup-*.js",
-            "**/plugins",
+            // Theia's downloaded VS Code extensions (`theiaPluginsDir`).
+            "apps/standalone/plugins",
             // The Orca plugin's build output.
             "apps/orca-plugin/plugin/**",
             "**/gen-webpack*.js",

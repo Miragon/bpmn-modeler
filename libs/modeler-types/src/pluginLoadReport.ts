@@ -1,3 +1,8 @@
+/**
+ * What a page that loads BPMN plugins tells its host about the load, so every
+ * page that loads them (the BPMN webview, an isolated plugin frame) uses the
+ * same words.
+ */
 export interface PluginLoadReport {
     readonly logLines: readonly string[];
     /** One notice for the whole load; `undefined` when nothing needs the user. */

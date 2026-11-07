@@ -8,6 +8,7 @@
  */
 
 // ── kernel ───────────────────────────────────────────────────────────────────
+export * from "./kernel/domain/actionNotice";
 export * from "./kernel/domain/affectedItems";
 export * from "./kernel/domain/BpmnDocument";
 export * from "./kernel/domain/engineVersions";

@@ -135,7 +135,7 @@ export interface BpmnEditorContributions {
         "NavigateToImplementationCommand" | "SyncActivitiesCommand"
     >;
     /** Absent: the host serves no plugins, and the editor is told so at once. */
-    readonly plugins?: Pick<EditorContribution<"GetBpmnPluginsCommand">, "commandHandlers">;
+    readonly plugins?: EditorContribution<"GetBpmnPluginsCommand">;
 }
 
 const PANEL_ALWAYS_VISIBLE: PropertiesPanelStatePort = {
@@ -286,6 +286,7 @@ export class BpmnEditorFeature {
             contributions.deploymentStatus,
             scriptEditor.participant,
             codeLink.participant,
+            ...(contributions.plugins ? [contributions.plugins.participant] : []),
         ];
     }
 

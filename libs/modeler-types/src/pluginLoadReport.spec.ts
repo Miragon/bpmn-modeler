@@ -46,7 +46,7 @@ describe("pluginLoadReport", () => {
 
 describe("pluginConstructionFailureReport", () => {
     it("tells the user the editor opened without its plugins", () => {
-        expect(pluginConstructionFailureReport(new Error("No provider for \"foo\"!"))).toEqual({
+        expect(pluginConstructionFailureReport(new Error('No provider for "foo"!'))).toEqual({
             logLines: [
                 'The BPMN plugins stopped the editor from opening, so it opened without them: No provider for "foo"!',
             ],

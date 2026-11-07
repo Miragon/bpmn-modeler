@@ -1,92 +1,109 @@
 import { BpmnPluginAsset, BpmnPluginsQuery } from "@miragon/bpmn-modeler-shared";
 
-import { NotifierPort, PickerPort, WorkspacePort } from "../../kernel/port/hostPorts";
+import { DirectoryNotFound } from "../../kernel/domain/errors";
+import { toWorkspacePath } from "../../kernel/domain/workspacePath";
+import {
+    ActionNotifierPort,
+    NotifierPort,
+    PickerPort,
+    WorkspacePort,
+} from "../../kernel/port/hostPorts";
 import { EditorSessionStore } from "../../editorSession/service/EditorSessionStore";
 import {
-    approvalOutcome,
-    approvalsAllowing,
-    approvedPlugins,
+    CachedPluginFiles,
     cachedPluginFiles,
-    pendingApprovals,
-    pluginApprovalPrompt,
-    WorkspacePlugin,
+    holdsCachedPluginFiles,
+    PendingApproval,
 } from "../domain/pluginApproval";
-import { PluginApprovalStorePort } from "../port/pluginPorts";
-import { DiscoveredPlugin, WorkspacePluginLocator } from "./WorkspacePluginLocator";
+import { editorsOfferedAnyOf } from "../domain/pluginFolders";
+import { PluginCatalog } from "./PluginCatalog";
+import { DiscoveredPlugin } from "./WorkspacePluginLocator";
 
 /**
  * Answers a BPMN editor's plugin request with the approved plugins and asks
  * about the others afterwards, so the editor never waits on the user. An
- * approval reloads the editor, because modules are fixed once it is built.
+ * approval reloads every open editor that was offered an allowed plugin,
+ * because modules are fixed once a modeler is built.
  */
 export class BpmnPluginService {
-    // Kept for the extension host's lifetime, so a tab switch does not ask again.
-    private readonly declinedThisSession = new Set<string>();
-    private approvalPrompt: Promise<void> | undefined;
+    private readonly cacheRoot: string;
+    /** The content hashes whose copy is complete in the cache. */
+    private readonly cachedHashes = new Set<string>();
+    private readonly offeredByEditor = new Map<string, readonly string[]>();
+    private approvalQuestion: Promise<void> | undefined;
     private approvalSettled: Promise<void> = Promise.resolve();
 
-    /** @param cacheRoot The host's plugin cache, a folder the webview may load files from. */
+    /**
+     * @param cacheRoot The host's plugin cache, a folder the webview may load
+     *   files from, in either path spelling (VS Code passes a Windows `fsPath`).
+     */
     constructor(
         private readonly store: EditorSessionStore,
         private readonly workspace: WorkspacePort,
-        private readonly locator: WorkspacePluginLocator,
-        private readonly approvals: PluginApprovalStorePort,
+        private readonly catalog: PluginCatalog,
         private readonly picker: PickerPort,
+        private readonly actionNotifier: ActionNotifierPort,
         private readonly notifier: NotifierPort,
-        private readonly cacheRoot: string,
-    ) {}
+        cacheRoot: string,
+    ) {
+        this.cacheRoot = toWorkspacePath(cacheRoot);
+    }
 
     async answerPluginRequest(editorId: string): Promise<void> {
         const handle = this.store.requireHandle(editorId);
-        if (handle.webviewUrlOf === undefined) {
+        const webviewUrlOf = handle.webviewUrlOf?.bind(handle);
+        if (webviewUrlOf === undefined) {
             this.notifier.logDebug("BPMN plugins: this host's webview cannot load plugin files.");
-            await this.store.postMessage(editorId, new BpmnPluginsQuery([]));
+            await this.store.postUnlessHidden(editorId, new BpmnPluginsQuery([]));
             return;
         }
-        const webviewUrlOf = (path: string) => handle.webviewUrlOf!(path);
-        const discovered = await this.discover(handle.documentPath());
-        const byId = new Map(discovered.map((each) => [each.plugin.id, each]));
-        const plugins = discovered.map(({ plugin }) => plugin);
+        const { approved, pending } = await this.catalog.pluginsFor(handle.documentPath());
+        this.offeredByEditor.set(editorId, [
+            ...approved.map(({ plugin }) => plugin.id),
+            ...pending.map(({ plugin }) => plugin.id),
+        ]);
         const assets: BpmnPluginAsset[] = [];
-        for (const plugin of approvedPlugins(plugins, this.approvals.read())) {
-            const asset = await this.serve(byId.get(plugin.id)!, webviewUrlOf);
+        for (const discovered of approved) {
+            const asset = await this.serve(discovered, webviewUrlOf);
             if (asset) {
                 assets.push(asset);
             }
         }
-        await this.store.postMessage(editorId, new BpmnPluginsQuery(assets));
+        const outcome = await this.store.postUnlessHidden(editorId, new BpmnPluginsQuery(assets));
+        if (outcome === "hidden") {
+            // Shown again, the webview restarts and asks for its plugins itself.
+            this.notifier.logDebug(`BPMN plugins not sent to hidden editor: ${editorId}`);
+            return;
+        }
+        if (outcome === "undelivered") {
+            this.notifier.logWarning(`BPMN plugins could not be sent to editor: ${editorId}`);
+            return;
+        }
         // Not awaited: the router runs this editor's commands in order, and a
         // question left open would hold back its document syncs.
-        this.approvalSettled = this.askForApprovals(editorId, plugins).catch((error: unknown) =>
+        const asking = this.askForApprovals(pending).catch((error: unknown) =>
             this.notifier.logError(error instanceof Error ? error : new Error(String(error))),
         );
+        this.approvalSettled = Promise.all([this.approvalSettled, asking]).then(() => undefined);
     }
 
-    /** Resolves once the approval question this service last raised is answered. */
+    releaseEditor(editorId: string): void {
+        this.offeredByEditor.delete(editorId);
+    }
+
+    /** Resolves once every approval question raised so far is answered. */
     whenApprovalSettled(): Promise<void> {
         return this.approvalSettled;
     }
 
-    private async discover(documentPath: string): Promise<DiscoveredPlugin[]> {
-        try {
-            return await this.locator.pluginsFor(documentPath);
-        } catch (error) {
-            this.notifier.logError(error instanceof Error ? error : new Error(String(error)));
-            return [];
-        }
-    }
-
-    /** Copies the approved bytes into the cache and returns where the webview loads them. */
+    /** Copies the approved bytes into the cache once and returns where the webview loads them. */
     private async serve(
         discovered: DiscoveredPlugin,
         webviewUrlOf: (path: string) => string,
     ): Promise<BpmnPluginAsset | undefined> {
         const files = cachedPluginFiles(this.cacheRoot, discovered.plugin);
         try {
-            await this.workspace.writeFile(files.script, discovered.script);
-            if (files.style !== undefined && discovered.style !== undefined) {
-                await this.workspace.writeFile(files.style, discovered.style);
-            }
+            await this.ensureCached(discovered, files);
         } catch (error) {
             this.notifier.logWarning(
                 `BPMN plugin "${discovered.plugin.name}" left out: its copy could not be written (${String(error)})`,
@@ -100,39 +117,77 @@ export class BpmnPluginService {
         };
     }
 
-    private async askForApprovals(editorId: string, plugins: readonly WorkspacePlugin[]): Promise<void> {
-        // A second editor opening while the question is open would ask the same again.
-        if (this.approvalPrompt !== undefined) {
+    private async ensureCached(
+        discovered: DiscoveredPlugin,
+        files: CachedPluginFiles,
+    ): Promise<void> {
+        const hash = discovered.plugin.contentHash;
+        if (this.cachedHashes.has(hash)) {
             return;
         }
-        const pending = pendingApprovals(plugins, this.approvals.read(), this.declinedThisSession);
-        if (pending.length === 0) {
-            return;
+        if (!(await this.holdsCopy(files))) {
+            if (files.style !== undefined && discovered.style !== undefined) {
+                await this.workspace.writeFile(files.style, discovered.style);
+            }
+            // Written last: an interrupted copy then lacks its script.
+            await this.workspace.writeFile(files.script, discovered.script);
         }
-        this.approvalPrompt = this.ask(editorId, pending);
+        this.cachedHashes.add(hash);
+    }
+
+    /** A copy an earlier session wrote, so a new session lists it instead of rewriting it. */
+    private async holdsCopy(files: CachedPluginFiles): Promise<boolean> {
         try {
-            await this.approvalPrompt;
-        } finally {
-            this.approvalPrompt = undefined;
+            return holdsCachedPluginFiles(
+                await this.workspace.readDirectory(files.directory),
+                files,
+            );
+        } catch (error) {
+            if (error instanceof DirectoryNotFound) {
+                return false;
+            }
+            throw error;
         }
     }
 
-    private async ask(
-        editorId: string,
-        pending: Parameters<typeof pluginApprovalPrompt>[0],
-    ): Promise<void> {
-        const checked = await this.picker.chooseMany(pluginApprovalPrompt(pending));
-        const outcome = approvalOutcome(pending, checked);
-        outcome.declineKeys.forEach((key) => this.declinedThisSession.add(key));
-        if (outcome.allowed.length === 0) {
+    private async askForApprovals(found: readonly PendingApproval[]): Promise<void> {
+        // A second editor opening while the question is open would ask the same again.
+        if (this.approvalQuestion !== undefined) {
             return;
         }
-        await this.approvals.write(approvalsAllowing(this.approvals.read(), outcome.allowed));
-        this.notifier.logInfo(
-            `Allowed BPMN plugin(s): ${outcome.allowed.map((plugin) => plugin.name).join(", ")}`,
-        );
-        if (this.store.hasEditor(editorId)) {
+        const pending = this.catalog.stillPendingOf(found);
+        if (pending.length === 0) {
+            return;
+        }
+        this.approvalQuestion = this.ask(pending);
+        try {
+            await this.approvalQuestion;
+        } finally {
+            this.approvalQuestion = undefined;
+        }
+    }
+
+    private async ask(pending: readonly PendingApproval[]): Promise<void> {
+        const action = await this.actionNotifier.offer(this.catalog.reviewNotice(pending));
+        const checked =
+            action === "review"
+                ? await this.picker.chooseMany(this.catalog.reviewPrompt(pending))
+                : [];
+        const allowed = await this.catalog.applyAnswer(pending, checked);
+        const allowedIds = allowed.map((plugin) => plugin.id);
+        for (const editorId of editorsOfferedAnyOf(this.offeredByEditor, allowedIds)) {
+            this.reload(editorId);
+        }
+    }
+
+    private reload(editorId: string): void {
+        if (!this.store.hasEditor(editorId)) {
+            return;
+        }
+        try {
             this.store.reload(editorId);
+        } catch (error) {
+            this.notifier.logError(error instanceof Error ? error : new Error(String(error)));
         }
     }
 }

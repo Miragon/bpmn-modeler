@@ -1,3 +1,4 @@
+import { ActionNotice } from "../../kernel/domain/actionNotice";
 import { ChoicePrompt } from "../../kernel/domain/prompts";
 import { joinWorkspacePath } from "../../kernel/domain/workspacePath";
 
@@ -111,13 +112,33 @@ export function pluginApprovalPrompt(pending: readonly PendingApproval[]): Choic
         id: PLUGIN_APPROVAL_PROMPT_ID,
         title: "Allow BPMN plugins from this workspace?",
         placeholder:
-            "Plugins run their own code in the BPMN editor. Check only the ones you trust; the editor reloads with them.",
+            "Plugins run their own code in the BPMN editor. Check only the ones you trust; open editors reload with them.",
         items: pending.map(({ plugin, state }) => ({
             label: plugin.name,
             description: STATE_DESCRIPTION[state],
             path: plugin.id,
             value: plugin.id,
         })),
+    };
+}
+
+export const PLUGIN_APPROVAL_NOTICE_ID = "bpmnPluginApprovalNotice";
+
+export type PluginApprovalNoticeAction = "review";
+
+/** Opens nothing by itself: only "Review…" shows the list. */
+export function pluginApprovalNotice(
+    pending: readonly PendingApproval[],
+): ActionNotice<PluginApprovalNoticeAction> {
+    const message =
+        pending.length === 1
+            ? "1 BPMN plugin in this workspace is not allowed yet."
+            : `${pending.length} BPMN plugins in this workspace are not allowed yet.`;
+    return {
+        id: PLUGIN_APPROVAL_NOTICE_ID,
+        tone: "info",
+        message,
+        actions: [{ label: "Review…", value: "review" }],
     };
 }
 
@@ -141,4 +162,18 @@ export function cachedPluginFiles(cacheRoot: string, plugin: WorkspacePlugin): C
             ? {}
             : { style: joinWorkspacePath(directory, "plugin.css") }),
     };
+}
+
+/**
+ * Whether a listing of the copy's directory holds every file of the copy.
+ * Typed loosely so the entry kinds keep their one home, `WorkspacePort.readDirectory`.
+ */
+export function holdsCachedPluginFiles(
+    entries: readonly (readonly [name: string, type: string])[],
+    files: CachedPluginFiles,
+): boolean {
+    const names = new Set(entries.filter(([, type]) => type === "file").map(([name]) => name));
+    return [files.script, files.style]
+        .filter((path) => path !== undefined)
+        .every((path) => names.has(path.slice(path.lastIndexOf("/") + 1)));
 }
