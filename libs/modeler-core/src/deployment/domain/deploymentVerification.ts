@@ -96,7 +96,8 @@ export function verificationMessage(
 
 /** ` (<label>14:40)`, or nothing for a missing or unreadable time. */
 function timeNote(iso: string | undefined, label = ""): string {
-    const date = new Date(iso ?? Number.NaN);
+    if (iso === undefined) return "";
+    const date = new Date(iso);
     if (Number.isNaN(date.getTime())) return "";
     return ` (${label}${date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })})`;
 }
