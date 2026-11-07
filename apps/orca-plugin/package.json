@@ -11,7 +11,8 @@
         "typecheck": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.spec.json && tsc --noEmit -p tsconfig.test.json",
         "test:e2e": "corepack yarn build && vitest run -c vitest.e2e.config.ts",
         "test:orca": "vitest run -c vitest.smoke.config.ts",
-        "test:orca:docker": "node test/smoke/run-in-container.mjs"
+        "test:orca:docker": "node test/smoke/run-in-container.mjs",
+        "listing-images": "node scripts/listing-images/render.mjs"
     },
     "dependencies": {
         "@bpmn-io/properties-panel": "3.57.0",
@@ -25,6 +26,7 @@
         "tslib": "2.8.1"
     },
     "devDependencies": {
+        "@fontsource-variable/geist": "5.3.0",
         "@miragon/modeler-shell": "0.11.0",
         "@types/node": "26.6.5",
         "@typescript/native": "npm:typescript@7.0.2",

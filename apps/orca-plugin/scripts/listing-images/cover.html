@@ -1,0 +1,94 @@
+<!doctype html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <style>
+            @font-face {
+                font-family: "Geist";
+                src: url("__FONT__") format("woff2");
+                font-weight: 100 900;
+            }
+            * {
+                margin: 0;
+                box-sizing: border-box;
+            }
+            html,
+            body {
+                width: 1600px;
+                height: 1000px;
+                overflow: hidden;
+            }
+            body {
+                position: relative;
+                background: #335de5;
+                color: #ffffff;
+                font-family: "Geist", sans-serif;
+            }
+            .copy {
+                position: absolute;
+                left: 104px;
+                top: 128px;
+                width: 560px;
+            }
+            .icon {
+                display: block;
+                width: 136px;
+                height: 136px;
+                border-radius: 30px;
+                box-shadow: 0 0 0 4px #ffffff;
+            }
+            .accent {
+                width: 72px;
+                height: 8px;
+                margin: 64px 0 28px;
+                border-radius: 4px;
+                background: #00e676;
+            }
+            .label {
+                font-size: 30px;
+                font-weight: 600;
+                letter-spacing: 0.01em;
+            }
+            h1 {
+                margin-top: 12px;
+                font-size: 88px;
+                font-weight: 700;
+                line-height: 1.02;
+                letter-spacing: -0.02em;
+            }
+            .claim {
+                margin-top: 32px;
+                font-size: 32px;
+                line-height: 1.35;
+            }
+            .wordmark {
+                position: absolute;
+                left: 104px;
+                bottom: 88px;
+                height: 36px;
+            }
+            /* The white background keeps the blue page out of the seam between border and image. */
+            .editor {
+                position: absolute;
+                left: 720px;
+                top: 168px;
+                width: 1120px;
+                border: 6px solid #ffffff;
+                border-radius: 22px;
+                background: #ffffff;
+                box-shadow: 0 30px 80px rgba(29, 29, 29, 0.35);
+            }
+        </style>
+    </head>
+    <body>
+        <div class="copy">
+            <img class="icon" src="__ICON__" alt="" />
+            <div class="accent"></div>
+            <div class="label">Miragon Modeler</div>
+            <h1>__TITLE__</h1>
+            <p class="claim">__CLAIM__</p>
+        </div>
+        <img class="wordmark" src="__WORDMARK__" alt="" />
+        <img class="editor" src="__EDITOR__" alt="" />
+    </body>
+</html>

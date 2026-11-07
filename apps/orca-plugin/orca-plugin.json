@@ -13,6 +13,27 @@
   "homepage": "https://miragon.github.io/bpmn-modeler/",
   "license": "Apache-2.0",
   "icon": "assets/icon.png",
+  "cover": {
+    "path": "images/cover.webp",
+    "alt": "Miragon Modeler for BPMN & DMN: processes and decisions from plain .bpmn and .dmn files, edited by you and your agents."
+  },
+  "screenshots": [
+    {
+      "path": "images/cover.webp",
+      "alt": "Miragon Modeler for BPMN & DMN: processes and decisions from plain .bpmn and .dmn files, edited by you and your agents.",
+      "caption": "BPMN and DMN from plain .bpmn and .dmn files"
+    },
+    {
+      "path": "images/screenshot-orca-bpmn.webp",
+      "alt": "Orca with the order-service folder open and order-fulfilment.bpmn in the BPMN editor, next to the project sidebar and the file tree",
+      "caption": "Runs right inside Orca, next to your files"
+    },
+    {
+      "path": "images/screenshot-orca-dmn.webp",
+      "alt": "Orca with shipping.dmn open in the DMN editor in the order-service folder",
+      "caption": "DMN decisions in the same plugin"
+    }
+  ],
   "engines": {
     "orca": ">=1.4.248"
   },

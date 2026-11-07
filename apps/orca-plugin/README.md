@@ -28,6 +28,7 @@ way it does is in the [architecture ADR](../../docs/adr/architecture-and-hosts.m
 | `src/composition/` | The two editors' wiring and layout |
 | `vite.editor.mts` | One unminified build of both editor pages into `plugin/editor/`, the code they share once in `editor/shared/`, with the eval patches Orca's `plugin check` asks for |
 | `scripts/assemble-plugin.mjs` | Completes `plugin/` and fails on Orca's size limits or an `eval` call |
+| `images/` | The cover and screenshots of the plugin's page in Orca's plugin directory, made by `scripts/listing-images/` |
 
 ## Build and try it
 
@@ -40,6 +41,18 @@ orca plugin dev load . --json --approve <fingerprint>
 ```
 
 `plugin/` is the folder Orca loads and the release publishes.
+
+## Listing images
+
+```sh
+corepack yarn workspace @miragon/bpmn-modeler-orca listing-images                # shoot in the container, then render
+corepack yarn workspace @miragon/bpmn-modeler-orca listing-images --skip-shots   # re-render from the last shots
+```
+
+`shoot.mjs` runs in the smoke test's container: a fresh Orca with a throwaway profile opens `demo/` as
+`/workspace/order-service`, so the shots hold nothing of this machine. `render.mjs` puts the BPMN editor into
+`cover.html` and writes `images/cover.webp` (1600×1000) and the two Orca windows as WEBP. Refresh them when the
+editors or the claim change; `orca plugin validate` checks Orca's limits on the built plugin.
 
 ## Tests
 
