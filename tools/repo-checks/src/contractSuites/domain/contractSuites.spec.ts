@@ -103,6 +103,10 @@ describe("contractSuiteFindings", () => {
             {
                 key: "apps/vscode-plugin/src/shared/adapter/out/VsCodeWorkspace.ts#VsCodeWorkspace → libs/modeler-core/src/kernel/port/hostPorts.ts#WorkspacePort",
                 path: "apps/vscode-plugin/src/shared/adapter/out/VsCodeWorkspace.ts",
+                paths: [
+                    "apps/vscode-plugin/src/shared/adapter/out/VsCodeWorkspace.ts",
+                    "libs/modeler-core/src/kernel/port/hostPorts.ts",
+                ],
                 line: 7,
                 message:
                     "`VsCodeWorkspace`: runs no `WorkspacePort` suite (`describeWorkspaceContract`); `NodeWorkspace` and `InMemoryWorkspace` do",

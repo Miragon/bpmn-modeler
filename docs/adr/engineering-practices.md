@@ -1,7 +1,7 @@
 # Engineering practices
 
 - Status: accepted
-- Last reviewed: 2026-11-06
+- Last reviewed: 2026-11-07
 
 ## Context
 
@@ -701,8 +701,39 @@ fitness function builds from what the finding is about (paths, a symbol, a
 value), never the line, like SARIF `partialFingerprints`. The delta matches
 `key`s as a multiset: per key, as many head findings are existing as the base
 held, the rest are new, and the base's leftovers are resolved. An old finding
-stays visible as existing, so no fitness function keeps an allowlist. A finding
-in a renamed file shows as new.
+stays visible as existing, so no fitness function keeps an allowlist.
+
+**Renames.** A finding lists the files its key names as `paths`, in the key's
+order, with `pathOrder: "code-unit"` when the key sorts them whatever they are,
+as a change-coupling pair does; every function fills them except
+mutation-score, whose keys name folders. Before the delta the report reads the
+working tree's renames since the merge base with the history reader's pinned
+`git diff -M -l0 --name-status`, and matches each head finding by the key it
+had at the base: the text around its `paths` stays, each renamed path goes back
+to its old name, and a sorted key is sorted again. A finding in a renamed file
+stays existing; one whose text also changed is new and its old key resolved.
+Only head findings need `paths`, so a base finding matches by the key its
+snapshot stores: the snapshots stay as they are, store no `paths`, and the
+report shows none. `paths` the key does not name in their order are broken
+input. The trend joins the stored series by that key at the base too, so a
+renamed file keeps its series (see **Trend**). Not followed: a rename git does
+not pair (a file changed too much for its 50 % similarity index, or a new file
+not yet added), a key that names a folder, and a text or set moved into another
+file. The diff took under 30 ms at #2140 (`f08fb08a` against `2af0dd7d`, 85
+renames), whose new and resolved counts it took from host-text 50 + 50,
+contract-suites 17 + 17, change-coupling 14 + 14, repeated-value-sets 9 + 9 and
+hotspots 2 + 2 to 0, and size-and-complexity from 47 + 50 to 3 + 6, the files
+the PR added and deleted.
+The role-folder moves #2179 to #2181 dropped likewise; what they still show are
+added and deleted files, sets moved into new files, and change-coupling pairs
+the other side holds under no name. Two PRs without renames, #2172 and #2192,
+report the same counts as before. Alternatives considered:
+
+- **Rewriting the base findings forward** needs `paths` on every stored
+  finding: 145 KB more on the 506 KB snapshot of `f08fb08a`, and the stored
+  snapshots have none.
+- **Replacing every renamed path in every key** can hit a path inside a text,
+  or the start of a longer path.
 
 **Base findings.** Per fitness function, the stored snapshot of the merge base
 when it holds the same `id` and `version`; otherwise today's code of the
@@ -719,8 +750,12 @@ each finding a trend: its values per point, oldest first, HEAD's last.
 Equal consecutive values collapse into one point naming the oldest commit that
 holds them, the PR that made the change. A commit without a usable entry (no
 snapshot, another version, unmeasurable) is skipped, so a change behind a gap
-is dated to the oldest stored commit that shows it. A commit that lacks the key,
-or holds it twice, ends the series. A key that repeats at HEAD gets no trend,
+is dated to the oldest stored commit that shows it. A finding's series lies
+under the key the delta matched it by at the merge base, so a file renamed
+since then continues its old path's series, as all 44 renamed files that
+size-and-complexity measures at #2140 do. A commit that lacks the key, or holds
+it twice, ends the series, so a rename before the merge base still ends it
+there. A key that repeats at HEAD gets no trend,
 and neither does one whose series ends before its first stored commit, such as
 a file the PR adds: HEAD's values alone show no change, and the Markdown
 prints `no trend` rather than `unchanged`. The trend keeps the newest five changes and the point before them. The Markdown
@@ -1035,19 +1070,47 @@ in the wrong home (Tornhill, Your Code as a Crime Scene, 2015, 2nd ed. 2024).
   area = code lines and fill opacity = revisions ÷ max revisions. The score is
   the product of those two dimensions; normalising does not change the order.
   The product is ours, not his script's, and the output says so.
+- **Barrels.** A barrel, a file with no statement other than imports and
+  re-exports (`readModuleSymbols`, the test that keeps barrels out of
+  [change coupling](#change-coupling)), is not ranked (version 2). It changes
+  whenever its exports change, and it holds no rule, so it only pushes a file
+  with code out of the top 20. At `add816a2` version 1 ranked
+  `libs/modeler-core/src/index.ts` 8th (60 revisions × 161 code lines) and
+  `ArtifactService.ts` (24 × 197) 21st; version 2 ranks `ArtifactService.ts`
+  20th. The flag travels with each file's measures (`FileMeasure.barrel`). A
+  file of declarations, such as `libs/shared/src/lib/modeler.ts`, is no
+  barrel and stays ranked, and so does a file that re-exports through
+  declarations of its own (`export const DiffViewer = DiffViewerImpl` in
+  `packages/bpmn-modeler/src/index.ts`, 60th at `add816a2`), which the
+  function names as a false report. Leaving out every file without a function
+  as well would also drop `apps/modeler-bridge/src/protocol/domain/types.ts`
+  (9th at `add816a2`); that needs a trial of its own.
 - **No trend of its own.** Findings carry no values; the per-file trend is
   `size-and-complexity`'s, joined by path.
 
-Trial at `e8c92425`, 924 commits, 835 measured files: the product's top 20
+Trial at `e8c92425`, 924 commits, 825 measured files: the product's top 20
 holds 5 of the 8 `libs/modeler-core` services over 300 lines that #2057 names
-(`DeploymentMessageDispatcher` 11th, `DeploymentTargetService` 14th,
-`CodeLinkMapService` 17th, `BpmnLintConfigService` 18th, `DeploymentService`
-19th; `TemplateMarketplaceService` 23rd, `EditorSessionStore` 24th,
-`SourceIndex` 62nd). Ranking by revisions alone holds none of them and puts
-three barrels, `apps/bpmn-webview/vitest.config.ts` and the 60-line
+(`DeploymentMessageDispatcher` 10th, `DeploymentTargetService` 13th,
+`CodeLinkMapService` 16th, `BpmnLintConfigService` 17th, `DeploymentService`
+18th; `TemplateMarketplaceService` 22nd, `EditorSessionStore` 23rd,
+`SourceIndex` 61st; version 1 ranked the barrel
+`libs/modeler-core/src/index.ts` 9th and each of them one place lower).
+Ranking by revisions alone holds none of them and puts three barrels,
+`apps/bpmn-webview/vitest.config.ts` and the 60-line
 `apps/vscode-plugin/src/main.ts` in its top 20. The first places go to
 `libs/shared/src/lib/modeler.ts` (46 × 794), a type-only protocol file that
 holds no rules, which the function names as a false report.
+
+Trial of version 2 over the 428 stored snapshots with version 1 findings,
+`0966e35f` (2026-09-30) to `eb4fe899` (2026-11-06), each tree checked out:
+version 1 recomputed matched every stored top 20, so the comparison measures
+the barrel rule alone. Version 2 drops `libs/modeler-core/src/index.ts` from
+197 of them, where it ranked 8th to 20th; no other file leaves, though each
+tree holds 15 to 23 barrels. Every file below it moves up one place, and the
+next file enters 20th: `DeploymentService.ts` 59 times, `ArtifactService.ts`
+38, `BpmnLintConfigService.ts` 32, `AppendMenuOverlay.tsx` 24 and six other
+files 44. Nothing else changes. A version bump restarts the series, which the
+backfill recomputes from git.
 
 ### Missed partner
 

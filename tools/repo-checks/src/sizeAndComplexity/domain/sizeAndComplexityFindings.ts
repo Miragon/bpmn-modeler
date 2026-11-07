@@ -28,6 +28,7 @@ export function sizeAndComplexityFindings(files: readonly FileMeasure[]): Findin
     return files.map((file) => ({
         key: file.path,
         path: file.path,
+        paths: [file.path],
         line: findingLine(file),
         message: `${file.codeLines} code lines; ${complexityPhrase(file)}`,
         values: valuesOf(file),

@@ -32,7 +32,7 @@ export function createRepeatedValueSetsFitnessFunction({
             "Sets equal by coincidence: the three bpmn-js popup menus `bpmn-append` · `bpmn-create` · `bpmn-replace` that two packages/bpmn-modeler features register a provider on, didi `$inject` lists, the npm dependency field names, git arguments, typeof chains and name|value unions.",
             "A copy pinned by a runtime spec, such as expect(copy).toEqual(home), stays listed: only the type equality assertion is read.",
             "A pin links two files, not two declarations: it also clears any other set the two files share.",
-            "A set in a renamed file shows as new, because the key names the file.",
+            "A set moved to another file shows as new and its old place as resolved, because the key names the file.",
         ],
         evidence: [
             {

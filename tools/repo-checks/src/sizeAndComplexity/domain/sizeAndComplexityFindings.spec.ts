@@ -14,12 +14,14 @@ describe("the size and complexity findings", () => {
                         { name: "verifyActive", line: 50, complexity: 23 },
                         { name: "verifyLater", line: 90, complexity: 23 },
                     ],
+                    barrel: false,
                 },
             ]),
         ).toEqual([
             {
                 key: "libs/core/src/service/Verification.ts",
                 path: "libs/core/src/service/Verification.ts",
+                paths: ["libs/core/src/service/Verification.ts"],
                 line: 50,
                 message: "143 code lines; highest complexity 23 (verifyActive)",
                 values: { codeLines: 143, complexity: 23 },
@@ -31,12 +33,13 @@ describe("the size and complexity findings", () => {
     it("give a file without a function no complexity and point at its top", () => {
         expect(
             sizeAndComplexityFindings([
-                { path: "libs/core/src/types.ts", codeLines: 9, functions: [] },
+                { path: "libs/core/src/types.ts", codeLines: 9, functions: [], barrel: false },
             ]),
         ).toEqual([
             {
                 key: "libs/core/src/types.ts",
                 path: "libs/core/src/types.ts",
+                paths: ["libs/core/src/types.ts"],
                 line: 1,
                 message: "9 code lines; no function",
                 values: { codeLines: 9 },

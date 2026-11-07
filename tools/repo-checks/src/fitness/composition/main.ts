@@ -63,7 +63,7 @@ function runMissedPartner(args: readonly string[]): number {
 function reportPorts(repoRoot: string): FitnessReportPorts {
     return {
         repoRoot,
-        history: new GitRepository(repoRoot),
+        history: new GitRepository(repoRoot, new GitCommitHistory()),
         snapshots: new GitSnapshotBranch(repoRoot),
         checkout: new GitWorktreeCheckout(repoRoot),
     };

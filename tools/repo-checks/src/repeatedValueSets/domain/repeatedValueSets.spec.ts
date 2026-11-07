@@ -34,12 +34,14 @@ describe("the repeated value set findings", () => {
             {
                 key: `a/domain/auth.ts — ${AUTH_KEY}`,
                 path: "a/domain/auth.ts",
+                paths: ["a/domain/auth.ts"],
                 line: 1,
                 message: "`basic` · `none` · `oauth2`, also at `b/service/x.ts:3`",
             },
             {
                 key: `b/service/x.ts — ${AUTH_KEY}`,
                 path: "b/service/x.ts",
+                paths: ["b/service/x.ts"],
                 line: 3,
                 message: "`basic` · `none` · `oauth2`, also at `a/domain/auth.ts:1`",
             },

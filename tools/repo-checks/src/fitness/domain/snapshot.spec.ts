@@ -76,6 +76,20 @@ describe("a snapshot", () => {
         });
     });
 
+    it("stores no finding's paths: only the head's findings follow renames", () => {
+        const pair = {
+            ...FINDING,
+            key: "src/a.ts ↔ src/b.ts",
+            paths: ["src/a.ts", "src/b.ts"],
+            pathOrder: "code-unit" as const,
+        };
+        const snapshot = withEntry(emptySnapshot(COMMIT), "a", { version: 1, findings: [pair] });
+
+        expect(JSON.parse(serializeSnapshot(snapshot)).entries.a.findings).toEqual([
+            { ...FINDING, key: "src/a.ts ↔ src/b.ts" },
+        ]);
+    });
+
     it("reads back what it wrote", () => {
         const snapshot = withEntry(
             withEntry(emptySnapshot(COMMIT), "a", { version: 1, findings: [FINDING] }),

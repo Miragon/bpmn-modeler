@@ -11,6 +11,7 @@ describe("the size and complexity fitness function", () => {
                 path: "libs/core/src/a.ts",
                 codeLines: 12,
                 functions: [{ name: "f", line: 3, complexity: 4 }],
+                barrel: false,
             },
         ]);
 
@@ -25,6 +26,7 @@ describe("the size and complexity fitness function", () => {
                 {
                     key: "libs/core/src/a.ts",
                     path: "libs/core/src/a.ts",
+                    paths: ["libs/core/src/a.ts"],
                     line: 3,
                     message: "12 code lines; highest complexity 4 (f)",
                     values: { codeLines: 12, complexity: 4 },

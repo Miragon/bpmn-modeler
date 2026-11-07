@@ -33,6 +33,8 @@ export function changeCouplingFindings(pairs: readonly CoupledPair[]): Finding[]
                 {
                     key: `${left} ↔ ${right}`,
                     path: left,
+                    paths: [left, right],
+                    pathOrder: "code-unit",
                     line: 1,
                     group: coupling.kind === "explained" ? "explained" : coupling.group,
                     message: `changes with ${code(right)} in ${sharedChanges} PRs (${revisions[0]} and ${revisions[1]} revisions), degree ${degreePercent} %${explanation}${compositionMark}`,

@@ -31,7 +31,7 @@ export function createHostTextFitnessFunction({ sources }: HostTextPorts): Fitne
             "Text a helper receives as a parameter and only interpolates into new Error(…), such as the verb `write to` that VsCodeEditorHandle.ts hands its assertWritableFileSystem: only a literal written inside new Error(…) is left unread.",
             "The text of Kotlin's error(…), require(…) and check(…), which throw: the UI DSL's validation error(…) shows its text, and a callee name cannot tell the two apart, so both are read, such as the developer error of BridgeBinaryResolver.kt.",
             "The message of an exception Kotlin constructs without throwing it, such as completeExceptionally(IllegalStateException(…)) or Result.failure(IOException(…)): without new a constructor cannot be told from a call, and the tree constructs none at cd48f2cd.",
-            "A text split by + is one finding per literal. A text moved to another file or renamed with its file shows as new, because the key names the file.",
+            "A text split by + is one finding per literal. A text moved to another file shows as new, because the key names the file.",
         ],
         evidence: [
             {

@@ -204,6 +204,7 @@ describe("hostTextFindings", () => {
         expect(atLine3).toEqual({
             key: `${HOST} — Token for \${…}`,
             path: HOST,
+            paths: [HOST],
             line: 3,
             message: "`Token for ${…}`",
         });

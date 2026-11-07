@@ -28,6 +28,7 @@ export function createMutationScoreFitnessFunction({ runs }: MutationScorePorts)
         reportsWrongly: [
             "At the commit a run measured, the stored snapshot predates the run, so the next report shows that run's score as a change.",
             "Equivalent mutants count as undetected, so a context can stay below 100 % with every rule covered.",
+            "A domain folder moved or renamed shows as new and its old folder as resolved once a run measures it: the key names the folder, and the report follows file renames only.",
         ],
         evidence: [
             {

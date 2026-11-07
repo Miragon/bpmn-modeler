@@ -16,7 +16,9 @@ function history(length: number): CommitRecord[] {
     }));
 }
 
-const SOURCES = new InMemorySourceMeasures([{ path: OFTEN, codeLines: 40, functions: [] }]);
+const SOURCES = new InMemorySourceMeasures([
+    { path: OFTEN, codeLines: 40, functions: [], barrel: false },
+]);
 
 describe("the hotspots fitness function", () => {
     it("ranks the files over the window read at the measured commit", () => {
@@ -36,6 +38,7 @@ describe("the hotspots fitness function", () => {
                 {
                     key: OFTEN,
                     path: OFTEN,
+                    paths: [OFTEN],
                     line: 1,
                     message: "3 revisions × 40 code lines = 120; no function",
                     rank: 1,
