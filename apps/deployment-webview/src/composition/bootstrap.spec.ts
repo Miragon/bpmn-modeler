@@ -2,10 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
     DeploymentTargetsQuery,
+    FormDefaultsQuery,
     HostApiImpl,
     ProcessDefinitionKeyQuery,
     SelectedPayloadFileQuery,
     StoredCredentialsQuery,
+    type AuthConfigPayload,
     type Command,
     type Query,
     type RequestStoredCredentialsCommand,
@@ -38,6 +40,31 @@ const element = (id: string) => document.getElementById(id) as HTMLInputElement;
 const tabButton = (tab: string) =>
     document.querySelector<HTMLButtonElement>(`.tab-btn[data-tab="${tab}"]`)!;
 const isActive = (node: Element) => node.classList.contains("active");
+
+function dispatchAdHocDefaults(): void {
+    dispatch(
+        new FormDefaultsQuery({
+            deploymentName: "order",
+            endpoint: "",
+            tenantId: "",
+            engine: "c7",
+            authType: "none",
+        }),
+    );
+}
+
+function clickDeployAndStart(host: ReturnType<typeof fakeHost>) {
+    element("deploy-btn").click();
+    element("start-instance-btn").click();
+    return {
+        deployBanner: element("status-banner").textContent,
+        startBanner: element("start-status-banner").textContent,
+        requests: [
+            ...sentOfType(host, "DeployCommand"),
+            ...sentOfType(host, "StartInstanceCommand"),
+        ],
+    };
+}
 
 describe("deployment webview bootstrap", () => {
     let windowAddEventListener: ReturnType<typeof vi.spyOn>;
@@ -116,6 +143,63 @@ describe("deployment webview bootstrap", () => {
             ),
         );
         expect(element("start-instance-btn").disabled).toBe(false);
+    });
+
+    it.each<[string, AuthConfigPayload, string]>([
+        [
+            "Basic auth without a username",
+            { authType: "basic", username: "  ", password: "p" },
+            "Username is required for Basic Auth.",
+        ],
+        [
+            "OAuth2 without a token endpoint",
+            { authType: "oauth2", clientId: "client", clientSecret: "secret" },
+            "Token Endpoint is required for OAuth2.",
+        ],
+    ])("refuses to start an instance with %s, as Deploy does", (_, credentials, reason) => {
+        const host = fakeHost();
+        bootstrap(host as never);
+        dispatchAdHocDefaults();
+        dispatch(
+            new DeploymentTargetsQuery(
+                [
+                    {
+                        name: "dev",
+                        endpoint: "https://dev.test",
+                        tenantId: "",
+                        engine: "c7",
+                        authType: credentials.authType,
+                    },
+                ],
+                "dev",
+            ),
+        );
+        const [lookup] = sentOfType(
+            host,
+            "RequestStoredCredentialsCommand",
+        ) as unknown as RequestStoredCredentialsCommand[];
+        dispatch(new StoredCredentialsQuery(credentials, lookup.targetName, lookup.requestId));
+        dispatch(new ProcessDefinitionKeyQuery("Order_Process"));
+
+        expect(clickDeployAndStart(host)).toEqual({
+            deployBanner: reason,
+            startBanner: reason,
+            requests: [],
+        });
+    });
+
+    it("refuses to deploy or start an instance without a REST endpoint", () => {
+        const host = fakeHost();
+        bootstrap(host as never);
+        dispatchAdHocDefaults();
+        dispatch(new DeploymentTargetsQuery([], ""));
+        dispatch(new ProcessDefinitionKeyQuery("Order_Process"));
+
+        expect(clickDeployAndStart(host)).toEqual({
+            deployBanner: "REST endpoint is required.",
+            startBanner: "REST endpoint is required.",
+            requests: [],
+        });
     });
 
     describe("tabs", () => {

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+    AUTH_TYPE_PAYLOADS,
     DeploymentResultQuery,
     DeploymentTargetsQuery,
     RequestStoredCredentialsCommand,
@@ -8,6 +9,7 @@ import {
     type AuthConfigPayload,
     type DeploymentTargetPayload,
 } from "@miragon/bpmn-modeler-shared";
+import { ENGINES } from "@miragon/bpmn-modeler-types";
 import { DeploymentForm } from "./form";
 import { FORM_TEMPLATE } from "./formTemplate";
 import { StartInstanceForm } from "./startInstanceForm";
@@ -48,7 +50,7 @@ function setup() {
     const form = new DeploymentForm(host as never);
     const start = new StartInstanceForm(
         host as never,
-        () => form.getAuthPayload(),
+        () => form.getAuthFields(),
         () => form.getConnectionPayload(),
     );
     form.onExecutionReadinessChange((reason) => start.setExecutionBlockedReason(reason));
@@ -238,6 +240,25 @@ describe("deployment target form", () => {
         expect(created).toBeDefined();
         expect(created.target).toMatchObject({ name: "new", endpoint: "https://edited.test" });
         expect(created.auth).toMatchObject({ authType: "basic", username: "u", password: "p" });
+    });
+
+    it("creates a target whose credentials are still empty, which only a request requires", () => {
+        const c = setup();
+        c.form.setTargets(new DeploymentTargetsQuery([], ""));
+        edit("target-name", "new");
+        edit("auth-type", "oauth2", "change");
+        edit("auth-client-id", " client ");
+        button("target-new").click();
+        const created = c.host.postMessage.mock.calls
+            .map(([message]) => message)
+            .find((message) => message.type === "CreateTargetCommand");
+        expect(created.auth).toEqual({
+            authType: "oauth2",
+            clientId: "client",
+            clientSecret: "",
+            tokenEndpoint: "",
+            audience: "",
+        });
     });
 
     it("blocks New and shows a banner when the name is empty", () => {
@@ -611,12 +632,29 @@ describe("deployment form credential env references", () => {
     });
 });
 
-describe("deployment form engine selection", () => {
+describe("deployment form engine and auth type selection", () => {
+    const optionValues = (id: string) =>
+        Array.from((document.getElementById(id) as HTMLSelectElement).options, (o) => o.value);
+
+    it("offers exactly the known engines and the protocol's auth types", () => {
+        setup();
+        expect(optionValues("engine")).toEqual([...ENGINES]);
+        expect(optionValues("auth-type")).toEqual([...AUTH_TYPE_PAYLOADS]);
+    });
+
     it("refuses an engine option outside the known engines", () => {
         const { form } = setup();
         const engineSelect = document.getElementById("engine") as HTMLSelectElement;
         engineSelect.append(new Option("Camunda 9", "c9"));
         engineSelect.value = "c9";
         expect(() => form.getTargetPayload()).toThrow('Unknown engine "c9".');
+    });
+
+    it("refuses an auth type option outside the protocol's auth types", () => {
+        const { form } = setup();
+        const authTypeSelect = document.getElementById("auth-type") as HTMLSelectElement;
+        authTypeSelect.append(new Option("Bearer token", "bearer"));
+        authTypeSelect.value = "bearer";
+        expect(() => form.getTargetPayload()).toThrow('Unknown auth type "bearer".');
     });
 });

@@ -1,3 +1,5 @@
+import type { AuthConfigPayload, AuthTypePayload } from "@miragon/bpmn-modeler-shared";
+
 export type DraftActivity = "idle" | "switchingTarget" | "reloadingTarget" | "savingTarget";
 
 export interface DraftSnapshot {
@@ -73,4 +75,73 @@ export function credentialRefSignatureOf(values: (string | undefined)[]): string
     return JSON.stringify(
         values.map((value = "") => (value.includes("${env:") ? value.trim() : "")),
     );
+}
+
+/** The authentication inputs as typed; the auth type decides which of them count. */
+export interface AuthFields {
+    readonly authType: AuthTypePayload;
+    readonly username: string;
+    readonly password: string;
+    readonly clientId: string;
+    readonly clientSecret: string;
+    readonly tokenEndpoint: string;
+    readonly audience: string;
+}
+
+type AuthFieldName = Exclude<keyof AuthConfigPayload, "authType">;
+
+const AUTH_PAYLOAD_OF: Record<AuthTypePayload, (fields: AuthFields) => AuthConfigPayload> = {
+    none: () => ({ authType: "none" }),
+    basic: ({ username, password }) => ({
+        authType: "basic",
+        username: username.trim(),
+        password,
+    }),
+    oauth2: ({ clientId, clientSecret, tokenEndpoint, audience }) => ({
+        authType: "oauth2",
+        clientId: clientId.trim(),
+        clientSecret,
+        tokenEndpoint: tokenEndpoint.trim(),
+        audience: audience.trim(),
+    }),
+};
+
+const REQUIRED_AUTH_FIELDS: Record<
+    AuthTypePayload,
+    readonly { readonly field: AuthFieldName; readonly reason: string }[]
+> = {
+    none: [],
+    basic: [
+        { field: "username", reason: "Username is required for Basic Auth." },
+        { field: "password", reason: "Password is required for Basic Auth." },
+    ],
+    oauth2: [
+        { field: "clientId", reason: "Client ID is required for OAuth2." },
+        { field: "clientSecret", reason: "Client Secret is required for OAuth2." },
+        { field: "tokenEndpoint", reason: "Token Endpoint is required for OAuth2." },
+    ],
+};
+
+/** Names, ids and URLs are trimmed; secrets are sent as typed, spaces included. */
+export function authPayloadOf(fields: AuthFields): AuthConfigPayload {
+    return AUTH_PAYLOAD_OF[fields.authType](fields);
+}
+
+function missingEndpointReason(endpoint: string): string | undefined {
+    return endpoint.trim() ? undefined : "REST endpoint is required.";
+}
+
+/** Judged on the sent payload: a username of spaces is missing, a password of spaces is not. */
+function missingAuthFieldReason(auth: AuthConfigPayload): string | undefined {
+    return REQUIRED_AUTH_FIELDS[auth.authType].find(({ field }) => !auth[field])?.reason;
+}
+
+/** Deploy and Start Instance both need the endpoint, then the fields the auth type requires. */
+export function requestAuthOf(
+    endpoint: string,
+    fields: AuthFields,
+): { readonly auth: AuthConfigPayload } | { readonly reason: string } {
+    const auth = authPayloadOf(fields);
+    const reason = missingEndpointReason(endpoint) ?? missingAuthFieldReason(auth);
+    return reason === undefined ? { auth } : { reason };
 }
