@@ -40,10 +40,11 @@ function useCases(
 }
 
 function run(args: readonly string[], cases = useCases()) {
-    const output = { out: "", error: "" };
+    const output = { out: "", error: "", files: new Map<string, string>() };
     const exitCode = runFitnessCli(args, cases, {
         out: (text) => (output.out += text),
         error: (text) => (output.error += text),
+        writeFile: (path, text) => output.files.set(path, text),
     });
     return { exitCode, ...output };
 }
@@ -117,7 +118,7 @@ describe("the fitness command", () => {
         expect(error).toContain("cannot read the tree");
     });
 
-    it.each([
+    it.each<[readonly string[], string]>([
         [["--format", "html"], "unknown format html"],
         [["review"], "unknown command review"],
         [["snapshot"], "snapshot needs --out <dir>"],
@@ -132,6 +133,33 @@ describe("the fitness command", () => {
         [["--repo", ""], "--repo needs a directory"],
         [["report", "extra"], "unexpected argument extra"],
         [["--colour"], "--colour"],
+        [["--changes-only", "--format", "json"], "--changes-only prints Markdown only"],
+        [
+            ["snapshot", "--out", "/tmp/fitness", "--changes-only"],
+            "snapshot does not take --changes-only",
+        ],
+        [["--head-label", "merge"], "--head-label needs --changes-only"],
+        [["--changes-only", "--head-label", ""], "--head-label needs a text"],
+        [
+            ["--capped-out", "/tmp/c.md", "--max-characters", "100"],
+            "--capped-out needs --changes-only",
+        ],
+        [
+            ["--changes-only", "--capped-out", "/tmp/c.md"],
+            "--capped-out and --max-characters go together",
+        ],
+        [
+            ["--changes-only", "--max-characters", "100"],
+            "--capped-out and --max-characters go together",
+        ],
+        [
+            ["--changes-only", "--capped-out", "", "--max-characters", "100"],
+            "--capped-out needs a file",
+        ],
+        ...["0", "007", "1.5", "lots", ""].map((value): [readonly string[], string] => [
+            ["--changes-only", "--capped-out", "/tmp/c.md", "--max-characters", value],
+            "--max-characters needs a positive integer",
+        ]),
     ])("exits 2 on the usage error in %j", (args, message) => {
         const { exitCode, error } = run(args);
 
@@ -180,6 +208,41 @@ describe("the fitness command", () => {
         expect(exitCode).toBe(1);
         expect(out).toBe("");
         expect(error).toBe("fitness: no-such-rev not found\n");
+    });
+
+    it("prints only the new and resolved rows with --changes-only", () => {
+        const { exitCode, out, files } = run(["--changes-only", "--base", "v1.2.0"]);
+
+        expect(exitCode).toBe(0);
+        expect(out.split("\n")[0]).toBe("<!-- fitness-changes: some -->");
+        expect(out).toContain("| new | `src/B.ts:1` | B breaks the rule |");
+        expect(out).not.toContain("| existing |");
+        expect(out).toContain("its merge base with `v1.2.0`.");
+        expect(files.size).toBe(0);
+    });
+
+    it("names HEAD by the --head-label it is given", () => {
+        expect(run(["--changes-only", "--head-label", "test merge of `abc`"]).out).toContain(
+            "HEAD `111111111111` (test merge of `abc`) against",
+        );
+    });
+
+    it("writes the changes capped at --max-characters to --capped-out and prints them whole", () => {
+        const many = fakeFitnessFunction({
+            [WORKING_TREE]: Array.from({ length: 40 }, (_, index) => finding(`F${index}`)),
+        });
+
+        const { exitCode, out, files } = run(
+            ["--changes-only", "--capped-out", "comment.md", "--max-characters", "2000"],
+            useCases([many]),
+        );
+
+        expect(exitCode).toBe(0);
+        expect(out).toContain("| new | `src/F9.ts:1` |");
+        expect(out.length).toBeGreaterThan(2_000);
+        const capped = files.get("comment.md") ?? "";
+        expect(capped.length).toBeLessThanOrEqual(2_000);
+        expect(capped).toContain("left out to fit; the job summary lists every row.");
     });
 
     it("names every snapshot it wrote", () => {

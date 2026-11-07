@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -36,6 +36,33 @@ describe("the fitness bin", () => {
             expect(JSON.parse(stdout).head.commit).toBe(head);
         } finally {
             repository.remove();
+        }
+    });
+
+    it("writes the capped changes to the --capped-out file", () => {
+        const repository = new TempGitRepository();
+        const folder = mkdtempSync(join(tmpdir(), "fitness-spec-capped-"));
+        const cappedOut = join(folder, "comment.md");
+
+        try {
+            const head = repository.commit("a.ts", "export const a = 1;\n");
+            repository.git("update-ref", "refs/remotes/origin/main", head);
+
+            const { status, stdout } = spawnSync(
+                process.execPath,
+                [
+                    BIN,
+                    ...["--repo", repository.root, "--changes-only"],
+                    ...["--capped-out", cappedOut, "--max-characters", "65000"],
+                ],
+                { encoding: "utf8" },
+            );
+
+            expect(status).toBe(0);
+            expect(readFileSync(cappedOut, "utf8")).toBe(stdout);
+        } finally {
+            repository.remove();
+            rmSync(folder, { recursive: true, force: true });
         }
     });
 

@@ -1,5 +1,6 @@
 import { parseArgs } from "node:util";
 
+import { changesReport } from "../../domain/changesReport";
 import { jsonReport } from "../../domain/jsonReport";
 import { markdownReport } from "../../domain/markdownReport";
 import type { FitnessReport } from "../../domain/report";
@@ -20,12 +21,15 @@ export interface FitnessUseCases {
 export interface CliOutput {
     out(text: string): void;
     error(text: string): void;
+    writeFile(path: string, text: string): void;
 }
 
 const DEFAULT_BASE_REF = "origin/main";
 
 const USAGE = [
     "usage: fitness [report] [--format markdown|json] [--base <rev>] [--repo <dir>]",
+    "       fitness [report] --changes-only [--head-label <text>]",
+    "               [--capped-out <file> --max-characters <n>] [--base <rev>] [--repo <dir>]",
     "       fitness snapshot --out <dir>",
     "       fitness mutation record|summary ...",
     "       fitness missed-partner replay",
@@ -37,6 +41,57 @@ const EXIT_USAGE = 2;
 
 class UsageError extends Error {}
 
+interface ChangesOptions {
+    readonly headLabel?: string;
+    readonly capped?: { readonly path: string; readonly maxCharacters: number };
+}
+
+const POSITIVE_INTEGER = /^[1-9]\d*$/;
+
+function parseChangesOptions(
+    values: {
+        readonly "changes-only"?: boolean;
+        readonly "head-label"?: string;
+        readonly "capped-out"?: string;
+        readonly "max-characters"?: string;
+    },
+    format: "markdown" | "json",
+): ChangesOptions | undefined {
+    const headLabel = values["head-label"];
+    const cappedOut = values["capped-out"];
+    const maxCharacters = values["max-characters"];
+    if (values["changes-only"] !== true) {
+        if (headLabel !== undefined) {
+            throw new UsageError("--head-label needs --changes-only");
+        }
+        if (cappedOut !== undefined || maxCharacters !== undefined) {
+            throw new UsageError("--capped-out needs --changes-only");
+        }
+        return undefined;
+    }
+    if (format === "json") {
+        throw new UsageError("--changes-only prints Markdown only");
+    }
+    if (headLabel === "") {
+        throw new UsageError("--head-label needs a text");
+    }
+    if ((cappedOut === undefined) !== (maxCharacters === undefined)) {
+        throw new UsageError("--capped-out and --max-characters go together");
+    }
+    if (cappedOut === "") {
+        throw new UsageError("--capped-out needs a file");
+    }
+    if (maxCharacters !== undefined && !POSITIVE_INTEGER.test(maxCharacters)) {
+        throw new UsageError("--max-characters needs a positive integer");
+    }
+    return {
+        ...(headLabel === undefined ? {} : { headLabel }),
+        ...(cappedOut === undefined || maxCharacters === undefined
+            ? {}
+            : { capped: { path: cappedOut, maxCharacters: Number(maxCharacters) } }),
+    };
+}
+
 function parseCommand(args: readonly string[]) {
     let parsed;
     try {
@@ -47,6 +102,10 @@ function parseCommand(args: readonly string[]) {
                 out: { type: "string" },
                 base: { type: "string" },
                 repo: { type: "string" },
+                "changes-only": { type: "boolean" },
+                "head-label": { type: "string" },
+                "capped-out": { type: "string" },
+                "max-characters": { type: "string" },
             },
             allowPositionals: true,
         });
@@ -76,10 +135,18 @@ function parseCommand(args: readonly string[]) {
             baseRef: values.base ?? DEFAULT_BASE_REF,
             ...(values.repo === undefined ? {} : { repo: values.repo }),
         };
-        return { command, format, request } as const;
+        return { command, format, request, changes: parseChangesOptions(values, format) } as const;
     }
     if (command === "snapshot") {
-        for (const option of ["format", "base", "repo"] as const) {
+        for (const option of [
+            "format",
+            "base",
+            "repo",
+            "changes-only",
+            "head-label",
+            "capped-out",
+            "max-characters",
+        ] as const) {
             if (values[option] !== undefined) {
                 throw new UsageError(`snapshot does not take --${option}`);
             }
@@ -102,7 +169,21 @@ export function runFitnessCli(
         const command = parseCommand(args);
         if (command.command === "report") {
             const report = useCases.report(command.request);
-            output.out(command.format === "json" ? jsonReport(report) : markdownReport(report));
+            const { changes } = command;
+            if (changes === undefined) {
+                output.out(command.format === "json" ? jsonReport(report) : markdownReport(report));
+            } else {
+                output.out(changesReport(report, { headLabel: changes.headLabel }));
+                if (changes.capped !== undefined) {
+                    output.writeFile(
+                        changes.capped.path,
+                        changesReport(report, {
+                            headLabel: changes.headLabel,
+                            maxCharacters: changes.capped.maxCharacters,
+                        }),
+                    );
+                }
+            }
         } else {
             const written = useCases.recordSnapshots(command.outDir);
             output.out(
