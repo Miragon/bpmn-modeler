@@ -2550,7 +2550,7 @@
       ]
     },
     "hotspots": {
-      "version": 1,
+      "version": 2,
       "findings": [
         {
           "key": "apps/bpmn-webview/src/bootstrap.ts",
@@ -2564,7 +2564,7 @@
           "path": "apps/bpmn-webview/src/host.ts",
           "line": 111,
           "message": "28 revisions × 315 code lines = 8,820; highest complexity 38 (postMessage)",
-          "rank": 9
+          "rank": 8
         },
         {
           "key": "apps/deployment-webview/src/app/form.ts",
@@ -2592,21 +2592,21 @@
           "path": "apps/modeler-bridge/src/protocol/domain/types.ts",
           "line": 1,
           "message": "33 revisions × 260 code lines = 8,580; no function",
-          "rank": 10
+          "rank": 9
         },
         {
           "key": "apps/modeler-bridge/src/scriptTask/adapter/out/BridgeScriptEditor.ts",
           "path": "apps/modeler-bridge/src/scriptTask/adapter/out/BridgeScriptEditor.ts",
           "line": 364,
           "message": "19 revisions × 360 code lines = 6,840; highest complexity 10 (applyModelChange)",
-          "rank": 13
+          "rank": 12
         },
         {
           "key": "apps/vscode-plugin/src/modeler/bpmn/adapter/in/CommandController.ts",
           "path": "apps/vscode-plugin/src/modeler/bpmn/adapter/in/CommandController.ts",
           "line": 335,
           "message": "32 revisions × 256 code lines = 8,192; highest complexity 5 (anonymous)",
-          "rank": 12
+          "rank": 11
         },
         {
           "key": "apps/vscode-plugin/src/scriptTask/adapter/out/ScriptTaskService.ts",
@@ -2620,49 +2620,49 @@
           "path": "libs/modeler-core/src/codeLink/service/CodeLinkMapService.ts",
           "line": 164,
           "message": "15 revisions × 387 code lines = 5,805; highest complexity 8 (runSync)",
-          "rank": 17
+          "rank": 16
         },
         {
           "key": "libs/modeler-core/src/deployment/domain/deploymentTarget.ts",
           "path": "libs/modeler-core/src/deployment/domain/deploymentTarget.ts",
           "line": 86,
           "message": "12 revisions × 565 code lines = 6,780; highest complexity 9 (authWith)",
-          "rank": 14
+          "rank": 13
         },
         {
           "key": "libs/modeler-core/src/deployment/service/DeploymentMessageDispatcher.ts",
           "path": "libs/modeler-core/src/deployment/service/DeploymentMessageDispatcher.ts",
           "line": 463,
           "message": "20 revisions × 417 code lines = 8,340; highest complexity 8 (handleDeploy)",
-          "rank": 11
+          "rank": 10
         },
         {
           "key": "libs/modeler-core/src/deployment/service/DeploymentService.ts",
           "path": "libs/modeler-core/src/deployment/service/DeploymentService.ts",
           "line": 187,
           "message": "22 revisions × 247 code lines = 5,434; highest complexity 9 (deploy)",
-          "rank": 19
+          "rank": 18
         },
         {
           "key": "libs/modeler-core/src/deployment/service/DeploymentTargetService.ts",
           "path": "libs/modeler-core/src/deployment/service/DeploymentTargetService.ts",
           "line": 443,
           "message": "17 revisions × 372 code lines = 6,324; highest complexity 9 (toAuthConfig)",
-          "rank": 15
+          "rank": 14
         },
         {
-          "key": "libs/modeler-core/src/index.ts",
-          "path": "libs/modeler-core/src/index.ts",
-          "line": 1,
-          "message": "59 revisions × 154 code lines = 9,086; no function",
-          "rank": 8
+          "key": "libs/modeler-core/src/kernel/service/ArtifactService.ts",
+          "path": "libs/modeler-core/src/kernel/service/ArtifactService.ts",
+          "line": 235,
+          "message": "24 revisions × 197 code lines = 4,728; highest complexity 7 (readDirectory)",
+          "rank": 20
         },
         {
           "key": "libs/modeler-core/src/modeler/bpmn/service/BpmnLintConfigService.ts",
           "path": "libs/modeler-core/src/modeler/bpmn/service/BpmnLintConfigService.ts",
           "line": 196,
           "message": "21 revisions × 272 code lines = 5,712; highest complexity 12 (carryOut)",
-          "rank": 18
+          "rank": 17
         },
         {
           "key": "libs/shared/src/lib/modeler.ts",
@@ -2676,7 +2676,7 @@
           "path": "packages/bpmn-modeler/src/design/designer.ts",
           "line": 107,
           "message": "29 revisions × 209 code lines = 6,061; highest complexity 7 (init)",
-          "rank": 16
+          "rank": 15
         },
         {
           "key": "packages/bpmn-modeler/src/modeler.ts",
@@ -2690,7 +2690,7 @@
           "path": "packages/dmn-modeler/src/modeler.ts",
           "line": 348,
           "message": "14 revisions × 378 code lines = 5,292; highest complexity 9 (syncCanvasFocusIndicator)",
-          "rank": 20
+          "rank": 19
         }
       ]
     },
