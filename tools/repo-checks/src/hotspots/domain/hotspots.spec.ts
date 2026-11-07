@@ -24,7 +24,12 @@ function file(path: string, codeLines: number, complexity?: number): FileMeasure
         path,
         codeLines,
         functions: complexity === undefined ? [] : [{ name: "handle", line: 7, complexity }],
+        barrel: false,
     };
+}
+
+function barrel(path: string, codeLines: number): FileMeasure {
+    return { ...file(path, codeLines), barrel: true };
 }
 
 describe("the hotspot ranking", () => {
@@ -103,6 +108,22 @@ describe("the hotspot ranking", () => {
                 (hotspot) => hotspot.file.path,
             ),
         ).toEqual([paths[2], paths[1]]);
+    });
+
+    it("leaves out a barrel with the top score, so the next file takes the last place", () => {
+        const index = "libs/core/src/index.ts";
+        const window = Array.from({ length: 6 }, () => changed(index, OFTEN, LARGE, SMALL));
+
+        expect(
+            rankHotspots(
+                window,
+                [barrel(index, 160), file(OFTEN, 100), file(LARGE, 90), file(SMALL, 80)],
+                2,
+            ).map(({ file, rank }) => [file.path, rank]),
+        ).toEqual([
+            [OFTEN, 1],
+            [LARGE, 2],
+        ]);
     });
 });
 

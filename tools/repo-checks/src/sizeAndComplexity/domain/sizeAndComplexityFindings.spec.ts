@@ -14,6 +14,7 @@ describe("the size and complexity findings", () => {
                         { name: "verifyActive", line: 50, complexity: 23 },
                         { name: "verifyLater", line: 90, complexity: 23 },
                     ],
+                    barrel: false,
                 },
             ]),
         ).toEqual([
@@ -32,7 +33,7 @@ describe("the size and complexity findings", () => {
     it("give a file without a function no complexity and point at its top", () => {
         expect(
             sizeAndComplexityFindings([
-                { path: "libs/core/src/types.ts", codeLines: 9, functions: [] },
+                { path: "libs/core/src/types.ts", codeLines: 9, functions: [], barrel: false },
             ]),
         ).toEqual([
             {
