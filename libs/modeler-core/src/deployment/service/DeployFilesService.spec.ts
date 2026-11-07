@@ -8,7 +8,7 @@ import { DeploymentTarget } from "../domain/deploymentTarget";
 import { DeployFilesService } from "./DeployFilesService";
 
 const DOCUMENT_DIR = "/work/processes";
-const PICKED_FILES = ["/work/processes/order.bpmn", "/work/decisions/discount.dmn"];
+const PICKED_FILES = ["/work/decisions/discount.dmn", "/work/processes/order.bpmn"];
 /** The BPMN and DMN files outside dependencies, build output and dot-folders, ordered as VS Code shows their paths. */
 const DEPLOYABLE_FILES = [
     "/work/decisions/discount.dmn",
