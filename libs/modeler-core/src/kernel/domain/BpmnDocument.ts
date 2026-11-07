@@ -47,8 +47,7 @@ const ENGINE_NAMESPACE: Record<
 };
 
 const EMPTY_DIAGRAM: Record<Engine, (version: string) => string> = {
-    c7: (version) => `
-<?xml version="1.0" encoding="UTF-8"?>
+    c7: (version) => `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" id="Definitions_1d2hcmz" targetNamespace="http://bpmn.io/schema/bpmn" xmlns:modeler="http://camunda.org/schema/modeler/1.0" exporter="Camunda Modeler" exporterVersion="5.20.0" modeler:executionPlatform="Camunda Platform" modeler:executionPlatformVersion="${version}">
   <bpmn:process id="Process_0gjrx3e" isExecutable="true" camunda:historyTimeToLive="180">
     <bpmn:startEvent id="StartEvent_1" />
@@ -62,8 +61,7 @@ const EMPTY_DIAGRAM: Record<Engine, (version: string) => string> = {
   </bpmndi:BPMNDiagram>
 </bpmn:definitions>
 `,
-    c8: (version) => `
-<?xml version="1.0" encoding="UTF-8"?>
+    c8: (version) => `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" id="Definitions_1ksue5u" targetNamespace="http://bpmn.io/schema/bpmn" xmlns:zeebe="http://camunda.org/schema/zeebe/1.0" xmlns:modeler="http://camunda.org/schema/modeler/1.0" exporter="Camunda Modeler" exporterVersion="5.22.0" modeler:executionPlatform="Camunda Cloud" modeler:executionPlatformVersion="${version}">
   <bpmn:process id="Process_0vf1lkj" isExecutable="true">
     <bpmn:startEvent id="StartEvent_1" />
@@ -100,8 +98,7 @@ export class BpmnDocument {
      * semantics — the scaffold for the new-model picker's "Engine-neutral" choice.
      */
     static emptyEngineNeutral(): BpmnDocument {
-        return new BpmnDocument(`
-<?xml version="1.0" encoding="UTF-8"?>
+        return new BpmnDocument(`<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" id="Definitions_neutral" targetNamespace="http://bpmn.io/schema/bpmn">
   <bpmn:process id="Process_neutral" isExecutable="false">
     <bpmn:startEvent id="StartEvent_1" />

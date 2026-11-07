@@ -49,6 +49,8 @@ jobs:
               # ElementTemplateFilesTest and ElementTemplatePreviewMessagesTest run these rows.
               - 'libs/modeler-types/src/elementTemplateFile.cases.json'
               - 'libs/shared/src/lib/elementTemplatePreviewMessages.cases.json'
+              # EmptyDmnDiagramTest holds New DMN Model's scaffold to the core's.
+              - 'libs/modeler-core/src/modeler/dmn/domain/emptyDmn.ts'
             standalone:
               - 'apps/standalone/**'
               - 'libs/standalone-extension/**'
