@@ -8,7 +8,8 @@
 
 import { DeploymentConfig, DeploymentResult } from "../domain/deployment";
 import { DeploymentState, DeploymentStatePatch } from "../domain/deploymentState";
-import { DefinitionLookup, EngineDeploymentSnapshot } from "../domain/deploymentVerification";
+import { EngineDeploymentSnapshot } from "../domain/deploymentVerification";
+import { InspectionRequest } from "../domain/inspectionRequest";
 import { StartInstanceConfig, StartInstanceResult } from "../domain/startInstance";
 
 /**
@@ -52,7 +53,9 @@ export interface EngineInspectionPort {
      *   it is not deployed (404).
      * @throws {EngineInspectionFailedError} on any other non-2xx response.
      */
-    fetchLatestDefinition(request: DefinitionLookup): Promise<EngineDeploymentSnapshot | undefined>;
+    fetchLatestDefinition(
+        request: InspectionRequest,
+    ): Promise<EngineDeploymentSnapshot | undefined>;
 }
 
 /**
