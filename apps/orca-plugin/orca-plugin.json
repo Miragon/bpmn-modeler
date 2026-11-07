@@ -24,14 +24,24 @@
       "caption": "BPMN and DMN from plain .bpmn and .dmn files"
     },
     {
-      "path": "images/screenshot-orca-bpmn.webp",
-      "alt": "Orca with the order-service folder open and order-fulfilment.bpmn in the BPMN editor, next to the project sidebar and the file tree",
-      "caption": "Runs right inside Orca, next to your files"
+      "path": "images/screenshot-properties.webp",
+      "alt": "Orca with order-fulfilment.bpmn open, the user task Pack order selected and its Camunda 8 implementation and form in the properties panel",
+      "caption": "Camunda 7 and 8 details in the properties panel"
     },
     {
-      "path": "images/screenshot-orca-dmn.webp",
-      "alt": "Orca with shipping.dmn open in the DMN editor in the order-service folder",
-      "caption": "DMN decisions in the same plugin"
+      "path": "images/screenshot-simulation.webp",
+      "alt": "The order fulfilment process in token simulation, a token at Check stock and the simulation log listing the steps so far",
+      "caption": "Play a process through with token simulation"
+    },
+    {
+      "path": "images/screenshot-linting.webp",
+      "alt": "return-handling.bpmn with red error markers on a service task without a job type and on two flows without a condition, and 3 Errors at the bottom",
+      "caption": "Linting flags what Camunda would reject"
+    },
+    {
+      "path": "images/screenshot-dmn.webp",
+      "alt": "The Choose carrier decision table from shipping.dmn: country and weight in, carrier and cost out, with fields to simulate the decision above it",
+      "caption": "DMN decision tables you can simulate in place"
     }
   ],
   "engines": {

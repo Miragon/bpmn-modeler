@@ -1,7 +1,6 @@
 // Makes the images of the plugin's page in Orca's plugin directory, into images/:
 //   cover.webp                 the branded image, 1600×1000
-//   screenshot-orca-bpmn.webp  the BPMN editor in a whole Orca window
-//   screenshot-orca-dmn.webp   the DMN editor in a whole Orca window
+//   screenshot-<feature>.webp  properties, simulation, linting and dmn, each in a whole Orca window
 // The shots come from a fresh Orca in the Orca smoke container (shoot.mjs), so they hold no data of
 // this machine. --skip-shots reuses the PNGs of the last run.
 import { spawnSync } from "node:child_process";
@@ -82,9 +81,9 @@ try {
     await page.evaluate(() => globalThis.document.fonts.ready);
     mkdirSync(images, { recursive: true });
     writeFileSync(join(images, "cover.webp"), await webp(await page.screenshot(), 1600, 1000));
-    for (const editor of ["bpmn", "dmn"]) {
-        const window = readFileSync(join(shots, `${editor}-window.png`));
-        writeFileSync(join(images, `screenshot-orca-${editor}.webp`), await webp(window));
+    for (const feature of ["properties", "simulation", "linting", "dmn"]) {
+        const window = readFileSync(join(shots, `${feature}-window.png`));
+        writeFileSync(join(images, `screenshot-${feature}.webp`), await webp(window));
     }
     console.log(`[listing-images] ${images}`);
 } finally {

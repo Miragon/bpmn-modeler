@@ -1,6 +1,6 @@
 // Runs inside the Orca smoke container (see render.mjs): a fresh Orca with a throwaway profile opens
-// the demo folder and saves bpmn-editor.png (the editor alone), bpmn-window.png and dmn-window.png
-// (the whole Orca window) into the results directory.
+// the demo folder and saves bpmn-editor.png (the editor alone) and properties-, simulation-,
+// linting- and dmn-window.png (the whole Orca window) into the results directory.
 import { spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { cpSync, mkdirSync, mkdtempSync } from "node:fs";
@@ -21,6 +21,7 @@ const demo = "/workspace/order-service";
 cpSync(join(here, "demo"), demo, { recursive: true });
 const bpmn = join(demo, "order-fulfilment.bpmn");
 const dmn = join(demo, "shipping.dmn");
+const returns = join(demo, "return-handling.bpmn");
 
 const env = {
     ...process.env,
@@ -177,22 +178,58 @@ try {
         "--out",
         join(results, "bpmn-editor.png"),
     );
+    // In-place acts click in the editor frame of the whole window, at its own coordinates.
+    const actInPlace = (file, acts, name) =>
+        shot(
+            "--editor",
+            file,
+            "--act",
+            JSON.stringify(acts),
+            "--in-place",
+            "--out",
+            join(results, `${name}-act.png`),
+        );
+    const window = async (name, settle = 3000) => {
+        await sleep(settle);
+        shot("--window", "--out", join(results, `${name}-window.png`));
+    };
+
     // Opens the decision table through its drill-down icon in the DRD, which dmn-js draws at the
     // diagram's own coordinates.
-    shot(
-        "--editor",
-        dmn,
-        "--act",
-        JSON.stringify([{ click: [264, 113] }]),
-        "--in-place",
-        "--out",
-        join(results, "dmn-act.png"),
-    );
-    await sleep(3000);
-    shot("--window", "--out", join(results, "dmn-window.png"));
+    actInPlace(dmn, [{ click: [264, 113] }], "dmn");
+    await window("dmn");
+
     orcaOrFail(["plugin", "open", key, "--editor", bpmn]);
     await sleep(3000);
-    shot("--window", "--out", join(results, "bpmn-window.png"));
+    // Each act starts with the token simulation off, so one act turns it on and starts a token.
+    actInPlace(bpmn, [{ click: [99, 34] }, { click: [301, 469] }], "simulation");
+    await window("simulation", 800);
+
+    // Opens the properties panel, pans the diagram clear of it, selects Pack order, opens its
+    // Implementation and Form groups and leaves the pointer where it raises no tooltip.
+    actInPlace(
+        bpmn,
+        [
+            { click: [1281, 554] },
+            {
+                drag: [
+                    [700, 850],
+                    [520, 850],
+                ],
+            },
+            { click: [519, 487] },
+            { click: [917, 144] },
+            { click: [917, 279] },
+            { click: [1100, 1000] },
+        ],
+        "properties",
+    );
+    await window("properties");
+
+    orcaOrFail(["plugin", "open", key, "--editor", returns]);
+    await sleep(5000);
+    actInPlace(returns, [{ click: [881, 554] }], "linting");
+    await window("linting");
     console.log(`[listing-images] shots in ${results}`);
 } finally {
     await stop(orcaProcess);

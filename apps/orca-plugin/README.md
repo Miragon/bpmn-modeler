@@ -51,8 +51,10 @@ corepack yarn workspace @miragon/bpmn-modeler-orca listing-images --skip-shots  
 
 `shoot.mjs` runs in the smoke test's container: a fresh Orca with a throwaway profile opens `demo/` as
 `/workspace/order-service`, so the shots hold nothing of this machine. `render.mjs` puts the BPMN editor into
-`cover.html` and writes `images/cover.webp` (1600×1000) and the two Orca windows as WEBP. Refresh them when the
-editors or the claim change; `orca plugin validate` checks Orca's limits on the built plugin.
+`cover.html` and writes `images/cover.webp` (1600×1000) and one Orca window per feature as WEBP: the properties
+panel, token simulation, linting (on `demo/return-handling.bpmn`, which has errors on purpose) and a DMN decision
+table. Refresh them when the editors or the claim change; `orca plugin validate` checks Orca's limits on the built
+plugin.
 
 ## Tests
 
