@@ -3,6 +3,7 @@ import { FLUSH_QUERY_TYPES } from "@miragon/bpmn-modeler-shared";
 export type SessionMessageType =
     | "BpmnFileQuery"
     | "ElementTemplatesQuery"
+    | "BpmnPluginsQuery"
     | "BpmnlintResultsQuery"
     | "BpmnLintDisabledQuery"
     | "BpmnlintInPageQuery"

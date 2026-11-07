@@ -52,6 +52,10 @@ export function bootstrapWebview(
 function localResourceRootsFor(viewType: string, extensionUri: Uri): Uri[] {
     switch (viewType) {
         case BPMN_VIEW_TYPE:
+            return [
+                Uri.joinPath(extensionUri, "bpmn-webview"),
+                bpmnPluginCacheUri(getContext().globalStorageUri),
+            ];
         case ELEMENT_TEMPLATE_EDITOR_VIEW_TYPE:
             return [Uri.joinPath(extensionUri, "bpmn-webview")];
         case DMN_VIEW_TYPE:
@@ -64,4 +68,12 @@ function localResourceRootsFor(viewType: string, extensionUri: Uri): Uri[] {
         default:
             throw new Error(`Unsupported view type: ${viewType}`);
     }
+}
+
+/**
+ * Approved plugin copies, addressed by content. The BPMN webview may load
+ * files from here and never from a workspace folder.
+ */
+export function bpmnPluginCacheUri(globalStorageUri: Uri): Uri {
+    return Uri.joinPath(globalStorageUri, "bpmn-plugins");
 }

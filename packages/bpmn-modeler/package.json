@@ -60,6 +60,10 @@
             "types": "./dist/mode.d.ts",
             "import": "./dist/mode.js"
         },
+        "./plugins": {
+            "types": "./dist/plugins.d.ts",
+            "import": "./dist/plugins.js"
+        },
         "./styles.css": "./dist/bpmn-modeler.css",
         "./viewer.css": "./dist/viewer.css",
         "./design.css": "./dist/design.css",
