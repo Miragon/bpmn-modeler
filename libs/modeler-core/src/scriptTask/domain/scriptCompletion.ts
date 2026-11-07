@@ -18,6 +18,9 @@ import { ScriptKind } from "@miragon/bpmn-modeler-types";
  *   `def x = execution.` → `"execution"`
  *   `execution`          → undefined (no trailing dot)
  *   `foo.bar.`           → `"bar"` (deepest segment)
+ *
+ * IntelliJ's `ScriptCompletion.kt` ports this and {@link matchVariableStringArg};
+ * `scriptCompletion.cases.json` holds both languages to the same rows.
  */
 export function matchMemberAccess(linePrefix: string): string | undefined {
     const match = /([A-Za-z_][A-Za-z0-9_]*)\.\s*$/.exec(linePrefix);

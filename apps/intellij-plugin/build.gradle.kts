@@ -86,6 +86,8 @@ val surfaceModes = layout.projectDirectory.file("../../libs/modeler-types/src/su
 val colorThemes = layout.projectDirectory.file("../../libs/modeler-types/src/settings.ts")
 val modeLabels = layout.projectDirectory.file("../../packages/bpmn-modeler/src/modeSession/modeStrip.ts")
 val emptyDmn = layout.projectDirectory.file("../../libs/modeler-core/src/modeler/dmn/domain/emptyDmn.ts")
+val scriptCompletionCases =
+    layout.projectDirectory.file("../../libs/modeler-core/src/scriptTask/domain/scriptCompletion.cases.json")
 
 tasks.test {
     useJUnitPlatform()
@@ -96,8 +98,9 @@ tasks.test {
     // mode strip's labels, StatusSlotPlacementTest the core's status slots and view values,
     // ElementTemplateFilesTest the rows the TypeScript template rule runs,
     // ElementTemplatePreviewMessagesTest the preview page's messages, EmptyDmnDiagramTest the
-    // core's DMN scaffold. As declared inputs, a change on the TypeScript side alone reruns the
-    // tests instead of restoring them from the build cache.
+    // core's DMN scaffold, ScriptCompletionMatchersTest the rows the core's script-completion
+    // matchers run. As declared inputs, a change on the TypeScript side alone reruns the tests
+    // instead of restoring them from the build cache.
     mapOf(
         "protocolDescriptor" to protocolDescriptor,
         "settingsNormalizationCases" to settingsNormalizationCases,
@@ -109,6 +112,7 @@ tasks.test {
         "colorThemes" to colorThemes,
         "modeLabels" to modeLabels,
         "emptyDmn" to emptyDmn,
+        "scriptCompletionCases" to scriptCompletionCases,
     ).forEach { (name, file) ->
         inputs.file(file).withPropertyName(name).withPathSensitivity(PathSensitivity.RELATIVE)
         systemProperty("miragon.$name", file.asFile.absolutePath)
