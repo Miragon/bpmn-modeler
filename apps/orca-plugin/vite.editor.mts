@@ -42,7 +42,7 @@ function evalFree(): Plugin {
     };
 }
 
-/** One editor's bundle, unminified and with sourcemaps, as Orca's listing policy wants it readable. */
+/** One editor's bundle: unminified and with sourcemaps, but without the libraries' comments. */
 export function editorConfig(editor: "bpmn" | "dmn"): UserConfig {
     return defineConfig({
         root: __dirname,
@@ -91,6 +91,7 @@ export function editorConfig(editor: "bpmn" | "dmn"): UserConfig {
                 input: { main: resolve(__dirname, `src/${editor}.ts`) },
                 output: {
                     entryFileNames: "[name].js",
+                    comments: { legal: true, annotation: false, jsdoc: false },
                     chunkFileNames: "chunks/[name]-[hash].js",
                     assetFileNames: (asset) =>
                         asset.names.some((name) => name.endsWith(".css"))
