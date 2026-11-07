@@ -50,7 +50,7 @@ export function editorConfig(editor: "bpmn" | "dmn"): UserConfig {
         base: "./",
         cacheDir: `../../node_modules/.vite/orca-plugin-${editor}`,
         plugins: [tsconfigPaths(), evalFree()],
-        esbuild: { jsx: "automatic", jsxImportSource: "preact" },
+        oxc: { jsx: { runtime: "automatic", importSource: "preact" } },
         resolve: {
             alias: {
                 "@bpmn-io/properties-panel/preact/jsx-dev-runtime":
