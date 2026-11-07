@@ -56,6 +56,7 @@ function ruleFindings(
             return {
                 key,
                 path,
+                paths: [path],
                 line: 1,
                 group: "unmapped",
                 message: "sits in no role folder and is no entry directly in `src/`",
@@ -66,6 +67,7 @@ function ruleFindings(
         return {
             key,
             path,
+            paths: [path],
             line: offendingImports[0]?.line ?? 1,
             group: "divergent-import",
             message: `breaks “${rule.rule}” by importing ${importedTargets.map(code).join(", ")}`,
@@ -111,6 +113,7 @@ function portImplementationFindings(
         return {
             key: `${path} — implements a port`,
             path,
+            paths: [path],
             line: byLine[0].line,
             group: "misplaced-port-implementation",
             message: `${classes.join("; ")} outside adapter/out/ and testing/`,

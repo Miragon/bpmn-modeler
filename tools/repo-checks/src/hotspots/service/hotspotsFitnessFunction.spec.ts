@@ -38,6 +38,7 @@ describe("the hotspots fitness function", () => {
                 {
                     key: OFTEN,
                     path: OFTEN,
+                    paths: [OFTEN],
                     line: 1,
                     message: "3 revisions × 40 code lines = 120; no function",
                     rank: 1,

@@ -21,6 +21,11 @@ describe("the change coupling findings", () => {
             {
                 key: "apps/vscode-plugin/src/BpmnLintConfigService.ts ↔ libs/core/src/LintConfigService.ts",
                 path: "apps/vscode-plugin/src/BpmnLintConfigService.ts",
+                paths: [
+                    "apps/vscode-plugin/src/BpmnLintConfigService.ts",
+                    "libs/core/src/LintConfigService.ts",
+                ],
+                pathOrder: "code-unit",
                 line: 1,
                 group: "across-workspaces",
                 message:

@@ -135,6 +135,72 @@ describe("the findings a fitness function returns", () => {
 
     it.each([
         {
+            case: "paths that are no list",
+            output: [{ ...VALID, key: "src/a.ts", paths: "src/a.ts" }],
+            problem:
+                "finding 0 has paths that are no list of paths relative to the repository root",
+        },
+        {
+            case: "no paths in their list",
+            output: [{ ...VALID, paths: [] }],
+            problem:
+                "finding 0 has paths that are no list of paths relative to the repository root",
+        },
+        {
+            case: "an absolute path among their paths",
+            output: [{ ...VALID, key: "/repo/src/a.ts", paths: ["/repo/src/a.ts"] }],
+            problem:
+                "finding 0 has paths that are no list of paths relative to the repository root",
+        },
+        {
+            case: "paths their key does not name",
+            output: [{ ...VALID, key: "src/a.ts — Save", paths: ["src/b.ts"] }],
+            problem: "finding 0 has paths its key does not name in their order",
+        },
+        {
+            case: "paths their key names in another order",
+            output: [{ ...VALID, key: "src/a.ts → src/b.ts", paths: ["src/b.ts", "src/a.ts"] }],
+            problem: "finding 0 has paths its key does not name in their order",
+        },
+        {
+            case: "a path order but no paths",
+            output: [{ ...VALID, pathOrder: "code-unit" }],
+            problem: "finding 0 has a path order but no paths",
+        },
+        {
+            case: "a path order the engine does not know",
+            output: [{ ...VALID, key: "src/a.ts", paths: ["src/a.ts"], pathOrder: "length" }],
+            problem: "finding 0 has path order length, not code-unit",
+        },
+        {
+            case: "paths out of the code-unit order they declare",
+            output: [
+                {
+                    ...VALID,
+                    key: "src/b.ts ↔ src/a.ts",
+                    paths: ["src/b.ts", "src/a.ts"],
+                    pathOrder: "code-unit",
+                },
+            ],
+            problem: "finding 0 has paths out of code-unit order",
+        },
+    ])("are broken input when they hold $case", ({ output, problem }) => {
+        expect(() => parseFindings("fitness function x", output)).toThrow(problem);
+    });
+
+    it("keep the paths their key names and the order it names them in", () => {
+        const pair = {
+            ...VALID,
+            key: "src/a.ts ↔ src/b.ts",
+            paths: ["src/a.ts", "src/b.ts"],
+            pathOrder: "code-unit",
+        };
+
+        expect(parseFindings("x", [pair])).toEqual([pair]);
+    });
+
+    it.each([
+        {
             case: "path",
             left: { ...VALID, path: "src/b.ts" },
             right: { ...VALID, path: "src/a.ts" },
