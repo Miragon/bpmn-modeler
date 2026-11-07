@@ -22,9 +22,14 @@ export interface ChangesReportOptions {
     readonly maxCharacters?: number;
 }
 
+/** Its findings at the merge base drop out of the delta without being resolved. */
+function measuredOnlyAtBase({ base, outcome }: FunctionReport): boolean {
+    return outcome.kind === "unmeasurable" && base.unmeasurable === undefined;
+}
+
 /** A CI job reads whether anything changed from this first line, so it stays fixed. */
-function changesMarker(changed: readonly FunctionChanges[]): string {
-    return changed.length === 0
+function changesMarker(report: FitnessReport, changed: readonly FunctionChanges[]): string {
+    return changed.length === 0 && !report.functions.some(measuredOnlyAtBase)
         ? "<!-- fitness-changes: none -->"
         : "<!-- fitness-changes: some -->";
 }
@@ -143,13 +148,22 @@ function summaryLines(report: FitnessReport, changed: readonly FunctionChanges[]
     const unchanged = report.functions.filter(
         ({ id, outcome }) => outcome.kind === "measured" && !changedIds.has(id),
     );
-    const unmeasurable = report.functions.flatMap(({ id, outcome }) =>
-        outcome.kind === "unmeasurable" ? [`\`${id}\` (${outcome.reason})`] : [],
-    );
+    const unmeasurableWhere = (atBase: boolean) =>
+        report.functions.flatMap((functionReport) =>
+            functionReport.outcome.kind === "unmeasurable" &&
+            measuredOnlyAtBase(functionReport) === atBase
+                ? [`\`${functionReport.id}\` (${functionReport.outcome.reason})`]
+                : [],
+        );
+    const blinded = unmeasurableWhere(true);
+    const unmeasurable = unmeasurableWhere(false);
     return [
         ...(unchanged.length === 0
             ? []
             : [`- **No change:** ${unchanged.map(({ id }) => `\`${id}\``).join(", ")}`]),
+        ...(blinded.length === 0
+            ? []
+            : [`- **Measured at the merge base, not at HEAD:** ${blinded.join("; ")}`]),
         ...(unmeasurable.length === 0
             ? []
             : [`- **Not measurable at HEAD:** ${unmeasurable.join("; ")}`]),
@@ -163,7 +177,7 @@ function render(
     limits: Limits,
 ): string {
     const overview = summaryLines(report, changed);
-    const lines = [changesMarker(changed), TITLE, "", headLine(report, options.headLabel)];
+    const lines = [changesMarker(report, changed), TITLE, "", headLine(report, options.headLabel)];
     if (report.functions.length === 0) {
         lines.push("", "No fitness function is registered.");
     } else if (changed.length === 0) {
@@ -229,7 +243,7 @@ export function changesReport(report: FitnessReport, options: ChangesReportOptio
         }
     }
     return [
-        changesMarker(changed),
+        changesMarker(report, changed),
         TITLE,
         "",
         `The changes do not fit in ${maxCharacters} characters; the job summary lists them.`,

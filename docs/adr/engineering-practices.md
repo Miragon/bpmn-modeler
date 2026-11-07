@@ -663,11 +663,15 @@ blocks a merge, and findings never fail it.
   group, such as size-and-complexity's every measured file, inside
   `<details>`), and its measures, misses, false reports and evidence in a
   collapsed `<details>`, since a reader judges a row by them. Functions with no
-  change share one line, unmeasurable ones another with their reasons, and a PR
-  without a change says so. The first line, `<!-- fitness-changes: some -->` or
-  `<!-- fitness-changes: none -->`, tells the workflow whether anything
-  changed; a spec pins it. Existing rows whose values changed, such as a file
-  that grew, are not shown; the full report's Trend column holds them.
+  change share one line, and a PR without a change says so. A function
+  measured at the merge base but not at HEAD gets a line with its reason and
+  counts as a change, since its findings at the base drop out without being
+  resolved; one unmeasurable on both sides, such as mutation-score until a
+  run is stored, goes on another line and does not. The first line,
+  `<!-- fitness-changes: some -->` or `<!-- fitness-changes: none -->`, tells
+  the workflow whether anything changed; a spec pins it. Existing rows whose
+  values changed, such as a file that grew, are not shown; the full report's
+  Trend column holds them.
 - **Measured commit.** The default checkout of `pull_request`, GitHub's test
   merge of the head into the base, with `--base "origin/<base branch>"`. Its
   first parent is the base tip, which is the merge base, and the history

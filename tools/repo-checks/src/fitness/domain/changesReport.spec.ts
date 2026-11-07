@@ -43,7 +43,12 @@ const unchanged: Measured = {
 const unmeasurable: Measured = {
     fitnessFunction: mutation,
     head: { unmeasurable: "no mutation run" },
-    base: { findings: [] },
+    base: { unmeasurable: "no mutation run" },
+};
+const blinded: Measured = {
+    fitnessFunction: fakeFitnessFunction({}, { id: "blind-one" }),
+    head: { unmeasurable: "no port found" },
+    base: { findings: [finding("P")] },
 };
 
 function findings(prefix: string, count: number): Finding[] {
@@ -141,6 +146,25 @@ describe("the changes report", () => {
         );
         expect(markdown).not.toContain("surviving mutants");
         expect(markdown.split("\n")[0]).toBe("<!-- fitness-changes: none -->");
+    });
+
+    it("counts a function measured at the merge base and not at HEAD as a change", () => {
+        const markdown = changesReport(reportOf([unchanged, unmeasurable, blinded]));
+
+        expect(markdown.split("\n")[0]).toBe("<!-- fitness-changes: some -->");
+        expect(markdown).toContain(
+            [
+                "- **No change:** `quiet-one`",
+                "- **Measured at the merge base, not at HEAD:** `blind-one` (no port found)",
+                "- **Not measurable at HEAD:** `mutation-score` (no mutation run)",
+            ].join("\n"),
+        );
+    });
+
+    it("keeps that change on the first line when nothing else fits", () => {
+        expect(changesReport(reportOf([blinded]), { maxCharacters: 10 }).split("\n")[0]).toBe(
+            "<!-- fitness-changes: some -->",
+        );
     });
 
     it("says that every row is new when the merge base was not measurable", () => {
