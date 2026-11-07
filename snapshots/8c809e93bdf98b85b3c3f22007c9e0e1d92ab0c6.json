@@ -1896,7 +1896,7 @@
       ]
     },
     "hotspots": {
-      "version": 1,
+      "version": 2,
       "findings": [
         {
           "key": "apps/bpmn-webview/src/bootstrap.ts",
@@ -1983,18 +1983,18 @@
           "rank": 18
         },
         {
+          "key": "libs/append-menu/src/components/AppendMenuOverlay.tsx",
+          "path": "libs/append-menu/src/components/AppendMenuOverlay.tsx",
+          "line": 72,
+          "message": "13 revisions × 324 code lines = 4,212; highest complexity 12 (AppendMenuOverlay)",
+          "rank": 20
+        },
+        {
           "key": "libs/modeler-core/src/deployment/service/DeploymentMessageDispatcher.ts",
           "path": "libs/modeler-core/src/deployment/service/DeploymentMessageDispatcher.ts",
           "line": 345,
           "message": "11 revisions × 445 code lines = 4,895; highest complexity 20 (resolveRequestTarget)",
           "rank": 17
-        },
-        {
-          "key": "libs/modeler-core/src/index.ts",
-          "path": "libs/modeler-core/src/index.ts",
-          "line": 1,
-          "message": "39 revisions × 124 code lines = 4,836; no function",
-          "rank": 19
         },
         {
           "key": "libs/modeler-core/src/modeler/bpmn/service/BpmnLintConfigService.ts",
@@ -2022,7 +2022,7 @@
           "path": "packages/bpmn-modeler/src/design/designer.ts",
           "line": 103,
           "message": "25 revisions × 191 code lines = 4,775; highest complexity 7 (init)",
-          "rank": 20
+          "rank": 19
         },
         {
           "key": "packages/bpmn-modeler/src/modeler.ts",

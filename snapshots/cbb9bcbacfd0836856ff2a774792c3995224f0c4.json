@@ -1896,7 +1896,7 @@
       ]
     },
     "hotspots": {
-      "version": 1,
+      "version": 2,
       "findings": [
         {
           "key": "apps/bpmn-webview/src/bootstrap.ts",
@@ -1980,7 +1980,14 @@
           "path": "apps/vscode-plugin/src/shared/infrastructure/VsCodePicker.ts",
           "line": 49,
           "message": "23 revisions × 211 code lines = 4,853; highest complexity 7 (pickMigrationScope)",
-          "rank": 19
+          "rank": 18
+        },
+        {
+          "key": "libs/append-menu/src/components/AppendMenuOverlay.tsx",
+          "path": "libs/append-menu/src/components/AppendMenuOverlay.tsx",
+          "line": 72,
+          "message": "13 revisions × 324 code lines = 4,212; highest complexity 12 (AppendMenuOverlay)",
+          "rank": 20
         },
         {
           "key": "libs/modeler-core/src/deployment/service/DeploymentMessageDispatcher.ts",
@@ -1988,13 +1995,6 @@
           "line": 345,
           "message": "12 revisions × 444 code lines = 5,328; highest complexity 20 (resolveRequestTarget)",
           "rank": 13
-        },
-        {
-          "key": "libs/modeler-core/src/index.ts",
-          "path": "libs/modeler-core/src/index.ts",
-          "line": 1,
-          "message": "40 revisions × 125 code lines = 5,000; no function",
-          "rank": 17
         },
         {
           "key": "libs/modeler-core/src/modeler/bpmn/service/BpmnLintConfigService.ts",
@@ -2008,7 +2008,7 @@
           "path": "libs/modeler-core/src/modeler/bpmn/service/BpmnModelerService.ts",
           "line": 46,
           "message": "32 revisions × 156 code lines = 4,992; highest complexity 9 (display)",
-          "rank": 18
+          "rank": 17
         },
         {
           "key": "libs/shared/src/lib/modeler.ts",
@@ -2022,7 +2022,7 @@
           "path": "packages/bpmn-modeler/src/design/designer.ts",
           "line": 103,
           "message": "25 revisions × 191 code lines = 4,775; highest complexity 7 (init)",
-          "rank": 20
+          "rank": 19
         },
         {
           "key": "packages/bpmn-modeler/src/modeler.ts",
