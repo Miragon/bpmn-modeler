@@ -32,6 +32,7 @@ export default miragonDocs({
                 { text: "VS Code", link: "/vscode/getting-started" },
                 { text: "IntelliJ (Preview)", link: "/intellij/getting-started" },
                 { text: "Desktop app (Preview)", link: "/standalone/getting-started" },
+                { text: "Orca (Preview)", link: "/orca/getting-started" },
                 { text: "Configuration", link: "/vscode/configuration" },
             ],
         },

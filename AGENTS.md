@@ -1,8 +1,8 @@
 # Agent Instructions
 
 Rules for AI coding agents in this repository: VS Code, IntelliJ and Theia
-hosts for BPMN, DMN and Camunda Form modeling, built with **Yarn 4
-workspaces**. This file holds only what the code and the skills do not say.
+hosts and an Orca plugin for BPMN, DMN and Camunda Form modeling, built with
+**Yarn 4 workspaces**. This file holds only what the code and the skills do not say.
 
 ## Skills
 
@@ -57,6 +57,8 @@ corepack yarn intellij:run      # Build webview/bridge artefacts, launch a sandb
 corepack yarn intellij:build    # Refresh the artefacts only, after a webview change
 corepack yarn workspace @miragon/bpmn-modeler-standalone dev   # Theia/Electron app, full chain
 corepack yarn workspace vs-code-bpmn-modeler test:vscode:docker  # Packaged extension in a real VS Code, in a container; not part of `test`
+corepack yarn workspace @miragon/bpmn-modeler-orca test:e2e      # Orca plugin: build, then both editors in Chromium under Orca's frame CSP
+corepack yarn workspace @miragon/bpmn-modeler-orca test:orca:docker  # Orca plugin in a real Orca, in a container; not part of `test`
 ```
 
 `watch` writes bundles to disk because the extension host reads them through

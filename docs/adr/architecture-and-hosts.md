@@ -6,7 +6,7 @@
 ## Context
 
 The same modeling features serve embeddable browser consumers, VS Code,
-Theia/Electron, and IntelliJ. Sharing them requires separate boundaries for
+Theia/Electron, IntelliJ and Orca. Sharing them requires separate boundaries for
 browser composition, host-independent services, host facilities, and private
 webview messages. Otherwise each host either duplicates modeling logic or
 depends on another host's internals.
@@ -251,7 +251,7 @@ imports show the role it has. Each workspace declares its kind once, in the
 
 | Kind | Workspaces |
 | --- | --- |
-| `hexagonal` | `libs/modeler-core`, `apps/vscode-plugin`, `apps/modeler-bridge`, the four webviews, the template builder, `tools/repo-checks` |
+| `hexagonal` | `libs/modeler-core`, `apps/vscode-plugin`, `apps/modeler-bridge`, the four webviews, the template builder, `apps/orca-plugin`, `tools/repo-checks` |
 | `diagram-js` | the diagram-js feature libraries in `libs/` and `packages/bpmn-modeler`, `packages/dmn-modeler`, which follow the bpmn-js module layout |
 | `flat` | `modeler-types`, `shared`, `bpmn-diff`, `bpmn-i18n-extras`, `standalone-extension`, `tools/architecture-testing`, `docs`, `apps/standalone` |
 
@@ -358,6 +358,29 @@ Theia/Electron and adds shell behavior through `libs/standalone-extension`.
 IntelliJ runs the same core out-of-process and renders its BPMN editor in JCEF.
 Its host also integrates diff, deployment and scripting; its visual editor does
 not currently provide DMN or Forms parity, nor the element-template editor.
+
+[Orca](https://www.onorca.dev) hosts the two npm packages without the core.
+`apps/orca-plugin` is one Orca plugin (`bpmn-modeler`) with a custom editor for
+`.bpmn` and one for `.dmn`, each an isolated, sandboxed frame without a worker,
+network or file access. The plugin is for seeing what an agent writes and
+modeling lightly, so it composes `@miragon/bpmn-modeler` (the mode session with
+View, Design and Implement, the properties panel, token simulation and in-page
+linting) and `@miragon/dmn-modeler` directly instead of running a webview: a
+webview needs the host protocol and the Node core, which a frame cannot run.
+Every capability port stays empty, so code links, navigation, definition
+search, form preview, scripting, workspace element templates and deployment do
+not appear. Orca's document session is the document authority. One service,
+[`syncDocument`](../../apps/orca-plugin/src/service/documentSync.ts), sits
+between a `DocumentSession` port (Orca) and a `ModelCanvas` port (either
+modeler): imports run one at a time, an edit's export is sent only while no
+newer import replaced its source, and Orca's `editor.flush` applies input the
+properties panel or a table cell still holds back before a save. It replaces
+the shell's `connectOrcaDocumentSync`, whose export is synchronous, which has
+no hook before a save, and which starts the first import before the caller
+knows whether the tab is read-only. A read-only tab gets the BPMN viewer only;
+the DMN modeler has no read-only mode, so its frame is inert. Orca denies the
+clipboard permission, so copied elements stay in an in-frame clipboard. Orca
+keeps no undo for custom editors; the canvas keeps its own.
 
 A feature both hosts offer is built once in the core from ports, not wired per
 host. `EditorSessionLifecycle` runs every editor session: it routes webview

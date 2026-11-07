@@ -10,12 +10,21 @@ function readRepoFile(path: string): string {
 
 const markerWorkflow = readRepoFile(".github/workflows/sync-release-markers.yml");
 
-function workflowPattern(variable: string): RegExp {
-    const assignment = new RegExp(`^\\s*${variable}='([^']+)'$`, "m").exec(markerWorkflow);
+function workflowAssignment(variable: string): string {
+    const assignment = new RegExp(`^\\s*${variable}=(?:'([^']+)'|"([^"]+)")$`, "m").exec(
+        markerWorkflow,
+    );
     if (!assignment) {
         throw new Error(`sync-release-markers.yml assigns no ${variable}`);
     }
-    return new RegExp(assignment[1]);
+    return assignment[1] ?? assignment[2];
+}
+
+/** A double-quoted assignment expands `${SPHERE}`, as the workflow's shell does. */
+function workflowPattern(variable: string): RegExp {
+    return new RegExp(
+        workflowAssignment(variable).replace("${SPHERE}", () => workflowAssignment("SPHERE")),
+    );
 }
 
 function pushTriggerPaths(): string[] {
@@ -64,6 +73,26 @@ describe("release markers for inlined libraries", () => {
         (directory) => {
             expect(pushTriggerPaths()).toContain(`libs/${directory}/**`);
             expect(workflowPattern("SPHERE").test(`libs/${directory}/src/index.ts`)).toBe(true);
+        },
+    );
+
+    it.each([...new Set([...bpmnInlinedLibraries, ...dmnInlinedLibraries, "shared"])])(
+        "routes a fix in libs/%s to the Orca plugin's release line",
+        (directory) => {
+            expect(pushTriggerPaths()).toContain(`libs/${directory}/**`);
+            expect(workflowPattern("ORCA_RELEVANT").test(`libs/${directory}/src/index.ts`)).toBe(
+                true,
+            );
+        },
+    );
+
+    it.each(["bpmn-modeler", "dmn-modeler"])(
+        "routes a fix in packages/%s to the Orca plugin's release line",
+        (directory) => {
+            expect(pushTriggerPaths()).toContain(`packages/${directory}/**`);
+            expect(
+                workflowPattern("ORCA_RELEVANT").test(`packages/${directory}/src/index.ts`),
+            ).toBe(true);
         },
     );
 

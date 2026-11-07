@@ -1,7 +1,7 @@
 # Release and publishing
 
 - Status: accepted
-- Last reviewed: 2026-11-01
+- Last reviewed: 2026-11-05
 
 ## Context
 
@@ -40,6 +40,7 @@ source of truth for routing and version-stamped files.
 | `dmn-modeler` | `packages/dmn-modeler` | `BUNDLED_LIBS` for `modeler-types` and `bpmn-i18n-extras` |
 | `vscode` | `apps/vscode-plugin` | `BUNDLED_WEBVIEW` for bundled packages, webviews, core/shared and standalone sources |
 | `intellij` | `apps/intellij-plugin` | `BUNDLED_WEBVIEW` for its bundled webviews, bridge/core and relevant package/library sources |
+| `orca` | `apps/orca-plugin` | `BUNDLED_WEBVIEW` for both packages, the libraries they inline and `libs/shared` |
 
 The root excludes applications, docs, CI, host libraries, the DMN package and
 root tooling files individually. It is a blocklist without globs: review new
@@ -165,6 +166,35 @@ descriptor still resolves on its own. Bundling would break plugin
 interoperability. Moving the monorepo to another package manager does not
 change a consumer's resolver; [#1780](https://github.com/Miragon/bpmn-modeler/issues/1780)
 evaluates pnpm on other grounds.
+
+### Orca plugin
+
+Orca builds nothing and installs the files of a pinned commit, so the built
+plugin folder has to live in a repository. Every Miragon modeler publishes into
+one catalog, [Miragon/orca-modelers](https://github.com/Miragon/orca-modelers),
+whose `sources.json` allows this repository to publish `bpmn-modeler`. After
+the release approval, the
+[publish workflow](../../.github/workflows/publish-orca-plugin.yml) builds
+`apps/orca-plugin/plugin/`, smoke-tests exactly that folder in the newest Orca
+and hands it, with the release tag and changelog section in a `release.json`,
+to that repository's `publish-plugin` action, pinned to a commit. The action
+opens a pull request with the plugin's bytes and then one with its catalog
+entry, and squash-merges each once that repository's `validate` passes, so a
+release is one catalog change and one tag there. It authenticates with the
+release-please GitHub App, whose token is scoped to `miragon/orca-modelers`
+with `contents: write` and `pull-requests: write`. A failed publish closes its
+pull request; re-running the job retries and skips the bytes when they are on
+main there already. The `orca-modelers-publish` concurrency group serializes
+publishes from this repository only; a publish from another source repository
+that conflicts fails, and a re-run starts from the new main.
+This repository stays free of build output. Manual dispatch is a dry run.
+release-please bumps `orca-plugin.json` with the workspace's version; the
+[manifest spec](../../apps/orca-plugin/src/manifest.contract.spec.ts) keeps the
+two equal. The line starts at `0.1.0` (`initial-version`), because
+release-please gives a package without a released version `1.0.0`. One build writes both editor pages, so the code they share ships
+once. The bundle ships unminified with sourcemaps but without the
+libraries' comments. Orca's listing policy forbids only code minified to
+hide what it does and asks for no sourcemaps.
 
 ### Standalone Linux Git
 

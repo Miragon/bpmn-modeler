@@ -68,6 +68,12 @@
                 "test/e2e/**/*.test.ts"
             ]
         },
+        "apps/orca-plugin": {
+            // render.mjs runs shoot.mjs in the smoke container by path and loads
+            // the cover's font file through `require.resolve`; knip sees neither.
+            "entry": ["scripts/listing-images/shoot.mjs"],
+            "ignoreDependencies": ["@fontsource-variable/geist"]
+        },
         "apps/bpmn-webview": {
             // The webview bundles `@miragon/bpmn-modeler` from source, so the
             // layout engine enters through the inlined bpmn-layout lib rather

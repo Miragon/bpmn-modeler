@@ -31,6 +31,8 @@ module.exports = [
             "**/.stryker-tmp/**",
             "**/stryker-setup-*.js",
             "**/plugins",
+            // The Orca plugin's build output.
+            "apps/orca-plugin/plugin/**",
             "**/gen-webpack*.js",
             "**/gen-esbuild*.mjs",
             "apps/standalone/esbuild.mjs",

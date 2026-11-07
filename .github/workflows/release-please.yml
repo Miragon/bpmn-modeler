@@ -1,10 +1,11 @@
 name: Release Please
 
-# Four release lines (see release-please-config.json): "." (the publishable
+# Five release lines (see release-please-config.json): "." (the publishable
 # @miragon/bpmn-modeler npm package — the root component, so it watches the
 # package plus its inlined libs), "apps/vscode-plugin" (vscode),
-# "apps/intellij-plugin" (intellij) and "packages/dmn-modeler" (the publishable
-# @miragon/dmn-modeler npm package). They share one combined Release PR; each
+# "apps/intellij-plugin" (intellij), "packages/dmn-modeler" (the publishable
+# @miragon/dmn-modeler npm package) and "apps/orca-plugin" (orca, published
+# into Miragon/orca-modelers). They share one combined Release PR; each
 # line keeps its own tag, changelog and publish jobs, which have no order among
 # them. Root outputs are unprefixed; sub-packages are prefixed by path.
 
@@ -35,6 +36,8 @@ jobs:
       npm_tag: ${{ steps.release.outputs.tag_name }}
       dmn_released: ${{ steps.release.outputs['packages/dmn-modeler--release_created'] }}
       dmn_tag: ${{ steps.release.outputs['packages/dmn-modeler--tag_name'] }}
+      orca_released: ${{ steps.release.outputs['apps/orca-plugin--release_created'] }}
+      orca_tag: ${{ steps.release.outputs['apps/orca-plugin--tag_name'] }}
     steps:
       - uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
         id: app-token
@@ -52,12 +55,12 @@ jobs:
   approve-release:
     name: Approve release publish
     needs: release-please
-    if: needs.release-please.outputs.vscode_released == 'true' || needs.release-please.outputs.intellij_released == 'true' || needs.release-please.outputs.npm_released == 'true' || needs.release-please.outputs.dmn_released == 'true'
+    if: needs.release-please.outputs.vscode_released == 'true' || needs.release-please.outputs.intellij_released == 'true' || needs.release-please.outputs.npm_released == 'true' || needs.release-please.outputs.dmn_released == 'true' || needs.release-please.outputs.orca_released == 'true'
     runs-on: ubuntu-latest
     environment: release-approval
     steps:
       - name: Record approval
-        run: echo "Release approved — vscode=${{ needs.release-please.outputs.vscode_tag }} intellij=${{ needs.release-please.outputs.intellij_tag }} npm=${{ needs.release-please.outputs.npm_tag }} dmn=${{ needs.release-please.outputs.dmn_tag }}"
+        run: echo "Release approved — vscode=${{ needs.release-please.outputs.vscode_tag }} intellij=${{ needs.release-please.outputs.intellij_tag }} npm=${{ needs.release-please.outputs.npm_tag }} dmn=${{ needs.release-please.outputs.dmn_tag }} orca=${{ needs.release-please.outputs.orca_tag }}"
 
   vscode:
     needs: [release-please, approve-release]
@@ -127,4 +130,13 @@ jobs:
       # jsdom for the headless DOM; esbuild to bundle the consumer entry — the
       # dmn-js stack has no exports maps and only resolves through a bundler.
       smoke-extra-deps: jsdom esbuild
+    secrets: inherit
+
+  orca:
+    needs: [release-please, approve-release]
+    if: needs.release-please.outputs.orca_released == 'true'
+    uses: ./.github/workflows/publish-orca-plugin.yml
+    with:
+      tag: ${{ needs.release-please.outputs.orca_tag }}
+      dry-run: false
     secrets: inherit
