@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
     editorsOfferedAnyOf,
+    isPluginFolderName,
     pluginFolderChangedBy,
     type PluginFolderChange,
 } from "./pluginFolders";
@@ -72,5 +73,20 @@ describe("editorsOfferedAnyOf", () => {
         { case: "none for no plugins", pluginIds: [], editors: [] },
     ])("returns $case", ({ pluginIds, editors }) => {
         expect(editorsOfferedAnyOf(offered, pluginIds)).toEqual(editors);
+    });
+});
+
+describe("isPluginFolderName", () => {
+    it.each<{ case: string; name: string; plugin: boolean }>([
+        { case: "a plain folder name", name: "resize-tasks", plugin: true },
+        { case: "a name with dots inside", name: "resize.tasks..v2", plugin: true },
+        { case: "a hidden folder", name: ".resize", plugin: true },
+        { case: "the current folder", name: ".", plugin: false },
+        { case: "the parent folder", name: "..", plugin: false },
+        { case: "an empty name", name: "", plugin: false },
+        { case: "a name with a slash", name: "a/b", plugin: false },
+        { case: "a name with a backslash", name: "a\\b", plugin: false },
+    ])("takes $case as a plugin folder: $plugin", ({ name, plugin }) => {
+        expect(isPluginFolderName(name)).toBe(plugin);
     });
 });

@@ -1,3 +1,5 @@
+import { staysInsideFolder } from "../../kernel/domain/rootContainment";
+
 /**
  * The files that describe a plugin, in the order they are read: our own
  * manifest, then the `index.js` of a Camunda Modeler plugin.
@@ -5,6 +7,10 @@
 export const PLUGIN_MANIFEST_FILES = ["plugin.json", "index.js"] as const;
 
 export type PluginManifestFile = (typeof PLUGIN_MANIFEST_FILES)[number];
+
+export const NO_MANIFEST_REASON = `holds neither ${PLUGIN_MANIFEST_FILES.join(" nor ")}`;
+
+export const MISSING_FILE_REASON = "a file it names is missing";
 
 export interface PluginManifest {
     readonly name: string;
@@ -105,14 +111,10 @@ function stringOrUndefined(value: unknown): string | undefined {
     return typeof value === "string" && value.trim().length > 0 ? value : undefined;
 }
 
+const URL_SCHEME = /^[a-z][a-z0-9+.-]*:/i;
+
 function isPathInsidePluginFolder(path: string): boolean {
-    const normalized = path.replaceAll("\\", "/");
-    return (
-        normalized.length > 0 &&
-        !normalized.startsWith("/") &&
-        !/^[a-z][a-z0-9+.-]*:/i.test(normalized) &&
-        !normalized.split("/").includes("..")
-    );
+    return path.length > 0 && !URL_SCHEME.test(path) && staysInsideFolder(path);
 }
 
 function withoutLeadingDot(path: string): string {

@@ -459,6 +459,37 @@ describe("bootstrap", () => {
             expect(modeler.loadDiagram).toHaveBeenCalledWith("<tagged />");
         });
 
+        it("tells the host it opened without plugins when the host never answers", async () => {
+            mocks.createModeler.mockResolvedValue(makeModeler());
+            const host = makeHost({
+                file: tagged(),
+                replies: { GetBpmnPluginsCommand: unanswered },
+            });
+            boot(host);
+            await vi.advanceTimersByTimeAsync(HOST_REPLY_TIMEOUT_MS - 1);
+            expect(sentOfType(host, "LogWarningCommand")).toEqual([]);
+
+            await vi.advanceTimersByTimeAsync(1);
+
+            expect(sentOfType(host, "LogWarningCommand")).toEqual([
+                expect.objectContaining({
+                    message:
+                        "The host did not answer the BPMN plugins request in time, so the editor opened without plugins",
+                }),
+            ]);
+            expect(sentTypes(host)).not.toContain("ShowInfoCommand");
+        });
+
+        it("logs nothing about the plugins when the host answers with none", async () => {
+            mocks.createModeler.mockResolvedValue(makeModeler());
+            const host = makeHost({ file: tagged() });
+            boot(host);
+            await vi.advanceTimersByTimeAsync(HOST_REPLY_TIMEOUT_MS);
+
+            expect(mocks.createModeler).toHaveBeenCalledOnce();
+            expect(sentOfType(host, "LogWarningCommand")).toEqual([]);
+        });
+
         it("opens without plugins and tells the host when the plugins fail to load during View", async () => {
             mocks.savedMode = "view";
             mocks.loadPlugins.mockRejectedValue(new Error("plugin chunk unavailable"));

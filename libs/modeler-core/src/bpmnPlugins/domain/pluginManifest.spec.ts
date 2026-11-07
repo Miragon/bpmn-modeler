@@ -27,6 +27,52 @@ describe("readPluginManifest", () => {
             text: "{ name: ",
             reading: { kind: "unreadable", reason: "plugin.json is not valid JSON" },
         },
+        {
+            case: "JSON that is a number",
+            text: "42",
+            reading: { kind: "unreadable", reason: "plugin.json is not an object" },
+        },
+        {
+            case: "JSON null",
+            text: "null",
+            reading: { kind: "unreadable", reason: "plugin.json is not an object" },
+        },
+        {
+            case: "a script that is no string",
+            text: '{ "script": 5 }',
+            reading: { kind: "unreadable", reason: 'plugin.json names no "script"' },
+        },
+        {
+            case: "a blank script",
+            text: '{ "script": "  " }',
+            reading: { kind: "unreadable", reason: 'plugin.json names no "script"' },
+        },
+        {
+            case: "a name that is no string, which takes the folder's",
+            text: '{ "name": 5, "script": "client.js" }',
+            reading: { kind: "manifest", manifest: { name: "resize-tasks", script: "client.js" } },
+        },
+        {
+            case: "backslash paths, spelled with slashes",
+            text: '{ "script": "dist\\\\client.js", "style": ".\\\\style.css" }',
+            reading: {
+                kind: "manifest",
+                manifest: { name: "resize-tasks", script: "dist/client.js", style: "style.css" },
+            },
+        },
+        {
+            case: "repeated leading current-folder segments, all dropped",
+            text: '{ "script": "././client.js" }',
+            reading: { kind: "manifest", manifest: { name: "resize-tasks", script: "client.js" } },
+        },
+        {
+            case: "a current-folder segment further down, which stays",
+            text: '{ "script": "dist/./client.js" }',
+            reading: {
+                kind: "manifest",
+                manifest: { name: "resize-tasks", script: "dist/./client.js" },
+            },
+        },
     ])("reads $case from plugin.json", ({ text, reading }) => {
         expect(readPluginManifest("plugin.json", text, "resize-tasks")).toEqual(reading);
     });
@@ -58,6 +104,21 @@ module.exports = {
                 reason: "index.js does not name its script as a string literal; add a plugin.json",
             },
         },
+        {
+            case: "a name given after the script",
+            text: "module.exports = { script: './client.js', name: 'Resize Tasks' };",
+            reading: { kind: "manifest", manifest: { name: "Resize Tasks", script: "client.js" } },
+        },
+        {
+            case: "no name, which takes the folder's",
+            text: "module.exports = { script: './client.js' };",
+            reading: { kind: "manifest", manifest: { name: "folder", script: "client.js" } },
+        },
+        {
+            case: "an empty script",
+            text: "module.exports = { name: 'x', script: '' };",
+            reading: { kind: "unreadable", reason: '"" is not a path inside the plugin folder' },
+        },
     ])("reads $case from index.js without running it", ({ text, reading }) => {
         expect(readPluginManifest("index.js", text, "folder")).toEqual(reading);
     });
@@ -67,6 +128,9 @@ module.exports = {
         ["dist/../../outside.js", "a path that leaves it further down"],
         ["/etc/client.js", "an absolute path"],
         ["C:/client.js", "a drive path"],
+        ["C:client.js", "a drive-relative path"],
+        ["\\client.js", "a path rooted by a backslash"],
+        ["dist\\..\\..\\client.js", "a backslash path that leaves the plugin folder"],
         ["https://example.com/client.js", "a URL"],
     ])("refuses %s, %s", (script) => {
         expect(readPluginManifest("plugin.json", JSON.stringify({ script }), "x")).toEqual({

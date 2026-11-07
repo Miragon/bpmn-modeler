@@ -491,22 +491,28 @@ asks and the webview cannot tell the two apart earlier without adding the
 command to the diff pane's handshake. It does not wait there: the Design and
 Implement factories await the reply and the script loading together with their
 surface module and lint options, so the round trip overlaps the module load.
-The wait lasts at most `HOST_REPLY_TIMEOUT_MS`, and the editor opens without
-plugins when no answer comes. It
+The wait lasts at most `HOST_REPLY_TIMEOUT_MS`; when no answer comes, the
+editor opens without plugins and logs that the host did not answer. It
 loads the `/plugins` chunk only when the answer holds a plugin and shows the
 `modeler-types` report: a log line per failed or ignored registration and one
 notice. Plugins go into Design and Implement, never into View, whose
 NavigatedViewer lacks the modeling services plugins build on. A tagged model
 keeps one instance across Design and Implement, so its engine's plugins stay
-loaded in Design. Folding the answer into `BpmnFileQuery` is deferred until a
-measurement shows the extra round trip.
+loaded in Design. The answer stays its own message instead of joining
+`BpmnFileQuery`: the VS Code smoke suite measures the time from opening a file
+to its first surface, and one small cached plugin left it unchanged (median of
+three, about 360 ms with and without).
 
 **Discovery and approval (core).** `bpmnPlugins/` finds one plugin per
 subfolder of each `<configFolder>/plugins/` between the document and its
 workspace root. It reads `plugin.json`, or scans a Camunda `index.js` for
-string literals without running it. Paths must stay inside the plugin folder.
-A plugin runs only after the user approved this content in this folder: the
-approval is a SHA-256 of the script and the style, kept by the host outside
+string literals without running it. Paths must stay inside the plugin folder,
+by the kernel's `staysInsideFolder`, the rule the template marketplace applies
+to repository paths too, and a folder name holding a separator or `..` is
+skipped. A plugin runs only after the user approved this content in this
+folder: the approval is a SHA-256 of the script and the style, each prefixed
+with its length and a missing style marked apart from an empty one, so bytes
+moved from one file to the other change the hash. It is kept by the host outside
 every workspace (`PluginApprovalStorePort`; VS Code global state), so a
 repository cannot approve itself and any change (a pull, an update) asks
 again. `WorkspacePluginLocator` keeps a memo per plugin folder and drops it on
@@ -534,7 +540,11 @@ yet.") with one **Review…** action through the generic
 **Review…** opens the `chooseMany` prompt. Dismissing the notification or
 the list, or leaving a plugin unchecked, is the same answer: those plugin
 versions are declined for this session, offered again in a later one, and
-offered again at once when their content changes. One question is open at a time across editors.
+offered again at once when their content changes. `PluginApprovalQuestion`
+runs this flow and knows no editor: one question is open at a time, and plugins
+found while it is open are asked afterwards, as far as that answer left them
+pending. A VS Code notice can stay unanswered in the notification centre, so
+dropping them would leave a second workspace's plugins unasked for the session.
 An approval reloads every open BPMN editor whose last answer offered one of
 the newly allowed plugin folders, approved or pending, because its modules are
 fixed; the delivery tracks those folders per editor and a session
@@ -543,17 +553,23 @@ participant drops the entry when the editor is disposed.
 **Serving.** The delivery service answers `GetBpmnPluginsCommand` with
 `postUnlessHidden`, as element templates do. It copies the approved bytes into
 a content-addressed cache (`<globalStorage>/bpmn-plugins/<hash>/plugin.js` and
-`plugin.css`) and maps them to URLs through `EditorHandle.webviewUrlOf`. A hash
-is written once: the service remembers what it wrote and, at its first use in
-a session, lists that hash's folder and writes only a missing file (style
-first, script last, so an interrupted copy lacks its script). The webview never
+`plugin.css`) and maps them to URLs through `EditorHandle.webviewUrlOf`. Each
+hash is copied once per session, editors asking at the same time share that
+copy, and a failed copy is tried again on the next request. The copy reads each
+cached file back and rewrites it when its bytes differ from the approved ones
+or cannot be read: a write cut short by a crash would otherwise be served as it
+is. The webview never
 reads a workspace folder, so a file swapped after the approval and an
 unapproved file beside the script cannot reach it, and `localResourceRoots`
 stays fixed at creation. The host passes the cache root as a platform path
 (VS Code's `fsPath`, `C:\…` on Windows); the core normalizes it once with
-`toWorkspacePath`, so the written path and the URL path agree. A host that
-does not wire the feature (the IntelliJ bridge until #2242) answers with no
-plugins through `answerWithoutPluginsHandler`.
+`toWorkspacePath`, so the written path and the URL path agree. VS Code roots
+the webview's cache folder at a `file:` URI of that path: desktop VS Code
+hands out global storage as `vscode-userdata:`, and a webview serves a file
+only below an allowed folder of the same scheme as its URL. A host that does
+not wire the feature (the IntelliJ bridge until #2242) answers with no plugins.
+That answer has one home, `answerWithoutPlugins` in `editorSession/`, built on
+`postUnlessHidden` like the delivery's own answer.
 
 **What an approved plugin can do.** It gets the modeler's injector, so it can
 edit the diagram (edits sync to the file) and call every DI service, including

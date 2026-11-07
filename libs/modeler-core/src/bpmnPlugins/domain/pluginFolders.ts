@@ -32,3 +32,8 @@ export function editorsOfferedAnyOf(
         .filter(([, offered]) => offered.some((id) => wanted.has(id)))
         .map(([editorId]) => editorId);
 }
+
+/** A directory entry name that names a folder inside the plugins folder, whatever a host lists. */
+export function isPluginFolderName(name: string): boolean {
+    return name !== "" && name !== "." && name !== ".." && !/[\\/]/.test(name);
+}

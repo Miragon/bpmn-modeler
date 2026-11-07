@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Command, Query } from "@miragon/bpmn-modeler-shared";
 import type { LoadedPlugins, PluginModules } from "@miragon/bpmn-modeler/plugins";
 
-import { loadSurfacePlugins } from "./surfacePlugins";
+import { loadSurfacePlugins, pluginsWithoutHostAnswer } from "./surfacePlugins";
 
 const mocks = vi.hoisted(() => ({ loadPlugins: vi.fn() }));
 
@@ -91,5 +91,17 @@ describe("loadSurfacePlugins", () => {
             "LogWarningCommand",
             "ShowInfoCommand",
         ]);
+    });
+});
+
+describe("pluginsWithoutHostAnswer", () => {
+    it("builds without plugin modules and only logs that the host did not answer", async () => {
+        const { host, posted } = recordingHost();
+        const builds: PluginModules[] = [];
+
+        await pluginsWithoutHostAnswer(host).build("c7", async (modules) => builds.push(modules));
+
+        expect(builds).toEqual([{ additionalModules: [], moddleExtensions: {} }]);
+        expect(posted.map((message) => message.type)).toEqual(["LogWarningCommand"]);
     });
 });

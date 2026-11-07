@@ -1,5 +1,4 @@
 import {
-    BpmnPluginsQuery,
     CleanupReportCommand,
     Command,
     DiagramFormattedCommand,
@@ -10,6 +9,7 @@ import {
     UpdateLintResultsCommand,
 } from "@miragon/bpmn-modeler-shared";
 
+import { answerWithoutPlugins } from "../../../../editorSession/service/answerWithoutPlugins";
 import { EditorSessionStore } from "../../../../editorSession/service/EditorSessionStore";
 import { MessageHandler } from "../../../../editorSession/service/WebviewMessageRouter";
 import { SettingsPort } from "../../../../kernel/port/hostPorts";
@@ -39,7 +39,7 @@ export function getElementTemplatesHandler(
 /** `GetBpmnPluginsCommand` on a host without plugins: answer at once, so the webview does not wait. */
 export function answerWithoutPluginsHandler(store: EditorSessionStore): MessageHandler {
     return async (_message: Command, editorId: string) => {
-        await store.postMessage(editorId, new BpmnPluginsQuery([]));
+        await answerWithoutPlugins(store, editorId);
     };
 }
 

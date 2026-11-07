@@ -46,7 +46,7 @@ import { resolveClipboard } from "../adapter/out/protocolClipboard";
 import { createSurfaceBinder } from "../adapter/in/surfaceBinding";
 import { createSurfaceDocument } from "../adapter/out/surfaceDocument";
 import { createSurfaceFactories } from "../adapter/out/surfaceFactories";
-import { loadSurfacePlugins } from "../adapter/out/surfacePlugins";
+import { loadSurfacePlugins, pluginsWithoutHostAnswer } from "../adapter/out/surfacePlugins";
 import { createSurfaceRequests } from "../adapter/in/surfaceRequests";
 import { readSavedMode } from "../service/state";
 import { isEditableHandle } from "../domain/surface";
@@ -255,7 +255,11 @@ export function bootstrap(
         editorHost.postMessage(new GetBpmnPluginsCommand());
         const plugins = pluginsResolver
             .wait(HOST_REPLY_TIMEOUT_MS)
-            .then((query) => loadSurfacePlugins(query?.plugins ?? [], editorHost));
+            .then((query) =>
+                query
+                    ? loadSurfacePlugins(query.plugins, editorHost)
+                    : pluginsWithoutHostAnswer(editorHost),
+            );
 
         const chrome = mountEditorChrome(editorHost);
         if (!chrome) return;

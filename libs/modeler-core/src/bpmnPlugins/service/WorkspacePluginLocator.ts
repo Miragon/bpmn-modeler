@@ -4,8 +4,10 @@ import { joinWorkspacePath } from "../../kernel/domain/workspacePath";
 import { NotifierPort, WorkspacePort } from "../../kernel/port/hostPorts";
 import { ArtifactService } from "../../kernel/service/ArtifactService";
 import { approvedContent, WorkspacePlugin } from "../domain/pluginApproval";
-import { pluginFolderChangedBy } from "../domain/pluginFolders";
+import { isPluginFolderName, pluginFolderChangedBy } from "../domain/pluginFolders";
 import {
+    MISSING_FILE_REASON,
+    NO_MANIFEST_REASON,
     PLUGIN_MANIFEST_FILES,
     PluginManifest,
     PluginManifestReading,
@@ -107,7 +109,7 @@ export class WorkspacePluginLocator {
         try {
             const entries = await this.workspace.readDirectory(directory);
             return entries
-                .filter(([, type]) => type === "directory")
+                .filter(([name, kind]) => kind === "directory" && isPluginFolderName(name))
                 .map(([name]) => ({ name, path: joinWorkspacePath(directory, name) }));
         } catch (error) {
             if (error instanceof DirectoryNotFound) {
@@ -129,8 +131,7 @@ export class WorkspacePluginLocator {
             }
             return await this.withContent(folder, reading.manifest);
         } catch (error) {
-            const reason =
-                error instanceof FileNotFound ? "a file it names is missing" : String(error);
+            const reason = error instanceof FileNotFound ? MISSING_FILE_REASON : String(error);
             this.notifier.logWarning(`Skipped BPMN plugin in ${folder}: ${reason}`);
             return undefined;
         }
@@ -147,10 +148,7 @@ export class WorkspacePluginLocator {
                 }
             }
         }
-        return {
-            kind: "unreadable",
-            reason: `holds neither ${PLUGIN_MANIFEST_FILES.join(" nor ")}`,
-        };
+        return { kind: "unreadable", reason: NO_MANIFEST_REASON };
     }
 
     private async withContent(folder: string, manifest: PluginManifest): Promise<DiscoveredPlugin> {

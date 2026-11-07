@@ -4,6 +4,7 @@ import {
     pluginConstructionFailureReport,
     pluginLoaderFailureReport,
     pluginLoadReport,
+    pluginsUnansweredReport,
 } from "./pluginLoadReport";
 
 describe("pluginLoadReport", () => {
@@ -68,6 +69,17 @@ describe("pluginLoaderFailureReport", () => {
                 "The BPMN plugins could not be loaded, so the editor opens without them: Failed to fetch dynamically imported module",
             ],
             notice: "The BPMN plugins could not be loaded, so the editor opens without them. See the log for details.",
+        });
+    });
+});
+
+describe("pluginsUnansweredReport", () => {
+    it("logs that the editor opened without plugins because the host did not answer in time", () => {
+        expect(pluginsUnansweredReport()).toEqual({
+            logLines: [
+                "The host did not answer the BPMN plugins request in time, so the editor opened without plugins",
+            ],
+            notice: undefined,
         });
     });
 });

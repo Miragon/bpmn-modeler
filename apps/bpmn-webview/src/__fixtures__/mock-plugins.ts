@@ -4,8 +4,8 @@ import type { BpmnPluginAsset } from "@miragon/bpmn-modeler-shared";
  * Plugins for the browser preview (`?plugins`), one per extension point. Each
  * registers exactly as `camunda-modeler-plugin-helpers` does, by pushing onto
  * `window.plugins`, and uses only injected services, so no bundled copy of
- * diagram-js is needed. They are served as `blob:` URLs, the way an Orca
- * isolated frame would have to load them.
+ * diagram-js is needed. They are served as `blob:` URLs, the way a frame with
+ * no file server would have to load them.
  */
 interface MockPlugin {
     readonly name: string;
