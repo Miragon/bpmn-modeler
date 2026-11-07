@@ -8,6 +8,7 @@ import {
 } from "../domain/deploymentDestination";
 import { payloadFilePrompt } from "../domain/deploymentPrompts";
 import { DeploymentTarget } from "../domain/deploymentTarget";
+import { conventionalRoutes } from "../domain/engineRoutes";
 import { ENV_VARIABLE_PREFIX } from "../domain/envRef";
 import { StartInstanceConfig, StartInstanceResult } from "../domain/startInstance";
 import { CamundaEnginePort } from "../port/deploymentPorts";
@@ -103,7 +104,11 @@ function createService({ dotEnv, engineClient, ...options }: ServiceOptions = {}
 /** The production REST stack down to `fetch`, so a failure's message is the shipped one. */
 function createRealRestClient(): Camunda7RestClient {
     const httpClient = new FetchHttpClient();
-    return new Camunda7RestClient(httpClient, new AuthHeaderResolver(httpClient));
+    return new Camunda7RestClient(
+        httpClient,
+        new AuthHeaderResolver(httpClient),
+        () => conventionalRoutes("v2").c7,
+    );
 }
 
 function stubFetch(respond: (url: string, init?: RequestInit) => Promise<Response>) {

@@ -18,6 +18,7 @@ import {
 import { ADDITIONAL_FILES_GLOB, additionalFilesExclude } from "../domain/additionalFiles";
 import { additionalFilesPrompt } from "../domain/deploymentPrompts";
 import { connectionPatch } from "../domain/deploymentState";
+import { ConventionalRoutes } from "../domain/engineRoutes";
 import { EnvLookup } from "../domain/envRef";
 import { UserCancelledError } from "../../kernel/domain/errors";
 import { loggableHost } from "../../kernel/domain/http";
@@ -34,6 +35,8 @@ import { CredentialApprovalService } from "./CredentialApprovalService";
 import { DeploymentStatusService } from "./DeploymentStatusService";
 import { EnvValueResolver } from "./EnvValueResolver";
 import { storeCredentials } from "./storeCredentials";
+
+const LOCAL_ENGINE_ENDPOINT = "http://localhost:8080/engine-rest";
 
 /**
  * Orchestrates the full BPMN deployment workflow.
@@ -58,6 +61,8 @@ export class DeploymentService {
      * @param picker Quick-pick helper for selecting deployment resources.
      * @param secretStore Secure credential storage for Basic Auth.
      * @param settings Names the config folder the additional files leave out.
+     * @param currentRoutes Reads the routes the engine clients use, which
+     *   the form shows where a target has no override.
      */
     constructor(
         private readonly vsDocument: DocumentPort,
@@ -71,6 +76,7 @@ export class DeploymentService {
         private readonly envResolver: EnvValueResolver,
         private readonly credentialApproval: CredentialApprovalService,
         private readonly settings: SettingsPort,
+        private readonly currentRoutes: () => ConventionalRoutes,
     ) {}
 
     /**
@@ -101,11 +107,24 @@ export class DeploymentService {
         return {
             deploymentName,
             tenantId: state.tenantId,
-            endpoint: state.endpoint || "http://localhost:8080/engine-rest",
+            endpoint: state.endpoint || LOCAL_ENGINE_ENDPOINT,
             engine,
             authType: state.authType,
             tokenEndpoint: state.tokenEndpoint,
             audience: state.audience,
+            conventionalRoutes: this.currentRoutes(),
+        };
+    }
+
+    /** With no editor active the form starts empty, not from the remembered connection. */
+    getFormDefaultsWithoutEditor(): DeploymentFormDefaults {
+        return {
+            deploymentName: "",
+            tenantId: "",
+            endpoint: LOCAL_ENGINE_ENDPOINT,
+            engine: "c7",
+            authType: "none",
+            conventionalRoutes: this.currentRoutes(),
         };
     }
 

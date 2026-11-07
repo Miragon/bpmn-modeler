@@ -20,6 +20,16 @@ const defaults = {
     tenantId: "",
     engine: "c7" as const,
     authType: "none" as const,
+    conventionalRoutes: {
+        c7: {
+            deployUrl: "<endpoint>/deployment/create",
+            startInstanceUrl: "<endpoint>/process-definition/key/{processDefinitionKey}/start",
+        },
+        c8: {
+            deployUrl: "<endpoint>/v2/deployments",
+            startInstanceUrl: "<endpoint>/v2/process-instances",
+        },
+    },
 };
 const target = (
     name: string,
@@ -635,12 +645,38 @@ describe("deployment form credential env references", () => {
 describe("deployment form engine and auth type selection", () => {
     const optionValues = (id: string) =>
         Array.from((document.getElementById(id) as HTMLSelectElement).options, (o) => o.value);
+    // Routes no engine uses, so a form that writes its own cannot pass.
+    const sentRoutes = {
+        c7: {
+            deployUrl: "<endpoint>/gw/deployment/create",
+            startInstanceUrl: "<endpoint>/gw/start/{processDefinitionKey}",
+        },
+        c8: {
+            deployUrl: "<endpoint>/gw/v1/deployments",
+            startInstanceUrl: "<endpoint>/gw/v1/process-instances",
+        },
+    };
 
     it("offers exactly the known engines and the protocol's auth types", () => {
         setup();
         expect(optionValues("engine")).toEqual([...ENGINES]);
         expect(optionValues("auth-type")).toEqual([...AUTH_TYPE_PAYLOADS]);
     });
+
+    it.each(["c7", "c8"] as const)(
+        "shows the routes the host sends for %s as the override placeholders",
+        (engine) => {
+            const { form } = setup();
+            form.populate({ ...defaults, conventionalRoutes: sentRoutes });
+
+            edit("engine", engine, "change");
+
+            expect(field("deploy-url").placeholder).toBe(sentRoutes[engine].deployUrl);
+            expect(field("start-instance-url").placeholder).toBe(
+                sentRoutes[engine].startInstanceUrl,
+            );
+        },
+    );
 
     it("refuses an engine option outside the known engines", () => {
         const { form } = setup();

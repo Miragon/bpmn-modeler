@@ -1,11 +1,10 @@
 import { excludedDirsGlob } from "../../kernel/domain/excludedDirs";
 import { NotifierPort, PickerPort, WorkspacePort } from "../../kernel/port/hostPorts";
+import { DEPLOYABLE_FILES_GLOB } from "../domain/deployableFiles";
 import { deployableFilesPrompt } from "../domain/deploymentPrompts";
 import { DeploymentService } from "./DeploymentService";
 import { DeploymentTargetService } from "./DeploymentTargetService";
 import { resolveOrPickNamedDestination } from "./resolveOrPickNamedDestination";
-
-const DEPLOYABLE_FILES_GLOB = "**/*.{bpmn,dmn}";
 
 /**
  * Deploys a multi-select set of workspace BPMN/DMN files to the active target —

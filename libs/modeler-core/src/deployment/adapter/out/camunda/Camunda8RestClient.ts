@@ -2,8 +2,9 @@ import { DeploymentConfig, DeploymentResult } from "../../../domain/deployment";
 import { DeploymentFailedError, StartInstanceFailedError } from "../../../domain/errors";
 import { CamundaEnginePort } from "../../../port/deploymentPorts";
 import { HttpClient } from "../../../../kernel/port/HttpClient";
+import { EngineRoutes, expandRoute } from "../../../domain/engineRoutes";
 import { StartInstanceConfig, StartInstanceResult } from "../../../domain/startInstance";
-import { expandUrlTemplate, stripTrailingSlash } from "../../../domain/urlTemplate";
+import { expandUrlTemplate } from "../../../domain/urlTemplate";
 import { AuthHeaderResolver } from "./AuthHeaderResolver";
 import { engineErrorDetail, requestRedactor } from "./engineError";
 import { MultipartBuilder } from "./MultipartBuilder";
@@ -12,23 +13,23 @@ import { MultipartBuilder } from "./MultipartBuilder";
  * Camunda 8 REST API client.
  *
  * Implements {@link CamundaEnginePort} with Camunda 8–specific URL paths,
- * multipart field names, and response shapes.  The API version prefix
- * (e.g. `"v2"`) is configurable via the constructor.
+ * multipart field names, and response shapes.
  */
 export class Camunda8RestClient implements CamundaEnginePort {
     /**
      * @param httpClient Transport abstraction for HTTP POST requests.
      * @param authResolver Resolves auth configs into concrete HTTP headers.
-     * @param apiVersion REST API version prefix for Camunda 8 endpoints (e.g. `"v2"`).
+     * @param currentRoutes Reads Camunda 8's routes for the configured API version at
+     *   each request, used where the target has no override.
      */
     constructor(
         private readonly httpClient: HttpClient,
         private readonly authResolver: AuthHeaderResolver,
-        private readonly apiVersion: string = "v2",
+        private readonly currentRoutes: () => EngineRoutes,
     ) {}
 
     /**
-     * Deploys resources to Camunda 8 via `POST {endpoint}/{apiVersion}/deployments`.
+     * Deploys resources to Camunda 8 via `POST` to the deploy route.
      *
      * The multipart body includes optional `tenantId` and file parts named
      * `"resources"` as required by the Camunda 8 REST API.
@@ -56,7 +57,7 @@ export class Camunda8RestClient implements CamundaEnginePort {
 
         const fullUrl =
             config.deployUrl ??
-            `${stripTrailingSlash(config.endpoint)}/${this.apiVersion}/deployments`;
+            expandRoute(this.currentRoutes().deployUrl, { endpoint: config.endpoint });
         const extraHeaders = await this.authResolver.resolve(config.auth, config.redactor());
 
         const { status, body: responseBody } = await this.httpClient.postMultipart(
@@ -93,8 +94,7 @@ export class Camunda8RestClient implements CamundaEnginePort {
     }
 
     /**
-     * Starts a process instance on Camunda 8 via
-     * `POST {endpoint}/{apiVersion}/process-instances`.
+     * Starts a process instance on Camunda 8 via `POST` to the start route.
      *
      * The JSON body wraps the definition key and variables in the shape
      * expected by the Camunda 8 REST API.
@@ -110,7 +110,7 @@ export class Camunda8RestClient implements CamundaEnginePort {
             ? expandUrlTemplate(config.startInstanceUrl, {
                   processDefinitionKey: config.processDefinitionKey,
               })
-            : `${stripTrailingSlash(config.endpoint)}/${this.apiVersion}/process-instances`;
+            : expandRoute(this.currentRoutes().startInstanceUrl, { endpoint: config.endpoint });
         const requestBody = {
             processDefinitionId: config.processDefinitionKey,
             variables: config.payload ?? {},

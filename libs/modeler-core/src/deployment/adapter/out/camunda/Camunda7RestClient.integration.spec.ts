@@ -7,6 +7,7 @@ import { FetchHttpClient } from "../../../../kernel/adapter/out/FetchHttpClient"
 import { AuthHeaderResolver } from "./AuthHeaderResolver";
 import { Camunda7RestClient } from "./Camunda7RestClient";
 import { BasicAuth, DeploymentConfig, NoAuth, OAuth2Auth } from "../../../domain/deployment";
+import { conventionalRoutes } from "../../../domain/engineRoutes";
 import { InspectionRequest } from "../../../domain/inspectionRequest";
 import { StartInstanceConfig } from "../../../domain/startInstance";
 import {
@@ -64,7 +65,7 @@ describe("Camunda7RestClient (integration)", () => {
     function createClient(): Camunda7RestClient {
         const httpClient = new FetchHttpClient();
         const authResolver = new AuthHeaderResolver(httpClient);
-        return new Camunda7RestClient(httpClient, authResolver);
+        return new Camunda7RestClient(httpClient, authResolver, () => conventionalRoutes("v2").c7);
     }
 
     // ── Deploy ──────────────────────────────────────────────────────────

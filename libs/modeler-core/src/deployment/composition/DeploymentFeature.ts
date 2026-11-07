@@ -16,6 +16,7 @@ import { ArtifactService } from "../../kernel/service/ArtifactService";
 import { PendingEditsFlush } from "../../editorSession/service/PendingEditsFlush";
 import { RouteLookup } from "../../editorSession/service/WebviewMessageRouter";
 import { DeploymentStatePort, SecretStorePort } from "../port/deploymentPorts";
+import { conventionalRoutes } from "../domain/engineRoutes";
 import { HttpClient } from "../../kernel/port/HttpClient";
 import { AuthHeaderResolver } from "../adapter/out/camunda/AuthHeaderResolver";
 import { Camunda7RestClient } from "../adapter/out/camunda/Camunda7RestClient";
@@ -82,10 +83,12 @@ export class DeploymentFeature {
     constructor(private readonly ports: DeploymentHostPorts) {
         const http = ports.http ?? new FetchHttpClient();
         const auth = new AuthHeaderResolver(http);
-        const c7Client = new Camunda7RestClient(http, auth);
+        // Read at each use: a host can deliver or change its settings after construction.
+        const currentRoutes = () => conventionalRoutes(ports.settings.getC8ApiVersion());
+        const c7Client = new Camunda7RestClient(http, auth, () => currentRoutes().c7);
         const engines = new CamundaEngineRouter({
             c7: c7Client,
-            c8: new Camunda8RestClient(http, auth, ports.settings.getC8ApiVersion()),
+            c8: new Camunda8RestClient(http, auth, () => currentRoutes().c8),
         });
 
         this.targets = new DeploymentTargetService(
@@ -142,6 +145,7 @@ export class DeploymentFeature {
             envResolver,
             credentialApproval,
             ports.settings,
+            currentRoutes,
         );
         const saveBeforeDeploy = new SaveBeforeDeploy(ports.documents, ports.pendingEdits);
         this.deployActiveDiagram = new DeployActiveDiagramService(

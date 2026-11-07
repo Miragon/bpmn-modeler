@@ -16,6 +16,7 @@ import { AdHocDestination, NamedDestination } from "../domain/deploymentDestinat
 import { contentFingerprint, DeploymentTargetIdentity } from "../domain/deploymentLedger";
 import { DeploymentTarget, parseDeploymentTargetsFile } from "../domain/deploymentTarget";
 import { EngineDeploymentSnapshot } from "../domain/deploymentVerification";
+import { conventionalRoutes } from "../domain/engineRoutes";
 import { EnvLookup, NO_ENV_VARIABLES } from "../domain/envRef";
 import { EngineInspectionPort } from "../port/deploymentPorts";
 import { FetchHttpClient } from "../../kernel/adapter/out/FetchHttpClient";
@@ -65,7 +66,11 @@ interface EnvFailureCase {
 /** The production REST stack down to `fetch`, so a failure's message is the shipped one. */
 function createRealRestClient(): Camunda7RestClient {
     const httpClient = new FetchHttpClient();
-    return new Camunda7RestClient(httpClient, new AuthHeaderResolver(httpClient));
+    return new Camunda7RestClient(
+        httpClient,
+        new AuthHeaderResolver(httpClient),
+        () => conventionalRoutes("v2").c7,
+    );
 }
 
 function stubFetch(respond: (url: string, init?: RequestInit) => Promise<Response>) {

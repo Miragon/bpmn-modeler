@@ -67,6 +67,7 @@ function createDispatcher({ openDiagram = true } = {}) {
     const deploymentService = {
         deploy: vi.fn(),
         getFormDefaults: vi.fn(),
+        getFormDefaultsWithoutEditor: vi.fn(),
         getStoredCredentials: vi.fn(),
         selectAdditionalFiles: vi.fn(),
     };
@@ -593,8 +594,16 @@ describe("DeploymentMessageDispatcher.sendFormDefaults", () => {
         ]);
     });
 
-    it("falls back to empty defaults (and only debug-logs) when there is no active editor", () => {
+    it("posts the defaults without an editor (and only debug-logs) when there is no active editor", () => {
         const c = createDispatcher({ openDiagram: false });
+        const defaults = {
+            deploymentName: "",
+            tenantId: "",
+            endpoint: "http://localhost:8080/engine-rest",
+            engine: "c7" as const,
+            authType: "none" as const,
+        };
+        c.deploymentService.getFormDefaultsWithoutEditor.mockReturnValue(defaults);
 
         c.dispatcher.sendFormDefaults();
 
@@ -603,11 +612,7 @@ describe("DeploymentMessageDispatcher.sendFormDefaults", () => {
             expect.stringContaining("No active editor for deployment form defaults"),
         );
         expect(c.host.notifier.logged("warning")).toEqual([]);
-        const defaults = postedQuery(c.post, FormDefaultsQuery).defaults;
-        expect(defaults.deploymentName).toBe("");
-        expect(defaults.engine).toBe("c7");
-        expect(defaults.authType).toBe("none");
-        expect(defaults.endpoint).toBe("http://localhost:8080/engine-rest");
+        expect(postedQuery(c.post, FormDefaultsQuery).defaults).toBe(defaults);
         expect(postedQuery(c.post, ProcessDefinitionKeyQuery).processDefinitionKey).toBe("");
     });
 });

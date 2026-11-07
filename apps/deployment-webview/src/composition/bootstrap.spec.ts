@@ -49,6 +49,17 @@ function dispatchAdHocDefaults(): void {
             tenantId: "",
             engine: "c7",
             authType: "none",
+            conventionalRoutes: {
+                c7: {
+                    deployUrl: "<endpoint>/deployment/create",
+                    startInstanceUrl:
+                        "<endpoint>/process-definition/key/{processDefinitionKey}/start",
+                },
+                c8: {
+                    deployUrl: "<endpoint>/v2/deployments",
+                    startInstanceUrl: "<endpoint>/v2/process-instances",
+                },
+            },
         }),
     );
 }

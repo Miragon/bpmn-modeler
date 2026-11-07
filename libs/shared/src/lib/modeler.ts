@@ -1066,6 +1066,15 @@ export interface DeploymentTargetPayload {
 }
 
 /**
+ * An engine's routes without overrides: `<endpoint>` stands for the endpoint
+ * and `{processDefinitionKey}` for the key.
+ */
+export interface EngineRoutesPayload {
+    readonly deployUrl: string;
+    readonly startInstanceUrl: string;
+}
+
+/**
  * Pre-populated defaults sent from the extension host to the deployment form.
  */
 export interface DeploymentFormDefaults {
@@ -1076,6 +1085,8 @@ export interface DeploymentFormDefaults {
     readonly authType: AuthTypePayload;
     readonly tokenEndpoint?: string;
     readonly audience?: string;
+    /** The routes the core sends a request to without an override, per engine. */
+    readonly conventionalRoutes: Readonly<Record<Engine, EngineRoutesPayload>>;
 }
 
 // --- Webview → Extension commands ---

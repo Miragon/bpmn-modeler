@@ -159,6 +159,21 @@ for `{processDefinitionKey}` in a start URL. Without overrides use conventional
 engine routes. Request bodies remain engine-specific: overrides are for gateways
 proxying that API, not a different deployment protocol.
 
+The conventional routes have one home, `conventionalRoutes` in
+`engineRoutes.ts`, which builds them as templates (`<endpoint>` and
+`{processDefinitionKey}`) from the `c8ApiVersion` setting. Both REST clients
+expand them, and the form defaults (`FormDefaultsQuery`) carry them as
+`conventionalRoutes`, which the form shows as the override placeholders. The
+form writes no route of its own. `DeploymentFeature` gives the clients and the
+form defaults one reader that asks the settings for `c8ApiVersion` at each
+request and each form-defaults build, never once at construction: the
+IntelliJ bridge builds the feature before the host's first settings snapshot
+arrives, and either host can change the setting later. So the hint names the
+URL a request without an override goes to, and a changed setting reaches the
+next request and the next form defaults alike
+([route tests](../../libs/modeler-core/src/deployment/domain/engineRoutes.spec.ts),
+[bridge test](../../apps/modeler-bridge/src/bridge.deployment.spec.ts)).
+
 Any connection or auth field may embed `${env:MIRAGON_NAME}` references,
 resolved from one `.env` (the destination's `dotEnvDirectory`): for a named
 target, the one in the directory holding the config folder of the targets file

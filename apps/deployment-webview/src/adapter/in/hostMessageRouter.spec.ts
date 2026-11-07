@@ -41,6 +41,10 @@ describe("routeHostMessage", () => {
         tenantId: "",
         engine: "c7" as const,
         authType: "none" as const,
+        conventionalRoutes: {
+            c7: { deployUrl: "<endpoint>/deploy", startInstanceUrl: "<endpoint>/start" },
+            c8: { deployUrl: "<endpoint>/v2/deploy", startInstanceUrl: "<endpoint>/v2/start" },
+        },
     };
     const credentials = new StoredCredentialsQuery({ authType: "none" }, "dev", 1);
     const targets = new DeploymentTargetsQuery([], "");
