@@ -14,7 +14,12 @@
  * rather than silently dropping it.
  */
 
-import { MarketplaceSettingsEntry } from "../../kernel/domain/modelerSettings";
+import {
+    isMarketplaceProvider,
+    MARKETPLACE_PROVIDERS,
+    MarketplaceSettingsEntry,
+} from "../../kernel/domain/modelerSettings";
+import { publicHostOf, repositoryHostOf } from "./repositorySourceConfig";
 
 /**
  * Thrown when a `marketplace.json` (or the URL desugared into a registration)
@@ -202,7 +207,7 @@ function extractHost(input: string): string | undefined {
 /**
  * Validates a self-hosted `baseUrl` to an http(s) URL, returned with any
  * trailing slash stripped so an adapter can append `/api/...` without doubling
- * it. Validating with `new URL` here means `hostForConfig` can re-parse it
+ * it. Validating with `new URL` here means `repositoryHostOf` can re-parse it
  * without a try/catch.
  */
 function parseBaseUrl(raw: unknown, context: string): string {
@@ -424,7 +429,7 @@ function parseGitHubRepoUrl(input: string): MarketplaceRegistration {
         // Legacy (no host prefix): a github.com URL never carries a baseUrl, so
         // the same repo added by URL or by a baseUrl-less object entry shares one
         // cache slot.
-        id: marketplaceId("github.com", `${owner}/${repo}`, ref, true),
+        id: marketplaceId(publicHostOf("github"), `${owner}/${repo}`, ref, true),
         location: { kind: "github", owner, repo, ref },
         url: trimmed,
     };
@@ -463,7 +468,7 @@ function parseGitLabRepoUrl(input: string): MarketplaceRegistration {
 
     const projectPath = projectSegments.join("/");
     return {
-        id: marketplaceId("gitlab.com", projectPath, ref, false),
+        id: marketplaceId(publicHostOf("gitlab"), projectPath, ref, false),
         location: { kind: "gitlab", projectPath, ref },
         url: trimmed,
     };
@@ -485,10 +490,9 @@ export function parseMarketplaceEntry(entry: MarketplaceSettingsEntry): Marketpl
 
 function parseMarketplaceObject(entry: Record<string, unknown>): MarketplaceRegistration {
     const { provider } = entry;
-    if (provider !== "github" && provider !== "gitlab") {
-        throw new InvalidMarketplaceError(
-            `marketplace entry "provider" must be "github" or "gitlab"`,
-        );
+    if (!isMarketplaceProvider(provider)) {
+        const knownProviders = MARKETPLACE_PROVIDERS.map((known) => `"${known}"`).join(" or ");
+        throw new InvalidMarketplaceError(`marketplace entry "provider" must be ${knownProviders}`);
     }
     const { repo } = entry;
     if (typeof repo !== "string" || repo.trim().length === 0) {
@@ -500,11 +504,7 @@ function parseMarketplaceObject(entry: Record<string, unknown>): MarketplaceRegi
     }
     const baseUrl =
         entry.baseUrl !== undefined ? parseBaseUrl(entry.baseUrl, "marketplace entry") : undefined;
-    const host = baseUrl
-        ? new URL(baseUrl).host
-        : provider === "gitlab"
-          ? "gitlab.com"
-          : "github.com";
+    const host = repositoryHostOf(provider, baseUrl);
 
     const segments = repo
         .trim()
@@ -558,16 +558,13 @@ export function marketplaceEntryLabel(entry: MarketplaceSettingsEntry): string {
     if (entry === null || typeof entry !== "object" || typeof entry.repo !== "string") {
         return JSON.stringify(entry);
     }
+    const provider = isMarketplaceProvider(entry.provider) ? entry.provider : "github";
+    const baseUrl = typeof entry.baseUrl === "string" ? entry.baseUrl : undefined;
     let host: string;
     try {
-        host =
-            typeof entry.baseUrl === "string" && entry.baseUrl.length > 0
-                ? new URL(entry.baseUrl).host
-                : entry.provider === "gitlab"
-                  ? "gitlab.com"
-                  : "github.com";
+        host = repositoryHostOf(provider, baseUrl);
     } catch {
-        host = entry.provider === "gitlab" ? "gitlab.com" : "github.com";
+        host = publicHostOf(provider);
     }
     const ref = typeof entry.ref === "string" ? entry.ref : undefined;
     return entryLabel(host, entry.repo, ref);

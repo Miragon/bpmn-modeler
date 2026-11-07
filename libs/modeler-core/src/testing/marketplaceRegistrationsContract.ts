@@ -58,7 +58,7 @@ function isWordable({ kind, path }: SettingsPlace): boolean {
 
 /**
  * The rules of {@link MarketplaceRegistrationsPort} the core relies on, run
- * against one adapter: `MarketplaceCommands` decides with `isAlreadyRegistered`
+ * against one adapter: `MarketplaceCommands` decides with `marketplaceAddOutcome`
  * on a fresh `read`, so each scope's list must come back as stored, and `read`
  * must return what the stores hold now, including changes made outside the
  * adapter (another window, the user editing the place the core names). A
@@ -71,7 +71,7 @@ function isWordable({ kind, path }: SettingsPlace): boolean {
  *
  * Left out, as the core does not rely on them:
  * - A registration for this project of a location all projects hold: the core
- *   never asks for one, as `isAlreadyRegistered` checks both lists for this project.
+ *   never asks for one, as `marketplaceAddOutcome` checks both lists for this project.
  * - Which places a host names and which scopes it can write without a project:
  *   host facts, pinned in each host's own spec. The suite asks only that both
  *   scopes are writable with a project open and that the core can word each place.

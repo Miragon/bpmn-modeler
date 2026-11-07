@@ -62,6 +62,7 @@ import {
     DMN_VIEW_TYPE,
     ELEMENT_TEMPLATE_EDITOR_VIEW_TYPE,
     FORM_VIEW_TYPE,
+    MARKETPLACE_PROVIDERS,
     parseSetting,
     SettingKey,
 } from "@miragon/bpmn-modeler-core";
@@ -107,6 +108,12 @@ interface Manifest {
                     enum?: string[];
                     enumItemLabels?: string[];
                     maxItems?: number;
+                    items?: {
+                        oneOf?: {
+                            type?: string;
+                            properties?: Record<string, { enum?: string[] }>;
+                        }[];
+                    };
                 }
             >;
         };
@@ -423,6 +430,14 @@ describe("package.json ↔ code contract", () => {
         expect(documented.sort()).toEqual(
             supportedModelerLanguages.map(({ locale }) => locale).sort(),
         );
+    });
+
+    it("offers exactly the marketplace providers in an object entry", () => {
+        const objectEntry = manifest.contributes.configuration.properties[
+            `${MODELER_SETTINGS_SECTION}.marketplaces`
+        ].items?.oneOf?.find((entryForm) => entryForm.type === "object");
+
+        expect(objectEntry?.properties?.provider.enum).toEqual([...MARKETPLACE_PROVIDERS]);
     });
 
     it("pins as many favourite elements as the manifest allows", () => {

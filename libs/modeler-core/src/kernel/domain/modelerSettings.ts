@@ -6,6 +6,15 @@ import {
     SurfaceMode,
 } from "@miragon/bpmn-modeler-types";
 
+/** The services a marketplace repository can live on, public or self-hosted. */
+export const MARKETPLACE_PROVIDERS = ["github", "gitlab"] as const;
+
+export type MarketplaceProvider = (typeof MARKETPLACE_PROVIDERS)[number];
+
+export function isMarketplaceProvider(raw: unknown): raw is MarketplaceProvider {
+    return MARKETPLACE_PROVIDERS.some((provider) => provider === raw);
+}
+
 /**
  * A bare string is a pasted GitHub/GitLab URL (or local folder path). The object
  * form exists to name a self-hosted host via `baseUrl` (GitHub Enterprise
@@ -17,7 +26,7 @@ import {
 export type MarketplaceSettingsEntry =
     | string
     | {
-          readonly provider: "github" | "gitlab";
+          readonly provider: MarketplaceProvider;
           readonly repo: string;
           readonly baseUrl?: string;
           readonly ref?: string;
