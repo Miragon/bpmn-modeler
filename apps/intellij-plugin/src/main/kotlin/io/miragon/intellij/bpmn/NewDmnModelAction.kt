@@ -25,7 +25,7 @@ class NewDmnModelAction : DumbAwareAction() {
     }
 
     internal companion object {
-        // A copy of EMPTY_DMN_DIAGRAM in libs/modeler-core/src/modeler/dmn/domain/emptyDmn.ts;
+        // A copy of EMPTY_DMN_DIAGRAM in libs/modeler-types/src/emptyDmn.ts;
         // EmptyDmnDiagramTest holds it to that file byte for byte.
         val EMPTY_DMN_DIAGRAM =
             """
