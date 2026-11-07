@@ -14,7 +14,9 @@ export interface Prompt {
  * dismissed (`undefined`, `[]` or `false`), so a test exercises the caller's
  * cancel path by leaving it out. A search's choice is answered by the id of the
  * choice prompt it reveals. A scripted answer the prompt does not offer throws,
- * so a test cannot pass with a choice the user was never shown.
+ * so a test cannot pass with a choice the user was never shown. Several
+ * scripted values come back in the prompt's order, as both hosts return the
+ * rows the user checked.
  */
 export class ScriptedPicker implements PickerPort {
     readonly prompts: Prompt[] = [];
@@ -35,7 +37,8 @@ export class ScriptedPicker implements PickerPort {
         if (!Array.isArray(answer)) {
             throw notAnAnswer(prompt.id, answer);
         }
-        return answer.map((value) => offeredValue(prompt, value));
+        const chosen = answer.map((value) => offeredValue(prompt, value));
+        return prompt.items.map((item) => item.value).filter((value) => chosen.includes(value));
     }
 
     async confirm(request: ConfirmRequest): Promise<boolean> {

@@ -74,10 +74,51 @@ IntelliJ runs over an RPC loopback that answers as the Kotlin side does. So a
 run pins each adapter's own mapping, not the host itself: where a fake and its
 host part, the suite cannot tell, and the Kotlin half is #2056.
 
+- `describeClipboardContract`: `InMemoryClipboard`, `VsCodeClipboard` over a
+  fake `env.clipboard` and the bridge's `RpcClipboard` over a loopback that
+  answers as `HostUiRouter` does.
+- `describeDeploymentStateContract`: `InMemoryDeploymentState`,
+  `VsCodeDeploymentState` over a fake `Memento` that keeps a rejected value in
+  memory, as VS Code's does, and the bridge's `RpcDeploymentState` over a
+  loopback that answers as `DeploymentRouter` and `IntellijDeploymentState` do.
+- `describeDiffPaneContract`: `FakeDiffPaneHandle`, VS Code's
+  `WebviewPaneHandle` over a fake panel and document, and the bridge's
+  `RpcDiffPaneHandle` over a loopback that routes posts as `DiffRouter.kt`
+  does.
+- `describeDocumentContract`: `EditorSessionDocuments` twice, over the kit's
+  `FakeEditorHandle` as `createTestHost` composes it and over
+  `VsCodeEditorHandle` on a fake `vscode` text document, and the bridge's
+  `RpcDocumentPort` over a loopback that answers as `EditorSessionRouter.kt`
+  does. The kit has no `DocumentPort` fake of its own.
 - `describeEditorHandleContract`: `FakeEditorHandle`, `VsCodeEditorHandle`
   over a fake panel, text document and `workspace` events, and the bridge's
   `RpcEditorHandle` over a loopback that answers as `EditorSessionRouter.kt`
   does.
+- `describeLintingPreferenceContract`: `InMemoryLintingPreference`,
+  `VsCodeLintingPreference` and the bridge's `RpcLintingPreference`. The setter
+  returns nothing, so each reads the choice back through its host's settings
+  adapter (`InMemorySettings`, `VsCodeSettings`, `BridgeSettings`). VS Code's
+  pair runs over a configuration fake with a user and a workspace scope, the
+  bridge's over a loopback that answers as `SettingsRouter` does.
+- `describeMarketplacePromptContract`: `ScriptedMarketplacePrompt`,
+  `VsCodeMarketplacePrompt` over `vscodeWindowFake.ts` and the bridge's
+  `RpcMarketplacePrompt` over a loopback that answers as `MarketplaceRouter`
+  and `AddMarketplaceDialog` do.
+- `describeMarketplaceRegistrationsContract`:
+  `InMemoryMarketplaceRegistrations`, `VsCodeMarketplaceRegistrations` over the
+  real `VsCodeSettings` and a stateful `vscode` configuration fake, and the
+  bridge's `RpcMarketplaceRegistrations` over a loopback that answers as
+  `MarketplaceRouter`, `ProjectMarketplacesStore` and `ModelerSettingsStore` do.
+- `describeNotifierContract`, which covers `withProgress`:
+  `RecordingNotifier`, `VsCodeNotifier` over `vscodeWindowFake.ts` and the
+  bridge's `RpcNotifier` over a loopback that answers as `HostUiRouter.kt`
+  does.
+- `describePickerContract`: `ScriptedPicker`, `VsCodePicker` over mocks of
+  the `vscode` window and the bridge's `RpcPicker` over the
+  `intellijPromptHost.ts` loopback, which answers as `HostUiRouter` does.
+- `describePropertiesPanelStateContract`: `InMemoryPropertiesPanelState` and
+  VS Code's `PropertiesPanelStateRepository` over an in-memory `Memento`. The
+  bridge has no adapter of this port.
 - `describeScriptEditorContract`: `RecordingScriptEditor`, VS Code's
   `ScriptTaskService` over a fake of the editor tabs
   (`vscodeEditorTabsFake.ts`) and the bridge's `BridgeScriptEditor` over a
@@ -86,9 +127,19 @@ host part, the suite cannot tell, and the Kotlin half is #2056.
   over the `InMemorySecretStorage` fake and the bridge's `RpcSecretStore` over
   the `intellijCredentialHost.ts` loopback, which answers as
   `SecretStoreRouter` does.
+- `describeSettingsContract`: `InMemorySettings`, `VsCodeSettings` over a
+  `vscode` configuration mock and the bridge's `BridgeSettings`, which a
+  loopback feeds `settings/didChange` as `EditorSessionRouter.pushSettings`
+  does. Each also runs the shared normalization rows
+  ([test-first for rules](#test-first-for-rules)).
+- `describeTokenPromptContract`: `ScriptedTokenPrompt`, `VsCodeTokenPrompt`
+  over a mocked `showInputBox` and the bridge's `RpcTokenPrompt` over the
+  `intellijPromptHost.ts` loopback as well, which answers as
+  `MarketplaceRouter` does.
 - `describeTokenStoreContract`: `InMemoryTokenStore`, `VsCodeTokenStore` over
-  the same storage fake and the bridge's `RpcTokenStore` over the same
-  loopback, which answers `tokenStore/*` as `MarketplaceRouter` does.
+  the `InMemorySecretStorage` fake as well and the bridge's `RpcTokenStore`
+  over the `intellijCredentialHost.ts` loopback as well, which answers
+  `tokenStore/*` as `MarketplaceRouter` does.
 - `describeWorkspaceContract`: `InMemoryWorkspace`, the bridge's
   `NodeWorkspace` and `VsCodeWorkspace`, both hosts on a temporary directory.
   `VsCodeWorkspace` runs over `vscodeWorkspaceFake.ts`, which serves
@@ -178,7 +229,8 @@ copies. The settings rows in `settingsNormalization.cases.json` are the first
 such file (see [host-replicated state](architecture-and-hosts.md#host-replicated-state)).
 Rows whose shapes the typed Kotlin side cannot hold, such as a value of the
 wrong type, live in the core's testing kit (`TYPESCRIPT_ONLY_SETTINGS_CASES`),
-and every TypeScript host runs them beside the JSON rows. A value set the
+and `describeSettingsContract` runs them beside the JSON rows against every
+TypeScript adapter of `SettingsPort`, the in-memory fake included. A value set the
 Kotlin host copies is pinned the same way, to the TypeScript source file itself:
 `StatusSlotPlacementTest` reads the unions in `statusView.ts`,
 `ModelerSettingsStoreTest` the `SURFACE_MODES` array in `surfaceMode.ts` and
@@ -1294,11 +1346,11 @@ lives in `tools/repo-checks/src/contractSuites/domain`.
   `Promise<T>` are reads. A port that has a suite lists every adapter that
   skips it, render-only or not. On the ports the issue names, `StatusBarPort`
   (`show`, `hide`) and `DiagnosticsPort` (`publish`, `clear`) are render-only.
-  `NotifierPort` is not: `withProgress<T>` returns the task's `Promise<T>`, and
-  its three adapters hand that result back in three ways (VS Code's progress
-  API, `try`/`finally` around the bridge's progress notifications, a direct
-  call in the fake), so they are listed as true findings, while its base
-  `LoggerPort` is render-only.
+  `NotifierPort` is not: `withProgress<T>` returns the task's `Promise<T>`, so
+  its three adapters were true findings until each ran
+  `describeNotifierContract`, while its base `LoggerPort` is render-only. That
+  suite clears the `LoggerPort` pairs too, because a `NotifierPort` fixture
+  holds a `LoggerPort`, though it calls no logging member.
   `LintingPreferencePort.setLintingEnabled` returns `void | Promise<void>`, so
   that port is marked render-only although the core reads the value back
   through `SettingsPort.getLintingEnabled`.
