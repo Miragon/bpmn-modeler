@@ -130,6 +130,7 @@ describe("RPC protocol descriptor", () => {
                     "  deployment/deployActive",
                     "  deployment/verify",
                     "  deployment/statusBarMenu",
+                    "  pluginApprovals/didChange",
                     "",
                     "Core → Host (requests):",
                     "  document/write",
@@ -153,9 +154,12 @@ describe("RPC protocol descriptor", () => {
                     "  tokenStore/set",
                     "  tokenPrompt/show",
                     "  settings/setLintingEnabled",
+                    "  actionNotice/show",
+                    "  pluginApprovals/save",
                     "",
                     "Core → Host (notifications):",
                     "  editor/postMessage",
+                    "  editor/reload",
                     "  clipboard/write",
                     "  notifier/showInfo",
                     "  notifier/showWarning",
@@ -183,6 +187,7 @@ describe("RPC protocol descriptor", () => {
             METHODS.confirmShow,
             METHODS.tokenPromptShow,
             METHODS.marketplacePromptShow,
+            METHODS.actionNoticeShow,
         ])("waits for the user to answer %s", (method) => {
             expect(replyDeadlineMs(method)).toBeUndefined();
         });
@@ -192,6 +197,7 @@ describe("RPC protocol descriptor", () => {
             { method: METHODS.deploymentStateSave, state: "the deployment-state mirror" },
             { method: METHODS.marketplaceStateSave, state: "the fetched marketplace cache" },
             { method: METHODS.marketplaceStateRemove, state: "the marketplace cache prune" },
+            { method: METHODS.pluginApprovalsSave, state: "the plugin-approval mirror" },
         ])(
             "waits for the reply to $method, so $state stays in step with the host",
             ({ method }) => {

@@ -91,7 +91,7 @@ class BpmnFileEditor(
         // The editor id must match the core's session key (scheme-qualified URI).
         val editorId = file.url
         val coreSession =
-            CoreSession(editorId, file, project) { json ->
+            CoreSession(editorId, file, project, reloadPage = { warm.reload() }) { json ->
                 // JSON is a valid JS object-literal expression; embed it directly.
                 warm.browser.cefBrowser.executeJavaScript(
                     "window.postMessage($json, '*');",

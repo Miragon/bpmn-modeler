@@ -11,6 +11,7 @@
  */
 
 import {
+    ActionNoticeTone,
     DeploymentStatePatch,
     GlobalFunctionDef,
     MarketplaceAddAnswer,
@@ -19,6 +20,7 @@ import {
     MarketplaceScope,
     MarketplaceSettingsEntry,
     MethodDef,
+    PluginApproval,
     RawDeploymentState,
     RawModelerSettings,
     StatusSlot,
@@ -51,6 +53,8 @@ export interface RegisterParams extends SessionMeta {
     documentRevision?: number;
     /** Full `miragon.bpmnModeler.*` snapshot; seeds settings before template discovery. */
     settings?: RawModelerSettings;
+    /** The user's plugin approvals, so the first plugin request of a session reads them. */
+    pluginApprovals?: PluginApproval[];
 }
 
 /** Empty-body notification/request (e.g. `clipboard/read`, `notifier/openConsole`). */
@@ -179,6 +183,15 @@ export interface MarketplaceCommandParams {
  */
 export interface MigrateAllParams {
     workspaceRoot: string;
+}
+
+/**
+ * `pluginApprovals/didChange` — the approvals the host now stores, pushed to
+ * every running bridge after any of them saved; also the params of the
+ * `pluginApprovals/save` request.
+ */
+export interface PluginApprovalsParams {
+    approvals: PluginApproval[];
 }
 
 // ── Core → Host requests (params + results) ──────────────────────────────────
@@ -359,6 +372,20 @@ export interface TokenPromptShowResult {
  */
 export interface SettingsSetLintingEnabledParams {
     enabled: boolean;
+}
+
+/**
+ * `actionNotice/show` — a non-modal notification with one button per label,
+ * in order. The result names the clicked button by its index; no index means
+ * the user dismissed the notification.
+ */
+export interface ActionNoticeShowParams {
+    tone: ActionNoticeTone;
+    message: string;
+    labels: string[];
+}
+export interface ActionNoticeShowResult {
+    chosen?: number;
 }
 
 // ── Core → Host notifications ────────────────────────────────────────────────

@@ -1,5 +1,7 @@
 import { METHODS } from "../protocol/domain/descriptor";
 import {
+    ActionNoticeShowParams,
+    ActionNoticeShowResult,
     ConfirmShowResult,
     PickerShowParams,
     PickerShowResult,
@@ -8,20 +10,24 @@ import {
 } from "../protocol/domain/types";
 import { Rpc } from "../transport/adapter/out/Rpc";
 
-/** What the user does with the next chooser, dialog or password prompt IntelliJ shows. */
+/** What the user does with the next chooser, dialog, password prompt or notification IntelliJ shows. */
 type IntellijPromptAnswer =
     | { readonly kind: "pick"; readonly row: number }
     | { readonly kind: "check"; readonly rows: readonly number[] }
     | { readonly kind: "dismiss" }
     | { readonly kind: "confirm" }
     | { readonly kind: "decline" }
-    | { readonly kind: "type"; readonly text: string };
+    | { readonly kind: "type"; readonly text: string }
+    | { readonly kind: "click"; readonly index: number }
+    | { readonly kind: "close" };
 
 export interface IntellijPromptHost {
     readonly rpc: Rpc;
     answerNext(answer: IntellijPromptAnswer): void;
     /** The labels of the rows the last `picker/show` listed, in the order `HostPicker` lists them. */
     shownLabels(): readonly string[];
+    /** What the last `actionNotice/show` showed, as `HostUiRouter` reads it. */
+    shownNotice(): ActionNoticeShowParams | undefined;
 }
 
 interface CoreFrame {
@@ -86,14 +92,42 @@ function answerTokenPrompt(
     throw wrongAnswer(METHODS.tokenPromptShow, answer);
 }
 
+/**
+ * `HostUiRouter`'s `actionNotice/show` over `HostNotifications.actionNotice`:
+ * one action per label, a click answers its index, and an expired
+ * notification `ActionNoticeShowResult(null)`, which Gson writes as `{}`.
+ */
+function answerNotice(
+    params: ActionNoticeShowParams,
+    answer: IntellijPromptAnswer,
+): ActionNoticeShowResult {
+    if (!Array.isArray(params.labels) || params.labels.some((label) => typeof label !== "string")) {
+        throw new Error("Param 'labels' is missing or not of the expected type");
+    }
+    for (const key of ["tone", "message"] as const) {
+        if (typeof params[key] !== "string") {
+            throw new Error(`Param '${key}' is missing or not of the expected type`);
+        }
+    }
+    if (answer.kind === "close") return {};
+    if (answer.kind === "click") {
+        if (!params.labels[answer.index]) {
+            throw new Error(`actionNotice/show shows no action ${answer.index}`);
+        }
+        return { chosen: answer.index };
+    }
+    throw wrongAnswer(METHODS.actionNoticeShow, answer);
+}
+
 const SHOWN_WITHOUT_REPLY = new Set<string>([
     METHODS.notifierProgressStart,
     METHODS.notifierProgressEnd,
 ]);
 
 /**
- * Answers `picker/show`, `confirm/show` and `tokenPrompt/show` as the IntelliJ
- * host's `HostUiRouter` and `MarketplaceRouter` do, with the answers queued by
+ * Answers `picker/show`, `confirm/show`, `tokenPrompt/show` and
+ * `actionNotice/show` as the IntelliJ host's `HostUiRouter` and
+ * `MarketplaceRouter` do, with the answers queued by
  * {@link IntellijPromptHost.answerNext} standing in for the user, one per
  * prompt in the order shown. It takes the progress notifications a search
  * sends and fails any other call. A reply leaves out a null result, as the
@@ -107,6 +141,7 @@ export function intellijPromptHost(): IntellijPromptHost {
         return answer;
     };
     let shownLabels: readonly string[] = [];
+    let shownNotice: ActionNoticeShowParams | undefined;
     const handlers: Readonly<Record<string, (params: never) => unknown>> = {
         [METHODS.pickerShow]: (params: PickerShowParams) => {
             const result = answerPick(params, nextAnswer(METHODS.pickerShow));
@@ -116,6 +151,11 @@ export function intellijPromptHost(): IntellijPromptHost {
         [METHODS.confirmShow]: () => answerConfirm(nextAnswer(METHODS.confirmShow)),
         [METHODS.tokenPromptShow]: (params: TokenPromptShowParams) =>
             answerTokenPrompt(params, nextAnswer(METHODS.tokenPromptShow)),
+        [METHODS.actionNoticeShow]: (params: ActionNoticeShowParams) => {
+            const result = answerNotice(params, nextAnswer(METHODS.actionNoticeShow));
+            shownNotice = { tone: params.tone, message: params.message, labels: params.labels };
+            return result;
+        },
     };
 
     const rpc: Rpc = new Rpc((line) => {
@@ -139,5 +179,6 @@ export function intellijPromptHost(): IntellijPromptHost {
         rpc,
         answerNext: (answer) => answers.push(answer),
         shownLabels: () => shownLabels,
+        shownNotice: () => shownNotice,
     };
 }

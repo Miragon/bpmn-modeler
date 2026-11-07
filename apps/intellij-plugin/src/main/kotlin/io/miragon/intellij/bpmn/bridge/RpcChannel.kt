@@ -62,6 +62,9 @@ internal class RpcChannel(
     private var writerThread: Thread? = null
 
     private val ioLock = Any()
+
+    // Written under [ioLock]; volatile so a reader that must not wait on a stuck write can skip the lock.
+    @Volatile
     private var attached: AttachedProcess? = null
     private var lastGeneration = 0
 
@@ -284,6 +287,9 @@ internal class RpcChannel(
         ensureWriterThread()
         return process.generation
     }
+
+    /** Whether the process that sent [requestId] is still attached, so a reply can reach it. */
+    fun isFromAttachedProcess(requestId: CoreRequestId): Boolean = requestId.wasSentBy(attached?.generation)
 
     /**
      * Drops the writer during a restart window. Reliable notifications wait for

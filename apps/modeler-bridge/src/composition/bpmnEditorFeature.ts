@@ -17,8 +17,8 @@ import { BridgeSharedDeps } from "./sharedDeps";
 /**
  * The BPMN editor is the core {@link BpmnEditorFeature} over the bridge's
  * ports, the same one VS Code builds. Navigation, definition search and
- * code-link contribute from the core; the script editor and the deployment
- * status arrive from their bridge features. The host renders on
+ * code-link contribute from the core; the script editor, the deployment
+ * status and the workspace plugins arrive from their bridge features. The host renders on
  * `document/didChange` because it owns the document revision, it keeps no
  * properties-panel visibility, and it stores the lint choice that
  * {@link RpcLintingPreference} reports.
@@ -30,6 +30,7 @@ export function register(
         templateProvider?: CachedTemplateProvider;
         scriptEditor: BpmnEditorContributions["scriptEditor"];
         deploymentStatus: EditorSessionParticipant;
+        plugins: BpmnEditorContributions["plugins"];
     },
 ): BpmnEditorFeature {
     const ports = {
@@ -62,6 +63,7 @@ export function register(
             deploymentStatus: handles.deploymentStatus,
             scriptEditor: handles.scriptEditor,
             codeLink: new CodeLinkFeature(ports).editorContribution,
+            plugins: handles.plugins,
         },
     );
 

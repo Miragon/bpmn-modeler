@@ -172,6 +172,7 @@ class ProtocolHandlerCoverageTest {
                 HostToCoreMethod.DEPLOYMENT_DEPLOY_ACTIVE to { modelerCommands.deployDiagram() },
                 HostToCoreMethod.DEPLOYMENT_VERIFY to { modelerCommands.verifyDeployment() },
                 HostToCoreMethod.DEPLOYMENT_STATUS_BAR_MENU to { modelerCommands.deploymentStatusMenu() },
+                HostToCoreMethod.PLUGIN_APPROVALS_DID_CHANGE to { pluginApprovals.push() },
             )
         val framesBySentMethod = linkedMapOf<String, SentFrame>()
         for ((method, send) in senders) {
@@ -209,6 +210,7 @@ class ProtocolHandlerCoverageTest {
                 "tokenStore/get" to TokenStoreGetResult(token = "ghp_stored"),
                 "tokenPrompt/show" to TokenPromptShowResult(token = "ghp_typed"),
                 "marketplacePrompt/show" to MarketplacePromptShowResult(location = "/work/t", scope = "project"),
+                "actionNotice/show" to ActionNoticeShowResult(chosen = 0),
                 "marketplaceState/read" to
                     MarketplaceStateReadResult(
                         registered = mapOf("project" to listOf("/work/t"), "allProjects" to emptyList()),

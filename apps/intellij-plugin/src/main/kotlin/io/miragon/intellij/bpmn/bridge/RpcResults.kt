@@ -18,6 +18,8 @@ internal class DocumentSaveResult(val saved: Boolean) : RpcResult
 /** [selected] is null when the user dismissed the chooser. */
 internal class PickerShowResult(val selected: List<Int>?) : RpcResult
 
+internal class ActionNoticeShowResult(val chosen: Int?) : RpcResult
+
 internal class ConfirmShowResult(val confirmed: Boolean) : RpcResult
 
 internal class ClipboardReadResult(val text: String) : RpcResult

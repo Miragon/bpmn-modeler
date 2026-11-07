@@ -135,6 +135,8 @@ in the bridge README):
 | core → host | `secretStore/*` | `PasswordSafe` (encrypted at rest) |
 | core → host | `marketplacePrompt/show`, `marketplaceState/*` | the core's add question in `AddMarketplaceDialog`; the app and project marketplace stores |
 | host ⇄ core | `deployment/*`, `deploymentState/*` | tool-window webview + `PropertiesComponent` |
+| core → host | `actionNotice/show` | `ActionNotifierPort` → a balloon with one `NotificationAction` per label |
+| host ⇄ core | `pluginApprovals/*`, `editor/reload` | `PluginApprovalStore` (app `PropertiesComponent`); full page reload after an approval |
 
 **Handler coverage.** `ProtocolHandlerCoverageTest` registers the production
 `BridgeRouters` and fails when a core → host method in

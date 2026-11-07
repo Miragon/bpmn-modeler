@@ -230,11 +230,8 @@ class BpmnDiffViewer(
         browser.jbCefClient.addLoadHandler(
             object : CefLoadHandlerAdapter() {
                 override fun onLoadEnd(b: CefBrowser, frame: CefFrame, httpStatusCode: Int) {
-                    b.executeJavaScript(
-                        "window.__modelerSetSink(function (p) { ${jsQuery.inject("p")} });",
-                        b.url,
-                        0,
-                    )
+                    if (!frame.isMain) return
+                    b.executeJavaScript(WebviewSinkScript.install(jsQuery.funcName), b.url, 0)
                     // Re-apply on every (re)load, including swap reloads, so a
                     // theme change racing the load is not lost.
                     b.executeJavaScript(themeSignal.applyJs(), b.url, 0)

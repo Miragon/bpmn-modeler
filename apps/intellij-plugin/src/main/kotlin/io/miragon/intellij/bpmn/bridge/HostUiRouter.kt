@@ -9,6 +9,7 @@ import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.progress.Task
 import com.intellij.openapi.ui.Messages
 import com.intellij.util.concurrency.AppExecutorUtil
+import io.miragon.intellij.bpmn.ActionNoticeTone
 import io.miragon.intellij.bpmn.AutoHidingStatusSlots
 import io.miragon.intellij.bpmn.HostPicker
 import io.miragon.intellij.bpmn.StatusAction
@@ -26,8 +27,8 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Routes the core's host-UI ports — the pickers, clipboard, `StatusBarPort` and
- * `NotifierPort` — onto native IntelliJ surfaces. Every status frame becomes one
+ * Routes the core's host-UI ports — the pickers, clipboard, `StatusBarPort`,
+ * `NotifierPort` and `ActionNotifierPort` — onto native IntelliJ surfaces. Every status frame becomes one
  * view of one slot in [statusSlots]; the other handlers delegate to the system
  * clipboard or the lazy [io.miragon.intellij.bpmn.HostNotifications].
  */
@@ -35,6 +36,9 @@ internal class HostUiRouter(
     private val deps: BridgeDeps,
     private val statusSlots: StatusSlots =
         AutoHidingStatusSlots(StatusBarSlots(deps.project), AppExecutorUtil.getAppScheduledExecutorService()),
+    // A seam for tests: the real notice waits for a click no headless test can make.
+    private val offerNotice: (ActionNoticeTone, String, List<String>, (Int?) -> Unit) -> () -> Unit =
+        { tone, message, labels, answer -> deps.notifications.value.offer(tone, message, labels, answer) },
 ) {
     private val log = Logger.getInstance(HostUiRouter::class.java)
 
@@ -46,10 +50,18 @@ internal class HostUiRouter(
     // on so the spinner lives exactly as long as the core-side work.
     private val progressTasks = ConcurrentHashMap<String, CompletableFuture<Void>>()
 
+    private class OpenNotice {
+        @Volatile
+        var expire: () -> Unit = {}
+    }
+
+    private val openNotices: MutableSet<OpenNotice> = ConcurrentHashMap.newKeySet()
+
     fun register() {
         deps.handlers
             .on("picker/show", ::readPick)
             .on("confirm/show", ::readConfirm)
+            .on("actionNotice/show", ::readActionNotice)
             .on("clipboard/read") { RpcAction(::handleClipboardRead) }
             .on("clipboard/write") { params ->
                 val text = params.optionalString("text").orEmpty()
@@ -139,6 +151,19 @@ internal class HostUiRouter(
     }
 
     /**
+     * Expires every action notice still open, as a dead bridge process can no
+     * longer take its answer; the new process asks again.
+     */
+    fun expireActionNotices() {
+        openNotices.toList().forEach(::expire)
+    }
+
+    private fun expire(notice: OpenNotice) {
+        openNotices.remove(notice)
+        notice.expire()
+    }
+
+    /**
      * Shows or hides one slot. Only `statusBar/update`'s top-level keys are in
      * `protocol.json`, so the view's fields are read here once; a value this host
      * does not know is logged and left out rather than failing the frame.
@@ -171,6 +196,39 @@ internal class HostUiRouter(
         val value = wireValueOf<E>(name)
         if (value == null) log.warn("statusBar/update: unknown $key '$name', left out")
         return value
+    }
+
+    private fun readActionNotice(params: RpcParams): RpcAction {
+        val toneName = params.string("tone")
+        val message = params.string("message")
+        val labels = params.jsonArray("labels").map { it.asString }
+        return RpcAction { id -> if (id != null) handleActionNotice(toneName, message, labels, id) }
+    }
+
+    /**
+     * Offers the core's notice without blocking anything and replies with the
+     * chosen action's index once the user picks one, or without one when the
+     * notice expires unanswered. A request from a process already gone shows nothing.
+     */
+    private fun handleActionNotice(toneName: String, message: String, labels: List<String>, id: CoreRequestId) {
+        val tone =
+            wireValueOf<ActionNoticeTone>(toneName)
+                ?: ActionNoticeTone.INFO.also { log.warn("actionNotice/show: unknown tone '$toneName', shown as info") }
+        deps.channel.replyLaterFromEdt(id, "actionNotice/show") { reply ->
+            if (project.isDisposed || !deps.channel.isFromAttachedProcess(id)) {
+                reply.result(ActionNoticeShowResult(chosen = null))
+                return@replyLaterFromEdt
+            }
+            val notice = OpenNotice()
+            openNotices.add(notice)
+            notice.expire =
+                offerNotice(tone, message, labels) { chosen ->
+                    openNotices.remove(notice)
+                    reply.result(ActionNoticeShowResult(chosen))
+                }
+            // A process that went down while the notice was offered found no expiry to call yet.
+            if (!deps.channel.isFromAttachedProcess(id)) expire(notice)
+        }
     }
 
     private fun readConfirm(params: RpcParams): RpcAction {
