@@ -26,7 +26,7 @@ export function bootstrap(host: DeploymentHost): void {
         form = new DeploymentForm(host);
         startForm = new StartInstanceForm(
             host,
-            () => form.getAuthPayload(),
+            () => form.getAuthFields(),
             () => form.getConnectionPayload(),
         );
         form.onExecutionReadinessChange((reason) => startForm.setExecutionBlockedReason(reason));
