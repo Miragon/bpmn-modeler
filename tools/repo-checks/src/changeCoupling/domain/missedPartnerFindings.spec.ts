@@ -25,6 +25,7 @@ describe("missed partner findings", () => {
             {
                 key: `${A} → ${B}`,
                 path: A,
+                paths: [A, B],
                 line: 1,
                 message: `\`${A}\` changed; in 6 of 7 changes to \`${A}\`, \`${B}\` changed too (lift 4.1)`,
                 rank: 1,

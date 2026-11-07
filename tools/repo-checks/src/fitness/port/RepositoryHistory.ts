@@ -1,3 +1,5 @@
+import type { Rename } from "../domain/delta";
+
 export interface RepositoryHistory {
     headCommit(): string;
     hasUncommittedChanges(): boolean;
@@ -5,4 +7,6 @@ export interface RepositoryHistory {
     mergeBase(ref: string): string;
     /** Newest first. */
     firstParentCommits(ref: string, depth: number): readonly string[];
+    /** The working tree's renames against `commit`, as git's pinned rename detection sees them. */
+    renamesSince(commit: string): readonly Rename[];
 }

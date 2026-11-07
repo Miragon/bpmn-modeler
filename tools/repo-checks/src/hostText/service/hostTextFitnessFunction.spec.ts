@@ -78,6 +78,7 @@ describe("the host text fitness function on a hand-built Kotlin tree", () => {
             {
                 key: `${ACTION} — Add Template Marketplace`,
                 path: ACTION,
+                paths: [ACTION],
                 line: 7,
                 message: "`Add Template Marketplace`",
             },
@@ -140,6 +141,7 @@ describe("the host text fitness function on a hand-built tree", () => {
             {
                 key: `${CONTROLLER} — Token for \${…}`,
                 path: CONTROLLER,
+                paths: [CONTROLLER],
                 line: 7,
                 message: "`Token for ${…}`",
             },

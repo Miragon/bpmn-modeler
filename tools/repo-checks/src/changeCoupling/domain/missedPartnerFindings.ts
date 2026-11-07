@@ -19,6 +19,7 @@ export function missedPartnerFindings(pairs: readonly MissedPartner[]): Finding[
     return [...pairs].sort(compareByConfidenceThenLift).map((pair, index) => ({
         key: `${pair.file} → ${pair.partner}`,
         path: pair.file,
+        paths: [pair.file, pair.partner],
         line: 1,
         message: `${code(pair.file)} changed; in ${pair.sharedChanges} of ${pair.fileRevisions} changes to ${code(pair.file)}, ${code(pair.partner)} changed too (lift ${lift(pair).toFixed(1)})`,
         rank: index + 1,

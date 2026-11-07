@@ -120,7 +120,13 @@ export function hostTextFindings(files: readonly HostFileTexts[]): Finding[] {
         files.flatMap(({ path, texts }) =>
             texts.filter(isShownText).map(({ line, parts }): Finding => {
                 const text = shownText(parts);
-                return { key: `${path} — ${text}`, path, line, message: codeSpan(excerpt(text)) };
+                return {
+                    key: `${path} — ${text}`,
+                    path,
+                    paths: [path],
+                    line,
+                    message: codeSpan(excerpt(text)),
+                };
             }),
         ),
     );

@@ -267,6 +267,7 @@ export function contractSuiteFindings(inventory: ContractSuiteInventory): Findin
                 .map((adapter): Finding => ({
                     key: `${idOf(adapter)} → ${idOf(suites.port)}`,
                     path: adapter.path,
+                    paths: [adapter.path, suites.port.path],
                     line: adapter.line,
                     message: messageOf(suites, adapter, group),
                     group,

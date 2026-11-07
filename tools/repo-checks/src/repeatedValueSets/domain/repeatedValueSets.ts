@@ -92,6 +92,7 @@ export function repeatedValueSetFindings({ occurrences, pins }: ValueSetInventor
             return sorted.map((occurrence): Finding => ({
                 key: `${occurrence.path} — ${setKey}`,
                 path: occurrence.path,
+                paths: [occurrence.path],
                 line: occurrence.line,
                 message: `${valueList}, also at ${sorted
                     .filter((other) => other !== occurrence)

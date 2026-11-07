@@ -1,4 +1,4 @@
-import { type Delta, markDelta, type MarkedFinding } from "./delta";
+import { type Delta, markDelta, type MarkedFinding, type Rename } from "./delta";
 import type { Finding } from "./finding";
 import {
     declaresValues,
@@ -44,37 +44,52 @@ export interface FitnessReport {
     readonly functions: readonly FunctionReport[];
 }
 
-function deltaAgainst(head: readonly Finding[], base: Measurement): Delta {
+function deltaAgainst(
+    head: readonly Finding[],
+    base: Measurement,
+    renames: readonly Rename[] | undefined,
+): Delta {
     // Nothing to compare with, so nothing can be called existing.
-    return markDelta(head, isMeasured(base) ? base.findings : []);
+    return markDelta(head, isMeasured(base) ? base.findings : [], renames);
 }
 
 function withTrends(
     fitnessFunction: FitnessFunction,
-    delta: Delta,
+    { findings, keysAtBase, resolved }: Delta,
     history: TrendHistory | undefined,
 ): { readonly findings: readonly ReportedFinding[]; readonly resolved: readonly Finding[] } {
     if (history === undefined || !declaresValues(fitnessFunction)) {
-        return delta;
+        return { findings, resolved };
     }
+    // The stored snapshots go back from the merge base, so a renamed file's series lies under its old key.
     const trends = findingTrends(
-        { commit: history.headCommit, findings: delta.findings },
+        {
+            commit: history.headCommit,
+            findings: findings.map((finding, index) => ({ ...finding, key: keysAtBase[index] })),
+        },
         storedFindingsOf(history.commitsNewestFirst, history.snapshots, fitnessFunction),
     );
     return {
-        findings: delta.findings.map((finding) => {
-            const trend = trends.get(finding.key);
+        findings: findings.map((finding, index) => {
+            const trend = trends.get(keysAtBase[index]);
             return trend === undefined ? finding : { ...finding, trend };
         }),
-        resolved: delta.resolved,
+        resolved,
     };
 }
 
-/** `history` gives a function that declares values the trend of each finding. */
+/**
+ * `base.renames` are the files renamed since the merge base, which the delta and the trend follow;
+ * `history` gives a function that declares values the trend of each finding.
+ */
 export function functionReport(
     fitnessFunction: FitnessFunction,
     head: Measurement,
-    base: { readonly source: BaseSource; readonly measurement: Measurement },
+    base: {
+        readonly source: BaseSource;
+        readonly measurement: Measurement;
+        readonly renames?: readonly Rename[];
+    },
     history?: TrendHistory,
 ): FunctionReport {
     return {
@@ -96,7 +111,7 @@ export function functionReport(
                   kind: "measured",
                   ...withTrends(
                       fitnessFunction,
-                      deltaAgainst(head.findings, base.measurement),
+                      deltaAgainst(head.findings, base.measurement, base.renames),
                       history,
                   ),
               }

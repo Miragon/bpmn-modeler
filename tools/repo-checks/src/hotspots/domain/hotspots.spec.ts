@@ -117,6 +117,7 @@ describe("the hotspot findings", () => {
             {
                 key: OFTEN,
                 path: OFTEN,
+                paths: [OFTEN],
                 line: 7,
                 message: "50 revisions × 384 code lines = 19,200; highest complexity 16 (handle)",
                 rank: 1,
