@@ -220,7 +220,7 @@ onMounted(async () => {
                                 <a class="row-link" :href="ORCA_PLUGIN_URL">Open in Orca → Install</a>
                             </div>
                             <p class="tab-note">
-                                Beta. Opens .bpmn and .dmn next to your coding agent, without
+                                Experimental. Opens .bpmn and .dmn next to your coding agent, without
                                 deployment, code links or forms;
                                 <a :href="withBase('/orca/getting-started#limits')">what it covers</a>.
                             </p>

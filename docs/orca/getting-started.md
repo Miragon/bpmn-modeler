@@ -3,8 +3,8 @@
 Open `.bpmn` and `.dmn` files as diagrams in [Orca](https://www.onorca.dev), right next to the coding agent that
 writes them. Every change the agent makes to the file shows up on the canvas, and you can model lightly yourself.
 
-::: warning Beta
-The Orca plugin is a beta. It views, simulates and lightly models; it does not deploy, jump into code or open forms,
+::: warning Experimental
+The Orca plugin is experimental. It views, simulates and lightly models; it does not deploy, jump into code or open forms,
 and it may change between releases. See [Limits](#limits) before you rely on it, and
 [tell us](https://github.com/Miragon/bpmn-modeler/issues) what you miss.
 :::
