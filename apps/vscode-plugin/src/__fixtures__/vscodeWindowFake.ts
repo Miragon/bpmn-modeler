@@ -60,22 +60,39 @@ export interface StatusBarEntry {
 
 export type ToastSeverity = "information" | "warning" | "error";
 
-export class FakeToast {
-    private answer: (action: string | undefined) => void = () => undefined;
+/** A button as `show*Message` takes it: a label or a `MessageItem`. */
+export type ToastAction = string | { readonly title: string };
 
-    readonly choice = new Promise<string | undefined>((resolve) => (this.answer = resolve));
+/** Answers with the clicked action itself, as VS Code returns a `MessageItem` by identity. */
+export class FakeToast {
+    private answer: (action: ToastAction | undefined) => void = () => undefined;
+
+    readonly choice = new Promise<ToastAction | undefined>((resolve) => (this.answer = resolve));
 
     constructor(
         readonly severity: ToastSeverity,
         readonly message: string,
-        readonly actions: readonly string[],
+        readonly actions: readonly ToastAction[],
     ) {}
 
-    click(action: string): void {
-        if (!this.actions.includes(action)) {
-            throw new Error(`The toast offers no "${action}" action.`);
+    get labels(): string[] {
+        return this.actions.map((action) => (typeof action === "string" ? action : action.title));
+    }
+
+    /** Clicks the first button with this label. */
+    click(label: string): void {
+        const index = this.labels.indexOf(label);
+        if (index === -1) {
+            throw new Error(`The toast offers no "${label}" action.`);
         }
-        this.answer(action);
+        this.answer(this.actions[index]);
+    }
+
+    clickAt(index: number): void {
+        if (index < 0 || index >= this.actions.length) {
+            throw new Error(`The toast offers no action at ${index}.`);
+        }
+        this.answer(this.actions[index]);
     }
 
     close(): void {
@@ -256,18 +273,18 @@ export function renderedToasts(): {
     message: string;
     actions: string[];
 }[] {
-    return toasts.map(({ severity, message, actions }) => ({
+    return toasts.map(({ severity, message, labels }) => ({
         severity,
         message,
-        actions: [...actions],
+        actions: labels,
     }));
 }
 
 function showMessage(
     severity: ToastSeverity,
     message: string,
-    actions: string[],
-): Promise<string | undefined> {
+    actions: ToastAction[],
+): Promise<ToastAction | undefined> {
     const toast = new FakeToast(severity, message, actions);
     toasts.push(toast);
     return toast.choice;
@@ -279,11 +296,11 @@ export const window = {
         statusBarItems.push(item);
         return item;
     },
-    showInformationMessage: (message: string, ...actions: string[]) =>
+    showInformationMessage: (message: string, ...actions: ToastAction[]) =>
         showMessage("information", message, actions),
-    showWarningMessage: (message: string, ...actions: string[]) =>
+    showWarningMessage: (message: string, ...actions: ToastAction[]) =>
         showMessage("warning", message, actions),
-    showErrorMessage: (message: string, ...actions: string[]) =>
+    showErrorMessage: (message: string, ...actions: ToastAction[]) =>
         showMessage("error", message, actions),
     showInputBox(options: InputBoxOptions): Promise<string | undefined> {
         const box = new FakeInputBox(options);

@@ -1,4 +1,4 @@
-import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -41,6 +41,14 @@ const TASK_ID = "Task_Check";
 const ORIGINAL_TASK_NAME = "Check order";
 const RENAMED_TASK_NAME = "Ship order";
 const TIMEOUT_MS = 30_000;
+/** Its own `.camunda/plugins`, so only diagrams below it are offered the plugin. */
+const PLUGIN_FOLDER = "bpmn-plugin";
+const PLUGIN_BPMN_FILE = "plugin-smoke.bpmn";
+const PLUGIN_NAME = "Smoke trace";
+const PLUGIN_NOTICE = "1 BPMN plugin in this workspace is not allowed yet.";
+const PLUGIN_APPROVAL_TITLE = "Allow BPMN plugins from this workspace?";
+const PLUGIN_BADGE_COLOR = "rgb(255, 0, 255)";
+const OPEN_TIMING_ROUNDS = 3;
 
 /** `Default Light+`/`Dark+` exist in every VS Code down to the engines floor; the `Modern` themes do not. */
 const COLOR_THEMES = [
@@ -122,6 +130,27 @@ async function selectElement(webview: FrameLocator, elementId: string): Promise<
     await expect
         .poll(() => shape.evaluate((node) => node.classList.contains("selected")))
         .toBe(true);
+}
+
+/** The class and the badge the fixture plugin's module adds when bpmn-js builds it. */
+function pluginTraceOnCanvas(webview: FrameLocator): Promise<number> {
+    return webview.locator(".djs-container.smoke-plugin-trace .smoke-plugin-badge").count();
+}
+
+async function diagramWithPluginRendered(webview: FrameLocator): Promise<boolean> {
+    return (await diagramRendered(webview)) && (await pluginTraceOnCanvas(webview)) === 1;
+}
+
+async function cachedPluginScripts(globalStorageDirectory: string): Promise<string[]> {
+    const files = await readdir(globalStorageDirectory, { recursive: true }).catch(
+        (): string[] => [],
+    );
+    return files.filter((file) => /[\\/]bpmn-plugins[\\/][0-9a-f]+[\\/]plugin\.js$/.test(file));
+}
+
+function median(values: readonly number[]): number {
+    const sorted = [...values].sort((left, right) => left - right);
+    return sorted[Math.floor(sorted.length / 2)];
 }
 
 async function jsonInFile(file: string): Promise<Record<string, unknown> | undefined> {
@@ -1303,6 +1332,109 @@ describe("the packaged extension in a real VS Code", () => {
             expect(await webview.locator("#form-editor").isVisible()).toBe(true);
             expectNoCspViolations();
         });
+    });
+
+    describe("workspace bpmn-js plugins", () => {
+        const page = () => vscode().page;
+
+        /** A click on an expanded folder would collapse it again. */
+        async function openInPluginFolder(): Promise<void> {
+            const file = page()
+                .locator(".explorer-folders-view")
+                .getByText(PLUGIN_BPMN_FILE, { exact: true });
+            if (!(await file.isVisible())) {
+                await vscode().openFromExplorer(PLUGIN_FOLDER);
+                await file.waitFor();
+            }
+            await vscode().openFromExplorer(PLUGIN_BPMN_FILE);
+        }
+
+        async function millisecondsToRender(
+            open: () => Promise<void>,
+            fileName: string,
+            isRendered: (webview: FrameLocator) => Promise<boolean>,
+        ): Promise<number> {
+            await vscode().runCommand("View: Close All Editors");
+            await expect
+                .poll(() => page().locator("iframe.webview").filter({ visible: true }).count())
+                .toBe(0);
+            const startedAt = performance.now();
+            await open();
+            await vscode().showInCustomEditor(fileName, isRendered);
+            return Math.round(performance.now() - startedAt);
+        }
+
+        it("opens without the plugin until it is allowed, then reloads with it", async () => {
+            await vscode().runCommand("View: Close All Editors");
+            await openInPluginFolder();
+            await vscode().showInCustomEditor(PLUGIN_BPMN_FILE, diagramRendered);
+            expect(await pluginTraceOnCanvas(vscode().webview())).toBe(0);
+
+            const notice = page()
+                .locator(".notifications-toasts .notification-toast")
+                .filter({ hasText: PLUGIN_NOTICE });
+            await notice.getByRole("button", { name: "Review…" }).click();
+
+            const picker = page().locator(".quick-input-widget");
+            await picker.getByText(PLUGIN_APPROVAL_TITLE).waitFor();
+            const row = picker.locator(".monaco-list-row").filter({ hasText: PLUGIN_NAME });
+            const checkbox = row.getByRole("checkbox").first();
+            await checkbox.click();
+            await expect.poll(() => checkbox.getAttribute("aria-checked")).toBe("true");
+            await picker.getByRole("button", { name: "OK" }).click();
+
+            await vscode().showInCustomEditor(PLUGIN_BPMN_FILE, diagramWithPluginRendered);
+            const webview = vscode().webview();
+            expect(
+                await webview
+                    .locator(".smoke-plugin-badge")
+                    .evaluate((badge) => getComputedStyle(badge).backgroundColor),
+            ).toBe(PLUGIN_BADGE_COLOR);
+            // The webview loads the approved copy from global storage, never the workspace file.
+            const scriptUrls = await webview
+                .locator("script[src]")
+                .evaluateAll((scripts) => scripts.map((script) => script.getAttribute("src")));
+            const pluginScriptUrls = scriptUrls.filter((url) => url?.includes("/bpmn-plugins/"));
+            expect(pluginScriptUrls).toHaveLength(1);
+            expect(pluginScriptUrls[0]).toContain("/globalStorage/");
+            expect(pluginScriptUrls[0]).not.toContain(workspaceDirectory);
+            expect(
+                await cachedPluginScripts(
+                    join(rootDirectory, "user-data", "User", "globalStorage"),
+                ),
+            ).toHaveLength(1);
+            await expect.poll(() => notice.count()).toBe(0);
+
+            await settle(webview);
+            await vscode().screenshot(join(RESULTS_DIRECTORY, "bpmn-plugin.png"));
+            expectNoCspViolations();
+        });
+
+        // A coarse comparison: one window, a 200 ms render poll, each editor a fresh webview.
+        it("reports how long an editor takes to show its diagram with and without a plugin", async () => {
+            const withoutPlugin: number[] = [];
+            const withPlugin: number[] = [];
+            for (let round = 0; round < OPEN_TIMING_ROUNDS; round++) {
+                withoutPlugin.push(
+                    await millisecondsToRender(
+                        () => vscode().openFromExplorer(BPMN_FILE),
+                        BPMN_FILE,
+                        diagramRendered,
+                    ),
+                );
+                withPlugin.push(
+                    await millisecondsToRender(
+                        openInPluginFolder,
+                        PLUGIN_BPMN_FILE,
+                        diagramWithPluginRendered,
+                    ),
+                );
+            }
+            log(
+                `open to first surface, median of ${OPEN_TIMING_ROUNDS}: without a plugin ${median(withoutPlugin)} ms (${withoutPlugin.join(", ")}), with one ${median(withPlugin)} ms (${withPlugin.join(", ")})`,
+            );
+            expectNoCspViolations();
+        }, 120_000);
     });
 
     // Runs last: proves the collector sees violations, so the empty lists above mean something.

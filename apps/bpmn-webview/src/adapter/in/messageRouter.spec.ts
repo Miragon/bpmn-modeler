@@ -62,6 +62,7 @@ function fakeSessionHandlers() {
         TakeFocusQuery: vi.fn(),
         FlushDocumentQuery: vi.fn(),
         ReleaseDocumentFlushQuery: vi.fn(),
+        BpmnPluginsQuery: vi.fn(),
     } satisfies HostMessageHandlers<SessionHostMessages>;
 }
 

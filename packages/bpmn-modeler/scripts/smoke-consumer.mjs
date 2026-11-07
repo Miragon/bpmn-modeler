@@ -34,6 +34,7 @@ const SUBPATHS = [
     "./viewer",
     "./design",
     "./mode",
+    "./plugins",
     "./styles.css",
     "./viewer.css",
     "./design.css",
@@ -80,6 +81,21 @@ const BROWSER_FIXTURES = {
         const canvas = document.querySelector("#canvas");
         const panel = document.querySelector("#panel");
         void createDesigner(canvas, { propertiesPanel: { parent: panel }, linting: false });
+    `,
+    "modeler-with-plugins": `
+        import "@miragon/bpmn-modeler/styles.css";
+        import { createModeler } from "@miragon/bpmn-modeler";
+        import { buildWithPluginsOrWithout, loadPlugins } from "@miragon/bpmn-modeler/plugins";
+        const canvas = document.querySelector("#canvas");
+        const panel = document.querySelector("#panel");
+        void loadPlugins([{ name: "smoke", scriptUrl: "./plugin.js" }]).then((plugins) =>
+            buildWithPluginsOrWithout(
+                plugins,
+                "c7",
+                (modules) => createModeler(canvas, { engine: "c7", propertiesPanel: { parent: panel }, linting: false, ...modules }),
+                () => undefined,
+            ),
+        );
     `,
     "viewer-with-panel": `
         import "@miragon/bpmn-modeler/viewer.css";

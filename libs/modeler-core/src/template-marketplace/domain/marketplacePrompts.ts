@@ -1,3 +1,4 @@
+import { ActionNoticeTone } from "../../kernel/domain/actionNotice";
 import { MarketplaceSettingsEntry } from "../../kernel/domain/modelerSettings";
 import { ChoicePrompt } from "../../kernel/domain/prompts";
 import { FetchReport, FetchVerdict } from "./fetchReport";
@@ -46,7 +47,7 @@ export interface MarketplaceAddAnswer {
 }
 
 export interface MarketplaceAddNotice {
-    readonly severity: "info" | "warning";
+    readonly severity: ActionNoticeTone;
     readonly message: string;
 }
 

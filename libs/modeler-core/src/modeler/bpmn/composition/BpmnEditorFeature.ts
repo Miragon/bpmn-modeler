@@ -40,6 +40,7 @@ import {
 import { NodeBpmnLinter } from "../adapter/out/bpmnlint/NodeBpmnLinter";
 import { NoopDiagnostics } from "../adapter/out/bpmnlint/NoopDiagnostics";
 import {
+    answerWithoutPluginsHandler,
     cleanupReportHandler,
     diagramFormattedHandler,
     getBpmnlintConfigHandler,
@@ -133,6 +134,8 @@ export interface BpmnEditorContributions {
     readonly codeLink: EditorContribution<
         "NavigateToImplementationCommand" | "SyncActivitiesCommand"
     >;
+    /** Absent: the host serves no plugins, and the editor is told so at once. */
+    readonly plugins?: EditorContribution<"GetBpmnPluginsCommand">;
 }
 
 const PANEL_ALWAYS_VISIBLE: PropertiesPanelStatePort = {
@@ -220,6 +223,10 @@ export class BpmnEditorFeature {
                 ignored: "the SVG export awaits this reply outside the router",
             },
             GetElementTemplatesCommand: [getElementTemplatesHandler(this.templates)],
+            GetBpmnPluginsCommand: [
+                contributions.plugins?.commandHandlers.GetBpmnPluginsCommand ??
+                    answerWithoutPluginsHandler(ports.store),
+            ],
             GetBpmnlintConfigCommand: [getBpmnlintConfigHandler(lintConfig)],
             UpdateLintResultsCommand: [updateLintResultsHandler(lintConfig)],
             SetLintingEnabledCommand: extensions.lintingPreference
@@ -279,6 +286,7 @@ export class BpmnEditorFeature {
             contributions.deploymentStatus,
             scriptEditor.participant,
             codeLink.participant,
+            ...(contributions.plugins ? [contributions.plugins.participant] : []),
         ];
     }
 

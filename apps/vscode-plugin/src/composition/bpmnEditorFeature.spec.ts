@@ -2,11 +2,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("vscode", () => import("../__fixtures__/vscodeCompositionFake"));
 
-import { ExtensionContext } from "vscode";
+import { ExtensionContext, Uri } from "vscode";
 
 import {
     BpmnDiffService,
     BpmnEditorFeature,
+    BpmnPluginsFeature,
     CodeLinkFeature,
     DefinitionSearchFeature,
     DiffPaneStore,
@@ -29,6 +30,7 @@ function createExtensionContext(): ExtensionContext {
     return {
         subscriptions: [],
         globalState: new InMemoryMemento(),
+        globalStorageUri: Uri.file("/global-storage"),
     } as unknown as ExtensionContext;
 }
 
@@ -89,6 +91,7 @@ describe("VS Code's BPMN editor", () => {
             NavigationFeature,
             DefinitionSearchFeature,
             CodeLinkFeature,
+            BpmnPluginsFeature,
         ].map((feature) => vi.spyOn(feature.prototype, "dispose"));
         const context = createExtensionContext();
         createVsCodeBpmnEditor(context);

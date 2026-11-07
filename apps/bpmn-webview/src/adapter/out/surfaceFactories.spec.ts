@@ -4,8 +4,11 @@ import type { ClipboardOptions, LintModule, ModelerCapabilities } from "@miragon
 import type { Command, Query } from "@miragon/bpmn-modeler-shared";
 import type { BpmnModelerSetting } from "@miragon/bpmn-modeler-types";
 
+import type { Engine } from "@miragon/bpmn-modeler-types";
+
 import { HostModelerState } from "../../domain/hostModelerState";
 import { createSurfaceFactories } from "./surfaceFactories";
+import type { SurfacePlugins } from "./surfacePlugins";
 
 const mocks = vi.hoisted(() => ({
     createViewer: vi.fn(),
@@ -40,7 +43,10 @@ const capabilities: ModelerCapabilities = {
 
 const clipboard = { bridge: {} } as unknown as ClipboardOptions;
 
-function factoriesWith(hostModelerState = new HostModelerState()) {
+function factoriesWith(
+    hostModelerState = new HostModelerState(),
+    plugins: Promise<SurfacePlugins> | undefined = undefined,
+) {
     const posted: (Command | Query)[] = [];
     const propertiesPanelParent = document.createElement("div");
     const extraModules = [{ __init__: [] }];
@@ -51,6 +57,7 @@ function factoriesWith(hostModelerState = new HostModelerState()) {
             propertiesPanelParent,
             capabilities,
             extraModules,
+            plugins,
             clipboard,
             lintBridge: { surfaceOptions: async () => lintOptions },
             hostModelerState,
@@ -117,6 +124,7 @@ describe("createSurfaceFactories", () => {
                 definitionSearch: capabilities.definitionSearch,
             },
             additionalModules: extraModules,
+            moddleExtensions: {},
             ...lintOptions,
         });
         expect(designer.setFavouriteBpmnElements).not.toHaveBeenCalled();
@@ -240,5 +248,82 @@ describe("createSurfaceFactories", () => {
 
         expect(mocks.createModeler.mock.calls[0][1].settings).toBeUndefined();
         expect(modeler.setSettings).toHaveBeenCalledExactlyOnceWith(settings(["bpmn:ScriptTask"]));
+    });
+
+    describe("plugins", () => {
+        const neutralModule = { __init__: ["neutral"] };
+        const platformModule = { __init__: ["platform"] };
+        const acmeModdle = { prefix: "acme" };
+        const builtEngines: (Engine | undefined)[] = [];
+        const plugins: SurfacePlugins = {
+            build: (engine, build) => {
+                builtEngines.push(engine);
+                return build({
+                    additionalModules: engine ? [neutralModule, platformModule] : [neutralModule],
+                    moddleExtensions: { acme: acmeModdle },
+                });
+            },
+        };
+
+        afterEach(() => {
+            builtEngines.length = 0;
+        });
+
+        it("leaves the readonly viewer without plugins", async () => {
+            mocks.createViewer.mockResolvedValue({});
+            const { surfaces, extraModules } = factoriesWith(undefined, Promise.resolve(plugins));
+
+            await surfaces.view!({ container, engine: "c7", theme: "light" });
+
+            expect(mocks.createViewer.mock.calls[0][1].additionalModules).toEqual(extraModules);
+            expect(builtEngines).toEqual([]);
+        });
+
+        it("gives an untagged model's designer only the engine-neutral plugins", async () => {
+            mocks.createDesigner.mockResolvedValue({ setFavouriteBpmnElements: vi.fn() });
+            const { surfaces, extraModules } = factoriesWith(undefined, Promise.resolve(plugins));
+
+            await surfaces.design!({ container, engine: undefined, theme: "light" });
+
+            expect(builtEngines).toEqual([undefined]);
+            expect(mocks.createDesigner.mock.calls[0][1]).toMatchObject({
+                additionalModules: [...extraModules, neutralModule],
+                moddleExtensions: { acme: acmeModdle },
+            });
+        });
+
+        it("gives a tagged model's modeler its engine's plugins too", async () => {
+            mocks.createModeler.mockResolvedValue({ setSettings: vi.fn() });
+            const { surfaces, extraModules } = factoriesWith(undefined, Promise.resolve(plugins));
+
+            await surfaces.implement!({ container, engine: "c7", theme: "light", mode: "implement" });
+
+            expect(builtEngines).toEqual(["c7"]);
+            expect(mocks.createModeler.mock.calls[0][1]).toMatchObject({
+                additionalModules: [...extraModules, neutralModule, platformModule],
+                moddleExtensions: { acme: acmeModdle },
+            });
+        });
+
+        it("builds an editable surface only once the plugins have loaded", async () => {
+            mocks.createModeler.mockResolvedValue({ setSettings: vi.fn() });
+            const pluginsLoaded = deferred<SurfacePlugins>();
+            const { surfaces } = factoriesWith(undefined, pluginsLoaded.promise);
+
+            const built = surfaces.implement!({
+                container,
+                engine: "c7",
+                theme: "light",
+                mode: "implement",
+            });
+            await Promise.resolve();
+            await Promise.resolve();
+            expect(mocks.createModeler).not.toHaveBeenCalled();
+
+            pluginsLoaded.resolve(plugins);
+            await built;
+
+            expect(mocks.createModeler).toHaveBeenCalledOnce();
+        });
     });
 });

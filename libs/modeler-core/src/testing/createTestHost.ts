@@ -23,16 +23,19 @@ import {
     RecordingDiagnostics,
 } from "./inMemoryHostSurfaces";
 import { InMemorySettings } from "./InMemorySettings";
+import { InMemoryPluginApprovals } from "./InMemoryPluginApprovals";
 import { InMemoryWorkspace } from "./InMemoryWorkspace";
 import { RecordingNotifier } from "./RecordingNotifier";
 import { RecordingStatusBar } from "./RecordingStatusBar";
 import { PromptAnswers, ScriptedPicker } from "./ScriptedPicker";
+import { NoticeAnswers, ScriptedActionNotifier } from "./ScriptedActionNotifier";
 
 export interface TestHostOptions {
     folders?: string[];
     files?: Record<string, string>;
     settings?: Partial<ModelerSettingsSnapshot>;
     promptAnswers?: PromptAnswers;
+    noticeAnswers?: NoticeAnswers;
     tokenAnswers?: Record<string, string>;
     /** Answered in order, one per add prompt. */
     marketplaceAnswers?: MarketplaceAddAnswer[];
@@ -74,6 +77,7 @@ export function createTestHost(options: TestHostOptions = {}) {
         documents: new EditorSessionDocuments(store),
         notifier,
         picker: new ScriptedPicker(options.promptAnswers),
+        actionNotifier: new ScriptedActionNotifier(options.noticeAnswers),
         settings,
         workspace: new InMemoryWorkspace(options.folders, options.files),
         statusBar: new RecordingStatusBar(),
@@ -83,6 +87,7 @@ export function createTestHost(options: TestHostOptions = {}) {
         tokenPrompt: new ScriptedTokenPrompt(options.tokenAnswers),
         marketplaceRegistrations: new InMemoryMarketplaceRegistrations(settings),
         marketplacePrompt: new ScriptedMarketplacePrompt(options.marketplaceAnswers),
+        pluginApprovals: new InMemoryPluginApprovals(),
         deploymentState: new InMemoryDeploymentState(),
         propertiesPanelState: new InMemoryPropertiesPanelState(),
         lintingPreference: new InMemoryLintingPreference(settings),

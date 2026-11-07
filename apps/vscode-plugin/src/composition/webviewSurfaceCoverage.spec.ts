@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("vscode", () => import("../__fixtures__/vscodeCompositionFake"));
 
-import { ExtensionContext } from "vscode";
+import { ExtensionContext, Uri } from "vscode";
 
 import {
     ScriptEditorFeature,
@@ -40,6 +40,7 @@ const VSCODE_SURFACES: HostSurfaceCoverage = {
         GetBpmnFileCommand: HANDLED,
         GetDiagramAsSVGCommand: ignored("the SVG export awaits this reply outside the router"),
         GetElementTemplatesCommand: HANDLED,
+        GetBpmnPluginsCommand: HANDLED,
         GetBpmnlintConfigCommand: HANDLED,
         GetBpmnModelerSettingCommand: HANDLED,
         GetPropertiesPanelStateCommand: HANDLED,
@@ -126,6 +127,7 @@ function registerVsCodeSurfaces() {
         globalState: new InMemoryMemento(),
         workspaceState: new InMemoryMemento(),
         secrets: {},
+        globalStorageUri: Uri.file("/global-storage"),
     } as unknown as ExtensionContext;
     setContext(context);
     const deps = buildSharedDeps(context);
