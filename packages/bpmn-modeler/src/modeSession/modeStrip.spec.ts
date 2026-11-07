@@ -190,6 +190,41 @@ describe("mountModeStrip", () => {
         expect(h.stripEl.style.left).toBe("");
     });
 
+    // The toggle's label grows once the host font has loaded, after the first render.
+    it("follows the token-simulation toggle when it changes size", () => {
+        const observed: { callback: () => void; targets: Element[] }[] = [];
+        vi.stubGlobal(
+            "ResizeObserver",
+            class {
+                private readonly entry: { callback: () => void; targets: Element[] };
+                constructor(callback: () => void) {
+                    this.entry = { callback, targets: [] };
+                    observed.push(this.entry);
+                }
+                observe(target: Element) {
+                    this.entry.targets.push(target);
+                }
+                unobserve = vi.fn();
+                disconnect = vi.fn();
+            },
+        );
+        const { strip, h } = mount();
+        const toggle = document.createElement("div");
+        toggle.className = "bts-toggle-mode";
+        Object.defineProperty(toggle, "offsetLeft", { value: 20 });
+        Object.defineProperty(toggle, "offsetWidth", { value: 120, configurable: true });
+        h.stripEl.parentElement!.appendChild(toggle);
+        strip.render({ mode: "view", engine: "c7", busy: false });
+
+        Object.defineProperty(toggle, "offsetWidth", { value: 156 });
+        observed
+            .filter((entry) => entry.targets.includes(toggle))
+            .forEach((entry) => entry.callback());
+
+        expect(h.stripEl.style.left).toBe("184px");
+        vi.unstubAllGlobals();
+    });
+
     it("renders no badge on a supplied resizer element", () => {
         const resizerEl = document.createElement("div");
         const { strip } = mount({ resizerEl });
