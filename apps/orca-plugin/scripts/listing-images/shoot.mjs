@@ -163,6 +163,9 @@ try {
         "1280",
         "--height",
         "800",
+        // Folds the properties panel away and pans the diagram off the palette.
+        "--act",
+        JSON.stringify([{ click: [873, 400] }, { drag: [[640, 680], [725, 680]] }]),
         "--out",
         join(results, "bpmn-editor.png"),
     );
