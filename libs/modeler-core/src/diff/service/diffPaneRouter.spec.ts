@@ -11,8 +11,7 @@ import {
     ViewportChangedCommand,
 } from "@miragon/bpmn-modeler-shared";
 
-import { createTestHost, RecordingNotifier } from "../../testing";
-import { DiffPaneHandle } from "../port/DiffPaneHandle";
+import { createTestHost, FakeDiffPaneHandle, RecordingNotifier } from "../../testing";
 import { BpmnDiffService } from "./BpmnDiffService";
 import { DiffPaneHostExtensions, createDiffPaneRouter } from "./diffPaneRouter";
 import { DiffPaneStore } from "./DiffPaneStore";
@@ -24,31 +23,12 @@ const XML = `<?xml version="1.0" encoding="UTF-8"?>
   <bpmn:process id="Process_1" isExecutable="false" />
 </bpmn:definitions>`;
 
-function fakePane(uri: string, text = ""): DiffPaneHandle & { posted: { type: string }[] } {
-    let ready = false;
-    const posted: { type: string }[] = [];
-    return {
-        uri,
-        posted,
-        isReady: () => ready,
-        setReady: () => {
-            ready = true;
-        },
-        getText: () => text,
-        postMessage: async (message) => {
-            posted.push(message as { type: string });
-            return true;
-        },
-        dispose: () => undefined,
-    };
-}
-
 function diffPanes(extensions: DiffPaneHostExtensions = {}) {
     const { notifier, settings } = createTestHost();
     const store = new DiffPaneStore();
     const session = store.registerCompareFiles(BEFORE, AFTER);
-    const before = fakePane(BEFORE, XML);
-    const after = fakePane(AFTER, XML);
+    const before = new FakeDiffPaneHandle(BEFORE, XML);
+    const after = new FakeDiffPaneHandle(AFTER, XML);
     session.attachPane(before);
     session.attachPane(after);
     const router = createDiffPaneRouter(new BpmnDiffService(notifier, settings, store), extensions);
@@ -114,7 +94,7 @@ describe("createDiffPaneRouter", () => {
         await router.dispatch(new DiffReadyCommand(), after);
 
         expect(after.isReady()).toBe(true);
-        expect(after.posted.map((message) => message.type)).toStrictEqual(["LanguageQuery"]);
+        expect(after.posted).toStrictEqual([expect.objectContaining({ type: "LanguageQuery" })]);
     });
 
     it("forwards a pane's viewport and cursor to its partner", async () => {

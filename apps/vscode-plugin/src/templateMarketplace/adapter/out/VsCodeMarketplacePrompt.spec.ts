@@ -3,13 +3,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("vscode", () => import("../../../__fixtures__/vscodeWindowFake"));
 
 import { MarketplaceAddPrompt } from "@miragon/bpmn-modeler-core";
+import { describeMarketplacePromptContract } from "@miragon/bpmn-modeler-core/testing";
 
 import { resetVscodeWindow, vscodeWindow } from "../../../__fixtures__/vscodeWindowFake";
 import { VsCodeMarketplacePrompt } from "./VsCodeMarketplacePrompt";
 
 const REFUSED = "Enter a repository URL.";
 
-function addPrompt(overrides: Partial<MarketplaceAddPrompt> = {}): MarketplaceAddPrompt {
+function addPrompt(): MarketplaceAddPrompt {
     return {
         title: "Add Template Marketplace",
         prompt: "GitHub or GitLab repository, or a local folder, holding a marketplace.json",
@@ -29,92 +30,87 @@ function addPrompt(overrides: Partial<MarketplaceAddPrompt> = {}): MarketplaceAd
         ],
         scope: "project",
         problemWith: (input) => (input.startsWith("https://") ? undefined : REFUSED),
-        ...overrides,
     };
 }
 
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
+/** Resolves with what `find` returns once VS Code has opened it. */
+const opened = <T>(find: () => T | undefined): Promise<T> =>
+    vi.waitFor(
+        () => {
+            const shown = find();
+            if (shown === undefined) throw new Error("VS Code has not opened it yet");
+            return shown;
+        },
+        { timeout: 1000, interval: 1 },
+    );
+
 beforeEach(() => {
     resetVscodeWindow();
 });
 
+describeMarketplacePromptContract("VsCodeMarketplacePrompt on the window fake", async () => {
+    let asked = { box: 0, pick: 0 };
+    return {
+        prompt: new VsCodeMarketplacePrompt(),
+        async replyToNext(question, reply) {
+            asked = { box: vscodeWindow.inputBoxes.length, pick: vscodeWindow.quickPicks.length };
+            const box = await opened(() => vscodeWindow.inputBoxes[asked.box]);
+            if (!("enters" in reply)) {
+                box.dismiss();
+                return;
+            }
+            box.accept(reply.enters);
+            if ("dismisses" in reply) {
+                (await opened(() => vscodeWindow.quickPicks[asked.pick])).dismiss();
+                return;
+            }
+            if (reply.picks === undefined) {
+                await settle();
+                if (vscodeWindow.quickPicks[asked.pick]) throw new Error("VS Code asked a scope");
+                return;
+            }
+            const choice = question.scopes.find(({ scope }) => scope === reply.picks);
+            if (!choice) throw new Error(`The question offers no "${reply.picks}" scope.`);
+            (await opened(() => vscodeWindow.quickPicks[asked.pick])).pick(choice.label);
+        },
+        shown() {
+            const box = vscodeWindow.inputBoxes[asked.box];
+            const pick = vscodeWindow.quickPicks[asked.pick];
+            return {
+                title: box.options.title ?? "",
+                prompt: box.options.prompt ?? "",
+                placeholder: box.options.placeHolder ?? "",
+                location: box.options.value ?? "",
+                // The box shows the core's check on its entry; `invalidLocation` has no other place.
+                refusal: box.message(),
+                scopes: (pick?.items ?? []).map(({ label, description }) => ({
+                    label,
+                    description: description ?? "",
+                })),
+            };
+        },
+    };
+});
+
 describe("VsCodeMarketplacePrompt", () => {
-    it("asks for the location in an input box that checks as the user types, then for the scope in a quick pick", async () => {
+    it("runs the core's check as the user types, so the box accepts only a location the core registers", async () => {
         const prompt = addPrompt();
 
-        const answer = new VsCodeMarketplacePrompt().promptForMarketplace(prompt);
+        void new VsCodeMarketplacePrompt().promptForMarketplace(prompt);
+
         const [box] = vscodeWindow.inputBoxes;
-        expect(box.options).toEqual({
-            title: "Add Template Marketplace",
-            prompt: "GitHub or GitLab repository, or a local folder, holding a marketplace.json",
-            placeHolder: "https://github.com/owner/repo  or  ~/path/to/folder",
-            value: "",
-            validateInput: prompt.problemWith,
-        });
+        expect(box.options.validateInput).toBe(prompt.problemWith);
         expect(box.message("acme")).toBe(REFUSED);
         expect(() => box.accept("acme")).toThrow(REFUSED);
-        box.accept("https://github.com/acme/templates");
-        await settle();
-        const [pick] = vscodeWindow.quickPicks;
-        expect(pick.options).toEqual({ title: "Add Template Marketplace" });
-        expect(pick.items).toEqual([
-            {
-                label: "Register for this project",
-                description: "Saved in .vscode/settings.json",
-                scope: "project",
-            },
-            {
-                label: "Register for all my projects",
-                description: "Saved in Settings ▸ User",
-                scope: "allProjects",
-            },
-        ]);
-        pick.pick("Register for all my projects");
-
-        await expect(answer).resolves.toEqual({
-            location: "https://github.com/acme/templates",
-            scope: "allProjects",
-        });
     });
 
-    it("asks no scope when the core offers none, and answers with the core's scope", async () => {
-        const answer = new VsCodeMarketplacePrompt().promptForMarketplace(
-            addPrompt({ scopes: [], scope: "allProjects" }),
-        );
-        vscodeWindow.inputBoxes[0].accept("https://github.com/acme/templates");
-
-        await expect(answer).resolves.toEqual({
-            location: "https://github.com/acme/templates",
-            scope: "allProjects",
-        });
-        expect(vscodeWindow.quickPicks).toEqual([]);
-    });
-
-    it("shows a refused entry again, and the core's check on it says why it was refused", async () => {
-        void new VsCodeMarketplacePrompt().promptForMarketplace(
-            addPrompt({ location: "acme", invalidLocation: REFUSED }),
-        );
-
-        const [box] = vscodeWindow.inputBoxes;
-        expect(box.options.value).toBe("acme");
-        expect(box.message()).toBe(REFUSED);
-    });
-
-    it("answers nothing and asks no scope when the input box is dismissed", async () => {
-        const answer = new VsCodeMarketplacePrompt().promptForMarketplace(addPrompt());
-        vscodeWindow.inputBoxes[0].dismiss();
-
-        await expect(answer).resolves.toBeUndefined();
-        expect(vscodeWindow.quickPicks).toEqual([]);
-    });
-
-    it("answers nothing when the scope pick is dismissed", async () => {
-        const answer = new VsCodeMarketplacePrompt().promptForMarketplace(addPrompt());
+    it("titles the scope pick with the core's title", async () => {
+        void new VsCodeMarketplacePrompt().promptForMarketplace(addPrompt());
         vscodeWindow.inputBoxes[0].accept("https://github.com/acme/templates");
         await settle();
-        vscodeWindow.quickPicks[0].dismiss();
 
-        await expect(answer).resolves.toBeUndefined();
+        expect(vscodeWindow.quickPicks[0].options).toEqual({ title: "Add Template Marketplace" });
     });
 });

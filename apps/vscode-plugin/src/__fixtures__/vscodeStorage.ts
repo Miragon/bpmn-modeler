@@ -30,13 +30,15 @@ export class InMemoryMemento implements Memento {
  */
 export class FailingMemento extends InMemoryMemento {
     private writesLeft = Number.POSITIVE_INFINITY;
+    private reason: string | undefined;
 
     constructor(private readonly keepsRejectedValue: boolean) {
         super();
     }
 
-    failAfter(writes: number): void {
+    failAfter(writes: number, reason?: string): void {
         this.writesLeft = writes;
+        this.reason = reason;
     }
 
     override async update(key: string, value: unknown): Promise<void> {
@@ -45,7 +47,7 @@ export class FailingMemento extends InMemoryMemento {
             return super.update(key, value);
         }
         if (this.keepsRejectedValue) await super.update(key, value);
-        throw new Error(`cannot write ${key}`);
+        throw new Error(this.reason ?? `cannot write ${key}`);
     }
 }
 

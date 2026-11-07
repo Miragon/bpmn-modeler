@@ -18,6 +18,7 @@ import {
 } from "./InMemoryMarketplaceRegistrations";
 import {
     InMemoryClipboard,
+    InMemoryLintingPreference,
     InMemoryPropertiesPanelState,
     RecordingDiagnostics,
 } from "./inMemoryHostSurfaces";
@@ -84,6 +85,7 @@ export function createTestHost(options: TestHostOptions = {}) {
         marketplacePrompt: new ScriptedMarketplacePrompt(options.marketplaceAnswers),
         deploymentState: new InMemoryDeploymentState(),
         propertiesPanelState: new InMemoryPropertiesPanelState(),
+        lintingPreference: new InMemoryLintingPreference(settings),
         diagnostics: new RecordingDiagnostics(),
         openEditor(
             path: string,
