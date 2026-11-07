@@ -266,9 +266,29 @@ export function mountModeStrip(opts: ModeStripOptions): ModeStrip {
     };
 
     // The toggle belongs to the live surface, so it is recreated on a mode
-    // switch and absent before the first surface exists.
+    // switch and absent before the first surface exists. It also grows once the
+    // host font has loaded, which in JCEF lands after the first render.
+    let observedToggle: HTMLElement | undefined;
+    const toggleResize =
+        typeof ResizeObserver === "undefined"
+            ? undefined
+            : new ResizeObserver(() => alignBesideTokenSimulationToggle());
+    const followToggle = (toggle: HTMLElement | undefined): void => {
+        if (toggle === observedToggle) {
+            return;
+        }
+        if (observedToggle) {
+            toggleResize?.unobserve(observedToggle);
+        }
+        if (toggle) {
+            toggleResize?.observe(toggle);
+        }
+        observedToggle = toggle;
+    };
     const alignBesideTokenSimulationToggle = (): void => {
-        const toggle = opts.stripEl.parentElement?.querySelector<HTMLElement>(".bts-toggle-mode");
+        const toggle =
+            opts.stripEl.parentElement?.querySelector<HTMLElement>(".bts-toggle-mode") ?? undefined;
+        followToggle(toggle);
         opts.stripEl.style.left = toggle
             ? `${toggle.offsetLeft + toggle.offsetWidth + TOGGLE_GAP}px`
             : "";
@@ -288,6 +308,7 @@ export function mountModeStrip(opts: ModeStripOptions): ModeStrip {
             applyLabels(state);
         },
         destroy(): void {
+            toggleResize?.disconnect();
             labelDisposer?.();
             closeMenu({ restoreFocus: false });
             chip.remove();
