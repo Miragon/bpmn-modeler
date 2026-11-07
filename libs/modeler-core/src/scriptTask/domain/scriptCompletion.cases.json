@@ -170,6 +170,12 @@
             "variableStringArg": null
         },
         {
+            "name": "the method name is case-sensitive",
+            "linePrefix": "execution.getvariable(\"am",
+            "memberAccess": null,
+            "variableStringArg": null
+        },
+        {
             "name": "getVariables takes no variable name",
             "linePrefix": "execution.getVariables(\"",
             "memberAccess": null,
