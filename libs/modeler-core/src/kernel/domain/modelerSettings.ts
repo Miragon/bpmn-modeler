@@ -1,4 +1,6 @@
 import {
+    COLOR_THEMES,
+    ColorThemeSetting,
     DEFAULT_FORM_PREVIEW_AUTOMATIC,
     SURFACE_MODES,
     SurfaceMode,
@@ -29,9 +31,6 @@ export type MarketplaceSettingsEntry =
           readonly baseUrl?: string;
           readonly ref?: string;
       };
-
-/** Follow the host's theme, or keep the modeler light. */
-export type ColorThemeSetting = "automatic" | "light";
 
 /**
  * The `miragon.bpmnModeler.*` values the core reads through `SettingsPort`, as
@@ -114,8 +113,6 @@ export const DEFAULT_MODELER_SETTINGS: FrozenModelerSettings = Object.freeze({
     formPreviewAutomatic: DEFAULT_FORM_PREVIEW_AUTOMATIC,
     marketplaces: Object.freeze([]),
 });
-
-const COLOR_THEMES: readonly ColorThemeSetting[] = ["automatic", "light"];
 
 const SETTING_PARSERS: {
     readonly [K in keyof ModelerSettingsSnapshot]: (raw: unknown) => ModelerSettingsSnapshot[K];

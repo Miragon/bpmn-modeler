@@ -3,7 +3,6 @@ import { posix } from "node:path";
 import { ConfigurationTarget, workspace } from "vscode";
 
 import {
-    ColorThemeSetting,
     MarketplaceScope,
     MarketplaceSettingsEntry,
     ModelerSettingsSnapshot,
@@ -15,7 +14,7 @@ import {
     SettingsPort,
     withoutMarketplaceEntries,
 } from "@miragon/bpmn-modeler-core";
-import { SurfaceMode } from "@miragon/bpmn-modeler-types";
+import { ColorThemeSetting, SurfaceMode } from "@miragon/bpmn-modeler-types";
 
 import { lintingEnabled, ModelerConfiguration, modelerConfiguration } from "./modelerConfiguration";
 

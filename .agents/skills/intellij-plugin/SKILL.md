@@ -157,10 +157,11 @@ so a new slot, icon, tone or action fails until Kotlin knows it.
 `normalizeSettings`; `ModelerSettingsStore` keeps the Kotlin copy.
 `ModelerSettingsStoreTest` runs the rows of
 `libs/modeler-core/src/kernel/domain/settingsNormalization.cases.json` against
-the store and compares its defaults with `apps/vscode-plugin/package.json` and
+the store and compares its defaults with `apps/vscode-plugin/package.json`,
 its `DEFAULT_MODES` with `SURFACE_MODES` in
-`libs/modeler-types/src/surfaceMode.ts`, all passed in as Gradle system
-properties. Each such file is a declared input of `tasks.test` in
+`libs/modeler-types/src/surfaceMode.ts` and its `COLOR_THEMES` with the array of
+that name in `libs/modeler-types/src/settings.ts`, all passed in as Gradle
+system properties. Each such file is a declared input of `tasks.test` in
 `build.gradle.kts` and is listed in the `intellij-plugin` filter of
 `.github/workflows/build.yml`, so a change to it alone runs the Kotlin job;
 `tools/repo-checks/src/kotlinTestInputs.spec.ts` fails when the filter misses

@@ -62,6 +62,11 @@ class ModelerSettingsStoreTest {
     }
 
     @Test
+    fun `offers and keeps exactly the colour themes the core reads`() {
+        assertEquals(coreColorThemes().sorted(), ModelerSettingsStore.COLOR_THEMES.sorted())
+    }
+
+    @Test
     fun `addMarketplace appends once`() {
         store.addMarketplace("https://a")
         store.addMarketplace("https://b")
@@ -249,14 +254,12 @@ class ModelerSettingsStoreTest {
         }
 
         /** `SURFACE_MODES` in `surfaceMode.ts`, the modes the core's `normalizeSettings` keeps. */
-        private fun coreSurfaceModes(): List<String> {
-            val source = readTypeScriptFile("miragon.surfaceModes")
-            val modes =
-                requireNotNull(Regex("""export const SURFACE_MODES\b[^=]*=\s*\[([^\]]*)]""").find(source)) {
-                    "surfaceMode.ts declares no SURFACE_MODES array literal"
-                }.groupValues[1]
-            return Regex(""""([^"]+)"""").findAll(modes).map { it.groupValues[1] }.toList()
-        }
+        private fun coreSurfaceModes(): List<String> =
+            readTypeScriptStringArray("miragon.surfaceModes", "SURFACE_MODES")
+
+        /** `COLOR_THEMES` in the types' `settings.ts`, the themes the core's `normalizeSettings` keeps. */
+        private fun coreColorThemes(): List<String> =
+            readTypeScriptStringArray("miragon.colorThemes", "COLOR_THEMES")
 
         /** `scripting.spin` → `scriptingSpin`. */
         private fun snapshotName(section: String): String {

@@ -1,4 +1,4 @@
-import { Engine } from "@miragon/bpmn-modeler-types";
+import { Engine, ENGINES } from "@miragon/bpmn-modeler-types";
 
 import { BpmnDocument } from "../../kernel/domain/BpmnDocument";
 
@@ -23,8 +23,6 @@ export type DiagramWrite =
     | { readonly kind: "engineChanged" }
     | { readonly kind: "unchanged" }
     | { readonly kind: "write"; readonly xml: string; readonly stampedPlatform: boolean };
-
-const ENGINES: readonly Engine[] = ["c7", "c8"];
 
 export function enginesIn(scope: MigrationScope): readonly Engine[] {
     return scope === "both" ? ENGINES : [scope];
