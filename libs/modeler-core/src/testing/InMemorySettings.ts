@@ -1,8 +1,11 @@
 import { ColorThemeSetting, SurfaceMode } from "@miragon/bpmn-modeler-types";
 
-import { MarketplaceSettingsEntry } from "../kernel/domain/modelerSettings";
+import {
+    MarketplaceSettingsEntry,
+    ModelerSettingsSnapshot,
+    normalizeSettings,
+} from "../kernel/domain/modelerSettings";
 import { SettingsPort } from "../kernel/port/hostPorts";
-import { ModelerSettingsSnapshot, normalizeSettings } from "../kernel/domain/modelerSettings";
 
 /**
  * `values` is mutable so a test can change a setting between two reads. They
