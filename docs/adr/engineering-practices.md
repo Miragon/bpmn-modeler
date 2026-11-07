@@ -100,6 +100,15 @@ host part, the suite cannot tell, and the Kotlin half is #2056.
   adapter (`InMemorySettings`, `VsCodeSettings`, `BridgeSettings`). VS Code's
   pair runs over a configuration fake with a user and a workspace scope, the
   bridge's over a loopback that answers as `SettingsRouter` does.
+- `describeMarketplacePromptContract`: `ScriptedMarketplacePrompt`,
+  `VsCodeMarketplacePrompt` over `vscodeWindowFake.ts` and the bridge's
+  `RpcMarketplacePrompt` over a loopback that answers as `MarketplaceRouter`
+  and `AddMarketplaceDialog` do.
+- `describeMarketplaceRegistrationsContract`:
+  `InMemoryMarketplaceRegistrations`, `VsCodeMarketplaceRegistrations` over the
+  real `VsCodeSettings` and a stateful `vscode` configuration fake, and the
+  bridge's `RpcMarketplaceRegistrations` over a loopback that answers as
+  `MarketplaceRouter`, `ProjectMarketplacesStore` and `ModelerSettingsStore` do.
 - `describeNotifierContract`, which covers `withProgress`:
   `RecordingNotifier`, `VsCodeNotifier` over `vscodeWindowFake.ts` and the
   bridge's `RpcNotifier` over a loopback that answers as `HostUiRouter.kt`
