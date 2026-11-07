@@ -21,6 +21,9 @@
 import { replyDeadlineMs } from "../../../protocol/domain/descriptor";
 import { RpcHandler } from "../../../protocol/domain/rpcHandler";
 
+/** The peer answered a request with an error frame, unlike a request it never answered. */
+export class RpcErrorReply extends Error {}
+
 interface Pending {
     method: string;
     resolve: (value: unknown) => void;
@@ -49,9 +52,10 @@ export class Rpc {
     }
 
     /**
-     * Request/response call; resolves with the peer's `result`. Rejects on an
-     * error reply, once the method's reply deadline passes, or when the input
-     * has ended, so the caller's own error handling runs and its queue moves on.
+     * Request/response call; resolves with the peer's `result`. Rejects with an
+     * {@link RpcErrorReply} on an error reply, and with a plain `Error` once the
+     * method's reply deadline passes or the input has ended, so the caller's
+     * own error handling runs and its queue moves on.
      */
     request(method: string, params: unknown): Promise<unknown> {
         if (this.inputEnded) {
@@ -115,7 +119,7 @@ export class Rpc {
                 return;
             }
             if (message.error) {
-                pending.reject(new Error(message.error));
+                pending.reject(new RpcErrorReply(message.error));
             } else {
                 pending.resolve(message.result ?? null);
             }

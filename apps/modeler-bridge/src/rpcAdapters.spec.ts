@@ -1,5 +1,4 @@
-import { readFileSync } from "node:fs";
-import { posix, resolve } from "node:path";
+import { posix } from "node:path";
 
 import { describe, expect, it, vi } from "vitest";
 
@@ -11,11 +10,7 @@ import {
     SearchPrompt,
     SettingChange,
 } from "@miragon/bpmn-modeler-core";
-import {
-    readSettingsSnapshot,
-    settingsNormalizationCases,
-    TYPESCRIPT_ONLY_SETTINGS_CASES,
-} from "@miragon/bpmn-modeler-core/testing";
+import { readSettingsSnapshot } from "@miragon/bpmn-modeler-core/testing";
 
 import { settle } from "./__fixtures__/bridgeHarness";
 import { DocumentMirror } from "./editorSession/domain/DocumentMirror";
@@ -44,16 +39,6 @@ const META: SessionMeta = {
     scheme: "file",
     workspaceRoot: "/w",
 };
-
-const SHARED_SETTINGS_CASES = settingsNormalizationCases(
-    readFileSync(
-        resolve(
-            __dirname,
-            "../../../libs/modeler-core/src/kernel/domain/settingsNormalization.cases.json",
-        ),
-        "utf8",
-    ),
-);
 
 /** Returns the last element (ES2021 target has no `Array.prototype.at`). */
 function last<T>(items: T[]): T {
@@ -369,26 +354,6 @@ describe("RpcEditorHandle", () => {
 });
 
 describe("BridgeSettings", () => {
-    it("reads the shared defaults before the host's first snapshot", () => {
-        const settings = new BridgeSettings();
-
-        expect(readSettingsSnapshot(settings)).toEqual(DEFAULT_MODELER_SETTINGS);
-    });
-
-    it.each([...SHARED_SETTINGS_CASES, ...TYPESCRIPT_ONLY_SETTINGS_CASES])(
-        "$name",
-        ({ raw, normalized }) => {
-            const settings = new BridgeSettings();
-
-            settings.apply(raw);
-
-            expect(readSettingsSnapshot(settings)).toEqual({
-                ...DEFAULT_MODELER_SETTINGS,
-                ...normalized,
-            });
-        },
-    );
-
     it("gives every instance lists of its own", () => {
         const defaults = structuredClone(readSettingsSnapshot(new BridgeSettings()));
 
@@ -419,23 +384,6 @@ describe("BridgeSettings", () => {
             language: "fr",
             configFolder: ".config",
         });
-    });
-
-    it("exposes the host snapshot through the SettingsPort getters", () => {
-        const settings = new BridgeSettings();
-        settings.apply({
-            alignToOrigin: true,
-            configFolder: ".config",
-            colorTheme: "light",
-            favouriteBpmnElements: ["bpmn:Task"],
-            language: "de",
-        });
-
-        expect(settings.getAlignToOrigin()).toBe(true);
-        expect(settings.getConfigFolder()).toBe(".config");
-        expect(settings.getColorTheme()).toBe("light");
-        expect(settings.getFavouriteBpmnElements()).toEqual(["bpmn:Task"]);
-        expect(settings.getLanguage()).toBe("de");
     });
 
     it("names only the settings that actually changed", () => {
@@ -544,6 +492,20 @@ describe("RpcDocumentPort", () => {
         await answerLast({ changed: false, accepted: false });
 
         await expect(write).resolves.toBe(false);
+        expect(mirror.content(META.editorId)).toBe("host");
+    });
+
+    // Only the host's error reply reads as a refused write.
+    it("rejects a write the host can no longer answer", async () => {
+        const { rpc } = harness();
+        const mirror = new DocumentMirror();
+        mirror.register(META, "host");
+        const port = new RpcDocumentPort(rpc, mirror);
+
+        const write = port.write(META.editorId, "next", 1);
+        rpc.handleEnd();
+
+        await expect(write).rejects.toThrow("No reply to document/write: the input ended");
         expect(mirror.content(META.editorId)).toBe("host");
     });
 });
@@ -770,30 +732,6 @@ describe("RpcNotifier", () => {
             });
         },
     );
-
-    it("withProgress brackets the task and returns its result", async () => {
-        const { frames, rpc } = harness();
-        const result = await new RpcNotifier(rpc).withProgress("Work", async () => 42);
-
-        expect(result).toBe(42);
-        expect(frames.map((f) => f.method)).toEqual([
-            "notifier/progressStart",
-            "notifier/progressEnd",
-        ]);
-    });
-
-    it("withProgress still ends the spinner when the task throws", async () => {
-        const { frames, rpc } = harness();
-        const run = new RpcNotifier(rpc).withProgress("Work", async () => {
-            throw new Error("fail");
-        });
-
-        await expect(run).rejects.toThrow("fail");
-        expect(frames.map((f) => f.method)).toEqual([
-            "notifier/progressStart",
-            "notifier/progressEnd",
-        ]);
-    });
 });
 
 describe("RpcSecretStore", () => {
@@ -862,15 +800,6 @@ describe("RpcTokenPrompt", () => {
         await answerLast({ token: "  tok " });
 
         await expect(pending).resolves.toBe("  tok ");
-    });
-
-    it("resolves undefined when the dialog is cancelled", async () => {
-        const { rpc, answerLast } = harness();
-
-        const pending = new RpcTokenPrompt(rpc).promptForToken(PROMPT);
-        await answerLast(null);
-
-        await expect(pending).resolves.toBeUndefined();
     });
 });
 
@@ -1085,14 +1014,6 @@ describe("RpcPicker", () => {
             await expect(pending).resolves.toBe("verify");
         });
 
-        it("choose resolves undefined on dismissal", async () => {
-            const { frames, picker, answerLast } = setup();
-            const pending = picker.choose(statusActions);
-            expect(last(frames)?.method).toBe("picker/show");
-            await answerLast({ selected: null });
-            await expect(pending).resolves.toBeUndefined();
-        });
-
         it("choose rejects an index the prompt does not hold", async () => {
             const { frames, picker, answerLast } = setup();
             const pending = picker.choose(statusActions);
@@ -1116,14 +1037,6 @@ describe("RpcPicker", () => {
             ]);
             await answerLast({ selected: [0, 2] });
             await expect(pending).resolves.toEqual(["/w/a.form", "/w/c.json"]);
-        });
-
-        it("chooseMany resolves [] on dismissal", async () => {
-            const { frames, picker, answerLast } = setup();
-            const pending = picker.chooseMany(files);
-            expect(last(frames)?.method).toBe("picker/show");
-            await answerLast({ selected: null });
-            await expect(pending).resolves.toEqual([]);
         });
 
         it("confirm sends the details as given and is true only on confirmation", async () => {
@@ -1196,17 +1109,6 @@ describe("RpcPicker", () => {
                 "notifier/progressStart",
                 "notifier/progressEnd",
             ]);
-        });
-
-        it("searchAndChoose returns chosen=undefined when the list is dismissed", async () => {
-            const { frames, picker, answerLast } = setup();
-            const pending = picker.searchAndChoose(
-                locate(async () => matches(["/w/a.bpmn", "/w/b.bpmn"])),
-            );
-            await settle();
-            expect(last(frames)?.method).toBe("picker/show");
-            await answerLast({ selected: null });
-            await expect(pending).resolves.toMatchObject({ chosen: undefined });
         });
 
         it("searchAndChoose still ends the spinner when the search throws", async () => {

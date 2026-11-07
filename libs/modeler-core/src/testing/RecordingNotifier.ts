@@ -19,7 +19,10 @@ export class RecordingNotifier implements NotifierPort {
     readonly logs: LogEntry[] = [];
     readonly loggedErrors: Error[] = [];
     readonly openedDocuments: string[] = [];
+    /** Every progress title shown, in start order, also once its task has settled. */
     readonly progressTitles: string[] = [];
+    /** The progress titles whose task has not settled yet. */
+    readonly runningProgress: string[] = [];
     loggingConsoleOpened = false;
 
     logged(level: LogLevel): string[] {
@@ -65,9 +68,14 @@ export class RecordingNotifier implements NotifierPort {
         this.loggingConsoleOpened = true;
     }
 
-    withProgress<T>(title: string, task: () => Promise<T>): Promise<T> {
+    async withProgress<T>(title: string, task: () => Promise<T>): Promise<T> {
         this.progressTitles.push(title);
-        return task();
+        this.runningProgress.push(title);
+        try {
+            return await task();
+        } finally {
+            this.runningProgress.splice(this.runningProgress.indexOf(title), 1);
+        }
     }
 
     async openDocument(absolutePath: string): Promise<void> {

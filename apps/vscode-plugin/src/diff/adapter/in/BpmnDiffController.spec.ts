@@ -14,7 +14,7 @@ vi.mock("vscode", () => ({
 import { commands, workspace } from "vscode";
 
 import { DiffPaneStore } from "@miragon/bpmn-modeler-core";
-import { RecordingNotifier } from "@miragon/bpmn-modeler-core/testing";
+import { FakeDiffPaneHandle, RecordingNotifier } from "@miragon/bpmn-modeler-core/testing";
 import { vsCodeModelerPreferences } from "../../../shared/adapter/out/modelerConfiguration";
 import { BootstrappableDiffPane, BpmnDiffController } from "./BpmnDiffController";
 
@@ -25,15 +25,9 @@ function fakePane(
     _panel: unknown,
     document: { uri: { toString(): string } },
 ): BootstrappableDiffPane {
-    return {
-        uri: document.uri.toString(),
-        isReady: () => false,
-        setReady: vi.fn(),
-        getText: () => "",
-        postMessage: vi.fn().mockResolvedValue(true),
-        dispose: vi.fn(),
+    return Object.assign(new FakeDiffPaneHandle(document.uri.toString()), {
         bootstrap: bootstrapSpy,
-    };
+    });
 }
 
 /** Minimal vscode `Uri` stand-in carrying the two fields the controller reads. */
@@ -95,14 +89,7 @@ describe("BpmnDiffController.shouldResolveAsDiff", () => {
         const { controller, store } = createController();
         const value = "file:///repo/diagram.bpmn";
         const session = store.registerCompareFiles("git:/repo/diagram.bpmn", value);
-        session.attachPane({
-            uri: value,
-            isReady: () => false,
-            setReady: vi.fn(),
-            getText: () => "",
-            postMessage: vi.fn().mockResolvedValue(true),
-            dispose: vi.fn(),
-        });
+        session.attachPane(new FakeDiffPaneHandle(value));
 
         expect(controller.shouldResolveAsDiff(uri("file", value))).toBe(false);
     });
