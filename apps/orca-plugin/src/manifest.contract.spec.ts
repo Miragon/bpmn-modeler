@@ -31,13 +31,16 @@ describe("the Orca plugin's manifest", () => {
         );
     });
 
-    it("opens .bpmn and .dmn, each from an editor page and a bundle of its own", () => {
+    it("opens .bpmn and .dmn, each from an editor page that starts its own entry", () => {
         const editors = manifest.contributes.customEditors;
         expect(editors.map((editor) => editor.extensions)).toEqual([[".bpmn"], [".dmn"]]);
         for (const editor of editors) {
-            expect(existsSync(resolve(app, editor.entry))).toBe(true);
-            expect(existsSync(resolve(app, `vite.${editor.id}.config.mts`))).toBe(true);
+            const page = readFileSync(resolve(app, editor.entry), "utf8");
+            expect(page).toContain(`src="../../src/${editor.id}.ts"`);
             expect(existsSync(resolve(app, `src/${editor.id}.ts`))).toBe(true);
+            expect(readFileSync(resolve(app, "vite.editor.mts"), "utf8")).toContain(
+                `"${editor.entry}"`,
+            );
         }
     });
 });

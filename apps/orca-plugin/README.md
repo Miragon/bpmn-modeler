@@ -26,7 +26,7 @@ way it does is in the [architecture ADR](../../docs/adr/architecture-and-hosts.m
 | `src/port/` | `DocumentSession` (Orca) and `ModelCanvas` (a modeler) |
 | `src/adapter/out/` | Orca's frame API, the two canvases, the in-frame clipboard, the panel's stored state |
 | `src/composition/` | The two editors' wiring and layout |
-| `vite.editor.mts` | One unminified build per editor into `plugin/editor/<id>/dist`, with the eval patches Orca's `plugin check` asks for |
+| `vite.editor.mts` | One unminified build of both editor pages into `plugin/editor/`, the code they share once in `editor/shared/`, with the eval patches Orca's `plugin check` asks for |
 | `scripts/assemble-plugin.mjs` | Completes `plugin/` and fails on Orca's size limits or an `eval` call |
 
 ## Build and try it

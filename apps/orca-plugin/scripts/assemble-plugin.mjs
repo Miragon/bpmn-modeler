@@ -1,4 +1,4 @@
-// Completes plugin/ around the editor bundles Vite wrote there, and fails when Orca would refuse
+// Completes plugin/ around the editor pages and bundles Vite wrote there, and fails when Orca would refuse
 // or warn about it.
 import { cp, readdir, readFile, stat, writeFile } from "node:fs/promises";
 import { dirname, join, relative, resolve } from "node:path";
@@ -16,9 +16,6 @@ const ORCA_EVAL = /(?<![\w$.])(?:eval|Function)\s*\(|\bnew\s+Function\b/;
 const manifest = JSON.parse(await readFile(join(app, "orca-plugin.json"), "utf8"));
 await writeFile(join(plugin, "orca-plugin.json"), `${JSON.stringify(manifest, null, 2)}\n`);
 await cp(join(app, "assets"), join(plugin, "assets"), { recursive: true });
-for (const editor of manifest.contributes.customEditors) {
-    await cp(join(app, editor.entry), join(plugin, editor.entry));
-}
 await cp(join(app, "CHANGELOG.md"), join(plugin, "CHANGELOG.md")).catch(() => undefined);
 
 async function filesUnder(directory) {
