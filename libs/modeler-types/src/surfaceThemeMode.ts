@@ -1,3 +1,5 @@
+// Kept apart from ThemeController so the mode entry does not load it statically.
+
 /**
  * Theme selection for one modeler instance. `"automatic"` follows the
  * OS/browser `prefers-color-scheme` live; `"light"`/`"dark"` force a fixed kind.
