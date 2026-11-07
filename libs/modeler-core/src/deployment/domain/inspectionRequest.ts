@@ -37,8 +37,8 @@ export class InspectionRequest {
     }
 
     /**
-     * Request-only copy: the target and its stored credentials stay literal. A
-     * variable set to an empty value is rejected like an empty endpoint.
+     * Request-only copy; this request stays literal. Rejects an endpoint that
+     * is blank after expansion, such as one whose variable is set to "".
      */
     expandEnvRefs(lookup: EnvLookup): InspectionRequest {
         const recording = recordingLookup(lookup);

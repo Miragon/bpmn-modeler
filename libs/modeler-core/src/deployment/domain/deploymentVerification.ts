@@ -71,7 +71,7 @@ function stripBom(content: string): string {
 export interface VerificationFacts {
     readonly targetName: string;
     readonly processKey: string;
-    /** What {@link reconcile} wrote to the ledger. */
+    /** The revision {@link reconcile} returned for the ledger. */
     readonly revision?: DeployedRevision;
     readonly snapshot?: EngineDeploymentSnapshot;
 }

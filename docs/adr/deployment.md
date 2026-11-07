@@ -1,7 +1,7 @@
 # Deployment
 
 - Status: accepted
-- Last reviewed: 2026-11-06
+- Last reviewed: 2026-11-07
 
 ## Context
 
@@ -404,8 +404,9 @@ A separate `EngineInspectionPort.fetchLatestDefinition` is implemented by the
 Camunda 7 client. C8 has no verification menu entry and its command reports the
 operation unavailable; there is no unsupported engine-router stub. Lookups use
 the plain REST base URL, not the deployment URL override: an `InspectionRequest`
-carries only the endpoint, tenant, process key and credentials. Adding C8 inspection
-would require a separate capability such as Operate and its authentication.
+holds the endpoint, tenant, process key and credentials, and no URL override.
+Adding C8 inspection would require a separate capability such as Operate and
+its authentication.
 
 Reconciliation compares the stored row, editor content and fingerprint of the
 engine's latest XML. A current revision gains `verifiedAt`; a matching engine
