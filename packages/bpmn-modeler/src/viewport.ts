@@ -25,6 +25,9 @@ export interface ViewportData {
 
 // Keep focused elements legible without zooming out from the current view.
 const MIN_FOCUS_ZOOM = 0.75;
+const FIT_MARGIN = 40;
+// Keeps the former 50px palette + 20px margin when there is no palette to measure.
+const UNMEASURED_PALETTE_EDGE = 30;
 
 /**
  * Reads, restores, and subscribes to canvas viewbox changes.
@@ -218,14 +221,11 @@ export class CanvasViewportManager implements ViewportManager {
         // An unstyled palette can measure as full-width; cap insets so it cannot consume the viewport.
         const maxInsetX = outer.width / 4;
         const maxInsetY = outer.height / 4;
-        const paletteWidth =
-            canvas.getContainer().querySelector(".djs-palette")?.getBoundingClientRect().width ??
-            50;
         const inset = {
-            top: Math.min(40, maxInsetY),
-            right: Math.min(40, maxInsetX),
-            bottom: Math.min(40, maxInsetY),
-            left: Math.min(paletteWidth + 20, maxInsetX),
+            top: Math.min(FIT_MARGIN, maxInsetY),
+            right: Math.min(FIT_MARGIN, maxInsetX),
+            bottom: Math.min(FIT_MARGIN, maxInsetY),
+            left: Math.min(paletteRightEdge(canvas.getContainer()) + FIT_MARGIN, maxInsetX),
         };
 
         const availableWidth = outer.width - inset.left - inset.right;
@@ -355,4 +355,12 @@ export function subscribeViewboxChanged<
     eventBus.on("canvas.viewbox.changed", handler);
     eventBus.on("diagram.destroy", dispose);
     return dispose;
+}
+
+function paletteRightEdge(container: Element): number {
+    const palette = container.querySelector(".djs-palette");
+    if (!palette) {
+        return UNMEASURED_PALETTE_EDGE;
+    }
+    return palette.getBoundingClientRect().right - container.getBoundingClientRect().left;
 }
