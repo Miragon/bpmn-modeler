@@ -34,7 +34,8 @@ import org.cef.handler.CefLoadHandlerAdapter
  * its initial `GetBpmnFileCommand` before any sink exists; the shim's `outbox`
  * buffers it. [bind] injects the sink, which flushes that buffered message to the
  * now-set forwarder. The sink is deliberately *not* injected during pre-warm, so
- * nothing flushes to a null forwarder.
+ * nothing flushes to a null forwarder. Once bound, every later load of the page
+ * ([reload]) gets the sink again at its load end.
  */
 class WarmBrowser(
     // The template preview loads its own page through the same pipes, on open rather than pre-warmed.
@@ -52,12 +53,11 @@ class WarmBrowser(
 
     private val textInputClipboardShortcuts: TextInputClipboardShortcuts
 
-    // Guards the loaded/pendingSink handoff between onLoadEnd (CEF thread) and
-    // bind() (EDT): without it, bind() could observe loaded=false and set the
-    // pending flag *after* onLoadEnd already checked it, dropping the sink inject.
+    // Guards the loaded/bound handoff between onLoadEnd (CEF thread) and bind()
+    // (EDT), so each load gets exactly one sink inject whichever side comes last.
     private val lock = Any()
     private var loaded = false
-    private var pendingSinkInject = false
+    private var bound = false
 
     init {
         Disposer.register(this, browser)
@@ -93,10 +93,12 @@ class WarmBrowser(
         browser.jbCefClient.addLoadHandler(
             object : CefLoadHandlerAdapter() {
                 override fun onLoadEnd(b: CefBrowser, frame: CefFrame, httpStatusCode: Int) {
+                    // A frame a plugin opens must not count as the page's load.
+                    if (!frame.isMain) return
                     val injectNow =
                         synchronized(lock) {
                             loaded = true
-                            pendingSinkInject
+                            bound
                         }
                     if (injectNow) injectSink(b)
                     textInputClipboardShortcuts.installFocusTracking(b)
@@ -126,11 +128,14 @@ class WarmBrowser(
         forwarder = forward
         val injectNow =
             synchronized(lock) {
-                if (!loaded) pendingSinkInject = true
+                bound = true
                 loaded
             }
         if (injectNow) injectSink(browser.cefBrowser)
     }
+
+    /** Loads the page anew, so it asks for its file and plugins again; the sink follows at the load end. */
+    fun reload() = browser.cefBrowser.reloadIgnoreCache()
 
     /**
      * Makes Ctrl+Z / Ctrl+Y reach bpmn-js. IntelliJ's global `$Undo`/`$Redo`
@@ -156,14 +161,8 @@ class WarmBrowser(
         action.registerCustomShortcutSet(shortcuts, browser.component, this)
     }
 
-    // inject("p") emits the JS that ships the string argument `p` back to the
-    // jsQuery handler; __modelerSetSink installs it and flushes the shim outbox.
     private fun injectSink(b: CefBrowser) {
-        b.executeJavaScript(
-            "window.__modelerSetSink(function (p) { ${jsQuery.inject("p")} });",
-            b.url,
-            0,
-        )
+        b.executeJavaScript(WebviewSinkScript.install(jsQuery.funcName), b.url, 0)
     }
 
     override fun dispose() {

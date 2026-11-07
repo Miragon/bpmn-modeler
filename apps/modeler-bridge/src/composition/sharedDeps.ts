@@ -5,8 +5,10 @@ import {
     PendingEditsFlush,
 } from "@miragon/bpmn-modeler-core";
 
+import { RpcPluginApprovalStore } from "../bpmnPlugins/adapter/out/RpcPluginApprovalStore";
 import { DocumentMirror } from "../editorSession/domain/DocumentMirror";
 import { RpcDocumentPort } from "../editorSession/adapter/out/RpcDocumentPort";
+import { RpcActionNotifier } from "../kernel/adapter/out/RpcActionNotifier";
 import { RpcNotifier } from "../kernel/adapter/out/RpcNotifier";
 import { RpcPicker } from "../kernel/adapter/out/RpcPicker";
 import { RpcStatusBar } from "../kernel/adapter/out/RpcStatusBar";
@@ -33,6 +35,9 @@ export interface BridgeSharedDeps {
     nodeWorkspace: NodeWorkspace;
     settings: BridgeSettings;
     picker: RpcPicker;
+    actionNotifier: RpcActionNotifier;
+    /** Seeded by `session/register`, so it is shared with the editor-session feature. */
+    pluginApprovals: RpcPluginApprovalStore;
     store: EditorSessionStore;
     artifactSvc: ArtifactService;
     flushSvc: DocumentFlushService;
@@ -82,6 +87,8 @@ export function buildSharedDeps(
         nodeWorkspace,
         settings,
         picker,
+        actionNotifier: new RpcActionNotifier(rpc),
+        pluginApprovals: new RpcPluginApprovalStore(rpc),
         store,
         artifactSvc,
         flushSvc,

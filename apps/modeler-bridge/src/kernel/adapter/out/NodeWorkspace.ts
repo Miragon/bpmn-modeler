@@ -395,11 +395,14 @@ export class NodeWorkspace implements WorkspacePort, WorkspaceRoots {
      * Writes `content`, creating missing parent directories first. The mkdirp
      * mirrors `VsCodeWorkspace.writeFile`: the code-link artifact lands under a
      * nested `<configFolder>/code-link/<dir>/…` path that need not exist yet.
+     *
+     * The write is atomic: bridges of several projects share one plugin cache
+     * and serve its files while another bridge may be rewriting them.
      */
     async writeFile(path: string, content: string): Promise<void> {
         const fsPath = withoutFileScheme(path);
         await fs.mkdir(posix.dirname(fsPath), { recursive: true });
-        await fs.writeFile(fsPath, content, "utf8");
+        await writeFileAtomically(fsPath, content);
     }
 
     /**
@@ -443,6 +446,64 @@ export class NodeWorkspace implements WorkspacePort, WorkspaceRoots {
             }
         }
         return results;
+    }
+}
+
+let temporaryFileCount = 0;
+
+/**
+ * Writes a temporary sibling and renames it over the target, so a reader sees
+ * the old or the new content, never a part. A link is resolved first, and the
+ * replaced file's permission bits carried over, so neither is lost to the
+ * rename.
+ */
+async function writeFileAtomically(fsPath: string, content: string): Promise<void> {
+    // Windows' realpath answers with backslashes, which the posix split below would not see.
+    const target = toWorkspacePath(await noneIfAbsent(() => fs.realpath(fsPath), fsPath));
+    const replaced = await noneIfAbsent(() => fs.stat(target), undefined);
+    const temporary = posix.join(
+        posix.dirname(target),
+        `.${posix.basename(target)}.${process.pid}.${++temporaryFileCount}.tmp`,
+    );
+    try {
+        await fs.writeFile(temporary, content, "utf8");
+        if (replaced) {
+            await fs.chmod(temporary, replaced.mode & 0o7777);
+        }
+        await renameRetryingWhileLocked(temporary, target);
+    } catch (error) {
+        await fs.rm(temporary, { force: true });
+        throw error;
+    }
+}
+
+// Windows refuses to replace a file another process holds open without
+// FILE_SHARE_DELETE (java.io, a virus scanner, an indexer) until it closes it.
+const LOCKED_CODES = new Set(["EPERM", "EACCES", "EBUSY"]);
+const RENAME_RETRY_DELAYS_MS = [10, 30, 100, 300];
+
+async function renameRetryingWhileLocked(from: string, to: string): Promise<void> {
+    for (const delay of RENAME_RETRY_DELAYS_MS) {
+        try {
+            return await fs.rename(from, to);
+        } catch (error) {
+            if (!LOCKED_CODES.has((error as NodeJS.ErrnoException).code ?? "")) {
+                throw error;
+            }
+            await new Promise((resolve) => setTimeout(resolve, delay));
+        }
+    }
+    await fs.rename(from, to);
+}
+
+async function noneIfAbsent<T>(read: () => Promise<T>, none: T): Promise<T> {
+    try {
+        return await read();
+    } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+            return none;
+        }
+        throw error;
     }
 }
 

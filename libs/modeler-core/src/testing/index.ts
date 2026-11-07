@@ -1,5 +1,6 @@
 export * from "./actionNotifierContract";
 export * from "./clipboardContract";
+export * from "./contentHasherContract";
 export * from "./createTestHost";
 export * from "./deploymentStateContract";
 export * from "./diffPaneContract";

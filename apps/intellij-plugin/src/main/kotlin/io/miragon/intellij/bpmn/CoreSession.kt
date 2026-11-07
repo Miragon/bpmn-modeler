@@ -9,11 +9,13 @@ import com.intellij.openapi.vfs.VirtualFile
  * [editorId] is the [VirtualFile.getUrl] (e.g. `file:///path`) — the same
  * scheme-qualified key the core's `EditorSessionStore` uses, so core→host
  * messages route back to the correct editor when several are open at once.
- * [postToWebview] pushes a complete JSON message into this editor's JCEF browser.
+ * [postToWebview] pushes a complete JSON message into this editor's JCEF browser,
+ * and [reloadPage] loads that browser's page anew.
  */
 class CoreSession(
     val editorId: String,
     val file: VirtualFile,
     val project: Project,
+    val reloadPage: () -> Unit = {},
     val postToWebview: (String) -> Unit,
 )

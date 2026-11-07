@@ -112,7 +112,14 @@ The approval is the control. Neither the webview's sandbox nor its Content Secur
 
 ## IntelliJ
 
-The IntelliJ plugin does not load BPMN plugins yet.
+The IntelliJ plugin loads BPMN plugins the same way: the same folders, the same notification with **Review…**, the same list and the same rules. These parts differ:
+
+- The question is an IDE notification balloon. Closing the balloon with its X keeps it in the **Notifications** tool window, where **Review…** still works. Clearing it there decides nothing, like closing the notification in VS Code.
+- Approvals are kept by the IDE for all your projects, outside every project, so a repository cannot allow its own plugins. A plugin you allow in one project window is allowed in the others too.
+- The editor loads a copy of the bytes you allowed from the IDE's system folder (`miragon-bpmn-modeler/bpmn-plugins`), never the files in your project.
+- After you allow a plugin, every open BPMN editor that offered it loads anew. Your unsaved edits stay.
+- An allowed plugin can do everything the editor can, as in VS Code, including sending its own messages to the IDE plugin. The approval is the control here too.
+- Messages that VS Code writes to the *bpmn.modeler* output channel, for example why a plugin was skipped, go to the IDE log (**Help ▸ Show Log in Finder**; **Explorer** on Windows, **Files** on Linux).
 
 ## Next steps
 

@@ -3,6 +3,8 @@ package io.miragon.intellij.bpmn
 import com.intellij.testFramework.junit5.TestApplication
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.net.URI
 import java.net.http.HttpClient
@@ -27,7 +29,7 @@ class WebviewContentSecurityPolicyTest {
     fun `pins the bpmn shell policy`() {
         assertEquals(
             "default-src 'none'; " +
-                "script-src 'self' 'sha256-uLeUpSN5arfjWCdLkm7CFgUv5ktWm0eZfuM59lkUDsU='; " +
+                "script-src 'self' 'sha256-gRNMaVliC1NArQo19O2For+mqk6lM6huJLujAnYaytk='; " +
                 "style-src 'self' 'unsafe-inline'; " +
                 "img-src 'self' data: https:; " +
                 "font-src 'self' data:; " +
@@ -40,13 +42,31 @@ class WebviewContentSecurityPolicyTest {
     fun `pins the deployment shell policy`() {
         assertEquals(
             "default-src 'none'; " +
-                "script-src 'self' 'sha256-uLeUpSN5arfjWCdLkm7CFgUv5ktWm0eZfuM59lkUDsU='; " +
+                "script-src 'self' 'sha256-gRNMaVliC1NArQo19O2For+mqk6lM6huJLujAnYaytk='; " +
                 "style-src 'self' 'unsafe-inline'; " +
                 "img-src 'self' data:; " +
                 "font-src 'self' data:; " +
                 "base-uri 'none'; form-action 'none'",
             WebviewContentSecurityPolicy.DEPLOYMENT_SHELL,
         )
+    }
+
+    @Test
+    fun `the shim removes the sink setter once the host installed its sink`() {
+        val shim = WebviewContentSecurityPolicy.ACQUIRE_VS_CODE_API_SHIM
+
+        assertTrue(shim.contains("Object.defineProperty(window, \"__modelerSetSink\""), shim)
+        assertTrue(shim.contains("delete window.__modelerSetSink;"), shim)
+        assertFalse(shim.contains("window.__modelerSetSink = "), "a plain assignment would leave the setter writable")
+    }
+
+    @Test
+    fun `the shim hands out the host api once and frozen`() {
+        val shim = WebviewContentSecurityPolicy.ACQUIRE_VS_CODE_API_SHIM
+
+        assertTrue(shim.contains("if (acquired) throw new Error("), shim)
+        assertTrue(shim.contains("acquired = true;"), shim)
+        assertTrue(shim.contains("return Object.freeze({"), shim)
     }
 
     @Test

@@ -680,8 +680,12 @@ tone (`info` or `warning`), the message and the actions, each a label and the
 value it returns. The host shows the message with one button per action and
 returns the chosen value, or `undefined` when the user dismisses it; the
 caller decides what a dismissal means. VS Code renders it with
-`showInformationMessage` or `showWarningMessage`; IntelliJ implements it with
-[#2242](https://github.com/Miragon/bpmn-modeler/issues/2242). The test kit's
+`showInformationMessage` or `showWarningMessage`. IntelliJ shows a balloon
+with one `NotificationAction` per label over `actionNotice/show`, which
+answers the clicked label's index, and the bridge's `RpcActionNotifier` maps it
+back to the value. A balloon closed with its X stays in the Notifications tool
+window and can still be answered, as a VS Code notice stays in its centre; the
+notice is dismissed once it expires there. The test kit's
 fake answers a notice by its id, with a scripted action or a dismissal, as
 `ScriptedPicker` answers a prompt.
 
@@ -1082,6 +1086,7 @@ keeps explicit local mirrors with these ownership rules:
 | Documents, keyed by editor | `session/register`, then `document/didChange` | Host Document; bridge writes are accepted by the host before its content becomes authoritative |
 | Settings snapshot | Settings in `session/register`, then `settings/didChange` | Host only; one shared snapshot fans changes out to editors |
 | Deployment state | `deploymentState/seed` with what the host stored, then `deploymentState/save` patches | Host; a bridge patch reaches the snapshot only after the host accepted it |
+| Plugin approvals | `pluginApprovals` in `session/register`, then `pluginApprovals/didChange`, which every running bridge of the IDE gets after any `pluginApprovals/save` | Host (`PluginApprovalStore`, application level); a bridge write reaches its mirror only after the host acknowledged the save |
 
 Apply settings before initial artifact discovery. Seed every synchronous mirror
 before its first consumer, and re-seed on process restart; mirrors do not

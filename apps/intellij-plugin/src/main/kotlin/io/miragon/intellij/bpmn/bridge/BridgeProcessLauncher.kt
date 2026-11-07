@@ -1,6 +1,7 @@
 package io.miragon.intellij.bpmn.bridge
 
 import com.intellij.openapi.application.PathManager
+import io.miragon.intellij.bpmn.BpmnPluginCache
 
 /**
  * Creates the bridge subprocess. Extracted from [ProcessSupervisor] so the
@@ -38,11 +39,14 @@ internal class DefaultBridgeProcessLauncher(
         val builder = ProcessBuilder(binary.toString()).redirectErrorStream(false)
         builder.environment()[MARKETPLACE_CACHE_ENV] =
             "${PathManager.getSystemPath()}/miragon-bpmn-modeler/marketplaces/$projectKey"
+        // The WebviewServer serves the plugin files from the same folder, so the bridge must not pick its own.
+        builder.environment()[PLUGIN_CACHE_ENV] = BpmnPluginCache.root().toString()
         return builder.start()
     }
 
     private companion object {
-        // Read by the bridge's `server.ts`; keep the name in sync there.
+        // Read by the bridge's `server.ts`; keep the names in sync there.
         const val MARKETPLACE_CACHE_ENV = "MIRAGON_BPMN_MARKETPLACE_CACHE"
+        const val PLUGIN_CACHE_ENV = "MIRAGON_BPMN_PLUGIN_CACHE"
     }
 }
