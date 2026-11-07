@@ -65,7 +65,8 @@ cannot import such a declaration, but an edit to it changes the published types
 of `@miragon/bpmn-modeler` or `@miragon/dmn-modeler` without a change in their
 own sources. `check-dts` scans the whole roll-up, unnamed declarations
 included, for protocol symbols, private-lib imports and ambient functions with
-a body; it does not notice a changed declaration. `publicApi.spec.ts` pins only
+a body, and in `@miragon/dmn-modeler` for `dmn-js` imports too; it does not
+notice a changed declaration. `publicApi.spec.ts` pins only
 the public names it lists, so an edit to an unpinned unnamed declaration that
 still compiles ships without a failing check. A shared rule adds nothing to the
 npm surface while no public type references its types. A rule there keeps its
