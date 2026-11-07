@@ -28,7 +28,7 @@ way it does is in the [architecture ADR](../../docs/adr/architecture-and-hosts.m
 | `src/composition/` | The two editors' wiring and layout |
 | `vite.editor.mts` | One unminified build of both editor pages into `plugin/editor/`, the code they share once in `editor/shared/`, with the eval patches Orca's `plugin check` asks for |
 | `scripts/assemble-plugin.mjs` | Completes `plugin/` and fails on Orca's size limits or an `eval` call |
-| `images/` | The cover and screenshots of the plugin's page in Orca's plugin directory, made by `scripts/listing-images/` |
+| `images/` | The cover and screenshots of the plugin's page in Orca's plugin directory |
 
 ## Build and try it
 
@@ -44,17 +44,10 @@ orca plugin dev load . --json --approve <fingerprint>
 
 ## Listing images
 
-```sh
-corepack yarn workspace @miragon/bpmn-modeler-orca listing-images                # shoot in the container, then render
-corepack yarn workspace @miragon/bpmn-modeler-orca listing-images --skip-shots   # re-render from the last shots
-```
-
-`shoot.mjs` runs in the smoke test's container: a fresh Orca with a throwaway profile opens `demo/` as
-`/workspace/order-service`, so the shots hold nothing of this machine. `render.mjs` puts the BPMN editor into
-`cover.html` and writes `images/cover.webp` (1600×1000) and one Orca window per feature as WEBP: the properties
-panel, token simulation, linting (on `demo/return-handling.bpmn`, which has errors on purpose) and a DMN decision
-table. Refresh them when the editors or the claim change; `orca plugin validate` checks Orca's limits on the built
-plugin.
+`images/` holds the cover and the screenshots of the plugin's page in Orca's plugin directory, declared in
+`orca-plugin.json`. They are checked in and made with the `product-shots` skill of the `miragon-brand` plugin
+([Miragon/corporate-identity](https://github.com/Miragon/corporate-identity)); this repository keeps no script of its
+own for them. `orca plugin validate` checks Orca's limits on the built plugin.
 
 ## Tests
 
