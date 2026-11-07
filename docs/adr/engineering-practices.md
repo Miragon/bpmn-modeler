@@ -697,16 +697,22 @@ blocks a merge, and findings never fail it.
   40 budgets, and that a capped text's own length gives it back. Measured
   against `a2e5e8ee` (#1867), 250 first-parent commits before `8bfb20fc`, the
   summary held 771 rows in 170,267 characters and the comment 122 rows in
-  58,683.
+  58,683. The renderer counts UTF-16 code units, and GitHub does not say
+  whether its comment limit counts characters or bytes. In a rerun without
+  `--head-label`, the non-ASCII characters (`→`, `×`, `—` and the like) added
+  124 bytes to the comment's 59,056 characters; a byte limit would only bite
+  a capped comment holding thousands of them. No cap guards the summary: the
+  largest measured one used a sixth of its limit, and the artifact holds
+  `summary.md` whole beside `comment.md`.
 - **Permissions.** The workflow grants `contents: read`. The `report` job runs
-  the PR's code, which can change `tools/repo-checks`, uploads the comment as
-  an artifact and writes nothing else. The `comment` job's own `permissions`
-  replace the workflow's with only `pull-requests: write`, so it has no
-  `contents: read`; it checks nothing out and runs no PR code. The artifact is
-  still that code's output, so the job runs only for an author who could
-  change the workflow anyway: a head in this repository, and not Dependabot.
-  A Dependabot run gets the write token the job asks for, and its install
-  runs the bumped package's lifecycle scripts, which could write the
+  the PR's code, which can change `tools/repo-checks`, uploads the summary and
+  the comment as an artifact and writes nothing else. The `comment` job's own
+  `permissions` replace the workflow's with only `pull-requests: write`, so it
+  has no `contents: read`; it checks nothing out and runs no PR code. The
+  artifact is still that code's output, so the job runs only for an author who
+  could change the workflow anyway: a head in this repository, and not
+  Dependabot. A Dependabot run gets the write token the job asks for, and its
+  install runs the bumped package's lifecycle scripts, which could write the
   artifact. A fork's token cannot write. Both get the summary only. The job
   pages through the PR's comments for its own: the hidden marker
   `<!-- fitness-report-comment -->` on the first line, written by

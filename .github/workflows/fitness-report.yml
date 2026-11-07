@@ -52,10 +52,11 @@ jobs:
             --head-label "GitHub's test merge of the pull request head \`${HEAD_SHA:0:12}\` into \`$BASE_REF\`" \
             --capped-out "$OUT/comment.md" --max-characters 60000 > "$OUT/summary.md"
           cat "$OUT/summary.md" >> "$GITHUB_STEP_SUMMARY"
+      # summary.md stays downloadable in full, also past the step summary's 1 MiB.
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: fitness-report
-          path: ${{ runner.temp }}/fitness-report/comment.md
+          path: ${{ runner.temp }}/fitness-report/
           retention-days: 7
 
   # A fork's GITHUB_TOKEN cannot write. A Dependabot run gets this job's write
