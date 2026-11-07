@@ -30,7 +30,7 @@
     },
     {
       "path": "images/feature-simulation.webp",
-      "alt": "The order fulfilment process in token simulation, a token between Pack order and Ship order and the log listing In stock? and Pack order",
+      "alt": "The order fulfilment process in token simulation, a token waiting after Pack order and the log listing In stock? and Pack order",
       "caption": "Play a process through with token simulation"
     },
     {
@@ -40,7 +40,7 @@
     },
     {
       "path": "images/feature-dmn.webp",
-      "alt": "The Choose carrier decision table from shipping.dmn: country and weight in, carrier and cost out, with fields to simulate the decision above it",
+      "alt": "The Choose carrier decision table from shipping.dmn, simulated for a 3 kg express parcel without a country: rule 8 is highlighted and the result reads UPS Express for 39",
       "caption": "DMN decision tables you can simulate in place"
     }
   ],

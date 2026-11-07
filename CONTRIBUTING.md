@@ -219,10 +219,12 @@ table.
 | Product | Images in | Made |
 |---|---|---|
 | `bpmn-vscode` | `docs/public/shots/vscode/` | headless VS Code (`code serve-web`), on the Mac |
-| `bpmn-intellij` | `docs/public/shots/intellij/` | IntelliJ IDEA Community in a Linux container, with the plugin from the JetBrains Marketplace |
+| `bpmn-intellij` | `docs/public/shots/intellij/` | IntelliJ IDEA Community in a Linux container |
 | `bpmn-orca` | `apps/orca-plugin/images/` | Orca in a Linux container (Podman on the Mac) |
 
-Build first (the VSIX for VS Code, `apps/orca-plugin/plugin/` for Orca), then
+Build first (the VSIX for VS Code, the plugin ZIP with every platform for IntelliJ:
+`compile:all` in `apps/modeler-bridge`, then `./gradlew buildPlugin -PbundleAllPlatforms`,
+and `apps/orca-plugin/plugin/` for Orca), then
 run the skill's `scripts/listing.mjs` from the repository root, as its
 `references/listing.md` describes. `--check` checks the images against each
 store's limits without taking new ones. When the skill is updated, make the

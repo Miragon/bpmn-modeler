@@ -2,7 +2,7 @@ export default class BpmnModelerRecipe {
   #options
 
   constructor(options) {
-    for (const key of ['process', 'selectId', 'linting', 'decision']) {
+    for (const key of ['process', 'selectId', 'linting', 'decision', 'decisionInputs']) {
       if (options[key] === undefined) throw new Error(`The bpmn-modeler recipe needs "shots.${key}".`)
     }
     this.#options = options
@@ -52,9 +52,21 @@ export default class BpmnModelerRecipe {
     const frame = await this.#open(window, this.#options.decision, '.drill-down-overlay')
     await frame.locator('.drill-down-overlay').first().click()
     await frame.locator('.tjs-table').first().waitFor()
+    await this.#simulateDecision(frame)
     await window.pause(800)
     await window.restPointer()
     await window.shot('decision', { title: this.#title(this.#options.decision) })
+  }
+
+  async #simulateDecision(frame) {
+    const controls = frame.locator('.dmn-sim-field .dmn-sim-input')
+    for (const [index, value] of this.#options.decisionInputs.entries()) {
+      const control = controls.nth(index)
+      const options = await control.evaluate((element) => [...(element.options ?? [])].map((option) => option.value))
+      if (options.length) await control.selectOption(options.find((option) => option.replaceAll('"', '') === value))
+      else await control.fill(value)
+    }
+    await frame.locator('.dmn-sim-run').click()
   }
 
   async #hero(window) {

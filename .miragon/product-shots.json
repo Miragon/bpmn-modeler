@@ -1,5 +1,5 @@
 {
-  "skillVersion": "1.28.0",
+  "skillVersion": "1.29.0",
   "orca": {
     "folder": "order-service",
     "themes": [
@@ -23,7 +23,12 @@
         "process": "order-fulfilment.bpmn",
         "selectId": "Task_Pack",
         "linting": "return-handling.bpmn",
-        "decision": "shipping.dmn"
+        "decision": "shipping.dmn",
+        "decisionInputs": [
+          "DE",
+          "3",
+          "true"
+        ]
       }
     },
     {
@@ -34,7 +39,7 @@
       "icon": "apps/intellij-plugin/src/main/resources/META-INF/pluginIcon.svg",
       "out": "docs/public/shots/intellij",
       "intellij": {
-        "plugin": "io.miragon.bpmn-modeler",
+        "plugin": "apps/intellij-plugin/build/distributions/bpmn-modeler-intellij-plugin-*.zip",
         "project": ".miragon/product-shots/order-service",
         "themes": [
           "light"
@@ -91,8 +96,8 @@
             "act": [
               {
                 "click": [
-                  501,
-                  488
+                  471,
+                  439
                 ]
               },
               {
@@ -109,14 +114,14 @@
             "act": [
               {
                 "click": [
-                  99,
+                  98,
                   34
                 ]
               },
               {
                 "click": [
-                  103,
-                  469
+                  121,
+                  421
                 ]
               },
               {
@@ -128,12 +133,6 @@
             "name": "linting",
             "example": "return-handling.bpmn",
             "act": [
-              {
-                "click": [
-                  881,
-                  554
-                ]
-              },
               {
                 "key": "Shift"
               },
@@ -148,7 +147,43 @@
             "act": [
               {
                 "click": [
-                  264,
+                  265,
+                  114
+                ]
+              },
+              {
+                "key": "Shift"
+              },
+              {
+                "click": [
+                  252,
+                  114
+                ]
+              },
+              {
+                "key": "3"
+              },
+              {
+                "click": [
+                  424,
+                  114
+                ]
+              },
+              {
+                "key": "t"
+              },
+              {
+                "key": "r"
+              },
+              {
+                "key": "u"
+              },
+              {
+                "key": "e"
+              },
+              {
+                "click": [
+                  561,
                   113
                 ]
               },

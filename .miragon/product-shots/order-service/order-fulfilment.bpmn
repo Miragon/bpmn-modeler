@@ -5,16 +5,22 @@
     <bpmn:serviceTask id="Task_Stock" name="Check stock"><bpmn:extensionElements><zeebe:taskDefinition type="check-stock" /></bpmn:extensionElements><bpmn:incoming>F1</bpmn:incoming><bpmn:outgoing>F2</bpmn:outgoing></bpmn:serviceTask>
     <bpmn:exclusiveGateway id="Gateway_Stock" name="In stock?"><bpmn:incoming>F2</bpmn:incoming><bpmn:outgoing>F_Yes</bpmn:outgoing><bpmn:outgoing>F_No</bpmn:outgoing></bpmn:exclusiveGateway>
     <bpmn:userTask id="Task_Pack" name="Pack order"><bpmn:extensionElements><zeebe:userTask /><zeebe:formDefinition externalReference="forms/pack-order" /></bpmn:extensionElements><bpmn:incoming>F_Yes</bpmn:incoming><bpmn:outgoing>F3</bpmn:outgoing></bpmn:userTask>
-    <bpmn:serviceTask id="Task_Ship" name="Ship order"><bpmn:extensionElements><zeebe:taskDefinition type="ship-order" /></bpmn:extensionElements><bpmn:incoming>F3</bpmn:incoming><bpmn:outgoing>F4</bpmn:outgoing></bpmn:serviceTask>
+    <bpmn:parallelGateway id="Gateway_Split"><bpmn:incoming>F3</bpmn:incoming><bpmn:outgoing>F_Ship</bpmn:outgoing><bpmn:outgoing>F_Invoice</bpmn:outgoing></bpmn:parallelGateway>
+    <bpmn:serviceTask id="Task_Ship" name="Ship order"><bpmn:extensionElements><zeebe:taskDefinition type="ship-order" /></bpmn:extensionElements><bpmn:incoming>F_Ship</bpmn:incoming><bpmn:outgoing>F4</bpmn:outgoing></bpmn:serviceTask>
     <bpmn:endEvent id="End_Shipped" name="Order shipped"><bpmn:incoming>F4</bpmn:incoming></bpmn:endEvent>
+    <bpmn:serviceTask id="Task_Invoice" name="Send invoice"><bpmn:extensionElements><zeebe:taskDefinition type="send-invoice" /></bpmn:extensionElements><bpmn:incoming>F_Invoice</bpmn:incoming><bpmn:outgoing>F6</bpmn:outgoing></bpmn:serviceTask>
+    <bpmn:endEvent id="End_Invoiced" name="Invoice sent"><bpmn:incoming>F6</bpmn:incoming></bpmn:endEvent>
     <bpmn:sendTask id="Task_Inform" name="Inform customer"><bpmn:extensionElements><zeebe:taskDefinition type="inform-customer" /></bpmn:extensionElements><bpmn:incoming>F_No</bpmn:incoming><bpmn:outgoing>F5</bpmn:outgoing></bpmn:sendTask>
     <bpmn:endEvent id="End_Cancelled" name="Order cancelled"><bpmn:incoming>F5</bpmn:incoming></bpmn:endEvent>
     <bpmn:sequenceFlow id="F1" sourceRef="Start_Order" targetRef="Task_Stock" />
     <bpmn:sequenceFlow id="F2" sourceRef="Task_Stock" targetRef="Gateway_Stock" />
     <bpmn:sequenceFlow id="F_Yes" name="yes" sourceRef="Gateway_Stock" targetRef="Task_Pack"><bpmn:conditionExpression>=inStock</bpmn:conditionExpression></bpmn:sequenceFlow>
     <bpmn:sequenceFlow id="F_No" name="no" sourceRef="Gateway_Stock" targetRef="Task_Inform"><bpmn:conditionExpression>=not(inStock)</bpmn:conditionExpression></bpmn:sequenceFlow>
-    <bpmn:sequenceFlow id="F3" sourceRef="Task_Pack" targetRef="Task_Ship" />
+    <bpmn:sequenceFlow id="F3" sourceRef="Task_Pack" targetRef="Gateway_Split" />
+    <bpmn:sequenceFlow id="F_Ship" sourceRef="Gateway_Split" targetRef="Task_Ship" />
+    <bpmn:sequenceFlow id="F_Invoice" sourceRef="Gateway_Split" targetRef="Task_Invoice" />
     <bpmn:sequenceFlow id="F4" sourceRef="Task_Ship" targetRef="End_Shipped" />
+    <bpmn:sequenceFlow id="F6" sourceRef="Task_Invoice" targetRef="End_Invoiced" />
     <bpmn:sequenceFlow id="F5" sourceRef="Task_Inform" targetRef="End_Cancelled" />
   </bpmn:process>
   <bpmndi:BPMNDiagram id="Diagram_Showcase">
@@ -23,17 +29,23 @@
       <bpmndi:BPMNShape id="Task_Stock_di" bpmnElement="Task_Stock"><dc:Bounds x="240" y="160" width="100" height="80" /></bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Gateway_Stock_di" bpmnElement="Gateway_Stock" isMarkerVisible="true"><dc:Bounds x="395" y="175" width="50" height="50" /><bpmndi:BPMNLabel><dc:Bounds x="397" y="151" width="46" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Task_Pack_di" bpmnElement="Task_Pack"><dc:Bounds x="500" y="160" width="100" height="80" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Task_Ship_di" bpmnElement="Task_Ship"><dc:Bounds x="660" y="160" width="100" height="80" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="End_Shipped_di" bpmnElement="End_Shipped"><dc:Bounds x="822" y="182" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="806" y="225" width="69" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Task_Inform_di" bpmnElement="Task_Inform"><dc:Bounds x="500" y="300" width="100" height="80" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="End_Cancelled_di" bpmnElement="End_Cancelled"><dc:Bounds x="662" y="322" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="641" y="365" width="79" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_Split_di" bpmnElement="Gateway_Split"><dc:Bounds x="655" y="175" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Ship_di" bpmnElement="Task_Ship"><dc:Bounds x="760" y="160" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_Shipped_di" bpmnElement="End_Shipped"><dc:Bounds x="922" y="182" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="906" y="225" width="69" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Invoice_di" bpmnElement="Task_Invoice"><dc:Bounds x="760" y="300" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_Invoiced_di" bpmnElement="End_Invoiced"><dc:Bounds x="922" y="322" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="910" y="365" width="61" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Inform_di" bpmnElement="Task_Inform"><dc:Bounds x="500" y="430" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_Cancelled_di" bpmnElement="End_Cancelled"><dc:Bounds x="662" y="452" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="641" y="495" width="79" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
       <bpmndi:BPMNEdge id="F1_di" bpmnElement="F1"><di:waypoint x="188" y="200" /><di:waypoint x="240" y="200" /></bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="F2_di" bpmnElement="F2"><di:waypoint x="340" y="200" /><di:waypoint x="395" y="200" /></bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="F_Yes_di" bpmnElement="F_Yes"><di:waypoint x="445" y="200" /><di:waypoint x="500" y="200" /><bpmndi:BPMNLabel><dc:Bounds x="463" y="182" width="18" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="F_No_di" bpmnElement="F_No"><di:waypoint x="420" y="225" /><di:waypoint x="420" y="340" /><di:waypoint x="500" y="340" /><bpmndi:BPMNLabel><dc:Bounds x="429" y="280" width="14" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="F3_di" bpmnElement="F3"><di:waypoint x="600" y="200" /><di:waypoint x="660" y="200" /></bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="F4_di" bpmnElement="F4"><di:waypoint x="760" y="200" /><di:waypoint x="822" y="200" /></bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="F5_di" bpmnElement="F5"><di:waypoint x="600" y="340" /><di:waypoint x="662" y="340" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F_No_di" bpmnElement="F_No"><di:waypoint x="420" y="225" /><di:waypoint x="420" y="470" /><di:waypoint x="500" y="470" /><bpmndi:BPMNLabel><dc:Bounds x="429" y="340" width="14" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F3_di" bpmnElement="F3"><di:waypoint x="600" y="200" /><di:waypoint x="655" y="200" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F_Ship_di" bpmnElement="F_Ship"><di:waypoint x="705" y="200" /><di:waypoint x="760" y="200" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F_Invoice_di" bpmnElement="F_Invoice"><di:waypoint x="680" y="225" /><di:waypoint x="680" y="340" /><di:waypoint x="760" y="340" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F4_di" bpmnElement="F4"><di:waypoint x="860" y="200" /><di:waypoint x="922" y="200" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F6_di" bpmnElement="F6"><di:waypoint x="860" y="340" /><di:waypoint x="922" y="340" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F5_di" bpmnElement="F5"><di:waypoint x="600" y="470" /><di:waypoint x="662" y="470" /></bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>
 </bpmn:definitions>

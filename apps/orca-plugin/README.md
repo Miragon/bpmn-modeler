@@ -39,13 +39,13 @@ have unsaved edits, Orca asks whether to reload the file or keep yours.
 properties panel. Run the token simulation to watch a process step by step, and let linting point
 at what an engine would reject.
 
-![The order fulfilment process in token simulation, a token between Pack order and Ship order and the log listing In stock? and Pack order](images/feature-simulation.webp)
+![The order fulfilment process in token simulation, a token waiting after Pack order and the log listing In stock? and Pack order](images/feature-simulation.webp)
 
 ![return-handling.bpmn with red error markers on a service task without a job type and on two flows without a condition](images/feature-linting.webp)
 
 ## Model decisions
 
-![The Choose carrier decision table from shipping.dmn: country and weight in, carrier and cost out, with fields to simulate the decision above it](images/feature-dmn.webp)
+![The Choose carrier decision table from shipping.dmn, simulated for a 3 kg express parcel without a country: rule 8 is highlighted and the result reads UPS Express for 39](images/feature-dmn.webp)
 
 `.dmn` files open with the decision requirements diagram, decision tables, literal and boxed
 expressions, the properties panel and the decision simulation.
