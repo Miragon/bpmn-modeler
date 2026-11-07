@@ -144,6 +144,8 @@ describe("the fitness command", () => {
             ["--capped-out", "/tmp/c.md", "--max-characters", "100"],
             "--capped-out needs --changes-only",
         ],
+        [["--capped-out", "/tmp/c.md"], "--capped-out needs --changes-only"],
+        [["--max-characters", "100"], "--max-characters needs --changes-only"],
         [
             ["--changes-only", "--capped-out", "/tmp/c.md"],
             "--capped-out and --max-characters go together",

@@ -64,8 +64,11 @@ function parseChangesOptions(
         if (headLabel !== undefined) {
             throw new UsageError("--head-label needs --changes-only");
         }
-        if (cappedOut !== undefined || maxCharacters !== undefined) {
+        if (cappedOut !== undefined) {
             throw new UsageError("--capped-out needs --changes-only");
+        }
+        if (maxCharacters !== undefined) {
+            throw new UsageError("--max-characters needs --changes-only");
         }
         return undefined;
     }
