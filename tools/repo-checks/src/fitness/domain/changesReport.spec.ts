@@ -382,6 +382,29 @@ describe("the capped changes report", () => {
         );
     });
 
+    it("keeps the largest row cap that fits, though a left-out note outweighs a short row", () => {
+        const shortRows = (id: string, count: number): Measured => ({
+            fitnessFunction: fakeFitnessFunction({}, { id }),
+            head: {
+                findings: Array.from({ length: count }, (_, index) => ({
+                    ...finding(`${id}${index}`),
+                    message: "x",
+                })),
+            },
+            base: { findings: [] },
+        });
+        const shortReport = reportOf([shortRows("big", 5), shortRows("s", 2)]);
+        const longest = changesReport(shortReport).length;
+        const checked = Array.from({ length: longest - 300 }, (_, index) =>
+            changesReport(shortReport, { maxCharacters: 300 + index }),
+        ).filter((markdown) => !markdown.includes("do not fit in"));
+
+        expect(checked.length).toBeGreaterThan(0);
+        for (const markdown of checked) {
+            expect(changesReport(shortReport, { maxCharacters: markdown.length })).toBe(markdown);
+        }
+    });
+
     it("says that the changes do not fit when not even the counts do", () => {
         expect(changesReport(report, { maxCharacters: 300 })).toBe(
             [
@@ -403,6 +426,9 @@ describe("the capped changes report", () => {
         const lines = markdown.split("\n");
 
         expect(markdown.length).toBeLessThanOrEqual(maxCharacters);
+        if (!markdown.includes("do not fit in")) {
+            expect(changesReport(report, { maxCharacters: markdown.length })).toBe(markdown);
+        }
         expect(lines[0]).toBe("<!-- fitness-changes: some -->");
         expect(markdown.match(/<details>/g)?.length).toBe(markdown.match(/<\/details>/g)?.length);
         lines.forEach((line, index) => {

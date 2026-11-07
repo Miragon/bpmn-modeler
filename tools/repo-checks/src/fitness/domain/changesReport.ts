@@ -198,25 +198,20 @@ function render(
     return `${lines.join("\n")}\n`;
 }
 
-/** The largest row cap whose text fits, by bisection: the text grows with the cap. */
+/**
+ * Scans down, not by bisection: one cap lower can lengthen the text, since every function with
+ * exactly that many more rows gains a left-out note that may outweigh its last row.
+ */
 function largestFittingRowCap(
     fits: (rowsPerFunction: number) => boolean,
     mostRows: number,
 ): number | undefined {
-    if (!fits(0)) {
-        return undefined;
-    }
-    let fitting = 0;
-    let tooMany = mostRows + 1;
-    while (tooMany - fitting > 1) {
-        const middle = Math.floor((fitting + tooMany) / 2);
-        if (fits(middle)) {
-            fitting = middle;
-        } else {
-            tooMany = middle;
+    for (let rowsPerFunction = mostRows; rowsPerFunction >= 0; rowsPerFunction--) {
+        if (fits(rowsPerFunction)) {
+            return rowsPerFunction;
         }
     }
-    return fitting;
+    return undefined;
 }
 
 /** Only the new and resolved rows per fitness function; the full report holds the existing ones. */

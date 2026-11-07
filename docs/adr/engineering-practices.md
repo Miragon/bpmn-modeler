@@ -690,11 +690,14 @@ blocks a merge, and findings never fail it.
   65,536-character comment limit with room for the marker. The cap gives every
   function the same row limit, the largest that fits, keeping new rows before
   resolved ones; then it leaves out the declarations, and as a last resort it
-  prints only a note. A capped section ends with the number of rows left out
-  and a pointer to the job summary, and no table or `<details>` is cut. A
-  spec checks the length and the Markdown over 40 budgets. Measured against
-  `a2e5e8ee` (#1867), 250 first-parent commits before `8bfb20fc`, the summary
-  held 771 rows in 170,267 characters and the comment 122 rows in 58,683.
+  prints only a note. It scans the limits down from the most rows instead of
+  bisecting, since one row fewer can lengthen the text. A capped section ends
+  with the number of rows left out and a pointer to the job summary, and no
+  table or `<details>` is cut. A spec checks the length and the Markdown over
+  40 budgets, and that a capped text's own length gives it back. Measured
+  against `a2e5e8ee` (#1867), 250 first-parent commits before `8bfb20fc`, the
+  summary held 771 rows in 170,267 characters and the comment 122 rows in
+  58,683.
 - **Permissions.** The workflow grants `contents: read`. The `report` job runs
   the PR's code, which can change `tools/repo-checks`, uploads the comment as
   an artifact and writes nothing else. The `comment` job adds only
