@@ -10,6 +10,9 @@ import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
+import java.io.OutputStream
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 
@@ -526,5 +529,38 @@ class RpcChannelTest {
         channel.attach(respawned.outputStream, respawned.inputStream)
 
         respawned.expectNoFrame(500)
+    }
+
+    // The EDT asks this before it shows a notice, so a bridge that stops reading its stdin must not freeze it.
+    @Test
+    fun `tells whether a request's process is attached while a write to that process is stuck`() {
+        val requestIds = LinkedBlockingQueue<CoreRequestId>()
+        val channel = rpcChannel { _, _, requestId -> requestId?.let(requestIds::add) }
+        val stdout = fakeProcess()
+        val writeStuck = CountDownLatch(1)
+        val releaseWrite = CountDownLatch(1)
+        val unreadStdin =
+            object : OutputStream() {
+                override fun write(b: Int) = write(byteArrayOf(b.toByte()), 0, 1)
+
+                override fun write(b: ByteArray, off: Int, len: Int) {
+                    writeStuck.countDown()
+                    releaseWrite.await()
+                }
+            }
+        try {
+            channel.attach(unreadStdin, stdout.inputStream)
+            stdout.emit("""{"method":"actionNotice/show","params":{},"id":1}""")
+            val requestId = requestIds.poll(2, TimeUnit.SECONDS)!!
+            channel.notify(HostToCoreMethod.SESSION_SET_ACTIVE, mapOf("v" to 1))
+            assertTrue(writeStuck.await(2, TimeUnit.SECONDS))
+
+            val attached = CompletableFuture<Boolean>()
+            Thread { attached.complete(channel.isFromAttachedProcess(requestId)) }.start()
+
+            assertTrue(attached.get(2, TimeUnit.SECONDS))
+        } finally {
+            releaseWrite.countDown()
+        }
     }
 }

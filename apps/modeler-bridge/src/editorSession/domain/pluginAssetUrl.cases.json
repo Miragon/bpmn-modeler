@@ -1,0 +1,74 @@
+{
+    "mapped": [
+        {
+            "cacheRoot": "/home/u/.cache/JetBrains/IdeaIC2024.2/miragon-bpmn-modeler/bpmn-plugins",
+            "path": "/home/u/.cache/JetBrains/IdeaIC2024.2/miragon-bpmn-modeler/bpmn-plugins/e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855/plugin.js",
+            "url": "/bpmn-plugins/e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855/plugin.js"
+        },
+        {
+            "cacheRoot": "/home/u/.cache/JetBrains/IdeaIC2024.2/miragon-bpmn-modeler/bpmn-plugins",
+            "path": "/home/u/.cache/JetBrains/IdeaIC2024.2/miragon-bpmn-modeler/bpmn-plugins/e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855/plugin.css",
+            "url": "/bpmn-plugins/e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855/plugin.css"
+        },
+        {
+            "cacheRoot": "C:\\Users\\u\\AppData\\Local\\JetBrains\\IdeaIC2024.2\\miragon-bpmn-modeler\\bpmn-plugins",
+            "path": "C:/Users/u/AppData/Local/JetBrains/IdeaIC2024.2/miragon-bpmn-modeler/bpmn-plugins/e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855/plugin.js",
+            "url": "/bpmn-plugins/e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855/plugin.js"
+        }
+    ],
+    "unmapped": [
+        {
+            "cacheRoot": "/home/u/.cache/JetBrains/IdeaIC2024.2/miragon-bpmn-modeler/bpmn-plugins",
+            "path": "/home/u/.cache/JetBrains/IdeaIC2024.2/other/e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855/plugin.js"
+        },
+        {
+            "cacheRoot": "/home/u/.cache/JetBrains/IdeaIC2024.2/miragon-bpmn-modeler/bpmn-plugins",
+            "path": "/home/u/.cache/JetBrains/IdeaIC2024.2/miragon-bpmn-modeler/bpmn-plugins"
+        },
+        {
+            "cacheRoot": "/home/u/.cache/JetBrains/IdeaIC2024.2/miragon-bpmn-modeler/bpmn-plugins",
+            "path": "/home/u/.cache/JetBrains/IdeaIC2024.2/miragon-bpmn-modeler/bpmn-plugins2/e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855/plugin.js"
+        },
+        {
+            "cacheRoot": "/home/u/.cache/JetBrains/IdeaIC2024.2/miragon-bpmn-modeler/bpmn-plugins",
+            "path": "/home/u/.cache/JetBrains/IdeaIC2024.2/miragon-bpmn-modeler/bpmn-plugins/e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855/sub/plugin.js"
+        },
+        {
+            "cacheRoot": "/home/u/.cache/JetBrains/IdeaIC2024.2/miragon-bpmn-modeler/bpmn-plugins",
+            "path": "/home/u/.cache/JetBrains/IdeaIC2024.2/miragon-bpmn-modeler/bpmn-plugins/e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855/plugin.mjs"
+        },
+        {
+            "cacheRoot": "/home/u/.cache/JetBrains/IdeaIC2024.2/miragon-bpmn-modeler/bpmn-plugins",
+            "path": "/home/u/.cache/JetBrains/IdeaIC2024.2/miragon-bpmn-modeler/bpmn-plugins/E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855/plugin.js"
+        },
+        {
+            "cacheRoot": "/home/u/.cache/JetBrains/IdeaIC2024.2/miragon-bpmn-modeler/bpmn-plugins",
+            "path": "/home/u/.cache/JetBrains/IdeaIC2024.2/miragon-bpmn-modeler/bpmn-plugins/e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b85/plugin.js"
+        },
+        {
+            "cacheRoot": "/home/u/.cache/JetBrains/IdeaIC2024.2/miragon-bpmn-modeler/bpmn-plugins",
+            "path": "/home/u/.cache/JetBrains/IdeaIC2024.2/miragon-bpmn-modeler/bpmn-plugins/e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855/../x/plugin.js"
+        },
+        {
+            "cacheRoot": "/home/u/.cache/JetBrains/IdeaIC2024.2/miragon-bpmn-modeler/bpmn-plugins",
+            "path": "/home/u/.cache/JetBrains/IdeaIC2024.2/miragon-bpmn-modeler/bpmn-plugins/ae3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855/plugin.js"
+        },
+        {
+            "cacheRoot": "/home/u/.cache/JetBrains/IdeaIC2024.2/miragon-bpmn-modeler/bpmn-plugins",
+            "path": "/home/u/.cache/JetBrains/IdeaIC2024.2/miragon-bpmn-modeler/bpmn-plugins/e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855/plugin.jsx"
+        }
+    ],
+    "refusedUrls": [
+        "/bpmn-plugins/E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855/plugin.js",
+        "/bpmn-plugins/e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b85/plugin.js",
+        "/bpmn-plugins/e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855/plugin.mjs",
+        "/bpmn-plugins/e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855/../plugin.js",
+        "/bpmn-plugins/%2e%2e/plugin.js",
+        "/bpmn-plugins/e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855%2Fplugin.js",
+        "/bpmn-plugins/e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855/plugin.js/",
+        "/bpmn-plugins/e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855//plugin.js",
+        "/bpmn-plugins/e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855/sub/plugin.js",
+        "/bpmn-plugins/e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "/bpmn-plugins/"
+    ]
+}

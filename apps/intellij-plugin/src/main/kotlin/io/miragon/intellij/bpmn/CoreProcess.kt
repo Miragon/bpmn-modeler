@@ -75,7 +75,10 @@ class CoreProcess(private val project: Project) : Disposable {
             onRespawned = { routers.editor.reregisterLiveSessions() },
             // Clear any in-flight spinner on a crash so it can't hang waiting on a
             // progressEnd the dead core will never send.
-            onProcessDown = { routers.hostUi.clearProgress() },
+            onProcessDown = {
+                routers.hostUi.clearProgress()
+                routers.hostUi.expireActionNotices()
+            },
         )
     private val deps =
         BridgeDeps(
@@ -155,6 +158,9 @@ class CoreProcess(private val project: Project) : Disposable {
 
     /** Pushes the current settings snapshot to the running core so an open editor reacts live. */
     fun pushSettings() = routers.editor.pushSettings()
+
+    /** Mirrors the stored plugin approvals into the running core. */
+    fun pushPluginApprovals() = routers.pluginApprovals.push()
 
     /**
      * Soft-reloads every open modeler by re-registering its live session (re-seeds
@@ -248,6 +254,7 @@ class CoreProcess(private val project: Project) : Disposable {
         // dispose() sets `disposed`, so handleExit skips onProcessDown on the
         // project-close path; clear spinners here so none survives the teardown.
         routers.hostUi.clearProgress()
+        routers.hostUi.expireActionNotices()
         routers.editor.clear()
         routers.diff.clear()
         routers.deployment.clear()

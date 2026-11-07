@@ -20,6 +20,8 @@
 import { Command, Query } from "@miragon/bpmn-modeler-shared";
 
 import {
+    ActionNoticeShowParams,
+    ActionNoticeShowResult,
     BasicAuthCredentials,
     ClipboardReadResult,
     ClipboardWriteParams,
@@ -57,6 +59,7 @@ import {
     ConfirmShowResult,
     PickerShowParams,
     PickerShowResult,
+    PluginApprovalsParams,
     RegisterParams,
     SecretApprovedDestinations,
     SecretDeleteParams,
@@ -151,6 +154,7 @@ export const METHODS = {
     deploymentDeployActive: "deployment/deployActive",
     deploymentVerify: "deployment/verify",
     deploymentStatusBarMenu: "deployment/statusBarMenu",
+    pluginApprovalsDidChange: "pluginApprovals/didChange",
 
     // Core → Host requests
     documentWrite: "document/write",
@@ -174,9 +178,12 @@ export const METHODS = {
     tokenStoreSet: "tokenStore/set",
     tokenPromptShow: "tokenPrompt/show",
     settingsSetLintingEnabled: "settings/setLintingEnabled",
+    actionNoticeShow: "actionNotice/show",
+    pluginApprovalsSave: "pluginApprovals/save",
 
     // Core → Host notifications
     editorPostMessage: "editor/postMessage",
+    editorReload: "editor/reload",
     clipboardWrite: "clipboard/write",
     notifierShowInfo: "notifier/showInfo",
     notifierShowWarning: "notifier/showWarning",
@@ -202,6 +209,11 @@ export const METHODS = {
 const SAMPLE_COMMAND: Command = { type: "GetBpmnFileCommand" };
 const SAMPLE_QUERY: Query = { type: "FormDefaultsQuery" };
 
+const PLUGIN_APPROVAL_SAMPLE = {
+    pluginId: "/ws/.camunda/plugins/resize-tasks",
+    contentHash: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+};
+
 /**
  * Every RPC method, in a fixed order. `paramsFixture`/`resultFixture` are bound
  * to their named types via `satisfies` (compile-time drift guard); `as const`
@@ -225,6 +237,7 @@ export const PROTOCOL = [
             workspaceRoot: "/repo",
             content: "<bpmn/>",
             settings: {},
+            pluginApprovals: [PLUGIN_APPROVAL_SAMPLE],
         } satisfies RegisterParams,
     },
     {
@@ -413,6 +426,12 @@ export const PROTOCOL = [
         direction: "hostToCore",
         kind: "notification",
         paramsFixture: { workspaceRoot: "/repo" } satisfies DeploymentWorkspaceRootParams,
+    },
+    {
+        method: METHODS.pluginApprovalsDidChange,
+        direction: "hostToCore",
+        kind: "notification",
+        paramsFixture: { approvals: [PLUGIN_APPROVAL_SAMPLE] } satisfies PluginApprovalsParams,
     },
 
     // ── Core → Host requests ─────────────────────────────────────────────────
@@ -691,6 +710,28 @@ export const PROTOCOL = [
         replyWait: "hostWork",
         paramsFixture: { enabled: false } satisfies SettingsSetLintingEnabledParams,
     },
+    {
+        method: METHODS.actionNoticeShow,
+        direction: "coreToHost",
+        kind: "request",
+        replyWait: "prompt",
+        paramsFixture: {
+            tone: "info",
+            message: "1 BPMN plugin in this workspace is not allowed yet.",
+            labels: ["Review…"],
+        } satisfies ActionNoticeShowParams,
+        // `chosen` is absent when the user dismissed the notification.
+        resultFixture: { chosen: 0 } satisfies ActionNoticeShowResult,
+    },
+    // Acknowledged write: the host stores the list, pushes it to every running
+    // bridge in `pluginApprovals/didChange`, then acks an empty reply.
+    {
+        method: METHODS.pluginApprovalsSave,
+        direction: "coreToHost",
+        kind: "request",
+        replyWait: "syncedWrite",
+        paramsFixture: { approvals: [PLUGIN_APPROVAL_SAMPLE] } satisfies PluginApprovalsParams,
+    },
 
     // ── Core → Host notifications ────────────────────────────────────────────
     {
@@ -702,6 +743,12 @@ export const PROTOCOL = [
             sessionId: 1,
             message: SAMPLE_QUERY,
         } satisfies EditorPostMessageParams,
+    },
+    {
+        method: METHODS.editorReload,
+        direction: "coreToHost",
+        kind: "notification",
+        paramsFixture: { editorId: "e1", sessionId: 1 } satisfies EditorRefParams,
     },
     {
         method: METHODS.clipboardWrite,

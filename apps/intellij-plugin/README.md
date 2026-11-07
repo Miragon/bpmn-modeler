@@ -113,6 +113,40 @@ does not answer is saved as it is. See
   (`linting/toggle`), or the deployment menu. `StatusSlotPlacementTest` fails
   when the core's `statusView.ts` gains a slot, icon, tone or action without a
   Kotlin counterpart.
+- **ActionNotifier → a balloon with one action per label** (`actionNotice/show`,
+  `HostNotifications.actionNotice`). The reply carries the chosen label's index,
+  or none once the notice expires unanswered (cleared from the Notifications
+  tool window); a balloon closed with its X stays there and can still be
+  answered. `ActionNoticeToneTest` holds the tones to the core's
+  `ACTION_NOTICE_TONES`.
+
+### Workspace bpmn-js plugins
+
+The core finds plugins in the workspace, asks through the action notice and
+the picker, and copies approved ones into a content-addressed cache under
+`<IDE system dir>/miragon-bpmn-modeler/bpmn-plugins` (`BpmnPluginCache`, passed
+to the bridge as `MIRAGON_BPMN_PLUGIN_CACHE`). The host's part:
+
+- **Approvals** live in `PluginApprovalStore`, one application value under
+  `miragon.bpmnModeler.pluginApprovals`, never in a project file. They reach
+  the bridge on every `session/register` and through `pluginApprovals/didChange`
+  after a `pluginApprovals/save`, which every running bridge gets.
+- **Serving.** `WebviewServer` answers `/bpmn-plugins/<64 hex>/plugin.js|plugin.css`
+  from the cache, matched before decoding (`WebviewRoute`), with no symbolic
+  link and no path outside the cache (`PluginAssetFile`); anything else under
+  `/bpmn-plugins/` is a 404. The shell's CSP (`script-src 'self'`) already
+  admits these same-origin files. `WebviewRouteTest` runs the bridge's
+  `pluginAssetUrl.cases.json` rows.
+- **Reload.** A page asks for its plugins only while it boots, so after an
+  approval the core sends `editor/reload`: the host writes the page's unsynced
+  edit into the `Document`, re-registers the session and reloads the page.
+- **Shim.** The page's own wiring is single-use: `acquireVsCodeApi()` hands
+  out its API once, `__modelerSetSink` deletes itself on its first call, and
+  the sink script (`WebviewSinkScript`) captures the `JBCefJSQuery` function
+  once instead of looking up its global per message. That stops accidental
+  reuse, not an approved plugin: CEF keeps the `cefQuery_…` function on
+  `window`, so a plugin can still post to the JVM and the bridge. A plugin has
+  the page's full authority, as in VS Code; approval is the control.
 
 ## Build & run
 
@@ -230,7 +264,7 @@ modeler core or the bridge.
 ## Scope
 
 BPMN editor + element templates + Notifier/StatusBar, plus diff, deployment, the
-inline "Edit Script" tab, and the template marketplace (Tools ▸ Add / Update
+inline "Edit Script" tab, approved workspace bpmn-js plugins, and the template marketplace (Tools ▸ Add / Update
 Template Marketplace; the source list is edited on the Settings page, per-host
 PATs live in `PasswordSafe`). DMN has no IntelliJ editor yet.
 

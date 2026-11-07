@@ -21,3 +21,11 @@ internal fun pushSettingsToRunningBridges() {
     }
     ApplicationManager.getApplication().messageBus.syncPublisher(ModelerSettingsListener.TOPIC).settingsChanged()
 }
+
+/** Mirrors the stored plugin approvals into every bridge that runs, as [pushSettingsToRunningBridges] does the settings. */
+internal fun pushPluginApprovalsToRunningBridges() {
+    for (project in ProjectManager.getInstance().openProjects) {
+        if (project.isDisposed) continue
+        project.getServiceIfCreated(CoreProcess::class.java)?.pushPluginApprovals()
+    }
+}

@@ -9,6 +9,7 @@
             "editorId",
             "fsPath",
             "path",
+            "pluginApprovals",
             "scheme",
             "sessionId",
             "settings",
@@ -185,6 +186,12 @@
         "paramKeys": ["workspaceRoot"]
     },
     {
+        "method": "pluginApprovals/didChange",
+        "direction": "hostToCore",
+        "kind": "notification",
+        "paramKeys": ["approvals"]
+    },
+    {
         "method": "document/write",
         "direction": "coreToHost",
         "kind": "request",
@@ -331,10 +338,29 @@
         "paramKeys": ["enabled"]
     },
     {
+        "method": "actionNotice/show",
+        "direction": "coreToHost",
+        "kind": "request",
+        "paramKeys": ["labels", "message", "tone"],
+        "resultKeys": ["chosen"]
+    },
+    {
+        "method": "pluginApprovals/save",
+        "direction": "coreToHost",
+        "kind": "request",
+        "paramKeys": ["approvals"]
+    },
+    {
         "method": "editor/postMessage",
         "direction": "coreToHost",
         "kind": "notification",
         "paramKeys": ["editorId", "message", "sessionId"]
+    },
+    {
+        "method": "editor/reload",
+        "direction": "coreToHost",
+        "kind": "notification",
+        "paramKeys": ["editorId", "sessionId"]
     },
     {
         "method": "clipboard/write",

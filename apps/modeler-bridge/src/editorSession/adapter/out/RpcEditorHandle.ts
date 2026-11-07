@@ -3,8 +3,14 @@ import { DocumentChangeEvent, EditorSubscription, SettingChange } from "@miragon
 import { BridgeSettings } from "../../../kernel/adapter/out/BridgeSettings";
 import { Rpc } from "../../../transport/adapter/out/Rpc";
 import { METHODS } from "../../../protocol/domain/descriptor";
-import { DocumentSaveResult, DocumentWriteResult, SessionMeta } from "../../../protocol/domain/types";
+import {
+    DocumentSaveResult,
+    DocumentWriteResult,
+    EditorRefParams,
+    SessionMeta,
+} from "../../../protocol/domain/types";
 import { DocumentMirror } from "../../domain/DocumentMirror";
+import { pluginAssetUrlOf } from "../../domain/pluginAssetUrl";
 import { HostEditorHandle } from "../../port/HostEditorHandle";
 
 /**
@@ -32,6 +38,7 @@ export class RpcEditorHandle implements HostEditorHandle {
         private readonly mirror: DocumentMirror,
         private readonly rpc: Rpc,
         private readonly settings: BridgeSettings,
+        private readonly pluginCacheRoot: string,
     ) {
         this.id = meta.editorId;
     }
@@ -87,6 +94,26 @@ export class RpcEditorHandle implements HostEditorHandle {
             message,
         });
         return true;
+    }
+
+    /**
+     * The page reloads in full: it asks for its plugins once, before it builds
+     * the modeler, so a newly approved plugin needs a fresh page.
+     */
+    reload(): void {
+        this.rpc.notify(METHODS.editorReload, {
+            editorId: this.id,
+            sessionId: this.meta.sessionId,
+        } satisfies EditorRefParams);
+    }
+
+    /** @throws for a path that is no plugin file below the cache: the core passes only cached files. */
+    webviewUrlOf(path: string): string {
+        const url = pluginAssetUrlOf(this.pluginCacheRoot, path);
+        if (url === undefined) {
+            throw new Error(`${path} is not a plugin file below the plugin cache`);
+        }
+        return url;
     }
 
     isActive(): boolean {

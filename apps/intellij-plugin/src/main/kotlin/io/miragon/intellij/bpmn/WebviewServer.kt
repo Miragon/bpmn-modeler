@@ -9,6 +9,8 @@ import com.sun.net.httpserver.HttpServer
 import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.nio.charset.StandardCharsets
+import java.nio.file.Files
+import java.nio.file.Path
 import java.util.concurrent.Executors
 
 /**
@@ -27,10 +29,12 @@ import java.util.concurrent.Executors
  *
  * A single application-level instance serves every editor (in every project):
  * the static bundle is identical across files, and all per-file data flows over
- * the JCEF message bridge, never over HTTP.
+ * the JCEF message bridge, never over HTTP. The one exception is the files of
+ * approved workspace plugins, which it reads from [pluginCacheRoot] under
+ * `/bpmn-plugins/<hash>/plugin.js|plugin.css`.
  */
 @Service(Service.Level.APP)
-class WebviewServer : Disposable {
+class WebviewServer(private val pluginCacheRoot: Path = BpmnPluginCache.root()) : Disposable {
     private val log = Logger.getInstance(WebviewServer::class.java)
 
     private var server: HttpServer? = null
@@ -90,17 +94,19 @@ class WebviewServer : Disposable {
 
     private fun handle(exchange: HttpExchange) {
         try {
-            val path = exchange.requestURI.path
+            val path = exchange.requestURI.rawPath
             when (val route = WebviewRoute.forPath(path)) {
                 WebviewRoute.BpmnShell -> respondHtml(exchange, indexHtml(), WebviewContentSecurityPolicy.BPMN_SHELL)
                 WebviewRoute.DeploymentShell ->
                     respondHtml(exchange, deploymentHtml(), WebviewContentSecurityPolicy.DEPLOYMENT_SHELL)
                 WebviewRoute.TemplatePreviewShell ->
                     respondHtml(exchange, templatePreviewHtml(), WebviewContentSecurityPolicy.BPMN_SHELL)
+                is WebviewRoute.PluginAsset -> respondPluginAsset(exchange, route, path)
+                WebviewRoute.NotFound -> respondNotFound(exchange, path)
                 is WebviewRoute.ClasspathAsset -> {
                     val bytes = javaClass.getResourceAsStream(route.resourcePath)?.use { it.readBytes() }
                     if (bytes == null) {
-                        respond(exchange, 404, "text/plain; charset=utf-8", "Not found: $path".toByteArray())
+                        respondNotFound(exchange, path)
                     } else {
                         respond(exchange, 200, route.mimeType, bytes)
                     }
@@ -213,6 +219,18 @@ class WebviewServer : Disposable {
             "</html>",
         ).joinToString("\n")
     }
+
+    /** Served without a policy, like the bundle; the page's `script-src 'self'` already admits the same origin. */
+    private fun respondPluginAsset(exchange: HttpExchange, asset: WebviewRoute.PluginAsset, path: String) {
+        val file = PluginAssetFile.resolve(pluginCacheRoot, asset) ?: return respondNotFound(exchange, path)
+        exchange.responseHeaders.set("X-Content-Type-Options", "nosniff")
+        // The same hash names the same bytes, but a cleared cache must not be answered from memory.
+        exchange.responseHeaders.set("Cache-Control", "no-cache")
+        respond(exchange, 200, WebviewRoute.mimeTypeOf(asset.fileName), Files.readAllBytes(file))
+    }
+
+    private fun respondNotFound(exchange: HttpExchange, path: String) =
+        respond(exchange, 404, "text/plain; charset=utf-8", "Not found: $path".toByteArray())
 
     private fun respond(exchange: HttpExchange, code: Int, contentType: String, body: ByteArray) {
         exchange.responseHeaders.set("Content-Type", contentType)

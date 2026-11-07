@@ -22,10 +22,15 @@ const marketplaceCacheRoot =
     process.env.MIRAGON_BPMN_MARKETPLACE_CACHE ??
     join(homedir(), ".miragon-bpmn-modeler", "marketplaces");
 
+// The IntelliJ host sets this to a folder of its system path, shared by every
+// project, which its webview server serves; keep the name in sync with
+// `BridgeProcessLauncher.kt`. Absent, `createBridge` falls back to a home-dir path.
+const pluginCacheRoot = process.env.MIRAGON_BPMN_PLUGIN_CACHE;
+
 const { rpc } = createBridge(
     (line) => process.stdout.write(line + "\n"),
     (message) => process.stderr.write(coreLogText(message)),
-    { marketplaceCacheRoot, homeDir: homedir() },
+    { marketplaceCacheRoot, pluginCacheRoot, homeDir: homedir() },
 );
 
 process.stdin.setEncoding("utf8");

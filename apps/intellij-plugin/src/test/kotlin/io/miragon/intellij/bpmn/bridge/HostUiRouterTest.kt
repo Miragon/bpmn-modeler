@@ -2,8 +2,10 @@ package io.miragon.intellij.bpmn.bridge
 
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.testFramework.junit5.TestApplication
+import io.miragon.intellij.bpmn.ActionNoticeTone
 import io.miragon.intellij.bpmn.HostNotifications
 import io.miragon.intellij.bpmn.StatusAction
 import io.miragon.intellij.bpmn.StatusIcon
@@ -14,8 +16,12 @@ import io.miragon.intellij.bpmn.StatusView
 import io.miragon.intellij.bpmn.projectFixtureWithoutServicePreload
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
+import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.TimeUnit
 
 /**
  * Covers how [HostUiRouter] reads the core's status frames into one view per
@@ -86,6 +92,140 @@ class HostUiRouterTest {
     }
 
     private fun json(text: String): JsonObject = JsonParser.parseString(text).asJsonObject
+
+    private class ShownNotice(val tone: ActionNoticeTone, val message: String, val labels: List<String>)
+
+    /** A router whose notice is answered with [choice] the moment it is offered. */
+    private fun routedNotice(choice: Int?): Triple<WiredBridge, RpcHandlerRegistry, MutableList<ShownNotice>> {
+        val wired = wireChannel().also { this.wired = it }
+        val shown = mutableListOf<ShownNotice>()
+        HostUiRouter(
+            bridgeDeps(projectFixture.get(), wired.channel, wired.handlers),
+            RecordingStatusSlots(),
+        ) { tone, message, labels, answer ->
+            shown += ShownNotice(tone, message, labels)
+            answer(choice)
+            val expireNothing: () -> Unit = {}
+            expireNothing
+        }.register()
+        return Triple(wired, wired.handlers, shown)
+    }
+
+    private class OpenNotice(val answer: (Int?) -> Unit) {
+        @Volatile
+        var expired = false
+    }
+
+    private class RoutedOpenNotices(val wired: WiredBridge, val router: HostUiRouter) {
+        val offered = LinkedBlockingQueue<OpenNotice>()
+
+        fun show(requestId: Int) = show(wired.requestId(requestId))
+
+        fun show(requestId: CoreRequestId) =
+            wired.handlers.dispatch(
+                "actionNotice/show",
+                JsonParser.parseString("""{"tone": "info", "message": "A new plugin", "labels": ["Review…"]}""").asJsonObject,
+                requestId,
+            )
+
+        fun nextOffered(): OpenNotice = offered.poll(2, TimeUnit.SECONDS) ?: error("no notice was offered")
+    }
+
+    /** A router whose notices stay open until the test answers them. */
+    private fun routedOpenNotices(): RoutedOpenNotices {
+        val wired = wireChannel().also { this.wired = it }
+        lateinit var routed: RoutedOpenNotices
+        val router =
+            HostUiRouter(bridgeDeps(projectFixture.get(), wired.channel, wired.handlers), RecordingStatusSlots()) { _, _, _, answer ->
+                val notice = OpenNotice(answer)
+                routed.offered += notice
+                val expire: () -> Unit = { notice.expired = true }
+                expire
+            }
+        routed = RoutedOpenNotices(wired, router)
+        router.register()
+        return routed
+    }
+
+    @Test
+    fun `expires the open action notices once the bridge process goes down`() {
+        val routed = routedOpenNotices()
+        routed.show(requestId = 6)
+        routed.show(requestId = 7)
+        val notices = listOf(routed.nextOffered(), routed.nextOffered())
+
+        routed.router.expireActionNotices()
+
+        assertEquals(listOf(true, true), notices.map { it.expired })
+    }
+
+    @Test
+    fun `leaves an answered action notice alone when the bridge process goes down`() {
+        val routed = routedOpenNotices()
+        routed.show(requestId = 8)
+        val notice = routed.nextOffered()
+        notice.answer(0)
+        routed.wired.fake.nextFrame()
+
+        routed.router.expireActionNotices()
+
+        assertFalse(notice.expired)
+    }
+
+    @Test
+    fun `offers no action notice for a request whose bridge process is already gone`() {
+        val routed = routedOpenNotices()
+        val currentRequest = routed.wired.requestId(9)
+
+        routed.show(currentRequest.copy(generation = currentRequest.generation - 1))
+        ApplicationManager.getApplication().invokeAndWait {}
+
+        assertTrue(routed.offered.isEmpty(), "a click would answer a process that no longer listens")
+    }
+
+    @Test
+    fun `answers an action notice with the index of the action the user chose`() {
+        val (wired, handlers, shown) = routedNotice(choice = 1)
+
+        handlers.dispatch(
+            "actionNotice/show",
+            json("""{"tone": "warning", "message": "A new plugin", "labels": ["Review…", "Not now"]}"""),
+            wired.requestId(3),
+        )
+
+        assertEquals(json("""{"id": 3, "result": {"chosen": 1}}"""), json(wired.fake.nextFrame()))
+        val notice = shown.single()
+        assertEquals(ActionNoticeTone.WARNING, notice.tone)
+        assertEquals("A new plugin", notice.message)
+        assertEquals(listOf("Review…", "Not now"), notice.labels)
+    }
+
+    @Test
+    fun `answers a dismissed action notice without a choice`() {
+        val (wired, handlers, _) = routedNotice(choice = null)
+
+        handlers.dispatch(
+            "actionNotice/show",
+            json("""{"tone": "info", "message": "A new plugin", "labels": ["Review…"]}"""),
+            wired.requestId(4),
+        )
+
+        assertEquals(json("""{"id": 4, "result": {}}"""), json(wired.fake.nextFrame()))
+    }
+
+    @Test
+    fun `shows an action notice of a tone this host does not know as information`() {
+        val (wired, handlers, shown) = routedNotice(choice = 0)
+
+        handlers.dispatch(
+            "actionNotice/show",
+            json("""{"tone": "celebration", "message": "A new plugin", "labels": ["Review…"]}"""),
+            wired.requestId(5),
+        )
+
+        wired.fake.nextFrame()
+        assertEquals(ActionNoticeTone.INFO, shown.single().tone)
+    }
 
     @Test
     fun `writes a core log line to the IDE log without a webview label`() {

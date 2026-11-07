@@ -12,6 +12,7 @@ import {
     RegisterParams,
     WebviewMessageParams,
 } from "../../../protocol/domain/types";
+import { PluginApprovalsMirror } from "../../../bpmnPlugins/port/PluginApprovalsMirror";
 import { HostSettingsMirror } from "../../../kernel/port/HostSettingsMirror";
 import { WorkspaceRoots } from "../../../kernel/port/WorkspaceRoots";
 import { DocumentMirror } from "../../domain/DocumentMirror";
@@ -29,6 +30,7 @@ export function editorSessionHandlers({
     lifecycle,
     mirror,
     settingsMirror,
+    pluginApprovals,
     workspaceRoots,
     createEditorHandle,
     bpmnService,
@@ -38,6 +40,7 @@ export function editorSessionHandlers({
     lifecycle: EditorSessionLifecycle;
     mirror: DocumentMirror;
     settingsMirror: HostSettingsMirror;
+    pluginApprovals: PluginApprovalsMirror;
     workspaceRoots: WorkspaceRoots;
     createEditorHandle: HostEditorHandleFactory;
     bpmnService: Pick<BpmnModelerService, "display">;
@@ -73,6 +76,10 @@ export function editorSessionHandlers({
             // shared seam) so it precedes every participant.
             if (params.settings) {
                 settingsMirror.apply(params.settings);
+            }
+            // Seeded here rather than at startup, so it cannot race the first plugin request.
+            if (params.pluginApprovals) {
+                pluginApprovals.apply(params.pluginApprovals);
             }
 
             if (
