@@ -7,3 +7,8 @@
 @import "dmn-js/dist/assets/dmn-font/css/dmn-embedded.css";
 @import "@bpmn-io/properties-panel/dist/assets/properties-panel.css";
 @import "@emaarco/dmn-js-simulation/assets/dmn-js-simulation.css";
+
+/* The result bar renders a rule's outputs as adjacent spans without a separator. */
+.dmn-sim-output > span + span::before {
+    content: ", ";
+}
