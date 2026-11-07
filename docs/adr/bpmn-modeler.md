@@ -1,7 +1,7 @@
 # BPMN modeler
 
 - Status: accepted
-- Last reviewed: 2026-11-06
+- Last reviewed: 2026-11-07
 
 ## Context
 
@@ -25,6 +25,7 @@ boundaries are defined in [Architecture and hosts](architecture-and-hosts.md#pac
 - [Element template preview](#element-template-preview)
 - [Themes and locale](#themes-and-locale)
 - [Linting](#linting)
+- [User-supplied plugins (proposed)](#user-supplied-plugins-proposed)
 - [Transaction boundaries](#transaction-boundaries)
 - [Diff](#diff)
 - [Formatting and cleanup](#formatting-and-cleanup)
@@ -434,6 +435,71 @@ output fails. 11.15.0 reports the same elements as 11.14.0, but
 The webview owns lazy `/lint` loading and routes results to either editable
 surface. The [lint-free entry check](../../packages/bpmn-modeler/scripts/check-lint-free-entry.mjs)
 and source architecture tests guard the import boundary.
+
+### User-supplied plugins (proposed)
+
+Proposed by the spike for [#1626](https://github.com/Miragon/bpmn-modeler/issues/1626);
+not released. Teams want to load bpmn-js plugins, many written for the Camunda
+Modeler, without forking a host or building an app on the package.
+
+**Format.** A plugin is a classic script that pushes `{ type, plugin }` onto
+`window.plugins`, the contract of `camunda-modeler-plugin-helpers`, plus an
+optional stylesheet. Unmodified Camunda client bundles therefore load. The
+registration types map to engines as Camunda's product lines do:
+`bpmn.modeler.*` applies to every engine, `bpmn.platform.modeler.*` to C7 and
+`bpmn.cloud.modeler.*` to C8, for `additionalModules` and `moddleExtension`.
+Anything else (`client` React extensions, `dmn.*`, menus) is ignored and
+logged. An untagged model gets only the registrations made for every engine.
+
+**Package.** `@miragon/bpmn-modeler/plugins` exports `loadPlugins(sources)`,
+which runs one script at a time, attributes what it registers, restores
+`window.plugins`, and reports a failing plugin without stopping the others.
+The result's `modulesFor(engine)` returns the `additionalModules` and
+`moddleExtensions` a surface passes in. It is a subpath like `/lint`, so a
+consumer without plugins never bundles the loader. The loader takes URLs: a
+host-served URL (VS Code), a `blob:` URL (a frame without network, such as
+Orca's isolated frame) or a plain URL.
+
+**IDE webview.** The BPMN webview posts `GetBpmnPluginsCommand` before it
+builds a surface, because modules are fixed at construction, and loads the
+`/plugins` chunk only when the answer holds a plugin. Plugins go into Design
+and Implement, never into View, whose NavigatedViewer lacks the modeling
+services plugins build on. A tagged model keeps one instance across Design and
+Implement, so its engine's plugins stay loaded in Design. When a plugin breaks
+the construction, the surface is built again without plugins and the user is
+told; a broken plugin never keeps a diagram from opening.
+
+**Discovery and approval (core).** `bpmnPlugins/` finds one plugin per
+subfolder of each `<configFolder>/plugins/` between the document and its
+workspace root. It reads `plugin.json`, or scans a Camunda `index.js` for
+string literals without running it. Paths must stay inside the plugin folder.
+A plugin runs only after the user approved this content in this folder: the
+approval is a SHA-256 of the script and the style, kept by the host outside
+every workspace (VS Code global state), so a repository cannot approve itself
+and any change (a pull, an update) asks again. The editor opens with the
+approved plugins and asks about the rest afterwards; a check reloads the
+editor, a decline lasts for the extension host session or until the content
+changes.
+
+**Serving.** The approved bytes are copied into a content-addressed cache
+(`<globalStorage>/bpmn-plugins/<hash>/`) and served from there. The webview
+never reads a workspace folder, so a file swapped after the approval and an
+unapproved file beside the script cannot reach it, and `localResourceRoots`
+stays fixed at creation. A host whose `EditorHandle` has no `webviewUrlOf`
+(the IntelliJ bridge today) answers with no plugins at once.
+
+**Not shared.** The webview bundle exposes none of its bpmn-js, diagram-js,
+preact or properties-panel instances. Prebuilt plugins bring their own copies,
+which works for modules that use only injected services and is at risk for
+anything relying on instance identity (preact hooks and context, `instanceof`,
+module state), such as properties-panel groups. Exposing our instances would
+make the bundled versions a plugin API and needs its own decision.
+
+Alternatives: our own module format only (loses the Camunda ecosystem);
+running `index.js` in the extension host (runs unapproved code with Node
+authority); serving from the workspace folder (approval and load race, and
+siblings of the script become loadable); Workspace Trust alone (granted once
+per folder, off in the standalone).
 
 ### Transaction boundaries
 

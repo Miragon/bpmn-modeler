@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 
 import {
     BpmnFileQuery,
     BpmnModelerSettingQuery,
+    BpmnPluginsQuery,
     ElementTemplatesQuery,
     FlushDocumentQuery,
     FocusElementQuery,
@@ -125,6 +126,7 @@ function makeHost({
         GetElementTemplatesCommand: () => [new ElementTemplatesQuery([])],
         GetBpmnModelerSettingCommand: () => [settingsQuery()],
         GetPropertiesPanelStateCommand: () => [new PropertiesPanelStateQuery(true)],
+        GetBpmnPluginsCommand: () => [new BpmnPluginsQuery([])],
         ...replies,
     };
     return {

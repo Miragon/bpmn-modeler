@@ -17,6 +17,7 @@ export const BPMN_EDITOR_COMMAND_TYPES = [
     "GetBpmnFileCommand",
     "GetDiagramAsSVGCommand",
     "GetElementTemplatesCommand",
+    "GetBpmnPluginsCommand",
     "GetBpmnlintConfigCommand",
     "GetBpmnModelerSettingCommand",
     "GetPropertiesPanelStateCommand",

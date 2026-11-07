@@ -21,6 +21,7 @@ const ENTRY_DTS = [
     "viewer.d.ts",
     "design.d.ts",
     "mode.d.ts",
+    "plugins.d.ts",
 ];
 
 // Whole-word protocol type names + the private protocol package. The word gate

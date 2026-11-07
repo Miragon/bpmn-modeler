@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("vscode", () => import("../__fixtures__/vscodeCompositionFake"));
 
-import { ExtensionContext } from "vscode";
+import { ExtensionContext, Uri } from "vscode";
 
 import {
     BpmnDiffService,
@@ -29,6 +29,7 @@ function createExtensionContext(): ExtensionContext {
     return {
         subscriptions: [],
         globalState: new InMemoryMemento(),
+        globalStorageUri: Uri.file("/global-storage"),
     } as unknown as ExtensionContext;
 }
 

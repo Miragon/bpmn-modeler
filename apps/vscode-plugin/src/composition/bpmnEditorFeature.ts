@@ -4,6 +4,7 @@ import {
     BPMN_VIEW_TYPE,
     BpmnEditorContributions,
     BpmnEditorFeature,
+    BpmnPluginsFeature,
     CachedTemplateProvider,
     CodeLinkFeature,
     DefinitionSearchFeature,
@@ -16,6 +17,9 @@ import {
     FOCUS_LINT_ELEMENT_CMD,
 } from "../modeler/bpmn/adapter/in/FocusLintElementController";
 import { PropertiesPanelStateRepository } from "../modeler/bpmn/adapter/out/PropertiesPanelStateRepository";
+import { NodeContentHasher } from "../modeler/bpmn/adapter/out/NodeContentHasher";
+import { VsCodePluginApprovalStore } from "../modeler/bpmn/adapter/out/VsCodePluginApprovalStore";
+import { bpmnPluginCacheUri } from "../shared/adapter/out/bootstrapWebview";
 import { VsCodeLintingPreference } from "../modeler/bpmn/adapter/out/VsCodeLintingPreference";
 import { ModelerEditorController } from "../modeler/editor-session/adapter/in/ModelerEditorController";
 import { VsCodeDiagnostics } from "../shared/adapter/out/VsCodeDiagnostics";
@@ -46,6 +50,13 @@ export function register(
     const navigation = new NavigationFeature(ports);
     const definitionSearch = new DefinitionSearchFeature(ports);
     const codeLink = new CodeLinkFeature(ports);
+    const plugins = new BpmnPluginsFeature({
+        ...ports,
+        store: deps.editorStore,
+        approvals: new VsCodePluginApprovalStore(context.globalState),
+        hasher: new NodeContentHasher(),
+        cacheRoot: bpmnPluginCacheUri(context.globalStorageUri).fsPath,
+    });
     const editor = new BpmnEditorFeature(
         {
             ...ports,
@@ -66,6 +77,7 @@ export function register(
             deploymentStatus: handles.deploymentStatusParticipant,
             scriptEditor: handles.scriptEditor,
             codeLink: codeLink.editorContribution,
+            plugins: plugins.editorContribution,
         },
     );
     context.subscriptions.push(editor, navigation, definitionSearch, codeLink);

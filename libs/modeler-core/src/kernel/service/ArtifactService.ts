@@ -178,6 +178,17 @@ export class ArtifactService {
         return templateDirs;
     }
 
+    /** Each existing `<configFolder>/<area>` from the document up to its workspace root, nearest first. */
+    async getConfigAreaDirs(documentDir: string, area: string): Promise<string[]> {
+        const workspaceRoot = await this.getWorkspaceRoot(documentDir);
+        return this.collectSubDirs(
+            documentDir,
+            workspaceRoot,
+            this.vsSettings.getConfigFolder(),
+            area,
+        );
+    }
+
     async getPayloadPaths(documentDir: string): Promise<string[]> {
         const configFolder = this.vsSettings.getConfigFolder();
         const workspaceRoot = await this.getWorkspaceRoot(documentDir);
