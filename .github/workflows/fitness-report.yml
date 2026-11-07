@@ -1,0 +1,97 @@
+name: Fitness report
+
+# Shows on every pull request the rows the reported fitness functions newly
+# find and no longer find: every row in the job summary, a capped copy in one
+# comment. It is not a required check and not in build.yml's ci.needs, so it
+# never blocks a merge. Findings never fail it; only broken input does.
+#
+# Two jobs keep the write token away from the pull request's code: `report`
+# runs that code (a PR can change tools/repo-checks) with a read-only token,
+# and `comment` checks nothing out and only posts the artifact's text.
+
+on:
+  # No branch filter: a stacked pull request targets the branch below it.
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      # The default ref is GitHub's test merge of the head into the base. Its
+      # first parent is the base tip, so the whole PR counts as one change, as
+      # after the squash merge. The full clone holds the history the functions
+      # read and origin/fitness-history; a later shallow fetch of that branch
+      # would mark the clone shallow, which the report treats as broken input.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-workspaces
+        with:
+          focus: '@miragon/bpmn-modeler-repo-checks'
+      # 60,000 keeps the comment, marker included, under GitHub's 65,536-character
+      # limit with room to spare.
+      - name: Report the changes against the base branch
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          OUT="$RUNNER_TEMP/fitness-report"
+          mkdir -p "$OUT"
+          yarn fitness --changes-only --base "origin/$BASE_REF" \
+            --head-label "GitHub's test merge of the pull request head \`${HEAD_SHA:0:12}\` into \`$BASE_REF\`" \
+            --capped-out "$OUT/comment.md" --max-characters 60000 > "$OUT/summary.md"
+          cat "$OUT/summary.md" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: fitness-report
+          path: ${{ runner.temp }}/fitness-report/comment.md
+          retention-days: 7
+
+  # A fork's GITHUB_TOKEN cannot write, so its pull request gets the summary only.
+  comment:
+    needs: report
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pull-requests: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: fitness-report
+          path: ${{ runner.temp }}/fitness-report
+      # The report's first line says whether anything changed (changesReport.ts).
+      # A Dependabot run's token may be read-only, so a failed write only warns.
+      - name: Create or update the fitness comment
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          MARKER: '<!-- fitness-report-comment -->'
+        run: |
+          REPORT="$RUNNER_TEMP/fitness-report/comment.md"
+          BODY="$RUNNER_TEMP/fitness-comment.md"
+          { echo "$MARKER"; cat "$REPORT"; } > "$BODY"
+          if ! COMMENT_IDS=$(gh api --paginate "repos/$REPO/issues/$PR_NUMBER/comments" \
+            --jq '.[] | select(.user.login == "github-actions[bot]" and (.body | startswith(env.MARKER))) | .id'); then
+            echo "::warning::Could not read the pull request's comments; no fitness comment written."
+            exit 0
+          fi
+          COMMENT_ID=$(printf '%s\n' "$COMMENT_IDS" | head -n 1)
+          if [ -n "$COMMENT_ID" ]; then
+            gh api -X PATCH "repos/$REPO/issues/comments/$COMMENT_ID" -F body=@"$BODY" > /dev/null \
+              || echo "::warning::Could not update fitness comment $COMMENT_ID."
+          elif [ "$(head -n 1 "$REPORT")" = '<!-- fitness-changes: none -->' ]; then
+            echo "No change and no earlier fitness comment: nothing to post."
+          else
+            gh api "repos/$REPO/issues/$PR_NUMBER/comments" -F body=@"$BODY" > /dev/null \
+              || echo "::warning::Could not create the fitness comment."
+          fi
