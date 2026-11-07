@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/" xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/" xmlns:modeler="http://camunda.org/schema/modeler/1.0" id="Definitions_Shipping" name="Shipping" namespace="http://camunda.org/schema/1.0/dmn" modeler:executionPlatform="Camunda Cloud" modeler:executionPlatformVersion="8.6.0">
+  <decision id="Decision_Shipping" name="Choose carrier">
+    <informationRequirement id="IR_Country"><requiredInput href="#Input_Country" /></informationRequirement>
+    <informationRequirement id="IR_Weight"><requiredInput href="#Input_Weight" /></informationRequirement>
+    <decisionTable id="Table_Shipping" hitPolicy="FIRST">
+      <input id="Col_Country" label="Country">
+        <inputExpression id="Expr_Country" typeRef="string"><text>country</text></inputExpression>
+      </input>
+      <input id="Col_Weight" label="Weight (kg)">
+        <inputExpression id="Expr_Weight" typeRef="number"><text>weight</text></inputExpression>
+      </input>
+      <output id="Col_Carrier" label="Carrier" name="carrier" typeRef="string" />
+      <output id="Col_Cost" label="Cost (EUR)" name="cost" typeRef="number" />
+      <rule id="Rule_1">
+        <inputEntry id="In_Country_1"><text>"DE"</text></inputEntry>
+        <inputEntry id="In_Weight_1"><text>&lt;= 5</text></inputEntry>
+        <outputEntry id="Out_Carrier_1"><text>"DHL"</text></outputEntry>
+        <outputEntry id="Out_Cost_1"><text>4.99</text></outputEntry>
+      </rule>
+      <rule id="Rule_2">
+        <inputEntry id="In_Country_2"><text>"DE"</text></inputEntry>
+        <inputEntry id="In_Weight_2"><text>&gt; 5</text></inputEntry>
+        <outputEntry id="Out_Carrier_2"><text>"DHL Freight"</text></outputEntry>
+        <outputEntry id="Out_Cost_2"><text>12.90</text></outputEntry>
+      </rule>
+      <rule id="Rule_3">
+        <inputEntry id="In_Country_3"><text>"AT","CH"</text></inputEntry>
+        <inputEntry id="In_Weight_3"><text>&lt;= 5</text></inputEntry>
+        <outputEntry id="Out_Carrier_3"><text>"DPD"</text></outputEntry>
+        <outputEntry id="Out_Cost_3"><text>9.90</text></outputEntry>
+      </rule>
+      <rule id="Rule_4">
+        <inputEntry id="In_Country_4"><text>"AT","CH"</text></inputEntry>
+        <inputEntry id="In_Weight_4"><text>&gt; 5</text></inputEntry>
+        <outputEntry id="Out_Carrier_4"><text>"DPD"</text></outputEntry>
+        <outputEntry id="Out_Cost_4"><text>19.90</text></outputEntry>
+      </rule>
+      <rule id="Rule_5">
+        <inputEntry id="In_Country_5"><text>-</text></inputEntry>
+        <inputEntry id="In_Weight_5"><text>-</text></inputEntry>
+        <outputEntry id="Out_Carrier_5"><text>"UPS"</text></outputEntry>
+        <outputEntry id="Out_Cost_5"><text>29.00</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+  <inputData id="Input_Country" name="Country" />
+  <inputData id="Input_Weight" name="Parcel weight" />
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DRD_Shipping">
+      <dmndi:DMNShape id="Shape_Decision" dmnElementRef="Decision_Shipping"><dc:Bounds height="80" width="180" x="250" y="100" /></dmndi:DMNShape>
+      <dmndi:DMNShape id="Shape_Country" dmnElementRef="Input_Country"><dc:Bounds height="45" width="125" x="157" y="290" /></dmndi:DMNShape>
+      <dmndi:DMNShape id="Shape_Weight" dmnElementRef="Input_Weight"><dc:Bounds height="45" width="125" x="397" y="290" /></dmndi:DMNShape>
+      <dmndi:DMNEdge id="Edge_Country" dmnElementRef="IR_Country"><di:waypoint x="220" y="290" /><di:waypoint x="310" y="180" /></dmndi:DMNEdge>
+      <dmndi:DMNEdge id="Edge_Weight" dmnElementRef="IR_Weight"><di:waypoint x="460" y="290" /><di:waypoint x="370" y="180" /></dmndi:DMNEdge>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+</definitions>

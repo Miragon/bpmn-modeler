@@ -1,5 +1,5 @@
-// Runs `test:orca` in a Linux container under Xvfb, so no Orca window opens on
-// the host and nothing takes the focus. ORCA_VERSION picks the Orca release.
+// Runs `test:orca`, or the command after `--`, in a Linux container under Xvfb, so no Orca window
+// opens on the host and nothing takes the focus. ORCA_VERSION picks the Orca release.
 import { execFileSync, spawn, spawnSync } from "node:child_process";
 import console from "node:console";
 import { createHash } from "node:crypto";
@@ -14,6 +14,11 @@ const repositoryRoot = resolve(here, "../../../..");
 const containerfile = join(here, "Containerfile");
 const hostResults = join(repositoryRoot, "apps/orca-plugin/test-results/orca-smoke");
 const orcaVersion = (process.env.ORCA_VERSION || "1.4.250").replace(/^v/, "");
+const separator = process.argv.indexOf("--");
+const command =
+    separator === -1
+        ? "corepack yarn workspace @miragon/bpmn-modeler-orca test:orca"
+        : process.argv.slice(separator + 1).join(" ");
 
 const FOCUS = [
     "@miragon/bpmn-modeler-orca",
@@ -48,7 +53,7 @@ git init -q
 step install corepack yarn workspaces focus ${FOCUS}
 step build corepack yarn workspace @miragon/bpmn-modeler-orca build
 set +e
-xvfb-run -a -s "-screen 0 1920x1200x24" corepack yarn workspace @miragon/bpmn-modeler-orca test:orca
+xvfb-run -a -s "-screen 0 1920x1200x24" ${command}
 code=$?
 set -e
 if [ -d apps/orca-plugin/test-results/orca-smoke ]; then cp -R apps/orca-plugin/test-results/orca-smoke/. /results/; fi
