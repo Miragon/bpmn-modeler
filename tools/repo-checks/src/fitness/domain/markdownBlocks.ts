@@ -11,7 +11,7 @@ export type FindingRow = Finding & {
 
 const SHORT_COMMIT_LENGTH = 12;
 
-export function shortCommit(commit: string): string {
+function shortCommit(commit: string): string {
     return `\`${commit.slice(0, SHORT_COMMIT_LENGTH)}\``;
 }
 

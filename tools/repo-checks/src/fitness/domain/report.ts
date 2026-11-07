@@ -13,7 +13,7 @@ import { findingTrends, storedFindingsOf, type TrendHistory, type TrendPoint } f
 
 export type BaseSource = "snapshot" | "checkout";
 
-export type ReportedFinding = MarkedFinding & { readonly trend?: readonly TrendPoint[] };
+type ReportedFinding = MarkedFinding & { readonly trend?: readonly TrendPoint[] };
 
 type FunctionOutcome =
     | {

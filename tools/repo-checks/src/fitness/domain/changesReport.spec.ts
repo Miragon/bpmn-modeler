@@ -198,6 +198,7 @@ describe("the changes report", () => {
                         findings: [
                             { ...finding("C"), group: "files" },
                             { ...finding("D"), group: "retired" },
+                            finding("E"),
                         ],
                     },
                 },
@@ -227,8 +228,26 @@ describe("the changes report", () => {
                 "| Status | Location | Message |",
                 "| --- | --- | --- |",
                 "| resolved | `src/D.ts:1` | D breaks the rule |",
+                "| resolved | `src/E.ts:1` | E breaks the rule |",
             ].join("\n"),
         );
+    });
+
+    it("prints no table of rows outside the groups when every row is in one", () => {
+        const grouped = fakeFitnessFunction({}, { groups: [{ id: "hidden", title: "Hidden" }] });
+
+        const markdown = changesReport(
+            reportOf([
+                {
+                    fitnessFunction: grouped,
+                    head: { findings: [{ ...finding("B"), group: "hidden" }] },
+                    base: { findings: [] },
+                },
+            ]),
+        );
+
+        expect(markdown).toContain("#### Hidden");
+        expect(markdown).not.toContain("In no declared group");
     });
 
     it("prints the new rows before the resolved ones, each in rank order", () => {
