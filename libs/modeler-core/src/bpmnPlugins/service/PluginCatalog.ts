@@ -59,8 +59,11 @@ export class PluginCatalog {
         return pluginApprovalNotice(pending);
     }
 
-    reviewPrompt(pending: readonly PendingApproval[]): ChoicePrompt<string> {
-        return pluginApprovalPrompt(pending);
+    reviewPrompt(
+        pending: readonly PendingApproval[],
+        workspaceFolders: readonly string[],
+    ): ChoicePrompt<string> {
+        return pluginApprovalPrompt(pending, workspaceFolders);
     }
 
     /**

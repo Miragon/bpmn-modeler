@@ -72,7 +72,7 @@ Plugins load in the [Design and Implement modes](/vscode/features/modes), never 
 
 When you open a diagram and its workspace holds plugins you have not allowed yet, the editor opens right away with the plugins you already allowed, and a notification says how many are waiting, for example *2 BPMN plugins in this workspace are not allowed yet.*
 
-1. Click **Review…** to see the list. Each entry shows the plugin's name and its folder.
+1. Click **Review…** to see the list. Each entry shows the plugin's name, whether it is new or changed since you allowed it, and its folder.
 2. Check the plugins you trust and confirm. Every open BPMN editor that offered one of them reloads with it.
 
 A plugin you leave unchecked is not offered again until the window reloads or its files change. Closing the notification without **Review…** decides nothing: the modeler does not ask again in this window for the same plugins, and asks again in a later session. Only one question is open at a time, even when you open several diagrams.
@@ -101,7 +101,7 @@ The approval is the control. Neither the webview's sandbox nor its Content Secur
 ## When a plugin breaks
 
 - A script that cannot be loaded or throws while it runs is left out, and the other plugins still load. A notification says how many were left out, and the output channel says why.
-- If the plugins keep the editor from being built, the editor opens without any plugin and tells you so. A broken plugin never keeps a diagram from opening.
+- If the plugins keep the editor from being built, or the editor cannot load its plugin loader, the editor opens without any plugin and tells you so. A broken plugin never keeps a diagram from opening.
 
 ## Limits
 

@@ -171,7 +171,9 @@ export class BpmnPluginService {
         const action = await this.actionNotifier.offer(this.catalog.reviewNotice(pending));
         const checked =
             action === "review"
-                ? await this.picker.chooseMany(this.catalog.reviewPrompt(pending))
+                ? await this.picker.chooseMany(
+                      this.catalog.reviewPrompt(pending, this.workspace.getWorkspaceFolderPaths()),
+                  )
                 : [];
         const allowed = await this.catalog.applyAnswer(pending, checked);
         const allowedIds = allowed.map((plugin) => plugin.id);

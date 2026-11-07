@@ -31,6 +31,12 @@ const mocks = vi.hoisted(() => ({
     savedMode: undefined as string | undefined,
     stateManagerCreated: vi.fn(),
     prefetchSurfaceModules: vi.fn(),
+    loadPlugins: vi.fn(),
+}));
+
+vi.mock("@miragon/bpmn-modeler/plugins", () => ({
+    loadPlugins: mocks.loadPlugins,
+    buildWithPluginsOrWithout: vi.fn(),
 }));
 
 vi.mock("../adapter/out/surfaceModules", () => ({
@@ -451,6 +457,36 @@ describe("bootstrap", () => {
             expect(mocks.createModeler).toHaveBeenCalledOnce();
             expect(mocks.createModeler.mock.calls[0][1]).toMatchObject({ moddleExtensions: {} });
             expect(modeler.loadDiagram).toHaveBeenCalledWith("<tagged />");
+        });
+
+        it("opens without plugins and tells the host when the plugins fail to load during View", async () => {
+            mocks.savedMode = "view";
+            mocks.loadPlugins.mockRejectedValue(new Error("plugin chunk unavailable"));
+            mocks.createViewer.mockResolvedValue(makeViewer());
+            const modeler = makeModeler();
+            mocks.createModeler.mockResolvedValue(modeler);
+            const host = makeHost({
+                file: tagged(),
+                replies: {
+                    GetBpmnPluginsCommand: () => [
+                        new BpmnPluginsQuery([{ name: "acme", scriptUrl: "acme.js" }]),
+                    ],
+                },
+            });
+            boot(host);
+            await settle();
+
+            modeButtons()[2].click();
+            await settle();
+
+            expect(mocks.createModeler).toHaveBeenCalledOnce();
+            expect(mocks.createModeler.mock.calls[0][1]).toMatchObject({ moddleExtensions: {} });
+            expect(sentOfType(host, "LogWarningCommand")).toContainEqual(
+                expect.objectContaining({
+                    message: expect.stringContaining("plugin chunk unavailable"),
+                }),
+            );
+            expect(sentTypes(host)).toContain("ShowInfoCommand");
         });
     });
 
