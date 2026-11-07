@@ -78,7 +78,7 @@ export interface MarketplaceRegistrationsPort {
     read(): Promise<MarketplaceRegistrations>;
     /**
      * Appends the location to the scope's own list unless that list holds it.
-     * The core asks only for an add that `isAlreadyRegistered` lets through, so
+     * The core asks only when `marketplaceAddOutcome` returns `registered`, so
      * a host never checks the other scope's list.
      */
     register(location: string, scope: MarketplaceScope): Promise<void>;
