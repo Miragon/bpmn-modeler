@@ -13,6 +13,14 @@ not deterministic, so it comments and never blocks.
 
 ## 1. Measure the tree
 
+On a pull request the Fitness report workflow already lists the new and
+resolved rows per function: the job summary holds every row, and a PR from
+this repository has one comment with a capped copy
+([ADR](../../../docs/adr/engineering-practices.md#fitness-function-report)).
+It measures GitHub's test merge, so the whole PR counts as one change, which
+the PR row below does not. Read it for an overview; the review still measures
+here, because only the JSON holds the existing findings and the trends.
+
 Run every block from this checkout. `OUT` lies outside it: an untracked file
 in the checkout would count as a change. Two reviews at once need their own
 `TMPDIR`. A shell keeps no variables from one tool call to the next, so every

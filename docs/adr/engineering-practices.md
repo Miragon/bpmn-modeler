@@ -650,7 +650,76 @@ JSON with `--format json` for the [architecture review](#architecture-review).
 It exits non-zero only on broken input: a base that names no commit (no
 `origin/main` before a fetch), no merge base (a shallow clone), a `--repo`
 that is no checkout root, a corrupt snapshot, or a fitness function that
-throws or returns a malformed finding.
+throws or returns a malformed finding. `--changes-only` prints only the new
+and resolved rows; every pull request shows them (see **On a pull request**).
+
+**On a pull request.** `.github/workflows/fitness-report.yml` runs on every
+`pull_request`, with no branch filter, as `codeql.yml` does for stacked PRs.
+It is no required check and not in `build.yml`'s `ci.needs`, so it never
+blocks a merge, and findings never fail it.
+
+- **What it shows.** Per function with a new or resolved row: its counts, the
+  new rows and then the resolved ones in the function's groups (a collapsed
+  group, such as size-and-complexity's every measured file, inside
+  `<details>`), and its measures, misses, false reports and evidence in a
+  collapsed `<details>`, since a reader judges a row by them. Functions with no
+  change share one line, unmeasurable ones another with their reasons, and a PR
+  without a change says so. The first line, `<!-- fitness-changes: some -->` or
+  `<!-- fitness-changes: none -->`, tells the workflow whether anything
+  changed; a spec pins it. Existing rows whose values changed, such as a file
+  that grew, are not shown; the full report's Trend column holds them.
+- **Measured commit.** The default checkout of `pull_request`, GitHub's test
+  merge of the head into the base, with `--base "origin/<base branch>"`. Its
+  first parent is the base tip, which is the merge base, and the history
+  reader follows first parents, so the whole PR counts as one change, as after
+  the squash merge. That differs from a local `corepack yarn fitness` on the
+  branch head, where each branch commit counts as one change for
+  change-coupling and hotspots. The merge commit takes one place in the
+  history windows, so the head's window reaches one commit less far back on
+  the main side than the base's: a one-commit slide. `--head-label` names the
+  PR head and the base it was merged into, so the summary does not leave a
+  reader with only the merge commit's SHA. A conflicting PR has no test merge,
+  and GitHub runs no `pull_request` workflow for it.
+- **Size.** The job summary (1 MiB per step) carries every row: about 15 KB at
+  #2181's test merge, 4 KB at #2201's. The same run writes a capped copy for
+  the comment (`--capped-out <file> --max-characters 60000`), under GitHub's
+  65,536-character comment limit with room for the marker. The cap gives every
+  function the same row limit, the largest that fits, keeping new rows before
+  resolved ones; then it leaves out the declarations, and as a last resort it
+  prints only a note. A capped section ends with the number of rows left out
+  and a pointer to the job summary, and no table or `<details>` is cut. A
+  spec checks the length and the Markdown over 40 budgets. Measured against
+  `a2e5e8ee` (#1867), 250 first-parent commits before `8bfb20fc`, the summary
+  held 771 rows in 170,267 characters and the comment 122 rows in 58,683.
+- **Permissions.** The workflow grants `contents: read`. The `report` job runs
+  the PR's code, which can change `tools/repo-checks`, uploads the comment as
+  an artifact and writes nothing else. The `comment` job adds only
+  `pull-requests: write`, checks nothing out and runs no PR code, and runs only
+  for a head in this repository, since a fork's token cannot write; a fork's PR
+  gets the summary only. It pages through the PR's comments for its own: the
+  hidden marker `<!-- fitness-report-comment -->` on the first line, written by
+  `github-actions[bot]`. Without a change and without an earlier comment it
+  posts nothing; otherwise it creates the comment or updates it, to "no
+  change" too. A failed read or write only warns, since a Dependabot run's
+  token may be read-only. `pull_request_target` is not used.
+- **Duration.** About half a minute when the merge base has a stored
+  snapshot, estimated from four fitness-history runs: checkout with
+  `fetch-depth: 0` 6–8 s, which fetches `fitness-history` too, the workspace
+  setup 4–8 s, the report 9–12 s. A function runs on a checkout of the base
+  when the PR bumps its version, when fitness-history has not stored the
+  merge base yet, and on every stacked PR. No extra fetch of `fitness-history`:
+  a `--depth=1` fetch into the full clone makes git call it shallow, which the
+  report treats as broken input.
+
+Alternatives considered:
+
+- **Measuring the PR head** (`github.event.pull_request.head.sha`) matches a
+  local run, but counts each branch commit as one change until the squash.
+- **The full report in a comment**: about 240,600 characters on main
+  (`8bfb20fc`), almost four times the limit.
+- **Running the report twice**, once capped, doubles the measurement, a base
+  checkout included.
+- **One job with a write token** would give it to code the PR changes.
 
 **Another base or tree.** `--base <rev>` compares with
 `git merge-base HEAD <rev>`; `<rev>` need not be an ancestor of HEAD, so a
