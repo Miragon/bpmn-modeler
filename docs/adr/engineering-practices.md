@@ -236,8 +236,11 @@ Kotlin host copies is pinned the same way, to the TypeScript source file itself:
 `ModelerSettingsStoreTest` the `SURFACE_MODES` array in `surfaceMode.ts` and
 the `COLOR_THEMES` array in `settings.ts` of `libs/modeler-types`,
 `ModelerSettingsConfigurableTest` the `MODE_LABEL` table in the modeler's
-`modeStrip.ts`; each fails when the Kotlin copy differs. No generated file
-sits in between that could go stale. One Kotlin copy does not follow this yet:
+`modeStrip.ts`; each fails when the Kotlin copy differs. A text the Kotlin
+host copies is pinned the same way: `EmptyDmnDiagramTest` compares the scaffold
+IntelliJ's New DMN Model writes with `EMPTY_DMN_DIAGRAM` in `emptyDmn.ts` byte
+for byte. No generated file sits in between that could go stale. One Kotlin
+copy does not follow this yet:
 `ModelerLocalesTest` pins the languages to the VS Code manifest, which
 `manifest.contract.spec.ts` pins to the shipped catalogue, so the Kotlin list
 holds only through that chain.
