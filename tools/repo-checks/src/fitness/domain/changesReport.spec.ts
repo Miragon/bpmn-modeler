@@ -441,4 +441,63 @@ describe("the capped changes report", () => {
             expect(shownRows(markdown, "new", "N")).toBe(30);
         }
     });
+
+    const groupedWithValues = fakeFitnessFunction(
+        {},
+        {
+            id: "sized-and-grouped",
+            values: [{ id: "lines", title: "code lines" }],
+            groups: [
+                { id: "flagged", title: "Over the limit" },
+                { id: "files", title: "Every measured file", collapsed: true },
+            ],
+        },
+    );
+    const inGroups = (prefix: string, count: number): Finding[] =>
+        findings(prefix, count).map((row, index) => ({
+            ...row,
+            group: ["flagged", "files", "retired"][index % 3],
+        }));
+    const groupedReport = reportOf([
+        {
+            fitnessFunction: groupedWithValues,
+            head: { findings: inGroups("G", 24) },
+            base: { findings: inGroups("H", 24) },
+        },
+        small,
+    ]);
+    const groupedUncapped = changesReport(groupedReport);
+    const groupedBudgets = Array.from({ length: 40 }, (_, index) =>
+        Math.round(300 + (index * (groupedUncapped.length - 300)) / 39),
+    );
+
+    it.each(groupedBudgets)(
+        "keeps grouped rows with a Trend column within %i characters and valid Markdown",
+        (maxCharacters) => {
+            const markdown = changesReport(groupedReport, { maxCharacters });
+            const lines = markdown.split("\n");
+
+            expect(markdown.length).toBeLessThanOrEqual(maxCharacters);
+            let openDetails = 0;
+            lines.forEach((line, index) => {
+                if (line === "<details>") {
+                    openDetails += 1;
+                    expect(openDetails).toBe(1);
+                }
+                if (line === "</details>") {
+                    openDetails -= 1;
+                    expect(openDetails).toBe(0);
+                }
+                if (line.startsWith("| ") && !lines[index - 1].startsWith("|")) {
+                    expect(lines[index - 1]).toBe("");
+                    expect([
+                        "| Status | Location | Message |",
+                        "| Status | Location | Message | Trend |",
+                    ]).toContain(line);
+                    expect(lines[index + 1]).toMatch(/^\| --- \| --- \| --- \|( --- \|)?$/);
+                }
+            });
+            expect(openDetails).toBe(0);
+        },
+    );
 });
