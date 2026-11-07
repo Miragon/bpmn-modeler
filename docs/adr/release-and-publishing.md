@@ -184,8 +184,9 @@ a retry of an already published version fails rather than overwriting it.
 This repository stays free of build output. Manual dispatch is a dry run.
 release-please bumps `orca-plugin.json` with the workspace's version; the
 [manifest spec](../../apps/orca-plugin/src/manifest.contract.spec.ts) keeps the
-two equal. The bundle ships unminified with sourcemaps, as Orca's listing
-policy asks for readable code.
+two equal. The bundle ships unminified with sourcemaps but without the
+libraries' comments. Orca's listing policy forbids only code minified to
+hide what it does and asks for no sourcemaps.
 
 ### Standalone Linux Git
 
