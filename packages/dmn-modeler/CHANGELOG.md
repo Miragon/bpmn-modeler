@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.6.1](https://github.com/Miragon/bpmn-modeler/compare/dmn-modeler-v0.6.0...dmn-modeler-v0.6.1) (2026-11-07)
+
+
+### 🔨 Refactoring
+
+* import respelled value sets from their home ([#2203](https://github.com/Miragon/bpmn-modeler/issues/2203)) ([0a2785e](https://github.com/Miragon/bpmn-modeler/commit/0a2785ea9b3ac2a1db286bbbed8fee8a7b0cf945))
+* **theme:** give the theme modes one home in modeler-types ([#2171](https://github.com/Miragon/bpmn-modeler/issues/2171)) ([ba79907](https://github.com/Miragon/bpmn-modeler/commit/ba79907c504b47522ce5227e41871466f5d6ce6f))
+
 ## [0.6.0](https://github.com/Miragon/bpmn-modeler/compare/dmn-modeler-v0.5.0...dmn-modeler-v0.6.0) (2026-11-04)
 
 
