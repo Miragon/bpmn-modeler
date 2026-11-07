@@ -16,7 +16,14 @@ function outcomeLines(report: FunctionReport): string[] {
     if (outcome.kind === "unmeasurable") {
         return [`Not measurable at HEAD: ${outcome.reason}`];
     }
-    const lines = [countsLine(outcome.findings, outcome.resolved.length)];
+    const newCount = outcome.findings.filter(({ status }) => status === "new").length;
+    const lines = [
+        countsLine({
+            new: newCount,
+            existing: outcome.findings.length - newCount,
+            resolved: outcome.resolved.length,
+        }),
+    ];
     if (report.groups === undefined) {
         lines.push(...findingTable(outcome.findings, report.values));
     } else {

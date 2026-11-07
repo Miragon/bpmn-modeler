@@ -67,9 +67,12 @@ export function baseLine(report: FunctionReport): string {
         : `- **Base:** ${source}, not measurable there (${report.base.unmeasurable}); every finding counts as new`;
 }
 
-export function countsLine(findings: readonly FindingRow[], resolvedCount: number): string {
-    const newCount = findings.filter(({ status }) => status === "new").length;
-    return `**${newCount} new, ${findings.length - newCount} existing, ${resolvedCount} resolved**`;
+export function countsLine(counts: {
+    readonly new: number;
+    readonly existing: number;
+    readonly resolved: number;
+}): string {
+    return `**${counts.new} new, ${counts.existing} existing, ${counts.resolved} resolved**`;
 }
 
 function valueSeries(id: string, trend: readonly TrendPoint[]): string[] {
