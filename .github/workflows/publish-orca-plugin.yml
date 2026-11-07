@@ -2,11 +2,14 @@ name: Publish Orca plugin
 
 # Builds the Orca plugin (apps/orca-plugin/plugin/), smoke-tests exactly that
 # folder in the newest Orca, and publishes it into Miragon/orca-modelers with
-# that repository's publish-plugin action: Orca builds nothing and installs the
-# files of a pinned commit there. Every source repository publishes in the
-# `orca-modelers-publish` concurrency group, so publishes run one at a time.
-# Manual dispatch is dry-run-only (build + smoke); a real publish runs from
-# release-please.yml after the release approval.
+# that repository's publish-plugin action: it opens a pull request with the
+# plugin's bytes and then one with its catalog entry, and squash-merges each
+# once that repository's `validate` passes. A failed publish closes its pull
+# request; re-running this job retries and skips the bytes when they are on
+# main there already. The `orca-modelers-publish` concurrency group serializes
+# publishes from this repository only. Manual dispatch is dry-run-only
+# (build + smoke); a real publish runs from release-please.yml after the
+# release approval.
 
 on:
   workflow_dispatch:
@@ -37,10 +40,13 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     concurrency:
-      group: ${{ inputs.dry-run == false && 'orca-modelers-publish' || format('orca-plugin-dry-run-{0}', github.run_id) }}
+      group: ${{ (github.event_name == 'workflow_dispatch' || inputs.dry-run) && format('orca-plugin-dry-run-{0}', github.run_id) || 'orca-modelers-publish' }}
       cancel-in-progress: false
     env:
+      # A dispatch has no dry-run input, and `null == false` holds in an expression.
+      EFFECTIVE_DRY_RUN: ${{ (github.event_name == 'workflow_dispatch' || inputs.dry-run) && 'true' || 'false' }}
       PLUGIN_DIR: apps/orca-plugin/plugin
+      RELEASE_DIR: orca-plugins/bpmn-modeler
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -75,17 +81,16 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
-      - id: changelog
-        name: Take the release's changelog section
+      - name: Hand the smoke-tested folder, tag and changelog section to the publish
+        env:
+          TAG: ${{ inputs.tag }}
         run: |
+          mkdir -p "$RELEASE_DIR"
+          cp -R "$PLUGIN_DIR" "$RELEASE_DIR/plugin"
           section=$(awk '/^## /{n++} n==1' apps/orca-plugin/CHANGELOG.md 2>/dev/null | tail -n +2 | head -c 1900 || true)
-          {
-            echo "text<<CHANGELOG_EOF"
-            echo "$section"
-            echo "CHANGELOG_EOF"
-          } >> "$GITHUB_OUTPUT"
+          jq -n --arg tag "$TAG" --arg changelog "$section" '{tag: $tag, changelog: $changelog}' > "$RELEASE_DIR/release.json"
 
-      - if: inputs.dry-run == false
+      - if: env.EFFECTIVE_DRY_RUN == 'false'
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
         id: app-token
         with:
@@ -93,13 +98,10 @@ jobs:
           private-key: ${{ secrets.RELEASE_PLEASE_APP_PRIVATE_KEY }}
           owner: miragon
           repositories: orca-modelers
-      - if: inputs.dry-run == false
-        uses: miragon/orca-modelers/.github/actions/publish-plugin@787dda8dd403ce189a90ceae5480bbcaa0421c0a # main
+      - if: env.EFFECTIVE_DRY_RUN == 'false'
+        uses: miragon/orca-modelers/.github/actions/publish-plugin@e48874dd694e42a3d6e9960d5754134f001d2587 # main
         with:
           token: ${{ steps.app-token.outputs.token }}
-          plugin-id: bpmn-modeler
-          plugin-dir: ${{ env.PLUGIN_DIR }}
+          plugins-dir: orca-plugins
           source-repo: ${{ github.repository }}
           source-ref: ${{ steps.source.outputs.commit }}
-          source-tag: ${{ inputs.tag }}
-          changelog: ${{ steps.changelog.outputs.text }}
