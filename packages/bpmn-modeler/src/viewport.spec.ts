@@ -114,7 +114,11 @@ describe("ViewportManager.fitViewport", () => {
         const palette = document.createElement("div");
         palette.className = "djs-palette";
         container.appendChild(palette);
-        vi.spyOn(palette, "getBoundingClientRect").mockReturnValue({ width: 1000 } as DOMRect);
+        vi.spyOn(palette, "getBoundingClientRect").mockReturnValue({
+            left: 0,
+            right: 1000,
+            width: 1000,
+        } as DOMRect);
 
         manager.fitViewport();
 
@@ -146,6 +150,30 @@ describe("ViewportManager.fitViewport", () => {
         const leftPx = project(inner.x, box.x, scale);
         expect(leftPx).toBeGreaterThanOrEqual(70);
         decoy.remove();
+    });
+
+    // The palette floats inset from the canvas edge, so its width alone put the
+    // first shape flush against it once the diagram filled the width.
+    it("leaves the same gap to the palette as to the right edge", () => {
+        const inner = { x: 0, y: 0, width: 2000, height: 400 };
+        const { manager, viewbox, container } = setup(inner, { width: 1000, height: 800 });
+        const palette = document.createElement("div");
+        palette.className = "djs-palette";
+        container.appendChild(palette);
+        vi.spyOn(palette, "getBoundingClientRect").mockReturnValue({
+            left: 12,
+            right: 60,
+            width: 48,
+        } as DOMRect);
+
+        manager.fitViewport();
+
+        const box = viewbox.mock.calls.at(-1)?.[0] as Rect;
+        const scale = 1000 / box.width;
+        const gapToPalette = project(inner.x, box.x, scale) - 60;
+        const gapToRightEdge = 1000 - project(inner.x + inner.width, box.x, scale);
+        expect(gapToPalette).toBeCloseTo(40);
+        expect(gapToRightEdge).toBeCloseTo(40);
     });
 
     it("zooms out a diagram larger than the inset area to fit", () => {
