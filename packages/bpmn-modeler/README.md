@@ -1,9 +1,15 @@
 # @miragon/bpmn-modeler
 
-A opinionated, embeddable BPMN modeler, built on
+An opinionated, embeddable BPMN modeler, built on
 [bpmn-js](https://github.com/bpmn-io/bpmn-js). One `createModeler(container,
 options)` call stands up an independent modeler — properties panel, linting, clipboard, theming, and
 the Camunda element-template stack.
+
+This page is for developers who embed the modeler in their own application. To model BPMN yourself,
+use one of the hosts built on it: [VS Code](https://marketplace.visualstudio.com/items?itemName=miragon-gmbh.vs-code-bpmn-modeler),
+[IntelliJ](https://plugins.jetbrains.com/plugin/32634-miragon-bpmn-modeler), the
+[desktop app](https://miragon.github.io/bpmn-modeler/download) or, experimental,
+[Orca](https://miragon.github.io/bpmn-modeler/orca/getting-started).
 
 ## Install
 

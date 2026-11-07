@@ -47,7 +47,7 @@ Marketplace, then get oriented in a couple of minutes:
 ## Reading a diagram
 
 New to the notation? Here is the 30-second version — full primers are linked
-under [Develop and learn more](#develop-and-learn-more).
+under [Learn more](#learn-more).
 
 A BPMN process reads left to right along its flow:
 
@@ -162,19 +162,24 @@ breadcrumbs (editor opened/closed, deployment started/result, SVG export) plus
 the Debug transport trace let us reconstruct the exact steps that led to the
 failure. Credentials are never logged, so the channel is safe to paste.
 
-## Develop and learn more
+## Learn more
 
 - **New to BPMN or DMN?** Learn the notation at
   [camunda.com/bpmn](https://camunda.com/bpmn/) and
   [camunda.com/dmn](https://camunda.com/dmn/).
-- **Contributing** — building from source and the dev loop are documented in
-  [CONTRIBUTING.md](https://github.com/Miragon/bpmn-modeler/blob/main/CONTRIBUTING.md).
+- **Every feature, in depth:** the
+  [documentation](https://miragon.github.io/bpmn-modeler/vscode/features/).
+- **The same modeler elsewhere:** in
+  [IntelliJ](https://plugins.jetbrains.com/plugin/32634-miragon-bpmn-modeler), as a
+  [desktop app](https://miragon.github.io/bpmn-modeler/download), and, experimental, in
+  [Orca](https://miragon.github.io/bpmn-modeler/orca/getting-started).
 
-## Support and feedback
+## Links
 
-- Documentation: <https://miragon.github.io/bpmn-modeler/>
-- Bugs / feature requests: <https://github.com/Miragon/bpmn-modeler/issues>
-- Contact: [info@miragon.io](mailto:info@miragon.io)
+[Documentation](https://miragon.github.io/bpmn-modeler/) ·
+[Report an issue](https://github.com/Miragon/bpmn-modeler/issues) ·
+[Source and contributing](https://github.com/Miragon/bpmn-modeler/blob/main/CONTRIBUTING.md) ·
+[Contact](mailto:info@miragon.io)
 
 ## License
 

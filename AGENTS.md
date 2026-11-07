@@ -64,7 +64,7 @@ corepack yarn workspace @miragon/bpmn-modeler-orca test:orca:docker  # Orca plug
 `watch` writes bundles to disk because the extension host reads them through
 `webview.asWebviewUri`; a dev server does not work there. A webview's `serve`
 and `dev` scripts are browser previews (see the `bpmn-browser-testing`
-skill). The IntelliJ dev loop is in `apps/intellij-plugin/README.md`.
+skill). The IntelliJ dev loop is in `apps/intellij-plugin/CONTRIBUTING.md`.
 
 ## Commit Conventions
 
