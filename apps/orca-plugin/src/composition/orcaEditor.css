@@ -9,6 +9,11 @@ body,
     padding: 16px 20px;
 }
 
+.content.with-diagram .panel-resizer[hidden],
+.content.with-diagram .properties-panel-parent[hidden] {
+    display: none;
+}
+
 .orca-read-only-notice {
     position: fixed;
     top: 12px;

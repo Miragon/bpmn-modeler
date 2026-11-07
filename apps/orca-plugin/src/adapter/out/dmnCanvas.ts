@@ -13,6 +13,7 @@ export interface DmnCanvasOptions {
     container: HTMLElement;
     panelParent: HTMLElement;
     theme: HostThemeKind;
+    onViewChanged(view: DmnView | undefined): void;
 }
 
 export interface DmnCanvas extends ModelCanvas {
@@ -36,6 +37,7 @@ export async function createDmnCanvas(options: DmnCanvasOptions): Promise<DmnCan
         theme: options.theme,
         propertiesPanel: { parent: options.panelParent },
         onContentChanged: () => editListeners.forEach((listener) => listener()),
+        onViewChanged: ({ activeView }) => options.onViewChanged(activeView),
         onWarning: (message) => console.warn(message),
     });
 

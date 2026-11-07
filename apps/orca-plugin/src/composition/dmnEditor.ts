@@ -39,6 +39,8 @@ export async function startDmnEditor(root: HTMLElement): Promise<DocumentSync> {
         container: layout.canvas,
         panelParent: layout.panelMount,
         theme: currentOrcaTheme(),
+        // dmn-js-properties-panel renders only for the DRD.
+        onViewChanged: (view) => layout.hidePanel(view?.type !== "drd"),
     });
     followOrcaTheme((theme) => {
         applyPageThemeScope("data-dmn-theme", theme);

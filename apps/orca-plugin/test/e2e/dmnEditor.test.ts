@@ -60,6 +60,16 @@ describe("the DMN editor in Orca", () => {
         expect((await editor.stub()).disk).toContain(DMN_DELETION.label);
     });
 
+    it("hides the properties panel in a decision table, where it stays empty", async () => {
+        const editor = await open();
+        await openApproveOrderTable(editor);
+        expect(await editor.page.locator("#js-properties-panel").isVisible()).toBe(false);
+        expect(await editor.page.locator("#js-panel-resizer").isVisible()).toBe(false);
+
+        await editor.page.getByRole("button", { name: "View DRD" }).click();
+        await editor.page.locator(".bio-properties-panel").waitFor({ state: "visible" });
+    });
+
     it("saves a rule still typed into a decision table", async () => {
         const editor = await open();
         await openApproveOrderTable(editor);
