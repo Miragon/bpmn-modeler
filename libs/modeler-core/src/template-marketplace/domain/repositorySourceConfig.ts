@@ -1,3 +1,5 @@
+import { MarketplaceProvider } from "../../kernel/domain/modelerSettings";
+
 /**
  * `path` is the subtree to scan; `""` = whole repo/root, used when only
  * {@link RepositorySource.fetchFile} is needed (e.g. `marketplace.json` at the
@@ -51,24 +53,34 @@ export interface LocalSourceConfig extends RepositorySourceConfigBase {
 
 export type RepositorySourceConfig = GitHubSourceConfig | GitLabSourceConfig | LocalSourceConfig;
 
+const PUBLIC_HOST_OF_PROVIDER: Readonly<Record<MarketplaceProvider, string>> = {
+    github: "github.com",
+    gitlab: "gitlab.com",
+};
+
+export function publicHostOf(provider: MarketplaceProvider): string {
+    return PUBLIC_HOST_OF_PROVIDER[provider];
+}
+
+/**
+ * The host of `baseUrl` with its port, otherwise the provider's public one.
+ * Throws a `TypeError` for a `baseUrl` that is not a URL; the parsers reject
+ * one first.
+ */
+export function repositoryHostOf(provider: MarketplaceProvider, baseUrl?: string): string {
+    return baseUrl ? new URL(baseUrl).host : publicHostOf(provider);
+}
+
 /**
  * The authenticating host a config sends credentials to, or `undefined` for a
- * source that needs none. The single place the host-per-config mapping lives,
- * so the service's token orchestration stays provider-agnostic.
- *
- * `baseUrl` is validated with `new URL` at parse time, so re-parsing it here
- * cannot throw. `URL` is a standard global — no host import, arch-test safe.
+ * source that needs none, so the service's token orchestration stays
+ * provider-agnostic. A config's `baseUrl` was validated at parse time, so this
+ * cannot throw.
  */
 export function hostForConfig(config: GitHubSourceConfig | GitLabSourceConfig): string;
 
 export function hostForConfig(config: RepositorySourceConfig): string | undefined;
 
 export function hostForConfig(config: RepositorySourceConfig): string | undefined {
-    if (config.kind === "local") {
-        return undefined;
-    }
-    if (config.baseUrl) {
-        return new URL(config.baseUrl).host;
-    }
-    return config.kind === "github" ? "github.com" : "gitlab.com";
+    return config.kind === "local" ? undefined : repositoryHostOf(config.kind, config.baseUrl);
 }
