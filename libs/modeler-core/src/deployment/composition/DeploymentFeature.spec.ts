@@ -12,6 +12,7 @@ import {
     FlushDocumentQuery,
     FormDefaultsQuery,
     Query,
+    RequestFormDefaultsCommand,
     SaveTargetCommand,
     SelectTargetCommand,
     StartInstanceCommand,
@@ -38,6 +39,7 @@ import { DeploymentTarget, serializeDeploymentTargets } from "../domain/deployme
 import { NO_ENV_VARIABLES } from "../domain/envRef";
 import { HttpClient } from "../../kernel/port/HttpClient";
 import { HttpResponse } from "../../kernel/domain/http";
+import { ModelerSettingsSnapshot } from "../../kernel/domain/modelerSettings";
 import { DeploymentTargetService, toTargetPayload } from "../service/DeploymentTargetService";
 
 const TARGETS_FILE = "/ws/.camunda/deployment-targets.json";
@@ -92,11 +94,13 @@ function createFeature(
     targets: DeploymentTarget[] = [target("dev"), target("prod")],
     extraFiles: Record<string, string> = {},
     http?: HttpClient,
+    settings: Partial<ModelerSettingsSnapshot> = {},
 ) {
     const host = createTestHost({
         folders: ["/ws"],
         files: { [TARGETS_FILE]: serializeDeploymentTargets(targets), ...extraFiles },
         promptAnswers,
+        settings,
     });
     const feature = new DeploymentFeature({
         store: host.store,
@@ -182,6 +186,89 @@ describe("DeploymentFeature.attachPanel", () => {
         await settle();
 
         expect(posted).toEqual([]);
+    });
+});
+
+describe("DeploymentFeature conventional routes", () => {
+    const V1_ROUTES = {
+        c7: {
+            deployUrl: "<endpoint>/deployment/create",
+            startInstanceUrl: "<endpoint>/process-definition/key/{processDefinitionKey}/start",
+        },
+        c8: {
+            deployUrl: "<endpoint>/v1/deployments",
+            startInstanceUrl: "<endpoint>/v1/process-instances",
+        },
+    };
+
+    const cloud = new DeploymentTarget("cloud", "c8", "https://zeebe.test/", "", "none", "", "");
+
+    it("shows the form the routes of the configured C8 API version, which a C8 deploy uses", async () => {
+        const http = new RecordingEngineHttp();
+        const { host, feature } = createFeature(
+            { deployableFiles: [ORDER_PROCESS] },
+            [cloud],
+            { [ORDER_PROCESS]: "<bpmn:definitions/>" },
+            http,
+            { c8ApiVersion: "v1" },
+        );
+        host.deploymentState.seed({ activeTargetName: "cloud" });
+        host.openEditor(ORDER_PROCESS);
+        const { panel, posted } = attach(feature, true);
+
+        await panel.handle(new RequestFormDefaultsCommand());
+        await feature.deployFiles();
+
+        expect(formDefaultsIn(posted)[0].defaults).toMatchObject({ conventionalRoutes: V1_ROUTES });
+        expect(http.deployments.map(({ url }) => url)).toEqual([
+            "https://zeebe.test/v1/deployments",
+        ]);
+    });
+
+    it("follows a C8 API version that arrives after the feature is built, in the hint and the requests", async () => {
+        const http = new RecordingEngineHttp();
+        const { host, feature } = createFeature(
+            { deployableFiles: [ORDER_PROCESS] },
+            [cloud],
+            { [ORDER_PROCESS]: "<bpmn:definitions/>" },
+            http,
+        );
+        host.settings.values.c8ApiVersion = "v1";
+        host.deploymentState.seed({ activeTargetName: "cloud" });
+        host.openEditor(ORDER_PROCESS);
+        const { panel, posted } = attach(feature, true);
+
+        await panel.handle(new RequestFormDefaultsCommand());
+        await feature.deployFiles();
+        await panel.handle(
+            new StartInstanceCommand({
+                processDefinitionKey: "order-process",
+                endpoint: "https://zeebe.test/",
+                engine: "c8",
+                auth: { authType: "none" },
+                payloadFilePath: "",
+                targetName: "cloud",
+            }),
+        );
+
+        expect({
+            hint: formDefaultsIn(posted)[0].defaults.conventionalRoutes.c8,
+            deploys: http.deployments.map(({ url }) => url),
+            starts: http.instanceStarts,
+        }).toEqual({
+            hint: V1_ROUTES.c8,
+            deploys: ["https://zeebe.test/v1/deployments"],
+            starts: ["https://zeebe.test/v1/process-instances"],
+        });
+    });
+
+    it("shows the form the routes with no diagram open", async () => {
+        const { feature } = createFeature({}, [], {}, undefined, { c8ApiVersion: "v1" });
+        const { panel, posted } = attach(feature, true);
+
+        await panel.handle(new RequestFormDefaultsCommand());
+
+        expect(formDefaultsIn(posted)[0].defaults).toMatchObject({ conventionalRoutes: V1_ROUTES });
     });
 });
 

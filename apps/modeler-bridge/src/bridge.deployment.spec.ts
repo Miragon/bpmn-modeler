@@ -9,7 +9,11 @@ import {
     ledgerKeyFor,
     NO_ENV_VARIABLES,
 } from "@miragon/bpmn-modeler-core";
-import { DeployCommand } from "@miragon/bpmn-modeler-shared";
+import {
+    DeployCommand,
+    DeploymentFormDefaults,
+    RequestFormDefaultsCommand,
+} from "@miragon/bpmn-modeler-shared";
 import {
     hostErrorReply,
     hostNotification,
@@ -490,6 +494,73 @@ describe("deployment commands over the bridge", () => {
             message: expect.stringMatching(/\ndiscovery failed$/),
         });
         expect(c.deps.nodeWorkspace.getWorkspaceFolderPaths()).toEqual([]);
+    });
+
+    it("routes the form's hint and a C8 deploy by the C8 API version the host sends after start", async () => {
+        const root = await fs.mkdtemp(join(tmpdir(), "deployment-c8-version-"));
+        roots.push(root);
+        await fs.writeFile(join(root, "order.bpmn"), DIAGRAM);
+        await fs.mkdir(join(root, ".camunda"));
+        await fs.writeFile(
+            join(root, ".camunda/deployment-targets.json"),
+            JSON.stringify({
+                targets: [
+                    {
+                        name: "cloud",
+                        endpoint: "https://zeebe.test",
+                        engine: "c8",
+                        auth: { type: "none" },
+                    },
+                ],
+            }),
+        );
+        const post = vi
+            .spyOn(FetchHttpClient.prototype, "postMultipart")
+            .mockResolvedValue({ status: 200, body: '{"deploymentKey":"1"}' });
+        const frames: {
+            method: string;
+            params: { message?: { type: string; defaults?: DeploymentFormDefaults } };
+            id?: number;
+        }[] = [];
+        const { rpc } = createBridge((line) => {
+            const frame: (typeof frames)[number] = JSON.parse(line);
+            frames.push(frame);
+            if (frame.id === undefined) return;
+            const result = frame.method === METHODS.pickerShow ? { selected: [0] } : null;
+            void rpc.handleLine(hostReply(frame.id, result));
+        });
+
+        await rpc.handleLine(
+            hostNotification(METHODS.settingsDidChange, { settings: { c8ApiVersion: "v1" } }),
+        );
+        await rpc.handleLine(
+            hostNotification(METHODS.deploymentStateSeed, { state: { activeTargetName: "cloud" } }),
+        );
+        await rpc.handleLine(
+            hostNotification(METHODS.deploymentWebviewMessage, {
+                message: new RequestFormDefaultsCommand(),
+            }),
+        );
+        const formDefaults = await waitForFrame(
+            frames,
+            (frame) =>
+                frame.method === METHODS.deploymentPostMessage &&
+                frame.params.message?.type === "FormDefaultsQuery",
+        );
+        await rpc.handleLine(
+            hostNotification(METHODS.deploymentDeployFiles, { workspaceRoot: root }),
+        );
+
+        expect({
+            hint: formDefaults.params.message.defaults.conventionalRoutes.c8,
+            deploys: post.mock.calls.map(([url]) => url),
+        }).toEqual({
+            hint: {
+                deployUrl: "<endpoint>/v1/deployments",
+                startInstanceUrl: "<endpoint>/v1/process-instances",
+            },
+            deploys: ["https://zeebe.test/v1/deployments"],
+        });
     });
 
     describe("the host's deployment status slot", () => {

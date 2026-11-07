@@ -84,6 +84,17 @@ class MockHost extends MockHostApi<StateType, MessageType> {
                         endpoint: "http://localhost:8080/engine-rest",
                         engine: "c7",
                         authType: "none",
+                        conventionalRoutes: {
+                            c7: {
+                                deployUrl: "<endpoint>/deployment/create",
+                                startInstanceUrl:
+                                    "<endpoint>/process-definition/key/{processDefinitionKey}/start",
+                            },
+                            c8: {
+                                deployUrl: "<endpoint>/v2/deployments",
+                                startInstanceUrl: "<endpoint>/v2/process-instances",
+                            },
+                        },
                     }),
                 );
                 dispatchEvent(new ProcessDefinitionKeyQuery("Process_0gjrx3e"));

@@ -1,6 +1,8 @@
 import { posix } from "path";
 
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, expectTypeOf, it, vi } from "vitest";
+
+import { EngineRoutesPayload } from "@miragon/bpmn-modeler-shared";
 
 import {
     BasicAuth,
@@ -15,6 +17,7 @@ import { contentFingerprint } from "../domain/deploymentLedger";
 import { additionalFilesPrompt } from "../domain/deploymentPrompts";
 import { fileChoice } from "../../kernel/domain/fileChoices";
 import { DeploymentTarget } from "../domain/deploymentTarget";
+import { conventionalRoutes, EngineRoutes } from "../domain/engineRoutes";
 import { ENV_VARIABLE_PREFIX } from "../domain/envRef";
 import { CamundaEnginePort } from "../port/deploymentPorts";
 import { FetchHttpClient } from "../../kernel/adapter/out/FetchHttpClient";
@@ -123,6 +126,7 @@ function createService({ dotEnvFiles = {}, engineClient, ...hostOptions }: Servi
         envResolver,
         credentialApproval,
         host.settings,
+        () => conventionalRoutes("v1"),
     );
 
     return {
@@ -200,7 +204,11 @@ function deployAdHoc(service: DeploymentService, config: DeploymentConfig) {
 /** The production REST stack down to `fetch`, so a failure's message is the shipped one. */
 function createRealRestClient(): Camunda7RestClient {
     const httpClient = new FetchHttpClient();
-    return new Camunda7RestClient(httpClient, new AuthHeaderResolver(httpClient));
+    return new Camunda7RestClient(
+        httpClient,
+        new AuthHeaderResolver(httpClient),
+        () => conventionalRoutes("v2").c7,
+    );
 }
 
 function stubFetch(respond: (url: string, init?: RequestInit) => Promise<Response>) {
@@ -313,6 +321,36 @@ describe("DeploymentService.getFormDefaults", () => {
         const defaults = service.getFormDefaults(editor.id);
 
         expect(defaults.endpoint).toBe("http://localhost:8080/engine-rest");
+    });
+
+    it("carries the routes the engine clients use", () => {
+        const { service, host } = createService();
+        const editor = host.openEditor("/work/p.bpmn", C8_XML);
+
+        expect(service.getFormDefaults(editor.id).conventionalRoutes).toEqual(
+            conventionalRoutes("v1"),
+        );
+        expectTypeOf<EngineRoutesPayload>().toEqualTypeOf<EngineRoutes>();
+    });
+});
+
+describe("DeploymentService.getFormDefaultsWithoutEditor", () => {
+    it("starts empty at the local engine instead of the remembered connection", () => {
+        const { service, host } = createService();
+        host.deploymentState.seed({
+            endpoint: "https://camunda.example/api",
+            tenantId: "acme",
+            authType: "basic",
+        });
+
+        expect(service.getFormDefaultsWithoutEditor()).toEqual({
+            deploymentName: "",
+            tenantId: "",
+            endpoint: "http://localhost:8080/engine-rest",
+            engine: "c7",
+            authType: "none",
+            conventionalRoutes: conventionalRoutes("v1"),
+        });
     });
 });
 

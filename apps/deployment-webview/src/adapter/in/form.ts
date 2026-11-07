@@ -31,15 +31,6 @@ import {
 } from "../../domain/deploymentDraft";
 import type { DeploymentHost } from "../../port/deploymentHost";
 
-const CONVENTION_DEPLOY_URL: Record<Engine, string> = {
-    c7: "<endpoint>/deployment/create",
-    c8: "<endpoint>/v2/deployments",
-};
-const CONVENTION_START_URL: Record<Engine, string> = {
-    c7: "<endpoint>/process-definition/key/{processDefinitionKey}/start",
-    c8: "<endpoint>/v2/process-instances",
-};
-
 /**
  * Intentionally framework-free — manipulates the DOM directly and talks to
  * the extension host via the `postMessage` API wrapped by {@link DeploymentHost}.
@@ -670,9 +661,9 @@ export class DeploymentForm {
     }
 
     private updateAdvancedPlaceholders(): void {
-        const engine = this.selectedEngine();
-        this.deployUrlInput.placeholder = CONVENTION_DEPLOY_URL[engine];
-        this.startInstanceUrlInput.placeholder = CONVENTION_START_URL[engine];
+        const routes = this.latestDefaults?.conventionalRoutes[this.selectedEngine()];
+        this.deployUrlInput.placeholder = routes?.deployUrl ?? "";
+        this.startInstanceUrlInput.placeholder = routes?.startInstanceUrl ?? "";
     }
 
     /**

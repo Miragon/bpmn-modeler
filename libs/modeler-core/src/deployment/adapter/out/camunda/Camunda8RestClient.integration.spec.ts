@@ -7,6 +7,7 @@ import { FetchHttpClient } from "../../../../kernel/adapter/out/FetchHttpClient"
 import { AuthHeaderResolver } from "./AuthHeaderResolver";
 import { Camunda8RestClient } from "./Camunda8RestClient";
 import { BasicAuth, DeploymentConfig, NoAuth, OAuth2Auth } from "../../../domain/deployment";
+import { conventionalRoutes } from "../../../domain/engineRoutes";
 import { StartInstanceConfig } from "../../../domain/startInstance";
 import { DeploymentFailedError, StartInstanceFailedError } from "../../../domain/errors";
 
@@ -53,15 +54,15 @@ describe("Camunda8RestClient (integration)", () => {
         });
     });
 
-    /**
-     * Creates a C8 client wired with real {@link FetchHttpClient}.
-     *
-     * @param apiVersion Optional Camunda 8 REST API version prefix (defaults to `"v2"`).
-     */
-    function createClient(apiVersion?: string): Camunda8RestClient {
+    /** Creates a C8 client wired with real {@link FetchHttpClient}. */
+    function createClient(apiVersion = "v2"): Camunda8RestClient {
         const httpClient = new FetchHttpClient();
         const authResolver = new AuthHeaderResolver(httpClient);
-        return new Camunda8RestClient(httpClient, authResolver, apiVersion);
+        return new Camunda8RestClient(
+            httpClient,
+            authResolver,
+            () => conventionalRoutes(apiVersion).c8,
+        );
     }
 
     // ── Deploy ──────────────────────────────────────────────────────────

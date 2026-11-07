@@ -9,6 +9,7 @@ import { HttpClient } from "../../../../kernel/port/HttpClient";
 import { EngineDeploymentSnapshot } from "../../../domain/deploymentVerification";
 import { InspectionRequest } from "../../../domain/inspectionRequest";
 import { SecretRedactor } from "../../../domain/secretRedactor";
+import { EngineRoutes, expandRoute } from "../../../domain/engineRoutes";
 import { StartInstanceConfig, StartInstanceResult } from "../../../domain/startInstance";
 import { expandUrlTemplate, stripTrailingSlash } from "../../../domain/urlTemplate";
 import { AuthHeaderResolver } from "./AuthHeaderResolver";
@@ -26,14 +27,17 @@ export class Camunda7RestClient implements CamundaEnginePort, EngineInspectionPo
     /**
      * @param httpClient Transport abstraction for HTTP POST requests.
      * @param authResolver Resolves auth configs into concrete HTTP headers.
+     * @param currentRoutes Reads Camunda 7's routes at each request, used where the
+     *   target has no override.
      */
     constructor(
         private readonly httpClient: HttpClient,
         private readonly authResolver: AuthHeaderResolver,
+        private readonly currentRoutes: () => EngineRoutes,
     ) {}
 
     /**
-     * Deploys resources to Camunda 7 via `POST {endpoint}/deployment/create`.
+     * Deploys resources to Camunda 7 via `POST` to the deploy route.
      *
      * The multipart body includes `deployment-name`, optional `tenant-id`,
      * `deployment-source`, and one file part per resource (part name = filename).
@@ -62,7 +66,8 @@ export class Camunda7RestClient implements CamundaEnginePort, EngineInspectionPo
         const { body, boundary } = builder.build();
 
         const fullUrl =
-            config.deployUrl ?? `${stripTrailingSlash(config.endpoint)}/deployment/create`;
+            config.deployUrl ??
+            expandRoute(this.currentRoutes().deployUrl, { endpoint: config.endpoint });
         const extraHeaders = await this.authResolver.resolve(config.auth, config.redactor());
 
         const { status, body: responseBody } = await this.httpClient.postMultipart(
@@ -98,8 +103,7 @@ export class Camunda7RestClient implements CamundaEnginePort, EngineInspectionPo
     }
 
     /**
-     * Starts a process instance on Camunda 7 via
-     * `POST {endpoint}/process-definition/key/{key}/start`.
+     * Starts a process instance on Camunda 7 via `POST` to the start route.
      *
      * @param config Validated start-instance configuration.
      * @returns A {@link StartInstanceResult} with the server-assigned instance ID.
@@ -112,7 +116,10 @@ export class Camunda7RestClient implements CamundaEnginePort, EngineInspectionPo
             ? expandUrlTemplate(config.startInstanceUrl, {
                   processDefinitionKey: config.processDefinitionKey,
               })
-            : `${stripTrailingSlash(config.endpoint)}/process-definition/key/${encodeURIComponent(config.processDefinitionKey)}/start`;
+            : expandRoute(this.currentRoutes().startInstanceUrl, {
+                  endpoint: config.endpoint,
+                  processDefinitionKey: config.processDefinitionKey,
+              });
         const requestBody = {
             variables: config.payload ?? {},
         };

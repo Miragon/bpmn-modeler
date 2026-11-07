@@ -2,12 +2,11 @@ import { posix } from "path";
 
 import { DocumentPort, NotifierPort } from "../../kernel/port/hostPorts";
 import { EditorSessionStore } from "../../editorSession/service/EditorSessionStore";
+import { isDeployableFile } from "../domain/deployableFiles";
 import { DeploymentService } from "./DeploymentService";
 import { DeploymentTargetService } from "./DeploymentTargetService";
 import { resolveOrPickNamedDestination } from "./resolveOrPickNamedDestination";
 import { SaveBeforeDeploy } from "./SaveBeforeDeploy";
-
-const DEPLOYABLE_EXTENSIONS = [".bpmn", ".dmn"];
 
 /**
  * One-click deploy of the active editor's diagram to the active target. Saves
@@ -41,7 +40,7 @@ export class DeployActiveDiagramService {
         }
 
         const filePath = this.documentPort.getFilePath(editorId);
-        if (!DEPLOYABLE_EXTENSIONS.includes(posix.extname(filePath).toLowerCase())) {
+        if (!isDeployableFile(filePath)) {
             this.notifier.showInfo("Open a BPMN or DMN diagram to deploy it.");
             return;
         }

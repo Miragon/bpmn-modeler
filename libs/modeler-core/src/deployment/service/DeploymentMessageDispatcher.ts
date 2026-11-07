@@ -164,15 +164,7 @@ export class DeploymentMessageDispatcher implements RouteLookup {
             this.notifier.logDebug(
                 `No active editor for deployment form defaults: ${(error as Error).message}`,
             );
-            this.post(
-                new FormDefaultsQuery({
-                    deploymentName: "",
-                    tenantId: "",
-                    endpoint: "http://localhost:8080/engine-rest",
-                    engine: "c7",
-                    authType: "none",
-                }),
-            );
+            this.post(new FormDefaultsQuery(this.deploymentService.getFormDefaultsWithoutEditor()));
             this.post(new ProcessDefinitionKeyQuery(""));
         }
     }
