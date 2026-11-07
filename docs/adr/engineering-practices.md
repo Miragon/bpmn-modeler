@@ -1052,7 +1052,7 @@ in the wrong home (Tornhill, Your Code as a Crime Scene, 2015, 2nd ed. 2024).
 - **No trend of its own.** Findings carry no values; the per-file trend is
   `size-and-complexity`'s, joined by path.
 
-Trial at `e8c92425`, 924 commits, 835 measured files: the product's top 20
+Trial at `e8c92425`, 924 commits, 825 measured files: the product's top 20
 holds 5 of the 8 `libs/modeler-core` services over 300 lines that #2057 names
 (`DeploymentMessageDispatcher` 10th, `DeploymentTargetService` 13th,
 `CodeLinkMapService` 16th, `BpmnLintConfigService` 17th, `DeploymentService`

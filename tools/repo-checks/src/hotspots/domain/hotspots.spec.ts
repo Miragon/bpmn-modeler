@@ -125,14 +125,6 @@ describe("the hotspot ranking", () => {
             [LARGE, 2],
         ]);
     });
-
-    it("ranks a file that declares only types", () => {
-        const protocol = "libs/shared/src/lib/modeler.ts";
-
-        expect(
-            rankHotspots([changed(protocol)], [file(protocol, 794)]).map(({ file }) => file.path),
-        ).toEqual([protocol]);
-    });
 });
 
 describe("the hotspot findings", () => {

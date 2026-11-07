@@ -55,7 +55,7 @@ export function createHotspotsFitnessFunction({
                 kind: "trial",
                 commit: "e8c92425",
                 outcome:
-                    "924 commits, 835 files: the top 20 holds 5 of the 8 libs/modeler-core services over 300 lines that issue 2057 names (10th to 18th; version 1 ranked the barrel libs/modeler-core/src/index.ts 9th and them 11th to 19th); ranking by revisions alone holds none of them and puts three barrels, a vitest.config.ts and a 60-line main.ts in its top 20; first is libs/shared/src/lib/modeler.ts, a type-only protocol file",
+                    "924 commits, 825 files: the top 20 holds 5 of the 8 libs/modeler-core services over 300 lines that issue 2057 names (10th to 18th; version 1 ranked the barrel libs/modeler-core/src/index.ts 9th and them 11th to 19th); ranking by revisions alone holds none of them and puts three barrels, a vitest.config.ts and a 60-line main.ts in its top 20; first is libs/shared/src/lib/modeler.ts, a type-only protocol file",
             },
             {
                 kind: "trial",
