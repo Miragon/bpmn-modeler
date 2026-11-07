@@ -1,9 +1,7 @@
 import {
     type ElementTemplateFileQuery,
-    type FlushDocumentQuery,
     type InertLock,
     LogErrorCommand,
-    type ReleaseDocumentFlushQuery,
     WebviewDocumentSync,
 } from "@miragon/bpmn-modeler-shared";
 
@@ -24,9 +22,7 @@ export class TemplateDocumentSession {
     private imported = false;
     private readonly document: WebviewDocumentSync;
 
-    readonly respondToFlush: (
-        query: FlushDocumentQuery | ReleaseDocumentFlushQuery,
-    ) => Promise<void>;
+    readonly respondToFlush: WebviewDocumentSync["respondToFlush"];
 
     constructor(
         private readonly host: HostChannel,

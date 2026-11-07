@@ -3,7 +3,7 @@ import { DisposableStore } from "@miragon/bpmn-modeler-types";
 import type { Element as BpmnElement } from "./bpmnTypes";
 import { EDITOR_ICON_SVG } from "./editorIcon";
 import type { ScriptEditorOpener } from "./scriptEditorOpener";
-import type { PanelListenerType } from "./scriptModel";
+import { PANEL_LISTENER_TYPES, type PanelListenerType } from "./scriptModel";
 
 /**
  * bpmn-js DI module that injects "Open script in editor" icon buttons into
@@ -42,7 +42,9 @@ const SCRIPT_GROUP_ID = "group-CamundaPlatform__Script";
  * The element id may itself contain dashes, so we anchor on the well-known
  * listener-type tokens.
  */
-export const LISTENER_ENTRY_ID_PATTERN = /^(.+)-(executionListener|taskListener)-(\d+)$/;
+export const LISTENER_ENTRY_ID_PATTERN = new RegExp(
+    `^(.+)-(${PANEL_LISTENER_TYPES.join("|")})-(\\d+)$`,
+);
 
 // Attribute set on processed elements to avoid duplicate injection.
 const INJECTED_MARKER = "data-script-btn-injected";

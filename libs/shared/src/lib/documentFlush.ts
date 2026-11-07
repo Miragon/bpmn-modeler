@@ -1,5 +1,20 @@
 import { DocumentFlushedCommand, FlushDocumentQuery, ReleaseDocumentFlushQuery } from "./messages";
 
+/** The queries {@link createFlushResponder} answers. */
+export type FlushQuery = FlushDocumentQuery | ReleaseDocumentFlushQuery;
+
+export const FLUSH_QUERY_TYPES = [
+    "FlushDocumentQuery",
+    "ReleaseDocumentFlushQuery",
+] as const satisfies readonly FlushQuery["type"][];
+
+/** Reads only `type`: the caller still checks the payload of a message it has not validated. */
+export function isFlushQuery(message: {
+    readonly type: unknown;
+}): message is { readonly type: FlushQuery["type"] } {
+    return FLUSH_QUERY_TYPES.some((type) => type === message.type);
+}
+
 /**
  * The webview-side capabilities the flush responder drives, named in domain
  * terms so every modeler webview can supply them without the
@@ -53,7 +68,7 @@ export interface FlushSource {
 export function createFlushResponder(
     source: FlushSource,
     post: (reply: DocumentFlushedCommand) => void,
-): (query: FlushDocumentQuery | ReleaseDocumentFlushQuery) => Promise<void> {
+): (query: FlushQuery) => Promise<void> {
     let lockedToken: number | undefined;
 
     const release = (token: number): void => {
@@ -62,7 +77,7 @@ export function createFlushResponder(
         source.endDestructiveFlush();
     };
 
-    return async (flush: FlushDocumentQuery | ReleaseDocumentFlushQuery): Promise<void> => {
+    return async (flush: FlushQuery): Promise<void> => {
         if (flush.type === "ReleaseDocumentFlushQuery") {
             release(flush.token);
             return;

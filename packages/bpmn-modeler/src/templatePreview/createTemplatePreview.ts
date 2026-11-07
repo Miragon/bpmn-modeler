@@ -1,5 +1,5 @@
 import { i18n, type SupportedLocale } from "@miragon/bpmn-modeler-i18n";
-import type { Engine } from "@miragon/bpmn-modeler-types";
+import { DEFAULT_THEME_MODE, type Engine } from "@miragon/bpmn-modeler-types";
 
 import { createModeler } from "../createModeler";
 import type { BpmnModeler } from "../modeler";
@@ -54,7 +54,7 @@ export async function createTemplatePreview(
     panelParent: HTMLElement,
     options: TemplatePreviewOptions = {},
 ): Promise<TemplatePreviewHandle> {
-    let theme = options.theme ?? "automatic";
+    let theme = options.theme ?? DEFAULT_THEME_MODE;
     let current: { engine: Engine; modeler: BpmnModeler } | undefined;
     let lastGood: Shown | undefined;
     let reportedErrors: unknown[] = [];

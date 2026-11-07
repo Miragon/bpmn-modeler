@@ -2,8 +2,8 @@
 /* All classes are prefixed with `etc-` to avoid collisions.               */
 
 /* ── Theme tokens ─────────────────────────────────────────────────────── */
-/* Light-mode defaults. Overridden by the dark-mode block at the bottom   */
-/* when the VS Code webview has a dark theme active.                      */
+/* Light-mode defaults. The dark theme overrides them from the modeler    */
+/* package; see "Dark theme" at the end of this file.                     */
 
 :root {
     --etc-bg:               #ffffff;
@@ -679,8 +679,7 @@
 }
 
 /* ── Dark theme ───────────────────────────────────────────────────────── */
-/* Dark-mode overrides for the --etc-* tokens live in the dark theme       */
-/* stylesheet (apps/bpmn-webview/src/styles/dark-theme/element-template-   */
-/* chooser.css) and are only loaded when the dark theme is active.         */
-/* This respects the "colorTheme: light" setting which forces light mode   */
-/* even when VS Code itself uses a dark theme.                             */
+/* The dark --etc-* values live in packages/bpmn-modeler/src/styles/       */
+/* dark-theme/element-template-chooser.css, scoped under                   */
+/* [data-bpmn-theme="dark"], so an instance set to light (the              */
+/* "colorTheme: light" setting) stays light under a dark VS Code theme.    */
