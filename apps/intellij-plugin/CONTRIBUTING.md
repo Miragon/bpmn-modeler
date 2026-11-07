@@ -1,0 +1,258 @@
+# Contributing to the IntelliJ plugin
+
+For developers of `apps/intellij-plugin`: its architecture, build, tests and packaging. What the plugin does for its users is in [README.md](README.md); the setup of the whole repository is in the root [CONTRIBUTING.md](../../CONTRIBUTING.md).
+
+A third host for the Miragon BPMN modeler (after VS Code and Theia). It opens
+`.bpmn` files in a **JCEF** (embedded Chromium) editor, renders them with the
+**existing** bpmn-js webview bundle, and round-trips edits back to disk — while
+running the **unmodified TypeScript core out-of-process**, as a supervised,
+**Node-free** binary.
+
+This is the host foundation. It is **pure transport + port adapters**: the
+modeling engine is `@miragon/bpmn-modeler-core`, consumed over a bridge
+(`apps/modeler-bridge/`), never reimplemented in Kotlin.
+
+## Architecture
+
+```mermaid
+flowchart TD
+    file([".bpmn file"])
+
+    subgraph host["IntelliJ host — Kotlin (transport + IDE port sinks)"]
+        provider["BpmnFileEditorProvider"]
+        editor["BpmnFileEditor<br/>(JCEF browser)"]
+        server["WebviewServer<br/>serves the pre-built bundle"]
+        webview["bpmn-js webview<br/>(Chromium)"]
+        jsquery["JBCefJSQuery"]
+        supervisor["CoreProcess<br/>supervisor · spawns / restarts the bridge"]
+        notifier["Notifier → Notifications.Bus balloons"]
+        statusbar["StatusBar → one StatusSlotWidget per slot"]
+    end
+
+    file --> provider --> editor
+    editor -->|"loads http://127.0.0.1:&lt;port&gt;/…"| server
+    server --> webview
+    webview <-->|"window.postMessage (Query/Command)"| editor
+    webview -->|"postMessage"| jsquery --> supervisor
+
+    subgraph bridge["modeler-bridge — single Bun binary (Node-free)"]
+        router["Router + EditorSessionStore + BpmnModelerService"]
+        engine["@miragon/bpmn-modeler-core<br/>unmodified TS modeling engine"]
+        ports["RPC port adapters<br/>EditorHandle · Document · Notifier<br/>StatusBar · Clipboard · Picker"]
+        router -->|"in: dispatch Query/Command"| engine
+        engine -->|"out: port calls"| ports
+        ports -->|"serialize + write back out"| router
+    end
+
+    supervisor <==>|"one stdio NDJSON JSON-RPC pipe"| router
+    supervisor -.->|"renders port callbacks in the IDE"| notifier
+    supervisor -.-> statusbar
+```
+
+### Two key decisions (see the ADR)
+
+[Architecture and hosts: process lifecycle](../../docs/adr/architecture-and-hosts.md#process-lifecycle) records:
+
+- **Transport — one stdio JSON-RPC pipe.** Core↔host *and* the webview-message
+  relay ride a single supervised NDJSON pipe (not a webview↔server WebSocket
+  seam). Single transport ⇒ simplest crash detection/recovery, smallest attack
+  surface, leanest binary (no embedded HTTP/WS server, no open port).
+- **Topology — one core per project.** `CoreProcess` is a project-level service,
+  lazily spawned on the first `.bpmn` open and torn down with the project. A
+  crash is isolated to one project window; closing the project leaves no orphan.
+
+### Process supervisor (`CoreProcess`)
+
+- **Spawns the bundled Bun binary** (`/bin/<os>-<arch>/modeler-bridge`, extracted
+  from the plugin classpath), not `node` from `PATH`. Dev override:
+  `-Dmiragon.bridge=/abs/path` or `MIRAGON_BRIDGE`.
+- **Crash recovery:** detects process exit, respawns with linear backoff (giving
+  up after repeated rapid crashes), writes each page's edits the `Document` never
+  received into it (the close flush), re-registers every live session from the
+  authoritative IntelliJ `Document`, replays `GetBpmnModelerSettingCommand` to
+  apply current preferences before restoring selection, and replays `GetBpmnFileCommand` so open
+  editors re-render, then `GetBpmnlintConfigCommand` so the page shows the new
+  bridge's lint state. Last it sends `session/setActive` for the selected
+  diagram tab, so commands without an editor id keep acting on it and not on
+  the session re-registered last. The page takes no edits until the render arrives, at
+  most 5 s after the replay; a crash recovery with an edit to write first waits
+  for an open modal dialog to close. Tools ▸ Reload Modeler runs the same
+  recovery against the running bridge. Like a tab close, recovery writes only
+  diagrams edited since their last render: one you never edited keeps its text,
+  even where the modeler would serialize it differently. A read-only file keeps
+  its text, and its diagram re-renders from it. A tab closed while recovery
+  re-registers it is disposed in the new bridge too, and a file reopened
+  meanwhile keeps the new tab's session.
+- **No orphans:** the bridge exits on stdin EOF, so a dying JVM never orphans it;
+  `dispose()` + a shutdown hook + `destroyForcibly` are belt-and-suspenders.
+- **Backpressure:** a single writer thread drains a bounded outbound queue that
+  coalesces superseded document-sync frames per editor, so the EDT/JS threads
+  never block on bridge stdin.
+
+### Automatic linked form previews
+
+The Kotlin host owns the application preference and broadcasts settings to the
+bridge. See [user settings](../../docs/intellij/getting-started.md#settings) for the
+checkbox and action.
+
+### Saving
+
+Ctrl+S, autosave and the save on switching to another application first ask
+every open diagram for the edit its 300 ms sync debounce still holds, and write
+it into the `Document`, so the save persists what the diagram shows. The host
+waits at most 250 ms for all diagrams of a project together; a diagram that
+does not answer is saved as it is. See
+[host integrations](../../docs/adr/architecture-and-hosts.md#host-integrations).
+
+### Display ports
+
+- **Notifier → `Notifications.Bus`** balloons (+ IDE log) via `HostNotifications`.
+- **StatusBar → `StatusSlotWidget`s**: one widget per core status slot (element
+  templates, engine version, BPMNlint, deployment target). `HostUiRouter` reads
+  `statusBar/update` into a `StatusView`; `AutoHidingStatusSlots` hides a transient
+  view after 3 s like VS Code; `StatusBarSlots` places each slot in its widget. A
+  click runs the view's action: Change Engine Version, the lint toggle
+  (`linting/toggle`), or the deployment menu. `StatusSlotPlacementTest` fails
+  when the core's `statusView.ts` gains a slot, icon, tone or action without a
+  Kotlin counterpart.
+
+## Build & run
+
+This Gradle build does **not** invoke the JS/Bun toolchain — it only packages
+the already-built artefacts (webview bundles + the `modeler-bridge` binary).
+
+**One command (from the repo root)** builds those artefacts and launches the
+sandbox IDE:
+
+```bash
+corepack yarn intellij:run
+```
+
+`intellij:run` = `intellij:build` (libs → bpmn + deployment webviews → bridge
+`compile`) then `./gradlew runIde`. Use `corepack yarn intellij:build` alone to
+refresh the artefacts without launching, then re-run `runIde` yourself.
+
+<details>
+<summary>The manual equivalent</summary>
+
+```bash
+corepack yarn build:libs
+corepack yarn build:bpmn-webview          # → dist/webview-staging/bpmn-webview/
+corepack yarn build:deployment-webview    # → dist/webview-staging/deployment-webview/
+corepack yarn workspace @miragon/bpmn-modeler-bridge compile
+                                          # → apps/modeler-bridge/dist/modeler-bridge
+cd apps/intellij-plugin && ./gradlew runIde
+```
+
+</details>
+
+A sandboxed IntelliJ IDEA Community launches. Open any `.bpmn` file — it opens in
+a **BPMN Modeler** tab and the diagram renders. Move/add an element, then
+`Ctrl/Cmd+S`, and switch to the plain-text tab to confirm the round-tripped XML.
+The status bar shows the template load, the engine version, the BPMNlint status
+and the deployment target, one widget each; loading errors surface as balloons.
+Tail the IDE log for `[bridge stderr]` lines to watch the seam.
+
+> The Gradle build only repackages the artefacts `intellij:build` produced — a
+> webview/CSS change is **not** picked up until you rebuild them. Re-run
+> `corepack yarn intellij:build` (or the full `intellij:run`) after editing the
+> webview.
+
+### Tests and coverage
+
+```bash
+cd apps/intellij-plugin && ./gradlew check
+```
+
+`check` runs the JUnit suite and fails below the JaCoCo floor in
+`build.gradle.kts`. The tests need no built artefacts; the report lands in
+`build/reports/jacoco/test/html/index.html`. After adding tests, raise the
+floor to about three points below the new numbers.
+
+### Verifying the dark-mode Token Simulation fix
+
+Token Simulation used to break the diagram in dark mode (white shapes, vanished
+arrows). To verify it stays fixed: switch the sandbox IDE to a **dark** theme
+(`Settings → Appearance` → a Dark theme), open a diagram with sequence flows
+(e.g. `c7-subscribe-newsletter.bpmn`), click **Token Simulation**, and confirm
+transparent backgrounds stay transparent and every flow/arrow remains visible.
+
+The bug lives in the shared `bpmn-webview` dark stylesheet, so the fastest loop
+is **not** IntelliJ — reproduce in the browser preview instead:
+`corepack yarn workspace @miragon/bpmn-modeler-webview serve`, then open
+`http://localhost:5173/?theme=dark` (the `?theme=dark` switch is dev-only) and
+toggle Token Simulation.
+
+### Crash-recovery / orphan check
+
+Kill the `modeler-bridge` process (Activity Monitor / `kill`). The open editor
+recovers (the session re-registers and the diagram re-renders) and no orphaned
+process remains. Closing the IDE leaves no `modeler-bridge` process behind.
+
+To check that recovery keeps unsynced edits, pause the bridge first
+(`kill -STOP <pid>`), move a shape, then `kill -9 <pid>`: the re-rendered diagram
+and the file buffer both keep the move. A hand-formatted diagram you did not
+touch stays unmodified through the same crash and through Tools ▸ Reload Modeler.
+
+## Troubleshooting
+
+### The diagram canvas feels "one interaction behind" (Windows)
+
+**Symptoms.** After you click on the canvas the context pad lingers; a deleted
+element stays visible until your next selection; drags feel like they repaint a
+frame late. It looks like the modeler is always one input event behind.
+
+**Cause.** On IntelliJ 2025+/2026 builds JCEF (the embedded Chromium) runs
+**out-of-process** ("remote" CEF). The plugin's browsers render **off-screen**
+(OSR) — the only mode available under remote CEF — and that remote-OSR frame
+pipeline presents a frame only on the *next* input event when the DOM mutates on
+a click. The lag is entirely in Chromium's frame delivery; it never touches the
+modeler core or the bridge.
+
+**Fix.** Turn off out-of-process JCEF so it runs in-process:
+
+- **Help → Find Action → "Registry…"**, disable
+  `ide.browser.jcef.out-of-process.enabled`, then restart the IDE. On an affected
+  setup the plugin shows this same hint once as a balloon (with a "Don't show
+  again" opt-out); applying the registry change makes the balloon self-cancel,
+  since the plugin then detects in-process JCEF.
+
+> **The `-Djcef.remote.enabled=false` VM option is not enough.** Platform sources
+> suggest a pre-set property disables remote mode, but on 2026.1 (IU-261.25134.95,
+> JBR 25.0.3, JCEF 137) it verifiably does nothing: with only the VM option set the
+> staleness persists, and browsers still resolve as remote-OSR. Use the registry
+> key above — it is the platform's master switch.
+
+> **Leave `ide.browser.jcef.osr.enabled` alone.** While out-of-process JCEF is
+> active, `false` makes **every** `JBCefBrowser` construction throw, so the
+> modeler, diff viewer, and deployment tool window all fail to start. With
+> out-of-process JCEF off it does yield windowed rendering, but that measured no
+> better than in-process OSR at the plugin's 60 fps.
+
+## Scope
+
+BPMN editor + element templates + Notifier/StatusBar, plus diff, deployment, the
+inline "Edit Script" tab, and the template marketplace (Tools ▸ Add / Update
+Template Marketplace; the source list is edited on the Settings page, per-host
+PATs live in `PasswordSafe`). DMN has no IntelliJ editor yet.
+
+## Monorepo hygiene
+
+This is a Gradle subproject, **not** a yarn workspace: it has no `package.json`,
+so Yarn's `apps/*` glob ignores it, and the ESLint/Prettier/tsc globs only match
+JS/TS, so the Kotlin sources are untouched. Build output (`build/`, `.gradle/`,
+`.idea/`, `.kotlin/`) is gitignored.
+
+## Cross-platform packaging
+
+Local builds stage the **host** platform's binary. Release builds use
+`-PbundleAllPlatforms` to stage the precompiled darwin-arm64/x64,
+linux-arm64/x64 and windows-x64 binaries under `bin/<os>-<arch>/`.
+The bridge workspace's `compile:all` script builds that matrix; see the
+[runtime and transport decision](../../docs/adr/architecture-and-hosts.md#runtime-and-transport).
+
+## If `runIde` fails to resolve versions
+
+The IntelliJ Platform Gradle Plugin and IDEA versions are pinned in
+`build.gradle.kts` (`2.5.0`) and `gradle.properties` (`ideaVersion=2024.2.5`).
+Bump them to a locally available combination if resolution fails.

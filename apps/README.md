@@ -37,7 +37,7 @@ Each host embeds the webview bundles and drives the modeling engine in
 `.dmn` editor. It is neither a webview nor a host above: it bundles
 `@miragon/bpmn-modeler` and `@miragon/dmn-modeler` directly into Orca's editor
 frames, without `modeler-core`, and syncs with Orca's document session. See its
-[README](orca-plugin/README.md).
+[CONTRIBUTING.md](orca-plugin/CONTRIBUTING.md).
 
 ## How a host and a webview connect
 

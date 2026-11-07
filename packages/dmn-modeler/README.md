@@ -5,6 +5,11 @@ A host-free, embeddable DMN modeler, built on
 options)` call stands up an independent modeler — decision requirements diagram, decision tables,
 literal expressions, a properties panel, and our own simulation module.
 
+This page is for developers who embed the modeler in their own application. To model DMN yourself,
+use one of the hosts built on it: [VS Code](https://marketplace.visualstudio.com/items?itemName=miragon-gmbh.vs-code-bpmn-modeler),
+the [desktop app](https://miragon.github.io/bpmn-modeler/download) or, experimental,
+[Orca](https://miragon.github.io/bpmn-modeler/orca/getting-started).
+
 ## Install
 
 ```sh

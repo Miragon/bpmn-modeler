@@ -1,69 +1,73 @@
-# BPMN & DMN Modeler for Orca
+# BPMN & DMN for Orca
 
-The [Orca](https://www.onorca.dev) plugin `bpmn-modeler`: `.bpmn` files open in the BPMN mode session (View, Design,
-Implement) with the properties panel, token simulation and linting; `.dmn` files open in the DMN modeler with its
-DRD, decision tables, properties panel and simulation. Orca keeps the file, its dirty state, saving and read-only
-tabs; the editor owns undo. An agent's write to a clean tab shows at once; under unsaved edits Orca shows its
-Reload/Overwrite banner. Users install it from the [Miragon/orca-modelers](https://github.com/Miragon/orca-modelers)
-catalog; see the [Orca guide](../../docs/orca/getting-started.md).
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://github.com/Miragon/bpmn-modeler/blob/main/LICENSE)
 
-![The BPMN editor in Orca with the token simulation running](../../docs/public/shots/orca-bpmn-token-simulation.png)
+![Miragon Modeler for BPMN, experimental: processes and decisions from plain .bpmn and .dmn files, edited by you and your agents](images/cover.webp)
 
-![A DMN decision table in Orca, with the decision simulation above it](../../docs/public/shots/orca-dmn-decision-table.png)
+See the BPMN processes and DMN decisions your agent writes, and edit them right next to it. In
+[Orca](https://www.onorca.dev), a `.bpmn` or `.dmn` file opens as a diagram instead of XML. The file
+stays plain text, so your agent reads and writes it like code, and every change it makes shows up on
+the canvas.
 
-The plugin bundles `@miragon/bpmn-modeler` and `@miragon/dmn-modeler` from source, without `modeler-core`: Orca's
-editor frames are sandboxed and have no worker, network or file access, so every host capability (code links,
-navigation, definition search, form preview, scripting, element templates, deployment) stays off. Why it looks the
-way it does is in the [architecture ADR](../../docs/adr/architecture-and-hosts.md#host-integrations).
+> **Experimental.** The plugin views, simulates and lightly models. It does not deploy, jump into
+> code or open forms yet, and it may change between releases. See [Good to know](#good-to-know)
+> before you rely on it.
 
-## Layout
+Free and open source (Apache 2.0). No account, no network access, and it sees only the file you
+open.
 
-| Path | Holds |
-| --- | --- |
-| `orca-plugin.json` | The manifest: one plugin, a custom editor per extension, `frame: "isolated"`, `engines.orca >=1.4.248` |
-| `editor/<bpmn\|dmn>/index.html` | The editor pages, with an empty `#app` |
-| `src/service/documentSync.ts` | Canvas ↔ Orca's document session, shared by both editors |
-| `src/port/` | `DocumentSession` (Orca) and `ModelCanvas` (a modeler) |
-| `src/adapter/out/` | Orca's frame API, the two canvases, the in-frame clipboard, the panel's stored state |
-| `src/composition/` | The two editors' wiring and layout |
-| `vite.editor.mts` | One unminified build of both editor pages into `plugin/editor/`, the code they share once in `editor/shared/`, with the eval patches Orca's `plugin check` asks for |
-| `scripts/assemble-plugin.mjs` | Completes `plugin/` and fails on Orca's size limits or an `eval` call |
-| `images/` | The cover and screenshots of the plugin's page in Orca's plugin directory |
+**[Open in Orca](https://onorca.dev/plugins/miragon.bpmn-modeler?catalog=https://github.com/miragon/orca-modelers.git)**
 
-## Build and try it
+## Get started
 
-```sh
-corepack yarn workspace @miragon/bpmn-modeler-orca build   # writes apps/orca-plugin/plugin/
-cd apps/orca-plugin/plugin
-orca plugin validate . && orca plugin check .
-orca plugin dev load . --json                              # prints the --approve fingerprint
-orca plugin dev load . --json --approve <fingerprint>
-```
+1. Turn on plugins in Orca once: Settings → Plugins → **Turn on plugins**.
+2. Open the plugin's page with the link above and press **Install**. The first time, Orca asks
+   whether to add the [Miragon modelers catalog](https://github.com/Miragon/orca-modelers). New
+   releases reach you through it.
+3. Open any `.bpmn` or `.dmn` file.
 
-`plugin/` is the folder Orca loads and the release publishes.
+## Live while your agent writes
 
-## Listing images
+Each change your agent makes to the file shows up on the canvas right away. If it writes while you
+have unsaved edits, Orca asks whether to reload the file or keep yours.
 
-`images/` holds the cover and the screenshots of the plugin's page in Orca's plugin directory, declared in
-`orca-plugin.json`. They are checked in and made with the `product-shots` skill of the `miragon-brand` plugin
-([Miragon/corporate-identity](https://github.com/Miragon/corporate-identity)); this repository keeps no script of its
-own for them. `orca plugin validate` checks Orca's limits on the built plugin.
+## Model processes
 
-## Tests
+![Orca with order-fulfilment.bpmn open, the user task Pack order selected and its Camunda 8 implementation and form in the properties panel](images/screenshot-properties.webp)
 
-```sh
-corepack yarn workspace @miragon/bpmn-modeler-orca test              # unit specs, with the coverage gate
-corepack yarn workspace @miragon/bpmn-modeler-orca test:e2e          # build, then both editors in Chromium under Orca's frame CSP
-corepack yarn workspace @miragon/bpmn-modeler-orca test:orca:docker  # both editors in a real Orca, in a Linux container
-```
+`.bpmn` files open in the View, Design and Implement modes, for Camunda 7 and Camunda 8, with the
+properties panel. Run the token simulation to watch a process step by step, and let linting point
+at what an engine would reject.
 
-The e2e suite runs the built editors with the Orca stub of `@miragon/modeler-shell`. The smoke test drives a real
-Orca (default 1.4.250, `ORCA_VERSION=<version>` for another) with the shell's `runOrcaSmoke`: load with approval,
-`plugin check`, both themes, undo, a saved delete, an agent's write and the plugin's logs. `test:orca` itself refuses
-to open Orca's window on a Mac. The click points both use are in `test/fixtures/smokePoints.ts`; the e2e suite checks
-that they hit their elements.
+![The order fulfilment process in token simulation, a token at Check stock and the simulation log listing the steps so far](images/screenshot-simulation.webp)
 
-## Release
+![return-handling.bpmn with red error markers on a service task without a job type and on two flows without a condition](images/screenshot-linting.webp)
 
-The release-please component `orca` (tag `orca-v<version>`) bumps `package.json` and `orca-plugin.json`;
-`publish-orca-plugin.yml` builds, smoke-tests and publishes the folder into Miragon/orca-modelers.
+## Model decisions
+
+![The Choose carrier decision table from shipping.dmn: country and weight in, carrier and cost out, with fields to simulate the decision above it](images/screenshot-dmn.webp)
+
+`.dmn` files open with the decision requirements diagram, decision tables, literal and boxed
+expressions, the properties panel and the decision simulation.
+
+## Good to know
+
+- Needs the Orca desktop app, version 1.4.248 or later.
+- The plugin runs in Orca's sandbox, without file or network access. So it leaves out everything that
+  needs the rest of your workspace: jumping to the code or the models a task refers to, workspace
+  element templates, form previews, inline script editing, deployment, the BPMN diff and the Form
+  editor. Copy and paste work within one editor tab only.
+- A read-only tab, such as an agent transcript or a remote file, opens in View mode (BPMN) or locked
+  (DMN).
+- Light and dark follow Orca's theme, and the language follows Orca's.
+- Need the rest? The [VS Code extension](../vscode-plugin/README.md),
+  [IntelliJ plugin](../intellij-plugin/README.md) and [desktop app](../standalone/README.md) have it.
+
+## Links
+
+[Guide](https://miragon.github.io/bpmn-modeler/orca/getting-started) ·
+[Report an issue](https://github.com/Miragon/bpmn-modeler/issues) ·
+[Source and contributing](CONTRIBUTING.md) ·
+[All Miragon modelers for Orca](https://github.com/Miragon/orca-modelers)
+
+Made by [Miragon](https://www.miragon.io). Apache 2.0 licence.

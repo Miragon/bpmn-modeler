@@ -17,8 +17,8 @@ apps/intellij-plugin/      Kotlin/Gradle plugin (JCEF host, UI, process supervis
 apps/modeler-bridge/       Bun binary: stdio JSON-RPC server wrapping the TS core
 ```
 
-Read the two READMEs first — they are authoritative and kept current:
-`apps/intellij-plugin/README.md`, `apps/modeler-bridge/README.md`. Deeper
+Read the two developer guides first — they are authoritative and kept current:
+`apps/intellij-plugin/CONTRIBUTING.md`, `apps/modeler-bridge/README.md`. Deeper
 rationale lives in the architecture-and-hosts ADR:
 [runtime and transport](../../../docs/adr/architecture-and-hosts.md#runtime-and-transport),
 [process lifecycle](../../../docs/adr/architecture-and-hosts.md#process-lifecycle), and

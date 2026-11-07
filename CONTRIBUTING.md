@@ -1,11 +1,13 @@
-# Contributing to BPMN VS Code Modeler
+# Contributing to the BPMN Modeler
 
 First off — thank you for taking the time to contribute! Every contribution, big
 or small, helps keep this project alive and useful.
 
-This document covers the **process** for getting involved. For a deep-dive
-development guide (project structure, build system, architecture, testing), see
-[`docs/development.md`](docs/development.md).
+This document is for developers: the repository layout, the setup and the
+**process** for getting involved. What the modeler does for its users is in the
+[README](README.md) and on the [documentation site](https://miragon.github.io/bpmn-modeler/).
+For a deep-dive development guide (build system, architecture, testing), see
+[`docs/vscode/contributing/development.md`](docs/vscode/contributing/development.md).
 
 ## External contributions
 
@@ -21,10 +23,11 @@ If you've found a bug or have an idea, please [open an issue](https://github.com
 - [AI-Assisted Contributions](#ai-assisted-contributions)
 - [Reporting Bugs](#reporting-bugs)
 - [Suggesting Enhancements](#suggesting-enhancements)
+- [Repository Layout](#repository-layout)
 - [Development Setup](#development-setup)
 - [Pull Request Process](#pull-request-process)
 - [Commit Messages](#commit-messages)
-- [Updating a Marketplace Listing](#updating-a-marketplace-listing)
+- [READMEs and Store Listings](#readmes-and-store-listings)
 - [License](#license)
 
 ## Code of Conduct
@@ -75,6 +78,25 @@ Open an issue with the `Feature` type describing:
 - Why it matters (use case)
 - A proposed solution, if you have one
 
+## Repository Layout
+
+This is a monorepo: one modeler core, delivered by several hosts. Each host has
+a `README.md` for its users and a `CONTRIBUTING.md` for its developers.
+
+| Module | What it is | For developers |
+|---|---|---|
+| [`apps/vscode-plugin`](apps/vscode-plugin/README.md) | The VS Code extension, published to the Visual Studio Marketplace and Open VSX | [Development guide](docs/vscode/contributing/development.md) |
+| [`apps/intellij-plugin`](apps/intellij-plugin/README.md) | The IntelliJ plugin, published to the JetBrains Marketplace | [CONTRIBUTING.md](apps/intellij-plugin/CONTRIBUTING.md) |
+| [`apps/modeler-bridge`](apps/modeler-bridge/README.md) | The binary that runs the modeler core for the IntelliJ plugin over stdio JSON-RPC | [README.md](apps/modeler-bridge/README.md) |
+| [`apps/standalone`](apps/standalone/README.md) | The Theia/Electron desktop app for macOS, Windows and Linux | [CONTRIBUTING.md](apps/standalone/CONTRIBUTING.md) |
+| [`apps/orca-plugin`](apps/orca-plugin/README.md) | The Orca plugin for `.bpmn` and `.dmn` files, experimental, published to [Miragon/orca-modelers](https://github.com/Miragon/orca-modelers) | [CONTRIBUTING.md](apps/orca-plugin/CONTRIBUTING.md) |
+| [`apps/bpmn-webview`](apps/bpmn-webview/README.md), [`dmn-webview`](apps/dmn-webview/README.md), [`form-webview`](apps/form-webview/README.md), [`deployment-webview`](apps/deployment-webview/README.md) | The webviews the hosts embed: the BPMN and DMN canvases, the Camunda Form editor and the deployment sidebar | Each README |
+| [`packages/bpmn-modeler`](packages/bpmn-modeler/README.md), [`packages/dmn-modeler`](packages/dmn-modeler/README.md) | The modelers as npm libraries | Each README |
+| [`libs/`](libs/README.md) | The building blocks the modelers and hosts share | Each README |
+
+Internal modules are not published separately; they are bundled into the hosts.
+The architecture decisions behind this layout are in [`docs/adr/`](docs/adr/).
+
 ## Development Setup
 
 This section and the [Pull Request Process](#pull-request-process) are for the
@@ -121,7 +143,9 @@ corepack yarn install
 Reload the host after a change with `Cmd+R` (macOS) or `Ctrl+R` (Windows/Linux).
 
 For comprehensive guidance (standalone browser preview, testing, architecture),
-see [`docs/development.md`](docs/development.md).
+see [`docs/vscode/contributing/development.md`](docs/vscode/contributing/development.md).
+The IntelliJ plugin, the desktop app and the Orca plugin have their own dev loops
+in their `CONTRIBUTING.md`.
 
 ## Pull Request Process
 
@@ -160,7 +184,24 @@ docs: clarify element template discovery
 
 Common types: `feat`, `fix`, `refactor`, `chore`, `docs`, `test`, `ci`.
 
-## Updating a Marketplace Listing
+## READMEs and Store Listings
+
+Every README is written for one reader. A host's `README.md` (VS Code, IntelliJ,
+desktop, Orca) and the root `README.md` are for its users: what it does, how to
+start, what it leaves out, with screenshots. Everything a developer needs (layout,
+build, tests, releases) goes into a `CONTRIBUTING.md` next to it, linked from the
+README as **Source and contributing**. The libraries' and webviews' READMEs are
+for developers.
+
+The store pages take their text from these places:
+
+- **Visual Studio Marketplace and Open VSX:** `apps/vscode-plugin/README.md`
+  and its `package.json`, described below.
+- **JetBrains Marketplace:** the `<description>` in
+  `apps/intellij-plugin/src/main/resources/META-INF/plugin.xml`.
+- **Orca's plugin directory:** `name`, `description` and `images` in
+  `apps/orca-plugin/orca-plugin.json`, with the images in
+  `apps/orca-plugin/images/`.
 
 A VS Code Marketplace listing is composed from two sources inside the
 extension's workspace (e.g. `apps/vscode-plugin/`):

@@ -27,24 +27,31 @@ Done.** Same editor, same git workflow, same diff in code review.
 
 ![Appending the missing end event to "Ship order" in VS Code clears the lint error and the modeler reports no issues](https://raw.githubusercontent.com/Miragon/bpmn-modeler/main/images/modeler-demo.gif)
 
-That first idea — *bring BPMN modeling to where engineers already are* —
-turned into the VS Code modeler you see above. From there, the same core
-quietly grew into more places where process work actually happens:
+That first idea, *bring BPMN modeling to where engineers already are*, turned
+into the VS Code modeler you see above. The same modeler now runs wherever
+process work happens:
 
-- **In VS Code**, as the public extension — the original product.
-- **On the desktop**, as a standalone Theia/Electron app for users and
-  organisations not on VS Code — same modeling surface, plus a built-in
-  Source Control view, BPMN-aware diff against working-tree changes, and
-  auto-save out of the box.
-- **In [Orca](https://www.onorca.dev)**, as a plugin that opens `.bpmn` and
-  `.dmn` files right next to the coding agent writing them: every change the
-  agent makes shows up on the canvas, and you can simulate and model lightly
-  yourself. It is experimental: no deployment, no jumps into code and no Form editor
-  yet ([guide and limits](https://miragon.github.io/bpmn-modeler/orca/getting-started)).
+## Use it where you work
+
+- **In VS Code:** the [BPMN Modeler extension](apps/vscode-plugin/README.md) opens
+  `.bpmn`, `.dmn` and `.form` files as editors, with deployment, the BPMN diff
+  and jumps into your code. It is on the
+  [Visual Studio Marketplace][marketplace-url] and on
+  [Open VSX](https://open-vsx.org/extension/miragon-gmbh/vs-code-bpmn-modeler).
+- **In IntelliJ and the other JetBrains IDEs:** the
+  [Miragon BPMN Modeler plugin](apps/intellij-plugin/README.md) edits `.bpmn`
+  files with the same modeler, from the
+  [JetBrains Marketplace](https://plugins.jetbrains.com/plugin/32634-miragon-bpmn-modeler).
+- **On the desktop:** the [desktop app](apps/standalone/README.md) for macOS,
+  Windows and Linux runs the same modeler without an IDE, with source control
+  and auto-save built in.
+- **In [Orca](https://www.onorca.dev), experimental:** the
+  [Orca plugin](apps/orca-plugin/README.md) opens `.bpmn` and `.dmn` files right
+  next to the coding agent writing them, and every change the agent makes shows
+  up on the canvas. It views, simulates and models lightly; it does not deploy,
+  jump into code or open forms yet.
 
   ![The BPMN editor in Orca with the token simulation running](docs/public/shots/orca-bpmn-token-simulation.png)
-- **And next: AI-assisted BPMN tooling** — bringing the same modeling
-  context into your AI assistant. *Stay tuned.* ✨
 
 Different surfaces, one modeling engine, one repo.
 
@@ -80,45 +87,12 @@ For settings, commands, and the full feature tour see
 **[`apps/vscode-plugin/README.md`](apps/vscode-plugin/README.md)** — the
 same page that's published as the Marketplace listing.
 
-## Modules in this repo
-
-This is a monorepo. Around the modeler core we ship multiple delivery
-surfaces; each one has its own README with its own pitch.
-
-| Module | What it is | Status |
-|---|---|---|
-| [`apps/vscode-plugin`](apps/vscode-plugin/README.md) | The VS Code extension — the public BPMN/DMN and Camunda Form modeler. | Published on the [Marketplace][marketplace-url] |
-| [`apps/standalone`](apps/standalone/README.md) | Theia/Electron desktop shell wrapping the same modeler — same features, no VS Code required. | Build-from-source, unreleased |
-| [`apps/orca-plugin`](apps/orca-plugin/README.md) | Orca plugin that opens `.bpmn` and `.dmn` files next to the coding agent writing them — view, simulate, model lightly. | Experimental, published to [Miragon/orca-modelers](https://github.com/Miragon/orca-modelers) |
-| [`apps/bpmn-webview`](apps/bpmn-webview/README.md) | BPMN canvas webview embedded in the extension host. | Internal |
-| [`apps/dmn-webview`](apps/dmn-webview/README.md) | DMN canvas webview embedded in the extension host. | Internal |
-| [`apps/form-webview`](apps/form-webview/README.md) | Camunda Form editor and preview webview embedded in the extension host. | Internal |
-| [`apps/deployment-webview`](apps/deployment-webview/README.md) | Deployment sidebar webview. | Internal |
-| [`libs/shared`](libs/shared/README.md) | Shared message types and webview utilities. | Internal |
-
-> Internal modules are not published separately — they are bundled into the
-> distributables above.
-
 ## Contributing
 
-We love PRs. Whether you fix a typo or land a feature, the path is the same:
-
-```bash
-corepack enable
-corepack yarn install
-corepack yarn build      # build everything
-corepack yarn watch      # F5 in VS Code → "Run vscode-plugin"
-```
-
-> Working on a single workspace only? `yarn workspaces focus <name>` installs just
-> that tree and skips the rest. See [Workspace dependencies](https://miragon.github.io/bpmn-modeler/vscode/contributing/development#workspace-dependencies)
-> for the focus targets per pipeline.
-
-For the full setup, PR flow, and commit conventions see
-**[`CONTRIBUTING.md`](CONTRIBUTING.md)**. For architecture, build system,
-and contributor walkthroughs see **[`docs/`](docs/)** (also published at
-<https://miragon.github.io/bpmn-modeler/>). Architecture decisions are
-recorded in **[`docs/adr/`](docs/adr/)**.
+We love pull requests, from a typo to a feature. The repository layout, the
+setup, the tests and the conventions are in **[CONTRIBUTING.md](CONTRIBUTING.md)**;
+each host has its own guide next to its code. Architecture decisions are recorded
+in **[`docs/adr/`](docs/adr/)**.
 
 ## Support
 

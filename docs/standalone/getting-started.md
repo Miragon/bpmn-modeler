@@ -48,7 +48,7 @@ The `.flatpak` bundle from the Download page does not update itself. To update i
 
 ### Build from source
 
-See [`apps/standalone/README.md`](https://github.com/Miragon/bpmn-modeler/blob/main/apps/standalone/README.md). A
+See [`apps/standalone/CONTRIBUTING.md`](https://github.com/Miragon/bpmn-modeler/blob/main/apps/standalone/CONTRIBUTING.md). A
 `.dmg` you build yourself is unsigned: on first launch, right-click the app in `/Applications`, choose **Open** and
 confirm.
 
