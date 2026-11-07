@@ -691,9 +691,9 @@ listings needs a file in one, as element templates, targets, payloads and
 code-link maps are read by path. The pickers offer every match with no cap.
 The bridge's recursive watch leaves out the `EXCLUDED_DIRS` names and the
 state folders of version control, build tools and IDEs, as
-`isIgnoredWatchDirName` in the same file decides, so a large repo stays within
-the OS watch budget and a name added to or removed from `EXCLUDED_DIRS`
-changes the watch with it. Other dot-folders stay watched, because the
+`isIgnoredWatchDirName` (`kernel/domain/excludedDirs.ts`) decides, so a large
+repo stays within the OS watch budget and a name added to or removed from
+`EXCLUDED_DIRS` changes the watch with it. Other dot-folders stay watched, because the
 template and lint config watchers read the config folder.
 
 One prompt stays outside `PickerPort`: the template marketplace asks for a
