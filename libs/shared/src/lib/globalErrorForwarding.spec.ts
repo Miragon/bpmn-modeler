@@ -19,11 +19,17 @@ describe("installGlobalErrorForwarding", () => {
         return new PromiseRejectionEvent("unhandledrejection", { promise, reason });
     }
 
-    it("forwards an uncaught error with its stack", () => {
+    /** Every listener has seen the event once the task that dispatched it is over. */
+    function afterTheDispatch(): Promise<void> {
+        return new Promise((resolve) => setTimeout(resolve, 0));
+    }
+
+    it("forwards an uncaught error with its stack", async () => {
         uninstall = installGlobalErrorForwarding(post);
         const error = new Error("boom");
 
-        window.dispatchEvent(new ErrorEvent("error", { message: "boom", error }));
+        window.dispatchEvent(new ErrorEvent("error", { message: "boom", error, cancelable: true }));
+        await afterTheDispatch();
 
         expect(post).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -32,6 +38,18 @@ describe("installGlobalErrorForwarding", () => {
                 stack: error.stack,
             }),
         );
+    });
+
+    it("leaves an error that a listener registered later handled to that listener", async () => {
+        uninstall = installGlobalErrorForwarding(post);
+        const claim = (event: ErrorEvent) => event.preventDefault();
+        window.addEventListener("error", claim);
+
+        window.dispatchEvent(new ErrorEvent("error", { message: "claimed", cancelable: true }));
+        await afterTheDispatch();
+        window.removeEventListener("error", claim);
+
+        expect(post).not.toHaveBeenCalled();
     });
 
     it("forwards an unhandled rejection with the error's message and stack", () => {
@@ -61,11 +79,12 @@ describe("installGlobalErrorForwarding", () => {
         );
     });
 
-    it("stops forwarding once uninstalled", () => {
+    it("stops forwarding once uninstalled", async () => {
         installGlobalErrorForwarding(post)();
 
         window.dispatchEvent(new ErrorEvent("error", { message: "late" }));
         window.dispatchEvent(rejection(new Error("late")));
+        await afterTheDispatch();
 
         expect(post).not.toHaveBeenCalled();
     });

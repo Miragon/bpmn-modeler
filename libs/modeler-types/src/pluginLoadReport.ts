@@ -31,10 +31,21 @@ const CONSTRUCTION_FAILURE =
     "The BPMN plugins stopped the editor from opening, so it opened without them";
 
 export function pluginConstructionFailureReport(error: unknown): PluginLoadReport {
+    return wholeLoadFailureReport(CONSTRUCTION_FAILURE, error);
+}
+
+const LOADER_FAILURE = "The BPMN plugins could not be loaded, so the editor opens without them";
+
+/** The loader itself failed (its chunk did not load, or it threw), so no plugin is loaded. */
+export function pluginLoaderFailureReport(error: unknown): PluginLoadReport {
+    return wholeLoadFailureReport(LOADER_FAILURE, error);
+}
+
+function wholeLoadFailureReport(failure: string, error: unknown): PluginLoadReport {
     const reason = error instanceof Error ? error.message : String(error);
     return {
-        logLines: [`${CONSTRUCTION_FAILURE}: ${reason}`],
-        notice: `${CONSTRUCTION_FAILURE}. See the log for details.`,
+        logLines: [`${failure}: ${reason}`],
+        notice: `${failure}. See the log for details.`,
     };
 }
 

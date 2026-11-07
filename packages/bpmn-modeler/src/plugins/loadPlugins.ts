@@ -88,12 +88,15 @@ async function runPluginScript(
     const previousRegistry = pluginWindow.plugins;
     pluginWindow.plugins = [];
     // A script served from another origin (VS Code's resource host) reports
-    // its errors as a bare "Script error." without a file name, so any error
-    // while this one script runs counts against it.
+    // its errors as a bare "Script error." without a file name, so the first
+    // error while this one script runs counts against it. Cancelling it tells
+    // the page's own error forwarding that this loader reports it.
     let thrown: unknown;
     const recordError = (event: ErrorEvent) => {
-        thrown ??= event.error ?? new Error(event.message);
-        event.preventDefault();
+        if (thrown === undefined) {
+            thrown = event.error ?? new Error(event.message);
+            event.preventDefault();
+        }
     };
     pluginWindow.addEventListener("error", recordError);
     try {

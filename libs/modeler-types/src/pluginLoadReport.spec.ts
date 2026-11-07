@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { pluginConstructionFailureReport, pluginLoadReport } from "./pluginLoadReport";
+import {
+    pluginConstructionFailureReport,
+    pluginLoaderFailureReport,
+    pluginLoadReport,
+} from "./pluginLoadReport";
 
 describe("pluginLoadReport", () => {
     it("logs each plugin left out and shows one notice for them", () => {
@@ -51,6 +55,19 @@ describe("pluginConstructionFailureReport", () => {
                 'The BPMN plugins stopped the editor from opening, so it opened without them: No provider for "foo"!',
             ],
             notice: "The BPMN plugins stopped the editor from opening, so it opened without them. See the log for details.",
+        });
+    });
+});
+
+describe("pluginLoaderFailureReport", () => {
+    it("tells the user the editor opens without any plugin when the loader itself failed", () => {
+        expect(
+            pluginLoaderFailureReport(new Error("Failed to fetch dynamically imported module")),
+        ).toEqual({
+            logLines: [
+                "The BPMN plugins could not be loaded, so the editor opens without them: Failed to fetch dynamically imported module",
+            ],
+            notice: "The BPMN plugins could not be loaded, so the editor opens without them. See the log for details.",
         });
     });
 });

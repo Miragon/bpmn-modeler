@@ -89,28 +89,47 @@ describe("pendingApprovals", () => {
 });
 
 describe("pluginApprovalPrompt", () => {
-    it("lists each plugin with why it is asked and where it lives", () => {
+    it("lists each plugin with why it is asked and its folder in the workspace", () => {
         expect(
-            pluginApprovalPrompt([
-                { plugin: resize, state: "new" },
-                { plugin: palette, state: "changed" },
-            ]),
+            pluginApprovalPrompt(
+                [
+                    { plugin: resize, state: "new" },
+                    { plugin: palette, state: "changed" },
+                ],
+                ["/repo"],
+            ),
         ).toEqual({
             id: PLUGIN_APPROVAL_PROMPT_ID,
             title: "Allow BPMN plugins from this workspace?",
             placeholder:
                 "Plugins run their own code in the BPMN editor. Check only the ones you trust; open editors reload with them.",
             items: [
-                { label: "Resize Tasks", description: "new", path: resize.id, value: resize.id },
+                {
+                    label: "Resize Tasks",
+                    description: "new · .camunda/plugins/resize-tasks",
+                    value: resize.id,
+                },
                 {
                     label: "Reduced Palette",
-                    description: "changed since you allowed it",
-                    path: palette.id,
+                    description: "changed since you allowed it · .camunda/plugins/reduced-palette",
                     value: palette.id,
                 },
             ],
         });
     });
+
+    it.each<{ case: string; state: PendingApproval["state"]; shown: string }>([
+        { case: "a new plugin", state: "new", shown: "new" },
+        { case: "a changed plugin", state: "changed", shown: "changed since you allowed it" },
+    ])(
+        "shows the state of $case in the text every host renders, not a path that replaces it",
+        ({ state, shown }) => {
+            const [item] = pluginApprovalPrompt([{ plugin: resize, state }], ["/repo"]).items;
+
+            expect(item?.path).toBeUndefined();
+            expect(item?.description?.startsWith(shown)).toBe(true);
+        },
+    );
 });
 
 describe("cachedPluginFiles", () => {

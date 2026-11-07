@@ -325,6 +325,7 @@ describe("DMN bootstrap", () => {
         window.dispatchEvent(
             new ErrorEvent("error", { message: "boom", error: new Error("boom") }),
         );
+        await vi.advanceTimersByTimeAsync(0);
 
         expect(ofType("LogErrorCommand")).toContainEqual(
             expect.objectContaining({ message: "Unhandled error: boom" }),

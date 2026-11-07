@@ -1,5 +1,6 @@
 import { ActionNotice } from "../../kernel/domain/actionNotice";
 import { ChoicePrompt } from "../../kernel/domain/prompts";
+import { relativeToWorkspace } from "../../kernel/domain/rootContainment";
 import { joinWorkspacePath } from "../../kernel/domain/workspacePath";
 
 /** A plugin found in a workspace's `<configFolder>/plugins/<folder>`. */
@@ -107,7 +108,14 @@ const STATE_DESCRIPTION: Record<PendingApproval["state"], string> = {
     changed: "changed since you allowed it",
 };
 
-export function pluginApprovalPrompt(pending: readonly PendingApproval[]): ChoicePrompt<string> {
+/**
+ * The folder goes into `description` rather than `path`: every host shows a
+ * `path` in place of the description, which would hide whether a plugin changed.
+ */
+export function pluginApprovalPrompt(
+    pending: readonly PendingApproval[],
+    workspaceFolders: readonly string[],
+): ChoicePrompt<string> {
     return {
         id: PLUGIN_APPROVAL_PROMPT_ID,
         title: "Allow BPMN plugins from this workspace?",
@@ -115,8 +123,7 @@ export function pluginApprovalPrompt(pending: readonly PendingApproval[]): Choic
             "Plugins run their own code in the BPMN editor. Check only the ones you trust; open editors reload with them.",
         items: pending.map(({ plugin, state }) => ({
             label: plugin.name,
-            description: STATE_DESCRIPTION[state],
-            path: plugin.id,
+            description: `${STATE_DESCRIPTION[state]} · ${relativeToWorkspace(plugin.id, workspaceFolders)}`,
             value: plugin.id,
         })),
     };

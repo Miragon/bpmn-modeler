@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { createModeler } from "../createModeler";
 import type { BpmnModeler } from "../modeler";
@@ -97,6 +97,68 @@ describe("loadPlugins", () => {
 
         expect(loaded.failures).toEqual([{ plugin: "throws", reason: "plugin exploded" }]);
         expect(loaded.plugins.map((plugin) => plugin.name)).toEqual(["acme"]);
+    });
+
+    describe("beside a page-wide error listener, as a host's error forwarding adds before any plugin loads", () => {
+        const pageWideErrors: ErrorEvent[] = [];
+        const recordPageWideError = (event: ErrorEvent) => pageWideErrors.push(event);
+        /** A cancelled error is the canceller's to report, so the forwarding skips it. */
+        const claimOf = (event: ErrorEvent) => ({
+            message: event.message,
+            claimed: event.defaultPrevented,
+        });
+
+        beforeEach(() => {
+            pageWideErrors.length = 0;
+            window.addEventListener("error", recordPageWideError);
+        });
+
+        afterEach(() => {
+            window.removeEventListener("error", recordPageWideError);
+        });
+
+        it("claims a throwing plugin's error, so only the loader reports it", async () => {
+            const loaded = await loadPlugins([
+                { name: "throws", scriptUrl: scriptUrl("throw new Error('plugin exploded');") },
+            ]);
+
+            expect(loaded.failures).toEqual([{ plugin: "throws", reason: "plugin exploded" }]);
+            expect(pageWideErrors.map(claimOf)).toEqual([
+                { message: expect.stringContaining("plugin exploded"), claimed: true },
+            ]);
+        });
+
+        it("claims only the error it reports while a plugin's script runs", async () => {
+            const loaded = await loadPlugins([
+                {
+                    name: "throws twice",
+                    scriptUrl: scriptUrl(
+                        "window.dispatchEvent(new ErrorEvent('error', { message: 'first', cancelable: true })); throw new Error('second');",
+                    ),
+                },
+            ]);
+
+            expect(loaded.failures).toEqual([{ plugin: "throws twice", reason: "first" }]);
+            expect(pageWideErrors.map(claimOf)).toEqual([
+                { message: "first", claimed: true },
+                { message: expect.stringContaining("second"), claimed: false },
+            ]);
+        });
+
+        it("leaves an error raised after the plugins loaded to the page", async () => {
+            await loadPlugins([
+                { name: "throws", scriptUrl: scriptUrl("throw new Error('plugin exploded');") },
+            ]);
+            pageWideErrors.length = 0;
+
+            window.dispatchEvent(
+                new ErrorEvent("error", { message: "later failure", cancelable: true }),
+            );
+
+            expect(pageWideErrors.map(claimOf)).toEqual([
+                { message: "later failure", claimed: false },
+            ]);
+        });
     });
 
     it("leaves out a plugin whose script does not load", async () => {
