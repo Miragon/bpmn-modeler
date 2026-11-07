@@ -163,12 +163,7 @@ function render(
     limits: Limits,
 ): string {
     const overview = summaryLines(report, changed);
-    const lines = [
-        changesMarker(changed),
-        TITLE,
-        "",
-        headLine(report, options.headLabel),
-    ];
+    const lines = [changesMarker(changed), TITLE, "", headLine(report, options.headLabel)];
     if (report.functions.length === 0) {
         lines.push("", "No fitness function is registered.");
     } else if (changed.length === 0) {

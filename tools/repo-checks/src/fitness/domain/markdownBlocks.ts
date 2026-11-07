@@ -109,6 +109,7 @@ export function inTableOrder<Row extends FindingRow>(rows: readonly Row[]): read
     return rows.some(({ rank }) => rank !== undefined) ? [...rows].sort(compareRank) : rows;
 }
 
+/** Prints `rows` in the order given; `inTableOrder` is the report's order. */
 export function findingTable(
     rows: readonly FindingRow[],
     values: readonly FindingValue[] | undefined,
@@ -119,20 +120,13 @@ export function findingTable(
     const row = (finding: FindingRow) =>
         `| ${finding.status} | ${location(finding)} | ${tableCell(finding.message)} |`;
     if (values === undefined) {
-        return [
-            "",
-            "| Status | Location | Message |",
-            "| --- | --- | --- |",
-            ...inTableOrder(rows).map(row),
-        ];
+        return ["", "| Status | Location | Message |", "| --- | --- | --- |", ...rows.map(row)];
     }
     return [
         "",
         "| Status | Location | Message | Trend |",
         "| --- | --- | --- | --- |",
-        ...inTableOrder(rows).map(
-            (finding) => `${row(finding)} ${tableCell(trendCell(finding, values))} |`,
-        ),
+        ...rows.map((finding) => `${row(finding)} ${tableCell(trendCell(finding, values))} |`),
     ];
 }
 

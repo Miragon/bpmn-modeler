@@ -4,6 +4,7 @@ import {
     findingTable,
     groupLines,
     headLine,
+    inTableOrder,
     limitLines,
     location,
     measuresLine,
@@ -24,13 +25,12 @@ function outcomeLines(report: FunctionReport): string[] {
             resolved: outcome.resolved.length,
         }),
     ];
+    const rows = inTableOrder(outcome.findings);
     if (report.groups === undefined) {
-        lines.push(...findingTable(outcome.findings, report.values));
+        lines.push(...findingTable(rows, report.values));
     } else {
         lines.push(
-            ...report.groups.flatMap((group) =>
-                groupLines(group, outcome.findings, report.values, "###"),
-            ),
+            ...report.groups.flatMap((group) => groupLines(group, rows, report.values, "###")),
         );
     }
     if (outcome.resolved.length > 0) {

@@ -98,10 +98,10 @@ function parseCommand(args: readonly string[]) {
         parsed = parseArgs({
             args: [...args],
             options: {
-                format: { type: "string" },
-                out: { type: "string" },
-                base: { type: "string" },
-                repo: { type: "string" },
+                "format": { type: "string" },
+                "out": { type: "string" },
+                "base": { type: "string" },
+                "repo": { type: "string" },
                 "changes-only": { type: "boolean" },
                 "head-label": { type: "string" },
                 "capped-out": { type: "string" },

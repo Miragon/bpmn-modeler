@@ -231,6 +231,37 @@ describe("the changes report", () => {
         );
     });
 
+    it("prints the new rows before the resolved ones, each in rank order", () => {
+        const markdown = changesReport(
+            reportOf([
+                {
+                    fitnessFunction: coupling,
+                    head: {
+                        findings: [
+                            { ...finding("Z"), rank: 1 },
+                            { ...finding("Y"), rank: 2 },
+                        ],
+                    },
+                    base: {
+                        findings: [
+                            { ...finding("B"), rank: 2 },
+                            { ...finding("A"), rank: 1 },
+                        ],
+                    },
+                },
+            ]),
+        );
+
+        expect(markdown).toContain(
+            [
+                "| new | `src/Z.ts:1` | Z breaks the rule |",
+                "| new | `src/Y.ts:1` | Y breaks the rule |",
+                "| resolved | `src/A.ts:1` | A breaks the rule |",
+                "| resolved | `src/B.ts:1` | B breaks the rule |",
+            ].join("\n"),
+        );
+    });
+
     it("prints a Trend column for a function that declares values", () => {
         const sized = fakeFitnessFunction({}, { values: [{ id: "lines", title: "code lines" }] });
 
