@@ -1608,7 +1608,7 @@
       ]
     },
     "hotspots": {
-      "version": 1,
+      "version": 2,
       "unmeasurable": "924 first-parent commits reach back from here; the window needs 924 and the parent of the oldest"
     },
     "missed-partner": {
