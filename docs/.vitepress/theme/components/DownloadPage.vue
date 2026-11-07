@@ -5,6 +5,7 @@ import WindowsIcon from "../icons/WindowsIcon.vue";
 import LinuxIcon from "../icons/LinuxIcon.vue";
 import VSCodeIcon from "../icons/VSCodeIcon.vue";
 import IntelliJIcon from "../icons/IntelliJIcon.vue";
+import OrcaIcon from "../icons/OrcaIcon.vue";
 import { fetchLatestStandaloneRelease, type StandaloneRelease } from "../utils/release";
 import "./DownloadPage.css";
 
@@ -12,6 +13,8 @@ const MARKETPLACE_URL =
     "https://marketplace.visualstudio.com/items?itemName=miragon-gmbh.vs-code-bpmn-modeler";
 const OPEN_VSX_URL = "https://open-vsx.org/extension/miragon-gmbh/vs-code-bpmn-modeler";
 const JETBRAINS_MARKETPLACE_URL = "https://plugins.jetbrains.com/plugin/32634-miragon-bpmn-modeler";
+const ORCA_PLUGIN_URL =
+    "https://onorca.dev/plugins/miragon.bpmn-modeler?catalog=https://github.com/miragon/orca-modelers.git";
 const RELEASES_URL = "https://github.com/Miragon/bpmn-modeler/releases";
 const HOMEBREW_TAP_CMD = "brew tap miragon/tap";
 const HOMEBREW_INSTALL_CMD = "brew install --cask miragon-bpmn-modeler";
@@ -87,6 +90,13 @@ const platforms = computed<Platform[]>(() => [
         format: "JetBrains Marketplace",
         icon: IntelliJIcon,
         url: JETBRAINS_MARKETPLACE_URL,
+        external: true,
+    },
+    {
+        name: "Orca plugin",
+        format: "Miragon modelers catalog",
+        icon: OrcaIcon,
+        url: ORCA_PLUGIN_URL,
         external: true,
     },
 ]);

@@ -33,3 +33,4 @@ export * from "./workspaceDefinitions";
 export * from "./xmlMarkup";
 export * from "./formPreview";
 export * from "./formRuntimeCompatibility";
+export * from "./emptyDmn";

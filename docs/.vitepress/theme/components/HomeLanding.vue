@@ -1,20 +1,24 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
+import { withBase } from "vitepress";
 import LandingDemo from "./LandingDemo.vue";
 import { fetchLatestStandaloneRelease, type StandaloneRelease } from "../utils/release";
 
 type Os = "macos" | "windows" | "linux";
-type InstallTab = "vscode" | "intellij" | "desktop";
+type InstallTab = "vscode" | "intellij" | "desktop" | "orca";
 
 const RELEASES_URL = "https://github.com/Miragon/bpmn-modeler/releases";
 const VSCODE_INSTALL = "code --install-extension miragon-gmbh.vs-code-bpmn-modeler";
 const JETBRAINS_MARKETPLACE = "https://plugins.jetbrains.com/plugin/32634-miragon-bpmn-modeler";
+const ORCA_PLUGIN_URL =
+    "https://onorca.dev/plugins/miragon.bpmn-modeler?catalog=https://github.com/miragon/orca-modelers.git";
 const HOMEBREW_INSTALL = "brew install --cask miragon/tap/miragon-bpmn-modeler";
 
 const tabs: { id: InstallTab; label: string }[] = [
     { id: "vscode", label: "VS Code" },
     { id: "intellij", label: "IntelliJ" },
     { id: "desktop", label: "Desktop" },
+    { id: "orca", label: "Orca" },
 ];
 
 const selectedTab = ref<InstallTab>("vscode");
@@ -202,6 +206,23 @@ onMounted(async () => {
                             <p v-else class="tab-note">
                                 Preview. Other platforms on
                                 <a :href="RELEASES_URL">GitHub Releases</a>.
+                            </p>
+                        </div>
+
+                        <div
+                            id="install-panel-orca"
+                            :class="{ 'is-inactive': selectedTab !== 'orca' }"
+                            class="tab-panel"
+                            role="tabpanel"
+                            aria-labelledby="install-tab-orca"
+                        >
+                            <div class="row">
+                                <a class="row-link" :href="ORCA_PLUGIN_URL">Open in Orca → Install</a>
+                            </div>
+                            <p class="tab-note">
+                                Experimental. Opens .bpmn and .dmn next to your coding agent, without
+                                deployment, code links or forms;
+                                <a :href="withBase('/orca/getting-started#limits')">what it covers</a>.
                             </p>
                         </div>
                     </div>

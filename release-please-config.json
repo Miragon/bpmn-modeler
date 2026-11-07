@@ -86,6 +86,13 @@
       "include-component-in-tag": true,
       "extra-files": [{ "type": "generic", "path": "gradle.properties" }]
     },
+    "apps/orca-plugin": {
+      "release-type": "node",
+      "component": "orca",
+      "include-component-in-tag": true,
+      "initial-version": "0.1.0",
+      "extra-files": [{ "type": "json", "path": "orca-plugin.json", "jsonpath": "$.version" }]
+    },
     "packages/dmn-modeler": {
       "release-type": "node",
       "component": "dmn-modeler",

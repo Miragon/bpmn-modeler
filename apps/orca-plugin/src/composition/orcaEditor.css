@@ -1,0 +1,26 @@
+html,
+body,
+#app {
+    height: 100%;
+    margin: 0;
+}
+
+.content .canvas:has(.dmn-decision-table-container) {
+    padding: 16px 20px;
+}
+
+.content.with-diagram .panel-resizer[hidden],
+.content.with-diagram .properties-panel-parent[hidden] {
+    display: none;
+}
+
+.orca-read-only-notice {
+    position: fixed;
+    top: 12px;
+    right: 24px;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font: 12px sans-serif;
+    color: var(--orca-muted-foreground, #555);
+    background: var(--orca-muted, #eee);
+}

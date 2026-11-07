@@ -36,6 +36,13 @@ quietly grew into more places where process work actually happens:
   organisations not on VS Code — same modeling surface, plus a built-in
   Source Control view, BPMN-aware diff against working-tree changes, and
   auto-save out of the box.
+- **In [Orca](https://www.onorca.dev)**, as a plugin that opens `.bpmn` and
+  `.dmn` files right next to the coding agent writing them: every change the
+  agent makes shows up on the canvas, and you can simulate and model lightly
+  yourself. It is experimental: no deployment, no jumps into code and no Form editor
+  yet ([guide and limits](https://miragon.github.io/bpmn-modeler/orca/getting-started)).
+
+  ![The BPMN editor in Orca with the token simulation running](docs/public/shots/orca-bpmn-token-simulation.png)
 - **And next: AI-assisted BPMN tooling** — bringing the same modeling
   context into your AI assistant. *Stay tuned.* ✨
 
@@ -82,6 +89,7 @@ surfaces; each one has its own README with its own pitch.
 |---|---|---|
 | [`apps/vscode-plugin`](apps/vscode-plugin/README.md) | The VS Code extension — the public BPMN/DMN and Camunda Form modeler. | Published on the [Marketplace][marketplace-url] |
 | [`apps/standalone`](apps/standalone/README.md) | Theia/Electron desktop shell wrapping the same modeler — same features, no VS Code required. | Build-from-source, unreleased |
+| [`apps/orca-plugin`](apps/orca-plugin/README.md) | Orca plugin that opens `.bpmn` and `.dmn` files next to the coding agent writing them — view, simulate, model lightly. | Experimental, published to [Miragon/orca-modelers](https://github.com/Miragon/orca-modelers) |
 | [`apps/bpmn-webview`](apps/bpmn-webview/README.md) | BPMN canvas webview embedded in the extension host. | Internal |
 | [`apps/dmn-webview`](apps/dmn-webview/README.md) | DMN canvas webview embedded in the extension host. | Internal |
 | [`apps/form-webview`](apps/form-webview/README.md) | Camunda Form editor and preview webview embedded in the extension host. | Internal |

@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/" xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/" xmlns:modeler="http://camunda.org/schema/modeler/1.0" id="Definitions_Smoke" name="Order decisions" namespace="http://camunda.org/schema/1.0/dmn" exporter="Camunda Modeler" exporterVersion="5.30.0" modeler:executionPlatform="Camunda Cloud" modeler:executionPlatformVersion="8.6.0">
+  <decision id="Decision_Approve" name="Approve Order">
+    <informationRequirement id="InformationRequirement_Credit">
+      <requiredDecision href="#Decision_Credit" />
+    </informationRequirement>
+    <decisionTable id="DecisionTable_Approve">
+      <input id="Input_Rating" label="Rating">
+        <inputExpression id="InputExpression_Rating" typeRef="string">
+          <text>rating</text>
+        </inputExpression>
+      </input>
+      <output id="Output_Approved" label="Approved" name="approved" typeRef="boolean" />
+      <rule id="Rule_Good">
+        <inputEntry id="InputEntry_Good">
+          <text>"good"</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_Good">
+          <text>true</text>
+        </outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+  <decision id="Decision_Credit" name="Check Credit">
+    <decisionTable id="DecisionTable_Credit">
+      <input id="Input_Amount" label="Amount">
+        <inputExpression id="InputExpression_Amount" typeRef="number">
+          <text>amount</text>
+        </inputExpression>
+      </input>
+      <output id="Output_Rating" label="Rating" name="rating" typeRef="string" />
+      <rule id="Rule_Small">
+        <inputEntry id="InputEntry_Small">
+          <text>&lt; 1000</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_Small">
+          <text>"good"</text>
+        </outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_Order">
+      <dmndi:DMNShape id="DMNShape_Approve" dmnElementRef="Decision_Approve">
+        <dc:Bounds height="80" width="180" x="250" y="120" />
+      </dmndi:DMNShape>
+      <dmndi:DMNShape id="DMNShape_Credit" dmnElementRef="Decision_Credit">
+        <dc:Bounds height="80" width="180" x="250" y="320" />
+      </dmndi:DMNShape>
+      <dmndi:DMNEdge id="DMNEdge_Credit" dmnElementRef="InformationRequirement_Credit">
+        <di:waypoint x="340" y="320" />
+        <di:waypoint x="340" y="200" />
+      </dmndi:DMNEdge>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+</definitions>

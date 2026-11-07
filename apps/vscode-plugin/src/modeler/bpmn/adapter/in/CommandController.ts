@@ -11,11 +11,11 @@ import {
     BpmnDocument,
     createEmptyForm,
     DMN_VIEW_TYPE,
-    EMPTY_DMN_DIAGRAM,
     FOCUS_BPMN_DIAGRAM_MESSAGE,
     FORM_VIEW_TYPE,
     newModelEnginePrompt,
 } from "@miragon/bpmn-modeler-core";
+import { EMPTY_DMN_DIAGRAM } from "@miragon/bpmn-modeler-types";
 import { ModelerPreferences } from "../../../../shared/port/ModelerPreferences";
 import { promptNewFileTarget } from "../../../../shared/adapter/in/newFileTarget";
 import { VsCodeTextEditor } from "../../../../shared/adapter/in/VsCodeTextEditor";
