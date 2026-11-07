@@ -45,9 +45,20 @@
                 background: #00e676;
             }
             .label {
+                display: flex;
+                align-items: center;
+                gap: 18px;
                 font-size: 30px;
                 font-weight: 600;
                 letter-spacing: 0.01em;
+            }
+            .badge {
+                padding: 4px 16px 6px;
+                border-radius: 999px;
+                background: #00e676;
+                color: #1d1d1d;
+                font-size: 26px;
+                font-weight: 700;
             }
             h1 {
                 margin-top: 12px;
@@ -84,7 +95,7 @@
         <div class="copy">
             <img class="icon" src="__ICON__" alt="" />
             <div class="accent"></div>
-            <div class="label">Miragon Modeler</div>
+            <div class="label">Miragon Modeler <span class="badge">Beta</span></div>
             <h1>__TITLE__</h1>
             <p class="claim">__CLAIM__</p>
         </div>

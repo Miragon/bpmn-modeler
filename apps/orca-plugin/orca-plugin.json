@@ -15,12 +15,12 @@
   "icon": "assets/icon.png",
   "cover": {
     "path": "images/cover.webp",
-    "alt": "Miragon Modeler for BPMN & DMN: processes and decisions from plain .bpmn and .dmn files, edited by you and your agents."
+    "alt": "Miragon Modeler for BPMN & DMN, beta: processes and decisions from plain .bpmn and .dmn files, edited by you and your agents."
   },
   "screenshots": [
     {
       "path": "images/cover.webp",
-      "alt": "Miragon Modeler for BPMN & DMN: processes and decisions from plain .bpmn and .dmn files, edited by you and your agents.",
+      "alt": "Miragon Modeler for BPMN & DMN, beta: processes and decisions from plain .bpmn and .dmn files, edited by you and your agents.",
       "caption": "BPMN and DMN from plain .bpmn and .dmn files"
     },
     {
