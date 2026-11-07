@@ -10,6 +10,7 @@ import {
     SettingChange,
 } from "@miragon/bpmn-modeler-core";
 import { bootstrapWebview } from "./bootstrapWebview";
+import { toUri } from "./uriPath";
 import { onDidChangeModelerSetting } from "./modelerConfiguration";
 import { canonicalPath } from "../../domain/canonicalPath";
 
@@ -143,6 +144,11 @@ export class VsCodeEditorHandle implements EditorHandle {
      */
     reload(): void {
         bootstrapWebview(this.viewType, this.panel, this.initialPanelVisible);
+    }
+
+    /** Loads only below the webview's `localResourceRoots`, which hold the plugin cache. */
+    webviewUrlOf(path: string): string {
+        return this.panel.webview.asWebviewUri(toUri(path)).toString();
     }
 
     /**

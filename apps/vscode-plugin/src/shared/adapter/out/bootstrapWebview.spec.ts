@@ -9,7 +9,10 @@ vi.mock("vscode", () => ({
 }));
 
 vi.mock("./extensionContext", () => ({
-    getContext: () => ({ extensionUri: { path: "extension" } }),
+    getContext: () => ({
+        extensionUri: { path: "extension" },
+        globalStorageUri: { path: "global-storage" },
+    }),
 }));
 
 import { bootstrapWebview } from "./bootstrapWebview";
@@ -33,11 +36,12 @@ function createPanel() {
 
 describe("bootstrapWebview", () => {
     it.each([
-        [BPMN_VIEW_TYPE, ["extension/bpmn-webview"]],
+        // The BPMN editor also loads approved plugin copies, never workspace files.
+        [BPMN_VIEW_TYPE, ["extension/bpmn-webview", "global-storage/bpmn-plugins"]],
         [DMN_VIEW_TYPE, ["extension/dmn-webview", "extension/assets"]],
         [FORM_VIEW_TYPE, ["extension/form-webview"]],
         [ELEMENT_TEMPLATE_EDITOR_VIEW_TYPE, ["extension/bpmn-webview"]],
-    ])("limits the %s webview to its own bundle directories", (viewType, expectedRoots) => {
+    ])("limits the %s webview to its own directories", (viewType, expectedRoots) => {
         const panel = createPanel();
 
         bootstrapWebview(viewType, panel as never);

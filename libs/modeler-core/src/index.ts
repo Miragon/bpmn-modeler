@@ -85,6 +85,11 @@ export * from "./modeler/form/service/FormModelerService";
 export * from "./modeler/elementTemplate/domain/newTemplateFile";
 export * from "./modeler/elementTemplate/composition/ElementTemplateEditorFeature";
 
+// ── bpmnPlugins ──────────────────────────────────────────────────────────────
+export * from "./bpmnPlugins/domain/pluginApproval";
+export * from "./bpmnPlugins/port/pluginPorts";
+export * from "./bpmnPlugins/composition/BpmnPluginsFeature";
+
 // ── diff ─────────────────────────────────────────────────────────────────────
 export * from "./diff/domain/basenameOfUriString";
 export * from "./diff/port/DiffPaneHandle";

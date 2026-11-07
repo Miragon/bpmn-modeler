@@ -69,6 +69,7 @@ export default defineConfig({
                 viewer: resolve(__dirname, "src/viewer/index.ts"),
                 design: resolve(__dirname, "src/design/index.ts"),
                 mode: resolve(__dirname, "src/modeSession/index.ts"),
+                plugins: resolve(__dirname, "src/plugins/index.ts"),
             },
             formats: ["es"],
             cssFileName: "bpmn-modeler",

@@ -12,6 +12,7 @@ import {
     GetBpmnModelerSettingCommand,
     GetClipboardCommand,
     GetDiagramAsSVGCommand,
+    GetBpmnPluginsCommand,
     GetElementTemplatesCommand,
     GetFormPreviewCommand,
     GetFormReferenceStatusCommand,
@@ -76,6 +77,7 @@ const BPMN_EDITOR_COMMANDS: { [Type in BpmnEditorCommandType]: MessageOfType<Typ
     GetBpmnFileCommand: new GetBpmnFileCommand(),
     GetDiagramAsSVGCommand: new GetDiagramAsSVGCommand(),
     GetElementTemplatesCommand: new GetElementTemplatesCommand(),
+    GetBpmnPluginsCommand: new GetBpmnPluginsCommand(),
     GetBpmnlintConfigCommand: new GetBpmnlintConfigCommand(),
     GetBpmnModelerSettingCommand: new GetBpmnModelerSettingCommand(),
     GetPropertiesPanelStateCommand: new GetPropertiesPanelStateCommand(),
@@ -215,6 +217,7 @@ describe("development preview host", () => {
 
     it.each<[Command, string]>([
         [new GetElementTemplatesCommand(), "ElementTemplatesQuery"],
+        [new GetBpmnPluginsCommand(), "BpmnPluginsQuery"],
         [new GetBpmnModelerSettingCommand(), "BpmnModelerSettingQuery"],
         [new GetPropertiesPanelStateCommand(), "PropertiesPanelStateQuery"],
         [new RequestFocusCommand(), "TakeFocusQuery"],

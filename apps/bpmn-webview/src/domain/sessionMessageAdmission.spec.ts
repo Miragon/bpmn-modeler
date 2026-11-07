@@ -28,6 +28,7 @@ const sessionMessageTypes = Object.keys({
     TakeFocusQuery: true,
     FlushDocumentQuery: true,
     ReleaseDocumentFlushQuery: true,
+    BpmnPluginsQuery: true,
 } satisfies Record<SessionMessageType, true>) as SessionMessageType[];
 
 const importBoundTypes: SessionMessageType[] = [

@@ -3,10 +3,12 @@ import { i18n, type SupportedLocale } from "@miragon/bpmn-modeler-i18n";
 import { extras as i18nExtras } from "@miragon/bpmn-modeler-i18n-extras";
 import {
     type BpmnModelerSettingQuery,
+    type BpmnPluginsQuery,
     type Command,
     type ElementTemplatesQuery,
     GetBpmnFileCommand,
     GetBpmnModelerSettingCommand,
+    GetBpmnPluginsCommand,
     GetPropertiesPanelStateCommand,
     HOST_REPLY_TIMEOUT_MS,
     type HostApi,
@@ -44,6 +46,7 @@ import { resolveClipboard } from "../adapter/out/protocolClipboard";
 import { createSurfaceBinder } from "../adapter/in/surfaceBinding";
 import { createSurfaceDocument } from "../adapter/out/surfaceDocument";
 import { createSurfaceFactories } from "../adapter/out/surfaceFactories";
+import { loadSurfacePlugins } from "../adapter/out/surfacePlugins";
 import { createSurfaceRequests } from "../adapter/in/surfaceRequests";
 import { readSavedMode } from "../service/state";
 import { isEditableHandle } from "../domain/surface";
@@ -131,6 +134,7 @@ export function bootstrap(
     const settingsResolver = createResolver<BpmnModelerSettingQuery>();
 
     const panelStateResolver = createResolver<PropertiesPanelStateQuery>();
+    const pluginsResolver = createResolver<BpmnPluginsQuery>();
 
     const surfaceRequests = createSurfaceRequests(editorHost, getSurface, {
         setFormPreviewAutomatic: protocolCapabilities.setFormPreviewAutomatic,
@@ -159,6 +163,7 @@ export function bootstrap(
         {
             // Before the spreads, so tsc rejects a group that also handles one of these.
             PropertiesPanelStateQuery: (query) => panelStateResolver.done(query),
+            BpmnPluginsQuery: (query) => pluginsResolver.done(query),
             TakeFocusQuery: () => takeFocus(focusCanvas),
             ...session.handlers,
             ...surfaceRequests.handlers,
@@ -245,8 +250,15 @@ export function bootstrap(
             return;
         }
 
+        // Modules are fixed when a surface is built, so the plugins come first.
+        // A diff pane never asks: it is a viewer, which takes no plugins.
+        editorHost.postMessage(new GetBpmnPluginsCommand());
+
         const chrome = mountEditorChrome(editorHost);
         if (!chrome) return;
+
+        const pluginsQuery = await pluginsResolver.wait(HOST_REPLY_TIMEOUT_MS);
+        const plugins = await loadSurfacePlugins(pluginsQuery?.plugins ?? [], editorHost);
 
         // The engine may be undefined here — an untagged (engine-neutral) model
         // is first-class now and opens in Design. The initial mode resolves from
@@ -271,6 +283,7 @@ export function bootstrap(
                 propertiesPanelParent: chrome.panelMount,
                 capabilities,
                 extraModules: opts.extraModules ?? [],
+                plugins,
                 clipboard: clipboard.options,
                 lintBridge,
                 hostModelerState,
