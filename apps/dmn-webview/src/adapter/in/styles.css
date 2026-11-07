@@ -85,6 +85,11 @@ a:link {
     display: block;
 }
 
+.content.with-diagram .panel-resizer[hidden],
+.content.with-diagram .properties-panel-parent[hidden] {
+    display: none;
+}
+
 .panel-resizer {
     width: 4px;
     flex-shrink: 0;

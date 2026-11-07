@@ -673,6 +673,19 @@ describe("DMN bootstrap", () => {
         const panel = () => document.getElementById("js-properties-panel")!;
         const isCollapsed = () => panel().classList.contains("collapsed");
 
+        it("hides the panel and its resizer outside the DRD, where it stays empty", async () => {
+            const { options } = await startReady();
+            const resizer = document.getElementById("js-panel-resizer")!;
+            const showView = (type: string) =>
+                options().onViewChanged?.({ views: [], activeView: { type } } as never);
+
+            showView("decisionTable");
+            expect([panel().hidden, resizer.hidden]).toEqual([true, true]);
+
+            showView("drd");
+            expect([panel().hidden, resizer.hidden]).toEqual([false, false]);
+        });
+
         it("applies the editor's saved visibility instead of the host default", async () => {
             const { ofType } = await startReady({ savedState: { panelVisible: false } });
 
