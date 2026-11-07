@@ -20,7 +20,7 @@ export function createRepeatedValueSetsFitnessFunction({
             rule: "a value set has one home; every other use imports it, a TypeScript copy that cannot is pinned to it by expectTypeOf<Copy>().toEqualTypeOf<Home>(), and a copy outside TypeScript by a spec",
         },
         misses: [
-            "Partial and extended copies: 9 of the 12 modeler languages (issue 1983), IGNORED_WATCH_DIRS as EXCLUDED_DIRS plus three folders.",
+            "Partial and extended copies: 9 of the 12 modeler languages (issue 1983), and at add816a2 IGNORED_WATCH_DIRS as EXCLUDED_DIRS plus six folders.",
             "Copies that live in logic, such as the allMatch parsing of the element template builder.",
             "Sets with another member: `| undefined`, a spread, an enum, object keys, switch cases, and !== or && chains.",
             "Kotlin and JSON, such as the enum arrays of a package.json or a JSON schema.",
