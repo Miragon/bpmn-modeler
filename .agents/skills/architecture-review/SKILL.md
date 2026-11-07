@@ -15,7 +15,8 @@ not deterministic, so it comments and never blocks.
 
 On a pull request the Fitness report workflow already lists the new and
 resolved rows per function: the job summary holds every row, and a PR from
-this repository has one comment with a capped copy
+this repository, unless Dependabot opened it, has at most one comment with a
+capped copy, posted once there is a change
 ([ADR](../../../docs/adr/engineering-practices.md#fitness-function-report)).
 It measures GitHub's test merge, so the whole PR counts as one change, which
 the PR row below does not. Read it for an overview; the review still measures

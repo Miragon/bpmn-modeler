@@ -1,13 +1,16 @@
 name: Fitness report
 
 # Shows on every pull request the rows the reported fitness functions newly
-# find and no longer find: every row in the job summary, a capped copy in one
-# comment. It is not a required check and not in build.yml's ci.needs, so it
-# never blocks a merge. Findings never fail it; only broken input does.
+# find and no longer find: every row in the job summary, and a capped copy in
+# one comment once there is a change. It is not a required check and not in
+# build.yml's ci.needs, so it never blocks a merge. Findings never fail it;
+# only broken input does.
 #
 # Two jobs keep the write token away from the pull request's code: `report`
 # runs that code (a PR can change tools/repo-checks) with a read-only token,
-# and `comment` checks nothing out and only posts the artifact's text.
+# and `comment` checks nothing out and only posts the artifact's text. That
+# text is still the code's output, so `comment` posts only for an author who
+# could change this workflow anyway.
 
 on:
   # No branch filter: a stacked pull request targets the branch below it.
@@ -55,10 +58,14 @@ jobs:
           path: ${{ runner.temp }}/fitness-report/comment.md
           retention-days: 7
 
-  # A fork's GITHUB_TOKEN cannot write, so its pull request gets the summary only.
+  # A fork's GITHUB_TOKEN cannot write. A Dependabot run gets this job's write
+  # token, but its install in `report` runs the bumped package's lifecycle
+  # scripts, which could write the artifact. Both get the summary only.
   comment:
     needs: report
-    if: github.event.pull_request.head.repo.full_name == github.repository
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository
+      && github.event.pull_request.user.login != 'dependabot[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -69,7 +76,7 @@ jobs:
           name: fitness-report
           path: ${{ runner.temp }}/fitness-report
       # The report's first line says whether anything changed (changesReport.ts).
-      # A Dependabot run's token may be read-only, so a failed write only warns.
+      # A failed read or write only warns: the comment is a convenience.
       - name: Create or update the fitness comment
         env:
           GH_TOKEN: ${{ github.token }}

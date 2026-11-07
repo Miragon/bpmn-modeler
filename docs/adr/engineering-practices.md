@@ -700,15 +700,20 @@ blocks a merge, and findings never fail it.
   58,683.
 - **Permissions.** The workflow grants `contents: read`. The `report` job runs
   the PR's code, which can change `tools/repo-checks`, uploads the comment as
-  an artifact and writes nothing else. The `comment` job adds only
-  `pull-requests: write`, checks nothing out and runs no PR code, and runs only
-  for a head in this repository, since a fork's token cannot write; a fork's PR
-  gets the summary only. It pages through the PR's comments for its own: the
-  hidden marker `<!-- fitness-report-comment -->` on the first line, written by
+  an artifact and writes nothing else. The `comment` job's own `permissions`
+  replace the workflow's with only `pull-requests: write`, so it has no
+  `contents: read`; it checks nothing out and runs no PR code. The artifact is
+  still that code's output, so the job runs only for an author who could
+  change the workflow anyway: a head in this repository, and not Dependabot.
+  A Dependabot run gets the write token the job asks for, and its install
+  runs the bumped package's lifecycle scripts, which could write the
+  artifact. A fork's token cannot write. Both get the summary only. The job
+  pages through the PR's comments for its own: the hidden marker
+  `<!-- fitness-report-comment -->` on the first line, written by
   `github-actions[bot]`. Without a change and without an earlier comment it
   posts nothing; otherwise it creates the comment or updates it, to "no
-  change" too. A failed read or write only warns, since a Dependabot run's
-  token may be read-only. `pull_request_target` is not used.
+  change" too. A failed read or write only warns. `pull_request_target` is
+  not used.
 - **Duration.** About half a minute when the merge base has a stored
   snapshot, estimated from four fitness-history runs: checkout with
   `fetch-depth: 0` 6–8 s, which fetches `fitness-history` too, the workspace
