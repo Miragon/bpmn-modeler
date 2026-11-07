@@ -1,3 +1,4 @@
+import { writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -33,6 +34,7 @@ function callerPath(path: string): string {
 const OUTPUT = {
     out: (text: string) => process.stdout.write(text),
     error: (text: string) => process.stderr.write(text),
+    writeFile: (path: string, text: string) => writeFileSync(callerPath(path), text),
 };
 
 function runMutation(args: readonly string[]): number {
