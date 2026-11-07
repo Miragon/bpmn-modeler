@@ -43,6 +43,7 @@ export function createChangeCouplingFitnessFunction({
             "Kotlin pairs: Kotlin files carry no import edges, so a Kotlin pair is never linked.",
             "A pair explained by a shared import can still hide a copy (VsCodeStatusBar.ts ↔ BpmnLintConfigService.ts, the structural cause of issue 1799); it is listed under explained, not dropped.",
             "Each commit on a branch counts as one PR until it is squash-merged, so a branch with many commits raises its pairs' shared changes.",
+            `A branch that merges main instead of rebasing: main's PRs since the branch point reach the branch's first-parent chain only through its merge commits, each counted as one change, or not at all above ${maxChangesetSize} read files, so they leave the head's window. The pairs they held show as resolved, and a pair whose files lose revisions can reach the degree and show as new.`,
             "Pairs that enter or leave the delta because the window slid, not because the branch touched them.",
         ],
         evidence: [

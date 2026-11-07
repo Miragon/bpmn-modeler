@@ -33,11 +33,15 @@ The pure functions in `src/domain/deploymentDraft.ts` decide, from a
 
 `credentialRefSignatureOf` in the same file decides which credential edits
 count as a target change: an `${env:…}` reference does, a literal does not.
+`requestAuthOf` decides what a Deploy or Start Instance request needs (a
+non-blank endpoint, then the fields its auth type requires) and returns the
+auth payload or the first reason to refuse. `authPayloadOf` builds the auth
+payload that New and Save send with a target, without a credential check.
 `form.ts` builds the snapshot from its flags and applies the result to the DOM.
 Each request button also stays disabled while its own request is in flight:
 Deploy while `deploying` (`form.ts`), Start Instance while `starting`
-(`startInstanceForm.ts`). Click handlers keep their payload checks, such as a
-required Target Name.
+(`startInstanceForm.ts`). Click handlers keep the other payload checks, such as
+a required Target Name.
 
 ## Local development
 

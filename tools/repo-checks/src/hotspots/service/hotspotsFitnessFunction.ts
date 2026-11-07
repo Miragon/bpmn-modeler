@@ -38,7 +38,7 @@ export function createHotspotsFitnessFunction({
             "Hotspots are heuristics: config-like files change often and hold no rules.",
             "Type-only protocol files (libs/shared/src/lib/modeler.ts) rank high and hold no rules.",
             "Each commit on a branch counts as one revision until it is squash-merged, so a branch with many commits raises its files' revisions.",
-            "Files that enter or leave the top 20 because the window slid, not because the branch touched them.",
+            `Files that enter or leave the top ${HOTSPOT_LIMIT} for a reason other than their own change: the window slid, or a file the branch touched moved past them, up or down, or was deleted. Every file that enters pushes the last one out, which shows as resolved, and every file that leaves pulls the next one in, which shows as new.`,
         ],
         evidence: [
             {
