@@ -382,7 +382,9 @@ describe("Camunda7RestClient (integration)", () => {
     it("fetches the latest definition, its XML bytes, and the deployment time", async () => {
         installLookupHandler();
 
-        const snapshot = await createClient().fetchLatestDefinition(new InspectionRequest(`${baseUrl}/`, "", "order"));
+        const snapshot = await createClient().fetchLatestDefinition(
+            new InspectionRequest(`${baseUrl}/`, "", "order"),
+        );
 
         expect(snapshot).toEqual({
             processDefinitionId: "order:3:def-1",
@@ -396,7 +398,9 @@ describe("Camunda7RestClient (integration)", () => {
     it("routes the lookup through the tenant path when the target has a tenant", async () => {
         const urls = installLookupHandler({ withTenant: true });
 
-        const snapshot = await createClient().fetchLatestDefinition(new InspectionRequest(baseUrl, "acme", "order"));
+        const snapshot = await createClient().fetchLatestDefinition(
+            new InspectionRequest(baseUrl, "acme", "order"),
+        );
 
         expect(urls[0]).toBe("/process-definition/key/order/tenant-id/acme");
         expect(snapshot?.deploymentId).toBe("dep-9");
@@ -408,7 +412,9 @@ describe("Camunda7RestClient (integration)", () => {
             res.end(JSON.stringify({ type: "RestException", message: "no matching definition" }));
         };
 
-        const snapshot = await createClient().fetchLatestDefinition(new InspectionRequest(baseUrl, "", "missing"));
+        const snapshot = await createClient().fetchLatestDefinition(
+            new InspectionRequest(baseUrl, "", "missing"),
+        );
 
         expect(snapshot).toBeUndefined();
     });
@@ -419,7 +425,9 @@ describe("Camunda7RestClient (integration)", () => {
             res.end("Unauthorized");
         };
 
-        const lookup = createClient().fetchLatestDefinition(new InspectionRequest(baseUrl, "", "order"));
+        const lookup = createClient().fetchLatestDefinition(
+            new InspectionRequest(baseUrl, "", "order"),
+        );
 
         await expect(lookup).rejects.toSatisfy(
             (error: unknown) => error instanceof EngineInspectionFailedError && error.isAuthFailure,
@@ -429,7 +437,9 @@ describe("Camunda7RestClient (integration)", () => {
     it("leaves deploymentTime undefined when the deployment lookup fails", async () => {
         installLookupHandler({ deploymentStatus: 500 });
 
-        const snapshot = await createClient().fetchLatestDefinition(new InspectionRequest(baseUrl, "", "order"));
+        const snapshot = await createClient().fetchLatestDefinition(
+            new InspectionRequest(baseUrl, "", "order"),
+        );
 
         expect(snapshot?.deploymentTime).toBeUndefined();
         expect(snapshot?.xml).toBe(DEPLOYED_XML);
@@ -503,7 +513,14 @@ describe("Camunda7RestClient (integration)", () => {
             echoRequestAsEngineError(403);
 
             const error = await rejectionOf(
-                createClient().fetchLatestDefinition(new InspectionRequest(`${baseUrl}/engine-rest?apikey=${apiKey}`, "", "order", basicAuth)),
+                createClient().fetchLatestDefinition(
+                    new InspectionRequest(
+                        `${baseUrl}/engine-rest?apikey=${apiKey}`,
+                        "",
+                        "order",
+                        basicAuth,
+                    ),
+                ),
             );
 
             expect(error).toBeInstanceOf(EngineInspectionFailedError);
@@ -543,7 +560,15 @@ describe("Camunda7RestClient (integration)", () => {
             echoRequestAsEngineError(403);
 
             const error = await rejectionOf(
-                createClient().fetchLatestDefinition(new InspectionRequest(`${baseUrl}/gw/${envValue}/engine-rest`, "", "order", new NoAuth(), [envValue])),
+                createClient().fetchLatestDefinition(
+                    new InspectionRequest(
+                        `${baseUrl}/gw/${envValue}/engine-rest`,
+                        "",
+                        "order",
+                        new NoAuth(),
+                        [envValue],
+                    ),
+                ),
             );
 
             expect(error).toBeInstanceOf(EngineInspectionFailedError);
