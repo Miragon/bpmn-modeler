@@ -1,5 +1,30 @@
 # Changelog
 
+## [1.14.1](https://github.com/Miragon/bpmn-modeler/compare/intellij-v1.14.0...intellij-v1.14.1) (2026-11-07)
+
+
+### 🐞 Bug Fixes
+
+* **deployment-webview:** check start-instance auth fields like deploy ([#2197](https://github.com/Miragon/bpmn-modeler/issues/2197)) [sync 755b32e] ([c099cf4](https://github.com/Miragon/bpmn-modeler/commit/c099cf4bd2d0a13c1683eea8ded4f8aa1385c267))
+* **modeler-bridge:** keep the spinner until every run of its title ends ([#2189](https://github.com/Miragon/bpmn-modeler/issues/2189)) [sync b34a0cb] ([6b25d19](https://github.com/Miragon/bpmn-modeler/commit/6b25d198dc4860d3c5f884b45d399a99a705c95a))
+* **modeler-bridge:** show no sync error when IntelliJ fails an edit ([#2186](https://github.com/Miragon/bpmn-modeler/issues/2186)) [sync 8456263] ([80af90e](https://github.com/Miragon/bpmn-modeler/commit/80af90e40a9df69cd118f68d6401e2fcebb794f3))
+* **modeler-core:** follow the C8 API version in requests and form hints ([#2209](https://github.com/Miragon/bpmn-modeler/issues/2209)) [sync 80bf642] ([8bfb20f](https://github.com/Miragon/bpmn-modeler/commit/8bfb20fc8c5541bbdfc3451f99723086cf90ad25))
+* **modeler-core:** say a marketplace is already registered, not added ([#2201](https://github.com/Miragon/bpmn-modeler/issues/2201)) [sync d974411] ([5bef969](https://github.com/Miragon/bpmn-modeler/commit/5bef9696ffc888574b31657b706453c1b6a51928))
+* **modeler-core:** start new model files with the XML declaration ([#2198](https://github.com/Miragon/bpmn-modeler/issues/2198)) ([0a57387](https://github.com/Miragon/bpmn-modeler/commit/0a5738752bbeb6168ae458c4f2fcd61450f65392))
+
+
+### 🔨 Refactoring
+
+* **modeler-core:** build the marketplace add and remove texts ([#2172](https://github.com/Miragon/bpmn-modeler/issues/2172)) ([75786e9](https://github.com/Miragon/bpmn-modeler/commit/75786e96ad9ebea4ac0e7b787b91a23a5b30f6f2))
+* **modeler-core:** give the colour themes and engines one home ([#2207](https://github.com/Miragon/bpmn-modeler/issues/2207)) ([7f49d8b](https://github.com/Miragon/bpmn-modeler/commit/7f49d8b17b34ecc2541289c277056b355fec3bd6))
+* **webviews:** move three webviews into their role folders ([#2180](https://github.com/Miragon/bpmn-modeler/issues/2180)) ([72c4e69](https://github.com/Miragon/bpmn-modeler/commit/72c4e6963c676ccc18e8f6343343fddd99e75f17))
+
+
+### 🛠️ Misc
+
+* **intellij-plugin:** pin the default modes to the surface modes ([#2177](https://github.com/Miragon/bpmn-modeler/issues/2177)) ([180b8cc](https://github.com/Miragon/bpmn-modeler/commit/180b8cc20d6235eb06c525d8f5baa8c0152cfb12))
+* **intellij-plugin:** pin the script completion matchers to the core ([#2208](https://github.com/Miragon/bpmn-modeler/issues/2208)) ([7267b86](https://github.com/Miragon/bpmn-modeler/commit/7267b86c14f2824f7ee461a65fc0c6cc4d837c9d))
+
 ## [1.14.0](https://github.com/Miragon/bpmn-modeler/compare/intellij-v1.13.0...intellij-v1.14.0) (2026-11-05)
 
 
