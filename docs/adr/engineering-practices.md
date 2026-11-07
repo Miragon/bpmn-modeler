@@ -720,16 +720,15 @@ blocks a merge, and findings never fail it.
   posts nothing; otherwise it creates the comment or updates it, to "no
   change" too. A failed read or write only warns. `pull_request_target` is
   not used.
-- **Duration.** Not measured yet; the first PR run replaces this estimate.
-  The `report` job's steps should take about half a minute when the merge
-  base has a stored snapshot, going by four fitness-history runs: checkout
-  with `fetch-depth: 0` 6–8 s, which fetches `fitness-history` too, the
-  workspace setup 4–8 s, the report 9–12 s. The artifact upload and the
-  `comment` job, with its own runner, come on top. A function runs on a
-  checkout of the base when the PR bumps its version, when fitness-history
-  has not stored the merge base yet, and on every stacked PR; measuring and
-  storing a commit took fitness-history 53–113 s in the same runs, so such a
-  report should take one to two minutes. No extra fetch of `fitness-history`:
+- **Duration.** About 40 s on `ubuntu-latest` when the merge base has a
+  stored snapshot, measured on the job's own pull request: the `report` job
+  took 31 s (checkout with `fetch-depth: 0`, which fetches `fitness-history`
+  too, 10 s; workspace setup 4 s; the report 12 s), the `comment` job 5 s on
+  its own runner after it. A function runs on a checkout of the base when the
+  PR bumps its version, when fitness-history has not stored the merge base
+  yet, and on every stacked PR; measuring and storing a commit took
+  fitness-history 53–113 s, so such a report should take one to two minutes.
+  No extra fetch of `fitness-history`:
   a `--depth=1` fetch into the full clone makes git call it shallow, which the
   report treats as broken input.
 
