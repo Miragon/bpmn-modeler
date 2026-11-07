@@ -1889,7 +1889,7 @@
       ]
     },
     "hotspots": {
-      "version": 1,
+      "version": 2,
       "findings": [
         {
           "key": "apps/bpmn-webview/src/bootstrap.ts",
@@ -1980,21 +1980,14 @@
           "path": "libs/append-menu/src/components/AppendMenuOverlay.tsx",
           "line": 72,
           "message": "13 revisions × 324 code lines = 4,212; highest complexity 12 (AppendMenuOverlay)",
-          "rank": 20
-        },
-        {
-          "key": "libs/modeler-core/src/index.ts",
-          "path": "libs/modeler-core/src/index.ts",
-          "line": 1,
-          "message": "36 revisions × 120 code lines = 4,320; no function",
-          "rank": 18
+          "rank": 19
         },
         {
           "key": "libs/modeler-core/src/modeler/bpmn/service/BpmnLintConfigService.ts",
           "path": "libs/modeler-core/src/modeler/bpmn/service/BpmnLintConfigService.ts",
           "line": 266,
           "message": "12 revisions × 353 code lines = 4,236; highest complexity 10 (lintAndPush)",
-          "rank": 19
+          "rank": 18
         },
         {
           "key": "libs/modeler-core/src/modeler/bpmn/service/BpmnModelerService.ts",
@@ -2009,6 +2002,13 @@
           "line": 112,
           "message": "49 revisions × 753 code lines = 36,897; highest complexity 3 (constructor)",
           "rank": 1
+        },
+        {
+          "key": "packages/bpmn-modeler/src/bpmnlint/LintConfigService.ts",
+          "path": "packages/bpmn-modeler/src/bpmnlint/LintConfigService.ts",
+          "line": 259,
+          "message": "16 revisions × 245 code lines = 3,920; highest complexity 8 (showDisabledChip)",
+          "rank": 20
         },
         {
           "key": "packages/bpmn-modeler/src/design/designer.ts",

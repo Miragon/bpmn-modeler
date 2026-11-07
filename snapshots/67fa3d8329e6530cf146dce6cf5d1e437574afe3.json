@@ -1896,7 +1896,7 @@
       ]
     },
     "hotspots": {
-      "version": 1,
+      "version": 2,
       "findings": [
         {
           "key": "apps/bpmn-webview/src/bootstrap.ts",
@@ -1983,17 +1983,17 @@
           "rank": 16
         },
         {
+          "key": "libs/append-menu/src/components/AppendMenuOverlay.tsx",
+          "path": "libs/append-menu/src/components/AppendMenuOverlay.tsx",
+          "line": 72,
+          "message": "13 revisions × 324 code lines = 4,212; highest complexity 12 (AppendMenuOverlay)",
+          "rank": 20
+        },
+        {
           "key": "libs/modeler-core/src/deployment/service/DeploymentMessageDispatcher.ts",
           "path": "libs/modeler-core/src/deployment/service/DeploymentMessageDispatcher.ts",
           "line": 345,
           "message": "10 revisions × 445 code lines = 4,450; highest complexity 20 (resolveRequestTarget)",
-          "rank": 20
-        },
-        {
-          "key": "libs/modeler-core/src/index.ts",
-          "path": "libs/modeler-core/src/index.ts",
-          "line": 1,
-          "message": "38 revisions × 122 code lines = 4,636; no function",
           "rank": 19
         },
         {
