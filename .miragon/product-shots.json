@@ -1,0 +1,130 @@
+{
+  "skillVersion": "1.28.0",
+  "orca": {
+    "folder": "order-service",
+    "themes": [
+      "light"
+    ]
+  },
+  "products": [
+    {
+      "id": "bpmn-vscode",
+      "target": "vscode",
+      "title": "BPMN",
+      "claim": "Processes, decisions and forms from plain files, right in VS Code.",
+      "icon": "docs/public/favicon-bpmn.svg",
+      "out": "docs/public/shots/vscode",
+      "vscode": {
+        "extension": "dist/bpmn-modeler-shots.vsix",
+        "workspace": ".miragon/product-shots/order-service"
+      },
+      "recipe": ".miragon/product-shots/bpmn-modeler-recipe.mjs",
+      "shots": {
+        "process": "order-fulfilment.bpmn",
+        "selectId": "Task_Pack",
+        "linting": "return-handling.bpmn",
+        "decision": "shipping.dmn"
+      }
+    },
+    {
+      "id": "bpmn-orca",
+      "target": "orca",
+      "badge": "Experimental",
+      "title": "BPMN",
+      "claim": "Processes and decisions from plain .bpmn and .dmn files, edited by you and your agents.",
+      "icon": "docs/public/favicon-bpmn.svg",
+      "out": "apps/orca-plugin/images",
+      "orca": {
+        "plugin": "apps/orca-plugin/plugin",
+        "examples": [
+          {
+            "file": ".miragon/product-shots/order-service/order-fulfilment.bpmn"
+          },
+          {
+            "file": ".miragon/product-shots/order-service/return-handling.bpmn"
+          },
+          {
+            "file": ".miragon/product-shots/order-service/shipping.dmn"
+          }
+        ],
+        "features": [
+          {
+            "name": "properties",
+            "example": "order-fulfilment.bpmn",
+            "act": [
+              {
+                "click": [
+                  501,
+                  488
+                ]
+              },
+              {
+                "key": "Shift"
+              },
+              {
+                "key": "Shift"
+              }
+            ]
+          },
+          {
+            "name": "simulation",
+            "example": "order-fulfilment.bpmn",
+            "act": [
+              {
+                "click": [
+                  99,
+                  34
+                ]
+              },
+              {
+                "click": [
+                  103,
+                  469
+                ]
+              },
+              {
+                "key": "Shift"
+              }
+            ]
+          },
+          {
+            "name": "linting",
+            "example": "return-handling.bpmn",
+            "act": [
+              {
+                "click": [
+                  881,
+                  554
+                ]
+              },
+              {
+                "key": "Shift"
+              },
+              {
+                "key": "Shift"
+              }
+            ]
+          },
+          {
+            "name": "dmn",
+            "example": "shipping.dmn",
+            "act": [
+              {
+                "click": [
+                  264,
+                  113
+                ]
+              },
+              {
+                "key": "Shift"
+              },
+              {
+                "key": "Shift"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

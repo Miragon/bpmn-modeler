@@ -10,6 +10,8 @@ BPMN 2.0, DMN, and Camunda Form modeling for Camunda 7 and Camunda 8 — directl
 
 ---
 
+![Miragon Modeler for BPMN: processes, decisions and forms from plain files, right in VS Code](/docs/public/shots/vscode/cover.png)
+
 ## What it is
 
 A **BPMN** (Business Process Model and Notation) diagram describes a business
@@ -60,6 +62,26 @@ A BPMN process reads left to right along its flow:
 A DMN decision table reads as rows of rules: input columns on the left map to
 output columns on the right, so each row says "when the inputs look like this,
 the decision is that".
+
+## A quick tour
+
+![order-fulfilment.bpmn in VS Code with the user task Pack order selected, its context pad open and its implementation, assignment and form groups in the properties panel](/docs/public/shots/vscode/editor.png)
+
+Select an element to change it from its context pad and to set its Camunda 7 or
+Camunda 8 details in the properties panel.
+
+![The order fulfilment process in token simulation, a token past the gateway In stock? and the simulation log listing Check stock and In stock?](/docs/public/shots/vscode/simulation.png)
+
+Play a process through with the token simulation before you deploy it.
+
+![return-handling.bpmn with red error markers on a service task without a job type and on two flows without a condition, and 3 errors in the lint hint and the status bar](/docs/public/shots/vscode/linting.png)
+
+Linting marks what the engine would reject, on the canvas and in the
+**Problems** panel.
+
+![The Choose carrier decision table from shipping.dmn: country and weight in, carrier and cost out, with fields to simulate the decision above it](/docs/public/shots/vscode/decision.png)
+
+DMN decision tables, with a simulation right above the table.
 
 ## Editing a diagram
 
