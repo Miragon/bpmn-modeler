@@ -65,7 +65,7 @@ function parseNameStatus(fields: readonly string[]): FileChange[] {
     return changes;
 }
 
-function kindOf(status: string): "added" | "modified" | "deleted" {
+function kindOf(status: string): Exclude<FileChange["kind"], "renamed"> {
     if (status === "A") {
         return "added";
     }

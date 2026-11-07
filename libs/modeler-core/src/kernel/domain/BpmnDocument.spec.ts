@@ -181,6 +181,24 @@ describe("BpmnDocument.forNewModel", () => {
         expect(BpmnDocument.forNewModel("c7").detectEngine()).toBe("c7");
         expect(BpmnDocument.forNewModel("c8").detectEngine()).toBe("c8");
     });
+
+    it.each(["c7", "c8", "neutral"] as const)(
+        "starts the %s scaffold with the XML declaration",
+        (choice) => {
+            expect(BpmnDocument.forNewModel(choice).xml.split("\n", 1)[0]).toBe(
+                '<?xml version="1.0" encoding="UTF-8"?>',
+            );
+        },
+    );
+
+    it.each(["c7", "c8", "neutral"] as const)(
+        "ends the %s scaffold with one newline after the root element, as bpmn-js exports it",
+        (choice) => {
+            expect(BpmnDocument.forNewModel(choice).xml.endsWith("</bpmn:definitions>\n")).toBe(
+                true,
+            );
+        },
+    );
 });
 
 describe("BpmnDocument.detectPlatformVersion", () => {

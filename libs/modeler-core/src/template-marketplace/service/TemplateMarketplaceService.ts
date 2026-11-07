@@ -72,7 +72,7 @@ export class TemplateMarketplaceService {
     }
 
     /**
-     * Registers and fetches a single marketplace from a pasted URL. Self-hosted
+     * Fetches and caches a single marketplace from a pasted URL. Self-hosted
      * `baseUrl` marketplaces are object entries in settings and never flow
      * through this string path.
      *
@@ -88,7 +88,7 @@ export class TemplateMarketplaceService {
         this.notifier.logInfo(`Adding marketplace: ${registration.url}`);
         const report = await this.fetchAndCache(registration, this.newTokenSession());
         this.notifier.logInfo(
-            `Marketplace added: ${registration.url} (${report.cached} template file(s) cached)`,
+            `Marketplace fetched: ${registration.url} (${report.cached} template file(s) cached)`,
         );
         return report;
     }

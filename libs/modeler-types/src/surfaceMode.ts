@@ -10,6 +10,8 @@ import type { DetectedEngine } from "./engine";
  */
 export type SurfaceMode = "view" | "design" | "implement";
 
+export type EditableSurfaceMode = Exclude<SurfaceMode, "view">;
+
 export const SURFACE_MODES: readonly SurfaceMode[] = ["view", "design", "implement"];
 
 /**
@@ -49,7 +51,7 @@ export function surfaceModeSupports(mode: SurfaceMode, capability: SurfaceModeCa
  * `implement` opens the engine's surface; anything else opens the
  * engine-neutral Design.
  */
-export function parseEditableMode(setting: unknown): Exclude<SurfaceMode, "view"> {
+export function parseEditableMode(setting: unknown): EditableSurfaceMode {
     return setting === "implement" ? "implement" : "design";
 }
 

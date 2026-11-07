@@ -12,6 +12,8 @@ A marketplace is any location with a `marketplace.json` at its root. The file po
 
 The marketplace is fetched and checked before it is saved, so a missing or broken `marketplace.json` never lands in your settings. Open editors pick up the templates right away. If some or all of its sources cannot be fetched, the marketplace is still saved and a warning names each of those sources and why. **Update Marketplaces** tries them again.
 
+Adding a marketplace that is already registered saves nothing: it is still fetched, and the notification says where it is registered. A marketplace registered for all your projects counts for this project too, while one registered for this project can still be added for all your projects.
+
 | Command | Use |
 |---|---|
 | **Miragon BPMN Modeler: Add Marketplace** | Register a marketplace. |

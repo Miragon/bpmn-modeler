@@ -5,9 +5,9 @@ import type { ScriptEditorOpener } from "./scriptEditorOpener";
  * the host editor — the same action as the "Open script in editor" buttons —
  * so script tasks and listener scripts are reachable without the mouse.
  *
- * Delegates to {@link ScriptEditorOpener}, which picks the first script in
- * properties-panel order (inline script, then execution listeners, then task
- * listeners). Elements without any script leave the key untouched.
+ * Delegates to {@link ScriptEditorOpener}, which picks the first script in a
+ * fixed order (inline script, then execution listeners, then task listeners).
+ * Elements without any script leave the key untouched.
  */
 
 // ---------------------------------------------------------------------------

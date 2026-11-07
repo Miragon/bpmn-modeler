@@ -39,7 +39,7 @@ export function createHotspotsFitnessFunction({
             "Type-only protocol files (libs/shared/src/lib/modeler.ts) rank high and hold no rules.",
             "A file that re-exports through declarations of its own, such as packages/bpmn-modeler/src/index.ts (`export const DiffViewer = DiffViewerImpl`), is no barrel to the test and is ranked.",
             "Each commit on a branch counts as one revision until it is squash-merged, so a branch with many commits raises its files' revisions.",
-            `Files that enter or leave the top ${HOTSPOT_LIMIT} for a reason other than their own change: the window slid, or a file the branch touched overtook them. Every file that enters pushes the last one out, which shows as resolved.`,
+            `Files that enter or leave the top ${HOTSPOT_LIMIT} for a reason other than their own change: the window slid, or a file the branch touched moved past them, up or down, or was deleted. Every file that enters pushes the last one out, which shows as resolved, and every file that leaves pulls the next one in, which shows as new.`,
         ],
         evidence: [
             {

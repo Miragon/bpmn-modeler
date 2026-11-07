@@ -1,3 +1,5 @@
+import { FLUSH_QUERY_TYPES } from "@miragon/bpmn-modeler-shared";
+
 export type SessionMessageType =
     | "BpmnFileQuery"
     | "ElementTemplatesQuery"
@@ -26,10 +28,9 @@ export type SessionMessageType =
     | "ReleaseDocumentFlushQuery";
 
 // The page only waits for its reload; the host's save/close flush still needs an answer.
-const ANSWERED_DURING_ENGINE_RELOAD: ReadonlySet<string> = new Set([
-    "FlushDocumentQuery",
-    "ReleaseDocumentFlushQuery",
-] satisfies readonly SessionMessageType[]);
+const ANSWERED_DURING_ENGINE_RELOAD: ReadonlySet<string> = new Set(
+    FLUSH_QUERY_TYPES satisfies readonly SessionMessageType[],
+);
 
 /**
  * Host replies that act on the imported diagram. The webview requests their

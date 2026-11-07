@@ -28,6 +28,29 @@ export function isExcludedDirName(name: string): boolean {
 }
 
 /**
+ * State folders of version control, build tools and IDEs: they never hold
+ * templates, lint configs, forms or worker sources, but can dwarf the sources
+ * of a big repo.
+ */
+const TOOL_OWNED_DOT_DIRS: ReadonlySet<string> = new Set([
+    ".git",
+    ".svn",
+    ".hg",
+    ".gradle",
+    ".idea",
+    ".angular",
+]);
+
+/**
+ * True for a folder a host's recursive watch may leave out: an excluded folder
+ * or a tool's state folder. Other dot-folders stay watched, because the config
+ * folder (`.camunda/` by default) holds the element templates and a lint config.
+ */
+export function isIgnoredWatchDirName(name: string): boolean {
+    return EXCLUDED_DIRS.has(name) || TOOL_OWNED_DOT_DIRS.has(name);
+}
+
+/**
  * The exclude a listing hands `WorkspacePort.findFiles`, so the host prunes
  * the excluded folders while it walks: the files inside them and inside
  * `additionalDirNames` at any depth below each workspace folder. A host takes

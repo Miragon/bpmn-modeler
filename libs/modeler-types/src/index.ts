@@ -27,6 +27,7 @@ export * from "./canvasResize";
 export * from "./disposableStore";
 export * from "./canvasFocusIndicator";
 export * from "./surfaceTheme";
+export * from "./surfaceThemeMode";
 export * from "./textEditingSurface";
 export * from "./workspaceDefinitions";
 export * from "./xmlMarkup";

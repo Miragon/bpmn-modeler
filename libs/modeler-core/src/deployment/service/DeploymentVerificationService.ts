@@ -4,17 +4,15 @@ import { ENGINE_LABEL } from "@miragon/bpmn-modeler-types";
 
 import { BpmnDocument } from "../../kernel/domain/BpmnDocument";
 import { UserCancelledError } from "../../kernel/domain/errors";
-import {
-    CredentialDestinationError,
-    EngineInspectionFailedError,
-    EnvReferenceError,
-} from "../domain/errors";
 import { DocumentPort, NotifierPort } from "../../kernel/port/hostPorts";
 import { EditorSessionStore } from "../../editorSession/service/EditorSessionStore";
-import { reconcile } from "../domain/deploymentVerification";
+import {
+    reconcile,
+    verificationFailureNotice,
+    verificationMessage,
+} from "../domain/deploymentVerification";
+import { InspectionRequest } from "../domain/inspectionRequest";
 import { EngineInspectionPort } from "../port/deploymentPorts";
-import { sensitiveDestinations } from "../domain/deployment";
-import { recordingLookup } from "../domain/envRef";
 import { CredentialApprovalService } from "./CredentialApprovalService";
 import { DeploymentStatusService } from "./DeploymentStatusService";
 import { DeploymentTargetService } from "./DeploymentTargetService";
@@ -82,30 +80,21 @@ export class DeploymentVerificationService {
 
         try {
             const credentials = await this.deploymentTargetService.getCredentials(destination);
-            const lookup = await this.envResolver.createLookup(
-                destination,
-                dir,
-                target.connectionEnvRefs(),
+            const literalRequest = new InspectionRequest(
+                target.endpoint,
+                target.tenantId,
+                processKey,
                 credentials,
             );
-            const recording = recordingLookup(lookup);
-            const auth = credentials.expandEnvRefs(recording);
-            const { endpoint, tenantId } = target.expandConnection(recording);
-            const envValues = [...recording.resolved];
+            const lookup = await this.envResolver.createLookup(destination, dir, literalRequest);
+            const request = literalRequest.expandEnvRefs(lookup);
             await this.credentialApproval.ensureApproved(
                 destination,
-                sensitiveDestinations(endpoint, auth, envValues),
+                request.sensitiveDestinations(),
             );
             const snapshot = await this.notifier.withProgress(
                 `Verifying on "${target.name}"…`,
-                () =>
-                    this.inspection.fetchLatestDefinition({
-                        endpoint,
-                        tenantId,
-                        processKey,
-                        auth,
-                        envValues,
-                    }),
+                () => this.inspection.fetchLatestDefinition(request),
             );
 
             const identity = destination.ledgerIdentity(lookup);
@@ -118,53 +107,25 @@ export class DeploymentVerificationService {
                 await this.deploymentStatusService.forgetRevision(filePath, identity);
             }
 
-            const deployedTime = timeOf(revision?.deployedAt);
-            const reportedDeploymentTime = timeOf(snapshot?.deploymentTime);
-            switch (outcome) {
-                case "current":
-                    this.notifier.showInfo(
-                        `Verified: ${target.name} runs your last deployment${deployedTime ? ` (${deployedTime})` : ""}.`,
-                    );
-                    break;
-                case "adopted":
-                    this.notifier.showInfo(
-                        `Verified: ${target.name} runs exactly this diagram${deployedTime ? ` (deployed ${deployedTime})` : ""}.`,
-                    );
-                    break;
-                case "superseded":
-                    this.notifier.showInfo(
-                        `The version deployed on ${target.name}${reportedDeploymentTime ? ` (deployed ${reportedDeploymentTime})` : ""} differs from your diagram.`,
-                    );
-                    break;
-                case "missing":
-                    this.notifier.showInfo(
-                        `Process '${processKey}' is not deployed on ${target.name}.`,
-                    );
-                    break;
-            }
+            this.notifier.showInfo(
+                verificationMessage(outcome, {
+                    targetName: target.name,
+                    processKey,
+                    revision,
+                    snapshot,
+                }),
+            );
         } catch (error) {
             if (error instanceof UserCancelledError) throw error;
-            if (error instanceof EngineInspectionFailedError && error.isAuthFailure) {
-                this.notifier.showError(
-                    `Could not verify deployment on "${target.name}" — check the target credentials.`,
+            const notice = verificationFailureNotice(error, target.name);
+            if (notice.kind === "explained") {
+                this.notifier.showError(notice.message);
+            } else {
+                this.notifier.notifyError(
+                    notice.title,
+                    error instanceof Error ? error : new Error(String(error)),
                 );
-                return;
             }
-            if (error instanceof EnvReferenceError || error instanceof CredentialDestinationError) {
-                this.notifier.showError(error.message);
-                return;
-            }
-            this.notifier.notifyError(
-                "Could not verify deployment",
-                error instanceof Error ? error : new Error(String(error)),
-            );
         }
     }
-}
-
-function timeOf(iso: string | undefined): string | undefined {
-    if (iso === undefined) return undefined;
-    const date = new Date(iso);
-    if (Number.isNaN(date.getTime())) return undefined;
-    return date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
 }

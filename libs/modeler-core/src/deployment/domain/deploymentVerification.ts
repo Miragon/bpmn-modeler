@@ -1,5 +1,9 @@
-import { AuthConfig } from "./deployment";
 import { contentFingerprint, DeployedRevision } from "./deploymentLedger";
+import {
+    CredentialDestinationError,
+    EngineInspectionFailedError,
+    EnvReferenceError,
+} from "./errors";
 
 /**
  * What a Camunda 7 engine reports for the latest deployed version of a process:
@@ -63,12 +67,58 @@ function stripBom(content: string): string {
     return content.charCodeAt(0) === 0xfeff ? content.slice(1) : content;
 }
 
-/** Addresses the latest deployed version of one process on an engine. */
-export interface DefinitionLookup {
-    readonly endpoint: string;
-    readonly tenantId: string;
+/** What a verification learned, for the message that reports it. */
+export interface VerificationFacts {
+    readonly targetName: string;
     readonly processKey: string;
-    readonly auth: AuthConfig;
-    /** The `.env` values the lookup may carry, which an error must never echo. */
-    readonly envValues: readonly string[];
+    /** The revision {@link reconcile} returned for the ledger. */
+    readonly revision?: DeployedRevision;
+    readonly snapshot?: EngineDeploymentSnapshot;
+}
+
+const OUTCOME_MESSAGES: Record<VerificationOutcome, (facts: VerificationFacts) => string> = {
+    current: ({ targetName, revision }) =>
+        `Verified: ${targetName} runs your last deployment${timeNote(revision?.deployedAt)}.`,
+    adopted: ({ targetName, revision }) =>
+        `Verified: ${targetName} runs exactly this diagram${timeNote(revision?.deployedAt, "deployed ")}.`,
+    superseded: ({ targetName, snapshot }) =>
+        `The version deployed on ${targetName}${timeNote(snapshot?.deploymentTime, "deployed ")} differs from your diagram.`,
+    missing: ({ targetName, processKey }) =>
+        `Process '${processKey}' is not deployed on ${targetName}.`,
+};
+
+export function verificationMessage(
+    outcome: VerificationOutcome,
+    facts: VerificationFacts,
+): string {
+    return OUTCOME_MESSAGES[outcome](facts);
+}
+
+/** ` (<label>14:40)`, or nothing for a missing or unreadable time. */
+function timeNote(iso: string | undefined, label = ""): string {
+    if (iso === undefined) return "";
+    const date = new Date(iso);
+    if (Number.isNaN(date.getTime())) return "";
+    return ` (${label}${date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })})`;
+}
+
+/** An `explained` failure tells the user what to fix; an `unexpected` one is logged with its stack. */
+export type VerificationFailureNotice =
+    | { readonly kind: "explained"; readonly message: string }
+    | { readonly kind: "unexpected"; readonly title: string };
+
+export function verificationFailureNotice(
+    error: unknown,
+    targetName: string,
+): VerificationFailureNotice {
+    if (error instanceof EngineInspectionFailedError && error.isAuthFailure) {
+        return {
+            kind: "explained",
+            message: `Could not verify deployment on "${targetName}" — check the target credentials.`,
+        };
+    }
+    if (error instanceof EnvReferenceError || error instanceof CredentialDestinationError) {
+        return { kind: "explained", message: error.message };
+    }
+    return { kind: "unexpected", title: "Could not verify deployment" };
 }

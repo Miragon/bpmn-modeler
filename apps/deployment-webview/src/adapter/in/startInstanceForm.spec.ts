@@ -2,21 +2,35 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { StartInstanceResultQuery } from "@miragon/bpmn-modeler-shared";
 
+import type { AuthFields } from "../../domain/deploymentDraft";
 import { FORM_TEMPLATE } from "./formTemplate";
 import { StartInstanceForm } from "./startInstanceForm";
 
 type Posted = { type: string } & Record<string, unknown>;
 
+const noAuth: AuthFields = {
+    authType: "none",
+    username: "",
+    password: "",
+    clientId: "",
+    clientSecret: "",
+    tokenEndpoint: "",
+    audience: "",
+};
+
 const input = (id: string) => document.getElementById(id) as HTMLInputElement;
 const startButton = () => document.getElementById("start-instance-btn") as HTMLButtonElement;
 const banner = () => document.getElementById("start-status-banner") as HTMLDivElement;
 
-function setup(connection = { endpoint: "https://engine.test", startInstanceUrl: "https://s" }) {
+function setup(
+    connection = { endpoint: "https://engine.test", startInstanceUrl: "https://s" },
+    auth: AuthFields = noAuth,
+) {
     document.body.innerHTML = FORM_TEMPLATE;
     const host = { postMessage: vi.fn() };
     const form = new StartInstanceForm(
         host,
-        () => ({ authType: "none" }),
+        () => auth,
         () => ({ engine: "c8", targetName: "dev", ...connection }),
     );
     const sent = (type: string) =>
@@ -56,6 +70,22 @@ describe("StartInstanceForm", () => {
                 },
             }),
         ]);
+    });
+
+    it("starts with the shared Basic auth, the username trimmed and the password as typed", () => {
+        const { sent } = setup(undefined, {
+            ...noAuth,
+            authType: "basic",
+            username: " admin ",
+            password: " s3cret ",
+        });
+        typeKey("Order_Process");
+
+        startButton().click();
+
+        expect(sent("StartInstanceCommand")[0].config).toMatchObject({
+            auth: { authType: "basic", username: "admin", password: " s3cret " },
+        });
     });
 
     it("starts without a payload once the selection is cleared", () => {
@@ -123,16 +153,44 @@ describe("StartInstanceForm", () => {
         expect(startButton().disabled).toBe(true);
     });
 
-    it.each([
+    const basicWithoutUsername: AuthFields = { ...noAuth, authType: "basic", password: "p" };
+
+    it.each<[string, string, string, AuthFields, string]>([
         [
             "a blank process definition key",
             "   ",
             "https://engine.test",
+            basicWithoutUsername,
             "Process Definition Key is required.",
         ],
-        ["no REST endpoint", "Order_Process", "", "REST endpoint is required."],
-    ])("refuses to start with %s", (_, key, endpoint, problem) => {
-        const { sent } = setup({ endpoint, startInstanceUrl: "https://s" });
+        [
+            "no REST endpoint",
+            "Order_Process",
+            "",
+            basicWithoutUsername,
+            "REST endpoint is required.",
+        ],
+        [
+            "Basic auth without a username",
+            "Order_Process",
+            "https://engine.test",
+            basicWithoutUsername,
+            "Username is required for Basic Auth.",
+        ],
+        [
+            "OAuth2 without a client secret",
+            "Order_Process",
+            "https://engine.test",
+            {
+                ...noAuth,
+                authType: "oauth2",
+                clientId: "client",
+                tokenEndpoint: "https://login.test/token",
+            },
+            "Client Secret is required for OAuth2.",
+        ],
+    ])("refuses to start with %s", (_, key, endpoint, auth, problem) => {
+        const { sent } = setup({ endpoint, startInstanceUrl: "https://s" }, auth);
         typeKey(key);
 
         startButton().click();
@@ -161,7 +219,7 @@ describe("StartInstanceForm", () => {
             () =>
                 new StartInstanceForm(
                     { postMessage: vi.fn() },
-                    () => ({ authType: "none" }),
+                    () => noAuth,
                     () => ({ endpoint: "", engine: "c7", targetName: "" }),
                 ),
         ).toThrow("Required DOM element not found: #process-definition-key");

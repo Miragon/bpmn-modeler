@@ -4,7 +4,6 @@ import {
     DeploymentTargetChangedError,
     DisallowedEnvReferenceError,
     DuplicateDeploymentTargetError,
-    InvalidDeploymentConfigError,
     InvalidDeploymentTargetError,
     InvalidDeploymentTargetsFileError,
 } from "./errors";
@@ -15,10 +14,6 @@ import {
     assertEnvRefsValid,
     containsEnvRef,
     ENV_VARIABLE_PREFIX,
-    EnvLookup,
-    EnvReferencing,
-    envRefsIn,
-    expandEnvRefs,
     isWholeEnvRef,
     wholeEnvRefOf,
 } from "./envRef";
@@ -339,23 +334,6 @@ export class DeploymentTarget {
             this.auth.matchesSettingsOf(request.auth) &&
             operationSettingsMatch
         );
-    }
-
-    /** What {@link expandConnection} reads, so a lookup is only built when it needs one. */
-    connectionEnvRefs(): EnvReferencing {
-        return envRefsIn(this.endpoint, this.tenantId);
-    }
-
-    /**
-     * Request-only expansion of the connection the engine inspection talks to.
-     * A variable set to an empty value is rejected like an empty field.
-     */
-    expandConnection(lookup: EnvLookup): { endpoint: string; tenantId: string } {
-        const endpoint = expandEnvRefs(this.endpoint, lookup, "endpoint");
-        if (!endpoint.trim()) {
-            throw new InvalidDeploymentConfigError(["endpoint"]);
-        }
-        return { endpoint, tenantId: expandEnvRefs(this.tenantId, lookup, "tenantId") };
     }
 
     /**

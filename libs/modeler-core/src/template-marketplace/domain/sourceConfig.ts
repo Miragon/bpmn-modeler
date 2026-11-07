@@ -1,3 +1,4 @@
+import { isMarketplaceProvider, MarketplaceProvider } from "../../kernel/domain/modelerSettings";
 import { expandHomePath, MarketplaceLocation, TemplateSource } from "./marketplace";
 import {
     GitHubSourceConfig,
@@ -6,7 +7,9 @@ import {
     RepositorySourceConfig,
 } from "./repositorySourceConfig";
 
-type RemoteLocation = Exclude<MarketplaceLocation, { readonly kind: "local" }>;
+type RemoteLocation = Extract<MarketplaceLocation, { readonly kind: MarketplaceProvider }>;
+
+type RemoteSource = Extract<TemplateSource, { readonly kind: MarketplaceProvider }>;
 
 /** Where the marketplace's `marketplace.json` is read: the root of its location. */
 export function manifestConfig(location: MarketplaceLocation): RepositorySourceConfig {
@@ -42,14 +45,15 @@ export function sourceConfig(
 export function declaredPrivateHosts(sources: readonly TemplateSource[]): readonly string[] {
     const hosts = new Set<string>();
     for (const source of sources) {
-        if (
-            (source.kind === "github" || source.kind === "gitlab") &&
-            source.visibility === "private"
-        ) {
+        if (isRemoteSource(source) && source.visibility === "private") {
             hosts.add(hostForConfig(remoteConfigAt(source, source.path)));
         }
     }
     return [...hosts];
+}
+
+function isRemoteSource(source: TemplateSource): source is RemoteSource {
+    return isMarketplaceProvider(source.kind);
 }
 
 /**
