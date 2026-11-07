@@ -83,6 +83,7 @@ val elementTemplateFileCases =
 val elementTemplatePreviewMessages =
     layout.projectDirectory.file("../../libs/shared/src/lib/elementTemplatePreviewMessages.cases.json")
 val surfaceModes = layout.projectDirectory.file("../../libs/modeler-types/src/surfaceMode.ts")
+val colorThemes = layout.projectDirectory.file("../../libs/modeler-types/src/settings.ts")
 val modeLabels = layout.projectDirectory.file("../../packages/bpmn-modeler/src/modeSession/modeStrip.ts")
 val emptyDmn = layout.projectDirectory.file("../../libs/modeler-core/src/modeler/dmn/domain/emptyDmn.ts")
 
@@ -90,12 +91,13 @@ tasks.test {
     useJUnitPlatform()
     // The tests read these TypeScript-side files: ProtocolHandlerCoverageTest the bridge's
     // protocol descriptor, ModelerSettingsStoreTest the core's settings rows, the VS Code
-    // manifest's defaults and the surface modes, ModelerLocalesTest the manifest's languages,
-    // ModelerSettingsConfigurableTest the manifest's default modes and the mode strip's labels,
-    // StatusSlotPlacementTest the core's status slots and view values, ElementTemplateFilesTest the
-    // rows the TypeScript template rule runs, ElementTemplatePreviewMessagesTest the preview page's
-    // messages, EmptyDmnDiagramTest the core's DMN scaffold. As declared inputs, a change on the
-    // TypeScript side alone reruns the tests instead of restoring them from the build cache.
+    // manifest's defaults, the surface modes and the colour themes, ModelerLocalesTest the
+    // manifest's languages, ModelerSettingsConfigurableTest the manifest's default modes and the
+    // mode strip's labels, StatusSlotPlacementTest the core's status slots and view values,
+    // ElementTemplateFilesTest the rows the TypeScript template rule runs,
+    // ElementTemplatePreviewMessagesTest the preview page's messages, EmptyDmnDiagramTest the
+    // core's DMN scaffold. As declared inputs, a change on the TypeScript side alone reruns the
+    // tests instead of restoring them from the build cache.
     mapOf(
         "protocolDescriptor" to protocolDescriptor,
         "settingsNormalizationCases" to settingsNormalizationCases,
@@ -104,6 +106,7 @@ tasks.test {
         "elementTemplateFileCases" to elementTemplateFileCases,
         "elementTemplatePreviewMessages" to elementTemplatePreviewMessages,
         "surfaceModes" to surfaceModes,
+        "colorThemes" to colorThemes,
         "modeLabels" to modeLabels,
         "emptyDmn" to emptyDmn,
     ).forEach { (name, file) ->

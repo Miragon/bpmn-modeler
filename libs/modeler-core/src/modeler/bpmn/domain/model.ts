@@ -1,4 +1,5 @@
-import { ColorThemeSetting } from "../../../kernel/domain/modelerSettings";
+import { ColorThemeSetting } from "@miragon/bpmn-modeler-types";
+
 import { DEFAULT_MODELER_SETTINGS } from "../../../kernel/domain/modelerSettings";
 
 export class BpmnModelerSetting {

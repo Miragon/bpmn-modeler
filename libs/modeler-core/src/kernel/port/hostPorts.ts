@@ -15,9 +15,9 @@
  * built in its `domain/`.
  */
 
-import { SurfaceMode } from "@miragon/bpmn-modeler-types";
+import { ColorThemeSetting, SurfaceMode } from "@miragon/bpmn-modeler-types";
 
-import { ColorThemeSetting, MarketplaceSettingsEntry } from "../domain/modelerSettings";
+import { MarketplaceSettingsEntry } from "../domain/modelerSettings";
 import { ChoicePrompt, ConfirmRequest, SearchPrompt } from "../domain/prompts";
 import { StatusSlot, StatusView } from "../domain/statusView";
 

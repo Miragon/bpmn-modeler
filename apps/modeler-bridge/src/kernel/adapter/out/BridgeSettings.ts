@@ -1,6 +1,5 @@
 import {
     changedSettingKeys,
-    ColorThemeSetting,
     EditorSubscription,
     MarketplaceSettingsEntry,
     ModelerSettingsSnapshot,
@@ -11,7 +10,7 @@ import {
     SettingKey,
     SettingsPort,
 } from "@miragon/bpmn-modeler-core";
-import { SurfaceMode } from "@miragon/bpmn-modeler-types";
+import { ColorThemeSetting, SurfaceMode } from "@miragon/bpmn-modeler-types";
 import { HostSettingsMirror } from "../../port/HostSettingsMirror";
 
 /**
