@@ -4,6 +4,7 @@ import {
     pluginLoaderFailureReport,
     type PluginLoadReport,
     pluginLoadReport,
+    pluginsUnansweredReport,
 } from "@miragon/bpmn-modeler-types";
 import type { PluginModules } from "@miragon/bpmn-modeler/plugins";
 import { type BpmnPluginAsset, LogWarningCommand, ShowInfoCommand } from "@miragon/bpmn-modeler-shared";
@@ -18,6 +19,7 @@ export interface SurfacePlugins {
     ): Promise<Surface>;
 }
 
+// Not imported from `/plugins`: a value import would pull its lazy chunk into the main bundle.
 export const NO_PLUGINS: SurfacePlugins = {
     build: (_engine, build) => build({ additionalModules: [], moddleExtensions: {} }),
 };
@@ -50,6 +52,11 @@ export async function loadSurfacePlugins(
         reportToHost(host, pluginLoaderFailureReport(error));
         return NO_PLUGINS;
     }
+}
+
+export function pluginsWithoutHostAnswer(host: HostChannel): SurfacePlugins {
+    reportToHost(host, pluginsUnansweredReport());
+    return NO_PLUGINS;
 }
 
 function reportToHost(host: HostChannel, report: PluginLoadReport): void {

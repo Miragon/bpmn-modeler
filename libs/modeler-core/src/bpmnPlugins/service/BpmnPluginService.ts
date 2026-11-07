@@ -1,21 +1,12 @@
 import { BpmnPluginAsset, BpmnPluginsQuery } from "@miragon/bpmn-modeler-shared";
 
-import { DirectoryNotFound } from "../../kernel/domain/errors";
 import { toWorkspacePath } from "../../kernel/domain/workspacePath";
-import {
-    ActionNotifierPort,
-    NotifierPort,
-    PickerPort,
-    WorkspacePort,
-} from "../../kernel/port/hostPorts";
-import { EditorSessionStore } from "../../editorSession/service/EditorSessionStore";
-import {
-    CachedPluginFiles,
-    cachedPluginFiles,
-    holdsCachedPluginFiles,
-    PendingApproval,
-} from "../domain/pluginApproval";
+import { NotifierPort, WorkspacePort } from "../../kernel/port/hostPorts";
+import { answerWithoutPlugins } from "../../editorSession/service/answerWithoutPlugins";
+import { EditorSessionStore, PostOutcome } from "../../editorSession/service/EditorSessionStore";
+import { cachedPluginCopy, cachedPluginFiles, PendingApproval } from "../domain/pluginApproval";
 import { editorsOfferedAnyOf } from "../domain/pluginFolders";
+import { PluginApprovalQuestion } from "./PluginApprovalQuestion";
 import { PluginCatalog } from "./PluginCatalog";
 import { DiscoveredPlugin } from "./WorkspacePluginLocator";
 
@@ -27,10 +18,9 @@ import { DiscoveredPlugin } from "./WorkspacePluginLocator";
  */
 export class BpmnPluginService {
     private readonly cacheRoot: string;
-    /** The content hashes whose copy is complete in the cache. */
-    private readonly cachedHashes = new Set<string>();
+    /** One copy per content hash and session; a failed copy is dropped, so the next request retries it. */
+    private readonly copies = new Map<string, Promise<void>>();
     private readonly offeredByEditor = new Map<string, readonly string[]>();
-    private approvalQuestion: Promise<void> | undefined;
     private approvalSettled: Promise<void> = Promise.resolve();
 
     /**
@@ -41,8 +31,7 @@ export class BpmnPluginService {
         private readonly store: EditorSessionStore,
         private readonly workspace: WorkspacePort,
         private readonly catalog: PluginCatalog,
-        private readonly picker: PickerPort,
-        private readonly actionNotifier: ActionNotifierPort,
+        private readonly question: PluginApprovalQuestion,
         private readonly notifier: NotifierPort,
         cacheRoot: string,
     ) {
@@ -54,7 +43,7 @@ export class BpmnPluginService {
         const webviewUrlOf = handle.webviewUrlOf?.bind(handle);
         if (webviewUrlOf === undefined) {
             this.notifier.logDebug("BPMN plugins: this host's webview cannot load plugin files.");
-            await this.store.postUnlessHidden(editorId, new BpmnPluginsQuery([]));
+            this.logUnsent(editorId, await answerWithoutPlugins(this.store, editorId));
             return;
         }
         const { approved, pending } = await this.catalog.pluginsFor(handle.documentPath());
@@ -70,18 +59,13 @@ export class BpmnPluginService {
             }
         }
         const outcome = await this.store.postUnlessHidden(editorId, new BpmnPluginsQuery(assets));
-        if (outcome === "hidden") {
-            // Shown again, the webview restarts and asks for its plugins itself.
-            this.notifier.logDebug(`BPMN plugins not sent to hidden editor: ${editorId}`);
-            return;
-        }
-        if (outcome === "undelivered") {
-            this.notifier.logWarning(`BPMN plugins could not be sent to editor: ${editorId}`);
+        if (outcome !== "sent") {
+            this.logUnsent(editorId, outcome);
             return;
         }
         // Not awaited: the router runs this editor's commands in order, and a
         // question left open would hold back its document syncs.
-        const asking = this.askForApprovals(pending).catch((error: unknown) =>
+        const asking = this.askAndReload(pending).catch((error: unknown) =>
             this.notifier.logError(error instanceof Error ? error : new Error(String(error))),
         );
         this.approvalSettled = Promise.all([this.approvalSettled, asking]).then(() => undefined);
@@ -96,14 +80,23 @@ export class BpmnPluginService {
         return this.approvalSettled;
     }
 
-    /** Copies the approved bytes into the cache once and returns where the webview loads them. */
+    private logUnsent(editorId: string, outcome: PostOutcome): void {
+        if (outcome === "hidden") {
+            // Shown again, the webview restarts and asks for its plugins itself.
+            this.notifier.logDebug(`BPMN plugins not sent to hidden editor: ${editorId}`);
+        } else if (outcome === "undelivered") {
+            this.notifier.logWarning(`BPMN plugins could not be sent to editor: ${editorId}`);
+        }
+    }
+
+    /** Copies the approved bytes into the cache and returns where the webview loads them. */
     private async serve(
         discovered: DiscoveredPlugin,
         webviewUrlOf: (path: string) => string,
     ): Promise<BpmnPluginAsset | undefined> {
         const files = cachedPluginFiles(this.cacheRoot, discovered.plugin);
         try {
-            await this.ensureCached(discovered, files);
+            await this.ensureCopied(discovered);
         } catch (error) {
             this.notifier.logWarning(
                 `BPMN plugin "${discovered.plugin.name}" left out: its copy could not be written (${String(error)})`,
@@ -117,65 +110,51 @@ export class BpmnPluginService {
         };
     }
 
-    private async ensureCached(
-        discovered: DiscoveredPlugin,
-        files: CachedPluginFiles,
-    ): Promise<void> {
+    private ensureCopied(discovered: DiscoveredPlugin): Promise<void> {
         const hash = discovered.plugin.contentHash;
-        if (this.cachedHashes.has(hash)) {
-            return;
+        const known = this.copies.get(hash);
+        if (known !== undefined) {
+            return known;
         }
-        if (!(await this.holdsCopy(files))) {
-            if (files.style !== undefined && discovered.style !== undefined) {
-                await this.workspace.writeFile(files.style, discovered.style);
+        const copy = this.copy(discovered);
+        this.copies.set(hash, copy);
+        copy.catch(() => {
+            if (this.copies.get(hash) === copy) {
+                this.copies.delete(hash);
             }
-            // Written last: an interrupted copy then lacks its script.
-            await this.workspace.writeFile(files.script, discovered.script);
-        }
-        this.cachedHashes.add(hash);
+        });
+        return copy;
     }
 
-    /** A copy an earlier session wrote, so a new session lists it instead of rewriting it. */
-    private async holdsCopy(files: CachedPluginFiles): Promise<boolean> {
-        try {
-            return holdsCachedPluginFiles(
-                await this.workspace.readDirectory(files.directory),
-                files,
-            );
-        } catch (error) {
-            if (error instanceof DirectoryNotFound) {
-                return false;
+    /**
+     * Rewrites each cached file whose bytes differ from the approved ones. A
+     * write cut short, by a crash in an earlier session, leaves a file that
+     * would otherwise be served as it is.
+     */
+    private async copy(discovered: DiscoveredPlugin): Promise<void> {
+        const files = cachedPluginFiles(this.cacheRoot, discovered.plugin);
+        for (const { path, content } of cachedPluginCopy(
+            files,
+            discovered.script,
+            discovered.style,
+        )) {
+            if ((await this.cachedContentOf(path)) !== content) {
+                await this.workspace.writeFile(path, content);
             }
-            throw error;
         }
     }
 
-    private async askForApprovals(found: readonly PendingApproval[]): Promise<void> {
-        // A second editor opening while the question is open would ask the same again.
-        if (this.approvalQuestion !== undefined) {
-            return;
-        }
-        const pending = this.catalog.stillPendingOf(found);
-        if (pending.length === 0) {
-            return;
-        }
-        this.approvalQuestion = this.ask(pending);
+    /** `undefined` for a copy that cannot be read, which the write then replaces. */
+    private async cachedContentOf(path: string): Promise<string | undefined> {
         try {
-            await this.approvalQuestion;
-        } finally {
-            this.approvalQuestion = undefined;
+            return await this.workspace.readFile(path);
+        } catch {
+            return undefined;
         }
     }
 
-    private async ask(pending: readonly PendingApproval[]): Promise<void> {
-        const action = await this.actionNotifier.offer(this.catalog.reviewNotice(pending));
-        const checked =
-            action === "review"
-                ? await this.picker.chooseMany(
-                      this.catalog.reviewPrompt(pending, this.workspace.getWorkspaceFolderPaths()),
-                  )
-                : [];
-        const allowed = await this.catalog.applyAnswer(pending, checked);
+    private async askAndReload(pending: readonly PendingApproval[]): Promise<void> {
+        const allowed = await this.question.ask(pending);
         const allowedIds = allowed.map((plugin) => plugin.id);
         for (const editorId of editorsOfferedAnyOf(this.offeredByEditor, allowedIds)) {
             this.reload(editorId);

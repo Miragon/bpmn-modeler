@@ -41,6 +41,13 @@ export function pluginLoaderFailureReport(error: unknown): PluginLoadReport {
     return wholeLoadFailureReport(LOADER_FAILURE, error);
 }
 
+const HOST_UNANSWERED =
+    "The host did not answer the BPMN plugins request in time, so the editor opened without plugins";
+
+export function pluginsUnansweredReport(): PluginLoadReport {
+    return { logLines: [HOST_UNANSWERED], notice: undefined };
+}
+
 function wholeLoadFailureReport(failure: string, error: unknown): PluginLoadReport {
     const reason = error instanceof Error ? error.message : String(error);
     return {

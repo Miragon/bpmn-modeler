@@ -183,6 +183,9 @@ describe("MarketplaceCache.replaceSource", () => {
         ["a parent-traversal path", "../../../settings.json"],
         ["an absolute posix path", "/etc/passwd"],
         ["a backslash traversal path", "..\\..\\settings.json"],
+        ["a drive path", "C:\\Windows\\x.json"],
+        ["a drive-relative path", "C:x.json"],
+        ["a path rooted by a backslash", "\\Windows\\x.json"],
     ])("rejects %s before writing anything", async (_label, unsafeRepoPath) => {
         const cachedFiles = { "/cache/acme/0/element-templates/a.json": "last good" };
         const workspace = createWorkspace(cachedFiles);

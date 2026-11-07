@@ -11,7 +11,7 @@ import {
 
 /**
  * A plugin as URLs the page may load: a URL the host serves (VS Code's
- * `asWebviewUri`), a `blob:` URL (Orca's isolated frame), or a plain URL.
+ * `asWebviewUri`), a `blob:` URL (a frame with no file server), or a plain URL.
  */
 export interface PluginSource {
     readonly name: string;

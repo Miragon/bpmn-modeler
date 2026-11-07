@@ -68,8 +68,6 @@ describe("bootstrapWebview", () => {
         expect(panel.webview.html).toContain("Content-Security-Policy");
     });
 
-    // A webview loads a resource only below a root of the URL's scheme, and the
-    // plugin URLs are made from file paths.
     it("roots the plugin cache at a file: URI though global storage is vscode-userdata:", () => {
         expect(
             bpmnPluginCacheUri(mockUri("vscode-userdata", "/user/globalStorage/ext") as never),

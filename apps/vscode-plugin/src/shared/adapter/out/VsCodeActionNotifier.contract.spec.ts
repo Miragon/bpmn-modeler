@@ -32,8 +32,8 @@ describeActionNotifierContract("VsCodeActionNotifier over the vscode window fake
                 return offered;
             },
         },
-        userClicks: (notice, index) => {
-            settle = (toast) => toast.click(notice.actions[index].label);
+        userClicks: (_notice, index) => {
+            settle = (toast) => toast.clickAt(index);
         },
         userCloses: () => {
             settle = (toast) => toast.close();
@@ -43,7 +43,7 @@ describeActionNotifierContract("VsCodeActionNotifier over the vscode window fake
             const tone = toast && TONE_OF[toast.severity];
             return (
                 toast &&
-                tone && { tone, message: toast.message, labels: [...toast.actions] }
+                tone && { tone, message: toast.message, labels: toast.labels }
             );
         },
     };

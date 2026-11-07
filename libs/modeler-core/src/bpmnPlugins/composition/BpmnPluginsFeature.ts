@@ -11,6 +11,7 @@ import { getBpmnPluginsHandler } from "../adapter/in/pluginMessageHandlers";
 import { ContentHasherPort, PluginApprovalStorePort } from "../port/pluginPorts";
 import { BpmnPluginService } from "../service/BpmnPluginService";
 import { BpmnPluginsParticipant } from "../service/BpmnPluginsParticipant";
+import { PluginApprovalQuestion } from "../service/PluginApprovalQuestion";
 import { PluginCatalog } from "../service/PluginCatalog";
 import { WorkspacePluginLocator } from "../service/WorkspacePluginLocator";
 
@@ -52,8 +53,12 @@ export class BpmnPluginsFeature {
             ports.store,
             ports.workspace,
             this.catalog,
-            ports.picker,
-            ports.actionNotifier,
+            new PluginApprovalQuestion(
+                this.catalog,
+                ports.picker,
+                ports.actionNotifier,
+                ports.workspace,
+            ),
             ports.notifier,
             ports.cacheRoot,
         );

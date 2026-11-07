@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { ArtifactService } from "../../kernel/service/ArtifactService";
-import { createTestHost } from "../../testing";
-import { ContentHasherPort } from "../port/pluginPorts";
+import { createTestHost, fingerprintHasher } from "../../testing";
+import { approvedContent } from "../domain/pluginApproval";
 import { PluginCatalog } from "./PluginCatalog";
 import { WorkspacePluginLocator } from "./WorkspacePluginLocator";
 
@@ -11,7 +11,7 @@ const RESIZE = `${PLUGINS}/resize-tasks`;
 const PALETTE = `${PLUGINS}/reduced-palette`;
 const DOCUMENT = "/work/order.bpmn";
 
-const lengthHasher: ContentHasherPort = { sha256: (text) => `h${text.length}` };
+const hashOf = (script: string) => fingerprintHasher.sha256(approvedContent(script, undefined));
 
 function setUp() {
     const host = createTestHost({
@@ -26,7 +26,7 @@ function setUp() {
     const locator = new WorkspacePluginLocator(
         new ArtifactService(host.workspace, host.settings, host.notifier),
         host.workspace,
-        lengthHasher,
+        fingerprintHasher,
         host.notifier,
     );
     const catalog = new PluginCatalog(locator, host.pluginApprovals, host.notifier);
@@ -36,7 +36,9 @@ function setUp() {
 describe("PluginCatalog", () => {
     it("separates the plugins a document may load, with their bytes, from those to ask about", async () => {
         const { host, catalog } = setUp();
-        host.pluginApprovals.approvals = [{ pluginId: PALETTE, contentHash: "h19" }];
+        host.pluginApprovals.approvals = [
+            { pluginId: PALETTE, contentHash: hashOf("registerPalette();") },
+        ];
 
         const { approved, pending } = await catalog.pluginsFor(DOCUMENT);
 
@@ -55,7 +57,9 @@ describe("PluginCatalog", () => {
         const allowed = await catalog.applyAnswer(pending, [RESIZE]);
 
         expect(allowed.map((plugin) => plugin.id)).toEqual([RESIZE]);
-        expect(host.pluginApprovals.approvals).toEqual([{ pluginId: RESIZE, contentHash: "h18" }]);
+        expect(host.pluginApprovals.approvals).toEqual([
+            { pluginId: RESIZE, contentHash: hashOf("registerResize();") },
+        ]);
         const after = await catalog.pluginsFor(DOCUMENT);
         expect(after.approved.map(({ plugin }) => plugin.id)).toEqual([RESIZE]);
         expect(after.pending).toEqual([]);
@@ -66,7 +70,7 @@ describe("PluginCatalog", () => {
         const { host, catalog } = setUp();
         await catalog.applyAnswer((await catalog.pluginsFor(DOCUMENT)).pending, []);
 
-        await host.workspace.writeFile(`${RESIZE}/client.js`, "registerResize(2);");
+        await host.workspace.writeFile(`${RESIZE}/client.js`, "registerResizE();");
 
         const { pending } = await catalog.pluginsFor(DOCUMENT);
         expect(pending.map(({ plugin }) => plugin.id)).toEqual([RESIZE]);

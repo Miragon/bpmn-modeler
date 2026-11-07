@@ -190,15 +190,7 @@ export class ArtifactService {
     }
 
     async getPayloadPaths(documentDir: string): Promise<string[]> {
-        const configFolder = this.vsSettings.getConfigFolder();
-        const workspaceRoot = await this.getWorkspaceRoot(documentDir);
-        const payloadDirs = await this.collectSubDirs(
-            documentDir,
-            workspaceRoot,
-            configFolder,
-            "payloads",
-        );
-
+        const payloadDirs = await this.getConfigAreaDirs(documentDir, "payloads");
         const allPaths: string[] = [];
         for (const dir of payloadDirs) {
             allPaths.push(...(await this.readDirectory(dir, ".json")));

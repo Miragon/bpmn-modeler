@@ -19,6 +19,7 @@ import {
     MARKETPLACE_PROVIDERS,
     MarketplaceSettingsEntry,
 } from "../../kernel/domain/modelerSettings";
+import { staysInsideFolder } from "../../kernel/domain/rootContainment";
 import { publicHostOf, repositoryHostOf } from "./repositorySourceConfig";
 
 /**
@@ -309,15 +310,6 @@ function parseLocalFolder(input: string): MarketplaceRegistration | undefined {
 
 function isAbsolutePath(path: string): boolean {
     return path.startsWith("/") || /^[a-zA-Z]:[\\/]/.test(path) || path.startsWith("\\\\");
-}
-
-/**
- * Whether a listed path stays inside the cache slot it is written under. Real
- * git trees only use `/`, but a compromised server can send `\` or drive-letter
- * forms, so both separators split and every absolute shape is refused.
- */
-export function isSafeRepoPath(repoPath: string): boolean {
-    return !isAbsolutePath(repoPath) && !repoPath.split(/[/\\]/).includes("..");
 }
 
 function isHomePath(path: string): boolean {
@@ -788,7 +780,7 @@ function parseSourceInclude(raw: unknown, index: number): readonly string[] | un
                 `sources[${index}] "include" patterns must be non-empty strings`,
             );
         }
-        if (pattern.startsWith("/") || pattern.split("/").includes("..")) {
+        if (!staysInsideFolder(pattern)) {
             throw new InvalidMarketplaceError(
                 `sources[${index}] "include" pattern "${pattern}" must be relative and must not contain ".." segments`,
             );

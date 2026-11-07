@@ -32,9 +32,15 @@ export interface PendingApproval {
 
 export const PLUGIN_APPROVAL_PROMPT_ID = "bpmnPluginApproval";
 
-/** What the content hash covers; a NUL cannot occur in either text file. */
+const NO_STYLE = "-";
+
+/**
+ * What the content hash covers. Each text carries its length, so no bytes can
+ * move between script and style, and a missing style differs from an empty one.
+ */
 export function approvedContent(script: string, style: string | undefined): string {
-    return `${script}\u0000${style ?? ""}`;
+    const lengthPrefixed = (text: string) => `${text.length}:${text}`;
+    return lengthPrefixed(script) + (style === undefined ? NO_STYLE : lengthPrefixed(style));
 }
 
 export function approvalStateOf(
@@ -150,7 +156,6 @@ export function pluginApprovalNotice(
 }
 
 export interface CachedPluginFiles {
-    readonly directory: string;
     readonly script: string;
     readonly style?: string;
 }
@@ -163,7 +168,6 @@ export interface CachedPluginFiles {
 export function cachedPluginFiles(cacheRoot: string, plugin: WorkspacePlugin): CachedPluginFiles {
     const directory = joinWorkspacePath(cacheRoot, plugin.contentHash);
     return {
-        directory,
         script: joinWorkspacePath(directory, "plugin.js"),
         ...(plugin.stylePath === undefined
             ? {}
@@ -171,16 +175,20 @@ export function cachedPluginFiles(cacheRoot: string, plugin: WorkspacePlugin): C
     };
 }
 
-/**
- * Whether a listing of the copy's directory holds every file of the copy.
- * Typed loosely so the entry kinds keep their one home, `WorkspacePort.readDirectory`.
- */
-export function holdsCachedPluginFiles(
-    entries: readonly (readonly [name: string, type: string])[],
+export interface CachedPluginFile {
+    readonly path: string;
+    readonly content: string;
+}
+
+export function cachedPluginCopy(
     files: CachedPluginFiles,
-): boolean {
-    const names = new Set(entries.filter(([, type]) => type === "file").map(([name]) => name));
-    return [files.script, files.style]
-        .filter((path) => path !== undefined)
-        .every((path) => names.has(path.slice(path.lastIndexOf("/") + 1)));
+    script: string,
+    style?: string,
+): CachedPluginFile[] {
+    return [
+        { path: files.script, content: script },
+        ...(files.style === undefined || style === undefined
+            ? []
+            : [{ path: files.style, content: style }]),
+    ];
 }
