@@ -106,6 +106,7 @@ async function run(
 ): Promise<void> {
     const canvas = requireElement("#js-canvas");
     const propertiesPanel = requireElement("#js-properties-panel");
+    const panelResizer = requireElement("#js-panel-resizer");
     const panelStateStore = createWebviewStateStore(host);
     const panelUiState = new PropertiesPanelUiStateAdapter(panelStateStore, propertiesPanel);
     const panelStateReply = createResolver<PropertiesPanelStateQuery>();
@@ -143,6 +144,12 @@ async function run(
         theme: resolveHostThemeKind(),
         additionalModules: opts.additionalModules,
         onContentChanged: () => session.scheduleSync(),
+        // dmn-js-properties-panel renders only for the DRD.
+        onViewChanged: ({ activeView }) => {
+            const panelIsEmpty = activeView?.type !== "drd";
+            propertiesPanel.hidden = panelIsEmpty;
+            panelResizer.hidden = panelIsEmpty;
+        },
         onWarning: (message) => host.postMessage(new LogWarningCommand(message)),
     });
     if (stopSignal.aborted) {
