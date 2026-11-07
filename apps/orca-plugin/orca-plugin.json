@@ -40,7 +40,7 @@
     },
     {
       "path": "images/feature-dmn.webp",
-      "alt": "The Choose carrier decision table from shipping.dmn, simulated for a 3 kg express parcel without a country: rule 8 is highlighted and the result reads UPS Express for 39",
+      "alt": "The Choose carrier decision table from shipping.dmn, simulated for a 3 kg express parcel without a country: rule 8 matches, UPS Express for 39",
       "caption": "DMN decision tables you can simulate in place"
     }
   ],

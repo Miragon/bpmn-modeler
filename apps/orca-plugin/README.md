@@ -45,7 +45,7 @@ at what an engine would reject.
 
 ## Model decisions
 
-![The Choose carrier decision table from shipping.dmn, simulated for a 3 kg express parcel without a country: rule 8 is highlighted and the result reads UPS Express for 39](images/feature-dmn.webp)
+![The Choose carrier decision table from shipping.dmn, simulated for a 3 kg express parcel without a country: rule 8 matches, UPS Express for 39](images/feature-dmn.webp)
 
 `.dmn` files open with the decision requirements diagram, decision tables, literal and boxed
 expressions, the properties panel and the decision simulation.
