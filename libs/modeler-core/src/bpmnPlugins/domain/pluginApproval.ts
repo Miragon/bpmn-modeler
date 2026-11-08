@@ -7,9 +7,9 @@ import {
     CodeApproval,
     CodeApprovalOutcome,
     PendingCodeApproval,
+    pendingApprovalDescription,
 } from "../../kernel/domain/codeApproval";
 import { ChoicePrompt } from "../../kernel/domain/prompts";
-import { relativeToWorkspace } from "../../kernel/domain/rootContainment";
 import { joinWorkspacePath } from "../../kernel/domain/workspacePath";
 
 export {
@@ -49,15 +49,6 @@ export function approvedContent(script: string, style: string | undefined): stri
     return lengthPrefixed(script) + (style === undefined ? NO_STYLE : lengthPrefixed(style));
 }
 
-const STATE_DESCRIPTION: Record<PendingApproval["state"], string> = {
-    new: "new",
-    changed: "changed since you allowed it",
-};
-
-/**
- * The folder goes into `description` rather than `path`: every host shows a
- * `path` in place of the description, which would hide whether a plugin changed.
- */
 export function pluginApprovalPrompt(
     pending: readonly PendingApproval[],
     workspaceFolders: readonly string[],
@@ -67,10 +58,10 @@ export function pluginApprovalPrompt(
         title: "Allow BPMN plugins from this workspace?",
         placeholder:
             "Plugins run their own code in the BPMN editor. Check only the ones you trust; open editors reload with them.",
-        items: pending.map(({ artifact, state }) => ({
-            label: artifact.name,
-            description: `${STATE_DESCRIPTION[state]} · ${relativeToWorkspace(artifact.id, workspaceFolders)}`,
-            value: artifact.id,
+        items: pending.map((each) => ({
+            label: each.artifact.name,
+            description: pendingApprovalDescription(each, workspaceFolders),
+            value: each.artifact.id,
         })),
     };
 }

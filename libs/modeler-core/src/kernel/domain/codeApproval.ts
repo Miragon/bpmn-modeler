@@ -1,3 +1,5 @@
+import { relativeToWorkspace } from "./rootContainment";
+
 /** Workspace code that runs only once the user allowed this content at this place. */
 export interface ApprovableArtifact {
     /** Where the code lives: an approval is for this place, never for a name a repo can copy. */
@@ -104,4 +106,25 @@ export function approvalOutcome<A extends ApprovableArtifact>(
             .filter(({ artifact }) => !checked.has(artifact.id))
             .map(({ artifact }) => declineKeyOf(artifact)),
     };
+}
+
+/** How the approval list and the log name each pending state. */
+export const PENDING_APPROVAL_STATE_TEXT: Record<
+    PendingCodeApproval<ApprovableArtifact>["state"],
+    string
+> = {
+    new: "new",
+    changed: "changed since you allowed it",
+};
+
+/**
+ * The folder goes into a list item's `description` rather than its `path`:
+ * every host shows a `path` in place of the description, which would hide
+ * whether the code changed.
+ */
+export function pendingApprovalDescription(
+    { artifact, state }: PendingCodeApproval<ApprovableArtifact>,
+    workspaceFolders: readonly string[],
+): string {
+    return `${PENDING_APPROVAL_STATE_TEXT[state]} · ${relativeToWorkspace(artifact.id, workspaceFolders)}`;
 }

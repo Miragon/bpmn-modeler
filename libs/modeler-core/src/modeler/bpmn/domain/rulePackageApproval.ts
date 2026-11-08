@@ -9,13 +9,10 @@ import {
     CodeApproval,
     declineKeyOf,
     PendingCodeApproval,
+    pendingApprovalDescription,
 } from "../../../kernel/domain/codeApproval";
 import { ChoicePrompt } from "../../../kernel/domain/prompts";
-import {
-    isRootedPath,
-    isWithinRoot,
-    relativeToWorkspace,
-} from "../../../kernel/domain/rootContainment";
+import { isRootedPath, isWithinRoot } from "../../../kernel/domain/rootContainment";
 
 /**
  * Marks a row in the shared approval list as a rule package's and names the
@@ -271,15 +268,6 @@ export function rulePackageApprovalNotice(
     };
 }
 
-const STATE_DESCRIPTION: Record<PendingRulePackage["state"], string> = {
-    new: "new",
-    changed: "changed since you allowed it",
-};
-
-/**
- * The folder goes into `description` rather than `path`: every host shows a
- * `path` in place of the description, which would hide whether a package changed.
- */
 export function rulePackageApprovalPrompt(
     pending: readonly PendingRulePackage[],
     workspaceFolders: readonly string[],
@@ -293,10 +281,10 @@ export function rulePackageApprovalPrompt(
         placeholder: single
             ? "A rule package runs as a program with your user's rights, not only inside the editor. Check it only if you trust it; open editors lint again with it."
             : "Rule packages run as programs with your user's rights, not only inside the editor. Check only the ones you trust; open editors lint again with them.",
-        items: pending.map(({ artifact, state }) => ({
-            label: `${artifact.name} ${artifact.version}`,
-            description: `${STATE_DESCRIPTION[state]} · ${relativeToWorkspace(artifact.id, workspaceFolders)}`,
-            value: artifact.id,
+        items: pending.map((each) => ({
+            label: `${each.artifact.name} ${each.artifact.version}`,
+            description: pendingApprovalDescription(each, workspaceFolders),
+            value: each.artifact.id,
         })),
     };
 }

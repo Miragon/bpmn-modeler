@@ -12,6 +12,7 @@ import {
     type CodeApprovalOutcome,
     declineKeyOf,
     type PendingCodeApproval,
+    pendingApprovalDescription,
     pendingApprovals,
 } from "./codeApproval";
 
@@ -345,5 +346,27 @@ describe("approvalOutcome", () => {
         );
 
         expect(outcome).toEqual({ allowed: [acmeRules], declineKeys: [] });
+    });
+});
+
+describe("pendingApprovalDescription", () => {
+    it.each([
+        {
+            state: "new" as const,
+            folders: ["/repo"],
+            description: "new · .camunda/plugins/resize-tasks",
+        },
+        {
+            state: "changed" as const,
+            folders: ["/repo"],
+            description: "changed since you allowed it · .camunda/plugins/resize-tasks",
+        },
+        {
+            state: "new" as const,
+            folders: ["/elsewhere"],
+            description: "new · /repo/.camunda/plugins/resize-tasks",
+        },
+    ])("names a $state artifact and its folder for $folders", ({ state, folders, description }) => {
+        expect(pendingApprovalDescription({ artifact: resize, state }, folders)).toBe(description);
     });
 });

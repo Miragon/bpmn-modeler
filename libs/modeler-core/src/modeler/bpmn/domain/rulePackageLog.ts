@@ -1,10 +1,10 @@
+import { PENDING_APPROVAL_STATE_TEXT } from "../../../kernel/domain/codeApproval";
 import { ClosureRefusal } from "./packageClosure";
 import { BlockedRulePackage, BlockedState } from "./rulePackageApproval";
 import { ModuleRefusal, RefusedRuleModule } from "./rulePackageRefusal";
 
 const BLOCKED_STATE_TEXT: Record<BlockedState, string> = {
-    new: "new",
-    changed: "changed since you allowed it",
+    ...PENDING_APPROVAL_STATE_TEXT,
     declined: "declined this session",
 };
 
