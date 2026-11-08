@@ -469,5 +469,24 @@ describe("RulePackageGate", () => {
             ]);
             expect(fake.loaded).toEqual([`${ACME}/index.js`, `${ACME}/index.js`]);
         });
+
+        it("drops a member's modules once it is approved on its own with content changed since", () => {
+            const fake = admitAcme();
+            const staleModule = { stale: true };
+            fake.cache[`${ACME_DEP}/index.js`] = staleModule;
+            disk.writeFile(`${ACME_DEP}/index.js`, "module.exports = 'v2';");
+            approve({ kind: "package", id: ACME_DEP });
+            const direct = fakeScopedRequire({ "acme-dep": `${ACME_DEP}/index.js` });
+            Object.assign(direct.cache, fake.cache);
+            const servedFromCache = Object.assign(
+                (request: string) =>
+                    direct.cache[direct.scopedRequire.resolve(request)] ??
+                    direct.scopedRequire(request),
+                { resolve: direct.scopedRequire.resolve, cache: direct.cache },
+            ) as unknown as NodeRequire;
+            const gated = gateFor().require(servedFromCache);
+
+            expect(gated("acme-dep")).not.toBe(staleModule);
+        });
     });
 });
