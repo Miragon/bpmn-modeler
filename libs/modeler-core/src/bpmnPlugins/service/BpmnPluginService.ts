@@ -2,11 +2,16 @@ import { BpmnPluginAsset, BpmnPluginsQuery } from "@miragon/bpmn-modeler-shared"
 
 import { toWorkspacePath } from "../../kernel/domain/workspacePath";
 import { NotifierPort, WorkspacePort } from "../../kernel/port/hostPorts";
+import { ApprovalQuestion } from "../../kernel/service/ApprovalQuestion";
 import { answerWithoutPlugins } from "../../editorSession/service/answerWithoutPlugins";
 import { EditorSessionStore, PostOutcome } from "../../editorSession/service/EditorSessionStore";
-import { cachedPluginCopy, cachedPluginFiles, PendingApproval } from "../domain/pluginApproval";
+import {
+    cachedPluginCopy,
+    cachedPluginFiles,
+    PendingApproval,
+    WorkspacePlugin,
+} from "../domain/pluginApproval";
 import { editorsOfferedAnyOf } from "../domain/pluginFolders";
-import { PluginApprovalQuestion } from "./PluginApprovalQuestion";
 import { PluginCatalog } from "./PluginCatalog";
 import { DiscoveredPlugin } from "./WorkspacePluginLocator";
 
@@ -31,7 +36,11 @@ export class BpmnPluginService {
         private readonly store: EditorSessionStore,
         private readonly workspace: WorkspacePort,
         private readonly catalog: PluginCatalog,
-        private readonly question: PluginApprovalQuestion,
+        private readonly question: ApprovalQuestion<
+            PendingApproval,
+            PendingApproval,
+            WorkspacePlugin
+        >,
         private readonly notifier: NotifierPort,
         cacheRoot: string,
     ) {

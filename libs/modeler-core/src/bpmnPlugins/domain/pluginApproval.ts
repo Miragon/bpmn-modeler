@@ -1,6 +1,7 @@
 import { ActionNotice } from "../../kernel/domain/actionNotice";
 import {
     ApprovableArtifact,
+    ApprovalNoticeAction,
     ApprovalState,
     approvedArtifacts,
     CodeApproval,
@@ -76,7 +77,7 @@ export function pluginApprovalPrompt(
 
 export const PLUGIN_APPROVAL_NOTICE_ID = "bpmnPluginApprovalNotice";
 
-export type PluginApprovalNoticeAction = "review";
+export type PluginApprovalNoticeAction = ApprovalNoticeAction;
 
 /** Opens nothing by itself: only "Review…" shows the list. */
 export function pluginApprovalNotice(

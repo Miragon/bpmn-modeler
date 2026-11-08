@@ -19,6 +19,9 @@ export interface CodeApproval {
 
 export type ApprovalState = "approved" | "new" | "changed";
 
+/** Every approval notice offers only this; the list opens from it. */
+export type ApprovalNoticeAction = "review";
+
 export interface PendingCodeApproval<A extends ApprovableArtifact> {
     readonly artifact: A;
     readonly state: Exclude<ApprovalState, "approved">;

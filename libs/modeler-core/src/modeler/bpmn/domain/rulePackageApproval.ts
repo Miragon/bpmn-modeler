@@ -3,6 +3,7 @@ import { posix } from "path";
 import { ActionNotice } from "../../../kernel/domain/actionNotice";
 import {
     ApprovableArtifact,
+    ApprovalNoticeAction,
     ApprovalState,
     approvalStateOf,
     CodeApproval,
@@ -85,7 +86,7 @@ export interface BlockedRulePackage {
     readonly needed: boolean;
 }
 
-export type RulePackageApprovalNoticeAction = "review";
+export type RulePackageApprovalNoticeAction = ApprovalNoticeAction;
 
 const SCOPE_PREFIX = "@";
 const NODE_MODULES = "node_modules";
