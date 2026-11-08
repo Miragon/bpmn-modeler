@@ -3,6 +3,7 @@ import {
     DocumentFlushService,
     EditorSessionStore,
     PendingEditsFlush,
+    QuestionQueue,
 } from "@miragon/bpmn-modeler-core";
 
 import { RpcPluginApprovalStore } from "../bpmnPlugins/adapter/out/RpcPluginApprovalStore";
@@ -36,8 +37,13 @@ export interface BridgeSharedDeps {
     settings: BridgeSettings;
     picker: RpcPicker;
     actionNotifier: RpcActionNotifier;
-    /** Seeded by `session/register`, so it is shared with the editor-session feature. */
+    /**
+     * Seeded by `session/register`, so it is shared with the editor-session
+     * feature; the plugins and the bpmnlint rule packages keep their rows in it.
+     */
     pluginApprovals: RpcPluginApprovalStore;
+    /** Every approval question, so the store's next write starts from the list the last one saved. */
+    approvalQuestions: QuestionQueue;
     store: EditorSessionStore;
     artifactSvc: ArtifactService;
     flushSvc: DocumentFlushService;
@@ -89,6 +95,7 @@ export function buildSharedDeps(
         picker,
         actionNotifier: new RpcActionNotifier(rpc),
         pluginApprovals: new RpcPluginApprovalStore(rpc),
+        approvalQuestions: new QuestionQueue(),
         store,
         artifactSvc,
         flushSvc,

@@ -22,6 +22,7 @@ export function register(
         picker: deps.picker,
         actionNotifier: deps.actionNotifier,
         approvals: deps.pluginApprovals,
+        questions: deps.approvalQuestions,
         cacheRoot,
         hasher: new NodeContentHasher(),
     });
