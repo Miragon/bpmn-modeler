@@ -1,202 +1,173 @@
 {
-  "skillVersion": "1.29.0",
-  "orca": {
-    "folder": "order-service",
-    "themes": [
-      "light"
-    ]
-  },
-  "products": [
-    {
-      "id": "bpmn-vscode",
-      "target": "vscode",
-      "title": "BPMN",
-      "claim": "Processes, decisions and forms from plain files, right in VS Code.",
-      "icon": "docs/public/favicon-bpmn.svg",
-      "out": "docs/public/shots/vscode",
-      "vscode": {
-        "extension": "dist/bpmn-modeler-shots.vsix",
-        "workspace": ".miragon/product-shots/order-service"
-      },
-      "recipe": ".miragon/product-shots/bpmn-modeler-recipe.mjs",
-      "shots": {
-        "process": "order-fulfilment.bpmn",
-        "selectId": "Task_Pack",
-        "linting": "return-handling.bpmn",
-        "decision": "shipping.dmn",
-        "decisionInputs": [
-          "DE",
-          "3",
-          "true"
-        ]
-      }
+    "skillVersion": "1.29.0",
+    "orca": {
+        "folder": "order-service",
+        "themes": ["light"]
     },
-    {
-      "id": "bpmn-intellij",
-      "target": "intellij",
-      "title": "BPMN",
-      "claim": "Processes from plain .bpmn files, right in IntelliJ and the other JetBrains IDEs.",
-      "icon": "apps/intellij-plugin/src/main/resources/META-INF/pluginIcon.svg",
-      "out": "docs/public/shots/intellij",
-      "intellij": {
-        "plugin": "apps/intellij-plugin/build/distributions/bpmn-modeler-intellij-plugin-*.zip",
-        "project": ".miragon/product-shots/order-service",
-        "themes": [
-          "light"
-        ]
-      },
-      "shots": {
-        "ready": ".djs-container",
-        "gallery": [
-          {
-            "name": "editor",
-            "open": "order-fulfilment.bpmn"
-          },
-          {
-            "name": "properties",
-            "open": "order-fulfilment.bpmn",
-            "journey": ".miragon/product-shots/intellij-select-pack-order.mjs"
-          },
-          {
-            "name": "linting",
-            "open": "return-handling.bpmn"
-          }
-        ],
-        "hero": {
-          "open": "order-fulfilment.bpmn",
-          "selector": "body"
+    "products": [
+        {
+            "id": "bpmn-vscode",
+            "target": "vscode",
+            "title": "BPMN",
+            "claim": "Processes, decisions and forms from plain files, right in VS Code.",
+            "icon": "docs/public/favicon-bpmn.svg",
+            "out": "docs/public/shots/vscode",
+            "vscode": {
+                "extension": "dist/bpmn-modeler-shots.vsix",
+                "workspace": ".miragon/product-shots/order-service"
+            },
+            "recipe": ".miragon/product-shots/bpmn-modeler-recipe.mjs",
+            "shots": {
+                "process": "order-fulfilment.bpmn",
+                "selectId": "Task_Pack",
+                "linting": "return-handling.bpmn",
+                "decision": "shipping.dmn",
+                "decisionInputs": ["DE", "3", "true"]
+            }
+        },
+        {
+            "id": "bpmn-intellij",
+            "target": "intellij",
+            "title": "BPMN",
+            "claim": "Processes from plain .bpmn files, right in IntelliJ and the other JetBrains IDEs.",
+            "icon": "apps/intellij-plugin/src/main/resources/META-INF/pluginIcon.svg",
+            "out": "docs/public/shots/intellij",
+            "intellij": {
+                "plugin": "apps/intellij-plugin/build/distributions/bpmn-modeler-intellij-plugin-*.zip",
+                "project": ".miragon/product-shots/order-service",
+                "themes": ["light"]
+            },
+            "shots": {
+                "ready": ".djs-container",
+                "gallery": [
+                    {
+                        "name": "editor",
+                        "open": "order-fulfilment.bpmn"
+                    },
+                    {
+                        "name": "properties",
+                        "open": "order-fulfilment.bpmn",
+                        "journey": ".miragon/product-shots/intellij-select-pack-order.mjs"
+                    },
+                    {
+                        "name": "linting",
+                        "open": "return-handling.bpmn"
+                    }
+                ],
+                "hero": {
+                    "open": "order-fulfilment.bpmn",
+                    "selector": "body"
+                }
+            }
+        },
+        {
+            "id": "bpmn-orca",
+            "target": "orca",
+            "badge": "Experimental",
+            "title": "BPMN",
+            "claim": "Processes and decisions from plain .bpmn and .dmn files, edited by you and your agents.",
+            "icon": "docs/public/favicon-bpmn.svg",
+            "out": "apps/orca-plugin/images",
+            "orca": {
+                "plugin": "apps/orca-plugin/plugin",
+                "examples": [
+                    {
+                        "file": ".miragon/product-shots/order-service/order-fulfilment.bpmn"
+                    },
+                    {
+                        "file": ".miragon/product-shots/order-service/return-handling.bpmn"
+                    },
+                    {
+                        "file": ".miragon/product-shots/order-service/shipping.dmn"
+                    }
+                ],
+                "features": [
+                    {
+                        "name": "properties",
+                        "example": "order-fulfilment.bpmn",
+                        "act": [
+                            {
+                                "click": [471, 439]
+                            },
+                            {
+                                "key": "Shift"
+                            },
+                            {
+                                "key": "Shift"
+                            }
+                        ]
+                    },
+                    {
+                        "name": "simulation",
+                        "example": "order-fulfilment.bpmn",
+                        "act": [
+                            {
+                                "click": [98, 34]
+                            },
+                            {
+                                "click": [121, 421]
+                            },
+                            {
+                                "key": "Shift"
+                            }
+                        ]
+                    },
+                    {
+                        "name": "linting",
+                        "example": "return-handling.bpmn",
+                        "act": [
+                            {
+                                "key": "Shift"
+                            },
+                            {
+                                "key": "Shift"
+                            }
+                        ]
+                    },
+                    {
+                        "name": "dmn",
+                        "example": "shipping.dmn",
+                        "act": [
+                            {
+                                "click": [265, 114]
+                            },
+                            {
+                                "key": "Shift"
+                            },
+                            {
+                                "click": [252, 114]
+                            },
+                            {
+                                "key": "3"
+                            },
+                            {
+                                "click": [424, 114]
+                            },
+                            {
+                                "key": "t"
+                            },
+                            {
+                                "key": "r"
+                            },
+                            {
+                                "key": "u"
+                            },
+                            {
+                                "key": "e"
+                            },
+                            {
+                                "click": [561, 113]
+                            },
+                            {
+                                "key": "Shift"
+                            },
+                            {
+                                "key": "Shift"
+                            }
+                        ]
+                    }
+                ]
+            }
         }
-      }
-    },
-    {
-      "id": "bpmn-orca",
-      "target": "orca",
-      "badge": "Experimental",
-      "title": "BPMN",
-      "claim": "Processes and decisions from plain .bpmn and .dmn files, edited by you and your agents.",
-      "icon": "docs/public/favicon-bpmn.svg",
-      "out": "apps/orca-plugin/images",
-      "orca": {
-        "plugin": "apps/orca-plugin/plugin",
-        "examples": [
-          {
-            "file": ".miragon/product-shots/order-service/order-fulfilment.bpmn"
-          },
-          {
-            "file": ".miragon/product-shots/order-service/return-handling.bpmn"
-          },
-          {
-            "file": ".miragon/product-shots/order-service/shipping.dmn"
-          }
-        ],
-        "features": [
-          {
-            "name": "properties",
-            "example": "order-fulfilment.bpmn",
-            "act": [
-              {
-                "click": [
-                  471,
-                  439
-                ]
-              },
-              {
-                "key": "Shift"
-              },
-              {
-                "key": "Shift"
-              }
-            ]
-          },
-          {
-            "name": "simulation",
-            "example": "order-fulfilment.bpmn",
-            "act": [
-              {
-                "click": [
-                  98,
-                  34
-                ]
-              },
-              {
-                "click": [
-                  121,
-                  421
-                ]
-              },
-              {
-                "key": "Shift"
-              }
-            ]
-          },
-          {
-            "name": "linting",
-            "example": "return-handling.bpmn",
-            "act": [
-              {
-                "key": "Shift"
-              },
-              {
-                "key": "Shift"
-              }
-            ]
-          },
-          {
-            "name": "dmn",
-            "example": "shipping.dmn",
-            "act": [
-              {
-                "click": [
-                  265,
-                  114
-                ]
-              },
-              {
-                "key": "Shift"
-              },
-              {
-                "click": [
-                  252,
-                  114
-                ]
-              },
-              {
-                "key": "3"
-              },
-              {
-                "click": [
-                  424,
-                  114
-                ]
-              },
-              {
-                "key": "t"
-              },
-              {
-                "key": "r"
-              },
-              {
-                "key": "u"
-              },
-              {
-                "key": "e"
-              },
-              {
-                "click": [
-                  561,
-                  113
-                ]
-              },
-              {
-                "key": "Shift"
-              },
-              {
-                "key": "Shift"
-              }
-            ]
-          }
-        ]
-      }
-    }
-  ]
+    ]
 }
