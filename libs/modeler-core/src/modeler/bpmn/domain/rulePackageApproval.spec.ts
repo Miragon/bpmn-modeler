@@ -503,8 +503,14 @@ describe("rulePackagesToAsk", () => {
         state: BlockedRulePackage["state"] = "new",
     ): BlockedRulePackage => ({ id, kind: "package", state, needed });
 
-    it.each<{ case: string; blocked: BlockedRulePackage[]; asked: string[] }>([
+    it.each<{ case: string; blocked: BlockedRulePackage[]; queued?: string[]; asked: string[] }>([
         { case: "a needed package", blocked: [blocked("/a", true)], asked: ["/a"] },
+        {
+            case: "only the packages no queued question asks about yet",
+            blocked: [blocked("/a", true), blocked("/b", true)],
+            queued: ["/a"],
+            asked: ["/b"],
+        },
         {
             case: "a changed needed package",
             blocked: [blocked("/a", true, "changed")],
@@ -526,8 +532,8 @@ describe("rulePackagesToAsk", () => {
             blocked: [blocked("/b", true), blocked("/c", false), blocked("/a", true)],
             asked: ["/b", "/a"],
         },
-    ])("asks about $case", ({ blocked: given, asked }) => {
-        expect(rulePackagesToAsk(given).map(({ id }) => id)).toEqual(asked);
+    ])("asks about $case", ({ blocked: given, queued = [], asked }) => {
+        expect(rulePackagesToAsk(given, new Set(queued)).map(({ id }) => id)).toEqual(asked);
     });
 });
 

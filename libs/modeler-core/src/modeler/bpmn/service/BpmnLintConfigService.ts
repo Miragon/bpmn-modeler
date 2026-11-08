@@ -36,6 +36,7 @@ import {
     editorsBlockedOnAnyOf,
     PendingRulePackage,
     RulePackage,
+    rulePackagesToAsk,
 } from "../domain/rulePackageApproval";
 import {
     neededRulePackageLogLines,
@@ -90,6 +91,8 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
     private readonly sessions = new Map<string, LintSession>();
     private readonly latestRuns = new Map<string, symbol>();
     private readonly blockedByEditor = new Map<string, readonly string[]>();
+    /** A lint runs on every edit; one queued question per package is enough until it is answered. */
+    private readonly queuedRulePackageIds = new Set<string>();
     /** Lines logged once per config version, so a relint on every edit repeats none of them. */
     private readonly loggedOncePerConfig = new Set<string>();
     private approvalSettled: Promise<void> = Promise.resolve();
@@ -242,9 +245,12 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
             blocked.map(({ id }) => id),
         );
         catalog.noteSeen(blocked);
-        if (blocked.length === 0) return;
+        const toAsk = rulePackagesToAsk(blocked, this.queuedRulePackageIds);
+        if (toAsk.length === 0) return;
+        toAsk.forEach(({ id }) => this.queuedRulePackageIds.add(id));
         const asking = question
-            .ask(blocked)
+            .ask(toAsk)
+            .finally(() => toAsk.forEach(({ id }) => this.queuedRulePackageIds.delete(id)))
             .then((allowed) => this.relintBlockedOn(allowed.map(({ id }) => id)))
             .catch((error: unknown) =>
                 this.notifier.logError(error instanceof Error ? error : new Error(String(error))),

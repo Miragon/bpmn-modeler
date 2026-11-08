@@ -214,10 +214,18 @@ export function rulePackageVerdict(
 }
 
 /** Only packages whose absence left a rule or config unresolved: a package the bundle stood in for is never asked about. */
-export function rulePackagesToAsk(blocked: readonly BlockedRulePackage[]): BlockedRulePackage[] {
+export function rulePackagesToAsk(
+    blocked: readonly BlockedRulePackage[],
+    alreadyQueuedIds: ReadonlySet<string> = new Set(),
+): BlockedRulePackage[] {
     const asked = new Map<string, BlockedRulePackage>();
     for (const each of blocked) {
-        if (each.needed && each.state !== "declined" && !asked.has(each.id)) {
+        if (
+            each.needed &&
+            each.state !== "declined" &&
+            !alreadyQueuedIds.has(each.id) &&
+            !asked.has(each.id)
+        ) {
             asked.set(each.id, each);
         }
     }
