@@ -274,3 +274,111 @@ describe("NodeBpmnLinter across runs", () => {
         ]);
     });
 });
+
+describe("NodeBpmnLinter and workspace code outside rule packages", () => {
+    const RAN = "__bpmnlintWorkspaceCodeRan";
+    const markerScript = (exported: string) =>
+        `globalThis.${RAN} = (globalThis.${RAN} ?? 0) + 1;\nmodule.exports = ${exported};`;
+
+    let workspaceDir: string;
+
+    beforeEach(async () => {
+        workspaceDir = await mkdtemp(join(tmpdir(), "node-bpmn-linter-workspace-"));
+        delete (globalThis as Record<string, unknown>)[RAN];
+    });
+
+    afterEach(async () => {
+        delete (globalThis as Record<string, unknown>)[RAN];
+        await rm(workspaceDir, { recursive: true, force: true });
+    });
+
+    async function writeWorkspaceFile(relativePath: string, content: string): Promise<void> {
+        const path = join(workspaceDir, ...relativePath.split("/"));
+        await mkdir(join(path, ".."), { recursive: true });
+        await writeFile(path, content);
+    }
+
+    const workspaceCodeRan = () => (globalThis as Record<string, unknown>)[RAN] !== undefined;
+
+    // bpmnlint's NodeResolver loads the core's own rules and configs relative to
+    // the module that requires them; scoped to the config folder, that is two
+    // folders above the `.bpmnlintrc`.
+    it.each([
+        {
+            what: "a built-in rule",
+            file: "rules/label-required.js",
+            config: { rules: { "label-required": "error" } },
+        },
+        {
+            what: "a built-in config",
+            file: "config/recommended.js",
+            config: { extends: "bpmnlint:recommended" },
+        },
+    ])("never runs a script two folders above the config for $what", async ({ file, config }) => {
+        await writeWorkspaceFile(file, markerScript("() => ({ check() {} })"));
+        await writeWorkspaceFile("a/b/.bpmnlintrc", JSON.stringify(config));
+
+        const { unresolved } = await new NodeBpmnLinter().lint(
+            BPMN_WITH_TASK,
+            join(workspaceDir, "a", "b", ".bpmnlintrc"),
+            config,
+        );
+
+        expect(workspaceCodeRan()).toBe(false);
+        expect(unresolved).toEqual([]);
+    });
+
+    it("takes bpmnlint's own rules from the bundle, never from the workspace's install", async () => {
+        await writeWorkspaceFile(
+            "node_modules/bpmnlint/package.json",
+            JSON.stringify({ name: "bpmnlint", version: "11.0.0", main: "index.js" }),
+        );
+        await writeWorkspaceFile(
+            "node_modules/bpmnlint/index.js",
+            markerScript("{ configs: { recommended: { rules: {} } } }"),
+        );
+
+        const { results } = await new NodeBpmnLinter().lint(
+            BPMN_WITH_TASK,
+            join(workspaceDir, ".bpmnlintrc"),
+            { extends: "bpmnlint:recommended" },
+        );
+
+        expect(workspaceCodeRan()).toBe(false);
+        expect(Object.keys(results)).toContain("start-event-required");
+    });
+
+    it("skips a moddle extension that is a script and reports it", async () => {
+        await writeWorkspaceFile(
+            "acme.js",
+            markerScript(`{ name: "Acme", prefix: "acme", uri: "http://acme", types: [] }`),
+        );
+
+        const { unresolved } = await new NodeBpmnLinter().lint(
+            BPMN_WITH_TASK,
+            join(workspaceDir, ".bpmnlintrc"),
+            { moddleExtensions: { acme: "./acme.js" } },
+        );
+
+        expect(workspaceCodeRan()).toBe(false);
+        expect(unresolved).toEqual(["moddleExtension:acme"]);
+    });
+
+    it.each(["./acme.json", "./acme"])(
+        "loads a moddle extension from a JSON descriptor named %s",
+        async (reference) => {
+            await writeWorkspaceFile(
+                "acme.json",
+                JSON.stringify({ name: "Acme", prefix: "acme", uri: "http://acme", types: [] }),
+            );
+
+            const { unresolved } = await new NodeBpmnLinter().lint(
+                BPMN_WITH_TASK,
+                join(workspaceDir, ".bpmnlintrc"),
+                { moddleExtensions: { acme: reference } },
+            );
+
+            expect(unresolved).toEqual([]);
+        },
+    );
+});
