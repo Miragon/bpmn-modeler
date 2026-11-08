@@ -9,6 +9,15 @@ export interface Resolver {
 }
 
 /**
+ * Tells which workspace rule packages a delegate blocked while one request
+ * ran. Resolution is synchronous, so nothing else runs between the two calls.
+ */
+export interface RequestAttribution {
+    beginRequest(pkg: string): void;
+    blockedSinceBegin(): readonly string[];
+}
+
+/**
  * A bpmnlint rule that reports nothing. Substituted for a rule/config that could
  * not be resolved so a single missing `bpmnlint-plugin-*` never fails the whole
  * lint (bpmnlint's `Linter` rejects the entire run if `resolveRule`/`resolveConfig`
@@ -40,13 +49,17 @@ export class CompositeResolver implements Resolver {
     /** Names of rules/configs that could not be resolved this run. */
     readonly unresolved: string[] = [];
 
+    /** Blocked rule packages a request of this run ended unresolved without; the bundle served the others. */
+    readonly neededBlocked = new Set<string>();
+
     constructor(
         private readonly resolvers: readonly Resolver[],
         private readonly resolved: Map<string, unknown> = new Map(),
+        private readonly attribution?: RequestAttribution,
     ) {}
 
     resolveRule(pkg: string, ruleName: string): unknown {
-        const resolved = this.resolveOnce(`rule:${pkg}\0${ruleName}`, (r) =>
+        const resolved = this.resolveOnce(pkg, `rule:${pkg}\0${ruleName}`, (r) =>
             r.resolveRule(pkg, ruleName),
         );
         if (resolved !== undefined) {
@@ -57,7 +70,7 @@ export class CompositeResolver implements Resolver {
     }
 
     resolveConfig(pkg: string, configName: string): unknown {
-        const resolved = this.resolveOnce(`config:${pkg}\0${configName}`, (r) =>
+        const resolved = this.resolveOnce(pkg, `config:${pkg}\0${configName}`, (r) =>
             r.resolveConfig(pkg, configName),
         );
         if (resolved !== undefined) {
@@ -67,15 +80,20 @@ export class CompositeResolver implements Resolver {
         return NOOP_CONFIG;
     }
 
-    private resolveOnce(key: string, resolve: (r: Resolver) => unknown): unknown {
+    private resolveOnce(pkg: string, key: string, resolve: (r: Resolver) => unknown): unknown {
         if (this.resolved.has(key)) {
             return this.resolved.get(key);
         }
+        this.attribution?.beginRequest(pkg);
         const resolved = this.tryResolve(resolve);
         if (resolved !== undefined) {
             this.resolved.set(key, resolved);
+            return resolved;
         }
-        return resolved;
+        for (const id of this.attribution?.blockedSinceBegin() ?? []) {
+            this.neededBlocked.add(id);
+        }
+        return undefined;
     }
 
     /**
