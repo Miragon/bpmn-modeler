@@ -5,6 +5,7 @@ import {
     type DependencyCandidate,
     dependencyCandidates,
     exceedsClosureSizeLimit,
+    type InstalledEntryKind,
     isExcludedMemberEntry,
     isLinkInsideMember,
     type MemberKind,
@@ -205,29 +206,47 @@ describe("dependencyCandidates", () => {
 });
 
 describe("isExcludedMemberEntry", () => {
-    it.each<{ relPath: string; kind: MemberKind; excluded: boolean }>([
-        { relPath: "node_modules", kind: "package", excluded: true },
-        { relPath: ".git", kind: "package", excluded: true },
-        { relPath: "lib/node_modules", kind: "package", excluded: false },
-        { relPath: "lib/.git", kind: "package", excluded: false },
-        { relPath: "index.js", kind: "package", excluded: false },
-        { relPath: "test/order.bpmn", kind: "package", excluded: false },
-        { relPath: ".bpmnlintrc", kind: "package", excluded: false },
-        { relPath: "node_modules", kind: "selfPackage", excluded: true },
-        { relPath: ".git", kind: "selfPackage", excluded: true },
-        { relPath: "order.bpmn", kind: "selfPackage", excluded: true },
-        { relPath: "processes/order.bpmn", kind: "selfPackage", excluded: true },
-        { relPath: "decisions/route.dmn", kind: "selfPackage", excluded: true },
-        { relPath: "forms/start.form", kind: "selfPackage", excluded: true },
-        { relPath: ".bpmnlintrc", kind: "selfPackage", excluded: true },
-        { relPath: "sub/.bpmnlintrc", kind: "selfPackage", excluded: true },
-        { relPath: "order.bpmn.js", kind: "selfPackage", excluded: false },
-        { relPath: "bpmn", kind: "selfPackage", excluded: false },
-        { relPath: ".bpmnlintrc.js", kind: "selfPackage", excluded: false },
-        { relPath: "rules/label.js", kind: "selfPackage", excluded: false },
-    ])("excludes $relPath from a $kind: $excluded", ({ relPath, kind, excluded }) => {
-        expect(isExcludedMemberEntry(relPath, kind)).toBe(excluded);
-    });
+    it.each<{
+        relPath: string;
+        entryKind: InstalledEntryKind;
+        kind: MemberKind;
+        excluded: boolean;
+    }>([
+        { relPath: "node_modules", entryKind: "directory", kind: "package", excluded: true },
+        { relPath: "node_modules", entryKind: "symbolicLink", kind: "package", excluded: true },
+        { relPath: ".git", entryKind: "directory", kind: "package", excluded: true },
+        { relPath: ".git", entryKind: "file", kind: "package", excluded: true },
+        { relPath: "lib/node_modules", entryKind: "directory", kind: "package", excluded: false },
+        { relPath: "lib/.git", entryKind: "directory", kind: "package", excluded: false },
+        { relPath: "index.js", entryKind: "file", kind: "package", excluded: false },
+        { relPath: "test/order.bpmn", entryKind: "file", kind: "package", excluded: false },
+        { relPath: ".bpmnlintrc", entryKind: "file", kind: "package", excluded: false },
+        { relPath: "node_modules", entryKind: "directory", kind: "selfPackage", excluded: true },
+        { relPath: ".git", entryKind: "directory", kind: "selfPackage", excluded: true },
+        { relPath: "order.bpmn", entryKind: "file", kind: "selfPackage", excluded: true },
+        {
+            relPath: "processes/order.bpmn",
+            entryKind: "file",
+            kind: "selfPackage",
+            excluded: true,
+        },
+        { relPath: "decisions/route.dmn", entryKind: "file", kind: "selfPackage", excluded: true },
+        { relPath: "forms/start.form", entryKind: "file", kind: "selfPackage", excluded: true },
+        { relPath: ".bpmnlintrc", entryKind: "file", kind: "selfPackage", excluded: true },
+        { relPath: "sub/.bpmnlintrc", entryKind: "file", kind: "selfPackage", excluded: true },
+        { relPath: "rules.bpmn", entryKind: "directory", kind: "selfPackage", excluded: false },
+        { relPath: "lib.form", entryKind: "symbolicLink", kind: "selfPackage", excluded: false },
+        { relPath: "pipe.dmn", entryKind: "other", kind: "selfPackage", excluded: false },
+        { relPath: "order.bpmn.js", entryKind: "file", kind: "selfPackage", excluded: false },
+        { relPath: "bpmn", entryKind: "file", kind: "selfPackage", excluded: false },
+        { relPath: ".bpmnlintrc.js", entryKind: "file", kind: "selfPackage", excluded: false },
+        { relPath: "rules/label.js", entryKind: "file", kind: "selfPackage", excluded: false },
+    ])(
+        "excludes the $entryKind $relPath from a $kind: $excluded",
+        ({ relPath, entryKind, kind, excluded }) => {
+            expect(isExcludedMemberEntry(relPath, entryKind, kind)).toBe(excluded);
+        },
+    );
 });
 
 describe("isLinkInsideMember", () => {

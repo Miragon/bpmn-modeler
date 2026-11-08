@@ -174,7 +174,7 @@ export class PackageClosureFingerprinter {
             for (const entry of entries) {
                 const relPath =
                     folder.relPath === "" ? entry.name : `${folder.relPath}/${entry.name}`;
-                if (isExcludedMemberEntry(relPath, kind)) {
+                if (isExcludedMemberEntry(relPath, entry.kind, kind)) {
                     continue;
                 }
                 const path = joinWorkspacePath(folder.path, entry.name);

@@ -139,13 +139,23 @@ export function dependencyCandidates(fromDir: string, name: string): DependencyC
 /**
  * Only a member's own `node_modules` (separate members) and `.git` stay out;
  * one deeper is content Node could load. The self-package also leaves out
- * the models and the config being linted, so editing them asks nothing.
+ * the model files and the config being linted, so editing them asks nothing.
+ * A folder or link with such a name stays in: `require("./rules.bpmn")` loads
+ * `rules.bpmn/index.js`.
  */
-export function isExcludedMemberEntry(relPath: string, kind: MemberKind): boolean {
+export function isExcludedMemberEntry(
+    relPath: string,
+    entryKind: InstalledEntryKind,
+    memberKind: MemberKind,
+): boolean {
     if (MEMBER_ROOT_EXCLUSIONS.has(relPath)) {
         return true;
     }
-    return kind === "selfPackage" && SELF_PACKAGE_MODEL_FILE.test(posix.basename(relPath));
+    return (
+        memberKind === "selfPackage" &&
+        entryKind === "file" &&
+        SELF_PACKAGE_MODEL_FILE.test(posix.basename(relPath))
+    );
 }
 
 /** A linked folder could hold anything, or loop; only a link to a file inside the member stays. */
