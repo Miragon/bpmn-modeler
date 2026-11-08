@@ -26,7 +26,7 @@ import { InstalledPackagesPort } from "../../../port/installedPackagesPort";
 import { RequestAttribution } from "./CompositeResolver";
 
 /** What the gate needs of `PackageClosureFingerprinter`. */
-export interface ClosureFingerprints {
+interface ClosureFingerprints {
     fingerprint(root: FingerprintedRoot): ClosureFingerprint;
     isUnchanged(stamps: readonly ClosureStamp[]): boolean;
 }
