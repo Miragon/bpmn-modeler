@@ -439,10 +439,10 @@ and source architecture tests guard the import boundary.
 ### User-supplied plugins (proposed)
 
 Proposed for [#1626](https://github.com/Miragon/bpmn-modeler/issues/1626) and
-shipped for VS Code by [#2240](https://github.com/Miragon/bpmn-modeler/issues/2240);
-not released. The IntelliJ bridge ([#2242](https://github.com/Miragon/bpmn-modeler/issues/2242))
-and Orca ([#2244](https://github.com/Miragon/bpmn-modeler/issues/2244)) reuse
-the same core and package. Teams want to load bpmn-js plugins, many written for
+shipped for VS Code by [#2240](https://github.com/Miragon/bpmn-modeler/issues/2240)
+and for IntelliJ by [#2242](https://github.com/Miragon/bpmn-modeler/issues/2242);
+not released. Orca ([#2244](https://github.com/Miragon/bpmn-modeler/issues/2244))
+reuses the same core and package. Teams want to load bpmn-js plugins, many written for
 the Camunda Modeler, without forking a host or building an app on the package.
 The [user guide](../vscode/features/bpmn-plugins.md) carries what users must
 know.
@@ -513,9 +513,9 @@ skipped. A plugin runs only after the user approved this content in this
 folder: the approval is a SHA-256 of the script and the style, each prefixed
 with its length and a missing style marked apart from an empty one, so bytes
 moved from one file to the other change the hash. It is kept by the host outside
-every workspace (`PluginApprovalStorePort`; VS Code global state), so a
-repository cannot approve itself and any change (a pull, an update) asks
-again. `WorkspacePluginLocator` keeps a memo per plugin folder and drops it on
+every workspace (`PluginApprovalStorePort`; VS Code global state, an IntelliJ
+application value), so a repository cannot approve itself and any change (a
+pull, an update) asks again. `WorkspacePluginLocator` keeps a memo per plugin folder and drops it on
 a `WorkspacePort.createWatcher` event for that `<configFolder>/plugins`
 folder, so an editor open does not reread and rehash every bundle (Camunda
 bundles can be several MB). The feature disposes the watchers with itself.
@@ -567,9 +567,62 @@ stays fixed at creation. The host passes the cache root as a platform path
 the webview's cache folder at a `file:` URI of that path: desktop VS Code
 hands out global storage as `vscode-userdata:`, and a webview serves a file
 only below an allowed folder of the same scheme as its URL. A host that does
-not wire the feature (the IntelliJ bridge until #2242) answers with no plugins.
-That answer has one home, `answerWithoutPlugins` in `editorSession/`, built on
-`postUnlessHidden` like the delivery's own answer.
+not wire the feature answers with no plugins. That answer has one home,
+`answerWithoutPlugins` in `editorSession/`, built on `postUnlessHidden` like
+the delivery's own answer.
+
+**IntelliJ.** The bridge wires the same `BpmnPluginsFeature` as VS Code, so the
+texts, the notification, the list and the reload rule are the core's. The host
+supplies these parts:
+
+- *Cache root.* One folder per machine,
+  `<IDE system path>/miragon-bpmn-modeler/bpmn-plugins` (`BpmnPluginCache`).
+  The cache is content-addressed, so every project and bridge shares it.
+  The bridge's `NodeWorkspace.writeFile` writes a temporary sibling and
+  renames it over the file, so a page never loads a file that another
+  project's bridge is still writing. The launcher passes the root to the bridge as `MIRAGON_BPMN_PLUGIN_CACHE`, and the
+  `WebviewServer` serves from the same value, so the two cannot disagree.
+- *Route.* `RpcEditorHandle.webviewUrlOf` maps only
+  `<root>/<64 lowercase hex>/plugin.js|plugin.css` to the root-relative URL
+  `/bpmn-plugins/<hash>/<file>` and throws for any other path. The page loads
+  it from its own loopback origin, so the bridge needs no port. `WebviewRoute`
+  matches the raw request path before decoding, so `%2F` or `%2e%2e` cannot
+  form a separator, and anything else under `/bpmn-plugins/` is a 404, never a
+  classpath lookup. The served file must be a regular file that is not a
+  symbolic link, and its real path must stay inside the cache's real path. The
+  CSP is unchanged: `script-src 'self'` and `style-src 'self'` already admit
+  same-origin files. One cases file (`pluginAssetUrl.cases.json`) holds the
+  mapped, unmapped and refused rows for the bridge spec and `WebviewRouteTest`.
+- *Approval store.* An application service over `PropertiesComponent`
+  (`PluginApprovalStore`), outside every project, shared by all projects of the
+  IDE. Bridges run per project, so the host is the single writer: the bridge
+  mirrors the list for the port's synchronous `read()`, seeded on every
+  `session/register` (a separate seed would race the page's first plugin
+  query) and replaced by `pluginApprovals/didChange`. A `pluginApprovals/save`
+  is stored and pushed to every running bridge before it is acknowledged.
+- *Notice.* `actionNotice/show` becomes a balloon with one action per label;
+  see [host integrations](architecture-and-hosts.md#host-integrations).
+- *Reload.* The page asks for plugins only while it boots, so the soft reload
+  that re-renders the diagram cannot load new ones. `RpcEditorHandle.reload`
+  sends `editor/reload`; the host writes the page's unsynced edit into the
+  `Document`, sends the session's `session/register` again and reloads the
+  page. `WarmBrowser` installs the sink on every load of a bound browser,
+  reloads included.
+- *Shim.* The shim makes the page's own wiring single-use.
+  `acquireVsCodeApi()` hands out a frozen API once and throws on a second
+  call, as VS Code does; every page calls it once. `__modelerSetSink` deletes
+  itself on its first call, and the JVM's sink script captures the
+  `JBCefJSQuery` function once instead of looking up its global for every
+  message, so a later script cannot swap the sink. Plugins arrive only in a
+  reply to a message that waits in the outbox until the sink is installed, so
+  both doors are spent before a plugin runs. This stops accidental or casual
+  reuse; it is no boundary against an approved plugin. CEF's message router
+  keeps the query function on `window` in every page context, so a plugin can
+  call it and post to the JVM and, through it, to the bridge. It can also read
+  the host's messages, which arrive as `window.postMessage`, and patch the
+  built-ins the shim calls per message (`JSON.stringify`) to read the page's.
+  An approved plugin has the page's full authority, as in VS Code; approval is
+  the control.
 
 **What an approved plugin can do.** It gets the modeler's injector, so it can
 edit the diagram (edits sync to the file) and call every DI service, including

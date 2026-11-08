@@ -13,11 +13,26 @@ internal sealed interface WebviewRoute {
 
     data class ClasspathAsset(val resourcePath: String, val mimeType: String) : WebviewRoute
 
+    /** A file of an approved workspace plugin in the bridge's content-addressed cache. */
+    data class PluginAsset(val hash: String, val fileName: String) : WebviewRoute
+
+    data object NotFound : WebviewRoute
+
     companion object {
+        private const val PLUGIN_PREFIX = "/bpmn-plugins/"
+
+        // Matched before decoding, so no escape can smuggle a separator or a dot segment past it.
+        private val PLUGIN_ASSET_PATH = Regex("^/bpmn-plugins/([0-9a-f]{64})/(plugin\\.js|plugin\\.css)$")
+
+        /** [requestPath] is the raw, still percent-encoded path. */
         fun forPath(requestPath: String): WebviewRoute {
             if (requestPath == "/" || requestPath == "/index.html") return BpmnShell
             if (requestPath == "/deployment.html") return DeploymentShell
             if (requestPath == "/templatePreview.html") return TemplatePreviewShell
+            if (requestPath.startsWith(PLUGIN_PREFIX)) {
+                val match = PLUGIN_ASSET_PATH.matchEntire(requestPath) ?: return NotFound
+                return PluginAsset(match.groupValues[1], match.groupValues[2])
+            }
 
             // The two bundles live under distinct classpath roots; the
             // `/deployment/...` request prefix maps to `/webview-deployment/...`,
@@ -32,7 +47,7 @@ internal sealed interface WebviewRoute {
             return ClasspathAsset(resourcePath, mimeTypeOf(requestPath))
         }
 
-        private fun mimeTypeOf(path: String): String =
+        fun mimeTypeOf(path: String): String =
             when (path.substringAfterLast('.').lowercase()) {
                 "js", "mjs" -> "text/javascript; charset=utf-8"
                 "css" -> "text/css; charset=utf-8"

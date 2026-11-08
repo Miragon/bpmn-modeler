@@ -55,6 +55,10 @@ jobs:
               - 'libs/modeler-types/src/emptyDmn.ts'
               # ScriptCompletionMatchersTest runs these rows against the Kotlin matchers.
               - 'libs/modeler-core/src/scriptTask/domain/scriptCompletion.cases.json'
+              # WebviewRouteTest runs the plugin asset urls the bridge builds,
+              # ActionNoticeToneTest checks the Kotlin tones against the core's.
+              - 'apps/modeler-bridge/src/editorSession/domain/pluginAssetUrl.cases.json'
+              - 'libs/modeler-core/src/kernel/domain/actionNotice.ts'
             standalone:
               - 'apps/standalone/**'
               - 'libs/standalone-extension/**'

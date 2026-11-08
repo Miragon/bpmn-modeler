@@ -14,6 +14,8 @@ import { Rpc } from "../../../transport/adapter/out/Rpc";
 import { DocumentMirror } from "../../domain/DocumentMirror";
 import { RpcEditorHandle } from "./RpcEditorHandle";
 
+const PLUGIN_CACHE = "/idea-system/miragon-bpmn-modeler/bpmn-plugins";
+
 interface Frame {
     readonly id?: number;
     readonly method?: string;
@@ -121,7 +123,7 @@ describeEditorHandleContract("RpcEditorHandle", ({ fileName, content }) => {
     mirror.register(host.meta, content);
     mirror.register(otherMeta, content);
     const settings = new BridgeSettings();
-    const handle = new RpcEditorHandle(host.meta, mirror, host.rpc, settings);
+    const handle = new RpcEditorHandle(host.meta, mirror, host.rpc, settings, PLUGIN_CACHE);
 
     // Each control does what the bridge's handler for the host's notification does.
     return {

@@ -90,11 +90,8 @@ class DeploymentToolWindowFactory : ToolWindowFactory {
         browser.jbCefClient.addLoadHandler(
             object : CefLoadHandlerAdapter() {
                 override fun onLoadEnd(b: CefBrowser, frame: CefFrame, httpStatusCode: Int) {
-                    b.executeJavaScript(
-                        "window.__modelerSetSink(function (p) { ${jsQuery.inject("p")} });",
-                        b.url,
-                        0,
-                    )
+                    if (!frame.isMain) return
+                    b.executeJavaScript(WebviewSinkScript.install(jsQuery.funcName), b.url, 0)
                     // Re-apply on (re)load so a theme change racing the load is
                     // not lost; deploymentHtml() already bakes in the initial theme.
                     b.executeJavaScript(themeSignal.deploymentApplyJs(), b.url, 0)

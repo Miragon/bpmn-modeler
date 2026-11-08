@@ -14,6 +14,7 @@ import { readSettingsSnapshot } from "@miragon/bpmn-modeler-core/testing";
 
 import { settle } from "./__fixtures__/bridgeHarness";
 import { DocumentMirror } from "./editorSession/domain/DocumentMirror";
+import { RpcActionNotifier } from "./kernel/adapter/out/RpcActionNotifier";
 import { RpcClipboard } from "./kernel/adapter/out/RpcClipboard";
 import { RpcDeploymentState } from "./deployment/adapter/out/RpcDeploymentState";
 import { RpcDocumentPort } from "./editorSession/adapter/out/RpcDocumentPort";
@@ -39,6 +40,8 @@ const META: SessionMeta = {
     scheme: "file",
     workspaceRoot: "/w",
 };
+
+const PLUGIN_CACHE = "/idea-system/miragon-bpmn-modeler/bpmn-plugins";
 
 /** Returns the last element (ES2021 target has no `Array.prototype.at`). */
 function last<T>(items: T[]): T {
@@ -146,6 +149,7 @@ describe("RpcEditorHandle", () => {
             new DocumentMirror(),
             new Rpc(() => {}),
             new BridgeSettings(),
+            PLUGIN_CACHE,
         );
         expect(handle.id).toBe(META.editorId);
         expect(handle.documentUriString()).toBe(META.uriString);
@@ -160,6 +164,7 @@ describe("RpcEditorHandle", () => {
             new DocumentMirror(),
             new Rpc(() => {}),
             new BridgeSettings(),
+            PLUGIN_CACHE,
         );
         const focus: boolean[] = [];
         handle.onDidChangeActive((active) => focus.push(active));
@@ -174,7 +179,13 @@ describe("RpcEditorHandle", () => {
 
     it("reports mirrored content changes of its own document only", () => {
         const mirror = new DocumentMirror();
-        const handle = new RpcEditorHandle(META, mirror, new Rpc(() => {}), new BridgeSettings());
+        const handle = new RpcEditorHandle(
+            META,
+            mirror,
+            new Rpc(() => {}),
+            new BridgeSettings(),
+            PLUGIN_CACHE,
+        );
         const changed: string[] = [];
         handle.onDidChangeDocument((event) => changed.push(event.documentUriString()));
 
@@ -190,6 +201,7 @@ describe("RpcEditorHandle", () => {
             new DocumentMirror(),
             new Rpc(() => {}),
             new BridgeSettings(),
+            PLUGIN_CACHE,
         );
         const disposed = vi.fn();
         handle.onDidDispose(disposed);
@@ -202,7 +214,13 @@ describe("RpcEditorHandle", () => {
 
     it("postMessage forwards an editor/postMessage notification", async () => {
         const { frames, rpc } = harness();
-        const handle = new RpcEditorHandle(META, new DocumentMirror(), rpc, new BridgeSettings());
+        const handle = new RpcEditorHandle(
+            META,
+            new DocumentMirror(),
+            rpc,
+            new BridgeSettings(),
+            PLUGIN_CACHE,
+        );
 
         await handle.postMessage({ type: "BpmnFileQuery" } as never);
 
@@ -220,7 +238,7 @@ describe("RpcEditorHandle", () => {
         const { frames, rpc, answerLast } = harness();
         const mirror = new DocumentMirror();
         mirror.register(META, "old");
-        const handle = new RpcEditorHandle(META, mirror, rpc, new BridgeSettings());
+        const handle = new RpcEditorHandle(META, mirror, rpc, new BridgeSettings(), PLUGIN_CACHE);
 
         const pending = handle.writeContent("new", 4);
         expect(last(frames)).toEqual({
@@ -243,7 +261,7 @@ describe("RpcEditorHandle", () => {
         const { rpc, answerLast } = harness();
         const mirror = new DocumentMirror();
         mirror.register(META, "host");
-        const handle = new RpcEditorHandle(META, mirror, rpc, new BridgeSettings());
+        const handle = new RpcEditorHandle(META, mirror, rpc, new BridgeSettings(), PLUGIN_CACHE);
 
         const pending = handle.writeContent("stale", 2);
         await answerLast({ changed: false, accepted: false });
@@ -256,7 +274,7 @@ describe("RpcEditorHandle", () => {
         const { rpc, answerLast } = harness();
         const mirror = new DocumentMirror();
         mirror.register(META, "<xml/>\n");
-        const handle = new RpcEditorHandle(META, mirror, rpc, new BridgeSettings());
+        const handle = new RpcEditorHandle(META, mirror, rpc, new BridgeSettings(), PLUGIN_CACHE);
 
         const pending = handle.writeContent("<xml/>\r\n", 0);
         await answerLast({ changed: false, accepted: true });
@@ -269,7 +287,7 @@ describe("RpcEditorHandle", () => {
         const { rpc, answerLast } = harness();
         const mirror = new DocumentMirror();
         mirror.register(META, "old");
-        const handle = new RpcEditorHandle(META, mirror, rpc, new BridgeSettings());
+        const handle = new RpcEditorHandle(META, mirror, rpc, new BridgeSettings(), PLUGIN_CACHE);
 
         const pending = handle.writeContent("stale", 0);
         mirror.remove(META.editorId);
@@ -282,7 +300,13 @@ describe("RpcEditorHandle", () => {
 
     it("save requests document/save and returns the saved flag", async () => {
         const { frames, rpc, answerLast } = harness();
-        const handle = new RpcEditorHandle(META, new DocumentMirror(), rpc, new BridgeSettings());
+        const handle = new RpcEditorHandle(
+            META,
+            new DocumentMirror(),
+            rpc,
+            new BridgeSettings(),
+            PLUGIN_CACHE,
+        );
 
         const pending = handle.save();
         expect(last(frames)).toMatchObject({ method: "document/save" });
@@ -297,6 +321,7 @@ describe("RpcEditorHandle", () => {
             new DocumentMirror(),
             new Rpc(() => {}),
             new BridgeSettings(),
+            PLUGIN_CACHE,
         );
         const received: unknown[] = [];
         const sub = handle.onDidReceiveMessage((m) => received.push(m));
@@ -314,6 +339,7 @@ describe("RpcEditorHandle", () => {
             new DocumentMirror(),
             new Rpc(() => {}),
             new BridgeSettings(),
+            PLUGIN_CACHE,
         );
         const onDispose = vi.fn();
         handle.onDidDispose(onDispose);
@@ -329,6 +355,7 @@ describe("RpcEditorHandle", () => {
             new DocumentMirror(),
             new Rpc(() => {}),
             new BridgeSettings(),
+            PLUGIN_CACHE,
         );
         const onDispose = vi.fn();
         const subscription = handle.onDidDispose(onDispose);
@@ -341,7 +368,13 @@ describe("RpcEditorHandle", () => {
 
     it("onDidChangeSetting relays the shared settings hub and detaches on dispose", () => {
         const settings = new BridgeSettings();
-        const handle = new RpcEditorHandle(META, new DocumentMirror(), new Rpc(() => {}), settings);
+        const handle = new RpcEditorHandle(
+            META,
+            new DocumentMirror(),
+            new Rpc(() => {}),
+            settings,
+            PLUGIN_CACHE,
+        );
         const seen: boolean[] = [];
         const sub = handle.onDidChangeSetting((event) => seen.push(event.affects("language")));
 
@@ -614,6 +647,22 @@ describe("RpcDeploymentState", () => {
         await Promise.all([first, second]);
 
         expect(state.load().ledger).toEqual({ [DEV_ROW]: revision, [PROD_ROW]: revision });
+    });
+});
+
+describe("RpcActionNotifier", () => {
+    it("rejects an answer naming an action the notice does not offer", async () => {
+        const { rpc, answerLast } = harness();
+        const offered = new RpcActionNotifier(rpc).offer({
+            id: "reviewNotice",
+            tone: "info",
+            message: "1 new plugin",
+            actions: [{ label: "Review…", value: "review" }],
+        });
+
+        await answerLast({ chosen: 1 });
+
+        await expect(offered).rejects.toThrow('chose action 1 of notice "reviewNotice"');
     });
 });
 

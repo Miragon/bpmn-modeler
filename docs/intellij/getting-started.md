@@ -36,6 +36,12 @@ beside the IDE's JSON editor; the buttons in the editor's top right switch betwe
 Templates live in the template folder under the config folder (`.camunda/element-templates/` by default). The form
 that creates and edits them is in VS Code so far.
 
+## BPMN plugins
+
+The editor loads [bpmn-js plugins](/vscode/features/bpmn-plugins) from `.camunda/plugins/` in your project once you
+allow them in the notification it shows. The IDE keeps your approvals for all projects; see
+[IntelliJ](/vscode/features/bpmn-plugins#intellij) for what differs from VS Code.
+
 ## Actions
 
 Find every action with **Find Action** (`Ctrl+Shift+A` / `Cmd+Shift+A`) or under **Tools ▸ Miragon BPMN Modeler**.

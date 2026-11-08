@@ -1,4 +1,7 @@
-export type ActionNoticeTone = "info" | "warning";
+/** The IntelliJ host reads this tuple to pin its own copy of the tones. */
+export const ACTION_NOTICE_TONES = ["info", "warning"] as const;
+
+export type ActionNoticeTone = (typeof ACTION_NOTICE_TONES)[number];
 
 export interface NoticeAction<V> {
     readonly label: string;

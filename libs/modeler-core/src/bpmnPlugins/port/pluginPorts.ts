@@ -2,7 +2,8 @@ import { PluginApproval } from "../domain/pluginApproval";
 
 /**
  * The user's plugin approvals, kept by the host outside every workspace (VS
- * Code's global state), so a cloned repository cannot approve its own plugins.
+ * Code's global state, IntelliJ's application settings), so a cloned
+ * repository cannot approve its own plugins.
  */
 export interface PluginApprovalStorePort {
     read(): readonly PluginApproval[];

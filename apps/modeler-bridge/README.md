@@ -17,12 +17,16 @@ isn't talking to VS Code.
 
 | Direction   | Method(s)                               | Port / handle                                                                                 |
 | ----------- | --------------------------------------- | --------------------------------------------------------------------------------------------- |
-| host → core | `session/register`, `session/dispose`   | editor lifecycle (seeds the `DocumentPort` mirror)                                            |
+| host → core | `session/register`, `session/dispose`   | editor lifecycle (seeds the `DocumentPort` mirror and the plugin-approval mirror)             |
 | host → core | `document/didChange`                    | external document change → re-render                                                          |
 | host → core | `session/setActive`                     | focused tab → `EditorSessionStore` active-editor pointer                                      |
 | host → core | `webview/message`                       | inbound `Command` → `WebviewMessageRouter`                                                    |
 | core → host | `document/write`, `document/save`       | `DocumentPort.write` / `.save`                                                                |
 | core → host | `editor/postMessage`                    | `EditorHandle.postMessage` (Query/Command → webview)                                          |
+| core → host | `editor/reload`                         | `EditorHandle.reload` → the host reloads the whole page, after an approval, so it loads the newly allowed plugins |
+| core → host | `actionNotice/show`                     | `ActionNotifierPort` → an IntelliJ notification with one action per label; replies the clicked index as `chosen`, none once the notification expired |
+| core → host | `pluginApprovals/save`                  | `PluginApprovalStorePort.write` → the application-level approval store; the host pushes the list to every running bridge, then acks |
+| host → core | `pluginApprovals/didChange`             | replaces the plugin-approval mirror the core reads synchronously                              |
 | core → host | `notifier/*`                            | `NotifierPort` → IntelliJ `Notifications.Bus` + IDE log                                       |
 | core → host | `statusBar/update`                      | `StatusBarPort` → `{slot, view}`, `view: null` hides the slot; IntelliJ shows each slot in its own `StatusBarWidget` |
 | host → core | `linting/toggle`                        | BPMNlint widget click → reports the flipped lint choice over `settings/setLintingEnabled`, as the webview toggle does |
@@ -135,7 +139,12 @@ The bridge follows the role folders of the
   editor webview command and lists the session participants in VS Code's
   order; `bridge.surfaceCoverage.spec.ts` pins its routes with every other
   webview surface's. The marketplace cache root arrives via the
-  `MIRAGON_BPMN_MARKETPLACE_CACHE` env var (`server.ts`).
+  `MIRAGON_BPMN_MARKETPLACE_CACHE` env var, the plugin cache root via
+  `MIRAGON_BPMN_PLUGIN_CACHE` (`server.ts`). The plugins module builds the core
+  `BpmnPluginsFeature`; `RpcEditorHandle.webviewUrlOf` maps a cached
+  `<hash>/plugin.js|css` to the host's `/bpmn-plugins/` route
+  (`editorSession/domain/pluginAssetUrl.ts`, whose cases file the Kotlin
+  route test runs).
   `stdioBinding.ts` feeds stdin frames to the `Rpc` and tags every stderr line
   with `[core]`.
 - `src/<context>/adapter/in/*Handlers.ts` — the Host→Core handler tables.
@@ -143,9 +152,10 @@ The bridge follows the role folders of the
   `RpcDocumentPort`, `RpcNotifier`, `RpcStatusBar`, `RpcClipboard`,
   `RpcPicker`, `RpcSecretStore`, `RpcDeploymentState`, `RpcTokenStore`,
   `RpcTokenPrompt`, `RpcMarketplacePrompt`, `RpcMarketplaceRegistrations`,
+  `RpcActionNotifier`, `RpcPluginApprovalStore`,
   `RpcLintingPreference`, `RpcDiffPaneHandle`,
   `BridgeScriptEditor`) and the pure-`fs` `NodeWorkspace` / `BridgeSettings`.
-- `src/<context>/port/` — what the handlers feed: the settings and
+- `src/<context>/port/` — what the handlers feed: the settings, plugin-approval and
   deployment-state mirrors, the workspace roots, the editor-handle and
   diff-pane factories, the script tabs.
 - `src/editorSession/domain/DocumentMirror.ts` — the mirrored document text.
