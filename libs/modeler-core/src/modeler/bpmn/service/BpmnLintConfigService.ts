@@ -15,6 +15,7 @@ import {
     SettingsPort,
     StatusBarPort,
 } from "../../../kernel/port/hostPorts";
+import { ApprovalQuestion } from "../../../kernel/service/ApprovalQuestion";
 import { EditorSessionStore } from "../../../editorSession/service/EditorSessionStore";
 import { BpmnLintConfigLocator, BpmnlintChangeTarget } from "./BpmnLintConfigLocator";
 import { BpmnlintIndicator, indicatorForFindings } from "../domain/bpmnlintIndicator";
@@ -30,7 +31,25 @@ import {
     reduceLintSession,
     UNTRACKED_LINT_SESSION,
 } from "../domain/LintSession";
-import { DiagnosticsPort, LintRunnerPort } from "../port/bpmnPorts";
+import {
+    BlockedRulePackage,
+    editorsBlockedOnAnyOf,
+    PendingRulePackage,
+    RulePackage,
+} from "../domain/rulePackageApproval";
+import {
+    neededRulePackageLogLines,
+    refusedRuleModuleLogLine,
+    shadowedRulePackageLogLine,
+} from "../domain/rulePackageLog";
+import { DiagnosticsPort, LintRun, LintRunnerPort } from "../port/bpmnPorts";
+import { RulePackageCatalog } from "./RulePackageCatalog";
+
+/** Absent: no workspace rule package runs, so there is nothing to ask about. */
+export interface RulePackageApprovals {
+    readonly catalog: RulePackageCatalog;
+    readonly question: ApprovalQuestion<BlockedRulePackage, PendingRulePackage, RulePackage>;
+}
 
 const DROP_LOG_LINES: Partial<Record<LintDropReason, string>> = {
     supersededVersion: "[bpmnlint] dropping in-page results for a superseded config version",
@@ -61,10 +80,19 @@ const DROP_LOG_LINES: Partial<Record<LintDropReason, string>> = {
  * the new tier. Config runs of one editor can finish out of order, so only the
  * newest one reaches the session. Filesystem discovery lives in
  * {@link BpmnLintConfigLocator}.
+ *
+ * A host lint that skipped rules of a workspace rule package the user has not
+ * allowed asks about it afterwards, so the results never wait on the user. An
+ * allow lints again every open editor whose last host lint was blocked on an
+ * allowed package.
  */
 export class BpmnLintConfigService implements BpmnlintChangeTarget {
     private readonly sessions = new Map<string, LintSession>();
     private readonly latestRuns = new Map<string, symbol>();
+    private readonly blockedByEditor = new Map<string, readonly string[]>();
+    /** Lines logged once per config version, so a relint on every edit repeats none of them. */
+    private readonly loggedOncePerConfig = new Set<string>();
+    private approvalSettled: Promise<void> = Promise.resolve();
 
     /** Monotonic source for opaque config-version tokens; never reset. */
     private tokenCounter = 0;
@@ -78,7 +106,13 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
         private readonly statusBar: StatusBarPort,
         private readonly notifier: NotifierPort,
         private readonly settings: SettingsPort,
+        private readonly rulePackages?: RulePackageApprovals,
     ) {}
+
+    /** Resolves once every rule package question raised so far is answered and its relints ran. */
+    whenApprovalSettled(): Promise<void> {
+        return this.approvalSettled;
+    }
 
     /** Re-evaluates the lint tier for the document and drives it. */
     setBpmnlintConfig(editorId: string): Promise<boolean> {
@@ -94,6 +128,7 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
         this.diagnostics.clear(editorId);
         this.sessions.delete(editorId);
         this.latestRuns.delete(editorId);
+        this.blockedByEditor.delete(editorId);
     }
 
     applyWebviewLintResults(
@@ -105,7 +140,7 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
         const xml = this.vsDocument.getContent(editorId);
         void this.dispatch(editorId, {
             type: "webviewLinted",
-            output: { xml, results, unresolved },
+            output: { xml, results, unresolved, blocked: [] },
             platform: this.detectPlatform(xml),
             configToken,
             lintingEnabled: this.settings.getLintingEnabled(),
@@ -154,22 +189,75 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
         const { configPath, config, token } = negotiation;
         try {
             const xml = this.vsDocument.getContent(editorId);
-            const { results, unresolved } = await this.lintRunner.lint(
+            const lintRun = await this.lintRunner.lint(
                 xml,
                 configPath,
                 config as Record<string, unknown>,
             );
             if (this.isSuperseded(editorId, run)) return this.dropSupersededRun();
-            return this.dispatch(editorId, {
+            this.logRulePackages(negotiation, lintRun);
+            const { results, unresolved, blocked } = lintRun;
+            const pushed = await this.dispatch(editorId, {
                 type: "hostLintFinished",
                 token,
-                output: { xml, results, unresolved },
+                output: { xml, results, unresolved, blocked },
             });
+            this.askAboutBlocked(editorId, blocked);
+            return pushed;
         } catch (error) {
             this.logLintFailure(error);
             if (this.isSuperseded(editorId, run)) return this.dropSupersededRun();
             return this.dispatch(editorId, { type: "hostLintFailed", token });
         }
+    }
+
+    private logRulePackages(negotiation: Negotiation, { blocked, refused }: LintRun): void {
+        neededRulePackageLogLines(blocked).forEach((line) => this.notifier.logWarning(line));
+        const configVersion = `${negotiation.configPath}\0${negotiation.rawConfig}`;
+        const logOnce = (line: string, log: (line: string) => void) => {
+            const key = `${configVersion}\0${line}`;
+            if (!this.loggedOncePerConfig.has(key)) {
+                this.loggedOncePerConfig.add(key);
+                log(line);
+            }
+        };
+        refused
+            .map(refusedRuleModuleLogLine)
+            .forEach((line) => logOnce(line, (once) => this.notifier.logWarning(once)));
+        const shadowed = shadowedRulePackageLogLine(blocked);
+        if (shadowed !== undefined) {
+            logOnce(shadowed, (once) => this.notifier.logInfo(once));
+        }
+    }
+
+    /**
+     * Not awaited: the question may stay open for as long as the user leaves
+     * it, and this editor's lints must go on meanwhile.
+     */
+    private askAboutBlocked(editorId: string, blocked: readonly BlockedRulePackage[]): void {
+        if (this.rulePackages === undefined || !this.editorStore.hasEditor(editorId)) return;
+        const { catalog, question } = this.rulePackages;
+        this.blockedByEditor.set(
+            editorId,
+            blocked.map(({ id }) => id),
+        );
+        catalog.noteSeen(blocked);
+        if (blocked.length === 0) return;
+        const asking = question
+            .ask(blocked)
+            .then((allowed) => this.relintBlockedOn(allowed.map(({ id }) => id)))
+            .catch((error: unknown) =>
+                this.notifier.logError(error instanceof Error ? error : new Error(String(error))),
+            );
+        this.approvalSettled = Promise.all([this.approvalSettled, asking]).then(() => undefined);
+    }
+
+    private async relintBlockedOn(allowedIds: readonly string[]): Promise<void> {
+        await Promise.all(
+            editorsBlockedOnAnyOf(this.blockedByEditor, allowedIds).map((editorId) =>
+                this.setBpmnlintConfig(editorId),
+            ),
+        );
     }
 
     private isSuperseded(editorId: string, run: symbol | undefined): boolean {
@@ -246,10 +334,10 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
 
     /** Feeds a host run and an in-page run to the same chrome. Diagnostics always publish. */
     private applyFindings(editorId: string, findings: LintFindings): void {
-        const { xml, results, unresolved, source } = findings;
+        const { xml, results, unresolved, blocked, source } = findings;
         this.diagnostics.publish(editorId, xml, results);
 
-        this.showStatusIfFocused(editorId, indicatorForFindings(source, unresolved));
+        this.showStatusIfFocused(editorId, indicatorForFindings(source, unresolved, blocked));
 
         if (unresolved.length > 0) {
             // Surface skipped rules plainly rather than burying them in the

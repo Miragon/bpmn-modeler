@@ -1,16 +1,45 @@
+import { createHash } from "node:crypto";
+
 import { describe, expect, it, vi } from "vitest";
 
 import {
     BpmnLintDisabledQuery,
     BpmnlintInPageQuery,
     BpmnlintResultsQuery,
+    GetBpmnPluginsCommand,
 } from "@miragon/bpmn-modeler-shared";
 import { LintResults } from "@miragon/bpmn-modeler-types";
 
+import { CodeApproval } from "../../../kernel/domain/codeApproval";
+import { PluginApprovalStorePort } from "../../../kernel/port/approvalPorts";
+import { ApprovalQuestion } from "../../../kernel/service/ApprovalQuestion";
 import { ArtifactService } from "../../../kernel/service/ArtifactService";
+import { QuestionQueue } from "../../../kernel/service/QuestionQueue";
+import { BpmnPluginsFeature } from "../../../bpmnPlugins/composition/BpmnPluginsFeature";
+import {
+    PLUGIN_APPROVAL_NOTICE_ID,
+    PLUGIN_APPROVAL_PROMPT_ID,
+} from "../../../bpmnPlugins/domain/pluginApproval";
 import { BpmnLintConfigLocator } from "./BpmnLintConfigLocator";
-import { createTestHost, FakeEditorHandle, TestHost } from "../../../testing";
+import {
+    createTestHost,
+    FakeEditorHandle,
+    fingerprintHasher,
+    InMemoryInstalledPackages,
+    InMemoryPluginApprovals,
+    TestHost,
+    TestHostOptions,
+} from "../../../testing";
+import {
+    BlockedRulePackage,
+    RULE_PACKAGE_APPROVAL_NOTICE_ID,
+    RULE_PACKAGE_APPROVAL_PROMPT_ID,
+} from "../domain/rulePackageApproval";
+import { RefusedRuleModule } from "../domain/rulePackageRefusal";
+import { PackageClosureFingerprinter } from "./PackageClosureFingerprinter";
+import { RulePackageCatalog } from "./RulePackageCatalog";
 import { bpmnlintStatusView } from "../domain/bpmnlintStatusView";
+import { LintRun, LintRunnerPort } from "../port/bpmnPorts";
 import { BpmnlintParticipant } from "./BpmnlintParticipant";
 import { BpmnLintConfigService } from "./BpmnLintConfigService";
 
@@ -45,7 +74,14 @@ const FAILED_VIEW = {
     tone: "warning",
 };
 
-type LintOutcome = { results: LintResults; unresolved: string[] };
+type LintOutcome = LintRun;
+
+const hostRun = (results: LintResults, unresolved: string[] = []): LintRun => ({
+    results,
+    unresolved,
+    blocked: [],
+    refused: [],
+});
 
 /** Lets a fire-and-forget host lint settle before assertions. */
 const flush = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
@@ -63,7 +99,7 @@ function createService({ content = XML, config }: { content?: string; config?: s
         new ArtifactService(host.workspace, host.settings),
     );
     const lintRunner = {
-        lint: vi.fn().mockResolvedValue({ results: RESULTS, unresolved: [] }),
+        lint: vi.fn<LintRunnerPort["lint"]>().mockResolvedValue(hostRun(RESULTS)),
     };
 
     const service = new BpmnLintConfigService(
@@ -125,7 +161,7 @@ describe("BpmnLintConfigService.setBpmnlintConfig — escalated workspace config
 
     it("shows the unresolved status and warns when rules could not be resolved", async () => {
         const { service, host, editor, lintRunner } = createService({ config: ESCALATING_RAW });
-        lintRunner.lint.mockResolvedValue({ results: {}, unresolved: ["custom/x"] });
+        lintRunner.lint.mockResolvedValue(hostRun({}, ["custom/x"]));
 
         await service.setBpmnlintConfig(editor.id);
 
@@ -269,7 +305,7 @@ describe("BpmnLintConfigService.setBpmnlintConfig — covered workspace config (
         let release: (() => void) | undefined;
         lintRunner.lint.mockReturnValue(
             new Promise((resolve) => {
-                release = () => resolve({ results: {}, unresolved: [] });
+                release = () => resolve(hostRun({}));
             }),
         );
         service.applyWebviewLintResults(editor.id, RESULTS, ["p/r"], token); // triggers escalation
@@ -467,7 +503,7 @@ describe("BpmnLintConfigService — a host lint that lands after its session mov
         const { service, host, editor, linting, finishLint } = await hostLintInFlight();
 
         service.clearDiagnostics(editor.id);
-        finishLint({ results: RESULTS, unresolved: [] });
+        finishLint(hostRun(RESULTS));
         await linting;
 
         expect(host.diagnostics.published.has(editor.id)).toBe(false);
@@ -479,7 +515,7 @@ describe("BpmnLintConfigService — a host lint that lands after its session mov
 
         host.workspace.files.delete(CONFIG_PATH);
         await service.setBpmnlintConfig(editor.id);
-        finishLint({ results: RESULTS, unresolved: [] });
+        finishLint(hostRun(RESULTS));
         await linting;
 
         expect(service.getLintMode(editor.id)).toBe("in-page");
@@ -494,7 +530,7 @@ describe("BpmnLintConfigService — a host lint that lands after its session mov
 
         host.settings.values.lintingEnabled = false;
         await service.setBpmnlintConfig(editor.id);
-        finishLint({ results: RESULTS, unresolved: [] });
+        finishLint(hostRun(RESULTS));
         await linting;
 
         expect(host.statusBar.views.bpmnlint).toEqual(bpmnlintStatusView({ state: "disabled" }));
@@ -647,7 +683,7 @@ describe("BpmnLintConfigService — an older config run that finishes after a ne
     );
 
     it.each([
-        { outcome: "finishes", olderLint: { results: STALE_RESULTS, unresolved: [] } },
+        { outcome: "finishes", olderLint: hostRun(STALE_RESULTS) },
         { outcome: "fails", olderLint: new Error("plugin crashed") },
     ])(
         "keeps the newer diagram's findings when an older host lint of the same config $outcome last",
@@ -689,7 +725,7 @@ function createSessionHost(files: Record<string, string> = {}) {
         new ArtifactService(host.workspace, host.settings),
     );
     const lintRunner = {
-        lint: vi.fn().mockResolvedValue({ results: RESULTS, unresolved: [] }),
+        lint: vi.fn<LintRunnerPort["lint"]>().mockResolvedValue(hostRun(RESULTS)),
     };
     const service = new BpmnLintConfigService(
         host.store,
@@ -842,11 +878,287 @@ describe("BpmnLintConfigService — the status item follows the focused editor",
         expect(host.statusBar.views.bpmnlint).toEqual(
             bpmnlintStatusView({ state: "default", platform: undefined }),
         );
-        finishLint({ results: RESULTS, unresolved: [] });
+        finishLint(hostRun(RESULTS));
         await flush();
 
         expect(host.statusBar.views.bpmnlint).toEqual(
             bpmnlintStatusView({ state: "default", platform: undefined }),
         );
+    });
+});
+
+describe("BpmnLintConfigService — workspace rule packages the user has not allowed", () => {
+    const ACME = "/work/node_modules/bpmnlint-plugin-acme";
+    const OTHER = "/work/node_modules/bpmnlint-plugin-other";
+    const RULES_OF: Record<string, string> = {
+        [ACME]: "plugin:acme/recommended",
+        [OTHER]: "plugin:other/recommended",
+    };
+    const XML_OTHER = "<other/>";
+    const OTHER_PATH = "/work/other.bpmn";
+    const REVIEW = { [RULE_PACKAGE_APPROVAL_NOTICE_ID]: "review" };
+    const ALLOW_ACME = { [RULE_PACKAGE_APPROVAL_PROMPT_ID]: [ACME] };
+
+    const blocked = (id: string, needed: boolean): BlockedRulePackage => ({
+        id,
+        kind: "package",
+        state: "new",
+        needed,
+    });
+
+    /** Sets its list only once the save was acknowledged, as the IntelliJ bridge's store does. */
+    class AcknowledgedApprovals extends InMemoryPluginApprovals {
+        override async write(approvals: readonly CodeApproval[]): Promise<void> {
+            await flush();
+            this.approvals = [...approvals];
+        }
+    }
+
+    function createRulePackageHost(
+        options: Pick<TestHostOptions, "noticeAnswers" | "promptAnswers"> & {
+            approvals?: PluginApprovalStorePort;
+            questions?: QuestionQueue;
+            files?: Record<string, string>;
+        } = {},
+    ) {
+        const host = createTestHost({
+            folders: ["/work"],
+            files: { [CONFIG_PATH]: ESCALATING_RAW, ...options.files },
+            noticeAnswers: options.noticeAnswers,
+            promptAnswers: options.promptAnswers,
+        });
+        const approvals = options.approvals ?? host.pluginApprovals;
+        const disk = new InMemoryInstalledPackages((bytes) =>
+            createHash("sha256").update(bytes).digest("hex"),
+        );
+        for (const dir of [ACME, OTHER]) {
+            const name = dir.split("/").at(-1);
+            disk.writeFile(`${dir}/package.json`, JSON.stringify({ name, version: "1.0.0" }));
+            disk.writeFile(`${dir}/index.js`, `module.exports = "${name}";`);
+        }
+        const fingerprinter = new PackageClosureFingerprinter(disk);
+        const catalog = new RulePackageCatalog(approvals, fingerprinter, host.notifier);
+        const question = new ApprovalQuestion(
+            catalog,
+            host.picker,
+            host.actionNotifier,
+            host.workspace,
+            options.questions ?? new QuestionQueue(),
+        );
+        // Plays the gate: what each diagram's lint needs stays blocked until a row allows it.
+        const blocks = new Map<string, BlockedRulePackage[]>([[XML, [blocked(ACME, true)]]]);
+        const refused: RefusedRuleModule[] = [];
+        const lintRunner = {
+            lint: vi.fn<LintRunnerPort["lint"]>(async (xml) => {
+                const allowed = new Set(approvals.read().map(({ pluginId }) => pluginId));
+                const stillBlocked = (blocks.get(xml) ?? []).filter(({ id }) => !allowed.has(id));
+                const skipped = stillBlocked.filter(({ needed }) => needed);
+                return {
+                    results: skipped.length > 0 ? {} : RESULTS,
+                    unresolved: skipped.map(({ id }) => RULES_OF[id]),
+                    blocked: stillBlocked,
+                    refused,
+                };
+            }),
+        };
+        const service = new BpmnLintConfigService(
+            host.store,
+            host.documents,
+            new BpmnLintConfigLocator(
+                host.workspace,
+                host.settings,
+                new ArtifactService(host.workspace, host.settings),
+            ),
+            lintRunner,
+            host.diagnostics,
+            host.statusBar,
+            host.notifier,
+            host.settings,
+            { catalog, question },
+        );
+        const contentHashOf = (id: string) => {
+            const fingerprint = fingerprinter.fingerprint({ kind: "package", id });
+            return fingerprint.kind === "fingerprinted" ? fingerprint.rulePackage.contentHash : "";
+        };
+        const hostResults = (editor: FakeEditorHandle) =>
+            editor.postedOfType<BpmnlintResultsQuery>("BpmnlintResultsQuery").map((m) => m.results);
+        return { host, approvals, catalog, blocks, refused, service, contentHashOf, hostResults };
+    }
+
+    const blockedOnAcme = bpmnlintStatusView({
+        state: "blocked",
+        configPath: CONFIG_PATH,
+        unresolved: [RULES_OF[ACME]],
+        notAllowed: [ACME],
+    });
+
+    it("pushes the host lint's results while the rule package question is still open", async () => {
+        const { host, service, hostResults } = createRulePackageHost();
+        host.actionNotifier.holdNextNotice();
+        const editor = host.openEditor(PATH, XML, { focused: true });
+
+        const pushed = await service.setBpmnlintConfig(editor.id);
+        await flush();
+
+        expect(pushed).toBe(true);
+        expect(hostResults(editor)).toEqual([{}]);
+        expect(host.statusBar.views.bpmnlint).toEqual(blockedOnAcme);
+        expect(host.actionNotifier.notices.map(({ id }) => id)).toEqual([
+            RULE_PACKAGE_APPROVAL_NOTICE_ID,
+        ]);
+    });
+
+    it("allows a checked package and lints again only the diagrams blocked on it", async () => {
+        const ctx = createRulePackageHost({ noticeAnswers: REVIEW, promptAnswers: ALLOW_ACME });
+        ctx.blocks.set(XML_OTHER, [blocked(OTHER, false)]);
+        const other = ctx.host.openEditor(OTHER_PATH, XML_OTHER);
+        const acme = ctx.host.openEditor(PATH, XML, { focused: true });
+
+        await ctx.service.setBpmnlintConfig(other.id);
+        await ctx.service.setBpmnlintConfig(acme.id);
+        await ctx.service.whenApprovalSettled();
+
+        expect(ctx.approvals.read()).toEqual([
+            { pluginId: ACME, contentHash: ctx.contentHashOf(ACME) },
+        ]);
+        expect(ctx.hostResults(acme)).toEqual([{}, RESULTS]);
+        expect(ctx.hostResults(other)).toEqual([RESULTS]);
+        expect(ctx.host.statusBar.views.bpmnlint).toEqual(
+            bpmnlintStatusView({ state: "active", configPath: CONFIG_PATH }),
+        );
+        expect(ctx.host.notifier.logged("info")).toContain(
+            "Allowed bpmnlint rule package(s): bpmnlint-plugin-acme",
+        );
+    });
+
+    it.each([
+        { answer: "leaves it unchecked", noticeAnswers: REVIEW },
+        { answer: "closes the notice", noticeAnswers: {} },
+    ])(
+        "asks no more this session when the user $answer, and still shows the package as not allowed",
+        async ({ noticeAnswers }) => {
+            const { host, approvals, service } = createRulePackageHost({ noticeAnswers });
+            const editor = host.openEditor(PATH, XML, { focused: true });
+
+            await service.setBpmnlintConfig(editor.id);
+            await service.whenApprovalSettled();
+            await service.setBpmnlintConfig(editor.id);
+            await service.whenApprovalSettled();
+
+            expect(host.actionNotifier.notices).toHaveLength(1);
+            expect(approvals.read()).toEqual([]);
+            expect(host.statusBar.views.bpmnlint).toEqual(blockedOnAcme);
+        },
+    );
+
+    it("does not lint a diagram again whose diagnostics were cleared before the package was allowed", async () => {
+        const { host, approvals, service, hostResults } = createRulePackageHost({
+            promptAnswers: ALLOW_ACME,
+        });
+        const notice = host.actionNotifier.holdNextNotice();
+        const editor = host.openEditor(PATH, XML, { focused: true });
+        await service.setBpmnlintConfig(editor.id);
+        await flush();
+
+        service.clearDiagnostics(editor.id);
+        notice.answer("review");
+        await service.whenApprovalSettled();
+        await flush();
+
+        expect(approvals.read().map(({ pluginId }) => pluginId)).toEqual([ACME]);
+        expect(hostResults(editor)).toEqual([{}]);
+    });
+
+    it("never asks about a package the bundle stood in for, and logs it once per config", async () => {
+        const { host, blocks, catalog, service } = createRulePackageHost({
+            noticeAnswers: REVIEW,
+            promptAnswers: ALLOW_ACME,
+        });
+        blocks.set(XML, [blocked(ACME, false)]);
+        const editor = host.openEditor(PATH, XML, { focused: true });
+
+        await service.setBpmnlintConfig(editor.id);
+        await service.setBpmnlintConfig(editor.id);
+        await service.whenApprovalSettled();
+
+        expect(host.actionNotifier.notices).toEqual([]);
+        expect(host.statusBar.views.bpmnlint).toEqual(
+            bpmnlintStatusView({ state: "active", configPath: CONFIG_PATH }),
+        );
+        expect(host.notifier.logged("info").filter((line) => line.includes("stand in"))).toEqual([
+            `bpmnlint: bundled rules stand in for a rule package that is not allowed yet: ${ACME}`,
+        ]);
+        expect(catalog.seenPackages()).toEqual([blocked(ACME, false)]);
+    });
+
+    it("logs each package not allowed yet on every run, and why workspace code was refused once", async () => {
+        const { host, blocks, refused, service } = createRulePackageHost();
+        host.actionNotifier.holdNextNotice();
+        blocks.set(XML, [blocked(ACME, true), blocked(OTHER, false)]);
+        refused.push({
+            kind: "module",
+            file: "/work/rules/naming.js",
+            reason: "outsideNodeModules",
+        });
+        const editor = host.openEditor(PATH, XML, { focused: true });
+
+        await service.setBpmnlintConfig(editor.id);
+        await service.setBpmnlintConfig(editor.id);
+
+        const notAllowedLine = `bpmnlint: rule package ${ACME} is not allowed yet (new), so rules from it are skipped.`;
+        const refusedLine =
+            "bpmnlint: refused to run /work/rules/naming.js: it is neither in node_modules nor in the config's own package, so no approval can cover it.";
+        expect(
+            host.notifier
+                .logged("warning")
+                .filter((line) => line === notAllowedLine || line === refusedLine),
+        ).toEqual([notAllowedLine, refusedLine, notAllowedLine]);
+        expect(host.notifier.logged("info").filter((line) => line.includes("stand in"))).toEqual([
+            `bpmnlint: bundled rules stand in for a rule package that is not allowed yet: ${OTHER}`,
+        ]);
+    });
+
+    it("asks one question at a time beside the plugin question, and keeps both answers", async () => {
+        const RESIZE = "/work/.camunda/plugins/resize-tasks";
+        const approvals = new AcknowledgedApprovals();
+        const questions = new QuestionQueue();
+        const ctx = createRulePackageHost({
+            approvals,
+            questions,
+            files: {
+                [`${RESIZE}/plugin.json`]: '{ "name": "Resize Tasks", "script": "client.js" }',
+                [`${RESIZE}/client.js`]: "registerResize();",
+            },
+            noticeAnswers: { ...REVIEW, [PLUGIN_APPROVAL_NOTICE_ID]: "review" },
+            promptAnswers: { ...ALLOW_ACME, [PLUGIN_APPROVAL_PROMPT_ID]: [RESIZE] },
+        });
+        const plugins = new BpmnPluginsFeature({
+            ...ctx.host,
+            artifacts: new ArtifactService(ctx.host.workspace, ctx.host.settings),
+            approvals,
+            cacheRoot: "/storage/bpmn-plugins",
+            hasher: fingerprintHasher,
+            questions,
+        });
+        const pluginNotice = ctx.host.actionNotifier.holdNextNotice();
+        const editor = ctx.host.openEditor(PATH, XML, { focused: true });
+        await plugins.editorContribution.commandHandlers.GetBpmnPluginsCommand(
+            new GetBpmnPluginsCommand(),
+            editor.id,
+        );
+        await ctx.service.setBpmnlintConfig(editor.id);
+        await flush();
+        const openWhilePluginAsked = ctx.host.actionNotifier.notices.map(({ id }) => id);
+
+        pluginNotice.answer("review");
+        await plugins.service.whenApprovalSettled();
+        await ctx.service.whenApprovalSettled();
+
+        expect(openWhilePluginAsked).toEqual([PLUGIN_APPROVAL_NOTICE_ID]);
+        expect(ctx.host.actionNotifier.notices.map(({ id }) => id)).toEqual([
+            PLUGIN_APPROVAL_NOTICE_ID,
+            RULE_PACKAGE_APPROVAL_NOTICE_ID,
+        ]);
+        expect(approvals.read().map(({ pluginId }) => pluginId)).toEqual([RESIZE, ACME]);
     });
 });

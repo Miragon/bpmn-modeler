@@ -38,14 +38,25 @@ const FRESH_TOKEN = "lint-cfg-2";
 const NEGOTIATED: Negotiation = { ...COVERED, token: "lint-cfg-1" };
 const NODE_ONLY_NEGOTIATED: Negotiation = { ...NODE_ONLY, token: "lint-cfg-1" };
 
-const OUTPUT: LintRunOutput = { xml: "<xml/>", results: RESULTS, unresolved: [] };
+const OUTPUT: LintRunOutput = { xml: "<xml/>", results: RESULTS, unresolved: [], blocked: [] };
+const HOST_OUTPUT: LintRunOutput = {
+    ...OUTPUT,
+    blocked: [
+        {
+            id: "/work/node_modules/bpmnlint-plugin-acme",
+            kind: "package",
+            state: "new",
+            needed: true,
+        },
+    ],
+};
 const DEFAULT_FINDINGS: LintFindings = { ...OUTPUT, source: { kind: "in-page", platform: "c7" } };
 const COVERED_FINDINGS: LintFindings = {
     ...OUTPUT,
     source: { kind: "in-page", platform: "c7", configPath: CONFIG_PATH },
 };
 const HOST_FINDINGS: LintFindings = {
-    ...OUTPUT,
+    ...HOST_OUTPUT,
     source: { kind: "workspace", configPath: CONFIG_PATH },
 };
 
@@ -93,7 +104,7 @@ function webviewLinted(
 }
 
 function hostLintFinished(token: string): LintSessionEvent {
-    return { type: "hostLintFinished", token, output: OUTPUT };
+    return { type: "hostLintFinished", token, output: HOST_OUTPUT };
 }
 
 function hostLintFailed(token: string): LintSessionEvent {

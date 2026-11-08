@@ -47,6 +47,39 @@ const cases: ViewCase[] = [
         },
     },
     {
+        name: "warns that one rule package is not allowed yet, without an install hint",
+        indicator: {
+            state: "blocked",
+            configPath: CONFIG_PATH,
+            unresolved: ["plugin:acme/recommended"],
+            notAllowed: ["/work/node_modules/bpmnlint-plugin-acme"],
+        },
+        view: {
+            text: "BPMNlint: 1 rule package not allowed",
+            icon: "warning",
+            tooltip: `${CONFIG_PATH}\n\n1 rule package in this workspace is not allowed yet.\nSkipped: plugin:acme/recommended`,
+            tone: "warning",
+        },
+    },
+    {
+        name: "counts several rule packages not allowed yet in the plural",
+        indicator: {
+            state: "blocked",
+            configPath: CONFIG_PATH,
+            unresolved: ["plugin:acme/recommended", "other/naming"],
+            notAllowed: [
+                "/work/node_modules/bpmnlint-plugin-acme",
+                "/work/node_modules/bpmnlint-plugin-other",
+            ],
+        },
+        view: {
+            text: "BPMNlint: 2 rule packages not allowed",
+            icon: "warning",
+            tooltip: `${CONFIG_PATH}\n\n2 rule packages in this workspace are not allowed yet.\nSkipped: plugin:acme/recommended, other/naming`,
+            tone: "warning",
+        },
+    },
+    {
         name: "names Camunda 7 for the bundled default of a Camunda 7 diagram",
         indicator: { state: "default", platform: "c7" },
         view: {
