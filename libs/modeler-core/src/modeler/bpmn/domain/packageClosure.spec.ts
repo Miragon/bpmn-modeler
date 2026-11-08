@@ -4,6 +4,11 @@ import {
     CLOSURE_SIZE_LIMIT,
     type DependencyCandidate,
     dependencyCandidates,
+    type DependencyLookup,
+    dependencyLookupOf,
+    type DependencyProbe,
+    dependencyProbeOf,
+    type DependencyProbeStamps,
     exceedsClosureSizeLimit,
     type InstalledEntryKind,
     isExcludedMemberEntry,
@@ -202,6 +207,119 @@ describe("dependencyCandidates", () => {
         },
     ])("looks a dependency up in $case", ({ fromDir, name, candidates }) => {
         expect(dependencyCandidates(fromDir, name)).toEqual(candidates);
+    });
+});
+
+describe("dependencyProbeOf", () => {
+    it.each<{ case: string; packageDir: string; probe: DependencyProbe }>([
+        {
+            case: "a plain name",
+            packageDir: "/repo/node_modules/dep",
+            probe: {
+                files: [
+                    "/repo/node_modules/dep",
+                    "/repo/node_modules/dep.js",
+                    "/repo/node_modules/dep.json",
+                    "/repo/node_modules/dep.node",
+                ],
+                manifest: "/repo/node_modules/dep/package.json",
+                indexFiles: [
+                    "/repo/node_modules/dep/index.js",
+                    "/repo/node_modules/dep/index.json",
+                    "/repo/node_modules/dep/index.node",
+                ],
+            },
+        },
+        {
+            case: "a scoped name",
+            packageDir: "/repo/node_modules/@s/dep",
+            probe: {
+                files: [
+                    "/repo/node_modules/@s/dep",
+                    "/repo/node_modules/@s/dep.js",
+                    "/repo/node_modules/@s/dep.json",
+                    "/repo/node_modules/@s/dep.node",
+                ],
+                manifest: "/repo/node_modules/@s/dep/package.json",
+                indexFiles: [
+                    "/repo/node_modules/@s/dep/index.js",
+                    "/repo/node_modules/@s/dep/index.json",
+                    "/repo/node_modules/@s/dep/index.node",
+                ],
+            },
+        },
+    ])("looks where Node looks for $case", ({ packageDir, probe }) => {
+        expect(dependencyProbeOf(packageDir)).toEqual(probe);
+    });
+});
+
+describe("dependencyLookupOf", () => {
+    const file: PathStamp = STAMP;
+    const directory: PathStamp = { ...STAMP, kind: "directory" };
+    const other: PathStamp = { ...STAMP, kind: "other" };
+    const none = [undefined, undefined, undefined, undefined];
+
+    it.each<{ case: string; found: DependencyProbeStamps; lookup: DependencyLookup }>([
+        {
+            case: "a folder with a manifest",
+            found: { files: [directory, ...none.slice(1)], manifest: file, indexFiles: none },
+            lookup: "package",
+        },
+        {
+            case: "a folder with a manifest and an index",
+            found: { files: [directory], manifest: file, indexFiles: [file] },
+            lookup: "package",
+        },
+        {
+            case: "nothing",
+            found: { files: none, manifest: undefined, indexFiles: none },
+            lookup: "absent",
+        },
+        {
+            case: "a folder with neither manifest nor index",
+            found: { files: [directory], manifest: undefined, indexFiles: none },
+            lookup: "absent",
+        },
+        {
+            case: "a folder whose manifest is a folder",
+            found: { files: [directory], manifest: directory, indexFiles: [directory] },
+            lookup: "absent",
+        },
+        {
+            case: "a folder named like a file form",
+            found: { files: [undefined, directory], manifest: undefined, indexFiles: none },
+            lookup: "absent",
+        },
+        {
+            case: "a special file named like the dependency",
+            found: { files: [other], manifest: undefined, indexFiles: none },
+            lookup: "absent",
+        },
+        {
+            case: "a file named like the dependency",
+            found: { files: [file], manifest: undefined, indexFiles: none },
+            lookup: "unsupportedLayout",
+        },
+        {
+            case: "a file form beside a folder with a manifest",
+            found: {
+                files: [directory, undefined, undefined, file],
+                manifest: file,
+                indexFiles: none,
+            },
+            lookup: "unsupportedLayout",
+        },
+        {
+            case: "a folder with an index and no manifest",
+            found: {
+                files: [directory],
+                manifest: undefined,
+                indexFiles: [undefined, undefined, file],
+            },
+            lookup: "unsupportedLayout",
+        },
+    ])("finds $case: $lookup", ({ found, lookup }) => {
+        expect(dependencyLookupOf(found)).toBe(lookup);
     });
 });
 

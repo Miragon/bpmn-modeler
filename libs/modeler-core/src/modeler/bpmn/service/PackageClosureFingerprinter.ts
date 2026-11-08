@@ -6,6 +6,8 @@ import {
     ClosureSize,
     ClosureStamp,
     dependencyCandidates,
+    dependencyLookupOf,
+    dependencyProbeOf,
     exceedsClosureSizeLimit,
     InstalledEntryKind,
     isExcludedMemberEntry,
@@ -55,6 +57,7 @@ interface WalkedMember {
 }
 
 type Refused = { readonly refused: ClosureRefusal };
+type RefusedAt = Refused & { readonly memberDir: string };
 
 const refused = (reason: ClosureRefusal): Refused => ({ refused: reason });
 const isRefused = <T extends object>(value: T | Refused): value is Refused => "refused" in value;
@@ -96,6 +99,9 @@ export class PackageClosureFingerprinter {
             closure.set(dir, member);
             for (const name of member.manifest.dependencies) {
                 const found = this.resolveDependency(dir, name, lookupStamps);
+                if (typeof found === "object") {
+                    return { kind: "refused", reason: found.refused, memberDir: found.memberDir };
+                }
                 if (found !== undefined) {
                     queue.push(found);
                 }
@@ -252,18 +258,31 @@ export class PackageClosureFingerprinter {
         };
     }
 
-    /** Stamps every folder it looks in, so installing a missing or nearer copy shows as a change. */
+    /**
+     * Stamps every folder it looks in, the package folders it passes over
+     * included, so installing a missing or nearer copy shows as a change.
+     */
     private resolveDependency(
         fromDir: string,
         name: string,
         lookupStamps: Map<string, ClosureStamp>,
-    ): string | undefined {
+    ): string | undefined | RefusedAt {
         for (const { packageDir, watchedDirs } of dependencyCandidates(fromDir, name)) {
-            for (const path of watchedDirs) {
+            for (const path of [...watchedDirs, packageDir]) {
                 lookupStamps.set(path, { path, stamp: this.packages.stamp(path) });
             }
-            const manifest = this.packages.stamp(joinWorkspacePath(packageDir, "package.json"));
-            if (manifest?.kind === "file") {
+            const probe = dependencyProbeOf(packageDir);
+            const stampsOf = (paths: readonly string[]) =>
+                paths.map((path) => this.packages.stamp(path));
+            const lookup = dependencyLookupOf({
+                files: stampsOf(probe.files),
+                manifest: this.packages.stamp(probe.manifest),
+                indexFiles: stampsOf(probe.indexFiles),
+            });
+            if (lookup === "unsupportedLayout") {
+                return { ...refused(lookup), memberDir: packageDir };
+            }
+            if (lookup === "package") {
                 return this.packages.realPath(packageDir);
             }
         }

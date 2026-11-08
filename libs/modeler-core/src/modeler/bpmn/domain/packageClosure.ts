@@ -46,7 +46,25 @@ export interface ClosureSize {
     readonly bytes: number;
 }
 
-export type ClosureRefusal = "linksOutsideFolder" | "tooLarge" | "unreadable" | "specialFile";
+export interface DependencyProbe {
+    /** What Node loads before the folder: the name as a file, then with each extension it tries. */
+    readonly files: readonly string[];
+    readonly manifest: string;
+    /** What Node loads from the folder when it holds no `package.json`. */
+    readonly indexFiles: readonly string[];
+}
+
+/** The stamps of a `DependencyProbe`'s paths, in its order. */
+export interface DependencyProbeStamps {
+    readonly files: readonly (PathStamp | undefined)[];
+    readonly manifest: PathStamp | undefined;
+    readonly indexFiles: readonly (PathStamp | undefined)[];
+}
+
+export type DependencyLookup = "package" | "absent" | "unsupportedLayout";
+
+export type ClosureRefusal =
+    "linksOutsideFolder" | "tooLarge" | "unreadable" | "specialFile" | "unsupportedLayout";
 
 /** A path a closure's digest depends on, with what it named then; `undefined` when nothing was there. */
 export interface ClosureStamp {
@@ -76,6 +94,7 @@ const NODE_MODULES = "node_modules";
 const MEMBER_ROOT_EXCLUSIONS: ReadonlySet<string> = new Set([NODE_MODULES, ".git"]);
 const SELF_PACKAGE_MODEL_FILE = /(?:\.(?:bpmn|dmn|form)|^\.bpmnlintrc)$/;
 const DEPENDENCY_FIELDS = ["dependencies", "optionalDependencies", "peerDependencies"] as const;
+const FILE_EXTENSIONS = [".js", ".json", ".node"] as const;
 
 export function samePathStamp(a: PathStamp | undefined, b: PathStamp | undefined): boolean {
     if (a === undefined || b === undefined) {
@@ -136,6 +155,32 @@ export function dependencyCandidates(fromDir: string, name: string): DependencyC
     return candidates;
 }
 
+export function dependencyProbeOf(packageDir: string): DependencyProbe {
+    return {
+        files: [packageDir, ...FILE_EXTENSIONS.map((extension) => `${packageDir}${extension}`)],
+        manifest: joinWorkspacePath(packageDir, "package.json"),
+        indexFiles: FILE_EXTENSIONS.map((extension) =>
+            joinWorkspacePath(packageDir, `index${extension}`),
+        ),
+    };
+}
+
+/**
+ * A file Node takes before the folder, or an index it takes from a folder
+ * without a manifest, has no name and version to make it a member. Refusing
+ * beats hashing a farther copy that Node does not load. A folder with
+ * neither Node passes over, and so does the lookup.
+ */
+export function dependencyLookupOf(found: DependencyProbeStamps): DependencyLookup {
+    if (found.files.some(isFileStamp)) {
+        return "unsupportedLayout";
+    }
+    if (isFileStamp(found.manifest)) {
+        return "package";
+    }
+    return found.indexFiles.some(isFileStamp) ? "unsupportedLayout" : "absent";
+}
+
 /**
  * Only a member's own `node_modules` (separate members) and `.git` stay out;
  * one deeper is content Node could load. The self-package also leaves out
@@ -172,6 +217,10 @@ export function exceedsClosureSizeLimit(
     limit: ClosureSize = CLOSURE_SIZE_LIMIT,
 ): boolean {
     return totals.entries > limit.entries || totals.bytes > limit.bytes;
+}
+
+function isFileStamp(stamp: PathStamp | undefined): boolean {
+    return stamp?.kind === "file";
 }
 
 function parsedObject(text: string): Record<string, unknown> | undefined {
