@@ -1,34 +1,37 @@
 import { ActionNotice } from "../../kernel/domain/actionNotice";
+import {
+    ApprovableArtifact,
+    ApprovalState,
+    approvedArtifacts,
+    CodeApprovalOutcome,
+    PendingCodeApproval,
+} from "../../kernel/domain/codeApproval";
 import { ChoicePrompt } from "../../kernel/domain/prompts";
 import { relativeToWorkspace } from "../../kernel/domain/rootContainment";
 import { joinWorkspacePath } from "../../kernel/domain/workspacePath";
 
-/** A plugin found in a workspace's `<configFolder>/plugins/<folder>`. */
-export interface WorkspacePlugin {
-    /** The plugin folder: an approval is for this folder, never for a name a repo can copy. */
-    readonly id: string;
-    readonly name: string;
+export {
+    approvalOutcome,
+    approvalsAllowing,
+    approvalStateOf,
+    declineKeyOf,
+    pendingApprovals,
+    type PluginApproval,
+} from "../../kernel/domain/codeApproval";
+
+/** A plugin found in a workspace's `<configFolder>/plugins/<folder>`; its id is that folder. */
+export interface WorkspacePlugin extends ApprovableArtifact {
     readonly scriptPath: string;
     readonly stylePath?: string;
-    /** Covers the script and the style, so any change to either asks again. */
-    readonly contentHash: string;
 }
 
-/**
- * The user allowed this content in this folder. Kept by the host for the
- * user, outside the workspace, so a repository cannot approve itself.
- */
-export interface PluginApproval {
-    readonly pluginId: string;
-    readonly contentHash: string;
-}
+export type PluginApprovalState = ApprovalState;
 
-export type PluginApprovalState = "approved" | "new" | "changed";
+export type PendingApproval = PendingCodeApproval<WorkspacePlugin>;
 
-export interface PendingApproval {
-    readonly plugin: WorkspacePlugin;
-    readonly state: Exclude<PluginApprovalState, "approved">;
-}
+export type ApprovalOutcome = CodeApprovalOutcome<WorkspacePlugin>;
+
+export const approvedPlugins = approvedArtifacts;
 
 export const PLUGIN_APPROVAL_PROMPT_ID = "bpmnPluginApproval";
 
@@ -41,72 +44,6 @@ const NO_STYLE = "-";
 export function approvedContent(script: string, style: string | undefined): string {
     const lengthPrefixed = (text: string) => `${text.length}:${text}`;
     return lengthPrefixed(script) + (style === undefined ? NO_STYLE : lengthPrefixed(style));
-}
-
-export function approvalStateOf(
-    plugin: WorkspacePlugin,
-    approvals: readonly PluginApproval[],
-): PluginApprovalState {
-    const approval = approvals.find((each) => each.pluginId === plugin.id);
-    if (approval === undefined) {
-        return "new";
-    }
-    return approval.contentHash === plugin.contentHash ? "approved" : "changed";
-}
-
-export function approvedPlugins<P extends WorkspacePlugin>(
-    plugins: readonly P[],
-    approvals: readonly PluginApproval[],
-): P[] {
-    return plugins.filter((plugin) => approvalStateOf(plugin, approvals) === "approved");
-}
-
-export function approvalsAllowing(
-    approvals: readonly PluginApproval[],
-    allowed: readonly WorkspacePlugin[],
-): PluginApproval[] {
-    const allowedIds = new Set(allowed.map((plugin) => plugin.id));
-    return [
-        ...approvals.filter((approval) => !allowedIds.has(approval.pluginId)),
-        ...allowed.map((plugin) => ({ pluginId: plugin.id, contentHash: plugin.contentHash })),
-    ];
-}
-
-/** Names one plugin version, so a decline lasts only until its content changes. */
-export function declineKeyOf(plugin: WorkspacePlugin): string {
-    return `${plugin.id}#${plugin.contentHash}`;
-}
-
-export function pendingApprovals(
-    plugins: readonly WorkspacePlugin[],
-    approvals: readonly PluginApproval[],
-    declinedThisSession: ReadonlySet<string>,
-): PendingApproval[] {
-    return plugins.flatMap((plugin) => {
-        const state = approvalStateOf(plugin, approvals);
-        return state === "approved" || declinedThisSession.has(declineKeyOf(plugin))
-            ? []
-            : [{ plugin, state }];
-    });
-}
-
-export interface ApprovalOutcome {
-    readonly allowed: readonly WorkspacePlugin[];
-    /** {@link declineKeyOf} of each plugin left unchecked; a dismissal leaves all of them. */
-    readonly declineKeys: readonly string[];
-}
-
-export function approvalOutcome(
-    pending: readonly PendingApproval[],
-    checkedIds: readonly string[],
-): ApprovalOutcome {
-    const checked = new Set(checkedIds);
-    return {
-        allowed: pending.filter(({ plugin }) => checked.has(plugin.id)).map(({ plugin }) => plugin),
-        declineKeys: pending
-            .filter(({ plugin }) => !checked.has(plugin.id))
-            .map(({ plugin }) => declineKeyOf(plugin)),
-    };
 }
 
 const STATE_DESCRIPTION: Record<PendingApproval["state"], string> = {

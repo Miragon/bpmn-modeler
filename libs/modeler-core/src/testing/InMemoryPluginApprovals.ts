@@ -1,5 +1,5 @@
-import { PluginApproval } from "../bpmnPlugins/domain/pluginApproval";
-import { PluginApprovalStorePort } from "../bpmnPlugins/port/pluginPorts";
+import { PluginApproval } from "../kernel/domain/codeApproval";
+import { PluginApprovalStorePort } from "../kernel/port/approvalPorts";
 
 export class InMemoryPluginApprovals implements PluginApprovalStorePort {
     approvals: readonly PluginApproval[] = [];
