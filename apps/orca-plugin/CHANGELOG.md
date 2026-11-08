@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/Miragon/bpmn-modeler/compare/orca-v0.1.0...orca-v0.1.1) (2026-11-08)
+
+
+### 🐞 Bug Fixes
+
+* **orca-plugin:** ship the icon fonts as WOFF only, as Orca's directory refuses EOT files ([#2260](https://github.com/Miragon/bpmn-modeler/issues/2260)) ([5850437](https://github.com/Miragon/bpmn-modeler/commit/585043721f1fd45763c9e5f8824e037db7fed1b7))
+
 ## 0.1.0 (2026-11-08)
 
 
