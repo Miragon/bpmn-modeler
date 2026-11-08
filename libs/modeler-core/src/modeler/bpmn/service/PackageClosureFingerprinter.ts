@@ -9,6 +9,7 @@ import {
     dependencyLookupOf,
     dependencyProbeOf,
     exceedsClosureSizeLimit,
+    FingerprintedRoot,
     InstalledEntryKind,
     isExcludedMemberEntry,
     isLinkInsideMember,
@@ -23,12 +24,9 @@ import {
     ClosureMember,
     memberDigestInput,
     PackageFileDigest,
-    RuleModuleRoot,
     rulePackageContentHash,
 } from "../domain/rulePackageApproval";
 import { InstalledPackagesPort } from "../port/installedPackagesPort";
-
-export type FingerprintedRoot = Exclude<RuleModuleRoot, { kind: "refused" }>;
 
 interface HashedFile {
     readonly stamp: PathStamp;

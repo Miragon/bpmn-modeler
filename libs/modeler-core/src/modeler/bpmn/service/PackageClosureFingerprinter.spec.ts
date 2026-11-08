@@ -3,9 +3,9 @@ import { createHash } from "node:crypto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { InMemoryInstalledPackages } from "../../../testing";
-import type { ClosureFingerprint, ClosureSize } from "../domain/packageClosure";
+import type { ClosureFingerprint, ClosureSize, FingerprintedRoot } from "../domain/packageClosure";
 import { RULE_PACKAGE_CONTENT_HASH_PREFIX } from "../domain/rulePackageApproval";
-import { FingerprintedRoot, PackageClosureFingerprinter } from "./PackageClosureFingerprinter";
+import { PackageClosureFingerprinter } from "./PackageClosureFingerprinter";
 
 const REPO = "/repo";
 const NODE_MODULES = `${REPO}/node_modules`;

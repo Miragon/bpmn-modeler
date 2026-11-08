@@ -25,7 +25,9 @@ export interface PathStamp {
     readonly ctimeNs: bigint;
 }
 
-export type MemberKind = Exclude<RuleModuleRoot["kind"], "refused">;
+export type FingerprintedRoot = Exclude<RuleModuleRoot, { kind: "refused" }>;
+
+export type MemberKind = FingerprintedRoot["kind"];
 
 export interface PackageManifest {
     readonly name: string;
