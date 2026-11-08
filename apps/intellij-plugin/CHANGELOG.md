@@ -1,5 +1,43 @@
 # Changelog
 
+## [1.15.0](https://github.com/Miragon/bpmn-modeler/compare/intellij-v1.14.0...intellij-v1.15.0) (2026-11-08)
+
+
+### 🎉 New Features
+
+* **orca-plugin:** open .bpmn and .dmn files in Orca ([#2210](https://github.com/Miragon/bpmn-modeler/issues/2210)) ([b7d4773](https://github.com/Miragon/bpmn-modeler/commit/b7d4773f0aa9e80d757a87b8ed613a923e2d7db0))
+
+
+### 🐞 Bug Fixes
+
+* **bpmn-modeler:** fit a diagram with the same gap to the palette as to the right edge ([#2255](https://github.com/Miragon/bpmn-modeler/issues/2255)) [sync b691b66] ([dc13bc8](https://github.com/Miragon/bpmn-modeler/commit/dc13bc8377a1ed0b22b6d0dc6a7e6f55ac8a7f1e))
+* **bpmn-modeler:** keep the mode chip beside the token simulation toggle when the toggle grows ([#2258](https://github.com/Miragon/bpmn-modeler/issues/2258)) [sync 2e8ec37] ([276369a](https://github.com/Miragon/bpmn-modeler/commit/276369a55e28880d6a09462c66ac4a07c1ce7699))
+* **deployment-webview:** check start-instance auth fields like deploy ([#2197](https://github.com/Miragon/bpmn-modeler/issues/2197)) [sync 755b32e] ([c099cf4](https://github.com/Miragon/bpmn-modeler/commit/c099cf4bd2d0a13c1683eea8ded4f8aa1385c267))
+* **modeler-bridge:** keep the spinner until every run of its title ends ([#2189](https://github.com/Miragon/bpmn-modeler/issues/2189)) [sync b34a0cb] ([6b25d19](https://github.com/Miragon/bpmn-modeler/commit/6b25d198dc4860d3c5f884b45d399a99a705c95a))
+* **modeler-bridge:** show no sync error when IntelliJ fails an edit ([#2186](https://github.com/Miragon/bpmn-modeler/issues/2186)) [sync 8456263] ([80af90e](https://github.com/Miragon/bpmn-modeler/commit/80af90e40a9df69cd118f68d6401e2fcebb794f3))
+* **modeler-core:** follow the C8 API version in requests and form hints ([#2209](https://github.com/Miragon/bpmn-modeler/issues/2209)) [sync 80bf642] ([8bfb20f](https://github.com/Miragon/bpmn-modeler/commit/8bfb20fc8c5541bbdfc3451f99723086cf90ad25))
+* **modeler-core:** say a marketplace is already registered, not added ([#2201](https://github.com/Miragon/bpmn-modeler/issues/2201)) [sync d974411] ([5bef969](https://github.com/Miragon/bpmn-modeler/commit/5bef9696ffc888574b31657b706453c1b6a51928))
+* **modeler-core:** start new model files with the XML declaration ([#2198](https://github.com/Miragon/bpmn-modeler/issues/2198)) ([0a57387](https://github.com/Miragon/bpmn-modeler/commit/0a5738752bbeb6168ae458c4f2fcd61450f65392))
+
+
+### 🔨 Refactoring
+
+* **modeler-core:** build the marketplace add and remove texts ([#2172](https://github.com/Miragon/bpmn-modeler/issues/2172)) ([75786e9](https://github.com/Miragon/bpmn-modeler/commit/75786e96ad9ebea4ac0e7b787b91a23a5b30f6f2))
+* **modeler-core:** give the colour themes and engines one home ([#2207](https://github.com/Miragon/bpmn-modeler/issues/2207)) ([7f49d8b](https://github.com/Miragon/bpmn-modeler/commit/7f49d8b17b34ecc2541289c277056b355fec3bd6))
+* **webviews:** move three webviews into their role folders ([#2180](https://github.com/Miragon/bpmn-modeler/issues/2180)) ([72c4e69](https://github.com/Miragon/bpmn-modeler/commit/72c4e6963c676ccc18e8f6343343fddd99e75f17))
+
+
+### 📔 Documentation
+
+* make the store images with the product-shots skill and rewrite the store READMEs ([#2254](https://github.com/Miragon/bpmn-modeler/issues/2254)) ([4eb590a](https://github.com/Miragon/bpmn-modeler/commit/4eb590a154b892e19ce9d6f1e06e7b25555d65dd))
+* write each README for one reader, its users or its developers ([#2253](https://github.com/Miragon/bpmn-modeler/issues/2253)) ([3d28322](https://github.com/Miragon/bpmn-modeler/commit/3d28322c3ad26e0038fb88fc90f3dd44dc4a1417))
+
+
+### 🛠️ Misc
+
+* **intellij-plugin:** pin the default modes to the surface modes ([#2177](https://github.com/Miragon/bpmn-modeler/issues/2177)) ([180b8cc](https://github.com/Miragon/bpmn-modeler/commit/180b8cc20d6235eb06c525d8f5baa8c0152cfb12))
+* **intellij-plugin:** pin the script completion matchers to the core ([#2208](https://github.com/Miragon/bpmn-modeler/issues/2208)) ([7267b86](https://github.com/Miragon/bpmn-modeler/commit/7267b86c14f2824f7ee461a65fc0c6cc4d837c9d))
+
 ## [1.14.0](https://github.com/Miragon/bpmn-modeler/compare/intellij-v1.13.0...intellij-v1.14.0) (2026-11-05)
 
 
