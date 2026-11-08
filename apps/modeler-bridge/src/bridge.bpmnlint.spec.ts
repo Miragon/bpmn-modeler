@@ -673,17 +673,19 @@ describe("workspace bpmnlint rule packages on the bridge", () => {
         disposals.push(approving.dispose);
         const approvals = await allowAcme(approving);
         const bridge = await openAcme(root);
-        await lintOnHost(bridge);
-        const noticesBefore = bridge.frames.filter(isRequest("actionNotice/show")).length;
-        const runsBefore = (await acmeRuns(root)).length;
+        const beforePush = await lintOnHost(bridge);
+        await settle();
+        expect(findingsOf(beforePush)).not.toHaveProperty([ACME_RULE]);
+        await expect(acmeRuns(root)).resolves.toEqual(["v1"]);
+        expect(bridge.frames.filter(isRequest("actionNotice/show"))).toHaveLength(1);
 
         await bridge.rpc.handleLine(hostNotification("pluginApprovals/didChange", { approvals }));
         const results = await relint(bridge);
 
         expect(findingsOf(results)).toHaveProperty([ACME_RULE]);
-        await expect(acmeRuns(root)).resolves.toHaveLength(runsBefore + 1);
+        await expect(acmeRuns(root)).resolves.toEqual(["v1", "v1"]);
         await settle();
-        expect(bridge.frames.filter(isRequest("actionNotice/show"))).toHaveLength(noticesBefore);
+        expect(bridge.frames.filter(isRequest("actionNotice/show"))).toHaveLength(1);
     });
 
     it("stops running a package whose dependency changed after the approval and reports it changed", async () => {
