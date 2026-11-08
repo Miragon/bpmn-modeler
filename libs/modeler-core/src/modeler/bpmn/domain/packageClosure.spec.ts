@@ -407,7 +407,7 @@ describe("exceedsClosureSizeLimit", () => {
         expect(exceedsClosureSizeLimit(totals)).toBe(exceeds);
     });
 
-    it("leaves room for ten times the largest closure measured", () => {
+    it("leaves room for about eight times the largest closure measured", () => {
         expect(CLOSURE_SIZE_LIMIT).toEqual({ entries: 5000, bytes: 50 * 1024 * 1024 });
     });
 
