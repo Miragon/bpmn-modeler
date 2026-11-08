@@ -252,29 +252,29 @@ describe("pendingApprovals", () => {
             approvals: [],
             declined: [],
             pending: [
-                { plugin: resize, state: "new" },
-                { plugin: palette, state: "new" },
+                { artifact: resize, state: "new" },
+                { artifact: palette, state: "new" },
             ],
         },
         {
             case: "skips an artifact whose current content is allowed",
             approvals: [{ pluginId: resize.id, contentHash: "aaa" }],
             declined: [],
-            pending: [{ plugin: palette, state: "new" }],
+            pending: [{ artifact: palette, state: "new" }],
         },
         {
             case: "asks about a changed artifact and skips one declined in this session",
             approvals: [{ pluginId: resize.id, contentHash: "old" }],
             declined: [declineKeyOf(palette)],
-            pending: [{ plugin: resize, state: "changed" }],
+            pending: [{ artifact: resize, state: "changed" }],
         },
         {
             case: "asks again once a declined artifact changes",
             approvals: [],
             declined: [declineKeyOf({ ...palette, contentHash: "old" })],
             pending: [
-                { plugin: resize, state: "new" },
-                { plugin: palette, state: "new" },
+                { artifact: resize, state: "new" },
+                { artifact: palette, state: "new" },
             ],
         },
         {
@@ -294,14 +294,14 @@ describe("pendingApprovals", () => {
             new Set(),
         );
 
-        expect(pending).toEqual([{ plugin: acmeRules, state: "changed" }]);
+        expect(pending).toEqual([{ artifact: acmeRules, state: "changed" }]);
     });
 });
 
 describe("approvalOutcome", () => {
     const pending: PendingCodeApproval<ApprovableArtifact>[] = [
-        { plugin: resize, state: "new" },
-        { plugin: palette, state: "changed" },
+        { artifact: resize, state: "new" },
+        { artifact: palette, state: "changed" },
     ];
 
     it.each<{
@@ -340,7 +340,7 @@ describe("approvalOutcome", () => {
 
     it("allows a checked rule package as it was asked about", () => {
         const outcome: CodeApprovalOutcome<RulePackage> = approvalOutcome(
-            [{ plugin: acmeRules, state: "new" }],
+            [{ artifact: acmeRules, state: "new" }],
             [acmeRules.id],
         );
 

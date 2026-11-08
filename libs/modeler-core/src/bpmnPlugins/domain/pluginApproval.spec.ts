@@ -32,8 +32,8 @@ describe("pluginApprovalPrompt", () => {
         expect(
             pluginApprovalPrompt(
                 [
-                    { plugin: resize, state: "new" },
-                    { plugin: palette, state: "changed" },
+                    { artifact: resize, state: "new" },
+                    { artifact: palette, state: "changed" },
                 ],
                 ["/repo"],
             ),
@@ -63,7 +63,7 @@ describe("pluginApprovalPrompt", () => {
     ])(
         "shows the state of $case in the text every host renders, not a path that replaces it",
         ({ state, shown }) => {
-            const [item] = pluginApprovalPrompt([{ plugin: resize, state }], ["/repo"]).items;
+            const [item] = pluginApprovalPrompt([{ artifact: resize, state }], ["/repo"]).items;
 
             expect(item?.path).toBeUndefined();
             expect(item?.description?.startsWith(shown)).toBe(true);
@@ -128,7 +128,7 @@ describe("cachedPluginCopy", () => {
 describe("pluginApprovalNotice", () => {
     const pendingOf = (count: number): PendingApproval[] =>
         Array.from({ length: count }, (_, index) => ({
-            plugin: { ...resize, id: `${resize.id}-${index}` },
+            artifact: { ...resize, id: `${resize.id}-${index}` },
             state: "new" as const,
         }));
 

@@ -64,10 +64,10 @@ export function pluginApprovalPrompt(
         title: "Allow BPMN plugins from this workspace?",
         placeholder:
             "Plugins run their own code in the BPMN editor. Check only the ones you trust; open editors reload with them.",
-        items: pending.map(({ plugin, state }) => ({
-            label: plugin.name,
-            description: `${STATE_DESCRIPTION[state]} · ${relativeToWorkspace(plugin.id, workspaceFolders)}`,
-            value: plugin.id,
+        items: pending.map(({ artifact, state }) => ({
+            label: artifact.name,
+            description: `${STATE_DESCRIPTION[state]} · ${relativeToWorkspace(artifact.id, workspaceFolders)}`,
+            value: artifact.id,
         })),
     };
 }

@@ -49,7 +49,7 @@ export class BpmnPluginService {
         const { approved, pending } = await this.catalog.pluginsFor(handle.documentPath());
         this.offeredByEditor.set(editorId, [
             ...approved.map(({ plugin }) => plugin.id),
-            ...pending.map(({ plugin }) => plugin.id),
+            ...pending.map(({ artifact }) => artifact.id),
         ]);
         const assets: BpmnPluginAsset[] = [];
         for (const discovered of approved) {

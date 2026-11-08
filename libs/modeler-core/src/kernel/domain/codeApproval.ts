@@ -20,7 +20,7 @@ export interface PluginApproval {
 export type ApprovalState = "approved" | "new" | "changed";
 
 export interface PendingCodeApproval<A extends ApprovableArtifact> {
-    readonly plugin: A;
+    readonly artifact: A;
     readonly state: Exclude<ApprovalState, "approved">;
 }
 
@@ -78,7 +78,7 @@ export function pendingApprovals<A extends ApprovableArtifact>(
         const state = approvalStateOf(artifact, approvals);
         return state === "approved" || declinedThisSession.has(declineKeyOf(artifact))
             ? []
-            : [{ plugin: artifact, state }];
+            : [{ artifact, state }];
     });
 }
 
@@ -94,9 +94,11 @@ export function approvalOutcome<A extends ApprovableArtifact>(
 ): CodeApprovalOutcome<A> {
     const checked = new Set(checkedIds);
     return {
-        allowed: pending.filter(({ plugin }) => checked.has(plugin.id)).map(({ plugin }) => plugin),
+        allowed: pending
+            .filter(({ artifact }) => checked.has(artifact.id))
+            .map(({ artifact }) => artifact),
         declineKeys: pending
-            .filter(({ plugin }) => !checked.has(plugin.id))
-            .map(({ plugin }) => declineKeyOf(plugin)),
+            .filter(({ artifact }) => !checked.has(artifact.id))
+            .map(({ artifact }) => declineKeyOf(artifact)),
     };
 }
