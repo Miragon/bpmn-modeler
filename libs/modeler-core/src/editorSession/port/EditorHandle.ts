@@ -47,6 +47,14 @@ export interface EditorHandle {
      */
     reload?(): void;
 
+    /**
+     * The URL under which this editor's webview loads the file at `path`, a
+     * file below the host's plugin cache. Optional so a host whose webview
+     * cannot load such files (the IntelliJ bridge today) omits it, and its
+     * editors get no plugins.
+     */
+    webviewUrlOf?(path: string): string;
+
     /** Whether this session's panel currently holds focus. */
     isActive(): boolean;
 

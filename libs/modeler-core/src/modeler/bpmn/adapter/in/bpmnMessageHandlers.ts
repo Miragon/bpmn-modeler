@@ -9,6 +9,8 @@ import {
     UpdateLintResultsCommand,
 } from "@miragon/bpmn-modeler-shared";
 
+import { answerWithoutPlugins } from "../../../../editorSession/service/answerWithoutPlugins";
+import { EditorSessionStore } from "../../../../editorSession/service/EditorSessionStore";
 import { MessageHandler } from "../../../../editorSession/service/WebviewMessageRouter";
 import { SettingsPort } from "../../../../kernel/port/hostPorts";
 import { LintingPreferencePort } from "../../port/bpmnPorts";
@@ -31,6 +33,13 @@ export function getElementTemplatesHandler(
     // dispatch catch (the session lifecycle) instead of floating off unlogged.
     return async (_message: Command, editorId: string) => {
         await templatesSvc.setElementTemplates(editorId);
+    };
+}
+
+/** `GetBpmnPluginsCommand` on a host without plugins: answer at once, so the webview does not wait. */
+export function answerWithoutPluginsHandler(store: EditorSessionStore): MessageHandler {
+    return async (_message: Command, editorId: string) => {
+        await answerWithoutPlugins(store, editorId);
     };
 }
 

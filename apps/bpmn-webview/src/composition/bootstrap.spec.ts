@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 
 import {
     BpmnFileQuery,
     BpmnModelerSettingQuery,
+    BpmnPluginsQuery,
     ElementTemplatesQuery,
     FlushDocumentQuery,
     FocusElementQuery,
@@ -30,6 +31,12 @@ const mocks = vi.hoisted(() => ({
     savedMode: undefined as string | undefined,
     stateManagerCreated: vi.fn(),
     prefetchSurfaceModules: vi.fn(),
+    loadPlugins: vi.fn(),
+}));
+
+vi.mock("@miragon/bpmn-modeler/plugins", () => ({
+    loadPlugins: mocks.loadPlugins,
+    buildWithPluginsOrWithout: vi.fn(),
 }));
 
 vi.mock("../adapter/out/surfaceModules", () => ({
@@ -90,7 +97,11 @@ vi.mock("../service/state", () => ({
 
 import { bootstrap } from "./bootstrap";
 import { installHostEditorActions } from "../adapter/in/hostEditorActions";
-import { loadDesignerModule, loadViewerModule } from "../adapter/out/surfaceModules";
+import {
+    loadDesignerModule,
+    loadModelerModule,
+    loadViewerModule,
+} from "../adapter/out/surfaceModules";
 import type { WebviewState } from "../port/webviewState";
 
 function dispatch(data: unknown): void {
@@ -125,6 +136,7 @@ function makeHost({
         GetElementTemplatesCommand: () => [new ElementTemplatesQuery([])],
         GetBpmnModelerSettingCommand: () => [settingsQuery()],
         GetPropertiesPanelStateCommand: () => [new PropertiesPanelStateQuery(true)],
+        GetBpmnPluginsCommand: () => [new BpmnPluginsQuery([])],
         ...replies,
     };
     return {
@@ -399,6 +411,113 @@ describe("bootstrap", () => {
             ]);
             expect(sentTypes(host)).not.toContain("RequestFocusCommand");
             expect(mocks.startPersisting).not.toHaveBeenCalled();
+        });
+    });
+
+    describe("BPMN plugins", () => {
+        it("asks for the plugins once, however often a mode switch rebuilds the surface", async () => {
+            mocks.createModeler.mockResolvedValue(makeModeler());
+            mocks.createViewer.mockResolvedValue(makeViewer());
+            const host = makeHost({ file: tagged() });
+            boot(host);
+            await settle();
+
+            modeButtons()[0].click();
+            await settle();
+            modeButtons()[2].click();
+            await settle();
+
+            expect(mocks.createModeler).toHaveBeenCalledTimes(2);
+            expect(sentOfType(host, "GetBpmnPluginsCommand")).toHaveLength(1);
+        });
+
+        it("loads the surface while the host has not answered the plugins request yet", async () => {
+            const host = makeHost({
+                file: tagged(),
+                replies: { GetBpmnPluginsCommand: unanswered },
+            });
+            mocks.createModeler.mockResolvedValue(makeModeler());
+
+            boot(host);
+            await settle();
+
+            expect(loadModelerModule).toHaveBeenCalled();
+            expect(mocks.createModeler).not.toHaveBeenCalled();
+        });
+
+        it("opens the editor without plugins when the host never answers", async () => {
+            const modeler = makeModeler();
+            mocks.createModeler.mockResolvedValue(modeler);
+            boot(makeHost({ file: tagged(), replies: { GetBpmnPluginsCommand: unanswered } }));
+            await vi.advanceTimersByTimeAsync(HOST_REPLY_TIMEOUT_MS - 1);
+            expect(mocks.createModeler).not.toHaveBeenCalled();
+
+            await vi.advanceTimersByTimeAsync(1);
+
+            expect(mocks.createModeler).toHaveBeenCalledOnce();
+            expect(mocks.createModeler.mock.calls[0][1]).toMatchObject({ moddleExtensions: {} });
+            expect(modeler.loadDiagram).toHaveBeenCalledWith("<tagged />");
+        });
+
+        it("tells the host it opened without plugins when the host never answers", async () => {
+            mocks.createModeler.mockResolvedValue(makeModeler());
+            const host = makeHost({
+                file: tagged(),
+                replies: { GetBpmnPluginsCommand: unanswered },
+            });
+            boot(host);
+            await vi.advanceTimersByTimeAsync(HOST_REPLY_TIMEOUT_MS - 1);
+            expect(sentOfType(host, "LogWarningCommand")).toEqual([]);
+
+            await vi.advanceTimersByTimeAsync(1);
+
+            expect(sentOfType(host, "LogWarningCommand")).toEqual([
+                expect.objectContaining({
+                    message:
+                        "The host did not answer the BPMN plugins request in time, so the editor opened without plugins",
+                }),
+            ]);
+            expect(sentTypes(host)).not.toContain("ShowInfoCommand");
+        });
+
+        it("logs nothing about the plugins when the host answers with none", async () => {
+            mocks.createModeler.mockResolvedValue(makeModeler());
+            const host = makeHost({ file: tagged() });
+            boot(host);
+            await vi.advanceTimersByTimeAsync(HOST_REPLY_TIMEOUT_MS);
+
+            expect(mocks.createModeler).toHaveBeenCalledOnce();
+            expect(sentOfType(host, "LogWarningCommand")).toEqual([]);
+        });
+
+        it("opens without plugins and tells the host when the plugins fail to load during View", async () => {
+            mocks.savedMode = "view";
+            mocks.loadPlugins.mockRejectedValue(new Error("plugin chunk unavailable"));
+            mocks.createViewer.mockResolvedValue(makeViewer());
+            const modeler = makeModeler();
+            mocks.createModeler.mockResolvedValue(modeler);
+            const host = makeHost({
+                file: tagged(),
+                replies: {
+                    GetBpmnPluginsCommand: () => [
+                        new BpmnPluginsQuery([{ name: "acme", scriptUrl: "acme.js" }]),
+                    ],
+                },
+            });
+            boot(host);
+            await settle();
+
+            modeButtons()[2].click();
+            await settle();
+
+            expect(mocks.createModeler).toHaveBeenCalledOnce();
+            expect(mocks.createModeler.mock.calls[0][1]).toMatchObject({ moddleExtensions: {} });
+            expect(sentOfType(host, "LogWarningCommand")).toContainEqual(
+                expect.objectContaining({
+                    message: expect.stringContaining("plugin chunk unavailable"),
+                }),
+            );
+            expect(sentTypes(host)).toContain("ShowInfoCommand");
         });
     });
 
@@ -1048,6 +1167,7 @@ describe("bootstrap", () => {
 
             expect(i18n.getLocale()).toBe("fr");
             expect(sentTypes(host)).not.toContain("LogErrorCommand");
+            expect(sentTypes(host)).not.toContain("GetBpmnPluginsCommand");
             expect(mocks.createViewer).not.toHaveBeenCalled();
             expect(mocks.createDesigner).not.toHaveBeenCalled();
             expect(mocks.createModeler).not.toHaveBeenCalled();

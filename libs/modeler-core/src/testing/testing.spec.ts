@@ -12,9 +12,11 @@ import { ChoicePrompt, SearchPrompt } from "../kernel/domain/prompts";
 import { MarketplaceScope } from "../template-marketplace/domain/marketplaceRegistrations";
 import { tokenPromptFor } from "../template-marketplace/domain/tokenPrompt";
 import { createTestHost } from "./createTestHost";
+import { fingerprintHasher } from "./fingerprintHasher";
 import { InMemorySettings } from "./InMemorySettings";
 import { InMemoryWorkspace } from "./InMemoryWorkspace";
 import { RecordingStatusBar } from "./RecordingStatusBar";
+import { ScriptedActionNotifier } from "./ScriptedActionNotifier";
 import { ScriptedPicker } from "./ScriptedPicker";
 
 describe("InMemoryWorkspace", () => {
@@ -533,5 +535,64 @@ describe("createTestHost", () => {
         ]);
         expect(host.notifier.loggedErrors).toEqual([failure, stackless]);
         expect(host.notifier.transcript()).toContain(failure.stack);
+    });
+});
+
+describe("fingerprintHasher", () => {
+    it.each([
+        ["registerResize();", "registerResizE();"],
+        ["ab", "ba"],
+        ["", " "],
+    ])("tells %j from %j, unlike a hash of the length", (one, other) => {
+        expect(fingerprintHasher.sha256(one)).not.toBe(fingerprintHasher.sha256(other));
+    });
+
+    it("gives the same text the same short fingerprint", () => {
+        expect(fingerprintHasher.sha256("registerResize();")).toBe(
+            fingerprintHasher.sha256("registerResize();"),
+        );
+        expect(fingerprintHasher.sha256("registerResize();")).toMatch(/^h[0-9a-f]{8}$/);
+    });
+});
+
+describe("ScriptedActionNotifier", () => {
+    const notice = (id: string) => ({
+        id,
+        tone: "info" as const,
+        message: id,
+        actions: [{ label: "Review…", value: "review" }],
+    });
+
+    it("keeps a held notice open, recorded, until the test answers it", async () => {
+        const notifier = new ScriptedActionNotifier({ second: "review" });
+        const held = notifier.holdNextNotice();
+
+        const first = notifier.offer(notice("first"));
+        const second = await notifier.offer(notice("second"));
+        held.answer("review");
+
+        expect(second).toBe("review");
+        expect(await first).toBe("review");
+        expect(notifier.notices.map(({ id }) => id)).toEqual(["first", "second"]);
+    });
+
+    it("closes a held notice the test answers with nothing", async () => {
+        const notifier = new ScriptedActionNotifier({ first: "review" });
+        const held = notifier.holdNextNotice();
+
+        const first = notifier.offer(notice("first"));
+        held.answer(undefined);
+
+        expect(await first).toBeUndefined();
+    });
+
+    it("rejects a held notice answered with an action it does not offer", async () => {
+        const notifier = new ScriptedActionNotifier();
+        const held = notifier.holdNextNotice();
+
+        const first = notifier.offer(notice("first"));
+        held.answer("allowAll");
+
+        await expect(first).rejects.toThrow('"allowAll" is not an action of notice "first"');
     });
 });

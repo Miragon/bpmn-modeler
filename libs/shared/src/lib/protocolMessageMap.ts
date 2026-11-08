@@ -17,6 +17,7 @@ import type {
     BpmnFileQuery,
     BpmnLintDisabledQuery,
     BpmnModelerSettingQuery,
+    BpmnPluginsQuery,
     BpmnlintInPageQuery,
     BpmnlintResultsQuery,
     CleanupDiagramQuery,
@@ -50,6 +51,7 @@ import type {
     GetDmnFileCommand,
     GetDmnModelerSettingCommand,
     GetElementTemplatesCommand,
+    GetBpmnPluginsCommand,
     GetElementTemplateFileCommand,
     GetFormFileCommand,
     GetFormInputValuesCommand,
@@ -108,6 +110,7 @@ export type ProtocolQuery =
     | FormInputValuesQuery
     | ElementTemplateFileQuery
     | ElementTemplatesQuery
+    | BpmnPluginsQuery
     | BpmnlintResultsQuery
     | BpmnLintDisabledQuery
     | BpmnlintInPageQuery
@@ -158,6 +161,7 @@ export type ProtocolCommand =
     | UpdateFormOutputValuesCommand
     | GetElementTemplateFileCommand
     | GetElementTemplatesCommand
+    | GetBpmnPluginsCommand
     | GetBpmnlintConfigCommand
     | GetBpmnModelerSettingCommand
     | GetDmnModelerSettingCommand

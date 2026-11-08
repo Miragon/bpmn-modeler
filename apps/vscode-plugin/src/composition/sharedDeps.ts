@@ -7,6 +7,7 @@ import { VsCodeSettings } from "../shared/adapter/out/VsCodeSettings";
 import { VsCodeStatusBar } from "../shared/adapter/out/VsCodeStatusBar";
 import { VsCodeNotifier } from "../shared/adapter/out/VsCodeNotifier";
 import { VsCodePicker } from "../shared/adapter/out/VsCodePicker";
+import { VsCodeActionNotifier } from "../shared/adapter/out/VsCodeActionNotifier";
 import { VsCodeClipboard } from "../shared/adapter/out/VsCodeClipboard";
 import { VsCodeTextEditor } from "../shared/adapter/in/VsCodeTextEditor";
 import { VsCodeEditorHandle } from "../shared/adapter/out/VsCodeEditorHandle";
@@ -32,6 +33,7 @@ export interface SharedDeps {
     statusBar: VsCodeStatusBar;
     notifier: VsCodeNotifier;
     picker: VsCodePicker;
+    actionNotifier: VsCodeActionNotifier;
     clipboard: VsCodeClipboard;
     textEditor: VsCodeTextEditor;
     preferences: ModelerPreferences;
@@ -71,6 +73,7 @@ export function buildSharedDeps(context: ExtensionContext): SharedDeps {
         statusBar: new VsCodeStatusBar(),
         notifier,
         picker: new VsCodePicker(),
+        actionNotifier: new VsCodeActionNotifier(),
         clipboard: new VsCodeClipboard(),
         textEditor: new VsCodeTextEditor(context.subscriptions),
         preferences: vsCodeModelerPreferences,

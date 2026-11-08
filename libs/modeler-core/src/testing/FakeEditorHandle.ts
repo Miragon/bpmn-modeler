@@ -59,6 +59,8 @@ export class FakeEditorHandle implements EditorHandle {
     saveCount = 0;
     reloadCount = 0;
     disposed = false;
+    /** Like the IntelliJ bridge, the webview cannot load plugin files. */
+    servesNoFiles = false;
 
     private readonly scheme: string;
     private readonly subscriptions: EditorSubscription[] = [];
@@ -127,6 +129,10 @@ export class FakeEditorHandle implements EditorHandle {
 
     reload(): void {
         this.reloadCount++;
+    }
+
+    get webviewUrlOf(): ((path: string) => string) | undefined {
+        return this.servesNoFiles ? undefined : (path) => `webview-resource:${path}`;
     }
 
     isActive(): boolean {

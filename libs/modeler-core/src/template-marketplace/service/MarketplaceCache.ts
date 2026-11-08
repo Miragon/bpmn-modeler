@@ -1,4 +1,4 @@
-import { isSafeRepoPath, MarketplaceContentType } from "../domain/marketplace";
+import { MarketplaceContentType } from "../domain/marketplace";
 import {
     CachedSourceSlot,
     FetchedTemplateFile,
@@ -8,6 +8,7 @@ import {
     SourceSlotRecord,
 } from "../domain/sourceCacheRefresh";
 import { DirectoryNotFound, FileNotFound } from "../../kernel/domain/errors";
+import { staysInsideFolder } from "../../kernel/domain/rootContainment";
 import { WorkspacePort } from "../../kernel/port/hostPorts";
 
 /**
@@ -84,7 +85,7 @@ export class MarketplaceCache {
         files: readonly FetchedTemplateFile[],
     ): Promise<void> {
         for (const { repoPath } of files) {
-            if (!isSafeRepoPath(repoPath)) {
+            if (!staysInsideFolder(repoPath)) {
                 throw new Error(`Rejected unsafe template path "${repoPath}"`);
             }
         }

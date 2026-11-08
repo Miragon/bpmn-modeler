@@ -5,6 +5,7 @@ import {
     outermostPaths,
     relativeToRoot,
     relativeToWorkspace,
+    staysInsideFolder,
 } from "./rootContainment";
 
 describe("relativeToRoot", () => {
@@ -179,5 +180,47 @@ describe("outermostPaths", () => {
         { behaviour: "returns nothing for no paths", paths: [], outermost: [] },
     ])("$behaviour", ({ paths, outermost }) => {
         expect(outermostPaths(paths)).toEqual(outermost);
+    });
+});
+
+describe("staysInsideFolder", () => {
+    it.each<{ behaviour: string; relativePath: string; inside: boolean }>([
+        { behaviour: "keeps a nested relative path", relativePath: "dist/client.js", inside: true },
+        { behaviour: "keeps a bare file name", relativePath: "client.js", inside: true },
+        { behaviour: "keeps dots inside a segment", relativePath: "a..b/..hidden/c", inside: true },
+        { behaviour: "keeps the folder itself", relativePath: "", inside: true },
+        {
+            behaviour: "keeps a leading current-folder segment",
+            relativePath: "./c.js",
+            inside: true,
+        },
+        { behaviour: "refuses a lone parent segment", relativePath: "..", inside: false },
+        { behaviour: "refuses a leading parent segment", relativePath: "../c.js", inside: false },
+        {
+            behaviour: "refuses a parent segment mid-path",
+            relativePath: "a/../../c",
+            inside: false,
+        },
+        {
+            behaviour: "refuses a backslash parent segment",
+            relativePath: "a\\..\\c",
+            inside: false,
+        },
+        { behaviour: "refuses an absolute posix path", relativePath: "/etc/c", inside: false },
+        {
+            behaviour: "refuses a path rooted by a backslash",
+            relativePath: "\\Windows\\c",
+            inside: false,
+        },
+        { behaviour: "refuses a UNC path", relativePath: "\\\\server\\share\\c", inside: false },
+        { behaviour: "refuses a drive path with a slash", relativePath: "c:/c.js", inside: false },
+        {
+            behaviour: "refuses a drive path with a backslash",
+            relativePath: "C:\\c.js",
+            inside: false,
+        },
+        { behaviour: "refuses a drive-relative path", relativePath: "C:c.js", inside: false },
+    ])("$behaviour", ({ relativePath, inside }) => {
+        expect(staysInsideFolder(relativePath)).toBe(inside);
     });
 });

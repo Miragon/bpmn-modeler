@@ -8,6 +8,7 @@
  */
 
 // ── kernel ───────────────────────────────────────────────────────────────────
+export * from "./kernel/domain/actionNotice";
 export * from "./kernel/domain/affectedItems";
 export * from "./kernel/domain/BpmnDocument";
 export * from "./kernel/domain/engineVersions";
@@ -83,6 +84,11 @@ export * from "./modeler/form/domain/emptyForm";
 export * from "./modeler/form/service/FormModelerService";
 export * from "./modeler/elementTemplate/domain/newTemplateFile";
 export * from "./modeler/elementTemplate/composition/ElementTemplateEditorFeature";
+
+// ── bpmnPlugins ──────────────────────────────────────────────────────────────
+export * from "./bpmnPlugins/domain/pluginApproval";
+export * from "./bpmnPlugins/port/pluginPorts";
+export * from "./bpmnPlugins/composition/BpmnPluginsFeature";
 
 // ── diff ─────────────────────────────────────────────────────────────────────
 export * from "./diff/domain/basenameOfUriString";

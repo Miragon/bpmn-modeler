@@ -11,6 +11,7 @@
  * - {@link ElementTemplateFileQuery}      — deliver element-template JSON for the preview
  * - {@link FormInputValuesQuery}          — deliver ephemeral form preview input data
  * - {@link ElementTemplatesQuery}         — deliver the resolved element-template list
+ * - {@link BpmnPluginsQuery}              — deliver the approved bpmn-js plugins as loadable URLs
  * - {@link BpmnlintResultsQuery}          — deliver host-computed bpmnlint results (or null to deactivate)
  * - {@link BpmnlintInPageQuery}           — tell the webview to run its in-page linter (zero-config default, or a covered workspace config)
  * - {@link BpmnModelerSettingQuery}       — deliver modeler settings (e.g. alignToOrigin)
@@ -32,6 +33,7 @@
  * - {@link GetFormInputValuesCommand}         — request ephemeral form preview input data
  * - {@link UpdateFormOutputValuesCommand}     — publish current form preview output data
  * - {@link GetElementTemplatesCommand}        — request the current element-template list
+ * - {@link GetBpmnPluginsCommand}             — request the approved bpmn-js plugins before the modeler is built
  * - {@link GetBpmnlintConfigCommand}          — webview is ready; trigger a host lint pass
  * - {@link DiagramFormattedCommand}           — outcome of a format attempt, successful or not
  * - {@link CleanupReportCommand}              — what a cleanup found, and whether it was applied
@@ -189,6 +191,26 @@ export class ElementTemplatesQuery extends Query<"ElementTemplatesQuery"> {
     constructor(elementTemplates: object[]) {
         super("ElementTemplatesQuery");
         this.elementTemplates = elementTemplates;
+    }
+}
+
+/** A bpmn-js plugin the user approved, as URLs the webview can load. */
+export interface BpmnPluginAsset {
+    readonly name: string;
+    readonly scriptUrl: string;
+    readonly styleUrl?: string;
+}
+
+/**
+ * Answers {@link GetBpmnPluginsCommand}. Modules are fixed when a modeler is
+ * built, so the webview waits for this before it creates a surface.
+ */
+export class BpmnPluginsQuery extends Query<"BpmnPluginsQuery"> {
+    public readonly plugins: BpmnPluginAsset[];
+
+    constructor(plugins: BpmnPluginAsset[]) {
+        super("BpmnPluginsQuery");
+        this.plugins = plugins;
     }
 }
 
@@ -552,6 +574,12 @@ export class UpdateFormOutputValuesCommand extends Command<"UpdateFormOutputValu
 export class GetElementTemplatesCommand extends Command<"GetElementTemplatesCommand"> {
     constructor() {
         super("GetElementTemplatesCommand");
+    }
+}
+
+export class GetBpmnPluginsCommand extends Command<"GetBpmnPluginsCommand"> {
+    constructor() {
+        super("GetBpmnPluginsCommand");
     }
 }
 

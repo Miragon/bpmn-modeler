@@ -178,16 +178,19 @@ export class ArtifactService {
         return templateDirs;
     }
 
-    async getPayloadPaths(documentDir: string): Promise<string[]> {
-        const configFolder = this.vsSettings.getConfigFolder();
+    /** Each existing `<configFolder>/<area>` from the document up to its workspace root, nearest first. */
+    async getConfigAreaDirs(documentDir: string, area: string): Promise<string[]> {
         const workspaceRoot = await this.getWorkspaceRoot(documentDir);
-        const payloadDirs = await this.collectSubDirs(
+        return this.collectSubDirs(
             documentDir,
             workspaceRoot,
-            configFolder,
-            "payloads",
+            this.vsSettings.getConfigFolder(),
+            area,
         );
+    }
 
+    async getPayloadPaths(documentDir: string): Promise<string[]> {
+        const payloadDirs = await this.getConfigAreaDirs(documentDir, "payloads");
         const allPaths: string[] = [];
         for (const dir of payloadDirs) {
             allPaths.push(...(await this.readDirectory(dir, ".json")));

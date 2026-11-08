@@ -17,6 +17,8 @@
 
 import { ColorThemeSetting, SurfaceMode } from "@miragon/bpmn-modeler-types";
 
+import { ActionNotice } from "../domain/actionNotice";
+import { DirectoryEntryKind } from "../domain/directoryEntry";
 import { MarketplaceSettingsEntry } from "../domain/modelerSettings";
 import { ChoicePrompt, ConfirmRequest, SearchPrompt } from "../domain/prompts";
 import { StatusSlot, StatusView } from "../domain/statusView";
@@ -87,6 +89,18 @@ export interface PickerPort {
      * @returns `{ outcome, chosen }` — `chosen` set only when the user chose.
      */
     searchAndChoose<R>(search: SearchPrompt<R>): Promise<{ outcome: R; chosen?: string }>;
+}
+
+/**
+ * A non-modal notification with actions, for a decision the user may also
+ * leave for later. Never opens anything by itself.
+ */
+export interface ActionNotifierPort {
+    /**
+     * @returns the offered value of the action the user clicked itself, or
+     *   `undefined` when the notification was closed without one.
+     */
+    offer<V>(notice: ActionNotice<V>): Promise<V | undefined>;
 }
 
 /**
@@ -162,7 +176,7 @@ export interface WorkspacePort {
      *
      * @throws {DirectoryNotFound} if `path` is missing or is not a directory.
      */
-    readDirectory(path: string): Promise<[string, "file" | "directory"][]>;
+    readDirectory(path: string): Promise<[string, DirectoryEntryKind][]>;
     /**
      * @throws {FileNotFound} only if `path` is missing. Any other failure, a
      *   directory at `path` included, rejects with another error, so the core

@@ -1,7 +1,7 @@
 # BPMN modeler
 
 - Status: accepted
-- Last reviewed: 2026-11-06
+- Last reviewed: 2026-11-07
 
 ## Context
 
@@ -25,6 +25,7 @@ boundaries are defined in [Architecture and hosts](architecture-and-hosts.md#pac
 - [Element template preview](#element-template-preview)
 - [Themes and locale](#themes-and-locale)
 - [Linting](#linting)
+- [User-supplied plugins (proposed)](#user-supplied-plugins-proposed)
 - [Transaction boundaries](#transaction-boundaries)
 - [Diff](#diff)
 - [Formatting and cleanup](#formatting-and-cleanup)
@@ -435,6 +436,168 @@ The webview owns lazy `/lint` loading and routes results to either editable
 surface. The [lint-free entry check](../../packages/bpmn-modeler/scripts/check-lint-free-entry.mjs)
 and source architecture tests guard the import boundary.
 
+### User-supplied plugins (proposed)
+
+Proposed for [#1626](https://github.com/Miragon/bpmn-modeler/issues/1626) and
+shipped for VS Code by [#2240](https://github.com/Miragon/bpmn-modeler/issues/2240);
+not released. The IntelliJ bridge ([#2242](https://github.com/Miragon/bpmn-modeler/issues/2242))
+and Orca ([#2244](https://github.com/Miragon/bpmn-modeler/issues/2244)) reuse
+the same core and package. Teams want to load bpmn-js plugins, many written for
+the Camunda Modeler, without forking a host or building an app on the package.
+The [user guide](../vscode/features/bpmn-plugins.md) carries what users must
+know.
+
+**Format.** A plugin is a classic script that pushes `{ type, plugin }` onto
+`window.plugins`, the contract of `camunda-modeler-plugin-helpers`, plus an
+optional stylesheet. Unmodified Camunda client bundles therefore load. The
+registration types map to engines as Camunda's product lines do:
+`bpmn.modeler.*` applies to every engine, `bpmn.platform.modeler.*` to C7 and
+`bpmn.cloud.modeler.*` to C8, for `additionalModules` and `moddleExtension`.
+Anything else (`client` React extensions, `dmn.*`) is ignored and logged. An
+untagged model gets only the registrations made for every engine.
+
+**Ownership.** Each layer owns one part, so every host and npm consumer takes
+only what it needs:
+
+| Layer | Owns | Does not own |
+| --- | --- | --- |
+| `@miragon/bpmn-modeler/plugins` | Loading scripts from URLs, mapping registrations to engines (`modulesFor(engine)`), building with a fallback | Discovery, trust, network, UI |
+| `libs/modeler-types` | The load report texts (`pluginLoadReport`), pure | Where they are shown |
+| `libs/modeler-core/src/bpmnPlugins` | Discovery, manifest reading, the approval rule, the `PluginCatalog`, the file-cache delivery and the `GetBpmnPluginsCommand` handler | Webview code, host widgets |
+| Hosts | The ports below and a cache folder the webview may read | Any rule or text |
+
+**Package.** `@miragon/bpmn-modeler/plugins` exports `loadPlugins(sources)`,
+which runs one script at a time, attributes what it registers, restores
+`window.plugins`, and reports a failing plugin without stopping the others.
+The result's `modulesFor(engine)` returns the `additionalModules` and
+`moddleExtensions` a surface passes in. `buildWithPluginsOrWithout` builds a
+surface with those modules and, when the build throws or rejects, reports the
+error to a callback and builds again without them; an engine that gets no
+plugin modules is built once. The fallback lives in the package rather than
+the IDE webview, so Orca's frame and npm consumers get "a broken plugin never
+keeps a diagram from opening" too. The loader takes URLs: a host-served URL
+(the IDE webviews), a `blob:` URL (a frame without network, such as Orca's
+isolated frame) or a plain URL. The package decides no trust: plugin code runs
+with the page's authority, and an npm consumer decides where plugins come from
+and whether to load them. It is a subpath like `/lint`, so a consumer without
+plugins never bundles the loader; the
+[plugins-free entry check](../../packages/bpmn-modeler/scripts/check-plugins-free-entry.mjs)
+keeps the root, `/design` and `/mode` from reaching it.
+
+**IDE webview.** Modules are fixed at construction, so the BPMN webview needs
+the plugins before it builds a surface. It posts `GetBpmnPluginsCommand` as
+soon as the file reply shows the page is an editor, because a diff pane never
+asks and the webview cannot tell the two apart earlier without adding the
+command to the diff pane's handshake. It does not wait there: the Design and
+Implement factories await the reply and the script loading together with their
+surface module and lint options, so the round trip overlaps the module load.
+The wait lasts at most `HOST_REPLY_TIMEOUT_MS`; when no answer comes, the
+editor opens without plugins and logs that the host did not answer. It
+loads the `/plugins` chunk only when the answer holds a plugin and shows the
+`modeler-types` report: a log line per failed or ignored registration and one
+notice. Plugins go into Design and Implement, never into View, whose
+NavigatedViewer lacks the modeling services plugins build on. A tagged model
+keeps one instance across Design and Implement, so its engine's plugins stay
+loaded in Design. The answer stays its own message instead of joining
+`BpmnFileQuery`: the VS Code smoke suite measures the time from opening a file
+to its first surface, and one small cached plugin left it unchanged (median of
+three, about 360 ms with and without).
+
+**Discovery and approval (core).** `bpmnPlugins/` finds one plugin per
+subfolder of each `<configFolder>/plugins/` between the document and its
+workspace root. It reads `plugin.json`, or scans a Camunda `index.js` for
+string literals without running it. Paths must stay inside the plugin folder,
+by the kernel's `staysInsideFolder`, the rule the template marketplace applies
+to repository paths too, and a folder name holding a separator or `..` is
+skipped. A plugin runs only after the user approved this content in this
+folder: the approval is a SHA-256 of the script and the style, each prefixed
+with its length and a missing style marked apart from an empty one, so bytes
+moved from one file to the other change the hash. It is kept by the host outside
+every workspace (`PluginApprovalStorePort`; VS Code global state), so a
+repository cannot approve itself and any change (a pull, an update) asks
+again. `WorkspacePluginLocator` keeps a memo per plugin folder and drops it on
+a `WorkspacePort.createWatcher` event for that `<configFolder>/plugins`
+folder, so an editor open does not reread and rehash every bundle (Camunda
+bundles can be several MB). The feature disposes the watchers with itself.
+
+`PluginCatalog` is host-neutral and returns values: `pluginsFor(documentPath)`
+gives the approved plugins with their bytes and the pending ones,
+`reviewPrompt(pending)` the prompt the domain builds, and
+`applyAnswer(pending, checkedIds)` writes the approvals and records the
+declines. A decline lasts for the catalog's lifetime (the extension host
+session) or until the content changes. The catalog knows no
+`EditorSessionStore` or `EditorHandle`, so Orca's worker can answer its frame
+from it directly.
+
+**Prompt flow.** Per the
+[VS Code UX guidelines](../../.agents/skills/vscode-ux-guidelines/SKILL.md), a
+list never opens unasked: the spike's QuickPick opened when an editor opened
+and took the focus. The editor opens with the approved plugins at once, and
+when plugins are pending the core offers a notification it builds in
+`bpmnPlugins/domain/` ("N BPMN plugins in this workspace are not allowed
+yet.") with one **Review…** action through the generic
+[action notice port](architecture-and-hosts.md#host-integrations). Only
+**Review…** opens the `chooseMany` prompt. Dismissing the notification or
+the list, or leaving a plugin unchecked, is the same answer: those plugin
+versions are declined for this session, offered again in a later one, and
+offered again at once when their content changes. `PluginApprovalQuestion`
+runs this flow and knows no editor: one question is open at a time, and plugins
+found while it is open are asked afterwards, as far as that answer left them
+pending. A VS Code notice can stay unanswered in the notification centre, so
+dropping them would leave a second workspace's plugins unasked for the session.
+An approval reloads every open BPMN editor whose last answer offered one of
+the newly allowed plugin folders, approved or pending, because its modules are
+fixed; the delivery tracks those folders per editor and a session
+participant drops the entry when the editor is disposed.
+
+**Serving.** The delivery service answers `GetBpmnPluginsCommand` with
+`postUnlessHidden`, as element templates do. It copies the approved bytes into
+a content-addressed cache (`<globalStorage>/bpmn-plugins/<hash>/plugin.js` and
+`plugin.css`) and maps them to URLs through `EditorHandle.webviewUrlOf`. Each
+hash is copied once per session, editors asking at the same time share that
+copy, and a failed copy is tried again on the next request. The copy reads each
+cached file back and rewrites it when its bytes differ from the approved ones
+or cannot be read: a write cut short by a crash would otherwise be served as it
+is. The webview never
+reads a workspace folder, so a file swapped after the approval and an
+unapproved file beside the script cannot reach it, and `localResourceRoots`
+stays fixed at creation. The host passes the cache root as a platform path
+(VS Code's `fsPath`, `C:\…` on Windows); the core normalizes it once with
+`toWorkspacePath`, so the written path and the URL path agree. VS Code roots
+the webview's cache folder at a `file:` URI of that path: desktop VS Code
+hands out global storage as `vscode-userdata:`, and a webview serves a file
+only below an allowed folder of the same scheme as its URL. A host that does
+not wire the feature (the IntelliJ bridge until #2242) answers with no plugins.
+That answer has one home, `answerWithoutPlugins` in `editorSession/`, built on
+`postUnlessHidden` like the delivery's own answer.
+
+**What an approved plugin can do.** It gets the modeler's injector, so it can
+edit the diagram (edits sync to the file) and call every DI service, including
+those holding host ports (navigation, clipboard, script editors). The BPMN
+webview's `img-src https:`, needed for element-template icons, lets it send
+data out through image URLs. Approval is the control; a tighter CSP cannot
+close this, and the user guide says so.
+
+**Not shared.** The webview bundle exposes none of its bpmn-js, diagram-js,
+preact or properties-panel instances. Prebuilt plugins bring their own copies,
+which works for modules that use only injected services and is at risk for
+anything relying on instance identity (preact hooks and context, `instanceof`,
+module state), such as properties-panel groups. Exposing our instances would
+make the bundled versions a plugin API and needs its own decision
+([#2241](https://github.com/Miragon/bpmn-modeler/issues/2241)). Listing and
+revoking approvals and pruning the cache are left to
+[#2250](https://github.com/Miragon/bpmn-modeler/issues/2250).
+
+Alternatives: our own module format only (loses the Camunda ecosystem);
+running `index.js` in the extension host (runs unapproved code with Node
+authority); serving from the workspace folder (approval and load race, and
+siblings of the script become loadable); Workspace Trust alone (granted once
+per folder, off in the standalone); discovery and approval in the package
+(would force one trust model on npm consumers and pull filesystem access into
+a browser package); the fallback in the IDE webview (Orca and npm consumers
+would each copy it); opening the approval list when an editor opens (steals
+focus and asks before the user looked at the diagram).
+
 ### Transaction boundaries
 
 C7 surfaces render `camunda-transaction-boundaries` as HTML overlays, on by
@@ -652,9 +815,13 @@ explicit maintenance costs.
 Use [API conformance tests](../../packages/bpmn-modeler/src/publicApi.spec.ts),
 [architecture tests](../../packages/bpmn-modeler/src/architecture.spec.ts),
 [declaration checks](../../packages/bpmn-modeler/scripts/check-dts.mjs), and
-the [design](../../packages/bpmn-modeler/scripts/check-design-pure-entry.mjs)
-and [mode](../../packages/bpmn-modeler/scripts/check-mode-pure-entry.mjs) import
-checks. [Lifecycle browser tests](../../packages/bpmn-modeler/src/lifecycleContract.browser.spec.ts)
+the [design](../../packages/bpmn-modeler/scripts/check-design-pure-entry.mjs),
+[mode](../../packages/bpmn-modeler/scripts/check-mode-pure-entry.mjs) and
+[plugins-free](../../packages/bpmn-modeler/scripts/check-plugins-free-entry.mjs)
+import checks. The
+[plugin loader browser tests](../../packages/bpmn-modeler/src/plugins/loadPlugins.browser.spec.ts)
+run real scripts through `loadPlugins` and a real bpmn-js modeler.
+[Lifecycle browser tests](../../packages/bpmn-modeler/src/lifecycleContract.browser.spec.ts)
 exercise all four surfaces, and the
 [editable-surface contract](../../packages/bpmn-modeler/src/editableSurfaceContract.browser.spec.ts)
 pins that post-destroy lint pushes throw and what the command-stack and format

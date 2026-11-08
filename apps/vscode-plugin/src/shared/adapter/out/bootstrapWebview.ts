@@ -52,6 +52,10 @@ export function bootstrapWebview(
 function localResourceRootsFor(viewType: string, extensionUri: Uri): Uri[] {
     switch (viewType) {
         case BPMN_VIEW_TYPE:
+            return [
+                Uri.joinPath(extensionUri, "bpmn-webview"),
+                bpmnPluginCacheUri(getContext().globalStorageUri),
+            ];
         case ELEMENT_TEMPLATE_EDITOR_VIEW_TYPE:
             return [Uri.joinPath(extensionUri, "bpmn-webview")];
         case DMN_VIEW_TYPE:
@@ -64,4 +68,16 @@ function localResourceRootsFor(viewType: string, extensionUri: Uri): Uri[] {
         default:
             throw new Error(`Unsupported view type: ${viewType}`);
     }
+}
+
+/**
+ * Approved plugin copies, addressed by content. The BPMN webview may load
+ * files from here and never from a workspace folder.
+ *
+ * A `file:` URI although desktop VS Code hands out global storage as
+ * `vscode-userdata:`: a webview loads a resource only below a root of the
+ * same scheme, and the plugin URLs are made from file paths.
+ */
+export function bpmnPluginCacheUri(globalStorageUri: Uri): Uri {
+    return Uri.file(Uri.joinPath(globalStorageUri, "bpmn-plugins").fsPath);
 }
