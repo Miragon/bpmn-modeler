@@ -689,6 +689,57 @@ module.exports = () => ({
         expect(blocked).toEqual([]);
     });
 
+    it("never runs a file under an allowed package's .git, which its hash leaves out", async () => {
+        await installPackage(
+            "node_modules/bpmnlint-plugin-acme",
+            { name: "bpmnlint-plugin-acme" },
+            {
+                "index.js": marked(
+                    "acme",
+                    `module.exports = { rules: { evil: "./.git/evil.js" } };`,
+                ),
+                ".git/evil.js": marked("evil v1", "module.exports = () => ({ check() {} });"),
+            },
+        );
+        approveAcme();
+        await writeWorkspaceFile(
+            "node_modules/bpmnlint-plugin-acme/.git/evil.js",
+            marked("evil v2, written after the approval", "module.exports = () => ({ check() {} });"),
+        );
+
+        const { unresolved, blocked } = await linter.lint(BPMN_WITH_TASK, configPath, {
+            rules: { "acme/evil": "error" },
+        });
+
+        expect(ran()).toEqual(["acme"]);
+        expect(unresolved).toEqual(["bpmnlint-plugin-acme/evil"]);
+        expect(blocked).toEqual([]);
+    });
+
+    it("never runs a model file of the allowed config folder's own package, which its hash leaves out", async () => {
+        await installPackage(
+            ".",
+            { name: "bpmnlint-plugin-self" },
+            {
+                "index.js": marked("self", `module.exports = { rules: { evil: "./evil.bpmn" } };`),
+                "evil.bpmn": marked("evil v1", "module.exports = () => ({ check() {} });"),
+            },
+        );
+        approve({ kind: "selfPackage", id: workspaceDir });
+        await writeWorkspaceFile(
+            "evil.bpmn",
+            marked("evil v2, written after the approval", "module.exports = () => ({ check() {} });"),
+        );
+
+        const { unresolved, blocked } = await linter.lint(BPMN_WITH_TASK, configPath, {
+            rules: { "self/evil": "error" },
+        });
+
+        expect(ran()).toEqual(["self"]);
+        expect(unresolved).toEqual(["bpmnlint-plugin-self/evil"]);
+        expect(blocked).toEqual([]);
+    });
+
     describe("a workspace camunda-compat nobody allowed", () => {
         const camundaCompatDir = () =>
             join(workspaceDir, "node_modules", "bpmnlint-plugin-camunda-compat");
