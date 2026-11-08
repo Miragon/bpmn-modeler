@@ -45,7 +45,7 @@ describe("PluginCatalog", () => {
         expect(approved.map(({ plugin, script }) => ({ id: plugin.id, script }))).toEqual([
             { id: PALETTE, script: "registerPalette();" },
         ]);
-        expect(pending.map(({ plugin, state }) => ({ id: plugin.id, state }))).toEqual([
+        expect(pending.map(({ artifact, state }) => ({ id: artifact.id, state }))).toEqual([
             { id: RESIZE, state: "new" },
         ]);
     });
@@ -73,7 +73,7 @@ describe("PluginCatalog", () => {
         await host.workspace.writeFile(`${RESIZE}/client.js`, "registerResizE();");
 
         const { pending } = await catalog.pluginsFor(DOCUMENT);
-        expect(pending.map(({ plugin }) => plugin.id)).toEqual([RESIZE]);
+        expect(pending.map(({ artifact }) => artifact.id)).toEqual([RESIZE]);
     });
 
     it("offers no plugins and logs why when the plugin folders cannot be read", async () => {

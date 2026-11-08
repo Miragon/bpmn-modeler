@@ -1,7 +1,7 @@
 # Architecture and hosts
 
 - Status: accepted
-- Last reviewed: 2026-11-07
+- Last reviewed: 2026-11-08
 
 ## Context
 
@@ -1109,7 +1109,7 @@ keeps explicit local mirrors with these ownership rules:
 | Documents, keyed by editor | `session/register`, then `document/didChange` | Host Document; bridge writes are accepted by the host before its content becomes authoritative |
 | Settings snapshot | Settings in `session/register`, then `settings/didChange` | Host only; one shared snapshot fans changes out to editors |
 | Deployment state | `deploymentState/seed` with what the host stored, then `deploymentState/save` patches | Host; a bridge patch reaches the snapshot only after the host accepted it |
-| Plugin approvals | `pluginApprovals` in `session/register`, then `pluginApprovals/didChange`, which every running bridge of the IDE gets after any `pluginApprovals/save` | Host (`PluginApprovalStore`, application level); a bridge write reaches its mirror only after the host acknowledged the save |
+| Plugin approvals (bpmn-js plugins and bpmnlint rule packages) | `pluginApprovals` in `session/register`, then `pluginApprovals/didChange`, which every running bridge of the IDE gets after any `pluginApprovals/save` | Host (`PluginApprovalStore`, application level); a bridge write reaches its mirror only after the host acknowledged the save |
 
 Apply settings before initial artifact discovery. Seed every synchronous mirror
 before its first consumer, and re-seed on process restart; mirrors do not

@@ -1,11 +1,15 @@
-import { dirname, extname } from "path";
+import { dirname } from "path";
 
 import { LintResults } from "@miragon/bpmn-modeler-types";
 
 import { createBundledResolver } from "@miragon/bpmnlint-plugin-rules";
 
-import { LintRunnerPort } from "../../../port/bpmnPorts";
+import { CodeApproval } from "../../../../../kernel/domain/codeApproval";
+import { toWorkspacePath } from "../../../../../kernel/domain/workspacePath";
+import { isParsedAsJson, rulePackageApprovalsKey } from "../../../domain/rulePackageApproval";
+import { LintRun, LintRunnerPort } from "../../../port/bpmnPorts";
 import { CompositeResolver, Resolver } from "./CompositeResolver";
+import { RulePackageGate, RulePackageSources } from "./RulePackageGate";
 
 // bpmnlint ships no type declarations; its entry points are typed by the ambient
 // shim in `src/types/bpmnlint.d.ts`, picked up through each tsconfig's `include`.
@@ -30,6 +34,7 @@ interface LintSetup {
     readonly resolvers: readonly Resolver[];
     readonly resolved: Map<string, unknown>;
     readonly moddleExtensionMisses: readonly string[];
+    readonly gate?: RulePackageGate;
 }
 
 interface CachedLintSetup {
@@ -47,11 +52,15 @@ interface CachedLintSetup {
  * Resolution is a {@link CompositeResolver}: the workspace's rule packages
  * first, then `@miragon/bpmnlint-plugin-rules`' bundled resolver (bpmnlint
  * built-ins + camunda-compat engine layers + the Miragon rules), so a workspace
- * without those installed still lints. Built-ins never come from the workspace. A rule the workspace declares but cannot provide (plugin
- * not installed) is skipped and reported, never fatal.
+ * without those installed still lints. Built-ins never come from the workspace.
+ * A workspace package runs only through a {@link RulePackageGate}, once the
+ * user allowed it; a linter built without {@link RulePackageSources} asks the
+ * workspace for nothing. A rule the workspace declares but cannot provide
+ * (plugin not installed or not allowed) is skipped and reported, never fatal.
  *
  * The moddle, the loaded extensions and the resolved rules are kept per config
- * path until the config changes, so an edit only pays for the parse and the rules.
+ * path until the config or the rule package approvals change, or an allowed
+ * package's files do, so an edit only pays for the parse and the rules.
  *
  * Host-agnostic on purpose (no `vscode` import): the IntelliJ bridge, a Bun
  * process, reuses it verbatim.
@@ -60,15 +69,18 @@ export class NodeBpmnLinter implements LintRunnerPort {
     private readonly setupsByConfigPath = new Map<string, CachedLintSetup>();
     private bundledResolver: Resolver | undefined;
     private moddleFactory: Promise<BpmnModdleFactory> | undefined;
+    private readonly loadedContentHashes = new Map<string, string>();
+
+    constructor(private readonly rulePackages?: RulePackageSources) {}
 
     async lint(
         xml: string,
         configPath: string,
         config: Record<string, unknown>,
-    ): Promise<{ results: LintResults; unresolved: string[] }> {
-        const setup = await this.lintSetupFor(configPath, config);
+    ): Promise<LintRun> {
+        const setup = await this.currentLintSetup(configPath, config);
 
-        const resolver = new CompositeResolver(setup.resolvers, setup.resolved);
+        const resolver = new CompositeResolver(setup.resolvers, setup.resolved, setup.gate);
         resolver.unresolved.push(...setup.moddleExtensionMisses);
         const { rootElement } = await setup.moddle.fromXML(xml);
 
@@ -78,23 +90,39 @@ export class NodeBpmnLinter implements LintRunnerPort {
         const linter = new Linter({ config, resolver });
         const results = (await linter.lint(rootElement)) as LintResults;
 
-        return { results, unresolved: resolver.unresolved };
+        return {
+            results,
+            unresolved: resolver.unresolved,
+            blocked: setup.gate?.blockedPackages(resolver.neededBlocked) ?? [],
+            refused: setup.gate?.refusedModules() ?? [],
+        };
+    }
+
+    /** Checked before every run: once cached, an allowed package's rules never reach the gate again. */
+    private async currentLintSetup(
+        configPath: string,
+        config: Record<string, unknown>,
+    ): Promise<LintSetup> {
+        const pending = this.lintSetupFor(configPath, config);
+        const setup = await pending;
+        if (setup.gate?.isUnchanged() !== false) {
+            return setup;
+        }
+        this.forgetSetup(configPath, pending);
+        return this.lintSetupFor(configPath, config);
     }
 
     private lintSetupFor(configPath: string, config: Record<string, unknown>): Promise<LintSetup> {
-        const configFingerprint = JSON.stringify(config);
+        const approvals = this.rulePackages?.approvals.read() ?? [];
+        const configFingerprint = `${JSON.stringify(config)}\0${rulePackageApprovalsKey(approvals)}`;
         const cached = this.setupsByConfigPath.get(configPath);
         if (cached?.configFingerprint === configFingerprint) {
             return cached.setup;
         }
 
-        const setup = this.createLintSetup(configPath, config);
+        const setup = this.createLintSetup(configPath, config, approvals);
         this.setupsByConfigPath.set(configPath, { configFingerprint, setup });
-        const forget = () => {
-            if (this.setupsByConfigPath.get(configPath)?.setup === setup) {
-                this.setupsByConfigPath.delete(configPath);
-            }
-        };
+        const forget = () => this.forgetSetup(configPath, setup);
         // A missing moddle extension may be installed later; retry it next run.
         setup.then((created) => {
             if (created.moddleExtensionMisses.length > 0) {
@@ -104,20 +132,39 @@ export class NodeBpmnLinter implements LintRunnerPort {
         return setup;
     }
 
+    private forgetSetup(configPath: string, setup: Promise<LintSetup>): void {
+        if (this.setupsByConfigPath.get(configPath)?.setup === setup) {
+            this.setupsByConfigPath.delete(configPath);
+        }
+    }
+
     private async createLintSetup(
         configPath: string,
         config: Record<string, unknown>,
+        approvals: readonly CodeApproval[],
     ): Promise<LintSetup> {
-        const scopedRequire = createScopedRequire(dirname(uriPathToFsPath(configPath)));
+        const configDir = dirname(uriPathToFsPath(configPath));
+        const scopedRequire = createScopedRequire(configDir);
         const { extensions, misses } = loadModdleExtensions(config, scopedRequire);
         const moddle = (await this.loadModdleFactory())(extensions);
         this.bundledResolver ??= createBundledResolver() as Resolver;
+        const gate =
+            this.rulePackages &&
+            new RulePackageGate({
+                sources: this.rulePackages,
+                approvals,
+                configDir: toWorkspacePath(configDir),
+                loadedContentHashes: this.loadedContentHashes,
+            });
 
         return {
             moddle,
-            resolvers: [workspaceRulePackages(scopedRequire), this.bundledResolver],
+            resolvers: gate
+                ? [workspaceRulePackages(gate.require(scopedRequire)), this.bundledResolver]
+                : [this.bundledResolver],
             resolved: new Map(),
             moddleExtensionMisses: misses,
+            gate,
         };
     }
 
@@ -172,7 +219,7 @@ function loadModdleExtensions(
 function jsonDescriptor(reference: string, scopedRequire: NodeRequire): unknown {
     try {
         const resolved = scopedRequire.resolve(reference);
-        return extname(resolved).toLowerCase() === ".json" ? scopedRequire(resolved) : undefined;
+        return isParsedAsJson(toWorkspacePath(resolved)) ? scopedRequire(resolved) : undefined;
     } catch {
         return undefined;
     }

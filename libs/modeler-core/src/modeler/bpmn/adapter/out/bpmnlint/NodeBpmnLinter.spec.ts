@@ -1,10 +1,17 @@
+import { createHash } from "node:crypto";
+import { readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { toWorkspacePath } from "../../../../../kernel/domain/workspacePath";
+import { InMemoryPluginApprovals } from "../../../../../testing";
+import { FingerprintedRoot } from "../../../domain/packageClosure";
+import { InstalledPackagesPort } from "../../../port/installedPackagesPort";
 import { DefaultBpmnlintConfigService } from "../../../service/DefaultBpmnlintConfigService";
+import { PackageClosureFingerprinter } from "../../../service/PackageClosureFingerprinter";
 import { NodeBpmnLinter } from "./NodeBpmnLinter";
 
 const moddlesCreated = vi.hoisted(() => vi.fn());
@@ -49,6 +56,19 @@ const BPMN_WITH_TASK = `<?xml version="1.0" encoding="UTF-8"?>
   </bpmn:process>
 </bpmn:definitions>`;
 
+// A connected C8 service task with no `zeebe:taskDefinition` — a canonical
+// deploy-breaker the camunda-compat `implementation` rule flags.
+const BPMN_C8_UNIMPLEMENTED_SERVICE_TASK = `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:zeebe="http://camunda.org/schema/zeebe/1.0" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Process_1" isExecutable="true">
+<bpmn:startEvent id="Start_1" />
+<bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="Task_1" />
+<bpmn:serviceTask id="Task_1" name="Do the thing" />
+<bpmn:sequenceFlow id="Flow_2" sourceRef="Task_1" targetRef="End_1" />
+<bpmn:endEvent id="End_1" />
+  </bpmn:process>
+</bpmn:definitions>`;
+
 describe("NodeBpmnLinter", () => {
     it("resolves built-in rules from the bundled fallback and reports findings", async () => {
         const { results, unresolved } = await new NodeBpmnLinter().lint(
@@ -83,19 +103,6 @@ describe("NodeBpmnLinter", () => {
 
         expect(unresolved).toContain("plugin:bpmnlint-plugin-custom-plugin/recommended");
     });
-
-    // A connected C8 service task with no `zeebe:taskDefinition` — a canonical
-    // deploy-breaker the camunda-compat `implementation` rule flags.
-    const BPMN_C8_UNIMPLEMENTED_SERVICE_TASK = `<?xml version="1.0" encoding="UTF-8"?>
-<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:zeebe="http://camunda.org/schema/zeebe/1.0" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">
-  <bpmn:process id="Process_1" isExecutable="true">
-    <bpmn:startEvent id="Start_1" />
-    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="Task_1" />
-    <bpmn:serviceTask id="Task_1" name="Do the thing" />
-    <bpmn:sequenceFlow id="Flow_2" sourceRef="Task_1" targetRef="End_1" />
-    <bpmn:endEvent id="End_1" />
-  </bpmn:process>
-</bpmn:definitions>`;
 
     it("lints against the bundled default and fires a camunda-compat C8 rule with everything resolved", async () => {
         const config = await new DefaultBpmnlintConfigService().build("c8");
@@ -261,14 +268,8 @@ describe("NodeBpmnLinter across runs", () => {
         expect(bundledRuleResolved).toHaveBeenCalled();
     });
 
-    it("picks up a plugin installed after a run that could not resolve it", async () => {
-        const linter = new NodeBpmnLinter();
-        const configPath = join(workspaceDir, ".bpmnlintrc");
-        const config = { rules: { "custom-plugin/task-found": "warn" } };
-
-        const before = await linter.lint(BPMN_WITH_TASK, configPath, config);
-        expect(before.unresolved).toEqual(["bpmnlint-plugin-custom-plugin/task-found"]);
-
+    it("runs no workspace rule package when no gate is wired", async () => {
+        const RAN = "__bpmnlintUngatedPluginRan";
         const pluginDir = join(workspaceDir, "node_modules", "bpmnlint-plugin-custom-plugin");
         await mkdir(join(pluginDir, "rules"), { recursive: true });
         await writeFile(
@@ -277,18 +278,18 @@ describe("NodeBpmnLinter across runs", () => {
         );
         await writeFile(
             join(pluginDir, "rules", "task-found.js"),
-            `module.exports = () => ({
-                check(node, reporter) {
-                    if (node.$type === "bpmn:Task") reporter.report(node.id, "Task found");
-                },
-            });`,
+            `globalThis.${RAN} = true;\nmodule.exports = () => ({ check() {} });`,
         );
 
-        const after = await linter.lint(BPMN_WITH_TASK, configPath, config);
-        expect(after.unresolved).toEqual([]);
-        expect(after.results["custom-plugin/task-found"]).toEqual([
-            expect.objectContaining({ id: "Task_1" }),
-        ]);
+        const { unresolved, blocked } = await new NodeBpmnLinter().lint(
+            BPMN_WITH_TASK,
+            join(workspaceDir, ".bpmnlintrc"),
+            { rules: { "custom-plugin/task-found": "warn" } },
+        );
+
+        expect((globalThis as Record<string, unknown>)[RAN]).toBeUndefined();
+        expect(unresolved).toEqual(["bpmnlint-plugin-custom-plugin/task-found"]);
+        expect(blocked).toEqual([]);
     });
 });
 
@@ -381,6 +382,22 @@ describe("NodeBpmnLinter and workspace code outside rule packages", () => {
         expect(unresolved).toEqual(["moddleExtension:acme"]);
     });
 
+    it("skips a moddle extension named .JSON, which Node runs as a script", async () => {
+        await writeWorkspaceFile(
+            "acme.JSON",
+            markerScript(`{ name: "Acme", prefix: "acme", uri: "http://acme", types: [] }`),
+        );
+
+        const { unresolved } = await new NodeBpmnLinter().lint(
+            BPMN_WITH_TASK,
+            join(workspaceDir, ".bpmnlintrc"),
+            { moddleExtensions: { acme: "./acme.JSON" } },
+        );
+
+        expect(workspaceCodeRan()).toBe(false);
+        expect(unresolved).toEqual(["moddleExtension:acme"]);
+    });
+
     it.each(["./acme.json", "./acme"])(
         "loads a moddle extension from a JSON descriptor named %s",
         async (reference) => {
@@ -398,4 +415,383 @@ describe("NodeBpmnLinter and workspace code outside rule packages", () => {
             expect(unresolved).toEqual([]);
         },
     );
+});
+
+describe("NodeBpmnLinter with workspace rule packages", () => {
+    const RAN = "__bpmnlintRulePackageCodeRan";
+    const ran = () => ((globalThis as Record<string, unknown>)[RAN] ?? []) as string[];
+    const marked = (label: string, body: string) =>
+        `(globalThis.${RAN} ??= []).push(${JSON.stringify(label)});\n${body}`;
+
+    const orUndefined = <T>(read: () => T): T | undefined => {
+        try {
+            return read();
+        } catch {
+            return undefined;
+        }
+    };
+    const kindOf = (entry: { isDirectory(): boolean; isFile(): boolean }) => {
+        if (entry.isDirectory()) {
+            return "directory" as const;
+        }
+        return entry.isFile() ? ("file" as const) : ("other" as const);
+    };
+    const nodePackages: InstalledPackagesPort = {
+        realPath: (path) => orUndefined(() => toWorkspacePath(realpathSync(path))),
+        listDirectory: (path) =>
+            orUndefined(() =>
+                readdirSync(path, { withFileTypes: true }).map((entry) => ({
+                    name: entry.name,
+                    kind: entry.isSymbolicLink() ? "symbolicLink" : kindOf(entry),
+                })),
+            ),
+        stamp: (path) => {
+            const stats = orUndefined(() => statSync(path, { bigint: true }));
+            return (
+                stats && {
+                    kind: kindOf(stats),
+                    dev: stats.dev,
+                    ino: stats.ino,
+                    size: stats.size,
+                    mtimeNs: stats.mtimeNs,
+                    ctimeNs: stats.ctimeNs,
+                }
+            );
+        },
+        sha256OfFile: (path) =>
+            orUndefined(() => createHash("sha256").update(readFileSync(path)).digest("hex")),
+        sha256OfText: (text) => createHash("sha256").update(text, "utf8").digest("hex"),
+        readTextFile: (path) => orUndefined(() => readFileSync(path, "utf8")),
+    };
+
+    let workspaceDir: string;
+    let configPath: string;
+    let approvals: InMemoryPluginApprovals;
+    let fingerprints: PackageClosureFingerprinter;
+    let linter: NodeBpmnLinter;
+
+    const acmeDir = () => join(workspaceDir, "node_modules", "bpmnlint-plugin-acme");
+    const TASK_FOUND = { rules: { "acme/task-found": "warn" } };
+
+    async function writeWorkspaceFile(relativePath: string, content: string): Promise<void> {
+        const path = join(workspaceDir, ...relativePath.split("/"));
+        await mkdir(join(path, ".."), { recursive: true });
+        await writeFile(path, content);
+    }
+
+    async function installPackage(
+        folder: string,
+        manifest: Record<string, unknown>,
+        files: Record<string, string>,
+    ): Promise<void> {
+        await writeWorkspaceFile(
+            `${folder}/package.json`,
+            JSON.stringify({ version: "1.0.0", ...manifest }),
+        );
+        for (const [relPath, content] of Object.entries(files)) {
+            await writeWorkspaceFile(`${folder}/${relPath}`, content);
+        }
+    }
+
+    /** bpmnlint-plugin-acme reports every task with the text its dependency acme-dep exports. */
+    async function installAcme(message = "v1"): Promise<void> {
+        await installPackage(
+            "node_modules/bpmnlint-plugin-acme",
+            { name: "bpmnlint-plugin-acme", dependencies: { "acme-dep": "1.0.0" } },
+            {
+                "index.js": marked("acme", "module.exports = {};"),
+                "rules/task-found.js": marked(
+                    "acme/task-found",
+                    `const message = require("acme-dep");
+module.exports = () => ({
+    check(node, reporter) {
+        if (node.$type === "bpmn:Task") reporter.report(node.id, message);
+    },
+});`,
+                ),
+            },
+        );
+        await writeAcmeDep(message);
+    }
+
+    async function writeAcmeDep(message: string): Promise<void> {
+        await installPackage(
+            "node_modules/acme-dep",
+            { name: "acme-dep" },
+            { "index.js": marked("acme-dep", `module.exports = ${JSON.stringify(message)};`) },
+        );
+    }
+
+    function approve(root: FingerprintedRoot): void {
+        const fingerprint = fingerprints.fingerprint(root);
+        if (fingerprint.kind !== "fingerprinted") {
+            throw new Error(`refused: ${fingerprint.reason}`);
+        }
+        approvals.approvals = [
+            ...approvals.approvals.filter(({ pluginId }) => pluginId !== root.id),
+            { pluginId: root.id, contentHash: fingerprint.rulePackage.contentHash },
+        ];
+    }
+
+    const approveAcme = () => approve({ kind: "package", id: acmeDir() });
+
+    beforeEach(async () => {
+        workspaceDir = toWorkspacePath(
+            realpathSync(await mkdtemp(join(tmpdir(), "node-bpmn-linter-gate-"))),
+        );
+        configPath = join(workspaceDir, ".bpmnlintrc");
+        approvals = new InMemoryPluginApprovals();
+        fingerprints = new PackageClosureFingerprinter(nodePackages);
+        linter = new NodeBpmnLinter({ approvals, fingerprints, packages: nodePackages });
+        delete (globalThis as Record<string, unknown>)[RAN];
+    });
+
+    afterEach(async () => {
+        delete (globalThis as Record<string, unknown>)[RAN];
+        await rm(workspaceDir, { recursive: true, force: true });
+    });
+
+    it("never runs a package nobody allowed and reports it as new and needed", async () => {
+        await installAcme();
+
+        const { results, unresolved, blocked } = await linter.lint(
+            BPMN_WITH_TASK,
+            configPath,
+            TASK_FOUND,
+        );
+
+        expect(ran()).toEqual([]);
+        expect(results).toEqual({});
+        expect(unresolved).toEqual(["bpmnlint-plugin-acme/task-found"]);
+        expect(blocked).toEqual([{ id: acmeDir(), kind: "package", state: "new", needed: true }]);
+    });
+
+    it("runs an allowed package with the dependency it declares", async () => {
+        await installAcme();
+        approveAcme();
+
+        const { results, unresolved, blocked, refused } = await linter.lint(
+            BPMN_WITH_TASK,
+            configPath,
+            TASK_FOUND,
+        );
+
+        expect(ran()).toEqual(["acme", "acme/task-found", "acme-dep"]);
+        expect(results["acme/task-found"]).toEqual([
+            expect.objectContaining({ id: "Task_1", message: "v1" }),
+        ]);
+        expect(unresolved).toEqual([]);
+        expect(blocked).toEqual([]);
+        expect(refused).toEqual([]);
+    });
+
+    it("lints with a package allowed after a run, with no config change", async () => {
+        await installAcme();
+        await linter.lint(BPMN_WITH_TASK, configPath, TASK_FOUND);
+
+        approveAcme();
+        const { results, blocked } = await linter.lint(BPMN_WITH_TASK, configPath, TASK_FOUND);
+
+        expect(results["acme/task-found"]).toEqual([expect.objectContaining({ id: "Task_1" })]);
+        expect(blocked).toEqual([]);
+    });
+
+    it("picks up a package installed and allowed after a run that could not resolve it", async () => {
+        const before = await linter.lint(BPMN_WITH_TASK, configPath, TASK_FOUND);
+
+        await installAcme();
+        approveAcme();
+        const after = await linter.lint(BPMN_WITH_TASK, configPath, TASK_FOUND);
+
+        expect(before.blocked).toEqual([]);
+        expect(after.unresolved).toEqual([]);
+        expect(after.results["acme/task-found"]).toEqual([
+            expect.objectContaining({ id: "Task_1" }),
+        ]);
+    });
+
+    it("stops using a dependency edited after approval, though every rule came from the cache", async () => {
+        await installAcme();
+        approveAcme();
+        await linter.lint(BPMN_WITH_TASK, configPath, TASK_FOUND);
+        const cachedRun = await linter.lint(BPMN_WITH_TASK, configPath, TASK_FOUND);
+
+        await writeAcmeDep("v2, edited after the approval");
+        const { results, unresolved, blocked } = await linter.lint(
+            BPMN_WITH_TASK,
+            configPath,
+            TASK_FOUND,
+        );
+
+        expect(cachedRun.results["acme/task-found"]).toHaveLength(1);
+        expect(results).toEqual({});
+        expect(unresolved).toEqual(["bpmnlint-plugin-acme/task-found"]);
+        expect(blocked).toEqual([{ id: acmeDir(), kind: "package", state: "changed", needed: true }]);
+    });
+
+    it("runs the new bytes once a changed package is allowed again", async () => {
+        await installAcme();
+        approveAcme();
+        await linter.lint(BPMN_WITH_TASK, configPath, TASK_FOUND);
+        await writeAcmeDep("v2, edited after the approval");
+        await linter.lint(BPMN_WITH_TASK, configPath, TASK_FOUND);
+
+        approveAcme();
+        const { results, blocked } = await linter.lint(BPMN_WITH_TASK, configPath, TASK_FOUND);
+
+        expect(results["acme/task-found"]).toEqual([
+            expect.objectContaining({ message: "v2, edited after the approval" }),
+        ]);
+        expect(blocked).toEqual([]);
+    });
+
+    it("never runs the config folder's own package without approval", async () => {
+        await installPackage(
+            ".",
+            { name: "bpmnlint-plugin-self" },
+            {
+                "index.js": marked(
+                    "self",
+                    "module.exports = { configs: { recommended: { rules: {} } } };",
+                ),
+            },
+        );
+
+        const { unresolved, blocked } = await linter.lint(BPMN_WITH_TASK, configPath, {
+            extends: "plugin:self/recommended",
+        });
+
+        expect(ran()).toEqual([]);
+        expect(unresolved).toEqual(["plugin:bpmnlint-plugin-self/recommended"]);
+        expect(blocked).toEqual([{ id: workspaceDir, kind: "selfPackage", state: "new", needed: true }]);
+    });
+
+    it("refuses an absolute rule reference to a workspace file outside node_modules and never offers it", async () => {
+        const evilPath = join(workspaceDir, "scripts", "evil.js");
+        await writeWorkspaceFile("scripts/evil.js", marked("evil", "module.exports = () => ({});"));
+        await installPackage(
+            "node_modules/bpmnlint-plugin-pointer",
+            { name: "bpmnlint-plugin-pointer" },
+            {
+                "index.js": marked(
+                    "pointer",
+                    `module.exports = { rules: { evil: ${JSON.stringify(evilPath)} } };`,
+                ),
+            },
+        );
+        approve({ kind: "package", id: join(workspaceDir, "node_modules/bpmnlint-plugin-pointer") });
+
+        const { unresolved, blocked, refused } = await linter.lint(BPMN_WITH_TASK, configPath, {
+            rules: { "pointer/evil": "error" },
+        });
+
+        expect(ran()).toEqual(["pointer"]);
+        expect(unresolved).toEqual(["bpmnlint-plugin-pointer/evil"]);
+        expect(blocked).toEqual([]);
+        expect(refused).toEqual([{ kind: "module", file: evilPath, reason: "outsideNodeModules" }]);
+    });
+
+    it("never runs a file under an allowed package's .git, which its hash leaves out", async () => {
+        await installPackage(
+            "node_modules/bpmnlint-plugin-acme",
+            { name: "bpmnlint-plugin-acme" },
+            {
+                "index.js": marked(
+                    "acme",
+                    `module.exports = { rules: { evil: "./.git/evil.js" } };`,
+                ),
+                ".git/evil.js": marked("evil v1", "module.exports = () => ({ check() {} });"),
+            },
+        );
+        approveAcme();
+        await writeWorkspaceFile(
+            "node_modules/bpmnlint-plugin-acme/.git/evil.js",
+            marked("evil v2, written after the approval", "module.exports = () => ({ check() {} });"),
+        );
+
+        const { unresolved, blocked, refused } = await linter.lint(BPMN_WITH_TASK, configPath, {
+            rules: { "acme/evil": "error" },
+        });
+
+        expect(ran()).toEqual(["acme"]);
+        expect(unresolved).toEqual(["bpmnlint-plugin-acme/evil"]);
+        expect(blocked).toEqual([]);
+        expect(refused).toEqual([
+            { kind: "module", file: `${acmeDir()}/.git/evil.js`, reason: "notHashed" },
+        ]);
+    });
+
+    it("never runs a model file of the allowed config folder's own package, which its hash leaves out", async () => {
+        await installPackage(
+            ".",
+            { name: "bpmnlint-plugin-self" },
+            {
+                "index.js": marked("self", `module.exports = { rules: { evil: "./evil.bpmn" } };`),
+                "evil.bpmn": marked("evil v1", "module.exports = () => ({ check() {} });"),
+            },
+        );
+        approve({ kind: "selfPackage", id: workspaceDir });
+        await writeWorkspaceFile(
+            "evil.bpmn",
+            marked("evil v2, written after the approval", "module.exports = () => ({ check() {} });"),
+        );
+
+        const { unresolved, blocked, refused } = await linter.lint(BPMN_WITH_TASK, configPath, {
+            rules: { "self/evil": "error" },
+        });
+
+        expect(ran()).toEqual(["self"]);
+        expect(unresolved).toEqual(["bpmnlint-plugin-self/evil"]);
+        expect(blocked).toEqual([]);
+        expect(refused).toEqual([
+            { kind: "module", file: `${workspaceDir}/evil.bpmn`, reason: "notHashed" },
+        ]);
+    });
+
+    describe("a workspace camunda-compat nobody allowed", () => {
+        const camundaCompatDir = () =>
+            join(workspaceDir, "node_modules", "bpmnlint-plugin-camunda-compat");
+
+        beforeEach(async () => {
+            await installPackage(
+                "node_modules/bpmnlint-plugin-camunda-compat",
+                { name: "bpmnlint-plugin-camunda-compat" },
+                {
+                    "index.js": marked(
+                        "camunda-compat",
+                        `module.exports = { configs: { "camunda-cloud-8-10": { rules: {} } } };`,
+                    ),
+                    "rules/workspace-only.js": marked(
+                        "camunda-compat/workspace-only",
+                        "module.exports = () => ({ check() {} });",
+                    ),
+                },
+            );
+        });
+
+        it("lints with the bundled copy where it serves the config, without needing the workspace one", async () => {
+            const config = await new DefaultBpmnlintConfigService().build("c8");
+
+            const { results, unresolved, blocked } = await linter.lint(
+                BPMN_C8_UNIMPLEMENTED_SERVICE_TASK,
+                configPath,
+                config,
+            );
+
+            expect(ran()).toEqual([]);
+            expect(unresolved).toEqual([]);
+            expect(Object.keys(results)).toContain("camunda-compat/implementation");
+            expect(blocked).toEqual([{ id: camundaCompatDir(), kind: "package", state: "new", needed: false }]);
+        });
+
+        it("needs the workspace copy for a rule only it has", async () => {
+            const { unresolved, blocked } = await linter.lint(BPMN_WITH_TASK, configPath, {
+                rules: { "camunda-compat/workspace-only": "error" },
+            });
+
+            expect(ran()).toEqual([]);
+            expect(unresolved).toEqual(["bpmnlint-plugin-camunda-compat/workspace-only"]);
+            expect(blocked).toEqual([{ id: camundaCompatDir(), kind: "package", state: "new", needed: true }]);
+        });
+    });
 });

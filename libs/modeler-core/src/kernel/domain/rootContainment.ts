@@ -54,10 +54,14 @@ function withTrailingSlash(path: string): string {
 // Rooted: a leading separator (posix, UNC, the current Windows drive) or a drive prefix.
 const ROOTED_PATH = /^(?:[\\/]|[A-Za-z]:)/;
 
+export function isRootedPath(path: string): boolean {
+    return ROOTED_PATH.test(path);
+}
+
 /**
  * Whether a path written relative to a folder names that folder or something
  * below it. Both separators split, since an untrusted source can send either.
  */
 export function staysInsideFolder(relativePath: string): boolean {
-    return !ROOTED_PATH.test(relativePath) && !relativePath.split(/[\\/]/).includes("..");
+    return !isRootedPath(relativePath) && !relativePath.split(/[\\/]/).includes("..");
 }

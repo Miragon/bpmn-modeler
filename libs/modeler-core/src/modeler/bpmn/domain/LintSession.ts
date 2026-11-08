@@ -6,6 +6,7 @@ import {
 } from "@miragon/bpmn-modeler-types";
 
 import { LintFindingsSource } from "./bpmnlintIndicator";
+import { BlockedRulePackage } from "./rulePackageApproval";
 
 /** One `.bpmnlintrc` version: its path and exact bytes identify it. */
 export interface LintConfigVersion {
@@ -28,6 +29,8 @@ export interface LintRunOutput {
     readonly xml: string;
     readonly results: LintResults;
     readonly unresolved: readonly string[];
+    /** Workspace rule packages the run could not use; a webview run has none. */
+    readonly blocked: readonly BlockedRulePackage[];
 }
 
 export interface LintFindings extends LintRunOutput {

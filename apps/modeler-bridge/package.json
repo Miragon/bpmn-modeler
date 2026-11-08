@@ -22,6 +22,7 @@
         "compile:all": "npm-run-all -p compile:darwin-arm64 compile:darwin-x64 compile:linux-x64 compile:linux-arm64 compile:windows-x64",
         "build": "npm-run-all -s typecheck compile",
         "start": "bun run src/server.ts",
+        "smoke:rule-package-gate": "bun run scripts/rule-package-gate-smoke.ts",
         "test": "vitest run --coverage"
     },
     "dependencies": {

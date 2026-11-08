@@ -496,7 +496,7 @@ Common types: `feat`, `fix`, `refactor`, `chore`, `docs`, `test`.
 
 | Workflow            | Trigger                                                  | Purpose                                                                       |
 |---------------------|----------------------------------------------------------|-------------------------------------------------------------------------------|
-| **Build**           | every push / PR                                          | lint → test → build, full install (apt-step for Theia native modules)         |
+| **Build**           | every push / PR                                          | lint → test → build, full install (apt-step for Theia native modules); when the bridge changes, the rule package gate smoke under the Bun pinned in `apps/modeler-bridge/.bun-version` |
 | **VS Code smoke**   | PR touching the extension or what it bundles, weekly, manual | packaged extension in a real VS Code (not a required check)             |
 | **PR Labeler**      | PR opened / updated                                      | auto-labels PRs by changed workspace                                          |
 | **Prepare Release ***| manual (`workflow_dispatch`)                            | bump version, sanity build, commit, tag, create GitHub Release                |

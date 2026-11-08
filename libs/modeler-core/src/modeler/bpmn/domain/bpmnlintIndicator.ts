@@ -1,5 +1,7 @@
 import { Engine } from "@miragon/bpmn-modeler-types";
 
+import { BlockedRulePackage } from "./rulePackageApproval";
+
 /**
  * Where a set of findings came from. `"workspace"` is a host-side (escalated)
  * Node run against a discovered `.bpmnlintrc`; `"in-page"` is a webview run,
@@ -22,6 +24,13 @@ export type BpmnlintIndicator =
           readonly configPath: string;
           readonly unresolved: readonly string[];
       }
+    | {
+          readonly state: "blocked";
+          readonly configPath: string;
+          readonly unresolved: readonly string[];
+          /** The rule packages whose rules were skipped because the user has not allowed them. */
+          readonly notAllowed: readonly string[];
+      }
     | { readonly state: "default"; readonly platform: Engine | undefined }
     | { readonly state: "disabled" }
     | { readonly state: "failed" };
@@ -29,8 +38,14 @@ export type BpmnlintIndicator =
 export function indicatorForFindings(
     source: LintFindingsSource,
     unresolved: readonly string[],
+    blocked: readonly BlockedRulePackage[],
 ): BpmnlintIndicator {
     if (source.kind === "workspace") {
+        const notAllowed = [...new Set(blocked.filter((each) => each.needed).map(({ id }) => id))];
+        if (notAllowed.length > 0) {
+            // Not "unresolved": installing the plugin would not help, allowing it would.
+            return { state: "blocked", configPath: source.configPath, unresolved, notAllowed };
+        }
         return unresolved.length > 0
             ? { state: "unresolved", configPath: source.configPath, unresolved }
             : { state: "active", configPath: source.configPath };

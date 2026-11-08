@@ -1,5 +1,19 @@
 import { LintResults } from "@miragon/bpmn-modeler-types";
 
+import { BlockedRulePackage } from "../domain/rulePackageApproval";
+import { RefusedRuleModule } from "../domain/rulePackageRefusal";
+
+export interface LintRun {
+    /** Findings keyed by rule name. */
+    readonly results: LintResults;
+    /** Rules and configs that could not be resolved: skipped, never thrown. */
+    readonly unresolved: string[];
+    /** Workspace rule packages that may not run yet. */
+    readonly blocked: BlockedRulePackage[];
+    /** Workspace code that may never run, with the reason. */
+    readonly refused: RefusedRuleModule[];
+}
+
 /**
  * Runs bpmnlint over a diagram in a full Node context (the extension host),
  * resolving built-in, `plugin:*`, and custom `pkg/rule` rules against the
@@ -18,14 +32,8 @@ export interface LintRunnerPort {
      *   zero-config default this is the document's own path (a resolution anchor
      *   only — the default references no workspace modules).
      * @param config the parsed `.bpmnlintrc` contents, or the bundled default.
-     * @returns the findings keyed by rule name, plus the names of any
-     *   rules/configs that could not be resolved (skipped, never thrown).
      */
-    lint(
-        xml: string,
-        configPath: string,
-        config: Record<string, unknown>,
-    ): Promise<{ results: LintResults; unresolved: string[] }>;
+    lint(xml: string, configPath: string, config: Record<string, unknown>): Promise<LintRun>;
 }
 
 /**

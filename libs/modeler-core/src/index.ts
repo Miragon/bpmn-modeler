@@ -31,6 +31,7 @@ export * from "./kernel/domain/viewTypes";
 export * from "./kernel/domain/watcherEvents";
 export * from "./kernel/domain/workspacePath";
 export * from "./kernel/service/ArtifactService";
+export * from "./kernel/service/QuestionQueue";
 export * from "./kernel/adapter/out/FetchHttpClient";
 export * from "./kernel/domain/nonce";
 
@@ -60,6 +61,7 @@ export * from "./editorSession/adapter/in/webviewNotificationMessageHandlers";
 export * from "./modeler/bpmn/composition/BpmnEditorFeature";
 export * from "./modeler/bpmn/domain/model";
 export * from "./modeler/bpmn/port/bpmnPorts";
+export * from "./modeler/bpmn/port/installedPackagesPort";
 export * from "./modeler/bpmn/service/BpmnModelerService";
 export * from "./modeler/bpmn/adapter/in/bpmnMessageHandlers";
 export * from "./modeler/bpmn/service/BpmnElementTemplatesService";

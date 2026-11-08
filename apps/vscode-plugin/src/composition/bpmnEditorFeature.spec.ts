@@ -2,18 +2,48 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("vscode", () => import("../__fixtures__/vscodeCompositionFake"));
 
+const injectedPorts = vi.hoisted(() => ({
+    plugins: [] as BpmnPluginsHostPorts[],
+    editors: [] as BpmnEditorHostPorts[],
+}));
+
+// Records what the composition hands each feature, which keeps no reference to it.
+vi.mock("@miragon/bpmn-modeler-core", async (importOriginal) => {
+    const core = await importOriginal<typeof import("@miragon/bpmn-modeler-core")>();
+    class RecordedBpmnPluginsFeature extends core.BpmnPluginsFeature {
+        constructor(ports: BpmnPluginsHostPorts) {
+            super(ports);
+            injectedPorts.plugins.push(ports);
+        }
+    }
+    class RecordedBpmnEditorFeature extends core.BpmnEditorFeature {
+        constructor(...args: ConstructorParameters<typeof core.BpmnEditorFeature>) {
+            super(...args);
+            injectedPorts.editors.push(args[0]);
+        }
+    }
+    return {
+        ...core,
+        BpmnPluginsFeature: RecordedBpmnPluginsFeature,
+        BpmnEditorFeature: RecordedBpmnEditorFeature,
+    };
+});
+
 import { ExtensionContext, Uri } from "vscode";
 
 import {
     BpmnDiffService,
     BpmnEditorFeature,
+    BpmnEditorHostPorts,
     BpmnPluginsFeature,
+    BpmnPluginsHostPorts,
     CodeLinkFeature,
     DefinitionSearchFeature,
     DiffPaneStore,
     DOCUMENT_SYNC_COMMAND_TYPES,
     EditorSessionParticipant,
     NavigationFeature,
+    QuestionQueue,
     ScriptEditorFeature,
     ScriptFileStore,
     ScriptVariableStore,
@@ -22,6 +52,7 @@ import { RecordingScriptEditor } from "@miragon/bpmn-modeler-core/testing";
 
 import { InMemoryMemento } from "../__fixtures__/vscodeStorage";
 import { BpmnDiffController } from "../diff/adapter/in/BpmnDiffController";
+import { NodeInstalledPackages } from "../modeler/bpmn/adapter/out/NodeInstalledPackages";
 import { setContext } from "../shared/adapter/out/extensionContext";
 import * as bpmnEditorFeature from "./bpmnEditorFeature";
 import { buildSharedDeps } from "./sharedDeps";
@@ -73,6 +104,20 @@ function createVsCodeBpmnEditor(context = createExtensionContext()) {
 describe("VS Code's BPMN editor", () => {
     afterEach(() => {
         vi.restoreAllMocks();
+        injectedPorts.plugins.splice(0);
+        injectedPorts.editors.splice(0);
+    });
+
+    it("asks about plugins and rule packages in one queue and keeps both in one approval list", () => {
+        createVsCodeBpmnEditor();
+
+        const [plugins] = injectedPorts.plugins;
+        const rulePackages = injectedPorts.editors[0]?.rulePackages;
+        expect(plugins?.questions).toBeInstanceOf(QuestionQueue);
+        expect(rulePackages?.questions).toBe(plugins?.questions);
+        expect(rulePackages?.approvals).toBe(plugins?.approvals);
+        expect(rulePackages?.actionNotifier).toBe(plugins?.actionNotifier);
+        expect(rulePackages?.installedPackages).toBeInstanceOf(NodeInstalledPackages);
     });
 
     it("routes the whole document group to the core's document services", () => {

@@ -20,6 +20,11 @@
  * drives: a config that *appears* takes the editor over to the host path (and
  * drops a stale in-page push arriving after the flip), and a config that is
  * *deleted* hands linting back to the webview's in-page default.
+ *
+ * A workspace `bpmnlint-plugin-*` package runs only once the user allowed it:
+ * the host lint skips it and asks, the answer is saved through
+ * `pluginApprovals/save` and lints again, an approval pushed by another bridge
+ * takes effect on the next lint, and an edit after the approval stops it again.
  */
 
 import { promises as fs } from "node:fs";
@@ -28,7 +33,7 @@ import { join } from "node:path";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { RawModelerSettings } from "@miragon/bpmn-modeler-core";
+import { PluginApproval, RawModelerSettings } from "@miragon/bpmn-modeler-core";
 
 import {
     hostNotification,
@@ -39,6 +44,22 @@ import {
     StatusSlotFrame,
     waitForFrame,
 } from "./__fixtures__/bridgeHarness";
+import {
+    ACME_NOTICE_MESSAGE,
+    ACME_RULE,
+    AcmeBridge,
+    acmeRuns,
+    createAcmeWorkspace,
+    findingsOf,
+    isRequest,
+    lintOnHost,
+    nextLintResults,
+    openAcmeBridge,
+    relint,
+    reviewAndAllowAll,
+    waitForNotice,
+    writeAcmeDependency,
+} from "./__fixtures__/rulePackageBridge";
 import { createBridge } from "./composition/bridge";
 import { NodeWorkspace } from "./kernel/adapter/out/NodeWorkspace";
 import { StatusBarUpdateParams } from "./protocol/domain/types";
@@ -575,5 +596,137 @@ describe("bridge bpmnlint (real core + locator over a fake transport)", () => {
                 { fromIndex: beforeRequest },
             ),
         ).resolves.toBeDefined();
+    });
+});
+
+describe("workspace bpmnlint rule packages on the bridge", () => {
+    const disposals: Array<() => Promise<void>> = [];
+
+    afterEach(async () => {
+        for (const dispose of disposals.splice(0)) {
+            await dispose();
+        }
+    });
+
+    async function openAcme(root?: string): Promise<AcmeBridge> {
+        const bridge = await openAcmeBridge(root ?? (await createAcmeWorkspace()));
+        disposals.push(bridge.dispose);
+        return bridge;
+    }
+
+    async function allowAcme(bridge: AcmeBridge): Promise<readonly PluginApproval[]> {
+        await lintOnHost(bridge);
+        const fromIndex = bridge.frames.length;
+        const saved = await reviewAndAllowAll(bridge, await waitForNotice(bridge));
+        await nextLintResults(bridge, fromIndex);
+        return saved;
+    }
+
+    it("skips a rule package nobody allowed, says so and asks about it", async () => {
+        const bridge = await openAcme();
+
+        const results = await lintOnHost(bridge);
+
+        expect(findingsOf(results)).not.toHaveProperty([ACME_RULE]);
+        await expect(acmeRuns(bridge.root)).resolves.toEqual([]);
+        expect(shownLintStatus(bridge.frames)).toMatchObject({
+            text: "BPMNlint: 1 rule package not allowed",
+        });
+        expect(bridge.frames).toContainEqual(
+            expect.objectContaining({
+                method: "notifier/log",
+                params: {
+                    level: "warn",
+                    message: `bpmnlint: rule package ${bridge.acmeDir} is not allowed yet (new), so rules from it are skipped.`,
+                },
+            }),
+        );
+        await expect(waitForNotice(bridge)).resolves.toMatchObject({
+            params: { tone: "info", message: ACME_NOTICE_MESSAGE, labels: ["Review…"] },
+        });
+    });
+
+    it("saves the allowed package with its closure hash and lints again with its rule", async () => {
+        const bridge = await openAcme();
+        await lintOnHost(bridge);
+        const notice = await waitForNotice(bridge);
+        const fromIndex = bridge.frames.length;
+
+        const saved = await reviewAndAllowAll(bridge, notice);
+
+        expect(saved).toEqual([
+            {
+                pluginId: bridge.acmeDir,
+                contentHash: expect.stringMatching(/^bpmnlint-closure-v1:/),
+            },
+        ]);
+        const relinted = await nextLintResults(bridge, fromIndex);
+        expect(findingsOf(relinted)[ACME_RULE]).toEqual([
+            expect.objectContaining({ id: "Task_1", message: "v1" }),
+        ]);
+        await expect(acmeRuns(bridge.root)).resolves.toEqual(["v1"]);
+    });
+
+    it("runs a package another bridge's approval allowed on the next lint, without asking", async () => {
+        const root = await createAcmeWorkspace();
+        const approving = await openAcmeBridge(root, { keepRoot: true });
+        disposals.push(approving.dispose);
+        const approvals = await allowAcme(approving);
+        const bridge = await openAcme(root);
+        const beforePush = await lintOnHost(bridge);
+        await settle();
+        expect(findingsOf(beforePush)).not.toHaveProperty([ACME_RULE]);
+        await expect(acmeRuns(root)).resolves.toEqual(["v1"]);
+        expect(bridge.frames.filter(isRequest("actionNotice/show"))).toHaveLength(1);
+
+        await bridge.rpc.handleLine(hostNotification("pluginApprovals/didChange", { approvals }));
+        const results = await relint(bridge);
+
+        expect(findingsOf(results)).toHaveProperty([ACME_RULE]);
+        await expect(acmeRuns(root)).resolves.toEqual(["v1", "v1"]);
+        await settle();
+        expect(bridge.frames.filter(isRequest("actionNotice/show"))).toHaveLength(1);
+    });
+
+    it("stops running a package whose dependency changed after the approval and reports it changed", async () => {
+        const bridge = await openAcme();
+        await allowAcme(bridge);
+
+        await writeAcmeDependency(bridge.root, "v2, edited after the approval");
+        const fromIndex = bridge.frames.length;
+        const results = await relint(bridge);
+
+        expect(findingsOf(results)).not.toHaveProperty([ACME_RULE]);
+        await expect(acmeRuns(bridge.root)).resolves.toEqual(["v1"]);
+        expect(bridge.frames.slice(fromIndex)).toContainEqual(
+            expect.objectContaining({
+                method: "notifier/log",
+                params: {
+                    level: "warn",
+                    message: `bpmnlint: rule package ${bridge.acmeDir} is not allowed yet (changed since you allowed it), so rules from it are skipped.`,
+                },
+            }),
+        );
+    });
+
+    it("runs the new bytes once the changed package is allowed again", async () => {
+        const bridge = await openAcme();
+        await allowAcme(bridge);
+        await writeAcmeDependency(bridge.root, "v2, edited after the approval");
+        const changedFrom = bridge.frames.length;
+        await relint(bridge);
+
+        const notice = await waitForNotice(bridge, changedFrom);
+        const fromIndex = bridge.frames.length;
+        await reviewAndAllowAll(bridge, notice);
+        const results = await nextLintResults(bridge, fromIndex);
+
+        expect(findingsOf(results)[ACME_RULE]).toEqual([
+            expect.objectContaining({ message: "v2, edited after the approval" }),
+        ]);
+        await expect(acmeRuns(bridge.root)).resolves.toEqual([
+            "v1",
+            "v2, edited after the approval",
+        ]);
     });
 });

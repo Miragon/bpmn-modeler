@@ -255,6 +255,22 @@ jobs:
         working-directory: apps/intellij-plugin
         run: ./gradlew verifyPlugin --no-daemon
 
+  smoke-modeler-bridge-bun:
+    needs: detect-changes
+    if: contains(fromJSON(needs.detect-changes.outputs.affected-targets), 'modeler-bridge')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup-workspaces
+        with:
+          focus: "@miragon/bpmn-modeler-bridge bpmn-modeler @miragon/bpmn-modeler-core @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-types"
+      # The Bun that compiles the bridge IntelliJ ships (publish-intellij.yml).
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: apps/modeler-bridge/.bun-version
+      - name: Run the rule package gate under Bun
+        run: yarn workspace @miragon/bpmn-modeler-bridge smoke:rule-package-gate
+
   e2e-vscode-plugin:
     needs: detect-changes
     if: >-
@@ -488,6 +504,7 @@ jobs:
       - test
       - test-standalone
       - test-intellij-plugin
+      - smoke-modeler-bridge-bun
       - e2e-vscode-plugin
       - e2e-orca-plugin
       - build-vscode-plugin

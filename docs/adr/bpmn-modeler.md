@@ -1,7 +1,7 @@
 # BPMN modeler
 
 - Status: accepted
-- Last reviewed: 2026-11-07
+- Last reviewed: 2026-11-08
 
 ## Context
 
@@ -26,6 +26,7 @@ boundaries are defined in [Architecture and hosts](architecture-and-hosts.md#pac
 - [Themes and locale](#themes-and-locale)
 - [Linting](#linting)
 - [User-supplied plugins (proposed)](#user-supplied-plugins-proposed)
+  - [Workspace rule packages](#workspace-rule-packages)
 - [Transaction boundaries](#transaction-boundaries)
 - [Diff](#diff)
 - [Formatting and cleanup](#formatting-and-cleanup)
@@ -434,14 +435,21 @@ output fails. 11.15.0 reports the same elements as 11.14.0, but
 
 Host linting (`NodeBpmnLinter`, in the VS Code extension host and the
 IntelliJ bridge) runs workspace code only through `bpmnlint-plugin-*` rule
-packages. bpmnlint's own rules and configs always come from the bundled
-bpmnlint: through the workspace, bpmnlint's `NodeResolver` would run the
-workspace's `bpmnlint` install or, via `requireLocal`, scripts two folders above
-the `.bpmnlintrc`. A string `moddleExtensions` entry is resolved without running
-anything and loaded only when it is a `.json` descriptor; every known one is.
-Accepted cost: a workspace that pins another bpmnlint version gets the bundled
-version's built-in rules. Asking before a rule package runs is
-[#2247](https://github.com/Miragon/bpmn-modeler/issues/2247).
+packages the user allowed, behind the gate described in
+[Workspace rule packages](#workspace-rule-packages); a host that wires no
+`rulePackages` ports lints with the bundled rules only. bpmnlint's own rules
+and configs always come from the bundled bpmnlint: through the workspace,
+bpmnlint's `NodeResolver` would run the workspace's `bpmnlint` install or, via
+`requireLocal`, scripts two folders above the `.bpmnlintrc`. A string
+`moddleExtensions` entry is resolved without running anything and loaded only
+when it is a `.json` descriptor; every known one is. Accepted cost: a workspace
+that pins another bpmnlint version gets the bundled version's built-in rules.
+
+A host lint returns, besides the results and the unresolved names, the rule
+packages the gate blocked and the modules it refused. When a blocked package
+left a rule or config unresolved, the status bar shows the `blocked` state
+(`BPMNlint: N rule packages not allowed`). It wins over `unresolved` and
+carries no install hint: installing would not help, allowing would.
 
 The webview owns lazy `/lint` loading and routes results to either editable
 surface. The [lint-free entry check](../../packages/bpmn-modeler/scripts/check-lint-free-entry.mjs)
@@ -456,7 +464,9 @@ not released. Orca ([#2244](https://github.com/Miragon/bpmn-modeler/issues/2244)
 reuses the same core and package. Teams want to load bpmn-js plugins, many written for
 the Camunda Modeler, without forking a host or building an app on the package.
 The [user guide](../vscode/features/bpmn-plugins.md) carries what users must
-know.
+know. Workspace bpmnlint rule packages share the approval list and the
+question; [Workspace rule packages](#workspace-rule-packages) records how they
+differ.
 
 **Format.** A plugin is a classic script that pushes `{ type, plugin }` onto
 `window.plugins`, the contract of `camunda-modeler-plugin-helpers`, plus an
@@ -562,11 +572,12 @@ yet.") with one **Review…** action through the generic
 **Review…** opens the `chooseMany` prompt. Dismissing the notification or
 the list, or leaving a plugin unchecked, is the same answer: those plugin
 versions are declined for this session, offered again in a later one, and
-offered again at once when their content changes. `PluginApprovalQuestion`
-runs this flow and knows no editor: one question is open at a time, and plugins
-found while it is open are asked afterwards, as far as that answer left them
-pending. A VS Code notice can stay unanswered in the notification centre, so
-dropping them would leave a second workspace's plugins unasked for the session.
+offered again at once when their content changes. The kernel's
+`ApprovalQuestion` runs this flow for every approval kind and knows no
+editor: one question is open at a time, and plugins found while it is open
+are asked afterwards, as far as that answer left them pending. A VS Code
+notice can stay unanswered in the notification centre, so dropping them would
+leave a second workspace's plugins unasked for the session.
 An approval reloads every open BPMN editor whose last answer offered one of
 the newly allowed plugin folders, approved or pending, because its modules are
 fixed; the delivery tracks those folders per editor and a session
@@ -689,6 +700,164 @@ diagram-js to plugins (no tested plugin needed it, and it would make their
 versions a plugin API); a `window.vendor` with only the properties panel
 components and no preact entries (still couples us to that preact, and breaks
 the plugins compiled against its JSX runtime or hooks).
+
+#### Workspace rule packages
+
+Host linting loads `bpmnlint-plugin-*` packages from the workspace
+([#2247](https://github.com/Miragon/bpmn-modeler/issues/2247)). Unlike a
+bpmn-js plugin, a rule package runs in the extension host or the bridge with
+the user's rights. Workspace Trust does not cover the IntelliJ bridge, and the
+standalone turns it off, so a rule package, like a bpmn-js plugin, runs only
+once the user allowed this content in this folder. In VS Code, the approval
+comes on top of Workspace Trust. A host opts in with the optional
+`rulePackages` group of `BpmnEditorFeature` (`BpmnRulePackagePorts`: the
+approval store, an `InstalledPackagesPort`, the action notifier and the shared
+`QuestionQueue`). VS Code and the IntelliJ bridge wire it with the store the
+plugins use, each with its own `NodeInstalledPackages`; one contract suite in
+the core's `testing/` pins both. Without the group, `NodeBpmnLinter` builds no
+workspace resolver at all.
+
+**Unit and row.** One approval covers one installed package root: the
+realpath of the `node_modules/<name>` or `node_modules/@scope/<name>` folder a
+require resolved into, taken at the last `node_modules`, so a nested copy is a
+unit of its own. A pnpm `.pnpm` path and the target of a `file:` link are
+realpaths like any other. The config's own package, whose `package.json`
+names the requested plugin so that bpmnlint requires `.`, is the config
+folder; it needs approval like any other root, because the repository picks
+the name. Any other root is refused, logged and never offered: the folder an
+absolute rule reference points into, or a `file:` link whose target holds the
+config folder, would make one approval cover the repository. The row is the
+existing `{ pluginId, contentHash }` in the host's one approval list, beside
+the bpmn-js plugins. The content hash carries the prefix
+`bpmnlint-closure-v1:`, which marks the row's kind for the artifacts view
+([#2263](https://github.com/Miragon/bpmn-modeler/issues/2263)) and names the
+digest algorithm, so changing the algorithm asks again. The row round-trips
+through VS Code's global state, `RpcPluginApprovalStore` and the Kotlin
+`PluginApproval` unchanged, so neither the protocol nor the IntelliJ plugin
+changed. `rulePackageApproval.ts` owns the root, the verdict and the notice
+and list texts; `rulePackageLog.ts` owns the output channel lines.
+
+**Closure hash.** The approval covers the package and what it declares it runs
+with: `dependencies`, `optionalDependencies` and `peerDependencies`,
+recursively, each one found by Node's ancestor `node_modules` lookup from the
+declaring member's realpath. The lookup is done by hand, as
+`require.resolve("<name>/package.json")` fails on a package whose `exports`
+hide its manifest; a dependency that is not installed is skipped, one installed
+as a file Node takes before the folder or as a folder with only an index file
+refuses the package (no name and version to make it a member), and members are
+deduplicated by realpath. A member's digest is a SHA-256 over every regular
+file's relative path and SHA-256 of its bytes, in a fixed order, with no
+extension filter: Node runs a file of any unknown extension as a script. It
+leaves out the member's own `node_modules` (separate members) and `.git`. The
+config's own package also leaves out `*.bpmn`, `*.dmn`, `*.form` and
+`.bpmnlintrc` files, so editing a model or the config being linted asks
+nothing; a folder of such a name stays in. A linked folder, a link to a file
+outside the member, a special file, a file or manifest that cannot be read, or
+a closure above 5,000 files and folders or 50 MB (about eight times the largest
+closure measured) refuses the package with its reason. The closure digest
+hashes the root and each member by `name@version` and member digest, never by
+folder, so hoisting or deduplicating keeps it. `PackageClosureFingerprinter`,
+one per host composition, keeps a memo of each member's stamps (device, inode,
+size and modification and change times of every file and folder, and of every
+folder the dependency lookup looked in) and rehashes only the files whose
+stamps changed. At the start of every lint, the linter's setup checks the
+stamps of the closures it admitted (`isUnchanged`, stats only) and is rebuilt
+on a mismatch. The check sits at the lint's start, not at the gate, because a
+cached setup answers later lints from its `resolved` map without calling the
+gate. Nothing watches `node_modules`: VS Code's watcher excludes it by default,
+and the stat pass costs about 1 ms per lint for the largest closure measured.
+
+**Gate.** `RulePackageGate` wraps the scoped require that bpmnlint's
+`NodeResolver` loads packages with. Each call resolves the request, admits
+built-in modules and `.json` data without approval, maps the realpath to its
+root and lets the require run only when the root's row matches the current
+closure digest, or the root is a member of a closure already admitted in this
+setup. A root with no row and no decline is blocked as `new` without hashing.
+Otherwise the gate records the package as blocked (`new`, `changed` or
+`declined`) and throws `MODULE_NOT_FOUND`, which the resolvers' catches turn
+into a miss: the bundled rule or a no-op. A file inside an approvable root that
+its hash leaves out, such as a model file of the config's own package, is
+refused, because the approval does not cover it. The gate is synchronous,
+since `require` cannot wait, and uses no module loader hooks: the bridge runs
+on Bun, which does not fire them. The setup's fingerprint holds the
+config and the sorted rule package rows, so an allow, a revoke or an IntelliJ
+`pluginApprovals/didChange` builds a new setup, and no bundled fallback cached
+before the allow shadows the allowed package. When a member is admitted under
+another closure hash than the one it was last loaded under, the gate evicts
+its `require.cache` entries, so the newly allowed bytes run.
+
+**Asking only when needed.** `CompositeResolver` brackets each synchronous
+request with the gate (`beginRequest`, `blockedSinceBegin`). A blocked package
+is *needed* when a request ended unresolved because of it, and *shadowed* when
+the bundle served the request instead. Only needed packages are asked about; a
+shadowed one is logged once per config version and kept in the catalog's seen
+registry for the artifacts view. Otherwise the common Camunda config, which
+lints on the host because of its string `moddleExtensions`, would ask about
+`bpmnlint-plugin-camunda-compat` even where the bundle serves every entry the
+config uses, and train users to allow everything. After `hostLintFinished`,
+`RulePackageFollowUp`, which `BpmnLintConfigService` hands the lint run, logs
+it and asks without awaiting the answer, so results never wait on the user;
+one question per package stays queued until it is answered. An allow relints
+only the open editors whose last host lint was blocked on an allowed package
+(`editorsBlockedOnAnyOf`); closing an editor forgets it. `RulePackageCatalog`
+hashes only the packages it asks about, keeps declines for its lifetime unless
+the content changes, and exposes them read-only to the gate, which then reports
+a package as `declined` rather than `new`. The notice and the list have their
+own ids (`bpmnlintPackageApprovalNotice`, `bpmnlintPackageApproval`), and the
+list says that a rule package runs as a program with the user's rights.
+
+**One question at a time.** Each host composition builds one `QuestionQueue`
+and passes it to `BpmnPluginsFeature` and `BpmnEditorFeature`, so the
+kernel's `ApprovalQuestion` keeps one question open across both kinds. Each
+answer then reads the list the previous one wrote. Without the queue, two
+answers could both read the bridge's mirror before either save was
+acknowledged, and the second save would drop the first one's rows
+(`RpcPluginApprovalStore` sets its list only after the host's
+acknowledgement). The queue is per bridge process, and IntelliJ runs one
+bridge per project against one IDE-wide list: with two projects open, two
+notices can show at once, and two answers saved before the `didChange` push
+arrives can still drop each other's rows. The plugins share this residual; a
+merge by `pluginId` in the Kotlin save handler would close it.
+
+**Weaker guarantee than a plugin's.** A bpmn-js plugin runs from a
+content-addressed copy of the approved bytes, so a file swapped after the
+approval cannot run. A rule package is hashed and run in place: between the
+stamp check at the lint's start (or the hash at admission) and the `require`,
+a process that can write the workspace's `node_modules` can swap a file, and
+the swapped code runs; the next lint's stamp check then blocks the package as
+changed. Accepted residuals:
+
+- Phantom dependencies (undeclared, found through hoisting) and requires a
+  package makes later, from inside its own code, are Node's and not gated.
+- Code already loaded stays loaded until the host restarts, so removing an
+  approval takes full effect only then.
+- Admission depends on order within a setup: a member resolved before its
+  approved closure root was admitted is blocked, and its bundled fallback
+  stays cached until the setup is rebuilt.
+
+**IntelliJ ordering.** The compiled bridge binary lacks
+`--compile-autoload-package-json`, so a package whose entry comes from `main`
+or `exports` does not resolve in it, and most rule packages with dependencies
+fall back to the bundle or are skipped. Adding the flag widens what the bridge
+runs from the workspace, so it lands only after the gate
+([#2273](https://github.com/Miragon/bpmn-modeler/issues/2273)).
+
+The [gate specs](../../libs/modeler-core/src/modeler/bpmn/adapter/out/bpmnlint/RulePackageGate.spec.ts),
+the [linter specs](../../libs/modeler-core/src/modeler/bpmn/adapter/out/bpmnlint/NodeBpmnLinter.spec.ts)
+on a temporary folder, the
+[fingerprinter specs](../../libs/modeler-core/src/modeler/bpmn/service/PackageClosureFingerprinter.spec.ts)
+and the [installed packages contract](../../libs/modeler-core/src/testing/installedPackagesContract.ts)
+pin these rules.
+
+Alternatives: Workspace Trust alone (not in the IntelliJ bridge, off in the
+standalone, granted once per folder); asking about every blocked package
+(asks about packages the bundle serves); running a content-addressed copy of
+the closure, as for bpmn-js plugins, recorded as the follow-up if the in-place
+window must close. Rejected for now because it changes what works today:
+absolute rule references would resolve from the copy, phantom dependencies
+would fail closed with no way out for the user, and an asynchronous copy
+inside resolution would break the synchronous per-request bracketing that
+asking only when needed relies on.
 
 ### Transaction boundaries
 

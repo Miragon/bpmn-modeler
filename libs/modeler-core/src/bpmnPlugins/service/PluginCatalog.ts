@@ -52,7 +52,7 @@ export class PluginCatalog {
 
     /** Those of `pending` that no answer settled since they were found. */
     stillPendingOf(pending: readonly PendingApproval[]): PendingApproval[] {
-        return this.stillPending(pending.map(({ plugin }) => plugin));
+        return this.stillPending(pending.map(({ artifact }) => artifact));
     }
 
     reviewNotice(pending: readonly PendingApproval[]): ActionNotice<PluginApprovalNoticeAction> {
