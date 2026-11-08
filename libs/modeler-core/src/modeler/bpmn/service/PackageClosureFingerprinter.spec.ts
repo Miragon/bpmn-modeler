@@ -179,6 +179,54 @@ describe("PackageClosureFingerprinter", () => {
             ]);
         });
 
+        describe("when Node would load something nearer than a package folder", () => {
+            const NEARER = `${PLUGIN}/node_modules/dep`;
+
+            beforeEach(() => {
+                install(PLUGIN, { name: "bpmnlint-plugin-acme", dependencies: { dep: "1" } });
+                install(`${NODE_MODULES}/dep`, { name: "dep" });
+            });
+
+            it.each<{ case: string; path: string }>([
+                { case: "a file named like the dependency", path: NEARER },
+                { case: "a .js file", path: `${NEARER}.js` },
+                { case: "a .json file", path: `${NEARER}.json` },
+                { case: "a .node file", path: `${NEARER}.node` },
+                { case: "a folder with an index.js and no manifest", path: `${NEARER}/index.js` },
+                {
+                    case: "a folder with an index.json and no manifest",
+                    path: `${NEARER}/index.json`,
+                },
+                {
+                    case: "a folder with an index.node and no manifest",
+                    path: `${NEARER}/index.node`,
+                },
+            ])("refuses $case rather than hash the farther copy", ({ path }) => {
+                disk.writeFile(path, "module.exports = 'nearer';");
+
+                expect(fingerprinter.fingerprint(PLUGIN_ROOT)).toEqual({
+                    kind: "refused",
+                    reason: "unsupportedLayout",
+                    memberDir: NEARER,
+                });
+            });
+
+            it("passes over a folder with neither manifest nor index, as Node does", () => {
+                disk.writeFile(`${NEARER}/README.md`, "leftover");
+
+                expect(fingerprinted().memberDirs).toEqual([PLUGIN, `${NODE_MODULES}/dep`]);
+            });
+
+            it("sees an index added to a folder it passed over", () => {
+                disk.writeFile(`${NEARER}/README.md`, "leftover");
+                const { stamps } = fingerprinted();
+
+                disk.writeFile(`${NEARER}/index.js`, "module.exports = 'nearer';");
+
+                expect(fingerprinter.isUnchanged(stamps)).toBe(false);
+            });
+        });
+
         it("gives the same content hash whether a dependency is hoisted or nested", () => {
             const nested = freshDisk();
             install(PLUGIN, { name: "bpmnlint-plugin-acme", dependencies: { "min-dash": "4" } });
