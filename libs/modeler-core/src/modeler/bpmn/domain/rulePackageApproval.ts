@@ -37,7 +37,7 @@ export interface ResolvedRuleModule {
     readonly configDir: string;
     /** `<configDir>/package.json` names the requested package, so bpmnlint requires `.`. */
     readonly requestsSelfPackage: boolean;
-    /** The `node_modules/<name>` folder a bare request named, which differs from the file's path for a `file:` link. */
+    /** The realpath of the `node_modules/<name>` folder a bare request named; it differs from the file's own package folder for a `file:` link. */
     readonly requestedPackageDir?: string;
 }
 
