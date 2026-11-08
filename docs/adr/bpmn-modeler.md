@@ -784,7 +784,11 @@ answer then reads the list the previous one wrote. Without the queue, two
 answers could both read the bridge's mirror before either save was
 acknowledged, and the second save would drop the first one's rows
 (`RpcPluginApprovalStore` sets its list only after the host's
-acknowledgement).
+acknowledgement). The queue is per bridge process, and IntelliJ runs one
+bridge per project against one IDE-wide list: with two projects open, two
+notices can show at once, and two answers saved before the `didChange` push
+arrives can still drop each other's rows. The plugins share this residual; a
+merge by `pluginId` in the Kotlin save handler would close it.
 
 **Weaker guarantee than a plugin's.** A bpmn-js plugin runs from a
 content-addressed copy of the approved bytes, so a file swapped after the
