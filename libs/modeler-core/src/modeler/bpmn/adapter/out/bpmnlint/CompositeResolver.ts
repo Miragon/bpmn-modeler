@@ -33,8 +33,9 @@ const NOOP_CONFIG = { rules: {} };
  * Resolves bpmnlint rules and configs by trying each delegate in order — the
  * workspace's `bpmnlint-plugin-*` packages first, then
  * `@miragon/bpmnlint-plugin-rules`' bundled resolver (bpmnlint built-ins +
- * camunda-compat engine layers + the Miragon rules). A plugin the workspace
- * installs wins; the bundled resolver backs what the workspace cannot provide.
+ * camunda-compat engine layers + the Miragon rules). A workspace plugin the
+ * user allowed wins; the bundled resolver backs what the workspace cannot or
+ * may not provide.
  *
  * A rule/config that no delegate can resolve is *skipped*, not thrown: its name
  * is collected in {@link unresolved} and a no-op is returned so the rest of the
