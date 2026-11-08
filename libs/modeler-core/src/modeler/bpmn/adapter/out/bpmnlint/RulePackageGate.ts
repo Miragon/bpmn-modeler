@@ -14,6 +14,7 @@ import {
     BlockedState,
     loadsWithoutApproval,
     requestedPackageNameOf,
+    RuleModuleRoot,
     ruleModuleRootOf,
     RulePackageVerdict,
     rulePackageVerdict,
@@ -107,19 +108,8 @@ export class RulePackageGate implements RequestAttribution {
     }
 
     private admit(resolved: string, request: string, cache: ModuleCache): void {
-        const file = this.options.sources.packages.realPath(toWorkspacePath(resolved));
-        const pkg = this.request?.pkg;
-        const requestsSelfPackage = pkg !== undefined && pkg === this.selfPackageName;
-        const root =
-            file === undefined
-                ? undefined
-                : ruleModuleRootOf({
-                      file,
-                      configDir: this.realConfigDir,
-                      requestsSelfPackage,
-                      requestedPackageDir: this.requestedPackageDir(request, requestsSelfPackage),
-                  });
-        if (root === undefined || root.kind === "refused") {
+        const root = this.rootOf(resolved, request);
+        if (root.kind === "refused") {
             throw notAllowed(request);
         }
         const verdict = this.verdictFor(root, cache);
@@ -132,6 +122,21 @@ export class RulePackageGate implements RequestAttribution {
             this.request?.blocked.add(root.id);
         }
         throw notAllowed(request);
+    }
+
+    private rootOf(resolved: string, request: string): RuleModuleRoot {
+        const file = this.options.sources.packages.realPath(toWorkspacePath(resolved));
+        if (file === undefined) {
+            return { kind: "refused", reason: "noPackageFolder" };
+        }
+        const pkg = this.request?.pkg;
+        const requestsSelfPackage = pkg !== undefined && pkg === this.selfPackageName;
+        return ruleModuleRootOf({
+            file,
+            configDir: this.realConfigDir,
+            requestsSelfPackage,
+            requestedPackageDir: this.requestedPackageDir(request, requestsSelfPackage),
+        });
     }
 
     /**
