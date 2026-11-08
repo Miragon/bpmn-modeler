@@ -12,7 +12,7 @@ export interface ApprovableArtifact {
  * outside the workspace, so a repository cannot approve itself. One list holds
  * the rows of every approval kind; the field names are the hosts' stored ones.
  */
-export interface PluginApproval {
+export interface CodeApproval {
     readonly pluginId: string;
     readonly contentHash: string;
 }
@@ -26,7 +26,7 @@ export interface PendingCodeApproval<A extends ApprovableArtifact> {
 
 export function approvalStateOf(
     artifact: ApprovableArtifact,
-    approvals: readonly PluginApproval[],
+    approvals: readonly CodeApproval[],
 ): ApprovalState {
     const approval = approvals.find((each) => each.pluginId === artifact.id);
     if (approval === undefined) {
@@ -37,15 +37,15 @@ export function approvalStateOf(
 
 export function approvedArtifacts<A extends ApprovableArtifact>(
     artifacts: readonly A[],
-    approvals: readonly PluginApproval[],
+    approvals: readonly CodeApproval[],
 ): A[] {
     return artifacts.filter((artifact) => approvalStateOf(artifact, approvals) === "approved");
 }
 
 export function approvalsAllowing(
-    approvals: readonly PluginApproval[],
+    approvals: readonly CodeApproval[],
     allowed: readonly ApprovableArtifact[],
-): PluginApproval[] {
+): CodeApproval[] {
     const allowedIds = new Set(allowed.map((artifact) => artifact.id));
     return [
         ...approvals.filter((approval) => !allowedIds.has(approval.pluginId)),
@@ -57,9 +57,9 @@ export function approvalsAllowing(
 }
 
 export function approvalsRevoking(
-    approvals: readonly PluginApproval[],
+    approvals: readonly CodeApproval[],
     revokedIds: readonly string[],
-): PluginApproval[] {
+): CodeApproval[] {
     const revoked = new Set(revokedIds);
     return approvals.filter((approval) => !revoked.has(approval.pluginId));
 }
@@ -71,7 +71,7 @@ export function declineKeyOf(artifact: ApprovableArtifact): string {
 
 export function pendingApprovals<A extends ApprovableArtifact>(
     artifacts: readonly A[],
-    approvals: readonly PluginApproval[],
+    approvals: readonly CodeApproval[],
     declinedThisSession: ReadonlySet<string>,
 ): PendingCodeApproval<A>[] {
     return artifacts.flatMap((artifact) => {

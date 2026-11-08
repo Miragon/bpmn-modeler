@@ -8,11 +8,11 @@ import {
     approvalsRevoking,
     approvalStateOf,
     approvedArtifacts,
+    type CodeApproval,
     type CodeApprovalOutcome,
     declineKeyOf,
     type PendingCodeApproval,
     pendingApprovals,
-    type PluginApproval,
 } from "./codeApproval";
 
 const resize: ApprovableArtifact = {
@@ -37,13 +37,13 @@ const acmeRules: RulePackage = {
     version: "1.2.0",
 };
 
-const other: PluginApproval = { pluginId: "/other", contentHash: "ccc" };
+const other: CodeApproval = { pluginId: "/other", contentHash: "ccc" };
 
 describe("approvalStateOf", () => {
     it.each<{
         case: string;
         artifact: ApprovableArtifact;
-        approvals: PluginApproval[];
+        approvals: CodeApproval[];
         state: ApprovalState;
     }>([
         { case: "no approval", artifact: resize, approvals: [], state: "new" },
@@ -86,7 +86,7 @@ describe("approvalStateOf", () => {
 });
 
 describe("approvedArtifacts", () => {
-    it.each<{ case: string; approvals: PluginApproval[]; approved: ApprovableArtifact[] }>([
+    it.each<{ case: string; approvals: CodeApproval[]; approved: ApprovableArtifact[] }>([
         {
             case: "keeps only the artifacts whose current content the user allowed",
             approvals: [
@@ -126,9 +126,9 @@ describe("approvedArtifacts", () => {
 describe("approvalsAllowing", () => {
     it.each<{
         case: string;
-        approvals: PluginApproval[];
+        approvals: CodeApproval[];
         allowed: ApprovableArtifact[];
-        result: PluginApproval[];
+        result: CodeApproval[];
     }>([
         {
             case: "replaces the approval of a changed artifact and keeps the others",
@@ -172,17 +172,17 @@ describe("approvalsAllowing", () => {
 });
 
 describe("approvalsRevoking", () => {
-    const resizeRow: PluginApproval = { pluginId: resize.id, contentHash: "aaa" };
-    const acmeRow: PluginApproval = {
+    const resizeRow: CodeApproval = { pluginId: resize.id, contentHash: "aaa" };
+    const acmeRow: CodeApproval = {
         pluginId: acmeRules.id,
         contentHash: "bpmnlint-closure-v1:ddd",
     };
 
     it.each<{
         case: string;
-        approvals: PluginApproval[];
+        approvals: CodeApproval[];
         revokedIds: string[];
-        result: PluginApproval[];
+        result: CodeApproval[];
     }>([
         {
             case: "removes the approval of a revoked artifact and keeps the others in order",
@@ -243,7 +243,7 @@ describe("declineKeyOf", () => {
 describe("pendingApprovals", () => {
     it.each<{
         case: string;
-        approvals: PluginApproval[];
+        approvals: CodeApproval[];
         declined: string[];
         pending: PendingCodeApproval<ApprovableArtifact>[];
     }>([

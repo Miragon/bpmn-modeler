@@ -5,7 +5,7 @@ import { BpmnPluginsQuery, GetBpmnPluginsCommand } from "@miragon/bpmn-modeler-s
 import {
     ApprovableArtifact,
     approvalsAllowing,
-    PluginApproval,
+    CodeApproval,
 } from "../../kernel/domain/codeApproval";
 import { ChoicePrompt } from "../../kernel/domain/prompts";
 import { PluginApprovalStorePort } from "../../kernel/port/approvalPorts";
@@ -106,7 +106,7 @@ async function answerRequest(feature: BpmnPluginsFeature, editor: FakeEditorHand
 
 /** Sets the list only after an await, as the bridge's store does once IntelliJ acknowledged the save. */
 class LaggingPluginApprovals extends InMemoryPluginApprovals {
-    override async write(approvals: readonly PluginApproval[]): Promise<void> {
+    override async write(approvals: readonly CodeApproval[]): Promise<void> {
         await new Promise((resolve) => setTimeout(resolve, 0));
         await super.write(approvals);
     }

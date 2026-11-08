@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { PluginApproval } from "../kernel/domain/codeApproval";
+import { CodeApproval } from "../kernel/domain/codeApproval";
 import { PluginApprovalStorePort } from "../kernel/port/approvalPorts";
 
 /** One {@link PluginApprovalStorePort} adapter under the {@link describePluginApprovalStoreContract} scenarios. */
@@ -9,11 +9,11 @@ export interface PluginApprovalStoreContractFixture {
     readonly store: PluginApprovalStorePort;
 }
 
-const RESIZE: PluginApproval = {
+const RESIZE: CodeApproval = {
     pluginId: "/repo/.camunda/plugins/resize-tasks",
     contentHash: "9f2c",
 };
-const PALETTE: PluginApproval = {
+const PALETTE: CodeApproval = {
     pluginId: "C:/repo/.camunda/plugins/reduced-palette",
     contentHash: "41aa",
 };

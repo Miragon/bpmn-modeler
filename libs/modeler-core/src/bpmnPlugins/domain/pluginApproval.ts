@@ -3,6 +3,7 @@ import {
     ApprovableArtifact,
     ApprovalState,
     approvedArtifacts,
+    CodeApproval,
     CodeApprovalOutcome,
     PendingCodeApproval,
 } from "../../kernel/domain/codeApproval";
@@ -16,7 +17,6 @@ export {
     approvalStateOf,
     declineKeyOf,
     pendingApprovals,
-    type PluginApproval,
 } from "../../kernel/domain/codeApproval";
 
 /** A plugin found in a workspace's `<configFolder>/plugins/<folder>`; its id is that folder. */
@@ -24,6 +24,8 @@ export interface WorkspacePlugin extends ApprovableArtifact {
     readonly scriptPath: string;
     readonly stylePath?: string;
 }
+
+export type PluginApproval = CodeApproval;
 
 export type PluginApprovalState = ApprovalState;
 

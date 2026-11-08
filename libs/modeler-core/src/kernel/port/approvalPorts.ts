@@ -1,4 +1,4 @@
-import { PluginApproval } from "../domain/codeApproval";
+import { CodeApproval } from "../domain/codeApproval";
 
 /**
  * The user's code approvals, every kind in one list, kept by the host outside
@@ -6,6 +6,6 @@ import { PluginApproval } from "../domain/codeApproval";
  * so a cloned repository cannot approve its own code.
  */
 export interface PluginApprovalStorePort {
-    read(): readonly PluginApproval[];
-    write(approvals: readonly PluginApproval[]): Promise<void>;
+    read(): readonly CodeApproval[];
+    write(approvals: readonly CodeApproval[]): Promise<void>;
 }
