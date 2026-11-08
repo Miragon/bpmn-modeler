@@ -75,7 +75,7 @@ When you open a diagram and its workspace holds plugins you have not allowed yet
 1. Click **Review…** to see the list. Each entry shows the plugin's name, whether it is new or changed since you allowed it, and its folder.
 2. Check the plugins you trust and confirm. Every open BPMN editor that offered one of them reloads with it.
 
-A plugin you leave unchecked is not offered again until the window reloads or its files change. Closing the notification without **Review…** decides nothing: the modeler does not ask again in this window for the same plugins, and asks again in a later session. Only one question is open at a time, even when you open several diagrams.
+A plugin you leave unchecked is not offered again until the window reloads or its files change. Closing the notification without **Review…** decides nothing: the modeler does not ask again in this window for the same plugins, and asks again in a later session. Only one question is open at a time, even when you open several diagrams. Questions about [bpmnlint rule packages](/vscode/features/linting#allow-a-rule-package) wait for the same turn.
 
 An approval is for one plugin folder and its exact content, a SHA-256 hash of the script and the stylesheet:
 
