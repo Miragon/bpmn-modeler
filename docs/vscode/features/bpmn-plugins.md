@@ -64,7 +64,9 @@ A plugin script registers itself on `window.plugins`, the contract of [`camunda-
 | `bpmn.platform.modeler.moddleExtension` | `registerPlatformBpmnJSModdleExtension` | Camunda 7 diagrams |
 | `bpmn.cloud.modeler.moddleExtension` | `registerCloudBpmnJSModdleExtension` | Camunda 8 diagrams |
 
-A diagram without an execution platform gets only the registrations for every diagram. A moddle extension needs a `prefix`. Everything else, such as the Camunda Modeler's `client` extensions (its React UI) and `dmn.*` registrations, is skipped and named in the output channel.
+A diagram without an execution platform gets only the registrations for every diagram. A moddle extension needs a `prefix`. Any other registration type, such as `lintRules.*` and `dmn.*`, is skipped and named in the output channel.
+
+A plugin built against the helpers' `vendor` modules, such as a properties panel extension or a `client` extension (the Camunda Modeler's React UI), needs globals that only the Camunda Modeler defines. Its script throws before it registers anything, so it is left out like a broken plugin.
 
 Plugins load in the [Design and Implement modes](/vscode/features/modes), never in View, which has no modeling for them to extend. The [BPMN diff](/vscode/features/bpmn-diff) never loads plugins.
 
@@ -103,10 +105,32 @@ The approval is the control. Neither the webview's sandbox nor its Content Secur
 - A script that cannot be loaded or throws while it runs is left out, and the other plugins still load. A notification says how many were left out, and the output channel says why.
 - If the plugins keep the editor from being built, or the editor cannot load its plugin loader, the editor opens without any plugin and tells you so. A broken plugin never keeps a diagram from opening.
 
+## Camunda Modeler plugins we tested
+
+These unmodified plugins were run in November 2026, in VS Code and IntelliJ with the same result. Each was checked by using its feature, not just by loading it.
+
+| Plugin | Extends | Result |
+|---|---|---|
+| [resize-tasks](https://github.com/philippfromme/camunda-modeler-plugin-resize-tasks) | Rules | Works. |
+| [rename-technical-ids](https://github.com/camunda-community-hub/camunda-modeler-plugin-rename-technical-ids) | Commands, a panel | Works. Its menu shortcut does not exist here; use the buttons in its panel. |
+| [tooltip plugin](https://github.com/viadee/camunda-modeler-tooltip-plugin) (viadee) | Overlays | Works. Its menu toggle does not exist here. |
+| [moddle extension example](https://github.com/camunda/camunda-modeler-plugins) | Moddle extension | Works. |
+| [task-listener](https://github.com/Hafflgav/camunda-modeler-task-listener-plugin) | Modeling | Works on Camunda 8 diagrams. On Camunda 7 diagrams, creating a user task breaks the diagram; the plugin does not check the engine. |
+| [custom linter rules](https://github.com/camunda/camunda-modeler-custom-linter-rules-plugin) | Lint rules | Loads, but its rules do not run ([#2267](https://github.com/Miragon/bpmn-modeler/issues/2267)). |
+| [style plugin example](https://github.com/camunda/camunda-modeler-plugins) | Style only | Skipped: a plugin needs a script ([#2266](https://github.com/Miragon/bpmn-modeler/issues/2266)). |
+| [token simulation](https://www.npmjs.com/package/camunda-modeler-token-simulation-plugin) | Simulation | Breaks the simulation. The editor has [token simulation](/vscode/features/token-simulation) built in, so do not add this plugin ([#2268](https://github.com/Miragon/bpmn-modeler/issues/2268)). |
+| [process-io-specification](https://github.com/camunda/camunda-modeler-process-io-specification-plugin) | Properties panel | Left out: needs the Camunda Modeler's properties panel API ([#2265](https://github.com/Miragon/bpmn-modeler/issues/2265)). |
+| [script editor](https://github.com/knobik/camunda-modeler-script-editor-plugin) | Properties panel | Left out, for the same reason. |
+| [reduced palette](https://github.com/camunda-community-hub/camunda-modeler-plugin-reduced-palette) | Palette, context pad | Loads, but empties the context pad: it was written for a far older bpmn-js. Do not use it. |
+| [autosave](https://github.com/pinussilvestrus/camunda-modeler-autosave-plugin) | Camunda Modeler UI | Left out: it extends the Camunda Modeler's own window. |
+
+In VS Code the output channel names the error of a left-out plugin only as *Script error.*; the IDE log in IntelliJ has the full message ([#2269](https://github.com/Miragon/bpmn-modeler/issues/2269)).
+
 ## Limits
 
-- Prebuilt plugins bring their own copies of the libraries they are built with, such as diagram-js and preact. Modules that only use the services the editor injects work. Plugins that rely on sharing those libraries with the editor, such as properties panel extensions built on preact hooks, may fail.
+- The editor shares none of its libraries with plugins. Plugins that bring their own copies and use only the services the editor injects work, even when they were built for an older bpmn-js. Properties panel extensions need the Camunda Modeler's shared properties panel and do not run.
 - Camunda Modeler `client` extensions, menus and DMN plugins do not run. Plugins extend the BPMN editor only, not DMN or forms.
+- An error a plugin throws after the editor opened, for example while you edit, is not contained: the editor may stop responding in parts until you reopen it, and the log does not name the plugin ([#2270](https://github.com/Miragon/bpmn-modeler/issues/2270)). Remove the plugin's folder if that happens.
 - Plugins load when an editor opens. A change to a plugin's files reaches an editor the next time it opens, after you allow the changed version.
 - There is no command yet to list or revoke approvals. Remove a plugin's folder to stop loading it. Copies of allowed plugins stay in VS Code's global storage.
 
