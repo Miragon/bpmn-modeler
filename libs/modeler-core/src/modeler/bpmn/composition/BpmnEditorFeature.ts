@@ -2,7 +2,9 @@ import { basename } from "path";
 
 import { BpmnEditorCommandType } from "@miragon/bpmn-modeler-shared";
 
+import { PluginApprovalStorePort } from "../../../kernel/port/approvalPorts";
 import {
+    ActionNotifierPort,
     ClipboardPort,
     DocumentPort,
     NotifierPort,
@@ -11,7 +13,9 @@ import {
     StatusBarPort,
     WorkspacePort,
 } from "../../../kernel/port/hostPorts";
+import { ApprovalQuestion } from "../../../kernel/service/ApprovalQuestion";
 import { ArtifactService } from "../../../kernel/service/ArtifactService";
+import { QuestionQueue } from "../../../kernel/service/QuestionQueue";
 import { EditorSessionParticipant } from "../../../editorSession/domain/EditorSessionParticipant";
 import {
     displayDocumentHandler,
@@ -37,6 +41,7 @@ import {
     LintingPreferencePort,
     PropertiesPanelStatePort,
 } from "../port/bpmnPorts";
+import { InstalledPackagesPort } from "../port/installedPackagesPort";
 import { NodeBpmnLinter } from "../adapter/out/bpmnlint/NodeBpmnLinter";
 import { NoopDiagnostics } from "../adapter/out/bpmnlint/NoopDiagnostics";
 import {
@@ -62,7 +67,7 @@ import {
 } from "../service/BpmnElementTemplatesService";
 import { BpmnLayoutService } from "../service/BpmnLayoutService";
 import { BpmnLintConfigLocator } from "../service/BpmnLintConfigLocator";
-import { BpmnLintConfigService } from "../service/BpmnLintConfigService";
+import { BpmnLintConfigService, RulePackageApprovals } from "../service/BpmnLintConfigService";
 import { BpmnModelerService } from "../service/BpmnModelerService";
 import { BpmnPropertiesPanelService } from "../service/BpmnPropertiesPanelService";
 import { BpmnSettingsBroadcaster } from "../service/BpmnSettingsBroadcaster";
@@ -70,6 +75,8 @@ import { BpmnlintParticipant } from "../service/BpmnlintParticipant";
 import { BpmnSettingsParticipant } from "../service/BpmnSettingsParticipant";
 import { ElementTemplatesParticipant } from "../service/ElementTemplatesParticipant";
 import { EngineVersionStatusBarParticipant } from "../service/EngineVersionStatusBarParticipant";
+import { PackageClosureFingerprinter } from "../service/PackageClosureFingerprinter";
+import { RulePackageCatalog } from "../service/RulePackageCatalog";
 
 /** The document plumbing: a host routes all three to the core's document services, or none. */
 export const DOCUMENT_SYNC_COMMAND_TYPES = [
@@ -94,6 +101,18 @@ export interface BpmnEditorHostPorts {
     readonly diagnostics?: DiagnosticsPort;
     /** Merges the marketplace cache into element-template discovery. */
     readonly templateProvider?: CachedTemplateProvider;
+    /** Absent: bpmnlint runs no workspace rule package, only the bundled rules. */
+    readonly rulePackages?: BpmnRulePackagePorts;
+}
+
+/** What a host wires so that the workspace bpmnlint rule packages the user allowed run. */
+export interface BpmnRulePackagePorts {
+    /** The host's one approval list, which the plugin approvals share. */
+    readonly approvals: PluginApprovalStorePort;
+    readonly installedPackages: InstalledPackagesPort;
+    readonly actionNotifier: ActionNotifierPort;
+    /** Shared with the host's other approval questions, so each answer reads the list the one before wrote. */
+    readonly questions: QuestionQueue;
 }
 
 /** The core's document services behind {@link DOCUMENT_SYNC_COMMAND_TYPES}. */
@@ -153,6 +172,9 @@ export class BpmnEditorFeature {
     readonly bpmnService: BpmnModelerService;
     readonly templates: BpmnElementTemplatesService;
     readonly layout: BpmnLayoutService;
+    readonly lintConfig: BpmnLintConfigService;
+    /** Absent without {@link BpmnRulePackagePorts}. */
+    readonly rulePackageCatalog?: RulePackageCatalog;
     readonly router: WebviewMessageRouter;
     readonly participants: readonly EditorSessionParticipant[];
 
@@ -187,16 +209,20 @@ export class BpmnEditorFeature {
             ports.settings,
             ports.artifacts,
         );
-        const lintConfig = new BpmnLintConfigService(
+        const rulePackageApprovals =
+            ports.rulePackages && this.rulePackageApprovals(ports.rulePackages);
+        this.rulePackageCatalog = rulePackageApprovals?.catalog;
+        const lintConfig = (this.lintConfig = new BpmnLintConfigService(
             ports.store,
             ports.documents,
             lintConfigLocator,
-            new NodeBpmnLinter(),
+            rulePackageApprovals?.linter ?? new NodeBpmnLinter(),
             ports.diagnostics ?? new NoopDiagnostics(),
             ports.statusBar,
             ports.notifier,
             ports.settings,
-        );
+            rulePackageApprovals,
+        ));
         const clipboard = new BpmnClipboardMediator(ports.store, ports.clipboard, ports.notifier);
         const settingsBroadcaster = new BpmnSettingsBroadcaster(
             ports.store,
@@ -310,6 +336,30 @@ export class BpmnEditorFeature {
 
     dispose(): void {
         this.templates.dispose();
+    }
+
+    private rulePackageApprovals(
+        rulePackages: BpmnRulePackagePorts,
+    ): RulePackageApprovals & { readonly linter: NodeBpmnLinter } {
+        const { approvals, installedPackages, actionNotifier, questions } = rulePackages;
+        const fingerprints = new PackageClosureFingerprinter(installedPackages);
+        const catalog = new RulePackageCatalog(approvals, fingerprints, this.ports.notifier);
+        return {
+            catalog,
+            question: new ApprovalQuestion(
+                catalog,
+                this.ports.picker,
+                actionNotifier,
+                this.ports.workspace,
+                questions,
+            ),
+            linter: new NodeBpmnLinter({
+                approvals,
+                fingerprints,
+                packages: installedPackages,
+                declinedThisSession: () => catalog.declinedThisSession(),
+            }),
+        };
     }
 
     private documentSyncRoutes(
