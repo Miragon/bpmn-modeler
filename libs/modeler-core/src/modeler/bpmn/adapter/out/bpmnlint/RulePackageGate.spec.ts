@@ -152,7 +152,7 @@ describe("RulePackageGate", () => {
         expect(fake.loaded).toEqual([]);
         expect(disk.filesHashed).toEqual([]);
         expect(gate.blockedPackages(new Set())).toEqual([
-            { id: ACME, state: "new", needed: false },
+            { id: ACME, kind: "package", state: "new", needed: false },
         ]);
     });
 
@@ -208,7 +208,7 @@ describe("RulePackageGate", () => {
 
         expect(outcome.loaded).toBe(false);
         expect(gate.blockedPackages(new Set([ACME]))).toEqual([
-            { id: ACME, state: "changed", needed: true },
+            { id: ACME, kind: "package", state: "changed", needed: true },
         ]);
     });
 
@@ -222,7 +222,7 @@ describe("RulePackageGate", () => {
         requireFor(gate, fake, "bpmnlint-plugin-acme", "bpmnlint-plugin-acme");
 
         expect(gate.blockedPackages(new Set())).toEqual([
-            { id: ACME, state: "declined", needed: false },
+            { id: ACME, kind: "package", state: "declined", needed: false },
         ]);
     });
 
@@ -389,8 +389,8 @@ describe("RulePackageGate", () => {
 
         expect(other.blocked).toEqual([OTHER]);
         expect(gate.blockedPackages(new Set([OTHER]))).toEqual([
-            { id: ACME, state: "new", needed: false },
-            { id: OTHER, state: "new", needed: true },
+            { id: ACME, kind: "package", state: "new", needed: false },
+            { id: OTHER, kind: "package", state: "new", needed: true },
         ]);
     });
 

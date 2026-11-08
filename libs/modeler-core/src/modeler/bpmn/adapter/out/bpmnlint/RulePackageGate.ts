@@ -68,7 +68,10 @@ const NO_DECLINES: ReadonlySet<string> = new Set();
 export class RulePackageGate implements RequestAttribution {
     private readonly admittedMembers = new Set<string>();
     private readonly admittedStamps: ClosureStamp[] = [];
-    private readonly blocked = new Map<string, BlockedState>();
+    private readonly blocked = new Map<
+        string,
+        { readonly kind: FingerprintedRoot["kind"]; readonly state: BlockedState }
+    >();
     /** By the refused file, or by the root of a closure that could not be fingerprinted. */
     private readonly refused = new Map<string, RefusedRuleModule>();
     private request: { readonly pkg: string; readonly blocked: Set<string> } | undefined;
@@ -108,7 +111,12 @@ export class RulePackageGate implements RequestAttribution {
     }
 
     blockedPackages(needed: ReadonlySet<string>): BlockedRulePackage[] {
-        return [...this.blocked].map(([id, state]) => ({ id, state, needed: needed.has(id) }));
+        return [...this.blocked].map(([id, { kind, state }]) => ({
+            id,
+            kind,
+            state,
+            needed: needed.has(id),
+        }));
     }
 
     /** Stats only, so the linter can ask before every run. */
@@ -129,7 +137,7 @@ export class RulePackageGate implements RequestAttribution {
             return;
         }
         if (verdict.kind === "blocked") {
-            this.blocked.set(root.id, verdict.state);
+            this.blocked.set(root.id, { kind: root.kind, state: verdict.state });
             this.request?.blocked.add(root.id);
         } else if (verdict.kind === "refused") {
             this.refused.set(root.id, verdict.refusal);

@@ -501,7 +501,7 @@ describe("rulePackagesToAsk", () => {
         id: string,
         needed: boolean,
         state: BlockedRulePackage["state"] = "new",
-    ): BlockedRulePackage => ({ id, state, needed });
+    ): BlockedRulePackage => ({ id, kind: "package", state, needed });
 
     it.each<{ case: string; blocked: BlockedRulePackage[]; asked: string[] }>([
         { case: "a needed package", blocked: [blocked("/a", true)], asked: ["/a"] },

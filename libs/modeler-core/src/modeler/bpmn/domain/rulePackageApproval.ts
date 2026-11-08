@@ -78,6 +78,8 @@ export type RulePackageVerdict =
 
 export interface BlockedRulePackage {
     readonly id: string;
+    /** The config's own package hashes without its models, so asking about it must know which it is. */
+    readonly kind: Exclude<RuleModuleRoot["kind"], "refused">;
     readonly state: BlockedState;
     /** A request ended unresolved because of it; otherwise the bundle served it. */
     readonly needed: boolean;

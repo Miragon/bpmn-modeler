@@ -563,7 +563,7 @@ module.exports = () => ({
         expect(ran()).toEqual([]);
         expect(results).toEqual({});
         expect(unresolved).toEqual(["bpmnlint-plugin-acme/task-found"]);
-        expect(blocked).toEqual([{ id: acmeDir(), state: "new", needed: true }]);
+        expect(blocked).toEqual([{ id: acmeDir(), kind: "package", state: "new", needed: true }]);
     });
 
     it("runs an allowed package with the dependency it declares", async () => {
@@ -626,7 +626,7 @@ module.exports = () => ({
         expect(cachedRun.results["acme/task-found"]).toHaveLength(1);
         expect(results).toEqual({});
         expect(unresolved).toEqual(["bpmnlint-plugin-acme/task-found"]);
-        expect(blocked).toEqual([{ id: acmeDir(), state: "changed", needed: true }]);
+        expect(blocked).toEqual([{ id: acmeDir(), kind: "package", state: "changed", needed: true }]);
     });
 
     it("runs the new bytes once a changed package is allowed again", async () => {
@@ -663,7 +663,7 @@ module.exports = () => ({
 
         expect(ran()).toEqual([]);
         expect(unresolved).toEqual(["plugin:bpmnlint-plugin-self/recommended"]);
-        expect(blocked).toEqual([{ id: workspaceDir, state: "new", needed: true }]);
+        expect(blocked).toEqual([{ id: workspaceDir, kind: "selfPackage", state: "new", needed: true }]);
     });
 
     it("refuses an absolute rule reference to a workspace file outside node_modules and never offers it", async () => {
@@ -781,7 +781,7 @@ module.exports = () => ({
             expect(ran()).toEqual([]);
             expect(unresolved).toEqual([]);
             expect(Object.keys(results)).toContain("camunda-compat/implementation");
-            expect(blocked).toEqual([{ id: camundaCompatDir(), state: "new", needed: false }]);
+            expect(blocked).toEqual([{ id: camundaCompatDir(), kind: "package", state: "new", needed: false }]);
         });
 
         it("needs the workspace copy for a rule only it has", async () => {
@@ -791,7 +791,7 @@ module.exports = () => ({
 
             expect(ran()).toEqual([]);
             expect(unresolved).toEqual(["bpmnlint-plugin-camunda-compat/workspace-only"]);
-            expect(blocked).toEqual([{ id: camundaCompatDir(), state: "new", needed: true }]);
+            expect(blocked).toEqual([{ id: camundaCompatDir(), kind: "package", state: "new", needed: true }]);
         });
     });
 });
