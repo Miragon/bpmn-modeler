@@ -46,7 +46,7 @@ export interface RulePackageGateOptions {
     readonly approvals: readonly CodeApproval[];
     /** The `.bpmnlintrc` folder the scoped require looks up from, spelled like `toWorkspacePath`. */
     readonly configDir: string;
-    /** The content hash each rule package was last admitted with, kept across setups. */
+    /** The closure hash each member folder was last admitted under, kept across setups. */
     readonly loadedContentHashes: Map<string, string>;
 }
 
@@ -215,16 +215,18 @@ export class RulePackageGate implements RequestAttribution {
         memberDirs.forEach((dir) => this.admittedMembers.add(dir));
         this.admittedStamps.push(...stamps);
         const loaded = this.options.loadedContentHashes;
-        const before = loaded.get(rulePackage.id);
-        if (before !== undefined && before !== rulePackage.contentHash) {
-            for (const path of Object.keys(cache)) {
-                const modulePath = toWorkspacePath(path);
-                if (memberDirs.some((dir) => isWithinRoot(modulePath, dir))) {
-                    delete cache[path];
-                }
+        // By member: a package first loaded as another's dependency may be admitted on its own later.
+        const reloaded = memberDirs.filter((dir) => {
+            const before = loaded.get(dir);
+            loaded.set(dir, rulePackage.contentHash);
+            return before !== undefined && before !== rulePackage.contentHash;
+        });
+        for (const path of Object.keys(cache)) {
+            const modulePath = toWorkspacePath(path);
+            if (reloaded.some((dir) => isWithinRoot(modulePath, dir))) {
+                delete cache[path];
             }
         }
-        loaded.set(rulePackage.id, rulePackage.contentHash);
     }
 }
 
