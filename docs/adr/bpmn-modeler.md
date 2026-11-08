@@ -432,6 +432,17 @@ pins their reports and order, so a bpmnlint bump that changes either rule's
 output fails. 11.15.0 reports the same elements as 11.14.0, but
 `no-overlapping-elements` lists them in element order instead of detection order.
 
+Host linting (`NodeBpmnLinter`, in the VS Code extension host and the
+IntelliJ bridge) runs workspace code only through `bpmnlint-plugin-*` rule
+packages. bpmnlint's own rules and configs always come from the bundled
+bpmnlint: through the workspace, bpmnlint's `NodeResolver` would run the
+workspace's `bpmnlint` install or, via `requireLocal`, scripts two folders above
+the `.bpmnlintrc`. A string `moddleExtensions` entry is resolved without running
+anything and loaded only when it is a `.json` descriptor; every known one is.
+Accepted cost: a workspace that pins another bpmnlint version gets the bundled
+version's built-in rules. Asking before a rule package runs is
+[#2247](https://github.com/Miragon/bpmn-modeler/issues/2247).
+
 The webview owns lazy `/lint` loading and routes results to either editable
 surface. The [lint-free entry check](../../packages/bpmn-modeler/scripts/check-lint-free-entry.mjs)
 and source architecture tests guard the import boundary.
