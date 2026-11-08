@@ -74,7 +74,7 @@ function setUp(
         approvals: options.approvals ?? host.pluginApprovals,
         cacheRoot: options.cacheRoot ?? CACHE,
         hasher: fingerprintHasher,
-        ...(options.questions === undefined ? {} : { questions: options.questions }),
+        questions: options.questions ?? new QuestionQueue(),
     });
     const requestPlugins = async (editor: FakeEditorHandle) => {
         await feature.editorContribution.commandHandlers.GetBpmnPluginsCommand(

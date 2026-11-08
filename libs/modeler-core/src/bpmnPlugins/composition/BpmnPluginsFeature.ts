@@ -28,8 +28,12 @@ export interface BpmnPluginsHostPorts {
     readonly cacheRoot: string;
     /** SHA-256 needs a host's crypto; the core imports no host module. */
     readonly hasher: ContentHasherPort;
-    /** Shared with the host's other approval questions; the feature keeps its own without one. */
-    readonly questions?: QuestionQueue;
+    /**
+     * The host's one queue for every approval question: a queue of its own would
+     * show two notices at once, and the second answer would write over the list
+     * the first one saved.
+     */
+    readonly questions: QuestionQueue;
 }
 
 /**
@@ -61,7 +65,7 @@ export class BpmnPluginsFeature {
                 ports.picker,
                 ports.actionNotifier,
                 ports.workspace,
-                ports.questions ?? new QuestionQueue(),
+                ports.questions,
             ),
             ports.notifier,
             ports.cacheRoot,
