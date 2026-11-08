@@ -937,7 +937,15 @@ describe("BpmnLintConfigService — workspace rule packages the user has not all
             disk.writeFile(`${dir}/index.js`, `module.exports = "${name}";`);
         }
         const fingerprinter = new PackageClosureFingerprinter(disk);
-        const catalog = new RulePackageCatalog(approvals, fingerprinter, host.notifier);
+        // Each fingerprint stats every file of the closure on the host thread.
+        const fingerprintedRoots: string[] = [];
+        const recordingFingerprinter: Pick<PackageClosureFingerprinter, "fingerprint"> = {
+            fingerprint: (root) => {
+                fingerprintedRoots.push(root.id);
+                return fingerprinter.fingerprint(root);
+            },
+        };
+        const catalog = new RulePackageCatalog(approvals, recordingFingerprinter, host.notifier);
         const question = new ApprovalQuestion(
             catalog,
             host.picker,
@@ -982,7 +990,18 @@ describe("BpmnLintConfigService — workspace rule packages the user has not all
         };
         const hostResults = (editor: FakeEditorHandle) =>
             editor.postedOfType<BpmnlintResultsQuery>("BpmnlintResultsQuery").map((m) => m.results);
-        return { host, approvals, catalog, blocks, refused, service, contentHashOf, hostResults };
+        return {
+            host,
+            approvals,
+            catalog,
+            blocks,
+            refused,
+            service,
+            contentHashOf,
+            hostResults,
+            fingerprintedRoots,
+            disk,
+        };
     }
 
     const blockedOnAcme = bpmnlintStatusView({
@@ -1050,6 +1069,70 @@ describe("BpmnLintConfigService — workspace rule packages the user has not all
             expect(host.statusBar.views.bpmnlint).toEqual(blockedOnAcme);
         },
     );
+
+    it("asks once and reads the package once while its notice stays open over many lints", async () => {
+        const { host, approvals, service, fingerprintedRoots } = createRulePackageHost({
+            promptAnswers: ALLOW_ACME,
+        });
+        const notice = host.actionNotifier.holdNextNotice();
+        const editor = host.openEditor(PATH, XML, { focused: true });
+        for (let edit = 0; edit < 5; edit++) {
+            await service.setBpmnlintConfig(editor.id);
+        }
+        await flush();
+
+        notice.answer("review");
+        await service.whenApprovalSettled();
+
+        expect(host.actionNotifier.notices.map(({ id }) => id)).toEqual([
+            RULE_PACKAGE_APPROVAL_NOTICE_ID,
+        ]);
+        expect(fingerprintedRoots).toEqual([ACME]);
+        expect(approvals.read().map(({ pluginId }) => pluginId)).toEqual([ACME]);
+    });
+
+    it("asks again about a package whose content changed after the user closed its notice", async () => {
+        const { host, disk, service } = createRulePackageHost();
+        const editor = host.openEditor(PATH, XML, { focused: true });
+        const closedNotice = host.actionNotifier.holdNextNotice();
+        await service.setBpmnlintConfig(editor.id);
+        await flush();
+        closedNotice.answer(undefined);
+        await service.whenApprovalSettled();
+
+        disk.writeFile(`${ACME}/index.js`, 'module.exports = "changed";');
+        host.actionNotifier.holdNextNotice();
+        await service.setBpmnlintConfig(editor.id);
+        await flush();
+
+        expect(host.actionNotifier.notices.map(({ id }) => id)).toEqual([
+            RULE_PACKAGE_APPROVAL_NOTICE_ID,
+            RULE_PACKAGE_APPROVAL_NOTICE_ID,
+        ]);
+    });
+
+    it("waits on no open question when the bundle stood in for every blocked package", async () => {
+        const questions = new QuestionQueue();
+        const { host, blocks, service } = createRulePackageHost({ questions });
+        blocks.set(XML, [blocked(ACME, false)]);
+        let answerEarlierQuestion: () => void = () => undefined;
+        void questions.ask(
+            () =>
+                new Promise<void>((resolve) => {
+                    answerEarlierQuestion = resolve;
+                }),
+        );
+        const editor = host.openEditor(PATH, XML, { focused: true });
+
+        await service.setBpmnlintConfig(editor.id);
+        const settled = await Promise.race([
+            service.whenApprovalSettled().then(() => true),
+            flush().then(() => false),
+        ]);
+        answerEarlierQuestion();
+
+        expect(settled).toBe(true);
+    });
 
     it("does not lint a diagram again whose diagnostics were cleared before the package was allowed", async () => {
         const { host, approvals, service, hostResults } = createRulePackageHost({
