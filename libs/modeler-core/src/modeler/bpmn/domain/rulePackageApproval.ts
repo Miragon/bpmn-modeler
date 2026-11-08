@@ -8,7 +8,11 @@ import {
     PendingCodeApproval,
 } from "../../../kernel/domain/codeApproval";
 import { ChoicePrompt } from "../../../kernel/domain/prompts";
-import { isWithinRoot, relativeToWorkspace } from "../../../kernel/domain/rootContainment";
+import {
+    isRootedPath,
+    isWithinRoot,
+    relativeToWorkspace,
+} from "../../../kernel/domain/rootContainment";
 
 /**
  * Marks a row in the shared approval list as a rule package's and names the
@@ -81,15 +85,21 @@ export type RulePackageApprovalNoticeAction = "review";
 
 const SCOPE_PREFIX = "@";
 const NODE_MODULES = "node_modules";
-const RELATIVE_OR_ROOTED = /^(?:\.|[\\/]|[A-Za-z]:)/;
+
+/**
+ * Npm allows none of these: joined under `node_modules`, a `.`-led part or a
+ * backslash, which Windows reads as a separator, would leave it.
+ */
+const isUnsafeNamePart = (part: string) =>
+    part === "" || part.startsWith(".") || part.includes("\\");
 
 export function requestedPackageNameOf(request: string): string | undefined {
-    if (RELATIVE_OR_ROOTED.test(request)) {
+    if (isRootedPath(request)) {
         return undefined;
     }
     const nameLength = request.startsWith(SCOPE_PREFIX) ? 2 : 1;
     const nameParts = request.split("/").slice(0, nameLength);
-    return nameParts.length < nameLength || nameParts.includes("")
+    return nameParts.length < nameLength || nameParts.some(isUnsafeNamePart)
         ? undefined
         : nameParts.join("/");
 }
