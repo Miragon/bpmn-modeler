@@ -678,15 +678,16 @@ focus and asks before the user looked at the diagram).
 Host linting loads `bpmnlint-plugin-*` packages from the workspace
 ([#2247](https://github.com/Miragon/bpmn-modeler/issues/2247)). Unlike a
 bpmn-js plugin, a rule package runs in the extension host or the bridge with
-the user's rights. Workspace Trust covers neither the IntelliJ bridge nor the
-standalone, which turns it off, so a rule package too runs only once the user
-allowed this content in this folder. A host opts in with the optional `rulePackages`
-group of `BpmnEditorFeature` (`BpmnRulePackagePorts`: the approval store, an
-`InstalledPackagesPort`, the action notifier and the shared `QuestionQueue`).
-VS Code and the IntelliJ bridge wire it with the store the plugins use, each
-with its own `NodeInstalledPackages`; one contract suite in the core's
-`testing/` pins both. Without the group, `NodeBpmnLinter` builds no workspace
-resolver at all.
+the user's rights. Workspace Trust does not cover the IntelliJ bridge, and the
+standalone turns it off, so a rule package, like a bpmn-js plugin, runs only
+once the user allowed this content in this folder. In VS Code, the approval
+comes on top of Workspace Trust. A host opts in with the optional
+`rulePackages` group of `BpmnEditorFeature` (`BpmnRulePackagePorts`: the
+approval store, an `InstalledPackagesPort`, the action notifier and the shared
+`QuestionQueue`). VS Code and the IntelliJ bridge wire it with the store the
+plugins use, each with its own `NodeInstalledPackages`; one contract suite in
+the core's `testing/` pins both. Without the group, `NodeBpmnLinter` builds no
+workspace resolver at all.
 
 **Unit and row.** One approval covers one installed package root: the
 realpath of the `node_modules/<name>` or `node_modules/@scope/<name>` folder a
@@ -705,32 +706,35 @@ the bpmn-js plugins. The content hash carries the prefix
 digest algorithm, so changing the algorithm asks again. The row round-trips
 through VS Code's global state, `RpcPluginApprovalStore` and the Kotlin
 `PluginApproval` unchanged, so neither the protocol nor the IntelliJ plugin
-changed. `rulePackageApproval.ts` owns the root, the verdict and the texts.
+changed. `rulePackageApproval.ts` owns the root, the verdict and the notice
+and list texts; `rulePackageLog.ts` owns the output channel lines.
 
 **Closure hash.** The approval covers the package and what it declares it runs
 with: `dependencies`, `optionalDependencies` and `peerDependencies`,
 recursively, each one found by Node's ancestor `node_modules` lookup from the
 declaring member's realpath. The lookup is done by hand, as
 `require.resolve("<name>/package.json")` fails on a package whose `exports`
-hide its manifest; a dependency that is not installed is skipped, and members
-are deduplicated by realpath. A member's digest is a SHA-256 over every
-regular file's relative path and SHA-256 of its bytes, in a fixed order, with
-no extension filter: Node runs a file of any unknown extension as a script. It
+hide its manifest; a dependency that is not installed is skipped, one installed
+as a file Node takes before the folder or as a folder with only an index file
+refuses the package (no name and version to make it a member), and members are
+deduplicated by realpath. A member's digest is a SHA-256 over every regular
+file's relative path and SHA-256 of its bytes, in a fixed order, with no
+extension filter: Node runs a file of any unknown extension as a script. It
 leaves out the member's own `node_modules` (separate members) and `.git`. The
 config's own package also leaves out `*.bpmn`, `*.dmn`, `*.form` and
 `.bpmnlintrc` files, so editing a model or the config being linted asks
 nothing; a folder of such a name stays in. A linked folder, a link to a file
-outside the member, a special file, or a closure above 5,000 files and folders
-or 50 MB (about eight times the largest closure measured) refuses the package
-with its reason. The closure digest hashes the root and each member by
-`name@version` and member digest, never by folder, so hoisting or
-deduplicating keeps it. `PackageClosureFingerprinter`, one per host
-composition, keeps a memo of each member's stamps (device, inode, size and
-modification and change times of every file and folder, and of every folder
-the dependency lookup looked in) and rehashes only the files whose stamps
-changed. At the start of every lint, the linter's setup checks the stamps of
-the closures it admitted (`isUnchanged`, stats only) and is rebuilt on a
-mismatch. The check sits at the lint's start, not at the gate, because a
+outside the member, a special file, a file or manifest that cannot be read, or
+a closure above 5,000 files and folders or 50 MB (about eight times the largest
+closure measured) refuses the package with its reason. The closure digest
+hashes the root and each member by `name@version` and member digest, never by
+folder, so hoisting or deduplicating keeps it. `PackageClosureFingerprinter`,
+one per host composition, keeps a memo of each member's stamps (device, inode,
+size and modification and change times of every file and folder, and of every
+folder the dependency lookup looked in) and rehashes only the files whose
+stamps changed. At the start of every lint, the linter's setup checks the
+stamps of the closures it admitted (`isUnchanged`, stats only) and is rebuilt
+on a mismatch. The check sits at the lint's start, not at the gate, because a
 cached setup answers later lints from its `resolved` map without calling the
 gate. Nothing watches `node_modules`: VS Code's watcher excludes it by default,
 and the stat pass costs about 1 ms per lint for the largest closure measured.
@@ -757,21 +761,21 @@ its `require.cache` entries, so the newly allowed bytes run.
 **Asking only when needed.** `CompositeResolver` brackets each synchronous
 request with the gate (`beginRequest`, `blockedSinceBegin`). A blocked package
 is *needed* when a request ended unresolved because of it, and *shadowed* when
-the bundle served the request instead. Only needed packages are asked about;
-a shadowed one is logged once per config version and kept in the catalog's
-seen registry for the artifacts view. Otherwise the common Camunda config,
-which lints on the host because of its string `moddleExtensions`, would ask
-about `bpmnlint-plugin-camunda-compat` even where the bundle serves every
-entry the config uses, and train users to allow everything. After `hostLintFinished`, the
+the bundle served the request instead. Only needed packages are asked about; a
+shadowed one is logged once per config version and kept in the catalog's seen
+registry for the artifacts view. Otherwise the common Camunda config, which
+lints on the host because of its string `moddleExtensions`, would ask about
+`bpmnlint-plugin-camunda-compat` even where the bundle serves every entry the
+config uses, and train users to allow everything. After `hostLintFinished`, the
 lint flow asks without awaiting the answer, so results never wait on the user;
 one question per package stays queued until it is answered. An allow relints
 only the open editors whose last host lint was blocked on an allowed package
 (`editorsBlockedOnAnyOf`); closing an editor forgets it. `RulePackageCatalog`
 hashes only the packages it asks about, keeps declines for its lifetime unless
-the content changes, and exposes them read-only to the gate, which then
-reports a package as `declined` rather than `new`. The notice and the list
-have their own ids (`bpmnlintPackageApprovalNotice`, `bpmnlintPackageApproval`)
-and say that a rule package runs as a program with the user's rights.
+the content changes, and exposes them read-only to the gate, which then reports
+a package as `declined` rather than `new`. The notice and the list have their
+own ids (`bpmnlintPackageApprovalNotice`, `bpmnlintPackageApproval`), and the
+list says that a rule package runs as a program with the user's rights.
 
 **One question at a time.** Each host composition builds one `QuestionQueue`
 and passes it to `BpmnPluginsFeature` and `BpmnEditorFeature`, so the
