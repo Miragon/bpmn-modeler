@@ -552,10 +552,11 @@ yet.") with one **Review…** action through the generic
 the list, or leaving a plugin unchecked, is the same answer: those plugin
 versions are declined for this session, offered again in a later one, and
 offered again at once when their content changes. The kernel's
-`ApprovalQuestion` runs this flow for every approval kind and knows no editor: one question is open at a time, and plugins
-found while it is open are asked afterwards, as far as that answer left them
-pending. A VS Code notice can stay unanswered in the notification centre, so
-dropping them would leave a second workspace's plugins unasked for the session.
+`ApprovalQuestion` runs this flow for every approval kind and knows no
+editor: one question is open at a time, and plugins found while it is open
+are asked afterwards, as far as that answer left them pending. A VS Code
+notice can stay unanswered in the notification centre, so dropping them would
+leave a second workspace's plugins unasked for the session.
 An approval reloads every open BPMN editor whose last answer offered one of
 the newly allowed plugin folders, approved or pending, because its modules are
 fixed; the delivery tracks those folders per editor and a session
