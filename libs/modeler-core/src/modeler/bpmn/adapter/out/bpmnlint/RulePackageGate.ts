@@ -7,7 +7,6 @@ import {
     ClosureStamp,
     dependencyCandidates,
     FingerprintedRoot,
-    isHashedMemberFile,
     packageManifestOf,
 } from "../../../domain/packageClosure";
 import {
@@ -15,11 +14,14 @@ import {
     BlockedState,
     loadsWithoutApproval,
     requestedPackageNameOf,
-    RuleModuleRoot,
-    ruleModuleRootOf,
     RulePackageVerdict,
     rulePackageVerdict,
 } from "../../../domain/rulePackageApproval";
+import {
+    approvalRootOf,
+    RefusedModule,
+    RefusedRuleModule,
+} from "../../../domain/rulePackageRefusal";
 import { InstalledPackagesPort } from "../../../port/installedPackagesPort";
 import { RequestAttribution } from "./CompositeResolver";
 
@@ -67,6 +69,8 @@ export class RulePackageGate implements RequestAttribution {
     private readonly admittedMembers = new Set<string>();
     private readonly admittedStamps: ClosureStamp[] = [];
     private readonly blocked = new Map<string, BlockedState>();
+    /** By the refused file, or by the root of a closure that could not be fingerprinted. */
+    private readonly refused = new Map<string, RefusedRuleModule>();
     private request: { readonly pkg: string; readonly blocked: Set<string> } | undefined;
     private readonly realConfigDir: string;
     private readonly selfPackageName: string | undefined;
@@ -99,6 +103,10 @@ export class RulePackageGate implements RequestAttribution {
         return [...(this.request?.blocked ?? [])];
     }
 
+    refusedModules(): RefusedRuleModule[] {
+        return [...this.refused.values()];
+    }
+
     blockedPackages(needed: ReadonlySet<string>): BlockedRulePackage[] {
         return [...this.blocked].map(([id, state]) => ({ id, state, needed: needed.has(id) }));
     }
@@ -109,30 +117,34 @@ export class RulePackageGate implements RequestAttribution {
     }
 
     private admit(resolved: string, request: string, cache: ModuleCache): void {
-        const file = this.options.sources.packages.realPath(toWorkspacePath(resolved));
-        if (file === undefined) {
-            throw notAllowed(request);
-        }
-        const root = this.rootOf(file, request);
-        if (root.kind === "refused" || !isHashedMemberFile(file, root)) {
+        const root = this.rootOfResolved(toWorkspacePath(resolved), request);
+        if (root.kind === "module") {
+            this.refused.set(root.file, root);
             throw notAllowed(request);
         }
         const verdict = this.verdictFor(root, cache);
         if (verdict.kind === "admitted") {
             this.blocked.delete(root.id);
+            this.refused.delete(root.id);
             return;
         }
         if (verdict.kind === "blocked") {
             this.blocked.set(root.id, verdict.state);
             this.request?.blocked.add(root.id);
+        } else if (verdict.kind === "refused") {
+            this.refused.set(root.id, verdict.refusal);
         }
         throw notAllowed(request);
     }
 
-    private rootOf(file: string, request: string): RuleModuleRoot {
+    private rootOfResolved(path: string, request: string): FingerprintedRoot | RefusedModule {
+        const file = this.options.sources.packages.realPath(path);
+        if (file === undefined) {
+            return { kind: "module", file: path, reason: "noPackageFolder" };
+        }
         const pkg = this.request?.pkg;
         const requestsSelfPackage = pkg !== undefined && pkg === this.selfPackageName;
-        return ruleModuleRootOf({
+        return approvalRootOf({
             file,
             configDir: this.realConfigDir,
             requestsSelfPackage,
@@ -164,7 +176,7 @@ export class RulePackageGate implements RequestAttribution {
     private verdictFor(
         root: FingerprintedRoot,
         cache: ModuleCache,
-    ): RulePackageVerdict | { readonly kind: "refused" } {
+    ): RulePackageVerdict | { readonly kind: "refused"; readonly refusal: RefusedRuleModule } {
         const { sources, approvals } = this.options;
         const context = {
             approvals,
@@ -177,7 +189,8 @@ export class RulePackageGate implements RequestAttribution {
         }
         const fingerprint = sources.fingerprints.fingerprint(root);
         if (fingerprint.kind === "refused") {
-            return { kind: "refused" };
+            const { reason, memberDir } = fingerprint;
+            return { kind: "refused", refusal: { kind: "closure", id: root.id, memberDir, reason } };
         }
         const hashed = rulePackageVerdict(root.id, context, fingerprint.rulePackage.contentHash);
         if (hashed.kind === "admitted") {

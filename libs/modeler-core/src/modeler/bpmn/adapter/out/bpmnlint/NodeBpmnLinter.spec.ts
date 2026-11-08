@@ -570,7 +570,7 @@ module.exports = () => ({
         await installAcme();
         approveAcme();
 
-        const { results, unresolved, blocked } = await linter.lint(
+        const { results, unresolved, blocked, refused } = await linter.lint(
             BPMN_WITH_TASK,
             configPath,
             TASK_FOUND,
@@ -582,6 +582,7 @@ module.exports = () => ({
         ]);
         expect(unresolved).toEqual([]);
         expect(blocked).toEqual([]);
+        expect(refused).toEqual([]);
     });
 
     it("lints with a package allowed after a run, with no config change", async () => {
@@ -680,13 +681,14 @@ module.exports = () => ({
         );
         approve({ kind: "package", id: join(workspaceDir, "node_modules/bpmnlint-plugin-pointer") });
 
-        const { unresolved, blocked } = await linter.lint(BPMN_WITH_TASK, configPath, {
+        const { unresolved, blocked, refused } = await linter.lint(BPMN_WITH_TASK, configPath, {
             rules: { "pointer/evil": "error" },
         });
 
         expect(ran()).toEqual(["pointer"]);
         expect(unresolved).toEqual(["bpmnlint-plugin-pointer/evil"]);
         expect(blocked).toEqual([]);
+        expect(refused).toEqual([{ kind: "module", file: evilPath, reason: "outsideNodeModules" }]);
     });
 
     it("never runs a file under an allowed package's .git, which its hash leaves out", async () => {
@@ -707,13 +709,16 @@ module.exports = () => ({
             marked("evil v2, written after the approval", "module.exports = () => ({ check() {} });"),
         );
 
-        const { unresolved, blocked } = await linter.lint(BPMN_WITH_TASK, configPath, {
+        const { unresolved, blocked, refused } = await linter.lint(BPMN_WITH_TASK, configPath, {
             rules: { "acme/evil": "error" },
         });
 
         expect(ran()).toEqual(["acme"]);
         expect(unresolved).toEqual(["bpmnlint-plugin-acme/evil"]);
         expect(blocked).toEqual([]);
+        expect(refused).toEqual([
+            { kind: "module", file: `${acmeDir()}/.git/evil.js`, reason: "notHashed" },
+        ]);
     });
 
     it("never runs a model file of the allowed config folder's own package, which its hash leaves out", async () => {
@@ -731,13 +736,16 @@ module.exports = () => ({
             marked("evil v2, written after the approval", "module.exports = () => ({ check() {} });"),
         );
 
-        const { unresolved, blocked } = await linter.lint(BPMN_WITH_TASK, configPath, {
+        const { unresolved, blocked, refused } = await linter.lint(BPMN_WITH_TASK, configPath, {
             rules: { "self/evil": "error" },
         });
 
         expect(ran()).toEqual(["self"]);
         expect(unresolved).toEqual(["bpmnlint-plugin-self/evil"]);
         expect(blocked).toEqual([]);
+        expect(refused).toEqual([
+            { kind: "module", file: `${workspaceDir}/evil.bpmn`, reason: "notHashed" },
+        ]);
     });
 
     describe("a workspace camunda-compat nobody allowed", () => {

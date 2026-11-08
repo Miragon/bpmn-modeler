@@ -6,12 +6,8 @@ import { createBundledResolver } from "@miragon/bpmnlint-plugin-rules";
 
 import { CodeApproval } from "../../../../../kernel/domain/codeApproval";
 import { toWorkspacePath } from "../../../../../kernel/domain/workspacePath";
-import {
-    BlockedRulePackage,
-    isParsedAsJson,
-    rulePackageApprovalsKey,
-} from "../../../domain/rulePackageApproval";
-import { LintRunnerPort } from "../../../port/bpmnPorts";
+import { isParsedAsJson, rulePackageApprovalsKey } from "../../../domain/rulePackageApproval";
+import { LintRun, LintRunnerPort } from "../../../port/bpmnPorts";
 import { CompositeResolver, Resolver } from "./CompositeResolver";
 import { RulePackageGate, RulePackageSources } from "./RulePackageGate";
 
@@ -81,7 +77,7 @@ export class NodeBpmnLinter implements LintRunnerPort {
         xml: string,
         configPath: string,
         config: Record<string, unknown>,
-    ): Promise<{ results: LintResults; unresolved: string[]; blocked: BlockedRulePackage[] }> {
+    ): Promise<LintRun> {
         const setup = await this.currentLintSetup(configPath, config);
 
         const resolver = new CompositeResolver(setup.resolvers, setup.resolved, setup.gate);
@@ -98,6 +94,7 @@ export class NodeBpmnLinter implements LintRunnerPort {
             results,
             unresolved: resolver.unresolved,
             blocked: setup.gate?.blockedPackages(resolver.neededBlocked) ?? [],
+            refused: setup.gate?.refusedModules() ?? [],
         };
     }
 

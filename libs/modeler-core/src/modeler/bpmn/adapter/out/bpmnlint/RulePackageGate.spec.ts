@@ -238,6 +238,38 @@ describe("RulePackageGate", () => {
         expect(outcome).toEqual({ loaded: false, blocked: [] });
         expect(fake.loaded).toEqual([]);
         expect(gate.blockedPackages(new Set())).toEqual([]);
+        expect(gate.refusedModules()).toEqual([
+            { kind: "module", file: `${REPO}/scripts/evil.js`, reason: "outsideNodeModules" },
+        ]);
+    });
+
+    it("refuses a file of an approved package that its hash leaves out, with the reason", () => {
+        install(ACME, "bpmnlint-plugin-acme");
+        disk.writeFile(`${ACME}/.git/evil.js`, "module.exports = 1;");
+        approve({ kind: "package", id: ACME });
+        const gate = gateFor();
+
+        const outcome = requireFor(
+            gate,
+            fakeScopedRequire({}),
+            "bpmnlint-plugin-acme",
+            `${ACME}/.git/evil.js`,
+        );
+
+        expect(outcome).toEqual({ loaded: false, blocked: [] });
+        expect(gate.refusedModules()).toEqual([
+            { kind: "module", file: `${ACME}/.git/evil.js`, reason: "notHashed" },
+        ]);
+    });
+
+    it("refuses a resolved file it cannot find on disk, with the reason", () => {
+        const gate = gateFor();
+
+        requireFor(gate, fakeScopedRequire({}), "bpmnlint-plugin-acme", `${ACME}/gone.js`);
+
+        expect(gate.refusedModules()).toEqual([
+            { kind: "module", file: `${ACME}/gone.js`, reason: "noPackageFolder" },
+        ]);
     });
 
     it("refuses a package whose closure cannot be fingerprinted, without offering it", () => {
@@ -252,6 +284,41 @@ describe("RulePackageGate", () => {
 
         expect(outcome).toEqual({ loaded: false, blocked: [] });
         expect(gate.blockedPackages(new Set())).toEqual([]);
+        expect(gate.refusedModules()).toEqual([
+            { kind: "closure", id: ACME, memberDir: ACME, reason: "linksOutsideFolder" },
+        ]);
+    });
+
+    it("refuses a package whose closure grew too large to check, naming the member", () => {
+        install(ACME, "bpmnlint-plugin-acme", { "acme-dep": "1.0.0" });
+        install(ACME_DEP, "acme-dep");
+        approve({ kind: "package", id: ACME });
+        disk.writeFile(`${ACME_DEP}/big.js`, "x".repeat(10_000));
+        fingerprints = new PackageClosureFingerprinter(disk, { entries: 100, bytes: 1_000 });
+        const gate = gateFor();
+
+        requireFor(gate, fakeScopedRequire({ "bpmnlint-plugin-acme": `${ACME}/index.js` }), "bpmnlint-plugin-acme", "bpmnlint-plugin-acme");
+
+        expect(gate.refusedModules()).toEqual([
+            { kind: "closure", id: ACME, memberDir: ACME_DEP, reason: "tooLarge" },
+        ]);
+    });
+
+    it("stops reporting a refusal once the package is admitted in the same setup", () => {
+        install(ACME, "bpmnlint-plugin-acme");
+        approve({ kind: "package", id: ACME });
+        disk.createSymbolicLink(`${ACME}/self.js`, `${ACME}`);
+        const fake = fakeScopedRequire({ "bpmnlint-plugin-acme": `${ACME}/index.js` });
+        const gate = gateFor();
+        requireFor(gate, fake, "bpmnlint-plugin-acme", "bpmnlint-plugin-acme");
+        const refusedBefore = gate.refusedModules();
+
+        disk.remove(`${ACME}/self.js`);
+        const after = requireFor(gate, fake, "bpmnlint-plugin-acme", "bpmnlint-plugin-acme");
+
+        expect(refusedBefore).toHaveLength(1);
+        expect(after.loaded).toBe(true);
+        expect(gate.refusedModules()).toEqual([]);
     });
 
     it("takes a linked package's own files by the folder its package name links to", () => {
@@ -298,9 +365,14 @@ describe("RulePackageGate", () => {
         approve({ kind: "selfPackage", id: REPO });
         const fake = fakeScopedRequire({});
 
-        const outcome = requireFor(gateFor(), fake, "bpmnlint-plugin-acme", `${REPO}/index.js`);
+        const gate = gateFor();
+
+        const outcome = requireFor(gate, fake, "bpmnlint-plugin-acme", `${REPO}/index.js`);
 
         expect(outcome).toEqual({ loaded: false, blocked: [] });
+        expect(gate.refusedModules()).toEqual([
+            { kind: "module", file: `${REPO}/index.js`, reason: "outsideNodeModules" },
+        ]);
     });
 
     it("lists only the packages blocked since the request began", () => {
