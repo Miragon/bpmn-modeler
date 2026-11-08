@@ -10,8 +10,10 @@ import {
     dependencyProbeOf,
     type DependencyProbeStamps,
     exceedsClosureSizeLimit,
+    type FingerprintedRoot,
     type InstalledEntryKind,
     isExcludedMemberEntry,
+    isHashedMemberFile,
     isLinkInsideMember,
     type MemberKind,
     packageManifestOf,
@@ -365,6 +367,88 @@ describe("isExcludedMemberEntry", () => {
             expect(isExcludedMemberEntry(relPath, entryKind, kind)).toBe(excluded);
         },
     );
+});
+
+describe("isHashedMemberFile", () => {
+    const PACKAGE = "/w/node_modules/bpmnlint-plugin-acme";
+    const SELF = "/w";
+
+    it.each<{ case: string; file: string; root: FingerprintedRoot; hashed: boolean }>([
+        {
+            case: "a package's own file",
+            file: `${PACKAGE}/rules/a.js`,
+            root: { kind: "package", id: PACKAGE },
+            hashed: true,
+        },
+        {
+            case: "a file under a package's .git",
+            file: `${PACKAGE}/.git/evil.js`,
+            root: { kind: "package", id: PACKAGE },
+            hashed: false,
+        },
+        {
+            case: "a file deep under a package's .git",
+            file: `${PACKAGE}/.git/hooks/evil.js`,
+            root: { kind: "package", id: PACKAGE },
+            hashed: false,
+        },
+        {
+            case: "a file under a package's own node_modules",
+            file: `${PACKAGE}/node_modules/x.js`,
+            root: { kind: "package", id: PACKAGE },
+            hashed: false,
+        },
+        {
+            case: "a file under a nested .git",
+            file: `${PACKAGE}/lib/.git/a.js`,
+            root: { kind: "package", id: PACKAGE },
+            hashed: true,
+        },
+        {
+            case: "a model file of a package",
+            file: `${PACKAGE}/evil.bpmn`,
+            root: { kind: "package", id: PACKAGE },
+            hashed: true,
+        },
+        {
+            case: "a model file of the self-package",
+            file: `${SELF}/evil.bpmn`,
+            root: { kind: "selfPackage", id: SELF },
+            hashed: false,
+        },
+        {
+            case: "a nested model file of the self-package",
+            file: `${SELF}/rules/evil.form`,
+            root: { kind: "selfPackage", id: SELF },
+            hashed: false,
+        },
+        {
+            case: "the self-package's config",
+            file: `${SELF}/.bpmnlintrc`,
+            root: { kind: "selfPackage", id: SELF },
+            hashed: false,
+        },
+        {
+            case: "a file in a self-package folder named like a model",
+            file: `${SELF}/rules.bpmn/index.js`,
+            root: { kind: "selfPackage", id: SELF },
+            hashed: true,
+        },
+        {
+            case: "a file under the self-package's .git",
+            file: `${SELF}/.git/evil.js`,
+            root: { kind: "selfPackage", id: SELF },
+            hashed: false,
+        },
+        {
+            case: "a file outside the member",
+            file: "/w/scripts/evil.js",
+            root: { kind: "package", id: PACKAGE },
+            hashed: false,
+        },
+    ])("takes $case as hashed: $hashed", ({ file, root, hashed }) => {
+        expect(isHashedMemberFile(file, root)).toBe(hashed);
+    });
 });
 
 describe("isLinkInsideMember", () => {

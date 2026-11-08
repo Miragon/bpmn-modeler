@@ -1,6 +1,6 @@
 import { posix } from "path";
 
-import { isWithinRoot } from "../../../kernel/domain/rootContainment";
+import { isWithinRoot, relativeToRoot } from "../../../kernel/domain/rootContainment";
 import { joinWorkspacePath, parentWorkspacePath } from "../../../kernel/domain/workspacePath";
 import { requestedPackageNameOf, RuleModuleRoot, RulePackage } from "./rulePackageApproval";
 
@@ -202,6 +202,24 @@ export function isExcludedMemberEntry(
         memberKind === "selfPackage" &&
         entryKind === "file" &&
         SELF_PACKAGE_MODEL_FILE.test(posix.basename(relPath))
+    );
+}
+
+/**
+ * Whether the root's member digest covers `file`, a realpath, so that an
+ * approval of the root covers running it. A realpath has no links on the
+ * way, so each folder above the file is a directory entry of the walk.
+ */
+export function isHashedMemberFile(file: string, root: FingerprintedRoot): boolean {
+    const relPath = relativeToRoot(file, root.id);
+    if (relPath === undefined) {
+        return false;
+    }
+    const segments = relPath.split("/");
+    const folders = segments.slice(0, -1).map((_, end) => segments.slice(0, end + 1).join("/"));
+    return (
+        !folders.some((folder) => isExcludedMemberEntry(folder, "directory", root.kind)) &&
+        !isExcludedMemberEntry(relPath, "file", root.kind)
     );
 }
 

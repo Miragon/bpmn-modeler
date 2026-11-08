@@ -7,6 +7,7 @@ import {
     ClosureStamp,
     dependencyCandidates,
     FingerprintedRoot,
+    isHashedMemberFile,
     packageManifestOf,
 } from "../../../domain/packageClosure";
 import {
@@ -108,8 +109,12 @@ export class RulePackageGate implements RequestAttribution {
     }
 
     private admit(resolved: string, request: string, cache: ModuleCache): void {
-        const root = this.rootOf(resolved, request);
-        if (root.kind === "refused") {
+        const file = this.options.sources.packages.realPath(toWorkspacePath(resolved));
+        if (file === undefined) {
+            throw notAllowed(request);
+        }
+        const root = this.rootOf(file, request);
+        if (root.kind === "refused" || !isHashedMemberFile(file, root)) {
             throw notAllowed(request);
         }
         const verdict = this.verdictFor(root, cache);
@@ -124,11 +129,7 @@ export class RulePackageGate implements RequestAttribution {
         throw notAllowed(request);
     }
 
-    private rootOf(resolved: string, request: string): RuleModuleRoot {
-        const file = this.options.sources.packages.realPath(toWorkspacePath(resolved));
-        if (file === undefined) {
-            return { kind: "refused", reason: "noPackageFolder" };
-        }
+    private rootOf(file: string, request: string): RuleModuleRoot {
         const pkg = this.request?.pkg;
         const requestsSelfPackage = pkg !== undefined && pkg === this.selfPackageName;
         return ruleModuleRootOf({
