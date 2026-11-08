@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { Dirent, readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
+import { BigIntStats, Dirent, readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
 
 import {
     InstalledEntry,
@@ -55,7 +55,7 @@ export class NodeInstalledPackages implements InstalledPackagesPort {
     }
 }
 
-type EntryTypes = Pick<Dirent, "isDirectory" | "isFile" | "isSymbolicLink">;
+type EntryTypes = Dirent | BigIntStats;
 
 function entryKindOf(entry: EntryTypes): InstalledEntryKind {
     return entry.isSymbolicLink() ? "symbolicLink" : stampKindOf(entry);
