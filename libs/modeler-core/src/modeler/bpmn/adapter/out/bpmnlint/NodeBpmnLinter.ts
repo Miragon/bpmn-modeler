@@ -1,9 +1,11 @@
-import { dirname, extname } from "path";
+import { dirname } from "path";
 
 import { LintResults } from "@miragon/bpmn-modeler-types";
 
 import { createBundledResolver } from "@miragon/bpmnlint-plugin-rules";
 
+import { toWorkspacePath } from "../../../../../kernel/domain/workspacePath";
+import { isParsedAsJson } from "../../../domain/rulePackageApproval";
 import { LintRunnerPort } from "../../../port/bpmnPorts";
 import { CompositeResolver, Resolver } from "./CompositeResolver";
 
@@ -172,7 +174,7 @@ function loadModdleExtensions(
 function jsonDescriptor(reference: string, scopedRequire: NodeRequire): unknown {
     try {
         const resolved = scopedRequire.resolve(reference);
-        return extname(resolved).toLowerCase() === ".json" ? scopedRequire(resolved) : undefined;
+        return isParsedAsJson(toWorkspacePath(resolved)) ? scopedRequire(resolved) : undefined;
     } catch {
         return undefined;
     }

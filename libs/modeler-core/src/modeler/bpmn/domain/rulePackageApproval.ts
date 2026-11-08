@@ -1,3 +1,5 @@
+import { posix } from "path";
+
 import { ActionNotice } from "../../../kernel/domain/actionNotice";
 import {
     ApprovableArtifact,
@@ -286,4 +288,17 @@ export function rulePackageApprovalPrompt(
             value: artifact.id,
         })),
     };
+}
+
+/**
+ * Node picks the loader by the exact extension and skips a leading dot, so
+ * `acme.JSON` and `.json` run as scripts. The path is spelled like `toWorkspacePath`.
+ */
+export function isParsedAsJson(path: string): boolean {
+    return posix.extname(path) === ".json";
+}
+
+/** A built-in module, which resolves to no path, or JSON data. */
+export function loadsWithoutApproval(resolved: string): boolean {
+    return !isRootedPath(resolved) || isParsedAsJson(resolved);
 }

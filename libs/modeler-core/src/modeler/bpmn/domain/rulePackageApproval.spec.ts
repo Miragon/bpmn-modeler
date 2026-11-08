@@ -6,7 +6,9 @@ import {
     closureDigestInput,
     type ClosureMember,
     editorsBlockedOnAnyOf,
+    isParsedAsJson,
     isRulePackageApproval,
+    loadsWithoutApproval,
     memberDigestInput,
     type PendingRulePackage,
     requestedPackageNameOf,
@@ -50,6 +52,37 @@ describe("requestedPackageNameOf", () => {
         { request: "", name: undefined },
     ])("names the package that $request asks for: $name", ({ request, name }) => {
         expect(requestedPackageNameOf(request)).toBe(name);
+    });
+});
+
+describe("isParsedAsJson", () => {
+    it.each<{ path: string; parsed: boolean }>([
+        { path: "/repo/acme.json", parsed: true },
+        { path: "/repo/acme.descriptor.json", parsed: true },
+        { path: "C:/repo/acme.json", parsed: true },
+        { path: "/repo/acme.JSON", parsed: false },
+        { path: "/repo/acme.Json", parsed: false },
+        { path: "/repo/.json", parsed: false },
+        { path: "/repo/acme.json.js", parsed: false },
+        { path: "/repo/acme.json/index.js", parsed: false },
+        { path: "/repo/acme", parsed: false },
+    ])("$path is parsed as JSON: $parsed", ({ path, parsed }) => {
+        expect(isParsedAsJson(path)).toBe(parsed);
+    });
+});
+
+describe("loadsWithoutApproval", () => {
+    it.each<{ resolved: string; free: boolean }>([
+        { resolved: "fs", free: true },
+        { resolved: "node:fs", free: true },
+        { resolved: "/repo/node_modules/bpmnlint-plugin-acme/package.json", free: true },
+        { resolved: "C:/repo/package.json", free: true },
+        { resolved: "/repo/node_modules/bpmnlint-plugin-acme/index.js", free: false },
+        { resolved: "/repo/node_modules/bpmnlint-plugin-acme/addon.node", free: false },
+        { resolved: "/repo/node_modules/bpmnlint-plugin-acme/data.JSON", free: false },
+        { resolved: "C:/repo/index.js", free: false },
+    ])("$resolved loads without approval: $free", ({ resolved, free }) => {
+        expect(loadsWithoutApproval(resolved)).toBe(free);
     });
 });
 
