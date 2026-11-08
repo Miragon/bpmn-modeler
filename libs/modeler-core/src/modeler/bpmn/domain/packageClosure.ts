@@ -2,7 +2,7 @@ import { posix } from "path";
 
 import { isWithinRoot } from "../../../kernel/domain/rootContainment";
 import { joinWorkspacePath, parentWorkspacePath } from "../../../kernel/domain/workspacePath";
-import { requestedPackageNameOf, RulePackage } from "./rulePackageApproval";
+import { requestedPackageNameOf, RuleModuleRoot, RulePackage } from "./rulePackageApproval";
 
 export type InstalledEntryKind = "file" | "directory" | "symbolicLink" | "other";
 
@@ -25,7 +25,7 @@ export interface PathStamp {
     readonly ctimeNs: bigint;
 }
 
-export type MemberKind = "package" | "selfPackage";
+export type MemberKind = Exclude<RuleModuleRoot["kind"], "refused">;
 
 export interface PackageManifest {
     readonly name: string;

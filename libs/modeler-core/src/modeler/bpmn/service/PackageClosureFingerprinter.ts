@@ -7,6 +7,7 @@ import {
     ClosureStamp,
     dependencyCandidates,
     exceedsClosureSizeLimit,
+    InstalledEntryKind,
     isExcludedMemberEntry,
     isLinkInsideMember,
     MemberKind,
@@ -25,7 +26,7 @@ import {
 } from "../domain/rulePackageApproval";
 import { InstalledPackagesPort } from "../port/installedPackagesPort";
 
-export type FingerprintedRoot = Extract<RuleModuleRoot, { kind: "package" | "selfPackage" }>;
+export type FingerprintedRoot = Exclude<RuleModuleRoot, { kind: "refused" }>;
 
 interface HashedFile {
     readonly stamp: PathStamp;
@@ -176,19 +177,10 @@ export class PackageClosureFingerprinter {
                 if (isExcludedMemberEntry(relPath, kind)) {
                     continue;
                 }
-                if (entry.kind === "other") {
-                    return refused("specialFile");
-                }
                 const path = joinWorkspacePath(folder.path, entry.name);
-                const stamp = this.packages.stamp(path);
-                if (
-                    entry.kind === "symbolicLink" &&
-                    !isLinkInsideMember(this.packages.realPath(path), stamp, dir)
-                ) {
-                    return refused("linksOutsideFolder");
-                }
-                if (stamp === undefined) {
-                    return refused("unreadable");
+                const stamp = this.stampedEntry(dir, path, entry.kind);
+                if (isRefused(stamp)) {
+                    return stamp;
                 }
                 const isFolder = entry.kind === "directory";
                 size = plus(size, { entries: 1, bytes: isFolder ? 0 : Number(stamp.size) });
@@ -204,6 +196,24 @@ export class PackageClosureFingerprinter {
             }
         }
         return { files, stamps, size };
+    }
+
+    private stampedEntry(
+        memberDir: string,
+        path: string,
+        kind: InstalledEntryKind,
+    ): PathStamp | Refused {
+        if (kind === "other") {
+            return refused("specialFile");
+        }
+        const stamp = this.packages.stamp(path);
+        if (
+            kind === "symbolicLink" &&
+            !isLinkInsideMember(this.packages.realPath(path), stamp, memberDir)
+        ) {
+            return refused("linksOutsideFolder");
+        }
+        return stamp ?? refused("unreadable");
     }
 
     private read(
