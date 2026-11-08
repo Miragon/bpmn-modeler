@@ -449,12 +449,18 @@ know.
 
 **Format.** A plugin is a classic script that pushes `{ type, plugin }` onto
 `window.plugins`, the contract of `camunda-modeler-plugin-helpers`, plus an
-optional stylesheet. Unmodified Camunda client bundles therefore load. The
-registration types map to engines as Camunda's product lines do:
-`bpmn.modeler.*` applies to every engine, `bpmn.platform.modeler.*` to C7 and
-`bpmn.cloud.modeler.*` to C8, for `additionalModules` and `moddleExtension`.
-Anything else (`client` React extensions, `dmn.*`) is ignored and logged. An
-untagged model gets only the registrations made for every engine.
+optional stylesheet. Unmodified Camunda bundles that register bpmn-js modules
+or moddle extensions therefore load ([#2241](https://github.com/Miragon/bpmn-modeler/issues/2241)
+ran 12 real ones; the [user guide](../vscode/features/bpmn-plugins.md#camunda-modeler-plugins-we-tested)
+has the table). The registration types map to engines as Camunda's product
+lines do: `bpmn.modeler.*` applies to every engine, `bpmn.platform.modeler.*`
+to C7 and `bpmn.cloud.modeler.*` to C8, for `additionalModules` and
+`moddleExtension`. A registration of any other type (`lintRules.*`, `dmn.*`,
+`client`) is ignored and logged. A bundle that imports the helpers'
+`vendor/*` modules (properties panel extensions, React client extensions)
+throws while it runs, before it registers anything, because the editor defines
+none of Camunda's host globals; it is reported as a failed plugin. An untagged
+model gets only the registrations made for every engine.
 
 **Ownership.** Each layer owns one part, so every host and npm consumer takes
 only what it needs:
@@ -475,9 +481,14 @@ surface with those modules and, when the build throws or rejects, reports the
 error to a callback and builds again without them; an engine that gets no
 plugin modules is built once. The fallback lives in the package rather than
 the IDE webview, so Orca's frame and npm consumers get "a broken plugin never
-keeps a diagram from opening" too. The loader takes URLs: a host-served URL
-(the IDE webviews), a `blob:` URL (a frame without network, such as Orca's
-isolated frame) or a plain URL. The package decides no trust: plugin code runs
+keeps a diagram from opening" too. The fallback covers construction only; a
+plugin that throws later, in a listener or a render, is neither contained nor
+named ([#2270](https://github.com/Miragon/bpmn-modeler/issues/2270)).
+The loader takes URLs: a host-served URL (the IDE webviews), a `blob:` URL or a
+plain URL. Orca's isolated frame admits neither `blob:` nor `data:` scripts,
+only its own files and inline text, so its delivery needs inline text or a
+policy change upstream ([#2244](https://github.com/Miragon/bpmn-modeler/issues/2244)).
+The package decides no trust: plugin code runs
 with the page's authority, and an npm consumer decides where plugins come from
 and whether to load them. It is a subpath like `/lint`, so a consumer without
 plugins never bundles the loader; the
@@ -631,15 +642,28 @@ webview's `img-src https:`, needed for element-template icons, lets it send
 data out through image URLs. Approval is the control; a tighter CSP cannot
 close this, and the user guide says so.
 
-**Not shared.** The webview bundle exposes none of its bpmn-js, diagram-js,
-preact or properties-panel instances. Prebuilt plugins bring their own copies,
-which works for modules that use only injected services and is at risk for
-anything relying on instance identity (preact hooks and context, `instanceof`,
-module state), such as properties-panel groups. Exposing our instances would
-make the bundled versions a plugin API and needs its own decision
-([#2241](https://github.com/Miragon/bpmn-modeler/issues/2241)). Listing and
-revoking approvals and pruning the cache are left to
-[#2250](https://github.com/Miragon/bpmn-modeler/issues/2250).
+**Not shared.** The editor exposes none of its bpmn-js, diagram-js, moddle,
+preact or properties-panel instances, and never will expose bpmn-js,
+diagram-js, moddle, React or Camunda app-shell components. In
+[#2241](https://github.com/Miragon/bpmn-modeler/issues/2241) every bpmn-js
+plugin that works got what it needs through injection, including plugins that
+bundle diagram-js 3 and bpmn-js 3 helpers (`RuleProvider`,
+`CommandInterceptor`, `is()`) and run against our instances; the Camunda
+Modeler exposes none of these either. Of the other failures, none was an
+instance problem (private bpmn-js 0.22 APIs, the Camunda app shell, a module we
+bundle already). Instance identity matters only for properties panel extensions:
+helpers-built ones read `window.vendor.propertiesPanel`, and a plugin with its
+own copy of the panel stack breaks the whole panel (a second preact), with no
+report naming it. They stay unsupported for now. A partial
+`window.vendor.propertiesPanel` built from the Implement panel's own instances
+made the unmodified process-io plugin work, but a full one would make `@bpmn-io/properties-panel`, `bpmn-js-properties-panel` and
+its preact a plugin API with a version policy; it is left to its own decision
+([#2265](https://github.com/Miragon/bpmn-modeler/issues/2265)),
+with one exported instance set, an error boundary around plugin groups and a
+contract test as preconditions. Listing and revoking approvals and pruning the
+cache are left to the artifacts view
+([#2250](https://github.com/Miragon/bpmn-modeler/issues/2250)) and its
+host-neutral read model ([#2263](https://github.com/Miragon/bpmn-modeler/issues/2263)).
 
 Alternatives: our own module format only (loses the Camunda ecosystem);
 running `index.js` in the extension host (runs unapproved code with Node
@@ -649,7 +673,11 @@ per folder, off in the standalone); discovery and approval in the package
 (would force one trust model on npm consumers and pull filesystem access into
 a browser package); the fallback in the IDE webview (Orca and npm consumers
 would each copy it); opening the approval list when an editor opens (steals
-focus and asks before the user looked at the diagram).
+focus and asks before the user looked at the diagram); exposing bpmn-js and
+diagram-js to plugins (no tested plugin needed it, and it would make their
+versions a plugin API); a `window.vendor` with only the properties panel
+components and no preact entries (still couples us to that preact, and breaks
+the plugins compiled against its JSX runtime or hooks).
 
 ### Transaction boundaries
 
