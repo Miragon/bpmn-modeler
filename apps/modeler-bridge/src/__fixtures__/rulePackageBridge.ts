@@ -142,7 +142,8 @@ export async function openAcmeBridge(
         dispose: async () => {
             bridge.dispose();
             if (!keepRoot) {
-                await fs.rm(root, { recursive: true, force: true });
+                // The bridge does not wait for a lint in flight, whose rule may still append its log.
+                await fs.rm(root, { recursive: true, force: true, maxRetries: 3 });
             }
         },
     };

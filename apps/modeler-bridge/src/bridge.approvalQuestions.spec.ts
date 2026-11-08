@@ -18,6 +18,7 @@ import {
     createAcmeWorkspace,
     isRequest,
     lintOnHost,
+    nextLintResults,
     openAcmeBridge,
     reviewAndAllowAll,
     waitForNotice,
@@ -74,7 +75,9 @@ describe("bridge approval questions", () => {
         const afterPluginNotice = bridge.frames.length;
         const pluginRows = await reviewAndAllowAll(bridge, pluginNotice);
         const rulePackageNotice = await waitForNotice(bridge, afterPluginNotice);
+        const relintFrom = bridge.frames.length;
         const allRows = await reviewAndAllowAll(bridge, rulePackageNotice);
+        await nextLintResults(bridge, relintFrom);
 
         expect(pluginNotice.params.message).not.toBe(ACME_NOTICE_MESSAGE);
         expect(rulePackageNotice.params.message).toBe(ACME_NOTICE_MESSAGE);
