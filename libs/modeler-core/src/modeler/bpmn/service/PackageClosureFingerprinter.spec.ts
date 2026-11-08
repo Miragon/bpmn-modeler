@@ -287,6 +287,25 @@ describe("PackageClosureFingerprinter", () => {
             expect(contentHashOf(SELF_ROOT)).not.toBe(before);
         });
 
+        it("hashes a folder named like a model, as require('./rules.bpmn') loads its index.js", () => {
+            disk.writeFile(`${REPO}/rules.bpmn/index.js`, "rule");
+            const before = contentHashOf(SELF_ROOT);
+
+            disk.writeFile(`${REPO}/rules.bpmn/index.js`, "changed");
+
+            expect(contentHashOf(SELF_ROOT)).not.toBe(before);
+        });
+
+        it("refuses a link named like a model that points to a folder", () => {
+            disk.createSymbolicLink(`${REPO}/rules.bpmn`, `${REPO}/rules`);
+
+            expect(fingerprinter.fingerprint(SELF_ROOT)).toEqual({
+                kind: "refused",
+                reason: "linksOutsideFolder",
+                memberDir: REPO,
+            });
+        });
+
         it("hashes the models its dependencies ship", () => {
             disk.writeFile(
                 `${REPO}/package.json`,
