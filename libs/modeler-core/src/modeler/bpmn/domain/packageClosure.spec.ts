@@ -1,0 +1,282 @@
+import { describe, expect, it } from "vitest";
+
+import {
+    CLOSURE_SIZE_LIMIT,
+    type DependencyCandidate,
+    dependencyCandidates,
+    exceedsClosureSizeLimit,
+    isExcludedMemberEntry,
+    isLinkInsideMember,
+    type MemberKind,
+    packageManifestOf,
+    type PackageManifest,
+    type PathStamp,
+    samePathStamp,
+} from "./packageClosure";
+
+const STAMP: PathStamp = {
+    kind: "file",
+    dev: 1n,
+    ino: 2n,
+    size: 3n,
+    mtimeNs: 4n,
+    ctimeNs: 5n,
+};
+
+describe("samePathStamp", () => {
+    it.each<{ case: string; other: PathStamp | undefined; same: boolean }>([
+        { case: "an equal stamp", other: { ...STAMP }, same: true },
+        { case: "another kind", other: { ...STAMP, kind: "directory" }, same: false },
+        { case: "another device", other: { ...STAMP, dev: 9n }, same: false },
+        { case: "another inode", other: { ...STAMP, ino: 9n }, same: false },
+        { case: "another size", other: { ...STAMP, size: 9n }, same: false },
+        { case: "another modification time", other: { ...STAMP, mtimeNs: 9n }, same: false },
+        { case: "another change time", other: { ...STAMP, ctimeNs: 9n }, same: false },
+        { case: "nothing there now", other: undefined, same: false },
+    ])("compares a stamp with $case: $same", ({ other, same }) => {
+        expect(samePathStamp(STAMP, other)).toBe(same);
+        expect(samePathStamp(other, STAMP)).toBe(same);
+    });
+
+    it("takes nothing there before and after for unchanged", () => {
+        expect(samePathStamp(undefined, undefined)).toBe(true);
+    });
+});
+
+describe("packageManifestOf", () => {
+    it.each<{ case: string; manifest: unknown; read: PackageManifest }>([
+        {
+            case: "dependencies, optional and peer dependencies, sorted by name",
+            manifest: {
+                name: "bpmnlint-plugin-acme",
+                version: "1.2.3",
+                dependencies: { "min-dash": "^4", "@bpmn-io/moddle-utils": "^1" },
+                optionalDependencies: { fsevents: "^2" },
+                peerDependencies: { bpmnlint: ">=11" },
+            },
+            read: {
+                name: "bpmnlint-plugin-acme",
+                version: "1.2.3",
+                dependencies: ["@bpmn-io/moddle-utils", "bpmnlint", "fsevents", "min-dash"],
+            },
+        },
+        {
+            case: "a name listed as dependency, optional and peer once",
+            manifest: {
+                name: "a",
+                version: "1.0.0",
+                dependencies: { shared: "1" },
+                peerDependencies: { shared: "1" },
+                optionalDependencies: { shared: "1" },
+            },
+            read: {
+                name: "a",
+                version: "1.0.0",
+                dependencies: ["shared"],
+            },
+        },
+        {
+            case: "dev dependencies left out, as they are not installed for a dependent",
+            manifest: { name: "a", version: "1.0.0", devDependencies: { vitest: "1" } },
+            read: { name: "a", version: "1.0.0", dependencies: [] },
+        },
+        {
+            case: "a missing name and version as empty",
+            manifest: {},
+            read: { name: "", version: "", dependencies: [] },
+        },
+        {
+            case: "a name and version that are not strings as empty",
+            manifest: { name: 7, version: ["1"], dependencies: "min-dash" },
+            read: { name: "", version: "", dependencies: [] },
+        },
+        {
+            case: "dependency names that would leave node_modules dropped",
+            manifest: {
+                name: "a",
+                version: "1",
+                dependencies: {
+                    "../evil": "1",
+                    "/abs": "1",
+                    "@scope": "1",
+                    "@scope/..": "1",
+                    "a/b": "1",
+                    "@scope/name/sub": "1",
+                    "@scope/name": "1",
+                    "ok": "1",
+                },
+            },
+            read: {
+                name: "a",
+                version: "1",
+                dependencies: ["@scope/name", "ok"],
+            },
+        },
+    ])("reads $case", ({ manifest, read }) => {
+        expect(packageManifestOf(JSON.stringify(manifest))).toEqual(read);
+    });
+
+    it.each(["{", "", "null", "[]", '"text"', "42"])("reads nothing from %j", (text) => {
+        expect(packageManifestOf(text)).toBeUndefined();
+    });
+});
+
+describe("dependencyCandidates", () => {
+    it.each<{ case: string; fromDir: string; name: string; candidates: DependencyCandidate[] }>([
+        {
+            case: "every ancestor's node_modules, nearest first",
+            fromDir: "/repo/node_modules/bpmnlint-plugin-acme",
+            name: "min-dash",
+            candidates: [
+                {
+                    packageDir: "/repo/node_modules/bpmnlint-plugin-acme/node_modules/min-dash",
+                    watchedDirs: ["/repo/node_modules/bpmnlint-plugin-acme/node_modules"],
+                },
+                {
+                    packageDir: "/repo/node_modules/min-dash",
+                    watchedDirs: ["/repo/node_modules"],
+                },
+                { packageDir: "/node_modules/min-dash", watchedDirs: ["/node_modules"] },
+            ],
+        },
+        {
+            case: "a scoped name, watching its scope folder too",
+            fromDir: "/repo/node_modules/@acme/bpmnlint-plugin-rules",
+            name: "@bpmn-io/feel",
+            candidates: [
+                {
+                    packageDir:
+                        "/repo/node_modules/@acme/bpmnlint-plugin-rules/node_modules/@bpmn-io/feel",
+                    watchedDirs: [
+                        "/repo/node_modules/@acme/bpmnlint-plugin-rules/node_modules",
+                        "/repo/node_modules/@acme/bpmnlint-plugin-rules/node_modules/@bpmn-io",
+                    ],
+                },
+                {
+                    packageDir: "/repo/node_modules/@acme/node_modules/@bpmn-io/feel",
+                    watchedDirs: [
+                        "/repo/node_modules/@acme/node_modules",
+                        "/repo/node_modules/@acme/node_modules/@bpmn-io",
+                    ],
+                },
+                {
+                    packageDir: "/repo/node_modules/@bpmn-io/feel",
+                    watchedDirs: ["/repo/node_modules", "/repo/node_modules/@bpmn-io"],
+                },
+                {
+                    packageDir: "/node_modules/@bpmn-io/feel",
+                    watchedDirs: ["/node_modules", "/node_modules/@bpmn-io"],
+                },
+            ],
+        },
+        {
+            case: "a pnpm store path, finding the siblings first",
+            fromDir: "/repo/node_modules/.pnpm/a@1.0.0/node_modules/a",
+            name: "b",
+            candidates: [
+                {
+                    packageDir: "/repo/node_modules/.pnpm/a@1.0.0/node_modules/a/node_modules/b",
+                    watchedDirs: ["/repo/node_modules/.pnpm/a@1.0.0/node_modules/a/node_modules"],
+                },
+                {
+                    packageDir: "/repo/node_modules/.pnpm/a@1.0.0/node_modules/b",
+                    watchedDirs: ["/repo/node_modules/.pnpm/a@1.0.0/node_modules"],
+                },
+                {
+                    packageDir: "/repo/node_modules/.pnpm/node_modules/b",
+                    watchedDirs: ["/repo/node_modules/.pnpm/node_modules"],
+                },
+                { packageDir: "/repo/node_modules/b", watchedDirs: ["/repo/node_modules"] },
+                { packageDir: "/node_modules/b", watchedDirs: ["/node_modules"] },
+            ],
+        },
+        {
+            case: "a Windows drive, stopping at its root",
+            fromDir: "C:/repo",
+            name: "a",
+            candidates: [
+                { packageDir: "C:/repo/node_modules/a", watchedDirs: ["C:/repo/node_modules"] },
+                { packageDir: "C:/node_modules/a", watchedDirs: ["C:/node_modules"] },
+            ],
+        },
+    ])("looks a dependency up in $case", ({ fromDir, name, candidates }) => {
+        expect(dependencyCandidates(fromDir, name)).toEqual(candidates);
+    });
+});
+
+describe("isExcludedMemberEntry", () => {
+    it.each<{ relPath: string; kind: MemberKind; excluded: boolean }>([
+        { relPath: "node_modules", kind: "package", excluded: true },
+        { relPath: ".git", kind: "package", excluded: true },
+        { relPath: "lib/node_modules", kind: "package", excluded: false },
+        { relPath: "lib/.git", kind: "package", excluded: false },
+        { relPath: "index.js", kind: "package", excluded: false },
+        { relPath: "test/order.bpmn", kind: "package", excluded: false },
+        { relPath: ".bpmnlintrc", kind: "package", excluded: false },
+        { relPath: "node_modules", kind: "selfPackage", excluded: true },
+        { relPath: ".git", kind: "selfPackage", excluded: true },
+        { relPath: "order.bpmn", kind: "selfPackage", excluded: true },
+        { relPath: "processes/order.bpmn", kind: "selfPackage", excluded: true },
+        { relPath: "decisions/route.dmn", kind: "selfPackage", excluded: true },
+        { relPath: "forms/start.form", kind: "selfPackage", excluded: true },
+        { relPath: ".bpmnlintrc", kind: "selfPackage", excluded: true },
+        { relPath: "sub/.bpmnlintrc", kind: "selfPackage", excluded: true },
+        { relPath: "order.bpmn.js", kind: "selfPackage", excluded: false },
+        { relPath: "bpmn", kind: "selfPackage", excluded: false },
+        { relPath: ".bpmnlintrc.js", kind: "selfPackage", excluded: false },
+        { relPath: "rules/label.js", kind: "selfPackage", excluded: false },
+    ])("excludes $relPath from a $kind: $excluded", ({ relPath, kind, excluded }) => {
+        expect(isExcludedMemberEntry(relPath, kind)).toBe(excluded);
+    });
+});
+
+describe("isLinkInsideMember", () => {
+    const file: PathStamp = STAMP;
+    const directory: PathStamp = { ...STAMP, kind: "directory" };
+
+    it.each<{
+        case: string;
+        target: string | undefined;
+        targetStamp: PathStamp | undefined;
+        inside: boolean;
+    }>([
+        { case: "a file inside", target: "/m/lib/a.js", targetStamp: file, inside: true },
+        { case: "a file outside", target: "/elsewhere/a.js", targetStamp: file, inside: false },
+        { case: "a sibling folder's file", target: "/m2/a.js", targetStamp: file, inside: false },
+        { case: "a directory inside", target: "/m/lib", targetStamp: directory, inside: false },
+        { case: "the member folder", target: "/m", targetStamp: directory, inside: false },
+        { case: "nothing", target: undefined, targetStamp: undefined, inside: false },
+        {
+            case: "a target gone before its realpath",
+            target: undefined,
+            targetStamp: file,
+            inside: false,
+        },
+        { case: "a vanished target", target: "/m/a.js", targetStamp: undefined, inside: false },
+    ])("lets a link to $case stay: $inside", ({ target, targetStamp, inside }) => {
+        expect(isLinkInsideMember(target, targetStamp, "/m")).toBe(inside);
+    });
+});
+
+describe("exceedsClosureSizeLimit", () => {
+    const { entries, bytes } = CLOSURE_SIZE_LIMIT;
+
+    it.each<{ case: string; totals: { entries: number; bytes: number }; exceeds: boolean }>([
+        { case: "an empty closure", totals: { entries: 0, bytes: 0 }, exceeds: false },
+        { case: "exactly the limit", totals: { entries, bytes }, exceeds: false },
+        { case: "one entry more", totals: { entries: entries + 1, bytes: 0 }, exceeds: true },
+        { case: "one byte more", totals: { entries: 0, bytes: bytes + 1 }, exceeds: true },
+    ])("measures $case: $exceeds", ({ totals, exceeds }) => {
+        expect(exceedsClosureSizeLimit(totals)).toBe(exceeds);
+    });
+
+    it("leaves room for ten times the largest closure measured", () => {
+        expect(CLOSURE_SIZE_LIMIT).toEqual({ entries: 5000, bytes: 50 * 1024 * 1024 });
+    });
+
+    it("takes a given limit", () => {
+        expect(exceedsClosureSizeLimit({ entries: 3, bytes: 0 }, { entries: 2, bytes: 9 })).toBe(
+            true,
+        );
+    });
+});
