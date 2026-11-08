@@ -203,6 +203,35 @@ The store pages take their text from these places:
   `apps/orca-plugin/orca-plugin.json`, with the images in
   `apps/orca-plugin/images/`.
 
+### Store images
+
+The covers and screenshots of the store pages and READMEs are made with the
+`product-shots` skill of the `miragon-brand` plugin
+([Miragon/corporate-identity](https://github.com/Miragon/corporate-identity)),
+from [`.miragon/product-shots.json`](.miragon/product-shots.json). That file
+names the skill version the images were made with and, per store, the title,
+claim, badge and the files to show. The demo files are in
+`.miragon/product-shots/order-service/`, and
+`.miragon/product-shots/bpmn-modeler-recipe.mjs` says what the VS Code gallery
+shows: the properties panel, the token simulation, linting and a DMN decision
+table.
+
+| Product | Images in | Made |
+|---|---|---|
+| `bpmn-vscode` | `docs/public/shots/vscode/` | headless VS Code (`code serve-web`), on the Mac |
+| `bpmn-intellij` | `docs/public/shots/intellij/` | IntelliJ IDEA Community in a Linux container |
+| `bpmn-orca` | `apps/orca-plugin/images/` | Orca in a Linux container (Podman on the Mac) |
+
+Build first (the VSIX for VS Code, the plugin ZIP with every platform for IntelliJ:
+`compile:all` in `apps/modeler-bridge`, then `./gradlew buildPlugin -PbundleAllPlatforms`,
+and `apps/orca-plugin/plugin/` for Orca), then
+run the skill's `scripts/listing.mjs` from the repository root, as its
+`references/listing.md` describes. `--check` checks the images against each
+store's limits without taking new ones. When the skill is updated, make the
+images again and raise `skillVersion`. The JetBrains Marketplace takes its images
+in the plugin's **Media** section, uploaded by hand: the cover first, then the
+gallery.
+
 A VS Code Marketplace listing is composed from two sources inside the
 extension's workspace (e.g. `apps/vscode-plugin/`):
 

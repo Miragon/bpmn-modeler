@@ -33,19 +33,19 @@ have unsaved edits, Orca asks whether to reload the file or keep yours.
 
 ## Model processes
 
-![Orca with order-fulfilment.bpmn open, the user task Pack order selected and its Camunda 8 implementation and form in the properties panel](images/screenshot-properties.webp)
+![Orca with order-fulfilment.bpmn open, the user task Pack order selected and its implementation, assignment and form groups in the properties panel](images/feature-properties.webp)
 
 `.bpmn` files open in the View, Design and Implement modes, for Camunda 7 and Camunda 8, with the
 properties panel. Run the token simulation to watch a process step by step, and let linting point
 at what an engine would reject.
 
-![The order fulfilment process in token simulation, a token at Check stock and the simulation log listing the steps so far](images/screenshot-simulation.webp)
+![The order fulfilment process in token simulation, a token waiting after Pack order and the log listing In stock? and Pack order](images/feature-simulation.webp)
 
-![return-handling.bpmn with red error markers on a service task without a job type and on two flows without a condition](images/screenshot-linting.webp)
+![return-handling.bpmn with red error markers on a service task without a job type and on two flows without a condition](images/feature-linting.webp)
 
 ## Model decisions
 
-![The Choose carrier decision table from shipping.dmn: country and weight in, carrier and cost out, with fields to simulate the decision above it](images/screenshot-dmn.webp)
+![The Choose carrier decision table from shipping.dmn, simulated for a 3 kg express parcel without a country: rule 8 matches, UPS Express for 39](images/feature-dmn.webp)
 
 `.dmn` files open with the decision requirements diagram, decision tables, literal and boxed
 expressions, the properties panel and the decision simulation.

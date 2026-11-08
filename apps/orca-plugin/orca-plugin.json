@@ -24,23 +24,23 @@
       "caption": "BPMN and DMN from plain .bpmn and .dmn files"
     },
     {
-      "path": "images/screenshot-properties.webp",
-      "alt": "Orca with order-fulfilment.bpmn open, the user task Pack order selected and its Camunda 8 implementation and form in the properties panel",
+      "path": "images/feature-properties.webp",
+      "alt": "Orca with order-fulfilment.bpmn open, the user task Pack order selected and its implementation, assignment and form groups in the properties panel",
       "caption": "Camunda 7 and 8 details in the properties panel"
     },
     {
-      "path": "images/screenshot-simulation.webp",
-      "alt": "The order fulfilment process in token simulation, a token at Check stock and the simulation log listing the steps so far",
+      "path": "images/feature-simulation.webp",
+      "alt": "The order fulfilment process in token simulation, a token waiting after Pack order and the log listing In stock? and Pack order",
       "caption": "Play a process through with token simulation"
     },
     {
-      "path": "images/screenshot-linting.webp",
+      "path": "images/feature-linting.webp",
       "alt": "return-handling.bpmn with red error markers on a service task without a job type and on two flows without a condition, and 3 Errors at the bottom",
       "caption": "Linting flags what Camunda would reject"
     },
     {
-      "path": "images/screenshot-dmn.webp",
-      "alt": "The Choose carrier decision table from shipping.dmn: country and weight in, carrier and cost out, with fields to simulate the decision above it",
+      "path": "images/feature-dmn.webp",
+      "alt": "The Choose carrier decision table from shipping.dmn, simulated for a 3 kg express parcel without a country: rule 8 matches, UPS Express for 39",
       "caption": "DMN decision tables you can simulate in place"
     }
   ],

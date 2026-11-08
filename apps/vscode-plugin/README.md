@@ -1,186 +1,86 @@
-<div align="center">
-<img src="https://raw.githubusercontent.com/Miragon/bpmn-modeler/main/images/miragon-logo.png" alt="Miragon" height="140">
+# BPMN Modeler for VS Code
 
-### BPMN Modeler
+[![VS Marketplace](https://vsmarketplacebadges.dev/version-short/miragon-gmbh.vs-code-bpmn-modeler.svg?label=VS%20Marketplace)](https://marketplace.visualstudio.com/items?itemName=miragon-gmbh.vs-code-bpmn-modeler)
+[![Installs](https://vsmarketplacebadges.dev/installs-short/miragon-gmbh.vs-code-bpmn-modeler.svg?label=Installs)](https://marketplace.visualstudio.com/items?itemName=miragon-gmbh.vs-code-bpmn-modeler)
+[![Open VSX](https://img.shields.io/open-vsx/v/miragon-gmbh/vs-code-bpmn-modeler?label=Open%20VSX)](https://open-vsx.org/extension/miragon-gmbh/vs-code-bpmn-modeler)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://github.com/Miragon/bpmn-modeler/blob/main/LICENSE)
 
-BPMN 2.0, DMN, and Camunda Form modeling for Camunda 7 and Camunda 8 — directly in VS Code.
+![Miragon Modeler for BPMN: processes, decisions and forms from plain files, right in VS Code](/docs/public/shots/vscode/cover.png)
 
-[Documentation](https://miragon.github.io/bpmn-modeler/) · [Report Bug](https://github.com/Miragon/bpmn-modeler/issues) · [Request Feature](https://github.com/Miragon/bpmn-modeler/pulls)
-</div>
+Model BPMN processes, DMN decisions and Camunda Forms right in VS Code, for Camunda 7, Camunda 8
+and compatible engines such as Operaton and CIB seven. A `.bpmn`, `.dmn` or `.form` file opens in a
+graphical editor, and the file stays the source of truth: save, Git and diff work as for your code.
 
----
+Free and open source (Apache 2.0), built on [bpmn.io](https://bpmn.io). No account.
 
-## What it is
+## Get started
 
-A **BPMN** (Business Process Model and Notation) diagram describes a business
-process as a flowchart of events, tasks, and decisions; a **DMN** (Decision
-Model and Notation) diagram captures the decision logic behind it as tables. A
-**Camunda Form** defines the user-facing fields for a Camunda 8 user task.
+1. Open any `.bpmn`, `.dmn` or `.form` file, or create one. It opens in the modeler instead of the
+   text editor.
+2. New to BPMN? The walkthrough **Get Started with BPMN Modeler** (**Help: Get Started**) shows you
+   how to create, edit and deploy a diagram, and [camunda.com/bpmn](https://camunda.com/bpmn/)
+   explains the notation.
 
-This extension opens `.bpmn`, `.dmn`, and `.form` files in graphical editors
-inside VS Code, while the text file stays the source of truth — so save, Git,
-and diff keep working, and models are versioned and reviewed in the same
-workflow as the rest of your project. No context switch into a separate desktop
-modeler.
+## Model processes
 
-> **Powered by [bpmn.io](https://bpmn.io/)** — built on
-> [bpmn-js](https://github.com/bpmn-io/bpmn-js) and
-> [dmn-js](https://github.com/bpmn-io/dmn-js), plus
-> [form-js](https://github.com/bpmn-io/form-js).
+![order-fulfilment.bpmn in VS Code with the user task Pack order selected, its context pad open and its implementation, assignment and form groups in the properties panel](/docs/public/shots/vscode/editor.png)
 
-![Appending the missing end event to "Ship order" in VS Code clears the lint error and the modeler reports no issues](https://raw.githubusercontent.com/Miragon/bpmn-modeler/main/images/modeler-demo.gif)
+Add elements from the palette or the context pad and set their Camunda 7 or Camunda 8 details in
+the properties panel. The View, Design and Implement modes show as much engine detail as you need.
+**BPMN Modeler: Toggle Standard Text Editor** (`Ctrl+Shift+E`) opens the XML next to it.
 
-## Getting started
+## Play it through
 
-Install **BPMN Modeler** (publisher `miragon-gmbh`) from the VS Code
-Marketplace, then get oriented in a couple of minutes:
+![The order fulfilment process in token simulation, a token past the gateway In stock? and the simulation log listing Check stock and In stock?](/docs/public/shots/vscode/simulation.png)
 
-1. **Take the walkthrough first.** The built-in **Get Started with BPMN
-   Modeler** walkthrough is the recommended first stop — open it from
-   **Help: Get Started** in the Command Palette. It walks you through creating,
-   editing, and deploying a diagram.
-2. **Create a model.** Make a new file ending in `.bpmn` (a BPMN 2.0 process),
-   `.dmn` (a DMN decision table), or `.form` (a Camunda Form). VS Code opens it
-   straight in the matching graphical editor instead of the plain text editor.
-3. **Open an existing one.** Any `.bpmn`, `.dmn`, or `.form` file opens the same way.
+The token simulation runs a process step by step, so you see each path before you deploy it.
 
-## Reading a diagram
+## Catch mistakes early
 
-New to the notation? Here is the 30-second version — full primers are linked
-under [Learn more](#learn-more).
+![return-handling.bpmn with red error markers on a service task without a job type and on two flows without a condition, and 3 errors in the lint hint and the status bar](/docs/public/shots/vscode/linting.png)
 
-A BPMN process reads left to right along its flow:
+Linting marks what the engine would reject, on the canvas and in the **Problems** view. It uses a
+`.bpmnlintrc` from your workspace when there is one. Only drawing? Switch it off from the lint hint.
 
-- **Events** (circles) mark what starts, happens during, or ends the process.
-- **Tasks** (rounded rectangles) are the work being done.
-- **Gateways** (diamonds) split or merge the flow to model decisions and
-  parallel paths.
-- **Sequence flows** (arrows) connect the elements in the order they run.
+## Decisions and forms
 
-A DMN decision table reads as rows of rules: input columns on the left map to
-output columns on the right, so each row says "when the inputs look like this,
-the decision is that".
+![The Choose carrier decision table from shipping.dmn, simulated for a 3 kg express parcel to Germany: rule 2 is highlighted and the result reads DHL Express for 9.99](/docs/public/shots/vscode/decision.png)
 
-## Editing a diagram
+Edit DMN decision tables and try them with the simulation above the table. Camunda Forms open in a
+visual editor with a preview, and a Camunda 8 user task links straight to its form.
 
-- **Graphical editor for `.bpmn` / `.dmn`.** Add elements from the palette or
-  the context pad on a selected shape, connect them into sequence flows, and set
-  each element's name, type, and Camunda 7 / Camunda 8 attributes in the
-  **Properties panel**. Everything is written straight back into the underlying
-  XML. Flip to the raw XML at any time with **BPMN Modeler: Toggle Standard
-  Text Editor** (`Ctrl+Shift+E`); it also sits in the editor title bar.
-- **Visual editor and preview for `.form`.** Build a Camunda Form visually and
-  switch to **Preview** without losing edits. Use **BPMN Modeler: New Form** to
-  create a valid starter form. Toggle the standard text editor to edit the raw
-  JSON; VS Code validates it against the form-js JSON Schema and displays
-  problems in the editor and Problems panel.
-- **Navigate from a C8 User Task to its linked form.** A User Task whose
-  `formId` resolves to a workspace `.form` file shows a link action in its
-  context pad. Select it to open the form in a separate editor tab.
-- **Review forms as JSON.** Current VS Code releases open `.form` comparisons in
-  the standard text diff editor. VS Code 1.76–1.128 can still route custom-editor
-  comparisons to the visual editor; use **Reopen Editor With… → Text Editor** on
-  those legacy releases.
-- **Element templates** — convention-based discovery: drop templates under
-  `<configFolder>/element-templates/` anywhere between your BPMN file and the
-  workspace root. No extra project config needed.
-- **Deploy to Camunda** — open the **Deploy Diagram** view from the activity
-  bar (the rocket icon) or run **BPMN Modeler: Deploy Diagram** from the editor
-  title bar to deploy a diagram and start process instances against Camunda 7
-  or 8. Supports no auth, Basic Auth, and OAuth2 Client Credentials; payload
-  files are discovered by convention from `<configFolder>/payloads/`.
-- **Compare two diagrams** — select two `.bpmn` files in the Explorer (or
-  right-click one, **Select for Compare (BPMN)**, then **Compare with
-  Selected (BPMN)** on another) to open a side-by-side read-only diff with element-level
-  colour coding (added / removed / changed / moved) via
-  [`bpmn-js-differ`](https://github.com/bpmn-io/bpmn-js-differ), synchronized
-  pan/zoom, and a prev/next change navigator.
-- **Linting** — diagrams are checked with [bpmnlint](https://github.com/bpmn-io/bpmnlint)
-  (a bundled default, or a `.bpmnlintrc` found in your workspace); findings show as
-  hints on the canvas, in the **Problems** panel, and in the status bar. Only
-  drawing processes, not automating them? Turn linting off — for all your files —
-  from the switch on the lint hint, the **BPMN Modeler: Toggle Linting** command,
-  the status-bar badge, or the `miragon.bpmnModeler.linting.enabled` setting.
-- **Export** — copy the current diagram to the clipboard as SVG, or save an SVG
-  next to the source file, via the SVG commands below.
-- **Multi-language UI** — palette, context pad, and properties panel in 12
-  languages, from English and Deutsch to 日本語 and 한국어
-  ([all languages](https://miragon.github.io/bpmn-modeler/vscode/features/language-support)).
+## Compare and deploy
 
-### Commands
+![Two versions of a process side by side, with added, removed, changed and moved elements in colour](/docs/public/shots/bpmn-diff.png)
 
-Search for "BPMN Modeler" in the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`).
+Select two `.bpmn` files in the Explorer and **Compare Selected (BPMN)** to see what changed,
+element by element. The **Deploy Diagram** view (the rocket) deploys a diagram to Camunda 7 or
+Camunda 8 and starts an instance with a payload from `.camunda/payloads/`.
 
-| Command                                   | Keybinding     | Description                                                      |
-|-------------------------------------------|----------------|------------------------------------------------------------------|
-| BPMN Modeler: Deploy Diagram              |                | Open the Deployment sidebar for the current BPMN/DMN diagram     |
-| BPMN Modeler: Copy Diagram as SVG         |                | Copy the current diagram to the clipboard as SVG                 |
-| BPMN Modeler: Save Diagram as SVG         |                | Save an SVG file of the current diagram next to the source file  |
-| BPMN Modeler: Change Engine Version       |                | Switch between engine versions (within a platform)               |
-| BPMN Modeler: Migrate All BPMN Diagrams   |                | Switch the engine versions of all BPMN diagrams in the workspace |
-| BPMN Modeler: Change Modeler Language     |                | Change the UI language of the modeler                            |
-| BPMN Modeler: New Form                    |                | Create a valid Camunda Form and open its visual editor           |
-| BPMN Modeler: Toggle Linting              |                | Turn BPMN linting on or off (applies to all files)               |
-| BPMN Modeler: Toggle Standard Text Editor | `Ctrl+Shift+E` | Open the XML or JSON text editor next to the visual editor       |
-| BPMN Modeler: Display Logging Information |                | Open a console showing modeler log output                        |
+## Good to know
 
-The compare commands — **Select for Compare (BPMN)**, **Compare with Selected (BPMN)**, and
-**Compare Selected (BPMN)** — are available from the Explorer right-click menu on
-`.bpmn` files rather than the Command Palette.
-
-### Settings
-
-Search for "BPMN Modeler" in Settings (`Ctrl+,` / `Cmd+,`).
-
-| Setting                                         | Default                     | Description                                                             |
-|-------------------------------------------------|-----------------------------|-------------------------------------------------------------------------|
-| `miragon.bpmnModeler.configFolder`              | `.camunda`                  | Folder name used for element template and payload file discovery        |
-| `miragon.bpmnModeler.linting.enabled`           | `true`                      | Run BPMN linting; turn off to hide all lint hints (design-only users)   |
-| `miragon.bpmnModeler.language`                  | `en`                        | UI language for the modeler (e.g. `de`, `fr`, `zh-Hans`)                |
-| `miragon.bpmnModeler.colorTheme`                | `automatic`                 | Color theme for the BPMN canvas (`automatic` or `light`)                |
-| `miragon.bpmnModeler.favouriteBpmnElements`     | `["bpmn:ServiceTask", ...]` | BPMN element types pinned at the top of the append menu palette (max 6) |
-| `miragon.bpmnModeler.showTransactionBoundaries` | `true`                      | Show transaction boundaries in the BPMN canvas (C7 only)                |
-| `miragon.bpmnModeler.c8ApiVersion`              | `v2`                        | REST API version prefix for Camunda 8 deployment endpoints              |
-| `miragon.bpmnModeler.alignToOrigin`             | `false`                     | Align the diagram to the origin when opening a new diagram              |
-
-## Troubleshooting
-
-The modeler logs to the **`bpmn.modeler`** output channel. Open it from the
-Output panel (**View: Output**, then select *bpmn.modeler*) or with the command
-**BPMN Modeler: Display Logging Information**.
-
-By default the channel shows `Info` and above. When a diagram, element
-template, or the webview misbehaves, raise the level to see the full trace:
-run **Developer: Set Log Level…**, pick *bpmn.modeler*, and choose **Debug**.
-Debug adds the per-message transport trace, the element-template discovery scan
-(which config folder was searched and what was found), and any warnings or
-errors the webview forwards (prefixed with `[webview:<file>]`).
-
-**Filing a bug?** Set the log level to **Debug**, reproduce the problem, then
-copy the whole `bpmn.modeler` channel into the report — the Info-level
-breadcrumbs (editor opened/closed, deployment started/result, SVG export) plus
-the Debug transport trace let us reconstruct the exact steps that led to the
-failure. Credentials are never logged, so the channel is safe to paste.
-
-## Learn more
-
-- **New to BPMN or DMN?** Learn the notation at
-  [camunda.com/bpmn](https://camunda.com/bpmn/) and
-  [camunda.com/dmn](https://camunda.com/dmn/).
-- **Every feature, in depth:** the
-  [documentation](https://miragon.github.io/bpmn-modeler/vscode/features/).
-- **The same modeler elsewhere:** in
-  [IntelliJ](https://plugins.jetbrains.com/plugin/32634-miragon-bpmn-modeler), as a
-  [desktop app](https://miragon.github.io/bpmn-modeler/download), and, experimental, in
+- Element templates under `.camunda/element-templates/`, anywhere between your file and the
+  workspace root, show up in the modeler without any project setup.
+- Every command starts with **BPMN Modeler:** in the Command Palette, and the settings are under
+  **BPMN Modeler** in the Settings. The [documentation](https://miragon.github.io/bpmn-modeler/vscode/configuration)
+  lists them all.
+- The modeler speaks 12 languages, from English and Deutsch to 日本語 and 한국어
+  (**BPMN Modeler: Change Modeler Language**).
+- Something wrong? Set the log level of the **bpmn.modeler** output channel to **Debug**
+  (**Developer: Set Log Level…**), reproduce it and paste the channel into your issue. Credentials
+  are never logged.
+- The same modeler runs in [IntelliJ](https://plugins.jetbrains.com/plugin/32634-miragon-bpmn-modeler),
+  as a [desktop app](https://miragon.github.io/bpmn-modeler/download) and, experimental, in
   [Orca](https://miragon.github.io/bpmn-modeler/orca/getting-started).
 
 ## Links
 
-[Documentation](https://miragon.github.io/bpmn-modeler/) ·
-[Report an issue](https://github.com/Miragon/bpmn-modeler/issues) ·
-[Source and contributing](https://github.com/Miragon/bpmn-modeler/blob/main/CONTRIBUTING.md) ·
-[Contact](mailto:info@miragon.io)
+[Documentation](https://miragon.github.io/bpmn-modeler/)
+·
+[Changelog](https://github.com/Miragon/bpmn-modeler/blob/main/apps/vscode-plugin/CHANGELOG.md)
+·
+[Report an issue](https://github.com/Miragon/bpmn-modeler/issues)
+·
+[Source and contributing](https://github.com/Miragon/bpmn-modeler/blob/main/CONTRIBUTING.md)
 
-## License
-
-Distributed under the [Apache License 2.0](https://github.com/Miragon/bpmn-modeler/blob/main/LICENSE).
+Made by [Miragon](https://www.miragon.io). Apache 2.0 licence.

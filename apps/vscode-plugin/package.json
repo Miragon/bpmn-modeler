@@ -48,8 +48,8 @@
     "publisher": "miragon-gmbh",
     "homepage": "https://www.miragon.io/",
     "galleryBanner": {
-        "color": "#F0F8FF",
-        "theme": "light"
+        "color": "#335DE5",
+        "theme": "dark"
     },
     "badges": [
         {

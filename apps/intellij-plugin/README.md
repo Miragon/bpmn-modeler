@@ -3,6 +3,8 @@
 [![JetBrains Marketplace](https://img.shields.io/jetbrains/plugin/v/32634-miragon-bpmn-modeler?label=JetBrains%20Marketplace)](https://plugins.jetbrains.com/plugin/32634-miragon-bpmn-modeler)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://github.com/Miragon/bpmn-modeler/blob/main/LICENSE)
 
+![Miragon Modeler for BPMN: processes from plain .bpmn files, right in IntelliJ and the other JetBrains IDEs](/docs/public/shots/intellij/cover.png)
+
 Model BPMN 2.0 processes visually, right inside IntelliJ IDEA and the other JetBrains IDEs. A `.bpmn`
 file opens on a drag-and-drop canvas, and every change is saved straight back to the file, ready to
 commit next to the code it describes. It is the same modeler as in
@@ -22,10 +24,14 @@ Free and open source (Apache 2.0). No account.
 
 ## Model on the canvas
 
+![IntelliJ with order-fulfilment.bpmn open, the user task Pack order selected and its implementation, assignment and form groups in the properties panel](/docs/public/shots/intellij/properties.png)
+
 Draw and edit BPMN 2.0 diagrams on a visual canvas, with the source view next to it when you need
 it. The View, Design and Implement modes show as much of the engine detail as you need, the
 properties panel sets each element's Camunda 7 or Camunda 8 attributes, and linting points at what
 an engine would reject. **Format Diagram** (`Ctrl+Alt+L`) lays a diagram out.
+
+![return-handling.bpmn in IntelliJ with red error markers on a service task without a job type and on two flows without a condition, and 3 errors in the lint hint](/docs/public/shots/intellij/linting.png)
 
 ## Compare versions
 
