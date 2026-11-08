@@ -4,12 +4,29 @@ import { join } from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import NodeResolver from "bpmnlint/lib/resolver/node-resolver";
-
 import { DefaultBpmnlintConfigService } from "../../../service/DefaultBpmnlintConfigService";
 import { NodeBpmnLinter } from "./NodeBpmnLinter";
 
 const moddlesCreated = vi.hoisted(() => vi.fn());
+const bundledRuleResolved = vi.hoisted(() => vi.fn());
+
+vi.mock("@miragon/bpmnlint-plugin-rules", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("@miragon/bpmnlint-plugin-rules")>();
+    return {
+        ...actual,
+        createBundledResolver: () => {
+            const bundled = actual.createBundledResolver();
+            return {
+                resolveRule: (pkg: string, ruleName: string) => {
+                    bundledRuleResolved();
+                    return bundled.resolveRule(pkg, ruleName);
+                },
+                resolveConfig: (pkg: string, configName: string) =>
+                    bundled.resolveConfig(pkg, configName),
+            };
+        },
+    };
+});
 
 vi.mock("bpmn-moddle", async (importOriginal) => {
     const actual = await importOriginal<{ BpmnModdle: (...args: unknown[]) => unknown }>();
@@ -185,6 +202,7 @@ describe("NodeBpmnLinter across runs", () => {
 
     beforeEach(async () => {
         moddlesCreated.mockClear();
+        bundledRuleResolved.mockClear();
         workspaceDir = await mkdtemp(join(tmpdir(), "node-bpmn-linter-"));
     });
 
@@ -222,18 +240,17 @@ describe("NodeBpmnLinter across runs", () => {
     });
 
     it("reuses the moddle and resolved rules until the config changes", async () => {
-        const resolveRule = vi.spyOn(NodeResolver.prototype, "resolveRule");
         const linter = new NodeBpmnLinter();
         const recommended = { extends: "bpmnlint:recommended" };
 
         await linter.lint(BPMN_WITH_TASK, CONFIG_PATH, recommended);
         expect(moddlesCreated).toHaveBeenCalledOnce();
-        expect(resolveRule).toHaveBeenCalled();
+        expect(bundledRuleResolved).toHaveBeenCalled();
 
-        resolveRule.mockClear();
+        bundledRuleResolved.mockClear();
         const { results } = await linter.lint(BPMN_WITH_TASK, CONFIG_PATH, { ...recommended });
         expect(moddlesCreated).toHaveBeenCalledOnce();
-        expect(resolveRule).not.toHaveBeenCalled();
+        expect(bundledRuleResolved).not.toHaveBeenCalled();
         expect(Object.keys(results)).toContain("start-event-required");
 
         await linter.lint(BPMN_WITH_TASK, CONFIG_PATH, {
@@ -241,7 +258,7 @@ describe("NodeBpmnLinter across runs", () => {
             rules: { "label-required": "off" },
         });
         expect(moddlesCreated).toHaveBeenCalledTimes(2);
-        expect(resolveRule).toHaveBeenCalled();
+        expect(bundledRuleResolved).toHaveBeenCalled();
     });
 
     it("picks up a plugin installed after a run that could not resolve it", async () => {

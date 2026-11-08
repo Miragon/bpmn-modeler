@@ -50,7 +50,9 @@ Run `npm install`, then reference the plugin by its short name:
 }
 ```
 
-Rules run in the extension host, which needs [Workspace Trust](https://code.visualstudio.com/docs/editor/workspace-trust). Check parity with `npx bpmnlint <diagram>.bpmn`. A runnable example lives in [`resources/example-process/`](https://github.com/Miragon/bpmn-modeler/tree/main/resources/example-process).
+Rules run in the extension host, which needs [Workspace Trust](https://code.visualstudio.com/docs/editor/workspace-trust). Check parity with `npx bpmnlint <diagram>.bpmn`.
+
+The modeler takes bpmnlint's own rules and configs (`bpmnlint:recommended`, `label-required`, …) from its bundled bpmnlint, also when your workspace installs `bpmnlint`, so a different installed version can report slightly differently than your CI. A `moddleExtensions` entry must name a JSON descriptor, such as `camunda-bpmn-moddle/resources/camunda.json`; an entry that names a script is skipped and reported like a missing one. A runnable example lives in [`resources/example-process/`](https://github.com/Miragon/bpmn-modeler/tree/main/resources/example-process).
 
 If a referenced rule or plugin is not installed, only that entry is skipped. The status bar then shows `BPMNlint: N rules skipped` and the *bpmn.modeler* output channel names them.
 

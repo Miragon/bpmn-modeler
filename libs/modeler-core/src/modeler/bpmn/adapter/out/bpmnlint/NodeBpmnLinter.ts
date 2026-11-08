@@ -1,4 +1,4 @@
-import { dirname } from "path";
+import { dirname, extname } from "path";
 
 import { LintResults } from "@miragon/bpmn-modeler-types";
 
@@ -39,15 +39,15 @@ interface CachedLintSetup {
 
 /**
  * Runs bpmnlint in a full Node context (the VS Code extension host or the
- * IntelliJ bridge) so it resolves the same rules the `bpmnlint` CLI would:
+ * IntelliJ bridge) so it resolves the rules the `bpmnlint` CLI would:
  * built-ins, `plugin:<pkg>/recommended`, and custom `pkg/rule` packages from the
  * workspace `node_modules`, rooted at the `.bpmnlintrc` directory (so monorepos
  * with per-module configs keep working).
  *
- * Resolution is a {@link CompositeResolver}: workspace `NodeResolver` first, then
- * `@miragon/bpmnlint-plugin-rules`' bundled resolver (bpmnlint built-ins + camunda-compat
- * engine layers + the Miragon rules) as fallback, so a workspace without those
- * installed still lints. A rule the workspace declares but cannot provide (plugin
+ * Resolution is a {@link CompositeResolver}: the workspace's rule packages
+ * first, then `@miragon/bpmnlint-plugin-rules`' bundled resolver (bpmnlint
+ * built-ins + camunda-compat engine layers + the Miragon rules), so a workspace
+ * without those installed still lints. Built-ins never come from the workspace. A rule the workspace declares but cannot provide (plugin
  * not installed) is skipped and reported, never fatal.
  *
  * The moddle, the loaded extensions and the resolved rules are kept per config
@@ -115,10 +115,7 @@ export class NodeBpmnLinter implements LintRunnerPort {
 
         return {
             moddle,
-            resolvers: [
-                new NodeResolver({ require: scopedRequire, requireLocal: scopedRequire }),
-                this.bundledResolver,
-            ],
+            resolvers: [workspaceRulePackages(scopedRequire), this.bundledResolver],
             resolved: new Map(),
             moddleExtensionMisses: misses,
         };
@@ -135,11 +132,12 @@ export class NodeBpmnLinter implements LintRunnerPort {
  * inspect Camunda/Zeebe properties see the same typed model the CLI does.
  *
  * A workspace `.bpmnlintrc` declares each extension as a module-path string,
- * `require`d from the workspace. The zero-config default instead embeds the
- * descriptor object directly (see {@link DefaultBpmnlintConfigService}) because
- * a config-less workspace has no `node_modules` to resolve it from — those
- * pass straight through. A string module that fails to load is skipped and
- * recorded rather than aborting the lint.
+ * resolved from the workspace and loaded only when it is a JSON descriptor. The
+ * zero-config default instead embeds the descriptor object directly (see
+ * {@link DefaultBpmnlintConfigService}) because a config-less workspace has no
+ * `node_modules` to resolve it from — those pass straight through. A string
+ * that is missing or names a script is skipped and recorded rather than
+ * aborting the lint.
  */
 function loadModdleExtensions(
     config: Record<string, unknown>,
@@ -157,14 +155,62 @@ function loadModdleExtensions(
             extensions[prefix] = value;
             continue;
         }
-        try {
-            extensions[prefix] = scopedRequire(String(value));
-        } catch {
+        const descriptor = jsonDescriptor(String(value), scopedRequire);
+        if (descriptor === undefined) {
             misses.push(`moddleExtension:${prefix}`);
+        } else {
+            extensions[prefix] = descriptor;
         }
     }
     return { extensions, misses };
 }
+
+/**
+ * Loads a descriptor only when the reference resolves to a `.json` file, which
+ * `require` parses instead of running.
+ */
+function jsonDescriptor(reference: string, scopedRequire: NodeRequire): unknown {
+    try {
+        const resolved = scopedRequire.resolve(reference);
+        return extname(resolved).toLowerCase() === ".json" ? scopedRequire(resolved) : undefined;
+    } catch {
+        return undefined;
+    }
+}
+
+const BPMNLINT_CORE = "bpmnlint";
+
+/**
+ * The workspace's `bpmnlint-plugin-*` packages. bpmnlint's own rules and
+ * configs always come from the bundle: through the workspace, NodeResolver
+ * would run the workspace's `bpmnlint` install or, via `requireLocal`, scripts
+ * two folders above the config.
+ */
+function workspaceRulePackages(scopedRequire: NodeRequire): Resolver {
+    const nodeResolver = new NodeResolver({
+        require: scopedRequire,
+        requireLocal: refuseLocalRequire,
+    });
+    const refuseCore = (pkg: string) => {
+        if (pkg === BPMNLINT_CORE) {
+            throw new Error("bpmnlint's own rules and configs come from the bundle");
+        }
+    };
+    return {
+        resolveRule(pkg, ruleName) {
+            refuseCore(pkg);
+            return nodeResolver.resolveRule(pkg, ruleName);
+        },
+        resolveConfig(pkg, configName) {
+            refuseCore(pkg);
+            return nodeResolver.resolveConfig(pkg, configName);
+        },
+    };
+}
+
+const refuseLocalRequire = ((id: string) => {
+    throw new Error(`Refused to load ${id} relative to the config folder`);
+}) as unknown as NodeRequire;
 
 /**
  * `bpmn-moddle` has no `default` export on some bundler interops — its ESM
