@@ -1,7 +1,7 @@
 // Completes plugin/ around the editor pages and bundles Vite wrote there, and fails when Orca would refuse
 // or warn about it.
 import { cp, readdir, readFile, stat, writeFile } from "node:fs/promises";
-import { dirname, join, relative, resolve } from "node:path";
+import { dirname, extname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const app = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -12,6 +12,8 @@ const MAX_PLUGIN_FILES = 2000;
 const MAX_SCRIPT_BYTES = 10 * 1024 * 1024;
 // The pattern of Orca's `plugin check` (editor_eval), which the smoke test treats as a failure.
 const ORCA_EVAL = /(?<![\w$.])(?:eval|Function)\s*\(|\bnew\s+Function\b/;
+// Orca's plugin directory refuses every other binary file, such as EOT or TTF fonts.
+const LISTED_BINARIES = new Set([".png", ".jpg", ".jpeg", ".webp", ".gif", ".woff", ".woff2"]);
 
 const manifest = JSON.parse(await readFile(join(app, "orca-plugin.json"), "utf8"));
 await writeFile(join(plugin, "orca-plugin.json"), `${JSON.stringify(manifest, null, 2)}\n`);
@@ -36,8 +38,12 @@ let total = 0;
 for (const file of files) {
     const { size } = await stat(file);
     total += size;
-    if (!file.endsWith(".js")) continue;
     const name = relative(plugin, file);
+    const isBinary = (await readFile(file)).includes(0);
+    if (isBinary && !LISTED_BINARIES.has(extname(file).toLowerCase())) {
+        problems.push(`${name} is a binary file Orca's directory does not list`);
+    }
+    if (!file.endsWith(".js")) continue;
     if (size > MAX_SCRIPT_BYTES) problems.push(`${name} has ${size} bytes, more than a script may`);
     const line = (await readFile(file, "utf8"))
         .split("\n")
