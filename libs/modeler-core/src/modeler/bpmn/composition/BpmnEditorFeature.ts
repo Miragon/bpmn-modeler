@@ -209,19 +209,18 @@ export class BpmnEditorFeature {
             ports.settings,
             ports.artifacts,
         );
-        const rulePackageApprovals =
-            ports.rulePackages && this.rulePackageApprovals(ports.rulePackages);
-        this.rulePackageCatalog = rulePackageApprovals?.catalog;
+        const { linter, approvals } = this.rulePackageLinting(ports.rulePackages);
+        this.rulePackageCatalog = approvals?.catalog;
         const lintConfig = (this.lintConfig = new BpmnLintConfigService(
             ports.store,
             ports.documents,
             lintConfigLocator,
-            rulePackageApprovals?.linter ?? new NodeBpmnLinter(),
+            linter,
             ports.diagnostics ?? new NoopDiagnostics(),
             ports.statusBar,
             ports.notifier,
             ports.settings,
-            rulePackageApprovals,
+            approvals,
         ));
         const clipboard = new BpmnClipboardMediator(ports.store, ports.clipboard, ports.notifier);
         const settingsBroadcaster = new BpmnSettingsBroadcaster(
@@ -338,21 +337,25 @@ export class BpmnEditorFeature {
         this.templates.dispose();
     }
 
-    private rulePackageApprovals(
-        rulePackages: BpmnRulePackagePorts,
-    ): RulePackageApprovals & { readonly linter: NodeBpmnLinter } {
+    private rulePackageLinting(rulePackages: BpmnRulePackagePorts | undefined): {
+        readonly linter: NodeBpmnLinter;
+        readonly approvals?: RulePackageApprovals;
+    } {
+        if (rulePackages === undefined) {
+            return { linter: new NodeBpmnLinter() };
+        }
         const { approvals, installedPackages, actionNotifier, questions } = rulePackages;
         const fingerprints = new PackageClosureFingerprinter(installedPackages);
         const catalog = new RulePackageCatalog(approvals, fingerprints, this.ports.notifier);
-        return {
+        const question = new ApprovalQuestion(
             catalog,
-            question: new ApprovalQuestion(
-                catalog,
-                this.ports.picker,
-                actionNotifier,
-                this.ports.workspace,
-                questions,
-            ),
+            this.ports.picker,
+            actionNotifier,
+            this.ports.workspace,
+            questions,
+        );
+        return {
+            approvals: { catalog, question },
             linter: new NodeBpmnLinter({
                 approvals,
                 fingerprints,
