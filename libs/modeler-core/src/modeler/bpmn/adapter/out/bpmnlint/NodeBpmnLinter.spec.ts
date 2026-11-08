@@ -381,6 +381,22 @@ describe("NodeBpmnLinter and workspace code outside rule packages", () => {
         expect(unresolved).toEqual(["moddleExtension:acme"]);
     });
 
+    it("skips a moddle extension named .JSON, which Node runs as a script", async () => {
+        await writeWorkspaceFile(
+            "acme.JSON",
+            markerScript(`{ name: "Acme", prefix: "acme", uri: "http://acme", types: [] }`),
+        );
+
+        const { unresolved } = await new NodeBpmnLinter().lint(
+            BPMN_WITH_TASK,
+            join(workspaceDir, ".bpmnlintrc"),
+            { moddleExtensions: { acme: "./acme.JSON" } },
+        );
+
+        expect(workspaceCodeRan()).toBe(false);
+        expect(unresolved).toEqual(["moddleExtension:acme"]);
+    });
+
     it.each(["./acme.json", "./acme"])(
         "loads a moddle extension from a JSON descriptor named %s",
         async (reference) => {
