@@ -3,7 +3,7 @@
   "manifestVersion": 2,
   "id": "bpmn-modeler",
   "name": "BPMN & DMN Modeler (Experimental)",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Experimental. Open .bpmn and .dmn files as diagrams: view, simulate and lightly model BPMN processes and DMN decisions, and see an agent's changes to the file as they happen. No deployment, code links or Form editor yet.",
   "author": {
     "name": "Miragon GmbH",
@@ -54,14 +54,18 @@
       {
         "id": "bpmn",
         "title": "BPMN Modeler",
-        "extensions": [".bpmn"],
+        "extensions": [
+          ".bpmn"
+        ],
         "entry": "editor/bpmn/index.html",
         "frame": "isolated"
       },
       {
         "id": "dmn",
         "title": "DMN Modeler",
-        "extensions": [".dmn"],
+        "extensions": [
+          ".dmn"
+        ],
         "entry": "editor/dmn/index.html",
         "frame": "isolated"
       }

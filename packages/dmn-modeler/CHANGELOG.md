@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.7.0](https://github.com/Miragon/bpmn-modeler/compare/dmn-modeler-v0.6.0...dmn-modeler-v0.7.0) (2026-11-08)
+
+
+### 🎉 New Features
+
+* **orca-plugin:** open .bpmn and .dmn files in Orca ([#2210](https://github.com/Miragon/bpmn-modeler/issues/2210)) [sync b7d4773] ([b40d944](https://github.com/Miragon/bpmn-modeler/commit/b40d944eb3207001ed7c4bbec45b83dd7dacfcbe))
+
+
+### 🐞 Bug Fixes
+
+* **dmn-modeler:** separate a rule's outputs in the simulation result ([#2257](https://github.com/Miragon/bpmn-modeler/issues/2257)) ([1b074dd](https://github.com/Miragon/bpmn-modeler/commit/1b074dd1d0d71c762eb9ff17d32e4b6bf8bcce57))
+
+
+### 🔨 Refactoring
+
+* import respelled value sets from their home ([#2203](https://github.com/Miragon/bpmn-modeler/issues/2203)) ([0a2785e](https://github.com/Miragon/bpmn-modeler/commit/0a2785ea9b3ac2a1db286bbbed8fee8a7b0cf945))
+* **theme:** give the theme modes one home in modeler-types ([#2171](https://github.com/Miragon/bpmn-modeler/issues/2171)) ([ba79907](https://github.com/Miragon/bpmn-modeler/commit/ba79907c504b47522ce5227e41871466f5d6ce6f))
+
+
+### 📔 Documentation
+
+* write each README for one reader, its users or its developers ([#2253](https://github.com/Miragon/bpmn-modeler/issues/2253)) ([3d28322](https://github.com/Miragon/bpmn-modeler/commit/3d28322c3ad26e0038fb88fc90f3dd44dc4a1417))
+
 ## [0.6.0](https://github.com/Miragon/bpmn-modeler/compare/dmn-modeler-v0.5.0...dmn-modeler-v0.6.0) (2026-11-04)
 
 
