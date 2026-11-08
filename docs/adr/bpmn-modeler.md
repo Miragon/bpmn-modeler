@@ -766,8 +766,9 @@ shadowed one is logged once per config version and kept in the catalog's seen
 registry for the artifacts view. Otherwise the common Camunda config, which
 lints on the host because of its string `moddleExtensions`, would ask about
 `bpmnlint-plugin-camunda-compat` even where the bundle serves every entry the
-config uses, and train users to allow everything. After `hostLintFinished`, the
-lint flow asks without awaiting the answer, so results never wait on the user;
+config uses, and train users to allow everything. After `hostLintFinished`,
+`RulePackageFollowUp`, which `BpmnLintConfigService` hands the lint run, logs
+it and asks without awaiting the answer, so results never wait on the user;
 one question per package stays queued until it is answered. An allow relints
 only the open editors whose last host lint was blocked on an allowed package
 (`editorsBlockedOnAnyOf`); closing an editor forgets it. `RulePackageCatalog`

@@ -15,7 +15,6 @@ import {
     SettingsPort,
     StatusBarPort,
 } from "../../../kernel/port/hostPorts";
-import { ApprovalQuestion } from "../../../kernel/service/ApprovalQuestion";
 import { EditorSessionStore } from "../../../editorSession/service/EditorSessionStore";
 import { BpmnLintConfigLocator, BpmnlintChangeTarget } from "./BpmnLintConfigLocator";
 import { BpmnlintIndicator, indicatorForFindings } from "../domain/bpmnlintIndicator";
@@ -31,26 +30,10 @@ import {
     reduceLintSession,
     UNTRACKED_LINT_SESSION,
 } from "../domain/LintSession";
-import {
-    BlockedRulePackage,
-    editorsBlockedOnAnyOf,
-    PendingRulePackage,
-    RulePackage,
-    rulePackagesToAsk,
-} from "../domain/rulePackageApproval";
-import {
-    neededRulePackageLogLines,
-    refusedRuleModuleLogLine,
-    shadowedRulePackageLogLine,
-} from "../domain/rulePackageLog";
-import { DiagnosticsPort, LintRun, LintRunnerPort } from "../port/bpmnPorts";
-import { RulePackageCatalog } from "./RulePackageCatalog";
+import { DiagnosticsPort, LintRunnerPort } from "../port/bpmnPorts";
+import { RulePackageApprovals, RulePackageFollowUp } from "./RulePackageFollowUp";
 
-/** Absent: no workspace rule package runs, so there is nothing to ask about. */
-export interface RulePackageApprovals {
-    readonly catalog: RulePackageCatalog;
-    readonly question: ApprovalQuestion<BlockedRulePackage, PendingRulePackage, RulePackage>;
-}
+export type { RulePackageApprovals } from "./RulePackageFollowUp";
 
 const DROP_LOG_LINES: Partial<Record<LintDropReason, string>> = {
     supersededVersion: "[bpmnlint] dropping in-page results for a superseded config version",
@@ -90,12 +73,7 @@ const DROP_LOG_LINES: Partial<Record<LintDropReason, string>> = {
 export class BpmnLintConfigService implements BpmnlintChangeTarget {
     private readonly sessions = new Map<string, LintSession>();
     private readonly latestRuns = new Map<string, symbol>();
-    private readonly blockedByEditor = new Map<string, readonly string[]>();
-    /** A lint runs on every edit; one queued question per package is enough until it is answered. */
-    private readonly queuedRulePackageIds = new Set<string>();
-    /** Lines logged once per config version, so a relint on every edit repeats none of them. */
-    private readonly loggedOncePerConfig = new Set<string>();
-    private approvalSettled: Promise<void> = Promise.resolve();
+    private readonly rulePackageFollowUp: RulePackageFollowUp;
 
     /** Monotonic source for opaque config-version tokens; never reset. */
     private tokenCounter = 0;
@@ -109,12 +87,18 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
         private readonly statusBar: StatusBarPort,
         private readonly notifier: NotifierPort,
         private readonly settings: SettingsPort,
-        private readonly rulePackages?: RulePackageApprovals,
-    ) {}
+        rulePackages?: RulePackageApprovals,
+    ) {
+        this.rulePackageFollowUp = new RulePackageFollowUp(
+            notifier,
+            (editorId) => this.setBpmnlintConfig(editorId),
+            rulePackages,
+        );
+    }
 
     /** Resolves once every rule package question raised so far is answered and its relints ran. */
     whenApprovalSettled(): Promise<void> {
-        return this.approvalSettled;
+        return this.rulePackageFollowUp.whenSettled();
     }
 
     /** Re-evaluates the lint tier for the document and drives it. */
@@ -131,7 +115,7 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
         this.diagnostics.clear(editorId);
         this.sessions.delete(editorId);
         this.latestRuns.delete(editorId);
-        this.blockedByEditor.delete(editorId);
+        this.rulePackageFollowUp.release(editorId);
     }
 
     applyWebviewLintResults(
@@ -198,72 +182,22 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
                 config as Record<string, unknown>,
             );
             if (this.isSuperseded(editorId, run)) return this.dropSupersededRun();
-            this.logRulePackages(negotiation, lintRun);
+            this.rulePackageFollowUp.log(negotiation, lintRun);
             const { results, unresolved, blocked } = lintRun;
             const pushed = await this.dispatch(editorId, {
                 type: "hostLintFinished",
                 token,
                 output: { xml, results, unresolved, blocked },
             });
-            this.askAboutBlocked(editorId, blocked);
+            if (this.editorStore.hasEditor(editorId)) {
+                this.rulePackageFollowUp.ask(editorId, blocked);
+            }
             return pushed;
         } catch (error) {
             this.logLintFailure(error);
             if (this.isSuperseded(editorId, run)) return this.dropSupersededRun();
             return this.dispatch(editorId, { type: "hostLintFailed", token });
         }
-    }
-
-    private logRulePackages(negotiation: Negotiation, { blocked, refused }: LintRun): void {
-        neededRulePackageLogLines(blocked).forEach((line) => this.notifier.logWarning(line));
-        const configVersion = `${negotiation.configPath}\0${negotiation.rawConfig}`;
-        const logOnce = (line: string, log: (line: string) => void) => {
-            const key = `${configVersion}\0${line}`;
-            if (!this.loggedOncePerConfig.has(key)) {
-                this.loggedOncePerConfig.add(key);
-                log(line);
-            }
-        };
-        refused
-            .map(refusedRuleModuleLogLine)
-            .forEach((line) => logOnce(line, (once) => this.notifier.logWarning(once)));
-        const shadowed = shadowedRulePackageLogLine(blocked);
-        if (shadowed !== undefined) {
-            logOnce(shadowed, (once) => this.notifier.logInfo(once));
-        }
-    }
-
-    /**
-     * Not awaited: the question may stay open for as long as the user leaves
-     * it, and this editor's lints must go on meanwhile.
-     */
-    private askAboutBlocked(editorId: string, blocked: readonly BlockedRulePackage[]): void {
-        if (this.rulePackages === undefined || !this.editorStore.hasEditor(editorId)) return;
-        const { catalog, question } = this.rulePackages;
-        this.blockedByEditor.set(
-            editorId,
-            blocked.map(({ id }) => id),
-        );
-        catalog.noteSeen(blocked);
-        const toAsk = rulePackagesToAsk(blocked, this.queuedRulePackageIds);
-        if (toAsk.length === 0) return;
-        toAsk.forEach(({ id }) => this.queuedRulePackageIds.add(id));
-        const asking = question
-            .ask(toAsk)
-            .finally(() => toAsk.forEach(({ id }) => this.queuedRulePackageIds.delete(id)))
-            .then((allowed) => this.relintBlockedOn(allowed.map(({ id }) => id)))
-            .catch((error: unknown) =>
-                this.notifier.logError(error instanceof Error ? error : new Error(String(error))),
-            );
-        this.approvalSettled = Promise.all([this.approvalSettled, asking]).then(() => undefined);
-    }
-
-    private async relintBlockedOn(allowedIds: readonly string[]): Promise<void> {
-        await Promise.all(
-            editorsBlockedOnAnyOf(this.blockedByEditor, allowedIds).map((editorId) =>
-                this.setBpmnlintConfig(editorId),
-            ),
-        );
     }
 
     private isSuperseded(editorId: string, run: symbol | undefined): boolean {
