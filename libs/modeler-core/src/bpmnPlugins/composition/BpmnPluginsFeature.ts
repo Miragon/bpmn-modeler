@@ -5,6 +5,7 @@ import {
     WorkspacePort,
 } from "../../kernel/port/hostPorts";
 import { ArtifactService } from "../../kernel/service/ArtifactService";
+import { QuestionQueue } from "../../kernel/service/QuestionQueue";
 import { EditorContribution } from "../../editorSession/service/EditorContribution";
 import { EditorSessionStore } from "../../editorSession/service/EditorSessionStore";
 import { getBpmnPluginsHandler } from "../adapter/in/pluginMessageHandlers";
@@ -27,6 +28,8 @@ export interface BpmnPluginsHostPorts {
     readonly cacheRoot: string;
     /** SHA-256 needs a host's crypto; the core imports no host module. */
     readonly hasher: ContentHasherPort;
+    /** Shared with the host's other approval questions; the feature keeps its own without one. */
+    readonly questions?: QuestionQueue;
 }
 
 /**
@@ -58,6 +61,7 @@ export class BpmnPluginsFeature {
                 ports.picker,
                 ports.actionNotifier,
                 ports.workspace,
+                ports.questions ?? new QuestionQueue(),
             ),
             ports.notifier,
             ports.cacheRoot,

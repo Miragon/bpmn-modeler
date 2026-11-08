@@ -1,28 +1,27 @@
 import { ActionNotifierPort, PickerPort, WorkspacePort } from "../../kernel/port/hostPorts";
+import { QuestionQueue } from "../../kernel/service/QuestionQueue";
 import { PendingApproval, WorkspacePlugin } from "../domain/pluginApproval";
 import { PluginCatalog } from "./PluginCatalog";
 
 /**
  * Asks the user which pending plugins to allow: a notice first, the list only
- * on "Review…". One question is open at a time; a request found while one is
- * open is asked afterwards, about what the earlier answer left pending. Knows
- * no editor, so every host that serves plugins shares it.
+ * on "Review…". A request found while a question is open, of this or another
+ * approval kind on the same queue, is asked afterwards, about what the earlier
+ * answers left pending. Knows no editor, so every host that serves plugins
+ * shares it.
  */
 export class PluginApprovalQuestion {
-    private queue: Promise<unknown> = Promise.resolve();
-
     constructor(
         private readonly catalog: PluginCatalog,
         private readonly picker: PickerPort,
         private readonly actionNotifier: ActionNotifierPort,
         private readonly workspace: WorkspacePort,
+        private readonly questions: QuestionQueue,
     ) {}
 
     /** @returns the plugins the answer allowed; none when nothing was left to ask. */
     ask(found: readonly PendingApproval[]): Promise<readonly WorkspacePlugin[]> {
-        const asked = this.queue.then(() => this.askStillPending(found));
-        this.queue = asked.catch(() => undefined);
-        return asked;
+        return this.questions.ask(() => this.askStillPending(found));
     }
 
     private async askStillPending(

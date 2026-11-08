@@ -31,6 +31,7 @@ export * from "./kernel/domain/viewTypes";
 export * from "./kernel/domain/watcherEvents";
 export * from "./kernel/domain/workspacePath";
 export * from "./kernel/service/ArtifactService";
+export * from "./kernel/service/QuestionQueue";
 export * from "./kernel/adapter/out/FetchHttpClient";
 export * from "./kernel/domain/nonce";
 

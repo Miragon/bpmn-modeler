@@ -2,12 +2,20 @@ import { describe, expect, it, vi } from "vitest";
 
 import { BpmnPluginsQuery, GetBpmnPluginsCommand } from "@miragon/bpmn-modeler-shared";
 
+import {
+    ApprovableArtifact,
+    approvalsAllowing,
+    PluginApproval,
+} from "../../kernel/domain/codeApproval";
 import { ChoicePrompt } from "../../kernel/domain/prompts";
+import { PluginApprovalStorePort } from "../../kernel/port/approvalPorts";
 import { ArtifactService } from "../../kernel/service/ArtifactService";
+import { QuestionQueue } from "../../kernel/service/QuestionQueue";
 import {
     createTestHost,
     FakeEditorHandle,
     fingerprintHasher,
+    InMemoryPluginApprovals,
     TestHostOptions,
 } from "../../testing";
 import {
@@ -53,15 +61,20 @@ const REVIEW_AND_ALLOW = (
 
 function setUp(
     files: Record<string, string>,
-    options: Omit<TestHostOptions, "files" | "folders"> & { cacheRoot?: string } = {},
+    options: Omit<TestHostOptions, "files" | "folders"> & {
+        cacheRoot?: string;
+        approvals?: PluginApprovalStorePort;
+        questions?: QuestionQueue;
+    } = {},
 ) {
     const host = createTestHost({ folders: ["/work", "/other"], files, ...options });
     const feature = new BpmnPluginsFeature({
         ...host,
         artifacts: new ArtifactService(host.workspace, host.settings, host.notifier),
-        approvals: host.pluginApprovals,
+        approvals: options.approvals ?? host.pluginApprovals,
         cacheRoot: options.cacheRoot ?? CACHE,
         hasher: fingerprintHasher,
+        ...(options.questions === undefined ? {} : { questions: options.questions }),
     });
     const requestPlugins = async (editor: FakeEditorHandle) => {
         await feature.editorContribution.commandHandlers.GetBpmnPluginsCommand(
@@ -89,6 +102,14 @@ async function answerRequest(feature: BpmnPluginsFeature, editor: FakeEditorHand
         new GetBpmnPluginsCommand(),
         editor.id,
     );
+}
+
+/** Sets the list only after an await, as the bridge's store does once IntelliJ acknowledged the save. */
+class LaggingPluginApprovals extends InMemoryPluginApprovals {
+    override async write(approvals: readonly PluginApproval[]): Promise<void> {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        await super.write(approvals);
+    }
 }
 
 function recordCacheWrites(host: ReturnType<typeof createTestHost>): string[] {
@@ -432,6 +453,35 @@ describe("BpmnPluginsFeature", () => {
             expect(host.actionNotifier.notices).toHaveLength(2);
             expect(reviewedLabels(host)).toEqual([["Other Palette"]]);
             expect([first.reloadCount, second.reloadCount]).toEqual([0, 1]);
+        });
+
+        it("keeps the row another approval kind writes through the shared question queue", async () => {
+            const approvals = new LaggingPluginApprovals();
+            const questions = new QuestionQueue();
+            const { host, feature, openEditor } = setUp(RESIZE_FILES, {
+                ...REVIEW_AND_ALLOW(RESIZE),
+                approvals,
+                questions,
+            });
+            const rulePackage: ApprovableArtifact = {
+                id: "/work/node_modules/bpmnlint-plugin-acme",
+                name: "bpmnlint-plugin-acme",
+                contentHash: "bpmnlint-closure-v1:ddd",
+            };
+            const notice = host.actionNotifier.holdNextNotice();
+            await answerRequest(feature, await openEditor());
+
+            const rulePackageAnswer = questions.ask(() =>
+                approvals.write(approvalsAllowing(approvals.read(), [rulePackage])),
+            );
+            notice.answer("review");
+            await feature.service.whenApprovalSettled();
+            await rulePackageAnswer;
+
+            expect(approvals.approvals).toEqual([
+                { pluginId: RESIZE, contentHash: RESIZE_HASH },
+                { pluginId: rulePackage.id, contentHash: "bpmnlint-closure-v1:ddd" },
+            ]);
         });
 
         it("logs a reload that fails and still reloads the other editors", async () => {
