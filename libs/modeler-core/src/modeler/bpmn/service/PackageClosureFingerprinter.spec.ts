@@ -609,7 +609,7 @@ describe("PackageClosureFingerprinter", () => {
             expect(fingerprinter.isUnchanged(stamps)).toBe(true);
         });
 
-        it.each<{ case: string; change: () => void }>([
+        it.each<{ case: string; prepare?: () => void; change: () => void }>([
             {
                 case: "a member's file changed",
                 change: () => disk.writeFile(`${NODE_MODULES}/dep/lib/b.js`, "changed"),
@@ -628,9 +628,12 @@ describe("PackageClosureFingerprinter", () => {
             },
             {
                 case: "a nearer copy now shadows a hoisted dependency",
+                // An existing node_modules keeps the plugin folder's own stamp still.
+                prepare: () => install(`${PLUGIN}/node_modules/other`, { name: "other" }),
                 change: () => install(`${PLUGIN}/node_modules/dep`, { name: "dep" }),
             },
-        ])("fails once $case", ({ change }) => {
+        ])("fails once $case", ({ prepare, change }) => {
+            prepare?.();
             const { stamps } = fingerprinted();
 
             change();
