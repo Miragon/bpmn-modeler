@@ -80,11 +80,8 @@ export class AddOnCatalogService {
             this.dirty = true;
             return;
         }
-        const building = this.buildUntilCurrent().finally(() => {
-            this.building = undefined;
-        });
-        this.building = building;
-        this.track(building);
+        this.building = this.buildUntilCurrent();
+        this.track(this.building);
     }
 
     /** Resolves once no build and no action is left, those they started included. */
@@ -186,6 +183,8 @@ export class AddOnCatalogService {
                 );
             }
         } while (this.dirty && this.active);
+        // In the tick of the last check, so no invalidate lands between it and the reset.
+        this.building = undefined;
     }
 
     private async build(): Promise<void> {
