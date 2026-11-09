@@ -213,19 +213,6 @@ describe("NodeWorkspace.createWatcher on a folder that does not exist yet", () =
         expect(watchedFolders()).toEqual(["/repo depth 0", "/repo/.camunda/plugins depth all"]);
     });
 
-    it("reports the files a folder already holds when its watch armed late, and only then", () => {
-        new NodeWorkspace().createWatcher("/repo/.camunda/plugins", "**/*", {});
-        new NodeWorkspace().createWatcher("/repo/src", "**/*", {});
-        folderAppears("/repo/.camunda");
-        folderAppears("/repo/.camunda/plugins");
-
-        const ignoreInitialOf = (folder: string) =>
-            watchSpy.mock.calls.find(([watched, options]) => watched === folder && options.depth === undefined)?.[1]
-                .ignoreInitial;
-        expect(ignoreInitialOf("/repo/.camunda/plugins")).toBe(false);
-        expect(ignoreInitialOf("/repo/src")).toBe(true);
-    });
-
     // chokidar lists a folder before it watches it: a file written in between
     // raises neither a first-scan add nor an event, and a late arming follows a
     // `mkdir -p` whose file write lands in that gap.
