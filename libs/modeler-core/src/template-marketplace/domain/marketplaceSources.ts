@@ -1,6 +1,10 @@
 import { MarketplaceSettingsEntry } from "../../kernel/domain/modelerSettings";
 import { marketplaceScopesText } from "./marketplacePrompts";
-import { registeredMarketplaces, RegistrationsByScope } from "./marketplaceRegistrations";
+import {
+    marketplaceEntryKey,
+    registeredMarketplaces,
+    RegistrationsByScope,
+} from "./marketplaceRegistrations";
 import { MarketplaceRegistry, ParsedMarketplaceEntry } from "./marketplaceRegistry";
 
 /** The cached template files of each registration, by its id, as the cache read them. */
@@ -10,7 +14,7 @@ export type CachedTemplates =
 
 /** One registered marketplace as the add-on catalog lists it. */
 export interface MarketplaceSource {
-    /** The registration's cache id, or the entry's label when it cannot be parsed. */
+    /** Its entry's key, as entries that share one cache slot are still listed apart. */
     readonly id: string;
     readonly entry: MarketplaceSettingsEntry;
     readonly label: string;
@@ -30,6 +34,7 @@ export function marketplaceSourcesOf(
     const listed = registeredMarketplaces(registered);
     const { entries } = MarketplaceRegistry.fromEntries(listed.map(({ entry }) => entry));
     return listed.map(({ entry, scopes }, index) => ({
+        id: marketplaceEntryKey(entry),
         entry,
         label: entries[index].label,
         scopeText: marketplaceScopesText(scopes),
@@ -40,16 +45,15 @@ export function marketplaceSourcesOf(
 function templatesOf(
     parsed: ParsedMarketplaceEntry,
     cached: CachedTemplates,
-): Pick<MarketplaceSource, "id" | "templateFiles" | "problem"> {
+): Pick<MarketplaceSource, "templateFiles" | "problem"> {
     if (parsed.kind === "unparseable") {
-        return { id: parsed.label, templateFiles: [], problem: `${parsed.reason}.` };
+        return { templateFiles: [], problem: `${parsed.reason}.` };
     }
-    const { id } = parsed.registration;
     if (cached.kind === "failed") {
-        return { id, templateFiles: [], problem: CACHE_FAILED_TEXT };
+        return { templateFiles: [], problem: CACHE_FAILED_TEXT };
     }
-    const templateFiles = cached.byRegistration.get(id);
+    const templateFiles = cached.byRegistration.get(parsed.registration.id);
     return templateFiles === undefined
-        ? { id, templateFiles: [], problem: NOT_FETCHED_TEXT }
-        : { id, templateFiles };
+        ? { templateFiles: [], problem: NOT_FETCHED_TEXT }
+        : { templateFiles };
 }

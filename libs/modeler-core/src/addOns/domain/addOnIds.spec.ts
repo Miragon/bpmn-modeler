@@ -61,28 +61,31 @@ describe("add-on ids", () => {
         { id: sourceIdOf("marketplace", "acme-shared"), expected: "marketplace:acme-shared" },
         { id: MARKETPLACES_GROUP_ID, expected: "marketplaces" },
         {
-            id: templateAddOnIdOf("/t/mail.json", { id: "mail", version: 3 }, 0),
-            expected: "template:/t/mail.json#0:mail@3",
+            id: templateAddOnIdOf("config:/t", "/t/mail.json", { id: "mail", version: 3 }, 0),
+            expected: "template:config:/t|/t/mail.json#0:mail@3",
         },
         {
-            id: templateAddOnIdOf("/t/mail.json", { id: "mail" }, 1),
-            expected: "template:/t/mail.json#1:mail",
+            id: templateAddOnIdOf("config:/t", "/t/mail.json", { id: "mail" }, 1),
+            expected: "template:config:/t|/t/mail.json#1:mail",
         },
         {
-            id: templateAddOnIdOf("/t/mail.json", { version: 2 }, 1),
-            expected: "template:/t/mail.json#1@2",
+            id: templateAddOnIdOf("config:/t", "/t/mail.json", { version: 2 }, 1),
+            expected: "template:config:/t|/t/mail.json#1@2",
         },
-        { id: templateAddOnIdOf("/t/broken.json"), expected: "template:/t/broken.json" },
+        {
+            id: templateAddOnIdOf("config:/t", "/t/broken.json"),
+            expected: "template:config:/t|/t/broken.json",
+        },
     ])("spells $expected", ({ id, expected }) => {
         expect(id).toBe(expected);
     });
 
     it("tells every template of one file apart, whatever ids they declare", () => {
         const ids = [
-            templateAddOnIdOf("/t/mail.json", { id: "1" }, 0),
-            templateAddOnIdOf("/t/mail.json", {}, 1),
-            templateAddOnIdOf("/t/mail.json", { id: "mail", version: 2 }, 2),
-            templateAddOnIdOf("/t/mail.json", { id: "mail", version: 2 }, 3),
+            templateAddOnIdOf("config:/t", "/t/mail.json", { id: "1" }, 0),
+            templateAddOnIdOf("config:/t", "/t/mail.json", {}, 1),
+            templateAddOnIdOf("config:/t", "/t/mail.json", { id: "mail", version: 2 }, 2),
+            templateAddOnIdOf("config:/t", "/t/mail.json", { id: "mail", version: 2 }, 3),
         ];
 
         expect(new Set(ids).size).toBe(ids.length);

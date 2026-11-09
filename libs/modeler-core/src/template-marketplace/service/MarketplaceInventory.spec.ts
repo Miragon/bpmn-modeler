@@ -2,7 +2,6 @@ import { describe, expect, it, vi } from "vitest";
 
 import { createTestHost, PromptAnswers } from "../../testing";
 import { createTemplateMarketplaceService } from "../composition/MarketplaceFeature";
-import { parseMarketplaceUrl } from "../domain/marketplace";
 import { MarketplaceCommands } from "./MarketplaceCommands";
 import { MarketplaceInventory } from "./MarketplaceInventory";
 
@@ -68,14 +67,14 @@ describe("MarketplaceInventory", () => {
             })),
         ).toEqual([
             {
-                id: parseMarketplaceUrl(SHARED).id,
+                id: JSON.stringify(SHARED),
                 label: SHARED,
                 scopeText: "All my projects",
                 templates: ["mail.json"],
                 problem: undefined,
             },
             {
-                id: parseMarketplaceUrl(LOCAL).id,
+                id: JSON.stringify(LOCAL),
                 label: LOCAL,
                 scopeText: "This project",
                 templates: ["crm.json"],

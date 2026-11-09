@@ -730,7 +730,7 @@ describe("catalogModelOf for element templates", () => {
             ),
         ).toStrictEqual([
             {
-                id: `template:${TEMPLATES}/mail.json#0:mail@2`,
+                id: `template:config:/work/.camunda|${TEMPLATES}/mail.json#0:mail@2`,
                 kind: "elementTemplate",
                 kindText: "Element template",
                 name: "Send Mail",
@@ -741,7 +741,7 @@ describe("catalogModelOf for element templates", () => {
                 actions: [],
             },
             {
-                id: `template:${TEMPLATES}/mail.json#1:crm`,
+                id: `template:config:/work/.camunda|${TEMPLATES}/mail.json#1:crm`,
                 kind: "elementTemplate",
                 kindText: "Element template",
                 name: "crm",
@@ -766,8 +766,8 @@ describe("catalogModelOf for element templates", () => {
         ).map(({ id, name }) => [id, name]);
 
         expect(names).toEqual([
-            [`template:${TEMPLATES}/a.json#1`, "a.json"],
-            [`template:${TEMPLATES}/a.json#0:only-id`, "only-id"],
+            [`template:config:/work/.camunda|${TEMPLATES}/a.json#1`, "a.json"],
+            [`template:config:/work/.camunda|${TEMPLATES}/a.json#0:only-id`, "only-id"],
         ]);
     });
 
@@ -784,7 +784,7 @@ describe("catalogModelOf for element templates", () => {
                 }),
             ),
         ).toStrictEqual({
-            id: `template:${TEMPLATES}/broken.json`,
+            id: `template:config:/work/.camunda|${TEMPLATES}/broken.json`,
             kind: "elementTemplate",
             kindText: "Element template",
             name: "broken.json",
@@ -898,7 +898,7 @@ describe("catalogModelOf for marketplaces", () => {
                     actions: [{ kind: "removeMarketplace", label: "Remove" }],
                     addOns: [
                         {
-                            id: "template:/cache/acme-shared/0/element-templates/mail.json#0:mail",
+                            id: "template:marketplace:acme-shared|/cache/acme-shared/0/element-templates/mail.json#0:mail",
                             kind: "elementTemplate",
                             kindText: "Element template",
                             name: "Mail",

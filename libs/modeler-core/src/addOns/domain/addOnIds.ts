@@ -51,15 +51,18 @@ export function addOnIdOf(kind: CodeAddOnKind, id: string): string {
 }
 
 /**
- * A template by its file, its place in the file, id and version, as a file
- * may repeat an id or leave it out; a file it cannot read by the file alone.
+ * A template by its source, file, place in the file, id and version, as a
+ * file may repeat an id or leave it out, and one marketplace cache file is
+ * listed under every entry that shares its slot; a file it cannot read by its
+ * source and the file alone.
  */
 export function templateAddOnIdOf(
+    sourceId: string,
     file: string,
     template?: { readonly id?: string; readonly version?: number },
     index = 0,
 ): string {
-    const fileId = `${ADD_ON_ID_PREFIX.elementTemplate}:${file}`;
+    const fileId = `${ADD_ON_ID_PREFIX.elementTemplate}:${sourceId}|${file}`;
     if (template === undefined) {
         return fileId;
     }
@@ -68,7 +71,7 @@ export function templateAddOnIdOf(
     return `${fileId}#${index}${id}${version}`;
 }
 
-/** @param key a source's folder, or a marketplace's registration id */
+/** @param key a source's folder, or a marketplace's entry key */
 export function sourceIdOf(kind: SourceKind, key: string): string {
     return `${SOURCE_ID_PREFIX[kind]}:${key}`;
 }

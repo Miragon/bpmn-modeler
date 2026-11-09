@@ -99,7 +99,7 @@ export interface FolderTemplateFileListing extends TemplateFileListing {
 
 /** One registered marketplace as its owner listed and worded it, with its cached templates read. */
 export interface ListedMarketplace {
-    /** Its registration id, or its label when its entry cannot be parsed. */
+    /** Unique per registered entry. */
     readonly id: string;
     readonly entry: MarketplaceSettingsEntry;
     readonly label: string;
@@ -297,16 +297,23 @@ function placedTemplates(listing: FolderTemplateFileListing, facts: AddOnFacts):
         return [];
     }
     const source = SOURCE_PLACE.elementTemplate(listing.sourceDir, root, facts.configFolder);
-    return templateViewsOf(listing).map((view) => ({ root, source, view }));
+    return templateViewsOf(sourceIdOf(source.kind, source.dir), listing).map((view) => ({
+        root,
+        source,
+        view,
+    }));
 }
 
 /** Each template of a file, or the file once when it cannot be read; a blank file holds none. */
-function templateViewsOf({ path, reading }: TemplateFileListing): TemplateAddOnView[] {
+function templateViewsOf(
+    sourceId: string,
+    { path, reading }: TemplateFileListing,
+): TemplateAddOnView[] {
     const fileName = lastWorkspacePathSegment(path);
     if (reading.kind === "unreadable") {
         return [
             {
-                ...templateViewBase(templateAddOnIdOf(path), fileName),
+                ...templateViewBase(templateAddOnIdOf(sourceId, path), fileName),
                 problem: cannotBeReadText(reading.reason),
             },
         ];
@@ -314,7 +321,7 @@ function templateViewsOf({ path, reading }: TemplateFileListing): TemplateAddOnV
     const engineText = reading.engine === undefined ? undefined : ENGINE_LABEL[reading.engine];
     return reading.templates.map((template, index) => ({
         ...templateViewBase(
-            templateAddOnIdOf(path, template, index),
+            templateAddOnIdOf(sourceId, path, template, index),
             template.name ?? template.id ?? fileName,
         ),
         ...optional(
@@ -341,15 +348,18 @@ function marketplaceSourceOf(marketplace: ListedMarketplace): {
     readonly view: AddOnSourceView;
     readonly shown: ShownSource;
 } {
+    const id = sourceIdOf("marketplace", marketplace.id);
     return {
         view: {
-            id: sourceIdOf("marketplace", marketplace.id),
+            id,
             kind: "marketplace",
             label: marketplace.label,
             description: marketplace.scopeText,
             ...optional("problem", marketplace.problem),
             actions: MARKETPLACE_SOURCE_ACTIONS,
-            addOns: marketplace.templates.flatMap(templateViewsOf).sort(byKindThenName),
+            addOns: marketplace.templates
+                .flatMap((listing) => templateViewsOf(id, listing))
+                .sort(byKindThenName),
         },
         shown: {
             entry: marketplace.entry,

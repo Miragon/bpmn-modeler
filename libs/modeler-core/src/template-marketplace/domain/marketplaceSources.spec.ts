@@ -9,6 +9,7 @@ const LOCAL = "/work/templates";
 const BROKEN = { provider: "github", repo: "" } as const;
 const SHARED_ID = parseMarketplaceUrl(SHARED).id;
 const LOCAL_ID = parseMarketplaceUrl(LOCAL).id;
+const keyOf = (entry: unknown) => JSON.stringify(entry);
 
 const registered: RegistrationsByScope = { project: [LOCAL], allProjects: [SHARED] };
 
@@ -24,14 +25,14 @@ describe("marketplaceSourcesOf", () => {
 
         expect(sources).toStrictEqual([
             {
-                id: SHARED_ID,
+                id: keyOf(SHARED),
                 entry: SHARED,
                 label: SHARED,
                 scopeText: "All my projects",
                 templateFiles: ["/cache/shared/0/1/element-templates/mail.json"],
             },
             {
-                id: LOCAL_ID,
+                id: keyOf(LOCAL),
                 entry: LOCAL,
                 label: LOCAL,
                 scopeText: "This project",
@@ -59,7 +60,7 @@ describe("marketplaceSourcesOf", () => {
         const [source] = marketplaceSourcesOf({ project: [], allProjects: [SHARED] }, cached);
 
         expect(source).toStrictEqual({
-            id: SHARED_ID,
+            id: keyOf(SHARED),
             entry: SHARED,
             label: SHARED,
             scopeText: "All my projects",
@@ -75,7 +76,7 @@ describe("marketplaceSourcesOf", () => {
         );
 
         expect(source).toStrictEqual({
-            id: "github.com/",
+            id: keyOf(BROKEN),
             entry: BROKEN,
             label: "github.com/",
             scopeText: "This project",
