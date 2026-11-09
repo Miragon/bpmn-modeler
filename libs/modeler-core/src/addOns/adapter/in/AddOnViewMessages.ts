@@ -36,7 +36,9 @@ export class AddOnViewMessages implements RouteLookup {
         AddOnRequestCommand: [(command) => this.request(command)],
     });
     private model?: AddOnCatalogModel;
+    /** Held only until a listening page has it, so a page loaded later lands on no old rows. */
     private reveal?: AddOnReveal;
+    private pageListening = false;
     private disposed = false;
 
     /** @param actOn the core's answer to a request the page made, in a shape it knows */
@@ -52,11 +54,14 @@ export class AddOnViewMessages implements RouteLookup {
     }
 
     revealed(reveal: AddOnReveal): void {
-        this.reveal = reveal;
+        this.reveal = this.pageListening ? undefined : reveal;
         this.send(new RevealAddOnsQuery(reveal));
     }
 
-    pageHidden(): void {}
+    /** A host may discard a hidden page and load it anew once shown. */
+    pageHidden(): void {
+        this.pageListening = false;
+    }
 
     async handle(command: Command): Promise<void> {
         await this.router.dispatch(command, undefined);
@@ -79,8 +84,10 @@ export class AddOnViewMessages implements RouteLookup {
      * and lose a reveal for good. It holds a reveal until a model lists its rows.
      */
     private repost(): void {
+        this.pageListening = true;
         if (this.model !== undefined) this.send(new AddOnCatalogQuery(this.model));
         if (this.reveal !== undefined) this.send(new RevealAddOnsQuery(this.reveal));
+        this.reveal = undefined;
     }
 
     private async request({ requestId, request }: AddOnRequestCommand): Promise<void> {

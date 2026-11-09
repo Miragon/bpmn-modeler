@@ -125,7 +125,10 @@ export class AddOnsFeature {
         );
         return {
             handle: (command) => messages.handle(command),
-            setVisible: (nowVisible) => connection.setVisible(nowVisible),
+            setVisible: (nowVisible) => {
+                if (!nowVisible) messages.pageHidden();
+                connection.setVisible(nowVisible);
+            },
             dispose: () => {
                 messages.dispose();
                 connection.dispose();
