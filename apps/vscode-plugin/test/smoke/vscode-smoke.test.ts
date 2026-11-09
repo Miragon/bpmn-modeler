@@ -41,6 +41,8 @@ const TASK_ID = "Task_Check";
 const ORIGINAL_TASK_NAME = "Check order";
 const RENAMED_TASK_NAME = "Ship order";
 const TIMEOUT_MS = 30_000;
+// The editor opens before its plugin notice, so a notice may follow the render.
+const NOTICE_WINDOW_MS = 3_000;
 /** Its own `.camunda/plugins`, so only diagrams below it are offered the plugin. */
 const PLUGIN_FOLDER = "bpmn-plugin";
 const PLUGIN_BPMN_FILE = "plugin-smoke.bpmn";
@@ -101,6 +103,15 @@ async function diagramRendered(webview: FrameLocator): Promise<boolean> {
     const shapes = await webview.locator(".djs-container .djs-element.djs-shape").count();
     const connections = await webview.locator(".djs-container .djs-element.djs-connection").count();
     return shapes >= 3 && connections >= 2;
+}
+
+/** A poll for zero passes at once, so this watches the whole window for an element that appears late. */
+async function expectAbsentFor(locator: Locator, milliseconds: number): Promise<void> {
+    const until = Date.now() + milliseconds;
+    while (Date.now() < until) {
+        expect(await locator.count()).toBe(0);
+        await new Promise((done) => setTimeout(done, 100));
+    }
 }
 
 /** Repaints after a DOM change, so a screenshot shows the settled frame. */
@@ -1481,7 +1492,7 @@ describe("the packaged extension in a real VS Code", () => {
                     (await diagramRendered(webview)) && (await pluginTraceOnCanvas(webview)) === 0,
             );
             // A revoke from the view is an answer: no notice asks about the plugin again.
-            expect(await notice.count()).toBe(0);
+            await expectAbsentFor(notice, NOTICE_WINDOW_MS);
 
             await settle(artifacts);
             await vscode().screenshot(join(RESULTS_DIRECTORY, "artifacts-view.png"));
