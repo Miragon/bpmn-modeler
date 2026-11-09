@@ -72,10 +72,12 @@ export class AddOnViewMessages implements RouteLookup {
         routeWebviewLogCommand(this.logger, command, "addOns");
     }
 
-    /** A page that loads after a push would otherwise wait for the next build. */
+    /**
+     * A page that loads after a push would otherwise wait for the next build,
+     * and lose a reveal for good. It holds a reveal until a model lists its rows.
+     */
     private repost(): void {
-        if (this.model === undefined) return;
-        this.send(new AddOnCatalogQuery(this.model));
+        if (this.model !== undefined) this.send(new AddOnCatalogQuery(this.model));
         if (this.reveal !== undefined) this.send(new RevealAddOnsQuery(this.reveal));
     }
 
