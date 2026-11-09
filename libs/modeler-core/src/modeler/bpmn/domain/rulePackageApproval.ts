@@ -4,11 +4,11 @@ import { ActionNotice } from "../../../kernel/domain/actionNotice";
 import {
     ApprovableArtifact,
     ApprovalNoticeAction,
-    ApprovalState,
     approvalsKey,
-    approvalStateOf,
     CodeApproval,
-    declineKeyOf,
+    CodeState,
+    foundCodeState,
+    needsContentHash,
     PendingCodeApproval,
     pendingApprovalDescription,
 } from "../../../kernel/domain/codeApproval";
@@ -68,7 +68,7 @@ export interface RulePackageVerdictContext {
     readonly declinedThisSession: ReadonlySet<string>;
 }
 
-export type BlockedState = Exclude<ApprovalState, "approved"> | "declined";
+export type BlockedState = Extract<CodeState, "new" | "changed" | "declined">;
 
 export type RulePackageVerdict =
     | { readonly kind: "admitted"; readonly via: "approval" | "closure" }
@@ -189,26 +189,20 @@ export function rulePackageVerdict(
         return { kind: "admitted", via: "closure" };
     }
     const approvals = context.approvals.filter(isRulePackageApproval);
-    const hasRow = approvals.some((approval) => approval.pluginId === rootId);
-    const declineKeyPrefix = declineKeyOf({ id: rootId, name: rootId, contentHash: "" });
-    const wasDeclined = [...context.declinedThisSession].some((key) =>
-        key.startsWith(declineKeyPrefix),
-    );
-    if (!hasRow && !wasDeclined) {
+    if (!needsContentHash(rootId, approvals, context.declinedThisSession)) {
         return { kind: "blocked", state: "new" };
     }
     if (contentHash === undefined) {
         return { kind: "hashNeeded" };
     }
-    const artifact = { id: rootId, name: rootId, contentHash };
-    const state = approvalStateOf(artifact, approvals);
-    if (state === "approved") {
-        return { kind: "admitted", via: "approval" };
-    }
-    return {
-        kind: "blocked",
-        state: context.declinedThisSession.has(declineKeyOf(artifact)) ? "declined" : state,
-    };
+    const state = foundCodeState(
+        { id: rootId, name: rootId, contentHash },
+        approvals,
+        context.declinedThisSession,
+    );
+    return state === "approved"
+        ? { kind: "admitted", via: "approval" }
+        : { kind: "blocked", state };
 }
 
 /** Only packages whose absence left a rule or config unresolved: a package the bundle stood in for is never asked about. */

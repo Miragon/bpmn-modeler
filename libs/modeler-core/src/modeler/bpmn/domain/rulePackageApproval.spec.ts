@@ -1,8 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 
-import { type CodeApproval, declineKeyOf } from "../../../kernel/domain/codeApproval";
+import {
+    type CodeApproval,
+    type CodeState,
+    declineKeyOf,
+} from "../../../kernel/domain/codeApproval";
 import {
     type BlockedRulePackage,
+    type BlockedState,
     closureDigestInput,
     type ClosureMember,
     editorsBlockedOnAnyOf,
@@ -493,6 +498,11 @@ describe("rulePackageVerdict", () => {
         },
     ])("decides $case", ({ context: given, contentHash, verdict }) => {
         expect(rulePackageVerdict(root, given, contentHash)).toEqual(verdict);
+    });
+
+    it("spells the blocked states as code states", () => {
+        expectTypeOf<BlockedState>().toExtend<CodeState>();
+        expectTypeOf<BlockedState>().toEqualTypeOf<"new" | "changed" | "declined">();
     });
 });
 

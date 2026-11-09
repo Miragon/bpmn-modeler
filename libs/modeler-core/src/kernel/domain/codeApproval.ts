@@ -19,7 +19,39 @@ export interface CodeApproval {
     readonly contentHash: string;
 }
 
-export type ApprovalState = "approved" | "new" | "changed";
+export const CODE_STATES = ["approved", "new", "changed", "declined", "gone"] as const;
+
+export type CodeState = (typeof CODE_STATES)[number];
+
+export type ApprovalState = Extract<CodeState, "approved" | "new" | "changed">;
+
+export const CODE_STATE_TEXT: Record<CodeState, string> = {
+    approved: "Allowed",
+    new: "Not allowed yet",
+    changed: "Changed since you allowed it",
+    declined: "Declined this session",
+    gone: "Folder gone",
+};
+
+/** What a host makes the user do before code it already ran is unloaded; a typed fact, never host prose. */
+export const PROCESS_RESTARTS = ["reloadWindow", "restartIde"] as const;
+
+export type ProcessRestart = (typeof PROCESS_RESTARTS)[number];
+
+export const PROCESS_RESTART_TEXT: Record<ProcessRestart, string> = {
+    reloadWindow: "reload the window",
+    restartIde: "restart the IDE",
+};
+
+/** Code at one place as an owner last read it; `unhashed` was read without hashing its content. */
+export type CodePresence =
+    | { readonly kind: "found"; readonly artifact: ApprovableArtifact }
+    | { readonly kind: "unhashed"; readonly id: string }
+    | { readonly kind: "unreadable"; readonly id: string; readonly reason: string }
+    | { readonly kind: "gone"; readonly id: string };
+
+export type CodeStateReading =
+    { readonly kind: "state"; readonly state: CodeState } | { readonly kind: "hashNeeded" };
 
 /** Every approval notice offers only this; the list opens from it. */
 export type ApprovalNoticeAction = "review";
@@ -146,6 +178,87 @@ function firstRowById(approvals: readonly CodeApproval[]): Map<string, CodeAppro
 /** Names one version of one artifact, so a decline lasts only until its content changes. */
 export function declineKeyOf(artifact: ApprovableArtifact): string {
     return `${artifact.id}#${artifact.contentHash}`;
+}
+
+/**
+ * Only a row or a decline of the id can match, so code with neither is `new`
+ * without reading every byte of it.
+ */
+export function needsContentHash(
+    id: string,
+    approvals: readonly CodeApproval[],
+    declined: ReadonlySet<string>,
+): boolean {
+    const declineKeyPrefix = declineKeyOf({ id, name: id, contentHash: "" });
+    return (
+        approvals.some((approval) => approval.pluginId === id) ||
+        [...declined].some((key) => key.startsWith(declineKeyPrefix))
+    );
+}
+
+/** An approval of this content wins over a decline of it earlier in the session. */
+export function foundCodeState(
+    artifact: ApprovableArtifact,
+    approvals: readonly CodeApproval[],
+    declined: ReadonlySet<string>,
+): Exclude<CodeState, "gone"> {
+    const state = approvalStateOf(artifact, approvals);
+    return state !== "approved" && declined.has(declineKeyOf(artifact)) ? "declined" : state;
+}
+
+/** A row decides `changed` for code that cannot be read, so the user still sees what was allowed there. */
+export function codeStateOf(
+    presence: CodePresence,
+    approvals: readonly CodeApproval[],
+    declined: ReadonlySet<string>,
+): CodeStateReading {
+    switch (presence.kind) {
+        case "gone":
+            return { kind: "state", state: "gone" };
+        case "found":
+            return { kind: "state", state: foundCodeState(presence.artifact, approvals, declined) };
+        case "unhashed":
+            return needsContentHash(presence.id, approvals, declined)
+                ? { kind: "hashNeeded" }
+                : { kind: "state", state: "new" };
+        case "unreadable":
+            return {
+                kind: "state",
+                state: approvals.some((approval) => approval.pluginId === presence.id)
+                    ? "changed"
+                    : "new",
+            };
+    }
+}
+
+export type ReviewedAllow =
+    | { readonly kind: "allow"; readonly change: CodeApprovalChange }
+    | {
+          readonly kind: "refused";
+          readonly reason: "changedSinceReview" | "gone" | "unreadable";
+      };
+
+/**
+ * Allows exactly the content the user reviewed, and only while it is still
+ * there. `reviewed` comes from what the core itself showed, never from a view's
+ * payload; content that cannot be compared is refused.
+ */
+export function reviewedAllowDecision(
+    reviewed: ApprovableArtifact,
+    current: CodePresence,
+): ReviewedAllow {
+    switch (current.kind) {
+        case "gone":
+        case "unreadable":
+            return { kind: "refused", reason: current.kind };
+        case "unhashed":
+            return { kind: "refused", reason: "changedSinceReview" };
+        case "found":
+            return current.artifact.id === reviewed.id &&
+                current.artifact.contentHash === reviewed.contentHash
+                ? { kind: "allow", change: allowing([reviewed]) }
+                : { kind: "refused", reason: "changedSinceReview" };
+    }
 }
 
 export function pendingApprovals<A extends ApprovableArtifact>(

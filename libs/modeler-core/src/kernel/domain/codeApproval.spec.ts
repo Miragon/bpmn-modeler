@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 
 import {
     allowing,
@@ -13,14 +13,26 @@ import {
     approvalsKey,
     approvalStateOf,
     approvedArtifacts,
+    CODE_STATE_TEXT,
+    CODE_STATES,
     type CodeApproval,
     type CodeApprovalChange,
     codeApprovalChange,
     type CodeApprovalOutcome,
+    type CodePresence,
+    type CodeState,
+    type CodeStateReading,
+    codeStateOf,
     declineKeyOf,
+    foundCodeState,
+    needsContentHash,
     type PendingCodeApproval,
     pendingApprovalDescription,
     pendingApprovals,
+    PROCESS_RESTART_TEXT,
+    PROCESS_RESTARTS,
+    type ReviewedAllow,
+    reviewedAllowDecision,
     revoking,
 } from "./codeApproval";
 
@@ -470,5 +482,202 @@ describe("pendingApprovalDescription", () => {
         },
     ])("names a $state artifact and its folder for $folders", ({ state, folders, description }) => {
         expect(pendingApprovalDescription({ artifact: resize, state }, folders)).toBe(description);
+    });
+});
+
+describe("code states", () => {
+    it.each(CODE_STATES)("names the %s state", (state) => {
+        expect(CODE_STATE_TEXT[state]).toMatch(/^[A-Z]\w/);
+    });
+
+    it("tells every state apart by its text", () => {
+        expect(new Set(Object.values(CODE_STATE_TEXT)).size).toBe(CODE_STATES.length);
+    });
+
+    it("spells the approval states as code states", () => {
+        expectTypeOf<ApprovalState>().toExtend<CodeState>();
+        expectTypeOf<ApprovalState>().toEqualTypeOf<"approved" | "new" | "changed">();
+    });
+});
+
+describe("process restarts", () => {
+    it.each(PROCESS_RESTARTS)("names how to %s", (restart) => {
+        expect(PROCESS_RESTART_TEXT[restart]).toMatch(/^[a-z]+ the \w+$/);
+    });
+});
+
+describe("needsContentHash", () => {
+    it.each<{ case: string; approvals: CodeApproval[]; declined: string[]; needed: boolean }>([
+        { case: "no row and no decline", approvals: [], declined: [], needed: false },
+        {
+            case: "a row of the id",
+            approvals: [{ pluginId: resize.id, contentHash: "old" }],
+            declined: [],
+            needed: true,
+        },
+        {
+            case: "a decline of any content of the id",
+            approvals: [],
+            declined: [declineKeyOf({ ...resize, contentHash: "old" })],
+            needed: true,
+        },
+        { case: "only another id's row", approvals: [other], declined: [], needed: false },
+        {
+            case: "only declines whose id starts or ends like this one",
+            approvals: [],
+            declined: [`${resize.id}-evil#aaa`, `x${resize.id}#aaa`],
+            needed: false,
+        },
+    ])("is $needed with $case", ({ approvals, declined, needed }) => {
+        expect(needsContentHash(resize.id, approvals, new Set(declined))).toBe(needed);
+    });
+});
+
+describe("codeStateOf", () => {
+    const found: CodePresence = { kind: "found", artifact: resize };
+    const sameRow = { pluginId: resize.id, contentHash: "aaa" };
+    const otherRow = { pluginId: resize.id, contentHash: "old" };
+    const declinedNow = declineKeyOf(resize);
+    const state = (code: CodeState): CodeStateReading => ({ kind: "state", state: code });
+
+    it.each<{
+        case: string;
+        presence: CodePresence;
+        approvals: CodeApproval[];
+        declined?: string[];
+        reading: CodeStateReading;
+    }>([
+        {
+            case: "a folder gone with a row",
+            presence: { kind: "gone", id: resize.id },
+            approvals: [sameRow],
+            reading: state("gone"),
+        },
+        {
+            case: "a folder gone without a row",
+            presence: { kind: "gone", id: resize.id },
+            approvals: [],
+            reading: state("gone"),
+        },
+        {
+            case: "content its row holds",
+            presence: found,
+            approvals: [sameRow],
+            reading: state("approved"),
+        },
+        {
+            case: "content its row holds, declined earlier",
+            presence: found,
+            approvals: [sameRow],
+            declined: [declinedNow],
+            reading: state("approved"),
+        },
+        {
+            case: "content without a row, declined",
+            presence: found,
+            approvals: [],
+            declined: [declinedNow],
+            reading: state("declined"),
+        },
+        {
+            case: "content another row holds, declined",
+            presence: found,
+            approvals: [otherRow],
+            declined: [declinedNow],
+            reading: state("declined"),
+        },
+        { case: "content without a row", presence: found, approvals: [], reading: state("new") },
+        {
+            case: "content without a row, older content declined",
+            presence: found,
+            approvals: [],
+            declined: [declineKeyOf({ ...resize, contentHash: "old" })],
+            reading: state("new"),
+        },
+        {
+            case: "content another row holds",
+            presence: found,
+            approvals: [otherRow],
+            reading: state("changed"),
+        },
+        {
+            case: "unhashed content without a row or a decline",
+            presence: { kind: "unhashed", id: resize.id },
+            approvals: [other],
+            reading: state("new"),
+        },
+        {
+            case: "unhashed content with a row",
+            presence: { kind: "unhashed", id: resize.id },
+            approvals: [otherRow],
+            reading: { kind: "hashNeeded" },
+        },
+        {
+            case: "unhashed content with a decline",
+            presence: { kind: "unhashed", id: resize.id },
+            approvals: [],
+            declined: [declineKeyOf({ ...resize, contentHash: "old" })],
+            reading: { kind: "hashNeeded" },
+        },
+        {
+            case: "unreadable content with a row among others",
+            presence: { kind: "unreadable", id: resize.id, reason: "manifest missing" },
+            approvals: [other, sameRow],
+            reading: state("changed"),
+        },
+        {
+            case: "unreadable content without a row",
+            presence: { kind: "unreadable", id: resize.id, reason: "manifest missing" },
+            approvals: [other],
+            reading: state("new"),
+        },
+    ])("reads $case", ({ presence, approvals, declined = [], reading }) => {
+        expect(codeStateOf(presence, approvals, new Set(declined))).toEqual(reading);
+    });
+
+    it("reads found content as foundCodeState does", () => {
+        const approvals = [otherRow];
+        const declined = new Set([declinedNow]);
+
+        expect(codeStateOf(found, approvals, declined)).toEqual(
+            state(foundCodeState(resize, approvals, declined)),
+        );
+    });
+});
+
+describe("reviewedAllowDecision", () => {
+    it.each<{ case: string; current: CodePresence; decision: ReviewedAllow }>([
+        {
+            case: "allows the reviewed content when it is still there",
+            current: { kind: "found", artifact: { ...resize, name: "Renamed" } },
+            decision: { kind: "allow", change: allowing([resize]) },
+        },
+        {
+            case: "refuses content that changed since the review",
+            current: { kind: "found", artifact: { ...resize, contentHash: "new" } },
+            decision: { kind: "refused", reason: "changedSinceReview" },
+        },
+        {
+            case: "refuses content found at another place",
+            current: { kind: "found", artifact: { ...resize, id: palette.id } },
+            decision: { kind: "refused", reason: "changedSinceReview" },
+        },
+        {
+            case: "refuses content it cannot compare",
+            current: { kind: "unhashed", id: resize.id },
+            decision: { kind: "refused", reason: "changedSinceReview" },
+        },
+        {
+            case: "refuses a folder that is gone",
+            current: { kind: "gone", id: resize.id },
+            decision: { kind: "refused", reason: "gone" },
+        },
+        {
+            case: "refuses content it cannot read",
+            current: { kind: "unreadable", id: resize.id, reason: "manifest missing" },
+            decision: { kind: "refused", reason: "unreadable" },
+        },
+    ])("$case", ({ current, decision }) => {
+        expect(reviewedAllowDecision(resize, current)).toEqual(decision);
     });
 });
