@@ -206,4 +206,30 @@ describe("AddOnsViewProvider.focus", () => {
 
         expect(view.show).not.toHaveBeenCalled();
     });
+
+    // VS Code disposes the view when it is hidden or moved, and resolves a new one later.
+    it("focuses a view resolved again once its own page has loaded", async () => {
+        const { provider } = createProvider();
+        const first = resolveView(provider);
+        pagePosts(first);
+        first.onDidDispose.mock.calls[0][0]();
+
+        await provider.focus();
+        const second = resolveView(provider);
+        pagePosts(second);
+
+        expect(second.show.mock.calls).toEqual([[false]]);
+    });
+
+    it("leaves a later view alone when the one Review… opened was disposed before its page loaded", async () => {
+        const { provider } = createProvider();
+
+        await provider.focus();
+        const first = resolveView(provider);
+        first.onDidDispose.mock.calls[0][0]();
+        const second = resolveView(provider);
+        pagePosts(second);
+
+        expect(second.show).not.toHaveBeenCalled();
+    });
 });
