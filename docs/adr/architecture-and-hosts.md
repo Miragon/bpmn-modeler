@@ -1109,11 +1109,21 @@ keeps explicit local mirrors with these ownership rules:
 | Documents, keyed by editor | `session/register`, then `document/didChange` | Host Document; bridge writes are accepted by the host before its content becomes authoritative |
 | Settings snapshot | Settings in `session/register`, then `settings/didChange` | Host only; one shared snapshot fans changes out to editors |
 | Deployment state | `deploymentState/seed` with what the host stored, then `deploymentState/save` patches | Host; a bridge patch reaches the snapshot only after the host accepted it |
-| Plugin approvals (bpmn-js plugins and bpmnlint rule packages) | `pluginApprovals` in `session/register`, then `pluginApprovals/didChange`, which every running bridge of the IDE gets after any `pluginApprovals/save` | Host (`PluginApprovalStore`, application level); a bridge write reaches its mirror only after the host acknowledged the save |
+| Plugin approvals (bpmn-js plugins and bpmnlint rule packages) | `pluginApprovals` with `pluginApprovalsRevision` in `session/register`, then `pluginApprovals/didChange` with its `revision`, which every running bridge of the IDE gets after any `pluginApprovals/change`; `pluginApprovals/read` answers the stored list | Host (`PluginApprovalStore`, application level): a bridge sends only the rows to allow and the ids to revoke, and the host merges them under one lock and bumps the revision. The mirror keeps only a newer revision, the change's answer included |
 
 Apply settings before initial artifact discovery. Seed every synchronous mirror
 before its first consumer, and re-seed on process restart; mirrors do not
 survive the subprocess.
+
+A mirror fed from more than one frame cannot rely on the host's send order.
+The bridge runs each inbound call on a queue keyed by its editor or its method
+(`Rpc.handleLine`), so a `session/register` waits behind its editor's earlier
+frames while a later push on another queue runs at once, and a request's reply
+can arrive after a newer push. The approvals therefore carry a host revision,
+read together with the list, on every frame that carries a list, and the mirror
+ignores an older one. The host holds no lock while it queues the frames. The
+revision lives in memory per IDE run, since every bridge is a child of that
+run, and a respawned bridge starts below it.
 
 Every host reads a setting the same way, as `normalizeSettings` in the core's
 [`kernel/domain/modelerSettings.ts`](../../libs/modeler-core/src/kernel/domain/modelerSettings.ts)
