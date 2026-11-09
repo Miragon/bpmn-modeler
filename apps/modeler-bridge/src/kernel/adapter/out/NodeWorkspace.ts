@@ -83,13 +83,14 @@ function platformWatchOptions() {
     };
 }
 
-function watchWithChokidar(root: string, emit: WatchSubscriber, reportExisting = false): { close(): unknown } {
+function watchWithChokidar(root: string, emit: WatchSubscriber, onArmed: () => void): { close(): unknown } {
     return watch(root, {
-        // chokidar arms asynchronously: reporting its first scan also covers files written while it armed.
-        ignoreInitial: !reportExisting,
+        ignoreInitial: true,
         ignored: (path: string) => isIgnoredWatchPath(root, path),
         ...platformWatchOptions(),
     })
+        // chokidar lists each folder before it watches it; `ready` follows once every folder it found is watched.
+        .on("ready", onArmed)
         .on("add", emit.onAdd)
         .on("change", emit.onChange)
         .on("unlink", emit.onUnlink);
@@ -372,15 +373,20 @@ export class NodeWorkspace implements WorkspacePort, WorkspaceRoots {
         };
         const watcher = watchOnceFolderExists(root, {
             arm: (late) => {
+                // A late arming follows the folder's creation, and the files written with
+                // it may land before the watch covers them: a listing once armed sees them.
+                const reportFilesHeld = (): void => {
+                    if (late) {
+                        void listFilesBelow(root, isIgnoredWatchFolder).then((files) =>
+                            files.forEach((file) => emit.onAdd(joinWorkspacePath(root, file))),
+                        );
+                    }
+                };
                 if (process.platform !== "darwin") {
-                    return watchWithChokidar(root, emit, late);
+                    return watchWithChokidar(root, emit, reportFilesHeld);
                 }
                 const armed = watchRecursivelyWithFsEvents(root, emit);
-                if (late) {
-                    void listFilesBelow(root, isIgnoredWatchFolder).then((files) =>
-                        files.forEach((file) => emit.onAdd(joinWorkspacePath(root, file))),
-                    );
-                }
+                reportFilesHeld();
                 return armed;
             },
             watchChildren: watchChildFolders,
