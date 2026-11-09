@@ -69,10 +69,12 @@ describe("addOnRequestOf", () => {
     it.each<{ case: string; value: unknown }>([
         { case: "an unknown kind", value: { kind: "deleteEverything", addOnId: "plugin:/work/x" } },
         { case: "a kind that is no string", value: { kind: 1 } },
+        { case: "a kind that only reads as a known one", value: { kind: ["refresh"] } },
         { case: "no kind", value: { addOnId: "plugin:/work/x" } },
         { case: "a kind inherited from the prototype", value: { kind: "toString" } },
         { case: "a missing id", value: { kind: "inspect" } },
         { case: "an id that is no string", value: { kind: "revoke", addOnId: 7 } },
+        { case: "a source id that is no string", value: { kind: "removeMarketplace", sourceId: 7 } },
         {
             case: "a source id where an add-on id belongs",
             value: { kind: "revoke", sourceId: "s" },

@@ -172,6 +172,12 @@ describe("leavesToView", () => {
             leaves: false,
         },
         {
+            case: "not with no folder open, even with nothing pending",
+            ids: [],
+            folders: [],
+            leaves: false,
+        },
+        {
             case: "when every pending item lies inside a folder",
             ids: ["/work/.camunda/plugins/resize", "/other/node_modules/bpmnlint-plugin-acme"],
             folders: FOLDERS,
