@@ -812,22 +812,88 @@ Both hosts build an `AddOnsFeature`; no view attaches to it yet.
   folder's plugins and templates apply only to the diagrams below it, and the
   source says so; a config folder's plugins and templates share its source,
   plugins first. The bridge lists the folders the host registered.
-- *Templates.* One row per template, `template:<source>|<file>#<index>:<id>@<version>`, with
+- *Templates.* One row per template, `template:<source>|<file>#<index>[:<id>][@<version>]`, with
   its version and engine (`templateEngineOf`: its own, else its file's, as
   the builder reads it); a file that cannot be read is one row,
-  by its file name, that says why. A template is always "Enabled" and offers
-  no action yet, so the core records no template as shown; turning one off
-  is [#2264](https://github.com/Miragon/bpmn-modeler/issues/2264).
+  by its file name, that says why, enabled and without a switch.
+- *Template switches.* On a host that keeps them (the optional
+  `TemplatePreferenceStorePort`; VS Code does, the bridge does not yet), a
+  template with an id offers Disable or Enable, and a config folder that
+  lists one, or a marketplace whose entry parses, offers "Disable templates"
+  or "Enable templates" for all of them; a source turned off says "Templates
+  disabled", and its templates show disabled with no switch of their own,
+  which they keep for when the source is on again. A switch is a preference,
+  not trust: it keeps a template out of new choices (the core sends the
+  hidden refs with `ElementTemplatesQuery` and, after a switch change,
+  `HiddenElementTemplatesQuery`; the page applies them with
+  `setHiddenElementTemplates`, see "Public API"), and an element that uses
+  one keeps it. The rules live in `kernel/domain/templatePreferences.ts`:
+  - A switch is `{ source, templateId? }`, the template id within its source,
+    every version and file of it. The source key survives what it must: a
+    config folder is `configFolder:<innermost workspace folder's name>/<path
+    below it>` (a moved repository or a second root keeps it), a marketplace
+    `marketplace:<provider>:<host>/<repository>` without the ref
+    (`marketplacePreferenceKeyOf`), so a ref edit, a re-fetch and a new cache
+    generation keep it. Two roots with the same name and config path, and
+    one repository registered at two refs, share their switches.
+  - Each source's switches live in one scope, which the core decides
+    (`templateSourceScopeOf`): a config folder's in `project`, a
+    marketplace's in `allProjects` once any entry of its repository is
+    registered for all projects, else in `project`. `isTemplateOffered`
+    reads that scope only. A union of both scopes was rejected: a row left in
+    `allProjects` after a User registration was removed would hide the
+    marketplace in every project that registers it per project. A row left in
+    the other scope is never read, and wakes up if the source moves back; a
+    registration that moves scope starts with no switches. A marketplace
+    registered only for this project whose repository keeps its switches in
+    all projects says so on its row (`marketplaceListingScopeText`).
+  - A ref is hidden only when every loaded copy of it comes from a source
+    that does not offer it (`hiddenElementTemplateRefs` in
+    `modeler/bpmn/domain/`), as the page tells copies apart only by id and
+    version. A template without a string id is always offered. Versions of
+    one id are not merged across sources: when the copy switched off is the
+    latest version, its id is not offered, though another source still on
+    serves an older version, as no older version takes a hidden latest one's
+    place on the page. That older copy was not offered before the switch
+    either, since upstream offers only the latest version, so its row keeps
+    its state. Offering it instead would mean a substitute rule on the page
+    for one case.
+  - A change names the switches to disable and to enable in one scope and is
+    merged by the store (`templatePreferencesAfter`, rows in
+    `templatePreferenceChange.cases.json`), so a writer never drops a switch
+    it had not read. The settings snapshot was rejected as the store: VS Code
+    workspace settings live in the repository, and a whole-list write races
+    across IntelliJ projects.
+  - Each switch action is refused unless the latest build offered it, on the
+    switch that build showed (`templateSwitchTargetOf`,
+    `sourceSwitchTargetOf`); clicked twice before a rebuild, the second write
+    changes nothing. A write that fails answers `failed` and logs why.
+  - `BpmnElementTemplatesService` computes the hidden refs when it sends the
+    templates, from the store's synchronous `read()`, and records what it
+    sent; a store change sends only `HiddenElementTemplatesQuery` to each
+    editor whose refs changed, so nothing is read, validated or reported
+    again. It records them before the post, so a change during the post
+    still reaches the editor; a post the editor refuses or that fails is
+    forgotten, so the next change sends the refs again. A webview that is
+    hidden or reloads asks for its templates again and gets the current refs.
+  - No view attaches to the catalog yet, so a user cannot reach the switches
+    until the artifacts view lands
+    ([#2250](https://github.com/Miragon/bpmn-modeler/issues/2250)); the user
+    guide describes them then.
 - *Marketplaces.* A group after the folders lists each registered
   marketplace entry as a source, in the order the hosts fetch them, keyed by the entry,
   as two spellings of one repository share a cache slot: its label, the
-  scopes that hold it in the words of the removal choice, its cached
+  scopes that hold it in the words of the removal choice (and where its
+  switches apply when that differs), its cached
   templates (`cachedTemplatePathsByRegistration`, the cache's own layout) and
   why it has none: an entry the registry cannot parse, nothing fetched yet,
   or a cache that cannot be read. Editors load the same templates, those of
-  the registered entries (`registeredTemplateFiles`), and read them again
-  when the marketplaces setting changes, so the slot of an entry removed by
-  hand serves nothing though it stays cached until the next prune.
+  the registered entries, grouped by registered slot with the source their
+  switches live in (`registeredTemplateSources`, read by
+  `MarketplaceTemplateSources` from the host's registrations; without
+  registrations, as on the bridge, one group without switches), and read them
+  again when the marketplaces setting changes, so the slot of an entry
+  removed by hand serves nothing though it stays cached until the next prune.
   Registrations that cannot be read, such
   as a host's reply that fails, leave the group without sources and say why;
   the folders are still listed. The catalog offers "Add marketplace…" and
@@ -873,11 +939,11 @@ Both hosts build an `AddOnsFeature`; no view attaches to it yet.
   plugin copies" answers a prune that fails as `failed`, with the core's
   text, and logs why.
 - *Builds.* Only while a view is visible, one at a time with a dirty flag, each
-  from `readStored()`, so an unseeded IntelliJ mirror never makes every row
-  look new; in VS Code a view shown again shows what this window's global
+  from `readStored()` of the approvals and the template switches, so an
+  unseeded IntelliJ mirror never makes every row look new; in VS Code a view shown again shows what this window's global
   state holds (see the multi-window residual under "One question at a
   time"). A change of the
-  approvals, of an owner, below a config folder (one watcher per workspace
+  approvals or the template switches, of an owner, below a config folder (one watcher per workspace
   folder while a view is attached), of the templates folders the open editors
   loaded, a marketplace flow's end, or a change of the config folder or
   marketplaces setting lists again; `node_modules` is not watched, and a refresh or a view shown again

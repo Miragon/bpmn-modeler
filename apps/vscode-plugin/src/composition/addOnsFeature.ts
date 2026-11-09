@@ -10,8 +10,8 @@ import { SharedDeps } from "./sharedDeps";
 
 /**
  * The add-on catalog over the plugin, rule package and template owners the
- * BPMN editor built, the approval list they share, and the marketplace
- * commands. No view attaches yet.
+ * BPMN editor built, the approval list they share, the template switches and
+ * the marketplace commands. No view attaches yet.
  */
 export function register(
     context: ExtensionContext,
@@ -35,6 +35,7 @@ export function register(
         rulePackages: handles.editor.rulePackageInventory,
         templates: handles.editor.templateInventory,
         marketplaces: handles.marketplaces,
+        templatePreferences: deps.templatePreferences,
     });
     context.subscriptions.push(addOns);
     return { addOns };

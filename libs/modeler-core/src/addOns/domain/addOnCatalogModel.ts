@@ -38,6 +38,8 @@ export interface AddOnSourceView {
     readonly label: string;
     readonly description: string;
     readonly problem?: string;
+    /** Only for a source whose templates the user switched off. */
+    readonly stateText?: string;
     readonly actions: readonly ActionView<SourceActionKind>[];
     readonly addOns: readonly AddOnView[];
 }
@@ -74,6 +76,8 @@ export interface TemplateAddOnView {
     readonly stateText: string;
     /** Why its file cannot be read. */
     readonly problem?: string;
+    /** Why it offers no switch of its own now. */
+    readonly note?: string;
     readonly actions: readonly ActionView<AddOnActionKind>[];
 }
 

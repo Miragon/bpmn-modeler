@@ -59,6 +59,7 @@ import { changeWindowFocus } from "../__fixtures__/vscodeCompositionFake";
 import { InMemoryMemento } from "../__fixtures__/vscodeStorage";
 import { BpmnDiffController } from "../diff/adapter/in/BpmnDiffController";
 import { NodeInstalledPackages } from "../modeler/bpmn/adapter/out/NodeInstalledPackages";
+import { VsCodeTemplatePreferenceStore } from "../modeler/bpmn/adapter/out/VsCodeTemplatePreferenceStore";
 import { setContext } from "../shared/adapter/out/extensionContext";
 import * as bpmnEditorFeature from "./bpmnEditorFeature";
 import { buildSharedDeps } from "./sharedDeps";
@@ -67,6 +68,7 @@ function createExtensionContext(): ExtensionContext {
     return {
         subscriptions: [],
         globalState: new InMemoryMemento(),
+        workspaceState: new InMemoryMemento(),
         globalStorageUri: Uri.file("/global-storage"),
     } as unknown as ExtensionContext;
 }
@@ -96,7 +98,7 @@ function createVsCodeBpmnEditor(context = createExtensionContext()) {
             },
             deps.preferences,
         ),
-        marketplaceSvc: { getCachedTemplatePaths: () => Promise.resolve([]) },
+        templateSources: { getCachedTemplateSources: () => Promise.resolve([]) },
         deploymentStatusParticipant: deploymentStatus,
         scriptEditor: new ScriptEditorFeature({
             scriptEditor: new RecordingScriptEditor(deps.editorStore, scriptFiles, deps.picker),
@@ -150,6 +152,33 @@ describe("VS Code's BPMN editor", () => {
 
         expect(announced).toBe(1);
         expect(approvals.read()).toEqual([otherWindowsRow]);
+        for (const subscription of context.subscriptions) {
+            subscription.dispose();
+        }
+    });
+
+    it("hands the editor the template switches kept in this window's workspace and global state", () => {
+        createVsCodeBpmnEditor();
+
+        expect(injectedPorts.editors[0]?.templatePreferences).toBeInstanceOf(
+            VsCodeTemplatePreferenceStore,
+        );
+    });
+
+    it("reads the template switches another window stored once this window gains focus", async () => {
+        const context = createExtensionContext();
+        createVsCodeBpmnEditor(context);
+        const switches = injectedPorts.editors[0]!.templatePreferences!;
+        let announced = 0;
+        switches.onDidChange(() => announced++);
+        const acmeOff = { source: "marketplace:local:/opt/acme" };
+        await context.globalState.update("bpmnTemplatePreferences", { disabled: [acmeOff] });
+
+        changeWindowFocus(true);
+        await Promise.resolve();
+
+        expect(announced).toBe(1);
+        expect(switches.read().allProjects).toEqual({ disabled: [acmeOff] });
         for (const subscription of context.subscriptions) {
             subscription.dispose();
         }

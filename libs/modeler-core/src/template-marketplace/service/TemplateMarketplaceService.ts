@@ -194,7 +194,10 @@ export class TemplateMarketplaceService {
         }
     }
 
-    /** The merge input handed to `BpmnElementTemplatesService`. */
+    /**
+     * Every registered marketplace's cached templates as one group, served by
+     * `MarketplaceTemplateSources` when it has no registrations to group them by.
+     */
     async getCachedTemplatePaths(): Promise<string[]> {
         return registeredTemplateFiles(
             this.settings.getMarketplaces(),

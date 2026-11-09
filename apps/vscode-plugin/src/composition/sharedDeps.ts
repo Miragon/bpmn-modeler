@@ -17,6 +17,7 @@ import { EditorHandleFactory } from "../modeler/editor-session/adapter/in/Modele
 import { ArtifactService, QuestionQueue } from "@miragon/bpmn-modeler-core";
 import { DocumentFlushService, PendingEditsFlush } from "@miragon/bpmn-modeler-core";
 import { VsCodePluginApprovalStore } from "../modeler/bpmn/adapter/out/VsCodePluginApprovalStore";
+import { VsCodeTemplatePreferenceStore } from "../modeler/bpmn/adapter/out/VsCodeTemplatePreferenceStore";
 
 /**
  * The cross-cutting collaborators every feature draws from: the host-capability
@@ -46,6 +47,8 @@ export interface SharedDeps {
     pluginApprovals: VsCodePluginApprovalStore;
     /** Every approval question, so two notices never stand side by side. */
     approvalQuestions: QuestionQueue;
+    /** The user's template switches, which the BPMN editor and the add-on catalog share. */
+    templatePreferences: VsCodeTemplatePreferenceStore;
 }
 
 /**
@@ -88,5 +91,9 @@ export function buildSharedDeps(context: ExtensionContext): SharedDeps {
         pendingEdits: new PendingEditsFlush(editorStore, flushSvc, notifier),
         pluginApprovals: new VsCodePluginApprovalStore(context.globalState),
         approvalQuestions: new QuestionQueue(),
+        templatePreferences: new VsCodeTemplatePreferenceStore({
+            project: context.workspaceState,
+            allProjects: context.globalState,
+        }),
     };
 }

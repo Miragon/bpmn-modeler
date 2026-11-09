@@ -4,6 +4,7 @@ import { BpmnEditorCommandType } from "@miragon/bpmn-modeler-shared";
 
 import { reviewOrChecklist } from "../../../kernel/adapter/out/ListReview";
 import { ApprovalReviewPort, PluginApprovalStorePort } from "../../../kernel/port/approvalPorts";
+import { TemplatePreferenceStorePort } from "../../../kernel/port/templatePreferencePorts";
 import {
     ActionNotifierPort,
     ClipboardPort,
@@ -104,6 +105,8 @@ export interface BpmnEditorHostPorts {
     readonly diagnostics?: DiagnosticsPort;
     /** Merges the marketplace cache into element-template discovery. */
     readonly templateProvider?: CachedTemplateProvider;
+    /** Absent: the host keeps no template switches, and every template is offered. */
+    readonly templatePreferences?: TemplatePreferenceStorePort;
     /** Absent: bpmnlint runs no workspace rule package, only the bundled rules. */
     readonly rulePackages?: BpmnRulePackagePorts;
 }
@@ -189,6 +192,7 @@ export class BpmnEditorFeature {
 
     private readonly panel: BpmnPropertiesPanelService;
     private readonly rendering: BpmnEditorHostExtensions["rendering"];
+    private readonly switchSubscription?: { dispose(): void };
 
     constructor(
         private readonly ports: BpmnEditorHostPorts,
@@ -211,7 +215,14 @@ export class BpmnEditorFeature {
             ports.statusBar,
             ports.notifier,
             ports.templateProvider,
+            ports.templatePreferences && {
+                preferences: ports.templatePreferences,
+                workspace: ports.workspace,
+            },
         );
+        this.switchSubscription = ports.templatePreferences?.onDidChange(() => {
+            void this.templates.refreshOffers();
+        });
         this.templateInventory = new TemplateInventory(this.templates, ports.artifacts);
         this.layout = new BpmnLayoutService(ports.store, ports.notifier, ports.picker);
         const lintConfigLocator = new BpmnLintConfigLocator(
@@ -345,6 +356,7 @@ export class BpmnEditorFeature {
     }
 
     dispose(): void {
+        this.switchSubscription?.dispose();
         this.templates.dispose();
         this.lintConfig.dispose();
         this.rulePackageCatalog?.dispose();

@@ -4,6 +4,7 @@ import {
     expandHomePath,
     InvalidMarketplaceError,
     marketplaceEntryLabel,
+    marketplacePreferenceKeyOf,
     parseMarketplace,
     parseMarketplaceEntry,
     parseMarketplaceUrl,
@@ -663,4 +664,62 @@ describe("parseMarketplace source include globs", () => {
             ).toThrow(InvalidMarketplaceError);
         },
     );
+});
+
+describe("marketplacePreferenceKeyOf", () => {
+    it.each<{ case: string; entry: Parameters<typeof parseMarketplaceEntry>[0]; key: string }>([
+        {
+            case: "a github.com repository",
+            entry: "https://github.com/acme/templates",
+            key: "marketplace:github:github.com/acme/templates",
+        },
+        {
+            case: "the same repository at a ref",
+            entry: "https://github.com/acme/templates/tree/release/2.x",
+            key: "marketplace:github:github.com/acme/templates",
+        },
+        {
+            case: "the owner/repo shorthand",
+            entry: "acme/templates",
+            key: "marketplace:github:github.com/acme/templates",
+        },
+        {
+            case: "a github object entry at a ref",
+            entry: { provider: "github", repo: "acme/templates", ref: "v2" },
+            key: "marketplace:github:github.com/acme/templates",
+        },
+        {
+            case: "a GitHub Enterprise host with a port",
+            entry: {
+                provider: "github",
+                repo: "acme/templates",
+                baseUrl: "https://GHE.example.com:8443/",
+                ref: "main",
+            },
+            key: "marketplace:github:ghe.example.com:8443/acme/templates",
+        },
+        {
+            case: "a gitlab.com project in a subgroup",
+            entry: "https://gitlab.com/acme/bpmn/templates/-/tree/main",
+            key: "marketplace:gitlab:gitlab.com/acme/bpmn/templates",
+        },
+        {
+            case: "a self-hosted GitLab project",
+            entry: { provider: "gitlab", repo: "acme/templates", baseUrl: "https://git.acme.io" },
+            key: "marketplace:gitlab:git.acme.io/acme/templates",
+        },
+        {
+            case: "a local folder",
+            entry: "/opt/Templates/acme",
+            key: "marketplace:local:/opt/Templates/acme",
+        },
+    ])("keys $case", ({ entry, key }) => {
+        expect(marketplacePreferenceKeyOf(parseMarketplaceEntry(entry).location)).toBe(key);
+    });
+
+    it("keys two repositories apart that differ only in their owner", () => {
+        expect(marketplacePreferenceKeyOf(parseMarketplaceUrl("acme/templates").location)).not.toBe(
+            marketplacePreferenceKeyOf(parseMarketplaceUrl("acme2/templates").location),
+        );
+    });
 });

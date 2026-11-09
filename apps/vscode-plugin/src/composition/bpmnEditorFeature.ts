@@ -27,7 +27,7 @@ import { SharedDeps } from "./sharedDeps";
 
 interface BpmnEditorHandles {
     diffController: BpmnDiffController;
-    marketplaceSvc: CachedTemplateProvider;
+    templateSources: CachedTemplateProvider;
     deploymentStatusParticipant: EditorSessionParticipant;
     scriptEditor: BpmnEditorContributions["scriptEditor"];
 }
@@ -56,7 +56,9 @@ export function register(
     // VS Code announces no write another window makes to the global state.
     context.subscriptions.push(
         window.onDidChangeWindowState((state) => {
-            if (state.focused) void approvals.readStored();
+            if (!state.focused) return;
+            void approvals.readStored();
+            void deps.templatePreferences.readStored();
         }),
     );
     const questions = deps.approvalQuestions;
@@ -75,7 +77,8 @@ export function register(
             statusBar: deps.statusBar,
             clipboard: deps.clipboard,
             diagnostics: new VsCodeDiagnostics(FOCUS_LINT_ELEMENT_CMD),
-            templateProvider: handles.marketplaceSvc,
+            templateProvider: handles.templateSources,
+            templatePreferences: deps.templatePreferences,
             rulePackages: {
                 approvals,
                 installedPackages: new NodeInstalledPackages(),

@@ -7,6 +7,7 @@ import {
     createMarketplaceCommands,
     createTemplateMarketplaceService,
     MarketplaceInventory,
+    MarketplaceTemplateSources,
     TemplateMarketplaceService,
 } from "@miragon/bpmn-modeler-core";
 import { getContext } from "../shared/adapter/out/extensionContext";
@@ -29,7 +30,7 @@ import { SharedDeps } from "./sharedDeps";
 export function register(
     _context: ExtensionContext,
     deps: SharedDeps,
-): { marketplaceSvc: TemplateMarketplaceService } {
+): { marketplaceSvc: TemplateMarketplaceService; templateSources: MarketplaceTemplateSources } {
     // Per-workspace cache root so a prune only ever evicts *this* window's slots:
     // marketplaces can be workspace-scoped, so an Update/Remove in another window
     // must not delete a marketplace registered only here. `storageUri` is VS
@@ -46,7 +47,13 @@ export function register(
         homeDir: homedir(),
     });
 
-    return { marketplaceSvc };
+    const templateSources = new MarketplaceTemplateSources(
+        marketplaceSvc,
+        deps.notifier,
+        new VsCodeMarketplaceRegistrations(deps.vsSettings),
+    );
+
+    return { marketplaceSvc, templateSources };
 }
 
 /**

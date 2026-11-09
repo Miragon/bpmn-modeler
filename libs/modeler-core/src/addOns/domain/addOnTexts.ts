@@ -9,7 +9,12 @@ export const ADD_ON_KIND_TEXT: Record<AddOnKind, string> = {
 
 export const TEMPLATE_STATE_TEXT: Record<TemplateState, string> = {
     enabled: "Enabled",
+    disabled: "Disabled",
 };
+
+export const TEMPLATE_SOURCE_DISABLED_NOTE = "Its source is disabled.";
+
+export const TEMPLATES_DISABLED_TEXT = "Templates disabled";
 
 /** What the owner says its code can do once allowed, shown before the user allows it. */
 export function allowWarningText(risk: string): string {
@@ -25,6 +30,10 @@ export const ACTION_LABEL = {
     addMarketplace: "Add marketplace…",
     updateMarketplaces: "Update marketplaces",
     removeMarketplace: "Remove",
+    enable: "Enable",
+    disable: "Disable",
+    enableTemplates: "Enable templates",
+    disableTemplates: "Disable templates",
 } as const;
 
 export const REVIEW_FACT_LABEL = {

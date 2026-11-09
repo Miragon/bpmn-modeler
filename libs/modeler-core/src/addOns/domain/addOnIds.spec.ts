@@ -28,8 +28,8 @@ describe("action kinds", () => {
         expectTypeOf<SourceActionKind>().toEqualTypeOf<(typeof SOURCE_ACTION_KINDS)[number]>();
         expectTypeOf<CatalogActionKind>().toEqualTypeOf<(typeof CATALOG_ACTION_KINDS)[number]>();
         expect([ADD_ON_ACTION_KINDS, SOURCE_ACTION_KINDS, CATALOG_ACTION_KINDS]).toEqual([
-            ["inspect", "allow", "revoke"],
-            ["removeMarketplace"],
+            ["inspect", "allow", "revoke", "enable", "disable"],
+            ["removeMarketplace", "enableTemplates", "disableTemplates"],
             ["addMarketplace", "updateMarketplaces", "pruneCache"],
         ]);
     });
@@ -45,7 +45,7 @@ describe("add-on ids", () => {
             ["plugin", "rulePackage", "elementTemplate"],
             ["plugin", "rulePackage"],
             ["configFolder", "installedPackages", "marketplace"],
-            ["enabled"],
+            ["enabled", "disabled"],
         ]);
     });
 

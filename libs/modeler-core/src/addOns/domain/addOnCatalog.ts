@@ -19,12 +19,17 @@ import {
     relativeToWorkspace,
 } from "../../kernel/domain/rootContainment";
 import { FolderTemplateFileListing } from "../../kernel/domain/templateListing";
+import {
+    configFolderTemplateSourceOf,
+    TemplatePreferencesByScope,
+} from "../../kernel/domain/templatePreferences";
 import { lastWorkspacePathSegment } from "../../kernel/domain/workspacePath";
 import type {
     ActionView,
     AddOnCatalogModel,
     AddOnGroupView,
     AddOnReview,
+    AddOnSourceView,
     AddOnView,
     CodeAddOnView,
 } from "./addOnCatalogModel";
@@ -58,7 +63,11 @@ import {
     marketplaceSourceOf,
     marketplacesGroupOf,
     ShownSource,
-    templateViewsOf,
+    ShownTemplate,
+    SourceSwitchView,
+    sourceSwitchViewOf,
+    templateRowsOf,
+    TemplateSwitches,
 } from "./templateAddOnViews";
 
 /** One add-on as its owner read it, placed and spoke of it. */
@@ -79,6 +88,8 @@ export interface AddOnFacts {
     readonly templates: readonly FolderTemplateFileListing[];
     /** Absent on a host that lists no marketplaces. */
     readonly marketplaces?: ListedMarketplaces;
+    /** Absent on a host that keeps no template switches: every template is then on, with no switch. */
+    readonly templatePreferences?: TemplatePreferencesByScope;
 }
 
 /** What this process remembers beyond the stored approvals, by kind as each owner tells it. */
@@ -108,8 +119,10 @@ export interface CatalogBuild {
     readonly model: AddOnCatalogModel;
     /** By add-on id. */
     readonly shown: ReadonlyMap<string, ShownCode>;
-    /** By source id. */
+    /** By source id, for a source that offers an action. */
     readonly sources: ReadonlyMap<string, ShownSource>;
+    /** By add-on id, for a template that offers a switch. */
+    readonly templates: ReadonlyMap<string, ShownTemplate>;
     /** What the catalog itself offered, so a request is checked against it. */
     readonly catalogActions: readonly CatalogActionKind[];
 }
@@ -130,6 +143,14 @@ interface PlacedAddOn {
     readonly view: AddOnView;
     /** Only for an add-on that offers an action. */
     readonly shown?: ShownCode;
+    /** Only for a template that offers a switch. */
+    readonly switched?: { readonly shown: ShownTemplate; readonly switches: TemplateSwitches };
+}
+
+/** A config folder's templates switch, as its view shows it and the core keeps it. */
+interface FolderSourceSwitch {
+    readonly view: SourceSwitchView;
+    readonly shown: ShownSource;
 }
 
 type FolderSourceKind = Exclude<SourceKind, "marketplace">;
@@ -222,10 +243,13 @@ export function catalogModelOf(
     ];
     const marketplaceSources =
         facts.marketplaces?.kind === "listed"
-            ? facts.marketplaces.sources.map(marketplaceSourceOf)
+            ? facts.marketplaces.sources.map((each) =>
+                  marketplaceSourceOf(each, facts.templatePreferences),
+              )
             : [];
+    const folderSwitches = folderSourceSwitchesOf(placed);
     const groups = [
-        ...facts.folders.flatMap((root) => groupOf(root, placed)),
+        ...facts.folders.flatMap((root) => groupOf(root, placed, folderSwitches)),
         ...marketplacesGroupOf(
             marketplaceSources.map(({ view }) => view),
             facts.marketplaces?.kind === "unreadable" ? facts.marketplaces.problem : undefined,
@@ -240,9 +264,44 @@ export function catalogModelOf(
         shown: new Map(
             placed.flatMap(({ view, shown }) => (shown === undefined ? [] : [[view.id, shown]])),
         ),
-        sources: new Map(marketplaceSources.map(({ view, shown }) => [view.id, shown])),
+        sources: new Map([
+            ...[...folderSwitches].map(([id, { shown }]) => [id, shown] as const),
+            ...marketplaceSources.map(({ view, shown }) => [view.id, shown] as const),
+        ]),
+        templates: new Map([
+            ...placed.flatMap(({ view, switched }) =>
+                switched === undefined ? [] : [[view.id, switched.shown] as const],
+            ),
+            ...marketplaceSources.flatMap(({ templates }) =>
+                templates.flatMap(({ view, shown }) =>
+                    shown === undefined ? [] : [[view.id, shown] as const],
+                ),
+            ),
+        ]),
         catalogActions: actions.map(({ kind }) => kind),
     };
+}
+
+/** Each config folder that lists a template its switch can hide, on a host that keeps switches. */
+function folderSourceSwitchesOf(
+    placed: readonly PlacedAddOn[],
+): ReadonlyMap<string, FolderSourceSwitch> {
+    const switches = new Map<string, FolderSourceSwitch>();
+    for (const { root, source, switched } of placed) {
+        const id = sourceIdOf(source.kind, source.dir);
+        if (switched === undefined || switches.has(id)) continue;
+        const view = sourceSwitchViewOf(switched.switches);
+        switches.set(id, {
+            view,
+            shown: {
+                kind: "configFolder",
+                label: sourceLabelOf(source, root),
+                templateSource: switched.switches.source,
+                actions: view.actions.map(({ kind }) => kind),
+            },
+        });
+    }
+    return switches;
 }
 
 function placedTemplates(listing: FolderTemplateFileListing, facts: AddOnFacts): PlacedAddOn[] {
@@ -251,11 +310,18 @@ function placedTemplates(listing: FolderTemplateFileListing, facts: AddOnFacts):
         return [];
     }
     const source = SOURCE_PLACE.elementTemplate(listing.sourceDir, root, facts.configFolder);
-    return templateViewsOf(sourceIdOf(source.kind, source.dir), listing).map((view) => ({
-        root,
-        source,
-        view,
-    }));
+    const switches: TemplateSwitches | undefined = facts.templatePreferences && {
+        source: configFolderTemplateSourceOf(listing.sourceDir, facts.folders),
+        preferences: facts.templatePreferences,
+    };
+    return templateRowsOf(sourceIdOf(source.kind, source.dir), listing, switches).map(
+        ({ view, shown }) => ({
+            root,
+            source,
+            view,
+            ...optional("switched", switches && shown && { shown, switches }),
+        }),
+    );
 }
 
 function placedAddOn(
@@ -363,7 +429,11 @@ function offers(actions: readonly ActionView<AddOnActionKind>[], kind: AddOnActi
     return actions.some((action) => action.kind === kind);
 }
 
-function groupOf(root: string, placed: readonly PlacedAddOn[]): AddOnGroupView[] {
+function groupOf(
+    root: string,
+    placed: readonly PlacedAddOn[],
+    folderSwitches: ReadonlyMap<string, FolderSourceSwitch>,
+): AddOnGroupView[] {
     const inRoot = placed.filter((each) => each.root === root);
     if (inRoot.length === 0) {
         return [];
@@ -382,16 +452,21 @@ function groupOf(root: string, placed: readonly PlacedAddOn[]): AddOnGroupView[]
             description: root,
             sources: [...sources]
                 .sort(([idA, a], [idB, b]) => a.place.rank - b.place.rank || compare(idA, idB))
-                .map(([id, { place, addOns }]) => ({
+                .map(([id, { place, addOns }]): AddOnSourceView => ({
                     id,
                     kind: place.kind,
-                    label: relativeToRoot(place.dir, root) || lastWorkspacePathSegment(place.dir),
+                    label: sourceLabelOf(place, root),
                     description: SOURCE_DESCRIPTION[place.kind](place, root),
-                    actions: [],
+                    ...optional("stateText", folderSwitches.get(id)?.view.stateText),
+                    actions: folderSwitches.get(id)?.view.actions ?? [],
                     addOns: addOns.map(({ view }) => view).sort(byKindThenName),
                 })),
         },
     ];
+}
+
+function sourceLabelOf(place: SourcePlace, root: string): string {
+    return relativeToRoot(place.dir, root) || lastWorkspacePathSegment(place.dir);
 }
 
 function reviewOf(

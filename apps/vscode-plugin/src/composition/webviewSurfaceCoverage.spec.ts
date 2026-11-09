@@ -147,7 +147,7 @@ function registerVsCodeSurfaces() {
     );
     const bpmnEditor = bpmnEditorFeature.register(context, deps, {
         diffController,
-        marketplaceSvc: { getCachedTemplatePaths: () => Promise.resolve([]) },
+        templateSources: { getCachedTemplateSources: () => Promise.resolve([]) },
         deploymentStatusParticipant,
         scriptEditor: new ScriptEditorFeature({
             scriptEditor: new RecordingScriptEditor(deps.editorStore, scriptFiles, deps.picker),

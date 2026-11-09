@@ -11,18 +11,30 @@ export const SOURCE_KINDS = ["configFolder", "installedPackages", "marketplace"]
 
 export type SourceKind = (typeof SOURCE_KINDS)[number];
 
-/** A template applies wherever it is found until it can be turned off. */
-export const TEMPLATE_STATES = ["enabled"] as const;
+/** Whether new elements offer a template; one that is used keeps applying either way. */
+export const TEMPLATE_STATES = ["enabled", "disabled"] as const;
 
 export type TemplateState = (typeof TEMPLATE_STATES)[number];
 
-export const ADD_ON_ACTION_KINDS = ["inspect", "allow", "revoke"] as const;
+export const ADD_ON_ACTION_KINDS = ["inspect", "allow", "revoke", "enable", "disable"] as const;
 
 export type AddOnActionKind = (typeof ADD_ON_ACTION_KINDS)[number];
 
-export const SOURCE_ACTION_KINDS = ["removeMarketplace"] as const;
+export type TemplateActionKind = Extract<AddOnActionKind, "enable" | "disable">;
+
+/** "templates", as a config folder source holds plugins too. */
+export const SOURCE_ACTION_KINDS = [
+    "removeMarketplace",
+    "enableTemplates",
+    "disableTemplates",
+] as const;
 
 export type SourceActionKind = (typeof SOURCE_ACTION_KINDS)[number];
+
+export type TemplateSourceActionKind = Extract<
+    SourceActionKind,
+    "enableTemplates" | "disableTemplates"
+>;
 
 export const CATALOG_ACTION_KINDS = ["addMarketplace", "updateMarketplaces", "pruneCache"] as const;
 

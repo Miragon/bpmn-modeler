@@ -1,6 +1,7 @@
 import { ProcessRestart } from "../../kernel/domain/codeApproval";
 import { PluginApprovalStorePort } from "../../kernel/port/approvalPorts";
 import { NotifierPort, SettingsPort, WorkspacePort } from "../../kernel/port/hostPorts";
+import { TemplatePreferenceStorePort } from "../../kernel/port/templatePreferencePorts";
 import type { AddOnCatalogModel } from "../domain/addOnCatalogModel";
 import {
     MarketplaceAddOnSource,
@@ -30,6 +31,8 @@ export interface AddOnsHostPorts {
     readonly templates?: TemplateAddOnSource;
     /** Absent: the host has no template marketplaces. */
     readonly marketplaces?: MarketplaceAddOnSource;
+    /** Absent: the host keeps no template switches, and the catalog offers none. */
+    readonly templatePreferences?: TemplatePreferenceStorePort;
 }
 
 /**
@@ -48,6 +51,7 @@ export class AddOnsFeature {
             plugins: ports.plugins,
             rulePackages: ports.rulePackages,
             marketplaces: ports.marketplaces,
+            templatePreferences: ports.templatePreferences,
             logger: ports.notifier,
             restart: ports.restart,
         });
@@ -61,9 +65,12 @@ export class AddOnsFeature {
         this.subscriptions = [
             ports.approvals.onDidChange(invalidate),
             ports.plugins.onDidChange(invalidate),
-            ...[ports.rulePackages, ports.templates, ports.marketplaces].flatMap((source) =>
-                source === undefined ? [] : [source.onDidChange(invalidate)],
-            ),
+            ...[
+                ports.rulePackages,
+                ports.templates,
+                ports.marketplaces,
+                ports.templatePreferences,
+            ].flatMap((source) => (source === undefined ? [] : [source.onDidChange(invalidate)])),
             ports.settingChanges.onDidChange((change) => {
                 if (change.affects("configFolder") || change.affects("marketplaces")) {
                     this.hub.refresh();

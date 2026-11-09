@@ -92,12 +92,14 @@ function setUp({
     folders = [WORK],
     restart = "reloadWindow",
     marketplaces: listsMarketplaces = true,
+    switches: keepsSwitches = true,
     ...hostOptions
 }: {
     files?: Record<string, string>;
     folders?: string[];
     restart?: ProcessRestart;
     marketplaces?: boolean;
+    switches?: boolean;
 } & Pick<TestHostOptions, "settings" | "promptAnswers" | "marketplaceAnswers"> = {}) {
     const host = createTestHost({ folders, files, ...hostOptions });
     const artifacts = new ArtifactService(host.workspace, host.settings, host.notifier);
@@ -161,6 +163,7 @@ function setUp({
         plugins: plugins.inventory,
         rulePackages: new RulePackageInventory(rulePackageCatalog, fingerprinter, disk),
         templates: new TemplateInventory(templatesService, artifacts),
+        ...(keepsSwitches && { templatePreferences: host.templatePreferences }),
         ...(listsMarketplaces && {
             marketplaces: new MarketplaceInventory(
                 host.marketplaceRegistrations,
@@ -946,6 +949,216 @@ describe("AddOnsFeature", () => {
         });
     });
 
+    describe("template switches", () => {
+        const MAIL_FILES = {
+            [`${TEMPLATES}/mail.json`]: JSON.stringify({
+                id: "mail",
+                name: "Send Mail",
+                version: 2,
+            }),
+        };
+        const SHOP_KEY = "configFolder:work/.camunda";
+
+        function templateRow(view: RecordingAddOnView, name: string) {
+            const { id, state, actions } = view.addOnNamed(name);
+            return { id, state, actions: actions.map(({ kind }) => kind) };
+        }
+
+        it("disables a template where its source's switches live, and enables it again", async () => {
+            const { host, addOns, view } = setUp({ files: MAIL_FILES });
+            view.attachTo(addOns);
+            await shown(addOns);
+            const { id } = templateRow(view, "Send Mail");
+
+            const disabled = await view.connection!.handle({ kind: "disable", addOnId: id });
+            await shown(addOns);
+            const afterDisable = templateRow(view, "Send Mail");
+            const stored = host.templatePreferences.read();
+            const enabled = await view.connection!.handle({ kind: "enable", addOnId: id });
+            await shown(addOns);
+
+            expect(disabled).toEqual({
+                kind: "done",
+                message:
+                    "Disabled Send Mail. New elements no longer offer it; elements that use it keep it.",
+            });
+            expect(stored).toEqual({
+                project: { disabled: [{ source: SHOP_KEY, templateId: "mail" }] },
+                allProjects: { disabled: [] },
+            });
+            expect(afterDisable).toEqual({ id, state: "disabled", actions: ["enable"] });
+            expect(enabled).toEqual({ kind: "done", message: "Enabled Send Mail." });
+            expect(templateRow(view, "Send Mail")).toEqual({
+                id,
+                state: "enabled",
+                actions: ["disable"],
+            });
+            expect(host.templatePreferences.read().project).toEqual({ disabled: [] });
+        });
+
+        it("switches a config folder's templates as a whole", async () => {
+            const { host, addOns, view } = setUp({ files: { ...RESIZE_FILES, ...MAIL_FILES } });
+            view.attachTo(addOns);
+            await shown(addOns);
+
+            const result = await view.connection!.handle({
+                kind: "disableTemplates",
+                sourceId: "config:/work/.camunda",
+            });
+            await shown(addOns);
+            const [source] = view.latest().groups[0].sources;
+
+            expect(result).toEqual({
+                kind: "done",
+                message:
+                    "Disabled the templates of .camunda. New elements no longer offer them; elements that use them keep them.",
+            });
+            expect(host.templatePreferences.read().project).toEqual({
+                disabled: [{ source: SHOP_KEY }],
+            });
+            expect({
+                stateText: source.stateText,
+                actions: source.actions.map(({ kind }) => kind),
+                mail: templateRow(view, "Send Mail"),
+            }).toEqual({
+                stateText: "Templates disabled",
+                actions: ["enableTemplates"],
+                mail: { id: expect.any(String), state: "disabled", actions: [] },
+            });
+        });
+
+        it("switches a marketplace registered for all projects in all projects", async () => {
+            const { host, marketplaceCommands, addOns, view } = setUp({
+                files: MARKETPLACE_FILES,
+                settings: { marketplaces: [SHARED] },
+            });
+            await marketplaceCommands.update();
+            view.attachTo(addOns);
+            await shown(addOns);
+
+            await view.connection!.handle({
+                kind: "disableTemplates",
+                sourceId: `marketplace:${JSON.stringify(SHARED)}`,
+            });
+            await shown(addOns);
+
+            expect(host.templatePreferences.read()).toEqual({
+                project: { disabled: [] },
+                allProjects: { disabled: [{ source: `marketplace:local:${SHARED}` }] },
+            });
+            expect(marketplaceGroupOf(view)?.sources[0].actions.map(({ kind }) => kind)).toEqual([
+                "removeMarketplace",
+                "enableTemplates",
+            ]);
+            expect(templateRow(view, "Shared Mail").state).toBe("disabled");
+        });
+
+        it.each([
+            {
+                case: "a template the latest list no longer shows",
+                request: { kind: "disable", addOnId: "template:gone" },
+                reason: "unknownAddOn",
+            },
+            {
+                case: "a source the latest list no longer shows",
+                request: { kind: "enableTemplates", sourceId: "config:/gone" },
+                reason: "unknownSource",
+            },
+        ] as const)("refuses to switch $case", async ({ request, reason }) => {
+            const { host, addOns, view } = setUp({ files: MAIL_FILES });
+            view.attachTo(addOns);
+            await shown(addOns);
+
+            const result = await view.connection!.handle(request);
+
+            expect(result).toMatchObject({ kind: "refused", reason });
+            expect(host.templatePreferences.read().project).toEqual({ disabled: [] });
+        });
+
+        it("stores a switch clicked twice once, and refuses it once the list shows it off", async () => {
+            const { host, addOns, view } = setUp({ files: MAIL_FILES });
+            view.attachTo(addOns);
+            await shown(addOns);
+            const { id } = templateRow(view, "Send Mail");
+
+            const twice = await Promise.all([
+                view.connection!.handle({ kind: "disable", addOnId: id }),
+                view.connection!.handle({ kind: "disable", addOnId: id }),
+            ]);
+            await shown(addOns);
+            const stale = await view.connection!.handle({ kind: "disable", addOnId: id });
+
+            expect(twice.map(({ kind }) => kind)).toEqual(["done", "done"]);
+            expect(host.templatePreferences.read().project).toEqual({
+                disabled: [{ source: SHOP_KEY, templateId: "mail" }],
+            });
+            expect(stale).toMatchObject({ kind: "refused", reason: "notOffered" });
+        });
+
+        it("says a switch could not be saved, and logs why", async () => {
+            const { host, addOns, view } = setUp({ files: MAIL_FILES });
+            view.attachTo(addOns);
+            await shown(addOns);
+            vi.spyOn(host.templatePreferences, "change").mockRejectedValue(new Error("disk full"));
+
+            const result = await view.connection!.handle({
+                kind: "disable",
+                addOnId: templateRow(view, "Send Mail").id,
+            });
+
+            expect(result).toEqual({
+                kind: "failed",
+                message: "Could not save this choice. The log says why.",
+            });
+            expect(host.notifier.loggedErrors.map(({ message }) => message)).toEqual(["disk full"]);
+        });
+
+        it("lists again when switches stored elsewhere reach the store", async () => {
+            const { host, addOns, view } = setUp({ files: MAIL_FILES });
+            view.attachTo(addOns);
+            await shown(addOns);
+
+            host.templatePreferences.storeElsewhere(
+                "project",
+                { disabled: [{ source: SHOP_KEY, templateId: "mail" }] },
+                { notify: true },
+            );
+            await shown(addOns);
+
+            expect(templateRow(view, "Send Mail").state).toBe("disabled");
+        });
+
+        it("reads the stored switches for each listing, as a mirror may not be seeded yet", async () => {
+            const { host, addOns, view } = setUp({ files: MAIL_FILES });
+            host.templatePreferences.storeElsewhere("project", {
+                disabled: [{ source: SHOP_KEY }],
+            });
+
+            view.attachTo(addOns);
+            await shown(addOns);
+
+            expect(templateRow(view, "Send Mail").state).toBe("disabled");
+        });
+
+        it("offers no switch on a host that keeps none", async () => {
+            const { addOns, view } = setUp({
+                files: { ...RESIZE_FILES, ...MAIL_FILES },
+                switches: false,
+            });
+            view.attachTo(addOns);
+            await shown(addOns);
+
+            const result = await view.connection!.handle({
+                kind: "disable",
+                addOnId: templateRow(view, "Send Mail").id,
+            });
+
+            expect(templateRow(view, "Send Mail").actions).toEqual([]);
+            expect(view.latest().groups[0].sources[0].actions).toEqual([]);
+            expect(result).toMatchObject({ kind: "refused" });
+        });
+    });
+
     describe("marketplaces", () => {
         it("lists a marketplace with its scope and templates", async () => {
             const { marketplaceCommands, addOns, view } = setUp({
@@ -972,7 +1185,7 @@ describe("AddOnsFeature", () => {
                     label: SHARED,
                     description: "All my projects",
                     problem: undefined,
-                    actions: ["removeMarketplace"],
+                    actions: ["removeMarketplace", "disableTemplates"],
                     templates: ["Shared Mail"],
                 },
             ]);

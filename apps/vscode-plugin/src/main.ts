@@ -48,13 +48,13 @@ export function activate(context: ExtensionContext): TestApi {
     const script = scriptFeature.register(context, deps);
     // Service built before the BPMN editor (which merges its cache); commands
     // deferred after, since they re-run the resulting template service.
-    const { marketplaceSvc } = templateMarketplaceFeature.register(context, deps);
+    const { marketplaceSvc, templateSources } = templateMarketplaceFeature.register(context, deps);
     // Before the BPMN editor so its status bar participant can join the BPMN
     // session participant list (the same forward hand-off as the script editor).
     const { deploymentStatusParticipant } = deploymentFeature.register(context, deps);
     const { editor: bpmnEditor, plugins } = bpmnEditorFeature.register(context, deps, {
         diffController,
-        marketplaceSvc,
+        templateSources,
         deploymentStatusParticipant,
         scriptEditor: script.editorContribution,
     });
