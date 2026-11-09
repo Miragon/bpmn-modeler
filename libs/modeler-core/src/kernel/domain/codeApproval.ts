@@ -25,6 +25,11 @@ export type CodeState = (typeof CODE_STATES)[number];
 
 export type ApprovalState = Extract<CodeState, "approved" | "new" | "changed">;
 
+/** An approval covers the content as it is now. */
+export function isApprovedState(state: CodeState): state is "approved" {
+    return state === "approved";
+}
+
 /** How the approval list and the log name each state, inside a sentence or after a separator. */
 export const CODE_STATE_TEXT: Record<CodeState, string> = {
     approved: "allowed",
@@ -101,7 +106,7 @@ export function approvedArtifacts<A extends ApprovableArtifact>(
     artifacts: readonly A[],
     approvals: readonly CodeApproval[],
 ): A[] {
-    return artifacts.filter((artifact) => approvalStateOf(artifact, approvals) === "approved");
+    return artifacts.filter((artifact) => isApprovedState(approvalStateOf(artifact, approvals)));
 }
 
 /**
@@ -256,7 +261,7 @@ export function foundCodeState(
     declined: ReadonlySet<string>,
 ): Exclude<CodeState, "gone"> {
     const state = approvalStateOf(artifact, approvals);
-    return state !== "approved" && declined.has(declineKeyOf(artifact)) ? "declined" : state;
+    return !isApprovedState(state) && declined.has(declineKeyOf(artifact)) ? "declined" : state;
 }
 
 /** A row decides `changed` for code that cannot be read, so the user still sees what was allowed there. */
@@ -329,7 +334,7 @@ export function pendingApprovals<A extends ApprovableArtifact>(
 ): PendingCodeApproval<A>[] {
     return artifacts.flatMap((artifact) => {
         const state = approvalStateOf(artifact, approvals);
-        return state === "approved" || notAskedAgain.has(declineKeyOf(artifact))
+        return isApprovedState(state) || notAskedAgain.has(declineKeyOf(artifact))
             ? []
             : [{ artifact, state }];
     });

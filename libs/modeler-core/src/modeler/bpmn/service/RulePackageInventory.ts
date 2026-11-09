@@ -109,7 +109,9 @@ export class RulePackageInventory {
     }
 
     /** Code a revoked package already ran stays loaded; nothing else to undo. */
-    async afterRevoke(): Promise<void> {}
+    afterRevoke(): Promise<void> {
+        return Promise.resolve();
+    }
 
     sessionAnswers(): ReadonlyMap<string, SessionAnswer> {
         return this.catalog.sessionAnswers();

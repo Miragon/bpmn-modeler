@@ -5,6 +5,7 @@ import {
     CodeState,
     codeStateOf,
     declinedKeys,
+    isApprovedState,
     ListedCode,
     ListedPresence,
     presenceIdOf,
@@ -182,6 +183,25 @@ const SOURCE_PLACE: Record<
     rulePackage: (dir) => ({ kind: "installedPackages", dir, rank: 2 }),
 };
 
+/** A revoked rule package's code stays loaded until a restart; a revoked plugin reloads at once. */
+const LOADED_AFTER_REVOKE: Record<AddOnKind, boolean> = { plugin: false, rulePackage: true };
+
+const DETAIL: Record<
+    AddOnKind,
+    (presence: ListedPresence, sourceDir: string) => string | undefined
+> = {
+    plugin: (presence, sourceDir) => relativeToRoot(presenceIdOf(presence), sourceDir),
+    rulePackage: (presence) => (presence.kind === "found" ? presence.artifact.version : undefined),
+};
+
+const SOURCE_DESCRIPTION: Record<SourceKind, (dir: string, root: string) => string> = {
+    installedPackages: () => INSTALLED_PACKAGES_TEXT,
+    configFolder: (dir, root) => {
+        const belowRoot = relativeToRoot(parentWorkspacePath(dir) ?? dir, root);
+        return belowRoot ? nestedConfigFolderText(belowRoot) : ROOT_CONFIG_FOLDER_TEXT;
+    },
+};
+
 const CATALOG_ACTIONS: readonly ActionView<CatalogActionKind>[] = [
     { kind: "pruneCache", label: ACTION_LABEL.pruneCache },
 ];
@@ -236,7 +256,7 @@ function placedAddOn(
         kind,
         kindText: ADD_ON_KIND_TEXT[kind],
         name: presence.name,
-        ...optional("detail", detailOf(kind, presence, source.dir)),
+        ...optional("detail", DETAIL[kind](presence, source.dir)),
         state,
         stateText: codeStateLabel(state),
         ...optional(
@@ -245,7 +265,9 @@ function placedAddOn(
         ),
         ...optional(
             "note",
-            kind === "rulePackage" && state !== "approved" && session.revokedRulePackages.has(id)
+            LOADED_AFTER_REVOKE[kind] &&
+                !isApprovedState(state) &&
+                session.revokedRulePackages.has(id)
                 ? stillLoadedText(restart)
                 : undefined,
         ),
@@ -296,33 +318,13 @@ function groupOf(root: string, placed: readonly PlacedAddOn[]): AddOnGroupView[]
                     id,
                     kind: place.kind,
                     label: relativeToRoot(place.dir, root) || lastWorkspacePathSegment(place.dir),
-                    description: sourceDescriptionOf(place, root),
+                    description: SOURCE_DESCRIPTION[place.kind](place.dir, root),
                     addOns: addOns
                         .map(({ view }) => view)
                         .sort((a, b) => compare(a.name, b.name) || compare(a.id, b.id)),
                 })),
         },
     ];
-}
-
-function sourceDescriptionOf(place: SourcePlace, root: string): string {
-    if (place.kind === "installedPackages") {
-        return INSTALLED_PACKAGES_TEXT;
-    }
-    const configParent = parentWorkspacePath(place.dir) ?? place.dir;
-    const belowRoot = relativeToRoot(configParent, root);
-    return belowRoot ? nestedConfigFolderText(belowRoot) : ROOT_CONFIG_FOLDER_TEXT;
-}
-
-function detailOf(
-    kind: AddOnKind,
-    presence: ListedPresence,
-    sourceDir: string,
-): string | undefined {
-    if (kind === "rulePackage") {
-        return presence.kind === "found" ? presence.artifact.version : undefined;
-    }
-    return relativeToRoot(presenceIdOf(presence), sourceDir);
 }
 
 function reviewOf(

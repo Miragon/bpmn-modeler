@@ -33,6 +33,7 @@ import {
     notAskedAgain,
     type PendingCodeApproval,
     pendingApprovalDescription,
+    isApprovedState,
     pendingApprovals,
     presenceIdOf,
     PROCESS_RESTART_TEXT,
@@ -674,6 +675,15 @@ describe("needsContentHash", () => {
     ])("is $needed with $case", ({ approvals, declined, needed }) => {
         expect(needsContentHash(resize.id, approvals, new Set(declined))).toBe(needed);
     });
+});
+
+describe("isApprovedState", () => {
+    it.each(CODE_STATES.map((state) => ({ state, approved: state === "approved" })))(
+        "is $approved for $state",
+        ({ state, approved }) => {
+            expect(isApprovedState(state)).toBe(approved);
+        },
+    );
 });
 
 describe("presenceIdOf", () => {

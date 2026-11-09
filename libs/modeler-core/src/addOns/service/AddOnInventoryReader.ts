@@ -1,9 +1,4 @@
-import {
-    declinedKeys,
-    ListedPresence,
-    needsContentHash,
-    presenceIdOf,
-} from "../../kernel/domain/codeApproval";
+import { declinedKeys, needsContentHash, presenceIdOf } from "../../kernel/domain/codeApproval";
 import { PluginApprovalStorePort } from "../../kernel/port/approvalPorts";
 import { SettingsPort, WorkspacePort } from "../../kernel/port/hostPorts";
 import { AddOnFacts, OwnedPresence } from "../domain/addOnCatalog";
