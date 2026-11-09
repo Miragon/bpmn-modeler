@@ -512,6 +512,35 @@ describe("AddOnsFeature", () => {
             expect(view.addOns().map(({ name }) => name)).toEqual(["Resize Tasks"]);
         });
 
+        it("lists again after a change that lands on any tick of a listing's end", async () => {
+            for (let ticks = 0; ticks <= 40; ticks++) {
+                const { host, addOns, view } = setUp();
+                view.attachTo(addOns);
+                await shown(addOns);
+                const readStored = host.pluginApprovals.readStored.bind(host.pluginApprovals);
+                let release = () => {};
+                const released = new Promise<void>((resolve) => (release = resolve));
+                vi.spyOn(host.pluginApprovals, "readStored").mockImplementationOnce(async () => {
+                    await released;
+                    return readStored();
+                });
+
+                addOns.refresh();
+                release();
+                for (let tick = 0; tick < ticks; tick++) await Promise.resolve();
+                host.pluginApprovals.storeElsewhere([
+                    { pluginId: RESIZE, contentHash: RESIZE_HASH },
+                ]);
+                addOns.refresh();
+                await shown(addOns);
+
+                expect({ ticks, state: view.addOnNamed("Resize Tasks").state }).toEqual({
+                    ticks,
+                    state: "approved",
+                });
+            }
+        });
+
         it("keeps a view attached whose post throws, and logs why", async () => {
             const { host, addOns } = setUp();
             const posted: number[] = [];
