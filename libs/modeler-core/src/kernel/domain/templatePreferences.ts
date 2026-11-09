@@ -1,4 +1,4 @@
-import { ProjectScope } from "./projectScopes";
+import { PROJECT_SCOPES, ProjectScope } from "./projectScopes";
 import { innermostFolderOf, relativeToRoot } from "./rootContainment";
 import { lastWorkspacePathSegment } from "./workspacePath";
 
@@ -92,6 +92,13 @@ export function templatePreferencesAfter(
 /** Equal for two lists of the same switches in any order. */
 export function templatePreferencesKey(preferences: TemplatePreferences): string {
     return JSON.stringify(preferences.disabled.map(switchKeyOf).sort());
+}
+
+/** Equal for the same switches in each scope, in any order; never across scopes. */
+export function templatePreferencesByScopeKey(preferences: TemplatePreferencesByScope): string {
+    return JSON.stringify(
+        PROJECT_SCOPES.map((scope) => templatePreferencesKey(preferences[scope])),
+    );
 }
 
 /** A list as a host read it back from storage, every malformed switch left out. */

@@ -15,6 +15,7 @@ import {
     type TemplatePreferences,
     type TemplatePreferencesByScope,
     templatePreferencesAfter,
+    templatePreferencesByScopeKey,
     templatePreferencesKey,
     type TemplateSourceRef,
     templateSourceScopeOf,
@@ -145,6 +146,36 @@ describe("templatePreferencesKey", () => {
         expect(
             templatePreferencesKey({ disabled: a }) === templatePreferencesKey({ disabled: b }),
         ).toBe(equal);
+    });
+});
+
+describe("templatePreferencesByScopeKey", () => {
+    it.each<{
+        case: string;
+        a: TemplatePreferencesByScope;
+        b: TemplatePreferencesByScope;
+        equal: boolean;
+    }>([
+        {
+            case: "the same switches of each scope in another order",
+            a: preferences([{ source: SHOP.key }, { source: ACME.key }], [{ source: ACME.key }]),
+            b: preferences([{ source: ACME.key }, { source: SHOP.key }], [{ source: ACME.key }]),
+            equal: true,
+        },
+        {
+            case: "one switch kept in the other scope",
+            a: preferences([{ source: ACME.key }]),
+            b: preferences([], [{ source: ACME.key }]),
+            equal: false,
+        },
+        {
+            case: "a switch more in all projects",
+            a: preferences([{ source: SHOP.key }]),
+            b: preferences([{ source: SHOP.key }], [{ source: ACME.key }]),
+            equal: false,
+        },
+    ])("is equal: $equal for $case", ({ a, b, equal }) => {
+        expect(templatePreferencesByScopeKey(a) === templatePreferencesByScopeKey(b)).toBe(equal);
     });
 });
 

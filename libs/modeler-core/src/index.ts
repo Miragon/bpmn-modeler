@@ -28,6 +28,7 @@ export * from "./kernel/domain/globToRegExp";
 export * from "./kernel/port/hostPorts";
 export * from "./kernel/domain/http";
 export * from "./kernel/port/HttpClient";
+export * from "./kernel/port/templatePreferencePorts";
 export * from "./kernel/domain/locateResult";
 export * from "./kernel/domain/modelerSettings";
 export * from "./kernel/domain/newModelEngine";
