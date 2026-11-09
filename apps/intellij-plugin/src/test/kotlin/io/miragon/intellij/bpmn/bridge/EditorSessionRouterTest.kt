@@ -20,6 +20,9 @@ import com.intellij.testFramework.junit5.fixture.tempPathFixture
 import io.miragon.intellij.bpmn.CoreSession
 import io.miragon.intellij.bpmn.PluginApproval
 import io.miragon.intellij.bpmn.PluginApprovalStore
+import io.miragon.intellij.bpmn.ProjectTemplatePreferenceStore
+import io.miragon.intellij.bpmn.TemplatePreferenceStore
+import io.miragon.intellij.bpmn.TemplateSwitch
 import io.miragon.intellij.bpmn.projectFixtureWithoutServicePreload
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -1234,6 +1237,36 @@ class EditorSessionRouterTest {
             assertEquals(store.snapshot().revision, register.getAsJsonObject("params").get("pluginApprovalsRevision").asLong)
         } finally {
             store.replaceAll(storedBefore)
+        }
+    }
+
+    @Test
+    fun `a register seeds both scopes' template switches with their revisions`() {
+        val appStore = TemplatePreferenceStore.getInstance()
+        val appStoredBefore = appStore.snapshot().disabled
+        try {
+            appStore.replaceAll(listOf(TemplateSwitch("marketplace:github:github.com/acme/templates")))
+            val f = setUpRouter(INITIAL_XML)
+            val projectStore = ProjectTemplatePreferenceStore.getInstance(f.session.project)
+            projectStore.replaceAll(listOf(TemplateSwitch("configFolder:shop/.camunda", "mail")))
+
+            val second = createSecondBpmnFile()
+
+            f.router.registerSession(CoreSession(second.file.url, second.file, f.session.project) {})
+
+            val register = parse(f.wired.fake.nextFrame())
+            assertEquals(
+                parse(
+                    """{
+                        "project": {"disabled": [{"source": "configFolder:shop/.camunda", "templateId": "mail"}], "revision": ${projectStore.snapshot().revision}},
+                        "allProjects": {"disabled": [{"source": "marketplace:github:github.com/acme/templates"}], "revision": ${appStore.snapshot().revision}}
+                    }""",
+                ),
+                register.getAsJsonObject("params").getAsJsonObject("templatePreferences"),
+            )
+            projectStore.replaceAll(emptyList())
+        } finally {
+            appStore.replaceAll(appStoredBefore)
         }
     }
 

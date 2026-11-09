@@ -29,3 +29,14 @@ internal fun pushPluginApprovalsToRunningBridges(snapshot: PluginApprovalSnapsho
         project.getServiceIfCreated(CoreProcess::class.java)?.pushPluginApprovals(snapshot)
     }
 }
+
+/**
+ * Mirrors the stored template switches into every bridge that runs, after an
+ * all-projects change; each bridge gets its own project's switches with them.
+ */
+internal fun pushTemplatePreferencesToRunningBridges() {
+    for (project in ProjectManager.getInstance().openProjects) {
+        if (project.isDisposed) continue
+        project.getServiceIfCreated(CoreProcess::class.java)?.pushTemplatePreferences()
+    }
+}

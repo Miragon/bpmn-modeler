@@ -13,6 +13,7 @@ internal class BridgeRouters(deps: BridgeDeps) {
     val marketplace = MarketplaceRouter(deps)
     val settings = SettingsRouter(deps)
     val pluginApprovals = PluginApprovalRouter(deps)
+    val templatePreferences = TemplatePreferenceRouter(deps)
 
     // Outbound only: it sends host→core notifications and handles no method.
     val modelerCommands = ModelerCommandsRouter(deps)
@@ -27,6 +28,7 @@ internal class BridgeRouters(deps: BridgeDeps) {
         marketplace.register()
         settings.register()
         pluginApprovals.register()
+        templatePreferences.register()
         hostUi.register()
     }
 }

@@ -13,6 +13,7 @@ import { RpcActionNotifier } from "../kernel/adapter/out/RpcActionNotifier";
 import { RpcNotifier } from "../kernel/adapter/out/RpcNotifier";
 import { RpcPicker } from "../kernel/adapter/out/RpcPicker";
 import { RpcStatusBar } from "../kernel/adapter/out/RpcStatusBar";
+import { RpcTemplatePreferenceStore } from "../kernel/adapter/out/RpcTemplatePreferenceStore";
 import { BridgeSettings } from "../kernel/adapter/out/BridgeSettings";
 import { NodeWorkspace } from "../kernel/adapter/out/NodeWorkspace";
 import { Rpc } from "../transport/adapter/out/Rpc";
@@ -42,6 +43,12 @@ export interface BridgeSharedDeps {
      * feature; the plugins and the bpmnlint rule packages keep their rows in it.
      */
     pluginApprovals: RpcPluginApprovalStore;
+    /**
+     * Seeded by `session/register`, so it is shared with the editor-session
+     * feature; the editor hides the templates it switches off, and the add-on
+     * catalog offers the switches.
+     */
+    templatePreferences: RpcTemplatePreferenceStore;
     /** Every approval question, so two notices never stand side by side. */
     approvalQuestions: QuestionQueue;
     store: EditorSessionStore;
@@ -95,6 +102,7 @@ export function buildSharedDeps(
         picker,
         actionNotifier: new RpcActionNotifier(rpc),
         pluginApprovals: new RpcPluginApprovalStore(rpc),
+        templatePreferences: new RpcTemplatePreferenceStore(rpc),
         approvalQuestions: new QuestionQueue(),
         store,
         artifactSvc,

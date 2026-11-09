@@ -129,6 +129,13 @@ internal abstract class TemplatePreferenceList(private val scope: ProjectScope) 
     }
 }
 
+/** The store that keeps [scope]'s switches for [project]'s bridge. */
+internal fun templatePreferenceListOf(scope: ProjectScope, project: Project): TemplatePreferenceList =
+    when (scope) {
+        ProjectScope.PROJECT -> ProjectTemplatePreferenceStore.getInstance(project)
+        ProjectScope.ALL_PROJECTS -> TemplatePreferenceStore.getInstance()
+    }
+
 /**
  * The user's template switches for every project, kept by this IDE installation
  * out of every project file, so a repository cannot turn a teammate's templates off.

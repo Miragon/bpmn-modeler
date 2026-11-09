@@ -131,6 +131,7 @@ describe("RPC protocol descriptor", () => {
                     "  deployment/verify",
                     "  deployment/statusBarMenu",
                     "  pluginApprovals/didChange",
+                    "  templatePreferences/didChange",
                     "",
                     "Core → Host (requests):",
                     "  document/write",
@@ -157,6 +158,8 @@ describe("RPC protocol descriptor", () => {
                     "  actionNotice/show",
                     "  pluginApprovals/change",
                     "  pluginApprovals/read",
+                    "  templatePreferences/change",
+                    "  templatePreferences/read",
                     "",
                     "Core → Host (notifications):",
                     "  editor/postMessage",
@@ -199,6 +202,7 @@ describe("RPC protocol descriptor", () => {
             { method: METHODS.marketplaceStateSave, state: "the fetched marketplace cache" },
             { method: METHODS.marketplaceStateRemove, state: "the marketplace cache prune" },
             { method: METHODS.pluginApprovalsChange, state: "the plugin-approval mirror" },
+            { method: METHODS.templatePreferencesChange, state: "the template-switch mirror" },
         ])(
             "waits for the reply to $method, so $state stays in step with the host",
             ({ method }) => {
@@ -221,6 +225,7 @@ describe("RPC protocol descriptor", () => {
             METHODS.settingsSetLintingEnabled,
             METHODS.marketplaceStateRead,
             METHODS.pluginApprovalsRead,
+            METHODS.templatePreferencesRead,
         ])("gives up on %s after the host-work deadline", (method) => {
             expect(replyDeadlineMs(method)).toBe(HOST_WORK_REPLY_DEADLINE_MS);
         });

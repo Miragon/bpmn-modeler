@@ -225,6 +225,8 @@ internal class EditorSessionRouter(
                 // newer push cannot roll its mirror back.
                 "pluginApprovals" to approvals.approvals,
                 "pluginApprovalsRevision" to approvals.revision,
+                // Seeds the mirror the editor reads when it first sends its templates.
+                "templatePreferences" to TemplatePreferencesResult.of(deps.project),
                 "content" to content,
             ),
         )

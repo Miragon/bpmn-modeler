@@ -162,6 +162,9 @@ class CoreProcess(private val project: Project) : Disposable {
     /** Mirrors the stored plugin approvals into the running core. */
     fun pushPluginApprovals(snapshot: PluginApprovalSnapshot) = routers.pluginApprovals.push(snapshot)
 
+    /** Mirrors this project's and the application's template switches into the running core. */
+    fun pushTemplatePreferences() = routers.templatePreferences.push()
+
     /**
      * Soft-reloads every open modeler by re-registering its live session (re-seeds
      * settings, re-scans element templates, replays the render) — the fallback for
