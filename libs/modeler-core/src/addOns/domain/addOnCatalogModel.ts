@@ -27,6 +27,8 @@ export interface AddOnGroupView {
     readonly id: string;
     readonly label: string;
     readonly description: string;
+    /** Why it lists none of its sources. */
+    readonly problem?: string;
     readonly sources: readonly AddOnSourceView[];
 }
 

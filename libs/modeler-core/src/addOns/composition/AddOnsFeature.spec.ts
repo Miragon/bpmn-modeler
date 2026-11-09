@@ -983,6 +983,34 @@ describe("AddOnsFeature", () => {
             ]);
         });
 
+        it("still lists the folders' add-ons when the registrations cannot be read, and says why", async () => {
+            const { host, addOns, view } = setUp();
+            vi.spyOn(host.marketplaceRegistrations, "read").mockRejectedValue(
+                new Error("host gone"),
+            );
+
+            view.attachTo(addOns);
+            await shown(addOns);
+
+            expect(
+                view.models.at(-1)?.groups.map(({ id, problem, sources }) => ({
+                    id,
+                    problem,
+                    sources: sources.length,
+                })),
+            ).toEqual([
+                { id: "folder:/work", problem: undefined, sources: 1 },
+                {
+                    id: "marketplaces",
+                    problem: "The registered marketplaces could not be read. The log says why.",
+                    sources: 0,
+                },
+            ]);
+            expect(host.notifier.loggedErrors.map(({ message }) => message)).toEqual([
+                "host gone",
+            ]);
+        });
+
         it("removing a marketplace runs the queued flow with its confirm", async () => {
             const { host, marketplaceCommands, addOns, view } = setUp({
                 files: MARKETPLACE_FILES,
