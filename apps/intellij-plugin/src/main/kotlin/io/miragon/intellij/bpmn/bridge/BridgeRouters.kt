@@ -31,4 +31,9 @@ internal class BridgeRouters(deps: BridgeDeps) {
         templatePreferences.register()
         hostUi.register()
     }
+
+    /** Runs once the bridge's writer is attached, after every spawn. */
+    fun seedAfterSpawn() {
+        deployment.sendSeed()
+    }
 }

@@ -71,7 +71,7 @@ class CoreProcess(private val project: Project) : Disposable {
             notifier = BridgeErrorNotifier { message -> notifications.value.showError(message) },
             // Declared after the supervisor; safe because these lambdas only fire
             // post-construction, on the first (re)spawn or on a crash.
-            onSpawned = { routers.deployment.sendSeed() },
+            onSpawned = { routers.seedAfterSpawn() },
             onRespawned = { routers.editor.reregisterLiveSessions() },
             // Clear any in-flight spinner on a crash so it can't hang waiting on a
             // progressEnd the dead core will never send.
