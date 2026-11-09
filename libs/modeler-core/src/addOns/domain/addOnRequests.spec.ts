@@ -74,7 +74,10 @@ describe("addOnRequestOf", () => {
         { case: "a kind inherited from the prototype", value: { kind: "toString" } },
         { case: "a missing id", value: { kind: "inspect" } },
         { case: "an id that is no string", value: { kind: "revoke", addOnId: 7 } },
-        { case: "a source id that is no string", value: { kind: "removeMarketplace", sourceId: 7 } },
+        {
+            case: "a source id that is no string",
+            value: { kind: "removeMarketplace", sourceId: 7 },
+        },
         {
             case: "a source id where an add-on id belongs",
             value: { kind: "revoke", sourceId: "s" },
