@@ -1,0 +1,172 @@
+import { describe, expect, it } from "vitest";
+
+import { allowing, ReviewedAllow } from "../../kernel/domain/codeApproval";
+import { ShownCode } from "./addOnCatalog";
+import {
+    allowResultOf,
+    allowTargetOf,
+    inspectResultOf,
+    pruneResultOf,
+    revokeResultOf,
+    shownTargetOf,
+} from "./addOnRequests";
+import { ShownRevisions } from "./shownRevisions";
+
+const RESIZE = "/work/.camunda/plugins/resize";
+const ACME = "/work/node_modules/bpmnlint-plugin-acme";
+const content = { id: RESIZE, name: "Resize", contentHash: "h1" };
+const plugin: ShownCode = { kind: "plugin", id: RESIZE, name: "Resize", content };
+const unhashed: ShownCode = { kind: "rulePackage", id: ACME, name: "bpmnlint-plugin-acme" };
+const rulePackage: ShownCode = {
+    ...unhashed,
+    content: { id: ACME, name: "bpmnlint-plugin-acme", contentHash: "r1" },
+};
+
+const revisions = ShownRevisions.empty()
+    .recorded(1, new Map([[`plugin:${RESIZE}`, plugin]]))
+    .recorded(2, new Map([[`rulePackage:${ACME}`, unhashed]]));
+
+describe("allowTargetOf", () => {
+    it("allows the content the named revision showed, though a later one shows other content", () => {
+        expect(allowTargetOf(revisions, 1, `plugin:${RESIZE}`)).toEqual({
+            kind: "reviewed",
+            code: plugin,
+            content,
+        });
+    });
+
+    it.each([
+        {
+            case: "a revision it does not keep",
+            revision: 9,
+            addOnId: `plugin:${RESIZE}`,
+            reason: "staleView",
+            message: "The list changed since you looked at it. Check it again, then allow.",
+        },
+        {
+            case: "an add-on that revision did not show",
+            revision: 2,
+            addOnId: `plugin:${RESIZE}`,
+            reason: "unknownAddOn",
+            message: "This add-on is no longer listed.",
+        },
+        {
+            case: "an add-on shown without its content",
+            revision: 2,
+            addOnId: `rulePackage:${ACME}`,
+            reason: "staleView",
+            message: "The list changed since you looked at it. Check it again, then allow.",
+        },
+    ])("refuses $case", ({ revision, addOnId, reason, message }) => {
+        expect(allowTargetOf(revisions, revision, addOnId)).toEqual({
+            kind: "refused",
+            result: { kind: "refused", reason, message },
+        });
+    });
+});
+
+describe("shownTargetOf", () => {
+    it("finds an add-on in what the latest revision showed", () => {
+        expect(shownTargetOf(revisions, `rulePackage:${ACME}`)).toEqual({
+            kind: "shown",
+            code: unhashed,
+        });
+    });
+
+    it("refuses an add-on the latest revision no longer shows", () => {
+        expect(shownTargetOf(revisions, `plugin:${RESIZE}`)).toEqual({
+            kind: "refused",
+            result: {
+                kind: "refused",
+                reason: "unknownAddOn",
+                message: "This add-on is no longer listed.",
+            },
+        });
+    });
+});
+
+describe("allowResultOf", () => {
+    it.each<{ case: string; code: ShownCode; decision: ReviewedAllow; result: unknown }>([
+        {
+            case: "an allowed plugin",
+            code: plugin,
+            decision: { kind: "allow", change: allowing([content]) },
+            result: { kind: "done", message: "Allowed Resize. Open editors reload with it." },
+        },
+        {
+            case: "an allowed rule package",
+            code: rulePackage,
+            decision: { kind: "allow", change: allowing([content]) },
+            result: {
+                kind: "done",
+                message: "Allowed bpmnlint-plugin-acme. Open editors lint again with it.",
+            },
+        },
+        {
+            case: "content changed since the review",
+            code: plugin,
+            decision: { kind: "refused", reason: "changedSinceReview" },
+            result: {
+                kind: "refused",
+                reason: "changedSinceReview",
+                message: "Resize changed after you reviewed it. Review it again, then allow.",
+            },
+        },
+        {
+            case: "content gone",
+            code: plugin,
+            decision: { kind: "refused", reason: "gone" },
+            result: { kind: "refused", reason: "gone", message: "Resize is gone." },
+        },
+        {
+            case: "content no longer readable",
+            code: plugin,
+            decision: { kind: "refused", reason: "unreadable" },
+            result: {
+                kind: "refused",
+                reason: "unreadable",
+                message: "Resize can no longer be read.",
+            },
+        },
+    ])("reports $case", ({ code, decision, result }) => {
+        expect(allowResultOf(code, decision)).toEqual(result);
+    });
+});
+
+describe("revokeResultOf", () => {
+    it("says open editors reload without a revoked plugin", () => {
+        expect(revokeResultOf(plugin, "restartIde")).toEqual({
+            kind: "done",
+            message: "Revoked Resize. Open editors reload without it.",
+        });
+    });
+
+    it.each([
+        { restart: "reloadWindow" as const, until: "reload the window" },
+        { restart: "restartIde" as const, until: "restart the IDE" },
+    ])("says a revoked rule package's code stays until you $until", ({ restart, until }) => {
+        expect(revokeResultOf(rulePackage, restart)).toEqual({
+            kind: "done",
+            message: `Revoked bpmnlint-plugin-acme. Code it already ran stays loaded until you ${until}.`,
+        });
+    });
+});
+
+describe("inspectResultOf", () => {
+    it("asks the user to review what was read before allowing it", () => {
+        expect(inspectResultOf(unhashed)).toEqual({
+            kind: "done",
+            message: "Read bpmnlint-plugin-acme. Review what it covers, then allow this content.",
+        });
+    });
+});
+
+describe("pruneResultOf", () => {
+    it.each([
+        { removed: 0, message: "No unused plugin copies to remove." },
+        { removed: 1, message: "Removed 1 unused plugin copy." },
+        { removed: 3, message: "Removed 3 unused plugin copies." },
+    ])("reports $removed removed", ({ removed, message }) => {
+        expect(pruneResultOf(removed)).toEqual({ kind: "done", message });
+    });
+});
