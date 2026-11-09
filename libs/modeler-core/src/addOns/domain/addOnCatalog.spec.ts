@@ -921,6 +921,44 @@ describe("catalogModelOf for marketplaces", () => {
         });
     });
 
+    it("sorts a marketplace's templates by name, as a folder's", () => {
+        const { model } = build(
+            factsOf({
+                marketplaces: [
+                    {
+                        ...SHARED,
+                        templates: [
+                            {
+                                path: "/cache/acme-shared/0/element-templates/z.json",
+                                reading: { kind: "read", templates: [{ id: "z", name: "Zebra" }] },
+                            },
+                            {
+                                path: "/cache/acme-shared/0/element-templates/a.json",
+                                reading: { kind: "read", templates: [{ id: "a", name: "Apple" }] },
+                            },
+                        ],
+                    },
+                ],
+            }),
+        );
+
+        expect(model.groups[0].sources[0].addOns.map(({ name }) => name)).toEqual([
+            "Apple",
+            "Zebra",
+        ]);
+    });
+
+    it("offers no action on a folder's sources", () => {
+        const { model } = build(
+            factsOf({
+                plugins: [found(RESIZE, "Resize", "h1")],
+                rulePackages: [found(ACME, "bpmnlint-plugin-acme", "r1", "1.2.0")],
+            }),
+        );
+
+        expect(model.groups[0].sources.map(({ actions }) => actions)).toEqual([[], []]);
+    });
+
     it("keeps the entry each marketplace source stands for, never sent", () => {
         const { sources } = build(factsOf({ marketplaces: [SHARED] }));
 
