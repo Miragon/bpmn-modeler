@@ -10,7 +10,15 @@ import { NodeWorkspace } from "./NodeWorkspace";
  * matters. Mocking makes the assertion deterministic on every OS — it pins that
  * the Windows branch sets stat-based polling instead of `fs.watch`.
  */
-const { watchSpy, closeSpy, chokidarListeners, readdirSpy, fsEvents, statSpy } = vi.hoisted(() => {
+const {
+    watchSpy,
+    closeSpy,
+    chokidarListeners,
+    readdirSpy,
+    fsEvents,
+    statSpy,
+    missingFolders,
+} = vi.hoisted(() => {
     const closeSpy = vi.fn(() => Promise.resolve());
     const chokidarListeners = new Map<string, (path: string) => void>();
     const fsEvents: { listener?: (event: string, filename: string | null) => void } = {};
@@ -20,6 +28,7 @@ const { watchSpy, closeSpy, chokidarListeners, readdirSpy, fsEvents, statSpy } =
         fsEvents,
         readdirSpy: vi.fn(),
         statSpy: vi.fn(),
+        missingFolders: new Set<string>(),
         watchSpy: vi.fn((_root: string, _opts: Record<string, unknown>) => ({
             on(event: string, listener: (path: string) => void) {
                 chokidarListeners.set(event, listener);
@@ -33,12 +42,19 @@ const { watchSpy, closeSpy, chokidarListeners, readdirSpy, fsEvents, statSpy } =
 vi.mock("chokidar", () => ({ watch: watchSpy }));
 
 // A UNC root cannot be read or resolved on the macOS/Linux CI, so `fs.readdir`
-// and `fs.realpath` are stubbed; the macOS recursive watch is stubbed so its
-// events play on every OS.
+// and `fs.realpath` are stubbed, and every folder exists unless listed in
+// `missingFolders`; the macOS recursive watch is stubbed so its events play on
+// every OS.
 vi.mock("node:fs", async (importOriginal) => {
     const actual = await importOriginal<typeof import("node:fs")>();
     return {
         ...actual,
+        statSync: (path: string) => {
+            if (missingFolders.has(path)) {
+                throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+            }
+            return { isDirectory: () => true };
+        },
         promises: {
             ...actual.promises,
             readdir: readdirSpy,
@@ -129,6 +145,61 @@ describe("NodeWorkspace.createWatcher sharing", () => {
 
         workspace.createWatcher("/repo", "**/*.form", {});
         expect(watchSpy).toHaveBeenCalledTimes(2);
+    });
+});
+
+describe("NodeWorkspace.createWatcher on a folder that does not exist yet", () => {
+    beforeEach(() => {
+        vi.stubGlobal("process", { ...process, platform: "linux" });
+        readdirSpy.mockResolvedValue([]);
+        missingFolders.add("/repo/.camunda").add("/repo/.camunda/plugins");
+    });
+
+    afterEach(() => {
+        watchSpy.mockClear();
+        closeSpy.mockClear();
+        readdirSpy.mockReset();
+        chokidarListeners.clear();
+        missingFolders.clear();
+        vi.unstubAllGlobals();
+    });
+
+    const watchedFolders = () =>
+        watchSpy.mock.calls.map(([folder, options]) => `${folder} depth ${options.depth ?? "all"}`);
+
+    function folderAppears(folder: string) {
+        missingFolders.delete(folder);
+        chokidarListeners.get("addDir")?.(folder);
+    }
+
+    it("watches only the direct children of the nearest existing folder", () => {
+        new NodeWorkspace().createWatcher("/repo/.camunda/plugins", "**/*", {});
+
+        expect(watchedFolders()).toEqual(["/repo depth 0"]);
+    });
+
+    it("steps down as each missing folder appears and then watches the folder itself", () => {
+        new NodeWorkspace().createWatcher("/repo/.camunda/plugins", "**/*", {});
+
+        folderAppears("/repo/.camunda");
+        folderAppears("/repo/.camunda/plugins");
+
+        expect(watchedFolders()).toEqual([
+            "/repo depth 0",
+            "/repo/.camunda depth 0",
+            "/repo/.camunda/plugins depth all",
+        ]);
+        expect(closeSpy).toHaveBeenCalledTimes(2);
+    });
+
+    it("stops waiting once disposed", () => {
+        const watcher = new NodeWorkspace().createWatcher("/repo/.camunda/plugins", "**/*", {});
+
+        watcher.dispose();
+        folderAppears("/repo/.camunda");
+
+        expect(watchedFolders()).toEqual(["/repo depth 0"]);
+        expect(closeSpy).toHaveBeenCalledTimes(1);
     });
 });
 
