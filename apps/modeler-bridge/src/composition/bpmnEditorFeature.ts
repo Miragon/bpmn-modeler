@@ -55,6 +55,7 @@ export function register(
             // sandboxed webview.
             clipboard: new RpcClipboard(deps.rpc),
             templateProvider: handles.templateProvider,
+            templatePreferences: deps.templatePreferences,
             rulePackages: {
                 approvals: deps.pluginApprovals,
                 installedPackages: new NodeInstalledPackages(),

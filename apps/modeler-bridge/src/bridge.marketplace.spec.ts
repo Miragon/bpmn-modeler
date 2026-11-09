@@ -8,6 +8,10 @@
  * source needing no network, so the happy path is fully deterministic here; the
  * token round-trip stays covered by the core's `TemplateMarketplaceService.spec.ts`.
  *
+ * IntelliJ answers every `marketplaceState/read` with the lists it stores
+ * then (`host.registered`): the add flow and each template load read them,
+ * in an order the cache refresh decides.
+ *
  * Covered: `marketplace/add` reading the host's scopes (`marketplaceState/read`),
  * asking the core's add question (`marketplacePrompt/show`), asking again when
  * the core refuses the location, reading the registrations again once the
@@ -51,11 +55,16 @@ const TEMPLATE_JSON = JSON.stringify({
     properties: [],
 });
 
+interface Registered {
+    project?: string[];
+    allProjects?: string[];
+}
+
 /** The scopes IntelliJ reports: it keeps no place for a self-hosted marketplace. */
 function intellijRegistrations({
     project = [],
     allProjects = [],
-}: { project?: string[]; allProjects?: string[] } = {}) {
+}: Registered = {}) {
     return {
         registered: { project, allProjects },
         writable: [
@@ -109,6 +118,7 @@ describe("bridge template marketplace (real core + cache over a fake transport)"
         editorId: string;
         cacheRoot: string;
         tmp: string;
+        host: { registered: Registered };
     }> {
         const tmp = await fs.mkdtemp(join(tmpdir(), "modeler-bridge-mkt-"));
         const workspaceRoot = join(tmp, "workspace");
@@ -125,6 +135,12 @@ describe("bridge template marketplace (real core + cache over a fake transport)"
                 marketplaceCacheRoot: cacheRoot,
                 homeDir: tmp,
             },
+        );
+        const host: { registered: Registered } = { registered: {} };
+        cleanups.push(
+            keepAnswering(rpc.handleLine.bind(rpc), frames, "marketplaceState/read", () =>
+                intellijRegistrations(host.registered),
+            ),
         );
         const editorId = `file://${sourcePath}`;
         await rpc.handleLine(
@@ -149,7 +165,7 @@ describe("bridge template marketplace (real core + cache over a fake transport)"
 
         cleanups.push(() => fs.rm(tmp, { recursive: true, force: true }));
         cleanups.push(() => addOns.dispose());
-        return { rpc, addOns, frames, editorId, cacheRoot, tmp };
+        return { rpc, addOns, frames, editorId, cacheRoot, tmp, host };
     }
 
     /** Writes a valid local-folder marketplace with one element template. */
@@ -182,7 +198,7 @@ describe("bridge template marketplace (real core + cache over a fake transport)"
         return request;
     }
 
-    /** Starts an add and answers the host's scopes and the add question with `location` and `scope`. */
+    /** Starts an add and answers the add question with `location` and `scope`. */
     async function addMarketplace(
         rpc: Rpc,
         frames: unknown[],
@@ -190,28 +206,11 @@ describe("bridge template marketplace (real core + cache over a fake transport)"
         scope = "project",
     ): Promise<RequestFrame> {
         await rpc.handleLine(hostNotification("marketplace/add", { settings: {} }));
-        await answer(rpc, frames, "marketplaceState/read", intellijRegistrations());
         return answer(rpc, frames, "marketplacePrompt/show", { location, scope });
     }
 
-    /** Answers the registrations read the add makes once it fetched the marketplace. */
-    function answerReadAfterFetch(
-        rpc: Rpc,
-        frames: unknown[],
-        question: RequestFrame,
-        registrations = intellijRegistrations(),
-    ): Promise<RequestFrame> {
-        return answer(
-            rpc,
-            frames,
-            "marketplaceState/read",
-            registrations,
-            frames.indexOf(question) + 1,
-        );
-    }
-
     it("adds a local marketplace: asks the core's question, registers the answer's scope, then refreshes the editor", async () => {
-        const { rpc, frames, tmp, cacheRoot } = await setup();
+        const { rpc, frames, tmp, cacheRoot, host } = await setup();
         const folder = await writeLocalMarketplace(tmp);
 
         const question = await addMarketplace(rpc, frames, folder, "allProjects");
@@ -236,10 +235,10 @@ describe("bridge template marketplace (real core + cache over a fake transport)"
             ],
             scope: "project",
         });
-        await answerReadAfterFetch(rpc, frames, question);
         // The registration is an acknowledged request carrying the answer's scope.
         const save = await waitForFrame(frames, isRequest("marketplaceState/save"));
         expect(save.params).toEqual({ location: folder, scope: "allProjects" });
+        host.registered = { allProjects: [folder] };
         // IntelliJ pushes the snapshot that holds the new entry before it acks.
         await rpc.handleLine(
             hostNotification("settings/didChange", { settings: { marketplaces: [folder] } }),
@@ -252,16 +251,11 @@ describe("bridge template marketplace (real core + cache over a fake transport)"
     });
 
     it("says where the entry is registered and saves nothing for this project when all my projects already hold the fetched entry", async () => {
-        const { rpc, frames, tmp } = await setup();
+        const { rpc, frames, tmp, host } = await setup();
         const folder = await writeLocalMarketplace(tmp);
+        host.registered = { allProjects: [folder] };
 
-        const question = await addMarketplace(rpc, frames, folder, "project");
-        await answerReadAfterFetch(
-            rpc,
-            frames,
-            question,
-            intellijRegistrations({ allProjects: [folder] }),
-        );
+        await addMarketplace(rpc, frames, folder, "project");
 
         const toast = await waitForFrame(frames, (f) => f.method === "notifier/showInfo");
         expect(toast.params).toEqual({
@@ -303,8 +297,7 @@ describe("bridge template marketplace (real core + cache over a fake transport)"
             "utf8",
         );
 
-        const question = await addMarketplace(rpc, frames, folder);
-        await answerReadAfterFetch(rpc, frames, question);
+        await addMarketplace(rpc, frames, folder);
         await answer(rpc, frames, "marketplaceState/save", null);
 
         const toast = await waitForFrame(
@@ -336,8 +329,9 @@ describe("bridge template marketplace (real core + cache over a fake transport)"
     });
 
     it("updates from the piggybacked marketplace list and reports a summary", async () => {
-        const { rpc, frames, tmp } = await setup();
+        const { rpc, frames, tmp, host } = await setup();
         const folder = await writeLocalMarketplace(tmp);
+        host.registered = { project: [folder] };
 
         await rpc.handleLine(
             hostNotification("marketplace/update", { settings: { marketplaces: [folder] } }),
@@ -351,8 +345,9 @@ describe("bridge template marketplace (real core + cache over a fake transport)"
     });
 
     it("removes a marketplace: offers the host's entries, unregisters the chosen one and prunes its cache slot", async () => {
-        const { rpc, frames, tmp, cacheRoot } = await setup();
+        const { rpc, frames, tmp, cacheRoot, host } = await setup();
         const folder = await writeLocalMarketplace(tmp);
+        host.registered = { project: [folder] };
         await rpc.handleLine(
             hostNotification("marketplace/update", { settings: { marketplaces: [folder] } }),
         );
@@ -362,14 +357,9 @@ describe("bridge template marketplace (real core + cache over a fake transport)"
         await rpc.handleLine(
             hostNotification("marketplace/remove", { settings: { marketplaces: [folder] } }),
         );
-        await answer(
-            rpc,
-            frames,
-            "marketplaceState/read",
-            intellijRegistrations({ project: [folder] }),
-        );
         const choice = await answer(rpc, frames, "picker/show", { selected: [0] });
         const removal = await waitForFrame(frames, isRequest("marketplaceState/remove"));
+        host.registered = {};
         // IntelliJ pushes the post-removal snapshot before it acks.
         await rpc.handleLine(
             hostNotification("settings/didChange", { settings: { marketplaces: [] } }),
@@ -388,26 +378,24 @@ describe("bridge template marketplace (real core + cache over a fake transport)"
     });
 
     it("lists a registered marketplace with its scope and templates for a view, and removes it from there after the host's confirm", async () => {
-        const { rpc, addOns, frames, tmp, cacheRoot } = await setup();
+        const { rpc, addOns, frames, tmp, cacheRoot, host } = await setup();
         const folder = await writeLocalMarketplace(tmp);
+        host.registered = { project: [folder] };
         // On macOS the bridge cannot watch a plugins folder that does not exist yet.
         await fs.mkdir(join(tmp, "workspace", ".camunda", "plugins"), { recursive: true });
         await rpc.handleLine(
             hostNotification("marketplace/update", { settings: { marketplaces: [folder] } }),
         );
         await waitForFrame(frames, isTemplatesQuery(TEMPLATE_NAME));
-        let registrations = intellijRegistrations({ project: [folder] });
         cleanups.push(
             keepAnswering(rpc.handleLine.bind(rpc), frames, "pluginApprovals/read", () => ({
                 approvals: [],
                 revision: 1,
             })),
-            keepAnswering(
-                rpc.handleLine.bind(rpc),
-                frames,
-                "marketplaceState/read",
-                () => registrations,
-            ),
+            keepAnswering(rpc.handleLine.bind(rpc), frames, "templatePreferences/read", () => ({
+                project: { disabled: [], revision: 1 },
+                allProjects: { disabled: [], revision: 1 },
+            })),
         );
         const models: AddOnCatalogModel[] = [];
         const view = addOns.attachView((model) => models.push(model), true);
@@ -417,7 +405,7 @@ describe("bridge template marketplace (real core + cache over a fake transport)"
         const removing = view.handle({ kind: "removeMarketplace", sourceId: group!.sources[0].id });
         const confirm = await answer(rpc, frames, "confirm/show", { confirmed: true });
         const removal = await waitForFrame(frames, isRequest("marketplaceState/remove"));
-        registrations = intellijRegistrations();
+        host.registered = {};
         await rpc.handleLine(
             hostNotification("settings/didChange", { settings: { marketplaces: [] } }),
         );
@@ -447,7 +435,6 @@ describe("bridge template marketplace (real core + cache over a fake transport)"
         const { rpc, frames } = await setup();
 
         await rpc.handleLine(hostNotification("marketplace/remove", { settings: {} }));
-        await answer(rpc, frames, "marketplaceState/read", intellijRegistrations());
 
         await waitForFrame(frames, isShowInfo("No marketplaces registered."));
         expect(frames.find((f) => f.method === "picker/show")).toBeUndefined();
@@ -457,8 +444,7 @@ describe("bridge template marketplace (real core + cache over a fake transport)"
         const { rpc, frames, tmp } = await setup();
         const folder = await writeLocalMarketplace(tmp);
 
-        const question = await addMarketplace(rpc, frames, "  ~/marketplace  ");
-        await answerReadAfterFetch(rpc, frames, question);
+        await addMarketplace(rpc, frames, "  ~/marketplace  ");
 
         const save = await waitForFrame(frames, isSaveRequest);
         expect(save.params.location).toBe(folder);
@@ -468,8 +454,7 @@ describe("bridge template marketplace (real core + cache over a fake transport)"
         const { rpc, frames, tmp, cacheRoot } = await setup();
         const folder = await writeLocalMarketplace(tmp);
 
-        const question = await addMarketplace(rpc, frames, folder);
-        await answerReadAfterFetch(rpc, frames, question);
+        await addMarketplace(rpc, frames, folder);
         const save = await waitForFrame(frames, isSaveRequest);
         await rpc.handleLine(hostErrorReply(save.id, "disk full"));
 

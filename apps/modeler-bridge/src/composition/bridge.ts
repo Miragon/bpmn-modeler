@@ -130,6 +130,7 @@ export function createBridge(
     const { marketplaces } = marketplaceFeature.registerHandlers(deps, {
         marketplaceSvc: marketplace.marketplaceSvc,
         templatesSvc: editor.templates,
+        registrations: marketplace.registrations,
         homeDir,
     });
     const addOns = addOnsFeature.register(deps, { editor, plugins, marketplaces });
