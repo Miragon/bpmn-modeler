@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { type CodeApproval } from "../../kernel/domain/codeApproval";
+import { type CodeApproval, PROCESS_RESTARTS } from "../../kernel/domain/codeApproval";
 import { type DirectoryEntryKind } from "../../kernel/domain/directoryEntry";
 import {
     approvedContent,
     cacheEntriesToPrune,
+    isPluginApproval,
     CACHED_PLUGIN_FILE_PATTERN,
     cachedPluginCopy,
     cachedPluginFiles,
@@ -17,6 +18,7 @@ import {
     PLUGIN_APPROVAL_PROMPT_ID,
     pluginApprovalNotice,
     pluginApprovalPrompt,
+    PLUGIN_CODE_TEXTS,
     PLUGIN_CONTENT_HASH_PATTERN,
     type WorkspacePlugin,
 } from "./pluginApproval";
@@ -34,6 +36,17 @@ const palette: WorkspacePlugin = {
     stylePath: "/repo/.camunda/plugins/reduced-palette/style.css",
     contentHash: "bbb",
 };
+
+describe("PLUGIN_CODE_TEXTS", () => {
+    it.each(PROCESS_RESTARTS)(
+        "says open editors reload without a revoked plugin, for %s",
+        (restart) => {
+            expect(PLUGIN_CODE_TEXTS.revokedFollowUp(restart)).toBe(
+                "Open editors reload without it.",
+            );
+        },
+    );
+});
 
 describe("pluginApprovalPrompt", () => {
     it("lists each plugin with why it is asked and its folder in the workspace", () => {
@@ -234,6 +247,21 @@ describe("approvedContent", () => {
 
     it("covers the same files with the same content", () => {
         expect(approvedContent("a", "b")).toBe(approvedContent("a", "b"));
+    });
+});
+
+describe("isPluginApproval", () => {
+    it.each([
+        { case: "a plugin's content hash", contentHash: "0123456789abcdef".repeat(4), owned: true },
+        {
+            case: "a rule package's prefixed hash",
+            contentHash: `bpmnlint-closure-v1:${"a".repeat(64)}`,
+            owned: false,
+        },
+        { case: "an upper-case hash", contentHash: "A".repeat(64), owned: false },
+        { case: "a shorter hash", contentHash: "a".repeat(63), owned: false },
+    ])("owns a row with $case: $owned", ({ contentHash, owned }) => {
+        expect(isPluginApproval({ pluginId: "/work/.camunda/plugins/x", contentHash })).toBe(owned);
     });
 });
 

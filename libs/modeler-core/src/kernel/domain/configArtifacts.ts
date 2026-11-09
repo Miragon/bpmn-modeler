@@ -1,5 +1,5 @@
 import { relativeToRoot } from "./rootContainment";
-import { joinWorkspacePath } from "./workspacePath";
+import { joinWorkspacePath, parentWorkspacePath } from "./workspacePath";
 
 /** A file the modeler generates for one document, kept under `<configFolder>/<area>/`. */
 export interface ConfigArtifact {
@@ -16,6 +16,21 @@ export function configFolderPath(
     ...entryPath: string[]
 ): string {
     return joinWorkspacePath(directory, configFolder, ...entryPath);
+}
+
+/** The folder whose config folder `configDir` is, the inverse of {@link configFolderPath}; `undefined` when it is no folder's. */
+export function folderOfConfigFolder(configDir: string, configFolder: string): string | undefined {
+    for (
+        let folder = parentWorkspacePath(configDir);
+        folder !== undefined;
+        folder = parentWorkspacePath(folder)
+    ) {
+        // `""` names the same folder, whatever trailing slash a `.camunda/` setting leaves.
+        if (relativeToRoot(configDir, configFolderPath(folder, configFolder)) === "") {
+            return folder;
+        }
+    }
+    return undefined;
 }
 
 export interface ConfigArtifactLocation {

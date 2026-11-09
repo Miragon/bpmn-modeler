@@ -27,24 +27,35 @@ export function outermostPaths(paths: readonly string[]): string[] {
     );
 }
 
+/** The innermost of `folders` holding `path`, whatever order they were opened in; `undefined` outside them all. */
+export function innermostFolderOf(path: string, folders: readonly string[]): string | undefined {
+    return innermostHolding(path, folders)?.folder;
+}
+
+function innermostHolding(
+    path: string,
+    folders: readonly string[],
+): { readonly folder: string; readonly belowFolder: string } | undefined {
+    return folders
+        .flatMap((folder) => {
+            const belowFolder = relativeToRoot(path, folder);
+            return belowFolder === undefined ? [] : [{ folder, belowFolder }];
+        })
+        .sort((a, b) => b.folder.length - a.folder.length)[0];
+}
+
 /**
  * `path` as VS Code's `asRelativePath` spells it, so both hosts order a file
  * list as VS Code shows it: below the innermost of `folders` holding it, led by
  * that folder's name when several are open, and unchanged outside them all.
  */
 export function relativeToWorkspace(path: string, folders: readonly string[]): string {
-    const innermost = folders
-        .flatMap((folder) => {
-            const belowFolder = relativeToRoot(path, folder);
-            return belowFolder === undefined ? [] : [{ folder, belowFolder }];
-        })
-        .sort((a, b) => a.belowFolder.length - b.belowFolder.length)[0];
-    if (!innermost) {
+    const innermost = innermostHolding(path, folders);
+    if (innermost === undefined) {
         return path;
     }
-    return folders.length > 1
-        ? `${posix.basename(innermost.folder)}/${innermost.belowFolder}`
-        : innermost.belowFolder;
+    const { folder, belowFolder } = innermost;
+    return folders.length > 1 ? `${posix.basename(folder)}/${belowFolder}` : belowFolder;
 }
 
 function withTrailingSlash(path: string): string {

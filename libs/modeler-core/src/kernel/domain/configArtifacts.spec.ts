@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { configArtifactLocation, configFolderPath } from "./configArtifacts";
+import { configArtifactLocation, configFolderPath, folderOfConfigFolder } from "./configArtifacts";
 
 describe("configFolderPath", () => {
     it.each([
@@ -55,6 +55,53 @@ describe("configFolderPath", () => {
         },
     ])("$behaviour", ({ directory, configFolder, entryPath, path }) => {
         expect(configFolderPath(directory, configFolder, ...entryPath)).toBe(path);
+    });
+});
+
+describe("folderOfConfigFolder", () => {
+    it.each<{ behaviour: string; configDir: string; configFolder: string; folder?: string }>([
+        {
+            behaviour: "names the folder that holds the config folder",
+            configDir: "/work/proj/.camunda",
+            configFolder: ".camunda",
+            folder: "/work/proj",
+        },
+        {
+            behaviour: "climbs every segment of a nested config folder",
+            configDir: "/work/proj/.config/camunda",
+            configFolder: ".config/camunda",
+            folder: "/work/proj",
+        },
+        {
+            behaviour: "spells the config folder as configFolderPath does",
+            configDir: "/work/proj/.camunda",
+            configFolder: "./.camunda/",
+            folder: "/work/proj",
+        },
+        {
+            behaviour: "names a filesystem root",
+            configDir: "/.camunda",
+            configFolder: ".camunda",
+            folder: "/",
+        },
+        {
+            behaviour: "names the UNC root of a share",
+            configDir: "//server/share/.camunda",
+            configFolder: ".camunda",
+            folder: "//server/share",
+        },
+        {
+            behaviour: "names no folder for a directory of another name",
+            configDir: "/work/proj/.camunda",
+            configFolder: ".config/camunda",
+        },
+        {
+            behaviour: "names no folder for a config folder that is no folder's",
+            configDir: "/",
+            configFolder: ".camunda",
+        },
+    ])("$behaviour", ({ configDir, configFolder, folder }) => {
+        expect(folderOfConfigFolder(configDir, configFolder)).toBe(folder);
     });
 });
 

@@ -32,9 +32,12 @@ import {
     HANDLED,
     ignored,
     InMemoryInstalledPackages,
+    RecordingAddOnView,
     routesOf,
     ScriptedReview,
 } from "../../../testing";
+import { AddOnsFeature } from "../../../addOns/composition/AddOnsFeature";
+import { BpmnPluginsFeature } from "../../../bpmnPlugins/composition/BpmnPluginsFeature";
 import {
     RULE_PACKAGE_APPROVAL_NOTICE_ID,
     RULE_PACKAGE_APPROVAL_PROMPT_ID,
@@ -660,6 +663,56 @@ describe("BpmnEditorFeature with workspace rule packages", () => {
         expect(host.picker.prompts).toEqual([]);
         expect(host.pluginApprovals.approvals).toEqual([]);
         expect(results).toEqual([[]]);
+    });
+
+    it("lists for the add-on catalog the lint config it read and the package the gate reported", async () => {
+        const { feature, pluginDir } = await lintWithAcmeInstalled({ wiresRulePackages: true });
+
+        expect(feature.rulePackageInventory?.lintConfigDirs()).toEqual([workspaceDir]);
+        expect(feature.rulePackageInventory?.seenPackageIds()).toEqual([pluginDir]);
+    });
+
+    it("lints the open editors again when a view revokes an allowed package, and asks no notice", async () => {
+        const { host, feature, editor, pluginDir } = await lintWithAcmeInstalled({
+            wiresRulePackages: true,
+        });
+        const plugins = new BpmnPluginsFeature({
+            ...host,
+            artifacts: new ArtifactService(host.workspace, host.settings, host.notifier),
+            approvals: host.pluginApprovals,
+            cacheRoot: "/storage/bpmn-plugins",
+            hasher: { sha256: (text) => createHash("sha256").update(text).digest("hex") },
+            questions: new QuestionQueue(),
+        });
+        const addOns = new AddOnsFeature({
+            workspace: host.workspace,
+            settings: host.settings,
+            notifier: host.notifier,
+            approvals: host.pluginApprovals,
+            settingChanges: { onDidChange: () => ({ dispose: () => undefined }) },
+            restart: "reloadWindow",
+            plugins: plugins.inventory,
+            rulePackages: feature.rulePackageInventory,
+        });
+        const view = new RecordingAddOnView();
+        view.attachTo(addOns);
+        await addOns.whenSettled();
+        const lints = editor.postedOfType("BpmnlintResultsQuery").length;
+
+        await view.connection?.handle({ kind: "revoke", addOnId: `rulePackage:${pluginDir}` });
+        await feature.lintConfig.whenApprovalSettled();
+
+        expect(host.pluginApprovals.approvals).toEqual([]);
+        expect(editor.postedOfType("BpmnlintResultsQuery")).toHaveLength(lints + 1);
+        expect(host.actionNotifier.notices.map(({ id }) => id)).toEqual([
+            RULE_PACKAGE_APPROVAL_NOTICE_ID,
+        ]);
+    });
+
+    it("lists no rule package without the ports to run one", async () => {
+        const { feature } = await lintWithAcmeInstalled({ wiresRulePackages: false });
+
+        expect(feature.rulePackageInventory).toBeUndefined();
     });
 
     it("lets the gate report a package the user declined as declined", async () => {

@@ -28,11 +28,14 @@ import {
     type FollowedApprovalChange,
     followedApprovalChange,
     foundCodeState,
+    isLeftForView,
     needsContentHash,
     notAskedAgain,
     type PendingCodeApproval,
     pendingApprovalDescription,
+    isApprovedState,
     pendingApprovals,
+    presenceIdOf,
     PROCESS_RESTART_TEXT,
     PROCESS_RESTARTS,
     type ReviewAnswer,
@@ -558,6 +561,34 @@ describe("session answers", () => {
         expect(declinedKeys(answers)).toEqual(new Set([declineKeyOf(resize)]));
     });
 
+    it.each<{ case: string; id: string; leftForView: boolean }>([
+        { case: "an id whose content was left to the view", id: palette.id, leftForView: true },
+        { case: "an id whose content was declined", id: resize.id, leftForView: false },
+        { case: "an id nobody answered for", id: acmeRules.id, leftForView: false },
+        {
+            case: "an id that only starts like one left",
+            id: `${palette.id}-evil`,
+            leftForView: false,
+        },
+        { case: "an id that only ends like one left", id: `x${palette.id}`, leftForView: false },
+    ])("tells $case apart without its content: $leftForView", ({ id, leftForView }) => {
+        expect(isLeftForView(id, answers)).toBe(leftForView);
+    });
+
+    it.each([
+        { case: "an id with a # in it", id: "/work/rules#2", leftForView: true },
+        { case: "an id another one extends past a #", id: "/work/rules", leftForView: false },
+    ])("tells $case apart: $leftForView", ({ id, leftForView }) => {
+        const leftWithHash = new Map<string, SessionAnswer>([
+            [
+                declineKeyOf({ id: "/work/rules#2", name: "rules", contentHash: "r2" }),
+                "leftForView",
+            ],
+        ]);
+
+        expect(isLeftForView(id, leftWithHash)).toBe(leftForView);
+    });
+
     it("names each answer a session can hold", () => {
         expectTypeOf<SessionAnswer>().toEqualTypeOf<(typeof SESSION_ANSWERS)[number]>();
         expect(SESSION_ANSWERS).toEqual(["declined", "leftForView"]);
@@ -629,8 +660,40 @@ describe("needsContentHash", () => {
             declined: [`${resize.id}-evil#aaa`, `x${resize.id}#aaa`],
             needed: false,
         },
+        {
+            case: "only a decline of an id that extends this one past a #",
+            approvals: [],
+            declined: [`${resize.id}#2#aaa`],
+            needed: false,
+        },
+        {
+            case: "only a key without a content hash",
+            approvals: [],
+            declined: [`${resize.id}x`],
+            needed: false,
+        },
     ])("is $needed with $case", ({ approvals, declined, needed }) => {
         expect(needsContentHash(resize.id, approvals, new Set(declined))).toBe(needed);
+    });
+});
+
+describe("isApprovedState", () => {
+    it.each(CODE_STATES.map((state) => ({ state, approved: state === "approved" })))(
+        "is $approved for $state",
+        ({ state, approved }) => {
+            expect(isApprovedState(state)).toBe(approved);
+        },
+    );
+});
+
+describe("presenceIdOf", () => {
+    it.each<CodePresence>([
+        { kind: "found", artifact: resize },
+        { kind: "unhashed", id: resize.id },
+        { kind: "unreadable", id: resize.id, reason: "no manifest" },
+        { kind: "gone", id: resize.id },
+    ])("names the place of code read as $kind", (presence) => {
+        expect(presenceIdOf(presence)).toBe(resize.id);
     });
 });
 

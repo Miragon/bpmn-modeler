@@ -19,7 +19,12 @@ import { join } from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
-import { approvedContent, PluginApproval } from "@miragon/bpmn-modeler-core";
+import {
+    AddOnCatalogModel,
+    AddOnsFeature,
+    approvedContent,
+    PluginApproval,
+} from "@miragon/bpmn-modeler-core";
 
 import {
     hostNotification,
@@ -50,6 +55,7 @@ const isPluginsAnswer = (frame: Frame) =>
 
 interface Bridge {
     readonly rpc: Rpc;
+    readonly addOns: AddOnsFeature;
     readonly frames: Frame[];
     readonly root: string;
     readonly cacheRoot: string;
@@ -84,7 +90,7 @@ async function bridgeWithPlugin(): Promise<Bridge> {
             [root, cacheRoot].map((dir) => fs.rm(dir, { recursive: true, force: true })),
         );
     });
-    return { rpc: bridge.rpc, frames, root, cacheRoot, pluginId };
+    return { rpc: bridge.rpc, addOns: bridge.addOns, frames, root, cacheRoot, pluginId };
 }
 
 async function openEditor(
@@ -122,6 +128,36 @@ async function requestPlugins({ rpc, frames }: Bridge, editorId: string): Promis
 }
 
 describe("workspace bpmn-js plugins on the bridge", () => {
+    it("lists the registered folder's plugin for a view, at the state the host stores", async () => {
+        const bridge = await bridgeWithPlugin();
+        await openEditor(bridge, "order.bpmn");
+        const models: AddOnCatalogModel[] = [];
+
+        bridge.addOns.attachView((model) => models.push(model), true);
+        const answerRead = async (fromIndex: number): Promise<number> => {
+            const read = await waitForFrame(bridge.frames, isRequest("pluginApprovals/read"), {
+                fromIndex,
+            });
+            await bridge.rpc.handleLine(
+                hostReply(read.id, {
+                    approvals: [{ pluginId: bridge.pluginId, contentHash: HASH }],
+                    revision: 2,
+                }),
+            );
+            return bridge.frames.indexOf(read) + 1;
+        };
+        // The first answer changes the mirror, so the catalog lists, and reads, again.
+        await answerRead(await answerRead(0));
+        await bridge.addOns.whenSettled();
+
+        const addOns = models[models.length - 1]?.groups.flatMap(({ sources }) =>
+            sources.flatMap((source) => source.addOns),
+        );
+        expect(addOns?.map(({ name, state }) => ({ name, state }))).toEqual([
+            { name: "Resize Tasks", state: "approved" },
+        ]);
+    });
+
     it("serves a plugin the registered approvals allow from the plugin cache route", async () => {
         const bridge = await bridgeWithPlugin();
         const editorId = await openEditor(bridge, "order.bpmn", [

@@ -7,6 +7,7 @@ import {
     type CodeState,
     declineKeyOf,
     type FollowedApprovalChange,
+    type ProcessRestart,
 } from "../../../kernel/domain/codeApproval";
 import {
     type BlockedRulePackage,
@@ -14,6 +15,9 @@ import {
     closureDigestInput,
     type ClosureMember,
     editorsToRelint,
+    installedPackageNameOf,
+    installedPackagesDirOf,
+    nodeModulesDirOf,
     isParsedAsJson,
     isRulePackageApproval,
     loadsWithoutApproval,
@@ -22,6 +26,7 @@ import {
     requestedPackageNameOf,
     RULE_PACKAGE_APPROVAL_NOTICE_ID,
     RULE_PACKAGE_APPROVAL_PROMPT_ID,
+    RULE_PACKAGE_CODE_TEXTS,
     RULE_PACKAGE_CONTENT_HASH_PREFIX,
     ruleModuleRootOf,
     type RuleModuleRoot,
@@ -34,6 +39,8 @@ import {
     type RulePackageVerdict,
     type RulePackageVerdictContext,
     rulePackageVerdict,
+    rootKindOf,
+    type RootKindFacts,
     type ResolvedRuleModule,
 } from "./rulePackageApproval";
 
@@ -727,7 +734,7 @@ describe("rule package approval question", () => {
 
         expect([prompt.title, prompt.placeholder]).toEqual([
             "Allow a bpmnlint rule package from this workspace?",
-            "A rule package runs as a program with your user's rights, not only inside the editor. Check it only if you trust it; open editors lint again with it.",
+            "A rule package runs as a program with your user's rights, not only inside the editor. Check it only if you trust it. Open editors lint again with it.",
         ]);
     });
 
@@ -751,5 +758,96 @@ describe("rule package approval question", () => {
             rulePackageApprovalPrompt([{ artifact: linked, state: "new" }], ["/repo"]).items[0]
                 ?.description,
         ).toBe("new · /work/acme-rules");
+    });
+});
+
+describe("installedPackageNameOf", () => {
+    it.each([
+        { id: "/work/node_modules/bpmnlint-plugin-acme", name: "bpmnlint-plugin-acme" },
+        { id: "/work/node_modules/@acme/bpmnlint-plugin", name: "@acme/bpmnlint-plugin" },
+        { id: "/work/node_modules/a/node_modules/bpmnlint-plugin-b", name: "bpmnlint-plugin-b" },
+        { id: "/work/packages/rules", name: "rules" },
+    ])("names $id $name", ({ id, name }) => {
+        expect(installedPackageNameOf(id)).toBe(name);
+    });
+});
+
+describe("nodeModulesDirOf", () => {
+    it("names the node_modules a folder installs its packages in", () => {
+        expect(nodeModulesDirOf("/work/orders")).toBe("/work/orders/node_modules");
+    });
+});
+
+describe("installedPackagesDirOf", () => {
+    it.each([
+        { id: "/work/node_modules/bpmnlint-plugin-acme", dir: "/work/node_modules" },
+        { id: "/work/node_modules/@acme/bpmnlint-plugin", dir: "/work/node_modules" },
+        {
+            id: "/work/node_modules/a/node_modules/bpmnlint-plugin-b",
+            dir: "/work/node_modules/a/node_modules",
+        },
+        { id: "/work/packages/rules", dir: undefined },
+    ])("puts $id in $dir", ({ id, dir }) => {
+        expect(installedPackagesDirOf(id)).toBe(dir);
+    });
+});
+
+describe("rootKindOf", () => {
+    const none: RootKindFacts = { realConfigDirs: [], linkedFromNodeModules: false };
+
+    it.each<{ case: string; id: string; facts: RootKindFacts; root: RuleModuleRoot | undefined }>([
+        {
+            case: "the kind the gate reported, over everything else",
+            id: "/work",
+            facts: { ...none, reported: "package", realConfigDirs: ["/work"] },
+            root: { kind: "package", id: "/work" },
+        },
+        {
+            case: "a lint config's folder as the config's own package",
+            id: "/work",
+            facts: { ...none, realConfigDirs: ["/other", "/work"] },
+            root: { kind: "selfPackage", id: "/work" },
+        },
+        {
+            case: "a folder below node_modules as a package",
+            id: "/work/node_modules/bpmnlint-plugin-acme",
+            facts: none,
+            root: { kind: "package", id: "/work/node_modules/bpmnlint-plugin-acme" },
+        },
+        {
+            case: "a folder a node_modules entry links to as a package",
+            id: "/work/packages/rules",
+            facts: { ...none, realConfigDirs: ["/work"], linkedFromNodeModules: true },
+            root: { kind: "package", id: "/work/packages/rules" },
+        },
+        {
+            case: "a linked folder that holds a lint config as refused, as the gate refuses it",
+            id: "/repo",
+            facts: {
+                ...none,
+                realConfigDirs: ["/other", "/repo/modeling"],
+                linkedFromNodeModules: true,
+            },
+            root: { kind: "refused", reason: "linkHoldsConfigFolder" },
+        },
+        {
+            case: "any other folder as not known yet",
+            id: "/work",
+            facts: { ...none, realConfigDirs: ["/work/orders"] },
+            root: undefined,
+        },
+    ])("tells $case", ({ id, facts, root }) => {
+        expect(rootKindOf(id, facts)).toEqual(root);
+    });
+});
+
+describe("RULE_PACKAGE_CODE_TEXTS", () => {
+    it.each<{ restart: ProcessRestart; until: string }>([
+        { restart: "reloadWindow", until: "reload the window" },
+        { restart: "restartIde", until: "restart the IDE" },
+    ])("says a revoked package's code stays loaded until you $until", ({ restart, until }) => {
+        expect(RULE_PACKAGE_CODE_TEXTS.revokedFollowUp(restart)).toBe(
+            `Code it already ran stays loaded until you ${until}.`,
+        );
     });
 });

@@ -20,6 +20,9 @@ import {
     type PackageManifest,
     type PathStamp,
     samePathStamp,
+    InstalledEntry,
+    rulePackageFolderNames,
+    rulePackageScopesToList,
 } from "./packageClosure";
 
 const STAMP: PathStamp = {
@@ -499,5 +502,67 @@ describe("exceedsClosureSizeLimit", () => {
         expect(exceedsClosureSizeLimit({ entries: 3, bytes: 0 }, { entries: 2, bytes: 9 })).toBe(
             true,
         );
+    });
+});
+
+describe("rulePackageFolderNames", () => {
+    const entry = (name: string, kind: InstalledEntry["kind"] = "directory"): InstalledEntry => ({
+        name,
+        kind,
+    });
+
+    it("lists the scopes to look into, never a scope that is a file", () => {
+        expect(
+            rulePackageScopesToList([
+                entry("@acme"),
+                entry("@linked", "symbolicLink"),
+                entry("@file", "file"),
+                entry("bpmnlint-plugin-acme"),
+            ]),
+        ).toEqual(["@acme", "@linked"]);
+    });
+
+    it.each<{
+        case: string;
+        entries: InstalledEntry[];
+        scoped: [string, InstalledEntry[]][];
+        names: string[];
+    }>([
+        {
+            case: "rule packages by the name bpmnlint resolves a plugin to",
+            entries: [entry("bpmnlint-plugin-acme"), entry("bpmnlint-plugin"), entry("bpmnlint")],
+            scoped: [],
+            names: ["bpmnlint-plugin", "bpmnlint-plugin-acme"],
+        },
+        {
+            case: "a linked package, as pnpm and yarn install one",
+            entries: [entry("bpmnlint-plugin-linked", "symbolicLink")],
+            scoped: [],
+            names: ["bpmnlint-plugin-linked"],
+        },
+        {
+            case: "no file and no name that only looks alike",
+            entries: [
+                entry("bpmnlint-plugin-file", "file"),
+                entry("my-bpmnlint-plugin-acme"),
+                entry("bpmnlint-pluginacme"),
+                entry("bpmnlint-plugin-other", "other"),
+            ],
+            scoped: [],
+            names: [],
+        },
+        {
+            case: "scoped rule packages below their scope",
+            entries: [entry("@acme")],
+            scoped: [
+                [
+                    "@acme",
+                    [entry("bpmnlint-plugin"), entry("bpmnlint-plugin-rules"), entry("utils")],
+                ],
+            ],
+            names: ["@acme/bpmnlint-plugin", "@acme/bpmnlint-plugin-rules"],
+        },
+    ])("finds $case", ({ entries, scoped, names }) => {
+        expect(rulePackageFolderNames(entries, new Map(scoped))).toEqual(names);
     });
 });

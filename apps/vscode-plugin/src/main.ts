@@ -12,6 +12,7 @@ import * as compareFeature from "./composition/compareFeature";
 import * as commandsFeature from "./composition/commandsFeature";
 import * as deploymentFeature from "./composition/deploymentFeature";
 import * as templateMarketplaceFeature from "./composition/templateMarketplaceFeature";
+import * as addOnsFeature from "./composition/addOnsFeature";
 
 /** Narrow API surface returned by `activate()` for e2e tests only. */
 export interface TestApi {
@@ -28,7 +29,7 @@ export interface TestApi {
  * The register order is observable (it is the order custom editors, providers,
  * and commands become available): diff → script → marketplace (service) →
  * deployment → BPMN editor → DMN and Form editors → marketplace (commands) →
- * template preview → compare → commands. Handles flow forward only: the BPMN
+ * add-on catalog → template preview → compare → commands. Handles flow forward only: the BPMN
  * editor routes into diff's controller, the script editor's contribution, the
  * marketplace service and the deployment status; later features reuse handles
  * the earlier ones returned.
@@ -51,7 +52,7 @@ export function activate(context: ExtensionContext): TestApi {
     // Before the BPMN editor so its status bar participant can join the BPMN
     // session participant list (the same forward hand-off as the script editor).
     const { deploymentStatusParticipant } = deploymentFeature.register(context, deps);
-    const bpmnEditor = bpmnEditorFeature.register(context, deps, {
+    const { editor: bpmnEditor, plugins } = bpmnEditorFeature.register(context, deps, {
         diffController,
         marketplaceSvc,
         deploymentStatusParticipant,
@@ -62,6 +63,7 @@ export function activate(context: ExtensionContext): TestApi {
         marketplaceSvc,
         templatesSvc: bpmnEditor.templates,
     });
+    addOnsFeature.register(context, deps, { editor: bpmnEditor, plugins });
     elementTemplateFeature.register(context, deps);
     compareFeature.register(context, deps, { diffController });
     commandsFeature.register(context, deps, {

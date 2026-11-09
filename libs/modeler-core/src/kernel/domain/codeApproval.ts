@@ -25,6 +25,11 @@ export type CodeState = (typeof CODE_STATES)[number];
 
 export type ApprovalState = Extract<CodeState, "approved" | "new" | "changed">;
 
+/** An approval covers the content as it is now. */
+export function isApprovedState(state: CodeState): state is "approved" {
+    return state === "approved";
+}
+
 /** How the approval list and the log name each state, inside a sentence or after a separator. */
 export const CODE_STATE_TEXT: Record<CodeState, string> = {
     approved: "allowed",
@@ -45,11 +50,33 @@ export const PROCESS_RESTART_TEXT: Record<ProcessRestart, string> = {
 };
 
 /** Code at one place as an owner last read it; `unhashed` was read without hashing its content. */
-export type CodePresence =
-    | { readonly kind: "found"; readonly artifact: ApprovableArtifact }
+export type CodePresence<A extends ApprovableArtifact = ApprovableArtifact> =
+    | { readonly kind: "found"; readonly artifact: A }
     | { readonly kind: "unhashed"; readonly id: string }
     | { readonly kind: "unreadable"; readonly id: string; readonly reason: string }
     | { readonly kind: "gone"; readonly id: string };
+
+export function presenceIdOf(presence: CodePresence): string {
+    return presence.kind === "found" ? presence.artifact.id : presence.id;
+}
+
+/** Code as its owner lists it for a review: what runs, and what else the user may want to know. */
+export interface ListedCode extends ApprovableArtifact {
+    readonly version?: string;
+    /** Every file or folder the content hash covers. */
+    readonly files: readonly string[];
+}
+
+/** What an owner says of its code: what it can do once allowed, and what follows an allow or a revoke. */
+export interface ApprovableCodeTexts {
+    readonly risk: string;
+    readonly allowedFollowUp: string;
+    /** Also the note of a row whose code its owner says stays loaded after a revoke. */
+    readonly revokedFollowUp: (restart: ProcessRestart) => string;
+}
+
+/** Code as its owner lists it, named even when it could not be read. */
+export type ListedPresence = CodePresence<ListedCode> & { readonly name: string };
 
 export type CodeStateReading<S extends CodeState = CodeState> =
     { readonly kind: "state"; readonly state: S } | { readonly kind: "hashNeeded" };
@@ -81,7 +108,7 @@ export function approvedArtifacts<A extends ApprovableArtifact>(
     artifacts: readonly A[],
     approvals: readonly CodeApproval[],
 ): A[] {
-    return artifacts.filter((artifact) => approvalStateOf(artifact, approvals) === "approved");
+    return artifacts.filter((artifact) => isApprovedState(approvalStateOf(artifact, approvals)));
 }
 
 /**
@@ -217,11 +244,16 @@ export function needsContentHash(
     approvals: readonly CodeApproval[],
     declined: ReadonlySet<string>,
 ): boolean {
-    const declineKeyPrefix = declineKeyOf({ id, name: id, contentHash: "" });
     return (
         approvalRowOf(id, approvals) !== undefined ||
-        [...declined].some((key) => key.startsWith(declineKeyPrefix))
+        [...declined].some((key) => isAnswerKeyOf(id, key))
     );
+}
+
+/** A path id can hold a `#`; a content hash never does, so the key's last `#` ends the id. */
+function isAnswerKeyOf(id: string, key: string): boolean {
+    const idEnd = key.lastIndexOf("#");
+    return idEnd !== -1 && key.slice(0, idEnd) === id;
 }
 
 /** An approval of this content wins over a decline of it earlier in the session. */
@@ -231,7 +263,7 @@ export function foundCodeState(
     declined: ReadonlySet<string>,
 ): Exclude<CodeState, "gone"> {
     const state = approvalStateOf(artifact, approvals);
-    return state !== "approved" && declined.has(declineKeyOf(artifact)) ? "declined" : state;
+    return !isApprovedState(state) && declined.has(declineKeyOf(artifact)) ? "declined" : state;
 }
 
 /** A row decides `changed` for code that cannot be read, so the user still sees what was allowed there. */
@@ -304,7 +336,7 @@ export function pendingApprovals<A extends ApprovableArtifact>(
 ): PendingCodeApproval<A>[] {
     return artifacts.flatMap((artifact) => {
         const state = approvalStateOf(artifact, approvals);
-        return state === "approved" || notAskedAgain.has(declineKeyOf(artifact))
+        return isApprovedState(state) || notAskedAgain.has(declineKeyOf(artifact))
             ? []
             : [{ artifact, state }];
     });
@@ -354,6 +386,15 @@ export function approvalOutcome<A extends ApprovableArtifact>(
 /** No notice asks again about content the user declined or left to a view, until it changes. */
 export function notAskedAgain(answers: ReadonlyMap<string, SessionAnswer>): ReadonlySet<string> {
     return new Set(answers.keys());
+}
+
+/**
+ * Whether some content of `id` was left to a view: no notice asks about it
+ * again this session, whatever its content is now, since telling would take
+ * a hash a lint should not pay for.
+ */
+export function isLeftForView(id: string, answers: ReadonlyMap<string, SessionAnswer>): boolean {
+    return [...answers].some(([key, answer]) => answer === "leftForView" && isAnswerKeyOf(id, key));
 }
 
 /** Content left to a view keeps its state, so only a decline changes what the gate reports. */

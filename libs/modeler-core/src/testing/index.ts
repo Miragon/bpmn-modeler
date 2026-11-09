@@ -39,3 +39,4 @@ export * from "./tokenPromptContract";
 export * from "./tokenStoreContract";
 export * from "./workspaceContract";
 export * from "./surfaceCoverage";
+export * from "./RecordingAddOnView";

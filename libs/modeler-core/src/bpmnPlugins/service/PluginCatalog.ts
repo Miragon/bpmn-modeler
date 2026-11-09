@@ -3,6 +3,8 @@ import { ChoicePrompt } from "../../kernel/domain/prompts";
 import { LoggerPort } from "../../kernel/port/hostPorts";
 import {
     allowing,
+    ApprovableArtifact,
+    declineKeyOf,
     notAskedAgain,
     ReviewAnswer,
     SessionAnswer,
@@ -39,6 +41,7 @@ export interface PluginSelection {
  */
 export class PluginCatalog {
     private readonly answers = new Map<string, SessionAnswer>();
+    private readonly answerListeners = new Set<() => void>();
 
     constructor(
         private readonly locator: WorkspacePluginLocator,
@@ -64,6 +67,22 @@ export class PluginCatalog {
         return this.stillPending(pending.map(({ artifact }) => artifact));
     }
 
+    /** By `declineKeyOf`: what the user answered this session about each content. */
+    sessionAnswers(): ReadonlyMap<string, SessionAnswer> {
+        return this.answers;
+    }
+
+    /** No notice asks about this content again this session; a view shows it instead. */
+    leaveForView(artifact: ApprovableArtifact): void {
+        this.answers.set(declineKeyOf(artifact), "leftForView");
+        this.answerListeners.forEach((listener) => listener());
+    }
+
+    onDidAnswer(listener: () => void): { dispose(): void } {
+        this.answerListeners.add(listener);
+        return { dispose: () => this.answerListeners.delete(listener) };
+    }
+
     reviewNotice(pending: readonly PendingApproval[]): ActionNotice<PluginApprovalNoticeAction> {
         return pluginApprovalNotice(pending);
     }
@@ -87,6 +106,9 @@ export class PluginCatalog {
     ): Promise<readonly WorkspacePlugin[]> {
         const outcome = approvalOutcome(pending, answer);
         outcome.answers.forEach((each, key) => this.answers.set(key, each));
+        if (outcome.answers.size > 0) {
+            this.answerListeners.forEach((listener) => listener());
+        }
         if (outcome.allowed.length > 0) {
             await this.approvals.change(allowing(outcome.allowed));
             this.logger.logInfo(

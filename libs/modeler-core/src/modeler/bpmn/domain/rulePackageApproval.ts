@@ -3,17 +3,21 @@ import { posix } from "path";
 import { ActionNotice } from "../../../kernel/domain/actionNotice";
 import {
     ApprovableArtifact,
+    ApprovableCodeTexts,
     ApprovalNoticeAction,
     approvalsKey,
     CodeApproval,
     CodeState,
     codeStateOf,
     FollowedApprovalChange,
+    isApprovedState,
     PendingCodeApproval,
     pendingApprovalDescription,
+    PROCESS_RESTART_TEXT,
 } from "../../../kernel/domain/codeApproval";
 import { ChoicePrompt } from "../../../kernel/domain/prompts";
 import { isRootedPath, isWithinRoot } from "../../../kernel/domain/rootContainment";
+import { joinWorkspacePath } from "../../../kernel/domain/workspacePath";
 
 /**
  * Marks a row in the shared approval list as a rule package's and names the
@@ -120,14 +124,19 @@ export function ruleModuleRootOf(module: ResolvedRuleModule): RuleModuleRoot {
     }
     const linked = module.requestedPackageDir;
     if (linked !== undefined && isWithinRoot(module.file, linked)) {
-        return isWithinRoot(module.configDir, linked)
-            ? { kind: "refused", reason: "linkHoldsConfigFolder" }
-            : { kind: "package", id: linked };
+        return linkedPackageRoot(linked, [module.configDir]);
     }
     if (module.requestsSelfPackage && isWithinRoot(module.file, module.configDir)) {
         return { kind: "selfPackage", id: module.configDir };
     }
     return { kind: "refused", reason: "outsideNodeModules" };
+}
+
+/** A linked folder that holds a lint config would let one approval cover that config's repo. */
+function linkedPackageRoot(linked: string, configDirs: readonly string[]): RuleModuleRoot {
+    return configDirs.some((configDir) => isWithinRoot(configDir, linked))
+        ? { kind: "refused", reason: "linkHoldsConfigFolder" }
+        : { kind: "package", id: linked };
 }
 
 /** The last `node_modules`, so a nested package is its own unit and never its parent's. */
@@ -198,7 +207,7 @@ export function rulePackageVerdict(
     if (reading.kind === "hashNeeded") {
         return reading;
     }
-    return reading.state === "approved"
+    return isApprovedState(reading.state)
         ? { kind: "admitted", via: "approval" }
         : { kind: "blocked", state: reading.state };
 }
@@ -264,6 +273,13 @@ export function rulePackageApprovalNotice(
     };
 }
 
+export const RULE_PACKAGE_CODE_TEXTS: ApprovableCodeTexts = {
+    risk: "A rule package runs as a program with your user's rights, not only inside the editor.",
+    allowedFollowUp: "Open editors lint again with it.",
+    revokedFollowUp: (restart) =>
+        `Code it already ran stays loaded until you ${PROCESS_RESTART_TEXT[restart]}.`,
+};
+
 export function rulePackageApprovalPrompt(
     pending: readonly PendingRulePackage[],
     workspaceFolders: readonly string[],
@@ -275,7 +291,7 @@ export function rulePackageApprovalPrompt(
             ? "Allow a bpmnlint rule package from this workspace?"
             : "Allow bpmnlint rule packages from this workspace?",
         placeholder: single
-            ? "A rule package runs as a program with your user's rights, not only inside the editor. Check it only if you trust it; open editors lint again with it."
+            ? `${RULE_PACKAGE_CODE_TEXTS.risk} Check it only if you trust it. ${RULE_PACKAGE_CODE_TEXTS.allowedFollowUp}`
             : "Rule packages run as programs with your user's rights, not only inside the editor. Check only the ones you trust; open editors lint again with them.",
         items: pending.map((each) => ({
             label: `${each.artifact.name} ${each.artifact.version}`,
@@ -296,4 +312,53 @@ export function isParsedAsJson(path: string): boolean {
 /** A built-in module, which resolves to no path, or JSON data. */
 export function loadsWithoutApproval(resolved: string): boolean {
     return !isRootedPath(resolved) || isParsedAsJson(resolved);
+}
+
+/** A package's name as its folder below the last `node_modules` spells it, else the folder's own name. */
+export function installedPackageNameOf(id: string): string {
+    const segments = id.split("/");
+    const nodeModules = segments.lastIndexOf(NODE_MODULES);
+    if (nodeModules === -1) {
+        return segments[segments.length - 1];
+    }
+    return segments.slice(nodeModules + 1).join("/");
+}
+
+export function nodeModulesDirOf(dir: string): string {
+    return joinWorkspacePath(dir, NODE_MODULES);
+}
+
+/** The last `node_modules` a package folder is installed in; `undefined` for a folder outside every one. */
+export function installedPackagesDirOf(id: string): string | undefined {
+    const segments = id.split("/");
+    const nodeModules = segments.lastIndexOf(NODE_MODULES);
+    return nodeModules === -1 ? undefined : segments.slice(0, nodeModules + 1).join("/");
+}
+
+export interface RootKindFacts {
+    /** The kind the gate reported, when it blocked the folder this session. */
+    readonly reported?: BlockedRulePackage["kind"];
+    /** The real folders of the lint configs read so far. */
+    readonly realConfigDirs: readonly string[];
+    /** A `node_modules` entry links to the folder. */
+    readonly linkedFromNodeModules: boolean;
+}
+
+/**
+ * How the gate would hash a folder, or why it refuses it: the config's own
+ * package hashes without its models, and a linked folder holding a config
+ * read so far is refused. A folder outside `node_modules` that is neither a
+ * config's folder read so far nor linked from one cannot be told yet.
+ */
+export function rootKindOf(id: string, facts: RootKindFacts): RuleModuleRoot | undefined {
+    if (facts.reported !== undefined) {
+        return { kind: facts.reported, id };
+    }
+    if (facts.realConfigDirs.includes(id)) {
+        return { kind: "selfPackage", id };
+    }
+    if (installedPackagesDirOf(id) !== undefined) {
+        return { kind: "package", id };
+    }
+    return facts.linkedFromNodeModules ? linkedPackageRoot(id, facts.realConfigDirs) : undefined;
 }

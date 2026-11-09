@@ -78,6 +78,7 @@ import { ElementTemplatesParticipant } from "../service/ElementTemplatesParticip
 import { EngineVersionStatusBarParticipant } from "../service/EngineVersionStatusBarParticipant";
 import { PackageClosureFingerprinter } from "../service/PackageClosureFingerprinter";
 import { RulePackageCatalog } from "../service/RulePackageCatalog";
+import { RulePackageInventory } from "../service/RulePackageInventory";
 
 /** The document plumbing: a host routes all three to the core's document services, or none. */
 export const DOCUMENT_SYNC_COMMAND_TYPES = [
@@ -112,7 +113,7 @@ export interface BpmnRulePackagePorts {
     readonly approvals: PluginApprovalStorePort;
     readonly installedPackages: InstalledPackagesPort;
     readonly actionNotifier: ActionNotifierPort;
-    /** Shared with the host's other approval questions, so each answer reads the list the one before wrote. */
+    /** Shared with the host's other approval questions, so two notices never stand side by side. */
     readonly questions: QuestionQueue;
     /** Where "Review…" takes the user, as {@link reviewOrChecklist} defaults it. */
     readonly review?: ApprovalReviewPort;
@@ -178,6 +179,8 @@ export class BpmnEditorFeature {
     readonly lintConfig: BpmnLintConfigService;
     /** Absent without {@link BpmnRulePackagePorts}. */
     readonly rulePackageCatalog?: RulePackageCatalog;
+    /** What the add-on catalog lists of the rule packages; absent without {@link BpmnRulePackagePorts}. */
+    readonly rulePackageInventory?: RulePackageInventory;
     readonly router: WebviewMessageRouter;
     readonly participants: readonly EditorSessionParticipant[];
 
@@ -212,8 +215,9 @@ export class BpmnEditorFeature {
             ports.settings,
             ports.artifacts,
         );
-        const { linter, approvals } = this.rulePackageLinting(ports.rulePackages);
+        const { linter, approvals, inventory } = this.rulePackageLinting(ports.rulePackages);
         this.rulePackageCatalog = approvals?.catalog;
+        this.rulePackageInventory = inventory;
         const lintConfig = (this.lintConfig = new BpmnLintConfigService(
             ports.store,
             ports.documents,
@@ -345,6 +349,7 @@ export class BpmnEditorFeature {
     private rulePackageLinting(rulePackages: BpmnRulePackagePorts | undefined): {
         readonly linter: NodeBpmnLinter;
         readonly approvals?: RulePackageApprovals;
+        readonly inventory?: RulePackageInventory;
     } {
         if (rulePackages === undefined) {
             return { linter: new NodeBpmnLinter() };
@@ -361,6 +366,7 @@ export class BpmnEditorFeature {
         );
         return {
             approvals: { catalog, question },
+            inventory: new RulePackageInventory(catalog, fingerprints, installedPackages),
             linter: new NodeBpmnLinter({
                 approvals,
                 fingerprints,

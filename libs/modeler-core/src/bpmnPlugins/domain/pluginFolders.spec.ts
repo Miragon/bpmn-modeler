@@ -1,10 +1,30 @@
 import { describe, expect, it } from "vitest";
 
 import {
+    configFolderOfPlugin,
     isPluginFolderName,
     pluginFolderChangedBy,
     type PluginFolderChange,
+    pluginsDirOf,
 } from "./pluginFolders";
+
+describe("plugin folder layout", () => {
+    it.each([
+        { configFolder: ".camunda", dir: "/work/.camunda/plugins" },
+        { configFolder: "config/camunda", dir: "/work/config/camunda/plugins" },
+    ])("keeps the plugins of $configFolder in $dir", ({ configFolder, dir }) => {
+        expect(pluginsDirOf("/work", configFolder)).toBe(dir);
+    });
+
+    it.each([
+        { id: "/work/.camunda/plugins/resize", dir: "/work/.camunda" },
+        { id: "/work/orders/.camunda/plugins/resize", dir: "/work/orders/.camunda" },
+        { id: "/plugins/resize", dir: "/" },
+        { id: "/resize", dir: "/" },
+    ])("puts plugin $id in the config folder $dir", ({ id, dir }) => {
+        expect(configFolderOfPlugin(id)).toBe(dir);
+    });
+});
 
 const PLUGINS = "/repo/.camunda/plugins";
 

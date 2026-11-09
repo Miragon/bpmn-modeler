@@ -1,12 +1,14 @@
 import { ActionNotice } from "../../kernel/domain/actionNotice";
 import {
     ApprovableArtifact,
+    ApprovableCodeTexts,
     ApprovalNoticeAction,
     ApprovalState,
     approvalStateOf,
     approvedArtifacts,
     CodeApproval,
     CodeApprovalOutcome,
+    isApprovedState,
     PendingCodeApproval,
     pendingApprovalDescription,
 } from "../../kernel/domain/codeApproval";
@@ -50,6 +52,13 @@ export function approvedContent(script: string, style: string | undefined): stri
     const lengthPrefixed = (text: string) => `${text.length}:${text}`;
     return lengthPrefixed(script) + (style === undefined ? NO_STYLE : lengthPrefixed(style));
 }
+
+/** The prompt below says the same of several plugins. */
+export const PLUGIN_CODE_TEXTS: ApprovableCodeTexts = {
+    risk: "A plugin runs its own code in the BPMN editor.",
+    allowedFollowUp: "Open editors reload with it.",
+    revokedFollowUp: () => "Open editors reload without it.",
+};
 
 export function pluginApprovalPrompt(
     pending: readonly PendingApproval[],
@@ -105,7 +114,7 @@ export function editorsToReload(
     approvals: readonly CodeApproval[],
 ): string[] {
     const isApproved = (plugin: ApprovableArtifact) =>
-        approvalStateOf(plugin, approvals) === "approved";
+        isApprovedState(approvalStateOf(plugin, approvals));
     return [...offeredByEditor]
         .filter(
             ([, { served, withheld }]) =>
@@ -168,6 +177,11 @@ const CACHED_FILE_NAMES = [CACHED_SCRIPT, CACHED_STYLE].map(escapeRegExpLiteral)
 export const CACHED_PLUGIN_FILE_PATTERN = `${PLUGIN_CONTENT_HASH_PATTERN}/(?:${CACHED_FILE_NAMES})`;
 
 const PLUGIN_CACHE_ENTRY = new RegExp(`^${PLUGIN_CONTENT_HASH_PATTERN}$`);
+
+/** A plugin's row in the shared list: a rule package's hash carries a prefix. */
+export function isPluginApproval({ contentHash }: CodeApproval): boolean {
+    return PLUGIN_CACHE_ENTRY.test(contentHash);
+}
 
 /**
  * The copies no stored approval names, of any workspace or project. Only a

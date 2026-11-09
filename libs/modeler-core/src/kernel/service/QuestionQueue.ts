@@ -1,8 +1,8 @@
 /**
  * One question to the user open at a time, across every approval kind. A host
- * composition shares one queue, so two notices never stand side by side and
- * each answer reads the approval list the previous one wrote: a store such as
- * the bridge's sets its list only after the host acknowledged the save.
+ * composition shares one queue, so two notices never stand side by side. It
+ * orders questions for the user, not writes: each answer is a change the host
+ * merges, so no answer can drop a row another one stored.
  */
 export class QuestionQueue {
     private last: Promise<unknown> = Promise.resolve();

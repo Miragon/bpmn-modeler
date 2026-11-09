@@ -20,6 +20,11 @@ const CLOSURE_REFUSAL_TEXT: Record<ClosureRefusal, string> = {
     unsupportedLayout: "is installed in a layout the check does not support",
 };
 
+/** Why a module, or a folder the catalog would list, can run under no approval. */
+export function ruleModuleRefusalText(reason: ModuleRefusal): string {
+    return MODULE_REFUSAL_TEXT[reason];
+}
+
 function byId(blocked: readonly BlockedRulePackage[]): BlockedRulePackage[] {
     return [...new Map(blocked.map((each) => [each.id, each])).values()];
 }
@@ -52,8 +57,24 @@ export function shadowedRulePackageLogLine(
 
 export function refusedRuleModuleLogLine(refused: RefusedRuleModule): string {
     if (refused.kind === "module") {
-        return `bpmnlint: refused to run ${refused.file}: ${MODULE_REFUSAL_TEXT[refused.reason]}.`;
+        return `bpmnlint: refused to run ${refused.file}: ${ruleModuleRefusalText(refused.reason)}.`;
     }
-    const member = refused.memberDir === refused.id ? "it" : `its dependency ${refused.memberDir}`;
-    return `bpmnlint: rule package ${refused.id} cannot be allowed: ${member} ${CLOSURE_REFUSAL_TEXT[refused.reason]}.`;
+    return `bpmnlint: rule package ${refused.id} cannot be allowed: ${closureRefusalText(refused)}.`;
+}
+
+/** Why a folder no lint has told how to hash cannot be allowed yet. */
+export const ROOT_KIND_UNKNOWN_TEXT = "lint a diagram that uses it first";
+
+/** Why a rule package cannot be allowed, as a clause that names it or its dependency. */
+export function closureRefusalText({
+    id,
+    memberDir,
+    reason,
+}: {
+    readonly id: string;
+    readonly memberDir: string;
+    readonly reason: ClosureRefusal;
+}): string {
+    const member = memberDir === id ? "it" : `its dependency ${memberDir}`;
+    return `${member} ${CLOSURE_REFUSAL_TEXT[reason]}`;
 }

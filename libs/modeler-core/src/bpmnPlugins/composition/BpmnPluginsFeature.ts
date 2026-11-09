@@ -16,6 +16,7 @@ import { ContentHasherPort, PluginApprovalStorePort } from "../port/pluginPorts"
 import { BpmnPluginService } from "../service/BpmnPluginService";
 import { BpmnPluginsParticipant } from "../service/BpmnPluginsParticipant";
 import { PluginCatalog } from "../service/PluginCatalog";
+import { PluginInventory } from "../service/PluginInventory";
 import { WorkspacePluginLocator } from "../service/WorkspacePluginLocator";
 
 export interface BpmnPluginsHostPorts {
@@ -30,11 +31,7 @@ export interface BpmnPluginsHostPorts {
     readonly cacheRoot: string;
     /** SHA-256 needs a host's crypto; the core imports no host module. */
     readonly hasher: ContentHasherPort;
-    /**
-     * The host's one queue for every approval question: a queue of its own would
-     * show two notices at once, and the second answer would write over the list
-     * the first one saved.
-     */
+    /** The host's one queue for every approval question: a queue of its own would show two notices at once. */
     readonly questions: QuestionQueue;
     /** Where "Review…" takes the user, as {@link reviewOrChecklist} defaults it. */
     readonly review?: ApprovalReviewPort;
@@ -49,6 +46,8 @@ export class BpmnPluginsFeature {
     readonly editorContribution: EditorContribution<"GetBpmnPluginsCommand">;
     readonly catalog: PluginCatalog;
     readonly service: BpmnPluginService;
+    /** What the add-on catalog lists of the plugins. */
+    readonly inventory: PluginInventory;
 
     private readonly locator: WorkspacePluginLocator;
     private readonly notifier: NotifierPort;
@@ -77,6 +76,12 @@ export class BpmnPluginsFeature {
             ports.notifier,
             ports.approvals,
             ports.cacheRoot,
+        );
+        this.inventory = new PluginInventory(
+            this.locator,
+            this.catalog,
+            this.service,
+            ports.notifier,
         );
         this.approvalChanges = ports.approvals.onDidChange(() =>
             this.service.approvalsChanged(ports.approvals.read()),
