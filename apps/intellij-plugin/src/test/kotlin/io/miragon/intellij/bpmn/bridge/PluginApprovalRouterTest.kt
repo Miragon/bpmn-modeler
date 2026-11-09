@@ -3,6 +3,7 @@ package io.miragon.intellij.bpmn.bridge
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import io.miragon.intellij.bpmn.PluginApproval
+import io.miragon.intellij.bpmn.PluginApprovalSnapshot
 import io.miragon.intellij.bpmn.PluginApprovalStore
 import io.miragon.intellij.bpmn.projectFixtureWithoutServicePreload
 import com.intellij.testFramework.junit5.TestApplication
@@ -119,6 +120,27 @@ class PluginApprovalRouterTest {
         assertEquals(11, answer.get("id").asInt)
         assertEquals(parse("""{"approvals": [${row(PLUGIN_ID)}], "revision": $revision}"""), answer.getAsJsonObject("result"))
         assertEquals(revision, PluginApprovalStore.getInstance().snapshot().revision)
+    }
+
+    /**
+     * Two projects' changes push from their own reader threads, so an older
+     * revision can be queued after a newer one. Queuing both before the channel
+     * attaches makes that order deterministic.
+     */
+    @Test
+    fun `an older push queued after a newer one still delivers the newer list`() {
+        val handlers = RpcHandlerRegistry()
+        val channel = RpcChannel { method, params, requestId -> handlers.dispatch(method, params, requestId) }
+        val fake = FakeProcess()
+        wired = WiredBridge(fake, channel, handlers, generation = 1)
+        val router = PluginApprovalRouter(bridgeDeps(projectFixture.get(), channel, handlers), pushToRunningBridges = {})
+
+        router.push(PluginApprovalSnapshot(listOf(PluginApproval(OLD_ID, HASH), PluginApproval(OTHER_ID, HASH)), 3))
+        router.push(PluginApprovalSnapshot(listOf(PluginApproval(OLD_ID, HASH)), 2))
+        channel.attach(fake.outputStream, fake.inputStream)
+
+        val revisions = fake.framesUntilQuiet().map { parse(it).getAsJsonObject("params").get("revision").asLong }
+        assertTrue(3L in revisions, "delivered revisions $revisions")
     }
 
     @Test
