@@ -14,6 +14,7 @@ import {
 } from "../../../kernel/domain/codeApproval";
 import { ChoicePrompt } from "../../../kernel/domain/prompts";
 import { isRootedPath, isWithinRoot } from "../../../kernel/domain/rootContainment";
+import { joinWorkspacePath } from "../../../kernel/domain/workspacePath";
 
 /**
  * Marks a row in the shared approval list as a rule package's and names the
@@ -306,6 +307,10 @@ export function installedPackageNameOf(id: string): string {
         return segments[segments.length - 1];
     }
     return segments.slice(nodeModules + 1).join("/");
+}
+
+export function nodeModulesDirOf(dir: string): string {
+    return joinWorkspacePath(dir, NODE_MODULES);
 }
 
 /** The last `node_modules` a package folder is installed in; `undefined` for a folder outside every one. */

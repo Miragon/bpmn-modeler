@@ -1,5 +1,22 @@
+import { configFolderPath } from "../../kernel/domain/configArtifacts";
 import { relativeToRoot } from "../../kernel/domain/rootContainment";
-import { joinWorkspacePath } from "../../kernel/domain/workspacePath";
+import { joinWorkspacePath, parentWorkspacePath } from "../../kernel/domain/workspacePath";
+
+/** The config area that holds one folder per plugin. */
+export const PLUGINS_AREA = "plugins";
+
+export function pluginsDirOf(dir: string, configFolder: string): string {
+    return configFolderPath(dir, configFolder, PLUGINS_AREA);
+}
+
+/**
+ * A plugin is the folder `<dir>/<configFolder>/plugins/<name>`; its config
+ * folder holds `plugins`. Nothing is above a filesystem root, which stays.
+ */
+export function configFolderOfPlugin(pluginId: string): string {
+    const pluginsDir = parentWorkspacePath(pluginId) ?? pluginId;
+    return parentWorkspacePath(pluginsDir) ?? pluginsDir;
+}
 
 export type PluginFolderChange =
     | { readonly kind: "folder"; readonly folder: string }

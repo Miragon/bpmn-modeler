@@ -1,32 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-    addOnScanDirsOf,
-    affectsAddOns,
-    configSourceDirOf,
-    innermostFolderOf,
-    nodeModulesDirOf,
-    packagesSourceDirOf,
-} from "./addOnPaths";
-
-describe("addOnScanDirsOf", () => {
-    it("scans the root's config folder for plugins and its node_modules for rule packages", () => {
-        expect(addOnScanDirsOf("/work", ".camunda")).toEqual({
-            pluginsDir: "/work/.camunda/plugins",
-            nodeModulesDir: "/work/node_modules",
-        });
-    });
-
-    it("follows a config folder of several segments", () => {
-        expect(addOnScanDirsOf("/work", "config/camunda").pluginsDir).toBe(
-            "/work/config/camunda/plugins",
-        );
-    });
-
-    it("names a lint config folder's node_modules", () => {
-        expect(nodeModulesDirOf("/work/orders")).toBe("/work/orders/node_modules");
-    });
-});
+import { affectsAddOns, innermostFolderOf } from "./addOnPaths";
 
 describe("innermostFolderOf", () => {
     const folders = ["/work", "/work/orders", "/other"];
@@ -44,29 +18,6 @@ describe("innermostFolderOf", () => {
 
     it("finds the innermost folder whatever order the folders were opened in", () => {
         expect(innermostFolderOf("/work/orders/x", ["/work/orders", "/work"])).toBe("/work/orders");
-    });
-});
-
-describe("source folders", () => {
-    it.each([
-        { id: "/work/.camunda/plugins/resize", dir: "/work/.camunda" },
-        { id: "/work/orders/.camunda/plugins/resize", dir: "/work/orders/.camunda" },
-        { id: "/plugins/resize", dir: "/" },
-        { id: "/resize", dir: "/" },
-    ])("puts plugin $id in the config folder $dir", ({ id, dir }) => {
-        expect(configSourceDirOf(id)).toBe(dir);
-    });
-
-    it.each([
-        { id: "/work/node_modules/bpmnlint-plugin-a", dir: "/work/node_modules" },
-        { id: "/work/node_modules/@acme/bpmnlint-plugin", dir: "/work/node_modules" },
-        {
-            id: "/work/node_modules/x/node_modules/bpmnlint-plugin-a",
-            dir: "/work/node_modules/x/node_modules",
-        },
-        { id: "/work/rules", dir: "/work/rules" },
-    ])("puts rule package $id in $dir", ({ id, dir }) => {
-        expect(packagesSourceDirOf(id)).toBe(dir);
     });
 });
 

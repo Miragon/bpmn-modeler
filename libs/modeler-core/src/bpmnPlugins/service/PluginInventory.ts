@@ -7,6 +7,7 @@ import {
 } from "../../kernel/domain/codeApproval";
 import { lastWorkspacePathSegment } from "../../kernel/domain/workspacePath";
 import { isPluginApproval, WorkspacePlugin } from "../domain/pluginApproval";
+import { configFolderOfPlugin, pluginsDirOf } from "../domain/pluginFolders";
 import { BpmnPluginService } from "./BpmnPluginService";
 import { PluginCatalog } from "./PluginCatalog";
 import { PluginReading, WorkspacePluginLocator } from "./WorkspacePluginLocator";
@@ -38,6 +39,14 @@ export class PluginInventory {
 
     knownPluginDirs(): readonly string[] {
         return this.locator.knownPluginDirs();
+    }
+
+    pluginsDirOf(dir: string, configFolder: string): string {
+        return pluginsDirOf(dir, configFolder);
+    }
+
+    configFolderOf(pluginId: string): string {
+        return configFolderOfPlugin(pluginId);
     }
 
     async current(pluginId: string): Promise<ListedPresence> {

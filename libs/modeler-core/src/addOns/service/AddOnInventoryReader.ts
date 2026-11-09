@@ -6,8 +6,8 @@ import {
 } from "../../kernel/domain/codeApproval";
 import { PluginApprovalStorePort } from "../../kernel/port/approvalPorts";
 import { SettingsPort, WorkspacePort } from "../../kernel/port/hostPorts";
-import { AddOnFacts } from "../domain/addOnCatalog";
-import { addOnScanDirsOf, innermostFolderOf, nodeModulesDirOf } from "../domain/addOnPaths";
+import { AddOnFacts, SourcedPresence } from "../domain/addOnCatalog";
+import { innermostFolderOf } from "../domain/addOnPaths";
 import { PluginAddOnSource, RulePackageAddOnSource } from "../port/addOnSourcePorts";
 
 export interface AddOnInventoryPorts {
@@ -40,12 +40,12 @@ export class AddOnInventoryReader {
         folders,
         configFolder,
         approvals,
-    }: Omit<AddOnFacts, "plugins" | "rulePackages">): Promise<ListedPresence[]> {
+    }: Omit<AddOnFacts, "plugins" | "rulePackages">): Promise<SourcedPresence[]> {
         const { plugins } = this.ports;
         const inFolder = (path: string) => innermostFolderOf(path, folders) !== undefined;
         const listed = [
             ...(await plugins.pluginsIn([
-                ...folders.map((root) => addOnScanDirsOf(root, configFolder).pluginsDir),
+                ...folders.map((root) => plugins.pluginsDirOf(root, configFolder)),
                 ...plugins.knownPluginDirs().filter(inFolder),
             ])),
         ];
@@ -56,24 +56,27 @@ export class AddOnInventoryReader {
                 listed.push(await plugins.current(pluginId));
             }
         }
-        return listed;
+        return listed.map((presence) => ({
+            presence,
+            sourceDir: plugins.configFolderOf(presenceIdOf(presence)),
+        }));
     }
 
     private rulePackages(
         { folders, approvals }: Omit<AddOnFacts, "plugins" | "rulePackages">,
         inspected: ReadonlySet<string>,
-    ): ListedPresence[] {
+    ): SourcedPresence[] {
         const { rulePackages } = this.ports;
         if (rulePackages === undefined) {
             return [];
         }
         const inFolder = (path: string) => innermostFolderOf(path, folders) !== undefined;
-        const nodeModulesDirs = [...folders, ...rulePackages.lintConfigDirs().filter(inFolder)].map(
-            nodeModulesDirOf,
-        );
         const ids = new Set(
             [
-                ...rulePackages.installedIn(nodeModulesDirs),
+                ...rulePackages.installedIn([
+                    ...folders,
+                    ...rulePackages.lintConfigDirs().filter(inFolder),
+                ]),
                 ...rulePackages.seenPackageIds(),
                 ...approvals
                     .filter((row) => rulePackages.ownsApproval(row))
@@ -81,10 +84,11 @@ export class AddOnInventoryReader {
             ].filter(inFolder),
         );
         const declined = declinedKeys(rulePackages.sessionAnswers());
-        return [...ids].map((id) =>
-            rulePackages.currentRulePackage(id, {
+        return [...ids].map((id) => ({
+            presence: rulePackages.currentRulePackage(id, {
                 hash: inspected.has(id) || needsContentHash(id, approvals, declined),
             }),
-        );
+            sourceDir: rulePackages.sourceDirOf(id),
+        }));
     }
 }

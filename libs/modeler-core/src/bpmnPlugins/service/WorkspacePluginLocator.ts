@@ -4,7 +4,7 @@ import { joinWorkspacePath, lastWorkspacePathSegment } from "../../kernel/domain
 import { NotifierPort, WorkspacePort } from "../../kernel/port/hostPorts";
 import { ArtifactService } from "../../kernel/service/ArtifactService";
 import { approvedContent, WorkspacePlugin } from "../domain/pluginApproval";
-import { isPluginFolderName, pluginFolderChangedBy } from "../domain/pluginFolders";
+import { isPluginFolderName, pluginFolderChangedBy, PLUGINS_AREA } from "../domain/pluginFolders";
 import {
     MISSING_FILE_REASON,
     NO_MANIFEST_REASON,
@@ -14,8 +14,6 @@ import {
     readPluginManifest,
 } from "../domain/pluginManifest";
 import { ContentHasherPort } from "../port/pluginPorts";
-
-const PLUGINS_AREA = "plugins";
 
 /** A plugin with the exact text its hash covers, so what gets served is what was hashed. */
 export interface DiscoveredPlugin {

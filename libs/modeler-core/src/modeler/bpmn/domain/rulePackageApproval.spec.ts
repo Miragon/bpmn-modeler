@@ -16,6 +16,7 @@ import {
     editorsToRelint,
     installedPackageNameOf,
     installedPackagesDirOf,
+    nodeModulesDirOf,
     isParsedAsJson,
     isRulePackageApproval,
     loadsWithoutApproval,
@@ -766,6 +767,12 @@ describe("installedPackageNameOf", () => {
         { id: "/work/packages/rules", name: "rules" },
     ])("names $id $name", ({ id, name }) => {
         expect(installedPackageNameOf(id)).toBe(name);
+    });
+});
+
+describe("nodeModulesDirOf", () => {
+    it("names the node_modules a folder installs its packages in", () => {
+        expect(nodeModulesDirOf("/work/orders")).toBe("/work/orders/node_modules");
     });
 });
 

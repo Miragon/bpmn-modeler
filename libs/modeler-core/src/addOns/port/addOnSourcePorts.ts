@@ -30,11 +30,18 @@ export interface PluginAddOnSource extends CodeAddOnSource {
     pluginsIn(pluginDirs: readonly string[]): Promise<readonly ListedPresence[]>;
     /** The plugins folders an editor or a listing looked in, nested config folders included. */
     knownPluginDirs(): readonly string[];
+    /** Where a folder's own config folder keeps its plugins. */
+    pluginsDirOf(dir: string, configFolder: string): string;
+    /** The config folder a plugin comes from, which the catalog lists it under. */
+    configFolderOf(pluginId: string): string;
     pruneCache(): Promise<{ readonly removed: number }>;
 }
 
 export interface RulePackageAddOnSource extends CodeAddOnSource {
-    installedIn(nodeModulesDirs: readonly string[]): readonly string[];
+    /** The rule packages installed in each folder's `node_modules`. */
+    installedIn(dirs: readonly string[]): readonly string[];
+    /** The folder the catalog lists a package under. */
+    sourceDirOf(id: string): string;
     /** The packages a lint reported, the config's own package included. */
     seenPackageIds(): readonly string[];
     lintConfigDirs(): readonly string[];

@@ -12,7 +12,9 @@ import {
 } from "../domain/packageClosure";
 import {
     installedPackageNameOf,
+    installedPackagesDirOf,
     isRulePackageApproval,
+    nodeModulesDirOf,
     rootKindOf,
 } from "../domain/rulePackageApproval";
 import { closureRefusalText, ROOT_KIND_UNKNOWN_TEXT } from "../domain/rulePackageLog";
@@ -35,10 +37,13 @@ export class RulePackageInventory {
         private readonly packages: InstalledPackagesPort,
     ) {}
 
-    /** Each rule package's real folder, so a linked one names the folder its approval is for. */
-    installedIn(nodeModulesDirs: readonly string[]): readonly string[] {
+    /**
+     * The rule packages installed in each folder's `node_modules`, by real
+     * folder, so a linked one names the folder its approval is for.
+     */
+    installedIn(dirs: readonly string[]): readonly string[] {
         const found = new Set<string>();
-        for (const nodeModules of new Set(nodeModulesDirs)) {
+        for (const nodeModules of new Set(dirs.map(nodeModulesDirOf))) {
             for (const name of this.ruleFolderNamesIn(nodeModules)) {
                 const realPath = this.packages.realPath(joinWorkspacePath(nodeModules, name));
                 if (realPath !== undefined) {
@@ -89,6 +94,11 @@ export class RulePackageInventory {
             artifact: { ...rulePackage, files: memberDirs },
             name: rulePackage.name,
         };
+    }
+
+    /** The `node_modules` a package is installed in, or its own folder when it is installed elsewhere. */
+    sourceDirOf(id: string): string {
+        return installedPackagesDirOf(id) ?? id;
     }
 
     async current(id: string): Promise<ListedPresence> {

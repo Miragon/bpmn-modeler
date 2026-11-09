@@ -4,6 +4,7 @@ import {
     CodeApproval,
     declineKeyOf,
     ListedPresence,
+    presenceIdOf,
     PROCESS_RESTARTS,
     SessionAnswer,
 } from "../../kernel/domain/codeApproval";
@@ -33,14 +34,31 @@ const found = (
     },
 });
 
-function factsOf(overrides: Partial<AddOnFacts> = {}): AddOnFacts {
+/** Placed as the owners place them: a plugin in its config folder, a rule package in its `node_modules`. */
+const pluginSourceDirOf = (id: string) => id.slice(0, id.lastIndexOf("/plugins/")) || "/";
+const rulePackageSourceDirOf = (id: string) =>
+    id.includes("/node_modules/")
+        ? id.slice(0, id.lastIndexOf("/node_modules/") + "/node_modules".length)
+        : id;
+
+function factsOf(
+    overrides: Partial<Omit<AddOnFacts, "plugins" | "rulePackages">> & {
+        plugins?: ListedPresence[];
+        rulePackages?: ListedPresence[];
+    } = {},
+): AddOnFacts {
+    const { plugins = [], rulePackages = [], ...rest } = overrides;
+    const placedBy = (sourceDirOf: (id: string) => string) => (presence: ListedPresence) => ({
+        presence,
+        sourceDir: sourceDirOf(presenceIdOf(presence)),
+    });
     return {
         folders: ["/work"],
         configFolder: ".camunda",
         approvals: [],
-        plugins: [],
-        rulePackages: [],
-        ...overrides,
+        ...rest,
+        plugins: plugins.map(placedBy(pluginSourceDirOf)),
+        rulePackages: rulePackages.map(placedBy(rulePackageSourceDirOf)),
     };
 }
 

@@ -53,11 +53,7 @@ describe("RulePackageInventory", () => {
         disk.createSymbolicLink(LINKED, STORE);
         install(`${NODE_MODULES}/lodash`, "lodash");
 
-        expect(inventory.installedIn([NODE_MODULES, "/elsewhere/node_modules"])).toEqual([
-            SCOPED,
-            ACME,
-            STORE,
-        ]);
+        expect(inventory.installedIn([WORK, "/elsewhere"])).toEqual([SCOPED, ACME, STORE]);
     });
 
     it("reads a package without hashing it until asked to", () => {
@@ -119,7 +115,7 @@ describe("RulePackageInventory", () => {
         const { disk, install, inventory, contentHashOf } = setUp();
         install("/work/packages/rules", "bpmnlint-plugin-rules", { "order.bpmn": "<x/>" });
         disk.createSymbolicLink(`${NODE_MODULES}/bpmnlint-plugin-rules`, "/work/packages/rules");
-        inventory.installedIn([NODE_MODULES]);
+        inventory.installedIn([WORK]);
 
         const presence = inventory.currentRulePackage("/work/packages/rules", { hash: true });
 
@@ -196,6 +192,13 @@ describe("RulePackageInventory", () => {
         catalog.noteLintConfig("/work/orders/.bpmnlintrc");
 
         expect(changes).toBe(5);
+    });
+
+    it.each([
+        { id: ACME, dir: NODE_MODULES },
+        { id: "/work/packages/rules", dir: "/work/packages/rules" },
+    ])("lists $id under $dir", ({ id, dir }) => {
+        expect(setUp().inventory.sourceDirOf(id)).toBe(dir);
     });
 
     it("owns the rule package rows of the shared approval list", () => {

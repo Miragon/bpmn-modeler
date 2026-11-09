@@ -10,14 +10,11 @@ import {
     ProcessRestart,
     SessionAnswer,
 } from "../../kernel/domain/codeApproval";
+import { configFolderPath } from "../../kernel/domain/configArtifacts";
 import { relativeToRoot, relativeToWorkspace } from "../../kernel/domain/rootContainment";
-import {
-    joinWorkspacePath,
-    lastWorkspacePathSegment,
-    parentWorkspacePath,
-} from "../../kernel/domain/workspacePath";
+import { lastWorkspacePathSegment, parentWorkspacePath } from "../../kernel/domain/workspacePath";
 import { AddOnKind, addOnIdOf, folderGroupIdOf, SourceKind, sourceIdOf } from "./addOnIds";
-import { configSourceDirOf, innermostFolderOf, packagesSourceDirOf } from "./addOnPaths";
+import { innermostFolderOf } from "./addOnPaths";
 import {
     ACTION_LABEL,
     ADD_ON_KIND_TEXT,
@@ -93,13 +90,20 @@ export interface AddOnView {
     readonly actions: readonly ActionView<AddOnActionKind>[];
 }
 
+/** One add-on as its owner read it, with the folder its owner lists it under. */
+export interface SourcedPresence {
+    readonly presence: ListedPresence;
+    /** A plugin's config folder, or the `node_modules` a rule package is installed in. */
+    readonly sourceDir: string;
+}
+
 /** What one listing found: every add-on its owner read, by kind. */
 export interface AddOnFacts {
     readonly folders: readonly string[];
     readonly configFolder: string;
     readonly approvals: readonly CodeApproval[];
-    readonly plugins: readonly ListedPresence[];
-    readonly rulePackages: readonly ListedPresence[];
+    readonly plugins: readonly SourcedPresence[];
+    readonly rulePackages: readonly SourcedPresence[];
 }
 
 /** What this process remembers beyond the stored approvals. */
@@ -127,9 +131,8 @@ export interface CatalogBuild {
     readonly shown: ReadonlyMap<string, ShownCode>;
 }
 
-interface ListedAddOn {
+interface ListedAddOn extends SourcedPresence {
     readonly kind: AddOnKind;
-    readonly presence: ListedPresence;
 }
 
 interface PlacedAddOn {
@@ -166,17 +169,14 @@ const CODE_ACTIONS: Record<
 
 const SOURCE_PLACE: Record<
     AddOnKind,
-    (id: string, root: string, configFolder: string) => SourcePlace
+    (dir: string, root: string, configFolder: string) => SourcePlace
 > = {
-    plugin: (id, root, configFolder) => {
-        const dir = configSourceDirOf(id);
-        return {
-            kind: "configFolder",
-            dir,
-            rank: dir === joinWorkspacePath(root, configFolder) ? 0 : 1,
-        };
-    },
-    rulePackage: (id) => ({ kind: "installedPackages", dir: packagesSourceDirOf(id), rank: 2 }),
+    plugin: (dir, root, configFolder) => ({
+        kind: "configFolder",
+        dir,
+        rank: dir === configFolderPath(root, configFolder) ? 0 : 1,
+    }),
+    rulePackage: (dir) => ({ kind: "installedPackages", dir, rank: 2 }),
 };
 
 const CATALOG_ACTIONS: readonly ActionView<CatalogActionKind>[] = [
@@ -196,8 +196,8 @@ export function catalogModelOf(
     revision: number,
 ): CatalogBuild {
     const listed: ListedAddOn[] = [
-        ...facts.plugins.map((presence) => ({ kind: "plugin" as const, presence })),
-        ...facts.rulePackages.map((presence) => ({ kind: "rulePackage" as const, presence })),
+        ...facts.plugins.map((each) => ({ kind: "plugin" as const, ...each })),
+        ...facts.rulePackages.map((each) => ({ kind: "rulePackage" as const, ...each })),
     ];
     const placed = listed.flatMap((each) => placedAddOn(each, facts, session, restart));
     const groups = facts.folders.flatMap((root) => groupOf(root, placed));
@@ -213,7 +213,7 @@ export function catalogModelOf(
 }
 
 function placedAddOn(
-    { kind, presence }: ListedAddOn,
+    { kind, presence, sourceDir }: ListedAddOn,
     facts: AddOnFacts,
     session: AddOnSession,
     restart: ProcessRestart,
@@ -223,7 +223,7 @@ function placedAddOn(
     if (root === undefined) {
         return [];
     }
-    const source = SOURCE_PLACE[kind](id, root, facts.configFolder);
+    const source = SOURCE_PLACE[kind](sourceDir, root, facts.configFolder);
     const reading = codeStateOf(presence, facts.approvals, declinedKeys(session.answers[kind]));
     const state = reading.kind === "state" ? reading.state : "new";
     const actions = CODE_ACTIONS[presence.kind][state] ?? [];
