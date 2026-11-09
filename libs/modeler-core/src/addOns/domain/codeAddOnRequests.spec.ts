@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { allowing, ReviewedAllow } from "../../kernel/domain/codeApproval";
-import { ShownCode } from "./addOnCatalog";
+import { ShownCode } from "./codeAddOnCatalog";
 import {
     allowResultOf,
     allowTargetOf,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { ShownCode } from "./addOnCatalog";
+import { ShownCode } from "./codeAddOnCatalog";
 import { firstRevisionOf, ShownRevisions } from "./shownRevisions";
 
 const shownOf = (name: string): ReadonlyMap<string, ShownCode> =>

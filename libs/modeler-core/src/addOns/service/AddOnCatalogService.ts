@@ -6,7 +6,7 @@ import {
 } from "../../kernel/domain/codeApproval";
 import { PluginApprovalStorePort } from "../../kernel/port/approvalPorts";
 import { LoggerPort } from "../../kernel/port/hostPorts";
-import { catalogModelOf, ShownCode } from "../domain/addOnCatalog";
+import { catalogModelOf } from "../domain/addOnCatalog";
 import type { AddOnCatalogModel } from "../domain/addOnCatalogModel";
 import { CatalogActionKind, CodeAddOnKind } from "../domain/addOnIds";
 import {
@@ -25,6 +25,7 @@ import {
     revokeResultOf,
     shownTargetOf,
 } from "../domain/codeAddOnRequests";
+import { ShownCode } from "../domain/codeAddOnCatalog";
 import { firstRevisionOf, ShownRevisions } from "../domain/shownRevisions";
 import { marketplaceRemovalTargetOf, TemplateSwitchRequest } from "../domain/templateAddOnRequests";
 import { ShownSource, ShownTemplate } from "../domain/templateAddOnViews";
