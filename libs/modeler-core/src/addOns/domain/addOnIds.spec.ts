@@ -62,11 +62,11 @@ describe("add-on ids", () => {
         { id: MARKETPLACES_GROUP_ID, expected: "marketplaces" },
         {
             id: templateAddOnIdOf("/t/mail.json", { id: "mail", version: 3 }, 0),
-            expected: "template:/t/mail.json#mail@3",
+            expected: "template:/t/mail.json#0:mail@3",
         },
         {
             id: templateAddOnIdOf("/t/mail.json", { id: "mail" }, 1),
-            expected: "template:/t/mail.json#mail",
+            expected: "template:/t/mail.json#1:mail",
         },
         {
             id: templateAddOnIdOf("/t/mail.json", { version: 2 }, 1),

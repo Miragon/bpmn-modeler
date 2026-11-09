@@ -730,7 +730,7 @@ describe("catalogModelOf for element templates", () => {
             ),
         ).toStrictEqual([
             {
-                id: `template:${TEMPLATES}/mail.json#mail@2`,
+                id: `template:${TEMPLATES}/mail.json#0:mail@2`,
                 kind: "elementTemplate",
                 kindText: "Element template",
                 name: "Send Mail",
@@ -741,7 +741,7 @@ describe("catalogModelOf for element templates", () => {
                 actions: [],
             },
             {
-                id: `template:${TEMPLATES}/mail.json#crm`,
+                id: `template:${TEMPLATES}/mail.json#1:crm`,
                 kind: "elementTemplate",
                 kindText: "Element template",
                 name: "crm",
@@ -767,7 +767,7 @@ describe("catalogModelOf for element templates", () => {
 
         expect(names).toEqual([
             [`template:${TEMPLATES}/a.json#1`, "a.json"],
-            [`template:${TEMPLATES}/a.json#only-id`, "only-id"],
+            [`template:${TEMPLATES}/a.json#0:only-id`, "only-id"],
         ]);
     });
 
@@ -898,7 +898,7 @@ describe("catalogModelOf for marketplaces", () => {
                     actions: [{ kind: "removeMarketplace", label: "Remove" }],
                     addOns: [
                         {
-                            id: "template:/cache/acme-shared/0/element-templates/mail.json#mail",
+                            id: "template:/cache/acme-shared/0/element-templates/mail.json#0:mail",
                             kind: "elementTemplate",
                             kindText: "Element template",
                             name: "Mail",

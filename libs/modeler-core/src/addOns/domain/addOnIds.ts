@@ -50,7 +50,10 @@ export function addOnIdOf(kind: CodeAddOnKind, id: string): string {
     return `${ADD_ON_ID_PREFIX[kind]}:${id}`;
 }
 
-/** A template by its file, id and version; one without an id by its place in the file, a file it cannot read by the file alone. */
+/**
+ * A template by its file, its place in the file, id and version, as a file
+ * may repeat an id or leave it out; a file it cannot read by the file alone.
+ */
 export function templateAddOnIdOf(
     file: string,
     template?: { readonly id?: string; readonly version?: number },
@@ -60,8 +63,9 @@ export function templateAddOnIdOf(
     if (template === undefined) {
         return fileId;
     }
+    const id = template.id === undefined ? "" : `:${template.id}`;
     const version = template.version === undefined ? "" : `@${template.version}`;
-    return `${fileId}#${template.id ?? index}${version}`;
+    return `${fileId}#${index}${id}${version}`;
 }
 
 /** @param key a source's folder, or a marketplace's registration id */

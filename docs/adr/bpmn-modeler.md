@@ -792,7 +792,7 @@ Both hosts build an `AddOnsFeature`; no view attaches to it yet.
   folder's plugins and templates apply only to the diagrams below it, and the
   source says so; a config folder's plugins and templates share its source,
   plugins first. The bridge lists the folders the host registered.
-- *Templates.* One row per template, `template:<file>#<id>@<version>`, with
+- *Templates.* One row per template, `template:<file>#<index>:<id>@<version>`, with
   its version and its file's engine; a file that cannot be read is one row,
   by its file name, that says why. A template is always "Enabled" and offers
   no action yet, so the core records no template as shown; turning one off
