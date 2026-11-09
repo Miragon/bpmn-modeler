@@ -192,6 +192,28 @@ describe("NodeWorkspace.createWatcher on a folder that does not exist yet", () =
         expect(closeSpy).toHaveBeenCalledTimes(2);
     });
 
+    it("arms once the folders appeared while the waiting watch was still arming", () => {
+        new NodeWorkspace().createWatcher("/repo/.camunda/plugins", "**/*", {});
+
+        missingFolders.clear();
+        chokidarListeners.get("ready")?.("");
+
+        expect(watchedFolders()).toEqual(["/repo depth 0", "/repo/.camunda/plugins depth all"]);
+    });
+
+    it("reports the files a folder already holds when its watch armed late, and only then", () => {
+        new NodeWorkspace().createWatcher("/repo/.camunda/plugins", "**/*", {});
+        new NodeWorkspace().createWatcher("/repo/src", "**/*", {});
+        folderAppears("/repo/.camunda");
+        folderAppears("/repo/.camunda/plugins");
+
+        const ignoreInitialOf = (folder: string) =>
+            watchSpy.mock.calls.find(([watched, options]) => watched === folder && options.depth === undefined)?.[1]
+                .ignoreInitial;
+        expect(ignoreInitialOf("/repo/.camunda/plugins")).toBe(false);
+        expect(ignoreInitialOf("/repo/src")).toBe(true);
+    });
+
     it("stops waiting once disposed", () => {
         const watcher = new NodeWorkspace().createWatcher("/repo/.camunda/plugins", "**/*", {});
 
