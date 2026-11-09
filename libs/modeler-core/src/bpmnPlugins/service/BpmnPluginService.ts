@@ -1,5 +1,6 @@
 import { BpmnPluginAsset, BpmnPluginsQuery } from "@miragon/bpmn-modeler-shared";
 
+import { DirectoryEntryKind } from "../../kernel/domain/directoryEntry";
 import { DirectoryNotFound } from "../../kernel/domain/errors";
 import { joinWorkspacePath, toWorkspacePath } from "../../kernel/domain/workspacePath";
 import { NotifierPort, WorkspacePort } from "../../kernel/port/hostPorts";
@@ -178,7 +179,7 @@ export class BpmnPluginService {
         return { removed };
     }
 
-    private async cacheEntries(): Promise<[string, "file" | "directory"][]> {
+    private async cacheEntries(): Promise<[string, DirectoryEntryKind][]> {
         try {
             return await this.workspace.readDirectory(this.cacheRoot);
         } catch (error) {
