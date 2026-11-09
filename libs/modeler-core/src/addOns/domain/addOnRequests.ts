@@ -53,3 +53,54 @@ export function catalogActionRefusalOf(
 export function refused(reason: AddOnRefusal, message: string): AddOnActionResult {
     return { kind: "refused", reason, message };
 }
+
+type RequestField = "addOnId" | "sourceId" | "revision";
+
+const REQUEST_FIELDS: Record<AddOnRequest["kind"], readonly RequestField[]> = {
+    inspect: ["addOnId"],
+    allow: ["addOnId", "revision"],
+    revoke: ["addOnId"],
+    enable: ["addOnId"],
+    disable: ["addOnId"],
+    removeMarketplace: ["sourceId"],
+    enableTemplates: ["sourceId"],
+    disableTemplates: ["sourceId"],
+    addMarketplace: [],
+    updateMarketplaces: [],
+    pruneCache: [],
+    refresh: [],
+};
+
+const IS_FIELD_VALUE: Record<RequestField, (value: unknown) => boolean> = {
+    addOnId: (value) => typeof value === "string",
+    sourceId: (value) => typeof value === "string",
+    revision: (value) => Number.isSafeInteger(value),
+};
+
+/**
+ * A view's request in a shape the core knows, with only the fields its kind
+ * names; `undefined` for anything else, since it reached the core as
+ * untrusted data. Ids stay opaque: only a lookup in what the core showed
+ * gives them a meaning.
+ */
+export function addOnRequestOf(value: unknown): AddOnRequest | undefined {
+    if (
+        !isRecord(value) ||
+        typeof value.kind !== "string" ||
+        !Object.prototype.hasOwnProperty.call(REQUEST_FIELDS, value.kind)
+    ) {
+        return undefined;
+    }
+    const fields = REQUEST_FIELDS[value.kind as AddOnRequest["kind"]];
+    if (!fields.every((field) => IS_FIELD_VALUE[field](value[field]))) {
+        return undefined;
+    }
+    return Object.fromEntries([
+        ["kind", value.kind],
+        ...fields.map((field) => [field, value[field]]),
+    ]) as AddOnRequest;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+}
