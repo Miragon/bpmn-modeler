@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { configFolderOfArea } from "../../../kernel/domain/configArtifacts";
 import {
-    configFolderOfTemplatesDir,
     mergeElementTemplates,
     templateFileReadingOf,
     templatesDirOf,
@@ -113,11 +113,7 @@ describe("templates folders", () => {
         "keeps the templates of %s with config folder %s in %s",
         (dir, configFolder, templatesDir) => {
             expect(templatesDirOf(dir, configFolder)).toBe(templatesDir);
-            expect(configFolderOfTemplatesDir(templatesDir)).toBe(`${dir}/${configFolder}`);
+            expect(configFolderOfArea(templatesDir)).toBe(`${dir}/${configFolder}`);
         },
     );
-
-    it("keeps a filesystem root, which has no parent", () => {
-        expect(configFolderOfTemplatesDir("/")).toBe("/");
-    });
 });

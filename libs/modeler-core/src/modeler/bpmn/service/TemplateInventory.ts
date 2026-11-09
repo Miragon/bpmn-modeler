@@ -1,14 +1,11 @@
+import { configFolderOfArea } from "../../../kernel/domain/configArtifacts";
 import {
     FolderTemplateFileListing,
     TemplateFileListing,
     TemplateFileReading,
 } from "../../../kernel/domain/templateListing";
 import { ArtifactService } from "../../../kernel/service/ArtifactService";
-import {
-    configFolderOfTemplatesDir,
-    templateFileReadingOf,
-    templatesDirOf,
-} from "../domain/elementTemplates";
+import { templateFileReadingOf, templatesDirOf } from "../domain/elementTemplates";
 import { BpmnElementTemplatesService } from "./BpmnElementTemplatesService";
 
 /**
@@ -37,7 +34,7 @@ export class TemplateInventory {
     ): Promise<readonly FolderTemplateFileListing[]> {
         const listed: FolderTemplateFileListing[] = [];
         for (const templatesDir of new Set(templatesDirs)) {
-            const sourceDir = configFolderOfTemplatesDir(templatesDir);
+            const sourceDir = configFolderOfArea(templatesDir);
             const files = await this.artifacts.readDirectory(templatesDir, ".json");
             for (const listing of await this.templatesOf(files)) {
                 listed.push({ ...listing, sourceDir });

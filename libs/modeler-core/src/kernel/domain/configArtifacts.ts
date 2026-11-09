@@ -33,6 +33,14 @@ export function folderOfConfigFolder(configDir: string, configFolder: string): s
     return undefined;
 }
 
+/**
+ * The config folder that holds `areaDir`, a {@link configFolderPath} with one
+ * entry. Nothing is above a filesystem root, which stays.
+ */
+export function configFolderOfArea(areaDir: string): string {
+    return parentWorkspacePath(areaDir) ?? areaDir;
+}
+
 export interface ConfigArtifactLocation {
     readonly path: string;
     /** The document's path below the root, which `path` mirrors. */

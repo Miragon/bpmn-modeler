@@ -7,7 +7,6 @@ import {
 
 import { configFolderPath } from "../../../kernel/domain/configArtifacts";
 import { ListedTemplate, TemplateFileReading } from "../../../kernel/domain/templateListing";
-import { parentWorkspacePath } from "../../../kernel/domain/workspacePath";
 
 /** The templates parsed from one source: a template directory or the marketplace cache. */
 export interface ElementTemplateSource {
@@ -47,10 +46,6 @@ export function templateFileReadingOf(text: string): TemplateFileReading {
 
 export function templatesDirOf(dir: string, configFolder: string): string {
     return configFolderPath(dir, configFolder, ELEMENT_TEMPLATE_FOLDER_NAME);
-}
-
-export function configFolderOfTemplatesDir(templatesDir: string): string {
-    return parentWorkspacePath(templatesDir) ?? templatesDir;
 }
 
 function listedTemplateOf(template: unknown, templates: readonly unknown[]): ListedTemplate {
