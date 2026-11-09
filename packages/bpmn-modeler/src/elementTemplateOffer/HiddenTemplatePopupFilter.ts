@@ -1,5 +1,7 @@
 import { templateIdOfEntryKey } from "@miragon/bpmn-modeler-element-template-chooser/templateEntryKey";
 
+import { ELEMENT_POPUP_MENUS } from "../popupMenus";
+
 interface PopupMenuRegistry {
     registerProvider(menuId: string, priority: number, provider: object): void;
 }
@@ -11,8 +13,6 @@ interface TemplateIdOffer {
 // Below the default priority (1000), so create-append-anything's template entries already exist.
 const FILTER_PRIORITY = 100;
 
-const OFFERING_MENUS = ["bpmn-replace", "bpmn-append", "bpmn-create"] as const;
-
 /** Drops the template entries of hidden templates from the replace, append and create menus. */
 export class HiddenTemplatePopupFilter {
     static $inject = ["popupMenu", "elementTemplateOffer"];
@@ -21,7 +21,7 @@ export class HiddenTemplatePopupFilter {
         popupMenu: PopupMenuRegistry,
         private readonly offer: TemplateIdOffer,
     ) {
-        for (const menu of OFFERING_MENUS) {
+        for (const menu of ELEMENT_POPUP_MENUS) {
             popupMenu.registerProvider(menu, FILTER_PRIORITY, this);
         }
     }

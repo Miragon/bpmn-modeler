@@ -1,12 +1,11 @@
 import { templateIdOfEntryKey } from "@miragon/bpmn-modeler-element-template-chooser/templateEntryKey";
 import { surfaceModeSupports } from "@miragon/bpmn-modeler-types";
 
+import { ELEMENT_POPUP_MENUS } from "../popupMenus";
 import type { ModelerMode } from "./mode";
 
 // Run after the default-priority (1000) providers so their template entries can be removed.
 const POPUP_MODE_FILTER_PRIORITY = 100;
-
-const FILTERED_MENUS = ["bpmn-replace", "bpmn-append", "bpmn-create"] as const;
 
 /** Runs before the template chooser (default 1000) so its handler never fires. */
 const TEMPLATE_SELECT_GUARD_PRIORITY = 10000;
@@ -52,7 +51,7 @@ export class PopupMenuModeFilter {
         eventBus: ModeFilterEventBus,
         private readonly injector: ModeFilterInjector,
     ) {
-        for (const id of FILTERED_MENUS) {
+        for (const id of ELEMENT_POPUP_MENUS) {
             popupMenu.registerProvider(id, POPUP_MODE_FILTER_PRIORITY, this);
         }
         eventBus.on("elementTemplates.select", TEMPLATE_SELECT_GUARD_PRIORITY, (event) => {
