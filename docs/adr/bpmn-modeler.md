@@ -575,13 +575,19 @@ from it directly.
 
 `CODE_STATES` (`approved`, `new`, `changed`, `declined`, `gone`) in
 `kernel/domain/codeApproval.ts` is the one spelling of the state a piece of
-workspace code is in, with its texts; `ApprovalState` and the rule packages'
-`BlockedState` are subsets of it. `codeStateOf` reads the state from what an
-owner found (found, unhashed, unreadable, gone), `needsContentHash` is the one
-rule for when code must be hashed before its state is known (a row or a
-decline of its id), and `reviewedAllowDecision` allows only content that is
-still as it was reviewed. `PROCESS_RESTARTS` names, as a typed host fact, how
-the user unloads code that already ran (reload the window, restart the IDE).
+workspace code is in, and `CODE_STATE_TEXT` the one text of each, which the
+approval list and the log use; `ApprovalState` and the rule packages'
+`BlockedState` are subsets of it. `needsContentHash` is the one rule for when
+code must be hashed before its state is known (a row or a decline of its id).
+Groundwork for the artifacts view
+([#2250](https://github.com/Miragon/bpmn-modeler/issues/2250)) and its read
+model ([#2263](https://github.com/Miragon/bpmn-modeler/issues/2263)), read
+only by specs until those land: `codeStateOf` reads the state from what an
+owner found (found, unhashed, unreadable, gone), `reviewedAllowDecision`
+allows only content that is still as it was reviewed, `PROCESS_RESTARTS`
+names, as a typed host fact, how the user unloads code that already ran
+(reload the window, restart the IDE), and `RulePackageCatalog` keeps the
+packages revoked this session.
 
 **Prompt flow.** Per the
 [VS Code UX guidelines](../../.agents/skills/vscode-ux-guidelines/SKILL.md), a
@@ -643,8 +649,8 @@ not wire the feature answers with no plugins. That answer has one home,
 the delivery's own answer.
 
 **Pruning.** `BpmnPluginService.pruneCache` removes the cache folders named
-like a content hash (`PLUGIN_CONTENT_HASH_PATTERN`, 64 lower-case hex digits,
-from which the bridge also builds the IntelliJ route) that no stored approval
+like a content hash (`PLUGIN_CONTENT_HASH_PATTERN`, 64 lower-case hex digits)
+that no stored approval
 names (`cacheEntriesToPrune`). The keep set is every row the host stores, of
 every workspace and project, read with `readStored()` rather than a mirror,
 because the cache is shared. Files, other names and upper case stay, and a
@@ -654,8 +660,9 @@ activation, and the bridge once `server.ts` has bound its streams, so the
 harness specs see no extra frame. A revoke from the artifacts view and its
 prune action add triggers there
 ([#2250](https://github.com/Miragon/bpmn-modeler/issues/2250)). Pruning on
-every approval change in every process was rejected: the revoking process's
-prune covers the shared cache, and N bridges pruning at once only adds noise.
+every approval change in every process was rejected: until then the next
+start's prune covers the shared cache, after it the revoking process's prune
+does, and N bridges pruning at once only adds noise.
 Residual: a page that loads between another process's delete and this
 process's memo check leaves the plugin out once, and the next open writes the
 copy again. A grace marker would close that gap and is deferred.
@@ -672,7 +679,8 @@ supplies these parts:
   project's bridge is still writing. The launcher passes the root to the bridge as `MIRAGON_BPMN_PLUGIN_CACHE`, and the
   `WebviewServer` serves from the same value, so the two cannot disagree.
 - *Route.* `RpcEditorHandle.webviewUrlOf` maps only
-  `<root>/<64 lowercase hex>/plugin.js|plugin.css` to the root-relative URL
+  `<root>/<64 lowercase hex>/plugin.js|plugin.css` (the core's
+  `CACHED_PLUGIN_FILE_PATTERN`; Kotlin keeps its own copy) to the root-relative URL
   `/bpmn-plugins/<hash>/<file>` and throws for any other path. The page loads
   it from its own loopback origin, so the bridge needs no port. `WebviewRoute`
   matches the raw request path before decoding, so `%2F` or `%2e%2e` cannot
@@ -913,7 +921,8 @@ changed. Accepted residuals:
   approval takes full effect only then. The revoke lints the host-linted
   editors again, so the gate refuses the package from that lint on, and the
   catalog keeps the packages revoked this session for the artifacts view to
-  say so.
+  say so (groundwork, see above). A row allowed again at another content is
+  not kept there: the user allowed both contents.
 - Admission depends on order within a setup: a member resolved before its
   approved closure root was admitted is blocked, and its bundled fallback
   stays cached until the setup is rebuilt.
