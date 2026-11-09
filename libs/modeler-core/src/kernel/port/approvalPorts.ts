@@ -20,6 +20,10 @@ export interface PluginApprovalStorePort {
      * a newer one the store heard of meanwhile; `read()` returns it from then on.
      */
     readStored(): Promise<readonly CodeApproval[]>;
-    /** After `read()` changed, whoever changed it; never for a list of the same rows. */
+    /**
+     * Once the store learns of a new list: its own change, a host push or
+     * `readStored`. Never for a list of the same rows. Another writer's list
+     * can show in `read()` before the store learns of it.
+     */
     onDidChange(listener: () => void): { dispose(): void };
 }

@@ -557,7 +557,9 @@ is refused in both languages and stores nothing; no caller sends one, so it is
 a bug, and failing closed is the safe answer. `codeApprovalChange.cases.json`
 holds the rows for the TypeScript and the Kotlin merge. The port also gives
 `readStored()`, the host's list rather than a mirror, and `onDidChange`, which
-fires once whenever `read()` changed, whoever changed it. `WorkspacePluginLocator` keeps a memo per plugin folder and drops it on
+fires once whenever the store learns of a new list: its own change, a host push
+or `readStored()`. VS Code learns of another window's write only on the focus
+re-read, although `read()` may show it earlier. `WorkspacePluginLocator` keeps a memo per plugin folder and drops it on
 a `WorkspacePort.createWatcher` event for that `<configFolder>/plugins`
 folder, so an editor open does not reread and rehash every bundle (Camunda
 bundles can be several MB). The feature disposes the watchers with itself.
