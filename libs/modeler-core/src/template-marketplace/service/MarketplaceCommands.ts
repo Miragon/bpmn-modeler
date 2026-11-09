@@ -2,6 +2,7 @@ import { join } from "path";
 
 import { MarketplaceSettingsEntry } from "../../kernel/domain/modelerSettings";
 import { NotifierPort, PickerPort } from "../../kernel/port/hostPorts";
+import { MarketplaceUpdateOutcome } from "../domain/marketplace";
 import {
     MarketplaceAddAnswer,
     MarketplaceAddNotice,
@@ -93,13 +94,19 @@ export class MarketplaceCommands {
      */
     async update(): Promise<void> {
         const { notifier, marketplaces, templates } = this.ports;
-        const outcome = await notifier.withProgress("Updating marketplaces…", () =>
-            this.oneAtATime(async () => {
-                const updated = await marketplaces.updateAll();
-                await templates.reloadMarketplaceTemplates();
-                return updated;
-            }),
-        );
+        let outcome: MarketplaceUpdateOutcome;
+        try {
+            outcome = await notifier.withProgress("Updating marketplaces…", () =>
+                this.oneAtATime(async () => {
+                    const updated = await marketplaces.updateAll();
+                    await templates.reloadMarketplaceTemplates();
+                    return updated;
+                }),
+            );
+        } catch (error) {
+            notifier.notifyError("Failed to update marketplaces.", error as Error);
+            return;
+        }
 
         const total = outcome.succeeded + outcome.failures.length;
         if (total === 0) {
