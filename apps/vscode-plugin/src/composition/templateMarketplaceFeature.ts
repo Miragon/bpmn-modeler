@@ -62,7 +62,7 @@ export function registerCommands(
         marketplaceSvc: TemplateMarketplaceService;
         templatesSvc: BpmnElementTemplatesService;
     },
-): { marketplaceCommands: MarketplaceCommands; marketplaces: MarketplaceInventory } {
+): { marketplaces: MarketplaceInventory } {
     const registrations = new VsCodeMarketplaceRegistrations(deps.vsSettings);
     const marketplaceCommands = new MarketplaceCommands({
         marketplaces: handles.marketplaceSvc,
@@ -76,7 +76,6 @@ export function registerCommands(
     });
     new TemplateMarketplaceController(marketplaceCommands).register(context);
     return {
-        marketplaceCommands,
         marketplaces: new MarketplaceInventory(
             registrations,
             handles.marketplaceSvc,

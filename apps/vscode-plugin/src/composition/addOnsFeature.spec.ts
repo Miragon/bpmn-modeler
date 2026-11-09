@@ -119,7 +119,7 @@ describe("VS Code's add-on catalog", () => {
         addOns.attachView((model) => models.push(model), true);
         await addOns.whenSettled();
 
-        await marketplace.marketplaceCommands.update();
+        await marketplace.marketplaces.update();
         await addOns.whenSettled();
 
         expect(models).toHaveLength(2);

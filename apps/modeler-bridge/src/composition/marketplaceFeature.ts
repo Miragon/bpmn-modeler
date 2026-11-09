@@ -76,7 +76,7 @@ export function registerHandlers(
         templatesSvc: BpmnElementTemplatesService;
         homeDir: string;
     },
-): { marketplaceCommands: MarketplaceCommands; marketplaces: MarketplaceInventory } {
+): { marketplaces: MarketplaceInventory } {
     const registrations = new RpcMarketplaceRegistrations(deps.rpc);
     const marketplaceCommands = new MarketplaceCommands({
         marketplaces: handles.marketplaceSvc,
@@ -92,7 +92,6 @@ export function registerHandlers(
         marketplaceHandlers({ commands: marketplaceCommands, settingsMirror: deps.settings }),
     );
     return {
-        marketplaceCommands,
         marketplaces: new MarketplaceInventory(
             registrations,
             handles.marketplaceSvc,
