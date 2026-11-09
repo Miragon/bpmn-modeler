@@ -1,8 +1,13 @@
+import { Command, Query } from "@miragon/bpmn-modeler-shared";
+
 import { ProcessRestart } from "../../kernel/domain/codeApproval";
 import { PluginApprovalStorePort } from "../../kernel/port/approvalPorts";
-import { NotifierPort, SettingsPort, WorkspacePort } from "../../kernel/port/hostPorts";
+import { LoggerPort, NotifierPort, SettingsPort, WorkspacePort } from "../../kernel/port/hostPorts";
 import { TemplatePreferenceStorePort } from "../../kernel/port/templatePreferencePorts";
+import { RouteLookup } from "../../editorSession/service/WebviewMessageRouter";
+import { AddOnViewMessages } from "../adapter/in/AddOnViewMessages";
 import type { AddOnCatalogModel } from "../domain/addOnCatalogModel";
+import { CLOSED_VIEW } from "../domain/addOnRequests";
 import {
     MarketplaceAddOnSource,
     PluginAddOnSource,
@@ -15,6 +20,12 @@ import { AddOnInventoryReader } from "../service/AddOnInventoryReader";
 import { AddOnViewConnection, AddOnViewHub } from "../service/AddOnViewHub";
 import { AddOnWatchers } from "../service/AddOnWatchers";
 import { TemplateSwitchActions } from "../service/TemplateSwitchActions";
+
+export interface AddOnsPanel {
+    handle(command: Command): Promise<void>;
+    setVisible(visible: boolean): void;
+    dispose(): void;
+}
 
 export interface AddOnsHostPorts {
     readonly workspace: WorkspacePort;
@@ -45,8 +56,19 @@ export class AddOnsFeature {
     private readonly catalog: AddOnCatalogService;
     private readonly hub: AddOnViewHub;
     private readonly subscriptions: { dispose(): void }[];
+    private readonly logger: LoggerPort;
+
+    /** The routes of every panel, readable before one attaches. */
+    readonly panelRoutes: RouteLookup;
 
     constructor(ports: AddOnsHostPorts) {
+        this.logger = ports.notifier;
+        // Every panel has the same table, so one that answers nothing reads for all.
+        this.panelRoutes = new AddOnViewMessages(
+            () => Promise.resolve(CLOSED_VIEW),
+            ports.notifier,
+            () => undefined,
+        );
         this.catalog = new AddOnCatalogService(
             new AddOnInventoryReader(ports),
             new TemplateSwitchActions(ports.templatePreferences, ports.notifier),
@@ -86,6 +108,34 @@ export class AddOnsFeature {
     /** @param post Called with every model while the view is visible; a throw is logged. */
     attachView(post: (model: AddOnCatalogModel) => void, visible: boolean): AddOnViewConnection {
         return this.hub.attach(post, visible);
+    }
+
+    /** Attaches a host's add-ons view page; `post` delivers to it, and a throw is logged. */
+    attachPanel(post: (message: Query) => void, visible: boolean): AddOnsPanel {
+        // Built before the hub attaches it, so a reveal delivered while attaching reaches it.
+        const messages = new AddOnViewMessages(
+            (request) => connection.handle(request),
+            this.logger,
+            post,
+        );
+        const connection = this.hub.attach(
+            (model) => messages.modelBuilt(model),
+            visible,
+            (reveal) => messages.revealed(reveal),
+        );
+        return {
+            handle: (command) => messages.handle(command),
+            setVisible: (nowVisible) => connection.setVisible(nowVisible),
+            dispose: () => {
+                messages.dispose();
+                connection.dispose();
+            },
+        };
+    }
+
+    /** Has every view show and focus these rows, once; one that is hidden or not attached yet when it is shown. */
+    reveal(addOnIds: readonly string[]): void {
+        this.hub.reveal(addOnIds);
     }
 
     /** Reads everything again, installed packages and stored approvals included. */

@@ -2,7 +2,16 @@ import { createHash } from "node:crypto";
 
 import { describe, expect, it, vi } from "vitest";
 
-import { GetBpmnPluginsCommand } from "@miragon/bpmn-modeler-shared";
+import {
+    ADD_ONS_VIEW_COMMAND_TYPES,
+    AddOnActionResultQuery,
+    AddOnCatalogQuery,
+    AddOnRequestCommand,
+    GetAddOnCatalogCommand,
+    GetBpmnPluginsCommand,
+    Query,
+    RevealAddOnsQuery,
+} from "@miragon/bpmn-modeler-shared";
 
 import { BpmnPluginsFeature } from "../../bpmnPlugins/composition/BpmnPluginsFeature";
 import {
@@ -938,6 +947,147 @@ describe("AddOnsFeature", () => {
             expect(host.workspace.watchers.filter(({ root }) => root === WORK)).toMatchObject([
                 { disposed: true },
             ]);
+        });
+    });
+
+    describe("panels", () => {
+        const REVEALED = [`plugin:${RESIZE}`];
+
+        function recordingPanel() {
+            const posted: Query[] = [];
+            return {
+                posted,
+                post: (message: Query) => posted.push(message),
+                types: () => posted.map(({ type }) => type),
+                models: () =>
+                    posted.flatMap((each) =>
+                        each instanceof AddOnCatalogQuery ? [each.model] : [],
+                    ),
+                reveals: () =>
+                    posted.flatMap((each) =>
+                        each instanceof RevealAddOnsQuery ? [each.reveal.addOnIds] : [],
+                    ),
+            };
+        }
+
+        it("routes every command of the add-ons view before a panel attaches", () => {
+            const { addOns } = setUp();
+
+            expect(
+                ADD_ONS_VIEW_COMMAND_TYPES.map((type) => addOns.panelRoutes.routeOf(type)),
+            ).toEqual(ADD_ONS_VIEW_COMMAND_TYPES.map(() => ({ kind: "handled" })));
+        });
+
+        it("gets each model as a query and answers an allow by the revision it showed", async () => {
+            const { host, addOns } = setUp();
+            const panel = recordingPanel();
+            const attached = addOns.attachPanel(panel.post, true);
+            await shown(addOns);
+            const [shownModel] = panel.models();
+
+            await attached.handle(
+                new AddOnRequestCommand(3, {
+                    kind: "allow",
+                    addOnId: `plugin:${RESIZE}`,
+                    revision: shownModel.revision,
+                }),
+            );
+            await shown(addOns);
+
+            expect(panel.posted).toContainEqual(
+                new AddOnActionResultQuery(3, {
+                    kind: "done",
+                    message: "Allowed Resize Tasks. Open editors reload with it.",
+                }),
+            );
+            expect(host.pluginApprovals.approvals).toEqual([
+                { pluginId: RESIZE, contentHash: RESIZE_HASH },
+            ]);
+            expect(panel.models().at(-1)?.revision).toBeGreaterThan(shownModel.revision);
+        });
+
+        it("posts the last model again when its page loads", async () => {
+            const { addOns } = setUp();
+            const panel = recordingPanel();
+            const attached = addOns.attachPanel(panel.post, true);
+            await shown(addOns);
+
+            await attached.handle(new GetAddOnCatalogCommand());
+
+            expect(panel.types()).toEqual(["AddOnCatalogQuery", "AddOnCatalogQuery"]);
+        });
+
+        it("refuses what a disposed panel asks and posts nothing to it", async () => {
+            const { addOns } = setUp();
+            const panel = recordingPanel();
+            const attached = addOns.attachPanel(panel.post, true);
+            await shown(addOns);
+            panel.posted.length = 0;
+
+            attached.dispose();
+            await attached.handle(new AddOnRequestCommand(1, { kind: "refresh" }));
+            addOns.reveal(REVEALED);
+            addOns.refresh();
+            await shown(addOns);
+
+            expect(panel.posted).toEqual([]);
+        });
+
+        it("reveals rows to each visible panel once", async () => {
+            const { addOns } = setUp();
+            const panel = recordingPanel();
+            const attached = addOns.attachPanel(panel.post, true);
+            await shown(addOns);
+
+            addOns.reveal(REVEALED);
+            attached.setVisible(false);
+            attached.setVisible(true);
+            await shown(addOns);
+
+            expect(panel.reveals()).toEqual([REVEALED]);
+        });
+
+        it("reveals rows to a hidden panel after the model once it is shown", async () => {
+            const { addOns } = setUp();
+            const visible = recordingPanel();
+            const hidden = recordingPanel();
+            addOns.attachPanel(visible.post, true);
+            const attached = addOns.attachPanel(hidden.post, false);
+            await shown(addOns);
+
+            addOns.reveal(REVEALED);
+            const beforeShown = hidden.types();
+            attached.setVisible(true);
+
+            expect(beforeShown).toEqual([]);
+            expect(hidden.types()).toEqual(["AddOnCatalogQuery", "RevealAddOnsQuery"]);
+        });
+
+        it("reveals the latest rows once to a panel that attaches after the reveal", async () => {
+            const { addOns } = setUp();
+            addOns.reveal(["plugin:/work/.camunda/plugins/older"]);
+            addOns.reveal(REVEALED);
+            const panel = recordingPanel();
+
+            addOns.attachPanel(panel.post, true);
+            await shown(addOns);
+
+            expect(panel.reveals()).toEqual([REVEALED]);
+        });
+
+        it("logs a reveal its panel throws on, and still reveals to the others", async () => {
+            const { host, addOns } = setUp();
+            const other = recordingPanel();
+            addOns.attachPanel((message) => {
+                if (message instanceof RevealAddOnsQuery) throw new Error("webview gone");
+            }, true);
+            addOns.attachPanel(other.post, true);
+            await shown(addOns);
+
+            addOns.reveal(REVEALED);
+
+            expect(other.reveals()).toEqual([REVEALED]);
+            expect(host.notifier.logged("error")).toHaveLength(1);
         });
     });
 

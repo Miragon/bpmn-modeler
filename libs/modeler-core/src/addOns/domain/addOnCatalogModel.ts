@@ -84,3 +84,9 @@ export interface TemplateAddOnView {
 }
 
 export type AddOnView = CodeAddOnView | TemplateAddOnView;
+
+/** Rows a view is to show and focus, once: a "Review…" left the code they name to it. */
+export interface AddOnReveal {
+    readonly revealId: number;
+    readonly addOnIds: readonly string[];
+}

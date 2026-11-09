@@ -108,6 +108,7 @@ export type {
     ActionView,
     AddOnCatalogModel,
     AddOnGroupView,
+    AddOnReveal,
     AddOnReview,
     AddOnSourceView,
     AddOnView,
