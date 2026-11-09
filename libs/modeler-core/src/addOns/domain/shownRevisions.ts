@@ -12,7 +12,8 @@ export function firstRevisionOf(nowMilliseconds: number): number {
 
 /**
  * What the last published revisions showed, so an allow is checked against
- * what the user saw. A view may answer a revision or two behind, never more.
+ * what the user saw. A view may answer up to the limit of revisions behind,
+ * sixteen by default, never more.
  */
 export class ShownRevisions {
     private constructor(
