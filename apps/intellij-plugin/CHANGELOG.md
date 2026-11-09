@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.16.0](https://github.com/Miragon/bpmn-modeler/compare/intellij-v1.15.0...intellij-v1.16.0) (2026-11-09)
+
+
+### 🎉 New Features
+
+* **intellij-plugin:** load approved workspace bpmn-js plugins ([#2252](https://github.com/Miragon/bpmn-modeler/issues/2252)) ([838040d](https://github.com/Miragon/bpmn-modeler/commit/838040d0ec00a078029ba2a2d81f123d8895d22a))
+* **modeler-core:** ask before running workspace bpmnlint rule packages ([#2274](https://github.com/Miragon/bpmn-modeler/issues/2274)) [sync 2e9b592] ([3689d27](https://github.com/Miragon/bpmn-modeler/commit/3689d27e068213a421c54ca366c099c1bd79073c))
+* **modeler-core:** load approved workspace bpmn-js plugins in VS Code ([#2251](https://github.com/Miragon/bpmn-modeler/issues/2251)) [sync 5457858] ([7107b52](https://github.com/Miragon/bpmn-modeler/commit/7107b529e1d4d7f23f584420b315d2b4c38cfd35))
+
+
+### 🐞 Bug Fixes
+
+* **modeler-core:** run no workspace code in host linting outside rule packages ([#2272](https://github.com/Miragon/bpmn-modeler/issues/2272)) [sync 2bce0e5] ([9f8498f](https://github.com/Miragon/bpmn-modeler/commit/9f8498f4613bb198ab92d3bdbb11c991894ac9fa))
+
 ## [1.15.0](https://github.com/Miragon/bpmn-modeler/compare/intellij-v1.14.0...intellij-v1.15.0) (2026-11-08)
 
 

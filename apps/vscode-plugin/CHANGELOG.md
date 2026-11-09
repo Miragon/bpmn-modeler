@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.21.0](https://github.com/Miragon/bpmn-modeler/compare/vscode-v1.20.0...vscode-v1.21.0) (2026-11-09)
+
+
+### 🎉 New Features
+
+* **intellij-plugin:** load approved workspace bpmn-js plugins ([#2252](https://github.com/Miragon/bpmn-modeler/issues/2252)) ([838040d](https://github.com/Miragon/bpmn-modeler/commit/838040d0ec00a078029ba2a2d81f123d8895d22a))
+* **modeler-core:** ask before running workspace bpmnlint rule packages ([#2274](https://github.com/Miragon/bpmn-modeler/issues/2274)) ([2e9b592](https://github.com/Miragon/bpmn-modeler/commit/2e9b5928615a1f566198ee90dd659851aab55b61))
+* **modeler-core:** load approved workspace bpmn-js plugins in VS Code ([#2251](https://github.com/Miragon/bpmn-modeler/issues/2251)) ([5457858](https://github.com/Miragon/bpmn-modeler/commit/5457858becea52d1c51e4bdfd3597c29df362da6))
+
+
+### 🐞 Bug Fixes
+
+* **modeler-core:** run no workspace code in host linting outside rule packages ([#2272](https://github.com/Miragon/bpmn-modeler/issues/2272)) [sync 2bce0e5] ([9f8498f](https://github.com/Miragon/bpmn-modeler/commit/9f8498f4613bb198ab92d3bdbb11c991894ac9fa))
+
 ## [1.20.0](https://github.com/Miragon/bpmn-modeler/compare/vscode-v1.19.0...vscode-v1.20.0) (2026-11-08)
 
 
