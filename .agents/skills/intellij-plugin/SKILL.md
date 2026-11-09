@@ -205,6 +205,8 @@ To add a new synchronous port, follow
 | `documentationProvider`, `daemon.highlightInfoFilter` | script-tab support |
 | `toolWindow` | `Miragon Deployment` → `DeploymentToolWindowFactory` |
 
+IntelliJ has no Artifacts tool window yet: the bridge declares the `addOnsView` surface `absent`, and **Review…** shows the list. #2250's third PR adds it over the same `apps/add-ons-webview` bundle and `AddOnsFeature.attachPanel`, as VS Code's `AddOnsViewProvider` does.
+
 Groovy (script tab) and JSON (deployment-targets schema) support are optional dependencies
 loaded via config-file (`modeler-groovy.xml` / `modeler-json.xml`) only when
 those platform modules are present.

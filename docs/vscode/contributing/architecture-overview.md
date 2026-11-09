@@ -50,7 +50,8 @@ overlay.
 `apps/bpmn-webview` and `apps/dmn-webview` adapt the public modeler APIs to host
 messages, theme signals, and persisted view state. `apps/form-webview` integrates
 form-js editing and preview; `apps/deployment-webview` renders the deployment UI,
-with its markup owned by `src/adapter/in/formTemplate.ts`.
+with its markup owned by `src/adapter/in/formTemplate.ts`. `apps/add-ons-webview`
+renders the core's add-on catalog in VS Code's Artifacts view.
 
 ## Boundaries and extension points
 
@@ -134,7 +135,7 @@ separate lifecycles.
 Yarn 4 workspaces and `npm-run-all` coordinate the builds:
 
 - `corepack yarn build` builds/checks foundational libraries, then builds the
-  browser packages and four webviews in parallel, followed by the VS Code plugin.
+  browser packages and five webviews in parallel, followed by the VS Code plugin.
 - Vite stages webview assets in `dist/webview-staging/`; the host builds package
   those assets. Public browser packages have their own Vite library builds and
   API checks. The VS Code host uses webpack; IntelliJ uses Gradle and the Bun bridge.
