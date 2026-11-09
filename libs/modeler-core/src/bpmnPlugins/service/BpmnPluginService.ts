@@ -12,13 +12,14 @@ import {
     cachedPluginCopy,
     cachedPluginDirectory,
     cachedPluginFiles,
+    editorsToReload,
     isWholeCachedCopy,
+    OfferedPlugins,
     PendingApproval,
     WorkspacePlugin,
 } from "../domain/pluginApproval";
 import { PluginApprovalStorePort } from "../port/pluginPorts";
 import { CodeApproval } from "../../kernel/domain/codeApproval";
-import { editorsToReload, OfferedPlugins } from "../domain/pluginFolders";
 import { PluginCatalog } from "./PluginCatalog";
 import { DiscoveredPlugin } from "./WorkspacePluginLocator";
 

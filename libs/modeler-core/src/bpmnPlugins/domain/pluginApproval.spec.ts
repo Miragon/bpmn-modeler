@@ -9,7 +9,9 @@ import {
     cachedPluginCopy,
     cachedPluginFiles,
     type CachedPluginFiles,
+    editorsToReload,
     isWholeCachedCopy,
+    type OfferedPlugins,
     type PendingApproval,
     PLUGIN_APPROVAL_NOTICE_ID,
     PLUGIN_APPROVAL_PROMPT_ID,
@@ -149,6 +151,51 @@ describe("pluginApprovalNotice", () => {
             message,
             actions: [{ label: "Review…", value: "review" }],
         });
+    });
+});
+
+describe("editorsToReload", () => {
+    const offered = new Map<string, OfferedPlugins>([
+        ["file:///repo/a.bpmn", { served: [resize], withheld: [palette] }],
+        ["file:///repo/b.bpmn", { served: [], withheld: [palette] }],
+        ["file:///repo/c.bpmn", { served: [resize], withheld: [] }],
+        ["file:///other/d.bpmn", { served: [], withheld: [] }],
+    ]);
+    const row = ({ id, contentHash }: typeof resize) => ({ pluginId: id, contentHash });
+
+    it.each<{ case: string; approvals: CodeApproval[]; editors: string[] }>([
+        {
+            case: "none while every served plugin stays allowed and nothing withheld is",
+            approvals: [row(resize)],
+            editors: [],
+        },
+        {
+            case: "the editors that load a revoked plugin",
+            approvals: [],
+            editors: ["file:///repo/a.bpmn", "file:///repo/c.bpmn"],
+        },
+        {
+            case: "the editors that load a plugin whose row now holds other content",
+            approvals: [{ pluginId: resize.id, contentHash: "r2" }],
+            editors: ["file:///repo/a.bpmn", "file:///repo/c.bpmn"],
+        },
+        {
+            case: "each editor once that was withheld a plugin now allowed",
+            approvals: [row(resize), row(palette)],
+            editors: ["file:///repo/a.bpmn", "file:///repo/b.bpmn"],
+        },
+        {
+            case: "none for a withheld plugin allowed with other content",
+            approvals: [row(resize), { pluginId: palette.id, contentHash: "p2" }],
+            editors: [],
+        },
+        {
+            case: "none for a row of a plugin no editor was offered",
+            approvals: [row(resize), { pluginId: "/x", contentHash: "x" }],
+            editors: [],
+        },
+    ])("returns $case", ({ approvals, editors }) => {
+        expect(editorsToReload(offered, approvals)).toEqual(editors);
     });
 });
 
