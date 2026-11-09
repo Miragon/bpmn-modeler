@@ -461,6 +461,24 @@ export function describeWorkspaceContract(
                 WATCHER_SCENARIO_TIMEOUT_MS,
             );
 
+            // The core watches a config folder before reading it, and most
+            // workspaces have none (`<configFolder>/plugins`).
+            it(
+                "watches a folder that does not exist yet and reports the files created in it",
+                async () => {
+                    const { workspace, root } = fixture;
+                    const watched = `${root}/config/plugins`;
+                    const manifest = `${watched}/resize/plugin.json`;
+                    const { events } = watch(watched, "**/*.json");
+                    await fixture.watchersReady();
+
+                    await workspace.writeFile(manifest, "{}");
+
+                    await eventually(() => expect(kindsFor(events, manifest)).toContain("create"));
+                },
+                WATCHER_SCENARIO_TIMEOUT_MS,
+            );
+
             it(
                 "does not match the glob against the folders above the watched root",
                 async () => {
