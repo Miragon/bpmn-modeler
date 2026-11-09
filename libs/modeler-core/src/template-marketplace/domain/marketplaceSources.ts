@@ -67,3 +67,17 @@ function templatesOf(
         ? { templateFiles: [], problem: NOT_FETCHED_TEXT }
         : { templateFiles };
 }
+
+/**
+ * The templates editors load: each registered entry's slot once, so a slot
+ * left behind by an entry removed by hand is not served before a prune deletes it.
+ */
+export function registeredTemplateFiles(
+    entries: readonly MarketplaceSettingsEntry[],
+    byRegistration: ReadonlyMap<string, readonly string[]>,
+): string[] {
+    const registeredIds = new Set(
+        MarketplaceRegistry.fromEntries(entries).registrations.map(({ id }) => id),
+    );
+    return [...registeredIds].flatMap((id) => byRegistration.get(id) ?? []);
+}

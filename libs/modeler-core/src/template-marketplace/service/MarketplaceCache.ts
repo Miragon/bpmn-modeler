@@ -12,7 +12,7 @@ import { staysInsideFolder } from "../../kernel/domain/rootContainment";
 import { WorkspacePort } from "../../kernel/port/hostPorts";
 
 /**
- * The content-type segment the template pipeline owns. `getCachedTemplatePaths`
+ * The content-type segment the template pipeline owns. `cachedTemplatePathsByRegistration`
  * reads only this child of each source slot, so a future content type cached in
  * a sibling dir never leaks into the element-template merge.
  */
@@ -144,16 +144,11 @@ export class MarketplaceCache {
     }
 
     /**
-     * The merge input for the template pipeline; `[]` before anything is cached.
-     * The scan is scoped to each source's `element-templates` segment, so
-     * old-layout leftovers and foreign content types are excluded by
-     * construction rather than filtered out afterwards.
+     * The served template files of each cached marketplace, by the id its slots
+     * are keyed by; empty before anything is cached. The scan is scoped to each
+     * source's `element-templates` segment, so old-layout leftovers and foreign
+     * content types are excluded by construction rather than filtered out afterwards.
      */
-    async getCachedTemplatePaths(): Promise<string[]> {
-        return [...(await this.cachedTemplatePathsByRegistration()).values()].flat();
-    }
-
-    /** The served template files of each cached marketplace, by the id its slots are keyed by. */
     async cachedTemplatePathsByRegistration(): Promise<ReadonlyMap<string, readonly string[]>> {
         const byRegistration = new Map<string, string[]>();
         for (const marketplaceDir of await this.listSubdirectories(this.cacheRoot)) {

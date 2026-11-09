@@ -155,8 +155,13 @@ function marketplaceHost({
         lockCachedMarketplaces,
         registered: async () =>
             registeredMarketplaces((await host.marketplaceRegistrations.read()).registered),
+        // Read from disk, not through the served list, which already leaves out unregistered slots.
         cachedTemplateNames: async () =>
-            (await service.getCachedTemplatePaths()).map((path) => path.split("/").pop()).sort(),
+            [...host.workspace.files.keys()]
+                .filter((path) => path.startsWith("/cache/") && path.endsWith(".json"))
+                .filter((path) => !path.endsWith("/slot.json"))
+                .map((path) => path.split("/").pop())
+                .sort(),
     };
 }
 

@@ -19,9 +19,12 @@ function slotRecord(sourceIdentity: string, generation: number): string {
     return formatSourceSlotRecord({ sourceIdentity, generation });
 }
 
+async function servedPaths(cache: MarketplaceCache): Promise<string[]> {
+    return [...(await cache.cachedTemplatePathsByRegistration()).values()].flat();
+}
+
 async function servedContents(cache: MarketplaceCache, workspace: InMemoryWorkspace) {
-    const servedPaths = await cache.getCachedTemplatePaths();
-    return Promise.all(servedPaths.map((path) => workspace.readFile(path)));
+    return Promise.all((await servedPaths(cache)).map((path) => workspace.readFile(path)));
 }
 
 /** Lets every write through except those to a path ending in `failingSuffix`. */
@@ -263,11 +266,11 @@ describe("MarketplaceCache.removeSource", () => {
     });
 });
 
-describe("MarketplaceCache.getCachedTemplatePaths", () => {
+describe("MarketplaceCache served template files", () => {
     it("returns [] when nothing is cached yet (cache root absent)", async () => {
         const cache = new MarketplaceCache("/cache", createWorkspace());
 
-        expect(await cache.getCachedTemplatePaths()).toEqual([]);
+        expect(await servedPaths(cache)).toEqual([]);
     });
 
     it("recurses the element-templates segment, keeping only .json files", async () => {
@@ -279,7 +282,7 @@ describe("MarketplaceCache.getCachedTemplatePaths", () => {
         });
         const cache = new MarketplaceCache("/cache", workspace);
 
-        expect(await cache.getCachedTemplatePaths()).toEqual([
+        expect(await servedPaths(cache)).toEqual([
             "/cache/acme/0/element-templates/a.json",
             "/cache/acme/0/element-templates/nested/b.json",
         ]);
@@ -293,9 +296,7 @@ describe("MarketplaceCache.getCachedTemplatePaths", () => {
         const readDirectory = vi.spyOn(workspace, "readDirectory");
         const cache = new MarketplaceCache("/cache", workspace);
 
-        expect(await cache.getCachedTemplatePaths()).toEqual([
-            "/cache/acme/0/element-templates/a.json",
-        ]);
+        expect(await servedPaths(cache)).toEqual(["/cache/acme/0/element-templates/a.json"]);
         expect(readDirectory).not.toHaveBeenCalledWith("/cache/acme/0/lint-rules");
     });
 
@@ -305,7 +306,7 @@ describe("MarketplaceCache.getCachedTemplatePaths", () => {
         });
         const cache = new MarketplaceCache("/cache", workspace);
 
-        expect(await cache.getCachedTemplatePaths()).toEqual([]);
+        expect(await servedPaths(cache)).toEqual([]);
     });
 
     it("serves the generation a slot record names", async () => {
@@ -317,9 +318,7 @@ describe("MarketplaceCache.getCachedTemplatePaths", () => {
         });
         const cache = new MarketplaceCache("/cache", workspace);
 
-        expect(await cache.getCachedTemplatePaths()).toEqual([
-            "/cache/acme/0/2/element-templates/live.json",
-        ]);
+        expect(await servedPaths(cache)).toEqual(["/cache/acme/0/2/element-templates/live.json"]);
     });
 
     it("serves no generation of a slot whose record is torn", async () => {
@@ -329,7 +328,7 @@ describe("MarketplaceCache.getCachedTemplatePaths", () => {
         });
         const cache = new MarketplaceCache("/cache", workspace);
 
-        expect(await cache.getCachedTemplatePaths()).toEqual([]);
+        expect(await servedPaths(cache)).toEqual([]);
     });
 
     it("fails when a slot record cannot be read", async () => {
@@ -337,7 +336,7 @@ describe("MarketplaceCache.getCachedTemplatePaths", () => {
         vi.spyOn(workspace, "readFile").mockRejectedValue(new Error("permission denied"));
         const cache = new MarketplaceCache("/cache", workspace);
 
-        await expect(cache.getCachedTemplatePaths()).rejects.toThrow("permission denied");
+        await expect(servedPaths(cache)).rejects.toThrow("permission denied");
     });
 
     it("aggregates across marketplaces and source indexes", async () => {
@@ -348,7 +347,7 @@ describe("MarketplaceCache.getCachedTemplatePaths", () => {
         });
         const cache = new MarketplaceCache("/cache", workspace);
 
-        expect(await cache.getCachedTemplatePaths()).toEqual([
+        expect(await servedPaths(cache)).toEqual([
             "/cache/acme/0/element-templates/a.json",
             "/cache/acme/1/element-templates/b.json",
             "/cache/globex/0/element-templates/c.json",

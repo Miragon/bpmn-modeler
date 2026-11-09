@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { parseMarketplaceUrl } from "./marketplace";
 import { RegistrationsByScope } from "./marketplaceRegistrations";
-import { marketplaceSourcesOf } from "./marketplaceSources";
+import { marketplaceSourcesOf, registeredTemplateFiles } from "./marketplaceSources";
 
 const SHARED = "https://github.com/acme/shared";
 const LOCAL = "/work/templates";
@@ -100,5 +100,51 @@ describe("marketplaceSourcesOf", () => {
             { entry: byObject, templateFiles: ["/cache/acme/mail.json"] },
             { entry: byUrl, templateFiles: ["/cache/acme/mail.json"] },
         ]);
+    });
+});
+
+describe("registeredTemplateFiles", () => {
+    const sharedFile = "/cache/shared/0/1/element-templates/mail.json";
+    const localFile = "/cache/local/0/1/element-templates/rest.json";
+    const removedFile = "/cache/removed/0/1/element-templates/old.json";
+    const byRegistration = new Map([
+        [SHARED_ID, [sharedFile]],
+        [LOCAL_ID, [localFile]],
+        ["acme__removed", [removedFile]],
+    ]);
+
+    it.each<{ behaviour: string; entries: unknown[]; served: string[] }>([
+        {
+            behaviour: "the templates of each registered entry",
+            entries: [SHARED, LOCAL],
+            served: [sharedFile, localFile],
+        },
+        {
+            behaviour: "nothing of a cached slot no entry names any more",
+            entries: [SHARED],
+            served: [sharedFile],
+        },
+        {
+            behaviour: "a slot two entries share once",
+            entries: [SHARED, { provider: "github", repo: "acme/shared" }],
+            served: [sharedFile],
+        },
+        {
+            behaviour: "nothing for an entry it cannot parse",
+            entries: [BROKEN],
+            served: [],
+        },
+        {
+            behaviour: "nothing for an entry nothing was fetched for yet",
+            entries: ["https://github.com/acme/fresh"],
+            served: [],
+        },
+    ])("serves $behaviour", ({ entries, served }) => {
+        expect(
+            registeredTemplateFiles(
+                entries as Parameters<typeof registeredTemplateFiles>[0],
+                byRegistration,
+            ),
+        ).toEqual(served);
     });
 });
