@@ -1,4 +1,4 @@
-import { ShownCode } from "./addOnCatalog";
+import { ShownCode } from "./codeAddOnCatalog";
 
 const DEFAULT_LIMIT = 16;
 

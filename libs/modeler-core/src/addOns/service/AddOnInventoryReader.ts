@@ -3,7 +3,8 @@ import { PluginApprovalStorePort } from "../../kernel/port/approvalPorts";
 import { FolderTemplateFileListing } from "../../kernel/domain/templateListing";
 import { SettingsPort, WorkspacePort } from "../../kernel/port/hostPorts";
 import { TemplatePreferenceStorePort } from "../../kernel/port/templatePreferencePorts";
-import { AddOnFacts, OwnedPresence } from "../domain/addOnCatalog";
+import { AddOnFacts } from "../domain/addOnCatalog";
+import { OwnedPresence } from "../domain/codeAddOnCatalog";
 import { ListedMarketplace, ListedMarketplaces } from "../domain/templateAddOnViews";
 import {
     configAreaDirsToList,

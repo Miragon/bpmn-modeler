@@ -15,7 +15,8 @@ import {
     type TemplatePreferencesByScope,
     type TemplateSwitch,
 } from "../../kernel/domain/templatePreferences";
-import { AddOnFacts, AddOnSession, catalogModelOf } from "./addOnCatalog";
+import { AddOnFacts, catalogModelOf } from "./addOnCatalog";
+import { AddOnSession } from "./codeAddOnCatalog";
 import { ListedMarketplace } from "./templateAddOnViews";
 import type { AddOnView, CodeAddOnView } from "./addOnCatalogModel";
 
