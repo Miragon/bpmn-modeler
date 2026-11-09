@@ -1,0 +1,32 @@
+{
+    "name": "@miragon/bpmn-modeler-add-ons-webview",
+    "architecture": "hexagonal",
+    "version": "0.0.1",
+    "private": true,
+    "license": "Apache-2.0",
+    "description": "Webview frontend for the Artifacts view: the add-ons of the open workspace.",
+    "scripts": {
+        "build": "vite build",
+        "dev": "portless",
+        "dev:app": "vite --port $PORT --host 127.0.0.1",
+        "watch": "vite build --watch",
+        "serve": "vite",
+        "test": "vitest run --coverage",
+        "typecheck": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.spec.json"
+    },
+    "dependencies": {
+        "@miragon/bpmn-modeler-shared": "workspace:*",
+        "tslib": "2.8.1"
+    },
+    "devDependencies": {
+        "@types/vscode-webview": "1.57.5",
+        "@typescript/native": "npm:typescript@7.0.2",
+        "@vitest/coverage-v8": "5.0.5",
+        "jsdom": "30.1.3",
+        "portless": "0.15.8",
+        "typescript": "npm:@typescript/typescript6@6.0.2",
+        "vite": "8.3.4",
+        "vite-tsconfig-paths": "6.1.1",
+        "vitest": "5.0.5"
+    }
+}

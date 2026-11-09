@@ -471,6 +471,17 @@ jobs:
           focus: "@miragon/bpmn-modeler-deployment-webview @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-types"
       - run: yarn workspace @miragon/bpmn-modeler-deployment-webview build
 
+  build-add-ons-webview:
+    needs: detect-changes
+    if: contains(fromJSON(needs.detect-changes.outputs.affected-targets), 'add-ons-webview')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup-workspaces
+        with:
+          focus: "@miragon/bpmn-modeler-add-ons-webview @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-types"
+      - run: yarn workspace @miragon/bpmn-modeler-add-ons-webview build
+
   check-dep-alignment:
     needs: detect-changes
     if: needs.detect-changes.outputs.dep-alignment == 'true'
@@ -520,6 +531,7 @@ jobs:
       - build-dmn-webview
       - build-form-webview
       - build-deployment-webview
+      - build-add-ons-webview
       - check-dep-alignment
       - verify-docs
     runs-on: ubuntu-latest
