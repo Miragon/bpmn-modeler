@@ -233,8 +233,10 @@ export function needsContentHash(
     );
 }
 
+/** A path id can hold a `#`; a content hash never does, so the key's last `#` ends the id. */
 function isAnswerKeyOf(id: string, key: string): boolean {
-    return key.startsWith(declineKeyOf({ id, name: id, contentHash: "" }));
+    const idEnd = key.lastIndexOf("#");
+    return idEnd !== -1 && key.slice(0, idEnd) === id;
 }
 
 /** An approval of this content wins over a decline of it earlier in the session. */

@@ -657,6 +657,12 @@ describe("needsContentHash", () => {
             declined: [`${resize.id}#2#aaa`],
             needed: false,
         },
+        {
+            case: "only a key without a content hash",
+            approvals: [],
+            declined: [`${resize.id}x`],
+            needed: false,
+        },
     ])("is $needed with $case", ({ approvals, declined, needed }) => {
         expect(needsContentHash(resize.id, approvals, new Set(declined))).toBe(needed);
     });
