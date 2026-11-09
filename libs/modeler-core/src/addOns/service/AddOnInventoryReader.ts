@@ -2,6 +2,7 @@ import { declinedKeys, presenceIdOf } from "../../kernel/domain/codeApproval";
 import { PluginApprovalStorePort } from "../../kernel/port/approvalPorts";
 import { FolderTemplateFileListing } from "../../kernel/domain/templateListing";
 import { SettingsPort, WorkspacePort } from "../../kernel/port/hostPorts";
+import { TemplatePreferenceStorePort } from "../../kernel/port/templatePreferencePorts";
 import { AddOnFacts, OwnedPresence } from "../domain/addOnCatalog";
 import { ListedMarketplace, ListedMarketplaces } from "../domain/templateAddOnViews";
 import {
@@ -26,6 +27,7 @@ export interface AddOnInventoryPorts {
     readonly rulePackages?: RulePackageAddOnSource;
     readonly templates?: TemplateAddOnSource;
     readonly marketplaces?: MarketplaceAddOnSource;
+    readonly templatePreferences?: TemplatePreferenceStorePort;
 }
 
 type ListingFacts = Pick<AddOnFacts, "folders" | "configFolder" | "approvals">;
@@ -38,6 +40,7 @@ export class AddOnInventoryReader {
     async read(inspected: ReadonlySet<string>): Promise<AddOnFacts> {
         // From the host, so a mirror not yet seeded never makes every row look new.
         const approvals = await this.ports.approvals.readStored();
+        const templatePreferences = await this.ports.templatePreferences?.readStored();
         const folders = this.ports.workspace.getWorkspaceFolderPaths();
         const configFolder = this.ports.settings.getConfigFolder();
         const facts = { folders, configFolder, approvals };
@@ -47,6 +50,7 @@ export class AddOnInventoryReader {
             rulePackages: this.rulePackages(facts, inspected),
             templates: await this.templates(facts),
             ...(await this.marketplaces()),
+            ...(templatePreferences && { templatePreferences }),
         };
     }
 

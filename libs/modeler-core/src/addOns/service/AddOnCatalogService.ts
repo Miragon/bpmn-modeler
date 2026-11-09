@@ -6,6 +6,7 @@ import {
 } from "../../kernel/domain/codeApproval";
 import { PluginApprovalStorePort } from "../../kernel/port/approvalPorts";
 import { LoggerPort } from "../../kernel/port/hostPorts";
+import { TemplatePreferenceStorePort } from "../../kernel/port/templatePreferencePorts";
 import { catalogModelOf, ShownCode } from "../domain/addOnCatalog";
 import type { AddOnCatalogModel } from "../domain/addOnCatalogModel";
 import { CatalogActionKind, CodeAddOnKind } from "../domain/addOnIds";
@@ -17,15 +18,19 @@ import {
     CATALOG_NOT_OFFERED,
     catalogActionRefusalOf,
     inspectResultOf,
+    marketplaceRemovalTargetOf,
     PRUNE_FAILED,
     pruneResultOf,
     REPORTED_BY_FLOW,
     revokeResultOf,
-    shownSourceTargetOf,
     shownTargetOf,
+    sourceSwitchTargetOf,
+    TEMPLATE_SWITCH_FAILED,
+    templateSwitchTargetOf,
+    TemplateSwitchTarget,
 } from "../domain/addOnRequests";
 import { firstRevisionOf, ShownRevisions } from "../domain/shownRevisions";
-import { ShownSource } from "../domain/templateAddOnViews";
+import { ShownSource, ShownTemplate } from "../domain/templateAddOnViews";
 import {
     CodeAddOnSource,
     MarketplaceAddOnSource,
@@ -39,11 +44,26 @@ export interface AddOnCatalogPorts {
     readonly plugins: PluginAddOnSource;
     readonly rulePackages?: RulePackageAddOnSource;
     readonly marketplaces?: MarketplaceAddOnSource;
+    /** Absent: the host keeps no template switches, and the catalog offers none. */
+    readonly templatePreferences?: TemplatePreferenceStorePort;
     readonly logger: LoggerPort;
     readonly restart: ProcessRestart;
 }
 
-type CodeRequest = Extract<AddOnRequest, { kind: "inspect" | "allow" | "revoke" | "pruneCache" }>;
+type QueuedRequest = Extract<
+    AddOnRequest,
+    {
+        kind:
+            | "inspect"
+            | "allow"
+            | "revoke"
+            | "pruneCache"
+            | "enable"
+            | "disable"
+            | "enableTemplates"
+            | "disableTemplates";
+    }
+>;
 type MarketplaceRequest = Extract<
     AddOnRequest,
     { kind: "addMarketplace" | "updateMarketplaces" | "removeMarketplace" }
@@ -64,6 +84,7 @@ export class AddOnCatalogService {
     private readonly inspected = new Set<string>();
     private latestModel?: AddOnCatalogModel;
     private latestSources: ReadonlyMap<string, ShownSource> = new Map();
+    private latestTemplates: ReadonlyMap<string, ShownTemplate> = new Map();
     private latestCatalogActions: readonly CatalogActionKind[] = [];
     private active = false;
     private building?: Promise<void>;
@@ -137,9 +158,9 @@ export class AddOnCatalogService {
         const { marketplaces } = this.ports;
         if (marketplaces === undefined) return CATALOG_NOT_OFFERED;
         if (request.kind === "removeMarketplace") {
-            const target = shownSourceTargetOf(this.latestSources, request.sourceId, request.kind);
+            const target = marketplaceRemovalTargetOf(this.latestSources, request.sourceId);
             if (target.kind === "refused") return target.result;
-            await marketplaces.remove(target.source.entry);
+            await marketplaces.remove(target.entry);
             return REPORTED_BY_FLOW;
         }
         const refusal = catalogActionRefusalOf(this.latestCatalogActions, request.kind);
@@ -148,7 +169,7 @@ export class AddOnCatalogService {
         return REPORTED_BY_FLOW;
     }
 
-    private async act(request: CodeRequest): Promise<AddOnActionResult> {
+    private async act(request: QueuedRequest): Promise<AddOnActionResult> {
         try {
             return await this.actOn(request);
         } finally {
@@ -156,7 +177,7 @@ export class AddOnCatalogService {
         }
     }
 
-    private actOn(request: CodeRequest): Promise<AddOnActionResult> {
+    private actOn(request: QueuedRequest): Promise<AddOnActionResult> {
         switch (request.kind) {
             case "inspect":
                 return Promise.resolve(this.inspect(request.addOnId));
@@ -166,7 +187,30 @@ export class AddOnCatalogService {
                 return this.revoke(request.addOnId);
             case "pruneCache":
                 return this.prune();
+            case "enable":
+            case "disable":
+                return this.switchTemplates(
+                    templateSwitchTargetOf(this.latestTemplates, request.addOnId, request.kind),
+                );
+            case "enableTemplates":
+            case "disableTemplates":
+                return this.switchTemplates(
+                    sourceSwitchTargetOf(this.latestSources, request.sourceId, request.kind),
+                );
         }
+    }
+
+    private async switchTemplates(target: TemplateSwitchTarget): Promise<AddOnActionResult> {
+        if (target.kind === "refused") return target.result;
+        const store = this.ports.templatePreferences;
+        if (store === undefined) return CATALOG_NOT_OFFERED;
+        try {
+            await store.change(target.change);
+        } catch (error) {
+            this.logError(error);
+            return TEMPLATE_SWITCH_FAILED;
+        }
+        return target.result;
     }
 
     private inspect(addOnId: string): AddOnActionResult {
@@ -232,7 +276,7 @@ export class AddOnCatalogService {
         const { plugins, rulePackages, restart } = this.ports;
         const facts = await this.reader.read(this.inspected);
         const revision = ++this.revision;
-        const { model, shown, sources, catalogActions } = catalogModelOf(
+        const { model, shown, sources, templates, catalogActions } = catalogModelOf(
             facts,
             {
                 answers: {
@@ -249,6 +293,7 @@ export class AddOnCatalogService {
         );
         this.revisions = this.revisions.recorded(revision, shown);
         this.latestSources = sources;
+        this.latestTemplates = templates;
         this.latestCatalogActions = catalogActions;
         this.latestModel = model;
         this.builtListeners.forEach((listener) => listener(model));

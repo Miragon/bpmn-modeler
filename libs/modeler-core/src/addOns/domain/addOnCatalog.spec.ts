@@ -10,6 +10,11 @@ import {
     SessionAnswer,
 } from "../../kernel/domain/codeApproval";
 import { FolderTemplateFileListing } from "../../kernel/domain/templateListing";
+import {
+    NO_TEMPLATE_PREFERENCES,
+    type TemplatePreferencesByScope,
+    type TemplateSwitch,
+} from "../../kernel/domain/templatePreferences";
 import { AddOnFacts, AddOnSession, catalogModelOf } from "./addOnCatalog";
 import { ListedMarketplace } from "./templateAddOnViews";
 import type { AddOnView, CodeAddOnView } from "./addOnCatalogModel";
@@ -961,7 +966,12 @@ describe("catalogModelOf for marketplaces", () => {
         expect([...sources]).toEqual([
             [
                 "marketplace:acme-shared",
-                { entry: "https://github.com/acme/shared", actions: ["removeMarketplace"] },
+                {
+                    kind: "marketplace",
+                    label: "https://github.com/acme/shared",
+                    entry: "https://github.com/acme/shared",
+                    actions: ["removeMarketplace"],
+                },
             ],
         ]);
     });
@@ -1038,5 +1048,297 @@ describe("catalogModelOf for marketplaces", () => {
             ["marketplaces"],
             undefined,
         ]);
+    });
+});
+
+describe("catalogModelOf for template switches", () => {
+    const SHOP_KEY = "configFolder:work/.camunda";
+    const ACME_SOURCE = {
+        key: "marketplace:github:github.com/acme/shared",
+        scope: "allProjects",
+    } as const;
+    const SWITCHED_SHARED: ListedMarketplace = { ...SHARED, templateSource: ACME_SOURCE };
+    const MAIL_FILE = `${TEMPLATES}/mail.json`;
+    const MAIL_ID = `template:config:/work/.camunda|${MAIL_FILE}#0:mail@2`;
+    const mailFile = templateFile(MAIL_FILE, {
+        kind: "read",
+        templates: [{ id: "mail", name: "Send Mail", version: 2 }, { name: "No id" }],
+    });
+
+    function switched(
+        project: readonly TemplateSwitch[],
+        allProjects: readonly TemplateSwitch[] = [],
+    ): TemplatePreferencesByScope {
+        return { project: { disabled: project }, allProjects: { disabled: allProjects } };
+    }
+
+    const templateRows = (facts: AddOnFacts) =>
+        rows(facts).map((row) => {
+            if (row.kind !== "elementTemplate") throw new Error("expected a template row");
+            const { name, state, stateText, actions } = row;
+            return { name, state, stateText, actions, ...(row.note && { note: row.note }) };
+        });
+
+    it.each<{
+        case: string;
+        preferences: TemplatePreferencesByScope | undefined;
+        mail: Record<string, unknown>;
+    }>([
+        {
+            case: "a host that keeps no switches",
+            preferences: undefined,
+            mail: { state: "enabled", stateText: "Enabled", actions: [] },
+        },
+        {
+            case: "no switch off",
+            preferences: NO_TEMPLATE_PREFERENCES,
+            mail: {
+                state: "enabled",
+                stateText: "Enabled",
+                actions: [{ kind: "disable", label: "Disable" }],
+            },
+        },
+        {
+            case: "its own switch off",
+            preferences: switched([{ source: SHOP_KEY, templateId: "mail" }]),
+            mail: {
+                state: "disabled",
+                stateText: "Disabled",
+                actions: [{ kind: "enable", label: "Enable" }],
+            },
+        },
+        {
+            case: "its source off, its own switch kept",
+            preferences: switched([{ source: SHOP_KEY, templateId: "mail" }, { source: SHOP_KEY }]),
+            mail: {
+                state: "disabled",
+                stateText: "Disabled",
+                actions: [],
+                note: "Its source is disabled.",
+            },
+        },
+        {
+            case: "its switch off in the other scope only",
+            preferences: switched([], [{ source: SHOP_KEY, templateId: "mail" }]),
+            mail: {
+                state: "enabled",
+                stateText: "Enabled",
+                actions: [{ kind: "disable", label: "Disable" }],
+            },
+        },
+    ])("shows a template's switch with $case", ({ preferences, mail }) => {
+        const facts = factsOf({
+            templates: [mailFile],
+            ...(preferences && { templatePreferences: preferences }),
+        });
+
+        expect(templateRows(facts)).toEqual([
+            { name: "No id", state: "enabled", stateText: "Enabled", actions: [] },
+            { name: "Send Mail", ...mail },
+        ]);
+    });
+
+    it("shows every version and file of one id in one source alike", () => {
+        const facts = factsOf({
+            templates: [
+                mailFile,
+                templateFile(`${TEMPLATES}/old-mail.json`, {
+                    kind: "read",
+                    templates: [{ id: "mail", name: "Send Mail (old)", version: 1 }],
+                }),
+            ],
+            templatePreferences: switched([{ source: SHOP_KEY, templateId: "mail" }]),
+        });
+
+        expect(
+            templateRows(facts)
+                .filter(({ name }) => name.startsWith("Send Mail"))
+                .map(({ state }) => state),
+        ).toEqual(["disabled", "disabled"]);
+    });
+
+    it("offers no switch for a template file it cannot read", () => {
+        const facts = factsOf({
+            templates: [
+                templateFile(`${TEMPLATES}/broken.json`, { kind: "unreadable", reason: "bad" }),
+            ],
+            templatePreferences: NO_TEMPLATE_PREFERENCES,
+        });
+
+        expect(templateRows(facts)).toEqual([
+            { name: "broken.json", state: "enabled", stateText: "Enabled", actions: [] },
+        ]);
+    });
+
+    it.each<{
+        case: string;
+        preferences: TemplatePreferencesByScope;
+        source: Record<string, unknown>;
+    }>([
+        {
+            case: "templates on",
+            preferences: NO_TEMPLATE_PREFERENCES,
+            source: { actions: [{ kind: "disableTemplates", label: "Disable templates" }] },
+        },
+        {
+            case: "templates off",
+            preferences: switched([{ source: SHOP_KEY }]),
+            source: {
+                actions: [{ kind: "enableTemplates", label: "Enable templates" }],
+                stateText: "Templates disabled",
+            },
+        },
+    ])("offers a config folder's templates switch with $case", ({ preferences, source }) => {
+        const { model } = build(
+            factsOf({
+                plugins: [found(RESIZE, "Resize", "h1")],
+                templates: [mailFile],
+                templatePreferences: preferences,
+            }),
+        );
+        const [{ actions, stateText }] = model.groups[0].sources;
+
+        expect({ actions, ...(stateText && { stateText }) }).toEqual(source);
+    });
+
+    it.each<{ case: string; facts: AddOnFacts }>([
+        {
+            case: "only plugins",
+            facts: factsOf({
+                plugins: [found(RESIZE, "Resize", "h1")],
+                templatePreferences: NO_TEMPLATE_PREFERENCES,
+            }),
+        },
+        {
+            case: "only templates without an id",
+            facts: factsOf({
+                templates: [
+                    templateFile(`${TEMPLATES}/a.json`, {
+                        kind: "read",
+                        templates: [{ name: "A" }],
+                    }),
+                ],
+                templatePreferences: NO_TEMPLATE_PREFERENCES,
+            }),
+        },
+        { case: "a host that keeps no switches", facts: factsOf({ templates: [mailFile] }) },
+    ])("offers no templates switch on a config folder with $case", ({ facts }) => {
+        const { model, sources } = build(facts);
+
+        expect(model.groups[0].sources[0].actions).toEqual([]);
+        expect(sources.size).toBe(0);
+    });
+
+    it.each<{
+        case: string;
+        marketplace: ListedMarketplace;
+        preferences: TemplatePreferencesByScope;
+        actions: string[];
+        stateText?: string;
+        mail: string;
+    }>([
+        {
+            case: "templates on",
+            marketplace: SWITCHED_SHARED,
+            preferences: NO_TEMPLATE_PREFERENCES,
+            actions: ["removeMarketplace", "disableTemplates"],
+            mail: "enabled",
+        },
+        {
+            case: "templates off where its switches live",
+            marketplace: SWITCHED_SHARED,
+            preferences: switched([], [{ source: ACME_SOURCE.key }]),
+            actions: ["removeMarketplace", "enableTemplates"],
+            stateText: "Templates disabled",
+            mail: "disabled",
+        },
+        {
+            case: "templates off in the other scope only",
+            marketplace: SWITCHED_SHARED,
+            preferences: switched([{ source: ACME_SOURCE.key }]),
+            actions: ["removeMarketplace", "disableTemplates"],
+            mail: "enabled",
+        },
+        {
+            case: "an entry with no switches",
+            marketplace: SHARED,
+            preferences: switched([], [{ source: ACME_SOURCE.key }]),
+            actions: ["removeMarketplace"],
+            mail: "enabled",
+        },
+    ])(
+        "offers a marketplace's templates switch with $case",
+        ({ marketplace, preferences, actions, stateText, mail }) => {
+            const { model } = build(
+                factsOf({ marketplaces: [marketplace], templatePreferences: preferences }),
+            );
+            const [source] = model.groups[0].sources;
+
+            expect({
+                actions: source.actions.map(({ kind }) => kind),
+                stateText: source.stateText,
+                mail: source.addOns[0].state,
+            }).toEqual({ actions, stateText, mail });
+        },
+    );
+
+    it("keeps what each template and source switch showed, never sent", () => {
+        const { templates, sources } = build(
+            factsOf({
+                templates: [mailFile],
+                marketplaces: [SWITCHED_SHARED],
+                templatePreferences: switched([{ source: SHOP_KEY, templateId: "mail" }]),
+            }),
+        );
+
+        expect([...templates]).toEqual([
+            [
+                MAIL_ID,
+                {
+                    name: "Send Mail",
+                    switch: { source: SHOP_KEY, templateId: "mail" },
+                    scope: "project",
+                    actions: ["enable"],
+                },
+            ],
+            [
+                "template:marketplace:acme-shared|/cache/acme-shared/0/element-templates/mail.json#0:mail",
+                {
+                    name: "Mail",
+                    switch: { source: ACME_SOURCE.key, templateId: "mail" },
+                    scope: "allProjects",
+                    actions: ["disable"],
+                },
+            ],
+        ]);
+        expect([...sources]).toEqual([
+            [
+                "config:/work/.camunda",
+                {
+                    kind: "configFolder",
+                    label: ".camunda",
+                    templateSource: { key: SHOP_KEY, scope: "project" },
+                    actions: ["disableTemplates"],
+                },
+            ],
+            [
+                "marketplace:acme-shared",
+                {
+                    kind: "marketplace",
+                    label: "https://github.com/acme/shared",
+                    entry: "https://github.com/acme/shared",
+                    templateSource: ACME_SOURCE,
+                    actions: ["removeMarketplace", "disableTemplates"],
+                },
+            ],
+        ]);
+    });
+
+    it("records no template switch on a host that keeps none", () => {
+        const { templates } = build(
+            factsOf({ templates: [mailFile], marketplaces: [SWITCHED_SHARED] }),
+        );
+
+        expect(templates.size).toBe(0);
     });
 });
