@@ -19,9 +19,8 @@ vi.mock("./AddOnsViewHtml", () => ({
 import { commands, window } from "vscode";
 import { AddOnsFeature } from "@miragon/bpmn-modeler-core";
 import { type Command, type Query } from "@miragon/bpmn-modeler-shared";
-import { ADD_ONS_VIEW_ID, REFRESH_ADD_ONS_CMD } from "../../domain/addOnsViewIds";
 import { addOnsViewHtml } from "./AddOnsViewHtml";
-import { AddOnsViewProvider } from "./AddOnsViewProvider";
+import { ADD_ONS_VIEW_ID, AddOnsViewProvider, REFRESH_ADD_ONS_CMD } from "./AddOnsViewProvider";
 
 function createWebviewView(visible: boolean) {
     return {

@@ -20,7 +20,7 @@ import { AddOnCatalogQuery, Query, RevealAddOnsQuery } from "@miragon/bpmn-model
 
 import { registeredViewProviders } from "../__fixtures__/vscodeCompositionFake";
 import { InMemoryMemento } from "../__fixtures__/vscodeStorage";
-import { ADD_ONS_VIEW_ID } from "../addOns/domain/addOnsViewIds";
+import { ADD_ONS_VIEW_ID } from "../addOns/adapter/in/AddOnsViewProvider";
 import { BpmnDiffController } from "../diff/adapter/in/BpmnDiffController";
 import { setContext } from "../shared/adapter/out/extensionContext";
 import * as addOnsFeature from "./addOnsFeature";

@@ -39,7 +39,7 @@ import {
     SWITCH_TARGET_CMD,
     VERIFY_DEPLOYMENT_CMD,
 } from "./deployment/adapter/in/DeploymentController";
-import { ADD_ONS_VIEW_ID, REFRESH_ADD_ONS_CMD } from "./addOns/domain/addOnsViewIds";
+import { ADD_ONS_VIEW_ID, REFRESH_ADD_ONS_CMD } from "./addOns/adapter/in/AddOnsViewProvider";
 import {
     ADD_MARKETPLACE_CMD,
     REMOVE_MARKETPLACE_CMD,
