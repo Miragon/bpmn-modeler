@@ -635,20 +635,27 @@ describe("AddOnsFeature", () => {
             }
         });
 
-        it("keeps a view attached whose post throws, and logs why", async () => {
+        it("keeps a view attached whose post throws, logs why, and still posts to the others", async () => {
             const { host, addOns } = setUp();
             const posted: number[] = [];
-            addOns.attachView((model) => {
+            const throwing = addOns.attachView((model) => {
                 posted.push(model.revision);
                 throw new Error("webview gone");
             }, true);
+            const other = new RecordingAddOnView();
+            other.attachTo(addOns);
             await shown(addOns);
 
             addOns.refresh();
             await shown(addOns);
+            throwing.setVisible(false);
+            throwing.setVisible(true);
+            await shown(addOns);
 
-            expect(posted).toHaveLength(2);
-            expect(host.notifier.logged("error")).toHaveLength(2);
+            // Shown again, the throwing view gets the latest model, then the one read anew.
+            expect(posted).toEqual([1, 2, 3, 3, 4]);
+            expect(other.models.map(({ revision }) => revision)).toEqual([1, 2, 3, 4]);
+            expect(host.notifier.logged("error")).toHaveLength(5);
         });
 
         it("posts nothing to a disposed view and refuses what it asks", async () => {
