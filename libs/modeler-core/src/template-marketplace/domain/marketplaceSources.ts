@@ -6,7 +6,7 @@ import {
 import { MarketplaceSettingsEntry } from "../../kernel/domain/modelerSettings";
 import { TemplateSourceRef, templateSourceScopeOf } from "../../kernel/domain/templatePreferences";
 import { MarketplaceRegistration, marketplacePreferenceKeyOf } from "./marketplace";
-import { marketplaceScopesText } from "./marketplacePrompts";
+import { marketplaceListingScopeText } from "./marketplacePrompts";
 import {
     marketplaceEntryKey,
     RegisteredMarketplace,
@@ -40,7 +40,7 @@ export function marketplaceSourcesOf(
         id: marketplaceEntryKey(entry),
         entry,
         label: entries[index].label,
-        scopeText: marketplaceScopesText(scopes),
+        scopeText: marketplaceListingScopeText(scopes, switched[index]?.source.scope),
         ...templatesOf(entries[index], cached),
         ...optionalSource(switched[index]),
     }));

@@ -166,9 +166,23 @@ export type MarketplaceRemovalConfirm =
     | { readonly kind: "notRegistered"; readonly message: string }
     | { readonly kind: "confirm"; readonly request: ConfirmRequest };
 
-/** Where an entry is registered, as the removal choice and the add-on catalog name it. */
+/** Where an entry is registered, as the removal choice names it. */
 export function marketplaceScopesText(scopes: readonly MarketplaceScope[]): string {
     return sentenceCase(scopesPhrase(scopes));
+}
+
+/**
+ * Where an entry is registered, as the add-on catalog names it, and where its
+ * template switches apply when its repository keeps them in another scope.
+ */
+export function marketplaceListingScopeText(
+    scopes: readonly MarketplaceScope[],
+    switchScope: MarketplaceScope | undefined,
+): string {
+    const registeredIn = marketplaceScopesText(scopes);
+    return switchScope === undefined || scopes.includes(switchScope)
+        ? registeredIn
+        : `${registeredIn}; its template switches apply to ${SCOPE_NAME[switchScope]}`;
 }
 
 /** The question before one named entry is removed from every scope that holds it. */

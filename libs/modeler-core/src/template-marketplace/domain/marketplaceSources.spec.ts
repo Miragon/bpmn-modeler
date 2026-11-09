@@ -129,6 +129,22 @@ describe("marketplaceSourcesOf", () => {
         expect(sources.map(({ templateSource }) => templateSource?.scope)).toEqual(scopes);
     });
 
+    it("says where the switches of an entry apply when its repository keeps them in another scope", () => {
+        const sources = marketplaceSourcesOf(
+            {
+                project: ["https://github.com/acme/shared/tree/next", LOCAL],
+                allProjects: [SHARED],
+            },
+            { kind: "read", byRegistration: new Map() },
+        );
+
+        expect(sources.map(({ scopeText }) => scopeText)).toEqual([
+            "All my projects",
+            "This project; its template switches apply to all my projects",
+            "This project",
+        ]);
+    });
+
     it("keys the switches of two refs of one repository alike", () => {
         const [atNext, atMain] = marketplaceSourcesOf(
             { project: ["https://github.com/acme/shared/tree/next"], allProjects: [SHARED] },
