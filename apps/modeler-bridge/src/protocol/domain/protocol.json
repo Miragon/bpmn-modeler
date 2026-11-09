@@ -200,6 +200,24 @@
         "paramKeys": ["allProjects", "project"]
     },
     {
+        "method": "addOns/webviewMessage",
+        "direction": "hostToCore",
+        "kind": "notification",
+        "paramKeys": ["message"]
+    },
+    {
+        "method": "addOns/open",
+        "direction": "hostToCore",
+        "kind": "notification",
+        "paramKeys": ["open", "settings", "workspaceRoot"]
+    },
+    {
+        "method": "addOns/refresh",
+        "direction": "hostToCore",
+        "kind": "notification",
+        "paramKeys": []
+    },
+    {
         "method": "document/write",
         "direction": "coreToHost",
         "kind": "request",
@@ -494,5 +512,11 @@
         "direction": "coreToHost",
         "kind": "notification",
         "paramKeys": ["scriptId"]
+    },
+    {
+        "method": "addOns/postMessage",
+        "direction": "coreToHost",
+        "kind": "notification",
+        "paramKeys": ["message"]
     }
 ]

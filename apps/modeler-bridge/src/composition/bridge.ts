@@ -141,6 +141,7 @@ export function createBridge(
             bpmnEditor: editor.router,
             bpmnDiffPane: diff.paneRoutes,
             deploymentSidebar: deployment.panelRoutes,
+            addOnsView: addOns.panelRoutes,
         },
         prunePluginCache: () => plugins.pruneCache(),
         addOns,

@@ -77,7 +77,12 @@ const INTELLIJ_SURFACES: HostSurfaceCoverage = {
         StartInstanceCommand: HANDLED,
         RequestPayloadFilesCommand: HANDLED,
     },
-    addOnsView: absent("the IntelliJ tool window comes with #2250 PR D"),
+    addOnsView: {
+        LogInfoCommand: HANDLED,
+        LogErrorCommand: HANDLED,
+        GetAddOnCatalogCommand: HANDLED,
+        AddOnRequestCommand: HANDLED,
+    },
 };
 
 describe("the bridge's webview surfaces", () => {

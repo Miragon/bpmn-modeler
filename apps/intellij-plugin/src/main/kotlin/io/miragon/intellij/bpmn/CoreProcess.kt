@@ -72,7 +72,10 @@ class CoreProcess(private val project: Project) : Disposable {
             // Declared after the supervisor; safe because these lambdas only fire
             // post-construction, on the first (re)spawn or on a crash.
             onSpawned = { routers.seedAfterSpawn() },
-            onRespawned = { routers.editor.reregisterLiveSessions() },
+            onRespawned = {
+                routers.editor.reregisterLiveSessions()
+                routers.addOns.reloadPageAfterRespawn()
+            },
             // Clear any in-flight spinner on a crash so it can't hang waiting on a
             // progressEnd the dead core will never send.
             onProcessDown = {
@@ -235,6 +238,19 @@ class CoreProcess(private val project: Project) : Disposable {
 
     fun setDeploymentOpen(open: Boolean) = routers.deployment.setDeploymentOpen(open)
 
+    // ── add-ons view (the BPMN Modeler tool window's Artifacts tab) ─────────────
+
+    fun registerAddOnsWindow(post: (String) -> Unit, reload: () -> Unit) = routers.addOns.registerWindow(post, reload)
+
+    fun unregisterAddOnsWindow() = routers.addOns.unregisterWindow()
+
+    fun forwardAddOnsMessage(rawMessage: String) = routers.addOns.forwardMessage(rawMessage)
+
+    fun setAddOnsOpen(open: Boolean) = routers.addOns.setOpen(open)
+
+    /** Fires `addOns/refresh`; the core reads every add-on again, installed packages and stored approvals included. */
+    fun refreshAddOns() = routers.addOns.refresh()
+
     // ── diff ─────────────────────────────────────────────────────────────────────
 
     fun openDiff(
@@ -261,5 +277,6 @@ class CoreProcess(private val project: Project) : Disposable {
         routers.editor.clear()
         routers.diff.clear()
         routers.deployment.clear()
+        routers.addOns.clear()
     }
 }

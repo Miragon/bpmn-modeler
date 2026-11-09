@@ -92,6 +92,21 @@ class BridgeRoutersTest {
         }
     }
 
+    @Test
+    fun `a spawn opens the Artifacts view again after the settings`() {
+        val wired = wireChannel().also { this.wired = it }
+        val routers = BridgeRouters(bridgeDeps(projectFixture.get(), wired.channel, wired.handlers))
+        routers.register()
+        routers.addOns.registerWindow(post = {}, reload = {})
+        routers.addOns.setOpen(true)
+        wired.fake.framesUntilQuiet()
+
+        routers.seedAfterSpawn()
+
+        val methods = wired.fake.framesUntilQuiet().map { parse(it).get("method").asString }
+        assertEquals(true, methods.indexOf("settings/didChange") in 0 until methods.indexOf("addOns/open"), methods.toString())
+    }
+
     private companion object {
         const val SWITCHES_KEY = "miragon.bpmnModeler.templatePreferences"
         const val ACME = "marketplace:github:github.com/acme/templates"

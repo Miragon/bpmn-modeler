@@ -38,4 +38,7 @@ internal enum class HostToCoreMethod(val wireName: String) {
     LAYOUT_CLEANUP("layout/cleanup"),
     PLUGIN_APPROVALS_DID_CHANGE("pluginApprovals/didChange"),
     TEMPLATE_PREFERENCES_DID_CHANGE("templatePreferences/didChange"),
+    ADD_ONS_WEBVIEW_MESSAGE("addOns/webviewMessage"),
+    ADD_ONS_OPEN("addOns/open"),
+    ADD_ONS_REFRESH("addOns/refresh"),
 }

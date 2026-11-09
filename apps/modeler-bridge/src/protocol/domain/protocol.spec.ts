@@ -133,6 +133,9 @@ describe("RPC protocol descriptor", () => {
                     "  deployment/statusBarMenu",
                     "  pluginApprovals/didChange",
                     "  templatePreferences/didChange",
+                    "  addOns/webviewMessage",
+                    "  addOns/open",
+                    "  addOns/refresh",
                     "",
                     "Core → Host (requests):",
                     "  document/write",
@@ -182,6 +185,7 @@ describe("RPC protocol descriptor", () => {
                     "  script/updateVariables",
                     "  script/updateContent",
                     "  script/close",
+                    "  addOns/postMessage",
                 ].join("\n"),
             );
         });

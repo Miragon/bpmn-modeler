@@ -22,7 +22,10 @@ import { Command, Query } from "@miragon/bpmn-modeler-shared";
 import {
     ActionNoticeShowParams,
     ActionNoticeShowResult,
+    AddOnsOpenParams,
+    AddOnsPostMessageParams,
     AddOnsRevealResult,
+    AddOnsWebviewMessageParams,
     BasicAuthCredentials,
     ClipboardReadResult,
     ClipboardWriteParams,
@@ -162,6 +165,9 @@ export const METHODS = {
     deploymentStatusBarMenu: "deployment/statusBarMenu",
     pluginApprovalsDidChange: "pluginApprovals/didChange",
     templatePreferencesDidChange: "templatePreferences/didChange",
+    addOnsWebviewMessage: "addOns/webviewMessage",
+    addOnsOpen: "addOns/open",
+    addOnsRefresh: "addOns/refresh",
 
     // Core → Host requests
     documentWrite: "document/write",
@@ -211,6 +217,7 @@ export const METHODS = {
     scriptUpdateVariables: "script/updateVariables",
     scriptUpdateContent: "script/updateContent",
     scriptClose: "script/close",
+    addOnsPostMessage: "addOns/postMessage",
 } as const;
 
 // Plain-object stand-ins for the opaque message payloads. The snapshot only
@@ -467,6 +474,28 @@ export const PROTOCOL = [
         direction: "hostToCore",
         kind: "notification",
         paramsFixture: TEMPLATE_PREFERENCES_SAMPLE,
+    },
+    {
+        method: METHODS.addOnsWebviewMessage,
+        direction: "hostToCore",
+        kind: "notification",
+        paramsFixture: { message: SAMPLE_COMMAND } satisfies AddOnsWebviewMessageParams,
+    },
+    {
+        method: METHODS.addOnsOpen,
+        direction: "hostToCore",
+        kind: "notification",
+        paramsFixture: {
+            open: true,
+            workspaceRoot: "/repo",
+            settings: { configFolder: ".camunda" },
+        } satisfies AddOnsOpenParams,
+    },
+    {
+        method: METHODS.addOnsRefresh,
+        direction: "hostToCore",
+        kind: "notification",
+        paramsFixture: {} satisfies EmptyParams,
     },
 
     // ── Core → Host requests ─────────────────────────────────────────────────
@@ -951,6 +980,12 @@ export const PROTOCOL = [
         direction: "coreToHost",
         kind: "notification",
         paramsFixture: { scriptId: "s1" } satisfies ScriptCloseNotifyParams,
+    },
+    {
+        method: METHODS.addOnsPostMessage,
+        direction: "coreToHost",
+        kind: "notification",
+        paramsFixture: { message: SAMPLE_QUERY } satisfies AddOnsPostMessageParams,
     },
 ] as const satisfies readonly ProtocolEntry[];
 
