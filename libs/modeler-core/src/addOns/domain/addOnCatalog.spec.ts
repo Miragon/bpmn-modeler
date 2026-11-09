@@ -10,7 +10,8 @@ import {
     SessionAnswer,
 } from "../../kernel/domain/codeApproval";
 import { FolderTemplateFileListing } from "../../kernel/domain/templateListing";
-import { AddOnFacts, AddOnSession, catalogModelOf, ListedMarketplace } from "./addOnCatalog";
+import { AddOnFacts, AddOnSession, catalogModelOf } from "./addOnCatalog";
+import { ListedMarketplace } from "./templateAddOnViews";
 import type { AddOnView, CodeAddOnView } from "./addOnCatalogModel";
 
 const RESIZE = "/work/.camunda/plugins/resize";

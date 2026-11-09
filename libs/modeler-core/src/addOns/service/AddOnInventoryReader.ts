@@ -2,12 +2,8 @@ import { declinedKeys, presenceIdOf } from "../../kernel/domain/codeApproval";
 import { PluginApprovalStorePort } from "../../kernel/port/approvalPorts";
 import { FolderTemplateFileListing } from "../../kernel/domain/templateListing";
 import { SettingsPort, WorkspacePort } from "../../kernel/port/hostPorts";
-import {
-    AddOnFacts,
-    ListedMarketplace,
-    ListedMarketplaces,
-    OwnedPresence,
-} from "../domain/addOnCatalog";
+import { AddOnFacts, OwnedPresence } from "../domain/addOnCatalog";
+import { ListedMarketplace, ListedMarketplaces } from "../domain/templateAddOnViews";
 import {
     configAreaDirsToList,
     isHashWanted,

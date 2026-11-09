@@ -1,5 +1,6 @@
 import { ApprovableArtifact, ReviewedAllow } from "../../kernel/domain/codeApproval";
-import { ShownCode, ShownSource } from "./addOnCatalog";
+import { ShownCode } from "./addOnCatalog";
+import { ShownSource } from "./templateAddOnViews";
 import { AddOnActionKind, CatalogActionKind, SourceActionKind } from "./addOnIds";
 import { ShownRevisions } from "./shownRevisions";
 

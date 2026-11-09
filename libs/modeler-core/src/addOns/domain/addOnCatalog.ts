@@ -1,5 +1,3 @@
-import { ENGINE_LABEL } from "@miragon/bpmn-modeler-types";
-
 import {
     ApprovableArtifact,
     ApprovableCodeTexts,
@@ -15,61 +13,53 @@ import {
     SessionAnswer,
 } from "../../kernel/domain/codeApproval";
 import { folderOfConfigFolder } from "../../kernel/domain/configArtifacts";
-import { MarketplaceListing, UnreadableMarketplaces } from "../../kernel/domain/marketplaceListing";
-import { MarketplaceSettingsEntry } from "../../kernel/domain/modelerSettings";
 import {
     innermostFolderOf,
     relativeToRoot,
     relativeToWorkspace,
 } from "../../kernel/domain/rootContainment";
-import {
-    FolderTemplateFileListing,
-    TemplateFileListing,
-} from "../../kernel/domain/templateListing";
+import { FolderTemplateFileListing } from "../../kernel/domain/templateListing";
 import { lastWorkspacePathSegment } from "../../kernel/domain/workspacePath";
 import type {
     ActionView,
     AddOnCatalogModel,
     AddOnGroupView,
     AddOnReview,
-    AddOnSourceView,
     AddOnView,
     CodeAddOnView,
-    TemplateAddOnView,
 } from "./addOnCatalogModel";
 import {
-    ADD_ON_KINDS,
     AddOnActionKind,
     AddOnKind,
     addOnIdOf,
     CatalogActionKind,
     CodeAddOnKind,
     folderGroupIdOf,
-    MARKETPLACES_GROUP_ID,
-    SourceActionKind,
     SourceKind,
     sourceIdOf,
-    templateAddOnIdOf,
-    TemplateState,
 } from "./addOnIds";
 import {
     ACTION_LABEL,
     ADD_ON_KIND_TEXT,
     allowWarningText,
     cannotBeAllowedText,
-    cannotBeReadText,
     codeStateLabel,
     INSTALLED_PACKAGES_TEXT,
-    MARKETPLACES_GROUP_TEXT,
     nestedConfigFolderText,
     NO_ADD_ON_TEXT,
     NO_FOLDER_TEXT,
     REVIEW_FACT_LABEL,
     reviewHeading,
     ROOT_CONFIG_FOLDER_TEXT,
-    TEMPLATE_STATE_TEXT,
-    templateVersionText,
 } from "./addOnTexts";
+import { byKindThenName, compare, optional } from "./addOnViewParts";
+import {
+    ListedMarketplaces,
+    marketplaceSourceOf,
+    marketplacesGroupOf,
+    ShownSource,
+    templateViewsOf,
+} from "./templateAddOnViews";
 
 /** One add-on as its owner read it, placed and spoke of it. */
 export interface OwnedPresence {
@@ -78,16 +68,6 @@ export interface OwnedPresence {
     readonly sourceDir: string;
     readonly texts: ApprovableCodeTexts;
 }
-
-/** One registered marketplace as its owner listed and worded it, with its cached templates read. */
-export type ListedMarketplace = Omit<MarketplaceListing, "templateFiles"> & {
-    readonly templates: readonly TemplateFileListing[];
-};
-
-/** The registered marketplaces, or why their owner could not read them. */
-export type ListedMarketplaces =
-    | { readonly kind: "listed"; readonly sources: readonly ListedMarketplace[] }
-    | UnreadableMarketplaces;
 
 /** What one listing found: every add-on its owner read, by kind. */
 export interface AddOnFacts {
@@ -122,12 +102,6 @@ export interface ShownCode {
     readonly revokedFollowUp: string;
     /** No notice in this process asks about it again once revoked from the view. */
     readonly leftForViewByRevoke: readonly ApprovableArtifact[];
-}
-
-/** What the core showed of one marketplace source; kept by the core and never sent. */
-export interface ShownSource {
-    readonly entry: MarketplaceSettingsEntry;
-    readonly actions: readonly SourceActionKind[];
 }
 
 export interface CatalogBuild {
@@ -226,12 +200,6 @@ const PRUNE_ACTIONS: readonly ActionView<CatalogActionKind>[] = [
     { kind: "pruneCache", label: ACTION_LABEL.pruneCache },
 ];
 
-const MARKETPLACE_SOURCE_ACTIONS: readonly ActionView<SourceActionKind>[] = [
-    { kind: "removeMarketplace", label: ACTION_LABEL.removeMarketplace },
-];
-
-const TEMPLATE_STATE: TemplateState = "enabled";
-
 /**
  * The model every view shows: each add-on inside a workspace folder, placed
  * in the innermost folder and the source it comes from, with its state and
@@ -288,88 +256,6 @@ function placedTemplates(listing: FolderTemplateFileListing, facts: AddOnFacts):
         source,
         view,
     }));
-}
-
-/** Each template of a file, or the file once when it cannot be read; a blank file holds none. */
-function templateViewsOf(
-    sourceId: string,
-    { path, reading }: TemplateFileListing,
-): TemplateAddOnView[] {
-    const fileName = lastWorkspacePathSegment(path);
-    if (reading.kind === "unreadable") {
-        return [
-            {
-                ...templateViewBase(templateAddOnIdOf(sourceId, path), fileName),
-                problem: cannotBeReadText(reading.reason),
-            },
-        ];
-    }
-    return reading.templates.map((template, index) => ({
-        ...templateViewBase(
-            templateAddOnIdOf(sourceId, path, template, index),
-            template.name ?? template.id ?? fileName,
-        ),
-        ...optional(
-            "detail",
-            template.version === undefined ? undefined : templateVersionText(template.version),
-        ),
-        ...optional(
-            "engineText",
-            template.engine === undefined ? undefined : ENGINE_LABEL[template.engine],
-        ),
-    }));
-}
-
-function templateViewBase(id: string, name: string): TemplateAddOnView {
-    return {
-        id,
-        kind: "elementTemplate",
-        kindText: ADD_ON_KIND_TEXT.elementTemplate,
-        name,
-        state: TEMPLATE_STATE,
-        stateText: TEMPLATE_STATE_TEXT[TEMPLATE_STATE],
-        actions: [],
-    };
-}
-
-function marketplaceSourceOf(marketplace: ListedMarketplace): {
-    readonly view: AddOnSourceView;
-    readonly shown: ShownSource;
-} {
-    const id = sourceIdOf("marketplace", marketplace.id);
-    return {
-        view: {
-            id,
-            kind: "marketplace",
-            label: marketplace.label,
-            description: marketplace.scopeText,
-            ...optional("problem", marketplace.problem),
-            actions: MARKETPLACE_SOURCE_ACTIONS,
-            addOns: marketplace.templates
-                .flatMap((listing) => templateViewsOf(id, listing))
-                .sort(byKindThenName),
-        },
-        shown: {
-            entry: marketplace.entry,
-            actions: MARKETPLACE_SOURCE_ACTIONS.map(({ kind }) => kind),
-        },
-    };
-}
-
-function marketplacesGroupOf(
-    sources: readonly AddOnSourceView[],
-    problem: string | undefined,
-): AddOnGroupView[] {
-    return sources.length === 0 && problem === undefined
-        ? []
-        : [
-              {
-                  id: MARKETPLACES_GROUP_ID,
-                  ...MARKETPLACES_GROUP_TEXT,
-                  ...optional("problem", problem),
-                  sources,
-              },
-          ];
 }
 
 function placedAddOn(
@@ -534,21 +420,4 @@ function emptyTextOf(
 ): { readonly emptyText?: string } {
     if (groups.length > 0) return {};
     return { emptyText: folders.length === 0 ? NO_FOLDER_TEXT : NO_ADD_ON_TEXT };
-}
-
-function byKindThenName(a: AddOnView, b: AddOnView): number {
-    return (
-        ADD_ON_KINDS.indexOf(a.kind) - ADD_ON_KINDS.indexOf(b.kind) ||
-        compare(a.name, b.name) ||
-        compare(a.id, b.id)
-    );
-}
-
-function optional<K extends string, V>(key: K, value: V | undefined): { readonly [P in K]?: V } {
-    return (value === undefined ? {} : { [key]: value }) as { readonly [P in K]?: V };
-}
-
-/** By UTF-16 code unit, as `sort()` does, so every host orders alike. */
-function compare(a: string, b: string): number {
-    return a < b ? -1 : a > b ? 1 : 0;
 }
