@@ -345,7 +345,7 @@ describe("catalogModelOf", () => {
             presence: found(RESIZE, "Resize", "h1"),
             approvals: [],
             state: "new",
-            stateText: "New",
+            stateText: "Not allowed yet",
             actions: ["allow:Allow this content"],
         },
         {
@@ -353,7 +353,7 @@ describe("catalogModelOf", () => {
             presence: found(RESIZE, "Resize", "h2"),
             approvals: [{ pluginId: RESIZE, contentHash: "h1" }],
             state: "changed",
-            stateText: "Changed since you allowed it",
+            stateText: "Changed, review needed",
             actions: ["allow:Allow this content"],
         },
         {
@@ -361,7 +361,7 @@ describe("catalogModelOf", () => {
             presence: { kind: "unhashed", id: RESIZE, name: "resize" },
             approvals: [],
             state: "new",
-            stateText: "New",
+            stateText: "Not allowed yet",
             actions: ["inspect:Review…"],
         },
         {
@@ -369,7 +369,7 @@ describe("catalogModelOf", () => {
             presence: { kind: "unreadable", id: RESIZE, name: "resize", reason: "it is broken" },
             approvals: [{ pluginId: RESIZE, contentHash: "h1" }],
             state: "changed",
-            stateText: "Changed since you allowed it",
+            stateText: "Changed, review needed",
             actions: ["revoke:Revoke"],
             problem: "Cannot be allowed: it is broken.",
         },
@@ -378,7 +378,7 @@ describe("catalogModelOf", () => {
             presence: { kind: "unreadable", id: RESIZE, name: "resize", reason: "it is broken" },
             approvals: [],
             state: "new",
-            stateText: "New",
+            stateText: "Not allowed yet",
             actions: [],
             problem: "Cannot be allowed: it is broken.",
         },
@@ -426,7 +426,11 @@ describe("catalogModelOf", () => {
             }),
         );
 
-        expect([row.state, row.actions.map(({ kind }) => kind)]).toEqual(["declined", ["allow"]]);
+        expect([row.state, row.stateText, row.actions.map(({ kind }) => kind)]).toEqual([
+            "declined",
+            "Declined this session",
+            ["allow"],
+        ]);
     });
 
     it("keeps content left to the view new", () => {
