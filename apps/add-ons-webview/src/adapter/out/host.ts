@@ -11,7 +11,7 @@ import {
 
 import type { PersistedChoices } from "../../domain/viewState";
 import type { AddOnsHost } from "../../port/addOnsHost";
-import { MockCatalog, PREVIEW_STATES, PreviewState } from "./mockCatalog";
+import { MockCatalog, previewStateOf } from "./mockCatalog";
 
 declare const process: { env: { NODE_ENV: string } };
 
@@ -79,11 +79,7 @@ class MockHost extends MockHostApi<PersistedChoices, AddOnsViewCommand> {
 
     constructor(flags: URLSearchParams) {
         super();
-        const state = flags.get("state") ?? "full";
-        this.catalog = new MockCatalog(
-            PREVIEW_STATES.includes(state as PreviewState) ? (state as PreviewState) : "full",
-            { stale: flags.get("stale") === "1" },
-        );
+        this.catalog = new MockCatalog(previewStateOf(flags.get("state")), { stale: flags.get("stale") === "1" });
         this.revealed = flags.get("reveal") ?? undefined;
         Object.entries(PREVIEW_THEMES[flags.get("theme") ?? ""] ?? {}).forEach(([name, value]) =>
             document.documentElement.style.setProperty(name, value),

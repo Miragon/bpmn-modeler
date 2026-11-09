@@ -234,9 +234,14 @@ const CATALOG_ACTIONS: AddOnCatalogPayload["actions"] = [
     { kind: "pruneCache", label: "Remove unused plugin copies" },
 ];
 
-export const PREVIEW_STATES = ["full", "loading", "empty", "noFolder", "failed"] as const;
+const PREVIEW_STATES = ["full", "loading", "empty", "noFolder", "failed"] as const;
 
-export type PreviewState = (typeof PREVIEW_STATES)[number];
+type PreviewState = (typeof PREVIEW_STATES)[number];
+
+/** The preview state a URL names; the full catalog for any other name. */
+export function previewStateOf(name: string | null): PreviewState {
+    return PREVIEW_STATES.find((state) => state === name) ?? "full";
+}
 
 const GROUPS_OF: Record<PreviewState, () => Partial<AddOnCatalogPayload> | undefined> = {
     full: () => ({ groups: fullCatalog() }),
