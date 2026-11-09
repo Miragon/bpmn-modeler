@@ -235,7 +235,7 @@ internal class EditorSessionRouter(
     /**
      * Pushes the current settings snapshot to the running core so an open editor
      * reacts live (language re-render, configFolder template reload). No-ops when
-     * no bridge is alive: the snapshot is re-seeded on the next [sendRegister].
+     * no bridge is alive: the snapshot is seeded again after the next spawn and [sendRegister].
      */
     fun pushSettings() {
         if (!deps.isProcessAlive()) return
