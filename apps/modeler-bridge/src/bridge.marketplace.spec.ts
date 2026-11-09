@@ -253,9 +253,12 @@ describe("bridge template marketplace (real core + cache over a fake transport)"
     it("says where the entry is registered and saves nothing for this project when all my projects already hold the fetched entry", async () => {
         const { rpc, frames, tmp, host } = await setup();
         const folder = await writeLocalMarketplace(tmp);
-        host.registered = { allProjects: [folder] };
 
-        await addMarketplace(rpc, frames, folder, "project");
+        await rpc.handleLine(hostNotification("marketplace/add", { settings: {} }));
+        const question: RequestFrame = await waitForFrame(frames, isRequest("marketplacePrompt/show"));
+        // The question read no entry, so only the read after the fetch can find it.
+        host.registered = { allProjects: [folder] };
+        await rpc.handleLine(hostReply(question.id, { location: folder, scope: "project" }));
 
         const toast = await waitForFrame(frames, (f) => f.method === "notifier/showInfo");
         expect(toast.params).toEqual({
