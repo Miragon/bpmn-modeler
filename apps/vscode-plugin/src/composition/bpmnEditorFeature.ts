@@ -70,6 +70,11 @@ export function register(
         hasher: new NodeContentHasher(),
         cacheRoot: bpmnPluginCacheUri(context.globalStorageUri).fsPath,
     });
+    void plugins.service
+        .pruneCache()
+        .catch((error: unknown) =>
+            deps.notifier.logError(error instanceof Error ? error : new Error(String(error))),
+        );
     const editor = new BpmnEditorFeature(
         {
             ...ports,

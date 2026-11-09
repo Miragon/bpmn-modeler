@@ -79,7 +79,9 @@ export interface BridgeOptions {
  *              the RPC `write` so it can never corrupt the stdout frame stream.
  * @returns the live {@link Rpc} peer — feed it inbound lines via `handleLine` —
  *   the routes of each webview surface the bridge serves, which the
- *   coverage spec reads, and `dispose`, which stops the plugin folder watchers.
+ *   coverage spec reads, `prunePluginCache`, which `server.ts` runs once the
+ *   streams are bound and which logs its own failure, and `dispose`, which
+ *   stops the plugin folder watchers.
  */
 export function createBridge(
     write: (line: string) => void,
@@ -88,6 +90,7 @@ export function createBridge(
 ): {
     rpc: Rpc;
     surfaceRoutes: Partial<Record<WebviewSurface, RouteLookup>>;
+    prunePluginCache(): Promise<void>;
     dispose(): void;
 } {
     const deps = buildSharedDeps(write, log);
@@ -134,6 +137,14 @@ export function createBridge(
             bpmnDiffPane: diff.paneRoutes,
             deploymentSidebar: deployment.panelRoutes,
         },
+        prunePluginCache: () =>
+            plugins.service.pruneCache().then(
+                () => undefined,
+                (error: unknown) =>
+                    deps.notifier.logError(
+                        error instanceof Error ? error : new Error(String(error)),
+                    ),
+            ),
         dispose: () => plugins.dispose(),
     };
 }

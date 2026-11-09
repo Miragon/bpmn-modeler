@@ -73,6 +73,7 @@ export class BpmnPluginsFeature {
                 ports.questions,
             ),
             ports.notifier,
+            ports.approvals,
             ports.cacheRoot,
         );
         this.approvalChanges = ports.approvals.onDidChange(() =>

@@ -1,16 +1,21 @@
 import { BpmnPluginAsset, BpmnPluginsQuery } from "@miragon/bpmn-modeler-shared";
 
-import { toWorkspacePath } from "../../kernel/domain/workspacePath";
+import { DirectoryNotFound } from "../../kernel/domain/errors";
+import { joinWorkspacePath, toWorkspacePath } from "../../kernel/domain/workspacePath";
 import { NotifierPort, WorkspacePort } from "../../kernel/port/hostPorts";
 import { ApprovalQuestion } from "../../kernel/service/ApprovalQuestion";
 import { answerWithoutPlugins } from "../../editorSession/service/answerWithoutPlugins";
 import { EditorSessionStore, PostOutcome } from "../../editorSession/service/EditorSessionStore";
 import {
+    cacheEntriesToPrune,
     cachedPluginCopy,
+    cachedPluginDirectory,
     cachedPluginFiles,
+    isWholeCachedCopy,
     PendingApproval,
     WorkspacePlugin,
 } from "../domain/pluginApproval";
+import { PluginApprovalStorePort } from "../port/pluginPorts";
 import { CodeApproval } from "../../kernel/domain/codeApproval";
 import { editorsToReload, OfferedPlugins } from "../domain/pluginFolders";
 import { PluginCatalog } from "./PluginCatalog";
@@ -29,6 +34,8 @@ export class BpmnPluginService {
     /** Dropped on a reload until the editor asks again, so one change reloads it once. */
     private readonly offeredByEditor = new Map<string, OfferedPlugins>();
     private approvalSettled: Promise<void> = Promise.resolve();
+    /** Set while a prune runs, so no copy starts until it has finished. */
+    private pruning?: Promise<unknown>;
 
     /**
      * @param cacheRoot The host's plugin cache, a folder the webview may load
@@ -44,6 +51,7 @@ export class BpmnPluginService {
             WorkspacePlugin
         >,
         private readonly notifier: NotifierPort,
+        private readonly approvals: PluginApprovalStorePort,
         cacheRoot: string,
     ) {
         this.cacheRoot = toWorkspacePath(cacheRoot);
@@ -82,6 +90,22 @@ export class BpmnPluginService {
             this.notifier.logError(error instanceof Error ? error : new Error(String(error))),
         );
         this.approvalSettled = Promise.all([this.approvalSettled, asking]).then(() => undefined);
+    }
+
+    /**
+     * Removes the copies no stored approval names, read from the host rather
+     * than a mirror, once every copy in flight has finished.
+     */
+    pruneCache(): Promise<{ readonly removed: number }> {
+        const pruning = (this.pruning ?? Promise.resolve())
+            .catch(() => undefined)
+            .then(() => this.removeUnnamedCopies());
+        this.pruning = pruning;
+        const done = () => {
+            if (this.pruning === pruning) this.pruning = undefined;
+        };
+        pruning.then(done, done);
+        return pruning;
     }
 
     releaseEditor(editorId: string): void {
@@ -130,12 +154,58 @@ export class BpmnPluginService {
         };
     }
 
-    private ensureCopied(discovered: DiscoveredPlugin): Promise<void> {
+    private async removeUnnamedCopies(): Promise<{ readonly removed: number }> {
+        await Promise.allSettled(this.copies.values());
+        const entries = await this.cacheEntries();
+        if (cacheEntriesToPrune(entries, []).length === 0) {
+            return { removed: 0 };
+        }
+        let removed = 0;
+        for (const name of cacheEntriesToPrune(entries, await this.approvals.readStored())) {
+            const directory = joinWorkspacePath(this.cacheRoot, name);
+            try {
+                await this.workspace.deleteDirectory(directory);
+                this.copies.delete(name);
+                removed++;
+            } catch (error) {
+                this.notifier.logWarning(
+                    `BPMN plugin cache: could not remove ${directory} (${String(error)})`,
+                );
+            }
+        }
+        return { removed };
+    }
+
+    private async cacheEntries(): Promise<[string, "file" | "directory"][]> {
+        try {
+            return await this.workspace.readDirectory(this.cacheRoot);
+        } catch (error) {
+            if (error instanceof DirectoryNotFound) return [];
+            throw error;
+        }
+    }
+
+    private async ensureCopied(discovered: DiscoveredPlugin): Promise<void> {
+        if (this.pruning !== undefined) {
+            await this.pruning.catch(() => undefined);
+        }
         const hash = discovered.plugin.contentHash;
         const known = this.copies.get(hash);
-        if (known !== undefined) {
-            return known;
+        if (known === undefined) {
+            return this.startCopy(discovered);
         }
+        await known;
+        if (await this.isCopyWhole(discovered.plugin)) {
+            return;
+        }
+        if (this.copies.get(hash) === known) {
+            this.copies.delete(hash);
+        }
+        return this.copies.get(hash) ?? this.startCopy(discovered);
+    }
+
+    private startCopy(discovered: DiscoveredPlugin): Promise<void> {
+        const hash = discovered.plugin.contentHash;
         const copy = this.copy(discovered);
         this.copies.set(hash, copy);
         copy.catch(() => {
@@ -144,6 +214,15 @@ export class BpmnPluginService {
             }
         });
         return copy;
+    }
+
+    private async isCopyWhole(plugin: WorkspacePlugin): Promise<boolean> {
+        try {
+            const directory = cachedPluginDirectory(this.cacheRoot, plugin);
+            return isWholeCachedCopy(plugin, await this.workspace.readDirectory(directory));
+        } catch {
+            return false;
+        }
     }
 
     /**

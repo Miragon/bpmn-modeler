@@ -9,6 +9,7 @@ import {
     PendingCodeApproval,
     pendingApprovalDescription,
 } from "../../kernel/domain/codeApproval";
+import { DirectoryEntryKind } from "../../kernel/domain/directoryEntry";
 import { ChoicePrompt } from "../../kernel/domain/prompts";
 import { joinWorkspacePath } from "../../kernel/domain/workspacePath";
 
@@ -85,6 +86,9 @@ export function pluginApprovalNotice(
     };
 }
 
+const CACHED_SCRIPT = "plugin.js";
+const CACHED_STYLE = "plugin.css";
+
 export interface CachedPluginFiles {
     readonly script: string;
     readonly style?: string;
@@ -96,13 +100,17 @@ export interface CachedPluginFiles {
  * approval nor an unapproved file beside the script can reach it.
  */
 export function cachedPluginFiles(cacheRoot: string, plugin: WorkspacePlugin): CachedPluginFiles {
-    const directory = joinWorkspacePath(cacheRoot, plugin.contentHash);
+    const directory = cachedPluginDirectory(cacheRoot, plugin);
     return {
-        script: joinWorkspacePath(directory, "plugin.js"),
+        script: joinWorkspacePath(directory, CACHED_SCRIPT),
         ...(plugin.stylePath === undefined
             ? {}
-            : { style: joinWorkspacePath(directory, "plugin.css") }),
+            : { style: joinWorkspacePath(directory, CACHED_STYLE) }),
     };
+}
+
+export function cachedPluginDirectory(cacheRoot: string, plugin: WorkspacePlugin): string {
+    return joinWorkspacePath(cacheRoot, plugin.contentHash);
 }
 
 export interface CachedPluginFile {
@@ -121,4 +129,39 @@ export function cachedPluginCopy(
             ? []
             : [{ path: files.style, content: style }]),
     ];
+}
+
+/**
+ * The name of a copy's folder in the plugin cache: the content hash, SHA-256
+ * in lower-case hex. The bridge builds the IntelliJ asset route from it.
+ */
+export const PLUGIN_CONTENT_HASH_PATTERN = "[0-9a-f]{64}";
+
+const PLUGIN_CACHE_ENTRY = new RegExp(`^${PLUGIN_CONTENT_HASH_PATTERN}$`);
+
+/**
+ * The copies no stored approval names, of any workspace or project. Only a
+ * folder named like a content hash is a candidate, so whatever else shares
+ * the folder stays; a rule package row's prefixed hash names no copy.
+ */
+export function cacheEntriesToPrune(
+    entries: readonly (readonly [string, DirectoryEntryKind])[],
+    stored: readonly CodeApproval[],
+): string[] {
+    const named = new Set(stored.map(({ contentHash }) => contentHash));
+    return entries
+        .filter(
+            ([name, kind]) =>
+                kind === "directory" && PLUGIN_CACHE_ENTRY.test(name) && !named.has(name),
+        )
+        .map(([name]) => name);
+}
+
+/** Another process's prune can remove a copy this one already wrote. */
+export function isWholeCachedCopy(
+    plugin: WorkspacePlugin,
+    entries: readonly (readonly [string, DirectoryEntryKind])[],
+): boolean {
+    const files = new Set(entries.filter(([, kind]) => kind === "file").map(([name]) => name));
+    return files.has(CACHED_SCRIPT) && (plugin.stylePath === undefined || files.has(CACHED_STYLE));
 }

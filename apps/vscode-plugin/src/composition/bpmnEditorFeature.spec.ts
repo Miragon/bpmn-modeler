@@ -5,6 +5,7 @@ vi.mock("vscode", () => import("../__fixtures__/vscodeCompositionFake"));
 const injectedPorts = vi.hoisted(() => ({
     plugins: [] as BpmnPluginsHostPorts[],
     editors: [] as BpmnEditorHostPorts[],
+    prunes: [] as string[],
 }));
 
 // Records what the composition hands each feature, which keeps no reference to it.
@@ -14,6 +15,10 @@ vi.mock("@miragon/bpmn-modeler-core", async (importOriginal) => {
         constructor(ports: BpmnPluginsHostPorts) {
             super(ports);
             injectedPorts.plugins.push(ports);
+            this.service.pruneCache = async () => {
+                injectedPorts.prunes.push(ports.cacheRoot);
+                return { removed: 0 };
+            };
         }
     }
     class RecordedBpmnEditorFeature extends core.BpmnEditorFeature {
@@ -107,6 +112,13 @@ describe("VS Code's BPMN editor", () => {
         vi.restoreAllMocks();
         injectedPorts.plugins.splice(0);
         injectedPorts.editors.splice(0);
+        injectedPorts.prunes.splice(0);
+    });
+
+    it("removes unused plugin copies from its cache once when the extension activates", () => {
+        createVsCodeBpmnEditor();
+
+        expect(injectedPorts.prunes).toEqual([injectedPorts.plugins[0]?.cacheRoot]);
     });
 
     it("asks about plugins and rule packages in one queue and keeps both in one approval list", () => {

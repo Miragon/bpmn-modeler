@@ -1,7 +1,11 @@
-import { relativeToRoot, toWorkspacePath } from "@miragon/bpmn-modeler-core";
+import {
+    PLUGIN_CONTENT_HASH_PATTERN,
+    relativeToRoot,
+    toWorkspacePath,
+} from "@miragon/bpmn-modeler-core";
 
 /** Kept in step with the IntelliJ `WebviewRoute`, which serves exactly these files. */
-const PLUGIN_ASSET = /^[0-9a-f]{64}\/plugin\.(?:js|css)$/;
+const PLUGIN_ASSET = new RegExp(`^${PLUGIN_CONTENT_HASH_PATTERN}/plugin\\.(?:js|css)$`);
 
 /**
  * The root-relative URL under which the IntelliJ BPMN page loads a file of
