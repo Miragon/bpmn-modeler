@@ -73,6 +73,14 @@ describe("HiddenTemplates.offersTo an element", () => {
         ["nothing is hidden", [], REST_V2, REST_V2, undefined, true],
         ["another template is hidden", [MAIL], REST_V2, REST_V2, MAIL, true],
         ["it applies a template without an id", [MAIL], MAIL, MAIL, { name: "anonymous" }, false],
+        [
+            "it has no id, behind a hidden latest version",
+            [MAIL],
+            { name: "anonymous" },
+            MAIL,
+            MAIL,
+            false,
+        ],
     ])("when %s", (_, refs, template, latestOfItsId, applied, offered) => {
         expect(HiddenTemplates.of(refs).offersTo(template, latestOfItsId, applied)).toBe(offered);
     });
