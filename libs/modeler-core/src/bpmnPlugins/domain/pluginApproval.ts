@@ -10,6 +10,7 @@ import {
     pendingApprovalDescription,
 } from "../../kernel/domain/codeApproval";
 import { DirectoryEntryKind } from "../../kernel/domain/directoryEntry";
+import { escapeRegExpLiteral } from "../../kernel/domain/escapeRegExpLiteral";
 import { ChoicePrompt } from "../../kernel/domain/prompts";
 import { joinWorkspacePath } from "../../kernel/domain/workspacePath";
 
@@ -131,11 +132,13 @@ export function cachedPluginCopy(
     ];
 }
 
-/**
- * The name of a copy's folder in the plugin cache: the content hash, SHA-256
- * in lower-case hex. The bridge builds the IntelliJ asset route from it.
- */
+/** The name of a copy's folder in the plugin cache: the content hash, SHA-256 in lower-case hex. */
 export const PLUGIN_CONTENT_HASH_PATTERN = "[0-9a-f]{64}";
+
+const CACHED_FILE_NAMES = [CACHED_SCRIPT, CACHED_STYLE].map(escapeRegExpLiteral).join("|");
+
+/** A copy's file relative to the cache root, the only cache paths a page may load. */
+export const CACHED_PLUGIN_FILE_PATTERN = `${PLUGIN_CONTENT_HASH_PATTERN}/(?:${CACHED_FILE_NAMES})`;
 
 const PLUGIN_CACHE_ENTRY = new RegExp(`^${PLUGIN_CONTENT_HASH_PATTERN}$`);
 

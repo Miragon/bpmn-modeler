@@ -5,6 +5,7 @@ import { type DirectoryEntryKind } from "../../kernel/domain/directoryEntry";
 import {
     approvedContent,
     cacheEntriesToPrune,
+    CACHED_PLUGIN_FILE_PATTERN,
     cachedPluginCopy,
     cachedPluginFiles,
     type CachedPluginFiles,
@@ -247,6 +248,19 @@ describe("cacheEntriesToPrune", () => {
         expect(cachedPluginFiles("/cache", { ...resize, contentHash: named }).script).toMatch(
             new RegExp(`^/cache/${PLUGIN_CONTENT_HASH_PATTERN}/`),
         );
+    });
+
+    it("names each copy file as a cache path a page may load", () => {
+        const files = cachedPluginFiles("/cache", {
+            ...resize,
+            stylePath: "/repo/.camunda/plugins/resize-tasks/style.css",
+            contentHash: named,
+        });
+        const loadable = new RegExp(`^/cache/${CACHED_PLUGIN_FILE_PATTERN}$`);
+
+        expect(files.script).toMatch(loadable);
+        expect(files.style).toMatch(loadable);
+        expect(`/cache/${named}/plugin.json`).not.toMatch(loadable);
     });
 });
 
