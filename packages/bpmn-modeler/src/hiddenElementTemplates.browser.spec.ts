@@ -229,7 +229,29 @@ describe("c8 replace menu of an element that uses a hidden template with steps",
             "replace.template-mail",
         ]);
     });
+
+    it("re-applies that template with the preset its step names", async () => {
+        const modeler = await openWithAuditOnTask1();
+        openReplaceMenu(modeler);
+        await afterPaint();
+        templatesTab()!.click();
+        await expect.poll(() => templatesTab()?.getAttribute("aria-selected")).toBe("true");
+
+        document.querySelector<HTMLElement>('.djs-popup [data-id="replace.template-audit"]')!.click();
+        await expect.poll(() => stepEntry("Loud")).toBeDefined();
+        stepEntry("Loud")!.click();
+
+        expect(
+            modeler.getService("elementRegistry").get("Task_1")!.businessObject.get("name"),
+        ).toBe("Loud");
+    });
 });
+
+function stepEntry(label: string): HTMLElement | undefined {
+    return Array.from(document.querySelectorAll<HTMLElement>(".djs-popup .entry")).find(
+        (entry) => entry.textContent?.trim() === label,
+    );
+}
 
 describe("setHiddenElementTemplates", () => {
     const engine = ENGINES[1];

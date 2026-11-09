@@ -98,9 +98,11 @@ chooser, the append, create and replace menus of create-append-anything, and
 the default template upstream applies after every shape and connection create.
 Loading is not filtered, and neither are `get`, `getLatest` and `getAll`: the
 properties panel reads applied templates and their update check through them,
-so an element that uses a hidden template keeps it. The default is narrowed by
-replacing `getDefault` on the `elementTemplates` instance, a narrow reach into
-upstream that browser specs pin for both engines. It is a method of its own
+so an element that uses a hidden template keeps it. Its own replace menu still
+lists that template while it is the latest version of its id: on C8, re-applying
+it from there is the only way to pick another of its presets. The default is
+narrowed by replacing `getDefault` on the `elementTemplates` instance, a narrow
+reach into upstream that browser specs pin for both engines. It is a method of its own
 rather than a filtered `setElementTemplates` call, because a new template set
 re-validates every template and reports the rejections again. Refs are
 `{ id, version? }`, the identity upstream indexes templates by, so the page

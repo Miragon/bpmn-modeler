@@ -48,8 +48,8 @@ export function fakeElementTemplates(templates: readonly object[]) {
         getAll(element?: FakeElement) {
             return all.filter(appliesTo(element));
         },
-        get(element: FakeElement): FakeTemplate | null {
-            const applied = element.appliedTemplate;
+        get(element: FakeElement | null): FakeTemplate | null {
+            const applied = element?.appliedTemplate;
             return (
                 all.find(
                     (template) =>

@@ -1,9 +1,14 @@
-import { elementTemplateRefOf, type ElementTemplateRef } from "@miragon/bpmn-modeler-types";
+import {
+    elementTemplateRefKey,
+    elementTemplateRefOf,
+    type ElementTemplateRef,
+} from "@miragon/bpmn-modeler-types";
 
 import { HiddenTemplates } from "./hiddenTemplates";
 
 /** The members of bpmn-js-element-templates' `elementTemplates` service the offer reads. */
 export interface OfferedElementTemplates {
+    get(element: unknown): unknown;
     getLatest(templateId: string, options: { deprecated: boolean }): unknown[] | undefined;
     getAll(element: unknown): { isDefault?: unknown }[];
     getDefault(element: unknown): unknown;
@@ -41,12 +46,27 @@ export class ElementTemplateOffer {
         return this.isOffered(this.latestOf(templateId));
     }
 
-    isTemplateIdOfferedTo(_element: unknown, templateId: string): boolean {
-        return this.isTemplateIdOffered(templateId);
+    /**
+     * Also offered to the element that already uses its latest version:
+     * re-applying that template changes nothing but its preset.
+     */
+    isTemplateIdOfferedTo(element: unknown, templateId: string): boolean {
+        const latest = this.latestOf(templateId);
+        return this.isOffered(latest) || isSameTemplate(latest, this.elementTemplates.get(element));
     }
 
     // Deprecated too: a deprecated latest version still shadows the older ones.
     private latestOf(templateId: string): unknown {
         return this.elementTemplates.getLatest(templateId, { deprecated: true })?.[0];
     }
+}
+
+function isSameTemplate(template: unknown, other: unknown): boolean {
+    const ref = elementTemplateRefOf(template);
+    const otherRef = elementTemplateRefOf(other);
+    return (
+        ref !== undefined &&
+        otherRef !== undefined &&
+        elementTemplateRefKey(ref) === elementTemplateRefKey(otherRef)
+    );
 }
