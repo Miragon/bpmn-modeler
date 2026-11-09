@@ -3,9 +3,11 @@ import { PluginApprovalStorePort } from "../../kernel/port/approvalPorts";
 import { NotifierPort, SettingsPort, WorkspacePort } from "../../kernel/port/hostPorts";
 import type { AddOnCatalogModel } from "../domain/addOnCatalogModel";
 import {
+    MarketplaceAddOnSource,
     PluginAddOnSource,
     RulePackageAddOnSource,
     SettingChanges,
+    TemplateAddOnSource,
 } from "../port/addOnSourcePorts";
 import { AddOnCatalogService } from "../service/AddOnCatalogService";
 import { AddOnInventoryReader } from "../service/AddOnInventoryReader";
@@ -24,6 +26,10 @@ export interface AddOnsHostPorts {
     readonly plugins: PluginAddOnSource;
     /** Absent: the host runs no workspace rule package. */
     readonly rulePackages?: RulePackageAddOnSource;
+    /** Absent: the host loads no element templates. */
+    readonly templates?: TemplateAddOnSource;
+    /** Absent: the host has no template marketplaces. */
+    readonly marketplaces?: MarketplaceAddOnSource;
 }
 
 /**
@@ -41,6 +47,7 @@ export class AddOnsFeature {
             approvals: ports.approvals,
             plugins: ports.plugins,
             rulePackages: ports.rulePackages,
+            marketplaces: ports.marketplaces,
             logger: ports.notifier,
             restart: ports.restart,
         });
@@ -54,11 +61,13 @@ export class AddOnsFeature {
         this.subscriptions = [
             ports.approvals.onDidChange(invalidate),
             ports.plugins.onDidChange(invalidate),
-            ...(ports.rulePackages === undefined
-                ? []
-                : [ports.rulePackages.onDidChange(invalidate)]),
+            ...[ports.rulePackages, ports.templates, ports.marketplaces].flatMap((source) =>
+                source === undefined ? [] : [source.onDidChange(invalidate)],
+            ),
             ports.settingChanges.onDidChange((change) => {
-                if (change.affects("configFolder")) this.hub.refresh();
+                if (change.affects("configFolder") || change.affects("marketplaces")) {
+                    this.hub.refresh();
+                }
             }),
         ];
     }

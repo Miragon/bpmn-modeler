@@ -9,8 +9,14 @@ import {
     PROCESS_RESTARTS,
     SessionAnswer,
 } from "../../kernel/domain/codeApproval";
-import { AddOnFacts, AddOnSession, catalogModelOf } from "./addOnCatalog";
-import type { AddOnView } from "./addOnCatalogModel";
+import {
+    AddOnFacts,
+    AddOnSession,
+    catalogModelOf,
+    FolderTemplateFileListing,
+    ListedMarketplace,
+} from "./addOnCatalog";
+import type { AddOnView, CodeAddOnView } from "./addOnCatalogModel";
 
 const RESIZE = "/work/.camunda/plugins/resize";
 const PALETTE = "/work/.camunda/plugins/palette";
@@ -55,7 +61,8 @@ const rulePackageSourceDirOf = (id: string) =>
         : id;
 
 function factsOf(
-    overrides: Partial<Omit<AddOnFacts, "plugins" | "rulePackages">> & {
+    overrides: Partial<Omit<AddOnFacts, "plugins" | "rulePackages" | "marketplaces">> & {
+        marketplaces?: readonly ListedMarketplace[];
         plugins?: ListedPresence[];
         rulePackages?: ListedPresence[];
     } = {},
@@ -72,6 +79,7 @@ function factsOf(
         folders: ["/work"],
         configFolder: ".camunda",
         approvals: [],
+        templates: [],
         ...rest,
         plugins: plugins.map(placedBy(pluginSourceDirOf, PLUGIN_TEXTS)),
         rulePackages: rulePackages.map(placedBy(rulePackageSourceDirOf, RULE_PACKAGE_TEXTS)),
@@ -108,6 +116,11 @@ const rows = (facts: AddOnFacts, session = sessionOf()): AddOnView[] =>
 const onlyRow = (facts: AddOnFacts, session = sessionOf()): AddOnView => {
     const [row, ...more] = rows(facts, session);
     if (row === undefined || more.length > 0) throw new Error("expected one row");
+    return row;
+};
+
+const asCode = (row: AddOnView): CodeAddOnView => {
+    if (row.kind === "elementTemplate") throw new Error("expected a code row");
     return row;
 };
 
@@ -477,7 +490,7 @@ describe("catalogModelOf", () => {
             },
         };
 
-        expect(onlyRow(factsOf({ plugins: [plugin] })).review?.facts).toEqual([
+        expect(asCode(onlyRow(factsOf({ plugins: [plugin] }))).review?.facts).toEqual([
             { label: "Folder", value: ".camunda/plugins/palette" },
             {
                 label: "Covers",
@@ -496,7 +509,7 @@ describe("catalogModelOf", () => {
         );
 
         expect(row).toMatchObject({ kindText: "BPMN plugin", detail: "plugins/resize" });
-        expect(row.review).toBeUndefined();
+        expect(asCode(row).review).toBeUndefined();
     });
 
     it.each(PROCESS_RESTARTS)(
@@ -509,7 +522,7 @@ describe("catalogModelOf", () => {
                 1,
             );
 
-            expect(model.groups[0].sources[0].addOns[0].note).toBe(
+            expect(asCode(model.groups[0].sources[0].addOns[0]).note).toBe(
                 `Rule package revoked until ${restart}.`,
             );
         },
@@ -523,9 +536,9 @@ describe("catalogModelOf", () => {
         });
 
         expect(
-            rows(facts, sessionOf({ stillLoaded: { rulePackage: [ACME, RESIZE] } })).map(
-                ({ note }) => note,
-            ),
+            rows(facts, sessionOf({ stillLoaded: { rulePackage: [ACME, RESIZE] } }))
+                .map(asCode)
+                .map(({ note }) => note),
         ).toEqual([undefined, undefined]);
     });
 
@@ -645,12 +658,14 @@ describe("catalogModelOf", () => {
         {
             case: "no folder is open",
             folders: [],
-            emptyText: "Open a folder to see the plugins and rule packages it brings.",
+            emptyText:
+                "Open a folder to see the plugins, rule packages and element templates it brings.",
         },
         {
             case: "no folder brings an add-on",
             folders: ["/work"],
-            emptyText: "No BPMN plugins or bpmnlint rule packages in this workspace.",
+            emptyText:
+                "No BPMN plugins, bpmnlint rule packages or element templates in this workspace.",
         },
     ])("says so when $case", ({ folders, emptyText }) => {
         expect(build(factsOf({ folders })).model.emptyText).toBe(emptyText);
@@ -660,5 +675,293 @@ describe("catalogModelOf", () => {
         expect(
             build(factsOf({ plugins: [found(RESIZE, "Resize", "h1")] })).model.emptyText,
         ).toBeUndefined();
+    });
+});
+
+const TEMPLATES = "/work/.camunda/element-templates";
+const NESTED_TEMPLATES = "/work/orders/.camunda/element-templates";
+
+const templateFile = (
+    path: string,
+    reading: FolderTemplateFileListing["reading"],
+): FolderTemplateFileListing => ({
+    path,
+    sourceDir: path.slice(0, path.lastIndexOf("/element-templates/")),
+    reading,
+});
+
+const SHARED: ListedMarketplace = {
+    id: "acme-shared",
+    entry: "https://github.com/acme/shared",
+    label: "https://github.com/acme/shared",
+    scopeText: "All my projects",
+    templates: [
+        {
+            path: "/cache/acme-shared/0/element-templates/mail.json",
+            reading: { kind: "read", templates: [{ id: "mail", name: "Mail" }] },
+        },
+    ],
+};
+const UNFETCHED: ListedMarketplace = {
+    id: "local",
+    entry: "/work/local",
+    label: "/work/local",
+    scopeText: "This project",
+    problem: "No templates fetched yet. Update the marketplaces to fetch them.",
+    templates: [],
+};
+
+describe("catalogModelOf for element templates", () => {
+    it("lists each template of a file as enabled, with its version and the file's engine, by name", () => {
+        expect(
+            rows(
+                factsOf({
+                    templates: [
+                        templateFile(`${TEMPLATES}/mail.json`, {
+                            kind: "read",
+                            engine: "c8",
+                            templates: [
+                                { id: "mail", name: "Send Mail", version: 2 },
+                                { id: "crm" },
+                            ],
+                        }),
+                    ],
+                }),
+            ),
+        ).toStrictEqual([
+            {
+                id: `template:${TEMPLATES}/mail.json#mail@2`,
+                kind: "elementTemplate",
+                kindText: "Element template",
+                name: "Send Mail",
+                detail: "Version 2",
+                engineText: "Camunda 8",
+                state: "enabled",
+                stateText: "Enabled",
+                actions: [],
+            },
+            {
+                id: `template:${TEMPLATES}/mail.json#crm`,
+                kind: "elementTemplate",
+                kindText: "Element template",
+                name: "crm",
+                engineText: "Camunda 8",
+                state: "enabled",
+                stateText: "Enabled",
+                actions: [],
+            },
+        ]);
+    });
+
+    it("names a template without a name by its id, then by its file", () => {
+        const names = rows(
+            factsOf({
+                templates: [
+                    templateFile(`${TEMPLATES}/a.json`, {
+                        kind: "read",
+                        templates: [{ id: "only-id" }, {}],
+                    }),
+                ],
+            }),
+        ).map(({ id, name }) => [id, name]);
+
+        expect(names).toEqual([
+            [`template:${TEMPLATES}/a.json#1`, "a.json"],
+            [`template:${TEMPLATES}/a.json#only-id`, "only-id"],
+        ]);
+    });
+
+    it("lists a template file it cannot read once, by its name, with why", () => {
+        expect(
+            onlyRow(
+                factsOf({
+                    templates: [
+                        templateFile(`${TEMPLATES}/broken.json`, {
+                            kind: "unreadable",
+                            reason: "Unexpected token n in JSON",
+                        }),
+                    ],
+                }),
+            ),
+        ).toStrictEqual({
+            id: `template:${TEMPLATES}/broken.json`,
+            kind: "elementTemplate",
+            kindText: "Element template",
+            name: "broken.json",
+            state: "enabled",
+            stateText: "Enabled",
+            problem: "Cannot be read: Unexpected token n in JSON.",
+            actions: [],
+        });
+    });
+
+    it("lists a blank template file as no template", () => {
+        expect(
+            rows(
+                factsOf({
+                    templates: [
+                        templateFile(`${TEMPLATES}/new.json`, { kind: "read", templates: [] }),
+                    ],
+                }),
+            ),
+        ).toEqual([]);
+    });
+
+    it("puts a config folder's plugins and templates in one source, plugins first", () => {
+        const { model } = build(
+            factsOf({
+                plugins: [found(RESIZE, "Resize", "h1")],
+                templates: [
+                    templateFile(`${TEMPLATES}/a.json`, {
+                        kind: "read",
+                        templates: [{ id: "a", name: "Approve" }],
+                    }),
+                ],
+            }),
+        );
+
+        expect(
+            model.groups[0].sources.map(({ id, addOns }) => [id, addOns.map(({ name }) => name)]),
+        ).toEqual([["config:/work/.camunda", ["Resize", "Approve"]]]);
+    });
+
+    it("lists a nested config folder's templates below the folder it applies to, and none outside every folder", () => {
+        const { model } = build(
+            factsOf({
+                templates: [
+                    templateFile(`${NESTED_TEMPLATES}/order.json`, {
+                        kind: "read",
+                        templates: [{ id: "order" }],
+                    }),
+                    templateFile("/elsewhere/.camunda/element-templates/x.json", {
+                        kind: "read",
+                        templates: [{ id: "x" }],
+                    }),
+                ],
+            }),
+        );
+
+        expect(
+            model.groups.map(({ id, sources }) =>
+                sources.map(({ id: sourceId, description, addOns }) => ({
+                    group: id,
+                    sourceId,
+                    description,
+                    addOns: addOns.map(({ name }) => name),
+                })),
+            ),
+        ).toEqual([
+            [
+                {
+                    group: "folder:/work",
+                    sourceId: "config:/work/orders/.camunda",
+                    description: "Applies to diagrams below orders/",
+                    addOns: ["order"],
+                },
+            ],
+        ]);
+    });
+
+    it("records no template as shown, as no template offers an action yet", () => {
+        const { shown } = build(
+            factsOf({
+                templates: [
+                    templateFile(`${TEMPLATES}/a.json`, { kind: "read", templates: [{ id: "a" }] }),
+                ],
+            }),
+        );
+
+        expect(shown.size).toBe(0);
+    });
+});
+
+describe("catalogModelOf for marketplaces", () => {
+    it("lists each marketplace after the folders, with where it is registered, why it has no templates, and its removal", () => {
+        const { model } = build(
+            factsOf({
+                plugins: [found(RESIZE, "Resize", "h1")],
+                marketplaces: [SHARED, UNFETCHED],
+            }),
+        );
+
+        expect(model.groups.map(({ id }) => id)).toEqual(["folder:/work", "marketplaces"]);
+        expect(model.groups[1]).toStrictEqual({
+            id: "marketplaces",
+            label: "Marketplaces",
+            description: "Element templates fetched from the registered marketplaces",
+            sources: [
+                {
+                    id: "marketplace:acme-shared",
+                    kind: "marketplace",
+                    label: "https://github.com/acme/shared",
+                    description: "All my projects",
+                    actions: [{ kind: "removeMarketplace", label: "Remove" }],
+                    addOns: [
+                        {
+                            id: "template:/cache/acme-shared/0/element-templates/mail.json#mail",
+                            kind: "elementTemplate",
+                            kindText: "Element template",
+                            name: "Mail",
+                            state: "enabled",
+                            stateText: "Enabled",
+                            actions: [],
+                        },
+                    ],
+                },
+                {
+                    id: "marketplace:local",
+                    kind: "marketplace",
+                    label: "/work/local",
+                    description: "This project",
+                    problem: "No templates fetched yet. Update the marketplaces to fetch them.",
+                    actions: [{ kind: "removeMarketplace", label: "Remove" }],
+                    addOns: [],
+                },
+            ],
+        });
+    });
+
+    it("keeps the entry each marketplace source stands for, never sent", () => {
+        const { sources } = build(factsOf({ marketplaces: [SHARED] }));
+
+        expect([...sources]).toEqual([
+            [
+                "marketplace:acme-shared",
+                { entry: "https://github.com/acme/shared", actions: ["removeMarketplace"] },
+            ],
+        ]);
+    });
+
+    it.each<{ case: string; marketplaces: ListedMarketplace[] | undefined; actions: string[] }>([
+        {
+            case: "a host that lists marketplaces",
+            marketplaces: [],
+            actions: ["addMarketplace", "updateMarketplaces", "pruneCache"],
+        },
+        { case: "a host that lists none", marketplaces: undefined, actions: ["pruneCache"] },
+    ])("offers the catalog actions of $case", ({ marketplaces, actions }) => {
+        expect(build(factsOf({ marketplaces })).model.actions).toEqual(
+            actions.map((kind) => ({
+                kind,
+                label: {
+                    addMarketplace: "Add marketplace…",
+                    updateMarketplaces: "Update marketplaces",
+                    pruneCache: "Remove unused plugin copies",
+                }[kind],
+            })),
+        );
+    });
+
+    it("shows no marketplaces group while none is registered", () => {
+        expect(build(factsOf({ marketplaces: [] })).model.groups).toEqual([]);
+    });
+
+    it("says nothing is empty when only a marketplace is listed, though no folder is open", () => {
+        const { model } = build(factsOf({ folders: [], marketplaces: [UNFETCHED] }));
+
+        expect([model.groups.map(({ id }) => id), model.emptyText]).toEqual([
+            ["marketplaces"],
+            undefined,
+        ]);
     });
 });

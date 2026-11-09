@@ -6,23 +6,27 @@ import {
 } from "../../kernel/domain/codeApproval";
 import { PluginApprovalStorePort } from "../../kernel/port/approvalPorts";
 import { LoggerPort } from "../../kernel/port/hostPorts";
-import { catalogModelOf, ShownCode } from "../domain/addOnCatalog";
+import { catalogModelOf, ShownCode, ShownSource } from "../domain/addOnCatalog";
 import type { AddOnCatalogModel } from "../domain/addOnCatalogModel";
-import { AddOnKind } from "../domain/addOnIds";
+import { CodeAddOnKind } from "../domain/addOnIds";
 import {
     AddOnActionResult,
     AddOnRequest,
     allowResultOf,
     allowTargetOf,
+    catalogActionRefusalOf,
     inspectResultOf,
     PRUNE_FAILED,
     pruneResultOf,
+    REPORTED_BY_FLOW,
     revokeResultOf,
+    shownSourceTargetOf,
     shownTargetOf,
 } from "../domain/addOnRequests";
 import { firstRevisionOf, ShownRevisions } from "../domain/shownRevisions";
 import {
     CodeAddOnSource,
+    MarketplaceAddOnSource,
     PluginAddOnSource,
     RulePackageAddOnSource,
 } from "../port/addOnSourcePorts";
@@ -32,22 +36,32 @@ export interface AddOnCatalogPorts {
     readonly approvals: PluginApprovalStorePort;
     readonly plugins: PluginAddOnSource;
     readonly rulePackages?: RulePackageAddOnSource;
+    readonly marketplaces?: MarketplaceAddOnSource;
     readonly logger: LoggerPort;
     readonly restart: ProcessRestart;
 }
 
+type CodeRequest = Extract<AddOnRequest, { kind: "inspect" | "allow" | "revoke" | "pruneCache" }>;
+type MarketplaceRequest = Extract<
+    AddOnRequest,
+    { kind: "addMarketplace" | "updateMarketplaces" | "removeMarketplace" }
+>;
+
 /**
  * Builds the model one listing at a time, and once more if anything changed
- * meanwhile, and acts on what a view asks. Its actions run one at a time on a
- * queue of their own: a notice left open must not hold back the view. A
+ * meanwhile, and acts on what a view asks. Its code actions run one at a time
+ * on a queue of their own: a notice left open must not hold back the view. A
  * reload or a relint follows the approval change event, as it does for a
- * notice's answer.
+ * notice's answer. A marketplace action goes to the marketplace flows, which
+ * queue, ask and report on their own, and the listing follows their change
+ * event.
  */
 export class AddOnCatalogService {
     private revision = firstRevisionOf(Date.now());
     private revisions = ShownRevisions.empty();
     private readonly inspected = new Set<string>();
     private latestModel?: AddOnCatalogModel;
+    private latestSources: ReadonlyMap<string, ShownSource> = new Map();
     private active = false;
     private building?: Promise<void>;
     private dirty = false;
@@ -96,19 +110,42 @@ export class AddOnCatalogService {
     }
 
     handle(request: AddOnRequest): Promise<AddOnActionResult> {
-        if (request.kind === "refresh") {
-            this.invalidate();
-            return Promise.resolve({ kind: "done" });
+        switch (request.kind) {
+            case "refresh":
+                this.invalidate();
+                return Promise.resolve({ kind: "done" });
+            case "addMarketplace":
+            case "updateMarketplaces":
+            case "removeMarketplace": {
+                const flow = this.runMarketplaceFlow(request);
+                this.track(flow);
+                return flow;
+            }
+            default: {
+                const acting = this.actions.catch(() => undefined).then(() => this.act(request));
+                this.actions = acting;
+                this.track(acting);
+                return acting;
+            }
         }
-        const acting = this.actions.catch(() => undefined).then(() => this.act(request));
-        this.actions = acting;
-        this.track(acting);
-        return acting;
     }
 
-    private async act(
-        request: Exclude<AddOnRequest, { kind: "refresh" }>,
-    ): Promise<AddOnActionResult> {
+    private async runMarketplaceFlow(request: MarketplaceRequest): Promise<AddOnActionResult> {
+        const { marketplaces } = this.ports;
+        if (request.kind === "removeMarketplace") {
+            const target = shownSourceTargetOf(this.latestSources, request.sourceId, request.kind);
+            if (target.kind === "refused") return target.result;
+            await marketplaces?.remove(target.source.entry);
+            return REPORTED_BY_FLOW;
+        }
+        const offered = (this.latestModel?.actions ?? []).map(({ kind }) => kind);
+        const refusal = catalogActionRefusalOf(offered, request.kind);
+        if (refusal !== undefined) return refusal;
+        await (request.kind === "addMarketplace" ? marketplaces?.add() : marketplaces?.update());
+        return REPORTED_BY_FLOW;
+    }
+
+    private async act(request: CodeRequest): Promise<AddOnActionResult> {
         try {
             return await this.actOn(request);
         } finally {
@@ -116,7 +153,7 @@ export class AddOnCatalogService {
         }
     }
 
-    private actOn(request: Exclude<AddOnRequest, { kind: "refresh" }>): Promise<AddOnActionResult> {
+    private actOn(request: CodeRequest): Promise<AddOnActionResult> {
         switch (request.kind) {
             case "inspect":
                 return Promise.resolve(this.inspect(request.addOnId));
@@ -171,7 +208,7 @@ export class AddOnCatalogService {
         return (await this.sourceOf(kind)?.current(id)) ?? { kind: "gone", id, name };
     }
 
-    private sourceOf(kind: AddOnKind): CodeAddOnSource | undefined {
+    private sourceOf(kind: CodeAddOnKind): CodeAddOnSource | undefined {
         return { plugin: this.ports.plugins, rulePackage: this.ports.rulePackages }[kind];
     }
 
@@ -192,7 +229,7 @@ export class AddOnCatalogService {
         const { plugins, rulePackages, restart } = this.ports;
         const facts = await this.reader.read(this.inspected);
         const revision = ++this.revision;
-        const { model, shown } = catalogModelOf(
+        const { model, shown, sources } = catalogModelOf(
             facts,
             {
                 answers: {
@@ -208,6 +245,7 @@ export class AddOnCatalogService {
             revision,
         );
         this.revisions = this.revisions.recorded(revision, shown);
+        this.latestSources = sources;
         this.latestModel = model;
         this.builtListeners.forEach((listener) => listener(model));
     }

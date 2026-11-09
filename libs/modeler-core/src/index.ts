@@ -108,15 +108,24 @@ export type {
     AddOnReview,
     AddOnSourceView,
     AddOnView,
+    CodeAddOnView,
+    TemplateAddOnView,
 } from "./addOns/domain/addOnCatalogModel";
 export type {
     AddOnActionKind,
     AddOnKind,
     CatalogActionKind,
+    CodeAddOnKind,
+    SourceActionKind,
     SourceKind,
+    TemplateState,
 } from "./addOns/domain/addOnIds";
 export type { AddOnActionResult, AddOnRefusal, AddOnRequest } from "./addOns/domain/addOnRequests";
-export type { SettingChanges } from "./addOns/port/addOnSourcePorts";
+export type {
+    MarketplaceAddOnSource,
+    SettingChanges,
+    TemplateAddOnSource,
+} from "./addOns/port/addOnSourcePorts";
 export type { AddOnViewConnection } from "./addOns/service/AddOnViewHub";
 export * from "./addOns/composition/AddOnsFeature";
 

@@ -1,3 +1,5 @@
+import { type Engine, ENGINE_LABEL } from "@miragon/bpmn-modeler-types";
+
 import {
     ApprovableArtifact,
     ApprovableCodeTexts,
@@ -13,6 +15,7 @@ import {
     SessionAnswer,
 } from "../../kernel/domain/codeApproval";
 import { folderOfConfigFolder } from "../../kernel/domain/configArtifacts";
+import { MarketplaceSettingsEntry } from "../../kernel/domain/modelerSettings";
 import {
     innermostFolderOf,
     relativeToRoot,
@@ -24,30 +27,43 @@ import type {
     AddOnCatalogModel,
     AddOnGroupView,
     AddOnReview,
+    AddOnSourceView,
     AddOnView,
+    CodeAddOnView,
+    TemplateAddOnView,
 } from "./addOnCatalogModel";
 import {
+    ADD_ON_KINDS,
     AddOnActionKind,
     AddOnKind,
     addOnIdOf,
     CatalogActionKind,
+    CodeAddOnKind,
     folderGroupIdOf,
+    MARKETPLACES_GROUP_ID,
+    SourceActionKind,
     SourceKind,
     sourceIdOf,
+    templateAddOnIdOf,
+    TemplateState,
 } from "./addOnIds";
 import {
     ACTION_LABEL,
     ADD_ON_KIND_TEXT,
     allowWarningText,
     cannotBeAllowedText,
+    cannotBeReadText,
     codeStateLabel,
     INSTALLED_PACKAGES_TEXT,
+    MARKETPLACES_GROUP_TEXT,
     nestedConfigFolderText,
     NO_ADD_ON_TEXT,
     NO_FOLDER_TEXT,
     REVIEW_FACT_LABEL,
     reviewHeading,
     ROOT_CONFIG_FOLDER_TEXT,
+    TEMPLATE_STATE_TEXT,
+    templateVersionText,
 } from "./addOnTexts";
 
 /** One add-on as its owner read it, placed and spoke of it. */
@@ -58,6 +74,40 @@ export interface OwnedPresence {
     readonly texts: ApprovableCodeTexts;
 }
 
+export interface ListedTemplate {
+    readonly id?: string;
+    readonly name?: string;
+    readonly version?: number;
+}
+
+/** One template file as the template owner read it. */
+export interface TemplateFileListing {
+    readonly path: string;
+    readonly reading:
+        | {
+              readonly kind: "read";
+              readonly templates: readonly ListedTemplate[];
+              readonly engine?: Engine;
+          }
+        | { readonly kind: "unreadable"; readonly reason: string };
+}
+
+export interface FolderTemplateFileListing extends TemplateFileListing {
+    /** The config folder whose templates folder holds the file. */
+    readonly sourceDir: string;
+}
+
+/** One registered marketplace as its owner listed and worded it, with its cached templates read. */
+export interface ListedMarketplace {
+    /** Its registration id, or its label when its entry cannot be parsed. */
+    readonly id: string;
+    readonly entry: MarketplaceSettingsEntry;
+    readonly label: string;
+    readonly scopeText: string;
+    readonly problem?: string;
+    readonly templates: readonly TemplateFileListing[];
+}
+
 /** What one listing found: every add-on its owner read, by kind. */
 export interface AddOnFacts {
     readonly folders: readonly string[];
@@ -65,18 +115,21 @@ export interface AddOnFacts {
     readonly approvals: readonly CodeApproval[];
     readonly plugins: readonly OwnedPresence[];
     readonly rulePackages: readonly OwnedPresence[];
+    readonly templates: readonly FolderTemplateFileListing[];
+    /** Absent on a host that lists no marketplaces. */
+    readonly marketplaces?: readonly ListedMarketplace[];
 }
 
 /** What this process remembers beyond the stored approvals, by kind as each owner tells it. */
 export interface AddOnSession {
-    readonly answers: Readonly<Record<AddOnKind, ReadonlyMap<string, SessionAnswer>>>;
+    readonly answers: Readonly<Record<CodeAddOnKind, ReadonlyMap<string, SessionAnswer>>>;
     /** Revoked this session, with code that may still be loaded. */
-    readonly stillLoaded: Readonly<Record<AddOnKind, ReadonlySet<string>>>;
+    readonly stillLoaded: Readonly<Record<CodeAddOnKind, ReadonlySet<string>>>;
 }
 
 /** What the core showed of one add-on; kept by the core and never sent. */
 export interface ShownCode {
-    readonly kind: AddOnKind;
+    readonly kind: CodeAddOnKind;
     /** The id its approval row names. */
     readonly id: string;
     readonly name: string;
@@ -90,14 +143,22 @@ export interface ShownCode {
     readonly leftForViewByRevoke: readonly ApprovableArtifact[];
 }
 
+/** What the core showed of one marketplace source; kept by the core and never sent. */
+export interface ShownSource {
+    readonly entry: MarketplaceSettingsEntry;
+    readonly actions: readonly SourceActionKind[];
+}
+
 export interface CatalogBuild {
     readonly model: AddOnCatalogModel;
     /** By add-on id. */
     readonly shown: ReadonlyMap<string, ShownCode>;
+    /** By source id. */
+    readonly sources: ReadonlyMap<string, ShownSource>;
 }
 
 interface ListedAddOn extends OwnedPresence {
-    readonly kind: AddOnKind;
+    readonly kind: CodeAddOnKind;
 }
 
 interface StatedAddOn extends ListedAddOn {
@@ -110,11 +171,14 @@ interface PlacedAddOn {
     readonly root: string;
     readonly source: SourcePlace;
     readonly view: AddOnView;
-    readonly shown: ShownCode;
+    /** Only for an add-on that offers an action. */
+    readonly shown?: ShownCode;
 }
 
+type FolderSourceKind = Exclude<SourceKind, "marketplace">;
+
 interface SourcePlace {
-    readonly kind: SourceKind;
+    readonly kind: FolderSourceKind;
     readonly dir: string;
     /** The folder whose diagrams it applies to, for a config folder of the current setting. */
     readonly appliesTo?: string;
@@ -140,26 +204,29 @@ const CODE_ACTIONS: Record<
     gone: { gone: [{ kind: "revoke", label: ACTION_LABEL.forget }] },
 };
 
+function configFolderPlace(dir: string, root: string, configFolder: string): SourcePlace {
+    const appliesTo = folderOfConfigFolder(dir, configFolder);
+    return { kind: "configFolder", dir, appliesTo, rank: appliesTo === root ? 0 : 1 };
+}
+
 const SOURCE_PLACE: Record<
     AddOnKind,
     (dir: string, root: string, configFolder: string) => SourcePlace
 > = {
-    plugin: (dir, root, configFolder) => {
-        const appliesTo = folderOfConfigFolder(dir, configFolder);
-        return { kind: "configFolder", dir, appliesTo, rank: appliesTo === root ? 0 : 1 };
-    },
+    plugin: configFolderPlace,
+    elementTemplate: configFolderPlace,
     rulePackage: (dir) => ({ kind: "installedPackages", dir, rank: 2 }),
 };
 
 const DETAIL: Record<
-    AddOnKind,
+    CodeAddOnKind,
     (presence: ListedPresence, sourceDir: string) => string | undefined
 > = {
     plugin: (presence, sourceDir) => relativeToRoot(presenceIdOf(presence), sourceDir),
     rulePackage: (presence) => (presence.kind === "found" ? presence.artifact.version : undefined),
 };
 
-const SOURCE_DESCRIPTION: Record<SourceKind, (place: SourcePlace, root: string) => string> = {
+const SOURCE_DESCRIPTION: Record<FolderSourceKind, (place: SourcePlace, root: string) => string> = {
     installedPackages: () => INSTALLED_PACKAGES_TEXT,
     configFolder: ({ dir, appliesTo }, root) => {
         const belowRoot = relativeToRoot(appliesTo ?? dir, root);
@@ -167,9 +234,20 @@ const SOURCE_DESCRIPTION: Record<SourceKind, (place: SourcePlace, root: string) 
     },
 };
 
-const CATALOG_ACTIONS: readonly ActionView<CatalogActionKind>[] = [
+const MARKETPLACE_CATALOG_ACTIONS: readonly ActionView<CatalogActionKind>[] = [
+    { kind: "addMarketplace", label: ACTION_LABEL.addMarketplace },
+    { kind: "updateMarketplaces", label: ACTION_LABEL.updateMarketplaces },
+];
+
+const PRUNE_ACTIONS: readonly ActionView<CatalogActionKind>[] = [
     { kind: "pruneCache", label: ACTION_LABEL.pruneCache },
 ];
+
+const MARKETPLACE_SOURCE_ACTIONS: readonly ActionView<SourceActionKind>[] = [
+    { kind: "removeMarketplace", label: ACTION_LABEL.removeMarketplace },
+];
+
+const TEMPLATE_STATE: TemplateState = "enabled";
 
 /**
  * The model every view shows: each add-on inside a workspace folder, placed
@@ -187,17 +265,103 @@ export function catalogModelOf(
         ...facts.plugins.map((each) => ({ kind: "plugin" as const, ...each })),
         ...facts.rulePackages.map((each) => ({ kind: "rulePackage" as const, ...each })),
     ];
-    const placed = listed.flatMap((each) => placedAddOn(each, facts, session, restart));
-    const groups = facts.folders.flatMap((root) => groupOf(root, placed));
+    const placed = [
+        ...listed.flatMap((each) => placedAddOn(each, facts, session, restart)),
+        ...facts.templates.flatMap((listing) => placedTemplates(listing, facts)),
+    ];
+    const marketplaceSources = (facts.marketplaces ?? []).map(marketplaceSourceOf);
+    const groups = [
+        ...facts.folders.flatMap((root) => groupOf(root, placed)),
+        ...marketplacesGroupOf(marketplaceSources.map(({ view }) => view)),
+    ];
     return {
         model: {
             revision,
             groups,
-            actions: CATALOG_ACTIONS,
+            actions:
+                facts.marketplaces === undefined
+                    ? PRUNE_ACTIONS
+                    : [...MARKETPLACE_CATALOG_ACTIONS, ...PRUNE_ACTIONS],
             ...emptyTextOf(facts.folders, groups),
         },
-        shown: new Map(placed.map(({ view, shown }) => [view.id, shown])),
+        shown: new Map(
+            placed.flatMap(({ view, shown }) => (shown === undefined ? [] : [[view.id, shown]])),
+        ),
+        sources: new Map(marketplaceSources.map(({ view, shown }) => [view.id, shown])),
     };
+}
+
+function placedTemplates(listing: FolderTemplateFileListing, facts: AddOnFacts): PlacedAddOn[] {
+    const root = innermostFolderOf(listing.path, facts.folders);
+    if (root === undefined) {
+        return [];
+    }
+    const source = SOURCE_PLACE.elementTemplate(listing.sourceDir, root, facts.configFolder);
+    return templateViewsOf(listing).map((view) => ({ root, source, view }));
+}
+
+/** Each template of a file, or the file once when it cannot be read; a blank file holds none. */
+function templateViewsOf({ path, reading }: TemplateFileListing): TemplateAddOnView[] {
+    const fileName = lastWorkspacePathSegment(path);
+    if (reading.kind === "unreadable") {
+        return [
+            {
+                ...templateViewBase(templateAddOnIdOf(path), fileName),
+                problem: cannotBeReadText(reading.reason),
+            },
+        ];
+    }
+    const engineText = reading.engine === undefined ? undefined : ENGINE_LABEL[reading.engine];
+    return reading.templates.map((template, index) => ({
+        ...templateViewBase(
+            templateAddOnIdOf(path, template, index),
+            template.name ?? template.id ?? fileName,
+        ),
+        ...optional(
+            "detail",
+            template.version === undefined ? undefined : templateVersionText(template.version),
+        ),
+        ...optional("engineText", engineText),
+    }));
+}
+
+function templateViewBase(id: string, name: string): TemplateAddOnView {
+    return {
+        id,
+        kind: "elementTemplate",
+        kindText: ADD_ON_KIND_TEXT.elementTemplate,
+        name,
+        state: TEMPLATE_STATE,
+        stateText: TEMPLATE_STATE_TEXT[TEMPLATE_STATE],
+        actions: [],
+    };
+}
+
+function marketplaceSourceOf(marketplace: ListedMarketplace): {
+    readonly view: AddOnSourceView;
+    readonly shown: ShownSource;
+} {
+    return {
+        view: {
+            id: sourceIdOf("marketplace", marketplace.id),
+            kind: "marketplace",
+            label: marketplace.label,
+            description: marketplace.scopeText,
+            ...optional("problem", marketplace.problem),
+            actions: MARKETPLACE_SOURCE_ACTIONS,
+            addOns: marketplace.templates.flatMap(templateViewsOf).sort(byKindThenName),
+        },
+        shown: {
+            entry: marketplace.entry,
+            actions: MARKETPLACE_SOURCE_ACTIONS.map(({ kind }) => kind),
+        },
+    };
+}
+
+function marketplacesGroupOf(sources: readonly AddOnSourceView[]): AddOnGroupView[] {
+    return sources.length === 0
+        ? []
+        : [{ id: MARKETPLACES_GROUP_ID, ...MARKETPLACES_GROUP_TEXT, sources }];
 }
 
 function placedAddOn(
@@ -237,7 +401,7 @@ function viewOf(
     folders: readonly string[],
     session: AddOnSession,
     restart: ProcessRestart,
-): AddOnView {
+): CodeAddOnView {
     const { kind, presence, id, state, actions } = row;
     return {
         id: addOnIdOf(kind, id),
@@ -329,9 +493,8 @@ function groupOf(root: string, placed: readonly PlacedAddOn[]): AddOnGroupView[]
                     kind: place.kind,
                     label: relativeToRoot(place.dir, root) || lastWorkspacePathSegment(place.dir),
                     description: SOURCE_DESCRIPTION[place.kind](place, root),
-                    addOns: addOns
-                        .map(({ view }) => view)
-                        .sort((a, b) => compare(a.name, b.name) || compare(a.id, b.id)),
+                    actions: [],
+                    addOns: addOns.map(({ view }) => view).sort(byKindThenName),
                 })),
         },
     ];
@@ -361,8 +524,16 @@ function emptyTextOf(
     folders: readonly string[],
     groups: readonly AddOnGroupView[],
 ): { readonly emptyText?: string } {
-    if (folders.length === 0) return { emptyText: NO_FOLDER_TEXT };
-    return groups.length === 0 ? { emptyText: NO_ADD_ON_TEXT } : {};
+    if (groups.length > 0) return {};
+    return { emptyText: folders.length === 0 ? NO_FOLDER_TEXT : NO_ADD_ON_TEXT };
+}
+
+function byKindThenName(a: AddOnView, b: AddOnView): number {
+    return (
+        ADD_ON_KINDS.indexOf(a.kind) - ADD_ON_KINDS.indexOf(b.kind) ||
+        compare(a.name, b.name) ||
+        compare(a.id, b.id)
+    );
 }
 
 function optional<K extends string, V>(key: K, value: V | undefined): { readonly [P in K]?: V } {

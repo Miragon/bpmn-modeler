@@ -1,15 +1,25 @@
 import { declinedKeys, presenceIdOf } from "../../kernel/domain/codeApproval";
 import { PluginApprovalStorePort } from "../../kernel/port/approvalPorts";
 import { SettingsPort, WorkspacePort } from "../../kernel/port/hostPorts";
-import { AddOnFacts, OwnedPresence } from "../domain/addOnCatalog";
 import {
+    AddOnFacts,
+    FolderTemplateFileListing,
+    ListedMarketplace,
+    OwnedPresence,
+} from "../domain/addOnCatalog";
+import {
+    configAreaDirsToList,
     isHashWanted,
     missedRowIds,
-    pluginDirsToList,
     rulePackageDirsToList,
     rulePackageIdsToList,
 } from "../domain/addOnScope";
-import { PluginAddOnSource, RulePackageAddOnSource } from "../port/addOnSourcePorts";
+import {
+    MarketplaceAddOnSource,
+    PluginAddOnSource,
+    RulePackageAddOnSource,
+    TemplateAddOnSource,
+} from "../port/addOnSourcePorts";
 
 export interface AddOnInventoryPorts {
     readonly workspace: WorkspacePort;
@@ -17,9 +27,11 @@ export interface AddOnInventoryPorts {
     readonly approvals: PluginApprovalStorePort;
     readonly plugins: PluginAddOnSource;
     readonly rulePackages?: RulePackageAddOnSource;
+    readonly templates?: TemplateAddOnSource;
+    readonly marketplaces?: MarketplaceAddOnSource;
 }
 
-type ListingFacts = Omit<AddOnFacts, "plugins" | "rulePackages">;
+type ListingFacts = Pick<AddOnFacts, "folders" | "configFolder" | "approvals">;
 
 /** Collects what the owners find in the open workspace folders, and the rows they missed there. */
 export class AddOnInventoryReader {
@@ -36,7 +48,41 @@ export class AddOnInventoryReader {
             ...facts,
             plugins: await this.plugins(facts),
             rulePackages: this.rulePackages(facts, inspected),
+            templates: await this.templates(facts),
+            ...(await this.marketplaces()),
         };
+    }
+
+    private async templates({
+        folders,
+        configFolder,
+    }: ListingFacts): Promise<readonly FolderTemplateFileListing[]> {
+        const { templates } = this.ports;
+        if (templates === undefined) {
+            return [];
+        }
+        return templates.templatesIn(
+            configAreaDirsToList({
+                folders,
+                rootDirs: folders.map((root) => templates.templatesDirOf(root, configFolder)),
+                knownDirs: templates.knownTemplateDirs(),
+            }),
+        );
+    }
+
+    private async marketplaces(): Promise<{ readonly marketplaces?: ListedMarketplace[] }> {
+        const { marketplaces, templates } = this.ports;
+        if (marketplaces === undefined) {
+            return {};
+        }
+        const listed: ListedMarketplace[] = [];
+        for (const { templateFiles, ...marketplace } of await marketplaces.listMarketplaces()) {
+            listed.push({
+                ...marketplace,
+                templates: (await templates?.templatesOf(templateFiles)) ?? [],
+            });
+        }
+        return { marketplaces: listed };
     }
 
     private async plugins({
@@ -47,10 +93,10 @@ export class AddOnInventoryReader {
         const { plugins } = this.ports;
         const listed = [
             ...(await plugins.pluginsIn(
-                pluginDirsToList({
+                configAreaDirsToList({
                     folders,
-                    rootPluginDirs: folders.map((root) => plugins.pluginsDirOf(root, configFolder)),
-                    knownPluginDirs: plugins.knownPluginDirs(),
+                    rootDirs: folders.map((root) => plugins.pluginsDirOf(root, configFolder)),
+                    knownDirs: plugins.knownPluginDirs(),
                 }),
             )),
         ];

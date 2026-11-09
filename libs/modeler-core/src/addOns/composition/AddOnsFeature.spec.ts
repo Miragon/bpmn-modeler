@@ -19,7 +19,17 @@ import { PackageClosureFingerprinter } from "../../modeler/bpmn/service/PackageC
 import { RulePackageCatalog } from "../../modeler/bpmn/service/RulePackageCatalog";
 import { RulePackageInventory } from "../../modeler/bpmn/service/RulePackageInventory";
 import { ContentHasherPort } from "../../bpmnPlugins/port/pluginPorts";
-import { createTestHost, InMemoryInstalledPackages, RecordingAddOnView } from "../../testing";
+import { BpmnElementTemplatesService } from "../../modeler/bpmn/service/BpmnElementTemplatesService";
+import { TemplateInventory } from "../../modeler/bpmn/service/TemplateInventory";
+import { createTemplateMarketplaceService } from "../../template-marketplace/composition/MarketplaceFeature";
+import { MarketplaceCommands } from "../../template-marketplace/service/MarketplaceCommands";
+import { MarketplaceInventory } from "../../template-marketplace/service/MarketplaceInventory";
+import {
+    createTestHost,
+    InMemoryInstalledPackages,
+    RecordingAddOnView,
+    TestHostOptions,
+} from "../../testing";
 import { AddOnsFeature } from "./AddOnsFeature";
 
 const WORK = "/work";
@@ -27,6 +37,31 @@ const PLUGINS = `${WORK}/.camunda/plugins`;
 const RESIZE = `${PLUGINS}/resize-tasks`;
 const ACME = `${WORK}/node_modules/bpmnlint-plugin-acme`;
 const CACHE = "/storage/bpmn-plugins";
+const MARKETPLACE_CACHE = "/storage/marketplaces";
+const TEMPLATES = `${WORK}/.camunda/element-templates`;
+const NESTED_TEMPLATES = `${WORK}/orders/.camunda/element-templates`;
+const SHARED = `${WORK}/shared`;
+const LOCAL = `${WORK}/local`;
+
+/** A local marketplace whose one source serves one template. */
+function marketplaceFiles(root: string, templateName: string): Record<string, string> {
+    return {
+        [`${root}/marketplace.json`]: JSON.stringify({ sources: [{ path: "element-templates" }] }),
+        [`${root}/element-templates/${templateName}.json`]: JSON.stringify({
+            id: templateName,
+            name: templateName,
+        }),
+    };
+}
+
+const MARKETPLACE_FILES = {
+    ...marketplaceFiles(SHARED, "Shared Mail"),
+    ...marketplaceFiles(LOCAL, "Local CRM"),
+};
+
+function marketplaceGroupOf(view: RecordingAddOnView) {
+    return view.latest().groups.find(({ id }) => id === "marketplaces");
+}
 
 const RESIZE_FILES = {
     [`${RESIZE}/plugin.json`]: '{ "name": "Resize Tasks", "script": "client.js" }',
@@ -56,8 +91,15 @@ function setUp({
     files = RESIZE_FILES,
     folders = [WORK],
     restart = "reloadWindow",
-}: { files?: Record<string, string>; folders?: string[]; restart?: ProcessRestart } = {}) {
-    const host = createTestHost({ folders, files });
+    marketplaces: listsMarketplaces = true,
+    ...hostOptions
+}: {
+    files?: Record<string, string>;
+    folders?: string[];
+    restart?: ProcessRestart;
+    marketplaces?: boolean;
+} & Pick<TestHostOptions, "settings" | "promptAnswers" | "marketplaceAnswers"> = {}) {
+    const host = createTestHost({ folders, files, ...hostOptions });
     const artifacts = new ArtifactService(host.workspace, host.settings, host.notifier);
     const plugins = new BpmnPluginsFeature({
         ...host,
@@ -84,6 +126,31 @@ function setUp({
         host.notifier,
     );
     const settingChanges = new ScriptedSettingChanges();
+    const templatesService = new BpmnElementTemplatesService(
+        host.store,
+        host.documents,
+        artifacts,
+        host.statusBar,
+        host.notifier,
+    );
+    const marketplaceService = createTemplateMarketplaceService({
+        workspace: host.workspace,
+        settings: host.settings,
+        notifier: host.notifier,
+        tokens: host.tokens,
+        tokenPrompt: host.tokenPrompt,
+        cacheRoot: MARKETPLACE_CACHE,
+        homeDir: WORK,
+    });
+    const marketplaceCommands = new MarketplaceCommands({
+        marketplaces: marketplaceService,
+        templates: templatesService,
+        registrations: host.marketplaceRegistrations,
+        prompt: host.marketplacePrompt,
+        picker: host.picker,
+        notifier: host.notifier,
+        homeDir: WORK,
+    });
     const addOns = new AddOnsFeature({
         workspace: host.workspace,
         settings: host.settings,
@@ -93,6 +160,15 @@ function setUp({
         restart,
         plugins: plugins.inventory,
         rulePackages: new RulePackageInventory(rulePackageCatalog, fingerprinter, disk),
+        templates: new TemplateInventory(templatesService, artifacts),
+        ...(listsMarketplaces && {
+            marketplaces: new MarketplaceInventory(
+                host.marketplaceRegistrations,
+                marketplaceService,
+                marketplaceCommands,
+                host.notifier,
+            ),
+        }),
     });
     const view = new RecordingAddOnView();
     const rulePackageHashOf = (id: string, kind: BlockedRulePackage["kind"] = "package") => {
@@ -110,6 +186,8 @@ function setUp({
         addOns,
         view,
         rulePackageHashOf,
+        templatesService,
+        marketplaceCommands,
     };
 }
 
@@ -268,7 +346,7 @@ describe("AddOnsFeature", () => {
             });
             await shown(addOns);
 
-            const row = view.addOnNamed("bpmnlint-plugin-acme");
+            const row = view.codeAddOnNamed("bpmnlint-plugin-acme");
             expect(result).toEqual({
                 kind: "done",
                 message:
@@ -496,7 +574,7 @@ describe("AddOnsFeature", () => {
                     message: `Revoked bpmnlint-plugin-acme. ${stillLoaded}`,
                 });
                 expect(host.pluginApprovals.approvals).toEqual([]);
-                expect(view.addOnNamed("bpmnlint-plugin-acme").note).toBe(stillLoaded);
+                expect(view.codeAddOnNamed("bpmnlint-plugin-acme").note).toBe(stillLoaded);
             },
         );
 
@@ -781,6 +859,253 @@ describe("AddOnsFeature", () => {
             expect(host.workspace.watchers.filter(({ root }) => root === WORK)).toMatchObject([
                 { disposed: true },
             ]);
+        });
+    });
+
+    describe("element templates", () => {
+        it("lists workspace templates before any editor opened", async () => {
+            const { addOns, view } = setUp({
+                files: {
+                    ...RESIZE_FILES,
+                    [`${TEMPLATES}/mail.json`]: JSON.stringify({
+                        id: "mail",
+                        name: "Send Mail",
+                        version: 2,
+                        $schema:
+                            "https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json",
+                    }),
+                    [`${TEMPLATES}/broken.json`]: "{ not json",
+                },
+            });
+
+            view.attachTo(addOns);
+            await shown(addOns);
+
+            expect(
+                view.latest().groups[0].sources.map(({ id, addOns: rows }) => ({
+                    id,
+                    rows: rows.map((row) => [
+                        row.kind,
+                        row.name,
+                        row.state,
+                        row.detail,
+                        "engineText" in row ? row.engineText : undefined,
+                        row.problem === undefined ? undefined : "problem",
+                    ]),
+                })),
+            ).toEqual([
+                {
+                    id: "config:/work/.camunda",
+                    rows: [
+                        [
+                            "plugin",
+                            "Resize Tasks",
+                            "new",
+                            "plugins/resize-tasks",
+                            undefined,
+                            undefined,
+                        ],
+                        [
+                            "elementTemplate",
+                            "Send Mail",
+                            "enabled",
+                            "Version 2",
+                            "Camunda 8",
+                            undefined,
+                        ],
+                        [
+                            "elementTemplate",
+                            "broken.json",
+                            "enabled",
+                            undefined,
+                            undefined,
+                            "problem",
+                        ],
+                    ],
+                },
+            ]);
+        });
+
+        it("lists the templates of a nested config folder once an editor loads them", async () => {
+            const { host, templatesService, addOns, view } = setUp({
+                files: {
+                    [`${NESTED_TEMPLATES}/order.json`]: JSON.stringify({
+                        id: "order",
+                        name: "Order",
+                    }),
+                },
+            });
+            view.attachTo(addOns);
+            await shown(addOns);
+            const listedBefore = view.addOns().map(({ name }) => name);
+
+            await templatesService.setElementTemplates(host.openEditor(`${WORK}/orders/o.bpmn`).id);
+            await shown(addOns);
+
+            expect([listedBefore, view.addOns().map(({ name }) => name)]).toEqual([[], ["Order"]]);
+        });
+    });
+
+    describe("marketplaces", () => {
+        it("lists a marketplace with its scope and templates", async () => {
+            const { marketplaceCommands, addOns, view } = setUp({
+                files: MARKETPLACE_FILES,
+                settings: { marketplaces: [SHARED] },
+            });
+            await marketplaceCommands.update();
+
+            view.attachTo(addOns);
+            await shown(addOns);
+
+            expect(
+                marketplaceGroupOf(view)?.sources.map(
+                    ({ label, description, problem, actions, addOns: rows }) => ({
+                        label,
+                        description,
+                        problem,
+                        actions: actions.map(({ kind }) => kind),
+                        templates: rows.map(({ name }) => name),
+                    }),
+                ),
+            ).toEqual([
+                {
+                    label: SHARED,
+                    description: "All my projects",
+                    problem: undefined,
+                    actions: ["removeMarketplace"],
+                    templates: ["Shared Mail"],
+                },
+            ]);
+            expect(view.latest().actions.map(({ kind }) => kind)).toEqual([
+                "addMarketplace",
+                "updateMarketplaces",
+                "pruneCache",
+            ]);
+        });
+
+        it("removing a marketplace runs the queued flow with its confirm", async () => {
+            const { host, marketplaceCommands, addOns, view } = setUp({
+                files: MARKETPLACE_FILES,
+                settings: { marketplaces: [SHARED] },
+                promptAnswers: { marketplaceRemovalConfirm: true },
+            });
+            await marketplaceCommands.update();
+            view.attachTo(addOns);
+            await shown(addOns);
+            const [source] = marketplaceGroupOf(view)?.sources ?? [];
+
+            const result = await view.connection!.handle({
+                kind: "removeMarketplace",
+                sourceId: source.id,
+            });
+            await shown(addOns);
+
+            expect(result).toEqual({ kind: "reportedByFlow" });
+            expect(host.picker.prompts.map(({ method }) => method)).toEqual(["confirm"]);
+            expect(host.settings.values.marketplaces).toEqual([]);
+            expect(host.notifier.infos).toContain("Removed 1 marketplace(s).");
+            expect(marketplaceGroupOf(view)).toBeUndefined();
+        });
+
+        it("removes nothing when its confirm is declined", async () => {
+            const { host, addOns, view } = setUp({
+                files: MARKETPLACE_FILES,
+                settings: { marketplaces: [SHARED] },
+            });
+            view.attachTo(addOns);
+            await shown(addOns);
+            const [source] = marketplaceGroupOf(view)?.sources ?? [];
+
+            await view.connection!.handle({ kind: "removeMarketplace", sourceId: source.id });
+
+            expect(host.settings.values.marketplaces).toEqual([SHARED]);
+        });
+
+        it("refuses to remove a marketplace the latest list no longer shows", async () => {
+            const { host, addOns, view } = setUp({ files: MARKETPLACE_FILES });
+            view.attachTo(addOns);
+            await shown(addOns);
+
+            const result = await view.connection!.handle({
+                kind: "removeMarketplace",
+                sourceId: "marketplace:gone",
+            });
+
+            expect(result).toMatchObject({ kind: "refused", reason: "unknownSource" });
+            expect(host.picker.prompts).toEqual([]);
+        });
+
+        it("adds and updates marketplaces through the commands' flows", async () => {
+            const { host, addOns, view } = setUp({
+                files: MARKETPLACE_FILES,
+                marketplaceAnswers: [{ location: LOCAL, scope: "project" }],
+            });
+            view.attachTo(addOns);
+            await shown(addOns);
+
+            const results = [
+                await view.connection!.handle({ kind: "addMarketplace" }),
+                await view.connection!.handle({ kind: "updateMarketplaces" }),
+            ];
+            await shown(addOns);
+
+            expect(results).toEqual([{ kind: "reportedByFlow" }, { kind: "reportedByFlow" }]);
+            expect(host.notifier.infos).toEqual([
+                "Marketplace added.",
+                "Updated 1 marketplace(s).",
+            ]);
+            expect(
+                marketplaceGroupOf(view)?.sources.map(({ label, description }) => [
+                    label,
+                    description,
+                ]),
+            ).toEqual([[LOCAL, "This project"]]);
+        });
+
+        it("refuses a marketplace action on a host that lists no marketplaces", async () => {
+            const { addOns, view } = setUp({ marketplaces: false });
+            view.attachTo(addOns);
+            await shown(addOns);
+
+            const result = await view.connection!.handle({ kind: "addMarketplace" });
+
+            expect(result).toMatchObject({ kind: "refused", reason: "notOffered" });
+            expect(view.latest().actions.map(({ kind }) => kind)).toEqual(["pruneCache"]);
+        });
+
+        it("a marketplace change reaches every visible view", async () => {
+            const { marketplaceCommands, addOns } = setUp({
+                files: MARKETPLACE_FILES,
+                marketplaceAnswers: [{ location: SHARED, scope: "allProjects" }],
+            });
+            const first = new RecordingAddOnView();
+            const second = new RecordingAddOnView();
+            first.attachTo(addOns);
+            second.attachTo(addOns);
+            await shown(addOns);
+
+            await marketplaceCommands.add();
+            await shown(addOns);
+
+            expect(
+                [first, second].map((each) =>
+                    marketplaceGroupOf(each)?.sources.flatMap(({ addOns: rows }) =>
+                        rows.map(({ name }) => name),
+                    ),
+                ),
+            ).toEqual([["Shared Mail"], ["Shared Mail"]]);
+        });
+
+        it("lists again once the marketplaces setting changes", async () => {
+            const { host, settingChanges, addOns, view } = setUp({ files: MARKETPLACE_FILES });
+            view.attachTo(addOns);
+            await shown(addOns);
+
+            await host.marketplaceRegistrations.register(SHARED, "project");
+            settingChanges.fire(settingChangeNaming(["marketplaces"]));
+            await shown(addOns);
+
+            expect(marketplaceGroupOf(view)?.sources.map(({ label }) => label)).toEqual([SHARED]);
         });
     });
 
