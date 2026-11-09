@@ -17,7 +17,10 @@ export type AddOnRequest =
     | { readonly kind: "refresh" };
 
 export type AddOnRefusal =
-    "unknownAddOn" | "staleView" | "changedSinceReview" | "gone" | "unreadable";
+    | "unknownAddOn"
+    | "staleView"
+    | "closedView"
+    | Extract<ReviewedAllow, { kind: "refused" }>["reason"];
 
 export type AddOnActionResult =
     | { readonly kind: "done"; readonly message?: string }
@@ -36,6 +39,7 @@ const STALE_VIEW = refused(
     "The list changed since you looked at it. Check it again, then allow.",
 );
 const UNKNOWN_ADD_ON = refused("unknownAddOn", "This add-on is no longer listed.");
+export const CLOSED_VIEW = refused("closedView", "This view is closed.");
 
 const ALLOWED_FOLLOW_UP: Record<AddOnKind, string> = {
     plugin: "Open editors reload with it.",

@@ -1,6 +1,6 @@
 import { LoggerPort, WorkspacePort } from "../../kernel/port/hostPorts";
 import { AddOnCatalogModel } from "../domain/addOnCatalog";
-import { AddOnActionResult, AddOnRequest } from "../domain/addOnRequests";
+import { AddOnActionResult, AddOnRequest, CLOSED_VIEW } from "../domain/addOnRequests";
 import { AddOnCatalogService } from "./AddOnCatalogService";
 import { AddOnWatchers } from "./AddOnWatchers";
 
@@ -44,7 +44,8 @@ export class AddOnViewHub {
         this.followViews();
         if (visible) this.refresh();
         return {
-            handle: (request) => this.catalog.handle(request),
+            handle: (request) =>
+                this.views.has(view) ? this.catalog.handle(request) : Promise.resolve(CLOSED_VIEW),
             setVisible: (nowVisible) => this.setVisible(view, nowVisible),
             dispose: () => {
                 this.views.delete(view);
@@ -65,6 +66,7 @@ export class AddOnViewHub {
     }
 
     private setVisible(view: AttachedView, visible: boolean): void {
+        if (!this.views.has(view)) return;
         const shown = visible && !view.visible;
         view.visible = visible;
         this.followViews();
