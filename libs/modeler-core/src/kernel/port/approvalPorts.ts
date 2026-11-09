@@ -15,7 +15,10 @@ export interface PluginApprovalStorePort {
      * Resolves once `read()` includes the change.
      */
     change(change: CodeApprovalChange): Promise<void>;
-    /** The host's stored list now, never a mirror; `read()` returns it from then on. */
+    /**
+     * The host's stored list, asked for now rather than taken from a mirror, or
+     * a newer one the store heard of meanwhile; `read()` returns it from then on.
+     */
     readStored(): Promise<readonly CodeApproval[]>;
     /** After `read()` changed, whoever changed it; never for a list of the same rows. */
     onDidChange(listener: () => void): { dispose(): void };

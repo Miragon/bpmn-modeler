@@ -23,7 +23,8 @@ import { PluginApprovalsMirror } from "../../port/PluginApprovalsMirror";
  * The host is the writer of record: `change` sends only the rows to allow and
  * the ids to revoke, the host merges them into the list it stores and answers
  * with that list. A refused change leaves the mirror as it was. `readStored`
- * asks the host for its list rather than trusting the mirror.
+ * asks the host for its list rather than trusting the mirror, and answers a
+ * newer list the host pushed before its answer arrived.
  *
  * Every list carries the host's revision and the mirror keeps the newest: the
  * bridge runs a register on its editor's queue and a push on its own, so they
@@ -54,7 +55,7 @@ export class RpcPluginApprovalStore implements PluginApprovalStorePort, PluginAp
             {} satisfies EmptyParams,
         )) as PluginApprovalsSnapshot;
         this.apply(stored);
-        return copyOf(stored.approvals);
+        return copyOf(this.snapshot.approvals);
     }
 
     onDidChange(listener: () => void): { dispose(): void } {
