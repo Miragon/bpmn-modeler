@@ -49,6 +49,11 @@ export const NO_FOLDER_TEXT =
 export const NO_ADD_ON_TEXT =
     "No BPMN plugins, bpmnlint rule packages or element templates in this workspace.";
 
+export const CATALOG_READ_FAILED_TEXT = "Could not list the add-ons. The log says why.";
+
+export const CATALOG_REREAD_FAILED_TEXT =
+    "Could not list the add-ons again. The list shows what it read before; the log says why.";
+
 export const MARKETPLACES_GROUP_TEXT = {
     label: "Marketplaces",
     description: "Element templates fetched from the registered marketplaces",

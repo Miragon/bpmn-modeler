@@ -21,6 +21,8 @@ export interface AddOnCatalogModel {
     readonly groups: readonly AddOnGroupView[];
     readonly actions: readonly ActionView<CatalogActionKind>[];
     readonly emptyText?: string;
+    /** Why the catalog could not be read; the groups are then what it read before, if anything. */
+    readonly problem?: string;
 }
 
 export interface AddOnGroupView {

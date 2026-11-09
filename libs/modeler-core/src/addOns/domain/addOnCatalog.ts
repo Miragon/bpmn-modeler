@@ -11,6 +11,8 @@ import { CatalogActionKind, folderGroupIdOf, sourceIdOf } from "./addOnIds";
 import { FolderSourceKind, PlacedAddOn, sourceLabelOf, SourcePlace } from "./addOnSourcePlaces";
 import {
     ACTION_LABEL,
+    CATALOG_READ_FAILED_TEXT,
+    CATALOG_REREAD_FAILED_TEXT,
     INSTALLED_PACKAGES_TEXT,
     nestedConfigFolderText,
     NO_ADD_ON_TEXT,
@@ -120,4 +122,18 @@ function emptyTextOf(
 ): { readonly emptyText?: string } {
     if (groups.length > 0) return {};
     return { emptyText: folders.length === 0 ? NO_FOLDER_TEXT : NO_ADD_ON_TEXT };
+}
+
+/**
+ * What a view shows when a listing throws: what it read before under that
+ * model's own revision, so an allow against those rows still holds, or,
+ * without one, a new revision with nothing listed.
+ */
+export function failedCatalogOf(
+    previous: AddOnCatalogModel | undefined,
+    revision: number,
+): AddOnCatalogModel {
+    return previous === undefined
+        ? { revision, groups: [], actions: [], problem: CATALOG_READ_FAILED_TEXT }
+        : { ...previous, problem: CATALOG_REREAD_FAILED_TEXT };
 }

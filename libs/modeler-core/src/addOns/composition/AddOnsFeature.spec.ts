@@ -858,6 +858,50 @@ describe("AddOnsFeature", () => {
             expect(host.notifier.logged("error")).toHaveLength(5);
         });
 
+        it("tells every visible view when the first listing fails", async () => {
+            const { host, addOns, view } = setUp();
+            vi.spyOn(host.pluginApprovals, "readStored").mockRejectedValueOnce(
+                new Error("store unreadable"),
+            );
+
+            view.attachTo(addOns);
+            await shown(addOns);
+
+            expect(view.latest()).toMatchObject({
+                groups: [],
+                problem: "Could not list the add-ons. The log says why.",
+            });
+            expect(host.notifier.logged("error")).toHaveLength(1);
+        });
+
+        it("keeps what a view showed when a later listing fails, and clears the problem once one succeeds", async () => {
+            const { host, addOns, view } = setUp();
+            view.attachTo(addOns);
+            await shown(addOns);
+            const before = view.latest();
+            vi.spyOn(host.pluginApprovals, "readStored").mockRejectedValueOnce(
+                new Error("store unreadable"),
+            );
+
+            addOns.refresh();
+            await shown(addOns);
+            const failed = view.latest();
+            const allowed = await view.connection?.handle({
+                kind: "allow",
+                addOnId: `plugin:${RESIZE}`,
+                revision: failed.revision,
+            });
+            await shown(addOns);
+
+            expect(failed).toEqual({
+                ...before,
+                problem:
+                    "Could not list the add-ons again. The list shows what it read before; the log says why.",
+            });
+            expect(allowed).toMatchObject({ kind: "done" });
+            expect(view.latest().problem).toBeUndefined();
+        });
+
         it("posts nothing to a disposed view and refuses what it asks", async () => {
             const { host, addOns, view } = setUp();
             const connection = view.attachTo(addOns);
