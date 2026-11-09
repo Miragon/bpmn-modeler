@@ -7,9 +7,8 @@ import {
     approvalsKey,
     CodeApproval,
     CodeState,
+    codeStateOf,
     FollowedApprovalChange,
-    foundCodeState,
-    needsContentHash,
     PendingCodeApproval,
     pendingApprovalDescription,
 } from "../../../kernel/domain/codeApproval";
@@ -189,21 +188,19 @@ export function rulePackageVerdict(
     if (context.admittedMembers.has(rootId)) {
         return { kind: "admitted", via: "closure" };
     }
-    const approvals = context.approvals.filter(isRulePackageApproval);
-    if (!needsContentHash(rootId, approvals, context.declinedThisSession)) {
-        return { kind: "blocked", state: "new" };
-    }
-    if (contentHash === undefined) {
-        return { kind: "hashNeeded" };
-    }
-    const state = foundCodeState(
-        { id: rootId, name: rootId, contentHash },
-        approvals,
+    const reading = codeStateOf(
+        contentHash === undefined
+            ? { kind: "unhashed", id: rootId }
+            : { kind: "found", artifact: { id: rootId, name: rootId, contentHash } },
+        context.approvals.filter(isRulePackageApproval),
         context.declinedThisSession,
     );
-    return state === "approved"
+    if (reading.kind === "hashNeeded") {
+        return reading;
+    }
+    return reading.state === "approved"
         ? { kind: "admitted", via: "approval" }
-        : { kind: "blocked", state };
+        : { kind: "blocked", state: reading.state };
 }
 
 /** Only packages whose absence left a rule or config unresolved: a package the bundle stood in for is never asked about. */

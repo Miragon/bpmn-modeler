@@ -578,16 +578,16 @@ from it directly.
 workspace code is in, and `CODE_STATE_TEXT` the one text of each, which the
 approval list and the log use; `ApprovalState` and the rule packages'
 `BlockedState` are subsets of it. `needsContentHash` is the one rule for when
-code must be hashed before its state is known (a row or a decline of its id).
+code must be hashed before its state is known (a row or a decline of its id),
+and `codeStateOf` the one dispatcher from what an owner found (found,
+unhashed, unreadable, gone) to that state; `rulePackageVerdict` reads it.
 Groundwork for the artifacts view
 ([#2250](https://github.com/Miragon/bpmn-modeler/issues/2250)) and its read
 model ([#2263](https://github.com/Miragon/bpmn-modeler/issues/2263)), read
-only by specs until those land: `codeStateOf` reads the state from what an
-owner found (found, unhashed, unreadable, gone), `reviewedAllowDecision`
-allows only content that is still as it was reviewed, `PROCESS_RESTARTS`
-names, as a typed host fact, how the user unloads code that already ran
-(reload the window, restart the IDE), and `RulePackageCatalog` keeps the
-packages revoked this session.
+only by specs until those land: `reviewedAllowDecision` allows only content
+that is still as it was reviewed, `PROCESS_RESTARTS` names, as a typed host
+fact, how the user unloads code that already ran (reload the window, restart
+the IDE), and `RulePackageCatalog` keeps the packages revoked this session.
 
 **Prompt flow.** Per the
 [VS Code UX guidelines](../../.agents/skills/vscode-ux-guidelines/SKILL.md), a

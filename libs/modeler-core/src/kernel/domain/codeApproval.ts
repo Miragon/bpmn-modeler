@@ -51,8 +51,8 @@ export type CodePresence =
     | { readonly kind: "unreadable"; readonly id: string; readonly reason: string }
     | { readonly kind: "gone"; readonly id: string };
 
-export type CodeStateReading =
-    { readonly kind: "state"; readonly state: CodeState } | { readonly kind: "hashNeeded" };
+export type CodeStateReading<S extends CodeState = CodeState> =
+    { readonly kind: "state"; readonly state: S } | { readonly kind: "hashNeeded" };
 
 /** Every approval notice offers only this; the list opens from it. */
 export type ApprovalNoticeAction = "review";
@@ -235,6 +235,16 @@ export function foundCodeState(
 }
 
 /** A row decides `changed` for code that cannot be read, so the user still sees what was allowed there. */
+export function codeStateOf(
+    presence: Exclude<CodePresence, { readonly kind: "gone" }>,
+    approvals: readonly CodeApproval[],
+    declined: ReadonlySet<string>,
+): CodeStateReading<Exclude<CodeState, "gone">>;
+export function codeStateOf(
+    presence: CodePresence,
+    approvals: readonly CodeApproval[],
+    declined: ReadonlySet<string>,
+): CodeStateReading;
 export function codeStateOf(
     presence: CodePresence,
     approvals: readonly CodeApproval[],
