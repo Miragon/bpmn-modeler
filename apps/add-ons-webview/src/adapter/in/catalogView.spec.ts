@@ -33,15 +33,16 @@ describe("CatalogView", () => {
     });
 
     describe("the outline", () => {
-        it("names the outline and points to the hint", () => {
+        it("names the outline in a role that may carry a name, and points to the hint", () => {
             const { root } = mountedView(CATALOG);
             const outline = root.querySelector(".outline")!;
 
             expect([
+                outline.getAttribute("role"),
                 outline.getAttribute("aria-label"),
                 describedBy(outline),
                 outline.getAttribute("aria-busy"),
-            ]).toEqual(["Artifacts", "Press Tab for actions", "false"]);
+            ]).toEqual(["group", "Artifacts", "Press Tab for actions", "false"]);
         });
 
         it("heads groups and sources with disclosure buttons in headings", () => {
