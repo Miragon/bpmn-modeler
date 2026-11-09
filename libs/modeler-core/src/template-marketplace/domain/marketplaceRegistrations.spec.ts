@@ -1,7 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 
 import { MarketplaceSettingsEntry } from "../../kernel/domain/modelerSettings";
+import { ProjectScope } from "../../kernel/domain/projectScopes";
 import {
+    MARKETPLACE_LISTING_ORDER,
     marketplaceAddOutcome,
     MarketplaceAddOutcome,
     MarketplaceScope,
@@ -20,6 +22,11 @@ const selfHosted = (): MarketplaceSettingsEntry => ({
 });
 
 describe("registeredMarketplaces", () => {
+    it("lists every scope once", () => {
+        expectTypeOf<(typeof MARKETPLACE_LISTING_ORDER)[number]>().toEqualTypeOf<ProjectScope>();
+        expect(new Set(MARKETPLACE_LISTING_ORDER).size).toBe(MARKETPLACE_LISTING_ORDER.length);
+    });
+
     it.each<{
         behaviour: string;
         registered: RegistrationsByScope;

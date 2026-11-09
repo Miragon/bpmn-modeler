@@ -61,8 +61,15 @@ export function registrableLocation(
     }
 }
 
-/** All-projects entries first, as both hosts union their lists for the fetch. */
-const LISTING_ORDER: readonly MarketplaceScope[] = [...MARKETPLACE_SCOPES].reverse();
+/**
+ * All-projects entries first, as both hosts union their lists for the fetch.
+ * Upstream keeps the last copy of a template, so this order decides between
+ * two marketplaces' copies; it does not follow the order scopes are offered in.
+ */
+export const MARKETPLACE_LISTING_ORDER = [
+    "allProjects",
+    "project",
+] as const satisfies readonly MarketplaceScope[];
 
 /**
  * Each registered entry once, with every scope whose list holds it. Entries
@@ -73,7 +80,7 @@ export function registeredMarketplaces(registered: RegistrationsByScope): Regist
         string,
         { entry: MarketplaceSettingsEntry; scopes: MarketplaceScope[] }
     >();
-    for (const scope of LISTING_ORDER) {
+    for (const scope of MARKETPLACE_LISTING_ORDER) {
         for (const entry of registered[scope]) {
             const listed = byKey.get(marketplaceEntryKey(entry));
             if (!listed) byKey.set(marketplaceEntryKey(entry), { entry, scopes: [scope] });
@@ -132,7 +139,7 @@ function scopesHolding(
     entry: MarketplaceSettingsEntry,
 ): MarketplaceScope[] {
     const key = marketplaceEntryKey(entry);
-    return LISTING_ORDER.filter((scope) =>
+    return MARKETPLACE_LISTING_ORDER.filter((scope) =>
         registered[scope].some((listed) => marketplaceEntryKey(listed) === key),
     );
 }
