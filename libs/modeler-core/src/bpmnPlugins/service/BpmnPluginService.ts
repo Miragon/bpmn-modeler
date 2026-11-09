@@ -186,22 +186,27 @@ export class BpmnPluginService {
     }
 
     private async ensureCopied(discovered: DiscoveredPlugin): Promise<void> {
-        if (this.pruning !== undefined) {
-            await this.pruning.catch(() => undefined);
-        }
         const hash = discovered.plugin.contentHash;
+        await this.noPruneRunning();
         const known = this.copies.get(hash);
-        if (known === undefined) {
-            return this.startCopy(discovered);
-        }
-        await known;
-        if (await this.isCopyWhole(discovered.plugin)) {
-            return;
-        }
-        if (this.copies.get(hash) === known) {
-            this.copies.delete(hash);
+        if (known !== undefined) {
+            await known;
+            if (await this.isCopyWhole(discovered.plugin)) {
+                return;
+            }
+            if (this.copies.get(hash) === known) {
+                this.copies.delete(hash);
+            }
+            await this.noPruneRunning();
         }
         return this.copies.get(hash) ?? this.startCopy(discovered);
+    }
+
+    /** A prune awaits only the copies already in flight when it starts, so a copy must not start under one. */
+    private async noPruneRunning(): Promise<void> {
+        while (this.pruning !== undefined) {
+            await this.pruning.catch(() => undefined);
+        }
     }
 
     private startCopy(discovered: DiscoveredPlugin): Promise<void> {
