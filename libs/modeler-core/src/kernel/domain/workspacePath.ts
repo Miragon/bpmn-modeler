@@ -40,6 +40,11 @@ export function parentWorkspacePath(path: string): string | undefined {
     return parent === schemeless || parent === "." ? undefined : scheme + parent;
 }
 
+/** The folder or file name a path ends in, a trailing `/` ignored; a root names itself. */
+export function lastWorkspacePathSegment(path: string): string {
+    return path.split("/").filter(Boolean).pop() ?? path;
+}
+
 /** The path a `file://` URI names, for the hosts that accept both spellings. */
 export function withoutFileScheme(path: string): string {
     return path.startsWith(FILE_SCHEME) ? path.slice(FILE_SCHEME.length) : path;

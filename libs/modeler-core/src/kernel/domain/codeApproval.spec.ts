@@ -34,6 +34,7 @@ import {
     type PendingCodeApproval,
     pendingApprovalDescription,
     pendingApprovals,
+    presenceIdOf,
     PROCESS_RESTART_TEXT,
     PROCESS_RESTARTS,
     type ReviewAnswer,
@@ -672,6 +673,17 @@ describe("needsContentHash", () => {
         },
     ])("is $needed with $case", ({ approvals, declined, needed }) => {
         expect(needsContentHash(resize.id, approvals, new Set(declined))).toBe(needed);
+    });
+});
+
+describe("presenceIdOf", () => {
+    it.each<CodePresence>([
+        { kind: "found", artifact: resize },
+        { kind: "unhashed", id: resize.id },
+        { kind: "unreadable", id: resize.id, reason: "no manifest" },
+        { kind: "gone", id: resize.id },
+    ])("names the place of code read as $kind", (presence) => {
+        expect(presenceIdOf(presence)).toBe(resize.id);
     });
 });
 

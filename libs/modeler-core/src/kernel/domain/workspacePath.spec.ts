@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import {
     joinWorkspacePath,
+    lastWorkspacePathSegment,
     parentWorkspacePath,
     toWorkspacePath,
     withoutFileScheme,
@@ -283,6 +284,16 @@ describe("parentWorkspacePath", () => {
         },
     ])("$behaviour", ({ path, parent }) => {
         expect(parentWorkspacePath(path)).toBe(parent);
+    });
+});
+
+describe("lastWorkspacePathSegment", () => {
+    it.each([
+        { path: "/work/.camunda/plugins/resize", segment: "resize" },
+        { path: "/work/orders/", segment: "orders" },
+        { path: "/", segment: "/" },
+    ])("names $path by $segment", ({ path, segment }) => {
+        expect(lastWorkspacePathSegment(path)).toBe(segment);
     });
 });
 

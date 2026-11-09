@@ -1,6 +1,6 @@
 import { DirectoryNotFound, FileNotFound } from "../../kernel/domain/errors";
 import { EVERY_PATH_GLOB } from "../../kernel/domain/watchedFiles";
-import { joinWorkspacePath } from "../../kernel/domain/workspacePath";
+import { joinWorkspacePath, lastWorkspacePathSegment } from "../../kernel/domain/workspacePath";
 import { NotifierPort, WorkspacePort } from "../../kernel/port/hostPorts";
 import { ArtifactService } from "../../kernel/service/ArtifactService";
 import { approvedContent, WorkspacePlugin } from "../domain/pluginApproval";
@@ -91,7 +91,7 @@ export class WorkspacePluginLocator {
             }
             throw error;
         }
-        return this.readPlugin(folder, folder.split("/").pop() ?? folder);
+        return this.readPlugin(folder, lastWorkspacePathSegment(folder));
     }
 
     /** After a change below a plugins folder it watches. */

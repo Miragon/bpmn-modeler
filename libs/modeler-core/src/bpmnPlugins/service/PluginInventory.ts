@@ -5,6 +5,7 @@ import {
     ListedPresence,
     SessionAnswer,
 } from "../../kernel/domain/codeApproval";
+import { lastWorkspacePathSegment } from "../../kernel/domain/workspacePath";
 import { isPluginApproval, WorkspacePlugin } from "../domain/pluginApproval";
 import { BpmnPluginService } from "./BpmnPluginService";
 import { PluginCatalog } from "./PluginCatalog";
@@ -74,11 +75,15 @@ function presenceOf(reading: PluginReading): ListedPresence {
             return {
                 kind: "unreadable",
                 id: reading.folder,
-                name: folderNameOf(reading.folder),
+                name: lastWorkspacePathSegment(reading.folder),
                 reason: reading.reason,
             };
         case "gone":
-            return { kind: "gone", id: reading.folder, name: folderNameOf(reading.folder) };
+            return {
+                kind: "gone",
+                id: reading.folder,
+                name: lastWorkspacePathSegment(reading.folder),
+            };
     }
 }
 
@@ -95,8 +100,4 @@ function listedPluginOf({
         contentHash,
         files: stylePath === undefined ? [scriptPath] : [scriptPath, stylePath],
     };
-}
-
-function folderNameOf(folder: string): string {
-    return folder.split("/").pop() ?? folder;
 }

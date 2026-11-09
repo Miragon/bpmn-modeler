@@ -6,42 +6,79 @@
             "stored": [["/ws/plugins/colors", "c1"]],
             "allow": [["/ws/plugins/resize", "r1"]],
             "revoke": [],
-            "result": [["/ws/plugins/colors", "c1"], ["/ws/plugins/resize", "r1"]]
+            "result": [
+                ["/ws/plugins/colors", "c1"],
+                ["/ws/plugins/resize", "r1"]
+            ]
         },
         {
             "name": "appends several new ids in the order the change names them",
             "stored": [],
-            "allow": [["/ws/plugins/resize", "r1"], ["/ws/plugins/colors", "c1"]],
+            "allow": [
+                ["/ws/plugins/resize", "r1"],
+                ["/ws/plugins/colors", "c1"]
+            ],
             "revoke": [],
-            "result": [["/ws/plugins/resize", "r1"], ["/ws/plugins/colors", "c1"]]
+            "result": [
+                ["/ws/plugins/resize", "r1"],
+                ["/ws/plugins/colors", "c1"]
+            ]
         },
         {
             "name": "replaces the row of an allowed id in its place",
-            "stored": [["/ws/plugins/resize", "old"], ["/ws/plugins/colors", "c1"]],
+            "stored": [
+                ["/ws/plugins/resize", "old"],
+                ["/ws/plugins/colors", "c1"]
+            ],
             "allow": [["/ws/plugins/resize", "r2"]],
             "revoke": [],
-            "result": [["/ws/plugins/resize", "r2"], ["/ws/plugins/colors", "c1"]]
+            "result": [
+                ["/ws/plugins/resize", "r2"],
+                ["/ws/plugins/colors", "c1"]
+            ]
         },
         {
             "name": "keeps one row for an allowed id stored twice",
-            "stored": [["/ws/plugins/resize", "old"], ["/ws/plugins/colors", "c1"], ["/ws/plugins/resize", "older"]],
+            "stored": [
+                ["/ws/plugins/resize", "old"],
+                ["/ws/plugins/colors", "c1"],
+                ["/ws/plugins/resize", "older"]
+            ],
             "allow": [["/ws/plugins/resize", "r2"]],
             "revoke": [],
-            "result": [["/ws/plugins/resize", "r2"], ["/ws/plugins/colors", "c1"]]
+            "result": [
+                ["/ws/plugins/resize", "r2"],
+                ["/ws/plugins/colors", "c1"]
+            ]
         },
         {
             "name": "keeps every row the change does not name, a row another writer stored included",
-            "stored": [["/other/plugins/palette", "p1"], ["/ws/node_modules/bpmnlint-plugin-acme", "bpmnlint-closure-v1:a1"]],
+            "stored": [
+                ["/other/plugins/palette", "p1"],
+                ["/ws/node_modules/bpmnlint-plugin-acme", "bpmnlint-closure-v1:a1"]
+            ],
             "allow": [["/ws/plugins/resize", "r1"]],
             "revoke": [],
-            "result": [["/other/plugins/palette", "p1"], ["/ws/node_modules/bpmnlint-plugin-acme", "bpmnlint-closure-v1:a1"], ["/ws/plugins/resize", "r1"]]
+            "result": [
+                ["/other/plugins/palette", "p1"],
+                ["/ws/node_modules/bpmnlint-plugin-acme", "bpmnlint-closure-v1:a1"],
+                ["/ws/plugins/resize", "r1"]
+            ]
         },
         {
             "name": "drops every row of a revoked id and keeps the others in order",
-            "stored": [["/ws/plugins/resize", "r1"], ["/ws/plugins/colors", "c1"], ["/ws/plugins/resize", "old"], ["/ws/plugins/palette", "p1"]],
+            "stored": [
+                ["/ws/plugins/resize", "r1"],
+                ["/ws/plugins/colors", "c1"],
+                ["/ws/plugins/resize", "old"],
+                ["/ws/plugins/palette", "p1"]
+            ],
             "allow": [],
             "revoke": ["/ws/plugins/resize"],
-            "result": [["/ws/plugins/colors", "c1"], ["/ws/plugins/palette", "p1"]]
+            "result": [
+                ["/ws/plugins/colors", "c1"],
+                ["/ws/plugins/palette", "p1"]
+            ]
         },
         {
             "name": "keeps every row when the revoked id has none",
@@ -52,10 +89,19 @@
         },
         {
             "name": "allows and revokes in one change",
-            "stored": [["/ws/plugins/resize", "r1"], ["/ws/plugins/colors", "c1"]],
-            "allow": [["/ws/plugins/palette", "p1"], ["/ws/plugins/colors", "c2"]],
+            "stored": [
+                ["/ws/plugins/resize", "r1"],
+                ["/ws/plugins/colors", "c1"]
+            ],
+            "allow": [
+                ["/ws/plugins/palette", "p1"],
+                ["/ws/plugins/colors", "c2"]
+            ],
             "revoke": ["/ws/plugins/resize"],
-            "result": [["/ws/plugins/colors", "c2"], ["/ws/plugins/palette", "p1"]]
+            "result": [
+                ["/ws/plugins/colors", "c2"],
+                ["/ws/plugins/palette", "p1"]
+            ]
         },
         {
             "name": "keeps the list as it is for an empty change",
@@ -66,10 +112,17 @@
         },
         {
             "name": "matches ids exactly, case and separators included",
-            "stored": [["C:/ws/plugins/Resize", "r1"], ["C:\\ws\\plugins\\resize", "r1"]],
+            "stored": [
+                ["C:/ws/plugins/Resize", "r1"],
+                ["C:\\ws\\plugins\\resize", "r1"]
+            ],
             "allow": [["C:/ws/plugins/resize", "r2"]],
             "revoke": [],
-            "result": [["C:/ws/plugins/Resize", "r1"], ["C:\\ws\\plugins\\resize", "r1"], ["C:/ws/plugins/resize", "r2"]]
+            "result": [
+                ["C:/ws/plugins/Resize", "r1"],
+                ["C:\\ws\\plugins\\resize", "r1"],
+                ["C:/ws/plugins/resize", "r2"]
+            ]
         }
     ],
     "rejected": [
@@ -80,12 +133,18 @@
         },
         {
             "name": "an id allowed twice",
-            "allow": [["/ws/plugins/resize", "r1"], ["/ws/plugins/resize", "r2"]],
+            "allow": [
+                ["/ws/plugins/resize", "r1"],
+                ["/ws/plugins/resize", "r2"]
+            ],
             "revoke": []
         },
         {
             "name": "an id allowed twice with the same content",
-            "allow": [["/ws/plugins/resize", "r1"], ["/ws/plugins/resize", "r1"]],
+            "allow": [
+                ["/ws/plugins/resize", "r1"],
+                ["/ws/plugins/resize", "r1"]
+            ],
             "revoke": []
         },
         {

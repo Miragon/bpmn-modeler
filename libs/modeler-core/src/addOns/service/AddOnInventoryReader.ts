@@ -1,4 +1,9 @@
-import { declinedKeys, ListedPresence, needsContentHash } from "../../kernel/domain/codeApproval";
+import {
+    declinedKeys,
+    ListedPresence,
+    needsContentHash,
+    presenceIdOf,
+} from "../../kernel/domain/codeApproval";
 import { PluginApprovalStorePort } from "../../kernel/port/approvalPorts";
 import { SettingsPort, WorkspacePort } from "../../kernel/port/hostPorts";
 import { AddOnFacts } from "../domain/addOnCatalog";
@@ -44,7 +49,7 @@ export class AddOnInventoryReader {
                 ...plugins.knownPluginDirs().filter(inFolder),
             ])),
         ];
-        const listedIds = new Set(listed.map(idOf));
+        const listedIds = new Set(listed.map(presenceIdOf));
         for (const { pluginId } of approvals.filter((row) => plugins.ownsApproval(row))) {
             if (inFolder(pluginId) && !listedIds.has(pluginId)) {
                 listedIds.add(pluginId);
@@ -82,8 +87,4 @@ export class AddOnInventoryReader {
             }),
         );
     }
-}
-
-function idOf(presence: ListedPresence): string {
-    return presence.kind === "found" ? presence.artifact.id : presence.id;
 }

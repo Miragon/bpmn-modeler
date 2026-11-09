@@ -51,6 +51,10 @@ export type CodePresence<A extends ApprovableArtifact = ApprovableArtifact> =
     | { readonly kind: "unreadable"; readonly id: string; readonly reason: string }
     | { readonly kind: "gone"; readonly id: string };
 
+export function presenceIdOf(presence: CodePresence): string {
+    return presence.kind === "found" ? presence.artifact.id : presence.id;
+}
+
 /** Code as its owner lists it for a review: what runs, and what else the user may want to know. */
 export interface ListedCode extends ApprovableArtifact {
     readonly version?: string;

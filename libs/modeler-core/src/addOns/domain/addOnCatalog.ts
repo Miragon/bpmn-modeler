@@ -6,11 +6,16 @@ import {
     declinedKeys,
     ListedCode,
     ListedPresence,
+    presenceIdOf,
     ProcessRestart,
     SessionAnswer,
 } from "../../kernel/domain/codeApproval";
 import { relativeToRoot, relativeToWorkspace } from "../../kernel/domain/rootContainment";
-import { joinWorkspacePath, parentWorkspacePath } from "../../kernel/domain/workspacePath";
+import {
+    joinWorkspacePath,
+    lastWorkspacePathSegment,
+    parentWorkspacePath,
+} from "../../kernel/domain/workspacePath";
 import { AddOnKind, addOnIdOf, folderGroupIdOf, SourceKind, sourceIdOf } from "./addOnIds";
 import { configSourceDirOf, innermostFolderOf, packagesSourceDirOf } from "./addOnPaths";
 import {
@@ -213,7 +218,7 @@ function placedAddOn(
     session: AddOnSession,
     restart: ProcessRestart,
 ): PlacedAddOn[] {
-    const id = presence.kind === "found" ? presence.artifact.id : presence.id;
+    const id = presenceIdOf(presence);
     const root = innermostFolderOf(id, facts.folders);
     if (root === undefined) {
         return [];
@@ -279,14 +284,14 @@ function groupOf(root: string, placed: readonly PlacedAddOn[]): AddOnGroupView[]
     return [
         {
             id: folderGroupIdOf(root),
-            label: lastSegmentOf(root),
+            label: lastWorkspacePathSegment(root),
             description: root,
             sources: [...sources]
                 .sort(([idA, a], [idB, b]) => a.place.rank - b.place.rank || compare(idA, idB))
                 .map(([id, { place, addOns }]) => ({
                     id,
                     kind: place.kind,
-                    label: relativeToRoot(place.dir, root) || lastSegmentOf(place.dir),
+                    label: relativeToRoot(place.dir, root) || lastWorkspacePathSegment(place.dir),
                     description: sourceDescriptionOf(place, root),
                     addOns: addOns
                         .map(({ view }) => view)
@@ -313,8 +318,7 @@ function detailOf(
     if (kind === "rulePackage") {
         return presence.kind === "found" ? presence.artifact.version : undefined;
     }
-    const id = presence.kind === "found" ? presence.artifact.id : presence.id;
-    return relativeToRoot(id, sourceDir);
+    return relativeToRoot(presenceIdOf(presence), sourceDir);
 }
 
 function reviewOf(kind: AddOnKind, content: ListedCode, folders: readonly string[]): AddOnReview {
@@ -343,10 +347,6 @@ function emptyTextOf(
 
 function optional<K extends string, V>(key: K, value: V | undefined): { readonly [P in K]?: V } {
     return (value === undefined ? {} : { [key]: value }) as { readonly [P in K]?: V };
-}
-
-function lastSegmentOf(path: string): string {
-    return path.split("/").filter(Boolean).pop() ?? path;
 }
 
 /** By UTF-16 code unit, as `sort()` does, so every host orders alike. */
