@@ -152,10 +152,18 @@ describe("AddOnViewMessages", () => {
         expect(posted).toEqual([new AddOnCatalogQuery(MODEL), new RevealAddOnsQuery(REVEAL)]);
     });
 
-    it("posts nothing when the page asks before the first model", async () => {
+    it("posts the last reveal again when the page asks before the first model", async () => {
         const { messages, posted } = setUp();
         messages.revealed(REVEAL);
         posted.length = 0;
+
+        await messages.handle(new GetAddOnCatalogCommand());
+
+        expect(posted).toEqual([new RevealAddOnsQuery(REVEAL)]);
+    });
+
+    it("posts nothing when the page asks before the first model and any reveal", async () => {
+        const { messages, posted } = setUp();
 
         await messages.handle(new GetAddOnCatalogCommand());
 
