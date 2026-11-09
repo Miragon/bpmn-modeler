@@ -346,6 +346,35 @@ describe("BpmnElementTemplatesService template cache", () => {
         expect(postedTemplates(secondEditor)).toEqual([[{ name: "Apple" }], [{ name: "Avocado" }]]);
     });
 
+    it("coalesces marketplace refreshes into one marketplace re-read that reaches every editor", async () => {
+        vi.useFakeTimers();
+        const {
+            service,
+            editor,
+            secondEditor,
+            addTemplate,
+            artifactSvc,
+            marketplaceSvc,
+            fileContents,
+        } = createService();
+        addTemplate(ROOT_TEMPLATES, "a.json", { name: "Apple" });
+        marketplaceSvc.getCachedTemplatePaths.mockResolvedValue(["/cache/remote.json"]);
+        fileContents.set("/cache/remote.json", JSON.stringify({ name: "Remote" }));
+        await service.setElementTemplates(editor.id);
+        await service.setElementTemplates(secondEditor.id);
+        marketplaceSvc.getCachedTemplatePaths.mockResolvedValue([]);
+        vi.clearAllMocks();
+
+        service.refreshMarketplaceTemplates(editor.id);
+        service.refreshMarketplaceTemplates(secondEditor.id);
+        await vi.advanceTimersByTimeAsync(150);
+
+        expect(marketplaceSvc.getCachedTemplatePaths).toHaveBeenCalledOnce();
+        expect(artifactSvc.readDirectory).not.toHaveBeenCalled();
+        expect(postedNames(editor)).toEqual(["Apple"]);
+        expect(postedNames(secondEditor)).toEqual(["Apple"]);
+    });
+
     it("passes a hidden editor by without an error; shown again, it gets the change", async () => {
         vi.useFakeTimers();
         const { service, host, editor, secondEditor, addTemplate, fileContents } = createService();

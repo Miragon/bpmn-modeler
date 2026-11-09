@@ -136,6 +136,8 @@ export class BpmnElementTemplatesService implements ArtifactChangeTarget {
         this.refreshTimer = setTimeout(() => this.refreshAwaitingEditors(), REFRESH_DEBOUNCE_MS);
     }
 
+    refreshMarketplaceTemplates(_editorId: string): void {}
+
     async reloadMarketplaceTemplates(): Promise<void> {
         this.cache.forgetMarketplace();
         // Only editors that asked for templates release them again; the store
