@@ -5,14 +5,8 @@ import type {
     AddOnRevealPayload,
 } from "@miragon/bpmn-modeler-shared";
 
-import { actionRequestOf, isActionKind } from "./actionRequest";
-import {
-    ActionKindPayload,
-    focusAfterDone,
-    FocusTarget,
-    isFocusable,
-    neighbourAfterRemoval,
-} from "./focusAfter";
+import { ActionKindPayload, actionRequestOf, isActionKind } from "./actionRequest";
+import { focusAfterDone, FocusTarget, isFocusable, neighbourAfterRemoval } from "./focusAfter";
 import {
     ancestorsOf,
     Expansion,

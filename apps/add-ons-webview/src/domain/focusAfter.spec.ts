@@ -11,13 +11,8 @@ import {
     RESIZE,
     without,
 } from "../__fixtures__/catalogs";
-import {
-    ActionKindPayload,
-    focusAfterDone,
-    FocusTarget,
-    isFocusable,
-    neighbourAfterRemoval,
-} from "./focusAfter";
+import type { ActionKindPayload } from "./actionRequest";
+import { focusAfterDone, FocusTarget, isFocusable, neighbourAfterRemoval } from "./focusAfter";
 import { Expansion, visibleHeadsOf } from "./outline";
 
 describe("focusAfterDone", () => {

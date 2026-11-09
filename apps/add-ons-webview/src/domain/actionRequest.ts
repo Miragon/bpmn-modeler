@@ -1,6 +1,13 @@
-import type { AddOnRequestPayload } from "@miragon/bpmn-modeler-shared";
+import type {
+    AddOnActionKindPayload,
+    AddOnRequestPayload,
+    CatalogActionKindPayload,
+    SourceActionKindPayload,
+} from "@miragon/bpmn-modeler-shared";
 
-import type { ActionKindPayload } from "./focusAfter";
+/** Every action the view can ask for. */
+export type ActionKindPayload =
+    AddOnActionKindPayload | SourceActionKindPayload | CatalogActionKindPayload;
 
 type RequestOf = (targetId: string, revision: number) => AddOnRequestPayload;
 

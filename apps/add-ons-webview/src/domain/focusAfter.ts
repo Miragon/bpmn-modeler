@@ -1,15 +1,11 @@
 import type {
-    AddOnActionKindPayload,
     AddOnCatalogPayload,
     AddOnPayload,
     CatalogActionKindPayload,
-    SourceActionKindPayload,
 } from "@miragon/bpmn-modeler-shared";
 
+import type { ActionKindPayload } from "./actionRequest";
 import { Expansion, OutlineHead, visibleHeadsOf } from "./outline";
-
-export type ActionKindPayload =
-    AddOnActionKindPayload | SourceActionKindPayload | CatalogActionKindPayload;
 
 export type FocusTarget =
     /** `reveal`: a "Review…" asked for it, so it may take focus the page does not hold yet. */

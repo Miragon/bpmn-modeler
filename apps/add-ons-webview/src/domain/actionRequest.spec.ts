@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { AddOnRequestPayload } from "@miragon/bpmn-modeler-shared";
 
 import { actionRequestOf } from "./actionRequest";
-import type { ActionKindPayload } from "./focusAfter";
+import type { ActionKindPayload } from "./actionRequest";
 
 const ROWS = {
     inspect: { kind: "inspect", addOnId: "target" },
