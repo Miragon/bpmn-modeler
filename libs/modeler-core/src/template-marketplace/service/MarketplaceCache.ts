@@ -159,7 +159,7 @@ export class MarketplaceCache {
                     ...(await this.listJsonRecursive(`${filesDir}/${ELEMENT_TEMPLATES_SEGMENT}`)),
                 );
             }
-            byRegistration.set(marketplaceDir.slice(this.cacheRoot.length + 1), paths);
+            byRegistration.set(this.marketplaceIdOf(marketplaceDir), paths);
         }
         return byRegistration;
     }
@@ -195,9 +195,7 @@ export class MarketplaceCache {
         return this.oneAtATime(async () => {
             const pruned: string[] = [];
             for (const marketplaceDir of await this.listSubdirectories(this.cacheRoot)) {
-                // `listSubdirectories` returns `<cacheRoot>/<name>`; the name after the
-                // root prefix is the marketplaceId the slot was written under.
-                const id = marketplaceDir.slice(this.cacheRoot.length + 1);
+                const id = this.marketplaceIdOf(marketplaceDir);
                 if (!registeredIds.has(id)) {
                     await this.workspace.deleteDirectory(marketplaceDir);
                     pruned.push(id);
@@ -205,6 +203,11 @@ export class MarketplaceCache {
             }
             return pruned;
         });
+    }
+
+    /** A marketplace's directory under the cache root is named by the id its slots were written under. */
+    private marketplaceIdOf(marketplaceDir: string): string {
+        return marketplaceDir.slice(this.cacheRoot.length + 1);
     }
 
     /**
