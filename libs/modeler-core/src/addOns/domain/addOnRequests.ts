@@ -3,6 +3,7 @@ import { ShownCode } from "./addOnCatalog";
 import { MarketplaceSettingsEntry } from "../../kernel/domain/modelerSettings";
 import { ProjectScope } from "../../kernel/domain/projectScopes";
 import {
+    sourceSwitchOf,
     templatePreferenceChange,
     TemplatePreferenceChange,
     TemplateSwitch,
@@ -157,9 +158,10 @@ export function sourceSwitchTargetOf(
     }
     return {
         kind: "switch",
-        change: SWITCH_CHANGE[SOURCE_SWITCH_DIRECTION[action]](templateSource.scope, {
-            source: templateSource.key,
-        }),
+        change: SWITCH_CHANGE[SOURCE_SWITCH_DIRECTION[action]](
+            templateSource.scope,
+            sourceSwitchOf(templateSource),
+        ),
         result: { kind: "done", message: SOURCE_SWITCH_RESULT_TEXT[action](label) },
     };
 }
