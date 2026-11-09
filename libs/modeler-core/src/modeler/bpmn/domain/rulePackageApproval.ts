@@ -6,8 +6,8 @@ import {
     ApprovalNoticeAction,
     approvalsKey,
     CodeApproval,
-    CodeApprovalChange,
     CodeState,
+    FollowedApprovalChange,
     foundCodeState,
     needsContentHash,
     PendingCodeApproval,
@@ -227,19 +227,20 @@ export function rulePackagesToAsk(
 
 /**
  * The editors whose last host lint a change of rule package approvals makes
- * stale, each once: an allow those blocked on an allowed package, a revoke
- * every host-linted editor, because no lint run records the packages it admitted.
+ * stale, each once: an allow those blocked on an allowed package, a withdrawn
+ * approval every host-linted editor, because no lint run records the packages
+ * it admitted.
  */
 export function editorsToRelint(
     blockedByEditor: ReadonlyMap<string, readonly string[]>,
     hostLinted: readonly string[],
-    change: CodeApprovalChange,
+    { change, withdrawn }: FollowedApprovalChange,
 ): string[] {
     const allowed = new Set(change.allow.map(({ pluginId }) => pluginId));
     const blockedOnAllowed = [...blockedByEditor]
         .filter(([, blockedIds]) => blockedIds.some((id) => allowed.has(id)))
         .map(([editorId]) => editorId);
-    return [...new Set([...blockedOnAllowed, ...(change.revoke.length > 0 ? hostLinted : [])])];
+    return [...new Set([...blockedOnAllowed, ...(withdrawn.length > 0 ? hostLinted : [])])];
 }
 
 /**

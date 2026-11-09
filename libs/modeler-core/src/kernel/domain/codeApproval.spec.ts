@@ -25,6 +25,8 @@ import {
     codeStateOf,
     declineKeyOf,
     declinedKeys,
+    type FollowedApprovalChange,
+    followedApprovalChange,
     foundCodeState,
     needsContentHash,
     notAskedAgain,
@@ -310,6 +312,48 @@ describe("approvalChangeBetween", () => {
         expect(approvalsKey(approvalsAfter(before, approvalChangeBetween(before, after)))).toBe(
             approvalsKey(after),
         );
+    });
+});
+
+describe("followedApprovalChange", () => {
+    const resizeRow: CodeApproval = { pluginId: resize.id, contentHash: "aaa" };
+    const paletteRow: CodeApproval = { pluginId: palette.id, contentHash: "bbb" };
+
+    it.each<{
+        case: string;
+        before: CodeApproval[];
+        after: CodeApproval[];
+        followed: FollowedApprovalChange;
+    }>([
+        {
+            case: "nothing withdrawn for an added row",
+            before: [resizeRow],
+            after: [resizeRow, paletteRow],
+            followed: { change: { allow: [paletteRow], revoke: [] }, withdrawn: [] },
+        },
+        {
+            case: "a removed row withdrawn",
+            before: [resizeRow, paletteRow],
+            after: [paletteRow],
+            followed: { change: { allow: [], revoke: [resize.id] }, withdrawn: [resize.id] },
+        },
+        {
+            case: "a row allowed at another content withdrawn",
+            before: [resizeRow, paletteRow],
+            after: [{ ...resizeRow, contentHash: "new" }, paletteRow],
+            followed: {
+                change: { allow: [{ ...resizeRow, contentHash: "new" }], revoke: [] },
+                withdrawn: [resize.id],
+            },
+        },
+        {
+            case: "nothing withdrawn for a second row of an id the first row still allows",
+            before: [resizeRow],
+            after: [resizeRow, { ...resizeRow, contentHash: "older" }],
+            followed: { change: { allow: [], revoke: [] }, withdrawn: [] },
+        },
+    ])("finds $case", ({ before, after, followed }) => {
+        expect(followedApprovalChange(before, after)).toEqual(followed);
     });
 });
 

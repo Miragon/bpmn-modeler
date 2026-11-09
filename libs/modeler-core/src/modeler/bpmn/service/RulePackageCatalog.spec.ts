@@ -3,9 +3,9 @@ import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 
 import {
-    type CodeApprovalChange,
     codeApprovalChange,
     declineKeyOf,
+    type FollowedApprovalChange,
 } from "../../../kernel/domain/codeApproval";
 import { createTestHost, InMemoryInstalledPackages } from "../../../testing";
 import { BlockedRulePackage } from "../domain/rulePackageApproval";
@@ -176,8 +176,8 @@ describe("RulePackageCatalog", () => {
         const acme = { pluginId: ACME, contentHash: "bpmnlint-closure-v1:a1" };
         const other = { pluginId: OTHER, contentHash: "bpmnlint-closure-v1:o1" };
         host.pluginApprovals.storeElsewhere([acme], { notify: true });
-        const changes: CodeApprovalChange[] = [];
-        catalog.onApprovalsChanged((change) => changes.push(change));
+        const changes: FollowedApprovalChange[] = [];
+        catalog.onApprovalsChanged((followed) => changes.push(followed));
 
         host.pluginApprovals.storeElsewhere([other], { notify: true });
         host.pluginApprovals.storeElsewhere(
@@ -185,7 +185,24 @@ describe("RulePackageCatalog", () => {
             { notify: true },
         );
 
-        expect(changes).toEqual([codeApprovalChange([other], [ACME])]);
+        expect(changes).toEqual([
+            { change: codeApprovalChange([other], [ACME]), withdrawn: [ACME] },
+        ]);
+    });
+
+    it("announces a package allowed at another content as withdrawn", () => {
+        const { host, catalog } = setUp();
+        const acme = { pluginId: ACME, contentHash: "bpmnlint-closure-v1:a1" };
+        host.pluginApprovals.storeElsewhere([acme], { notify: true });
+        const changes: FollowedApprovalChange[] = [];
+        catalog.onApprovalsChanged((followed) => changes.push(followed));
+
+        const rehashed = { ...acme, contentHash: "bpmnlint-closure-v1:a2" };
+        host.pluginApprovals.storeElsewhere([rehashed], { notify: true });
+
+        expect(changes).toEqual([
+            { change: codeApprovalChange([rehashed], []), withdrawn: [ACME] },
+        ]);
     });
 
     it("remembers the packages revoked this session, since code they ran stays loaded", () => {
@@ -208,8 +225,8 @@ describe("RulePackageCatalog", () => {
 
     it("follows no approval change once disposed", () => {
         const { host, catalog } = setUp();
-        const changes: CodeApprovalChange[] = [];
-        catalog.onApprovalsChanged((change) => changes.push(change));
+        const changes: FollowedApprovalChange[] = [];
+        catalog.onApprovalsChanged((followed) => changes.push(followed));
 
         catalog.dispose();
         host.pluginApprovals.storeElsewhere(

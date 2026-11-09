@@ -1,7 +1,7 @@
 import { NotifierPort } from "../../../kernel/port/hostPorts";
 import { ApprovalQuestion } from "../../../kernel/service/ApprovalQuestion";
 import { Negotiation } from "../domain/LintSession";
-import { CodeApprovalChange } from "../../../kernel/domain/codeApproval";
+import { FollowedApprovalChange } from "../../../kernel/domain/codeApproval";
 import {
     BlockedRulePackage,
     editorsToRelint,
@@ -43,8 +43,8 @@ export class RulePackageFollowUp {
         private readonly hostLintedEditors: () => readonly string[],
         private readonly approvals?: RulePackageApprovals,
     ) {
-        this.approvalChanges = approvals?.catalog.onApprovalsChanged((change) =>
-            this.relintAfter(change),
+        this.approvalChanges = approvals?.catalog.onApprovalsChanged((followed) =>
+            this.relintAfter(followed),
         );
     }
 
@@ -107,8 +107,8 @@ export class RulePackageFollowUp {
         this.blockedByEditor.delete(editorId);
     }
 
-    private relintAfter(change: CodeApprovalChange): void {
-        const editorIds = editorsToRelint(this.blockedByEditor, this.hostLintedEditors(), change);
+    private relintAfter(followed: FollowedApprovalChange): void {
+        const editorIds = editorsToRelint(this.blockedByEditor, this.hostLintedEditors(), followed);
         this.settle(
             Promise.all(editorIds.map((editorId) => this.relint(editorId))).catch(
                 (error: unknown) => this.logError(error),

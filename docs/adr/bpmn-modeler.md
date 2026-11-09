@@ -871,12 +871,13 @@ config uses, and train users to allow everything. After `hostLintFinished`,
 it and asks without awaiting the answer, so results never wait on the user;
 one question per package stays queued until it is answered. Relints follow
 the approval store, not the question: `RulePackageCatalog` announces each
-change of the rule package rows, whoever made it (`approvalChangeBetween`),
+change of the rule package rows, whoever made it (`followedApprovalChange`),
 and `RulePackageFollowUp` lints again `editorsToRelint`. An allow relints the
-open editors whose last host lint was blocked on an allowed package; a revoke
-relints every editor linted on the host (`lintsOnHost`, which counts a first
-host lint in flight), because `LintRun` records no admitted roots, and relints
-are cheap. A row that now holds another hash counts as an allow. Closing an
+open editors whose last host lint was blocked on an allowed package; a
+withdrawn approval relints every editor linted on the host (`lintsOnHost`,
+which counts a first host lint in flight), because `LintRun` records no
+admitted roots, and relints are cheap. A revoke withdraws an approval, and so
+does a row that now holds another hash, which also counts as an allow. Closing an
 editor forgets it, and `BpmnLintConfigService.dispose`, which
 `BpmnEditorFeature.dispose` calls, stops following. `RulePackageCatalog`
 hashes only the packages it asks about, keeps declines for its lifetime unless

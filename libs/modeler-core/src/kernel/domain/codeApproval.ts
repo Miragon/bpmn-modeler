@@ -153,6 +153,29 @@ export function approvalChangeBetween(
     );
 }
 
+/**
+ * A change of the stored rows as a follower sees it. `withdrawn` names each id
+ * whose allowed content no longer is, revoked or allowed at another content:
+ * the change alone cannot tell the second from a new allow.
+ */
+export interface FollowedApprovalChange {
+    readonly change: CodeApprovalChange;
+    readonly withdrawn: readonly string[];
+}
+
+export function followedApprovalChange(
+    before: readonly CodeApproval[],
+    after: readonly CodeApproval[],
+): FollowedApprovalChange {
+    const afterById = firstRowById(after);
+    return {
+        change: approvalChangeBetween(before, after),
+        withdrawn: [...firstRowById(before).values()]
+            .filter((row) => afterById.get(row.pluginId)?.contentHash !== row.contentHash)
+            .map(({ pluginId }) => pluginId),
+    };
+}
+
 /** Equal for two lists of the same rows in any order. */
 export function approvalsKey(approvals: readonly CodeApproval[]): string {
     return JSON.stringify(

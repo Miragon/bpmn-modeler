@@ -6,6 +6,7 @@ import {
     codeApprovalChange,
     type CodeState,
     declineKeyOf,
+    type FollowedApprovalChange,
 } from "../../../kernel/domain/codeApproval";
 import {
     type BlockedRulePackage,
@@ -559,35 +560,49 @@ describe("editorsToRelint", () => {
     const hostLinted = ["d.bpmn", "e.bpmn", "a.bpmn"];
     const row = (pluginId: string) => ({ pluginId, contentHash: rulePackageContentHash("h") });
 
-    it.each<{ case: string; change: CodeApprovalChange; editors: string[] }>([
+    const followed = (
+        change: CodeApprovalChange,
+        withdrawn: readonly string[] = change.revoke,
+    ): FollowedApprovalChange => ({ change, withdrawn });
+
+    it.each<{ case: string; followed: FollowedApprovalChange; editors: string[] }>([
         {
             case: "the editors blocked on one allowed package",
-            change: codeApprovalChange([row("/acme")], []),
+            followed: followed(codeApprovalChange([row("/acme")], [])),
             editors: ["a.bpmn", "b.bpmn"],
         },
         {
             case: "each editor once, blocked on two allowed packages",
-            change: codeApprovalChange([row("/acme"), row("/other")], []),
+            followed: followed(codeApprovalChange([row("/acme"), row("/other")], [])),
             editors: ["a.bpmn", "b.bpmn", "c.bpmn"],
         },
         {
             case: "no editor for a package none is blocked on",
-            change: codeApprovalChange([row("/nobody")], []),
+            followed: followed(codeApprovalChange([row("/nobody")], [])),
             editors: [],
         },
         {
             case: "every host-linted editor on a revoke, since no lint records what it admitted",
-            change: codeApprovalChange([], ["/nobody"]),
+            followed: followed(codeApprovalChange([], ["/nobody"])),
             editors: ["d.bpmn", "e.bpmn", "a.bpmn"],
         },
         {
+            case: "every host-linted editor for a package allowed at another content",
+            followed: followed(codeApprovalChange([row("/acme")], []), ["/acme"]),
+            editors: ["a.bpmn", "b.bpmn", "d.bpmn", "e.bpmn"],
+        },
+        {
             case: "each editor once on a revoke beside an allow",
-            change: codeApprovalChange([row("/other")], ["/acme"]),
+            followed: followed(codeApprovalChange([row("/other")], ["/acme"])),
             editors: ["b.bpmn", "c.bpmn", "d.bpmn", "e.bpmn", "a.bpmn"],
         },
-        { case: "no editor for no change", change: codeApprovalChange([], []), editors: [] },
-    ])("relints $case", ({ change, editors }) => {
-        expect(editorsToRelint(blockedByEditor, hostLinted, change)).toEqual(editors);
+        {
+            case: "no editor for no change",
+            followed: followed(codeApprovalChange([], [])),
+            editors: [],
+        },
+    ])("relints $case", ({ followed: given, editors }) => {
+        expect(editorsToRelint(blockedByEditor, hostLinted, given)).toEqual(editors);
     });
 });
 

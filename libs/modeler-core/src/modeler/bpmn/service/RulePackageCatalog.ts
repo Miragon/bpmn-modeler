@@ -1,12 +1,12 @@
 import { ActionNotice } from "../../../kernel/domain/actionNotice";
 import {
     allowing,
-    approvalChangeBetween,
     ApprovalNoticeAction,
     CodeApproval,
-    CodeApprovalChange,
     approvalOutcome,
     declinedKeys,
+    FollowedApprovalChange,
+    followedApprovalChange,
     notAskedAgain,
     pendingApprovals,
     ReviewAnswer,
@@ -49,7 +49,7 @@ export class RulePackageCatalog implements ApprovalCatalog<
     private readonly seen = new Map<string, BlockedRulePackage>();
     private readonly loggedRefusals = new Set<string>();
     private readonly revoked = new Set<string>();
-    private readonly changeListeners = new Set<(change: CodeApprovalChange) => void>();
+    private readonly changeListeners = new Set<(followed: FollowedApprovalChange) => void>();
     private readonly approvalChanges: { dispose(): void };
     private rulePackageRows: readonly CodeApproval[];
 
@@ -81,7 +81,7 @@ export class RulePackageCatalog implements ApprovalCatalog<
         return this.revoked;
     }
 
-    onApprovalsChanged(listener: (change: CodeApprovalChange) => void): { dispose(): void } {
+    onApprovalsChanged(listener: (followed: FollowedApprovalChange) => void): { dispose(): void } {
         this.changeListeners.add(listener);
         return { dispose: () => this.changeListeners.delete(listener) };
     }
@@ -129,11 +129,12 @@ export class RulePackageCatalog implements ApprovalCatalog<
 
     private followApprovals(): void {
         const rows = this.approvals.read().filter(isRulePackageApproval);
-        const change = approvalChangeBetween(this.rulePackageRows, rows);
+        const followed = followedApprovalChange(this.rulePackageRows, rows);
         this.rulePackageRows = rows;
-        if (change.allow.length === 0 && change.revoke.length === 0) return;
-        change.revoke.forEach((id) => this.revoked.add(id));
-        this.changeListeners.forEach((listener) => listener(change));
+        const { allow, revoke } = followed.change;
+        if (allow.length === 0 && revoke.length === 0) return;
+        revoke.forEach((id) => this.revoked.add(id));
+        this.changeListeners.forEach((listener) => listener(followed));
     }
 
     private rulePackageOf({ id, kind }: BlockedRulePackage): RulePackage[] {
