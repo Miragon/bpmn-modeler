@@ -823,9 +823,11 @@ Both hosts build an `AddOnsFeature`; no view attaches to it yet.
   or "Enable templates" for all of them; a source turned off says "Templates
   disabled", and its templates show disabled with no switch of their own,
   which they keep for when the source is on again. A switch is a preference,
-  not trust: it keeps a template out of new choices (`setElementTemplates`
-  carries the hidden refs, see "Public API"), and an element that uses one
-  keeps it. The rules live in `kernel/domain/templatePreferences.ts`:
+  not trust: it keeps a template out of new choices (the core sends the
+  hidden refs with `ElementTemplatesQuery` and, after a switch change,
+  `HiddenElementTemplatesQuery`; the page applies them with
+  `setHiddenElementTemplates`, see "Public API"), and an element that uses
+  one keeps it. The rules live in `kernel/domain/templatePreferences.ts`:
   - A switch is `{ source, templateId? }`, the template id within its source,
     every version and file of it. The source key survives what it must: a
     config folder is `configFolder:<innermost workspace folder's name>/<path
@@ -842,11 +844,20 @@ Both hosts build an `AddOnsFeature`; no view attaches to it yet.
     `allProjects` after a User registration was removed would hide the
     marketplace in every project that registers it per project. A row left in
     the other scope is never read, and wakes up if the source moves back; a
-    registration that moves scope starts with no switches.
+    registration that moves scope starts with no switches. A marketplace
+    registered only for this project whose repository keeps its switches in
+    all projects says so on its row (`marketplaceListingScopeText`).
   - A ref is hidden only when every loaded copy of it comes from a source
     that does not offer it (`hiddenElementTemplateRefs` in
     `modeler/bpmn/domain/`), as the page tells copies apart only by id and
-    version. A template without a string id is always offered.
+    version. A template without a string id is always offered. Versions of
+    one id are not merged across sources: when the copy switched off is the
+    latest version, its id is not offered, though another source still on
+    serves an older version, as no older version takes a hidden latest one's
+    place on the page. That older copy was not offered before the switch
+    either, since upstream offers only the latest version, so its row keeps
+    its state. Offering it instead would mean a substitute rule on the page
+    for one case.
   - A change names the switches to disable and to enable in one scope and is
     merged by the store (`templatePreferencesAfter`, rows in
     `templatePreferenceChange.cases.json`), so a writer never drops a switch
@@ -861,8 +872,10 @@ Both hosts build an `AddOnsFeature`; no view attaches to it yet.
     templates, from the store's synchronous `read()`, and records what it
     sent; a store change sends only `HiddenElementTemplatesQuery` to each
     editor whose refs changed, so nothing is read, validated or reported
-    again. A webview that is hidden or reloads asks for its templates again
-    and gets the current refs.
+    again. It records them before the post, so a change during the post
+    still reaches the editor; a post the editor refuses or that fails is
+    forgotten, so the next change sends the refs again. A webview that is
+    hidden or reloads asks for its templates again and gets the current refs.
   - No view attaches to the catalog yet, so a user cannot reach the switches
     until the artifacts view lands
     ([#2250](https://github.com/Miragon/bpmn-modeler/issues/2250)); the user
@@ -870,7 +883,8 @@ Both hosts build an `AddOnsFeature`; no view attaches to it yet.
 - *Marketplaces.* A group after the folders lists each registered
   marketplace entry as a source, in the order the hosts fetch them, keyed by the entry,
   as two spellings of one repository share a cache slot: its label, the
-  scopes that hold it in the words of the removal choice, its cached
+  scopes that hold it in the words of the removal choice (and where its
+  switches apply when that differs), its cached
   templates (`cachedTemplatePathsByRegistration`, the cache's own layout) and
   why it has none: an entry the registry cannot parse, nothing fetched yet,
   or a cache that cannot be read. Editors load the same templates, those of
