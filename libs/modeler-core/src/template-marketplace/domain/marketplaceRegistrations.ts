@@ -62,7 +62,7 @@ export function registrableLocation(
 }
 
 /** All-projects entries first, as both hosts union their lists for the fetch. */
-const LISTING_ORDER: readonly MarketplaceScope[] = ["allProjects", "project"];
+const LISTING_ORDER: readonly MarketplaceScope[] = [...MARKETPLACE_SCOPES].reverse();
 
 /**
  * Each registered entry once, with every scope whose list holds it. Entries
