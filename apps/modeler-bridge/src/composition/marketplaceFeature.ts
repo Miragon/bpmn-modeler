@@ -51,7 +51,11 @@ export interface MarketplaceOptions {
 export function register(
     deps: BridgeSharedDeps,
     options: MarketplaceOptions,
-): { marketplaceSvc: TemplateMarketplaceService; templateSources: MarketplaceTemplateSources } {
+): {
+    marketplaceSvc: TemplateMarketplaceService;
+    templateSources: MarketplaceTemplateSources;
+    registrations: RpcMarketplaceRegistrations;
+} {
     const marketplaceSvc = createTemplateMarketplaceService({
         workspace: deps.nodeWorkspace,
         settings: deps.settings,
@@ -62,11 +66,15 @@ export function register(
         homeDir: options.homeDir,
     });
 
-    // No registrations: IntelliJ keeps no template switches yet, so its
-    // marketplace templates need no switch source.
+    const registrations = new RpcMarketplaceRegistrations(deps.rpc);
     return {
         marketplaceSvc,
-        templateSources: new MarketplaceTemplateSources(marketplaceSvc, deps.notifier),
+        templateSources: new MarketplaceTemplateSources(
+            marketplaceSvc,
+            deps.notifier,
+            registrations,
+        ),
+        registrations,
     };
 }
 
@@ -80,13 +88,14 @@ export function registerHandlers(
     handles: {
         marketplaceSvc: TemplateMarketplaceService;
         templatesSvc: BpmnElementTemplatesService;
+        registrations: RpcMarketplaceRegistrations;
         homeDir: string;
     },
 ): { marketplaces: MarketplaceInventory } {
     const { commands, inventory } = createMarketplaceCommands({
         marketplaces: handles.marketplaceSvc,
         templates: handles.templatesSvc,
-        registrations: new RpcMarketplaceRegistrations(deps.rpc),
+        registrations: handles.registrations,
         prompt: new RpcMarketplacePrompt(deps.rpc),
         picker: deps.picker,
         notifier: deps.notifier,

@@ -8,6 +8,7 @@ import {
     NavigationFeature,
 } from "@miragon/bpmn-modeler-core";
 
+import { templatePreferenceHandlers } from "../kernel/adapter/in/templatePreferenceHandlers";
 import { RpcClipboard } from "../kernel/adapter/out/RpcClipboard";
 import { NodeInstalledPackages } from "../modeler/bpmn/adapter/out/NodeInstalledPackages";
 import { RpcLintingPreference } from "../modeler/bpmn/adapter/out/RpcLintingPreference";
@@ -54,6 +55,7 @@ export function register(
             // sandboxed webview.
             clipboard: new RpcClipboard(deps.rpc),
             templateProvider: handles.templateProvider,
+            templatePreferences: deps.templatePreferences,
             rulePackages: {
                 approvals: deps.pluginApprovals,
                 installedPackages: new NodeInstalledPackages(),
@@ -85,6 +87,7 @@ export function register(
             onSettingsApplied: handles.onSettingsApplied,
         }),
     );
+    bindHandlers(deps.rpc, templatePreferenceHandlers(deps.templatePreferences));
 
     return editor;
 }

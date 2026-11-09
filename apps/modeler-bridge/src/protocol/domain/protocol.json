@@ -14,6 +14,7 @@
             "scheme",
             "sessionId",
             "settings",
+            "templatePreferences",
             "uriString",
             "workspaceRoot"
         ]
@@ -193,6 +194,12 @@
         "paramKeys": ["approvals", "revision"]
     },
     {
+        "method": "templatePreferences/didChange",
+        "direction": "hostToCore",
+        "kind": "notification",
+        "paramKeys": ["allProjects", "project"]
+    },
+    {
         "method": "document/write",
         "direction": "coreToHost",
         "kind": "request",
@@ -358,6 +365,20 @@
         "kind": "request",
         "paramKeys": [],
         "resultKeys": ["approvals", "revision"]
+    },
+    {
+        "method": "templatePreferences/change",
+        "direction": "coreToHost",
+        "kind": "request",
+        "paramKeys": ["disable", "enable", "scope"],
+        "resultKeys": ["allProjects", "project"]
+    },
+    {
+        "method": "templatePreferences/read",
+        "direction": "coreToHost",
+        "kind": "request",
+        "paramKeys": [],
+        "resultKeys": ["allProjects", "project"]
     },
     {
         "method": "editor/postMessage",

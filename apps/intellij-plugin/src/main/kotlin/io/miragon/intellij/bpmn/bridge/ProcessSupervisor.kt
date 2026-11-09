@@ -27,7 +27,7 @@ import java.util.concurrent.atomic.AtomicInteger
  * @param notifier Surfaces a fatal spawn/give-up error to the user. The
  *   production adapter defers `HostNotifications` construction so the happy path
  *   never builds the UI surface; tests pass a recording fake.
- * @param onSpawned Runs after every (re)spawn — seeds the deployment mirror.
+ * @param onSpawned Runs after every (re)spawn — seeds the host's mirrors in the bridge.
  * @param onRespawned Runs after a *crash* respawn — re-registers live sessions.
  * @param onProcessDown Runs the moment the tracked process dies, before the
  *   respawn/give-up decision — clears any in-flight host-UI spinner so it can't
@@ -113,8 +113,8 @@ internal class ProcessSupervisor(
             channel.pump(started.errorStream, "modeler-bridge-stderr") { log.info("[bridge stderr] $it") }
             started.onExit().thenAccept { handleExit(started) }
             ensureShutdownHook()
-            // Seed the deployment-state mirror up front so the bridge's synchronous
-            // `load()` is correct; re-runs on every (re)spawn, rebuilding the mirror.
+            // Seed the host's mirrors up front so the bridge's synchronous reads are
+            // correct; re-runs on every (re)spawn, rebuilding them.
             onSpawned()
             log.info("Miragon modeler bridge started")
         } catch (e: Exception) {

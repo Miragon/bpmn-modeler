@@ -37,4 +37,5 @@ internal enum class HostToCoreMethod(val wireName: String) {
     LAYOUT_FORMAT("layout/format"),
     LAYOUT_CLEANUP("layout/cleanup"),
     PLUGIN_APPROVALS_DID_CHANGE("pluginApprovals/didChange"),
+    TEMPLATE_PREFERENCES_DID_CHANGE("templatePreferences/didChange"),
 }

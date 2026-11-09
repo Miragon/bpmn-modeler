@@ -59,17 +59,6 @@ describe("MarketplaceTemplateSources", () => {
         ]);
     });
 
-    it("serves every cached template untagged on a host that keeps no switches", async () => {
-        const { host, service } = await setUp();
-        const sources = new MarketplaceTemplateSources(service, host.notifier);
-
-        const served = await sources.getCachedTemplateSources();
-
-        expect(served.map(({ source, paths }) => ({ source, files: fileNames(paths) }))).toEqual([
-            { source: undefined, files: ["mail.json", "crm.json"] },
-        ]);
-    });
-
     it("logs and serves every cached template untagged when the registrations cannot be read", async () => {
         const { host, service } = await setUp();
         const sources = new MarketplaceTemplateSources(service, host.notifier, {
@@ -82,5 +71,30 @@ describe("MarketplaceTemplateSources", () => {
             { source: undefined, files: ["mail.json", "crm.json"] },
         ]);
         expect(host.notifier.logged("error")).toEqual([expect.stringContaining("store locked")]);
+    });
+
+    it("asks for no registrations while no marketplace is cached", async () => {
+        const host = createTestHost({ folders: ["/work"] });
+        const service = createTemplateMarketplaceService({
+            workspace: host.workspace,
+            settings: host.settings,
+            notifier: host.notifier,
+            tokens: host.tokens,
+            tokenPrompt: host.tokenPrompt,
+            cacheRoot: "/cache",
+            homeDir: "/work",
+        });
+        let reads = 0;
+        const sources = new MarketplaceTemplateSources(service, host.notifier, {
+            read: () => {
+                reads++;
+                return host.marketplaceRegistrations.read();
+            },
+        });
+
+        const served = await sources.getCachedTemplateSources();
+
+        expect(served).toEqual([]);
+        expect(reads).toBe(0);
     });
 });

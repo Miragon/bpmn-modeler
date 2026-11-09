@@ -14,6 +14,7 @@ import {
 } from "../../../protocol/domain/types";
 import { PluginApprovalsMirror } from "../../../bpmnPlugins/port/PluginApprovalsMirror";
 import { HostSettingsMirror } from "../../../kernel/port/HostSettingsMirror";
+import { TemplatePreferencesMirror } from "../../../kernel/port/TemplatePreferencesMirror";
 import { WorkspaceRoots } from "../../../kernel/port/WorkspaceRoots";
 import { DocumentMirror } from "../../domain/DocumentMirror";
 import { HostEditorHandle, HostEditorHandleFactory } from "../../port/HostEditorHandle";
@@ -31,6 +32,7 @@ export function editorSessionHandlers({
     mirror,
     settingsMirror,
     pluginApprovals,
+    templatePreferences,
     workspaceRoots,
     createEditorHandle,
     bpmnService,
@@ -41,6 +43,7 @@ export function editorSessionHandlers({
     mirror: DocumentMirror;
     settingsMirror: HostSettingsMirror;
     pluginApprovals: PluginApprovalsMirror;
+    templatePreferences: TemplatePreferencesMirror;
     workspaceRoots: WorkspaceRoots;
     createEditorHandle: HostEditorHandleFactory;
     bpmnService: Pick<BpmnModelerService, "display">;
@@ -83,6 +86,10 @@ export function editorSessionHandlers({
                     approvals: params.pluginApprovals,
                     revision: params.pluginApprovalsRevision,
                 });
+            }
+            // Before the editor opens, so its first templates already hide the switched-off ones.
+            if (params.templatePreferences) {
+                templatePreferences.apply(params.templatePreferences);
             }
 
             if (

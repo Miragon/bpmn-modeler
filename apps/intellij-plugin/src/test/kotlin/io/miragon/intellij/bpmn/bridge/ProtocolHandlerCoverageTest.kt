@@ -9,6 +9,8 @@ import com.intellij.testFramework.junit5.TestApplication
 import io.miragon.intellij.bpmn.CoreSession
 import io.miragon.intellij.bpmn.PluginApproval
 import io.miragon.intellij.bpmn.PluginApprovalStore
+import io.miragon.intellij.bpmn.TemplatePreferenceSnapshot
+import io.miragon.intellij.bpmn.TemplateSwitch
 import io.miragon.intellij.bpmn.projectFixtureWithoutServicePreload
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -175,6 +177,7 @@ class ProtocolHandlerCoverageTest {
                 HostToCoreMethod.DEPLOYMENT_VERIFY to { modelerCommands.verifyDeployment() },
                 HostToCoreMethod.DEPLOYMENT_STATUS_BAR_MENU to { modelerCommands.deploymentStatusMenu() },
                 HostToCoreMethod.PLUGIN_APPROVALS_DID_CHANGE to { pluginApprovals.push(PluginApprovalStore.getInstance().snapshot()) },
+                HostToCoreMethod.TEMPLATE_PREFERENCES_DID_CHANGE to { templatePreferences.push() },
             )
         val framesBySentMethod = linkedMapOf<String, SentFrame>()
         for ((method, send) in senders) {
@@ -220,6 +223,8 @@ class ProtocolHandlerCoverageTest {
                     ),
                 "pluginApprovals/change" to PluginApprovalsResult(listOf(PluginApproval("/ws/plugins/resize", "9f2c")), revision = 2),
                 "pluginApprovals/read" to PluginApprovalsResult(listOf(PluginApproval("/ws/plugins/resize", "9f2c")), revision = 2),
+                "templatePreferences/change" to TEMPLATE_PREFERENCES,
+                "templatePreferences/read" to TEMPLATE_PREFERENCES,
             )
         return resultsByMethod.entries.withIndex().associate { (requestId, entry) ->
             wired.channel.reply(wired.requestId(requestId), entry.value)
@@ -262,5 +267,10 @@ class ProtocolHandlerCoverageTest {
     private companion object {
         const val BEFORE_URI = "file:///process.bpmn#diff-1-before"
         const val AFTER_URI = "file:///process.bpmn#diff-1-after"
+        val TEMPLATE_PREFERENCES =
+            TemplatePreferencesResult(
+                project = TemplatePreferenceSnapshot(listOf(TemplateSwitch("configFolder:shop/.camunda", "mail")), revision = 3),
+                allProjects = TemplatePreferenceSnapshot(listOf(TemplateSwitch("marketplace:local:/opt/templates")), revision = 2),
+            )
     }
 }

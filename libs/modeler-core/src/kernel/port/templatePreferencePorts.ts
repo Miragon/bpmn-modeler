@@ -5,8 +5,9 @@ import {
 
 /**
  * The user's template switches, kept by the host outside every repository:
- * per project (VS Code's workspace state) and for all projects (VS Code's
- * global state), on this machine only. A preference, not a trust decision.
+ * per project (VS Code's workspace state, IntelliJ's project properties) and
+ * for all projects (VS Code's global state, IntelliJ's application
+ * properties), on this machine only. A preference, not a trust decision.
  */
 export interface TemplatePreferenceStorePort {
     /** Synchronous; a mirror may lag the host by one push. */

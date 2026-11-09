@@ -713,7 +713,8 @@ supplies these parts:
   IDE. Bridges run per project, so the host is the single writer: the bridge
   mirrors the list for the port's synchronous `read()`, seeded on every
   `session/register` (a separate seed would race the page's first plugin
-  query) and replaced by `pluginApprovals/didChange`. A bridge writes with
+  query) and replaced by `pluginApprovals/didChange`, which the host also
+  sends after every spawn. A bridge writes with
   `pluginApprovals/change`, which carries only the rows to allow and the ids to
   revoke; the store reads, merges, writes and bumps its revision under one
   lock, pushes the list to every running bridge and then answers with it.
@@ -817,7 +818,7 @@ Both hosts build an `AddOnsFeature`; no view attaches to it yet.
   the builder reads it); a file that cannot be read is one row,
   by its file name, that says why, enabled and without a switch.
 - *Template switches.* On a host that keeps them (the optional
-  `TemplatePreferenceStorePort`; VS Code does, the bridge does not yet), a
+  `TemplatePreferenceStorePort`; VS Code and the IntelliJ bridge do), a
   template with an id offers Disable or Enable, and a config folder that
   lists one, or a marketplace whose entry parses, offers "Disable templates"
   or "Enable templates" for all of them; a source turned off says "Templates
@@ -890,8 +891,8 @@ Both hosts build an `AddOnsFeature`; no view attaches to it yet.
   or a cache that cannot be read. Editors load the same templates, those of
   the registered entries, grouped by registered slot with the source their
   switches live in (`registeredTemplateSources`, read by
-  `MarketplaceTemplateSources` from the host's registrations; without
-  registrations, as on the bridge, one group without switches), and read them
+  `MarketplaceTemplateSources` from the host's registrations; when those
+  cannot be read, one group without switches), and read them
   again when the marketplaces setting changes, so the slot of an entry
   removed by hand serves nothing though it stays cached until the next prune.
   Registrations that cannot be read, such

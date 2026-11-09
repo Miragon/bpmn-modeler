@@ -137,6 +137,7 @@ in the bridge README):
 | host ⇄ core | `deployment/*`, `deploymentState/*` | tool-window webview + `PropertiesComponent` |
 | core → host | `actionNotice/show` | `ActionNotifierPort` → a balloon with one `NotificationAction` per label |
 | host ⇄ core | `pluginApprovals/*`, `editor/reload` | `PluginApprovalStore` (app `PropertiesComponent`); full page reload after an approval |
+| host ⇄ core | `templatePreferences/*` | `ProjectTemplatePreferenceStore` (project `PropertiesComponent`) and `TemplatePreferenceStore` (app); `TemplatePreferenceRouter` |
 
 **Handler coverage.** `ProtocolHandlerCoverageTest` registers the production
 `BridgeRouters` and fails when a core → host method in

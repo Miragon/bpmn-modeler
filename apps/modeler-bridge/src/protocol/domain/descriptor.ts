@@ -79,6 +79,8 @@ import {
     SettingsDidChangeParams,
     SettingsSetLintingEnabledParams,
     StatusBarUpdateParams,
+    TemplatePreferencesChangeParams,
+    TemplatePreferencesSnapshot,
     TokenPromptShowParams,
     TokenPromptShowResult,
     TokenStoreGetParams,
@@ -156,6 +158,7 @@ export const METHODS = {
     deploymentVerify: "deployment/verify",
     deploymentStatusBarMenu: "deployment/statusBarMenu",
     pluginApprovalsDidChange: "pluginApprovals/didChange",
+    templatePreferencesDidChange: "templatePreferences/didChange",
 
     // Core → Host requests
     documentWrite: "document/write",
@@ -182,6 +185,8 @@ export const METHODS = {
     actionNoticeShow: "actionNotice/show",
     pluginApprovalsChange: "pluginApprovals/change",
     pluginApprovalsRead: "pluginApprovals/read",
+    templatePreferencesChange: "templatePreferences/change",
+    templatePreferencesRead: "templatePreferences/read",
 
     // Core → Host notifications
     editorPostMessage: "editor/postMessage",
@@ -216,6 +221,17 @@ const PLUGIN_APPROVAL_SAMPLE = {
     contentHash: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
 };
 
+const TEMPLATE_PREFERENCES_SAMPLE = {
+    project: {
+        disabled: [{ source: "configFolder:shop/.camunda", templateId: 'mail#2@"v"' }],
+        revision: 3,
+    },
+    allProjects: {
+        disabled: [{ source: "marketplace:github:github.com/acme/templates" }],
+        revision: 7,
+    },
+} satisfies TemplatePreferencesSnapshot;
+
 /**
  * Every RPC method, in a fixed order. `paramsFixture`/`resultFixture` are bound
  * to their named types via `satisfies` (compile-time drift guard); `as const`
@@ -241,6 +257,7 @@ export const PROTOCOL = [
             settings: {},
             pluginApprovals: [PLUGIN_APPROVAL_SAMPLE],
             pluginApprovalsRevision: 7,
+            templatePreferences: TEMPLATE_PREFERENCES_SAMPLE,
         } satisfies RegisterParams,
     },
     {
@@ -438,6 +455,14 @@ export const PROTOCOL = [
             approvals: [PLUGIN_APPROVAL_SAMPLE],
             revision: 7,
         } satisfies PluginApprovalsSnapshot,
+    },
+    // An allProjects change goes to every running bridge of the IDE, a project
+    // change to the project's own; each carries both scopes of that project.
+    {
+        method: METHODS.templatePreferencesDidChange,
+        direction: "hostToCore",
+        kind: "notification",
+        paramsFixture: TEMPLATE_PREFERENCES_SAMPLE,
     },
 
     // ── Core → Host requests ─────────────────────────────────────────────────
@@ -756,6 +781,29 @@ export const PROTOCOL = [
             approvals: [PLUGIN_APPROVAL_SAMPLE],
             revision: 7,
         } satisfies PluginApprovalsSnapshot,
+    },
+    // The host merges the change into the scope's stored list, pushes the
+    // lists in `templatePreferences/didChange`, then answers with both.
+    {
+        method: METHODS.templatePreferencesChange,
+        direction: "coreToHost",
+        kind: "request",
+        replyWait: "syncedWrite",
+        paramsFixture: {
+            scope: "project",
+            disable: [{ source: "configFolder:shop/.camunda", templateId: 'mail#2@"v"' }],
+            enable: [{ source: "configFolder:shop/.camunda" }],
+        } satisfies TemplatePreferencesChangeParams,
+        resultFixture: TEMPLATE_PREFERENCES_SAMPLE,
+    },
+    // Both scopes as the host stores them, never a mirror; a read, so under the host-work deadline.
+    {
+        method: METHODS.templatePreferencesRead,
+        direction: "coreToHost",
+        kind: "request",
+        replyWait: "hostWork",
+        paramsFixture: {} satisfies EmptyParams,
+        resultFixture: TEMPLATE_PREFERENCES_SAMPLE,
     },
 
     // ── Core → Host notifications ────────────────────────────────────────────

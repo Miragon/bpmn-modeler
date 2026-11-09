@@ -153,6 +153,19 @@ to the bridge as `MIRAGON_BPMN_PLUGIN_CACHE`). The host's part:
   `window`, so a plugin can still post to the JVM and the bridge. A plugin has
   the page's full authority, as in VS Code; approval is the control.
 
+### Element template switches
+
+The user's switches live under `miragon.bpmnModeler.templatePreferences`: the
+`project` scope in the project `PropertiesComponent`
+(`ProjectTemplatePreferenceStore`, so `.idea/workspace.xml`), the
+`allProjects` scope in the application's (`TemplatePreferenceStore`), each
+with its own revision. They reach the bridge on every `session/register` and
+through `templatePreferences/didChange` after a `templatePreferences/change`:
+every running bridge for an `allProjects` change, the project's own for a
+`project` change (`TemplatePreferenceRouter`). The stores merge with
+`templatePreferencesAfter`, which `TemplatePreferenceStoreTest` holds to
+`templatePreferenceChange.cases.json`.
+
 ## Build & run
 
 This Gradle build does **not** invoke the JS/Bun toolchain — it only packages

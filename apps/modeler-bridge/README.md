@@ -17,7 +17,7 @@ isn't talking to VS Code.
 
 | Direction   | Method(s)                               | Port / handle                                                                                 |
 | ----------- | --------------------------------------- | --------------------------------------------------------------------------------------------- |
-| host → core | `session/register`, `session/dispose`   | editor lifecycle (seeds the `DocumentPort` mirror and the plugin-approval mirror)             |
+| host → core | `session/register`, `session/dispose`   | editor lifecycle (seeds the `DocumentPort` mirror, the plugin-approval mirror and the template-switch mirror) |
 | host → core | `document/didChange`                    | external document change → re-render                                                          |
 | host → core | `session/setActive`                     | focused tab → `EditorSessionStore` active-editor pointer                                      |
 | host → core | `webview/message`                       | inbound `Command` → `WebviewMessageRouter`                                                    |
@@ -28,6 +28,9 @@ isn't talking to VS Code.
 | core → host | `pluginApprovals/change`                | `PluginApprovalStorePort.change` → the host merges the rows to allow and the ids to revoke into the application-level approval store, pushes the list to every running bridge, then answers with it |
 | core → host | `pluginApprovals/read`                  | `PluginApprovalStorePort.readStored` → the stored list and its revision, never the mirror                        |
 | host → core | `pluginApprovals/didChange`             | the stored list and its revision; the plugin-approval mirror the core reads synchronously keeps the newest revision |
+| core → host | `templatePreferences/change`            | `TemplatePreferenceStorePort.change` → the host merges the switches to disable and to enable into the store of their scope (project or application properties), pushes both lists, then answers with them |
+| core → host | `templatePreferences/read`              | `TemplatePreferenceStorePort.readStored` → both stored lists with their revisions, never the mirror               |
+| host → core | `templatePreferences/didChange`         | both lists with one revision each, after an all-projects change to every running bridge, after a project change to the project's own; the mirror keeps the newest revision per scope |
 | core → host | `notifier/*`                            | `NotifierPort` → IntelliJ `Notifications.Bus` + IDE log                                       |
 | core → host | `statusBar/update`                      | `StatusBarPort` → `{slot, view}`, `view: null` hides the slot; IntelliJ shows each slot in its own `StatusBarWidget` |
 | host → core | `linting/toggle`                        | BPMNlint widget click → reports the flipped lint choice over `settings/setLintingEnabled`, as the webview toggle does |

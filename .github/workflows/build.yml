@@ -61,6 +61,10 @@ jobs:
               - 'libs/modeler-core/src/kernel/domain/actionNotice.ts'
               # PluginApprovalStoreTest runs these rows against the Kotlin merge.
               - 'libs/modeler-core/src/kernel/domain/codeApprovalChange.cases.json'
+              # TemplatePreferenceStoreTest runs these rows against the Kotlin merge,
+              # ProjectScopeTest checks the Kotlin scopes against PROJECT_SCOPES.
+              - 'libs/modeler-core/src/kernel/domain/templatePreferenceChange.cases.json'
+              - 'libs/modeler-core/src/kernel/domain/projectScopes.ts'
             standalone:
               - 'apps/standalone/**'
               - 'libs/standalone-extension/**'
