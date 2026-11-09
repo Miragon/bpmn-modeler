@@ -17,7 +17,6 @@ export {
     approvalsKey,
     codeApprovalChange,
     type CodeApprovalChange,
-    type ReviewAnswer,
     revoking,
 } from "./kernel/domain/codeApproval";
 export * from "./kernel/domain/engineVersions";
@@ -27,7 +26,6 @@ export * from "./kernel/domain/escapeRegExpLiteral";
 export { isIgnoredWatchDirName } from "./kernel/domain/excludedDirs";
 export * from "./kernel/domain/globToRegExp";
 export * from "./kernel/port/hostPorts";
-export type { ApprovalReviewPort, ApprovalReviewRequest } from "./kernel/port/approvalPorts";
 export * from "./kernel/domain/http";
 export * from "./kernel/port/HttpClient";
 export * from "./kernel/domain/locateResult";
@@ -43,7 +41,6 @@ export * from "./kernel/domain/workspacePath";
 export * from "./kernel/service/ArtifactService";
 export * from "./kernel/service/QuestionQueue";
 export * from "./kernel/adapter/out/FetchHttpClient";
-export * from "./kernel/adapter/out/ListReview";
 export * from "./kernel/domain/nonce";
 
 // ── editorSession ────────────────────────────────────────────────────────────
