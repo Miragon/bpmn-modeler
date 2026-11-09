@@ -136,6 +136,8 @@ export interface CatalogBuild {
     readonly shown: ReadonlyMap<string, ShownCode>;
     /** By source id. */
     readonly sources: ReadonlyMap<string, ShownSource>;
+    /** What the catalog itself offered, so a request is checked against it. */
+    readonly catalogActions: readonly CatalogActionKind[];
 }
 
 interface ListedAddOn extends OwnedPresence {
@@ -261,20 +263,17 @@ export function catalogModelOf(
             facts.marketplaces?.kind === "unreadable" ? facts.marketplaces.problem : undefined,
         ),
     ];
+    const actions =
+        facts.marketplaces === undefined
+            ? PRUNE_ACTIONS
+            : [...MARKETPLACE_CATALOG_ACTIONS, ...PRUNE_ACTIONS];
     return {
-        model: {
-            revision,
-            groups,
-            actions:
-                facts.marketplaces === undefined
-                    ? PRUNE_ACTIONS
-                    : [...MARKETPLACE_CATALOG_ACTIONS, ...PRUNE_ACTIONS],
-            ...emptyTextOf(facts.folders, groups),
-        },
+        model: { revision, groups, actions, ...emptyTextOf(facts.folders, groups) },
         shown: new Map(
             placed.flatMap(({ view, shown }) => (shown === undefined ? [] : [[view.id, shown]])),
         ),
         sources: new Map(marketplaceSources.map(({ view, shown }) => [view.id, shown])),
+        catalogActions: actions.map(({ kind }) => kind),
     };
 }
 

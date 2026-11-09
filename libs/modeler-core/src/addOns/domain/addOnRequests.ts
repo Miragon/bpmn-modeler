@@ -56,7 +56,7 @@ const SOURCE_NOT_OFFERED = refused(
     "notOffered",
     "The list offers no such action for this source now. Check it again.",
 );
-const CATALOG_NOT_OFFERED = refused(
+export const CATALOG_NOT_OFFERED = refused(
     "notOffered",
     "The list offers no such action now. Check it again.",
 );

@@ -8,12 +8,13 @@ import { PluginApprovalStorePort } from "../../kernel/port/approvalPorts";
 import { LoggerPort } from "../../kernel/port/hostPorts";
 import { catalogModelOf, ShownCode, ShownSource } from "../domain/addOnCatalog";
 import type { AddOnCatalogModel } from "../domain/addOnCatalogModel";
-import { CodeAddOnKind } from "../domain/addOnIds";
+import { CatalogActionKind, CodeAddOnKind } from "../domain/addOnIds";
 import {
     AddOnActionResult,
     AddOnRequest,
     allowResultOf,
     allowTargetOf,
+    CATALOG_NOT_OFFERED,
     catalogActionRefusalOf,
     inspectResultOf,
     PRUNE_FAILED,
@@ -62,6 +63,7 @@ export class AddOnCatalogService {
     private readonly inspected = new Set<string>();
     private latestModel?: AddOnCatalogModel;
     private latestSources: ReadonlyMap<string, ShownSource> = new Map();
+    private latestCatalogActions: readonly CatalogActionKind[] = [];
     private active = false;
     private building?: Promise<void>;
     private dirty = false;
@@ -132,16 +134,16 @@ export class AddOnCatalogService {
 
     private async runMarketplaceFlow(request: MarketplaceRequest): Promise<AddOnActionResult> {
         const { marketplaces } = this.ports;
+        if (marketplaces === undefined) return CATALOG_NOT_OFFERED;
         if (request.kind === "removeMarketplace") {
             const target = shownSourceTargetOf(this.latestSources, request.sourceId, request.kind);
             if (target.kind === "refused") return target.result;
-            await marketplaces?.remove(target.source.entry);
+            await marketplaces.remove(target.source.entry);
             return REPORTED_BY_FLOW;
         }
-        const offered = (this.latestModel?.actions ?? []).map(({ kind }) => kind);
-        const refusal = catalogActionRefusalOf(offered, request.kind);
+        const refusal = catalogActionRefusalOf(this.latestCatalogActions, request.kind);
         if (refusal !== undefined) return refusal;
-        await (request.kind === "addMarketplace" ? marketplaces?.add() : marketplaces?.update());
+        await (request.kind === "addMarketplace" ? marketplaces.add() : marketplaces.update());
         return REPORTED_BY_FLOW;
     }
 
@@ -229,7 +231,7 @@ export class AddOnCatalogService {
         const { plugins, rulePackages, restart } = this.ports;
         const facts = await this.reader.read(this.inspected);
         const revision = ++this.revision;
-        const { model, shown, sources } = catalogModelOf(
+        const { model, shown, sources, catalogActions } = catalogModelOf(
             facts,
             {
                 answers: {
@@ -246,6 +248,7 @@ export class AddOnCatalogService {
         );
         this.revisions = this.revisions.recorded(revision, shown);
         this.latestSources = sources;
+        this.latestCatalogActions = catalogActions;
         this.latestModel = model;
         this.builtListeners.forEach((listener) => listener(model));
     }

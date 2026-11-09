@@ -986,8 +986,11 @@ describe("catalogModelOf for marketplaces", () => {
             actions: ["addMarketplace", "updateMarketplaces", "pruneCache"],
         },
         { case: "a host that lists none", marketplaces: undefined, actions: ["pruneCache"] },
-    ])("offers the catalog actions of $case", ({ marketplaces, actions }) => {
-        expect(build(factsOf({ marketplaces })).model.actions).toEqual(
+    ])("offers and records the catalog actions of $case", ({ marketplaces, actions }) => {
+        const { model, catalogActions } = build(factsOf({ marketplaces }));
+
+        expect(catalogActions).toEqual(actions);
+        expect(model.actions).toEqual(
             actions.map((kind) => ({
                 kind,
                 label: {
