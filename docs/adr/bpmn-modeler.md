@@ -817,7 +817,7 @@ Both hosts build an `AddOnsFeature`; no view attaches to it yet.
   the builder reads it); a file that cannot be read is one row,
   by its file name, that says why, enabled and without a switch.
 - *Template switches.* On a host that keeps them (the optional
-  `TemplatePreferenceStorePort`; VS Code does, the bridge does not yet), a
+  `TemplatePreferenceStorePort`; VS Code and the IntelliJ bridge do), a
   template with an id offers Disable or Enable, and a config folder that
   lists one, or a marketplace whose entry parses, offers "Disable templates"
   or "Enable templates" for all of them; a source turned off says "Templates

@@ -841,7 +841,8 @@ reads its stores. The scope vocabulary (`project`, `allProjects`) has its one
 home in the kernel, `PROJECT_SCOPES` in `kernel/domain/projectScopes.ts`, as the
 template switches speak it too; the marketplace keeps `MARKETPLACE_SCOPES` and
 `MarketplaceScope` as aliases of it. VS Code's settings adapter and Kotlin's
-`MarketplaceScope` speak it too. Where a scope is
+`ProjectScope` (once `MarketplaceScope`, kept as an alias) speak it too, the
+latter held to the list by `ProjectScopeTest`. Where a scope is
 saved differs per host, so it reaches the core as a typed `SettingsPlace`, a
 file by its path segments or a settings page by the names that lead to it, and
 the core words it: `Saved in .vscode/settings.json` (or the open
@@ -1135,7 +1136,7 @@ keeps explicit local mirrors with these ownership rules:
 | Settings snapshot | Settings in `session/register`, then `settings/didChange` | Host only; one shared snapshot fans changes out to editors |
 | Deployment state | `deploymentState/seed` with what the host stored, then `deploymentState/save` patches | Host; a bridge patch reaches the snapshot only after the host accepted it |
 | Plugin approvals (bpmn-js plugins and bpmnlint rule packages) | `pluginApprovals` with `pluginApprovalsRevision` in `session/register`, then `pluginApprovals/didChange` with its `revision`, which every running bridge of the IDE gets after any `pluginApprovals/change`; `pluginApprovals/read` answers the stored list | Host (`PluginApprovalStore`, application level): a bridge sends only the rows to allow and the ids to revoke, and the host merges them under one lock and bumps the revision. The mirror keeps only a newer revision, the change's answer included |
-| Template switches (element templates and their sources turned off per user) | No bridge mirror yet: the bridge composition passes no `TemplatePreferenceStorePort`, so IntelliJ offers no switch and hides no template ([#2264](https://github.com/Miragon/bpmn-modeler/issues/2264)) | VS Code (`VsCodeTemplatePreferenceStore`): `workspaceState` for `project` and `globalState` for `allProjects`, one key each, on this machine only (no `setKeysForSync`). A change carries the switches to disable and to enable for one scope, merged with `templatePreferencesAfter` on a queue, as approvals are. Another window's write arrives through `readStored` when the window gains focus; the add-on catalog reads `readStored` for every listing, so it needs no seed |
+| Template switches (element templates and their sources turned off per user) | `templatePreferences` in `session/register`: both scopes, each with its own `revision`. Then `templatePreferences/didChange` with both again, which every running bridge of the IDE gets after an `allProjects` change and only the project's own bridge after a `project` change; `templatePreferences/read` answers both stored lists. The add-on catalog reads `readStored` for every listing, so it needs no seed; the editor reads the seeded mirror when it sends its templates | Host. IntelliJ: `ProjectTemplatePreferenceStore` (project `PropertiesComponent`, so `.idea/workspace.xml`, per user) for `project` and `TemplatePreferenceStore` (application `PropertiesComponent`) for `allProjects`, one key each. A bridge sends the switches to disable and to enable for one scope; the store of that scope merges them under its lock with the Kotlin `templatePreferencesAfter`, held to `templatePreferenceChange.cases.json`, and bumps its revision, and the host pushes before it answers. The mirror keeps only a newer revision per scope, the change's answer included. VS Code (`VsCodeTemplatePreferenceStore`): `workspaceState` for `project` and `globalState` for `allProjects`, on this machine only (no `setKeysForSync`), merged on a queue; another window's write arrives through `readStored` when the window gains focus |
 
 Apply settings before initial artifact discovery. Seed every synchronous mirror
 before its first consumer, and re-seed on process restart; mirrors do not
@@ -1147,7 +1148,9 @@ The bridge runs each inbound call on a queue keyed by its editor or its method
 frames while a later push on another queue runs at once, and a request's reply
 can arrive after a newer push. The approvals therefore carry a host revision,
 read together with the list, on every frame that carries a list, and the mirror
-ignores an older one. The host holds no lock while it queues the frames and
+ignores an older one. The template switches do the same per scope: the two
+scopes live in different stores, so one revision each, and a frame's older
+scope never replaces a newer one while its newer scope still applies. The host holds no lock while it queues the frames and
 does not coalesce them: two projects' changes queue from their own threads, so
 a frame queued later can carry the older revision and must not replace the
 newer one. The
