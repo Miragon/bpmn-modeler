@@ -196,10 +196,10 @@ the bridge does not, because IntelliJ's diff viewer swaps the sides before it
 forwards a message. The preview host's spec posts every command of the editor
 and diff-pane lists.
 
-The DMN and Form editors, the element-template editor and the deployment
-sidebar have closed lists of their own (`dmnEditorCommands.ts`,
-`formEditorCommands.ts`, `templateEditorCommands.ts`,
-`deploymentSidebarCommands.ts`), and each of these pages narrows its host
+The DMN and Form editors, the element-template editor, the deployment
+sidebar and the add-ons view have closed lists of their own
+(`dmnEditorCommands.ts`, `formEditorCommands.ts`, `templateEditorCommands.ts`,
+`deploymentSidebarCommands.ts`, `addOnsViewCommands.ts`), and each of these pages narrows its host
 channel to its list, so a page cannot post a command of another surface.
 `WEBVIEW_SURFACE_COMMAND_TYPES` (`libs/shared/src/lib/webviewSurfaces.ts`)
 registers every surface with its list; the diff pane's entry is the handshake
@@ -219,7 +219,26 @@ command the page echoes back.
 The deployment sidebar's commands reach the core's `DeploymentMessageDispatcher`
 through a `CommandTable` over its list, as the editor's and the diff pane's do;
 its log rows share `routeWebviewLogCommand`. `DeploymentFeature.panelRoutes`
-reads that table before any panel attaches. Each host keeps one coverage spec
+reads that table before any panel attaches.
+
+The add-ons view (`apps/add-ons-webview`, surface `addOnsView`) follows the
+same shape. Its messages sit in `libs/shared/src/lib/addOnsView.ts`, a
+feature file of their own, which both shared protocol specs import; its
+payloads copy the core's catalog model, request, result and reveal field for
+field, and `AddOnViewMessages.spec.ts` pins each whole type and each value set
+to its home with `expectTypeOf`. `AddOnViewMessages` in the core's
+`addOns/adapter/in/` maps the protocol for one page, so no host translates
+it, and `AddOnsFeature.panelRoutes` reads its table before any page attaches.
+The page asks for the last model when it loads (`GetAddOnCatalogCommand`), as
+a host can drop a push that lands before the page listens. A request from the
+page is untrusted: `addOnRequestOf` keeps only a kind the core knows with the
+fields it names. The model holds workspace text (file, template and folder
+names), so the page builds its DOM with the DOM API from the model and never
+with `innerHTML`, and every `--vscode-*` variable its stylesheet reads is
+listed in `src/adapter/in/styles/hostThemeVariables.json`, the set IntelliJ
+maps for it. Every host declares the surface `absent` until it serves it.
+
+Each host keeps one coverage spec
 over every surface, typed `HostSurfaceCoverage` (`libs/modeler-core/src/testing/`):
 per surface a `Record` of every listed command to `HANDLED` or
 `ignored(reason)`, or `absent(reason)` for a surface the host does not offer, as

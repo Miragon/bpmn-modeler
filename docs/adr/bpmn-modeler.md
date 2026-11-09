@@ -625,7 +625,19 @@ ids, or `leftForView`, which a review that shows the pending code in a view
 returns ([#2250](https://github.com/Miragon/bpmn-modeler/issues/2250)). The
 question then settles at once, so the queue does not wait on the view; the
 code keeps its state, is not declined for the gate, and no notice asks about
-the same content again this session. The catalogs keep these session answers
+the same content again this session. `ViewReview` in `addOns/adapter/out/`
+is that review: it leaves the code to the host's add-ons view through the
+`AddOnViewRevealPort`, naming the rows (`addOnIdOf` of each pending artifact
+id), only when `leavesToView` holds, that is when a folder is open and every
+pending id lies inside one. All or nothing: the view lists only code inside
+a workspace folder, so an item a link put outside every folder could be
+allowed nowhere this session. Otherwise, or when the reveal answers `false`
+or rejects, it answers with its fallback, `ListReview`, which stays for good.
+The review request carries the folders the prompt was built for
+(`ApprovalReviewRequest.workspaceFolders`), so the prompt and this decision
+use one reading. The feature's `review` port stays optional until both hosts
+pass a `ViewReview` (VS Code in #2250's second PR, IntelliJ in its third);
+then it becomes required and `reviewOrChecklist` goes. The catalogs keep these session answers
 by content (`SESSION_ANSWERS`). The kernel's
 `ApprovalQuestion` runs this flow for every approval kind and knows no
 editor: one question is open at a time, and plugins found while it is open
@@ -796,7 +808,15 @@ which reads each template file by the loader's rule (`templatesOfFileText`,
 `templateEngineOf`), and the marketplaces with `MarketplaceInventory`
 over the host's `MarketplaceCommands`, which `createMarketplaceCommands`
 builds together. The host compositions wire one into the other ([package boundaries](architecture-and-hosts.md#package-boundaries)).
-Both hosts build an `AddOnsFeature`; no view attaches to it yet.
+Both hosts build an `AddOnsFeature`; no host binds a view to it yet.
+`AddOnsFeature.attachPanel(post, visible)` serves the add-ons view protocol
+of `libs/shared` (`addOnsView.ts`) for one page through `AddOnViewMessages`
+in `addOns/adapter/in/`, so a host only passes a `post` and the page's
+commands; `panelRoutes` answer the surface coverage before any page attaches.
+A page asks for the last model when it loads, as a push can land before it
+listens. `AddOnsFeature.reveal(addOnIds)` keeps the latest reveal and
+delivers it at most once to each attached view while it is visible, after
+the model, so a view shown or attached later still lands on the rows.
 
 - *Scope.* It lists the open workspace only: the root config folder's
   `plugins/` and `element-templates/` of every workspace folder, the nested
@@ -911,10 +931,20 @@ Both hosts build an `AddOnsFeature`; no view attaches to it yet.
   state (`codeStateOf`, the same reading as the notices), and the actions a
   row offers from one table keyed by what the owner read and that state:
   allowed content offers Revoke, other hashed content "Allow this content",
-  content not hashed yet "Review…", a gone row "Forget". A rule package no row
-  or decline asks about is not hashed, as for a lint: its row offers
+  content not hashed yet "Review…", a gone row "Forget". A rule package no row,
+  decline or answer asks about is not hashed, as for a lint: its row offers
   "Review…", which hashes it, and then the allow, so allowing one takes two
-  steps. The config's own package hashes without its models, so the
+  steps. One a notice left to the view is hashed (`isHashWanted` reads every
+  session answer), as the gate hashed it to ask, so the row offers "Allow this
+  content" at once. A view shows its own state labels (`CODE_STATE_LABEL`:
+  Allowed, Not allowed yet, Changed, review needed, Declined this session,
+  Folder gone); the checklist and the log keep `CODE_STATE_TEXT`, which reads
+  inside a sentence. A listing that throws is logged and still reaches the
+  views: `failedCatalogOf` keeps the model shown before, under its own
+  revision so an allow against it holds, with a `problem`, or without one
+  sends a new revision that lists nothing and says why. A view's request is
+  untrusted: `addOnRequestOf` keeps only a known kind with the fields it
+  names, and anything else is refused as not offered. The config's own package hashes without its models, so the
   inventory hashes a folder outside `node_modules` as one only once a lint
   read its config or the gate reported it, and as a package once a
   `node_modules` entry links to it, unless it holds a lint config read so
@@ -1075,7 +1105,8 @@ editor forgets it, and `BpmnLintConfigService.dispose`, which
 `BpmnEditorFeature.dispose` calls, stops following. `RulePackageCatalog`
 hashes only the packages it asks about, or the one the user opens with
 "Review…" in the add-on catalog, and never one left to the view, which it
-tells apart by id before any hash; it keeps declines for its lifetime unless
+tells apart by id before any hash (the add-on catalog hashes that one for
+its row); it keeps declines for its lifetime unless
 the content changes, and exposes them read-only to the gate, which then reports
 a package as `declined` rather than `new`. The notice and the list have their
 own ids (`bpmnlintPackageApprovalNotice`, `bpmnlintPackageApproval`), and the
