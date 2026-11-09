@@ -36,6 +36,28 @@ interface BuiltRow {
     readonly reviewToggle?: HTMLButtonElement;
 }
 
+interface BuiltGroup {
+    readonly digest: string;
+    readonly section: HTMLElement;
+    readonly header: HTMLButtonElement;
+    readonly body: HTMLElement;
+}
+
+interface BuiltSource {
+    readonly digest: string;
+    readonly container: HTMLElement;
+    readonly header: HTMLButtonElement;
+    readonly buttons: HTMLButtonElement[];
+    readonly list: HTMLUListElement;
+}
+
+/** Last build's parts by id, and this build's as it goes. */
+interface Built {
+    readonly groups: Map<string, BuiltGroup>;
+    readonly sources: Map<string, BuiltSource>;
+    readonly rows: Map<string, BuiltRow>;
+}
+
 interface BannerParts {
     readonly box: HTMLElement;
     readonly live: HTMLElement;
@@ -44,8 +66,9 @@ interface BannerParts {
 
 /**
  * Builds the view from the state with the DOM API only: names and paths are
- * workspace text. Rows whose view did not change keep their element, so a
- * screen reader does not read them again; focus returns to the same place.
+ * workspace text. Parts whose view did not change keep their element in
+ * place, so a screen reader does not read them again; focus returns to the
+ * same place.
  */
 export class CatalogView {
     private readonly toolbar: HTMLElement;
@@ -59,7 +82,7 @@ export class CatalogView {
     private rowActions = new Map<string, HTMLButtonElement[]>();
     private reviewToggles = new Map<string, HTMLButtonElement>();
     private toolbarButtons: HTMLButtonElement[] = [];
-    private rows = new Map<string, BuiltRow>();
+    private built: Built = { groups: new Map(), sources: new Map(), rows: new Map() };
     private outlineHeads = new Map<string, OutlineHead>();
     private toolbarIndex = 0;
     private activeHead?: string;
@@ -160,11 +183,12 @@ export class CatalogView {
             return;
         }
         this.outlineHeads = new Map(outlineHeadsOf(model).map((head) => [head.id, head]));
-        const kept = new Map<string, BuiltRow>();
-        this.outline.replaceChildren(
-            ...model.groups.map((group) => this.groupOf(group, state, kept)),
+        const kept: Built = { groups: new Map(), sources: new Map(), rows: new Map() };
+        placeChildren(
+            this.outline,
+            model.groups.map((group) => this.groupOf(group, state, kept)),
         );
-        this.rows = kept;
+        this.built = kept;
     }
 
     private buildToolbar(model: AddOnCatalogPayload | undefined, busy: boolean): void {
@@ -176,45 +200,87 @@ export class CatalogView {
         this.toolbar.replaceChildren(...this.toolbarButtons);
     }
 
-    private groupOf(
-        group: AddOnGroupPayload,
-        state: ViewState,
-        kept: Map<string, BuiltRow>,
-    ): HTMLElement {
+    private groupOf(group: AddOnGroupPayload, state: ViewState, kept: Built): HTMLElement {
         const open = this.isHeadOpen(group.id, state.expansion);
-        const section = element("section", { class: "group" });
-        const body = element("div", { class: "group-body", id: this.idOf("body") });
+        const digest = JSON.stringify([group.label, group.description, group.problem, open]);
+        const cached = this.built.groups.get(group.id);
+        const built =
+            cached?.digest === digest ? cached : this.builtGroup(group, open, digest, cached);
+        kept.groups.set(group.id, built);
+        this.heads.set(group.id, built.header);
+        built.body.hidden = !open;
+        placeChildren(
+            built.body,
+            group.sources.map((source) => this.sourceOf(source, state, kept)),
+        );
+        return built.section;
+    }
+
+    private builtGroup(
+        group: AddOnGroupPayload,
+        open: boolean,
+        digest: string,
+        previous: BuiltGroup | undefined,
+    ): BuiltGroup {
+        const section = previous?.section ?? element("section", { class: "group" });
+        const body =
+            previous?.body ?? element("div", { class: "group-body", id: this.idOf("body") });
         const description = paragraph("description", group.description, this.idOf("desc"));
         const header = this.headerButton(group.id, group.label, open, body.id, description.id);
         section.setAttribute("aria-labelledby", header.id);
-        body.hidden = !open;
-        body.replaceChildren(...group.sources.map((source) => this.sourceOf(source, state, kept)));
-        section.replaceChildren(
+        placeChildren(section, [
             wrapped("h2", header),
             description,
             ...optionalParagraph("problem", group.problem),
             body,
-        );
-        return section;
+        ]);
+        return { digest, section, header, body };
     }
 
-    private sourceOf(
-        source: AddOnSourcePayload,
-        state: ViewState,
-        kept: Map<string, BuiltRow>,
-    ): HTMLElement {
+    private sourceOf(source: AddOnSourcePayload, state: ViewState, kept: Built): HTMLElement {
         const open = this.isHeadOpen(source.id, state.expansion);
-        const container = element("div", { class: "source" });
+        const busy = isBusy(state, source.id);
+        const digest = JSON.stringify([
+            source.label,
+            source.description,
+            source.stateText,
+            source.actions,
+            source.problem,
+            open,
+            busy,
+        ]);
+        const cached = this.built.sources.get(source.id);
+        const built =
+            cached?.digest === digest
+                ? cached
+                : this.builtSource(source, open, busy, digest, cached);
+        kept.sources.set(source.id, built);
+        this.heads.set(source.id, built.header);
+        this.controls.set(source.id, built.buttons);
+        this.rowActions.set(source.id, built.buttons);
+        built.list.hidden = !open;
+        placeChildren(
+            built.list,
+            source.addOns.map((addOn) => this.rowOf(addOn, state, kept)),
+        );
+        return built.container;
+    }
+
+    private builtSource(
+        source: AddOnSourcePayload,
+        open: boolean,
+        busy: boolean,
+        digest: string,
+        previous: BuiltSource | undefined,
+    ): BuiltSource {
+        const container = previous?.container ?? element("div", { class: "source" });
         container.dataset.source = source.id;
-        const list = element("ul", { class: "addons", id: this.idOf("body") });
+        const list = previous?.list ?? element("ul", { class: "addons", id: this.idOf("body") });
         const description = paragraph("description", source.description, this.idOf("desc"));
         const header = this.headerButton(source.id, source.label, open, list.id, description.id);
-        const busy = isBusy(state, source.id);
         const buttons = source.actions.map((action) =>
             this.controlButton(action, source.id, header.id, busy),
         );
-        this.controls.set(source.id, buttons);
-        this.rowActions.set(source.id, buttons);
         const line = element("div", { class: "source-line" });
         line.replaceChildren(
             wrapped("h3", header),
@@ -223,10 +289,9 @@ export class CatalogView {
             actionsOf(buttons),
         );
         if (busy) container.setAttribute("aria-busy", "true");
-        list.hidden = !open;
-        list.replaceChildren(...source.addOns.map((addOn) => this.rowOf(addOn, state, kept)));
-        container.replaceChildren(line, ...optionalParagraph("problem", source.problem), list);
-        return container;
+        else container.removeAttribute("aria-busy");
+        placeChildren(container, [line, ...optionalParagraph("problem", source.problem), list]);
+        return { digest, container, header, buttons, list };
     }
 
     private isHeadOpen(id: string, expansion: Expansion): boolean {
@@ -249,22 +314,17 @@ export class CatalogView {
         button.setAttribute("aria-expanded", String(open));
         button.setAttribute("aria-controls", controlsId);
         button.setAttribute("aria-describedby", descriptionId);
-        this.heads.set(headId, button);
         return button;
     }
 
-    private rowOf(
-        addOn: AddOnPayload,
-        state: ViewState,
-        kept: Map<string, BuiltRow>,
-    ): HTMLLIElement {
+    private rowOf(addOn: AddOnPayload, state: ViewState, kept: Built): HTMLLIElement {
         const busy = isBusy(state, addOn.id);
         const reviewOpen = isReviewOpen(addOn.id, state.expansion);
         const digest = JSON.stringify([addOn, busy, reviewOpen]);
-        const cached = this.rows.get(addOn.id);
+        const cached = this.built.rows.get(addOn.id);
         const built =
             cached?.digest === digest ? cached : this.builtRow(addOn, busy, reviewOpen, digest);
-        kept.set(addOn.id, built);
+        kept.rows.set(addOn.id, built);
         this.heads.set(addOn.id, built.element);
         this.controls.set(addOn.id, built.controls);
         this.rowActions.set(addOn.id, built.rowActions);
@@ -559,6 +619,18 @@ function badge(text: string): HTMLElement {
     const created = element("span", { class: "badge" });
     created.textContent = text;
     return created;
+}
+
+/** Moves only what changed place, as a node moved loses focus and is read again. */
+function placeChildren(parent: HTMLElement, wanted: readonly HTMLElement[]): void {
+    const keep = new Set<Element>(wanted);
+    [...parent.children].forEach((child) => {
+        if (!keep.has(child)) child.remove();
+    });
+    wanted.forEach((child, index) => {
+        const current = parent.children[index];
+        if (current !== child) parent.insertBefore(child, current ?? null);
+    });
 }
 
 function showText(target: HTMLElement, text: string | undefined): void {
