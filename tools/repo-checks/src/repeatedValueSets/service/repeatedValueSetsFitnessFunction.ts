@@ -29,7 +29,7 @@ export function createRepeatedValueSetsFitnessFunction({
         ],
         reportsWrongly: [
             "A copy that drifts from its home, a value added to or removed from one copy only, shows as resolved, not new: each tree is measured alone, so the report reads the drift as a fix. A resolved set is a fix only where its copies are gone, import their home or are pinned to it.",
-            "Sets equal by coincidence: the three bpmn-js popup menus `bpmn-append` · `bpmn-create` · `bpmn-replace` that two packages/bpmn-modeler features register a provider on, didi `$inject` lists, the npm dependency field names, git arguments, typeof chains and name|value unions.",
+            "Sets equal by coincidence: didi `$inject` lists, the npm dependency field names, git arguments, typeof chains and name|value unions.",
             "A copy pinned by a runtime spec, such as expect(copy).toEqual(home), stays listed: only the type equality assertion is read.",
             "A pin links two files, not two declarations: it also clears any other set the two files share.",
             "A set moved to another file shows as new and its old place as resolved, because the key names the file.",

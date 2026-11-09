@@ -58,6 +58,7 @@ import type {
     GetFormReferenceStatusCommand,
     GetPropertiesPanelStateCommand,
     GetTextClipboardCommand,
+    HiddenElementTemplatesQuery,
     ImplementationStatusQuery,
     LanguageQuery,
     NavigateToImplementationCommand,
@@ -110,6 +111,7 @@ export type ProtocolQuery =
     | FormInputValuesQuery
     | ElementTemplateFileQuery
     | ElementTemplatesQuery
+    | HiddenElementTemplatesQuery
     | BpmnPluginsQuery
     | BpmnlintResultsQuery
     | BpmnLintDisabledQuery

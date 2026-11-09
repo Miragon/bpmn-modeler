@@ -1,10 +1,8 @@
-import type { Engine } from "@miragon/bpmn-modeler-types";
+import type { ElementTemplateRef, Engine } from "@miragon/bpmn-modeler-types";
 
 /** One template as the template owner read it. */
-export interface ListedTemplate {
-    readonly id?: string;
+export interface ListedTemplate extends Partial<ElementTemplateRef> {
     readonly name?: string;
-    readonly version?: number;
     readonly engine?: Engine;
 }
 

@@ -126,10 +126,10 @@ class MockHost extends MockHostApi<StateType, MessageType> {
             case "GetElementTemplatesCommand": {
                 console.debug("[DEBUG] GetElementTemplatesCommand", message);
                 dispatchEvent(
-                    new ElementTemplatesQuery([
-                        ...(c7Samples as unknown as JSON[]),
-                        ...(c8Samples as unknown as JSON[]),
-                    ]),
+                    new ElementTemplatesQuery(
+                        [...(c7Samples as unknown as JSON[]), ...(c8Samples as unknown as JSON[])],
+                        [],
+                    ),
                 );
                 break;
             }

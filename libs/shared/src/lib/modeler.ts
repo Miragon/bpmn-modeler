@@ -10,7 +10,8 @@
  * - {@link FormFileQuery}                 — deliver Camunda Form JSON for rendering
  * - {@link ElementTemplateFileQuery}      — deliver element-template JSON for the preview
  * - {@link FormInputValuesQuery}          — deliver ephemeral form preview input data
- * - {@link ElementTemplatesQuery}         — deliver the resolved element-template list
+ * - {@link ElementTemplatesQuery}         — deliver the resolved element-template list and the hidden templates
+ * - {@link HiddenElementTemplatesQuery}   — replace the hidden templates without re-sending the list
  * - {@link BpmnPluginsQuery}              — deliver the approved bpmn-js plugins as loadable URLs
  * - {@link BpmnlintResultsQuery}          — deliver host-computed bpmnlint results (or null to deactivate)
  * - {@link BpmnlintInPageQuery}           — tell the webview to run its in-page linter (zero-config default, or a covered workspace config)
@@ -68,6 +69,7 @@ import type {
     DiffOrigin,
     DiffSide,
     DmnModelerSetting,
+    ElementTemplateRef,
     Engine,
     ImplementationEntry,
     ImplementationKind,
@@ -187,10 +189,26 @@ export class FormInputValuesQuery extends Query<"FormInputValuesQuery"> {
 
 export class ElementTemplatesQuery extends Query<"ElementTemplatesQuery"> {
     public readonly elementTemplates: object[];
+    /** Kept out of new choices; elements that already use one keep it. */
+    public readonly hiddenTemplates: ElementTemplateRef[];
 
-    constructor(elementTemplates: object[]) {
+    constructor(elementTemplates: object[], hiddenTemplates: ElementTemplateRef[]) {
         super("ElementTemplatesQuery");
         this.elementTemplates = elementTemplates;
+        this.hiddenTemplates = hiddenTemplates;
+    }
+}
+
+/**
+ * The hidden templates alone, so a change neither re-validates the template
+ * list nor reports its rejections again.
+ */
+export class HiddenElementTemplatesQuery extends Query<"HiddenElementTemplatesQuery"> {
+    public readonly hiddenTemplates: ElementTemplateRef[];
+
+    constructor(hiddenTemplates: ElementTemplateRef[]) {
+        super("HiddenElementTemplatesQuery");
+        this.hiddenTemplates = hiddenTemplates;
     }
 }
 
