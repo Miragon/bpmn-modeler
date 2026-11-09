@@ -84,7 +84,8 @@ export class CatalogView {
         const hint = element("p", { id: this.idOf("hint") });
         hint.textContent = CHROME_TEXT.hint;
         hint.hidden = true;
-        this.outline = element("div", { class: "outline" });
+        // A generic div may carry no name or description.
+        this.outline = element("div", { class: "outline", role: "group" });
         this.outline.setAttribute("aria-label", CHROME_TEXT.outline);
         this.outline.setAttribute("aria-describedby", hint.id);
         root.replaceChildren(
