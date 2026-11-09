@@ -735,6 +735,29 @@ describe("BpmnElementTemplatesService with the user's template switches", () => 
         expect(postedNames(editor)).toEqual(["Mail", "REST", "SMS"]);
     });
 
+    it("hides the latest version switched off though a source still on serves an older one", async () => {
+        const { service, host, editor, addTemplate, marketplaceSvc, fileContents } = createService({
+            switches: true,
+        });
+        addTemplate(ROOT_TEMPLATES, "mail.json", { id: "mail", name: "Mail", version: 2 });
+        marketplaceSvc.getCachedTemplateSources.mockResolvedValue([
+            { source: ACME, paths: ["/cache/acme/mail.json"] },
+        ]);
+        fileContents.set(
+            "/cache/acme/mail.json",
+            JSON.stringify({ id: "mail", name: "Mail", version: 1 }),
+        );
+        await host.templatePreferences.change(
+            templatePreferenceChange("project", [SHOP_FOLDER], []),
+        );
+
+        await service.setElementTemplates(editor.id);
+
+        expect(postedHidden(editor)).toEqual([
+            { type: "ElementTemplatesQuery", hidden: [{ id: "mail", version: 2 }] },
+        ]);
+    });
+
     it("hides nothing on a host that keeps no switches", async () => {
         const { service, host, editor, addTemplate } = createService();
         addTemplate(ROOT_TEMPLATES, "mail.json", { id: "mail", name: "Mail" });
