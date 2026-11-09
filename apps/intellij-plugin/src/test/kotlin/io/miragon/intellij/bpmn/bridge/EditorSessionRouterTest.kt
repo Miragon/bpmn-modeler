@@ -1215,7 +1215,7 @@ class EditorSessionRouterTest {
         }.map { it.frameLabel() }
 
     @Test
-    fun `a register seeds the plugin approvals the IDE stores`() {
+    fun `a register seeds the plugin approvals the IDE stores with their revision`() {
         val store = PluginApprovalStore.getInstance()
         val storedBefore = store.read()
         try {
@@ -1231,6 +1231,7 @@ class EditorSessionRouterTest {
                 parse("""{"approvals": [{"pluginId": "$PLUGIN_ID", "contentHash": "$PLUGIN_HASH"}]}""").get("approvals"),
                 register.getAsJsonObject("params").get("pluginApprovals"),
             )
+            assertEquals(store.snapshot().revision, register.getAsJsonObject("params").get("pluginApprovalsRevision").asLong)
         } finally {
             store.replaceAll(storedBefore)
         }

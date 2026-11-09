@@ -43,7 +43,7 @@ class PluginApprovalStoreTest {
 
         val outcome = PluginApprovalStore.getInstance().change(PluginApprovalChange(case.allow, case.revoke))
 
-        assertEquals(case.result, outcome.approvals)
+        assertEquals(case.result, outcome.snapshot.approvals)
         assertEquals(case.result, PluginApprovalStore.getInstance().read())
     }
 
@@ -69,8 +69,23 @@ class PluginApprovalStoreTest {
         val outcome = PluginApprovalStore.getInstance().change(PluginApprovalChange(listOf(PluginApproval(PLUGIN_ID, HASH)), emptyList()))
 
         assertFalse(outcome.changed)
-        assertEquals(listOf(PluginApproval(PLUGIN_ID, HASH)), outcome.approvals)
+        assertEquals(listOf(PluginApproval(PLUGIN_ID, HASH)), outcome.snapshot.approvals)
         assertTrue(properties.getValue(KEY)!!.contains("/only-id"))
+    }
+
+    @Test
+    fun `grows the revision with every write and keeps it for a change that keeps every row`() {
+        val store = PluginApprovalStore.getInstance()
+        val first = store.snapshot().revision
+
+        val allowed = store.change(PluginApprovalChange(listOf(PluginApproval(PLUGIN_ID, HASH)), emptyList()))
+        val kept = store.change(PluginApprovalChange(listOf(PluginApproval(PLUGIN_ID, HASH)), emptyList()))
+        val revoked = store.change(PluginApprovalChange(emptyList(), listOf(PLUGIN_ID)))
+
+        assertTrue(allowed.snapshot.revision > first)
+        assertEquals(allowed.snapshot.revision, kept.snapshot.revision)
+        assertTrue(revoked.snapshot.revision > kept.snapshot.revision)
+        assertEquals(revoked.snapshot, store.snapshot())
     }
 
     @Test

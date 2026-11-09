@@ -40,7 +40,7 @@ class PluginApprovalRouterTest {
         router =
             PluginApprovalRouter(
                 bridgeDeps(projectFixture.get(), wired.channel, wired.handlers),
-                pushToRunningBridges = { router.push() },
+                pushToRunningBridges = { router.push(it) },
             )
         router.register()
         return wired
@@ -58,21 +58,25 @@ class PluginApprovalRouterTest {
         )
 
     @Test
-    fun `a change stores the merged list and pushes it to the bridges before it answers with it`() {
+    fun `a change stores the merged list and pushes it to the bridges before it answers with it, both at its revision`() {
         val wired = routedBridge()
         PluginApprovalStore.getInstance().replaceAll(listOf(PluginApproval(OLD_ID, HASH)))
+        val before = PluginApprovalStore.getInstance().snapshot().revision
 
         wired.change(5, allow = listOf(row(PLUGIN_ID)))
 
         val stored = listOf(PluginApproval(OLD_ID, HASH), PluginApproval(PLUGIN_ID, HASH))
         assertEquals(stored, PluginApprovalStore.getInstance().read())
+        val revision = PluginApprovalStore.getInstance().snapshot().revision
+        assertTrue(revision > before, "revision $revision after $before")
+        val expected = parse("""{"approvals": [${row(OLD_ID)}, ${row(PLUGIN_ID)}], "revision": $revision}""")
         val pushed = parse(wired.fake.nextFrame())
         assertEquals("pluginApprovals/didChange", pushed.get("method").asString)
-        assertEquals(parse("""{"approvals": [${row(OLD_ID)}, ${row(PLUGIN_ID)}]}"""), pushed.getAsJsonObject("params"))
+        assertEquals(expected, pushed.getAsJsonObject("params"))
         val answer = parse(wired.fake.nextFrame())
         assertEquals(5, answer.get("id").asInt)
         assertFalse(answer.has("error"))
-        assertEquals(parse("""{"approvals": [${row(OLD_ID)}, ${row(PLUGIN_ID)}]}"""), answer.getAsJsonObject("result"))
+        assertEquals(expected, answer.getAsJsonObject("result"))
     }
 
     @Test
@@ -104,15 +108,17 @@ class PluginApprovalRouterTest {
     }
 
     @Test
-    fun `a change that keeps every row pushes nothing and still answers with the list`() {
+    fun `a change that keeps every row bumps no revision, pushes nothing and still answers with the list`() {
         val wired = routedBridge()
         PluginApprovalStore.getInstance().replaceAll(listOf(PluginApproval(PLUGIN_ID, HASH)))
+        val revision = PluginApprovalStore.getInstance().snapshot().revision
 
         wired.change(11, allow = listOf(row(PLUGIN_ID)), revoke = listOf(OTHER_ID))
 
         val answer = parse(wired.fake.nextFrame())
         assertEquals(11, answer.get("id").asInt)
-        assertEquals(parse("""{"approvals": [${row(PLUGIN_ID)}]}"""), answer.getAsJsonObject("result"))
+        assertEquals(parse("""{"approvals": [${row(PLUGIN_ID)}], "revision": $revision}"""), answer.getAsJsonObject("result"))
+        assertEquals(revision, PluginApprovalStore.getInstance().snapshot().revision)
     }
 
     @Test

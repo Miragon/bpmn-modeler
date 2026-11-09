@@ -78,8 +78,11 @@ export function editorSessionHandlers({
                 settingsMirror.apply(params.settings);
             }
             // Seeded here rather than at startup, so it cannot race the first plugin request.
-            if (params.pluginApprovals) {
-                pluginApprovals.apply(params.pluginApprovals);
+            if (params.pluginApprovals && params.pluginApprovalsRevision !== undefined) {
+                pluginApprovals.apply({
+                    approvals: params.pluginApprovals,
+                    revision: params.pluginApprovalsRevision,
+                });
             }
 
             if (

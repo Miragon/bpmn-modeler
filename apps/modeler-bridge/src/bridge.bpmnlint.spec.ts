@@ -33,7 +33,7 @@ import { join } from "node:path";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { PluginApproval, RawModelerSettings } from "@miragon/bpmn-modeler-core";
+import { RawModelerSettings } from "@miragon/bpmn-modeler-core";
 
 import {
     hostNotification,
@@ -62,7 +62,7 @@ import {
 } from "./__fixtures__/rulePackageBridge";
 import { createBridge } from "./composition/bridge";
 import { NodeWorkspace } from "./kernel/adapter/out/NodeWorkspace";
-import { StatusBarUpdateParams } from "./protocol/domain/types";
+import { PluginApprovalsSnapshot, StatusBarUpdateParams } from "./protocol/domain/types";
 import { Rpc } from "./transport/adapter/out/Rpc";
 
 // A process with a task but no start/end event, so bpmnlint:recommended reports
@@ -614,7 +614,7 @@ describe("workspace bpmnlint rule packages on the bridge", () => {
         return bridge;
     }
 
-    async function allowAcme(bridge: AcmeBridge): Promise<readonly PluginApproval[]> {
+    async function allowAcme(bridge: AcmeBridge): Promise<PluginApprovalsSnapshot> {
         await lintOnHost(bridge);
         const fromIndex = bridge.frames.length;
         const { stored } = await reviewAndAllowAll(bridge, await waitForNotice(bridge));
@@ -674,7 +674,7 @@ describe("workspace bpmnlint rule packages on the bridge", () => {
         const root = await createAcmeWorkspace();
         const approving = await openAcmeBridge(root, { keepRoot: true });
         disposals.push(approving.dispose);
-        const approvals = await allowAcme(approving);
+        const stored = await allowAcme(approving);
         const bridge = await openAcme(root);
         const beforePush = await lintOnHost(bridge);
         await settle();
@@ -682,7 +682,7 @@ describe("workspace bpmnlint rule packages on the bridge", () => {
         await expect(acmeRuns(root)).resolves.toEqual(["v1"]);
         expect(bridge.frames.filter(isRequest("actionNotice/show"))).toHaveLength(1);
 
-        await bridge.rpc.handleLine(hostNotification("pluginApprovals/didChange", { approvals }));
+        await bridge.rpc.handleLine(hostNotification("pluginApprovals/didChange", stored));
         const results = await relint(bridge);
 
         expect(findingsOf(results)).toHaveProperty([ACME_RULE]);
@@ -714,14 +714,14 @@ describe("workspace bpmnlint rule packages on the bridge", () => {
 
     it("runs the new bytes once the changed package is allowed again", async () => {
         const bridge = await openAcme();
-        await allowAcme(bridge);
+        const stored = await allowAcme(bridge);
         await writeAcmeDependency(bridge.root, "v2, edited after the approval");
         const changedFrom = bridge.frames.length;
         await relint(bridge);
 
         const notice = await waitForNotice(bridge, changedFrom);
         const fromIndex = bridge.frames.length;
-        await reviewAndAllowAll(bridge, notice);
+        await reviewAndAllowAll(bridge, notice, stored);
         const results = await nextLintResults(bridge, fromIndex);
 
         expect(findingsOf(results)[ACME_RULE]).toEqual([

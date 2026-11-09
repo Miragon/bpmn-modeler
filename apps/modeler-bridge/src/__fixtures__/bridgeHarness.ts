@@ -29,7 +29,10 @@ export async function waitForFrame(
     throw new Error("waitForFrame timed out");
 }
 
-type RegisterOverrides = Pick<RegisterParams, "sessionId" | "documentRevision" | "settings">;
+type RegisterOverrides = Pick<
+    RegisterParams,
+    "sessionId" | "documentRevision" | "settings" | "pluginApprovals" | "pluginApprovalsRevision"
+>;
 
 /** The `session/register` params the host sends when it opens a `.bpmn` editor. */
 export function registerParams(

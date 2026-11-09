@@ -17,13 +17,14 @@ interface CoreFrame {
 
 /**
  * IntelliJ's `PluginApprovalRouter` over its application-level
- * `PluginApprovalStore`: a change is merged into the stored list, which goes
- * to every running bridge in `pluginApprovals/didChange` and then answers the
- * request, all from the host's reader thread after the request left the
+ * `PluginApprovalStore`: a change is merged into the stored list at the next
+ * revision, which goes to every running bridge in `pluginApprovals/didChange`
+ * and then answers the request, all from the host's reader thread after the request left the
  * bridge. An overlapping change answers an error and stores nothing.
  */
 class IntellijPluginApprovalStore {
     approvals: PluginApproval[] = [];
+    revision = 1;
 
     constructor(private readonly sendToBridge: (chunk: string) => void) {}
 
@@ -44,9 +45,11 @@ class IntellijPluginApprovalStore {
         } catch (error) {
             return [{ id, error: String(error) }];
         }
+        this.revision++;
+        const snapshot = { approvals: this.approvals, revision: this.revision };
         return [
-            { method: METHODS.pluginApprovalsDidChange, params: { approvals: this.approvals } },
-            { id, result: { approvals: this.approvals } },
+            { method: METHODS.pluginApprovalsDidChange, params: snapshot },
+            { id, result: snapshot },
         ];
     }
 }
@@ -66,6 +69,7 @@ describePluginApprovalStoreContract(
             store,
             storeElsewhere: async (approvals) => {
                 host.approvals = [...approvals];
+                host.revision++;
             },
         };
     },

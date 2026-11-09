@@ -60,7 +60,7 @@ import {
     PickerShowParams,
     PickerShowResult,
     PluginApprovalsChangeParams,
-    PluginApprovalsParams,
+    PluginApprovalsSnapshot,
     RegisterParams,
     SecretApprovedDestinations,
     SecretDeleteParams,
@@ -239,6 +239,7 @@ export const PROTOCOL = [
             content: "<bpmn/>",
             settings: {},
             pluginApprovals: [PLUGIN_APPROVAL_SAMPLE],
+            pluginApprovalsRevision: 7,
         } satisfies RegisterParams,
     },
     {
@@ -432,7 +433,10 @@ export const PROTOCOL = [
         method: METHODS.pluginApprovalsDidChange,
         direction: "hostToCore",
         kind: "notification",
-        paramsFixture: { approvals: [PLUGIN_APPROVAL_SAMPLE] } satisfies PluginApprovalsParams,
+        paramsFixture: {
+            approvals: [PLUGIN_APPROVAL_SAMPLE],
+            revision: 7,
+        } satisfies PluginApprovalsSnapshot,
     },
 
     // ── Core → Host requests ─────────────────────────────────────────────────
@@ -735,7 +739,10 @@ export const PROTOCOL = [
             allow: [PLUGIN_APPROVAL_SAMPLE],
             revoke: ["/ws/.camunda/plugins/reduced-palette"],
         } satisfies PluginApprovalsChangeParams,
-        resultFixture: { approvals: [PLUGIN_APPROVAL_SAMPLE] } satisfies PluginApprovalsParams,
+        resultFixture: {
+            approvals: [PLUGIN_APPROVAL_SAMPLE],
+            revision: 7,
+        } satisfies PluginApprovalsSnapshot,
     },
 
     // ── Core → Host notifications ────────────────────────────────────────────

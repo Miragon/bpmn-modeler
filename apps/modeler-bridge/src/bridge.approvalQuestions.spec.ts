@@ -90,7 +90,7 @@ describe("bridge approval questions", () => {
             allow: [expect.objectContaining({ pluginId: bridge.acmeDir })],
             revoke: [],
         });
-        expect(rulePackageAnswer.stored.map((row) => row.pluginId)).toEqual([
+        expect(rulePackageAnswer.stored.approvals.map((row) => row.pluginId)).toEqual([
             pluginId,
             bridge.acmeDir,
         ]);

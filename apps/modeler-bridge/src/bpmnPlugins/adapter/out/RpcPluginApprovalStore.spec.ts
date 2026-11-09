@@ -28,7 +28,10 @@ describe("RpcPluginApprovalStore", () => {
         const { rpc, store } = bridgeStore();
 
         await rpc.handleLine(
-            hostNotification(METHODS.pluginApprovalsDidChange, { approvals: [RESIZE, PALETTE] }),
+            hostNotification(METHODS.pluginApprovalsDidChange, {
+                approvals: [RESIZE, PALETTE],
+                revision: 2,
+            }),
         );
 
         expect(store.read()).toEqual([RESIZE, PALETTE]);
@@ -36,10 +39,12 @@ describe("RpcPluginApprovalStore", () => {
 
     it("sends only the change and reads the list the host answers with", async () => {
         const { rpc, store, frames } = bridgeStore();
-        store.apply([RESIZE]);
+        store.apply({ approvals: [RESIZE], revision: 1 });
 
         const changed = store.change({ allow: [PALETTE], revoke: [] });
-        await rpc.handleLine(hostReply(frames[0].id!, { approvals: [OTHER, PALETTE] }));
+        await rpc.handleLine(
+            hostReply(frames[0].id!, { approvals: [OTHER, PALETTE], revision: 2 }),
+        );
         await changed;
 
         expect(frames[0]).toMatchObject({
@@ -51,12 +56,37 @@ describe("RpcPluginApprovalStore", () => {
 
     it("keeps its approvals when the host refuses the change", async () => {
         const { rpc, store, frames } = bridgeStore();
-        store.apply([RESIZE]);
+        store.apply({ approvals: [RESIZE], revision: 1 });
 
         const changed = store.change({ allow: [PALETTE], revoke: [] });
         await rpc.handleLine(hostErrorReply(frames[0].id!, "PropertiesComponent is gone"));
 
         await expect(changed).rejects.toThrow("PropertiesComponent is gone");
+        expect(store.read()).toEqual([RESIZE]);
+    });
+
+    it("keeps a newer pushed list over an answer the host sent before it", async () => {
+        const { rpc, store, frames } = bridgeStore();
+
+        const changed = store.change({ allow: [PALETTE], revoke: [] });
+        await rpc.handleLine(
+            hostNotification(METHODS.pluginApprovalsDidChange, {
+                approvals: [PALETTE, OTHER],
+                revision: 3,
+            }),
+        );
+        await rpc.handleLine(hostReply(frames[0].id!, { approvals: [PALETTE], revision: 2 }));
+        await changed;
+
+        expect(store.read()).toEqual([PALETTE, OTHER]);
+    });
+
+    it("keeps its list for a push of the revision it already holds", () => {
+        const { store } = bridgeStore();
+        store.apply({ approvals: [RESIZE], revision: 4 });
+
+        store.apply({ approvals: [], revision: 4 });
+
         expect(store.read()).toEqual([RESIZE]);
     });
 });

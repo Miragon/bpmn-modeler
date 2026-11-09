@@ -30,8 +30,11 @@ data class PluginApprovalChange(val allow: List<PluginApproval>, val revoke: Lis
     }
 }
 
-/** The list a change left stored, and whether it differs from the list before. */
-data class PluginApprovalChangeOutcome(val approvals: List<PluginApproval>, val changed: Boolean)
+/** The stored approvals with the revision they were stored at. */
+data class PluginApprovalSnapshot(val approvals: List<PluginApproval>, val revision: Long)
+
+/** What a change left stored, and whether it differs from the list before. */
+data class PluginApprovalChangeOutcome(val snapshot: PluginApprovalSnapshot, val changed: Boolean)
 
 /**
  * Kotlin copy of the core's `approvalsAfter`; `codeApprovalChange.cases.json`
@@ -71,21 +74,32 @@ class PluginApprovalStore {
 
     private val lock = Any()
 
-    fun read(): List<PluginApproval> = synchronized(lock) { readStored() }
+    // In memory, per IDE run: every bridge is a child process of this run, and
+    // a bridge's mirror starts below it. Grows with each list this store writes.
+    private var revision = 1L
 
-    /** Reads, merges and writes in one step; writes nothing when the change keeps every row. */
+    fun snapshot(): PluginApprovalSnapshot = synchronized(lock) { PluginApprovalSnapshot(readStored(), revision) }
+
+    fun read(): List<PluginApproval> = snapshot().approvals
+
+    /** Reads, merges, writes and bumps the revision in one step; writes nothing when the change keeps every row. */
     fun change(change: PluginApprovalChange): PluginApprovalChangeOutcome =
         synchronized(lock) {
             val stored = readStored()
             val merged = approvalsAfter(stored, change)
             val changed = merged.groupingBy { it }.eachCount() != stored.groupingBy { it }.eachCount()
-            if (changed) props.setValue(KEY, gson.toJson(merged))
-            PluginApprovalChangeOutcome(merged, changed)
+            if (changed) write(merged)
+            PluginApprovalChangeOutcome(PluginApprovalSnapshot(merged, revision), changed)
         }
 
     @TestOnly
     internal fun replaceAll(approvals: List<PluginApproval>) {
-        synchronized(lock) { props.setValue(KEY, gson.toJson(approvals)) }
+        synchronized(lock) { write(approvals) }
+    }
+
+    private fun write(approvals: List<PluginApproval>) {
+        props.setValue(KEY, gson.toJson(approvals))
+        revision++
     }
 
     private fun readStored(): List<PluginApproval> {

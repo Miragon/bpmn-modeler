@@ -2,6 +2,7 @@ package io.miragon.intellij.bpmn.bridge
 
 import io.miragon.intellij.bpmn.PluginApproval
 import io.miragon.intellij.bpmn.PluginApprovalChange
+import io.miragon.intellij.bpmn.PluginApprovalSnapshot
 import io.miragon.intellij.bpmn.PluginApprovalStore
 import io.miragon.intellij.bpmn.pushPluginApprovalsToRunningBridges
 
@@ -13,7 +14,7 @@ import io.miragon.intellij.bpmn.pushPluginApprovalsToRunningBridges
 internal class PluginApprovalRouter(
     private val deps: BridgeDeps,
     // No CoreProcess runs under the test fixture, so a test observes the pushes here.
-    private val pushToRunningBridges: () -> Unit = ::pushPluginApprovalsToRunningBridges,
+    private val pushToRunningBridges: (PluginApprovalSnapshot) -> Unit = ::pushPluginApprovalsToRunningBridges,
 ) {
     private val store get() = PluginApprovalStore.getInstance()
 
@@ -34,19 +35,23 @@ internal class PluginApprovalRouter(
         }
     }
 
-    /** Pushes before it answers, so the changing bridge's mirror never lags its own change. */
+    /**
+     * Pushes before it answers, so the changing bridge's mirror never lags its
+     * own change. Both carry the revision the change was stored at, and no lock
+     * is held while they are queued: the bridge keeps the newest revision.
+     */
     private fun handleChange(change: PluginApprovalChange, id: CoreRequestId?) {
         val outcome = store.change(change)
-        if (outcome.changed) pushToRunningBridges()
-        id?.let { deps.channel.reply(it, PluginApprovalsResult(outcome.approvals)) }
+        if (outcome.changed) pushToRunningBridges(outcome.snapshot)
+        id?.let { deps.channel.reply(it, PluginApprovalsResult(outcome.snapshot)) }
     }
 
     /** No-ops when no bridge is alive: the approvals are seeded again on the next `session/register`. */
-    fun push() {
+    fun push(snapshot: PluginApprovalSnapshot) {
         if (!deps.isProcessAlive()) return
         deps.channel.notify(
             HostToCoreMethod.PLUGIN_APPROVALS_DID_CHANGE,
-            linkedMapOf("approvals" to store.read()),
+            linkedMapOf("approvals" to snapshot.approvals, "revision" to snapshot.revision),
             coalesceKey = "pluginApprovals",
             reliable = true,
         )

@@ -10,6 +10,7 @@
             "fsPath",
             "path",
             "pluginApprovals",
+            "pluginApprovalsRevision",
             "scheme",
             "sessionId",
             "settings",
@@ -189,7 +190,7 @@
         "method": "pluginApprovals/didChange",
         "direction": "hostToCore",
         "kind": "notification",
-        "paramKeys": ["approvals"]
+        "paramKeys": ["approvals", "revision"]
     },
     {
         "method": "document/write",
@@ -349,7 +350,7 @@
         "direction": "coreToHost",
         "kind": "request",
         "paramKeys": ["allow", "revoke"],
-        "resultKeys": ["approvals"]
+        "resultKeys": ["approvals", "revision"]
     },
     {
         "method": "editor/postMessage",

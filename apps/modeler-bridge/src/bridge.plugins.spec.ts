@@ -98,7 +98,7 @@ async function openEditor(
             "session/register",
             registerParams(editorId, root, editorId.slice(7), "", {
                 sessionId: 1,
-                ...(pluginApprovals ? { pluginApprovals } : {}),
+                ...(pluginApprovals ? { pluginApprovals, pluginApprovalsRevision: 1 } : {}),
             }),
         ),
     );
@@ -172,6 +172,7 @@ describe("workspace bpmn-js plugins on the bridge", () => {
         await rpc.handleLine(
             hostReply(change.id, {
                 approvals: [{ pluginId: bridge.pluginId, contentHash: HASH }],
+                revision: 2,
             }),
         );
 
@@ -186,6 +187,7 @@ describe("workspace bpmn-js plugins on the bridge", () => {
         await bridge.rpc.handleLine(
             hostNotification("pluginApprovals/didChange", {
                 approvals: [{ pluginId: bridge.pluginId, contentHash: HASH }],
+                revision: 2,
             }),
         );
         const answer = await requestPlugins(bridge, editorId);
