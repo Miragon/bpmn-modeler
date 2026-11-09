@@ -2,7 +2,7 @@ import { basename } from "path";
 
 import { BpmnEditorCommandType } from "@miragon/bpmn-modeler-shared";
 
-import { ListReview } from "../../../kernel/adapter/out/ListReview";
+import { reviewOrChecklist } from "../../../kernel/adapter/out/ListReview";
 import { ApprovalReviewPort, PluginApprovalStorePort } from "../../../kernel/port/approvalPorts";
 import {
     ActionNotifierPort,
@@ -114,7 +114,7 @@ export interface BpmnRulePackagePorts {
     readonly actionNotifier: ActionNotifierPort;
     /** Shared with the host's other approval questions, so each answer reads the list the one before wrote. */
     readonly questions: QuestionQueue;
-    /** Where "Review…" takes the user; absent, the picker's checklist. */
+    /** Where "Review…" takes the user, as {@link reviewOrChecklist} defaults it. */
     readonly review?: ApprovalReviewPort;
 }
 
@@ -354,7 +354,7 @@ export class BpmnEditorFeature {
         const catalog = new RulePackageCatalog(approvals, fingerprints, this.ports.notifier);
         const question = new ApprovalQuestion(
             catalog,
-            review ?? new ListReview(this.ports.picker),
+            reviewOrChecklist(review, this.ports.picker),
             actionNotifier,
             this.ports.workspace,
             questions,

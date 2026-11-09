@@ -10,3 +10,11 @@ export class ListReview implements ApprovalReviewPort {
         return { kind: "checked", ids: await this.picker.chooseMany(prompt) };
     }
 }
+
+/** A host's own review, else the picker's checklist. */
+export function reviewOrChecklist(
+    review: ApprovalReviewPort | undefined,
+    picker: PickerPort,
+): ApprovalReviewPort {
+    return review ?? new ListReview(picker);
+}
