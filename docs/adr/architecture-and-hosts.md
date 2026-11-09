@@ -1121,7 +1121,10 @@ The bridge runs each inbound call on a queue keyed by its editor or its method
 frames while a later push on another queue runs at once, and a request's reply
 can arrive after a newer push. The approvals therefore carry a host revision,
 read together with the list, on every frame that carries a list, and the mirror
-ignores an older one. The host holds no lock while it queues the frames. The
+ignores an older one. The host holds no lock while it queues the frames and
+does not coalesce them: two projects' changes queue from their own threads, so
+a frame queued later can carry the older revision and must not replace the
+newer one. The
 revision lives in memory per IDE run, since every bridge is a child of that
 run, and a respawned bridge starts below it.
 
