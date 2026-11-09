@@ -127,13 +127,13 @@ class AddOnsRouterTest {
     @Test
     fun `opens a registered view again after a spawn, at its last visibility`() {
         val (wired, router) = routed().let { it.wired to it.router }
-        router.sendOpen()
+        router.followNewProcess()
         wired.fake.expectNoFrame()
 
         router.registerWindow(post = {}, reload = {})
         router.setOpen(true)
         wired.fake.framesUntilQuiet()
-        router.sendOpen()
+        router.followNewProcess()
 
         val params = json(wired.fake.nextFrame()).getAsJsonObject("params")
         assertEquals(true, params.get("open").asBoolean)
@@ -148,20 +148,20 @@ class AddOnsRouterTest {
 
         router.unregisterWindow()
         val closed = json(wired.fake.nextFrame()).getAsJsonObject("params")
-        router.sendOpen()
+        router.followNewProcess()
 
         assertEquals(false, closed.get("open").asBoolean)
         wired.fake.expectNoFrame()
     }
 
     @Test
-    fun `reloads the registered page after a crash respawn`() {
+    fun `reloads the registered page when a process replaces another`() {
         val router = routed().router
         var reloads = 0
-        router.reloadPageAfterRespawn()
         router.registerWindow(post = {}, reload = { reloads++ })
 
-        router.reloadPageAfterRespawn()
+        router.followNewProcess()
+        router.followNewProcess()
 
         assertEquals(1, reloads)
     }

@@ -46,6 +46,6 @@ internal class BridgeRouters(deps: BridgeDeps) {
         editor.pushSettings()
         templatePreferences.push()
         pluginApprovals.pushStored()
-        addOns.sendOpen()
+        addOns.followNewProcess()
     }
 }

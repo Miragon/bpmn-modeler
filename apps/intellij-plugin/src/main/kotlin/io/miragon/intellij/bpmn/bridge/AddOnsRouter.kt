@@ -31,6 +31,9 @@ internal class AddOnsRouter(
     @Volatile
     private var open = false
 
+    @Volatile
+    private var spawnedBefore = false
+
     fun register() {
         deps.handlers
             .on("addOns/postMessage") { params ->
@@ -83,20 +86,23 @@ internal class AddOnsRouter(
         deps.channel.notify(HostToCoreMethod.ADD_ONS_OPEN, params, coalesceKey = "addOns/open", reliable = true)
     }
 
-    /** A new process attached its panel hidden; it follows the registered page again. */
-    fun sendOpen() {
-        if (window == null) return
+    /**
+     * A new process attached its panel hidden; it follows the registered page
+     * again. Every process after the first replaced one that died, so the page
+     * reloads: only a result frees a busy row, and the dead process took its
+     * requests with it.
+     */
+    fun followNewProcess() {
+        val replacedOne = spawnedBefore
+        spawnedBefore = true
+        val registered = window ?: return
         setOpen(open)
+        if (replacedOne) registered.reload()
     }
 
     fun refresh() {
         deps.channel.notify(HostToCoreMethod.ADD_ONS_REFRESH, linkedMapOf<String, Any>())
         deps.ensureStartedAsync()
-    }
-
-    /** Frees the rows whose request died with the crashed process; the reloaded page asks the new one. */
-    fun reloadPageAfterRespawn() {
-        window?.reload?.invoke()
     }
 
     fun clear() {

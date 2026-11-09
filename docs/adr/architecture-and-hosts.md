@@ -258,8 +258,9 @@ panel, so no row id rides the wire. Kotlin answers `false` where JCEF is
 missing, the tool window is not registered or the project is closing, and the
 `ListReview` fallback asks instead. The tab's title button sends
 `addOns/refresh`, as nothing reports an installed package or another window's
-approval. After a crash respawn Kotlin reloads the page: only a result frees a
-busy row, and a request the dead process took would leave its row busy.
+approval. Every process after the first, a crash respawn or a start after the
+supervisor gave up, reloads the page: only a result frees a busy row, and a
+request the dead process took would leave its row busy.
 
 Each host keeps one coverage spec
 over every surface, typed `HostSurfaceCoverage` (`libs/modeler-core/src/testing/`):
