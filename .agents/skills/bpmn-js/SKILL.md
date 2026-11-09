@@ -152,8 +152,16 @@ It also guards **Cmd/Ctrl+A**: without it, bpmn-js's `Keyboard` service steals C
 
 Element templates are JSON files that define custom property configurations for BPMN elements. They are loaded by:
 
-1. Extension host sends `ElementTemplatesQuery` with template JSON to webview
-2. Webview calls `bpmnModeler.setElementTemplates(templates)` → `modeler.get('elementTemplatesLoader').setTemplates(templates)`
+1. Extension host sends `ElementTemplatesQuery` with template JSON and the hidden template refs to webview
+2. Webview calls `bpmnModeler.setHiddenElementTemplates(refs)`, then `bpmnModeler.setElementTemplates(templates)` → `modeler.get('elementTemplatesLoader').setTemplates(templates)`
+3. A later `HiddenElementTemplatesQuery` calls only `setHiddenElementTemplates(refs)`
+
+Hidden templates are filtered where a template is offered, never at loading: the
+`elementTemplateOffer` service (`packages/bpmn-modeler/src/elementTemplateOffer/`)
+narrows the chooser, a popup filter at priority 100 drops the append, create and
+replace entries, and `getDefault` is narrowed on the `elementTemplates` instance
+so no hidden default is applied on shape or connection create. `get`, `getLatest`
+and `getAll` stay unfiltered for the properties panel.
 
 The webview's handler lives in `apps/bpmn-webview/src/adapter/in/surfaceRequests.ts`; the report of templates the modeler rejects is built by `domain/elementTemplateRejectionReport.ts`.
 

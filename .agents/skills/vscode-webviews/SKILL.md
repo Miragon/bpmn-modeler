@@ -104,7 +104,8 @@ Each message has a `type` string discriminator used for routing.
 **Queries (host → webview):**
 - `BpmnFileQuery`: delivers BPMN XML, engine type (`c7` | `c8`) and the initial UI locale
 - `DmnFileQuery`: delivers DMN XML
-- `ElementTemplatesQuery`: delivers the resolved element-template list
+- `ElementTemplatesQuery`: delivers the resolved element-template list and the templates hidden from new choices
+- `HiddenElementTemplatesQuery`: replaces the hidden templates alone, without re-sending (and re-validating) the list
 - `BpmnModelerSettingQuery`: delivers modeler settings (alignToOrigin, showTransactionBoundaries)
 - `ClipboardQuery`: delivers clipboard text (host mediates sandboxed reads)
 

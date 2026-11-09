@@ -97,6 +97,19 @@ describe("BpmnElementTemplatesService.setElementTemplates", () => {
         ]);
     });
 
+    it("hides no template from new choices", async () => {
+        const { service, editor, addTemplate } = createService();
+        addTemplate(ROOT_TEMPLATES, "a.json", { id: "audit", name: "Audit" });
+
+        await service.setElementTemplates(editor.id);
+
+        expect(
+            editor
+                .postedOfType<ElementTemplatesQuery>("ElementTemplatesQuery")
+                .map((query) => query.hiddenTemplates),
+        ).toEqual([[]]);
+    });
+
     it("merges cached marketplace templates with workspace-local ones, name-sorted", async () => {
         const { service, editor, addTemplate, artifactSvc, marketplaceSvc, fileContents } =
             createService();

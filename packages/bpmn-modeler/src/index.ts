@@ -49,6 +49,7 @@ export type { ReferenceKind } from "@miragon/bpmn-modeler-types";
 
 export type {
     Engine,
+    ElementTemplateRef,
     BpmnModelerSetting,
     BpmnlintConfig,
     LintResults,

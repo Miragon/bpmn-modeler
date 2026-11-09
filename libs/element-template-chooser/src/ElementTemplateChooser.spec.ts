@@ -38,7 +38,10 @@ afterEach(() => {
     vi.restoreAllMocks();
 });
 
-function createChooser(config: { elementTemplateChooser?: boolean } | null = null) {
+function createChooser(
+    config: { elementTemplateChooser?: boolean } | null = null,
+    services: Record<string, unknown> = {},
+) {
     const listeners = new Map<string, SelectListener>();
     const eventBus = {
         on: vi.fn((event: string, listener: SelectListener) => listeners.set(event, listener)),
@@ -61,7 +64,7 @@ function createChooser(config: { elementTemplateChooser?: boolean } | null = nul
         eventBus as never,
         elementTemplates as never,
         { getContainer: () => canvasContainer } as never,
-        { get: () => null },
+        { get: <T>(name: string) => (services[name] ?? null) as T | null },
     );
 
     const requestTemplateSelection = () =>
@@ -89,6 +92,20 @@ describe("ElementTemplateChooser", () => {
         expect(overlayRoot()?.getAttribute("data-bpmn-theme")).toBe("dark");
         const offered = [...overlayRoot()!.querySelectorAll(".etc-card-name")];
         expect(offered.map((card) => card.textContent)).toEqual(["Other Template"]);
+    });
+
+    it("lists only the templates the offer service offers", () => {
+        const thirdTemplate = template({ id: "third", name: "Third Template" });
+        const offer = { isOffered: (offered: ElementTemplate) => offered.id !== "other" };
+        const { elementTemplates, requestTemplateSelection, overlayRoot } = createChooser(null, {
+            elementTemplateOffer: offer,
+        });
+        elementTemplates.getLatest.mockReturnValue([appliedTemplate, otherTemplate, thirdTemplate]);
+
+        requestTemplateSelection();
+
+        const offered = [...overlayRoot()!.querySelectorAll(".etc-card-name")];
+        expect(offered.map((card) => card.textContent)).toEqual(["Third Template"]);
     });
 
     it("resolves placeholders without a translate service", () => {

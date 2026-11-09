@@ -21,3 +21,4 @@ export type {
     BindingDirection,
 } from "./types";
 export { classifyBinding, extractImplementationDetail } from "./types";
+export type { TemplateOffer } from "./ElementTemplateChooser";

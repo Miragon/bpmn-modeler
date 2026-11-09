@@ -13,11 +13,13 @@ import ts from "typescript";
 const PKG = "@miragon/bpmn-modeler";
 
 // One fixture per public entry, mirroring the documented README examples plus
-// typed handle use (exportDiagram, captureViewState/applyViewState, the
-// command-stack and format subscriptions, the layout and cleanup outcomes).
+// typed handle use (exportDiagram, captureViewState/applyViewState, hidden
+// element templates, the command-stack and format subscriptions, the layout and
+// cleanup outcomes).
 const CONSUMER_FIXTURES = {
     "modeler.ts": `
         import { createModeler, detectEngine } from "${PKG}";
+        import type { ElementTemplateRef } from "${PKG}";
 
         export async function useModeler(
             canvas: HTMLElement,
@@ -31,6 +33,8 @@ const CONSUMER_FIXTURES = {
                 linting: false,
             });
             await modeler.loadDiagram(xml);
+            const hidden: readonly ElementTemplateRef[] = [{ id: "com.example.rest", version: 2 }];
+            modeler.setHiddenElementTemplates(hidden);
             const stopChanges: () => void = modeler.onCommandStackChanged(() => undefined);
             const stopFormats = modeler.onFormatted((outcome) => void outcome.status);
             stopChanges();
