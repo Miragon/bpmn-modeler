@@ -156,6 +156,7 @@ describe("NodeWorkspace.createWatcher on a folder that does not exist yet", () =
     });
 
     afterEach(() => {
+        vi.useRealTimers();
         watchSpy.mockClear();
         closeSpy.mockClear();
         readdirSpy.mockReset();
@@ -170,6 +171,17 @@ describe("NodeWorkspace.createWatcher on a folder that does not exist yet", () =
     function folderAppears(folder: string) {
         missingFolders.delete(folder);
         chokidarListeners.get("addDir")?.(folder);
+    }
+
+    /** Stubs `fs.readdir`: each folder lists its entries, a trailing `/` marking a folder. */
+    function filesOnDisk(listing: Record<string, string[]>) {
+        readdirSpy.mockImplementation(async (path: string) =>
+            (listing[path] ?? []).map((name) => ({
+                name: name.replace(/\/$/, ""),
+                isDirectory: () => name.endsWith("/"),
+                isSymbolicLink: () => false,
+            })),
+        );
     }
 
     it("watches only the direct children of the nearest existing folder", () => {
@@ -201,17 +213,38 @@ describe("NodeWorkspace.createWatcher on a folder that does not exist yet", () =
         expect(watchedFolders()).toEqual(["/repo depth 0", "/repo/.camunda/plugins depth all"]);
     });
 
-    it("reports the files a folder already holds when its watch armed late, and only then", () => {
-        new NodeWorkspace().createWatcher("/repo/.camunda/plugins", "**/*", {});
-        new NodeWorkspace().createWatcher("/repo/src", "**/*", {});
+    // chokidar lists a folder before it watches it: a file written in between
+    // raises neither a first-scan add nor an event, and a late arming follows a
+    // `mkdir -p` whose file write lands in that gap.
+    it("reports a file written while the late watch armed once chokidar is ready", async () => {
+        vi.useFakeTimers();
+        const created: string[] = [];
+        new NodeWorkspace().createWatcher("/repo/.camunda/plugins", "**/*.json", {
+            onCreate: (path) => created.push(path),
+        });
         folderAppears("/repo/.camunda");
         folderAppears("/repo/.camunda/plugins");
+        filesOnDisk({ "/repo/.camunda/plugins": ["resize/"], "/repo/.camunda/plugins/resize": ["plugin.json"] });
 
-        const ignoreInitialOf = (folder: string) =>
-            watchSpy.mock.calls.find(([watched, options]) => watched === folder && options.depth === undefined)?.[1]
-                .ignoreInitial;
-        expect(ignoreInitialOf("/repo/.camunda/plugins")).toBe(false);
-        expect(ignoreInitialOf("/repo/src")).toBe(true);
+        chokidarListeners.get("ready")?.("");
+        await vi.advanceTimersByTimeAsync(50);
+
+        expect(created).toEqual(["/repo/.camunda/plugins/resize/plugin.json"]);
+    });
+
+    it("lists no files when chokidar is ready on a folder that existed when watched", async () => {
+        vi.useFakeTimers();
+        const created: string[] = [];
+        new NodeWorkspace().createWatcher("/repo/src", "**/*.json", {
+            onCreate: (path) => created.push(path),
+        });
+        filesOnDisk({ "/repo/src": ["old.json"] });
+
+        chokidarListeners.get("ready")?.("");
+        await vi.advanceTimersByTimeAsync(50);
+
+        expect(created).toEqual([]);
+        expect(readdirSpy).not.toHaveBeenCalled();
     });
 
     it("stops waiting once disposed", () => {
