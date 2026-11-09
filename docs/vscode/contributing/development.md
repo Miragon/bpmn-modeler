@@ -152,7 +152,8 @@ just the tree it needs via `yarn workspaces focus`:
 ```bash
 # Modeler-only tree (no Theia, no native-keymap, no apt-step required)
 yarn workspaces focus bpmn-modeler vs-code-bpmn-modeler @miragon/bpmn-modeler-webview \
-  @miragon/dmn-modeler-webview @miragon/bpmn-modeler-deployment-webview @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-append-menu \
+  @miragon/dmn-modeler-webview @miragon/bpmn-modeler-deployment-webview @miragon/bpmn-modeler-add-ons-webview \
+  @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-append-menu \
   @miragon/bpmn-modeler-clipboard @miragon/bpmn-modeler-i18n \
   @miragon/bpmn-modeler-element-template-chooser
 

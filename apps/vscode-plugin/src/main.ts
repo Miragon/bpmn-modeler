@@ -28,11 +28,12 @@ export interface TestApi {
  *
  * The register order is observable (it is the order custom editors, providers,
  * and commands become available): diff → script → marketplace (service) →
- * deployment → BPMN editor → DMN and Form editors → marketplace (commands) →
- * add-on catalog → template preview → compare → commands. Handles flow forward only: the BPMN
+ * deployment → add-ons view reviews (reveal late-bound) → BPMN editor → DMN and
+ * Form editors → marketplace (commands) → add-on catalog (connects the reveal) →
+ * template preview → compare → commands. Handles flow forward only: the BPMN
  * editor routes into diff's controller, the script editor's contribution, the
- * marketplace service and the deployment status; later features reuse handles
- * the earlier ones returned.
+ * marketplace service, the deployment status and the reviews; later features
+ * reuse handles the earlier ones returned.
  */
 export function activate(context: ExtensionContext): TestApi {
     setContext(context);
@@ -52,18 +53,25 @@ export function activate(context: ExtensionContext): TestApi {
     // Before the BPMN editor so its status bar participant can join the BPMN
     // session participant list (the same forward hand-off as the script editor).
     const { deploymentStatusParticipant } = deploymentFeature.register(context, deps);
+    const reviews = addOnsFeature.createViewReviews(deps);
     const { editor: bpmnEditor, plugins } = bpmnEditorFeature.register(context, deps, {
         diffController,
         templateSources,
         deploymentStatusParticipant,
         scriptEditor: script.editorContribution,
+        reviews,
     });
     editorFeature.register(context, deps);
     const { marketplaces } = templateMarketplaceFeature.registerCommands(context, deps, {
         marketplaceSvc,
         templatesSvc: bpmnEditor.templates,
     });
-    addOnsFeature.register(context, deps, { editor: bpmnEditor, plugins, marketplaces });
+    addOnsFeature.register(context, deps, {
+        editor: bpmnEditor,
+        plugins,
+        marketplaces,
+        reviews,
+    });
     elementTemplateFeature.register(context, deps);
     compareFeature.register(context, deps, { diffController });
     commandsFeature.register(context, deps, {

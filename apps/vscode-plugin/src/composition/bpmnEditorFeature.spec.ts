@@ -55,12 +55,17 @@ import {
 } from "@miragon/bpmn-modeler-core";
 import { RecordingScriptEditor } from "@miragon/bpmn-modeler-core/testing";
 
-import { changeWindowFocus } from "../__fixtures__/vscodeCompositionFake";
+import {
+    changeWindowFocus,
+    resetVscodeWindow,
+    vscodeWindow,
+} from "../__fixtures__/vscodeCompositionFake";
 import { InMemoryMemento } from "../__fixtures__/vscodeStorage";
 import { BpmnDiffController } from "../diff/adapter/in/BpmnDiffController";
 import { NodeInstalledPackages } from "../modeler/bpmn/adapter/out/NodeInstalledPackages";
 import { VsCodeTemplatePreferenceStore } from "../modeler/bpmn/adapter/out/VsCodeTemplatePreferenceStore";
 import { setContext } from "../shared/adapter/out/extensionContext";
+import * as addOnsFeature from "./addOnsFeature";
 import * as bpmnEditorFeature from "./bpmnEditorFeature";
 import { buildSharedDeps } from "./sharedDeps";
 
@@ -73,10 +78,15 @@ function createExtensionContext(): ExtensionContext {
     } as unknown as ExtensionContext;
 }
 
-/** The BPMN editor as VS Code's activation builds it. */
+/** The BPMN editor as VS Code's activation builds it, with its reviews' view reveal connected. */
 function createVsCodeBpmnEditor(context = createExtensionContext()) {
     setContext(context);
     const deps = buildSharedDeps(context);
+    const reviews = addOnsFeature.createViewReviews(deps);
+    reviews.reveal.connect(
+        { reveal: (addOnIds) => revealedRows.push(addOnIds) },
+        { focus: async () => void focusedViews.push("artifacts") },
+    );
     const scriptFiles = new ScriptFileStore(
         deps.editorStore,
         deps.vsWorkspace,
@@ -100,6 +110,7 @@ function createVsCodeBpmnEditor(context = createExtensionContext()) {
         ),
         templateSources: { getCachedTemplateSources: () => Promise.resolve([]) },
         deploymentStatusParticipant: deploymentStatus,
+        reviews,
         scriptEditor: new ScriptEditorFeature({
             scriptEditor: new RecordingScriptEditor(deps.editorStore, scriptFiles, deps.picker),
             variables: new ScriptVariableStore(),
@@ -109,12 +120,74 @@ function createVsCodeBpmnEditor(context = createExtensionContext()) {
     });
 }
 
+const revealedRows: (readonly string[])[] = [];
+const focusedViews: string[] = [];
+
+/** What "Review…" on a notice asks the review for one pending item. */
+function reviewRequest(artifactId: string, workspaceFolders: readonly string[]) {
+    return {
+        prompt: {
+            id: "pluginApproval",
+            title: "Allow BPMN plugins from this workspace?",
+            placeholder: "Check what you allow",
+            items: [{ label: "Resize tasks", value: artifactId }],
+        },
+        artifactIds: [artifactId],
+        workspaceFolders,
+    };
+}
+
 describe("VS Code's BPMN editor", () => {
     afterEach(() => {
         vi.restoreAllMocks();
         injectedPorts.plugins.splice(0);
         injectedPorts.editors.splice(0);
         injectedPorts.prunes.splice(0);
+        revealedRows.splice(0);
+        focusedViews.splice(0);
+        resetVscodeWindow();
+    });
+
+    it.each([
+        {
+            kind: "plugin",
+            review: () => injectedPorts.plugins[0]?.review,
+            artifactId: "/work/.camunda/plugins/resize",
+        },
+        {
+            kind: "rule package",
+            review: () => injectedPorts.editors[0]?.rulePackages?.review,
+            artifactId: "/work/node_modules/bpmnlint-plugin-acme",
+        },
+    ])(
+        "leaves Review… of a $kind inside an open folder to the Artifacts view, without a list",
+        async ({ review, artifactId }) => {
+            createVsCodeBpmnEditor();
+
+            const answer = await review()?.review(reviewRequest(artifactId, ["/work"]));
+
+            expect(answer).toEqual({ kind: "leftForView" });
+            expect(focusedViews).toEqual(["artifacts"]);
+            expect(revealedRows).toHaveLength(1);
+            expect(revealedRows[0]).toEqual([expect.stringContaining(artifactId)]);
+            expect(vscodeWindow.quickPicks).toHaveLength(0);
+        },
+    );
+
+    it("lists a plugin to check when no folder is open, as the view lists only open folders", async () => {
+        createVsCodeBpmnEditor();
+
+        const answer = injectedPorts.plugins[0]?.review?.review(
+            reviewRequest("/elsewhere/.camunda/plugins/resize", []),
+        );
+        await vi.waitFor(() => expect(vscodeWindow.quickPicks).toHaveLength(1));
+        vscodeWindow.quickPicks[0].pick("Resize tasks");
+
+        await expect(answer).resolves.toEqual({
+            kind: "checked",
+            ids: ["/elsewhere/.camunda/plugins/resize"],
+        });
+        expect(revealedRows).toEqual([]);
     });
 
     it("removes unused plugin copies from its cache once when the extension activates", () => {

@@ -50,6 +50,12 @@ export function changeWindowFocus(focused: boolean): void {
     windowStateListeners.forEach((listener) => listener({ focused }));
 }
 
+const viewProviders = new Map<string, { provider: unknown; options: unknown }>();
+
+/** The webview view providers registered so far, by view id. */
+export const registeredViewProviders: ReadonlyMap<string, { provider: unknown; options: unknown }> =
+    viewProviders;
+
 export const window = {
     ...windowFake.window,
     onDidChangeWindowState: (listener: (state: { focused: boolean }) => void) => {
@@ -59,7 +65,10 @@ export const window = {
     tabGroups: { all: [], onDidChangeTabs: () => disposable },
     onDidChangeActiveTextEditor: () => disposable,
     registerCustomEditorProvider: () => disposable,
-    registerWebviewViewProvider: () => disposable,
+    registerWebviewViewProvider: (viewId: string, provider: unknown, options?: unknown) => {
+        viewProviders.set(viewId, { provider, options });
+        return { dispose: () => viewProviders.delete(viewId) };
+    },
 };
 
 export const commands = { ...windowFake.commands, registerCommand: () => disposable };

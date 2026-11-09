@@ -1,7 +1,7 @@
 # Engineering practices
 
 - Status: accepted
-- Last reviewed: 2026-11-07
+- Last reviewed: 2026-11-09
 
 ## Context
 
@@ -74,6 +74,9 @@ IntelliJ runs over an RPC loopback that answers as the Kotlin side does. So a
 run pins each adapter's own mapping, not the host itself: where a fake and its
 host part, the suite cannot tell, and the Kotlin half is #2056.
 
+- `describeAddOnViewRevealContract`: `RecordingAddOnViewReveal` and
+  `VsCodeAddOnsViewReveal` over a view focus that rejects where the host
+  cannot show its view, as the provider's does when the focus command fails.
 - `describeApprovalReviewContract`: `ListReview` over `ScriptedPicker`,
   `ScriptedReview`, and `ViewReview` when the view cannot open
   (`RecordingAddOnViewReveal({ shows: false })` over a `ListReview`).

@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { BpmnModdle } from "bpmn-moddle";
-import type { FrameLocator } from "playwright-core";
+import type { FrameLocator, Locator } from "playwright-core";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import {
@@ -41,12 +41,15 @@ const TASK_ID = "Task_Check";
 const ORIGINAL_TASK_NAME = "Check order";
 const RENAMED_TASK_NAME = "Ship order";
 const TIMEOUT_MS = 30_000;
+// The editor opens before its plugin notice, so a notice may follow the render.
+const NOTICE_WINDOW_MS = 3_000;
 /** Its own `.camunda/plugins`, so only diagrams below it are offered the plugin. */
 const PLUGIN_FOLDER = "bpmn-plugin";
 const PLUGIN_BPMN_FILE = "plugin-smoke.bpmn";
 const PLUGIN_NAME = "Smoke trace";
 const PLUGIN_NOTICE = "1 BPMN plugin in this workspace is not allowed yet.";
-const PLUGIN_APPROVAL_TITLE = "Allow BPMN plugins from this workspace?";
+/** The Artifacts view's outline, which tells its page from the Deploy view's. */
+const ARTIFACTS_OUTLINE = '[role="group"][aria-label="Artifacts"]';
 const PLUGIN_BADGE_COLOR = "rgb(255, 0, 255)";
 const OPEN_TIMING_ROUNDS = 3;
 
@@ -102,6 +105,15 @@ async function diagramRendered(webview: FrameLocator): Promise<boolean> {
     return shapes >= 3 && connections >= 2;
 }
 
+/** A poll for zero passes at once, so this watches the whole window for an element that appears late. */
+async function expectAbsentFor(locator: Locator, milliseconds: number): Promise<void> {
+    const until = Date.now() + milliseconds;
+    while (Date.now() < until) {
+        expect(await locator.count()).toBe(0);
+        await new Promise((done) => setTimeout(done, 100));
+    }
+}
+
 /** Repaints after a DOM change, so a screenshot shows the settled frame. */
 async function settle(webview: FrameLocator): Promise<void> {
     await webview
@@ -139,6 +151,13 @@ function pluginTraceOnCanvas(webview: FrameLocator): Promise<number> {
 
 async function diagramWithPluginRendered(webview: FrameLocator): Promise<boolean> {
     return (await diagramRendered(webview)) && (await pluginTraceOnCanvas(webview)) === 1;
+}
+
+/** Focus inside a webview frame: its document has it and the element is the active one. */
+function isFocused(element: Locator): Promise<boolean> {
+    return element
+        .evaluate((node) => node === document.activeElement && document.hasFocus())
+        .catch(() => false);
 }
 
 async function cachedPluginScripts(globalStorageDirectory: string): Promise<string[]> {
@@ -1355,8 +1374,9 @@ describe("the packaged extension in a real VS Code", () => {
             isRendered: (webview: FrameLocator) => Promise<boolean>,
         ): Promise<number> {
             await vscode().runCommand("View: Close All Editors");
+            // The Artifacts view keeps its frame after the editors close.
             await expect
-                .poll(() => page().locator("iframe.webview").filter({ visible: true }).count())
+                .poll(() => vscode().editorFrames().filter({ visible: true }).count())
                 .toBe(0);
             const startedAt = performance.now();
             await open();
@@ -1375,13 +1395,26 @@ describe("the packaged extension in a real VS Code", () => {
                 .filter({ hasText: PLUGIN_NOTICE });
             await notice.getByRole("button", { name: "Review…" }).click();
 
-            const picker = page().locator(".quick-input-widget");
-            await picker.getByText(PLUGIN_APPROVAL_TITLE).waitFor();
-            const row = picker.locator(".monaco-list-row").filter({ hasText: PLUGIN_NAME });
-            const checkbox = row.getByRole("checkbox").first();
-            await checkbox.click();
-            await expect.poll(() => checkbox.getAttribute("aria-checked")).toBe("true");
-            await picker.getByRole("button", { name: "OK" }).click();
+            // Review… opens the Artifacts view at the plugin's row instead of a list.
+            const artifacts = await vscode().viewWebview(ARTIFACTS_OUTLINE);
+            const row = artifacts.getByRole("listitem", { name: PLUGIN_NAME });
+            await expect.poll(() => isFocused(row), { timeout: TIMEOUT_MS }).toBe(true);
+            expect(await page().locator(".quick-input-widget").isVisible()).toBe(false);
+            expect(await row.locator(".meta").textContent()).toContain("Not allowed yet");
+            expect(await row.locator("dt").allTextContents()).toEqual(
+                expect.arrayContaining(["Folder", "Covers", "Content hash"]),
+            );
+
+            const allow = row.getByRole("button", { name: "Allow this content" });
+            for (let presses = 0; presses < 5 && !(await isFocused(allow)); presses++) {
+                await page().keyboard.press("Tab");
+            }
+            expect(await isFocused(allow)).toBe(true);
+            await page().keyboard.press("Enter");
+            await expect
+                .poll(() => artifacts.getByRole("status").textContent(), { timeout: TIMEOUT_MS })
+                .toBe(`Allowed ${PLUGIN_NAME}. Open editors reload with it.`);
+            await expect.poll(() => isFocused(row)).toBe(true);
 
             await vscode().showInCustomEditor(PLUGIN_BPMN_FILE, diagramWithPluginRendered);
             const webview = vscode().webview();
@@ -1408,6 +1441,7 @@ describe("the packaged extension in a real VS Code", () => {
             await settle(webview);
             await vscode().screenshot(join(RESULTS_DIRECTORY, "bpmn-plugin.png"));
             expectNoCspViolations();
+            await vscode().runCommand("View: Show Explorer");
         });
 
         // A coarse comparison: one window, a 200 ms render poll, each editor a fresh webview.
@@ -1435,6 +1469,36 @@ describe("the packaged extension in a real VS Code", () => {
             );
             expectNoCspViolations();
         }, 120_000);
+
+        it("revokes the plugin from the Artifacts view and reloads without it", async () => {
+            await vscode().showInCustomEditor(PLUGIN_BPMN_FILE, diagramWithPluginRendered);
+            const notice = page()
+                .locator(".notifications-toasts .notification-toast")
+                .filter({ hasText: PLUGIN_NOTICE });
+
+            await vscode().runCommand("Focus on Artifacts View");
+            const artifacts = await vscode().viewWebview(ARTIFACTS_OUTLINE);
+            await artifacts
+                .getByRole("listitem", { name: PLUGIN_NAME })
+                .getByRole("button", { name: "Revoke" })
+                .click();
+
+            await expect
+                .poll(() => artifacts.getByRole("status").textContent(), { timeout: TIMEOUT_MS })
+                .toBe(`Revoked ${PLUGIN_NAME}. Open editors reload without it.`);
+            await vscode().showInCustomEditor(
+                PLUGIN_BPMN_FILE,
+                async (webview) =>
+                    (await diagramRendered(webview)) && (await pluginTraceOnCanvas(webview)) === 0,
+            );
+            // A revoke from the view is an answer: no notice asks about the plugin again.
+            await expectAbsentFor(notice, NOTICE_WINDOW_MS);
+
+            await settle(artifacts);
+            await vscode().screenshot(join(RESULTS_DIRECTORY, "artifacts-view.png"));
+            expectNoCspViolations();
+            await vscode().runCommand("View: Show Explorer");
+        });
     });
 
     // Runs last: proves the collector sees violations, so the empty lists above mean something.
