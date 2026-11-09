@@ -765,20 +765,22 @@ contract test as preconditions.
 host-neutral read model of the artifacts view
 ([#2263](https://github.com/Miragon/bpmn-modeler/issues/2263); the views are
 [#2250](https://github.com/Miragon/bpmn-modeler/issues/2250)). It owns no
-rule of the code it lists: the plugin and rule package features each meet a
+rule of what it lists: the plugin and rule package features each meet a
 structural port of `addOns/port/` with an inventory (`PluginInventory`,
 `RulePackageInventory`) that finds, places, hashes and answers for their code
 as their notices do, says what it can do once allowed, what follows an
 allow or a revoke and which revoked code stays loaded, and runs what
-follows a revoke. The host compositions wire one into the
-other ([package boundaries](architecture-and-hosts.md#package-boundaries)).
-Both hosts build an `AddOnsFeature`; no view attaches to it yet. Templates and
-marketplaces are not listed yet: their listing, the targeted remove and its
-confirm follow with the views.
+follows a revoke. The element templates meet one with `TemplateInventory`,
+which reads each template file by the loader's rule (`templatesOfFileText`,
+`detectTemplateEngine`), and the marketplaces with `MarketplaceInventory`
+over the host's `MarketplaceCommands`. The host compositions wire one into
+the other ([package boundaries](architecture-and-hosts.md#package-boundaries)).
+Both hosts build an `AddOnsFeature`; no view attaches to it yet.
 
 - *Scope.* It lists the open workspace only: the root config folder's
-  `plugins/` of every workspace folder, the nested config folders an editor or
-  a listing already looked in, each folder's `node_modules` and the
+  `plugins/` and `element-templates/` of every workspace folder, the nested
+  config folders an editor or a listing already looked in (for templates, the
+  templates folders an open editor loaded), each folder's `node_modules` and the
   `node_modules` of each lint config read so far inside one, the packages the gate
   reported, and every stored row inside a folder that discovery missed, read
   directly, so a row whose folder is gone shows as gone. A row outside every
@@ -787,8 +789,28 @@ confirm follow with the views.
   the reader only fetches. Add-ons group by the
   innermost workspace folder, then by source (the root config folder, nested
   config folders by path, package folders), then by name. A nested config
-  folder's plugins apply only to the diagrams below it, and the source says so.
-  The bridge lists the folders the host registered.
+  folder's plugins and templates apply only to the diagrams below it, and the
+  source says so; a config folder's plugins and templates share its source,
+  plugins first. The bridge lists the folders the host registered.
+- *Templates.* One row per template, `template:<file>#<id>@<version>`, with
+  its version and its file's engine; a file that cannot be read is one row,
+  by its file name, that says why. A template is always "Enabled" and offers
+  no action yet, so the core records no template as shown; turning one off
+  is [#2264](https://github.com/Miragon/bpmn-modeler/issues/2264).
+- *Marketplaces.* A group after the folders lists each registered
+  marketplace as a source, in the order the hosts fetch them: its label, the
+  scopes that hold it in the words of the removal choice, its cached
+  templates (`cachedTemplatePathsByRegistration`, the cache's own layout) and
+  why it has none: an entry the registry cannot parse, nothing fetched yet,
+  or a cache that cannot be read. The catalog offers "Add marketplace…" and
+  "Update marketplaces", and each source "Remove". All three run the
+  host's `MarketplaceCommands`, the same instance its commands run, so a flow
+  started from either queues behind the other on its one-at-a-time queue and
+  asks its own questions; the result is `reportedByFlow`. A removal names the
+  entry the latest build showed for the source, never a payload, and asks
+  `marketplaceRemovalConfirm` before the queued unregister, prune and reload.
+  `MarketplaceCommands` fires `onDidChange` at the end of every flow that ran,
+  failed ones included, and the catalog lists again on it.
 - *Read model.* `catalogModelOf` in `addOns/domain/` builds every text, the
   state (`codeStateOf`, the same reading as the notices), and the actions a
   row offers from one table keyed by what the owner read and that state:
@@ -827,8 +849,9 @@ confirm follow with the views.
   state holds (see the multi-window residual under "One question at a
   time"). A change of the
   approvals, of an owner, below a config folder (one watcher per workspace
-  folder while a view is attached) or of the config folder setting lists
-  again; `node_modules` is not watched, and a refresh or a view shown again
+  folder while a view is attached), of the templates folders the open editors
+  loaded, a marketplace flow's end, or a change of the config folder or
+  marketplaces setting lists again; `node_modules` is not watched, and a refresh or a view shown again
   reads it. Its actions run on a queue of their own, so a notice left open
   never holds back the view.
 

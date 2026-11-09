@@ -780,8 +780,11 @@ The template marketplace's add and remove flows run in the core's
 `template-marketplace/domain/marketplacePrompts.ts` builds all their text.
 Removing is a choice: `marketplaceRemoval` returns the nothing-registered
 message, or a `chooseMany` prompt whose items name each entry and the scopes
-that hold it (`This project`, `All my projects`, or both), so it needed no new
-port method. Adding asks for free text and a scope together, which no
+that hold it (`This project`, `All my projects`, or both, from
+`marketplaceScopesText`, which the add-on catalog uses too), so it needed no
+new port method. The add-on catalog removes one named entry instead:
+`marketplaceRemovalConfirm` builds a confirm that names it and its scopes, or
+says it is no longer registered, and the same queued body follows. Adding asks for free text and a scope together, which no
 `PickerPort` method can, so it is a new kind of input:
 `MarketplacePromptPort.promptForMarketplace` takes the `MarketplaceAddPrompt`
 that `marketplaceAddPrompt` builds (title, prompt, placeholder, the scopes to
