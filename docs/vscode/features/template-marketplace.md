@@ -22,6 +22,8 @@ Adding a marketplace that is already registered saves nothing: it is still fetch
 
 These commands run one at a time. A command you start while another one runs shows its progress and waits for it.
 
+The [Artifacts view](/vscode/features/artifacts) lists each registered marketplace with its cached templates. Its toolbar adds and updates marketplaces, each marketplace offers **Remove**, and **Disable templates** keeps a marketplace's templates out of new choices without removing it.
+
 ## The `marketplace.json` file
 
 A marketplace lists one or more sources. Every `.json` file under a source's `path` is loaded as a template unless `include` narrows it down.
