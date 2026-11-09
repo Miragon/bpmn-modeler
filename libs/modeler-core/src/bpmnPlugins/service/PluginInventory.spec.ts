@@ -205,7 +205,7 @@ describe("PluginInventory", () => {
     });
 
     it("removes a revoked plugin's copy after a revoke", async () => {
-        const { host, inventory } = setUp();
+        const { host, inventory } = setUp({});
         host.workspace.createDirectory(`${CACHE}/${RESIZE_HASH}`);
 
         await inventory.afterRevoke();
