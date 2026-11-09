@@ -114,7 +114,7 @@ export function createBridge(
     const plugins = bpmnPluginsFeature.register(deps, { cacheRoot: pluginCacheRoot });
     const editor = bpmnEditorFeature.register(deps, {
         onSettingsApplied: diff.rebroadcastLanguage,
-        templateProvider: marketplace.marketplaceSvc,
+        templateProvider: marketplace.templateSources,
         scriptEditor: script.editorContribution,
         deploymentStatus: deployment.statusParticipant,
         plugins: plugins.editorContribution,

@@ -25,8 +25,6 @@ export interface ElementTemplateSource {
     readonly source?: TemplateSourceRef;
 }
 
-export const EMPTY_TEMPLATE_SOURCE: ElementTemplateSource = { fileCount: 0, templates: [] };
-
 /** Templates of all sources sorted by name; equal names keep their source order. */
 export function mergeElementTemplates(
     sources: readonly ElementTemplateSource[],

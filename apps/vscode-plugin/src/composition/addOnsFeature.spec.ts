@@ -47,7 +47,7 @@ function createVsCodeAddOns(context = createExtensionContext()) {
     );
     const diffStore = new DiffPaneStore();
     const deploymentStatus: EditorSessionParticipant = { onResolve: () => undefined };
-    const { marketplaceSvc } = templateMarketplaceFeature.register(context, deps);
+    const { marketplaceSvc, templateSources } = templateMarketplaceFeature.register(context, deps);
     const bpmn = bpmnEditorFeature.register(context, deps, {
         diffController: new BpmnDiffController(
             diffStore,
@@ -58,7 +58,7 @@ function createVsCodeAddOns(context = createExtensionContext()) {
             },
             deps.preferences,
         ),
-        marketplaceSvc,
+        templateSources,
         deploymentStatusParticipant: deploymentStatus,
         scriptEditor: new ScriptEditorFeature({
             scriptEditor: new RecordingScriptEditor(deps.editorStore, scriptFiles, deps.picker),

@@ -1,14 +1,27 @@
 import { posix } from "path";
 
-import { ElementTemplatesQuery } from "@miragon/bpmn-modeler-shared";
+import { ElementTemplatesQuery, HiddenElementTemplatesQuery } from "@miragon/bpmn-modeler-shared";
+import { type ElementTemplateRef, elementTemplateRefKey } from "@miragon/bpmn-modeler-types";
 
-import { DocumentPort, NotifierPort, StatusBarPort } from "../../../kernel/port/hostPorts";
+import {
+    DocumentPort,
+    NotifierPort,
+    StatusBarPort,
+    WorkspacePort,
+} from "../../../kernel/port/hostPorts";
+import { TemplatePreferenceStorePort } from "../../../kernel/port/templatePreferencePorts";
 import { EditorSessionStore } from "../../../editorSession/service/EditorSessionStore";
 import { ArtifactChangeTarget, ArtifactService } from "../../../kernel/service/ArtifactService";
 import { updateStatusSlot } from "../../../kernel/service/updateStatusSlot";
+import { configFolderOfArea } from "../../../kernel/domain/configArtifacts";
+import {
+    configFolderTemplateSourceOf,
+    NO_TEMPLATE_PREFERENCES,
+    TemplateSourceRef,
+} from "../../../kernel/domain/templatePreferences";
 import {
     ElementTemplateSource,
-    EMPTY_TEMPLATE_SOURCE,
+    hiddenElementTemplateRefs,
     mergeElementTemplates,
     templatesOfFileText,
 } from "../domain/elementTemplates";
@@ -24,7 +37,16 @@ const REFRESH_DEBOUNCE_MS = 150;
  * wires no marketplace simply passes nothing.
  */
 export interface CachedTemplateProvider {
-    getCachedTemplatePaths(): Promise<string[]>;
+    /** Each group with where the user's switches for it live, if anywhere. */
+    getCachedTemplateSources(): Promise<
+        readonly { readonly source?: TemplateSourceRef; readonly paths: readonly string[] }[]
+    >;
+}
+
+/** What the service reads to keep templates the user switched off out of new choices. */
+export interface TemplateSwitchPorts {
+    readonly preferences: TemplatePreferenceStorePort;
+    readonly workspace: Pick<WorkspacePort, "getWorkspaceFolderPaths">;
 }
 
 /**
@@ -39,6 +61,9 @@ export class BpmnElementTemplatesService implements ArtifactChangeTarget {
     private readonly cache = new ElementTemplateCache();
     private readonly latestRequests = new Map<string, symbol>();
     private readonly templateDirsByEditor = new Map<string, readonly string[]>();
+    /** What each editor was last sent, so a switch change reads nothing from disk. */
+    private readonly sourcesByEditor = new Map<string, readonly ElementTemplateSource[]>();
+    private readonly hiddenKeyByEditor = new Map<string, string>();
     private readonly editorsAwaitingRefresh = new Set<string>();
     private readonly staleOnRefresh = { directories: false, marketplace: false };
     private refreshTimer: ReturnType<typeof setTimeout> | undefined;
@@ -56,6 +81,7 @@ export class BpmnElementTemplatesService implements ArtifactChangeTarget {
         private readonly statusBar: StatusBarPort,
         private readonly notifier: NotifierPort,
         private readonly marketplaceSvc?: CachedTemplateProvider,
+        private readonly switches?: TemplateSwitchPorts,
     ) {}
 
     async setElementTemplates(editorId: string): Promise<boolean> {
@@ -85,9 +111,11 @@ export class BpmnElementTemplatesService implements ArtifactChangeTarget {
                 this.recordTemplateLoad(this.templateLoadStatus.started(request));
             }
 
-            const sources = await Promise.all([
-                ...templateDirs.map((dir) =>
-                    this.cache.directory(dir, () => this.loadDirectory(dir)),
+            const [directories, marketplace] = await Promise.all([
+                Promise.all(
+                    templateDirs.map((dir) =>
+                        this.cache.directory(dir, () => this.loadDirectory(dir)),
+                    ),
                 ),
                 this.loadMarketplaceTemplates(),
             ]);
@@ -97,11 +125,17 @@ export class BpmnElementTemplatesService implements ArtifactChangeTarget {
                 }
                 return false;
             }
+            const sources = [...this.withSwitches(templateDirs, directories), ...marketplace];
             const templates = mergeElementTemplates(sources);
 
+            // Recorded in the tick of the post, so a switch change that follows
+            // compares with what this post carries.
+            const hidden = this.hiddenRefsOf(sources);
+            this.sourcesByEditor.set(editorId, sources);
+            this.hiddenKeyByEditor.set(editorId, hiddenKeyOf(hidden));
             const outcome = await this.editorStore.postUnlessHidden(
                 editorId,
-                new ElementTemplatesQuery(templates, []),
+                new ElementTemplatesQuery(templates, hidden),
             );
             if (outcome === "sent") {
                 if (readsFromDisk) {
@@ -128,6 +162,29 @@ export class BpmnElementTemplatesService implements ArtifactChangeTarget {
         }
     }
 
+    /**
+     * After the user's switches changed: sends each editor whose hidden
+     * templates changed only those, so nothing is read or validated again.
+     * A hidden editor asks for its templates once shown and gets the current
+     * ones then.
+     */
+    async refreshOffers(): Promise<void> {
+        for (const [editorId, sources] of this.sourcesByEditor) {
+            const hidden = this.hiddenRefsOf(sources);
+            const key = hiddenKeyOf(hidden);
+            if (key === this.hiddenKeyByEditor.get(editorId)) continue;
+            this.hiddenKeyByEditor.set(editorId, key);
+            try {
+                await this.editorStore.postUnlessHidden(
+                    editorId,
+                    new HiddenElementTemplatesQuery(hidden),
+                );
+            } catch (error) {
+                this.notifier.logError(error instanceof Error ? error : new Error(String(error)));
+            }
+        }
+    }
+
     refreshElementTemplates(editorId: string): void {
         this.staleOnRefresh.directories = true;
         this.scheduleRefresh(editorId);
@@ -151,6 +208,8 @@ export class BpmnElementTemplatesService implements ArtifactChangeTarget {
     releaseEditor(editorId: string): void {
         this.latestRequests.delete(editorId);
         this.editorsAwaitingRefresh.delete(editorId);
+        this.sourcesByEditor.delete(editorId);
+        this.hiddenKeyByEditor.delete(editorId);
         this.recordTemplateDirs(() => this.templateDirsByEditor.delete(editorId));
         // Only an open editor's watcher keeps an entry fresh; without one a
         // change on disk would go unnoticed until the host restarts.
@@ -219,13 +278,41 @@ export class BpmnElementTemplatesService implements ArtifactChangeTarget {
         );
     }
 
-    private loadMarketplaceTemplates(): Promise<ElementTemplateSource> {
+    private hiddenRefsOf(sources: readonly ElementTemplateSource[]): ElementTemplateRef[] {
+        return hiddenElementTemplateRefs(
+            sources,
+            this.switches?.preferences.read() ?? NO_TEMPLATE_PREFERENCES,
+        );
+    }
+
+    /** Each template folder's switches belong to its config folder; a host without switches tags none. */
+    private withSwitches(
+        templateDirs: readonly string[],
+        directories: readonly ElementTemplateSource[],
+    ): ElementTemplateSource[] {
+        const { switches } = this;
+        if (switches === undefined) {
+            return [...directories];
+        }
+        const folders = switches.workspace.getWorkspaceFolderPaths();
+        return directories.map((directory, index) => ({
+            ...directory,
+            source: configFolderTemplateSourceOf(configFolderOfArea(templateDirs[index]), folders),
+        }));
+    }
+
+    private loadMarketplaceTemplates(): Promise<readonly ElementTemplateSource[]> {
         const marketplace = this.marketplaceSvc;
         if (!marketplace) {
-            return Promise.resolve(EMPTY_TEMPLATE_SOURCE);
+            return Promise.resolve([]);
         }
         return this.cache.marketplaceTemplates(async () =>
-            this.parseTemplateFiles(await marketplace.getCachedTemplatePaths()),
+            Promise.all(
+                (await marketplace.getCachedTemplateSources()).map(async ({ source, paths }) => ({
+                    ...(await this.parseTemplateFiles(paths)),
+                    ...(source && { source }),
+                })),
+            ),
         );
     }
 
@@ -239,7 +326,7 @@ export class BpmnElementTemplatesService implements ArtifactChangeTarget {
         return this.parseTemplateFiles(files);
     }
 
-    private async parseTemplateFiles(files: string[]): Promise<ElementTemplateSource> {
+    private async parseTemplateFiles(files: readonly string[]): Promise<ElementTemplateSource> {
         const templatesPerFile = await Promise.all(
             files.map(async (file) => {
                 try {
@@ -284,4 +371,8 @@ export class BpmnElementTemplatesService implements ArtifactChangeTarget {
         this.notifier.notifyError("A problem occurred while loading element templates.", error);
         return false;
     }
+}
+
+function hiddenKeyOf(hidden: readonly ElementTemplateRef[]): string {
+    return JSON.stringify(hidden.map(elementTemplateRefKey));
 }

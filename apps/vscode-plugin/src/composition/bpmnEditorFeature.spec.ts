@@ -96,7 +96,7 @@ function createVsCodeBpmnEditor(context = createExtensionContext()) {
             },
             deps.preferences,
         ),
-        marketplaceSvc: { getCachedTemplatePaths: () => Promise.resolve([]) },
+        templateSources: { getCachedTemplateSources: () => Promise.resolve([]) },
         deploymentStatusParticipant: deploymentStatus,
         scriptEditor: new ScriptEditorFeature({
             scriptEditor: new RecordingScriptEditor(deps.editorStore, scriptFiles, deps.picker),

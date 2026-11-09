@@ -3,6 +3,7 @@ import {
     createMarketplaceCommands,
     createTemplateMarketplaceService,
     MarketplaceInventory,
+    MarketplaceTemplateSources,
     TemplateMarketplaceService,
 } from "@miragon/bpmn-modeler-core";
 
@@ -50,7 +51,7 @@ export interface MarketplaceOptions {
 export function register(
     deps: BridgeSharedDeps,
     options: MarketplaceOptions,
-): { marketplaceSvc: TemplateMarketplaceService } {
+): { marketplaceSvc: TemplateMarketplaceService; templateSources: MarketplaceTemplateSources } {
     const marketplaceSvc = createTemplateMarketplaceService({
         workspace: deps.nodeWorkspace,
         settings: deps.settings,
@@ -61,7 +62,12 @@ export function register(
         homeDir: options.homeDir,
     });
 
-    return { marketplaceSvc };
+    // No registrations: IntelliJ keeps no template switches yet, so its
+    // marketplace templates need no switch source.
+    return {
+        marketplaceSvc,
+        templateSources: new MarketplaceTemplateSources(marketplaceSvc, deps.notifier),
+    };
 }
 
 /**
