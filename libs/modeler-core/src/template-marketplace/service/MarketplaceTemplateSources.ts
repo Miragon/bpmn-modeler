@@ -6,8 +6,7 @@ import { TemplateMarketplaceService } from "./TemplateMarketplaceService";
 
 /**
  * The cached marketplace templates the editors load, grouped by registered
- * marketplace so the user's switches can hide one. Without registrations, as
- * on a host that keeps no switches, they come as one group without switches.
+ * marketplace so the user's switches can hide one.
  */
 export class MarketplaceTemplateSources {
     constructor(
@@ -16,7 +15,7 @@ export class MarketplaceTemplateSources {
             "cachedTemplatePathsByRegistration" | "getCachedTemplatePaths"
         >,
         private readonly logger: LoggerPort,
-        private readonly registrations?: Pick<MarketplaceRegistrationsPort, "read">,
+        private readonly registrations: Pick<MarketplaceRegistrationsPort, "read">,
     ) {}
 
     async getCachedTemplateSources(): Promise<readonly CachedTemplateSource[]> {
@@ -31,7 +30,6 @@ export class MarketplaceTemplateSources {
     }
 
     private async registered() {
-        if (this.registrations === undefined) return undefined;
         try {
             return (await this.registrations.read()).registered;
         } catch (error) {

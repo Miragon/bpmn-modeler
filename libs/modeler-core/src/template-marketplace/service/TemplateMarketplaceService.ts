@@ -196,7 +196,7 @@ export class TemplateMarketplaceService {
 
     /**
      * Every registered marketplace's cached templates as one group, served by
-     * `MarketplaceTemplateSources` when it has no registrations to group them by.
+     * `MarketplaceTemplateSources` when the registrations cannot be read.
      */
     async getCachedTemplatePaths(): Promise<string[]> {
         return registeredTemplateFiles(

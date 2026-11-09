@@ -59,18 +59,6 @@ describe("MarketplaceTemplateSources", () => {
         ]);
     });
 
-    it("serves every cached template untagged on a host that keeps no switches", async () => {
-        const { host, service } = await setUp();
-        const sources = new MarketplaceTemplateSources(service, host.notifier);
-
-        const served = await sources.getCachedTemplateSources();
-
-        expect(served.map(({ source, paths }) => ({ source, files: fileNames(paths) }))).toEqual([
-            { source: undefined, files: ["mail.json", "crm.json"] },
-        ]);
-        expect(host.notifier.logged("error")).toEqual([]);
-    });
-
     it("logs and serves every cached template untagged when the registrations cannot be read", async () => {
         const { host, service } = await setUp();
         const sources = new MarketplaceTemplateSources(service, host.notifier, {

@@ -891,8 +891,8 @@ Both hosts build an `AddOnsFeature`; no view attaches to it yet.
   or a cache that cannot be read. Editors load the same templates, those of
   the registered entries, grouped by registered slot with the source their
   switches live in (`registeredTemplateSources`, read by
-  `MarketplaceTemplateSources` from the host's registrations; without
-  registrations, as on the bridge, one group without switches), and read them
+  `MarketplaceTemplateSources` from the host's registrations; when those
+  cannot be read, one group without switches), and read them
   again when the marketplaces setting changes, so the slot of an entry
   removed by hand serves nothing though it stays cached until the next prune.
   Registrations that cannot be read, such
