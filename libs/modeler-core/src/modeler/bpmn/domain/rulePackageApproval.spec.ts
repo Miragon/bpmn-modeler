@@ -734,7 +734,7 @@ describe("rule package approval question", () => {
 
         expect([prompt.title, prompt.placeholder]).toEqual([
             "Allow a bpmnlint rule package from this workspace?",
-            "A rule package runs as a program with your user's rights, not only inside the editor. Check it only if you trust it; open editors lint again with it.",
+            "A rule package runs as a program with your user's rights, not only inside the editor. Check it only if you trust it. Open editors lint again with it.",
         ]);
     });
 
