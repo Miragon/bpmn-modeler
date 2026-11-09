@@ -74,6 +74,7 @@ import {
     type ModelerMode,
 } from "./mode/mode";
 import { ModeUiModule } from "./mode/modeModules";
+import { ElementTemplateOfferModule } from "./elementTemplateOffer";
 import { DrilldownFitModule } from "./viewState";
 import type { CoreModelerServices, CreateModelerOptions, ThemeMode } from "./publicApi";
 import type { LintConfigService } from "./bpmnlint/LintConfigService";
@@ -234,6 +235,7 @@ export class BpmnModeler {
             // After the upstream panel, so its `debounceInput` is the flushable one.
             FlushableDebounceInputModule,
             ModeUiModule,
+            ElementTemplateOfferModule,
             DrilldownFitModule,
         ];
         const capModules = capabilityModules(engine, this.options.capabilities);
