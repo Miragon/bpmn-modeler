@@ -9,27 +9,32 @@ import {
 } from "../kernel/domain/templatePreferences";
 import { TemplatePreferenceStorePort } from "../kernel/port/templatePreferencePorts";
 
+/**
+ * A mirror of the host's lists, as a host adapter keeps one: `read()` sees what
+ * another writer stored only once the store is told or asks with `readStored`.
+ */
 export class InMemoryTemplatePreferences implements TemplatePreferenceStorePort {
-    preferences: TemplatePreferencesByScope = NO_TEMPLATE_PREFERENCES;
+    private mirror: TemplatePreferencesByScope = NO_TEMPLATE_PREFERENCES;
+    private stored: TemplatePreferencesByScope = NO_TEMPLATE_PREFERENCES;
 
     private readonly listeners = new Set<() => void>();
     private reportedKey = templatePreferencesByScopeKey(NO_TEMPLATE_PREFERENCES);
 
     read(): TemplatePreferencesByScope {
-        return this.preferences;
+        return this.mirror;
     }
 
     async change(change: TemplatePreferenceChange): Promise<void> {
-        this.preferences = {
-            ...this.preferences,
-            [change.scope]: templatePreferencesAfter(this.preferences[change.scope], change),
+        this.stored = {
+            ...this.stored,
+            [change.scope]: templatePreferencesAfter(this.stored[change.scope], change),
         };
-        this.report();
+        this.pull();
     }
 
     async readStored(): Promise<TemplatePreferencesByScope> {
-        this.report();
-        return this.preferences;
+        this.pull();
+        return this.mirror;
     }
 
     onDidChange(listener: () => void): { dispose(): void } {
@@ -43,12 +48,13 @@ export class InMemoryTemplatePreferences implements TemplatePreferenceStorePort 
         preferences: TemplatePreferences,
         { notify = false }: { readonly notify?: boolean } = {},
     ): void {
-        this.preferences = { ...this.preferences, [scope]: preferences };
-        if (notify) this.report();
+        this.stored = { ...this.stored, [scope]: preferences };
+        if (notify) this.pull();
     }
 
-    private report(): void {
-        const key = templatePreferencesByScopeKey(this.preferences);
+    private pull(): void {
+        this.mirror = this.stored;
+        const key = templatePreferencesByScopeKey(this.mirror);
         if (key === this.reportedKey) return;
         this.reportedKey = key;
         this.listeners.forEach((listener) => listener());
