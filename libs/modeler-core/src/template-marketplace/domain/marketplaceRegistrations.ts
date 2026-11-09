@@ -86,6 +86,15 @@ export function registeredMarketplaces(registered: RegistrationsByScope): Regist
     return [...byKey.values()];
 }
 
+/** The entry with every scope whose list holds it, matched as {@link registeredMarketplaces} matches them. */
+export function registeredMarketplaceOf(
+    registered: RegistrationsByScope,
+    entry: MarketplaceSettingsEntry,
+): RegisteredMarketplace | undefined {
+    const key = entryKey(entry);
+    return registeredMarketplaces(registered).find((listed) => entryKey(listed.entry) === key);
+}
+
 /** This project fetches the entries of every list, all projects only their own. */
 const LISTS_A_SCOPE_REACHES: Record<MarketplaceScope, readonly MarketplaceScope[]> = {
     project: MARKETPLACE_SCOPES,

@@ -150,16 +150,23 @@ export class MarketplaceCache {
      * construction rather than filtered out afterwards.
      */
     async getCachedTemplatePaths(): Promise<string[]> {
-        const paths: string[] = [];
+        return [...(await this.cachedTemplatePathsByRegistration()).values()].flat();
+    }
+
+    /** The served template files of each cached marketplace, by the id its slots are keyed by. */
+    async cachedTemplatePathsByRegistration(): Promise<ReadonlyMap<string, readonly string[]>> {
+        const byRegistration = new Map<string, string[]>();
         for (const marketplaceDir of await this.listSubdirectories(this.cacheRoot)) {
+            const paths: string[] = [];
             for (const sourceDir of await this.listSubdirectories(marketplaceDir)) {
                 const filesDir = await this.liveFilesDir(sourceDir);
                 paths.push(
                     ...(await this.listJsonRecursive(`${filesDir}/${ELEMENT_TEMPLATES_SEGMENT}`)),
                 );
             }
+            byRegistration.set(marketplaceDir.slice(this.cacheRoot.length + 1), paths);
         }
-        return paths;
+        return byRegistration;
     }
 
     private async liveFilesDir(sourceDir: string): Promise<string> {

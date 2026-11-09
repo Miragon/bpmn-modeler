@@ -8,6 +8,7 @@ import {
     marketplaceAddNotice,
     marketplaceAddPrompt,
     marketplaceRemoval,
+    marketplaceRemovalConfirm,
 } from "../domain/marketplacePrompts";
 import {
     marketplaceAddOutcome,
@@ -56,6 +57,7 @@ export interface MarketplaceCommandPorts {
 export class MarketplaceCommands {
     private runs: Promise<unknown> = Promise.resolve();
     private readonly asking = new Set<string>();
+    private readonly listeners = new Set<() => void>();
 
     constructor(private readonly ports: MarketplaceCommandPorts) {}
 
@@ -115,16 +117,19 @@ export class MarketplaceCommands {
     }
 
     /**
-     * The choice's OK is the confirmation (adding again is cheap). Prunes only
-     * the cache slots the removal orphaned and never fetches the survivors
-     * again. The toast counts the chosen entries, not the pruned slots: a
-     * removed entry may have had none.
+     * Without a target the choice's OK is the confirmation (adding again is
+     * cheap); a target named elsewhere, as by the add-on catalog, is confirmed
+     * first. Prunes only the cache slots the removal orphaned and never fetches
+     * the survivors again. The toast counts the chosen entries, not the pruned
+     * slots: a removed entry may have had none.
      */
-    async remove(): Promise<void> {
+    async remove(target?: MarketplaceSettingsEntry): Promise<void> {
         const { notifier, registrations, marketplaces, templates } = this.ports;
         notifier.logInfo("Remove Marketplace command invoked");
         try {
-            const chosen = await this.askAlone("Remove Marketplace", () => this.askForRemoval());
+            const chosen = await this.askAlone("Remove Marketplace", () =>
+                target === undefined ? this.askForRemoval() : this.confirmRemoval(target),
+            );
             if (!chosen?.length) {
                 notifier.logDebug("Remove Marketplace cancelled");
                 return;
@@ -140,6 +145,12 @@ export class MarketplaceCommands {
         } catch (error) {
             notifier.notifyError("Failed to remove marketplace(s).", error as Error);
         }
+    }
+
+    /** After each flow that ran, whether it succeeded or not; a dismissed question runs none. */
+    onDidChange(listener: () => void): { dispose(): void } {
+        this.listeners.add(listener);
+        return { dispose: () => this.listeners.delete(listener) };
     }
 
     private async askAlone<T>(command: string, ask: () => Promise<T>): Promise<T | undefined> {
@@ -166,6 +177,18 @@ export class MarketplaceCommands {
             return [];
         }
         return picker.chooseMany(removal.prompt);
+    }
+
+    private async confirmRemoval(
+        target: MarketplaceSettingsEntry,
+    ): Promise<readonly MarketplaceSettingsEntry[]> {
+        const { registrations, picker, notifier } = this.ports;
+        const removal = marketplaceRemovalConfirm(target, (await registrations.read()).registered);
+        if (removal.kind === "notRegistered") {
+            notifier.showInfo(removal.message);
+            return [];
+        }
+        return (await picker.confirm(removal.request)) ? [target] : [];
     }
 
     /** Asks again, with the refused entry, until the location is one the core can register. */
@@ -236,7 +259,9 @@ export class MarketplaceCommands {
     }
 
     private oneAtATime<T>(run: () => Promise<T>): Promise<T> {
-        const done = this.runs.then(run);
+        const done = this.runs
+            .then(run)
+            .finally(() => this.listeners.forEach((listener) => listener()));
         this.runs = done.catch(() => undefined);
         return done;
     }

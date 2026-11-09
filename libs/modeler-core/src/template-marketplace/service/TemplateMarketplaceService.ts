@@ -198,6 +198,11 @@ export class TemplateMarketplaceService {
         return this.cache.getCachedTemplatePaths();
     }
 
+    /** What the add-on catalog lists under each marketplace. */
+    cachedTemplatePathsByRegistration(): Promise<ReadonlyMap<string, readonly string[]>> {
+        return this.cache.cachedTemplatePathsByRegistration();
+    }
+
     /**
      * Manifest-level failures propagate (the marketplace is unusable) and leave
      * the cache untouched; source-level failures are logged, keep that source's

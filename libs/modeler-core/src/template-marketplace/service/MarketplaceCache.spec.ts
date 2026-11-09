@@ -356,6 +356,37 @@ describe("MarketplaceCache.getCachedTemplatePaths", () => {
     });
 });
 
+describe("MarketplaceCache.cachedTemplatePathsByRegistration", () => {
+    it("returns no registration when nothing is cached yet", async () => {
+        const cache = new MarketplaceCache("/cache", createWorkspace());
+
+        expect(await cache.cachedTemplatePathsByRegistration()).toEqual(new Map());
+    });
+
+    it("keeps each marketplace's served files apart, a marketplace with an empty slot included", async () => {
+        const workspace = createWorkspace({
+            "/cache/acme/0/element-templates/a.json": "{}",
+            "/cache/acme/1/2/element-templates/b.json": "{}",
+            "/cache/acme/1/slot.json": slotRecord(SOURCE, 2),
+            "/cache/globex/0/slot.json": slotRecord(OTHER_SOURCE, 1),
+        });
+        const cache = new MarketplaceCache("/cache", workspace);
+
+        expect(await cache.cachedTemplatePathsByRegistration()).toEqual(
+            new Map([
+                [
+                    "acme",
+                    [
+                        "/cache/acme/0/element-templates/a.json",
+                        "/cache/acme/1/2/element-templates/b.json",
+                    ],
+                ],
+                ["globex", []],
+            ]),
+        );
+    });
+});
+
 describe("MarketplaceCache.prune", () => {
     it("deletes an unregistered slot and keeps the registered ones", async () => {
         const workspace = createWorkspace({

@@ -1,6 +1,6 @@
 import { ActionNoticeTone } from "../../kernel/domain/actionNotice";
 import { MarketplaceSettingsEntry } from "../../kernel/domain/modelerSettings";
-import { ChoicePrompt } from "../../kernel/domain/prompts";
+import { ChoicePrompt, ConfirmRequest } from "../../kernel/domain/prompts";
 import { FetchReport, FetchVerdict } from "./fetchReport";
 import { marketplaceEntryLabel } from "./marketplace";
 import {
@@ -10,7 +10,9 @@ import {
     MarketplaceRegistrations,
     MarketplaceScope,
     RegisteredMarketplace,
+    registeredMarketplaceOf,
     registrableLocation,
+    RegistrationsByScope,
     SettingsPlace,
 } from "./marketplaceRegistrations";
 
@@ -129,7 +131,7 @@ export function marketplaceRemoval(
             placeholder: "Select marketplaces to remove",
             items: registered.map(({ entry, scopes }) => ({
                 label: marketplaceEntryLabel(entry),
-                description: sentenceCase(scopesPhrase(scopes)),
+                description: marketplaceScopesText(scopes),
                 value: entry,
             })),
         },
@@ -158,4 +160,39 @@ function scopesPhrase(scopes: readonly MarketplaceScope[]): string {
 
 function sentenceCase(phrase: string): string {
     return phrase.charAt(0).toUpperCase() + phrase.slice(1);
+}
+
+export type MarketplaceRemovalConfirm =
+    | { readonly kind: "notRegistered"; readonly message: string }
+    | { readonly kind: "confirm"; readonly request: ConfirmRequest };
+
+/** Where an entry is registered, as the removal choice and the add-on catalog name it. */
+export function marketplaceScopesText(scopes: readonly MarketplaceScope[]): string {
+    return sentenceCase(scopesPhrase(scopes));
+}
+
+/** The question before one named entry is removed from every scope that holds it. */
+export function marketplaceRemovalConfirm(
+    entry: MarketplaceSettingsEntry,
+    registered: RegistrationsByScope,
+): MarketplaceRemovalConfirm {
+    const label = marketplaceEntryLabel(entry);
+    const listed = registeredMarketplaceOf(registered, entry);
+    if (listed === undefined) {
+        return {
+            kind: "notRegistered",
+            message: `The template marketplace ${label} is no longer registered.`,
+        };
+    }
+    return {
+        kind: "confirm",
+        request: {
+            id: "marketplaceRemovalConfirm",
+            title: `Remove the template marketplace ${label}?`,
+            confirmLabel: "Remove",
+            details: [
+                `It is removed from ${scopesPhrase(listed.scopes)}, and its cached templates are deleted.`,
+            ],
+        },
+    };
 }

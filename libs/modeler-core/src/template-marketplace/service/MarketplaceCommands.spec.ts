@@ -490,6 +490,107 @@ describe("MarketplaceCommands.remove", () => {
     });
 });
 
+describe("MarketplaceCommands.remove of one named marketplace", () => {
+    it("asks its confirm, then unregisters it from every scope, drops its cache and reloads", async () => {
+        const {
+            commands,
+            registrations,
+            registered,
+            cachedTemplateNames,
+            templates,
+            picker,
+            notifier,
+        } = marketplaceHost({
+            registered: ["/work/a", "/work/b"],
+            promptAnswers: { marketplaceRemovalConfirm: true },
+        });
+        registrations.lists.project.push("/work/a");
+        await commands.update();
+
+        await commands.remove("/work/a");
+
+        expect(picker.prompts).toEqual([
+            {
+                method: "confirm",
+                args: [
+                    {
+                        id: "marketplaceRemovalConfirm",
+                        title: "Remove the template marketplace /work/a?",
+                        confirmLabel: "Remove",
+                        details: [
+                            "It is removed from all my projects and this project, and its cached templates are deleted.",
+                        ],
+                    },
+                ],
+            },
+        ]);
+        expect(await registered()).toEqual([{ entry: "/work/b", scopes: ["allProjects"] }]);
+        expect(await cachedTemplateNames()).toEqual(["b.json"]);
+        expect(templates.reloads).toBe(2);
+        expect(notifier.progressTitles).toEqual([
+            "Updating marketplaces…",
+            "Removing marketplace(s)…",
+        ]);
+        expect(notifier.infos).toEqual(["Updated 2 marketplace(s).", "Removed 1 marketplace(s)."]);
+    });
+
+    it("removes nothing when the confirm is declined", async () => {
+        const { commands, registered, templates, notifier } = marketplaceHost();
+
+        await commands.remove("/work/a");
+
+        expect(await registered()).toEqual([{ entry: "/work/a", scopes: ["allProjects"] }]);
+        expect(templates.reloads).toBe(0);
+        expect(notifier.infos).toEqual([]);
+    });
+
+    it("says a marketplace removed meanwhile is no longer registered, and asks nothing", async () => {
+        const { commands, picker, notifier } = marketplaceHost();
+
+        await commands.remove("/work/b");
+
+        expect(picker.prompts).toEqual([]);
+        expect(notifier.infos).toEqual([
+            "The template marketplace /work/b is no longer registered.",
+        ]);
+    });
+});
+
+describe("MarketplaceCommands change event", () => {
+    it("fires once at the end of each flow that ran, failed ones included, and never for a dismissed question", async () => {
+        const { commands, registrations, notifier } = marketplaceHost({
+            answers: [{ location: "/work/b", scope: "project" }],
+            promptAnswers: { marketplaceRemovalConfirm: true },
+        });
+        const changes: string[] = [];
+        commands.onDidChange(() => changes.push(notifier.infos.at(-1) ?? ""));
+
+        await commands.add();
+        await commands.update();
+        await commands.remove();
+        vi.spyOn(registrations, "unregister").mockRejectedValueOnce(new Error("read-only"));
+        await commands.remove("/work/b");
+        await commands.remove("/work/a");
+
+        expect(changes).toEqual([
+            "",
+            "Marketplace added.",
+            "Updated 2 marketplace(s).",
+            "Updated 2 marketplace(s).",
+        ]);
+    });
+
+    it("stops firing once its subscription is disposed", async () => {
+        const { commands } = marketplaceHost();
+        let changes = 0;
+        commands.onDidChange(() => changes++).dispose();
+
+        await commands.update();
+
+        expect(changes).toBe(0);
+    });
+});
+
 describe("MarketplaceCommands started while its question is open", () => {
     it("asks one add question at a time and asks again once it is answered", async () => {
         const { commands, prompt, registered, holdAddQuestion, notifier } = marketplaceHost({
