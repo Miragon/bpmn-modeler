@@ -815,8 +815,14 @@ in `addOns/adapter/in/`, so a host only passes a `post` and the page's
 commands; `panelRoutes` answer the surface coverage before any page attaches.
 A page asks for the last model when it loads, as a push can land before it
 listens. `AddOnsFeature.reveal(addOnIds)` keeps the latest reveal and
-delivers it at most once to each attached view while it is visible, after
-the model, so a view shown or attached later still lands on the rows.
+delivers it at most once to each attached view while it is visible, so a view
+shown or attached later still lands on the rows; it may arrive before any
+model, and the page holds it until a model lists one of its rows. A panel
+posts a reveal again to the page that asks once it loads, until a page that
+listens has it, and again after the panel was hidden, as a host may load a
+hidden page anew; a page loaded later gets no old reveal. Reveal ids start
+from the clock, as revisions do, so a page that outlives a core process still
+applies the next reveal.
 
 - *Scope.* It lists the open workspace only: the root config folder's
   `plugins/` and `element-templates/` of every workspace folder, the nested

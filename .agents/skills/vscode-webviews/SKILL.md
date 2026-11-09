@@ -32,6 +32,15 @@ ships only an empty `<div id="app"></div>`; none carries a copy of the form.
 Edit form markup **only** in `formTemplate.ts` (see the Deployment Webview
 section in AGENTS.md).
 
+### Add-ons Webview (Artifacts view)
+
+`apps/add-ons-webview` renders the core's add-on catalog. Its host shells ship
+only an empty `<div id="app"></div>` too; `src/adapter/in/catalogView.ts`
+builds the DOM from the model with the DOM API, never `innerHTML`, as the model
+holds workspace text. Its protocol is `libs/shared/src/lib/addOnsView.ts`, and
+the core's `AddOnsFeature.attachPanel` answers it, so a host only passes
+messages through. No host bundles it yet (#2250's second and third PRs).
+
 ## Content Security Policy (CSP)
 
 Every shell (BPMN, DMN, form, deployment) defines a CSP in a `<meta>` tag and
@@ -315,15 +324,6 @@ const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(baseUri, 'index.js'))
 ```
 
 This converts `file://` paths to `vscode-resource:` URIs that pass the webview's CSP.
-### Add-ons Webview (Artifacts view)
-
-`apps/add-ons-webview` renders the core's add-on catalog. Its host shells ship
-only an empty `<div id="app"></div>` too; `src/adapter/in/catalogView.ts`
-builds the DOM from the model with the DOM API, never `innerHTML`, as the model
-holds workspace text. Its protocol is `libs/shared/src/lib/addOnsView.ts`, and
-the core's `AddOnsFeature.attachPanel` answers it, so a host only passes
-messages through. No host bundles it yet (#2250's second and third PRs).
-
 See `apps/vscode-plugin/src/shared/adapter/out/WebviewHtml.ts`.
 
 ## Key Files
