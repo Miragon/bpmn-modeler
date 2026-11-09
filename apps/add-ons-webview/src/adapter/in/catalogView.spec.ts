@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { AddOnRequestCommand } from "@miragon/bpmn-modeler-shared";
 
@@ -298,6 +298,44 @@ describe("CatalogView", () => {
             session.dispatch({ kind: "modelArrived", model: withRevision(11) });
 
             expect(document.activeElement).toBe(outside);
+        });
+
+        it("leaves focus outside the page when an allow it asked for is done", () => {
+            const { session, button } = mountedView(CATALOG);
+            button("Allow this content").click();
+            const outside = document.getElementById("outside")!;
+            outside.focus();
+
+            session.dispatch({
+                kind: "resultArrived",
+                requestId: 1,
+                result: { kind: "done", message: "Allowed." },
+            });
+
+            expect(document.activeElement).toBe(outside);
+        });
+
+        describe("on a reveal while focus is outside the page", () => {
+            afterEach(() => vi.restoreAllMocks());
+
+            it.each([
+                { window: "has focus", hasFocus: true, lands: "Mail" },
+                { window: "does not have focus", hasFocus: false, lands: "Outside" },
+            ])("lands on $lands when the window $window", ({ hasFocus, lands }) => {
+                const { session } = mountedView(CATALOG);
+                document.getElementById("outside")!.focus();
+                vi.spyOn(document, "hasFocus").mockReturnValue(hasFocus);
+
+                session.dispatch({
+                    kind: "revealArrived",
+                    reveal: { revealId: 1, addOnIds: [MAIL.id] },
+                });
+
+                const focused = document.activeElement!;
+                expect(focused.querySelector(".name")?.textContent ?? focused.textContent).toBe(
+                    lands,
+                );
+            });
         });
 
         it("returns to the row after an allow, not to the button that replaced Allow", () => {
