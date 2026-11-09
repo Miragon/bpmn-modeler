@@ -1077,6 +1077,36 @@ describe("AddOnsFeature", () => {
             expect(panel.reveals()).toEqual([REVEALED]);
         });
 
+        it("numbers a reveal above every reveal a process that is gone sent a kept page", () => {
+            const revealIdsOf = (panel: ReturnType<typeof recordingPanel>) =>
+                panel.posted.flatMap((each) =>
+                    each instanceof RevealAddOnsQuery ? [each.reveal.revealId] : [],
+                );
+            vi.useFakeTimers({ toFake: ["Date"] });
+            try {
+                vi.setSystemTime(1_000);
+                const before = setUp();
+                const keptPage = recordingPanel();
+                before.addOns.attachPanel(keptPage.post, true);
+                before.addOns.reveal(REVEALED);
+                before.addOns.reveal(REVEALED);
+                before.addOns.reveal(REVEALED);
+                before.addOns.dispose();
+
+                vi.setSystemTime(1_001);
+                const { addOns } = setUp();
+                const respawned = recordingPanel();
+                addOns.attachPanel(respawned.post, true);
+                addOns.reveal(REVEALED);
+
+                expect(revealIdsOf(respawned)[0]).toBeGreaterThan(
+                    Math.max(...revealIdsOf(keptPage)),
+                );
+            } finally {
+                vi.useRealTimers();
+            }
+        });
+
         it("logs a reveal its panel throws on, and still reveals to the others", async () => {
             const { host, addOns } = setUp();
             const other = recordingPanel();
