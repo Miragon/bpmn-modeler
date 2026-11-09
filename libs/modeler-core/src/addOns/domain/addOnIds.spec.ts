@@ -76,4 +76,15 @@ describe("add-on ids", () => {
     ])("spells $expected", ({ id, expected }) => {
         expect(id).toBe(expected);
     });
+
+    it("tells every template of one file apart, whatever ids they declare", () => {
+        const ids = [
+            templateAddOnIdOf("/t/mail.json", { id: "1" }, 0),
+            templateAddOnIdOf("/t/mail.json", {}, 1),
+            templateAddOnIdOf("/t/mail.json", { id: "mail", version: 2 }, 2),
+            templateAddOnIdOf("/t/mail.json", { id: "mail", version: 2 }, 3),
+        ];
+
+        expect(new Set(ids).size).toBe(ids.length);
+    });
 });
