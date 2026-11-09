@@ -160,7 +160,7 @@ export function templateRowsOf(
     });
 }
 
-/** A source's switch, offered once it holds a template the switch can hide. */
+/** A source's templates switch, by whether the source is on. */
 export function sourceSwitchViewOf({ source, preferences }: TemplateSwitches): SourceSwitchView {
     return SOURCE_SWITCH_VIEW[onOff(isTemplateSourceEnabled(source, preferences))];
 }
