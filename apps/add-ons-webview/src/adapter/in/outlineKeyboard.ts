@@ -2,19 +2,13 @@ import { visibleHeadsOf } from "../../domain/outline";
 import {
     isOutlineKey,
     outlineMoveOf,
+    toolbarMoveOf,
     TypeAhead,
     typeAheadTarget,
     typedAhead,
 } from "../../domain/outlineMove";
 import type { AddOnsViewSession } from "../../service/AddOnsViewSession";
 import type { CatalogView } from "./catalogView";
-
-const TOOLBAR_STEP: Readonly<Record<string, (index: number, count: number) => number>> = {
-    ArrowRight: (index, count) => (index + 1) % count,
-    ArrowLeft: (index, count) => (index - 1 + count) % count,
-    Home: () => 0,
-    End: (_index, count) => count - 1,
-};
 
 /** The outline's keys over its heads, Escape back to a row, and the toolbar's arrow keys. */
 export function bindOutlineKeyboard(
@@ -66,10 +60,10 @@ export function bindOutlineKeyboard(
 }
 
 function toolbarKey(event: KeyboardEvent, target: HTMLElement): void {
-    const step = TOOLBAR_STEP[event.key];
     const buttons = [...(target.closest("[role=toolbar]")?.querySelectorAll("button") ?? [])];
     const index = buttons.indexOf(target as HTMLButtonElement);
-    if (step === undefined || index === -1) return;
+    const next = index === -1 ? undefined : toolbarMoveOf(event.key, index, buttons.length);
+    if (next === undefined) return;
     event.preventDefault();
-    buttons[step(index, buttons.length)]?.focus();
+    buttons[next]?.focus();
 }

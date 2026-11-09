@@ -75,6 +75,20 @@ export function outlineMoveOf(
     return MOVES[key](head, index, visible, isOpen(head, expansion));
 }
 
+const TOOLBAR_STEP: Readonly<Record<string, (index: number, count: number) => number>> = {
+    ArrowRight: (index, count) => (index + 1) % count,
+    ArrowLeft: (index, count) => (index - 1 + count) % count,
+    Home: () => 0,
+    End: (_index, count) => count - 1,
+};
+
+/** The toolbar button a key moves to, round at either end; `undefined` for any other key. */
+export function toolbarMoveOf(key: string, index: number, count: number): number | undefined {
+    return Object.prototype.hasOwnProperty.call(TOOLBAR_STEP, key)
+        ? TOOLBAR_STEP[key](index, count)
+        : undefined;
+}
+
 export interface TypeAhead {
     readonly text: string;
     readonly at: number;

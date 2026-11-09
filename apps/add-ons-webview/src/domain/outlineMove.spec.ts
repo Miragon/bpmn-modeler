@@ -15,6 +15,7 @@ import {
     OutlineKey,
     OutlineMove,
     outlineMoveOf,
+    toolbarMoveOf,
     typeAheadTarget,
     typedAhead,
 } from "./outlineMove";
@@ -213,5 +214,29 @@ describe("type-ahead", () => {
         { case: "starts with the first letter", previous: undefined, at: 5, text: "a" },
     ])("$case", ({ previous, at, text }) => {
         expect(typedAhead(previous, "a", at)).toEqual({ text, at });
+    });
+});
+
+describe("toolbarMoveOf", () => {
+    it.each<{ case: string; key: string; index: number; to: number | undefined }>([
+        { case: "ArrowRight to the next button", key: "ArrowRight", index: 0, to: 1 },
+        {
+            case: "ArrowRight from the last button round to the first",
+            key: "ArrowRight",
+            index: 2,
+            to: 0,
+        },
+        { case: "ArrowLeft to the previous button", key: "ArrowLeft", index: 2, to: 1 },
+        {
+            case: "ArrowLeft from the first button round to the last",
+            key: "ArrowLeft",
+            index: 0,
+            to: 2,
+        },
+        { case: "Home to the first button", key: "Home", index: 2, to: 0 },
+        { case: "End to the last button", key: "End", index: 0, to: 2 },
+        { case: "no move on any other key", key: "ArrowDown", index: 1, to: undefined },
+    ])("moves $case", ({ key, index, to }) => {
+        expect(toolbarMoveOf(key, index, 3)).toBe(to);
     });
 });
