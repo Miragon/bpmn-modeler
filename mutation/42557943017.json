@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "runId": "42557943017",
+  "commit": "3689d27e068213a421c54ca366c099c1bd79073c",
+  "contexts": {
+    "libs/modeler-core/src/bpmnPlugins/domain": {
+      "detected": 174,
+      "undetected": 0
+    },
+    "libs/modeler-core/src/codeLink/domain": {
+      "detected": 386,
+      "undetected": 7
+    },
+    "libs/modeler-core/src/deployment/domain": {
+      "detected": 1294,
+      "undetected": 39
+    },
+    "libs/modeler-core/src/diff/domain": {
+      "detected": 5,
+      "undetected": 0
+    },
+    "libs/modeler-core/src/editorSession/domain": {
+      "detected": 79,
+      "undetected": 0
+    },
+    "libs/modeler-core/src/kernel/domain": {
+      "detected": 834,
+      "undetected": 26
+    },
+    "libs/modeler-core/src/migration/domain": {
+      "detected": 137,
+      "undetected": 0
+    },
+    "libs/modeler-core/src/modeler/bpmn/domain": {
+      "detected": 797,
+      "undetected": 8
+    },
+    "libs/modeler-core/src/modeler/elementTemplate/domain": {
+      "detected": 34,
+      "undetected": 0
+    },
+    "libs/modeler-core/src/modeler/form/domain": {
+      "detected": 15,
+      "undetected": 0
+    },
+    "libs/modeler-core/src/navigation/domain": {
+      "detected": 31,
+      "undetected": 1
+    },
+    "libs/modeler-core/src/scriptTask/domain": {
+      "detected": 400,
+      "undetected": 40
+    },
+    "libs/modeler-core/src/template-marketplace/domain": {
+      "detected": 1017,
+      "undetected": 143
+    }
+  }
+}
