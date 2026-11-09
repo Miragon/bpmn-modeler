@@ -10,16 +10,16 @@ import com.intellij.ui.content.ContentManagerListener
 
 /**
  * Tells [onChange] whether [content] is shown, its tool window visible and the
- * content selected, from [shown] on, until the tool window is disposed.
+ * content selected: now if it is, and on every change until the tool window is
+ * disposed. Both pages attach hidden in the core, so a hidden start needs no report.
  */
 internal fun followContentShown(
     project: Project,
     toolWindow: ToolWindow,
     content: Content,
-    shown: Boolean,
     onChange: (Boolean) -> Unit,
 ) {
-    val latch = VisibilityLatch(shown, onChange)
+    val latch = VisibilityLatch(shown = false, onChange)
     val update = { latch.update(toolWindow.isVisible, content.isSelected) }
     project.messageBus.connect(toolWindow.disposable).subscribe(
         ToolWindowManagerListener.TOPIC,
@@ -32,4 +32,5 @@ internal fun followContentShown(
             override fun selectionChanged(event: ContentManagerEvent) = update()
         },
     )
+    update()
 }

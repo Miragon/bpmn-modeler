@@ -20,6 +20,8 @@
             <li>Write task scripts with context-aware suggestions.</li>
             <li>Deploy diagrams to a running Camunda 7 or Camunda 8 engine without
                 leaving the IDE.</li>
+            <li>Review, allow and revoke the bpmn-js plugins, lint rule packages and
+                element templates of your project.</li>
         </ul>
 
         <h4>Troubleshooting</h4>
@@ -144,20 +146,30 @@
         <daemon.highlightInfoFilter
             implementation="io.miragon.intellij.bpmn.ScriptHighlightFilter"/>
 
-        <!-- Camunda 7/8 deployment panel: a JCEF tool window hosting the deployment webview,
-             driven by the shared core over the bridge (the IntelliJ counterpart of the VS Code
-             sidebar). -->
+        <!-- The BPMN Modeler tool window: a Deploy tab with the Camunda 7/8 deployment webview and an
+             Artifacts tab with the project's add-ons, each driven by the shared core over the bridge
+             (the IntelliJ counterpart of the VS Code BPMN Modeler container). The id is the old
+             deployment tool window's, so the layout a user saved still applies; the factory sets the
+             stripe title. -->
         <toolWindow
             id="Miragon Deployment"
             anchor="right"
             icon="/icons/rocket.svg"
-            factoryClass="io.miragon.intellij.bpmn.DeploymentToolWindowFactory"/>
+            factoryClass="io.miragon.intellij.bpmn.ModelerToolWindowFactory"/>
     </extensions>
 
     <!-- One popup subgroup under Tools gathers the ~11 portable modeler commands so they don't
          clutter the Tools menu; each carries the modeler icon so it stays recognisable in Search
          Everywhere / Find Action, where the group chrome is absent. -->
     <actions>
+        <!-- The Artifacts tab's title button; in no menu, but Find Action finds it. -->
+        <action
+            id="io.miragon.bpmn-modeler.refreshArtifacts"
+            class="io.miragon.intellij.bpmn.RefreshArtifactsAction"
+            icon="AllIcons.Actions.Refresh"
+            text="Refresh Artifacts"
+            description="Read the project's plugins, rule packages and element templates again"/>
+
         <group id="MiragonBpmn.Tools" text="Miragon BPMN Modeler" popup="true"
                icon="io.miragon.intellij.bpmn.MiragonIcons.Bpmn">
             <add-to-group group-id="ToolsMenu" anchor="last"/>

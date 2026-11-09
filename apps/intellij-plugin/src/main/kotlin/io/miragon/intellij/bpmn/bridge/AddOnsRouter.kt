@@ -4,6 +4,7 @@ import com.google.gson.JsonParser
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.Project
 import io.miragon.intellij.bpmn.ModelerSettingsStore
+import io.miragon.intellij.bpmn.revealArtifacts
 
 /**
  * Routes the add-ons view of the BPMN Modeler tool window's Artifacts tab: one
@@ -17,8 +18,8 @@ import io.miragon.intellij.bpmn.ModelerSettingsStore
  */
 internal class AddOnsRouter(
     private val deps: BridgeDeps,
-    // Opens the tab on the EDT and reports whether it is shown; a headless test cannot show a tool window.
-    private val revealArtifacts: (Project, (Boolean) -> Unit) -> Unit = { _, onDone -> onDone(false) },
+    // A seam for tests: a headless test cannot show a tool window.
+    private val revealArtifacts: (Project, (Boolean) -> Unit) -> Unit = ::revealArtifacts,
 ) {
     private val log = Logger.getInstance(AddOnsRouter::class.java)
 
