@@ -54,6 +54,19 @@ export function refusedRuleModuleLogLine(refused: RefusedRuleModule): string {
     if (refused.kind === "module") {
         return `bpmnlint: refused to run ${refused.file}: ${MODULE_REFUSAL_TEXT[refused.reason]}.`;
     }
-    const member = refused.memberDir === refused.id ? "it" : `its dependency ${refused.memberDir}`;
-    return `bpmnlint: rule package ${refused.id} cannot be allowed: ${member} ${CLOSURE_REFUSAL_TEXT[refused.reason]}.`;
+    return `bpmnlint: rule package ${refused.id} cannot be allowed: ${closureRefusalText(refused)}.`;
+}
+
+/** Why a rule package cannot be allowed, as a clause that names it or its dependency. */
+export function closureRefusalText({
+    id,
+    memberDir,
+    reason,
+}: {
+    readonly id: string;
+    readonly memberDir: string;
+    readonly reason: ClosureRefusal;
+}): string {
+    const member = memberDir === id ? "it" : `its dependency ${memberDir}`;
+    return `${member} ${CLOSURE_REFUSAL_TEXT[reason]}`;
 }

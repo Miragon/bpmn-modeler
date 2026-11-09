@@ -45,11 +45,21 @@ export const PROCESS_RESTART_TEXT: Record<ProcessRestart, string> = {
 };
 
 /** Code at one place as an owner last read it; `unhashed` was read without hashing its content. */
-export type CodePresence =
-    | { readonly kind: "found"; readonly artifact: ApprovableArtifact }
+export type CodePresence<A extends ApprovableArtifact = ApprovableArtifact> =
+    | { readonly kind: "found"; readonly artifact: A }
     | { readonly kind: "unhashed"; readonly id: string }
     | { readonly kind: "unreadable"; readonly id: string; readonly reason: string }
     | { readonly kind: "gone"; readonly id: string };
+
+/** Code as its owner lists it for a review: what runs, and what else the user may want to know. */
+export interface ListedCode extends ApprovableArtifact {
+    readonly version?: string;
+    /** Every file or folder the content hash covers. */
+    readonly files: readonly string[];
+}
+
+/** Code as its owner lists it, named even when it could not be read. */
+export type ListedPresence = CodePresence<ListedCode> & { readonly name: string };
 
 export type CodeStateReading<S extends CodeState = CodeState> =
     { readonly kind: "state"; readonly state: S } | { readonly kind: "hashNeeded" };

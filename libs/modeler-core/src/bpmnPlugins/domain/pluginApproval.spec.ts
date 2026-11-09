@@ -5,6 +5,7 @@ import { type DirectoryEntryKind } from "../../kernel/domain/directoryEntry";
 import {
     approvedContent,
     cacheEntriesToPrune,
+    isPluginApproval,
     CACHED_PLUGIN_FILE_PATTERN,
     cachedPluginCopy,
     cachedPluginFiles,
@@ -234,6 +235,21 @@ describe("approvedContent", () => {
 
     it("covers the same files with the same content", () => {
         expect(approvedContent("a", "b")).toBe(approvedContent("a", "b"));
+    });
+});
+
+describe("isPluginApproval", () => {
+    it.each([
+        { case: "a plugin's content hash", contentHash: "0123456789abcdef".repeat(4), owned: true },
+        {
+            case: "a rule package's prefixed hash",
+            contentHash: `bpmnlint-closure-v1:${"a".repeat(64)}`,
+            owned: false,
+        },
+        { case: "an upper-case hash", contentHash: "A".repeat(64), owned: false },
+        { case: "a shorter hash", contentHash: "a".repeat(63), owned: false },
+    ])("owns a row with $case: $owned", ({ contentHash, owned }) => {
+        expect(isPluginApproval({ pluginId: "/work/.camunda/plugins/x", contentHash })).toBe(owned);
     });
 });
 

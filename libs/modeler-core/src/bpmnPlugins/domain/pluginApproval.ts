@@ -169,6 +169,11 @@ export const CACHED_PLUGIN_FILE_PATTERN = `${PLUGIN_CONTENT_HASH_PATTERN}/(?:${C
 
 const PLUGIN_CACHE_ENTRY = new RegExp(`^${PLUGIN_CONTENT_HASH_PATTERN}$`);
 
+/** A plugin's row in the shared list: a rule package's hash carries a prefix. */
+export function isPluginApproval({ contentHash }: CodeApproval): boolean {
+    return PLUGIN_CACHE_ENTRY.test(contentHash);
+}
+
 /**
  * The copies no stored approval names, of any workspace or project. Only a
  * folder named like a content hash is a candidate, so whatever else shares

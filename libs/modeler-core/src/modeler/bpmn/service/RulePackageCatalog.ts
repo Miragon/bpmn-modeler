@@ -1,9 +1,11 @@
 import { ActionNotice } from "../../../kernel/domain/actionNotice";
 import {
     allowing,
+    ApprovableArtifact,
     ApprovalNoticeAction,
     CodeApproval,
     approvalOutcome,
+    declineKeyOf,
     declinedKeys,
     FollowedApprovalChange,
     followedApprovalChange,
@@ -14,6 +16,7 @@ import {
     SessionAnswer,
 } from "../../../kernel/domain/codeApproval";
 import { ChoicePrompt } from "../../../kernel/domain/prompts";
+import { parentWorkspacePath } from "../../../kernel/domain/workspacePath";
 import { PluginApprovalStorePort } from "../../../kernel/port/approvalPorts";
 import { LoggerPort } from "../../../kernel/port/hostPorts";
 import { ApprovalCatalog } from "../../../kernel/service/ApprovalQuestion";
@@ -50,6 +53,8 @@ export class RulePackageCatalog implements ApprovalCatalog<
     private readonly seen = new Map<string, BlockedRulePackage>();
     private readonly loggedRefusals = new Set<string>();
     private readonly revoked = new Set<string>();
+    private readonly lintConfigFolders = new Set<string>();
+    private readonly listingListeners = new Set<() => void>();
     private readonly changeListeners = new Set<(followed: FollowedApprovalChange) => void>();
     private readonly approvalChanges: { dispose(): void };
     private rulePackageRows: readonly CodeApproval[];
@@ -70,7 +75,40 @@ export class RulePackageCatalog implements ApprovalCatalog<
 
     /** Keeps the latest report of each package, also of those the bundle stood in for. */
     noteSeen(blocked: readonly BlockedRulePackage[]): void {
+        const before = this.seen.size;
+        const restated = blocked.filter(({ id, kind, state }) => {
+            const known = this.seen.get(id);
+            return known !== undefined && (known.kind !== kind || known.state !== state);
+        });
         blocked.forEach((each) => this.seen.set(each.id, each));
+        if (this.seen.size !== before || restated.length > 0) this.notifyListing();
+    }
+
+    /** The folders of the lint configs read so far, whose `node_modules` the add-on catalog lists. */
+    noteLintConfig(configPath: string): void {
+        const configDir = parentWorkspacePath(configPath);
+        if (configDir !== undefined) this.lintConfigFolders.add(configDir);
+    }
+
+    lintConfigDirs(): readonly string[] {
+        return [...this.lintConfigFolders];
+    }
+
+    /** By `declineKeyOf`: what the user answered this session about each content. */
+    sessionAnswers(): ReadonlyMap<string, SessionAnswer> {
+        return this.answers;
+    }
+
+    /** No notice asks about this package again this session, whatever its content; a view shows it. */
+    leaveForView(artifact: ApprovableArtifact): void {
+        this.answers.set(declineKeyOf(artifact), "leftForView");
+        this.notifyListing();
+    }
+
+    /** After an answer, or once the gate reports a package or a state it had not reported. */
+    onDidChangeListing(listener: () => void): { dispose(): void } {
+        this.listingListeners.add(listener);
+        return { dispose: () => this.listingListeners.delete(listener) };
     }
 
     seenPackages(): readonly BlockedRulePackage[] {
@@ -124,6 +162,7 @@ export class RulePackageCatalog implements ApprovalCatalog<
     ): Promise<readonly RulePackage[]> {
         const outcome = approvalOutcome(pending, answer);
         outcome.answers.forEach((each, key) => this.answers.set(key, each));
+        if (outcome.answers.size > 0) this.notifyListing();
         if (outcome.allowed.length > 0) {
             await this.approvals.change(allowing(outcome.allowed));
             this.logger.logInfo(
@@ -131,6 +170,10 @@ export class RulePackageCatalog implements ApprovalCatalog<
             );
         }
         return outcome.allowed;
+    }
+
+    private notifyListing(): void {
+        this.listingListeners.forEach((listener) => listener());
     }
 
     private followApprovals(): void {

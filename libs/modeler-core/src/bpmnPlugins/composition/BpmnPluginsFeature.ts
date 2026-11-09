@@ -16,6 +16,7 @@ import { ContentHasherPort, PluginApprovalStorePort } from "../port/pluginPorts"
 import { BpmnPluginService } from "../service/BpmnPluginService";
 import { BpmnPluginsParticipant } from "../service/BpmnPluginsParticipant";
 import { PluginCatalog } from "../service/PluginCatalog";
+import { PluginInventory } from "../service/PluginInventory";
 import { WorkspacePluginLocator } from "../service/WorkspacePluginLocator";
 
 export interface BpmnPluginsHostPorts {
@@ -45,6 +46,8 @@ export class BpmnPluginsFeature {
     readonly editorContribution: EditorContribution<"GetBpmnPluginsCommand">;
     readonly catalog: PluginCatalog;
     readonly service: BpmnPluginService;
+    /** What the add-on catalog lists of the plugins. */
+    readonly inventory: PluginInventory;
 
     private readonly locator: WorkspacePluginLocator;
     private readonly notifier: NotifierPort;
@@ -74,6 +77,7 @@ export class BpmnPluginsFeature {
             ports.approvals,
             ports.cacheRoot,
         );
+        this.inventory = new PluginInventory(this.locator, this.catalog, this.service);
         this.approvalChanges = ports.approvals.onDidChange(() =>
             this.service.approvalsChanged(ports.approvals.read()),
         );

@@ -263,3 +263,33 @@ function objectOrEmpty(value: unknown): Record<string, unknown> {
 function stringOrEmpty(value: unknown): string {
     return typeof value === "string" ? value : "";
 }
+
+/** bpmnlint resolves plugin `acme` to `bpmnlint-plugin-acme`, and `@scope` or `@scope/acme` inside the scope. */
+const RULE_PACKAGE_FOLDER_NAME = /^bpmnlint-plugin(?:-.+)?$/;
+
+const isPackageFolder = ({ kind }: InstalledEntry) =>
+    kind === "directory" || kind === "symbolicLink";
+
+/** The scope folders of a `node_modules` listing, each listed for the rule packages inside it. */
+export function rulePackageScopesToList(entries: readonly InstalledEntry[]): string[] {
+    return entries
+        .filter((entry) => isPackageFolder(entry) && entry.name.startsWith("@"))
+        .map(({ name }) => name);
+}
+
+/** The rule packages installed in one `node_modules`, by their name below it, in sorted order. */
+export function rulePackageFolderNames(
+    entries: readonly InstalledEntry[],
+    scopedEntries: ReadonlyMap<string, readonly InstalledEntry[]>,
+): string[] {
+    const ruleFolders = (listed: readonly InstalledEntry[]) =>
+        listed
+            .filter((entry) => isPackageFolder(entry) && RULE_PACKAGE_FOLDER_NAME.test(entry.name))
+            .map(({ name }) => name);
+    return [
+        ...ruleFolders(entries),
+        ...[...scopedEntries].flatMap(([scope, listed]) =>
+            ruleFolders(listed).map((name) => `${scope}/${name}`),
+        ),
+    ].sort();
+}

@@ -62,6 +62,7 @@ export class RulePackageFollowUp {
     }
 
     log(negotiation: Negotiation, { blocked, refused }: LintRun): void {
+        this.approvals?.catalog.noteLintConfig(negotiation.configPath);
         neededRulePackageLogLines(blocked).forEach((line) => this.notifier.logWarning(line));
         const configVersion = `${negotiation.configPath}\0${negotiation.rawConfig}`;
         const logOnce = (line: string, log: (line: string) => void) => {

@@ -662,6 +662,19 @@ describe("BpmnEditorFeature with workspace rule packages", () => {
         expect(results).toEqual([[]]);
     });
 
+    it("lists for the add-on catalog the lint config it read and the package the gate reported", async () => {
+        const { feature, pluginDir } = await lintWithAcmeInstalled({ wiresRulePackages: true });
+
+        expect(feature.rulePackageInventory?.lintConfigDirs()).toEqual([workspaceDir]);
+        expect(feature.rulePackageInventory?.seenPackageIds()).toEqual([pluginDir]);
+    });
+
+    it("lists no rule package without the ports to run one", async () => {
+        const { feature } = await lintWithAcmeInstalled({ wiresRulePackages: false });
+
+        expect(feature.rulePackageInventory).toBeUndefined();
+    });
+
     it("lets the gate report a package the user declined as declined", async () => {
         const { feature, editor, pluginDir } = await lintWithAcmeInstalled({
             wiresRulePackages: true,

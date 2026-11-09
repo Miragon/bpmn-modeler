@@ -14,6 +14,7 @@ import {
     closureDigestInput,
     type ClosureMember,
     editorsToRelint,
+    installedPackageNameOf,
     isParsedAsJson,
     isRulePackageApproval,
     loadsWithoutApproval,
@@ -751,5 +752,16 @@ describe("rule package approval question", () => {
             rulePackageApprovalPrompt([{ artifact: linked, state: "new" }], ["/repo"]).items[0]
                 ?.description,
         ).toBe("new · /work/acme-rules");
+    });
+});
+
+describe("installedPackageNameOf", () => {
+    it.each([
+        { id: "/work/node_modules/bpmnlint-plugin-acme", name: "bpmnlint-plugin-acme" },
+        { id: "/work/node_modules/@acme/bpmnlint-plugin", name: "@acme/bpmnlint-plugin" },
+        { id: "/work/node_modules/a/node_modules/bpmnlint-plugin-b", name: "bpmnlint-plugin-b" },
+        { id: "/work/packages/rules", name: "rules" },
+    ])("names $id $name", ({ id, name }) => {
+        expect(installedPackageNameOf(id)).toBe(name);
     });
 });

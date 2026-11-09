@@ -24,6 +24,12 @@ export interface DiscoveredPlugin {
     readonly style?: string;
 }
 
+/** One plugin folder as last read. */
+export type PluginReading =
+    | { readonly kind: "found"; readonly discovered: DiscoveredPlugin }
+    | { readonly kind: "unreadable"; readonly folder: string; readonly reason: string }
+    | { readonly kind: "gone"; readonly folder: string };
+
 /**
  * Finds the plugins in every `<configFolder>/plugins/` between a document and
  * its workspace root. Each subfolder is one plugin. A folder it cannot read
@@ -35,8 +41,9 @@ export interface DiscoveredPlugin {
  * hashed.
  */
 export class WorkspacePluginLocator {
-    private readonly readings = new Map<string, Promise<DiscoveredPlugin | undefined>>();
+    private readonly readings = new Map<string, Promise<PluginReading>>();
     private readonly watchers = new Map<string, { dispose(): void }>();
+    private readonly listeners = new Set<() => void>();
 
     constructor(
         private readonly artifacts: ArtifactService,
@@ -50,21 +57,54 @@ export class WorkspacePluginLocator {
         const pluginDirs = await this.artifacts.getConfigAreaDirs(documentDir, PLUGINS_AREA);
         const discovered: DiscoveredPlugin[] = [];
         for (const pluginDir of pluginDirs) {
-            this.watch(pluginDir);
-            for (const folder of await this.subfolders(pluginDir)) {
-                const plugin = await this.memoizedReading(folder.path, folder.name);
-                if (plugin) {
-                    discovered.push(plugin);
+            for (const reading of await this.pluginsInDir(pluginDir)) {
+                if (reading.kind === "found") {
+                    discovered.push(reading.discovered);
                 }
             }
         }
         return discovered;
     }
 
+    /** Every plugin folder of one plugins folder, as last read; the folder is watched from then on. */
+    async pluginsInDir(pluginDir: string): Promise<PluginReading[]> {
+        this.watch(pluginDir);
+        const readings: PluginReading[] = [];
+        for (const folder of await this.subfolders(pluginDir)) {
+            readings.push(await this.memoizedReading(folder.path, folder.name));
+        }
+        return readings;
+    }
+
+    /** The plugins folders looked in so far. */
+    knownPluginDirs(): string[] {
+        return [...this.watchers.keys()];
+    }
+
+    /** Read and hashed now, past what it remembered. */
+    async readFresh(folder: string): Promise<PluginReading> {
+        try {
+            await this.workspace.readDirectory(folder);
+        } catch (error) {
+            if (error instanceof DirectoryNotFound) {
+                return { kind: "gone", folder };
+            }
+            throw error;
+        }
+        return this.readPlugin(folder, folder.split("/").pop() ?? folder);
+    }
+
+    /** After a change below a plugins folder it watches. */
+    onDidChange(listener: () => void): { dispose(): void } {
+        this.listeners.add(listener);
+        return { dispose: () => this.listeners.delete(listener) };
+    }
+
     dispose(): void {
         this.watchers.forEach((watcher) => watcher.dispose());
         this.watchers.clear();
         this.readings.clear();
+        this.listeners.clear();
     }
 
     private watch(pluginDir: string): void {
@@ -90,16 +130,21 @@ export class WorkspacePluginLocator {
             [...this.readings.keys()]
                 .filter((folder) => pluginFolderChangedBy(folder, pluginDir).kind === "folder")
                 .forEach((folder) => this.readings.delete(folder));
+        } else {
+            return;
         }
+        this.listeners.forEach((listener) => listener());
     }
 
-    private memoizedReading(
-        folder: string,
-        folderName: string,
-    ): Promise<DiscoveredPlugin | undefined> {
+    private memoizedReading(folder: string, folderName: string): Promise<PluginReading> {
         let reading = this.readings.get(folder);
         if (reading === undefined) {
-            reading = this.readPlugin(folder, folderName);
+            reading = this.readPlugin(folder, folderName).then((read) => {
+                if (read.kind === "unreadable") {
+                    this.notifier.logWarning(`Skipped BPMN plugin in ${folder}: ${read.reason}`);
+                }
+                return read;
+            });
             this.readings.set(folder, reading);
         }
         return reading;
@@ -119,21 +164,16 @@ export class WorkspacePluginLocator {
         }
     }
 
-    private async readPlugin(
-        folder: string,
-        folderName: string,
-    ): Promise<DiscoveredPlugin | undefined> {
+    private async readPlugin(folder: string, folderName: string): Promise<PluginReading> {
         try {
             const reading = await this.readManifest(folder, folderName);
             if (reading.kind === "unreadable") {
-                this.notifier.logWarning(`Skipped BPMN plugin in ${folder}: ${reading.reason}`);
-                return undefined;
+                return { kind: "unreadable", folder, reason: reading.reason };
             }
-            return await this.withContent(folder, reading.manifest);
+            return { kind: "found", discovered: await this.withContent(folder, reading.manifest) };
         } catch (error) {
             const reason = error instanceof FileNotFound ? MISSING_FILE_REASON : String(error);
-            this.notifier.logWarning(`Skipped BPMN plugin in ${folder}: ${reason}`);
-            return undefined;
+            return { kind: "unreadable", folder, reason };
         }
     }
 
