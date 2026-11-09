@@ -37,8 +37,12 @@ export class VsCodePluginApprovalStore implements PluginApprovalStorePort {
             const stored = this.read();
             const merged = approvalsAfter(stored, change);
             if (approvalsKey(merged) === approvalsKey(stored)) return;
-            await this.globalState.update(APPROVALS_KEY, merged);
-            this.report(merged);
+            try {
+                await this.globalState.update(APPROVALS_KEY, merged);
+            } finally {
+                // VS Code's memento keeps the value in memory when the persist rejects.
+                this.report(this.read());
+            }
         });
         this.changes = changed.catch(() => undefined);
         return changed;
