@@ -70,6 +70,47 @@ describe("ElementTemplateOffer", () => {
     });
 });
 
+describe("ElementTemplateOffer to an element", () => {
+    const usingMail = { type: "bpmn:Task", appliedTemplate: MAIL };
+
+    it("still offers a hidden template to the element that already uses it", () => {
+        const offer = offerOf(REST_V2, MAIL);
+
+        offer.setHidden([{ id: "mail" }]);
+
+        expect(offer.isTemplateIdOfferedTo(usingMail, "mail")).toBe(true);
+        expect(offer.isTemplateIdOfferedTo({ type: "bpmn:Task" }, "mail")).toBe(false);
+    });
+
+    it("offers no hidden latest version to an element on an older one", () => {
+        const offer = offerOf(REST_V1, REST_V2);
+
+        offer.setHidden([{ id: "rest", version: 2 }]);
+
+        expect(
+            offer.isTemplateIdOfferedTo({ type: "bpmn:Task", appliedTemplate: REST_V1 }, "rest"),
+        ).toBe(false);
+    });
+
+    it("offers an element whatever is offered to every element", () => {
+        const offer = offerOf(REST_V2, MAIL);
+
+        offer.setHidden([{ id: "mail" }]);
+
+        expect(offer.isTemplateIdOfferedTo(usingMail, "rest")).toBe(true);
+    });
+
+    it("offers no hidden id to an element whose template is not loaded", () => {
+        const offer = offerOf(REST_V2);
+
+        offer.setHidden([{ id: "rest", version: 2 }]);
+
+        expect(
+            offer.isTemplateIdOfferedTo({ type: "bpmn:Task", appliedTemplate: MAIL }, "rest"),
+        ).toBe(false);
+    });
+});
+
 describe("ElementTemplateOffer default template", () => {
     const TASK = { type: "bpmn:Task" };
     const AUDIT = { id: "audit", appliesTo: ["bpmn:Task"], isDefault: true };

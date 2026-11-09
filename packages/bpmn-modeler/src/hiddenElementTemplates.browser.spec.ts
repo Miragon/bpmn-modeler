@@ -194,6 +194,43 @@ describe.each(ENGINES)("$engine replace menu", (engine) => {
     });
 });
 
+describe("c8 replace menu of an element that uses a hidden template with steps", () => {
+    const engine = ENGINES[1];
+    const stepsTemplate = {
+        ...taskTemplate(engine, "audit"),
+        properties: [
+            {
+                id: "label",
+                type: "Hidden",
+                value: "Plain",
+                binding: { type: "property", name: "name" },
+            },
+        ],
+        presets: [{ id: "loud", properties: { label: "Loud" } }],
+        steps: [{ name: "Loud", presetId: "loud" }],
+    };
+
+    async function openWithAuditOnTask1(): Promise<BpmnModeler> {
+        const modeler = await openModeler(engine, [stepsTemplate, taskTemplate(engine, "mail")]);
+        modeler
+            .getService<{ applyTemplate(element: unknown, template: object): unknown }>(
+                "elementTemplates",
+            )
+            .applyTemplate(modeler.getService("elementRegistry").get("Task_1"), stepsTemplate);
+        modeler.setHiddenElementTemplates([{ id: "audit" }]);
+        return modeler;
+    }
+
+    it("still offers that template, whose steps switch its preset", async () => {
+        const modeler = await openWithAuditOnTask1();
+
+        expect(await offeredReplaceTemplates(modeler)).toEqual([
+            "replace.template-audit",
+            "replace.template-mail",
+        ]);
+    });
+});
+
 describe("setHiddenElementTemplates", () => {
     const engine = ENGINES[1];
     const templates = [taskTemplate(engine, "audit"), taskTemplate(engine, "mail")];

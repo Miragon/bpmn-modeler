@@ -41,6 +41,10 @@ export class ElementTemplateOffer {
         return this.isOffered(this.latestOf(templateId));
     }
 
+    isTemplateIdOfferedTo(_element: unknown, templateId: string): boolean {
+        return this.isTemplateIdOffered(templateId);
+    }
+
     // Deprecated too: a deprecated latest version still shadows the older ones.
     private latestOf(templateId: string): unknown {
         return this.elementTemplates.getLatest(templateId, { deprecated: true })?.[0];
