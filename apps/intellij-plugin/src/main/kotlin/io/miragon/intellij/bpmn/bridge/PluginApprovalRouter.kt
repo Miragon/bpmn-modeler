@@ -33,6 +33,9 @@ internal class PluginApprovalRouter(
             val change = PluginApprovalChange(allow, revoke)
             RpcAction { id -> handleChange(change, id) }
         }
+        deps.handlers.on("pluginApprovals/read") {
+            RpcAction { id -> id?.let { deps.channel.reply(it, PluginApprovalsResult(store.snapshot())) } }
+        }
     }
 
     /**

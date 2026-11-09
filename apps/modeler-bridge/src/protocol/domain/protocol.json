@@ -353,6 +353,13 @@
         "resultKeys": ["approvals", "revision"]
     },
     {
+        "method": "pluginApprovals/read",
+        "direction": "coreToHost",
+        "kind": "request",
+        "paramKeys": [],
+        "resultKeys": ["approvals", "revision"]
+    },
+    {
         "method": "editor/postMessage",
         "direction": "coreToHost",
         "kind": "notification",

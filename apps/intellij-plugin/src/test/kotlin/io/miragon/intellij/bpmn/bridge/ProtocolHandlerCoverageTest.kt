@@ -219,6 +219,7 @@ class ProtocolHandlerCoverageTest {
                         writable = listOf(WritableScope("project", SettingsPlace("file", listOf(".idea")))),
                     ),
                 "pluginApprovals/change" to PluginApprovalsResult(listOf(PluginApproval("/ws/plugins/resize", "9f2c")), revision = 2),
+                "pluginApprovals/read" to PluginApprovalsResult(listOf(PluginApproval("/ws/plugins/resize", "9f2c")), revision = 2),
             )
         return resultsByMethod.entries.withIndex().associate { (requestId, entry) ->
             wired.channel.reply(wired.requestId(requestId), entry.value)

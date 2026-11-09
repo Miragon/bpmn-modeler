@@ -190,7 +190,7 @@ export interface MigrateAllParams {
 /**
  * `pluginApprovals/didChange` — the approvals the host now stores, pushed to
  * every running bridge after any of them changed them; also the result of the
- * `pluginApprovals/change` request. `revision` grows with every list the host
+ * `pluginApprovals/change` and `pluginApprovals/read` requests. `revision` grows with every list the host
  * stores, so a mirror can keep the newest of the lists its queues apply.
  */
 export interface PluginApprovalsSnapshot {

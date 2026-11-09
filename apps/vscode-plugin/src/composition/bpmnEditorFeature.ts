@@ -1,4 +1,4 @@
-import { ExtensionContext } from "vscode";
+import { ExtensionContext, window } from "vscode";
 
 import {
     BPMN_VIEW_TYPE,
@@ -53,8 +53,14 @@ export function register(
     const definitionSearch = new DefinitionSearchFeature(ports);
     const codeLink = new CodeLinkFeature(ports);
     // One list and one queue for the plugins and the bpmnlint rule packages: two
-    // notices never stand side by side, and each answer starts from the list the last one wrote.
+    // notices never stand side by side.
     const approvals = new VsCodePluginApprovalStore(context.globalState);
+    // VS Code announces no write another window makes to the global state.
+    context.subscriptions.push(
+        window.onDidChangeWindowState((state) => {
+            if (state.focused) void approvals.readStored();
+        }),
+    );
     const questions = new QuestionQueue();
     const plugins = new BpmnPluginsFeature({
         ...ports,

@@ -9,9 +9,14 @@ export interface PluginApprovalStoreContractFixture {
     readonly store: PluginApprovalStorePort;
     /**
      * Another writer stores `approvals` where the store keeps them, as another
-     * IDE project or window does, without telling the store.
+     * IDE project or window does. With `notify` the store hears of it as the
+     * host tells it (IntelliJ pushes the list, VS Code re-reads it when the
+     * window gains focus); without, it does not.
      */
-    storeElsewhere(approvals: readonly CodeApproval[]): Promise<void>;
+    storeElsewhere(
+        approvals: readonly CodeApproval[],
+        options?: { readonly notify?: boolean },
+    ): Promise<void>;
 }
 
 const RESIZE = {
@@ -41,7 +46,9 @@ const rowOf = ({ id, contentHash }: { id: string; contentHash: string }): CodeAp
  * the list the host stores, so a row the change does not name stays, also
  * one another writer stored that this store never read, and a read right
  * after the change includes it. A change that names an id twice rejects and
- * stores nothing.
+ * stores nothing. `readStored` answers with the host's list, never a mirror,
+ * and `read` returns it from then on. `onDidChange` fires once whenever `read`
+ * changed, whoever changed the list, and never for a list of the same rows.
  *
  * Left out: where an adapter keeps the list. The rule that no workspace can
  * write it is the adapter's; VS Code keeps it in its global state.
@@ -117,6 +124,61 @@ export function describePluginApprovalStoreContract(
             ]);
 
             expect(fixture.store.read()).toEqual([rowOf(RESIZE), rowOf(PALETTE)]);
+        });
+
+        it("reads the list another writer stored once readStored answered it", async () => {
+            await fixture.store.change(allowing([RESIZE]));
+            await fixture.storeElsewhere([rowOf(ACME), rowOf(RESIZE)]);
+
+            const stored = await fixture.store.readStored();
+
+            expect(stored).toEqual([rowOf(ACME), rowOf(RESIZE)]);
+            expect(fixture.store.read()).toEqual([rowOf(ACME), rowOf(RESIZE)]);
+        });
+
+        it("announces each change once and no change that keeps every row", async () => {
+            let announced = 0;
+            fixture.store.onDidChange(() => announced++);
+
+            await fixture.store.change(allowing([RESIZE]));
+            await fixture.store.change(allowing([RESIZE]));
+            await fixture.store.change(revoking([PALETTE.id]));
+            await fixture.store.change(revoking([RESIZE.id]));
+
+            expect(announced).toBe(2);
+        });
+
+        it("announces a list another writer stored once the store hears of it", async () => {
+            const announced: (readonly CodeApproval[])[] = [];
+            fixture.store.onDidChange(() => announced.push(fixture.store.read()));
+
+            await fixture.storeElsewhere([rowOf(ACME)], { notify: true });
+
+            expect(announced).toEqual([[rowOf(ACME)]]);
+        });
+
+        it("announces a list readStored found changed, and not the same rows again", async () => {
+            await fixture.store.change(allowing([RESIZE]));
+            let announced = 0;
+            fixture.store.onDidChange(() => announced++);
+            await fixture.storeElsewhere([rowOf(RESIZE), rowOf(ACME)]);
+
+            await fixture.store.readStored();
+            await fixture.store.readStored();
+
+            expect(announced).toBe(1);
+        });
+
+        it("announces nothing to a listener it disposed", async () => {
+            let announced = 0;
+            const subscription = fixture.store.onDidChange(() => announced++);
+            await fixture.store.change(allowing([RESIZE]));
+
+            subscription.dispose();
+            await fixture.store.change(allowing([PALETTE]));
+            await fixture.storeElsewhere([rowOf(ACME)], { notify: true });
+
+            expect(announced).toBe(1);
         });
 
         it("reads no approvals once every row is revoked", async () => {

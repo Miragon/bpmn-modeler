@@ -3,5 +3,8 @@ import { describePluginApprovalStoreContract } from "./pluginApprovalStoreContra
 
 describePluginApprovalStoreContract("InMemoryPluginApprovals", async () => {
     const store = new InMemoryPluginApprovals();
-    return { store, storeElsewhere: async (approvals) => store.storeElsewhere(approvals) };
+    return {
+        store,
+        storeElsewhere: async (approvals, options) => store.storeElsewhere(approvals, options),
+    };
 });

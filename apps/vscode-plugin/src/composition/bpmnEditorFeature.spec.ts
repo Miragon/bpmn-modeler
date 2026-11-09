@@ -50,6 +50,7 @@ import {
 } from "@miragon/bpmn-modeler-core";
 import { RecordingScriptEditor } from "@miragon/bpmn-modeler-core/testing";
 
+import { changeWindowFocus } from "../__fixtures__/vscodeCompositionFake";
 import { InMemoryMemento } from "../__fixtures__/vscodeStorage";
 import { BpmnDiffController } from "../diff/adapter/in/BpmnDiffController";
 import { NodeInstalledPackages } from "../modeler/bpmn/adapter/out/NodeInstalledPackages";
@@ -118,6 +119,28 @@ describe("VS Code's BPMN editor", () => {
         expect(rulePackages?.approvals).toBe(plugins?.approvals);
         expect(rulePackages?.actionNotifier).toBe(plugins?.actionNotifier);
         expect(rulePackages?.installedPackages).toBeInstanceOf(NodeInstalledPackages);
+    });
+
+    it("reads the approvals another window stored once this window gains focus", async () => {
+        const context = createExtensionContext();
+        createVsCodeBpmnEditor(context);
+        const approvals = injectedPorts.plugins[0]!.approvals;
+        let announced = 0;
+        approvals.onDidChange(() => announced++);
+        const otherWindowsRow = { pluginId: "/repo/.camunda/plugins/resize", contentHash: "9f2c" };
+        await context.globalState.update("bpmnPluginApprovals", [otherWindowsRow]);
+
+        changeWindowFocus(false);
+        await Promise.resolve();
+        expect(announced).toBe(0);
+        changeWindowFocus(true);
+        await Promise.resolve();
+
+        expect(announced).toBe(1);
+        expect(approvals.read()).toEqual([otherWindowsRow]);
+        for (const subscription of context.subscriptions) {
+            subscription.dispose();
+        }
     });
 
     it("routes the whole document group to the core's document services", () => {

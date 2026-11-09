@@ -181,6 +181,7 @@ export const METHODS = {
     settingsSetLintingEnabled: "settings/setLintingEnabled",
     actionNoticeShow: "actionNotice/show",
     pluginApprovalsChange: "pluginApprovals/change",
+    pluginApprovalsRead: "pluginApprovals/read",
 
     // Core → Host notifications
     editorPostMessage: "editor/postMessage",
@@ -739,6 +740,18 @@ export const PROTOCOL = [
             allow: [PLUGIN_APPROVAL_SAMPLE],
             revoke: ["/ws/.camunda/plugins/reduced-palette"],
         } satisfies PluginApprovalsChangeParams,
+        resultFixture: {
+            approvals: [PLUGIN_APPROVAL_SAMPLE],
+            revision: 7,
+        } satisfies PluginApprovalsSnapshot,
+    },
+    // The host's stored list, never a mirror; a read, so under the host-work deadline.
+    {
+        method: METHODS.pluginApprovalsRead,
+        direction: "coreToHost",
+        kind: "request",
+        replyWait: "hostWork",
+        paramsFixture: {} satisfies EmptyParams,
         resultFixture: {
             approvals: [PLUGIN_APPROVAL_SAMPLE],
             revision: 7,

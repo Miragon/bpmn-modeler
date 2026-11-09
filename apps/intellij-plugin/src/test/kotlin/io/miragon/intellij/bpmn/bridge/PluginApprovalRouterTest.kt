@@ -122,6 +122,19 @@ class PluginApprovalRouterTest {
     }
 
     @Test
+    fun `a read answers the stored list with its revision`() {
+        val wired = routedBridge()
+        PluginApprovalStore.getInstance().replaceAll(listOf(PluginApproval(PLUGIN_ID, HASH)))
+        val revision = PluginApprovalStore.getInstance().snapshot().revision
+
+        wired.handlers.dispatch("pluginApprovals/read", parse("{}"), wired.requestId(13))
+
+        val answer = parse(wired.fake.nextFrame())
+        assertEquals(13, answer.get("id").asInt)
+        assertEquals(parse("""{"approvals": [${row(PLUGIN_ID)}], "revision": $revision}"""), answer.getAsJsonObject("result"))
+    }
+
+    @Test
     fun `a change with a row that is no approval answers an error and stores nothing`() {
         val wired = routedBridge()
 

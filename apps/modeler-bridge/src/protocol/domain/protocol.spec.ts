@@ -156,6 +156,7 @@ describe("RPC protocol descriptor", () => {
                     "  settings/setLintingEnabled",
                     "  actionNotice/show",
                     "  pluginApprovals/change",
+                    "  pluginApprovals/read",
                     "",
                     "Core → Host (notifications):",
                     "  editor/postMessage",
@@ -219,6 +220,7 @@ describe("RPC protocol descriptor", () => {
             METHODS.tokenStoreSet,
             METHODS.settingsSetLintingEnabled,
             METHODS.marketplaceStateRead,
+            METHODS.pluginApprovalsRead,
         ])("gives up on %s after the host-work deadline", (method) => {
             expect(replyDeadlineMs(method)).toBe(HOST_WORK_REPLY_DEADLINE_MS);
         });
