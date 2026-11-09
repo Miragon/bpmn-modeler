@@ -20,14 +20,14 @@ export class MarketplaceTemplateSources {
     ) {}
 
     async getCachedTemplateSources(): Promise<readonly CachedTemplateSource[]> {
+        const byRegistration = await this.cache.cachedTemplatePathsByRegistration();
+        // Saves an IntelliJ bridge a host round trip in every project with no marketplace.
+        if (byRegistration.size === 0) return [];
         const registered = await this.registered();
         if (registered === undefined) {
             return [{ paths: await this.cache.getCachedTemplatePaths() }];
         }
-        return registeredTemplateSources(
-            registered,
-            await this.cache.cachedTemplatePathsByRegistration(),
-        );
+        return registeredTemplateSources(registered, byRegistration);
     }
 
     private async registered() {
