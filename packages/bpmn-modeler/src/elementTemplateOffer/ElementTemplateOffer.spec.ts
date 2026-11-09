@@ -35,6 +35,14 @@ describe("ElementTemplateOffer", () => {
         expect(offer.isTemplateIdOffered("rest")).toBe(false);
     });
 
+    it("offers no older version in place of a hidden latest version that is deprecated", () => {
+        const offer = offerOf(REST_V1, { ...REST_V2, deprecated: true });
+
+        offer.setHidden([{ id: "rest", version: 2 }]);
+
+        expect(offer.isOffered(REST_V1)).toBe(false);
+    });
+
     it("still offers the latest version when only an older one is hidden", () => {
         const offer = offerOf(REST_V1, REST_V2);
 

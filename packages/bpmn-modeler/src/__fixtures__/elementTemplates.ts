@@ -3,6 +3,7 @@ interface FakeTemplate {
     version?: number;
     appliesTo?: string[];
     isDefault?: boolean;
+    deprecated?: boolean;
 }
 
 interface FakeElement {
@@ -12,7 +13,8 @@ interface FakeElement {
 /**
  * The lookups of bpmn-js-element-templates' `elementTemplates` service over a
  * fixed list: `getLatest` keeps the highest version per id (an unversioned copy
- * loses to a versioned one), and an element narrows by `appliesTo`.
+ * loses to a versioned one) and drops an id whose latest version is deprecated
+ * unless asked for those, and an element narrows by `appliesTo`.
  */
 export function fakeElementTemplates(templates: readonly object[]) {
     const all = templates as readonly FakeTemplate[];
@@ -33,12 +35,13 @@ export function fakeElementTemplates(templates: readonly object[]) {
             .filter((id): id is string => typeof id === "string")
             .map((id) => latestOf(id)!);
     return {
-        getLatest(elementOrId?: string | FakeElement, _options?: { deprecated?: boolean }) {
+        getLatest(elementOrId?: string | FakeElement, options: { deprecated?: boolean } = {}) {
+            const offered = (latest: FakeTemplate) => options.deprecated || !latest.deprecated;
             if (typeof elementOrId === "string") {
                 const latest = latestOf(elementOrId);
-                return latest ? [latest] : undefined;
+                return latest ? [latest].filter(offered) : undefined;
             }
-            return latestTemplates().filter(appliesTo(elementOrId));
+            return latestTemplates().filter(offered).filter(appliesTo(elementOrId));
         },
         getAll(element?: FakeElement) {
             return all.filter(appliesTo(element));
