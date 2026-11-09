@@ -10,8 +10,12 @@ import {
     rulePackageFolderNames,
     rulePackageScopesToList,
 } from "../domain/packageClosure";
-import { installedPackageNameOf, isRulePackageApproval } from "../domain/rulePackageApproval";
-import { closureRefusalText } from "../domain/rulePackageLog";
+import {
+    installedPackageNameOf,
+    isRulePackageApproval,
+    rootKindOf,
+} from "../domain/rulePackageApproval";
+import { closureRefusalText, ROOT_KIND_UNKNOWN_TEXT } from "../domain/rulePackageLog";
 import { InstalledPackagesPort } from "../port/installedPackagesPort";
 import { PackageClosureFingerprinter } from "./PackageClosureFingerprinter";
 import { RulePackageCatalog } from "./RulePackageCatalog";
@@ -22,6 +26,9 @@ import { RulePackageCatalog } from "./RulePackageCatalog";
  * catalog the lint questions use.
  */
 export class RulePackageInventory {
+    /** Real folders a `node_modules` entry linked to, so a linked folder hashes as a package. */
+    private readonly linkedFolders = new Set<string>();
+
     constructor(
         private readonly catalog: RulePackageCatalog,
         private readonly fingerprints: Pick<PackageClosureFingerprinter, "fingerprint">,
@@ -34,7 +41,10 @@ export class RulePackageInventory {
         for (const nodeModules of new Set(nodeModulesDirs)) {
             for (const name of this.ruleFolderNamesIn(nodeModules)) {
                 const realPath = this.packages.realPath(joinWorkspacePath(nodeModules, name));
-                if (realPath !== undefined) found.add(realPath);
+                if (realPath !== undefined) {
+                    found.add(realPath);
+                    this.linkedFolders.add(realPath);
+                }
             }
         }
         return [...found];
@@ -60,7 +70,11 @@ export class RulePackageInventory {
         if (!hash) {
             return { kind: "unhashed", id, name };
         }
-        const fingerprint = this.fingerprints.fingerprint({ id, kind: this.kindOf(id) });
+        const kind = this.kindOf(id);
+        if (kind === undefined) {
+            return { kind: "unreadable", id, name, reason: ROOT_KIND_UNKNOWN_TEXT };
+        }
+        const fingerprint = this.fingerprints.fingerprint({ id, kind });
         if (fingerprint.kind === "refused") {
             return {
                 kind: "unreadable",
@@ -93,9 +107,15 @@ export class RulePackageInventory {
         return this.catalog.onDidChangeListing(listener);
     }
 
-    /** The config's own package hashes without its models, so only the gate's report can tell. */
+    /** The gate's config folder is a real path, so each read config folder is compared as one. */
     private kindOf(id: string) {
-        return this.catalog.seenPackages().find((each) => each.id === id)?.kind ?? "package";
+        return rootKindOf(id, {
+            reported: this.catalog.seenPackages().find((each) => each.id === id)?.kind,
+            realConfigDirs: this.catalog
+                .lintConfigDirs()
+                .map((dir) => this.packages.realPath(dir) ?? dir),
+            linkedFromNodeModules: this.linkedFolders.has(id),
+        });
     }
 
     private ruleFolderNamesIn(nodeModules: string): string[] {

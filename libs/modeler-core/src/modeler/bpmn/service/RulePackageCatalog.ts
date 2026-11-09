@@ -87,7 +87,9 @@ export class RulePackageCatalog implements ApprovalCatalog<
     /** The folders of the lint configs read so far, whose `node_modules` the add-on catalog lists. */
     noteLintConfig(configPath: string): void {
         const configDir = parentWorkspacePath(configPath);
-        if (configDir !== undefined) this.lintConfigFolders.add(configDir);
+        if (configDir === undefined || this.lintConfigFolders.has(configDir)) return;
+        this.lintConfigFolders.add(configDir);
+        this.notifyListing();
     }
 
     lintConfigDirs(): readonly string[] {
@@ -105,7 +107,7 @@ export class RulePackageCatalog implements ApprovalCatalog<
         this.notifyListing();
     }
 
-    /** After an answer, or once the gate reports a package or a state it had not reported. */
+    /** After an answer, a lint config read anew, or a package or state the gate had not reported. */
     onDidChangeListing(listener: () => void): { dispose(): void } {
         this.listingListeners.add(listener);
         return { dispose: () => this.listingListeners.delete(listener) };

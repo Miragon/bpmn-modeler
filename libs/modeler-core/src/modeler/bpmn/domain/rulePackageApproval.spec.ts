@@ -15,6 +15,7 @@ import {
     type ClosureMember,
     editorsToRelint,
     installedPackageNameOf,
+    installedPackagesDirOf,
     isParsedAsJson,
     isRulePackageApproval,
     loadsWithoutApproval,
@@ -35,6 +36,8 @@ import {
     type RulePackageVerdict,
     type RulePackageVerdictContext,
     rulePackageVerdict,
+    rootKindOf,
+    type RootKindFacts,
     type ResolvedRuleModule,
 } from "./rulePackageApproval";
 
@@ -763,5 +766,58 @@ describe("installedPackageNameOf", () => {
         { id: "/work/packages/rules", name: "rules" },
     ])("names $id $name", ({ id, name }) => {
         expect(installedPackageNameOf(id)).toBe(name);
+    });
+});
+
+describe("installedPackagesDirOf", () => {
+    it.each([
+        { id: "/work/node_modules/bpmnlint-plugin-acme", dir: "/work/node_modules" },
+        { id: "/work/node_modules/@acme/bpmnlint-plugin", dir: "/work/node_modules" },
+        {
+            id: "/work/node_modules/a/node_modules/bpmnlint-plugin-b",
+            dir: "/work/node_modules/a/node_modules",
+        },
+        { id: "/work/packages/rules", dir: undefined },
+    ])("puts $id in $dir", ({ id, dir }) => {
+        expect(installedPackagesDirOf(id)).toBe(dir);
+    });
+});
+
+describe("rootKindOf", () => {
+    const none: RootKindFacts = { realConfigDirs: [], linkedFromNodeModules: false };
+
+    it.each<{ case: string; id: string; facts: RootKindFacts; kind: string | undefined }>([
+        {
+            case: "the kind the gate reported, over everything else",
+            id: "/work",
+            facts: { ...none, reported: "package", realConfigDirs: ["/work"] },
+            kind: "package",
+        },
+        {
+            case: "a lint config's folder as the config's own package",
+            id: "/work",
+            facts: { ...none, realConfigDirs: ["/other", "/work"] },
+            kind: "selfPackage",
+        },
+        {
+            case: "a folder below node_modules as a package",
+            id: "/work/node_modules/bpmnlint-plugin-acme",
+            facts: none,
+            kind: "package",
+        },
+        {
+            case: "a folder a node_modules entry links to as a package",
+            id: "/work/packages/rules",
+            facts: { ...none, linkedFromNodeModules: true },
+            kind: "package",
+        },
+        {
+            case: "any other folder as not known yet",
+            id: "/work",
+            facts: { ...none, realConfigDirs: ["/work/orders"] },
+            kind: undefined,
+        },
+    ])("tells $case", ({ id, facts, kind }) => {
+        expect(rootKindOf(id, facts)).toBe(kind);
     });
 });

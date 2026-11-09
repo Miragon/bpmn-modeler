@@ -57,6 +57,9 @@ export function refusedRuleModuleLogLine(refused: RefusedRuleModule): string {
     return `bpmnlint: rule package ${refused.id} cannot be allowed: ${closureRefusalText(refused)}.`;
 }
 
+/** Why a folder no lint has told how to hash cannot be allowed yet. */
+export const ROOT_KIND_UNKNOWN_TEXT = "lint a diagram that uses it first";
+
 /** Why a rule package cannot be allowed, as a clause that names it or its dependency. */
 export function closureRefusalText({
     id,

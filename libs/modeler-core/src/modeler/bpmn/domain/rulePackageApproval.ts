@@ -307,3 +307,39 @@ export function installedPackageNameOf(id: string): string {
     }
     return segments.slice(nodeModules + 1).join("/");
 }
+
+/** The last `node_modules` a package folder is installed in; `undefined` for a folder outside every one. */
+export function installedPackagesDirOf(id: string): string | undefined {
+    const segments = id.split("/");
+    const nodeModules = segments.lastIndexOf(NODE_MODULES);
+    return nodeModules === -1 ? undefined : segments.slice(0, nodeModules + 1).join("/");
+}
+
+export interface RootKindFacts {
+    /** The kind the gate reported, when it blocked the folder this session. */
+    readonly reported?: BlockedRulePackage["kind"];
+    /** The real folders of the lint configs read so far. */
+    readonly realConfigDirs: readonly string[];
+    /** A `node_modules` entry links to the folder. */
+    readonly linkedFromNodeModules: boolean;
+}
+
+/**
+ * How the gate would hash a folder: the config's own package hashes without
+ * its models. A folder outside `node_modules` that is neither a config's
+ * folder read so far nor linked from one cannot be told yet.
+ */
+export function rootKindOf(
+    id: string,
+    facts: RootKindFacts,
+): BlockedRulePackage["kind"] | undefined {
+    if (facts.reported !== undefined) {
+        return facts.reported;
+    }
+    if (facts.realConfigDirs.includes(id)) {
+        return "selfPackage";
+    }
+    return installedPackagesDirOf(id) !== undefined || facts.linkedFromNodeModules
+        ? "package"
+        : undefined;
+}
