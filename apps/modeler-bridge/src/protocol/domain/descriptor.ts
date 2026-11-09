@@ -223,7 +223,7 @@ const PLUGIN_APPROVAL_SAMPLE = {
 
 const TEMPLATE_PREFERENCES_SAMPLE = {
     project: {
-        disabled: [{ source: "configFolder:shop/.camunda", templateId: "mail#2@\"v\"" }],
+        disabled: [{ source: "configFolder:shop/.camunda", templateId: 'mail#2@"v"' }],
         revision: 3,
     },
     allProjects: {
@@ -791,7 +791,7 @@ export const PROTOCOL = [
         replyWait: "syncedWrite",
         paramsFixture: {
             scope: "project",
-            disable: [{ source: "configFolder:shop/.camunda", templateId: "mail#2@\"v\"" }],
+            disable: [{ source: "configFolder:shop/.camunda", templateId: 'mail#2@"v"' }],
             enable: [{ source: "configFolder:shop/.camunda" }],
         } satisfies TemplatePreferencesChangeParams,
         resultFixture: TEMPLATE_PREFERENCES_SAMPLE,

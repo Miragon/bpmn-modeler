@@ -237,7 +237,9 @@ describe("template switches IntelliJ keeps for the user", () => {
             allProjects: { disabled: [], revision: 1 },
         }));
 
-        expect(firstTemplates.params.message?.hiddenTemplates).toEqual([{ id: "mail", version: 1 }]);
+        expect(firstTemplates.params.message?.hiddenTemplates).toEqual([
+            { id: "mail", version: 1 },
+        ]);
     });
 
     it("reaches an open editor with a host push and ignores an older one", async () => {
@@ -339,7 +341,12 @@ describe("template switches IntelliJ keeps for the user", () => {
         );
         await fs.writeFile(
             join(folder, "element-templates", "audit.json"),
-            JSON.stringify({ name: "Audit", id: "audit", appliesTo: ["bpmn:Task"], properties: [] }),
+            JSON.stringify({
+                name: "Audit",
+                id: "audit",
+                appliesTo: ["bpmn:Task"],
+                properties: [],
+            }),
         );
         disposals.push(
             keepAnswering(rpc.handleLine.bind(rpc), frames, "marketplaceState/read", () => ({
