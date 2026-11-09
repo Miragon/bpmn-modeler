@@ -588,7 +588,7 @@ describe("pendingApprovalDescription", () => {
 
 describe("code states", () => {
     it.each(CODE_STATES)("names the %s state", (state) => {
-        expect(CODE_STATE_TEXT[state]).toMatch(/^[A-Z]\w/);
+        expect(CODE_STATE_TEXT[state]).toMatch(/^[a-z]+( [a-z]+)*$/);
     });
 
     it("tells every state apart by its text", () => {

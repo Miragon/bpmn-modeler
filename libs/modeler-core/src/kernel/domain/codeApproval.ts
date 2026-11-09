@@ -25,12 +25,13 @@ export type CodeState = (typeof CODE_STATES)[number];
 
 export type ApprovalState = Extract<CodeState, "approved" | "new" | "changed">;
 
+/** How the approval list and the log name each state, inside a sentence or after a separator. */
 export const CODE_STATE_TEXT: Record<CodeState, string> = {
-    approved: "Allowed",
-    new: "Not allowed yet",
-    changed: "Changed since you allowed it",
-    declined: "Declined this session",
-    gone: "Folder gone",
+    approved: "allowed",
+    new: "new",
+    changed: "changed since you allowed it",
+    declined: "declined this session",
+    gone: "folder gone",
 };
 
 /** What a host makes the user do before code it already ran is unloaded; a typed fact, never host prose. */
@@ -350,15 +351,6 @@ export function declinedKeys(answers: ReadonlyMap<string, SessionAnswer>): Reado
     return new Set([...answers].filter(([, answer]) => answer === "declined").map(([key]) => key));
 }
 
-/** How the approval list and the log name each pending state. */
-export const PENDING_APPROVAL_STATE_TEXT: Record<
-    PendingCodeApproval<ApprovableArtifact>["state"],
-    string
-> = {
-    new: "new",
-    changed: "changed since you allowed it",
-};
-
 /**
  * The folder goes into a list item's `description` rather than its `path`:
  * every host shows a `path` in place of the description, which would hide
@@ -368,5 +360,5 @@ export function pendingApprovalDescription(
     { artifact, state }: PendingCodeApproval<ApprovableArtifact>,
     workspaceFolders: readonly string[],
 ): string {
-    return `${PENDING_APPROVAL_STATE_TEXT[state]} · ${relativeToWorkspace(artifact.id, workspaceFolders)}`;
+    return `${CODE_STATE_TEXT[state]} · ${relativeToWorkspace(artifact.id, workspaceFolders)}`;
 }
