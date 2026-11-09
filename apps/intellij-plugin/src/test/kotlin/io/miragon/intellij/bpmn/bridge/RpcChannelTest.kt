@@ -208,6 +208,22 @@ class RpcChannelTest {
         assertEquals("ok", okReply.getAsJsonObject("result").get("text").asString)
     }
 
+    @Test
+    fun `a request for a method with no handler is answered with an error, a notification is ignored`() {
+        val handlers = RpcHandlerRegistry()
+        val channel = rpcChannel { method, params, requestId -> handlers.dispatch(method, params, requestId) }
+        val fake = fakeProcess()
+        channel.attach(fake.outputStream, fake.inputStream)
+
+        fake.emit("""{"method":"pluginApprovals/save","params":{}}""")
+        fake.emit("""{"method":"pluginApprovals/save","params":{},"id":4}""")
+
+        val reply = parse(fake.nextFrame())
+        assertEquals(4, reply.get("id").asInt)
+        assertEquals("No handler for pluginApprovals/save", reply.get("error").asString)
+        fake.expectNoFrame()
+    }
+
     private data class AttachedChannel(val channel: RpcChannel, val fake: FakeProcess, val generation: Int)
 
     private fun attachedChannel(): AttachedChannel {
