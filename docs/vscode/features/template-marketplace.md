@@ -118,7 +118,7 @@ Templates with an `engines` field are only offered on Camunda 8 diagrams whose `
 
 ## IntelliJ
 
-The IntelliJ plugin has the same feature as **Add Template Marketplace…**, **Update Template Marketplaces** and **Remove Template Marketplace…** (see [Actions](/intellij/getting-started#actions)). App-wide entries are listed under **Settings ▸ Tools ▸ Miragon BPMN Modeler ▸ Template Marketplaces**; tokens live in the IDE's password safe. Entries there are strings only, so self-hosted instances with `baseUrl` are VS Code only for now.
+The IntelliJ plugin has the same feature as **Add Template Marketplace…**, **Update Template Marketplaces** and **Remove Template Marketplace…** (see [Actions](/intellij/getting-started#actions)); the [Artifacts tab](/intellij/getting-started#artifacts) of the **BPMN Modeler** tool window lists the marketplaces and offers the same. App-wide entries are listed under **Settings ▸ Tools ▸ Miragon BPMN Modeler ▸ Template Marketplaces**; tokens live in the IDE's password safe. Entries there are strings only, so self-hosted instances with `baseUrl` are VS Code only for now.
 
 ## Next steps
 

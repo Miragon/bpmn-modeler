@@ -136,7 +136,9 @@ In VS Code the output channel names the error of a left-out plugin only as *Scri
 
 ## IntelliJ
 
-The IntelliJ plugin loads BPMN plugins the same way: the same folders, the same notification with **Review…**, the same list and the same rules. These parts differ:
+The IntelliJ plugin loads BPMN plugins the same way: the same folders, the same notification with **Review…** and the same rules. These parts differ:
+
+- **Review…** opens the **Artifacts** tab of the **BPMN Modeler** tool window at the plugin's row, where you allow it, and where **Revoke** takes an approval back. When a plugin lies outside the project, or the tab cannot open, the list appears as in VS Code.
 
 - The question is an IDE notification balloon. Closing the balloon with its X keeps it in the **Notifications** tool window, where **Review…** still works. Clearing it there decides nothing, like closing the notification in VS Code.
 - Approvals are kept by the IDE for all your projects, outside every project, so a repository cannot allow its own plugins. A plugin you allow in one project window is allowed in the others too.
