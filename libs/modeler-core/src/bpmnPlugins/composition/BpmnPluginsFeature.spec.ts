@@ -151,6 +151,39 @@ function holdNext<T extends object, K extends keyof T>(
     return { reached, release };
 }
 
+interface Hold {
+    readonly reached: Promise<void>;
+    release(): void;
+}
+
+/** Holds the first listing of each path until the test releases it, in the order of `paths`. */
+function holdListings(host: ReturnType<typeof createTestHost>, paths: readonly string[]): Hold[] {
+    const holds = new Map<string, Hold & { reach(): void; readonly held: Promise<void> }>();
+    for (const path of paths) {
+        let release: () => void = () => undefined;
+        let reach: () => void = () => undefined;
+        const held = new Promise<void>((resolve) => {
+            release = resolve;
+        });
+        const reached = new Promise<void>((resolve) => {
+            reach = resolve;
+        });
+        holds.set(path, { held, reached, reach: () => reach(), release: () => release() });
+    }
+    const listed = [...holds.values()];
+    const readDirectory = host.workspace.readDirectory.bind(host.workspace);
+    vi.spyOn(host.workspace, "readDirectory").mockImplementation(async (path) => {
+        const hold = holds.get(path);
+        if (hold !== undefined) {
+            holds.delete(path);
+            hold.reach();
+            await hold.held;
+        }
+        return readDirectory(path);
+    });
+    return listed;
+}
+
 const cachePaths = (host: ReturnType<typeof createTestHost>) =>
     [...host.workspace.files.keys()].filter((path) => path.startsWith(CACHE)).sort();
 
@@ -878,6 +911,35 @@ describe("BpmnPluginsFeature", () => {
             read.release();
             await pruning;
             await requesting;
+
+            expect(answeredPlugins(editor)?.map(({ name }) => name)).toEqual(["Resize Tasks"]);
+            expect(cachePaths(host)).toEqual([`${CACHE}/${RESIZE_SHA}/plugin.js`]);
+        });
+
+        it("waits for a prune that starts while it checks a copy another process deleted", async () => {
+            const approvals = new MirrorBehindHost();
+            const { host, feature, requestPlugins, openEditor } = setUp(RESIZE_FILES, {
+                approvals,
+                hasher,
+            });
+            approvals.mirrored = [{ pluginId: RESIZE, contentHash: RESIZE_SHA }];
+            const editor = await openEditor();
+            await requestPlugins(editor);
+            await host.workspace.deleteDirectory(`${CACHE}/${RESIZE_SHA}`);
+            const [checkingCopy, listingCache] = holdListings(host, [
+                `${CACHE}/${RESIZE_SHA}`,
+                CACHE,
+            ]);
+
+            const answering = answerRequest(feature, editor);
+            await checkingCopy.reached;
+            const pruning = feature.service.pruneCache();
+            await listingCache.reached;
+            checkingCopy.release();
+            await new Promise((resolve) => setTimeout(resolve, 0));
+            listingCache.release();
+            await pruning;
+            await answering;
 
             expect(answeredPlugins(editor)?.map(({ name }) => name)).toEqual(["Resize Tasks"]);
             expect(cachePaths(host)).toEqual([`${CACHE}/${RESIZE_SHA}/plugin.js`]);
