@@ -635,6 +635,33 @@ describe("BpmnElementTemplatesService with the user's template switches", () => 
         expect(host.notifier.errors).toEqual([]);
     });
 
+    it.each([
+        [
+            "the webview refuses it",
+            (editor: FakeEditorHandle) =>
+                vi.spyOn(editor, "postMessage").mockResolvedValueOnce(false),
+        ],
+        [
+            "posting it throws",
+            (editor: FakeEditorHandle) =>
+                vi.spyOn(editor, "postMessage").mockRejectedValueOnce(new Error("gone")),
+        ],
+    ])("sends the hidden refs again on the next refresh when %s", async (_, failNextPost) => {
+        const { service, host, editor, addTemplate } = createService({ switches: true });
+        addTemplate(ROOT_TEMPLATES, "mail.json", { id: "mail", name: "Mail" });
+        await service.setElementTemplates(editor.id);
+        await host.templatePreferences.change(templatePreferenceChange("project", [MAIL_OFF], []));
+        failNextPost(editor);
+
+        await service.refreshOffers();
+        await service.refreshOffers();
+
+        expect(postedHidden(editor)).toEqual([
+            { type: "ElementTemplatesQuery", hidden: [] },
+            { type: "HiddenElementTemplatesQuery", hidden: [{ id: "mail" }] },
+        ]);
+    });
+
     it("ends with the current refs when a switch changes while templates load", async () => {
         const { service, host, editor, addTemplate, artifactSvc } = createService({
             switches: true,
