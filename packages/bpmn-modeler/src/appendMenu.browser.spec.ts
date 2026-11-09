@@ -86,6 +86,12 @@ const ZEEBE_TASK_TEMPLATE = {
     properties: [],
 };
 
+const ZEEBE_MAIL_TASK_TEMPLATE = {
+    ...ZEEBE_TASK_TEMPLATE,
+    id: "zeebe-mail-task",
+    name: "Zeebe mail task",
+};
+
 const handles: (BpmnModeler | BpmnDesigner)[] = [];
 const mountedNodes: HTMLElement[] = [];
 
@@ -255,20 +261,27 @@ describe("append menu", () => {
         );
     });
 
-    it.each([
-        ["append", openAppendMenuOn],
-        ["create", openCreateMenuOn],
-    ])("offers no hidden template in the %s menu", async (_menu, openMenu) => {
-        const handle = await openModeler({
-            engine: "c7",
-            elementTemplates: [TASK_OR_USER_TASK_TEMPLATE, MAIL_TASK_TEMPLATE],
-        });
-        handle.setHiddenElementTemplates([{ id: TASK_OR_USER_TASK_TEMPLATE.id }]);
+    it.each(
+        (
+            [
+                { engine: "c7", hidden: TASK_OR_USER_TASK_TEMPLATE, offered: MAIL_TASK_TEMPLATE },
+                { engine: "c8", hidden: ZEEBE_TASK_TEMPLATE, offered: ZEEBE_MAIL_TASK_TEMPLATE },
+            ] as const
+        ).flatMap((templates) => [
+            { ...templates, menu: "append", openMenu: openAppendMenuOn },
+            { ...templates, menu: "create", openMenu: openCreateMenuOn },
+        ]),
+    )(
+        "offers no hidden template in the $engine $menu menu",
+        async ({ engine, hidden, offered, openMenu }) => {
+            const handle = await openModeler({ engine, elementTemplates: [hidden, offered] });
+            handle.setHiddenElementTemplates([{ id: hidden.id }]);
 
-        openMenu(handle);
+            openMenu(handle);
 
-        expect(templateCardNames()).toEqual(["Mail task"]);
-    });
+            expect(templateCardNames()).toEqual([offered.name]);
+        },
+    );
 
     it.each([
         [
