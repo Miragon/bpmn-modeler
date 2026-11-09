@@ -837,9 +837,11 @@ matches a removal the same way. A write resolves only once `SettingsPort` reads 
 after a removal keeps exactly what is still registered: VS Code reads its
 settings live, and IntelliJ pushes the new snapshot before it acks
 `marketplaceState/save` or `marketplaceState/remove`; `marketplaceState/read`
-reads its stores. The scope vocabulary is the core's `MarketplaceScope`
-(`project`, `allProjects`), whose one home is `MARKETPLACE_SCOPES`; VS Code's
-settings adapter and Kotlin's `MarketplaceScope` speak it too. Where a scope is
+reads its stores. The scope vocabulary (`project`, `allProjects`) has its one
+home in the kernel, `PROJECT_SCOPES` in `kernel/domain/projectScopes.ts`, as the
+template switches speak it too; the marketplace keeps `MARKETPLACE_SCOPES` and
+`MarketplaceScope` as aliases of it. VS Code's settings adapter and Kotlin's
+`MarketplaceScope` speak it too. Where a scope is
 saved differs per host, so it reaches the core as a typed `SettingsPlace`, a
 file by its path segments or a settings page by the names that lead to it, and
 the core words it: `Saved in .vscode/settings.json` (or the open
@@ -1133,6 +1135,7 @@ keeps explicit local mirrors with these ownership rules:
 | Settings snapshot | Settings in `session/register`, then `settings/didChange` | Host only; one shared snapshot fans changes out to editors |
 | Deployment state | `deploymentState/seed` with what the host stored, then `deploymentState/save` patches | Host; a bridge patch reaches the snapshot only after the host accepted it |
 | Plugin approvals (bpmn-js plugins and bpmnlint rule packages) | `pluginApprovals` with `pluginApprovalsRevision` in `session/register`, then `pluginApprovals/didChange` with its `revision`, which every running bridge of the IDE gets after any `pluginApprovals/change`; `pluginApprovals/read` answers the stored list | Host (`PluginApprovalStore`, application level): a bridge sends only the rows to allow and the ids to revoke, and the host merges them under one lock and bumps the revision. The mirror keeps only a newer revision, the change's answer included |
+| Template switches (element templates and their sources turned off per user) | No bridge mirror yet: the bridge composition passes no `TemplatePreferenceStorePort`, so IntelliJ offers no switch and hides no template ([#2264](https://github.com/Miragon/bpmn-modeler/issues/2264)) | VS Code (`VsCodeTemplatePreferenceStore`): `workspaceState` for `project` and `globalState` for `allProjects`, one key each, on this machine only (no `setKeysForSync`). A change carries the switches to disable and to enable for one scope, merged with `templatePreferencesAfter` on a queue, as approvals are. Another window's write arrives through `readStored` when the window gains focus; the add-on catalog reads `readStored` for every listing, so it needs no seed |
 
 Apply settings before initial artifact discovery. Seed every synchronous mirror
 before its first consumer, and re-seed on process restart; mirrors do not
