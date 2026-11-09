@@ -1,14 +1,11 @@
 import { MarketplaceSettingsEntry } from "../../kernel/domain/modelerSettings";
+import { PROJECT_SCOPES, ProjectScope } from "../../kernel/domain/projectScopes";
 import { expandHomePath, parseMarketplaceUrl } from "./marketplace";
 
-/**
- * For the open project only, or for every project the user opens; in the
- * order the core offers them, as an add is a per-project concern unless the
- * user shares it.
- */
-export const MARKETPLACE_SCOPES = ["project", "allProjects"] as const;
+/** Project first, as an add is a per-project concern unless the user shares it. */
+export const MARKETPLACE_SCOPES = PROJECT_SCOPES;
 
-export type MarketplaceScope = (typeof MARKETPLACE_SCOPES)[number];
+export type MarketplaceScope = ProjectScope;
 
 /**
  * Where a host keeps something the user can open, as a fact the core words: a
