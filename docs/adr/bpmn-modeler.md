@@ -796,8 +796,9 @@ confirm follow with the views.
   steps. The config's own package hashes without its models, so the
   inventory hashes a folder outside `node_modules` as one only once a lint
   read its config or the gate reported it, and as a package once a
-  `node_modules` entry links to it; any other such folder cannot be allowed
-  until a lint reads its config. Ids are only looked up in what the core
+  `node_modules` entry links to it, unless it holds a lint config read so
+  far, which the gate refuses with the same reason; any other such folder
+  cannot be allowed until a lint reads its config. Ids are only looked up in what the core
   recorded, never parsed.
 - *Allow by the reviewed hash.* Each build has a revision, counted from the
   clock so a view kept across a respawn never names one the new process

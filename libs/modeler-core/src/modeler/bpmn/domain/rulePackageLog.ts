@@ -20,6 +20,11 @@ const CLOSURE_REFUSAL_TEXT: Record<ClosureRefusal, string> = {
     unsupportedLayout: "is installed in a layout the check does not support",
 };
 
+/** Why a module, or a folder the catalog would list, can run under no approval. */
+export function ruleModuleRefusalText(reason: ModuleRefusal): string {
+    return MODULE_REFUSAL_TEXT[reason];
+}
+
 function byId(blocked: readonly BlockedRulePackage[]): BlockedRulePackage[] {
     return [...new Map(blocked.map((each) => [each.id, each])).values()];
 }
@@ -52,7 +57,7 @@ export function shadowedRulePackageLogLine(
 
 export function refusedRuleModuleLogLine(refused: RefusedRuleModule): string {
     if (refused.kind === "module") {
-        return `bpmnlint: refused to run ${refused.file}: ${MODULE_REFUSAL_TEXT[refused.reason]}.`;
+        return `bpmnlint: refused to run ${refused.file}: ${ruleModuleRefusalText(refused.reason)}.`;
     }
     return `bpmnlint: rule package ${refused.id} cannot be allowed: ${closureRefusalText(refused)}.`;
 }

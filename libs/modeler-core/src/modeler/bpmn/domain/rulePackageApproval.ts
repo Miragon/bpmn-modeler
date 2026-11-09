@@ -122,14 +122,19 @@ export function ruleModuleRootOf(module: ResolvedRuleModule): RuleModuleRoot {
     }
     const linked = module.requestedPackageDir;
     if (linked !== undefined && isWithinRoot(module.file, linked)) {
-        return isWithinRoot(module.configDir, linked)
-            ? { kind: "refused", reason: "linkHoldsConfigFolder" }
-            : { kind: "package", id: linked };
+        return linkedPackageRoot(linked, [module.configDir]);
     }
     if (module.requestsSelfPackage && isWithinRoot(module.file, module.configDir)) {
         return { kind: "selfPackage", id: module.configDir };
     }
     return { kind: "refused", reason: "outsideNodeModules" };
+}
+
+/** A linked folder that holds a lint config would let one approval cover that config's repo. */
+function linkedPackageRoot(linked: string, configDirs: readonly string[]): RuleModuleRoot {
+    return configDirs.some((configDir) => isWithinRoot(configDir, linked))
+        ? { kind: "refused", reason: "linkHoldsConfigFolder" }
+        : { kind: "package", id: linked };
 }
 
 /** The last `node_modules`, so a nested package is its own unit and never its parent's. */
@@ -336,21 +341,20 @@ export interface RootKindFacts {
 }
 
 /**
- * How the gate would hash a folder: the config's own package hashes without
- * its models. A folder outside `node_modules` that is neither a config's
- * folder read so far nor linked from one cannot be told yet.
+ * How the gate would hash a folder, or why it refuses it: the config's own
+ * package hashes without its models, and a linked folder holding a config
+ * read so far is refused. A folder outside `node_modules` that is neither a
+ * config's folder read so far nor linked from one cannot be told yet.
  */
-export function rootKindOf(
-    id: string,
-    facts: RootKindFacts,
-): BlockedRulePackage["kind"] | undefined {
+export function rootKindOf(id: string, facts: RootKindFacts): RuleModuleRoot | undefined {
     if (facts.reported !== undefined) {
-        return facts.reported;
+        return { kind: facts.reported, id };
     }
     if (facts.realConfigDirs.includes(id)) {
-        return "selfPackage";
+        return { kind: "selfPackage", id };
     }
-    return installedPackagesDirOf(id) !== undefined || facts.linkedFromNodeModules
-        ? "package"
-        : undefined;
+    if (installedPackagesDirOf(id) !== undefined) {
+        return { kind: "package", id };
+    }
+    return facts.linkedFromNodeModules ? linkedPackageRoot(id, facts.realConfigDirs) : undefined;
 }

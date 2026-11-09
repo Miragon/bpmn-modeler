@@ -18,7 +18,11 @@ import {
     RULE_PACKAGE_CODE_TEXTS,
     rootKindOf,
 } from "../domain/rulePackageApproval";
-import { closureRefusalText, ROOT_KIND_UNKNOWN_TEXT } from "../domain/rulePackageLog";
+import {
+    closureRefusalText,
+    ROOT_KIND_UNKNOWN_TEXT,
+    ruleModuleRefusalText,
+} from "../domain/rulePackageLog";
 import { InstalledPackagesPort } from "../port/installedPackagesPort";
 import { PackageClosureFingerprinter } from "./PackageClosureFingerprinter";
 import { RulePackageCatalog } from "./RulePackageCatalog";
@@ -78,11 +82,14 @@ export class RulePackageInventory {
         if (!hash) {
             return { kind: "unhashed", id, name };
         }
-        const kind = this.kindOf(id);
-        if (kind === undefined) {
+        const root = this.rootOf(id);
+        if (root === undefined) {
             return { kind: "unreadable", id, name, reason: ROOT_KIND_UNKNOWN_TEXT };
         }
-        const fingerprint = this.fingerprints.fingerprint({ id, kind });
+        if (root.kind === "refused") {
+            return { kind: "unreadable", id, name, reason: ruleModuleRefusalText(root.reason) };
+        }
+        const fingerprint = this.fingerprints.fingerprint(root);
         if (fingerprint.kind === "refused") {
             return {
                 kind: "unreadable",
@@ -130,7 +137,7 @@ export class RulePackageInventory {
     }
 
     /** The gate's config folder is a real path, so each read config folder is compared as one. */
-    private kindOf(id: string) {
+    private rootOf(id: string) {
         return rootKindOf(id, {
             reported: this.catalog.seenPackages().find((each) => each.id === id)?.kind,
             realConfigDirs: this.catalog

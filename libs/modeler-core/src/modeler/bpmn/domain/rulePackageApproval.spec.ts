@@ -793,38 +793,48 @@ describe("installedPackagesDirOf", () => {
 describe("rootKindOf", () => {
     const none: RootKindFacts = { realConfigDirs: [], linkedFromNodeModules: false };
 
-    it.each<{ case: string; id: string; facts: RootKindFacts; kind: string | undefined }>([
+    it.each<{ case: string; id: string; facts: RootKindFacts; root: RuleModuleRoot | undefined }>([
         {
             case: "the kind the gate reported, over everything else",
             id: "/work",
             facts: { ...none, reported: "package", realConfigDirs: ["/work"] },
-            kind: "package",
+            root: { kind: "package", id: "/work" },
         },
         {
             case: "a lint config's folder as the config's own package",
             id: "/work",
             facts: { ...none, realConfigDirs: ["/other", "/work"] },
-            kind: "selfPackage",
+            root: { kind: "selfPackage", id: "/work" },
         },
         {
             case: "a folder below node_modules as a package",
             id: "/work/node_modules/bpmnlint-plugin-acme",
             facts: none,
-            kind: "package",
+            root: { kind: "package", id: "/work/node_modules/bpmnlint-plugin-acme" },
         },
         {
             case: "a folder a node_modules entry links to as a package",
             id: "/work/packages/rules",
-            facts: { ...none, linkedFromNodeModules: true },
-            kind: "package",
+            facts: { ...none, realConfigDirs: ["/work"], linkedFromNodeModules: true },
+            root: { kind: "package", id: "/work/packages/rules" },
+        },
+        {
+            case: "a linked folder that holds a lint config as refused, as the gate refuses it",
+            id: "/repo",
+            facts: {
+                ...none,
+                realConfigDirs: ["/other", "/repo/modeling"],
+                linkedFromNodeModules: true,
+            },
+            root: { kind: "refused", reason: "linkHoldsConfigFolder" },
         },
         {
             case: "any other folder as not known yet",
             id: "/work",
             facts: { ...none, realConfigDirs: ["/work/orders"] },
-            kind: undefined,
+            root: undefined,
         },
-    ])("tells $case", ({ id, facts, kind }) => {
-        expect(rootKindOf(id, facts)).toBe(kind);
+    ])("tells $case", ({ id, facts, root }) => {
+        expect(rootKindOf(id, facts)).toEqual(root);
     });
 });

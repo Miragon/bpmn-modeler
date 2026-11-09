@@ -124,6 +124,22 @@ describe("RulePackageInventory", () => {
         );
     });
 
+    it("cannot allow a linked folder that holds a lint config, as the gate refuses it", () => {
+        const { catalog, disk, install, inventory } = setUp();
+        install("/repo", "bpmnlint-plugin-repo", { "modeling/order.bpmn": "<x/>" });
+        disk.createSymbolicLink(`${NODE_MODULES}/bpmnlint-plugin-repo`, "/repo");
+        inventory.installedIn([WORK]);
+        catalog.noteLintConfig("/repo/modeling/.bpmnlintrc");
+
+        expect(inventory.currentRulePackage("/repo", { hash: true })).toEqual({
+            kind: "unreadable",
+            id: "/repo",
+            name: "repo",
+            reason: "the package link it comes through points to a folder that holds the config",
+        });
+        expect(disk.filesHashed).toEqual([]);
+    });
+
     it("cannot allow a folder outside node_modules that no lint reported or read yet", () => {
         const { install, inventory, disk } = setUp();
         install(WORK, "bpmnlint-plugin-self", { "order.bpmn": "<definitions/>" });
