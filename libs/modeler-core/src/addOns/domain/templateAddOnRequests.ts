@@ -7,8 +7,20 @@ import {
     TemplateSwitch,
 } from "../../kernel/domain/templatePreferences";
 import { SourceActionKind, TemplateActionKind, TemplateSourceActionKind } from "./addOnIds";
-import { AddOnActionResult, NOT_OFFERED, refused, UNKNOWN_ADD_ON } from "./addOnRequests";
+import {
+    AddOnActionResult,
+    AddOnRequest,
+    NOT_OFFERED,
+    refused,
+    UNKNOWN_ADD_ON,
+} from "./addOnRequests";
 import { ShownSource, ShownTemplate } from "./templateAddOnViews";
+
+/** A request that turns a template, or every template of a source, on or off. */
+export type TemplateSwitchRequest = Extract<
+    AddOnRequest,
+    { kind: TemplateActionKind | TemplateSourceActionKind }
+>;
 
 export type MarketplaceRemovalTarget =
     | { readonly kind: "shown"; readonly entry: MarketplaceSettingsEntry }

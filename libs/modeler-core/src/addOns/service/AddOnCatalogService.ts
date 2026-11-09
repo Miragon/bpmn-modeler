@@ -6,7 +6,6 @@ import {
 } from "../../kernel/domain/codeApproval";
 import { PluginApprovalStorePort } from "../../kernel/port/approvalPorts";
 import { LoggerPort } from "../../kernel/port/hostPorts";
-import { TemplatePreferenceStorePort } from "../../kernel/port/templatePreferencePorts";
 import { catalogModelOf, ShownCode } from "../domain/addOnCatalog";
 import type { AddOnCatalogModel } from "../domain/addOnCatalogModel";
 import { CatalogActionKind, CodeAddOnKind } from "../domain/addOnIds";
@@ -27,13 +26,7 @@ import {
     shownTargetOf,
 } from "../domain/codeAddOnRequests";
 import { firstRevisionOf, ShownRevisions } from "../domain/shownRevisions";
-import {
-    marketplaceRemovalTargetOf,
-    sourceSwitchTargetOf,
-    TEMPLATE_SWITCH_FAILED,
-    templateSwitchTargetOf,
-    TemplateSwitchTarget,
-} from "../domain/templateAddOnRequests";
+import { marketplaceRemovalTargetOf, TemplateSwitchRequest } from "../domain/templateAddOnRequests";
 import { ShownSource, ShownTemplate } from "../domain/templateAddOnViews";
 import {
     CodeAddOnSource,
@@ -42,32 +35,20 @@ import {
     RulePackageAddOnSource,
 } from "../port/addOnSourcePorts";
 import { AddOnInventoryReader } from "./AddOnInventoryReader";
+import { TemplateSwitchActions } from "./TemplateSwitchActions";
 
 export interface AddOnCatalogPorts {
     readonly approvals: PluginApprovalStorePort;
     readonly plugins: PluginAddOnSource;
     readonly rulePackages?: RulePackageAddOnSource;
     readonly marketplaces?: MarketplaceAddOnSource;
-    /** Absent: the host keeps no template switches, and the catalog offers none. */
-    readonly templatePreferences?: TemplatePreferenceStorePort;
     readonly logger: LoggerPort;
     readonly restart: ProcessRestart;
 }
 
-type QueuedRequest = Extract<
-    AddOnRequest,
-    {
-        kind:
-            | "inspect"
-            | "allow"
-            | "revoke"
-            | "pruneCache"
-            | "enable"
-            | "disable"
-            | "enableTemplates"
-            | "disableTemplates";
-    }
->;
+type QueuedRequest =
+    | Extract<AddOnRequest, { kind: "inspect" | "allow" | "revoke" | "pruneCache" }>
+    | TemplateSwitchRequest;
 type MarketplaceRequest = Extract<
     AddOnRequest,
     { kind: "addMarketplace" | "updateMarketplaces" | "removeMarketplace" }
@@ -99,6 +80,7 @@ export class AddOnCatalogService {
 
     constructor(
         private readonly reader: AddOnInventoryReader,
+        private readonly templateSwitches: TemplateSwitchActions,
         private readonly ports: AddOnCatalogPorts,
     ) {}
 
@@ -191,30 +173,12 @@ export class AddOnCatalogService {
                 return this.revoke(request.addOnId);
             case "pruneCache":
                 return this.prune();
-            case "enable":
-            case "disable":
-                return this.switchTemplates(
-                    templateSwitchTargetOf(this.latestTemplates, request.addOnId, request.kind),
-                );
-            case "enableTemplates":
-            case "disableTemplates":
-                return this.switchTemplates(
-                    sourceSwitchTargetOf(this.latestSources, request.sourceId, request.kind),
-                );
+            default:
+                return this.templateSwitches.act(request, {
+                    sources: this.latestSources,
+                    templates: this.latestTemplates,
+                });
         }
-    }
-
-    private async switchTemplates(target: TemplateSwitchTarget): Promise<AddOnActionResult> {
-        if (target.kind === "refused") return target.result;
-        const store = this.ports.templatePreferences;
-        if (store === undefined) return CATALOG_NOT_OFFERED;
-        try {
-            await store.change(target.change);
-        } catch (error) {
-            this.logError(error);
-            return TEMPLATE_SWITCH_FAILED;
-        }
-        return target.result;
     }
 
     private inspect(addOnId: string): AddOnActionResult {

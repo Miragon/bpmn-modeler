@@ -14,6 +14,7 @@ import { AddOnCatalogService } from "../service/AddOnCatalogService";
 import { AddOnInventoryReader } from "../service/AddOnInventoryReader";
 import { AddOnViewConnection, AddOnViewHub } from "../service/AddOnViewHub";
 import { AddOnWatchers } from "../service/AddOnWatchers";
+import { TemplateSwitchActions } from "../service/TemplateSwitchActions";
 
 export interface AddOnsHostPorts {
     readonly workspace: WorkspacePort;
@@ -46,15 +47,18 @@ export class AddOnsFeature {
     private readonly subscriptions: { dispose(): void }[];
 
     constructor(ports: AddOnsHostPorts) {
-        this.catalog = new AddOnCatalogService(new AddOnInventoryReader(ports), {
-            approvals: ports.approvals,
-            plugins: ports.plugins,
-            rulePackages: ports.rulePackages,
-            marketplaces: ports.marketplaces,
-            templatePreferences: ports.templatePreferences,
-            logger: ports.notifier,
-            restart: ports.restart,
-        });
+        this.catalog = new AddOnCatalogService(
+            new AddOnInventoryReader(ports),
+            new TemplateSwitchActions(ports.templatePreferences, ports.notifier),
+            {
+                approvals: ports.approvals,
+                plugins: ports.plugins,
+                rulePackages: ports.rulePackages,
+                marketplaces: ports.marketplaces,
+                logger: ports.notifier,
+                restart: ports.restart,
+            },
+        );
         const invalidate = () => this.catalog.invalidate();
         this.hub = new AddOnViewHub(
             this.catalog,
