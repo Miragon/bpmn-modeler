@@ -18,10 +18,10 @@ import { TemplatePreferencesMirror } from "../../port/TemplatePreferencesMirror"
 
 /**
  * IntelliJ's template switches, the project's and the application's, mirrored
- * for the core's synchronous `read()`. The host seeds the mirror on
- * `session/register` and pushes both lists in `templatePreferences/didChange`
- * after a change: an all-projects change to every running bridge of the IDE,
- * a project change to this project's.
+ * for the core's synchronous `read()`. The host seeds the mirror after every
+ * spawn and on `session/register`, and pushes both lists in
+ * `templatePreferences/didChange` after a change: an all-projects change to
+ * every running bridge of the IDE, a project change to this project's.
  *
  * The host is the writer of record: `change` sends only the switches to
  * disable and to enable in one scope, the host merges them into the list it

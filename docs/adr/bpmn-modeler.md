@@ -713,7 +713,8 @@ supplies these parts:
   IDE. Bridges run per project, so the host is the single writer: the bridge
   mirrors the list for the port's synchronous `read()`, seeded on every
   `session/register` (a separate seed would race the page's first plugin
-  query) and replaced by `pluginApprovals/didChange`. A bridge writes with
+  query) and replaced by `pluginApprovals/didChange`, which the host also
+  sends after every spawn. A bridge writes with
   `pluginApprovals/change`, which carries only the rows to allow and the ids to
   revoke; the store reads, merges, writes and bumps its revision under one
   lock, pushes the list to every running bridge and then answers with it.

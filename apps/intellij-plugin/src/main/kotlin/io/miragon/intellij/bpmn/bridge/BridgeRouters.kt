@@ -32,8 +32,15 @@ internal class BridgeRouters(deps: BridgeDeps) {
         hostUi.register()
     }
 
-    /** Runs once the bridge's writer is attached, after every spawn. */
+    /**
+     * Runs once the bridge's writer is attached, after every spawn. A register
+     * queued before it read the switches and approvals when it was queued, and
+     * a push while the process was starting was dropped, so both scopes are
+     * read again here.
+     */
     fun seedAfterSpawn() {
         deployment.sendSeed()
+        templatePreferences.push()
+        pluginApprovals.pushStored()
     }
 }

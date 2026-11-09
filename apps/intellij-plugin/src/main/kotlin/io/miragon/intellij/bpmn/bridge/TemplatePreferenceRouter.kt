@@ -47,7 +47,7 @@ internal class TemplatePreferenceRouter(
     }
 
     /**
-     * No-ops when no bridge is alive: the switches are seeded again on the next `session/register`.
+     * No-ops when no bridge is alive: the switches are seeded again on the next spawn and `session/register`.
      * Not coalesced: all-projects changes push from each project's reader thread, so a frame
      * queued later can carry an older revision and must not replace the newer one.
      */
