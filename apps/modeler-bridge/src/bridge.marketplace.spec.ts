@@ -28,10 +28,13 @@ import {
     hostErrorReply,
     hostNotification,
     hostReply,
+    keepAnswering,
     registerParams,
     settle,
     waitForFrame,
 } from "./__fixtures__/bridgeHarness";
+import { AddOnCatalogModel, AddOnsFeature } from "@miragon/bpmn-modeler-core";
+
 import { createBridge } from "./composition/bridge";
 import { Rpc } from "./transport/adapter/out/Rpc";
 
@@ -101,6 +104,7 @@ describe("bridge template marketplace (real core + cache over a fake transport)"
      */
     async function setup(): Promise<{
         rpc: Rpc;
+        addOns: AddOnsFeature;
         frames: any[];
         editorId: string;
         cacheRoot: string;
@@ -114,7 +118,7 @@ describe("bridge template marketplace (real core + cache over a fake transport)"
         await fs.writeFile(sourcePath, BPMN_XML, "utf8");
 
         const frames: any[] = [];
-        const { rpc } = createBridge(
+        const { rpc, addOns } = createBridge(
             (line) => frames.push(JSON.parse(line)),
             () => {},
             {
@@ -144,7 +148,8 @@ describe("bridge template marketplace (real core + cache over a fake transport)"
         );
 
         cleanups.push(() => fs.rm(tmp, { recursive: true, force: true }));
-        return { rpc, frames, editorId, cacheRoot, tmp };
+        cleanups.push(() => addOns.dispose());
+        return { rpc, addOns, frames, editorId, cacheRoot, tmp };
     }
 
     /** Writes a valid local-folder marketplace with one element template. */
@@ -375,6 +380,62 @@ describe("bridge template marketplace (real core + cache over a fake transport)"
         });
         expect(removal.params).toEqual({ entries: [folder] });
         expect(await fs.readdir(cacheRoot)).toEqual([]);
+    });
+
+    it("lists a registered marketplace with its scope and templates for a view, and removes it from there after the host's confirm", async () => {
+        const { rpc, addOns, frames, tmp, cacheRoot } = await setup();
+        const folder = await writeLocalMarketplace(tmp);
+        // On macOS the bridge cannot watch a plugins folder that does not exist yet.
+        await fs.mkdir(join(tmp, "workspace", ".camunda", "plugins"), { recursive: true });
+        await rpc.handleLine(
+            hostNotification("marketplace/update", { settings: { marketplaces: [folder] } }),
+        );
+        await waitForFrame(frames, isTemplatesQuery(TEMPLATE_NAME));
+        let registrations = intellijRegistrations({ project: [folder] });
+        cleanups.push(
+            keepAnswering(rpc.handleLine.bind(rpc), frames, "pluginApprovals/read", () => ({
+                approvals: [],
+                revision: 1,
+            })),
+            keepAnswering(
+                rpc.handleLine.bind(rpc),
+                frames,
+                "marketplaceState/read",
+                () => registrations,
+            ),
+        );
+        const models: AddOnCatalogModel[] = [];
+        const view = addOns.attachView((model) => models.push(model), true);
+        await addOns.whenSettled();
+        const group = models[models.length - 1]?.groups.find(({ id }) => id === "marketplaces");
+
+        const removing = view.handle({ kind: "removeMarketplace", sourceId: group!.sources[0].id });
+        const confirm = await answer(rpc, frames, "confirm/show", { confirmed: true });
+        const removal = await waitForFrame(frames, isRequest("marketplaceState/remove"));
+        registrations = intellijRegistrations();
+        await rpc.handleLine(
+            hostNotification("settings/didChange", { settings: { marketplaces: [] } }),
+        );
+        await rpc.handleLine(hostReply(removal.id, null));
+        const result = await removing;
+        await addOns.whenSettled();
+
+        expect(
+            group?.sources.map(({ label, description, addOns: templates }) => ({
+                label,
+                description,
+                templates: templates.map(({ name }) => name),
+            })),
+        ).toEqual([{ label: folder, description: "This project", templates: [TEMPLATE_NAME] }]);
+        expect(result).toEqual({ kind: "reportedByFlow" });
+        expect(confirm.params).toMatchObject({
+            title: `Remove the template marketplace ${folder}?`,
+            confirmLabel: "Remove",
+        });
+        expect(removal.params).toEqual({ entries: [folder] });
+        await waitForFrame(frames, isShowInfo("Removed 1 marketplace(s)."));
+        expect(await fs.readdir(cacheRoot)).toEqual([]);
+        expect(models[models.length - 1]?.groups.map(({ id }) => id)).toEqual([]);
     });
 
     it("says that nothing is registered and offers no choice", async () => {

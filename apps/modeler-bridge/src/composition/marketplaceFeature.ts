@@ -2,6 +2,7 @@ import {
     BpmnElementTemplatesService,
     createTemplateMarketplaceService,
     MarketplaceCommands,
+    MarketplaceInventory,
     TemplateMarketplaceService,
 } from "@miragon/bpmn-modeler-core";
 
@@ -63,7 +64,11 @@ export function register(
     return { marketplaceSvc };
 }
 
-/** Registers the Host→Core marketplace notifications, once the templates service exists. */
+/**
+ * Registers the Host→Core marketplace notifications, once the templates
+ * service exists. The add-on catalog runs the same commands, so their flows
+ * queue together and every view follows them.
+ */
 export function registerHandlers(
     deps: BridgeSharedDeps,
     handles: {
@@ -71,20 +76,28 @@ export function registerHandlers(
         templatesSvc: BpmnElementTemplatesService;
         homeDir: string;
     },
-): void {
+): { marketplaceCommands: MarketplaceCommands; marketplaces: MarketplaceInventory } {
+    const registrations = new RpcMarketplaceRegistrations(deps.rpc);
+    const marketplaceCommands = new MarketplaceCommands({
+        marketplaces: handles.marketplaceSvc,
+        templates: handles.templatesSvc,
+        registrations,
+        prompt: new RpcMarketplacePrompt(deps.rpc),
+        picker: deps.picker,
+        notifier: deps.notifier,
+        homeDir: handles.homeDir,
+    });
     bindHandlers(
         deps.rpc,
-        marketplaceHandlers({
-            commands: new MarketplaceCommands({
-                marketplaces: handles.marketplaceSvc,
-                templates: handles.templatesSvc,
-                registrations: new RpcMarketplaceRegistrations(deps.rpc),
-                prompt: new RpcMarketplacePrompt(deps.rpc),
-                picker: deps.picker,
-                notifier: deps.notifier,
-                homeDir: handles.homeDir,
-            }),
-            settingsMirror: deps.settings,
-        }),
+        marketplaceHandlers({ commands: marketplaceCommands, settingsMirror: deps.settings }),
     );
+    return {
+        marketplaceCommands,
+        marketplaces: new MarketplaceInventory(
+            registrations,
+            handles.marketplaceSvc,
+            marketplaceCommands,
+            deps.notifier,
+        ),
+    };
 }

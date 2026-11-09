@@ -1,16 +1,26 @@
 import { ExtensionContext } from "vscode";
 
-import { AddOnsFeature, BpmnEditorFeature, BpmnPluginsFeature } from "@miragon/bpmn-modeler-core";
+import {
+    AddOnsFeature,
+    BpmnEditorFeature,
+    BpmnPluginsFeature,
+    MarketplaceAddOnSource,
+} from "@miragon/bpmn-modeler-core";
 import { SharedDeps } from "./sharedDeps";
 
 /**
- * The add-on catalog over the plugin and rule package features the BPMN
- * editor built, and the approval list they share. No view attaches yet.
+ * The add-on catalog over the plugin, rule package and template owners the
+ * BPMN editor built, the approval list they share, and the marketplace
+ * commands. No view attaches yet.
  */
 export function register(
     context: ExtensionContext,
     deps: SharedDeps,
-    handles: { editor: BpmnEditorFeature; plugins: BpmnPluginsFeature },
+    handles: {
+        editor: BpmnEditorFeature;
+        plugins: BpmnPluginsFeature;
+        marketplaces: MarketplaceAddOnSource;
+    },
 ): { addOns: AddOnsFeature } {
     const addOns = new AddOnsFeature({
         workspace: deps.vsWorkspace,
@@ -23,6 +33,8 @@ export function register(
         restart: "reloadWindow",
         plugins: handles.plugins.inventory,
         rulePackages: handles.editor.rulePackageInventory,
+        templates: handles.editor.templateInventory,
+        marketplaces: handles.marketplaces,
     });
     context.subscriptions.push(addOns);
     return { addOns };

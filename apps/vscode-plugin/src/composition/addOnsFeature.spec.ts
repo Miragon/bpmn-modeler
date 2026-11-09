@@ -22,6 +22,7 @@ import { setContext } from "../shared/adapter/out/extensionContext";
 import * as addOnsFeature from "./addOnsFeature";
 import * as bpmnEditorFeature from "./bpmnEditorFeature";
 import { buildSharedDeps } from "./sharedDeps";
+import * as templateMarketplaceFeature from "./templateMarketplaceFeature";
 
 function createExtensionContext(): ExtensionContext {
     return {
@@ -46,6 +47,7 @@ function createVsCodeAddOns(context = createExtensionContext()) {
     );
     const diffStore = new DiffPaneStore();
     const deploymentStatus: EditorSessionParticipant = { onResolve: () => undefined };
+    const { marketplaceSvc } = templateMarketplaceFeature.register(context, deps);
     const bpmn = bpmnEditorFeature.register(context, deps, {
         diffController: new BpmnDiffController(
             diffStore,
@@ -56,7 +58,7 @@ function createVsCodeAddOns(context = createExtensionContext()) {
             },
             deps.preferences,
         ),
-        marketplaceSvc: { getCachedTemplatePaths: () => Promise.resolve([]) },
+        marketplaceSvc,
         deploymentStatusParticipant: deploymentStatus,
         scriptEditor: new ScriptEditorFeature({
             scriptEditor: new RecordingScriptEditor(deps.editorStore, scriptFiles, deps.picker),
@@ -65,7 +67,19 @@ function createVsCodeAddOns(context = createExtensionContext()) {
             notifier: deps.notifier,
         }).editorContribution,
     });
-    return { deps, bpmn, ...addOnsFeature.register(context, deps, bpmn) };
+    const marketplace = templateMarketplaceFeature.registerCommands(context, deps, {
+        marketplaceSvc,
+        templatesSvc: bpmn.editor.templates,
+    });
+    return {
+        deps,
+        bpmn,
+        marketplace,
+        ...addOnsFeature.register(context, deps, {
+            ...bpmn,
+            marketplaces: marketplace.marketplaces,
+        }),
+    };
 }
 
 const LEFT = { id: "/work/x", name: "x", contentHash: "h" };
@@ -94,7 +108,26 @@ describe("VS Code's add-on catalog", () => {
         addOns.attachView((model) => posted.push(model.emptyText ?? ""), true);
         await addOns.whenSettled();
 
-        expect(posted).toEqual(["Open a folder to see the plugins and rule packages it brings."]);
+        expect(posted).toEqual([
+            "Open a folder to see the plugins, rule packages and element templates it brings.",
+        ]);
+    });
+
+    it("offers the marketplace flows and lists again once one ran", async () => {
+        const { marketplace, addOns } = createVsCodeAddOns();
+        const models: AddOnCatalogModel[] = [];
+        addOns.attachView((model) => models.push(model), true);
+        await addOns.whenSettled();
+
+        await marketplace.marketplaceCommands.update();
+        await addOns.whenSettled();
+
+        expect(models).toHaveLength(2);
+        expect(models[0].actions.map(({ kind }) => kind)).toEqual([
+            "addMarketplace",
+            "updateMarketplaces",
+            "pruneCache",
+        ]);
     });
 
     it("stops the catalog when the extension deactivates", async () => {

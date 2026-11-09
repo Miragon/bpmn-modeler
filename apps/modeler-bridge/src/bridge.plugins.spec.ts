@@ -29,6 +29,7 @@ import {
 import {
     hostNotification,
     hostReply,
+    keepAnswering,
     registerParams,
     settle,
     waitForFrame,
@@ -133,6 +134,13 @@ describe("workspace bpmn-js plugins on the bridge", () => {
         await openEditor(bridge, "order.bpmn");
         const models: AddOnCatalogModel[] = [];
 
+        const stopAnswering = keepAnswering(
+            bridge.rpc.handleLine.bind(bridge.rpc),
+            bridge.frames,
+            "marketplaceState/read",
+            () => ({ registered: { project: [], allProjects: [] }, writable: [] }),
+        );
+        disposals.push(async () => stopAnswering());
         bridge.addOns.attachView((model) => models.push(model), true);
         const answerRead = async (fromIndex: number): Promise<number> => {
             const read = await waitForFrame(bridge.frames, isRequest("pluginApprovals/read"), {

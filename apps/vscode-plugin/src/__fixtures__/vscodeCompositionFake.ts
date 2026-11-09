@@ -26,7 +26,11 @@ export class EventEmitter<T> {
 export const workspace = {
     fs: {},
     workspaceFolders: [],
-    getConfiguration: () => ({ get: () => undefined, update: () => Promise.resolve() }),
+    getConfiguration: () => ({
+        get: () => undefined,
+        inspect: () => undefined,
+        update: () => Promise.resolve(),
+    }),
     onDidChangeConfiguration: () => disposable,
     onDidChangeTextDocument: () => disposable,
     onWillSaveTextDocument: () => disposable,
