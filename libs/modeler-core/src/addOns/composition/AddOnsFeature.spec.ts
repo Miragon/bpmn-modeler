@@ -1060,6 +1060,86 @@ describe("AddOnsFeature", () => {
             },
         );
 
+        describe("beside the code actions", () => {
+            /** The removal confirm stays open until the spec answers it. */
+            function holdRemovalConfirm(host: ReturnType<typeof createTestHost>) {
+                let asked = () => {};
+                let answer: (value: boolean) => void = () => {};
+                const confirmAsked = new Promise<void>((resolve) => (asked = resolve));
+                vi.spyOn(host.picker, "confirm").mockImplementation(() => {
+                    asked();
+                    return new Promise<boolean>((resolve) => (answer = resolve));
+                });
+                return { confirmAsked, answer: (value: boolean) => answer(value) };
+            }
+
+            async function shownMarketplace(promptAnswers = {}) {
+                const fixture = setUp({
+                    files: MARKETPLACE_FILES,
+                    settings: { marketplaces: [SHARED] },
+                    promptAnswers,
+                });
+                fixture.view.attachTo(fixture.addOns);
+                await shown(fixture.addOns);
+                const [source] = marketplaceGroupOf(fixture.view)?.sources ?? [];
+                return { ...fixture, sourceId: source.id };
+            }
+
+            it("a removal confirm left open holds back no code action", async () => {
+                const { host, view, sourceId } = await shownMarketplace();
+                const confirm = holdRemovalConfirm(host);
+                const removing = view.connection!.handle({ kind: "removeMarketplace", sourceId });
+                await confirm.confirmAsked;
+
+                const pruned = await view.connection!.handle({ kind: "pruneCache" });
+                confirm.answer(false);
+                await removing;
+
+                expect(pruned).toEqual({
+                    kind: "done",
+                    message: "No unused plugin copies to remove.",
+                });
+            });
+
+            it("a code action still running holds back no marketplace flow", async () => {
+                const { host, plugins, view, sourceId } = await shownMarketplace({
+                    marketplaceRemovalConfirm: true,
+                });
+                let finishPrune = () => {};
+                vi.spyOn(plugins.inventory, "pruneCache").mockImplementation(
+                    () => new Promise((resolve) => (finishPrune = () => resolve({ removed: 0 }))),
+                );
+                const pruning = view.connection!.handle({ kind: "pruneCache" });
+
+                const removed = await view.connection!.handle({
+                    kind: "removeMarketplace",
+                    sourceId,
+                });
+                finishPrune();
+                await pruning;
+
+                expect(removed).toEqual({ kind: "reportedByFlow" });
+                expect(host.settings.values.marketplaces).toEqual([]);
+            });
+
+            it("is not settled while a marketplace flow still asks", async () => {
+                const { host, addOns, view, sourceId } = await shownMarketplace();
+                const confirm = holdRemovalConfirm(host);
+                const removing = view.connection!.handle({ kind: "removeMarketplace", sourceId });
+                await confirm.confirmAsked;
+                let settled = false;
+                void addOns.whenSettled().then(() => (settled = true));
+
+                await new Promise((resolve) => setTimeout(resolve, 0));
+                const settledWhileAsking = settled;
+                confirm.answer(false);
+                await removing;
+                await addOns.whenSettled();
+
+                expect([settledWhileAsking, settled]).toEqual([false, true]);
+            });
+        });
+
         it("removes nothing when its confirm is declined", async () => {
             const { host, addOns, view } = setUp({
                 files: MARKETPLACE_FILES,
