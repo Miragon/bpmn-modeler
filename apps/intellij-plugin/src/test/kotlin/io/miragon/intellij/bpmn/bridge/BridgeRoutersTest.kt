@@ -4,6 +4,7 @@ import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import com.intellij.ide.util.PropertiesComponent
 import com.intellij.testFramework.junit5.TestApplication
+import io.miragon.intellij.bpmn.ModelerSettingsStore
 import io.miragon.intellij.bpmn.PluginApproval
 import io.miragon.intellij.bpmn.PluginApprovalStore
 import io.miragon.intellij.bpmn.ProjectTemplatePreferenceStore
@@ -66,6 +67,29 @@ class BridgeRoutersTest {
         val approvals = frames.getValue("pluginApprovals/didChange").getAsJsonObject("params")
         assertEquals(PluginApprovalStore.getInstance().snapshot().revision, approvals.get("revision").asLong)
         assertEquals(PLUGIN_ID, approvals.getAsJsonArray("approvals")[0].asJsonObject.get("pluginId").asString)
+    }
+
+    @Test
+    fun `a spawn sends the settings changed while this bridge was still starting`() {
+        val wired = wireChannel().also { this.wired = it }
+        var alive = false
+        val routers = BridgeRouters(bridgeDeps(projectFixture.get(), wired.channel, wired.handlers, isProcessAlive = { alive }))
+        routers.register()
+        val settings = ModelerSettingsStore.getInstance()
+        val lintingBefore = settings.current().lintingEnabled
+        try {
+            // Changed after a queued register read the settings; the push finds no live bridge.
+            settings.setLintingEnabled(!lintingBefore)
+            routers.editor.pushSettings()
+            alive = true
+            routers.seedAfterSpawn()
+
+            val frames = wired.fake.framesUntilQuiet().map(::parse).associateBy { it.get("method").asString }
+            val sent = frames.getValue("settings/didChange").getAsJsonObject("params").getAsJsonObject("settings")
+            assertEquals(!lintingBefore, sent.get("lintingEnabled").asBoolean)
+        } finally {
+            settings.setLintingEnabled(lintingBefore)
+        }
     }
 
     private companion object {
