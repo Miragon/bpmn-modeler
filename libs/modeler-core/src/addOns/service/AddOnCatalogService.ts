@@ -13,23 +13,27 @@ import { CatalogActionKind, CodeAddOnKind } from "../domain/addOnIds";
 import {
     AddOnActionResult,
     AddOnRequest,
-    allowResultOf,
-    allowTargetOf,
     CATALOG_NOT_OFFERED,
     catalogActionRefusalOf,
+    REPORTED_BY_FLOW,
+} from "../domain/addOnRequests";
+import {
+    allowResultOf,
+    allowTargetOf,
     inspectResultOf,
-    marketplaceRemovalTargetOf,
     PRUNE_FAILED,
     pruneResultOf,
-    REPORTED_BY_FLOW,
     revokeResultOf,
     shownTargetOf,
+} from "../domain/codeAddOnRequests";
+import { firstRevisionOf, ShownRevisions } from "../domain/shownRevisions";
+import {
+    marketplaceRemovalTargetOf,
     sourceSwitchTargetOf,
     TEMPLATE_SWITCH_FAILED,
     templateSwitchTargetOf,
     TemplateSwitchTarget,
-} from "../domain/addOnRequests";
-import { firstRevisionOf, ShownRevisions } from "../domain/shownRevisions";
+} from "../domain/templateAddOnRequests";
 import { ShownSource, ShownTemplate } from "../domain/templateAddOnViews";
 import {
     CodeAddOnSource,
