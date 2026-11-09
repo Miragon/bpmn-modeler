@@ -7,6 +7,14 @@ export const SOURCE_KINDS = ["configFolder", "installedPackages"] as const;
 
 export type SourceKind = (typeof SOURCE_KINDS)[number];
 
+export const ADD_ON_ACTION_KINDS = ["inspect", "allow", "revoke"] as const;
+
+export type AddOnActionKind = (typeof ADD_ON_ACTION_KINDS)[number];
+
+export const CATALOG_ACTION_KINDS = ["pruneCache"] as const;
+
+export type CatalogActionKind = (typeof CATALOG_ACTION_KINDS)[number];
+
 const ADD_ON_ID_PREFIX: Record<AddOnKind, string> = {
     plugin: "plugin",
     rulePackage: "rulePackage",

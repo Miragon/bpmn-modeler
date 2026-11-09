@@ -1,7 +1,7 @@
 import { ProcessRestart } from "../../kernel/domain/codeApproval";
 import { PluginApprovalStorePort } from "../../kernel/port/approvalPorts";
 import { NotifierPort, SettingsPort, WorkspacePort } from "../../kernel/port/hostPorts";
-import { AddOnCatalogModel } from "../domain/addOnCatalog";
+import type { AddOnCatalogModel } from "../domain/addOnCatalogModel";
 import {
     PluginAddOnSource,
     RulePackageAddOnSource,

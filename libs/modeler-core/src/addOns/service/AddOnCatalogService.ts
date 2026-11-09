@@ -6,7 +6,8 @@ import {
 } from "../../kernel/domain/codeApproval";
 import { PluginApprovalStorePort } from "../../kernel/port/approvalPorts";
 import { LoggerPort } from "../../kernel/port/hostPorts";
-import { AddOnCatalogModel, catalogModelOf, ShownCode } from "../domain/addOnCatalog";
+import { catalogModelOf, ShownCode } from "../domain/addOnCatalog";
+import type { AddOnCatalogModel } from "../domain/addOnCatalogModel";
 import { AddOnKind } from "../domain/addOnIds";
 import {
     AddOnActionResult,

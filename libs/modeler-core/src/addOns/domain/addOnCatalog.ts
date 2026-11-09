@@ -19,7 +19,22 @@ import {
     relativeToWorkspace,
 } from "../../kernel/domain/rootContainment";
 import { lastWorkspacePathSegment } from "../../kernel/domain/workspacePath";
-import { AddOnKind, addOnIdOf, folderGroupIdOf, SourceKind, sourceIdOf } from "./addOnIds";
+import type {
+    ActionView,
+    AddOnCatalogModel,
+    AddOnGroupView,
+    AddOnReview,
+    AddOnView,
+} from "./addOnCatalogModel";
+import {
+    AddOnActionKind,
+    AddOnKind,
+    addOnIdOf,
+    CatalogActionKind,
+    folderGroupIdOf,
+    SourceKind,
+    sourceIdOf,
+} from "./addOnIds";
 import {
     ACTION_LABEL,
     ADD_ON_KIND_TEXT,
@@ -34,65 +49,6 @@ import {
     reviewHeading,
     ROOT_CONFIG_FOLDER_TEXT,
 } from "./addOnTexts";
-
-export const ADD_ON_ACTION_KINDS = ["inspect", "allow", "revoke"] as const;
-
-export type AddOnActionKind = (typeof ADD_ON_ACTION_KINDS)[number];
-
-export const CATALOG_ACTION_KINDS = ["pruneCache"] as const;
-
-export type CatalogActionKind = (typeof CATALOG_ACTION_KINDS)[number];
-
-export interface ActionView<K extends string> {
-    readonly kind: K;
-    readonly label: string;
-}
-
-/** What a view shows: built by the core, rendered by a host, never read back. */
-export interface AddOnCatalogModel {
-    /** Strictly increasing, across a respawned process too; an allow names the revision it was shown in. */
-    readonly revision: number;
-    /** Workspace folders in the order they were opened. */
-    readonly groups: readonly AddOnGroupView[];
-    readonly actions: readonly ActionView<CatalogActionKind>[];
-    readonly emptyText?: string;
-}
-
-export interface AddOnGroupView {
-    readonly id: string;
-    readonly label: string;
-    readonly description: string;
-    readonly sources: readonly AddOnSourceView[];
-}
-
-export interface AddOnSourceView {
-    readonly id: string;
-    readonly kind: SourceKind;
-    readonly label: string;
-    readonly description: string;
-    readonly addOns: readonly AddOnView[];
-}
-
-export interface AddOnReview {
-    readonly heading: string;
-    readonly warning: string;
-    readonly facts: readonly { readonly label: string; readonly value: string }[];
-}
-
-export interface AddOnView {
-    readonly id: string;
-    readonly kind: AddOnKind;
-    readonly kindText: string;
-    readonly name: string;
-    readonly detail?: string;
-    readonly state: CodeState;
-    readonly stateText: string;
-    readonly problem?: string;
-    readonly note?: string;
-    /** Only for content the user can allow now. */
-    readonly review?: AddOnReview;
-    readonly actions: readonly ActionView<AddOnActionKind>[];
-}
 
 /** One add-on as its owner read it, placed and spoke of it. */
 export interface OwnedPresence {
@@ -142,6 +98,12 @@ export interface CatalogBuild {
 
 interface ListedAddOn extends OwnedPresence {
     readonly kind: AddOnKind;
+}
+
+interface StatedAddOn extends ListedAddOn {
+    readonly id: string;
+    readonly state: CodeState;
+    readonly actions: readonly ActionView<AddOnActionKind>[];
 }
 
 interface PlacedAddOn {
@@ -239,11 +201,12 @@ export function catalogModelOf(
 }
 
 function placedAddOn(
-    { kind, presence, sourceDir, texts }: ListedAddOn,
+    listed: ListedAddOn,
     facts: AddOnFacts,
     session: AddOnSession,
     restart: ProcessRestart,
 ): PlacedAddOn[] {
+    const { kind, presence, sourceDir } = listed;
     const id = presenceIdOf(presence);
     const root = innermostFolderOf(id, facts.folders);
     if (root === undefined) {
@@ -252,9 +215,31 @@ function placedAddOn(
     const source = SOURCE_PLACE[kind](sourceDir, root, facts.configFolder);
     const reading = codeStateOf(presence, facts.approvals, declinedKeys(session.answers[kind]));
     const state = reading.kind === "state" ? reading.state : "new";
-    const actions = CODE_ACTIONS[presence.kind][state] ?? [];
-    const content = presence.kind === "found" ? presence.artifact : undefined;
-    const view: AddOnView = {
+    const row: StatedAddOn = {
+        ...listed,
+        id,
+        state,
+        actions: CODE_ACTIONS[presence.kind][state] ?? [],
+    };
+    return [
+        {
+            root,
+            source,
+            view: viewOf(row, source, facts.folders, session, restart),
+            shown: shownOf(row, restart),
+        },
+    ];
+}
+
+function viewOf(
+    row: StatedAddOn,
+    source: SourcePlace,
+    folders: readonly string[],
+    session: AddOnSession,
+    restart: ProcessRestart,
+): AddOnView {
+    const { kind, presence, id, state, actions } = row;
+    return {
         id: addOnIdOf(kind, id),
         kind,
         kindText: ADD_ON_KIND_TEXT[kind],
@@ -262,42 +247,62 @@ function placedAddOn(
         ...optional("detail", DETAIL[kind](presence, source.dir)),
         state,
         stateText: codeStateLabel(state),
-        ...optional(
-            "problem",
-            presence.kind === "unreadable" ? cannotBeAllowedText(presence.reason) : undefined,
-        ),
-        ...optional(
-            "note",
-            !isApprovedState(state) && session.stillLoaded[kind].has(id)
-                ? texts.revokedFollowUp(restart)
-                : undefined,
-        ),
-        ...optional(
-            "review",
-            content !== undefined && actions.some((action) => action.kind === "allow")
-                ? reviewOf(texts, content, facts.folders)
-                : undefined,
-        ),
+        ...optional("problem", problemOf(presence)),
+        ...optional("note", noteOf(row, session, restart)),
+        ...optional("review", reviewOfRow(row, folders)),
         actions,
     };
-    const shownContent: ApprovableArtifact | undefined =
-        content === undefined
-            ? undefined
-            : { id: content.id, name: content.name, contentHash: content.contentHash };
-    const shown: ShownCode = {
+}
+
+function problemOf(presence: ListedPresence): string | undefined {
+    return presence.kind === "unreadable" ? cannotBeAllowedText(presence.reason) : undefined;
+}
+
+function noteOf(
+    { kind, id, state, texts }: StatedAddOn,
+    session: AddOnSession,
+    restart: ProcessRestart,
+): string | undefined {
+    return !isApprovedState(state) && session.stillLoaded[kind].has(id)
+        ? texts.revokedFollowUp(restart)
+        : undefined;
+}
+
+function reviewOfRow(
+    { presence, texts, actions }: StatedAddOn,
+    folders: readonly string[],
+): AddOnReview | undefined {
+    return presence.kind === "found" && offers(actions, "allow")
+        ? reviewOf(texts, presence.artifact, folders)
+        : undefined;
+}
+
+function shownOf(row: StatedAddOn, restart: ProcessRestart): ShownCode {
+    const { kind, id, presence, texts, actions } = row;
+    const content = shownContentOf(presence);
+    return {
         kind,
         id,
         name: presence.name,
-        ...optional("content", shownContent),
+        ...optional("content", content),
         actions: actions.map((action) => action.kind),
         allowedFollowUp: texts.allowedFollowUp,
         revokedFollowUp: texts.revokedFollowUp(restart),
-        leftForViewByRevoke:
-            shownContent !== undefined && actions.some((action) => action.kind === "revoke")
-                ? [shownContent]
-                : [],
+        leftForViewByRevoke: content !== undefined && offers(actions, "revoke") ? [content] : [],
     };
-    return [{ root, source, view, shown }];
+}
+
+/** Only what an allow is checked against, never the listing's extra facts. */
+function shownContentOf(presence: ListedPresence): ApprovableArtifact | undefined {
+    if (presence.kind !== "found") {
+        return undefined;
+    }
+    const { id, name, contentHash } = presence.artifact;
+    return { id, name, contentHash };
+}
+
+function offers(actions: readonly ActionView<AddOnActionKind>[], kind: AddOnActionKind): boolean {
+    return actions.some((action) => action.kind === kind);
 }
 
 function groupOf(root: string, placed: readonly PlacedAddOn[]): AddOnGroupView[] {

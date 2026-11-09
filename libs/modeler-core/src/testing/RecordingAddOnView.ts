@@ -1,4 +1,4 @@
-import { AddOnCatalogModel, AddOnView } from "../addOns/domain/addOnCatalog";
+import type { AddOnCatalogModel, AddOnView } from "../addOns/domain/addOnCatalogModel";
 import { AddOnViewConnection } from "../addOns/service/AddOnViewHub";
 
 /** A view that keeps every model the catalog posted to it. */

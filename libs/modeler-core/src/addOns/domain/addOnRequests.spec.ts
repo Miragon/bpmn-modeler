@@ -1,7 +1,8 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 
 import { allowing, ReviewedAllow } from "../../kernel/domain/codeApproval";
-import { type AddOnActionKind, type CatalogActionKind, ShownCode } from "./addOnCatalog";
+import { ShownCode } from "./addOnCatalog";
+import { type AddOnActionKind, type CatalogActionKind } from "./addOnIds";
 import {
     type AddOnRequest,
     allowResultOf,

@@ -1,5 +1,6 @@
 import { ApprovableArtifact, ReviewedAllow } from "../../kernel/domain/codeApproval";
-import { AddOnActionKind, ShownCode } from "./addOnCatalog";
+import { ShownCode } from "./addOnCatalog";
+import { AddOnActionKind } from "./addOnIds";
 import { ShownRevisions } from "./shownRevisions";
 
 /** What a view asks of the core; every id names something the core itself showed. */

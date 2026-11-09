@@ -1,5 +1,5 @@
 import { LoggerPort, WorkspacePort } from "../../kernel/port/hostPorts";
-import { AddOnCatalogModel } from "../domain/addOnCatalog";
+import type { AddOnCatalogModel } from "../domain/addOnCatalogModel";
 import { AddOnActionResult, AddOnRequest, CLOSED_VIEW } from "../domain/addOnRequests";
 import { AddOnCatalogService } from "./AddOnCatalogService";
 import { AddOnWatchers } from "./AddOnWatchers";
