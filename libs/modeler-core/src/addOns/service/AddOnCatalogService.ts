@@ -69,6 +69,8 @@ export class AddOnCatalogService {
     private revisions = ShownRevisions.empty();
     private readonly inspected = new Set<string>();
     private latestModel?: AddOnCatalogModel;
+    /** The last listing that succeeded, which a failed one keeps showing. */
+    private latestReadModel?: AddOnCatalogModel;
     private latestSources: ReadonlyMap<string, ShownSource> = new Map();
     private latestTemplates: ReadonlyMap<string, ShownTemplate> = new Map();
     private latestCatalogActions: readonly CatalogActionKind[] = [];
@@ -265,11 +267,12 @@ export class AddOnCatalogService {
         this.latestSources = sources;
         this.latestTemplates = templates;
         this.latestCatalogActions = catalogActions;
+        this.latestReadModel = model;
         this.publish(model);
     }
 
     private publishFailed(): void {
-        const previous = this.latestModel;
+        const previous = this.latestReadModel;
         const model = failedCatalogOf(previous, previous?.revision ?? ++this.revision);
         if (previous === undefined)
             this.revisions = this.revisions.recorded(model.revision, new Map());
