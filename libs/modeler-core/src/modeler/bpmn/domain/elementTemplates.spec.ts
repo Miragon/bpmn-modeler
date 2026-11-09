@@ -78,6 +78,25 @@ describe("templateFileReadingOf", () => {
         expect(templateFileReadingOf(text)).toEqual(reading);
     });
 
+    it("gives each template its own engine, else the one its file names, as the builder does", () => {
+        const C7_SCHEMA =
+            "https://unpkg.com/@camunda/element-templates-json-schema/resources/schema.json";
+        const text = JSON.stringify([
+            { id: "c7", $schema: C7_SCHEMA },
+            { id: "c8", $schema: C8_SCHEMA },
+            { id: "plain" },
+        ]);
+
+        expect(templateFileReadingOf(text)).toEqual({
+            kind: "read",
+            templates: [
+                { id: "c7", engine: "c7" },
+                { id: "c8", engine: "c8" },
+                { id: "plain", engine: "c7" },
+            ],
+        });
+    });
+
     it("says why a file that is not JSON cannot be read", () => {
         const reading = templateFileReadingOf("{ not json");
 
