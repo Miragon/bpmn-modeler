@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 
 import {
     CodeApproval,
@@ -8,7 +8,16 @@ import {
     PROCESS_RESTARTS,
     SessionAnswer,
 } from "../../kernel/domain/codeApproval";
-import { AddOnFacts, AddOnSession, AddOnView, catalogModelOf } from "./addOnCatalog";
+import {
+    ADD_ON_ACTION_KINDS,
+    type AddOnActionKind,
+    AddOnFacts,
+    AddOnSession,
+    AddOnView,
+    CATALOG_ACTION_KINDS,
+    type CatalogActionKind,
+    catalogModelOf,
+} from "./addOnCatalog";
 
 const RESIZE = "/work/.camunda/plugins/resize";
 const PALETTE = "/work/.camunda/plugins/palette";
@@ -100,6 +109,17 @@ const onlyRow = (facts: AddOnFacts, session = sessionOf()): AddOnView => {
     if (row === undefined || more.length > 0) throw new Error("expected one row");
     return row;
 };
+
+describe("action kinds", () => {
+    it("names what a row and the catalog offer", () => {
+        expectTypeOf<AddOnActionKind>().toEqualTypeOf<(typeof ADD_ON_ACTION_KINDS)[number]>();
+        expectTypeOf<CatalogActionKind>().toEqualTypeOf<(typeof CATALOG_ACTION_KINDS)[number]>();
+        expect([ADD_ON_ACTION_KINDS, CATALOG_ACTION_KINDS]).toEqual([
+            ["inspect", "allow", "revoke"],
+            ["pruneCache"],
+        ]);
+    });
+});
 
 describe("catalogModelOf", () => {
     it("groups add-ons by the innermost workspace folder, in the order the folders were opened", () => {

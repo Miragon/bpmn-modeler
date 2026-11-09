@@ -103,12 +103,15 @@ export * from "./bpmnPlugins/composition/BpmnPluginsFeature";
 // ── addOns ───────────────────────────────────────────────────────────────────
 export type {
     ActionView,
+    AddOnActionKind,
     AddOnCatalogModel,
     AddOnGroupView,
     AddOnReview,
     AddOnSourceView,
     AddOnView,
+    CatalogActionKind,
 } from "./addOns/domain/addOnCatalog";
+export type { AddOnKind, SourceKind } from "./addOns/domain/addOnIds";
 export type { AddOnActionResult, AddOnRefusal, AddOnRequest } from "./addOns/domain/addOnRequests";
 export type { SettingChanges } from "./addOns/port/addOnSourcePorts";
 export type { AddOnViewConnection } from "./addOns/service/AddOnViewHub";
