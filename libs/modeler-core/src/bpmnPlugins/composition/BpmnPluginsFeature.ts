@@ -51,9 +51,11 @@ export class BpmnPluginsFeature {
     readonly service: BpmnPluginService;
 
     private readonly locator: WorkspacePluginLocator;
+    private readonly notifier: NotifierPort;
     private readonly approvalChanges: { dispose(): void };
 
     constructor(ports: BpmnPluginsHostPorts) {
+        this.notifier = ports.notifier;
         this.locator = new WorkspacePluginLocator(
             ports.artifacts,
             ports.workspace,
@@ -83,6 +85,15 @@ export class BpmnPluginsFeature {
             commandHandlers: { GetBpmnPluginsCommand: getBpmnPluginsHandler(this.service) },
             participant: new BpmnPluginsParticipant(this.service),
         };
+    }
+
+    /** Never rejects, so a host can run it without awaiting it. */
+    async pruneCache(): Promise<void> {
+        try {
+            await this.service.pruneCache();
+        } catch (error) {
+            this.notifier.logError(error instanceof Error ? error : new Error(String(error)));
+        }
     }
 
     dispose(): void {

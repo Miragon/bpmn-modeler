@@ -137,14 +137,7 @@ export function createBridge(
             bpmnDiffPane: diff.paneRoutes,
             deploymentSidebar: deployment.panelRoutes,
         },
-        prunePluginCache: () =>
-            plugins.service.pruneCache().then(
-                () => undefined,
-                (error: unknown) =>
-                    deps.notifier.logError(
-                        error instanceof Error ? error : new Error(String(error)),
-                    ),
-            ),
+        prunePluginCache: () => plugins.pruneCache(),
         dispose: () => plugins.dispose(),
     };
 }

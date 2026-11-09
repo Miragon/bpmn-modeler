@@ -11,12 +11,13 @@ import { join } from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
-import { hostReply, waitForFrame } from "./__fixtures__/bridgeHarness";
+import { hostErrorReply, hostReply, waitForFrame } from "./__fixtures__/bridgeHarness";
 import { createBridge } from "./composition/bridge";
 
 interface Frame {
     readonly id?: number;
     readonly method: string;
+    readonly params?: { readonly level?: string; readonly message?: string };
 }
 
 const NAMED = "a".repeat(64);
@@ -73,6 +74,30 @@ describe("pruning the plugin cache on the bridge", () => {
         await expect(fs.readdir(cacheRoot).then((names) => names.sort())).resolves.toEqual(
             [NAMED, UPPER, HEX_FILE, "notes"].sort(),
         );
+    });
+
+    it("logs a prune whose read the host refuses and removes nothing", async () => {
+        const { bridge, frames, cacheRoot } = await bridgeOverCache();
+
+        const pruning = bridge.prunePluginCache();
+        const read = await waitForFrame(frames, (frame) => frame.method === "pluginApprovals/read");
+        await bridge.rpc.handleLine(hostErrorReply(read.id, "store unavailable"));
+        await pruning;
+
+        await expect(fs.readdir(cacheRoot).then((names) => names.sort())).resolves.toEqual(
+            [NAMED, UNNAMED, UPPER, HEX_FILE, "notes"].sort(),
+        );
+        expect(
+            frames.filter(
+                ({ method, params }) => method === "notifier/log" && params?.level === "error",
+            ),
+        ).toEqual([
+            expect.objectContaining({
+                params: expect.objectContaining({
+                    message: expect.stringContaining("store unavailable"),
+                }),
+            }),
+        ]);
     });
 
     it("sends no frame until it is asked to prune", async () => {

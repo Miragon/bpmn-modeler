@@ -126,6 +126,13 @@ class MirrorBehindHost extends InMemoryPluginApprovals {
     }
 }
 
+/** A host that cannot answer for the approvals it stores. */
+class UnreachableHost extends InMemoryPluginApprovals {
+    override readStored(): Promise<readonly CodeApproval[]> {
+        return Promise.reject(new Error("host unreachable"));
+    }
+}
+
 /** Holds the next call to a method until the test releases it; `reached` resolves once it is called. */
 function holdNext<T extends object, K extends keyof T>(
     target: T,
@@ -859,15 +866,26 @@ describe("BpmnPluginsFeature", () => {
         });
 
         it("asks the host nothing when the cache holds no copy", async () => {
-            const approvals = new MirrorBehindHost();
-            const readStored = vi.spyOn(approvals, "readStored");
             const { feature } = setUp(
                 { [`${CACHE}/notes/readme.md`]: "# Notes" },
-                { approvals, hasher },
+                { approvals: new UnreachableHost(), hasher },
             );
 
             await expect(feature.service.pruneCache()).resolves.toEqual({ removed: 0 });
-            expect(readStored).not.toHaveBeenCalled();
+        });
+
+        it("logs a prune the host cannot answer and removes nothing", async () => {
+            const { host, feature } = setUp(
+                { [`${CACHE}/${UNNAMED}/plugin.js`]: "registerGone();" },
+                { approvals: new UnreachableHost(), hasher },
+            );
+
+            await feature.pruneCache();
+
+            expect(cachePaths(host)).toEqual([`${CACHE}/${UNNAMED}/plugin.js`]);
+            expect(host.notifier.logged("error")).toEqual([
+                expect.stringContaining("host unreachable"),
+            ]);
         });
 
         it("removes nothing before the cache folder exists", async () => {
