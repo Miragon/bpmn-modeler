@@ -121,6 +121,31 @@ describe("RulePackageCatalog", () => {
         expect(catalog.stillPendingOf([blocked(ACME, true), blocked(OTHER, true)])).toEqual([]);
     });
 
+    it("hashes no package it left to the view again on a later lint", async () => {
+        const { host, disk } = setUp();
+        const fingerprinter = new PackageClosureFingerprinter(disk);
+        const fingerprinted: string[] = [];
+        const catalog = new RulePackageCatalog(
+            host.pluginApprovals,
+            {
+                fingerprint: (root) => {
+                    fingerprinted.push(root.id);
+                    return fingerprinter.fingerprint(root);
+                },
+            },
+            host.notifier,
+        );
+        await catalog.applyAnswer(catalog.stillPendingOf([blocked(ACME, true)]), {
+            kind: "leftForView",
+        });
+
+        fingerprinted.length = 0;
+        const pending = catalog.stillPendingOf([blocked(ACME, true), blocked(OTHER, true)]);
+
+        expect(fingerprinted).toEqual([OTHER]);
+        expect(pending.map(({ artifact }) => artifact.id)).toEqual([OTHER]);
+    });
+
     it("writes nothing and logs nothing when the answer allowed no package", async () => {
         const { host, catalog } = setUp();
 
