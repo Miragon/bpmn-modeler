@@ -7,6 +7,7 @@ import { ExtensionContext, Uri } from "vscode";
 import {
     AddOnCatalogModel,
     allowing,
+    templatePreferenceChange,
     BpmnDiffService,
     DiffPaneStore,
     EditorSessionParticipant,
@@ -28,6 +29,7 @@ function createExtensionContext(): ExtensionContext {
     return {
         subscriptions: [],
         globalState: new InMemoryMemento(),
+        workspaceState: new InMemoryMemento(),
         globalStorageUri: Uri.file("/global-storage"),
     } as unknown as ExtensionContext;
 }
@@ -99,6 +101,20 @@ describe("VS Code's add-on catalog", () => {
         await addOns.whenSettled();
 
         expect(models).toHaveLength(4);
+    });
+
+    it("lists again when the user's template switches change", async () => {
+        const { deps, addOns } = createVsCodeAddOns();
+        const models: AddOnCatalogModel[] = [];
+        addOns.attachView((model) => models.push(model), true);
+        await addOns.whenSettled();
+
+        await deps.templatePreferences.change(
+            templatePreferenceChange("project", [{ source: "configFolder:shop/.camunda" }], []),
+        );
+        await addOns.whenSettled();
+
+        expect(models).toHaveLength(2);
     });
 
     it("asks for a folder while none is open", async () => {
