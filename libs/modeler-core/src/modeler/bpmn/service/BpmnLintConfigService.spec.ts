@@ -1250,6 +1250,29 @@ describe("BpmnLintConfigService — workspace rule packages the user has not all
         expect(ctx.catalog.revokedThisSession()).toEqual(new Set([ACME]));
     });
 
+    it("lints again every host-linted diagram when another writer allows a package at another content", async () => {
+        const ctx = createRulePackageHost();
+        ctx.host.pluginApprovals.storeElsewhere(
+            [{ pluginId: ACME, contentHash: ctx.contentHashOf(ACME) }],
+            { notify: true },
+        );
+        ctx.blocks.set(XML_OTHER, []);
+        const acme = ctx.host.openEditor(PATH, XML, { focused: true });
+        const other = ctx.host.openEditor(OTHER_PATH, XML_OTHER);
+        await ctx.service.setBpmnlintConfig(acme.id);
+        await ctx.service.setBpmnlintConfig(other.id);
+        await ctx.service.whenApprovalSettled();
+
+        ctx.host.pluginApprovals.storeElsewhere(
+            [{ pluginId: ACME, contentHash: "bpmnlint-closure-v1:elsewhere" }],
+            { notify: true },
+        );
+        await ctx.service.whenApprovalSettled();
+
+        expect(ctx.hostResults(acme)).toEqual([RESULTS, {}]);
+        expect(ctx.hostResults(other)).toEqual([RESULTS, RESULTS]);
+    });
+
     it("lints nothing again for a change of plugin approvals only", async () => {
         const ctx = createRulePackageHost();
         const editor = ctx.host.openEditor(PATH, XML, { focused: true });
