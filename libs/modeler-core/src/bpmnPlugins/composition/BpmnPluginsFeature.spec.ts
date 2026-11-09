@@ -19,6 +19,7 @@ import {
     FakeEditorHandle,
     fingerprintHasher,
     InMemoryPluginApprovals,
+    ScriptedReview,
     TestHostOptions,
 } from "../../testing";
 import {
@@ -70,6 +71,7 @@ function setUp(
         approvals?: PluginApprovalStorePort;
         questions?: QuestionQueue;
         hasher?: ContentHasherPort;
+        review?: ScriptedReview;
     } = {},
 ) {
     const host = createTestHost({ folders: ["/work", "/other"], files, ...options });
@@ -80,6 +82,7 @@ function setUp(
         cacheRoot: options.cacheRoot ?? CACHE,
         hasher: options.hasher ?? fingerprintHasher,
         questions: options.questions ?? new QuestionQueue(),
+        ...(options.review === undefined ? {} : { review: options.review }),
     });
     const requestPlugins = async (editor: FakeEditorHandle) => {
         await feature.editorContribution.commandHandlers.GetBpmnPluginsCommand(
@@ -429,6 +432,24 @@ describe("BpmnPluginsFeature", () => {
                 { pluginId: RESIZE, contentHash: RESIZE_HASH },
             ]);
             expect(editor.reloadCount).toBe(1);
+        });
+
+        it("takes Review… to the review the host passes, which can leave the plugin to a view", async () => {
+            const review = new ScriptedReview({ [PLUGIN_APPROVAL_PROMPT_ID]: "leftForView" });
+            const { host, requestPlugins, openEditor } = setUp(RESIZE_FILES, {
+                noticeAnswers: { [PLUGIN_APPROVAL_NOTICE_ID]: "review" },
+                review,
+            });
+            const editor = await openEditor();
+
+            await requestPlugins(editor);
+            await requestPlugins(await openEditor("/work/invoice.bpmn"));
+
+            expect(review.requests.map(({ artifactIds }) => artifactIds)).toEqual([[RESIZE]]);
+            expect(host.picker.prompts).toEqual([]);
+            expect(host.pluginApprovals.approvals).toEqual([]);
+            expect(host.actionNotifier.notices).toHaveLength(1);
+            expect(editor.reloadCount).toBe(0);
         });
 
         it("does not notify again in this session once the notice was closed", async () => {

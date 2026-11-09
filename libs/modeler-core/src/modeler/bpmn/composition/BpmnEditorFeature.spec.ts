@@ -33,6 +33,7 @@ import {
     ignored,
     InMemoryInstalledPackages,
     routesOf,
+    ScriptedReview,
 } from "../../../testing";
 import {
     RULE_PACKAGE_APPROVAL_NOTICE_ID,
@@ -588,9 +589,11 @@ describe("BpmnEditorFeature with workspace rule packages", () => {
     async function lintWithAcmeInstalled({
         wiresRulePackages,
         allows = true,
+        review,
     }: {
         wiresRulePackages: boolean;
         allows?: boolean;
+        review?: ScriptedReview;
     }) {
         const configPath = `${workspaceDir}/.bpmnlintrc`;
         const diagramPath = `${workspaceDir}/order.bpmn`;
@@ -615,6 +618,7 @@ describe("BpmnEditorFeature with workspace rule packages", () => {
                               installedPackages: packages,
                               actionNotifier: host.actionNotifier,
                               questions: new QuestionQueue(),
+                              ...(review === undefined ? {} : { review }),
                           },
                       }
                     : {}),
@@ -643,6 +647,19 @@ describe("BpmnEditorFeature with workspace rule packages", () => {
         ]);
         expect(host.pluginApprovals.approvals.map(({ pluginId }) => pluginId)).toEqual([pluginDir]);
         expect(results).toEqual([[], ["acme/task-found"]]);
+    });
+
+    it("takes Review… to the review the host passes, which can leave the package to a view", async () => {
+        const review = new ScriptedReview({ [RULE_PACKAGE_APPROVAL_PROMPT_ID]: "leftForView" });
+        const { host, pluginDir, results } = await lintWithAcmeInstalled({
+            wiresRulePackages: true,
+            review,
+        });
+
+        expect(review.requests.map(({ artifactIds }) => artifactIds)).toEqual([[pluginDir]]);
+        expect(host.picker.prompts).toEqual([]);
+        expect(host.pluginApprovals.approvals).toEqual([]);
+        expect(results).toEqual([[]]);
     });
 
     it("lets the gate report a package the user declined as declined", async () => {
@@ -675,6 +692,19 @@ describe("BpmnEditorFeature with workspace rule packages", () => {
         await feature.lintConfig.whenApprovalSettled();
 
         expect(editor.postedOfType("BpmnlintResultsQuery")).toHaveLength(results.length + relints);
+    });
+
+    it("stops following the approval store once disposed, so a revoke elsewhere leaves no trace", async () => {
+        const { host, feature, editor, results } = await lintWithAcmeInstalled({
+            wiresRulePackages: true,
+        });
+
+        feature.dispose();
+        host.pluginApprovals.storeElsewhere([], { notify: true });
+        await feature.lintConfig.whenApprovalSettled();
+
+        expect(feature.rulePackageCatalog?.revokedThisSession()).toEqual(new Set());
+        expect(editor.postedOfType("BpmnlintResultsQuery")).toHaveLength(results.length);
     });
 
     it("runs no workspace rule package and asks nothing on a host that wires no rule package ports", async () => {
