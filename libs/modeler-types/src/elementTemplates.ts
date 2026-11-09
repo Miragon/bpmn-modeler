@@ -2,6 +2,30 @@ import type { Engine } from "./engine";
 
 export type ElementTemplate = Record<string, unknown>;
 
+/** One template as the modeler indexes it: its id, and its version when it has one. */
+export interface ElementTemplateRef {
+    readonly id: string;
+    readonly version?: number;
+}
+
+/**
+ * `undefined` without a string id. The version only when it is a number: the
+ * template validator admits no other, and upstream files a missing one as "_".
+ */
+export function elementTemplateRefOf(template: unknown): ElementTemplateRef | undefined {
+    if (!isRecord(template) || typeof template.id !== "string") {
+        return undefined;
+    }
+    return typeof template.version === "number"
+        ? { id: template.id, version: template.version }
+        : { id: template.id };
+}
+
+/** Equal for the same id and version, whatever characters the id holds. */
+export function elementTemplateRefKey(ref: ElementTemplateRef): string {
+    return JSON.stringify([ref.id, ref.version ?? null]);
+}
+
 /** The schema each engine's templates reference in `$schema`. */
 export const ELEMENT_TEMPLATE_SCHEMA_URL: Record<Engine, string> = {
     c7: "https://unpkg.com/@camunda/element-templates-json-schema/resources/schema.json",
