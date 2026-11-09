@@ -841,7 +841,7 @@ reads its stores. The scope vocabulary (`project`, `allProjects`) has its one
 home in the kernel, `PROJECT_SCOPES` in `kernel/domain/projectScopes.ts`, as the
 template switches speak it too; the marketplace keeps `MARKETPLACE_SCOPES` and
 `MarketplaceScope` as aliases of it. VS Code's settings adapter and Kotlin's
-`ProjectScope` (once `MarketplaceScope`, kept as an alias) speak it too, the
+`ProjectScope` speak it too, the
 latter held to the list by `ProjectScopeTest`. Where a scope is
 saved differs per host, so it reaches the core as a typed `SettingsPlace`, a
 file by its path segments or a settings page by the names that lead to it, and

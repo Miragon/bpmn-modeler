@@ -12,5 +12,3 @@ internal enum class ProjectScope(val wireName: String) {
                 ?: throw IllegalArgumentException("Unknown project scope '$wireName'")
     }
 }
-
-internal typealias MarketplaceScope = ProjectScope
