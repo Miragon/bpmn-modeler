@@ -14,6 +14,7 @@ import {
     allowResultOf,
     allowTargetOf,
     inspectResultOf,
+    PRUNE_FAILED,
     pruneResultOf,
     revokeResultOf,
     shownTargetOf,
@@ -161,8 +162,13 @@ export class AddOnCatalogService {
     }
 
     private async prune(): Promise<AddOnActionResult> {
-        const { removed } = await this.ports.plugins.pruneCache();
-        return pruneResultOf(removed);
+        try {
+            const { removed } = await this.ports.plugins.pruneCache();
+            return pruneResultOf(removed);
+        } catch (error) {
+            this.logError(error);
+            return PRUNE_FAILED;
+        }
     }
 
     private async currentOf({ kind, id, name }: ShownCode): Promise<ListedPresence> {
@@ -179,9 +185,7 @@ export class AddOnCatalogService {
             try {
                 await this.build();
             } catch (error) {
-                this.ports.logger.logError(
-                    error instanceof Error ? error : new Error(String(error)),
-                );
+                this.logError(error);
             }
         } while (this.dirty && this.active);
         // In the tick of the last check, so no invalidate lands between it and the reset.
@@ -207,6 +211,10 @@ export class AddOnCatalogService {
         this.revisions = this.revisions.recorded(revision, shown);
         this.latestModel = model;
         this.builtListeners.forEach((listener) => listener(model));
+    }
+
+    private logError(error: unknown): void {
+        this.ports.logger.logError(error instanceof Error ? error : new Error(String(error)));
     }
 
     private track(work: Promise<unknown>): void {

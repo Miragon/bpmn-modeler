@@ -113,6 +113,13 @@ function setUp({
     };
 }
 
+function failListingOf(host: ReturnType<typeof createTestHost>, failing: string): void {
+    const readDirectory = host.workspace.readDirectory.bind(host.workspace);
+    vi.spyOn(host.workspace, "readDirectory").mockImplementation((path) =>
+        path === failing ? Promise.reject(new Error("cache unreadable")) : readDirectory(path),
+    );
+}
+
 async function shown(addOns: AddOnsFeature): Promise<void> {
     await addOns.whenSettled();
 }
@@ -416,6 +423,29 @@ describe("AddOnsFeature", () => {
             expect(view.addOnNamed("Resize Tasks").state).toBe("new");
         });
 
+        it("keeps a plugin revoke whose cache prune fails, and logs why", async () => {
+            const { host, addOns, view } = setUp();
+            host.pluginApprovals.approvals = [{ pluginId: RESIZE, contentHash: RESIZE_HASH }];
+            view.attachTo(addOns);
+            await shown(addOns);
+            failListingOf(host, CACHE);
+
+            const result = await view.connection?.handle({
+                kind: "revoke",
+                addOnId: `plugin:${RESIZE}`,
+            });
+            await shown(addOns);
+
+            expect(result).toEqual({
+                kind: "done",
+                message: "Revoked Resize Tasks. Open editors reload without it.",
+            });
+            expect(host.pluginApprovals.approvals).toEqual([]);
+            expect(host.notifier.logged("error")).toEqual([
+                expect.stringContaining("cache unreadable"),
+            ]);
+        });
+
         it("asks no notice here about a plugin revoked from the view", async () => {
             const { host, plugins, addOns, view } = setUp();
             host.pluginApprovals.approvals = [{ pluginId: RESIZE, contentHash: RESIZE_HASH }];
@@ -539,6 +569,22 @@ describe("AddOnsFeature", () => {
             const result = await view.connection?.handle({ kind: "pruneCache" });
 
             expect(result).toEqual({ kind: "done", message: "Removed 1 unused plugin copy." });
+        });
+        it("answers that removing the plugin copies failed, and logs why", async () => {
+            const { host, addOns, view } = setUp({ files: {} });
+            view.attachTo(addOns);
+            await shown(addOns);
+            failListingOf(host, CACHE);
+
+            const result = await view.connection?.handle({ kind: "pruneCache" });
+
+            expect(result).toEqual({
+                kind: "failed",
+                message: "Could not remove the unused plugin copies. The log says why.",
+            });
+            expect(host.notifier.logged("error")).toEqual([
+                expect.stringContaining("cache unreadable"),
+            ]);
         });
     });
 

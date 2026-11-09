@@ -77,7 +77,12 @@ export class BpmnPluginsFeature {
             ports.approvals,
             ports.cacheRoot,
         );
-        this.inventory = new PluginInventory(this.locator, this.catalog, this.service);
+        this.inventory = new PluginInventory(
+            this.locator,
+            this.catalog,
+            this.service,
+            ports.notifier,
+        );
         this.approvalChanges = ports.approvals.onDidChange(() =>
             this.service.approvalsChanged(ports.approvals.read()),
         );

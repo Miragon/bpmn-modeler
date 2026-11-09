@@ -25,7 +25,8 @@ export type AddOnRefusal =
 
 export type AddOnActionResult =
     | { readonly kind: "done"; readonly message?: string }
-    | { readonly kind: "refused"; readonly reason: AddOnRefusal; readonly message: string };
+    | { readonly kind: "refused"; readonly reason: AddOnRefusal; readonly message: string }
+    | { readonly kind: "failed"; readonly message: string };
 
 export type AllowTarget =
     | { readonly kind: "reviewed"; readonly code: ShownCode; readonly content: ApprovableArtifact }
@@ -124,6 +125,11 @@ export function inspectResultOf(code: ShownCode): AddOnActionResult {
         message: `Read ${code.name}. Review what it covers, then allow this content.`,
     };
 }
+
+export const PRUNE_FAILED: AddOnActionResult = {
+    kind: "failed",
+    message: "Could not remove the unused plugin copies. The log says why.",
+};
 
 export function pruneResultOf(removed: number): AddOnActionResult {
     const message =

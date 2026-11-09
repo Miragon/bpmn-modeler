@@ -6,6 +6,7 @@ import {
     SessionAnswer,
 } from "../../kernel/domain/codeApproval";
 import { lastWorkspacePathSegment } from "../../kernel/domain/workspacePath";
+import { LoggerPort } from "../../kernel/port/hostPorts";
 import { isPluginApproval, PLUGIN_CODE_TEXTS, WorkspacePlugin } from "../domain/pluginApproval";
 import { configFolderOfPlugin, pluginsDirOf } from "../domain/pluginFolders";
 import { BpmnPluginService } from "./BpmnPluginService";
@@ -23,6 +24,7 @@ export class PluginInventory {
         private readonly locator: WorkspacePluginLocator,
         private readonly catalog: PluginCatalog,
         private readonly service: BpmnPluginService,
+        private readonly logger: LoggerPort,
     ) {}
 
     async pluginsIn(pluginDirs: readonly string[]): Promise<readonly ListedPresence[]> {
@@ -55,9 +57,13 @@ export class PluginInventory {
         return presenceOf(await this.locator.readFresh(pluginId));
     }
 
-    /** A revoked plugin's copy is no longer served, so it goes. */
+    /** A revoked plugin's copy is no longer served, so it goes; the revoke stands if it cannot. */
     async afterRevoke(): Promise<void> {
-        await this.service.pruneCache();
+        try {
+            await this.service.pruneCache();
+        } catch (error) {
+            this.logger.logError(error instanceof Error ? error : new Error(String(error)));
+        }
     }
 
     sessionAnswers(): ReadonlyMap<string, SessionAnswer> {

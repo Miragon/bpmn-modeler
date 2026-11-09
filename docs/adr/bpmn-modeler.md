@@ -812,8 +812,11 @@ confirm follow with the views.
 - *Revoke.* A revoke records `leftForView` for the content shown, in this
   process only, so no notice here asks about it at once, then writes the
   change. The reload or relint follows the change event, as for a notice. The
-  plugin owner then prunes its cache; a rule package row then says its code
-  stays loaded until the user reloads the window or restarts the IDE.
+  plugin owner then prunes its cache, and only logs a prune that fails, as
+  the revoke stands; a rule package row then says its code stays loaded
+  until the user reloads the window or restarts the IDE. "Remove unused
+  plugin copies" answers a prune that fails as `failed`, with the core's
+  text, and logs why.
 - *Builds.* Only while a view is visible, one at a time with a dirty flag, each
   from `readStored()`, so an unseeded IntelliJ mirror never makes every row
   look new; in VS Code a view shown again shows what this window's global
