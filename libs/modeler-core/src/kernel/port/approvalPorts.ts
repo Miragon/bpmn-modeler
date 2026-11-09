@@ -1,4 +1,5 @@
-import { CodeApproval, CodeApprovalChange } from "../domain/codeApproval";
+import { CodeApproval, CodeApprovalChange, ReviewAnswer } from "../domain/codeApproval";
+import { ChoicePrompt } from "../domain/prompts";
 
 /**
  * The user's code approvals, every kind in one list, kept by the host outside
@@ -26,4 +27,15 @@ export interface PluginApprovalStorePort {
      * can show in `read()` before the store learns of it.
      */
     onDidChange(listener: () => void): { dispose(): void };
+}
+
+export interface ApprovalReviewRequest {
+    readonly prompt: ChoicePrompt<string>;
+    /** Every pending artifact, each one the value of a prompt item. */
+    readonly artifactIds: readonly string[];
+}
+
+/** Where "Review…" takes the user: a list to check, or a view the pending code is left to. */
+export interface ApprovalReviewPort {
+    review(request: ApprovalReviewRequest): Promise<ReviewAnswer>;
 }

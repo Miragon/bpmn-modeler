@@ -3,7 +3,11 @@ import {
     allowing,
     ApprovalNoticeAction,
     approvalOutcome,
+    declinedKeys,
+    notAskedAgain,
     pendingApprovals,
+    ReviewAnswer,
+    SessionAnswer,
 } from "../../../kernel/domain/codeApproval";
 import { ChoicePrompt } from "../../../kernel/domain/prompts";
 import { PluginApprovalStorePort } from "../../../kernel/port/approvalPorts";
@@ -27,14 +31,15 @@ import { PackageClosureFingerprinter } from "./PackageClosureFingerprinter";
  *
  * A package the user left unchecked, or a notice the user closed, is declined
  * for the catalog's lifetime, unless its content changes. The gate reads the
- * declines, so it reports such a package as declined rather than new.
+ * declines, so it reports such a package as declined rather than new. A
+ * package left to a view is not asked about again either, but stays new.
  */
 export class RulePackageCatalog implements ApprovalCatalog<
     BlockedRulePackage,
     PendingRulePackage,
     RulePackage
 > {
-    private readonly declined = new Set<string>();
+    private readonly answers = new Map<string, SessionAnswer>();
     private readonly seen = new Map<string, BlockedRulePackage>();
     private readonly loggedRefusals = new Set<string>();
 
@@ -46,7 +51,7 @@ export class RulePackageCatalog implements ApprovalCatalog<
 
     /** `declineKeyOf` of each package declined this session. */
     declinedThisSession(): ReadonlySet<string> {
-        return this.declined;
+        return declinedKeys(this.answers);
     }
 
     /** Keeps the latest report of each package, also of those the bundle stood in for. */
@@ -64,7 +69,7 @@ export class RulePackageCatalog implements ApprovalCatalog<
         return pendingApprovals(
             rulePackages,
             this.approvals.read().filter(isRulePackageApproval),
-            this.declined,
+            notAskedAgain(this.answers),
         );
     }
 
@@ -82,10 +87,10 @@ export class RulePackageCatalog implements ApprovalCatalog<
     /** @returns the packages now allowed. */
     async applyAnswer(
         pending: readonly PendingRulePackage[],
-        checkedIds: readonly string[],
+        answer: ReviewAnswer,
     ): Promise<readonly RulePackage[]> {
-        const outcome = approvalOutcome(pending, checkedIds);
-        outcome.declineKeys.forEach((key) => this.declined.add(key));
+        const outcome = approvalOutcome(pending, answer);
+        outcome.answers.forEach((each, key) => this.answers.set(key, each));
         if (outcome.allowed.length > 0) {
             await this.approvals.change(allowing(outcome.allowed));
             this.logger.logInfo(

@@ -12,6 +12,7 @@ import { LintResults } from "@miragon/bpmn-modeler-types";
 
 import { CodeApprovalChange } from "../../../kernel/domain/codeApproval";
 import { PluginApprovalStorePort } from "../../../kernel/port/approvalPorts";
+import { ListReview } from "../../../kernel/adapter/out/ListReview";
 import { ApprovalQuestion } from "../../../kernel/service/ApprovalQuestion";
 import { ArtifactService } from "../../../kernel/service/ArtifactService";
 import { QuestionQueue } from "../../../kernel/service/QuestionQueue";
@@ -948,7 +949,7 @@ describe("BpmnLintConfigService — workspace rule packages the user has not all
         const catalog = new RulePackageCatalog(approvals, recordingFingerprinter, host.notifier);
         const question = new ApprovalQuestion(
             catalog,
-            host.picker,
+            new ListReview(host.picker),
             host.actionNotifier,
             host.workspace,
             options.questions ?? new QuestionQueue(),

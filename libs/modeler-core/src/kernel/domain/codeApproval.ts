@@ -264,35 +264,65 @@ export function reviewedAllowDecision(
 export function pendingApprovals<A extends ApprovableArtifact>(
     artifacts: readonly A[],
     approvals: readonly CodeApproval[],
-    declinedThisSession: ReadonlySet<string>,
+    notAskedAgain: ReadonlySet<string>,
 ): PendingCodeApproval<A>[] {
     return artifacts.flatMap((artifact) => {
         const state = approvalStateOf(artifact, approvals);
-        return state === "approved" || declinedThisSession.has(declineKeyOf(artifact))
+        return state === "approved" || notAskedAgain.has(declineKeyOf(artifact))
             ? []
             : [{ artifact, state }];
     });
 }
 
+/** What a session remembers of an answer about one content: {@link declineKeyOf} keys it. */
+export const SESSION_ANSWERS = ["declined", "leftForView"] as const;
+
+export type SessionAnswer = (typeof SESSION_ANSWERS)[number];
+
+/** What "Review…" answered: the ids the user checked, or the pending code left to a view. */
+export type ReviewAnswer =
+    | { readonly kind: "checked"; readonly ids: readonly string[] }
+    | { readonly kind: "leftForView" };
+
 export interface CodeApprovalOutcome<A extends ApprovableArtifact> {
     readonly allowed: readonly A[];
-    /** {@link declineKeyOf} of each artifact left unchecked; a dismissal leaves all of them. */
-    readonly declineKeys: readonly string[];
+    readonly answers: ReadonlyMap<string, SessionAnswer>;
 }
 
+/** Unchecked content is declined; content left to a view is neither allowed nor declined. */
 export function approvalOutcome<A extends ApprovableArtifact>(
     pending: readonly PendingCodeApproval<A>[],
-    checkedIds: readonly string[],
+    answer: ReviewAnswer,
 ): CodeApprovalOutcome<A> {
-    const checked = new Set(checkedIds);
+    if (answer.kind === "leftForView") {
+        return {
+            allowed: [],
+            answers: new Map(
+                pending.map(({ artifact }) => [declineKeyOf(artifact), "leftForView"]),
+            ),
+        };
+    }
+    const checked = new Set(answer.ids);
     return {
         allowed: pending
             .filter(({ artifact }) => checked.has(artifact.id))
             .map(({ artifact }) => artifact),
-        declineKeys: pending
-            .filter(({ artifact }) => !checked.has(artifact.id))
-            .map(({ artifact }) => declineKeyOf(artifact)),
+        answers: new Map(
+            pending
+                .filter(({ artifact }) => !checked.has(artifact.id))
+                .map(({ artifact }) => [declineKeyOf(artifact), "declined"]),
+        ),
     };
+}
+
+/** No notice asks again about content the user declined or left to a view, until it changes. */
+export function notAskedAgain(answers: ReadonlyMap<string, SessionAnswer>): ReadonlySet<string> {
+    return new Set(answers.keys());
+}
+
+/** Content left to a view keeps its state, so only a decline changes what the gate reports. */
+export function declinedKeys(answers: ReadonlyMap<string, SessionAnswer>): ReadonlySet<string> {
+    return new Set([...answers].filter(([, answer]) => answer === "declined").map(([key]) => key));
 }
 
 /** How the approval list and the log name each pending state. */

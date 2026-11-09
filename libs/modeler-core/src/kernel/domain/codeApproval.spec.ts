@@ -24,16 +24,21 @@ import {
     type CodeStateReading,
     codeStateOf,
     declineKeyOf,
+    declinedKeys,
     foundCodeState,
     needsContentHash,
+    notAskedAgain,
     type PendingCodeApproval,
     pendingApprovalDescription,
     pendingApprovals,
     PROCESS_RESTART_TEXT,
     PROCESS_RESTARTS,
+    type ReviewAnswer,
     type ReviewedAllow,
     reviewedAllowDecision,
     revoking,
+    SESSION_ANSWERS,
+    type SessionAnswer,
 } from "./codeApproval";
 
 type CaseRow = [pluginId: string, contentHash: string];
@@ -418,48 +423,100 @@ describe("approvalOutcome", () => {
         { artifact: resize, state: "new" },
         { artifact: palette, state: "changed" },
     ];
+    const checked = (...ids: string[]): ReviewAnswer => ({ kind: "checked", ids });
 
     it.each<{
         case: string;
-        checkedIds: string[];
+        answer: ReviewAnswer;
         outcome: CodeApprovalOutcome<ApprovableArtifact>;
     }>([
         {
             case: "allows the checked artifacts and declines the rest for this session",
-            checkedIds: [palette.id],
-            outcome: { allowed: [palette], declineKeys: [declineKeyOf(resize)] },
+            answer: checked(palette.id),
+            outcome: {
+                allowed: [palette],
+                answers: new Map([[declineKeyOf(resize), "declined"]]),
+            },
         },
         {
             case: "allows every artifact when all are checked",
-            checkedIds: [resize.id, palette.id],
-            outcome: { allowed: [resize, palette], declineKeys: [] },
+            answer: checked(resize.id, palette.id),
+            outcome: { allowed: [resize, palette], answers: new Map() },
         },
         {
             case: "declines every artifact when the list is dismissed",
-            checkedIds: [],
-            outcome: { allowed: [], declineKeys: [declineKeyOf(resize), declineKeyOf(palette)] },
+            answer: checked(),
+            outcome: {
+                allowed: [],
+                answers: new Map([
+                    [declineKeyOf(resize), "declined"],
+                    [declineKeyOf(palette), "declined"],
+                ]),
+            },
         },
         {
             case: "allows nothing for a checked id that was not asked about",
-            checkedIds: ["/elsewhere/resize-tasks"],
-            outcome: { allowed: [], declineKeys: [declineKeyOf(resize), declineKeyOf(palette)] },
+            answer: checked("/elsewhere/resize-tasks"),
+            outcome: {
+                allowed: [],
+                answers: new Map([
+                    [declineKeyOf(resize), "declined"],
+                    [declineKeyOf(palette), "declined"],
+                ]),
+            },
         },
         {
             case: "allows only the asked-about artifacts among the checked ids",
-            checkedIds: ["/elsewhere/resize-tasks", resize.id],
-            outcome: { allowed: [resize], declineKeys: [declineKeyOf(palette)] },
+            answer: checked("/elsewhere/resize-tasks", resize.id),
+            outcome: {
+                allowed: [resize],
+                answers: new Map([[declineKeyOf(palette), "declined"]]),
+            },
         },
-    ])("$case", ({ checkedIds, outcome }) => {
-        expect(approvalOutcome(pending, checkedIds)).toEqual(outcome);
+        {
+            case: "leaves every artifact to the view, allowing and declining none",
+            answer: { kind: "leftForView" },
+            outcome: {
+                allowed: [],
+                answers: new Map([
+                    [declineKeyOf(resize), "leftForView"],
+                    [declineKeyOf(palette), "leftForView"],
+                ]),
+            },
+        },
+    ])("$case", ({ answer, outcome }) => {
+        expect(approvalOutcome(pending, answer)).toEqual(outcome);
     });
 
     it("allows a checked rule package as it was asked about", () => {
         const outcome: CodeApprovalOutcome<RulePackage> = approvalOutcome(
             [{ artifact: acmeRules, state: "new" }],
-            [acmeRules.id],
+            { kind: "checked", ids: [acmeRules.id] },
         );
 
-        expect(outcome).toEqual({ allowed: [acmeRules], declineKeys: [] });
+        expect(outcome).toEqual({ allowed: [acmeRules], answers: new Map() });
+    });
+});
+
+describe("session answers", () => {
+    const answers = new Map<string, SessionAnswer>([
+        [declineKeyOf(resize), "declined"],
+        [declineKeyOf(palette), "leftForView"],
+    ]);
+
+    it("asks no notice again about content declined or left to the view", () => {
+        expect(notAskedAgain(answers)).toEqual(
+            new Set([declineKeyOf(resize), declineKeyOf(palette)]),
+        );
+    });
+
+    it("tells the gate only of declined content", () => {
+        expect(declinedKeys(answers)).toEqual(new Set([declineKeyOf(resize)]));
+    });
+
+    it("names each answer a session can hold", () => {
+        expectTypeOf<SessionAnswer>().toEqualTypeOf<(typeof SESSION_ANSWERS)[number]>();
+        expect(SESSION_ANSWERS).toEqual(["declined", "leftForView"]);
     });
 });
 

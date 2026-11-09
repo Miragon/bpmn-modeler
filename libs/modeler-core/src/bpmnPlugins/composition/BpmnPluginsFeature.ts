@@ -4,6 +4,8 @@ import {
     PickerPort,
     WorkspacePort,
 } from "../../kernel/port/hostPorts";
+import { ListReview } from "../../kernel/adapter/out/ListReview";
+import { ApprovalReviewPort } from "../../kernel/port/approvalPorts";
 import { ArtifactService } from "../../kernel/service/ArtifactService";
 import { ApprovalQuestion } from "../../kernel/service/ApprovalQuestion";
 import { QuestionQueue } from "../../kernel/service/QuestionQueue";
@@ -34,6 +36,8 @@ export interface BpmnPluginsHostPorts {
      * the first one saved.
      */
     readonly questions: QuestionQueue;
+    /** Where "Review…" takes the user; absent, the picker's checklist. */
+    readonly review?: ApprovalReviewPort;
 }
 
 /**
@@ -62,7 +66,7 @@ export class BpmnPluginsFeature {
             this.catalog,
             new ApprovalQuestion(
                 this.catalog,
-                ports.picker,
+                ports.review ?? new ListReview(ports.picker),
                 ports.actionNotifier,
                 ports.workspace,
                 ports.questions,

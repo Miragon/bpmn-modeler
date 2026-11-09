@@ -1,4 +1,5 @@
 export * from "./actionNotifierContract";
+export * from "./approvalReviewContract";
 export * from "./clipboardContract";
 export * from "./contentHasherContract";
 export * from "./createTestHost";
@@ -31,6 +32,7 @@ export * from "./RecordingStatusBar";
 export * from "./scriptEditorContract";
 export * from "./ScriptedActionNotifier";
 export * from "./ScriptedPicker";
+export * from "./ScriptedReview";
 export * from "./secretStoreContract";
 export * from "./settingsContract";
 export * from "./tokenPromptContract";

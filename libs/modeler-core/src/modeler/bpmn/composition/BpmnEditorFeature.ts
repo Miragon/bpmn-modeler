@@ -2,7 +2,8 @@ import { basename } from "path";
 
 import { BpmnEditorCommandType } from "@miragon/bpmn-modeler-shared";
 
-import { PluginApprovalStorePort } from "../../../kernel/port/approvalPorts";
+import { ListReview } from "../../../kernel/adapter/out/ListReview";
+import { ApprovalReviewPort, PluginApprovalStorePort } from "../../../kernel/port/approvalPorts";
 import {
     ActionNotifierPort,
     ClipboardPort,
@@ -113,6 +114,8 @@ export interface BpmnRulePackagePorts {
     readonly actionNotifier: ActionNotifierPort;
     /** Shared with the host's other approval questions, so each answer reads the list the one before wrote. */
     readonly questions: QuestionQueue;
+    /** Where "Review…" takes the user; absent, the picker's checklist. */
+    readonly review?: ApprovalReviewPort;
 }
 
 /** The core's document services behind {@link DOCUMENT_SYNC_COMMAND_TYPES}. */
@@ -344,12 +347,12 @@ export class BpmnEditorFeature {
         if (rulePackages === undefined) {
             return { linter: new NodeBpmnLinter() };
         }
-        const { approvals, installedPackages, actionNotifier, questions } = rulePackages;
+        const { approvals, installedPackages, actionNotifier, questions, review } = rulePackages;
         const fingerprints = new PackageClosureFingerprinter(installedPackages);
         const catalog = new RulePackageCatalog(approvals, fingerprints, this.ports.notifier);
         const question = new ApprovalQuestion(
             catalog,
-            this.ports.picker,
+            review ?? new ListReview(this.ports.picker),
             actionNotifier,
             this.ports.workspace,
             questions,
