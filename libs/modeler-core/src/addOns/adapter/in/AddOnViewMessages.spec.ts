@@ -120,6 +120,22 @@ describe("AddOnViewMessages", () => {
         ]);
     });
 
+    it("answers a request the core failed on as failed, under the request's id, and logs why", async () => {
+        const { messages, posted, logger } = setUp(async () => {
+            throw new Error("approval store unwritable");
+        });
+
+        await messages.handle(new AddOnRequestCommand(6, ALLOW));
+
+        expect(posted).toEqual([
+            new AddOnActionResultQuery(6, {
+                kind: "failed",
+                message: "Could not do this. The log says why.",
+            }),
+        ]);
+        expect(logger.logged("error")).toHaveLength(1);
+    });
+
     it("refuses a request in no shape the core knows, logs it and asks nothing", async () => {
         const { messages, posted, requests, logger } = setUp();
 
