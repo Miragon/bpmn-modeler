@@ -79,13 +79,31 @@ describe("PluginCatalog", () => {
         expect(pending.map(({ artifact }) => artifact.id)).toEqual([RESIZE]);
     });
 
+    it("withholds every plugin it may not load, also those no notice asks about again", async () => {
+        const { host, catalog } = setUp();
+        host.pluginApprovals.approvals = [
+            { pluginId: PALETTE, contentHash: hashOf("registerPalette();") },
+        ];
+        await catalog.applyAnswer((await catalog.pluginsFor(DOCUMENT)).pending, {
+            kind: "checked",
+            ids: [],
+        });
+
+        const { pending, withheld } = await catalog.pluginsFor(DOCUMENT);
+
+        expect(pending).toEqual([]);
+        expect(withheld.map(({ id, contentHash }) => ({ id, contentHash }))).toEqual([
+            { id: RESIZE, contentHash: hashOf("registerResize();") },
+        ]);
+    });
+
     it("offers no plugins and logs why when the plugin folders cannot be read", async () => {
         const { host, catalog } = setUp();
         vi.spyOn(host.workspace, "readDirectory").mockRejectedValueOnce(new Error("EACCES"));
 
         const selection = await catalog.pluginsFor(DOCUMENT);
 
-        expect(selection).toEqual({ approved: [], pending: [] });
+        expect(selection).toEqual({ approved: [], pending: [], withheld: [] });
         expect(host.notifier.loggedErrors.map((error) => error.message)).toEqual(["EACCES"]);
     });
 });

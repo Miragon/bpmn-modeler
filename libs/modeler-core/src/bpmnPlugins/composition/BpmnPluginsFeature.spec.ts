@@ -401,6 +401,75 @@ describe("BpmnPluginsFeature", () => {
             ).toEqual([1, 1, 0, 0]);
         });
 
+        it("reloads an editor withheld a plugin once another writer allows it", async () => {
+            const { host, requestPlugins, openEditor } = setUp(RESIZE_FILES);
+            const editor = await openEditor();
+            await requestPlugins(editor);
+
+            host.pluginApprovals.storeElsewhere([{ pluginId: RESIZE, contentHash: RESIZE_HASH }], {
+                notify: true,
+            });
+
+            expect(editor.reloadCount).toBe(1);
+        });
+
+        it("reloads the editors that loaded a plugin another writer revoked", async () => {
+            const { host, requestPlugins, openEditor } = setUp({
+                ...RESIZE_FILES,
+                ...OTHER_PALETTE_FILES,
+            });
+            host.pluginApprovals.storeElsewhere([{ pluginId: RESIZE, contentHash: RESIZE_HASH }], {
+                notify: true,
+            });
+            const loaded = await openEditor("/work/order.bpmn");
+            const elsewhere = await openEditor("/other/shipping.bpmn");
+            await requestPlugins(loaded);
+            await requestPlugins(elsewhere);
+
+            host.pluginApprovals.storeElsewhere([], { notify: true });
+
+            expect([loaded.reloadCount, elsewhere.reloadCount]).toEqual([1, 0]);
+        });
+
+        it("reloads an editor once until it asks for its plugins again", async () => {
+            const { host, requestPlugins, openEditor } = setUp(RESIZE_FILES);
+            const allowed = [{ pluginId: RESIZE, contentHash: RESIZE_HASH }];
+            host.pluginApprovals.storeElsewhere(allowed, { notify: true });
+            const editor = await openEditor();
+            await requestPlugins(editor);
+
+            host.pluginApprovals.storeElsewhere([], { notify: true });
+            host.pluginApprovals.storeElsewhere(allowed, { notify: true });
+            const beforeAsking = editor.reloadCount;
+            await requestPlugins(editor);
+            host.pluginApprovals.storeElsewhere([], { notify: true });
+
+            expect([beforeAsking, editor.reloadCount]).toEqual([1, 2]);
+        });
+
+        it("reloads no editor for a change the store has not announced", async () => {
+            const { host, requestPlugins, openEditor } = setUp(RESIZE_FILES);
+            const editor = await openEditor();
+            await requestPlugins(editor);
+
+            host.pluginApprovals.storeElsewhere([{ pluginId: RESIZE, contentHash: RESIZE_HASH }]);
+
+            expect(editor.reloadCount).toBe(0);
+        });
+
+        it("follows no approval change once disposed", async () => {
+            const { host, feature, requestPlugins, openEditor } = setUp(RESIZE_FILES);
+            const editor = await openEditor();
+            await requestPlugins(editor);
+
+            feature.dispose();
+            host.pluginApprovals.storeElsewhere([{ pluginId: RESIZE, contentHash: RESIZE_HASH }], {
+                notify: true,
+            });
+
+            expect(editor.reloadCount).toBe(0);
+        });
+
         it("forgets what a closed editor was offered", async () => {
             const { host, feature, openEditor } = setUp(RESIZE_FILES, {
                 promptAnswers: { [PLUGIN_APPROVAL_PROMPT_ID]: [RESIZE] },

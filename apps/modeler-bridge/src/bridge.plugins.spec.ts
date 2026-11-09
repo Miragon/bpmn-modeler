@@ -8,8 +8,8 @@
  * unapproved plugin raises `actionNotice/show`, "Review…" opens the
  * `picker/show` list, and the checked plugin is allowed through a
  * `pluginApprovals/change` the host answers before the page gets `editor/reload`;
- * and a `pluginApprovals/didChange` from another bridge keeps an editor from
- * asking again.
+ * a `pluginApprovals/didChange` from another bridge keeps an editor from
+ * asking again, and one that revokes a served plugin reloads the page.
  */
 
 import { createHash } from "node:crypto";
@@ -177,6 +177,26 @@ describe("workspace bpmn-js plugins on the bridge", () => {
         );
 
         const reload = await waitForFrame(frames, (frame) => frame.method === "editor/reload");
+        expect(reload.params).toEqual({ editorId, sessionId: 1 });
+    });
+
+    it("reloads the page that loaded a plugin another bridge revoked", async () => {
+        const bridge = await bridgeWithPlugin();
+        const editorId = await openEditor(bridge, "order.bpmn", [
+            { pluginId: bridge.pluginId, contentHash: HASH },
+        ]);
+        await requestPlugins(bridge, editorId);
+        const fromIndex = bridge.frames.length;
+
+        await bridge.rpc.handleLine(
+            hostNotification("pluginApprovals/didChange", { approvals: [], revision: 2 }),
+        );
+
+        const reload = await waitForFrame(
+            bridge.frames,
+            (frame) => frame.method === "editor/reload",
+            { fromIndex },
+        );
         expect(reload.params).toEqual({ editorId, sessionId: 1 });
     });
 

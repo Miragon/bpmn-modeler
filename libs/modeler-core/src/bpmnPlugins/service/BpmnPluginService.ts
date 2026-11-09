@@ -11,21 +11,23 @@ import {
     PendingApproval,
     WorkspacePlugin,
 } from "../domain/pluginApproval";
-import { editorsOfferedAnyOf } from "../domain/pluginFolders";
+import { CodeApproval } from "../../kernel/domain/codeApproval";
+import { editorsToReload, OfferedPlugins } from "../domain/pluginFolders";
 import { PluginCatalog } from "./PluginCatalog";
 import { DiscoveredPlugin } from "./WorkspacePluginLocator";
 
 /**
  * Answers a BPMN editor's plugin request with the approved plugins and asks
- * about the others afterwards, so the editor never waits on the user. An
- * approval reloads every open editor that was offered an allowed plugin,
- * because modules are fixed once a modeler is built.
+ * about the others afterwards, so the editor never waits on the user. Any
+ * change of the approvals, whoever made it, reloads every open editor whose
+ * plugins it changes, because modules are fixed once a modeler is built.
  */
 export class BpmnPluginService {
     private readonly cacheRoot: string;
     /** One copy per content hash and session; a failed copy is dropped, so the next request retries it. */
     private readonly copies = new Map<string, Promise<void>>();
-    private readonly offeredByEditor = new Map<string, readonly string[]>();
+    /** Dropped on a reload until the editor asks again, so one change reloads it once. */
+    private readonly offeredByEditor = new Map<string, OfferedPlugins>();
     private approvalSettled: Promise<void> = Promise.resolve();
 
     /**
@@ -55,11 +57,13 @@ export class BpmnPluginService {
             this.logUnsent(editorId, await answerWithoutPlugins(this.store, editorId));
             return;
         }
-        const { approved, pending } = await this.catalog.pluginsFor(handle.documentPath());
-        this.offeredByEditor.set(editorId, [
-            ...approved.map(({ plugin }) => plugin.id),
-            ...pending.map(({ artifact }) => artifact.id),
-        ]);
+        const { approved, pending, withheld } = await this.catalog.pluginsFor(
+            handle.documentPath(),
+        );
+        this.offeredByEditor.set(editorId, {
+            served: approved.map(({ plugin }) => plugin),
+            withheld,
+        });
         const assets: BpmnPluginAsset[] = [];
         for (const discovered of approved) {
             const asset = await this.serve(discovered, webviewUrlOf);
@@ -74,7 +78,7 @@ export class BpmnPluginService {
         }
         // Not awaited: the router runs this editor's commands in order, and a
         // question left open would hold back its document syncs.
-        const asking = this.askAndReload(pending).catch((error: unknown) =>
+        const asking = this.ask(pending).catch((error: unknown) =>
             this.notifier.logError(error instanceof Error ? error : new Error(String(error))),
         );
         this.approvalSettled = Promise.all([this.approvalSettled, asking]).then(() => undefined);
@@ -82,6 +86,13 @@ export class BpmnPluginService {
 
     releaseEditor(editorId: string): void {
         this.offeredByEditor.delete(editorId);
+    }
+
+    approvalsChanged(approvals: readonly CodeApproval[]): void {
+        for (const editorId of editorsToReload(this.offeredByEditor, approvals)) {
+            this.offeredByEditor.delete(editorId);
+            this.reload(editorId);
+        }
     }
 
     /** Resolves once every approval question raised so far is answered. */
@@ -162,12 +173,8 @@ export class BpmnPluginService {
         }
     }
 
-    private async askAndReload(pending: readonly PendingApproval[]): Promise<void> {
-        const allowed = await this.question.ask(pending);
-        const allowedIds = allowed.map((plugin) => plugin.id);
-        for (const editorId of editorsOfferedAnyOf(this.offeredByEditor, allowedIds)) {
-            this.reload(editorId);
-        }
+    private async ask(pending: readonly PendingApproval[]): Promise<void> {
+        await this.question.ask(pending);
     }
 
     private reload(editorId: string): void {

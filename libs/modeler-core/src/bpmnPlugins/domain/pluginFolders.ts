@@ -1,3 +1,8 @@
+import {
+    ApprovableArtifact,
+    approvalStateOf,
+    CodeApproval,
+} from "../../kernel/domain/codeApproval";
 import { relativeToRoot } from "../../kernel/domain/rootContainment";
 import { joinWorkspacePath } from "../../kernel/domain/workspacePath";
 
@@ -22,14 +27,29 @@ export function pluginFolderChangedBy(path: string, pluginsDir: string): PluginF
     return { kind: "folder", folder: joinWorkspacePath(pluginsDir, below.split("/")[0]) };
 }
 
-/** The editors that were offered any of `pluginIds`, each once, in the map's order. */
-export function editorsOfferedAnyOf(
-    offeredByEditor: ReadonlyMap<string, readonly string[]>,
-    pluginIds: readonly string[],
+/** What an editor's last plugin answer held, each plugin at the content it was read with. */
+export interface OfferedPlugins {
+    readonly served: readonly ApprovableArtifact[];
+    /** Every plugin found but not allowed, whether a notice still asks about it or not. */
+    readonly withheld: readonly ApprovableArtifact[];
+}
+
+/**
+ * The editors whose modules no longer match the approvals, each once in the
+ * map's order: one serves a plugin not allowed at that content any more, or
+ * was withheld one now allowed at the content it was offered.
+ */
+export function editorsToReload(
+    offeredByEditor: ReadonlyMap<string, OfferedPlugins>,
+    approvals: readonly CodeApproval[],
 ): string[] {
-    const wanted = new Set(pluginIds);
+    const isApproved = (plugin: ApprovableArtifact) =>
+        approvalStateOf(plugin, approvals) === "approved";
     return [...offeredByEditor]
-        .filter(([, offered]) => offered.some((id) => wanted.has(id)))
+        .filter(
+            ([, { served, withheld }]) =>
+                served.some((plugin) => !isApproved(plugin)) || withheld.some(isApproved),
+        )
         .map(([editorId]) => editorId);
 }
 

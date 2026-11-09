@@ -51,6 +51,7 @@ export class BpmnPluginsFeature {
     readonly service: BpmnPluginService;
 
     private readonly locator: WorkspacePluginLocator;
+    private readonly approvalChanges: { dispose(): void };
 
     constructor(ports: BpmnPluginsHostPorts) {
         this.locator = new WorkspacePluginLocator(
@@ -74,6 +75,9 @@ export class BpmnPluginsFeature {
             ports.notifier,
             ports.cacheRoot,
         );
+        this.approvalChanges = ports.approvals.onDidChange(() =>
+            this.service.approvalsChanged(ports.approvals.read()),
+        );
         this.editorContribution = {
             commandHandlers: { GetBpmnPluginsCommand: getBpmnPluginsHandler(this.service) },
             participant: new BpmnPluginsParticipant(this.service),
@@ -81,6 +85,7 @@ export class BpmnPluginsFeature {
     }
 
     dispose(): void {
+        this.approvalChanges.dispose();
         this.locator.dispose();
     }
 }

@@ -24,6 +24,8 @@ import { DiscoveredPlugin, WorkspacePluginLocator } from "./WorkspacePluginLocat
 export interface PluginSelection {
     readonly approved: readonly DiscoveredPlugin[];
     readonly pending: readonly PendingApproval[];
+    /** Every plugin it may not load, including those no notice asks about again. */
+    readonly withheld: readonly WorkspacePlugin[];
 }
 
 /**
@@ -53,6 +55,7 @@ export class PluginCatalog {
         return {
             approved: discovered.filter(({ plugin }) => approvedIds.has(plugin.id)),
             pending: this.stillPending(plugins),
+            withheld: plugins.filter((plugin) => !approvedIds.has(plugin.id)),
         };
     }
 
