@@ -70,9 +70,12 @@ function setUp({
     const disk = new InMemoryInstalledPackages((bytes) =>
         createHash("sha256").update(bytes).digest("hex"),
     );
-    const install = (dir: string, name: string) => {
+    const install = (dir: string, name: string, files: Record<string, string> = {}) => {
         disk.writeFile(`${dir}/package.json`, JSON.stringify({ name, version: "1.2.0" }));
         disk.writeFile(`${dir}/index.js`, `module.exports = "${name}";`);
+        Object.entries(files).forEach(([relPath, text]) =>
+            disk.writeFile(`${dir}/${relPath}`, text),
+        );
     };
     const fingerprinter = new PackageClosureFingerprinter(disk);
     const rulePackageCatalog = new RulePackageCatalog(
@@ -92,8 +95,8 @@ function setUp({
         rulePackages: new RulePackageInventory(rulePackageCatalog, fingerprinter, disk),
     });
     const view = new RecordingAddOnView();
-    const rulePackageHashOf = (id: string) => {
-        const fingerprint = fingerprinter.fingerprint({ id, kind: "package" });
+    const rulePackageHashOf = (id: string, kind: BlockedRulePackage["kind"] = "package") => {
+        const fingerprint = fingerprinter.fingerprint({ id, kind });
         if (fingerprint.kind !== "fingerprinted") throw new Error(fingerprint.reason);
         return fingerprint.rulePackage.contentHash;
     };
@@ -189,6 +192,59 @@ describe("AddOnsFeature", () => {
             expect(view.latest().groups[0].sources.map(({ label }) => label)).toEqual([
                 "orders/.camunda",
             ]);
+        });
+    });
+
+    describe("listing what a lint found", () => {
+        const ORDERS = "/work/orders";
+
+        it("lists a rule package installed only below a lint config's folder", async () => {
+            const { install, rulePackageCatalog, addOns, view } = setUp({ files: {} });
+            install(`${ORDERS}/node_modules/bpmnlint-plugin-orders`, "bpmnlint-plugin-orders");
+            rulePackageCatalog.noteLintConfig(`${ORDERS}/.bpmnlintrc`);
+
+            view.attachTo(addOns);
+            await shown(addOns);
+
+            expect(view.addOns().map(({ name }) => name)).toEqual(["bpmnlint-plugin-orders"]);
+        });
+
+        it("lists a config's own package the gate reported", async () => {
+            const { install, rulePackageCatalog, addOns, view } = setUp({ files: {} });
+            install(ORDERS, "bpmnlint-plugin-orders", { "order.bpmn": "<definitions/>" });
+            rulePackageCatalog.noteSeen([
+                { id: ORDERS, kind: "selfPackage", state: "new", needed: true },
+            ]);
+
+            view.attachTo(addOns);
+            await shown(addOns);
+
+            expect(view.addOns().map(({ name, state }) => [name, state])).toEqual([
+                ["orders", "new"],
+            ]);
+        });
+
+        it("shows an allowed config's own package as allowed once a lint read its config", async () => {
+            const { host, install, rulePackageCatalog, addOns, view, rulePackageHashOf } = setUp({
+                files: {},
+            });
+            install(ORDERS, "bpmnlint-plugin-orders", { "order.bpmn": "<definitions/>" });
+            host.pluginApprovals.approvals = [
+                { pluginId: ORDERS, contentHash: rulePackageHashOf(ORDERS, "selfPackage") },
+            ];
+            view.attachTo(addOns);
+            await shown(addOns);
+            const ordersRow = () => {
+                const row = view.addOns().find(({ id }) => id === `rulePackage:${ORDERS}`);
+                return [row?.state, row?.actions.map(({ kind }) => kind)];
+            };
+            const beforeLint = ordersRow();
+
+            rulePackageCatalog.noteLintConfig(`${ORDERS}/.bpmnlintrc`);
+            await shown(addOns);
+
+            expect(beforeLint).toEqual(["changed", ["revoke"]]);
+            expect(ordersRow()).toEqual(["approved", ["revoke"]]);
         });
     });
 
