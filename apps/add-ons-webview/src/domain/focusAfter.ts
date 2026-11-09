@@ -6,6 +6,7 @@ import type {
 
 import type { ActionKindPayload } from "./actionRequest";
 import { Expansion, OutlineHead, visibleHeadsOf } from "./outline";
+import { reviewOf } from "./placedActions";
 
 export type FocusTarget =
     /** `reveal`: a "Review…" asked for it, so it may take focus the page does not hold yet. */
@@ -78,9 +79,7 @@ export function isFocusable(
         case "head":
             return visible.has(target.headId);
         case "review":
-            return (
-                visible.has(target.addOnId) && addOnOf(model, target.addOnId)?.review !== undefined
-            );
+            return visible.has(target.addOnId) && hasReview(addOnOf(model, target.addOnId));
         case "action":
             return (
                 visible.has(target.targetId) &&
@@ -91,10 +90,11 @@ export function isFocusable(
     }
 }
 
-function addOnOf(
-    model: AddOnCatalogPayload,
-    id: string,
-): (AddOnPayload & { readonly review?: unknown }) | undefined {
+function hasReview(addOn: AddOnPayload | undefined): boolean {
+    return addOn !== undefined && reviewOf(addOn) !== undefined;
+}
+
+function addOnOf(model: AddOnCatalogPayload, id: string): AddOnPayload | undefined {
     return model.groups
         .flatMap(({ sources }) => sources.flatMap(({ addOns }) => addOns))
         .find((addOn) => addOn.id === id);

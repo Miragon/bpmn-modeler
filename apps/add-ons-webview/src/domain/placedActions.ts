@@ -2,6 +2,7 @@ import type {
     ActionViewPayload,
     AddOnActionKindPayload,
     AddOnPayload,
+    AddOnReviewPayload,
 } from "@miragon/bpmn-modeler-shared";
 
 export interface PlacedActions {
@@ -10,9 +11,14 @@ export interface PlacedActions {
     readonly allow?: ActionViewPayload<AddOnActionKindPayload>;
 }
 
+/** A code row's review, once the user asked to read it; a template has none. */
+export function reviewOf(addOn: AddOnPayload): AddOnReviewPayload | undefined {
+    return "review" in addOn ? addOn.review : undefined;
+}
+
 export function placedActions(addOn: AddOnPayload): PlacedActions {
     const allow = addOn.actions.find(({ kind }) => kind === "allow");
-    const reviewed = "review" in addOn && addOn.review !== undefined;
+    const reviewed = reviewOf(addOn) !== undefined;
     return {
         rowLine: addOn.actions.filter((action) => action !== allow),
         ...(allow && reviewed && { allow }),

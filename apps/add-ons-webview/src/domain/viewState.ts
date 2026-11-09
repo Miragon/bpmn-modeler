@@ -11,6 +11,7 @@ import {
     ancestorsOf,
     Expansion,
     isOpen,
+    isReviewKeyOpen,
     OutlineHead,
     outlineHeadsOf,
     prunedExpansion,
@@ -245,7 +246,7 @@ function toggled(state: ViewState, key: string): Change {
     if (model === undefined) return { state };
     const head = outlineHeadsOf(model).find(({ id }) => id === key);
     const open =
-        head === undefined ? isReviewOpenKey(key, state.expansion) : isOpen(head, state.expansion);
+        head === undefined ? isReviewKeyOpen(key, state.expansion) : isOpen(head, state.expansion);
     const expansion = new Map(state.expansion).set(key, !open);
     const toggledState = { ...state, expansion };
     const active = state.activeHead;
@@ -256,10 +257,6 @@ function toggled(state: ViewState, key: string): Change {
         state: { ...toggledState, activeHead: head.id },
         focus: { kind: "head", headId: head.id },
     };
-}
-
-function isReviewOpenKey(key: string, expansion: Expansion): boolean {
-    return expansion.get(key) ?? true;
 }
 
 function isShown(model: AddOnCatalogPayload, expansion: Expansion, id: string): boolean {

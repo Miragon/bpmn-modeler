@@ -17,7 +17,7 @@ import {
     outlineHeadsOf,
     reviewKeyOf,
 } from "../../domain/outline";
-import { placedActions } from "../../domain/placedActions";
+import { placedActions, reviewOf } from "../../domain/placedActions";
 import type { Banner } from "../../domain/resultBanner";
 import { CATALOG_TARGET, isBusy, ViewEvent, ViewState } from "../../domain/viewState";
 
@@ -371,10 +371,18 @@ export class CatalogView {
         );
         const line = element("div", { class: "row-line" });
         line.replaceChildren(name, meta, actionsOf(rowActions));
+        const reviewPayload = reviewOf(addOn);
         const review =
-            "review" in addOn && addOn.review !== undefined
-                ? this.reviewOf(addOn.id, addOn.review, placed.allow, name.id, busy, reviewOpen)
-                : undefined;
+            reviewPayload === undefined
+                ? undefined
+                : this.reviewBlock(
+                      addOn.id,
+                      reviewPayload,
+                      placed.allow,
+                      name.id,
+                      busy,
+                      reviewOpen,
+                  );
         if (busy) row.setAttribute("aria-busy", "true");
         row.replaceChildren(line, ...problem, ...note, ...(review ? [review.box] : []));
         return {
@@ -386,7 +394,7 @@ export class CatalogView {
         };
     }
 
-    private reviewOf(
+    private reviewBlock(
         addOnId: string,
         review: AddOnReviewPayload,
         allow: ActionViewPayload<string> | undefined,

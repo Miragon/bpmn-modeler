@@ -1,5 +1,7 @@
 import type { AddOnCatalogPayload, SourceKindPayload } from "@miragon/bpmn-modeler-shared";
 
+import { reviewOf } from "./placedActions";
+
 type HeadLevel = "group" | "source" | "addOn";
 
 /** One stop of the outline's keyboard path: a group or source header, or an add-on's row. */
@@ -68,9 +70,13 @@ export function reviewKeyOf(addOnId: string): string {
     return `review:${addOnId}`;
 }
 
-/** Open until the user closes it: Allow sits at its end. */
 export function isReviewOpen(addOnId: string, expansion: Expansion): boolean {
-    return expansion.get(reviewKeyOf(addOnId)) ?? true;
+    return isReviewKeyOpen(reviewKeyOf(addOnId), expansion);
+}
+
+/** Open until the user closes it: Allow sits at its end. */
+export function isReviewKeyOpen(key: string, expansion: Expansion): boolean {
+    return expansion.get(key) ?? true;
 }
 
 export function prunedExpansion(model: AddOnCatalogPayload, expansion: Expansion): Expansion {
@@ -78,8 +84,7 @@ export function prunedExpansion(model: AddOnCatalogPayload, expansion: Expansion
     for (const { sources } of model.groups) {
         for (const { addOns } of sources) {
             for (const addOn of addOns) {
-                if ("review" in addOn && addOn.review !== undefined)
-                    kept.add(reviewKeyOf(addOn.id));
+                if (reviewOf(addOn) !== undefined) kept.add(reviewKeyOf(addOn.id));
             }
         }
     }
