@@ -10,6 +10,7 @@ import {
     ScriptVariableStore,
 } from "@miragon/bpmn-modeler-core";
 import {
+    absent,
     HANDLED,
     HostSurfaceCoverage,
     ignored,
@@ -118,6 +119,7 @@ const VSCODE_SURFACES: HostSurfaceCoverage = {
         StartInstanceCommand: HANDLED,
         RequestPayloadFilesCommand: HANDLED,
     },
+    addOnsView: absent("served from #2250 PR C2"),
 };
 
 /** The webview surfaces as VS Code's activation registers them. */

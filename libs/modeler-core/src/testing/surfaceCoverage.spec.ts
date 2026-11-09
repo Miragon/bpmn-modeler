@@ -43,6 +43,7 @@ const declared: HostSurfaceCoverage = {
     formEditor: coverageOf("formEditor", servedRoute),
     templateEditor: absent("no template editor"),
     deploymentSidebar: absent("no deployment sidebar"),
+    addOnsView: absent("no add-ons view"),
 };
 
 describe("routesOf", () => {
