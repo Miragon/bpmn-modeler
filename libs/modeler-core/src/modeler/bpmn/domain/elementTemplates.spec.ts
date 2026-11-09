@@ -80,7 +80,7 @@ describe("templateFileReadingOf", () => {
             reading: { kind: "read", templates: [{}, {}, {}] },
         },
     ])("reads $case", ({ text, reading }) => {
-        expect(templateFileReadingOf(text)).toEqual(reading);
+        expect(templateFileReadingOf(text)).toStrictEqual(reading);
     });
 
     it("gives each template its own engine, else the one its file names, as the builder does", () => {
