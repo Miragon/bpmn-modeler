@@ -1,4 +1,4 @@
-import { approvalsAfter, PluginApproval } from "@miragon/bpmn-modeler-core";
+import { approvalsAfter, approvalsKey, PluginApproval } from "@miragon/bpmn-modeler-core";
 import { describePluginApprovalStoreContract } from "@miragon/bpmn-modeler-core/testing";
 
 import { bindHandlers } from "../../../composition/bindHandlers";
@@ -23,8 +23,9 @@ interface CoreFrame {
  * `PluginApprovalStore`: a change is merged into the stored list at the next
  * revision, which goes to every running bridge in `pluginApprovals/didChange`
  * and then answers the request, all from the host's reader thread after the request left the
- * bridge. An overlapping change answers an error and stores nothing; a read
- * answers the stored list.
+ * bridge. A change that keeps every row bumps no revision, pushes nothing and
+ * answers the stored list. An overlapping change answers an error and stores
+ * nothing; a read answers the stored list.
  */
 class IntellijPluginApprovalStore {
     approvals: PluginApproval[] = [];
@@ -50,11 +51,16 @@ class IntellijPluginApprovalStore {
     }
 
     private change(id: number, change: PluginApprovalsChangeParams): object[] {
+        let merged: PluginApproval[];
         try {
-            this.approvals = approvalsAfter(this.approvals, change);
+            merged = approvalsAfter(this.approvals, change);
         } catch (error) {
             return [{ id, error: String(error) }];
         }
+        if (approvalsKey(merged) === approvalsKey(this.approvals)) {
+            return [{ id, result: this.snapshot() }];
+        }
+        this.approvals = merged;
         this.revision++;
         const snapshot = this.snapshot();
         return [
