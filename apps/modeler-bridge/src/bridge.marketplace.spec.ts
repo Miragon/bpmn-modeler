@@ -61,10 +61,7 @@ interface Registered {
 }
 
 /** The scopes IntelliJ reports: it keeps no place for a self-hosted marketplace. */
-function intellijRegistrations({
-    project = [],
-    allProjects = [],
-}: Registered = {}) {
+function intellijRegistrations({ project = [], allProjects = [] }: Registered = {}) {
     return {
         registered: { project, allProjects },
         writable: [
@@ -255,7 +252,10 @@ describe("bridge template marketplace (real core + cache over a fake transport)"
         const folder = await writeLocalMarketplace(tmp);
 
         await rpc.handleLine(hostNotification("marketplace/add", { settings: {} }));
-        const question: RequestFrame = await waitForFrame(frames, isRequest("marketplacePrompt/show"));
+        const question: RequestFrame = await waitForFrame(
+            frames,
+            isRequest("marketplacePrompt/show"),
+        );
         // The question read no entry, so only the read after the fetch can find it.
         host.registered = { allProjects: [folder] };
         await rpc.handleLine(hostReply(question.id, { location: folder, scope: "project" }));
