@@ -99,6 +99,48 @@ describe("RulePackageInventory", () => {
         );
     });
 
+    it("hashes an allowed config's own package as the gate does, once a lint read its config", () => {
+        const { host, disk, install, catalog, inventory, contentHashOf } = setUp();
+        install(STORE, "bpmnlint-plugin-self", { "order.bpmn": "<definitions/>" });
+        disk.createSymbolicLink(WORK, STORE);
+        host.pluginApprovals.approvals = [
+            { pluginId: STORE, contentHash: contentHashOf(STORE, "selfPackage") },
+        ];
+        catalog.noteLintConfig(`${WORK}/.bpmnlintrc`);
+
+        const presence = inventory.currentRulePackage(STORE, { hash: true });
+
+        expect(presence.kind === "found" && presence.artifact.contentHash).toBe(
+            contentHashOf(STORE, "selfPackage"),
+        );
+    });
+
+    it("hashes a package linked into node_modules from outside it as a package", () => {
+        const { disk, install, inventory, contentHashOf } = setUp();
+        install("/work/packages/rules", "bpmnlint-plugin-rules", { "order.bpmn": "<x/>" });
+        disk.createSymbolicLink(`${NODE_MODULES}/bpmnlint-plugin-rules`, "/work/packages/rules");
+        inventory.installedIn([NODE_MODULES]);
+
+        const presence = inventory.currentRulePackage("/work/packages/rules", { hash: true });
+
+        expect(presence.kind === "found" && presence.artifact.contentHash).toBe(
+            contentHashOf("/work/packages/rules"),
+        );
+    });
+
+    it("cannot allow a folder outside node_modules that no lint reported or read yet", () => {
+        const { install, inventory, disk } = setUp();
+        install(WORK, "bpmnlint-plugin-self", { "order.bpmn": "<definitions/>" });
+
+        expect(inventory.currentRulePackage(WORK, { hash: true })).toEqual({
+            kind: "unreadable",
+            id: WORK,
+            name: "work",
+            reason: "lint a diagram that uses it first",
+        });
+        expect(disk.filesHashed).toEqual([]);
+    });
+
     it.each([
         { case: "gone once its folder is", hash: true },
         { case: "gone without a hash too", hash: false },
@@ -136,7 +178,7 @@ describe("RulePackageInventory", () => {
         expect(inventory.lintConfigDirs()).toEqual(["/work/orders"]);
     });
 
-    it("announces an answer, a package the gate reports anew and content left to the view", async () => {
+    it("announces an answer, a package the gate reports anew, content left to the view and a lint config read anew", async () => {
         const { install, catalog, inventory, contentHashOf } = setUp();
         install(ACME, "bpmnlint-plugin-acme");
         let changes = 0;
@@ -150,8 +192,10 @@ describe("RulePackageInventory", () => {
         });
         catalog.noteSeen([blocked(ACME, "package", "declined")]);
         inventory.leaveForView({ id: ACME, name: "acme", contentHash: contentHashOf(ACME) });
+        catalog.noteLintConfig("/work/orders/.bpmnlintrc");
+        catalog.noteLintConfig("/work/orders/.bpmnlintrc");
 
-        expect(changes).toBe(4);
+        expect(changes).toBe(5);
     });
 
     it("owns the rule package rows of the shared approval list", () => {
