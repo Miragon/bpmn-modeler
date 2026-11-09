@@ -100,8 +100,20 @@ describe("allowTargetOf", () => {
             reason: NOT_OFFERED.reason,
             message: NOT_OFFERED.message,
         },
+        {
+            case: "an allow offered for a row shown without content, as stale",
+            revision: 4,
+            addOnId: `rulePackage:${ACME}`,
+            reason: "staleView",
+            message: "The list changed since you looked at it. Check it again, then allow.",
+        },
     ])("refuses $case", ({ revision, addOnId, reason, message }) => {
-        expect(allowTargetOf(revisions, revision, addOnId)).toEqual({
+        const withContentless = revisions.recorded(
+            4,
+            new Map([[`rulePackage:${ACME}`, { ...unhashed, actions: ["allow"] }]]),
+        );
+
+        expect(allowTargetOf(withContentless, revision, addOnId)).toEqual({
             kind: "refused",
             result: { kind: "refused", reason, message },
         });
