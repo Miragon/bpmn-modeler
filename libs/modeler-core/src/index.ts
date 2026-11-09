@@ -100,6 +100,20 @@ export * from "./bpmnPlugins/domain/pluginApproval";
 export * from "./bpmnPlugins/port/pluginPorts";
 export * from "./bpmnPlugins/composition/BpmnPluginsFeature";
 
+// ── addOns ───────────────────────────────────────────────────────────────────
+export type {
+    ActionView,
+    AddOnCatalogModel,
+    AddOnGroupView,
+    AddOnReview,
+    AddOnSourceView,
+    AddOnView,
+} from "./addOns/domain/addOnCatalog";
+export type { AddOnActionResult, AddOnRefusal, AddOnRequest } from "./addOns/domain/addOnRequests";
+export type { SettingChanges } from "./addOns/port/addOnSourcePorts";
+export type { AddOnViewConnection } from "./addOns/service/AddOnViewHub";
+export * from "./addOns/composition/AddOnsFeature";
+
 // ── diff ─────────────────────────────────────────────────────────────────────
 export * from "./diff/domain/basenameOfUriString";
 export * from "./diff/port/DiffPaneHandle";
