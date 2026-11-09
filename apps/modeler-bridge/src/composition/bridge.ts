@@ -81,7 +81,8 @@ export interface BridgeOptions {
  *   the routes of each webview surface the bridge serves, which the
  *   coverage spec reads, `prunePluginCache`, which `server.ts` runs once the
  *   streams are bound and which logs its own failure, and `dispose`, which
- *   stops the plugin folder watchers.
+ *   stops the plugin folder watchers and the editor's approval and template
+ *   subscriptions.
  */
 export function createBridge(
     write: (line: string) => void,
@@ -138,6 +139,9 @@ export function createBridge(
             deploymentSidebar: deployment.panelRoutes,
         },
         prunePluginCache: () => plugins.pruneCache(),
-        dispose: () => plugins.dispose(),
+        dispose: () => {
+            editor.dispose();
+            plugins.dispose();
+        },
     };
 }

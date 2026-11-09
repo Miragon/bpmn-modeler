@@ -708,6 +708,24 @@ describe("workspace bpmnlint rule packages on the bridge", () => {
         await expect(acmeRuns(bridge.root)).resolves.toEqual(["v1"]);
     });
 
+    it("follows no approval change once the bridge is disposed", async () => {
+        const root = await createAcmeWorkspace();
+        const bridge = await openAcmeBridge(root, { keepRoot: true });
+        disposals.push(() => fs.rm(root, { recursive: true, force: true, maxRetries: 3 }));
+        const stored = await allowAcme(bridge);
+        await bridge.dispose();
+        const fromIndex = bridge.frames.length;
+
+        await bridge.rpc.handleLine(
+            hostNotification("pluginApprovals/didChange", {
+                approvals: [],
+                revision: stored.revision + 1,
+            }),
+        );
+
+        await expect(nextLintResults(bridge, fromIndex)).rejects.toThrow("waitForFrame timed out");
+    });
+
     it("stops running a package whose dependency changed after the approval and reports it changed", async () => {
         const bridge = await openAcme();
         await allowAcme(bridge);
