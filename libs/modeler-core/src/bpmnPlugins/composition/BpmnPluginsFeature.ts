@@ -30,11 +30,7 @@ export interface BpmnPluginsHostPorts {
     readonly cacheRoot: string;
     /** SHA-256 needs a host's crypto; the core imports no host module. */
     readonly hasher: ContentHasherPort;
-    /**
-     * The host's one queue for every approval question: a queue of its own would
-     * show two notices at once, and the second answer would write over the list
-     * the first one saved.
-     */
+    /** The host's one queue for every approval question: a queue of its own would show two notices at once. */
     readonly questions: QuestionQueue;
     /** Where "Review…" takes the user, as {@link reviewOrChecklist} defaults it. */
     readonly review?: ApprovalReviewPort;

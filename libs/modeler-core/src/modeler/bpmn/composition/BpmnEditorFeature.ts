@@ -112,7 +112,7 @@ export interface BpmnRulePackagePorts {
     readonly approvals: PluginApprovalStorePort;
     readonly installedPackages: InstalledPackagesPort;
     readonly actionNotifier: ActionNotifierPort;
-    /** Shared with the host's other approval questions, so each answer reads the list the one before wrote. */
+    /** Shared with the host's other approval questions, so two notices never stand side by side. */
     readonly questions: QuestionQueue;
     /** Where "Review…" takes the user, as {@link reviewOrChecklist} defaults it. */
     readonly review?: ApprovalReviewPort;

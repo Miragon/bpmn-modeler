@@ -42,7 +42,7 @@ export interface BridgeSharedDeps {
      * feature; the plugins and the bpmnlint rule packages keep their rows in it.
      */
     pluginApprovals: RpcPluginApprovalStore;
-    /** Every approval question, so the store's next write starts from the list the last one saved. */
+    /** Every approval question, so two notices never stand side by side. */
     approvalQuestions: QuestionQueue;
     store: EditorSessionStore;
     artifactSvc: ArtifactService;
