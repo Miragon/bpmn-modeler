@@ -53,7 +53,7 @@ export class AddOnInventoryReader {
         for (const { pluginId } of approvals.filter((row) => plugins.ownsApproval(row))) {
             if (inFolder(pluginId) && !listedIds.has(pluginId)) {
                 listedIds.add(pluginId);
-                listed.push(await plugins.currentPlugin(pluginId));
+                listed.push(await plugins.current(pluginId));
             }
         }
         return listed;

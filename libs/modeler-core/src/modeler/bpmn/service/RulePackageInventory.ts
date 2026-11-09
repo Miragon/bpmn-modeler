@@ -91,6 +91,13 @@ export class RulePackageInventory {
         };
     }
 
+    async current(id: string): Promise<ListedPresence> {
+        return this.currentRulePackage(id, { hash: true });
+    }
+
+    /** Code a revoked package already ran stays loaded; nothing else to undo. */
+    async afterRevoke(): Promise<void> {}
+
     sessionAnswers(): ReadonlyMap<string, SessionAnswer> {
         return this.catalog.sessionAnswers();
     }

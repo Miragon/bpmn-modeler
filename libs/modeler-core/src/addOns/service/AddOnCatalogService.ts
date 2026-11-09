@@ -156,7 +156,7 @@ export class AddOnCatalogService {
         // offered with content only for an allowed row.
         if (code.content !== undefined) this.sourceOf(code.kind)?.leaveForView(code.content);
         await this.ports.approvals.change(revoking([code.id]));
-        if (code.kind === "plugin") await this.ports.plugins.pruneCache();
+        await this.sourceOf(code.kind)?.afterRevoke();
         return revokeResultOf(code, this.ports.restart);
     }
 
@@ -165,12 +165,8 @@ export class AddOnCatalogService {
         return pruneResultOf(removed);
     }
 
-    private currentOf({ kind, id, name }: ShownCode): Promise<ListedPresence> {
-        const { plugins, rulePackages } = this.ports;
-        if (kind === "plugin") return plugins.currentPlugin(id);
-        return Promise.resolve(
-            rulePackages?.currentRulePackage(id, { hash: true }) ?? { kind: "gone", id, name },
-        );
+    private async currentOf({ kind, id, name }: ShownCode): Promise<ListedPresence> {
+        return (await this.sourceOf(kind)?.current(id)) ?? { kind: "gone", id, name };
     }
 
     private sourceOf(kind: AddOnKind): CodeAddOnSource | undefined {

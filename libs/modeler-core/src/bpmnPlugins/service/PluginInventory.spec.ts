@@ -100,7 +100,7 @@ describe("PluginInventory", () => {
         // Changed without a watcher event, so only a fresh read sees it.
         host.workspace.files.set(`${RESIZE}/client.js`, "registerResizE();");
 
-        const current = await inventory.currentPlugin(RESIZE);
+        const current = await inventory.current(RESIZE);
 
         expect(current).toEqual({
             kind: "found",
@@ -135,7 +135,7 @@ describe("PluginInventory", () => {
     ])("reads a plugin as $case", async ({ folder, presence }) => {
         const { inventory } = setUp({ [`${BROKEN}/readme.md`]: "no manifest" });
 
-        expect(await inventory.currentPlugin(folder)).toEqual(presence);
+        expect(await inventory.current(folder)).toEqual(presence);
     });
 
     it("announces a change below a plugins folder it listed, and an answer about a plugin", async () => {
@@ -202,5 +202,14 @@ describe("PluginInventory", () => {
         host.pluginApprovals.approvals = [{ pluginId: RESIZE, contentHash: RESIZE_HASH }];
 
         expect(await inventory.pruneCache()).toEqual({ removed: 1 });
+    });
+
+    it("removes a revoked plugin's copy after a revoke", async () => {
+        const { host, inventory } = setUp();
+        host.workspace.createDirectory(`${CACHE}/${RESIZE_HASH}`);
+
+        await inventory.afterRevoke();
+
+        expect(await inventory.pruneCache()).toEqual({ removed: 0 });
     });
 });

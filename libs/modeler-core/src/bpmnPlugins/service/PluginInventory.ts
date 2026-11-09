@@ -40,8 +40,13 @@ export class PluginInventory {
         return this.locator.knownPluginDirs();
     }
 
-    async currentPlugin(pluginId: string): Promise<ListedPresence> {
+    async current(pluginId: string): Promise<ListedPresence> {
         return presenceOf(await this.locator.readFresh(pluginId));
+    }
+
+    /** A revoked plugin's copy is no longer served, so it goes. */
+    async afterRevoke(): Promise<void> {
+        await this.service.pruneCache();
     }
 
     sessionAnswers(): ReadonlyMap<string, SessionAnswer> {

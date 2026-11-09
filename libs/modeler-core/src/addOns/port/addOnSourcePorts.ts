@@ -18,6 +18,10 @@ export interface CodeAddOnSource {
     sessionAnswers(): ReadonlyMap<string, SessionAnswer>;
     /** No notice asks about this content again this session. */
     leaveForView(artifact: ApprovableArtifact): void;
+    /** Read and hashed now, past any memo. */
+    current(id: string): Promise<ListedPresence>;
+    /** After the catalog revoked one of its rows. */
+    afterRevoke(): Promise<void>;
     /** After anything it lists or answered changed. */
     onDidChange(listener: () => void): { dispose(): void };
 }
@@ -26,8 +30,6 @@ export interface PluginAddOnSource extends CodeAddOnSource {
     pluginsIn(pluginDirs: readonly string[]): Promise<readonly ListedPresence[]>;
     /** The plugins folders an editor or a listing looked in, nested config folders included. */
     knownPluginDirs(): readonly string[];
-    /** Read and hashed now, past any memo. */
-    currentPlugin(pluginId: string): Promise<ListedPresence>;
     pruneCache(): Promise<{ readonly removed: number }>;
 }
 
