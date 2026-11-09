@@ -149,16 +149,20 @@ export class BpmnElementTemplatesService implements ArtifactChangeTarget {
      * After the user's switches changed: sends each editor whose hidden
      * templates changed only those, so nothing is read or validated again.
      * A hidden editor asks for its templates once shown and gets the current
-     * ones then.
+     * ones then; an editor the post did not reach gets them on the next change.
      */
     async refreshOffers(): Promise<void> {
         for (const [editorId, hidden] of this.offers.changedSinceSent()) {
             try {
-                await this.editorStore.postUnlessHidden(
+                const outcome = await this.editorStore.postUnlessHidden(
                     editorId,
                     new HiddenElementTemplatesQuery(hidden),
                 );
+                if (outcome === "undelivered") {
+                    this.offers.forgetSent(editorId);
+                }
             } catch (error) {
+                this.offers.forgetSent(editorId);
                 this.notifier.logError(error instanceof Error ? error : new Error(String(error)));
             }
         }

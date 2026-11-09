@@ -63,6 +63,11 @@ export class ElementTemplateOffers {
         });
     }
 
+    /** The editor did not get its last refs, so the next change sends them whatever they are. */
+    forgetSent(editorId: string): void {
+        this.hiddenKeyByEditor.delete(editorId);
+    }
+
     release(editorId: string): void {
         this.sourcesByEditor.delete(editorId);
         this.hiddenKeyByEditor.delete(editorId);
