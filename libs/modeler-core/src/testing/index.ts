@@ -1,4 +1,5 @@
 export * from "./actionNotifierContract";
+export * from "./addOnViewRevealContract";
 export * from "./approvalReviewContract";
 export * from "./clipboardContract";
 export * from "./contentHasherContract";
