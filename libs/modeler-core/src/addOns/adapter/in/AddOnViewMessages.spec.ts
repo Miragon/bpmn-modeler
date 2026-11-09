@@ -162,6 +162,43 @@ describe("AddOnViewMessages", () => {
         expect(posted).toEqual([new RevealAddOnsQuery(REVEAL)]);
     });
 
+    it("posts a reveal again only to the page that loads after it, not to a page that loads later", async () => {
+        const { messages, posted } = setUp();
+        messages.modelBuilt(MODEL);
+        messages.revealed(REVEAL);
+        await messages.handle(new GetAddOnCatalogCommand());
+        posted.length = 0;
+
+        await messages.handle(new GetAddOnCatalogCommand());
+
+        expect(posted).toEqual([new AddOnCatalogQuery(MODEL)]);
+    });
+
+    it("posts no reveal again that reached a page already listening", async () => {
+        const { messages, posted } = setUp();
+        messages.modelBuilt(MODEL);
+        await messages.handle(new GetAddOnCatalogCommand());
+        messages.revealed(REVEAL);
+        posted.length = 0;
+
+        await messages.handle(new GetAddOnCatalogCommand());
+
+        expect(posted).toEqual([new AddOnCatalogQuery(MODEL)]);
+    });
+
+    it("posts a reveal again that arrived after its page was hidden, as the host may load it anew", async () => {
+        const { messages, posted } = setUp();
+        messages.modelBuilt(MODEL);
+        await messages.handle(new GetAddOnCatalogCommand());
+        messages.pageHidden();
+        messages.revealed(REVEAL);
+        posted.length = 0;
+
+        await messages.handle(new GetAddOnCatalogCommand());
+
+        expect(posted).toEqual([new AddOnCatalogQuery(MODEL), new RevealAddOnsQuery(REVEAL)]);
+    });
+
     it("posts nothing when the page asks before the first model and any reveal", async () => {
         const { messages, posted } = setUp();
 

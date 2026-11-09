@@ -1065,6 +1065,23 @@ describe("AddOnsFeature", () => {
             expect(hidden.types()).toEqual(["AddOnCatalogQuery", "RevealAddOnsQuery"]);
         });
 
+        it("reveals rows to a panel shown again once its page loads anew", async () => {
+            const { addOns } = setUp();
+            const panel = recordingPanel();
+            const attached = addOns.attachPanel(panel.post, true);
+            await shown(addOns);
+            await attached.handle(new GetAddOnCatalogCommand());
+            attached.setVisible(false);
+            addOns.reveal(REVEALED);
+            attached.setVisible(true);
+            await shown(addOns);
+            panel.posted.length = 0;
+
+            await attached.handle(new GetAddOnCatalogCommand());
+
+            expect(panel.reveals()).toEqual([REVEALED]);
+        });
+
         it("reveals the latest rows once to a panel that attaches after the reveal", async () => {
             const { addOns } = setUp();
             addOns.reveal(["plugin:/work/.camunda/plugins/older"]);

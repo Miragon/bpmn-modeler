@@ -56,6 +56,8 @@ export class AddOnViewMessages implements RouteLookup {
         this.send(new RevealAddOnsQuery(reveal));
     }
 
+    pageHidden(): void {}
+
     async handle(command: Command): Promise<void> {
         await this.router.dispatch(command, undefined);
     }
