@@ -581,13 +581,11 @@ approval list and the log use; `ApprovalState` and the rule packages'
 code must be hashed before its state is known (a row or a decline of its id),
 and `codeStateOf` the one dispatcher from what an owner found (found,
 unhashed, unreadable, gone) to that state; `rulePackageVerdict` reads it.
-Groundwork for the artifacts view
-([#2250](https://github.com/Miragon/bpmn-modeler/issues/2250)) and its read
-model ([#2263](https://github.com/Miragon/bpmn-modeler/issues/2263)), read
-only by specs until those land: `reviewedAllowDecision` allows only content
-that is still as it was reviewed, `PROCESS_RESTARTS` names, as a typed host
-fact, how the user unloads code that already ran (reload the window, restart
-the IDE), and `RulePackageCatalog` keeps the packages revoked this session.
+The add-on catalog (below) reads them too: `reviewedAllowDecision` allows only
+content that is still as it was reviewed, `PROCESS_RESTARTS` names, as a typed
+host fact, how the user unloads code that already ran (reload the window,
+restart the IDE), and `RulePackageCatalog` keeps the packages revoked this
+session.
 
 **Prompt flow.** Per the
 [VS Code UX guidelines](../../.agents/skills/vscode-ux-guidelines/SKILL.md), a
@@ -657,9 +655,9 @@ because the cache is shared. Files, other names and upper case stay, and a
 rule package row's prefixed hash names no copy. A prune waits for the copies
 in flight, and a copy waits for a running prune. VS Code prunes at
 activation, and the bridge once `server.ts` has bound its streams, so the
-harness specs see no extra frame. A revoke from the artifacts view and its
-prune action add triggers there
-([#2250](https://github.com/Miragon/bpmn-modeler/issues/2250)). Pruning on
+harness specs see no extra frame. A plugin revoke from the add-on catalog
+prunes in the process that revoked, and so does its "Remove unused plugin
+copies" action. Pruning on
 every approval change in every process was rejected: until then the next
 start's prune covers the shared cache, after it the revoking process's prune
 does, and N bridges pruning at once only adds noise.
@@ -761,10 +759,57 @@ made the unmodified process-io plugin work, but a full one would make `@bpmn-io/
 its preact a plugin API with a version policy; it is left to its own decision
 ([#2265](https://github.com/Miragon/bpmn-modeler/issues/2265)),
 with one exported instance set, an error boundary around plugin groups and a
-contract test as preconditions. Listing and revoking approvals are left to
-the artifacts view
-([#2250](https://github.com/Miragon/bpmn-modeler/issues/2250)) and its
-host-neutral read model ([#2263](https://github.com/Miragon/bpmn-modeler/issues/2263)).
+contract test as preconditions.
+
+**Listing, allowing and revoking.** The `addOns` context of the core is the
+host-neutral read model of the artifacts view
+([#2263](https://github.com/Miragon/bpmn-modeler/issues/2263); the views are
+[#2250](https://github.com/Miragon/bpmn-modeler/issues/2250)). It owns no
+rule of the code it lists: the plugin and rule package features each meet a
+structural port of `addOns/port/` with an inventory (`PluginInventory`,
+`RulePackageInventory`) that finds, hashes and answers for their code as
+their notices do, and the host compositions wire one into the other
+([package boundaries](architecture-and-hosts.md#package-boundaries)). Both
+hosts build an `AddOnsFeature`; no view attaches to it yet.
+
+- *Scope.* It lists the open workspace only: the root config folder's
+  `plugins/` of every workspace folder, the nested config folders an editor or
+  a listing already looked in, each folder's `node_modules` and the
+  `node_modules` of each lint config read so far, the packages the gate
+  reported, and every stored row inside a folder that discovery missed, read
+  directly, so a row whose folder is gone shows as gone. A row outside every
+  folder is not listed, though the prune still keeps it. Add-ons group by the
+  innermost workspace folder, then by source (the root config folder, nested
+  config folders by path, package folders), then by name. A nested config
+  folder's plugins apply only to the diagrams below it, and the source says so.
+  The bridge lists the folders the host registered.
+- *Read model.* `catalogModelOf` in `addOns/domain/` builds every text, the
+  state (`codeStateOf`, the same reading as the notices), and the actions a
+  row offers from one table keyed by what the owner read and that state:
+  allowed content offers Revoke, other hashed content "Allow this content",
+  content not hashed yet "Review…", a gone row "Forget". A rule package no row
+  or decline asks about is not hashed, as for a lint: its row offers
+  "Review…", which hashes it, and then the allow, so allowing one takes two
+  steps. Ids are only looked up in what the core recorded, never parsed.
+- *Allow by the reviewed hash.* Each build has a revision, and
+  `ShownRevisions` keeps what the last sixteen showed, never sent. An allow
+  names the revision; the content comes from what that revision showed, never
+  from a payload, the owner reads it again past any memo, and
+  `reviewedAllowDecision` refuses it when it changed, is gone or cannot be
+  read.
+- *Revoke.* A revoke records `leftForView` for the content shown, in this
+  process only, so no notice here asks about it at once, then writes the
+  change. The reload or relint follows the change event, as for a notice. A
+  plugin revoke prunes the cache; a rule package row then says its code stays
+  loaded until the user reloads the window or restarts the IDE.
+- *Builds.* Only while a view is visible, one at a time with a dirty flag, each
+  from `readStored()`, so an unseeded mirror never makes every row look new
+  and a view shown again sees another VS Code window's write. A change of the
+  approvals, of an owner, below a config folder (one watcher per workspace
+  folder while a view is attached) or of the config folder setting lists
+  again; `node_modules` is not watched, and a refresh or a view shown again
+  reads it. Its actions run on a queue of their own, so a notice left open
+  never holds back the view.
 
 Alternatives: our own module format only (loses the Camunda ecosystem);
 running `index.js` in the extension host (runs unapproved code with Node
@@ -888,7 +933,9 @@ admitted roots, and relints are cheap. A revoke withdraws an approval, and so
 does a row that now holds another hash, which also counts as an allow. Closing an
 editor forgets it, and `BpmnLintConfigService.dispose`, which
 `BpmnEditorFeature.dispose` calls, stops following. `RulePackageCatalog`
-hashes only the packages it asks about, keeps declines for its lifetime unless
+hashes only the packages it asks about, or the one the user opens with
+"Review…" in the add-on catalog, and never one left to the view, which it
+tells apart by id before any hash; it keeps declines for its lifetime unless
 the content changes, and exposes them read-only to the gate, which then reports
 a package as `declined` rather than `new`. The notice and the list have their
 own ids (`bpmnlintPackageApprovalNotice`, `bpmnlintPackageApproval`), and the
@@ -920,9 +967,9 @@ changed. Accepted residuals:
 - Code already loaded stays loaded until the host restarts, so removing an
   approval takes full effect only then. The revoke lints the host-linted
   editors again, so the gate refuses the package from that lint on, and the
-  catalog keeps the packages revoked this session for the artifacts view to
-  say so (groundwork, see above). A row allowed again at another content is
-  not kept there: the user allowed both contents.
+  catalog keeps the packages revoked this session, so the add-on catalog says
+  so. A row allowed again at another content is not kept there: the user
+  allowed both contents.
 - Admission depends on order within a setup: a member resolved before its
   approved closure root was admitted is blocked, and its bundled fallback
   stays cached until the setup is rebuilt.

@@ -113,6 +113,18 @@ and the `domain/` of `kernel/` and `editorSession/`.
   it is a service, not an adapter. `editorSession/` imports only `kernel/`,
   which the cross-feature rule already implies.
 
+A context that lists what other contexts own declares structural ports in its
+own `port/` and leaves the rules with the owners. `addOns/` (the add-on
+catalog behind the artifacts view) is the first: `PluginAddOnSource` and
+`RulePackageAddOnSource` in `addOns/port/addOnSourcePorts.ts` are met by
+`PluginInventory` in `bpmnPlugins/service/` and `RulePackageInventory` in
+`modeler/bpmn/service/`, which import nothing of `addOns/`, and the host
+compositions hand one to the other, as they hand `CachedTemplateProvider` to
+the BPMN editor. The values both sides name, such as `ListedPresence`, live in
+`kernel/domain/codeApproval.ts`. The context is named `addOns` because no core
+identifier may start with `Artifact` next to `ArtifactService`; "artifacts
+view" stays a word of the UI.
+
 The shared role-folder rules keep services off adapters, outbound adapters off
 services, and every import away from the package entry and the test kit; the
 core has no import cycles. A port file holds only interfaces: the value types,
