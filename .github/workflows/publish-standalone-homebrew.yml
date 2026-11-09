@@ -11,7 +11,7 @@ name: Publish Standalone (Homebrew)
 # Writes to the tap as the miragon-release-please GitHub App (org-level
 # RELEASE_PLEASE_APP_CLIENT_ID / RELEASE_PLEASE_APP_PRIVATE_KEY). The tap's main
 # is PR-only, squash-only and requires signed commits, so the job opens a PR and
-# squash-merges it; GitHub signs the squash commit.
+# squash-merges it.
 
 on:
   workflow_dispatch:
@@ -147,26 +147,27 @@ jobs:
           private-key: ${{ secrets.RELEASE_PLEASE_APP_PRIVATE_KEY }}
           owner: Miragon
           repositories: homebrew-tap
+          permission-contents: write
+          permission-pull-requests: write
 
+      # The tap asks for an approval on commits it cannot attribute to the pusher, so the cask
+      # is written through the contents API: GitHub signs that commit as the App's.
       - name: Open and squash-merge PR on homebrew-tap
         if: ${{ !inputs.dry-run }}
         env:
           VERSION: ${{ inputs.version }}
-          HOMEBREW_TAP_TOKEN: ${{ steps.app-token.outputs.token }}
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          TAP: Miragon/homebrew-tap
+          CASK: Casks/miragon-bpmn-modeler.rb
         run: |
           BRANCH="miragon-bpmn-modeler-${VERSION}"
           TITLE="chore: update miragon-bpmn-modeler to ${VERSION}"
-          git clone "https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/Miragon/homebrew-tap.git" tap
-          mkdir -p tap/Casks
-          cp miragon-bpmn-modeler.rb tap/Casks/miragon-bpmn-modeler.rb
-          cd tap
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git checkout -b "$BRANCH"
-          git add Casks/miragon-bpmn-modeler.rb
-          git commit -m "$TITLE"
-          git push --force origin "$BRANCH"
-          gh pr create --repo Miragon/homebrew-tap --base main --head "$BRANCH" \
+          CURRENT=$(gh api "repos/${TAP}/contents/${CASK}?ref=main" --jq .sha 2>/dev/null) || CURRENT=""
+          MAIN=$(gh api "repos/${TAP}/git/ref/heads/main" --jq .object.sha)
+          gh api -X DELETE "repos/${TAP}/git/refs/heads/${BRANCH}" > /dev/null 2>&1 || true
+          gh api "repos/${TAP}/git/refs" -f ref="refs/heads/${BRANCH}" -f sha="$MAIN" > /dev/null
+          gh api -X PUT "repos/${TAP}/contents/${CASK}" -f branch="$BRANCH" -f message="$TITLE" \
+            -f content="$(base64 -w0 miragon-bpmn-modeler.rb)" ${CURRENT:+-f sha="$CURRENT"} > /dev/null
+          gh pr create --repo "$TAP" --base main --head "$BRANCH" \
             --title "$TITLE" --body "Automated Cask update for release vscode-v${VERSION}."
-          gh pr merge "$BRANCH" --repo Miragon/homebrew-tap --squash --delete-branch
+          gh pr merge "$BRANCH" --repo "$TAP" --squash --delete-branch
