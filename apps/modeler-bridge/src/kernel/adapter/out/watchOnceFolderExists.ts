@@ -6,10 +6,11 @@ export interface Closable {
 }
 
 export interface FolderWatchArming {
-    /** Watches the folder itself; called once it exists. */
-    arm(): Closable;
-    /** Runs after an arming that waited: nothing created before it raised an event. */
-    armedLate(): void;
+    /**
+     * Watches the folder itself, called once it exists. `late` when the arming
+     * waited: the files already there raised no event, so they arrive as creates.
+     */
+    arm(late: boolean): Closable;
     /** Watches the direct children of `folder`, calling `onChange` when one is added or removed. */
     watchChildren(folder: string, onChange: () => void): Closable;
 }
@@ -42,7 +43,7 @@ function nearestExistingFolder(folder: string): string | undefined {
  */
 export function watchOnceFolderExists(folder: string, arming: FolderWatchArming): Closable {
     if (isFolder(folder)) {
-        return arming.arm();
+        return arming.arm(false);
     }
     let current: Closable | undefined;
     let closed = false;
@@ -54,14 +55,12 @@ export function watchOnceFolderExists(folder: string, arming: FolderWatchArming)
         if (existing === folder) {
             // Thrown inside a watcher's event, the error would end the bridge.
             try {
-                current = arming.arm();
+                current = arming.arm(true);
             } catch {
                 if (!isFolder(folder)) {
                     step();
                 }
-                return;
             }
-            arming.armedLate();
             return;
         }
         if (existing === undefined) {

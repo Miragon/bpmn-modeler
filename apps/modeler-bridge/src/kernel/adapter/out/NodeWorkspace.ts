@@ -83,9 +83,10 @@ function platformWatchOptions() {
     };
 }
 
-function watchWithChokidar(root: string, emit: WatchSubscriber): { close(): unknown } {
+function watchWithChokidar(root: string, emit: WatchSubscriber, reportExisting = false): { close(): unknown } {
     return watch(root, {
-        ignoreInitial: true,
+        // chokidar arms asynchronously: reporting its first scan also covers files written while it armed.
+        ignoreInitial: !reportExisting,
         ignored: (path: string) => isIgnoredWatchPath(root, path),
         ...platformWatchOptions(),
     })
@@ -96,6 +97,8 @@ function watchWithChokidar(root: string, emit: WatchSubscriber): { close(): unkn
 
 function watchChildFolders(folder: string, onChange: () => void): { close(): unknown } {
     return watch(folder, { ignoreInitial: true, depth: 0, ...platformWatchOptions() })
+        // A folder created while chokidar armed is part of its first scan and raises no addDir.
+        .on("ready", onChange)
         .on("addDir", onChange)
         .on("unlinkDir", onChange)
         .on("error", onChange);
@@ -368,14 +371,17 @@ export class NodeWorkspace implements WorkspacePort, WorkspaceRoots {
             onUnlink: (p) => subscribers.forEach((s) => s.onUnlink(p)),
         };
         const watcher = watchOnceFolderExists(root, {
-            arm: () =>
-                process.platform === "darwin"
-                    ? watchRecursivelyWithFsEvents(root, emit)
-                    : watchWithChokidar(root, emit),
-            armedLate: () => {
-                void listFilesBelow(root, isIgnoredWatchFolder).then((files) =>
-                    files.forEach((file) => emit.onAdd(joinWorkspacePath(root, file))),
-                );
+            arm: (late) => {
+                if (process.platform !== "darwin") {
+                    return watchWithChokidar(root, emit, late);
+                }
+                const armed = watchRecursivelyWithFsEvents(root, emit);
+                if (late) {
+                    void listFilesBelow(root, isIgnoredWatchFolder).then((files) =>
+                        files.forEach((file) => emit.onAdd(joinWorkspacePath(root, file))),
+                    );
+                }
+                return armed;
             },
             watchChildren: watchChildFolders,
         });
