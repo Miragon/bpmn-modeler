@@ -16,6 +16,7 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
+    HOST_SHOW_REPLY_DEADLINE_MS,
     HOST_WORK_REPLY_DEADLINE_MS,
     METHODS,
     PROTOCOL,
@@ -160,6 +161,7 @@ describe("RPC protocol descriptor", () => {
                     "  pluginApprovals/read",
                     "  templatePreferences/change",
                     "  templatePreferences/read",
+                    "  addOns/reveal",
                     "",
                     "Core → Host (notifications):",
                     "  editor/postMessage",
@@ -229,5 +231,13 @@ describe("RPC protocol descriptor", () => {
         ])("gives up on %s after the host-work deadline", (method) => {
             expect(replyDeadlineMs(method)).toBe(HOST_WORK_REPLY_DEADLINE_MS);
         });
+
+        it.each([METHODS.addOnsReveal])(
+            "gives up on %s after the show deadline, so the caller falls back soon",
+            (method) => {
+                expect(replyDeadlineMs(method)).toBe(HOST_SHOW_REPLY_DEADLINE_MS);
+                expect(HOST_SHOW_REPLY_DEADLINE_MS).toBeLessThan(HOST_WORK_REPLY_DEADLINE_MS);
+            },
+        );
     });
 });

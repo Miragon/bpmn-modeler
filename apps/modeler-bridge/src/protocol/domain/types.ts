@@ -505,6 +505,11 @@ export interface DeploymentPostMessageParams {
     message: Query;
 }
 
+/** `addOns/reveal` — whether the host now shows its add-ons view. */
+export interface AddOnsRevealResult {
+    shown: boolean;
+}
+
 /** Completion bean shipped to the host so it never needs BPMN/PSI knowledge. */
 interface ScriptCompletionBean {
     name: string;

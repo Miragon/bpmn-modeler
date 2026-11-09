@@ -381,6 +381,13 @@
         "resultKeys": ["allProjects", "project"]
     },
     {
+        "method": "addOns/reveal",
+        "direction": "coreToHost",
+        "kind": "request",
+        "paramKeys": [],
+        "resultKeys": ["shown"]
+    },
+    {
         "method": "editor/postMessage",
         "direction": "coreToHost",
         "kind": "notification",

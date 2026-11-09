@@ -225,6 +225,7 @@ class ProtocolHandlerCoverageTest {
                 "pluginApprovals/read" to PluginApprovalsResult(listOf(PluginApproval("/ws/plugins/resize", "9f2c")), revision = 2),
                 "templatePreferences/change" to TEMPLATE_PREFERENCES,
                 "templatePreferences/read" to TEMPLATE_PREFERENCES,
+                "addOns/reveal" to AddOnsRevealResult(shown = true),
             )
         return resultsByMethod.entries.withIndex().associate { (requestId, entry) ->
             wired.channel.reply(wired.requestId(requestId), entry.value)
