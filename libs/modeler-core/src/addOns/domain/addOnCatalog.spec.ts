@@ -204,6 +204,31 @@ describe("catalogModelOf", () => {
         ]);
     });
 
+    it("tells where a config folder of several segments applies", () => {
+        const { model } = build(
+            factsOf({
+                configFolder: ".config/camunda",
+                plugins: [
+                    found("/work/orders/.config/camunda/plugins/tools", "Tools", "h1"),
+                    found("/work/.config/camunda/plugins/resize", "Resize", "h2"),
+                ],
+            }),
+        );
+
+        expect(
+            model.groups[0].sources.map(({ label, description }) => ({ label, description })),
+        ).toEqual([
+            {
+                label: ".config/camunda",
+                description: "Applies to every diagram in this folder",
+            },
+            {
+                label: "orders/.config/camunda",
+                description: "Applies to diagrams below orders/",
+            },
+        ]);
+    });
+
     it("sorts the config folders below the root by path", () => {
         const { model } = build(
             factsOf({

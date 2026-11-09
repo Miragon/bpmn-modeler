@@ -12,9 +12,9 @@ import {
     ProcessRestart,
     SessionAnswer,
 } from "../../kernel/domain/codeApproval";
-import { configFolderPath } from "../../kernel/domain/configArtifacts";
+import { folderOfConfigFolder } from "../../kernel/domain/configArtifacts";
 import { relativeToRoot, relativeToWorkspace } from "../../kernel/domain/rootContainment";
-import { lastWorkspacePathSegment, parentWorkspacePath } from "../../kernel/domain/workspacePath";
+import { lastWorkspacePathSegment } from "../../kernel/domain/workspacePath";
 import { AddOnKind, addOnIdOf, folderGroupIdOf, SourceKind, sourceIdOf } from "./addOnIds";
 import { innermostFolderOf } from "./addOnPaths";
 import {
@@ -149,6 +149,8 @@ interface PlacedAddOn {
 interface SourcePlace {
     readonly kind: SourceKind;
     readonly dir: string;
+    /** The folder whose diagrams it applies to, for a config folder of the current setting. */
+    readonly appliesTo?: string;
     /** Sorts the root's own config folder first. */
     readonly rank: number;
 }
@@ -175,11 +177,10 @@ const SOURCE_PLACE: Record<
     AddOnKind,
     (dir: string, root: string, configFolder: string) => SourcePlace
 > = {
-    plugin: (dir, root, configFolder) => ({
-        kind: "configFolder",
-        dir,
-        rank: dir === configFolderPath(root, configFolder) ? 0 : 1,
-    }),
+    plugin: (dir, root, configFolder) => {
+        const appliesTo = folderOfConfigFolder(dir, configFolder);
+        return { kind: "configFolder", dir, appliesTo, rank: appliesTo === root ? 0 : 1 };
+    },
     rulePackage: (dir) => ({ kind: "installedPackages", dir, rank: 2 }),
 };
 
@@ -194,10 +195,10 @@ const DETAIL: Record<
     rulePackage: (presence) => (presence.kind === "found" ? presence.artifact.version : undefined),
 };
 
-const SOURCE_DESCRIPTION: Record<SourceKind, (dir: string, root: string) => string> = {
+const SOURCE_DESCRIPTION: Record<SourceKind, (place: SourcePlace, root: string) => string> = {
     installedPackages: () => INSTALLED_PACKAGES_TEXT,
-    configFolder: (dir, root) => {
-        const belowRoot = relativeToRoot(parentWorkspacePath(dir) ?? dir, root);
+    configFolder: ({ dir, appliesTo }, root) => {
+        const belowRoot = relativeToRoot(appliesTo ?? dir, root);
         return belowRoot ? nestedConfigFolderText(belowRoot) : ROOT_CONFIG_FOLDER_TEXT;
     },
 };
@@ -318,7 +319,7 @@ function groupOf(root: string, placed: readonly PlacedAddOn[]): AddOnGroupView[]
                     id,
                     kind: place.kind,
                     label: relativeToRoot(place.dir, root) || lastWorkspacePathSegment(place.dir),
-                    description: SOURCE_DESCRIPTION[place.kind](place.dir, root),
+                    description: SOURCE_DESCRIPTION[place.kind](place, root),
                     addOns: addOns
                         .map(({ view }) => view)
                         .sort((a, b) => compare(a.name, b.name) || compare(a.id, b.id)),
