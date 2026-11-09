@@ -1,0 +1,62 @@
+import {
+    CancellationToken,
+    commands,
+    ExtensionContext,
+    Uri,
+    WebviewView,
+    WebviewViewProvider,
+    WebviewViewResolveContext,
+    window,
+} from "vscode";
+
+import { AddOnsFeature } from "@miragon/bpmn-modeler-core";
+import { Command, Query } from "@miragon/bpmn-modeler-shared";
+import { ADD_ONS_VIEW_ID, REFRESH_ADD_ONS_CMD } from "../../domain/addOnsViewIds";
+import { addOnsViewHtml } from "./AddOnsViewHtml";
+
+/**
+ * The Artifacts view in the BPMN Modeler container and its title bar's
+ * refresh. Host glue only: the core's {@link AddOnsFeature} builds the
+ * catalog, answers the page and refreshes when the view is shown again.
+ */
+export class AddOnsViewProvider implements WebviewViewProvider {
+    constructor(
+        private readonly addOns: AddOnsFeature,
+        private readonly extensionUri: Uri,
+        private readonly createNonce: () => string,
+    ) {}
+
+    register(context: ExtensionContext): void {
+        context.subscriptions.push(
+            // Kept while hidden: the core posts nothing then, and a shown page keeps its banners.
+            window.registerWebviewViewProvider(ADD_ONS_VIEW_ID, this, {
+                webviewOptions: { retainContextWhenHidden: true },
+            }),
+            commands.registerCommand(REFRESH_ADD_ONS_CMD, () => this.addOns.refresh()),
+        );
+    }
+
+    resolveWebviewView(
+        webviewView: WebviewView,
+        _context: WebviewViewResolveContext,
+        _token: CancellationToken,
+    ): void {
+        webviewView.webview.options = {
+            enableScripts: true,
+            localResourceRoots: [Uri.joinPath(this.extensionUri, "add-ons-webview")],
+        };
+        webviewView.webview.html = addOnsViewHtml(
+            webviewView.webview,
+            this.extensionUri,
+            this.createNonce(),
+        );
+
+        const panel = this.addOns.attachPanel(
+            (message: Query) => void webviewView.webview.postMessage(message),
+            webviewView.visible,
+        );
+        webviewView.onDidDispose(() => panel.dispose());
+        webviewView.webview.onDidReceiveMessage((message: Command) => panel.handle(message));
+        webviewView.onDidChangeVisibility(() => panel.setVisible(webviewView.visible));
+    }
+}

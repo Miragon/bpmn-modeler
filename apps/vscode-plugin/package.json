@@ -263,7 +263,7 @@
             "activitybar": [
                 {
                     "id": "bpmn-modeler-deploy",
-                    "title": "Deploy Diagram",
+                    "title": "BPMN Modeler",
                     "icon": "$(rocket)"
                 }
             ]
@@ -273,8 +273,14 @@
                 {
                     "type": "webview",
                     "id": "bpmn-modeler.deploymentView",
-                    "name": "Deploy Diagram",
+                    "name": "Deploy",
                     "when": "bpmn-modeler.openCustomEditors > 0"
+                },
+                {
+                    "type": "webview",
+                    "id": "bpmn-modeler.artifactsView",
+                    "name": "Artifacts",
+                    "when": "workspaceFolderCount > 0"
                 }
             ]
         },
@@ -361,6 +367,12 @@
                 "command": "bpmn-modeler.deploymentStatusMenu",
                 "title": "Deployment Status Menu",
                 "category": "Miragon BPMN Modeler"
+            },
+            {
+                "command": "bpmn-modeler.refreshArtifacts",
+                "title": "Refresh Artifacts",
+                "category": "Miragon BPMN Modeler",
+                "icon": "$(refresh)"
             },
             {
                 "command": "bpmn-modeler.migrateAllDiagrams",
@@ -535,6 +547,10 @@
                     "when": "false"
                 },
                 {
+                    "command": "bpmn-modeler.refreshArtifacts",
+                    "when": "workspaceFolderCount > 0"
+                },
+                {
                     "command": "bpmn-modeler.migrateAllDiagrams",
                     "when": "workspaceFolderCount > 0"
                 },
@@ -569,6 +585,13 @@
                 {
                     "command": "bpmn-modeler.cleanupDiagram",
                     "when": "bpmn-modeler.openCustomEditors > 0"
+                }
+            ],
+            "view/title": [
+                {
+                    "command": "bpmn-modeler.refreshArtifacts",
+                    "when": "view == bpmn-modeler.artifactsView",
+                    "group": "navigation"
                 }
             ],
             "explorer/context": [

@@ -35,9 +35,11 @@ import {
     DEPLOY_CMD,
     DEPLOY_FILES_CMD,
     DEPLOYMENT_STATUS_MENU_CMD,
+    DEPLOYMENT_VIEW_ID,
     SWITCH_TARGET_CMD,
     VERIFY_DEPLOYMENT_CMD,
 } from "./deployment/adapter/in/DeploymentController";
+import { ADD_ONS_VIEW_ID, REFRESH_ADD_ONS_CMD } from "./addOns/domain/addOnsViewIds";
 import {
     ADD_MARKETPLACE_CMD,
     REMOVE_MARKETPLACE_CMD,
@@ -90,7 +92,9 @@ interface Manifest {
     contributes: {
         commands: { command: string; title: string; category?: string }[];
         keybindings: { command: string }[];
-        menus: Record<string, { command: string; when?: string }[]>;
+        menus: Record<string, { command: string; when?: string; group?: string }[]>;
+        viewsContainers: Record<string, { id: string; title: string; icon: string }[]>;
+        views: Record<string, { type: string; id: string; name: string; when?: string }[]>;
         customEditors: {
             viewType: string;
             priority: string | { textEditor: string; diffEditor?: string };
@@ -155,6 +159,7 @@ const CODE_COMMAND_IDS = [
     OPEN_ELEMENT_TEMPLATE_EDITOR_CMD,
     TOGGLE_ELEMENT_TEMPLATE_JSON_CMD,
     NEW_ELEMENT_TEMPLATE_CMD,
+    REFRESH_ADD_ONS_CMD,
 ];
 
 const LEGACY_NAMESPACE = ["miragon", "camundaModeler"].join("."); // built so this file is not its own false positive
@@ -227,6 +232,39 @@ describe("package.json ↔ code contract", () => {
 
         const undeclared = referenced.filter((command) => !declared.has(command));
         expect(undeclared).toEqual([]);
+    });
+
+    // The container keeps its id, so a user's layout survives, and shows whenever a folder is open.
+    it("shows Deploy and Artifacts in one BPMN Modeler container", () => {
+        expect(manifest.contributes.viewsContainers.activitybar).toEqual([
+            { id: "bpmn-modeler-deploy", title: "BPMN Modeler", icon: "$(rocket)" },
+        ]);
+        expect(manifest.contributes.views["bpmn-modeler-deploy"]).toEqual([
+            {
+                type: "webview",
+                id: DEPLOYMENT_VIEW_ID,
+                name: "Deploy",
+                when: "bpmn-modeler.openCustomEditors > 0",
+            },
+            {
+                type: "webview",
+                id: ADD_ONS_VIEW_ID,
+                name: "Artifacts",
+                when: "workspaceFolderCount > 0",
+            },
+        ]);
+    });
+
+    it("offers the refresh in the Artifacts view's title bar and while a folder is open", () => {
+        expect(manifest.contributes.menus["view/title"]).toContainEqual({
+            command: REFRESH_ADD_ONS_CMD,
+            when: `view == ${ADD_ONS_VIEW_ID}`,
+            group: "navigation",
+        });
+        expect(manifest.contributes.menus.commandPalette).toContainEqual({
+            command: REFRESH_ADD_ONS_CMD,
+            when: "workspaceFolderCount > 0",
+        });
     });
 
     it("declares exactly the custom-editor viewTypes the code uses", () => {
