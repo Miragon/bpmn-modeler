@@ -321,7 +321,7 @@ export interface BpmnModelerHandle extends BpmnSurfaceHandle {
      * When the latest version of an id is hidden, that id is not offered, and
      * no older version takes its place.
      */
-    setHiddenElementTemplates(templates: readonly ElementTemplateRef[]): void;
+    setHiddenElementTemplates(refs: readonly ElementTemplateRef[]): void;
 
     /**
      * [A] Merge a partial settings update. `colorTheme` is **not** applied here

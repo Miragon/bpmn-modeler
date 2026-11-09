@@ -471,8 +471,8 @@ export class BpmnModeler {
     }
 
     /** @see BpmnModelerHandle.setHiddenElementTemplates */
-    setHiddenElementTemplates(templates: readonly ElementTemplateRef[]): void {
-        this.hiddenElementTemplates = [...templates];
+    setHiddenElementTemplates(refs: readonly ElementTemplateRef[]): void {
+        this.hiddenElementTemplates = [...refs];
         this.applyHiddenElementTemplates();
     }
 
