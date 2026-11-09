@@ -74,7 +74,7 @@ export interface OwnedPresence {
     readonly texts: ApprovableCodeTexts;
 }
 
-export interface ListedTemplate {
+interface ListedTemplate {
     readonly id?: string;
     readonly name?: string;
     readonly version?: number;

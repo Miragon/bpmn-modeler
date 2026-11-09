@@ -31,7 +31,7 @@ export function templatesOfFileText(text: string): ElementTemplate[] {
     return text.trim() === "" ? [] : templatesOfFile(JSON.parse(text));
 }
 
-export interface ListedTemplate {
+interface ListedTemplate {
     readonly id?: string;
     readonly name?: string;
     readonly version?: number;

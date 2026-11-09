@@ -72,7 +72,7 @@ export interface TemplateAddOnSource {
 }
 
 /** One registered marketplace before its cached templates are read. */
-export type MarketplaceListing = Omit<ListedMarketplace, "templates"> & {
+type MarketplaceListing = Omit<ListedMarketplace, "templates"> & {
     readonly templateFiles: readonly string[];
 };
 
