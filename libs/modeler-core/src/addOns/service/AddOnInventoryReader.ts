@@ -1,9 +1,9 @@
 import { declinedKeys, presenceIdOf } from "../../kernel/domain/codeApproval";
 import { PluginApprovalStorePort } from "../../kernel/port/approvalPorts";
+import { FolderTemplateFileListing } from "../../kernel/domain/templateListing";
 import { SettingsPort, WorkspacePort } from "../../kernel/port/hostPorts";
 import {
     AddOnFacts,
-    FolderTemplateFileListing,
     ListedMarketplace,
     ListedMarketplaces,
     OwnedPresence,

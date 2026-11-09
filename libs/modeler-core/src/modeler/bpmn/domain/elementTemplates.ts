@@ -1,12 +1,12 @@
 import {
     ELEMENT_TEMPLATE_FOLDER_NAME,
     type ElementTemplate,
-    type Engine,
     templateEngineOf,
     templatesOfFile,
 } from "@miragon/bpmn-modeler-types";
 
 import { configFolderPath } from "../../../kernel/domain/configArtifacts";
+import { ListedTemplate, TemplateFileReading } from "../../../kernel/domain/templateListing";
 import { parentWorkspacePath } from "../../../kernel/domain/workspacePath";
 
 /** The templates parsed from one source: a template directory or the marketplace cache. */
@@ -30,17 +30,6 @@ export function mergeElementTemplates(
 export function templatesOfFileText(text: string): ElementTemplate[] {
     return text.trim() === "" ? [] : templatesOfFile(JSON.parse(text));
 }
-
-interface ListedTemplate {
-    readonly id?: string;
-    readonly name?: string;
-    readonly version?: number;
-    readonly engine?: Engine;
-}
-
-export type TemplateFileReading =
-    | { readonly kind: "read"; readonly templates: readonly ListedTemplate[] }
-    | { readonly kind: "unreadable"; readonly reason: string };
 
 /** What the add-on catalog lists of one template file, read by the loader's rule. */
 export function templateFileReadingOf(text: string): TemplateFileReading {

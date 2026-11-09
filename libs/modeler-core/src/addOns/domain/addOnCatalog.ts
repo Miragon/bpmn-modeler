@@ -1,4 +1,4 @@
-import { type Engine, ENGINE_LABEL } from "@miragon/bpmn-modeler-types";
+import { ENGINE_LABEL } from "@miragon/bpmn-modeler-types";
 
 import {
     ApprovableArtifact,
@@ -21,6 +21,10 @@ import {
     relativeToRoot,
     relativeToWorkspace,
 } from "../../kernel/domain/rootContainment";
+import {
+    FolderTemplateFileListing,
+    TemplateFileListing,
+} from "../../kernel/domain/templateListing";
 import { lastWorkspacePathSegment } from "../../kernel/domain/workspacePath";
 import type {
     ActionView,
@@ -72,26 +76,6 @@ export interface OwnedPresence {
     /** A plugin's config folder, or the `node_modules` a rule package is installed in. */
     readonly sourceDir: string;
     readonly texts: ApprovableCodeTexts;
-}
-
-interface ListedTemplate {
-    readonly id?: string;
-    readonly name?: string;
-    readonly version?: number;
-    readonly engine?: Engine;
-}
-
-/** One template file as the template owner read it. */
-export interface TemplateFileListing {
-    readonly path: string;
-    readonly reading:
-        | { readonly kind: "read"; readonly templates: readonly ListedTemplate[] }
-        | { readonly kind: "unreadable"; readonly reason: string };
-}
-
-export interface FolderTemplateFileListing extends TemplateFileListing {
-    /** The config folder whose templates folder holds the file. */
-    readonly sourceDir: string;
 }
 
 /** One registered marketplace as its owner listed and worded it, with its cached templates read. */

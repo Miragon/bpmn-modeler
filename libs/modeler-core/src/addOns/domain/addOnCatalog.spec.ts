@@ -9,13 +9,8 @@ import {
     PROCESS_RESTARTS,
     SessionAnswer,
 } from "../../kernel/domain/codeApproval";
-import {
-    AddOnFacts,
-    AddOnSession,
-    catalogModelOf,
-    FolderTemplateFileListing,
-    ListedMarketplace,
-} from "./addOnCatalog";
+import { FolderTemplateFileListing } from "../../kernel/domain/templateListing";
+import { AddOnFacts, AddOnSession, catalogModelOf, ListedMarketplace } from "./addOnCatalog";
 import type { AddOnView, CodeAddOnView } from "./addOnCatalogModel";
 
 const RESIZE = "/work/.camunda/plugins/resize";

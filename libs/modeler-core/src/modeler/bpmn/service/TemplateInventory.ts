@@ -1,21 +1,15 @@
+import {
+    FolderTemplateFileListing,
+    TemplateFileListing,
+    TemplateFileReading,
+} from "../../../kernel/domain/templateListing";
 import { ArtifactService } from "../../../kernel/service/ArtifactService";
 import {
     configFolderOfTemplatesDir,
-    TemplateFileReading,
     templateFileReadingOf,
     templatesDirOf,
 } from "../domain/elementTemplates";
 import { BpmnElementTemplatesService } from "./BpmnElementTemplatesService";
-
-export interface TemplateFileListing {
-    readonly path: string;
-    readonly reading: TemplateFileReading;
-}
-
-export interface FolderTemplateFileListing extends TemplateFileListing {
-    /** The config folder whose templates folder holds the file. */
-    readonly sourceDir: string;
-}
 
 /**
  * The element templates as the add-on catalog lists them: per file, read by

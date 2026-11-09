@@ -9,10 +9,9 @@ import { SettingChange } from "../../editorSession/domain/EditorSession";
 import { MarketplaceSettingsEntry } from "../../kernel/domain/modelerSettings";
 import {
     FolderTemplateFileListing,
-    ListedMarketplace,
-    ListedMarketplaces,
     TemplateFileListing,
-} from "../domain/addOnCatalog";
+} from "../../kernel/domain/templateListing";
+import { ListedMarketplace, ListedMarketplaces } from "../domain/addOnCatalog";
 
 /**
  * What every owner of approvable code gives the catalog. The owners keep the
