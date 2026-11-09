@@ -7,6 +7,7 @@ import {
     elementTemplateFolder,
     elementTemplateRefKey,
     elementTemplateRefOf,
+    elementTemplateVersionOf,
     isElementTemplateFile,
     isElementTemplateText,
     isPreviewableElementType,
@@ -188,6 +189,20 @@ describe("elementTemplateRefOf", () => {
         ["an array", [{ id: "a" }]],
     ])("names no ref for %s", (_, template) => {
         expect(elementTemplateRefOf(template)).toBeUndefined();
+    });
+});
+
+describe("elementTemplateVersionOf", () => {
+    it.each([
+        ["a versioned template", { id: "a", version: 2 }, 2],
+        ["version 0", { id: "a", version: 0 }, 0],
+        ["a version without an id", { name: "A", version: 3 }, 3],
+        ["a template without a version", { id: "a" }, undefined],
+        ["a version that is not a number", { id: "a", version: "2" }, undefined],
+        ["null", null, undefined],
+        ["an array", [{ version: 2 }], undefined],
+    ])("reads %s", (_, template, version) => {
+        expect(elementTemplateVersionOf(template)).toBe(version);
     });
 });
 

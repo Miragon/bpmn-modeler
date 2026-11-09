@@ -70,6 +70,11 @@ describe("templateFileReadingOf", () => {
             reading: { kind: "read", templates: [{ id: "c8", engine: "c8" }] },
         },
         {
+            case: "a version without an id",
+            text: JSON.stringify({ name: "Send Mail", version: 2 }),
+            reading: { kind: "read", templates: [{ name: "Send Mail", version: 2 }] },
+        },
+        {
             case: "only the fields of their own type",
             text: JSON.stringify([{ id: 1, name: ["x"], version: "2" }, null, "text"]),
             reading: { kind: "read", templates: [{}, {}, {}] },

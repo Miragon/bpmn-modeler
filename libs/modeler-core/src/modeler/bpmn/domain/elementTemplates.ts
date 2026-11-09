@@ -1,6 +1,8 @@
 import {
     ELEMENT_TEMPLATE_FOLDER_NAME,
     type ElementTemplate,
+    elementTemplateRefOf,
+    elementTemplateVersionOf,
     templateEngineOf,
     templatesOfFile,
 } from "@miragon/bpmn-modeler-types";
@@ -48,15 +50,18 @@ export function templatesDirOf(dir: string, configFolder: string): string {
     return configFolderPath(dir, configFolder, ELEMENT_TEMPLATE_FOLDER_NAME);
 }
 
+// Read as the modeler indexes templates, so a ref built from a listing names the same template.
 function listedTemplateOf(template: unknown, templates: readonly unknown[]): ListedTemplate {
-    const { id, name, version } = (
-        typeof template === "object" && template !== null ? template : {}
-    ) as Record<string, unknown>;
+    const id = elementTemplateRefOf(template)?.id;
+    const version = elementTemplateVersionOf(template);
+    const { name } = (typeof template === "object" && template !== null ? template : {}) as {
+        name?: unknown;
+    };
     const engine = templateEngineOf(template, templates);
     return {
-        ...(typeof id === "string" && { id }),
+        ...(id !== undefined && { id }),
         ...(typeof name === "string" && { name }),
-        ...(typeof version === "number" && { version }),
+        ...(version !== undefined && { version }),
         ...(engine && { engine }),
     };
 }

@@ -8,17 +8,23 @@ export interface ElementTemplateRef {
     readonly version?: number;
 }
 
-/**
- * `undefined` without a string id. The version only when it is a number: the
- * template validator admits no other, and upstream files a missing one as "_".
- */
+/** `undefined` without a string id. */
 export function elementTemplateRefOf(template: unknown): ElementTemplateRef | undefined {
     if (!isRecord(template) || typeof template.id !== "string") {
         return undefined;
     }
-    return typeof template.version === "number"
-        ? { id: template.id, version: template.version }
-        : { id: template.id };
+    const version = elementTemplateVersionOf(template);
+    return version === undefined ? { id: template.id } : { id: template.id, version };
+}
+
+/**
+ * Only a number, with or without an id: the template validator admits no
+ * other, and upstream files a missing one as "_".
+ */
+export function elementTemplateVersionOf(template: unknown): number | undefined {
+    return isRecord(template) && typeof template.version === "number"
+        ? template.version
+        : undefined;
 }
 
 /** Equal for the same id and version, whatever characters the id holds. */
