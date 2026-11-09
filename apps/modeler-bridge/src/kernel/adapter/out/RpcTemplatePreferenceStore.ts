@@ -47,8 +47,8 @@ export class RpcTemplatePreferenceStore
 
     read(): TemplatePreferencesByScope {
         return {
-            project: { disabled: copyOf(this.snapshot.project.disabled) },
-            allProjects: { disabled: copyOf(this.snapshot.allProjects.disabled) },
+            project: { disabled: this.snapshot.project.disabled },
+            allProjects: { disabled: this.snapshot.allProjects.disabled },
         };
     }
 

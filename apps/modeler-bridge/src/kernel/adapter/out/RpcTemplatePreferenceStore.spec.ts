@@ -163,7 +163,7 @@ describe("RpcTemplatePreferenceStore", () => {
         expect(announced).toBe(2);
     });
 
-    it("hands out copies, so a caller cannot change the mirror", () => {
+    it("keeps its own copy of a pushed list", () => {
         const { store } = bridgeStore();
         const pushed = { project: scope(2, { ...MAIL_OFF }), allProjects: scope(1) };
         store.apply(pushed);
