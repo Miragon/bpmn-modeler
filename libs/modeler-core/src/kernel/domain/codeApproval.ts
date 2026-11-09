@@ -217,11 +217,14 @@ export function needsContentHash(
     approvals: readonly CodeApproval[],
     declined: ReadonlySet<string>,
 ): boolean {
-    const declineKeyPrefix = declineKeyOf({ id, name: id, contentHash: "" });
     return (
         approvalRowOf(id, approvals) !== undefined ||
-        [...declined].some((key) => key.startsWith(declineKeyPrefix))
+        [...declined].some((key) => isAnswerKeyOf(id, key))
     );
+}
+
+function isAnswerKeyOf(id: string, key: string): boolean {
+    return key.startsWith(declineKeyOf({ id, name: id, contentHash: "" }));
 }
 
 /** An approval of this content wins over a decline of it earlier in the session. */
@@ -354,6 +357,15 @@ export function approvalOutcome<A extends ApprovableArtifact>(
 /** No notice asks again about content the user declined or left to a view, until it changes. */
 export function notAskedAgain(answers: ReadonlyMap<string, SessionAnswer>): ReadonlySet<string> {
     return new Set(answers.keys());
+}
+
+/**
+ * Whether some content of `id` was left to a view: no notice asks about it
+ * again this session, whatever its content is now, since telling would take
+ * a hash a lint should not pay for.
+ */
+export function isLeftForView(id: string, answers: ReadonlyMap<string, SessionAnswer>): boolean {
+    return [...answers].some(([key, answer]) => answer === "leftForView" && isAnswerKeyOf(id, key));
 }
 
 /** Content left to a view keeps its state, so only a decline changes what the gate reports. */

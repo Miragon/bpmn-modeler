@@ -7,6 +7,7 @@ import {
     declinedKeys,
     FollowedApprovalChange,
     followedApprovalChange,
+    isLeftForView,
     notAskedAgain,
     pendingApprovals,
     ReviewAnswer,
@@ -90,9 +91,14 @@ export class RulePackageCatalog implements ApprovalCatalog<
         this.approvalChanges.dispose();
     }
 
-    /** Hashed only now: the gate blocks a package it has no row for without reading it. */
+    /**
+     * Hashed only now: the gate blocks a package it has no row for without
+     * reading it, and a package left to the view is not hashed again at all.
+     */
     stillPendingOf(found: readonly BlockedRulePackage[]): PendingRulePackage[] {
-        const rulePackages = rulePackagesToAsk(found).flatMap((each) => this.rulePackageOf(each));
+        const rulePackages = rulePackagesToAsk(found)
+            .filter(({ id }) => !isLeftForView(id, this.answers))
+            .flatMap((each) => this.rulePackageOf(each));
         return pendingApprovals(
             rulePackages,
             this.approvals.read().filter(isRulePackageApproval),

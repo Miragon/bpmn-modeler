@@ -28,6 +28,7 @@ import {
     type FollowedApprovalChange,
     followedApprovalChange,
     foundCodeState,
+    isLeftForView,
     needsContentHash,
     notAskedAgain,
     type PendingCodeApproval,
@@ -556,6 +557,16 @@ describe("session answers", () => {
 
     it("tells the gate only of declined content", () => {
         expect(declinedKeys(answers)).toEqual(new Set([declineKeyOf(resize)]));
+    });
+
+    it.each<{ case: string; id: string; leftForView: boolean }>([
+        { case: "an id whose content was left to the view", id: palette.id, leftForView: true },
+        { case: "an id whose content was declined", id: resize.id, leftForView: false },
+        { case: "an id nobody answered for", id: acmeRules.id, leftForView: false },
+        { case: "an id that only starts like one left", id: `${palette.id}-evil`, leftForView: false },
+        { case: "an id that only ends like one left", id: `x${palette.id}`, leftForView: false },
+    ])("tells $case apart without its content: $leftForView", ({ id, leftForView }) => {
+        expect(isLeftForView(id, answers)).toBe(leftForView);
     });
 
     it("names each answer a session can hold", () => {
