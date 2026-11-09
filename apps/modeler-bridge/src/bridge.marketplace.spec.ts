@@ -238,8 +238,13 @@ describe("bridge template marketplace (real core + cache over a fake transport)"
         });
         await answerReadAfterFetch(rpc, frames, question);
         // The registration is an acknowledged request carrying the answer's scope.
-        const save = await answer(rpc, frames, "marketplaceState/save", null);
+        const save = await waitForFrame(frames, isRequest("marketplaceState/save"));
         expect(save.params).toEqual({ location: folder, scope: "allProjects" });
+        // IntelliJ pushes the snapshot that holds the new entry before it acks.
+        await rpc.handleLine(
+            hostNotification("settings/didChange", { settings: { marketplaces: [folder] } }),
+        );
+        await rpc.handleLine(hostReply(save.id, null));
 
         await waitForFrame(frames, isTemplatesQuery(TEMPLATE_NAME));
         await waitForFrame(frames, isShowInfo("Marketplace added."));
