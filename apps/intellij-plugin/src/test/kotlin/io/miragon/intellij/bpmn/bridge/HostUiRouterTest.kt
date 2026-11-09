@@ -153,6 +153,8 @@ class HostUiRouterTest {
         routed.show(requestId = 6)
         routed.show(requestId = 7)
         val notices = listOf(routed.nextOffered(), routed.nextOffered())
+        // A notice is offered before the router keeps its expiry; let the EDT finish both.
+        ApplicationManager.getApplication().invokeAndWait {}
 
         routed.router.expireActionNotices()
 
