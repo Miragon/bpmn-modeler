@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.0](https://github.com/Miragon/bpmn-modeler/compare/orca-v0.1.1...orca-v0.2.0) (2026-11-09)
+
+
+### 🎉 New Features
+
+* **modeler-core:** load approved workspace bpmn-js plugins in VS Code ([#2251](https://github.com/Miragon/bpmn-modeler/issues/2251)) [sync 5457858] ([7107b52](https://github.com/Miragon/bpmn-modeler/commit/7107b529e1d4d7f23f584420b315d2b4c38cfd35))
+* **orca-plugin:** open an example process from Orca's Try it button and + menu ([#2277](https://github.com/Miragon/bpmn-modeler/issues/2277)) ([41a7fee](https://github.com/Miragon/bpmn-modeler/commit/41a7fee508ae8ee70abc3be807e82f29fcf2737a))
+
 ## [0.1.1](https://github.com/Miragon/bpmn-modeler/compare/orca-v0.1.0...orca-v0.1.1) (2026-11-08)
 
 
