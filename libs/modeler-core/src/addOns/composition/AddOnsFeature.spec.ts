@@ -557,6 +557,27 @@ describe("AddOnsFeature", () => {
             expect(host.notifier.logged("error")).toHaveLength(2);
         });
 
+        it("posts nothing to a disposed view and refuses what it asks", async () => {
+            const { host, addOns, view } = setUp();
+            const connection = view.attachTo(addOns);
+            await shown(addOns);
+            const revision = view.latest().revision;
+            connection.setVisible(false);
+
+            connection.dispose();
+            connection.setVisible(true);
+            const result = await connection.handle({
+                kind: "allow",
+                addOnId: `plugin:${RESIZE}`,
+                revision,
+            });
+            await shown(addOns);
+
+            expect(view.models).toHaveLength(1);
+            expect(result).toMatchObject({ kind: "refused", reason: "closedView" });
+            expect(host.pluginApprovals.approvals).toEqual([]);
+        });
+
         it("stops watching and building once the last view is gone", async () => {
             const { host, addOns, view } = setUp();
             const connection = view.attachTo(addOns);
