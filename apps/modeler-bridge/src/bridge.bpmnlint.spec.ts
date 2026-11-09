@@ -22,8 +22,8 @@
  * *deleted* hands linting back to the webview's in-page default.
  *
  * A workspace `bpmnlint-plugin-*` package runs only once the user allowed it:
- * the host lint skips it and asks, the answer is saved through
- * `pluginApprovals/save` and lints again, an approval pushed by another bridge
+ * the host lint skips it and asks, the answer is sent as a
+ * `pluginApprovals/change` and lints again, an approval pushed by another bridge
  * takes effect on the next lint, and an edit after the approval stops it again.
  */
 
@@ -617,9 +617,9 @@ describe("workspace bpmnlint rule packages on the bridge", () => {
     async function allowAcme(bridge: AcmeBridge): Promise<readonly PluginApproval[]> {
         await lintOnHost(bridge);
         const fromIndex = bridge.frames.length;
-        const saved = await reviewAndAllowAll(bridge, await waitForNotice(bridge));
+        const { stored } = await reviewAndAllowAll(bridge, await waitForNotice(bridge));
         await nextLintResults(bridge, fromIndex);
-        return saved;
+        return stored;
     }
 
     it("skips a rule package nobody allowed, says so and asks about it", async () => {
@@ -652,14 +652,17 @@ describe("workspace bpmnlint rule packages on the bridge", () => {
         const notice = await waitForNotice(bridge);
         const fromIndex = bridge.frames.length;
 
-        const saved = await reviewAndAllowAll(bridge, notice);
+        const { change } = await reviewAndAllowAll(bridge, notice);
 
-        expect(saved).toEqual([
-            {
-                pluginId: bridge.acmeDir,
-                contentHash: expect.stringMatching(/^bpmnlint-closure-v1:/),
-            },
-        ]);
+        expect(change).toEqual({
+            allow: [
+                {
+                    pluginId: bridge.acmeDir,
+                    contentHash: expect.stringMatching(/^bpmnlint-closure-v1:/),
+                },
+            ],
+            revoke: [],
+        });
         const relinted = await nextLintResults(bridge, fromIndex);
         expect(findingsOf(relinted)[ACME_RULE]).toEqual([
             expect.objectContaining({ id: "Task_1", message: "v1" }),

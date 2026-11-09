@@ -10,7 +10,7 @@ import {
 } from "@miragon/bpmn-modeler-shared";
 import { LintResults } from "@miragon/bpmn-modeler-types";
 
-import { CodeApproval } from "../../../kernel/domain/codeApproval";
+import { CodeApprovalChange } from "../../../kernel/domain/codeApproval";
 import { PluginApprovalStorePort } from "../../../kernel/port/approvalPorts";
 import { ApprovalQuestion } from "../../../kernel/service/ApprovalQuestion";
 import { ArtifactService } from "../../../kernel/service/ArtifactService";
@@ -906,11 +906,11 @@ describe("BpmnLintConfigService — workspace rule packages the user has not all
         needed,
     });
 
-    /** Sets its list only once the save was acknowledged, as the IntelliJ bridge's store does. */
+    /** Merges a change only once the host answered it, as the IntelliJ bridge's store does. */
     class AcknowledgedApprovals extends InMemoryPluginApprovals {
-        override async write(approvals: readonly CodeApproval[]): Promise<void> {
+        override async change(change: CodeApprovalChange): Promise<void> {
             await flush();
-            this.approvals = [...approvals];
+            await super.change(change);
         }
     }
 

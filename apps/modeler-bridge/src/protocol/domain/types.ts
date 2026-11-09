@@ -187,11 +187,17 @@ export interface MigrateAllParams {
 
 /**
  * `pluginApprovals/didChange` — the approvals the host now stores, pushed to
- * every running bridge after any of them saved; also the params of the
- * `pluginApprovals/save` request.
+ * every running bridge after any of them changed them; also the result of the
+ * `pluginApprovals/change` request.
  */
 export interface PluginApprovalsParams {
     approvals: PluginApproval[];
+}
+
+/** `pluginApprovals/change` — the host merges it into the list it stores, so no row another bridge stored is lost. */
+export interface PluginApprovalsChangeParams {
+    allow: PluginApproval[];
+    revoke: string[];
 }
 
 // ── Core → Host requests (params + results) ──────────────────────────────────

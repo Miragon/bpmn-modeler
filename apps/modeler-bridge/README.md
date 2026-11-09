@@ -25,7 +25,7 @@ isn't talking to VS Code.
 | core → host | `editor/postMessage`                    | `EditorHandle.postMessage` (Query/Command → webview)                                          |
 | core → host | `editor/reload`                         | `EditorHandle.reload` → the host reloads the whole page, after an approval, so it loads the newly allowed plugins |
 | core → host | `actionNotice/show`                     | `ActionNotifierPort` → an IntelliJ notification with one action per label; replies the clicked index as `chosen`, none once the notification expired |
-| core → host | `pluginApprovals/save`                  | `PluginApprovalStorePort.write` → the application-level approval store; the host pushes the list to every running bridge, then acks |
+| core → host | `pluginApprovals/change`                | `PluginApprovalStorePort.change` → the host merges the rows to allow and the ids to revoke into the application-level approval store, pushes the list to every running bridge, then answers with it |
 | host → core | `pluginApprovals/didChange`             | replaces the plugin-approval mirror the core reads synchronously                              |
 | core → host | `notifier/*`                            | `NotifierPort` → IntelliJ `Notifications.Bus` + IDE log                                       |
 | core → host | `statusBar/update`                      | `StatusBarPort` → `{slot, view}`, `view: null` hides the slot; IntelliJ shows each slot in its own `StatusBarWidget` |

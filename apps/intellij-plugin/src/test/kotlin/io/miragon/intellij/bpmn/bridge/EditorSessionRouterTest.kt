@@ -1219,7 +1219,7 @@ class EditorSessionRouterTest {
         val store = PluginApprovalStore.getInstance()
         val storedBefore = store.read()
         try {
-            store.write(listOf(PluginApproval(PLUGIN_ID, PLUGIN_HASH)))
+            store.replaceAll(listOf(PluginApproval(PLUGIN_ID, PLUGIN_HASH)))
             val f = setUpRouter(INITIAL_XML)
 
             val second = createSecondBpmnFile()
@@ -1232,7 +1232,7 @@ class EditorSessionRouterTest {
                 register.getAsJsonObject("params").get("pluginApprovals"),
             )
         } finally {
-            store.write(storedBefore)
+            store.replaceAll(storedBefore)
         }
     }
 

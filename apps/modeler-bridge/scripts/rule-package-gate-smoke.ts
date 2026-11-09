@@ -58,14 +58,14 @@ const ranRule = (results: Frame) => ACME_RULE in findingsOf(results);
 async function allowEveryPending(bridge: AcmeBridge, fromIndex: number): Promise<Frame> {
     const notice = await waitForNotice(bridge, fromIndex);
     const relintFrom = bridge.frames.length;
-    const saved = await reviewAndAllowAll(bridge, notice);
+    const { change } = await reviewAndAllowAll(bridge, notice);
     check(
-        saved.some(
+        change.allow.some(
             ({ pluginId, contentHash }) =>
                 pluginId === bridge.acmeDir && contentHash.startsWith("bpmnlint-closure-v1:"),
         ),
-        "the save carries a bpmnlint-closure-v1 row for the package",
-        saved,
+        "the change allows a bpmnlint-closure-v1 row for the package",
+        change,
     );
     return nextLintResults(bridge, relintFrom);
 }

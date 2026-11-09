@@ -24,16 +24,16 @@ class PluginApprovalRouterTest {
     @BeforeEach
     fun rememberApprovals() {
         storedBefore = PluginApprovalStore.getInstance().read()
-        PluginApprovalStore.getInstance().write(emptyList())
+        PluginApprovalStore.getInstance().replaceAll(emptyList())
     }
 
     @AfterEach
     fun tearDown() {
         wired?.dispose()
-        PluginApprovalStore.getInstance().write(storedBefore)
+        PluginApprovalStore.getInstance().replaceAll(storedBefore)
     }
 
-    /** A router whose push to every running bridge reaches this one's channel, as for the saving bridge itself. */
+    /** A router whose push to every running bridge reaches this one's channel, as for the changing bridge itself. */
     private fun routedBridge(): WiredBridge {
         val wired = wireChannel().also { this.wired = it }
         lateinit var router: PluginApprovalRouter
@@ -48,44 +48,40 @@ class PluginApprovalRouterTest {
 
     private fun parse(line: String): JsonObject = JsonParser.parseString(line).asJsonObject
 
-    @Test
-    fun `a save stores the approvals and pushes them to the bridges before it acks`() {
-        val wired = routedBridge()
+    private fun row(pluginId: String, hash: String = HASH) = """{"pluginId": "$pluginId", "contentHash": "$hash"}"""
 
-        wired.handlers.dispatch(
-            "pluginApprovals/save",
-            parse("""{"approvals": [{"pluginId": "$PLUGIN_ID", "contentHash": "$HASH"}]}"""),
-            wired.requestId(5),
+    private fun WiredBridge.change(requestId: Int, allow: List<String> = emptyList(), revoke: List<String> = emptyList()) =
+        handlers.dispatch(
+            "pluginApprovals/change",
+            parse("""{"allow": [${allow.joinToString()}], "revoke": [${revoke.joinToString { "\"$it\"" }}]}"""),
+            requestId(requestId),
         )
 
-        assertEquals(listOf(PluginApproval(PLUGIN_ID, HASH)), PluginApprovalStore.getInstance().read())
+    @Test
+    fun `a change stores the merged list and pushes it to the bridges before it answers with it`() {
+        val wired = routedBridge()
+        PluginApprovalStore.getInstance().replaceAll(listOf(PluginApproval(OLD_ID, HASH)))
+
+        wired.change(5, allow = listOf(row(PLUGIN_ID)))
+
+        val stored = listOf(PluginApproval(OLD_ID, HASH), PluginApproval(PLUGIN_ID, HASH))
+        assertEquals(stored, PluginApprovalStore.getInstance().read())
         val pushed = parse(wired.fake.nextFrame())
         assertEquals("pluginApprovals/didChange", pushed.get("method").asString)
-        assertEquals(
-            parse("""{"approvals": [{"pluginId": "$PLUGIN_ID", "contentHash": "$HASH"}]}"""),
-            pushed.getAsJsonObject("params"),
-        )
-        val ack = parse(wired.fake.nextFrame())
-        assertEquals(5, ack.get("id").asInt)
-        assertFalse(ack.has("error"))
+        assertEquals(parse("""{"approvals": [${row(OLD_ID)}, ${row(PLUGIN_ID)}]}"""), pushed.getAsJsonObject("params"))
+        val answer = parse(wired.fake.nextFrame())
+        assertEquals(5, answer.get("id").asInt)
+        assertFalse(answer.has("error"))
+        assertEquals(parse("""{"approvals": [${row(OLD_ID)}, ${row(PLUGIN_ID)}]}"""), answer.getAsJsonObject("result"))
     }
 
     @Test
     fun `two projects' answers built from the same old list keep both rows`() {
         val wired = routedBridge()
-        val old = """{"pluginId": "$OLD_ID", "contentHash": "$HASH"}"""
-        PluginApprovalStore.getInstance().write(listOf(PluginApproval(OLD_ID, HASH)))
+        PluginApprovalStore.getInstance().replaceAll(listOf(PluginApproval(OLD_ID, HASH)))
 
-        wired.handlers.dispatch(
-            "pluginApprovals/save",
-            parse("""{"approvals": [$old, {"pluginId": "$PLUGIN_ID", "contentHash": "$HASH"}]}"""),
-            wired.requestId(7),
-        )
-        wired.handlers.dispatch(
-            "pluginApprovals/save",
-            parse("""{"approvals": [$old, {"pluginId": "$OTHER_ID", "contentHash": "$HASH"}]}"""),
-            wired.requestId(8),
-        )
+        wired.change(7, allow = listOf(row(PLUGIN_ID)))
+        wired.change(8, allow = listOf(row(OTHER_ID)))
 
         assertEquals(
             listOf(PluginApproval(OLD_ID, HASH), PluginApproval(PLUGIN_ID, HASH), PluginApproval(OTHER_ID, HASH)),
@@ -94,17 +90,58 @@ class PluginApprovalRouterTest {
     }
 
     @Test
-    fun `a save with a row that is no approval answers an error and stores nothing`() {
+    fun `a later allow of another plugin does not bring back a revoked one`() {
+        val wired = routedBridge()
+        PluginApprovalStore.getInstance().replaceAll(listOf(PluginApproval(OLD_ID, HASH), PluginApproval(PLUGIN_ID, HASH)))
+
+        wired.change(9, revoke = listOf(OLD_ID))
+        wired.change(10, allow = listOf(row(OTHER_ID)))
+
+        assertEquals(
+            listOf(PluginApproval(PLUGIN_ID, HASH), PluginApproval(OTHER_ID, HASH)),
+            PluginApprovalStore.getInstance().read(),
+        )
+    }
+
+    @Test
+    fun `a change that keeps every row pushes nothing and still answers with the list`() {
+        val wired = routedBridge()
+        PluginApprovalStore.getInstance().replaceAll(listOf(PluginApproval(PLUGIN_ID, HASH)))
+
+        wired.change(11, allow = listOf(row(PLUGIN_ID)), revoke = listOf(OTHER_ID))
+
+        val answer = parse(wired.fake.nextFrame())
+        assertEquals(11, answer.get("id").asInt)
+        assertEquals(parse("""{"approvals": [${row(PLUGIN_ID)}]}"""), answer.getAsJsonObject("result"))
+    }
+
+    @Test
+    fun `a change with a row that is no approval answers an error and stores nothing`() {
         val wired = routedBridge()
 
         wired.fake.emit(
-            """{"id": 6, "method": "pluginApprovals/save", "params": {"approvals": [{"pluginId": "$PLUGIN_ID"}]}}""",
+            """{"id": 6, "method": "pluginApprovals/change", "params": {"allow": [{"pluginId": "$PLUGIN_ID"}], "revoke": []}}""",
         )
 
         val reply = parse(wired.fake.nextFrame())
         assertEquals(6, reply.get("id").asInt)
         assertTrue(reply.has("error"), reply.toString())
         assertEquals(emptyList<PluginApproval>(), PluginApprovalStore.getInstance().read())
+    }
+
+    @Test
+    fun `a change that both allows and revokes one id answers an error and stores nothing`() {
+        val wired = routedBridge()
+        PluginApprovalStore.getInstance().replaceAll(listOf(PluginApproval(OLD_ID, HASH)))
+
+        wired.fake.emit(
+            """{"id": 12, "method": "pluginApprovals/change", "params": {"allow": [${row(PLUGIN_ID)}], "revoke": ["$PLUGIN_ID"]}}""",
+        )
+
+        val reply = parse(wired.fake.nextFrame())
+        assertEquals(12, reply.get("id").asInt)
+        assertTrue(reply.get("error").asString.contains("names an id twice"), reply.toString())
+        assertEquals(listOf(PluginApproval(OLD_ID, HASH)), PluginApprovalStore.getInstance().read())
     }
 
     private companion object {

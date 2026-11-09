@@ -11,10 +11,10 @@ import { promises as fs } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { PluginApproval } from "@miragon/bpmn-modeler-core";
+import { approvalsAfter, PluginApproval } from "@miragon/bpmn-modeler-core";
 
 import { createBridge } from "../composition/bridge";
-import { PluginApprovalsParams } from "../protocol/domain/types";
+import { PluginApprovalsChangeParams } from "../protocol/domain/types";
 import { Rpc } from "../transport/adapter/out/Rpc";
 import { hostNotification, hostReply, registerParams, waitForFrame } from "./bridgeHarness";
 
@@ -204,22 +204,25 @@ export function waitForNotice({ frames }: AcmeBridge, fromIndex = 0): Promise<Fr
 }
 
 /**
- * Answers an open notice with "Review…", checks every listed item and
- * acknowledges the save, as the IntelliJ host does.
- * @returns the saved list.
+ * Answers an open notice with "Review…", checks every listed item and answers
+ * the change with the list it merged into `stored`, as the IntelliJ host does.
+ * @returns the change the bridge sent and the list the host now stores.
  */
 export async function reviewAndAllowAll(
     { rpc, frames }: AcmeBridge,
     notice: Frame,
-): Promise<readonly PluginApproval[]> {
+    stored: readonly PluginApproval[] = [],
+): Promise<{ readonly change: PluginApprovalsChangeParams; readonly stored: PluginApproval[] }> {
     const fromIndex = frames.length;
     await rpc.handleLine(hostReply(notice.id!, { chosen: 0 }));
     const list: Frame = await waitForFrame(frames, isRequest("picker/show"), { fromIndex });
     const items = list.params.items as readonly unknown[];
     await rpc.handleLine(hostReply(list.id!, { selected: items.map((_, index) => index) }));
-    const save = await waitForFrame(frames, isRequest("pluginApprovals/save"), { fromIndex });
-    await rpc.handleLine(JSON.stringify({ id: save.id }));
-    return (save.params as PluginApprovalsParams).approvals;
+    const request = await waitForFrame(frames, isRequest("pluginApprovals/change"), { fromIndex });
+    const change = request.params as unknown as PluginApprovalsChangeParams;
+    const merged = approvalsAfter(stored, change);
+    await rpc.handleLine(hostReply(request.id!, { approvals: merged }));
+    return { change, stored: merged };
 }
 
 async function installPackage(

@@ -1,8 +1,8 @@
 /**
  * The bridge asks about workspace bpmn-js plugins and bpmnlint rule packages
  * through one question queue and one approval list: the host shows one notice
- * at a time, and the second answer's `pluginApprovals/save` keeps the row the
- * first one saved, since the host replaces its list with every save.
+ * at a time, and each answer's `pluginApprovals/change` carries only its own
+ * row, which the host merges into the list it stores.
  */
 
 import { promises as fs } from "node:fs";
@@ -73,15 +73,26 @@ describe("bridge approval questions", () => {
         expect(bridge.frames.filter(isRequest("actionNotice/show"))).toHaveLength(1);
 
         const afterPluginNotice = bridge.frames.length;
-        const pluginRows = await reviewAndAllowAll(bridge, pluginNotice);
+        const pluginAnswer = await reviewAndAllowAll(bridge, pluginNotice);
         const rulePackageNotice = await waitForNotice(bridge, afterPluginNotice);
         const relintFrom = bridge.frames.length;
-        const allRows = await reviewAndAllowAll(bridge, rulePackageNotice);
+        const rulePackageAnswer = await reviewAndAllowAll(
+            bridge,
+            rulePackageNotice,
+            pluginAnswer.stored,
+        );
         await nextLintResults(bridge, relintFrom);
 
         expect(pluginNotice.params.message).not.toBe(ACME_NOTICE_MESSAGE);
         expect(rulePackageNotice.params.message).toBe(ACME_NOTICE_MESSAGE);
-        expect(pluginRows.map((row) => row.pluginId)).toEqual([pluginId]);
-        expect(allRows.map((row) => row.pluginId)).toEqual([pluginId, bridge.acmeDir]);
+        expect(pluginAnswer.change.allow.map((row) => row.pluginId)).toEqual([pluginId]);
+        expect(rulePackageAnswer.change).toEqual({
+            allow: [expect.objectContaining({ pluginId: bridge.acmeDir })],
+            revoke: [],
+        });
+        expect(rulePackageAnswer.stored.map((row) => row.pluginId)).toEqual([
+            pluginId,
+            bridge.acmeDir,
+        ]);
     });
 });

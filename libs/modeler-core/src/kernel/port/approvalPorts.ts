@@ -1,4 +1,4 @@
-import { CodeApproval } from "../domain/codeApproval";
+import { CodeApproval, CodeApprovalChange } from "../domain/codeApproval";
 
 /**
  * The user's code approvals, every kind in one list, kept by the host outside
@@ -6,6 +6,13 @@ import { CodeApproval } from "../domain/codeApproval";
  * so a cloned repository cannot approve its own code.
  */
 export interface PluginApprovalStorePort {
+    /** Synchronous; an IntelliJ mirror may lag the host by one push. */
     read(): readonly CodeApproval[];
-    write(approvals: readonly CodeApproval[]): Promise<void>;
+    /**
+     * The host merges the change into the list it stores, with
+     * `approvalsAfter`, in one step, so a row another writer stored stays.
+     * Rejects a change that names an id twice and stores nothing then.
+     * Resolves once `read()` includes the change.
+     */
+    change(change: CodeApprovalChange): Promise<void>;
 }

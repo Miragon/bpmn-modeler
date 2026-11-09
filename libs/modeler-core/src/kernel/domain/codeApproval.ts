@@ -47,28 +47,6 @@ export function approvedArtifacts<A extends ApprovableArtifact>(
     return artifacts.filter((artifact) => approvalStateOf(artifact, approvals) === "approved");
 }
 
-export function approvalsAllowing(
-    approvals: readonly CodeApproval[],
-    allowed: readonly ApprovableArtifact[],
-): CodeApproval[] {
-    const allowedIds = new Set(allowed.map((artifact) => artifact.id));
-    return [
-        ...approvals.filter((approval) => !allowedIds.has(approval.pluginId)),
-        ...allowed.map((artifact) => ({
-            pluginId: artifact.id,
-            contentHash: artifact.contentHash,
-        })),
-    ];
-}
-
-export function approvalsRevoking(
-    approvals: readonly CodeApproval[],
-    revokedIds: readonly string[],
-): CodeApproval[] {
-    const revoked = new Set(revokedIds);
-    return approvals.filter((approval) => !revoked.has(approval.pluginId));
-}
-
 /**
  * One write to the one list, merged by the host into the list it stores, so
  * a writer never drops a row it had not read. Built only through

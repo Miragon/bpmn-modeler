@@ -59,6 +59,7 @@ import {
     ConfirmShowResult,
     PickerShowParams,
     PickerShowResult,
+    PluginApprovalsChangeParams,
     PluginApprovalsParams,
     RegisterParams,
     SecretApprovedDestinations,
@@ -179,7 +180,7 @@ export const METHODS = {
     tokenPromptShow: "tokenPrompt/show",
     settingsSetLintingEnabled: "settings/setLintingEnabled",
     actionNoticeShow: "actionNotice/show",
-    pluginApprovalsSave: "pluginApprovals/save",
+    pluginApprovalsChange: "pluginApprovals/change",
 
     // Core → Host notifications
     editorPostMessage: "editor/postMessage",
@@ -723,14 +724,18 @@ export const PROTOCOL = [
         // `chosen` is absent when the user dismissed the notification.
         resultFixture: { chosen: 0 } satisfies ActionNoticeShowResult,
     },
-    // Acknowledged write: the host stores the list, pushes it to every running
-    // bridge in `pluginApprovals/didChange`, then acks an empty reply.
+    // The host merges the change into the list it stores, pushes that list to
+    // every running bridge in `pluginApprovals/didChange`, then answers with it.
     {
-        method: METHODS.pluginApprovalsSave,
+        method: METHODS.pluginApprovalsChange,
         direction: "coreToHost",
         kind: "request",
         replyWait: "syncedWrite",
-        paramsFixture: { approvals: [PLUGIN_APPROVAL_SAMPLE] } satisfies PluginApprovalsParams,
+        paramsFixture: {
+            allow: [PLUGIN_APPROVAL_SAMPLE],
+            revoke: ["/ws/.camunda/plugins/reduced-palette"],
+        } satisfies PluginApprovalsChangeParams,
+        resultFixture: { approvals: [PLUGIN_APPROVAL_SAMPLE] } satisfies PluginApprovalsParams,
     },
 
     // ── Core → Host notifications ────────────────────────────────────────────

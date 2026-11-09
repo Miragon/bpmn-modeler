@@ -6,8 +6,8 @@
  * Covered: the approvals `session/register` seeds serve an approved plugin
  * from the cache under the loopback origin's `/bpmn-plugins/` route; an
  * unapproved plugin raises `actionNotice/show`, "Review…" opens the
- * `picker/show` list, and the checked plugin is saved through the
- * acknowledged `pluginApprovals/save` before the page gets `editor/reload`;
+ * `picker/show` list, and the checked plugin is allowed through a
+ * `pluginApprovals/change` the host answers before the page gets `editor/reload`;
  * and a `pluginApprovals/didChange` from another bridge keeps an editor from
  * asking again.
  */
@@ -161,14 +161,19 @@ describe("workspace bpmn-js plugins on the bridge", () => {
         expect(list.params.items).toHaveLength(1);
         await rpc.handleLine(hostReply(list.id, { selected: [0] }));
 
-        const save = await waitForFrame(frames, isRequest("pluginApprovals/save"));
-        expect(save.params).toEqual({
-            approvals: [{ pluginId: bridge.pluginId, contentHash: HASH }],
+        const change = await waitForFrame(frames, isRequest("pluginApprovals/change"));
+        expect(change.params).toEqual({
+            allow: [{ pluginId: bridge.pluginId, contentHash: HASH }],
+            revoke: [],
         });
         await settle();
         expect(frames.some((frame) => frame.method === "editor/reload")).toBe(false);
 
-        await rpc.handleLine(JSON.stringify({ id: save.id }));
+        await rpc.handleLine(
+            hostReply(change.id, {
+                approvals: [{ pluginId: bridge.pluginId, contentHash: HASH }],
+            }),
+        );
 
         const reload = await waitForFrame(frames, (frame) => frame.method === "editor/reload");
         expect(reload.params).toEqual({ editorId, sessionId: 1 });

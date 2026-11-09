@@ -1,8 +1,8 @@
 import { ActionNotice } from "../../../kernel/domain/actionNotice";
 import {
+    allowing,
     ApprovalNoticeAction,
     approvalOutcome,
-    approvalsAllowing,
     pendingApprovals,
 } from "../../../kernel/domain/codeApproval";
 import { ChoicePrompt } from "../../../kernel/domain/prompts";
@@ -87,7 +87,7 @@ export class RulePackageCatalog implements ApprovalCatalog<
         const outcome = approvalOutcome(pending, checkedIds);
         outcome.declineKeys.forEach((key) => this.declined.add(key));
         if (outcome.allowed.length > 0) {
-            await this.approvals.write(approvalsAllowing(this.approvals.read(), outcome.allowed));
+            await this.approvals.change(allowing(outcome.allowed));
             this.logger.logInfo(
                 `Allowed bpmnlint rule package(s): ${outcome.allowed.map(({ name }) => name).join(", ")}`,
             );

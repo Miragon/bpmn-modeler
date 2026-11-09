@@ -7,6 +7,7 @@ import com.intellij.openapi.util.Disposer
 import com.intellij.testFramework.LightVirtualFile
 import com.intellij.testFramework.junit5.TestApplication
 import io.miragon.intellij.bpmn.CoreSession
+import io.miragon.intellij.bpmn.PluginApproval
 import io.miragon.intellij.bpmn.projectFixtureWithoutServicePreload
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -216,6 +217,7 @@ class ProtocolHandlerCoverageTest {
                         registered = mapOf("project" to listOf("/work/t"), "allProjects" to emptyList()),
                         writable = listOf(WritableScope("project", SettingsPlace("file", listOf(".idea")))),
                     ),
+                "pluginApprovals/change" to PluginApprovalsResult(listOf(PluginApproval("/ws/plugins/resize", "9f2c"))),
             )
         return resultsByMethod.entries.withIndex().associate { (requestId, entry) ->
             wired.channel.reply(wired.requestId(requestId), entry.value)

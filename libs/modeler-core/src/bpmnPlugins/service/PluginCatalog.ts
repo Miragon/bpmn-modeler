@@ -1,9 +1,9 @@
 import { ActionNotice } from "../../kernel/domain/actionNotice";
 import { ChoicePrompt } from "../../kernel/domain/prompts";
 import { LoggerPort } from "../../kernel/port/hostPorts";
+import { allowing } from "../../kernel/domain/codeApproval";
 import {
     approvalOutcome,
-    approvalsAllowing,
     approvedPlugins,
     PendingApproval,
     pendingApprovals,
@@ -79,7 +79,7 @@ export class PluginCatalog {
         const outcome = approvalOutcome(pending, checkedIds);
         outcome.declineKeys.forEach((key) => this.declinedThisSession.add(key));
         if (outcome.allowed.length > 0) {
-            await this.approvals.write(approvalsAllowing(this.approvals.read(), outcome.allowed));
+            await this.approvals.change(allowing(outcome.allowed));
             this.logger.logInfo(
                 `Allowed BPMN plugin(s): ${outcome.allowed.map((plugin) => plugin.name).join(", ")}`,
             );

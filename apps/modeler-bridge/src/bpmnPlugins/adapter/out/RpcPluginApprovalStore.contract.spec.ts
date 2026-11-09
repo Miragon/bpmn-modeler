@@ -1,10 +1,10 @@
-import { PluginApproval } from "@miragon/bpmn-modeler-core";
+import { approvalsAfter, PluginApproval } from "@miragon/bpmn-modeler-core";
 import { describePluginApprovalStoreContract } from "@miragon/bpmn-modeler-core/testing";
 
 import { bindHandlers } from "../../../composition/bindHandlers";
 import { createStdinHandler } from "../../../composition/stdioBinding";
 import { METHODS } from "../../../protocol/domain/descriptor";
-import { PluginApprovalsParams } from "../../../protocol/domain/types";
+import { PluginApprovalsChangeParams } from "../../../protocol/domain/types";
 import { Rpc } from "../../../transport/adapter/out/Rpc";
 import { pluginApprovalHandlers } from "../in/pluginApprovalHandlers";
 import { RpcPluginApprovalStore } from "./RpcPluginApprovalStore";
@@ -12,17 +12,18 @@ import { RpcPluginApprovalStore } from "./RpcPluginApprovalStore";
 interface CoreFrame {
     readonly id: number;
     readonly method: string;
-    readonly params: PluginApprovalsParams;
+    readonly params: PluginApprovalsChangeParams;
 }
 
 /**
  * IntelliJ's `PluginApprovalRouter` over its application-level
- * `PluginApprovalStore`: a save stores the list, pushes it to every running
- * bridge in `pluginApprovals/didChange`, then acks an empty reply, all from
- * the host's reader thread after the request left the bridge.
+ * `PluginApprovalStore`: a change is merged into the stored list, which goes
+ * to every running bridge in `pluginApprovals/didChange` and then answers the
+ * request, all from the host's reader thread after the request left the
+ * bridge. An overlapping change answers an error and stores nothing.
  */
 class IntellijPluginApprovalStore {
-    private approvals: PluginApproval[] = [];
+    approvals: PluginApproval[] = [];
 
     constructor(private readonly sendToBridge: (chunk: string) => void) {}
 
@@ -30,18 +31,22 @@ class IntellijPluginApprovalStore {
         const { id, method, params } = JSON.parse(line) as CoreFrame;
         setTimeout(() => {
             const frames =
-                method === METHODS.pluginApprovalsSave
-                    ? this.save(id, params)
+                method === METHODS.pluginApprovalsChange
+                    ? this.change(id, params)
                     : [{ id, error: `No handler for ${method}` }];
             this.sendToBridge(frames.map((frame) => `${JSON.stringify(frame)}\n`).join(""));
         }, 0);
     }
 
-    private save(id: number, { approvals }: PluginApprovalsParams): object[] {
-        this.approvals = approvals.map(({ pluginId, contentHash }) => ({ pluginId, contentHash }));
+    private change(id: number, change: PluginApprovalsChangeParams): object[] {
+        try {
+            this.approvals = approvalsAfter(this.approvals, change);
+        } catch (error) {
+            return [{ id, error: String(error) }];
+        }
         return [
             { method: METHODS.pluginApprovalsDidChange, params: { approvals: this.approvals } },
-            { id, result: null },
+            { id, result: { approvals: this.approvals } },
         ];
     }
 }
@@ -57,6 +62,11 @@ describePluginApprovalStoreContract(
         });
         const store = new RpcPluginApprovalStore(rpc);
         bindHandlers(rpc, pluginApprovalHandlers(store));
-        return { store };
+        return {
+            store,
+            storeElsewhere: async (approvals) => {
+                host.approvals = [...approvals];
+            },
+        };
     },
 );

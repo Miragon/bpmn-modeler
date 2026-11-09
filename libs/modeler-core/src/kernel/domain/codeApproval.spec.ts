@@ -10,9 +10,7 @@ import {
     type ApprovalState,
     approvalOutcome,
     approvalsAfter,
-    approvalsAllowing,
     approvalsKey,
-    approvalsRevoking,
     approvalStateOf,
     approvedArtifacts,
     type CodeApproval,
@@ -155,102 +153,6 @@ describe("approvedArtifacts", () => {
         );
 
         expect(approved).toEqual([acmeRules]);
-    });
-});
-
-describe("approvalsAllowing", () => {
-    it.each<{
-        case: string;
-        approvals: CodeApproval[];
-        allowed: ApprovableArtifact[];
-        result: CodeApproval[];
-    }>([
-        {
-            case: "replaces the approval of a changed artifact and keeps the others",
-            approvals: [{ pluginId: resize.id, contentHash: "old" }, other],
-            allowed: [resize],
-            result: [other, { pluginId: resize.id, contentHash: "aaa" }],
-        },
-        {
-            case: "adds an approval for a new artifact",
-            approvals: [other],
-            allowed: [palette],
-            result: [other, { pluginId: palette.id, contentHash: "bbb" }],
-        },
-        {
-            case: "adds an approval for each artifact allowed",
-            approvals: [],
-            allowed: [resize, palette],
-            result: [
-                { pluginId: resize.id, contentHash: "aaa" },
-                { pluginId: palette.id, contentHash: "bbb" },
-            ],
-        },
-        {
-            case: "keeps every approval when nothing is allowed",
-            approvals: [{ pluginId: resize.id, contentHash: "old" }, other],
-            allowed: [],
-            result: [{ pluginId: resize.id, contentHash: "old" }, other],
-        },
-        {
-            case: "adds a rule package to the webview plugins' rows and stores no field of its own",
-            approvals: [{ pluginId: resize.id, contentHash: "aaa" }],
-            allowed: [acmeRules],
-            result: [
-                { pluginId: resize.id, contentHash: "aaa" },
-                { pluginId: acmeRules.id, contentHash: "bpmnlint-closure-v1:ddd" },
-            ],
-        },
-    ])("$case", ({ approvals, allowed, result }) => {
-        expect(approvalsAllowing(approvals, allowed)).toEqual(result);
-    });
-});
-
-describe("approvalsRevoking", () => {
-    const resizeRow: CodeApproval = { pluginId: resize.id, contentHash: "aaa" };
-    const acmeRow: CodeApproval = {
-        pluginId: acmeRules.id,
-        contentHash: "bpmnlint-closure-v1:ddd",
-    };
-
-    it.each<{
-        case: string;
-        approvals: CodeApproval[];
-        revokedIds: string[];
-        result: CodeApproval[];
-    }>([
-        {
-            case: "removes the approval of a revoked artifact and keeps the others in order",
-            approvals: [resizeRow, acmeRow, other],
-            revokedIds: [acmeRules.id],
-            result: [resizeRow, other],
-        },
-        {
-            case: "removes an approval whatever content it was given for",
-            approvals: [{ pluginId: resize.id, contentHash: "old" }, other],
-            revokedIds: [resize.id],
-            result: [other],
-        },
-        {
-            case: "removes the approval of each revoked artifact",
-            approvals: [resizeRow, acmeRow, other],
-            revokedIds: [resize.id, acmeRules.id],
-            result: [other],
-        },
-        {
-            case: "keeps every approval for an id nobody approved",
-            approvals: [resizeRow, other],
-            revokedIds: ["/elsewhere/resize-tasks"],
-            result: [resizeRow, other],
-        },
-        {
-            case: "keeps every approval when nothing is revoked",
-            approvals: [resizeRow, other],
-            revokedIds: [],
-            result: [resizeRow, other],
-        },
-    ])("$case", ({ approvals, revokedIds, result }) => {
-        expect(approvalsRevoking(approvals, revokedIds)).toEqual(result);
     });
 });
 

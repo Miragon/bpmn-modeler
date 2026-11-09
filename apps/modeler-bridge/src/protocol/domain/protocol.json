@@ -345,10 +345,11 @@
         "resultKeys": ["chosen"]
     },
     {
-        "method": "pluginApprovals/save",
+        "method": "pluginApprovals/change",
         "direction": "coreToHost",
         "kind": "request",
-        "paramKeys": ["approvals"]
+        "paramKeys": ["allow", "revoke"],
+        "resultKeys": ["approvals"]
     },
     {
         "method": "editor/postMessage",

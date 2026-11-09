@@ -59,6 +59,8 @@ jobs:
               # ActionNoticeToneTest checks the Kotlin tones against the core's.
               - 'apps/modeler-bridge/src/editorSession/domain/pluginAssetUrl.cases.json'
               - 'libs/modeler-core/src/kernel/domain/actionNotice.ts'
+              # PluginApprovalStoreTest runs these rows against the Kotlin merge.
+              - 'libs/modeler-core/src/kernel/domain/codeApprovalChange.cases.json'
             standalone:
               - 'apps/standalone/**'
               - 'libs/standalone-extension/**'
