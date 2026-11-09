@@ -22,6 +22,8 @@ import { settingChangeNaming, SettingChange } from "../../editorSession/domain/E
 import { ProcessRestart } from "../../kernel/domain/codeApproval";
 import { ArtifactService } from "../../kernel/service/ArtifactService";
 import { ApprovalQuestion } from "../../kernel/service/ApprovalQuestion";
+import { ListReview } from "../../kernel/adapter/out/ListReview";
+import { ViewReview } from "../adapter/out/ViewReview";
 import { QuestionQueue } from "../../kernel/service/QuestionQueue";
 import {
     BlockedRulePackage,
@@ -1681,24 +1683,42 @@ describe("AddOnsFeature", () => {
         });
     });
 
-    it("a referred item stays not allowed yet and no notice asks again", async () => {
-        const { host, plugins, addOns, view } = setUp();
+    it("Review… on a notice lands on the plugin's row, not allowed yet, and no notice asks again", async () => {
+        const { host, plugins, addOns } = setUp();
+        const panel: Query[] = [];
+        addOns.attachPanel((message) => panel.push(message), true);
+        await shown(addOns);
         const question = new ApprovalQuestion(
             plugins.catalog,
-            { review: async () => ({ kind: "leftForView" as const }) },
+            new ViewReview(
+                "plugin",
+                {
+                    reveal: async (addOnIds) => {
+                        addOns.reveal(addOnIds);
+                        return true;
+                    },
+                },
+                new ListReview(host.picker),
+            ),
             host.actionNotifier,
             host.workspace,
             new QuestionQueue(),
         );
         host.actionNotifier.noticeAnswers[PLUGIN_APPROVAL_NOTICE_ID] = "review";
         const { pending } = await plugins.catalog.pluginsFor("/work/order.bpmn");
+
         await question.ask(pending);
-        view.attachTo(addOns);
         await shown(addOns);
-
         await question.ask(pending);
 
-        expect(view.addOnNamed("Resize Tasks").state).toBe("new");
+        const reveals = panel.flatMap((each) =>
+            each instanceof RevealAddOnsQuery ? [each.reveal.addOnIds] : [],
+        );
+        const latest = panel.filter((each) => each instanceof AddOnCatalogQuery).at(-1);
+        const row = latest?.model.groups[0].sources[0].addOns[0];
+        expect(reveals).toEqual([[`plugin:${RESIZE}`]]);
+        expect([row?.id, row?.stateText]).toEqual([`plugin:${RESIZE}`, "Not allowed yet"]);
+        expect(host.picker.prompts).toEqual([]);
         expect(host.actionNotifier.notices.map(({ id }) => id)).toEqual([
             PLUGIN_APPROVAL_NOTICE_ID,
         ]);

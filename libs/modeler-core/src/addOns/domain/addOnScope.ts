@@ -77,6 +77,15 @@ export function isHashWanted(id: string, { inspected, approvals, answers }: Hash
     return inspected.has(id) || needsContentHash(id, approvals, notAskedAgain(answers));
 }
 
+/**
+ * Whether "Review…" can leave pending code to a view: only when the view lists
+ * every item, which it does for code inside a workspace folder. All or
+ * nothing, as one item the view does not list could be allowed nowhere.
+ */
+export function leavesToView(artifactIds: readonly string[], folders: readonly string[]): boolean {
+    return folders.length > 0 && artifactIds.every((id) => isInWorkspace(id, folders));
+}
+
 function isInWorkspace(path: string, folders: readonly string[]): boolean {
     return folders.some((folder) => isWithinRoot(path, folder));
 }
