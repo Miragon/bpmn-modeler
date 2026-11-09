@@ -142,6 +142,7 @@ function registerVsCodeSurfaces() {
     const deps = buildSharedDeps(context);
     const { diffController } = diffFeature.register(context, deps);
     const { marketplaceSvc, templateSources } = templateMarketplaceFeature.register(context, deps);
+    const reviews = addOnsFeature.createViewReviews(deps);
     const { deploymentStatusParticipant, deploymentSidebarRoutes } = deploymentFeature.register(
         context,
         deps,
@@ -159,6 +160,7 @@ function registerVsCodeSurfaces() {
         diffController,
         templateSources,
         deploymentStatusParticipant,
+        reviews,
         scriptEditor: new ScriptEditorFeature({
             scriptEditor: new RecordingScriptEditor(deps.editorStore, scriptFiles, deps.picker),
             variables: new ScriptVariableStore(),
@@ -174,6 +176,7 @@ function registerVsCodeSurfaces() {
     const { addOnsViewRoutes } = addOnsFeature.register(context, deps, {
         ...bpmnEditor,
         marketplaces,
+        reviews,
     });
     const { templateEditorRoutes } = elementTemplateFeature.register(context, deps);
     return {

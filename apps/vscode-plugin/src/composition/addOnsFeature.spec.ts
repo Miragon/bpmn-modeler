@@ -16,7 +16,7 @@ import {
     ScriptVariableStore,
 } from "@miragon/bpmn-modeler-core";
 import { RecordingScriptEditor } from "@miragon/bpmn-modeler-core/testing";
-import { AddOnCatalogQuery, Query } from "@miragon/bpmn-modeler-shared";
+import { AddOnCatalogQuery, Query, RevealAddOnsQuery } from "@miragon/bpmn-modeler-shared";
 
 import { registeredViewProviders } from "../__fixtures__/vscodeCompositionFake";
 import { InMemoryMemento } from "../__fixtures__/vscodeStorage";
@@ -80,6 +80,7 @@ function createVsCodeAddOns(context = createExtensionContext()) {
     const diffStore = new DiffPaneStore();
     const deploymentStatus: EditorSessionParticipant = { onResolve: () => undefined };
     const { marketplaceSvc, templateSources } = templateMarketplaceFeature.register(context, deps);
+    const reviews = addOnsFeature.createViewReviews(deps);
     const bpmn = bpmnEditorFeature.register(context, deps, {
         diffController: new BpmnDiffController(
             diffStore,
@@ -92,6 +93,7 @@ function createVsCodeAddOns(context = createExtensionContext()) {
         ),
         templateSources,
         deploymentStatusParticipant: deploymentStatus,
+        reviews,
         scriptEditor: new ScriptEditorFeature({
             scriptEditor: new RecordingScriptEditor(deps.editorStore, scriptFiles, deps.picker),
             variables: new ScriptVariableStore(),
@@ -107,9 +109,11 @@ function createVsCodeAddOns(context = createExtensionContext()) {
         deps,
         bpmn,
         marketplace,
+        reviews,
         ...addOnsFeature.register(context, deps, {
             ...bpmn,
             marketplaces: marketplace.marketplaces,
+            reviews,
         }),
     };
 }
@@ -187,6 +191,19 @@ describe("VS Code's add-on catalog", () => {
         expect((posted[0] as AddOnCatalogQuery).model.emptyText).toBe(
             "Open a folder to see the plugins, rule packages and element templates it brings.",
         );
+    });
+
+    it("has Review… show its rows in the Artifacts page the catalog serves", async () => {
+        const { addOns, reviews } = createVsCodeAddOns();
+        const posted: Query[] = [];
+        addOns.attachPanel((message) => posted.push(message), true);
+        const row = "plugin:/work/.camunda/plugins/resize";
+
+        await expect(reviews.reveal.reveal([row])).resolves.toBe(true);
+        await addOns.whenSettled();
+
+        const reveals = posted.filter((message) => message instanceof RevealAddOnsQuery);
+        expect(reveals.map(({ reveal }) => reveal.addOnIds)).toEqual([[row]]);
     });
 
     it("stops the catalog when the extension deactivates", async () => {
