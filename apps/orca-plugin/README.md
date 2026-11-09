@@ -24,7 +24,8 @@ open.
 2. Open the plugin's page with the link above and press **Install**. The first time, Orca asks
    whether to add the [Miragon modelers catalog](https://github.com/Miragon/orca-modelers). New
    releases reach you through it.
-3. Open any `.bpmn` or `.dmn` file.
+3. Click **Try it** to open an example process, or open any `.bpmn` or `.dmn` file. **+** in the tab
+   bar starts a new process or decision from an example too.
 
 ## Live while your agent writes
 

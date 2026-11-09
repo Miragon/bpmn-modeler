@@ -19,6 +19,7 @@ const manifest = JSON.parse(await readFile(join(app, "orca-plugin.json"), "utf8"
 await writeFile(join(plugin, "orca-plugin.json"), `${JSON.stringify(manifest, null, 2)}\n`);
 await cp(join(app, "assets"), join(plugin, "assets"), { recursive: true });
 await cp(join(app, "images"), join(plugin, "images"), { recursive: true });
+await cp(join(app, "templates"), join(plugin, "templates"), { recursive: true });
 await cp(join(app, "CHANGELOG.md"), join(plugin, "CHANGELOG.md")).catch(() => undefined);
 
 async function filesUnder(directory) {

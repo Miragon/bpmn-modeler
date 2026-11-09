@@ -69,6 +69,20 @@
         "entry": "editor/dmn/index.html",
         "frame": "isolated"
       }
+    ],
+    "newFiles": [
+      {
+        "id": "bpmn",
+        "title": "New BPMN process from example",
+        "extension": ".bpmn",
+        "template": "templates/order-fulfilment.bpmn"
+      },
+      {
+        "id": "dmn",
+        "title": "New DMN decision from example",
+        "extension": ".dmn",
+        "template": "templates/shipping.dmn"
+      }
     ]
   }
 }
