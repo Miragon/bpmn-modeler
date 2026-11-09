@@ -1,8 +1,6 @@
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import { page, userEvent } from "vitest/browser";
 
-import type { ElementTemplateRef } from "@miragon/bpmn-modeler-types";
-
 import { createModeler } from "./createModeler";
 import type { ModelerMode } from "./mode/mode";
 import type { BpmnModeler } from "./modeler";
@@ -78,16 +76,13 @@ function auditedTaskXml(engine: EngineCase): string {
     );
 }
 
-function hide(modeler: BpmnModeler, refs: ElementTemplateRef[]): void {
-    modeler
-        .getService<{ setHidden(refs: ElementTemplateRef[]): void }>("elementTemplateOffer")
-        .setHidden(refs);
-}
-
 async function openModeler(
     engine: EngineCase,
     mode: ModelerMode,
-    { elementTemplates = [auditTemplate(engine)], xml = FAR_FROM_ORIGIN_XML } = {},
+    {
+        elementTemplates = [auditTemplate(engine)],
+        xml = FAR_FROM_ORIGIN_XML,
+    }: { elementTemplates?: object[]; xml?: string } = {},
 ) {
     const { container, panel } = mountWithPanel(400, 300);
     // The canvas host is absolutely positioned and would cover an in-flow panel.
@@ -194,7 +189,7 @@ describe.each(ENGINES)("$engine element template chooser", (engine) => {
         const { modeler, panel } = await openModeler(engine, "implement", {
             elementTemplates: [auditTemplate(engine), mailTemplate(engine)],
         });
-        hide(modeler, [{ id: TEMPLATE_ID }]);
+        modeler.setHiddenElementTemplates([{ id: TEMPLATE_ID }]);
         const selectButton = () => panel.querySelector<HTMLElement>(SELECT_TEMPLATE_BUTTON);
 
         await expect.poll(selectButton).not.toBeNull();
@@ -212,7 +207,7 @@ describe.each(ENGINES)("$engine element template chooser", (engine) => {
             xml: auditedTaskXml(engine),
         });
 
-        hide(modeler, [
+        modeler.setHiddenElementTemplates([
             { id: TEMPLATE_ID, version: 1 },
             { id: TEMPLATE_ID, version: 2 },
         ]);

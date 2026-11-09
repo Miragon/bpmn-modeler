@@ -92,6 +92,24 @@ same name and code, in one undoable command. The package also exports
 with the same tag scanner the IDE hosts use. It is a scanner rather than a
 moddle parse because hosts index whole workspaces.
 
+`setHiddenElementTemplates(refs)` keeps templates out of new choices without
+removing them. The filter sits at the four points that offer a template: the
+chooser, the append, create and replace menus of create-append-anything, and
+the default template upstream applies after every shape and connection create.
+Loading is not filtered, and neither are `get`, `getLatest` and `getAll`: the
+properties panel reads applied templates and their update check through them,
+so an element that uses a hidden template keeps it. The default is narrowed by
+replacing `getDefault` on the `elementTemplates` instance, a narrow reach into
+upstream that browser specs pin for both engines. It is a method of its own
+rather than a filtered `setElementTemplates` call, because a new template set
+re-validates every template and reports the rejections again. Refs are
+`{ id, version? }`, the identity upstream indexes templates by, so the page
+cannot tell two loaded copies of one ref apart; the host decides which refs to
+hide. When the latest version of an id is hidden, the id is not offered, and no
+older version takes its place. The panel's update prompt may still suggest a
+hidden newer version. The refs live on the facade, so they outlive a new
+template set and a re-init.
+
 `getService` has a typed overload for seven semver-covered services: `canvas`,
 `commandStack`, `elementRegistry`, `eventBus`, `modeling`, `overlays`, and
 `selection`. Their map uses upstream documented types and can be narrowed with

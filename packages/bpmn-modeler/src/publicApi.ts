@@ -6,6 +6,7 @@ import type {
     BpmnlintConfig,
     BpmnModelerSetting,
     CleanupOutcome,
+    ElementTemplateRef,
     Engine,
     LintResults,
     LintRunEvent,
@@ -310,6 +311,17 @@ export interface BpmnModelerHandle extends BpmnSurfaceHandle {
 
     /** [A] Push a new set of element templates (data, never a path). */
     setElementTemplates(templates: object[]): void;
+
+    /**
+     * [A] Keep these templates out of new choices: the template chooser, the
+     * create, append and replace menus, and the default template applied to a
+     * new shape or connection. Elements that already use one keep it, its
+     * properties and its update check. Replaces the previous set, outlives
+     * {@link setElementTemplates}, and ignores refs that match no template.
+     * When the latest version of an id is hidden, that id is not offered, and
+     * no older version takes its place.
+     */
+    setHiddenElementTemplates(templates: readonly ElementTemplateRef[]): void;
 
     /**
      * [A] Merge a partial settings update. `colorTheme` is **not** applied here

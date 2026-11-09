@@ -20,6 +20,7 @@ import {
     BpmnModelerSetting,
     describeScriptSurface,
     DisposableStore,
+    type ElementTemplateRef,
     Engine,
     engineSupports,
     getLatestVersion,
@@ -93,6 +94,9 @@ interface ElementTemplatesLoaderService {
 interface AlignToOriginService {
     align(): void;
 }
+interface ElementTemplateOfferService {
+    setHidden(refs: readonly ElementTemplateRef[]): void;
+}
 interface ElementTemplatesEngineService {
     setEngines(engines: ReturnType<typeof deriveEngines>): void;
 }
@@ -141,6 +145,9 @@ export class BpmnModeler {
     private store = new DisposableStore();
 
     private deliverPendingContentSave: () => Promise<void> = () => Promise.resolve();
+
+    // Kept on the facade so every bpmn-js instance init() builds starts with them.
+    private hiddenElementTemplates: readonly ElementTemplateRef[] = [];
 
     /**
      * @param container The canvas host element (bpmn-js `container`).
@@ -279,6 +286,8 @@ export class BpmnModeler {
                 hasSearchPad: true,
             },
         );
+
+        this.applyHiddenElementTemplates();
 
         // Subscribe before initial templates are supplied so their validation errors are observed.
         const onElementTemplatesErrors = this.options.onElementTemplatesErrors;
@@ -462,6 +471,18 @@ export class BpmnModeler {
         this.getModeler()
             .get<ElementTemplatesLoaderService>("elementTemplatesLoader")
             .setTemplates(templates);
+    }
+
+    /** @see BpmnModelerHandle.setHiddenElementTemplates */
+    setHiddenElementTemplates(templates: readonly ElementTemplateRef[]): void {
+        this.hiddenElementTemplates = [...templates];
+        this.applyHiddenElementTemplates();
+    }
+
+    private applyHiddenElementTemplates(): void {
+        this.getModeler()
+            .get<ElementTemplateOfferService>("elementTemplateOffer")
+            .setHidden(this.hiddenElementTemplates);
     }
 
     setSettings(settings: Partial<BpmnModelerSetting> | undefined): void {

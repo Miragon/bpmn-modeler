@@ -12,7 +12,6 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { userEvent } from "vitest/browser";
 
 import { PLAIN_ENTRY_ACTION_BY_BPMN_TYPE } from "@miragon/bpmn-modeler-append-menu";
-import type { ElementTemplateRef } from "@miragon/bpmn-modeler-types";
 
 import { createModeler } from "./createModeler";
 import { createDesigner } from "./design/createDesigner";
@@ -148,12 +147,6 @@ function openCreateMenuOn(handle: BpmnModeler): void {
     handle.getService<PopupMenuService>("popupMenu").open(root, "bpmn-create", { x: 320, y: 200 });
 }
 
-function hide(handle: BpmnModeler, refs: ElementTemplateRef[]): void {
-    handle
-        .getService<{ setHidden(refs: ElementTemplateRef[]): void }>("elementTemplateOffer")
-        .setHidden(refs);
-}
-
 function templateCardNames(): (string | null)[] {
     return Array.from(
         document.querySelectorAll(".am-template-card .am-card-name"),
@@ -270,7 +263,7 @@ describe("append menu", () => {
             engine: "c7",
             elementTemplates: [TASK_OR_USER_TASK_TEMPLATE, MAIL_TASK_TEMPLATE],
         });
-        hide(handle, [{ id: TASK_OR_USER_TASK_TEMPLATE.id }]);
+        handle.setHiddenElementTemplates([{ id: TASK_OR_USER_TASK_TEMPLATE.id }]);
 
         openMenu(handle);
 
