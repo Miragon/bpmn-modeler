@@ -1,9 +1,5 @@
 import type { TemplateOffer } from "@miragon/bpmn-modeler-element-template-chooser";
-import {
-    elementTemplateRefKey,
-    elementTemplateRefOf,
-    type ElementTemplateRef,
-} from "@miragon/bpmn-modeler-types";
+import { elementTemplateRefOf, type ElementTemplateRef } from "@miragon/bpmn-modeler-types";
 
 import { HiddenTemplates } from "./hiddenTemplates";
 
@@ -47,27 +43,13 @@ export class ElementTemplateOffer implements TemplateOffer {
         return this.isOffered(this.latestOf(templateId));
     }
 
-    /**
-     * Also offered to the element that already uses its latest version:
-     * re-applying that template changes nothing but its preset.
-     */
     isTemplateIdOfferedTo(element: unknown, templateId: string): boolean {
         const latest = this.latestOf(templateId);
-        return this.isOffered(latest) || isSameTemplate(latest, this.elementTemplates.get(element));
+        return this.hidden.offersTo(latest, latest, this.elementTemplates.get(element));
     }
 
     // Deprecated too: a deprecated latest version still shadows the older ones.
     private latestOf(templateId: string): unknown {
         return this.elementTemplates.getLatest(templateId, { deprecated: true })?.[0];
     }
-}
-
-function isSameTemplate(template: unknown, other: unknown): boolean {
-    const ref = elementTemplateRefOf(template);
-    const otherRef = elementTemplateRefOf(other);
-    return (
-        ref !== undefined &&
-        otherRef !== undefined &&
-        elementTemplateRefKey(ref) === elementTemplateRefKey(otherRef)
-    );
 }

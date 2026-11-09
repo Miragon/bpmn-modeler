@@ -26,6 +26,13 @@ export function elementTemplateRefKey(ref: ElementTemplateRef): string {
     return JSON.stringify([ref.id, ref.version ?? null]);
 }
 
+export function isSameElementTemplateRef(
+    ref: ElementTemplateRef,
+    other: ElementTemplateRef,
+): boolean {
+    return elementTemplateRefKey(ref) === elementTemplateRefKey(other);
+}
+
 /** The schema each engine's templates reference in `$schema`. */
 export const ELEMENT_TEMPLATE_SCHEMA_URL: Record<Engine, string> = {
     c7: "https://unpkg.com/@camunda/element-templates-json-schema/resources/schema.json",

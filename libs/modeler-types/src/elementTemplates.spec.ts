@@ -10,6 +10,7 @@ import {
     isElementTemplateFile,
     isElementTemplateText,
     isPreviewableElementType,
+    isSameElementTemplateRef,
     templateEngineOf,
     templatesOfFile,
 } from "./elementTemplates";
@@ -205,5 +206,19 @@ describe("elementTemplateRefKey", () => {
         ["version 0 and none", { id: "a", version: 0 }, { id: "a" }],
     ])("tells %s apart", (_, first, second) => {
         expect(elementTemplateRefKey(first)).not.toBe(elementTemplateRefKey(second));
+    });
+});
+
+describe("isSameElementTemplateRef", () => {
+    it.each([
+        ["the same id and version", { id: "a", version: 2 }, { id: "a", version: 2 }, true],
+        ["the same id, both without a version", { id: "a" }, { id: "a" }, true],
+        ["an undefined version and none", { id: "a", version: undefined }, { id: "a" }, true],
+        ["other versions", { id: "a", version: 1 }, { id: "a", version: 2 }, false],
+        ["a version and none", { id: "a", version: 1 }, { id: "a" }, false],
+        ["version 0 and none", { id: "a", version: 0 }, { id: "a" }, false],
+        ["other ids", { id: "a", version: 1 }, { id: "b", version: 1 }, false],
+    ])("matches %s: %j and %j", (_, ref, other, same) => {
+        expect(isSameElementTemplateRef(ref, other)).toBe(same);
     });
 });
