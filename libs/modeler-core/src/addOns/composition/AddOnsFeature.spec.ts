@@ -337,6 +337,37 @@ describe("AddOnsFeature", () => {
             expect(host.pluginApprovals.approvals).toEqual([]);
         });
 
+        it("refuses a revision a view kept from a process that is gone", async () => {
+            vi.useFakeTimers({ toFake: ["Date"] });
+            try {
+                vi.setSystemTime(1_000);
+                const before = setUp();
+                before.view.attachTo(before.addOns);
+                await shown(before.addOns);
+                before.addOns.refresh();
+                await shown(before.addOns);
+                const keptRevision = before.view.latest().revision;
+                before.addOns.dispose();
+
+                vi.setSystemTime(1_001);
+                const { host, addOns, view } = setUp();
+                const respawned = view.attachTo(addOns);
+                await shown(addOns);
+                addOns.refresh();
+                await shown(addOns);
+                const result = await respawned.handle({
+                    kind: "allow",
+                    addOnId: `plugin:${RESIZE}`,
+                    revision: keptRevision,
+                });
+
+                expect(result).toMatchObject({ kind: "refused", reason: "staleView" });
+                expect(host.pluginApprovals.approvals).toEqual([]);
+            } finally {
+                vi.useRealTimers();
+            }
+        });
+
         it("refuses an unknown revision", async () => {
             const { host, addOns, view } = setUp();
             view.attachTo(addOns);
