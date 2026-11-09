@@ -1,8 +1,8 @@
 import { MarketplaceSettingsEntry } from "../../kernel/domain/modelerSettings";
 import { LoggerPort } from "../../kernel/port/hostPorts";
+import { MarketplacesListing } from "../../kernel/domain/marketplaceListing";
 import {
     CachedTemplates,
-    MarketplaceSources,
     marketplaceSourcesOf,
     REGISTRATIONS_UNREADABLE,
 } from "../domain/marketplaceSources";
@@ -30,7 +30,7 @@ export class MarketplaceInventory {
         private readonly logger: LoggerPort,
     ) {}
 
-    async listMarketplaces(): Promise<MarketplaceSources> {
+    async listMarketplaces(): Promise<MarketplacesListing> {
         const registered = await this.registered();
         if (registered === undefined) {
             return REGISTRATIONS_UNREADABLE;

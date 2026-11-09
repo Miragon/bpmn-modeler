@@ -6,12 +6,12 @@ import {
     SessionAnswer,
 } from "../../kernel/domain/codeApproval";
 import { SettingChange } from "../../editorSession/domain/EditorSession";
+import { MarketplacesListing } from "../../kernel/domain/marketplaceListing";
 import { MarketplaceSettingsEntry } from "../../kernel/domain/modelerSettings";
 import {
     FolderTemplateFileListing,
     TemplateFileListing,
 } from "../../kernel/domain/templateListing";
-import { ListedMarketplace, ListedMarketplaces } from "../domain/addOnCatalog";
 
 /**
  * What every owner of approvable code gives the catalog. The owners keep the
@@ -70,15 +70,6 @@ export interface TemplateAddOnSource {
     /** After the templates folders the open editors loaded changed. */
     onDidChange(listener: () => void): { dispose(): void };
 }
-
-/** One registered marketplace before its cached templates are read. */
-type MarketplaceListing = Omit<ListedMarketplace, "templates"> & {
-    readonly templateFiles: readonly string[];
-};
-
-type MarketplacesListing =
-    | { readonly kind: "listed"; readonly sources: readonly MarketplaceListing[] }
-    | Extract<ListedMarketplaces, { readonly kind: "unreadable" }>;
 
 /** The registered marketplaces and the flows that change them, which ask and report on their own. */
 export interface MarketplaceAddOnSource {

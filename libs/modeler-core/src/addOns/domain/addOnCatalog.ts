@@ -15,6 +15,7 @@ import {
     SessionAnswer,
 } from "../../kernel/domain/codeApproval";
 import { folderOfConfigFolder } from "../../kernel/domain/configArtifacts";
+import { MarketplaceListing, UnreadableMarketplaces } from "../../kernel/domain/marketplaceListing";
 import { MarketplaceSettingsEntry } from "../../kernel/domain/modelerSettings";
 import {
     innermostFolderOf,
@@ -79,20 +80,14 @@ export interface OwnedPresence {
 }
 
 /** One registered marketplace as its owner listed and worded it, with its cached templates read. */
-export interface ListedMarketplace {
-    /** Unique per registered entry. */
-    readonly id: string;
-    readonly entry: MarketplaceSettingsEntry;
-    readonly label: string;
-    readonly scopeText: string;
-    readonly problem?: string;
+export type ListedMarketplace = Omit<MarketplaceListing, "templateFiles"> & {
     readonly templates: readonly TemplateFileListing[];
-}
+};
 
 /** The registered marketplaces, or why their owner could not read them. */
 export type ListedMarketplaces =
     | { readonly kind: "listed"; readonly sources: readonly ListedMarketplace[] }
-    | { readonly kind: "unreadable"; readonly problem: string };
+    | UnreadableMarketplaces;
 
 /** What one listing found: every add-on its owner read, by kind. */
 export interface AddOnFacts {

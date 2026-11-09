@@ -1,3 +1,4 @@
+import { MarketplaceListing, MarketplacesListing } from "../../kernel/domain/marketplaceListing";
 import { MarketplaceSettingsEntry } from "../../kernel/domain/modelerSettings";
 import { marketplaceScopesText } from "./marketplacePrompts";
 import {
@@ -12,23 +13,7 @@ export type CachedTemplates =
     | { readonly kind: "read"; readonly byRegistration: ReadonlyMap<string, readonly string[]> }
     | { readonly kind: "failed" };
 
-/** One registered marketplace as the add-on catalog lists it. */
-export interface MarketplaceSource {
-    /** Its entry's key, as entries that share one cache slot are still listed apart. */
-    readonly id: string;
-    readonly entry: MarketplaceSettingsEntry;
-    readonly label: string;
-    readonly scopeText: string;
-    readonly templateFiles: readonly string[];
-    readonly problem?: string;
-}
-
-/** The registered marketplaces, or why they could not be read. */
-export type MarketplaceSources =
-    | { readonly kind: "listed"; readonly sources: readonly MarketplaceSource[] }
-    | { readonly kind: "unreadable"; readonly problem: string };
-
-export const REGISTRATIONS_UNREADABLE: MarketplaceSources = {
+export const REGISTRATIONS_UNREADABLE: MarketplacesListing = {
     kind: "unreadable",
     problem: "The registered marketplaces could not be read. The log says why.",
 };
@@ -40,7 +25,7 @@ const CACHE_FAILED_TEXT = "Its cached templates could not be read. The log says 
 export function marketplaceSourcesOf(
     registered: RegistrationsByScope,
     cached: CachedTemplates,
-): MarketplaceSource[] {
+): MarketplaceListing[] {
     const listed = registeredMarketplaces(registered);
     const { entries } = MarketplaceRegistry.fromEntries(listed.map(({ entry }) => entry));
     return listed.map(({ entry, scopes }, index) => ({
@@ -55,7 +40,7 @@ export function marketplaceSourcesOf(
 function templatesOf(
     parsed: ParsedMarketplaceEntry,
     cached: CachedTemplates,
-): Pick<MarketplaceSource, "templateFiles" | "problem"> {
+): Pick<MarketplaceListing, "templateFiles" | "problem"> {
     if (parsed.kind === "unparseable") {
         return { templateFiles: [], problem: `${parsed.reason}.` };
     }
