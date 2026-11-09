@@ -1,8 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { createTestHost, PromptAnswers } from "../../testing";
-import { createTemplateMarketplaceService } from "../composition/MarketplaceFeature";
-import { MarketplaceCommands } from "./MarketplaceCommands";
+import {
+    createMarketplaceCommands,
+    createTemplateMarketplaceService,
+} from "../composition/MarketplaceFeature";
 import { MarketplaceInventory } from "./MarketplaceInventory";
 
 const SHARED = "/work/shared";
@@ -31,7 +33,7 @@ function setUp(promptAnswers: PromptAnswers = {}) {
         cacheRoot: "/cache",
         homeDir: "/work",
     });
-    const commands = new MarketplaceCommands({
+    const { inventory } = createMarketplaceCommands({
         marketplaces: service,
         templates: { reloadMarketplaceTemplates: () => Promise.resolve() },
         registrations: host.marketplaceRegistrations,
@@ -40,12 +42,6 @@ function setUp(promptAnswers: PromptAnswers = {}) {
         notifier: host.notifier,
         homeDir: "/work",
     });
-    const inventory = new MarketplaceInventory(
-        host.marketplaceRegistrations,
-        service,
-        commands,
-        host.notifier,
-    );
     return { host, service, inventory };
 }
 

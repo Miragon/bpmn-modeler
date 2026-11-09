@@ -776,7 +776,9 @@ the core (`enteredToken`) takes a blank answer for no token, so a blank token
 is never stored and no host trims.
 
 The template marketplace's add and remove flows run in the core's
-`MarketplaceCommands` (`template-marketplace/service/`) on both hosts, and
+`MarketplaceCommands` (`template-marketplace/service/`) on both hosts, which
+build them with `createMarketplaceCommands` (`template-marketplace/composition/`)
+together with the add-on catalog's `MarketplaceInventory` over the same instance, and
 `template-marketplace/domain/marketplacePrompts.ts` builds all their text.
 Removing is a choice: `marketplaceRemoval` returns the nothing-registered
 message, or a `chooseMany` prompt whose items name each entry and the scopes

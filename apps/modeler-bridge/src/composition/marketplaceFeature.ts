@@ -1,7 +1,7 @@
 import {
     BpmnElementTemplatesService,
+    createMarketplaceCommands,
     createTemplateMarketplaceService,
-    MarketplaceCommands,
     MarketplaceInventory,
     TemplateMarketplaceService,
 } from "@miragon/bpmn-modeler-core";
@@ -77,26 +77,15 @@ export function registerHandlers(
         homeDir: string;
     },
 ): { marketplaces: MarketplaceInventory } {
-    const registrations = new RpcMarketplaceRegistrations(deps.rpc);
-    const marketplaceCommands = new MarketplaceCommands({
+    const { commands, inventory } = createMarketplaceCommands({
         marketplaces: handles.marketplaceSvc,
         templates: handles.templatesSvc,
-        registrations,
+        registrations: new RpcMarketplaceRegistrations(deps.rpc),
         prompt: new RpcMarketplacePrompt(deps.rpc),
         picker: deps.picker,
         notifier: deps.notifier,
         homeDir: handles.homeDir,
     });
-    bindHandlers(
-        deps.rpc,
-        marketplaceHandlers({ commands: marketplaceCommands, settingsMirror: deps.settings }),
-    );
-    return {
-        marketplaces: new MarketplaceInventory(
-            registrations,
-            handles.marketplaceSvc,
-            marketplaceCommands,
-            deps.notifier,
-        ),
-    };
+    bindHandlers(deps.rpc, marketplaceHandlers({ commands, settingsMirror: deps.settings }));
+    return { marketplaces: inventory };
 }

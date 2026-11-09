@@ -4,8 +4,8 @@ import { ExtensionContext } from "vscode";
 
 import {
     BpmnElementTemplatesService,
+    createMarketplaceCommands,
     createTemplateMarketplaceService,
-    MarketplaceCommands,
     MarketplaceInventory,
     TemplateMarketplaceService,
 } from "@miragon/bpmn-modeler-core";
@@ -63,24 +63,16 @@ export function registerCommands(
         templatesSvc: BpmnElementTemplatesService;
     },
 ): { marketplaces: MarketplaceInventory } {
-    const registrations = new VsCodeMarketplaceRegistrations(deps.vsSettings);
-    const marketplaceCommands = new MarketplaceCommands({
+    const { commands, inventory } = createMarketplaceCommands({
         marketplaces: handles.marketplaceSvc,
         templates: handles.templatesSvc,
-        registrations,
+        registrations: new VsCodeMarketplaceRegistrations(deps.vsSettings),
         prompt: new VsCodeMarketplacePrompt(),
         picker: deps.picker,
         notifier: deps.notifier,
         homeDir: homedir(),
         explainAddFailure: reloadForUnregisteredSetting(deps.notifier),
     });
-    new TemplateMarketplaceController(marketplaceCommands).register(context);
-    return {
-        marketplaces: new MarketplaceInventory(
-            registrations,
-            handles.marketplaceSvc,
-            marketplaceCommands,
-            deps.notifier,
-        ),
-    };
+    new TemplateMarketplaceController(commands).register(context);
+    return { marketplaces: inventory };
 }

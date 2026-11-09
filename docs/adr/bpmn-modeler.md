@@ -773,8 +773,8 @@ allow or a revoke and which revoked code stays loaded, and runs what
 follows a revoke. The element templates meet one with `TemplateInventory`,
 which reads each template file by the loader's rule (`templatesOfFileText`,
 `templateEngineOf`), and the marketplaces with `MarketplaceInventory`
-over the host's `MarketplaceCommands`. The host compositions wire one into
-the other ([package boundaries](architecture-and-hosts.md#package-boundaries)).
+over the host's `MarketplaceCommands`, which `createMarketplaceCommands`
+builds together. The host compositions wire one into the other ([package boundaries](architecture-and-hosts.md#package-boundaries)).
 Both hosts build an `AddOnsFeature`; no view attaches to it yet.
 
 - *Scope.* It lists the open workspace only: the root config folder's
@@ -812,7 +812,8 @@ Both hosts build an `AddOnsFeature`; no view attaches to it yet.
   as a host's reply that fails, leave the group without sources and say why;
   the folders are still listed. The catalog offers "Add marketplace…" and
   "Update marketplaces", and each source "Remove". All three run the
-  host's `MarketplaceCommands`, the same instance its commands run, so a flow
+  host's `MarketplaceCommands`, the same instance its commands run
+  (`createMarketplaceCommands` builds the inventory over it), so a flow
   started from either queues behind the other on its one-at-a-time queue and
   asks its own questions; the result is `reportedByFlow`. A removal names the
   entry the latest build showed for the source, never a payload, and asks
