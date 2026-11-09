@@ -1,7 +1,7 @@
 # Architecture and hosts
 
 - Status: accepted
-- Last reviewed: 2026-11-08
+- Last reviewed: 2026-11-10
 
 ## Context
 
@@ -238,6 +238,29 @@ with `innerHTML`, and every `--vscode-*` variable its stylesheet reads is
 listed in `src/adapter/in/styles/hostThemeVariables.json`, the set IntelliJ
 maps for it. Every host declares the surface `absent` until it serves it.
 
+IntelliJ shows the add-ons view as the **Artifacts** tab of its BPMN Modeler
+tool window, next to the **Deploy** tab, as VS Code holds Deploy and Artifacts
+in one container. The tool window keeps the id of the former deployment tool
+window (`Miragon Deployment`), so a layout a user saved still applies; its
+factory sets the stripe title. Each tab is one `JcefRelayPanel`, a JCEF page
+that relays its messages verbatim, and counts as open only while the tool
+window is visible and the tab selected (`VisibilityLatch`), so Deploy refreshes
+its form defaults only while its tab shows. The Artifacts browser is built the
+first time its tab shows, since each browser costs a renderer. Its shell
+(`/addOns.html`, bundle under `/webview-add-ons/`) maps the deployment palette
+plus the extras in `hostThemeVariables.json` (`IdeThemeSignal.addOnsThemeVarsCss`,
+held to that file by `IdeThemeSignalTest`); High Contrast is the bundled
+theme's id, as 2024.2 has no API for it. The bridge attaches one panel, hidden,
+at start. **Review…** reaches it through `RpcAddOnViewReveal`, the second
+adapter of `AddOnViewRevealPort`: `addOns/reveal` asks Kotlin to select the tab
+and activate the tool window, and the core then delivers the rows through the
+panel, so no row id rides the wire. Kotlin answers `false` where JCEF is
+missing, the tool window is not registered or the project is closing, and the
+`ListReview` fallback asks instead. The tab's title button sends
+`addOns/refresh`, as nothing reports an installed package or another window's
+approval. After a crash respawn Kotlin reloads the page: only a result frees a
+busy row, and a request the dead process took would leave its row busy.
+
 Each host keeps one coverage spec
 over every surface, typed `HostSurfaceCoverage` (`libs/modeler-core/src/testing/`):
 per surface a `Record` of every listed command to `HANDLED` or
@@ -393,7 +416,7 @@ function in an adapter (#2053) covers `**/src/**/adapter/**/*.ts`.
 VS Code runs the core in-process. The standalone app loads that extension in
 Theia/Electron and adds shell behavior through `libs/standalone-extension`.
 IntelliJ runs the same core out-of-process and renders its BPMN editor in JCEF.
-Its host also integrates diff, deployment and scripting; its visual editor does
+Its host also integrates diff, deployment, the add-ons view and scripting; its visual editor does
 not currently provide DMN or Forms parity, nor the element-template editor.
 
 [Orca](https://www.onorca.dev) hosts the two npm packages without the core.
@@ -969,7 +992,7 @@ serves the whole bundle directory. VS Code and the standalone app copy it into
 the extension; IntelliJ syncs it into plugin resources and serves any path
 below it from the loopback asset server.
 
-Every BPMN, DMN, form and deployment shell sends a Content-Security-Policy with
+Every BPMN, DMN, form, deployment and add-ons shell sends a Content-Security-Policy with
 `default-src 'none'`, so injected markup cannot run script with the host
 message channel. Each policy allows only what its bundle needs:
 
@@ -993,6 +1016,8 @@ message channel. Each policy allows only what its bundle needs:
 - VS Code's deployment shell allows only its script and its styles, because the
   deployment form loads no images or fonts. IntelliJ builds its deployment
   policy from the BPMN one without `https:` images.
+- IntelliJ's add-ons shell allows only its script and its styles, as the add-ons
+  page loads no images or fonts.
 - `base-uri` and `form-action` are `'none'` in every shell: `default-src` does
   not cover them, and no bundle needs a `<base>` or a native form submission.
 
@@ -1054,6 +1079,16 @@ carry an `RpcResult` class, whose property names are its keys; the test replies
 once with each request's result class and compares its keys with the snapshot's.
 The snapshot is an input of the Gradle test task and of the IntelliJ CI path
 filter, so a TypeScript-only protocol change runs the test.
+
+A request's `replyWait` says how long the core waits for the reply: `prompt`
+and `syncedWrite` until the host answers, `hostWork` 120 s, and `hostShow`
+10 s. `hostShow` is for `addOns/reveal`, where the host shows one of its
+views: the approval question queue waits on the reveal, so a host stuck behind
+a modal dialog would otherwise hold every later notice; once it passes, the
+list appears instead. The relayed page messages and visibility of the add-ons
+view (`addOns/webviewMessage`, `addOns/open`) are reliable frames that wait for
+the next process, unlike the best-effort deployment relay: only a result frees a
+busy row on the page, so a dropped request would leave its row busy.
 
 ### Process lifecycle
 
@@ -1155,6 +1190,7 @@ keeps explicit local mirrors with these ownership rules:
 | Settings snapshot | Settings in `session/register`, then `settings/didChange` after a change and after each spawn, since a register queued before the spawn read them early and a push while it started was dropped | Host only; one shared snapshot fans changes out to editors |
 | Deployment state | `deploymentState/seed` with what the host stored, then `deploymentState/save` patches | Host; a bridge patch reaches the snapshot only after the host accepted it |
 | Plugin approvals (bpmn-js plugins and bpmnlint rule packages) | `pluginApprovals` with `pluginApprovalsRevision` in `session/register`, then `pluginApprovals/didChange` with its `revision`, which every running bridge of the IDE gets after any `pluginApprovals/change` and each bridge after its spawn; `pluginApprovals/read` answers the stored list | Host (`PluginApprovalStore`, application level): a bridge sends only the rows to allow and the ids to revoke, and the host merges them under one lock and bumps the revision. The mirror keeps only a newer revision, the change's answer included |
+| Workspace roots | `session/register`'s `workspaceRoot`, counted per session and released with it; `addOns/open`'s, claimed once per process, re-sent after every spawn and never released, so the add-ons view lists the project after its last editor closed. `addOns/open` applies its settings before its visibility, as a register does | Host: `project.basePath` in IntelliJ, or the file's folder for a session without one; an `addOns/open` without it lists no folder |
 | Template switches (element templates and their sources turned off per user) | `templatePreferences` in `session/register`: both scopes, each with its own `revision`. Then `templatePreferences/didChange` with both again, which every running bridge of the IDE gets after an `allProjects` change, only the project's own bridge after a `project` change, and each bridge after its spawn, since a register queued before the spawn read them early and a push while it started was dropped; `templatePreferences/read` answers both stored lists. The add-on catalog reads `readStored` for every listing, so it needs no seed; the editor reads the seeded mirror when it sends its templates | Host. IntelliJ: `ProjectTemplatePreferenceStore` (project `PropertiesComponent`, so `.idea/workspace.xml`, per user) for `project` and `TemplatePreferenceStore` (application `PropertiesComponent`) for `allProjects`, one key each. A bridge sends the switches to disable and to enable for one scope; the store of that scope merges them under its lock with the Kotlin `templatePreferencesAfter`, held to `templatePreferenceChange.cases.json`, and bumps its revision, and the host pushes before it answers. The mirror keeps only a newer revision per scope, the change's answer included. VS Code (`VsCodeTemplatePreferenceStore`): `workspaceState` for `project` and `globalState` for `allProjects`, on this machine only (no `setKeysForSync`), merged on a queue; another window's write arrives through `readStored` when the window gains focus |
 
 Apply settings before initial artifact discovery. Seed every synchronous mirror
