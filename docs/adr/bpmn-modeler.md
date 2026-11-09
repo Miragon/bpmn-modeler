@@ -779,10 +779,12 @@ confirm follow with the views.
 - *Scope.* It lists the open workspace only: the root config folder's
   `plugins/` of every workspace folder, the nested config folders an editor or
   a listing already looked in, each folder's `node_modules` and the
-  `node_modules` of each lint config read so far, the packages the gate
+  `node_modules` of each lint config read so far inside one, the packages the gate
   reported, and every stored row inside a folder that discovery missed, read
   directly, so a row whose folder is gone shows as gone. A row outside every
-  folder is not listed, though the prune still keeps it. Add-ons group by the
+  folder is not listed, though the prune still keeps it. `addOnScope` in
+  `addOns/domain/` decides what to read and which rule packages to hash;
+  the reader only fetches. Add-ons group by the
   innermost workspace folder, then by source (the root config folder, nested
   config folders by path, package folders), then by name. A nested config
   folder's plugins apply only to the diagrams below it, and the source says so.

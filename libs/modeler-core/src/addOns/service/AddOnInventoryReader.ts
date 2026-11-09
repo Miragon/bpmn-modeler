@@ -1,8 +1,14 @@
-import { declinedKeys, needsContentHash, presenceIdOf } from "../../kernel/domain/codeApproval";
+import { declinedKeys, presenceIdOf } from "../../kernel/domain/codeApproval";
 import { PluginApprovalStorePort } from "../../kernel/port/approvalPorts";
 import { SettingsPort, WorkspacePort } from "../../kernel/port/hostPorts";
 import { AddOnFacts, OwnedPresence } from "../domain/addOnCatalog";
-import { innermostFolderOf } from "../../kernel/domain/rootContainment";
+import {
+    isHashWanted,
+    missedRowIds,
+    pluginDirsToList,
+    rulePackageDirsToList,
+    rulePackageIdsToList,
+} from "../domain/addOnScope";
 import { PluginAddOnSource, RulePackageAddOnSource } from "../port/addOnSourcePorts";
 
 export interface AddOnInventoryPorts {
@@ -12,6 +18,8 @@ export interface AddOnInventoryPorts {
     readonly plugins: PluginAddOnSource;
     readonly rulePackages?: RulePackageAddOnSource;
 }
+
+type ListingFacts = Omit<AddOnFacts, "plugins" | "rulePackages">;
 
 /** Collects what the owners find in the open workspace folders, and the rows they missed there. */
 export class AddOnInventoryReader {
@@ -35,21 +43,22 @@ export class AddOnInventoryReader {
         folders,
         configFolder,
         approvals,
-    }: Omit<AddOnFacts, "plugins" | "rulePackages">): Promise<OwnedPresence[]> {
+    }: ListingFacts): Promise<OwnedPresence[]> {
         const { plugins } = this.ports;
-        const inFolder = (path: string) => innermostFolderOf(path, folders) !== undefined;
         const listed = [
-            ...(await plugins.pluginsIn([
-                ...folders.map((root) => plugins.pluginsDirOf(root, configFolder)),
-                ...plugins.knownPluginDirs().filter(inFolder),
-            ])),
+            ...(await plugins.pluginsIn(
+                pluginDirsToList({
+                    folders,
+                    rootPluginDirs: folders.map((root) => plugins.pluginsDirOf(root, configFolder)),
+                    knownPluginDirs: plugins.knownPluginDirs(),
+                }),
+            )),
         ];
-        const listedIds = new Set(listed.map(presenceIdOf));
-        for (const { pluginId } of approvals.filter((row) => plugins.ownsApproval(row))) {
-            if (inFolder(pluginId) && !listedIds.has(pluginId)) {
-                listedIds.add(pluginId);
-                listed.push(await plugins.current(pluginId));
-            }
+        const ownedRowIds = approvals
+            .filter((row) => plugins.ownsApproval(row))
+            .map(({ pluginId }) => pluginId);
+        for (const id of missedRowIds(ownedRowIds, listed.map(presenceIdOf), folders)) {
+            listed.push(await plugins.current(id));
         }
         return listed.map((presence) => ({
             presence,
@@ -59,30 +68,30 @@ export class AddOnInventoryReader {
     }
 
     private rulePackages(
-        { folders, approvals }: Omit<AddOnFacts, "plugins" | "rulePackages">,
+        { folders, approvals }: ListingFacts,
         inspected: ReadonlySet<string>,
     ): OwnedPresence[] {
         const { rulePackages } = this.ports;
         if (rulePackages === undefined) {
             return [];
         }
-        const inFolder = (path: string) => innermostFolderOf(path, folders) !== undefined;
-        const ids = new Set(
-            [
-                ...rulePackages.installedIn([
-                    ...folders,
-                    ...rulePackages.lintConfigDirs().filter(inFolder),
-                ]),
-                ...rulePackages.seenPackageIds(),
-                ...approvals
-                    .filter((row) => rulePackages.ownsApproval(row))
-                    .map(({ pluginId }) => pluginId),
-            ].filter(inFolder),
-        );
-        const declined = declinedKeys(rulePackages.sessionAnswers());
-        return [...ids].map((id) => ({
+        const ids = rulePackageIdsToList(folders, {
+            installed: rulePackages.installedIn(
+                rulePackageDirsToList(folders, rulePackages.lintConfigDirs()),
+            ),
+            seen: rulePackages.seenPackageIds(),
+            ownedRowIds: approvals
+                .filter((row) => rulePackages.ownsApproval(row))
+                .map(({ pluginId }) => pluginId),
+        });
+        const hashContext = {
+            inspected,
+            approvals,
+            declined: declinedKeys(rulePackages.sessionAnswers()),
+        };
+        return ids.map((id) => ({
             presence: rulePackages.currentRulePackage(id, {
-                hash: inspected.has(id) || needsContentHash(id, approvals, declined),
+                hash: isHashWanted(id, hashContext),
             }),
             sourceDir: rulePackages.sourceDirOf(id),
             texts: rulePackages.texts,
