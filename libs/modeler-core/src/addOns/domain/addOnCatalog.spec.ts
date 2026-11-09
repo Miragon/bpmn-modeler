@@ -970,6 +970,20 @@ describe("catalogModelOf for marketplaces", () => {
         ]);
     });
 
+    it("tells apart the templates of two marketplace sources that share one cache slot", () => {
+        const { model } = build(
+            factsOf({
+                marketplaces: [
+                    { ...SHARED, id: '"acme/shared"', entry: "acme/shared" },
+                    { ...SHARED, id: '"https://github.com/acme/shared"' },
+                ],
+            }),
+        );
+
+        const ids = model.groups[0].sources.flatMap(({ addOns }) => addOns.map(({ id }) => id));
+        expect(new Set(ids).size).toBe(2);
+    });
+
     it.each<{ case: string; marketplaces: ListedMarketplace[] | undefined; actions: string[] }>([
         {
             case: "a host that lists marketplaces",

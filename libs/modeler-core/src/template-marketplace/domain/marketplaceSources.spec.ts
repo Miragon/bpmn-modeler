@@ -83,4 +83,21 @@ describe("marketplaceSourcesOf", () => {
             problem: 'Invalid marketplace: marketplace entry requires a non-empty "repo".',
         });
     });
+
+    it("tells apart two entries that share one cache slot, each with that slot's templates", () => {
+        const byUrl = "https://github.com/acme/templates";
+        const byObject = { provider: "github", repo: "acme/templates" } as const;
+        const slot = parseMarketplaceUrl(byUrl).id;
+
+        const sources = marketplaceSourcesOf(
+            { project: [byUrl], allProjects: [byObject] },
+            { kind: "read", byRegistration: new Map([[slot, ["/cache/acme/mail.json"]]]) },
+        );
+
+        expect(new Set(sources.map(({ id }) => id)).size).toBe(2);
+        expect(sources.map(({ entry, templateFiles }) => ({ entry, templateFiles }))).toEqual([
+            { entry: byObject, templateFiles: ["/cache/acme/mail.json"] },
+            { entry: byUrl, templateFiles: ["/cache/acme/mail.json"] },
+        ]);
+    });
 });

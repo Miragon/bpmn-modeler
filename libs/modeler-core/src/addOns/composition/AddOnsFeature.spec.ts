@@ -1007,6 +1007,33 @@ describe("AddOnsFeature", () => {
             expect(marketplaceGroupOf(view)).toBeUndefined();
         });
 
+        it.each([
+            { removedRow: 0, kept: "https://github.com/acme/templates" },
+            { removedRow: 1, kept: "acme/templates" },
+        ])(
+            "removes the entry of the row it was asked for when two entries share one cache slot",
+            async ({ removedRow, kept }) => {
+                const { host, addOns, view } = setUp({
+                    settings: { marketplaces: ["acme/templates"] },
+                    promptAnswers: { marketplaceRemovalConfirm: true },
+                });
+                await host.marketplaceRegistrations.register(
+                    "https://github.com/acme/templates",
+                    "project",
+                );
+                view.attachTo(addOns);
+                await shown(addOns);
+                const sources = marketplaceGroupOf(view)?.sources ?? [];
+
+                await view.connection!.handle({
+                    kind: "removeMarketplace",
+                    sourceId: sources[removedRow].id,
+                });
+
+                expect(host.settings.values.marketplaces).toEqual([kept]);
+            },
+        );
+
         it("removes nothing when its confirm is declined", async () => {
             const { host, addOns, view } = setUp({
                 files: MARKETPLACE_FILES,
