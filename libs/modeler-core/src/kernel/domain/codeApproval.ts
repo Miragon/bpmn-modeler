@@ -61,11 +61,15 @@ export interface PendingCodeApproval<A extends ApprovableArtifact> {
     readonly state: Exclude<ApprovalState, "approved">;
 }
 
+function approvalRowOf(id: string, approvals: readonly CodeApproval[]): CodeApproval | undefined {
+    return approvals.find((approval) => approval.pluginId === id);
+}
+
 export function approvalStateOf(
     artifact: ApprovableArtifact,
     approvals: readonly CodeApproval[],
 ): ApprovalState {
-    const approval = approvals.find((each) => each.pluginId === artifact.id);
+    const approval = approvalRowOf(artifact.id, approvals);
     if (approval === undefined) {
         return "new";
     }
@@ -214,7 +218,7 @@ export function needsContentHash(
 ): boolean {
     const declineKeyPrefix = declineKeyOf({ id, name: id, contentHash: "" });
     return (
-        approvals.some((approval) => approval.pluginId === id) ||
+        approvalRowOf(id, approvals) !== undefined ||
         [...declined].some((key) => key.startsWith(declineKeyPrefix))
     );
 }
@@ -247,9 +251,7 @@ export function codeStateOf(
         case "unreadable":
             return {
                 kind: "state",
-                state: approvals.some((approval) => approval.pluginId === presence.id)
-                    ? "changed"
-                    : "new",
+                state: approvalRowOf(presence.id, approvals) === undefined ? "new" : "changed",
             };
     }
 }

@@ -263,10 +263,7 @@ function receiveWebviewRun(session: LintSession, event: WebviewLinted): LintTran
 }
 
 function ownsHostLint(session: LintSession, token: string): session is HostLintedSession {
-    return (
-        (session.tier === "escalating" || session.tier === "escalated") &&
-        session.negotiation.token === token
-    );
+    return lintsOnHost(session) && session.negotiation.token === token;
 }
 
 function drop(session: LintSession, reason: LintDropReason): LintTransition {

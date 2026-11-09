@@ -86,9 +86,11 @@ export class BpmnPluginService {
         }
         // Not awaited: the router runs this editor's commands in order, and a
         // question left open would hold back its document syncs.
-        const asking = this.ask(pending).catch((error: unknown) =>
-            this.notifier.logError(error instanceof Error ? error : new Error(String(error))),
-        );
+        const asking = this.question
+            .ask(pending)
+            .catch((error: unknown) =>
+                this.notifier.logError(error instanceof Error ? error : new Error(String(error))),
+            );
         this.approvalSettled = Promise.all([this.approvalSettled, asking]).then(() => undefined);
     }
 
@@ -255,10 +257,6 @@ export class BpmnPluginService {
         } catch {
             return undefined;
         }
-    }
-
-    private async ask(pending: readonly PendingApproval[]): Promise<void> {
-        await this.question.ask(pending);
     }
 
     private reload(editorId: string): void {
