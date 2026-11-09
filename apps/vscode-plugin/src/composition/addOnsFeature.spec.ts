@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("vscode", () => import("../__fixtures__/vscodeCompositionFake"));
 
@@ -18,7 +18,11 @@ import {
 import { RecordingScriptEditor } from "@miragon/bpmn-modeler-core/testing";
 import { AddOnCatalogQuery, Query, RevealAddOnsQuery } from "@miragon/bpmn-modeler-shared";
 
-import { registeredViewProviders } from "../__fixtures__/vscodeCompositionFake";
+import {
+    registeredViewProviders,
+    resetVscodeWindow,
+    vscodeWindow,
+} from "../__fixtures__/vscodeCompositionFake";
 import { InMemoryMemento } from "../__fixtures__/vscodeStorage";
 import { ADD_ONS_VIEW_ID } from "../addOns/adapter/in/AddOnsViewProvider";
 import { BpmnDiffController } from "../diff/adapter/in/BpmnDiffController";
@@ -120,6 +124,10 @@ function createVsCodeAddOns(context = createExtensionContext()) {
 
 const LEFT = { id: "/work/x", name: "x", contentHash: "h" };
 
+beforeEach(() => {
+    resetVscodeWindow();
+});
+
 describe("VS Code's add-on catalog", () => {
     it("lists again when the BPMN editor's plugins, its rule packages or their one approval list change", async () => {
         const { deps, bpmn, addOns } = createVsCodeAddOns();
@@ -202,6 +210,10 @@ describe("VS Code's add-on catalog", () => {
         await expect(reviews.reveal.reveal([row])).resolves.toBe(true);
         await addOns.whenSettled();
 
+        expect(vscodeWindow.executedCommands).toContainEqual({
+            command: `${ADD_ONS_VIEW_ID}.focus`,
+            args: [],
+        });
         const reveals = posted.filter((message) => message instanceof RevealAddOnsQuery);
         expect(reveals.map(({ reveal }) => reveal.addOnIds)).toEqual([[row]]);
     });
