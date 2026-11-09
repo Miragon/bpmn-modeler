@@ -405,6 +405,44 @@ describe("AddOnsFeature", () => {
             expect(rulePackageCatalog.stillPendingOf([blocked])).toEqual([]);
         });
 
+        it("refuses to revoke a rule package the view offered no revoke for, and its notice still asks", async () => {
+            const { install, addOns, view, rulePackageCatalog } = setUp({ files: {} });
+            install(ACME, "bpmnlint-plugin-acme");
+            view.attachTo(addOns);
+            await shown(addOns);
+
+            const result = await view.connection?.handle({
+                kind: "revoke",
+                addOnId: `rulePackage:${ACME}`,
+            });
+
+            expect(result).toMatchObject({ kind: "refused", reason: "notOffered" });
+            expect(
+                rulePackageCatalog
+                    .stillPendingOf([{ id: ACME, kind: "package", state: "new", needed: true }])
+                    .map(({ artifact }) => artifact.id),
+            ).toEqual([ACME]);
+        });
+
+        it("refuses to allow again, at an older revision, a plugin revoked since", async () => {
+            const { host, addOns, view } = setUp();
+            host.pluginApprovals.approvals = [{ pluginId: RESIZE, contentHash: RESIZE_HASH }];
+            view.attachTo(addOns);
+            await shown(addOns);
+            const approvedAt = view.latest().revision;
+            await view.connection?.handle({ kind: "revoke", addOnId: `plugin:${RESIZE}` });
+            await shown(addOns);
+
+            const result = await view.connection?.handle({
+                kind: "allow",
+                addOnId: `plugin:${RESIZE}`,
+                revision: approvedAt,
+            });
+
+            expect(result).toMatchObject({ kind: "refused", reason: "notOffered" });
+            expect(host.pluginApprovals.approvals).toEqual([]);
+        });
+
         it("removes the plugin copies no stored approval names", async () => {
             const { host, addOns, view } = setUp({ files: {} });
             host.workspace.createDirectory(`${CACHE}/${"a".repeat(64)}`);

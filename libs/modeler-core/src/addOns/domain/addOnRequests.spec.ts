@@ -15,16 +15,36 @@ import { ShownRevisions } from "./shownRevisions";
 const RESIZE = "/work/.camunda/plugins/resize";
 const ACME = "/work/node_modules/bpmnlint-plugin-acme";
 const content = { id: RESIZE, name: "Resize", contentHash: "h1" };
-const plugin: ShownCode = { kind: "plugin", id: RESIZE, name: "Resize", content };
-const unhashed: ShownCode = { kind: "rulePackage", id: ACME, name: "bpmnlint-plugin-acme" };
+const plugin: ShownCode = {
+    kind: "plugin",
+    id: RESIZE,
+    name: "Resize",
+    content,
+    actions: ["allow"],
+};
+const approvedPlugin: ShownCode = { ...plugin, actions: ["revoke"] };
+const unhashed: ShownCode = {
+    kind: "rulePackage",
+    id: ACME,
+    name: "bpmnlint-plugin-acme",
+    actions: ["inspect"],
+};
 const rulePackage: ShownCode = {
     ...unhashed,
     content: { id: ACME, name: "bpmnlint-plugin-acme", contentHash: "r1" },
+    actions: ["allow"],
 };
 
 const revisions = ShownRevisions.empty()
     .recorded(1, new Map([[`plugin:${RESIZE}`, plugin]]))
-    .recorded(2, new Map([[`rulePackage:${ACME}`, unhashed]]));
+    .recorded(2, new Map([[`rulePackage:${ACME}`, unhashed]]))
+    .recorded(3, new Map([[`plugin:${RESIZE}`, approvedPlugin]]));
+
+const NOT_OFFERED = {
+    kind: "refused",
+    reason: "notOffered",
+    message: "The list offers no such action for this add-on now. Check it again.",
+};
 
 describe("allowTargetOf", () => {
     it("allows the content the named revision showed, though a later one shows other content", () => {
@@ -54,8 +74,15 @@ describe("allowTargetOf", () => {
             case: "an add-on shown without its content",
             revision: 2,
             addOnId: `rulePackage:${ACME}`,
-            reason: "staleView",
-            message: "The list changed since you looked at it. Check it again, then allow.",
+            reason: NOT_OFFERED.reason,
+            message: NOT_OFFERED.message,
+        },
+        {
+            case: "an add-on that revision offered no allow for, its content shown",
+            revision: 3,
+            addOnId: `plugin:${RESIZE}`,
+            reason: NOT_OFFERED.reason,
+            message: NOT_OFFERED.message,
         },
     ])("refuses $case", ({ revision, addOnId, reason, message }) => {
         expect(allowTargetOf(revisions, revision, addOnId)).toEqual({
@@ -66,15 +93,33 @@ describe("allowTargetOf", () => {
 });
 
 describe("shownTargetOf", () => {
-    it("finds an add-on in what the latest revision showed", () => {
-        expect(shownTargetOf(revisions, `rulePackage:${ACME}`)).toEqual({
-            kind: "shown",
-            code: unhashed,
+    const latest = ShownRevisions.empty().recorded(
+        1,
+        new Map([
+            [`rulePackage:${ACME}`, unhashed],
+            [`plugin:${RESIZE}`, approvedPlugin],
+        ]),
+    );
+
+    it.each([
+        { kind: "inspect" as const, addOnId: `rulePackage:${ACME}`, code: unhashed },
+        { kind: "revoke" as const, addOnId: `plugin:${RESIZE}`, code: approvedPlugin },
+    ])("finds an add-on the latest revision offered $kind for", ({ kind, addOnId, code }) => {
+        expect(shownTargetOf(latest, addOnId, kind)).toEqual({ kind: "shown", code });
+    });
+
+    it.each([
+        { kind: "revoke" as const, addOnId: `rulePackage:${ACME}` },
+        { kind: "inspect" as const, addOnId: `plugin:${RESIZE}` },
+    ])("refuses $kind on an add-on the latest revision offered no $kind for", ({ kind, addOnId }) => {
+        expect(shownTargetOf(latest, addOnId, kind)).toEqual({
+            kind: "refused",
+            result: NOT_OFFERED,
         });
     });
 
     it("refuses an add-on the latest revision no longer shows", () => {
-        expect(shownTargetOf(revisions, `plugin:${RESIZE}`)).toEqual({
+        expect(shownTargetOf(revisions, `rulePackage:${ACME}`, "inspect")).toEqual({
             kind: "refused",
             result: {
                 kind: "refused",

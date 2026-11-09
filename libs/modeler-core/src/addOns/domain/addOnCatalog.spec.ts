@@ -468,7 +468,7 @@ describe("catalogModelOf", () => {
         );
     });
 
-    it("keeps what it showed of each add-on, the content only where it was hashed", () => {
+    it("keeps what it showed of each add-on, the content only where it was hashed, and what it offered", () => {
         const { shown } = build(
             factsOf({
                 plugins: [found(RESIZE, "Resize", "h1")],
@@ -484,11 +484,17 @@ describe("catalogModelOf", () => {
                     id: RESIZE,
                     name: "Resize",
                     content: { id: RESIZE, name: "Resize", contentHash: "h1" },
+                    actions: ["allow"],
                 },
             ],
             [
                 `rulePackage:${ACME}`,
-                { kind: "rulePackage", id: ACME, name: "bpmnlint-plugin-acme" },
+                {
+                    kind: "rulePackage",
+                    id: ACME,
+                    name: "bpmnlint-plugin-acme",
+                    actions: ["inspect"],
+                },
             ],
         ]);
     });
