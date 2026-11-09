@@ -1,4 +1,5 @@
 import {
+    ApprovalReviewPort,
     BpmnEditorContributions,
     BpmnEditorFeature,
     CachedTemplateProvider,
@@ -35,6 +36,8 @@ export function register(
         scriptEditor: BpmnEditorContributions["scriptEditor"];
         deploymentStatus: EditorSessionParticipant;
         plugins: BpmnEditorContributions["plugins"];
+        /** Where "Review…" on a rule package takes the user. */
+        rulePackageReview: ApprovalReviewPort;
     },
 ): BpmnEditorFeature {
     const ports = {
@@ -61,6 +64,7 @@ export function register(
                 installedPackages: new NodeInstalledPackages(),
                 actionNotifier: deps.actionNotifier,
                 questions: deps.approvalQuestions,
+                review: handles.rulePackageReview,
             },
         },
         {

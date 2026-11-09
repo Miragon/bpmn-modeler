@@ -12,19 +12,26 @@ import { promises as fs } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { approvedContent } from "@miragon/bpmn-modeler-core";
 
 import {
     hostNotification,
+    hostReply,
     keepAnswering,
     registerParams,
     settle,
     waitForFrame,
 } from "./__fixtures__/bridgeHarness";
+import {
+    createAcmeWorkspace,
+    lintOnHost,
+    openAcmeBridge,
+    waitForNotice,
+} from "./__fixtures__/rulePackageBridge";
 import { createBridge } from "./composition/bridge";
-import { METHODS } from "./protocol/domain/descriptor";
+import { HOST_SHOW_REPLY_DEADLINE_MS, METHODS } from "./protocol/domain/descriptor";
 import { AddOnsOpenParams, PluginApprovalsSnapshot } from "./protocol/domain/types";
 import { Rpc } from "./transport/adapter/out/Rpc";
 
@@ -146,6 +153,41 @@ async function fromPage({ rpc }: ProjectBridge, message: object): Promise<void> 
 
 const nextModel = (project: ProjectBridge, fromIndex = 0) =>
     waitForFrame(project.frames, isPosted("AddOnCatalogQuery"), { fromIndex });
+
+const isRequest = (method: string) => (frame: Frame) =>
+    frame.method === method && frame.id !== undefined;
+
+/** Opens `order.bpmn`, whose page asks for its plugins, and waits for the notice about the new one. */
+async function noticeAboutNewPlugin(project: ProjectBridge): Promise<Frame> {
+    const editorId = `file://${join(project.root, "order.bpmn")}`;
+    await project.rpc.handleLine(
+        hostNotification(
+            METHODS.sessionRegister,
+            registerParams(editorId, project.root, editorId.slice(7), "", { sessionId: 1 }),
+        ),
+    );
+    await project.rpc.handleLine(
+        hostNotification(METHODS.webviewMessage, {
+            editorId,
+            sessionId: 1,
+            message: { type: "GetBpmnPluginsCommand" },
+        }),
+    );
+    return waitForFrame(project.frames, isRequest(METHODS.actionNoticeShow));
+}
+
+/** Clicks "Review…" and returns the reveal request the bridge then sends. */
+async function review(project: ProjectBridge, notice: Frame): Promise<Frame> {
+    const fromIndex = project.frames.length;
+    await project.rpc.handleLine(hostReply(notice.id!, { chosen: 0 }));
+    return waitForFrame(project.frames, isRequest(METHODS.addOnsReveal), { fromIndex });
+}
+
+/** What `revealArtifacts` does once it selected the tab: the tab reports itself open, then the reply. */
+async function showArtifactsTab(project: ProjectBridge, reveal: Frame): Promise<void> {
+    await openView(project);
+    await project.rpc.handleLine(hostReply(reveal.id!, { shown: true }));
+}
 
 describe("the add-ons view on the bridge", () => {
     it("lists the project the host opened the view with", async () => {
@@ -283,6 +325,114 @@ describe("the add-ons view on the bridge", () => {
 
         const model = await nextModel(project, fromIndex);
         expect(rowsOf(model).map(({ name }) => name)).toEqual(["Resize Tasks"]);
+    });
+});
+
+describe("Review… on the bridge of the IntelliJ host", () => {
+    it("opens the add-ons view at the new plugin's row instead of a list", async () => {
+        const project = await projectBridge((dispose) => disposals.push(dispose));
+        const notice = await noticeAboutNewPlugin(project);
+
+        const reveal = await review(project, notice);
+        expect(reveal.params).toEqual({});
+        await showArtifactsTab(project, reveal);
+
+        const shown = await waitForFrame(project.frames, isPosted("RevealAddOnsQuery"));
+        expect(shown.params.message?.reveal?.addOnIds).toEqual([
+            `plugin:${join(project.root, ".camunda", "plugins", "Resize Tasks")}`,
+        ]);
+        await settle();
+        expect(project.frames.filter(isRequest(METHODS.pickerShow))).toEqual([]);
+        expect(project.frames.filter(isRequest(METHODS.actionNoticeShow))).toEqual([notice]);
+    });
+
+    it("opens the add-ons view at the new rule package's row instead of a list", async () => {
+        const bridge = await openAcmeBridge(await createAcmeWorkspace());
+        const handleLine = bridge.rpc.handleLine.bind(bridge.rpc);
+        const stopAnswering = [
+            keepAnswering(handleLine, bridge.frames, METHODS.marketplaceStateRead, () => ({
+                registered: { project: [], allProjects: [] },
+                writable: [],
+            })),
+            keepAnswering(handleLine, bridge.frames, METHODS.templatePreferencesRead, () => ({
+                project: { disabled: [], revision: 1 },
+                allProjects: { disabled: [], revision: 1 },
+            })),
+            keepAnswering(handleLine, bridge.frames, METHODS.pluginApprovalsRead, () => ({
+                approvals: [],
+                revision: 1,
+            })),
+        ];
+        disposals.push(async () => {
+            stopAnswering.forEach((stop) => stop());
+            await bridge.dispose();
+        });
+        const project: ProjectBridge = {
+            rpc: bridge.rpc,
+            frames: bridge.frames as Frame[],
+            root: bridge.root,
+            stored: { approvals: [], revision: 1 },
+        };
+        await lintOnHost(bridge);
+        const notice = (await waitForNotice(bridge)) as Frame;
+
+        await showArtifactsTab(project, await review(project, notice));
+
+        const shown = await waitForFrame(project.frames, isPosted("RevealAddOnsQuery"));
+        expect(shown.params.message?.reveal?.addOnIds).toEqual([`rulePackage:${bridge.acmeDir}`]);
+    });
+
+    it("lists the new plugins when the host cannot show the view", async () => {
+        const project = await projectBridge((dispose) => disposals.push(dispose));
+        const reveal = await review(project, await noticeAboutNewPlugin(project));
+
+        await project.rpc.handleLine(hostReply(reveal.id!, { shown: false }));
+
+        const list = await waitForFrame(project.frames, isRequest(METHODS.pickerShow));
+        expect(list.params).toMatchObject({ canPickMany: true });
+        expect(project.frames.filter(isPosted("RevealAddOnsQuery"))).toEqual([]);
+    });
+
+    it("lists the new plugins when the host does not answer in time", async () => {
+        const project = await projectBridge((dispose) => disposals.push(dispose));
+        const notice = await noticeAboutNewPlugin(project);
+        vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+        try {
+            await project.rpc.handleLine(hostReply(notice.id!, { chosen: 0 }));
+            for (let turn = 0; turn < 50; turn++) {
+                if (project.frames.some(isRequest(METHODS.addOnsReveal))) break;
+                await vi.advanceTimersByTimeAsync(0);
+            }
+            expect(project.frames.some(isRequest(METHODS.addOnsReveal))).toBe(true);
+            await vi.advanceTimersByTimeAsync(HOST_SHOW_REPLY_DEADLINE_MS);
+        } finally {
+            vi.useRealTimers();
+        }
+
+        await expect(
+            waitForFrame(project.frames, isRequest(METHODS.pickerShow)),
+        ).resolves.toBeDefined();
+    });
+
+    it("lists a new rule package a link put outside the project, without asking for the view", async () => {
+        const root = await createAcmeWorkspace();
+        const outside = await fs.realpath(
+            await fs.mkdtemp(join(tmpdir(), "bridge-add-ons-outside-")),
+        );
+        await fs.rename(join(root, "node_modules"), join(outside, "node_modules"));
+        await fs.symlink(join(outside, "node_modules"), join(root, "node_modules"));
+        const bridge = await openAcmeBridge(root);
+        disposals.push(async () => {
+            await bridge.dispose();
+            await fs.rm(outside, { recursive: true, force: true });
+        });
+        await lintOnHost(bridge);
+        const notice = await waitForNotice(bridge);
+
+        await bridge.rpc.handleLine(hostReply(notice.id!, { chosen: 0 }));
+
+        await waitForFrame(bridge.frames, isRequest(METHODS.pickerShow));
+        expect(bridge.frames.filter(isRequest(METHODS.addOnsReveal))).toEqual([]);
     });
 });
 
