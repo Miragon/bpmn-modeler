@@ -65,11 +65,16 @@ jobs:
   vscode:
     needs: [release-please, approve-release]
     if: needs.release-please.outputs.vscode_released == 'true'
+    # id-token: write lets the called workflow mint the OIDC token for
+    # Marketplace Trusted Publishing; a reusable workflow cannot exceed it.
+    permissions:
+      contents: write
+      deployments: write
+      id-token: write
     uses: ./.github/workflows/publish-vscode-modeler.yml
     with:
       tag: ${{ needs.release-please.outputs.vscode_tag }}
       dry-run: false
-    secrets: inherit
 
   open-vsx:
     needs: [release-please, approve-release]

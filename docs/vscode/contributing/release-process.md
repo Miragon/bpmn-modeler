@@ -227,7 +227,7 @@ Merging the Release PR fans out via `release-please.yml` to every released line:
 
 | Line | Auto-publishes | Notes |
 |---|---|---|
-| `vscode` | `publish-vscode-modeler.yml`, `publish-open-vsx-modeler.yml`, `release-standalone.yml` | Marketplace + Open VSX + DMG/NSIS/Flatpak + Homebrew. |
+| `vscode` | `publish-vscode-modeler.yml`, `publish-open-vsx-modeler.yml`, `release-standalone.yml` | Marketplace (Trusted Publishing, OIDC) + Open VSX (token) + DMG/NSIS/Flatpak + Homebrew. |
 | `intellij` | `publish-intellij.yml` | Multi-platform ZIP → JetBrains Marketplace, refreshes `docs/public/updatePlugins.xml`. |
 | `npm` | `publish-npm-modeler.yml` (`npm` job) | Builds + packs + smoke-tests, then `npm publish --provenance` to the npm registry via Trusted Publishing (OIDC). |
 | `dmn-modeler` | `publish-npm-modeler.yml` (`npm-dmn` job) | Same workflow, parameterised for `@miragon/dmn-modeler` (`workspace`/`package-dir`/`smoke-extra-deps: jsdom esbuild` inputs); publishes to npm via Trusted Publishing. |
@@ -324,3 +324,33 @@ points at the **same** caller workflow (`release-please.yml`) and the shared
 - `id-token: write` is required in **both** the caller job (`npm` / `npm-dmn`) in
   `release-please.yml` and `publish-npm-modeler.yml` itself, and npm ≥ 11.5.1
   (the workflow upgrades npm, since Node 22 ships npm 10).
+
+## VS Code Marketplace Trusted Publishing
+
+`publish-vscode-modeler.yml` publishes with `vsce publish --oidc`: the job
+mints a GitHub OIDC token for the `marketplace.visualstudio.com` audience and
+exchanges it for a Marketplace credential that lasts 15 minutes. No PAT lives
+in CI, and vsce does not fall back to one when the exchange fails.
+
+The trusted publishing policy on the `miragon-gmbh` publisher names:
+
+| Field | Value |
+|---|---|
+| Repository owner | `Miragon` |
+| Repository | `bpmn-modeler` |
+| Workflow | `publish-vscode-modeler.yml` |
+| Environment | `vscode-marketplace` |
+
+Renaming the workflow file or the environment breaks publishing until the
+policy is updated. The job needs `id-token: write`, both in
+`publish-vscode-modeler.yml` and in the `vscode` caller job of
+`release-please.yml`, and a vsce with `--oidc` (the workflow pins 4.0.0).
+
+The policy names the called workflow, not `release-please.yml` as npm does.
+Microsoft does not document which of the two a reusable workflow is matched
+against. If the `vscode` job of a release run fails at the token exchange,
+publish by dispatching `publish-vscode-modeler.yml` with the release tag and
+`dry-run: false`. If that also fails, add a second policy for
+`release-please.yml`.
+
+Open VSX still publishes with the `OVSX_PUBLISH` token.
