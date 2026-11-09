@@ -114,7 +114,9 @@ host part, the suite cannot tell, and the Kotlin half is #2056.
   bridge's `RpcNotifier` over a loopback that answers as `HostUiRouter.kt`
   does.
 - `describePluginApprovalStoreContract`: `InMemoryPluginApprovals`,
-  `VsCodePluginApprovalStore` over an in-memory `Memento` and the bridge's
+  `VsCodePluginApprovalStore` over an in-memory `Memento` and over one that
+  sets its value only after `update` yields (so two changes started together
+  need the store's own ordering), and the bridge's
   `RpcPluginApprovalStore` over a loopback that merges each change with
   `approvalsAfter` and stamps revisions as `PluginApprovalRouter` and
   `PluginApprovalStore` do. Its fixture can store a list as another writer
