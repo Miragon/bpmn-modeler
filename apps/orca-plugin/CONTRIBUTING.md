@@ -27,6 +27,7 @@ way it does is in the [architecture ADR](../../docs/adr/architecture-and-hosts.m
 | `vite.editor.mts` | One unminified build of both editor pages into `plugin/editor/`, the code they share once in `editor/shared/`, with the eval patches Orca's `plugin check` asks for |
 | `scripts/assemble-plugin.mjs` | Completes `plugin/` and fails on Orca's size limits or an `eval` call |
 | `images/` | The cover and screenshots of the plugin's page in Orca's plugin directory |
+| `templates/` | The examples a new `.bpmn` or `.dmn` file starts from; **Try it** opens the process |
 
 ## Build and try it
 
