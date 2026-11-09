@@ -812,7 +812,8 @@ confirm follow with the views.
   memo, and `reviewedAllowDecision` refuses it when it changed, is gone or
   cannot be read. A revoke or a review is refused unless the latest revision
   offered it, and a disposed view's requests are refused.
-- *Revoke.* A revoke records `leftForView` for the content shown, in this
+- *Revoke.* A revoke records `leftForView` for the allowed content the row
+  showed (`leftForViewByRevoke`, decided when the row is built), in this
   process only, so no notice here asks about it at once, then writes the
   change. The reload or relint follows the change event, as for a notice. The
   plugin owner then prunes its cache, and only logs a prune that fails, as

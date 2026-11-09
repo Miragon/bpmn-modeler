@@ -19,16 +19,13 @@ import {
     revokeResultOf,
     shownTargetOf,
 } from "../domain/addOnRequests";
-import { ShownRevisions } from "../domain/shownRevisions";
+import { firstRevisionOf, ShownRevisions } from "../domain/shownRevisions";
 import {
     CodeAddOnSource,
     PluginAddOnSource,
     RulePackageAddOnSource,
 } from "../port/addOnSourcePorts";
 import { AddOnInventoryReader } from "./AddOnInventoryReader";
-
-/** Room for this many builds a millisecond before a later process's first revision. */
-const REVISIONS_PER_MILLISECOND = 1000;
 
 export interface AddOnCatalogPorts {
     readonly approvals: PluginApprovalStorePort;
@@ -46,8 +43,7 @@ export interface AddOnCatalogPorts {
  * notice's answer.
  */
 export class AddOnCatalogService {
-    /** From the clock, so a view kept across a respawn never names a revision the new process showed. */
-    private revision = Date.now() * REVISIONS_PER_MILLISECOND;
+    private revision = firstRevisionOf(Date.now());
     private revisions = ShownRevisions.empty();
     private readonly inspected = new Set<string>();
     private latestModel?: AddOnCatalogModel;
@@ -153,9 +149,8 @@ export class AddOnCatalogService {
         const target = shownTargetOf(this.revisions, addOnId, "revoke");
         if (target.kind === "refused") return target.result;
         const { code } = target;
-        // Before the change, whose reload or relint could ask about it at once. Revoke is
-        // offered with content only for an allowed row.
-        if (code.content !== undefined) this.sourceOf(code.kind)?.leaveForView(code.content);
+        // Before the change, whose reload or relint could ask about it at once.
+        code.leftForViewByRevoke.forEach((each) => this.sourceOf(code.kind)?.leaveForView(each));
         await this.ports.approvals.change(revoking([code.id]));
         await this.sourceOf(code.kind)?.afterRevoke();
         return revokeResultOf(code);

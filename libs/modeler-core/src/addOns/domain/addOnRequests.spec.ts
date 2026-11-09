@@ -24,6 +24,7 @@ const plugin: ShownCode = {
     actions: ["allow"],
     allowedFollowUp: "Open editors reload with it.",
     revokedFollowUp: "Open editors reload without it.",
+    leftForViewByRevoke: [],
 };
 const approvedPlugin: ShownCode = { ...plugin, actions: ["revoke"] };
 const unhashed: ShownCode = {
@@ -33,6 +34,7 @@ const unhashed: ShownCode = {
     actions: ["inspect"],
     allowedFollowUp: "Open editors lint again with it.",
     revokedFollowUp: "Code it already ran stays loaded until you reload the window.",
+    leftForViewByRevoke: [],
 };
 const rulePackage: ShownCode = {
     ...unhashed,

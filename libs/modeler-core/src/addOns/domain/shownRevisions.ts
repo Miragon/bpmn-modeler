@@ -2,6 +2,14 @@ import { ShownCode } from "./addOnCatalog";
 
 const DEFAULT_LIMIT = 16;
 
+/** Room for this many builds a millisecond before a later process's first revision. */
+const REVISIONS_PER_MILLISECOND = 1000;
+
+/** From the clock, so a view kept across a respawn never names a revision the new process showed. */
+export function firstRevisionOf(nowMilliseconds: number): number {
+    return nowMilliseconds * REVISIONS_PER_MILLISECOND;
+}
+
 /**
  * What the last published revisions showed, so an allow is checked against
  * what the user saw. A view may answer a revision or two behind, never more.

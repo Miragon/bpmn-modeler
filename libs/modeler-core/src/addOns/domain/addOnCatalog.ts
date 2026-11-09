@@ -130,6 +130,8 @@ export interface ShownCode {
     readonly actions: readonly AddOnActionKind[];
     readonly allowedFollowUp: string;
     readonly revokedFollowUp: string;
+    /** No notice in this process asks about it again once revoked from the view. */
+    readonly leftForViewByRevoke: readonly ApprovableArtifact[];
 }
 
 export interface CatalogBuild {
@@ -278,19 +280,22 @@ function placedAddOn(
         ),
         actions,
     };
+    const shownContent: ApprovableArtifact | undefined =
+        content === undefined
+            ? undefined
+            : { id: content.id, name: content.name, contentHash: content.contentHash };
     const shown: ShownCode = {
         kind,
         id,
         name: presence.name,
-        ...optional(
-            "content",
-            content === undefined
-                ? undefined
-                : { id: content.id, name: content.name, contentHash: content.contentHash },
-        ),
+        ...optional("content", shownContent),
         actions: actions.map((action) => action.kind),
         allowedFollowUp: texts.allowedFollowUp,
         revokedFollowUp: texts.revokedFollowUp(restart),
+        leftForViewByRevoke:
+            shownContent !== undefined && actions.some((action) => action.kind === "revoke")
+                ? [shownContent]
+                : [],
     };
     return [{ root, source, view, shown }];
 }

@@ -567,6 +567,7 @@ describe("catalogModelOf", () => {
                     actions: ["allow"],
                     allowedFollowUp: PLUGIN_TEXTS.allowedFollowUp,
                     revokedFollowUp: "Plugin revoked.",
+                    leftForViewByRevoke: [],
                 },
             ],
             [
@@ -578,9 +579,48 @@ describe("catalogModelOf", () => {
                     actions: ["inspect"],
                     allowedFollowUp: RULE_PACKAGE_TEXTS.allowedFollowUp,
                     revokedFollowUp: "Rule package revoked until reloadWindow.",
+                    leftForViewByRevoke: [],
                 },
             ],
         ]);
+    });
+
+    it.each<{ case: string; presence: ListedPresence; approved: boolean; left: string[] }>([
+        {
+            case: "the allowed content it shows",
+            presence: found(RESIZE, "Resize", "h1"),
+            approved: true,
+            left: ["h1"],
+        },
+        {
+            case: "nothing for a row it cannot read",
+            presence: { kind: "unreadable", id: RESIZE, name: "Resize", reason: "broken" },
+            approved: true,
+            left: [],
+        },
+        {
+            case: "nothing for a gone row",
+            presence: { kind: "gone", id: RESIZE, name: "Resize" },
+            approved: true,
+            left: [],
+        },
+        {
+            case: "nothing for content it offers no revoke for",
+            presence: found(RESIZE, "Resize", "h1"),
+            approved: false,
+            left: [],
+        },
+    ])("leaves for the view, once revoked, $case", ({ presence, approved, left }) => {
+        const { shown } = build(
+            factsOf({
+                plugins: [presence],
+                approvals: approved ? [{ pluginId: RESIZE, contentHash: "h1" }] : [],
+            }),
+        );
+
+        expect(
+            shown.get(`plugin:${RESIZE}`)?.leftForViewByRevoke.map(({ contentHash }) => contentHash),
+        ).toEqual(left);
     });
 
     it("gives the same ids to the same add-ons in two builds", () => {

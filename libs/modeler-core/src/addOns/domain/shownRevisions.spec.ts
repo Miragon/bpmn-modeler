@@ -1,15 +1,38 @@
 import { describe, expect, it } from "vitest";
 
 import { ShownCode } from "./addOnCatalog";
-import { ShownRevisions } from "./shownRevisions";
+import { firstRevisionOf, ShownRevisions } from "./shownRevisions";
 
 const shownOf = (name: string): ReadonlyMap<string, ShownCode> =>
     new Map([
         [
             `plugin:/p/${name}`,
-            { kind: "plugin", id: `/p/${name}`, name, actions: [], allowedFollowUp: "", revokedFollowUp: "" },
+            {
+                kind: "plugin",
+                id: `/p/${name}`,
+                name,
+                actions: [],
+                allowedFollowUp: "",
+                revokedFollowUp: "",
+                leftForViewByRevoke: [],
+            },
         ],
     ]);
+
+describe("firstRevisionOf", () => {
+    it.each([
+        { now: 0, revision: 0 },
+        { now: 1_700_000_000_000, revision: 1_700_000_000_000_000 },
+    ])("counts from the clock: $now ms is revision $revision", ({ now, revision }) => {
+        expect(firstRevisionOf(now)).toBe(revision);
+    });
+
+    it("leaves room for a thousand builds a millisecond before a later process's first", () => {
+        const now = 1_700_000_000_000;
+
+        expect(firstRevisionOf(now + 1) - firstRevisionOf(now)).toBe(1000);
+    });
+});
 
 describe("ShownRevisions", () => {
     it("shows nothing before a revision is recorded", () => {
