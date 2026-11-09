@@ -6,6 +6,7 @@ import {
     MarketplaceAddOutcome,
     MarketplaceScope,
     RegisteredMarketplace,
+    registeredMarketplaceOf,
     registeredMarketplaces,
     registrableLocation,
     RegistrationsByScope,
@@ -237,5 +238,23 @@ describe("registrableLocation", () => {
         },
     ])("$behaviour", ({ input, homeDir, joinPath, location }) => {
         expect(registrableLocation(input, homeDir, joinPath)).toBe(location);
+    });
+});
+
+describe("registeredMarketplaceOf", () => {
+    const registered: RegistrationsByScope = {
+        project: [selfHosted(), "/work/templates"],
+        allProjects: [selfHosted()],
+    };
+
+    it("finds an entry by its fields, with every scope that holds it", () => {
+        expect(registeredMarketplaceOf(registered, selfHosted())).toStrictEqual({
+            entry: selfHosted(),
+            scopes: ["allProjects", "project"],
+        });
+    });
+
+    it("finds nothing for an entry no list holds", () => {
+        expect(registeredMarketplaceOf(registered, "/work/other")).toBeUndefined();
     });
 });

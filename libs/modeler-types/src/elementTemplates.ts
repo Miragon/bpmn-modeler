@@ -54,6 +54,11 @@ export function detectTemplateEngine(parsedFile: unknown): Engine | undefined {
     return undefined;
 }
 
+/** A template's own engine, else the one its file names. */
+export function templateEngineOf(template: unknown, parsedFile: unknown): Engine | undefined {
+    return detectTemplateEngine(template) ?? detectTemplateEngine(parsedFile);
+}
+
 /** Whether raw JSON text declares an element-template `$schema` near its start. */
 export function isElementTemplateText(text: string): boolean {
     return SCHEMA_PROPERTY.test(text.slice(0, TEXT_HEAD_LENGTH));

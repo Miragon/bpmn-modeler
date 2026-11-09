@@ -2,12 +2,16 @@ import { describe, expect, expectTypeOf, it } from "vitest";
 
 import { allowing, ReviewedAllow } from "../../kernel/domain/codeApproval";
 import { ShownCode } from "./addOnCatalog";
-import { type AddOnActionKind, type CatalogActionKind } from "./addOnIds";
+import { ShownSource } from "./templateAddOnViews";
+import { type AddOnActionKind, type CatalogActionKind, type SourceActionKind } from "./addOnIds";
 import {
     type AddOnRequest,
     allowResultOf,
     allowTargetOf,
+    catalogActionRefusalOf,
     inspectResultOf,
+    REPORTED_BY_FLOW,
+    shownSourceTargetOf,
     pruneResultOf,
     revokeResultOf,
     shownTargetOf,
@@ -57,7 +61,7 @@ const NOT_OFFERED = {
 describe("AddOnRequest", () => {
     it("asks for every action a row or the catalog offers, and for a refresh", () => {
         expectTypeOf<Exclude<AddOnRequest["kind"], "refresh">>().toEqualTypeOf<
-            AddOnActionKind | CatalogActionKind
+            AddOnActionKind | SourceActionKind | CatalogActionKind
         >();
     });
 });
@@ -238,5 +242,71 @@ describe("pruneResultOf", () => {
         { removed: 3, message: "Removed 3 unused plugin copies." },
     ])("reports $removed removed", ({ removed, message }) => {
         expect(pruneResultOf(removed)).toEqual({ kind: "done", message });
+    });
+});
+
+describe("shownSourceTargetOf", () => {
+    const shared: ShownSource = {
+        entry: "https://github.com/acme/shared",
+        actions: ["removeMarketplace"],
+    };
+    const sources = new Map<string, ShownSource>([
+        ["marketplace:acme-shared", shared],
+        ["marketplace:none", { entry: "/work/none", actions: [] }],
+    ]);
+
+    it("acts on the entry the latest build showed for the source", () => {
+        expect(
+            shownSourceTargetOf(sources, "marketplace:acme-shared", "removeMarketplace"),
+        ).toEqual({
+            kind: "shown",
+            source: shared,
+        });
+    });
+
+    it.each([
+        {
+            case: "a source the latest build no longer shows",
+            sourceId: "marketplace:gone",
+            result: {
+                kind: "refused",
+                reason: "unknownSource",
+                message: "This marketplace is no longer listed.",
+            },
+        },
+        {
+            case: "an action the source does not offer",
+            sourceId: "marketplace:none",
+            result: {
+                kind: "refused",
+                reason: "notOffered",
+                message: "The list offers no such action for this source now. Check it again.",
+            },
+        },
+    ])("refuses $case", ({ sourceId, result }) => {
+        expect(shownSourceTargetOf(sources, sourceId, "removeMarketplace")).toEqual({
+            kind: "refused",
+            result,
+        });
+    });
+});
+
+describe("catalogActionRefusalOf", () => {
+    it("refuses nothing the latest build offered", () => {
+        expect(
+            catalogActionRefusalOf(["addMarketplace", "pruneCache"], "addMarketplace"),
+        ).toBeUndefined();
+    });
+
+    it("refuses what it did not offer", () => {
+        expect(catalogActionRefusalOf(["pruneCache"], "updateMarketplaces")).toEqual({
+            kind: "refused",
+            reason: "notOffered",
+            message: "The list offers no such action now. Check it again.",
+        });
+    });
+
+    it("leaves the result of a marketplace flow to the flow", () => {
+        expect(REPORTED_BY_FLOW).toEqual({ kind: "reportedByFlow" });
     });
 });

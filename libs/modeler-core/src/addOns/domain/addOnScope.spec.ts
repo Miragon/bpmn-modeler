@@ -4,23 +4,23 @@ import {
     HashContext,
     isHashWanted,
     missedRowIds,
-    pluginDirsToList,
+    configAreaDirsToList,
     rulePackageDirsToList,
     rulePackageIdsToList,
 } from "./addOnScope";
 
 const FOLDERS = ["/work", "/other"];
 
-describe("pluginDirsToList", () => {
-    it.each<{ case: string; knownPluginDirs: string[]; dirs: string[] }>([
+describe("configAreaDirsToList", () => {
+    it.each<{ case: string; knownDirs: string[]; dirs: string[] }>([
         {
             case: "each folder's own plugins folder, with nothing known",
-            knownPluginDirs: [],
+            knownDirs: [],
             dirs: ["/work/.camunda/plugins", "/other/.camunda/plugins"],
         },
         {
             case: "a known nested plugins folder inside a folder",
-            knownPluginDirs: ["/work/orders/.camunda/plugins"],
+            knownDirs: ["/work/orders/.camunda/plugins"],
             dirs: [
                 "/work/.camunda/plugins",
                 "/other/.camunda/plugins",
@@ -29,15 +29,15 @@ describe("pluginDirsToList", () => {
         },
         {
             case: "no known plugins folder outside every folder",
-            knownPluginDirs: ["/elsewhere/.camunda/plugins", "/work2/.camunda/plugins"],
+            knownDirs: ["/elsewhere/.camunda/plugins", "/work2/.camunda/plugins"],
             dirs: ["/work/.camunda/plugins", "/other/.camunda/plugins"],
         },
-    ])("lists $case", ({ knownPluginDirs, dirs }) => {
+    ])("lists $case", ({ knownDirs, dirs }) => {
         expect(
-            pluginDirsToList({
+            configAreaDirsToList({
                 folders: FOLDERS,
-                rootPluginDirs: ["/work/.camunda/plugins", "/other/.camunda/plugins"],
-                knownPluginDirs,
+                rootDirs: ["/work/.camunda/plugins", "/other/.camunda/plugins"],
+                knownDirs,
             }),
         ).toEqual(dirs);
     });

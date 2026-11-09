@@ -59,11 +59,11 @@ export function activate(context: ExtensionContext): TestApi {
         scriptEditor: script.editorContribution,
     });
     editorFeature.register(context, deps);
-    templateMarketplaceFeature.registerCommands(context, deps, {
+    const { marketplaces } = templateMarketplaceFeature.registerCommands(context, deps, {
         marketplaceSvc,
         templatesSvc: bpmnEditor.templates,
     });
-    addOnsFeature.register(context, deps, { editor: bpmnEditor, plugins });
+    addOnsFeature.register(context, deps, { editor: bpmnEditor, plugins, marketplaces });
     elementTemplateFeature.register(context, deps);
     compareFeature.register(context, deps, { diffController });
     commandsFeature.register(context, deps, {

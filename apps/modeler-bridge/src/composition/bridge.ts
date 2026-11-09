@@ -127,12 +127,12 @@ export function createBridge(
         layout: editor.layout,
         coreWriteRenderer: editor,
     });
-    const addOns = addOnsFeature.register(deps, { editor, plugins });
-    marketplaceFeature.registerHandlers(deps, {
+    const { marketplaces } = marketplaceFeature.registerHandlers(deps, {
         marketplaceSvc: marketplace.marketplaceSvc,
         templatesSvc: editor.templates,
         homeDir,
     });
+    const addOns = addOnsFeature.register(deps, { editor, plugins, marketplaces });
 
     return {
         rpc: deps.rpc,

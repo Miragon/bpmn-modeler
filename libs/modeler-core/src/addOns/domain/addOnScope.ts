@@ -1,21 +1,22 @@
 import { CodeApproval, needsContentHash } from "../../kernel/domain/codeApproval";
 import { isWithinRoot } from "../../kernel/domain/rootContainment";
 
-export interface PluginDirsScope {
+/** Where one kind of add-on sits in config folders: a plugins or a templates folder. */
+export interface ConfigAreaDirsScope {
     readonly folders: readonly string[];
-    /** Each folder's own plugins folder, as the owner places it. */
-    readonly rootPluginDirs: readonly string[];
-    /** The plugins folders an editor or a listing looked in, nested ones included. */
-    readonly knownPluginDirs: readonly string[];
+    /** Each folder's own area folder, as the owner places it. */
+    readonly rootDirs: readonly string[];
+    /** The area folders an editor or a listing looked in, nested ones included. */
+    readonly knownDirs: readonly string[];
 }
 
-/** Each folder's own plugins folder, and every known one inside a workspace folder. */
-export function pluginDirsToList({
+/** Each folder's own area folder, and every known one inside a workspace folder. */
+export function configAreaDirsToList({
     folders,
-    rootPluginDirs,
-    knownPluginDirs,
-}: PluginDirsScope): string[] {
-    return [...rootPluginDirs, ...knownPluginDirs.filter((dir) => isInWorkspace(dir, folders))];
+    rootDirs,
+    knownDirs,
+}: ConfigAreaDirsScope): string[] {
+    return [...rootDirs, ...knownDirs.filter((dir) => isInWorkspace(dir, folders))];
 }
 
 /** The stored rows inside a workspace folder that discovery missed, each once, read directly so a gone folder shows. */

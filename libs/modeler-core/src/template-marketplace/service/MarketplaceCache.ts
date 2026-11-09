@@ -12,7 +12,7 @@ import { staysInsideFolder } from "../../kernel/domain/rootContainment";
 import { WorkspacePort } from "../../kernel/port/hostPorts";
 
 /**
- * The content-type segment the template pipeline owns. `getCachedTemplatePaths`
+ * The content-type segment the template pipeline owns. `cachedTemplatePathsByRegistration`
  * reads only this child of each source slot, so a future content type cached in
  * a sibling dir never leaks into the element-template merge.
  */
@@ -144,22 +144,24 @@ export class MarketplaceCache {
     }
 
     /**
-     * The merge input for the template pipeline; `[]` before anything is cached.
-     * The scan is scoped to each source's `element-templates` segment, so
-     * old-layout leftovers and foreign content types are excluded by
-     * construction rather than filtered out afterwards.
+     * The served template files of each cached marketplace, by the id its slots
+     * are keyed by; empty before anything is cached. The scan is scoped to each
+     * source's `element-templates` segment, so old-layout leftovers and foreign
+     * content types are excluded by construction rather than filtered out afterwards.
      */
-    async getCachedTemplatePaths(): Promise<string[]> {
-        const paths: string[] = [];
+    async cachedTemplatePathsByRegistration(): Promise<ReadonlyMap<string, readonly string[]>> {
+        const byRegistration = new Map<string, string[]>();
         for (const marketplaceDir of await this.listSubdirectories(this.cacheRoot)) {
+            const paths: string[] = [];
             for (const sourceDir of await this.listSubdirectories(marketplaceDir)) {
                 const filesDir = await this.liveFilesDir(sourceDir);
                 paths.push(
                     ...(await this.listJsonRecursive(`${filesDir}/${ELEMENT_TEMPLATES_SEGMENT}`)),
                 );
             }
+            byRegistration.set(this.marketplaceIdOf(marketplaceDir), paths);
         }
-        return paths;
+        return byRegistration;
     }
 
     private async liveFilesDir(sourceDir: string): Promise<string> {
@@ -193,9 +195,7 @@ export class MarketplaceCache {
         return this.oneAtATime(async () => {
             const pruned: string[] = [];
             for (const marketplaceDir of await this.listSubdirectories(this.cacheRoot)) {
-                // `listSubdirectories` returns `<cacheRoot>/<name>`; the name after the
-                // root prefix is the marketplaceId the slot was written under.
-                const id = marketplaceDir.slice(this.cacheRoot.length + 1);
+                const id = this.marketplaceIdOf(marketplaceDir);
                 if (!registeredIds.has(id)) {
                     await this.workspace.deleteDirectory(marketplaceDir);
                     pruned.push(id);
@@ -203,6 +203,11 @@ export class MarketplaceCache {
             }
             return pruned;
         });
+    }
+
+    /** A marketplace's directory under the cache root is named by the id its slots were written under. */
+    private marketplaceIdOf(marketplaceDir: string): string {
+        return marketplaceDir.slice(this.cacheRoot.length + 1);
     }
 
     /**

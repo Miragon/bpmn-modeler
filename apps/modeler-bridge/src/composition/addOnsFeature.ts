@@ -1,15 +1,24 @@
-import { AddOnsFeature, BpmnEditorFeature, BpmnPluginsFeature } from "@miragon/bpmn-modeler-core";
+import {
+    AddOnsFeature,
+    BpmnEditorFeature,
+    BpmnPluginsFeature,
+    MarketplaceAddOnSource,
+} from "@miragon/bpmn-modeler-core";
 
 import { BridgeSharedDeps } from "./sharedDeps";
 
 /**
- * The add-on catalog over the plugin and rule package features, the one VS
- * Code builds. No view attaches yet, and it lists only the folders the host
- * registered.
+ * The add-on catalog over the plugin, rule package and template owners and
+ * the marketplace commands, the one VS Code builds. No view attaches yet, and
+ * it lists only the folders the host registered.
  */
 export function register(
     deps: BridgeSharedDeps,
-    handles: { editor: BpmnEditorFeature; plugins: BpmnPluginsFeature },
+    handles: {
+        editor: BpmnEditorFeature;
+        plugins: BpmnPluginsFeature;
+        marketplaces: MarketplaceAddOnSource;
+    },
 ): AddOnsFeature {
     return new AddOnsFeature({
         workspace: deps.nodeWorkspace,
@@ -20,5 +29,7 @@ export function register(
         restart: "restartIde",
         plugins: handles.plugins.inventory,
         rulePackages: handles.editor.rulePackageInventory,
+        templates: handles.editor.templateInventory,
+        marketplaces: handles.marketplaces,
     });
 }

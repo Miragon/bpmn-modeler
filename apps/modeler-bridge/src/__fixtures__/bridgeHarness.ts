@@ -78,3 +78,26 @@ export function hostReply(id: number, result: unknown): string {
 export function hostErrorReply(id: number, error: string): string {
     return JSON.stringify({ id, error });
 }
+
+/**
+ * Answers every request for `method` the core sends, now and later, with
+ * `result()` at the time it arrives, as a host that is always there does;
+ * the returned function stops it.
+ */
+export function keepAnswering(
+    handleLine: (line: string) => Promise<void>,
+    frames: readonly { readonly id?: number; readonly method?: string }[],
+    method: string,
+    result: () => unknown,
+): () => void {
+    const answered = new Set<number>();
+    const timer = setInterval(() => {
+        for (const { id, method: sent } of frames) {
+            if (sent === method && id !== undefined && !answered.has(id)) {
+                answered.add(id);
+                void handleLine(hostReply(id, result()));
+            }
+        }
+    }, 5);
+    return () => clearInterval(timer);
+}

@@ -2,12 +2,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("vscode", () => import("../../../__fixtures__/vscodeWindowFake"));
 
-import { createTemplateMarketplaceService, MarketplaceAddAnswer } from "@miragon/bpmn-modeler-core";
+import {
+    createTemplateMarketplaceService,
+    MarketplaceAddAnswer,
+    MarketplaceCommands,
+} from "@miragon/bpmn-modeler-core";
 import { createTestHost, RecordingNotifier } from "@miragon/bpmn-modeler-core/testing";
 
 import { resetVscodeWindow, vscodeWindow } from "../../../__fixtures__/vscodeWindowFake";
 import {
     ADD_MARKETPLACE_CMD,
+    reloadForUnregisteredSetting,
     REMOVE_MARKETPLACE_CMD,
     TemplateMarketplaceController,
     UPDATE_MARKETPLACES_CMD,
@@ -43,7 +48,7 @@ function registeredController(answers: MarketplaceAddAnswer[] = [], removed: str
     const notifier = new ReloadRecordingNotifier();
     const context = { subscriptions: [] as { dispose(): void }[] };
     new TemplateMarketplaceController(
-        {
+        new MarketplaceCommands({
             marketplaces: createTemplateMarketplaceService({
                 workspace: host.workspace,
                 settings: host.settings,
@@ -57,9 +62,10 @@ function registeredController(answers: MarketplaceAddAnswer[] = [], removed: str
             registrations: host.marketplaceRegistrations,
             prompt: host.marketplacePrompt,
             picker: host.picker,
+            notifier,
             homeDir: "/home/ada",
-        },
-        notifier,
+            explainAddFailure: reloadForUnregisteredSetting(notifier),
+        }),
     ).register(context);
     const run = (command: string) => vscodeWindow.registeredCommands.get(command)!();
     return {

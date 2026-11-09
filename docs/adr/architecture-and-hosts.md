@@ -115,13 +115,19 @@ and the `domain/` of `kernel/` and `editorSession/`.
 
 A context that lists what other contexts own declares structural ports in its
 own `port/` and leaves the rules with the owners. `addOns/` (the add-on
-catalog behind the artifacts view) is the first: `PluginAddOnSource` and
-`RulePackageAddOnSource` in `addOns/port/addOnSourcePorts.ts` are met by
-`PluginInventory` in `bpmnPlugins/service/` and `RulePackageInventory` in
-`modeler/bpmn/service/`, which import nothing of `addOns/`, and the host
-compositions hand one to the other, as they hand `CachedTemplateProvider` to
-the BPMN editor. The values both sides name, such as `ListedPresence` and
-`ApprovableCodeTexts`, live in `kernel/domain/codeApproval.ts`. The context is
+catalog behind the artifacts view) is the first. The ports of
+`addOns/port/addOnSourcePorts.ts` are met by inventories that import nothing
+of `addOns/`: `PluginAddOnSource` by `PluginInventory` in
+`bpmnPlugins/service/`, `RulePackageAddOnSource` and `TemplateAddOnSource` by
+`RulePackageInventory` and `TemplateInventory` in `modeler/bpmn/service/`, and
+`MarketplaceAddOnSource` by `MarketplaceInventory` in
+`template-marketplace/service/`, which `createMarketplaceCommands` builds over
+the host's `MarketplaceCommands`. The host compositions hand one to the other,
+as they hand `CachedTemplateProvider` to the BPMN editor. The values both
+sides name live in `kernel/domain/`: `ListedPresence` and
+`ApprovableCodeTexts` in `codeApproval.ts`, the template file listing in
+`templateListing.ts` and the marketplace listing in `marketplaceListing.ts`,
+from which the catalog derives its own view with the templates read. The context is
 named `addOns` because no core identifier may start with `Artifact` next to
 `ArtifactService`; "artifacts view" stays a word of the UI.
 
@@ -776,12 +782,17 @@ the core (`enteredToken`) takes a blank answer for no token, so a blank token
 is never stored and no host trims.
 
 The template marketplace's add and remove flows run in the core's
-`MarketplaceCommands` (`template-marketplace/service/`) on both hosts, and
+`MarketplaceCommands` (`template-marketplace/service/`) on both hosts, which
+build them with `createMarketplaceCommands` (`template-marketplace/composition/`)
+together with the add-on catalog's `MarketplaceInventory` over the same instance, and
 `template-marketplace/domain/marketplacePrompts.ts` builds all their text.
 Removing is a choice: `marketplaceRemoval` returns the nothing-registered
 message, or a `chooseMany` prompt whose items name each entry and the scopes
-that hold it (`This project`, `All my projects`, or both), so it needed no new
-port method. Adding asks for free text and a scope together, which no
+that hold it (`This project`, `All my projects`, or both, from
+`marketplaceScopesText`, which the add-on catalog uses too), so it needed no
+new port method. The add-on catalog removes one named entry instead:
+`marketplaceRemovalConfirm` builds a confirm that names it and its scopes, or
+says it is no longer registered, and the same queued body follows. Adding asks for free text and a scope together, which no
 `PickerPort` method can, so it is a new kind of input:
 `MarketplacePromptPort.promptForMarketplace` takes the `MarketplaceAddPrompt`
 that `marketplaceAddPrompt` builds (title, prompt, placeholder, the scopes to

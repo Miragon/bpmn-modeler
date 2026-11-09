@@ -141,6 +141,7 @@ function marketplaceHost({
     };
     return {
         commands,
+        service,
         registrations: host.marketplaceRegistrations,
         marketplaces: host.settings.values.marketplaces,
         prompt: host.marketplacePrompt,
@@ -155,8 +156,13 @@ function marketplaceHost({
         lockCachedMarketplaces,
         registered: async () =>
             registeredMarketplaces((await host.marketplaceRegistrations.read()).registered),
+        // Read from disk, not through the served list, which already leaves out unregistered slots.
         cachedTemplateNames: async () =>
-            (await service.getCachedTemplatePaths()).map((path) => path.split("/").pop()).sort(),
+            [...host.workspace.files.keys()]
+                .filter((path) => path.startsWith("/cache/") && path.endsWith(".json"))
+                .filter((path) => !path.endsWith("/slot.json"))
+                .map((path) => path.split("/").pop())
+                .sort(),
     };
 }
 
@@ -407,6 +413,35 @@ describe("MarketplaceCommands.update", () => {
     });
 });
 
+describe("MarketplaceCommands.update when it fails", () => {
+    it.each<{ behaviour: string; fail: (host: ReturnType<typeof marketplaceHost>) => void }>([
+        {
+            behaviour: "the update",
+            fail: ({ service }) => {
+                vi.spyOn(service, "updateAll").mockRejectedValue(new Error("cache gone"));
+            },
+        },
+        {
+            behaviour: "the reload of the open editors",
+            fail: ({ templates }) => {
+                vi.spyOn(templates, "reloadMarketplaceTemplates").mockRejectedValue(
+                    new Error("editor gone"),
+                );
+            },
+        },
+    ])("reports a failure of $behaviour without a success toast", async ({ fail }) => {
+        const host = marketplaceHost({ registered: ["/work/a"] });
+        fail(host);
+
+        await expect(host.commands.update()).resolves.toBeUndefined();
+
+        expect(host.notifier.infos).toEqual([]);
+        expect(host.notifier.errors).toEqual([
+            expect.stringMatching(/^Failed to update marketplaces\.\n/),
+        ]);
+    });
+});
+
 describe("MarketplaceCommands.remove", () => {
     it("says that nothing is registered and asks nothing", async () => {
         const { commands, picker, notifier } = marketplaceHost({ registered: [] });
@@ -487,6 +522,107 @@ describe("MarketplaceCommands.remove", () => {
         expect(notifier.errors).toEqual([
             "Failed to remove marketplace(s).\nsettings are read-only",
         ]);
+    });
+});
+
+describe("MarketplaceCommands.remove of one named marketplace", () => {
+    it("asks its confirm, then unregisters it from every scope, drops its cache and reloads", async () => {
+        const {
+            commands,
+            registrations,
+            registered,
+            cachedTemplateNames,
+            templates,
+            picker,
+            notifier,
+        } = marketplaceHost({
+            registered: ["/work/a", "/work/b"],
+            promptAnswers: { marketplaceRemovalConfirm: true },
+        });
+        registrations.lists.project.push("/work/a");
+        await commands.update();
+
+        await commands.remove("/work/a");
+
+        expect(picker.prompts).toEqual([
+            {
+                method: "confirm",
+                args: [
+                    {
+                        id: "marketplaceRemovalConfirm",
+                        title: "Remove the template marketplace /work/a?",
+                        confirmLabel: "Remove",
+                        details: [
+                            "It is removed from all my projects and this project, and its cached templates are deleted.",
+                        ],
+                    },
+                ],
+            },
+        ]);
+        expect(await registered()).toEqual([{ entry: "/work/b", scopes: ["allProjects"] }]);
+        expect(await cachedTemplateNames()).toEqual(["b.json"]);
+        expect(templates.reloads).toBe(2);
+        expect(notifier.progressTitles).toEqual([
+            "Updating marketplaces…",
+            "Removing marketplace(s)…",
+        ]);
+        expect(notifier.infos).toEqual(["Updated 2 marketplace(s).", "Removed 1 marketplace(s)."]);
+    });
+
+    it("removes nothing when the confirm is declined", async () => {
+        const { commands, registered, templates, notifier } = marketplaceHost();
+
+        await commands.remove("/work/a");
+
+        expect(await registered()).toEqual([{ entry: "/work/a", scopes: ["allProjects"] }]);
+        expect(templates.reloads).toBe(0);
+        expect(notifier.infos).toEqual([]);
+    });
+
+    it("says a marketplace removed meanwhile is no longer registered, and asks nothing", async () => {
+        const { commands, picker, notifier } = marketplaceHost();
+
+        await commands.remove("/work/b");
+
+        expect(picker.prompts).toEqual([]);
+        expect(notifier.infos).toEqual([
+            "The template marketplace /work/b is no longer registered.",
+        ]);
+    });
+});
+
+describe("MarketplaceCommands change event", () => {
+    it("fires once at the end of each flow that ran, failed ones included, and never for a dismissed question", async () => {
+        const { commands, registrations, notifier } = marketplaceHost({
+            answers: [{ location: "/work/b", scope: "project" }],
+            promptAnswers: { marketplaceRemovalConfirm: true },
+        });
+        const changes: string[] = [];
+        commands.onDidChange(() => changes.push(notifier.infos.at(-1) ?? ""));
+
+        await commands.add();
+        await commands.update();
+        await commands.remove();
+        vi.spyOn(registrations, "unregister").mockRejectedValueOnce(new Error("read-only"));
+        await commands.remove("/work/b");
+        await commands.remove("/work/a");
+
+        expect(changes).toEqual([
+            "",
+            "Marketplace added.",
+            "Updated 2 marketplace(s).",
+            "Updated 2 marketplace(s).",
+        ]);
+    });
+
+    it("stops firing once its subscription is disposed", async () => {
+        const { commands } = marketplaceHost();
+        let changes = 0;
+        commands.onDidChange(() => changes++).dispose();
+
+        await commands.update();
+
+        expect(changes).toBe(0);
     });
 });
 

@@ -1,7 +1,7 @@
 import {
-    detectTemplateEngine,
     type ElementTemplate,
     type Engine,
+    templateEngineOf,
     templatesOfFile,
 } from "@miragon/bpmn-modeler-types";
 
@@ -68,7 +68,7 @@ export function readTemplateFile(text: string, selection?: TemplateSelection): T
     const template = templates[index];
     const selected = choices[index];
     const path: TemplatePath = Array.isArray(parsed) ? [selected.position] : [];
-    const engine = detectTemplateEngine(template) ?? detectTemplateEngine(templates);
+    const engine = templateEngineOf(template, templates);
     return engine
         ? { kind: "template", template, engine, choices, selected, path }
         : { kind: "unknownEngine", choices, selected, path };

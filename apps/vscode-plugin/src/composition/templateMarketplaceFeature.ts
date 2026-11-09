@@ -4,11 +4,16 @@ import { ExtensionContext } from "vscode";
 
 import {
     BpmnElementTemplatesService,
+    createMarketplaceCommands,
     createTemplateMarketplaceService,
+    MarketplaceInventory,
     TemplateMarketplaceService,
 } from "@miragon/bpmn-modeler-core";
 import { getContext } from "../shared/adapter/out/extensionContext";
-import { TemplateMarketplaceController } from "../templateMarketplace/adapter/in/TemplateMarketplaceController";
+import {
+    reloadForUnregisteredSetting,
+    TemplateMarketplaceController,
+} from "../templateMarketplace/adapter/in/TemplateMarketplaceController";
 import { VsCodeMarketplacePrompt } from "../templateMarketplace/adapter/out/VsCodeMarketplacePrompt";
 import { VsCodeMarketplaceRegistrations } from "../templateMarketplace/adapter/out/VsCodeMarketplaceRegistrations";
 import { VsCodeTokenPrompt } from "../templateMarketplace/adapter/out/VsCodeTokenPrompt";
@@ -46,7 +51,9 @@ export function register(
 
 /**
  * Deferred until after the editor feature so the commands re-run the same
- * {@link BpmnElementTemplatesService} that consumes the cache, refreshing open editors.
+ * {@link BpmnElementTemplatesService} that consumes the cache, refreshing open
+ * editors. The add-on catalog runs the same commands, so their flows queue
+ * together and every view follows them.
  */
 export function registerCommands(
     context: ExtensionContext,
@@ -55,16 +62,17 @@ export function registerCommands(
         marketplaceSvc: TemplateMarketplaceService;
         templatesSvc: BpmnElementTemplatesService;
     },
-): void {
-    new TemplateMarketplaceController(
-        {
-            marketplaces: handles.marketplaceSvc,
-            templates: handles.templatesSvc,
-            registrations: new VsCodeMarketplaceRegistrations(deps.vsSettings),
-            prompt: new VsCodeMarketplacePrompt(),
-            picker: deps.picker,
-            homeDir: homedir(),
-        },
-        deps.notifier,
-    ).register(context);
+): { marketplaces: MarketplaceInventory } {
+    const { commands, inventory } = createMarketplaceCommands({
+        marketplaces: handles.marketplaceSvc,
+        templates: handles.templatesSvc,
+        registrations: new VsCodeMarketplaceRegistrations(deps.vsSettings),
+        prompt: new VsCodeMarketplacePrompt(),
+        picker: deps.picker,
+        notifier: deps.notifier,
+        homeDir: homedir(),
+        explainAddFailure: reloadForUnregisteredSetting(deps.notifier),
+    });
+    new TemplateMarketplaceController(commands).register(context);
+    return { marketplaces: inventory };
 }
