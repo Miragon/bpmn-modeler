@@ -61,3 +61,67 @@ describe("ElementTemplateOffer", () => {
         expect(offer.isOffered({ name: "anonymous" })).toBe(true);
     });
 });
+
+describe("ElementTemplateOffer default template", () => {
+    const TASK = { type: "bpmn:Task" };
+    const AUDIT = { id: "audit", appliesTo: ["bpmn:Task"], isDefault: true };
+    const LOG = { id: "log", appliesTo: ["bpmn:Task"], isDefault: true };
+    const PLAIN = { id: "plain", appliesTo: ["bpmn:Task"] };
+    const FLOW_V1 = { id: "flow", version: 1, appliesTo: ["bpmn:Task"], isDefault: true };
+    const FLOW_V2 = { id: "flow", version: 2, appliesTo: ["bpmn:Task"], isDefault: true };
+
+    function guarded(...templates: object[]) {
+        const elementTemplates = fakeElementTemplates(templates);
+        const offer = new ElementTemplateOffer(elementTemplates);
+        return { elementTemplates, offer };
+    }
+
+    it("still applies the default template nothing hides", () => {
+        const { elementTemplates } = guarded(PLAIN, AUDIT);
+
+        expect(elementTemplates.getDefault(TASK)).toBe(AUDIT);
+    });
+
+    it("applies no hidden default template", () => {
+        const { elementTemplates, offer } = guarded(PLAIN, AUDIT);
+
+        offer.setHidden([{ id: "audit" }]);
+
+        expect(elementTemplates.getDefault(TASK)).toBeNull();
+    });
+
+    it("applies the next offered default template in upstream's order", () => {
+        const { elementTemplates, offer } = guarded(AUDIT, LOG);
+
+        offer.setHidden([{ id: "audit" }]);
+
+        expect(elementTemplates.getDefault(TASK)).toBe(LOG);
+    });
+
+    it("applies no older version of a default template whose latest version is hidden", () => {
+        const { elementTemplates, offer } = guarded(FLOW_V1, FLOW_V2);
+
+        offer.setHidden([{ id: "flow", version: 2 }]);
+
+        expect(elementTemplates.getDefault(TASK)).toBeNull();
+    });
+
+    it("follows a later change of the hidden set", () => {
+        const { elementTemplates, offer } = guarded(AUDIT);
+        offer.setHidden([{ id: "audit" }]);
+
+        offer.setHidden([]);
+
+        expect(elementTemplates.getDefault(TASK)).toBe(AUDIT);
+    });
+
+    it("leaves the lookups the properties panel reads unfiltered", () => {
+        const { elementTemplates, offer } = guarded(AUDIT);
+
+        offer.setHidden([{ id: "audit" }]);
+
+        expect(elementTemplates.getAll(TASK)).toEqual([AUDIT]);
+        expect(elementTemplates.getLatest(TASK)).toEqual([AUDIT]);
+        expect(elementTemplates.getLatest("audit", { deprecated: true })).toEqual([AUDIT]);
+    });
+});

@@ -5,19 +5,27 @@ import { HiddenTemplates } from "./hiddenTemplates";
 /** The members of bpmn-js-element-templates' `elementTemplates` service the offer reads. */
 export interface OfferedElementTemplates {
     getLatest(templateId: string, options: { deprecated: boolean }): unknown[] | undefined;
+    getAll(element: unknown): { isDefault?: unknown }[];
+    getDefault(element: unknown): unknown;
 }
 
 /**
  * Which element templates new choices may offer. `get`, `getLatest` and
  * `getAll` stay unfiltered: the properties panel reads applied templates
- * through them.
+ * through them. `getDefault` is narrowed on the instance, because upstream
+ * applies its pick to every new shape and connection.
  */
 export class ElementTemplateOffer {
     static $inject = ["elementTemplates"];
 
     private hidden = HiddenTemplates.NONE;
 
-    constructor(private readonly elementTemplates: OfferedElementTemplates) {}
+    constructor(private readonly elementTemplates: OfferedElementTemplates) {
+        elementTemplates.getDefault = (element) =>
+            elementTemplates
+                .getAll(element)
+                .find((template) => template.isDefault && this.isOffered(template)) ?? null;
+    }
 
     /** Replaces the previous set. */
     setHidden(refs: readonly ElementTemplateRef[]): void {
