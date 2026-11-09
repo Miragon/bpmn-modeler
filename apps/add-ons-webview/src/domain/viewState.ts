@@ -37,6 +37,7 @@ export interface ViewState {
     readonly nextRequestId: number;
 }
 
+/** What the view keeps across a reload of its page: the user's own choices, never a request. */
 export interface PersistedChoices {
     readonly expansion?: readonly (readonly [string, boolean])[];
     readonly activeHead?: string;

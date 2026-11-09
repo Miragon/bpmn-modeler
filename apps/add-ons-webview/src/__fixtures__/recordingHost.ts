@@ -1,23 +1,24 @@
 import type { AddOnsViewCommand } from "@miragon/bpmn-modeler-shared";
 
-import type { AddOnsHost, PersistedViewState } from "../port/addOnsHost";
+import type { PersistedChoices } from "../domain/viewState";
+import type { AddOnsHost } from "../port/addOnsHost";
 
 /** A host that keeps what the page posted and persisted. */
 export class RecordingHost implements AddOnsHost {
     readonly posted: AddOnsViewCommand[] = [];
-    state: PersistedViewState | undefined;
+    state: PersistedChoices | undefined;
 
-    constructor(saved?: PersistedViewState) {
+    constructor(saved?: PersistedChoices) {
         this.state = saved;
     }
 
-    getState = (): PersistedViewState | undefined => this.state;
+    getState = (): PersistedChoices | undefined => this.state;
 
-    setState = (state: PersistedViewState): void => {
+    setState = (state: PersistedChoices): void => {
         this.state = state;
     };
 
-    updateState = (state: Partial<PersistedViewState>): void => {
+    updateState = (state: Partial<PersistedChoices>): void => {
         this.state = { ...this.state, ...state };
     };
 

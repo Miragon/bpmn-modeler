@@ -9,7 +9,8 @@ import {
     RevealAddOnsQuery,
 } from "@miragon/bpmn-modeler-shared";
 
-import type { AddOnsHost, PersistedViewState } from "../../port/addOnsHost";
+import type { PersistedChoices } from "../../domain/viewState";
+import type { AddOnsHost } from "../../port/addOnsHost";
 import { MockCatalog, PREVIEW_STATES, PreviewState } from "./mockCatalog";
 
 declare const process: { env: { NODE_ENV: string } };
@@ -72,7 +73,7 @@ const PREVIEW_THEMES: Readonly<Record<string, Readonly<Record<string, string>>>>
  * `state=loading|empty|noFolder|failed`, `reveal=<add-on id or name>`,
  * `stale=1` (the first allow is refused as stale) and `theme=dark|hc`.
  */
-class MockHost extends MockHostApi<PersistedViewState, AddOnsViewCommand> {
+class MockHost extends MockHostApi<PersistedChoices, AddOnsViewCommand> {
     private readonly catalog: MockCatalog;
     private readonly revealed?: string;
 
