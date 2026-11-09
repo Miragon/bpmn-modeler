@@ -56,11 +56,12 @@ function taskTemplate(engine: EngineCase, id: string, version?: number) {
     };
 }
 
-function defaultTemplate(engine: EngineCase, id: string, appliesTo: string) {
+function defaultTemplate(engine: EngineCase, id: string, appliesTo: string, version?: number) {
     return {
         $schema: engine.schema,
         id,
         name: id,
+        version,
         appliesTo: [appliesTo],
         isDefault: true,
         properties: [
@@ -128,6 +129,18 @@ describe.each(ENGINES)("$engine default element template", (engine) => {
 
         expect(task.businessObject.get(engine.templateAttribute)).toBeUndefined();
         expect(task.businessObject.get("name")).toBeUndefined();
+    });
+
+    it("is not applied in an older version once its latest version is hidden", async () => {
+        const modeler = await openModeler(engine, [
+            defaultTemplate(engine, DEFAULT_TASK_ID, "bpmn:Task", 1),
+            defaultTemplate(engine, DEFAULT_TASK_ID, "bpmn:Task", 2),
+        ]);
+        modeler.setHiddenElementTemplates([{ id: DEFAULT_TASK_ID, version: 2 }]);
+
+        const task = createTask(modeler);
+
+        expect(task.businessObject.get(engine.templateAttribute)).toBeUndefined();
     });
 
     it("is not applied to a new connection once hidden", async () => {
@@ -237,7 +250,9 @@ describe("c8 replace menu of an element that uses a hidden template with steps",
         templatesTab()!.click();
         await expect.poll(() => templatesTab()?.getAttribute("aria-selected")).toBe("true");
 
-        document.querySelector<HTMLElement>('.djs-popup [data-id="replace.template-audit"]')!.click();
+        document
+            .querySelector<HTMLElement>('.djs-popup [data-id="replace.template-audit"]')!
+            .click();
         await expect.poll(() => stepEntry("Loud")).toBeDefined();
         stepEntry("Loud")!.click();
 
@@ -301,7 +316,7 @@ describe("setHiddenElementTemplates", () => {
         expect(await offeredReplaceTemplates(modeler)).toEqual(["replace.template-mail"]);
     });
 
-    it("offers no older version of an id whose latest version is hidden", async () => {
+    it("leaves an id out once its latest version is hidden", async () => {
         const modeler = await openModeler(engine, [
             taskTemplate(engine, "audit", 1),
             taskTemplate(engine, "audit", 2),
