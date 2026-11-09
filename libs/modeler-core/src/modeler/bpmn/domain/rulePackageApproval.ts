@@ -4,11 +4,11 @@ import { ActionNotice } from "../../../kernel/domain/actionNotice";
 import {
     ApprovableArtifact,
     ApprovalNoticeAction,
-    ApprovalState,
     approvalsKey,
-    approvalStateOf,
     CodeApproval,
-    declineKeyOf,
+    CodeState,
+    codeStateOf,
+    FollowedApprovalChange,
     PendingCodeApproval,
     pendingApprovalDescription,
 } from "../../../kernel/domain/codeApproval";
@@ -68,7 +68,7 @@ export interface RulePackageVerdictContext {
     readonly declinedThisSession: ReadonlySet<string>;
 }
 
-export type BlockedState = Exclude<ApprovalState, "approved"> | "declined";
+export type BlockedState = Extract<CodeState, "new" | "changed" | "declined">;
 
 export type RulePackageVerdict =
     | { readonly kind: "admitted"; readonly via: "approval" | "closure" }
@@ -188,27 +188,19 @@ export function rulePackageVerdict(
     if (context.admittedMembers.has(rootId)) {
         return { kind: "admitted", via: "closure" };
     }
-    const approvals = context.approvals.filter(isRulePackageApproval);
-    const hasRow = approvals.some((approval) => approval.pluginId === rootId);
-    const declineKeyPrefix = declineKeyOf({ id: rootId, name: rootId, contentHash: "" });
-    const wasDeclined = [...context.declinedThisSession].some((key) =>
-        key.startsWith(declineKeyPrefix),
+    const reading = codeStateOf(
+        contentHash === undefined
+            ? { kind: "unhashed", id: rootId }
+            : { kind: "found", artifact: { id: rootId, name: rootId, contentHash } },
+        context.approvals.filter(isRulePackageApproval),
+        context.declinedThisSession,
     );
-    if (!hasRow && !wasDeclined) {
-        return { kind: "blocked", state: "new" };
+    if (reading.kind === "hashNeeded") {
+        return reading;
     }
-    if (contentHash === undefined) {
-        return { kind: "hashNeeded" };
-    }
-    const artifact = { id: rootId, name: rootId, contentHash };
-    const state = approvalStateOf(artifact, approvals);
-    if (state === "approved") {
-        return { kind: "admitted", via: "approval" };
-    }
-    return {
-        kind: "blocked",
-        state: context.declinedThisSession.has(declineKeyOf(artifact)) ? "declined" : state,
-    };
+    return reading.state === "approved"
+        ? { kind: "admitted", via: "approval" }
+        : { kind: "blocked", state: reading.state };
 }
 
 /** Only packages whose absence left a rule or config unresolved: a package the bundle stood in for is never asked about. */
@@ -230,14 +222,22 @@ export function rulePackagesToAsk(
     return [...asked.values()];
 }
 
-export function editorsBlockedOnAnyOf(
+/**
+ * The editors whose last host lint a change of rule package approvals makes
+ * stale, each once: an allow those blocked on an allowed package, a withdrawn
+ * approval every host-linted editor, because no lint run records the packages
+ * it admitted.
+ */
+export function editorsToRelint(
     blockedByEditor: ReadonlyMap<string, readonly string[]>,
-    allowedIds: readonly string[],
+    hostLinted: readonly string[],
+    { change, withdrawn }: FollowedApprovalChange,
 ): string[] {
-    const allowed = new Set(allowedIds);
-    return [...blockedByEditor]
+    const allowed = new Set(change.allow.map(({ pluginId }) => pluginId));
+    const blockedOnAllowed = [...blockedByEditor]
         .filter(([, blockedIds]) => blockedIds.some((id) => allowed.has(id)))
         .map(([editorId]) => editorId);
+    return [...new Set([...blockedOnAllowed, ...(withdrawn.length > 0 ? hostLinted : [])])];
 }
 
 /**

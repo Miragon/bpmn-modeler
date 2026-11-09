@@ -1,12 +1,7 @@
-import { PENDING_APPROVAL_STATE_TEXT } from "../../../kernel/domain/codeApproval";
+import { CODE_STATE_TEXT } from "../../../kernel/domain/codeApproval";
 import { ClosureRefusal } from "./packageClosure";
-import { BlockedRulePackage, BlockedState } from "./rulePackageApproval";
+import { BlockedRulePackage } from "./rulePackageApproval";
 import { ModuleRefusal, RefusedRuleModule } from "./rulePackageRefusal";
-
-const BLOCKED_STATE_TEXT: Record<BlockedState, string> = {
-    ...PENDING_APPROVAL_STATE_TEXT,
-    declined: "declined this session",
-};
 
 const MODULE_REFUSAL_TEXT: Record<ModuleRefusal, string> = {
     outsideNodeModules:
@@ -33,7 +28,7 @@ function byId(blocked: readonly BlockedRulePackage[]): BlockedRulePackage[] {
 export function neededRulePackageLogLines(blocked: readonly BlockedRulePackage[]): string[] {
     return byId(blocked.filter((each) => each.needed)).map(
         ({ id, state }) =>
-            `bpmnlint: rule package ${id} is not allowed yet (${BLOCKED_STATE_TEXT[state]}), so rules from it are skipped.`,
+            `bpmnlint: rule package ${id} is not allowed yet (${CODE_STATE_TEXT[state]}), so rules from it are skipped.`,
     );
 }
 

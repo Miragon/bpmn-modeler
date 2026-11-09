@@ -1,7 +1,12 @@
 import { ActionNotice } from "../../kernel/domain/actionNotice";
 import { ChoicePrompt } from "../../kernel/domain/prompts";
 import { LoggerPort } from "../../kernel/port/hostPorts";
-import { allowing } from "../../kernel/domain/codeApproval";
+import {
+    allowing,
+    notAskedAgain,
+    ReviewAnswer,
+    SessionAnswer,
+} from "../../kernel/domain/codeApproval";
 import {
     approvalOutcome,
     approvedPlugins,
@@ -19,6 +24,8 @@ import { DiscoveredPlugin, WorkspacePluginLocator } from "./WorkspacePluginLocat
 export interface PluginSelection {
     readonly approved: readonly DiscoveredPlugin[];
     readonly pending: readonly PendingApproval[];
+    /** Every plugin it may not load, including those no notice asks about again. */
+    readonly withheld: readonly WorkspacePlugin[];
 }
 
 /**
@@ -26,11 +33,12 @@ export interface PluginSelection {
  * the others. Knows no editor and no webview, so every host that serves
  * plugins shares it.
  *
- * A plugin the user left unchecked, or a notice the user closed, is not asked
- * about again for the catalog's lifetime, unless its content changes.
+ * A plugin the user left unchecked, left to a view, or a notice the user
+ * closed, is not asked about again for the catalog's lifetime, unless its
+ * content changes.
  */
 export class PluginCatalog {
-    private readonly declinedThisSession = new Set<string>();
+    private readonly answers = new Map<string, SessionAnswer>();
 
     constructor(
         private readonly locator: WorkspacePluginLocator,
@@ -47,6 +55,7 @@ export class PluginCatalog {
         return {
             approved: discovered.filter(({ plugin }) => approvedIds.has(plugin.id)),
             pending: this.stillPending(plugins),
+            withheld: plugins.filter((plugin) => !approvedIds.has(plugin.id)),
         };
     }
 
@@ -74,10 +83,10 @@ export class PluginCatalog {
      */
     async applyAnswer(
         pending: readonly PendingApproval[],
-        checkedIds: readonly string[],
+        answer: ReviewAnswer,
     ): Promise<readonly WorkspacePlugin[]> {
-        const outcome = approvalOutcome(pending, checkedIds);
-        outcome.declineKeys.forEach((key) => this.declinedThisSession.add(key));
+        const outcome = approvalOutcome(pending, answer);
+        outcome.answers.forEach((each, key) => this.answers.set(key, each));
         if (outcome.allowed.length > 0) {
             await this.approvals.change(allowing(outcome.allowed));
             this.logger.logInfo(
@@ -88,7 +97,7 @@ export class PluginCatalog {
     }
 
     private stillPending(plugins: readonly WorkspacePlugin[]): PendingApproval[] {
-        return pendingApprovals(plugins, this.approvals.read(), this.declinedThisSession);
+        return pendingApprovals(plugins, this.approvals.read(), notAskedAgain(this.answers));
     }
 
     private async discover(documentPath: string): Promise<DiscoveredPlugin[]> {

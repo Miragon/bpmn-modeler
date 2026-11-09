@@ -54,7 +54,7 @@ describe("PluginCatalog", () => {
         const { host, catalog } = setUp();
         const { pending } = await catalog.pluginsFor(DOCUMENT);
 
-        const allowed = await catalog.applyAnswer(pending, [RESIZE]);
+        const allowed = await catalog.applyAnswer(pending, { kind: "checked", ids: [RESIZE] });
 
         expect(allowed.map((plugin) => plugin.id)).toEqual([RESIZE]);
         expect(host.pluginApprovals.approvals).toEqual([
@@ -68,12 +68,33 @@ describe("PluginCatalog", () => {
 
     it("asks again about a declined plugin once its content changed", async () => {
         const { host, catalog } = setUp();
-        await catalog.applyAnswer((await catalog.pluginsFor(DOCUMENT)).pending, []);
+        await catalog.applyAnswer((await catalog.pluginsFor(DOCUMENT)).pending, {
+            kind: "checked",
+            ids: [],
+        });
 
         await host.workspace.writeFile(`${RESIZE}/client.js`, "registerResizE();");
 
         const { pending } = await catalog.pluginsFor(DOCUMENT);
         expect(pending.map(({ artifact }) => artifact.id)).toEqual([RESIZE]);
+    });
+
+    it("withholds every plugin it may not load, also those no notice asks about again", async () => {
+        const { host, catalog } = setUp();
+        host.pluginApprovals.approvals = [
+            { pluginId: PALETTE, contentHash: hashOf("registerPalette();") },
+        ];
+        await catalog.applyAnswer((await catalog.pluginsFor(DOCUMENT)).pending, {
+            kind: "checked",
+            ids: [],
+        });
+
+        const { pending, withheld } = await catalog.pluginsFor(DOCUMENT);
+
+        expect(pending).toEqual([]);
+        expect(withheld.map(({ id, contentHash }) => ({ id, contentHash }))).toEqual([
+            { id: RESIZE, contentHash: hashOf("registerResize();") },
+        ]);
     });
 
     it("offers no plugins and logs why when the plugin folders cannot be read", async () => {
@@ -82,7 +103,7 @@ describe("PluginCatalog", () => {
 
         const selection = await catalog.pluginsFor(DOCUMENT);
 
-        expect(selection).toEqual({ approved: [], pending: [] });
+        expect(selection).toEqual({ approved: [], pending: [], withheld: [] });
         expect(host.notifier.loggedErrors.map((error) => error.message)).toEqual(["EACCES"]);
     });
 });

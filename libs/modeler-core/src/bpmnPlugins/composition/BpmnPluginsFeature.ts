@@ -4,6 +4,8 @@ import {
     PickerPort,
     WorkspacePort,
 } from "../../kernel/port/hostPorts";
+import { reviewOrChecklist } from "../../kernel/adapter/out/ListReview";
+import { ApprovalReviewPort } from "../../kernel/port/approvalPorts";
 import { ArtifactService } from "../../kernel/service/ArtifactService";
 import { ApprovalQuestion } from "../../kernel/service/ApprovalQuestion";
 import { QuestionQueue } from "../../kernel/service/QuestionQueue";
@@ -34,6 +36,8 @@ export interface BpmnPluginsHostPorts {
      * the first one saved.
      */
     readonly questions: QuestionQueue;
+    /** Where "Review…" takes the user, as {@link reviewOrChecklist} defaults it. */
+    readonly review?: ApprovalReviewPort;
 }
 
 /**
@@ -47,8 +51,11 @@ export class BpmnPluginsFeature {
     readonly service: BpmnPluginService;
 
     private readonly locator: WorkspacePluginLocator;
+    private readonly notifier: NotifierPort;
+    private readonly approvalChanges: { dispose(): void };
 
     constructor(ports: BpmnPluginsHostPorts) {
+        this.notifier = ports.notifier;
         this.locator = new WorkspacePluginLocator(
             ports.artifacts,
             ports.workspace,
@@ -62,13 +69,17 @@ export class BpmnPluginsFeature {
             this.catalog,
             new ApprovalQuestion(
                 this.catalog,
-                ports.picker,
+                reviewOrChecklist(ports.review, ports.picker),
                 ports.actionNotifier,
                 ports.workspace,
                 ports.questions,
             ),
             ports.notifier,
+            ports.approvals,
             ports.cacheRoot,
+        );
+        this.approvalChanges = ports.approvals.onDidChange(() =>
+            this.service.approvalsChanged(ports.approvals.read()),
         );
         this.editorContribution = {
             commandHandlers: { GetBpmnPluginsCommand: getBpmnPluginsHandler(this.service) },
@@ -76,7 +87,17 @@ export class BpmnPluginsFeature {
         };
     }
 
+    /** Never rejects, so a host can run it without awaiting it. */
+    async pruneCache(): Promise<void> {
+        try {
+            await this.service.pruneCache();
+        } catch (error) {
+            this.notifier.logError(error instanceof Error ? error : new Error(String(error)));
+        }
+    }
+
     dispose(): void {
+        this.approvalChanges.dispose();
         this.locator.dispose();
     }
 }

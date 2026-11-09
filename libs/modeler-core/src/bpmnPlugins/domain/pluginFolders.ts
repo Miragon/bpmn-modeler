@@ -22,17 +22,6 @@ export function pluginFolderChangedBy(path: string, pluginsDir: string): PluginF
     return { kind: "folder", folder: joinWorkspacePath(pluginsDir, below.split("/")[0]) };
 }
 
-/** The editors that were offered any of `pluginIds`, each once, in the map's order. */
-export function editorsOfferedAnyOf(
-    offeredByEditor: ReadonlyMap<string, readonly string[]>,
-    pluginIds: readonly string[],
-): string[] {
-    const wanted = new Set(pluginIds);
-    return [...offeredByEditor]
-        .filter(([, offered]) => offered.some((id) => wanted.has(id)))
-        .map(([editorId]) => editorId);
-}
-
 /** A directory entry name that names a folder inside the plugins folder, whatever a host lists. */
 export function isPluginFolderName(name: string): boolean {
     return name !== "" && name !== "." && name !== ".." && !/[\\/]/.test(name);

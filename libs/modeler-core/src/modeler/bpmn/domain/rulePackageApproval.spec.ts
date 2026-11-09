@@ -1,11 +1,19 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 
-import { type CodeApproval, declineKeyOf } from "../../../kernel/domain/codeApproval";
+import {
+    type CodeApproval,
+    type CodeApprovalChange,
+    codeApprovalChange,
+    type CodeState,
+    declineKeyOf,
+    type FollowedApprovalChange,
+} from "../../../kernel/domain/codeApproval";
 import {
     type BlockedRulePackage,
+    type BlockedState,
     closureDigestInput,
     type ClosureMember,
-    editorsBlockedOnAnyOf,
+    editorsToRelint,
     isParsedAsJson,
     isRulePackageApproval,
     loadsWithoutApproval,
@@ -494,6 +502,11 @@ describe("rulePackageVerdict", () => {
     ])("decides $case", ({ context: given, contentHash, verdict }) => {
         expect(rulePackageVerdict(root, given, contentHash)).toEqual(verdict);
     });
+
+    it("spells the blocked states as code states", () => {
+        expectTypeOf<BlockedState>().toExtend<CodeState>();
+        expectTypeOf<BlockedState>().toEqualTypeOf<"new" | "changed" | "declined">();
+    });
 });
 
 describe("rulePackagesToAsk", () => {
@@ -537,25 +550,59 @@ describe("rulePackagesToAsk", () => {
     });
 });
 
-describe("editorsBlockedOnAnyOf", () => {
+describe("editorsToRelint", () => {
     const blockedByEditor = new Map<string, readonly string[]>([
         ["a.bpmn", ["/acme"]],
         ["b.bpmn", ["/other", "/acme"]],
         ["c.bpmn", ["/other"]],
         ["d.bpmn", []],
     ]);
+    const hostLinted = ["d.bpmn", "e.bpmn", "a.bpmn"];
+    const row = (pluginId: string) => ({ pluginId, contentHash: rulePackageContentHash("h") });
 
-    it.each<{ case: string; allowed: string[]; editors: string[] }>([
-        { case: "one allowed package", allowed: ["/acme"], editors: ["a.bpmn", "b.bpmn"] },
+    const followed = (
+        change: CodeApprovalChange,
+        withdrawn: readonly string[] = change.revoke,
+    ): FollowedApprovalChange => ({ change, withdrawn });
+
+    it.each<{ case: string; followed: FollowedApprovalChange; editors: string[] }>([
         {
-            case: "two allowed packages, each editor once",
-            allowed: ["/acme", "/other"],
+            case: "the editors blocked on one allowed package",
+            followed: followed(codeApprovalChange([row("/acme")], [])),
+            editors: ["a.bpmn", "b.bpmn"],
+        },
+        {
+            case: "each editor once, blocked on two allowed packages",
+            followed: followed(codeApprovalChange([row("/acme"), row("/other")], [])),
             editors: ["a.bpmn", "b.bpmn", "c.bpmn"],
         },
-        { case: "a package no editor waits on", allowed: ["/nobody"], editors: [] },
-        { case: "nothing allowed", allowed: [], editors: [] },
-    ])("relints only the editors blocked on $case", ({ allowed, editors }) => {
-        expect(editorsBlockedOnAnyOf(blockedByEditor, allowed)).toEqual(editors);
+        {
+            case: "no editor for a package none is blocked on",
+            followed: followed(codeApprovalChange([row("/nobody")], [])),
+            editors: [],
+        },
+        {
+            case: "every host-linted editor on a revoke, since no lint records what it admitted",
+            followed: followed(codeApprovalChange([], ["/nobody"])),
+            editors: ["d.bpmn", "e.bpmn", "a.bpmn"],
+        },
+        {
+            case: "every host-linted editor for a package allowed at another content",
+            followed: followed(codeApprovalChange([row("/acme")], []), ["/acme"]),
+            editors: ["a.bpmn", "b.bpmn", "d.bpmn", "e.bpmn"],
+        },
+        {
+            case: "each editor once on a revoke beside an allow",
+            followed: followed(codeApprovalChange([row("/other")], ["/acme"])),
+            editors: ["b.bpmn", "c.bpmn", "d.bpmn", "e.bpmn", "a.bpmn"],
+        },
+        {
+            case: "no editor for no change",
+            followed: followed(codeApprovalChange([], [])),
+            editors: [],
+        },
+    ])("relints $case", ({ followed: given, editors }) => {
+        expect(editorsToRelint(blockedByEditor, hostLinted, given)).toEqual(editors);
     });
 });
 

@@ -1,8 +1,15 @@
+import { createHash } from "node:crypto";
+
 import { describe, expect, it, vi } from "vitest";
 
 import { BpmnPluginsQuery, GetBpmnPluginsCommand } from "@miragon/bpmn-modeler-shared";
 
-import { allowing, ApprovableArtifact, CodeApprovalChange } from "../../kernel/domain/codeApproval";
+import {
+    allowing,
+    ApprovableArtifact,
+    CodeApproval,
+    CodeApprovalChange,
+} from "../../kernel/domain/codeApproval";
 import { ChoicePrompt } from "../../kernel/domain/prompts";
 import { PluginApprovalStorePort } from "../../kernel/port/approvalPorts";
 import { ArtifactService } from "../../kernel/service/ArtifactService";
@@ -12,6 +19,7 @@ import {
     FakeEditorHandle,
     fingerprintHasher,
     InMemoryPluginApprovals,
+    ScriptedReview,
     TestHostOptions,
 } from "../../testing";
 import {
@@ -19,6 +27,7 @@ import {
     PLUGIN_APPROVAL_NOTICE_ID,
     PLUGIN_APPROVAL_PROMPT_ID,
 } from "../domain/pluginApproval";
+import { ContentHasherPort } from "../port/pluginPorts";
 import { BpmnPluginsFeature } from "./BpmnPluginsFeature";
 
 const PLUGINS = "/work/.camunda/plugins";
@@ -61,6 +70,8 @@ function setUp(
         cacheRoot?: string;
         approvals?: PluginApprovalStorePort;
         questions?: QuestionQueue;
+        hasher?: ContentHasherPort;
+        review?: ScriptedReview;
     } = {},
 ) {
     const host = createTestHost({ folders: ["/work", "/other"], files, ...options });
@@ -69,8 +80,9 @@ function setUp(
         artifacts: new ArtifactService(host.workspace, host.settings, host.notifier),
         approvals: options.approvals ?? host.pluginApprovals,
         cacheRoot: options.cacheRoot ?? CACHE,
-        hasher: fingerprintHasher,
+        hasher: options.hasher ?? fingerprintHasher,
         questions: options.questions ?? new QuestionQueue(),
+        ...(options.review === undefined ? {} : { review: options.review }),
     });
     const requestPlugins = async (editor: FakeEditorHandle) => {
         await feature.editorContribution.commandHandlers.GetBpmnPluginsCommand(
@@ -107,6 +119,83 @@ class LaggingPluginApprovals extends InMemoryPluginApprovals {
         await super.change(change);
     }
 }
+
+/** A mirror that has not heard of every row the host stores yet, as the bridge's can lag. */
+class MirrorBehindHost extends InMemoryPluginApprovals {
+    mirrored: readonly CodeApproval[] = [];
+
+    override read(): readonly CodeApproval[] {
+        return this.mirrored;
+    }
+}
+
+/** A host that cannot answer for the approvals it stores. */
+class UnreachableHost extends InMemoryPluginApprovals {
+    override readStored(): Promise<readonly CodeApproval[]> {
+        return Promise.reject(new Error("host unreachable"));
+    }
+}
+
+/** Holds the next call to a method until the test releases it; `reached` resolves once it is called. */
+function holdNext<T extends object, K extends keyof T>(
+    target: T,
+    method: K,
+): { readonly reached: Promise<void>; release(): void } {
+    const original = (target[method] as (...args: unknown[]) => Promise<unknown>).bind(target);
+    let release: () => void = () => undefined;
+    let reach: () => void = () => undefined;
+    const held = new Promise<void>((resolve) => {
+        release = resolve;
+    });
+    const reached = new Promise<void>((resolve) => {
+        reach = resolve;
+    });
+    const spy = vi.spyOn(target, method as never) as unknown as {
+        mockImplementationOnce(impl: (...args: unknown[]) => Promise<unknown>): void;
+    };
+    spy.mockImplementationOnce(async (...args: unknown[]) => {
+        reach();
+        await held;
+        return original(...args);
+    });
+    return { reached, release };
+}
+
+interface Hold {
+    readonly reached: Promise<void>;
+    release(): void;
+}
+
+/** Holds the first listing of each path until the test releases it, in the order of `paths`. */
+function holdListings(host: ReturnType<typeof createTestHost>, paths: readonly string[]): Hold[] {
+    const holds = new Map<string, Hold & { reach(): void; readonly held: Promise<void> }>();
+    for (const path of paths) {
+        let release: () => void = () => undefined;
+        let reach: () => void = () => undefined;
+        const held = new Promise<void>((resolve) => {
+            release = resolve;
+        });
+        const reached = new Promise<void>((resolve) => {
+            reach = resolve;
+        });
+        holds.set(path, { held, reached, reach: () => reach(), release: () => release() });
+    }
+    const listed = [...holds.values()];
+    const readDirectory = host.workspace.readDirectory.bind(host.workspace);
+    vi.spyOn(host.workspace, "readDirectory").mockImplementation(async (path) => {
+        const hold = holds.get(path);
+        if (hold !== undefined) {
+            holds.delete(path);
+            hold.reach();
+            await hold.held;
+        }
+        return readDirectory(path);
+    });
+    return listed;
+}
+
+const cachePaths = (host: ReturnType<typeof createTestHost>) =>
+    [...host.workspace.files.keys()].filter((path) => path.startsWith(CACHE)).sort();
 
 function recordCacheWrites(host: ReturnType<typeof createTestHost>): string[] {
     const writes: string[] = [];
@@ -345,6 +434,24 @@ describe("BpmnPluginsFeature", () => {
             expect(editor.reloadCount).toBe(1);
         });
 
+        it("takes Review… to the review the host passes, which can leave the plugin to a view", async () => {
+            const review = new ScriptedReview({ [PLUGIN_APPROVAL_PROMPT_ID]: "leftForView" });
+            const { host, requestPlugins, openEditor } = setUp(RESIZE_FILES, {
+                noticeAnswers: { [PLUGIN_APPROVAL_NOTICE_ID]: "review" },
+                review,
+            });
+            const editor = await openEditor();
+
+            await requestPlugins(editor);
+            await requestPlugins(await openEditor("/work/invoice.bpmn"));
+
+            expect(review.requests.map(({ artifactIds }) => artifactIds)).toEqual([[RESIZE]]);
+            expect(host.picker.prompts).toEqual([]);
+            expect(host.pluginApprovals.approvals).toEqual([]);
+            expect(host.actionNotifier.notices).toHaveLength(1);
+            expect(editor.reloadCount).toBe(0);
+        });
+
         it("does not notify again in this session once the notice was closed", async () => {
             const { host, requestPlugins, openEditor } = setUp(RESIZE_FILES);
             const editor = await openEditor();
@@ -399,6 +506,75 @@ describe("BpmnPluginsFeature", () => {
             expect(
                 [order, invoice, elsewhere, notAskedYet].map((each) => each.reloadCount),
             ).toEqual([1, 1, 0, 0]);
+        });
+
+        it("reloads an editor withheld a plugin once another writer allows it", async () => {
+            const { host, requestPlugins, openEditor } = setUp(RESIZE_FILES);
+            const editor = await openEditor();
+            await requestPlugins(editor);
+
+            host.pluginApprovals.storeElsewhere([{ pluginId: RESIZE, contentHash: RESIZE_HASH }], {
+                notify: true,
+            });
+
+            expect(editor.reloadCount).toBe(1);
+        });
+
+        it("reloads the editors that loaded a plugin another writer revoked", async () => {
+            const { host, requestPlugins, openEditor } = setUp({
+                ...RESIZE_FILES,
+                ...OTHER_PALETTE_FILES,
+            });
+            host.pluginApprovals.storeElsewhere([{ pluginId: RESIZE, contentHash: RESIZE_HASH }], {
+                notify: true,
+            });
+            const loaded = await openEditor("/work/order.bpmn");
+            const elsewhere = await openEditor("/other/shipping.bpmn");
+            await requestPlugins(loaded);
+            await requestPlugins(elsewhere);
+
+            host.pluginApprovals.storeElsewhere([], { notify: true });
+
+            expect([loaded.reloadCount, elsewhere.reloadCount]).toEqual([1, 0]);
+        });
+
+        it("reloads an editor once until it asks for its plugins again", async () => {
+            const { host, requestPlugins, openEditor } = setUp(RESIZE_FILES);
+            const allowed = [{ pluginId: RESIZE, contentHash: RESIZE_HASH }];
+            host.pluginApprovals.storeElsewhere(allowed, { notify: true });
+            const editor = await openEditor();
+            await requestPlugins(editor);
+
+            host.pluginApprovals.storeElsewhere([], { notify: true });
+            host.pluginApprovals.storeElsewhere(allowed, { notify: true });
+            const beforeAsking = editor.reloadCount;
+            await requestPlugins(editor);
+            host.pluginApprovals.storeElsewhere([], { notify: true });
+
+            expect([beforeAsking, editor.reloadCount]).toEqual([1, 2]);
+        });
+
+        it("reloads no editor for a change the store has not announced", async () => {
+            const { host, requestPlugins, openEditor } = setUp(RESIZE_FILES);
+            const editor = await openEditor();
+            await requestPlugins(editor);
+
+            host.pluginApprovals.storeElsewhere([{ pluginId: RESIZE, contentHash: RESIZE_HASH }]);
+
+            expect(editor.reloadCount).toBe(0);
+        });
+
+        it("follows no approval change once disposed", async () => {
+            const { host, feature, requestPlugins, openEditor } = setUp(RESIZE_FILES);
+            const editor = await openEditor();
+            await requestPlugins(editor);
+
+            feature.dispose();
+            host.pluginApprovals.storeElsewhere([{ pluginId: RESIZE, contentHash: RESIZE_HASH }], {
+                notify: true,
+            });
+
+            expect(editor.reloadCount).toBe(0);
         });
 
         it("forgets what a closed editor was offered", async () => {
@@ -651,6 +827,198 @@ describe("BpmnPluginsFeature", () => {
             const copy = `C:/Users/me/AppData/Roaming/Code/globalStorage/bpmn-plugins/${PALETTE_HASH}/plugin.js`;
             expect(host.workspace.files.get(copy)).toBe("registerPalette();");
             expect(answeredPlugins(editor)?.[0]?.scriptUrl).toBe(`webview-resource:${copy}`);
+        });
+    });
+
+    describe("pruning the cache", () => {
+        const UNNAMED = "0".repeat(64);
+        const UPPER = "A".repeat(64);
+        // A prune takes only SHA-256 names, so these specs hash as the hosts do.
+        const hasher: ContentHasherPort = {
+            sha256: (text) => createHash("sha256").update(text, "utf8").digest("hex"),
+        };
+        const PALETTE_SHA = hasher.sha256(approvedContent("registerPalette();", ".djs-palette {}"));
+        const RESIZE_SHA = hasher.sha256(approvedContent("registerResize();", undefined));
+
+        it("removes the copies no stored approval names and keeps anything else in the folder", async () => {
+            const { host, feature } = setUp(
+                {
+                    ...PALETTE_FILES,
+                    [`${CACHE}/${PALETTE_SHA}/plugin.js`]: "registerPalette();",
+                    [`${CACHE}/${UNNAMED}/plugin.js`]: "registerGone();",
+                    [`${CACHE}/${UNNAMED}/plugin.css`]: ".gone {}",
+                    [`${CACHE}/${UPPER}/plugin.js`]: "registerUpper();",
+                    [`${CACHE}/notes/readme.md`]: "# Notes",
+                    [`${CACHE}/${"1".repeat(64)}`]: "a file",
+                },
+                { hasher },
+            );
+            host.pluginApprovals.approvals = [{ pluginId: PALETTE, contentHash: PALETTE_SHA }];
+
+            const pruned = await feature.service.pruneCache();
+
+            expect(pruned).toEqual({ removed: 1 });
+            expect(cachePaths(host)).toEqual(
+                [
+                    `${CACHE}/${PALETTE_SHA}/plugin.js`,
+                    `${CACHE}/${UPPER}/plugin.js`,
+                    `${CACHE}/notes/readme.md`,
+                    `${CACHE}/${"1".repeat(64)}`,
+                ].sort(),
+            );
+        });
+
+        it("keeps every hash a stored approval names even when read() lags", async () => {
+            const approvals = new MirrorBehindHost();
+            const { host, feature } = setUp(
+                {
+                    [`${CACHE}/${PALETTE_SHA}/plugin.js`]: "registerPalette();",
+                    [`${CACHE}/${RESIZE_SHA}/plugin.js`]: "registerResize();",
+                },
+                { approvals, hasher },
+            );
+            approvals.approvals = [
+                { pluginId: PALETTE, contentHash: PALETTE_SHA },
+                { pluginId: OTHER_PALETTE, contentHash: RESIZE_SHA },
+            ];
+
+            await expect(feature.service.pruneCache()).resolves.toEqual({ removed: 0 });
+            expect(cachePaths(host)).toHaveLength(2);
+        });
+
+        it("asks the host nothing when the cache holds no copy", async () => {
+            const { feature } = setUp(
+                { [`${CACHE}/notes/readme.md`]: "# Notes" },
+                { approvals: new UnreachableHost(), hasher },
+            );
+
+            await expect(feature.service.pruneCache()).resolves.toEqual({ removed: 0 });
+        });
+
+        it("logs a prune the host cannot answer and removes nothing", async () => {
+            const { host, feature } = setUp(
+                { [`${CACHE}/${UNNAMED}/plugin.js`]: "registerGone();" },
+                { approvals: new UnreachableHost(), hasher },
+            );
+
+            await feature.pruneCache();
+
+            expect(cachePaths(host)).toEqual([`${CACHE}/${UNNAMED}/plugin.js`]);
+            expect(host.notifier.logged("error")).toEqual([
+                expect.stringContaining("host unreachable"),
+            ]);
+        });
+
+        it("removes nothing before the cache folder exists", async () => {
+            const { feature } = setUp(PALETTE_FILES, { hasher });
+
+            await expect(feature.service.pruneCache()).resolves.toEqual({ removed: 0 });
+        });
+
+        it("waits for a copy being written before it prunes", async () => {
+            const approvals = new MirrorBehindHost();
+            const { host, feature, openEditor } = setUp(RESIZE_FILES, { approvals, hasher });
+            approvals.mirrored = [{ pluginId: RESIZE, contentHash: RESIZE_SHA }];
+            const editor = await openEditor();
+            const write = holdNext(host.workspace, "writeFile");
+            const answering = answerRequest(feature, editor);
+            await write.reached;
+
+            const pruning = feature.service.pruneCache();
+            await new Promise((resolve) => setTimeout(resolve, 0));
+            write.release();
+            await answering;
+
+            await expect(pruning).resolves.toEqual({ removed: 1 });
+            expect(cachePaths(host)).toEqual([]);
+        });
+
+        it("copies a plugin again once a prune that ran while it was asked for removed it", async () => {
+            const approvals = new MirrorBehindHost();
+            const { host, feature, requestPlugins, openEditor } = setUp(
+                { ...RESIZE_FILES, [`${CACHE}/${RESIZE_SHA}/plugin.js`]: "registerResize();" },
+                { approvals, hasher },
+            );
+            approvals.mirrored = [{ pluginId: RESIZE, contentHash: RESIZE_SHA }];
+            const editor = await openEditor();
+            const read = holdNext(approvals, "readStored");
+            const pruning = feature.service.pruneCache();
+            await read.reached;
+
+            const requesting = requestPlugins(editor);
+            await new Promise((resolve) => setTimeout(resolve, 0));
+            read.release();
+            await pruning;
+            await requesting;
+
+            expect(answeredPlugins(editor)?.map(({ name }) => name)).toEqual(["Resize Tasks"]);
+            expect(cachePaths(host)).toEqual([`${CACHE}/${RESIZE_SHA}/plugin.js`]);
+        });
+
+        it("waits for a prune that starts while it checks a copy another process deleted", async () => {
+            const approvals = new MirrorBehindHost();
+            const { host, feature, requestPlugins, openEditor } = setUp(RESIZE_FILES, {
+                approvals,
+                hasher,
+            });
+            approvals.mirrored = [{ pluginId: RESIZE, contentHash: RESIZE_SHA }];
+            const editor = await openEditor();
+            await requestPlugins(editor);
+            await host.workspace.deleteDirectory(`${CACHE}/${RESIZE_SHA}`);
+            const [checkingCopy, listingCache] = holdListings(host, [
+                `${CACHE}/${RESIZE_SHA}`,
+                CACHE,
+            ]);
+
+            const answering = answerRequest(feature, editor);
+            await checkingCopy.reached;
+            const pruning = feature.service.pruneCache();
+            await listingCache.reached;
+            checkingCopy.release();
+            await new Promise((resolve) => setTimeout(resolve, 0));
+            listingCache.release();
+            await pruning;
+            await answering;
+
+            expect(answeredPlugins(editor)?.map(({ name }) => name)).toEqual(["Resize Tasks"]);
+            expect(cachePaths(host)).toEqual([`${CACHE}/${RESIZE_SHA}/plugin.js`]);
+        });
+
+        it("copies again an entry another process deleted", async () => {
+            const { host, requestPlugins, openEditor } = setUp(PALETTE_FILES, { hasher });
+            host.pluginApprovals.approvals = [{ pluginId: PALETTE, contentHash: PALETTE_SHA }];
+            const editor = await openEditor();
+            await requestPlugins(editor);
+
+            await host.workspace.deleteDirectory(`${CACHE}/${PALETTE_SHA}`);
+            await requestPlugins(editor);
+
+            expect(cachePaths(host)).toEqual([
+                `${CACHE}/${PALETTE_SHA}/plugin.css`,
+                `${CACHE}/${PALETTE_SHA}/plugin.js`,
+            ]);
+        });
+
+        it("logs a copy it cannot remove and still removes the others", async () => {
+            const OTHER_UNNAMED = "2".repeat(64);
+            const { host, feature } = setUp(
+                {
+                    [`${CACHE}/${UNNAMED}/plugin.js`]: "registerGone();",
+                    [`${CACHE}/${OTHER_UNNAMED}/plugin.js`]: "registerGoneToo();",
+                },
+                { hasher },
+            );
+            const deleteDirectory = host.workspace.deleteDirectory.bind(host.workspace);
+            vi.spyOn(host.workspace, "deleteDirectory").mockImplementation(async (path) => {
+                if (path.endsWith(UNNAMED)) throw new Error("EBUSY");
+                await deleteDirectory(path);
+            });
+
+            await expect(feature.service.pruneCache()).resolves.toEqual({ removed: 1 });
+            expect(cachePaths(host)).toEqual([`${CACHE}/${UNNAMED}/plugin.js`]);
+            expect(host.notifier.logged("warning")).toEqual([
+                `BPMN plugin cache: could not remove ${CACHE}/${UNNAMED} (Error: EBUSY)`,
+            ]);
         });
     });
 

@@ -1,32 +1,43 @@
 import { BpmnPluginAsset, BpmnPluginsQuery } from "@miragon/bpmn-modeler-shared";
 
-import { toWorkspacePath } from "../../kernel/domain/workspacePath";
+import { DirectoryEntryKind } from "../../kernel/domain/directoryEntry";
+import { DirectoryNotFound } from "../../kernel/domain/errors";
+import { joinWorkspacePath, toWorkspacePath } from "../../kernel/domain/workspacePath";
 import { NotifierPort, WorkspacePort } from "../../kernel/port/hostPorts";
 import { ApprovalQuestion } from "../../kernel/service/ApprovalQuestion";
 import { answerWithoutPlugins } from "../../editorSession/service/answerWithoutPlugins";
 import { EditorSessionStore, PostOutcome } from "../../editorSession/service/EditorSessionStore";
 import {
+    cacheEntriesToPrune,
     cachedPluginCopy,
+    cachedPluginDirectory,
     cachedPluginFiles,
+    editorsToReload,
+    isWholeCachedCopy,
+    OfferedPlugins,
     PendingApproval,
     WorkspacePlugin,
 } from "../domain/pluginApproval";
-import { editorsOfferedAnyOf } from "../domain/pluginFolders";
+import { PluginApprovalStorePort } from "../port/pluginPorts";
+import { CodeApproval } from "../../kernel/domain/codeApproval";
 import { PluginCatalog } from "./PluginCatalog";
 import { DiscoveredPlugin } from "./WorkspacePluginLocator";
 
 /**
  * Answers a BPMN editor's plugin request with the approved plugins and asks
- * about the others afterwards, so the editor never waits on the user. An
- * approval reloads every open editor that was offered an allowed plugin,
- * because modules are fixed once a modeler is built.
+ * about the others afterwards, so the editor never waits on the user. Any
+ * change of the approvals, whoever made it, reloads every open editor whose
+ * plugins it changes, because modules are fixed once a modeler is built.
  */
 export class BpmnPluginService {
     private readonly cacheRoot: string;
     /** One copy per content hash and session; a failed copy is dropped, so the next request retries it. */
     private readonly copies = new Map<string, Promise<void>>();
-    private readonly offeredByEditor = new Map<string, readonly string[]>();
+    /** Dropped on a reload until the editor asks again, so one change reloads it once. */
+    private readonly offeredByEditor = new Map<string, OfferedPlugins>();
     private approvalSettled: Promise<void> = Promise.resolve();
+    /** Set while a prune runs, so no copy starts until it has finished. */
+    private pruning?: Promise<unknown>;
 
     /**
      * @param cacheRoot The host's plugin cache, a folder the webview may load
@@ -42,6 +53,7 @@ export class BpmnPluginService {
             WorkspacePlugin
         >,
         private readonly notifier: NotifierPort,
+        private readonly approvals: PluginApprovalStorePort,
         cacheRoot: string,
     ) {
         this.cacheRoot = toWorkspacePath(cacheRoot);
@@ -55,11 +67,13 @@ export class BpmnPluginService {
             this.logUnsent(editorId, await answerWithoutPlugins(this.store, editorId));
             return;
         }
-        const { approved, pending } = await this.catalog.pluginsFor(handle.documentPath());
-        this.offeredByEditor.set(editorId, [
-            ...approved.map(({ plugin }) => plugin.id),
-            ...pending.map(({ artifact }) => artifact.id),
-        ]);
+        const { approved, pending, withheld } = await this.catalog.pluginsFor(
+            handle.documentPath(),
+        );
+        this.offeredByEditor.set(editorId, {
+            served: approved.map(({ plugin }) => plugin),
+            withheld,
+        });
         const assets: BpmnPluginAsset[] = [];
         for (const discovered of approved) {
             const asset = await this.serve(discovered, webviewUrlOf);
@@ -74,14 +88,39 @@ export class BpmnPluginService {
         }
         // Not awaited: the router runs this editor's commands in order, and a
         // question left open would hold back its document syncs.
-        const asking = this.askAndReload(pending).catch((error: unknown) =>
-            this.notifier.logError(error instanceof Error ? error : new Error(String(error))),
-        );
+        const asking = this.question
+            .ask(pending)
+            .catch((error: unknown) =>
+                this.notifier.logError(error instanceof Error ? error : new Error(String(error))),
+            );
         this.approvalSettled = Promise.all([this.approvalSettled, asking]).then(() => undefined);
+    }
+
+    /**
+     * Removes the copies no stored approval names, read from the host rather
+     * than a mirror, once every copy in flight has finished.
+     */
+    pruneCache(): Promise<{ readonly removed: number }> {
+        const pruning = (this.pruning ?? Promise.resolve())
+            .catch(() => undefined)
+            .then(() => this.removeUnnamedCopies());
+        this.pruning = pruning;
+        const done = () => {
+            if (this.pruning === pruning) this.pruning = undefined;
+        };
+        pruning.then(done, done);
+        return pruning;
     }
 
     releaseEditor(editorId: string): void {
         this.offeredByEditor.delete(editorId);
+    }
+
+    approvalsChanged(approvals: readonly CodeApproval[]): void {
+        for (const editorId of editorsToReload(this.offeredByEditor, approvals)) {
+            this.offeredByEditor.delete(editorId);
+            this.reload(editorId);
+        }
     }
 
     /** Resolves once every approval question raised so far is answered. */
@@ -119,12 +158,63 @@ export class BpmnPluginService {
         };
     }
 
-    private ensureCopied(discovered: DiscoveredPlugin): Promise<void> {
+    private async removeUnnamedCopies(): Promise<{ readonly removed: number }> {
+        await Promise.allSettled(this.copies.values());
+        const entries = await this.cacheEntries();
+        if (cacheEntriesToPrune(entries, []).length === 0) {
+            return { removed: 0 };
+        }
+        let removed = 0;
+        for (const name of cacheEntriesToPrune(entries, await this.approvals.readStored())) {
+            const directory = joinWorkspacePath(this.cacheRoot, name);
+            try {
+                await this.workspace.deleteDirectory(directory);
+                this.copies.delete(name);
+                removed++;
+            } catch (error) {
+                this.notifier.logWarning(
+                    `BPMN plugin cache: could not remove ${directory} (${String(error)})`,
+                );
+            }
+        }
+        return { removed };
+    }
+
+    private async cacheEntries(): Promise<[string, DirectoryEntryKind][]> {
+        try {
+            return await this.workspace.readDirectory(this.cacheRoot);
+        } catch (error) {
+            if (error instanceof DirectoryNotFound) return [];
+            throw error;
+        }
+    }
+
+    private async ensureCopied(discovered: DiscoveredPlugin): Promise<void> {
         const hash = discovered.plugin.contentHash;
+        await this.noPruneRunning();
         const known = this.copies.get(hash);
         if (known !== undefined) {
-            return known;
+            await known;
+            if (await this.isCopyWhole(discovered.plugin)) {
+                return;
+            }
+            if (this.copies.get(hash) === known) {
+                this.copies.delete(hash);
+            }
+            await this.noPruneRunning();
         }
+        return this.copies.get(hash) ?? this.startCopy(discovered);
+    }
+
+    /** A prune awaits only the copies already in flight when it starts, so a copy must not start under one. */
+    private async noPruneRunning(): Promise<void> {
+        while (this.pruning !== undefined) {
+            await this.pruning.catch(() => undefined);
+        }
+    }
+
+    private startCopy(discovered: DiscoveredPlugin): Promise<void> {
+        const hash = discovered.plugin.contentHash;
         const copy = this.copy(discovered);
         this.copies.set(hash, copy);
         copy.catch(() => {
@@ -133,6 +223,15 @@ export class BpmnPluginService {
             }
         });
         return copy;
+    }
+
+    private async isCopyWhole(plugin: WorkspacePlugin): Promise<boolean> {
+        try {
+            const directory = cachedPluginDirectory(this.cacheRoot, plugin);
+            return isWholeCachedCopy(plugin, await this.workspace.readDirectory(directory));
+        } catch {
+            return false;
+        }
     }
 
     /**
@@ -159,14 +258,6 @@ export class BpmnPluginService {
             return await this.workspace.readFile(path);
         } catch {
             return undefined;
-        }
-    }
-
-    private async askAndReload(pending: readonly PendingApproval[]): Promise<void> {
-        const allowed = await this.question.ask(pending);
-        const allowedIds = allowed.map((plugin) => plugin.id);
-        for (const editorId of editorsOfferedAnyOf(this.offeredByEditor, allowedIds)) {
-            this.reload(editorId);
         }
     }
 

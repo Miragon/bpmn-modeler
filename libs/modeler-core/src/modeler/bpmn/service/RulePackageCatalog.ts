@@ -2,8 +2,15 @@ import { ActionNotice } from "../../../kernel/domain/actionNotice";
 import {
     allowing,
     ApprovalNoticeAction,
+    CodeApproval,
     approvalOutcome,
+    declinedKeys,
+    FollowedApprovalChange,
+    followedApprovalChange,
+    notAskedAgain,
     pendingApprovals,
+    ReviewAnswer,
+    SessionAnswer,
 } from "../../../kernel/domain/codeApproval";
 import { ChoicePrompt } from "../../../kernel/domain/prompts";
 import { PluginApprovalStorePort } from "../../../kernel/port/approvalPorts";
@@ -27,26 +34,37 @@ import { PackageClosureFingerprinter } from "./PackageClosureFingerprinter";
  *
  * A package the user left unchecked, or a notice the user closed, is declined
  * for the catalog's lifetime, unless its content changes. The gate reads the
- * declines, so it reports such a package as declined rather than new.
+ * declines, so it reports such a package as declined rather than new. A
+ * package left to a view is not asked about again either, but stays new.
+ *
+ * It follows the approval store and announces each change of the rule
+ * package rows, whoever made it.
  */
 export class RulePackageCatalog implements ApprovalCatalog<
     BlockedRulePackage,
     PendingRulePackage,
     RulePackage
 > {
-    private readonly declined = new Set<string>();
+    private readonly answers = new Map<string, SessionAnswer>();
     private readonly seen = new Map<string, BlockedRulePackage>();
     private readonly loggedRefusals = new Set<string>();
+    private readonly revoked = new Set<string>();
+    private readonly changeListeners = new Set<(followed: FollowedApprovalChange) => void>();
+    private readonly approvalChanges: { dispose(): void };
+    private rulePackageRows: readonly CodeApproval[];
 
     constructor(
         private readonly approvals: PluginApprovalStorePort,
         private readonly fingerprints: Pick<PackageClosureFingerprinter, "fingerprint">,
         private readonly logger: LoggerPort,
-    ) {}
+    ) {
+        this.rulePackageRows = approvals.read().filter(isRulePackageApproval);
+        this.approvalChanges = approvals.onDidChange(() => this.followApprovals());
+    }
 
     /** `declineKeyOf` of each package declined this session. */
     declinedThisSession(): ReadonlySet<string> {
-        return this.declined;
+        return declinedKeys(this.answers);
     }
 
     /** Keeps the latest report of each package, also of those the bundle stood in for. */
@@ -58,13 +76,27 @@ export class RulePackageCatalog implements ApprovalCatalog<
         return [...this.seen.values()];
     }
 
+    /** Code a package ran before its revoke stays loaded until the process restarts. */
+    revokedThisSession(): ReadonlySet<string> {
+        return this.revoked;
+    }
+
+    onApprovalsChanged(listener: (followed: FollowedApprovalChange) => void): { dispose(): void } {
+        this.changeListeners.add(listener);
+        return { dispose: () => this.changeListeners.delete(listener) };
+    }
+
+    dispose(): void {
+        this.approvalChanges.dispose();
+    }
+
     /** Hashed only now: the gate blocks a package it has no row for without reading it. */
     stillPendingOf(found: readonly BlockedRulePackage[]): PendingRulePackage[] {
         const rulePackages = rulePackagesToAsk(found).flatMap((each) => this.rulePackageOf(each));
         return pendingApprovals(
             rulePackages,
             this.approvals.read().filter(isRulePackageApproval),
-            this.declined,
+            notAskedAgain(this.answers),
         );
     }
 
@@ -82,10 +114,10 @@ export class RulePackageCatalog implements ApprovalCatalog<
     /** @returns the packages now allowed. */
     async applyAnswer(
         pending: readonly PendingRulePackage[],
-        checkedIds: readonly string[],
+        answer: ReviewAnswer,
     ): Promise<readonly RulePackage[]> {
-        const outcome = approvalOutcome(pending, checkedIds);
-        outcome.declineKeys.forEach((key) => this.declined.add(key));
+        const outcome = approvalOutcome(pending, answer);
+        outcome.answers.forEach((each, key) => this.answers.set(key, each));
         if (outcome.allowed.length > 0) {
             await this.approvals.change(allowing(outcome.allowed));
             this.logger.logInfo(
@@ -93,6 +125,16 @@ export class RulePackageCatalog implements ApprovalCatalog<
             );
         }
         return outcome.allowed;
+    }
+
+    private followApprovals(): void {
+        const rows = this.approvals.read().filter(isRulePackageApproval);
+        const followed = followedApprovalChange(this.rulePackageRows, rows);
+        this.rulePackageRows = rows;
+        const { allow, revoke } = followed.change;
+        if (allow.length === 0 && revoke.length === 0) return;
+        revoke.forEach((id) => this.revoked.add(id));
+        this.changeListeners.forEach((listener) => listener(followed));
     }
 
     private rulePackageOf({ id, kind }: BlockedRulePackage): RulePackage[] {

@@ -1,4 +1,5 @@
-import { CodeApproval, CodeApprovalChange } from "../domain/codeApproval";
+import { CodeApproval, CodeApprovalChange, ReviewAnswer } from "../domain/codeApproval";
+import { ChoicePrompt } from "../domain/prompts";
 
 /**
  * The user's code approvals, every kind in one list, kept by the host outside
@@ -18,6 +19,9 @@ export interface PluginApprovalStorePort {
     /**
      * The host's stored list, asked for now rather than taken from a mirror, or
      * a newer one the store heard of meanwhile; `read()` returns it from then on.
+     * VS Code returns this window's memento, which can lag another window's
+     * write, so a prune there may delete a copy that window just wrote; the
+     * check on disk before serving writes it again.
      */
     readStored(): Promise<readonly CodeApproval[]>;
     /**
@@ -26,4 +30,15 @@ export interface PluginApprovalStorePort {
      * can show in `read()` before the store learns of it.
      */
     onDidChange(listener: () => void): { dispose(): void };
+}
+
+export interface ApprovalReviewRequest {
+    readonly prompt: ChoicePrompt<string>;
+    /** Every pending artifact, each one the value of a prompt item. */
+    readonly artifactIds: readonly string[];
+}
+
+/** Where "Review…" takes the user: a list to check, or a view the pending code is left to. */
+export interface ApprovalReviewPort {
+    review(request: ApprovalReviewRequest): Promise<ReviewAnswer>;
 }

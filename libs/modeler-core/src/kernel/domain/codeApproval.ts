@@ -19,7 +19,40 @@ export interface CodeApproval {
     readonly contentHash: string;
 }
 
-export type ApprovalState = "approved" | "new" | "changed";
+export const CODE_STATES = ["approved", "new", "changed", "declined", "gone"] as const;
+
+export type CodeState = (typeof CODE_STATES)[number];
+
+export type ApprovalState = Extract<CodeState, "approved" | "new" | "changed">;
+
+/** How the approval list and the log name each state, inside a sentence or after a separator. */
+export const CODE_STATE_TEXT: Record<CodeState, string> = {
+    approved: "allowed",
+    new: "new",
+    changed: "changed since you allowed it",
+    declined: "declined this session",
+    gone: "folder gone",
+};
+
+/** What a host makes the user do before code it already ran is unloaded; a typed fact, never host prose. */
+export const PROCESS_RESTARTS = ["reloadWindow", "restartIde"] as const;
+
+export type ProcessRestart = (typeof PROCESS_RESTARTS)[number];
+
+export const PROCESS_RESTART_TEXT: Record<ProcessRestart, string> = {
+    reloadWindow: "reload the window",
+    restartIde: "restart the IDE",
+};
+
+/** Code at one place as an owner last read it; `unhashed` was read without hashing its content. */
+export type CodePresence =
+    | { readonly kind: "found"; readonly artifact: ApprovableArtifact }
+    | { readonly kind: "unhashed"; readonly id: string }
+    | { readonly kind: "unreadable"; readonly id: string; readonly reason: string }
+    | { readonly kind: "gone"; readonly id: string };
+
+export type CodeStateReading<S extends CodeState = CodeState> =
+    { readonly kind: "state"; readonly state: S } | { readonly kind: "hashNeeded" };
 
 /** Every approval notice offers only this; the list opens from it. */
 export type ApprovalNoticeAction = "review";
@@ -29,11 +62,15 @@ export interface PendingCodeApproval<A extends ApprovableArtifact> {
     readonly state: Exclude<ApprovalState, "approved">;
 }
 
+function approvalRowOf(id: string, approvals: readonly CodeApproval[]): CodeApproval | undefined {
+    return approvals.find((approval) => approval.pluginId === id);
+}
+
 export function approvalStateOf(
     artifact: ApprovableArtifact,
     approvals: readonly CodeApproval[],
 ): ApprovalState {
-    const approval = approvals.find((each) => each.pluginId === artifact.id);
+    const approval = approvalRowOf(artifact.id, approvals);
     if (approval === undefined) {
         return "new";
     }
@@ -121,6 +158,29 @@ export function approvalChangeBetween(
     );
 }
 
+/**
+ * A change of the stored rows as a follower sees it. `withdrawn` names each id
+ * whose allowed content no longer is, revoked or allowed at another content:
+ * the change alone cannot tell the second from a new allow.
+ */
+export interface FollowedApprovalChange {
+    readonly change: CodeApprovalChange;
+    readonly withdrawn: readonly string[];
+}
+
+export function followedApprovalChange(
+    before: readonly CodeApproval[],
+    after: readonly CodeApproval[],
+): FollowedApprovalChange {
+    const afterById = firstRowById(after);
+    return {
+        change: approvalChangeBetween(before, after),
+        withdrawn: [...firstRowById(before).values()]
+            .filter((row) => afterById.get(row.pluginId)?.contentHash !== row.contentHash)
+            .map(({ pluginId }) => pluginId),
+    };
+}
+
 /** Equal for two lists of the same rows in any order. */
 export function approvalsKey(approvals: readonly CodeApproval[]): string {
     return JSON.stringify(
@@ -148,48 +208,158 @@ export function declineKeyOf(artifact: ApprovableArtifact): string {
     return `${artifact.id}#${artifact.contentHash}`;
 }
 
+/**
+ * Only a row or a decline of the id can match, so code with neither is `new`
+ * without reading every byte of it.
+ */
+export function needsContentHash(
+    id: string,
+    approvals: readonly CodeApproval[],
+    declined: ReadonlySet<string>,
+): boolean {
+    const declineKeyPrefix = declineKeyOf({ id, name: id, contentHash: "" });
+    return (
+        approvalRowOf(id, approvals) !== undefined ||
+        [...declined].some((key) => key.startsWith(declineKeyPrefix))
+    );
+}
+
+/** An approval of this content wins over a decline of it earlier in the session. */
+export function foundCodeState(
+    artifact: ApprovableArtifact,
+    approvals: readonly CodeApproval[],
+    declined: ReadonlySet<string>,
+): Exclude<CodeState, "gone"> {
+    const state = approvalStateOf(artifact, approvals);
+    return state !== "approved" && declined.has(declineKeyOf(artifact)) ? "declined" : state;
+}
+
+/** A row decides `changed` for code that cannot be read, so the user still sees what was allowed there. */
+export function codeStateOf(
+    presence: Exclude<CodePresence, { readonly kind: "gone" }>,
+    approvals: readonly CodeApproval[],
+    declined: ReadonlySet<string>,
+): CodeStateReading<Exclude<CodeState, "gone">>;
+export function codeStateOf(
+    presence: CodePresence,
+    approvals: readonly CodeApproval[],
+    declined: ReadonlySet<string>,
+): CodeStateReading;
+export function codeStateOf(
+    presence: CodePresence,
+    approvals: readonly CodeApproval[],
+    declined: ReadonlySet<string>,
+): CodeStateReading {
+    switch (presence.kind) {
+        case "gone":
+            return { kind: "state", state: "gone" };
+        case "found":
+            return { kind: "state", state: foundCodeState(presence.artifact, approvals, declined) };
+        case "unhashed":
+            return needsContentHash(presence.id, approvals, declined)
+                ? { kind: "hashNeeded" }
+                : { kind: "state", state: "new" };
+        case "unreadable":
+            return {
+                kind: "state",
+                state: approvalRowOf(presence.id, approvals) === undefined ? "new" : "changed",
+            };
+    }
+}
+
+export type ReviewedAllow =
+    | { readonly kind: "allow"; readonly change: CodeApprovalChange }
+    | {
+          readonly kind: "refused";
+          readonly reason: "changedSinceReview" | "gone" | "unreadable";
+      };
+
+/**
+ * Allows exactly the content the user reviewed, and only while it is still
+ * there. `reviewed` comes from what the core itself showed, never from a view's
+ * payload; content that cannot be compared is refused.
+ */
+export function reviewedAllowDecision(
+    reviewed: ApprovableArtifact,
+    current: CodePresence,
+): ReviewedAllow {
+    switch (current.kind) {
+        case "gone":
+        case "unreadable":
+            return { kind: "refused", reason: current.kind };
+        case "unhashed":
+            return { kind: "refused", reason: "changedSinceReview" };
+        case "found":
+            return current.artifact.id === reviewed.id &&
+                current.artifact.contentHash === reviewed.contentHash
+                ? { kind: "allow", change: allowing([reviewed]) }
+                : { kind: "refused", reason: "changedSinceReview" };
+    }
+}
+
 export function pendingApprovals<A extends ApprovableArtifact>(
     artifacts: readonly A[],
     approvals: readonly CodeApproval[],
-    declinedThisSession: ReadonlySet<string>,
+    notAskedAgain: ReadonlySet<string>,
 ): PendingCodeApproval<A>[] {
     return artifacts.flatMap((artifact) => {
         const state = approvalStateOf(artifact, approvals);
-        return state === "approved" || declinedThisSession.has(declineKeyOf(artifact))
+        return state === "approved" || notAskedAgain.has(declineKeyOf(artifact))
             ? []
             : [{ artifact, state }];
     });
 }
 
+/** What a session remembers of an answer about one content: {@link declineKeyOf} keys it. */
+export const SESSION_ANSWERS = ["declined", "leftForView"] as const;
+
+export type SessionAnswer = (typeof SESSION_ANSWERS)[number];
+
+/** What "Review…" answered: the ids the user checked, or the pending code left to a view. */
+export type ReviewAnswer =
+    | { readonly kind: "checked"; readonly ids: readonly string[] }
+    | { readonly kind: "leftForView" };
+
 export interface CodeApprovalOutcome<A extends ApprovableArtifact> {
     readonly allowed: readonly A[];
-    /** {@link declineKeyOf} of each artifact left unchecked; a dismissal leaves all of them. */
-    readonly declineKeys: readonly string[];
+    readonly answers: ReadonlyMap<string, SessionAnswer>;
 }
 
+/** Unchecked content is declined; content left to a view is neither allowed nor declined. */
 export function approvalOutcome<A extends ApprovableArtifact>(
     pending: readonly PendingCodeApproval<A>[],
-    checkedIds: readonly string[],
+    answer: ReviewAnswer,
 ): CodeApprovalOutcome<A> {
-    const checked = new Set(checkedIds);
+    if (answer.kind === "leftForView") {
+        return {
+            allowed: [],
+            answers: new Map(
+                pending.map(({ artifact }) => [declineKeyOf(artifact), "leftForView"]),
+            ),
+        };
+    }
+    const checked = new Set(answer.ids);
     return {
         allowed: pending
             .filter(({ artifact }) => checked.has(artifact.id))
             .map(({ artifact }) => artifact),
-        declineKeys: pending
-            .filter(({ artifact }) => !checked.has(artifact.id))
-            .map(({ artifact }) => declineKeyOf(artifact)),
+        answers: new Map(
+            pending
+                .filter(({ artifact }) => !checked.has(artifact.id))
+                .map(({ artifact }) => [declineKeyOf(artifact), "declined"]),
+        ),
     };
 }
 
-/** How the approval list and the log name each pending state. */
-export const PENDING_APPROVAL_STATE_TEXT: Record<
-    PendingCodeApproval<ApprovableArtifact>["state"],
-    string
-> = {
-    new: "new",
-    changed: "changed since you allowed it",
-};
+/** No notice asks again about content the user declined or left to a view, until it changes. */
+export function notAskedAgain(answers: ReadonlyMap<string, SessionAnswer>): ReadonlySet<string> {
+    return new Set(answers.keys());
+}
+
+/** Content left to a view keeps its state, so only a decline changes what the gate reports. */
+export function declinedKeys(answers: ReadonlyMap<string, SessionAnswer>): ReadonlySet<string> {
+    return new Set([...answers].filter(([, answer]) => answer === "declined").map(([key]) => key));
+}
 
 /**
  * The folder goes into a list item's `description` rather than its `path`:
@@ -200,5 +370,5 @@ export function pendingApprovalDescription(
     { artifact, state }: PendingCodeApproval<ApprovableArtifact>,
     workspaceFolders: readonly string[],
 ): string {
-    return `${PENDING_APPROVAL_STATE_TEXT[state]} · ${relativeToWorkspace(artifact.id, workspaceFolders)}`;
+    return `${CODE_STATE_TEXT[state]} · ${relativeToWorkspace(artifact.id, workspaceFolders)}`;
 }

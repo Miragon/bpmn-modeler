@@ -3,12 +3,15 @@ import {
     ApprovableArtifact,
     ApprovalNoticeAction,
     ApprovalState,
+    approvalStateOf,
     approvedArtifacts,
     CodeApproval,
     CodeApprovalOutcome,
     PendingCodeApproval,
     pendingApprovalDescription,
 } from "../../kernel/domain/codeApproval";
+import { DirectoryEntryKind } from "../../kernel/domain/directoryEntry";
+import { escapeRegExpLiteral } from "../../kernel/domain/escapeRegExpLiteral";
 import { ChoicePrompt } from "../../kernel/domain/prompts";
 import { joinWorkspacePath } from "../../kernel/domain/workspacePath";
 
@@ -85,6 +88,35 @@ export function pluginApprovalNotice(
     };
 }
 
+/** What an editor's last plugin answer held, each plugin at the content it was read with. */
+export interface OfferedPlugins {
+    readonly served: readonly ApprovableArtifact[];
+    /** Every plugin found but not allowed, whether a notice still asks about it or not. */
+    readonly withheld: readonly ApprovableArtifact[];
+}
+
+/**
+ * The editors whose modules no longer match the approvals, each once in the
+ * map's order: one serves a plugin not allowed at that content any more, or
+ * was withheld one now allowed at the content it was offered.
+ */
+export function editorsToReload(
+    offeredByEditor: ReadonlyMap<string, OfferedPlugins>,
+    approvals: readonly CodeApproval[],
+): string[] {
+    const isApproved = (plugin: ApprovableArtifact) =>
+        approvalStateOf(plugin, approvals) === "approved";
+    return [...offeredByEditor]
+        .filter(
+            ([, { served, withheld }]) =>
+                served.some((plugin) => !isApproved(plugin)) || withheld.some(isApproved),
+        )
+        .map(([editorId]) => editorId);
+}
+
+const CACHED_SCRIPT = "plugin.js";
+const CACHED_STYLE = "plugin.css";
+
 export interface CachedPluginFiles {
     readonly script: string;
     readonly style?: string;
@@ -96,13 +128,17 @@ export interface CachedPluginFiles {
  * approval nor an unapproved file beside the script can reach it.
  */
 export function cachedPluginFiles(cacheRoot: string, plugin: WorkspacePlugin): CachedPluginFiles {
-    const directory = joinWorkspacePath(cacheRoot, plugin.contentHash);
+    const directory = cachedPluginDirectory(cacheRoot, plugin);
     return {
-        script: joinWorkspacePath(directory, "plugin.js"),
+        script: joinWorkspacePath(directory, CACHED_SCRIPT),
         ...(plugin.stylePath === undefined
             ? {}
-            : { style: joinWorkspacePath(directory, "plugin.css") }),
+            : { style: joinWorkspacePath(directory, CACHED_STYLE) }),
     };
+}
+
+export function cachedPluginDirectory(cacheRoot: string, plugin: WorkspacePlugin): string {
+    return joinWorkspacePath(cacheRoot, plugin.contentHash);
 }
 
 export interface CachedPluginFile {
@@ -121,4 +157,41 @@ export function cachedPluginCopy(
             ? []
             : [{ path: files.style, content: style }]),
     ];
+}
+
+/** The name of a copy's folder in the plugin cache: the content hash, SHA-256 in lower-case hex. */
+export const PLUGIN_CONTENT_HASH_PATTERN = "[0-9a-f]{64}";
+
+const CACHED_FILE_NAMES = [CACHED_SCRIPT, CACHED_STYLE].map(escapeRegExpLiteral).join("|");
+
+/** A copy's file relative to the cache root, the only cache paths a page may load. */
+export const CACHED_PLUGIN_FILE_PATTERN = `${PLUGIN_CONTENT_HASH_PATTERN}/(?:${CACHED_FILE_NAMES})`;
+
+const PLUGIN_CACHE_ENTRY = new RegExp(`^${PLUGIN_CONTENT_HASH_PATTERN}$`);
+
+/**
+ * The copies no stored approval names, of any workspace or project. Only a
+ * folder named like a content hash is a candidate, so whatever else shares
+ * the folder stays; a rule package row's prefixed hash names no copy.
+ */
+export function cacheEntriesToPrune(
+    entries: readonly (readonly [string, DirectoryEntryKind])[],
+    stored: readonly CodeApproval[],
+): string[] {
+    const named = new Set(stored.map(({ contentHash }) => contentHash));
+    return entries
+        .filter(
+            ([name, kind]) =>
+                kind === "directory" && PLUGIN_CACHE_ENTRY.test(name) && !named.has(name),
+        )
+        .map(([name]) => name);
+}
+
+/** Another process's prune can remove a copy this one already wrote. */
+export function isWholeCachedCopy(
+    plugin: WorkspacePlugin,
+    entries: readonly (readonly [string, DirectoryEntryKind])[],
+): boolean {
+    const files = new Set(entries.filter(([, kind]) => kind === "file").map(([name]) => name));
+    return files.has(CACHED_SCRIPT) && (plugin.stylePath === undefined || files.has(CACHED_STYLE));
 }

@@ -1,15 +1,23 @@
 import { describe, expect, it } from "vitest";
 
+import { type CodeApproval } from "../../kernel/domain/codeApproval";
+import { type DirectoryEntryKind } from "../../kernel/domain/directoryEntry";
 import {
     approvedContent,
+    cacheEntriesToPrune,
+    CACHED_PLUGIN_FILE_PATTERN,
     cachedPluginCopy,
     cachedPluginFiles,
     type CachedPluginFiles,
+    editorsToReload,
+    isWholeCachedCopy,
+    type OfferedPlugins,
     type PendingApproval,
     PLUGIN_APPROVAL_NOTICE_ID,
     PLUGIN_APPROVAL_PROMPT_ID,
     pluginApprovalNotice,
     pluginApprovalPrompt,
+    PLUGIN_CONTENT_HASH_PATTERN,
     type WorkspacePlugin,
 } from "./pluginApproval";
 
@@ -146,6 +154,51 @@ describe("pluginApprovalNotice", () => {
     });
 });
 
+describe("editorsToReload", () => {
+    const offered = new Map<string, OfferedPlugins>([
+        ["file:///repo/a.bpmn", { served: [resize], withheld: [palette] }],
+        ["file:///repo/b.bpmn", { served: [], withheld: [palette] }],
+        ["file:///repo/c.bpmn", { served: [resize], withheld: [] }],
+        ["file:///other/d.bpmn", { served: [], withheld: [] }],
+    ]);
+    const row = ({ id, contentHash }: typeof resize) => ({ pluginId: id, contentHash });
+
+    it.each<{ case: string; approvals: CodeApproval[]; editors: string[] }>([
+        {
+            case: "none while every served plugin stays allowed and nothing withheld is",
+            approvals: [row(resize)],
+            editors: [],
+        },
+        {
+            case: "the editors that load a revoked plugin",
+            approvals: [],
+            editors: ["file:///repo/a.bpmn", "file:///repo/c.bpmn"],
+        },
+        {
+            case: "the editors that load a plugin whose row now holds other content",
+            approvals: [{ pluginId: resize.id, contentHash: "r2" }],
+            editors: ["file:///repo/a.bpmn", "file:///repo/c.bpmn"],
+        },
+        {
+            case: "each editor once that was withheld a plugin now allowed",
+            approvals: [row(resize), row(palette)],
+            editors: ["file:///repo/a.bpmn", "file:///repo/b.bpmn"],
+        },
+        {
+            case: "none for a withheld plugin allowed with other content",
+            approvals: [row(resize), { pluginId: palette.id, contentHash: "p2" }],
+            editors: [],
+        },
+        {
+            case: "none for a row of a plugin no editor was offered",
+            approvals: [row(resize), { pluginId: "/x", contentHash: "x" }],
+            editors: [],
+        },
+    ])("returns $case", ({ approvals, editors }) => {
+        expect(editorsToReload(offered, approvals)).toEqual(editors);
+    });
+});
+
 describe("approvedContent", () => {
     it.each<{
         case: string;
@@ -181,5 +234,114 @@ describe("approvedContent", () => {
 
     it("covers the same files with the same content", () => {
         expect(approvedContent("a", "b")).toBe(approvedContent("a", "b"));
+    });
+});
+
+describe("cacheEntriesToPrune", () => {
+    const named = "a".repeat(64);
+    const unnamed = "b".repeat(64);
+    const elsewhere = "c".repeat(64);
+    const stored: CodeApproval[] = [
+        { pluginId: resize.id, contentHash: named },
+        { pluginId: "/other-repo/.camunda/plugins/resize-tasks", contentHash: elsewhere },
+        {
+            pluginId: "/repo/node_modules/bpmnlint-plugin-acme",
+            contentHash: `bpmnlint-closure-v1:${unnamed}`,
+        },
+    ];
+
+    it.each<{ case: string; entry: [string, DirectoryEntryKind]; pruned: boolean }>([
+        { case: "a copy no stored row names", entry: [unnamed, "directory"], pruned: true },
+        {
+            case: "a copy a row of this workspace names",
+            entry: [named, "directory"],
+            pruned: false,
+        },
+        {
+            case: "a copy a row of another workspace names",
+            entry: [elsewhere, "directory"],
+            pruned: false,
+        },
+        { case: "a file named like a copy", entry: ["d".repeat(64), "file"], pruned: false },
+        { case: "an upper-case hash", entry: ["D".repeat(64), "directory"], pruned: false },
+        { case: "a hash one digit short", entry: ["d".repeat(63), "directory"], pruned: false },
+        { case: "a hash one digit long", entry: ["d".repeat(65), "directory"], pruned: false },
+        { case: "a folder of another name", entry: ["notes", "directory"], pruned: false },
+        {
+            case: "a hash with a suffix",
+            entry: [`${"d".repeat(64)}.old`, "directory"],
+            pruned: false,
+        },
+    ])("prunes $case: $pruned", ({ entry, pruned }) => {
+        expect(cacheEntriesToPrune([entry], stored)).toEqual(pruned ? [entry[0]] : []);
+    });
+
+    it("keeps a copy a rule package row only resembles, and prunes each unnamed copy in order", () => {
+        const other = "e".repeat(64);
+
+        expect(
+            cacheEntriesToPrune(
+                [
+                    [other, "directory"],
+                    [named, "directory"],
+                    [unnamed, "directory"],
+                ],
+                stored,
+            ),
+        ).toEqual([other, unnamed]);
+    });
+
+    it("spells a content hash as the copy folder's name", () => {
+        expect(cachedPluginFiles("/cache", { ...resize, contentHash: named }).script).toMatch(
+            new RegExp(`^/cache/${PLUGIN_CONTENT_HASH_PATTERN}/`),
+        );
+    });
+
+    it("names each copy file as a cache path a page may load", () => {
+        const files = cachedPluginFiles("/cache", {
+            ...resize,
+            stylePath: "/repo/.camunda/plugins/resize-tasks/style.css",
+            contentHash: named,
+        });
+        const loadable = new RegExp(`^/cache/${CACHED_PLUGIN_FILE_PATTERN}$`);
+
+        expect(files.script).toMatch(loadable);
+        expect(files.style).toMatch(loadable);
+        expect(`/cache/${named}/plugin.json`).not.toMatch(loadable);
+    });
+});
+
+describe("isWholeCachedCopy", () => {
+    it.each<{
+        case: string;
+        plugin: WorkspacePlugin;
+        entries: [string, DirectoryEntryKind][];
+        whole: boolean;
+    }>([
+        { case: "a script copy", plugin: resize, entries: [["plugin.js", "file"]], whole: true },
+        { case: "no script copy", plugin: resize, entries: [["plugin.css", "file"]], whole: false },
+        {
+            case: "a script that is a folder",
+            plugin: resize,
+            entries: [["plugin.js", "directory"]],
+            whole: false,
+        },
+        {
+            case: "a script and a style copy",
+            plugin: palette,
+            entries: [
+                ["plugin.js", "file"],
+                ["plugin.css", "file"],
+            ],
+            whole: true,
+        },
+        {
+            case: "a styled plugin's script alone",
+            plugin: palette,
+            entries: [["plugin.js", "file"]],
+            whole: false,
+        },
+    ])("is $whole for $case", ({ plugin, entries, whole }) => {
+        expect(isWholeCachedCopy(plugin, entries)).toBe(whole);
     });
 });

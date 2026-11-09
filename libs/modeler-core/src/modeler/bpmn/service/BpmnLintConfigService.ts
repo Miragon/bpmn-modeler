@@ -26,6 +26,7 @@ import {
     LintSession,
     LintSessionEvent,
     lintsInPage,
+    lintsOnHost,
     Negotiation,
     reduceLintSession,
     UNTRACKED_LINT_SESSION,
@@ -67,8 +68,8 @@ const DROP_LOG_LINES: Partial<Record<LintDropReason, string>> = {
  *
  * A host lint that skipped rules of a workspace rule package the user has not
  * allowed asks about it afterwards, so the results never wait on the user. An
- * allow lints again every open editor whose last host lint was blocked on an
- * allowed package.
+ * allow, whoever made it, lints again every open editor whose last host lint
+ * was blocked on an allowed package, and a revoke every host-linted editor.
  */
 export class BpmnLintConfigService implements BpmnlintChangeTarget {
     private readonly sessions = new Map<string, LintSession>();
@@ -92,6 +93,7 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
         this.rulePackageFollowUp = new RulePackageFollowUp(
             notifier,
             (editorId) => this.setBpmnlintConfig(editorId),
+            () => this.hostLintedEditors(),
             rulePackages,
         );
     }
@@ -99,6 +101,11 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
     /** Resolves once every rule package question raised so far is answered and its relints ran. */
     whenApprovalSettled(): Promise<void> {
         return this.rulePackageFollowUp.whenSettled();
+    }
+
+    /** Stops following the rule package approvals. */
+    dispose(): void {
+        this.rulePackageFollowUp.dispose();
     }
 
     /** Re-evaluates the lint tier for the document and drives it. */
@@ -132,6 +139,12 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
             configToken,
             lintingEnabled: this.settings.getLintingEnabled(),
         });
+    }
+
+    private hostLintedEditors(): string[] {
+        return [...this.sessions]
+            .filter(([, session]) => lintsOnHost(session))
+            .map(([editorId]) => editorId);
     }
 
     private async lintAndPush(editorId: string): Promise<boolean> {

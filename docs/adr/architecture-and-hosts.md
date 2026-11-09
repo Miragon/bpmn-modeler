@@ -1276,6 +1276,17 @@ a cached result must equal an uncached run.
   still watches, because a change there would otherwise go unnoticed.
   Accepted cost: a marketplace update made by another window is not seen while
   editors of this process stay open.
+- **BPMN plugin copies.** `BpmnPluginService` copies the approved bytes into
+  a content-addressed folder on disk, which every process of the host shares
+  (IntelliJ: one per machine; VS Code: the extension's global storage), and
+  keeps each copy per process once written. The approval list owns the folder:
+  `pruneCache`, run when a process starts, removes the copies no stored row
+  names. Because another process can prune, a copy found in the memo is
+  checked on disk and written again when it is gone. VS Code's `readStored`
+  returns this window's memento, which can lag another window's write, so a
+  prune there may delete a copy that window just wrote; the same check writes
+  it again. Accepted cost: a page that loads between another process's delete
+  and that check leaves the plugin out once.
 - **Escalated lint setup.** `NodeBpmnLinter` keeps the moddle, the loaded
   moddle extensions and the resolved rules and configs per `.bpmnlintrc` path,
   keyed by the config content. A changed config replaces the entry. Every run

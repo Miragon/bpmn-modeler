@@ -1,7 +1,14 @@
-import { relativeToRoot, toWorkspacePath } from "@miragon/bpmn-modeler-core";
+import {
+    CACHED_PLUGIN_FILE_PATTERN,
+    relativeToRoot,
+    toWorkspacePath,
+} from "@miragon/bpmn-modeler-core";
 
-/** Kept in step with the IntelliJ `WebviewRoute`, which serves exactly these files. */
-const PLUGIN_ASSET = /^[0-9a-f]{64}\/plugin\.(?:js|css)$/;
+/**
+ * The IntelliJ `WebviewRoute` serves exactly these files from its own copy of
+ * the pattern; `pluginAssetUrl.cases.json` pins both.
+ */
+const PLUGIN_ASSET = new RegExp(`^${CACHED_PLUGIN_FILE_PATTERN}$`);
 
 /**
  * The root-relative URL under which the IntelliJ BPMN page loads a file of

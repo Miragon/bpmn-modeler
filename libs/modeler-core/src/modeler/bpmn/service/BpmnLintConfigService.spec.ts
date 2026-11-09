@@ -12,6 +12,7 @@ import { LintResults } from "@miragon/bpmn-modeler-types";
 
 import { CodeApprovalChange } from "../../../kernel/domain/codeApproval";
 import { PluginApprovalStorePort } from "../../../kernel/port/approvalPorts";
+import { ListReview } from "../../../kernel/adapter/out/ListReview";
 import { ApprovalQuestion } from "../../../kernel/service/ApprovalQuestion";
 import { ArtifactService } from "../../../kernel/service/ArtifactService";
 import { QuestionQueue } from "../../../kernel/service/QuestionQueue";
@@ -948,7 +949,7 @@ describe("BpmnLintConfigService — workspace rule packages the user has not all
         const catalog = new RulePackageCatalog(approvals, recordingFingerprinter, host.notifier);
         const question = new ApprovalQuestion(
             catalog,
-            host.picker,
+            new ListReview(host.picker),
             host.actionNotifier,
             host.workspace,
             options.questions ?? new QuestionQueue(),
@@ -994,6 +995,7 @@ describe("BpmnLintConfigService — workspace rule packages the user has not all
             host,
             approvals,
             catalog,
+            lintRunner,
             blocks,
             refused,
             service,
@@ -1199,6 +1201,108 @@ describe("BpmnLintConfigService — workspace rule packages the user has not all
         expect(host.notifier.logged("info").filter((line) => line.includes("stand in"))).toEqual([
             `bpmnlint: bundled rules stand in for a rule package that is not allowed yet: ${OTHER}`,
         ]);
+    });
+
+    it("lints again the diagrams blocked on a package another writer allowed", async () => {
+        const ctx = createRulePackageHost();
+        ctx.blocks.set(XML_OTHER, [blocked(OTHER, true)]);
+        const acme = ctx.host.openEditor(PATH, XML, { focused: true });
+        const other = ctx.host.openEditor(OTHER_PATH, XML_OTHER);
+        await ctx.service.setBpmnlintConfig(acme.id);
+        await ctx.service.setBpmnlintConfig(other.id);
+        await ctx.service.whenApprovalSettled();
+
+        ctx.host.pluginApprovals.storeElsewhere(
+            [{ pluginId: ACME, contentHash: ctx.contentHashOf(ACME) }],
+            { notify: true },
+        );
+        await ctx.service.whenApprovalSettled();
+
+        expect(ctx.hostResults(acme)).toEqual([{}, RESULTS]);
+        expect(ctx.hostResults(other)).toEqual([{}]);
+    });
+
+    it("lints again every host-linted diagram on a revoke, and no diagram linted in the page", async () => {
+        const COVERED_DIR = "/work/covered";
+        const ctx = createRulePackageHost({
+            files: { [`${COVERED_DIR}/.bpmnlintrc`]: COVERED_RAW },
+        });
+        ctx.host.pluginApprovals.storeElsewhere(
+            [{ pluginId: ACME, contentHash: ctx.contentHashOf(ACME) }],
+            { notify: true },
+        );
+        ctx.blocks.set(XML_OTHER, []);
+        const acme = ctx.host.openEditor(PATH, XML, { focused: true });
+        const other = ctx.host.openEditor(OTHER_PATH, XML_OTHER);
+        const inPage = ctx.host.openEditor(`${COVERED_DIR}/diagram.bpmn`, XML);
+        for (const editor of [acme, other, inPage]) {
+            await ctx.service.setBpmnlintConfig(editor.id);
+        }
+        await ctx.service.whenApprovalSettled();
+        const inPageInstructions = inPage.postedOfType("BpmnlintInPageQuery").length;
+
+        ctx.host.pluginApprovals.storeElsewhere([], { notify: true });
+        await ctx.service.whenApprovalSettled();
+
+        expect(ctx.hostResults(acme)).toEqual([RESULTS, {}]);
+        expect(ctx.hostResults(other)).toEqual([RESULTS, RESULTS]);
+        expect(inPage.postedOfType("BpmnlintInPageQuery")).toHaveLength(inPageInstructions);
+        expect(ctx.catalog.revokedThisSession()).toEqual(new Set([ACME]));
+    });
+
+    it("lints again every host-linted diagram when another writer allows a package at another content", async () => {
+        const ctx = createRulePackageHost();
+        ctx.host.pluginApprovals.storeElsewhere(
+            [{ pluginId: ACME, contentHash: ctx.contentHashOf(ACME) }],
+            { notify: true },
+        );
+        ctx.blocks.set(XML_OTHER, []);
+        const acme = ctx.host.openEditor(PATH, XML, { focused: true });
+        const other = ctx.host.openEditor(OTHER_PATH, XML_OTHER);
+        await ctx.service.setBpmnlintConfig(acme.id);
+        await ctx.service.setBpmnlintConfig(other.id);
+        await ctx.service.whenApprovalSettled();
+
+        ctx.host.pluginApprovals.storeElsewhere(
+            [{ pluginId: ACME, contentHash: "bpmnlint-closure-v1:elsewhere" }],
+            { notify: true },
+        );
+        await ctx.service.whenApprovalSettled();
+
+        // The fake gate admits by id, so the relint itself is what shows here.
+        expect(ctx.hostResults(acme)).toEqual([RESULTS, RESULTS]);
+        expect(ctx.hostResults(other)).toEqual([RESULTS, RESULTS]);
+    });
+
+    it("lints nothing again for a change of plugin approvals only", async () => {
+        const ctx = createRulePackageHost();
+        const editor = ctx.host.openEditor(PATH, XML, { focused: true });
+        await ctx.service.setBpmnlintConfig(editor.id);
+        await ctx.service.whenApprovalSettled();
+
+        ctx.host.pluginApprovals.storeElsewhere(
+            [{ pluginId: "/work/.camunda/plugins/resize-tasks", contentHash: "h1" }],
+            { notify: true },
+        );
+        await ctx.service.whenApprovalSettled();
+
+        expect(ctx.hostResults(editor)).toEqual([{}]);
+    });
+
+    it("follows no approval change once disposed", async () => {
+        const ctx = createRulePackageHost();
+        const editor = ctx.host.openEditor(PATH, XML, { focused: true });
+        await ctx.service.setBpmnlintConfig(editor.id);
+        await ctx.service.whenApprovalSettled();
+
+        ctx.service.dispose();
+        ctx.host.pluginApprovals.storeElsewhere(
+            [{ pluginId: ACME, contentHash: ctx.contentHashOf(ACME) }],
+            { notify: true },
+        );
+        await ctx.service.whenApprovalSettled();
+
+        expect(ctx.hostResults(editor)).toEqual([{}]);
     });
 
     it("asks one question at a time beside the plugin question, and keeps both answers", async () => {

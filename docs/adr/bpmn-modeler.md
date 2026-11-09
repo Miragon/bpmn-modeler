@@ -565,13 +565,29 @@ folder, so an editor open does not reread and rehash every bundle (Camunda
 bundles can be several MB). The feature disposes the watchers with itself.
 
 `PluginCatalog` is host-neutral and returns values: `pluginsFor(documentPath)`
-gives the approved plugins with their bytes and the pending ones,
-`reviewPrompt(pending)` the prompt the domain builds, and
-`applyAnswer(pending, checkedIds)` allows the checked ones and records the
+gives the approved plugins with their bytes, the pending ones and every one
+withheld, `reviewPrompt(pending)` the prompt the domain builds, and
+`applyAnswer(pending, answer)` allows the checked ones and records the
 declines. A decline lasts for the catalog's lifetime (the extension host
 session) or until the content changes. The catalog knows no
 `EditorSessionStore` or `EditorHandle`, so Orca's worker can answer its frame
 from it directly.
+
+`CODE_STATES` (`approved`, `new`, `changed`, `declined`, `gone`) in
+`kernel/domain/codeApproval.ts` is the one spelling of the state a piece of
+workspace code is in, and `CODE_STATE_TEXT` the one text of each, which the
+approval list and the log use; `ApprovalState` and the rule packages'
+`BlockedState` are subsets of it. `needsContentHash` is the one rule for when
+code must be hashed before its state is known (a row or a decline of its id),
+and `codeStateOf` the one dispatcher from what an owner found (found,
+unhashed, unreadable, gone) to that state; `rulePackageVerdict` reads it.
+Groundwork for the artifacts view
+([#2250](https://github.com/Miragon/bpmn-modeler/issues/2250)) and its read
+model ([#2263](https://github.com/Miragon/bpmn-modeler/issues/2263)), read
+only by specs until those land: `reviewedAllowDecision` allows only content
+that is still as it was reviewed, `PROCESS_RESTARTS` names, as a typed host
+fact, how the user unloads code that already ran (reload the window, restart
+the IDE), and `RulePackageCatalog` keeps the packages revoked this session.
 
 **Prompt flow.** Per the
 [VS Code UX guidelines](../../.agents/skills/vscode-ux-guidelines/SKILL.md), a
@@ -581,26 +597,42 @@ when plugins are pending the core offers a notification it builds in
 `bpmnPlugins/domain/` ("N BPMN plugins in this workspace are not allowed
 yet.") with one **Review…** action through the generic
 [action notice port](architecture-and-hosts.md#host-integrations). Only
-**Review…** opens the `chooseMany` prompt. Dismissing the notification or
-the list, or leaving a plugin unchecked, is the same answer: those plugin
-versions are declined for this session, offered again in a later one, and
-offered again at once when their content changes. The kernel's
+**Review…** opens the review, an `ApprovalReviewPort` each feature takes as
+an optional port. Its default, `ListReview` in `kernel/adapter/out/`, opens
+the `chooseMany` prompt. Dismissing the notification or the list, or leaving
+a plugin unchecked, is the same answer: those plugin versions are declined
+for this session, offered again in a later one, and offered again at once
+when their content changes. A review answers a `ReviewAnswer`: the checked
+ids, or `leftForView`, which a review that shows the pending code in a view
+returns ([#2250](https://github.com/Miragon/bpmn-modeler/issues/2250)). The
+question then settles at once, so the queue does not wait on the view; the
+code keeps its state, is not declined for the gate, and no notice asks about
+the same content again this session. The catalogs keep these session answers
+by content (`SESSION_ANSWERS`). The kernel's
 `ApprovalQuestion` runs this flow for every approval kind and knows no
 editor: one question is open at a time, and plugins found while it is open
 are asked afterwards, as far as that answer left them pending. A VS Code
 notice can stay unanswered in the notification centre, so dropping them would
 leave a second workspace's plugins unasked for the session.
-An approval reloads every open BPMN editor whose last answer offered one of
-the newly allowed plugin folders, approved or pending, because its modules are
-fixed; the delivery tracks those folders per editor and a session
-participant drops the entry when the editor is disposed.
+Modules are fixed once a modeler is built, so every change of the approval
+list reloads the open BPMN editors it makes stale, whoever made it: the
+notice, another IntelliJ bridge's push, or another VS Code window after the
+focus re-read. `BpmnPluginsFeature` follows the store's `onDidChange`, and
+`editorsToReload` names an editor that serves a plugin no longer allowed at
+the content it loaded, or was withheld a plugin now allowed at the content it
+was offered, declined ones included. The delivery records per editor the
+plugins it served and withheld, drops the entry on a reload until the page
+asks again, and a session participant drops it when the editor is disposed.
+The question itself reloads nothing.
 
 **Serving.** The delivery service answers `GetBpmnPluginsCommand` with
 `postUnlessHidden`, as element templates do. It copies the approved bytes into
 a content-addressed cache (`<globalStorage>/bpmn-plugins/<hash>/plugin.js` and
 `plugin.css`) and maps them to URLs through `EditorHandle.webviewUrlOf`. Each
 hash is copied once per session, editors asking at the same time share that
-copy, and a failed copy is tried again on the next request. The copy reads each
+copy, and a failed copy is tried again on the next request. A copy found in
+that memo is checked on disk first and written again when it is not whole,
+because another process's prune may have removed it. The copy reads each
 cached file back and rewrites it when its bytes differ from the approved ones
 or cannot be read: a write cut short by a crash would otherwise be served as it
 is. The webview never
@@ -616,6 +648,25 @@ not wire the feature answers with no plugins. That answer has one home,
 `answerWithoutPlugins` in `editorSession/`, built on `postUnlessHidden` like
 the delivery's own answer.
 
+**Pruning.** `BpmnPluginService.pruneCache` removes the cache folders named
+like a content hash (`PLUGIN_CONTENT_HASH_PATTERN`, 64 lower-case hex digits)
+that no stored approval
+names (`cacheEntriesToPrune`). The keep set is every row the host stores, of
+every workspace and project, read with `readStored()` rather than a mirror,
+because the cache is shared. Files, other names and upper case stay, and a
+rule package row's prefixed hash names no copy. A prune waits for the copies
+in flight, and a copy waits for a running prune. VS Code prunes at
+activation, and the bridge once `server.ts` has bound its streams, so the
+harness specs see no extra frame. A revoke from the artifacts view and its
+prune action add triggers there
+([#2250](https://github.com/Miragon/bpmn-modeler/issues/2250)). Pruning on
+every approval change in every process was rejected: until then the next
+start's prune covers the shared cache, after it the revoking process's prune
+does, and N bridges pruning at once only adds noise.
+Residual: a page that loads between another process's delete and this
+process's memo check leaves the plugin out once, and the next open writes the
+copy again. A grace marker would close that gap and is deferred.
+
 **IntelliJ.** The bridge wires the same `BpmnPluginsFeature` as VS Code, so the
 texts, the notification, the list and the reload rule are the core's. The host
 supplies these parts:
@@ -628,7 +679,8 @@ supplies these parts:
   project's bridge is still writing. The launcher passes the root to the bridge as `MIRAGON_BPMN_PLUGIN_CACHE`, and the
   `WebviewServer` serves from the same value, so the two cannot disagree.
 - *Route.* `RpcEditorHandle.webviewUrlOf` maps only
-  `<root>/<64 lowercase hex>/plugin.js|plugin.css` to the root-relative URL
+  `<root>/<64 lowercase hex>/plugin.js|plugin.css` (the core's
+  `CACHED_PLUGIN_FILE_PATTERN`; Kotlin keeps its own copy) to the root-relative URL
   `/bpmn-plugins/<hash>/<file>` and throws for any other path. The page loads
   it from its own loopback origin, so the bridge needs no port. `WebviewRoute`
   matches the raw request path before decoding, so `%2F` or `%2e%2e` cannot
@@ -709,8 +761,8 @@ made the unmodified process-io plugin work, but a full one would make `@bpmn-io/
 its preact a plugin API with a version policy; it is left to its own decision
 ([#2265](https://github.com/Miragon/bpmn-modeler/issues/2265)),
 with one exported instance set, an error boundary around plugin groups and a
-contract test as preconditions. Listing and revoking approvals and pruning the
-cache are left to the artifacts view
+contract test as preconditions. Listing and revoking approvals are left to
+the artifacts view
 ([#2250](https://github.com/Miragon/bpmn-modeler/issues/2250)) and its
 host-neutral read model ([#2263](https://github.com/Miragon/bpmn-modeler/issues/2263)).
 
@@ -799,7 +851,8 @@ and the stat pass costs about 1 ms per lint for the largest closure measured.
 built-in modules and `.json` data without approval, maps the realpath to its
 root and lets the require run only when the root's row matches the current
 closure digest, or the root is a member of a closure already admitted in this
-setup. A root with no row and no decline is blocked as `new` without hashing.
+setup. A root with no row and no decline is blocked as `new` without hashing
+(`needsContentHash`).
 Otherwise the gate records the package as blocked (`new`, `changed` or
 `declined`) and throws `MODULE_NOT_FOUND`, which the resolvers' catches turn
 into a miss: the bundled rule or a no-op. A file inside an approvable root that
@@ -824,9 +877,17 @@ lints on the host because of its string `moddleExtensions`, would ask about
 config uses, and train users to allow everything. After `hostLintFinished`,
 `RulePackageFollowUp`, which `BpmnLintConfigService` hands the lint run, logs
 it and asks without awaiting the answer, so results never wait on the user;
-one question per package stays queued until it is answered. An allow relints
-only the open editors whose last host lint was blocked on an allowed package
-(`editorsBlockedOnAnyOf`); closing an editor forgets it. `RulePackageCatalog`
+one question per package stays queued until it is answered. Relints follow
+the approval store, not the question: `RulePackageCatalog` announces each
+change of the rule package rows, whoever made it (`followedApprovalChange`),
+and `RulePackageFollowUp` lints again `editorsToRelint`. An allow relints the
+open editors whose last host lint was blocked on an allowed package; a
+withdrawn approval relints every editor linted on the host (`lintsOnHost`,
+which counts a first host lint in flight), because `LintRun` records no
+admitted roots, and relints are cheap. A revoke withdraws an approval, and so
+does a row that now holds another hash, which also counts as an allow. Closing an
+editor forgets it, and `BpmnLintConfigService.dispose`, which
+`BpmnEditorFeature.dispose` calls, stops following. `RulePackageCatalog`
 hashes only the packages it asks about, keeps declines for its lifetime unless
 the content changes, and exposes them read-only to the gate, which then reports
 a package as `declined` rather than `new`. The notice and the list have their
@@ -857,7 +918,11 @@ changed. Accepted residuals:
 - Phantom dependencies (undeclared, found through hoisting) and requires a
   package makes later, from inside its own code, are Node's and not gated.
 - Code already loaded stays loaded until the host restarts, so removing an
-  approval takes full effect only then.
+  approval takes full effect only then. The revoke lints the host-linted
+  editors again, so the gate refuses the package from that lint on, and the
+  catalog keeps the packages revoked this session for the artifacts view to
+  say so (groundwork, see above). A row allowed again at another content is
+  not kept there: the user allowed both contents.
 - Admission depends on order within a setup: a member resolved before its
   approved closure root was admitted is blocked, and its bundled fallback
   stays cached until the setup is rebuilt.

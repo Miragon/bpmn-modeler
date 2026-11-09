@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import {
-    editorsOfferedAnyOf,
     isPluginFolderName,
     pluginFolderChangedBy,
     type PluginFolderChange,
@@ -43,36 +42,6 @@ describe("pluginFolderChangedBy", () => {
         },
     ])("names $case", ({ path, change }) => {
         expect(pluginFolderChangedBy(path, PLUGINS)).toEqual(change);
-    });
-});
-
-describe("editorsOfferedAnyOf", () => {
-    const offered = new Map<string, readonly string[]>([
-        ["file:///repo/a.bpmn", [`${PLUGINS}/resize`, `${PLUGINS}/palette`]],
-        ["file:///repo/b.bpmn", [`${PLUGINS}/palette`]],
-        ["file:///other/c.bpmn", []],
-    ]);
-
-    it.each<{ case: string; pluginIds: string[]; editors: string[] }>([
-        {
-            case: "every editor that was offered one of the plugins",
-            pluginIds: [`${PLUGINS}/palette`],
-            editors: ["file:///repo/a.bpmn", "file:///repo/b.bpmn"],
-        },
-        {
-            case: "each editor once, though it was offered several of them",
-            pluginIds: [`${PLUGINS}/resize`, `${PLUGINS}/palette`],
-            editors: ["file:///repo/a.bpmn", "file:///repo/b.bpmn"],
-        },
-        {
-            case: "only the editors offered that plugin",
-            pluginIds: [`${PLUGINS}/resize`],
-            editors: ["file:///repo/a.bpmn"],
-        },
-        { case: "none for a plugin no editor was offered", pluginIds: ["/x"], editors: [] },
-        { case: "none for no plugins", pluginIds: [], editors: [] },
-    ])("returns $case", ({ pluginIds, editors }) => {
-        expect(editorsOfferedAnyOf(offered, pluginIds)).toEqual(editors);
     });
 });
 
