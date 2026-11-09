@@ -488,8 +488,9 @@ folder is open, so the container now shows whenever a folder is open. Both
 set `retainContextWhenHidden`: the core posts nothing to a hidden view, so
 keeping its page costs memory only, and a page shown again keeps its banners
 and the results of requests in flight. The Artifacts view's shell
-(`AddOnsViewHtml`, CSP shell `addOns`) allows its nonced script and its styles
-and nothing else, as the page uses no codicons and no images.
+(`AddOnsViewHtml`, CSP shell `addOns`) allows its nonced script and its linked
+stylesheet and nothing else, no inline styles either, as the page uses no
+codicons, no images and no style attributes.
 `AddOnsViewProvider` attaches one core panel per resolved view and hands it
 the page's commands, its visibility and its disposal; the core refreshes on
 show. The view's title bar **Refresh Artifacts** (`bpmn-modeler.refreshArtifacts`)
@@ -1003,19 +1004,21 @@ serves the whole bundle directory. VS Code and the standalone app copy it into
 the extension; IntelliJ syncs it into plugin resources and serves any path
 below it from the loopback asset server.
 
-Every BPMN, DMN, form and deployment shell sends a Content-Security-Policy with
-`default-src 'none'`, so injected markup cannot run script with the host
-message channel. Each policy allows only what its bundle needs:
+Every BPMN, DMN, form, deployment and add-ons shell sends a
+Content-Security-Policy with `default-src 'none'`, so injected markup cannot
+run script with the host message channel. Each policy allows only what its
+bundle needs:
 
 - `script-src` allows the entry by nonce in VS Code and by `'self'` in
   IntelliJ. The VS Code BPMN and DMN shells also list `webview.cspSource`,
   because the chunk loader's modulepreload links carry no nonce; the form and
   deployment bundles are one script each, so the nonce alone covers them. No
   `'unsafe-eval'`: nothing in the bundles compiles strings at runtime.
-- `style-src` keeps `'unsafe-inline'` in every shell: diagram-js, the
-  properties panel and CodeMirror set style attributes and inject `<style>`
-  elements without a nonce, and the deployment form's markup carries a style
-  attribute.
+- `style-src` keeps `'unsafe-inline'` in every editor and deployment shell:
+  diagram-js, the properties panel and CodeMirror set style attributes and
+  inject `<style>` elements without a nonce, and the deployment form's markup
+  carries a style attribute. VS Code's add-ons shell has only its linked
+  stylesheet and allows `style-src` from the webview alone.
 - In the BPMN, DMN and form shells `img-src` allows `data:`, and for BPMN also
   `https:`, because element-template icons may be either. BPMN and DMN have no
   `connect-src`, so a copy-as-PNG of a remote `.svg` icon renders without that

@@ -54,9 +54,9 @@ for the editors (DMN also gets `assets/` for `reset.css`),
 `apps/vscode-plugin/src/shared/domain/webviewContentSecurityPolicy.ts`
 builds all five policies: the directives every shell shares are written once,
 and its `BUNDLE_SOURCES` table lists what each bundle adds. A table entry may
-only widen `script-src` and the load directives (`img-src`, `font-src`,
-`connect-src`, `frame-src`, `object-src`); another key fails the typecheck and
-never reaches the policy. Its spec pins each policy, so widen a shell in the
+only widen `script-src`, `style-src` and the load directives (`img-src`,
+`font-src`, `connect-src`, `frame-src`, `object-src`); another key fails the
+typecheck and never reaches the policy. Its spec pins each policy, so widen a shell in the
 table and in that spec. Every shell spec runs `describeShellPolicy` from
 `src/__fixtures__/webviewShell.ts`, which checks only that the shell carries the
 builder's policy for its script's nonce and draws a fresh nonce per render. The
@@ -76,9 +76,11 @@ base-uri 'none'; form-action 'none'
   modulepreload links carry no nonce. A nonce-only `script-src` breaks
   View/Design/Implement. The form and deployment bundles are one classic
   script each and allow the nonce alone.
-- `style-src 'unsafe-inline'` in every shell: diagram-js, the properties panel
-  and CodeMirror set style attributes and inject `<style>` elements, and the
-  deployment form's markup carries a style attribute.
+- `style-src 'unsafe-inline'` in every shell but the add-ons one: diagram-js,
+  the properties panel and CodeMirror set style attributes and inject `<style>`
+  elements, and the deployment form's markup carries a style attribute. The
+  add-ons page has only its linked stylesheet, so its policy allows
+  `style-src ${webview.cspSource}` alone.
 - `img-src data: https:`: element-template icons are `data:` URIs or remote
   URLs (DMN has no templates and omits `https:`).
 - The form shell adds what form-js components load at runtime:

@@ -60,7 +60,7 @@ describe("webviewContentSecurityPolicy", () => {
             directives: [
                 "default-src 'none'",
                 "script-src 'nonce-n0nce'",
-                "style-src webview-csp: 'unsafe-inline'",
+                "style-src webview-csp:",
                 "base-uri 'none'",
                 "form-action 'none'",
             ],
