@@ -12,6 +12,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { userEvent } from "vitest/browser";
 
 import { PLAIN_ENTRY_ACTION_BY_BPMN_TYPE } from "@miragon/bpmn-modeler-append-menu";
+import type { ElementTemplateRef } from "@miragon/bpmn-modeler-types";
 
 import { createModeler } from "./createModeler";
 import { createDesigner } from "./design/createDesigner";
@@ -69,6 +70,13 @@ const TASK_OR_USER_TASK_TEMPLATE = {
     name: "Task or user task",
     appliesTo: ["bpmn:Task", "bpmn:UserTask"],
     properties: [],
+};
+
+const MAIL_TASK_TEMPLATE = {
+    ...TASK_OR_USER_TASK_TEMPLATE,
+    id: "mail-task",
+    name: "Mail task",
+    appliesTo: ["bpmn:Task"],
 };
 
 const ZEEBE_TASK_TEMPLATE = {
@@ -133,6 +141,24 @@ function openAppendMenuOn(
 ): void {
     const task = handle.getService<{ get(id: string): Shape }>("elementRegistry").get("Task_1");
     handle.getService<PopupMenuService>("popupMenu").open(task, "bpmn-append", position);
+}
+
+function openCreateMenuOn(handle: BpmnModeler): void {
+    const root = handle.getService("canvas").getRootElement();
+    handle.getService<PopupMenuService>("popupMenu").open(root, "bpmn-create", { x: 320, y: 200 });
+}
+
+function hide(handle: BpmnModeler, refs: ElementTemplateRef[]): void {
+    handle
+        .getService<{ setHidden(refs: ElementTemplateRef[]): void }>("elementTemplateOffer")
+        .setHidden(refs);
+}
+
+function templateCardNames(): (string | null)[] {
+    return Array.from(
+        document.querySelectorAll(".am-template-card .am-card-name"),
+        (name) => name.textContent,
+    );
 }
 
 function navKeys(selector: string): (string | null)[] {
@@ -234,6 +260,21 @@ describe("append menu", () => {
         expect(created[0].businessObject.get("camunda:modelerTemplate")).toBe(
             TASK_OR_USER_TASK_TEMPLATE.id,
         );
+    });
+
+    it.each([
+        ["append", openAppendMenuOn],
+        ["create", openCreateMenuOn],
+    ])("offers no hidden template in the %s menu", async (_menu, openMenu) => {
+        const handle = await openModeler({
+            engine: "c7",
+            elementTemplates: [TASK_OR_USER_TASK_TEMPLATE, MAIL_TASK_TEMPLATE],
+        });
+        hide(handle, [{ id: TASK_OR_USER_TASK_TEMPLATE.id }]);
+
+        openMenu(handle);
+
+        expect(templateCardNames()).toEqual(["Mail task"]);
     });
 
     it.each([

@@ -1,5 +1,6 @@
 import type { Element, Shape } from "bpmn-js/lib/model/Types";
 import { afterEach, describe, expect, it } from "vitest";
+import { userEvent } from "vitest/browser";
 
 import type { ElementTemplateRef } from "@miragon/bpmn-modeler-types";
 
@@ -40,7 +41,22 @@ interface Modeling {
     connect(source: unknown, target: unknown): Element;
 }
 
+interface PopupMenuService {
+    open(target: unknown, providerId: string, position: { x: number; y: number }): void;
+}
+
 const modelers: BpmnModeler[] = [];
+
+function taskTemplate(engine: EngineCase, id: string, version?: number) {
+    return {
+        $schema: engine.schema,
+        id,
+        name: version === undefined ? id : `${id} v${version}`,
+        version,
+        appliesTo: ["bpmn:Task"],
+        properties: [],
+    };
+}
 
 function defaultTemplate(engine: EngineCase, id: string, appliesTo: string) {
     return {
@@ -129,5 +145,52 @@ describe.each(ENGINES)("$engine default element template", (engine) => {
         const flow = connectTasks(modeler);
 
         expect(flow.businessObject.get(engine.templateAttribute)).toBeUndefined();
+    });
+});
+
+describe.each(ENGINES)("$engine replace menu", (engine) => {
+    const templates = [taskTemplate(engine, "audit"), taskTemplate(engine, "mail")];
+
+    function openReplaceMenu(modeler: BpmnModeler): void {
+        const task = modeler.getService("elementRegistry").get("Task_1");
+        modeler
+            .getService<PopupMenuService>("popupMenu")
+            .open(task, "bpmn-replace", { x: 320, y: 200 });
+    }
+
+    function tabLabels(): (string | null)[] {
+        return Array.from(document.querySelectorAll(".djs-popup-tab"), (tab) => tab.textContent);
+    }
+
+    function templateEntryIds(): (string | null)[] {
+        return Array.from(document.querySelectorAll(".djs-popup .entry"), (entry) =>
+            entry.getAttribute("data-id"),
+        ).filter((id) => id?.startsWith("replace.template-"));
+    }
+
+    async function showTemplatesTab(): Promise<void> {
+        const templatesTab = Array.from(
+            document.querySelectorAll<HTMLElement>(".djs-popup-tab"),
+        ).find((tab) => tab.textContent === "Templates");
+        await userEvent.click(templatesTab!);
+    }
+
+    it("leaves a hidden template out of the Templates tab", async () => {
+        const modeler = await openModeler(engine, templates);
+        hide(modeler, [{ id: "audit" }]);
+
+        openReplaceMenu(modeler);
+        await showTemplatesTab();
+
+        await expect.poll(templateEntryIds).toEqual(["replace.template-mail"]);
+    });
+
+    it("shows no Templates tab once every template is hidden", async () => {
+        const modeler = await openModeler(engine, templates);
+        hide(modeler, [{ id: "audit" }, { id: "mail" }]);
+
+        openReplaceMenu(modeler);
+
+        expect(tabLabels()).not.toContain("Templates");
     });
 });
