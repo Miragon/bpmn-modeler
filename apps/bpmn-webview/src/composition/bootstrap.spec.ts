@@ -133,7 +133,7 @@ function makeHost({
 }: { file?: BpmnFileQuery; replies?: Replies; state?: Partial<WebviewState> } = {}) {
     const answers: Replies = {
         GetBpmnFileCommand: () => (file ? [file] : []),
-        GetElementTemplatesCommand: () => [new ElementTemplatesQuery([])],
+        GetElementTemplatesCommand: () => [new ElementTemplatesQuery([], [])],
         GetBpmnModelerSettingCommand: () => [settingsQuery()],
         GetPropertiesPanelStateCommand: () => [new PropertiesPanelStateQuery(true)],
         GetBpmnPluginsCommand: () => [new BpmnPluginsQuery([])],
@@ -187,6 +187,7 @@ function makeModeler(overrides: Record<string, unknown> = {}) {
         newDiagram: vi.fn(async () => ({ warnings: [] })),
         onCommandStackChanged: vi.fn(),
         setElementTemplates: vi.fn(),
+        setHiddenElementTemplates: vi.fn(),
         setSettings: vi.fn(),
         setTheme: vi.fn(),
         setMode: vi.fn(),
@@ -546,7 +547,7 @@ describe("bootstrap", () => {
 
             boot(host);
             await settle();
-            dispatch(new ElementTemplatesQuery([{ id: "tpl" }]));
+            dispatch(new ElementTemplatesQuery([{ id: "tpl" }], []));
             await settle();
 
             expect(mocks.createModeler).not.toHaveBeenCalled();
@@ -987,7 +988,7 @@ describe("bootstrap", () => {
             const modeler = await bootAwaitingReplies();
             expect(stateManager().restoreSelection).not.toHaveBeenCalled();
 
-            dispatch(new ElementTemplatesQuery([]));
+            dispatch(new ElementTemplatesQuery([], []));
             await settle();
             expect(stateManager().restoreSelection).not.toHaveBeenCalled();
 
@@ -1013,7 +1014,7 @@ describe("bootstrap", () => {
             await settle();
             expect(preview.isAutomaticEnabled!()).toBe(false);
             expect(stateManager().restoreSelection).not.toHaveBeenCalled();
-            dispatch(new ElementTemplatesQuery([]));
+            dispatch(new ElementTemplatesQuery([], []));
             await settle();
             expect(stateManager().restoreSelection).toHaveBeenCalledOnce();
             expect(preview.isAutomaticEnabled!()).toBe(false);
@@ -1021,7 +1022,7 @@ describe("bootstrap", () => {
 
         it.each([
             ["ElementTemplatesQuery", settingsQuery],
-            ["BpmnModelerSettingQuery", () => new ElementTemplatesQuery([])],
+            ["BpmnModelerSettingQuery", () => new ElementTemplatesQuery([], [])],
         ])("still starts persisting when the host drops the %s reply", async (_, answered) => {
             await bootAwaitingReplies();
             dispatch(answered());
@@ -1121,7 +1122,7 @@ describe("bootstrap", () => {
 
         it.each([
             ["BpmnModelerSettingQuery", settingsQuery],
-            ["ElementTemplatesQuery", () => new ElementTemplatesQuery([])],
+            ["ElementTemplatesQuery", () => new ElementTemplatesQuery([], [])],
             ["GetDiagramAsSVGCommand", () => new GetDiagramAsSVGCommand()],
             ["TakeFocusQuery", () => new TakeFocusQuery()],
         ])("ignores %s without an error", async (_type, query) => {

@@ -5,6 +5,7 @@ import { admitSessionMessage, type SessionMessageType } from "./sessionMessageAd
 const sessionMessageTypes = Object.keys({
     BpmnFileQuery: true,
     ElementTemplatesQuery: true,
+    HiddenElementTemplatesQuery: true,
     BpmnlintResultsQuery: true,
     BpmnLintDisabledQuery: true,
     BpmnlintInPageQuery: true,
@@ -33,6 +34,7 @@ const sessionMessageTypes = Object.keys({
 
 const importBoundTypes: SessionMessageType[] = [
     "ElementTemplatesQuery",
+    "HiddenElementTemplatesQuery",
     "BpmnModelerSettingQuery",
     "BpmnlintResultsQuery",
     "BpmnLintDisabledQuery",

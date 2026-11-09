@@ -108,7 +108,7 @@ describe("ElementTemplatesParticipant", () => {
 
         expect(host.workspace.watchers.map(({ disposed }) => disposed)).toEqual([true, false]);
         expect(editor.postedOfType("ElementTemplatesQuery")).toEqual([
-            new ElementTemplatesQuery([]),
+            new ElementTemplatesQuery([], []),
         ]);
     });
 });

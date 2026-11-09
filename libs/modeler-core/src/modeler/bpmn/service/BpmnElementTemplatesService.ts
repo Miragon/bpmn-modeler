@@ -101,7 +101,7 @@ export class BpmnElementTemplatesService implements ArtifactChangeTarget {
 
             const outcome = await this.editorStore.postUnlessHidden(
                 editorId,
-                new ElementTemplatesQuery(templates),
+                new ElementTemplatesQuery(templates, []),
             );
             if (outcome === "sent") {
                 if (readsFromDisk) {

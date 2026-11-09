@@ -5,6 +5,7 @@ import {
     DiagramFormattedCommand,
     type ElementTemplatesQuery,
     type GetDiagramAsSVGCommand,
+    type HiddenElementTemplatesQuery,
     type HostThemeAdapter,
     type ImplementationStatusQuery,
     LogErrorCommand,
@@ -39,6 +40,7 @@ interface SurfaceRequestHandlers {
     UpdateOpenScriptEditorsQuery(query: UpdateOpenScriptEditorsQuery): void;
     ImplementationStatusQuery(query: ImplementationStatusQuery): void;
     ElementTemplatesQuery(query: ElementTemplatesQuery): void;
+    HiddenElementTemplatesQuery(query: HiddenElementTemplatesQuery): void;
     BpmnModelerSettingQuery(query: BpmnModelerSettingQuery): void;
 }
 
@@ -188,12 +190,20 @@ export function createSurfaceRequests(
                     console.debug("Received element templates: ", query.elementTemplates);
                     const surface = getSurface();
                     if (isModelerHandle(surface)) {
+                        surface.setHiddenElementTemplates(query.hiddenTemplates);
                         surface.setElementTemplates(query.elementTemplates);
                     }
                 } finally {
                     // Resolve even on a facade throw — otherwise the boot
                     // restore starves and startPersisting never runs.
                     replies.elementTemplates.done(query);
+                }
+            },
+            HiddenElementTemplatesQuery: (query) => {
+                // Another surface needs nothing: a modeler built later asks for both.
+                const surface = getSurface();
+                if (isModelerHandle(surface)) {
+                    surface.setHiddenElementTemplates(query.hiddenTemplates);
                 }
             },
             BpmnModelerSettingQuery: (query) => {
