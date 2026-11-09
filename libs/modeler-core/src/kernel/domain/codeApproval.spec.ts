@@ -569,6 +569,17 @@ describe("session answers", () => {
         expect(isLeftForView(id, answers)).toBe(leftForView);
     });
 
+    it.each([
+        { case: "an id with a # in it", id: "/work/rules#2", leftForView: true },
+        { case: "an id another one extends past a #", id: "/work/rules", leftForView: false },
+    ])("tells $case apart: $leftForView", ({ id, leftForView }) => {
+        const leftWithHash = new Map<string, SessionAnswer>([
+            [declineKeyOf({ id: "/work/rules#2", name: "rules", contentHash: "r2" }), "leftForView"],
+        ]);
+
+        expect(isLeftForView(id, leftWithHash)).toBe(leftForView);
+    });
+
     it("names each answer a session can hold", () => {
         expectTypeOf<SessionAnswer>().toEqualTypeOf<(typeof SESSION_ANSWERS)[number]>();
         expect(SESSION_ANSWERS).toEqual(["declined", "leftForView"]);
@@ -638,6 +649,12 @@ describe("needsContentHash", () => {
             case: "only declines whose id starts or ends like this one",
             approvals: [],
             declined: [`${resize.id}-evil#aaa`, `x${resize.id}#aaa`],
+            needed: false,
+        },
+        {
+            case: "only a decline of an id that extends this one past a #",
+            approvals: [],
+            declined: [`${resize.id}#2#aaa`],
             needed: false,
         },
     ])("is $needed with $case", ({ approvals, declined, needed }) => {
