@@ -61,12 +61,15 @@ export class AddOnsViewProvider implements WebviewViewProvider {
             this.createNonce(),
         );
 
-        this.pageLoaded = false;
         const panel = this.addOns.attachPanel(
             (message: Query) => void webviewView.webview.postMessage(message),
             webviewView.visible,
         );
-        webviewView.onDidDispose(() => panel.dispose());
+        webviewView.onDidDispose(() => {
+            this.pageLoaded = false;
+            this.focusOnLoad = false;
+            panel.dispose();
+        });
         webviewView.webview.onDidReceiveMessage((message: Command) => {
             this.pageLoaded = true;
             if (this.focusOnLoad) {

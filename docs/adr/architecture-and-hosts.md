@@ -504,7 +504,9 @@ provider runs the view's `<viewId>.focus` command, which opens the container
 and resolves the view; a page that is still loading then loses that focus, so
 the provider shows the view with focus once more on the page's first message,
 and the page focuses the revealed row (the smoke test found a fresh view left
-unfocused, with the row out of sight). The reviews are built before the
+unfocused, with the row out of sight). A disposed view (hidden, moved or out
+of its `when` clause) drops both the page state and an unanswered focus, so
+the next view VS Code resolves starts clean. The reviews are built before the
 BPMN editor that takes them, while the catalog is built later from that
 editor's owners, so the composition connects the reveal once the catalog
 exists; activation is synchronous, so no notice can ask before then. The
