@@ -2,7 +2,7 @@ import { declinedKeys, needsContentHash, presenceIdOf } from "../../kernel/domai
 import { PluginApprovalStorePort } from "../../kernel/port/approvalPorts";
 import { SettingsPort, WorkspacePort } from "../../kernel/port/hostPorts";
 import { AddOnFacts, OwnedPresence } from "../domain/addOnCatalog";
-import { innermostFolderOf } from "../domain/addOnPaths";
+import { innermostFolderOf } from "../../kernel/domain/rootContainment";
 import { PluginAddOnSource, RulePackageAddOnSource } from "../port/addOnSourcePorts";
 
 export interface AddOnInventoryPorts {

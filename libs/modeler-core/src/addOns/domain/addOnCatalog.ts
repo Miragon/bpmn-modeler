@@ -13,10 +13,13 @@ import {
     SessionAnswer,
 } from "../../kernel/domain/codeApproval";
 import { folderOfConfigFolder } from "../../kernel/domain/configArtifacts";
-import { relativeToRoot, relativeToWorkspace } from "../../kernel/domain/rootContainment";
+import {
+    innermostFolderOf,
+    relativeToRoot,
+    relativeToWorkspace,
+} from "../../kernel/domain/rootContainment";
 import { lastWorkspacePathSegment } from "../../kernel/domain/workspacePath";
 import { AddOnKind, addOnIdOf, folderGroupIdOf, SourceKind, sourceIdOf } from "./addOnIds";
-import { innermostFolderOf } from "./addOnPaths";
 import {
     ACTION_LABEL,
     ADD_ON_KIND_TEXT,

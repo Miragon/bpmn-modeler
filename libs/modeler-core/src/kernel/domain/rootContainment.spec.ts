@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+    innermostFolderOf,
     isWithinRoot,
     outermostPaths,
     relativeToRoot,
@@ -103,6 +104,25 @@ describe("isWithinRoot", () => {
         { path: "/", root: "/work", within: false },
     ])("answers $within for $path in $root", ({ path, root, within }) => {
         expect(isWithinRoot(path, root)).toBe(within);
+    });
+});
+
+describe("innermostFolderOf", () => {
+    const folders = ["/work", "/work/orders", "/other"];
+
+    it.each([
+        { path: "/work/.camunda/plugins/a", folder: "/work" },
+        { path: "/work/orders/.camunda/plugins/a", folder: "/work/orders" },
+        { path: "/other/node_modules/bpmnlint-plugin-a", folder: "/other" },
+        { path: "/work", folder: "/work" },
+        { path: "/elsewhere/node_modules/x", folder: undefined },
+        { path: "/work2/x", folder: undefined },
+    ])("puts $path in $folder", ({ path, folder }) => {
+        expect(innermostFolderOf(path, folders)).toBe(folder);
+    });
+
+    it("finds the innermost folder whatever order the folders were opened in", () => {
+        expect(innermostFolderOf("/work/orders/x", ["/work/orders", "/work"])).toBe("/work/orders");
     });
 });
 
