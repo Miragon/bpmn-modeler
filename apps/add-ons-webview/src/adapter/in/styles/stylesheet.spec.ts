@@ -39,6 +39,11 @@ describe("the add-ons view's stylesheet", () => {
         expect(hostThemeVariables).toEqual([...new Set(hostThemeVariables)]);
     });
 
+    // jsdom hides a [hidden] element over any author display rule; a browser does not.
+    it("keeps an element hidden over its own display rule", () => {
+        expect(stylesheet).toMatch(/\[hidden\]\s*\{\s*display:\s*none\s*!important;\s*\}/);
+    });
+
     it("draws focus and high-contrast borders the host's way", () => {
         expect(stylesheet).toContain(":focus-visible");
         expect(stylesheet).toContain("@media (forced-colors: active)");
