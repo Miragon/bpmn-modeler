@@ -30,6 +30,7 @@ import {
     waitForNotice,
     writeAcmeDependency,
 } from "../src/__fixtures__/rulePackageBridge";
+import { PluginApprovalsSnapshot } from "../src/protocol/domain/types";
 
 const EDITED = "v2, edited after the approval";
 
@@ -55,10 +56,15 @@ function warned(bridge: AcmeBridge, fromIndex: number, text: string): boolean {
 
 const ranRule = (results: Frame) => ACME_RULE in findingsOf(results);
 
+// The host's list across allows: the bridge ignores a reply no newer than the list it holds.
+let stored: PluginApprovalsSnapshot = { approvals: [], revision: 1 };
+
 async function allowEveryPending(bridge: AcmeBridge, fromIndex: number): Promise<Frame> {
     const notice = await waitForNotice(bridge, fromIndex);
     const relintFrom = bridge.frames.length;
-    const { change } = await reviewAndAllowAll(bridge, notice);
+    const answered = await reviewAndAllowAll(bridge, notice, stored);
+    stored = answered.stored;
+    const { change } = answered;
     check(
         change.allow.some(
             ({ pluginId, contentHash }) =>
