@@ -7,6 +7,7 @@ import {
     type CodeState,
     declineKeyOf,
     type FollowedApprovalChange,
+    type ProcessRestart,
 } from "../../../kernel/domain/codeApproval";
 import {
     type BlockedRulePackage,
@@ -25,6 +26,7 @@ import {
     requestedPackageNameOf,
     RULE_PACKAGE_APPROVAL_NOTICE_ID,
     RULE_PACKAGE_APPROVAL_PROMPT_ID,
+    RULE_PACKAGE_CODE_TEXTS,
     RULE_PACKAGE_CONTENT_HASH_PREFIX,
     ruleModuleRootOf,
     type RuleModuleRoot,
@@ -836,5 +838,16 @@ describe("rootKindOf", () => {
         },
     ])("tells $case", ({ id, facts, root }) => {
         expect(rootKindOf(id, facts)).toEqual(root);
+    });
+});
+
+describe("RULE_PACKAGE_CODE_TEXTS", () => {
+    it.each<{ restart: ProcessRestart; until: string }>([
+        { restart: "reloadWindow", until: "reload the window" },
+        { restart: "restartIde", until: "restart the IDE" },
+    ])("says a revoked package's code stays loaded until you $until", ({ restart, until }) => {
+        expect(RULE_PACKAGE_CODE_TEXTS.revokedFollowUp(restart)).toBe(
+            `Code it already ran stays loaded until you ${until}.`,
+        );
     });
 });

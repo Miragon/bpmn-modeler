@@ -13,6 +13,8 @@ import { BpmnPluginService } from "./BpmnPluginService";
 import { PluginCatalog } from "./PluginCatalog";
 import { PluginReading, WorkspacePluginLocator } from "./WorkspacePluginLocator";
 
+const NONE_LOADED: ReadonlySet<string> = new Set();
+
 /**
  * The plugins as the add-on catalog lists them: found, hashed and answered
  * for by the plugin feature's own locator and catalog, which keep the rules.
@@ -68,6 +70,11 @@ export class PluginInventory {
 
     sessionAnswers(): ReadonlyMap<string, SessionAnswer> {
         return this.catalog.sessionAnswers();
+    }
+
+    /** A revoked plugin unloads at once: open editors reload without it. */
+    stillLoadedAfterRevoke(): ReadonlySet<string> {
+        return NONE_LOADED;
     }
 
     leaveForView(artifact: ApprovableArtifact): void {

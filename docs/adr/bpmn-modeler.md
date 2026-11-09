@@ -768,8 +768,9 @@ host-neutral read model of the artifacts view
 rule of the code it lists: the plugin and rule package features each meet a
 structural port of `addOns/port/` with an inventory (`PluginInventory`,
 `RulePackageInventory`) that finds, places, hashes and answers for their code
-as their notices do, says what it can do once allowed and what follows an
-allow, and runs what follows a revoke. The host compositions wire one into the
+as their notices do, says what it can do once allowed, what follows an
+allow or a revoke and which revoked code stays loaded, and runs what
+follows a revoke. The host compositions wire one into the
 other ([package boundaries](architecture-and-hosts.md#package-boundaries)).
 Both hosts build an `AddOnsFeature`; no view attaches to it yet. Templates and
 marketplaces are not listed yet: their listing, the targeted remove and its

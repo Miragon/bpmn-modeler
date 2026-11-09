@@ -1,11 +1,5 @@
-import {
-    ApprovableArtifact,
-    ProcessRestart,
-    ReviewedAllow,
-} from "../../kernel/domain/codeApproval";
+import { ApprovableArtifact, ReviewedAllow } from "../../kernel/domain/codeApproval";
 import { AddOnActionKind, ShownCode } from "./addOnCatalog";
-import { AddOnKind } from "./addOnIds";
-import { stillLoadedText } from "./addOnTexts";
 import { ShownRevisions } from "./shownRevisions";
 
 /** What a view asks of the core; every id names something the core itself showed. */
@@ -46,11 +40,6 @@ const NOT_OFFERED = refused(
     "The list offers no such action for this add-on now. Check it again.",
 );
 export const CLOSED_VIEW = refused("closedView", "This view is closed.");
-
-const REVOKED_FOLLOW_UP: Record<AddOnKind, (restart: ProcessRestart) => string> = {
-    plugin: () => "Open editors reload without it.",
-    rulePackage: stillLoadedText,
-};
 
 const REFUSED_ALLOW_TEXT: Record<
     Extract<ReviewedAllow, { kind: "refused" }>["reason"],
@@ -112,11 +101,8 @@ export function allowResultOf(code: ShownCode, decision: ReviewedAllow): AddOnAc
     return { kind: "done", message: `Allowed ${code.name}. ${code.allowedFollowUp}` };
 }
 
-export function revokeResultOf(code: ShownCode, restart: ProcessRestart): AddOnActionResult {
-    return {
-        kind: "done",
-        message: `Revoked ${code.name}. ${REVOKED_FOLLOW_UP[code.kind](restart)}`,
-    };
+export function revokeResultOf(code: ShownCode): AddOnActionResult {
+    return { kind: "done", message: `Revoked ${code.name}. ${code.revokedFollowUp}` };
 }
 
 export function inspectResultOf(code: ShownCode): AddOnActionResult {

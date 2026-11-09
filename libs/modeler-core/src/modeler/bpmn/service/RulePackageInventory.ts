@@ -124,7 +124,8 @@ export class RulePackageInventory {
         return this.catalog.sessionAnswers();
     }
 
-    revokedThisSession(): ReadonlySet<string> {
+    /** Code a revoked package already ran stays loaded until the process restarts. */
+    stillLoadedAfterRevoke(): ReadonlySet<string> {
         return this.catalog.revokedThisSession();
     }
 

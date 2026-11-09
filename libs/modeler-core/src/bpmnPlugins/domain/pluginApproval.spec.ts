@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { type CodeApproval } from "../../kernel/domain/codeApproval";
+import { type CodeApproval, PROCESS_RESTARTS } from "../../kernel/domain/codeApproval";
 import { type DirectoryEntryKind } from "../../kernel/domain/directoryEntry";
 import {
     approvedContent,
@@ -18,6 +18,7 @@ import {
     PLUGIN_APPROVAL_PROMPT_ID,
     pluginApprovalNotice,
     pluginApprovalPrompt,
+    PLUGIN_CODE_TEXTS,
     PLUGIN_CONTENT_HASH_PATTERN,
     type WorkspacePlugin,
 } from "./pluginApproval";
@@ -35,6 +36,17 @@ const palette: WorkspacePlugin = {
     stylePath: "/repo/.camunda/plugins/reduced-palette/style.css",
     contentHash: "bbb",
 };
+
+describe("PLUGIN_CODE_TEXTS", () => {
+    it.each(PROCESS_RESTARTS)(
+        "says open editors reload without a revoked plugin, for %s",
+        (restart) => {
+            expect(PLUGIN_CODE_TEXTS.revokedFollowUp(restart)).toBe(
+                "Open editors reload without it.",
+            );
+        },
+    );
+});
 
 describe("pluginApprovalPrompt", () => {
     it("lists each plugin with why it is asked and its folder in the workspace", () => {

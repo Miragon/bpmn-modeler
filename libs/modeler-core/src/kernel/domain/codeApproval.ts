@@ -67,10 +67,12 @@ export interface ListedCode extends ApprovableArtifact {
     readonly files: readonly string[];
 }
 
-/** What an owner says of its code: what it can do once allowed, and what follows an allow. */
+/** What an owner says of its code: what it can do once allowed, and what follows an allow or a revoke. */
 export interface ApprovableCodeTexts {
     readonly risk: string;
     readonly allowedFollowUp: string;
+    /** Also the note of a row whose code its owner says stays loaded after a revoke. */
+    readonly revokedFollowUp: (restart: ProcessRestart) => string;
 }
 
 /** Code as its owner lists it, named even when it could not be read. */

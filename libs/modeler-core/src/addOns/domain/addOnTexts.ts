@@ -1,9 +1,4 @@
-import {
-    CODE_STATE_TEXT,
-    CodeState,
-    PROCESS_RESTART_TEXT,
-    ProcessRestart,
-} from "../../kernel/domain/codeApproval";
+import { CODE_STATE_TEXT, CodeState } from "../../kernel/domain/codeApproval";
 import { AddOnKind } from "./addOnIds";
 
 export const ADD_ON_KIND_TEXT: Record<AddOnKind, string> = {
@@ -55,8 +50,4 @@ export function reviewHeading(name: string): string {
 
 export function cannotBeAllowedText(reason: string): string {
     return `Cannot be allowed: ${reason}.`;
-}
-
-export function stillLoadedText(restart: ProcessRestart): string {
-    return `Code it already ran stays loaded until you ${PROCESS_RESTART_TEXT[restart]}.`;
 }

@@ -12,6 +12,7 @@ import {
     FollowedApprovalChange,
     PendingCodeApproval,
     pendingApprovalDescription,
+    PROCESS_RESTART_TEXT,
 } from "../../../kernel/domain/codeApproval";
 import { ChoicePrompt } from "../../../kernel/domain/prompts";
 import { isRootedPath, isWithinRoot } from "../../../kernel/domain/rootContainment";
@@ -274,6 +275,8 @@ export function rulePackageApprovalNotice(
 export const RULE_PACKAGE_CODE_TEXTS: ApprovableCodeTexts = {
     risk: "A rule package runs as a program with your user's rights, not only inside the editor.",
     allowedFollowUp: "Open editors lint again with it.",
+    revokedFollowUp: (restart) =>
+        `Code it already ran stays loaded until you ${PROCESS_RESTART_TEXT[restart]}.`,
 };
 
 export function rulePackageApprovalPrompt(

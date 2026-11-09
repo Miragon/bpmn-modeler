@@ -24,6 +24,8 @@ export interface CodeAddOnSource {
     current(id: string): Promise<ListedPresence>;
     /** After the catalog revoked one of its rows. */
     afterRevoke(): Promise<void>;
+    /** Revoked this session, with code that may still be loaded although no approval covers it. */
+    stillLoadedAfterRevoke(): ReadonlySet<string>;
     /** After anything it lists or answered changed. */
     onDidChange(listener: () => void): { dispose(): void };
 }
@@ -49,7 +51,6 @@ export interface RulePackageAddOnSource extends CodeAddOnSource {
     lintConfigDirs(): readonly string[];
     /** Hashing reads every byte of the package and its dependencies, so only on request. */
     currentRulePackage(id: string, options: { readonly hash: boolean }): ListedPresence;
-    revokedThisSession(): ReadonlySet<string>;
 }
 
 export interface SettingChanges {

@@ -56,6 +56,7 @@ export function approvedContent(script: string, style: string | undefined): stri
 export const PLUGIN_CODE_TEXTS: ApprovableCodeTexts = {
     risk: "A plugin runs its own code in the BPMN editor.",
     allowedFollowUp: "Open editors reload with it.",
+    revokedFollowUp: () => "Open editors reload without it.",
 };
 
 export function pluginApprovalPrompt(

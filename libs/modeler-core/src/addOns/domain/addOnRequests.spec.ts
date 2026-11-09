@@ -22,6 +22,7 @@ const plugin: ShownCode = {
     content,
     actions: ["allow"],
     allowedFollowUp: "Open editors reload with it.",
+    revokedFollowUp: "Open editors reload without it.",
 };
 const approvedPlugin: ShownCode = { ...plugin, actions: ["revoke"] };
 const unhashed: ShownCode = {
@@ -30,6 +31,7 @@ const unhashed: ShownCode = {
     name: "bpmnlint-plugin-acme",
     actions: ["inspect"],
     allowedFollowUp: "Open editors lint again with it.",
+    revokedFollowUp: "Code it already ran stays loaded until you reload the window.",
 };
 const rulePackage: ShownCode = {
     ...unhashed,
@@ -184,21 +186,15 @@ describe("allowResultOf", () => {
 });
 
 describe("revokeResultOf", () => {
-    it("says open editors reload without a revoked plugin", () => {
-        expect(revokeResultOf(plugin, "restartIde")).toEqual({
-            kind: "done",
-            message: "Revoked Resize. Open editors reload without it.",
-        });
-    });
-
     it.each([
-        { restart: "reloadWindow" as const, until: "reload the window" },
-        { restart: "restartIde" as const, until: "restart the IDE" },
-    ])("says a revoked rule package's code stays until you $until", ({ restart, until }) => {
-        expect(revokeResultOf(rulePackage, restart)).toEqual({
-            kind: "done",
-            message: `Revoked bpmnlint-plugin-acme. Code it already ran stays loaded until you ${until}.`,
-        });
+        { code: plugin, message: "Revoked Resize. Open editors reload without it." },
+        {
+            code: rulePackage,
+            message:
+                "Revoked bpmnlint-plugin-acme. Code it already ran stays loaded until you reload the window.",
+        },
+    ])("says what its owner says follows the revoke: $message", ({ code, message }) => {
+        expect(revokeResultOf(code)).toEqual({ kind: "done", message });
     });
 });
 

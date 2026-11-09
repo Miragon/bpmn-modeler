@@ -30,7 +30,6 @@ import {
     REVIEW_FACT_LABEL,
     reviewHeading,
     ROOT_CONFIG_FOLDER_TEXT,
-    stillLoadedText,
 } from "./addOnTexts";
 
 export const ADD_ON_ACTION_KINDS = ["inspect", "allow", "revoke"] as const;
@@ -109,11 +108,11 @@ export interface AddOnFacts {
     readonly rulePackages: readonly OwnedPresence[];
 }
 
-/** What this process remembers beyond the stored approvals. */
+/** What this process remembers beyond the stored approvals, by kind as each owner tells it. */
 export interface AddOnSession {
     readonly answers: Readonly<Record<AddOnKind, ReadonlyMap<string, SessionAnswer>>>;
-    /** Rule packages whose code may still be loaded although no approval covers it. */
-    readonly revokedRulePackages: ReadonlySet<string>;
+    /** Revoked this session, with code that may still be loaded. */
+    readonly stillLoaded: Readonly<Record<AddOnKind, ReadonlySet<string>>>;
 }
 
 /** What the core showed of one add-on; kept by the core and never sent. */
@@ -127,6 +126,7 @@ export interface ShownCode {
     /** A request is checked against these, so no view acts on a row as it was not shown. */
     readonly actions: readonly AddOnActionKind[];
     readonly allowedFollowUp: string;
+    readonly revokedFollowUp: string;
 }
 
 export interface CatalogBuild {
@@ -183,9 +183,6 @@ const SOURCE_PLACE: Record<
     },
     rulePackage: (dir) => ({ kind: "installedPackages", dir, rank: 2 }),
 };
-
-/** A revoked rule package's code stays loaded until a restart; a revoked plugin reloads at once. */
-const LOADED_AFTER_REVOKE: Record<AddOnKind, boolean> = { plugin: false, rulePackage: true };
 
 const DETAIL: Record<
     AddOnKind,
@@ -266,10 +263,8 @@ function placedAddOn(
         ),
         ...optional(
             "note",
-            LOADED_AFTER_REVOKE[kind] &&
-                !isApprovedState(state) &&
-                session.revokedRulePackages.has(id)
-                ? stillLoadedText(restart)
+            !isApprovedState(state) && session.stillLoaded[kind].has(id)
+                ? texts.revokedFollowUp(restart)
                 : undefined,
         ),
         ...optional(
@@ -292,6 +287,7 @@ function placedAddOn(
         ),
         actions: actions.map((action) => action.kind),
         allowedFollowUp: texts.allowedFollowUp,
+        revokedFollowUp: texts.revokedFollowUp(restart),
     };
     return [{ root, source, view, shown }];
 }

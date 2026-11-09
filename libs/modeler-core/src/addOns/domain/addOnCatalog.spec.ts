@@ -1,6 +1,7 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 
 import {
+    ApprovableCodeTexts,
     CodeApproval,
     declineKeyOf,
     ListedPresence,
@@ -43,10 +44,15 @@ const found = (
     },
 });
 
-const PLUGIN_TEXTS = { risk: "Plugin risk.", allowedFollowUp: "Plugin follow-up." };
-const RULE_PACKAGE_TEXTS = {
+const PLUGIN_TEXTS: ApprovableCodeTexts = {
+    risk: "Plugin risk.",
+    allowedFollowUp: "Plugin follow-up.",
+    revokedFollowUp: () => "Plugin revoked.",
+};
+const RULE_PACKAGE_TEXTS: ApprovableCodeTexts = {
     risk: "A rule package runs as a program with your user's rights, not only inside the editor.",
     allowedFollowUp: "Rule package follow-up.",
+    revokedFollowUp: (restart) => `Rule package revoked until ${restart}.`,
 };
 
 /** Placed as the owners place them: a plugin in its config folder, a rule package in its `node_modules`. */
@@ -64,7 +70,7 @@ function factsOf(
 ): AddOnFacts {
     const { plugins = [], rulePackages = [], ...rest } = overrides;
     const placedBy =
-        (sourceDirOf: (id: string) => string, texts: { risk: string; allowedFollowUp: string }) =>
+        (sourceDirOf: (id: string) => string, texts: ApprovableCodeTexts) =>
         (presence: ListedPresence) => ({
             presence,
             sourceDir: sourceDirOf(presenceIdOf(presence)),
@@ -84,7 +90,7 @@ function sessionOf(
     overrides: {
         plugin?: [string, SessionAnswer][];
         rulePackage?: [string, SessionAnswer][];
-        revoked?: string[];
+        stillLoaded?: { plugin?: string[]; rulePackage?: string[] };
     } = {},
 ): AddOnSession {
     return {
@@ -92,7 +98,10 @@ function sessionOf(
             plugin: new Map(overrides.plugin ?? []),
             rulePackage: new Map(overrides.rulePackage ?? []),
         },
-        revokedRulePackages: new Set(overrides.revoked ?? []),
+        stillLoaded: {
+            plugin: new Set(overrides.stillLoaded?.plugin ?? []),
+            rulePackage: new Set(overrides.stillLoaded?.rulePackage ?? []),
+        },
     };
 }
 
@@ -510,34 +519,33 @@ describe("catalogModelOf", () => {
     });
 
     it.each(PROCESS_RESTARTS)(
-        "says a revoked rule package's code stays loaded until the user can %s",
+        "notes what follows the revoke of a row whose owner says its code stays loaded, for %s",
         (restart) => {
             const { model } = catalogModelOf(
                 factsOf({ rulePackages: [found(ACME, "bpmnlint-plugin-acme", "r1")] }),
-                sessionOf({ revoked: [ACME] }),
+                sessionOf({ stillLoaded: { rulePackage: [ACME] } }),
                 restart,
                 1,
             );
 
             expect(model.groups[0].sources[0].addOns[0].note).toBe(
-                {
-                    reloadWindow: "Code it already ran stays loaded until you reload the window.",
-                    restartIde: "Code it already ran stays loaded until you restart the IDE.",
-                }[restart],
+                `Rule package revoked until ${restart}.`,
             );
         },
     );
 
-    it("says nothing of loaded code once the rule package is allowed again, or for a plugin", () => {
+    it("notes no loaded code once a row is allowed again, nor for a kind whose owner names none", () => {
         const facts = factsOf({
             plugins: [found(RESIZE, "Resize", "h1")],
             rulePackages: [found(ACME, "bpmnlint-plugin-acme", "r1")],
             approvals: [{ pluginId: ACME, contentHash: "r1" }],
         });
 
-        expect(rows(facts, sessionOf({ revoked: [ACME, RESIZE] })).map(({ note }) => note)).toEqual(
-            [undefined, undefined],
-        );
+        expect(
+            rows(facts, sessionOf({ stillLoaded: { rulePackage: [ACME, RESIZE] } })).map(
+                ({ note }) => note,
+            ),
+        ).toEqual([undefined, undefined]);
     });
 
     it("keeps what it showed of each add-on, the content only where it was hashed, and what it offered", () => {
@@ -558,6 +566,7 @@ describe("catalogModelOf", () => {
                     content: { id: RESIZE, name: "Resize", contentHash: "h1" },
                     actions: ["allow"],
                     allowedFollowUp: PLUGIN_TEXTS.allowedFollowUp,
+                    revokedFollowUp: "Plugin revoked.",
                 },
             ],
             [
@@ -568,6 +577,7 @@ describe("catalogModelOf", () => {
                     name: "bpmnlint-plugin-acme",
                     actions: ["inspect"],
                     allowedFollowUp: RULE_PACKAGE_TEXTS.allowedFollowUp,
+                    revokedFollowUp: "Rule package revoked until reloadWindow.",
                 },
             ],
         ]);

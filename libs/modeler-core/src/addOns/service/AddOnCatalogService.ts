@@ -158,7 +158,7 @@ export class AddOnCatalogService {
         if (code.content !== undefined) this.sourceOf(code.kind)?.leaveForView(code.content);
         await this.ports.approvals.change(revoking([code.id]));
         await this.sourceOf(code.kind)?.afterRevoke();
-        return revokeResultOf(code, this.ports.restart);
+        return revokeResultOf(code);
     }
 
     private async prune(): Promise<AddOnActionResult> {
@@ -203,7 +203,10 @@ export class AddOnCatalogService {
                     plugin: plugins.sessionAnswers(),
                     rulePackage: rulePackages?.sessionAnswers() ?? new Map(),
                 },
-                revokedRulePackages: rulePackages?.revokedThisSession() ?? new Set(),
+                stillLoaded: {
+                    plugin: plugins.stillLoadedAfterRevoke(),
+                    rulePackage: rulePackages?.stillLoadedAfterRevoke() ?? new Set(),
+                },
             },
             restart,
             revision,
