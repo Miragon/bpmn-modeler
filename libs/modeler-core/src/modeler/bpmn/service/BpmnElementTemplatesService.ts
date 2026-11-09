@@ -6,7 +6,7 @@ import { DocumentPort, NotifierPort, StatusBarPort } from "../../../kernel/port/
 import { EditorSessionStore } from "../../../editorSession/service/EditorSessionStore";
 import { ArtifactChangeTarget, ArtifactService } from "../../../kernel/service/ArtifactService";
 import { updateStatusSlot } from "../../../kernel/service/updateStatusSlot";
-import { TemplateSourceRef } from "../../../kernel/domain/templatePreferences";
+import { CachedTemplateSource } from "../../../kernel/domain/marketplaceListing";
 import {
     ElementTemplateSource,
     mergeElementTemplates,
@@ -26,9 +26,7 @@ const REFRESH_DEBOUNCE_MS = 150;
  */
 export interface CachedTemplateProvider {
     /** Each group with where the user's switches for it live, if anywhere. */
-    getCachedTemplateSources(): Promise<
-        readonly { readonly source?: TemplateSourceRef; readonly paths: readonly string[] }[]
-    >;
+    getCachedTemplateSources(): Promise<readonly CachedTemplateSource[]>;
 }
 
 /**

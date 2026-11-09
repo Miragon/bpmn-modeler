@@ -14,6 +14,12 @@ export interface MarketplaceListing {
     readonly templateSource?: TemplateSourceRef;
 }
 
+/** One group of cached template files editors load, with where the user's switches for it live. */
+export interface CachedTemplateSource {
+    readonly source?: TemplateSourceRef;
+    readonly paths: readonly string[];
+}
+
 export interface UnreadableMarketplaces {
     readonly kind: "unreadable";
     readonly problem: string;

@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ElementTemplatesQuery, HiddenElementTemplatesQuery } from "@miragon/bpmn-modeler-shared";
 
+import { type CachedTemplateSource } from "../../../kernel/domain/marketplaceListing";
 import {
     templatePreferenceChange,
     type TemplateSourceRef,
@@ -46,11 +47,9 @@ function createService(options: { marketplace?: boolean; switches?: boolean } = 
     const getCachedTemplatePaths = vi.fn().mockResolvedValue([]);
     const marketplaceSvc = {
         getCachedTemplatePaths,
-        getCachedTemplateSources: vi.fn(
-            async (): Promise<{ source?: TemplateSourceRef; paths: string[] }[]> => [
-                { paths: await getCachedTemplatePaths() },
-            ],
-        ),
+        getCachedTemplateSources: vi.fn(async (): Promise<CachedTemplateSource[]> => [
+            { paths: await getCachedTemplatePaths() },
+        ]),
     };
 
     const service = new BpmnElementTemplatesService(

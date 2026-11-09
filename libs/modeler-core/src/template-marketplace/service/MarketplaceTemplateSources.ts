@@ -1,14 +1,8 @@
-import { TemplateSourceRef } from "../../kernel/domain/templatePreferences";
+import { CachedTemplateSource } from "../../kernel/domain/marketplaceListing";
 import { LoggerPort } from "../../kernel/port/hostPorts";
 import { registeredTemplateSources } from "../domain/marketplaceSources";
 import { MarketplaceRegistrationsPort } from "../port/marketplacePorts";
 import { TemplateMarketplaceService } from "./TemplateMarketplaceService";
-
-/** One group of cached template files, with where the user's switches for it live. */
-export interface CachedTemplateSource {
-    readonly source?: TemplateSourceRef;
-    readonly paths: readonly string[];
-}
 
 /**
  * The cached marketplace templates the editors load, grouped by registered

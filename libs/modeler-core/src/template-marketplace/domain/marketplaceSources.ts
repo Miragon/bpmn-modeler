@@ -1,4 +1,8 @@
-import { MarketplaceListing, MarketplacesListing } from "../../kernel/domain/marketplaceListing";
+import {
+    CachedTemplateSource,
+    MarketplaceListing,
+    MarketplacesListing,
+} from "../../kernel/domain/marketplaceListing";
 import { MarketplaceSettingsEntry } from "../../kernel/domain/modelerSettings";
 import { TemplateSourceRef, templateSourceScopeOf } from "../../kernel/domain/templatePreferences";
 import { MarketplaceRegistration, marketplacePreferenceKeyOf } from "./marketplace";
@@ -109,28 +113,20 @@ export function registeredTemplateFiles(
     return [...registeredIds].flatMap((id) => byRegistration.get(id) ?? []);
 }
 
-/** One registered marketplace's cached templates as editors load them, with where its switches live. */
-export interface RegisteredTemplateSource {
-    readonly source: TemplateSourceRef;
-    readonly paths: readonly string[];
-}
-
 /** As {@link registeredTemplateFiles} serves them: each registered slot once, in the order the hosts fetch them. */
 export function registeredTemplateSources(
     registered: RegistrationsByScope,
     byRegistration: ReadonlyMap<string, readonly string[]>,
-): RegisteredTemplateSource[] {
+): CachedTemplateSource[] {
     const listed = registeredMarketplaces(registered);
     const { entries } = MarketplaceRegistry.fromEntries(listed.map(({ entry }) => entry));
     const served = new Set<string>();
-    return switchedRegistrationsOf(listed, entries).flatMap(
-        (switched): RegisteredTemplateSource[] => {
-            if (switched === undefined) return [];
-            const { registration, source } = switched;
-            const paths = byRegistration.get(registration.id);
-            if (paths === undefined || served.has(registration.id)) return [];
-            served.add(registration.id);
-            return [{ source, paths }];
-        },
-    );
+    return switchedRegistrationsOf(listed, entries).flatMap((switched): CachedTemplateSource[] => {
+        if (switched === undefined) return [];
+        const { registration, source } = switched;
+        const paths = byRegistration.get(registration.id);
+        if (paths === undefined || served.has(registration.id)) return [];
+        served.add(registration.id);
+        return [{ source, paths }];
+    });
 }
