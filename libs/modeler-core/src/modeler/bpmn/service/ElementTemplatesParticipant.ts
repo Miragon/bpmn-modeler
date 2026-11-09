@@ -9,7 +9,8 @@ import { BpmnElementTemplatesService } from "./BpmnElementTemplatesService";
 /**
  * Keeps element templates in sync for a BPMN session: starts the filesystem
  * watcher over the artifact directories, re-arms it and reloads on
- * `configFolder` setting changes and on a re-seed, and releases the session's
+ * `configFolder` setting changes and on a re-seed, reloads the marketplace
+ * templates on a `marketplaces` setting change, and releases the session's
  * cached templates when it closes. Setup errors surface to the user.
  */
 export class ElementTemplatesParticipant implements EditorSessionParticipant {
@@ -57,6 +58,9 @@ export class ElementTemplatesParticipant implements EditorSessionParticipant {
                 // The watcher reads the config folder when it is armed.
                 armTemplateWatchers().catch((error) => this.notifier.logError(error as Error));
                 this.templatesSvc.refreshElementTemplates(editorId);
+            }
+            if (event.affects("marketplaces")) {
+                this.templatesSvc.refreshMarketplaceTemplates(editorId);
             }
         });
 

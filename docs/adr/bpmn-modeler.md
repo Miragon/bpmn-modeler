@@ -804,7 +804,11 @@ Both hosts build an `AddOnsFeature`; no view attaches to it yet.
   scopes that hold it in the words of the removal choice, its cached
   templates (`cachedTemplatePathsByRegistration`, the cache's own layout) and
   why it has none: an entry the registry cannot parse, nothing fetched yet,
-  or a cache that cannot be read. Registrations that cannot be read, such
+  or a cache that cannot be read. Editors load the same templates, those of
+  the registered entries (`registeredTemplateFiles`), and read them again
+  when the marketplaces setting changes, so the slot of an entry removed by
+  hand serves nothing though it stays cached until the next prune.
+  Registrations that cannot be read, such
   as a host's reply that fails, leave the group without sources and say why;
   the folders are still listed. The catalog offers "Add marketplace…" and
   "Update marketplaces", and each source "Remove". All three run the

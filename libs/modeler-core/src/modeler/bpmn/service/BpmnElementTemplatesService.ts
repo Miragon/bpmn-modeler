@@ -40,6 +40,7 @@ export class BpmnElementTemplatesService implements ArtifactChangeTarget {
     private readonly latestRequests = new Map<string, symbol>();
     private readonly templateDirsByEditor = new Map<string, readonly string[]>();
     private readonly editorsAwaitingRefresh = new Set<string>();
+    private readonly staleOnRefresh = { directories: false, marketplace: false };
     private refreshTimer: ReturnType<typeof setTimeout> | undefined;
     private templateLoadStatus = TemplateLoadStatus.idle;
     private readonly templateDirListeners = new Set<() => void>();
@@ -128,15 +129,15 @@ export class BpmnElementTemplatesService implements ArtifactChangeTarget {
     }
 
     refreshElementTemplates(editorId: string): void {
-        this.editorsAwaitingRefresh.add(editorId);
-        clearTimeout(this.refreshTimer);
-        // One file change fires the watcher of every editor under the same
-        // root; coalescing them invalidates once and lets those editors share
-        // a single re-read.
-        this.refreshTimer = setTimeout(() => this.refreshAwaitingEditors(), REFRESH_DEBOUNCE_MS);
+        this.staleOnRefresh.directories = true;
+        this.scheduleRefresh(editorId);
     }
 
-    refreshMarketplaceTemplates(_editorId: string): void {}
+    /** For a change of the registered marketplaces, which leaves the template folders as they are. */
+    refreshMarketplaceTemplates(editorId: string): void {
+        this.staleOnRefresh.marketplace = true;
+        this.scheduleRefresh(editorId);
+    }
 
     async reloadMarketplaceTemplates(): Promise<void> {
         this.cache.forgetMarketplace();
@@ -183,11 +184,27 @@ export class BpmnElementTemplatesService implements ArtifactChangeTarget {
         }
     }
 
+    private scheduleRefresh(editorId: string): void {
+        this.editorsAwaitingRefresh.add(editorId);
+        clearTimeout(this.refreshTimer);
+        // One file change fires the watcher of every editor under the same
+        // root; coalescing them invalidates once and lets those editors share
+        // a single re-read.
+        this.refreshTimer = setTimeout(() => this.refreshAwaitingEditors(), REFRESH_DEBOUNCE_MS);
+    }
+
     private refreshAwaitingEditors(): void {
         this.refreshTimer = undefined;
         const editorIds = [...this.editorsAwaitingRefresh];
         this.editorsAwaitingRefresh.clear();
-        this.cache.forgetDirectories();
+        if (this.staleOnRefresh.directories) {
+            this.cache.forgetDirectories();
+        }
+        if (this.staleOnRefresh.marketplace) {
+            this.cache.forgetMarketplace();
+        }
+        this.staleOnRefresh.directories = false;
+        this.staleOnRefresh.marketplace = false;
         for (const editorId of editorIds) {
             this.setElementTemplates(editorId).catch((error) => {
                 this.notifier.logError(error instanceof Error ? error : new Error(String(error)));
