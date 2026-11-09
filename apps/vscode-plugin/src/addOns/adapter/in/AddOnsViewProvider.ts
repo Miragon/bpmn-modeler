@@ -20,6 +20,9 @@ import { addOnsViewHtml } from "./AddOnsViewHtml";
  * catalog, answers the page and refreshes when the view is shown again.
  */
 export class AddOnsViewProvider implements WebviewViewProvider {
+    private pageLoaded = false;
+    private focusOnLoad = false;
+
     constructor(
         private readonly addOns: AddOnsFeature,
         private readonly extensionUri: Uri,
@@ -34,6 +37,13 @@ export class AddOnsViewProvider implements WebviewViewProvider {
             }),
             commands.registerCommand(REFRESH_ADD_ONS_CMD, () => this.addOns.refresh()),
         );
+    }
+
+    /** Opens the container, resolves the view if needed and focuses it. */
+    async focus(): Promise<void> {
+        await commands.executeCommand(`${ADD_ONS_VIEW_ID}.focus`);
+        // A page still loading loses that focus, so the view takes it again once the page runs.
+        if (!this.pageLoaded) this.focusOnLoad = true;
     }
 
     resolveWebviewView(
@@ -51,12 +61,20 @@ export class AddOnsViewProvider implements WebviewViewProvider {
             this.createNonce(),
         );
 
+        this.pageLoaded = false;
         const panel = this.addOns.attachPanel(
             (message: Query) => void webviewView.webview.postMessage(message),
             webviewView.visible,
         );
         webviewView.onDidDispose(() => panel.dispose());
-        webviewView.webview.onDidReceiveMessage((message: Command) => panel.handle(message));
+        webviewView.webview.onDidReceiveMessage((message: Command) => {
+            this.pageLoaded = true;
+            if (this.focusOnLoad) {
+                this.focusOnLoad = false;
+                webviewView.show(false);
+            }
+            return panel.handle(message);
+        });
         webviewView.onDidChangeVisibility(() => panel.setVisible(webviewView.visible));
     }
 }

@@ -7,7 +7,10 @@ vi.mock("vscode", () => ({
         })),
     },
     window: { registerWebviewViewProvider: vi.fn(() => ({ dispose: vi.fn() })) },
-    commands: { registerCommand: vi.fn(() => ({ dispose: vi.fn() })) },
+    commands: {
+        registerCommand: vi.fn(() => ({ dispose: vi.fn() })),
+        executeCommand: vi.fn(async () => undefined),
+    },
 }));
 vi.mock("./AddOnsViewHtml", () => ({
     addOnsViewHtml: vi.fn(() => "<html>artifacts</html>"),
@@ -26,7 +29,14 @@ function createWebviewView(visible: boolean) {
         webview: { options: {}, html: "", postMessage: vi.fn(), onDidReceiveMessage: vi.fn() },
         onDidChangeVisibility: vi.fn(),
         onDidDispose: vi.fn(),
+        show: vi.fn(),
     };
+}
+
+/** Plays the page posting a command, as it does first when it loads. */
+function pagePosts(view: ReturnType<typeof createWebviewView>): void {
+    const receive = view.webview.onDidReceiveMessage.mock.calls[0][0];
+    receive({ type: "GetAddOnCatalogCommand" });
 }
 
 function createProvider() {
@@ -154,5 +164,46 @@ describe("AddOnsViewProvider.resolveWebviewView", () => {
         view.onDidDispose.mock.calls[0][0]();
 
         expect(panel.dispose).toHaveBeenCalledOnce();
+    });
+});
+
+describe("AddOnsViewProvider.focus", () => {
+    it("focuses the Artifacts view through its focus command", async () => {
+        const { provider } = createProvider();
+
+        await provider.focus();
+
+        expect(commands.executeCommand).toHaveBeenCalledWith(`${ADD_ONS_VIEW_ID}.focus`);
+    });
+
+    it("fails when the view cannot be focused, as in a shell without the command", async () => {
+        const { provider } = createProvider();
+        vi.mocked(commands.executeCommand).mockRejectedValueOnce(new Error("command not found"));
+
+        await expect(provider.focus()).rejects.toThrow("command not found");
+    });
+
+    // A page that is still loading loses the focus the command gave its view.
+    it("focuses the view again once the page it opened has loaded", async () => {
+        const { provider } = createProvider();
+
+        await provider.focus();
+        const view = resolveView(provider);
+        expect(view.show).not.toHaveBeenCalled();
+        pagePosts(view);
+        pagePosts(view);
+
+        expect(view.show.mock.calls).toEqual([[false]]);
+    });
+
+    it("leaves the focus alone when a page loads unasked or was loaded already", async () => {
+        const { provider } = createProvider();
+        const view = resolveView(provider);
+
+        pagePosts(view);
+        await provider.focus();
+        pagePosts(view);
+
+        expect(view.show).not.toHaveBeenCalled();
     });
 });

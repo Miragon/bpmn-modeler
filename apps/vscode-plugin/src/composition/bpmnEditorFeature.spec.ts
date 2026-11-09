@@ -83,7 +83,10 @@ function createVsCodeBpmnEditor(context = createExtensionContext()) {
     setContext(context);
     const deps = buildSharedDeps(context);
     const reviews = addOnsFeature.createViewReviews(deps);
-    reviews.reveal.connect({ reveal: (addOnIds) => revealedRows.push(addOnIds) });
+    reviews.reveal.connect(
+        { reveal: (addOnIds) => revealedRows.push(addOnIds) },
+        { focus: async () => void focusedViews.push("artifacts") },
+    );
     const scriptFiles = new ScriptFileStore(
         deps.editorStore,
         deps.vsWorkspace,
@@ -118,6 +121,7 @@ function createVsCodeBpmnEditor(context = createExtensionContext()) {
 }
 
 const revealedRows: (readonly string[])[] = [];
+const focusedViews: string[] = [];
 
 /** What "Review…" on a notice asks the review for one pending item. */
 function reviewRequest(artifactId: string, workspaceFolders: readonly string[]) {
@@ -140,6 +144,7 @@ describe("VS Code's BPMN editor", () => {
         injectedPorts.editors.splice(0);
         injectedPorts.prunes.splice(0);
         revealedRows.splice(0);
+        focusedViews.splice(0);
         resetVscodeWindow();
     });
 
@@ -162,9 +167,7 @@ describe("VS Code's BPMN editor", () => {
             const answer = await review()?.review(reviewRequest(artifactId, ["/work"]));
 
             expect(answer).toEqual({ kind: "leftForView" });
-            expect(vscodeWindow.executedCommands.map(({ command }) => command)).toContain(
-                "bpmn-modeler.artifactsView.focus",
-            );
+            expect(focusedViews).toEqual(["artifacts"]);
             expect(revealedRows).toHaveLength(1);
             expect(revealedRows[0]).toEqual([expect.stringContaining(artifactId)]);
             expect(vscodeWindow.quickPicks).toHaveLength(0);

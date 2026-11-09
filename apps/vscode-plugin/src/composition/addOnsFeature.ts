@@ -68,7 +68,8 @@ export function register(
         templatePreferences: deps.templatePreferences,
     });
     context.subscriptions.push(addOns);
-    new AddOnsViewProvider(addOns, context.extensionUri, createWebviewNonce).register(context);
-    handles.reviews.reveal.connect(addOns);
+    const view = new AddOnsViewProvider(addOns, context.extensionUri, createWebviewNonce);
+    view.register(context);
+    handles.reviews.reveal.connect(addOns, view);
     return { addOns, addOnsViewRoutes: addOns.panelRoutes };
 }
