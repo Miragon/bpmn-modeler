@@ -122,6 +122,11 @@ export function lintsInPage(session: LintSession): session is InPageSession {
     );
 }
 
+/** A newer host lint supersedes one in flight, so an escalating session counts too. */
+export function lintsOnHost(session: LintSession): session is HostLintedSession {
+    return session.tier === "escalating" || session.tier === "escalated";
+}
+
 export function reduceLintSession(session: LintSession, event: LintSessionEvent): LintTransition {
     switch (event.type) {
         case "lintingDisabled":

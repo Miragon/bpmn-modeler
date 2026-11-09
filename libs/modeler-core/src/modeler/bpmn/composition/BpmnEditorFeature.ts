@@ -338,6 +338,8 @@ export class BpmnEditorFeature {
 
     dispose(): void {
         this.templates.dispose();
+        this.lintConfig.dispose();
+        this.rulePackageCatalog?.dispose();
     }
 
     private rulePackageLinting(rulePackages: BpmnRulePackagePorts | undefined): {

@@ -691,6 +691,23 @@ describe("workspace bpmnlint rule packages on the bridge", () => {
         expect(bridge.frames.filter(isRequest("actionNotice/show"))).toHaveLength(1);
     });
 
+    it("lints again without the package once another bridge revoked it", async () => {
+        const bridge = await openAcme();
+        const stored = await allowAcme(bridge);
+        const fromIndex = bridge.frames.length;
+
+        await bridge.rpc.handleLine(
+            hostNotification("pluginApprovals/didChange", {
+                approvals: [],
+                revision: stored.revision + 1,
+            }),
+        );
+        const results = await nextLintResults(bridge, fromIndex);
+
+        expect(findingsOf(results)).not.toHaveProperty([ACME_RULE]);
+        await expect(acmeRuns(bridge.root)).resolves.toEqual(["v1"]);
+    });
+
     it("stops running a package whose dependency changed after the approval and reports it changed", async () => {
         const bridge = await openAcme();
         await allowAcme(bridge);

@@ -2,6 +2,8 @@ import { describe, expect, expectTypeOf, it } from "vitest";
 
 import {
     type CodeApproval,
+    type CodeApprovalChange,
+    codeApprovalChange,
     type CodeState,
     declineKeyOf,
 } from "../../../kernel/domain/codeApproval";
@@ -10,7 +12,7 @@ import {
     type BlockedState,
     closureDigestInput,
     type ClosureMember,
-    editorsBlockedOnAnyOf,
+    editorsToRelint,
     isParsedAsJson,
     isRulePackageApproval,
     loadsWithoutApproval,
@@ -547,25 +549,45 @@ describe("rulePackagesToAsk", () => {
     });
 });
 
-describe("editorsBlockedOnAnyOf", () => {
+describe("editorsToRelint", () => {
     const blockedByEditor = new Map<string, readonly string[]>([
         ["a.bpmn", ["/acme"]],
         ["b.bpmn", ["/other", "/acme"]],
         ["c.bpmn", ["/other"]],
         ["d.bpmn", []],
     ]);
+    const hostLinted = ["d.bpmn", "e.bpmn", "a.bpmn"];
+    const row = (pluginId: string) => ({ pluginId, contentHash: rulePackageContentHash("h") });
 
-    it.each<{ case: string; allowed: string[]; editors: string[] }>([
-        { case: "one allowed package", allowed: ["/acme"], editors: ["a.bpmn", "b.bpmn"] },
+    it.each<{ case: string; change: CodeApprovalChange; editors: string[] }>([
         {
-            case: "two allowed packages, each editor once",
-            allowed: ["/acme", "/other"],
+            case: "the editors blocked on one allowed package",
+            change: codeApprovalChange([row("/acme")], []),
+            editors: ["a.bpmn", "b.bpmn"],
+        },
+        {
+            case: "each editor once, blocked on two allowed packages",
+            change: codeApprovalChange([row("/acme"), row("/other")], []),
             editors: ["a.bpmn", "b.bpmn", "c.bpmn"],
         },
-        { case: "a package no editor waits on", allowed: ["/nobody"], editors: [] },
-        { case: "nothing allowed", allowed: [], editors: [] },
-    ])("relints only the editors blocked on $case", ({ allowed, editors }) => {
-        expect(editorsBlockedOnAnyOf(blockedByEditor, allowed)).toEqual(editors);
+        {
+            case: "no editor for a package none is blocked on",
+            change: codeApprovalChange([row("/nobody")], []),
+            editors: [],
+        },
+        {
+            case: "every host-linted editor on a revoke, since no lint records what it admitted",
+            change: codeApprovalChange([], ["/nobody"]),
+            editors: ["d.bpmn", "e.bpmn", "a.bpmn"],
+        },
+        {
+            case: "each editor once on a revoke beside an allow",
+            change: codeApprovalChange([row("/other")], ["/acme"]),
+            editors: ["b.bpmn", "c.bpmn", "d.bpmn", "e.bpmn", "a.bpmn"],
+        },
+        { case: "no editor for no change", change: codeApprovalChange([], []), editors: [] },
+    ])("relints $case", ({ change, editors }) => {
+        expect(editorsToRelint(blockedByEditor, hostLinted, change)).toEqual(editors);
     });
 });
 

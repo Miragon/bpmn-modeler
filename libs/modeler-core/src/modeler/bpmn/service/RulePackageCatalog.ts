@@ -1,7 +1,10 @@
 import { ActionNotice } from "../../../kernel/domain/actionNotice";
 import {
     allowing,
+    approvalChangeBetween,
     ApprovalNoticeAction,
+    CodeApproval,
+    CodeApprovalChange,
     approvalOutcome,
     declinedKeys,
     notAskedAgain,
@@ -33,6 +36,9 @@ import { PackageClosureFingerprinter } from "./PackageClosureFingerprinter";
  * for the catalog's lifetime, unless its content changes. The gate reads the
  * declines, so it reports such a package as declined rather than new. A
  * package left to a view is not asked about again either, but stays new.
+ *
+ * It follows the approval store and announces each change of the rule
+ * package rows, whoever made it.
  */
 export class RulePackageCatalog implements ApprovalCatalog<
     BlockedRulePackage,
@@ -42,12 +48,19 @@ export class RulePackageCatalog implements ApprovalCatalog<
     private readonly answers = new Map<string, SessionAnswer>();
     private readonly seen = new Map<string, BlockedRulePackage>();
     private readonly loggedRefusals = new Set<string>();
+    private readonly revoked = new Set<string>();
+    private readonly changeListeners = new Set<(change: CodeApprovalChange) => void>();
+    private readonly approvalChanges: { dispose(): void };
+    private rulePackageRows: readonly CodeApproval[];
 
     constructor(
         private readonly approvals: PluginApprovalStorePort,
         private readonly fingerprints: Pick<PackageClosureFingerprinter, "fingerprint">,
         private readonly logger: LoggerPort,
-    ) {}
+    ) {
+        this.rulePackageRows = approvals.read().filter(isRulePackageApproval);
+        this.approvalChanges = approvals.onDidChange(() => this.followApprovals());
+    }
 
     /** `declineKeyOf` of each package declined this session. */
     declinedThisSession(): ReadonlySet<string> {
@@ -61,6 +74,20 @@ export class RulePackageCatalog implements ApprovalCatalog<
 
     seenPackages(): readonly BlockedRulePackage[] {
         return [...this.seen.values()];
+    }
+
+    /** Code a package ran before its revoke stays loaded until the process restarts. */
+    revokedThisSession(): ReadonlySet<string> {
+        return this.revoked;
+    }
+
+    onApprovalsChanged(listener: (change: CodeApprovalChange) => void): { dispose(): void } {
+        this.changeListeners.add(listener);
+        return { dispose: () => this.changeListeners.delete(listener) };
+    }
+
+    dispose(): void {
+        this.approvalChanges.dispose();
     }
 
     /** Hashed only now: the gate blocks a package it has no row for without reading it. */
@@ -98,6 +125,15 @@ export class RulePackageCatalog implements ApprovalCatalog<
             );
         }
         return outcome.allowed;
+    }
+
+    private followApprovals(): void {
+        const rows = this.approvals.read().filter(isRulePackageApproval);
+        const change = approvalChangeBetween(this.rulePackageRows, rows);
+        this.rulePackageRows = rows;
+        if (change.allow.length === 0 && change.revoke.length === 0) return;
+        change.revoke.forEach((id) => this.revoked.add(id));
+        this.changeListeners.forEach((listener) => listener(change));
     }
 
     private rulePackageOf({ id, kind }: BlockedRulePackage): RulePackage[] {

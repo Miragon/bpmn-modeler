@@ -10,6 +10,7 @@ import {
     LintSession,
     LintSessionEvent,
     lintsInPage,
+    lintsOnHost,
     Negotiation,
     reduceLintSession,
 } from "./LintSession";
@@ -428,5 +429,20 @@ describe("lint sessions the webview lints", () => {
         { session: escalated, inPage: false },
     ])("$session.tier → $inPage", ({ session, inPage }) => {
         expect(lintsInPage(session)).toBe(inPage);
+    });
+});
+
+describe("lint sessions the host lints", () => {
+    it.each([
+        { session: untracked, onHost: false },
+        { session: off, onHost: false },
+        { session: failed, onHost: false },
+        { session: defaultTier, onHost: false },
+        { session: covered, onHost: false },
+        // Its first host lint is in flight, and a newer run supersedes it.
+        { session: escalating, onHost: true },
+        { session: escalated, onHost: true },
+    ])("$session.tier → $onHost", ({ session, onHost }) => {
+        expect(lintsOnHost(session)).toBe(onHost);
     });
 });

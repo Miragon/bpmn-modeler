@@ -37,6 +37,7 @@ import {
 import {
     RULE_PACKAGE_APPROVAL_NOTICE_ID,
     RULE_PACKAGE_APPROVAL_PROMPT_ID,
+    rulePackageContentHash,
 } from "../domain/rulePackageApproval";
 import {
     BpmnEditorContributions,
@@ -655,6 +656,25 @@ describe("BpmnEditorFeature with workspace rule packages", () => {
         expect(feature.rulePackageCatalog?.seenPackages()).toEqual([
             { id: pluginDir, kind: "package", state: "declined", needed: true },
         ]);
+    });
+
+    it.each([
+        { case: "lints a diagram blocked on a package again", disposed: false, relints: 1 },
+        { case: "follows no approval change once disposed", disposed: true, relints: 0 },
+    ])("$case when another writer allows it", async ({ disposed, relints }) => {
+        const { host, feature, editor, pluginDir, results } = await lintWithAcmeInstalled({
+            wiresRulePackages: true,
+            allows: false,
+        });
+
+        if (disposed) feature.dispose();
+        host.pluginApprovals.storeElsewhere(
+            [{ pluginId: pluginDir, contentHash: rulePackageContentHash("elsewhere") }],
+            { notify: true },
+        );
+        await feature.lintConfig.whenApprovalSettled();
+
+        expect(editor.postedOfType("BpmnlintResultsQuery")).toHaveLength(results.length + relints);
     });
 
     it("runs no workspace rule package and asks nothing on a host that wires no rule package ports", async () => {

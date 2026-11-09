@@ -1,9 +1,10 @@
 import { NotifierPort } from "../../../kernel/port/hostPorts";
 import { ApprovalQuestion } from "../../../kernel/service/ApprovalQuestion";
 import { Negotiation } from "../domain/LintSession";
+import { CodeApprovalChange } from "../../../kernel/domain/codeApproval";
 import {
     BlockedRulePackage,
-    editorsBlockedOnAnyOf,
+    editorsToRelint,
     PendingRulePackage,
     RulePackage,
     rulePackagesToAsk,
@@ -24,8 +25,8 @@ export interface RulePackageApprovals {
 
 /**
  * What follows a host lint that skipped or refused workspace rule packages:
- * the output channel lines, the question, and, once the user allowed a
- * package, a relint of every editor whose last host lint was blocked on it.
+ * the output channel lines and the question. Each change of the rule package
+ * approvals, whoever made it, lints again the editors it makes stale.
  */
 export class RulePackageFollowUp {
     private readonly blockedByEditor = new Map<string, readonly string[]>();
@@ -34,16 +35,30 @@ export class RulePackageFollowUp {
     /** Lines logged once per config version, so a relint on every edit repeats none of them. */
     private readonly loggedOncePerConfig = new Set<string>();
     private settled: Promise<void> = Promise.resolve();
+    private readonly approvalChanges?: { dispose(): void };
 
     constructor(
         private readonly notifier: NotifierPort,
         private readonly relint: (editorId: string) => Promise<unknown>,
+        private readonly hostLintedEditors: () => readonly string[],
         private readonly approvals?: RulePackageApprovals,
-    ) {}
+    ) {
+        this.approvalChanges = approvals?.catalog.onApprovalsChanged((change) =>
+            this.relintAfter(change),
+        );
+    }
 
-    /** Resolves once every question raised so far is answered and its relints ran. */
-    whenSettled(): Promise<void> {
-        return this.settled;
+    /** Resolves once every question raised so far is answered and the relints its answer caused ran. */
+    async whenSettled(): Promise<void> {
+        let settling: Promise<void>;
+        do {
+            settling = this.settled;
+            await settling;
+        } while (settling !== this.settled);
+    }
+
+    dispose(): void {
+        this.approvalChanges?.dispose();
     }
 
     log(negotiation: Negotiation, { blocked, refused }: LintRun): void {
@@ -83,11 +98,8 @@ export class RulePackageFollowUp {
         const asking = question
             .ask(toAsk)
             .finally(() => toAsk.forEach(({ id }) => this.queuedRulePackageIds.delete(id)))
-            .then((allowed) => this.relintBlockedOn(allowed.map(({ id }) => id)))
-            .catch((error: unknown) =>
-                this.notifier.logError(error instanceof Error ? error : new Error(String(error))),
-            );
-        this.settled = Promise.all([this.settled, asking]).then(() => undefined);
+            .catch((error: unknown) => this.logError(error));
+        this.settle(asking);
     }
 
     /** A closed editor is never linted again on an allow. */
@@ -95,11 +107,20 @@ export class RulePackageFollowUp {
         this.blockedByEditor.delete(editorId);
     }
 
-    private async relintBlockedOn(allowedIds: readonly string[]): Promise<void> {
-        await Promise.all(
-            editorsBlockedOnAnyOf(this.blockedByEditor, allowedIds).map((editorId) =>
-                this.relint(editorId),
+    private relintAfter(change: CodeApprovalChange): void {
+        const editorIds = editorsToRelint(this.blockedByEditor, this.hostLintedEditors(), change);
+        this.settle(
+            Promise.all(editorIds.map((editorId) => this.relint(editorId))).catch(
+                (error: unknown) => this.logError(error),
             ),
         );
+    }
+
+    private settle(work: Promise<unknown>): void {
+        this.settled = Promise.all([this.settled, work]).then(() => undefined);
+    }
+
+    private logError(error: unknown): void {
+        this.notifier.logError(error instanceof Error ? error : new Error(String(error)));
     }
 }

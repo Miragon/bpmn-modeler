@@ -2,7 +2,11 @@ import { createHash } from "node:crypto";
 
 import { describe, expect, it } from "vitest";
 
-import { declineKeyOf } from "../../../kernel/domain/codeApproval";
+import {
+    type CodeApprovalChange,
+    codeApprovalChange,
+    declineKeyOf,
+} from "../../../kernel/domain/codeApproval";
 import { createTestHost, InMemoryInstalledPackages } from "../../../testing";
 import { BlockedRulePackage } from "../domain/rulePackageApproval";
 import { PackageClosureFingerprinter } from "./PackageClosureFingerprinter";
@@ -165,6 +169,55 @@ describe("RulePackageCatalog", () => {
         expect(host.notifier.logged("warning")).toEqual([
             `bpmnlint: rule package ${ACME} cannot be allowed: it links to files outside its folder.`,
         ]);
+    });
+
+    it("announces each change of the rule package rows, whoever made it", () => {
+        const { host, catalog } = setUp();
+        const acme = { pluginId: ACME, contentHash: "bpmnlint-closure-v1:a1" };
+        const other = { pluginId: OTHER, contentHash: "bpmnlint-closure-v1:o1" };
+        host.pluginApprovals.storeElsewhere([acme], { notify: true });
+        const changes: CodeApprovalChange[] = [];
+        catalog.onApprovalsChanged((change) => changes.push(change));
+
+        host.pluginApprovals.storeElsewhere([other], { notify: true });
+        host.pluginApprovals.storeElsewhere(
+            [other, { pluginId: "/work/.camunda/plugins/resize", contentHash: "h1" }],
+            { notify: true },
+        );
+
+        expect(changes).toEqual([codeApprovalChange([other], [ACME])]);
+    });
+
+    it("remembers the packages revoked this session, since code they ran stays loaded", () => {
+        const { host, catalog } = setUp();
+        host.pluginApprovals.storeElsewhere(
+            [
+                { pluginId: ACME, contentHash: "bpmnlint-closure-v1:a1" },
+                { pluginId: OTHER, contentHash: "bpmnlint-closure-v1:o1" },
+            ],
+            { notify: true },
+        );
+
+        host.pluginApprovals.storeElsewhere(
+            [{ pluginId: OTHER, contentHash: "bpmnlint-closure-v1:o1" }],
+            { notify: true },
+        );
+
+        expect(catalog.revokedThisSession()).toEqual(new Set([ACME]));
+    });
+
+    it("follows no approval change once disposed", () => {
+        const { host, catalog } = setUp();
+        const changes: CodeApprovalChange[] = [];
+        catalog.onApprovalsChanged((change) => changes.push(change));
+
+        catalog.dispose();
+        host.pluginApprovals.storeElsewhere(
+            [{ pluginId: ACME, contentHash: "bpmnlint-closure-v1:a1" }],
+            { notify: true },
+        );
+
+        expect(changes).toEqual([]);
     });
 
     it("remembers every package it saw blocked, the ones the bundle stood in for too", () => {
