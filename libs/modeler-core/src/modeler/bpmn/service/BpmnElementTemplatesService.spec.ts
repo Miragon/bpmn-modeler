@@ -686,6 +686,30 @@ describe("BpmnElementTemplatesService with the user's template switches", () => 
         ]);
     });
 
+    it("ends with the current refs when a switch changes while the templates are posted", async () => {
+        const { service, host, editor, addTemplate } = createService({ switches: true });
+        addTemplate(ROOT_TEMPLATES, "mail.json", { id: "mail", name: "Mail" });
+        const post = editor.postMessage.bind(editor);
+        let deliverTemplates!: () => void;
+        vi.spyOn(editor, "postMessage").mockImplementationOnce(async (message) => {
+            const delivered = await post(message);
+            await new Promise<void>((resolve) => (deliverTemplates = resolve));
+            return delivered;
+        });
+
+        const loading = service.setElementTemplates(editor.id);
+        await vi.waitFor(() => expect(deliverTemplates).toBeDefined());
+        await host.templatePreferences.change(templatePreferenceChange("project", [MAIL_OFF], []));
+        await service.refreshOffers();
+        deliverTemplates();
+        await loading;
+
+        expect(postedHidden(editor)).toEqual([
+            { type: "ElementTemplatesQuery", hidden: [] },
+            { type: "HiddenElementTemplatesQuery", hidden: [{ id: "mail" }] },
+        ]);
+    });
+
     it("hides the templates of a marketplace switched off where its switches live", async () => {
         const { service, host, editor, addTemplate, marketplaceSvc, fileContents } = createService({
             switches: true,
