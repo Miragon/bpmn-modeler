@@ -112,6 +112,8 @@ export interface ShownCode {
     readonly name: string;
     /** The content shown, when it was hashed. */
     readonly content?: ApprovableArtifact;
+    /** A request is checked against these, so no view acts on a row as it was not shown. */
+    readonly actions: readonly AddOnActionKind[];
 }
 
 export interface CatalogBuild {
@@ -257,6 +259,7 @@ function placedAddOn(
                 ? undefined
                 : { id: content.id, name: content.name, contentHash: content.contentHash },
         ),
+        actions: actions.map((action) => action.kind),
     };
     return [{ root, source, view, shown }];
 }

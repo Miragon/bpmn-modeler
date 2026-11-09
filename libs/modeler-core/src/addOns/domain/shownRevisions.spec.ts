@@ -4,7 +4,7 @@ import { ShownCode } from "./addOnCatalog";
 import { ShownRevisions } from "./shownRevisions";
 
 const shownOf = (name: string): ReadonlyMap<string, ShownCode> =>
-    new Map([[`plugin:/p/${name}`, { kind: "plugin", id: `/p/${name}`, name }]]);
+    new Map([[`plugin:/p/${name}`, { kind: "plugin", id: `/p/${name}`, name, actions: [] }]]);
 
 describe("ShownRevisions", () => {
     it("shows nothing before a revision is recorded", () => {

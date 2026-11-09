@@ -563,7 +563,11 @@ describe("session answers", () => {
         { case: "an id whose content was left to the view", id: palette.id, leftForView: true },
         { case: "an id whose content was declined", id: resize.id, leftForView: false },
         { case: "an id nobody answered for", id: acmeRules.id, leftForView: false },
-        { case: "an id that only starts like one left", id: `${palette.id}-evil`, leftForView: false },
+        {
+            case: "an id that only starts like one left",
+            id: `${palette.id}-evil`,
+            leftForView: false,
+        },
         { case: "an id that only ends like one left", id: `x${palette.id}`, leftForView: false },
     ])("tells $case apart without its content: $leftForView", ({ id, leftForView }) => {
         expect(isLeftForView(id, answers)).toBe(leftForView);
@@ -574,7 +578,10 @@ describe("session answers", () => {
         { case: "an id another one extends past a #", id: "/work/rules", leftForView: false },
     ])("tells $case apart: $leftForView", ({ id, leftForView }) => {
         const leftWithHash = new Map<string, SessionAnswer>([
-            [declineKeyOf({ id: "/work/rules#2", name: "rules", contentHash: "r2" }), "leftForView"],
+            [
+                declineKeyOf({ id: "/work/rules#2", name: "rules", contentHash: "r2" }),
+                "leftForView",
+            ],
         ]);
 
         expect(isLeftForView(id, leftWithHash)).toBe(leftForView);

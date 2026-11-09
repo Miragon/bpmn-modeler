@@ -128,7 +128,7 @@ export class AddOnCatalogService {
     }
 
     private inspect(addOnId: string): AddOnActionResult {
-        const target = shownTargetOf(this.revisions, addOnId);
+        const target = shownTargetOf(this.revisions, addOnId, "inspect");
         if (target.kind === "refused") return target.result;
         this.inspected.add(target.code.id);
         return inspectResultOf(target.code);
@@ -145,10 +145,11 @@ export class AddOnCatalogService {
     }
 
     private async revoke(addOnId: string): Promise<AddOnActionResult> {
-        const target = shownTargetOf(this.revisions, addOnId);
+        const target = shownTargetOf(this.revisions, addOnId, "revoke");
         if (target.kind === "refused") return target.result;
         const { code } = target;
-        // Before the change, whose reload or relint could ask about it at once.
+        // Before the change, whose reload or relint could ask about it at once. Revoke is
+        // offered with content only for an allowed row.
         if (code.content !== undefined) this.sourceOf(code.kind)?.leaveForView(code.content);
         await this.ports.approvals.change(revoking([code.id]));
         if (code.kind === "plugin") await this.ports.plugins.pruneCache();

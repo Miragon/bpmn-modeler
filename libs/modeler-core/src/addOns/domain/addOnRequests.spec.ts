@@ -111,12 +111,15 @@ describe("shownTargetOf", () => {
     it.each([
         { kind: "revoke" as const, addOnId: `rulePackage:${ACME}` },
         { kind: "inspect" as const, addOnId: `plugin:${RESIZE}` },
-    ])("refuses $kind on an add-on the latest revision offered no $kind for", ({ kind, addOnId }) => {
-        expect(shownTargetOf(latest, addOnId, kind)).toEqual({
-            kind: "refused",
-            result: NOT_OFFERED,
-        });
-    });
+    ])(
+        "refuses $kind on an add-on the latest revision offered no $kind for",
+        ({ kind, addOnId }) => {
+            expect(shownTargetOf(latest, addOnId, kind)).toEqual({
+                kind: "refused",
+                result: NOT_OFFERED,
+            });
+        },
+    );
 
     it("refuses an add-on the latest revision no longer shows", () => {
         expect(shownTargetOf(revisions, `rulePackage:${ACME}`, "inspect")).toEqual({
