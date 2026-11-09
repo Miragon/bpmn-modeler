@@ -1,8 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 
 import { allowing, ReviewedAllow } from "../../kernel/domain/codeApproval";
-import { ShownCode } from "./addOnCatalog";
+import { type AddOnActionKind, type CatalogActionKind, ShownCode } from "./addOnCatalog";
 import {
+    type AddOnRequest,
     allowResultOf,
     allowTargetOf,
     inspectResultOf,
@@ -49,6 +50,14 @@ const NOT_OFFERED = {
     reason: "notOffered",
     message: "The list offers no such action for this add-on now. Check it again.",
 };
+
+describe("AddOnRequest", () => {
+    it("asks for every action a row or the catalog offers, and for a refresh", () => {
+        expectTypeOf<Exclude<AddOnRequest["kind"], "refresh">>().toEqualTypeOf<
+            AddOnActionKind | CatalogActionKind
+        >();
+    });
+});
 
 describe("allowTargetOf", () => {
     it("allows the content the named revision showed, though a later one shows other content", () => {
