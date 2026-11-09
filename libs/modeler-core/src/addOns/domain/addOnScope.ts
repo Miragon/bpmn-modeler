@@ -1,4 +1,9 @@
-import { CodeApproval, needsContentHash } from "../../kernel/domain/codeApproval";
+import {
+    CodeApproval,
+    needsContentHash,
+    notAskedAgain,
+    SessionAnswer,
+} from "../../kernel/domain/codeApproval";
 import { isWithinRoot } from "../../kernel/domain/rootContainment";
 
 /** Where one kind of add-on sits in config folders: a plugins or a templates folder. */
@@ -59,12 +64,17 @@ export interface HashContext {
     /** The user asked to read these with "Review…". */
     readonly inspected: ReadonlySet<string>;
     readonly approvals: readonly CodeApproval[];
-    readonly declined: ReadonlySet<string>;
+    /** This session's answers, by `declineKeyOf`. */
+    readonly answers: ReadonlyMap<string, SessionAnswer>;
 }
 
-/** Hashing reads every byte, so only for a package the user asked to read or a row or decline can match. */
-export function isHashWanted(id: string, { inspected, approvals, declined }: HashContext): boolean {
-    return inspected.has(id) || needsContentHash(id, approvals, declined);
+/**
+ * Hashing reads every byte, so only for a package the user asked to read, a
+ * row or decline can match, or one a notice left to the view: the gate hashed
+ * it to ask, and the view then offers to allow it without a "Review…" first.
+ */
+export function isHashWanted(id: string, { inspected, approvals, answers }: HashContext): boolean {
+    return inspected.has(id) || needsContentHash(id, approvals, notAskedAgain(answers));
 }
 
 function isInWorkspace(path: string, folders: readonly string[]): boolean {

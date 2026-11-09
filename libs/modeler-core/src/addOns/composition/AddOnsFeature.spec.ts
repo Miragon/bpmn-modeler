@@ -14,7 +14,10 @@ import { ProcessRestart } from "../../kernel/domain/codeApproval";
 import { ArtifactService } from "../../kernel/service/ArtifactService";
 import { ApprovalQuestion } from "../../kernel/service/ApprovalQuestion";
 import { QuestionQueue } from "../../kernel/service/QuestionQueue";
-import { BlockedRulePackage } from "../../modeler/bpmn/domain/rulePackageApproval";
+import {
+    BlockedRulePackage,
+    RULE_PACKAGE_APPROVAL_NOTICE_ID,
+} from "../../modeler/bpmn/domain/rulePackageApproval";
 import { PackageClosureFingerprinter } from "../../modeler/bpmn/service/PackageClosureFingerprinter";
 import { RulePackageCatalog } from "../../modeler/bpmn/service/RulePackageCatalog";
 import { RulePackageInventory } from "../../modeler/bpmn/service/RulePackageInventory";
@@ -401,6 +404,35 @@ describe("AddOnsFeature", () => {
             expect(host.pluginApprovals.approvals).toEqual([
                 { pluginId: ACME, contentHash: rulePackageHashOf(ACME) },
             ]);
+        });
+
+        it("offers Allow this content at once for a rule package a notice left to the view", async () => {
+            const { host, install, rulePackageCatalog, addOns, view, rulePackageHashOf } = setUp({
+                files: {},
+            });
+            install(ACME, "bpmnlint-plugin-acme");
+            const found: BlockedRulePackage[] = [
+                { id: ACME, kind: "package", state: "new", needed: true },
+            ];
+            rulePackageCatalog.noteSeen(found);
+            host.actionNotifier.noticeAnswers[RULE_PACKAGE_APPROVAL_NOTICE_ID] = "review";
+            await new ApprovalQuestion(
+                rulePackageCatalog,
+                { review: async () => ({ kind: "leftForView" as const }) },
+                host.actionNotifier,
+                host.workspace,
+                new QuestionQueue(),
+            ).ask(found);
+
+            view.attachTo(addOns);
+            await shown(addOns);
+
+            const row = view.codeAddOnNamed("bpmnlint-plugin-acme");
+            expect([row.stateText, row.actions.map(({ label }) => label)]).toEqual([
+                "Not allowed yet",
+                ["Allow this content"],
+            ]);
+            expect(row.review?.facts.at(-1)?.value).toBe(rulePackageHashOf(ACME));
         });
 
         it("refuses when the plugin changed after it was shown", async () => {

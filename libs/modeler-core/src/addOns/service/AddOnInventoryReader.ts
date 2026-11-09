@@ -1,4 +1,4 @@
-import { declinedKeys, presenceIdOf } from "../../kernel/domain/codeApproval";
+import { presenceIdOf } from "../../kernel/domain/codeApproval";
 import { PluginApprovalStorePort } from "../../kernel/port/approvalPorts";
 import { FolderTemplateFileListing } from "../../kernel/domain/templateListing";
 import { SettingsPort, WorkspacePort } from "../../kernel/port/hostPorts";
@@ -139,7 +139,7 @@ export class AddOnInventoryReader {
         const hashContext = {
             inspected,
             approvals,
-            declined: declinedKeys(rulePackages.sessionAnswers()),
+            answers: rulePackages.sessionAnswers(),
         };
         return ids.map((id) => ({
             presence: rulePackages.currentRulePackage(id, {

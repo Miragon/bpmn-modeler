@@ -124,7 +124,7 @@ describe("rulePackageIdsToList", () => {
 
 describe("isHashWanted", () => {
     const ID = "/work/node_modules/bpmnlint-plugin-acme";
-    const none: HashContext = { inspected: new Set(), approvals: [], declined: new Set() };
+    const none: HashContext = { inspected: new Set(), approvals: [], answers: new Map() };
 
     it.each<{ case: string; context: HashContext; wanted: boolean }>([
         { case: "not for a package nothing asks about", context: none, wanted: false },
@@ -140,7 +140,12 @@ describe("isHashWanted", () => {
         },
         {
             case: "for a package declined this session",
-            context: { ...none, declined: new Set([`${ID}#h`]) },
+            context: { ...none, answers: new Map([[`${ID}#h`, "declined"]]) },
+            wanted: true,
+        },
+        {
+            case: "for a package the user left to the view, so the view offers to allow it",
+            context: { ...none, answers: new Map([[`${ID}#h`, "leftForView"]]) },
             wanted: true,
         },
         {
@@ -148,7 +153,7 @@ describe("isHashWanted", () => {
             context: {
                 inspected: new Set(["/work/node_modules/other"]),
                 approvals: [{ pluginId: "/work/node_modules/other", contentHash: "h" }],
-                declined: new Set(["/work/node_modules/other#h"]),
+                answers: new Map([["/work/node_modules/other#h", "leftForView"]]),
             },
             wanted: false,
         },
