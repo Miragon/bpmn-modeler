@@ -47,9 +47,9 @@ const rowOf = ({ id, contentHash }: { id: string; contentHash: string }): CodeAp
  * one another writer stored that this store never read, and a read right
  * after the change includes it. A change that names an id twice rejects and
  * stores nothing. `readStored` asks the host for its list rather than a
- * mirror, and `read` returns what it answered from then on. `onDidChange` fires once whenever the
- * store learns of a new list (its own change, the host telling it, or
- * `readStored`), and never for a list of the same rows.
+ * mirror, and `read` returns what it answered from then on. `onDidChange`
+ * fires once whenever the store learns of a new list (its own change, the
+ * host telling it, or `readStored`), and never for a list of the same rows.
  *
  * Left out: where an adapter keeps the list. The rule that no workspace can
  * write it is the adapter's; VS Code keeps it in its global state.
