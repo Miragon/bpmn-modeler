@@ -349,7 +349,8 @@ The trusted publishing policy on the `miragon-gmbh` publisher names:
 Renaming the workflow file or the environment breaks publishing until the
 policy is updated. The job needs `id-token: write`, both in
 `publish-vscode-modeler.yml` and in the `vscode` caller job of
-`release-please.yml`, and a vsce with `--oidc` (the workflow pins 4.0.0).
+`release-please.yml`, and vsce 4.1.0 or later: 4.0.0 calls the token exchange
+without the `FederatedToken` scheme and API version the Marketplace expects.
 
 The policy names the called workflow, not `release-please.yml` as npm does.
 Microsoft does not document which of the two a reusable workflow is matched
