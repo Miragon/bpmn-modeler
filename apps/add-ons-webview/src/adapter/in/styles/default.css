@@ -43,6 +43,11 @@
     box-sizing: border-box;
 }
 
+/* An author display rule beats the browser's own [hidden] rule. */
+[hidden] {
+    display: none !important;
+}
+
 html,
 body {
     margin: 0;
