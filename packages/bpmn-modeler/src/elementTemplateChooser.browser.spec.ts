@@ -1,6 +1,8 @@
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import { page, userEvent } from "vitest/browser";
 
+import type { ElementTemplateRef } from "@miragon/bpmn-modeler-types";
+
 import { createModeler } from "./createModeler";
 import type { ModelerMode } from "./mode/mode";
 import type { BpmnModeler } from "./modeler";
@@ -19,11 +21,15 @@ const ENGINES = [
         engine: "c7",
         templateAttribute: "camunda:modelerTemplate",
         schema: "https://unpkg.com/@camunda/element-templates-json-schema/resources/schema.json",
+        prefix: "camunda",
+        namespace: "http://camunda.org/schema/1.0/bpmn",
     },
     {
         engine: "c8",
         templateAttribute: "zeebe:modelerTemplate",
         schema: "https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json",
+        prefix: "zeebe",
+        namespace: "http://camunda.org/schema/zeebe/1.0",
     },
 ] as const;
 
@@ -47,7 +53,42 @@ function auditTemplate(engine: EngineCase) {
     };
 }
 
-async function openModeler(engine: EngineCase, mode: ModelerMode) {
+function mailTemplate(engine: EngineCase) {
+    return { ...auditTemplate(engine), id: "com.example.mail", name: "Mail task" };
+}
+
+function versionedAuditTemplate(engine: EngineCase, version: number) {
+    return {
+        ...auditTemplate(engine),
+        version,
+        properties: [
+            { label: "Label", type: "String", binding: { type: "property", name: "name" } },
+        ],
+    };
+}
+
+/** Task_1 already uses version 1 of the audit template. */
+function auditedTaskXml(engine: EngineCase): string {
+    return FAR_FROM_ORIGIN_XML.replace(
+        'targetNamespace="http://bpmn.io/schema/bpmn"',
+        `targetNamespace="http://bpmn.io/schema/bpmn" xmlns:${engine.prefix}="${engine.namespace}"`,
+    ).replace(
+        '<bpmn:task id="Task_1" name="A" />',
+        `<bpmn:task id="Task_1" name="A" ${engine.prefix}:modelerTemplate="${TEMPLATE_ID}" ${engine.prefix}:modelerTemplateVersion="1" />`,
+    );
+}
+
+function hide(modeler: BpmnModeler, refs: ElementTemplateRef[]): void {
+    modeler
+        .getService<{ setHidden(refs: ElementTemplateRef[]): void }>("elementTemplateOffer")
+        .setHidden(refs);
+}
+
+async function openModeler(
+    engine: EngineCase,
+    mode: ModelerMode,
+    { elementTemplates = [auditTemplate(engine)], xml = FAR_FROM_ORIGIN_XML } = {},
+) {
     const { container, panel } = mountWithPanel(400, 300);
     // The canvas host is absolutely positioned and would cover an in-flow panel.
     panel.style.cssText = "position:absolute;top:300px;width:400px";
@@ -56,10 +97,10 @@ async function openModeler(engine: EngineCase, mode: ModelerMode) {
         mode,
         propertiesPanel: { parent: panel },
         linting: false,
-        elementTemplates: [auditTemplate(engine)],
+        elementTemplates,
     });
     modelers.push(modeler);
-    await modeler.loadDiagram(FAR_FROM_ORIGIN_XML);
+    await modeler.loadDiagram(xml);
     await afterPaint();
     const elementRegistry = modeler.getService("elementRegistry");
     modeler.getService("selection").select(elementRegistry.get("Task_1")!);
@@ -147,5 +188,48 @@ describe.each(ENGINES)("$engine element template chooser", (engine) => {
         await userEvent.click(chooserControl(".etc-close-btn")!);
         expect(chooserRoots()).toHaveLength(0);
         expect(taskAttribute(engine.templateAttribute)).toBeUndefined();
+    });
+
+    it("lists no hidden template", async () => {
+        const { modeler, panel } = await openModeler(engine, "implement", {
+            elementTemplates: [auditTemplate(engine), mailTemplate(engine)],
+        });
+        hide(modeler, [{ id: TEMPLATE_ID }]);
+        const selectButton = () => panel.querySelector<HTMLElement>(SELECT_TEMPLATE_BUTTON);
+
+        await expect.poll(selectButton).not.toBeNull();
+        await userEvent.click(selectButton()!);
+
+        expect(offeredTemplateNames()).toEqual(["Mail task"]);
+    });
+
+    it("keeps an element on a hidden template: its properties and the update prompt stay", async () => {
+        const { modeler, panel } = await openModeler(engine, "implement", {
+            elementTemplates: [
+                versionedAuditTemplate(engine, 1),
+                versionedAuditTemplate(engine, 2),
+            ],
+            xml: auditedTaskXml(engine),
+        });
+
+        hide(modeler, [
+            { id: TEMPLATE_ID, version: 1 },
+            { id: TEMPLATE_ID, version: 2 },
+        ]);
+        // Re-render the panel for the selected element with the refs in place.
+        modeler.getService("selection").select([]);
+        modeler
+            .getService("selection")
+            .select(modeler.getService("elementRegistry").get("Task_1")!);
+
+        await expect
+            .poll(() =>
+                panel.querySelector('[data-group-id="group-ElementTemplates__CustomProperties"]'),
+            )
+            .not.toBeNull();
+        expect(
+            panel.querySelector(".bio-properties-panel-template-update-available"),
+        ).not.toBeNull();
+        expect(panel.querySelector(".bio-properties-panel-template-not-found")).toBeNull();
     });
 });
