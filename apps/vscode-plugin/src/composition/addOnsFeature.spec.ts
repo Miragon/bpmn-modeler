@@ -1,26 +1,12 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 vi.mock("vscode", () => import("../__fixtures__/vscodeCompositionFake"));
-
-const injectedPorts = vi.hoisted(() => ({ addOns: [] as AddOnsHostPorts[] }));
-
-// Records what the composition hands the catalog, which keeps no reference to it.
-vi.mock("@miragon/bpmn-modeler-core", async (importOriginal) => {
-    const core = await importOriginal<typeof import("@miragon/bpmn-modeler-core")>();
-    class RecordedAddOnsFeature extends core.AddOnsFeature {
-        constructor(ports: AddOnsHostPorts) {
-            super(ports);
-            injectedPorts.addOns.push(ports);
-        }
-    }
-    return { ...core, AddOnsFeature: RecordedAddOnsFeature };
-});
 
 import { ExtensionContext, Uri } from "vscode";
 
 import {
-    AddOnsFeature,
-    AddOnsHostPorts,
+    AddOnCatalogModel,
+    allowing,
     BpmnDiffService,
     DiffPaneStore,
     EditorSessionParticipant,
@@ -82,20 +68,23 @@ function createVsCodeAddOns(context = createExtensionContext()) {
     return { deps, bpmn, ...addOnsFeature.register(context, deps, bpmn) };
 }
 
+const LEFT = { id: "/work/x", name: "x", contentHash: "h" };
+
 describe("VS Code's add-on catalog", () => {
-    afterEach(() => {
-        vi.restoreAllMocks();
-        injectedPorts.addOns.splice(0);
-    });
+    it("lists again when the BPMN editor's plugins, its rule packages or their one approval list change", async () => {
+        const { deps, bpmn, addOns } = createVsCodeAddOns();
+        const models: AddOnCatalogModel[] = [];
+        addOns.attachView((model) => models.push(model), true);
+        await addOns.whenSettled();
 
-    it("lists what the BPMN editor's plugins and rule packages find, over their one approval list", () => {
-        const { deps, bpmn } = createVsCodeAddOns();
+        await deps.pluginApprovals.change(allowing([LEFT]));
+        await addOns.whenSettled();
+        bpmn.plugins.inventory.leaveForView(LEFT);
+        await addOns.whenSettled();
+        bpmn.editor.rulePackageInventory?.leaveForView(LEFT);
+        await addOns.whenSettled();
 
-        const [ports] = injectedPorts.addOns;
-        expect(ports?.approvals).toBe(deps.pluginApprovals);
-        expect(ports?.plugins).toBe(bpmn.plugins.inventory);
-        expect(ports?.rulePackages).toBe(bpmn.editor.rulePackageInventory);
-        expect(ports?.restart).toBe("reloadWindow");
+        expect(models).toHaveLength(4);
     });
 
     it("asks for a folder while none is open", async () => {
@@ -108,15 +97,19 @@ describe("VS Code's add-on catalog", () => {
         expect(posted).toEqual(["Open a folder to see the plugins and rule packages it brings."]);
     });
 
-    it("stops the catalog when the extension deactivates", () => {
-        const dispose = vi.spyOn(AddOnsFeature.prototype, "dispose");
+    it("stops the catalog when the extension deactivates", async () => {
         const context = createExtensionContext();
-        createVsCodeAddOns(context);
+        const { deps, addOns } = createVsCodeAddOns(context);
+        const models: AddOnCatalogModel[] = [];
+        addOns.attachView((model) => models.push(model), true);
+        await addOns.whenSettled();
 
         for (const subscription of context.subscriptions) {
             subscription.dispose();
         }
+        await deps.pluginApprovals.change(allowing([LEFT]));
+        await addOns.whenSettled();
 
-        expect(dispose).toHaveBeenCalledTimes(1);
+        expect(models).toHaveLength(1);
     });
 });

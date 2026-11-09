@@ -563,15 +563,24 @@ describe("AddOnsFeature", () => {
         });
 
         it("builds nothing while no view is visible", async () => {
-            const { host, addOns, view } = setUp();
-            const readStored = vi.spyOn(host.pluginApprovals, "readStored");
+            vi.useFakeTimers({ toFake: ["Date"] });
+            try {
+                vi.setSystemTime(5);
+                const { addOns, view } = setUp();
+                view.attachTo(addOns, false);
+                addOns.refresh();
+                await shown(addOns);
 
-            view.attachTo(addOns, false);
-            addOns.refresh();
-            await shown(addOns);
+                const visible = new RecordingAddOnView();
+                visible.attachTo(addOns);
+                await shown(addOns);
 
-            expect(view.models).toEqual([]);
-            expect(readStored).not.toHaveBeenCalled();
+                expect(view.models).toEqual([]);
+                // Revisions count from the clock, so the first build is the one after 5 ms.
+                expect(visible.models.map(({ revision }) => revision)).toEqual([5_001]);
+            } finally {
+                vi.useRealTimers();
+            }
         });
 
         it("a hidden view gets the latest model when shown", async () => {
