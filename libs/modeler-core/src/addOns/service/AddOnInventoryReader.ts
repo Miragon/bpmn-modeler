@@ -5,6 +5,7 @@ import {
     AddOnFacts,
     FolderTemplateFileListing,
     ListedMarketplace,
+    ListedMarketplaces,
     OwnedPresence,
 } from "../domain/addOnCatalog";
 import {
@@ -70,19 +71,23 @@ export class AddOnInventoryReader {
         );
     }
 
-    private async marketplaces(): Promise<{ readonly marketplaces?: ListedMarketplace[] }> {
+    private async marketplaces(): Promise<{ readonly marketplaces?: ListedMarketplaces }> {
         const { marketplaces, templates } = this.ports;
         if (marketplaces === undefined) {
             return {};
         }
-        const listed: ListedMarketplace[] = [];
-        for (const { templateFiles, ...marketplace } of await marketplaces.listMarketplaces()) {
-            listed.push({
+        const listing = await marketplaces.listMarketplaces();
+        if (listing.kind === "unreadable") {
+            return { marketplaces: listing };
+        }
+        const sources: ListedMarketplace[] = [];
+        for (const { templateFiles, ...marketplace } of listing.sources) {
+            sources.push({
                 ...marketplace,
                 templates: (await templates?.templatesOf(templateFiles)) ?? [],
             });
         }
-        return { marketplaces: listed };
+        return { marketplaces: { kind: "listed", sources } };
     }
 
     private async plugins({

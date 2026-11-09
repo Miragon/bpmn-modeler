@@ -2,9 +2,11 @@ import { MarketplaceSettingsEntry } from "../../kernel/domain/modelerSettings";
 import { LoggerPort } from "../../kernel/port/hostPorts";
 import {
     CachedTemplates,
-    MarketplaceSource,
+    MarketplaceSources,
     marketplaceSourcesOf,
+    REGISTRATIONS_UNREADABLE,
 } from "../domain/marketplaceSources";
+import { RegistrationsByScope } from "../domain/marketplaceRegistrations";
 import { MarketplaceRegistrationsPort } from "../port/marketplacePorts";
 import { MarketplaceCommands } from "./MarketplaceCommands";
 import { TemplateMarketplaceService } from "./TemplateMarketplaceService";
@@ -28,9 +30,15 @@ export class MarketplaceInventory {
         private readonly logger: LoggerPort,
     ) {}
 
-    async listMarketplaces(): Promise<readonly MarketplaceSource[]> {
-        const { registered } = await this.registrations.read();
-        return marketplaceSourcesOf(registered, await this.cachedTemplates());
+    async listMarketplaces(): Promise<MarketplaceSources> {
+        const registered = await this.registered();
+        if (registered === undefined) {
+            return REGISTRATIONS_UNREADABLE;
+        }
+        return {
+            kind: "listed",
+            sources: marketplaceSourcesOf(registered, await this.cachedTemplates()),
+        };
     }
 
     add(): Promise<void> {
@@ -49,6 +57,15 @@ export class MarketplaceInventory {
         return this.commands.onDidChange(listener);
     }
 
+    private async registered(): Promise<RegistrationsByScope | undefined> {
+        try {
+            return (await this.registrations.read()).registered;
+        } catch (error) {
+            this.logError(error);
+            return undefined;
+        }
+    }
+
     private async cachedTemplates(): Promise<CachedTemplates> {
         try {
             return {
@@ -56,8 +73,12 @@ export class MarketplaceInventory {
                 byRegistration: await this.cache.cachedTemplatePathsByRegistration(),
             };
         } catch (error) {
-            this.logger.logError(error instanceof Error ? error : new Error(String(error)));
+            this.logError(error);
             return { kind: "failed" };
         }
+    }
+
+    private logError(error: unknown): void {
+        this.logger.logError(error instanceof Error ? error : new Error(String(error)));
     }
 }

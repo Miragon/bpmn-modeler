@@ -803,7 +803,9 @@ Both hosts build an `AddOnsFeature`; no view attaches to it yet.
   scopes that hold it in the words of the removal choice, its cached
   templates (`cachedTemplatePathsByRegistration`, the cache's own layout) and
   why it has none: an entry the registry cannot parse, nothing fetched yet,
-  or a cache that cannot be read. The catalog offers "Add marketplace…" and
+  or a cache that cannot be read. Registrations that cannot be read, such
+  as a host's reply that fails, leave the group without sources and say why;
+  the folders are still listed. The catalog offers "Add marketplace…" and
   "Update marketplaces", and each source "Remove". All three run the
   host's `MarketplaceCommands`, the same instance its commands run, so a flow
   started from either queues behind the other on its one-at-a-time queue and

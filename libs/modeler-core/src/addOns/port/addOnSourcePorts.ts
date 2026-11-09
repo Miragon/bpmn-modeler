@@ -10,6 +10,7 @@ import { MarketplaceSettingsEntry } from "../../kernel/domain/modelerSettings";
 import {
     FolderTemplateFileListing,
     ListedMarketplace,
+    ListedMarketplaces,
     TemplateFileListing,
 } from "../domain/addOnCatalog";
 
@@ -76,9 +77,14 @@ type MarketplaceListing = Omit<ListedMarketplace, "templates"> & {
     readonly templateFiles: readonly string[];
 };
 
+type MarketplacesListing =
+    | { readonly kind: "listed"; readonly sources: readonly MarketplaceListing[] }
+    | Extract<ListedMarketplaces, { readonly kind: "unreadable" }>;
+
 /** The registered marketplaces and the flows that change them, which ask and report on their own. */
 export interface MarketplaceAddOnSource {
-    listMarketplaces(): Promise<readonly MarketplaceListing[]>;
+    /** Logs and says why when the registrations cannot be read. */
+    listMarketplaces(): Promise<MarketplacesListing>;
     add(): Promise<void>;
     update(): Promise<void>;
     remove(entry: MarketplaceSettingsEntry): Promise<void>;

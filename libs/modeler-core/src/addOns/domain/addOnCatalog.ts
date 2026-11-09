@@ -108,6 +108,11 @@ export interface ListedMarketplace {
     readonly templates: readonly TemplateFileListing[];
 }
 
+/** The registered marketplaces, or why their owner could not read them. */
+export type ListedMarketplaces =
+    | { readonly kind: "listed"; readonly sources: readonly ListedMarketplace[] }
+    | { readonly kind: "unreadable"; readonly problem: string };
+
 /** What one listing found: every add-on its owner read, by kind. */
 export interface AddOnFacts {
     readonly folders: readonly string[];
@@ -117,7 +122,7 @@ export interface AddOnFacts {
     readonly rulePackages: readonly OwnedPresence[];
     readonly templates: readonly FolderTemplateFileListing[];
     /** Absent on a host that lists no marketplaces. */
-    readonly marketplaces?: readonly ListedMarketplace[];
+    readonly marketplaces?: ListedMarketplaces;
 }
 
 /** What this process remembers beyond the stored approvals, by kind as each owner tells it. */
@@ -269,10 +274,16 @@ export function catalogModelOf(
         ...listed.flatMap((each) => placedAddOn(each, facts, session, restart)),
         ...facts.templates.flatMap((listing) => placedTemplates(listing, facts)),
     ];
-    const marketplaceSources = (facts.marketplaces ?? []).map(marketplaceSourceOf);
+    const marketplaceSources =
+        facts.marketplaces?.kind === "listed"
+            ? facts.marketplaces.sources.map(marketplaceSourceOf)
+            : [];
     const groups = [
         ...facts.folders.flatMap((root) => groupOf(root, placed)),
-        ...marketplacesGroupOf(marketplaceSources.map(({ view }) => view)),
+        ...marketplacesGroupOf(
+            marketplaceSources.map(({ view }) => view),
+            facts.marketplaces?.kind === "unreadable" ? facts.marketplaces.problem : undefined,
+        ),
     ];
     return {
         model: {
@@ -368,10 +379,20 @@ function marketplaceSourceOf(marketplace: ListedMarketplace): {
     };
 }
 
-function marketplacesGroupOf(sources: readonly AddOnSourceView[]): AddOnGroupView[] {
-    return sources.length === 0
+function marketplacesGroupOf(
+    sources: readonly AddOnSourceView[],
+    problem: string | undefined,
+): AddOnGroupView[] {
+    return sources.length === 0 && problem === undefined
         ? []
-        : [{ id: MARKETPLACES_GROUP_ID, ...MARKETPLACES_GROUP_TEXT, sources }];
+        : [
+              {
+                  id: MARKETPLACES_GROUP_ID,
+                  ...MARKETPLACES_GROUP_TEXT,
+                  ...optional("problem", problem),
+                  sources,
+              },
+          ];
 }
 
 function placedAddOn(

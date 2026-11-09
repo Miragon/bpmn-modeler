@@ -1006,9 +1006,7 @@ describe("AddOnsFeature", () => {
                     sources: 0,
                 },
             ]);
-            expect(host.notifier.loggedErrors.map(({ message }) => message)).toEqual([
-                "host gone",
-            ]);
+            expect(host.notifier.loggedErrors.map(({ message }) => message)).toEqual(["host gone"]);
         });
 
         it("removing a marketplace runs the queued flow with its confirm", async () => {

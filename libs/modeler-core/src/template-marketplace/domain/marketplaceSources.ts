@@ -23,6 +23,16 @@ export interface MarketplaceSource {
     readonly problem?: string;
 }
 
+/** The registered marketplaces, or why they could not be read. */
+export type MarketplaceSources =
+    | { readonly kind: "listed"; readonly sources: readonly MarketplaceSource[] }
+    | { readonly kind: "unreadable"; readonly problem: string };
+
+export const REGISTRATIONS_UNREADABLE: MarketplaceSources = {
+    kind: "unreadable",
+    problem: "The registered marketplaces could not be read. The log says why.",
+};
+
 const NOT_FETCHED_TEXT = "No templates fetched yet. Update the marketplaces to fetch them.";
 const CACHE_FAILED_TEXT = "Its cached templates could not be read. The log says why.";
 

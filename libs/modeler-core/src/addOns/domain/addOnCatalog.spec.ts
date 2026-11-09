@@ -67,7 +67,7 @@ function factsOf(
         rulePackages?: ListedPresence[];
     } = {},
 ): AddOnFacts {
-    const { plugins = [], rulePackages = [], ...rest } = overrides;
+    const { plugins = [], rulePackages = [], marketplaces, ...rest } = overrides;
     const placedBy =
         (sourceDirOf: (id: string) => string, texts: ApprovableCodeTexts) =>
         (presence: ListedPresence) => ({
@@ -81,6 +81,7 @@ function factsOf(
         approvals: [],
         templates: [],
         ...rest,
+        ...(marketplaces && { marketplaces: { kind: "listed", sources: marketplaces } }),
         plugins: plugins.map(placedBy(pluginSourceDirOf, PLUGIN_TEXTS)),
         rulePackages: rulePackages.map(placedBy(rulePackageSourceDirOf, RULE_PACKAGE_TEXTS)),
     };
@@ -1002,6 +1003,30 @@ describe("catalogModelOf for marketplaces", () => {
                 }[kind],
             })),
         );
+    });
+
+    it("says why it lists no marketplace when their registrations cannot be read", () => {
+        const problem = "The registered marketplaces could not be read. The log says why.";
+
+        const { model } = build({
+            ...factsOf({ folders: [] }),
+            marketplaces: { kind: "unreadable", problem },
+        });
+
+        expect(model.groups).toStrictEqual([
+            {
+                id: "marketplaces",
+                label: "Marketplaces",
+                description: "Element templates fetched from the registered marketplaces",
+                problem,
+                sources: [],
+            },
+        ]);
+        expect(model.actions.map(({ kind }) => kind)).toEqual([
+            "addMarketplace",
+            "updateMarketplaces",
+            "pruneCache",
+        ]);
     });
 
     it("shows no marketplaces group while none is registered", () => {
