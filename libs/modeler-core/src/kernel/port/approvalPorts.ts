@@ -19,6 +19,9 @@ export interface PluginApprovalStorePort {
     /**
      * The host's stored list, asked for now rather than taken from a mirror, or
      * a newer one the store heard of meanwhile; `read()` returns it from then on.
+     * VS Code returns this window's memento, which can lag another window's
+     * write, so a prune there may delete a copy that window just wrote; the
+     * check on disk before serving writes it again.
      */
     readStored(): Promise<readonly CodeApproval[]>;
     /**
