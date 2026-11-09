@@ -70,6 +70,22 @@ export interface MarketplaceRegistration {
 }
 
 /**
+ * The key a marketplace's template switches are stored under: its repository
+ * without the ref, so a ref edit, a re-fetch and a new cache generation keep
+ * them, and two refs of one repository share them.
+ */
+export function marketplacePreferenceKeyOf(location: MarketplaceLocation): string {
+    switch (location.kind) {
+        case "github":
+            return `marketplace:github:${repositoryHostOf("github", location.baseUrl)}/${location.owner}/${location.repo}`;
+        case "gitlab":
+            return `marketplace:gitlab:${repositoryHostOf("gitlab", location.baseUrl)}/${location.projectPath}`;
+        case "local":
+            return `marketplace:local:${location.rootDir}`;
+    }
+}
+
+/**
  * What kind of content a source serves. The marketplace format is shared across
  * future content types (properties-panel entries, palette entries, lint rules,
  * …); today only element templates exist, so the union has a single member and
