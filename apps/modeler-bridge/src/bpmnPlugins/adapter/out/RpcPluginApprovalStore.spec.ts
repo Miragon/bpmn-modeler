@@ -81,6 +81,22 @@ describe("RpcPluginApprovalStore", () => {
         expect(store.read()).toEqual([PALETTE, OTHER]);
     });
 
+    it("answers readStored with a newer pushed list over the read the host answered before it", async () => {
+        const { rpc, store, frames } = bridgeStore();
+
+        const read = store.readStored();
+        await rpc.handleLine(
+            hostNotification(METHODS.pluginApprovalsDidChange, {
+                approvals: [PALETTE, OTHER],
+                revision: 3,
+            }),
+        );
+        await rpc.handleLine(hostReply(frames[0].id!, { approvals: [PALETTE], revision: 2 }));
+
+        expect(await read).toEqual([PALETTE, OTHER]);
+        expect(store.read()).toEqual([PALETTE, OTHER]);
+    });
+
     it("keeps its list for a push of the revision it already holds", () => {
         const { store } = bridgeStore();
         store.apply({ approvals: [RESIZE], revision: 4 });
