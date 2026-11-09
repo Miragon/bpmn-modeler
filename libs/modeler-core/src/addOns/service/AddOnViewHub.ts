@@ -1,6 +1,7 @@
 import { LoggerPort, WorkspacePort } from "../../kernel/port/hostPorts";
 import type { AddOnCatalogModel, AddOnReveal } from "../domain/addOnCatalogModel";
 import { AddOnActionResult, AddOnRequest, CLOSED_VIEW } from "../domain/addOnRequests";
+import { firstRevisionOf } from "../domain/shownRevisions";
 import { AddOnCatalogService } from "./AddOnCatalogService";
 import { AddOnWatchers } from "./AddOnWatchers";
 
@@ -29,6 +30,8 @@ export class AddOnViewHub {
     private readonly views = new Set<AttachedView>();
     private readonly built: { dispose(): void };
     private latestReveal?: AddOnReveal;
+    /** From the clock as revisions are, as a page that outlives this process keeps the last id it applied. */
+    private lastRevealId = firstRevisionOf(Date.now());
 
     constructor(
         private readonly catalog: AddOnCatalogService,
@@ -68,7 +71,7 @@ export class AddOnViewHub {
 
     reveal(addOnIds: readonly string[]): void {
         this.latestReveal = {
-            revealId: (this.latestReveal?.revealId ?? 0) + 1,
+            revealId: ++this.lastRevealId,
             addOnIds: [...addOnIds],
         };
         this.views.forEach((view) => this.revealTo(view));
