@@ -115,4 +115,6 @@ which `src/composition/bootstrap.ts` injects into `#app`. The host shells
 (`apps/deployment-webview/index.html`,
 `apps/vscode-plugin/src/deployment/adapter/in/DeploymentWebviewHtml.ts`,
 IntelliJ's `WebviewServer.kt`) ship an empty `<div id="app"></div>`. Edit form
-markup only in `formTemplate.ts`.
+markup only in `formTemplate.ts`. The add-ons webview's shells ship an empty
+`#app` too; its DOM is built from the core's model in
+`apps/add-ons-webview/src/adapter/in/catalogView.ts`.

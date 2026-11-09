@@ -1,4 +1,5 @@
 export * from "./actionNotifierContract";
+export * from "./addOnViewRevealContract";
 export * from "./approvalReviewContract";
 export * from "./clipboardContract";
 export * from "./contentHasherContract";
@@ -42,3 +43,4 @@ export * from "./tokenStoreContract";
 export * from "./workspaceContract";
 export * from "./surfaceCoverage";
 export * from "./RecordingAddOnView";
+export * from "./RecordingAddOnViewReveal";

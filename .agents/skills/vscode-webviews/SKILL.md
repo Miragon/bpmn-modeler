@@ -32,6 +32,15 @@ ships only an empty `<div id="app"></div>`; none carries a copy of the form.
 Edit form markup **only** in `formTemplate.ts` (see the Deployment Webview
 section in AGENTS.md).
 
+### Add-ons Webview (Artifacts view)
+
+`apps/add-ons-webview` renders the core's add-on catalog. Its host shells ship
+only an empty `<div id="app"></div>` too; `src/adapter/in/catalogView.ts`
+builds the DOM from the model with the DOM API, never `innerHTML`, as the model
+holds workspace text. Its protocol is `libs/shared/src/lib/addOnsView.ts`, and
+the core's `AddOnsFeature.attachPanel` answers it, so a host only passes
+messages through. No host bundles it yet (#2250's second and third PRs).
+
 ## Content Security Policy (CSP)
 
 Every shell (BPMN, DMN, form, deployment) defines a CSP in a `<meta>` tag and
@@ -323,6 +332,7 @@ See `apps/vscode-plugin/src/shared/adapter/out/WebviewHtml.ts`.
 - **Deployment HTML shell**: `apps/vscode-plugin/src/deployment/adapter/in/DeploymentWebviewHtml.ts` (CSP + asset URIs only)
 - **Shell CSP builder**: `apps/vscode-plugin/src/shared/domain/webviewContentSecurityPolicy.ts`
 - **Deployment form markup (single source)**: `apps/deployment-webview/src/adapter/in/formTemplate.ts` (`FORM_TEMPLATE`)
+- **Add-ons view**: `apps/add-ons-webview/src/adapter/in/catalogView.ts` (DOM), `src/domain/viewState.ts` (reducer), `libs/shared/src/lib/addOnsView.ts` (protocol)
 - **Message router**: `libs/modeler-core/src/editorSession/service/WebviewMessageRouter.ts`
 - **Base message types**: `libs/shared/src/lib/messages.ts`
 - **Modeler message types**: `libs/shared/src/lib/modeler.ts`

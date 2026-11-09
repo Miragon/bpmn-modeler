@@ -79,8 +79,12 @@ describe("ApprovalQuestion", () => {
         expect(allowed).toEqual([]);
         expect(host.picker.prompts).toEqual([]);
         expect(
-            scripted.requests.map(({ prompt, artifactIds }) => [prompt.id, artifactIds]),
-        ).toEqual([[PLUGIN_APPROVAL_PROMPT_ID, [RESIZE, PALETTE]]]);
+            scripted.requests.map(({ prompt, artifactIds, workspaceFolders }) => [
+                prompt.id,
+                artifactIds,
+                workspaceFolders,
+            ]),
+        ).toEqual([[PLUGIN_APPROVAL_PROMPT_ID, [RESIZE, PALETTE], ["/work"]]]);
         expect(host.pluginApprovals.read()).toEqual([]);
     });
 

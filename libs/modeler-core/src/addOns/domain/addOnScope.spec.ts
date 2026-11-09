@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
     HashContext,
     isHashWanted,
+    leavesToView,
     missedRowIds,
     configAreaDirsToList,
     rulePackageDirsToList,
@@ -124,7 +125,7 @@ describe("rulePackageIdsToList", () => {
 
 describe("isHashWanted", () => {
     const ID = "/work/node_modules/bpmnlint-plugin-acme";
-    const none: HashContext = { inspected: new Set(), approvals: [], declined: new Set() };
+    const none: HashContext = { inspected: new Set(), approvals: [], answers: new Map() };
 
     it.each<{ case: string; context: HashContext; wanted: boolean }>([
         { case: "not for a package nothing asks about", context: none, wanted: false },
@@ -140,7 +141,12 @@ describe("isHashWanted", () => {
         },
         {
             case: "for a package declined this session",
-            context: { ...none, declined: new Set([`${ID}#h`]) },
+            context: { ...none, answers: new Map([[`${ID}#h`, "declined"]]) },
+            wanted: true,
+        },
+        {
+            case: "for a package the user left to the view, so the view offers to allow it",
+            context: { ...none, answers: new Map([[`${ID}#h`, "leftForView"]]) },
             wanted: true,
         },
         {
@@ -148,11 +154,54 @@ describe("isHashWanted", () => {
             context: {
                 inspected: new Set(["/work/node_modules/other"]),
                 approvals: [{ pluginId: "/work/node_modules/other", contentHash: "h" }],
-                declined: new Set(["/work/node_modules/other#h"]),
+                answers: new Map([["/work/node_modules/other#h", "leftForView"]]),
             },
             wanted: false,
         },
     ])("hashes $case", ({ context, wanted }) => {
         expect(isHashWanted(ID, context)).toBe(wanted);
+    });
+});
+
+describe("leavesToView", () => {
+    it.each<{ case: string; ids: string[]; folders: string[]; leaves: boolean }>([
+        {
+            case: "not with no folder open",
+            ids: ["/work/.camunda/plugins/resize"],
+            folders: [],
+            leaves: false,
+        },
+        {
+            case: "not with no folder open, even with nothing pending",
+            ids: [],
+            folders: [],
+            leaves: false,
+        },
+        {
+            case: "when every pending item lies inside a folder",
+            ids: ["/work/.camunda/plugins/resize", "/other/node_modules/bpmnlint-plugin-acme"],
+            folders: FOLDERS,
+            leaves: true,
+        },
+        {
+            case: "when an item lies in a folder nested in another",
+            ids: ["/work/orders/.camunda/plugins/order-tools"],
+            folders: ["/work", "/work/orders"],
+            leaves: true,
+        },
+        {
+            case: "not when a link put one item outside every folder",
+            ids: ["/work/.camunda/plugins/resize", "/elsewhere/bpmnlint-plugin-linked"],
+            folders: FOLDERS,
+            leaves: false,
+        },
+        {
+            case: "not for a folder that only starts like an open one",
+            ids: ["/work2/.camunda/plugins/resize"],
+            folders: ["/work"],
+            leaves: false,
+        },
+    ])("leaves Review… to the view $case", ({ ids, folders, leaves }) => {
+        expect(leavesToView(ids, folders)).toBe(leaves);
     });
 });

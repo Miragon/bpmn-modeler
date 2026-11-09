@@ -2,7 +2,16 @@ import { createHash } from "node:crypto";
 
 import { describe, expect, it, vi } from "vitest";
 
-import { GetBpmnPluginsCommand } from "@miragon/bpmn-modeler-shared";
+import {
+    ADD_ONS_VIEW_COMMAND_TYPES,
+    AddOnActionResultQuery,
+    AddOnCatalogQuery,
+    AddOnRequestCommand,
+    GetAddOnCatalogCommand,
+    GetBpmnPluginsCommand,
+    Query,
+    RevealAddOnsQuery,
+} from "@miragon/bpmn-modeler-shared";
 
 import { BpmnPluginsFeature } from "../../bpmnPlugins/composition/BpmnPluginsFeature";
 import {
@@ -13,8 +22,13 @@ import { settingChangeNaming, SettingChange } from "../../editorSession/domain/E
 import { ProcessRestart } from "../../kernel/domain/codeApproval";
 import { ArtifactService } from "../../kernel/service/ArtifactService";
 import { ApprovalQuestion } from "../../kernel/service/ApprovalQuestion";
+import { ListReview } from "../../kernel/adapter/out/ListReview";
+import { ViewReview } from "../adapter/out/ViewReview";
 import { QuestionQueue } from "../../kernel/service/QuestionQueue";
-import { BlockedRulePackage } from "../../modeler/bpmn/domain/rulePackageApproval";
+import {
+    BlockedRulePackage,
+    RULE_PACKAGE_APPROVAL_NOTICE_ID,
+} from "../../modeler/bpmn/domain/rulePackageApproval";
 import { PackageClosureFingerprinter } from "../../modeler/bpmn/service/PackageClosureFingerprinter";
 import { RulePackageCatalog } from "../../modeler/bpmn/service/RulePackageCatalog";
 import { RulePackageInventory } from "../../modeler/bpmn/service/RulePackageInventory";
@@ -401,6 +415,35 @@ describe("AddOnsFeature", () => {
             expect(host.pluginApprovals.approvals).toEqual([
                 { pluginId: ACME, contentHash: rulePackageHashOf(ACME) },
             ]);
+        });
+
+        it("offers Allow this content at once for a rule package a notice left to the view", async () => {
+            const { host, install, rulePackageCatalog, addOns, view, rulePackageHashOf } = setUp({
+                files: {},
+            });
+            install(ACME, "bpmnlint-plugin-acme");
+            const found: BlockedRulePackage[] = [
+                { id: ACME, kind: "package", state: "new", needed: true },
+            ];
+            rulePackageCatalog.noteSeen(found);
+            host.actionNotifier.noticeAnswers[RULE_PACKAGE_APPROVAL_NOTICE_ID] = "review";
+            await new ApprovalQuestion(
+                rulePackageCatalog,
+                { review: async () => ({ kind: "leftForView" as const }) },
+                host.actionNotifier,
+                host.workspace,
+                new QuestionQueue(),
+            ).ask(found);
+
+            view.attachTo(addOns);
+            await shown(addOns);
+
+            const row = view.codeAddOnNamed("bpmnlint-plugin-acme");
+            expect([row.stateText, row.actions.map(({ label }) => label)]).toEqual([
+                "Not allowed yet",
+                ["Allow this content"],
+            ]);
+            expect(row.review?.facts.at(-1)?.value).toBe(rulePackageHashOf(ACME));
         });
 
         it("refuses when the plugin changed after it was shown", async () => {
@@ -826,6 +869,68 @@ describe("AddOnsFeature", () => {
             expect(host.notifier.logged("error")).toHaveLength(5);
         });
 
+        it("tells every visible view when the first listing fails", async () => {
+            const { host, addOns, view } = setUp();
+            vi.spyOn(host.pluginApprovals, "readStored").mockRejectedValueOnce(
+                new Error("store unreadable"),
+            );
+
+            view.attachTo(addOns);
+            await shown(addOns);
+
+            expect(view.latest()).toMatchObject({
+                groups: [],
+                problem: "Could not list the add-ons. The log says why.",
+            });
+            expect(host.notifier.logged("error")).toHaveLength(1);
+        });
+
+        it("claims no earlier list when the first listing fails again", async () => {
+            const { host, addOns, view } = setUp();
+            vi.spyOn(host.pluginApprovals, "readStored")
+                .mockRejectedValueOnce(new Error("store unreadable"))
+                .mockRejectedValueOnce(new Error("store unreadable"));
+
+            view.attachTo(addOns);
+            await shown(addOns);
+            addOns.refresh();
+            await shown(addOns);
+
+            expect(view.models).toHaveLength(2);
+            expect(view.latest()).toMatchObject({
+                groups: [],
+                problem: "Could not list the add-ons. The log says why.",
+            });
+        });
+
+        it("keeps what a view showed when a later listing fails, and clears the problem once one succeeds", async () => {
+            const { host, addOns, view } = setUp();
+            view.attachTo(addOns);
+            await shown(addOns);
+            const before = view.latest();
+            vi.spyOn(host.pluginApprovals, "readStored").mockRejectedValueOnce(
+                new Error("store unreadable"),
+            );
+
+            addOns.refresh();
+            await shown(addOns);
+            const failed = view.latest();
+            const allowed = await view.connection?.handle({
+                kind: "allow",
+                addOnId: `plugin:${RESIZE}`,
+                revision: failed.revision,
+            });
+            await shown(addOns);
+
+            expect(failed).toEqual({
+                ...before,
+                problem:
+                    "Could not list the add-ons again. The list shows what it read before; the log says why.",
+            });
+            expect(allowed).toMatchObject({ kind: "done" });
+            expect(view.latest().problem).toBeUndefined();
+        });
+
         it("posts nothing to a disposed view and refuses what it asks", async () => {
             const { host, addOns, view } = setUp();
             const connection = view.attachTo(addOns);
@@ -862,6 +967,194 @@ describe("AddOnsFeature", () => {
             expect(host.workspace.watchers.filter(({ root }) => root === WORK)).toMatchObject([
                 { disposed: true },
             ]);
+        });
+    });
+
+    describe("panels", () => {
+        const REVEALED = [`plugin:${RESIZE}`];
+
+        function recordingPanel() {
+            const posted: Query[] = [];
+            return {
+                posted,
+                post: (message: Query) => posted.push(message),
+                types: () => posted.map(({ type }) => type),
+                models: () =>
+                    posted.flatMap((each) =>
+                        each instanceof AddOnCatalogQuery ? [each.model] : [],
+                    ),
+                reveals: () =>
+                    posted.flatMap((each) =>
+                        each instanceof RevealAddOnsQuery ? [each.reveal.addOnIds] : [],
+                    ),
+            };
+        }
+
+        it("routes every command of the add-ons view before a panel attaches", () => {
+            const { addOns } = setUp();
+
+            expect(
+                ADD_ONS_VIEW_COMMAND_TYPES.map((type) => addOns.panelRoutes.routeOf(type)),
+            ).toEqual(ADD_ONS_VIEW_COMMAND_TYPES.map(() => ({ kind: "handled" })));
+        });
+
+        it("gets each model as a query and answers an allow by the revision it showed", async () => {
+            const { host, addOns } = setUp();
+            const panel = recordingPanel();
+            const attached = addOns.attachPanel(panel.post, true);
+            await shown(addOns);
+            const [shownModel] = panel.models();
+
+            await attached.handle(
+                new AddOnRequestCommand(3, {
+                    kind: "allow",
+                    addOnId: `plugin:${RESIZE}`,
+                    revision: shownModel.revision,
+                }),
+            );
+            await shown(addOns);
+
+            expect(panel.posted).toContainEqual(
+                new AddOnActionResultQuery(3, {
+                    kind: "done",
+                    message: "Allowed Resize Tasks. Open editors reload with it.",
+                }),
+            );
+            expect(host.pluginApprovals.approvals).toEqual([
+                { pluginId: RESIZE, contentHash: RESIZE_HASH },
+            ]);
+            expect(panel.models().at(-1)?.revision).toBeGreaterThan(shownModel.revision);
+        });
+
+        it("posts the last model again when its page loads", async () => {
+            const { addOns } = setUp();
+            const panel = recordingPanel();
+            const attached = addOns.attachPanel(panel.post, true);
+            await shown(addOns);
+
+            await attached.handle(new GetAddOnCatalogCommand());
+
+            expect(panel.types()).toEqual(["AddOnCatalogQuery", "AddOnCatalogQuery"]);
+        });
+
+        it("refuses what a disposed panel asks and posts nothing to it", async () => {
+            const { addOns } = setUp();
+            const panel = recordingPanel();
+            const attached = addOns.attachPanel(panel.post, true);
+            await shown(addOns);
+            panel.posted.length = 0;
+
+            attached.dispose();
+            await attached.handle(new AddOnRequestCommand(1, { kind: "refresh" }));
+            addOns.reveal(REVEALED);
+            addOns.refresh();
+            await shown(addOns);
+
+            expect(panel.posted).toEqual([]);
+        });
+
+        it("reveals rows to each visible panel once", async () => {
+            const { addOns } = setUp();
+            const panel = recordingPanel();
+            const attached = addOns.attachPanel(panel.post, true);
+            await shown(addOns);
+
+            addOns.reveal(REVEALED);
+            attached.setVisible(false);
+            attached.setVisible(true);
+            await shown(addOns);
+
+            expect(panel.reveals()).toEqual([REVEALED]);
+        });
+
+        it("reveals rows to a hidden panel after the model once it is shown", async () => {
+            const { addOns } = setUp();
+            const visible = recordingPanel();
+            const hidden = recordingPanel();
+            addOns.attachPanel(visible.post, true);
+            const attached = addOns.attachPanel(hidden.post, false);
+            await shown(addOns);
+
+            addOns.reveal(REVEALED);
+            const beforeShown = hidden.types();
+            attached.setVisible(true);
+
+            expect(beforeShown).toEqual([]);
+            expect(hidden.types()).toEqual(["AddOnCatalogQuery", "RevealAddOnsQuery"]);
+        });
+
+        it("reveals rows to a panel shown again once its page loads anew", async () => {
+            const { addOns } = setUp();
+            const panel = recordingPanel();
+            const attached = addOns.attachPanel(panel.post, true);
+            await shown(addOns);
+            await attached.handle(new GetAddOnCatalogCommand());
+            attached.setVisible(false);
+            addOns.reveal(REVEALED);
+            attached.setVisible(true);
+            await shown(addOns);
+            panel.posted.length = 0;
+
+            await attached.handle(new GetAddOnCatalogCommand());
+
+            expect(panel.reveals()).toEqual([REVEALED]);
+        });
+
+        it("reveals the latest rows once to a panel that attaches after the reveal", async () => {
+            const { addOns } = setUp();
+            addOns.reveal(["plugin:/work/.camunda/plugins/older"]);
+            addOns.reveal(REVEALED);
+            const panel = recordingPanel();
+
+            addOns.attachPanel(panel.post, true);
+            await shown(addOns);
+
+            expect(panel.reveals()).toEqual([REVEALED]);
+        });
+
+        it("numbers a reveal above every reveal a process that is gone sent a kept page", () => {
+            const revealIdsOf = (panel: ReturnType<typeof recordingPanel>) =>
+                panel.posted.flatMap((each) =>
+                    each instanceof RevealAddOnsQuery ? [each.reveal.revealId] : [],
+                );
+            vi.useFakeTimers({ toFake: ["Date"] });
+            try {
+                vi.setSystemTime(1_000);
+                const before = setUp();
+                const keptPage = recordingPanel();
+                before.addOns.attachPanel(keptPage.post, true);
+                before.addOns.reveal(REVEALED);
+                before.addOns.reveal(REVEALED);
+                before.addOns.reveal(REVEALED);
+                before.addOns.dispose();
+
+                vi.setSystemTime(1_001);
+                const { addOns } = setUp();
+                const respawned = recordingPanel();
+                addOns.attachPanel(respawned.post, true);
+                addOns.reveal(REVEALED);
+
+                expect(revealIdsOf(respawned)[0]).toBeGreaterThan(
+                    Math.max(...revealIdsOf(keptPage)),
+                );
+            } finally {
+                vi.useRealTimers();
+            }
+        });
+
+        it("logs a reveal its panel throws on, and still reveals to the others", async () => {
+            const { host, addOns } = setUp();
+            const other = recordingPanel();
+            addOns.attachPanel((message) => {
+                if (message instanceof RevealAddOnsQuery) throw new Error("webview gone");
+            }, true);
+            addOns.attachPanel(other.post, true);
+            await shown(addOns);
+
+            addOns.reveal(REVEALED);
+
+            expect(other.reveals()).toEqual([REVEALED]);
+            expect(host.notifier.logged("error")).toHaveLength(1);
         });
     });
 
@@ -1455,24 +1748,42 @@ describe("AddOnsFeature", () => {
         });
     });
 
-    it("a referred item stays not allowed yet and no notice asks again", async () => {
-        const { host, plugins, addOns, view } = setUp();
+    it("Review… on a notice lands on the plugin's row, not allowed yet, and no notice asks again", async () => {
+        const { host, plugins, addOns } = setUp();
+        const panel: Query[] = [];
+        addOns.attachPanel((message) => panel.push(message), true);
+        await shown(addOns);
         const question = new ApprovalQuestion(
             plugins.catalog,
-            { review: async () => ({ kind: "leftForView" as const }) },
+            new ViewReview(
+                "plugin",
+                {
+                    reveal: async (addOnIds) => {
+                        addOns.reveal(addOnIds);
+                        return true;
+                    },
+                },
+                new ListReview(host.picker),
+            ),
             host.actionNotifier,
             host.workspace,
             new QuestionQueue(),
         );
         host.actionNotifier.noticeAnswers[PLUGIN_APPROVAL_NOTICE_ID] = "review";
         const { pending } = await plugins.catalog.pluginsFor("/work/order.bpmn");
+
         await question.ask(pending);
-        view.attachTo(addOns);
         await shown(addOns);
-
         await question.ask(pending);
 
-        expect(view.addOnNamed("Resize Tasks").state).toBe("new");
+        const reveals = panel.flatMap((each) =>
+            each instanceof RevealAddOnsQuery ? [each.reveal.addOnIds] : [],
+        );
+        const latest = panel.filter((each) => each instanceof AddOnCatalogQuery).at(-1);
+        const row = latest?.model.groups[0].sources[0].addOns[0];
+        expect(reveals).toEqual([[`plugin:${RESIZE}`]]);
+        expect([row?.id, row?.stateText]).toEqual([`plugin:${RESIZE}`, "Not allowed yet"]);
+        expect(host.picker.prompts).toEqual([]);
         expect(host.actionNotifier.notices.map(({ id }) => id)).toEqual([
             PLUGIN_APPROVAL_NOTICE_ID,
         ]);

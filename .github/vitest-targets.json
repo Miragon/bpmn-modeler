@@ -158,6 +158,16 @@
             ],
             "typecheck": "typecheck"
         },
+        "add-ons-webview": {
+            "dir": "apps/add-ons-webview",
+            "package": "@miragon/bpmn-modeler-add-ons-webview",
+            "paths": [
+                "apps/add-ons-webview/**",
+                "libs/shared/**",
+                "libs/modeler-types/**"
+            ],
+            "typecheck": "typecheck"
+        },
         "deployment-webview": {
             "dir": "apps/deployment-webview",
             "package": "@miragon/bpmn-modeler-deployment-webview",

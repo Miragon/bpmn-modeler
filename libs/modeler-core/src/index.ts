@@ -17,6 +17,7 @@ export {
     approvalsKey,
     codeApprovalChange,
     type CodeApprovalChange,
+    type ReviewAnswer,
     revoking,
 } from "./kernel/domain/codeApproval";
 export * from "./kernel/domain/engineVersions";
@@ -44,6 +45,8 @@ export * from "./kernel/domain/workspacePath";
 export * from "./kernel/service/ArtifactService";
 export * from "./kernel/service/QuestionQueue";
 export * from "./kernel/adapter/out/FetchHttpClient";
+export { ListReview } from "./kernel/adapter/out/ListReview";
+export type { ApprovalReviewPort, ApprovalReviewRequest } from "./kernel/port/approvalPorts";
 export * from "./kernel/domain/nonce";
 
 // ── editorSession ────────────────────────────────────────────────────────────
@@ -108,6 +111,7 @@ export type {
     ActionView,
     AddOnCatalogModel,
     AddOnGroupView,
+    AddOnReveal,
     AddOnReview,
     AddOnSourceView,
     AddOnView,
@@ -130,6 +134,8 @@ export type {
     TemplateAddOnSource,
 } from "./addOns/port/addOnSourcePorts";
 export type { AddOnViewConnection } from "./addOns/service/AddOnViewHub";
+export type { AddOnViewRevealPort } from "./addOns/port/addOnViewPorts";
+export { ViewReview } from "./addOns/adapter/out/ViewReview";
 export * from "./addOns/composition/AddOnsFeature";
 
 // ── diff ─────────────────────────────────────────────────────────────────────

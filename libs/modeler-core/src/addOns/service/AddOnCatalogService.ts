@@ -6,7 +6,7 @@ import {
 } from "../../kernel/domain/codeApproval";
 import { PluginApprovalStorePort } from "../../kernel/port/approvalPorts";
 import { LoggerPort } from "../../kernel/port/hostPorts";
-import { catalogModelOf } from "../domain/addOnCatalog";
+import { catalogModelOf, failedCatalogOf } from "../domain/addOnCatalog";
 import type { AddOnCatalogModel } from "../domain/addOnCatalogModel";
 import { CatalogActionKind, CodeAddOnKind } from "../domain/addOnIds";
 import {
@@ -69,6 +69,8 @@ export class AddOnCatalogService {
     private revisions = ShownRevisions.empty();
     private readonly inspected = new Set<string>();
     private latestModel?: AddOnCatalogModel;
+    /** The last listing that succeeded, which a failed one keeps showing. */
+    private latestReadModel?: AddOnCatalogModel;
     private latestSources: ReadonlyMap<string, ShownSource> = new Map();
     private latestTemplates: ReadonlyMap<string, ShownTemplate> = new Map();
     private latestCatalogActions: readonly CatalogActionKind[] = [];
@@ -235,6 +237,7 @@ export class AddOnCatalogService {
                 await this.build();
             } catch (error) {
                 this.logError(error);
+                this.publishFailed();
             }
         } while (this.dirty && this.active);
         // In the tick of the last check, so no invalidate lands between it and the reset.
@@ -264,6 +267,19 @@ export class AddOnCatalogService {
         this.latestSources = sources;
         this.latestTemplates = templates;
         this.latestCatalogActions = catalogActions;
+        this.latestReadModel = model;
+        this.publish(model);
+    }
+
+    private publishFailed(): void {
+        const previous = this.latestReadModel;
+        const model = failedCatalogOf(previous, previous?.revision ?? ++this.revision);
+        if (previous === undefined)
+            this.revisions = this.revisions.recorded(model.revision, new Map());
+        this.publish(model);
+    }
+
+    private publish(model: AddOnCatalogModel): void {
         this.latestModel = model;
         this.builtListeners.forEach((listener) => listener(model));
     }

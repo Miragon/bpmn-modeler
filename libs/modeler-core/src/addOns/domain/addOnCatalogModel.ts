@@ -21,6 +21,8 @@ export interface AddOnCatalogModel {
     readonly groups: readonly AddOnGroupView[];
     readonly actions: readonly ActionView<CatalogActionKind>[];
     readonly emptyText?: string;
+    /** Why the catalog could not be read; the groups are then what it read before, if anything. */
+    readonly problem?: string;
 }
 
 export interface AddOnGroupView {
@@ -82,3 +84,9 @@ export interface TemplateAddOnView {
 }
 
 export type AddOnView = CodeAddOnView | TemplateAddOnView;
+
+/** Rows a view is to show and focus, once: a "Review…" left the code they name to it. */
+export interface AddOnReveal {
+    readonly revealId: number;
+    readonly addOnIds: readonly string[];
+}

@@ -15,7 +15,7 @@ import {
     type TemplatePreferencesByScope,
     type TemplateSwitch,
 } from "../../kernel/domain/templatePreferences";
-import { AddOnFacts, catalogModelOf } from "./addOnCatalog";
+import { AddOnFacts, catalogModelOf, failedCatalogOf } from "./addOnCatalog";
 import { AddOnSession } from "./codeAddOnCatalog";
 import { ListedMarketplace } from "./templateAddOnViews";
 import type { AddOnView, CodeAddOnView } from "./addOnCatalogModel";
@@ -345,7 +345,7 @@ describe("catalogModelOf", () => {
             presence: found(RESIZE, "Resize", "h1"),
             approvals: [],
             state: "new",
-            stateText: "New",
+            stateText: "Not allowed yet",
             actions: ["allow:Allow this content"],
         },
         {
@@ -353,7 +353,7 @@ describe("catalogModelOf", () => {
             presence: found(RESIZE, "Resize", "h2"),
             approvals: [{ pluginId: RESIZE, contentHash: "h1" }],
             state: "changed",
-            stateText: "Changed since you allowed it",
+            stateText: "Changed, review needed",
             actions: ["allow:Allow this content"],
         },
         {
@@ -361,7 +361,7 @@ describe("catalogModelOf", () => {
             presence: { kind: "unhashed", id: RESIZE, name: "resize" },
             approvals: [],
             state: "new",
-            stateText: "New",
+            stateText: "Not allowed yet",
             actions: ["inspect:Review…"],
         },
         {
@@ -369,7 +369,7 @@ describe("catalogModelOf", () => {
             presence: { kind: "unreadable", id: RESIZE, name: "resize", reason: "it is broken" },
             approvals: [{ pluginId: RESIZE, contentHash: "h1" }],
             state: "changed",
-            stateText: "Changed since you allowed it",
+            stateText: "Changed, review needed",
             actions: ["revoke:Revoke"],
             problem: "Cannot be allowed: it is broken.",
         },
@@ -378,7 +378,7 @@ describe("catalogModelOf", () => {
             presence: { kind: "unreadable", id: RESIZE, name: "resize", reason: "it is broken" },
             approvals: [],
             state: "new",
-            stateText: "New",
+            stateText: "Not allowed yet",
             actions: [],
             problem: "Cannot be allowed: it is broken.",
         },
@@ -426,7 +426,11 @@ describe("catalogModelOf", () => {
             }),
         );
 
-        expect([row.state, row.actions.map(({ kind }) => kind)]).toEqual(["declined", ["allow"]]);
+        expect([row.state, row.stateText, row.actions.map(({ kind }) => kind)]).toEqual([
+            "declined",
+            "Declined this session",
+            ["allow"],
+        ]);
     });
 
     it("keeps content left to the view new", () => {
@@ -1341,5 +1345,30 @@ describe("catalogModelOf for template switches", () => {
         );
 
         expect(templates.size).toBe(0);
+    });
+});
+
+describe("failedCatalogOf", () => {
+    it("says the add-ons could not be listed when nothing was read before", () => {
+        expect(failedCatalogOf(undefined, 9)).toEqual({
+            revision: 9,
+            groups: [],
+            actions: [],
+            problem: "Could not list the add-ons. The log says why.",
+        });
+    });
+
+    it("keeps what was read before, with its own revision, so an allow against it still holds", () => {
+        const previous = build(
+            factsOf({ plugins: [found(RESIZE, "Resize", "h1")] }),
+            sessionOf(),
+            4,
+        ).model;
+
+        expect(failedCatalogOf(previous, 9)).toEqual({
+            ...previous,
+            problem:
+                "Could not list the add-ons again. The list shows what it read before; the log says why.",
+        });
     });
 });

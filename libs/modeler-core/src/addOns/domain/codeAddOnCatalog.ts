@@ -25,7 +25,7 @@ import {
     ADD_ON_KIND_TEXT,
     allowWarningText,
     cannotBeAllowedText,
-    codeStateLabel,
+    CODE_STATE_LABEL,
     REVIEW_FACT_LABEL,
     reviewHeading,
 } from "./addOnTexts";
@@ -169,7 +169,7 @@ function viewOf(
         name: presence.name,
         ...optional("detail", DETAIL[kind](presence, source.dir)),
         state,
-        stateText: codeStateLabel(state),
+        stateText: CODE_STATE_LABEL[state],
         ...optional("problem", problemOf(presence)),
         ...optional("note", noteOf(row, session, restart)),
         ...optional("review", reviewOfRow(row, folders)),

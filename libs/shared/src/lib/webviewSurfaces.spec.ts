@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import * as addOnsViewMessages from "./addOnsView";
 import * as baseMessages from "./messages";
 import { Command } from "./messages";
 import * as modelerMessages from "./modeler";
@@ -7,7 +8,11 @@ import { WEBVIEW_SURFACE_COMMAND_TYPES } from "./webviewSurfaces";
 
 type CommandClass = new () => Command;
 
-const protocolCommandTypes = Object.values<unknown>({ ...baseMessages, ...modelerMessages })
+const protocolCommandTypes = Object.values<unknown>({
+    ...baseMessages,
+    ...modelerMessages,
+    ...addOnsViewMessages,
+})
     .filter(
         (value): value is CommandClass =>
             typeof value === "function" && value.prototype instanceof Command,
@@ -27,6 +32,15 @@ describe("WEBVIEW_SURFACE_COMMAND_TYPES", () => {
 
     it.each(surfaceLists)("$surface lists only protocol command types", ({ listed }) => {
         expect(listed.filter((type) => !protocolCommandTypes.includes(type))).toEqual([]);
+    });
+
+    it("lists the add-ons view's commands, and only those, on its surface", () => {
+        expect(WEBVIEW_SURFACE_COMMAND_TYPES).toHaveProperty("addOnsView", [
+            "LogInfoCommand",
+            "LogErrorCommand",
+            "GetAddOnCatalogCommand",
+            "AddOnRequestCommand",
+        ]);
     });
 
     it("lists every protocol command type on at least one surface", () => {

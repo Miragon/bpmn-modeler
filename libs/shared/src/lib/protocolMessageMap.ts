@@ -1,4 +1,11 @@
 import type {
+    AddOnActionResultQuery,
+    AddOnCatalogQuery,
+    AddOnRequestCommand,
+    GetAddOnCatalogCommand,
+    RevealAddOnsQuery,
+} from "./addOnsView";
+import type {
     DocumentFlushedCommand,
     FlushDocumentQuery,
     LogDebugCommand,
@@ -144,7 +151,10 @@ export type ProtocolQuery =
     | ProcessDefinitionKeyQuery
     | ApplyDiffHighlightsQuery
     | SyncViewportQuery
-    | SyncCursorQuery;
+    | SyncCursorQuery
+    | AddOnCatalogQuery
+    | AddOnActionResultQuery
+    | RevealAddOnsQuery;
 
 export type ProtocolCommand =
     | SyncDocumentCommand
@@ -201,7 +211,9 @@ export type ProtocolCommand =
     | ViewportChangedCommand
     | CursorChangedCommand
     | DiffReadyCommand
-    | SwapCompareSidesCommand;
+    | SwapCompareSidesCommand
+    | GetAddOnCatalogCommand
+    | AddOnRequestCommand;
 
 export type ProtocolMessage = ProtocolQuery | ProtocolCommand;
 
