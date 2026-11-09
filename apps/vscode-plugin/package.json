@@ -29,7 +29,7 @@
         "@vitest/coverage-v8": "5.0.5",
         "@vscode/test-cli": "0.0.15",
         "@vscode/test-electron": "3.1.0",
-        "@vscode/vsce": "4.0.0",
+        "@vscode/vsce": "4.1.0",
         "bpmn-moddle": "10.3.1",
         "copy-webpack-plugin": "14.0.0",
         "playwright-core": "1.64.1",
