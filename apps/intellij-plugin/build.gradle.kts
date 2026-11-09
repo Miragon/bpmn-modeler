@@ -96,6 +96,8 @@ val codeApprovalChangeCases =
 val templatePreferenceChangeCases =
     layout.projectDirectory.file("../../libs/modeler-core/src/kernel/domain/templatePreferenceChange.cases.json")
 val projectScopes = layout.projectDirectory.file("../../libs/modeler-core/src/kernel/domain/projectScopes.ts")
+val addOnsHostThemeVariables =
+    layout.projectDirectory.file("../../apps/add-ons-webview/src/adapter/in/styles/hostThemeVariables.json")
 
 tasks.test {
     useJUnitPlatform()
@@ -110,8 +112,9 @@ tasks.test {
     // matchers run, WebviewRouteTest the plugin asset urls the bridge builds, ActionNoticeToneTest
     // the core's notice tones, PluginApprovalStoreTest the rows the core merges approval changes
     // by, TemplatePreferenceStoreTest the rows it merges template switch changes by, ProjectScopeTest
-    // the core's project scopes. As declared inputs, a change on the TypeScript side alone reruns the tests
-    // instead of restoring them from the build cache.
+    // the core's project scopes, IdeThemeSignalTest the theme variables the add-ons page may read. As
+    // declared inputs, a change on the TypeScript side alone reruns the tests instead of restoring
+    // them from the build cache.
     mapOf(
         "protocolDescriptor" to protocolDescriptor,
         "settingsNormalizationCases" to settingsNormalizationCases,
@@ -129,6 +132,7 @@ tasks.test {
         "codeApprovalChangeCases" to codeApprovalChangeCases,
         "templatePreferenceChangeCases" to templatePreferenceChangeCases,
         "projectScopes" to projectScopes,
+        "addOnsHostThemeVariables" to addOnsHostThemeVariables,
     ).forEach { (name, file) ->
         inputs.file(file).withPropertyName(name).withPathSensitivity(PathSensitivity.RELATIVE)
         systemProperty("miragon.$name", file.asFile.absolutePath)
@@ -227,15 +231,17 @@ intellijPlatform {
     }
 }
 
-// The webview bundles (bpmn + deployment) and the modeler-core bridge binary are
-// pre-built by the yarn workspace (`corepack yarn build:bpmn-webview`,
-// `build:deployment-webview`, and `workspace @miragon/bpmn-modeler-bridge compile`).
+// The webview bundles (bpmn, deployment and add-ons) and the modeler-core bridge
+// binary are pre-built by the yarn workspace (`corepack yarn build:bpmn-webview`,
+// `build:deployment-webview`, `build:add-ons-webview`, and
+// `workspace @miragon/bpmn-modeler-bridge compile`).
 // This Gradle build never invokes the JS/Bun toolchain; it only packages the
 // already-built artefacts so `runIde` and the distributable zip carry them. See
 // apps/modeler-bridge/README.md.
 val webviewDist = layout.projectDirectory.dir("../../dist/webview-staging/bpmn-webview")
 val deploymentWebviewDist =
     layout.projectDirectory.dir("../../dist/webview-staging/deployment-webview")
+val addOnsWebviewDist = layout.projectDirectory.dir("../../dist/webview-staging/add-ons-webview")
 val bridgeBinary = layout.projectDirectory.file("../../apps/modeler-bridge/dist/modeler-bridge")
 val bridgeDistRoot = layout.projectDirectory.dir("../../apps/modeler-bridge/dist")
 val stagedResourcesRoot = layout.buildDirectory.dir("modeler-resources")
@@ -324,6 +330,22 @@ val copyDeploymentWebview =
         into(stagedResourcesRoot.map { it.dir("webview-deployment") })
     }
 
+val copyAddOnsWebview =
+    tasks.register<Copy>("copyAddOnsWebview") {
+        description = "Stages the pre-built add-ons-webview bundle into plugin resources (served from the classpath at runtime)."
+        doFirst {
+            if (!addOnsWebviewDist.asFile.exists()) {
+                throw GradleException(
+                    "Add-ons webview bundle not found at ${addOnsWebviewDist.asFile}.\n" +
+                        "Run `corepack yarn build:add-ons-webview` from the repo root first.",
+                )
+            }
+        }
+        from(addOnsWebviewDist)
+        // Nest under `webview-add-ons/` so the served classpath path is `/webview-add-ons/...`.
+        into(stagedResourcesRoot.map { it.dir("webview-add-ons") })
+    }
+
 val copyBridge =
     tasks.register<Copy>("copyBridge") {
         description = "Stages the pre-built Node-free modeler-core bridge binary(ies) into plugin resources (extracted and spawned at runtime)."
@@ -397,12 +419,12 @@ sourceSets.named("main") {
 }
 
 tasks.named<ProcessResources>("processResources") {
-    dependsOn(copyWebview, copyDeploymentWebview, copyBridge, copySchema, writeBridgeVersion)
+    dependsOn(copyWebview, copyDeploymentWebview, copyAddOnsWebview, copyBridge, copySchema, writeBridgeVersion)
 }
 
 // The sandbox for `runIde` is assembled from the jar, which already contains the
 // staged resources, so no extra sandbox wiring is needed — but make the
 // dependency explicit so a clean `runIde` always stages the bundles first.
 tasks.withType<PrepareSandboxTask>().configureEach {
-    dependsOn(copyWebview, copyDeploymentWebview, copyBridge, copySchema, writeBridgeVersion)
+    dependsOn(copyWebview, copyDeploymentWebview, copyAddOnsWebview, copyBridge, copySchema, writeBridgeVersion)
 }

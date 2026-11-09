@@ -18,6 +18,27 @@ class WebviewRouteTest {
     }
 
     @Test
+    fun `addOns html serves the add-ons shell`() {
+        assertEquals(WebviewRoute.AddOnsShell, WebviewRoute.forPath("/addOns.html"))
+    }
+
+    @Test
+    fun `add-ons assets resolve under the add-ons bundle root`() {
+        assertEquals(
+            WebviewRoute.ClasspathAsset("/webview-add-ons/index.js", "text/javascript; charset=utf-8"),
+            WebviewRoute.forPath("/add-ons/index.js"),
+        )
+    }
+
+    @Test
+    fun `a path that merely starts with add-ons stays in the bpmn bundle`() {
+        assertEquals(
+            "/webview/add-onsx/a.js",
+            (WebviewRoute.forPath("/add-onsx/a.js") as WebviewRoute.ClasspathAsset).resourcePath,
+        )
+    }
+
+    @Test
     fun `templatePreview html serves the element template preview shell`() {
         assertEquals(WebviewRoute.TemplatePreviewShell, WebviewRoute.forPath("/templatePreview.html"))
     }
