@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.0](https://github.com/Miragon/bpmn-modeler/compare/dmn-modeler-v0.7.0...dmn-modeler-v0.8.0) (2026-11-09)
+
+
+### 🎉 New Features
+
+* **modeler-core:** load approved workspace bpmn-js plugins in VS Code ([#2251](https://github.com/Miragon/bpmn-modeler/issues/2251)) [sync 5457858] ([7107b52](https://github.com/Miragon/bpmn-modeler/commit/7107b529e1d4d7f23f584420b315d2b4c38cfd35))
+
 ## [0.7.0](https://github.com/Miragon/bpmn-modeler/compare/dmn-modeler-v0.6.0...dmn-modeler-v0.7.0) (2026-11-08)
 
 
