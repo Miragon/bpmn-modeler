@@ -159,7 +159,7 @@ function registerVsCodeSurfaces() {
     const { dmnEditorRoutes, formEditorRoutes } = editorFeature.register(context, deps);
     const { templateEditorRoutes } = elementTemplateFeature.register(context, deps);
     return {
-        bpmnEditor: bpmnEditor.router,
+        bpmnEditor: bpmnEditor.editor.router,
         bpmnDiffPane: diffController.paneRoutes,
         dmnEditor: dmnEditorRoutes,
         formEditor: formEditorRoutes,

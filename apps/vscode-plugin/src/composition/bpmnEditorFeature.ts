@@ -10,7 +10,6 @@ import {
     DefinitionSearchFeature,
     EditorSessionParticipant,
     NavigationFeature,
-    QuestionQueue,
 } from "@miragon/bpmn-modeler-core";
 import { BpmnDiffController } from "../diff/adapter/in/BpmnDiffController";
 import {
@@ -20,7 +19,6 @@ import {
 import { PropertiesPanelStateRepository } from "../modeler/bpmn/adapter/out/PropertiesPanelStateRepository";
 import { NodeContentHasher } from "../modeler/bpmn/adapter/out/NodeContentHasher";
 import { NodeInstalledPackages } from "../modeler/bpmn/adapter/out/NodeInstalledPackages";
-import { VsCodePluginApprovalStore } from "../modeler/bpmn/adapter/out/VsCodePluginApprovalStore";
 import { bpmnPluginCacheUri } from "../shared/adapter/out/bootstrapWebview";
 import { VsCodeLintingPreference } from "../modeler/bpmn/adapter/out/VsCodeLintingPreference";
 import { ModelerEditorController } from "../modeler/editor-session/adapter/in/ModelerEditorController";
@@ -34,12 +32,12 @@ interface BpmnEditorHandles {
     scriptEditor: BpmnEditorContributions["scriptEditor"];
 }
 
-/** Returns the feature because the command and marketplace features reuse its services. */
+/** Returns both features because the command, marketplace and add-on features reuse their services. */
 export function register(
     context: ExtensionContext,
     deps: SharedDeps,
     handles: BpmnEditorHandles,
-): BpmnEditorFeature {
+): { editor: BpmnEditorFeature; plugins: BpmnPluginsFeature } {
     const ports = {
         store: deps.editorStore,
         documents: deps.vsDocument,
@@ -54,14 +52,14 @@ export function register(
     const codeLink = new CodeLinkFeature(ports);
     // One list and one queue for the plugins and the bpmnlint rule packages: two
     // notices never stand side by side.
-    const approvals = new VsCodePluginApprovalStore(context.globalState);
+    const approvals = deps.pluginApprovals;
     // VS Code announces no write another window makes to the global state.
     context.subscriptions.push(
         window.onDidChangeWindowState((state) => {
             if (state.focused) void approvals.readStored();
         }),
     );
-    const questions = new QuestionQueue();
+    const questions = deps.approvalQuestions;
     const plugins = new BpmnPluginsFeature({
         ...ports,
         actionNotifier: deps.actionNotifier,
@@ -122,5 +120,5 @@ export function register(
     // action; the diagnostics carry a command link to this controller.
     new FocusLintElementController(deps.editorStore, deps.notifier).register(context);
 
-    return editor;
+    return { editor, plugins };
 }

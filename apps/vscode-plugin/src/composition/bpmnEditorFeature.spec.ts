@@ -156,7 +156,7 @@ describe("VS Code's BPMN editor", () => {
     });
 
     it("routes the whole document group to the core's document services", () => {
-        const { router } = createVsCodeBpmnEditor();
+        const { router } = createVsCodeBpmnEditor().editor;
 
         expect(DOCUMENT_SYNC_COMMAND_TYPES.map((type) => router.routeOf(type))).toEqual([
             { kind: "handled" },

@@ -14,8 +14,9 @@ import { VsCodeEditorHandle } from "../shared/adapter/out/VsCodeEditorHandle";
 import { vsCodeModelerPreferences } from "../shared/adapter/out/modelerConfiguration";
 import { ModelerPreferences } from "../shared/port/ModelerPreferences";
 import { EditorHandleFactory } from "../modeler/editor-session/adapter/in/ModelerEditorController";
-import { ArtifactService } from "@miragon/bpmn-modeler-core";
+import { ArtifactService, QuestionQueue } from "@miragon/bpmn-modeler-core";
 import { DocumentFlushService, PendingEditsFlush } from "@miragon/bpmn-modeler-core";
+import { VsCodePluginApprovalStore } from "../modeler/bpmn/adapter/out/VsCodePluginApprovalStore";
 
 /**
  * The cross-cutting collaborators every feature draws from: the host-capability
@@ -41,6 +42,10 @@ export interface SharedDeps {
     artifactSvc: ArtifactService;
     flushSvc: DocumentFlushService;
     pendingEdits: PendingEditsFlush;
+    /** The one approval list the plugins, the rule packages and the add-on catalog share. */
+    pluginApprovals: VsCodePluginApprovalStore;
+    /** Every approval question, so two notices never stand side by side. */
+    approvalQuestions: QuestionQueue;
 }
 
 /**
@@ -81,5 +86,7 @@ export function buildSharedDeps(context: ExtensionContext): SharedDeps {
         artifactSvc: new ArtifactService(vsWorkspace, vsSettings, notifier),
         flushSvc,
         pendingEdits: new PendingEditsFlush(editorStore, flushSvc, notifier),
+        pluginApprovals: new VsCodePluginApprovalStore(context.globalState),
+        approvalQuestions: new QuestionQueue(),
     };
 }

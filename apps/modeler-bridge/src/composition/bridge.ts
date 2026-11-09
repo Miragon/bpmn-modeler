@@ -35,7 +35,7 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-import { RouteLookup } from "@miragon/bpmn-modeler-core";
+import { AddOnsFeature, RouteLookup } from "@miragon/bpmn-modeler-core";
 import { WebviewSurface } from "@miragon/bpmn-modeler-shared";
 
 import { Rpc } from "../transport/adapter/out/Rpc";
@@ -48,6 +48,7 @@ import * as scriptFeature from "./scriptFeature";
 import * as editorSessionFeature from "./editorSessionFeature";
 import * as commandsFeature from "./commandsFeature";
 import * as deploymentFeature from "./deploymentFeature";
+import * as addOnsFeature from "./addOnsFeature";
 
 /**
  * Host-supplied paths the core cannot read itself.
@@ -80,9 +81,9 @@ export interface BridgeOptions {
  * @returns the live {@link Rpc} peer — feed it inbound lines via `handleLine` —
  *   the routes of each webview surface the bridge serves, which the
  *   coverage spec reads, `prunePluginCache`, which `server.ts` runs once the
- *   streams are bound and which logs its own failure, and `dispose`, which
- *   stops the plugin folder watchers and the editor's approval and template
- *   subscriptions.
+ *   streams are bound and which logs its own failure, the add-on catalog a
+ *   view attaches to, and `dispose`, which stops the plugin folder watchers,
+ *   the catalog and the editor's approval and template subscriptions.
  */
 export function createBridge(
     write: (line: string) => void,
@@ -92,6 +93,7 @@ export function createBridge(
     rpc: Rpc;
     surfaceRoutes: Partial<Record<WebviewSurface, RouteLookup>>;
     prunePluginCache(): Promise<void>;
+    addOns: AddOnsFeature;
     dispose(): void;
 } {
     const deps = buildSharedDeps(write, log);
@@ -125,6 +127,7 @@ export function createBridge(
         layout: editor.layout,
         coreWriteRenderer: editor,
     });
+    const addOns = addOnsFeature.register(deps, { editor, plugins });
     marketplaceFeature.registerHandlers(deps, {
         marketplaceSvc: marketplace.marketplaceSvc,
         templatesSvc: editor.templates,
@@ -139,7 +142,9 @@ export function createBridge(
             deploymentSidebar: deployment.panelRoutes,
         },
         prunePluginCache: () => plugins.pruneCache(),
+        addOns,
         dispose: () => {
+            addOns.dispose();
             editor.dispose();
             plugins.dispose();
         },
