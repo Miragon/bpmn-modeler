@@ -218,6 +218,7 @@ export * from "./template-marketplace/adapter/out/LocalFileSource";
 export * from "./template-marketplace/service/MarketplaceCache";
 export * from "./template-marketplace/service/MarketplaceCommands";
 export * from "./template-marketplace/service/MarketplaceInventory";
+export * from "./template-marketplace/service/MarketplaceTemplateSources";
 export * from "./template-marketplace/service/TemplateMarketplaceService";
 export * from "./template-marketplace/composition/MarketplaceFeature";
 

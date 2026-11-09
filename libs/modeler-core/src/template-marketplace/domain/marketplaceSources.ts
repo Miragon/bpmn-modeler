@@ -1,8 +1,11 @@
 import { MarketplaceListing, MarketplacesListing } from "../../kernel/domain/marketplaceListing";
 import { MarketplaceSettingsEntry } from "../../kernel/domain/modelerSettings";
+import { TemplateSourceRef, templateSourceScopeOf } from "../../kernel/domain/templatePreferences";
+import { MarketplaceRegistration, marketplacePreferenceKeyOf } from "./marketplace";
 import { marketplaceScopesText } from "./marketplacePrompts";
 import {
     marketplaceEntryKey,
+    RegisteredMarketplace,
     registeredMarketplaces,
     RegistrationsByScope,
 } from "./marketplaceRegistrations";
@@ -28,13 +31,52 @@ export function marketplaceSourcesOf(
 ): MarketplaceListing[] {
     const listed = registeredMarketplaces(registered);
     const { entries } = MarketplaceRegistry.fromEntries(listed.map(({ entry }) => entry));
+    const switched = switchedRegistrationsOf(listed, entries);
     return listed.map(({ entry, scopes }, index) => ({
         id: marketplaceEntryKey(entry),
         entry,
         label: entries[index].label,
         scopeText: marketplaceScopesText(scopes),
         ...templatesOf(entries[index], cached),
+        ...optionalSource(switched[index]),
     }));
+}
+
+interface SwitchedRegistration {
+    readonly registration: MarketplaceRegistration;
+    readonly source: TemplateSourceRef;
+}
+
+/**
+ * Each entry's switches by its repository, so two refs of one repository share
+ * them, in the one scope they live in: all projects once any of its entries is
+ * registered there. An entry that cannot be parsed has none.
+ */
+function switchedRegistrationsOf(
+    listed: readonly RegisteredMarketplace[],
+    entries: readonly ParsedMarketplaceEntry[],
+): (SwitchedRegistration | undefined)[] {
+    const keys = entries.map((parsed) =>
+        parsed.kind === "registered"
+            ? marketplacePreferenceKeyOf(parsed.registration.location)
+            : undefined,
+    );
+    const scopesOf = (key: string) =>
+        listed.flatMap(({ scopes }, index) => (keys[index] === key ? scopes : []));
+    return entries.map((parsed) => {
+        if (parsed.kind === "unparseable") return undefined;
+        const key = marketplacePreferenceKeyOf(parsed.registration.location);
+        return {
+            registration: parsed.registration,
+            source: { key, scope: templateSourceScopeOf(scopesOf(key)) },
+        };
+    });
+}
+
+function optionalSource(
+    switched: SwitchedRegistration | undefined,
+): Pick<MarketplaceListing, "templateSource"> {
+    return switched === undefined ? {} : { templateSource: switched.source };
 }
 
 function templatesOf(
@@ -65,4 +107,30 @@ export function registeredTemplateFiles(
         MarketplaceRegistry.fromEntries(entries).registrations.map(({ id }) => id),
     );
     return [...registeredIds].flatMap((id) => byRegistration.get(id) ?? []);
+}
+
+/** One registered marketplace's cached templates as editors load them, with where its switches live. */
+export interface RegisteredTemplateSource {
+    readonly source: TemplateSourceRef;
+    readonly paths: readonly string[];
+}
+
+/** As {@link registeredTemplateFiles} serves them: each registered slot once, in the order the hosts fetch them. */
+export function registeredTemplateSources(
+    registered: RegistrationsByScope,
+    byRegistration: ReadonlyMap<string, readonly string[]>,
+): RegisteredTemplateSource[] {
+    const listed = registeredMarketplaces(registered);
+    const { entries } = MarketplaceRegistry.fromEntries(listed.map(({ entry }) => entry));
+    const served = new Set<string>();
+    return switchedRegistrationsOf(listed, entries).flatMap(
+        (switched): RegisteredTemplateSource[] => {
+            if (switched === undefined) return [];
+            const { registration, source } = switched;
+            const paths = byRegistration.get(registration.id);
+            if (paths === undefined || served.has(registration.id)) return [];
+            served.add(registration.id);
+            return [{ source, paths }];
+        },
+    );
 }
