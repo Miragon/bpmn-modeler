@@ -71,6 +71,29 @@ class PluginApprovalRouterTest {
     }
 
     @Test
+    fun `two projects' answers built from the same old list keep both rows`() {
+        val wired = routedBridge()
+        val old = """{"pluginId": "$OLD_ID", "contentHash": "$HASH"}"""
+        PluginApprovalStore.getInstance().write(listOf(PluginApproval(OLD_ID, HASH)))
+
+        wired.handlers.dispatch(
+            "pluginApprovals/save",
+            parse("""{"approvals": [$old, {"pluginId": "$PLUGIN_ID", "contentHash": "$HASH"}]}"""),
+            wired.requestId(7),
+        )
+        wired.handlers.dispatch(
+            "pluginApprovals/save",
+            parse("""{"approvals": [$old, {"pluginId": "$OTHER_ID", "contentHash": "$HASH"}]}"""),
+            wired.requestId(8),
+        )
+
+        assertEquals(
+            listOf(PluginApproval(OLD_ID, HASH), PluginApproval(PLUGIN_ID, HASH), PluginApproval(OTHER_ID, HASH)),
+            PluginApprovalStore.getInstance().read(),
+        )
+    }
+
+    @Test
     fun `a save with a row that is no approval answers an error and stores nothing`() {
         val wired = routedBridge()
 
@@ -86,6 +109,8 @@ class PluginApprovalRouterTest {
 
     private companion object {
         const val PLUGIN_ID = "/ws/.camunda/plugins/resize-tasks"
+        const val OTHER_ID = "/other/.camunda/plugins/reduced-palette"
+        const val OLD_ID = "/ws/.camunda/plugins/colors"
         const val HASH = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     }
 }
