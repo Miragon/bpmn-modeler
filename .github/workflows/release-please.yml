@@ -79,11 +79,16 @@ jobs:
   open-vsx:
     needs: [release-please, approve-release]
     if: needs.release-please.outputs.vscode_released == 'true'
+    # id-token: write lets the called workflow mint the OIDC token for Open VSX
+    # Trusted Publishing; a reusable workflow cannot exceed it.
+    permissions:
+      contents: read
+      deployments: write
+      id-token: write
     uses: ./.github/workflows/publish-open-vsx-modeler.yml
     with:
       tag: ${{ needs.release-please.outputs.vscode_tag }}
       dry-run: false
-    secrets: inherit
 
   standalone:
     needs: [release-please, approve-release]

@@ -227,7 +227,7 @@ Merging the Release PR fans out via `release-please.yml` to every released line:
 
 | Line | Auto-publishes | Notes |
 |---|---|---|
-| `vscode` | `publish-vscode-modeler.yml`, `publish-open-vsx-modeler.yml`, `release-standalone.yml` | Marketplace (Trusted Publishing, OIDC) + Open VSX (token) + DMG/NSIS/Flatpak + Homebrew. |
+| `vscode` | `publish-vscode-modeler.yml`, `publish-open-vsx-modeler.yml`, `release-standalone.yml` | Marketplace + Open VSX (both Trusted Publishing, OIDC) + DMG/NSIS/Flatpak + Homebrew. |
 | `intellij` | `publish-intellij.yml` | Multi-platform ZIP → JetBrains Marketplace, refreshes `docs/public/updatePlugins.xml`. |
 | `npm` | `publish-npm-modeler.yml` (`npm` job) | Builds + packs + smoke-tests, then `npm publish --provenance` to the npm registry via Trusted Publishing (OIDC). |
 | `dmn-modeler` | `publish-npm-modeler.yml` (`npm-dmn` job) | Same workflow, parameterised for `@miragon/dmn-modeler` (`workspace`/`package-dir`/`smoke-extra-deps: jsdom esbuild` inputs); publishes to npm via Trusted Publishing. |
@@ -235,6 +235,11 @@ Merging the Release PR fans out via `release-please.yml` to every released line:
 Each `publish-*` workflow is also runnable on its own via `workflow_dispatch`
 (pass the line's tag, e.g. `tag: vscode-v1.4.0` / `tag: intellij-v1.4.0`) with a
 `dry-run` option for reruns.
+
+> **`publish-open-vsx-modeler.yml` dispatch is dry-run-only** for the same
+> reason as npm below: its trusted publisher is registered for
+> `release-please.yml`. Re-run a failed real publish through the `open-vsx` job
+> of the release run.
 
 > **`publish-npm-modeler.yml` dispatch is dry-run-only.** The one workflow
 > serves both npm packages — dispatch it with the `workspace` /`package-dir` /
@@ -353,4 +358,29 @@ publish by dispatching `publish-vscode-modeler.yml` with the release tag and
 `dry-run: false`. If that also fails, add a second policy for
 `release-please.yml`.
 
-Open VSX still publishes with the `OVSX_PUBLISH` token.
+## Open VSX Trusted Publishing
+
+`publish-open-vsx-modeler.yml` publishes with `ovsx publish
+--trusted-publishing`: the job exchanges a GitHub OIDC token for an Open VSX
+token scoped to the extension that expires within minutes. No token lives in
+CI; `--pat` / `OVSX_PAT` would take precedence over the exchange, so the
+workflow sets neither.
+
+The trusted publisher for `miragon-gmbh.vs-code-bpmn-modeler` (open-vsx.org →
+Settings → Trusted Publishers) names:
+
+| Field | Value |
+|---|---|
+| Organization or user | `Miragon` |
+| Repository | `bpmn-modeler` |
+| Workflow filename | `release-please.yml` |
+| Environment | `open-vsx-marketplace` |
+
+Open VSX matches the workflow name in the token's `workflow_ref`, which GitHub
+fills with the top-level caller, so the registration names
+`release-please.yml`, not the called workflow. An extension takes only one
+trusted publisher, and a registration cannot be edited, only deleted and
+recreated. The job needs `id-token: write`, both in
+`publish-open-vsx-modeler.yml` and in the `open-vsx` caller job of
+`release-please.yml`, and an `ovsx` with `--trusted-publishing` (the workflow
+pins 1.3.0).
