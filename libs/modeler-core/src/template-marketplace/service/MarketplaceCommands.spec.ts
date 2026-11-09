@@ -141,6 +141,7 @@ function marketplaceHost({
     };
     return {
         commands,
+        service,
         registrations: host.marketplaceRegistrations,
         marketplaces: host.settings.values.marketplaces,
         prompt: host.marketplacePrompt,
@@ -408,6 +409,35 @@ describe("MarketplaceCommands.update", () => {
             "Updated 1 of 2 marketplaces. Failed:\n" +
                 '/work/missing: Invalid marketplace: could not read marketplace.json from "/work/missing": ' +
                 "File not found: /work/missing/marketplace.json",
+        ]);
+    });
+});
+
+describe("MarketplaceCommands.update when it fails", () => {
+    it.each<{ behaviour: string; fail: (host: ReturnType<typeof marketplaceHost>) => void }>([
+        {
+            behaviour: "the update",
+            fail: ({ service }) => {
+                vi.spyOn(service, "updateAll").mockRejectedValue(new Error("cache gone"));
+            },
+        },
+        {
+            behaviour: "the reload of the open editors",
+            fail: ({ templates }) => {
+                vi.spyOn(templates, "reloadMarketplaceTemplates").mockRejectedValue(
+                    new Error("editor gone"),
+                );
+            },
+        },
+    ])("reports a failure of $behaviour without a success toast", async ({ fail }) => {
+        const host = marketplaceHost({ registered: ["/work/a"] });
+        fail(host);
+
+        await expect(host.commands.update()).resolves.toBeUndefined();
+
+        expect(host.notifier.infos).toEqual([]);
+        expect(host.notifier.errors).toEqual([
+            expect.stringMatching(/^Failed to update marketplaces\.\n/),
         ]);
     });
 });
