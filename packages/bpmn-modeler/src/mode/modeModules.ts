@@ -1,4 +1,4 @@
-import { templateIdOfEntryKey } from "@miragon/bpmn-modeler-element-template-chooser/templateEntryKey";
+import { templateIdOfEntryKey } from "@miragon/bpmn-modeler-append-menu";
 import { surfaceModeSupports } from "@miragon/bpmn-modeler-types";
 
 import { ELEMENT_POPUP_MENUS } from "../popupMenus";

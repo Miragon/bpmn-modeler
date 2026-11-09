@@ -3,7 +3,8 @@
  * into element template entries vs. standard BPMN element entries.
  */
 import type { ElementTemplate, TemplateStep } from "@miragon/bpmn-modeler-element-template-chooser";
-import { templateIdOfEntryKey } from "@miragon/bpmn-modeler-element-template-chooser/templateEntryKey";
+
+import { templateIdOfEntryKey } from "./templateEntryKey";
 
 export type { Translate } from "@miragon/bpmn-modeler-element-template-chooser/types";
 
