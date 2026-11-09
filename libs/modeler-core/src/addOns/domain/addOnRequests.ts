@@ -40,6 +40,11 @@ export const CATALOG_NOT_OFFERED = refused(
     "The list offers no such action now. Check it again.",
 );
 
+export const REQUEST_FAILED: AddOnActionResult = {
+    kind: "failed",
+    message: "Could not do this. The log says why.",
+};
+
 export const REPORTED_BY_FLOW: AddOnActionResult = { kind: "reportedByFlow" };
 
 /** Why a catalog action the latest build did not offer is refused; `undefined` when it offered it. */

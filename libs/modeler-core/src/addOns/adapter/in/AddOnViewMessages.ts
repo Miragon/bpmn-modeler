@@ -22,6 +22,7 @@ import {
     AddOnRequest,
     addOnRequestOf,
     CATALOG_NOT_OFFERED,
+    REQUEST_FAILED,
 } from "../../domain/addOnRequests";
 
 /**
@@ -95,8 +96,18 @@ export class AddOnViewMessages implements RouteLookup {
         if (known === undefined) {
             this.logger.logWarning("Refused an add-ons view request in no shape the core knows.");
         }
-        const result = known === undefined ? CATALOG_NOT_OFFERED : await this.actOn(known);
+        const result = known === undefined ? CATALOG_NOT_OFFERED : await this.answerTo(known);
         this.send(new AddOnActionResultQuery(requestId, result));
+    }
+
+    /** The page frees a busy row only on a result. */
+    private async answerTo(request: AddOnRequest): Promise<AddOnActionResult> {
+        try {
+            return await this.actOn(request);
+        } catch (error) {
+            this.logError(error);
+            return REQUEST_FAILED;
+        }
     }
 
     private send(message: Query): void {
@@ -104,7 +115,11 @@ export class AddOnViewMessages implements RouteLookup {
         try {
             this.post(message);
         } catch (error) {
-            this.logger.logError(error instanceof Error ? error : new Error(String(error)));
+            this.logError(error);
         }
+    }
+
+    private logError(error: unknown): void {
+        this.logger.logError(error instanceof Error ? error : new Error(String(error)));
     }
 }
