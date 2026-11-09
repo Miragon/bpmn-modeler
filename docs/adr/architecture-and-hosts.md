@@ -120,10 +120,10 @@ catalog behind the artifacts view) is the first: `PluginAddOnSource` and
 `PluginInventory` in `bpmnPlugins/service/` and `RulePackageInventory` in
 `modeler/bpmn/service/`, which import nothing of `addOns/`, and the host
 compositions hand one to the other, as they hand `CachedTemplateProvider` to
-the BPMN editor. The values both sides name, such as `ListedPresence`, live in
-`kernel/domain/codeApproval.ts`. The context is named `addOns` because no core
-identifier may start with `Artifact` next to `ArtifactService`; "artifacts
-view" stays a word of the UI.
+the BPMN editor. The values both sides name, such as `ListedPresence` and
+`ApprovableCodeTexts`, live in `kernel/domain/codeApproval.ts`. The context is
+named `addOns` because no core identifier may start with `Artifact` next to
+`ArtifactService`; "artifacts view" stays a word of the UI.
 
 The shared role-folder rules keep services off adapters, outbound adapters off
 services, and every import away from the package entry and the test kit; the

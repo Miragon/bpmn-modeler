@@ -767,10 +767,13 @@ host-neutral read model of the artifacts view
 [#2250](https://github.com/Miragon/bpmn-modeler/issues/2250)). It owns no
 rule of the code it lists: the plugin and rule package features each meet a
 structural port of `addOns/port/` with an inventory (`PluginInventory`,
-`RulePackageInventory`) that finds, hashes and answers for their code as
-their notices do, and the host compositions wire one into the other
-([package boundaries](architecture-and-hosts.md#package-boundaries)). Both
-hosts build an `AddOnsFeature`; no view attaches to it yet.
+`RulePackageInventory`) that finds, places, hashes and answers for their code
+as their notices do, says what it can do once allowed and what follows an
+allow, and runs what follows a revoke. The host compositions wire one into the
+other ([package boundaries](architecture-and-hosts.md#package-boundaries)).
+Both hosts build an `AddOnsFeature`; no view attaches to it yet. Templates and
+marketplaces are not listed yet: their listing, the targeted remove and its
+confirm follow with the views.
 
 - *Scope.* It lists the open workspace only: the root config folder's
   `plugins/` of every workspace folder, the nested config folders an editor or
@@ -790,21 +793,31 @@ hosts build an `AddOnsFeature`; no view attaches to it yet.
   content not hashed yet "Review…", a gone row "Forget". A rule package no row
   or decline asks about is not hashed, as for a lint: its row offers
   "Review…", which hashes it, and then the allow, so allowing one takes two
-  steps. Ids are only looked up in what the core recorded, never parsed.
-- *Allow by the reviewed hash.* Each build has a revision, and
-  `ShownRevisions` keeps what the last sixteen showed, never sent. An allow
-  names the revision; the content comes from what that revision showed, never
-  from a payload, the owner reads it again past any memo, and
-  `reviewedAllowDecision` refuses it when it changed, is gone or cannot be
-  read.
+  steps. The config's own package hashes without its models, so the
+  inventory hashes a folder outside `node_modules` as one only once a lint
+  read its config or the gate reported it, and as a package once a
+  `node_modules` entry links to it; any other such folder cannot be allowed
+  until a lint reads its config. Ids are only looked up in what the core
+  recorded, never parsed.
+- *Allow by the reviewed hash.* Each build has a revision, counted from the
+  clock so a view kept across a respawn never names one the new process
+  used, and `ShownRevisions` keeps what the last sixteen showed and which
+  actions each row offered, never sent. An allow names the revision and is
+  refused unless that revision offered it; the content comes from what that
+  revision showed, never from a payload, the owner reads it again past any
+  memo, and `reviewedAllowDecision` refuses it when it changed, is gone or
+  cannot be read. A revoke or a review is refused unless the latest revision
+  offered it, and a disposed view's requests are refused.
 - *Revoke.* A revoke records `leftForView` for the content shown, in this
   process only, so no notice here asks about it at once, then writes the
-  change. The reload or relint follows the change event, as for a notice. A
-  plugin revoke prunes the cache; a rule package row then says its code stays
-  loaded until the user reloads the window or restarts the IDE.
+  change. The reload or relint follows the change event, as for a notice. The
+  plugin owner then prunes its cache; a rule package row then says its code
+  stays loaded until the user reloads the window or restarts the IDE.
 - *Builds.* Only while a view is visible, one at a time with a dirty flag, each
-  from `readStored()`, so an unseeded mirror never makes every row look new
-  and a view shown again sees another VS Code window's write. A change of the
+  from `readStored()`, so an unseeded IntelliJ mirror never makes every row
+  look new; in VS Code a view shown again shows what this window's global
+  state holds (see the multi-window residual under "One question at a
+  time"). A change of the
   approvals, of an owner, below a config folder (one watcher per workspace
   folder while a view is attached) or of the config folder setting lists
   again; `node_modules` is not watched, and a refresh or a view shown again
