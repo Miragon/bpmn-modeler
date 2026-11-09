@@ -1,3 +1,4 @@
+import { templateIdOfEntryKey } from "@miragon/bpmn-modeler-element-template-chooser/templateEntryKey";
 import { surfaceModeSupports } from "@miragon/bpmn-modeler-types";
 
 import type { ModelerMode } from "./mode";
@@ -9,8 +10,6 @@ const FILTERED_MENUS = ["bpmn-replace", "bpmn-append", "bpmn-create"] as const;
 
 /** Runs before the template chooser (default 1000) so its handler never fires. */
 const TEMPLATE_SELECT_GUARD_PRIORITY = 10000;
-
-const TEMPLATE_ENTRY_KEY = /(^|\.)template-/;
 
 interface PopupEntry {
     group?: { id?: string };
@@ -34,7 +33,7 @@ export function stripTemplateEntries<T extends PopupEntry>(
 ): Record<string, T> {
     const nonTemplateEntries: Record<string, T> = {};
     for (const [key, entry] of Object.entries(entries)) {
-        if (TEMPLATE_ENTRY_KEY.test(key)) {
+        if (templateIdOfEntryKey(key) !== undefined) {
             continue;
         }
         if (entry?.group?.id === "templates") {

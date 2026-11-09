@@ -3,6 +3,7 @@
  * into element template entries vs. standard BPMN element entries.
  */
 import type { ElementTemplate, TemplateStep } from "@miragon/bpmn-modeler-element-template-chooser";
+import { templateIdOfEntryKey } from "@miragon/bpmn-modeler-element-template-chooser/templateEntryKey";
 
 export type { Translate } from "@miragon/bpmn-modeler-element-template-chooser/types";
 
@@ -72,7 +73,7 @@ export interface ClassifiedEntries {
 /**
  * Determines whether a popup menu entry represents an element template.
  *
- * Template entries are identified by their key containing `template-`
+ * Template entries are identified by their key naming a template
  * or by having an `imageUrl` (which standard BPMN entries never have).
  */
 function isTemplateEntry(key: string, entry: PopupMenuEntry): boolean {
@@ -80,18 +81,7 @@ function isTemplateEntry(key: string, entry: PopupMenuEntry): boolean {
 }
 
 function isTemplateKey(key: string): boolean {
-    return key.includes("template-");
-}
-
-/**
- * Extracts the template ID from a popup menu entry key.
- *
- * Keys follow the pattern `append.template-{templateId}` or
- * `create.template-{templateId}`.
- */
-function extractTemplateId(key: string): string | undefined {
-    const match = key.match(/template-(.+)$/);
-    return match?.[1];
+    return templateIdOfEntryKey(key) !== undefined;
 }
 
 // Step keys (`step-0`, …) repeat across templates, so ids carry the parent path.
@@ -155,7 +145,7 @@ export function classifyEntries(
         }
 
         if (isTemplateEntry(key, entry)) {
-            const templateId = extractTemplateId(key);
+            const templateId = templateIdOfEntryKey(key);
             const template = templateId ? templateIndex.get(templateId) : undefined;
             templates.push(...flattenTemplateEntry(key, entry, template));
             return;
