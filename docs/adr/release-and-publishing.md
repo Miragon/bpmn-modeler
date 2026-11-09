@@ -1,7 +1,7 @@
 # Release and publishing
 
 - Status: accepted
-- Last reviewed: 2026-11-09
+- Last reviewed: 2026-11-10
 
 ## Context
 
@@ -12,7 +12,7 @@ occasionally and usually ship every component with pending changes. npm
 publishing also needs installable tarballs and consumer validation. npm and
 VS Code Marketplace publishing need authentication without a standing CI
 token; Azure DevOps retires the global PATs the Marketplace accepted on
-December 1, 2026.
+December 1, 2026, and Open VSX offers the same OIDC exchange.
 
 The standalone Linux app needs Git inside its Flatpak sandbox without requiring
 users to install a full development SDK or allowing host-command execution.
@@ -129,7 +129,14 @@ Publishing), not a PAT. The publisher's policy names
 job and its `release-please.yml` caller grant `id-token: write`. Microsoft
 does not document whether a reusable workflow is matched by its own file or
 its caller, so a manual dispatch with `dry-run: false` is the fallback until a
-release run has proven the called-file match. Open VSX keeps its token.
+release run has proven the called-file match.
+
+Publish to Open VSX with `ovsx publish --trusted-publishing`, without a token.
+Open VSX matches the token's `workflow_ref`, the top-level caller, and allows
+one trusted publisher per extension, so it is registered for
+`release-please.yml` and the `open-vsx-marketplace` environment. As with npm,
+manual dispatch of its reusable workflow is dry-run-only; retry a failed real
+publish through its release-please job.
 
 Validate the packed artifact in scratch consumers before publishing: no
 `workspace:` ranges, resolvable declared exports, appropriate browser entries,
@@ -253,9 +260,8 @@ a single line cannot be held back. Routing exclusions and marker input sets are
 maintained configuration, not inferred automatically from the module graph. npm
 publishing uses short-lived identity with provenance; package bootstrap and
 trusted publisher registration remain explicit setup steps. VS Code Marketplace
-publishing uses short-lived identity too and ties the workflow file name and
-the environment name to the publisher's policy; Open VSX still needs a
-standing token.
+and Open VSX publishing use short-lived identity too and tie the workflow file
+name and the environment name to each registry's policy.
 
 External dependencies permit consumer plugin interoperability but make version
 alignment and declared dependencies part of release correctness. Yarn Berry
