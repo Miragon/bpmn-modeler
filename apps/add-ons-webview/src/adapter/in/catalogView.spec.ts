@@ -288,6 +288,19 @@ describe("CatalogView", () => {
         ]).toEqual([true, false]);
     });
 
+    it("leaves a focused row in place when a push did not change it", () => {
+        const { head, session } = mountedView(CATALOG);
+        const row = head("Palette");
+        row.focus();
+        const events: string[] = [];
+        row.addEventListener("blur", () => events.push("blur"));
+        row.addEventListener("focus", () => events.push("focus"));
+
+        session.dispatch({ kind: "modelArrived", model: withRevision(11) });
+
+        expect([events, document.activeElement === row]).toEqual([[], true]);
+    });
+
     describe("focus", () => {
         it("does not take focus the page does not hold", () => {
             const { session } = mountedView(CATALOG);
