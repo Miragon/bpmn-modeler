@@ -26,6 +26,9 @@ import {
 } from "../port/addOnSourcePorts";
 import { AddOnInventoryReader } from "./AddOnInventoryReader";
 
+/** Room for this many builds a millisecond before a later process's first revision. */
+const REVISIONS_PER_MILLISECOND = 1000;
+
 export interface AddOnCatalogPorts {
     readonly approvals: PluginApprovalStorePort;
     readonly plugins: PluginAddOnSource;
@@ -42,7 +45,8 @@ export interface AddOnCatalogPorts {
  * notice's answer.
  */
 export class AddOnCatalogService {
-    private revision = 0;
+    /** From the clock, so a view kept across a respawn never names a revision the new process showed. */
+    private revision = Date.now() * REVISIONS_PER_MILLISECOND;
     private revisions = ShownRevisions.empty();
     private readonly inspected = new Set<string>();
     private latestModel?: AddOnCatalogModel;

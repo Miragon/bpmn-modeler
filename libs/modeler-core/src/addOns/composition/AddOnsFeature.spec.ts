@@ -684,8 +684,9 @@ describe("AddOnsFeature", () => {
             await shown(addOns);
 
             // Shown again, the throwing view gets the latest model, then the one read anew.
-            expect(posted).toEqual([1, 2, 3, 3, 4]);
-            expect(other.models.map(({ revision }) => revision)).toEqual([1, 2, 3, 4]);
+            const builds = (revisions: number[]) => revisions.map((each) => each - posted[0] + 1);
+            expect(builds(posted)).toEqual([1, 2, 3, 3, 4]);
+            expect(builds(other.models.map(({ revision }) => revision))).toEqual([1, 2, 3, 4]);
             expect(host.notifier.logged("error")).toHaveLength(5);
         });
 

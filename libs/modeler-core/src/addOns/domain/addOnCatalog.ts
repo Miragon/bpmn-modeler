@@ -44,7 +44,7 @@ export interface ActionView<K extends string> {
 
 /** What a view shows: built by the core, rendered by a host, never read back. */
 export interface AddOnCatalogModel {
-    /** Strictly increasing in one process; an allow names the revision it was shown in. */
+    /** Strictly increasing, across a respawned process too; an allow names the revision it was shown in. */
     readonly revision: number;
     /** Workspace folders in the order they were opened. */
     readonly groups: readonly AddOnGroupView[];
