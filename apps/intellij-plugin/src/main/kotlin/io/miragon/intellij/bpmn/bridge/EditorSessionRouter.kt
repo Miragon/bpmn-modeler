@@ -201,6 +201,7 @@ internal class EditorSessionRouter(
         // before the read, so a page write the read misses keeps its claim.
         entry.forgetUnmirroredContent()
         val content = readDocumentText(session.file)
+        val approvals = PluginApprovalStore.getInstance().snapshot()
         deps.channel.notify(
             HostToCoreMethod.SESSION_REGISTER,
             linkedMapOf(
@@ -219,8 +220,11 @@ internal class EditorSessionRouter(
                 // very first discovery uses the configured folder, not the default.
                 "settings" to ModelerSettingsStore.getInstance().snapshotMap(deps.project),
                 // Rides on the register, so the page's first plugin query never
-                // races a separate seed and reads approved plugins as new.
-                "pluginApprovals" to PluginApprovalStore.getInstance().read(),
+                // races a separate seed and reads approved plugins as new. Read
+                // with its revision, so a register the bridge applies after a
+                // newer push cannot roll its mirror back.
+                "pluginApprovals" to approvals.approvals,
+                "pluginApprovalsRevision" to approvals.revision,
                 "content" to content,
             ),
         )

@@ -160,7 +160,7 @@ class CoreProcess(private val project: Project) : Disposable {
     fun pushSettings() = routers.editor.pushSettings()
 
     /** Mirrors the stored plugin approvals into the running core. */
-    fun pushPluginApprovals() = routers.pluginApprovals.push()
+    fun pushPluginApprovals(snapshot: PluginApprovalSnapshot) = routers.pluginApprovals.push(snapshot)
 
     /**
      * Soft-reloads every open modeler by re-registering its live session (re-seeds

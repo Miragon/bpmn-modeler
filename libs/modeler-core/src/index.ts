@@ -11,6 +11,14 @@
 export * from "./kernel/domain/actionNotice";
 export * from "./kernel/domain/affectedItems";
 export * from "./kernel/domain/BpmnDocument";
+export {
+    allowing,
+    approvalsAfter,
+    approvalsKey,
+    codeApprovalChange,
+    type CodeApprovalChange,
+    revoking,
+} from "./kernel/domain/codeApproval";
 export * from "./kernel/domain/engineVersions";
 export * from "./kernel/domain/errorLogText";
 export * from "./kernel/domain/errors";

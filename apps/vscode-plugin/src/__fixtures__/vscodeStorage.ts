@@ -22,6 +22,14 @@ export class InMemoryMemento implements Memento {
     }
 }
 
+/** Sets the value only after `update` yields, as a memento that persists first may. */
+export class YieldingMemento extends InMemoryMemento {
+    override async update(key: string, value: unknown): Promise<void> {
+        await Promise.resolve();
+        return super.update(key, value);
+    }
+}
+
 /**
  * Rejects every write after `failAfter(writes)` lets that many through.
  * `keepsRejectedValue` models VS Code's `ExtensionMemento`, which sets the value

@@ -23,9 +23,9 @@ internal fun pushSettingsToRunningBridges() {
 }
 
 /** Mirrors the stored plugin approvals into every bridge that runs, as [pushSettingsToRunningBridges] does the settings. */
-internal fun pushPluginApprovalsToRunningBridges() {
+internal fun pushPluginApprovalsToRunningBridges(snapshot: PluginApprovalSnapshot) {
     for (project in ProjectManager.getInstance().openProjects) {
         if (project.isDisposed) continue
-        project.getServiceIfCreated(CoreProcess::class.java)?.pushPluginApprovals()
+        project.getServiceIfCreated(CoreProcess::class.java)?.pushPluginApprovals(snapshot)
     }
 }

@@ -59,7 +59,8 @@ import {
     ConfirmShowResult,
     PickerShowParams,
     PickerShowResult,
-    PluginApprovalsParams,
+    PluginApprovalsChangeParams,
+    PluginApprovalsSnapshot,
     RegisterParams,
     SecretApprovedDestinations,
     SecretDeleteParams,
@@ -179,7 +180,8 @@ export const METHODS = {
     tokenPromptShow: "tokenPrompt/show",
     settingsSetLintingEnabled: "settings/setLintingEnabled",
     actionNoticeShow: "actionNotice/show",
-    pluginApprovalsSave: "pluginApprovals/save",
+    pluginApprovalsChange: "pluginApprovals/change",
+    pluginApprovalsRead: "pluginApprovals/read",
 
     // Core → Host notifications
     editorPostMessage: "editor/postMessage",
@@ -238,6 +240,7 @@ export const PROTOCOL = [
             content: "<bpmn/>",
             settings: {},
             pluginApprovals: [PLUGIN_APPROVAL_SAMPLE],
+            pluginApprovalsRevision: 7,
         } satisfies RegisterParams,
     },
     {
@@ -431,7 +434,10 @@ export const PROTOCOL = [
         method: METHODS.pluginApprovalsDidChange,
         direction: "hostToCore",
         kind: "notification",
-        paramsFixture: { approvals: [PLUGIN_APPROVAL_SAMPLE] } satisfies PluginApprovalsParams,
+        paramsFixture: {
+            approvals: [PLUGIN_APPROVAL_SAMPLE],
+            revision: 7,
+        } satisfies PluginApprovalsSnapshot,
     },
 
     // ── Core → Host requests ─────────────────────────────────────────────────
@@ -723,14 +729,33 @@ export const PROTOCOL = [
         // `chosen` is absent when the user dismissed the notification.
         resultFixture: { chosen: 0 } satisfies ActionNoticeShowResult,
     },
-    // Acknowledged write: the host stores the list, pushes it to every running
-    // bridge in `pluginApprovals/didChange`, then acks an empty reply.
+    // The host merges the change into the list it stores, pushes that list to
+    // every running bridge in `pluginApprovals/didChange`, then answers with it.
     {
-        method: METHODS.pluginApprovalsSave,
+        method: METHODS.pluginApprovalsChange,
         direction: "coreToHost",
         kind: "request",
         replyWait: "syncedWrite",
-        paramsFixture: { approvals: [PLUGIN_APPROVAL_SAMPLE] } satisfies PluginApprovalsParams,
+        paramsFixture: {
+            allow: [PLUGIN_APPROVAL_SAMPLE],
+            revoke: ["/ws/.camunda/plugins/reduced-palette"],
+        } satisfies PluginApprovalsChangeParams,
+        resultFixture: {
+            approvals: [PLUGIN_APPROVAL_SAMPLE],
+            revision: 7,
+        } satisfies PluginApprovalsSnapshot,
+    },
+    // The host's stored list, never a mirror; a read, so under the host-work deadline.
+    {
+        method: METHODS.pluginApprovalsRead,
+        direction: "coreToHost",
+        kind: "request",
+        replyWait: "hostWork",
+        paramsFixture: {} satisfies EmptyParams,
+        resultFixture: {
+            approvals: [PLUGIN_APPROVAL_SAMPLE],
+            revision: 7,
+        } satisfies PluginApprovalsSnapshot,
     },
 
     // ── Core → Host notifications ────────────────────────────────────────────

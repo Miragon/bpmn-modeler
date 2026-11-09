@@ -113,6 +113,15 @@ host part, the suite cannot tell, and the Kotlin half is #2056.
   `RecordingNotifier`, `VsCodeNotifier` over `vscodeWindowFake.ts` and the
   bridge's `RpcNotifier` over a loopback that answers as `HostUiRouter.kt`
   does.
+- `describePluginApprovalStoreContract`: `InMemoryPluginApprovals`,
+  `VsCodePluginApprovalStore` over an in-memory `Memento` and over one that
+  sets its value only after `update` yields (so two changes started together
+  need the store's own ordering), and the bridge's
+  `RpcPluginApprovalStore` over a loopback that merges each change with
+  `approvalsAfter` and stamps revisions as `PluginApprovalRouter` and
+  `PluginApprovalStore` do. Its fixture can store a list as another writer
+  (another IDE project or VS Code window), so the suite holds that a change
+  keeps a row the store never read.
 - `describePickerContract`: `ScriptedPicker`, `VsCodePicker` over mocks of
   the `vscode` window and the bridge's `RpcPicker` over the
   `intellijPromptHost.ts` loopback, which answers as `HostUiRouter` does.
@@ -251,6 +260,9 @@ job; `tools/repo-checks/src/kotlinTestInputs.spec.ts` fails when the filter
 misses a test input. A mirrored Kotlin table would drift like the rule it
 copies. The settings rows in `settingsNormalization.cases.json` are the first
 such file (see [host-replicated state](architecture-and-hosts.md#host-replicated-state)).
+`codeApprovalChange.cases.json` holds how a code approval change merges into
+the stored list and which changes are refused; `PluginApprovalStoreTest` runs
+it against the Kotlin merge.
 Rows whose shapes the typed Kotlin side cannot hold, such as a value of the
 wrong type, live in the core's testing kit (`TYPESCRIPT_ONLY_SETTINGS_CASES`),
 and `describeSettingsContract` runs them beside the JSON rows against every

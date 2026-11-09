@@ -547,7 +547,19 @@ with its length and a missing style marked apart from an empty one, so bytes
 moved from one file to the other change the hash. It is kept by the host outside
 every workspace (`PluginApprovalStorePort`; VS Code global state, an IntelliJ
 application value), so a repository cannot approve itself and any change (a
-pull, an update) asks again. `WorkspacePluginLocator` keeps a memo per plugin folder and drops it on
+pull, an update) asks again. Every write is a change, rows to allow and ids to
+revoke (`CodeApprovalChange`), that the host merges into the list it stores
+with `approvalsAfter` in one step: rows the change does not name keep their
+place, an allowed row replaces its id's row in place, new ids append. A writer
+therefore never drops a row it had not read, such as one another IDE project
+or window stored. A change that names an id twice, or allows and revokes one,
+is refused in both languages and stores nothing; no caller sends one, so it is
+a bug, and failing closed is the safe answer. `codeApprovalChange.cases.json`
+holds the rows for the TypeScript and the Kotlin merge. The port also gives
+`readStored()`, the host's list rather than a mirror, and `onDidChange`, which
+fires once whenever the store learns of a new list: its own change, a host push
+or `readStored()`. VS Code learns of another window's write only on the focus
+re-read, although `read()` may show it earlier. `WorkspacePluginLocator` keeps a memo per plugin folder and drops it on
 a `WorkspacePort.createWatcher` event for that `<configFolder>/plugins`
 folder, so an editor open does not reread and rehash every bundle (Camunda
 bundles can be several MB). The feature disposes the watchers with itself.
@@ -555,7 +567,7 @@ bundles can be several MB). The feature disposes the watchers with itself.
 `PluginCatalog` is host-neutral and returns values: `pluginsFor(documentPath)`
 gives the approved plugins with their bytes and the pending ones,
 `reviewPrompt(pending)` the prompt the domain builds, and
-`applyAnswer(pending, checkedIds)` writes the approvals and records the
+`applyAnswer(pending, checkedIds)` allows the checked ones and records the
 declines. A decline lasts for the catalog's lifetime (the extension host
 session) or until the content changes. The catalog knows no
 `EditorSessionStore` or `EditorHandle`, so Orca's worker can answer its frame
@@ -631,8 +643,23 @@ supplies these parts:
   IDE. Bridges run per project, so the host is the single writer: the bridge
   mirrors the list for the port's synchronous `read()`, seeded on every
   `session/register` (a separate seed would race the page's first plugin
-  query) and replaced by `pluginApprovals/didChange`. A `pluginApprovals/save`
-  is stored and pushed to every running bridge before it is acknowledged.
+  query) and replaced by `pluginApprovals/didChange`. A bridge writes with
+  `pluginApprovals/change`, which carries only the rows to allow and the ids to
+  revoke; the store reads, merges, writes and bumps its revision under one
+  lock, pushes the list to every running bridge and then answers with it.
+  `pluginApprovals/read` answers the stored list. Every list the host sends
+  carries that revision and the mirror keeps the newest, since the bridge's
+  per-editor and per-method queues can apply a register after a newer push
+  (see [host-replicated state](architecture-and-hosts.md#host-replicated-state)).
+  There is no `pluginApprovals/save` alias, which would keep the whole-list
+  replace: plugin and bridge ship together, and a mismatched dev bridge's
+  change fails with "No handler" rather than losing a row. The stored JSON is
+  unchanged.
+- *VS Code store.* `VsCodePluginApprovalStore` merges each change on one
+  in-process promise chain, so two answers in one extension host keep both
+  rows whether or not `Memento.update` sets its value before it resolves.
+  VS Code announces no write another window makes to the global state, so the
+  composition calls `readStored()` when the window gains focus.
 - *Notice.* `actionNotice/show` becomes a balloon with one action per label;
   see [host integrations](architecture-and-hosts.md#host-integrations).
 - *Reload.* The page asks for plugins only while it boots, so the soft reload
@@ -781,7 +808,7 @@ refused, because the approval does not cover it. The gate is synchronous,
 since `require` cannot wait, and uses no module loader hooks: the bridge runs
 on Bun, which does not fire them. The setup's fingerprint holds the
 config and the sorted rule package rows, so an allow, a revoke or an IntelliJ
-`pluginApprovals/didChange` builds a new setup, and no bundled fallback cached
+`pluginApprovals/didChange` with a newer list builds a new setup, and no bundled fallback cached
 before the allow shadows the allowed package. When a member is admitted under
 another closure hash than the one it was last loaded under, the gate evicts
 its `require.cache` entries, so the newly allowed bytes run.
@@ -808,16 +835,16 @@ list says that a rule package runs as a program with the user's rights.
 
 **One question at a time.** Each host composition builds one `QuestionQueue`
 and passes it to `BpmnPluginsFeature` and `BpmnEditorFeature`, so the
-kernel's `ApprovalQuestion` keeps one question open across both kinds. Each
-answer then reads the list the previous one wrote. Without the queue, two
-answers could both read the bridge's mirror before either save was
-acknowledged, and the second save would drop the first one's rows
-(`RpcPluginApprovalStore` sets its list only after the host's
-acknowledgement). The queue is per bridge process, and IntelliJ runs one
-bridge per project against one IDE-wide list: with two projects open, two
-notices can show at once, and two answers saved before the `didChange` push
-arrives can still drop each other's rows. The plugins share this residual; a
-merge by `pluginId` in the Kotlin save handler would close it.
+kernel's `ApprovalQuestion` keeps one question open across both kinds. The
+queue serialises questions for the user, not writes: each answer is a change
+the host merges, so two answers, from one bridge or from two IntelliJ projects
+that each show a notice at once, keep each other's rows
+([#2275](https://github.com/Miragon/bpmn-modeler/issues/2275)). One residual is
+unverified: whether two VS Code windows share the global state live. Each
+window's store merges into the list its own `Memento` holds; if another
+window's write has not reached that `Memento` when this window writes, the
+whole value this window writes can drop it. The focus re-read narrows the gap
+but does not close it; one key per approval row would.
 
 **Weaker guarantee than a plugin's.** A bpmn-js plugin runs from a
 content-addressed copy of the approved bytes, so a file swapped after the

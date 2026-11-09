@@ -132,7 +132,10 @@ to the bridge as `MIRAGON_BPMN_PLUGIN_CACHE`). The host's part:
 - **Approvals** live in `PluginApprovalStore`, one application value under
   `miragon.bpmnModeler.pluginApprovals`, never in a project file. They reach
   the bridge on every `session/register` and through `pluginApprovals/didChange`
-  after a `pluginApprovals/save`, which every running bridge gets.
+  after a `pluginApprovals/change`, which every running bridge gets. A bridge
+  sends only the rows to allow and the ids to revoke; the store merges them
+  under one lock with `approvalsAfter`, a copy of the core's that
+  `PluginApprovalStoreTest` holds to `codeApprovalChange.cases.json`.
 - **Serving.** `WebviewServer` answers `/bpmn-plugins/<64 hex>/plugin.js|plugin.css`
   from the cache, matched before decoding (`WebviewRoute`), with no symbolic
   link and no path outside the cache (`PluginAssetFile`); anything else under

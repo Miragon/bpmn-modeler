@@ -55,6 +55,8 @@ export interface RegisterParams extends SessionMeta {
     settings?: RawModelerSettings;
     /** The user's plugin approvals, so the first plugin request of a session reads them. */
     pluginApprovals?: PluginApproval[];
+    /** The host's revision of `pluginApprovals`, sent with it (see {@link PluginApprovalsSnapshot}). */
+    pluginApprovalsRevision?: number;
 }
 
 /** Empty-body notification/request (e.g. `clipboard/read`, `notifier/openConsole`). */
@@ -187,11 +189,19 @@ export interface MigrateAllParams {
 
 /**
  * `pluginApprovals/didChange` — the approvals the host now stores, pushed to
- * every running bridge after any of them saved; also the params of the
- * `pluginApprovals/save` request.
+ * every running bridge after any of them changed them; also the result of the
+ * `pluginApprovals/change` and `pluginApprovals/read` requests. `revision` grows with every list the host
+ * stores, so a mirror can keep the newest of the lists its queues apply.
  */
-export interface PluginApprovalsParams {
+export interface PluginApprovalsSnapshot {
     approvals: PluginApproval[];
+    revision: number;
+}
+
+/** `pluginApprovals/change` — the host merges it into the list it stores, so no row another bridge stored is lost. */
+export interface PluginApprovalsChangeParams {
+    allow: PluginApproval[];
+    revoke: string[];
 }
 
 // ── Core → Host requests (params + results) ──────────────────────────────────

@@ -1,5 +1,8 @@
 package io.miragon.intellij.bpmn.bridge
 
+import io.miragon.intellij.bpmn.PluginApproval
+import io.miragon.intellij.bpmn.PluginApprovalSnapshot
+
 /**
  * The host's answer to one core→host request. Gson writes a result's property
  * names as the reply's keys, so renaming a property changes the wire protocol.
@@ -45,3 +48,8 @@ internal class MarketplaceStateReadResult(
 internal class WritableScope(val scope: String, val savedIn: SettingsPlace)
 
 internal class SettingsPlace(val kind: String, val path: List<String>)
+
+/** The approvals the host stores, with their revision: after a `pluginApprovals/change`, or for a `pluginApprovals/read`. */
+internal class PluginApprovalsResult(val approvals: List<PluginApproval>, val revision: Long) : RpcResult {
+    constructor(snapshot: PluginApprovalSnapshot) : this(snapshot.approvals, snapshot.revision)
+}

@@ -5,6 +5,7 @@ import {
     ApprovableArtifact,
     ApprovalNoticeAction,
     ApprovalState,
+    approvalsKey,
     approvalStateOf,
     CodeApproval,
     declineKeyOf,
@@ -244,12 +245,7 @@ export function editorsBlockedOnAnyOf(
  * setup and drops the bundled fallbacks it cached.
  */
 export function rulePackageApprovalsKey(approvals: readonly CodeApproval[]): string {
-    return JSON.stringify(
-        approvals
-            .filter(isRulePackageApproval)
-            .map(({ pluginId, contentHash }) => JSON.stringify([pluginId, contentHash]))
-            .sort(),
-    );
+    return approvalsKey(approvals.filter(isRulePackageApproval));
 }
 
 /** Opens nothing by itself: only "Review…" shows the list. */

@@ -2,11 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { BpmnPluginsQuery, GetBpmnPluginsCommand } from "@miragon/bpmn-modeler-shared";
 
-import {
-    ApprovableArtifact,
-    approvalsAllowing,
-    CodeApproval,
-} from "../../kernel/domain/codeApproval";
+import { allowing, ApprovableArtifact, CodeApprovalChange } from "../../kernel/domain/codeApproval";
 import { ChoicePrompt } from "../../kernel/domain/prompts";
 import { PluginApprovalStorePort } from "../../kernel/port/approvalPorts";
 import { ArtifactService } from "../../kernel/service/ArtifactService";
@@ -104,11 +100,11 @@ async function answerRequest(feature: BpmnPluginsFeature, editor: FakeEditorHand
     );
 }
 
-/** Sets the list only after an await, as the bridge's store does once IntelliJ acknowledged the save. */
+/** Merges the change only after an await, as the bridge's store does once IntelliJ answered it. */
 class LaggingPluginApprovals extends InMemoryPluginApprovals {
-    override async write(approvals: readonly CodeApproval[]): Promise<void> {
+    override async change(change: CodeApprovalChange): Promise<void> {
         await new Promise((resolve) => setTimeout(resolve, 0));
-        await super.write(approvals);
+        await super.change(change);
     }
 }
 
@@ -472,7 +468,7 @@ describe("BpmnPluginsFeature", () => {
             await answerRequest(feature, await openEditor());
 
             const rulePackageAnswer = questions.ask(() =>
-                approvals.write(approvalsAllowing(approvals.read(), [rulePackage])),
+                approvals.change(allowing([rulePackage])),
             );
             notice.answer("review");
             await feature.service.whenApprovalSettled();

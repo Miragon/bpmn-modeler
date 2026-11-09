@@ -91,6 +91,8 @@ val scriptCompletionCases =
 val pluginAssetUrlCases =
     layout.projectDirectory.file("../../apps/modeler-bridge/src/editorSession/domain/pluginAssetUrl.cases.json")
 val actionNoticeTypes = layout.projectDirectory.file("../../libs/modeler-core/src/kernel/domain/actionNotice.ts")
+val codeApprovalChangeCases =
+    layout.projectDirectory.file("../../libs/modeler-core/src/kernel/domain/codeApprovalChange.cases.json")
 
 tasks.test {
     useJUnitPlatform()
@@ -103,7 +105,8 @@ tasks.test {
     // ElementTemplatePreviewMessagesTest the preview page's messages, EmptyDmnDiagramTest the
     // shared DMN scaffold, ScriptCompletionMatchersTest the rows the core's script-completion
     // matchers run, WebviewRouteTest the plugin asset urls the bridge builds, ActionNoticeToneTest
-    // the core's notice tones. As declared inputs, a change on the TypeScript side alone reruns the tests
+    // the core's notice tones, PluginApprovalStoreTest the rows the core merges approval changes
+    // by. As declared inputs, a change on the TypeScript side alone reruns the tests
     // instead of restoring them from the build cache.
     mapOf(
         "protocolDescriptor" to protocolDescriptor,
@@ -119,6 +122,7 @@ tasks.test {
         "scriptCompletionCases" to scriptCompletionCases,
         "pluginAssetUrlCases" to pluginAssetUrlCases,
         "actionNoticeTypes" to actionNoticeTypes,
+        "codeApprovalChangeCases" to codeApprovalChangeCases,
     ).forEach { (name, file) ->
         inputs.file(file).withPropertyName(name).withPathSensitivity(PathSensitivity.RELATIVE)
         systemProperty("miragon.$name", file.asFile.absolutePath)

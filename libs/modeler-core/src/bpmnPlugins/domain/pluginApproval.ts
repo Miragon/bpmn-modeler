@@ -14,7 +14,6 @@ import { joinWorkspacePath } from "../../kernel/domain/workspacePath";
 
 export {
     approvalOutcome,
-    approvalsAllowing,
     approvalStateOf,
     declineKeyOf,
     pendingApprovals,

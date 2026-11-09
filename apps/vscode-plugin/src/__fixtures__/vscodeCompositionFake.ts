@@ -39,8 +39,19 @@ export const workspace = {
     }),
 };
 
+const windowStateListeners = new Set<(state: { focused: boolean }) => void>();
+
+/** Plays VS Code's window gaining or losing focus to every `onDidChangeWindowState` listener. */
+export function changeWindowFocus(focused: boolean): void {
+    windowStateListeners.forEach((listener) => listener({ focused }));
+}
+
 export const window = {
     ...windowFake.window,
+    onDidChangeWindowState: (listener: (state: { focused: boolean }) => void) => {
+        windowStateListeners.add(listener);
+        return { dispose: () => windowStateListeners.delete(listener) };
+    },
     tabGroups: { all: [], onDidChangeTabs: () => disposable },
     onDidChangeActiveTextEditor: () => disposable,
     registerCustomEditorProvider: () => disposable,
