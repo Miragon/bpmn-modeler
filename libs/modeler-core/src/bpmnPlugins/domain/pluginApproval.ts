@@ -8,6 +8,7 @@ import {
     approvedArtifacts,
     CodeApproval,
     CodeApprovalOutcome,
+    isApprovedState,
     PendingCodeApproval,
     pendingApprovalDescription,
 } from "../../kernel/domain/codeApproval";
@@ -113,7 +114,7 @@ export function editorsToReload(
     approvals: readonly CodeApproval[],
 ): string[] {
     const isApproved = (plugin: ApprovableArtifact) =>
-        approvalStateOf(plugin, approvals) === "approved";
+        isApprovedState(approvalStateOf(plugin, approvals));
     return [...offeredByEditor]
         .filter(
             ([, { served, withheld }]) =>

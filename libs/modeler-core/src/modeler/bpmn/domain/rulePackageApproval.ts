@@ -10,6 +10,7 @@ import {
     CodeState,
     codeStateOf,
     FollowedApprovalChange,
+    isApprovedState,
     PendingCodeApproval,
     pendingApprovalDescription,
     PROCESS_RESTART_TEXT,
@@ -206,7 +207,7 @@ export function rulePackageVerdict(
     if (reading.kind === "hashNeeded") {
         return reading;
     }
-    return reading.state === "approved"
+    return isApprovedState(reading.state)
         ? { kind: "admitted", via: "approval" }
         : { kind: "blocked", state: reading.state };
 }
