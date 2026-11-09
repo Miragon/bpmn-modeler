@@ -42,6 +42,7 @@ export class BpmnElementTemplatesService implements ArtifactChangeTarget {
     private readonly editorsAwaitingRefresh = new Set<string>();
     private refreshTimer: ReturnType<typeof setTimeout> | undefined;
     private templateLoadStatus = TemplateLoadStatus.idle;
+    private readonly templateDirListeners = new Set<() => void>();
 
     /**
      * @param marketplaceSvc Absent in hosts without the marketplace feature, so
@@ -74,7 +75,7 @@ export class BpmnElementTemplatesService implements ArtifactChangeTarget {
             if (isSuperseded()) {
                 return false;
             }
-            this.templateDirsByEditor.set(editorId, templateDirs);
+            this.recordTemplateDirs(() => this.templateDirsByEditor.set(editorId, templateDirs));
 
             // Served from the cache (a tab re-show, a second editor) the load is
             // instant, so a progress indicator would only flash.
@@ -147,7 +148,7 @@ export class BpmnElementTemplatesService implements ArtifactChangeTarget {
     releaseEditor(editorId: string): void {
         this.latestRequests.delete(editorId);
         this.editorsAwaitingRefresh.delete(editorId);
-        this.templateDirsByEditor.delete(editorId);
+        this.recordTemplateDirs(() => this.templateDirsByEditor.delete(editorId));
         // Only an open editor's watcher keeps an entry fresh; without one a
         // change on disk would go unnoticed until the host restarts.
         this.cache.forgetDirectories(new Set([...this.templateDirsByEditor.values()].flat()));
@@ -156,10 +157,28 @@ export class BpmnElementTemplatesService implements ArtifactChangeTarget {
         }
     }
 
+    /** The template folders the open editors loaded, nested ones included, each once. */
+    knownTemplateDirs(): string[] {
+        return [...new Set([...this.templateDirsByEditor.values()].flat())];
+    }
+
+    onDidChangeTemplateDirs(listener: () => void): { dispose(): void } {
+        this.templateDirListeners.add(listener);
+        return { dispose: () => this.templateDirListeners.delete(listener) };
+    }
+
     dispose(): void {
         clearTimeout(this.refreshTimer);
         this.refreshTimer = undefined;
         this.editorsAwaitingRefresh.clear();
+    }
+
+    private recordTemplateDirs(change: () => void): void {
+        const before = this.knownTemplateDirs().join("\n");
+        change();
+        if (this.knownTemplateDirs().join("\n") !== before) {
+            this.templateDirListeners.forEach((listener) => listener());
+        }
     }
 
     private refreshAwaitingEditors(): void {

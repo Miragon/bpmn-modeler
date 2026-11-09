@@ -79,6 +79,7 @@ import { EngineVersionStatusBarParticipant } from "../service/EngineVersionStatu
 import { PackageClosureFingerprinter } from "../service/PackageClosureFingerprinter";
 import { RulePackageCatalog } from "../service/RulePackageCatalog";
 import { RulePackageInventory } from "../service/RulePackageInventory";
+import { TemplateInventory } from "../service/TemplateInventory";
 
 /** The document plumbing: a host routes all three to the core's document services, or none. */
 export const DOCUMENT_SYNC_COMMAND_TYPES = [
@@ -175,6 +176,8 @@ const PANEL_ALWAYS_VISIBLE: PropertiesPanelStatePort = {
 export class BpmnEditorFeature {
     readonly bpmnService: BpmnModelerService;
     readonly templates: BpmnElementTemplatesService;
+    /** What the add-on catalog lists of the element templates. */
+    readonly templateInventory: TemplateInventory;
     readonly layout: BpmnLayoutService;
     readonly lintConfig: BpmnLintConfigService;
     /** Absent without {@link BpmnRulePackagePorts}. */
@@ -209,6 +212,7 @@ export class BpmnEditorFeature {
             ports.notifier,
             ports.templateProvider,
         );
+        this.templateInventory = new TemplateInventory(this.templates, ports.artifacts);
         this.layout = new BpmnLayoutService(ports.store, ports.notifier, ports.picker);
         const lintConfigLocator = new BpmnLintConfigLocator(
             ports.workspace,
