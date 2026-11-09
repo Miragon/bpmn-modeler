@@ -67,7 +67,7 @@ describe("templateFileReadingOf", () => {
         {
             case: "the engine the file names",
             text: JSON.stringify({ id: "c8", $schema: C8_SCHEMA }),
-            reading: { kind: "read", templates: [{ id: "c8" }], engine: "c8" },
+            reading: { kind: "read", templates: [{ id: "c8", engine: "c8" }] },
         },
         {
             case: "only the fields of their own type",

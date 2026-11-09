@@ -713,17 +713,16 @@ const UNFETCHED: ListedMarketplace = {
 };
 
 describe("catalogModelOf for element templates", () => {
-    it("lists each template of a file as enabled, with its version and the file's engine, by name", () => {
+    it("lists each template of a file as enabled, with its version and engine, by name", () => {
         expect(
             rows(
                 factsOf({
                     templates: [
                         templateFile(`${TEMPLATES}/mail.json`, {
                             kind: "read",
-                            engine: "c8",
                             templates: [
-                                { id: "mail", name: "Send Mail", version: 2 },
-                                { id: "crm" },
+                                { id: "mail", name: "Send Mail", version: 2, engine: "c8" },
+                                { id: "crm", engine: "c7" },
                             ],
                         }),
                     ],
@@ -746,7 +745,7 @@ describe("catalogModelOf for element templates", () => {
                 kind: "elementTemplate",
                 kindText: "Element template",
                 name: "crm",
-                engineText: "Camunda 8",
+                engineText: "Camunda 7",
                 state: "enabled",
                 stateText: "Enabled",
                 actions: [],

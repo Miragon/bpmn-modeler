@@ -8,6 +8,7 @@ import {
     isElementTemplateFile,
     isElementTemplateText,
     isPreviewableElementType,
+    templateEngineOf,
     templatesOfFile,
 } from "./elementTemplates";
 
@@ -43,6 +44,21 @@ describe("templatesOfFile", () => {
 describe("ELEMENT_TEMPLATE_SCHEMA_URL", () => {
     it("names the published schema of each engine", () => {
         expect(ELEMENT_TEMPLATE_SCHEMA_URL).toEqual({ c7: C7_SCHEMA, c8: C8_SCHEMA });
+    });
+});
+
+describe("templateEngineOf", () => {
+    const file = [{ name: "plain" }, { $schema: C7_SCHEMA }, { $schema: C8_SCHEMA }];
+
+    it.each([
+        ["its own engine", file[2], "c8"],
+        ["its file's engine when it names none", file[0], "c7"],
+    ])("takes %s", (_, template, engine) => {
+        expect(templateEngineOf(template, file)).toBe(engine);
+    });
+
+    it("names none when neither the template nor its file does", () => {
+        expect(templateEngineOf({ name: "plain" }, [{ name: "plain" }])).toBeUndefined();
     });
 });
 

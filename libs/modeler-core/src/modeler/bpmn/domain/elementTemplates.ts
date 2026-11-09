@@ -1,8 +1,8 @@
 import {
-    detectTemplateEngine,
     ELEMENT_TEMPLATE_FOLDER_NAME,
     type ElementTemplate,
     type Engine,
+    templateEngineOf,
     templatesOfFile,
 } from "@miragon/bpmn-modeler-types";
 
@@ -35,14 +35,11 @@ interface ListedTemplate {
     readonly id?: string;
     readonly name?: string;
     readonly version?: number;
+    readonly engine?: Engine;
 }
 
 export type TemplateFileReading =
-    | {
-          readonly kind: "read";
-          readonly templates: readonly ListedTemplate[];
-          readonly engine?: Engine;
-      }
+    | { readonly kind: "read"; readonly templates: readonly ListedTemplate[] }
     | { readonly kind: "unreadable"; readonly reason: string };
 
 /** What the add-on catalog lists of one template file, read by the loader's rule. */
@@ -53,11 +50,9 @@ export function templateFileReadingOf(text: string): TemplateFileReading {
     } catch (error) {
         return { kind: "unreadable", reason: (error as Error).message };
     }
-    const engine = detectTemplateEngine(templates);
     return {
         kind: "read",
-        templates: templates.map(listedTemplateOf),
-        ...(engine && { engine }),
+        templates: templates.map((template) => listedTemplateOf(template, templates)),
     };
 }
 
@@ -69,13 +64,15 @@ export function configFolderOfTemplatesDir(templatesDir: string): string {
     return parentWorkspacePath(templatesDir) ?? templatesDir;
 }
 
-function listedTemplateOf(template: unknown): ListedTemplate {
+function listedTemplateOf(template: unknown, templates: readonly unknown[]): ListedTemplate {
     const { id, name, version } = (
         typeof template === "object" && template !== null ? template : {}
     ) as Record<string, unknown>;
+    const engine = templateEngineOf(template, templates);
     return {
         ...(typeof id === "string" && { id }),
         ...(typeof name === "string" && { name }),
         ...(typeof version === "number" && { version }),
+        ...(engine && { engine }),
     };
 }

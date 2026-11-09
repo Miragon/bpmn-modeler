@@ -78,17 +78,14 @@ interface ListedTemplate {
     readonly id?: string;
     readonly name?: string;
     readonly version?: number;
+    readonly engine?: Engine;
 }
 
 /** One template file as the template owner read it. */
 export interface TemplateFileListing {
     readonly path: string;
     readonly reading:
-        | {
-              readonly kind: "read";
-              readonly templates: readonly ListedTemplate[];
-              readonly engine?: Engine;
-          }
+        | { readonly kind: "read"; readonly templates: readonly ListedTemplate[] }
         | { readonly kind: "unreadable"; readonly reason: string };
 }
 
@@ -329,7 +326,6 @@ function templateViewsOf(
             },
         ];
     }
-    const engineText = reading.engine === undefined ? undefined : ENGINE_LABEL[reading.engine];
     return reading.templates.map((template, index) => ({
         ...templateViewBase(
             templateAddOnIdOf(sourceId, path, template, index),
@@ -339,7 +335,10 @@ function templateViewsOf(
             "detail",
             template.version === undefined ? undefined : templateVersionText(template.version),
         ),
-        ...optional("engineText", engineText),
+        ...optional(
+            "engineText",
+            template.engine === undefined ? undefined : ENGINE_LABEL[template.engine],
+        ),
     }));
 }
 

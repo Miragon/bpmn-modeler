@@ -772,7 +772,7 @@ as their notices do, says what it can do once allowed, what follows an
 allow or a revoke and which revoked code stays loaded, and runs what
 follows a revoke. The element templates meet one with `TemplateInventory`,
 which reads each template file by the loader's rule (`templatesOfFileText`,
-`detectTemplateEngine`), and the marketplaces with `MarketplaceInventory`
+`templateEngineOf`), and the marketplaces with `MarketplaceInventory`
 over the host's `MarketplaceCommands`. The host compositions wire one into
 the other ([package boundaries](architecture-and-hosts.md#package-boundaries)).
 Both hosts build an `AddOnsFeature`; no view attaches to it yet.
@@ -793,7 +793,8 @@ Both hosts build an `AddOnsFeature`; no view attaches to it yet.
   source says so; a config folder's plugins and templates share its source,
   plugins first. The bridge lists the folders the host registered.
 - *Templates.* One row per template, `template:<source>|<file>#<index>:<id>@<version>`, with
-  its version and its file's engine; a file that cannot be read is one row,
+  its version and engine (`templateEngineOf`: its own, else its file's, as
+  the builder reads it); a file that cannot be read is one row,
   by its file name, that says why. A template is always "Enabled" and offers
   no action yet, so the core records no template as shown; turning one off
   is [#2264](https://github.com/Miragon/bpmn-modeler/issues/2264).
