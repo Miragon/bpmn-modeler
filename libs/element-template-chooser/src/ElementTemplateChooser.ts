@@ -30,7 +30,7 @@ interface InjectorLike {
 }
 
 /** The modeler's `elementTemplateOffer` service, when one is registered. */
-interface TemplateOffer {
+export interface TemplateOffer {
     isOffered(template: ElementTemplate): boolean;
 }
 

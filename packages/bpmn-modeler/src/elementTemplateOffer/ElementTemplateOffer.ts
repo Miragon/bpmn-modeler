@@ -1,3 +1,4 @@
+import type { TemplateOffer } from "@miragon/bpmn-modeler-element-template-chooser";
 import {
     elementTemplateRefKey,
     elementTemplateRefOf,
@@ -20,7 +21,7 @@ export interface OfferedElementTemplates {
  * through them. `getDefault` is narrowed on the instance, because upstream
  * applies its pick to every new shape and connection.
  */
-export class ElementTemplateOffer {
+export class ElementTemplateOffer implements TemplateOffer {
     static $inject = ["elementTemplates"];
 
     private hidden = HiddenTemplates.NONE;

@@ -75,7 +75,7 @@ import {
     type ModelerMode,
 } from "./mode/mode";
 import { ModeUiModule } from "./mode/modeModules";
-import { ElementTemplateOfferModule } from "./elementTemplateOffer";
+import { ElementTemplateOfferModule, type ElementTemplateOffer } from "./elementTemplateOffer";
 import { DrilldownFitModule } from "./viewState";
 import type { CoreModelerServices, CreateModelerOptions, ThemeMode } from "./publicApi";
 import type { LintConfigService } from "./bpmnlint/LintConfigService";
@@ -93,9 +93,6 @@ interface ElementTemplatesLoaderService {
 }
 interface AlignToOriginService {
     align(): void;
-}
-interface ElementTemplateOfferService {
-    setHidden(refs: readonly ElementTemplateRef[]): void;
 }
 interface ElementTemplatesEngineService {
     setEngines(engines: ReturnType<typeof deriveEngines>): void;
@@ -481,7 +478,7 @@ export class BpmnModeler {
 
     private applyHiddenElementTemplates(): void {
         this.getModeler()
-            .get<ElementTemplateOfferService>("elementTemplateOffer")
+            .get<ElementTemplateOffer>("elementTemplateOffer")
             .setHidden(this.hiddenElementTemplates);
     }
 
