@@ -10,6 +10,7 @@ import {
     _electron as electron,
     type ElectronApplication,
     type FrameLocator,
+    type Locator,
     type Page,
 } from "playwright-core";
 
@@ -23,6 +24,7 @@ const PALETTE_ATTEMPTS = 6;
 const WINDOW_SIZE = { width: 1280, height: 800 };
 const REOPEN_INTERVAL_MS = 2_000;
 const CLOSE_TIMEOUT_MS = 10_000;
+const EXPLORER_SCROLLS = 20;
 
 /** Bypass Codium's Node CLI shim so Playwright attaches to the actual Electron process. */
 export async function flatpakVSCodium(rootDirectory: string): Promise<string> {
@@ -171,17 +173,45 @@ export class VsCodeSession {
     }
 
     /**
-     * The extension's visible webview document, inside VS Code's two webview
-     * frames. Hidden editors keep their frames, so only the visible one counts.
+     * The extension's visible editor webview document, inside VS Code's two
+     * webview frames. Hidden editors keep their frames, so only the visible one
+     * counts; a side bar view beside it is not an editor.
      */
     webview(): FrameLocator {
-        return this.page
-            .locator(`iframe.webview[src*="extensionId=${this.options.extensionId}" i]`)
-            .filter({ visible: true })
-            .first()
-            .contentFrame()
-            .locator("iframe#active-frame")
-            .contentFrame();
+        return pageOf(this.editorFrames().filter({ visible: true }).first());
+    }
+
+    /** The outer frames of every editor webview, visible or not. */
+    editorFrames(): Locator {
+        return this.page.locator(
+            `iframe.webview[src*="extensionId=${this.options.extensionId}" i]:not([src*="purpose=webviewView"])`,
+        );
+    }
+
+    /**
+     * The extension's visible side bar view whose page holds `shows`. The
+     * frames carry no view id, and the Deploy view can show beside Artifacts.
+     */
+    async viewWebview(shows: string): Promise<FrameLocator> {
+        const frames = this.page
+            .locator(
+                `iframe.webview[src*="extensionId=${this.options.extensionId}" i][src*="purpose=webviewView"]`,
+            )
+            .filter({ visible: true });
+        const deadline = Date.now() + this.options.timeoutMs;
+        while (Date.now() < deadline) {
+            const count = await frames.count();
+            for (let index = 0; index < count; index++) {
+                const view = pageOf(frames.nth(index));
+                const matches = await view
+                    .locator(shows)
+                    .count()
+                    .catch(() => 0);
+                if (matches > 0) return view;
+            }
+            await delay(200);
+        }
+        throw new Error(`no visible view of the extension shows ${shows}`);
     }
 
     /**
@@ -223,22 +253,37 @@ export class VsCodeSession {
         // Leave any hovered label before dismissing transient workbench UI.
         await this.page.mouse.move(0, 0);
         await this.page.keyboard.press("Escape");
-        await this.page
-            .locator(".explorer-folders-view")
-            .getByText(fileName, { exact: true })
-            .first()
-            .click();
+        await (await this.explorerRow(fileName)).click();
         await this.movePointerAway();
     }
 
     /** A double click keeps the tab, where a single click opens one the next file replaces. */
     async keepOpenFromExplorer(fileName: string): Promise<void> {
-        await this.page
-            .locator(".explorer-folders-view")
-            .getByText(fileName, { exact: true })
-            .first()
-            .dblclick();
+        await (await this.explorerRow(fileName)).dblclick();
         await this.movePointerAway();
+    }
+
+    /**
+     * The Explorer renders only the rows in sight, and after the Artifacts view
+     * was shown in its place it shows the tree from the top, so a row further
+     * down is scrolled to first.
+     */
+    private async explorerRow(fileName: string): Promise<Locator> {
+        const tree = this.page.locator(".explorer-folders-view");
+        const row = tree.getByText(fileName, { exact: true }).first();
+        if ((await tree.isVisible()) && !(await row.isVisible())) {
+            await tree.hover();
+            await this.page.mouse.wheel(0, -100_000);
+            for (
+                let scrolls = 0;
+                scrolls < EXPLORER_SCROLLS && !(await row.isVisible());
+                scrolls++
+            ) {
+                await this.page.mouse.wheel(0, 200);
+                await delay(100);
+            }
+        }
+        return row;
     }
 
     /** A pointer left on a row shows its hover, which can cover what a later step clicks. */
@@ -340,6 +385,11 @@ export class VsCodeSession {
     close(): Promise<void> {
         return closeApplication(this.app);
     }
+}
+
+/** The extension's own document inside one of VS Code's outer webview frames. */
+function pageOf(outerFrame: Locator): FrameLocator {
+    return outerFrame.contentFrame().locator("iframe#active-frame").contentFrame();
 }
 
 async function writeUserSettings(options: VsCodeLaunchOptions, colorTheme: string): Promise<void> {
