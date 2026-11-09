@@ -55,6 +55,16 @@ describe("webviewContentSecurityPolicy", () => {
                 "form-action 'none'",
             ],
         },
+        {
+            shell: "addOns",
+            directives: [
+                "default-src 'none'",
+                "script-src 'nonce-n0nce'",
+                "style-src webview-csp: 'unsafe-inline'",
+                "base-uri 'none'",
+                "form-action 'none'",
+            ],
+        },
     ])("allows the $shell bundle only what it loads", ({ shell, directives }) => {
         expect(webviewContentSecurityPolicy(shell, sources).split("; ")).toEqual(directives);
     });

@@ -1,4 +1,4 @@
-export type WebviewShell = "bpmn" | "dmn" | "form" | "deployment";
+export type WebviewShell = "bpmn" | "dmn" | "form" | "deployment" | "addOns";
 
 /** What a bundle may load beyond its entry script, in the order the policy lists them. */
 const BUNDLE_LOAD_DIRECTIVES = [
@@ -39,6 +39,8 @@ const BUNDLE_SOURCES: Record<WebviewShell, (cspSource: string) => BundleSources>
         "object-src": ["blob:"],
     }),
     deployment: (): BundleSources => ({}),
+    // No codicons and no images, so neither font-src nor img-src.
+    addOns: (): BundleSources => ({}),
 };
 
 /**
