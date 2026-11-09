@@ -15,6 +15,7 @@ import {
     installedPackagesDirOf,
     isRulePackageApproval,
     nodeModulesDirOf,
+    RULE_PACKAGE_CODE_TEXTS,
     rootKindOf,
 } from "../domain/rulePackageApproval";
 import { closureRefusalText, ROOT_KIND_UNKNOWN_TEXT } from "../domain/rulePackageLog";
@@ -28,6 +29,8 @@ import { RulePackageCatalog } from "./RulePackageCatalog";
  * catalog the lint questions use.
  */
 export class RulePackageInventory {
+    readonly texts = RULE_PACKAGE_CODE_TEXTS;
+
     /** Real folders a `node_modules` entry linked to, so a linked folder hashes as a package. */
     private readonly linkedFolders = new Set<string>();
 

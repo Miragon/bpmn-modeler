@@ -46,11 +46,6 @@ const NOT_OFFERED = refused(
 );
 export const CLOSED_VIEW = refused("closedView", "This view is closed.");
 
-const ALLOWED_FOLLOW_UP: Record<AddOnKind, string> = {
-    plugin: "Open editors reload with it.",
-    rulePackage: "Open editors lint again with it.",
-};
-
 const REVOKED_FOLLOW_UP: Record<AddOnKind, (restart: ProcessRestart) => string> = {
     plugin: () => "Open editors reload without it.",
     rulePackage: stillLoadedText,
@@ -113,7 +108,7 @@ export function allowResultOf(code: ShownCode, decision: ReviewedAllow): AddOnAc
     if (decision.kind === "refused") {
         return refused(decision.reason, REFUSED_ALLOW_TEXT[decision.reason](code.name));
     }
-    return { kind: "done", message: `Allowed ${code.name}. ${ALLOWED_FOLLOW_UP[code.kind]}` };
+    return { kind: "done", message: `Allowed ${code.name}. ${code.allowedFollowUp}` };
 }
 
 export function revokeResultOf(code: ShownCode, restart: ProcessRestart): AddOnActionResult {

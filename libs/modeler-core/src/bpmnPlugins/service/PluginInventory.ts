@@ -6,7 +6,7 @@ import {
     SessionAnswer,
 } from "../../kernel/domain/codeApproval";
 import { lastWorkspacePathSegment } from "../../kernel/domain/workspacePath";
-import { isPluginApproval, WorkspacePlugin } from "../domain/pluginApproval";
+import { isPluginApproval, PLUGIN_CODE_TEXTS, WorkspacePlugin } from "../domain/pluginApproval";
 import { configFolderOfPlugin, pluginsDirOf } from "../domain/pluginFolders";
 import { BpmnPluginService } from "./BpmnPluginService";
 import { PluginCatalog } from "./PluginCatalog";
@@ -17,6 +17,8 @@ import { PluginReading, WorkspacePluginLocator } from "./WorkspacePluginLocator"
  * for by the plugin feature's own locator and catalog, which keep the rules.
  */
 export class PluginInventory {
+    readonly texts = PLUGIN_CODE_TEXTS;
+
     constructor(
         private readonly locator: WorkspacePluginLocator,
         private readonly catalog: PluginCatalog,

@@ -3,6 +3,7 @@ import { posix } from "path";
 import { ActionNotice } from "../../../kernel/domain/actionNotice";
 import {
     ApprovableArtifact,
+    ApprovableCodeTexts,
     ApprovalNoticeAction,
     approvalsKey,
     CodeApproval,
@@ -265,6 +266,11 @@ export function rulePackageApprovalNotice(
     };
 }
 
+export const RULE_PACKAGE_CODE_TEXTS: ApprovableCodeTexts = {
+    risk: "A rule package runs as a program with your user's rights, not only inside the editor.",
+    allowedFollowUp: "Open editors lint again with it.",
+};
+
 export function rulePackageApprovalPrompt(
     pending: readonly PendingRulePackage[],
     workspaceFolders: readonly string[],
@@ -276,7 +282,7 @@ export function rulePackageApprovalPrompt(
             ? "Allow a bpmnlint rule package from this workspace?"
             : "Allow bpmnlint rule packages from this workspace?",
         placeholder: single
-            ? "A rule package runs as a program with your user's rights, not only inside the editor. Check it only if you trust it; open editors lint again with it."
+            ? `${RULE_PACKAGE_CODE_TEXTS.risk} Check it only if you trust it; open editors lint again with it.`
             : "Rule packages run as programs with your user's rights, not only inside the editor. Check only the ones you trust; open editors lint again with them.",
         items: pending.map((each) => ({
             label: `${each.artifact.name} ${each.artifact.version}`,

@@ -1,5 +1,6 @@
 import {
     ApprovableArtifact,
+    ApprovableCodeTexts,
     CodeApproval,
     CodeState,
     codeStateOf,
@@ -18,7 +19,7 @@ import { innermostFolderOf } from "./addOnPaths";
 import {
     ACTION_LABEL,
     ADD_ON_KIND_TEXT,
-    ADD_ON_WARNING_TEXT,
+    allowWarningText,
     cannotBeAllowedText,
     codeStateLabel,
     INSTALLED_PACKAGES_TEXT,
@@ -90,11 +91,12 @@ export interface AddOnView {
     readonly actions: readonly ActionView<AddOnActionKind>[];
 }
 
-/** One add-on as its owner read it, with the folder its owner lists it under. */
-export interface SourcedPresence {
+/** One add-on as its owner read it, placed and spoke of it. */
+export interface OwnedPresence {
     readonly presence: ListedPresence;
     /** A plugin's config folder, or the `node_modules` a rule package is installed in. */
     readonly sourceDir: string;
+    readonly texts: ApprovableCodeTexts;
 }
 
 /** What one listing found: every add-on its owner read, by kind. */
@@ -102,8 +104,8 @@ export interface AddOnFacts {
     readonly folders: readonly string[];
     readonly configFolder: string;
     readonly approvals: readonly CodeApproval[];
-    readonly plugins: readonly SourcedPresence[];
-    readonly rulePackages: readonly SourcedPresence[];
+    readonly plugins: readonly OwnedPresence[];
+    readonly rulePackages: readonly OwnedPresence[];
 }
 
 /** What this process remembers beyond the stored approvals. */
@@ -123,6 +125,7 @@ export interface ShownCode {
     readonly content?: ApprovableArtifact;
     /** A request is checked against these, so no view acts on a row as it was not shown. */
     readonly actions: readonly AddOnActionKind[];
+    readonly allowedFollowUp: string;
 }
 
 export interface CatalogBuild {
@@ -131,7 +134,7 @@ export interface CatalogBuild {
     readonly shown: ReadonlyMap<string, ShownCode>;
 }
 
-interface ListedAddOn extends SourcedPresence {
+interface ListedAddOn extends OwnedPresence {
     readonly kind: AddOnKind;
 }
 
@@ -213,7 +216,7 @@ export function catalogModelOf(
 }
 
 function placedAddOn(
-    { kind, presence, sourceDir }: ListedAddOn,
+    { kind, presence, sourceDir, texts }: ListedAddOn,
     facts: AddOnFacts,
     session: AddOnSession,
     restart: ProcessRestart,
@@ -249,7 +252,7 @@ function placedAddOn(
         ...optional(
             "review",
             content !== undefined && actions.some((action) => action.kind === "allow")
-                ? reviewOf(kind, content, facts.folders)
+                ? reviewOf(texts, content, facts.folders)
                 : undefined,
         ),
         actions,
@@ -265,6 +268,7 @@ function placedAddOn(
                 : { id: content.id, name: content.name, contentHash: content.contentHash },
         ),
         actions: actions.map((action) => action.kind),
+        allowedFollowUp: texts.allowedFollowUp,
     };
     return [{ root, source, view, shown }];
 }
@@ -321,11 +325,15 @@ function detailOf(
     return relativeToRoot(presenceIdOf(presence), sourceDir);
 }
 
-function reviewOf(kind: AddOnKind, content: ListedCode, folders: readonly string[]): AddOnReview {
+function reviewOf(
+    texts: ApprovableCodeTexts,
+    content: ListedCode,
+    folders: readonly string[],
+): AddOnReview {
     const where = (path: string) => relativeToWorkspace(path, folders);
     return {
         heading: reviewHeading(content.name),
-        warning: ADD_ON_WARNING_TEXT[kind],
+        warning: allowWarningText(texts.risk),
         facts: [
             { label: REVIEW_FACT_LABEL.folder, value: where(content.id) },
             ...(content.version === undefined

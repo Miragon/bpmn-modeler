@@ -11,12 +11,10 @@ export const ADD_ON_KIND_TEXT: Record<AddOnKind, string> = {
     rulePackage: "bpmnlint rule package",
 };
 
-/** What the code can do once allowed, shown before the user allows it. */
-export const ADD_ON_WARNING_TEXT: Record<AddOnKind, string> = {
-    plugin: "A plugin runs its own code in the BPMN editor. Allow it only if you trust it.",
-    rulePackage:
-        "A rule package runs as a program with your user's rights, not only inside the editor. Allow it only if you trust it.",
-};
+/** What the owner says its code can do once allowed, shown before the user allows it. */
+export function allowWarningText(risk: string): string {
+    return `${risk} Allow it only if you trust it.`;
+}
 
 export const ACTION_LABEL = {
     inspect: "Review…",

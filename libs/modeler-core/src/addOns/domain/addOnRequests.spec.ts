@@ -21,6 +21,7 @@ const plugin: ShownCode = {
     name: "Resize",
     content,
     actions: ["allow"],
+    allowedFollowUp: "Open editors reload with it.",
 };
 const approvedPlugin: ShownCode = { ...plugin, actions: ["revoke"] };
 const unhashed: ShownCode = {
@@ -28,6 +29,7 @@ const unhashed: ShownCode = {
     id: ACME,
     name: "bpmnlint-plugin-acme",
     actions: ["inspect"],
+    allowedFollowUp: "Open editors lint again with it.",
 };
 const rulePackage: ShownCode = {
     ...unhashed,

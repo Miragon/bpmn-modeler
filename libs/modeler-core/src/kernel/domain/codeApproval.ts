@@ -62,6 +62,12 @@ export interface ListedCode extends ApprovableArtifact {
     readonly files: readonly string[];
 }
 
+/** What an owner says of its code: what it can do once allowed, and what follows an allow. */
+export interface ApprovableCodeTexts {
+    readonly risk: string;
+    readonly allowedFollowUp: string;
+}
+
 /** Code as its owner lists it, named even when it could not be read. */
 export type ListedPresence = CodePresence<ListedCode> & { readonly name: string };
 

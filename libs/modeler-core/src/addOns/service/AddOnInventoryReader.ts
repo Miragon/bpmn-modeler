@@ -6,7 +6,7 @@ import {
 } from "../../kernel/domain/codeApproval";
 import { PluginApprovalStorePort } from "../../kernel/port/approvalPorts";
 import { SettingsPort, WorkspacePort } from "../../kernel/port/hostPorts";
-import { AddOnFacts, SourcedPresence } from "../domain/addOnCatalog";
+import { AddOnFacts, OwnedPresence } from "../domain/addOnCatalog";
 import { innermostFolderOf } from "../domain/addOnPaths";
 import { PluginAddOnSource, RulePackageAddOnSource } from "../port/addOnSourcePorts";
 
@@ -40,7 +40,7 @@ export class AddOnInventoryReader {
         folders,
         configFolder,
         approvals,
-    }: Omit<AddOnFacts, "plugins" | "rulePackages">): Promise<SourcedPresence[]> {
+    }: Omit<AddOnFacts, "plugins" | "rulePackages">): Promise<OwnedPresence[]> {
         const { plugins } = this.ports;
         const inFolder = (path: string) => innermostFolderOf(path, folders) !== undefined;
         const listed = [
@@ -59,13 +59,14 @@ export class AddOnInventoryReader {
         return listed.map((presence) => ({
             presence,
             sourceDir: plugins.configFolderOf(presenceIdOf(presence)),
+            texts: plugins.texts,
         }));
     }
 
     private rulePackages(
         { folders, approvals }: Omit<AddOnFacts, "plugins" | "rulePackages">,
         inspected: ReadonlySet<string>,
-    ): SourcedPresence[] {
+    ): OwnedPresence[] {
         const { rulePackages } = this.ports;
         if (rulePackages === undefined) {
             return [];
@@ -89,6 +90,7 @@ export class AddOnInventoryReader {
                 hash: inspected.has(id) || needsContentHash(id, approvals, declined),
             }),
             sourceDir: rulePackages.sourceDirOf(id),
+            texts: rulePackages.texts,
         }));
     }
 }

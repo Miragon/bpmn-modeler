@@ -1,6 +1,7 @@
 import { ActionNotice } from "../../kernel/domain/actionNotice";
 import {
     ApprovableArtifact,
+    ApprovableCodeTexts,
     ApprovalNoticeAction,
     ApprovalState,
     approvalStateOf,
@@ -50,6 +51,12 @@ export function approvedContent(script: string, style: string | undefined): stri
     const lengthPrefixed = (text: string) => `${text.length}:${text}`;
     return lengthPrefixed(script) + (style === undefined ? NO_STYLE : lengthPrefixed(style));
 }
+
+/** The prompt below says the same of several plugins. */
+export const PLUGIN_CODE_TEXTS: ApprovableCodeTexts = {
+    risk: "A plugin runs its own code in the BPMN editor.",
+    allowedFollowUp: "Open editors reload with it.",
+};
 
 export function pluginApprovalPrompt(
     pending: readonly PendingApproval[],

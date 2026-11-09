@@ -34,6 +34,12 @@ const found = (
     },
 });
 
+const PLUGIN_TEXTS = { risk: "Plugin risk.", allowedFollowUp: "Plugin follow-up." };
+const RULE_PACKAGE_TEXTS = {
+    risk: "A rule package runs as a program with your user's rights, not only inside the editor.",
+    allowedFollowUp: "Rule package follow-up.",
+};
+
 /** Placed as the owners place them: a plugin in its config folder, a rule package in its `node_modules`. */
 const pluginSourceDirOf = (id: string) => id.slice(0, id.lastIndexOf("/plugins/")) || "/";
 const rulePackageSourceDirOf = (id: string) =>
@@ -48,17 +54,20 @@ function factsOf(
     } = {},
 ): AddOnFacts {
     const { plugins = [], rulePackages = [], ...rest } = overrides;
-    const placedBy = (sourceDirOf: (id: string) => string) => (presence: ListedPresence) => ({
-        presence,
-        sourceDir: sourceDirOf(presenceIdOf(presence)),
-    });
+    const placedBy =
+        (sourceDirOf: (id: string) => string, texts: { risk: string; allowedFollowUp: string }) =>
+        (presence: ListedPresence) => ({
+            presence,
+            sourceDir: sourceDirOf(presenceIdOf(presence)),
+            texts,
+        });
     return {
         folders: ["/work"],
         configFolder: ".camunda",
         approvals: [],
         ...rest,
-        plugins: plugins.map(placedBy(pluginSourceDirOf)),
-        rulePackages: rulePackages.map(placedBy(rulePackageSourceDirOf)),
+        plugins: plugins.map(placedBy(pluginSourceDirOf, PLUGIN_TEXTS)),
+        rulePackages: rulePackages.map(placedBy(rulePackageSourceDirOf, RULE_PACKAGE_TEXTS)),
     };
 }
 
@@ -503,6 +512,7 @@ describe("catalogModelOf", () => {
                     name: "Resize",
                     content: { id: RESIZE, name: "Resize", contentHash: "h1" },
                     actions: ["allow"],
+                    allowedFollowUp: PLUGIN_TEXTS.allowedFollowUp,
                 },
             ],
             [
@@ -512,6 +522,7 @@ describe("catalogModelOf", () => {
                     id: ACME,
                     name: "bpmnlint-plugin-acme",
                     actions: ["inspect"],
+                    allowedFollowUp: RULE_PACKAGE_TEXTS.allowedFollowUp,
                 },
             ],
         ]);

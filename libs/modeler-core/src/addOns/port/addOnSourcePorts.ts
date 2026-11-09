@@ -1,5 +1,6 @@
 import {
     ApprovableArtifact,
+    ApprovableCodeTexts,
     CodeApproval,
     ListedPresence,
     SessionAnswer,
@@ -12,6 +13,7 @@ import { SettingChange } from "../../editorSession/domain/EditorSession";
  * lists what they read.
  */
 export interface CodeAddOnSource {
+    readonly texts: ApprovableCodeTexts;
     /** Its rows in the one approval list every kind shares. */
     ownsApproval(approval: CodeApproval): boolean;
     /** By `declineKeyOf`. */
