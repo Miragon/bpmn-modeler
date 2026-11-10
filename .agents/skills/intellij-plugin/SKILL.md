@@ -124,8 +124,8 @@ cache".)
 
 Single NDJSON JSON-RPC duplex. The host (Kotlin) implements the core's host
 ports (`kernel/port/hostPorts.ts` and the feature `port/` folders) as RPC handlers;
-the core never knows it isn't talking to VS Code. Selected methods (full table
-in the bridge README):
+the core never knows it isn't talking to VS Code. Selected methods (every one
+in `apps/modeler-bridge/src/protocol/domain/protocol.json`):
 
 | Direction   | Method(s)                                      | Port / handle                                                                                                                    |
 | ----------- | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
