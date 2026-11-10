@@ -16,11 +16,9 @@ class RefreshArtifactsAction : DumbAwareAction() {
         event.project?.getServiceIfCreated(CoreProcess::class.java)?.refreshAddOns()
     }
 
-    /** The tool window shows its title actions on both tabs, so the button hides on Deploy. */
     override fun update(event: AnActionEvent) {
         val project = event.project
-        event.presentation.isEnabledAndVisible =
-            project != null && (event.place != ActionPlaces.TOOLWINDOW_TITLE || isArtifactsTabShown(project))
+        event.presentation.isEnabledAndVisible = project != null && showsRefreshArtifacts(event.place) { isArtifactsTabShown(project) }
     }
 
     override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.EDT
@@ -29,3 +27,7 @@ class RefreshArtifactsAction : DumbAwareAction() {
         const val ID = "io.miragon.bpmn-modeler.refreshArtifacts"
     }
 }
+
+/** The tool window shows its title actions on both tabs, so the button hides on Deploy; Find Action always offers it. */
+internal fun showsRefreshArtifacts(place: String, artifactsTabShown: () -> Boolean): Boolean =
+    place != ActionPlaces.TOOLWINDOW_TITLE || artifactsTabShown()
