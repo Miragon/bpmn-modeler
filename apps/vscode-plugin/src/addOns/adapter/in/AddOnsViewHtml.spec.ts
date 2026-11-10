@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("vscode", () => import("../../../__fixtures__/vscodeFileSystemFake"));
 
+import type { BrandMode } from "@miragon/bpmn-modeler-shared";
+
 import {
     describeShellPolicy,
     scriptNonceOf,
@@ -13,7 +15,8 @@ import {
 import { createWebviewNonce } from "../../../shared/adapter/out/webviewNonce";
 import { addOnsViewHtml } from "./AddOnsViewHtml";
 
-const renderAddOns = () => addOnsViewHtml(shellWebview, shellExtensionUri, createWebviewNonce());
+const renderAddOns = (mode: BrandMode = { theme: "light" }) =>
+    addOnsViewHtml(shellWebview, shellExtensionUri, createWebviewNonce(), mode);
 
 describe("addOnsViewHtml", () => {
     describeShellPolicy("addOns", renderAddOns);
@@ -38,5 +41,17 @@ describe("addOnsViewHtml", () => {
 
         expect(tagsOf(html, "div")).toEqual([{ id: "app" }]);
         expect(html).toContain('<div id="app"></div>');
+    });
+
+    // Written here, so the first frame paints in the mode; the page only follows changes.
+    it.each([
+        { mode: { theme: "light" }, html: { "lang": "en", "data-cd-theme": "light" } },
+        { mode: { theme: "dark" }, html: { "lang": "en", "data-cd-theme": "dark" } },
+        {
+            mode: { theme: "dark", contrast: "hoch" },
+            html: { "lang": "en", "data-cd-theme": "dark", "data-cd-kontrast": "hoch" },
+        },
+    ] as const)("marks the page with the $mode.theme brand mode", ({ mode, html }) => {
+        expect(tagsOf(renderAddOns(mode), "html")).toEqual([html]);
     });
 });

@@ -7,6 +7,8 @@ export default defineConfig({
     root: __dirname,
     cacheDir: "../../node_modules/.vite/modeler-plugin-add-ons-webview",
     plugins: [tsconfigPaths()],
+    // "/" makes CSS url()s root-absolute, which 404 under the webview resource origin.
+    base: "./",
     build: {
         target: "es2021",
         chunkSizeWarningLimit: 1200,

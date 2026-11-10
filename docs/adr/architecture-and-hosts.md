@@ -236,8 +236,21 @@ fields it names. The model holds workspace text (file, template and folder
 names), so the page builds its DOM with the DOM API from the model and never
 with `innerHTML`, and every `--vscode-*` variable its stylesheet reads is
 listed in `src/adapter/in/styles/hostThemeVariables.json`, the set IntelliJ
-maps for it. VS Code serves the surface; the bridge declares it `absent`
-until IntelliJ does.
+maps for it. VS Code serves the surface, and IntelliJ through the bridge.
+
+The add-ons view moves to the Miragon brand look, whose tokens switch on
+`<html data-cd-theme="light|dark">` and `data-cd-kontrast="hoch"`, never on
+IDE colours. The host decides the mode and is its only writer. One rule,
+`brandModeOf` in `libs/shared/src/lib/brandMode.ts`, maps the IDE theme
+(light, dark, high contrast, high contrast light) and the `colorTheme` setting
+to it: `automatic` follows the IDE, `light` forces light, and high contrast
+always passes through. `brandModeAttributes` names the attributes. Each host
+writes them into the shell it serves, `data-cd-theme` always, so the first
+frame paints in the mode. On a change VS Code posts a `BrandModeQuery`, which
+the page's router hands to `applyBrandMode` outside the view state, and
+IntelliJ sets both attributes through `executeJavaScript`. IntelliJ's copy,
+`BrandMode.kt`, runs `brandMode.cases.json` in `BrandModeTest`. The outline's
+stylesheet ignores the attributes until the redesign lands.
 
 IntelliJ shows the add-ons view as the **Add-ons** tab of its BPMN Modeler
 tool window, next to the **Deploy** tab, as VS Code holds Deploy and Add-ons
@@ -250,8 +263,10 @@ its form defaults only while its tab shows. The Add-ons browser is built the
 first time its tab shows, since each browser costs a renderer. Its shell
 (`/addOns.html`, bundle under `/webview-add-ons/`) maps the deployment palette
 plus the extras in `hostThemeVariables.json` (`IdeThemeSignal.addOnsThemeVarsCss`,
-held to that file by `IdeThemeSignalTest`); High Contrast is the bundled
-theme's id, as 2024.2 has no API for it. The bridge attaches one panel, hidden,
+held to that file by `IdeThemeSignalTest`) and carries the brand mode on
+`<html>`; the tab's theme script (`addOnsApplyJs`) sets it again on a LaF or
+modeler settings change, and the Deploy shell stays without it. High Contrast
+is the bundled theme's id, as 2024.2 has no API for it. The bridge attaches one panel, hidden,
 at start. **Review…** reaches it through `RpcAddOnViewReveal`, the second
 adapter of `AddOnViewRevealPort`: `addOns/reveal` asks Kotlin to select the tab
 and activate the tool window, and the core then delivers the rows through the
@@ -514,9 +529,13 @@ folder is open, so the container now shows whenever a folder is open. Both
 set `retainContextWhenHidden`: the core posts nothing to a hidden view, so
 keeping its page costs memory only, and a page shown again keeps its banners
 and the results of requests in flight. The Add-ons view's shell
-(`AddOnsViewHtml`, CSP shell `addOns`) allows its nonced script and its linked
-stylesheet and nothing else, no inline styles either, as the page uses no
-codicons, no images and no style attributes.
+(`AddOnsViewHtml`, CSP shell `addOns`) allows its nonced script, its linked
+stylesheet and the fonts its bundle ships, and no inline styles, as the page
+uses no codicons, no images and no style attributes. The shell carries the
+brand mode of `window.activeColorTheme` and the `colorTheme` setting
+(`VsCodeBrandModeSignal`), and the provider posts a `BrandModeQuery` on each
+change of either until the view is disposed, and again when the page asks for
+its catalog, as a change posted while the page loads can be lost.
 `AddOnsViewProvider` attaches one core panel per resolved view and hands it
 the page's commands, its visibility and its disposal; the core refreshes on
 show. The view's title bar **Refresh Add-ons** (`bpmn-modeler.refreshAddOns`)
@@ -1056,8 +1075,10 @@ bundle needs:
 - VS Code's deployment shell allows only its script and its styles, because the
   deployment form loads no images or fonts. IntelliJ builds its deployment
   policy from the BPMN one without `https:` images.
-- IntelliJ's add-ons shell allows only its script and its styles, as the add-ons
-  page loads no images or fonts.
+- Both add-ons shells allow fonts from the bundle alone (`font-src` is
+  `webview.cspSource` in VS Code, `'self'` in IntelliJ) and no images. The
+  bundle builds with Vite `base: "./"`, so its stylesheet's `url()`s resolve
+  next to `index.css` in both hosts.
 - `base-uri` and `form-action` are `'none'` in every shell: `default-src` does
   not cover them, and no bundle needs a `<base>` or a native form submission.
 

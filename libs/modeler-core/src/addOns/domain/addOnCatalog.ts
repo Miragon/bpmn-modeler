@@ -99,6 +99,7 @@ function groupOf(
     return [
         {
             id: folderGroupIdOf(root),
+            kind: "folder",
             label: lastWorkspacePathSegment(root),
             description: root,
             sources: [...sources]

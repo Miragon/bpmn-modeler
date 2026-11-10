@@ -62,8 +62,8 @@ internal object WebviewContentSecurityPolicy {
 
     val DEPLOYMENT_SHELL = policy(imageSources = "'self' data:", fontSources = "'self' data:")
 
-    // The add-ons page loads no image and no font, so `default-src 'none'` refuses both.
-    val ADD_ONS_SHELL = policy(imageSources = null, fontSources = null)
+    // The add-ons page loads only the fonts its bundle ships and no image, which `default-src 'none'` refuses.
+    val ADD_ONS_SHELL = policy(imageSources = null, fontSources = "'self'")
 
     private fun policy(imageSources: String?, fontSources: String?): String =
         listOfNotNull(

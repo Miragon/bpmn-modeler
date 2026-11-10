@@ -1,9 +1,17 @@
-import { asProtocolMessage } from "@miragon/bpmn-modeler-shared";
+import { asProtocolMessage, type BrandMode } from "@miragon/bpmn-modeler-shared";
 
 import type { ViewEvent } from "../../domain/viewState";
 
-/** The host's queries as view events; another surface's query or a stray message is dropped. */
-export function routeHostMessage(message: unknown, dispatch: (event: ViewEvent) => void): void {
+/**
+ * The host's queries as view events, and its brand mode for the page, which
+ * the view state does not hold; another surface's query or a stray message is
+ * dropped.
+ */
+export function routeHostMessage(
+    message: unknown,
+    dispatch: (event: ViewEvent) => void,
+    showBrandMode: (mode: BrandMode) => void,
+): void {
     if (typeof message !== "object" || message === null || !("type" in message)) return;
     const query = asProtocolMessage(message as { type: string });
     switch (query.type) {
@@ -15,6 +23,9 @@ export function routeHostMessage(message: unknown, dispatch: (event: ViewEvent) 
             break;
         case "RevealAddOnsQuery":
             dispatch({ kind: "revealArrived", reveal: query.reveal });
+            break;
+        case "BrandModeQuery":
+            showBrandMode(query.mode);
             break;
         default:
             break;

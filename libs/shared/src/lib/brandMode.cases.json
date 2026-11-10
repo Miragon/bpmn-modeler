@@ -1,0 +1,52 @@
+{
+    "cases": [
+        {
+            "hostThemeKind": "light",
+            "colorThemeSetting": "automatic",
+            "mode": { "theme": "light" },
+            "attributes": { "data-cd-theme": "light" }
+        },
+        {
+            "hostThemeKind": "dark",
+            "colorThemeSetting": "automatic",
+            "mode": { "theme": "dark" },
+            "attributes": { "data-cd-theme": "dark" }
+        },
+        {
+            "hostThemeKind": "highContrast",
+            "colorThemeSetting": "automatic",
+            "mode": { "theme": "dark", "contrast": "hoch" },
+            "attributes": { "data-cd-theme": "dark", "data-cd-kontrast": "hoch" }
+        },
+        {
+            "hostThemeKind": "highContrastLight",
+            "colorThemeSetting": "automatic",
+            "mode": { "theme": "light", "contrast": "hoch" },
+            "attributes": { "data-cd-theme": "light", "data-cd-kontrast": "hoch" }
+        },
+        {
+            "hostThemeKind": "light",
+            "colorThemeSetting": "light",
+            "mode": { "theme": "light" },
+            "attributes": { "data-cd-theme": "light" }
+        },
+        {
+            "hostThemeKind": "dark",
+            "colorThemeSetting": "light",
+            "mode": { "theme": "light" },
+            "attributes": { "data-cd-theme": "light" }
+        },
+        {
+            "hostThemeKind": "highContrast",
+            "colorThemeSetting": "light",
+            "mode": { "theme": "light", "contrast": "hoch" },
+            "attributes": { "data-cd-theme": "light", "data-cd-kontrast": "hoch" }
+        },
+        {
+            "hostThemeKind": "highContrastLight",
+            "colorThemeSetting": "light",
+            "mode": { "theme": "light", "contrast": "hoch" },
+            "attributes": { "data-cd-theme": "light", "data-cd-kontrast": "hoch" }
+        }
+    ]
+}

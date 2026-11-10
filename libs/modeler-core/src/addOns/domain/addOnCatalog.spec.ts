@@ -138,22 +138,31 @@ describe("catalogModelOf", () => {
         );
 
         expect(
-            model.groups.map(({ id, label, description, sources }) => ({
+            model.groups.map(({ id, kind, label, description, sources }) => ({
                 id,
+                kind,
                 label,
                 description,
                 addOns: sources.flatMap(({ addOns }) => addOns.map(({ name }) => name)),
             })),
         ).toEqual([
-            { id: "folder:/work", label: "work", description: "/work", addOns: ["Resize"] },
+            {
+                id: "folder:/work",
+                kind: "folder",
+                label: "work",
+                description: "/work",
+                addOns: ["Resize"],
+            },
             {
                 id: "folder:/other",
+                kind: "folder",
                 label: "other",
                 description: "/other",
                 addOns: ["bpmnlint-plugin-other"],
             },
             {
                 id: "folder:/work/orders",
+                kind: "folder",
                 label: "orders",
                 description: "/work/orders",
                 addOns: ["Order Tools"],
@@ -893,6 +902,7 @@ describe("catalogModelOf for marketplaces", () => {
         expect(model.groups.map(({ id }) => id)).toEqual(["folder:/work", "marketplaces"]);
         expect(model.groups[1]).toStrictEqual({
             id: "marketplaces",
+            kind: "marketplaces",
             label: "Marketplaces",
             description: "Element templates fetched from the registered marketplaces",
             sources: [
@@ -1029,6 +1039,7 @@ describe("catalogModelOf for marketplaces", () => {
         expect(model.groups).toStrictEqual([
             {
                 id: "marketplaces",
+                kind: "marketplaces",
                 label: "Marketplaces",
                 description: "Element templates fetched from the registered marketplaces",
                 problem,

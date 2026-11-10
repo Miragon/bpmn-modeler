@@ -1,6 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
-import { AddOnCatalogQuery, GetAddOnCatalogCommand } from "@miragon/bpmn-modeler-shared";
+import {
+    AddOnCatalogQuery,
+    BrandModeQuery,
+    GetAddOnCatalogCommand,
+} from "@miragon/bpmn-modeler-shared";
 
 import { CATALOG } from "../__fixtures__/catalogs";
 import { RecordingHost } from "../__fixtures__/recordingHost";
@@ -14,6 +18,11 @@ function booted() {
 }
 
 describe("bootstrap", () => {
+    afterEach(() => {
+        document.documentElement.removeAttribute("data-cd-theme");
+        document.documentElement.removeAttribute("data-cd-kontrast");
+    });
+
     it("asks the host for the catalog once it loads", () => {
         expect(booted().host.posted).toEqual([new GetAddOnCatalogCommand()]);
     });
@@ -42,5 +51,15 @@ describe("bootstrap", () => {
         window.dispatchEvent(new FocusEvent("focus"));
 
         expect(document.activeElement).toBe(app.querySelector("h2 button"));
+    });
+
+    it("switches the page to the brand mode the host posts on a theme change", () => {
+        booted();
+
+        window.dispatchEvent(
+            new MessageEvent("message", { data: new BrandModeQuery({ theme: "dark" }) }),
+        );
+
+        expect(document.documentElement.getAttribute("data-cd-theme")).toBe("dark");
     });
 });

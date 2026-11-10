@@ -46,8 +46,8 @@ const BUNDLE_SOURCES: Record<WebviewShell, (cspSource: string) => BundleSources>
         "object-src": ["blob:"],
     }),
     deployment: (): BundleSources => ({ "style-src": [INLINE_STYLES] }),
-    // No codicons, no images and only its linked stylesheet.
-    addOns: (): BundleSources => ({}),
+    // No codicons, no images and only its linked stylesheet, whose fonts it bundles.
+    addOns: (cspSource): BundleSources => ({ "font-src": [cspSource] }),
 };
 
 /**

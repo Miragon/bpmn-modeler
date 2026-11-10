@@ -43,6 +43,7 @@ describe("protocol messages", () => {
                 "AddOnCatalogQuery",
                 "AddOnActionResultQuery",
                 "RevealAddOnsQuery",
+                "BrandModeQuery",
             ]),
         );
     });

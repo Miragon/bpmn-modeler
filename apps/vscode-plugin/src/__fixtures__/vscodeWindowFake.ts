@@ -21,6 +21,13 @@ export class ThemeColor {
     constructor(readonly id: string) {}
 }
 
+export enum ColorThemeKind {
+    Light = 1,
+    Dark = 2,
+    HighContrast = 3,
+    HighContrastLight = 4,
+}
+
 export class FakeStatusBarItem {
     text = "";
     tooltip: string | undefined;
@@ -228,6 +235,15 @@ const executedCommands: ExecutedCommand[] = [];
 const inputBoxes: FakeInputBox[] = [];
 const quickPicks: FakeQuickPick[] = [];
 const registeredCommands = new Map<string, (...args: unknown[]) => unknown>();
+// One object, so a fake that spreads `window` reads the same theme.
+const activeColorTheme: { kind: ColorThemeKind } = { kind: ColorThemeKind.Light };
+const colorThemeListeners = new Set<(theme: { kind: ColorThemeKind }) => void>();
+
+/** Plays the user switching VS Code's colour theme. */
+export function changeColorTheme(kind: ColorThemeKind): void {
+    activeColorTheme.kind = kind;
+    colorThemeListeners.forEach((listener) => listener({ kind }));
+}
 
 export const vscodeWindow = {
     statusBarItems: statusBarItems as readonly FakeStatusBarItem[],
@@ -249,6 +265,8 @@ export function resetVscodeWindow(): void {
     inputBoxes.length = 0;
     quickPicks.length = 0;
     registeredCommands.clear();
+    activeColorTheme.kind = ColorThemeKind.Light;
+    colorThemeListeners.clear();
 }
 
 /** The visible items left to right, as VS Code lays them out: left side first, higher priority further left. */
@@ -291,6 +309,13 @@ function showMessage(
 }
 
 export const window = {
+    activeColorTheme: activeColorTheme as { readonly kind: ColorThemeKind },
+    onDidChangeActiveColorTheme(listener: (theme: { kind: ColorThemeKind }) => void): {
+        dispose(): void;
+    } {
+        colorThemeListeners.add(listener);
+        return { dispose: () => colorThemeListeners.delete(listener) };
+    },
     createStatusBarItem(alignment = StatusBarAlignment.Left, priority = 0): FakeStatusBarItem {
         const item = new FakeStatusBarItem(alignment, priority);
         statusBarItems.push(item);

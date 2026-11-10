@@ -11,6 +11,8 @@ import {
     type CodeAddOnKind,
     addOnIdOf,
     folderGroupIdOf,
+    GROUP_KINDS,
+    type GroupKind,
     MARKETPLACES_GROUP_ID,
     SOURCE_ACTION_KINDS,
     SOURCE_KINDS,
@@ -36,15 +38,23 @@ describe("action kinds", () => {
 });
 
 describe("add-on ids", () => {
-    it("names each kind of add-on and of source", () => {
+    it("names each kind of add-on, of source and of group", () => {
         expectTypeOf<AddOnKind>().toEqualTypeOf<(typeof ADD_ON_KINDS)[number]>();
         expectTypeOf<CodeAddOnKind>().toEqualTypeOf<(typeof CODE_ADD_ON_KINDS)[number]>();
         expectTypeOf<SourceKind>().toEqualTypeOf<(typeof SOURCE_KINDS)[number]>();
+        expectTypeOf<GroupKind>().toEqualTypeOf<(typeof GROUP_KINDS)[number]>();
         expectTypeOf<TemplateState>().toEqualTypeOf<(typeof TEMPLATE_STATES)[number]>();
-        expect([ADD_ON_KINDS, CODE_ADD_ON_KINDS, SOURCE_KINDS, TEMPLATE_STATES]).toEqual([
+        expect([
+            ADD_ON_KINDS,
+            CODE_ADD_ON_KINDS,
+            SOURCE_KINDS,
+            GROUP_KINDS,
+            TEMPLATE_STATES,
+        ]).toEqual([
             ["plugin", "rulePackage", "elementTemplate"],
             ["plugin", "rulePackage"],
             ["configFolder", "installedPackages", "marketplace"],
+            ["folder", "marketplaces"],
             ["enabled", "disabled"],
         ]);
     });

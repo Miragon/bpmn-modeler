@@ -90,12 +90,14 @@ export const CATALOG: AddOnCatalogPayload = {
     groups: [
         {
             id: "folder:/work",
+            kind: "folder",
             label: "work",
             description: "/work",
             sources: [CONFIG_SOURCE, PACKAGES_SOURCE],
         },
         {
             id: "marketplaces",
+            kind: "marketplaces",
             label: "Marketplaces",
             description: "Element templates fetched from the registered marketplaces",
             sources: [MARKETPLACE_SOURCE],
