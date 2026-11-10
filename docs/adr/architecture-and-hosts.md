@@ -128,8 +128,8 @@ sides name live in `kernel/domain/`: `ListedPresence` and
 `ApprovableCodeTexts` in `codeApproval.ts`, the template file listing in
 `templateListing.ts` and the marketplace listing in `marketplaceListing.ts`,
 from which the catalog derives its own view with the templates read. The context is
-named `addOns` after the view it serves, **Add-ons**; no core identifier
-starts with `Artifact`, a name `ArtifactService` holds.
+named `addOns` after the view it serves, **Add-ons**; the `Artifact` prefix
+in the core belongs to `ArtifactService`.
 
 The shared role-folder rules keep services off adapters, outbound adapters off
 services, and every import away from the package entry and the test kit; the
