@@ -11,6 +11,8 @@ import type {
     TemplateAddOnPayload,
 } from "@miragon/bpmn-modeler-shared";
 
+import { needsReview } from "../../domain/catalogFilter";
+
 /*
  * The preview's catalog: one row in every state a view can show. The texts
  * copy the core's so the preview reads like a host; the core stays their home.
@@ -262,12 +264,11 @@ function allowed(row: CodeAddOnPayload): CodeAddOnPayload {
 }
 
 function everyCodeAllowed(groups: AddOnGroupPayload[]): AddOnGroupPayload[] {
-    const awaitsReview = (row: AddOnPayload) => row.actions.some(({ kind }) => kind === "allow" || kind === "inspect");
     return groups.map((group) => ({
         ...group,
         sources: group.sources.map((source) => ({
             ...source,
-            addOns: source.addOns.map((row) => (row.kind !== "elementTemplate" && awaitsReview(row) ? allowed(row) : row)),
+            addOns: source.addOns.map((row) => (row.kind !== "elementTemplate" && needsReview(row) ? allowed(row) : row)),
         })),
     }));
 }
