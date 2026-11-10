@@ -20,23 +20,34 @@ A process change belongs in the same pull request as the code it affects, but a 
 
 ## What you get
 
-- **Camunda details in the properties panel.** Set each element's Camunda 7 or Camunda 8 attributes; Operaton and CIB seven, both Camunda 7 compatible, use the Camunda 7 settings.
-- **As much detail as you need.** [View, Design and Implement modes](https://miragon.github.io/bpmn-modeler/vscode/features/modes) go from reading to engine-neutral sketching to full implementation.
+- **Processes, decisions and forms in one editor.** `.bpmn`, `.dmn` and `.form` files open in a graphical editor and save back as plain XML or JSON.
 - **Mistakes caught before deploy.** [Linting](https://miragon.github.io/bpmn-modeler/vscode/features/linting) marks what the engine would reject, and the [token simulation](https://miragon.github.io/bpmn-modeler/vscode/features/token-simulation) plays a process through.
-- **Your team's building blocks.** [Element templates](https://miragon.github.io/bpmn-modeler/vscode/features/element-template-chooser) under `.camunda/element-templates/` show up without any project setup.
 - **Review and deploy from the editor.** The [BPMN diff](https://miragon.github.io/bpmn-modeler/vscode/features/bpmn-diff) shows changes element by element, and [deployment](https://miragon.github.io/bpmn-modeler/vscode/features/deployment) sends a diagram to Camunda 7 or Camunda 8.
+- **Engine details where you need them.** The properties panel sets Camunda 7 or Camunda 8 attributes; Operaton and CIB seven use the Camunda 7 settings. [View, Design and Implement modes](https://miragon.github.io/bpmn-modeler/vscode/features/modes) show as much of it as you need.
+- **Your team's building blocks.** [Element templates](https://miragon.github.io/bpmn-modeler/vscode/features/element-template-chooser) under `.camunda/element-templates/` show up without any project setup.
 
-The [feature pages](https://miragon.github.io/bpmn-modeler/vscode/features/) describe VS Code; the table below shows what each editor opens.
+The [feature pages](https://miragon.github.io/bpmn-modeler/vscode/features/) describe VS Code. The other editors cover less, see below.
+
+## Supported editors
+
+What each editor opens and how far it is:
+
+| Editor                                                             | Opens                                                               | Status       |
+| ------------------------------------------------------------------ | ------------------------------------------------------------------- | ------------ |
+| VS Code 1.76+, and VSCodium, Cursor, Windsurf via Open VSX         | `.bpmn`, `.dmn`, `.form`, with deployment, diff and jumps into code | stable       |
+| IntelliJ IDEA 2024.2+ (Community or Ultimate)                      | `.bpmn`, with deployment                                            | preview      |
+| Desktop app: macOS (Apple silicon), Windows x64, Linux x86_64      | `.bpmn`, `.dmn`, `.form`, with Git, diff and deployment             | preview      |
+| [Orca](https://www.onorca.dev) 1.4.248+, next to your coding agent | `.bpmn`, `.dmn` to view, simulate and lightly model                 | experimental |
 
 ## Install
 
-| Where                                                              | Opens                                                                                                        | Get it                                                                                                                        |
-| ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
-| VS Code 1.76+                                                      | `.bpmn`, `.dmn`, `.form`, with deployment, diff and jumps into your code                                     | [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=miragon-gmbh.vs-code-bpmn-modeler)                  |
-| VSCodium, Cursor, Windsurf                                         | the same as VS Code                                                                                          | [Open VSX](https://open-vsx.org/extension/miragon-gmbh/vs-code-bpmn-modeler)                                                  |
-| IntelliJ IDEA 2024.2+ (Community or Ultimate)                      | `.bpmn`, with deployment (preview)                                                                           | [JetBrains Marketplace](https://plugins.jetbrains.com/plugin/32634-miragon-bpmn-modeler)                                      |
-| Desktop: macOS (Apple silicon), Windows x64, Linux x86_64          | `.bpmn`, `.dmn`, `.form`, with Git, diff and deployment (preview)                                            | [Download](https://miragon.github.io/bpmn-modeler/download)                                                                   |
-| [Orca](https://www.onorca.dev) 1.4.248+, next to your coding agent | `.bpmn`, `.dmn` to view, simulate and lightly model; no deployment, diff, forms or code jumps (experimental) | [Orca plugin directory](https://onorca.dev/plugins/miragon.bpmn-modeler?catalog=https://github.com/miragon/orca-modelers.git) |
+| Editor                     | Get it                                                                                                                        |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| VS Code                    | [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=miragon-gmbh.vs-code-bpmn-modeler)                  |
+| VSCodium, Cursor, Windsurf | [Open VSX](https://open-vsx.org/extension/miragon-gmbh/vs-code-bpmn-modeler)                                                  |
+| IntelliJ IDEA              | [JetBrains Marketplace](https://plugins.jetbrains.com/plugin/32634-miragon-bpmn-modeler)                                      |
+| Desktop app                | [Download](https://miragon.github.io/bpmn-modeler/download)                                                                   |
+| Orca                       | [Orca plugin directory](https://onorca.dev/plugins/miragon.bpmn-modeler?catalog=https://github.com/miragon/orca-modelers.git) |
 
 VS Code extension from the command line:
 
