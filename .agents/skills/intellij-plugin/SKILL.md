@@ -73,9 +73,12 @@ lint/tsc globs never touch the Kotlin sources.
 | `copyBridge` | `apps/modeler-bridge/dist/modeler-bridge` | `/bin/<os>-<arch>/modeler-bridge` |
 | `copySchema` | `libs/shared/src/lib/deploymentTargets.schema.json` | `deployment-targets.json` schema |
 
-Each task has a `doFirst` that throws a `GradleException` naming the exact yarn
-command if its source is missing. Release builds pass `-PbundleAllPlatforms` to
-stage every platform binary from `apps/modeler-bridge/dist/<os>-<arch>/`.
+A task whose source is missing is skipped as `NO-SOURCE`, not failed, so a
+local build without a bundle succeeds and shows a blank page (Trap 1). Release
+builds pass `-PbundleAllPlatforms` to stage every platform binary from
+`apps/modeler-bridge/dist/<os>-<arch>/`; with it, `processResources` depends on
+`verifyReleaseBundles`, which fails naming the yarn command for each missing
+webview bundle or binary.
 
 ## Trap 1 — a blank webview is (almost always) an unstaged bundle
 

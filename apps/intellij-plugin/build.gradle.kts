@@ -301,14 +301,6 @@ val copyWebview =
     // Sync, not Copy: chunk names are content-hashed, so stale chunks would pile up in the jar.
     tasks.register<Sync>("copyWebview") {
         description = "Stages the pre-built bpmn-webview bundle into plugin resources (served from the classpath at runtime)."
-        doFirst {
-            if (!webviewDist.asFile.exists()) {
-                throw GradleException(
-                    "Webview bundle not found at ${webviewDist.asFile}.\n" +
-                        "Run `corepack yarn build:bpmn-webview` from the repo root first.",
-                )
-            }
-        }
         from(webviewDist)
         // Nest under `webview/` so the served classpath path is `/webview/...`.
         into(stagedResourcesRoot.map { it.dir("webview") })
@@ -317,14 +309,6 @@ val copyWebview =
 val copyDeploymentWebview =
     tasks.register<Copy>("copyDeploymentWebview") {
         description = "Stages the pre-built deployment-webview bundle into plugin resources (served from the classpath at runtime)."
-        doFirst {
-            if (!deploymentWebviewDist.asFile.exists()) {
-                throw GradleException(
-                    "Deployment webview bundle not found at ${deploymentWebviewDist.asFile}.\n" +
-                        "Run `corepack yarn build:deployment-webview` from the repo root first.",
-                )
-            }
-        }
         from(deploymentWebviewDist)
         // Nest under `webview-deployment/` so the served classpath path is `/webview-deployment/...`.
         into(stagedResourcesRoot.map { it.dir("webview-deployment") })
@@ -333,14 +317,6 @@ val copyDeploymentWebview =
 val copyAddOnsWebview =
     tasks.register<Copy>("copyAddOnsWebview") {
         description = "Stages the pre-built add-ons-webview bundle into plugin resources (served from the classpath at runtime)."
-        doFirst {
-            if (!addOnsWebviewDist.asFile.exists()) {
-                throw GradleException(
-                    "Add-ons webview bundle not found at ${addOnsWebviewDist.asFile}.\n" +
-                        "Run `corepack yarn build:add-ons-webview` from the repo root first.",
-                )
-            }
-        }
         from(addOnsWebviewDist)
         // Nest under `webview-add-ons/` so the served classpath path is `/webview-add-ons/...`.
         into(stagedResourcesRoot.map { it.dir("webview-add-ons") })
@@ -350,20 +326,6 @@ val copyBridge =
     tasks.register<Copy>("copyBridge") {
         description = "Stages the pre-built Node-free modeler-core bridge binary(ies) into plugin resources (extracted and spawned at runtime)."
         if (bundleAllPlatforms) {
-            // Release mode: every per-platform binary must exist, otherwise the
-            // shipped ZIP would silently lack a platform.
-            doFirst {
-                val missing =
-                    releaseBridgeTargets.filter { (dir, name) ->
-                        !bridgeDistRoot.file("$dir/$name").asFile.exists()
-                    }
-                if (missing.isNotEmpty()) {
-                    throw GradleException(
-                        "Missing bridge binaries for: ${missing.joinToString { it.first }}.\n" +
-                            "Run `corepack yarn workspace @miragon/bpmn-modeler-bridge compile:all` from the repo root first.",
-                    )
-                }
-            }
             releaseBridgeTargets.forEach { (platformDir, binaryName) ->
                 from(bridgeDistRoot.file("$platformDir/$binaryName")) {
                     // Preserve the source filename (`.exe` for windows) so the
@@ -373,14 +335,6 @@ val copyBridge =
             }
             into(stagedResourcesRoot)
         } else {
-            doFirst {
-                if (!bridgeBinary.asFile.exists()) {
-                    throw GradleException(
-                        "Modeler bridge binary not found at ${bridgeBinary.asFile}.\n" +
-                            "Run `corepack yarn workspace @miragon/bpmn-modeler-bridge compile` from the repo root first.",
-                    )
-                }
-            }
             from(bridgeBinary)
             // Lands at `/bin/<os>-<arch>/modeler-bridge` on the classpath (CoreProcess reads it there).
             into(stagedResourcesRoot.map { it.dir("bin/${hostPlatformDir()}") })
@@ -390,16 +344,34 @@ val copyBridge =
 val copySchema =
     tasks.register<Copy>("copySchema") {
         description = "Stages the shared deployment-targets.json JSON Schema into plugin resources (loaded from the classpath by the JsonSchemaProviderFactory)."
-        doFirst {
-            if (!deploymentTargetsSchema.asFile.exists()) {
-                throw GradleException("JSON schema not found at ${deploymentTargetsSchema.asFile}.")
-            }
-        }
         from(deploymentTargetsSchema) {
             rename { "deployment-targets.schema.json" }
         }
         // Lands at `/schemas/<name>.schema.json` on the classpath.
         into(stagedResourcesRoot.map { it.dir("schemas") })
+    }
+
+// A copy task whose source is missing is skipped as NO-SOURCE before any
+// doFirst runs, so it cannot fail on a bundle nobody built. A local build then
+// shows a blank tab; a release build checks every source here instead.
+val verifyReleaseBundles =
+    tasks.register("verifyReleaseBundles") {
+        description = "Fails a release build whose webview bundles or bridge binaries were not built."
+        val buildBridges = "corepack yarn workspace @miragon/bpmn-modeler-bridge compile:all"
+        val required =
+            listOf(
+                webviewDist.file("index.js").asFile to "corepack yarn build:bpmn-webview",
+                deploymentWebviewDist.file("index.js").asFile to "corepack yarn build:deployment-webview",
+                addOnsWebviewDist.file("index.js").asFile to "corepack yarn build:add-ons-webview",
+            ) + releaseBridgeTargets.map { (dir, name) -> bridgeDistRoot.file("$dir/$name").asFile to buildBridges }
+        doLast {
+            val missing = required.filterNot { (file, _) -> file.exists() }
+            if (missing.isNotEmpty()) {
+                throw GradleException(
+                    missing.joinToString("\n") { (file, command) -> "Missing $file: run `$command` from the repo root." },
+                )
+            }
+        }
     }
 
 // Stamp the plugin version onto the class path so BridgeBinaryResolver can key
@@ -420,6 +392,7 @@ sourceSets.named("main") {
 
 tasks.named<ProcessResources>("processResources") {
     dependsOn(copyWebview, copyDeploymentWebview, copyAddOnsWebview, copyBridge, copySchema, writeBridgeVersion)
+    if (bundleAllPlatforms) dependsOn(verifyReleaseBundles)
 }
 
 // The sandbox for `runIde` is assembled from the jar, which already contains the
