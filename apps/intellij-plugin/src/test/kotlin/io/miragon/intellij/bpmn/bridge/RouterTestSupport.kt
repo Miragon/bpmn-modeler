@@ -77,6 +77,7 @@ internal fun bridgeDeps(
     parentDisposable: Disposable = Disposer.newDisposable(project, "router-under-test"),
     notifications: Lazy<HostNotifications> = lazy { error("HostNotifications must not be forced in router tests") },
     isProcessAlive: () -> Boolean = { true },
+    ensureStartedAsync: () -> Unit = {},
 ): BridgeDeps =
     BridgeDeps(
         project = project,
@@ -84,7 +85,7 @@ internal fun bridgeDeps(
         handlers = handlers,
         gson = channel.gson,
         isProcessAlive = isProcessAlive,
-        ensureStartedAsync = {},
+        ensureStartedAsync = ensureStartedAsync,
         parentDisposable = parentDisposable,
         notifications = notifications,
         credentialStoreExecutor = orderedCredentialStoreExecutor(),

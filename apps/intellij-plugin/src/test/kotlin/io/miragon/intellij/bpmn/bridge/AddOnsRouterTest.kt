@@ -25,13 +25,17 @@ class AddOnsRouterTest {
 
     private class Routed(val wired: WiredBridge, val router: AddOnsRouter)
 
-    private fun routed(revealArtifacts: (Project, (Boolean) -> Unit) -> Unit = { _, onDone -> onDone(false) }): Routed {
+    private fun routed(
+        ensureStartedAsync: () -> Unit = {},
+        revealArtifacts: (Project, (Boolean) -> Unit) -> Unit = { _, onDone -> onDone(false) },
+    ): Routed {
         val wired =
             wireChannel().also {
                 disposals += it::dispose
                 disposals += it.fake::close
             }
-        val router = AddOnsRouter(bridgeDeps(projectFixture.get(), wired.channel, wired.handlers), revealArtifacts)
+        val deps = bridgeDeps(projectFixture.get(), wired.channel, wired.handlers, ensureStartedAsync = ensureStartedAsync)
+        val router = AddOnsRouter(deps, revealArtifacts)
         router.register()
         return Routed(wired, router)
     }
@@ -47,18 +51,18 @@ class AddOnsRouterTest {
 
     @Test
     fun `answers a reveal with whether the Artifacts tab is now shown`() {
-        val showing = routed { _, onDone -> onDone(true) }.wired
+        val showing = routed(revealArtifacts = { _, onDone -> onDone(true) }).wired
         showing.handlers.dispatch("addOns/reveal", JsonObject(), showing.requestId(3))
         assertEquals(json("""{"id": 3, "result": {"shown": true}}"""), json(showing.fake.nextFrame()))
 
-        val hidden = routed { _, onDone -> onDone(false) }.wired
+        val hidden = routed(revealArtifacts = { _, onDone -> onDone(false) }).wired
         hidden.handlers.dispatch("addOns/reveal", JsonObject(), hidden.requestId(4))
         assertEquals(json("""{"id": 4, "result": {"shown": false}}"""), json(hidden.fake.nextFrame()))
     }
 
     @Test
     fun `answers a reveal with an error when the tool window throws`() {
-        val wired = routed { _, _ -> error("tool window gone") }.wired
+        val wired = routed(revealArtifacts = { _, _ -> error("tool window gone") }).wired
 
         wired.handlers.dispatch("addOns/reveal", JsonObject(), wired.requestId(5))
 
@@ -173,5 +177,15 @@ class AddOnsRouterTest {
         router.refresh()
 
         assertEquals(json("""{"method": "addOns/refresh", "params": {}}"""), json(wired.fake.nextFrame()))
+    }
+
+    @Test
+    fun `starts no bridge to refresh, as a new one reads every add-on anyway`() {
+        var starts = 0
+        val router = routed(ensureStartedAsync = { starts++ }).router
+
+        router.refresh()
+
+        assertEquals(0, starts)
     }
 }
