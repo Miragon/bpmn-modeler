@@ -3,6 +3,7 @@ import type {
     AddOnActionKind,
     CatalogActionKind,
     CodeAddOnKind,
+    GroupKind,
     SourceActionKind,
     SourceKind,
     TemplateState,
@@ -27,6 +28,8 @@ export interface AddOnCatalogModel {
 
 export interface AddOnGroupView {
     readonly id: string;
+    /** Ids are never parsed, and the marketplaces group may list no source to tell it by. */
+    readonly kind: GroupKind;
     readonly label: string;
     readonly description: string;
     /** Why it lists none of its sources. */

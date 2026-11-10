@@ -11,6 +11,10 @@ export const SOURCE_KINDS = ["configFolder", "installedPackages", "marketplace"]
 
 export type SourceKind = (typeof SOURCE_KINDS)[number];
 
+export const GROUP_KINDS = ["folder", "marketplaces"] as const;
+
+export type GroupKind = (typeof GROUP_KINDS)[number];
+
 /** Whether new elements offer a template; one that is used keeps applying either way. */
 export const TEMPLATE_STATES = ["enabled", "disabled"] as const;
 

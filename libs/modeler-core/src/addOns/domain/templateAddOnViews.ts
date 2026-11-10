@@ -214,6 +214,7 @@ export function marketplacesGroupOf(
         : [
               {
                   id: MARKETPLACES_GROUP_ID,
+                  kind: "marketplaces",
                   ...MARKETPLACES_GROUP_TEXT,
                   ...optional("problem", problem),
                   sources,
