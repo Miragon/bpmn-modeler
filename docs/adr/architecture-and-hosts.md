@@ -570,7 +570,7 @@ deployment-only container, so a user's layout survives. Theia stores a plugin
 view container's title and icon in that layout and restores them over the ones
 the extension contributes now, so the standalone app rebinds its
 `PluginViewRegistry` in `libs/standalone-extension` to give a restored
-container the current title and icon. It holds two webview
+container the current title and icon. The container holds two webview
 views: **Deploy** (`bpmn-modeler.deploymentView`), shown while a custom editor
 is open, and **Add-ons** (`bpmn-modeler.addOnsView`), shown whenever a
 folder is open, so the container now shows whenever a folder is open. Both
