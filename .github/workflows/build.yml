@@ -142,6 +142,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: yarn lint
       - run: yarn format:check
+      - name: Brand files copied from miragon-brand are unchanged
+        run: sha256sum -c .miragon/brand-assets.sha256
       - name: Unused files/deps/exports (knip)
         run: yarn knip
       - name: Every Vitest workspace is a CI test target

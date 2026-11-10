@@ -23,8 +23,9 @@ the desktop app and IntelliJ load it. Internal workspace, not published on its o
   the specs replace, as jsdom does no layout.
 - **Miragon brand, not the IDE look.** The host only signals light, dark and high contrast; type
   sizes are the brand's, the host's zoom still scales them. `src/adapter/in/styles/cd-tokens.generated.css`
-  is vendored from the `miragon-brand` skill: never edit it, copy a new release over it and update
-  the checksum in `stylesheet.spec.ts`. Components use the `--cd-ui-*` roles and no `--vscode-*`
+  is vendored from the `miragon-brand` skill: never edit it, copy a new release over it with the
+  plugin's `brand-assets.mjs`, which reads `.miragon/brand-assets.yaml` and rewrites the checksums in
+  `.miragon/brand-assets.sha256`. Components use the `--cd-ui-*` roles and no `--vscode-*`
   variable.
 - **Bundled licenses.** Geist, Geist Mono (OFL-1.1) and Lucide (ISC) ship in the bundle; the build
   writes their licenses to `licenses/`, which both IDE plugins carry.

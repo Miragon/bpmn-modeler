@@ -385,7 +385,12 @@
    - Kanten und Pfeile in text-leise, Lebenslinien und Schleifen in kontur,
      Start und Ende eines Zustandsdiagramms in der Textfarbe.
    - Text in der Textfarbe, Beschriftungen an Kanten auf seite.
-   Andere Diagrammtypen behalten das graue Theme von Mermaid.
+   Abschnitte (Mindmap, Zeitleiste, Git-Graph, Torte, Venn, Treemap, Radar, xy, Journey) färbt
+   theme/abschnitte.mjs mit zwei Grautönen der CI im Wechsel, wie designIQ (Miragon/design-iq#329):
+   kontur mit Schwarz, text-leise mit der Seitenfarbe, Wurzel und main in der Textfarbe. Ihre
+   Beschriftungen behalten die Schrift zu ihrer Fläche. Die Regeln am Ende des Abschnitts halten
+   den Kontrast, wo Mermaid eine Beschriftung auf etwas anderes setzt. Andere Diagrammtypen
+   behalten das graue Theme von Mermaid.
    ========================================================= */
 .vp-doc .mermaid {
   margin: 16px 0;
@@ -398,11 +403,12 @@
   background: transparent !important;
 }
 
-/* Text */
-.mermaid svg :is(text, tspan):not(.sequenceNumber) {
+/* Text. Beschriftungen auf einer Abschnittsfarbe nicht, ihre Schrift setzt abschnitte.mjs passend
+   zur Fläche. Die Datenbeschriftungen eines xy-Diagramms setzen die Regeln am Ende. */
+.mermaid svg :is(text, tspan):not(.sequenceNumber, .slice, :is(.mindmap-node, .timeline-node, [class*='branch-label'], [class^='bar-plot-']) *) {
   fill: var(--cd-ui-text) !important;
 }
-.mermaid svg foreignObject :is(div, span, p) {
+.mermaid svg foreignObject :is(div, span, p):where(:not(.mindmap-node *)) {
   color: var(--cd-ui-text) !important;
 }
 .mermaid svg .sequenceNumber {
@@ -415,14 +421,16 @@
   fill: var(--cd-ui-seite) !important;
 }
 
-/* Knoten: einfache Formen und die zweiteiligen Formen aus Fläche und Strich */
-.mermaid svg .node > :is(rect, polygon, circle, ellipse, path),
-.mermaid svg .node > g:is(.label-container, .outer-path, .row-rect-odd) > path[stroke='none'],
+/* Knoten: einfache Formen und die zweiteiligen Formen aus Fläche und Strich. Die Knoten einer
+   Mindmap tragen die Farbe ihres Abschnitts, außer im Look neo. :where() hält die Spezifität,
+   sonst verdrängte die Regel den Start eines Zustandsdiagramms (unten). */
+.mermaid svg .node:where(:not(.mindmap-node), [data-look='neo']) > :is(rect, polygon, circle, ellipse, path),
+.mermaid svg .node:where(:not(.mindmap-node)) > g:is(.label-container, .outer-path, .row-rect-odd) > path[stroke='none'],
 .mermaid svg :is(rect.actor, .labelBox, rect[class^='activation']) {
   fill: var(--cd-ui-flaeche-hoch) !important;
 }
-.mermaid svg .node > :is(rect, polygon, circle, ellipse, path),
-.mermaid svg .node > g:is(.label-container, .outer-path, .row-rect-odd, .row-rect-even, .divider) > path[fill='none'],
+.mermaid svg .node:where(:not(.mindmap-node), [data-look='neo']) > :is(rect, polygon, circle, ellipse, path),
+.mermaid svg .node:where(:not(.mindmap-node)) > g:is(.label-container, .outer-path, .row-rect-odd, .row-rect-even, .divider) > path[fill='none'],
 .mermaid svg :is(rect.actor, .labelBox, rect[class^='activation']) {
   stroke: var(--cd-ui-kontur) !important;
 }
@@ -475,6 +483,70 @@
 .mermaid svg.statediagram .node > .outer-path > g > path {
   fill: var(--cd-ui-text) !important;
   stroke: var(--cd-ui-text) !important;
+}
+
+/* Abschnitte: wo Mermaid eine Beschriftung nicht auf die Farbe setzt, zu der abschnitte.mjs sie
+   wählt (wie in designIQ, Miragon/design-iq#329).
+   - Der Look neo füllt Knoten von Mindmap und Zeitleiste weiß und behält die Schrift des
+     Abschnitts: Seine Beschriftungen stehen in der Textfarbe.
+   - Eine Zeitleiste hellt ihre Ereignisse um 20 % auf, aus der CI heraus: Sie bleiben im Grau
+     ihres Abschnitts. Ihre Achse und die gestrichelten Linien zeichnet Mermaid in der Schrift
+     eines Abschnitts, dunkel Schwarz auf Schwarz: Sie sind Kanten in text-leise.
+   - Eine Treemap legt ihre Abschnitte übereinander und färbt eine Beschriftung nach ihrer eigenen
+     Nummer, nicht nach dem Abschnitt darunter: Die Flächen stehen bei 30 %, die Beschriftungen
+     in der Textfarbe.
+   - Ein xy-Diagramm zeichnet seine Fläche in einem eigenen Grau, sie ist die Seite. Es legt alle
+     Balken an dieselbe Stelle, jeden über die früheren: Jeder Balken liegt auf einem Rand in der
+     Seitenfarbe. Eine Datenbeschriftung im Balken steht in der
+     Schrift ihres Graus auf einem Halo in diesem Grau, denn Mermaid beginnt sie im Balken, auch
+     wenn er zu kurz ist. Beschriftungen außerhalb und an Linien stehen in der Textfarbe auf einem
+     Halo in der Seitenfarbe, sie können auf einem früheren Balken liegen. Gerade Nummern sind
+     kontur, ungerade text-leise. Linien über einem Balken desselben Graus legt designIQ auf eine
+     Hülle aus einem zweiten Pfad, die CSS nicht zeichnen kann: Hier verschwindet eine Linie dort. */
+.mermaid svg :is([data-look='neo'].mindmap-node, .timeline-node[data-look='neo']) :is(text, tspan) {
+  fill: var(--cd-ui-text) !important;
+}
+.mermaid svg [data-look='neo'].mindmap-node foreignObject :is(div, span, p) {
+  color: var(--cd-ui-text) !important;
+}
+.mermaid svg .eventWrapper {
+  filter: none !important;
+}
+.mermaid svg .lineWrapper line {
+  stroke: var(--cd-ui-text-leise) !important;
+}
+.mermaid svg rect:is(.treemapSection, .treemapLeaf) {
+  fill-opacity: 0.3 !important;
+}
+.mermaid svg .main > rect.background {
+  fill: var(--cd-ui-seite) !important;
+}
+.mermaid svg [class^='bar-plot-'] > rect {
+  stroke: var(--cd-ui-seite) !important;
+  stroke-width: 4px !important;
+  vector-effect: non-scaling-stroke;
+  paint-order: stroke;
+}
+.mermaid svg [class^='bar-plot-'] > text {
+  stroke-width: 3px;
+  stroke-linejoin: round;
+  paint-order: stroke;
+}
+.mermaid svg [class^='bar-plot-']:is([class$='0'], [class$='2'], [class$='4'], [class$='6'], [class$='8']) > text:is([dominant-baseline='hanging'], [text-anchor='end']) {
+  fill: var(--cd-schwarz) !important;
+  stroke: var(--cd-ui-kontur);
+}
+.mermaid svg [class^='bar-plot-']:is([class$='1'], [class$='3'], [class$='5'], [class$='7'], [class$='9']) > text:is([dominant-baseline='hanging'], [text-anchor='end']) {
+  fill: var(--cd-ui-seite) !important;
+  stroke: var(--cd-ui-text-leise);
+}
+.mermaid svg [class^='bar-plot-'] > text:is([dominant-baseline='auto'], [text-anchor='start']),
+.mermaid svg [class^='line-plot-'] > .labels > text {
+  fill: var(--cd-ui-text) !important;
+  stroke: var(--cd-ui-seite);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+  paint-order: stroke;
 }
 
 /* =========================================================
@@ -641,6 +713,76 @@
 .miragon-star-prompt svg {
   width: 13px;
   color: var(--cd-gruen);
+}
+
+/* =========================================================
+   ZOOM
+   Bilder, Mermaid-Diagramme und Elemente mit data-zoom öffnen sich im
+   Vollbild (ZoomOverlay.vue). Das Overlay ist die Seite selbst, ohne
+   Deckkraft, damit die Farben des Diagramms hell und dunkel bleiben. Die
+   Kopie wächst bis an den Rand, das Seitenverhältnis bleibt.
+   ========================================================= */
+.vp-doc :is(img, .mermaid, [data-zoom]):not([data-zoom="off"], [data-zoom="off"] *, a *) {
+  cursor: zoom-in;
+}
+.miragon-zoom-offen {
+  overflow: hidden;
+}
+.miragon-zoom {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  background: var(--cd-ui-seite);
+  cursor: zoom-out;
+}
+.miragon-zoom-buehne {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  padding: 56px 24px 24px;
+  overflow: auto;
+}
+.miragon-zoom-kopie {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  cursor: default;
+}
+.miragon-zoom-kopie svg,
+img.miragon-zoom-kopie,
+.miragon-zoom-kopie img {
+  width: 100%;
+  height: 100%;
+  max-width: none !important;
+  object-fit: contain;
+}
+.miragon-zoom-zu {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--cd-ui-linie);
+  border-radius: 999px;
+  background: var(--cd-ui-seite);
+  color: var(--cd-ui-text);
+  cursor: pointer;
+  transition: border-color 0.25s;
+}
+.miragon-zoom-zu:hover {
+  border-color: var(--cd-ui-kontur);
+}
+.miragon-zoom-zu svg {
+  width: 14px;
 }
 
 /* =========================================================

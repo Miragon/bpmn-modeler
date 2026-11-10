@@ -11,8 +11,10 @@ const base = read("base.css");
 const view = read("addOnsView.css");
 const own = `${base}\n${view}`;
 
-/** miragon-brand 1.27.1, skills/modeler-tool-design/assets/cd-tokens.generated.css */
-const TOKENS_SHA256 = "36ccd5bbcb732c57143e32f13172967467dd574ae1ac5d84d6c601d0ab0847a1";
+const BRAND_ASSET_CHECKSUMS = resolve(__dirname, "../../../../../../.miragon/brand-assets.sha256");
+const TOKENS_SHA256 = readFileSync(BRAND_ASSET_CHECKSUMS, "utf8").match(
+    /^([0-9a-f]{64}) {2}apps\/add-ons-webview\/src\/adapter\/in\/styles\/cd-tokens\.generated\.css$/m,
+)?.[1];
 
 describe("the add-ons view's stylesheets", () => {
     it("vendor the brand tokens unchanged, as the brand skill ships them", () => {
