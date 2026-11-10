@@ -1,4 +1,6 @@
-import type { AddOnKind } from "./catalogFilter";
+import { AddOnKind, CatalogFilter, isFilterActive, isOnlyNeedsReview } from "./catalogFilter";
+import { addOnsOf } from "./catalogQueries";
+import type { ListContent, NoMatchReason } from "./listContent";
 import type { CatalogScope } from "./catalogScope";
 
 /*
@@ -17,6 +19,7 @@ export const CHROME_TEXT = {
     needsReview: "Needs review",
     problem: "Problem",
     noMatch: "No add-ons match your search and filters.",
+    nothingToReview: "No add-ons need review.",
     clearFilters: "Clear filters",
     noMarketplace: "No marketplaces registered yet.",
     hint: "No add-on selected.",
@@ -48,8 +51,24 @@ export function headSummaryText(total: number, needingReview: number): string {
     return `${addOns}, ${needingReview} ${needingReview === 1 ? "needs" : "need"} review`;
 }
 
-/** What a search or filter left, announced as the list changes. */
-export function matchCountText(count: number): string {
+export const NO_MATCH_TEXT: Readonly<Record<NoMatchReason, string>> = {
+    filters: CHROME_TEXT.noMatch,
+    nothingToReview: CHROME_TEXT.nothingToReview,
+};
+
+/** What a search or filter left, announced as the list changes; only the review chip counts what needs review. */
+export function matchCountText(count: number, filter: CatalogFilter): string {
+    if (isOnlyNeedsReview(filter)) {
+        if (count === 0) return CHROME_TEXT.nothingToReview;
+        return count === 1 ? "1 add-on needs review" : `${count} add-ons need review`;
+    }
     if (count === 0) return CHROME_TEXT.noMatch;
     return `${count} ${count === 1 ? "add-on" : "add-ons"} shown`;
+}
+
+/** What the list a search or filter left says, for a screen reader; a tab's empty text stands alone. */
+export function announcementOf(content: ListContent, filter: CatalogFilter): string {
+    if (!isFilterActive(filter)) return "";
+    if (content.kind === "groups") return matchCountText(addOnsOf(content.groups).length, filter);
+    return content.kind === "noMatch" ? matchCountText(0, filter) : "";
 }

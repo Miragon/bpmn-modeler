@@ -10,6 +10,14 @@ const SCOPE_OF_GROUP: Readonly<Record<GroupKindPayload, CatalogScope>> = {
     marketplaces: "marketplaces",
 };
 
+/** Only code waits for a review, and code is listed only in folder groups; templates enable or disable. */
+export const REVIEW_SCOPE: CatalogScope = "workspace";
+
+/** The marketplaces tab names its one group already, so its sources stand in the list and the group never closes. */
+export function listsFlat(scope: CatalogScope): boolean {
+    return scope === "marketplaces";
+}
+
 export function isCatalogScope(value: unknown): value is CatalogScope {
     return SCOPE_ORDER.some((scope) => scope === value);
 }

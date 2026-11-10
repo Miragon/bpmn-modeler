@@ -11,6 +11,7 @@ import {
     ViewReview,
 } from "@miragon/bpmn-modeler-core";
 import { AddOnsViewProvider } from "../addOns/adapter/in/AddOnsViewProvider";
+import { ReviewAddOnsCommand } from "../addOns/adapter/in/ReviewAddOnsCommand";
 import { VsCodeBrandModeSignal } from "../addOns/adapter/in/VsCodeBrandModeSignal";
 import { VsCodeAddOnsViewReveal } from "../addOns/adapter/out/VsCodeAddOnsViewReveal";
 import { createWebviewNonce } from "../shared/adapter/out/webviewNonce";
@@ -40,8 +41,8 @@ export function createViewReviews(deps: SharedDeps): AddOnsViewReviews {
 /**
  * The add-on catalog over the plugin, rule package and template owners the
  * BPMN editor built, the approval list they share, the template switches and
- * the marketplace commands, shown in the Add-ons view, where Review…
- * opens it.
+ * the marketplace commands, shown in the Add-ons view, where Review… and
+ * Review Add-ons open it.
  */
 export function register(
     context: ExtensionContext,
@@ -80,6 +81,7 @@ export function register(
         brandMode,
     );
     view.register(context);
+    new ReviewAddOnsCommand(view, addOns, deps.notifier).register(context);
     handles.reviews.reveal.connect(addOns, view);
     return { addOns, addOnsViewRoutes: addOns.panelRoutes };
 }

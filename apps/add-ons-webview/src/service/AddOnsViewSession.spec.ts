@@ -71,7 +71,10 @@ describe("AddOnsViewSession", () => {
         const { renders, session } = setUp();
 
         session.dispatch({ kind: "modelArrived", model: CATALOG });
-        session.dispatch({ kind: "revealArrived", reveal: { revealId: 1, addOnIds: [MAIL.id] } });
+        session.dispatch({
+            kind: "revealArrived",
+            reveal: { kind: "rows", revealId: 1, addOnIds: [MAIL.id] },
+        });
 
         expect(renders.map(({ focus }) => focus)).toEqual([
             undefined,

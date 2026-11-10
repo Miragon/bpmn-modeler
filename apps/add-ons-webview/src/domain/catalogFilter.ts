@@ -20,6 +20,12 @@ export interface CatalogFilter {
 }
 
 export const NO_FILTER: CatalogFilter = { query: "", kinds: new Set(), onlyNeedsReview: false };
+export const NEEDS_REVIEW_ONLY: CatalogFilter = { ...NO_FILTER, onlyNeedsReview: true };
+
+/** Only the review chip is on: no search, no kind. */
+export function isOnlyNeedsReview(filter: CatalogFilter): boolean {
+    return filter.onlyNeedsReview && filter.kinds.size === 0 && termsOf(filter.query).length === 0;
+}
 
 /** Read from what the core offers, so the view never repeats the core's approval rule. */
 export function needsReview(addOn: AddOnPayload): boolean {

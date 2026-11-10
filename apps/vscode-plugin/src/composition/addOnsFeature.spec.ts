@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("vscode", () => import("../__fixtures__/vscodeCompositionFake"));
 
-import { ColorThemeKind, ExtensionContext, Uri, WebviewViewProvider } from "vscode";
+import { ColorThemeKind, commands, ExtensionContext, Uri, WebviewViewProvider } from "vscode";
 
 import {
     AddOnCatalogModel,
@@ -31,6 +31,7 @@ import {
 } from "../__fixtures__/vscodeCompositionFake";
 import { InMemoryMemento } from "../__fixtures__/vscodeStorage";
 import { ADD_ONS_VIEW_ID } from "../addOns/adapter/in/AddOnsViewProvider";
+import { REVIEW_ADD_ONS_CMD } from "../addOns/adapter/in/ReviewAddOnsCommand";
 import { BpmnDiffController } from "../diff/adapter/in/BpmnDiffController";
 import { setContext } from "../shared/adapter/out/extensionContext";
 import * as addOnsFeature from "./addOnsFeature";
@@ -236,7 +237,30 @@ describe("VS Code's add-on catalog", () => {
             args: [],
         });
         const reveals = posted.filter((message) => message instanceof RevealAddOnsQuery);
-        expect(reveals.map(({ reveal }) => reveal.addOnIds)).toEqual([[row]]);
+        expect(reveals.map(({ reveal }) => reveal)).toMatchObject([
+            { kind: "rows", addOnIds: [row] },
+        ]);
+    });
+
+    it("has Review Add-ons show the Add-ons view, then land its page on what needs review", async ({
+        onTestFinished,
+    }) => {
+        const registerCommand = vi.spyOn(commands, "registerCommand");
+        onTestFinished(() => registerCommand.mockRestore());
+        const { addOns } = createVsCodeAddOns();
+        const { posted } = resolveAddOnsView();
+        const reviewAddOns = registerCommand.mock.calls.find(
+            ([command]) => command === REVIEW_ADD_ONS_CMD,
+        )?.[1];
+
+        await reviewAddOns?.();
+        await addOns.whenSettled();
+
+        expect(vscodeWindow.executedCommands).toEqual([
+            { command: `${ADD_ONS_VIEW_ID}.focus`, args: [] },
+        ]);
+        const reveals = posted.filter((message) => message instanceof RevealAddOnsQuery);
+        expect(reveals.map(({ reveal }) => reveal.kind)).toEqual(["needsReview"]);
     });
 
     it("stops the catalog when the extension deactivates", async () => {

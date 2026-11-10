@@ -52,7 +52,7 @@ interface PostedQuery {
     };
     readonly requestId?: number;
     readonly result?: { readonly kind: string; readonly reason?: string };
-    readonly reveal?: { readonly addOnIds: readonly string[] };
+    readonly reveal?: { readonly kind: string; readonly addOnIds?: readonly string[] };
 }
 
 interface Frame {
@@ -353,9 +353,10 @@ describe("Review… on the bridge of the IntelliJ host", () => {
         await showAddOnsTab(project, reveal);
 
         const shown = await waitForFrame(project.frames, isPosted("RevealAddOnsQuery"));
-        expect(shown.params.message?.reveal?.addOnIds).toEqual([
-            `plugin:${join(project.root, ".camunda", "plugins", "Resize Tasks")}`,
-        ]);
+        expect(shown.params.message?.reveal).toMatchObject({
+            kind: "rows",
+            addOnIds: [`plugin:${join(project.root, ".camunda", "plugins", "Resize Tasks")}`],
+        });
         await settle();
         expect(project.frames.filter(isRequest(METHODS.pickerShow))).toEqual([]);
         expect(project.frames.filter(isRequest(METHODS.actionNoticeShow))).toEqual([notice]);
@@ -394,7 +395,10 @@ describe("Review… on the bridge of the IntelliJ host", () => {
         await showAddOnsTab(project, await review(project, notice));
 
         const shown = await waitForFrame(project.frames, isPosted("RevealAddOnsQuery"));
-        expect(shown.params.message?.reveal?.addOnIds).toEqual([`rulePackage:${bridge.acmeDir}`]);
+        expect(shown.params.message?.reveal).toMatchObject({
+            kind: "rows",
+            addOnIds: [`rulePackage:${bridge.acmeDir}`],
+        });
     });
 
     it("lists the new plugins when the host cannot show the view", async () => {
@@ -448,6 +452,52 @@ describe("Review… on the bridge of the IntelliJ host", () => {
 
         await waitForFrame(bridge.frames, isRequest(METHODS.pickerShow));
         expect(bridge.frames.filter(isRequest(METHODS.addOnsReveal))).toEqual([]);
+    });
+});
+
+describe("Review Add-ons on the bridge of the IntelliJ host", () => {
+    const isNeedsReviewReveal = (frame: Frame) =>
+        isPosted("RevealAddOnsQuery")(frame) &&
+        frame.params.message?.reveal?.kind === "needsReview";
+
+    it("holds a review sent before the tab opens until the page asks, after the model", async () => {
+        const project = await projectBridge((dispose) => disposals.push(dispose));
+        await openView(project, { open: false });
+
+        await project.rpc.handleLine(hostNotification(METHODS.addOnsReview, {}));
+        await settle();
+        expect(project.frames.filter(isPosted("RevealAddOnsQuery"))).toEqual([]);
+        await openView(project);
+        await nextModel(project);
+        await untilQuiet(project);
+        const fromIndex = project.frames.length;
+        await fromPage(project, { type: "GetAddOnCatalogCommand" });
+
+        const reveal = await waitForFrame(project.frames, isNeedsReviewReveal, { fromIndex });
+        const reposted = project.frames.slice(fromIndex);
+        expect(reveal.params.message?.reveal).toEqual({
+            kind: "needsReview",
+            revealId: expect.any(Number),
+        });
+        expect(reposted.findIndex(isPosted("AddOnCatalogQuery"))).toBeLessThan(
+            reposted.indexOf(reveal),
+        );
+    });
+
+    it("posts a review at once to an open tab whose page listens, and only once", async () => {
+        const project = await projectBridge((dispose) => disposals.push(dispose));
+        await openView(project);
+        await nextModel(project);
+        await fromPage(project, { type: "GetAddOnCatalogCommand" });
+        await untilQuiet(project);
+        const fromIndex = project.frames.length;
+
+        await project.rpc.handleLine(hostNotification(METHODS.addOnsReview, {}));
+        await waitForFrame(project.frames, isNeedsReviewReveal, { fromIndex });
+        await fromPage(project, { type: "GetAddOnCatalogCommand" });
+        await untilQuiet(project);
+
+        expect(project.frames.slice(fromIndex).filter(isNeedsReviewReveal)).toHaveLength(1);
     });
 });
 

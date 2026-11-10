@@ -5,13 +5,23 @@ import { placementOf, sourceOf } from "./catalogQueries";
 import { headsOf } from "./expansion";
 import { reviewOf } from "./placedActions";
 
+/**
+ * `reveal`: a "Review…" asked for it, so it may take focus the page does not hold yet.
+ * `requested`: Review Add-ons asked for it, so it wins over focus anywhere in the page.
+ */
 export type FocusTarget =
-    /** `reveal`: a "Review…" asked for it, so it may take focus the page does not hold yet. */
-    | { readonly kind: "head"; readonly headId: string; readonly reveal?: true }
+    | {
+          readonly kind: "head";
+          readonly headId: string;
+          readonly reveal?: true;
+          readonly requested?: true;
+      }
     | { readonly kind: "review"; readonly addOnId: string }
     /** The button at this place among its add-on's or source's actions. */
     | { readonly kind: "action"; readonly targetId: string; readonly slot: number }
-    | { readonly kind: "toolbar"; readonly actionKind: CatalogActionKindPayload };
+    | { readonly kind: "toolbar"; readonly actionKind: CatalogActionKindPayload }
+    /** The list's first control, else the tab: a review that found nothing selects none. */
+    | { readonly kind: "listStart"; readonly requested?: true };
 
 type AfterDone = (targetId: string, slot: number) => FocusTarget;
 
@@ -65,6 +75,20 @@ export function isFocusable(target: FocusTarget, model: AddOnCatalogPayload): bo
             return actionsOf(model, target.targetId).length > target.slot;
         case "toolbar":
             return model.actions.some(({ kind }) => kind === target.actionKind);
+        case "listStart":
+            return true;
+    }
+}
+
+/** A host command named the target: it closes an open menu and takes focus from any control in the page. */
+export function isRequestedByHost(target: FocusTarget | undefined): boolean {
+    switch (target?.kind) {
+        case "head":
+            return target.reveal === true || target.requested === true;
+        case "listStart":
+            return target.requested === true;
+        default:
+            return false;
     }
 }
 

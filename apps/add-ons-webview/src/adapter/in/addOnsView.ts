@@ -1,13 +1,19 @@
 import type { AddOnCatalogPayload } from "@miragon/bpmn-modeler-shared";
 
-import { filteredGroups, isFilterActive } from "../../domain/catalogFilter";
-import { addOnsOf, placementOf } from "../../domain/catalogQueries";
-import { CatalogScope, scopedCatalog } from "../../domain/catalogScope";
-import { CHROME_TEXT, matchCountText } from "../../domain/chromeTexts";
+import { placementOf } from "../../domain/catalogQueries";
+import type { CatalogScope } from "../../domain/catalogScope";
+import { announcementOf, CHROME_TEXT, NO_MATCH_TEXT } from "../../domain/chromeTexts";
 import { headsOf, isShownOpen } from "../../domain/expansion";
-import type { FocusTarget } from "../../domain/focusAfter";
+import { FocusTarget, isRequestedByHost } from "../../domain/focusAfter";
 import { catalogPhaseOf, ListContent, listContentOf } from "../../domain/listContent";
-import { CATALOG_TARGET, isBusy, selectedIdOf, ViewEvent, ViewState } from "../../domain/viewState";
+import {
+    CATALOG_TARGET,
+    isBusy,
+    listExpansionOf,
+    selectedIdOf,
+    ViewEvent,
+    ViewState,
+} from "../../domain/viewState";
 import { backButton, detailOf, hintOf } from "./detailView";
 import { el, elementAt, setBusy } from "./dom";
 import {
@@ -88,6 +94,7 @@ export class AddOnsView {
     render(state: ViewState, target?: FocusTarget): void {
         const reveal =
             target?.kind === "head" && target.reveal === true ? target.headId : undefined;
+        if (isRequestedByHost(target)) this.openMenu = undefined;
         if (reveal !== undefined) this.startReveal(reveal);
         this.show(state, target);
         if (reveal !== undefined) this.finishReveal(reveal);
@@ -102,10 +109,16 @@ export class AddOnsView {
         if (catalogPhaseOf(state.model) === "ready") this.toolbar.focusTab(state.scope);
     }
 
-    /** A focus target only moves focus the view holds, or that fell to the page with a removed control. */
+    /**
+     * A focus target only moves focus the view holds, or that fell to the page
+     * with a removed control; one a host requested also moves it from the search.
+     */
     private show(state: ViewState, target?: FocusTarget): void {
         const held = this.focus.held();
-        const owned = held !== undefined || document.activeElement === document.body;
+        const owned =
+            held !== undefined ||
+            document.activeElement === document.body ||
+            (isRequestedByHost(target) && this.root.contains(document.activeElement));
         this.state = state;
         this.draw(state);
         const revealing = target?.kind === "head" && target.reveal === true;
@@ -133,9 +146,10 @@ export class AddOnsView {
             return;
         }
         this.toolbar.update(model, state, this.openMenu);
-        this.drawList(model, state);
+        const content = listContentOf(model, state.scope, state.filter);
+        this.drawList(content, model, state);
         this.drawDetail(model, state);
-        this.announce(model, state);
+        this.announce(content, state);
     }
 
     /** The list is the tab's panel while the tabs show, else the view's one region. */
@@ -151,13 +165,14 @@ export class AddOnsView {
         this.list.removeAttribute("aria-label");
     }
 
-    private drawList(model: AddOnCatalogPayload, state: ViewState): void {
+    private drawList(content: ListContent, model: AddOnCatalogPayload, state: ViewState): void {
         const selectedId = selectedIdOf(state);
         const inputs = [
             model,
             state.scope,
             state.filter,
             state.expansion,
+            state.filterExpansion,
             state.pending,
             selectedId,
             this.revealedId,
@@ -169,9 +184,7 @@ export class AddOnsView {
         if (model.problem !== undefined) {
             parts.push(statusBox("danger", model.problem, "av-catalog-problem"));
         }
-        parts.push(
-            ...this.contentOf(listContentOf(model, state.scope, state.filter), model, state),
-        );
+        parts.push(...this.contentOf(content, model, state));
         this.list.replaceChildren(...parts);
     }
 
@@ -191,19 +204,16 @@ export class AddOnsView {
             case "noMatch":
                 return [
                     ...scopeActionsOf(content.buttons, busy),
-                    noMatchOf(() => this.clearFilters()),
+                    noMatchOf(NO_MATCH_TEXT[content.reason], () => this.clearFilters()),
                 ];
             case "groups": {
                 const heads = new Map(headsOf(model).map((head) => [head.id, head]));
-                const filterActive = isFilterActive(state.filter);
+                const shown = listExpansionOf(state);
                 const groups = groupsOf(content.groups, content.flat, {
                     state,
-                    filterActive,
                     isOpen: (id) => {
                         const head = heads.get(id);
-                        return (
-                            head !== undefined && isShownOpen(head, state.expansion, filterActive)
-                        );
+                        return head !== undefined && isShownOpen(head, shown);
                     },
                     selectedId: selectedIdOf(state),
                     revealedId: this.revealedId,
@@ -243,12 +253,8 @@ export class AddOnsView {
         }
     }
 
-    /** What a search or filter left, for a screen reader; nothing while none is active. */
-    private announce(model: AddOnCatalogPayload, state: ViewState): void {
-        const count = addOnsOf(
-            filteredGroups(scopedCatalog(model, state.scope), state.filter),
-        ).length;
-        const text = isFilterActive(state.filter) ? matchCountText(count) : "";
+    private announce(content: ListContent, state: ViewState): void {
+        const text = announcementOf(content, state.filter);
         if (this.announcer.textContent !== text) this.announcer.textContent = text;
     }
 
@@ -336,7 +342,6 @@ export class AddOnsView {
 
     /** A host "Review…": the reducer selected the add-on and opened its review; the view rings it. */
     private startReveal(addOnId: string): void {
-        this.openMenu = undefined;
         this.revealedId = addOnId;
         clearTimeout(this.revealTimer);
         this.revealTimer = setTimeout(() => this.endReveal(), REVEAL_MS);

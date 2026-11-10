@@ -112,6 +112,7 @@ export type {
     AddOnCatalogModel,
     AddOnGroupView,
     AddOnReveal,
+    AddOnRevealTarget,
     AddOnReview,
     AddOnSourceView,
     AddOnView,

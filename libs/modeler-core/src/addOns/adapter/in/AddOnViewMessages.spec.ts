@@ -45,7 +45,11 @@ const MODEL: AddOnCatalogModel = {
     groups: [],
     actions: [{ kind: "pruneCache", label: "Remove unused plugin copies" }],
 };
-const REVEAL: AddOnReveal = { revealId: 1, addOnIds: ["plugin:/work/.camunda/plugins/resize"] };
+const REVEAL: AddOnReveal = {
+    kind: "rows",
+    revealId: 1,
+    addOnIds: ["plugin:/work/.camunda/plugins/resize"],
+};
 const ALLOW: AddOnRequest = { kind: "allow", addOnId: "plugin:/work/x", revision: 7 };
 
 function setUp(

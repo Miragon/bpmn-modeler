@@ -1547,6 +1547,77 @@ describe("the packaged extension in a real VS Code", () => {
             await vscode().runCommand("View: Show Explorer");
         });
 
+        // The revoked plugin offers Allow again, so it needs a review.
+        it("opens the Add-ons view on what needs review from Review Add-ons", async () => {
+            const searchOf = (addOns: FrameLocator) =>
+                addOns.getByRole("searchbox", { name: "Search add-ons" });
+            const needsReviewOf = (addOns: FrameLocator) =>
+                addOns.getByRole("button", { name: /^Needs review/ });
+            await vscode().runCommand("Focus on Add-ons View");
+            const filtered = await vscode().viewWebview(ADD_ONS_VIEW);
+            // The drill-down hides the toolbar behind the revoked plugin's detail.
+            if (await showsDrillDownDetail(filtered)) await filtered.locator(".av-back").click();
+            await searchOf(filtered).fill("zzz");
+            await vscode().runCommand("View: Show Explorer");
+
+            await vscode().runCommand("Review Add-ons");
+
+            const addOns = await vscode().viewWebview(ADD_ONS_VIEW);
+            await expect
+                .poll(
+                    async () => ({
+                        workspace: await addOns
+                            .getByRole("tab", { name: /^Workspace/ })
+                            .getAttribute("aria-selected"),
+                        needsReview: await needsReviewOf(addOns).getAttribute("aria-pressed"),
+                        plugins: await addOns
+                            .getByRole("button", { name: /^Plugins/ })
+                            .getAttribute("aria-pressed"),
+                        search: await searchOf(addOns).inputValue(),
+                        current: await addOnRow(addOns, PLUGIN_NAME).getAttribute("aria-current"),
+                    }),
+                    { timeout: TIMEOUT_MS },
+                )
+                .toEqual({
+                    workspace: "true",
+                    needsReview: "true",
+                    plugins: "false",
+                    search: "",
+                    current: "true",
+                });
+            await expect
+                .poll(async () => isFocused(await addOnFocusTarget(addOns, PLUGIN_NAME)), {
+                    timeout: TIMEOUT_MS,
+                })
+                .toBe(true);
+            await expect
+                .poll(() => addOns.locator('.av-vh[aria-live="polite"]').textContent(), {
+                    timeout: TIMEOUT_MS,
+                })
+                .toMatch(/needs? review/);
+            await settle(addOns);
+            await vscode().screenshot(join(RESULTS_DIRECTORY, "add-ons-review.png"));
+            // The view is the answer: no toast says what needs review.
+            expect(
+                await page()
+                    .locator(".notifications-toasts .notification-toast")
+                    .filter({ hasText: /needs? review/i })
+                    .count(),
+            ).toBe(0);
+
+            await needsReviewOf(addOns).click();
+            await vscode().runCommand("View: Show Explorer");
+            await vscode().runCommand("Review Add-ons");
+            const reviewedAgain = needsReviewOf(await vscode().viewWebview(ADD_ONS_VIEW));
+            await expect
+                .poll(() => reviewedAgain.getAttribute("aria-pressed"), { timeout: TIMEOUT_MS })
+                .toBe("true");
+
+            await reviewedAgain.click();
+            expectNoCspViolations();
+            await vscode().runCommand("View: Show Explorer");
+        });
+
         it("loads the Add-ons view's Geist fonts within its policy", async () => {
             await vscode().runCommand("Focus on Add-ons View");
             const addOns = await vscode().viewWebview(ADD_ONS_VIEW);

@@ -2,9 +2,9 @@ import type { AddOnCatalogPayload } from "@miragon/bpmn-modeler-shared";
 import { describe, expect, it } from "vitest";
 
 import { CATALOG } from "../__fixtures__/catalogs";
-import { NO_FILTER } from "./catalogFilter";
+import { CatalogFilter, NEEDS_REVIEW_ONLY, NO_FILTER } from "./catalogFilter";
 import { CatalogScope } from "./catalogScope";
-import { catalogPhaseOf, listContentOf } from "./listContent";
+import { catalogPhaseOf, listContentOf, openingScopeOf } from "./listContent";
 
 const ADD = { kind: "addMarketplace", label: "Add marketplace…" } as const;
 const UPDATE = { kind: "updateMarketplaces", label: "Update marketplaces" } as const;
@@ -113,7 +113,57 @@ describe("listContentOf", () => {
     ])("says no add-on matches a filter in the %s tab, with its buttons", (scope, buttons) => {
         expect(listContentOf(full, scope, { ...NO_FILTER, query: "nothing like this" })).toEqual({
             kind: "noMatch",
+            reason: "filters",
             buttons,
         });
+    });
+
+    const nothingToReview: AddOnCatalogPayload = { ...full, groups: [{ ...FOLDER, sources: [] }] };
+
+    it.each<[string, CatalogFilter, string]>([
+        ["only the review chip finds nothing to review", NEEDS_REVIEW_ONLY, "nothingToReview"],
+        [
+            "the review chip with a query matches nothing",
+            { ...NEEDS_REVIEW_ONLY, query: "x" },
+            "filters",
+        ],
+        [
+            "the review chip with a kind matches nothing",
+            { ...NEEDS_REVIEW_ONLY, kinds: new Set(["plugin"]) },
+            "filters",
+        ],
+        ["a kind alone matches nothing", { ...NO_FILTER, kinds: new Set(["plugin"]) }, "filters"],
+    ])("says why the list is empty when %s", (_, filter, reason) => {
+        expect(listContentOf(nothingToReview, "workspace", filter)).toMatchObject({
+            kind: "noMatch",
+            reason,
+        });
+    });
+});
+
+describe("openingScopeOf", () => {
+    const withoutSources = { ...MARKETPLACES, sources: [] };
+    const onlyAProblem = { ...withoutSources, problem: "Could not read the marketplaces." };
+
+    it.each<{ case: string; model: AddOnCatalogPayload; scope: CatalogScope }>([
+        { case: "the workspace beside a marketplace", model: full, scope: "workspace" },
+        {
+            case: "the marketplaces without a folder",
+            model: onlyMarketplaces,
+            scope: "marketplaces",
+        },
+        {
+            case: "the marketplaces without a folder while they hold only a problem",
+            model: { ...onlyMarketplaces, groups: [onlyAProblem] },
+            scope: "marketplaces",
+        },
+        {
+            case: "the workspace while neither tab lists anything",
+            model: { ...onlyMarketplaces, groups: [withoutSources] },
+            scope: "workspace",
+        },
+        { case: "the workspace with only a folder", model: onlyFolders, scope: "workspace" },
+    ])("is $case", ({ model, scope }) => {
+        expect(openingScopeOf(model)).toBe(scope);
     });
 });

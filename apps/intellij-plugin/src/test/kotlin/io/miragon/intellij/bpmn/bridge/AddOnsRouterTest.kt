@@ -214,4 +214,36 @@ class AddOnsRouterTest {
 
         assertEquals(0, starts)
     }
+
+    @Test
+    fun `asks the core to show what needs review`() {
+        val (wired, router) = routed().let { it.wired to it.router }
+
+        router.review()
+
+        assertEquals(json("""{"method": "addOns/review", "params": {}}"""), json(wired.fake.nextFrame()))
+    }
+
+    @Test
+    fun `starts the bridge to review the add-ons`() {
+        var starts = 0
+        val router = routed(ensureStartedAsync = { starts++ }).router
+
+        router.review()
+
+        assertEquals(1, starts)
+    }
+
+    @Test
+    fun `sends one review for presses made while the bridge restarts`() {
+        val (wired, router) = routed().let { it.wired to it.router }
+
+        val frames =
+            framesAfterRestart(wired) {
+                router.review()
+                router.review()
+            }
+
+        assertEquals(listOf("addOns/review"), frames.map { it.get("method").asString })
+    }
 }

@@ -224,8 +224,8 @@ reads that table before any panel attaches.
 The add-ons view (`apps/add-ons-webview`, surface `addOnsView`) follows the
 same shape. Its messages sit in `libs/shared/src/lib/addOnsView.ts`, a
 feature file of their own, which both shared protocol specs import; its
-payloads copy the core's catalog model, request, result and reveal field for
-field, and `AddOnViewMessages.spec.ts` pins each whole type and each value set
+payloads copy the core's catalog model, request, result and reveal (rows or
+needs review) field for field, and `AddOnViewMessages.spec.ts` pins each whole type and each value set
 to its home with `expectTypeOf`. `AddOnViewMessages` in the core's
 `addOns/adapter/in/` maps the protocol for one page, so no host translates
 it, and `AddOnsFeature.panelRoutes` reads its table before any page attaches.
@@ -258,9 +258,17 @@ the view's own width the panes stand side by side, below that the detail
 replaces the list with a Back button; container queries decide, so the layout
 follows a resized sidebar or tool window without a reload. The reducer
 (`src/domain/viewState.ts`) holds the tab, each tab's selection, the filter
-and the pane, and keeps the tab, the selections and the open or closed headers
-in the host's saved state, so a reload, which IntelliJ does after a bridge
-restart, lands where the user was; the search stays with the page.
+and the pane, and keeps the tab the user chose (`chosenScope`), the selections
+and the open or closed headers in the host's saved state, so a reload, which
+IntelliJ does after a bridge restart, lands where the user was; the search
+stays with the page. Until the user chooses a tab, the first model that lists
+something opens Marketplaces when the Workspace tab lists nothing and a
+marketplace is listed, else Workspace (`openingScopeOf`). A tab selects on its
+own only a row its open headers show (`rowsInSight`). A search or
+filter opens every header with a match, and what the user opens or closes
+while it is on goes into `filterExpansion`, which stays with the page and ends
+with the filter, so the saved headers never change while filtering and show
+again once it is cleared.
 
 The brand's own components draw it: the vendored tokens
 (`cd-tokens.generated.css`, unchanged from the `miragon-brand` skill), Geist
@@ -316,7 +324,11 @@ adapter of `AddOnViewRevealPort`: `addOns/reveal` asks Kotlin to select the tab
 and activate the tool window, and the core then delivers the rows through the
 panel, so no row id rides the wire. Kotlin answers `false` where JCEF is
 missing, the tool window is not registered or the project is closing, and the
-`ListReview` fallback asks instead. The tab's title button sends
+`ListReview` fallback asks instead. The Tools action **Review Add-ons**
+(`ReviewAddOnsAction`) selects the tab itself through `revealAddOns`, then
+sends `addOns/review`, a reliable, coalesced notification that starts the
+bridge; the core then reveals what needs review through the panel. Where the
+tab cannot show, it asks the core nothing. The tab's title button sends
 `addOns/refresh`, as nothing reports an installed package or another window's
 approval. Every process after the first, a crash respawn or a start after the
 supervisor gave up, reloads the page: only a result frees a busy row, and a
@@ -605,7 +617,12 @@ the next view VS Code resolves starts clean. The reviews are built before the
 BPMN editor that takes them, while the catalog is built later from that
 editor's owners, so the composition connects the reveal once the catalog
 exists; activation is synchronous, so no notice can ask before then. The
-adapter runs `describeAddOnViewRevealContract`.
+adapter runs `describeAddOnViewRevealContract`. The palette command
+**Review Add-ons** (`bpmn-modeler.reviewAddOns`, `ReviewAddOnsCommand`) has
+the provider focus the view the same way, then calls
+`AddOnsFeature.revealNeedsReview()`; when focusing fails it only logs a
+warning and asks the core nothing. It is offered while a folder is open, as
+the view is.
 
 The element-template editor is the main editor for template files in VS Code:
 files in an `element-templates` folder open in it through a default editor
@@ -1205,7 +1222,9 @@ holds its copy of the deadline to the one `protocol.json` lists. The relayed
 page messages and visibility of the add-ons view (`addOns/webviewMessage`,
 `addOns/open`) are reliable frames that wait for the next process, unlike the
 best-effort deployment relay: only a result frees a busy row on the page, so a
-dropped request would leave its row busy.
+dropped request would leave its row busy. `addOns/review` is reliable too, as
+the user waits for its result across a cold start; its coalesce key
+`addOns/review` keeps one of the presses made while the bridge is down.
 
 ### Process lifecycle
 

@@ -89,8 +89,11 @@ export interface TemplateAddOnView {
 
 export type AddOnView = CodeAddOnView | TemplateAddOnView;
 
-/** Rows a view is to show and focus, once: a "Review…" left the code they name to it. */
-export interface AddOnReveal {
-    readonly revealId: number;
-    readonly addOnIds: readonly string[];
-}
+/** What a host asks a view to show, once: rows a "Review…" left to it, or every add-on that needs review. */
+export type AddOnRevealTarget =
+    | { readonly kind: "rows"; readonly addOnIds: readonly string[] }
+    | { readonly kind: "needsReview" };
+/** Field for field the protocol's AddOnRevealPayload; written out, as the type pin is strict about intersections. */
+export type AddOnReveal =
+    | { readonly kind: "rows"; readonly revealId: number; readonly addOnIds: readonly string[] }
+    | { readonly kind: "needsReview"; readonly revealId: number };

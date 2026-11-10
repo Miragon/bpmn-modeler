@@ -8,6 +8,7 @@ import {
     CONFIG_SOURCE,
     MAIL,
     MARKETPLACE_SOURCE,
+    PACKAGES_SOURCE,
     PALETTE,
     RESIZE,
     without,
@@ -217,14 +218,27 @@ describe("AddOnsView", () => {
         });
 
         it("keep each tab's own selection", () => {
-            const { tab, row, detailName } = mountedView(CATALOG);
+            const { tab, row, head, detailName } = mountedView(CATALOG);
             row(PALETTE.name).click();
 
             tab("Marketplaces").click();
+            head(MARKETPLACE_SOURCE.id)!.click();
             const marketplaces = detailName();
             tab("Workspace").click();
 
             expect([marketplaces, detailName()]).toEqual([MAIL.name, PALETTE.name]);
+        });
+
+        it("select nothing in a wide marketplaces tab while its sources are closed", () => {
+            const { tab, root, detailName } = mountedView(CATALOG);
+
+            tab("Marketplaces").click();
+
+            expect([
+                detailName(),
+                text(root.querySelector(".av-hint")),
+                root.querySelector(".av-row[aria-current]"),
+            ]).toEqual([undefined, "No add-on selected.", null]);
         });
 
         it.each([
@@ -272,7 +286,7 @@ describe("AddOnsView", () => {
             ]);
         });
 
-        it("keep the matches of a chosen kind, with plain headers, and announce how many", () => {
+        it("keep the matches of a chosen kind, under open headers, and announce how many", () => {
             const { chip, rowNames, head, root } = mountedView(CATALOG);
 
             chip("Plugins").click();
@@ -280,9 +294,67 @@ describe("AddOnsView", () => {
             expect([
                 chip("Plugins").getAttribute("aria-pressed"),
                 rowNames(),
-                head(CONFIG_SOURCE.id),
+                head(CONFIG_SOURCE.id)?.getAttribute("aria-expanded"),
                 text(root.querySelector("[aria-live=polite].av-vh")),
-            ]).toEqual(["true", [PALETTE.name, RESIZE.name], null, "2 add-ons shown"]);
+            ]).toEqual(["true", [PALETTE.name, RESIZE.name], "true", "2 add-ons shown"]);
+        });
+
+        it("let the user close a source while filtering, summed up over its matches", () => {
+            const { type, head, rowNames, search } = mountedView(CATALOG);
+            type("resize");
+            head(CONFIG_SOURCE.id)!.focus();
+
+            head(CONFIG_SOURCE.id)!.click();
+            const closed = head(CONFIG_SOURCE.id)!;
+
+            expect([
+                closed.tagName,
+                closed.getAttribute("aria-expanded"),
+                rowNames(),
+                text(closed.querySelector(".ds-count")),
+                closed.querySelectorAll(".av-dot").length,
+                text(closed.querySelector(".av-vh")),
+                search().value,
+                document.activeElement,
+            ]).toEqual([
+                "BUTTON",
+                "false",
+                [],
+                "1",
+                1,
+                ", 1 add-on, 1 needs review",
+                "resize",
+                closed,
+            ]);
+        });
+
+        it("let the user close a folder while filtering, and keep it closed as the query grows", () => {
+            const { type, head, rowNames } = mountedView(CATALOG);
+            type("re");
+
+            head(FOLDER.id)!.click();
+            type("res");
+
+            expect([head(FOLDER.id)?.getAttribute("aria-expanded"), rowNames()]).toEqual([
+                "false",
+                [],
+            ]);
+        });
+
+        it("restore the user's own layout once the filter is cleared", () => {
+            const { type, head, chip, button, rowNames } = mountedView(CATALOG);
+            head(PACKAGES_SOURCE.id)!.click();
+            chip("Plugins").click();
+            head(CONFIG_SOURCE.id)!.click();
+            type("nothing like this");
+
+            button("Clear filters").click();
+
+            expect([
+                head(CONFIG_SOURCE.id)?.getAttribute("aria-expanded"),
+                head(PACKAGES_SOURCE.id)?.getAttribute("aria-expanded"),
+                rowNames(),
+            ]).toEqual(["true", "false", [PALETTE.name, RESIZE.name]]);
         });
 
         it("keep only what needs review", () => {
@@ -723,14 +795,20 @@ describe("AddOnsView", () => {
             ]).toEqual(["failed", "Could not list the add-ons.", null]);
         });
 
-        it("say the core's text in a workspace tab without folders", () => {
-            const { root } = mountedView({
+        it("open on the marketplaces without folders, and say the core's text in the workspace tab", () => {
+            const { root, tab } = mountedView({
                 ...CATALOG,
                 groups: [MARKETPLACES],
                 emptyText: "Open a folder.",
             });
+            const opened = tab("Marketplaces").getAttribute("aria-selected");
 
-            expect(text(root.querySelector(".av-empty-text"))).toBe("Open a folder.");
+            tab("Workspace").click();
+
+            expect([opened, text(root.querySelector(".av-empty-text"))]).toEqual([
+                "true",
+                "Open a folder.",
+            ]);
         });
 
         it("offer Add marketplace… in a marketplaces tab without one", () => {
@@ -846,7 +924,7 @@ describe("AddOnsView", () => {
     describe("a reveal", () => {
         const reveal = (addOnId: string, revealId = 1) => ({
             kind: "revealArrived" as const,
-            reveal: { revealId, addOnIds: [addOnId] },
+            reveal: { kind: "rows" as const, revealId, addOnIds: [addOnId] },
         });
 
         it("switches the tab, clears a hiding filter, rings and focuses the row", () => {
@@ -890,6 +968,112 @@ describe("AddOnsView", () => {
             session.dispatch(reveal(ACME.id));
 
             expect(root.contains(document.activeElement)).toBe(false);
+        });
+    });
+
+    describe("the review preset", () => {
+        const review = {
+            kind: "revealArrived" as const,
+            reveal: { kind: "needsReview" as const, revealId: 1 },
+        };
+
+        it("shows the workspace with only Needs review on and focuses the first add-on to review", () => {
+            const { session, root, tab, chip, row, search, type } = mountedView(CATALOG);
+            tab("Marketplaces").click();
+            type("mail");
+            chip("Plugins").click();
+
+            session.dispatch(review);
+
+            expect([
+                tab("Workspace").getAttribute("aria-selected"),
+                ["Needs review", "Plugins", "Rule packages", "Templates"].map((name) =>
+                    chip(name).getAttribute("aria-pressed"),
+                ),
+                search().value,
+                row(RESIZE.name).getAttribute("aria-current"),
+                document.activeElement,
+                text(root.querySelector("[aria-live=polite].av-vh")),
+            ]).toEqual([
+                "true",
+                ["true", "false", "false", "false"],
+                "",
+                "true",
+                row(RESIZE.name),
+                "2 add-ons need review",
+            ]);
+        });
+
+        it("says nothing needs review and focuses Clear filters", () => {
+            const { session, root, button } = mountedView(without(ACME.id, without(RESIZE.id)));
+
+            session.dispatch(review);
+
+            expect([
+                text(root.querySelector(".av-empty-text")),
+                document.activeElement,
+                text(root.querySelector("[aria-live=polite].av-vh")),
+                text(root.querySelector(".av-hint")),
+            ]).toEqual([
+                "No add-ons need review.",
+                button("Clear filters"),
+                "No add-ons need review.",
+                "No add-on selected.",
+            ]);
+        });
+
+        it.each<{
+            case: string;
+            model: AddOnCatalogPayload;
+            focused: (view: ReturnType<typeof mountedView>) => Element;
+        }>([
+            {
+                case: "the first add-on to review",
+                model: CATALOG,
+                focused: ({ row }) => row(RESIZE.name),
+            },
+            {
+                case: "Clear filters when nothing needs review",
+                model: without(ACME.id, without(RESIZE.id)),
+                focused: ({ button }) => button("Clear filters"),
+            },
+        ])("moves focus from the search box to $case", ({ model, focused }) => {
+            const view = mountedView(model);
+            view.search().focus();
+            view.type("zzz");
+
+            view.session.dispatch(review);
+
+            expect([view.search().value, document.activeElement]).toEqual(["", focused(view)]);
+        });
+
+        it("closes an open menu as it moves focus to the list", () => {
+            const { session, root, button, row } = mountedView(CATALOG);
+            button("More actions").click();
+
+            session.dispatch(review);
+
+            expect([
+                root.querySelectorAll("[role=menu]").length,
+                button("More actions").getAttribute("aria-expanded"),
+                document.activeElement,
+            ]).toEqual([0, "false", row(RESIZE.name)]);
+        });
+
+        it("announces no count where the workspace shows its own empty text", () => {
+            const emptyText = "Open a folder to see its add-ons.";
+            const { session, root } = mountedView({
+                ...CATALOG,
+                groups: [MARKETPLACES],
+                emptyText,
+            });
+
+            session.dispatch(review);
+
+            expect([
+                text(root.querySelector(".av-empty-text")),
+                text(root.querySelector("[aria-live=polite].av-vh")),
+            ]).toEqual([emptyText, ""]);
         });
     });
 

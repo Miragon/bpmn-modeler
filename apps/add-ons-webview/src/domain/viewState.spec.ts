@@ -13,8 +13,10 @@ import {
     without,
     withRevision,
 } from "../__fixtures__/catalogs";
-import { NO_FILTER } from "./catalogFilter";
+import { NEEDS_REVIEW_ONLY, NO_FILTER } from "./catalogFilter";
+import type { CatalogScope } from "./catalogScope";
 import { reviewKeyOf } from "./expansion";
+import { listContentOf } from "./listContent";
 import {
     CATALOG_TARGET,
     initialViewState,
@@ -37,8 +39,13 @@ const shown = (model: AddOnCatalogPayload = CATALOG): ViewEvent => ({
 });
 const reveal = (revealId: number, addOnIds: string[]): ViewEvent => ({
     kind: "revealArrived",
-    reveal: { revealId, addOnIds } satisfies AddOnRevealPayload,
+    reveal: { kind: "rows", revealId, addOnIds } satisfies AddOnRevealPayload,
 });
+const review = (revealId: number): ViewEvent => ({
+    kind: "revealArrived",
+    reveal: { kind: "needsReview", revealId } satisfies AddOnRevealPayload,
+});
+const ONLY_MARKETPLACES: AddOnCatalogPayload = { ...CATALOG, groups: [CATALOG.groups[1]!] };
 
 describe("nextViewState", () => {
     describe("models", () => {
@@ -354,6 +361,7 @@ describe("nextViewState", () => {
 
             expect([
                 state.scope,
+                state.scopeSettled,
                 state.expansion.get(MARKETPLACE_SOURCE.id),
                 selectedIdOf(state),
                 state.pane,
@@ -361,6 +369,7 @@ describe("nextViewState", () => {
                 focus,
             ]).toEqual([
                 "marketplaces",
+                true,
                 true,
                 MAIL.id,
                 "detail",
@@ -394,6 +403,20 @@ describe("nextViewState", () => {
             expect([hidden.state.filter, kept.state.filter.query]).toEqual([NO_FILTER, "resize"]);
         });
 
+        it("opens the row's heads the user closed while a kept filter is on", () => {
+            const { state } = after([
+                shown(),
+                { kind: "queryChanged", query: "resize" },
+                { kind: "toggled", key: "folder:/work" },
+                reveal(1, [RESIZE.id]),
+            ]);
+
+            expect([state.filter.query, state.filterExpansion.get("folder:/work")]).toEqual([
+                "resize",
+                true,
+            ]);
+        });
+
         it("lands on the first revealed row in model order", () => {
             expect(selectedIdOf(after([shown(), reveal(1, [RESIZE.id, PALETTE.id])]).state)).toBe(
                 PALETTE.id,
@@ -424,11 +447,216 @@ describe("nextViewState", () => {
         });
     });
 
+    describe("the review preset", () => {
+        it.each<{ case: string; before: ViewEvent[] }>([
+            {
+                case: "the marketplaces tab",
+                before: [{ kind: "scopeChosen", scope: "marketplaces" }],
+            },
+            {
+                case: "a search and the templates chip",
+                before: [
+                    { kind: "queryChanged", query: "mail" },
+                    { kind: "kindToggled", addOnKind: "elementTemplate" },
+                ],
+            },
+            { case: "the review chip already on", before: [{ kind: "needsReviewToggled" }] },
+            { case: "the detail pane", before: [{ kind: "addOnSelected", addOnId: PALETTE.id }] },
+        ])("shows the workspace with only the review chip, coming from $case", ({ before }) => {
+            const { state, focus } = after([shown(), ...before, review(5)]);
+
+            expect([
+                state.scope,
+                state.filter,
+                state.pane,
+                state.reveal,
+                state.lastRevealId,
+                focus,
+            ]).toEqual([
+                "workspace",
+                NEEDS_REVIEW_ONLY,
+                "list",
+                undefined,
+                5,
+                { kind: "head", headId: RESIZE.id, requested: true },
+            ]);
+        });
+
+        it("keeps a workspace selection that needs review", () => {
+            const { state, focus } = after([
+                shown(),
+                { kind: "addOnSelected", addOnId: ACME.id },
+                review(5),
+            ]);
+
+            expect([selectedIdOf(state), focus]).toEqual([
+                ACME.id,
+                { kind: "head", headId: ACME.id, requested: true },
+            ]);
+        });
+
+        it("replaces a selection that needs no review with the first to review, not its neighbour", () => {
+            const paletteBetween: AddOnCatalogPayload = {
+                ...CATALOG,
+                groups: CATALOG.groups.map((group, index) =>
+                    index > 0
+                        ? group
+                        : {
+                              ...group,
+                              sources: group.sources.map((source) =>
+                                  source.id === CONFIG_SOURCE.id
+                                      ? { ...source, addOns: [RESIZE, PALETTE] }
+                                      : source,
+                              ),
+                          },
+                ),
+            };
+
+            const { state } = after([
+                shown(paletteBetween),
+                { kind: "addOnSelected", addOnId: PALETTE.id },
+                review(5),
+            ]);
+
+            expect(selectedIdOf(state)).toBe(RESIZE.id);
+        });
+
+        it("selects nothing in the workspace and focuses the list's start when nothing needs review", () => {
+            const { state, focus } = after([
+                shown(without(ACME.id, without(RESIZE.id))),
+                review(5),
+            ]);
+
+            expect(["workspace" in state.selection, state.filter, focus]).toEqual([
+                false,
+                NEEDS_REVIEW_ONLY,
+                { kind: "listStart", requested: true },
+            ]);
+        });
+
+        it("opens every head again, also one the user closed over an earlier filter", () => {
+            const { state } = after([
+                shown(),
+                { kind: "queryChanged", query: "nothing like this" },
+                { kind: "toggled", key: CONFIG_SOURCE.id },
+                review(5),
+            ]);
+
+            expect([state.filterExpansion.size, selectedIdOf(state)]).toEqual([0, RESIZE.id]);
+        });
+
+        it("waits for a model, then applies", () => {
+            const waiting = after([review(5)]);
+            const { state, focus } = nextViewState(waiting.state, shown());
+
+            expect([waiting.state.filter, state.filter, focus]).toEqual([
+                NO_FILTER,
+                NEEDS_REVIEW_ONLY,
+                { kind: "head", headId: RESIZE.id, requested: true },
+            ]);
+        });
+
+        it("ignores a preset it applied before", () => {
+            const { state, focus } = after(
+                [shown(), review(5)],
+                initialViewState({ lastRevealId: 5 }),
+            );
+
+            expect([state.filter, focus]).toEqual([NO_FILTER, undefined]);
+        });
+
+        it("applies a later preset again after the user cleared the filters", () => {
+            const { state } = after([shown(), review(5), { kind: "filtersCleared" }, review(6)]);
+
+            expect([state.filter, state.lastRevealId]).toEqual([NEEDS_REVIEW_ONLY, 6]);
+        });
+
+        it("shows the workspace's own empty text where no folder is open", () => {
+            const { state, focus } = after([shown(ONLY_MARKETPLACES), review(5)]);
+
+            expect([
+                state.scope,
+                listContentOf(ONLY_MARKETPLACES, state.scope, state.filter).kind,
+                focus,
+            ]).toEqual(["workspace", "workspaceEmpty", { kind: "listStart", requested: true }]);
+        });
+
+        it("keeps the preset's id but no tab across a reload", () => {
+            const { state } = after([shown(ONLY_MARKETPLACES), review(5)]);
+
+            expect([
+                persistedChoicesOf(state).chosenScope,
+                persistedChoicesOf(state).lastRevealId,
+            ]).toEqual([undefined, 5]);
+        });
+
+        it("lands on a row a later Review… reveals", () => {
+            const { state } = after([shown(), review(5), reveal(6, [MAIL.id])]);
+
+            expect([state.scope, selectedIdOf(state), state.filter]).toEqual([
+                "marketplaces",
+                MAIL.id,
+                NO_FILTER,
+            ]);
+        });
+
+        it("wins over the opening tab when it waited for the first model", () => {
+            const { state } = after([review(5), shown(ONLY_MARKETPLACES)]);
+
+            expect([state.scope, state.scopeSettled]).toEqual(["workspace", true]);
+        });
+
+        it("keeps the workspace when it applied to a first model that lists nothing", () => {
+            const { state } = after([
+                review(5),
+                shown({ ...CATALOG, groups: [] }),
+                shown(withRevision(11, ONLY_MARKETPLACES)),
+            ]);
+
+            expect([state.scope, state.scopeSettled, state.filter]).toEqual([
+                "workspace",
+                true,
+                NEEDS_REVIEW_ONLY,
+            ]);
+        });
+    });
+
     describe("tabs and selection", () => {
-        it("starts each tab on its own first add-on to review, else its first", () => {
+        it("selects no template while every marketplace is closed", () => {
             const { state } = after([shown(), { kind: "scopeChosen", scope: "marketplaces" }]);
 
+            expect(state.selection).toEqual({ workspace: RESIZE.id });
+        });
+
+        it("selects the first template of a marketplace the user opens", () => {
+            const { state } = after([
+                shown(),
+                { kind: "scopeChosen", scope: "marketplaces" },
+                { kind: "toggled", key: MARKETPLACE_SOURCE.id },
+            ]);
+
             expect(state.selection).toEqual({ workspace: RESIZE.id, marketplaces: MAIL.id });
+        });
+
+        it("starts on the first add-on to review the list shows, past a source the user closed", () => {
+            const closed = initialViewState({ expansion: [[CONFIG_SOURCE.id, false]] });
+
+            expect(selectedIdOf(after([shown()], closed).state)).toBe(ACME.id);
+        });
+
+        it.each<{ case: string; filter: ViewEvent[] }>([
+            { case: "without a filter", filter: [] },
+            { case: "while filtering", filter: [{ kind: "queryChanged", query: "e" }] },
+        ])("keeps the selection when the user closes its source $case", ({ filter }) => {
+            const { state } = after([
+                shown(),
+                ...filter,
+                { kind: "addOnSelected", addOnId: PALETTE.id },
+                { kind: "toggled", key: CONFIG_SOURCE.id },
+                { kind: "toggled", key: "folder:/work" },
+            ]);
+
+            expect(selectedIdOf(state)).toBe(PALETTE.id);
         });
 
         it("keeps each tab's selection across a switch", () => {
@@ -536,6 +764,78 @@ describe("nextViewState", () => {
             ]).toEqual([false, true]);
         });
 
+        it("keeps a head the user toggles while filtering apart from their kept choices", () => {
+            const before = after([shown(), { kind: "toggled", key: MARKETPLACE_SOURCE.id }]);
+            const { state } = after(
+                [
+                    { kind: "queryChanged", query: "a" },
+                    { kind: "toggled", key: CONFIG_SOURCE.id },
+                    { kind: "toggled", key: MARKETPLACE_SOURCE.id },
+                ],
+                before.state,
+            );
+
+            expect([[...state.filterExpansion], persistedChoicesOf(state)]).toEqual([
+                [
+                    [CONFIG_SOURCE.id, false],
+                    [MARKETPLACE_SOURCE.id, false],
+                ],
+                persistedChoicesOf(before.state),
+            ]);
+        });
+
+        it.each<{ case: string; refined: ViewEvent }>([
+            { case: "a refined query", refined: { kind: "queryChanged", query: "re" } },
+            { case: "a kind chip", refined: { kind: "kindToggled", addOnKind: "plugin" } },
+            { case: "the review chip", refined: { kind: "needsReviewToggled" } },
+        ])("keeps what the user closed while filtering across $case", ({ refined }) => {
+            const { state } = after([
+                shown(),
+                { kind: "queryChanged", query: "r" },
+                { kind: "toggled", key: CONFIG_SOURCE.id },
+                refined,
+            ]);
+
+            expect([...state.filterExpansion]).toEqual([[CONFIG_SOURCE.id, false]]);
+        });
+
+        it.each<{ case: string; filterOn: ViewEvent; filterOff: ViewEvent }>([
+            {
+                case: "the filters are cleared",
+                filterOn: { kind: "kindToggled", addOnKind: "plugin" },
+                filterOff: { kind: "filtersCleared" },
+            },
+            {
+                case: "the query is emptied",
+                filterOn: { kind: "queryChanged", query: "r" },
+                filterOff: { kind: "queryChanged", query: " " },
+            },
+            {
+                case: "the last chip goes off",
+                filterOn: { kind: "needsReviewToggled" },
+                filterOff: { kind: "needsReviewToggled" },
+            },
+        ])(
+            "forgets what the user toggled while filtering once $case",
+            ({ filterOn, filterOff }) => {
+                const layout = after([shown(), { kind: "toggled", key: CONFIG_SOURCE.id }]);
+                const { state } = after(
+                    [
+                        filterOn,
+                        { kind: "toggled", key: "folder:/work" },
+                        { kind: "toggled", key: CONFIG_SOURCE.id },
+                        filterOff,
+                    ],
+                    layout.state,
+                );
+
+                expect([state.filterExpansion.size, state.expansion]).toEqual([
+                    0,
+                    layout.state.expansion,
+                ]);
+            },
+        );
+
         it("toggles nothing before the first model", () => {
             expect(after([{ kind: "toggled", key: CONFIG_SOURCE.id }]).state.expansion.size).toBe(
                 0,
@@ -558,6 +858,103 @@ describe("nextViewState", () => {
         });
     });
 
+    describe("the opening tab", () => {
+        const NOTHING_LISTED: AddOnCatalogPayload = {
+            ...CATALOG,
+            groups: [{ ...CATALOG.groups[1]!, sources: [] }],
+        };
+
+        it.each<{
+            case: string;
+            saved?: CatalogScope;
+            model: AddOnCatalogPayload;
+            scope: CatalogScope;
+        }>([
+            { case: "workspace beside a marketplace", model: CATALOG, scope: "workspace" },
+            {
+                case: "marketplaces while the workspace lists nothing",
+                model: ONLY_MARKETPLACES,
+                scope: "marketplaces",
+            },
+            {
+                case: "workspace while neither tab lists anything",
+                model: NOTHING_LISTED,
+                scope: "workspace",
+            },
+            {
+                case: "the tab the user chose over the workspace",
+                saved: "marketplaces",
+                model: CATALOG,
+                scope: "marketplaces",
+            },
+            {
+                case: "the tab the user chose over the marketplaces",
+                saved: "workspace",
+                model: ONLY_MARKETPLACES,
+                scope: "workspace",
+            },
+        ])("is $case", ({ saved, model, scope }) => {
+            const start = initialViewState(saved === undefined ? {} : { chosenScope: saved });
+
+            expect(after([shown(model)], start).state.scope).toBe(scope);
+        });
+
+        it("stays on a tab the user chose before the first model", () => {
+            const { state } = after([
+                { kind: "scopeChosen", scope: "workspace" },
+                shown(ONLY_MARKETPLACES),
+            ]);
+
+            expect(state.scope).toBe("workspace");
+        });
+
+        it("stays when a later model brings a folder", () => {
+            const { state } = after([shown(ONLY_MARKETPLACES), shown(withRevision(11))]);
+
+            expect(state.scope).toBe("marketplaces");
+        });
+
+        it("waits for the first model that lists something", () => {
+            const loading = after([shown({ ...CATALOG, groups: [] })]);
+            const { state } = nextViewState(
+                loading.state,
+                shown(withRevision(11, ONLY_MARKETPLACES)),
+            );
+
+            expect([loading.state.scopeSettled, state.scope, state.scopeSettled]).toEqual([
+                false,
+                "marketplaces",
+                true,
+            ]);
+        });
+
+        it("yields to a reveal that waited for the first model, also on the next model", () => {
+            const revealed = after([reveal(1, [MAIL.id]), shown()]);
+            const { state } = nextViewState(revealed.state, shown(withRevision(11)));
+
+            expect([revealed.state.scope, state.scope]).toEqual(["marketplaces", "marketplaces"]);
+        });
+
+        it("keeps a tab the user chose, and only that one", () => {
+            const opened = after([shown(ONLY_MARKETPLACES)]);
+            const chosen = nextViewState(opened.state, { kind: "scopeChosen", scope: "workspace" });
+
+            expect([
+                persistedChoicesOf(opened.state).chosenScope,
+                persistedChoicesOf(chosen.state).chosenScope,
+            ]).toEqual([undefined, "workspace"]);
+        });
+
+        it("ignores the tab an older page saved before the user's choice was told apart", () => {
+            const { state } = after(
+                [shown()],
+                initialViewState({ scope: "marketplaces" } as never),
+            );
+
+            expect(state.scope).toBe("workspace");
+        });
+    });
+
     it("keeps only the user's choices across a reload of the page", () => {
         const { state } = after([
             shown(),
@@ -566,7 +963,7 @@ describe("nextViewState", () => {
             { kind: "toggled", key: CONFIG_SOURCE.id },
             { kind: "queryChanged", query: "mail" },
         ]);
-        const restored = initialViewState(persistedChoicesOf(state));
+        const restored = after([shown()], initialViewState(persistedChoicesOf(state))).state;
 
         expect(persistedChoicesOf(state)).toEqual({
             expansion: [
@@ -574,7 +971,6 @@ describe("nextViewState", () => {
                 [MARKETPLACE_SOURCE.id, true],
                 [CONFIG_SOURCE.id, false],
             ],
-            scope: "marketplaces",
             selection: { workspace: RESIZE.id, marketplaces: MAIL.id },
             lastRevealId: 4,
         });
@@ -584,16 +980,34 @@ describe("nextViewState", () => {
             restored.scope,
             selectedIdOf(restored),
             restored.filter,
-        ]).toEqual([0, undefined, "marketplaces", MAIL.id, NO_FILTER]);
+        ]).toEqual([0, undefined, "workspace", RESIZE.id, NO_FILTER]);
+    });
+
+    it("keeps the tab the user chose across a reload of the page", () => {
+        const { state } = after([shown(), { kind: "scopeChosen", scope: "marketplaces" }]);
+        const restored = after([shown()], initialViewState(persistedChoicesOf(state))).state;
+
+        expect([persistedChoicesOf(state).chosenScope, restored.scope]).toEqual([
+            "marketplaces",
+            "marketplaces",
+        ]);
     });
 
     it.each<{ case: string; saved: object }>([
-        { case: "an unknown tab", saved: { scope: "elsewhere", selection: { workspace: 3 } } },
+        {
+            case: "an unknown tab",
+            saved: { chosenScope: "elsewhere", selection: { workspace: 3 } },
+        },
+        { case: "a tab saved under the old key", saved: { scope: "marketplaces" } },
         { case: "a selection that is no object", saved: { selection: "x" } },
         { case: "nothing", saved: {} },
     ])("starts on the workspace tab with no selection from $case", ({ saved }) => {
         const restored = initialViewState(saved as never);
 
-        expect([restored.scope, restored.selection]).toEqual(["workspace", {}]);
+        expect([restored.scope, restored.chosenScope, restored.selection]).toEqual([
+            "workspace",
+            undefined,
+            {},
+        ]);
     });
 });

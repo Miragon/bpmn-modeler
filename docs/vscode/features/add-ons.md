@@ -6,7 +6,7 @@ See and manage everything your workspace adds to the BPMN editor in one place: [
 
 ## Open the view
 
-Click the Miragon comet in the activity bar to open the **BPMN Modeler** container. **Add-ons** shows there whenever a folder is open; **Deploy** shows above it while a diagram is open. **Review…** on a plugin or rule package notification opens the view too (see [Allow code](#allow-code)).
+Click the Miragon comet in the activity bar to open the **BPMN Modeler** container. **Add-ons** shows there whenever a folder is open; **Deploy** shows above it while a diagram is open. **Review…** on a plugin or rule package notification opens the view too (see [Allow code](#allow-code)). **Miragon BPMN Modeler: Review Add-ons** in the Command Palette opens it on the add-ons that need your review.
 
 ## What it lists
 
@@ -37,7 +37,7 @@ The details show each plugin's and rule package's full state:
 
 The search field narrows the list of the open tab to the add-ons whose name, path or version, kind, state, engine, source or folder contains every word you type. `Escape` in the field clears it.
 
-The chips below it filter by kind (**Plugins**, **Rule packages**, **Templates**) and to **Needs review**. Each chip counts its add-ons in the open tab. Pick several kinds to see all of them; **Needs review** applies on top. While a search or filter is on, every folder and source with a match shows open. When nothing matches, **Clear filters** removes the search and the chips.
+The chips below it filter by kind (**Plugins**, **Rule packages**, **Templates**) and to **Needs review**. Each chip counts its add-ons in the open tab. Pick several kinds to see all of them; **Needs review** applies on top. While a search or filter is on, every folder and source with a match opens, so no match stays hidden; you can still close one, and it stays closed while you refine the search or change the chips. When you clear the search and the chips, the folders and sources show as you left them before. When nothing matches, **Clear filters** removes the search and the chips.
 
 ## Details
 
@@ -49,7 +49,7 @@ Click a row to see its details:
 - what you can do with it, as buttons: **Revoke**, **Forget**, **Review…**, **Disable** or **Enable**;
 - for code you can allow, the review: what the code can do, its folder, version, the files it covers and its content hash, with **Allow this content** at its end.
 
-When the view opens, it selects the first add-on that needs a review, else the first add-on. When the view reloads, it keeps the tab, the selection and the folders and sources you opened or closed; the search and the chips start empty.
+When the view opens, it starts on the tab you chose last. Until you choose one, it starts on **Workspace**, or on **Marketplaces** when the workspace lists no add-on and a marketplace is registered. Each tab selects the first add-on that needs a review, else the first add-on, among the rows it shows, so a closed marketplace selects none of its templates until you open it. Your selection stays when you close its folder or source. When the view reloads, it keeps the tab you chose, the selection and the folders and sources you opened or closed; the search and the chips start empty.
 
 **From 640 pixels wide** the list and the details stand side by side. **Narrower**, as the side bar usually is, the details open in place of the list; **Back** returns to the list where you left it. The view follows its width as you resize it.
 
@@ -60,6 +60,8 @@ When the view opens, it selects the first add-on that needs a review, else the f
 Select a plugin or rule package that needs a review, check what its review says, then click **Allow this content**. The approval is for exactly this content: a later change shows it as *Changed, review needed*, and the code stops running until you allow it again. Every open BPMN editor that offered an allowed plugin reloads with it.
 
 **Review…** on a notification opens the view at the waiting plugins or rule packages when every one of them lies inside an open folder: it switches to the right tab, clears a search or filter that hides the first of them, selects it and opens its review. The notification then counts as answered for this window. Otherwise, for example when a rule package is linked from outside the workspace, **Review…** shows the list to check, as in [BPMN plugins](/vscode/features/bpmn-plugins#allow-a-plugin).
+
+**Review Add-ons** in the Command Palette opens the view on the **Workspace** tab with only **Needs review** on, every folder and source with an add-on to review open. It clears the search and the kind chips, keeps your selection when it needs a review, else selects the first add-on that does, and moves focus to it. When the workspace lists add-ons but none needs a review, the list says *No add-ons need review.*; **Clear filters** shows everything again.
 
 A rule package that no lint has asked about yet offers **Review…** in its details first. It reads the package; then its review offers **Allow this content**.
 
@@ -103,7 +105,7 @@ The view wears the Miragon look, with its own colours, fonts and text sizes, in 
 
 ## IntelliJ
 
-The IntelliJ plugin shows the same page as the **Add-ons** tab of its **BPMN Modeler** tool window, for the open project; **Review…** opens it with the item selected, and **Refresh Add-ons** sits in the tool window's title. A tool window docked at the bottom is usually wide enough for the list and the details side by side. See [Getting started in IntelliJ](/intellij/getting-started#add-ons).
+The IntelliJ plugin shows the same page as the **Add-ons** tab of its **BPMN Modeler** tool window, for the open project; **Review…** opens it with the item selected, **Review Add-ons** (Tools ▸ Miragon BPMN Modeler, or Find Action) opens it on what needs your review, and **Refresh Add-ons** sits in the tool window's title. A tool window docked at the bottom is usually wide enough for the list and the details side by side. See [Getting started in IntelliJ](/intellij/getting-started#add-ons).
 
 ## Next steps
 

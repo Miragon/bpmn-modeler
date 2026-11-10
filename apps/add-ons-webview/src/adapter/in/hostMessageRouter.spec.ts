@@ -36,9 +36,19 @@ describe("routeHostMessage", () => {
             events: [{ kind: "resultArrived", requestId: 3, result: { kind: "done" } }],
         },
         {
-            case: "a reveal",
-            message: new RevealAddOnsQuery({ revealId: 1, addOnIds: ["plugin:/x"] }),
-            events: [{ kind: "revealArrived", reveal: { revealId: 1, addOnIds: ["plugin:/x"] } }],
+            case: "a reveal of rows",
+            message: new RevealAddOnsQuery({ kind: "rows", revealId: 1, addOnIds: ["plugin:/x"] }),
+            events: [
+                {
+                    kind: "revealArrived",
+                    reveal: { kind: "rows", revealId: 1, addOnIds: ["plugin:/x"] },
+                },
+            ],
+        },
+        {
+            case: "a reveal of what needs review",
+            message: new RevealAddOnsQuery({ kind: "needsReview", revealId: 2 }),
+            events: [{ kind: "revealArrived", reveal: { kind: "needsReview", revealId: 2 } }],
         },
         {
             case: "nothing for another surface's query",

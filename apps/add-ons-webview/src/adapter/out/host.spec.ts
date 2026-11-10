@@ -27,6 +27,9 @@ const COMMANDS: { [Type in AddOnsViewCommandType]: MessageOfType<Type> } = {
 
 type Reply = AddOnCatalogQuery | AddOnActionResultQuery | RevealAddOnsQuery | BrandModeQuery;
 
+const reveals = (replies: readonly Reply[]) =>
+    replies.flatMap((each) => (each instanceof RevealAddOnsQuery ? [each.reveal] : []));
+
 function previewAt(search = "") {
     window.history.replaceState(null, "", `/${search}`);
     vi.stubEnv("NODE_ENV", "development");
@@ -203,11 +206,48 @@ describe("the preview's host", () => {
     });
 
     it("reveals the row a query flag names after the catalog", () => {
-        const { host, replies } = previewAt("?reveal=Shared%20Mail");
+        const { host, replies, rowNamed } = previewAt("?reveal=Shared%20Mail");
 
         host.postMessage(new GetAddOnCatalogCommand());
 
         expect(replies.map(({ type }) => type)).toEqual(["BrandModeQuery", "AddOnCatalogQuery", "RevealAddOnsQuery"]);
+        expect(reveals(replies)).toEqual([{ kind: "rows", revealId: 1, addOnIds: [rowNamed("Shared Mail").id] }]);
+    });
+
+    it("asks for what needs review after the catalog and a reveal when the preset flag says so", () => {
+        const { host, replies } = previewAt("?reveal=Shared%20Mail&preset=needsReview");
+
+        host.postMessage(new GetAddOnCatalogCommand());
+
+        expect(reveals(replies).map(({ kind, revealId }) => [kind, revealId])).toEqual([
+            ["rows", 1],
+            ["needsReview", 2],
+        ]);
+    });
+
+    it("asks for what needs review after the catalog when only the preset flag is set", () => {
+        const { host, replies } = previewAt("?preset=needsReview");
+
+        host.postMessage(new GetAddOnCatalogCommand());
+
+        expect([replies.at(-2)?.type, reveals(replies)]).toEqual([
+            "AddOnCatalogQuery",
+            [{ kind: "needsReview", revealId: 2 }],
+        ]);
+    });
+
+    it("lists nothing to review once every add-on is reviewed", () => {
+        const { host, models } = previewAt("?state=allReviewed");
+
+        host.postMessage(new GetAddOnCatalogCommand());
+        const rows = models()[0].groups.flatMap((group) => group.sources.flatMap((source) => source.addOns));
+        const codeRows = rows.filter(({ kind }) => kind !== "elementTemplate");
+
+        expect([
+            rows.filter(({ actions }) => actions.some(({ kind }) => kind === "allow" || kind === "inspect")),
+            codeRows.length > 0,
+            codeRows.filter(({ stateText }) => stateText === "Allowed").length > 0,
+        ]).toEqual([[], true, true]);
     });
 
     it("refuses the first allow as stale when asked to", () => {
