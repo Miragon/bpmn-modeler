@@ -707,6 +707,24 @@ describe("catalogModelOf", () => {
         ]);
     });
 
+    it("leaves only rule packages of the revoked content to the view, never a plugin", () => {
+        const { shown } = build(
+            factsOf({
+                plugins: [found(RESIZE, "Resize", "r1")],
+                rulePackages: [
+                    found(ACME, "bpmnlint-plugin-acme", "r1"),
+                    found(RULES, "@acme/bpmnlint-plugin-rules", "r1"),
+                ],
+                approvals: [{ pluginId: ACME, contentHash: "r1" }],
+            }),
+        );
+
+        expect(shown.get(`rulePackage:${ACME}`)?.leftForViewByRevoke.map(({ id }) => id)).toEqual([
+            ACME,
+            RULES,
+        ]);
+    });
+
     it("leaves the listed places of an unreadable row's content to the view", () => {
         const { shown } = build(
             factsOf({
