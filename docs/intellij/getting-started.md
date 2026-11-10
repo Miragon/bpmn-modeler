@@ -67,6 +67,9 @@ templates and the template marketplaces. It lists this project only. It is the s
 **Review…** in the notification about a new plugin or rule package opens this tab with it selected when everything
 the notification names lies inside the project. Otherwise, or when the tab cannot open, the list appears as before.
 
+**Tools ▸ Miragon BPMN Modeler ▸ Review Add-ons**, also in Find Action, opens this tab on **Workspace** with only
+**Needs review** on.
+
 ## Actions
 
 Find every action with **Find Action** (`Ctrl+Shift+A` / `Cmd+Shift+A`) or under **Tools ▸ Miragon BPMN Modeler**.
@@ -87,6 +90,7 @@ Find every action with **Find Action** (`Ctrl+Shift+A` / `Cmd+Shift+A`) or under
 | Generate Script Files for Script Tasks | Write a file for every inline script task of the active diagram; edits sync back live |
 | Add / Update / Remove Template Marketplace… | Manage [template marketplaces](/vscode/features/template-marketplace) |
 | Reload Modeler | Re-read element templates and re-render open diagrams |
+| Review Add-ons | Open the **Add-ons** tab on the add-ons that need your review |
 | Refresh Add-ons | Read the plugins, rule packages and element templates of the **Add-ons** tab again |
 
 ## Status bar

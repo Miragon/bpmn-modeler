@@ -57,6 +57,7 @@ Open the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`) and search for "Mirago
 | Toggle Linting | | Turn [linting](/vscode/features/linting) on or off |
 | Toggle Automatic Form Preview | | Turn automatic [linked form previews](/vscode/features/code-navigation#linked-form-previews) on or off |
 | Reload Modeler | | Re-read element templates and re-render open diagrams |
+| Review Add-ons | | Open the [Add-ons view](/vscode/features/add-ons) on the add-ons that need your review |
 | Refresh Add-ons | | Read the [Add-ons view](/vscode/features/add-ons) again, installed packages included |
 | Display Logging Information | | Open the modeler log |
 
