@@ -795,14 +795,20 @@ describe("AddOnsView", () => {
             ]).toEqual(["failed", "Could not list the add-ons.", null]);
         });
 
-        it("say the core's text in a workspace tab without folders", () => {
-            const { root } = mountedView({
+        it("open on the marketplaces without folders, and say the core's text in the workspace tab", () => {
+            const { root, tab } = mountedView({
                 ...CATALOG,
                 groups: [MARKETPLACES],
                 emptyText: "Open a folder.",
             });
+            const opened = tab("Marketplaces").getAttribute("aria-selected");
 
-            expect(text(root.querySelector(".av-empty-text"))).toBe("Open a folder.");
+            tab("Workspace").click();
+
+            expect([opened, text(root.querySelector(".av-empty-text"))]).toEqual([
+                "true",
+                "Open a folder.",
+            ]);
         });
 
         it("offer Add marketplace… in a marketplaces tab without one", () => {

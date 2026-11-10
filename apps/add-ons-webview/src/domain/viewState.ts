@@ -36,6 +36,7 @@ import {
     rowsInSight,
 } from "./expansion";
 import { focusAfterDone, FocusTarget, isFocusable, isListed } from "./focusAfter";
+import { catalogPhaseOf, openingScopeOf } from "./listContent";
 import { placedActions, reviewOf } from "./placedActions";
 import { Banner, resultBannerOf } from "./resultBanner";
 
@@ -57,6 +58,10 @@ export interface ViewState {
     /** What the user opened or closed while a filter is on: kept with the page, and only while the filter stays on. */
     readonly filterExpansion: Expansion;
     readonly scope: CatalogScope;
+    /** The tab the user chose; only it is kept. */
+    readonly chosenScope?: CatalogScope;
+    /** The tab is decided: by the user, a reveal, or the first model that lists something. */
+    readonly scopeSettled: boolean;
     readonly selection: Selection;
     readonly filter: CatalogFilter;
     readonly pane: Pane;
@@ -70,11 +75,12 @@ export interface ViewState {
 
 /**
  * What the view keeps across a reload of its page: the user's own choices,
- * never a request. The search and the filter chips stay with the page.
+ * never a request or a tab the view opened on by itself. The search and the
+ * filter chips stay with the page.
  */
 export interface PersistedChoices {
     readonly expansion?: readonly (readonly [string, boolean])[];
-    readonly scope?: CatalogScope;
+    readonly chosenScope?: CatalogScope;
     readonly selection?: Selection;
     readonly lastRevealId?: number;
 }
@@ -108,10 +114,13 @@ export interface Transition {
 export const CATALOG_TARGET = "catalog";
 
 export function initialViewState(persisted?: PersistedChoices): ViewState {
+    const chosenScope = isCatalogScope(persisted?.chosenScope) ? persisted.chosenScope : undefined;
     return {
         expansion: new Map(persisted?.expansion ?? []),
         filterExpansion: new Map(),
-        scope: isCatalogScope(persisted?.scope) ? persisted.scope : "workspace",
+        scope: chosenScope ?? "workspace",
+        ...(chosenScope && { chosenScope }),
+        scopeSettled: chosenScope !== undefined,
         selection: selectionOf(persisted?.selection),
         filter: NO_FILTER,
         pane: "list",
@@ -124,7 +133,7 @@ export function initialViewState(persisted?: PersistedChoices): ViewState {
 export function persistedChoicesOf(state: ViewState): PersistedChoices {
     return {
         expansion: [...state.expansion],
-        scope: state.scope,
+        ...(state.chosenScope && { chosenScope: state.chosenScope }),
         selection: state.selection,
         lastRevealId: state.lastRevealId,
     };
@@ -179,7 +188,14 @@ function changedBy(state: ViewState, event: ViewEvent): Change {
         case "bannerDismissed":
             return { state: { ...state, banner: undefined } };
         case "scopeChosen":
-            return { state: { ...state, scope: event.scope } };
+            return {
+                state: {
+                    ...state,
+                    scope: event.scope,
+                    chosenScope: event.scope,
+                    scopeSettled: true,
+                },
+            };
         case "addOnSelected":
             return {
                 state: {
@@ -206,9 +222,19 @@ function changedBy(state: ViewState, event: ViewEvent): Change {
     }
 }
 
+/** The first model that lists something decides the tab the user did not choose, before a waiting reveal applies. */
 function modelArrived(state: ViewState, model: AddOnCatalogPayload): Change {
     if (state.model !== undefined && model.revision < state.model.revision) return { state };
-    return revealed({ ...state, model, expansion: prunedExpansion(model, state.expansion) });
+    const opening =
+        !state.scopeSettled && catalogPhaseOf(model) === "ready"
+            ? { scope: openingScopeOf(model), scopeSettled: true }
+            : {};
+    return revealed({
+        ...state,
+        ...opening,
+        model,
+        expansion: prunedExpansion(model, state.expansion),
+    });
 }
 
 /**
@@ -242,6 +268,7 @@ function revealed(state: ViewState): Change {
             expansion,
             filterExpansion,
             scope,
+            scopeSettled: true,
             filter,
             selection: { ...state.selection, [scope]: target.id },
             pane: "detail",

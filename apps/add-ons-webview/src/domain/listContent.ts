@@ -5,7 +5,7 @@ import type {
     CatalogActionKindPayload,
 } from "@miragon/bpmn-modeler-shared";
 
-import { CatalogFilter, filteredGroups } from "./catalogFilter";
+import { CatalogFilter, filteredGroups, NO_FILTER } from "./catalogFilter";
 import { CatalogScope, listsFlat, scopedCatalog } from "./catalogScope";
 
 /** `ready`: the tabs, the list and the detail show; otherwise only what the catalog says. */
@@ -61,6 +61,13 @@ export function listContentOf(
     const groups = filteredGroups(scoped, filter);
     if (groups.length === 0) return { kind: "noMatch", buttons };
     return { kind: "groups", groups, flat: listsFlat(scope), buttons };
+}
+
+/** The tab a view opens on until the user chooses one: Marketplaces while the workspace lists nothing and a marketplace is listed. */
+export function openingScopeOf(model: AddOnCatalogPayload): CatalogScope {
+    const workspaceEmpty = listContentOf(model, "workspace", NO_FILTER).kind === "workspaceEmpty";
+    const marketplaceListed = listContentOf(model, "marketplaces", NO_FILTER).kind === "groups";
+    return workspaceEmpty && marketplaceListed ? "marketplaces" : "workspace";
 }
 
 function buttonsOf(

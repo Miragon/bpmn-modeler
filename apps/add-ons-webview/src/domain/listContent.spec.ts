@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { CATALOG } from "../__fixtures__/catalogs";
 import { NO_FILTER } from "./catalogFilter";
 import { CatalogScope } from "./catalogScope";
-import { catalogPhaseOf, listContentOf } from "./listContent";
+import { catalogPhaseOf, listContentOf, openingScopeOf } from "./listContent";
 
 const ADD = { kind: "addMarketplace", label: "Add marketplace…" } as const;
 const UPDATE = { kind: "updateMarketplaces", label: "Update marketplaces" } as const;
@@ -115,5 +115,32 @@ describe("listContentOf", () => {
             kind: "noMatch",
             buttons,
         });
+    });
+});
+
+describe("openingScopeOf", () => {
+    const withoutSources = { ...MARKETPLACES, sources: [] };
+    const onlyAProblem = { ...withoutSources, problem: "Could not read the marketplaces." };
+
+    it.each<{ case: string; model: AddOnCatalogPayload; scope: CatalogScope }>([
+        { case: "the workspace beside a marketplace", model: full, scope: "workspace" },
+        {
+            case: "the marketplaces without a folder",
+            model: onlyMarketplaces,
+            scope: "marketplaces",
+        },
+        {
+            case: "the marketplaces without a folder while they hold only a problem",
+            model: { ...onlyMarketplaces, groups: [onlyAProblem] },
+            scope: "marketplaces",
+        },
+        {
+            case: "the workspace while neither tab lists anything",
+            model: { ...onlyMarketplaces, groups: [withoutSources] },
+            scope: "workspace",
+        },
+        { case: "the workspace with only a folder", model: onlyFolders, scope: "workspace" },
+    ])("is $case", ({ model, scope }) => {
+        expect(openingScopeOf(model)).toBe(scope);
     });
 });

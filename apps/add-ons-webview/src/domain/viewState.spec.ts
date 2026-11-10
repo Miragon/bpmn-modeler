@@ -14,6 +14,7 @@ import {
     withRevision,
 } from "../__fixtures__/catalogs";
 import { NO_FILTER } from "./catalogFilter";
+import type { CatalogScope } from "./catalogScope";
 import { reviewKeyOf } from "./expansion";
 import {
     CATALOG_TARGET,
@@ -354,6 +355,7 @@ describe("nextViewState", () => {
 
             expect([
                 state.scope,
+                state.scopeSettled,
                 state.expansion.get(MARKETPLACE_SOURCE.id),
                 selectedIdOf(state),
                 state.pane,
@@ -361,6 +363,7 @@ describe("nextViewState", () => {
                 focus,
             ]).toEqual([
                 "marketplaces",
+                true,
                 true,
                 MAIL.id,
                 "detail",
@@ -675,6 +678,104 @@ describe("nextViewState", () => {
         });
     });
 
+    describe("the opening tab", () => {
+        const ONLY_MARKETPLACES: AddOnCatalogPayload = { ...CATALOG, groups: [CATALOG.groups[1]!] };
+        const NOTHING_LISTED: AddOnCatalogPayload = {
+            ...CATALOG,
+            groups: [{ ...CATALOG.groups[1]!, sources: [] }],
+        };
+
+        it.each<{
+            case: string;
+            saved?: CatalogScope;
+            model: AddOnCatalogPayload;
+            scope: CatalogScope;
+        }>([
+            { case: "workspace beside a marketplace", model: CATALOG, scope: "workspace" },
+            {
+                case: "marketplaces while the workspace lists nothing",
+                model: ONLY_MARKETPLACES,
+                scope: "marketplaces",
+            },
+            {
+                case: "workspace while neither tab lists anything",
+                model: NOTHING_LISTED,
+                scope: "workspace",
+            },
+            {
+                case: "the tab the user chose over the workspace",
+                saved: "marketplaces",
+                model: CATALOG,
+                scope: "marketplaces",
+            },
+            {
+                case: "the tab the user chose over the marketplaces",
+                saved: "workspace",
+                model: ONLY_MARKETPLACES,
+                scope: "workspace",
+            },
+        ])("is $case", ({ saved, model, scope }) => {
+            const start = initialViewState(saved === undefined ? {} : { chosenScope: saved });
+
+            expect(after([shown(model)], start).state.scope).toBe(scope);
+        });
+
+        it("stays on a tab the user chose before the first model", () => {
+            const { state } = after([
+                { kind: "scopeChosen", scope: "workspace" },
+                shown(ONLY_MARKETPLACES),
+            ]);
+
+            expect(state.scope).toBe("workspace");
+        });
+
+        it("stays when a later model brings a folder", () => {
+            const { state } = after([shown(ONLY_MARKETPLACES), shown(withRevision(11))]);
+
+            expect(state.scope).toBe("marketplaces");
+        });
+
+        it("waits for the first model that lists something", () => {
+            const loading = after([shown({ ...CATALOG, groups: [] })]);
+            const { state } = nextViewState(
+                loading.state,
+                shown(withRevision(11, ONLY_MARKETPLACES)),
+            );
+
+            expect([loading.state.scopeSettled, state.scope, state.scopeSettled]).toEqual([
+                false,
+                "marketplaces",
+                true,
+            ]);
+        });
+
+        it("yields to a reveal that waited for the first model, also on the next model", () => {
+            const revealed = after([reveal(1, [MAIL.id]), shown()]);
+            const { state } = nextViewState(revealed.state, shown(withRevision(11)));
+
+            expect([revealed.state.scope, state.scope]).toEqual(["marketplaces", "marketplaces"]);
+        });
+
+        it("keeps a tab the user chose, and only that one", () => {
+            const opened = after([shown(ONLY_MARKETPLACES)]);
+            const chosen = nextViewState(opened.state, { kind: "scopeChosen", scope: "workspace" });
+
+            expect([
+                persistedChoicesOf(opened.state).chosenScope,
+                persistedChoicesOf(chosen.state).chosenScope,
+            ]).toEqual([undefined, "workspace"]);
+        });
+
+        it("ignores the tab an older page saved before the user's choice was told apart", () => {
+            const { state } = after(
+                [shown()],
+                initialViewState({ scope: "marketplaces" } as never),
+            );
+
+            expect(state.scope).toBe("workspace");
+        });
+    });
+
     it("keeps only the user's choices across a reload of the page", () => {
         const { state } = after([
             shown(),
@@ -683,7 +784,7 @@ describe("nextViewState", () => {
             { kind: "toggled", key: CONFIG_SOURCE.id },
             { kind: "queryChanged", query: "mail" },
         ]);
-        const restored = initialViewState(persistedChoicesOf(state));
+        const restored = after([shown()], initialViewState(persistedChoicesOf(state))).state;
 
         expect(persistedChoicesOf(state)).toEqual({
             expansion: [
@@ -691,7 +792,6 @@ describe("nextViewState", () => {
                 [MARKETPLACE_SOURCE.id, true],
                 [CONFIG_SOURCE.id, false],
             ],
-            scope: "marketplaces",
             selection: { workspace: RESIZE.id, marketplaces: MAIL.id },
             lastRevealId: 4,
         });
@@ -701,16 +801,34 @@ describe("nextViewState", () => {
             restored.scope,
             selectedIdOf(restored),
             restored.filter,
-        ]).toEqual([0, undefined, "marketplaces", MAIL.id, NO_FILTER]);
+        ]).toEqual([0, undefined, "workspace", RESIZE.id, NO_FILTER]);
+    });
+
+    it("keeps the tab the user chose across a reload of the page", () => {
+        const { state } = after([shown(), { kind: "scopeChosen", scope: "marketplaces" }]);
+        const restored = after([shown()], initialViewState(persistedChoicesOf(state))).state;
+
+        expect([persistedChoicesOf(state).chosenScope, restored.scope]).toEqual([
+            "marketplaces",
+            "marketplaces",
+        ]);
     });
 
     it.each<{ case: string; saved: object }>([
-        { case: "an unknown tab", saved: { scope: "elsewhere", selection: { workspace: 3 } } },
+        {
+            case: "an unknown tab",
+            saved: { chosenScope: "elsewhere", selection: { workspace: 3 } },
+        },
+        { case: "a tab saved under the old key", saved: { scope: "marketplaces" } },
         { case: "a selection that is no object", saved: { selection: "x" } },
         { case: "nothing", saved: {} },
     ])("starts on the workspace tab with no selection from $case", ({ saved }) => {
         const restored = initialViewState(saved as never);
 
-        expect([restored.scope, restored.selection]).toEqual(["workspace", {}]);
+        expect([restored.scope, restored.chosenScope, restored.selection]).toEqual([
+            "workspace",
+            undefined,
+            {},
+        ]);
     });
 });

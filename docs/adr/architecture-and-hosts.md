@@ -258,9 +258,13 @@ the view's own width the panes stand side by side, below that the detail
 replaces the list with a Back button; container queries decide, so the layout
 follows a resized sidebar or tool window without a reload. The reducer
 (`src/domain/viewState.ts`) holds the tab, each tab's selection, the filter
-and the pane, and keeps the tab, the selections and the open or closed headers
-in the host's saved state, so a reload, which IntelliJ does after a bridge
-restart, lands where the user was; the search stays with the page. A search or
+and the pane, and keeps the tab the user chose (`chosenScope`), the selections
+and the open or closed headers in the host's saved state, so a reload, which
+IntelliJ does after a bridge restart, lands where the user was; the search
+stays with the page. Until the user chooses a tab, the first model that lists
+something opens Marketplaces when the Workspace tab lists nothing and a
+marketplace is listed, else Workspace (`openingScopeOf`). A tab selects on its
+own only a row its open headers show (`rowsInSight`). A search or
 filter opens every header with a match, and what the user opens or closes
 while it is on goes into `filterExpansion`, which stays with the page and ends
 with the filter, so the saved headers never change while filtering and show
