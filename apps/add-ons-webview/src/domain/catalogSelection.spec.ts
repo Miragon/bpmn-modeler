@@ -7,14 +7,24 @@ import { firstToShow, settledSelection } from "./catalogSelection";
 const ALL = CATALOG.groups;
 const SETTLED: readonly AddOnGroupPayload[] = without(RESIZE.id, without(ACME.id)).groups;
 const LIST = [PALETTE.id, RESIZE.id, ACME.id, MAIL.id];
+const ALL_IN_SIGHT: ReadonlySet<string> = new Set(LIST);
+const RESIZE_HIDDEN: ReadonlySet<string> = new Set([PALETTE.id, ACME.id, MAIL.id]);
 
 describe("firstToShow", () => {
-    it.each<[string, readonly AddOnGroupPayload[], string | undefined]>([
-        ["the first add-on to review", ALL, RESIZE.id],
-        ["else the first add-on", SETTLED, PALETTE.id],
-        ["nothing in an empty list", [], undefined],
-    ])("is %s", (_, groups, expected) => {
-        expect(firstToShow(groups)).toBe(expected);
+    it.each<[string, readonly AddOnGroupPayload[], ReadonlySet<string>, string | undefined]>([
+        ["the first add-on to review", ALL, ALL_IN_SIGHT, RESIZE.id],
+        ["else the first add-on", SETTLED, ALL_IN_SIGHT, PALETTE.id],
+        ["nothing in an empty list", [], ALL_IN_SIGHT, undefined],
+        ["the first in sight to review, past one a closed head hides", ALL, RESIZE_HIDDEN, ACME.id],
+        [
+            "the first in sight when none in sight needs a review",
+            ALL,
+            new Set([MAIL.id, PALETTE.id]),
+            PALETTE.id,
+        ],
+        ["nothing while every head is closed", ALL, new Set(), undefined],
+    ])("is %s", (_, groups, inSight, expected) => {
+        expect(firstToShow(groups, inSight)).toBe(expected);
     });
 });
 
@@ -24,6 +34,7 @@ describe("settledSelection", () => {
         remembered: string | undefined;
         shown: readonly AddOnGroupPayload[];
         before: readonly string[];
+        inSight?: ReadonlySet<string>;
         expected: string | undefined;
     }>([
         {
@@ -75,7 +86,39 @@ describe("settledSelection", () => {
             before: LIST,
             expected: undefined,
         },
-    ])("$case", ({ remembered, shown, before, expected }) => {
-        expect(settledSelection(remembered, shown, before)).toBe(expected);
+        {
+            case: "keeps a listed selection a closed head hides",
+            remembered: RESIZE.id,
+            shown: ALL,
+            before: LIST,
+            inSight: RESIZE_HIDDEN,
+            expected: RESIZE.id,
+        },
+        {
+            case: "skips a neighbour a closed head hides and takes the one before",
+            remembered: RESIZE.id,
+            shown: without(RESIZE.id).groups,
+            before: LIST,
+            inSight: new Set([PALETTE.id]),
+            expected: PALETTE.id,
+        },
+        {
+            case: "selects nothing when only hidden rows are left",
+            remembered: RESIZE.id,
+            shown: without(RESIZE.id).groups,
+            before: LIST,
+            inSight: new Set(),
+            expected: undefined,
+        },
+        {
+            case: "starts a tab on the first in sight to review",
+            remembered: undefined,
+            shown: ALL,
+            before: [],
+            inSight: RESIZE_HIDDEN,
+            expected: ACME.id,
+        },
+    ])("$case", ({ remembered, shown, before, inSight = ALL_IN_SIGHT, expected }) => {
+        expect(settledSelection(remembered, shown, before, inSight)).toBe(expected);
     });
 });

@@ -1,4 +1,9 @@
-import type { AddOnCatalogPayload, SourceKindPayload } from "@miragon/bpmn-modeler-shared";
+import type {
+    AddOnCatalogPayload,
+    AddOnGroupPayload,
+    AddOnSourcePayload,
+    SourceKindPayload,
+} from "@miragon/bpmn-modeler-shared";
 
 import { reviewOf } from "./placedActions";
 
@@ -22,16 +27,20 @@ const SOURCE_OPEN_BY_DEFAULT: Record<SourceKindPayload, boolean> = {
 
 export function headsOf(model: AddOnCatalogPayload): Head[] {
     return model.groups.flatMap((group) => [
-        { id: group.id, openByDefault: true },
+        groupHead(group),
         ...group.sources.flatMap((source) => [
-            {
-                id: source.id,
-                parentId: group.id,
-                openByDefault: SOURCE_OPEN_BY_DEFAULT[source.kind],
-            },
+            sourceHead(source, group.id),
             ...source.addOns.map((addOn) => ({ id: addOn.id, parentId: source.id })),
         ]),
     ]);
+}
+
+function groupHead(group: AddOnGroupPayload): Head {
+    return { id: group.id, openByDefault: true };
+}
+
+function sourceHead(source: AddOnSourcePayload, groupId: string): Head {
+    return { id: source.id, parentId: groupId, openByDefault: SOURCE_OPEN_BY_DEFAULT[source.kind] };
 }
 
 export function isOpen(head: Head, expansion: Expansion): boolean {
@@ -53,6 +62,22 @@ export interface ListExpansion {
 export function isShownOpen(head: Head, shown: ListExpansion): boolean {
     if (!shown.filterActive) return isOpen(head, shown.expansion);
     return head.openByDefault !== undefined && (shown.filterExpansion.get(head.id) ?? true);
+}
+
+/** The rows the list shows: under open headers, or, while a filter is on, until the user closes theirs; a flat tab's group never closes. */
+export function rowsInSight(
+    groups: readonly AddOnGroupPayload[],
+    shown: ListExpansion,
+    flat: boolean,
+): ReadonlySet<string> {
+    const openGroups = groups.filter((group) => flat || isShownOpen(groupHead(group), shown));
+    return new Set(
+        openGroups.flatMap((group) =>
+            group.sources
+                .filter((source) => isShownOpen(sourceHead(source, group.id), shown))
+                .flatMap(({ addOns }) => addOns.map(({ id }) => id)),
+        ),
+    );
 }
 
 export function ancestorsOf(heads: readonly Head[], id: string): string[] {

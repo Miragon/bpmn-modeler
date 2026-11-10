@@ -218,14 +218,27 @@ describe("AddOnsView", () => {
         });
 
         it("keep each tab's own selection", () => {
-            const { tab, row, detailName } = mountedView(CATALOG);
+            const { tab, row, head, detailName } = mountedView(CATALOG);
             row(PALETTE.name).click();
 
             tab("Marketplaces").click();
+            head(MARKETPLACE_SOURCE.id)!.click();
             const marketplaces = detailName();
             tab("Workspace").click();
 
             expect([marketplaces, detailName()]).toEqual([MAIL.name, PALETTE.name]);
+        });
+
+        it("select nothing in a wide marketplaces tab while its sources are closed", () => {
+            const { tab, root, detailName } = mountedView(CATALOG);
+
+            tab("Marketplaces").click();
+
+            expect([
+                detailName(),
+                text(root.querySelector(".av-hint")),
+                root.querySelector(".av-row[aria-current]"),
+            ]).toEqual([undefined, "No add-on selected.", null]);
         });
 
         it.each([

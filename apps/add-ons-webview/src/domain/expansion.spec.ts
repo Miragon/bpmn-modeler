@@ -20,6 +20,7 @@ import {
     isShownOpen,
     prunedExpansion,
     reviewKeyOf,
+    rowsInSight,
 } from "./expansion";
 
 describe("headsOf", () => {
@@ -170,6 +171,95 @@ describe("isShownOpen", () => {
     ])("$case", ({ id, expansion, filterExpansion, filterActive, open }) => {
         expect(isShownOpen(head(id), { expansion, filterExpansion, filterActive })).toBe(open);
     });
+});
+
+describe("rowsInSight", () => {
+    const [FOLDER, MARKETPLACES] = CATALOG.groups;
+    const NONE: Expansion = new Map();
+
+    it.each<{
+        case: string;
+        groups: typeof CATALOG.groups;
+        expansion?: Expansion;
+        filterExpansion?: Expansion;
+        filterActive?: boolean;
+        flat?: boolean;
+        rows: string[];
+    }>([
+        {
+            case: "the rows under an open folder and open sources",
+            groups: [FOLDER],
+            rows: [PALETTE.id, RESIZE.id, ACME.id],
+        },
+        {
+            case: "not the rows of a closed source",
+            groups: [FOLDER],
+            expansion: new Map([[CONFIG_SOURCE.id, false]]),
+            rows: [ACME.id],
+        },
+        {
+            case: "not the rows under a closed folder, though their source is open",
+            groups: [FOLDER],
+            expansion: new Map([["folder:/work", false]]),
+            rows: [],
+        },
+        {
+            case: "not the rows of a closed marketplace in the flat tab",
+            groups: [MARKETPLACES],
+            flat: true,
+            rows: [],
+        },
+        {
+            case: "the rows of an open marketplace in the flat tab, whose group never closes",
+            groups: [MARKETPLACES],
+            expansion: new Map([
+                ["marketplaces", false],
+                [MARKETPLACE_SOURCE.id, true],
+            ]),
+            flat: true,
+            rows: [MAIL.id],
+        },
+        {
+            case: "not the rows under a closed group outside the flat tab",
+            groups: [MARKETPLACES],
+            expansion: new Map([
+                ["marketplaces", false],
+                [MARKETPLACE_SOURCE.id, true],
+            ]),
+            rows: [],
+        },
+        {
+            case: "every row with a match while a filter is on, closed or not",
+            groups: CATALOG.groups,
+            expansion: new Map([
+                ["folder:/work", false],
+                [CONFIG_SOURCE.id, false],
+            ]),
+            filterActive: true,
+            rows: [PALETTE.id, RESIZE.id, ACME.id, MAIL.id],
+        },
+        {
+            case: "not the rows of a source the user closed while filtering",
+            groups: [FOLDER],
+            filterExpansion: new Map([[CONFIG_SOURCE.id, false]]),
+            filterActive: true,
+            rows: [ACME.id],
+        },
+    ])(
+        "holds $case",
+        ({
+            groups,
+            expansion = NONE,
+            filterExpansion = NONE,
+            filterActive = false,
+            flat = false,
+            rows,
+        }) => {
+            expect([
+                ...rowsInSight(groups, { expansion, filterExpansion, filterActive }, flat),
+            ]).toEqual(rows);
+        },
+    );
 });
 
 describe("ancestorsOf", () => {

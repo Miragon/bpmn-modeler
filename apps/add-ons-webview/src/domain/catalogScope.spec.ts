@@ -5,6 +5,7 @@ import { CATALOG, MAIL, RESIZE } from "../__fixtures__/catalogs";
 import {
     CatalogScope,
     isCatalogScope,
+    listsFlat,
     scopeAfterKey,
     scopedCatalog,
     scopeOfAddOn,
@@ -100,5 +101,14 @@ describe("isCatalogScope", () => {
         [3, false],
     ])("is %s a tab: %s", (value, expected) => {
         expect(isCatalogScope(value)).toBe(expected);
+    });
+});
+
+describe("listsFlat", () => {
+    it.each<[CatalogScope, boolean]>([
+        ["marketplaces", true],
+        ["workspace", false],
+    ])("lists the %s tab flat: %s", (scope, flat) => {
+        expect(listsFlat(scope)).toBe(flat);
     });
 });

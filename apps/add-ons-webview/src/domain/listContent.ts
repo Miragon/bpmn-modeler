@@ -6,7 +6,7 @@ import type {
 } from "@miragon/bpmn-modeler-shared";
 
 import { CatalogFilter, filteredGroups } from "./catalogFilter";
-import { CatalogScope, scopedCatalog } from "./catalogScope";
+import { CatalogScope, listsFlat, scopedCatalog } from "./catalogScope";
 
 /** `ready`: the tabs, the list and the detail show; otherwise only what the catalog says. */
 export type CatalogPhase = "loading" | "ready" | "empty" | "failed";
@@ -22,7 +22,7 @@ export type ListContent =
     | {
           readonly kind: "groups";
           readonly groups: readonly AddOnGroupPayload[];
-          /** The marketplaces tab names its one group already: its sources stand in the list. */
+          /** See {@link listsFlat}. */
           readonly flat: boolean;
           readonly buttons: CatalogButtons;
       };
@@ -60,7 +60,7 @@ export function listContentOf(
     const buttons = scope === "marketplaces" ? buttonsOf(model, MARKETPLACE_BUTTONS) : [];
     const groups = filteredGroups(scoped, filter);
     if (groups.length === 0) return { kind: "noMatch", buttons };
-    return { kind: "groups", groups, flat: scope === "marketplaces", buttons };
+    return { kind: "groups", groups, flat: listsFlat(scope), buttons };
 }
 
 function buttonsOf(

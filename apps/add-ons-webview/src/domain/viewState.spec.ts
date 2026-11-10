@@ -439,10 +439,41 @@ describe("nextViewState", () => {
     });
 
     describe("tabs and selection", () => {
-        it("starts each tab on its own first add-on to review, else its first", () => {
+        it("selects no template while every marketplace is closed", () => {
             const { state } = after([shown(), { kind: "scopeChosen", scope: "marketplaces" }]);
 
+            expect(state.selection).toEqual({ workspace: RESIZE.id });
+        });
+
+        it("selects the first template of a marketplace the user opens", () => {
+            const { state } = after([
+                shown(),
+                { kind: "scopeChosen", scope: "marketplaces" },
+                { kind: "toggled", key: MARKETPLACE_SOURCE.id },
+            ]);
+
             expect(state.selection).toEqual({ workspace: RESIZE.id, marketplaces: MAIL.id });
+        });
+
+        it("starts on the first add-on to review the list shows, past a source the user closed", () => {
+            const closed = initialViewState({ expansion: [[CONFIG_SOURCE.id, false]] });
+
+            expect(selectedIdOf(after([shown()], closed).state)).toBe(ACME.id);
+        });
+
+        it.each<{ case: string; filter: ViewEvent[] }>([
+            { case: "without a filter", filter: [] },
+            { case: "while filtering", filter: [{ kind: "queryChanged", query: "e" }] },
+        ])("keeps the selection when the user closes its source $case", ({ filter }) => {
+            const { state } = after([
+                shown(),
+                ...filter,
+                { kind: "addOnSelected", addOnId: PALETTE.id },
+                { kind: "toggled", key: CONFIG_SOURCE.id },
+                { kind: "toggled", key: "folder:/work" },
+            ]);
+
+            expect(selectedIdOf(state)).toBe(PALETTE.id);
         });
 
         it("keeps each tab's selection across a switch", () => {

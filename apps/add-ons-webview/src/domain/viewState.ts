@@ -18,6 +18,7 @@ import { addOnsOf, placementOf, sourceOf } from "./catalogQueries";
 import {
     CatalogScope,
     isCatalogScope,
+    listsFlat,
     scopedCatalog,
     scopeOfAddOn,
     SCOPE_ORDER,
@@ -32,6 +33,7 @@ import {
     ListExpansion,
     prunedExpansion,
     reviewKeyOf,
+    rowsInSight,
 } from "./expansion";
 import { focusAfterDone, FocusTarget, isFocusable, isListed } from "./focusAfter";
 import { placedActions, reviewOf } from "./placedActions";
@@ -339,6 +341,7 @@ function withSelection(change: Change, before: ViewState): Change {
         remembered,
         shown,
         shownBefore.map(({ id }) => id),
+        rowsInSight(shown, listExpansionOf(state), listsFlat(scope)),
     );
     if (selected === remembered) return change;
     const { [scope]: _dropped, ...others } = state.selection;
