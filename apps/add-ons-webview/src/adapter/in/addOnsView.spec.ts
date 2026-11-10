@@ -573,12 +573,38 @@ describe("AddOnsView", () => {
             const items = [...root.querySelectorAll<HTMLElement>("[role=menuitem]")];
             const visited: (Element | null)[] = [];
 
-            for (const key of ["ArrowDown", "ArrowDown", "ArrowUp", "End", "Home", "Tab"]) {
+            for (const key of ["ArrowDown", "ArrowDown", "ArrowUp", "End", "Home", "a"]) {
                 press(key);
                 visited.push(document.activeElement);
             }
 
             expect(visited).toEqual([items[1], items[0], items[1], items[1], items[0], items[0]]);
+        });
+
+        it("keep their items out of the Tab order", () => {
+            const { button, root } = mountedView(CATALOG);
+            button("More actions").click();
+
+            expect(
+                [...root.querySelectorAll<HTMLElement>("[role=menuitem]")].map(
+                    ({ tabIndex }) => tabIndex,
+                ),
+            ).toEqual([-1, -1]);
+        });
+
+        it("close when Tab leaves them, from their button, so Tab moves on from there", () => {
+            const { tab, button, root, press } = mountedView(CATALOG);
+            tab("Marketplaces").click();
+            button("Source actions: /shared").click();
+            press("ArrowDown");
+
+            const tabbed = press("Tab");
+
+            expect([tabbed, root.querySelector("[role=menu]"), document.activeElement]).toEqual([
+                true,
+                null,
+                button("Source actions: /shared"),
+            ]);
         });
 
         it("close with Escape and return focus to their button", () => {
@@ -1006,13 +1032,25 @@ describe("AddOnsView", () => {
     });
 
     describe("focus a render took away", () => {
-        it("moves to the list's first control when a push removes the focused row", () => {
-            const { row, arrive, root } = mountedView(CATALOG);
+        it("moves to the add-on selected in its place when a push removes the focused row", () => {
+            const { row, arrive } = mountedView(CATALOG);
+            row(PALETTE.name).click();
             row(PALETTE.name).focus();
 
             arrive(withRevision(11, without(PALETTE.id)));
 
-            expect(document.activeElement).toBe(root.querySelector(".av-list [data-focus]"));
+            expect(document.activeElement).toBe(row(RESIZE.name));
+        });
+
+        it("moves to the add-on selected in its place when a revoke's answer comes before the push", () => {
+            const { row, button, session, arrive, detailName } = mountedView(CATALOG);
+            row(PALETTE.name).click();
+            button("Revoke").click();
+
+            session.dispatch({ kind: "resultArrived", requestId: 1, result: { kind: "done" } });
+            arrive(withRevision(11, without(PALETTE.id)));
+
+            expect([document.activeElement, detailName()]).toEqual([row(RESIZE.name), RESIZE.name]);
         });
 
         it("moves to the tab when the list has no control left", () => {

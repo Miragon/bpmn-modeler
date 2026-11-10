@@ -64,8 +64,11 @@ export class FocusKeeper {
         }
     }
 
-    /** A render removed the focused control, as a chosen menu item or a removed source: the nearest one left. */
-    recover(lost: HeldFocus): void {
+    /**
+     * A render removed the focused control, as a chosen menu item or a removed
+     * row: the nearest one left, else the add-on the tab selected in its place.
+     */
+    recover(lost: HeldFocus, selectedId: string | undefined): void {
         if (this.root.contains(document.activeElement) || this.first([lost])) return;
         const owner = lost.owner;
         if (owner !== undefined) {
@@ -76,6 +79,7 @@ export class FocusKeeper {
             }
             if (this.first([{ kind: "menu", id: owner }, ...placesOfAddOn(owner)])) return;
         }
+        if (selectedId !== undefined && this.addOn(selectedId)) return;
         this.listStart();
     }
 

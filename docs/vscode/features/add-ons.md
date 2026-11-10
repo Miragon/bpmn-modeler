@@ -99,6 +99,7 @@ The view wears the Miragon look, with its own colours, fonts and text sizes, in 
 | Search field | `Escape` | Clear the search |
 | An open **⋯** menu | `↓` / `↑`, `Home` / `End` | Move through its items |
 | An open **⋯** menu | `Escape` | Close it and return to its button |
+| An open **⋯** menu | `Tab` / `Shift+Tab` | Close it and move on from its button |
 
 ## IntelliJ
 

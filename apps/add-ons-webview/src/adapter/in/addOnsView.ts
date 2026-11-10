@@ -78,7 +78,7 @@ export class AddOnsView {
         frame.append(this.app);
         root.replaceChildren(frame);
         root.addEventListener("click", (event) => this.clicked(event));
-        root.addEventListener("keydown", (event) => this.closeMenuOnEscape(event));
+        root.addEventListener("keydown", (event) => this.closeMenuOnKey(event));
     }
 
     render(state: ViewState, target?: FocusTarget): void {
@@ -108,7 +108,7 @@ export class AddOnsView {
         if (target !== undefined && !revealing) {
             if (owned) this.focus.apply(target);
         } else if (held !== undefined) {
-            this.focus.recover(held);
+            this.focus.recover(held, selectedIdOf(state));
         }
     }
 
@@ -317,8 +317,11 @@ export class AddOnsView {
         }
     }
 
-    private closeMenuOnEscape(event: KeyboardEvent): void {
-        if (event.key !== "Escape" || this.openMenu === undefined) return;
+    /** Escape closes a menu; Tab too, from its button, so the browser's Tab moves on from there. */
+    private closeMenuOnKey(event: KeyboardEvent): void {
+        if (this.openMenu === undefined) return;
+        const leaves = event.key === "Tab" && (event.target as Element).closest("[role=menu]");
+        if (event.key !== "Escape" && !leaves) return;
         const menuId = this.openMenu;
         this.openMenu = undefined;
         this.redraw();

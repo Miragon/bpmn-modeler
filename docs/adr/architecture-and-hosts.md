@@ -279,9 +279,9 @@ IntelliJ build's `copyThirdPartyLicenses` puts them into the jar's
 Every control is reached with Tab, and the list has no roving tree (see
 [Alternatives](#alternatives-and-consequences)). The tabs keep the arrow,
 Home and End keys of the tab pattern and the "…" menus those of the menu
-pattern, with Escape back to their button, as a role promises its keys. When
-the host focuses the page (VS Code's view focus, IntelliJ's tool window
-activation), focus goes to the selected add-on, its row or, in the
+pattern, with Escape back to their button and Tab on from it, as a role
+promises its keys. When the host focuses the page (VS Code's view focus,
+IntelliJ's tool window activation), focus goes to the selected add-on, its row or, in the
 drill-down, its detail heading, else to the active tab. The view's own words,
 its tab, chip and empty-state labels, "Needs review" and "Problem" on a row,
 the hint of an empty detail and its screen-reader summaries, live in one

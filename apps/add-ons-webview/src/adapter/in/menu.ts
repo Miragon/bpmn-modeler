@@ -30,6 +30,7 @@ export function menuAnchor(
     menu.setAttribute("aria-label", label);
     items.forEach((item) => {
         item.setAttribute("role", "menuitem");
+        item.tabIndex = -1;
         item.classList.add("av-menu-item");
     });
     menu.append(...items);
