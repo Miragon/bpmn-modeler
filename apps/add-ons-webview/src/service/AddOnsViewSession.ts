@@ -28,10 +28,11 @@ export class AddOnsViewSession {
     dispatch(event: ViewEvent): void {
         const { state, send, focus } = nextViewState(this.current, event);
         this.current = state;
+        this.host.setState(persistedChoicesOf(state));
+        this.render(state, focus);
+        // Last, so an answer the host sends at once renders after this state, not under it.
         if (send !== undefined) {
             this.host.postMessage(new AddOnRequestCommand(send.requestId, send.request));
         }
-        this.host.setState(persistedChoicesOf(state));
-        this.render(state, focus);
     }
 }
