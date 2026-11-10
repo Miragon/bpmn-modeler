@@ -108,3 +108,9 @@ test("SCM and Timeline extensions are discovered by Theia", () => {
     assert.ok(discovered.has("@theia/scm"));
     assert.ok(discovered.has("@theia/timeline"));
 });
+
+test("the standalone extension loads after the Theia packages whose services it rebinds", () => {
+    const loadOrder = application.extensionPackages.map((extension) => extension.name);
+    const standaloneExtension = loadOrder.indexOf(extensionManifest.name);
+    assert.ok(loadOrder.indexOf("@theia/plugin-ext") < standaloneExtension);
+});

@@ -12,12 +12,16 @@
  *     color themes and shows the first-run picker.
  *   - Override Theia's default-editor resolution for the modeler's source toggle.
  *   - Flush pending modeler changes before a secondary window is re-docked.
+ *   - Rebind `PluginViewRegistry` so a restored plugin view container shows
+ *     the title and icon its plugin contributes now, not a stored one.
  *   - Load the brand stylesheet (`./styles/miragon.css`) for small UI
  *     polish that themes alone cannot express (font weights, indicator bars).
  *
  * Adding a contribution? Bind it `toSelf` in singleton scope and then
  * register it as a `FrontendApplicationContribution` service so Theia
- * invokes `initialize` / `onStart` etc. on it.
+ * invokes `initialize` / `onStart` etc. on it. Rebinding a service of another
+ * Theia package needs that package in our `dependencies`, so Theia loads its
+ * module before this one.
  */
 
 import "./styles/miragon.css";
@@ -28,6 +32,8 @@ import { CommandContribution } from "@theia/core/lib/common";
 import { SecondaryWindowHandler } from "@theia/core/lib/browser/secondary-window-handler";
 import { SecondaryWindowService } from "@theia/core/lib/browser/window/secondary-window-service";
 import { WindowService } from "@theia/core/lib/browser/window/window-service";
+import { PluginViewRegistry } from "@theia/plugin-ext/lib/main/browser/view/plugin-view-registry";
+import { CurrentTitlePluginViewRegistry } from "./current-title-plugin-view-registry";
 import { HideBuiltinViewsContribution } from "./hide-builtin-views-contribution";
 import { MiragonThemeContribution } from "./miragon-theme-contribution";
 import { ModelerCustomEditorContribution } from "./modeler-custom-editor-contribution";
@@ -50,6 +56,9 @@ export default new ContainerModule((bind, _unbind, _isBound, rebind) => {
 
     bind(ModelerWindowService).toSelf().inSingletonScope();
     rebind(WindowService).toService(ModelerWindowService);
+
+    bind(CurrentTitlePluginViewRegistry).toSelf().inSingletonScope();
+    rebind(PluginViewRegistry).toService(CurrentTitlePluginViewRegistry);
 
     bind(ModelerSecondaryWindowCloseContribution).toSelf().inSingletonScope();
     bind(FrontendApplicationContribution).toService(ModelerSecondaryWindowCloseContribution);
