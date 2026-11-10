@@ -322,6 +322,21 @@ val copyAddOnsWebview =
         into(stagedResourcesRoot.map { it.dir("webview-add-ons") })
     }
 
+// The add-ons page bundles the Geist fonts (OFL-1.1) and lucide icons (ISC); their licenses ship in the jar.
+val thirdPartyLicenses =
+    mapOf(
+        "geist.LICENSE" to "../../node_modules/@fontsource-variable/geist/LICENSE",
+        "geist-mono.LICENSE" to "../../node_modules/@fontsource-variable/geist-mono/LICENSE",
+        "lucide.LICENSE" to "../../node_modules/lucide/LICENSE",
+    ).mapValues { (_, path) -> layout.projectDirectory.file(path) }
+
+val copyThirdPartyLicenses =
+    tasks.register<Sync>("copyThirdPartyLicenses") {
+        description = "Stages the licenses of the third-party code the webview bundles ship into plugin resources."
+        thirdPartyLicenses.forEach { (name, file) -> from(file) { rename { name } } }
+        into(stagedResourcesRoot.map { it.dir("META-INF/licenses") })
+    }
+
 val copyBridge =
     tasks.register<Copy>("copyBridge") {
         description = "Stages the pre-built Node-free modeler-core bridge binary(ies) into plugin resources (extracted and spawned at runtime)."
@@ -356,7 +371,7 @@ val copySchema =
 // shows a blank tab; a release build checks every source here instead.
 val verifyReleaseBundles =
     tasks.register("verifyReleaseBundles") {
-        description = "Fails a release build whose webview bundles or bridge binaries were not built."
+        description = "Fails a release build whose webview bundles, their licenses or bridge binaries are missing."
         val buildBridges = "corepack yarn workspace @miragon/bpmn-modeler-bridge compile:all"
         val required =
             listOf(
@@ -365,7 +380,8 @@ val verifyReleaseBundles =
                 addOnsWebviewDist.file("index.js").asFile to "corepack yarn build:add-ons-webview",
                 // Without it the tab ships unstyled and nothing fails.
                 addOnsWebviewDist.file("index.css").asFile to "corepack yarn build:add-ons-webview",
-            ) + releaseBridgeTargets.map { (dir, name) -> bridgeDistRoot.file("$dir/$name").asFile to buildBridges }
+            ) + thirdPartyLicenses.values.map { it.asFile to "corepack yarn install" } +
+                releaseBridgeTargets.map { (dir, name) -> bridgeDistRoot.file("$dir/$name").asFile to buildBridges }
         doLast {
             val missing = required.filterNot { (file, _) -> file.exists() }
             if (missing.isNotEmpty()) {
@@ -393,7 +409,7 @@ sourceSets.named("main") {
 }
 
 tasks.named<ProcessResources>("processResources") {
-    dependsOn(copyWebview, copyDeploymentWebview, copyAddOnsWebview, copyBridge, copySchema, writeBridgeVersion)
+    dependsOn(copyWebview, copyDeploymentWebview, copyAddOnsWebview, copyThirdPartyLicenses, copyBridge, copySchema, writeBridgeVersion)
     if (bundleAllPlatforms) dependsOn(verifyReleaseBundles)
 }
 
@@ -401,5 +417,5 @@ tasks.named<ProcessResources>("processResources") {
 // staged resources, so no extra sandbox wiring is needed — but make the
 // dependency explicit so a clean `runIde` always stages the bundles first.
 tasks.withType<PrepareSandboxTask>().configureEach {
-    dependsOn(copyWebview, copyDeploymentWebview, copyAddOnsWebview, copyBridge, copySchema, writeBridgeVersion)
+    dependsOn(copyWebview, copyDeploymentWebview, copyAddOnsWebview, copyThirdPartyLicenses, copyBridge, copySchema, writeBridgeVersion)
 }

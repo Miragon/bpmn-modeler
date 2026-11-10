@@ -171,6 +171,25 @@ module.exports = (env, argv) => {
                         ),
                         to: "licenses/form-json-schema.LICENSE",
                     },
+                    // The add-ons view bundles the Geist fonts (OFL-1.1) and lucide icons (ISC).
+                    {
+                        from: path.resolve(
+                            __dirname,
+                            "../../node_modules/@fontsource-variable/geist/LICENSE",
+                        ),
+                        to: "licenses/geist.LICENSE",
+                    },
+                    {
+                        from: path.resolve(
+                            __dirname,
+                            "../../node_modules/@fontsource-variable/geist-mono/LICENSE",
+                        ),
+                        to: "licenses/geist-mono.LICENSE",
+                    },
+                    {
+                        from: path.resolve(__dirname, "../../node_modules/lucide/LICENSE"),
+                        to: "licenses/lucide.LICENSE",
+                    },
                     {
                         // Copy the deployment webview build artefacts into the extension output.
                         from: path.resolve(
