@@ -375,6 +375,11 @@
                 "icon": "$(refresh)"
             },
             {
+                "command": "bpmn-modeler.reviewAddOns",
+                "title": "Review Add-ons",
+                "category": "Miragon BPMN Modeler"
+            },
+            {
                 "command": "bpmn-modeler.migrateAllDiagrams",
                 "title": "Migrate All BPMN Diagrams",
                 "category": "Miragon BPMN Modeler"
@@ -548,6 +553,10 @@
                 },
                 {
                     "command": "bpmn-modeler.refreshAddOns",
+                    "when": "workspaceFolderCount > 0"
+                },
+                {
+                    "command": "bpmn-modeler.reviewAddOns",
                     "when": "workspaceFolderCount > 0"
                 },
                 {

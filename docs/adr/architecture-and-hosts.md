@@ -613,7 +613,12 @@ the next view VS Code resolves starts clean. The reviews are built before the
 BPMN editor that takes them, while the catalog is built later from that
 editor's owners, so the composition connects the reveal once the catalog
 exists; activation is synchronous, so no notice can ask before then. The
-adapter runs `describeAddOnViewRevealContract`.
+adapter runs `describeAddOnViewRevealContract`. The palette command
+**Review Add-ons** (`bpmn-modeler.reviewAddOns`, `ReviewAddOnsCommand`) has
+the provider focus the view the same way, then calls
+`AddOnsFeature.revealNeedsReview()`; when focusing fails it only logs a
+warning and asks the core nothing. It is offered while a folder is open, as
+the view is.
 
 The element-template editor is the main editor for template files in VS Code:
 files in an `element-templates` folder open in it through a default editor

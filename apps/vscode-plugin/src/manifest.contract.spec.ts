@@ -40,6 +40,7 @@ import {
     VERIFY_DEPLOYMENT_CMD,
 } from "./deployment/adapter/in/DeploymentController";
 import { ADD_ONS_VIEW_ID, REFRESH_ADD_ONS_CMD } from "./addOns/adapter/in/AddOnsViewProvider";
+import { REVIEW_ADD_ONS_CMD } from "./addOns/adapter/in/ReviewAddOnsCommand";
 import {
     ADD_MARKETPLACE_CMD,
     REMOVE_MARKETPLACE_CMD,
@@ -160,6 +161,7 @@ const CODE_COMMAND_IDS = [
     TOGGLE_ELEMENT_TEMPLATE_JSON_CMD,
     NEW_ELEMENT_TEMPLATE_CMD,
     REFRESH_ADD_ONS_CMD,
+    REVIEW_ADD_ONS_CMD,
 ];
 
 const LEGACY_NAMESPACE = ["miragon", "camundaModeler"].join("."); // built so this file is not its own false positive
@@ -272,6 +274,20 @@ describe("package.json ↔ code contract", () => {
             command: REFRESH_ADD_ONS_CMD,
             when: "workspaceFolderCount > 0",
         });
+    });
+
+    // The view exists only while a folder is open, so the command is offered only then.
+    it("offers Review Add-ons in the palette while a folder is open", () => {
+        expect(
+            manifest.contributes.commands.find(({ command }) => command === REVIEW_ADD_ONS_CMD),
+        ).toMatchObject({ title: "Review Add-ons", category: "Miragon BPMN Modeler" });
+        expect(manifest.contributes.menus.commandPalette).toContainEqual({
+            command: REVIEW_ADD_ONS_CMD,
+            when: "workspaceFolderCount > 0",
+        });
+        expect(
+            manifest.contributes.menus["view/title"].map(({ command }) => command),
+        ).not.toContain(REVIEW_ADD_ONS_CMD);
     });
 
     it("declares exactly the custom-editor viewTypes the code uses", () => {
