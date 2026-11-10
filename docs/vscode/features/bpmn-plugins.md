@@ -81,10 +81,10 @@ When you open a diagram and its workspace holds plugins you have not allowed yet
 
 Once **Review…** opened the view, the modeler does not ask again in this window about the same plugins; they wait in the view until you allow them. A plugin you leave unchecked in the list is not offered again until the window reloads or its files change. Closing the notification without **Review…** decides nothing: the modeler does not ask again in this window for the same plugins, and asks again in a later session. Only one question is open at a time, even when you open several diagrams. Questions about [bpmnlint rule packages](/vscode/features/linting#allow-a-rule-package) wait for the same turn.
 
-An approval is for one plugin folder and its exact content, a SHA-256 hash of the script and the stylesheet:
+An approval is for the plugin's exact content, a SHA-256 hash of the script and the stylesheet:
 
 - Any change, from a `git pull`, an update or an edit, makes the plugin *changed*. It is left out until you allow it again.
-- The same plugin in another folder or repository asks on its own.
+- The same content in another folder, clone or git worktree is allowed there too, without asking. The modeler records the approval for that folder as well, and the *bpmn.modeler* output channel says so: `Allowed BPMN plugin <name> in <folder>: you allowed the same content in <folder>.`
 - Approvals are kept for you in VS Code's global state, outside every workspace, so a repository cannot allow its own plugins. [Workspace Trust](https://code.visualstudio.com/docs/editor/workspace-trust) does not replace them.
 - The editor loads a copy of the bytes you allowed from VS Code's global storage, never the files in your workspace. A file changed after you allowed it does not run.
 
@@ -134,7 +134,7 @@ In VS Code the output channel names the error of a left-out plugin only as *Scri
 - Camunda Modeler `client` extensions, menus and DMN plugins do not run. Plugins extend the BPMN editor only, not DMN or forms.
 - An error a plugin throws after the editor opened, for example while you edit, is not contained: the editor may stop responding in parts until you reopen it, and the log does not name the plugin ([#2270](https://github.com/Miragon/bpmn-modeler/issues/2270)). Remove the plugin's folder if that happens.
 - Plugins load when an editor opens. A change to a plugin's files reaches an editor the next time it opens, after you allow the changed version.
-- The [Add-ons view](/vscode/features/add-ons) lists and revokes approvals in VS Code, and the **Add-ons** tab of the **BPMN Modeler** tool window does in IntelliJ. Copies of allowed plugins stay in VS Code's global storage. When the extension starts, and after a revoke, it removes the copies no approval names any more, such as the version before you allowed an update.
+- The [Add-ons view](/vscode/features/add-ons) lists and revokes approvals in VS Code, and the **Add-ons** tab of the **BPMN Modeler** tool window does in IntelliJ. **Revoke** takes the plugin's content back in every folder where you allowed it. Copies of allowed plugins stay in VS Code's global storage. When the extension starts, and after a revoke, it removes the copies no approval names any more, such as the version before you allowed an update.
 
 ## IntelliJ
 
