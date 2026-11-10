@@ -71,6 +71,7 @@ lint/tsc globs never touch the Kotlin sources.
 | `copyWebview` | `dist/webview-staging/bpmn-webview/` | `/webview/…` |
 | `copyDeploymentWebview` | `dist/webview-staging/deployment-webview/` | deployment webview |
 | `copyAddOnsWebview` | `dist/webview-staging/add-ons-webview/` | `/webview-add-ons/…` (the Add-ons tab) |
+| `copyThirdPartyLicenses` | the Geist, Geist Mono and lucide `LICENSE` files in `node_modules` | `META-INF/licenses/` (the add-ons bundle's fonts and icons) |
 | `copyBridge` | `apps/modeler-bridge/dist/modeler-bridge` | `/bin/<os>-<arch>/modeler-bridge` |
 | `copySchema` | `libs/shared/src/lib/deploymentTargets.schema.json` | `deployment-targets.json` schema |
 
@@ -232,8 +233,12 @@ Kotlin (`apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/`):
   `ElementTemplateFiles.kt` and `NewElementTemplates.kt` copy the TypeScript rules and run their `*.cases.json` rows in tests
 - **Script tabs**: `ScriptCompletionContributor.kt` renders the catalog the bridge ships; `ScriptCompletion.kt` copies the core's
   two line-prefix matchers and runs `scriptCompletion.cases.json` in `ScriptCompletionMatchersTest`
-- **Shell CSP**: `WebviewContentSecurityPolicy.kt` — the header `WebviewServer` sends with both HTML shells; it allows the
-  inline `acquireVsCodeApi` shim by hash, so editing the shim updates the hash pinned in `WebviewContentSecurityPolicyTest`
+- **Shell CSP**: `WebviewContentSecurityPolicy.kt` — the header `WebviewServer` sends with every HTML shell; it allows the
+  inline `acquireVsCodeApi` shim by hash, so editing the shim updates the hash pinned in `WebviewContentSecurityPolicyTest`.
+  The add-ons shell (`ADD_ONS_SHELL`) allows `style-src 'self'` without `'unsafe-inline'` and `font-src 'self'`
+- **Theme**: `IdeThemeSignal.kt` maps the IDE palette into `#ide-theme-vars` for the editor and Deploy shells; the Add-ons
+  tab gets no palette, only the brand mode on `<html>` (`BrandMode.kt`, `addOnsApplyJs` on a LaF or settings change), as
+  the page wears the Miragon brand and its own type sizes
 - **Transport**: `bridge/RpcChannel.kt`, `bridge/ProcessSupervisor.kt`, `bridge/BridgeBinaryResolver.kt`, `bridge/BridgeProcessLauncher.kt`; routers `bridge/*Router.kt`, composed in `bridge/BridgeRouters.kt`
 - **Display/secret ports**: `HostNotifications.kt`, `IntellijSecretStore.kt`; status slots in
   `StatusView.kt` (the core's unions), `StatusBarSlots.kt` (placement), `AutoHidingStatusSlots.kt`

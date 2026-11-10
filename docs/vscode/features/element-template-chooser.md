@@ -56,7 +56,7 @@ Templates with an `engines` field (for example `"engines": { "camunda": "^8.7" }
 
 ## Turn templates off
 
-To keep a template out of the chooser and the append menu without deleting its file, click **Disable** on its row in the [Add-ons view](/vscode/features/add-ons). **Disable templates** on a config folder or marketplace does the same for all of its templates. Elements that already use a disabled template keep it. VS Code keeps the switches for you, outside the repository, so they do not change what your teammates see.
+To keep a template out of the chooser and the append menu without deleting its file, select it in the [Add-ons view](/vscode/features/add-ons) and click **Disable**. **Disable templates** in a config folder's or marketplace's **⋯** menu does the same for all of its templates. Elements that already use a disabled template keep it. VS Code keeps the switches for you, outside the repository, so they do not change what your teammates see.
 
 ## Write good templates
 

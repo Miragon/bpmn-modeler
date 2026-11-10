@@ -931,7 +931,11 @@ applies the next reveal.
   as a host's reply that fails, leave the group without sources and say why;
   the folders are still listed. Each group carries its kind (`GROUP_KINDS`:
   `folder` or `marketplaces`), so a view tells that source-less group from a
-  folder's without parsing an id. The catalog offers "Add marketplace…" and
+  folder's without parsing an id. A catalog without a folder group carries
+  `emptyText` (`emptyTextOf`): "Open a folder…" when no folder is open, else
+  the text that no folder brings an add-on, whether marketplaces are listed or
+  not, so a view that shows the marketplaces apart still says why the
+  workspace part is empty. The catalog offers "Add marketplace…" and
   "Update marketplaces", and each source "Remove". All three run the
   host's `MarketplaceCommands`, the same instance its commands run
   (`createMarketplaceCommands` builds the inventory over it), so a flow

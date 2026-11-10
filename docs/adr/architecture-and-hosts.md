@@ -236,9 +236,10 @@ fields it names. The model holds workspace text (file, template and folder
 names), so the page builds its DOM with the DOM API from the model and never
 with `innerHTML`. VS Code serves the surface, and IntelliJ through the bridge.
 
-The add-ons view moves to the Miragon brand look, whose tokens switch on
-`<html data-cd-theme="light|dark">` and `data-cd-kontrast="hoch"`, never on
-IDE colours. The host decides the mode and is its only writer. One rule,
+The add-ons view wears the Miragon brand look, not the host's: it is
+Miragon's own product surface, and one look serves both hosts. Its tokens
+switch on `<html data-cd-theme="light|dark">` and `data-cd-kontrast="hoch"`,
+never on IDE colours. The host only signals the mode and is its only writer. One rule,
 `brandModeOf` in `libs/shared/src/lib/brandMode.ts`, maps the IDE theme
 (light, dark, high contrast, high contrast light) and the `colorTheme` setting
 to it: `automatic` follows the IDE, `light` forces light, and high contrast
@@ -259,21 +260,39 @@ follows a resized sidebar or tool window without a reload. The reducer
 (`src/domain/viewState.ts`) holds the tab, each tab's selection, the filter
 and the pane, and keeps the tab, the selections and the open or closed headers
 in the host's saved state, so a reload, which IntelliJ does after a bridge
-restart, lands where the user was; the search stays with the page. The
-brand's own components draw it: the vendored tokens
+restart, lands where the user was; the search stays with the page.
+
+The brand's own components draw it: the vendored tokens
 (`cd-tokens.generated.css`, unchanged from the `miragon-brand` skill), Geist
 and Geist Mono from `@fontsource-variable` and Lucide icons, all in the bundle
-and tree-shaken; the stylesheet reads no `--vscode-*` variable, and its spec
-checks that, the tokens' checksum, `[hidden]`, forced colours and reduced
-motion. The view keeps the arrow keys the tab and menu patterns require and
-otherwise reaches every control with Tab; the outline's roving tree is gone.
-When the host focuses the page (VS Code's view focus, IntelliJ's tool window
-activation) focus goes to the selected row, else to the tab. The view's own
-words, its tab, chip and empty-state labels and its screen-reader summaries,
-live in one module, `src/domain/chromeTexts.ts`: they name the view's
-controls, which the core's model does not have, as "Loading…" already did.
-Every other text comes from the core, which also sends `emptyText`, why no
-folder lists an add-on, whenever the workspace has none, marketplaces or not.
+and tree-shaken; components use the `--cd-ui-*` roles and the palette only
+for button, badge and kind surfaces. The stylesheet reads no `--vscode-*`
+variable, and its spec checks that, the tokens' checksum, `[hidden]`, forced
+colours and reduced motion. The type sizes are the brand's (13px base, 11px
+small), so the IDE's font size does not reach the page; the host's zoom
+still scales it. The fonts are OFL-1.1 and Lucide is ISC, so both plugins
+carry their licenses: `apps/vscode-plugin/webpack.config.js` copies them into
+the VSIX's `licenses/` and fails the build when one is missing, and the
+IntelliJ build's `copyThirdPartyLicenses` puts them into the jar's
+`META-INF/licenses/`, which `verifyReleaseBundles` checks for a release.
+
+Every control is reached with Tab, and the list has no roving tree (see
+[Alternatives](#alternatives-and-consequences)). The tabs keep the arrow,
+Home and End keys of the tab pattern and the "…" menus those of the menu
+pattern, with Escape back to their button, as a role promises its keys. When
+the host focuses the page (VS Code's view focus, IntelliJ's tool window
+activation), focus goes to the selected add-on, its row or, in the
+drill-down, its detail heading, else to the active tab. The view's own words,
+its tab, chip and empty-state labels, "Needs review" and "Problem" on a row,
+the hint of an empty detail and its screen-reader summaries, live in one
+module, `src/domain/chromeTexts.ts`: they name the view's controls and
+summaries, which the core's model does not have, as "Loading…" does, and one
+module keeps them from scattering into adapters where a reviewer cannot tell
+them from model text. A row's "Needs review" is read from what the core
+offers (Allow or Review…), never from a rule of its own, and the detail shows
+the core's state text. Every other text comes from the core, which also sends
+`emptyText`, why no folder lists an add-on, whenever the workspace has none,
+marketplaces or not.
 
 IntelliJ shows the add-ons view as the **Add-ons** tab of its BPMN Modeler
 tool window, next to the **Deploy** tab, as VS Code holds Deploy and Add-ons
@@ -572,8 +591,9 @@ shell without the command, so `ViewReview` falls back to the list. The
 provider runs the view's `<viewId>.focus` command, which opens the container
 and resolves the view; a page that is still loading then loses that focus, so
 the provider shows the view with focus once more on the page's first message,
-and the page focuses the revealed row (the smoke test found a fresh view left
-unfocused, with the row out of sight). A disposed view (hidden, moved or out
+and the page focuses the revealed add-on, its row or, in the drill-down the
+narrow side bar shows, its detail heading (the smoke test found a fresh view
+left unfocused, with the row out of sight). A disposed view (hidden, moved or out
 of its `when` clause) drops both the page state and an unanswered focus, so
 the next view VS Code resolves starts clean. The reviews are built before the
 BPMN editor that takes them, while the catalog is built later from that
@@ -1528,6 +1548,25 @@ a cached result must equal an uncached run.
   touched both adapters, the RPC and Kotlin. Core-built views and prompts cost
   the hosts per-item freedom: a host renders only what the shared shape
   carries, so a widget-specific touch needs a field in that shape first.
+- The add-ons view could follow the IDE's look through VS Code's `--vscode-*`
+  variables, with IntelliJ mapping its palette onto the same names. That
+  needed a pinned list of every variable the stylesheet read, a Kotlin mapping
+  held to it, `'unsafe-inline'` for the mapped block in IntelliJ's shell, and
+  still looked different in each host. The brand look costs the view its
+  match with the IDE's colours and font size; the host keeps only light, dark
+  and high contrast.
+- The core could send the view's own words (tab and chip labels, "Needs
+  review", the empty and no-match texts) in the catalog model. They name
+  controls and filters of one page, not the catalog, so each would be a
+  protocol field no other view reads. Keeping them in `chromeTexts.ts` costs a
+  second home for words beside the core's, so a review checks that a new word
+  there names the view and does not restate a model text.
+- The outline's roving tree kept the list one tab stop, with arrows, Home,
+  End and type-ahead inside it. The list-and-detail layout of
+  [#2321](https://github.com/Miragon/bpmn-modeler/issues/2321) puts each row's
+  actions in the detail pane, and the product decision put that layout before
+  the tree model. Dropping it costs keyboard users one Tab per shown row and
+  header; closing a folder, the search and the chips shorten the way.
 - The marketplace's free-text location could have come through a generic
   text-input port beside `TokenPromptPort`, with the scope through
   `PickerPort.choose`. That costs the same protocol as the add question (one

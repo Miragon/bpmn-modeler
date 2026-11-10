@@ -20,7 +20,14 @@ and source beside the detail of the selected add-on. A search field and
 filter chips narrow the list; "More actions" holds the catalog actions. From
 640px of the view's own width list and detail stand side by side; below, the
 detail opens in the list's place with **Back**. The layout follows the view's
-width through container queries.
+width through container queries (`src/adapter/in/layout.ts` is the seam the
+specs replace, as jsdom does no layout).
+
+The page wears the Miragon brand, not the IDE's look: the host only signals
+light, dark and high contrast. Its type sizes are the brand's (13px base),
+so the IDE's font size does not reach it; the host's zoom still scales it.
+Tab reaches every control; the tabs and the "…" menus keep the arrow keys
+their ARIA roles require.
 
 ## Where the rules live
 
@@ -38,14 +45,21 @@ width through container queries.
   row's status, how much a button stands out, Allow only at the end of a
   review.
 - `src/domain/chromeTexts.ts`: the view's own words (tabs, chips, empty
-  states, screen-reader summaries). Every other text comes from the core.
+  states, screen-reader summaries). Every other text comes from the core; a
+  new word of the view goes here, never into an adapter.
 - `src/adapter/in/addOnsView.ts`: builds the DOM with the DOM API, never
   `innerHTML`, as names and paths are workspace text; `toolbar.ts`,
   `listView.ts`, `detailView.ts` and `emptyStates.ts` build its parts.
+- `src/adapter/in/icons.ts`: every Lucide icon the view shows.
 - `src/adapter/in/styles/`: the Miragon brand tokens
   (`cd-tokens.generated.css`, vendored unchanged from the `miragon-brand`
-  skill), the base and the view's stylesheet. Geist, Geist Mono and Lucide
-  icons ship in the bundle.
+  skill; never edit it, copy a new release over it and update the checksum
+  `stylesheet.spec.ts` pins), the base and the view's stylesheet. Components
+  use the `--cd-ui-*` roles, palette tokens only for button, badge and kind
+  surfaces, and no `--vscode-*` variable.
+- Geist and Geist Mono (`@fontsource-variable`, OFL-1.1) and Lucide (ISC)
+  ship in the bundle; both plugins carry their licenses (`licenses/` in the
+  VSIX, `META-INF/licenses/` in the IntelliJ jar).
 
 ## Local development
 
