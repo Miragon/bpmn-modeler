@@ -7,6 +7,7 @@ import com.intellij.testFramework.junit5.TestApplication
 import io.miragon.intellij.bpmn.projectFixtureWithoutServicePreload
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
@@ -27,6 +28,7 @@ class AddOnsRouterTest {
 
     private fun routed(
         ensureStartedAsync: () -> Unit = {},
+        clock: () -> Long = System::currentTimeMillis,
         revealArtifacts: (Project, (Boolean) -> Unit) -> Unit = { _, onDone -> onDone(false) },
     ): Routed {
         val wired =
@@ -35,7 +37,7 @@ class AddOnsRouterTest {
                 disposals += it.fake::close
             }
         val deps = bridgeDeps(projectFixture.get(), wired.channel, wired.handlers, ensureStartedAsync = ensureStartedAsync)
-        val router = AddOnsRouter(deps, revealArtifacts)
+        val router = AddOnsRouter(deps, revealArtifacts, clock)
         router.register()
         return Routed(wired, router)
     }
@@ -58,6 +60,23 @@ class AddOnsRouterTest {
         val hidden = routed(revealArtifacts = { _, onDone -> onDone(false) }).wired
         hidden.handlers.dispatch("addOns/reveal", JsonObject(), hidden.requestId(4))
         assertEquals(json("""{"id": 4, "result": {"shown": false}}"""), json(hidden.fake.nextFrame()))
+    }
+
+    @Test
+    fun `shows no tab for a reveal the core stopped waiting for, as it shows its list then`() {
+        val readings = ArrayDeque(listOf(0L, AddOnsRouter.REVEAL_REPLY_DEADLINE_MS))
+        var revealed = false
+        val wired = routed(clock = readings::removeFirst, revealArtifacts = { _, onDone -> revealed = true.also(onDone) }).wired
+
+        wired.handlers.dispatch("addOns/reveal", JsonObject(), wired.requestId(6))
+
+        assertEquals(json("""{"id": 6, "result": {"shown": false}}"""), json(wired.fake.nextFrame()))
+        assertFalse(revealed)
+    }
+
+    @Test
+    fun `stops a reveal when the core does`() {
+        assertEquals(ProtocolDescriptor.load().replyDeadlineMs("addOns/reveal"), AddOnsRouter.REVEAL_REPLY_DEADLINE_MS)
     }
 
     @Test

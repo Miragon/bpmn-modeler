@@ -20,6 +20,7 @@ internal class AddOnsRouter(
     private val deps: BridgeDeps,
     // A seam for tests: a headless test cannot show a tool window.
     private val revealArtifacts: (Project, (Boolean) -> Unit) -> Unit = ::revealArtifacts,
+    private val clock: () -> Long = System::currentTimeMillis,
 ) {
     private val log = Logger.getInstance(AddOnsRouter::class.java)
 
@@ -112,6 +113,10 @@ internal class AddOnsRouter(
 
     fun clear() {
         window = null
+    }
+
+    companion object {
+        const val REVEAL_REPLY_DEADLINE_MS = 10_000L
     }
 }
 
