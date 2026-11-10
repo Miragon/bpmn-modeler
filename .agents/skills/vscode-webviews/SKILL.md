@@ -347,7 +347,8 @@ never reads body classes for it. IntelliJ writes the same attributes into its
 
 The stylesheet reads no `--vscode-*` variable (its spec fails on one): it uses
 the vendored brand tokens (`src/adapter/in/styles/cd-tokens.generated.css`,
-never edited by hand; the spec pins its checksum), the `--cd-ui-*` roles in
+never edited by hand; listed in `.miragon/brand-assets.yaml`, its checksum in
+`.miragon/brand-assets.sha256`), the `--cd-ui-*` roles in
 components and the palette only for button, badge and kind surfaces. Geist,
 Geist Mono and Lucide ship in the bundle, and the type sizes are the brand's,
 so the editor font size does not apply here.

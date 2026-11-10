@@ -70,6 +70,10 @@
   --cd-shell-ebene-aufklapper: 40;
   --cd-shell-ebene-dialog: 50;
   --cd-shell-ebene-toast: 60;
+  --cd-kachel-glas: rgba(255, 255, 255, 0.08);
+  --cd-kachel-glas-kontur: rgba(255, 255, 255, 0.25);
+  --cd-kachel-glas-dunkel: rgba(29, 29, 29, 0.42);
+  --cd-kachel-glas-blur: 32px;
   /* Rollen, hell (gilt ohne data-cd-theme) */
   --cd-ui-grund: #F9F7F7;
   --cd-ui-flaeche: #FFFFFF;

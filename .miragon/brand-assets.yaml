@@ -1,0 +1,8 @@
+# miragon-brand/brand-assets: neu kopieren mit brand-assets.mjs, die Kopien nie von Hand ändern
+# Alle Dateien, die dieses Repo aus dem Plugin miragon-brand kopiert. "source" ist relativ zum Plugin,
+# "out" relativ zum Repo. Neue Einträge mit: brand-assets.mjs --add <source> <out>
+# Die Prüfsummen der Kopien schreibt brand-assets.mjs nach .miragon/brand-assets.sha256, die CI prüft sie mit sha256sum -c.
+skillVersion: 1.32.0
+files:
+  - source: skills/modeler-tool-design/assets/cd-tokens.generated.css
+    out: apps/add-ons-webview/src/adapter/in/styles/cd-tokens.generated.css
