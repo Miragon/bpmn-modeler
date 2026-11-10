@@ -150,6 +150,20 @@ describe("AddOnsViewProvider.resolveWebviewView", () => {
         );
     });
 
+    // The page listens only once it has loaded, so a switch while it loads can be lost.
+    it("posts the current brand mode again when the page asks for its catalog", () => {
+        const { provider, brandMode } = createProvider();
+        const view = resolveView(provider);
+        brandMode.switchTo({ theme: "light", contrast: "hoch" });
+        view.webview.postMessage.mockClear();
+
+        pagePosts(view);
+
+        expect(view.webview.postMessage.mock.calls).toEqual([
+            [new BrandModeQuery({ theme: "light", contrast: "hoch" })],
+        ]);
+    });
+
     it("stops following the theme once the view is disposed", () => {
         const { provider, brandMode } = createProvider();
         const view = resolveView(provider);

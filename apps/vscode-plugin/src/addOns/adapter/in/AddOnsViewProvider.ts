@@ -72,10 +72,10 @@ export class AddOnsViewProvider implements WebviewViewProvider {
             (message: Query) => void webviewView.webview.postMessage(message),
             webviewView.visible,
         );
-        // VS Code never renders the shell again, so the page follows a theme change by message.
-        const brandModeChanges = this.brandMode.onDidChange(
-            (mode) => void webviewView.webview.postMessage(new BrandModeQuery(mode)),
-        );
+        const postBrandMode = (mode = this.brandMode.current()) =>
+            void webviewView.webview.postMessage(new BrandModeQuery(mode));
+        // The shell keeps the mode of its first render, so the page follows a theme change by message.
+        const brandModeChanges = this.brandMode.onDidChange(postBrandMode);
         webviewView.onDidDispose(() => {
             this.pageLoaded = false;
             this.focusOnLoad = false;
@@ -83,6 +83,8 @@ export class AddOnsViewProvider implements WebviewViewProvider {
             panel.dispose();
         });
         webviewView.webview.onDidReceiveMessage((message: Command) => {
+            // The page asks once it listens; a change posted while it loaded may be lost.
+            if (message.type === "GetAddOnCatalogCommand") postBrandMode();
             this.pageLoaded = true;
             if (this.focusOnLoad) {
                 this.focusOnLoad = false;

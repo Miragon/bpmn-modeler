@@ -322,7 +322,8 @@ The Artifacts view takes the Miragon brand look, not the IDE's colours. The
 host writes `data-cd-theme="light|dark"` (always) and `data-cd-kontrast="hoch"`
 (high contrast) on `<html>`: `addOnsViewHtml` from `window.activeColorTheme.kind`
 and the `colorTheme` setting through `brandModeOf` (`libs/shared/src/lib/brandMode.ts`),
-then a `BrandModeQuery` on every change (`VsCodeBrandModeSignal`). The page
+then a `BrandModeQuery` on every change (`VsCodeBrandModeSignal`) and when the
+page asks for its catalog, since a post during its load can be lost. The page
 never reads body classes for it.
 
 ### CSS Custom Properties

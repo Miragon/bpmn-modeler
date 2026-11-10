@@ -236,8 +236,7 @@ fields it names. The model holds workspace text (file, template and folder
 names), so the page builds its DOM with the DOM API from the model and never
 with `innerHTML`, and every `--vscode-*` variable its stylesheet reads is
 listed in `src/adapter/in/styles/hostThemeVariables.json`, the set IntelliJ
-maps for it. VS Code serves the surface; the bridge declares it `absent`
-until IntelliJ does.
+maps for it. VS Code serves the surface, and IntelliJ through the bridge.
 
 The add-ons view moves to the Miragon brand look, whose tokens switch on
 `<html data-cd-theme="light|dark">` and `data-cd-kontrast="hoch"`, never on
@@ -533,7 +532,8 @@ stylesheet and the fonts its bundle ships, and no inline styles, as the page
 uses no codicons, no images and no style attributes. The shell carries the
 brand mode of `window.activeColorTheme` and the `colorTheme` setting
 (`VsCodeBrandModeSignal`), and the provider posts a `BrandModeQuery` on each
-change of either until the view is disposed.
+change of either until the view is disposed, and again when the page asks for
+its catalog, as a change posted while the page loads can be lost.
 `AddOnsViewProvider` attaches one core panel per resolved view and hands it
 the page's commands, its visibility and its disposal; the core refreshes on
 show. The view's title bar **Refresh Artifacts** (`bpmn-modeler.refreshArtifacts`)
