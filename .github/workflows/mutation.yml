@@ -57,6 +57,7 @@ jobs:
             exit 0
           fi
           gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$artifact_id/zip" > "$RUNNER_TEMP/stryker-baseline.zip"
+          mkdir -p libs/modeler-core/reports/mutation
           unzip -o "$RUNNER_TEMP/stryker-baseline.zip" -d libs/modeler-core/reports/mutation
       # Vitest appends a job summary per Stryker test run, which outgrows the 1 MB step summary limit.
       - if: github.event_name == 'pull_request' || github.event_name == 'push'
