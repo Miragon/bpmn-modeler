@@ -138,15 +138,18 @@ export function codeAddOnsOf(
         return root === undefined ? [] : [{ ...each, root }];
     });
     const foundByContent: Record<CodeAddOnKind, FoundByContent> = {
-        plugin: foundByContentOf(placed.filter(({ kind }) => kind === "plugin")),
-        rulePackage: foundByContentOf(placed.filter(({ kind }) => kind === "rulePackage")),
+        plugin: byContentOf(foundArtifactsOf(facts, "plugin")),
+        rulePackage: byContentOf(foundArtifactsOf(facts, "rulePackage")),
     };
     return placed.map((each) =>
         placedAddOn(each, facts, session, restart, foundByContent[each.kind]),
     );
 }
 
-/** The listed found code of one kind, as a carry write records it. */
+/**
+ * The listed found code of one kind: what a carry write records, and so what
+ * a Revoke of its content leaves to the view.
+ */
 export function foundArtifactsOf(facts: CodeAddOnFacts, kind: CodeAddOnKind): ApprovableArtifact[] {
     const owned = { plugin: facts.plugins, rulePackage: facts.rulePackages }[kind];
     return owned.flatMap(({ presence }) => {
@@ -157,11 +160,9 @@ export function foundArtifactsOf(facts: CodeAddOnFacts, kind: CodeAddOnKind): Ap
     });
 }
 
-function foundByContentOf(listed: readonly ListedAddOn[]): FoundByContent {
+function byContentOf(found: readonly ApprovableArtifact[]): FoundByContent {
     const byContent = new Map<string, ApprovableArtifact[]>();
-    for (const { presence } of listed) {
-        const content = shownContentOf(presence);
-        if (content === undefined) continue;
+    for (const content of found) {
         byContent.set(content.contentHash, [
             ...(byContent.get(content.contentHash) ?? []),
             content,
