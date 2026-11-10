@@ -10,6 +10,7 @@ import {
 import { createFlushableDebounceInput } from "@miragon/bpmn-modeler-types";
 
 import { FormEditorApp } from "../adapter/in/FormEditorApp";
+import { numericValidationModule } from "../adapter/in/numericValidationModule";
 import { FORM_TEMPLATE } from "../adapter/in/formTemplate";
 import { routeFormHostMessage } from "../adapter/in/hostMessageRouter";
 import type { FormHost } from "../port/formHost";
@@ -32,7 +33,7 @@ export function bootstrap(host: FormHost): void {
     const app = new FormEditorApp(
         new FormEditor({
             container: editorElement,
-            additionalModules: [{ debounce: ["value", editorInput] }],
+            additionalModules: [{ debounce: ["value", editorInput] }, numericValidationModule],
         }),
         new Form({ container: previewElement }),
         host,
