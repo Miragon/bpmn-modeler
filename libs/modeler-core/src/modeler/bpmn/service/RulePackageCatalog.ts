@@ -20,7 +20,7 @@ import { parentWorkspacePath } from "../../../kernel/domain/workspacePath";
 import { PluginApprovalStorePort } from "../../../kernel/port/approvalPorts";
 import { LoggerPort } from "../../../kernel/port/hostPorts";
 import { ApprovalCatalog } from "../../../kernel/service/ApprovalQuestion";
-import { CarriedApprovals } from "../../../kernel/service/CarriedApprovals";
+import { CarriedApprovalWriter } from "../../../kernel/service/CarriedApprovalWriter";
 import {
     BlockedRulePackage,
     isRulePackageApproval,
@@ -59,7 +59,7 @@ export class RulePackageCatalog implements ApprovalCatalog<
     private readonly listingListeners = new Set<() => void>();
     private readonly changeListeners = new Set<(followed: FollowedApprovalChange) => void>();
     private readonly approvalChanges: { dispose(): void };
-    private readonly carried: CarriedApprovals;
+    private readonly carriedApprovalWriter: CarriedApprovalWriter;
     private rulePackageRows: readonly CodeApproval[];
 
     constructor(
@@ -67,7 +67,11 @@ export class RulePackageCatalog implements ApprovalCatalog<
         private readonly fingerprints: Pick<PackageClosureFingerprinter, "fingerprint">,
         private readonly logger: LoggerPort,
     ) {
-        this.carried = new CarriedApprovals(approvals, logger, RULE_PACKAGE_CODE_TEXTS);
+        this.carriedApprovalWriter = new CarriedApprovalWriter(
+            approvals,
+            logger,
+            RULE_PACKAGE_CODE_TEXTS,
+        );
         this.rulePackageRows = approvals.read().filter(isRulePackageApproval);
         this.approvalChanges = approvals.onDidChange(() => this.followApprovals());
     }
@@ -128,7 +132,7 @@ export class RulePackageCatalog implements ApprovalCatalog<
 
     /** Stores a row where a package runs on another place's row of its content; never rejects. */
     recordCarried(found: readonly ApprovableArtifact[]): Promise<void> {
-        return this.carried.record(found);
+        return this.carriedApprovalWriter.record(found);
     }
 
     /** Revoked from a view, also at places whose code ran on another place's row. */

@@ -115,7 +115,7 @@ export class RulePackageInventory {
         return this.currentRulePackage(id, { hash: true });
     }
 
-    carryOver(found: readonly ApprovableArtifact[]): Promise<void> {
+    recordCarried(found: readonly ApprovableArtifact[]): Promise<void> {
         return this.catalog.recordCarried(found);
     }
 

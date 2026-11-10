@@ -9,7 +9,7 @@ import {
     CodeApprovalChange,
     revoking,
 } from "../domain/codeApproval";
-import { CarriedApprovals } from "./CarriedApprovals";
+import { CarriedApprovalWriter } from "./CarriedApprovalWriter";
 
 const HERE: ApprovableArtifact = {
     id: "/worktree/.camunda/plugins/resize",
@@ -60,10 +60,10 @@ class ChainedHost extends InMemoryPluginApprovals {
 
 function setUp(store = new InMemoryPluginApprovals()) {
     const logger = new RecordingNotifier();
-    return { store, logger, carried: new CarriedApprovals(store, logger, texts) };
+    return { store, logger, carried: new CarriedApprovalWriter(store, logger, texts) };
 }
 
-describe("CarriedApprovals", () => {
+describe("CarriedApprovalWriter", () => {
     it("stores a row for code allowed only in another folder and logs one line naming both", async () => {
         const { store, logger, carried } = setUp();
         store.approvals = [SOURCE];

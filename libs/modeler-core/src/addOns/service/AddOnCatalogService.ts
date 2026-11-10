@@ -280,7 +280,8 @@ export class AddOnCatalogService {
         // Its write lists once more, which finds every row in place and writes nothing.
         CODE_ADD_ON_KINDS.forEach((kind) =>
             this.track(
-                this.sourceOf(kind)?.carryOver(foundArtifactsOf(facts, kind)) ?? Promise.resolve(),
+                this.sourceOf(kind)?.recordCarried(foundArtifactsOf(facts, kind)) ??
+                    Promise.resolve(),
             ),
         );
     }

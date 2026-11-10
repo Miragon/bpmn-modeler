@@ -29,7 +29,7 @@ export interface CodeAddOnSource {
     /** Read and hashed now, past any memo. */
     current(id: string): Promise<ListedPresence>;
     /** Stores a row where listed code is allowed only by another place's row of its content; never rejects. */
-    carryOver(found: readonly ApprovableArtifact[]): Promise<void>;
+    recordCarried(found: readonly ApprovableArtifact[]): Promise<void>;
     /** After the catalog revoked these ids: one place, or every place of one content. */
     afterRevoke(revokedIds: readonly string[]): Promise<void>;
     /** Revoked this session, with code that may still be loaded although no approval covers it. */

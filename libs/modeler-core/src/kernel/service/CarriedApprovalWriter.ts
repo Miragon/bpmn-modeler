@@ -18,7 +18,7 @@ import { LoggerPort } from "../port/hostPorts";
  * stay per folder and the approval outlives the folder it was given in.
  * One instance per owner of approvable code.
  */
-export class CarriedApprovals {
+export class CarriedApprovalWriter {
     /** By `declineKeyOf`, so a write in flight is not started twice. */
     private readonly inFlight = new Set<string>();
     /** By `declineKeyOf`: not tried again this session, and logged once. */

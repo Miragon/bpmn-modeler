@@ -573,7 +573,7 @@ pull, an update) asks again.
 names the place it was given at, but it counts for its content wherever that
 content is found (`approvalStateOf`): a folder holding content the user
 allowed in another folder, clone or git worktree counts as allowed, and the
-core stores a row of its own there (`CarriedApprovals`, see "Unit and row"
+core stores a row of its own there (`CarriedApprovalWriter`, see "Unit and row"
 below). Worktree-per-task workflows asked again for every task's checkout of
 code already allowed. A row here of other content still reads `changed`,
 unless another row holds the current content. Both hashes were already
@@ -1044,7 +1044,7 @@ hides ([the page](architecture-and-hosts.md#package-boundaries)).
   state holds (see the multi-window residual under "One question at a
   time"). After each build the catalog has each owner store a row for every
   listed found add-on allowed only through another place's row
-  (`foundArtifactsOf`, `CodeAddOnSource.carryOver`), so opening the view
+  (`foundArtifactsOf`, `CodeAddOnSource.recordCarried`), so opening the view
   writes rows for code allowed elsewhere even if it never ran; the write
   lists once more, which writes nothing. A change of the
   approvals or the template switches, of an owner, below a config folder (one watcher per workspace
@@ -1106,15 +1106,16 @@ changed, and carrying approvals across places changed neither either.
 
 The row stays per place while the approval is per content. When code runs
 only through another place's row of its content, the owner stores a row for
-its own place through `CarriedApprovals`, one instance per owner catalog:
+its own place through `CarriedApprovalWriter`, one instance per owner catalog:
 `carriedApprovals` decides from the mirror and returns at once when every
 place has its row (the hot path, no host call); otherwise it decides again
 from `readStored()`, writes `allowing` the places, and checks after its own
 write (`orphanedCarries`) that another row still holds each content, revoking
 any carried row a revoke left alone in between. It logs one line per stored
 row naming both places (`ApprovableCodeTexts.carriedOver`) and shows no
-notification. A content at a place is written once at a time, and a write
-that fails is logged once and not tried again this session; the code runs
+notification. The writer runs one write at a time and does not queue a
+content at a place twice, and a write that fails is logged once and not tried
+again this session; the code runs
 anyway, as the rule already allows it. The plugin catalog records the plugins
 it discovers, `RulePackageFollowUp` the packages a lint admitted
 (`LintRun.admitted`, which the gate reports per approved root, never per

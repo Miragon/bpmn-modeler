@@ -59,7 +59,7 @@ export class PluginInventory {
         return presenceOf(await this.locator.readFresh(pluginId));
     }
 
-    carryOver(found: readonly ApprovableArtifact[]): Promise<void> {
+    recordCarried(found: readonly ApprovableArtifact[]): Promise<void> {
         return this.catalog.recordCarried(found);
     }
 
