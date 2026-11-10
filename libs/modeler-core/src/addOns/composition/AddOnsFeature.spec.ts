@@ -695,17 +695,18 @@ describe("AddOnsFeature", () => {
             },
         );
 
-        it("a revoked rule package allowed in another folder, without a row here, still says its code stays loaded", async () => {
+        it("a revoked rule package allowed in another folder, whose row here could not be stored, still says its code stays loaded", async () => {
             const { host, install, addOns, view, rulePackageHashOf } = setUp({ files: {} });
             install(ACME, "bpmnlint-plugin-acme");
-            host.pluginApprovals.approvals = [
-                {
-                    pluginId: "/worktree/node_modules/bpmnlint-plugin-acme",
-                    contentHash: rulePackageHashOf(ACME),
-                },
-            ];
+            const source = {
+                pluginId: "/worktree/node_modules/bpmnlint-plugin-acme",
+                contentHash: rulePackageHashOf(ACME),
+            };
+            host.pluginApprovals.approvals = [source];
+            vi.spyOn(host.pluginApprovals, "change").mockRejectedValueOnce(new Error("disk full"));
             view.attachTo(addOns);
             await shown(addOns);
+            expect(host.pluginApprovals.approvals).toEqual([source]);
 
             const result = await view.connection?.handle({
                 kind: "revoke",
