@@ -1057,12 +1057,25 @@ describe("catalogModelOf for marketplaces", () => {
         expect(build(factsOf({ marketplaces: [] })).model.groups).toEqual([]);
     });
 
-    it("says no folder is open when only a marketplace is listed", () => {
-        const { model } = build(factsOf({ folders: [], marketplaces: [UNFETCHED] }));
+    it.each([
+        {
+            case: "no folder is open",
+            folders: [],
+            emptyText:
+                "Open a folder to see the plugins, rule packages and element templates it brings.",
+        },
+        {
+            case: "no folder brings an add-on",
+            folders: ["/work"],
+            emptyText:
+                "No BPMN plugins, bpmnlint rule packages or element templates in this workspace.",
+        },
+    ])("says so when $case and only a marketplace is listed", ({ folders, emptyText }) => {
+        const { model } = build(factsOf({ folders, marketplaces: [UNFETCHED] }));
 
         expect([model.groups.map(({ id }) => id), model.emptyText]).toEqual([
             ["marketplaces"],
-            "Open a folder to see the plugins, rule packages and element templates it brings.",
+            emptyText,
         ]);
     });
 });
