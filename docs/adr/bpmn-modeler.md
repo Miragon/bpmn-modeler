@@ -1046,7 +1046,9 @@ hides ([the page](architecture-and-hosts.md#package-boundaries)).
   listed found add-on allowed only through another place's row
   (`foundArtifactsOf`, `CodeAddOnSource.recordCarried`), so opening the view
   writes rows for code allowed elsewhere even if it never ran; the write
-  lists once more, which writes nothing. A change of the
+  lists once more, which writes nothing. The build already reads such code
+  as allowed, before its row lands, so it never offers Allow and never counts
+  toward Needs review or a needs-review reveal. A change of the
   approvals or the template switches, of an owner, below a config folder (one watcher per workspace
   folder while a view is attached), of the templates folders the open editors
   loaded, a marketplace flow's end, or a change of the config folder or

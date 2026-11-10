@@ -299,6 +299,33 @@ describe("AddOnsFeature", () => {
             ]);
         });
 
+        // Needs review reads the offered actions, so no listing may offer Allow before the carry write lands.
+        it("offers code allowed in another folder only Revoke from the first listing, before its rows are stored", async () => {
+            const { host, install, addOns, view, rulePackageHashOf } = setUp();
+            install(ACME, "bpmnlint-plugin-acme");
+            host.pluginApprovals.approvals = [
+                { pluginId: "/worktree/.camunda/plugins/resize-tasks", contentHash: RESIZE_HASH },
+                {
+                    pluginId: "/worktree/node_modules/bpmnlint-plugin-acme",
+                    contentHash: rulePackageHashOf(ACME),
+                },
+            ];
+
+            view.attachTo(addOns);
+            await shown(addOns);
+
+            const codeActionKindsPerListing = view.models.map((model) =>
+                model.groups
+                    .flatMap(({ sources }) => sources.flatMap(({ addOns: rows }) => rows))
+                    .filter((row) => row.kind !== "elementTemplate")
+                    .map(({ actions }) => actions.map(({ kind }) => kind)),
+            );
+            expect(codeActionKindsPerListing.length).toBeGreaterThan(1);
+            codeActionKindsPerListing.forEach((listing) =>
+                expect(listing).toEqual([["revoke"], ["revoke"]]),
+            );
+        });
+
         it("hashes a rule package with no row once a rule package row exists", async () => {
             const { host, disk, install, addOns, view } = setUp({ files: {} });
             install(ACME, "bpmnlint-plugin-acme");
