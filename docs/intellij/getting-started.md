@@ -1,12 +1,11 @@
 # Get started in IntelliJ
 
-Install the Miragon BPMN Modeler in IntelliJ IDEA or another JetBrains IDE and edit `.bpmn` files with the same modeler
+Install the Miragon BPMN Modeler in IntelliJ IDEA and edit `.bpmn` files with the same modeler
 as in VS Code.
 
 ## Requirements
 
-- IntelliJ IDEA Community or Ultimate 2024.2 or newer. Other IDEs on the IntelliJ Platform 2024.2+ work too (PyCharm,
-  WebStorm, GoLand and others).
+- IntelliJ IDEA Community or Ultimate 2024.2 or newer, or Android Studio Ladybug or newer.
 - macOS (arm64, x64), Linux (x64, arm64) or Windows (x64). The plugin brings its own bridge binary for these
   platforms, so you do not need Node.js.
 

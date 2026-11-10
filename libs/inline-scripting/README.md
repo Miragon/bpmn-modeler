@@ -1,56 +1,44 @@
 # `@miragon/bpmn-modeler-inline-scripting`
 
-Lets the user edit a Camunda 7 script task's (or script-typed listener's) inline
-script in a real host editor tab instead of the cramped properties-panel
-textarea. It adds the entry points that open such a tab, arbitrates a
-single writer per script surface, and keeps the panel field in sync while a tab
-owns it.
+Edits the inline script of a Camunda 7 script task or script listener in a host editor tab instead of
+the properties-panel textarea. It adds the entry points, keeps one writer per script and keeps the panel
+in sync while a tab owns the script. `@miragon/bpmn-modeler` registers it on Camunda 7 when the host
+supplies `capabilities.scripting`; Camunda 8 ignores the port.
 
-## What's inside
+Internal workspace, not published on its own.
 
-- **Open entry points** — a context-pad edit icon on script tasks
-  (`ScriptTaskContextPadModule`), a Script-group header icon plus a per-listener
-  icon on the properties panel (`ScriptEditorButtonsModule`), and the `o`
-  keyboard shortcut (`ScriptEditorKeyboardModule`). All four fire one event.
-- **Single-writer lock** — `OpenScriptEditorsStore` tracks which surfaces a host
-  tab currently owns; `ScriptLockPropertiesProviderModule` renders those panel
-  fields read-only with a badge and a "click to focus the tab" hint.
-- **Divergence watch** — `ScriptSourceWatcher` detects when an open script's
-  model content changed underneath its tab (canvas undo/redo, reload, element
-  deletion) and asks the host to overwrite or close the tab. A tab the host
-  reports open for a surface the imported diagram no longer has (the task
-  changed type while the webview was hidden) is closed the same way; before
-  the first successful import no surface counts as gone.
-- **Model reads** — `collectInlineScriptTasks`, `readScriptContent`,
-  `readScriptTaskFormat` and `readScriptField` read inline scripts off the live
-  model, and `scriptTaskOpenEvent` / `listenerScriptOpenEvent` build the one
-  open-editor payload that the opener and the lock provider's reveal both send.
-  Which element and property a `(kind, listenerIndex)` pair addresses comes from
-  the one script-surface table in `@miragon/bpmn-modeler-types`
-  (`libs/modeler-types/src/scriptSurface.ts`: `findListenerAt`,
-  `resolveScriptWriteTarget`, `scriptPropertyName`, `describeScriptSurface`).
-  The core's host-side XML rewrite fallback addresses scripts through the same
-  table.
+## How it works
 
-## Event contract
+- **Entry points.** A context-pad icon on script tasks (`ScriptTaskContextPadModule`), icons on the
+  Script group and each listener (`ScriptEditorButtonsModule`) and the `o` shortcut
+  (`ScriptEditorKeyboardModule`) all fire the same event.
+- **One writer.** `OpenScriptEditorsStore` tracks which scripts a host tab owns;
+  `ScriptLockPropertiesProviderModule` shows those panel fields read-only with a badge.
+- **Divergence.** `ScriptSourceWatcher` notices when an open script changes under its tab (undo, reload,
+  deletion) or its element disappeared while the webview was hidden, and asks the host to overwrite or
+  close the tab. Before the first import no script counts as gone.
+- **Addressing.** Which element and property a `(kind, listenerIndex)` pair means comes from the one
+  table in `libs/modeler-types/src/scriptSurface.ts`, which the core's XML fallback uses too.
+- `ScriptEditorButtons` watches the panel given as the `propertiesPanelRoot` DI value, which
+  `@miragon/bpmn-modeler` registers per instance. Without it, it falls back to the `#js-properties-panel`
+  DOM id.
 
-The modules never import host code; they communicate over the bpmn-js event bus.
+## Events
+
+The modules never import host code; they talk over the bpmn-js event bus.
 
 | Event | Direction | Meaning |
 | --- | --- | --- |
-| `scriptEditor.open` | out | A surface requested its editor tab be opened. |
-| `scriptEditor.sourceChanged` | out | An open script's model content diverged. |
-| `openScriptEditors.changed` | internal | The open-editors set changed (lock refresh). |
+| `scriptEditor.open` | out | Open the editor tab for a script. |
+| `scriptEditor.sourceChanged` | out | An open script changed in the model. |
+| `openScriptEditors.changed` | internal | The set of open tabs changed; the lock refreshes. |
 
-`InlineScriptingPortForwarder` (registered by `createInlineScriptingModules`)
-subscribes to the first two and calls the `InlineScriptingPort` the consumer
-supplies. The library never imports the host protocol; in the VS Code webview
-the port's implementation posts the corresponding protocol commands.
+`InlineScriptingPortForwarder` turns the two outgoing events into calls on the host's
+`InlineScriptingPort`.
 
 ## Usage
 
-Camunda-7 only. Consumers enable it through `@miragon/bpmn-modeler` by passing
-the port as `capabilities.scripting`; C8 modelers ignore it:
+Hosts enable it through the npm package:
 
 ```ts
 import { createModeler } from "@miragon/bpmn-modeler";
@@ -62,18 +50,5 @@ const modeler = await createModeler(container, {
 });
 ```
 
-`packages/bpmn-modeler/src/capabilityModules.ts` then spreads
-`createInlineScriptingModules(port)` into the modeler's modules; the factory is
-package-internal wiring, not a consumer entry point.
-
-`createInlineScriptingModules(port)` embeds the `InlineScriptingPort` as the
-`inlineScriptingPort` DI value, so the cluster can only be registered together
-with its host capability.
-
-## Known coupling
-
-`ScriptEditorButtons` observes the panel element given as the optional
-`propertiesPanelRoot` DI value, which `@miragon/bpmn-modeler` registers per
-instance so two modelers on one page each watch their own panel. Without it, the
-buttons fall back to the `#js-properties-panel` DOM id — an app-shell
-assumption, not a bpmn-js one.
+`packages/bpmn-modeler/src/capabilityModules.ts` then adds `createInlineScriptingModules(port)`. The
+factory carries the port, so the modules cannot be registered without a host.

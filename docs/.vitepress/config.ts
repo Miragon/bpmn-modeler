@@ -77,6 +77,14 @@ export default miragonDocs({
             ],
         },
         {
+            text: "Embed in your app",
+            collapsed: true,
+            items: [
+                { text: "@miragon/bpmn-modeler", link: "/embed/bpmn-modeler" },
+                { text: "@miragon/dmn-modeler", link: "/embed/dmn-modeler" },
+            ],
+        },
+        {
             text: "Contributing",
             collapsed: true,
             items: [

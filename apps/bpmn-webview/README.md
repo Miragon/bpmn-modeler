@@ -1,79 +1,34 @@
-# `apps/bpmn-webview/` — BPMN canvas webview
+# `@miragon/bpmn-modeler-webview`
 
-Internal module. **Not published separately.**
+The BPMN canvas that VS Code, the desktop app and IntelliJ load into their webviews, plus the page of
+the element template editor. It wraps `@miragon/bpmn-modeler` and talks to the host over the
+Query/Command protocol of [`libs/shared`](../../libs/shared/README.md). Internal workspace, not
+published on its own.
 
-The BPMN modeling surface that runs inside the VS Code webview hosted by
-[`apps/vscode-plugin`](../vscode-plugin/README.md). Built with Vite and
-[bpmn-js](https://github.com/bpmn-io/bpmn-js); communicates with the
-extension host via a typed Query/Command message protocol from
-[`libs/shared`](../../libs/shared/README.md).
+## How it works
 
-## Surface session (View / Design / Implement)
+- **One surface at a time.** The mode strip in the properties-panel header picks the **viewer**
+  (View), the engine-neutral **designer** (Design) or the full Camunda **modeler** (Implement).
+  Switching swaps the surface. Element templates, lint results, inline scripting and modeler
+  settings only reach the modeler surface; on the other two they are no-ops. The active mode is kept
+  in the webview state, so a reopened editor restores it. The rules behind the surfaces are in
+  [BPMN modeler: surfaces and modes](../../docs/adr/bpmn-modeler.md#surfaces-and-modes).
+- **Two bundles.** `main.ts` builds `index.js` (the editor), `templateEditorMain.ts` builds
+  `templateEditor.js` (the element template editor, in `templateEditor/`).
+- **Role folders** under `src/`: `composition/bootstrap.ts` wires the page and runs its boot phases;
+  `adapter/in/` turns host queries and page input into calls (message router, mode strip, editor
+  chrome, surface binding, diff pane); `adapter/out/` wraps the modeler library and implements its
+  ports over the host channel (`host.ts` selects the channel); `service/` keeps document and view
+  state in sync with the host; `port/` and `domain/` hold the types and the pure rules.
 
-The webview hosts exactly one of three surfaces at a time, chosen by the mode
-strip in the properties-panel header:
-
-- **viewer** — readonly bpmn-js viewer (View mode).
-- **designer** — engine-neutral editable surface (Design mode).
-- **modeler** — full Camunda modeler (Implement mode).
-
-Switching mode swaps the active surface. Modeler-only host messages — element
-templates, lint results, inline scripting, and modeler settings — are no-ops on
-the viewer and designer surfaces; only the modeler surface consumes them. The
-active mode is persisted in the webview state so a hidden/reopened editor
-restores its surface.
-
-## Source layout
-
-Each file sits in a role folder under `src/`:
-
-- `main.ts` and `templateEditorMain.ts` are the entries of the two bundles
-  (`index.js`, `templateEditor.js`); `index.ts` is the barrel.
-- `composition/bootstrap.ts` wires the editor page and runs its boot phases.
-- `adapter/in/` turns the host's queries and the page's input into calls: the
-  message router, the host's requests on the live surface, the mode strip, the
-  editor chrome, the surface binding and the diff pane.
-- `adapter/out/` wraps the modeler library (surface factories and modules, the
-  document I/O of the live surface) and implements its ports over the host
-  channel (capabilities, clipboard, linting, the form preview); `host.ts`
-  selects the host channel.
-- `service/` keeps the document and the view state in sync with the host and
-  publishes the process variables.
-- `port/` types the host channel, the state it persists and the ports the
-  document session and the view-state manager call; `domain/` holds the pure
-  rules.
-- `templateEditor/` is the element template editor's page, in the same role
-  folders.
-
-## Why this lives in its own workspace
-
-Webview frontends are browser code with their own bundler, dependency tree,
-and dev workflow — separate from the Node.js extension host. Keeping them in
-their own workspace lets each one iterate independently and run in a normal
-browser during development.
-
-## Local development
-
-From the repo root:
+## Develop
 
 ```bash
-corepack yarn watch                       # rebuild bundle to disk; F5 launches the extension host
-corepack yarn workspace @miragon/bpmn-modeler-webview serve  # standalone Vite dev server in a browser
+corepack yarn watch                                          # from the root: rebuilds to disk for the F5 extension host
+corepack yarn workspace @miragon/bpmn-modeler-webview serve  # the page alone in a browser, against a mock host
+corepack yarn workspace @miragon/bpmn-modeler-webview test
 ```
 
-`watch` is what you want when developing the full extension. `serve` is for
-isolated UI work without launching VS Code.
-
-## Build output
-
-`vite build` writes to `dist/webview-staging/bpmn-webview/`. The
-`vscode-plugin` webpack config copies that folder into the VSIX.
-
-## Further reading
-
-- Architecture and message protocol:
-  [`/architecture`](https://miragon.github.io/bpmn-modeler/) skill /
-  docs site.
-- bpmn-js internals (EventBus, services, copy-paste): the project's
-  `/bpmn-js` skill.
-- Webview lifecycle and CSP: the project's `/vscode-webviews` skill.
+`vite build` writes to `dist/webview-staging/bpmn-webview/`, which the hosts copy into their
+packages. Browser testing is described in the `bpmn-browser-testing` skill, bpmn-js internals in the
+`bpmn-js` skill and the webview lifecycle in the `vscode-webviews` skill (all in `.agents/skills/`).

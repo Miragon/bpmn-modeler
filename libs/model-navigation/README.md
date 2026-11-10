@@ -1,33 +1,26 @@
 # `@miragon/bpmn-model-navigation`
 
-Adds a **Navigate to referenced model** action to the bpmn-js context pad
-so the user can jump from a Call Activity to the referenced BPMN process,
-from a Business Rule Task to the referenced DMN decision, or from a Camunda 8
-User Task to a workspace `.form` file whose top-level `id` matches its `formId`.
+The **Navigate to referenced model** context-pad action: from a call activity to its BPMN process, from a
+business-rule task to its DMN decision, from a Camunda 8 user task to the `.form` file whose `id` matches
+its `formId`. It also shows the linked form preview. `@miragon/bpmn-modeler` registers it when the host
+supplies `capabilities.modelNavigation`, on the modeler, `/design` and `/viewer`.
 
-## Why this lives in its own library
+Internal workspace, not published on its own.
 
-- **Two reference shapes per element type.** Camunda 7 stores the
-  reference as an attribute on the BPMN element
-  (`calledElement`, `camunda:decisionRef`); Camunda 8 wraps it in a
-  `zeebe:calledElement` / `zeebe:calledDecision` extension element.
-  Camunda 8 linked forms use `zeebe:formDefinition formId`.
-  Resolving them belongs in one helper, not scattered through the
-  modeler.
-- **Resolution is workspace-driven.** The actual file lookup
-  (`workspace.findFiles`, opening via `vscode.open`) only makes sense on
-  the extension host.  Keeping the click target in a small webview-side
-  library lets the modeler stay agnostic of VS Code APIs — it just calls
-  the injected `ModelNavigationPort`.
-- **Hosted Form actions are pessimistic.** The VS Code host keeps a cache of
-  resolvable Form IDs and exposes it through the port's optional availability
-  hooks. A User Task in that host never shows a link action until its form is
-  known to exist. Consumers that omit the hooks treat valid references as
-  available and can resolve them only when clicked.
-- **Context-pad placement is opinionated.** The bpmn-js context pad
-  wraps entries 3-per-row within each `data-group` div.  Putting the
-  icon under the existing `connect` group avoids an orphan row; that
-  choice is documented here so future readers don't move it back.
+## How it works
+
+- `extractReference` reads both shapes: `calledElement` and `camunda:decisionRef` on Camunda 7,
+  `zeebe:calledElement`, `zeebe:calledDecision` and `zeebe:formDefinition formId` on Camunda 8.
+- Finding and opening the file is the host's job; the library only calls `openReference` on the
+  `ModelNavigationPort`.
+- Form links are pessimistic where the host knows its forms: with `isReferenceAvailable` and
+  `onReferenceAvailabilityChanged`, a user task shows no link until its form is known to exist. Without
+  these hooks every valid reference counts as available.
+- `formPreview` on the port opens the anchored form preview; `isAutomaticEnabled` and
+  `onAutomaticChanged` control automatic previews. See the
+  [Linked form previews ADR](../../docs/adr/bpmn-modeler.md#linked-form-previews).
+- The entry sits in the `connect` group on purpose: the context pad wraps three entries per group, and a
+  group of its own would start an orphan row.
 
 ## Usage
 
@@ -37,19 +30,11 @@ import { createModelNavigationModule } from "@miragon/bpmn-model-navigation";
 new BpmnModeler({
     additionalModules: [
         createModelNavigationModule({
-            openReference: ({ id, kind }) => {
-                /* resolve id/kind to a file and open it */
-            },
+            openReference: ({ id, kind }) => openModel(id, kind),
         }),
     ],
 });
 ```
 
-`createModelNavigationModule(port)` embeds the `ModelNavigationPort` as the
-`modelNavigationPort` DI value, so the module can only be registered together
-with its host capability. A consumer that has no host omits the module entirely
-and the context-pad entry never appears. A host with a live workspace index can
-also implement `isReferenceAvailable(reference)` and call listeners registered
-through `onReferenceAvailabilityChanged(listener)` after its cache changes. The
-subscription returns an unsubscribe function, which the modeler calls when its
-diagram is destroyed.
+The module carries its port, so it cannot be registered without a host. Subscriptions return an
+unsubscribe function, which the modeler calls when the diagram is destroyed.

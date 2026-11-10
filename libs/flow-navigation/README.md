@@ -1,71 +1,38 @@
 # `@miragon/bpmn-modeler-flow-navigation`
 
-Adds keyboard-driven diagram traversal to the bpmn-js modeler: **Tab** moves
-the selection forward along sequence flows, **Shift+Tab** backward. At a
-fan-out (element with multiple outgoing flows) Tab cycles through the outgoing
-flows and **Enter** follows the selected flow to its target.
+Keyboard traversal of a diagram: `Tab` moves the selection forward along sequence flows, `Shift+Tab`
+backward, `Enter` follows a selected flow. Without it there is no keyboard way back to a gateway to append
+the next branch. `@miragon/bpmn-modeler` inlines it.
 
-## Why this exists
-
-Keyboard-first modeling works well up to the point of branching: after
-appending a task behind a gateway the selection sits on the new task and there
-is no keyboard way back to the gateway to append the next branch. This module
-adds the missing traversal so the user never has to reach for the mouse
-mid-flow.
-
-## Usage
-
-```ts
-import { FlowNavigationModule } from "@miragon/bpmn-modeler-flow-navigation";
-
-new BpmnModeler({ additionalModules: [FlowNavigationModule] });
-```
+Internal workspace, not published on its own.
 
 ## Key bindings
 
 | Key | Selection | Action |
 |---|---|---|
-| Tab | Shape (1 outgoing, 0 boundaries) | Jump to target shape |
-| Tab | Shape (N outgoing + boundaries) | Select first candidate in mixed fan |
-| Tab | Shape (0 outgoing, 1 boundary) | Jump to boundary (committed) |
-| Tab | Flow or boundary candidate (in fan) | Cycle to next candidate |
+| Tab | Nothing | Select the first start event (top left) |
+| Tab | Shape with one outgoing flow and no boundary events | Jump to the target |
+| Tab | Shape with several outgoing flows or boundary events | Select the first candidate of its fan |
+| Tab | Shape with no outgoing flow and one boundary event | Commit the boundary event |
+| Tab | Flow or boundary event in a fan | Next candidate |
 | Tab | Committed boundary event | Step along its own outgoing flows |
-| Shift+Tab | Shape (1 incoming) | Jump to source shape |
-| Shift+Tab | Shape (N incoming) | Jump to the source of the first incoming flow (sorted top-left) |
-| Shift+Tab | Flow in a source fan | Cycle to previous sibling flow |
-| Shift+Tab | Boundary event (0 incoming) | Jump to host shape |
-| Enter | Sequence flow | Jump to flow target |
-| Enter | Boundary candidate | Commit (stay selected, navigate from it) |
-| Shift+Enter | Sequence flow | Jump to flow source |
-| Enter | Collapsed subprocess (1 selected) | Drill into its plane, select first start event |
-| u | Inside a subprocess plane | Drill out one level, re-select the subprocess |
-| g | Element with a link (call activity, service/send/business-rule task) | Jump to referenced model or implementation file |
-| Ctrl/Cmd+Tab | — | Pass through to VS Code / OS |
+| Shift+Tab | Nothing | Select the first end event |
+| Shift+Tab | Shape with one or several incoming flows | Jump to the source of the first incoming flow (top left) |
+| Shift+Tab | Flow in a source fan | Previous sibling flow |
+| Shift+Tab | Boundary event without incoming flow | Jump to its host |
+| Enter | Sequence flow | Jump to the target |
+| Enter | Boundary event in a fan | Commit it and navigate from it |
+| Shift+Enter | Sequence flow | Jump to the source |
+| Enter | One collapsed subprocess | Drill into its plane, select the first start event |
+| u | Inside a subprocess plane | Drill out one level, reselect the subprocess |
+| g | Call activity, service, send or business-rule task | Jump to the referenced model or implementation |
+| Ctrl/Cmd/Alt+Tab | Anything | Passed through to the host and OS |
 
-When nothing is selected, Tab picks the first start event (sorted top-left);
-Shift+Tab picks the first end event.
+The fan of a shape is its outgoing flows plus its boundary events, sorted by y, then x, of the flow's
+target or the boundary event itself.
 
-The **mixed fan** (C) for a shape is defined as the union of its outgoing
-sequence flows and its attached boundary events, sorted y-then-x by
-*representative shape* (flow → its target, boundary event → itself). Tab from
-the shape or any candidate in the fan cycles through C; Enter on a boundary
-candidate *commits* it — the boundary stays selected and subsequent navigation
-continues from the boundary's own outgoing flows.
+## Good to know
 
-**Behaviour change (v2):** a 1-to-1 sequence flow whose source has attached
-boundary events now cycles within the mixed fan on Tab instead of jumping to
-its target. Enter still follows the flow. Diagrams without boundary events
-behave identically to v1.
-
-## Known limitations
-
-- No visual "Enter follows this" affordance yet — a future iteration can reuse
-  the `canvasFocusIndicator.ts` pattern.
-- Tab on the focused canvas no longer escapes to the properties panel — use
-  `p` to focus it, `Shift+P` to toggle visibility, and Escape to return.
-  Ctrl/Cmd/Alt+Tab are deliberately passed through; mouse focus is unaffected.
-
-## Related shortcuts
-
-`p` (focus panel), `Shift+P` (toggle panel), and Escape (return to canvas) are
-wired in `libs/shared/src/lib/propertiesPanelFocus.ts`, not in this module.
+- `Tab` on the canvas no longer reaches the properties panel. `p` focuses the panel, `Shift+P` toggles
+  it and `Escape` returns; those are wired in `libs/shared/src/lib/propertiesPanelFocus.ts`.
+- There is no visual hint yet of which flow `Enter` follows.

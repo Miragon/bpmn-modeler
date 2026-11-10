@@ -1,14 +1,18 @@
 # @miragon/dmn-modeler
 
-A host-free, embeddable DMN modeler, built on
-[dmn-js](https://github.com/bpmn-io/dmn-js). One `createModeler(container,
-options)` call stands up an independent modeler — decision requirements diagram, decision tables,
-literal expressions, a properties panel, and our own simulation module.
+[![npm](https://img.shields.io/npm/v/@miragon/dmn-modeler)](https://www.npmjs.com/package/@miragon/dmn-modeler)
+[![License: Apache 2.0](https://img.shields.io/github/license/Miragon/bpmn-modeler)](https://github.com/Miragon/bpmn-modeler/blob/main/LICENSE)
 
-This page is for developers who embed the modeler in their own application. To model DMN yourself,
-use one of the hosts built on it: [VS Code](https://marketplace.visualstudio.com/items?itemName=miragon-gmbh.vs-code-bpmn-modeler),
-the [desktop app](https://miragon.github.io/bpmn-modeler/download) or, experimental,
-[Orca](https://miragon.github.io/bpmn-modeler/orca/getting-started).
+**Put a DMN modeler with decision simulation into your own web app with one call.**
+
+`@miragon/dmn-modeler` is the DMN modeler behind the Miragon BPMN Modeler for VS Code, the desktop app and Orca, built on [dmn-js](https://github.com/bpmn-io/dmn-js). To model DMN yourself instead, install one of those [editors](https://github.com/Miragon/bpmn-modeler#install).
+
+## What you get
+
+- **One call, a full modeler.** `createModeler(container, options)` brings the decision requirements diagram, decision tables, literal expressions and a properties panel.
+- **Decisions you can try.** A simulation module evaluates a decision table in place.
+- **Light and dark per instance.** One stylesheet holds both looks, and the theme follows `prefers-color-scheme` unless you pin it.
+- **12 languages.** Set the locale up front or switch it live with `setLocale`; it applies to the whole page.
 
 ## Install
 
@@ -16,148 +20,37 @@ the [desktop app](https://miragon.github.io/bpmn-modeler/download) or, experimen
 npm install @miragon/dmn-modeler
 ```
 
-The dmn-js stack (`dmn-js`, `diagram-js`, `dmn-js-properties-panel`, …) ships as real
-`dependencies`, so a single install pulls everything the modeler needs.
+The dmn-js stack ships as regular dependencies, so this one install is all you need. With Yarn 2 or later and the `node-modules` linker, pin `diagram-js` as the [caveats](https://miragon.github.io/bpmn-modeler/embed/dmn-modeler#caveats) describe.
 
-## Usage
+## Get started
 
 ```ts
 import { createModeler } from "@miragon/dmn-modeler";
-// The stock dmn-js component styles (needed to render at all):
 import "@miragon/dmn-modeler/styles.css";
 
-const canvas = document.querySelector( "#canvas" )!;
-const panel = document.querySelector( "#properties" )!;
+const modeler = await createModeler(document.querySelector("#canvas")!, {
+    propertiesPanel: { parent: document.querySelector("#properties")! },
+});
 
-const modeler = await createModeler( canvas, {
-    propertiesPanel: { parent: panel },
-} );
-
-await modeler.loadDiagram( existingDmnXml );
+const dmnXml = await (await fetch("decision.dmn")).text();
+await modeler.loadDiagram(dmnXml);
 const xml = await modeler.exportDiagram();
 ```
 
-## Theming
+`propertiesPanel` is required, and `#canvas` needs a height; there is no empty starter diagram, so load existing DMN XML. The [reference](https://miragon.github.io/bpmn-modeler/embed/dmn-modeler) covers theming, locale, views, the escape hatch and caveats.
 
-Theming is **per-instance** and needs no extra `<link>`: importing
-`@miragon/dmn-modeler/styles.css` (above) already ships both looks. The modeler toggles a
-`data-dmn-theme="light" | "dark"` attribute on its container and properties-panel parent, and the
-dark rules are scoped under
-`[data-dmn-theme="dark"]`, so two modelers on one page can hold different themes.
-`theme` defaults to `"automatic"` (follows `prefers-color-scheme` live); pass
-`theme: "light"` / `"dark"` to pin one, or call `modeler.setTheme(...)` later.
+## Help and feedback
 
-```ts
-const modeler = await createModeler( canvas, {
-    propertiesPanel: { parent: panel },
-    theme: "automatic", // "automatic" (default) | "light" | "dark"
-} );
-```
+- **Documentation:** the [`@miragon/dmn-modeler` reference](https://miragon.github.io/bpmn-modeler/embed/dmn-modeler).
+- **Bugs and ideas:** [open an issue](https://github.com/Miragon/bpmn-modeler/issues).
+- **Changes:** see the [changelog](https://github.com/Miragon/bpmn-modeler/blob/main/packages/dmn-modeler/CHANGELOG.md).
 
-**Legacy `#theme-link` fallback.** If you still link a theme stylesheet tagged
-`id="theme-link"`, the modeler keeps swapping its href between
-`@miragon/dmn-modeler/light-theme.css` and `.../dark-theme.css` as before — a permanent, page-global
-compatibility path. It is optional; a missing
-`#theme-link` is a silent no-op. Because it is page-global, it cannot express per-instance themes —
-prefer the attribute mechanism (i.e. just `styles.css`).
+## Contributing
 
-> Caveat: setting `data-dmn-theme` on a page **root** element (`<html>`) themes
-> everything below it. Mixing that with two instances that hold _different_
-> per-instance themes would let the root value leak; a single-instance page or
-> one that never sets the root attribute is unaffected.
-
-## Locale
-
-The dmn-js UI is translated through the shared
-[`@miragon/bpmn-modeler-i18n`](https://www.npmjs.com/package/@miragon/bpmn-modeler-i18n)
-dictionaries. Pass an initial `locale` to `createModeler`, or switch it live with
-`setLocale(...)`:
-
-```ts
-const modeler = await createModeler( canvas, {
-    propertiesPanel: { parent: panel },
-    locale: "de", // any locale the shared library ships; unknown codes fall back to "en"
-} );
-
-await modeler.setLocale( "en" ); // re-translate live
-```
-
-The locale is **page-global** — the i18n instance is a singleton, so `locale` /
-`setLocale` set the language for every modeler on the page (there is no per-instance locale).
-Switching a running modeler re-opens its active view so the already rendered labels re-translate;
-that resets the view's undo history and re-fires `onViewChanged` (the DRD viewbox is preserved).
-`setLocale` is a no-op when the resolved locale is unchanged.
-
-## Views
-
-A loaded document exposes its views (`getViews`), the active view (`getActiveView`), and lets you
-switch between them (`openView`). Each view is a DRD, decision table, literal expression, or boxed
-expression editor.
-
-```ts
-const views = modeler.getViews();
-await modeler.openView( views.find( ( v ) => v.type === "decisionTable" )! );
-```
-
-## Escape hatch
-
-`modeler.getService(name)` reaches into the **active** dmn-js viewer's dependency-injection graph by
-service name. The names and returned shapes are **not** covered by this facade's API and may change
-without a major bump — prefer a typed option or method where one exists.
-
-```ts
-const eventBus = modeler.getService( "eventBus" );
-```
-
-## Caveats
-
-- **bpmn.io watermark.** dmn-js renders the bpmn.io logo. Per the bpmn.io license you must keep it
-  visible unless you hold a commercial
-  [bpmn.io license](https://bpmn.io/license/). Do not hide it in CSS.
-- **Locale is page-global** in this release (the i18n instance is a singleton); theming is
-  per-instance via the `data-dmn-theme` attribute (see
-  [Theming](#theming)).
-- **Yarn Berry installs.** This package pins `diagram-js` exactly, but the dmn-js packages
-  declare it with caret ranges. Yarn 2+ resolves each range to the newest matching version, so
-  once diagram-js publishes a release newer than this package's pin, a second copy is nested
-  under dmn-js and the modeler splits across two versions. npm and pnpm reuse the pinned
-  version. With Yarn, pin it in your root `package.json` to the version that
-  `node_modules/@miragon/dmn-modeler/package.json` declares, and update it whenever you upgrade
-  `@miragon/dmn-modeler`:
-
-    ```json
-    {
-        "resolutions": {
-            "diagram-js": "<pin from @miragon/dmn-modeler>"
-        }
-    }
-    ```
-
-- **Bundler dedupe.** The modeler and its plugins must share single copies of
-  `inferno` and the properties-panel / CodeMirror stack. If you build with Vite, add these to
-  `resolve.dedupe`:
-
-    ```ts
-    resolve: {
-        dedupe: [
-            "inferno",
-            "@bpmn-io/properties-panel",
-            "@codemirror/state",
-            "@codemirror/view",
-            "@codemirror/language",
-            "@codemirror/autocomplete",
-            "@codemirror/commands",
-            "@codemirror/lint",
-            "@codemirror/search",
-            "@lezer/common",
-            "@lezer/highlight",
-            "@lezer/lr",
-        ],
-    }
-    ```
+How to build, test and change the package is in [CONTRIBUTING.md](https://github.com/Miragon/bpmn-modeler/blob/main/CONTRIBUTING.md).
 
 ## License
 
-Apache-2.0 — see [`LICENSE`](./LICENSE). This package depends on third-party software (dmn-js,
-diagram-js, dmn-js-properties-panel and the bpmn.io ecosystem, and others); their respective
-licenses and the bpmn.io watermark requirement continue to apply to your usage.
+[Apache License 2.0](https://github.com/Miragon/bpmn-modeler/blob/main/packages/dmn-modeler/LICENSE). Made by [Miragon](https://www.miragon.io).
+
+The package depends on third-party software (dmn-js, diagram-js, dmn-js-properties-panel and the bpmn.io ecosystem); their licenses apply, and dmn-js renders the bpmn.io watermark, which you must keep visible unless you hold a commercial [bpmn.io license](https://bpmn.io/license/).

@@ -190,8 +190,9 @@ Every README is written for one reader. A host's `README.md` (VS Code, IntelliJ,
 desktop, Orca) and the root `README.md` are for its users: what it does, how to
 start, what it leaves out, with screenshots. Everything a developer needs (layout,
 build, tests, releases) goes into a `CONTRIBUTING.md` next to it, linked from the
-README as **Source and contributing**. The libraries' and webviews' READMEs are
-for developers.
+README's **Contributing** section. The npm packages' READMEs are for the
+developers who embed them, with the full reference on the documentation site
+(`docs/embed/`). The libraries' and webviews' READMEs are for contributors.
 
 The store pages take their text from these places:
 
