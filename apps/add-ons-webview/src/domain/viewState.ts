@@ -6,18 +6,33 @@ import type {
 } from "@miragon/bpmn-modeler-shared";
 
 import { ActionKindPayload, actionRequestOf, isActionKind } from "./actionRequest";
-import { focusAfterDone, FocusTarget, isFocusable, neighbourAfterRemoval } from "./focusAfter";
+import {
+    AddOnKind,
+    CatalogFilter,
+    filteredGroups,
+    NO_FILTER,
+    withKindToggled,
+} from "./catalogFilter";
+import { addOnsOf, placementOf, sourceOf } from "./catalogQueries";
+import {
+    CatalogScope,
+    isCatalogScope,
+    scopedCatalog,
+    scopeOfAddOn,
+    SCOPE_ORDER,
+} from "./catalogScope";
+import { settledSelection } from "./catalogSelection";
 import {
     ancestorsOf,
     Expansion,
+    headsOf,
     isOpen,
     isReviewKeyOpen,
-    OutlineHead,
-    outlineHeadsOf,
     prunedExpansion,
-    visibleHeadsOf,
-} from "./outline";
-import { placedActions } from "./placedActions";
+    reviewKeyOf,
+} from "./expansion";
+import { focusAfterDone, FocusTarget, isFocusable, isListed } from "./focusAfter";
+import { placedActions, reviewOf } from "./placedActions";
 import { Banner, resultBannerOf } from "./resultBanner";
 
 interface PendingRequest {
@@ -26,10 +41,19 @@ interface PendingRequest {
     readonly slot: number;
 }
 
+/** Each tab's own selected add-on. */
+export type Selection = Readonly<Partial<Record<CatalogScope, string>>>;
+
+/** Which pane a narrow view shows; a wide one shows both. */
+export type Pane = "list" | "detail";
+
 export interface ViewState {
     readonly model?: AddOnCatalogPayload;
     readonly expansion: Expansion;
-    readonly activeHead?: string;
+    readonly scope: CatalogScope;
+    readonly selection: Selection;
+    readonly filter: CatalogFilter;
+    readonly pane: Pane;
     readonly pending: ReadonlyMap<number, PendingRequest>;
     readonly banner?: Banner;
     readonly reveal?: AddOnRevealPayload;
@@ -38,10 +62,14 @@ export interface ViewState {
     readonly nextRequestId: number;
 }
 
-/** What the view keeps across a reload of its page: the user's own choices, never a request. */
+/**
+ * What the view keeps across a reload of its page: the user's own choices,
+ * never a request. The search and the filter chips stay with the page.
+ */
 export interface PersistedChoices {
     readonly expansion?: readonly (readonly [string, boolean])[];
-    readonly activeHead?: string;
+    readonly scope?: CatalogScope;
+    readonly selection?: Selection;
     readonly lastRevealId?: number;
 }
 
@@ -55,8 +83,14 @@ export type ViewEvent =
           readonly result: AddOnActionResultPayload;
       }
     | { readonly kind: "toggled"; readonly key: string }
-    | { readonly kind: "headActivated"; readonly headId: string }
-    | { readonly kind: "bannerDismissed" };
+    | { readonly kind: "bannerDismissed" }
+    | { readonly kind: "scopeChosen"; readonly scope: CatalogScope }
+    | { readonly kind: "addOnSelected"; readonly addOnId: string }
+    | { readonly kind: "backChosen" }
+    | { readonly kind: "queryChanged"; readonly query: string }
+    | { readonly kind: "kindToggled"; readonly addOnKind: AddOnKind }
+    | { readonly kind: "needsReviewToggled" }
+    | { readonly kind: "filtersCleared" };
 
 export interface Transition {
     readonly state: ViewState;
@@ -64,13 +98,16 @@ export interface Transition {
     readonly focus?: FocusTarget;
 }
 
-/** Busy rows and sources, and the toolbar under {@link CATALOG_TARGET}. */
+/** Busy rows and sources, and the catalog actions under {@link CATALOG_TARGET}. */
 export const CATALOG_TARGET = "catalog";
 
 export function initialViewState(persisted?: PersistedChoices): ViewState {
     return {
         expansion: new Map(persisted?.expansion ?? []),
-        activeHead: persisted?.activeHead,
+        scope: isCatalogScope(persisted?.scope) ? persisted.scope : "workspace",
+        selection: selectionOf(persisted?.selection),
+        filter: NO_FILTER,
+        pane: "list",
         pending: new Map(),
         lastRevealId: persisted?.lastRevealId ?? 0,
         nextRequestId: 1,
@@ -80,7 +117,8 @@ export function initialViewState(persisted?: PersistedChoices): ViewState {
 export function persistedChoicesOf(state: ViewState): PersistedChoices {
     return {
         expansion: [...state.expansion],
-        ...(state.activeHead !== undefined && { activeHead: state.activeHead }),
+        scope: state.scope,
+        selection: state.selection,
         lastRevealId: state.lastRevealId,
     };
 }
@@ -89,13 +127,18 @@ export function isBusy(state: ViewState, targetId: string): boolean {
     return [...state.pending.values()].some((each) => each.targetId === targetId);
 }
 
+export function selectedIdOf(state: ViewState): string | undefined {
+    return state.selection[state.scope];
+}
+
 /**
  * The view's one decision: what an event from the host or the user changes,
- * what to ask the host and where focus goes. Focus is only named once its
- * target is on screen.
+ * what to ask the host, which add-on each tab selects and where focus goes.
+ * Focus is only named once the model holds its target.
  */
 export function nextViewState(state: ViewState, event: ViewEvent): Transition {
-    return withFocus(changedBy(state, event));
+    const change = withSelection(changedBy(state, event), state);
+    return withFocus(change, change.state.model !== state.model);
 }
 
 type Change = {
@@ -118,73 +161,70 @@ function changedBy(state: ViewState, event: ViewEvent): Change {
             return resultArrived(state, event.requestId, event.result);
         case "toggled":
             return toggled(state, event.key);
-        case "headActivated":
-            return state.model !== undefined && isShown(state.model, state.expansion, event.headId)
-                ? { state: { ...state, activeHead: event.headId } }
-                : { state };
         case "bannerDismissed":
             return { state: { ...state, banner: undefined } };
+        case "scopeChosen":
+            return { state: { ...state, scope: event.scope } };
+        case "addOnSelected":
+            return {
+                state: {
+                    ...state,
+                    selection: { ...state.selection, [state.scope]: event.addOnId },
+                    pane: "detail",
+                },
+            };
+        case "backChosen":
+            return { state: { ...state, pane: "list" } };
+        case "queryChanged":
+            return { state: { ...state, filter: { ...state.filter, query: event.query } } };
+        case "kindToggled":
+            return { state: { ...state, filter: withKindToggled(state.filter, event.addOnKind) } };
+        case "needsReviewToggled":
+            return {
+                state: {
+                    ...state,
+                    filter: { ...state.filter, onlyNeedsReview: !state.filter.onlyNeedsReview },
+                },
+            };
+        case "filtersCleared":
+            return { state: { ...state, filter: NO_FILTER } };
     }
 }
 
 function modelArrived(state: ViewState, model: AddOnCatalogPayload): Change {
     if (state.model !== undefined && model.revision < state.model.revision) return { state };
-    const expansion = prunedExpansion(model, state.expansion);
-    const next = visibleHeadsOf(model, expansion);
-    const active = state.activeHead;
-    const activeHead =
-        active !== undefined && next.some(({ id }) => id === active)
-            ? active
-            : neighbourOf(state, active, next);
-    const awaitingFocus =
-        state.awaitingFocus && fallbackFocus(state.awaitingFocus, model, expansion, state);
-    return revealed({ ...state, model, expansion, activeHead, awaitingFocus });
+    return revealed({ ...state, model, expansion: prunedExpansion(model, state.expansion) });
 }
 
-function neighbourOf(
-    state: ViewState,
-    removedId: string | undefined,
-    next: readonly OutlineHead[],
-): string | undefined {
-    const previous = state.model === undefined ? [] : visibleHeadsOf(state.model, state.expansion);
-    return removedId === undefined ? next[0]?.id : neighbourAfterRemoval(removedId, previous, next);
-}
-
-/** A target the new model cannot show falls back to its row, else to the row's neighbour. */
-function fallbackFocus(
-    target: FocusTarget,
-    model: AddOnCatalogPayload,
-    expansion: Expansion,
-    state: ViewState,
-): FocusTarget | undefined {
-    if (isFocusable(target, model, expansion) || target.kind === "toolbar") return target;
-    const id =
-        target.kind === "head"
-            ? target.headId
-            : target.kind === "review"
-              ? target.addOnId
-              : target.targetId;
-    const row: FocusTarget = { kind: "head", headId: id };
-    if (isFocusable(row, model, expansion)) return row;
-    const neighbour = neighbourOf(state, id, visibleHeadsOf(model, expansion));
-    return neighbour === undefined ? undefined : { kind: "head", headId: neighbour };
-}
-
-/** Applies a waiting reveal once the model holds one of its rows: the first in model order. */
+/**
+ * Applies a waiting reveal once the model holds one of its rows, the first in
+ * model order: its tab, its open review and its detail, past any filter that
+ * hid it.
+ */
 function revealed(state: ViewState): Change {
     const { reveal, model } = state;
     if (reveal === undefined || model === undefined) return { state };
-    const heads = outlineHeadsOf(model);
+    const heads = headsOf(model);
     const target = heads.find(({ id }) => reveal.addOnIds.includes(id));
-    if (target === undefined) return { state };
+    const scope = target && scopeOfAddOn(model, target.id);
+    if (target === undefined || scope === undefined) return { state };
     const expansion = new Map(state.expansion);
     ancestorsOf(heads, target.id).forEach((id) => expansion.set(id, true));
+    const addOn = placementOf(model.groups, target.id)?.addOn;
+    if (addOn !== undefined && reviewOf(addOn) !== undefined) {
+        expansion.set(reviewKeyOf(target.id), true);
+    }
+    const shown = filteredGroups(scopedCatalog(model, scope), state.filter);
+    const filter = placementOf(shown, target.id) === undefined ? NO_FILTER : state.filter;
     return {
         state: {
             ...state,
             reveal: undefined,
             expansion,
-            activeHead: target.id,
+            scope,
+            filter,
+            selection: { ...state.selection, [scope]: target.id },
+            pane: "detail",
             lastRevealId: reveal.revealId,
         },
         focus: { kind: "head", headId: target.id, reveal: true },
@@ -216,10 +256,9 @@ function offeredSlotOf(
         return index === -1 ? undefined : index;
     };
     if (targetId === undefined) return at(model.actions);
-    const sources = model.groups.flatMap((group) => group.sources);
-    const source = sources.find(({ id }) => id === targetId);
+    const source = sourceOf(model.groups, targetId);
     if (source !== undefined) return at(source.actions);
-    const addOn = sources.flatMap(({ addOns }) => addOns).find(({ id }) => id === targetId);
+    const addOn = placementOf(model.groups, targetId)?.addOn;
     if (addOn === undefined) return undefined;
     const placed = placedActions(addOn);
     return placed.allow?.kind === actionKind ? 0 : at(placed.rowLine);
@@ -244,32 +283,81 @@ function resultArrived(
 function toggled(state: ViewState, key: string): Change {
     const { model } = state;
     if (model === undefined) return { state };
-    const head = outlineHeadsOf(model).find(({ id }) => id === key);
+    const head = headsOf(model).find(({ id }) => id === key);
     const open =
         head === undefined ? isReviewKeyOpen(key, state.expansion) : isOpen(head, state.expansion);
-    const expansion = new Map(state.expansion).set(key, !open);
-    const toggledState = { ...state, expansion };
-    const active = state.activeHead;
-    if (head === undefined || active === undefined || isShown(model, expansion, active)) {
-        return { state: toggledState };
-    }
-    return {
-        state: { ...toggledState, activeHead: head.id },
-        focus: { kind: "head", headId: head.id },
-    };
+    return { state: { ...state, expansion: new Map(state.expansion).set(key, !open) } };
 }
 
-function isShown(model: AddOnCatalogPayload, expansion: Expansion, id: string): boolean {
-    return visibleHeadsOf(model, expansion).some((head) => head.id === id);
+/**
+ * Settles the tab's selection after the list changed. A narrow view that
+ * showed the detail of an add-on the list lost goes back to the list.
+ */
+function withSelection(change: Change, before: ViewState): Change {
+    const { state } = change;
+    const { model, scope } = state;
+    if (model === undefined) return change;
+    const shown = filteredGroups(scopedCatalog(model, scope), state.filter);
+    const shownBefore =
+        before.model === undefined
+            ? []
+            : addOnsOf(filteredGroups(scopedCatalog(before.model, scope), before.filter));
+    const remembered = state.selection[scope];
+    const selected = settledSelection(
+        remembered,
+        shown,
+        shownBefore.map(({ id }) => id),
+    );
+    if (selected === remembered) return change;
+    const { [scope]: _dropped, ...others } = state.selection;
+    const selection = selected === undefined ? others : { ...others, [scope]: selected };
+    const pane = remembered === undefined ? state.pane : "list";
+    return { ...change, state: { ...state, selection, pane } };
 }
 
-/** Names a waiting focus target as the transition's focus once it is on screen. */
-function withFocus(change: Change): Transition {
+/**
+ * Names a waiting focus target as the transition's focus once the model holds
+ * it. A model without it ends the wait: focus goes to what is left of its
+ * add-on or source, else to the tab's selection.
+ */
+function withFocus(change: Change, modelChanged: boolean): Transition {
     const { state } = change;
     const waiting = state.awaitingFocus;
-    if (change.focus !== undefined || waiting === undefined || state.model === undefined) {
+    const model = state.model;
+    if (change.focus !== undefined || waiting === undefined || model === undefined) {
         return change;
     }
-    if (!isFocusable(waiting, state.model, state.expansion)) return change;
-    return { ...change, state: { ...state, awaitingFocus: undefined }, focus: waiting };
+    const focus = isFocusable(waiting, model)
+        ? waiting
+        : modelChanged
+          ? fallbackFocus(waiting, state, model)
+          : undefined;
+    if (focus === undefined && !modelChanged) return change;
+    return { ...change, state: { ...state, awaitingFocus: undefined }, focus };
+}
+
+function fallbackFocus(
+    target: FocusTarget,
+    state: ViewState,
+    model: AddOnCatalogPayload,
+): FocusTarget | undefined {
+    const ownerId =
+        target.kind === "review"
+            ? target.addOnId
+            : target.kind === "action"
+              ? target.targetId
+              : undefined;
+    if (ownerId !== undefined && isListed(model, ownerId)) return { kind: "head", headId: ownerId };
+    const selected = selectedIdOf(state);
+    return selected === undefined ? undefined : { kind: "head", headId: selected };
+}
+
+function selectionOf(persisted: Selection | undefined): Selection {
+    if (typeof persisted !== "object" || persisted === null) return {};
+    return Object.fromEntries(
+        SCOPE_ORDER.flatMap((scope) => {
+            const id: unknown = persisted[scope];
+            return typeof id === "string" ? [[scope, id]] : [];
+        }),
+    );
 }

@@ -22,7 +22,7 @@ verify details against source because older guides and ADRs may be outdated.
 | Host-independent domain logic and services | Feature folders in `libs/modeler-core/src/`, with the shared vocabulary in `kernel/` and the editor-session core in `editorSession/`; consumers use its `index.ts`. |
 | IDE protocol-to-modeler adaptation | `apps/bpmn-webview/src/composition/bootstrap.ts` and the adapters and services it wires, `apps/dmn-webview/src/composition/bootstrap.ts`. |
 | Form editing and deployment UI | `apps/form-webview`; `apps/deployment-webview`, whose markup lives in `src/adapter/in/formTemplate.ts`. |
-| Add-ons view UI | `apps/add-ons-webview`: a reducer in `src/domain/viewState.ts`, the DOM in `src/adapter/in/catalogView.ts`; the catalog, its texts and the protocol adapter (`AddOnViewMessages`) live in the core's `addOns/`. |
+| Add-ons view UI | `apps/add-ons-webview`: a reducer in `src/domain/viewState.ts`, the DOM in `src/adapter/in/addOnsView.ts`; the catalog, its texts and the protocol adapter (`AddOnViewMessages`) live in the core's `addOns/`. |
 | Host integration and lifecycle | `apps/vscode-plugin/src/main.ts` and `src/composition/`; `apps/modeler-bridge/src/server.ts` and `src/composition/` (`bridge.ts`); Kotlin host in `apps/intellij-plugin`. |
 
 Decisions (rules, state transitions, validations) go into the owning feature's

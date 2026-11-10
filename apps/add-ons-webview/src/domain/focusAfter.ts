@@ -1,18 +1,15 @@
-import type {
-    AddOnCatalogPayload,
-    AddOnPayload,
-    CatalogActionKindPayload,
-} from "@miragon/bpmn-modeler-shared";
+import type { AddOnCatalogPayload, CatalogActionKindPayload } from "@miragon/bpmn-modeler-shared";
 
 import type { ActionKindPayload } from "./actionRequest";
-import { Expansion, OutlineHead, visibleHeadsOf } from "./outline";
+import { placementOf, sourceOf } from "./catalogQueries";
+import { headsOf } from "./expansion";
 import { reviewOf } from "./placedActions";
 
 export type FocusTarget =
     /** `reveal`: a "Review…" asked for it, so it may take focus the page does not hold yet. */
     | { readonly kind: "head"; readonly headId: string; readonly reveal?: true }
     | { readonly kind: "review"; readonly addOnId: string }
-    /** The button at this place among its row's or source's actions. */
+    /** The button at this place among its add-on's or source's actions. */
     | { readonly kind: "action"; readonly targetId: string; readonly slot: number }
     | { readonly kind: "toolbar"; readonly actionKind: CatalogActionKindPayload };
 
@@ -51,56 +48,33 @@ export function focusAfterDone(
     return AFTER_DONE[actionKind](targetId, slot);
 }
 
-/** Where focus goes once a push removed the focused head: a sibling, else the parent, else the first head. */
-export function neighbourAfterRemoval(
-    removedId: string,
-    previous: readonly OutlineHead[],
-    next: readonly OutlineHead[],
-): string | undefined {
-    const stillShown = new Set(next.map(({ id }) => id));
-    const index = previous.findIndex(({ id }) => id === removedId);
-    const parentId = previous[index]?.parentId;
-    const siblings = (heads: readonly OutlineHead[]) =>
-        heads.filter((head) => head.parentId === parentId && stillShown.has(head.id));
-    const after = siblings(previous.slice(index + 1))[0];
-    const before = siblings(previous.slice(0, index)).at(-1);
-    const parent = parentId !== undefined && stillShown.has(parentId) ? parentId : undefined;
-    return after?.id ?? before?.id ?? parent ?? next[0]?.id;
-}
-
-/** Whether the target is on screen in this model, so focus can go to it now. */
-export function isFocusable(
-    target: FocusTarget,
-    model: AddOnCatalogPayload,
-    expansion: Expansion,
-): boolean {
-    const visible = new Set(visibleHeadsOf(model, expansion).map(({ id }) => id));
+/**
+ * Whether the model holds the target, so focus can go to it now. The view
+ * finds a place on screen for any target the model holds: a row hidden in a
+ * closed source or behind the detail pane leaves focus with its detail.
+ */
+export function isFocusable(target: FocusTarget, model: AddOnCatalogPayload): boolean {
     switch (target.kind) {
         case "head":
-            return visible.has(target.headId);
-        case "review":
-            return visible.has(target.addOnId) && hasReview(addOnOf(model, target.addOnId));
+            return isListed(model, target.headId);
+        case "review": {
+            const addOn = placementOf(model.groups, target.addOnId)?.addOn;
+            return addOn !== undefined && reviewOf(addOn) !== undefined;
+        }
         case "action":
-            return (
-                visible.has(target.targetId) &&
-                actionsOf(model, target.targetId).length > target.slot
-            );
+            return actionsOf(model, target.targetId).length > target.slot;
         case "toolbar":
             return model.actions.some(({ kind }) => kind === target.actionKind);
     }
 }
 
-function hasReview(addOn: AddOnPayload | undefined): boolean {
-    return addOn !== undefined && reviewOf(addOn) !== undefined;
-}
-
-function addOnOf(model: AddOnCatalogPayload, id: string): AddOnPayload | undefined {
-    return model.groups
-        .flatMap(({ sources }) => sources.flatMap(({ addOns }) => addOns))
-        .find((addOn) => addOn.id === id);
+/** A head is a group, a source or an add-on's row. */
+export function isListed(model: AddOnCatalogPayload, id: string): boolean {
+    return headsOf(model).some((head) => head.id === id);
 }
 
 function actionsOf(model: AddOnCatalogPayload, id: string): readonly unknown[] {
-    const source = model.groups.flatMap(({ sources }) => sources).find((each) => each.id === id);
-    return source?.actions ?? addOnOf(model, id)?.actions ?? [];
+    return (
+        sourceOf(model.groups, id)?.actions ?? placementOf(model.groups, id)?.addOn.actions ?? []
+    );
 }

@@ -282,8 +282,8 @@ the `COLOR_THEMES` array in `settings.ts` of `libs/modeler-types`,
 `ModelerSettingsConfigurableTest` the `MODE_LABEL` table in the modeler's
 `modeStrip.ts`; each fails when the Kotlin copy differs. The add-ons view's
 `hostThemeVariables.json` (`apps/add-ons-webview/src/adapter/in/styles/`)
-lists every `--vscode-*` variable its stylesheet reads, which its own spec
-checks; `IdeThemeSignal.addOnsThemeVarsCss` maps that set for IntelliJ, and
+lists the `--vscode-*` variables IntelliJ still writes for its add-ons tab,
+though the page's brand stylesheet reads none; `IdeThemeSignal.addOnsThemeVarsCss` maps that set, and
 `IdeThemeSignalTest` reads the file, a declared input of the Gradle test task
 listed in the `intellij-plugin` CI filter. A text the Kotlin
 host copies is pinned the same way: `EmptyDmnDiagramTest` compares the scaffold

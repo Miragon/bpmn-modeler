@@ -35,7 +35,7 @@ section in AGENTS.md).
 ### Add-ons Webview
 
 `apps/add-ons-webview` renders the core's add-on catalog. Its host shells ship
-only an empty `<div id="app"></div>` too; `src/adapter/in/catalogView.ts`
+only an empty `<div id="app"></div>` too; `src/adapter/in/addOnsView.ts`
 builds the DOM from the model with the DOM API, never `innerHTML`, as the model
 holds workspace text. Its protocol is `libs/shared/src/lib/addOnsView.ts`, and
 the core's `AddOnsFeature.attachPanel` answers it, so a host only passes
@@ -350,7 +350,7 @@ See `apps/vscode-plugin/src/shared/adapter/out/WebviewHtml.ts`.
 - **Deployment HTML shell**: `apps/vscode-plugin/src/deployment/adapter/in/DeploymentWebviewHtml.ts` (CSP + asset URIs only)
 - **Shell CSP builder**: `apps/vscode-plugin/src/shared/domain/webviewContentSecurityPolicy.ts`
 - **Deployment form markup (single source)**: `apps/deployment-webview/src/adapter/in/formTemplate.ts` (`FORM_TEMPLATE`)
-- **Add-ons view**: `apps/add-ons-webview/src/adapter/in/catalogView.ts` (DOM), `src/domain/viewState.ts` (reducer), `libs/shared/src/lib/addOnsView.ts` (protocol)
+- **Add-ons view**: `apps/add-ons-webview/src/adapter/in/addOnsView.ts` (DOM), `src/domain/viewState.ts` (reducer), `libs/shared/src/lib/addOnsView.ts` (protocol)
 - **Add-ons view shell and provider**: `apps/vscode-plugin/src/addOns/adapter/in/AddOnsViewHtml.ts`, `AddOnsViewProvider.ts`
 - **Message router**: `libs/modeler-core/src/editorSession/service/WebviewMessageRouter.ts`
 - **Base message types**: `libs/shared/src/lib/messages.ts`

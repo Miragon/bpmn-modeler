@@ -2,13 +2,9 @@ import type { AddOnCatalogPayload, SourceKindPayload } from "@miragon/bpmn-model
 
 import { reviewOf } from "./placedActions";
 
-type HeadLevel = "group" | "source" | "addOn";
-
-/** One stop of the outline's keyboard path: a group or source header, or an add-on's row. */
-export interface OutlineHead {
+/** A group or source header, which opens and closes, or an add-on's row, which sits in one. */
+export interface Head {
     readonly id: string;
-    readonly level: HeadLevel;
-    readonly name: string;
     readonly parentId?: string;
     /** Only a header opens; a row holds no heads. */
     readonly openByDefault?: boolean;
@@ -24,43 +20,30 @@ const SOURCE_OPEN_BY_DEFAULT: Record<SourceKindPayload, boolean> = {
     marketplace: false,
 };
 
-export function outlineHeadsOf(model: AddOnCatalogPayload): OutlineHead[] {
+export function headsOf(model: AddOnCatalogPayload): Head[] {
     return model.groups.flatMap((group) => [
-        { id: group.id, level: "group" as const, name: group.label, openByDefault: true },
+        { id: group.id, openByDefault: true },
         ...group.sources.flatMap((source) => [
             {
                 id: source.id,
-                level: "source" as const,
-                name: source.label,
                 parentId: group.id,
                 openByDefault: SOURCE_OPEN_BY_DEFAULT[source.kind],
             },
-            ...source.addOns.map((addOn) => ({
-                id: addOn.id,
-                level: "addOn" as const,
-                name: addOn.name,
-                parentId: source.id,
-            })),
+            ...source.addOns.map((addOn) => ({ id: addOn.id, parentId: source.id })),
         ]),
     ]);
 }
 
-export function isOpen(head: OutlineHead, expansion: Expansion): boolean {
+export function isOpen(head: Head, expansion: Expansion): boolean {
     return head.openByDefault !== undefined && (expansion.get(head.id) ?? head.openByDefault);
 }
 
-export function visibleHeadsOf(model: AddOnCatalogPayload, expansion: Expansion): OutlineHead[] {
-    const heads = outlineHeadsOf(model);
-    const shown = new Set<string>();
-    return heads.filter((head) => {
-        const parent = heads.find(({ id }) => id === head.parentId);
-        const visible = parent === undefined || (shown.has(parent.id) && isOpen(parent, expansion));
-        if (visible) shown.add(head.id);
-        return visible;
-    });
+/** A search or filter shows every match, closed or not, and leaves the user's choice as it was. */
+export function isShownOpen(head: Head, expansion: Expansion, filterActive: boolean): boolean {
+    return filterActive || isOpen(head, expansion);
 }
 
-export function ancestorsOf(heads: readonly OutlineHead[], id: string): string[] {
+export function ancestorsOf(heads: readonly Head[], id: string): string[] {
     const parentId = heads.find((head) => head.id === id)?.parentId;
     return parentId === undefined ? [] : [...ancestorsOf(heads, parentId), parentId];
 }
@@ -80,7 +63,7 @@ export function isReviewKeyOpen(key: string, expansion: Expansion): boolean {
 }
 
 export function prunedExpansion(model: AddOnCatalogPayload, expansion: Expansion): Expansion {
-    const kept = new Set(outlineHeadsOf(model).map(({ id }) => id));
+    const kept = new Set(headsOf(model).map(({ id }) => id));
     for (const { sources } of model.groups) {
         for (const { addOns } of sources) {
             for (const addOn of addOns) {

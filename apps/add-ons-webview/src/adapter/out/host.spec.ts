@@ -175,6 +175,33 @@ describe("the preview's host", () => {
         if (problem) expect(models()[0].problem).toBe(problem);
     });
 
+    it.each([
+        { search: "?state=onlyMarketplaces", groups: ["marketplaces"], emptyText: true, problem: false },
+        { search: "?state=noMarketplace", groups: ["folder:/work", "folder:/billing"], emptyText: false, problem: false },
+        { search: "?state=marketplacesFailed", groups: ["folder:/work", "folder:/billing", "marketplaces"], emptyText: false, problem: false },
+        { search: "?state=rereadFailed", groups: ["folder:/work", "folder:/billing", "marketplaces"], emptyText: false, problem: true },
+    ])("shows the groups $search names", ({ search, groups, emptyText, problem }) => {
+        const { host, models } = previewAt(search);
+
+        host.postMessage(new GetAddOnCatalogCommand());
+        const [model] = models();
+
+        expect([model.groups.map(({ id }) => id), model.emptyText !== undefined, model.problem !== undefined]).toEqual([
+            groups,
+            emptyText,
+            problem,
+        ]);
+    });
+
+    it("shows unreadable marketplaces with their problem and no source", () => {
+        const { host, models } = previewAt("?state=marketplacesFailed");
+
+        host.postMessage(new GetAddOnCatalogCommand());
+        const marketplaces = models()[0].groups.at(-1);
+
+        expect([marketplaces?.problem, marketplaces?.sources]).toEqual(["Could not read the registered marketplaces.", []]);
+    });
+
     it("reveals the row a query flag names after the catalog", () => {
         const { host, replies } = previewAt("?reveal=Shared%20Mail");
 
@@ -191,12 +218,6 @@ describe("the preview's host", () => {
         host.postMessage(new AddOnRequestCommand(1, { kind: "allow", addOnId: row.id, revision: models()[0].revision }));
 
         expect(results()[0]).toMatchObject({ kind: "refused", reason: "staleView" });
-    });
-
-    it.each(["dark", "hc"])("paints a %s host palette", (theme) => {
-        previewAt(`?theme=${theme}`);
-
-        expect(document.documentElement.style.getPropertyValue("--vscode-foreground")).not.toBe("");
     });
 
     it.each([

@@ -234,9 +234,7 @@ a host can drop a push that lands before the page listens. A request from the
 page is untrusted: `addOnRequestOf` keeps only a kind the core knows with the
 fields it names. The model holds workspace text (file, template and folder
 names), so the page builds its DOM with the DOM API from the model and never
-with `innerHTML`, and every `--vscode-*` variable its stylesheet reads is
-listed in `src/adapter/in/styles/hostThemeVariables.json`, the set IntelliJ
-maps for it. VS Code serves the surface, and IntelliJ through the bridge.
+with `innerHTML`. VS Code serves the surface, and IntelliJ through the bridge.
 
 The add-ons view moves to the Miragon brand look, whose tokens switch on
 `<html data-cd-theme="light|dark">` and `data-cd-kontrast="hoch"`, never on
@@ -249,8 +247,33 @@ writes them into the shell it serves, `data-cd-theme` always, so the first
 frame paints in the mode. On a change VS Code posts a `BrandModeQuery`, which
 the page's router hands to `applyBrandMode` outside the view state, and
 IntelliJ sets both attributes through `executeJavaScript`. IntelliJ's copy,
-`BrandMode.kt`, runs `brandMode.cases.json` in `BrandModeTest`. The outline's
-stylesheet ignores the attributes until the redesign lands.
+`BrandMode.kt`, runs `brandMode.cases.json` in `BrandModeTest`.
+
+The page is a list beside a detail pane. Two tabs split the catalog by the
+group's `kind`, the workspace's folders and the marketplaces; inside a tab a
+search and filter chips narrow the list, grouped by folder and source, and the
+detail shows the selected add-on with its actions as buttons. From 640px of
+the view's own width the panes stand side by side, below that the detail
+replaces the list with a Back button; container queries decide, so the layout
+follows a resized sidebar or tool window without a reload. The reducer
+(`src/domain/viewState.ts`) holds the tab, each tab's selection, the filter
+and the pane, and keeps the tab, the selections and the open or closed headers
+in the host's saved state, so a reload, which IntelliJ does after a bridge
+restart, lands where the user was; the search stays with the page. The
+brand's own components draw it: the vendored tokens
+(`cd-tokens.generated.css`, unchanged from the `miragon-brand` skill), Geist
+and Geist Mono from `@fontsource-variable` and Lucide icons, all in the bundle
+and tree-shaken; the stylesheet reads no `--vscode-*` variable, and its spec
+checks that, the tokens' checksum, `[hidden]`, forced colours and reduced
+motion. The view keeps the arrow keys the tab and menu patterns require and
+otherwise reaches every control with Tab; the outline's roving tree is gone.
+When the host focuses the page (VS Code's view focus, IntelliJ's tool window
+activation) focus goes to the selected row, else to the tab. The view's own
+words, its tab, chip and empty-state labels and its screen-reader summaries,
+live in one module, `src/domain/chromeTexts.ts`: they name the view's
+controls, which the core's model does not have, as "Loading…" already did.
+Every other text comes from the core, which also sends `emptyText`, why no
+folder lists an add-on, whenever the workspace has none, marketplaces or not.
 
 IntelliJ shows the add-ons view as the **Add-ons** tab of its BPMN Modeler
 tool window, next to the **Deploy** tab, as VS Code holds Deploy and Add-ons

@@ -117,11 +117,12 @@ function groupOf(
     ];
 }
 
+/** The workspace's own word, as a view shows the marketplaces apart from it. */
 function emptyTextOf(
     folders: readonly string[],
     groups: readonly AddOnGroupView[],
 ): { readonly emptyText?: string } {
-    if (groups.length > 0) return {};
+    if (groups.some(({ kind }) => kind === "folder")) return {};
     return { emptyText: folders.length === 0 ? NO_FOLDER_TEXT : NO_ADD_ON_TEXT };
 }
 
