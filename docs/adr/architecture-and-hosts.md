@@ -1086,10 +1086,13 @@ and `syncedWrite` until the host answers, `hostWork` 120 s, and `hostShow`
 10 s. `hostShow` is for `addOns/reveal`, where the host shows one of its
 views: the approval question queue waits on the reveal, so a host stuck behind
 a modal dialog would otherwise hold every later notice; once it passes, the
-list appears instead. The relayed page messages and visibility of the add-ons
-view (`addOns/webviewMessage`, `addOns/open`) are reliable frames that wait for
-the next process, unlike the best-effort deployment relay: only a result frees a
-busy row on the page, so a dropped request would leave its row busy.
+list appears instead. Kotlin counts the same deadline from the request's
+arrival and shows no tab once it passed, so the user does not get both; it
+holds its copy of the deadline to the one `protocol.json` lists. The relayed
+page messages and visibility of the add-ons view (`addOns/webviewMessage`,
+`addOns/open`) are reliable frames that wait for the next process, unlike the
+best-effort deployment relay: only a result frees a busy row on the page, so a
+dropped request would leave its row busy.
 
 ### Process lifecycle
 

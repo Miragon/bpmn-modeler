@@ -44,8 +44,14 @@ internal class AddOnsRouter(
             .on("addOns/reveal") {
                 RpcAction { id ->
                     id?.let { requestId ->
+                        val askedAt = clock()
                         deps.channel.replyLaterFromEdt(requestId, "addOns/reveal") { reply ->
-                            revealArtifacts(deps.project) { shown -> reply.result(AddOnsRevealResult(shown)) }
+                            // An EDT held by a modal dialog runs this late; the core shows its list by then.
+                            if (clock() - askedAt >= REVEAL_REPLY_DEADLINE_MS) {
+                                reply.result(AddOnsRevealResult(false))
+                            } else {
+                                revealArtifacts(deps.project) { shown -> reply.result(AddOnsRevealResult(shown)) }
+                            }
                         }
                     }
                 }
@@ -116,6 +122,7 @@ internal class AddOnsRouter(
     }
 
     companion object {
+        /** The core's wait for `addOns/reveal`, as `protocol.json` lists it. */
         const val REVEAL_REPLY_DEADLINE_MS = 10_000L
     }
 }
