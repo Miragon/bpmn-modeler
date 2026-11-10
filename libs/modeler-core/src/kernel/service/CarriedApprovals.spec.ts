@@ -124,6 +124,17 @@ describe("CarriedApprovals", () => {
         expect(logger.logged("info")).toEqual([]);
     });
 
+    it("leaves a place stored twice alone when only its own later row holds the content", async () => {
+        const { store, logger, carried } = setUp();
+        const olderRow: CodeApproval = { pluginId: HERE.id, contentHash: "b".repeat(64) };
+        store.approvals = [olderRow, HERE_ROW];
+
+        await carried.record([HERE]);
+
+        expect(store.approvals).toEqual([olderRow, HERE_ROW]);
+        expect(logger.logged("info")).toEqual([]);
+    });
+
     it("writes once for two concurrent calls", async () => {
         const { store, logger, carried } = setUp();
         store.approvals = [SOURCE];

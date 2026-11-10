@@ -384,13 +384,13 @@ describe("carriedApprovals", () => {
             carried: [{ artifact: resize, allowedAt: elsewhere }],
         },
         {
-            case: "a place stored twice with no other holder, from its own later row",
+            case: "nothing for a place stored twice whose own later row is the only holder",
             artifacts: [resize],
             approvals: [
                 { pluginId: resize.id, contentHash: "old" },
                 { pluginId: resize.id, contentHash: "aaa" },
             ],
-            carried: [{ artifact: resize, allowedAt: resize.id }],
+            carried: [],
         },
     ])("carries $case", ({ artifacts, approvals, carried }) => {
         expect(carriedApprovals(artifacts, approvals)).toEqual(carried);

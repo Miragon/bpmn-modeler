@@ -173,8 +173,10 @@ export function carriedApprovals<A extends ApprovableArtifact>(
         if (named.has(id)) return [];
         named.add(id);
         if (rowContentOf(id, approvals) === contentHash) return [];
-        const holders = approvals.filter((row) => row.contentHash === contentHash);
-        const source = holders.find((row) => row.pluginId !== id) ?? holders[0];
+        // A later row of its own is no source: the post-write check would find the carry orphaned.
+        const source = approvals.find(
+            (row) => row.contentHash === contentHash && row.pluginId !== id,
+        );
         return source === undefined ? [] : [{ artifact, allowedAt: source.pluginId }];
     });
 }
