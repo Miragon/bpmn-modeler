@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 
-import { normalizeNumericValidation } from "./numericValidation";
+import { withStringBounds } from "./numericValidation";
 
 describe("numeric validation bounds", () => {
     it.each(["min", "max", "minLength", "maxLength"])(
@@ -15,7 +15,7 @@ describe("numeric validation bounds", () => {
                 [bound]: -2.5,
             });
 
-            expect(normalizeNumericValidation(validation)).toEqual({
+            expect(withStringBounds(validation)).toEqual({
                 min: "0",
                 max: "20",
                 minLength: "5",
@@ -44,16 +44,13 @@ describe("numeric validation bounds", () => {
             customOption: 7,
         });
 
-        const normalized = normalizeNumericValidation(validation);
+        expectTypeOf(withStringBounds)
+            .parameter(0)
+            .toEqualTypeOf<Readonly<Record<string, unknown>>>();
+        expectTypeOf(withStringBounds).returns.toEqualTypeOf<Record<string, unknown>>();
+        const normalized = withStringBounds(validation);
 
         expect(normalized).toEqual(validation);
         expect(normalized).not.toBe(validation);
     });
-
-    it.each([undefined, null, false, "", 0, []])(
-        "leaves absent or non-object validation unchanged: %s",
-        (validation) => {
-            expect(normalizeNumericValidation(validation)).toBe(validation);
-        },
-    );
 });
