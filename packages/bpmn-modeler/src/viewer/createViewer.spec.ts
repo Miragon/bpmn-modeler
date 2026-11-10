@@ -7,7 +7,7 @@ import type { BpmnViewer } from "./viewer";
  * Readonly service absence needs no rendered diagram, so it can be checked
  * against a real viewer in jsdom. Import and viewport behavior need SVG layout
  * and run in `viewerRoundTrip.browser.spec.ts` and `viewState.browser.spec.ts`;
- * see docs/adr/engineering-practices.md#test-environments.
+ * see docs/adr/testing.md#test-environments.
  */
 
 beforeAll(() => {

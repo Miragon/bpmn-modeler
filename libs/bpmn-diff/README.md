@@ -29,4 +29,4 @@ or diff failure; the caller reports it.
   `@miragon/bpmn-modeler-types`, which avoids an import cycle.
 
 Why each version is parsed twice and how unknown attributes are compared is in the
-[Diff ADR](../../docs/adr/bpmn-modeler.md#diff).
+[Diff ADR](../../docs/adr/diff.md#bpmn-diff).

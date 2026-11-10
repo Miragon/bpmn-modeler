@@ -18,7 +18,7 @@ Internal workspace, not published on its own.
   these hooks every valid reference counts as available.
 - `formPreview` on the port opens the anchored form preview; `isAutomaticEnabled` and
   `onAutomaticChanged` control automatic previews. See the
-  [Linked form previews ADR](../../docs/adr/bpmn-modeler.md#linked-form-previews).
+  [Linked form previews ADR](../../docs/adr/bpmn-modeler-features.md#linked-form-previews).
 - The entry sits in the `connect` group on purpose: the context pad wraps three entries per group, and a
   group of its own would start an orphan row.
 

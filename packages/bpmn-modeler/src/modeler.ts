@@ -82,7 +82,7 @@ import type { LintConfigService } from "./bpmnlint/LintConfigService";
 
 // Structural slivers of non-core bpmn-js DI services — only the members this
 // facade calls, so the untyped `.get<any>` reaches are gone without adopting a
-// full didi service map (see docs/adr/engineering-practices.md#private-upstream-apis).
+// full didi service map (see docs/adr/dependencies.md#private-upstream-apis).
 interface TransactionBoundariesService {
     readonly active: boolean;
     show(): void;

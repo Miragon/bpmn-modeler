@@ -29,4 +29,4 @@ throws on a parse failure and on content the parser would skip; the caller repor
   one vocabulary.
 
 Why it compares by id instead of using `bpmn-js-differ`, and how cells are matched to columns, is in
-the [DMN modeler ADR](../../docs/adr/dmn-modeler.md#diff).
+the [DMN modeler ADR](../../docs/adr/diff.md#dmn-diff).

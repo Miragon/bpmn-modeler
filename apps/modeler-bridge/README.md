@@ -12,7 +12,7 @@ It imports only the public entry of `@miragon/bpmn-modeler-core`, never deep pat
 - **One pipe.** Host and core exchange line-delimited JSON-RPC over stdio: `stdout` carries RPC frames
   only, `stderr` diagnostics. The host implements the core's host-capability ports as RPC handlers,
   and relays the webview's messages over the same pipe, so the core never knows it is not in VS Code.
-  Why not a WebSocket between webview and bridge: [Architecture and hosts: process lifecycle](../../docs/adr/architecture-and-hosts.md#process-lifecycle).
+  Why not a WebSocket between webview and bridge: [IntelliJ bridge: process lifecycle](../../docs/adr/intellij-bridge.md#process-lifecycle).
 - **One protocol descriptor.** Every method is declared once, with its fixtures, in its feature's
   `src/protocol/domain/<feature>Protocol.ts` (`editorSessionProtocol.ts`, `deploymentProtocol.ts`,
   …); `src/protocol/domain/descriptor.ts` gathers them into `METHODS` and `PROTOCOL` in wire order.
@@ -28,13 +28,13 @@ It imports only the public entry of `@miragon/bpmn-modeler-core`, never deep pat
   RPC cannot answer. `src/editorSession/domain/DocumentMirror.ts` holds the text the host seeds on
   `session/register` and keeps current with `document/didChange` and the replies to
   `document/write`. Settings, plugin approvals, template switches and deployment state use mirrors
-  the same way; the rules are in [Architecture and hosts: host-replicated state](../../docs/adr/architecture-and-hosts.md#host-replicated-state).
+  the same way; the rules are in [IntelliJ bridge: host-replicated state](../../docs/adr/intellij-bridge.md#host-replicated-state).
 - **Causation.** Every editor has a host-owned `sessionId`, so late frames from a closed editor on the
   same file cannot reach its replacement. The host also owns a monotonic `documentRevision` that
   survives bridge restarts; a write is accepted only while its `expectedDocumentRevision` is still
   current. The host reports only external changes; the core's own write is confirmed by its reply,
   and an error reply reads as a refused write, as on VS Code. Details:
-  [Architecture and hosts: document causation and session identity](../../docs/adr/architecture-and-hosts.md#document-causation-and-session-identity).
+  [IntelliJ bridge: document causation and session identity](../../docs/adr/intellij-bridge.md#document-causation-and-session-identity).
 - **UI language.** The host → core `modeler/changeLanguage` command builds the application UI-language
   choice through generic `picker/show`, even without an editor. The core → host `settings/setLanguage`
   request stores the selected locale in application settings, pushes snapshots, then acknowledges
@@ -62,7 +62,7 @@ loop is in [`apps/intellij-plugin/CONTRIBUTING.md`](../intellij-plugin/CONTRIBUT
 
 ## Layout
 
-The role folders follow [Architecture and hosts: workspace kinds and role folders](../../docs/adr/architecture-and-hosts.md#workspace-kinds-and-role-folders).
+The role folders follow [Role folders](../../docs/adr/role-folders.md).
 
 - `src/server.ts` binds the process streams to `createBridge`; the marketplace and plugin cache roots
   arrive as `MIRAGON_BPMN_MARKETPLACE_CACHE` and `MIRAGON_BPMN_PLUGIN_CACHE`.

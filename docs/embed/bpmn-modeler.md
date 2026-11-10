@@ -208,7 +208,7 @@ A **workspace `.bpmnlintrc`** a host hands back through `startInPageLinting` is 
 applies to both modes unchanged, and a `setMode` while it is active only stores the new mode. A
 later config-less `startInPageLinting()` (e.g. after the host deletes the workspace file) clears
 the handed-back config and resets linting to the per-mode default.
-See [BPMN modeler: linting](https://github.com/Miragon/bpmn-modeler/blob/main/docs/adr/bpmn-modeler.md#linting).
+See [BPMN modeler: linting](https://github.com/Miragon/bpmn-modeler/blob/main/docs/adr/bpmn-linting.md#linting).
 
 ```ts
 import { createModeler } from "@miragon/bpmn-modeler";
@@ -467,7 +467,7 @@ plane, selection, and undo history survive the toggle.
 > **Timer / multi-instance in design mode.** On an engine model these two groups
 > are *wholesale-replaced* by the Camunda providers, so their neutral entries are
 > not restorable and design mode simply omits them (a pure `/design` panel keeps
-> them). See [BPMN modeler: properties panel](https://github.com/Miragon/bpmn-modeler/blob/main/docs/adr/bpmn-modeler.md#properties-panel).
+> them). See [BPMN modeler: properties panel](https://github.com/Miragon/bpmn-modeler/blob/main/docs/adr/bpmn-modeler-features.md#properties-panel).
 
 ### `mode` is unrelated to `theme`
 

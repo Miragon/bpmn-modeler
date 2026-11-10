@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
  * destroys a partially-initialised surface when a post-allocation step throws,
  * #1495) without a live bpmn-js instance. The runtime editable-services
  * contract runs against real bpmn-js in `designerContract.browser.spec.ts`
- * (see docs/adr/engineering-practices.md#test-environments); type-level
+ * (see docs/adr/testing.md#test-environments); type-level
  * conformance stays in `publicApi.spec.ts`.
  */
 

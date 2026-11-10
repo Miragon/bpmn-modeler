@@ -51,7 +51,7 @@ flowchart TD
 
 ### Two key decisions (see the ADR)
 
-[Architecture and hosts: process lifecycle](../../docs/adr/architecture-and-hosts.md#process-lifecycle) records:
+[IntelliJ bridge: runtime and transport, process lifecycle](../../docs/adr/intellij-bridge.md#runtime-and-transport) records:
 
 - **Transport — one stdio JSON-RPC pipe.** Core↔host _and_ the webview-message
   relay ride a single supervised NDJSON pipe (not a webview↔server WebSocket
@@ -321,7 +321,7 @@ Local builds stage the **host** platform's binary. Release builds use
 `-PbundleAllPlatforms` to stage the precompiled darwin-arm64/x64,
 linux-arm64/x64 and windows-x64 binaries under `bin/<os>-<arch>/`.
 The bridge workspace's `compile:all` script builds that matrix; see the
-[runtime and transport decision](../../docs/adr/architecture-and-hosts.md#runtime-and-transport).
+[runtime and transport decision](../../docs/adr/intellij-bridge.md#runtime-and-transport).
 
 ## If `runIde` fails to resolve versions
 

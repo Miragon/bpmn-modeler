@@ -19,7 +19,7 @@ Webview HTML is generated at runtime by functions in the host adapters, not serv
 
 2. **Nonce generation:** A random nonce is generated per HTML render, set on the entry script and listed in the shell's CSP (see below).
 
-3. **Theme:** Both webviews theme **per-instance**: the theme CSS ships inside the main `index.css` bundle and a shared host adapter (`libs/shared/src/lib/hostTheme.ts`) sets a per-package scope attribute (`data-bpmn-theme` / `data-dmn-theme`) from the VS Code body classes, with no `#theme-link`. See [BPMN modeler: themes and locale](../../../docs/adr/bpmn-modeler.md#themes-and-locale) (BPMN) and [DMN modeler: themes](../../../docs/adr/dmn-modeler.md#themes) (DMN).
+3. **Theme:** Both webviews theme **per-instance**: the theme CSS ships inside the main `index.css` bundle and a shared host adapter (`libs/shared/src/lib/hostTheme.ts`) sets a per-package scope attribute (`data-bpmn-theme` / `data-dmn-theme`) from the VS Code body classes, with no `#theme-link`. See [BPMN modeler: themes and locale](../../../docs/adr/bpmn-modeler-features.md#themes-and-locale) (BPMN) and [DMN modeler: themes](../../../docs/adr/dmn-modeler.md#themes) (DMN).
 
 ### Deployment Webview (`DeploymentWebviewHtml.ts`)
 
@@ -322,7 +322,7 @@ Both host adapters read these with
 ### Per-instance scope attribute (BPMN & DMN)
 
 Both webviews theme each modeler **instance** through their package; see the
-[BPMN theme decision](../../../docs/adr/bpmn-modeler.md#themes-and-locale) and
+[BPMN theme decision](../../../docs/adr/bpmn-modeler-features.md#themes-and-locale) and
 [DMN theme decision](../../../docs/adr/dmn-modeler.md#themes). The theme CSS (unscoped light base +
 `[data-bpmn-theme="dark"]` / `[data-dmn-theme="dark"]`-scoped dark overrides) is
 folded into the main `index.css` bundle, so there is no `#theme-link`. The shared

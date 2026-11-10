@@ -26,9 +26,11 @@ included, is in `docs/vscode/contributing/development.md` (Coding agents).
   `tsconfig.base.json`.
 - A change that moves a package boundary, public API, dependency, protocol or
   another hard-to-reverse choice updates or adds an ADR in `docs/adr/` in the
-  same PR. Update the existing topic first and replace superseded text; Git
-  preserves history. Use the `adr` skill. ADRs are contributor-facing and not
-  published on the VitePress site.
+  same PR. Update the owning topic first and replace superseded text; Git
+  preserves history. Keep records to the decision, its reason and its cost, not
+  how the code works; a topic stays around 300 lines, then it is trimmed or
+  split. Use the `adr` skill. ADRs are contributor-facing and not published on
+  the VitePress site.
 - A new Vitest workspace is listed in `.github/vitest-targets.json`;
   `.github/scripts/check-vitest-targets.mjs` fails the lint job and pre-push
   otherwise.

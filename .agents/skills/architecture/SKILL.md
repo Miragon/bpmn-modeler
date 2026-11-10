@@ -159,7 +159,7 @@ applies the role-folder rules below. A fitness function that can fire on
 correct code, each dynamic one and a static one such as host text or a size
 limit, plugs into `corepack yarn fitness` (`tools/repo-checks/src/fitness/`),
 which reports new and existing findings and never fails a build
-([ADR](../../../docs/adr/engineering-practices.md#architecture-erosion)).
+([ADR](../../../docs/adr/architecture-enforcement.md#architecture-erosion)).
 
 A webview posts only the commands of its surface list in `libs/shared`, and
 narrows its host channel to that list. A new webview surface registers in
@@ -225,7 +225,7 @@ A class that implements a port sits in `adapter/out/` or `testing/`. No spec
 blocks this; the `convention-coverage` fitness function reports it, and runs
 rules 1 to 9 without exceptions, so the files of a workspace not yet
 moved show as remaining work. The rules and the reasons are in the
-[ADR](../../../docs/adr/architecture-and-hosts.md#workspace-kinds-and-role-folders).
+[ADR](../../../docs/adr/role-folders.md).
 
 ## Trace host and session behavior
 

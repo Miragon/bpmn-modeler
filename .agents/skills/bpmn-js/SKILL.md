@@ -180,7 +180,7 @@ The host sends settings (and `UpdateOpenScriptEditorsQuery`) only on load and on
 ## Theme Handling
 
 The BPMN webview themes each modeler **instance** through `@miragon/bpmn-modeler`
-([BPMN modeler: themes and locale](../../../docs/adr/bpmn-modeler.md#themes-and-locale)), not by swapping a page stylesheet. The theme CSS (unscoped light base
+([BPMN modeler: themes and locale](../../../docs/adr/bpmn-modeler-features.md#themes-and-locale)), not by swapping a page stylesheet. The theme CSS (unscoped light base
 + `[data-bpmn-theme="dark"]`-scoped dark overrides) ships inside the main bundle,
 and the package toggles a `data-bpmn-theme` attribute on the instance's container
 + properties-panel parent. The shared `libs/shared/src/lib/hostTheme.ts` adapter

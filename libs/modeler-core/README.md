@@ -21,7 +21,7 @@ Internal workspace, not published on its own.
   ones in `kernel/port/`, feature-owned ones in the feature's `port/`.
 - Each feature folder uses the role folders `domain/`, `port/`, `service/`, `adapter/in/`,
   `adapter/out/` and `composition/`; `tools/repo-checks` checks their import direction. See
-  [Workspace kinds and role folders](../../docs/adr/architecture-and-hosts.md#workspace-kinds-and-role-folders).
+  [Role folders](../../docs/adr/role-folders.md).
 - Consumers import from the package entry only, never deep paths:
 
   ```ts

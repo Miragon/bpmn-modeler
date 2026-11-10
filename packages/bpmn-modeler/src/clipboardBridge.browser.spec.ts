@@ -12,7 +12,7 @@ import { mountWithPanel, removeMounts, trackDocumentListeners } from "./__fixtur
  * paste in another sharing the same {@link ClipboardBridge} — the sandboxed-
  * webview round trip the bridge exists for. The async bridge re-entry only
  * exercises real bpmn-js copy/paste rules, so it runs in the browser project
- * (see docs/adr/engineering-practices.md#test-environments). The wire format
+ * (see docs/adr/testing.md#test-environments). The wire format
  * stays covered by `libs/bpmn-clipboard/src/BridgedClipboardModule.spec.ts`.
  */
 
