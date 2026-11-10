@@ -64,7 +64,7 @@ export interface HashContext {
     /** The user asked to read these with "Review…". */
     readonly inspected: ReadonlySet<string>;
     /** The rows of this kind, any of which may hold a package's content. */
-    readonly approvals: readonly CodeApproval[];
+    readonly rowsOfKind: readonly CodeApproval[];
     /** This session's answers, by `declineKeyOf`. */
     readonly answers: ReadonlyMap<string, SessionAnswer>;
 }
@@ -75,8 +75,8 @@ export interface HashContext {
  * view: the gate hashed it to ask, and the view then offers to allow it
  * without a "Review…" first.
  */
-export function isHashWanted(id: string, { inspected, approvals, answers }: HashContext): boolean {
-    return inspected.has(id) || needsContentHash(id, approvals, notAskedAgain(answers));
+export function isHashWanted(id: string, { inspected, rowsOfKind, answers }: HashContext): boolean {
+    return inspected.has(id) || needsContentHash(id, rowsOfKind, notAskedAgain(answers));
 }
 
 /**

@@ -329,35 +329,42 @@ export function foundCodeState(
     return !isApprovedState(state) && declined.has(declineKeyOf(artifact)) ? "declined" : state;
 }
 
-/** A row decides `changed` for code that cannot be read, so the user still sees what was allowed there. */
+/**
+ * A row decides `changed` for code that cannot be read, so the user still sees
+ * what was allowed there. `rowsOfKind` holds only the rows of this code's kind:
+ * a row of another kind never holds its content but would ask for a hash.
+ */
 export function codeStateOf(
     presence: Exclude<CodePresence, { readonly kind: "gone" }>,
-    approvals: readonly CodeApproval[],
+    rowsOfKind: readonly CodeApproval[],
     declined: ReadonlySet<string>,
 ): CodeStateReading<Exclude<CodeState, "gone">>;
 export function codeStateOf(
     presence: CodePresence,
-    approvals: readonly CodeApproval[],
+    rowsOfKind: readonly CodeApproval[],
     declined: ReadonlySet<string>,
 ): CodeStateReading;
 export function codeStateOf(
     presence: CodePresence,
-    approvals: readonly CodeApproval[],
+    rowsOfKind: readonly CodeApproval[],
     declined: ReadonlySet<string>,
 ): CodeStateReading {
     switch (presence.kind) {
         case "gone":
             return { kind: "state", state: "gone" };
         case "found":
-            return { kind: "state", state: foundCodeState(presence.artifact, approvals, declined) };
+            return {
+                kind: "state",
+                state: foundCodeState(presence.artifact, rowsOfKind, declined),
+            };
         case "unhashed":
-            return needsContentHash(presence.id, approvals, declined)
+            return needsContentHash(presence.id, rowsOfKind, declined)
                 ? { kind: "hashNeeded" }
                 : { kind: "state", state: "new" };
         case "unreadable":
             return {
                 kind: "state",
-                state: approvalRowOf(presence.id, approvals) === undefined ? "new" : "changed",
+                state: approvalRowOf(presence.id, rowsOfKind) === undefined ? "new" : "changed",
             };
     }
 }

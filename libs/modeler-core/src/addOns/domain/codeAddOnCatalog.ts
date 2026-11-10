@@ -44,7 +44,8 @@ export interface OwnedPresence {
 
 /** What one listing found of the code add-ons. */
 export interface CodeAddOnFacts extends FolderFacts {
-    readonly approvals: readonly CodeApproval[];
+    /** The stored rows each owner claims, so a kind's rules never read another kind's rows. */
+    readonly approvalsByKind: Readonly<Record<CodeAddOnKind, readonly CodeApproval[]>>;
     readonly plugins: readonly OwnedPresence[];
     readonly rulePackages: readonly OwnedPresence[];
 }
@@ -179,19 +180,20 @@ function placedAddOn(
     const { kind, presence, sourceDir, root } = listed;
     const id = presenceIdOf(presence);
     const source = SOURCE_PLACE[kind](sourceDir, root, facts.configFolder);
-    const reading = codeStateOf(presence, facts.approvals, declinedKeys(session.answers[kind]));
+    const rowsOfKind = facts.approvalsByKind[kind];
+    const reading = codeStateOf(presence, rowsOfKind, declinedKeys(session.answers[kind]));
     const state = reading.kind === "state" ? reading.state : "new";
     const row: StatedAddOn = {
         ...listed,
         id,
         state,
         actions: CODE_ACTIONS[presence.kind][state] ?? [],
-        withdrawal: withdrawalOf(presence, facts.approvals),
+        withdrawal: withdrawalOf(presence, rowsOfKind),
     };
     return {
         root,
         source,
-        view: viewOf(row, source, facts, session, restart),
+        view: viewOf(row, source, facts.folders, rowsOfKind, session, restart),
         shown: shownOf(row, restart, foundByContent),
     };
 }
@@ -220,7 +222,8 @@ function revokedContentOf({ actions, withdrawal }: StatedAddOn): string | undefi
 function viewOf(
     row: StatedAddOn,
     source: SourcePlace,
-    { folders, approvals }: CodeAddOnFacts,
+    folders: readonly string[],
+    rowsOfKind: readonly CodeApproval[],
     session: AddOnSession,
     restart: ProcessRestart,
 ): CodeAddOnView {
@@ -234,7 +237,7 @@ function viewOf(
         state,
         stateText: CODE_STATE_LABEL[state],
         ...optional("problem", problemOf(presence)),
-        ...optional("note", noteOf(row, approvals, session, restart)),
+        ...optional("note", noteOf(row, rowsOfKind, session, restart)),
         ...optional("review", reviewOfRow(row, folders)),
         actions,
     };

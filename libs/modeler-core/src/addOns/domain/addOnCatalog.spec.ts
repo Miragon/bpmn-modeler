@@ -64,14 +64,20 @@ const rulePackageSourceDirOf = (id: string) =>
         ? id.slice(0, id.lastIndexOf("/node_modules/") + "/node_modules".length)
         : id;
 
+/** As the owners claim rows here: a rule package's sits in a `node_modules`. */
+const isRulePackageRow = ({ pluginId }: CodeApproval) => pluginId.includes("/node_modules/");
+
 function factsOf(
-    overrides: Partial<Omit<AddOnFacts, "plugins" | "rulePackages" | "marketplaces">> & {
+    overrides: Partial<
+        Omit<AddOnFacts, "plugins" | "rulePackages" | "marketplaces" | "approvalsByKind">
+    > & {
+        approvals?: readonly CodeApproval[];
         marketplaces?: readonly ListedMarketplace[];
         plugins?: ListedPresence[];
         rulePackages?: ListedPresence[];
     } = {},
 ): AddOnFacts {
-    const { plugins = [], rulePackages = [], marketplaces, ...rest } = overrides;
+    const { plugins = [], rulePackages = [], marketplaces, approvals = [], ...rest } = overrides;
     const placedBy =
         (sourceDirOf: (id: string) => string, texts: ApprovableCodeTexts) =>
         (presence: ListedPresence) => ({
@@ -82,7 +88,10 @@ function factsOf(
     return {
         folders: ["/work"],
         configFolder: ".camunda",
-        approvals: [],
+        approvalsByKind: {
+            plugin: approvals.filter((row) => !isRulePackageRow(row)),
+            rulePackage: approvals.filter(isRulePackageRow),
+        },
         templates: [],
         ...rest,
         ...(marketplaces && { marketplaces: { kind: "listed", sources: marketplaces } }),
