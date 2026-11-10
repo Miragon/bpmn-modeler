@@ -312,14 +312,19 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Build the extension
         run: corepack yarn build
+      # The key names the VS Code builds the folder holds, so an entry is saved once per stable
+      # release. A per-run key saved 486 MB on every run and pushed other caches out.
+      - id: vscode
+        name: Resolve the stable VS Code version
+        run: |
+          stable=$(curl -fsSL --retry 3 https://update.code.visualstudio.com/api/releases/stable | jq -r '.[0]')
+          test -n "$stable"
+          echo "stable=$stable" >> "$GITHUB_OUTPUT"
       - name: Cache VS Code download
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: apps/vscode-plugin/.vscode-test
-          key: vscode-test-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('apps/vscode-plugin/test/e2e/.vscode-test.mjs', 'yarn.lock') }}-${{ github.run_id }}
-          restore-keys: |
-            vscode-test-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('apps/vscode-plugin/test/e2e/.vscode-test.mjs', 'yarn.lock') }}-
-            vscode-test-${{ runner.os }}-${{ runner.arch }}-
+          key: vscode-test-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('apps/vscode-plugin/test/e2e/.vscode-test.mjs') }}-${{ steps.vscode.outputs.stable }}
       - name: Download VS Code test versions
         working-directory: apps/vscode-plugin
         run: |
