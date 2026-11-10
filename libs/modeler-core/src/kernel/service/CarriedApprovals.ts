@@ -23,6 +23,12 @@ export class CarriedApprovals {
     private readonly inFlight = new Set<string>();
     /** By `declineKeyOf`: not tried again this session, and logged once. */
     private readonly failed = new Set<string>();
+    /**
+     * One write at a time: a write's post-write check counts any other row of
+     * the content as a source, so a concurrent write's fresh row would keep it
+     * alive after a revoke of the real source.
+     */
+    private writes: Promise<void> = Promise.resolve();
 
     constructor(
         private readonly store: PluginApprovalStorePort,
@@ -38,7 +44,11 @@ export class CarriedApprovals {
         }
         const keys = candidates.map(({ artifact }) => declineKeyOf(artifact));
         keys.forEach((key) => this.inFlight.add(key));
-        return this.write(candidates.map(({ artifact }) => artifact)).then(
+        const written = this.writes.then(() =>
+            this.write(candidates.map(({ artifact }) => artifact)),
+        );
+        this.writes = written.catch(() => undefined);
+        return written.then(
             () => keys.forEach((key) => this.inFlight.delete(key)),
             (error: unknown) => {
                 keys.forEach((key) => {

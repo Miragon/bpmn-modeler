@@ -2,9 +2,11 @@ import { describe, expect, it, vi } from "vitest";
 
 import { InMemoryPluginApprovals, RecordingNotifier } from "../../testing";
 import {
+    approvalsAfter,
     ApprovableArtifact,
     CarriedApproval,
     CodeApproval,
+    CodeApprovalChange,
     revoking,
 } from "../domain/codeApproval";
 import { CarriedApprovals } from "./CarriedApprovals";
@@ -39,6 +41,20 @@ class MirrorBehindHost extends InMemoryPluginApprovals {
 class UnanswerableHost extends InMemoryPluginApprovals {
     override readStored(): Promise<readonly CodeApproval[]> {
         return Promise.reject(new Error("host gone"));
+    }
+}
+
+/** Applies each change after the one before it, a task later, and answers for its list at once, as VS Code's store does. */
+class ChainedHost extends InMemoryPluginApprovals {
+    private changes: Promise<void> = Promise.resolve();
+
+    override change(change: CodeApprovalChange): Promise<void> {
+        const changed = this.changes.then(async () => {
+            await new Promise((resolve) => setTimeout(resolve, 0));
+            this.approvals = approvalsAfter(this.approvals, change);
+        });
+        this.changes = changed.catch(() => undefined);
+        return changed;
     }
 }
 
@@ -91,6 +107,18 @@ describe("CarriedApprovals", () => {
         });
 
         await carried.record([HERE]);
+
+        expect(store.approvals).toEqual([]);
+        expect(logger.logged("info")).toEqual([]);
+    });
+
+    it("stores nothing for two batches of one content after a revoke of its only source", async () => {
+        const { store, logger, carried } = setUp(new ChainedHost());
+        const copy: ApprovableArtifact = { ...HERE, id: "/second-worktree/.camunda/plugins/resize" };
+        store.approvals = [SOURCE];
+        const revoke = store.change(revoking([SOURCE.pluginId]));
+
+        await Promise.all([revoke, carried.record([HERE]), carried.record([copy])]);
 
         expect(store.approvals).toEqual([]);
         expect(logger.logged("info")).toEqual([]);

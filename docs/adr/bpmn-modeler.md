@@ -1225,10 +1225,14 @@ whole value this window writes can drop it. The focus re-read narrows the gap
 but does not close it; one key per approval row would. Carried rows are
 written without the user acting, which makes this residual more likely: a
 window with a stale global state can write rows back after a revoke in
-another window. In IntelliJ, whose host serialises merges, the core's checks
-close the revoke race in every order but one: two other projects carrying the
-same content within one round trip of a revoke can each take the other's
-carried row as its source and keep the content allowed. A host-side
+another window. Each owner's carry writer runs one write at a time, so in one
+process a later carry decides from a list that already holds an earlier
+carry's revoke of its orphaned row; two concurrent writes would each take the
+other's fresh row as a source and keep revoked content allowed. In IntelliJ,
+whose host serialises merges, the core's checks close the revoke race in every
+order but one: two other projects carrying the same content within one round
+trip of a revoke can each take the other's carried row as its source and keep
+the content allowed. A host-side
 conditional carry would close it but not the VS Code residual, so the
 protocol stays as it is.
 
