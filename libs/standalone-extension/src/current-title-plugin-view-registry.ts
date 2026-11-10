@@ -6,9 +6,10 @@
  * part (`originalContainerTitle`). The registry applies the current title in
  * `prepareViewContainer`, which `initWidgets` runs again for every restored
  * container once the layout and the plugin contributions are in, but
- * `ViewContainer.updateTitle` switches back to an original part's stored
- * title whenever it differs. This registry gives those parts the current
- * title first.
+ * `ViewContainer.updateTitle` switches back to a part's stored original
+ * title whenever it differs. This registry gives every part whose original
+ * container is a registered plugin view container that container's current
+ * title first, also when the part was moved into another container.
  */
 import type {
     ViewContainer,
@@ -16,7 +17,12 @@ import type {
 } from "@theia/core/lib/browser/view-container";
 import { Disposable, DisposableCollection } from "@theia/core/lib/common/disposable";
 import { injectable } from "@theia/core/shared/inversify";
-import { PluginViewRegistry } from "@theia/plugin-ext/lib/main/browser/view/plugin-view-registry";
+import {
+    PLUGIN_VIEW_CONTAINER_FACTORY_ID,
+    PluginViewRegistry,
+} from "@theia/plugin-ext/lib/main/browser/view/plugin-view-registry";
+
+const PLUGIN_VIEW_CONTAINER_WIDGET_ID_PREFIX = `${PLUGIN_VIEW_CONTAINER_FACTORY_ID}:`;
 
 @injectable()
 export class CurrentTitlePluginViewRegistry extends PluginViewRegistry {
@@ -39,14 +45,22 @@ export class CurrentTitlePluginViewRegistry extends PluginViewRegistry {
         viewContainerId: string,
         containerWidget: ViewContainer,
     ): Promise<void> {
-        const currentTitle = this.currentTitleByContainerId.get(viewContainerId);
-        if (currentTitle) {
-            containerWidget
-                .getParts()
-                .filter((part) => part.originalContainerId === containerWidget.id)
-                .forEach((part) => refreshOriginalContainerTitle(part, currentTitle));
+        for (const part of containerWidget.getParts()) {
+            const currentTitle = this.currentTitleOfWidget(part.originalContainerId);
+            if (currentTitle) {
+                refreshOriginalContainerTitle(part, currentTitle);
+            }
         }
         await super.prepareViewContainer(viewContainerId, containerWidget);
+    }
+
+    private currentTitleOfWidget(containerWidgetId: string): ViewContainerTitleOptions | undefined {
+        if (!containerWidgetId.startsWith(PLUGIN_VIEW_CONTAINER_WIDGET_ID_PREFIX)) {
+            return undefined;
+        }
+        return this.currentTitleByContainerId.get(
+            containerWidgetId.slice(PLUGIN_VIEW_CONTAINER_WIDGET_ID_PREFIX.length),
+        );
     }
 }
 
