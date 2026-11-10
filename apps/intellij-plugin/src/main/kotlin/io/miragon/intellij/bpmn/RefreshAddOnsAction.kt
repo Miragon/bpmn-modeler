@@ -6,11 +6,11 @@ import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.project.DumbAwareAction
 
 /**
- * The Artifacts tab's title button, and Find Action's "Refresh Artifacts": the
+ * The Add-ons tab's title button, and Find Action's "Refresh Add-ons": the
  * core reads every add-on again, installed packages and stored approvals
  * included, which no file watcher reports.
  */
-class RefreshArtifactsAction : DumbAwareAction() {
+class RefreshAddOnsAction : DumbAwareAction() {
     override fun actionPerformed(event: AnActionEvent) {
         // No bridge is started just to read a view nobody opened.
         event.project?.getServiceIfCreated(CoreProcess::class.java)?.refreshAddOns()
@@ -18,16 +18,16 @@ class RefreshArtifactsAction : DumbAwareAction() {
 
     override fun update(event: AnActionEvent) {
         val project = event.project
-        event.presentation.isEnabledAndVisible = project != null && showsRefreshArtifacts(event.place) { isArtifactsTabShown(project) }
+        event.presentation.isEnabledAndVisible = project != null && showsRefreshAddOns(event.place) { isAddOnsTabShown(project) }
     }
 
     override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.EDT
 
     companion object {
-        const val ID = "io.miragon.bpmn-modeler.refreshArtifacts"
+        const val ID = "io.miragon.bpmn-modeler.refreshAddOns"
     }
 }
 
 /** The tool window shows its title actions on both tabs, so the button hides on Deploy; Find Action always offers it. */
-internal fun showsRefreshArtifacts(place: String, artifactsTabShown: () -> Boolean): Boolean =
-    place != ActionPlaces.TOOLWINDOW_TITLE || artifactsTabShown()
+internal fun showsRefreshAddOns(place: String, addOnsTabShown: () -> Boolean): Boolean =
+    place != ActionPlaces.TOOLWINDOW_TITLE || addOnsTabShown()

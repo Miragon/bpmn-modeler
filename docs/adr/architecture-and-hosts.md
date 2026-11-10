@@ -115,7 +115,7 @@ and the `domain/` of `kernel/` and `editorSession/`.
 
 A context that lists what other contexts own declares structural ports in its
 own `port/` and leaves the rules with the owners. `addOns/` (the add-on
-catalog behind the artifacts view) is the first. The ports of
+catalog behind the Add-ons view) is the first. The ports of
 `addOns/port/addOnSourcePorts.ts` are met by inventories that import nothing
 of `addOns/`: `PluginAddOnSource` by `PluginInventory` in
 `bpmnPlugins/service/`, `RulePackageAddOnSource` and `TemplateAddOnSource` by
@@ -128,8 +128,8 @@ sides name live in `kernel/domain/`: `ListedPresence` and
 `ApprovableCodeTexts` in `codeApproval.ts`, the template file listing in
 `templateListing.ts` and the marketplace listing in `marketplaceListing.ts`,
 from which the catalog derives its own view with the templates read. The context is
-named `addOns` because no core identifier may start with `Artifact` next to
-`ArtifactService`; "artifacts view" stays a word of the UI.
+named `addOns` after the view it serves, **Add-ons**; the `Artifact` prefix
+in the core belongs to `ArtifactService`.
 
 The shared role-folder rules keep services off adapters, outbound adapters off
 services, and every import away from the package entry and the test kit; the
@@ -252,14 +252,14 @@ IntelliJ sets both attributes through `executeJavaScript`. IntelliJ's copy,
 `BrandMode.kt`, runs `brandMode.cases.json` in `BrandModeTest`. The outline's
 stylesheet ignores the attributes until the redesign lands.
 
-IntelliJ shows the add-ons view as the **Artifacts** tab of its BPMN Modeler
-tool window, next to the **Deploy** tab, as VS Code holds Deploy and Artifacts
+IntelliJ shows the add-ons view as the **Add-ons** tab of its BPMN Modeler
+tool window, next to the **Deploy** tab, as VS Code holds Deploy and Add-ons
 in one container. The tool window keeps the id of the former deployment tool
 window (`Miragon Deployment`), so a layout a user saved still applies; its
 factory sets the stripe title. Each tab is one `JcefRelayPanel`, a JCEF page
 that relays its messages verbatim, and counts as open only while the tool
 window is visible and the tab selected (`VisibilityLatch`), so Deploy refreshes
-its form defaults only while its tab shows. The Artifacts browser is built the
+its form defaults only while its tab shows. The Add-ons browser is built the
 first time its tab shows, since each browser costs a renderer. Its shell
 (`/addOns.html`, bundle under `/webview-add-ons/`) maps the deployment palette
 plus the extras in `hostThemeVariables.json` (`IdeThemeSignal.addOnsThemeVarsCss`,
@@ -524,11 +524,11 @@ Miragon itself (IntelliJ's tool window stripe shows it too); the rocket stays
 on the deploy action. It kept the id of the
 deployment-only container, so a user's layout survives. It holds two webview
 views: **Deploy** (`bpmn-modeler.deploymentView`), shown while a custom editor
-is open, and **Artifacts** (`bpmn-modeler.artifactsView`), shown whenever a
+is open, and **Add-ons** (`bpmn-modeler.addOnsView`), shown whenever a
 folder is open, so the container now shows whenever a folder is open. Both
 set `retainContextWhenHidden`: the core posts nothing to a hidden view, so
 keeping its page costs memory only, and a page shown again keeps its banners
-and the results of requests in flight. The Artifacts view's shell
+and the results of requests in flight. The Add-ons view's shell
 (`AddOnsViewHtml`, CSP shell `addOns`) allows its nonced script, its linked
 stylesheet and the fonts its bundle ships, and no inline styles, as the page
 uses no codicons, no images and no style attributes. The shell carries the
@@ -538,10 +538,10 @@ change of either until the view is disposed, and again when the page asks for
 its catalog, as a change posted while the page loads can be lost.
 `AddOnsViewProvider` attaches one core panel per resolved view and hands it
 the page's commands, its visibility and its disposal; the core refreshes on
-show. The view's title bar **Refresh Artifacts** (`bpmn-modeler.refreshArtifacts`)
+show. The view's title bar **Refresh Add-ons** (`bpmn-modeler.refreshAddOns`)
 is host chrome over `AddOnsFeature.refresh()`: no watcher covers
-`node_modules`, so it is read again only then or when the view is shown again. Code names say `addOns`;
-"Artifacts" is the view id and UI text only. **Review…** on a plugin or rule
+`node_modules`, so it is read again only then or when the view is shown again. Code names and
+ids say `addOns`. **Review…** on a plugin or rule
 package notice opens the view through `VsCodeAddOnsViewReveal`, the
 `AddOnViewRevealPort` adapter: it has the provider focus the view, then asks
 the core to reveal the rows, and answers `false` when focusing fails, as in a

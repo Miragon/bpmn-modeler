@@ -8,7 +8,7 @@ const ROWS = ["plugin:/work/.camunda/plugins/resize-tasks"];
 
 /** A view whose focus command fails, as in a Theia shell without it. */
 const UNFOCUSABLE: AddOnsViewFocus = {
-    focus: () => Promise.reject(new Error("command 'bpmn-modeler.artifactsView.focus' not found")),
+    focus: () => Promise.reject(new Error("command 'bpmn-modeler.addOnsView.focus' not found")),
 };
 
 function connectedReveal(view: AddOnsViewFocus = { focus: async () => undefined }) {
@@ -24,7 +24,7 @@ describeAddOnViewRevealContract("VsCodeAddOnsViewReveal", async ({ showsView }) 
 });
 
 describe("VsCodeAddOnsViewReveal", () => {
-    it("focuses the Artifacts view, then has the catalog show the rows", async () => {
+    it("focuses the Add-ons view, then has the catalog show the rows", async () => {
         const order: string[] = [];
         const reveal = new VsCodeAddOnsViewReveal();
         reveal.connect(

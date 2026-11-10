@@ -1,8 +1,8 @@
-# `apps/add-ons-webview/` — Artifacts view webview
+# `apps/add-ons-webview/` — Add-ons view webview
 
 Internal module. **Not published separately.**
 
-Renders the **Artifacts** view: the BPMN plugins, bpmnlint rule packages and
+Renders the **Add-ons** view: the BPMN plugins, bpmnlint rule packages and
 element templates of the open workspace, grouped by workspace folder and
 source, with what the user may do about each. The core
 (`libs/modeler-core/src/addOns`) builds every text and decides every action;

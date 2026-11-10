@@ -1,10 +1,10 @@
-# Artifacts view
+# Add-ons
 
 See and manage everything your workspace adds to the BPMN editor in one place: [BPMN plugins](/vscode/features/bpmn-plugins), [bpmnlint rule packages](/vscode/features/linting#allow-a-rule-package), [element templates](/vscode/features/element-template-chooser) and [template marketplaces](/vscode/features/template-marketplace). Allow or revoke code, and turn templates on or off.
 
 ## Open the view
 
-Click the Miragon comet in the activity bar to open the **BPMN Modeler** container. **Artifacts** shows there whenever a folder is open; **Deploy** shows above it while a diagram is open. **Review…** on a plugin or rule package notification opens the view too (see [Allow code](#allow-code)).
+Click the Miragon comet in the activity bar to open the **BPMN Modeler** container. **Add-ons** shows there whenever a folder is open; **Deploy** shows above it while a diagram is open. **Review…** on a plugin or rule package notification opens the view too (see [Allow code](#allow-code)).
 
 ## What it lists
 
@@ -49,7 +49,7 @@ The toolbar at the top runs **Add marketplace…**, **Update marketplaces** and 
 
 ## Refresh
 
-The view reads again when it is shown and whenever plugins, rule packages, templates, approvals or settings change. It does not watch `node_modules`: after an `npm install`, click **Refresh Artifacts** in the view's title bar.
+The view reads again when it is shown and whenever plugins, rule packages, templates, approvals or settings change. It does not watch `node_modules`: after an `npm install`, click **Refresh Add-ons** in the view's title bar.
 
 ## Keyboard
 
@@ -70,7 +70,7 @@ In the toolbar, `←` and `→` move between its buttons.
 
 ## IntelliJ
 
-The IntelliJ plugin shows the same page as the **Artifacts** tab of its **BPMN Modeler** tool window, for the open project; **Review…** opens it at the item's row, and **Refresh Artifacts** sits in the tool window's title. See [Getting started in IntelliJ](/intellij/getting-started#artifacts).
+The IntelliJ plugin shows the same page as the **Add-ons** tab of its **BPMN Modeler** tool window, for the open project; **Review…** opens it at the item's row, and **Refresh Add-ons** sits in the tool window's title. See [Getting started in IntelliJ](/intellij/getting-started#add-ons).
 
 ## Next steps
 

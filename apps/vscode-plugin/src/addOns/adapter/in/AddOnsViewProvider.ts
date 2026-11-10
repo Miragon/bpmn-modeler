@@ -14,13 +14,13 @@ import { BrandModeQuery, Command, Query } from "@miragon/bpmn-modeler-shared";
 import { addOnsViewHtml } from "./AddOnsViewHtml";
 import type { VsCodeBrandModeSignal } from "./VsCodeBrandModeSignal";
 
-/** The Artifacts view; users see the id in keybindings and in "Focus on Artifacts View". */
-export const ADD_ONS_VIEW_ID = "bpmn-modeler.artifactsView";
+/** The Add-ons view; users see the id in keybindings and in "Focus on Add-ons View". */
+export const ADD_ONS_VIEW_ID = "bpmn-modeler.addOnsView";
 
-export const REFRESH_ADD_ONS_CMD = "bpmn-modeler.refreshArtifacts";
+export const REFRESH_ADD_ONS_CMD = "bpmn-modeler.refreshAddOns";
 
 /**
- * The Artifacts view in the BPMN Modeler container and its title bar's
+ * The Add-ons view in the BPMN Modeler container and its title bar's
  * refresh. Host glue only: the core's {@link AddOnsFeature} builds the
  * catalog, answers the page and refreshes when the view is shown again.
  */

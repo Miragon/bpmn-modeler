@@ -13,7 +13,7 @@ vi.mock("vscode", () => ({
     },
 }));
 vi.mock("./AddOnsViewHtml", () => ({
-    addOnsViewHtml: vi.fn(() => "<html>artifacts</html>"),
+    addOnsViewHtml: vi.fn(() => "<html>add-ons</html>"),
 }));
 
 import { commands, window } from "vscode";
@@ -97,7 +97,7 @@ beforeEach(() => {
 });
 
 describe("AddOnsViewProvider.register", () => {
-    it("registers the Artifacts view, kept while hidden, and its refresh command", () => {
+    it("registers the Add-ons view, kept while hidden, and its refresh command", () => {
         const { provider } = createProvider();
         const context = { subscriptions: [] as unknown[] };
 
@@ -136,7 +136,7 @@ describe("AddOnsViewProvider.resolveWebviewView", () => {
         expect(addOnsViewHtml).toHaveBeenCalledWith(view.webview, extensionUri, "n0nce", {
             theme: "dark",
         });
-        expect(view.webview.html).toBe("<html>artifacts</html>");
+        expect(view.webview.html).toBe("<html>add-ons</html>");
     });
 
     it("posts the new brand mode to the page when the theme changes", () => {
@@ -231,7 +231,7 @@ describe("AddOnsViewProvider.resolveWebviewView", () => {
 });
 
 describe("AddOnsViewProvider.focus", () => {
-    it("focuses the Artifacts view through its focus command", async () => {
+    it("focuses the Add-ons view through its focus command", async () => {
         const { provider } = createProvider();
 
         await provider.focus();

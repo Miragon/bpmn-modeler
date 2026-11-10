@@ -65,7 +65,7 @@ jobs:
               # ProjectScopeTest checks the Kotlin scopes against PROJECT_SCOPES.
               - 'libs/modeler-core/src/kernel/domain/templatePreferenceChange.cases.json'
               - 'libs/modeler-core/src/kernel/domain/projectScopes.ts'
-              # IdeThemeSignalTest checks the Artifacts tab's theme against the
+              # IdeThemeSignalTest checks the Add-ons tab's theme against the
               # variables the add-ons page may read.
               - 'apps/add-ons-webview/src/adapter/in/styles/hostThemeVariables.json'
               # BrandModeTest runs these rows against the Kotlin brand mode.

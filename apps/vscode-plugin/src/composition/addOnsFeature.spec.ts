@@ -48,12 +48,12 @@ function createExtensionContext(): ExtensionContext {
     } as unknown as ExtensionContext;
 }
 
-/** Plays VS Code resolving the Artifacts view, visible, and records its shell and what it posts to the page. */
-function resolveArtifactsView(): { posted: Query[]; html: () => string } {
+/** Plays VS Code resolving the Add-ons view, visible, and records its shell and what it posts to the page. */
+function resolveAddOnsView(): { posted: Query[]; html: () => string } {
     const posted: Query[] = [];
     const inert = () => ({ dispose: () => undefined });
     const registration = registeredViewProviders.get(ADD_ONS_VIEW_ID);
-    if (registration === undefined) throw new Error("No provider serves the Artifacts view.");
+    if (registration === undefined) throw new Error("No provider serves the Add-ons view.");
     const webview = {
         options: {},
         html: "",
@@ -195,10 +195,10 @@ describe("VS Code's add-on catalog", () => {
         ]);
     });
 
-    it("serves the Artifacts view the catalog it builds", async () => {
+    it("serves the Add-ons view the catalog it builds", async () => {
         const { addOns } = createVsCodeAddOns();
 
-        const { posted } = resolveArtifactsView();
+        const { posted } = resolveAddOnsView();
         await addOns.whenSettled();
 
         expect(posted).toHaveLength(1);
@@ -208,10 +208,10 @@ describe("VS Code's add-on catalog", () => {
         );
     });
 
-    it("shows the Artifacts view in VS Code's theme and follows a switch", async () => {
+    it("shows the Add-ons view in VS Code's theme and follows a switch", async () => {
         changeColorTheme(ColorThemeKind.Dark);
         const { addOns } = createVsCodeAddOns();
-        const { posted, html } = resolveArtifactsView();
+        const { posted, html } = resolveAddOnsView();
         await addOns.whenSettled();
 
         changeColorTheme(ColorThemeKind.HighContrastLight);
@@ -222,7 +222,7 @@ describe("VS Code's add-on catalog", () => {
         ]);
     });
 
-    it("has Review… show its rows in the Artifacts page the catalog serves", async () => {
+    it("has Review… show its rows in the Add-ons page the catalog serves", async () => {
         const { addOns, reviews } = createVsCodeAddOns();
         const posted: Query[] = [];
         addOns.attachPanel((message) => posted.push(message), true);

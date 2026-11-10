@@ -52,7 +52,7 @@ client secrets stay in the IDE's password safe.
 
 ## Review your project's add-ons
 
-The **Artifacts** tab of the same tool window lists the bpmn-js plugins, lint rule packages and
+The **Add-ons** tab of the same tool window lists the bpmn-js plugins, lint rule packages and
 element templates of your project. Allow or revoke a plugin or rule package there, and turn element
 templates off and on.
 

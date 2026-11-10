@@ -48,8 +48,8 @@ const PLUGIN_FOLDER = "bpmn-plugin";
 const PLUGIN_BPMN_FILE = "plugin-smoke.bpmn";
 const PLUGIN_NAME = "Smoke trace";
 const PLUGIN_NOTICE = "1 BPMN plugin in this workspace is not allowed yet.";
-/** The Artifacts view's outline, which tells its page from the Deploy view's. */
-const ARTIFACTS_OUTLINE = '[role="group"][aria-label="Artifacts"]';
+/** The Add-ons view's outline, which tells its page from the Deploy view's. */
+const ADD_ONS_OUTLINE = '[role="group"][aria-label="Add-ons"]';
 const PLUGIN_BADGE_COLOR = "rgb(255, 0, 255)";
 const OPEN_TIMING_ROUNDS = 3;
 
@@ -1377,7 +1377,7 @@ describe("the packaged extension in a real VS Code", () => {
             isRendered: (webview: FrameLocator) => Promise<boolean>,
         ): Promise<number> {
             await vscode().runCommand("View: Close All Editors");
-            // The Artifacts view keeps its frame after the editors close.
+            // The Add-ons view keeps its frame after the editors close.
             await expect
                 .poll(() => vscode().editorFrames().filter({ visible: true }).count())
                 .toBe(0);
@@ -1398,9 +1398,9 @@ describe("the packaged extension in a real VS Code", () => {
                 .filter({ hasText: PLUGIN_NOTICE });
             await notice.getByRole("button", { name: "Review…" }).click();
 
-            // Review… opens the Artifacts view at the plugin's row instead of a list.
-            const artifacts = await vscode().viewWebview(ARTIFACTS_OUTLINE);
-            const row = artifacts.getByRole("listitem", { name: PLUGIN_NAME });
+            // Review… opens the Add-ons view at the plugin's row instead of a list.
+            const addOns = await vscode().viewWebview(ADD_ONS_OUTLINE);
+            const row = addOns.getByRole("listitem", { name: PLUGIN_NAME });
             await expect.poll(() => isFocused(row), { timeout: TIMEOUT_MS }).toBe(true);
             expect(await page().locator(".quick-input-widget").isVisible()).toBe(false);
             expect(await row.locator(".meta").textContent()).toContain("Not allowed yet");
@@ -1415,7 +1415,7 @@ describe("the packaged extension in a real VS Code", () => {
             expect(await isFocused(allow)).toBe(true);
             await page().keyboard.press("Enter");
             await expect
-                .poll(() => artifacts.getByRole("status").textContent(), { timeout: TIMEOUT_MS })
+                .poll(() => addOns.getByRole("status").textContent(), { timeout: TIMEOUT_MS })
                 .toBe(`Allowed ${PLUGIN_NAME}. Open editors reload with it.`);
             await expect.poll(() => isFocused(row)).toBe(true);
 
@@ -1473,21 +1473,21 @@ describe("the packaged extension in a real VS Code", () => {
             expectNoCspViolations();
         }, 120_000);
 
-        it("revokes the plugin from the Artifacts view and reloads without it", async () => {
+        it("revokes the plugin from the Add-ons view and reloads without it", async () => {
             await vscode().showInCustomEditor(PLUGIN_BPMN_FILE, diagramWithPluginRendered);
             const notice = page()
                 .locator(".notifications-toasts .notification-toast")
                 .filter({ hasText: PLUGIN_NOTICE });
 
-            await vscode().runCommand("Focus on Artifacts View");
-            const artifacts = await vscode().viewWebview(ARTIFACTS_OUTLINE);
-            await artifacts
+            await vscode().runCommand("Focus on Add-ons View");
+            const addOns = await vscode().viewWebview(ADD_ONS_OUTLINE);
+            await addOns
                 .getByRole("listitem", { name: PLUGIN_NAME })
                 .getByRole("button", { name: "Revoke" })
                 .click();
 
             await expect
-                .poll(() => artifacts.getByRole("status").textContent(), { timeout: TIMEOUT_MS })
+                .poll(() => addOns.getByRole("status").textContent(), { timeout: TIMEOUT_MS })
                 .toBe(`Revoked ${PLUGIN_NAME}. Open editors reload without it.`);
             await vscode().showInCustomEditor(
                 PLUGIN_BPMN_FILE,
@@ -1497,15 +1497,15 @@ describe("the packaged extension in a real VS Code", () => {
             // A revoke from the view is an answer: no notice asks about the plugin again.
             await expectAbsentFor(notice, NOTICE_WINDOW_MS);
 
-            await settle(artifacts);
-            await vscode().screenshot(join(RESULTS_DIRECTORY, "artifacts-view.png"));
+            await settle(addOns);
+            await vscode().screenshot(join(RESULTS_DIRECTORY, "add-ons-view.png"));
             expectNoCspViolations();
             await vscode().runCommand("View: Show Explorer");
         });
 
-        it("marks the Artifacts view with the brand mode of each theme", async () => {
-            await vscode().runCommand("Focus on Artifacts View");
-            const html = (await vscode().viewWebview(ARTIFACTS_OUTLINE)).locator("html");
+        it("marks the Add-ons view with the brand mode of each theme", async () => {
+            await vscode().runCommand("Focus on Add-ons View");
+            const html = (await vscode().viewWebview(ADD_ONS_OUTLINE)).locator("html");
 
             for (const theme of COLOR_THEMES) {
                 await vscode().setColorTheme(theme.name);

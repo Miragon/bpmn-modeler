@@ -235,7 +235,7 @@ class CoreProcess(private val project: Project) : Disposable {
 
     fun setDeploymentOpen(open: Boolean) = routers.deployment.setDeploymentOpen(open)
 
-    // ── add-ons view (the BPMN Modeler tool window's Artifacts tab) ─────────────
+    // ── add-ons view (the BPMN Modeler tool window's Add-ons tab) ─────────────
 
     fun registerAddOnsWindow(post: (String) -> Unit, reload: () -> Unit) = routers.addOns.registerWindow(post, reload)
 

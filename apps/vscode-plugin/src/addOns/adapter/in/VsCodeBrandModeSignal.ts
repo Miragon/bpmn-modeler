@@ -12,7 +12,7 @@ const HOST_THEME_OF_KIND: Record<ColorThemeKind, HostColorThemeKind> = {
 };
 
 /**
- * The Artifacts view's brand mode from VS Code's colour theme and the
+ * The Add-ons view's brand mode from VS Code's colour theme and the
  * `colorTheme` setting, and each change of either.
  */
 export class VsCodeBrandModeSignal {
