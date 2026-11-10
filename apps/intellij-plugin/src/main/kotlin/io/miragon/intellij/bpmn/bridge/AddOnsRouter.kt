@@ -110,9 +110,9 @@ internal class AddOnsRouter(
         reloadPage?.invoke()
     }
 
+    /** Starts no bridge: a new one reads every add-on anyway, so the frame is only for a running one. */
     fun refresh() {
         deps.channel.notify(HostToCoreMethod.ADD_ONS_REFRESH, linkedMapOf<String, Any>())
-        deps.ensureStartedAsync()
     }
 
     fun clear() {
