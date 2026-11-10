@@ -35,7 +35,8 @@ export function addOnsHandlers({
                 log(`The add-ons view message failed: ${String(error)}`);
             });
         },
-        // Settings and root before visibility, so the listing the view triggers reads both.
+        // Settings ride here: an open queued while the bridge was down drains before
+        // the spawn's settings/didChange.
         [METHODS.addOnsOpen]: (params: AddOnsOpenParams) => {
             settingsMirror.apply(params.settings);
             claim(params.workspaceRoot);

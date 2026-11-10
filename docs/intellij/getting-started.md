@@ -48,9 +48,9 @@ The **Artifacts** tab of the **BPMN Modeler** tool window lists what your projec
 plugins under the config folder, the bpmnlint rule packages your `.bpmnlintrc` takes from `node_modules`, the element
 templates and the template marketplaces. It lists this project only.
 
-- Each plugin and rule package shows its state: **Allowed**, **Not allowed yet**, **Changed, review needed** or
-  **Declined this session**. **Review…** shows what you would allow, **Allow this content** allows it, **Revoke** takes
-  an approval back, and **Forget** drops the approval of one whose folder is gone. Rules from a rule package that
+- Each plugin and rule package shows its state: **Allowed**, **Not allowed yet**, **Changed, review needed**,
+  **Declined this session** or **Folder gone**. **Review…** shows what you would allow, **Allow this content** allows
+  it, **Revoke** takes an approval back, and **Forget** drops the approval of a **Folder gone** row. Rules from a rule package that
   already ran stay loaded until you restart the IDE.
 - **Disable** and **Enable** switch an element template, or all templates of a source, off and on. A switch holds for
   this project, which the IDE keeps in `.idea/workspace.xml`, or for all your projects.

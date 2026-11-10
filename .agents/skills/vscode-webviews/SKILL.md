@@ -39,7 +39,8 @@ only an empty `<div id="app"></div>` too; `src/adapter/in/catalogView.ts`
 builds the DOM from the model with the DOM API, never `innerHTML`, as the model
 holds workspace text. Its protocol is `libs/shared/src/lib/addOnsView.ts`, and
 the core's `AddOnsFeature.attachPanel` answers it, so a host only passes
-messages through. No host bundles it yet (#2250's second and third PRs).
+messages through. IntelliJ bundles it as the Artifacts tab of its BPMN Modeler
+tool window; VS Code follows in #2250's second PR.
 
 ## Content Security Policy (CSP)
 
