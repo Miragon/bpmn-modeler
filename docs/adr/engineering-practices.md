@@ -354,11 +354,16 @@ workspace's `tsconfig.lib.json` is unproven, and the runner works without it.
 `corepack yarn test:mutation` runs it; pass `--mutate <file>` to check the
 rules a change touched. The [mutation workflow](../../.github/workflows/mutation.yml)
 is report-only, like the VS Code smoke test, and not part of the required
-`ci` check: it runs every mutant weekly and on demand on `main`, caches
-Stryker's incremental file, and on pull requests and merges to `main` that
-touch a `domain/` folder re-tests only the mutants affected by the change.
-Each merge's run refreshes the cached baseline, so a pull request is compared
-against the `main` it branched from rather than last week's. Its step summary
+`ci` check: it runs every mutant weekly and on demand on `main`, and on pull
+requests and merges to `main` that touch a `domain/` folder re-tests only the
+mutants affected by the change. Each `main` run uploads Stryker's incremental
+file as the `stryker-incremental-modeler-core` artifact, and the next run
+restores the newest one, so a pull request is compared against the `main` it
+branched from rather than last week's. The baseline was a cache entry first;
+the repository's caches exceed the 10 GB limit, eviction removed it within
+hours, and every run fell back to all mutants and hit the timeout. A full run
+takes about 30 minutes, so runs on `main` get 60 and are not cancelled by the
+next merge, which would leave the baseline lost again. Its step summary
 lists the score per context and every undetected mutant
 (`corepack yarn fitness mutation summary --report <json>`). The first full run
 (2026-10-26, run 40365142588) scored 85.7 % over 2,918 mutants in 48 files
