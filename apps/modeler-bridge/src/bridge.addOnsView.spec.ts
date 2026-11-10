@@ -154,6 +154,19 @@ async function fromPage({ rpc }: ProjectBridge, message: object): Promise<void> 
 const nextModel = (project: ProjectBridge, fromIndex = 0) =>
     waitForFrame(project.frames, isPosted("AddOnCatalogQuery"), { fromIndex });
 
+/** Waits until the bridge sent nothing for `quietMs`, so no listing is still in flight. */
+async function untilQuiet({ frames }: ProjectBridge, quietMs = 300): Promise<void> {
+    let seen = frames.length;
+    let quietSince = Date.now();
+    while (Date.now() - quietSince < quietMs) {
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        if (frames.length !== seen) {
+            seen = frames.length;
+            quietSince = Date.now();
+        }
+    }
+}
+
 const isRequest = (method: string) => (frame: Frame) =>
     frame.method === method && frame.id !== undefined;
 
@@ -288,6 +301,7 @@ describe("the add-ons view on the bridge", () => {
         const [row] = rowsOf(await nextModel(project));
         expect(row?.state).toBe("new");
         const pluginId = row!.id.replace(/^plugin:/, "");
+        await untilQuiet(project);
         project.stored = {
             approvals: [{ pluginId, contentHash: await contentHashOf(pluginId) }],
             revision: 2,
@@ -319,6 +333,7 @@ describe("the add-ons view on the bridge", () => {
         await project.rpc.handleLine(
             hostNotification(METHODS.sessionDispose, { editorId, sessionId: 1 }),
         );
+        await untilQuiet(project);
         const fromIndex = project.frames.length;
 
         await project.rpc.handleLine(hostNotification(METHODS.addOnsRefresh, {}));
