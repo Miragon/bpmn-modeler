@@ -1,8 +1,8 @@
 import { relativeToWorkspace } from "./rootContainment";
 
-/** Workspace code that runs only once the user allowed this content at this place. */
+/** Workspace code that runs only once the user allowed this content. */
 export interface ApprovableArtifact {
-    /** Where the code lives: an approval is for this place, never for a name a repo can copy. */
+    /** Where the code lives; a row records each place, the content decides. */
     readonly id: string;
     readonly name: string;
     /** Covers every byte that can run, so any change to it asks again. */
@@ -10,9 +10,10 @@ export interface ApprovableArtifact {
 }
 
 /**
- * The user allowed this content at this place. Kept by the host for the user,
- * outside the workspace, so a repository cannot approve itself. One list holds
- * the rows of every approval kind; the field names are the hosts' stored ones.
+ * The user allowed this content, recorded at the place it was found. Kept by
+ * the host for the user, outside the workspace, so a repository cannot approve
+ * itself. One list holds the rows of every approval kind; the field names are
+ * the hosts' stored ones.
  */
 export interface CodeApproval {
     readonly pluginId: string;
@@ -98,15 +99,15 @@ export function rowContentOf(id: string, approvals: readonly CodeApproval[]): st
     return approvalRowOf(id, approvals)?.contentHash;
 }
 
+/** A row counts for its content wherever it sits; a row here of other content is `changed`. */
 export function approvalStateOf(
     artifact: ApprovableArtifact,
     approvals: readonly CodeApproval[],
 ): ApprovalState {
-    const approval = approvalRowOf(artifact.id, approvals);
-    if (approval === undefined) {
-        return "new";
+    if (approvals.some((row) => row.contentHash === artifact.contentHash)) {
+        return "approved";
     }
-    return approval.contentHash === artifact.contentHash ? "approved" : "changed";
+    return approvalRowOf(artifact.id, approvals) === undefined ? "new" : "changed";
 }
 
 export function approvedArtifacts<A extends ApprovableArtifact>(
@@ -246,7 +247,7 @@ function rowOf({ pluginId, contentHash }: CodeApproval): CodeApproval {
     return { pluginId, contentHash };
 }
 
-/** The first row wins, as {@link approvalStateOf} reads it. */
+/** The first row of an id wins, as {@link approvalStateOf} reads a row of other content. */
 function firstRowById(approvals: readonly CodeApproval[]): Map<string, CodeApproval> {
     const byId = new Map<string, CodeApproval>();
     for (const row of approvals) {
@@ -261,18 +262,16 @@ export function declineKeyOf(artifact: ApprovableArtifact): string {
 }
 
 /**
- * Only a row or a decline of the id can match, so code with neither is `new`
- * without reading every byte of it.
+ * Any row of its kind may hold its content, and a decline of its id may name
+ * it, so only code with neither is `new` without reading every byte of it.
+ * `rowsOfKind` holds only the rows of this code's kind.
  */
 export function needsContentHash(
     id: string,
-    approvals: readonly CodeApproval[],
+    rowsOfKind: readonly CodeApproval[],
     declined: ReadonlySet<string>,
 ): boolean {
-    return (
-        approvalRowOf(id, approvals) !== undefined ||
-        [...declined].some((key) => isAnswerKeyOf(id, key))
-    );
+    return rowsOfKind.length > 0 || [...declined].some((key) => isAnswerKeyOf(id, key));
 }
 
 /** A path id can hold a `#`; a content hash never does, so the key's last `#` ends the id. */
@@ -382,7 +381,11 @@ export interface CodeApprovalOutcome<A extends ApprovableArtifact> {
     readonly answers: ReadonlyMap<string, SessionAnswer>;
 }
 
-/** Unchecked content is declined; content left to a view is neither allowed nor declined. */
+/**
+ * Checked content is allowed at every pending place that holds it, as an
+ * approval counts for its content anywhere; only other unchecked content is
+ * declined. Content left to a view is neither allowed nor declined.
+ */
 export function approvalOutcome<A extends ApprovableArtifact>(
     pending: readonly PendingCodeApproval<A>[],
     answer: ReviewAnswer,
@@ -395,14 +398,19 @@ export function approvalOutcome<A extends ApprovableArtifact>(
             ),
         };
     }
-    const checked = new Set(answer.ids);
+    const checkedIds = new Set(answer.ids);
+    const checkedContent = new Set(
+        pending
+            .filter(({ artifact }) => checkedIds.has(artifact.id))
+            .map(({ artifact }) => artifact.contentHash),
+    );
+    const isChecked = ({ artifact }: PendingCodeApproval<A>) =>
+        checkedContent.has(artifact.contentHash);
     return {
-        allowed: pending
-            .filter(({ artifact }) => checked.has(artifact.id))
-            .map(({ artifact }) => artifact),
+        allowed: pending.filter(isChecked).map(({ artifact }) => artifact),
         answers: new Map(
             pending
-                .filter(({ artifact }) => !checked.has(artifact.id))
+                .filter((each) => !isChecked(each))
                 .map(({ artifact }) => [declineKeyOf(artifact), "declined"]),
         ),
     };

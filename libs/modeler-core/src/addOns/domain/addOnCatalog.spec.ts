@@ -350,6 +350,25 @@ describe("catalogModelOf", () => {
             actions: ["revoke:Revoke"],
         },
         {
+            case: "content allowed only in another folder",
+            presence: found(RESIZE, "Resize", "h1"),
+            approvals: [{ pluginId: "/worktree/.camunda/plugins/resize", contentHash: "h1" }],
+            state: "approved",
+            stateText: "Allowed",
+            actions: ["revoke:Revoke"],
+        },
+        {
+            case: "content changed here but allowed in another folder",
+            presence: found(RESIZE, "Resize", "h2"),
+            approvals: [
+                { pluginId: RESIZE, contentHash: "h1" },
+                { pluginId: "/worktree/.camunda/plugins/resize", contentHash: "h2" },
+            ],
+            state: "approved",
+            stateText: "Allowed",
+            actions: ["revoke:Revoke"],
+        },
+        {
             case: "content never allowed",
             presence: found(RESIZE, "Resize", "h1"),
             approvals: [],

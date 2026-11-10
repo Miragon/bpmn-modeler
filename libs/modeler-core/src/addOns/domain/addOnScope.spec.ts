@@ -150,10 +150,18 @@ describe("isHashWanted", () => {
             wanted: true,
         },
         {
+            case: "for a package while another place's row of its kind may hold its content",
+            context: {
+                ...none,
+                approvals: [{ pluginId: "/work/node_modules/other", contentHash: "h" }],
+            },
+            wanted: true,
+        },
+        {
             case: "not for a package only another was asked about",
             context: {
                 inspected: new Set(["/work/node_modules/other"]),
-                approvals: [{ pluginId: "/work/node_modules/other", contentHash: "h" }],
+                approvals: [],
                 answers: new Map([["/work/node_modules/other#h", "leftForView"]]),
             },
             wanted: false,

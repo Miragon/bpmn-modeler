@@ -207,6 +207,24 @@ describe("editorsToReload", () => {
             approvals: [row(resize), { pluginId: "/x", contentHash: "x" }],
             editors: [],
         },
+        {
+            case: "none while a served plugin's content stays allowed in another folder",
+            approvals: [
+                { pluginId: "/worktree/.camunda/plugins/resize", contentHash: resize.contentHash },
+            ],
+            editors: [],
+        },
+        {
+            case: "the editors withheld a plugin whose content is now allowed in another folder",
+            approvals: [
+                row(resize),
+                {
+                    pluginId: "/worktree/.camunda/plugins/palette",
+                    contentHash: palette.contentHash,
+                },
+            ],
+            editors: ["file:///repo/a.bpmn", "file:///repo/b.bpmn"],
+        },
     ])("returns $case", ({ approvals, editors }) => {
         expect(editorsToReload(offered, approvals)).toEqual(editors);
     });

@@ -127,18 +127,17 @@ export class AddOnInventoryReader {
         if (rulePackages === undefined) {
             return [];
         }
+        const ownedRows = approvals.filter((row) => rulePackages.ownsApproval(row));
         const ids = rulePackageIdsToList(folders, {
             installed: rulePackages.installedIn(
                 rulePackageDirsToList(folders, rulePackages.lintConfigDirs()),
             ),
             seen: rulePackages.seenPackageIds(),
-            ownedRowIds: approvals
-                .filter((row) => rulePackages.ownsApproval(row))
-                .map(({ pluginId }) => pluginId),
+            ownedRowIds: ownedRows.map(({ pluginId }) => pluginId),
         });
         const hashContext = {
             inspected,
-            approvals,
+            approvals: ownedRows,
             answers: rulePackages.sessionAnswers(),
         };
         return ids.map((id) => ({

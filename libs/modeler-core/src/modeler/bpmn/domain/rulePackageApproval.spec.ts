@@ -423,8 +423,20 @@ describe("rulePackageVerdict", () => {
             verdict: { kind: "blocked", state: "new" },
         },
         {
-            case: "the self-package with no row, like any other package",
+            case: "a package with no row while another folder's row exists, before it is hashed",
+            context: context({ approvals: [{ pluginId: "/other", contentHash: old }] }),
+            verdict: { kind: "hashNeeded" },
+        },
+        {
+            case: "a package whose content another folder's row holds",
             context: context({ approvals: [{ pluginId: "/other", contentHash: current }] }),
+            contentHash: current,
+            verdict: { kind: "admitted", via: "approval" },
+        },
+        {
+            case: "a package whose content no folder's row holds",
+            context: context({ approvals: [{ pluginId: "/other", contentHash: old }] }),
+            contentHash: current,
             verdict: { kind: "blocked", state: "new" },
         },
         {
@@ -574,9 +586,9 @@ describe("editorsToRelint", () => {
 
     it.each<{ case: string; followed: FollowedApprovalChange; editors: string[] }>([
         {
-            case: "the editors blocked on one allowed package",
+            case: "every editor blocked on any package for one allowed package",
             followed: followed(codeApprovalChange([row("/acme")], [])),
-            editors: ["a.bpmn", "b.bpmn"],
+            editors: ["a.bpmn", "b.bpmn", "c.bpmn"],
         },
         {
             case: "each editor once, blocked on two allowed packages",
@@ -584,9 +596,9 @@ describe("editorsToRelint", () => {
             editors: ["a.bpmn", "b.bpmn", "c.bpmn"],
         },
         {
-            case: "no editor for a package none is blocked on",
+            case: "every editor blocked on any package, as another folder's allow may cover it",
             followed: followed(codeApprovalChange([row("/nobody")], [])),
-            editors: [],
+            editors: ["a.bpmn", "b.bpmn", "c.bpmn"],
         },
         {
             case: "every host-linted editor on a revoke, since no lint records what it admitted",
@@ -596,12 +608,12 @@ describe("editorsToRelint", () => {
         {
             case: "every host-linted editor for a package allowed at another content",
             followed: followed(codeApprovalChange([row("/acme")], []), ["/acme"]),
-            editors: ["a.bpmn", "b.bpmn", "d.bpmn", "e.bpmn"],
+            editors: ["a.bpmn", "b.bpmn", "c.bpmn", "d.bpmn", "e.bpmn"],
         },
         {
             case: "each editor once on a revoke beside an allow",
             followed: followed(codeApprovalChange([row("/other")], ["/acme"])),
-            editors: ["b.bpmn", "c.bpmn", "d.bpmn", "e.bpmn", "a.bpmn"],
+            editors: ["a.bpmn", "b.bpmn", "c.bpmn", "d.bpmn", "e.bpmn"],
         },
         {
             case: "no editor for no change",

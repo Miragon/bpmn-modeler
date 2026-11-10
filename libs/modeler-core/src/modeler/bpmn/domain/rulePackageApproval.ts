@@ -185,9 +185,10 @@ export function isRulePackageApproval(approval: CodeApproval): boolean {
 }
 
 /**
- * Whether a rule package may run. It hashes only when a row or a decline
- * could match, so a package seen for the first time costs no hashing:
- * `hashNeeded` asks the caller to come back with the current content hash.
+ * Whether a rule package may run: admitted by any rule package row of its
+ * content, wherever that row sits. It hashes only when a row or a decline
+ * could match, so while no rule package row exists a package costs no
+ * hashing: `hashNeeded` asks the caller to come back with the current hash.
  */
 export function rulePackageVerdict(
     rootId: string,
@@ -233,20 +234,23 @@ export function rulePackagesToAsk(
 
 /**
  * The editors whose last host lint a change of rule package approvals makes
- * stale, each once: an allow those blocked on an allowed package, a withdrawn
- * approval every host-linted editor, because no lint run records the packages
- * it admitted.
+ * stale, each once: an allow every editor blocked on any package, because a
+ * row at one place admits the same content at every other; a withdrawn
+ * approval every host-linted editor, because a withdrawal must reach the
+ * loaded code wherever it ran.
  */
 export function editorsToRelint(
     blockedByEditor: ReadonlyMap<string, readonly string[]>,
     hostLinted: readonly string[],
     { change, withdrawn }: FollowedApprovalChange,
 ): string[] {
-    const allowed = new Set(change.allow.map(({ pluginId }) => pluginId));
-    const blockedOnAllowed = [...blockedByEditor]
-        .filter(([, blockedIds]) => blockedIds.some((id) => allowed.has(id)))
-        .map(([editorId]) => editorId);
-    return [...new Set([...blockedOnAllowed, ...(withdrawn.length > 0 ? hostLinted : [])])];
+    const blocked =
+        change.allow.length === 0
+            ? []
+            : [...blockedByEditor]
+                  .filter(([, blockedIds]) => blockedIds.length > 0)
+                  .map(([editorId]) => editorId);
+    return [...new Set([...blocked, ...(withdrawn.length > 0 ? hostLinted : [])])];
 }
 
 /**

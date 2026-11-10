@@ -479,6 +479,38 @@ describe("BpmnPluginsFeature", () => {
             expect(editor.reloadCount).toBe(0);
         });
 
+        it("serves a plugin allowed in another folder without a notice", async () => {
+            const { host, requestPlugins, openEditor } = setUp(RESIZE_FILES);
+            host.pluginApprovals.approvals = [
+                { pluginId: "/worktree/.camunda/plugins/resize-tasks", contentHash: RESIZE_HASH },
+            ];
+            const editor = await openEditor();
+
+            await requestPlugins(editor);
+
+            expect(answeredPlugins(editor)).toEqual([
+                {
+                    name: "Resize Tasks",
+                    scriptUrl: `webview-resource:${CACHE}/${RESIZE_HASH}/plugin.js`,
+                },
+            ]);
+            expect(host.actionNotifier.notices).toEqual([]);
+        });
+
+        it("serves a plugin whose row here holds older content but which is allowed in another folder", async () => {
+            const { host, requestPlugins, openEditor } = setUp(RESIZE_FILES);
+            host.pluginApprovals.approvals = [
+                { pluginId: RESIZE, contentHash: "0".repeat(64) },
+                { pluginId: "/worktree/.camunda/plugins/resize-tasks", contentHash: RESIZE_HASH },
+            ];
+            const editor = await openEditor();
+
+            await requestPlugins(editor);
+
+            expect(answeredPlugins(editor)?.map(({ name }) => name)).toEqual(["Resize Tasks"]);
+            expect(host.actionNotifier.notices).toEqual([]);
+        });
+
         it("does not notify again in this session once the notice was closed", async () => {
             const { host, requestPlugins, openEditor } = setUp(RESIZE_FILES);
             const editor = await openEditor();

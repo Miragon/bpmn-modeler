@@ -120,6 +120,27 @@ describe("approvalStateOf", () => {
             case: "an approval of the same content in another folder",
             artifact: resize,
             approvals: [{ pluginId: "/elsewhere/resize-tasks", contentHash: "aaa" }],
+            state: "approved",
+        },
+        {
+            case: "an old row here and this content allowed in another folder",
+            artifact: resize,
+            approvals: [
+                { pluginId: resize.id, contentHash: "old" },
+                { pluginId: "/elsewhere/resize-tasks", contentHash: "aaa" },
+            ],
+            state: "approved",
+        },
+        {
+            case: "other content allowed in another folder",
+            artifact: resize,
+            approvals: [{ pluginId: "/elsewhere/resize-tasks", contentHash: "aab" }],
+            state: "new",
+        },
+        {
+            case: "a plugin row of the same digest, which never approves a rule package",
+            artifact: acmeRules,
+            approvals: [{ pluginId: "/elsewhere/.camunda/plugins/acme", contentHash: "ddd" }],
             state: "new",
         },
         {
@@ -161,9 +182,9 @@ describe("approvedArtifacts", () => {
             approved: [resize, palette],
         },
         {
-            case: "keeps none for an approval of the same content in another folder",
+            case: "keeps an artifact whose content the user allowed in another folder",
             approvals: [{ pluginId: "/elsewhere/resize-tasks", contentHash: "aaa" }],
-            approved: [],
+            approved: [resize],
         },
         { case: "keeps none without approvals", approvals: [], approved: [] },
     ])("$case", ({ approvals, approved }) => {
@@ -511,6 +532,15 @@ describe("pendingApprovals", () => {
             ],
         },
         {
+            case: "asks nothing about content allowed in another folder",
+            approvals: [
+                { pluginId: "/elsewhere/resize-tasks", contentHash: "aaa" },
+                { pluginId: "/elsewhere/reduced-palette", contentHash: "bbb" },
+            ],
+            declined: [],
+            pending: [],
+        },
+        {
             case: "asks nothing when every artifact is allowed or declined",
             approvals: [{ pluginId: resize.id, contentHash: "aaa" }],
             declined: [declineKeyOf(palette)],
@@ -537,6 +567,10 @@ describe("approvalOutcome", () => {
         { artifact: palette, state: "changed" },
     ];
     const checked = (...ids: string[]): ReviewAnswer => ({ kind: "checked", ids });
+    const resizeCopy: ApprovableArtifact = {
+        ...resize,
+        id: "/worktree/.camunda/plugins/resize-tasks",
+    };
 
     it.each<{
         case: string;
@@ -599,6 +633,60 @@ describe("approvalOutcome", () => {
         },
     ])("$case", ({ answer, outcome }) => {
         expect(approvalOutcome(pending, answer)).toEqual(outcome);
+    });
+
+    it.each<{
+        case: string;
+        answer: ReviewAnswer;
+        outcome: CodeApprovalOutcome<ApprovableArtifact>;
+    }>([
+        {
+            case: "a checked artifact allows every pending copy of its content and declines none of them",
+            answer: checked(resize.id),
+            outcome: { allowed: [resize, resizeCopy], answers: new Map() },
+        },
+        {
+            case: "checking the other copy allows both",
+            answer: checked(resizeCopy.id),
+            outcome: { allowed: [resize, resizeCopy], answers: new Map() },
+        },
+        {
+            case: "unchecked copies of unchecked content are each declined",
+            answer: checked(),
+            outcome: {
+                allowed: [],
+                answers: new Map([
+                    [declineKeyOf(resize), "declined"],
+                    [declineKeyOf(resizeCopy), "declined"],
+                ]),
+            },
+        },
+    ])("$case", ({ answer, outcome }) => {
+        expect(
+            approvalOutcome(
+                [
+                    { artifact: resize, state: "new" },
+                    { artifact: resizeCopy, state: "new" },
+                ],
+                answer,
+            ),
+        ).toEqual(outcome);
+    });
+
+    it("declines unchecked other content beside a checked copy", () => {
+        expect(
+            approvalOutcome(
+                [
+                    { artifact: resize, state: "new" },
+                    { artifact: resizeCopy, state: "new" },
+                    { artifact: palette, state: "changed" },
+                ],
+                checked(resizeCopy.id),
+            ),
+        ).toEqual({
+            allowed: [resize, resizeCopy],
+            answers: new Map([[declineKeyOf(palette), "declined"]]),
+        });
     });
 
     it("allows a checked rule package as it was asked about", () => {
@@ -719,7 +807,12 @@ describe("needsContentHash", () => {
             declined: [declineKeyOf({ ...resize, contentHash: "old" })],
             needed: true,
         },
-        { case: "only another id's row", approvals: [other], declined: [], needed: false },
+        {
+            case: "a row of this kind at another place, which may hold its content",
+            approvals: [other],
+            declined: [],
+            needed: true,
+        },
         {
             case: "only declines whose id starts or ends like this one",
             approvals: [],
@@ -831,10 +924,23 @@ describe("codeStateOf", () => {
             reading: state("changed"),
         },
         {
-            case: "unhashed content without a row or a decline",
+            case: "content allowed in another folder, declined here",
+            presence: found,
+            approvals: [{ pluginId: "/elsewhere/resize-tasks", contentHash: "aaa" }],
+            declined: [declinedNow],
+            reading: state("approved"),
+        },
+        {
+            case: "unhashed content without any row or a decline",
+            presence: { kind: "unhashed", id: resize.id },
+            approvals: [],
+            reading: state("new"),
+        },
+        {
+            case: "unhashed content with only another place's row, which may hold its content",
             presence: { kind: "unhashed", id: resize.id },
             approvals: [other],
-            reading: state("new"),
+            reading: { kind: "hashNeeded" },
         },
         {
             case: "unhashed content with a row",
@@ -859,6 +965,12 @@ describe("codeStateOf", () => {
             case: "unreadable content without a row",
             presence: { kind: "unreadable", id: resize.id, reason: "manifest missing" },
             approvals: [other],
+            reading: state("new"),
+        },
+        {
+            case: "unreadable content with no row here but this id's content elsewhere",
+            presence: { kind: "unreadable", id: resize.id, reason: "manifest missing" },
+            approvals: [{ pluginId: "/elsewhere/resize-tasks", contentHash: "aaa" }],
             reading: state("new"),
         },
     ])("reads $case", ({ presence, approvals, declined = [], reading }) => {

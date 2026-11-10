@@ -258,6 +258,63 @@ describe("AddOnsFeature", () => {
             expect(disk.filesHashed).toEqual([]);
         });
 
+        it("lists code allowed in another folder as Allowed with Revoke", async () => {
+            const { host, install, addOns, view, rulePackageHashOf } = setUp();
+            install(ACME, "bpmnlint-plugin-acme");
+            host.pluginApprovals.approvals = [
+                { pluginId: "/worktree/.camunda/plugins/resize-tasks", contentHash: RESIZE_HASH },
+                {
+                    pluginId: "/worktree/node_modules/bpmnlint-plugin-acme",
+                    contentHash: rulePackageHashOf(ACME),
+                },
+            ];
+
+            view.attachTo(addOns);
+            await shown(addOns);
+
+            expect(
+                view
+                    .addOns()
+                    .map(({ name, stateText, actions }) => [
+                        name,
+                        stateText,
+                        actions.map(({ label }) => label),
+                    ]),
+            ).toEqual([
+                ["Resize Tasks", "Allowed", ["Revoke"]],
+                ["bpmnlint-plugin-acme", "Allowed", ["Revoke"]],
+            ]);
+        });
+
+        it("hashes a rule package with no row once a rule package row exists", async () => {
+            const { host, disk, install, addOns, view } = setUp({ files: {} });
+            install(ACME, "bpmnlint-plugin-acme");
+            host.pluginApprovals.approvals = [
+                { pluginId: "/worktree/.camunda/plugins/resize-tasks", contentHash: RESIZE_HASH },
+            ];
+            view.attachTo(addOns);
+            await shown(addOns);
+            const hashedWithPluginRowOnly = [...disk.filesHashed];
+
+            host.pluginApprovals.storeElsewhere(
+                [
+                    ...host.pluginApprovals.approvals,
+                    {
+                        pluginId: "/worktree/node_modules/bpmnlint-plugin-other",
+                        contentHash: "bpmnlint-closure-v1:other",
+                    },
+                ],
+                { notify: true },
+            );
+            await shown(addOns);
+
+            expect(hashedWithPluginRowOnly).toEqual([]);
+            expect(disk.filesHashed).not.toEqual([]);
+            expect(
+                view.codeAddOnNamed("bpmnlint-plugin-acme").actions.map(({ kind }) => kind),
+            ).toEqual(["allow"]);
+        });
+
         it("lists a stored row whose folder is gone, and none outside the workspace folders", async () => {
             const { host, addOns, view } = setUp({ files: {} });
             host.pluginApprovals.approvals = [
@@ -624,6 +681,33 @@ describe("AddOnsFeature", () => {
                 expect(view.codeAddOnNamed("bpmnlint-plugin-acme").note).toBe(stillLoaded);
             },
         );
+
+        it("a revoked rule package allowed in another folder, without a row here, still says its code stays loaded", async () => {
+            const { host, install, addOns, view, rulePackageHashOf } = setUp({ files: {} });
+            install(ACME, "bpmnlint-plugin-acme");
+            host.pluginApprovals.approvals = [
+                {
+                    pluginId: "/worktree/node_modules/bpmnlint-plugin-acme",
+                    contentHash: rulePackageHashOf(ACME),
+                },
+            ];
+            view.attachTo(addOns);
+            await shown(addOns);
+
+            const result = await view.connection?.handle({
+                kind: "revoke",
+                addOnId: `rulePackage:${ACME}`,
+            });
+            await shown(addOns);
+
+            const stillLoaded = "Code it already ran stays loaded until you reload the window.";
+            expect(result).toEqual({
+                kind: "done",
+                message: `Revoked bpmnlint-plugin-acme here and in 1 other folder. ${stillLoaded}`,
+            });
+            expect(host.pluginApprovals.approvals).toEqual([]);
+            expect(view.codeAddOnNamed("bpmnlint-plugin-acme").note).toBe(stillLoaded);
+        });
 
         it("asks no notice here about a rule package revoked from the view", async () => {
             const { host, install, addOns, view, rulePackageCatalog, rulePackageHashOf } = setUp({

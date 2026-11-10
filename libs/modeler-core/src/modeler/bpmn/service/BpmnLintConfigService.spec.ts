@@ -1029,13 +1029,16 @@ describe("BpmnLintConfigService — workspace rule packages the user has not all
         ]);
     });
 
-    it("allows a checked package and lints again only the diagrams blocked on it", async () => {
+    it("allows a checked package and lints again every diagram blocked on a package", async () => {
         const ctx = createRulePackageHost({ noticeAnswers: REVIEW, promptAnswers: ALLOW_ACME });
         ctx.blocks.set(XML_OTHER, [blocked(OTHER, false)]);
+        ctx.blocks.set("<none/>", []);
         const other = ctx.host.openEditor(OTHER_PATH, XML_OTHER);
+        const none = ctx.host.openEditor("/work/none.bpmn", "<none/>");
         const acme = ctx.host.openEditor(PATH, XML, { focused: true });
 
         await ctx.service.setBpmnlintConfig(other.id);
+        await ctx.service.setBpmnlintConfig(none.id);
         await ctx.service.setBpmnlintConfig(acme.id);
         await ctx.service.whenApprovalSettled();
 
@@ -1043,7 +1046,8 @@ describe("BpmnLintConfigService — workspace rule packages the user has not all
             { pluginId: ACME, contentHash: ctx.contentHashOf(ACME) },
         ]);
         expect(ctx.hostResults(acme)).toEqual([{}, RESULTS]);
-        expect(ctx.hostResults(other)).toEqual([RESULTS]);
+        expect(ctx.hostResults(other)).toEqual([RESULTS, RESULTS]);
+        expect(ctx.hostResults(none)).toEqual([RESULTS]);
         expect(ctx.host.statusBar.views.bpmnlint).toEqual(
             bpmnlintStatusView({ state: "active", configPath: CONFIG_PATH }),
         );
@@ -1203,7 +1207,7 @@ describe("BpmnLintConfigService — workspace rule packages the user has not all
         ]);
     });
 
-    it("lints again the diagrams blocked on a package another writer allowed", async () => {
+    it("lints again every diagram blocked on a package once another writer allowed one", async () => {
         const ctx = createRulePackageHost();
         ctx.blocks.set(XML_OTHER, [blocked(OTHER, true)]);
         const acme = ctx.host.openEditor(PATH, XML, { focused: true });
@@ -1219,7 +1223,7 @@ describe("BpmnLintConfigService — workspace rule packages the user has not all
         await ctx.service.whenApprovalSettled();
 
         expect(ctx.hostResults(acme)).toEqual([{}, RESULTS]);
-        expect(ctx.hostResults(other)).toEqual([{}]);
+        expect(ctx.hostResults(other)).toEqual([{}, {}]);
     });
 
     it("lints again every host-linted diagram on a revoke, and no diagram linted in the page", async () => {
