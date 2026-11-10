@@ -87,6 +87,11 @@ describe("RPC protocol descriptor", () => {
             const committed = JSON.parse(readFileSync(resolve(__dirname, "protocol.json"), "utf8"));
             expect(protocolSnapshot()).toEqual(committed);
         });
+
+        it("carries how long the core waits for a reply, so a host stops showing what the core gave up on", () => {
+            const reveal = protocolSnapshot().find(({ method }) => method === METHODS.addOnsReveal);
+            expect(reveal?.replyDeadlineMs).toBe(HOST_SHOW_REPLY_DEADLINE_MS);
+        });
     });
 
     describe("doc table", () => {

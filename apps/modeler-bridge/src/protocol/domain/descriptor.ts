@@ -1022,6 +1022,8 @@ export interface ProtocolSnapshotEntry {
     paramKeys: string[];
     /** Sorted top-level result keys; absent for notifications and void requests. */
     resultKeys?: string[];
+    /** How long the core waits for the reply; absent where it waits until the host answers. */
+    replyDeadlineMs?: number;
 }
 
 /**
@@ -1041,6 +1043,8 @@ export function protocolSnapshot(): ProtocolSnapshotEntry[] {
         if ("resultFixture" in entry && entry.resultFixture) {
             snapshot.resultKeys = Object.keys(entry.resultFixture).sort();
         }
+        const deadlineMs = replyDeadlineMs(entry.method);
+        if (deadlineMs !== undefined) snapshot.replyDeadlineMs = deadlineMs;
         return snapshot;
     });
 }
