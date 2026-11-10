@@ -480,7 +480,7 @@ and source architecture tests guard the import boundary.
 Proposed for [#1626](https://github.com/Miragon/bpmn-modeler/issues/1626) and
 shipped for VS Code by [#2240](https://github.com/Miragon/bpmn-modeler/issues/2240)
 and for IntelliJ by [#2242](https://github.com/Miragon/bpmn-modeler/issues/2242);
-not released. Orca ([#2244](https://github.com/Miragon/bpmn-modeler/issues/2244))
+released in VS Code 1.21.0 and IntelliJ 1.16.0. Orca ([#2244](https://github.com/Miragon/bpmn-modeler/issues/2244))
 reuses the same core and package. Teams want to load bpmn-js plugins, many written for
 the Camunda Modeler, without forking a host or building an app on the package.
 The [user guide](../vscode/features/bpmn-plugins.md) carries what users must

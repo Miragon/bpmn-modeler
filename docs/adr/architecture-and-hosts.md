@@ -877,7 +877,8 @@ the core. The deployment services search the workspace through
 `chooseMany`.
 
 A notification with actions follows the same split (proposed with the
-[BPMN plugins](bpmn-modeler.md#user-supplied-plugins-proposed), not released).
+[BPMN plugins](bpmn-modeler.md#user-supplied-plugins-proposed), released in
+VS Code 1.21.0 and IntelliJ 1.16.0).
 `NotifierPort` only shows text, and a `PickerPort` list is too heavy for a
 yes-or-later question, so the kernel adds a generic port
 (`ActionNotifierPort.offer(notice)` in `kernel/port/hostPorts.ts`). The core
