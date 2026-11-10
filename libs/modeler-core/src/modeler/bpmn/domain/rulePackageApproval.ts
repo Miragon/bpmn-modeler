@@ -282,6 +282,8 @@ export const RULE_PACKAGE_CODE_TEXTS: ApprovableCodeTexts = {
     allowedFollowUp: "Open editors lint again with it.",
     revokedFollowUp: (restart) =>
         `Code it already ran stays loaded until you ${PROCESS_RESTART_TEXT[restart]}.`,
+    carriedOver: ({ artifact, allowedAt }) =>
+        `Allowed bpmnlint rule package ${artifact.name} in ${artifact.id}: you allowed the same content in ${allowedAt}.`,
 };
 
 export function rulePackageApprovalPrompt(

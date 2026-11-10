@@ -258,19 +258,32 @@ describe("AddOnsFeature", () => {
             expect(disk.filesHashed).toEqual([]);
         });
 
-        it("lists code allowed in another folder as Allowed with Revoke", async () => {
+        it("lists code allowed in another folder as Allowed with Revoke and stores its rows", async () => {
             const { host, install, addOns, view, rulePackageHashOf } = setUp();
             install(ACME, "bpmnlint-plugin-acme");
-            host.pluginApprovals.approvals = [
+            const elsewhere = [
                 { pluginId: "/worktree/.camunda/plugins/resize-tasks", contentHash: RESIZE_HASH },
                 {
                     pluginId: "/worktree/node_modules/bpmnlint-plugin-acme",
                     contentHash: rulePackageHashOf(ACME),
                 },
             ];
+            host.pluginApprovals.approvals = elsewhere;
 
             view.attachTo(addOns);
             await shown(addOns);
+
+            expect(host.pluginApprovals.approvals).toEqual([
+                ...elsewhere,
+                { pluginId: RESIZE, contentHash: RESIZE_HASH },
+                { pluginId: ACME, contentHash: rulePackageHashOf(ACME) },
+            ]);
+            expect(
+                host.notifier.logged("info").filter((line) => line.startsWith("Allowed")),
+            ).toEqual([
+                `Allowed BPMN plugin Resize Tasks in ${RESIZE}: you allowed the same content in /worktree/.camunda/plugins/resize-tasks.`,
+                `Allowed bpmnlint rule package bpmnlint-plugin-acme in ${ACME}: you allowed the same content in /worktree/node_modules/bpmnlint-plugin-acme.`,
+            ]);
 
             expect(
                 view

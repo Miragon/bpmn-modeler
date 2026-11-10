@@ -8,6 +8,8 @@ import {
     type ApprovableArtifact,
     approvalChangeBetween,
     type ApprovalState,
+    type CarriedApproval,
+    carriedApprovals,
     approvalOutcome,
     approvalsAfter,
     approvalsKey,
@@ -31,6 +33,7 @@ import {
     isLeftForView,
     needsContentHash,
     notAskedAgain,
+    orphanedCarries,
     type PendingCodeApproval,
     pendingApprovalDescription,
     isApprovedState,
@@ -306,6 +309,143 @@ describe("placesAllowing and revokingContent", () => {
     ])("withdraws $case", ({ approvals, places, revoke }) => {
         expect(placesAllowing("aaa", approvals)).toEqual(places);
         expect(revokingContent(here, "aaa", approvals)).toEqual(revoking(revoke));
+    });
+});
+
+describe("carriedApprovals", () => {
+    const elsewhere = "/elsewhere/.camunda/plugins/resize-tasks";
+    const third = "/third/.camunda/plugins/resize-tasks";
+    const copy: ApprovableArtifact = { ...resize, id: "/worktree/.camunda/plugins/resize-tasks" };
+
+    it.each<{
+        case: string;
+        artifacts: ApprovableArtifact[];
+        approvals: CodeApproval[];
+        carried: CarriedApproval[];
+    }>([
+        { case: "nothing without a row", artifacts: [resize], approvals: [], carried: [] },
+        {
+            case: "nothing for content its own row holds",
+            artifacts: [resize],
+            approvals: [
+                { pluginId: elsewhere, contentHash: "aaa" },
+                { pluginId: resize.id, contentHash: "aaa" },
+            ],
+            carried: [],
+        },
+        {
+            case: "code allowed only in another folder, from the first row holding it",
+            artifacts: [resize, palette],
+            approvals: [
+                other,
+                { pluginId: elsewhere, contentHash: "aaa" },
+                { pluginId: third, contentHash: "aaa" },
+            ],
+            carried: [{ artifact: resize, allowedAt: elsewhere }],
+        },
+        {
+            case: "an old row here and the content allowed elsewhere",
+            artifacts: [resize],
+            approvals: [
+                { pluginId: resize.id, contentHash: "old" },
+                { pluginId: elsewhere, contentHash: "aaa" },
+            ],
+            carried: [{ artifact: resize, allowedAt: elsewhere }],
+        },
+        {
+            case: "one place found twice, named once",
+            artifacts: [resize, { ...resize, name: "Again" }],
+            approvals: [{ pluginId: elsewhere, contentHash: "aaa" }],
+            carried: [{ artifact: resize, allowedAt: elsewhere }],
+        },
+        {
+            case: "two places of one content, each",
+            artifacts: [resize, copy],
+            approvals: [{ pluginId: elsewhere, contentHash: "aaa" }],
+            carried: [
+                { artifact: resize, allowedAt: elsewhere },
+                { artifact: copy, allowedAt: elsewhere },
+            ],
+        },
+        {
+            case: "nothing for other content elsewhere",
+            artifacts: [resize],
+            approvals: [{ pluginId: elsewhere, contentHash: "aab" }],
+            carried: [],
+        },
+        {
+            case: "a place stored twice, its first row of older content, from another place first",
+            artifacts: [resize],
+            approvals: [
+                { pluginId: resize.id, contentHash: "old" },
+                { pluginId: resize.id, contentHash: "aaa" },
+                { pluginId: elsewhere, contentHash: "aaa" },
+            ],
+            carried: [{ artifact: resize, allowedAt: elsewhere }],
+        },
+        {
+            case: "a place stored twice with no other holder, from its own later row",
+            artifacts: [resize],
+            approvals: [
+                { pluginId: resize.id, contentHash: "old" },
+                { pluginId: resize.id, contentHash: "aaa" },
+            ],
+            carried: [{ artifact: resize, allowedAt: resize.id }],
+        },
+    ])("carries $case", ({ artifacts, approvals, carried }) => {
+        expect(carriedApprovals(artifacts, approvals)).toEqual(carried);
+    });
+
+    it("keeps the artifacts' own fields, so a writer can allow them as they are", () => {
+        const carried: CarriedApproval<RulePackage>[] = carriedApprovals(
+            [acmeRules],
+            [{ pluginId: "/elsewhere/node_modules/acme", contentHash: acmeRules.contentHash }],
+        );
+
+        expect(allowing(carried.map(({ artifact }) => artifact))).toEqual(allowing([acmeRules]));
+    });
+});
+
+describe("orphanedCarries", () => {
+    const copy: ApprovableArtifact = { ...resize, id: "/worktree/.camunda/plugins/resize-tasks" };
+    const source = { pluginId: "/elsewhere/.camunda/plugins/resize-tasks", contentHash: "aaa" };
+    const row = ({ id, contentHash }: ApprovableArtifact): CodeApproval => ({
+        pluginId: id,
+        contentHash,
+    });
+
+    it.each<{
+        case: string;
+        carried: ApprovableArtifact[];
+        approvals: CodeApproval[];
+        orphaned: string[];
+    }>([
+        {
+            case: "none while another place holds the content",
+            carried: [resize],
+            approvals: [source, row(resize)],
+            orphaned: [],
+        },
+        {
+            case: "a carried row left alone after a revoke",
+            carried: [resize],
+            approvals: [row(resize), other],
+            orphaned: [resize.id],
+        },
+        {
+            case: "two carried rows of one content with no source",
+            carried: [resize, copy],
+            approvals: [row(resize), row(copy)],
+            orphaned: [resize.id, copy.id],
+        },
+        {
+            case: "a carried row of other content than the orphan, which stays",
+            carried: [resize, palette],
+            approvals: [row(resize), row(palette), { pluginId: "/x", contentHash: "bbb" }],
+            orphaned: [resize.id],
+        },
+    ])("finds $case", ({ carried, approvals, orphaned }) => {
+        expect(orphanedCarries(carried, approvals)).toEqual(orphaned);
     });
 });
 

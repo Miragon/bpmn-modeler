@@ -74,6 +74,15 @@ export interface ApprovableCodeTexts {
     readonly allowedFollowUp: string;
     /** Also the note of a row whose code its owner says stays loaded after a revoke. */
     readonly revokedFollowUp: (restart: ProcessRestart) => string;
+    /** The output channel line when code runs because the user allowed the same content at another place. */
+    readonly carriedOver: (carried: CarriedApproval) => string;
+}
+
+/** Code allowed only through another place's row of its content. */
+export interface CarriedApproval<A extends ApprovableArtifact = ApprovableArtifact> {
+    readonly artifact: A;
+    /** The row that holds the content, another place's first. */
+    readonly allowedAt: string;
 }
 
 /** Code as its owner lists it, named even when it could not be read. */
@@ -151,6 +160,34 @@ export function allowing(artifacts: readonly ApprovableArtifact[]): CodeApproval
 
 export function revoking(ids: readonly string[]): CodeApprovalChange {
     return codeApprovalChange([], ids);
+}
+
+/** Each id once, first artifact wins: `allowing` throws on an id named twice. */
+export function carriedApprovals<A extends ApprovableArtifact>(
+    artifacts: readonly A[],
+    approvals: readonly CodeApproval[],
+): CarriedApproval<A>[] {
+    const named = new Set<string>();
+    return artifacts.flatMap((artifact): CarriedApproval<A>[] => {
+        const { id, contentHash } = artifact;
+        if (named.has(id)) return [];
+        named.add(id);
+        if (rowContentOf(id, approvals) === contentHash) return [];
+        const holders = approvals.filter((row) => row.contentHash === contentHash);
+        const source = holders.find((row) => row.pluginId !== id) ?? holders[0];
+        return source === undefined ? [] : [{ artifact, allowedAt: source.pluginId }];
+    });
+}
+
+/** Carried rows whose content no other row holds any more: a revoke landed between decision and write. */
+export function orphanedCarries(
+    carried: readonly ApprovableArtifact[],
+    approvals: readonly CodeApproval[],
+): string[] {
+    const carriedIds = new Set(carried.map(({ id }) => id));
+    const isHeldOutside = (contentHash: string) =>
+        approvals.some((row) => row.contentHash === contentHash && !carriedIds.has(row.pluginId));
+    return carried.filter(({ contentHash }) => !isHeldOutside(contentHash)).map(({ id }) => id);
 }
 
 /** Every place whose row holds this content, each once, in list order. */

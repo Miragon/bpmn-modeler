@@ -145,6 +145,17 @@ export function codeAddOnsOf(
     );
 }
 
+/** The listed found code of one kind, as a carry write records it. */
+export function foundArtifactsOf(facts: CodeAddOnFacts, kind: CodeAddOnKind): ApprovableArtifact[] {
+    const owned = { plugin: facts.plugins, rulePackage: facts.rulePackages }[kind];
+    return owned.flatMap(({ presence }) => {
+        const content = shownContentOf(presence);
+        return content !== undefined && innermostFolderOf(content.id, facts.folders) !== undefined
+            ? [content]
+            : [];
+    });
+}
+
 function foundByContentOf(listed: readonly ListedAddOn[]): FoundByContent {
     const byContent = new Map<string, ApprovableArtifact[]>();
     for (const { presence } of listed) {

@@ -48,6 +48,19 @@ describe("PLUGIN_CODE_TEXTS", () => {
     );
 });
 
+describe("PLUGIN_CODE_TEXTS.carriedOver", () => {
+    it("logs where a plugin runs and where the user allowed its content", () => {
+        expect(
+            PLUGIN_CODE_TEXTS.carriedOver({
+                artifact: resize,
+                allowedAt: "/clone/.camunda/plugins/resize",
+            }),
+        ).toBe(
+            `Allowed BPMN plugin Resize Tasks in ${resize.id}: you allowed the same content in /clone/.camunda/plugins/resize.`,
+        );
+    });
+});
+
 describe("pluginApprovalPrompt", () => {
     it("lists each plugin with why it is asked and its folder in the workspace", () => {
         expect(

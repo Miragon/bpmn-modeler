@@ -853,6 +853,23 @@ describe("rootKindOf", () => {
     });
 });
 
+describe("RULE_PACKAGE_CODE_TEXTS.carriedOver", () => {
+    it("logs where a package runs and where the user allowed its content", () => {
+        expect(
+            RULE_PACKAGE_CODE_TEXTS.carriedOver({
+                artifact: {
+                    id: "/worktree/node_modules/bpmnlint-plugin-acme",
+                    name: "bpmnlint-plugin-acme",
+                    contentHash: rulePackageContentHash("a"),
+                },
+                allowedAt: "/repo/node_modules/bpmnlint-plugin-acme",
+            }),
+        ).toBe(
+            "Allowed bpmnlint rule package bpmnlint-plugin-acme in /worktree/node_modules/bpmnlint-plugin-acme: you allowed the same content in /repo/node_modules/bpmnlint-plugin-acme.",
+        );
+    });
+});
+
 describe("RULE_PACKAGE_CODE_TEXTS", () => {
     it.each<{ restart: ProcessRestart; until: string }>([
         { restart: "reloadWindow", until: "reload the window" },

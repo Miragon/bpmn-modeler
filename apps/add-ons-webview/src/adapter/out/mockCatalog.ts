@@ -118,7 +118,9 @@ function fullCatalog(): AddOnGroupPayload[] {
                     description: "Applies to every diagram in this folder",
                     actions: [DISABLE_TEMPLATES],
                     addOns: [
-                        plugin("Palette", ".camunda/plugins/palette", "approved"),
+                        plugin("Palette", ".camunda/plugins/palette", "approved", {
+                            note: "The same content is allowed in 2 other folders; Revoke takes it back there too.",
+                        }),
                         plugin("Resize Tasks", ".camunda/plugins/resize", "new"),
                         plugin("Token Simulation", ".camunda/plugins/token-simulation", "changed"),
                         plugin("Lasso", ".camunda/plugins/lasso", "declined"),

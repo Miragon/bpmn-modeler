@@ -16,7 +16,7 @@ import {
     type TemplateSwitch,
 } from "../../kernel/domain/templatePreferences";
 import { AddOnFacts, catalogModelOf, failedCatalogOf } from "./addOnCatalog";
-import { AddOnSession, ShownCode } from "./codeAddOnCatalog";
+import { AddOnSession, foundArtifactsOf, ShownCode } from "./codeAddOnCatalog";
 import { ListedMarketplace } from "./templateAddOnViews";
 import type { AddOnView, CodeAddOnView } from "./addOnCatalogModel";
 
@@ -48,11 +48,13 @@ const PLUGIN_TEXTS: ApprovableCodeTexts = {
     risk: "Plugin risk.",
     allowedFollowUp: "Plugin follow-up.",
     revokedFollowUp: () => "Plugin revoked.",
+    carriedOver: () => "Plugin carried.",
 };
 const RULE_PACKAGE_TEXTS: ApprovableCodeTexts = {
     risk: "A rule package runs as a program with your user's rights, not only inside the editor.",
     allowedFollowUp: "Rule package follow-up.",
     revokedFollowUp: (restart) => `Rule package revoked until ${restart}.`,
+    carriedOver: () => "Rule package carried.",
 };
 
 /** Placed as the owners place them: a plugin in its config folder, a rule package in its `node_modules`. */
@@ -1537,6 +1539,38 @@ describe("catalogModelOf for template switches", () => {
 
         expect(templates.size).toBe(0);
     });
+});
+
+describe("foundArtifactsOf", () => {
+    const facts = factsOf({
+        folders: ["/work"],
+        plugins: [
+            found(RESIZE, "Resize", "h1"),
+            { kind: "unreadable", id: PALETTE, name: "palette", reason: "broken" },
+            { kind: "gone", id: NESTED, name: "order-tools" },
+            found("/elsewhere/.camunda/plugins/x", "X", "h9"),
+        ],
+        rulePackages: [
+            found(ACME, "bpmnlint-plugin-acme", "r1", "1.0.0"),
+            { kind: "unhashed", id: RULES, name: "@acme/bpmnlint-plugin-rules" },
+        ],
+    });
+
+    it.each<{
+        kind: "plugin" | "rulePackage";
+        artifacts: { id: string; name: string; contentHash: string }[];
+    }>([
+        { kind: "plugin", artifacts: [{ id: RESIZE, name: "Resize", contentHash: "h1" }] },
+        {
+            kind: "rulePackage",
+            artifacts: [{ id: ACME, name: "bpmnlint-plugin-acme", contentHash: "r1" }],
+        },
+    ])(
+        "gives the listed found $kind code for the carry write, by its content only",
+        ({ kind, artifacts }) => {
+            expect(foundArtifactsOf(facts, kind)).toEqual(artifacts);
+        },
+    );
 });
 
 describe("failedCatalogOf", () => {

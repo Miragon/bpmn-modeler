@@ -37,6 +37,7 @@ const PLUGINS = "/work/.camunda/plugins";
 const RESIZE = `${PLUGINS}/resize-tasks`;
 const PALETTE = `${PLUGINS}/reduced-palette`;
 const OTHER_PALETTE = "/other/.camunda/plugins/reduced-palette";
+const WORKTREE_RESIZE = "/worktree/.camunda/plugins/resize-tasks";
 const CACHE = "/storage/bpmn-plugins";
 
 const RESIZE_FILES = {
@@ -479,13 +480,13 @@ describe("BpmnPluginsFeature", () => {
             expect(editor.reloadCount).toBe(0);
         });
 
-        it("serves a plugin allowed in another folder without a notice", async () => {
+        it("serves a plugin allowed in another folder without a notice, stores its row and logs one line", async () => {
             const { host, requestPlugins, openEditor } = setUp(RESIZE_FILES);
-            host.pluginApprovals.approvals = [
-                { pluginId: "/worktree/.camunda/plugins/resize-tasks", contentHash: RESIZE_HASH },
-            ];
+            const worktree = { pluginId: WORKTREE_RESIZE, contentHash: RESIZE_HASH };
+            host.pluginApprovals.approvals = [worktree];
             const editor = await openEditor();
 
+            await requestPlugins(editor);
             await requestPlugins(editor);
 
             expect(answeredPlugins(editor)).toEqual([
@@ -495,13 +496,35 @@ describe("BpmnPluginsFeature", () => {
                 },
             ]);
             expect(host.actionNotifier.notices).toEqual([]);
+            expect(host.pluginApprovals.approvals).toEqual([
+                worktree,
+                { pluginId: RESIZE, contentHash: RESIZE_HASH },
+            ]);
+            expect(host.notifier.logged("info")).toEqual([
+                `Allowed BPMN plugin Resize Tasks in ${RESIZE}: you allowed the same content in ${WORKTREE_RESIZE}.`,
+            ]);
         });
 
-        it("serves a plugin whose row here holds older content but which is allowed in another folder", async () => {
+        it("a stored row of content allowed elsewhere reloads no editor", async () => {
             const { host, requestPlugins, openEditor } = setUp(RESIZE_FILES);
             host.pluginApprovals.approvals = [
+                { pluginId: WORKTREE_RESIZE, contentHash: RESIZE_HASH },
+            ];
+            const first = await openEditor("/work/order.bpmn");
+            await requestPlugins(first);
+            const second = await openEditor("/work/shipping.bpmn");
+
+            await requestPlugins(second);
+
+            expect([first.reloadCount, second.reloadCount]).toEqual([0, 0]);
+        });
+
+        it("replaces a row here of older content with content allowed in another folder", async () => {
+            const { host, requestPlugins, openEditor } = setUp(RESIZE_FILES);
+            const worktree = { pluginId: WORKTREE_RESIZE, contentHash: RESIZE_HASH };
+            host.pluginApprovals.approvals = [
                 { pluginId: RESIZE, contentHash: "0".repeat(64) },
-                { pluginId: "/worktree/.camunda/plugins/resize-tasks", contentHash: RESIZE_HASH },
+                worktree,
             ];
             const editor = await openEditor();
 
@@ -509,6 +532,26 @@ describe("BpmnPluginsFeature", () => {
 
             expect(answeredPlugins(editor)?.map(({ name }) => name)).toEqual(["Resize Tasks"]);
             expect(host.actionNotifier.notices).toEqual([]);
+            expect(host.pluginApprovals.approvals).toEqual([
+                { pluginId: RESIZE, contentHash: RESIZE_HASH },
+                worktree,
+            ]);
+        });
+
+        it("still serves a plugin allowed in another folder when storing its row fails, and logs why", async () => {
+            const { host, requestPlugins, openEditor } = setUp(RESIZE_FILES);
+            host.pluginApprovals.approvals = [
+                { pluginId: WORKTREE_RESIZE, contentHash: RESIZE_HASH },
+            ];
+            vi.spyOn(host.pluginApprovals, "change").mockRejectedValue(new Error("store locked"));
+            const editor = await openEditor();
+
+            await requestPlugins(editor);
+
+            expect(answeredPlugins(editor)?.map(({ name }) => name)).toEqual(["Resize Tasks"]);
+            expect(host.notifier.logged("error")).toEqual([
+                expect.stringContaining("store locked"),
+            ]);
         });
 
         it("does not notify again in this session once the notice was closed", async () => {

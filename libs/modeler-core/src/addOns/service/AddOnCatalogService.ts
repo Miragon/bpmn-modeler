@@ -8,7 +8,7 @@ import { PluginApprovalStorePort } from "../../kernel/port/approvalPorts";
 import { LoggerPort } from "../../kernel/port/hostPorts";
 import { catalogModelOf, failedCatalogOf } from "../domain/addOnCatalog";
 import type { AddOnCatalogModel } from "../domain/addOnCatalogModel";
-import { CatalogActionKind, CodeAddOnKind } from "../domain/addOnIds";
+import { CatalogActionKind, CODE_ADD_ON_KINDS, CodeAddOnKind } from "../domain/addOnIds";
 import {
     AddOnActionResult,
     AddOnRequest,
@@ -27,7 +27,7 @@ import {
     revokeSweepOf,
     shownTargetOf,
 } from "../domain/codeAddOnRequests";
-import { ShownCode } from "../domain/codeAddOnCatalog";
+import { foundArtifactsOf, ShownCode } from "../domain/codeAddOnCatalog";
 import { firstRevisionOf, ShownRevisions } from "../domain/shownRevisions";
 import { marketplaceRemovalTargetOf, TemplateSwitchRequest } from "../domain/templateAddOnRequests";
 import { ShownSource, ShownTemplate } from "../domain/templateAddOnViews";
@@ -277,6 +277,12 @@ export class AddOnCatalogService {
         this.latestCatalogActions = catalogActions;
         this.latestReadModel = model;
         this.publish(model);
+        // Its write lists once more, which finds every row in place and writes nothing.
+        CODE_ADD_ON_KINDS.forEach((kind) =>
+            this.track(
+                this.sourceOf(kind)?.carryOver(foundArtifactsOf(facts, kind)) ?? Promise.resolve(),
+            ),
+        );
     }
 
     private publishFailed(): void {

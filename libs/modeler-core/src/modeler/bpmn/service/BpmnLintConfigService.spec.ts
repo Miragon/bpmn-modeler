@@ -33,6 +33,7 @@ import {
 } from "../../../testing";
 import {
     BlockedRulePackage,
+    RulePackage,
     RULE_PACKAGE_APPROVAL_NOTICE_ID,
     RULE_PACKAGE_APPROVAL_PROMPT_ID,
 } from "../domain/rulePackageApproval";
@@ -82,6 +83,7 @@ const hostRun = (results: LintResults, unresolved: string[] = []): LintRun => ({
     unresolved,
     blocked: [],
     refused: [],
+    admitted: [],
 });
 
 /** Lets a fire-and-forget host lint settle before assertions. */
@@ -891,6 +893,7 @@ describe("BpmnLintConfigService — the status item follows the focused editor",
 describe("BpmnLintConfigService — workspace rule packages the user has not allowed", () => {
     const ACME = "/work/node_modules/bpmnlint-plugin-acme";
     const OTHER = "/work/node_modules/bpmnlint-plugin-other";
+    const CLONE_ACME = "/clone/node_modules/bpmnlint-plugin-acme";
     const RULES_OF: Record<string, string> = {
         [ACME]: "plugin:acme/recommended",
         [OTHER]: "plugin:other/recommended",
@@ -954,19 +957,28 @@ describe("BpmnLintConfigService — workspace rule packages the user has not all
             host.workspace,
             options.questions ?? new QuestionQueue(),
         );
-        // Plays the gate: what each diagram's lint needs stays blocked until a row allows it.
+        const rulePackageOf = (id: string): RulePackage => {
+            const fingerprint = fingerprinter.fingerprint({ kind: "package", id });
+            if (fingerprint.kind !== "fingerprinted") throw new Error(fingerprint.reason);
+            return fingerprint.rulePackage;
+        };
+        // Plays the gate: what each diagram's lint needs stays blocked until a row holds its content.
         const blocks = new Map<string, BlockedRulePackage[]>([[XML, [blocked(ACME, true)]]]);
         const refused: RefusedRuleModule[] = [];
         const lintRunner = {
             lint: vi.fn<LintRunnerPort["lint"]>(async (xml) => {
-                const allowed = new Set(approvals.read().map(({ pluginId }) => pluginId));
-                const stillBlocked = (blocks.get(xml) ?? []).filter(({ id }) => !allowed.has(id));
+                const held = new Set(approvals.read().map(({ contentHash }) => contentHash));
+                const isAllowed = ({ id }: BlockedRulePackage) =>
+                    held.has(rulePackageOf(id).contentHash);
+                const packages = blocks.get(xml) ?? [];
+                const stillBlocked = packages.filter((each) => !isAllowed(each));
                 const skipped = stillBlocked.filter(({ needed }) => needed);
                 return {
                     results: skipped.length > 0 ? {} : RESULTS,
                     unresolved: skipped.map(({ id }) => RULES_OF[id]),
                     blocked: stillBlocked,
                     refused,
+                    admitted: packages.filter(isAllowed).map(({ id }) => rulePackageOf(id)),
                 };
             }),
         };
@@ -1273,9 +1285,69 @@ describe("BpmnLintConfigService — workspace rule packages the user has not all
         );
         await ctx.service.whenApprovalSettled();
 
-        // The fake gate admits by id, so the relint itself is what shows here.
-        expect(ctx.hostResults(acme)).toEqual([RESULTS, RESULTS]);
+        expect(ctx.hostResults(acme)).toEqual([RESULTS, {}]);
         expect(ctx.hostResults(other)).toEqual([RESULTS, RESULTS]);
+    });
+
+    it("runs a rule package the user allowed in another folder, asks nothing, stores its row once", async () => {
+        const ctx = createRulePackageHost();
+        const clone = { pluginId: CLONE_ACME, contentHash: ctx.contentHashOf(ACME) };
+        ctx.host.pluginApprovals.approvals = [clone];
+        const editor = ctx.host.openEditor(PATH, XML, { focused: true });
+
+        await ctx.service.setBpmnlintConfig(editor.id);
+        await ctx.service.whenApprovalSettled();
+        await ctx.service.setBpmnlintConfig(editor.id);
+        await ctx.service.whenApprovalSettled();
+
+        expect(ctx.hostResults(editor)).toEqual([RESULTS, RESULTS]);
+        expect(ctx.host.actionNotifier.notices).toEqual([]);
+        expect(ctx.approvals.read()).toEqual([
+            clone,
+            { pluginId: ACME, contentHash: ctx.contentHashOf(ACME) },
+        ]);
+        expect(
+            ctx.host.notifier.logged("info").filter((line) => line.startsWith("Allowed")),
+        ).toEqual([
+            `Allowed bpmnlint rule package bpmnlint-plugin-acme in ${ACME}: you allowed the same content in ${CLONE_ACME}.`,
+        ]);
+    });
+
+    it("relints at most once for the stored row and stores nothing more", async () => {
+        const ctx = createRulePackageHost();
+        const clone = { pluginId: CLONE_ACME, contentHash: ctx.contentHashOf(ACME) };
+        ctx.host.pluginApprovals.approvals = [clone];
+        ctx.blocks.set(XML_OTHER, [blocked(OTHER, true)]);
+        const other = ctx.host.openEditor(OTHER_PATH, XML_OTHER);
+        const acme = ctx.host.openEditor(PATH, XML, { focused: true });
+        await ctx.service.setBpmnlintConfig(other.id);
+        await ctx.service.whenApprovalSettled();
+
+        await ctx.service.setBpmnlintConfig(acme.id);
+        await ctx.service.whenApprovalSettled();
+
+        expect(ctx.hostResults(other)).toEqual([{}, {}]);
+        expect(ctx.hostResults(acme)).toEqual([RESULTS]);
+        expect(ctx.approvals.read().map(({ pluginId }) => pluginId)).toEqual([CLONE_ACME, ACME]);
+    });
+
+    it("relints an editor blocked on a package once another folder's allow covers its content, and stores its row", async () => {
+        const ctx = createRulePackageHost();
+        const editor = ctx.host.openEditor(PATH, XML, { focused: true });
+        await ctx.service.setBpmnlintConfig(editor.id);
+        await ctx.service.whenApprovalSettled();
+
+        ctx.host.pluginApprovals.storeElsewhere(
+            [{ pluginId: CLONE_ACME, contentHash: ctx.contentHashOf(ACME) }],
+            { notify: true },
+        );
+        await ctx.service.whenApprovalSettled();
+
+        // The stored row may relint it once more, if it lands before the lint's blocked list does.
+        const results = ctx.hostResults(editor);
+        expect(results.slice(0, 2)).toEqual([{}, RESULTS]);
+        expect(results.slice(2)).toEqual(results.length > 2 ? [RESULTS] : []);
+        expect(ctx.approvals.read().map(({ pluginId }) => pluginId)).toEqual([CLONE_ACME, ACME]);
     });
 
     it("lints nothing again for a change of plugin approvals only", async () => {

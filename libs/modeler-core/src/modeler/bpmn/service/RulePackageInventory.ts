@@ -115,6 +115,10 @@ export class RulePackageInventory {
         return this.currentRulePackage(id, { hash: true });
     }
 
+    carryOver(found: readonly ApprovableArtifact[]): Promise<void> {
+        return this.catalog.recordCarried(found);
+    }
+
     /**
      * Code a revoked package already ran stays loaded; nothing else to undo.
      * A place the revoke reached without a row of its own may have run too.

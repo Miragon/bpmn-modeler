@@ -1,6 +1,7 @@
 import { ActionNotice } from "../../kernel/domain/actionNotice";
 import { ChoicePrompt } from "../../kernel/domain/prompts";
 import { LoggerPort } from "../../kernel/port/hostPorts";
+import { CarriedApprovals } from "../../kernel/service/CarriedApprovals";
 import {
     allowing,
     ApprovableArtifact,
@@ -14,6 +15,7 @@ import {
     approvedPlugins,
     PendingApproval,
     pendingApprovals,
+    PLUGIN_CODE_TEXTS,
     PluginApprovalNoticeAction,
     pluginApprovalNotice,
     pluginApprovalPrompt,
@@ -42,16 +44,21 @@ export interface PluginSelection {
 export class PluginCatalog {
     private readonly answers = new Map<string, SessionAnswer>();
     private readonly answerListeners = new Set<() => void>();
+    private readonly carried: CarriedApprovals;
 
     constructor(
         private readonly locator: WorkspacePluginLocator,
         private readonly approvals: PluginApprovalStorePort,
         private readonly logger: LoggerPort,
-    ) {}
+    ) {
+        this.carried = new CarriedApprovals(approvals, logger, PLUGIN_CODE_TEXTS);
+    }
 
     async pluginsFor(documentPath: string): Promise<PluginSelection> {
         const discovered = await this.discover(documentPath);
         const plugins = discovered.map(({ plugin }) => plugin);
+        // Awaited, so each place is written once before the editor is answered; it never rejects.
+        await this.carried.record(plugins);
         const approvedIds = new Set(
             approvedPlugins(plugins, this.approvals.read()).map((plugin) => plugin.id),
         );
@@ -60,6 +67,11 @@ export class PluginCatalog {
             pending: this.stillPending(plugins),
             withheld: plugins.filter((plugin) => !approvedIds.has(plugin.id)),
         };
+    }
+
+    /** Stores a row where a plugin is allowed only by another place's row of its content; never rejects. */
+    recordCarried(found: readonly ApprovableArtifact[]): Promise<void> {
+        return this.carried.record(found);
     }
 
     /** Those of `pending` that no answer settled since they were found. */
