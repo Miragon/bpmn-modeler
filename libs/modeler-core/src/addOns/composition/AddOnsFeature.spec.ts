@@ -165,6 +165,7 @@ function setUp({
         prompt: host.marketplacePrompt,
         picker: host.picker,
         notifier: host.notifier,
+        actionNotifier: host.actionNotifier,
         homeDir: WORK,
     });
     const addOns = new AddOnsFeature({

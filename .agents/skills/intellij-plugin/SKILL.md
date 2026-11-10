@@ -62,14 +62,15 @@ lint/tsc globs never touch the Kotlin sources.
 
 ### Staging (where "already-built artefacts" come from)
 
-`build.gradle.kts` registers `Copy` tasks that `processResources` /
-`PrepareSandboxTask` depend on:
+`build.gradle.kts` registers copy tasks that `processResources` /
+`PrepareSandboxTask` depend on; `copyWebview` and `copyAddOnsWebview` are
+`Sync`s, so a renamed chunk or font leaves no stale file behind:
 
 | Task | Source | Lands at (classpath) |
 |---|---|---|
 | `copyWebview` | `dist/webview-staging/bpmn-webview/` | `/webview/…` |
 | `copyDeploymentWebview` | `dist/webview-staging/deployment-webview/` | deployment webview |
-| `copyAddOnsWebview` | `dist/webview-staging/add-ons-webview/` | `/webview-add-ons/…` (the Artifacts tab) |
+| `copyAddOnsWebview` | `dist/webview-staging/add-ons-webview/` | `/webview-add-ons/…` (the Add-ons tab) |
 | `copyBridge` | `apps/modeler-bridge/dist/modeler-bridge` | `/bin/<os>-<arch>/modeler-bridge` |
 | `copySchema` | `libs/shared/src/lib/deploymentTargets.schema.json` | `deployment-targets.json` schema |
 
@@ -139,7 +140,7 @@ in the bridge README):
 | core → host | `secretStore/*` | `PasswordSafe` (encrypted at rest) |
 | core → host | `marketplacePrompt/show`, `marketplaceState/*` | the core's add question in `AddMarketplaceDialog`; the app and project marketplace stores |
 | host ⇄ core | `deployment/*`, `deploymentState/*` | tool-window webview + `PropertiesComponent` |
-| host ⇄ core | `addOns/*` | the BPMN Modeler tool window's Artifacts tab (`AddOnsRouter`); `addOns/reveal` opens it for **Review…** |
+| host ⇄ core | `addOns/*` | the BPMN Modeler tool window's Add-ons tab (`AddOnsRouter`); `addOns/reveal` opens it for **Review…** |
 | core → host | `actionNotice/show` | `ActionNotifierPort` → a balloon with one `NotificationAction` per label |
 | host ⇄ core | `pluginApprovals/*`, `editor/reload` | `PluginApprovalStore` (app `PropertiesComponent`); full page reload after an approval |
 | host ⇄ core | `templatePreferences/*` | `ProjectTemplatePreferenceStore` (project `PropertiesComponent`) and `TemplatePreferenceStore` (app); `TemplatePreferenceRouter` |
@@ -208,7 +209,7 @@ To add a new synchronous port, follow
 | `notificationGroup` | `Miragon BPMN Modeler` (BALLOON) |
 | `applicationConfigurable` | `ModelerSettingsConfigurable` (Settings ▸ Tools) |
 | `documentationProvider`, `daemon.highlightInfoFilter` | script-tab support |
-| `toolWindow` | `Miragon Deployment` (stripe title "BPMN Modeler") → `ModelerToolWindowFactory`: Deploy and Artifacts tabs |
+| `toolWindow` | `Miragon Deployment` (stripe title "BPMN Modeler") → `ModelerToolWindowFactory`: Deploy and Add-ons tabs |
 
 Groovy (script tab) and JSON (deployment-targets schema) support are optional dependencies
 loaded via config-file (`modeler-groovy.xml` / `modeler-json.xml`) only when
@@ -237,9 +238,9 @@ Kotlin (`apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/`):
 - **Display/secret ports**: `HostNotifications.kt`, `IntellijSecretStore.kt`; status slots in
   `StatusView.kt` (the core's unions), `StatusBarSlots.kt` (placement), `AutoHidingStatusSlots.kt`
   (the 3 s transient rule) and `StatusSlotWidget(Factory).kt`
-- **Tool window**: `ModelerToolWindowFactory.kt` (`revealArtifacts`), `DeploymentToolWindowContent.kt`,
+- **Tool window**: `ModelerToolWindowFactory.kt` (`revealAddOns`), `DeploymentToolWindowContent.kt`,
   `AddOnsToolWindowContent.kt`, `JcefRelayPanel.kt`, `ContentShown.kt` + `VisibilityLatch.kt`,
-  `RefreshArtifactsAction.kt`; `IntellijDeploymentState.kt`
+  `RefreshAddOnsAction.kt`; `IntellijDeploymentState.kt`
 - **plugin.xml**: `src/main/resources/META-INF/plugin.xml`
 
 Bridge (`apps/modeler-bridge/src/`):

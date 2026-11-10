@@ -63,6 +63,7 @@ function registeredController(answers: MarketplaceAddAnswer[] = [], removed: str
             prompt: host.marketplacePrompt,
             picker: host.picker,
             notifier,
+            actionNotifier: host.actionNotifier,
             homeDir: "/home/ada",
             explainAddFailure: reloadForUnregisteredSetting(notifier),
         }),

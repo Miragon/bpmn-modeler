@@ -32,16 +32,16 @@ ships only an empty `<div id="app"></div>`; none carries a copy of the form.
 Edit form markup **only** in `formTemplate.ts` (see the Deployment Webview
 section in AGENTS.md).
 
-### Add-ons Webview (Artifacts view)
+### Add-ons Webview
 
 `apps/add-ons-webview` renders the core's add-on catalog. Its host shells ship
 only an empty `<div id="app"></div>` too; `src/adapter/in/catalogView.ts`
 builds the DOM from the model with the DOM API, never `innerHTML`, as the model
 holds workspace text. Its protocol is `libs/shared/src/lib/addOnsView.ts`, and
 the core's `AddOnsFeature.attachPanel` answers it, so a host only passes
-messages through. VS Code serves it as the Artifacts view
+messages through. VS Code serves it as the Add-ons view
 (`apps/vscode-plugin/src/addOns/`: `AddOnsViewHtml.ts`, `AddOnsViewProvider.ts`);
-IntelliJ bundles it as the Artifacts tab of its BPMN Modeler tool window.
+IntelliJ bundles it as the Add-ons tab of its BPMN Modeler tool window.
 
 ## Content Security Policy (CSP)
 
@@ -49,7 +49,7 @@ Every shell (BPMN, DMN, form, deployment, add-ons) defines a CSP in a `<meta>` t
 limits `localResourceRoots` to its bundle directory: `bootstrapWebview` does it
 for the editors (DMN also gets `assets/` for `reset.css`),
 `DeploymentController.resolveWebviewView` for the deployment sidebar and
-`AddOnsViewProvider.resolveWebviewView` for the Artifacts view.
+`AddOnsViewProvider.resolveWebviewView` for the Add-ons view.
 `webviewContentSecurityPolicy(shell, { cspSource, nonce })` in
 `apps/vscode-plugin/src/shared/domain/webviewContentSecurityPolicy.ts`
 builds all five policies: the directives every shell shares are written once,
@@ -80,7 +80,9 @@ base-uri 'none'; form-action 'none'
   the properties panel and CodeMirror set style attributes and inject `<style>`
   elements, and the deployment form's markup carries a style attribute. The
   add-ons page has only its linked stylesheet, so its policy allows
-  `style-src ${webview.cspSource}` alone.
+  `style-src ${webview.cspSource}` alone, plus `font-src ${webview.cspSource}`
+  for the fonts its bundle ships (Vite `base: "./"` keeps their `url()`s
+  relative).
 - `img-src data: https:`: element-template icons are `data:` URIs or remote
   URLs (DMN has no templates and omits `https:`).
 - The form shell adds what form-js components load at runtime:
@@ -314,6 +316,16 @@ each package's CSS stays self-contained. The package still mirrors the resolved
 kind onto a legacy `#theme-link` when a consumer links one (a silent no-op
 otherwise).
 
+### Brand mode (Add-ons view)
+
+The Add-ons view takes the Miragon brand look, not the IDE's colours. The
+host writes `data-cd-theme="light|dark"` (always) and `data-cd-kontrast="hoch"`
+(high contrast) on `<html>`: `addOnsViewHtml` from `window.activeColorTheme.kind`
+and the `colorTheme` setting through `brandModeOf` (`libs/shared/src/lib/brandMode.ts`),
+then a `BrandModeQuery` on every change (`VsCodeBrandModeSignal`) and when the
+page asks for its catalog, since a post during its load can be lost. The page
+never reads body classes for it.
+
 ### CSS Custom Properties
 
 VS Code also exposes theme colors as CSS custom properties (e.g., `--vscode-editor-background`). These can be used in webview CSS for seamless theme integration without stylesheet swapping.
@@ -339,7 +351,7 @@ See `apps/vscode-plugin/src/shared/adapter/out/WebviewHtml.ts`.
 - **Shell CSP builder**: `apps/vscode-plugin/src/shared/domain/webviewContentSecurityPolicy.ts`
 - **Deployment form markup (single source)**: `apps/deployment-webview/src/adapter/in/formTemplate.ts` (`FORM_TEMPLATE`)
 - **Add-ons view**: `apps/add-ons-webview/src/adapter/in/catalogView.ts` (DOM), `src/domain/viewState.ts` (reducer), `libs/shared/src/lib/addOnsView.ts` (protocol)
-- **Artifacts view shell and provider**: `apps/vscode-plugin/src/addOns/adapter/in/AddOnsViewHtml.ts`, `AddOnsViewProvider.ts`
+- **Add-ons view shell and provider**: `apps/vscode-plugin/src/addOns/adapter/in/AddOnsViewHtml.ts`, `AddOnsViewProvider.ts`
 - **Message router**: `libs/modeler-core/src/editorSession/service/WebviewMessageRouter.ts`
 - **Base message types**: `libs/shared/src/lib/messages.ts`
 - **Modeler message types**: `libs/shared/src/lib/modeler.ts`

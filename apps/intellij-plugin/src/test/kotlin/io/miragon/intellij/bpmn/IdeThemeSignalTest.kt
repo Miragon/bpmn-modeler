@@ -9,16 +9,18 @@ import com.intellij.ui.JBColor
 import org.cef.browser.CefBrowser
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.CsvSource
 import org.junit.jupiter.params.provider.ValueSource
 import java.lang.reflect.Proxy
 
 @TestApplication
 class IdeThemeSignalTest {
-    private val signal = IdeThemeSignal()
+    private val signal = IdeThemeSignal(colorTheme = { "automatic" })
 
     private var wasDark = false
 
@@ -137,6 +139,56 @@ class IdeThemeSignalTest {
     @Test
     fun `addOnsApplyJs carries the add-ons variable set`() {
         assertTrue(signal.addOnsApplyJs().contains("--vscode-list-warningForeground"))
+    }
+
+    @Test
+    fun `addOnsApplyJs switches the add-ons page to the brand mode`() {
+        JBColor.setDark(true)
+
+        assertTrue(signal.addOnsApplyJs().contains(BrandMode.of(HostColorThemeKind.DARK, "automatic").applyJs()))
+    }
+
+    @Test
+    fun `only the add-ons page gets a brand mode`() {
+        assertFalse(signal.deploymentApplyJs().contains("data-cd-theme"))
+        assertFalse(signal.applyJs().contains("data-cd-theme"))
+    }
+
+    @ParameterizedTest
+    @CsvSource(
+        "false, false, automatic, light, ",
+        "true, false, automatic, dark, ",
+        "true, true, automatic, dark, hoch",
+        "false, true, automatic, light, hoch",
+        "true, false, light, light, ",
+        "true, true, light, light, hoch",
+    )
+    fun `the add-ons brand mode follows the IDE theme and the colour theme setting`(
+        dark: Boolean,
+        highContrast: Boolean,
+        colorTheme: String,
+        theme: String,
+        contrast: String?,
+    ) {
+        JBColor.setDark(dark)
+        val themed = IdeThemeSignal(isHighContrast = { highContrast }, colorTheme = { colorTheme })
+        try {
+            assertEquals(theme to contrast, themed.addOnsBrandMode().let { it.theme to it.contrast })
+        } finally {
+            Disposer.dispose(themed)
+        }
+    }
+
+    @Test
+    fun `followed browsers are re-themed when the modeler settings change`() {
+        val parent = Disposer.newDisposable()
+        val recording = RecordingBrowser()
+        signal.follow(parent, recording.browser) { "apply();" }
+
+        ApplicationManager.getApplication().messageBus.syncPublisher(ModelerSettingsListener.TOPIC).settingsChanged()
+        Disposer.dispose(parent)
+
+        assertEquals(listOf("apply();"), recording.executedScripts)
     }
 
     @ParameterizedTest

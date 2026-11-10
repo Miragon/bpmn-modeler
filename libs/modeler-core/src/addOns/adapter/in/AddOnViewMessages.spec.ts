@@ -15,6 +15,7 @@ import {
     CodeAddOnKindPayload,
     CodeStatePayload,
     GetAddOnCatalogCommand,
+    GroupKindPayload,
     LogErrorCommand,
     LogInfoCommand,
     Query,
@@ -31,6 +32,7 @@ import type {
     AddOnActionKind,
     CatalogActionKind,
     CodeAddOnKind,
+    GroupKind,
     SourceActionKind,
     SourceKind,
     TemplateState,
@@ -78,6 +80,7 @@ describe("AddOnViewMessages", () => {
             expectTypeOf<CodeStatePayload>().toEqualTypeOf<CodeState>();
             expectTypeOf<TemplateStatePayload>().toEqualTypeOf<TemplateState>();
             expectTypeOf<SourceKindPayload>().toEqualTypeOf<SourceKind>();
+            expectTypeOf<GroupKindPayload>().toEqualTypeOf<GroupKind>();
             expectTypeOf<CodeAddOnKindPayload>().toEqualTypeOf<CodeAddOnKind>();
             expectTypeOf<AddOnActionKindPayload>().toEqualTypeOf<AddOnActionKind>();
             expectTypeOf<SourceActionKindPayload>().toEqualTypeOf<SourceActionKind>();

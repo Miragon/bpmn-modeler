@@ -77,9 +77,12 @@ export function registerCommands(
         prompt: new VsCodeMarketplacePrompt(),
         picker: deps.picker,
         notifier: deps.notifier,
+        actionNotifier: deps.actionNotifier,
         homeDir: homedir(),
         explainAddFailure: reloadForUnregisteredSetting(deps.notifier),
     });
     new TemplateMarketplaceController(commands).register(context);
+    // A new workspace, such as a git worktree, starts with an empty cache.
+    void commands.offerUpdateIfNotFetched();
     return { marketplaces: inventory };
 }

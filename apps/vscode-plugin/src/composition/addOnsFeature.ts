@@ -11,6 +11,7 @@ import {
     ViewReview,
 } from "@miragon/bpmn-modeler-core";
 import { AddOnsViewProvider } from "../addOns/adapter/in/AddOnsViewProvider";
+import { VsCodeBrandModeSignal } from "../addOns/adapter/in/VsCodeBrandModeSignal";
 import { VsCodeAddOnsViewReveal } from "../addOns/adapter/out/VsCodeAddOnsViewReveal";
 import { createWebviewNonce } from "../shared/adapter/out/webviewNonce";
 import { SharedDeps } from "./sharedDeps";
@@ -24,7 +25,7 @@ export interface AddOnsViewReviews {
 
 /**
  * Built before the BPMN editor, which takes the reviews, while the catalog
- * is built later from the editor's owners. Review… opens the Artifacts view
+ * is built later from the editor's owners. Review… opens the Add-ons view
  * when it lists every pending item, else the list to check.
  */
 export function createViewReviews(deps: SharedDeps): AddOnsViewReviews {
@@ -39,7 +40,7 @@ export function createViewReviews(deps: SharedDeps): AddOnsViewReviews {
 /**
  * The add-on catalog over the plugin, rule package and template owners the
  * BPMN editor built, the approval list they share, the template switches and
- * the marketplace commands, shown in the Artifacts view, where Review…
+ * the marketplace commands, shown in the Add-ons view, where Review…
  * opens it.
  */
 export function register(
@@ -68,7 +69,16 @@ export function register(
         templatePreferences: deps.templatePreferences,
     });
     context.subscriptions.push(addOns);
-    const view = new AddOnsViewProvider(addOns, context.extensionUri, createWebviewNonce);
+    const brandMode = new VsCodeBrandModeSignal(
+        () => deps.vsSettings.getColorTheme(),
+        (listener) => deps.preferences.onDidChangeSetting(listener),
+    );
+    const view = new AddOnsViewProvider(
+        addOns,
+        context.extensionUri,
+        createWebviewNonce,
+        brandMode,
+    );
     view.register(context);
     handles.reviews.reveal.connect(addOns, view);
     return { addOns, addOnsViewRoutes: addOns.panelRoutes };

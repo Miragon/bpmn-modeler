@@ -18,7 +18,7 @@ The desktop app runs the same extension, and the IntelliJ plugin shares the BPMN
   repositories or local folders.
 - [BPMN plugins](/vscode/features/bpmn-plugins): extend the BPMN editor with bpmn-js plugins from your
   repository, including Camunda Modeler plugins, once you allow them.
-- [Artifacts view](/vscode/features/artifacts): see the plugins, rule packages, element templates and marketplaces
+- [Add-ons](/vscode/features/add-ons): see the plugins, rule packages, element templates and marketplaces
   of your workspace, allow or revoke code and turn templates on or off.
 - [Forms](/vscode/features/form-editing): edit Camunda Forms (`.form`) and test them in a preview.
 - [Language support](/vscode/features/language-support): switch the modeler UI language.

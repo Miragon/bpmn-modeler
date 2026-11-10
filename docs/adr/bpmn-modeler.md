@@ -636,7 +636,7 @@ or rejects, it answers with its fallback, `ListReview`, which stays for good.
 The review request carries the folders the prompt was built for
 (`ApprovalReviewRequest.workspaceFolders`), so the prompt and this decision
 use one reading. Both hosts pass a `ViewReview` to both features: VS Code
-over its Artifacts view, IntelliJ over `RpcAddOnViewReveal` and the Artifacts
+over its Add-ons view, IntelliJ over `RpcAddOnViewReveal` and the Add-ons
 tab of its BPMN Modeler tool window. **Review…** opens the view unless an
 item lies outside every folder or the view cannot open. The feature's
 `review` port is still optional; making it required and removing
@@ -798,7 +798,7 @@ with one exported instance set, an error boundary around plugin groups and a
 contract test as preconditions.
 
 **Listing, allowing and revoking.** The `addOns` context of the core is the
-host-neutral read model of the artifacts view
+host-neutral read model of the Add-ons view
 ([#2263](https://github.com/Miragon/bpmn-modeler/issues/2263); the views are
 [#2250](https://github.com/Miragon/bpmn-modeler/issues/2250)). It owns no
 rule of what it lists: the plugin and rule package features each meet a
@@ -812,7 +812,7 @@ which reads each template file by the loader's rule (`templatesOfFileText`,
 over the host's `MarketplaceCommands`, which `createMarketplaceCommands`
 builds together. The host compositions wire one into the other ([package boundaries](architecture-and-hosts.md#package-boundaries)).
 Both hosts build an `AddOnsFeature` and bind one view to it: VS Code its
-Artifacts view, IntelliJ the Artifacts tab of its BPMN Modeler tool window,
+Add-ons view, IntelliJ the Add-ons tab of its BPMN Modeler tool window,
 attached hidden when the bridge starts; IntelliJ's watchers follow the folders
 known whenever the views change or the catalog refreshes, so they follow the
 project root from the first `addOns/open` on
@@ -911,7 +911,7 @@ applies the next reveal.
     still reaches the editor; a post the editor refuses or that fails is
     forgotten, so the next change sends the refs again. A webview that is
     hidden or reloads asks for its templates again and gets the current refs.
-  - Both hosts' Artifacts views offer the switches, and both user guides
+  - Both hosts' Add-ons views offer the switches, and both user guides
     describe them.
 - *Marketplaces.* A group after the folders lists each registered
   marketplace entry as a source, in the order the hosts fetch them, keyed by the entry,
@@ -929,7 +929,9 @@ applies the next reveal.
   removed by hand serves nothing though it stays cached until the next prune.
   Registrations that cannot be read, such
   as a host's reply that fails, leave the group without sources and say why;
-  the folders are still listed. The catalog offers "Add marketplace…" and
+  the folders are still listed. Each group carries its kind (`GROUP_KINDS`:
+  `folder` or `marketplaces`), so a view tells that source-less group from a
+  folder's without parsing an id. The catalog offers "Add marketplace…" and
   "Update marketplaces", and each source "Remove". All three run the
   host's `MarketplaceCommands`, the same instance its commands run
   (`createMarketplaceCommands` builds the inventory over it), so a flow
@@ -1035,7 +1037,7 @@ absolute rule reference points into, or a `file:` link whose target holds the
 config folder, would make one approval cover the repository. The row is the
 existing `{ pluginId, contentHash }` in the host's one approval list, beside
 the bpmn-js plugins. The content hash carries the prefix
-`bpmnlint-closure-v1:`, which marks the row's kind for the artifacts view
+`bpmnlint-closure-v1:`, which marks the row's kind for the Add-ons view
 ([#2263](https://github.com/Miragon/bpmn-modeler/issues/2263)) and names the
 digest algorithm, so changing the algorithm asks again. The row round-trips
 through VS Code's global state, `RpcPluginApprovalStore` and the Kotlin
@@ -1098,7 +1100,7 @@ request with the gate (`beginRequest`, `blockedSinceBegin`). A blocked package
 is *needed* when a request ended unresolved because of it, and *shadowed* when
 the bundle served the request instead. Only needed packages are asked about; a
 shadowed one is logged once per config version and kept in the catalog's seen
-registry for the artifacts view. Otherwise the common Camunda config, which
+registry for the Add-ons view. Otherwise the common Camunda config, which
 lints on the host because of its string `moddleExtensions`, would ask about
 `bpmnlint-plugin-camunda-compat` even where the bundle serves every entry the
 config uses, and train users to allow everything. After `hostLintFinished`,

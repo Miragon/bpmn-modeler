@@ -18,7 +18,7 @@ asynchronous `postMessage` channel that is typed by
 | `dmn-webview` | This webview hosts the DMN decision-table and DRD editor, built on dmn-js. |
 | `form-webview` | This webview hosts the Camunda Form visual editor and preview, built on form-js. |
 | `deployment-webview` | This webview renders the Camunda deployment sidebar form. |
-| `add-ons-webview` | This webview renders the Artifacts view: the plugins, rule packages and element templates of the open workspace. |
+| `add-ons-webview` | This webview renders the Add-ons view: the plugins, rule packages and element templates of the open workspace. |
 
 ## Host applications
 

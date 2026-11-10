@@ -98,6 +98,7 @@ val templatePreferenceChangeCases =
 val projectScopes = layout.projectDirectory.file("../../libs/modeler-core/src/kernel/domain/projectScopes.ts")
 val addOnsHostThemeVariables =
     layout.projectDirectory.file("../../apps/add-ons-webview/src/adapter/in/styles/hostThemeVariables.json")
+val brandModeCases = layout.projectDirectory.file("../../libs/shared/src/lib/brandMode.cases.json")
 
 tasks.test {
     useJUnitPlatform()
@@ -112,7 +113,8 @@ tasks.test {
     // matchers run, WebviewRouteTest the plugin asset urls the bridge builds, ActionNoticeToneTest
     // the core's notice tones, PluginApprovalStoreTest the rows the core merges approval changes
     // by, TemplatePreferenceStoreTest the rows it merges template switch changes by, ProjectScopeTest
-    // the core's project scopes, IdeThemeSignalTest the theme variables the add-ons page may read. As
+    // the core's project scopes, IdeThemeSignalTest the theme variables the add-ons page may read,
+    // BrandModeTest the rows the shared brand mode rule runs. As
     // declared inputs, a change on the TypeScript side alone reruns the tests instead of restoring
     // them from the build cache.
     mapOf(
@@ -133,6 +135,7 @@ tasks.test {
         "templatePreferenceChangeCases" to templatePreferenceChangeCases,
         "projectScopes" to projectScopes,
         "addOnsHostThemeVariables" to addOnsHostThemeVariables,
+        "brandModeCases" to brandModeCases,
     ).forEach { (name, file) ->
         inputs.file(file).withPropertyName(name).withPathSensitivity(PathSensitivity.RELATIVE)
         systemProperty("miragon.$name", file.asFile.absolutePath)
@@ -315,7 +318,8 @@ val copyDeploymentWebview =
     }
 
 val copyAddOnsWebview =
-    tasks.register<Copy>("copyAddOnsWebview") {
+    // Sync, not Copy: a renamed or dropped asset, such as a font file, would otherwise stay in the jar.
+    tasks.register<Sync>("copyAddOnsWebview") {
         description = "Stages the pre-built add-ons-webview bundle into plugin resources (served from the classpath at runtime)."
         from(addOnsWebviewDist)
         // Nest under `webview-add-ons/` so the served classpath path is `/webview-add-ons/...`.
@@ -363,6 +367,8 @@ val verifyReleaseBundles =
                 webviewDist.file("index.js").asFile to "corepack yarn build:bpmn-webview",
                 deploymentWebviewDist.file("index.js").asFile to "corepack yarn build:deployment-webview",
                 addOnsWebviewDist.file("index.js").asFile to "corepack yarn build:add-ons-webview",
+                // Without it the tab ships unstyled and nothing fails.
+                addOnsWebviewDist.file("index.css").asFile to "corepack yarn build:add-ons-webview",
             ) + releaseBridgeTargets.map { (dir, name) -> bridgeDistRoot.file("$dir/$name").asFile to buildBridges }
         doLast {
             val missing = required.filterNot { (file, _) -> file.exists() }

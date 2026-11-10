@@ -9,6 +9,7 @@ import {
 } from "@miragon/bpmn-modeler-shared";
 
 import packageJson from "../../package.json";
+import { numericValidationModule } from "../adapter/in/numericValidationModule";
 import type { FormHost, WebviewState } from "../port/formHost";
 import { bootstrap } from "./bootstrap";
 
@@ -112,7 +113,10 @@ describe("form webview bootstrap", () => {
 
         expect(mocks.dedicatedEditor).toHaveBeenCalledWith({
             container: document.getElementById("form-editor"),
-            additionalModules: [{ debounce: ["value", expect.any(Function)] }],
+            additionalModules: [
+                { debounce: ["value", expect.any(Function)] },
+                numericValidationModule,
+            ],
         });
         expect(mocks.dedicatedViewer).toHaveBeenCalledWith({
             container: document.getElementById("form-preview"),

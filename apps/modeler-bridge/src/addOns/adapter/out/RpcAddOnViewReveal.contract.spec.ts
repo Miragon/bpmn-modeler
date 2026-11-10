@@ -13,10 +13,10 @@ interface CoreFrame {
 
 /**
  * IntelliJ's `AddOnsRouter`: `addOns/reveal` answers on the EDT with what
- * `revealArtifacts` reports, `true` once the BPMN Modeler tool window is active
- * on its Artifacts tab, and `false` when it cannot open the tab.
+ * `revealAddOns` reports, `true` once the BPMN Modeler tool window is active
+ * on its Add-ons tab, and `false` when it cannot open the tab.
  */
-function intellijArtifactsTab(
+function intellijAddOnsTab(
     showsView: boolean,
     sendToBridge: (chunk: string) => void,
 ): (line: string) => void {
@@ -33,10 +33,10 @@ function intellijArtifactsTab(
 }
 
 describeAddOnViewRevealContract(
-    "RpcAddOnViewReveal over a loopback to IntelliJ's Artifacts tab",
+    "RpcAddOnViewReveal over a loopback to IntelliJ's Add-ons tab",
     async ({ showsView }) => {
         let fromHost: (chunk: string) => void = () => undefined;
-        const rpc = new Rpc(intellijArtifactsTab(showsView, (chunk) => fromHost(chunk)));
+        const rpc = new Rpc(intellijAddOnsTab(showsView, (chunk) => fromHost(chunk)));
         fromHost = createStdinHandler(rpc, (text) => {
             throw new Error(text);
         });

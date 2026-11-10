@@ -123,6 +123,7 @@ export type {
     AddOnKind,
     CatalogActionKind,
     CodeAddOnKind,
+    GroupKind,
     SourceActionKind,
     SourceKind,
     TemplateState,

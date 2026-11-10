@@ -11,6 +11,7 @@ import {
 } from "../domain/marketplace";
 import { CachePrune, MarketplaceRegistry } from "../domain/marketplaceRegistry";
 import { registeredTemplateFiles } from "../domain/marketplaceSources";
+import { notFetchedMarketplaces } from "../domain/notFetchedMarketplaces";
 import { RepositorySourceConfig } from "../domain/repositorySourceConfig";
 import { RepositorySourceFactory, TokenPromptPort, TokenStorePort } from "../port/marketplacePorts";
 import {
@@ -164,6 +165,18 @@ export class TemplateMarketplaceService {
         await this.pruneCache(
             MarketplaceRegistry.fromEntries(this.settings.getMarketplaces()).cachePrune(),
         );
+    }
+
+    /** The labels of the registered marketplaces this workspace's cache holds nothing for. */
+    async marketplacesNotFetched(): Promise<string[]> {
+        const { entries, registrations } = MarketplaceRegistry.fromEntries(
+            this.settings.getMarketplaces(),
+        );
+        const cachedIds = new Set<string>();
+        for (const { id } of registrations) {
+            if ((await this.cache.cachedSlots(id)).length > 0) cachedIds.add(id);
+        }
+        return notFetchedMarketplaces(entries, cachedIds);
     }
 
     /** Logs a per-marketplace skip warning and returns its {@link MarketplaceUpdateFailure}. */

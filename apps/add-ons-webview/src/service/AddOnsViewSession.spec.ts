@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { AddOnRequestCommand } from "@miragon/bpmn-modeler-shared";
+import { AddOnRequestCommand, asProtocolMessage } from "@miragon/bpmn-modeler-shared";
 
 import { CATALOG, MAIL, MARKETPLACE_SOURCE, PALETTE } from "../__fixtures__/catalogs";
 import { RecordingHost } from "../__fixtures__/recordingHost";
 import type { FocusTarget } from "../domain/focusAfter";
-import type { ViewState } from "../domain/viewState";
+import { persistedChoicesOf, ViewState } from "../domain/viewState";
 import { AddOnsViewSession } from "./AddOnsViewSession";
 
 function setUp(host = new RecordingHost()) {
@@ -38,6 +38,28 @@ describe("AddOnsViewSession", () => {
         const reloaded = setUp(new RecordingHost(host.state)).session;
 
         expect(reloaded.state.expansion.get(MARKETPLACE_SOURCE.id)).toBe(true);
+    });
+
+    it("ends on the newest state when the host answers a request at once", () => {
+        const host = new RecordingHost();
+        const { renders, session } = setUp(host);
+        session.dispatch({ kind: "modelArrived", model: CATALOG });
+        host.postMessage = (message) => {
+            const command = asProtocolMessage(message);
+            if (command.type === "AddOnRequestCommand") {
+                session.dispatch({
+                    kind: "resultArrived",
+                    requestId: command.requestId,
+                    result: { kind: "done", message: "Revoked Palette." },
+                });
+            }
+        };
+
+        session.dispatch({ kind: "actionChosen", actionKind: "revoke", targetId: PALETTE.id });
+
+        expect(renders.at(-1)?.state).toBe(session.state);
+        expect(session.state.pending.size).toBe(0);
+        expect(host.state).toEqual(persistedChoicesOf(session.state));
     });
 
     it("renders each change, and a reveal with focus on its row", () => {

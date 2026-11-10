@@ -110,6 +110,7 @@ class WebviewServerTest {
         val response = get(server.deploymentUrl())
 
         assertEquals(200, response.status)
+        assertTrue(response.body.contains("""<html lang="en">"""))
         assertTrue(response.body.contains("""<link href="/deployment/index.css" rel="stylesheet"/>"""))
         assertTrue(response.body.contains("--vscode-button-background"))
         assertTrue(response.body.contains("""<script type="module" src="/deployment/index.js"></script>"""))
@@ -120,7 +121,8 @@ class WebviewServerTest {
         val response = get(server.addOnsUrl())
 
         assertEquals(200, response.status)
-        assertTrue(response.body.contains("<title>Artifacts</title>"))
+        assertTrue(response.body.contains("<title>Add-ons</title>"))
+        assertTrue(response.body.contains("""<html lang="en" data-cd-theme="light">"""))
         assertTrue(response.body.contains("""<link href="/add-ons/index.css" rel="stylesheet"/>"""))
         assertTrue(response.body.contains("--vscode-list-warningForeground"))
         assertTrue(response.body.contains("""<body class="vscode-light">"""))
@@ -143,6 +145,14 @@ class WebviewServerTest {
         assertTrue(deploymentAsset.body.contains("test-asset"))
         assertEquals(200, addOnsAsset.status)
         assertTrue(addOnsAsset.body.contains(".add-ons-test-asset"))
+    }
+
+    @Test
+    fun `the add-ons bundle's fonts are served as fonts`() {
+        val font = get("${origin()}/add-ons/test-font.woff2")
+
+        assertEquals(200, font.status)
+        assertEquals("font/woff2", font.contentType)
     }
 
     @Test

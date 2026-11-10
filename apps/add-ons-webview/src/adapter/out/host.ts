@@ -3,7 +3,11 @@ import {
     AddOnCatalogQuery,
     AddOnsViewCommand,
     asProtocolMessage,
+    type BrandMode,
+    BrandModeQuery,
+    brandModeOf,
     HostApiImpl,
+    type HostColorThemeKind,
     MockHostApi,
     Query,
     RevealAddOnsQuery,
@@ -68,6 +72,11 @@ const PREVIEW_THEMES: Readonly<Record<string, Readonly<Record<string, string>>>>
     },
 };
 
+const PREVIEW_HOST_THEMES: Readonly<Record<string, HostColorThemeKind>> = {
+    dark: "dark",
+    hc: "highContrast",
+};
+
 /**
  * Answers the view's commands from {@link MockCatalog}. Query flags:
  * `state=loading|empty|noFolder|failed`, `reveal=<add-on id or name>`,
@@ -76,12 +85,15 @@ const PREVIEW_THEMES: Readonly<Record<string, Readonly<Record<string, string>>>>
 class MockHost extends MockHostApi<PersistedChoices, AddOnsViewCommand> {
     private readonly catalog: MockCatalog;
     private readonly revealed?: string;
+    private readonly brandMode: BrandMode;
 
     constructor(flags: URLSearchParams) {
         super();
         this.catalog = new MockCatalog(previewStateOf(flags.get("state")), { stale: flags.get("stale") === "1" });
         this.revealed = flags.get("reveal") ?? undefined;
-        Object.entries(PREVIEW_THEMES[flags.get("theme") ?? ""] ?? {}).forEach(([name, value]) =>
+        const theme = flags.get("theme") ?? "";
+        this.brandMode = brandModeOf(PREVIEW_HOST_THEMES[theme] ?? "light", "automatic");
+        Object.entries(PREVIEW_THEMES[theme] ?? {}).forEach(([name, value]) =>
             document.documentElement.style.setProperty(name, value),
         );
     }
@@ -94,6 +106,8 @@ class MockHost extends MockHostApi<PersistedChoices, AddOnsViewCommand> {
                 console.debug(`[add-ons preview] ${command.type}`, command.message);
                 return;
             case "GetAddOnCatalogCommand":
+                // The preview has no host shell to carry the mode, so it arrives as a theme change would.
+                dispatch(new BrandModeQuery(this.brandMode));
                 this.postModel();
                 this.postReveal();
                 return;

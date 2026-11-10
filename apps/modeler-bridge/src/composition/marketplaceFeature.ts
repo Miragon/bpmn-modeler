@@ -99,6 +99,7 @@ export function registerHandlers(
         prompt: new RpcMarketplacePrompt(deps.rpc),
         picker: deps.picker,
         notifier: deps.notifier,
+        actionNotifier: deps.actionNotifier,
         homeDir: handles.homeDir,
     });
     bindHandlers(deps.rpc, marketplaceHandlers({ commands, settingsMirror: deps.settings }));

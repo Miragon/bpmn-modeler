@@ -1,10 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createTestHost, PromptAnswers } from "../../testing";
+import { createTestHost, NoticeAnswers, PromptAnswers } from "../../testing";
 import { createTemplateMarketplaceService } from "../composition/MarketplaceFeature";
 import { InvalidMarketplaceError } from "../domain/marketplace";
 import { MarketplaceAddAnswer } from "../domain/marketplacePrompts";
 import { registeredMarketplaces } from "../domain/marketplaceRegistrations";
+import { MARKETPLACE_UPDATE_NOTICE_ID } from "../domain/notFetchedMarketplaces";
 import { MarketplaceCommands } from "./MarketplaceCommands";
 
 function templateFile(id: string): string {
@@ -45,11 +46,13 @@ function marketplaceHost({
     registered = ["/work/a"],
     answers = [],
     promptAnswers = {},
+    noticeAnswers = {},
     explainAddFailure,
 }: {
     registered?: string[];
     answers?: MarketplaceAddAnswer[];
     promptAnswers?: PromptAnswers;
+    noticeAnswers?: NoticeAnswers;
     explainAddFailure?: (error: Error) => Promise<boolean>;
 } = {}) {
     const host = createTestHost({
@@ -68,6 +71,7 @@ function marketplaceHost({
         settings: { marketplaces: registered },
         marketplaceAnswers: answers,
         promptAnswers,
+        noticeAnswers,
     });
     const service = createTemplateMarketplaceService({
         workspace: host.workspace,
@@ -91,6 +95,7 @@ function marketplaceHost({
         prompt: host.marketplacePrompt,
         picker: host.picker,
         notifier: host.notifier,
+        actionNotifier: host.actionNotifier,
         homeDir: "/work",
         explainAddFailure,
     });
@@ -148,6 +153,7 @@ function marketplaceHost({
         picker: host.picker,
         workspace: host.workspace,
         notifier: host.notifier,
+        actionNotifier: host.actionNotifier,
         templates,
         holdRead,
         holdRegistration,
@@ -410,6 +416,80 @@ describe("MarketplaceCommands.update", () => {
                 '/work/missing: Invalid marketplace: could not read marketplace.json from "/work/missing": ' +
                 "File not found: /work/missing/marketplace.json",
         ]);
+    });
+});
+
+describe("MarketplaceCommands.offerUpdateIfNotFetched", () => {
+    it("offers one update for the marketplaces nothing is cached for, and fetches nothing itself", async () => {
+        const { commands, actionNotifier, cachedTemplateNames, templates, notifier } =
+            marketplaceHost({ registered: ["/work/a", "/work/b"] });
+
+        await commands.offerUpdateIfNotFetched();
+
+        expect(actionNotifier.notices).toEqual([
+            expect.objectContaining({
+                id: MARKETPLACE_UPDATE_NOTICE_ID,
+                message:
+                    "The element templates of 2 marketplaces are not fetched in this workspace yet.",
+            }),
+        ]);
+        expect(await cachedTemplateNames()).toEqual([]);
+        expect(templates.reloads).toBe(0);
+        expect(notifier.infos).toEqual([]);
+    });
+
+    it("runs the update when the user clicks it", async () => {
+        const { commands, cachedTemplateNames, templates, notifier } = marketplaceHost({
+            registered: ["/work/a"],
+            noticeAnswers: { [MARKETPLACE_UPDATE_NOTICE_ID]: "update" },
+        });
+
+        await commands.offerUpdateIfNotFetched();
+
+        expect(await cachedTemplateNames()).toEqual(["a.json"]);
+        expect(templates.reloads).toBe(1);
+        expect(notifier.infos).toEqual(["Updated 1 marketplace(s)."]);
+    });
+
+    it("names only the marketplace this workspace has not fetched", async () => {
+        const { commands, actionNotifier, marketplaces } = marketplaceHost({
+            registered: ["/work/a"],
+        });
+        await commands.update();
+        marketplaces.push("/work/b");
+
+        await commands.offerUpdateIfNotFetched();
+
+        expect(actionNotifier.notices.map((notice) => notice.message)).toEqual([
+            'The element templates of the marketplace "/work/b" are not fetched in this workspace yet.',
+        ]);
+    });
+
+    it("offers nothing when this workspace fetched every marketplace", async () => {
+        const { commands, actionNotifier } = marketplaceHost({ registered: ["/work/a"] });
+        await commands.update();
+
+        await commands.offerUpdateIfNotFetched();
+
+        expect(actionNotifier.notices).toEqual([]);
+    });
+
+    it("offers nothing when nothing is registered", async () => {
+        const { commands, actionNotifier } = marketplaceHost({ registered: [] });
+
+        await commands.offerUpdateIfNotFetched();
+
+        expect(actionNotifier.notices).toEqual([]);
+    });
+
+    it("logs a cache it cannot read instead of throwing", async () => {
+        const { commands, actionNotifier, workspace, notifier } = marketplaceHost();
+        vi.spyOn(workspace, "readDirectory").mockRejectedValue(new Error("disk gone"));
+
+        await expect(commands.offerUpdateIfNotFetched()).resolves.toBeUndefined();
+
+        expect(actionNotifier.notices).toEqual([]);
+        expect(notifier.loggedErrors.map((error) => error.message)).toEqual(["disk gone"]);
     });
 });
 

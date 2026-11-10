@@ -50,7 +50,7 @@ export default miragonDocs({
                 { text: "Element template editor", link: "/vscode/features/element-template-editor" },
                 { text: "Template marketplace", link: "/vscode/features/template-marketplace" },
                 { text: "BPMN plugins", link: "/vscode/features/bpmn-plugins" },
-                { text: "Artifacts view", link: "/vscode/features/artifacts" },
+                { text: "Add-ons", link: "/vscode/features/add-ons" },
                 { text: "Forms", link: "/vscode/features/form-editing" },
                 { text: "Language support", link: "/vscode/features/language-support" },
             ],

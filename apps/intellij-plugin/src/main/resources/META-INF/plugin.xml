@@ -147,14 +147,14 @@
             implementation="io.miragon.intellij.bpmn.ScriptHighlightFilter"/>
 
         <!-- The BPMN Modeler tool window: a Deploy tab with the Camunda 7/8 deployment webview and an
-             Artifacts tab with the project's add-ons, each driven by the shared core over the bridge
+             Add-ons tab with the project's add-ons, each driven by the shared core over the bridge
              (the IntelliJ counterpart of the VS Code BPMN Modeler container). The id is the old
              deployment tool window's, so the layout a user saved still applies; the factory sets the
              stripe title. -->
         <toolWindow
             id="Miragon Deployment"
             anchor="right"
-            icon="/icons/rocket.svg"
+            icon="/icons/komet.svg"
             factoryClass="io.miragon.intellij.bpmn.ModelerToolWindowFactory"/>
     </extensions>
 
@@ -162,12 +162,12 @@
          clutter the Tools menu; each carries the modeler icon so it stays recognisable in Search
          Everywhere / Find Action, where the group chrome is absent. -->
     <actions>
-        <!-- The Artifacts tab's title button; in no menu, but Find Action finds it. -->
+        <!-- The Add-ons tab's title button; in no menu, but Find Action finds it. -->
         <action
-            id="io.miragon.bpmn-modeler.refreshArtifacts"
-            class="io.miragon.intellij.bpmn.RefreshArtifactsAction"
+            id="io.miragon.bpmn-modeler.refreshAddOns"
+            class="io.miragon.intellij.bpmn.RefreshAddOnsAction"
             icon="AllIcons.Actions.Refresh"
-            text="Refresh Artifacts"
+            text="Refresh Add-ons"
             description="Read the project's plugins, rule packages and element templates again"/>
 
         <group id="MiragonBpmn.Tools" text="Miragon BPMN Modeler" popup="true"
