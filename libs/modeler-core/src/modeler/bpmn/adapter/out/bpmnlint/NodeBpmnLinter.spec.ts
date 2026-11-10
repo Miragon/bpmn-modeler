@@ -585,6 +585,26 @@ module.exports = () => ({
         expect(refused).toEqual([]);
     });
 
+    it("runs a package whose content was allowed in another folder and reports it admitted here", async () => {
+        await installAcme();
+        const fingerprint = fingerprints.fingerprint({ kind: "package", id: acmeDir() });
+        if (fingerprint.kind !== "fingerprinted") throw new Error(`refused: ${fingerprint.reason}`);
+        const { contentHash } = fingerprint.rulePackage;
+        approvals.approvals = [
+            { pluginId: "/other-clone/node_modules/bpmnlint-plugin-acme", contentHash },
+        ];
+
+        const { results, blocked, admitted } = await linter.lint(
+            BPMN_WITH_TASK,
+            configPath,
+            TASK_FOUND,
+        );
+
+        expect(results["acme/task-found"]).toEqual([expect.objectContaining({ id: "Task_1" })]);
+        expect(blocked).toEqual([]);
+        expect(admitted).toEqual([expect.objectContaining({ id: acmeDir(), contentHash })]);
+    });
+
     it("lints with a package allowed after a run, with no config change", async () => {
         await installAcme();
         await linter.lint(BPMN_WITH_TASK, configPath, TASK_FOUND);
