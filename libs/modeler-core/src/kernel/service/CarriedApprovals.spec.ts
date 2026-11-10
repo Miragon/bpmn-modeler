@@ -114,7 +114,10 @@ describe("CarriedApprovals", () => {
 
     it("stores nothing for two batches of one content after a revoke of its only source", async () => {
         const { store, logger, carried } = setUp(new ChainedHost());
-        const copy: ApprovableArtifact = { ...HERE, id: "/second-worktree/.camunda/plugins/resize" };
+        const copy: ApprovableArtifact = {
+            ...HERE,
+            id: "/second-worktree/.camunda/plugins/resize",
+        };
         store.approvals = [SOURCE];
         const revoke = store.change(revoking([SOURCE.pluginId]));
 
