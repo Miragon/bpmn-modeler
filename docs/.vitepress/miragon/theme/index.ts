@@ -29,6 +29,13 @@ import "./miragon.css"
 import LegalRow from "./LegalRow.vue"
 import GitHubStars from "./GitHubStars.vue"
 import StarPrompt from "./StarPrompt.vue"
+import ZoomOverlay from "./ZoomOverlay.vue"
+import { abschnittsfarbenEinsetzen } from "./abschnitte.mjs"
+// @ts-expect-error vitepress-plugin-mermaid stellt seine Konfiguration nur als virtuelles Modul bereit, ohne Typen.
+import mermaidKonfiguration from "virtual:mermaid-config"
+
+// Die Abschnittsfarben von Mermaid aus den Rollen, hell und dunkel (abschnitte.mjs).
+abschnittsfarbenEinsetzen(mermaidKonfiguration)
 
 // Im Titel jeder Seite steht der Komet statt der Wortmarke, daneben der Produktname
 // (theme/miragon.css, Abschnitt TITEL: KOMET UND PRODUKTNAME).
@@ -40,7 +47,8 @@ const Komet: FunctionalComponent = () =>
     h("path", { d: KOMET, fill: "#00E676" }),
   ])
 // Das Layout von VitePress mit GitHub und Sternen im Header, der Bitte um einen Stern am
-// Seitenende und der Rechtsleiste ganz unten. Slots von außen reicht es weiter,
+// Seitenende, der Rechtsleiste ganz unten und dem Vollbild für Bilder und Diagramme
+// (ZoomOverlay.vue). Slots von außen reicht es weiter,
 // auch einen eigenen layout-bottom, der dann über der Rechtsleiste steht.
 const Layout: FunctionalComponent = (_, { slots }) =>
   h(DefaultTheme.Layout, null, {
@@ -48,7 +56,7 @@ const Layout: FunctionalComponent = (_, { slots }) =>
     "nav-bar-title-before": () => [slots["nav-bar-title-before"]?.(), h(Komet)],
     "nav-bar-content-after": () => [slots["nav-bar-content-after"]?.(), h(GitHubStars)],
     "doc-footer-before": () => [slots["doc-footer-before"]?.(), h(StarPrompt)],
-    "layout-bottom": () => [slots["layout-bottom"]?.(), h(LegalRow)],
+    "layout-bottom": () => [slots["layout-bottom"]?.(), h(LegalRow), h(ZoomOverlay)],
   })
 
 const MiragonTheme: Theme = {

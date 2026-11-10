@@ -1,6 +1,6 @@
 {
   "$kommentar": "Generiert von scripts/sync-assets.mjs in Miragon/corporate-identity, nicht von Hand ändern. Jede Datei, die ein Repo aus der Skill docs-site vendort: Pfad im Repo, Quelle unter plugins/miragon-brand/skills/docs-site/assets/ und sha256. check.mjs prüft die Kopie damit.",
-  "version": "1.25.1",
+  "version": "1.32.0",
   "dateien": [
     {
       "pfad": "docs/.vitepress/miragon/check.mjs",
@@ -43,6 +43,21 @@
       "sha256": "38a7de32637193b43f9eb3dedd79584a9f11ee1a0ffd4f428aa2f30ba3af18fa"
     },
     {
+      "pfad": "docs/.vitepress/miragon/theme/ZoomOverlay.vue",
+      "quelle": "miragon/theme/ZoomOverlay.vue",
+      "sha256": "387a2ecd0465e4b158431f34edb7dea2feff5a62cf84b5622520c43829c290c7"
+    },
+    {
+      "pfad": "docs/.vitepress/miragon/theme/abschnitte.d.mts",
+      "quelle": "miragon/theme/abschnitte.d.mts",
+      "sha256": "b15699d8968ddaee75caafd53f9db68dad819071ed12cfd5c992a49673c65b90"
+    },
+    {
+      "pfad": "docs/.vitepress/miragon/theme/abschnitte.mjs",
+      "quelle": "miragon/theme/abschnitte.mjs",
+      "sha256": "816a8165be0be7732c1f7381e5d005d0c94ef319ff4389b2257beff5b36dd0b3"
+    },
+    {
       "pfad": "docs/.vitepress/miragon/theme/cd-tokens.generated.css",
       "quelle": "miragon/theme/cd-tokens.generated.css",
       "sha256": "ce72d7b3b9a51e19336de9f871281dd93ef9793032ab56a411ad281eb35c43de"
@@ -50,12 +65,12 @@
     {
       "pfad": "docs/.vitepress/miragon/theme/index.ts",
       "quelle": "miragon/theme/index.ts",
-      "sha256": "dda90b8c056e558ac01f2de1a4f38c918d50339af5d59c87ddd710e09195ccd9"
+      "sha256": "21cc8a11b2be5ba30a8907250b88952da2916a4a3f7da4fd333e92a181cadd82"
     },
     {
       "pfad": "docs/.vitepress/miragon/theme/miragon.css",
       "quelle": "miragon/theme/miragon.css",
-      "sha256": "5c43dc675cf7d718e42f7089e1bb274f1198bf1049d7997b108fe3724f05a4df"
+      "sha256": "3d9d5c31b4d7f7d07c5e8523999ccb2f4d9a9b9cbc48de7d756178fe51cd24a3"
     },
     {
       "pfad": "docs/.vitepress/miragon/theme/useStars.ts",
