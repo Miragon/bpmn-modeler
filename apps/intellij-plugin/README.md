@@ -28,7 +28,7 @@ A `.bpmn` file opens on a canvas in IntelliJ IDEA, for Camunda 7, Camunda 8, Ope
 
 ## Install
 
-Needs IntelliJ IDEA Community or Ultimate 2024.2 or later or Android Studio Ladybug or later, on macOS, Linux or Windows x64. The plugin requires the IDE's Java support, so PyCharm, WebStorm and GoLand cannot install it. No Node.js needed.
+Needs IntelliJ IDEA Community or Ultimate 2024.2 or later or Android Studio Ladybug or later, on macOS, Linux or Windows x64. No Node.js needed.
 
 1. In the IDE settings, open **Plugins** and select the **Marketplace** tab.
 2. Search for **Miragon BPMN Modeler**, click **Install** and restart the IDE when asked.

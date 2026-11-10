@@ -4,7 +4,7 @@
     <vendor email="info@miragon.io" url="https://miragon.io">Miragon</vendor>
 
     <description><![CDATA[
-        <p>Model BPMN 2.0 process diagrams visually, right inside your JetBrains IDE —
+        <p>Model BPMN 2.0 process diagrams visually, right inside IntelliJ IDEA —
         no need to switch to a separate modeling tool.</p>
 
         <p>Open any <code>.bpmn</code> file on a drag-and-drop canvas and edit it like a
