@@ -7,7 +7,7 @@
 [![Build](https://github.com/Miragon/bpmn-modeler/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/Miragon/bpmn-modeler/actions/workflows/build.yml)
 [![License: Apache 2.0](https://img.shields.io/github/license/Miragon/bpmn-modeler)](LICENSE)
 
-![Miragon Modeler for BPMN: processes, decisions and forms from plain files, with an order process open in the modeler](docs/public/shots/vscode/cover.png)
+![Miragon Modeler for BPMN, DMN and Forms: processes, decisions and forms right where your code lives, with an order process open in the modeler](images/readme/cover.png)
 
 Model BPMN processes, DMN decisions and Camunda Forms for Camunda 7, Camunda 8, Operaton or CIB seven right where their code lives, and commit them with your code.
 
