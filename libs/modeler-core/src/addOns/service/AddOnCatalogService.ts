@@ -23,7 +23,7 @@ import {
     PRUNE_FAILED,
     pruneResultOf,
     revokeChangeOf,
-    revokeResultOf,
+    revokeOutcomeOf,
     revokeSweepOf,
     shownTargetOf,
 } from "../domain/codeAddOnRequests";
@@ -215,9 +215,9 @@ export class AddOnCatalogService {
         await approvals.change(change);
         const swept = revokeSweepOf(code, await approvals.readStored());
         if (swept.length > 0) await approvals.change(revoking(swept));
-        const revoked = [...new Set([...change.revoke, ...swept])];
-        await source?.afterRevoke(revoked);
-        return revokeResultOf(code, revoked.filter((id) => id !== code.id).length);
+        const { revokedIds, result } = revokeOutcomeOf(code, change, swept);
+        await source?.afterRevoke(revokedIds);
+        return result;
     }
 
     private async prune(): Promise<AddOnActionResult> {

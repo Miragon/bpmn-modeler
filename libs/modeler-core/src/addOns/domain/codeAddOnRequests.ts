@@ -101,8 +101,26 @@ export function revokeSweepOf(code: ShownCode, storedAfter: readonly CodeApprova
         : [];
 }
 
+export interface RevokeOutcome {
+    /** Each place whose row the revoke or its sweep took back, once. */
+    readonly revokedIds: readonly string[];
+    readonly result: AddOnActionResult;
+}
+
+export function revokeOutcomeOf(
+    code: ShownCode,
+    change: CodeApprovalChange,
+    swept: readonly string[],
+): RevokeOutcome {
+    const revokedIds = [...new Set([...change.revoke, ...swept])];
+    return {
+        revokedIds,
+        result: revokeResultOf(code, revokedIds.filter((id) => id !== code.id).length),
+    };
+}
+
 /** @param otherFolders The places besides this one whose rows of its content the revoke took back. */
-export function revokeResultOf(code: ShownCode, otherFolders: number): AddOnActionResult {
+function revokeResultOf(code: ShownCode, otherFolders: number): AddOnActionResult {
     const where =
         otherFolders === 0
             ? ""
