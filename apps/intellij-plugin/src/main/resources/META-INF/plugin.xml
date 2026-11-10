@@ -154,7 +154,7 @@
         <toolWindow
             id="Miragon Deployment"
             anchor="right"
-            icon="/icons/rocket.svg"
+            icon="/icons/komet.svg"
             factoryClass="io.miragon.intellij.bpmn.ModelerToolWindowFactory"/>
     </extensions>
 
