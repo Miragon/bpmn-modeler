@@ -13,6 +13,7 @@ describe("isDigestValue", () => {
         ["a short hex word", "ab12", false],
         ["a path", ".camunda/plugins/resize", false],
         ["hex with a space", "abcdef0123456789 abcdef0123456789", false],
+        ["a sentence that holds a digest", "Hash abcdef0123456789abcdef0123456789", false],
     ])("%s: %s", (_, value, expected) => {
         expect(isDigestValue(value)).toBe(expected);
     });
