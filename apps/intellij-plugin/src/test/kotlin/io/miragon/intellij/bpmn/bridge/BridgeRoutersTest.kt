@@ -108,6 +108,24 @@ class BridgeRoutersTest {
     }
 
     @Test
+    fun `a spawn shows the Deploy tab again at its last visibility`() {
+        val wired = wireChannel().also { this.wired = it }
+        val routers = BridgeRouters(bridgeDeps(projectFixture.get(), wired.channel, wired.handlers))
+        routers.register()
+        routers.deployment.registerDeploymentWindow {}
+        routers.deployment.setDeploymentOpen(true)
+        wired.fake.framesUntilQuiet()
+
+        routers.seedAfterSpawn()
+
+        val opens =
+            wired.fake.framesUntilQuiet().map(::parse)
+                .filter { it.get("method").asString == "deployment/open" }
+                .map { it.getAsJsonObject("params").get("open").asBoolean }
+        assertEquals(listOf(true), opens)
+    }
+
+    @Test
     fun `every spawn after the first reloads the Artifacts page, also one after the supervisor gave up`() {
         val wired = wireChannel().also { this.wired = it }
         val routers = BridgeRouters(bridgeDeps(projectFixture.get(), wired.channel, wired.handlers))
