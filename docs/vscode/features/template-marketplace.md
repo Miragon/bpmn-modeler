@@ -109,7 +109,7 @@ Templates with an `engines` field are only offered on Camunda 8 diagrams whose `
 
 ## Limits
 
-- Templates are cached per workspace and fetched only on Add and Update. A marketplace in your User settings is fetched once per workspace: run **Update Marketplaces** in a new workspace.
+- Templates are cached per workspace. A marketplace is fetched on Add and Update, and again when the extension starts if nothing is cached for it yet or its last fetch is 24 hours old, so a new workspace or git worktree loads its templates without a manual update. This start-up fetch never asks for a token and shows no notification: a source that needs a token you have not stored is skipped and the Output channel says so. Run **Update Marketplaces** to enter the token or to fetch sooner.
 - A source that cannot be fetched keeps its last fetched templates until an update reaches it again, unless it moved to another place in `sources`. An update lists a marketplace as failed when none of its sources can be fetched.
 - If the cache of a removed marketplace cannot be deleted, for example because another program holds a file in it, Update and Remove still finish and write the error to the log. Its templates stay offered until a later Update or Remove deletes them.
 - Unauthenticated GitHub access allows 60 requests per hour; a token raises the limit.

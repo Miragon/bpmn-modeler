@@ -20,12 +20,15 @@ export interface MarketplaceHostPorts {
     /** Expands `~` in a pasted path or a local source; the core cannot read it. */
     homeDir: string;
     http?: HttpClient;
+    /** Epoch ms; a host with no better clock passes nothing. */
+    now?: () => number;
 }
 
 export function createTemplateMarketplaceService(
     ports: MarketplaceHostPorts,
 ): TemplateMarketplaceService {
     const http = ports.http ?? new FetchHttpClient();
+    const now = ports.now ?? Date.now;
     const sourceFor = (config: RepositorySourceConfig): RepositorySource => {
         switch (config.kind) {
             case "github":
@@ -38,11 +41,12 @@ export function createTemplateMarketplaceService(
     };
     return new TemplateMarketplaceService(
         sourceFor,
-        new MarketplaceCache(ports.cacheRoot, ports.workspace),
+        new MarketplaceCache(ports.cacheRoot, ports.workspace, now),
         ports.settings,
         ports.notifier,
         ports.tokens,
         ports.tokenPrompt,
         ports.homeDir,
+        now,
     );
 }

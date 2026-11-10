@@ -9,7 +9,11 @@ import {
     parseMarketplaceUrl,
     TemplateSource,
 } from "../domain/marketplace";
-import { CachePrune, MarketplaceRegistry } from "../domain/marketplaceRegistry";
+import {
+    CachePrune,
+    MarketplaceRegistry,
+    ParsedMarketplaceEntry,
+} from "../domain/marketplaceRegistry";
 import { RepositorySourceConfig } from "../domain/repositorySourceConfig";
 import { RepositorySourceFactory, TokenPromptPort, TokenStorePort } from "../port/marketplacePorts";
 import {
@@ -20,6 +24,7 @@ import {
     sourceIdentity,
 } from "../domain/sourceConfig";
 import { includedFiles } from "../domain/sourceInclude";
+import { needsStartupRefresh } from "../domain/startupRefresh";
 import {
     FetchedTemplateFile,
     planSourceCacheRefresh,
@@ -55,6 +60,7 @@ export class TemplateMarketplaceService {
      * @param tokenPrompt A decline returns `undefined` and never aborts a run.
      * @param homeDir Injected because the host-agnostic core cannot read it;
      *   used to expand `~` in a `provider: "local"` source.
+     * @param now Epoch ms, to decide which cached marketplaces are due for a refresh.
      */
     constructor(
         private readonly sourceFactory: RepositorySourceFactory,
@@ -64,11 +70,14 @@ export class TemplateMarketplaceService {
         private readonly tokens: TokenStorePort,
         private readonly tokenPrompt: TokenPromptPort,
         private readonly homeDir: string,
+        private readonly now: () => number = Date.now,
     ) {}
 
     /** A fresh {@link HostTokenSession} — one per user-initiated command. */
-    private newTokenSession(): HostTokenSession {
-        return new HostTokenSession(this.tokens, this.tokenPrompt, this.notifier);
+    private newTokenSession(
+        interaction: "interactive" | "silent" = "interactive",
+    ): HostTokenSession {
+        return new HostTokenSession(this.tokens, this.tokenPrompt, this.notifier, interaction);
     }
 
     /**
@@ -110,10 +119,45 @@ export class TemplateMarketplaceService {
      * settings also removes its orphaned templates.
      */
     async updateAll(): Promise<MarketplaceUpdateOutcome> {
-        const tokenSession = this.newTokenSession();
         const registry = MarketplaceRegistry.fromEntries(this.settings.getMarketplaces());
         const { entries } = registry;
         this.notifier.logInfo(`Updating ${entries.length} marketplace(s)`);
+        const outcome = await this.updateEntries(entries, this.newTokenSession());
+        await this.pruneCache(registry.cachePrune());
+        this.notifier.logInfo(
+            `Marketplace update finished: ${outcome.succeeded} of ${entries.length} succeeded`,
+        );
+        return outcome;
+    }
+
+    /**
+     * Fetches the registered marketplaces whose cache is missing or older than
+     * its lifetime, for a host that starts with a cold or aged cache. Nobody
+     * asked for it, so it never prompts: a source that needs a token that is not
+     * stored is skipped and logged. Never throws, like {@link updateAll}, and
+     * prunes nothing.
+     */
+    async refreshStale(): Promise<MarketplaceUpdateOutcome> {
+        const { entries } = MarketplaceRegistry.fromEntries(this.settings.getMarketplaces());
+        const due: ParsedMarketplaceEntry[] = [];
+        for (const entry of entries) {
+            if (
+                entry.kind === "unparseable" ||
+                needsStartupRefresh(await this.cache.cachedSlots(entry.registration.id), this.now())
+            ) {
+                due.push(entry);
+            }
+        }
+        this.notifier.logInfo(
+            `Refreshing ${due.length} of ${entries.length} marketplace(s) whose cache is missing or stale`,
+        );
+        return this.updateEntries(due, this.newTokenSession("silent"));
+    }
+
+    private async updateEntries(
+        entries: readonly ParsedMarketplaceEntry[],
+        tokenSession: HostTokenSession,
+    ): Promise<MarketplaceUpdateOutcome> {
         let succeeded = 0;
         const failures: MarketplaceUpdateFailure[] = [];
         for (const entry of entries) {
@@ -141,10 +185,6 @@ export class TemplateMarketplaceService {
                 failures.push(this.recordSkip(entry.label, (error as Error).message));
             }
         }
-        await this.pruneCache(registry.cachePrune());
-        this.notifier.logInfo(
-            `Marketplace update finished: ${succeeded} of ${entries.length} succeeded`,
-        );
         return { succeeded, failures };
     }
 

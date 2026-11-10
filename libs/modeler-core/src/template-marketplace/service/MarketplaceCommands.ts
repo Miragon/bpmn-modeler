@@ -115,6 +115,23 @@ export class MarketplaceCommands {
     }
 
     /**
+     * Fills a cold cache and renews an aged one when the host starts, in the
+     * queue of the other flows and without a question or a toast; what it
+     * skipped is in the log. Never throws: nobody waits on it.
+     */
+    async refreshStale(): Promise<void> {
+        const { notifier, marketplaces, templates } = this.ports;
+        try {
+            await this.oneAtATime(async () => {
+                const { succeeded } = await marketplaces.refreshStale();
+                if (succeeded > 0) await templates.reloadMarketplaceTemplates();
+            });
+        } catch (error) {
+            notifier.logError(error as Error);
+        }
+    }
+
+    /**
      * The choice's OK is the confirmation (adding again is cheap). Prunes only
      * the cache slots the removal orphaned and never fetches the survivors
      * again. The toast counts the chosen entries, not the pruned slots: a

@@ -6,6 +6,7 @@ import { MarketplaceCache } from "./MarketplaceCache";
 
 const SOURCE = "source a";
 const OTHER_SOURCE = "source b";
+const FETCHED_AT = 1_700_000_000_000;
 
 function createWorkspace(files: Record<string, string> = {}) {
     return new InMemoryWorkspace([], files);
@@ -16,7 +17,7 @@ function template(repoPath: string, content = "{}"): FetchedTemplateFile {
 }
 
 function slotRecord(sourceIdentity: string, generation: number): string {
-    return formatSourceSlotRecord({ sourceIdentity, generation });
+    return formatSourceSlotRecord({ sourceIdentity, generation, fetchedAt: FETCHED_AT });
 }
 
 async function servedContents(cache: MarketplaceCache, workspace: InMemoryWorkspace) {
@@ -38,7 +39,7 @@ function failWritesTo(workspace: InMemoryWorkspace, failingSuffix: string) {
 describe("MarketplaceCache.replaceSource", () => {
     it("writes each file under <root>/<id>/<index>/<generation>/<contentType>/<path>", async () => {
         const workspace = createWorkspace();
-        const cache = new MarketplaceCache("/cache", workspace);
+        const cache = new MarketplaceCache("/cache", workspace, () => FETCHED_AT);
 
         await cache.replaceSource("acme", 0, SOURCE, [template("templates/a.json")]);
 
@@ -56,7 +57,7 @@ describe("MarketplaceCache.replaceSource", () => {
             "/cache/acme/0/element-templates/b.json": "old b",
             "/cache/acme/1/element-templates/c.json": "sibling",
         });
-        const cache = new MarketplaceCache("/cache", workspace);
+        const cache = new MarketplaceCache("/cache", workspace, () => FETCHED_AT);
 
         await cache.replaceSource("acme", 0, SOURCE, [template("a.json", "new a")]);
 
@@ -71,7 +72,7 @@ describe("MarketplaceCache.replaceSource", () => {
 
     it("writes each replace into the next generation and drops the one before", async () => {
         const workspace = createWorkspace();
-        const cache = new MarketplaceCache("/cache", workspace);
+        const cache = new MarketplaceCache("/cache", workspace, () => FETCHED_AT);
         await cache.replaceSource("acme", 0, OTHER_SOURCE, [template("a.json", "first")]);
 
         await cache.replaceSource("acme", 0, SOURCE, [template("a.json", "second")]);
@@ -86,7 +87,7 @@ describe("MarketplaceCache.replaceSource", () => {
 
     it("serves only the files of the later of two overlapping replaces", async () => {
         const workspace = createWorkspace();
-        const cache = new MarketplaceCache("/cache", workspace);
+        const cache = new MarketplaceCache("/cache", workspace, () => FETCHED_AT);
         await cache.replaceSource("acme", 0, SOURCE, [template("old.json", "old")]);
 
         await Promise.all([
@@ -96,13 +97,13 @@ describe("MarketplaceCache.replaceSource", () => {
 
         expect(await servedContents(cache, workspace)).toEqual(["b"]);
         expect(await cache.cachedSlots("acme")).toEqual([
-            { sourceIndex: 0, sourceIdentity: OTHER_SOURCE },
+            { sourceIndex: 0, sourceIdentity: OTHER_SOURCE, fetchedAt: FETCHED_AT },
         ]);
     });
 
     it("removes a slot only after the replace before it finished", async () => {
         const workspace = createWorkspace();
-        const cache = new MarketplaceCache("/cache", workspace);
+        const cache = new MarketplaceCache("/cache", workspace, () => FETCHED_AT);
 
         await Promise.all([
             cache.replaceSource("acme", 0, SOURCE, [template("a.json", "a")]),
@@ -115,7 +116,7 @@ describe("MarketplaceCache.replaceSource", () => {
 
     it("keeps the old files when a write fails", async () => {
         const workspace = createWorkspace();
-        const cache = new MarketplaceCache("/cache", workspace);
+        const cache = new MarketplaceCache("/cache", workspace, () => FETCHED_AT);
         await cache.replaceSource("acme", 0, SOURCE, [template("a.json", "old a")]);
         failWritesTo(workspace, "/b.json");
 
@@ -131,7 +132,7 @@ describe("MarketplaceCache.replaceSource", () => {
 
     it("keeps the old files and their source when the slot record cannot be written", async () => {
         const workspace = createWorkspace();
-        const cache = new MarketplaceCache("/cache", workspace);
+        const cache = new MarketplaceCache("/cache", workspace, () => FETCHED_AT);
         await cache.replaceSource("acme", 0, SOURCE, [template("a.json", "old a")]);
         failWritesTo(workspace, "/slot.json");
 
@@ -141,13 +142,13 @@ describe("MarketplaceCache.replaceSource", () => {
 
         expect(await servedContents(cache, workspace)).toEqual(["old a"]);
         expect(await cache.cachedSlots("acme")).toEqual([
-            { sourceIndex: 0, sourceIdentity: SOURCE },
+            { sourceIndex: 0, sourceIdentity: SOURCE, fetchedAt: FETCHED_AT },
         ]);
     });
 
     it("completes a replace whose record is written when an old generation cannot be deleted", async () => {
         const workspace = createWorkspace();
-        const cache = new MarketplaceCache("/cache", workspace);
+        const cache = new MarketplaceCache("/cache", workspace, () => FETCHED_AT);
         await cache.replaceSource("acme", 0, SOURCE, [template("a.json", "old a")]);
         const deleteDirectory = workspace.deleteDirectory.bind(workspace);
         let deletions = 0;
@@ -167,7 +168,7 @@ describe("MarketplaceCache.replaceSource", () => {
 
     it("does not serve the files a failed replace left behind", async () => {
         const workspace = createWorkspace();
-        const cache = new MarketplaceCache("/cache", workspace);
+        const cache = new MarketplaceCache("/cache", workspace, () => FETCHED_AT);
         const failingWrites = failWritesTo(workspace, "/b.json");
         await expect(
             cache.replaceSource("acme", 0, SOURCE, [template("a.json"), template("b.json")]),
@@ -189,7 +190,7 @@ describe("MarketplaceCache.replaceSource", () => {
     ])("rejects %s before writing anything", async (_label, unsafeRepoPath) => {
         const cachedFiles = { "/cache/acme/0/element-templates/a.json": "last good" };
         const workspace = createWorkspace(cachedFiles);
-        const cache = new MarketplaceCache("/cache", workspace);
+        const cache = new MarketplaceCache("/cache", workspace, () => FETCHED_AT);
 
         await expect(
             cache.replaceSource("acme", 0, SOURCE, [template("b.json"), template(unsafeRepoPath)]),
@@ -199,15 +200,29 @@ describe("MarketplaceCache.replaceSource", () => {
 });
 
 describe("MarketplaceCache.cachedSlots", () => {
-    it("names the source each slot of one marketplace recorded", async () => {
-        const cache = new MarketplaceCache("/cache", createWorkspace());
+    it("names the source and the time of the fetch each slot of one marketplace recorded", async () => {
+        let clock = FETCHED_AT;
+        const cache = new MarketplaceCache("/cache", createWorkspace(), () => clock);
         await cache.replaceSource("acme", 0, SOURCE, [template("a.json")]);
+        clock += 5_000;
         await cache.replaceSource("acme", 2, OTHER_SOURCE, [template("b.json")]);
         await cache.replaceSource("globex", 1, SOURCE, [template("c.json")]);
 
         expect(await cache.cachedSlots("acme")).toEqual([
-            { sourceIndex: 0, sourceIdentity: SOURCE },
-            { sourceIndex: 2, sourceIdentity: OTHER_SOURCE },
+            { sourceIndex: 0, sourceIdentity: SOURCE, fetchedAt: FETCHED_AT },
+            { sourceIndex: 2, sourceIdentity: OTHER_SOURCE, fetchedAt: FETCHED_AT + 5_000 },
+        ]);
+    });
+
+    it("names no time of the fetch for a slot an earlier version recorded", async () => {
+        const workspace = createWorkspace({
+            "/cache/acme/0/slot.json": '{"sourceIdentity":"source a","generation":1}',
+            "/cache/acme/0/1/element-templates/a.json": "{}",
+        });
+        const cache = new MarketplaceCache("/cache", workspace, () => FETCHED_AT);
+
+        expect(await cache.cachedSlots("acme")).toEqual([
+            { sourceIndex: 0, sourceIdentity: SOURCE, fetchedAt: undefined },
         ]);
     });
 
@@ -218,7 +233,7 @@ describe("MarketplaceCache.cachedSlots", () => {
             "/cache/acme/notes/element-templates/c.json": "{}",
             "/cache/globex/1/element-templates/d.json": "{}",
         });
-        const cache = new MarketplaceCache("/cache", workspace);
+        const cache = new MarketplaceCache("/cache", workspace, () => FETCHED_AT);
 
         expect(await cache.cachedSlots("acme")).toEqual([
             { sourceIndex: 0, sourceIdentity: undefined },
@@ -231,7 +246,7 @@ describe("MarketplaceCache.cachedSlots", () => {
             "/cache/acme/0/slot.json": '{"sourceIdentity":"sou',
             "/cache/acme/0/1/element-templates/a.json": "{}",
         });
-        const cache = new MarketplaceCache("/cache", workspace);
+        const cache = new MarketplaceCache("/cache", workspace, () => FETCHED_AT);
 
         expect(await cache.cachedSlots("acme")).toEqual([
             { sourceIndex: 0, sourceIdentity: undefined },
@@ -239,7 +254,7 @@ describe("MarketplaceCache.cachedSlots", () => {
     });
 
     it("returns [] for a marketplace with nothing cached", async () => {
-        const cache = new MarketplaceCache("/cache", createWorkspace());
+        const cache = new MarketplaceCache("/cache", createWorkspace(), () => FETCHED_AT);
 
         expect(await cache.cachedSlots("acme")).toEqual([]);
     });
@@ -252,7 +267,7 @@ describe("MarketplaceCache.removeSource", () => {
             "/cache/acme/1/element-templates/b.json": "{}",
             "/cache/globex/1/element-templates/c.json": "{}",
         });
-        const cache = new MarketplaceCache("/cache", workspace);
+        const cache = new MarketplaceCache("/cache", workspace, () => FETCHED_AT);
 
         await cache.removeSource("acme", 1);
 
@@ -265,7 +280,7 @@ describe("MarketplaceCache.removeSource", () => {
 
 describe("MarketplaceCache.getCachedTemplatePaths", () => {
     it("returns [] when nothing is cached yet (cache root absent)", async () => {
-        const cache = new MarketplaceCache("/cache", createWorkspace());
+        const cache = new MarketplaceCache("/cache", createWorkspace(), () => FETCHED_AT);
 
         expect(await cache.getCachedTemplatePaths()).toEqual([]);
     });
@@ -277,7 +292,7 @@ describe("MarketplaceCache.getCachedTemplatePaths", () => {
             "/cache/acme/0/element-templates/nested/b.json": "{}",
             "/cache/acme/0/element-templates/nested/notes.txt": "",
         });
-        const cache = new MarketplaceCache("/cache", workspace);
+        const cache = new MarketplaceCache("/cache", workspace, () => FETCHED_AT);
 
         expect(await cache.getCachedTemplatePaths()).toEqual([
             "/cache/acme/0/element-templates/a.json",
@@ -291,7 +306,7 @@ describe("MarketplaceCache.getCachedTemplatePaths", () => {
             "/cache/acme/0/lint-rules/x.json": "{}",
         });
         const readDirectory = vi.spyOn(workspace, "readDirectory");
-        const cache = new MarketplaceCache("/cache", workspace);
+        const cache = new MarketplaceCache("/cache", workspace, () => FETCHED_AT);
 
         expect(await cache.getCachedTemplatePaths()).toEqual([
             "/cache/acme/0/element-templates/a.json",
@@ -303,7 +318,7 @@ describe("MarketplaceCache.getCachedTemplatePaths", () => {
         const workspace = createWorkspace({
             "/cache/acme/0/lint-rules/x.json": "{}",
         });
-        const cache = new MarketplaceCache("/cache", workspace);
+        const cache = new MarketplaceCache("/cache", workspace, () => FETCHED_AT);
 
         expect(await cache.getCachedTemplatePaths()).toEqual([]);
     });
@@ -315,7 +330,7 @@ describe("MarketplaceCache.getCachedTemplatePaths", () => {
             "/cache/acme/0/2/element-templates/live.json": "{}",
             "/cache/acme/0/3/element-templates/unfinished.json": "{}",
         });
-        const cache = new MarketplaceCache("/cache", workspace);
+        const cache = new MarketplaceCache("/cache", workspace, () => FETCHED_AT);
 
         expect(await cache.getCachedTemplatePaths()).toEqual([
             "/cache/acme/0/2/element-templates/live.json",
@@ -327,7 +342,7 @@ describe("MarketplaceCache.getCachedTemplatePaths", () => {
             "/cache/acme/0/slot.json": "",
             "/cache/acme/0/1/element-templates/a.json": "{}",
         });
-        const cache = new MarketplaceCache("/cache", workspace);
+        const cache = new MarketplaceCache("/cache", workspace, () => FETCHED_AT);
 
         expect(await cache.getCachedTemplatePaths()).toEqual([]);
     });
@@ -335,7 +350,7 @@ describe("MarketplaceCache.getCachedTemplatePaths", () => {
     it("fails when a slot record cannot be read", async () => {
         const workspace = createWorkspace({ "/cache/acme/0/slot.json": slotRecord(SOURCE, 1) });
         vi.spyOn(workspace, "readFile").mockRejectedValue(new Error("permission denied"));
-        const cache = new MarketplaceCache("/cache", workspace);
+        const cache = new MarketplaceCache("/cache", workspace, () => FETCHED_AT);
 
         await expect(cache.getCachedTemplatePaths()).rejects.toThrow("permission denied");
     });
@@ -346,7 +361,7 @@ describe("MarketplaceCache.getCachedTemplatePaths", () => {
             "/cache/acme/1/element-templates/b.json": "{}",
             "/cache/globex/0/element-templates/c.json": "{}",
         });
-        const cache = new MarketplaceCache("/cache", workspace);
+        const cache = new MarketplaceCache("/cache", workspace, () => FETCHED_AT);
 
         expect(await cache.getCachedTemplatePaths()).toEqual([
             "/cache/acme/0/element-templates/a.json",
@@ -364,7 +379,7 @@ describe("MarketplaceCache.prune", () => {
             "/cache/stale/1/element-templates/t.json": "{}",
             "/cache/globex/0/element-templates/c.json": "{}",
         });
-        const cache = new MarketplaceCache("/cache", workspace);
+        const cache = new MarketplaceCache("/cache", workspace, () => FETCHED_AT);
 
         const pruned = await cache.prune(new Set(["acme", "globex"]));
 
@@ -380,7 +395,7 @@ describe("MarketplaceCache.prune", () => {
             "/cache/acme/0/element-templates/a.json": "{}",
             "/cache/globex/0/element-templates/c.json": "{}",
         });
-        const cache = new MarketplaceCache("/cache", workspace);
+        const cache = new MarketplaceCache("/cache", workspace, () => FETCHED_AT);
 
         const pruned = await cache.prune(new Set());
 
@@ -391,7 +406,7 @@ describe("MarketplaceCache.prune", () => {
     it("is a no-op when the cache root does not exist yet", async () => {
         const workspace = createWorkspace();
         const deleteDirectory = vi.spyOn(workspace, "deleteDirectory");
-        const cache = new MarketplaceCache("/cache", workspace);
+        const cache = new MarketplaceCache("/cache", workspace, () => FETCHED_AT);
 
         expect(await cache.prune(new Set(["acme"]))).toEqual([]);
         expect(deleteDirectory).not.toHaveBeenCalled();

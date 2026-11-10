@@ -1,10 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { createTestHost, PromptAnswers } from "../../testing";
+import { HttpClient } from "../../kernel/port/HttpClient";
 import { createTemplateMarketplaceService } from "../composition/MarketplaceFeature";
 import { InvalidMarketplaceError } from "../domain/marketplace";
 import { MarketplaceAddAnswer } from "../domain/marketplacePrompts";
 import { registeredMarketplaces } from "../domain/marketplaceRegistrations";
+import { MARKETPLACE_CACHE_TTL_MS } from "../domain/startupRefresh";
 import { MarketplaceCommands } from "./MarketplaceCommands";
 
 function templateFile(id: string): string {
@@ -46,12 +48,15 @@ function marketplaceHost({
     answers = [],
     promptAnswers = {},
     explainAddFailure,
+    http,
 }: {
     registered?: string[];
     answers?: MarketplaceAddAnswer[];
     promptAnswers?: PromptAnswers;
     explainAddFailure?: (error: Error) => Promise<boolean>;
+    http?: HttpClient;
 } = {}) {
+    let now = 1_800_000_000_000;
     const host = createTestHost({
         folders: ["/work"],
         files: {
@@ -77,6 +82,8 @@ function marketplaceHost({
         tokenPrompt: host.tokenPrompt,
         cacheRoot: "/cache",
         homeDir: "/work",
+        http,
+        now: () => now,
     });
     const templates = {
         reloads: 0,
@@ -147,6 +154,11 @@ function marketplaceHost({
         picker: host.picker,
         workspace: host.workspace,
         notifier: host.notifier,
+        tokens: host.tokens,
+        tokenPrompt: host.tokenPrompt,
+        passTime: (milliseconds: number) => {
+            now += milliseconds;
+        },
         templates,
         holdRead,
         holdRegistration,
@@ -404,6 +416,130 @@ describe("MarketplaceCommands.update", () => {
                 '/work/missing: Invalid marketplace: could not read marketplace.json from "/work/missing": ' +
                 "File not found: /work/missing/marketplace.json",
         ]);
+    });
+});
+
+const everyRequestDenied: HttpClient = (() => {
+    const denied = async () => ({ status: 404, body: "{}" });
+    return {
+        getText: denied,
+        getJson: denied,
+        postJson: denied,
+        postForm: denied,
+        postMultipart: denied,
+    };
+})();
+
+describe("MarketplaceCommands.refreshStale", () => {
+    it("fetches a registered marketplace nothing is cached for and refreshes open editors, without a toast", async () => {
+        const { commands, cachedTemplateNames, templates, notifier } = marketplaceHost();
+
+        await commands.refreshStale();
+
+        expect(await cachedTemplateNames()).toEqual(["a.json"]);
+        expect(templates.reloads).toBe(1);
+        expect(notifier.infos).toEqual([]);
+        expect(notifier.errors).toEqual([]);
+        expect(notifier.warnings).toEqual([]);
+    });
+
+    it("leaves a marketplace fetched within its lifetime alone", async () => {
+        const { commands, templates, workspace, cachedTemplateNames, passTime } = marketplaceHost();
+        await commands.refreshStale();
+        await workspace.writeFile("/work/a/element-templates/new.json", templateFile("new"));
+        passTime(MARKETPLACE_CACHE_TTL_MS - 1);
+
+        await commands.refreshStale();
+
+        expect(await cachedTemplateNames()).toEqual(["a.json"]);
+        expect(templates.reloads).toBe(1);
+    });
+
+    it("fetches a marketplace again once its lifetime has passed", async () => {
+        const { commands, templates, workspace, cachedTemplateNames, passTime } = marketplaceHost();
+        await commands.refreshStale();
+        await workspace.writeFile("/work/a/element-templates/new.json", templateFile("new"));
+        passTime(MARKETPLACE_CACHE_TTL_MS);
+
+        await commands.refreshStale();
+
+        expect(await cachedTemplateNames()).toEqual(["a.json", "new.json"]);
+        expect(templates.reloads).toBe(2);
+    });
+
+    it("fetches only the marketplaces that are due", async () => {
+        const { commands, registrations, workspace, cachedTemplateNames, passTime } =
+            marketplaceHost({ registered: ["/work/a"] });
+        await commands.refreshStale();
+        passTime(MARKETPLACE_CACHE_TTL_MS / 2);
+        await registrations.register("/work/b", "project");
+        await commands.refreshStale();
+        await workspace.writeFile("/work/a/element-templates/new.json", templateFile("new"));
+        await workspace.writeFile("/work/b/element-templates/late.json", templateFile("late"));
+        passTime(MARKETPLACE_CACHE_TTL_MS / 2);
+
+        await commands.refreshStale();
+
+        expect(await cachedTemplateNames()).toEqual(["a.json", "b.json", "new.json"]);
+    });
+
+    it("keeps the last fetched templates of a marketplace it cannot reach and logs why", async () => {
+        const { commands, workspace, cachedTemplateNames, notifier, passTime } = marketplaceHost();
+        await commands.refreshStale();
+        passTime(MARKETPLACE_CACHE_TTL_MS);
+        await workspace.deleteDirectory("/work/a");
+
+        await commands.refreshStale();
+
+        expect(await cachedTemplateNames()).toEqual(["a.json"]);
+        expect(notifier.errors).toEqual([]);
+        expect(notifier.logged("warning")).toContainEqual(
+            expect.stringContaining('Skipped template marketplace "/work/a"'),
+        );
+    });
+
+    it("skips a private source without a stored token, never asks for one and logs that", async () => {
+        const { commands, tokenPrompt, notifier, cachedTemplateNames } = marketplaceHost({
+            registered: ["/work/a", "acme/templates"],
+            http: everyRequestDenied,
+        });
+
+        await commands.refreshStale();
+
+        expect(tokenPrompt.prompts).toEqual([]);
+        expect(await cachedTemplateNames()).toEqual(["a.json"]);
+        expect(notifier.errors).toEqual([]);
+        expect(notifier.logged("warning")).toContainEqual(
+            expect.stringContaining(
+                "acme/templates on github.com requires a personal access token",
+            ),
+        );
+        expect(notifier.logged("info")).toContain(
+            "Not asking for a github.com token while the host starts; update the marketplaces to enter one",
+        );
+    });
+
+    it("fetches nothing and reloads nothing when no marketplace is registered", async () => {
+        const { commands, templates, notifier } = marketplaceHost({ registered: [] });
+
+        await commands.refreshStale();
+
+        expect(templates.reloads).toBe(0);
+        expect(notifier.progressTitles).toEqual([]);
+        expect(notifier.infos).toEqual([]);
+    });
+
+    it("runs behind a command that is already running", async () => {
+        const { commands, holdRead, cachedTemplateNames } = marketplaceHost();
+        const held = holdRead("/work/a/marketplace.json");
+        const update = commands.update();
+        await letPendingWorkRun();
+
+        const refresh = commands.refreshStale();
+        held.open();
+        await Promise.all([update, refresh]);
+
+        expect(await cachedTemplateNames()).toEqual(["a.json"]);
     });
 });
 

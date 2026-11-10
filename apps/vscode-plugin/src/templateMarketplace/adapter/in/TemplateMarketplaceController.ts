@@ -41,6 +41,11 @@ export class TemplateMarketplaceController {
         );
     }
 
+    /** Fire and forget: the core's flow queues behind the commands and never throws. */
+    refreshOnStartup(): Promise<void> {
+        return this.marketplaces.refreshStale();
+    }
+
     /**
      * A `marketplaces` key added by an in-place update from ≤1.3.x only enters
      * the window's configuration registry on reload; until then the settings

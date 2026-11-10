@@ -26,7 +26,7 @@ const SLOT_RECORD = "slot.json";
  *
  * Layout: `<cacheRoot>/<marketplaceId>/<sourceIndex>/<generation>/<contentType>/<repo-relative path>`,
  * beside `<sourceIndex>/slot.json`, the {@link SourceSlotRecord} that names the
- * slot's source and its live generation. Keying by `marketplaceId` then
+ * slot's source, its live generation and when that generation was fetched. Keying by `marketplaceId` then
  * `sourceIndex` keeps sources isolated, so two templates sharing a basename
  * never clobber each other; the `<contentType>` segment keeps a future JSON
  * content type (lint rules, palette entries) out of the element-template
@@ -50,6 +50,7 @@ export class MarketplaceCache {
     constructor(
         private readonly cacheRoot: string,
         private readonly workspace: WorkspacePort,
+        private readonly now: () => number = Date.now,
     ) {}
 
     async cachedSlots(marketplaceId: string): Promise<CachedSourceSlot[]> {
@@ -59,7 +60,11 @@ export class MarketplaceCache {
             const name = sourceDir.slice(marketplaceDir.length + 1);
             if (/^\d+$/.test(name)) {
                 const record = await this.readSlotRecord(sourceDir);
-                slots.push({ sourceIndex: Number(name), sourceIdentity: record?.sourceIdentity });
+                slots.push({
+                    sourceIndex: Number(name),
+                    sourceIdentity: record?.sourceIdentity,
+                    fetchedAt: record?.fetchedAt,
+                });
             }
         }
         return slots;
@@ -113,7 +118,11 @@ export class MarketplaceCache {
         files: readonly FetchedTemplateFile[],
     ): Promise<void> {
         const sourceDir = this.sourceDir(marketplaceId, sourceIndex);
-        const record = nextSourceSlotRecord(await this.readSlotRecord(sourceDir), sourceIdentity);
+        const record = nextSourceSlotRecord(
+            await this.readSlotRecord(sourceDir),
+            sourceIdentity,
+            this.now(),
+        );
         const generationDir = `${sourceDir}/${record.generation}`;
         // A replace that failed before its record was written left this generation behind.
         await this.workspace.deleteDirectory(generationDir);

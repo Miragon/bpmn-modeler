@@ -20,6 +20,7 @@ const template: FetchedTemplateFile = {
 const SOURCE_A = "source a";
 const SOURCE_B = "source b";
 const SOURCE_C = "source c";
+const FETCHED_AT = 1_700_000_000_000;
 
 describe("planSourceCacheRefresh", () => {
     it.each<{
@@ -177,9 +178,23 @@ describe("parseSourceSlotRecord", () => {
             record: { sourceIdentity: SOURCE_A, generation: 3 },
         },
         {
+            behaviour: "reads the time of the fetch",
+            text: '{"sourceIdentity":"source a","generation":3,"fetchedAt":1700000000000}',
+            record: { sourceIdentity: SOURCE_A, generation: 3, fetchedAt: 1_700_000_000_000 },
+        },
+        {
             behaviour: "reads what formatSourceSlotRecord wrote",
-            text: formatSourceSlotRecord({ sourceIdentity: SOURCE_B, generation: 12 }),
-            record: { sourceIdentity: SOURCE_B, generation: 12 },
+            text: formatSourceSlotRecord({
+                sourceIdentity: SOURCE_B,
+                generation: 12,
+                fetchedAt: 1_700_000_000_000,
+            }),
+            record: { sourceIdentity: SOURCE_B, generation: 12, fetchedAt: 1_700_000_000_000 },
+        },
+        {
+            behaviour: "ignores a time of the fetch that is no number",
+            text: '{"sourceIdentity":"source a","generation":3,"fetchedAt":"yesterday"}',
+            record: { sourceIdentity: SOURCE_A, generation: 3 },
         },
         {
             behaviour: "rejects a torn write",
@@ -227,12 +242,18 @@ describe("parseSourceSlotRecord", () => {
 });
 
 describe("formatSourceSlotRecord", () => {
-    it("writes only the source and the generation", () => {
-        const recordWithExtras = { sourceIdentity: SOURCE_A, generation: 2, files: ["a.json"] };
+    it("writes only the source, the generation and the time of the fetch", () => {
+        const recordWithExtras = {
+            sourceIdentity: SOURCE_A,
+            generation: 2,
+            fetchedAt: 1_700_000_000_000,
+            files: ["a.json"],
+        };
 
         expect(JSON.parse(formatSourceSlotRecord(recordWithExtras))).toEqual({
             sourceIdentity: SOURCE_A,
             generation: 2,
+            fetchedAt: 1_700_000_000_000,
         });
     });
 });
@@ -248,21 +269,21 @@ describe("nextSourceSlotRecord", () => {
             behaviour: "starts a slot without a record at generation 1",
             current: undefined,
             sourceIdentity: SOURCE_A,
-            next: { sourceIdentity: SOURCE_A, generation: 1 },
+            next: { sourceIdentity: SOURCE_A, generation: 1, fetchedAt: FETCHED_AT },
         },
         {
             behaviour: "moves a slot to the generation after its live one",
             current: { sourceIdentity: SOURCE_A, generation: 4 },
             sourceIdentity: SOURCE_A,
-            next: { sourceIdentity: SOURCE_A, generation: 5 },
+            next: { sourceIdentity: SOURCE_A, generation: 5, fetchedAt: FETCHED_AT },
         },
         {
             behaviour: "records the source that now fills the slot",
             current: { sourceIdentity: SOURCE_B, generation: 1 },
             sourceIdentity: SOURCE_A,
-            next: { sourceIdentity: SOURCE_A, generation: 2 },
+            next: { sourceIdentity: SOURCE_A, generation: 2, fetchedAt: FETCHED_AT },
         },
     ])("$behaviour", ({ current, sourceIdentity, next }) => {
-        expect(nextSourceSlotRecord(current, sourceIdentity)).toEqual(next);
+        expect(nextSourceSlotRecord(current, sourceIdentity, FETCHED_AT)).toEqual(next);
     });
 });

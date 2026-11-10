@@ -56,7 +56,7 @@ export function registerCommands(
         templatesSvc: BpmnElementTemplatesService;
     },
 ): void {
-    new TemplateMarketplaceController(
+    const controller = new TemplateMarketplaceController(
         {
             marketplaces: handles.marketplaceSvc,
             templates: handles.templatesSvc,
@@ -66,5 +66,8 @@ export function registerCommands(
             homeDir: homedir(),
         },
         deps.notifier,
-    ).register(context);
+    );
+    controller.register(context);
+    // A new worktree is a new workspace with an empty cache.
+    void controller.refreshOnStartup();
 }

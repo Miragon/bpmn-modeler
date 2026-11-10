@@ -42,7 +42,7 @@ function registeredController(answers: MarketplaceAddAnswer[] = [], removed: str
     });
     const notifier = new ReloadRecordingNotifier();
     const context = { subscriptions: [] as { dispose(): void }[] };
-    new TemplateMarketplaceController(
+    const controller = new TemplateMarketplaceController(
         {
             marketplaces: createTemplateMarketplaceService({
                 workspace: host.workspace,
@@ -60,10 +60,13 @@ function registeredController(answers: MarketplaceAddAnswer[] = [], removed: str
             homeDir: "/home/ada",
         },
         notifier,
-    ).register(context);
+    );
+    controller.register(context);
     const run = (command: string) => vscodeWindow.registeredCommands.get(command)!();
     return {
         run,
+        controller,
+        workspace: host.workspace,
         context,
         notifier,
         registrations: host.marketplaceRegistrations,
@@ -76,6 +79,16 @@ beforeEach(() => {
 });
 
 describe("TemplateMarketplaceController", () => {
+    it("fills the cache of a registered marketplace on startup, without a toast", async () => {
+        const { controller, workspace, notifier } = registeredController();
+
+        await controller.refreshOnStartup();
+
+        expect([...workspace.files.keys()].some((path) => path.endsWith("/a.json"))).toBe(true);
+        expect(notifier.infos).toEqual([]);
+        expect(notifier.errors).toEqual([]);
+    });
+
     it("registers its three commands with the extension", () => {
         const { context } = registeredController();
 
