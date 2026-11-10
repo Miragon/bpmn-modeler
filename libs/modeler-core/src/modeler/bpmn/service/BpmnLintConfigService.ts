@@ -67,9 +67,9 @@ const DROP_LOG_LINES: Partial<Record<LintDropReason, string>> = {
  * {@link BpmnLintConfigLocator}.
  *
  * A host lint that skipped rules of a workspace rule package the user has not
- * allowed asks about it afterwards, so the results never wait on the user. An
- * allow, whoever made it, lints again every open editor whose last host lint
- * was blocked on an allowed package, and a revoke every host-linted editor.
+ * allowed asks about it afterwards, so the results never wait on the user. A
+ * change of the approvals, whoever made it, lints again the editors
+ * `editorsToRelint` in the domain names.
  */
 export class BpmnLintConfigService implements BpmnlintChangeTarget {
     private readonly sessions = new Map<string, LintSession>();
