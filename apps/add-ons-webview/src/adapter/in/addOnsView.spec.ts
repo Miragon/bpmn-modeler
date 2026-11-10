@@ -924,7 +924,7 @@ describe("AddOnsView", () => {
     describe("a reveal", () => {
         const reveal = (addOnId: string, revealId = 1) => ({
             kind: "revealArrived" as const,
-            reveal: { revealId, addOnIds: [addOnId] },
+            reveal: { kind: "rows" as const, revealId, addOnIds: [addOnId] },
         });
 
         it("switches the tab, clears a hiding filter, rings and focuses the row", () => {
@@ -968,6 +968,58 @@ describe("AddOnsView", () => {
             session.dispatch(reveal(ACME.id));
 
             expect(root.contains(document.activeElement)).toBe(false);
+        });
+    });
+
+    describe("the review preset", () => {
+        const review = {
+            kind: "revealArrived" as const,
+            reveal: { kind: "needsReview" as const, revealId: 1 },
+        };
+
+        it("shows the workspace with only Needs review on and focuses the first add-on to review", () => {
+            const { session, root, tab, chip, row, search, type } = mountedView(CATALOG);
+            tab("Marketplaces").click();
+            type("mail");
+            chip("Plugins").click();
+
+            session.dispatch(review);
+
+            expect([
+                tab("Workspace").getAttribute("aria-selected"),
+                ["Needs review", "Plugins", "Rule packages", "Templates"].map((name) =>
+                    chip(name).getAttribute("aria-pressed"),
+                ),
+                search().value,
+                row(RESIZE.name).getAttribute("aria-current"),
+                document.activeElement,
+                text(root.querySelector("[aria-live=polite].av-vh")),
+            ]).toEqual([
+                "true",
+                ["true", "false", "false", "false"],
+                "",
+                "true",
+                row(RESIZE.name),
+                "2 add-ons need review",
+            ]);
+        });
+
+        it("says nothing needs review and focuses Clear filters", () => {
+            const { session, root, button } = mountedView(without(ACME.id, without(RESIZE.id)));
+
+            session.dispatch(review);
+
+            expect([
+                text(root.querySelector(".av-empty-text")),
+                document.activeElement,
+                text(root.querySelector("[aria-live=polite].av-vh")),
+                text(root.querySelector(".av-hint")),
+            ]).toEqual([
+                "No add-ons need review.",
+                button("Clear filters"),
+                "No add-ons need review.",
+                "No add-on selected.",
+            ]);
         });
     });
 

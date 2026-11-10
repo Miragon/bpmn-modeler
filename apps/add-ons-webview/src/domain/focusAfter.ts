@@ -11,7 +11,9 @@ export type FocusTarget =
     | { readonly kind: "review"; readonly addOnId: string }
     /** The button at this place among its add-on's or source's actions. */
     | { readonly kind: "action"; readonly targetId: string; readonly slot: number }
-    | { readonly kind: "toolbar"; readonly actionKind: CatalogActionKindPayload };
+    | { readonly kind: "toolbar"; readonly actionKind: CatalogActionKindPayload }
+    /** The list's first control, else the tab: a review that found nothing selects none. */
+    | { readonly kind: "listStart" };
 
 type AfterDone = (targetId: string, slot: number) => FocusTarget;
 
@@ -65,6 +67,8 @@ export function isFocusable(target: FocusTarget, model: AddOnCatalogPayload): bo
             return actionsOf(model, target.targetId).length > target.slot;
         case "toolbar":
             return model.actions.some(({ kind }) => kind === target.actionKind);
+        case "listStart":
+            return true;
     }
 }
 

@@ -5,7 +5,7 @@ import type {
     CatalogActionKindPayload,
 } from "@miragon/bpmn-modeler-shared";
 
-import { CatalogFilter, filteredGroups, NO_FILTER } from "./catalogFilter";
+import { CatalogFilter, filteredGroups, isOnlyNeedsReview, NO_FILTER } from "./catalogFilter";
 import { CatalogScope, listsFlat, scopedCatalog } from "./catalogScope";
 
 /** `ready`: the tabs, the list and the detail show; otherwise only what the catalog says. */
@@ -13,12 +13,14 @@ export type CatalogPhase = "loading" | "ready" | "empty" | "failed";
 
 type CatalogButtons = readonly ActionViewPayload<CatalogActionKindPayload>[];
 
+export type NoMatchReason = "filters" | "nothingToReview";
+
 /** What the tab's list shows, with the catalog actions it offers as visible buttons. */
 export type ListContent =
     | { readonly kind: "catalogEmpty"; readonly text?: string; readonly buttons: CatalogButtons }
     | { readonly kind: "noMarketplace"; readonly buttons: CatalogButtons }
     | { readonly kind: "workspaceEmpty"; readonly text?: string }
-    | { readonly kind: "noMatch"; readonly buttons: CatalogButtons }
+    | { readonly kind: "noMatch"; readonly reason: NoMatchReason; readonly buttons: CatalogButtons }
     | {
           readonly kind: "groups";
           readonly groups: readonly AddOnGroupPayload[];
@@ -59,7 +61,10 @@ export function listContentOf(
     }
     const buttons = scope === "marketplaces" ? buttonsOf(model, MARKETPLACE_BUTTONS) : [];
     const groups = filteredGroups(scoped, filter);
-    if (groups.length === 0) return { kind: "noMatch", buttons };
+    if (groups.length === 0) {
+        const reason = isOnlyNeedsReview(filter) ? "nothingToReview" : "filters";
+        return { kind: "noMatch", reason, buttons };
+    }
     return { kind: "groups", groups, flat: listsFlat(scope), buttons };
 }
 

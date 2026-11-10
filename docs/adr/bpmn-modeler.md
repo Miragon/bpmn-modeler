@@ -822,15 +822,30 @@ of `libs/shared` (`addOnsView.ts`) for one page through `AddOnViewMessages`
 in `addOns/adapter/in/`, so a host only passes a `post` and the page's
 commands; `panelRoutes` answer the surface coverage before any page attaches.
 A page asks for the last model when it loads, as a push can land before it
-listens. `AddOnsFeature.reveal(addOnIds)` keeps the latest reveal and
-delivers it at most once to each attached view while it is visible, so a view
-shown or attached later still lands on the rows; it may arrive before any
-model, and the page holds it until a model lists one of its rows. A panel
-posts a reveal again to the page that asks once it loads, until a page that
-listens has it, and again after the panel was hidden, as a host may load a
-hidden page anew; a page loaded later gets no old reveal. Reveal ids start
-from the clock, as revisions do, so a page that outlives a core process still
-applies the next reveal.
+listens. A reveal names its target: the rows a **Review…** left to the view
+(`AddOnsFeature.reveal(addOnIds)`), or every add-on that needs review
+(`AddOnsFeature.revealNeedsReview()`, for **Review Add-ons**). The protocol's
+`AddOnRevealPayload` is a union on `kind` (`rows`, `needsReview`), written out
+field for field in the core's `AddOnReveal`. The latest reveal of either kind
+wins and is delivered at most once to each attached view while it is visible,
+so a view shown or attached later still lands on it; it may arrive before any
+model, and the page holds a rows reveal until a model lists one of its rows
+and a needs-review reveal until any model arrives. A panel posts a reveal
+again to the page that asks once it loads, until a page that listens has it,
+and again after the panel was hidden, as a host may load a hidden page anew; a
+page loaded later gets no old reveal. Reveal ids start from the clock, as
+revisions do, so a page that outlives a core process still applies the next
+reveal. The core knows no tabs: the page maps `needsReview` to the Workspace
+tab with only the Needs review chip, every header open, its selection kept
+when it needs review, else the first add-on that does. **Review Add-ons** is
+host-first, the host shows its view and then asks the core, because the
+IntelliJ tab must open at once while a cold bridge still starts; **Review…**
+stays core-first through `AddOnViewRevealPort`, because there the core decides
+whether a view can show the rows. The page keeps only a tab the user chose
+(`chosenScope`); until then the first model that lists something opens
+Marketplaces when the Workspace tab lists nothing and a marketplace is listed.
+A tab selects on its own only a row the list shows, never one a closed header
+hides ([the page](architecture-and-hosts.md#package-boundaries)).
 
 - *Scope.* It lists the open workspace only: the root config folder's
   `plugins/` and `element-templates/` of every workspace folder, the nested

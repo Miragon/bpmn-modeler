@@ -61,6 +61,9 @@ export class FocusKeeper {
                     { kind: "menu", id: CATALOG_OWNER },
                 ]);
                 return;
+            case "listStart":
+                this.listStart();
+                return;
         }
     }
 

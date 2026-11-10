@@ -135,6 +135,11 @@ describe("isFocusable", () => {
             target: { kind: "toolbar", actionKind: "updateMarketplaces" },
             focusable: false,
         },
+        {
+            case: "the list's start, which always has a place",
+            target: { kind: "listStart" },
+            focusable: true,
+        },
     ])("$case", ({ target, focusable }) => {
         expect(isFocusable(target, CATALOG)).toBe(focusable);
     });

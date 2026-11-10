@@ -52,7 +52,7 @@ interface PostedQuery {
     };
     readonly requestId?: number;
     readonly result?: { readonly kind: string; readonly reason?: string };
-    readonly reveal?: { readonly addOnIds: readonly string[] };
+    readonly reveal?: { readonly kind: string; readonly addOnIds?: readonly string[] };
 }
 
 interface Frame {
@@ -353,9 +353,10 @@ describe("Review… on the bridge of the IntelliJ host", () => {
         await showAddOnsTab(project, reveal);
 
         const shown = await waitForFrame(project.frames, isPosted("RevealAddOnsQuery"));
-        expect(shown.params.message?.reveal?.addOnIds).toEqual([
-            `plugin:${join(project.root, ".camunda", "plugins", "Resize Tasks")}`,
-        ]);
+        expect(shown.params.message?.reveal).toMatchObject({
+            kind: "rows",
+            addOnIds: [`plugin:${join(project.root, ".camunda", "plugins", "Resize Tasks")}`],
+        });
         await settle();
         expect(project.frames.filter(isRequest(METHODS.pickerShow))).toEqual([]);
         expect(project.frames.filter(isRequest(METHODS.actionNoticeShow))).toEqual([notice]);
@@ -394,7 +395,10 @@ describe("Review… on the bridge of the IntelliJ host", () => {
         await showAddOnsTab(project, await review(project, notice));
 
         const shown = await waitForFrame(project.frames, isPosted("RevealAddOnsQuery"));
-        expect(shown.params.message?.reveal?.addOnIds).toEqual([`rulePackage:${bridge.acmeDir}`]);
+        expect(shown.params.message?.reveal).toMatchObject({
+            kind: "rows",
+            addOnIds: [`rulePackage:${bridge.acmeDir}`],
+        });
     });
 
     it("lists the new plugins when the host cannot show the view", async () => {

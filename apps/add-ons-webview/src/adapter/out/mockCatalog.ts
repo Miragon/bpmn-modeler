@@ -239,6 +239,7 @@ const CATALOG_ACTIONS: AddOnCatalogPayload["actions"] = [
 
 const PREVIEW_STATES = [
     "full",
+    "allReviewed",
     "loading",
     "empty",
     "noFolder",
@@ -256,6 +257,21 @@ export function previewStateOf(name: string | null): PreviewState {
     return PREVIEW_STATES.find((state) => state === name) ?? "full";
 }
 
+function allowed(row: CodeAddOnPayload): CodeAddOnPayload {
+    return { ...row, state: "approved", stateText: STATE_TEXT.approved, review: undefined, note: undefined, actions: [REVOKE] };
+}
+
+function everyCodeAllowed(groups: AddOnGroupPayload[]): AddOnGroupPayload[] {
+    const awaitsReview = (row: AddOnPayload) => row.actions.some(({ kind }) => kind === "allow" || kind === "inspect");
+    return groups.map((group) => ({
+        ...group,
+        sources: group.sources.map((source) => ({
+            ...source,
+            addOns: source.addOns.map((row) => (row.kind !== "elementTemplate" && awaitsReview(row) ? allowed(row) : row)),
+        })),
+    }));
+}
+
 const NO_ADD_ON_TEXT = "No BPMN plugins, bpmnlint rule packages or element templates in this workspace.";
 const NO_FOLDER_TEXT = "Open a folder to see the plugins, rule packages and element templates it brings.";
 
@@ -264,6 +280,7 @@ const marketplacesGroup = () => fullCatalog().filter(({ kind }) => kind === "mar
 
 const GROUPS_OF: Record<PreviewState, () => Partial<AddOnCatalogPayload> | undefined> = {
     full: () => ({ groups: fullCatalog() }),
+    allReviewed: () => ({ groups: everyCodeAllowed(fullCatalog()) }),
     loading: () => undefined,
     empty: () => ({ groups: [], emptyText: NO_ADD_ON_TEXT }),
     noFolder: () => ({ groups: [], emptyText: NO_FOLDER_TEXT }),
@@ -363,7 +380,7 @@ export class MockCatalog {
         }
         return this.changeRow<CodeAddOnPayload>(
             addOnId,
-            (row) => ({ ...row, state: "approved", stateText: STATE_TEXT.approved, review: undefined, note: undefined, actions: [REVOKE] }),
+            allowed,
             (row) => `Allowed ${row.name}. Open editors reload with it.`,
         );
     }

@@ -236,7 +236,9 @@ describe("VS Code's add-on catalog", () => {
             args: [],
         });
         const reveals = posted.filter((message) => message instanceof RevealAddOnsQuery);
-        expect(reveals.map(({ reveal }) => reveal.addOnIds)).toEqual([[row]]);
+        expect(reveals.map(({ reveal }) => reveal)).toMatchObject([
+            { kind: "rows", addOnIds: [row] },
+        ]);
     });
 
     it("stops the catalog when the extension deactivates", async () => {

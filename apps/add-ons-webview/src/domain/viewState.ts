@@ -11,6 +11,7 @@ import {
     CatalogFilter,
     filteredGroups,
     isFilterActive,
+    NEEDS_REVIEW_ONLY,
     NO_FILTER,
     withKindToggled,
 } from "./catalogFilter";
@@ -19,6 +20,7 @@ import {
     CatalogScope,
     isCatalogScope,
     listsFlat,
+    REVIEW_SCOPE,
     scopedCatalog,
     scopeOfAddOn,
     SCOPE_ORDER,
@@ -237,14 +239,28 @@ function modelArrived(state: ViewState, model: AddOnCatalogPayload): Change {
     });
 }
 
-/**
- * Applies a waiting reveal once the model holds one of its rows, the first in
- * model order: its tab, its open review and its detail, past any filter that
- * hid it.
- */
+/** Applies a waiting reveal once a model arrived. */
 function revealed(state: ViewState): Change {
     const { reveal, model } = state;
     if (reveal === undefined || model === undefined) return { state };
+    switch (reveal.kind) {
+        case "rows":
+            return rowsRevealed(state, model, reveal);
+        case "needsReview":
+            return reviewRevealed(state, model, reveal.revealId);
+    }
+}
+
+/**
+ * Lands on the first of the rows a "Review…" left, in model order, once the
+ * model holds one: its tab, its open review and its detail, past any filter
+ * that hid it.
+ */
+function rowsRevealed(
+    state: ViewState,
+    model: AddOnCatalogPayload,
+    reveal: Extract<AddOnRevealPayload, { kind: "rows" }>,
+): Change {
     const heads = headsOf(model);
     const target = heads.find(({ id }) => reveal.addOnIds.includes(id));
     const scope = target && scopeOfAddOn(model, target.id);
@@ -275,6 +291,34 @@ function revealed(state: ViewState): Change {
             lastRevealId: reveal.revealId,
         },
         focus: { kind: "head", headId: target.id, reveal: true },
+    };
+}
+
+/**
+ * Review Add-ons: the workspace with only the review chip, every head open,
+ * its add-on to review selected and focused.
+ */
+function reviewRevealed(state: ViewState, model: AddOnCatalogPayload, revealId: number): Change {
+    const reviewing: ViewState = {
+        ...state,
+        reveal: undefined,
+        scope: REVIEW_SCOPE,
+        scopeSettled: true,
+        filter: NEEDS_REVIEW_ONLY,
+        filterExpansion: new Map(),
+        pane: "list",
+        lastRevealId: revealId,
+    };
+    const shown = filteredGroups(scopedCatalog(model, REVIEW_SCOPE), NEEDS_REVIEW_ONLY);
+    const inSight = rowsInSight(shown, listExpansionOf(reviewing), listsFlat(REVIEW_SCOPE));
+    const selected = settledSelection(state.selection[REVIEW_SCOPE], shown, [], inSight);
+    const { [REVIEW_SCOPE]: _dropped, ...others } = state.selection;
+    return {
+        state: {
+            ...reviewing,
+            selection: selected === undefined ? others : { ...others, [REVIEW_SCOPE]: selected },
+        },
+        focus: selected === undefined ? { kind: "listStart" } : { kind: "head", headId: selected },
     };
 }
 

@@ -11,7 +11,9 @@ import {
     CatalogFilter,
     filteredGroups,
     isFilterActive,
+    isOnlyNeedsReview,
     needsReview,
+    NEEDS_REVIEW_ONLY,
     NO_FILTER,
     withKindToggled,
 } from "./catalogFilter";
@@ -168,6 +170,26 @@ describe("isFilterActive", () => {
         ["only what needs review", { onlyNeedsReview: true }, true],
     ])("is %s: %s", (_, change, expected) => {
         expect(isFilterActive(filter(change))).toBe(expected);
+    });
+});
+
+describe("isOnlyNeedsReview", () => {
+    it.each<[string, Partial<CatalogFilter>, boolean]>([
+        ["not without a filter", {}, false],
+        ["only the review chip", { onlyNeedsReview: true }, true],
+        ["not the review chip with a query", { onlyNeedsReview: true, query: "x" }, false],
+        [
+            "not the review chip with a kind",
+            { onlyNeedsReview: true, kinds: new Set(["plugin"]) },
+            false,
+        ],
+        ["the review chip with a blank query", { onlyNeedsReview: true, query: "  " }, true],
+    ])("is %s", (_, change, expected) => {
+        expect(isOnlyNeedsReview(filter(change))).toBe(expected);
+    });
+
+    it("is what the review preset filters by", () => {
+        expect(NEEDS_REVIEW_ONLY).toEqual({ ...NO_FILTER, onlyNeedsReview: true });
     });
 });
 

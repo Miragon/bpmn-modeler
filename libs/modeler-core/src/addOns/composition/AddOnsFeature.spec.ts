@@ -973,6 +973,8 @@ describe("AddOnsFeature", () => {
 
     describe("panels", () => {
         const REVEALED = [`plugin:${RESIZE}`];
+        const ROWS = { kind: "rows", addOnIds: REVEALED };
+        const NEEDS_REVIEW = { kind: "needsReview" };
 
         function recordingPanel() {
             const posted: Query[] = [];
@@ -985,8 +987,14 @@ describe("AddOnsFeature", () => {
                         each instanceof AddOnCatalogQuery ? [each.model] : [],
                     ),
                 reveals: () =>
+                    posted.flatMap((each) => {
+                        if (!(each instanceof RevealAddOnsQuery)) return [];
+                        const { revealId: _revealId, ...target } = each.reveal;
+                        return [target];
+                    }),
+                revealIds: () =>
                     posted.flatMap((each) =>
-                        each instanceof RevealAddOnsQuery ? [each.reveal.addOnIds] : [],
+                        each instanceof RevealAddOnsQuery ? [each.reveal.revealId] : [],
                     ),
             };
         }
@@ -1065,7 +1073,7 @@ describe("AddOnsFeature", () => {
             attached.setVisible(true);
             await shown(addOns);
 
-            expect(panel.reveals()).toEqual([REVEALED]);
+            expect(panel.reveals()).toEqual([ROWS]);
         });
 
         it("reveals rows to a hidden panel after the model once it is shown", async () => {
@@ -1098,7 +1106,7 @@ describe("AddOnsFeature", () => {
 
             await attached.handle(new GetAddOnCatalogCommand());
 
-            expect(panel.reveals()).toEqual([REVEALED]);
+            expect(panel.reveals()).toEqual([ROWS]);
         });
 
         it("reveals the latest rows once to a panel that attaches after the reveal", async () => {
@@ -1110,14 +1118,10 @@ describe("AddOnsFeature", () => {
             addOns.attachPanel(panel.post, true);
             await shown(addOns);
 
-            expect(panel.reveals()).toEqual([REVEALED]);
+            expect(panel.reveals()).toEqual([ROWS]);
         });
 
         it("numbers a reveal above every reveal a process that is gone sent a kept page", () => {
-            const revealIdsOf = (panel: ReturnType<typeof recordingPanel>) =>
-                panel.posted.flatMap((each) =>
-                    each instanceof RevealAddOnsQuery ? [each.reveal.revealId] : [],
-                );
             vi.useFakeTimers({ toFake: ["Date"] });
             try {
                 vi.setSystemTime(1_000);
@@ -1135,12 +1139,84 @@ describe("AddOnsFeature", () => {
                 addOns.attachPanel(respawned.post, true);
                 addOns.reveal(REVEALED);
 
-                expect(revealIdsOf(respawned)[0]).toBeGreaterThan(
-                    Math.max(...revealIdsOf(keptPage)),
-                );
+                expect(respawned.revealIds()[0]).toBeGreaterThan(Math.max(...keptPage.revealIds()));
             } finally {
                 vi.useRealTimers();
             }
+        });
+
+        it("reveals what needs review once to a visible panel whose page listens", async () => {
+            const { addOns } = setUp();
+            const panel = recordingPanel();
+            const attached = addOns.attachPanel(panel.post, true);
+            await attached.handle(new GetAddOnCatalogCommand());
+            await shown(addOns);
+
+            addOns.revealNeedsReview();
+            await attached.handle(new GetAddOnCatalogCommand());
+
+            expect(panel.reveals()).toEqual([NEEDS_REVIEW]);
+        });
+
+        it("holds what needs review for a page that asks later, and only until it asked", async () => {
+            const { addOns } = setUp();
+            const panel = recordingPanel();
+            const attached = addOns.attachPanel(panel.post, true);
+            await shown(addOns);
+            addOns.revealNeedsReview();
+            panel.posted.length = 0;
+
+            await attached.handle(new GetAddOnCatalogCommand());
+            await attached.handle(new GetAddOnCatalogCommand());
+
+            expect(panel.reveals()).toEqual([NEEDS_REVIEW]);
+        });
+
+        it("reveals what needs review to a hidden panel once it is shown", async () => {
+            const { addOns } = setUp();
+            const hidden = recordingPanel();
+            const attached = addOns.attachPanel(hidden.post, false);
+
+            addOns.revealNeedsReview();
+            const beforeShown = hidden.reveals();
+            attached.setVisible(true);
+
+            expect(beforeShown).toEqual([]);
+            expect(hidden.reveals()).toEqual([NEEDS_REVIEW]);
+        });
+
+        it.each([
+            { first: "needs review", then: "rows", latest: ROWS },
+            { first: "rows", then: "needs review", latest: NEEDS_REVIEW },
+        ])(
+            "reveals only the latest to a panel attached later: $first, then $then",
+            async ({ latest }) => {
+                const { addOns } = setUp();
+                const revealInOrder =
+                    latest === ROWS
+                        ? [() => addOns.revealNeedsReview(), () => addOns.reveal(REVEALED)]
+                        : [() => addOns.reveal(REVEALED), () => addOns.revealNeedsReview()];
+                revealInOrder.forEach((reveal) => reveal());
+                const panel = recordingPanel();
+
+                addOns.attachPanel(panel.post, true);
+                await shown(addOns);
+
+                expect(panel.reveals()).toEqual([latest]);
+            },
+        );
+
+        it("numbers each reveal above the one before, whatever it shows", () => {
+            const { addOns } = setUp();
+            const panel = recordingPanel();
+            addOns.attachPanel(panel.post, true);
+
+            addOns.reveal(REVEALED);
+            addOns.revealNeedsReview();
+            addOns.reveal(REVEALED);
+
+            const [first, second, third] = panel.revealIds();
+            expect([second > first, third > second]).toEqual([true, true]);
         });
 
         it("logs a reveal its panel throws on, and still reveals to the others", async () => {
@@ -1154,7 +1230,7 @@ describe("AddOnsFeature", () => {
 
             addOns.reveal(REVEALED);
 
-            expect(other.reveals()).toEqual([REVEALED]);
+            expect(other.reveals()).toEqual([ROWS]);
             expect(host.notifier.logged("error")).toHaveLength(1);
         });
     });
@@ -1778,7 +1854,9 @@ describe("AddOnsFeature", () => {
         await question.ask(pending);
 
         const reveals = panel.flatMap((each) =>
-            each instanceof RevealAddOnsQuery ? [each.reveal.addOnIds] : [],
+            each instanceof RevealAddOnsQuery && each.reveal.kind === "rows"
+                ? [each.reveal.addOnIds]
+                : [],
         );
         const latest = panel.filter((each) => each instanceof AddOnCatalogQuery).at(-1);
         const row = latest?.model.groups[0].sources[0].addOns[0];

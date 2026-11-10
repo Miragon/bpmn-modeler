@@ -224,8 +224,8 @@ reads that table before any panel attaches.
 The add-ons view (`apps/add-ons-webview`, surface `addOnsView`) follows the
 same shape. Its messages sit in `libs/shared/src/lib/addOnsView.ts`, a
 feature file of their own, which both shared protocol specs import; its
-payloads copy the core's catalog model, request, result and reveal field for
-field, and `AddOnViewMessages.spec.ts` pins each whole type and each value set
+payloads copy the core's catalog model, request, result and reveal (rows or
+needs review) field for field, and `AddOnViewMessages.spec.ts` pins each whole type and each value set
 to its home with `expectTypeOf`. `AddOnViewMessages` in the core's
 `addOns/adapter/in/` maps the protocol for one page, so no host translates
 it, and `AddOnsFeature.panelRoutes` reads its table before any page attaches.

@@ -2,7 +2,7 @@ import type { AddOnCatalogPayload } from "@miragon/bpmn-modeler-shared";
 import { describe, expect, it } from "vitest";
 
 import { CATALOG } from "../__fixtures__/catalogs";
-import { NO_FILTER } from "./catalogFilter";
+import { CatalogFilter, NEEDS_REVIEW_ONLY, NO_FILTER } from "./catalogFilter";
 import { CatalogScope } from "./catalogScope";
 import { catalogPhaseOf, listContentOf, openingScopeOf } from "./listContent";
 
@@ -113,7 +113,30 @@ describe("listContentOf", () => {
     ])("says no add-on matches a filter in the %s tab, with its buttons", (scope, buttons) => {
         expect(listContentOf(full, scope, { ...NO_FILTER, query: "nothing like this" })).toEqual({
             kind: "noMatch",
+            reason: "filters",
             buttons,
+        });
+    });
+
+    const nothingToReview: AddOnCatalogPayload = { ...full, groups: [{ ...FOLDER, sources: [] }] };
+
+    it.each<[string, CatalogFilter, string]>([
+        ["only the review chip finds nothing to review", NEEDS_REVIEW_ONLY, "nothingToReview"],
+        [
+            "the review chip with a query matches nothing",
+            { ...NEEDS_REVIEW_ONLY, query: "x" },
+            "filters",
+        ],
+        [
+            "the review chip with a kind matches nothing",
+            { ...NEEDS_REVIEW_ONLY, kinds: new Set(["plugin"]) },
+            "filters",
+        ],
+        ["a kind alone matches nothing", { ...NO_FILTER, kinds: new Set(["plugin"]) }, "filters"],
+    ])("says why the list is empty when %s", (_, filter, reason) => {
+        expect(listContentOf(nothingToReview, "workspace", filter)).toMatchObject({
+            kind: "noMatch",
+            reason,
         });
     });
 });

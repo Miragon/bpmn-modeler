@@ -3,7 +3,7 @@ import type { AddOnCatalogPayload } from "@miragon/bpmn-modeler-shared";
 import { filteredGroups, isFilterActive } from "../../domain/catalogFilter";
 import { addOnsOf, placementOf } from "../../domain/catalogQueries";
 import { CatalogScope, scopedCatalog } from "../../domain/catalogScope";
-import { CHROME_TEXT, matchCountText } from "../../domain/chromeTexts";
+import { CHROME_TEXT, matchCountText, NO_MATCH_TEXT } from "../../domain/chromeTexts";
 import { headsOf, isShownOpen } from "../../domain/expansion";
 import type { FocusTarget } from "../../domain/focusAfter";
 import { catalogPhaseOf, ListContent, listContentOf } from "../../domain/listContent";
@@ -199,7 +199,7 @@ export class AddOnsView {
             case "noMatch":
                 return [
                     ...scopeActionsOf(content.buttons, busy),
-                    noMatchOf(() => this.clearFilters()),
+                    noMatchOf(NO_MATCH_TEXT[content.reason], () => this.clearFilters()),
                 ];
             case "groups": {
                 const heads = new Map(headsOf(model).map((head) => [head.id, head]));
@@ -253,7 +253,7 @@ export class AddOnsView {
         const count = addOnsOf(
             filteredGroups(scopedCatalog(model, state.scope), state.filter),
         ).length;
-        const text = isFilterActive(state.filter) ? matchCountText(count) : "";
+        const text = isFilterActive(state.filter) ? matchCountText(count, state.filter) : "";
         if (this.announcer.textContent !== text) this.announcer.textContent = text;
     }
 
