@@ -60,8 +60,8 @@ If a referenced rule or plugin is not installed, only that entry is skipped. The
 
 When a lint needs a rule package you have not allowed yet, the diagram is linted without it right away, and a notification says how many are waiting, for example *1 bpmnlint rule package in this workspace is not allowed yet, so rules from it are skipped.*
 
-1. Click **Review…**. The [Add-ons view](/vscode/features/add-ons) opens at the waiting packages and shows each one's folder, version, files and content hash.
-2. Click **Allow this content** on each package you trust. Every open diagram that was linted without it lints again with it.
+1. Click **Review…**. The [Add-ons view](/vscode/features/add-ons) opens with the first waiting package selected and shows its folder, version, files and content hash; the others carry **Needs review** in the list.
+2. For each package you trust, select it and click **Allow this content** at the end of its review. Every open diagram that was linted without it lints again with it.
 
 **Review…** shows a list to check instead when a waiting package lies outside every open folder, for example when the config links to it. Each entry shows the package's name and version, whether it is *new* or *changed since you allowed it*, and its folder. Check the packages you trust and confirm.
 
@@ -101,7 +101,7 @@ When a dependency, not the package itself, cannot be checked, a `cannot be allow
 
 ### IntelliJ
 
-The IntelliJ plugin asks the same way as for [BPMN plugins in IntelliJ](/vscode/features/bpmn-plugins#intellij): an IDE notification balloon with **Review…**, which opens the rule package's row in the **Add-ons** tab of the **BPMN Modeler** tool window when the package lies inside the project, and approvals that the IDE keeps for all your projects, outside every project. **Revoke** there takes an approval back; rules that already ran stay loaded until you restart the IDE. The output channel lines go to the IDE log.
+The IntelliJ plugin asks the same way as for [BPMN plugins in IntelliJ](/vscode/features/bpmn-plugins#intellij): an IDE notification balloon with **Review…**, which selects the rule package in the **Add-ons** tab of the **BPMN Modeler** tool window when the package lies inside the project, and approvals that the IDE keeps for all your projects, outside every project. **Revoke** there takes an approval back; rules that already ran stay loaded until you restart the IDE. The output channel lines go to the IDE log.
 
 In IntelliJ, rule packages whose `package.json` sets `main` or `exports`, and most that have dependencies, do not load yet, even once allowed: the bundled rules stand in for them, or their rules are skipped. A later release lifts this limit.
 

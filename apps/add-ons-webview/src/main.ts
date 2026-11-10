@@ -1,4 +1,8 @@
-import "./adapter/in/styles/default.css";
+import "@fontsource-variable/geist/wght.css";
+import "@fontsource-variable/geist-mono/wght.css";
+import "./adapter/in/styles/cd-tokens.generated.css";
+import "./adapter/in/styles/base.css";
+import "./adapter/in/styles/addOnsView.css";
 
 import { installGlobalErrorForwarding } from "@miragon/bpmn-modeler-shared";
 

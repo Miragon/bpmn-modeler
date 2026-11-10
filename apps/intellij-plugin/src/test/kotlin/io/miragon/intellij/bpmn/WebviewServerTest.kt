@@ -5,6 +5,7 @@ import com.intellij.testFramework.junit5.TestApplication
 import com.intellij.ui.JBColor
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
@@ -112,20 +113,23 @@ class WebviewServerTest {
         assertEquals(200, response.status)
         assertTrue(response.body.contains("""<html lang="en">"""))
         assertTrue(response.body.contains("""<link href="/deployment/index.css" rel="stylesheet"/>"""))
+        assertTrue(response.body.contains("""<style id="ide-theme-vars">:root {"""))
         assertTrue(response.body.contains("--vscode-button-background"))
+        assertTrue(response.body.contains("""<body class="vscode-light">"""))
         assertTrue(response.body.contains("""<script type="module" src="/deployment/index.js"></script>"""))
     }
 
     @Test
-    fun `the add-ons shell loads the add-ons bundle into an empty app with its own theme vars`() {
+    fun `the add-ons shell loads the add-ons bundle into an empty app in its brand mode alone`() {
         val response = get(server.addOnsUrl())
 
         assertEquals(200, response.status)
         assertTrue(response.body.contains("<title>Add-ons</title>"))
         assertTrue(response.body.contains("""<html lang="en" data-cd-theme="light">"""))
         assertTrue(response.body.contains("""<link href="/add-ons/index.css" rel="stylesheet"/>"""))
-        assertTrue(response.body.contains("--vscode-list-warningForeground"))
-        assertTrue(response.body.contains("""<body class="vscode-light">"""))
+        assertFalse(response.body.contains("ide-theme-vars"))
+        assertFalse(response.body.contains("--vscode-"))
+        assertTrue(response.body.contains("<body>"))
         assertTrue(response.body.contains("""<div id="app"></div>"""))
         assertTrue(response.body.contains("window.acquireVsCodeApi"))
         assertTrue(response.body.contains("""<script type="module" src="/add-ons/index.js"></script>"""))

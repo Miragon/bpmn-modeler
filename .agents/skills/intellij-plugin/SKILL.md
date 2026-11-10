@@ -7,7 +7,7 @@ description: The IntelliJ host (apps/intellij-plugin) and the modeler-bridge bin
 
 The IntelliJ plugin is a **third host** for the modeler (after VS Code and
 Theia/standalone). It opens `.bpmn` files in a **JCEF** (embedded Chromium)
-editor rendering the *same* bpmn-js webview bundle, and round-trips edits to
+editor rendering the _same_ bpmn-js webview bundle, and round-trips edits to
 disk — while running the **unmodified** `@miragon/bpmn-modeler-core` engine
 **out-of-process** as a supervised, Node-free binary. The Kotlin side is **pure
 transport + port adapters**; the engine is never reimagined in Kotlin.
@@ -27,7 +27,7 @@ For the engine those two consume, use the `architecture` skill.
 
 ## Two design decisions (know these)
 
-- **One stdio JSON-RPC pipe.** Core↔host *and* the webview-message relay ride a
+- **One stdio JSON-RPC pipe.** Core↔host _and_ the webview-message relay ride a
   single supervised NDJSON pipe over the bridge's stdin/stdout — **not** a
   webview↔server WebSocket. `stdout` is RPC frames only; `stderr` is diagnostics
   (tail the IDE log for `[bridge stderr]`). One transport ⇒ one crash signal, no
@@ -39,8 +39,8 @@ For the engine those two consume, use the `architecture` skill.
 
 ## Build & run — order matters
 
-The Gradle build does **not** invoke the JS/Bun toolchain — it only *packages
-already-built artefacts*. Build them from the repo root first, then run Gradle:
+The Gradle build does **not** invoke the JS/Bun toolchain — it only _packages
+already-built artefacts_. Build them from the repo root first, then run Gradle:
 
 ```bash
 # repo root — engine + webview + bridge binary:
@@ -66,13 +66,14 @@ lint/tsc globs never touch the Kotlin sources.
 `PrepareSandboxTask` depend on; `copyWebview` and `copyAddOnsWebview` are
 `Sync`s, so a renamed chunk or font leaves no stale file behind:
 
-| Task | Source | Lands at (classpath) |
-|---|---|---|
-| `copyWebview` | `dist/webview-staging/bpmn-webview/` | `/webview/…` |
-| `copyDeploymentWebview` | `dist/webview-staging/deployment-webview/` | deployment webview |
-| `copyAddOnsWebview` | `dist/webview-staging/add-ons-webview/` | `/webview-add-ons/…` (the Add-ons tab) |
-| `copyBridge` | `apps/modeler-bridge/dist/modeler-bridge` | `/bin/<os>-<arch>/modeler-bridge` |
-| `copySchema` | `libs/shared/src/lib/deploymentTargets.schema.json` | `deployment-targets.json` schema |
+| Task                     | Source                                                                       | Lands at (classpath)                                        |
+| ------------------------ | ---------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| `copyWebview`            | `dist/webview-staging/bpmn-webview/`                                         | `/webview/…`                                                |
+| `copyDeploymentWebview`  | `dist/webview-staging/deployment-webview/`                                   | deployment webview                                          |
+| `copyAddOnsWebview`      | `dist/webview-staging/add-ons-webview/`                                      | `/webview-add-ons/…` (the Add-ons tab)                      |
+| `copyThirdPartyLicenses` | `dist/webview-staging/add-ons-webview/licenses/` (Geist, Geist Mono, lucide) | `META-INF/licenses/` (the add-ons bundle's fonts and icons) |
+| `copyBridge`             | `apps/modeler-bridge/dist/modeler-bridge`                                    | `/bin/<os>-<arch>/modeler-bridge`                           |
+| `copySchema`             | `libs/shared/src/lib/deploymentTargets.schema.json`                          | `deployment-targets.json` schema                            |
 
 A task whose source is missing is skipped as `NO-SOURCE`, not failed, so a
 local build without a bundle succeeds and shows a blank page (Trap 1). Release
@@ -126,24 +127,24 @@ ports (`kernel/port/hostPorts.ts` and the feature `port/` folders) as RPC handle
 the core never knows it isn't talking to VS Code. Selected methods (full table
 in the bridge README):
 
-| Direction | Method(s) | Port / handle |
-|---|---|---|
-| host → core | `session/register`, `session/dispose` | editor lifecycle (seeds the `DocumentPort` mirror) |
-| host → core | `document/didChange` | external edit → re-render, own-write echo → no-op |
-| host → core | `session/setActive` | focused tab → active-editor pointer |
-| host → core | `webview/message` | inbound `Command` → `WebviewMessageRouter` |
-| core → host | `document/write`, `document/save` | `DocumentPort` |
-| core → host | `editor/postMessage` | Query/Command → webview |
-| core → host | `notifier/*`, `statusBar/update` | `Notifications.Bus`, one `StatusSlotWidget` per status slot |
-| host → core | `linting/toggle` | the BPMNlint widget's click flips the user's lint choice |
-| core → host | `settings/setLintingEnabled` | `PropertiesComponent`; the host stores the lint choice and pushes the snapshot |
-| core → host | `secretStore/*` | `PasswordSafe` (encrypted at rest) |
-| core → host | `marketplacePrompt/show`, `marketplaceState/*` | the core's add question in `AddMarketplaceDialog`; the app and project marketplace stores |
-| host ⇄ core | `deployment/*`, `deploymentState/*` | tool-window webview + `PropertiesComponent` |
-| host ⇄ core | `addOns/*` | the BPMN Modeler tool window's Add-ons tab (`AddOnsRouter`); `addOns/reveal` opens it for **Review…** |
-| core → host | `actionNotice/show` | `ActionNotifierPort` → a balloon with one `NotificationAction` per label |
-| host ⇄ core | `pluginApprovals/*`, `editor/reload` | `PluginApprovalStore` (app `PropertiesComponent`); full page reload after an approval |
-| host ⇄ core | `templatePreferences/*` | `ProjectTemplatePreferenceStore` (project `PropertiesComponent`) and `TemplatePreferenceStore` (app); `TemplatePreferenceRouter` |
+| Direction   | Method(s)                                      | Port / handle                                                                                                                    |
+| ----------- | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| host → core | `session/register`, `session/dispose`          | editor lifecycle (seeds the `DocumentPort` mirror)                                                                               |
+| host → core | `document/didChange`                           | external edit → re-render, own-write echo → no-op                                                                                |
+| host → core | `session/setActive`                            | focused tab → active-editor pointer                                                                                              |
+| host → core | `webview/message`                              | inbound `Command` → `WebviewMessageRouter`                                                                                       |
+| core → host | `document/write`, `document/save`              | `DocumentPort`                                                                                                                   |
+| core → host | `editor/postMessage`                           | Query/Command → webview                                                                                                          |
+| core → host | `notifier/*`, `statusBar/update`               | `Notifications.Bus`, one `StatusSlotWidget` per status slot                                                                      |
+| host → core | `linting/toggle`                               | the BPMNlint widget's click flips the user's lint choice                                                                         |
+| core → host | `settings/setLintingEnabled`                   | `PropertiesComponent`; the host stores the lint choice and pushes the snapshot                                                   |
+| core → host | `secretStore/*`                                | `PasswordSafe` (encrypted at rest)                                                                                               |
+| core → host | `marketplacePrompt/show`, `marketplaceState/*` | the core's add question in `AddMarketplaceDialog`; the app and project marketplace stores                                        |
+| host ⇄ core | `deployment/*`, `deploymentState/*`            | tool-window webview + `PropertiesComponent`                                                                                      |
+| host ⇄ core | `addOns/*`                                     | the BPMN Modeler tool window's Add-ons tab (`AddOnsRouter`); `addOns/reveal` opens it for **Review…**                            |
+| core → host | `actionNotice/show`                            | `ActionNotifierPort` → a balloon with one `NotificationAction` per label                                                         |
+| host ⇄ core | `pluginApprovals/*`, `editor/reload`           | `PluginApprovalStore` (app `PropertiesComponent`); full page reload after an approval                                            |
+| host ⇄ core | `templatePreferences/*`                        | `ProjectTemplatePreferenceStore` (project `PropertiesComponent`) and `TemplatePreferenceStore` (app); `TemplatePreferenceRouter` |
 
 **Handler coverage.** `ProtocolHandlerCoverageTest` registers the production
 `BridgeRouters` and fails when a core → host method in
@@ -184,7 +185,7 @@ order, and its labels to `MODE_LABEL` in
 `packages/bpmn-modeler/src/modeSession/modeStrip.ts`.
 
 **Host-replicated mirrors.** `BpmnModelerService.display()` reads
-`DocumentPort.getContent()` *synchronously* — impossible over async RPC. The host
+`DocumentPort.getContent()` _synchronously_ — impossible over async RPC. The host
 seeds a local `DocumentMirror` on `session/register` and keeps it current via
 `document/didChange`, so reads hit a cache. Same pattern for settings and
 deployment state. **The `document/write` reply is the causation signal**: the
@@ -199,17 +200,17 @@ To add a new synchronous port, follow
 
 `apps/intellij-plugin/src/main/resources/META-INF/plugin.xml` registers:
 
-| EP | Implementation |
-|---|---|
-| `fileType` (`.bpmn`) | `BpmnFileType` |
-| `fileEditorProvider` | `BpmnFileEditorProvider` → `BpmnFileEditor` (JCEF); `ElementTemplatePreviewEditorProvider` → JSON editor + `ElementTemplatePreviewEditor` in a `TextEditorWithPreview` (bridge-free) |
-| `postStartupActivity` | `BridgeWarmupActivity` (pre-warm the bridge off-EDT) |
-| `diff.DiffTool` | `BpmnDiffTool` (two-pane JCEF diagram diff) |
-| `statusBarWidgetFactory` | one `StatusSlotWidgetFactory` subclass per slot (element templates, engine, BPMNlint, deployment target) |
-| `notificationGroup` | `Miragon BPMN Modeler` (BALLOON) |
-| `applicationConfigurable` | `ModelerSettingsConfigurable` (Settings ▸ Tools) |
-| `documentationProvider`, `daemon.highlightInfoFilter` | script-tab support |
-| `toolWindow` | `Miragon Deployment` (stripe title "BPMN Modeler") → `ModelerToolWindowFactory`: Deploy and Add-ons tabs |
+| EP                                                    | Implementation                                                                                                                                                                       |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `fileType` (`.bpmn`)                                  | `BpmnFileType`                                                                                                                                                                       |
+| `fileEditorProvider`                                  | `BpmnFileEditorProvider` → `BpmnFileEditor` (JCEF); `ElementTemplatePreviewEditorProvider` → JSON editor + `ElementTemplatePreviewEditor` in a `TextEditorWithPreview` (bridge-free) |
+| `postStartupActivity`                                 | `BridgeWarmupActivity` (pre-warm the bridge off-EDT)                                                                                                                                 |
+| `diff.DiffTool`                                       | `BpmnDiffTool` (two-pane JCEF diagram diff)                                                                                                                                          |
+| `statusBarWidgetFactory`                              | one `StatusSlotWidgetFactory` subclass per slot (element templates, engine, BPMNlint, deployment target)                                                                             |
+| `notificationGroup`                                   | `Miragon BPMN Modeler` (BALLOON)                                                                                                                                                     |
+| `applicationConfigurable`                             | `ModelerSettingsConfigurable` (Settings ▸ Tools)                                                                                                                                     |
+| `documentationProvider`, `daemon.highlightInfoFilter` | script-tab support                                                                                                                                                                   |
+| `toolWindow`                                          | `Miragon Deployment` (stripe title "BPMN Modeler") → `ModelerToolWindowFactory`: Deploy and Add-ons tabs                                                                             |
 
 Groovy (script tab) and JSON (deployment-targets schema) support are optional dependencies
 loaded via config-file (`modeler-groovy.xml` / `modeler-json.xml`) only when
@@ -226,14 +227,19 @@ stopped publishing as a standalone artifact in 2025.3; for 261+ use the unified
 ## Key files
 
 Kotlin (`apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/`):
+
 - **Supervisor / composition root**: `CoreProcess.kt`; warmup `BridgeWarmupActivity.kt`
 - **JCEF editor**: `BpmnFileEditorProvider.kt`, `BpmnFileEditor.kt`; asset server `WebviewServer.kt`
 - **Element templates**: `ElementTemplatePreviewEditor(Provider).kt` and `ElementTemplatePreviewMessages.kt` (the page's protocol, answered in Kotlin);
   `ElementTemplateFiles.kt` and `NewElementTemplates.kt` copy the TypeScript rules and run their `*.cases.json` rows in tests
 - **Script tabs**: `ScriptCompletionContributor.kt` renders the catalog the bridge ships; `ScriptCompletion.kt` copies the core's
   two line-prefix matchers and runs `scriptCompletion.cases.json` in `ScriptCompletionMatchersTest`
-- **Shell CSP**: `WebviewContentSecurityPolicy.kt` — the header `WebviewServer` sends with both HTML shells; it allows the
-  inline `acquireVsCodeApi` shim by hash, so editing the shim updates the hash pinned in `WebviewContentSecurityPolicyTest`
+- **Shell CSP**: `WebviewContentSecurityPolicy.kt` — the header `WebviewServer` sends with every HTML shell; it allows the
+  inline `acquireVsCodeApi` shim by hash, so editing the shim updates the hash pinned in `WebviewContentSecurityPolicyTest`.
+  The add-ons shell (`ADD_ONS_SHELL`) allows `style-src 'self'` without `'unsafe-inline'` and `font-src 'self'`
+- **Theme**: `IdeThemeSignal.kt` maps the IDE palette into `#ide-theme-vars` for the editor and Deploy shells; the Add-ons
+  tab gets no palette, only the brand mode on `<html>` (`BrandMode.kt`, `addOnsApplyJs` on a LaF or settings change), as
+  the page wears the Miragon brand and its own type sizes
 - **Transport**: `bridge/RpcChannel.kt`, `bridge/ProcessSupervisor.kt`, `bridge/BridgeBinaryResolver.kt`, `bridge/BridgeProcessLauncher.kt`; routers `bridge/*Router.kt`, composed in `bridge/BridgeRouters.kt`
 - **Display/secret ports**: `HostNotifications.kt`, `IntellijSecretStore.kt`; status slots in
   `StatusView.kt` (the core's unions), `StatusBarSlots.kt` (placement), `AutoHidingStatusSlots.kt`
@@ -244,6 +250,7 @@ Kotlin (`apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/`):
 - **plugin.xml**: `src/main/resources/META-INF/plugin.xml`
 
 Bridge (`apps/modeler-bridge/src/`):
+
 - `server.ts` (entrypoint, binds the process streams); `composition/`
   (`bridge.ts` wires core to adapters, `stdioBinding.ts` feeds stdin frames and
   tags stderr lines `[core]`); `transport/adapter/out/Rpc.ts` (NDJSON peer);
@@ -252,7 +259,7 @@ Bridge (`apps/modeler-bridge/src/`):
   `BridgeSettings`); `editorSession/domain/DocumentMirror.ts`;
   `protocol/domain/` (the wire contract).
 - `package.json`: `build` = typecheck + `compile`; `compile` = `bun build
-  --compile … --outfile dist/modeler-bridge`; `compile:all` = the `--target`
+--compile … --outfile dist/modeler-bridge`; `compile:all` = the `--target`
   matrix (darwin-arm64/x64, linux-x64/arm64, windows-x64); `start` = run from
   source (needs `bun` on PATH).
 
@@ -262,7 +269,7 @@ Bridge (`apps/modeler-bridge/src/`):
   (`#6C707E` idle / `#CED0D6` selected) sits on the `<path>`, not the root
   `<svg>` (user-memory: "intellij toolwindow stroke icon recolor").
 - **Script-tab Groovy binding types**: `GrBindingVariable.setType` throws at
-  runtime — use `GrLightVariable`; verify method *bodies*, not just signatures,
+  runtime — use `GrLightVariable`; verify method _bodies_, not just signatures,
   against the cached SDK (user-memory: "intellij grbindingvariable settype
   stub").
 - **Hosting a code-insight/completion test** in the JUnit5 suite fights the

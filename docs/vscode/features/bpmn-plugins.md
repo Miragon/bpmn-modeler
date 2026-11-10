@@ -74,8 +74,8 @@ Plugins load in the [Design and Implement modes](/vscode/features/modes), never 
 
 When you open a diagram and its workspace holds plugins you have not allowed yet, the editor opens right away with the plugins you already allowed, and a notification says how many are waiting, for example *2 BPMN plugins in this workspace are not allowed yet.*
 
-1. Click **Review…**. The [Add-ons view](/vscode/features/add-ons) opens at the waiting plugins and shows each one's folder, files and content hash.
-2. Click **Allow this content** on each plugin you trust. Every open BPMN editor that offered it reloads with it.
+1. Click **Review…**. The [Add-ons view](/vscode/features/add-ons) opens with the first waiting plugin selected and shows its folder, files and content hash; the others carry **Needs review** in the list.
+2. For each plugin you trust, select it and click **Allow this content** at the end of its review. Every open BPMN editor that offered it reloads with it.
 
 **Review…** shows a list to check instead when a waiting plugin lies outside every open folder. Each entry shows the plugin's name, whether it is new or changed since you allowed it, and its folder. Check the plugins you trust and confirm.
 
@@ -140,7 +140,7 @@ In VS Code the output channel names the error of a left-out plugin only as *Scri
 
 The IntelliJ plugin loads BPMN plugins the same way: the same folders, the same notification with **Review…** and the same rules. These parts differ:
 
-- **Review…** opens the **Add-ons** tab of the **BPMN Modeler** tool window at the plugin's row, where you allow it, and where **Revoke** takes an approval back. When a plugin lies outside the project, or the tab cannot open, the list appears as in VS Code.
+- **Review…** opens the **Add-ons** tab of the **BPMN Modeler** tool window with the plugin selected, where you allow it, and where **Revoke** takes an approval back. When a plugin lies outside the project, or the tab cannot open, the list appears as in VS Code.
 
 - The question is an IDE notification balloon. Closing the balloon with its X keeps it in the **Notifications** tool window, where **Review…** still works. Clearing it there decides nothing, like closing the notification in VS Code.
 - Approvals are kept by the IDE for all your projects, outside every project, so a repository cannot allow its own plugins. A plugin you allow in one project window is allowed in the others too.

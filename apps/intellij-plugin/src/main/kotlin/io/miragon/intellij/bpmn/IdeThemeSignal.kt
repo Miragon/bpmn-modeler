@@ -130,27 +130,6 @@ class IdeThemeSignal(
      */
     fun deploymentThemeVarsCss(): String = rootBlock(deploymentPalette())
 
-    /**
-     * The `--vscode-*` set the add-ons page may read: the deployment form's
-     * palette, so the two side panels cannot drift apart, plus the label font,
-     * the high contrast borders and a warning text color. No IntelliJ theme key
-     * names a warning text color, so it is VS Code's default for each scheme.
-     */
-    fun addOnsThemeVarsCss(): String = rootBlock(deploymentPalette() + addOnsExtras())
-
-    private fun addOnsExtras(): List<String> {
-        val font = UIUtil.getLabelFont()
-        val contrastBorder =
-            if (isHighContrast()) ColorUtil.toHtmlColor(JBUI.CurrentTheme.Focus.focusColor()) else "transparent"
-        return listOf(
-            "  --vscode-font-family: ${fontFamilyValue(font.family)};",
-            "  --vscode-font-size: ${font.size}px;",
-            "  --vscode-contrastBorder: $contrastBorder;",
-            "  --vscode-contrastActiveBorder: $contrastBorder;",
-            "  --vscode-list-warningForeground: ${ColorUtil.toHtmlColor(WARNING_FOREGROUND)};",
-        )
-    }
-
     private fun rootBlock(declarations: List<String>): String =
         (listOf(":root {", "  color-scheme: ${if (isDark()) "dark" else "light"};") + declarations + "}").joinToString("\n")
 
@@ -242,8 +221,8 @@ class IdeThemeSignal(
     /** The brand mode of the add-ons page, from the LaF and the `colorTheme` setting. */
     internal fun addOnsBrandMode(): BrandMode = BrandMode.of(HostColorThemeKind.of(isDark(), isHighContrast()), colorTheme())
 
-    /** [applyJs] specialised for the add-ons page's variable set, plus its brand mode. */
-    fun addOnsApplyJs(): String = applyJs(addOnsThemeVarsCss()) + addOnsBrandMode().applyJs()
+    /** The add-ons page reads no IDE colour, only its brand mode. */
+    fun addOnsApplyJs(): String = addOnsBrandMode().applyJs()
 
     /** [applyJs] specialised for the deployment form's variable set. */
     fun deploymentApplyJs(): String = applyJs(deploymentThemeVarsCss())
@@ -279,18 +258,7 @@ class IdeThemeSignal(
     }
 }
 
-private val WARNING_FOREGROUND = JBColor(0x855F00, 0xCCA700)
-
 // The bundled High Contrast theme's id; 2024.2 has no API that says a theme is one.
 private const val HIGH_CONTRAST_THEME_ID = "JetBrainsHighContrastTheme"
 
 internal fun isHighContrastTheme(): Boolean = LafManager.getInstance().currentUIThemeLookAndFeel?.id == HIGH_CONTRAST_THEME_ID
-
-/**
- * The label font as a CSS `font-family` value. Only name characters survive, so
- * no family can close the declaration or the `<style>` element it sits in; the
- * generic fallbacks cover a system font Chromium cannot resolve, such as macOS's
- * `.AppleSystemUIFont`.
- */
-internal fun fontFamilyValue(family: String): String =
-    "\"${family.filter { it.isLetterOrDigit() || it in " .-_" }}\", system-ui, sans-serif"

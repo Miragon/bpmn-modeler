@@ -15,40 +15,31 @@ import {
     ancestorsOf,
     Expansion,
     isOpen,
+    headsOf,
     isReviewOpen,
-    outlineHeadsOf,
+    isShownOpen,
     prunedExpansion,
     reviewKeyOf,
-    visibleHeadsOf,
-} from "./outline";
+} from "./expansion";
 
-const ids = (heads: readonly { id: string }[]) => heads.map(({ id }) => id);
-
-describe("outlineHeadsOf", () => {
+describe("headsOf", () => {
     it("lists groups, sources and add-ons in the order the model gives them", () => {
-        expect(
-            outlineHeadsOf(CATALOG).map(({ id, level, name, parentId }) => [
-                id,
-                level,
-                name,
-                parentId,
-            ]),
-        ).toEqual([
-            ["folder:/work", "group", "work", undefined],
-            [CONFIG_SOURCE.id, "source", ".camunda", "folder:/work"],
-            [PALETTE.id, "addOn", "Palette", CONFIG_SOURCE.id],
-            [RESIZE.id, "addOn", "Resize Tasks", CONFIG_SOURCE.id],
-            [PACKAGES_SOURCE.id, "source", "node_modules", "folder:/work"],
-            [ACME.id, "addOn", "bpmnlint-plugin-acme", PACKAGES_SOURCE.id],
-            ["marketplaces", "group", "Marketplaces", undefined],
-            [MARKETPLACE_SOURCE.id, "source", "/shared", "marketplaces"],
-            [MAIL.id, "addOn", "Mail", MARKETPLACE_SOURCE.id],
+        expect(headsOf(CATALOG).map(({ id, parentId }) => [id, parentId])).toEqual([
+            ["folder:/work", undefined],
+            [CONFIG_SOURCE.id, "folder:/work"],
+            [PALETTE.id, CONFIG_SOURCE.id],
+            [RESIZE.id, CONFIG_SOURCE.id],
+            [PACKAGES_SOURCE.id, "folder:/work"],
+            [ACME.id, PACKAGES_SOURCE.id],
+            ["marketplaces", undefined],
+            [MARKETPLACE_SOURCE.id, "marketplaces"],
+            [MAIL.id, MARKETPLACE_SOURCE.id],
         ]);
     });
 });
 
 describe("isOpen", () => {
-    const heads = outlineHeadsOf(CATALOG);
+    const heads = headsOf(CATALOG);
     const head = (id: string) => heads.find((each) => each.id === id)!;
 
     it.each<{ case: string; id: string; expansion: [string, boolean][]; open: boolean }>([
@@ -83,31 +74,40 @@ describe("isOpen", () => {
     });
 });
 
-describe("visibleHeadsOf", () => {
-    it("hides the heads below a closed one, a marketplace's templates by default", () => {
-        expect(ids(visibleHeadsOf(CATALOG, new Map()))).toEqual([
-            "folder:/work",
-            CONFIG_SOURCE.id,
-            PALETTE.id,
-            RESIZE.id,
-            PACKAGES_SOURCE.id,
-            ACME.id,
-            "marketplaces",
-            MARKETPLACE_SOURCE.id,
-        ]);
+describe("isShownOpen", () => {
+    const marketplace = headsOf(CATALOG).find(({ id }) => id === MARKETPLACE_SOURCE.id)!;
+    const closedWork = new Map([["folder:/work", false]]);
+    const work = headsOf(CATALOG)[0]!;
+
+    it.each<{ case: string; open: boolean; filterActive: boolean; expected: boolean }>([
+        {
+            case: "follows the user's choice without a filter",
+            open: false,
+            filterActive: false,
+            expected: false,
+        },
+        {
+            case: "shows a closed head open while a filter is active",
+            open: false,
+            filterActive: true,
+            expected: true,
+        },
+        { case: "keeps an open head open", open: true, filterActive: false, expected: true },
+    ])("$case", ({ open, filterActive, expected }) => {
+        const expansion = new Map([[MARKETPLACE_SOURCE.id, open]]);
+
+        expect(isShownOpen(marketplace, expansion, filterActive)).toBe(expected);
     });
 
-    it("hides every head below a closed group, the open sources' rows included", () => {
-        expect(ids(visibleHeadsOf(CATALOG, new Map([["folder:/work", false]])))).toEqual([
-            "folder:/work",
-            "marketplaces",
-            MARKETPLACE_SOURCE.id,
-        ]);
+    it("leaves the stored choice as it was", () => {
+        isShownOpen(work, closedWork, true);
+
+        expect([...closedWork]).toEqual([["folder:/work", false]]);
     });
 });
 
 describe("ancestorsOf", () => {
-    const heads = outlineHeadsOf(CATALOG);
+    const heads = headsOf(CATALOG);
 
     it.each([
         { id: MAIL.id, ancestors: ["marketplaces", MARKETPLACE_SOURCE.id] },

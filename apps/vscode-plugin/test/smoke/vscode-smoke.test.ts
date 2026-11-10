@@ -48,8 +48,9 @@ const PLUGIN_FOLDER = "bpmn-plugin";
 const PLUGIN_BPMN_FILE = "plugin-smoke.bpmn";
 const PLUGIN_NAME = "Smoke trace";
 const PLUGIN_NOTICE = "1 BPMN plugin in this workspace is not allowed yet.";
-/** The Add-ons view's outline, which tells its page from the Deploy view's. */
-const ADD_ONS_OUTLINE = '[role="group"][aria-label="Add-ons"]';
+/** The Add-ons view's frame, which tells its page from the Deploy view's. */
+const ADD_ONS_VIEW = 'main[aria-label="Add-ons"]';
+const REVIEW_FACTS = ["Folder", "Covers", "Content hash"];
 const PLUGIN_BADGE_COLOR = "rgb(255, 0, 255)";
 const OPEN_TIMING_ROUNDS = 3;
 
@@ -161,6 +162,38 @@ function isFocused(element: Locator): Promise<boolean> {
     return element
         .evaluate((node) => node === document.activeElement && document.hasFocus())
         .catch(() => false);
+}
+
+/** The add-on's row in the Add-ons list; a click selects it and shows its detail. */
+function addOnRow(addOns: FrameLocator, name: string): Locator {
+    return addOns.locator(".av-row", { has: addOns.locator(".av-row-title", { hasText: name }) });
+}
+
+/** The add-on's detail; a view under 640px wide shows it in place of the list, with Back. */
+function addOnDetail(addOns: FrameLocator, name: string): Locator {
+    return addOns.getByRole("article", { name });
+}
+
+/** Back shows only while a view under 640px wide shows a detail in place of the list. */
+function showsDrillDownDetail(addOns: FrameLocator): Promise<boolean> {
+    return addOns.locator(".av-back").isVisible();
+}
+
+/** A row hidden behind the drill-down's detail leaves focus with the detail's heading. */
+async function addOnFocusTarget(addOns: FrameLocator, name: string): Promise<Locator> {
+    return (await showsDrillDownDetail(addOns))
+        ? addOnDetail(addOns, name).locator(".av-detail-name")
+        : addOnRow(addOns, name);
+}
+
+async function showAddOnDetail(addOns: FrameLocator, name: string): Promise<Locator> {
+    const detail = addOnDetail(addOns, name);
+    if (!(await detail.isVisible())) {
+        if (await showsDrillDownDetail(addOns)) await addOns.locator(".av-back").click();
+        await addOnRow(addOns, name).click();
+    }
+    await detail.waitFor({ timeout: TIMEOUT_MS });
+    return detail;
 }
 
 async function cachedPluginScripts(globalStorageDirectory: string): Promise<string[]> {
@@ -1398,18 +1431,29 @@ describe("the packaged extension in a real VS Code", () => {
                 .filter({ hasText: PLUGIN_NOTICE });
             await notice.getByRole("button", { name: "Review…" }).click();
 
-            // Review… opens the Add-ons view at the plugin's row instead of a list.
-            const addOns = await vscode().viewWebview(ADD_ONS_OUTLINE);
-            const row = addOns.getByRole("listitem", { name: PLUGIN_NAME });
-            await expect.poll(() => isFocused(row), { timeout: TIMEOUT_MS }).toBe(true);
+            // Review… opens the Add-ons view on the plugin's detail with its review open, not a list.
+            const addOns = await vscode().viewWebview(ADD_ONS_VIEW);
+            const detail = addOnDetail(addOns, PLUGIN_NAME);
+            await detail.waitFor({ timeout: TIMEOUT_MS });
+            log(
+                `the Add-ons view shows ${(await showsDrillDownDetail(addOns)) ? "the drill-down" : "two panes"}`,
+            );
+            const revealed = await addOnFocusTarget(addOns, PLUGIN_NAME);
+            await expect.poll(() => isFocused(revealed), { timeout: TIMEOUT_MS }).toBe(true);
+            expect(await addOnRow(addOns, PLUGIN_NAME).getAttribute("aria-current")).toBe("true");
             expect(await page().locator(".quick-input-widget").isVisible()).toBe(false);
-            expect(await row.locator(".meta").textContent()).toContain("Not allowed yet");
-            expect(await row.locator("dt").allTextContents()).toEqual(
-                expect.arrayContaining(["Folder", "Covers", "Content hash"]),
+            expect(await detail.locator(".av-state-line").textContent()).toContain(
+                "Not allowed yet",
+            );
+            expect(await detail.locator(".av-facts dt").allTextContents()).toEqual(
+                expect.arrayContaining(REVIEW_FACTS),
             );
 
-            const allow = row.getByRole("button", { name: "Allow this content" });
-            for (let presses = 0; presses < 5 && !(await isFocused(allow)); presses++) {
+            // Allow ends the review, so Tab reaches it from the heading or the row.
+            const allow = detail
+                .locator(".av-review-end")
+                .getByRole("button", { name: "Allow this content" });
+            for (let presses = 0; presses < 10 && !(await isFocused(allow)); presses++) {
                 await page().keyboard.press("Tab");
             }
             expect(await isFocused(allow)).toBe(true);
@@ -1417,7 +1461,9 @@ describe("the packaged extension in a real VS Code", () => {
             await expect
                 .poll(() => addOns.getByRole("status").textContent(), { timeout: TIMEOUT_MS })
                 .toBe(`Allowed ${PLUGIN_NAME}. Open editors reload with it.`);
-            await expect.poll(() => isFocused(row)).toBe(true);
+            await expect
+                .poll(async () => isFocused(await addOnFocusTarget(addOns, PLUGIN_NAME)))
+                .toBe(true);
 
             await vscode().showInCustomEditor(PLUGIN_BPMN_FILE, diagramWithPluginRendered);
             const webview = vscode().webview();
@@ -1480,11 +1526,9 @@ describe("the packaged extension in a real VS Code", () => {
                 .filter({ hasText: PLUGIN_NOTICE });
 
             await vscode().runCommand("Focus on Add-ons View");
-            const addOns = await vscode().viewWebview(ADD_ONS_OUTLINE);
-            await addOns
-                .getByRole("listitem", { name: PLUGIN_NAME })
-                .getByRole("button", { name: "Revoke" })
-                .click();
+            const addOns = await vscode().viewWebview(ADD_ONS_VIEW);
+            const detail = await showAddOnDetail(addOns, PLUGIN_NAME);
+            await detail.getByRole("button", { name: "Revoke" }).click();
 
             await expect
                 .poll(() => addOns.getByRole("status").textContent(), { timeout: TIMEOUT_MS })
@@ -1503,9 +1547,28 @@ describe("the packaged extension in a real VS Code", () => {
             await vscode().runCommand("View: Show Explorer");
         });
 
+        it("loads the Add-ons view's Geist fonts within its policy", async () => {
+            await vscode().runCommand("Focus on Add-ons View");
+            const addOns = await vscode().viewWebview(ADD_ONS_VIEW);
+            // The text shows in Geist; Geist Mono only shows in a review's hash, so it is asked for.
+            const faces = await addOns.locator("html").evaluate(async () => {
+                await document.fonts.load('13px "Geist Mono Variable"', "0");
+                await document.fonts.ready;
+                return [...document.fonts]
+                    .filter(({ status }) => status === "loaded")
+                    .map(({ family }) => family.replace(/"/g, ""));
+            });
+
+            expect(faces).toEqual(
+                expect.arrayContaining(["Geist Variable", "Geist Mono Variable"]),
+            );
+            expectNoCspViolations();
+            await vscode().runCommand("View: Show Explorer");
+        });
+
         it("marks the Add-ons view with the brand mode of each theme", async () => {
             await vscode().runCommand("Focus on Add-ons View");
-            const html = (await vscode().viewWebview(ADD_ONS_OUTLINE)).locator("html");
+            const html = (await vscode().viewWebview(ADD_ONS_VIEW)).locator("html");
 
             for (const theme of COLOR_THEMES) {
                 await vscode().setColorTheme(theme.name);

@@ -1,0 +1,1170 @@
+/*
+ * The Add-ons view: a dense list with a detail pane. Widths come from the
+ * frame's container size, so the layout follows the view as it is resized.
+ */
+
+.av-frame {
+    container: view / inline-size;
+}
+
+.av-app {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    background: var(--cd-ui-grund);
+}
+
+.av-vh {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+/* --- Toolbar --- */
+
+/* The view writes the sticky toolbar's height; 8px keeps a focus ring clear of its edge. */
+html {
+    scroll-padding-top: calc(var(--av-sticky-top, 0px) + 8px);
+}
+
+.av-toolbar {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 10px 12px 6px;
+    background: var(--cd-ui-grund);
+    border-bottom: 1px solid var(--cd-ui-linie);
+}
+
+.av-search-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.av-search {
+    flex: 1;
+    min-width: 0;
+}
+
+/* Narrow: the chips wrap, so no filter hides beyond the edge of a sidebar. */
+.av-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 2px 0;
+}
+
+.av-chips::-webkit-scrollbar {
+    display: none;
+}
+
+.av-chip {
+    flex: none;
+    min-height: 26px;
+    padding: 0 4px 0 6px;
+    font-size: 12px;
+}
+
+.av-chip .ds-count {
+    background: var(--cd-ui-hover);
+}
+
+.av-chip[aria-pressed="true"] .ds-count {
+    color: var(--cd-ui-text);
+    background: var(--cd-ui-flaeche);
+}
+
+.av-toolbar-busy {
+    position: absolute;
+    right: 0;
+    bottom: -1px;
+    left: 0;
+}
+
+/* --- Tabs: Workspace and Marketplaces; the selected one has the hover surface and a 2px bar --- */
+
+/* Narrow: a full-width strip flush with the top of the toolbar. */
+.av-tabs {
+    display: flex;
+    margin: -10px -12px 4px;
+    border-bottom: 1px solid var(--cd-ui-linie);
+}
+
+.av-tabs:empty {
+    display: none;
+}
+
+.av-tab {
+    position: relative;
+    flex: 1 1 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-width: 0;
+    min-height: 36px;
+    padding: 0 8px;
+    border: 0;
+    color: var(--cd-ui-text-leise);
+    background: transparent;
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background-color 120ms var(--ds-ease), color 120ms var(--ds-ease);
+}
+
+.av-tab:hover {
+    color: var(--cd-ui-text);
+    background: var(--cd-ui-hover);
+}
+
+.av-tab[aria-selected="true"] {
+    color: var(--cd-ui-text);
+    background: var(--cd-ui-hover);
+    font-weight: 600;
+}
+
+.av-tab[aria-selected="true"]::after {
+    content: "";
+    position: absolute;
+    right: 8px;
+    bottom: -1px;
+    left: 8px;
+    height: 2px;
+    border-radius: 2px 2px 0 0;
+    background: var(--cd-ui-interaktion);
+}
+
+.av-tab:focus-visible {
+    outline-offset: -2px;
+}
+
+.av-tab-label {
+    display: inline-flex;
+    flex-direction: column;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.av-tab-label::after {
+    content: attr(data-label);
+    height: 0;
+    font-weight: 600;
+    visibility: hidden;
+    overflow: hidden;
+}
+
+.av-tab .ds-count {
+    flex: none;
+    background: var(--cd-ui-hover);
+}
+
+.av-tab:hover .ds-count,
+.av-tab[aria-selected="true"] .ds-count {
+    color: var(--cd-ui-text);
+    background: var(--cd-ui-flaeche);
+}
+
+/* --- Marketplaces tab: its two catalog actions as visible buttons --- */
+
+.av-scope-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px 8px 4px;
+}
+
+.av-scope-actions .ds-btn {
+    flex: 1 1 auto;
+}
+
+.av-banner-slot .ds-banner:not([data-empty]) {
+    margin: 8px 12px 0;
+}
+
+/* --- Kind tiles and status marks --- */
+
+.av-tile {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: var(--cd-radius-sm);
+    color: var(--ds-kind-fg);
+    background: var(--ds-kind-bg);
+}
+
+.av-tile-small {
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+}
+
+.av-mark {
+    flex: none;
+}
+
+.av-dot,
+.av-ring {
+    flex: none;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.av-dot {
+    background: var(--cd-ui-warning);
+}
+
+/* Amber holds no 3:1 on white: a black edge carries the dot (as brand §8 for variant dots). */
+:root:not([data-cd-theme="dark"]) .av-dot {
+    border: 1px solid var(--cd-schwarz);
+}
+
+.av-ring {
+    border: 1.5px solid var(--cd-ui-kontur);
+}
+
+.av-status {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    color: var(--cd-ui-text-leise);
+    white-space: nowrap;
+}
+
+.av-tone-warning .av-status-word,
+.av-tone-danger .av-status-word {
+    color: var(--cd-ui-text);
+    font-weight: 500;
+}
+
+.av-tone-danger .av-mark {
+    color: var(--cd-ui-danger);
+}
+
+.av-tone-success .av-mark {
+    color: var(--cd-ui-text-leise);
+}
+
+[data-cd-theme="dark"] .av-tone-success .av-mark {
+    color: var(--cd-ui-success);
+}
+
+/* --- List --- */
+
+.av-list {
+    container: list / inline-size;
+    padding: 4px 8px 16px;
+}
+
+.av-group {
+    padding-top: 6px;
+}
+
+.av-group + .av-group {
+    margin-top: 6px;
+    border-top: 1px solid var(--cd-ui-linie);
+}
+
+/* --- Collapsible heads: the whole row toggles; a closed one keeps its count and a review dot --- */
+
+.av-group-name,
+.av-source-heading {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    font-size: inherit;
+    font-weight: inherit;
+}
+
+.av-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    width: 100%;
+    padding: 6px 8px 6px 2px;
+    border: 0;
+    border-radius: var(--cd-radius-sm);
+    background: transparent;
+    text-align: left;
+}
+
+button.av-head {
+    cursor: pointer;
+    transition: background-color 120ms var(--ds-ease);
+}
+
+button.av-head:hover {
+    background: var(--cd-ui-hover);
+}
+
+button.av-head:focus-visible {
+    outline-offset: -2px;
+}
+
+.av-head-chevron {
+    flex: none;
+    width: 16px;
+    height: 16px;
+    margin-top: 2px;
+}
+
+.av-head[data-open="true"] .av-head-chevron {
+    transform: rotate(90deg);
+}
+
+.av-head-static .av-head-chevron {
+    color: var(--cd-ui-kontur);
+}
+
+.av-head-summary {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+    padding: 1px 0 0 4px;
+}
+
+.av-head-count {
+    background: var(--cd-ui-hover);
+}
+
+button.av-head:hover .av-head-count {
+    background: var(--cd-ui-flaeche);
+}
+
+.av-group-text {
+    flex: 1;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0 8px;
+    min-width: 0;
+}
+
+.av-group-label {
+    font-size: 13px;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.av-group-path {
+    min-width: 0;
+    color: var(--cd-ui-text-leise);
+    font-size: 12px;
+    font-weight: 400;
+    overflow-wrap: anywhere;
+}
+
+.av-group-flat {
+    padding-top: 0;
+}
+
+.av-group-intro {
+    margin: 4px 8px 2px;
+    color: var(--cd-ui-text-leise);
+    font-size: 12px;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+}
+
+.av-problem {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    margin: 2px 8px 4px 24px;
+    font-size: 12px;
+    overflow-wrap: anywhere;
+}
+
+.av-problem-icon {
+    margin-top: 2px;
+    color: var(--cd-ui-danger);
+}
+
+.av-source {
+    position: relative;
+    margin-top: 2px;
+}
+
+/* A folder's sources step in under its chevron, with a quiet guide line, so they read as its children. */
+.av-group:not(.av-group-flat) > .av-source {
+    margin-left: 16px;
+}
+
+.av-group:not(.av-group-flat) > .av-source::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: -7px;
+    width: 1px;
+    background: var(--cd-ui-linie);
+}
+
+.av-source-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 2px;
+}
+
+.av-source-icon {
+    margin-top: 2px;
+    color: var(--cd-ui-text-leise);
+}
+
+.av-source-text {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.av-source-title {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px 6px;
+    min-height: 20px;
+}
+
+.av-source-label {
+    min-width: 0;
+    font-size: 12px;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.av-badge {
+    padding: 0 6px;
+    border: 1px solid var(--cd-ui-linie);
+    border-radius: var(--cd-radius-sm);
+    color: var(--cd-ui-text);
+    background: var(--cd-ui-flaeche);
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 18px;
+    white-space: nowrap;
+}
+
+.av-source-description {
+    color: var(--cd-ui-text-leise);
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+}
+
+.av-source-busy {
+    margin: 2px 8px 0 24px;
+}
+
+.av-source .av-menu-trigger {
+    width: 28px;
+    height: 28px;
+    margin-top: 2px;
+    color: var(--cd-ui-text-leise);
+}
+
+.av-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    padding: 2px 0;
+}
+
+.av-row {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    min-height: 36px;
+    padding: 4px 8px 4px 24px;
+    border: 0;
+    border-radius: var(--cd-radius-sm);
+    background: transparent;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color 120ms var(--ds-ease);
+}
+
+.av-row:hover,
+.av-row[aria-current="true"] {
+    background: var(--cd-ui-hover);
+}
+
+.av-row[aria-current="true"]::before {
+    content: "";
+    position: absolute;
+    top: 8px;
+    bottom: 8px;
+    left: 2px;
+    width: 2px;
+    border-radius: 2px;
+    background: var(--cd-ui-interaktion);
+}
+
+.av-row:focus-visible {
+    outline-offset: -2px;
+}
+
+.av-row-name {
+    flex: 1;
+    display: flex;
+    align-items: baseline;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.av-row-title,
+.av-row-detail {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/*
+ * The title never shrinks while its detail has room to give: any shared
+ * shrink, however weighted, cuts a pixel off the title and shows its ellipsis.
+ */
+.av-row-title {
+    flex: none;
+    max-width: 100%;
+    font-weight: 500;
+}
+
+.av-row-detail {
+    flex: 0 1 auto;
+    padding-left: 6px;
+    color: var(--cd-ui-text-leise);
+    font-size: 12px;
+}
+
+.av-row-busy {
+    position: absolute;
+    right: 8px;
+    bottom: 1px;
+    left: 8px;
+}
+
+/* --- Menus --- */
+
+.av-menu-anchor {
+    position: relative;
+    flex: none;
+}
+
+.av-menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    width: max-content;
+    min-width: 200px;
+    max-width: min(280px, calc(100vw - 24px));
+    padding: 6px;
+    border: 1px solid var(--cd-ui-linie);
+    border-radius: var(--cd-radius-md);
+    background: var(--cd-ui-flaeche-hoch);
+    box-shadow: var(--cd-shadow-3);
+}
+
+.av-menu .av-menu-item {
+    justify-content: flex-start;
+    min-height: 36px;
+    padding: 6px 10px;
+    border-radius: var(--cd-radius-sm);
+    font-weight: 500;
+    text-align: left;
+    white-space: normal;
+}
+
+.av-menu .av-menu-item:focus-visible {
+    outline-offset: -2px;
+}
+
+/* --- Detail --- */
+
+.av-detail {
+    background: var(--cd-ui-grund);
+}
+
+.av-back {
+    margin: 8px 8px 0;
+    padding: 0 10px 0 8px;
+}
+
+.av-detail-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    max-width: 720px;
+    padding: 12px 16px 24px;
+}
+
+.av-detail-busy {
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 0;
+}
+
+.av-detail-head {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin: -6px -8px 0;
+    padding: 6px 8px;
+    border-radius: var(--cd-radius-md);
+}
+
+.av-detail-top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 12px;
+    margin-bottom: 4px;
+}
+
+.av-state-line {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.av-detail-name {
+    margin: 0;
+    font-size: 17px;
+    font-weight: 600;
+    line-height: 1.3;
+    letter-spacing: -0.01em;
+    overflow-wrap: anywhere;
+}
+
+/* Only a programmatic target after Back, a reveal or an action; never clicked or tabbed to. */
+.av-detail-name:focus-visible {
+    outline: none;
+}
+
+.av-detail-meta,
+.av-location {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0 6px;
+    margin: 0;
+    color: var(--cd-ui-text-leise);
+    overflow-wrap: anywhere;
+}
+
+.av-location {
+    font-size: 12px;
+}
+
+.av-sep {
+    color: var(--cd-ui-kontur);
+}
+
+.av-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+/* Destructive as a framed button: in the action bar it stands beside primary and secondary. */
+.av-actions .ds-btn-danger:not([aria-disabled="true"]) {
+    border-color: var(--cd-ui-linie);
+    background: var(--cd-ui-flaeche-hoch);
+}
+
+.av-actions .ds-btn-danger:not([aria-disabled="true"]):hover {
+    border-color: var(--cd-ui-danger);
+    background: var(--cd-ui-hover);
+}
+
+.av-box {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 8px 12px 8px 10px;
+    border: 1px solid var(--av-tone);
+    border-left-width: 4px;
+    border-radius: var(--cd-radius-sm);
+    background: var(--av-tone-surface);
+}
+
+.av-box-danger {
+    --av-tone: var(--cd-ui-danger);
+    --av-tone-surface: var(--cd-ui-danger-flaeche);
+}
+
+.av-box-warning {
+    --av-tone: var(--cd-ui-warning);
+    --av-tone-surface: var(--cd-ui-warning-flaeche);
+}
+
+.av-box-icon {
+    margin-top: 2px;
+    color: var(--av-tone);
+}
+
+/* Amber fails 3:1 as an icon on its light tint; the edge carries the tone there. */
+:root:not([data-cd-theme="dark"]) .av-box-warning .av-box-icon {
+    color: var(--cd-ui-text);
+}
+
+.av-box-text {
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+.av-note {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+.av-note-icon {
+    margin-top: 2px;
+    color: var(--cd-ui-info);
+}
+
+.av-review {
+    border: 1px solid var(--cd-ui-linie);
+    border-radius: var(--cd-radius-md);
+    background: var(--cd-ui-flaeche);
+}
+
+.av-review-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    min-height: 40px;
+    padding: 8px 12px;
+    border: 0;
+    border-radius: var(--cd-radius-md);
+    background: transparent;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+}
+
+.av-review[data-open="true"] .av-review-toggle {
+    border-radius: var(--cd-radius-md) var(--cd-radius-md) 0 0;
+}
+
+.av-review-toggle:hover {
+    background: var(--cd-ui-hover);
+}
+
+.av-review-toggle:focus-visible {
+    outline-offset: -2px;
+}
+
+.av-chevron {
+    color: var(--cd-ui-text-leise);
+    transition: transform 150ms var(--ds-ease);
+}
+
+.av-review-toggle[aria-expanded="true"] .av-chevron {
+    transform: rotate(90deg);
+}
+
+.av-review-heading {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.av-review-body {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 0 12px 12px;
+}
+
+.av-facts {
+    display: grid;
+    gap: 8px;
+    margin: 0;
+}
+
+.av-fact {
+    display: grid;
+    gap: 1px;
+}
+
+.av-fact-label {
+    color: var(--cd-ui-text-leise);
+    font-size: 12px;
+}
+
+.av-fact-value {
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+.av-mono {
+    font-family: var(--ds-mono);
+    font-size: 12px;
+    word-break: break-all;
+}
+
+.av-review-end {
+    display: flex;
+    padding-top: 12px;
+    border-top: 1px solid var(--cd-ui-linie);
+}
+
+.av-review-end .ds-btn {
+    flex: 1;
+}
+
+.av-hint {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 160px;
+    padding: 24px;
+    color: var(--cd-ui-text-leise);
+    text-align: center;
+}
+
+.av-hint-text {
+    max-width: 260px;
+    margin: 0;
+}
+
+/* --- Reveal: a ring in the selection colour, pulsing twice where motion is fine --- */
+
+@keyframes av-reveal {
+    0%,
+    45%,
+    100% {
+        outline-color: var(--cd-ui-interaktion);
+    }
+    72% {
+        outline-color: transparent;
+    }
+}
+
+.av-revealed {
+    outline: 2px solid var(--cd-ui-interaktion);
+    outline-offset: -2px;
+    animation: av-reveal 800ms var(--ds-ease) 3;
+}
+
+.av-detail-head.av-revealed {
+    outline-offset: 0;
+}
+
+/* --- Loading, empty, failed, no match --- */
+
+.av-loading {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px 4px;
+}
+
+.av-loading-text {
+    margin: 0 4px 4px;
+    color: var(--cd-ui-text-leise);
+}
+
+.av-skeleton {
+    position: relative;
+    height: 36px;
+}
+
+.av-skeleton::before,
+.av-skeleton::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    border-radius: var(--cd-radius-sm);
+    background: var(--cd-ui-linie);
+}
+
+.av-skeleton::before {
+    left: 10px;
+    width: 20px;
+    height: 20px;
+    margin-top: -10px;
+}
+
+.av-skeleton::after {
+    left: 38px;
+    width: min(180px, 60%);
+    height: 10px;
+    margin-top: -5px;
+}
+
+.av-skeleton-1::after {
+    width: min(130px, 44%);
+}
+
+.av-skeleton-2::after {
+    width: min(150px, 52%);
+}
+
+.av-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    max-width: 420px;
+    margin: 0 auto;
+    padding: 32px 12px;
+    text-align: center;
+}
+
+.av-empty-icon {
+    color: var(--cd-ui-text-leise);
+}
+
+.av-empty-text {
+    margin: 0;
+    color: var(--cd-ui-text);
+}
+
+.av-empty-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+}
+
+.av-empty-busy {
+    align-self: stretch;
+}
+
+.av-catalog-problem {
+    margin: 8px 4px;
+}
+
+.av-app:not([data-phase="ready"]) .av-toolbar,
+.av-app:not([data-phase="ready"]) .av-detail {
+    display: none;
+}
+
+/* --- Narrow (a sidebar): a drill-down, the detail replaces the list --- */
+
+@container view (max-width: 639.98px) {
+    .av-app[data-pane="detail"] .av-toolbar,
+    .av-app[data-pane="detail"] .av-list,
+    .av-app[data-pane="list"] .av-detail {
+        display: none;
+    }
+}
+
+/* The row detail needs the list column's width, not the window's. */
+@container list (max-width: 379.98px) {
+    .av-row-detail {
+        display: none;
+    }
+}
+
+@container view (max-width: 419.98px) {
+    .av-row-status.av-tone-success .av-status-word {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+    }
+}
+
+/* --- Wide (a bottom tool window): list and detail side by side, each scrolling --- */
+
+@container view (min-width: 640px) {
+    .av-app {
+        height: 100vh;
+        min-height: 0;
+        overflow: hidden;
+    }
+
+    .av-toolbar {
+        position: relative;
+        flex-direction: row;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+    }
+
+    .av-search-row {
+        display: contents;
+    }
+
+    /* Wide enough for the whole placeholder. */
+    .av-search {
+        flex: 0 1000 240px;
+        min-width: 176px;
+    }
+
+    /* One row beside the search, which gives way first; it scrolls sideways (wheel included) when the window is tight. */
+    .av-chips {
+        flex: 1 1 auto;
+        flex-wrap: nowrap;
+        order: 1;
+        min-width: 0;
+        margin: -4px 0;
+        padding: 4px 2px;
+        overflow-x: auto;
+        scrollbar-width: none;
+    }
+
+    .av-toolbar-menu {
+        order: 2;
+    }
+
+    /* Wide: the tabs lead the one-row toolbar; tabs and chips run compact so 960 px holds one row. */
+    .av-tabs {
+        flex: none;
+        gap: 2px;
+        margin: 0;
+        border-bottom: 0;
+    }
+
+    .av-tab {
+        flex: none;
+        gap: 4px;
+        padding: 0 6px 0 8px;
+        border-radius: var(--cd-radius-sm);
+        font-size: 12px;
+    }
+
+    .av-chip {
+        gap: 4px;
+        padding: 0 3px 0 5px;
+    }
+
+    .av-tab[aria-selected="true"]::after {
+        bottom: 0;
+    }
+
+    .av-scope-actions .ds-btn {
+        flex: none;
+    }
+
+    .av-body {
+        flex: 1;
+        display: grid;
+        grid-template-columns: minmax(280px, 45%) minmax(0, 1fr);
+        min-height: 0;
+    }
+
+    .av-app:not([data-phase="ready"]) .av-body {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .av-list,
+    .av-detail {
+        min-height: 0;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+    }
+
+    .av-detail {
+        border-left: 1px solid var(--cd-ui-linie);
+        background: var(--cd-ui-flaeche);
+    }
+
+    .av-back {
+        display: none;
+    }
+
+    .av-detail-card {
+        padding: 16px 20px 24px;
+    }
+
+    .av-hint {
+        height: 100%;
+    }
+
+    .av-review {
+        background: var(--cd-ui-flaeche-hoch);
+    }
+
+    .av-review-end {
+        justify-content: flex-end;
+    }
+
+    .av-review-end .ds-btn {
+        flex: none;
+    }
+}
+
+@container view (min-width: 800px) {
+    .av-fact {
+        grid-template-columns: 104px minmax(0, 1fr);
+        gap: 12px;
+    }
+}
+
+/* --- High contrast and forced colours --- */
+
+[data-cd-kontrast="hoch"] .av-tile,
+[data-cd-kontrast="hoch"] .av-badge {
+    outline: 1px solid var(--cd-ui-kontur);
+}
+
+[data-cd-kontrast="hoch"] .av-row[aria-current="true"]::before {
+    width: 3px;
+}
+
+[data-cd-kontrast="hoch"] .av-tabs,
+[data-cd-kontrast="hoch"] .av-review,
+[data-cd-kontrast="hoch"] .av-menu,
+[data-cd-kontrast="hoch"] .av-toolbar,
+[data-cd-kontrast="hoch"] .av-detail {
+    border-color: var(--cd-ui-kontur);
+}
+
+@media (forced-colors: active) {
+    .av-tile,
+    .av-dot,
+    .av-menu,
+    .av-review {
+        border: 1px solid CanvasText;
+    }
+
+    .av-tab[aria-selected="true"]::after {
+        background: Highlight;
+    }
+
+    .av-row[aria-current="true"] {
+        outline: 2px solid Highlight;
+        outline-offset: -2px;
+    }
+
+    .av-revealed {
+        outline-color: Highlight;
+    }
+}

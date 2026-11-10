@@ -22,7 +22,7 @@ Adding a marketplace that is already registered saves nothing: it is still fetch
 
 These commands run one at a time. A command you start while another one runs shows its progress and waits for it.
 
-The [Add-ons view](/vscode/features/add-ons) lists each registered marketplace with its cached templates. Its toolbar adds and updates marketplaces, each marketplace offers **Remove**, and **Disable templates** keeps a marketplace's templates out of new choices without removing it.
+The [Add-ons view](/vscode/features/add-ons) lists each registered marketplace with its cached templates in its **Marketplaces** tab. The tab adds and updates marketplaces, each marketplace's **⋯** menu offers **Remove**, and **Disable templates** there keeps a marketplace's templates out of new choices without removing it.
 
 ## The `marketplace.json` file
 

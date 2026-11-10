@@ -21,6 +21,7 @@ export interface AddOnCatalogModel {
     /** Workspace folders in the order they were opened, then the marketplaces. */
     readonly groups: readonly AddOnGroupView[];
     readonly actions: readonly ActionView<CatalogActionKind>[];
+    /** Why no workspace folder lists an add-on: none is open, or none brings one. */
     readonly emptyText?: string;
     /** Why the catalog could not be read; the groups are then what it read before, if anything. */
     readonly problem?: string;

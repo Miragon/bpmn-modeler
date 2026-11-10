@@ -224,11 +224,24 @@ Webviews **must** respect the user's VS Code theme:
 - Test with light, dark, and high-contrast themes
 - See the vscode-webviews skill for implementation details
 
+**Exception: the Add-ons view.** It wears the Miragon brand look (brand
+tokens, Geist, Lucide icons), not VS Code's colours, and reads no `--vscode-*`
+variable. It still respects the user's theme through the brand mode: the host
+writes `data-cd-theme="light|dark"` and `data-cd-kontrast="hoch"` on `<html>`
+from the theme kind and the `miragon.bpmnModeler.colorTheme` setting
+(`brandModeOf` in `libs/shared/src/lib/brandMode.ts`), so light, dark, high
+contrast and high contrast light all apply. Colour is never its only signal:
+a kind or status also has an icon and a word. Keep any new surface of this
+view on the brand tokens; do not add `--vscode-*` fallbacks to it. See
+[Architecture and hosts](../../../docs/adr/architecture-and-hosts.md) for the
+decision.
+
 ## Accessibility & Keyboard Shortcuts
 
 - All interactive elements must be keyboard-accessible
 - Use ARIA labels for non-text elements
-- Respect VS Code's `editor.fontSize` and zoom level
+- Respect VS Code's `editor.fontSize` and zoom level. The Add-ons view uses the brand's type sizes and follows only the zoom
+- A widget with an ARIA role keeps that role's keys: the Add-ons view dropped its roving tree for plain Tab order, but its `role=tablist` and `role=menu` keep their arrow, Home, End and Escape keys
 - The properties panel uses standard HTML form elements with labels
 - Keyboard shortcuts (Cmd/Ctrl+C/V/A) work in both diagram and properties panel via the polyfills described above
 - The select-all guard (`onSelectAllKeydown` in `packages/bpmn-modeler/src/propertiesPanelClipboard.ts`) ensures Cmd/Ctrl+A works correctly in contenteditable fields

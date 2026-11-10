@@ -13,13 +13,15 @@ import {
     without,
     withRevision,
 } from "../__fixtures__/catalogs";
-import { reviewKeyOf } from "./outline";
+import { NO_FILTER } from "./catalogFilter";
+import { reviewKeyOf } from "./expansion";
 import {
     CATALOG_TARGET,
     initialViewState,
     isBusy,
     nextViewState,
     persistedChoicesOf,
+    selectedIdOf,
     Transition,
     ViewEvent,
     ViewState,
@@ -54,18 +56,28 @@ describe("nextViewState", () => {
             expect(state.model?.revision).toBe(taken);
         });
 
-        it("makes the first head active when none is", () => {
-            expect(after([shown()]).state.activeHead).toBe("folder:/work");
+        it("selects the tab's first add-on to review", () => {
+            expect(selectedIdOf(after([shown()]).state)).toBe(RESIZE.id);
         });
 
-        it("moves the active head to a neighbour when a push removes it", () => {
+        it("moves the selection to its neighbour when a push removes it, back to the list", () => {
             const { state } = after([
                 shown(),
-                { kind: "headActivated", headId: PALETTE.id },
+                { kind: "addOnSelected", addOnId: PALETTE.id },
                 shown(without(PALETTE.id)),
             ]);
 
-            expect(state.activeHead).toBe(RESIZE.id);
+            expect([selectedIdOf(state), state.pane]).toEqual([RESIZE.id, "list"]);
+        });
+
+        it("keeps the selection and the pane when a push keeps the add-on", () => {
+            const { state } = after([
+                shown(),
+                { kind: "addOnSelected", addOnId: PALETTE.id },
+                shown(withRevision(11)),
+            ]);
+
+            expect([selectedIdOf(state), state.pane]).toEqual([PALETTE.id, "detail"]);
         });
 
         it("drops choices about heads the model no longer has", () => {
@@ -253,17 +265,72 @@ describe("nextViewState", () => {
             });
         });
 
-        it("focuses a neighbour when the model after a read no longer lists the row", () => {
+        it("focuses the selection's neighbour when the model after a read no longer lists the row", () => {
+            const read = after([
+                shown(),
+                { kind: "addOnSelected", addOnId: ACME.id },
+                { kind: "actionChosen", actionKind: "inspect", targetId: ACME.id },
+                { kind: "resultArrived", requestId: 1, result: { kind: "done" } },
+            ]);
+
+            const { state, focus } = nextViewState(read.state, shown(without(ACME.id)));
+
+            expect([focus, state.awaitingFocus]).toEqual([
+                { kind: "head", headId: RESIZE.id },
+                undefined,
+            ]);
+        });
+
+        it("waits for the review while the model stays the same", () => {
+            const read = after([
+                shown(),
+                { kind: "actionChosen", actionKind: "inspect", targetId: ACME.id },
+                { kind: "resultArrived", requestId: 1, result: { kind: "done" } },
+                { kind: "toggled", key: CONFIG_SOURCE.id },
+            ]);
+
+            expect([read.focus, read.state.awaitingFocus]).toEqual([
+                undefined,
+                { kind: "review", addOnId: ACME.id },
+            ]);
+        });
+
+        it("ends the wait with no focus when nothing is left to take it", () => {
             const read = after([
                 shown(),
                 { kind: "actionChosen", actionKind: "inspect", targetId: ACME.id },
                 { kind: "resultArrived", requestId: 1, result: { kind: "done" } },
             ]);
+            const nothing = { ...CATALOG, revision: 11, groups: [] };
 
-            expect(nextViewState(read.state, shown(without(ACME.id))).focus).toEqual({
-                kind: "head",
-                headId: "packages:/work/node_modules",
+            const { state, focus } = nextViewState(read.state, shown(nothing));
+
+            expect([focus, state.awaitingFocus]).toEqual([undefined, undefined]);
+        });
+
+        it("focuses the source once a newer model no longer offers the switch's slot", () => {
+            const fewer = withRevision(11, {
+                ...CATALOG,
+                groups: [
+                    CATALOG.groups[0]!,
+                    { ...CATALOG.groups[1]!, sources: [{ ...MARKETPLACE_SOURCE, actions: [] }] },
+                ],
             });
+            const answered = after([
+                shown(),
+                {
+                    kind: "actionChosen",
+                    actionKind: "disableTemplates",
+                    targetId: MARKETPLACE_SOURCE.id,
+                },
+                shown(fewer),
+                { kind: "resultArrived", requestId: 1, result: { kind: "done" } },
+            ]);
+
+            expect([
+                answered.focus,
+                nextViewState(answered.state, shown(withRevision(12, fewer))).focus,
+            ]).toEqual([undefined, { kind: "head", headId: MARKETPLACE_SOURCE.id }]);
         });
 
         it("keeps a switch's place in its row", () => {
@@ -282,29 +349,67 @@ describe("nextViewState", () => {
     });
 
     describe("reveals", () => {
-        it("opens the row's ancestors, makes it active and focuses it once a model holds it", () => {
+        it("opens the row's tab, ancestors and review, selects it and focuses it once a model holds it", () => {
             const { state, focus } = after([reveal(3, [MAIL.id]), shown()]);
 
             expect([
+                state.scope,
                 state.expansion.get(MARKETPLACE_SOURCE.id),
-                state.activeHead,
+                selectedIdOf(state),
+                state.pane,
                 state.lastRevealId,
                 focus,
-            ]).toEqual([true, MAIL.id, 3, { kind: "head", headId: MAIL.id, reveal: true }]);
+            ]).toEqual([
+                "marketplaces",
+                true,
+                MAIL.id,
+                "detail",
+                3,
+                { kind: "head", headId: MAIL.id, reveal: true },
+            ]);
+        });
+
+        it("opens a review the user closed", () => {
+            const { state } = after([
+                shown(),
+                { kind: "toggled", key: reviewKeyOf(RESIZE.id) },
+                reveal(1, [RESIZE.id]),
+            ]);
+
+            expect(state.expansion.get(reviewKeyOf(RESIZE.id))).toBe(true);
+        });
+
+        it("clears a filter that hides the row, and keeps one that shows it", () => {
+            const hidden = after([
+                shown(),
+                { kind: "queryChanged", query: "palette" },
+                reveal(1, [RESIZE.id]),
+            ]);
+            const kept = after([
+                shown(),
+                { kind: "queryChanged", query: "resize" },
+                reveal(1, [RESIZE.id]),
+            ]);
+
+            expect([hidden.state.filter, kept.state.filter.query]).toEqual([NO_FILTER, "resize"]);
         });
 
         it("lands on the first revealed row in model order", () => {
-            expect(after([shown(), reveal(1, [RESIZE.id, PALETTE.id])]).state.activeHead).toBe(
+            expect(selectedIdOf(after([shown(), reveal(1, [RESIZE.id, PALETTE.id])]).state)).toBe(
                 PALETTE.id,
             );
         });
 
         it("waits for a model that holds one of its rows", () => {
-            const waiting = after([shown(without(RESIZE.id)), reveal(1, [RESIZE.id])]);
+            const waiting = after([
+                shown(without(RESIZE.id)),
+                { kind: "addOnSelected", addOnId: PALETTE.id },
+                reveal(1, [RESIZE.id]),
+            ]);
             const { state } = nextViewState(waiting.state, shown(withRevision(11)));
 
-            expect([waiting.state.activeHead, state.activeHead]).toEqual([
-                "folder:/work",
+            expect([selectedIdOf(waiting.state), selectedIdOf(state)]).toEqual([
+                PALETTE.id,
                 RESIZE.id,
             ]);
         });
@@ -315,11 +420,99 @@ describe("nextViewState", () => {
                 initialViewState({ lastRevealId: 2 }),
             );
 
-            expect([state.activeHead, focus]).toEqual(["folder:/work", undefined]);
+            expect([state.scope, focus]).toEqual(["workspace", undefined]);
         });
     });
 
-    describe("the outline", () => {
+    describe("tabs and selection", () => {
+        it("starts each tab on its own first add-on to review, else its first", () => {
+            const { state } = after([shown(), { kind: "scopeChosen", scope: "marketplaces" }]);
+
+            expect(state.selection).toEqual({ workspace: RESIZE.id, marketplaces: MAIL.id });
+        });
+
+        it("keeps each tab's selection across a switch", () => {
+            const { state } = after([
+                shown(),
+                { kind: "addOnSelected", addOnId: ACME.id },
+                { kind: "scopeChosen", scope: "marketplaces" },
+                { kind: "scopeChosen", scope: "workspace" },
+            ]);
+
+            expect(selectedIdOf(state)).toBe(ACME.id);
+        });
+
+        it("moves a tab's selection to its first match when a filter hides it there", () => {
+            const { state } = after([
+                shown(),
+                { kind: "addOnSelected", addOnId: PALETTE.id },
+                { kind: "scopeChosen", scope: "marketplaces" },
+                { kind: "kindToggled", addOnKind: "rulePackage" },
+                { kind: "scopeChosen", scope: "workspace" },
+            ]);
+
+            expect(selectedIdOf(state)).toBe(ACME.id);
+        });
+
+        it("moves the selection to the nearest match when a search hides it", () => {
+            const { state } = after([
+                shown(),
+                { kind: "addOnSelected", addOnId: RESIZE.id },
+                { kind: "queryChanged", query: "acme" },
+            ]);
+
+            expect(selectedIdOf(state)).toBe(ACME.id);
+        });
+
+        it("drops the selection while nothing matches, and picks one again after", () => {
+            const none = after([shown(), { kind: "queryChanged", query: "nothing like this" }]);
+            const again = nextViewState(none.state, { kind: "filtersCleared" });
+
+            expect([none.state.selection, selectedIdOf(again.state)]).toEqual([{}, RESIZE.id]);
+        });
+
+        it("shows the detail of a chosen add-on and goes back to the list", () => {
+            const chosen = after([shown(), { kind: "addOnSelected", addOnId: PALETTE.id }]);
+            const back = nextViewState(chosen.state, { kind: "backChosen" });
+
+            expect([chosen.state.pane, back.state.pane, selectedIdOf(back.state)]).toEqual([
+                "detail",
+                "list",
+                PALETTE.id,
+            ]);
+        });
+    });
+
+    describe("the filter", () => {
+        it("takes the query, toggles kinds and the review chip, and clears them all", () => {
+            const steps = after([
+                shown(),
+                { kind: "queryChanged", query: "res" },
+                { kind: "kindToggled", addOnKind: "plugin" },
+                { kind: "needsReviewToggled" },
+            ]);
+            const cleared = nextViewState(steps.state, { kind: "filtersCleared" });
+
+            expect([
+                steps.state.filter.query,
+                [...steps.state.filter.kinds],
+                steps.state.filter.onlyNeedsReview,
+                cleared.state.filter,
+            ]).toEqual(["res", ["plugin"], true, NO_FILTER]);
+        });
+
+        it("toggles the review chip off again", () => {
+            const { state } = after([
+                shown(),
+                { kind: "needsReviewToggled" },
+                { kind: "needsReviewToggled" },
+            ]);
+
+            expect(state.filter.onlyNeedsReview).toBe(false);
+        });
+    });
+
+    describe("open and closed heads", () => {
         it("closes an open header and opens it again", () => {
             const closed = after([shown(), { kind: "toggled", key: CONFIG_SOURCE.id }]);
             const opened = nextViewState(closed.state, { kind: "toggled", key: CONFIG_SOURCE.id });
@@ -330,37 +523,23 @@ describe("nextViewState", () => {
             ]).toEqual([false, true]);
         });
 
-        it("moves the active head and focus to a header that hides it", () => {
-            const { state, focus } = after([
-                shown(),
-                { kind: "headActivated", headId: RESIZE.id },
-                { kind: "toggled", key: CONFIG_SOURCE.id },
-            ]);
+        it("closes a row's review and opens it again", () => {
+            const closed = after([shown(), { kind: "toggled", key: reviewKeyOf(RESIZE.id) }]);
+            const opened = nextViewState(closed.state, {
+                kind: "toggled",
+                key: reviewKeyOf(RESIZE.id),
+            });
 
-            expect([state.activeHead, focus]).toEqual([
-                CONFIG_SOURCE.id,
-                { kind: "head", headId: CONFIG_SOURCE.id },
-            ]);
+            expect([
+                closed.state.expansion.get(reviewKeyOf(RESIZE.id)),
+                opened.state.expansion.get(reviewKeyOf(RESIZE.id)),
+            ]).toEqual([false, true]);
         });
 
-        it("closes a row's review and keeps its row active", () => {
-            const { state, focus } = after([
-                shown(),
-                { kind: "headActivated", headId: RESIZE.id },
-                { kind: "toggled", key: reviewKeyOf(RESIZE.id) },
-            ]);
-
-            expect([state.expansion.get(reviewKeyOf(RESIZE.id)), state.activeHead, focus]).toEqual([
-                false,
-                RESIZE.id,
-                undefined,
-            ]);
-        });
-
-        it("ignores a head the model does not show", () => {
-            expect(
-                after([shown(), { kind: "headActivated", headId: MAIL.id }]).state.activeHead,
-            ).toBe("folder:/work");
+        it("toggles nothing before the first model", () => {
+            expect(after([{ kind: "toggled", key: CONFIG_SOURCE.id }]).state.expansion.size).toBe(
+                0,
+            );
         });
 
         it("dismisses the banner", () => {
@@ -385,6 +564,7 @@ describe("nextViewState", () => {
             reveal(4, [MAIL.id]),
             { kind: "actionChosen", actionKind: "pruneCache" },
             { kind: "toggled", key: CONFIG_SOURCE.id },
+            { kind: "queryChanged", query: "mail" },
         ]);
         const restored = initialViewState(persistedChoicesOf(state));
 
@@ -394,13 +574,26 @@ describe("nextViewState", () => {
                 [MARKETPLACE_SOURCE.id, true],
                 [CONFIG_SOURCE.id, false],
             ],
-            activeHead: MAIL.id,
+            scope: "marketplaces",
+            selection: { workspace: RESIZE.id, marketplaces: MAIL.id },
             lastRevealId: 4,
         });
-        expect([restored.pending.size, restored.banner, restored.activeHead]).toEqual([
-            0,
-            undefined,
-            MAIL.id,
-        ]);
+        expect([
+            restored.pending.size,
+            restored.banner,
+            restored.scope,
+            selectedIdOf(restored),
+            restored.filter,
+        ]).toEqual([0, undefined, "marketplaces", MAIL.id, NO_FILTER]);
+    });
+
+    it.each<{ case: string; saved: object }>([
+        { case: "an unknown tab", saved: { scope: "elsewhere", selection: { workspace: 3 } } },
+        { case: "a selection that is no object", saved: { selection: "x" } },
+        { case: "nothing", saved: {} },
+    ])("starts on the workspace tab with no selection from $case", ({ saved }) => {
+        const restored = initialViewState(saved as never);
+
+        expect([restored.scope, restored.selection]).toEqual(["workspace", {}]);
     });
 });

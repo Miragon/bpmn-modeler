@@ -1,0 +1,265 @@
+/* AUTOMATISCH GENERIERT aus brand/tokens.json. Nicht von Hand ändern, sondern die Quelle bearbeiten und `npm run tokens:build` laufen lassen. */
+/* App- und Web-Variante für Modeler, Apps und Webseiten. Opt-in: Ohne data-cd-theme gelten die hellen
+   Rollen und es gibt kein color-scheme. data-cd-theme steht auf <html> oder einem Container: light, dark
+   oder system (folgt prefers-color-scheme). data-cd-kontrast="hoch" auf demselben Element schaltet
+   Hochkontrast ein. Palette, Statusfarben und ui.* stehen nur in :root und schalten nie um. */
+:root {
+  --cd-blau: #335DE5;
+  --cd-gruen: #00E676;
+  --cd-grau: #F9F7F7;
+  --cd-schwarz: #1D1D1D;
+  --cd-weiss: #FFFFFF;
+  --cd-blau-link: #2B50D4;
+  --cd-blau-hell: #6B8AFF;
+  --cd-success: #00E676;
+  --cd-success-soft: #DAFBEB;
+  --cd-success-hell: #00E676;
+  --cd-warning: #FFB000;
+  --cd-warning-soft: #FFF1D2;
+  --cd-warning-hell: #FFB000;
+  --cd-danger: #CD1839;
+  --cd-danger-soft: #FBEEF0;
+  --cd-danger-hell: #FB6D73;
+  --cd-info: #335DE5;
+  --cd-info-soft: #EEF1FD;
+  --cd-info-hell: #6B8AFF;
+  --cd-linie: #E6E2E2;
+  --cd-kontur: #8F8A8A;
+  --cd-text-leise: #6B6666;
+  --cd-gradient-brand: linear-gradient(120deg, #335DE5 30%, #00E676);
+  --cd-gradient-format: linear-gradient(135deg, #335DE5 0%, #00E676 140%);
+  --cd-space-1: 4px;
+  --cd-space-2: 8px;
+  --cd-space-3: 16px;
+  --cd-space-4: 24px;
+  --cd-space-5: 32px;
+  --cd-space-6: 48px;
+  --cd-space-7: 64px;
+  --cd-space-8: 96px;
+  --cd-radius-sm: 6px;
+  --cd-radius-md: 12px;
+  --cd-radius-lg: 16px;
+  --cd-radius-pill: 999px;
+  --cd-shadow-1: 0 1px 2px rgba(29, 29, 29, 0.06), 0 1px 3px rgba(29, 29, 29, 0.10);
+  --cd-shadow-2: 0 4px 12px rgba(29, 29, 29, 0.10);
+  --cd-shadow-3: 0 12px 32px rgba(29, 29, 29, 0.16);
+  --cd-motion-fast: 150ms;
+  --cd-motion-base: 250ms;
+  --cd-motion-slow: 400ms;
+  --cd-ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --cd-ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --cd-shell-rand: 12px;
+  --cd-shell-luecke: 8px;
+  --cd-shell-zeile: 40px;
+  --cd-shell-ziel: 32px;
+  --cd-shell-eintrag: 36px;
+  --cd-shell-frei: 64px;
+  --cd-shell-menue-breite: 248px;
+  --cd-shell-inspector-breite: 288px;
+  --cd-shell-einpassen-oben: 88px;
+  --cd-shell-einpassen-oben-schmal: 140px;
+  --cd-shell-einpassen-seite: 24px;
+  --cd-shell-einpassen-unten: 64px;
+  --cd-shell-einpassen-unten-web: 92px;
+  --cd-shell-schmal: 760px;
+  --cd-shell-sehr-schmal: 440px;
+  --cd-shell-niedrig: 820px;
+  --cd-shell-ebene-inseln: 20;
+  --cd-shell-ebene-inspector: 25;
+  --cd-shell-ebene-reihe: 30;
+  --cd-shell-ebene-aufklapper: 40;
+  --cd-shell-ebene-dialog: 50;
+  --cd-shell-ebene-toast: 60;
+  /* Rollen, hell (gilt ohne data-cd-theme) */
+  --cd-ui-grund: #F9F7F7;
+  --cd-ui-flaeche: #FFFFFF;
+  --cd-ui-flaeche-hoch: #FFFFFF;
+  --cd-ui-hover: #EEF1FD;
+  --cd-ui-plot: #FFFFFF;
+  --cd-ui-seite: #FFFFFF;
+  --cd-ui-abschnitt: #F9F7F7;
+  --cd-ui-linie: #E6E2E2;
+  --cd-ui-kontur: #8F8A8A;
+  --cd-ui-text: #1D1D1D;
+  --cd-ui-text-leise: #6B6666;
+  --cd-ui-link: #2B50D4;
+  --cd-ui-icon-akzent: #335DE5;
+  --cd-ui-fokus: #2B50D4;
+  --cd-ui-interaktion: #335DE5;
+  --cd-ui-success: #00E676;
+  --cd-ui-warning: #FFB000;
+  --cd-ui-danger: #CD1839;
+  --cd-ui-info: #335DE5;
+  --cd-ui-success-flaeche: #DAFBEB;
+  --cd-ui-warning-flaeche: #FFF1D2;
+  --cd-ui-danger-flaeche: #FBEEF0;
+  --cd-ui-info-flaeche: #EEF1FD;
+  --cd-ui-wortmarke: #00E676;
+  --cd-ui-backdrop: rgba(29, 29, 29, 0.42);
+  --cd-ui-chrome-deckkraft: 84%;
+}
+
+/* Hell erzwungen, und die Ausgangslage von System */
+[data-cd-theme="light"],
+[data-cd-theme="system"] {
+  --cd-ui-grund: #F9F7F7;
+  --cd-ui-flaeche: #FFFFFF;
+  --cd-ui-flaeche-hoch: #FFFFFF;
+  --cd-ui-hover: #EEF1FD;
+  --cd-ui-plot: #FFFFFF;
+  --cd-ui-seite: #FFFFFF;
+  --cd-ui-abschnitt: #F9F7F7;
+  --cd-ui-linie: #E6E2E2;
+  --cd-ui-kontur: #8F8A8A;
+  --cd-ui-text: #1D1D1D;
+  --cd-ui-text-leise: #6B6666;
+  --cd-ui-link: #2B50D4;
+  --cd-ui-icon-akzent: #335DE5;
+  --cd-ui-fokus: #2B50D4;
+  --cd-ui-interaktion: #335DE5;
+  --cd-ui-success: #00E676;
+  --cd-ui-warning: #FFB000;
+  --cd-ui-danger: #CD1839;
+  --cd-ui-info: #335DE5;
+  --cd-ui-success-flaeche: #DAFBEB;
+  --cd-ui-warning-flaeche: #FFF1D2;
+  --cd-ui-danger-flaeche: #FBEEF0;
+  --cd-ui-info-flaeche: #EEF1FD;
+  --cd-ui-wortmarke: #00E676;
+  --cd-ui-backdrop: rgba(29, 29, 29, 0.42);
+  --cd-ui-chrome-deckkraft: 84%;
+  color-scheme: light;
+}
+
+/* Dunkel erzwungen. Alle Dunkel-Blöcke gelten nur auf dem Bildschirm, gedruckt wird hell. */
+@media screen {
+  [data-cd-theme="dark"] {
+    --cd-ui-grund: #1D1D1D;
+    --cd-ui-flaeche: #282828;
+    --cd-ui-flaeche-hoch: #2F2F2F;
+    --cd-ui-hover: #383838;
+    --cd-ui-plot: #1D1D1D;
+    --cd-ui-seite: #1D1D1D;
+    --cd-ui-abschnitt: #282828;
+    --cd-ui-linie: #464646;
+    --cd-ui-kontur: #8F8A8A;
+    --cd-ui-text: #FFFFFF;
+    --cd-ui-text-leise: #BBBBBB;
+    --cd-ui-link: #00E676;
+    --cd-ui-icon-akzent: #00E676;
+    --cd-ui-fokus: #6B8AFF;
+    --cd-ui-interaktion: #6B8AFF;
+    --cd-ui-success: #00E676;
+    --cd-ui-warning: #FFB000;
+    --cd-ui-danger: #FB6D73;
+    --cd-ui-info: #6B8AFF;
+    --cd-ui-success-flaeche: #282828;
+    --cd-ui-warning-flaeche: #282828;
+    --cd-ui-danger-flaeche: #282828;
+    --cd-ui-info-flaeche: #282828;
+    --cd-ui-wortmarke: #FFFFFF;
+    --cd-ui-backdrop: rgba(29, 29, 29, 0.6);
+    --cd-ui-chrome-deckkraft: 100%;
+    color-scheme: dark;
+  }
+  [data-cd-theme="dark"] ::selection { background-color: #383838; color: #FFFFFF; }
+}
+
+/* System: folgt prefers-color-scheme */
+@media screen and (prefers-color-scheme: dark) {
+  [data-cd-theme="system"] {
+    --cd-ui-grund: #1D1D1D;
+    --cd-ui-flaeche: #282828;
+    --cd-ui-flaeche-hoch: #2F2F2F;
+    --cd-ui-hover: #383838;
+    --cd-ui-plot: #1D1D1D;
+    --cd-ui-seite: #1D1D1D;
+    --cd-ui-abschnitt: #282828;
+    --cd-ui-linie: #464646;
+    --cd-ui-kontur: #8F8A8A;
+    --cd-ui-text: #FFFFFF;
+    --cd-ui-text-leise: #BBBBBB;
+    --cd-ui-link: #00E676;
+    --cd-ui-icon-akzent: #00E676;
+    --cd-ui-fokus: #6B8AFF;
+    --cd-ui-interaktion: #6B8AFF;
+    --cd-ui-success: #00E676;
+    --cd-ui-warning: #FFB000;
+    --cd-ui-danger: #FB6D73;
+    --cd-ui-info: #6B8AFF;
+    --cd-ui-success-flaeche: #282828;
+    --cd-ui-warning-flaeche: #282828;
+    --cd-ui-danger-flaeche: #282828;
+    --cd-ui-info-flaeche: #282828;
+    --cd-ui-wortmarke: #FFFFFF;
+    --cd-ui-backdrop: rgba(29, 29, 29, 0.6);
+    --cd-ui-chrome-deckkraft: 100%;
+    color-scheme: dark;
+  }
+  [data-cd-theme="system"] ::selection { background-color: #383838; color: #FFFFFF; }
+}
+
+/* Tausch je Modus der Seite (data-cd-theme am <html>), etwa für Bilder und Logos als Datei.
+   Ausgeblendet wird nur, was nicht passt. Beim Drucken gilt die helle Variante. */
+:root:not([data-cd-theme="dark"]):not([data-cd-theme="system"]) .cd-nur-dunkel { display: none !important; }
+@media print { :root .cd-nur-dunkel { display: none !important; } }
+@media (prefers-color-scheme: light) { :root[data-cd-theme="system"] .cd-nur-dunkel { display: none !important; } }
+@media screen { :root[data-cd-theme="dark"] .cd-nur-hell { display: none !important; } }
+@media screen and (prefers-color-scheme: dark) { :root[data-cd-theme="system"] .cd-nur-hell { display: none !important; } }
+
+/* Hochkontrast: nur Verweise auf bestehende Werte. data-cd-kontrast steht auf demselben Element wie
+   data-cd-theme. Dazu in Komponenten: keine Schatten, schwebende Flächen deckend, Fokusrahmen 3px. */
+[data-cd-kontrast="hoch"] {
+  --cd-ui-linie: #8F8A8A;
+  --cd-ui-kontur: #1D1D1D;
+  --cd-ui-text-leise: #1D1D1D;
+  --cd-ui-chrome-deckkraft: 100%;
+}
+@media screen {
+  [data-cd-theme="dark"][data-cd-kontrast="hoch"] {
+    --cd-ui-linie: #8F8A8A;
+    --cd-ui-kontur: #FFFFFF;
+    --cd-ui-text-leise: #FFFFFF;
+    --cd-ui-chrome-deckkraft: 100%;
+  }
+}
+@media screen and (prefers-color-scheme: dark) {
+  [data-cd-theme="system"][data-cd-kontrast="hoch"] {
+    --cd-ui-linie: #8F8A8A;
+    --cd-ui-kontur: #FFFFFF;
+    --cd-ui-text-leise: #FFFFFF;
+    --cd-ui-chrome-deckkraft: 100%;
+  }
+}
+
+/* Erzwungene Farben (Windows-Kontrastdesigns): Die Rollen gehen auf Systemfarben. */
+@media (forced-colors: active) {
+  [data-cd-theme],
+  [data-cd-theme][data-cd-kontrast="hoch"] {
+    --cd-ui-grund: Canvas;
+    --cd-ui-flaeche: Canvas;
+    --cd-ui-flaeche-hoch: Canvas;
+    --cd-ui-hover: Canvas;
+    --cd-ui-plot: Canvas;
+    --cd-ui-seite: Canvas;
+    --cd-ui-abschnitt: Canvas;
+    --cd-ui-linie: CanvasText;
+    --cd-ui-kontur: CanvasText;
+    --cd-ui-text: CanvasText;
+    --cd-ui-text-leise: CanvasText;
+    --cd-ui-link: LinkText;
+    --cd-ui-icon-akzent: CanvasText;
+    --cd-ui-fokus: Highlight;
+    --cd-ui-interaktion: Highlight;
+    --cd-ui-success: CanvasText;
+    --cd-ui-warning: CanvasText;
+    --cd-ui-danger: CanvasText;
+    --cd-ui-info: CanvasText;
+    --cd-ui-success-flaeche: Canvas;
+    --cd-ui-warning-flaeche: Canvas;
+    --cd-ui-danger-flaeche: Canvas;
+    --cd-ui-info-flaeche: Canvas;
+    --cd-ui-wortmarke: CanvasText;
+    --cd-ui-chrome-deckkraft: 100%;
+  }
+}

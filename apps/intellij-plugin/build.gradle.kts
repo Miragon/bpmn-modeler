@@ -96,8 +96,6 @@ val codeApprovalChangeCases =
 val templatePreferenceChangeCases =
     layout.projectDirectory.file("../../libs/modeler-core/src/kernel/domain/templatePreferenceChange.cases.json")
 val projectScopes = layout.projectDirectory.file("../../libs/modeler-core/src/kernel/domain/projectScopes.ts")
-val addOnsHostThemeVariables =
-    layout.projectDirectory.file("../../apps/add-ons-webview/src/adapter/in/styles/hostThemeVariables.json")
 val brandModeCases = layout.projectDirectory.file("../../libs/shared/src/lib/brandMode.cases.json")
 
 tasks.test {
@@ -113,8 +111,7 @@ tasks.test {
     // matchers run, WebviewRouteTest the plugin asset urls the bridge builds, ActionNoticeToneTest
     // the core's notice tones, PluginApprovalStoreTest the rows the core merges approval changes
     // by, TemplatePreferenceStoreTest the rows it merges template switch changes by, ProjectScopeTest
-    // the core's project scopes, IdeThemeSignalTest the theme variables the add-ons page may read,
-    // BrandModeTest the rows the shared brand mode rule runs. As
+    // the core's project scopes, BrandModeTest the rows the shared brand mode rule runs. As
     // declared inputs, a change on the TypeScript side alone reruns the tests instead of restoring
     // them from the build cache.
     mapOf(
@@ -134,7 +131,6 @@ tasks.test {
         "codeApprovalChangeCases" to codeApprovalChangeCases,
         "templatePreferenceChangeCases" to templatePreferenceChangeCases,
         "projectScopes" to projectScopes,
-        "addOnsHostThemeVariables" to addOnsHostThemeVariables,
         "brandModeCases" to brandModeCases,
     ).forEach { (name, file) ->
         inputs.file(file).withPropertyName(name).withPathSensitivity(PathSensitivity.RELATIVE)
@@ -321,9 +317,21 @@ val copyAddOnsWebview =
     // Sync, not Copy: a renamed or dropped asset, such as a font file, would otherwise stay in the jar.
     tasks.register<Sync>("copyAddOnsWebview") {
         description = "Stages the pre-built add-ons-webview bundle into plugin resources (served from the classpath at runtime)."
-        from(addOnsWebviewDist)
+        from(addOnsWebviewDist) { exclude("licenses/**") }
         // Nest under `webview-add-ons/` so the served classpath path is `/webview-add-ons/...`.
         into(stagedResourcesRoot.map { it.dir("webview-add-ons") })
+    }
+
+// The add-ons build emits the licenses of the fonts (OFL-1.1) and icons (ISC) it bundles.
+val addOnsLicensesDist = addOnsWebviewDist.dir("licenses")
+val thirdPartyLicenses =
+    listOf("geist.LICENSE", "geist-mono.LICENSE", "lucide.LICENSE").map { addOnsLicensesDist.file(it) }
+
+val copyThirdPartyLicenses =
+    tasks.register<Sync>("copyThirdPartyLicenses") {
+        description = "Stages the licenses of the third-party code the webview bundles ship into plugin resources."
+        from(addOnsLicensesDist)
+        into(stagedResourcesRoot.map { it.dir("META-INF/licenses") })
     }
 
 val copyBridge =
@@ -360,7 +368,7 @@ val copySchema =
 // shows a blank tab; a release build checks every source here instead.
 val verifyReleaseBundles =
     tasks.register("verifyReleaseBundles") {
-        description = "Fails a release build whose webview bundles or bridge binaries were not built."
+        description = "Fails a release build whose webview bundles, their licenses or bridge binaries are missing."
         val buildBridges = "corepack yarn workspace @miragon/bpmn-modeler-bridge compile:all"
         val required =
             listOf(
@@ -369,7 +377,8 @@ val verifyReleaseBundles =
                 addOnsWebviewDist.file("index.js").asFile to "corepack yarn build:add-ons-webview",
                 // Without it the tab ships unstyled and nothing fails.
                 addOnsWebviewDist.file("index.css").asFile to "corepack yarn build:add-ons-webview",
-            ) + releaseBridgeTargets.map { (dir, name) -> bridgeDistRoot.file("$dir/$name").asFile to buildBridges }
+            ) + thirdPartyLicenses.map { it.asFile to "corepack yarn build:add-ons-webview" } +
+                releaseBridgeTargets.map { (dir, name) -> bridgeDistRoot.file("$dir/$name").asFile to buildBridges }
         doLast {
             val missing = required.filterNot { (file, _) -> file.exists() }
             if (missing.isNotEmpty()) {
@@ -397,7 +406,7 @@ sourceSets.named("main") {
 }
 
 tasks.named<ProcessResources>("processResources") {
-    dependsOn(copyWebview, copyDeploymentWebview, copyAddOnsWebview, copyBridge, copySchema, writeBridgeVersion)
+    dependsOn(copyWebview, copyDeploymentWebview, copyAddOnsWebview, copyThirdPartyLicenses, copyBridge, copySchema, writeBridgeVersion)
     if (bundleAllPlatforms) dependsOn(verifyReleaseBundles)
 }
 
@@ -405,5 +414,5 @@ tasks.named<ProcessResources>("processResources") {
 // staged resources, so no extra sandbox wiring is needed — but make the
 // dependency explicit so a clean `runIde` always stages the bundles first.
 tasks.withType<PrepareSandboxTask>().configureEach {
-    dependsOn(copyWebview, copyDeploymentWebview, copyAddOnsWebview, copyBridge, copySchema, writeBridgeVersion)
+    dependsOn(copyWebview, copyDeploymentWebview, copyAddOnsWebview, copyThirdPartyLicenses, copyBridge, copySchema, writeBridgeVersion)
 }

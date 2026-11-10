@@ -5,7 +5,7 @@ import { AddOnRequestCommand, asProtocolMessage } from "@miragon/bpmn-modeler-sh
 import { CATALOG, MAIL, MARKETPLACE_SOURCE, PALETTE } from "../__fixtures__/catalogs";
 import { RecordingHost } from "../__fixtures__/recordingHost";
 import type { FocusTarget } from "../domain/focusAfter";
-import { persistedChoicesOf, ViewState } from "../domain/viewState";
+import { persistedChoicesOf, selectedIdOf, ViewState } from "../domain/viewState";
 import { AddOnsViewSession } from "./AddOnsViewSession";
 
 function setUp(host = new RecordingHost()) {
@@ -34,10 +34,15 @@ describe("AddOnsViewSession", () => {
         const { host, session } = setUp();
         session.dispatch({ kind: "modelArrived", model: CATALOG });
         session.dispatch({ kind: "toggled", key: MARKETPLACE_SOURCE.id });
+        session.dispatch({ kind: "scopeChosen", scope: "marketplaces" });
 
         const reloaded = setUp(new RecordingHost(host.state)).session;
 
-        expect(reloaded.state.expansion.get(MARKETPLACE_SOURCE.id)).toBe(true);
+        expect([
+            reloaded.state.expansion.get(MARKETPLACE_SOURCE.id),
+            reloaded.state.scope,
+            selectedIdOf(reloaded.state),
+        ]).toEqual([true, "marketplaces", MAIL.id]);
     });
 
     it("ends on the newest state when the host answers a request at once", () => {
@@ -72,6 +77,6 @@ describe("AddOnsViewSession", () => {
             undefined,
             { kind: "head", headId: MAIL.id, reveal: true },
         ]);
-        expect(session.state.activeHead).toBe(MAIL.id);
+        expect(selectedIdOf(session.state)).toBe(MAIL.id);
     });
 });

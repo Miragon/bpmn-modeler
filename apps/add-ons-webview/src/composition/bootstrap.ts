@@ -1,19 +1,19 @@
 import { GetAddOnCatalogCommand } from "@miragon/bpmn-modeler-shared";
 
+import { AddOnsView } from "../adapter/in/addOnsView";
 import { applyBrandMode } from "../adapter/in/brandModeRoot";
-import { CatalogView } from "../adapter/in/catalogView";
 import { routeHostMessage } from "../adapter/in/hostMessageRouter";
-import { bindOutlineKeyboard } from "../adapter/in/outlineKeyboard";
+import type { Layout } from "../adapter/in/layout";
 import type { AddOnsHost } from "../port/addOnsHost";
 import { AddOnsViewSession } from "../service/AddOnsViewSession";
 
-export function bootstrap(host: AddOnsHost): void {
+/** @param layout the page's layout; a spec passes one, as jsdom lays nothing out */
+export function bootstrap(host: AddOnsHost, layout?: Layout): void {
     // Every host shell ships only an empty `#app`; the view builds itself in it.
     const app = document.getElementById("app");
     if (app === null) return;
-    const view = new CatalogView(app, (event) => session.dispatch(event));
+    const view = new AddOnsView(app, (event) => session.dispatch(event), layout);
     const session = new AddOnsViewSession(host, (state, focus) => view.render(state, focus));
-    bindOutlineKeyboard(app, session, view);
     window.addEventListener("message", (event: MessageEvent<unknown>) =>
         routeHostMessage(
             event.data,
@@ -21,7 +21,8 @@ export function bootstrap(host: AddOnsHost): void {
             (mode) => applyBrandMode(document.documentElement, mode),
         ),
     );
-    window.addEventListener("focus", () => view.focusActiveHeadFromOutside());
+    // VS Code's view focus and IntelliJ's tool window activation focus the page, not a control.
+    window.addEventListener("focus", () => view.focusFromOutside());
     view.render(session.state);
     host.postMessage(new GetAddOnCatalogCommand());
 }

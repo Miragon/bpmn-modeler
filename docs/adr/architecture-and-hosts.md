@@ -234,13 +234,12 @@ a host can drop a push that lands before the page listens. A request from the
 page is untrusted: `addOnRequestOf` keeps only a kind the core knows with the
 fields it names. The model holds workspace text (file, template and folder
 names), so the page builds its DOM with the DOM API from the model and never
-with `innerHTML`, and every `--vscode-*` variable its stylesheet reads is
-listed in `src/adapter/in/styles/hostThemeVariables.json`, the set IntelliJ
-maps for it. VS Code serves the surface, and IntelliJ through the bridge.
+with `innerHTML`. VS Code serves the surface, and IntelliJ through the bridge.
 
-The add-ons view moves to the Miragon brand look, whose tokens switch on
-`<html data-cd-theme="light|dark">` and `data-cd-kontrast="hoch"`, never on
-IDE colours. The host decides the mode and is its only writer. One rule,
+The add-ons view wears the Miragon brand look, not the host's: it is
+Miragon's own product surface, and one look serves both hosts. Its tokens
+switch on `<html data-cd-theme="light|dark">` and `data-cd-kontrast="hoch"`,
+never on IDE colours. The host only signals the mode and is its only writer. One rule,
 `brandModeOf` in `libs/shared/src/lib/brandMode.ts`, maps the IDE theme
 (light, dark, high contrast, high contrast light) and the `colorTheme` setting
 to it: `automatic` follows the IDE, `light` forces light, and high contrast
@@ -249,8 +248,53 @@ writes them into the shell it serves, `data-cd-theme` always, so the first
 frame paints in the mode. On a change VS Code posts a `BrandModeQuery`, which
 the page's router hands to `applyBrandMode` outside the view state, and
 IntelliJ sets both attributes through `executeJavaScript`. IntelliJ's copy,
-`BrandMode.kt`, runs `brandMode.cases.json` in `BrandModeTest`. The outline's
-stylesheet ignores the attributes until the redesign lands.
+`BrandMode.kt`, runs `brandMode.cases.json` in `BrandModeTest`.
+
+The page is a list beside a detail pane. Two tabs split the catalog by the
+group's `kind`, the workspace's folders and the marketplaces; inside a tab a
+search and filter chips narrow the list, grouped by folder and source, and the
+detail shows the selected add-on with its actions as buttons. From 640px of
+the view's own width the panes stand side by side, below that the detail
+replaces the list with a Back button; container queries decide, so the layout
+follows a resized sidebar or tool window without a reload. The reducer
+(`src/domain/viewState.ts`) holds the tab, each tab's selection, the filter
+and the pane, and keeps the tab, the selections and the open or closed headers
+in the host's saved state, so a reload, which IntelliJ does after a bridge
+restart, lands where the user was; the search stays with the page.
+
+The brand's own components draw it: the vendored tokens
+(`cd-tokens.generated.css`, unchanged from the `miragon-brand` skill), Geist
+and Geist Mono from `@fontsource-variable` and Lucide icons, all in the bundle
+and tree-shaken; components use the `--cd-ui-*` roles and the palette only
+for button, badge and kind surfaces. The stylesheet reads no `--vscode-*`
+variable, and its spec checks that, the tokens' checksum, `[hidden]`, forced
+colours and reduced motion. The type sizes are the brand's (13px base, 11px
+small), so the IDE's font size does not reach the page; the host's zoom
+still scales it. The fonts are OFL-1.1 and Lucide is ISC, so both plugins
+carry their licenses. The add-ons build emits them beside the bundle
+(`licenses/`), so a host job needs no install of the webview's dependencies:
+`apps/vscode-plugin/webpack.config.js` copies them into the VSIX's
+`licenses/` with the bundle, and the IntelliJ build's
+`copyThirdPartyLicenses` puts them into the jar's `META-INF/licenses/`,
+which `verifyReleaseBundles` checks for a release.
+
+Every control is reached with Tab, and the list has no roving tree (see
+[Alternatives](#alternatives-and-consequences)). The tabs keep the arrow,
+Home and End keys of the tab pattern and the "…" menus those of the menu
+pattern, with Escape back to their button and Tab on from it, as a role
+promises its keys. When the host focuses the page (VS Code's view focus,
+IntelliJ's tool window activation), focus goes to the selected add-on, its row or, in the
+drill-down, its detail heading, else to the active tab. The view's own words,
+its tab, chip and empty-state labels, "Needs review" and "Problem" on a row,
+the hint of an empty detail and its screen-reader summaries, live in one
+module, `src/domain/chromeTexts.ts`: they name the view's controls and
+summaries, which the core's model does not have, as "Loading…" does, and one
+module keeps them from scattering into adapters where a reviewer cannot tell
+them from model text. A row's "Needs review" is read from what the core
+offers (Allow or Review…), never from a rule of its own, and the detail shows
+the core's state text. Every other text comes from the core, which also sends
+`emptyText`, why no folder lists an add-on, whenever the workspace has none,
+marketplaces or not.
 
 IntelliJ shows the add-ons view as the **Add-ons** tab of its BPMN Modeler
 tool window, next to the **Deploy** tab, as VS Code holds Deploy and Add-ons
@@ -261,11 +305,11 @@ that relays its messages verbatim, and counts as open only while the tool
 window is visible and the tab selected (`VisibilityLatch`), so Deploy refreshes
 its form defaults only while its tab shows. The Add-ons browser is built the
 first time its tab shows, since each browser costs a renderer. Its shell
-(`/addOns.html`, bundle under `/webview-add-ons/`) maps the deployment palette
-plus the extras in `hostThemeVariables.json` (`IdeThemeSignal.addOnsThemeVarsCss`,
-held to that file by `IdeThemeSignalTest`) and carries the brand mode on
-`<html>`; the tab's theme script (`addOnsApplyJs`) sets it again on a LaF or
-modeler settings change, and the Deploy shell stays without it. High Contrast
+(`/addOns.html`, bundle under `/webview-add-ons/`) maps no IDE colour or font,
+as the page wears the Miragon brand: it carries only the brand mode on
+`<html>`, and the tab's theme script (`addOnsApplyJs`) sets it again on a LaF or
+modeler settings change. The Deploy shell keeps its `#ide-theme-vars` palette
+and has no brand mode. High Contrast
 is the bundled theme's id, as 2024.2 has no API for it. The bridge attaches one panel, hidden,
 at start. **Review…** reaches it through `RpcAddOnViewReveal`, the second
 adapter of `AddOnViewRevealPort`: `addOns/reveal` asks Kotlin to select the tab
@@ -549,8 +593,9 @@ shell without the command, so `ViewReview` falls back to the list. The
 provider runs the view's `<viewId>.focus` command, which opens the container
 and resolves the view; a page that is still loading then loses that focus, so
 the provider shows the view with focus once more on the page's first message,
-and the page focuses the revealed row (the smoke test found a fresh view left
-unfocused, with the row out of sight). A disposed view (hidden, moved or out
+and the page focuses the revealed add-on, its row or, in the drill-down the
+narrow side bar shows, its detail heading (the smoke test found a fresh view
+left unfocused, with the row out of sight). A disposed view (hidden, moved or out
 of its `when` clause) drops both the page state and an unanswered focus, so
 the next view VS Code resolves starts clean. The reviews are built before the
 BPMN editor that takes them, while the catalog is built later from that
@@ -1062,8 +1107,12 @@ bundle needs:
 - `style-src` keeps `'unsafe-inline'` in every editor and deployment shell:
   diagram-js, the properties panel and CodeMirror set style attributes and
   inject `<style>` elements without a nonce, and the deployment form's markup
-  carries a style attribute. VS Code's add-ons shell has only its linked
-  stylesheet and allows `style-src` from the webview alone.
+  carries a style attribute. The add-ons shells have only their linked
+  stylesheet and allow `style-src` from the bundle alone (`webview.cspSource`
+  in VS Code, `'self'` in IntelliJ); the bundle writes no style attribute or
+  `<style>` element. Its one CSSOM write, the sticky toolbar's height as `--av-sticky-top` on
+  `<html>` for `scroll-padding-top`, is outside what `style-src` governs, and
+  without it Tab in a narrow view focused rows beneath the toolbar.
 - In the BPMN, DMN and form shells `img-src` allows `data:`, and for BPMN also
   `https:`, because element-template icons may be either. BPMN and DMN have no
   `connect-src`, so a copy-as-PNG of a remote `.svg` icon renders without that
@@ -1086,8 +1135,8 @@ VS Code and the standalone app set the policy as a `<meta>` tag, because Theia
 injects its own unnonced scripts ahead of it, and limit `localResourceRoots` to
 each webview's bundle directory. IntelliJ sends it as a response header from
 `WebviewServer` and allows the inline `acquireVsCodeApi` shim by its SHA-256
-hash. The `#ide-theme-vars` block is computed per request and rewritten live, so
-it relies on `'unsafe-inline'`. Each host builds its policies in one place,
+hash. The `#ide-theme-vars` block of the editor and deployment shells is
+computed per request and rewritten live, so it relies on `'unsafe-inline'`. Each host builds its policies in one place,
 VS Code in `webviewContentSecurityPolicy.ts` and IntelliJ in
 `WebviewContentSecurityPolicy.kt`: the directives every shell shares are written
 once, and a shell lists only what its bundle adds, so a shell can neither drop
@@ -1504,6 +1553,25 @@ a cached result must equal an uncached run.
   touched both adapters, the RPC and Kotlin. Core-built views and prompts cost
   the hosts per-item freedom: a host renders only what the shared shape
   carries, so a widget-specific touch needs a field in that shape first.
+- The add-ons view could follow the IDE's look through VS Code's `--vscode-*`
+  variables, with IntelliJ mapping its palette onto the same names. That
+  needed a pinned list of every variable the stylesheet read, a Kotlin mapping
+  held to it, `'unsafe-inline'` for the mapped block in IntelliJ's shell, and
+  still looked different in each host. The brand look costs the view its
+  match with the IDE's colours and font size; the host keeps only light, dark
+  and high contrast.
+- The core could send the view's own words (tab and chip labels, "Needs
+  review", the empty and no-match texts) in the catalog model. They name
+  controls and filters of one page, not the catalog, so each would be a
+  protocol field no other view reads. Keeping them in `chromeTexts.ts` costs a
+  second home for words beside the core's, so a review checks that a new word
+  there names the view and does not restate a model text.
+- The outline's roving tree kept the list one tab stop, with arrows, Home,
+  End and type-ahead inside it. The list-and-detail layout of
+  [#2321](https://github.com/Miragon/bpmn-modeler/issues/2321) puts each row's
+  actions in the detail pane, and the product decision put that layout before
+  the tree model. Dropping it costs keyboard users one Tab per shown row and
+  header; closing a folder, the search and the chips shorten the way.
 - The marketplace's free-text location could have come through a generic
   text-input port beside `TokenPromptPort`, with the scope through
   `PickerPort.choose`. That costs the same protocol as the add question (one

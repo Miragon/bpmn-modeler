@@ -182,27 +182,33 @@ class WebviewServer(private val pluginCacheRoot: Path = BpmnPluginCache.root()) 
      * The off-EDT palette read on the HTTP pool thread is safe for the same reason
      * documented on [indexHtml].
      */
-    private fun deploymentHtml(): String =
-        sidePanelHtml("Deploy Diagram", "/deployment", service<IdeThemeSignal>().deploymentThemeVarsCss())
+    private fun deploymentHtml(): String {
+        val signal = service<IdeThemeSignal>()
+        return sidePanelHtml(
+            "Deploy Diagram",
+            "/deployment",
+            themeVarsCss = signal.deploymentThemeVarsCss(),
+            bodyClass = signal.bodyClass(),
+        )
+    }
 
     /**
      * The add-ons view, built from the core's model into `#app` by its bundle under `/add-ons/...`.
-     * `<html>` carries its brand mode, so the first frame paints in it.
+     * It wears the Miragon brand, not the IDE palette: `<html>` carries only its brand mode, so the
+     * first frame paints in it.
      */
-    private fun addOnsHtml(): String {
-        val signal = service<IdeThemeSignal>()
-        return sidePanelHtml("Add-ons", "/add-ons", signal.addOnsThemeVarsCss(), signal.addOnsBrandMode().htmlAttributes())
-    }
+    private fun addOnsHtml(): String =
+        sidePanelHtml("Add-ons", "/add-ons", htmlAttributes = service<IdeThemeSignal>().addOnsBrandMode().htmlAttributes())
 
-    /** A tool window page: its bundle under [assetPrefix], its own theme vars and an empty `#app` it fills. */
+    /** A tool window page: its bundle under [assetPrefix] and an empty `#app` it fills. */
     private fun sidePanelHtml(
         title: String,
         assetPrefix: String,
-        themeVarsCss: String,
         htmlAttributes: String = "",
-    ): String {
-        val signal = service<IdeThemeSignal>()
-        return listOf(
+        themeVarsCss: String? = null,
+        bodyClass: String? = null,
+    ): String =
+        listOfNotNull(
             "<!DOCTYPE html>",
             "<html lang=\"en\"$htmlAttributes>",
             "<head>",
@@ -210,16 +216,15 @@ class WebviewServer(private val pluginCacheRoot: Path = BpmnPluginCache.root()) 
             "  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"/>",
             "  <link href=\"$assetPrefix/index.css\" rel=\"stylesheet\"/>",
             "  <title>$title</title>",
-            "  <style id=\"ide-theme-vars\">$themeVarsCss</style>",
+            themeVarsCss?.let { "  <style id=\"ide-theme-vars\">$it</style>" },
             "  <script>${WebviewContentSecurityPolicy.ACQUIRE_VS_CODE_API_SHIM}</script>",
             "</head>",
-            "<body class=\"${signal.bodyClass()}\">",
+            "<body${bodyClass?.let { " class=\"$it\"" } ?: ""}>",
             "  <div id=\"app\"></div>",
             "  <script type=\"module\" src=\"$assetPrefix/index.js\"></script>",
             "</body>",
             "</html>",
         ).joinToString("\n")
-    }
 
     /** The preview shell, themed like [indexHtml]; `data-view` asks the page for the preview alone. */
     private fun templatePreviewHtml(): String {

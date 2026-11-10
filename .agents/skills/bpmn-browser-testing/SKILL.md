@@ -21,7 +21,7 @@ portless, including its scheme, rather than Vite's internal localhost port.
 | BPMN webview preview | `corepack yarn dev:bpmn-webview` | Webview bootstrap, mode strip, panel chrome, and protocol adapters against `MockHost` |
 | DMN webview preview | `corepack yarn dev:dmn-webview` | DMN bootstrap and dmn-js views against a sample decision |
 | Form / deployment previews | `corepack yarn dev:form-webview`, `corepack yarn dev:deployment-webview` | Form editor/preview and the deployment sidebar against their mock hosts |
-| Add-ons view preview | `corepack yarn dev:add-ons-webview` | The add-ons outline, its keyboard path, reveal and results against a catalog with a row in every state |
+| Add-ons view preview | `corepack yarn dev:add-ons-webview` | The add-ons list and detail, tabs, search and filter chips, the drill-down, reveal and results against a catalog with a row in every state |
 | BPMN package browser specs | `corepack yarn workspace @miragon/bpmn-modeler test:browser` | Public package surfaces in headless Chromium, without a host |
 
 Each `dev` script runs Vite with live updates through the workspace's own
@@ -46,9 +46,14 @@ partner for synchronized navigation. Workspace definition search answers from
 `__fixtures__/mock-workspace-definitions.ts`. The DMN preview serves one sample
 decision from `apps/dmn-webview/src/adapter/out/host.ts`. The Add-ons view
 preview serves `apps/add-ons-webview/src/adapter/out/mockCatalog.ts`;
-`?state=loading|empty|noFolder|failed`, `?reveal=<add-on id or name>`,
-`?stale=1` (the first allow is refused as stale) and `?theme=dark|hc` pick
-what it shows. Drive it with the keyboard and read the accessibility snapshot.
+`?state=loading|empty|noFolder|onlyMarketplaces|noMarketplace|marketplacesFailed|rereadFailed|failed`,
+`?reveal=<add-on id or name>`, `?stale=1` (the first allow is refused as
+stale) and `?theme=dark|hc` (the brand mode a host would post; light without
+it) pick what it shows. Resize the window across 640px to see both layouts:
+two panes from 640px, the drill-down with Back below (container queries, so
+no reload). Drive it by clicking and with Tab, arrow keys in the tabs and the
+"…" menus, and read the accessibility snapshot; after load the page has
+exactly one `role=status` node.
 
 ### Not available in a browser preview
 

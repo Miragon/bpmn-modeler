@@ -6,16 +6,19 @@ import {
     GetAddOnCatalogCommand,
 } from "@miragon/bpmn-modeler-shared";
 
-import { CATALOG } from "../__fixtures__/catalogs";
+import { CATALOG, RESIZE } from "../__fixtures__/catalogs";
+import { FakeLayout } from "../__fixtures__/fakeLayout";
 import { RecordingHost } from "../__fixtures__/recordingHost";
 import { bootstrap } from "./bootstrap";
 
 function booted() {
     document.body.innerHTML = '<div id="app"></div>';
     const host = new RecordingHost();
-    bootstrap(host);
+    bootstrap(host, new FakeLayout());
     return { host, app: document.getElementById("app")! };
 }
+
+const post = (data: unknown) => window.dispatchEvent(new MessageEvent("message", { data }));
 
 describe("bootstrap", () => {
     afterEach(() => {
@@ -31,34 +34,41 @@ describe("bootstrap", () => {
         const { app } = booted();
 
         expect([
-            app.querySelector("[role=toolbar]") !== null,
-            app.querySelector(".outline")?.textContent,
-        ]).toEqual([true, "Loading…"]);
+            app.querySelector("main")?.getAttribute("aria-label"),
+            app.querySelector(".av-loading[role=status]")?.textContent,
+        ]).toEqual(["Add-ons", "Loading…"]);
     });
 
     it("renders the catalog the host posts", () => {
         const { app } = booted();
 
-        window.dispatchEvent(new MessageEvent("message", { data: new AddOnCatalogQuery(CATALOG) }));
+        post(new AddOnCatalogQuery(CATALOG));
 
-        expect(app.querySelector("h2 button")?.textContent).toBe("work");
+        expect(app.querySelector(".av-detail-name")?.textContent).toBe(RESIZE.name);
     });
 
-    it("focuses the active head when the view gets focus from its host", () => {
+    it("focuses the selected add-on when the view gets focus from its host", () => {
         const { app } = booted();
-        window.dispatchEvent(new MessageEvent("message", { data: new AddOnCatalogQuery(CATALOG) }));
+        post(new AddOnCatalogQuery(CATALOG));
 
         window.dispatchEvent(new FocusEvent("focus"));
 
-        expect(document.activeElement).toBe(app.querySelector("h2 button"));
+        expect(document.activeElement).toBe(app.querySelector("[aria-current=true]"));
+    });
+
+    it("leaves a page without its container alone", () => {
+        document.body.innerHTML = "";
+        const host = new RecordingHost();
+
+        bootstrap(host);
+
+        expect(host.posted).toEqual([]);
     });
 
     it("switches the page to the brand mode the host posts on a theme change", () => {
         booted();
 
-        window.dispatchEvent(
-            new MessageEvent("message", { data: new BrandModeQuery({ theme: "dark" }) }),
-        );
+        post(new BrandModeQuery({ theme: "dark" }));
 
         expect(document.documentElement.getAttribute("data-cd-theme")).toBe("dark");
     });
