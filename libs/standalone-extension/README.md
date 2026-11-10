@@ -8,6 +8,14 @@ before a secondary window docks back, and loads `src/styles/miragon.css`.
 
 Internal workspace, not published on its own.
 
+It also rebinds Theia's `PluginViewRegistry` (`CurrentTitlePluginViewRegistry`)
+so a plugin view container restored from a stored layout shows the title and
+icon its plugin contributes now. Theia stores both in the layout and lets a
+view's stored container title override the current one, so an app update that
+renames a container or changes its icon would otherwise not show until the
+user resets the workbench layout. The rebind needs `@theia/plugin-ext` in
+`dependencies`: Theia loads an extension's dependencies' modules first.
+
 ## Why a separate package
 
 Theia's generator (`@theia/application-package`, Theia 1.76) discovers extensions only among an
