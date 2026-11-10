@@ -1,7 +1,6 @@
 # Miragon BPMN Modeler
 
 [![VS Code Marketplace](https://img.shields.io/badge/VS_Code_Marketplace-install-007ACC?logo=visualstudiocode&logoColor=white)](https://marketplace.visualstudio.com/items?itemName=miragon-gmbh.vs-code-bpmn-modeler)
-[![Open VSX](https://img.shields.io/open-vsx/v/miragon-gmbh/vs-code-bpmn-modeler?label=Open%20VSX)](https://open-vsx.org/extension/miragon-gmbh/vs-code-bpmn-modeler)
 [![JetBrains Marketplace](https://img.shields.io/jetbrains/plugin/v/32634-miragon-bpmn-modeler?label=JetBrains%20Marketplace)](https://plugins.jetbrains.com/plugin/32634-miragon-bpmn-modeler)
 [![Desktop app](https://img.shields.io/badge/Desktop_app-download-335DE5)](https://miragon.github.io/bpmn-modeler/download)
 [![Orca](https://img.shields.io/badge/Orca-install-335DE5)](https://onorca.dev/plugins/miragon.bpmn-modeler?catalog=https://github.com/miragon/orca-modelers.git)
@@ -10,9 +9,7 @@
 
 ![Miragon Modeler for BPMN: processes, decisions and forms from plain files, with an order process open in the modeler](docs/public/shots/vscode/cover.png)
 
-**Model processes and decisions right where their code lives.**
-
-Edit BPMN processes, DMN decisions and Camunda Forms for Camunda 7, Camunda 8, Operaton or CIB seven in your editor, and commit them with your code.
+Model BPMN processes, DMN decisions and Camunda Forms for Camunda 7, Camunda 8, Operaton or CIB seven right where their code lives, and commit them with your code.
 
 ## Why
 
