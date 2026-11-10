@@ -181,6 +181,13 @@ module.exports = (env, argv) => {
                         noErrorOnMissing: true,
                         info: { minimized: true },
                     },
+                    {
+                        // Copy the Artifacts view (add-ons webview) build artefacts into the extension output.
+                        from: path.resolve(__dirname, "../../dist/webview-staging/add-ons-webview"),
+                        to: "add-ons-webview",
+                        noErrorOnMissing: true,
+                        info: { minimized: true },
+                    },
                 ],
             }),
         ],

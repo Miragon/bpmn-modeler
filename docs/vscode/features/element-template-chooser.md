@@ -54,6 +54,10 @@ The config folder name is set by `miragon.bpmnModeler.configFolder`. To share te
 
 Templates with an `engines` field (for example `"engines": { "camunda": "^8.7" }`) are shown only on Camunda 8 diagrams whose version matches. Templates without `engines` and all Camunda 7 diagrams are not filtered.
 
+## Turn templates off
+
+To keep a template out of the chooser and the append menu without deleting its file, click **Disable** on its row in the [Artifacts view](/vscode/features/artifacts). **Disable templates** on a config folder or marketplace does the same for all of its templates. Elements that already use a disabled template keep it. VS Code keeps the switches for you, outside the repository, so they do not change what your teammates see.
+
 ## Write good templates
 
 A template needs `name`, `id`, `appliesTo` and `properties`. These fields make it easier to find and use:

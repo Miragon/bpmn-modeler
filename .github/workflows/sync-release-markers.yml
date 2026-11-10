@@ -10,7 +10,7 @@ name: Sync release markers
 # component that bundles the change) whose subject mirrors the triggering PR
 # title, so each component's release line and changelog carry the real change:
 #
-#   - vscode    (apps/vscode-plugin): ships the four webviews, the standalone
+#   - vscode    (apps/vscode-plugin): ships the five webviews, the standalone
 #               app (versioned in lockstep), libs/modeler-core, libs/shared,
 #               libs/standalone-extension and the npm-package sphere. Its
 #               BUNDLED_WEBVIEW marker records bundled webviews into a host.
@@ -121,7 +121,7 @@ jobs:
           # both hosts.
           SPHERE='^packages/bpmn-modeler/|^libs/(append-menu|bpmn-clipboard|bpmn-diff|bpmn-i18n-extras|bpmn-layout|code-link|definition-search|element-template-chooser|flow-navigation|inline-scripting|model-navigation|modeler-types|properties-panel)/'
 
-          VSC_RELEVANT="^apps/(bpmn-webview|dmn-webview|form-webview|deployment-webview|standalone)/|^libs/(modeler-core|shared|standalone-extension)/|^packages/dmn-modeler/|${SPHERE}"
+          VSC_RELEVANT="^apps/(bpmn-webview|dmn-webview|form-webview|deployment-webview|add-ons-webview|standalone)/|^libs/(modeler-core|shared|standalone-extension)/|^packages/dmn-modeler/|${SPHERE}"
           IJ_RELEVANT="^apps/(bpmn-webview|deployment-webview|add-ons-webview|modeler-bridge)/|^libs/(modeler-core|shared)/|${SPHERE}"
           ORCA_RELEVANT="^packages/dmn-modeler/|^libs/shared/|${SPHERE}"
           VSC_NATIVE='^apps/vscode-plugin/'

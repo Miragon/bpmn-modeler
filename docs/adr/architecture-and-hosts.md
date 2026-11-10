@@ -236,7 +236,8 @@ fields it names. The model holds workspace text (file, template and folder
 names), so the page builds its DOM with the DOM API from the model and never
 with `innerHTML`, and every `--vscode-*` variable its stylesheet reads is
 listed in `src/adapter/in/styles/hostThemeVariables.json`, the set IntelliJ
-maps for it. Every host declares the surface `absent` until it serves it.
+maps for it. VS Code serves the surface; the bridge declares it `absent`
+until IntelliJ does.
 
 IntelliJ shows the add-ons view as the **Artifacts** tab of its BPMN Modeler
 tool window, next to the **Deploy** tab, as VS Code holds Deploy and Artifacts
@@ -312,7 +313,7 @@ imports show the role it has. Each workspace declares its kind once, in the
 
 | Kind | Workspaces |
 | --- | --- |
-| `hexagonal` | `libs/modeler-core`, `apps/vscode-plugin`, `apps/modeler-bridge`, the four webviews, the template builder, `apps/orca-plugin`, `tools/repo-checks` |
+| `hexagonal` | `libs/modeler-core`, `apps/vscode-plugin`, `apps/modeler-bridge`, the five webviews, the template builder, `apps/orca-plugin`, `tools/repo-checks` |
 | `diagram-js` | the diagram-js feature libraries in `libs/` and `packages/bpmn-modeler`, `packages/dmn-modeler`, which follow the bpmn-js module layout |
 | `flat` | `modeler-types`, `shared`, `bpmn-diff`, `bpmn-i18n-extras`, `standalone-extension`, `tools/architecture-testing`, `docs`, `apps/standalone` |
 
@@ -501,6 +502,40 @@ composition root, and a helper both directions use is pure and sits in
 `domain/` (`canonicalPath` reads only the parts of a `Uri`). A context of the
 VS Code host reaches another only through `shared/`, which the VS Code
 architecture test checks.
+
+VS Code's side bar has one activity bar container, `bpmn-modeler-deploy`,
+titled **BPMN Modeler** with the rocket icon. It kept the id of the
+deployment-only container, so a user's layout survives. It holds two webview
+views: **Deploy** (`bpmn-modeler.deploymentView`), shown while a custom editor
+is open, and **Artifacts** (`bpmn-modeler.artifactsView`), shown whenever a
+folder is open, so the container now shows whenever a folder is open. Both
+set `retainContextWhenHidden`: the core posts nothing to a hidden view, so
+keeping its page costs memory only, and a page shown again keeps its banners
+and the results of requests in flight. The Artifacts view's shell
+(`AddOnsViewHtml`, CSP shell `addOns`) allows its nonced script and its linked
+stylesheet and nothing else, no inline styles either, as the page uses no
+codicons, no images and no style attributes.
+`AddOnsViewProvider` attaches one core panel per resolved view and hands it
+the page's commands, its visibility and its disposal; the core refreshes on
+show. The view's title bar **Refresh Artifacts** (`bpmn-modeler.refreshArtifacts`)
+is host chrome over `AddOnsFeature.refresh()`: no watcher covers
+`node_modules`, so it is read again only then or when the view is shown again. Code names say `addOns`;
+"Artifacts" is the view id and UI text only. **Review…** on a plugin or rule
+package notice opens the view through `VsCodeAddOnsViewReveal`, the
+`AddOnViewRevealPort` adapter: it has the provider focus the view, then asks
+the core to reveal the rows, and answers `false` when focusing fails, as in a
+shell without the command, so `ViewReview` falls back to the list. The
+provider runs the view's `<viewId>.focus` command, which opens the container
+and resolves the view; a page that is still loading then loses that focus, so
+the provider shows the view with focus once more on the page's first message,
+and the page focuses the revealed row (the smoke test found a fresh view left
+unfocused, with the row out of sight). A disposed view (hidden, moved or out
+of its `when` clause) drops both the page state and an unanswered focus, so
+the next view VS Code resolves starts clean. The reviews are built before the
+BPMN editor that takes them, while the catalog is built later from that
+editor's owners, so the composition connects the reveal once the catalog
+exists; activation is synchronous, so no notice can ask before then. The
+adapter runs `describeAddOnViewRevealContract`.
 
 The element-template editor is the main editor for template files in VS Code:
 files in an `element-templates` folder open in it through a default editor
@@ -993,19 +1028,21 @@ serves the whole bundle directory. VS Code and the standalone app copy it into
 the extension; IntelliJ syncs it into plugin resources and serves any path
 below it from the loopback asset server.
 
-Every BPMN, DMN, form, deployment and add-ons shell sends a Content-Security-Policy with
-`default-src 'none'`, so injected markup cannot run script with the host
-message channel. Each policy allows only what its bundle needs:
+Every BPMN, DMN, form, deployment and add-ons shell sends a
+Content-Security-Policy with `default-src 'none'`, so injected markup cannot
+run script with the host message channel. Each policy allows only what its
+bundle needs:
 
 - `script-src` allows the entry by nonce in VS Code and by `'self'` in
   IntelliJ. The VS Code BPMN and DMN shells also list `webview.cspSource`,
   because the chunk loader's modulepreload links carry no nonce; the form and
   deployment bundles are one script each, so the nonce alone covers them. No
   `'unsafe-eval'`: nothing in the bundles compiles strings at runtime.
-- `style-src` keeps `'unsafe-inline'` in every shell: diagram-js, the
-  properties panel and CodeMirror set style attributes and inject `<style>`
-  elements without a nonce, and the deployment form's markup carries a style
-  attribute.
+- `style-src` keeps `'unsafe-inline'` in every editor and deployment shell:
+  diagram-js, the properties panel and CodeMirror set style attributes and
+  inject `<style>` elements without a nonce, and the deployment form's markup
+  carries a style attribute. VS Code's add-ons shell has only its linked
+  stylesheet and allows `style-src` from the webview alone.
 - In the BPMN, DMN and form shells `img-src` allows `data:`, and for BPMN also
   `https:`, because element-template icons may be either. BPMN and DMN have no
   `connect-src`, so a copy-as-PNG of a remote `.svg` icon renders without that

@@ -1,4 +1,4 @@
-export type WebviewShell = "bpmn" | "dmn" | "form" | "deployment";
+export type WebviewShell = "bpmn" | "dmn" | "form" | "deployment" | "addOns";
 
 /** What a bundle may load beyond its entry script, in the order the policy lists them. */
 const BUNDLE_LOAD_DIRECTIVES = [
@@ -10,9 +10,13 @@ const BUNDLE_LOAD_DIRECTIVES = [
 ] as const;
 
 /** The directives a bundle may widen; the others read the same in every shell. */
-type BundleDirective = "script-src" | (typeof BUNDLE_LOAD_DIRECTIVES)[number];
+type BundleDirective = "script-src" | "style-src" | (typeof BUNDLE_LOAD_DIRECTIVES)[number];
 
 type BundleSources = Partial<Record<BundleDirective, string[]>>;
+
+// diagram-js, the properties panel and CodeMirror set style attributes and inject
+// <style> elements without a nonce; the deployment form has a style attribute.
+const INLINE_STYLES = "'unsafe-inline'";
 
 // Each entry declares its return type: a contextually typed arrow gets no
 // excess-property check, so an entry could otherwise list a shared directive.
@@ -21,24 +25,29 @@ const BUNDLE_SOURCES: Record<WebviewShell, (cspSource: string) => BundleSources>
     // icons are data: URIs or remote URLs.
     bpmn: (cspSource): BundleSources => ({
         "script-src": [cspSource],
+        "style-src": [INLINE_STYLES],
         "img-src": [cspSource, "data:", "https:"],
         "font-src": [cspSource, "data:"],
     }),
     dmn: (cspSource): BundleSources => ({
         "script-src": [cspSource],
+        "style-src": [INLINE_STYLES],
         "img-src": [cspSource, "data:"],
         "font-src": [cspSource, "data:"],
     }),
     // form-js components show remote images and iframes; a document preview
     // fetches its file and shows it from a blob: URL, a PDF in an <embed>.
     form: (cspSource): BundleSources => ({
+        "style-src": [INLINE_STYLES],
         "img-src": [cspSource, "data:", "blob:", "https:"],
         "font-src": [cspSource, "data:"],
         "connect-src": ["https:"],
         "frame-src": ["https:"],
         "object-src": ["blob:"],
     }),
-    deployment: (): BundleSources => ({}),
+    deployment: (): BundleSources => ({ "style-src": [INLINE_STYLES] }),
+    // No codicons, no images and only its linked stylesheet.
+    addOns: (): BundleSources => ({}),
 };
 
 /**
@@ -57,9 +66,7 @@ export function webviewContentSecurityPolicy(
     const directives: string[][] = [
         ["default-src", "'none'"],
         ["script-src", `'nonce-${nonce}'`, ...(bundleSources["script-src"] ?? [])],
-        // diagram-js, the properties panel and CodeMirror set style attributes and
-        // inject <style> elements without a nonce; the deployment form has a style attribute.
-        ["style-src", cspSource, "'unsafe-inline'"],
+        ["style-src", cspSource, ...(bundleSources["style-src"] ?? [])],
         ...loadDirectives,
         // default-src does not cover these two.
         ["base-uri", "'none'"],

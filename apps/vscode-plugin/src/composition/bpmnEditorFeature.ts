@@ -2,6 +2,7 @@ import { ExtensionContext, window } from "vscode";
 
 import {
     BPMN_VIEW_TYPE,
+    ApprovalReviewPort,
     BpmnEditorContributions,
     BpmnEditorFeature,
     BpmnPluginsFeature,
@@ -30,6 +31,7 @@ interface BpmnEditorHandles {
     templateSources: CachedTemplateProvider;
     deploymentStatusParticipant: EditorSessionParticipant;
     scriptEditor: BpmnEditorContributions["scriptEditor"];
+    reviews: { plugin: ApprovalReviewPort; rulePackage: ApprovalReviewPort };
 }
 
 /** Returns both features because the command, marketplace and add-on features reuse their services. */
@@ -69,6 +71,7 @@ export function register(
         questions,
         hasher: new NodeContentHasher(),
         cacheRoot: bpmnPluginCacheUri(context.globalStorageUri).fsPath,
+        review: handles.reviews.plugin,
     });
     void plugins.pruneCache();
     const editor = new BpmnEditorFeature(
@@ -84,6 +87,7 @@ export function register(
                 installedPackages: new NodeInstalledPackages(),
                 actionNotifier: deps.actionNotifier,
                 questions,
+                review: handles.reviews.rulePackage,
             },
         },
         {
