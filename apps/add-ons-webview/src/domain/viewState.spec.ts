@@ -605,6 +605,20 @@ describe("nextViewState", () => {
 
             expect([state.scope, state.scopeSettled]).toEqual(["workspace", true]);
         });
+
+        it("keeps the workspace when it applied to a first model that lists nothing", () => {
+            const { state } = after([
+                review(5),
+                shown({ ...CATALOG, groups: [] }),
+                shown(withRevision(11, ONLY_MARKETPLACES)),
+            ]);
+
+            expect([state.scope, state.scopeSettled, state.filter]).toEqual([
+                "workspace",
+                true,
+                NEEDS_REVIEW_ONLY,
+            ]);
+        });
     });
 
     describe("tabs and selection", () => {
