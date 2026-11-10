@@ -105,6 +105,7 @@ function fullCatalog(): AddOnGroupPayload[] {
     return [
         {
             id: "folder:/work",
+            kind: "folder",
             label: "work",
             description: "/work",
             sources: [
@@ -188,6 +189,7 @@ function fullCatalog(): AddOnGroupPayload[] {
         },
         {
             id: "folder:/billing",
+            kind: "folder",
             label: "billing",
             description: "/billing",
             sources: [
@@ -203,6 +205,7 @@ function fullCatalog(): AddOnGroupPayload[] {
         },
         {
             id: "marketplaces",
+            kind: "marketplaces",
             label: "Marketplaces",
             description: "Element templates fetched from the registered marketplaces",
             sources: [

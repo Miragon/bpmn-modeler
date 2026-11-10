@@ -13,6 +13,8 @@ export type TemplateStatePayload = "enabled" | "disabled";
 
 export type SourceKindPayload = "configFolder" | "installedPackages" | "marketplace";
 
+export type GroupKindPayload = "folder" | "marketplaces";
+
 export type CodeAddOnKindPayload = "plugin" | "rulePackage";
 
 export type AddOnActionKindPayload = "inspect" | "allow" | "revoke" | "enable" | "disable";
@@ -46,6 +48,7 @@ export interface AddOnCatalogPayload {
 
 export interface AddOnGroupPayload {
     readonly id: string;
+    readonly kind: GroupKindPayload;
     readonly label: string;
     readonly description: string;
     readonly problem?: string;
