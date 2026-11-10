@@ -455,6 +455,52 @@ describe("Review… on the bridge of the IntelliJ host", () => {
     });
 });
 
+describe("Review Add-ons on the bridge of the IntelliJ host", () => {
+    const isNeedsReviewReveal = (frame: Frame) =>
+        isPosted("RevealAddOnsQuery")(frame) &&
+        frame.params.message?.reveal?.kind === "needsReview";
+
+    it("holds a review sent before the tab opens until the page asks, after the model", async () => {
+        const project = await projectBridge((dispose) => disposals.push(dispose));
+        await openView(project, { open: false });
+
+        await project.rpc.handleLine(hostNotification(METHODS.addOnsReview, {}));
+        await settle();
+        expect(project.frames.filter(isPosted("RevealAddOnsQuery"))).toEqual([]);
+        await openView(project);
+        await nextModel(project);
+        await untilQuiet(project);
+        const fromIndex = project.frames.length;
+        await fromPage(project, { type: "GetAddOnCatalogCommand" });
+
+        const reveal = await waitForFrame(project.frames, isNeedsReviewReveal, { fromIndex });
+        const reposted = project.frames.slice(fromIndex);
+        expect(reveal.params.message?.reveal).toEqual({
+            kind: "needsReview",
+            revealId: expect.any(Number),
+        });
+        expect(reposted.findIndex(isPosted("AddOnCatalogQuery"))).toBeLessThan(
+            reposted.indexOf(reveal),
+        );
+    });
+
+    it("posts a review at once to an open tab whose page listens, and only once", async () => {
+        const project = await projectBridge((dispose) => disposals.push(dispose));
+        await openView(project);
+        await nextModel(project);
+        await fromPage(project, { type: "GetAddOnCatalogCommand" });
+        await untilQuiet(project);
+        const fromIndex = project.frames.length;
+
+        await project.rpc.handleLine(hostNotification(METHODS.addOnsReview, {}));
+        await waitForFrame(project.frames, isNeedsReviewReveal, { fromIndex });
+        await fromPage(project, { type: "GetAddOnCatalogCommand" });
+        await untilQuiet(project);
+
+        expect(project.frames.slice(fromIndex).filter(isNeedsReviewReveal)).toHaveLength(1);
+    });
+});
+
 /** The hash the host stores for an allowed plugin's script. */
 async function contentHashOf(pluginId: string): Promise<string> {
     const script = await fs.readFile(join(pluginId, "client.js"), "utf8");

@@ -324,7 +324,11 @@ adapter of `AddOnViewRevealPort`: `addOns/reveal` asks Kotlin to select the tab
 and activate the tool window, and the core then delivers the rows through the
 panel, so no row id rides the wire. Kotlin answers `false` where JCEF is
 missing, the tool window is not registered or the project is closing, and the
-`ListReview` fallback asks instead. The tab's title button sends
+`ListReview` fallback asks instead. The Tools action **Review Add-ons**
+(`ReviewAddOnsAction`) selects the tab itself through `revealAddOns`, then
+sends `addOns/review`, a reliable, coalesced notification that starts the
+bridge; the core then reveals what needs review through the panel. Where the
+tab cannot show, it asks the core nothing. The tab's title button sends
 `addOns/refresh`, as nothing reports an installed package or another window's
 approval. Every process after the first, a crash respawn or a start after the
 supervisor gave up, reloads the page: only a result frees a busy row, and a
@@ -1218,7 +1222,9 @@ holds its copy of the deadline to the one `protocol.json` lists. The relayed
 page messages and visibility of the add-ons view (`addOns/webviewMessage`,
 `addOns/open`) are reliable frames that wait for the next process, unlike the
 best-effort deployment relay: only a result frees a busy row on the page, so a
-dropped request would leave its row busy.
+dropped request would leave its row busy. `addOns/review` is reliable too, as
+the user waits for its result across a cold start; its coalesce key
+`addOns/review` keeps one of the presses made while the bridge is down.
 
 ### Process lifecycle
 

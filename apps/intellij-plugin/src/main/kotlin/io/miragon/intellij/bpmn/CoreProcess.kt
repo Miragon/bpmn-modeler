@@ -248,6 +248,9 @@ class CoreProcess(private val project: Project) : Disposable {
     /** Fires `addOns/refresh`; the core reads every add-on again, installed packages and stored approvals included. */
     fun refreshAddOns() = routers.addOns.refresh()
 
+    /** Fires `addOns/review`, starting the bridge; the Add-ons tab is already shown. */
+    fun reviewAddOns() = routers.addOns.review()
+
     // ── diff ─────────────────────────────────────────────────────────────────────
 
     fun openDiff(

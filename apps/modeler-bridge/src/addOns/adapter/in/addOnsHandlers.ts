@@ -6,7 +6,7 @@ import { AddOnsOpenParams, AddOnsWebviewMessageParams } from "../../../protocol/
 import { HostSettingsMirror } from "../../../kernel/port/HostSettingsMirror";
 import { WorkspaceRoots } from "../../../kernel/port/WorkspaceRoots";
 
-/** RPC (Host → Core): addOns/webviewMessage, addOns/open, addOns/refresh. */
+/** RPC (Host → Core): addOns/webviewMessage, addOns/open, addOns/refresh, addOns/review. */
 export function addOnsHandlers({
     addOns,
     panel,
@@ -14,7 +14,7 @@ export function addOnsHandlers({
     workspaceRoots,
     log,
 }: {
-    addOns: Pick<AddOnsFeature, "refresh">;
+    addOns: Pick<AddOnsFeature, "refresh" | "revealNeedsReview">;
     panel: AddOnsPanel;
     settingsMirror: HostSettingsMirror;
     workspaceRoots: WorkspaceRoots;
@@ -44,6 +44,9 @@ export function addOnsHandlers({
         },
         [METHODS.addOnsRefresh]: () => {
             addOns.refresh();
+        },
+        [METHODS.addOnsReview]: () => {
+            addOns.revealNeedsReview();
         },
     };
 }

@@ -218,6 +218,12 @@
         "paramKeys": []
     },
     {
+        "method": "addOns/review",
+        "direction": "hostToCore",
+        "kind": "notification",
+        "paramKeys": []
+    },
+    {
         "method": "document/write",
         "direction": "coreToHost",
         "kind": "request",

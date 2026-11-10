@@ -141,7 +141,7 @@ in the bridge README):
 | core → host | `secretStore/*`                                | `PasswordSafe` (encrypted at rest)                                                                                               |
 | core → host | `marketplacePrompt/show`, `marketplaceState/*` | the core's add question in `AddMarketplaceDialog`; the app and project marketplace stores                                        |
 | host ⇄ core | `deployment/*`, `deploymentState/*`            | tool-window webview + `PropertiesComponent`                                                                                      |
-| host ⇄ core | `addOns/*`                                     | the BPMN Modeler tool window's Add-ons tab (`AddOnsRouter`); `addOns/reveal` opens it for **Review…**                            |
+| host ⇄ core | `addOns/*`                                     | the BPMN Modeler tool window's Add-ons tab (`AddOnsRouter`); `addOns/reveal` opens it for **Review…**; `addOns/review` asks for what needs review once **Review Add-ons** opened it |
 | core → host | `actionNotice/show`                            | `ActionNotifierPort` → a balloon with one `NotificationAction` per label                                                         |
 | host ⇄ core | `pluginApprovals/*`, `editor/reload`           | `PluginApprovalStore` (app `PropertiesComponent`); full page reload after an approval                                            |
 | host ⇄ core | `templatePreferences/*`                        | `ProjectTemplatePreferenceStore` (project `PropertiesComponent`) and `TemplatePreferenceStore` (app); `TemplatePreferenceRouter` |
@@ -246,7 +246,7 @@ Kotlin (`apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/`):
   (the 3 s transient rule) and `StatusSlotWidget(Factory).kt`
 - **Tool window**: `ModelerToolWindowFactory.kt` (`revealAddOns`), `DeploymentToolWindowContent.kt`,
   `AddOnsToolWindowContent.kt`, `JcefRelayPanel.kt`, `ContentShown.kt` + `VisibilityLatch.kt`,
-  `RefreshAddOnsAction.kt`; `IntellijDeploymentState.kt`
+  `RefreshAddOnsAction.kt`, `ReviewAddOnsAction.kt`; `IntellijDeploymentState.kt`
 - **plugin.xml**: `src/main/resources/META-INF/plugin.xml`
 
 Bridge (`apps/modeler-bridge/src/`):

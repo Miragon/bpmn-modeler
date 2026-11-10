@@ -10,7 +10,8 @@ import io.miragon.intellij.bpmn.revealAddOns
  * Routes the add-ons view of the BPMN Modeler tool window's Add-ons tab: one
  * page per project, whose messages it relays verbatim, and whose visibility it
  * reports with the project root and the settings. The core asks it to show
- * the tab, then delivers the rows to the page itself.
+ * the tab, then delivers the rows to the page itself. Review Add-ons shows the
+ * tab first, then asks the core for what needs review.
  *
  * The page's messages and the visibility are reliable frames: only a result
  * frees a busy row on the page, so a request lost while the bridge restarts
@@ -115,6 +116,12 @@ internal class AddOnsRouter(
     /** Starts no bridge: a new one reads every add-on anyway, so the frame is only for a running one. */
     fun refresh() {
         deps.channel.notify(HostToCoreMethod.ADD_ONS_REFRESH, linkedMapOf<String, Any>())
+    }
+
+    /** Reliable and started: the user waits to see the result, also across a cold start; repeated presses coalesce. */
+    fun review() {
+        deps.channel.notify(HostToCoreMethod.ADD_ONS_REVIEW, linkedMapOf<String, Any>(), coalesceKey = "addOns/review", reliable = true)
+        deps.ensureStartedAsync()
     }
 
     fun clear() {

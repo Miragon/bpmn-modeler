@@ -168,6 +168,7 @@ export const METHODS = {
     addOnsWebviewMessage: "addOns/webviewMessage",
     addOnsOpen: "addOns/open",
     addOnsRefresh: "addOns/refresh",
+    addOnsReview: "addOns/review",
 
     // Core → Host requests
     documentWrite: "document/write",
@@ -493,6 +494,12 @@ export const PROTOCOL = [
     },
     {
         method: METHODS.addOnsRefresh,
+        direction: "hostToCore",
+        kind: "notification",
+        paramsFixture: {} satisfies EmptyParams,
+    },
+    {
+        method: METHODS.addOnsReview,
         direction: "hostToCore",
         kind: "notification",
         paramsFixture: {} satisfies EmptyParams,
