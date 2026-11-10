@@ -1,59 +1,36 @@
-# `apps/deployment-webview/` — Deployment sidebar webview
+# `@miragon/bpmn-modeler-deployment-webview`
 
-Internal module. **Not published separately.**
+The deployment form: engine, endpoint, credentials and an optional payload, then Deploy and Start
+Instance against Camunda 7 or Camunda 8. VS Code and the desktop app show it in the **Deploy** view,
+IntelliJ in the **Deploy** tab of its tool window. It talks to the host over the Query/Command
+protocol of [`libs/shared`](../../libs/shared/README.md). Internal workspace, not published on its
+own.
 
-Renders the **Deploy Diagram** sidebar of the modeler extension: a small
-form that collects engine type, endpoint, auth credentials, and an optional
-payload, then asks the extension host to deploy and (optionally) start a
-process instance against Camunda 7 or Camunda 8.
+## How it works
 
-Hosted by [`apps/vscode-plugin`](../vscode-plugin/README.md). Talks to the
-extension host via the typed Query/Command protocol from
-[`libs/shared`](../../libs/shared/README.md).
+- **Single-source markup.** The form's DOM lives only in `src/adapter/in/formTemplate.ts`
+  (`FORM_TEMPLATE`), injected into `#app` by `src/composition/bootstrap.ts`. Every host shell (this
+  workspace's `index.html`, `apps/vscode-plugin/src/deployment/adapter/in/DeploymentWebviewHtml.ts`,
+  IntelliJ's `WebviewServer.kt`) ships an empty `<div id="app"></div>`. Edit markup only in
+  `formTemplate.ts`.
+- **Form rules are pure functions** in `src/domain/deploymentDraft.ts`, decided from a
+  `DraftSnapshot`: which controls are disabled and why Deploy or Start Instance is blocked (a save or
+  load in flight, credentials loading, unsaved target changes). `credentialRefSignatureOf` decides
+  which credential edits count as a target change (an `${env:…}` reference does, a literal does
+  not). `requestAuthOf` checks what a request needs and returns the auth payload or the first reason
+  to refuse; `authPayloadOf` builds the payload for New and Save without that check.
+- **In-flight guards.** `form.ts` applies the rules to the DOM and keeps Deploy disabled while
+  `deploying`; `startInstanceForm.ts` does the same for Start Instance while `starting`.
 
-## Single-source markup
+The deployment subsystem behind the form is recorded in [Deployment](../../docs/adr/deployment.md).
 
-The form markup lives in **one** place:
-`src/adapter/in/formTemplate.ts` (`FORM_TEMPLATE`), injected into `#app` by
-`src/composition/bootstrap.ts` at runtime. Every host shell — the Vite `index.html`,
-`apps/vscode-plugin/src/deployment/adapter/in/DeploymentWebviewHtml.ts`,
-and the IntelliJ deployment tool-window shell — ships only an empty
-`<div id="app"></div>`. When modifying form markup, edit `formTemplate.ts`
-only.
-
-## Form rules
-
-The pure functions in `src/domain/deploymentDraft.ts` decide, from a
-`DraftSnapshot`:
-
-- whether Save, New, Delete, the target select and the target inputs are
-  disabled, and Save's tooltip;
-- why Deploy and Start Instance are blocked (a save or load in flight,
-  credentials loading, unsaved target changes).
-
-`credentialRefSignatureOf` in the same file decides which credential edits
-count as a target change: an `${env:…}` reference does, a literal does not.
-`requestAuthOf` decides what a Deploy or Start Instance request needs (a
-non-blank endpoint, then the fields its auth type requires) and returns the
-auth payload or the first reason to refuse. `authPayloadOf` builds the auth
-payload that New and Save send with a target, without a credential check.
-`form.ts` builds the snapshot from its flags and applies the result to the DOM.
-Each request button also stays disabled while its own request is in flight:
-Deploy while `deploying` (`form.ts`), Start Instance while `starting`
-(`startInstanceForm.ts`). Click handlers keep the other payload checks, such as
-a required Target Name.
-
-## Local development
-
-From the repo root:
+## Develop
 
 ```bash
-corepack yarn watch                              # rebuild bundle to disk; F5 launches the extension host
-corepack yarn workspace @miragon/bpmn-modeler-deployment-webview serve  # standalone Vite dev server in a browser
+corepack yarn watch                                                     # from the root: rebuilds to disk for the F5 extension host
+corepack yarn workspace @miragon/bpmn-modeler-deployment-webview serve  # the form alone in a browser
+corepack yarn workspace @miragon/bpmn-modeler-deployment-webview test
 ```
 
-## Further reading
-
-- Project `/architecture` skill — deployment subsystem, hexagonal ports for
-  C7/C8 engines.
-- Project `/vscode-webviews` skill — webview lifecycle, CSP, theming.
+`vite build` writes to `dist/webview-staging/deployment-webview/`. For a local engine to deploy to,
+see [`stack/`](../../stack/c7/README.md).

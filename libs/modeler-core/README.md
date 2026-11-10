@@ -1,46 +1,36 @@
 # `@miragon/bpmn-modeler-core`
 
-The host-agnostic BPMN/DMN modeling engine: domain models, services, the
-host-capability ports (`kernel/port/hostPorts.ts`), and the `vscode`-free application-layer
-registries (`EditorSessionStore`, `WebviewMessageRouter`, `DiffPaneStore`).
+The host-agnostic engine behind the editors: domain models, services, the host ports
+(`src/kernel/port/hostPorts.ts`) and the editor-session registries (`EditorSessionStore`,
+`WebviewMessageRouter`, `DiffPaneStore`).
 
-This package must never import `vscode`, and its `domain/` layer must never
-import a Node host module (`node:*`, `fs`, `http`/`https`) either — invariants
-enforced by the CI gate in `src/architecture.spec.ts`. Host capabilities (file
-I/O, notifications, clipboard, …) are reached only through ports, which each
-host implements with its own adapters: the cross-cutting ones in
-`kernel/port/`, and the ones a single feature owns in that feature's `port/`.
-Each feature folder holds the role folders `domain/`, `port/`, `service/`,
-`adapter/in/`, `adapter/out/` and `composition/`; the repo-level architecture
-spec (`tools/repo-checks`) checks their import direction.
-Pure Node utilities that exist in any Node host (`path`, `Buffer`) are used
-directly by services and are not considered host capabilities.
+Internal workspace, not published on its own.
 
 ## Consumers
 
-- `apps/vscode-plugin` — the VS Code host, in-process, wires the engine through
-  `Vs*` port adapters. The standalone desktop app runs this extension too.
-- `apps/modeler-bridge` — the stdio JSON-RPC binary the IntelliJ host runs;
-  out-of-process, it wires the same engine through RPC-backed port adapters.
+- `apps/vscode-plugin` runs it in process through its `Vs*` port adapters. The desktop app runs the same
+  extension.
+- `apps/modeler-bridge` runs it out of process for the IntelliJ plugin, through RPC-backed port adapters.
 
-## Usage
+## Rules
 
-Add a workspace dependency in the consuming workspace's `package.json`:
+- Never import `vscode`. The `domain/` layer also never imports a Node host module (`node:*`, `fs`,
+  `http`, `https`). `src/architecture.spec.ts` enforces both. Plain Node utilities such as `path` and
+  `Buffer` are fine in services.
+- Host capabilities (files, notifications, clipboard, ...) are reached only through ports: cross-cutting
+  ones in `kernel/port/`, feature-owned ones in the feature's `port/`.
+- Each feature folder uses the role folders `domain/`, `port/`, `service/`, `adapter/in/`,
+  `adapter/out/` and `composition/`; `tools/repo-checks` checks their import direction. See
+  [Workspace kinds and role folders](../../docs/adr/architecture-and-hosts.md#workspace-kinds-and-role-folders).
+- Consumers import from the package entry only, never deep paths:
 
-```json
-{
-  "dependencies": {
-    "@miragon/bpmn-modeler-core": "workspace:*"
-  }
-}
+  ```ts
+  import { BpmnModelerService, EditorSessionStore } from "@miragon/bpmn-modeler-core";
+  ```
+
+## Develop
+
+```bash
+corepack yarn workspace @miragon/bpmn-modeler-core test
+corepack yarn test:mutation
 ```
-
-Then import from the package entrypoint only (not deep relative paths):
-
-```ts
-import { BpmnModelerService, EditorSessionStore } from "@miragon/bpmn-modeler-core";
-```
-
-Path resolution is handled by `tsconfig.base.json` (via `paths`) plus
-`vite-tsconfig-paths` (for webviews) and `tsconfig-paths-webpack-plugin`
-(for the extension host). No manual `vite.config` alias required.

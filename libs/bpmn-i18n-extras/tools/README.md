@@ -1,98 +1,46 @@
-# Overlay tooling — harvest & prune
+# Overlay tooling: harvest and prune
 
-The overlay is generated against **runtime truth**, not a static dictionary
-diff. A local override earns its place only when the running modeler actually
-asks to translate that exact string and the shared library has no entry for it.
-Everything else is dead by definition — most often a legacy spelling that modern
-bpmn-js / the properties panel has since renamed (`Business Key` → the shared
-library's `Business key`), which the editor never requests anymore.
+A key earns its place in the overlay only when the running modeler passes that exact string to
+`translate()` and the shared library has no entry for it. These tools record what the modeler asks for
+and prune the overlay against it.
 
 ## Files
 
-- **`harvested.json`** — every template the running Camunda-7 modeler passed to
-  `translate()`, captured with `harvest-drain.js`. Half the authoritative
-  needed-key set.
-- **`harvested-dmn.json`** — every template the running dmn-js views passed to
-  `translate()`, captured with `harvest-drain-dmn.js`.
-- **`harvested-template-editor.json`** — every text the element template editor
-  page passed to `translate()`, captured with `harvest-drain-template-editor.js`.
-- **`harvest-drain.js`** — the browser-side BPMN driver that exercises the editor
-  (palette, context pad, replace/append/create menus, linting) and walks the
-  properties panel across a broad set of C7 elements and implementation configs.
-- **`harvest-drain-dmn.js`** — the browser-side DMN driver that walks every
-  dmn-js view (DRD, decision table, literal/boxed expression), exercising the
-  palette, context pad, replace/create menus, the decision-table context menu and
-  hit-policy control, and expanding the properties panel.
-- **`harvest-drain-template-editor.js`** — the browser-side driver for the
-  element template editor's dev page. It walks every tab, index entry and
-  template of the file, the problems list, and switches one property through
-  every binding and type the builder offers. Its header lists the page states
-  (`?engine=c7`, `?file=problems`, …) to run it on.
-- **`build-overlay.mjs`** — prunes the overlay of every language
-  `supportedModelerLanguages` offers against the **union** of the harvests + the
-  shared library. Keeps a key only when the shared library lacks it (exact or
-  normalized) **and** a harvest recorded it — plus the `SOURCE_ONLY` allowlist
-  for strings the harvest drivers structurally can't reach. Everything else
-  drops: keys the shared library covers (upstreamed C7 + legacy twins), import
-  diagnostics, and diagram/test junk.
+| File | What it is |
+| --- | --- |
+| `harvest-drain.js` | Browser driver for the BPMN editor: palette, context pad, menus, linting and the properties panel across many Camunda 7 elements. |
+| `harvest-drain-dmn.js` | Browser driver for every dmn-js view: DRD, decision table, literal and boxed expressions. |
+| `harvest-drain-template-editor.js` | Browser driver for the element template editor page; its header lists the page states to run it on. |
+| `harvested.json`, `harvested-dmn.json`, `harvested-template-editor.json` | The recorded keys of each driver. |
+| `build-overlay.mjs` | Prunes every offered locale against the union of the harvests and the shared library. Keeps a key only when the shared library lacks it and a harvest recorded it, plus the `SOURCE_ONLY` allowlist for strings no driver can reach. |
 
-## Refreshing the overlay
+The recorder is `libs/shared/src/lib/harvestRecorder.ts`. The webview entries (`apps/bpmn-webview/src/main.ts`,
+`templateEditorMain.ts`, `apps/dmn-webview/src/main.ts`) wire it only under `import.meta.env.DEV`, so
+production builds leave it out.
 
-```bash
-# 1a. BPMN: run the dev webview (its dev entry wires the harvest recorder).
-corepack yarn workspace @miragon/bpmn-modeler-webview serve
+## Refresh the overlay
 
-# 2a. In the page console (or via Playwright browser_evaluate), load and run the
-#     driver, then copy the harvested set into harvested.json:
-#       (paste harvest-drain.js) ; await window.__harvestDrain()
-#       JSON.stringify([...window.__harvested].sort())
-#     Save it under the { note, count, keys } wrapper in harvested.json.
+1. Start the dev webview: `corepack yarn workspace @miragon/bpmn-modeler-webview serve` for BPMN and the
+   template editor (`/template-editor.html`), `corepack yarn workspace @miragon/dmn-modeler-webview serve`
+   for DMN with a `.dmn` that has a decision table.
+2. In the page console (or with Playwright's `browser_evaluate`), paste the driver and run it:
+   `await window.__harvestDrain()`, `__harvestDrainDmn()` or `__harvestDrainTemplateEditor()`.
+3. Copy `JSON.stringify([...window.__harvested].sort())` into the matching `harvested*.json`, under its
+   `{ note, count, keys }` wrapper. For the template editor, merge the sets of every page state.
+4. Prune, first as a dry run:
 
-# 1b. DMN: run the DMN dev webview, open a .dmn with a decision table.
-corepack yarn workspace @miragon/dmn-modeler-webview serve
+   ```bash
+   bun libs/bpmn-i18n-extras/tools/build-overlay.mjs
+   bun libs/bpmn-i18n-extras/tools/build-overlay.mjs --write
+   ```
 
-# 2b. Same, with the DMN driver → harvested-dmn.json:
-#       (paste harvest-drain-dmn.js) ; await window.__harvestDrainDmn()
-#       JSON.stringify([...window.__harvested].sort())
+5. Verify and format the rewritten `src/languages/*.ts`:
 
-# 1c. Element template editor: the BPMN dev webview from 1a serves it at
-#     /template-editor.html; open each page state listed in the driver's header.
+   ```bash
+   corepack yarn vitest run --project bpmn-i18n-extras
+   corepack yarn format --loglevel warn
+   ```
 
-# 2c. On each of them run the template editor driver, and merge the sets into
-#     harvested-template-editor.json:
-#       (paste harvest-drain-template-editor.js) ; await window.__harvestDrainTemplateEditor()
-#       JSON.stringify([...window.__harvested].sort())
-
-# 3. Prune (dry run, then write):
-bun libs/bpmn-i18n-extras/tools/build-overlay.mjs
-bun libs/bpmn-i18n-extras/tools/build-overlay.mjs --write
-
-# 4. Re-verify.
-corepack yarn vitest run --project bpmn-i18n-extras
-corepack yarn format --loglevel warn
-```
-
-The recorder seam lives in `libs/shared/src/lib/harvestRecorder.ts` (shared by
-both webviews), wired only under `import.meta.env.DEV` in each webview's
-`src/main.ts` — one recorder for BPMN, one per view for DMN, all appending to the
-same `window.__harvested` set (tree-shaken out of production builds).
-
-## How far the overlay has shrunk
-
-The Camunda-7 strings the overlay used to carry are now a first-class overlay in
-the shared library, so `build-overlay` drops all of them on the exact/normalized
-shared collision. What remains is the floor: modeler-internal strings the shared
-library carries in _no_ form and the webview genuinely emits — the script-lock
-badge / mode-strip labels the driver can't reach (in `SOURCE_ONLY`), plus the two
-dmn-js numeric type names (`integer`, `double`) the shared `dmn-js.js` dictionary
-never shipped (its siblings `string` / `boolean` / `long` / `date` are covered).
-The reducers from here:
-
-- **Cover the residual strings upstream.** If the shared library grows the
-  script-lock labels or the `integer` / `double` type names (or the modeler stops
-  emitting them), the `overlayScope` / `overlayNeeded` guards flag them and they
-  are deleted here — the overlay reaches empty.
-
-Every other string the harvest records is already covered by the shared library:
-`overlayNeeded` (see below) recomputes the harvest-vs-shared gap on every test
-run, and it is currently zero.
+What is left today is the floor: the script-lock and mode-strip labels in `SOURCE_ONLY` and the dmn-js
+type names `integer` and `double`. Once the shared library covers them, `overlayScope.spec.ts` flags them
+and the overlay is empty.

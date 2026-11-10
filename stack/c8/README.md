@@ -1,69 +1,54 @@
-# Camunda 8
+# Camunda 8 stack
 
-Local development stack for testing OAuth2-secured BPMN deployment and process management.
+A local Camunda 8 (Zeebe, Operate) with an OAuth2-secured REST API behind Keycloak, to test
+deployment and Start Instance from the modeler.
 
-## Quickstart
+## Start
 
-1. Start all services:
-   ```bash
-   docker compose up -d
-   ```
+1. Start the services:
 
-2. Run the Keycloak setup script once (workaround for a Keycloak 26 import bug that
-   ignores `serviceAccountsEnabled` and audience mappers during realm import):
-   ```bash
-   ./setup-keycloak.sh
-   ```
+    ```bash
+    docker compose up -d
+    ```
+
+2. Run the Keycloak setup once. Keycloak 26 ignores `serviceAccountsEnabled` and the audience
+   mappers when it imports the realm, and the script sets them:
+
+    ```bash
+    ./setup-keycloak.sh
+    ```
 
 ## Services
 
-| Service         | Port    | Purpose                                       |
-|-----------------|---------|-----------------------------------------------|
-| Zeebe           | `8080`  | REST API (OAuth2-secured), gRPC on `26500`    |
-| Operate         | `8081`  | Web UI for inspecting workflows and instances  |
-| Keycloak        | `18080` | OAuth2 / OpenID Connect identity provider      |
-| Elasticsearch   | `9200`  | Zeebe exporter backend and Operate data store  |
-| Postgres        | —       | Keycloak persistence (internal only)           |
+| Service | Port | Purpose |
+| --- | --- | --- |
+| Zeebe | `8080`, gRPC `26500` | REST API (OAuth2) |
+| Operate | `8081` | Web UI for processes and instances |
+| Keycloak | `18080` | OAuth2 / OpenID Connect provider |
+| Elasticsearch | `9200` | Zeebe exporter and Operate data store |
+| Postgres | none | Keycloak persistence, internal only |
 
 ## Credentials
 
-### Zeebe OAuth2 (REST API)
+| What | URL | Username | Password |
+| --- | --- | --- | --- |
+| Operate | `http://localhost:8081` | `demo` | `demo` |
+| Keycloak admin console | `http://localhost:18080` | `admin` | `admin` |
 
-| Field         | Value                                                                                     |
-|---------------|-------------------------------------------------------------------------------------------|
-| Endpoint      | `http://localhost:8080`                                                                   |
-| Token URL     | `http://localhost:18080/realms/camunda-platform/protocol/openid-connect/token`            |
-| Client ID     | `zeebe-client`                                                                            |
-| Client Secret | `test-secret`                                                                             |
-| Audience      | `zeebe-api`                                                                               |
-| Grant type    | `client_credentials`                                                                      |
+The REST API takes a `client_credentials` token for client `zeebe-client` with secret
+`test-secret` and audience `zeebe-api`, from
+`http://localhost:18080/realms/camunda-platform/protocol/openid-connect/token`.
 
-### Operate UI
+## Deployment target in the modeler
 
-| Field    | Value                      |
-|----------|----------------------------|
-| URL      | `http://localhost:8081`    |
-| Username | `demo`                     |
-| Password | `demo`                     |
+The deployment form is the same in VS Code, the desktop app and IntelliJ:
 
-### Keycloak Admin Console
-
-| Field    | Value                              |
-|----------|------------------------------------|
-| URL      | `http://localhost:18080`           |
-| Username | `admin`                            |
-| Password | `admin`                            |
-
-
-## VS Code Extension
-
-Configure the deployment panel in the BPMN Modeler extension:
-
-| Setting       | Value                                                                          |
-|---------------|--------------------------------------------------------------------------------|
-| Endpoint      | `http://localhost:8080`                                                        |
-| Auth type     | `OAuth2`                                                                       |
-| Token URL     | `http://localhost:18080/realms/camunda-platform/protocol/openid-connect/token` |
-| Client ID     | `zeebe-client`                                                                 |
-| Client Secret | `test-secret`                                                                  |
-| Audience      | `zeebe-api`                                                                    |
+| Field | Value |
+| --- | --- |
+| Engine | `Camunda Cloud 8` |
+| REST Endpoint | `http://localhost:8080` |
+| Method | `OAuth2 Client Credentials` |
+| Client ID | `zeebe-client` |
+| Client Secret | `test-secret` |
+| Token Endpoint | `http://localhost:18080/realms/camunda-platform/protocol/openid-connect/token` |
+| Audience | `zeebe-api` |

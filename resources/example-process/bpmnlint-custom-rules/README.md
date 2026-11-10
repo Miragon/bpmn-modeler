@@ -1,64 +1,53 @@
-# bpmnlint-plugin-custom-rules (example)
+# `bpmnlint-plugin-custom-rules` (example)
 
-A minimal [bpmnlint](https://github.com/bpmn-io/bpmnlint) plugin showing how a
-team can enforce its own BPMN conventions in the **BPMN Modeler** — the modeler
-runs bpmnlint in the extension host, so custom `bpmnlint-plugin-*` rules resolve
-from your workspace `node_modules` exactly like the `bpmnlint` CLI.
+A minimal [bpmnlint](https://github.com/bpmn-io/bpmnlint) plugin that shows how a team enforces its
+own BPMN conventions in the modeler. The modeler resolves `bpmnlint-plugin-*` packages from the
+workspace's `node_modules`, as the `bpmnlint` CLI does.
 
 ## What it contains
 
-- **`rules/no-todo-in-name.js`** — flags any element whose name still contains
-  `TODO`. A stand-in for a real convention (naming schemes, required extension
-  properties, deployment constraints) that the built-in rules can't express.
-- **`index.js`** — the plugin entry point: exposes the rule (as a path reference,
-  per the bpmnlint plugin contract) and a `recommended` shareable config.
+- `rules/no-todo-in-name.js` flags every element whose name still contains `TODO`, a stand-in for a
+  convention the built-in rules cannot express.
+- `index.js` is the plugin entry: it exposes the rule as a path reference, as the bpmnlint plugin
+  contract asks, and a `recommended` config.
 
-## How it's wired
+## How it is wired
 
-This plugin lives at the workspace root; the workspace
-[`.bpmnlintrc`](../.bpmnlintrc) (also at the project root) references it by its short
-name `custom-rules` (bpmnlint expands it to the `bpmnlint-plugin-custom-rules`
-package):
+[`../.bpmnlintrc`](../.bpmnlintrc) refers to the plugin by its short name `custom-rules`, which
+bpmnlint expands to `bpmnlint-plugin-custom-rules`:
 
-```jsonc
+```json
 {
-  "extends": ["bpmnlint:recommended", "plugin:custom-rules/recommended"],
-  "rules": { "custom-rules/no-todo-in-name": "error" }
+    "extends": ["bpmnlint:recommended", "plugin:custom-rules/recommended"],
+    "rules": { "custom-rules/no-todo-in-name": "error" }
 }
 ```
 
-The example [`package.json`](../package.json) installs this folder as the
-`bpmnlint-plugin-custom-rules` package via a `file:./bpmnlint-custom-rules`
-dependency, so it lands in `node_modules/` where both the modeler and the CLI can
-resolve it. The physical folder location is irrelevant to resolution — only the
-installed package name matters.
+[`../package.json`](../package.json) installs this folder under that package name through a
+`file:./bpmnlint-custom-rules` dependency. Only the installed package name matters for resolution,
+not where the folder lies. `example-process/` is its own Yarn project with the `node-modules` linker,
+outside the repository's workspaces.
 
 ## Try it
 
-This folder is a self-contained project (its own `yarn.lock` + `.yarnrc.yml`
-mark it separate from the repo's Yarn workspaces, and pin the `node-modules`
-linker so plugin resolution works).
+1. In `resources/example-process/`, install the plugin (`npm install` works too):
 
-1. From `resources/example-process/`, install the plugin into `node_modules`
-   (`npm install` works too):
+    ```bash
+    corepack yarn install
+    ```
 
-   ```bash
-   corepack yarn install
-   ```
+2. Check that the CLI reports the rule:
 
-2. Confirm the CLI reports the custom rule:
+    ```bash
+    corepack yarn bpmnlint c7/lint-demo.bpmn
+    #   Task_1  error  Element name must not contain "TODO" …  custom-rules/no-todo-in-name
+    ```
 
-   ```bash
-   corepack yarn bpmnlint c7/lint-demo.bpmn
-   #   Task_1  error  Element name must not contain "TODO" …  custom-rules/no-todo-in-name
-   ```
+3. Open `resources/example-process/` as a workspace in VS Code and open `c7/lint-demo.bpmn`. The
+   modeler skips the package until you allow it: click **Review…** in the notification and allow it
+   in the Add-ons view ([Allow a rule package](https://miragon.github.io/bpmn-modeler/vscode/features/linting#allow-a-rule-package)).
+4. The task `TODO implement me` now shows an error marker, the finding is in the **Problems** view
+   and the status bar shows **BPMNlint**. Rename the task and the marker clears.
 
-3. Open `resources/example-process/` as a workspace in VS Code and open
-   `c7/lint-demo.bpmn`. The task named `TODO implement me` shows an ❌ overlay, the
-   finding appears in the **Problems** panel, and the status bar shows
-   `✓ BPMNlint`. Rename the task so it no longer contains `TODO` and the marker
-   clears live.
-
-> If a plugin can't be resolved (not installed), the modeler skips only that rule
-> and the status bar shows `BPMNlint: N rules skipped` (details in the tooltip) —
-> the rest of the config keeps linting.
+A package that is not installed is skipped and the status bar shows `BPMNlint: N rules skipped`;
+the rest of the config keeps linting.

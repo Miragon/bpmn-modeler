@@ -1,21 +1,24 @@
-# @miragon/bpmn-modeler-properties-panel
+# `@miragon/bpmn-modeler-properties-panel`
 
-An engine-neutral properties panel for [bpmn-js](https://github.com/bpmn-io/bpmn-js),
-built for the "one document, three modes" epic (#1438): one panel that serves a
-readonly **View**, an engine-neutral **Design** surface, and Camunda 7/8
-**Implement** editing.
+One properties panel for the three modes: read-only **View**, engine-neutral **Design** and Camunda 7 or 8
+**Implement**. It is a fork of
+[bpmn-js-properties-panel](https://github.com/bpmn-io/bpmn-js-properties-panel) 5.65.0 (MIT, see
+[`LICENSE-upstream`](LICENSE-upstream)), inlined into `@miragon/bpmn-modeler`, whose
+`THIRD_PARTY_NOTICES` lists the modifications.
 
-It is a fork of [bpmn-js-properties-panel](https://github.com/bpmn-io/bpmn-js-properties-panel)
-v5.65.0 (MIT — see [`LICENSE-upstream`](./LICENSE-upstream) and the modifications
-listed in the consuming package's `THIRD_PARTY_NOTICES`), split into four
-composable bpmn-js DI modules:
+Internal workspace, not published on its own.
+
+## Modules
 
 | Module | Purpose |
 | --- | --- |
-| `PropertiesPanelModule` | The panel renderer. Optionalises the command stack so it mounts on a readonly `NavigatedViewer`, and derives a `readonly` flag from the absence of the `modeling` service — disabling every entry and stripping ListGroup add/remove affordances. |
-| `NeutralPropertiesProviderModule` | The standard-BPMN provider. Group ids and entry ids match upstream, so the Camunda providers still splice in (#1442) and existing i18n keys resolve. |
-| `ModeFilterModule` | A priority-10 groups→groups filter: the identity in `implement` mode, and in `design` mode reduces the panel to the neutral surface (allowlist neutral + host custom groups, strip engine-appended entries, drop engine-replaced `timer`/`multiInstance`). |
-| `CustomGroupsModule` | The host slot (`customPropertiesGroups`) marking which extra group ids survive design mode. |
+| `PropertiesPanelModule` | The renderer. Mounts on a read-only viewer and turns read-only when there is no `modeling` service: every entry disabled, no list add or remove. |
+| `NeutralPropertiesProviderModule` | The standard-BPMN provider. Group and entry ids match upstream, so the Camunda providers still splice in and the i18n keys resolve. |
+| `ModeFilterModule` | A priority-10 filter: unchanged in `implement`, reduced to the neutral and host custom groups in `design`. |
+| `CustomGroupsModule` | The `customPropertiesGroups` slot for host group ids that survive Design mode. |
+
+Why it is a fork and how the filter treats engine groups is in the
+[Properties panel ADR](../../docs/adr/bpmn-modeler.md#properties-panel).
 
 ## Usage
 
@@ -41,31 +44,20 @@ new Modeler({
 });
 ```
 
-The mode defaults to `design`; set `propertiesPanelMode: "implement"` in the
-modeler config, or flip it at runtime via the `propertiesPanelModeFilter`
-service's `setMode(mode)`.
+The mode defaults to `design`. Set `propertiesPanelMode: "implement"` in the modeler config, or call
+`setMode(mode)` on the `propertiesPanelModeFilter` service.
 
-## Notes
+## Before you change it
 
-- **Flushable input debounce.** `PropertiesPanelModule` depends on
-  `FlushableDebounceInputModule` instead of the library's `DebounceInputModule`.
-  It registers the same `debounceInput` service with the same 600 ms delay,
-  built by `createFlushableDebounceInput` from `@miragon/bpmn-modeler-types`,
-  and the service also reports (`hasPending()`) and runs (`flush()`) the input
-  still waiting, so a host can persist a value the user just typed. A modeler
-  built on the upstream panel registers the module after it to replace the
-  library's.
-- **Preact runtime.** Forked `.tsx` files carry a per-file
-  `/** @jsxImportSource @bpmn-io/properties-panel/preact */` pragma so they draw
-  with the panel's vendored preact.
-- **Pinned to upstream 5.65.0.** Bumping `bpmn-js-properties-panel` /
-  `@bpmn-io/properties-panel` means re-diffing the renderer and neutral entries
-  and re-verifying the hard-coded Camunda ids in `modeFilter/engineGroupData.ts`.
-- **Vendored header icons.** `src/render/icons/index.tsx` is generated — the
-  upstream per-type icons ship only in the dist this lib must not import, so
-  `scripts/generate-icons.mjs` reconstructs them as preact components from the
-  pinned dist sourcemap (offline). After an upstream bump, re-run
-  `node scripts/generate-icons.mjs` and diff. Do not hand-edit the generated file.
-
-Private workspace lib — inlined into `@miragon/bpmn-modeler`, not published on its
-own. See [BPMN modeler: properties panel](../../docs/adr/bpmn-modeler.md#properties-panel).
+- **Upstream bump.** Bumping `bpmn-js-properties-panel` or `@bpmn-io/properties-panel` means re-diffing
+  the renderer and neutral entries and rechecking the Camunda group ids in
+  `src/modeFilter/engineGroupData.ts`.
+- **Header icons.** `src/render/icons/index.tsx` is generated from the pinned upstream sourcemap. After a
+  bump, run `node libs/properties-panel/scripts/generate-icons.mjs` and review the diff; never edit the
+  file by hand.
+- **Preact.** Forked `.tsx` files carry the pragma `/** @jsxImportSource @bpmn-io/properties-panel/preact */`
+  to draw with the panel's own Preact.
+- **Flushable debounce.** `PropertiesPanelModule` uses `FlushableDebounceInputModule`: the same
+  `debounceInput` service and 600 ms delay as upstream, plus `hasPending()` and `flush()`, so a host can
+  save a value the user just typed.
+- Keep the fork headers, `LICENSE-upstream` and the package's `THIRD_PARTY_NOTICES` intact.
