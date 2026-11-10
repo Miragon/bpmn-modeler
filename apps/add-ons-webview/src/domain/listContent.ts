@@ -7,7 +7,6 @@ import type {
 
 import { CatalogFilter, filteredGroups } from "./catalogFilter";
 import { CatalogScope, scopedCatalog } from "./catalogScope";
-import { CHROME_TEXT } from "./chromeTexts";
 
 /** `ready`: the tabs, the list and the detail show; otherwise only what the catalog says. */
 export type CatalogPhase = "loading" | "ready" | "empty" | "failed";
@@ -18,7 +17,7 @@ type CatalogButtons = readonly ActionViewPayload<CatalogActionKindPayload>[];
 export type ListContent =
     | { readonly kind: "catalogEmpty"; readonly text?: string; readonly buttons: CatalogButtons }
     | { readonly kind: "noMarketplace"; readonly buttons: CatalogButtons }
-    | { readonly kind: "workspaceEmpty"; readonly text: string }
+    | { readonly kind: "workspaceEmpty"; readonly text?: string }
     | { readonly kind: "noMatch"; readonly buttons: CatalogButtons }
     | {
           readonly kind: "groups";
@@ -50,7 +49,7 @@ export function listContentOf(
     const scoped = scopedCatalog(model, scope);
     if (scope === "workspace" && scoped.groups.length === 0) {
         // The core's text says why: no folder is open, or none holds an add-on.
-        return { kind: "workspaceEmpty", text: model.emptyText ?? CHROME_TEXT.noWorkspaceAddOn };
+        return { kind: "workspaceEmpty", text: model.emptyText };
     }
     const holdsMarketplace = scoped.groups.some(
         ({ sources, problem }) => sources.length > 0 || problem !== undefined,

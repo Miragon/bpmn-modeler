@@ -69,13 +69,10 @@ describe("listContentOf", () => {
             content: { kind: "workspaceEmpty", text: onlyMarketplaces.emptyText },
         },
         {
-            case: "a workspace without folders says the view's text without one from the core",
+            case: "a workspace without folders adds no word of its own to the core's",
             model: { ...onlyMarketplaces, emptyText: undefined },
             scope: "workspace",
-            content: {
-                kind: "workspaceEmpty",
-                text: "No plugins, rule packages or templates in this workspace.",
-            },
+            content: { kind: "workspaceEmpty", text: undefined },
         },
         {
             case: "no marketplace offers only Add marketplace…",

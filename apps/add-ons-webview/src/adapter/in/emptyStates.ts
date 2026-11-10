@@ -51,7 +51,7 @@ export function noMarketplaceOf(buttons: CatalogButtons, busy: boolean): HTMLEle
     return emptyBox(Store, CHROME_TEXT.noMarketplace, buttons, busy);
 }
 
-export function workspaceEmptyOf(text: string): HTMLElement {
+export function workspaceEmptyOf(text: string | undefined): HTMLElement {
     return emptyBox(Package, text, [], false);
 }
 
