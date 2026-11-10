@@ -56,7 +56,7 @@ Templates with an `engines` field (for example `"engines": { "camunda": "^8.7" }
 
 ## Turn templates off
 
-To keep a template out of the chooser and the append menu without deleting its file, click **Disable** on its row in the [Artifacts view](/vscode/features/artifacts). **Disable templates** on a config folder or marketplace does the same for all of its templates. Elements that already use a disabled template keep it. VS Code keeps the switches for you, outside the repository, so they do not change what your teammates see.
+To keep a template out of the chooser and the append menu without deleting its file, click **Disable** on its row in the [Add-ons view](/vscode/features/add-ons). **Disable templates** on a config folder or marketplace does the same for all of its templates. Elements that already use a disabled template keep it. VS Code keeps the switches for you, outside the repository, so they do not change what your teammates see.
 
 ## Write good templates
 
@@ -109,7 +109,7 @@ For properties:
 
 A `.json` file in an `element-templates` folder opens in the [element template editor](/vscode/features/element-template-editor): a form for every part of the template, the JSON one click away, and a live preview of the properties panel. **New Element Template** creates a new one in the right folder.
 
-In [IntelliJ](/intellij/getting-started#element-templates), a template opens split with a preview of the properties panel beside its JSON. The [Artifacts tab](/intellij/getting-started#artifacts) turns templates off and on.
+In [IntelliJ](/intellij/getting-started#element-templates), a template opens split with a preview of the properties panel beside its JSON. The [Add-ons tab](/intellij/getting-started#add-ons) turns templates off and on.
 
 ## Next steps
 

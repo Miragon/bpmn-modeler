@@ -85,7 +85,7 @@ function createVsCodeBpmnEditor(context = createExtensionContext()) {
     const reviews = addOnsFeature.createViewReviews(deps);
     reviews.reveal.connect(
         { reveal: (addOnIds) => revealedRows.push(addOnIds) },
-        { focus: async () => void focusedViews.push("artifacts") },
+        { focus: async () => void focusedViews.push("add-ons") },
     );
     const scriptFiles = new ScriptFileStore(
         deps.editorStore,
@@ -160,14 +160,14 @@ describe("VS Code's BPMN editor", () => {
             artifactId: "/work/node_modules/bpmnlint-plugin-acme",
         },
     ])(
-        "leaves Review… of a $kind inside an open folder to the Artifacts view, without a list",
+        "leaves Review… of a $kind inside an open folder to the Add-ons view, without a list",
         async ({ review, artifactId }) => {
             createVsCodeBpmnEditor();
 
             const answer = await review()?.review(reviewRequest(artifactId, ["/work"]));
 
             expect(answer).toEqual({ kind: "leftForView" });
-            expect(focusedViews).toEqual(["artifacts"]);
+            expect(focusedViews).toEqual(["add-ons"]);
             expect(revealedRows).toHaveLength(1);
             expect(revealedRows[0]).toEqual([expect.stringContaining(artifactId)]);
             expect(vscodeWindow.quickPicks).toHaveLength(0);

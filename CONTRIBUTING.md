@@ -90,7 +90,7 @@ a `README.md` for its users and a `CONTRIBUTING.md` for its developers.
 | [`apps/modeler-bridge`](apps/modeler-bridge/README.md) | The binary that runs the modeler core for the IntelliJ plugin over stdio JSON-RPC | [README.md](apps/modeler-bridge/README.md) |
 | [`apps/standalone`](apps/standalone/README.md) | The Theia/Electron desktop app for macOS, Windows and Linux | [CONTRIBUTING.md](apps/standalone/CONTRIBUTING.md) |
 | [`apps/orca-plugin`](apps/orca-plugin/README.md) | The Orca plugin for `.bpmn` and `.dmn` files, experimental, published to [Miragon/orca-modelers](https://github.com/Miragon/orca-modelers) | [CONTRIBUTING.md](apps/orca-plugin/CONTRIBUTING.md) |
-| [`apps/bpmn-webview`](apps/bpmn-webview/README.md), [`dmn-webview`](apps/dmn-webview/README.md), [`form-webview`](apps/form-webview/README.md), [`deployment-webview`](apps/deployment-webview/README.md), [`add-ons-webview`](apps/add-ons-webview/README.md) | The webviews the hosts embed: the BPMN and DMN canvases, the Camunda Form editor, the deployment sidebar and the Artifacts view | Each README |
+| [`apps/bpmn-webview`](apps/bpmn-webview/README.md), [`dmn-webview`](apps/dmn-webview/README.md), [`form-webview`](apps/form-webview/README.md), [`deployment-webview`](apps/deployment-webview/README.md), [`add-ons-webview`](apps/add-ons-webview/README.md) | The webviews the hosts embed: the BPMN and DMN canvases, the Camunda Form editor, the deployment sidebar and the Add-ons view | Each README |
 | [`packages/bpmn-modeler`](packages/bpmn-modeler/README.md), [`packages/dmn-modeler`](packages/dmn-modeler/README.md) | The modelers as npm libraries | Each README |
 | [`libs/`](libs/README.md) | The building blocks the modelers and hosts share | Each README |
 

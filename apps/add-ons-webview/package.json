@@ -4,7 +4,7 @@
     "version": "0.0.1",
     "private": true,
     "license": "Apache-2.0",
-    "description": "Webview frontend for the Artifacts view: the add-ons of the open workspace.",
+    "description": "Webview frontend for the Add-ons view: the add-ons of the open workspace.",
     "scripts": {
         "build": "vite build",
         "dev": "portless",

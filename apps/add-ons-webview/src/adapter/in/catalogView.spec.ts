@@ -42,7 +42,7 @@ describe("CatalogView", () => {
                 outline.getAttribute("aria-label"),
                 describedBy(outline),
                 outline.getAttribute("aria-busy"),
-            ]).toEqual(["group", "Artifacts", "Press Tab for actions", "false"]);
+            ]).toEqual(["group", "Add-ons", "Press Tab for actions", "false"]);
         });
 
         it("heads groups and sources with disclosure buttons in headings", () => {
@@ -171,7 +171,7 @@ describe("CatalogView", () => {
             expect([
                 toolbar.getAttribute("aria-label"),
                 [...toolbar.querySelectorAll("button")].map((each) => each.textContent),
-            ]).toEqual(["Artifacts actions", ["Add marketplace…", "Remove unused plugin copies"]]);
+            ]).toEqual(["Add-ons actions", ["Add marketplace…", "Remove unused plugin copies"]]);
         });
 
         it("shows why the catalog could not be read", () => {

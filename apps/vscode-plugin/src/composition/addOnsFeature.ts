@@ -24,7 +24,7 @@ export interface AddOnsViewReviews {
 
 /**
  * Built before the BPMN editor, which takes the reviews, while the catalog
- * is built later from the editor's owners. Review… opens the Artifacts view
+ * is built later from the editor's owners. Review… opens the Add-ons view
  * when it lists every pending item, else the list to check.
  */
 export function createViewReviews(deps: SharedDeps): AddOnsViewReviews {
@@ -39,7 +39,7 @@ export function createViewReviews(deps: SharedDeps): AddOnsViewReviews {
 /**
  * The add-on catalog over the plugin, rule package and template owners the
  * BPMN editor built, the approval list they share, the template switches and
- * the marketplace commands, shown in the Artifacts view, where Review…
+ * the marketplace commands, shown in the Add-ons view, where Review…
  * opens it.
  */
 export function register(

@@ -86,7 +86,7 @@ class WebviewServer(private val pluginCacheRoot: Path = BpmnPluginCache.root()) 
         return "${origin}/deployment.html"
     }
 
-    /** The add-ons view of the BPMN Modeler tool window's Artifacts tab, from `/webview-add-ons/...`. */
+    /** The add-ons view of the BPMN Modeler tool window's Add-ons tab, from `/webview-add-ons/...`. */
     fun addOnsUrl(): String {
         ensureStarted()
         return "${origin}/addOns.html"
@@ -186,7 +186,7 @@ class WebviewServer(private val pluginCacheRoot: Path = BpmnPluginCache.root()) 
         sidePanelHtml("Deploy Diagram", "/deployment", service<IdeThemeSignal>().deploymentThemeVarsCss())
 
     /** The add-ons view, built from the core's model into `#app` by its bundle under `/add-ons/...`. */
-    private fun addOnsHtml(): String = sidePanelHtml("Artifacts", "/add-ons", service<IdeThemeSignal>().addOnsThemeVarsCss())
+    private fun addOnsHtml(): String = sidePanelHtml("Add-ons", "/add-ons", service<IdeThemeSignal>().addOnsThemeVarsCss())
 
     /** A tool window page: its bundle under [assetPrefix], its own theme vars and an empty `#app` it fills. */
     private fun sidePanelHtml(title: String, assetPrefix: String, themeVarsCss: String): String {

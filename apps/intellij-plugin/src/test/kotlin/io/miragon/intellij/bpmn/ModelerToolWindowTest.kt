@@ -12,10 +12,10 @@ class ModelerToolWindowTest {
     private val projectFixture = projectFixtureWithoutServicePreload()
 
     @Test
-    fun `reports the Artifacts tab as not shown where the IDE cannot show the tool window`() {
+    fun `reports the Add-ons tab as not shown where the IDE cannot show the tool window`() {
         val shown = CompletableFuture<Boolean>()
 
-        ApplicationManager.getApplication().invokeLater { revealArtifacts(projectFixture.get(), shown::complete) }
+        ApplicationManager.getApplication().invokeLater { revealAddOns(projectFixture.get(), shown::complete) }
 
         assertEquals(false, shown.get(5, TimeUnit.SECONDS))
     }

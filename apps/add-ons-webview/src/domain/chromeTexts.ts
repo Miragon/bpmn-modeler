@@ -2,7 +2,7 @@
 export const CHROME_TEXT = {
     loading: "Loading…",
     dismiss: "Dismiss",
-    outline: "Artifacts",
-    toolbar: "Artifacts actions",
+    outline: "Add-ons",
+    toolbar: "Add-ons actions",
     hint: "Press Tab for actions",
 } as const;

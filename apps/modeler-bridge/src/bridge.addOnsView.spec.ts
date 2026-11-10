@@ -1,6 +1,6 @@
 /**
  * End-to-end coverage for the add-ons view IntelliJ shows in the BPMN Modeler
- * tool window's Artifacts tab: the real bridge (`createBridge`) over a temp
+ * tool window's Add-ons tab: the real bridge (`createBridge`) over a temp
  * project, with the host's side played by the test through the recorded
  * frames. The host opens the view with the project root and its settings,
  * relays the page's commands in `addOns/webviewMessage`, and gets the core's
@@ -196,8 +196,8 @@ async function review(project: ProjectBridge, notice: Frame): Promise<Frame> {
     return waitForFrame(project.frames, isRequest(METHODS.addOnsReveal), { fromIndex });
 }
 
-/** What `revealArtifacts` does once it selected the tab: the tab reports itself open, then the reply. */
-async function showArtifactsTab(project: ProjectBridge, reveal: Frame): Promise<void> {
+/** What `revealAddOns` does once it selected the tab: the tab reports itself open, then the reply. */
+async function showAddOnsTab(project: ProjectBridge, reveal: Frame): Promise<void> {
     await openView(project);
     await project.rpc.handleLine(hostReply(reveal.id!, { shown: true }));
 }
@@ -350,7 +350,7 @@ describe("Review… on the bridge of the IntelliJ host", () => {
 
         const reveal = await review(project, notice);
         expect(reveal.params).toEqual({});
-        await showArtifactsTab(project, reveal);
+        await showAddOnsTab(project, reveal);
 
         const shown = await waitForFrame(project.frames, isPosted("RevealAddOnsQuery"));
         expect(shown.params.message?.reveal?.addOnIds).toEqual([
@@ -391,7 +391,7 @@ describe("Review… on the bridge of the IntelliJ host", () => {
         await lintOnHost(bridge);
         const notice = (await waitForNotice(bridge)) as Frame;
 
-        await showArtifactsTab(project, await review(project, notice));
+        await showAddOnsTab(project, await review(project, notice));
 
         const shown = await waitForFrame(project.frames, isPosted("RevealAddOnsQuery"));
         expect(shown.params.message?.reveal?.addOnIds).toEqual([`rulePackage:${bridge.acmeDir}`]);

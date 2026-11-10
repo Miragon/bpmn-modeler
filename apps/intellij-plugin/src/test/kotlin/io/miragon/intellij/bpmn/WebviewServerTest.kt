@@ -120,7 +120,7 @@ class WebviewServerTest {
         val response = get(server.addOnsUrl())
 
         assertEquals(200, response.status)
-        assertTrue(response.body.contains("<title>Artifacts</title>"))
+        assertTrue(response.body.contains("<title>Add-ons</title>"))
         assertTrue(response.body.contains("""<link href="/add-ons/index.css" rel="stylesheet"/>"""))
         assertTrue(response.body.contains("--vscode-list-warningForeground"))
         assertTrue(response.body.contains("""<body class="vscode-light">"""))

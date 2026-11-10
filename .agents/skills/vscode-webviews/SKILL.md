@@ -32,16 +32,16 @@ ships only an empty `<div id="app"></div>`; none carries a copy of the form.
 Edit form markup **only** in `formTemplate.ts` (see the Deployment Webview
 section in AGENTS.md).
 
-### Add-ons Webview (Artifacts view)
+### Add-ons Webview
 
 `apps/add-ons-webview` renders the core's add-on catalog. Its host shells ship
 only an empty `<div id="app"></div>` too; `src/adapter/in/catalogView.ts`
 builds the DOM from the model with the DOM API, never `innerHTML`, as the model
 holds workspace text. Its protocol is `libs/shared/src/lib/addOnsView.ts`, and
 the core's `AddOnsFeature.attachPanel` answers it, so a host only passes
-messages through. VS Code serves it as the Artifacts view
+messages through. VS Code serves it as the Add-ons view
 (`apps/vscode-plugin/src/addOns/`: `AddOnsViewHtml.ts`, `AddOnsViewProvider.ts`);
-IntelliJ bundles it as the Artifacts tab of its BPMN Modeler tool window.
+IntelliJ bundles it as the Add-ons tab of its BPMN Modeler tool window.
 
 ## Content Security Policy (CSP)
 
@@ -49,7 +49,7 @@ Every shell (BPMN, DMN, form, deployment, add-ons) defines a CSP in a `<meta>` t
 limits `localResourceRoots` to its bundle directory: `bootstrapWebview` does it
 for the editors (DMN also gets `assets/` for `reset.css`),
 `DeploymentController.resolveWebviewView` for the deployment sidebar and
-`AddOnsViewProvider.resolveWebviewView` for the Artifacts view.
+`AddOnsViewProvider.resolveWebviewView` for the Add-ons view.
 `webviewContentSecurityPolicy(shell, { cspSource, nonce })` in
 `apps/vscode-plugin/src/shared/domain/webviewContentSecurityPolicy.ts`
 builds all five policies: the directives every shell shares are written once,
@@ -339,7 +339,7 @@ See `apps/vscode-plugin/src/shared/adapter/out/WebviewHtml.ts`.
 - **Shell CSP builder**: `apps/vscode-plugin/src/shared/domain/webviewContentSecurityPolicy.ts`
 - **Deployment form markup (single source)**: `apps/deployment-webview/src/adapter/in/formTemplate.ts` (`FORM_TEMPLATE`)
 - **Add-ons view**: `apps/add-ons-webview/src/adapter/in/catalogView.ts` (DOM), `src/domain/viewState.ts` (reducer), `libs/shared/src/lib/addOnsView.ts` (protocol)
-- **Artifacts view shell and provider**: `apps/vscode-plugin/src/addOns/adapter/in/AddOnsViewHtml.ts`, `AddOnsViewProvider.ts`
+- **Add-ons view shell and provider**: `apps/vscode-plugin/src/addOns/adapter/in/AddOnsViewHtml.ts`, `AddOnsViewProvider.ts`
 - **Message router**: `libs/modeler-core/src/editorSession/service/WebviewMessageRouter.ts`
 - **Base message types**: `libs/shared/src/lib/messages.ts`
 - **Modeler message types**: `libs/shared/src/lib/modeler.ts`

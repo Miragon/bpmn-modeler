@@ -42,9 +42,9 @@ The editor loads [bpmn-js plugins](/vscode/features/bpmn-plugins) from `.camunda
 allow them in the notification it shows. The IDE keeps your approvals for all projects; see
 [IntelliJ](/vscode/features/bpmn-plugins#intellij) for what differs from VS Code.
 
-## Artifacts
+## Add-ons
 
-The **Artifacts** tab of the **BPMN Modeler** tool window lists what your project brings to the modeler: the BPMN
+The **Add-ons** tab of the **BPMN Modeler** tool window lists what your project brings to the modeler: the BPMN
 plugins under the config folder, the bpmnlint rule packages your `.bpmnlintrc` takes from `node_modules`, the element
 templates and the template marketplaces. It lists this project only.
 
@@ -80,7 +80,7 @@ Find every action with **Find Action** (`Ctrl+Shift+A` / `Cmd+Shift+A`) or under
 | Generate Script Files for Script Tasks | Write a file for every inline script task of the active diagram; edits sync back live |
 | Add / Update / Remove Template Marketplace… | Manage [template marketplaces](/vscode/features/template-marketplace) |
 | Reload Modeler | Re-read element templates and re-render open diagrams |
-| Refresh Artifacts | Read the plugins, rule packages and element templates of the **Artifacts** tab again |
+| Refresh Add-ons | Read the plugins, rule packages and element templates of the **Add-ons** tab again |
 
 ## Status bar
 

@@ -42,12 +42,12 @@ function createExtensionContext(): ExtensionContext {
     } as unknown as ExtensionContext;
 }
 
-/** Plays VS Code resolving the Artifacts view, visible, and records what it posts to the page. */
-function resolveArtifactsView(): Query[] {
+/** Plays VS Code resolving the Add-ons view, visible, and records what it posts to the page. */
+function resolveAddOnsView(): Query[] {
     const posted: Query[] = [];
     const inert = () => ({ dispose: () => undefined });
     const registration = registeredViewProviders.get(ADD_ONS_VIEW_ID);
-    if (registration === undefined) throw new Error("No provider serves the Artifacts view.");
+    if (registration === undefined) throw new Error("No provider serves the Add-ons view.");
     (registration.provider as WebviewViewProvider).resolveWebviewView(
         {
             visible: true,
@@ -188,10 +188,10 @@ describe("VS Code's add-on catalog", () => {
         ]);
     });
 
-    it("serves the Artifacts view the catalog it builds", async () => {
+    it("serves the Add-ons view the catalog it builds", async () => {
         const { addOns } = createVsCodeAddOns();
 
-        const posted = resolveArtifactsView();
+        const posted = resolveAddOnsView();
         await addOns.whenSettled();
 
         expect(posted).toHaveLength(1);
@@ -201,7 +201,7 @@ describe("VS Code's add-on catalog", () => {
         );
     });
 
-    it("has Review… show its rows in the Artifacts page the catalog serves", async () => {
+    it("has Review… show its rows in the Add-ons page the catalog serves", async () => {
         const { addOns, reviews } = createVsCodeAddOns();
         const posted: Query[] = [];
         addOns.attachPanel((message) => posted.push(message), true);

@@ -4,10 +4,10 @@ import com.google.gson.JsonParser
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.Project
 import io.miragon.intellij.bpmn.ModelerSettingsStore
-import io.miragon.intellij.bpmn.revealArtifacts
+import io.miragon.intellij.bpmn.revealAddOns
 
 /**
- * Routes the add-ons view of the BPMN Modeler tool window's Artifacts tab: one
+ * Routes the add-ons view of the BPMN Modeler tool window's Add-ons tab: one
  * page per project, whose messages it relays verbatim, and whose visibility it
  * reports with the project root and the settings. The core asks it to show
  * the tab, then delivers the rows to the page itself.
@@ -19,7 +19,7 @@ import io.miragon.intellij.bpmn.revealArtifacts
 internal class AddOnsRouter(
     private val deps: BridgeDeps,
     // A seam for tests: a headless test cannot show a tool window.
-    private val revealArtifacts: (Project, (Boolean) -> Unit) -> Unit = ::revealArtifacts,
+    private val revealAddOns: (Project, (Boolean) -> Unit) -> Unit = ::revealAddOns,
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
     private val log = Logger.getInstance(AddOnsRouter::class.java)
@@ -50,7 +50,7 @@ internal class AddOnsRouter(
                             if (clock() - askedAt >= REVEAL_REPLY_DEADLINE_MS) {
                                 reply.result(AddOnsRevealResult(false))
                             } else {
-                                revealArtifacts(deps.project) { shown -> reply.result(AddOnsRevealResult(shown)) }
+                                revealAddOns(deps.project) { shown -> reply.result(AddOnsRevealResult(shown)) }
                             }
                         }
                     }

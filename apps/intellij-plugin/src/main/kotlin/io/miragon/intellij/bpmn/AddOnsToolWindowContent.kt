@@ -11,19 +11,19 @@ import java.awt.BorderLayout
 import javax.swing.JPanel
 
 /**
- * The **Artifacts** tab: the add-ons view, whose page the core builds from its
+ * The **Add-ons** tab: the add-ons view, whose page the core builds from its
  * catalog and answers. Its browser is built the first time the tab is shown,
  * since many users only deploy and each browser costs a renderer.
  */
 internal object AddOnsToolWindowContent {
-    private val ARTIFACTS = Key.create<Boolean>("io.miragon.bpmn-modeler.artifactsContent")
+    private val ADD_ONS = Key.create<Boolean>("io.miragon.bpmn-modeler.addOnsContent")
 
-    fun isArtifacts(content: Content): Boolean = content.getUserData(ARTIFACTS) == true
+    fun isAddOns(content: Content): Boolean = content.getUserData(ADD_ONS) == true
 
     fun addTo(project: Project, toolWindow: ToolWindow) {
         val holder = JPanel(BorderLayout())
-        val content = ContentFactory.getInstance().createContent(holder, "Artifacts", false)
-        content.putUserData(ARTIFACTS, true)
+        val content = ContentFactory.getInstance().createContent(holder, "Add-ons", false)
+        content.putUserData(ADD_ONS, true)
         toolWindow.contentManager.addContent(content)
 
         val coreProcess = project.service<CoreProcess>()

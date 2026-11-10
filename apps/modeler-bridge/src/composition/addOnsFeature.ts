@@ -14,7 +14,7 @@ import { BridgeSharedDeps } from "./sharedDeps";
  * The add-on catalog over the plugin, rule package and template owners and
  * the marketplace commands, the one VS Code builds, with the template switches
  * IntelliJ keeps. It lists only the folders the host registered. The one
- * panel is the Artifacts tab of IntelliJ's BPMN Modeler tool window, attached
+ * panel is the Add-ons tab of IntelliJ's BPMN Modeler tool window, attached
  * hidden at start; `post` notifies the host, which pushes the Query into its
  * JCEF browser.
  */

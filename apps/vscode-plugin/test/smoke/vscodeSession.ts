@@ -190,7 +190,7 @@ export class VsCodeSession {
 
     /**
      * The extension's visible side bar view whose page holds `shows`. The
-     * frames carry no view id, and the Deploy view can show beside Artifacts.
+     * frames carry no view id, and the Deploy view can show beside Add-ons.
      */
     async viewWebview(shows: string): Promise<FrameLocator> {
         const frames = this.page
@@ -264,7 +264,7 @@ export class VsCodeSession {
     }
 
     /**
-     * The Explorer renders only the rows in sight, and after the Artifacts view
+     * The Explorer renders only the rows in sight, and after the Add-ons view
      * was shown in its place it shows the tree from the top, so a row further
      * down is scrolled to first.
      */

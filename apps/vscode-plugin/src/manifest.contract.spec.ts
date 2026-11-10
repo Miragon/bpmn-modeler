@@ -235,7 +235,7 @@ describe("package.json ↔ code contract", () => {
     });
 
     // The container keeps its id, so a user's layout survives, and shows whenever a folder is open.
-    it("shows Deploy and Artifacts in one BPMN Modeler container", () => {
+    it("shows Deploy and Add-ons in one BPMN Modeler container", () => {
         expect(manifest.contributes.viewsContainers.activitybar).toEqual([
             { id: "bpmn-modeler-deploy", title: "BPMN Modeler", icon: "./icons/komet.svg" },
         ]);
@@ -253,13 +253,16 @@ describe("package.json ↔ code contract", () => {
             {
                 type: "webview",
                 id: ADD_ONS_VIEW_ID,
-                name: "Artifacts",
+                name: "Add-ons",
                 when: "workspaceFolderCount > 0",
             },
         ]);
     });
 
-    it("offers the refresh in the Artifacts view's title bar and while a folder is open", () => {
+    it("offers the refresh in the Add-ons view's title bar and while a folder is open", () => {
+        expect(
+            manifest.contributes.commands.find(({ command }) => command === REFRESH_ADD_ONS_CMD),
+        ).toMatchObject({ title: "Refresh Add-ons", category: "Miragon BPMN Modeler" });
         expect(manifest.contributes.menus["view/title"]).toContainEqual({
             command: REFRESH_ADD_ONS_CMD,
             when: `view == ${ADD_ONS_VIEW_ID}`,

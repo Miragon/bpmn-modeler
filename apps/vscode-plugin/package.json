@@ -279,7 +279,7 @@
                 {
                     "type": "webview",
                     "id": "bpmn-modeler.artifactsView",
-                    "name": "Artifacts",
+                    "name": "Add-ons",
                     "when": "workspaceFolderCount > 0"
                 }
             ]
@@ -370,7 +370,7 @@
             },
             {
                 "command": "bpmn-modeler.refreshArtifacts",
-                "title": "Refresh Artifacts",
+                "title": "Refresh Add-ons",
                 "category": "Miragon BPMN Modeler",
                 "icon": "$(refresh)"
             },

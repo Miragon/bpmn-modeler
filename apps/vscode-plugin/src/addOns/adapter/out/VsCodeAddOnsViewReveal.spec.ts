@@ -24,7 +24,7 @@ describeAddOnViewRevealContract("VsCodeAddOnsViewReveal", async ({ showsView }) 
 });
 
 describe("VsCodeAddOnsViewReveal", () => {
-    it("focuses the Artifacts view, then has the catalog show the rows", async () => {
+    it("focuses the Add-ons view, then has the catalog show the rows", async () => {
         const order: string[] = [];
         const reveal = new VsCodeAddOnsViewReveal();
         reveal.connect(

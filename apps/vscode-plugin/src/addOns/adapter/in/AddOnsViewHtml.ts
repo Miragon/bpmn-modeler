@@ -5,7 +5,7 @@ import { webviewContentSecurityPolicy } from "../../../shared/domain/webviewCont
 const ADD_ONS_WEBVIEW_PATH = "add-ons-webview";
 
 /**
- * The HTML shell of the Artifacts view: its policy, its stylesheet and its
+ * The HTML shell of the Add-ons view: its policy, its stylesheet and its
  * nonced entry script around an empty `#app`, which the bundle fills from the
  * core's catalog.
  */
@@ -28,7 +28,7 @@ export function addOnsViewHtml(webview: Webview, extensionUri: Uri, nonce: strin
                 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
                 <meta http-equiv="Content-Security-Policy" content="${policy}"/>
                 <link href="${styleUri}" rel="stylesheet"/>
-                <title>Artifacts</title>
+                <title>Add-ons</title>
             </head>
             <body>
                 <div id="app"></div>
