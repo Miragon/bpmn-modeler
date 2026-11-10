@@ -35,6 +35,7 @@ import {
     pendingApprovalDescription,
     isApprovedState,
     pendingApprovals,
+    placesAllowing,
     presenceIdOf,
     PROCESS_RESTART_TEXT,
     PROCESS_RESTARTS,
@@ -42,6 +43,7 @@ import {
     type ReviewedAllow,
     reviewedAllowDecision,
     revoking,
+    revokingContent,
     SESSION_ANSWERS,
     type SessionAnswer,
 } from "./codeApproval";
@@ -219,6 +221,70 @@ describe("revoking", () => {
             allow: [],
             revoke: [resize.id, palette.id],
         });
+    });
+});
+
+describe("placesAllowing and revokingContent", () => {
+    const here = resize.id;
+    const elsewhere = "/elsewhere/.camunda/plugins/resize-tasks";
+    const third = "/third/.camunda/plugins/resize-tasks";
+
+    it.each<{
+        case: string;
+        approvals: CodeApproval[];
+        places: string[];
+        revoke: string[];
+    }>([
+        {
+            case: "only this place",
+            approvals: [{ pluginId: here, contentHash: "aaa" }, other],
+            places: [here],
+            revoke: [here],
+        },
+        {
+            case: "this place and every other holder, this place first",
+            approvals: [
+                { pluginId: elsewhere, contentHash: "aaa" },
+                other,
+                { pluginId: here, contentHash: "aaa" },
+                { pluginId: third, contentHash: "aaa" },
+            ],
+            places: [elsewhere, here, third],
+            revoke: [here, elsewhere, third],
+        },
+        {
+            case: "this place without a row, naming it",
+            approvals: [{ pluginId: elsewhere, contentHash: "aaa" }],
+            places: [elsewhere],
+            revoke: [here, elsewhere],
+        },
+        {
+            case: "this place's row of older content goes too",
+            approvals: [
+                { pluginId: here, contentHash: "old" },
+                { pluginId: elsewhere, contentHash: "aaa" },
+            ],
+            places: [elsewhere],
+            revoke: [here, elsewhere],
+        },
+        {
+            case: "rows of other content stay",
+            approvals: [other, { pluginId: third, contentHash: "aab" }],
+            places: [],
+            revoke: [here],
+        },
+        {
+            case: "a place stored twice, named once",
+            approvals: [
+                { pluginId: elsewhere, contentHash: "aaa" },
+                { pluginId: elsewhere, contentHash: "aaa" },
+            ],
+            places: [elsewhere],
+            revoke: [here, elsewhere],
+        },
+    ])("withdraws $case", ({ approvals, places, revoke }) => {
+        expect(placesAllowing("aaa", approvals)).toEqual(places);
+        expect(revokingContent(here, "aaa", approvals)).toEqual(revoking(revoke));
     });
 });
 

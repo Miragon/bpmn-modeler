@@ -122,6 +122,11 @@ export class RulePackageCatalog implements ApprovalCatalog<
         return this.revoked;
     }
 
+    /** Revoked from a view, also at places whose code ran on another place's row. */
+    noteRevoked(ids: readonly string[]): void {
+        ids.forEach((id) => this.revoked.add(id));
+    }
+
     onApprovalsChanged(listener: (followed: FollowedApprovalChange) => void): { dispose(): void } {
         this.changeListeners.add(listener);
         return { dispose: () => this.changeListeners.delete(listener) };

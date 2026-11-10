@@ -22,7 +22,9 @@ import {
     inspectResultOf,
     PRUNE_FAILED,
     pruneResultOf,
+    revokeChangeOf,
     revokeResultOf,
+    revokeSweepOf,
     shownTargetOf,
 } from "../domain/codeAddOnRequests";
 import { ShownCode } from "../domain/codeAddOnCatalog";
@@ -205,11 +207,17 @@ export class AddOnCatalogService {
         const target = shownTargetOf(this.revisions, addOnId, "revoke");
         if (target.kind === "refused") return target.result;
         const { code } = target;
+        const { approvals } = this.ports;
+        const source = this.sourceOf(code.kind);
         // Before the change, whose reload or relint could ask about it at once.
-        code.leftForViewByRevoke.forEach((each) => this.sourceOf(code.kind)?.leaveForView(each));
-        await this.ports.approvals.change(revoking([code.id]));
-        await this.sourceOf(code.kind)?.afterRevoke();
-        return revokeResultOf(code);
+        code.leftForViewByRevoke.forEach((each) => source?.leaveForView(each));
+        const change = revokeChangeOf(code, await approvals.readStored());
+        await approvals.change(change);
+        const swept = revokeSweepOf(code, await approvals.readStored());
+        if (swept.length > 0) await approvals.change(revoking(swept));
+        const revoked = [...new Set([...change.revoke, ...swept])];
+        await source?.afterRevoke(revoked);
+        return revokeResultOf(code, revoked.filter((id) => id !== code.id).length);
     }
 
     private async prune(): Promise<AddOnActionResult> {

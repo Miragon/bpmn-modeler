@@ -115,8 +115,12 @@ export class RulePackageInventory {
         return this.currentRulePackage(id, { hash: true });
     }
 
-    /** Code a revoked package already ran stays loaded; nothing else to undo. */
-    afterRevoke(): Promise<void> {
+    /**
+     * Code a revoked package already ran stays loaded; nothing else to undo.
+     * A place the revoke reached without a row of its own may have run too.
+     */
+    afterRevoke(revokedIds: readonly string[]): Promise<void> {
+        this.catalog.noteRevoked(revokedIds);
         return Promise.resolve();
     }
 

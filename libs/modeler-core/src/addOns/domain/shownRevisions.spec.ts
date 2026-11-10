@@ -15,6 +15,7 @@ const shownOf = (name: string): ReadonlyMap<string, ShownCode> =>
                 allowedFollowUp: "",
                 revokedFollowUp: "",
                 leftForViewByRevoke: [],
+                withdrawal: { kind: "row" },
             },
         ],
     ]);

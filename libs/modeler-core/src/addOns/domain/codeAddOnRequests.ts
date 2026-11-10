@@ -1,4 +1,12 @@
-import { ApprovableArtifact, ReviewedAllow } from "../../kernel/domain/codeApproval";
+import {
+    ApprovableArtifact,
+    CodeApproval,
+    CodeApprovalChange,
+    placesAllowing,
+    ReviewedAllow,
+    revoking,
+    revokingContent,
+} from "../../kernel/domain/codeApproval";
 import { ShownCode } from "./codeAddOnCatalog";
 import { AddOnActionKind } from "./addOnIds";
 import { AddOnActionResult, NOT_OFFERED, refused, UNKNOWN_ADD_ON } from "./addOnRequests";
@@ -77,8 +85,29 @@ export function allowResultOf(code: ShownCode, decision: ReviewedAllow): AddOnAc
     return { kind: "done", message: `Allowed ${code.name}. ${code.allowedFollowUp}` };
 }
 
-export function revokeResultOf(code: ShownCode): AddOnActionResult {
-    return { kind: "done", message: `Revoked ${code.name}. ${code.revokedFollowUp}` };
+export function revokeChangeOf(
+    code: ShownCode,
+    stored: readonly CodeApproval[],
+): CodeApprovalChange {
+    return code.withdrawal.kind === "content"
+        ? revokingContent(code.id, code.withdrawal.contentHash, stored)
+        : revoking([code.id]);
+}
+
+/** Rows of the revoked content that landed after the revoke read the list, such as another place's carry. */
+export function revokeSweepOf(code: ShownCode, storedAfter: readonly CodeApproval[]): string[] {
+    return code.withdrawal.kind === "content"
+        ? placesAllowing(code.withdrawal.contentHash, storedAfter)
+        : [];
+}
+
+/** @param otherFolders The places besides this one whose rows of its content the revoke took back. */
+export function revokeResultOf(code: ShownCode, otherFolders: number): AddOnActionResult {
+    const where =
+        otherFolders === 0
+            ? ""
+            : ` here and in ${otherFolders} other ${otherFolders === 1 ? "folder" : "folders"}`;
+    return { kind: "done", message: `Revoked ${code.name}${where}. ${code.revokedFollowUp}` };
 }
 
 export function inspectResultOf(code: ShownCode): AddOnActionResult {

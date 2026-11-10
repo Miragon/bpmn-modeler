@@ -93,6 +93,11 @@ function approvalRowOf(id: string, approvals: readonly CodeApproval[]): CodeAppr
     return approvals.find((approval) => approval.pluginId === id);
 }
 
+/** The content the row at `id` holds, which an unreadable folder's Revoke takes back. */
+export function rowContentOf(id: string, approvals: readonly CodeApproval[]): string | undefined {
+    return approvalRowOf(id, approvals)?.contentHash;
+}
+
 export function approvalStateOf(
     artifact: ApprovableArtifact,
     approvals: readonly CodeApproval[],
@@ -145,6 +150,26 @@ export function allowing(artifacts: readonly ApprovableArtifact[]): CodeApproval
 
 export function revoking(ids: readonly string[]): CodeApprovalChange {
     return codeApprovalChange([], ids);
+}
+
+/** Every place whose row holds this content, each once, in list order. */
+export function placesAllowing(contentHash: string, approvals: readonly CodeApproval[]): string[] {
+    return [
+        ...new Set(
+            approvals
+                .filter((row) => row.contentHash === contentHash)
+                .map(({ pluginId }) => pluginId),
+        ),
+    ];
+}
+
+/** Takes the content back everywhere, and the row at `id` whatever it holds, so no row carries it back. */
+export function revokingContent(
+    id: string,
+    contentHash: string,
+    approvals: readonly CodeApproval[],
+): CodeApprovalChange {
+    return revoking([...new Set([id, ...placesAllowing(contentHash, approvals)])]);
 }
 
 /**

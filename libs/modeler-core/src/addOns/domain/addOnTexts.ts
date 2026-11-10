@@ -76,6 +76,11 @@ export const CODE_STATE_LABEL: Record<CodeState, string> = {
     gone: "Folder gone",
 };
 
+/** On a row offering Revoke whose content other folders' rows hold too. */
+export function alsoAllowedText(otherFolders: number): string {
+    return `The same content is allowed in ${otherFolders} other ${otherFolders === 1 ? "folder" : "folders"}; Revoke takes it back there too.`;
+}
+
 export function reviewHeading(name: string): string {
     return `Review ${name} before you allow it`;
 }

@@ -28,8 +28,8 @@ export interface CodeAddOnSource {
     leaveForView(artifact: ApprovableArtifact): void;
     /** Read and hashed now, past any memo. */
     current(id: string): Promise<ListedPresence>;
-    /** After the catalog revoked one of its rows. */
-    afterRevoke(): Promise<void>;
+    /** After the catalog revoked these ids: one place, or every place of one content. */
+    afterRevoke(revokedIds: readonly string[]): Promise<void>;
     /** Revoked this session, with code that may still be loaded although no approval covers it. */
     stillLoadedAfterRevoke(): ReadonlySet<string>;
     /** After anything it lists or answered changed. */

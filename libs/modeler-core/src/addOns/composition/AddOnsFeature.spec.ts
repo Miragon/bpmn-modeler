@@ -685,6 +685,147 @@ describe("AddOnsFeature", () => {
             expect(host.pluginApprovals.approvals).toEqual([]);
         });
 
+        it("Revoke withdraws the content from every folder that holds it and says how many", async () => {
+            const { host, addOns, view } = setUp();
+            host.pluginApprovals.approvals = [
+                { pluginId: "/old-clone/.camunda/plugins/resize-tasks", contentHash: RESIZE_HASH },
+                { pluginId: RESIZE, contentHash: RESIZE_HASH },
+                { pluginId: "/worktree/.camunda/plugins/resize-tasks", contentHash: RESIZE_HASH },
+                { pluginId: "/other/.camunda/plugins/palette", contentHash: "c".repeat(64) },
+            ];
+            view.attachTo(addOns);
+            await shown(addOns);
+            const note = view.codeAddOnNamed("Resize Tasks").note;
+
+            const result = await view.connection?.handle({
+                kind: "revoke",
+                addOnId: `plugin:${RESIZE}`,
+            });
+            await shown(addOns);
+
+            expect(note).toBe(
+                "The same content is allowed in 2 other folders; Revoke takes it back there too.",
+            );
+            expect(result).toEqual({
+                kind: "done",
+                message:
+                    "Revoked Resize Tasks here and in 2 other folders. Open editors reload without it.",
+            });
+            expect(host.pluginApprovals.approvals).toEqual([
+                { pluginId: "/other/.camunda/plugins/palette", contentHash: "c".repeat(64) },
+            ]);
+        });
+
+        it("Forget of a gone folder keeps the other folders' rows of its content", async () => {
+            const { host, addOns, view } = setUp({ files: {} });
+            const elsewhere = {
+                pluginId: "/worktree/.camunda/plugins/removed",
+                contentHash: "a".repeat(64),
+            };
+            host.pluginApprovals.approvals = [
+                { pluginId: `${PLUGINS}/removed`, contentHash: "a".repeat(64) },
+                elsewhere,
+            ];
+            view.attachTo(addOns);
+            await shown(addOns);
+
+            const result = await view.connection?.handle({
+                kind: "revoke",
+                addOnId: `plugin:${PLUGINS}/removed`,
+            });
+
+            expect(result).toEqual({
+                kind: "done",
+                message: "Revoked removed. Open editors reload without it.",
+            });
+            expect(host.pluginApprovals.approvals).toEqual([elsewhere]);
+        });
+
+        it("Revoke of an unreadable row withdraws the content its row held", async () => {
+            const broken = `${PLUGINS}/broken`;
+            const { host, addOns, view } = setUp({
+                files: { [`${broken}/plugin.json`]: '{ "name": "Broken", "script": "client.js" }' },
+            });
+            host.pluginApprovals.approvals = [
+                { pluginId: broken, contentHash: "a".repeat(64) },
+                { pluginId: "/worktree/.camunda/plugins/broken", contentHash: "a".repeat(64) },
+                { pluginId: "/worktree/.camunda/plugins/other", contentHash: "b".repeat(64) },
+            ];
+            view.attachTo(addOns);
+            await shown(addOns);
+
+            const result = await view.connection?.handle({
+                kind: "revoke",
+                addOnId: `plugin:${broken}`,
+            });
+
+            expect(result).toMatchObject({ kind: "done" });
+            expect(host.pluginApprovals.approvals).toEqual([
+                { pluginId: "/worktree/.camunda/plugins/other", contentHash: "b".repeat(64) },
+            ]);
+        });
+
+        it("a revoke sweeps a row of the content stored while it ran", async () => {
+            const { host, addOns, view } = setUp();
+            const store = host.pluginApprovals;
+            store.approvals = [{ pluginId: RESIZE, contentHash: RESIZE_HASH }];
+            view.attachTo(addOns);
+            await shown(addOns);
+            const change = store.change.bind(store);
+            vi.spyOn(store, "change").mockImplementationOnce(async (revoke) => {
+                await change(revoke);
+                store.storeElsewhere([
+                    ...store.approvals,
+                    {
+                        pluginId: "/worktree/.camunda/plugins/resize-tasks",
+                        contentHash: RESIZE_HASH,
+                    },
+                ]);
+            });
+
+            const result = await view.connection?.handle({
+                kind: "revoke",
+                addOnId: `plugin:${RESIZE}`,
+            });
+
+            expect(store.approvals).toEqual([]);
+            expect(result).toMatchObject({
+                message:
+                    "Revoked Resize Tasks here and in 1 other folder. Open editors reload without it.",
+            });
+        });
+
+        it("after Revoke no notice here asks about another listed folder of that content", async () => {
+            const second = "/second";
+            const { host, plugins, addOns, view } = setUp({
+                folders: [WORK, second],
+                files: {
+                    ...RESIZE_FILES,
+                    [`${second}/.camunda/plugins/resize-tasks/plugin.json`]:
+                        RESIZE_FILES[`${RESIZE}/plugin.json`],
+                    [`${second}/.camunda/plugins/resize-tasks/client.js`]:
+                        RESIZE_FILES[`${RESIZE}/client.js`],
+                },
+            });
+            host.pluginApprovals.approvals = [{ pluginId: RESIZE, contentHash: RESIZE_HASH }];
+            view.attachTo(addOns);
+            await shown(addOns);
+            await view.connection?.handle({ kind: "revoke", addOnId: `plugin:${RESIZE}` });
+
+            const editor = await host.openSession(`${second}/order.bpmn`, [
+                plugins.editorContribution.participant,
+            ]);
+            await plugins.editorContribution.commandHandlers.GetBpmnPluginsCommand(
+                new GetBpmnPluginsCommand(),
+                editor.id,
+            );
+            await plugins.service.whenApprovalSettled();
+
+            expect(host.actionNotifier.notices.map(({ id }) => id)).not.toContain(
+                PLUGIN_APPROVAL_NOTICE_ID,
+            );
+        });
+
         it("removes the plugin copies no stored approval names", async () => {
             const { host, addOns, view } = setUp({ files: {} });
             host.workspace.createDirectory(`${CACHE}/${"a".repeat(64)}`);
