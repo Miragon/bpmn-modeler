@@ -30,6 +30,7 @@ const PENDING: ChoicePrompt<string> = {
 const request = {
     prompt: PENDING,
     artifactIds: PENDING.items.map(({ value }) => value),
+    workspaceFolders: ["/work"],
 };
 
 /** What the core relies on of a review that shows the pending code as a list. */

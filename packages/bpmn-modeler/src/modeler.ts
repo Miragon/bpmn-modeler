@@ -20,6 +20,7 @@ import {
     BpmnModelerSetting,
     describeScriptSurface,
     DisposableStore,
+    type ElementTemplateRef,
     Engine,
     engineSupports,
     getLatestVersion,
@@ -74,6 +75,7 @@ import {
     type ModelerMode,
 } from "./mode/mode";
 import { ModeUiModule } from "./mode/modeModules";
+import { ElementTemplateOfferModule, type ElementTemplateOffer } from "./elementTemplateOffer";
 import { DrilldownFitModule } from "./viewState";
 import type { CoreModelerServices, CreateModelerOptions, ThemeMode } from "./publicApi";
 import type { LintConfigService } from "./bpmnlint/LintConfigService";
@@ -140,6 +142,9 @@ export class BpmnModeler {
     private store = new DisposableStore();
 
     private deliverPendingContentSave: () => Promise<void> = () => Promise.resolve();
+
+    // Kept on the facade so every bpmn-js instance init() builds starts with them.
+    private hiddenElementTemplates: readonly ElementTemplateRef[] = [];
 
     /**
      * @param container The canvas host element (bpmn-js `container`).
@@ -234,6 +239,7 @@ export class BpmnModeler {
             // After the upstream panel, so its `debounceInput` is the flushable one.
             FlushableDebounceInputModule,
             ModeUiModule,
+            ElementTemplateOfferModule,
             DrilldownFitModule,
         ];
         const capModules = capabilityModules(engine, this.options.capabilities);
@@ -277,6 +283,8 @@ export class BpmnModeler {
                 hasSearchPad: true,
             },
         );
+
+        this.applyHiddenElementTemplates();
 
         // Subscribe before initial templates are supplied so their validation errors are observed.
         const onElementTemplatesErrors = this.options.onElementTemplatesErrors;
@@ -460,6 +468,18 @@ export class BpmnModeler {
         this.getModeler()
             .get<ElementTemplatesLoaderService>("elementTemplatesLoader")
             .setTemplates(templates);
+    }
+
+    /** @see BpmnModelerHandle.setHiddenElementTemplates */
+    setHiddenElementTemplates(refs: readonly ElementTemplateRef[]): void {
+        this.hiddenElementTemplates = [...refs];
+        this.applyHiddenElementTemplates();
+    }
+
+    private applyHiddenElementTemplates(): void {
+        this.getModeler()
+            .get<ElementTemplateOffer>("elementTemplateOffer")
+            .setHidden(this.hiddenElementTemplates);
     }
 
     setSettings(settings: Partial<BpmnModelerSetting> | undefined): void {

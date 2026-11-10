@@ -1,21 +1,27 @@
-import { CodeApproval, needsContentHash } from "../../kernel/domain/codeApproval";
+import {
+    CodeApproval,
+    needsContentHash,
+    notAskedAgain,
+    SessionAnswer,
+} from "../../kernel/domain/codeApproval";
 import { isWithinRoot } from "../../kernel/domain/rootContainment";
 
-export interface PluginDirsScope {
+/** Where one kind of add-on sits in config folders: a plugins or a templates folder. */
+export interface ConfigAreaDirsScope {
     readonly folders: readonly string[];
-    /** Each folder's own plugins folder, as the owner places it. */
-    readonly rootPluginDirs: readonly string[];
-    /** The plugins folders an editor or a listing looked in, nested ones included. */
-    readonly knownPluginDirs: readonly string[];
+    /** Each folder's own area folder, as the owner places it. */
+    readonly rootDirs: readonly string[];
+    /** The area folders an editor or a listing looked in, nested ones included. */
+    readonly knownDirs: readonly string[];
 }
 
-/** Each folder's own plugins folder, and every known one inside a workspace folder. */
-export function pluginDirsToList({
+/** Each folder's own area folder, and every known one inside a workspace folder. */
+export function configAreaDirsToList({
     folders,
-    rootPluginDirs,
-    knownPluginDirs,
-}: PluginDirsScope): string[] {
-    return [...rootPluginDirs, ...knownPluginDirs.filter((dir) => isInWorkspace(dir, folders))];
+    rootDirs,
+    knownDirs,
+}: ConfigAreaDirsScope): string[] {
+    return [...rootDirs, ...knownDirs.filter((dir) => isInWorkspace(dir, folders))];
 }
 
 /** The stored rows inside a workspace folder that discovery missed, each once, read directly so a gone folder shows. */
@@ -58,12 +64,26 @@ export interface HashContext {
     /** The user asked to read these with "Review…". */
     readonly inspected: ReadonlySet<string>;
     readonly approvals: readonly CodeApproval[];
-    readonly declined: ReadonlySet<string>;
+    /** This session's answers, by `declineKeyOf`. */
+    readonly answers: ReadonlyMap<string, SessionAnswer>;
 }
 
-/** Hashing reads every byte, so only for a package the user asked to read or a row or decline can match. */
-export function isHashWanted(id: string, { inspected, approvals, declined }: HashContext): boolean {
-    return inspected.has(id) || needsContentHash(id, approvals, declined);
+/**
+ * Hashing reads every byte, so only for a package the user asked to read, a
+ * row or decline can match, or one a notice left to the view: the gate hashed
+ * it to ask, and the view then offers to allow it without a "Review…" first.
+ */
+export function isHashWanted(id: string, { inspected, approvals, answers }: HashContext): boolean {
+    return inspected.has(id) || needsContentHash(id, approvals, notAskedAgain(answers));
+}
+
+/**
+ * Whether "Review…" can leave pending code to a view: only when the view lists
+ * every item, which it does for code inside a workspace folder. All or
+ * nothing, as one item the view does not list could be allowed nowhere.
+ */
+export function leavesToView(artifactIds: readonly string[], folders: readonly string[]): boolean {
+    return folders.length > 0 && artifactIds.every((id) => isInWorkspace(id, folders));
 }
 
 function isInWorkspace(path: string, folders: readonly string[]): boolean {

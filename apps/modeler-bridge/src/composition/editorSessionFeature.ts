@@ -32,6 +32,7 @@ export function register(
             mirror: deps.mirror,
             settingsMirror: deps.settings,
             pluginApprovals: deps.pluginApprovals,
+            templatePreferences: deps.templatePreferences,
             workspaceRoots: deps.nodeWorkspace,
             createEditorHandle: (session) =>
                 new RpcEditorHandle(session, deps.mirror, deps.rpc, deps.settings, pluginCacheRoot),

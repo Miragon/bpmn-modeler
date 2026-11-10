@@ -1,7 +1,7 @@
 # Engineering practices
 
 - Status: accepted
-- Last reviewed: 2026-11-07
+- Last reviewed: 2026-11-10
 
 ## Context
 
@@ -74,9 +74,12 @@ IntelliJ runs over an RPC loopback that answers as the Kotlin side does. So a
 run pins each adapter's own mapping, not the host itself: where a fake and its
 host part, the suite cannot tell, and the Kotlin half is #2056.
 
-- `describeApprovalReviewContract`: `ListReview` over `ScriptedPicker` and
-  `ScriptedReview`. A view's review that leaves the code to the view comes
-  with [#2250](https://github.com/Miragon/bpmn-modeler/issues/2250).
+- `describeAddOnViewRevealContract`: `RecordingAddOnViewReveal` and
+  `VsCodeAddOnsViewReveal` over a view focus that rejects where the host
+  cannot show its view, as the provider's does when the focus command fails.
+- `describeApprovalReviewContract`: `ListReview` over `ScriptedPicker`,
+  `ScriptedReview`, and `ViewReview` when the view cannot open
+  (`RecordingAddOnViewReveal({ shows: false })` over a `ListReview`).
 - `describeClipboardContract`: `InMemoryClipboard`, `VsCodeClipboard` over a
   fake `env.clipboard` and the bridge's `RpcClipboard` over a loopback that
   answers as `HostUiRouter` does.
@@ -275,7 +278,12 @@ Kotlin host copies is pinned the same way, to the TypeScript source file itself:
 `ModelerSettingsStoreTest` the `SURFACE_MODES` array in `surfaceMode.ts` and
 the `COLOR_THEMES` array in `settings.ts` of `libs/modeler-types`,
 `ModelerSettingsConfigurableTest` the `MODE_LABEL` table in the modeler's
-`modeStrip.ts`; each fails when the Kotlin copy differs. A text the Kotlin
+`modeStrip.ts`; each fails when the Kotlin copy differs. The add-ons view's
+`hostThemeVariables.json` (`apps/add-ons-webview/src/adapter/in/styles/`)
+lists every `--vscode-*` variable its stylesheet reads, which its own spec
+checks; `IdeThemeSignal.addOnsThemeVarsCss` maps that set for IntelliJ, and
+`IdeThemeSignalTest` reads the file, a declared input of the Gradle test task
+listed in the `intellij-plugin` CI filter. A text the Kotlin
 host copies is pinned the same way: `EmptyDmnDiagramTest` compares the scaffold
 IntelliJ's New DMN Model writes with `EMPTY_DMN_DIAGRAM` in `emptyDmn.ts` byte
 for byte. No generated file sits in between that could go stale. One Kotlin

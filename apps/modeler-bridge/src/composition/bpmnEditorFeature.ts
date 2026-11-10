@@ -1,4 +1,5 @@
 import {
+    ApprovalReviewPort,
     BpmnEditorContributions,
     BpmnEditorFeature,
     CachedTemplateProvider,
@@ -8,6 +9,7 @@ import {
     NavigationFeature,
 } from "@miragon/bpmn-modeler-core";
 
+import { templatePreferenceHandlers } from "../kernel/adapter/in/templatePreferenceHandlers";
 import { RpcClipboard } from "../kernel/adapter/out/RpcClipboard";
 import { NodeInstalledPackages } from "../modeler/bpmn/adapter/out/NodeInstalledPackages";
 import { RpcLintingPreference } from "../modeler/bpmn/adapter/out/RpcLintingPreference";
@@ -34,6 +36,8 @@ export function register(
         scriptEditor: BpmnEditorContributions["scriptEditor"];
         deploymentStatus: EditorSessionParticipant;
         plugins: BpmnEditorContributions["plugins"];
+        /** Where "Review…" on a rule package takes the user. */
+        rulePackageReview: ApprovalReviewPort;
     },
 ): BpmnEditorFeature {
     const ports = {
@@ -54,11 +58,13 @@ export function register(
             // sandboxed webview.
             clipboard: new RpcClipboard(deps.rpc),
             templateProvider: handles.templateProvider,
+            templatePreferences: deps.templatePreferences,
             rulePackages: {
                 approvals: deps.pluginApprovals,
                 installedPackages: new NodeInstalledPackages(),
                 actionNotifier: deps.actionNotifier,
                 questions: deps.approvalQuestions,
+                review: handles.rulePackageReview,
             },
         },
         {
@@ -85,6 +91,7 @@ export function register(
             onSettingsApplied: handles.onSettingsApplied,
         }),
     );
+    bindHandlers(deps.rpc, templatePreferenceHandlers(deps.templatePreferences));
 
     return editor;
 }

@@ -22,9 +22,6 @@ import { enteredToken, tokenPromptFor } from "../domain/tokenPrompt";
  * decline) are logged by host name only. {@link hostForConfig} is the single
  * place a config maps to the host its token is keyed by, so github.com,
  * gitlab.com, and self-hosted `baseUrl` origins are handled the same way.
- *
- * A `silent` session, for a refresh nobody asked for, reads the store but never
- * prompts: a source that needs a token it has not stored fails and is logged.
  */
 export class HostTokenSession {
     private readonly promptedHosts = new Set<string>();
@@ -35,7 +32,6 @@ export class HostTokenSession {
         private readonly tokens: TokenStorePort,
         private readonly tokenPrompt: TokenPromptPort,
         private readonly notifier: NotifierPort,
-        private readonly interaction: "interactive" | "silent" = "interactive",
     ) {}
 
     /**
@@ -204,12 +200,6 @@ export class HostTokenSession {
      */
     private async promptAndStore(prompt: TokenPrompt): Promise<string | undefined> {
         const { host } = prompt;
-        if (this.interaction === "silent") {
-            this.notifier.logInfo(
-                `Not asking for a ${host} token while the host starts; update the marketplaces to enter one`,
-            );
-            return undefined;
-        }
         this.notifier.logDebug(`Prompting for a ${host} access token`);
         const token = enteredToken(await this.tokenPrompt.promptForToken(prompt));
         if (token !== undefined) {

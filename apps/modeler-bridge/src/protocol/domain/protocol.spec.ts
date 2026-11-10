@@ -16,6 +16,7 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
+    HOST_SHOW_REPLY_DEADLINE_MS,
     HOST_WORK_REPLY_DEADLINE_MS,
     METHODS,
     PROTOCOL,
@@ -86,6 +87,11 @@ describe("RPC protocol descriptor", () => {
             const committed = JSON.parse(readFileSync(resolve(__dirname, "protocol.json"), "utf8"));
             expect(protocolSnapshot()).toEqual(committed);
         });
+
+        it("carries how long the core waits for a reply, so a host stops showing what the core gave up on", () => {
+            const reveal = protocolSnapshot().find(({ method }) => method === METHODS.addOnsReveal);
+            expect(reveal?.replyDeadlineMs).toBe(HOST_SHOW_REPLY_DEADLINE_MS);
+        });
     });
 
     describe("doc table", () => {
@@ -131,6 +137,10 @@ describe("RPC protocol descriptor", () => {
                     "  deployment/verify",
                     "  deployment/statusBarMenu",
                     "  pluginApprovals/didChange",
+                    "  templatePreferences/didChange",
+                    "  addOns/webviewMessage",
+                    "  addOns/open",
+                    "  addOns/refresh",
                     "",
                     "Core → Host (requests):",
                     "  document/write",
@@ -157,6 +167,9 @@ describe("RPC protocol descriptor", () => {
                     "  actionNotice/show",
                     "  pluginApprovals/change",
                     "  pluginApprovals/read",
+                    "  templatePreferences/change",
+                    "  templatePreferences/read",
+                    "  addOns/reveal",
                     "",
                     "Core → Host (notifications):",
                     "  editor/postMessage",
@@ -177,6 +190,7 @@ describe("RPC protocol descriptor", () => {
                     "  script/updateVariables",
                     "  script/updateContent",
                     "  script/close",
+                    "  addOns/postMessage",
                 ].join("\n"),
             );
         });
@@ -199,6 +213,7 @@ describe("RPC protocol descriptor", () => {
             { method: METHODS.marketplaceStateSave, state: "the fetched marketplace cache" },
             { method: METHODS.marketplaceStateRemove, state: "the marketplace cache prune" },
             { method: METHODS.pluginApprovalsChange, state: "the plugin-approval mirror" },
+            { method: METHODS.templatePreferencesChange, state: "the template-switch mirror" },
         ])(
             "waits for the reply to $method, so $state stays in step with the host",
             ({ method }) => {
@@ -221,8 +236,17 @@ describe("RPC protocol descriptor", () => {
             METHODS.settingsSetLintingEnabled,
             METHODS.marketplaceStateRead,
             METHODS.pluginApprovalsRead,
+            METHODS.templatePreferencesRead,
         ])("gives up on %s after the host-work deadline", (method) => {
             expect(replyDeadlineMs(method)).toBe(HOST_WORK_REPLY_DEADLINE_MS);
         });
+
+        it.each([METHODS.addOnsReveal])(
+            "gives up on %s after the show deadline, so the caller falls back soon",
+            (method) => {
+                expect(replyDeadlineMs(method)).toBe(HOST_SHOW_REPLY_DEADLINE_MS);
+                expect(HOST_SHOW_REPLY_DEADLINE_MS).toBeLessThan(HOST_WORK_REPLY_DEADLINE_MS);
+            },
+        );
     });
 });

@@ -5,9 +5,14 @@ import {
     detectTemplateEngine,
     ELEMENT_TEMPLATE_SCHEMA_URL,
     elementTemplateFolder,
+    elementTemplateRefKey,
+    elementTemplateRefOf,
+    elementTemplateVersionOf,
     isElementTemplateFile,
     isElementTemplateText,
     isPreviewableElementType,
+    isSameElementTemplateRef,
+    templateEngineOf,
     templatesOfFile,
 } from "./elementTemplates";
 
@@ -43,6 +48,21 @@ describe("templatesOfFile", () => {
 describe("ELEMENT_TEMPLATE_SCHEMA_URL", () => {
     it("names the published schema of each engine", () => {
         expect(ELEMENT_TEMPLATE_SCHEMA_URL).toEqual({ c7: C7_SCHEMA, c8: C8_SCHEMA });
+    });
+});
+
+describe("templateEngineOf", () => {
+    const file = [{ name: "plain" }, { $schema: C7_SCHEMA }, { $schema: C8_SCHEMA }];
+
+    it.each([
+        ["its own engine", file[2], "c8"],
+        ["its file's engine when it names none", file[0], "c7"],
+    ])("takes %s", (_, template, engine) => {
+        expect(templateEngineOf(template, file)).toBe(engine);
+    });
+
+    it("names none when neither the template nor its file does", () => {
+        expect(templateEngineOf({ name: "plain" }, [{ name: "plain" }])).toBeUndefined();
     });
 });
 
@@ -148,5 +168,72 @@ describe("elementTemplateFolder", () => {
 describe("isElementTemplateFile", () => {
     it.each(CASES.files)("$name", ({ path, configFolder, text, isTemplate }) => {
         expect(isElementTemplateFile(path, text, configFolder)).toBe(isTemplate);
+    });
+});
+
+describe("elementTemplateRefOf", () => {
+    it.each([
+        ["a versioned template", { id: "a", version: 2, name: "A" }, { id: "a", version: 2 }],
+        ["a template without a version", { id: "a", name: "A" }, { id: "a" }],
+        ["a version that is not a number", { id: "a", version: "2" }, { id: "a" }],
+        ["version 0", { id: "a", version: 0 }, { id: "a", version: 0 }],
+    ])("names %s by id and version", (_, template, ref) => {
+        expect(elementTemplateRefOf(template)).toStrictEqual(ref);
+    });
+
+    it.each([
+        ["a template without an id", { name: "A" }],
+        ["a numeric id", { id: 3 }],
+        ["null", null],
+        ["a string", "a"],
+        ["an array", [{ id: "a" }]],
+    ])("names no ref for %s", (_, template) => {
+        expect(elementTemplateRefOf(template)).toBeUndefined();
+    });
+});
+
+describe("elementTemplateVersionOf", () => {
+    it.each([
+        ["a versioned template", { id: "a", version: 2 }, 2],
+        ["version 0", { id: "a", version: 0 }, 0],
+        ["a version without an id", { name: "A", version: 3 }, 3],
+        ["a template without a version", { id: "a" }, undefined],
+        ["a version that is not a number", { id: "a", version: "2" }, undefined],
+        ["null", null, undefined],
+        ["an array", [{ version: 2 }], undefined],
+    ])("reads %s", (_, template, version) => {
+        expect(elementTemplateVersionOf(template)).toBe(version);
+    });
+});
+
+describe("elementTemplateRefKey", () => {
+    it("is the same for a ref with and without an undefined version", () => {
+        expect(elementTemplateRefKey({ id: "a", version: undefined })).toBe(
+            elementTemplateRefKey({ id: "a" }),
+        );
+    });
+
+    it.each([
+        ["versions", { id: "a", version: 1 }, { id: "a", version: 2 }],
+        ["a version and none", { id: "a", version: 1 }, { id: "a" }],
+        ["ids", { id: "a" }, { id: "b" }],
+        ["an id holding the version", { id: 'a",1' }, { id: "a", version: 1 }],
+        ["version 0 and none", { id: "a", version: 0 }, { id: "a" }],
+    ])("tells %s apart", (_, first, second) => {
+        expect(elementTemplateRefKey(first)).not.toBe(elementTemplateRefKey(second));
+    });
+});
+
+describe("isSameElementTemplateRef", () => {
+    it.each([
+        ["the same id and version", { id: "a", version: 2 }, { id: "a", version: 2 }, true],
+        ["the same id, both without a version", { id: "a" }, { id: "a" }, true],
+        ["an undefined version and none", { id: "a", version: undefined }, { id: "a" }, true],
+        ["other versions", { id: "a", version: 1 }, { id: "a", version: 2 }, false],
+        ["a version and none", { id: "a", version: 1 }, { id: "a" }, false],
+        ["version 0 and none", { id: "a", version: 0 }, { id: "a" }, false],
+        ["other ids", { id: "a", version: 1 }, { id: "b", version: 1 }, false],
+    ])("matches %s: %j and %j", (_, ref, other, same) => {
+        expect(isSameElementTemplateRef(ref, other)).toBe(same);
     });
 });

@@ -26,12 +26,20 @@ internal fun replyResultKeys(line: String): Set<String> =
 internal class ProtocolDescriptor private constructor(
     private val methods: Map<String, DescriptorMethod>,
 ) {
-    /** [resultKeys] is null for a method without a result. */
-    private class DescriptorMethod(val direction: String, val paramKeys: Set<String>, val resultKeys: Set<String>?)
+    /** [resultKeys] is null for a method without a result, [replyDeadlineMs] for one the core waits on until answered. */
+    private class DescriptorMethod(
+        val direction: String,
+        val paramKeys: Set<String>,
+        val resultKeys: Set<String>?,
+        val replyDeadlineMs: Long?,
+    )
 
     fun hostToCoreMethods(): Set<String> = methodsIn(HOST_TO_CORE)
 
     fun coreToHostMethods(): Set<String> = methodsIn(CORE_TO_HOST)
+
+    fun replyDeadlineMs(method: String): Long? =
+        requireNotNull(methods[method]) { "$method is not in the protocol descriptor" }.replyDeadlineMs
 
     fun paramKeys(method: String): Set<String> =
         requireNotNull(methods[method]) { "$method is not in the protocol descriptor" }.paramKeys
@@ -114,6 +122,7 @@ internal class ProtocolDescriptor private constructor(
                                 direction = entry.get("direction").asString,
                                 paramKeys = entry.getAsJsonArray("paramKeys").map { it.asString }.toSet(),
                                 resultKeys = entry.getAsJsonArray("resultKeys")?.map { it.asString }?.toSet(),
+                                replyDeadlineMs = entry.get("replyDeadlineMs")?.asLong,
                             )
                     },
             )

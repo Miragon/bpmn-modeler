@@ -1,13 +1,15 @@
 import { join } from "path";
 
 import { MarketplaceSettingsEntry } from "../../kernel/domain/modelerSettings";
-import { NotifierPort, PickerPort } from "../../kernel/port/hostPorts";
+import { ActionNotifierPort, NotifierPort, PickerPort } from "../../kernel/port/hostPorts";
+import { MarketplaceUpdateOutcome } from "../domain/marketplace";
 import {
     MarketplaceAddAnswer,
     MarketplaceAddNotice,
     marketplaceAddNotice,
     marketplaceAddPrompt,
     marketplaceRemoval,
+    marketplaceRemovalConfirm,
 } from "../domain/marketplacePrompts";
 import {
     marketplaceAddOutcome,
@@ -16,6 +18,7 @@ import {
     registeredMarketplaces,
     registrableLocation,
 } from "../domain/marketplaceRegistrations";
+import { marketplaceUpdateNotice } from "../domain/notFetchedMarketplaces";
 import { MarketplacePromptPort, MarketplaceRegistrationsPort } from "../port/marketplacePorts";
 import { TemplateMarketplaceService } from "./TemplateMarketplaceService";
 
@@ -30,6 +33,7 @@ export interface MarketplaceCommandPorts {
     readonly prompt: MarketplacePromptPort;
     readonly picker: PickerPort;
     readonly notifier: NotifierPort;
+    readonly actionNotifier: ActionNotifierPort;
     /** Expands `~` in an entered path; the core cannot read it. */
     readonly homeDir: string;
     /**
@@ -56,6 +60,7 @@ export interface MarketplaceCommandPorts {
 export class MarketplaceCommands {
     private runs: Promise<unknown> = Promise.resolve();
     private readonly asking = new Set<string>();
+    private readonly listeners = new Set<() => void>();
 
     constructor(private readonly ports: MarketplaceCommandPorts) {}
 
@@ -91,13 +96,19 @@ export class MarketplaceCommands {
      */
     async update(): Promise<void> {
         const { notifier, marketplaces, templates } = this.ports;
-        const outcome = await notifier.withProgress("Updating marketplaces…", () =>
-            this.oneAtATime(async () => {
-                const updated = await marketplaces.updateAll();
-                await templates.reloadMarketplaceTemplates();
-                return updated;
-            }),
-        );
+        let outcome: MarketplaceUpdateOutcome;
+        try {
+            outcome = await notifier.withProgress("Updating marketplaces…", () =>
+                this.oneAtATime(async () => {
+                    const updated = await marketplaces.updateAll();
+                    await templates.reloadMarketplaceTemplates();
+                    return updated;
+                }),
+            );
+        } catch (error) {
+            notifier.notifyError("Failed to update marketplaces.", error as Error);
+            return;
+        }
 
         const total = outcome.succeeded + outcome.failures.length;
         if (total === 0) {
@@ -115,33 +126,41 @@ export class MarketplaceCommands {
     }
 
     /**
-     * Fills a cold cache and renews an aged one when the host starts, in the
-     * queue of the other flows and without a question or a toast; what it
-     * skipped is in the log. Never throws: nobody waits on it.
+     * Offers the update when this workspace has fetched nothing for a
+     * registered marketplace, as a new workspace or git worktree starts with an
+     * empty cache. Fetches nothing itself and never throws: nobody waits on it.
+     * Not queued, so a notice left open holds back no flow.
      */
-    async refreshStale(): Promise<void> {
-        const { notifier, marketplaces, templates } = this.ports;
+    async offerUpdateIfNotFetched(): Promise<void> {
+        const { notifier, marketplaces, actionNotifier } = this.ports;
         try {
-            await this.oneAtATime(async () => {
-                const { succeeded } = await marketplaces.refreshStale();
-                if (succeeded > 0) await templates.reloadMarketplaceTemplates();
-            });
+            const notFetched = await marketplaces.marketplacesNotFetched();
+            if (notFetched.length === 0) return;
+            notifier.logInfo(
+                `Marketplaces not fetched in this workspace: ${notFetched.join(", ")}`,
+            );
+            if ((await actionNotifier.offer(marketplaceUpdateNotice(notFetched))) === "update") {
+                await this.update();
+            }
         } catch (error) {
             notifier.logError(error as Error);
         }
     }
 
     /**
-     * The choice's OK is the confirmation (adding again is cheap). Prunes only
-     * the cache slots the removal orphaned and never fetches the survivors
-     * again. The toast counts the chosen entries, not the pruned slots: a
-     * removed entry may have had none.
+     * Without a target the choice's OK is the confirmation (adding again is
+     * cheap); a target named elsewhere, as by the add-on catalog, is confirmed
+     * first. Prunes only the cache slots the removal orphaned and never fetches
+     * the survivors again. The toast counts the chosen entries, not the pruned
+     * slots: a removed entry may have had none.
      */
-    async remove(): Promise<void> {
+    async remove(target?: MarketplaceSettingsEntry): Promise<void> {
         const { notifier, registrations, marketplaces, templates } = this.ports;
         notifier.logInfo("Remove Marketplace command invoked");
         try {
-            const chosen = await this.askAlone("Remove Marketplace", () => this.askForRemoval());
+            const chosen = await this.askAlone("Remove Marketplace", () =>
+                target === undefined ? this.askForRemoval() : this.confirmRemoval(target),
+            );
             if (!chosen?.length) {
                 notifier.logDebug("Remove Marketplace cancelled");
                 return;
@@ -157,6 +176,12 @@ export class MarketplaceCommands {
         } catch (error) {
             notifier.notifyError("Failed to remove marketplace(s).", error as Error);
         }
+    }
+
+    /** After each flow that ran, whether it succeeded or not; a dismissed question runs none. */
+    onDidChange(listener: () => void): { dispose(): void } {
+        this.listeners.add(listener);
+        return { dispose: () => this.listeners.delete(listener) };
     }
 
     private async askAlone<T>(command: string, ask: () => Promise<T>): Promise<T | undefined> {
@@ -183,6 +208,18 @@ export class MarketplaceCommands {
             return [];
         }
         return picker.chooseMany(removal.prompt);
+    }
+
+    private async confirmRemoval(
+        target: MarketplaceSettingsEntry,
+    ): Promise<readonly MarketplaceSettingsEntry[]> {
+        const { registrations, picker, notifier } = this.ports;
+        const removal = marketplaceRemovalConfirm(target, (await registrations.read()).registered);
+        if (removal.kind === "notRegistered") {
+            notifier.showInfo(removal.message);
+            return [];
+        }
+        return (await picker.confirm(removal.request)) ? [target] : [];
     }
 
     /** Asks again, with the refused entry, until the location is one the core can register. */
@@ -253,7 +290,9 @@ export class MarketplaceCommands {
     }
 
     private oneAtATime<T>(run: () => Promise<T>): Promise<T> {
-        const done = this.runs.then(run);
+        const done = this.runs
+            .then(run)
+            .finally(() => this.listeners.forEach((listener) => listener()));
         this.runs = done.catch(() => undefined);
         return done;
     }

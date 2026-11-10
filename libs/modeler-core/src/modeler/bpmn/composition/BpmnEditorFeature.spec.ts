@@ -13,12 +13,14 @@ import {
     BpmnlintResultsQuery,
     BpmnPluginsQuery,
     Command,
+    HiddenElementTemplatesQuery,
     GetBpmnModelerSettingCommand,
     GetPropertiesPanelStateCommand,
     LogWarningCommand,
     SetLintingEnabledCommand,
 } from "@miragon/bpmn-modeler-shared";
 
+import { templatePreferenceChange } from "../../../kernel/domain/templatePreferences";
 import { toWorkspacePath } from "../../../kernel/domain/workspacePath";
 import { ArtifactService } from "../../../kernel/service/ArtifactService";
 import { QuestionQueue } from "../../../kernel/service/QuestionQueue";
@@ -171,7 +173,10 @@ function createFeature(
     capabilities: HostCapabilities = "full",
     rendering: BpmnEditorHostExtensions["rendering"] = "host-driven",
     onScriptResync: () => void = () => undefined,
-    { servesPlugins = false }: { servesPlugins?: boolean } = {},
+    {
+        servesPlugins = false,
+        keepsSwitches = false,
+    }: { servesPlugins?: boolean; keepsSwitches?: boolean } = {},
 ) {
     const host = createTestHost({ folders: ["/work"] });
     const calls: string[] = [];
@@ -214,6 +219,7 @@ function createFeature(
             statusBar: host.statusBar,
             clipboard: host.clipboard,
             artifacts: new ArtifactService(host.workspace, host.settings, host.notifier),
+            ...(keepsSwitches && { templatePreferences: host.templatePreferences }),
         },
         extensions,
         contributions,
@@ -525,6 +531,31 @@ describe("BpmnEditorFeature", () => {
             expect(feature.initialPanelVisible()).toBe(visible);
         },
     );
+
+    it("sends an open editor the templates a switch change hides, until disposed", async () => {
+        const { host, feature } = createFeature("full", "host-driven", undefined, {
+            keepsSwitches: true,
+        });
+        const mailOff = { source: "configFolder:work/.camunda", templateId: "mail" };
+        await host.workspace.writeFile(
+            "/work/.camunda/element-templates/mail.json",
+            JSON.stringify({ id: "mail", name: "Mail" }),
+        );
+        const editor = host.openEditor(DIAGRAM, C7_XML);
+        await feature.templates.setElementTemplates(editor.id);
+
+        await host.templatePreferences.change(templatePreferenceChange("project", [mailOff], []));
+        await settle();
+        feature.dispose();
+        await host.templatePreferences.change(templatePreferenceChange("project", [], [mailOff]));
+        await settle();
+
+        expect(
+            editor
+                .postedOfType<HiddenElementTemplatesQuery>("HiddenElementTemplatesQuery")
+                .map((query) => query.hiddenTemplates),
+        ).toEqual([[{ id: "mail" }]]);
+    });
 
     it("drops a pending template refresh once disposed", async () => {
         vi.useFakeTimers();

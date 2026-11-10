@@ -36,6 +36,8 @@ export interface ApprovalReviewRequest {
     readonly prompt: ChoicePrompt<string>;
     /** Every pending artifact, each one the value of a prompt item. */
     readonly artifactIds: readonly string[];
+    /** The folders the prompt was built for, so a review decides on the same reading. */
+    readonly workspaceFolders: readonly string[];
 }
 
 /** Where "Review…" takes the user: a list to check, or a view the pending code is left to. */

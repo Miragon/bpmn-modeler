@@ -1,0 +1,99 @@
+{
+    "$comment": "Run by templatePreferences.spec.ts against templatePreferencesAfter and templatePreferenceChange, so every host that keeps the switches merges a change into one scope's stored list alike. A switch is [source] for a whole source or [source, templateId] for one template id in it.",
+    "merges": [
+        {
+            "name": "appends a new switch",
+            "stored": [["configFolder:shop/.camunda"]],
+            "disable": [["marketplace:github:github.com/acme/templates", "rest-connector"]],
+            "enable": [],
+            "result": [["configFolder:shop/.camunda"], ["marketplace:github:github.com/acme/templates", "rest-connector"]]
+        },
+        {
+            "name": "appends several new switches in the order the change names them",
+            "stored": [],
+            "disable": [["configFolder:shop/.camunda", "mail"], ["configFolder:shop/.camunda"]],
+            "enable": [],
+            "result": [["configFolder:shop/.camunda", "mail"], ["configFolder:shop/.camunda"]]
+        },
+        {
+            "name": "keeps a switch disabled again in its place, once",
+            "stored": [["configFolder:shop/.camunda", "mail"], ["configFolder:shop/.camunda"]],
+            "disable": [["configFolder:shop/.camunda", "mail"]],
+            "enable": [],
+            "result": [["configFolder:shop/.camunda", "mail"], ["configFolder:shop/.camunda"]]
+        },
+        {
+            "name": "keeps the first of a switch stored twice when it is disabled again",
+            "stored": [["configFolder:shop/.camunda", "mail"], ["configFolder:shop/.camunda"], ["configFolder:shop/.camunda", "mail"]],
+            "disable": [["configFolder:shop/.camunda", "mail"]],
+            "enable": [],
+            "result": [["configFolder:shop/.camunda", "mail"], ["configFolder:shop/.camunda"]]
+        },
+        {
+            "name": "keeps every switch the change does not name, one another writer stored included",
+            "stored": [["configFolder:other/.camunda"], ["marketplace:local:/opt/templates", "audit"]],
+            "disable": [["configFolder:shop/.camunda"]],
+            "enable": [],
+            "result": [["configFolder:other/.camunda"], ["marketplace:local:/opt/templates", "audit"], ["configFolder:shop/.camunda"]]
+        },
+        {
+            "name": "drops every copy of an enabled switch and keeps the others in order",
+            "stored": [["configFolder:shop/.camunda", "mail"], ["configFolder:shop/.camunda"], ["configFolder:shop/.camunda", "mail"], ["marketplace:local:/opt/templates"]],
+            "disable": [],
+            "enable": [["configFolder:shop/.camunda", "mail"]],
+            "result": [["configFolder:shop/.camunda"], ["marketplace:local:/opt/templates"]]
+        },
+        {
+            "name": "enables a source and keeps the switches of its templates",
+            "stored": [["configFolder:shop/.camunda", "mail"], ["configFolder:shop/.camunda"]],
+            "disable": [],
+            "enable": [["configFolder:shop/.camunda"]],
+            "result": [["configFolder:shop/.camunda", "mail"]]
+        },
+        {
+            "name": "keeps every switch when the enabled one is not stored",
+            "stored": [["configFolder:shop/.camunda"]],
+            "disable": [],
+            "enable": [["configFolder:shop/.camunda", "mail"]],
+            "result": [["configFolder:shop/.camunda"]]
+        },
+        {
+            "name": "disables and enables in one change",
+            "stored": [["configFolder:shop/.camunda", "mail"], ["configFolder:shop/.camunda"]],
+            "disable": [["configFolder:shop/.camunda", "sms"]],
+            "enable": [["configFolder:shop/.camunda"]],
+            "result": [["configFolder:shop/.camunda", "mail"], ["configFolder:shop/.camunda", "sms"]]
+        },
+        {
+            "name": "keeps the list as it is for an empty change",
+            "stored": [["configFolder:shop/.camunda"]],
+            "disable": [],
+            "enable": [],
+            "result": [["configFolder:shop/.camunda"]]
+        },
+        {
+            "name": "matches sources and template ids exactly, case and characters included",
+            "stored": [["configFolder:Shop/.camunda", "Mail"], ["configFolder:shop/.camunda", "mail#1@\"x\""]],
+            "disable": [["configFolder:shop/.camunda", "Mail"]],
+            "enable": [["configFolder:shop/.camunda", "mail#1@\"y\""]],
+            "result": [["configFolder:Shop/.camunda", "Mail"], ["configFolder:shop/.camunda", "mail#1@\"x\""], ["configFolder:shop/.camunda", "Mail"]]
+        }
+    ],
+    "rejected": [
+        {
+            "name": "a switch both disabled and enabled",
+            "disable": [["configFolder:shop/.camunda", "mail"]],
+            "enable": [["configFolder:shop/.camunda", "mail"]]
+        },
+        {
+            "name": "a switch disabled twice",
+            "disable": [["configFolder:shop/.camunda"], ["configFolder:shop/.camunda"]],
+            "enable": []
+        },
+        {
+            "name": "a switch enabled twice",
+            "disable": [],
+            "enable": [["marketplace:local:/opt/templates", "audit"], ["marketplace:local:/opt/templates", "audit"]]
+        }
+    ]
+}

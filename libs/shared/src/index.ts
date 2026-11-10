@@ -13,6 +13,8 @@ export * from "./lib/templateEditorCommands";
 export * from "./lib/dmnEditorCommands";
 export * from "./lib/formEditorCommands";
 export * from "./lib/deploymentSidebarCommands";
+export * from "./lib/addOnsView";
+export * from "./lib/addOnsViewCommands";
 export * from "./lib/webviewSurfaces";
 export * from "./lib/propertiesPanelResizer";
 export * from "./lib/propertiesPanelFocus";

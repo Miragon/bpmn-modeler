@@ -49,8 +49,10 @@ internal class PluginApprovalRouter(
         id?.let { deps.channel.reply(it, PluginApprovalsResult(outcome.snapshot)) }
     }
 
+    fun pushStored() = push(store.snapshot())
+
     /**
-     * No-ops when no bridge is alive: the approvals are seeded again on the next `session/register`.
+     * No-ops when no bridge is alive: the approvals are seeded again on the next spawn and `session/register`.
      * Not coalesced: changes push from each project's reader thread, so a frame queued
      * later can carry an older revision and must not replace the newer one.
      */

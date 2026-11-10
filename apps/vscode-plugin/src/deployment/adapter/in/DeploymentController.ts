@@ -14,7 +14,7 @@ import { Command, Query } from "@miragon/bpmn-modeler-shared";
 import { deploymentWebviewHtml } from "./DeploymentWebviewHtml";
 
 // VS Code view ID for the deployment sidebar WebviewView.
-const DEPLOYMENT_VIEW_ID = "bpmn-modeler.deploymentView";
+export const DEPLOYMENT_VIEW_ID = "bpmn-modeler.deploymentView";
 
 // Saves and deploys the active diagram to the active target (title-bar rocket).
 export const DEPLOY_CMD = "bpmn-modeler.deployDiagram";

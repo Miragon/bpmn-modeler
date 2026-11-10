@@ -4,11 +4,17 @@ import { ExtensionContext } from "vscode";
 
 import {
     BpmnElementTemplatesService,
+    createMarketplaceCommands,
     createTemplateMarketplaceService,
+    MarketplaceInventory,
+    MarketplaceTemplateSources,
     TemplateMarketplaceService,
 } from "@miragon/bpmn-modeler-core";
 import { getContext } from "../shared/adapter/out/extensionContext";
-import { TemplateMarketplaceController } from "../templateMarketplace/adapter/in/TemplateMarketplaceController";
+import {
+    reloadForUnregisteredSetting,
+    TemplateMarketplaceController,
+} from "../templateMarketplace/adapter/in/TemplateMarketplaceController";
 import { VsCodeMarketplacePrompt } from "../templateMarketplace/adapter/out/VsCodeMarketplacePrompt";
 import { VsCodeMarketplaceRegistrations } from "../templateMarketplace/adapter/out/VsCodeMarketplaceRegistrations";
 import { VsCodeTokenPrompt } from "../templateMarketplace/adapter/out/VsCodeTokenPrompt";
@@ -24,7 +30,7 @@ import { SharedDeps } from "./sharedDeps";
 export function register(
     _context: ExtensionContext,
     deps: SharedDeps,
-): { marketplaceSvc: TemplateMarketplaceService } {
+): { marketplaceSvc: TemplateMarketplaceService; templateSources: MarketplaceTemplateSources } {
     // Per-workspace cache root so a prune only ever evicts *this* window's slots:
     // marketplaces can be workspace-scoped, so an Update/Remove in another window
     // must not delete a marketplace registered only here. `storageUri` is VS
@@ -41,12 +47,20 @@ export function register(
         homeDir: homedir(),
     });
 
-    return { marketplaceSvc };
+    const templateSources = new MarketplaceTemplateSources(
+        marketplaceSvc,
+        deps.notifier,
+        new VsCodeMarketplaceRegistrations(deps.vsSettings),
+    );
+
+    return { marketplaceSvc, templateSources };
 }
 
 /**
  * Deferred until after the editor feature so the commands re-run the same
- * {@link BpmnElementTemplatesService} that consumes the cache, refreshing open editors.
+ * {@link BpmnElementTemplatesService} that consumes the cache, refreshing open
+ * editors. The add-on catalog runs the same commands, so their flows queue
+ * together and every view follows them.
  */
 export function registerCommands(
     context: ExtensionContext,
@@ -55,19 +69,20 @@ export function registerCommands(
         marketplaceSvc: TemplateMarketplaceService;
         templatesSvc: BpmnElementTemplatesService;
     },
-): void {
-    const controller = new TemplateMarketplaceController(
-        {
-            marketplaces: handles.marketplaceSvc,
-            templates: handles.templatesSvc,
-            registrations: new VsCodeMarketplaceRegistrations(deps.vsSettings),
-            prompt: new VsCodeMarketplacePrompt(),
-            picker: deps.picker,
-            homeDir: homedir(),
-        },
-        deps.notifier,
-    );
-    controller.register(context);
-    // A new worktree is a new workspace with an empty cache.
-    void controller.refreshOnStartup();
+): { marketplaces: MarketplaceInventory } {
+    const { commands, inventory } = createMarketplaceCommands({
+        marketplaces: handles.marketplaceSvc,
+        templates: handles.templatesSvc,
+        registrations: new VsCodeMarketplaceRegistrations(deps.vsSettings),
+        prompt: new VsCodeMarketplacePrompt(),
+        picker: deps.picker,
+        notifier: deps.notifier,
+        actionNotifier: deps.actionNotifier,
+        homeDir: homedir(),
+        explainAddFailure: reloadForUnregisteredSetting(deps.notifier),
+    });
+    new TemplateMarketplaceController(commands).register(context);
+    // A new workspace, such as a git worktree, starts with an empty cache.
+    void commands.offerUpdateIfNotFetched();
+    return { marketplaces: inventory };
 }

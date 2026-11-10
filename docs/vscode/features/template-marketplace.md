@@ -22,6 +22,8 @@ Adding a marketplace that is already registered saves nothing: it is still fetch
 
 These commands run one at a time. A command you start while another one runs shows its progress and waits for it.
 
+The [Artifacts view](/vscode/features/artifacts) lists each registered marketplace with its cached templates. Its toolbar adds and updates marketplaces, each marketplace offers **Remove**, and **Disable templates** keeps a marketplace's templates out of new choices without removing it.
+
 ## The `marketplace.json` file
 
 A marketplace lists one or more sources. Every `.json` file under a source's `path` is loaded as a template unless `include` narrows it down.
@@ -109,7 +111,7 @@ Templates with an `engines` field are only offered on Camunda 8 diagrams whose `
 
 ## Limits
 
-- Templates are cached per workspace. A marketplace is fetched on Add and Update, and again when the extension starts if nothing is cached for it yet or its last fetch is 24 hours old, so a new workspace or git worktree loads its templates without a manual update. This start-up fetch never asks for a token and shows no notification: a source that needs a token you have not stored is skipped and the Output channel says so. Run **Update Marketplaces** to enter the token or to fetch sooner.
+- Templates are cached per workspace and fetched only on Add and Update. A new workspace, such as a git worktree, starts without them: when the extension starts and a registered marketplace has nothing cached in this workspace, a notification offers **Update marketplaces**. Nothing is fetched until you click it.
 - A source that cannot be fetched keeps its last fetched templates until an update reaches it again, unless it moved to another place in `sources`. An update lists a marketplace as failed when none of its sources can be fetched.
 - If the cache of a removed marketplace cannot be deleted, for example because another program holds a file in it, Update and Remove still finish and write the error to the log. Its templates stay offered until a later Update or Remove deletes them.
 - Unauthenticated GitHub access allows 60 requests per hour; a token raises the limit.
@@ -118,7 +120,7 @@ Templates with an `engines` field are only offered on Camunda 8 diagrams whose `
 
 ## IntelliJ
 
-The IntelliJ plugin has the same feature as **Add Template Marketplace…**, **Update Template Marketplaces** and **Remove Template Marketplace…** (see [Actions](/intellij/getting-started#actions)). App-wide entries are listed under **Settings ▸ Tools ▸ Miragon BPMN Modeler ▸ Template Marketplaces**; tokens live in the IDE's password safe. Entries there are strings only, so self-hosted instances with `baseUrl` are VS Code only for now.
+The IntelliJ plugin has the same feature as **Add Template Marketplace…**, **Update Template Marketplaces** and **Remove Template Marketplace…** (see [Actions](/intellij/getting-started#actions)); the [Artifacts tab](/intellij/getting-started#artifacts) of the **BPMN Modeler** tool window lists the marketplaces and offers the same. App-wide entries are listed under **Settings ▸ Tools ▸ Miragon BPMN Modeler ▸ Template Marketplaces**; tokens live in the IDE's password safe. Entries there are strings only, so self-hosted instances with `baseUrl` are VS Code only for now.
 
 ## Next steps
 

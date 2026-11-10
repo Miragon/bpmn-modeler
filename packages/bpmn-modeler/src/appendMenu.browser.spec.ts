@@ -71,12 +71,25 @@ const TASK_OR_USER_TASK_TEMPLATE = {
     properties: [],
 };
 
+const MAIL_TASK_TEMPLATE = {
+    ...TASK_OR_USER_TASK_TEMPLATE,
+    id: "mail-task",
+    name: "Mail task",
+    appliesTo: ["bpmn:Task"],
+};
+
 const ZEEBE_TASK_TEMPLATE = {
     $schema: "https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json",
     id: "zeebe-task",
     name: "Zeebe task",
     appliesTo: ["bpmn:Task"],
     properties: [],
+};
+
+const ZEEBE_MAIL_TASK_TEMPLATE = {
+    ...ZEEBE_TASK_TEMPLATE,
+    id: "zeebe-mail-task",
+    name: "Zeebe mail task",
 };
 
 const handles: (BpmnModeler | BpmnDesigner)[] = [];
@@ -133,6 +146,18 @@ function openAppendMenuOn(
 ): void {
     const task = handle.getService<{ get(id: string): Shape }>("elementRegistry").get("Task_1");
     handle.getService<PopupMenuService>("popupMenu").open(task, "bpmn-append", position);
+}
+
+function openCreateMenuOn(handle: BpmnModeler): void {
+    const root = handle.getService("canvas").getRootElement();
+    handle.getService<PopupMenuService>("popupMenu").open(root, "bpmn-create", { x: 320, y: 200 });
+}
+
+function templateCardNames(): (string | null)[] {
+    return Array.from(
+        document.querySelectorAll(".am-template-card .am-card-name"),
+        (name) => name.textContent,
+    );
 }
 
 function navKeys(selector: string): (string | null)[] {
@@ -235,6 +260,28 @@ describe("append menu", () => {
             TASK_OR_USER_TASK_TEMPLATE.id,
         );
     });
+
+    it.each(
+        (
+            [
+                { engine: "c7", hidden: TASK_OR_USER_TASK_TEMPLATE, offered: MAIL_TASK_TEMPLATE },
+                { engine: "c8", hidden: ZEEBE_TASK_TEMPLATE, offered: ZEEBE_MAIL_TASK_TEMPLATE },
+            ] as const
+        ).flatMap((templates) => [
+            { ...templates, menu: "append", openMenu: openAppendMenuOn },
+            { ...templates, menu: "create", openMenu: openCreateMenuOn },
+        ]),
+    )(
+        "offers no hidden template in the $engine $menu menu",
+        async ({ engine, hidden, offered, openMenu }) => {
+            const handle = await openModeler({ engine, elementTemplates: [hidden, offered] });
+            handle.setHiddenElementTemplates([{ id: hidden.id }]);
+
+            openMenu(handle);
+
+            expect(templateCardNames()).toEqual([offered.name]);
+        },
+    );
 
     it.each([
         [

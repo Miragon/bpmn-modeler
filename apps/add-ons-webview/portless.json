@@ -1,0 +1,4 @@
+{
+    "name": "bpmn-modeler-add-ons-webview",
+    "script": "dev:app"
+}

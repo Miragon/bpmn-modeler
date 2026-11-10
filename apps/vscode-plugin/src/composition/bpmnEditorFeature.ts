@@ -2,6 +2,7 @@ import { ExtensionContext, window } from "vscode";
 
 import {
     BPMN_VIEW_TYPE,
+    ApprovalReviewPort,
     BpmnEditorContributions,
     BpmnEditorFeature,
     BpmnPluginsFeature,
@@ -27,9 +28,10 @@ import { SharedDeps } from "./sharedDeps";
 
 interface BpmnEditorHandles {
     diffController: BpmnDiffController;
-    marketplaceSvc: CachedTemplateProvider;
+    templateSources: CachedTemplateProvider;
     deploymentStatusParticipant: EditorSessionParticipant;
     scriptEditor: BpmnEditorContributions["scriptEditor"];
+    reviews: { plugin: ApprovalReviewPort; rulePackage: ApprovalReviewPort };
 }
 
 /** Returns both features because the command, marketplace and add-on features reuse their services. */
@@ -56,7 +58,9 @@ export function register(
     // VS Code announces no write another window makes to the global state.
     context.subscriptions.push(
         window.onDidChangeWindowState((state) => {
-            if (state.focused) void approvals.readStored();
+            if (!state.focused) return;
+            void approvals.readStored();
+            void deps.templatePreferences.readStored();
         }),
     );
     const questions = deps.approvalQuestions;
@@ -67,6 +71,7 @@ export function register(
         questions,
         hasher: new NodeContentHasher(),
         cacheRoot: bpmnPluginCacheUri(context.globalStorageUri).fsPath,
+        review: handles.reviews.plugin,
     });
     void plugins.pruneCache();
     const editor = new BpmnEditorFeature(
@@ -75,12 +80,14 @@ export function register(
             statusBar: deps.statusBar,
             clipboard: deps.clipboard,
             diagnostics: new VsCodeDiagnostics(FOCUS_LINT_ELEMENT_CMD),
-            templateProvider: handles.marketplaceSvc,
+            templateProvider: handles.templateSources,
+            templatePreferences: deps.templatePreferences,
             rulePackages: {
                 approvals,
                 installedPackages: new NodeInstalledPackages(),
                 actionNotifier: deps.actionNotifier,
                 questions,
+                review: handles.reviews.rulePackage,
             },
         },
         {

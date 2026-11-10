@@ -1,12 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createTestHost, PromptAnswers } from "../../testing";
-import { HttpClient } from "../../kernel/port/HttpClient";
+import { createTestHost, NoticeAnswers, PromptAnswers } from "../../testing";
 import { createTemplateMarketplaceService } from "../composition/MarketplaceFeature";
 import { InvalidMarketplaceError } from "../domain/marketplace";
 import { MarketplaceAddAnswer } from "../domain/marketplacePrompts";
 import { registeredMarketplaces } from "../domain/marketplaceRegistrations";
-import { MARKETPLACE_CACHE_TTL_MS } from "../domain/startupRefresh";
+import { MARKETPLACE_UPDATE_NOTICE_ID } from "../domain/notFetchedMarketplaces";
 import { MarketplaceCommands } from "./MarketplaceCommands";
 
 function templateFile(id: string): string {
@@ -47,16 +46,15 @@ function marketplaceHost({
     registered = ["/work/a"],
     answers = [],
     promptAnswers = {},
+    noticeAnswers = {},
     explainAddFailure,
-    http,
 }: {
     registered?: string[];
     answers?: MarketplaceAddAnswer[];
     promptAnswers?: PromptAnswers;
+    noticeAnswers?: NoticeAnswers;
     explainAddFailure?: (error: Error) => Promise<boolean>;
-    http?: HttpClient;
 } = {}) {
-    let now = 1_800_000_000_000;
     const host = createTestHost({
         folders: ["/work"],
         files: {
@@ -73,6 +71,7 @@ function marketplaceHost({
         settings: { marketplaces: registered },
         marketplaceAnswers: answers,
         promptAnswers,
+        noticeAnswers,
     });
     const service = createTemplateMarketplaceService({
         workspace: host.workspace,
@@ -82,8 +81,6 @@ function marketplaceHost({
         tokenPrompt: host.tokenPrompt,
         cacheRoot: "/cache",
         homeDir: "/work",
-        http,
-        now: () => now,
     });
     const templates = {
         reloads: 0,
@@ -98,6 +95,7 @@ function marketplaceHost({
         prompt: host.marketplacePrompt,
         picker: host.picker,
         notifier: host.notifier,
+        actionNotifier: host.actionNotifier,
         homeDir: "/work",
         explainAddFailure,
     });
@@ -148,17 +146,14 @@ function marketplaceHost({
     };
     return {
         commands,
+        service,
         registrations: host.marketplaceRegistrations,
         marketplaces: host.settings.values.marketplaces,
         prompt: host.marketplacePrompt,
         picker: host.picker,
         workspace: host.workspace,
         notifier: host.notifier,
-        tokens: host.tokens,
-        tokenPrompt: host.tokenPrompt,
-        passTime: (milliseconds: number) => {
-            now += milliseconds;
-        },
+        actionNotifier: host.actionNotifier,
         templates,
         holdRead,
         holdRegistration,
@@ -167,8 +162,13 @@ function marketplaceHost({
         lockCachedMarketplaces,
         registered: async () =>
             registeredMarketplaces((await host.marketplaceRegistrations.read()).registered),
+        // Read from disk, not through the served list, which already leaves out unregistered slots.
         cachedTemplateNames: async () =>
-            (await service.getCachedTemplatePaths()).map((path) => path.split("/").pop()).sort(),
+            [...host.workspace.files.keys()]
+                .filter((path) => path.startsWith("/cache/") && path.endsWith(".json"))
+                .filter((path) => !path.endsWith("/slot.json"))
+                .map((path) => path.split("/").pop())
+                .sort(),
     };
 }
 
@@ -419,127 +419,106 @@ describe("MarketplaceCommands.update", () => {
     });
 });
 
-const everyRequestDenied: HttpClient = (() => {
-    const denied = async () => ({ status: 404, body: "{}" });
-    return {
-        getText: denied,
-        getJson: denied,
-        postJson: denied,
-        postForm: denied,
-        postMultipart: denied,
-    };
-})();
+describe("MarketplaceCommands.offerUpdateIfNotFetched", () => {
+    it("offers one update for the marketplaces nothing is cached for, and fetches nothing itself", async () => {
+        const { commands, actionNotifier, cachedTemplateNames, templates, notifier } =
+            marketplaceHost({ registered: ["/work/a", "/work/b"] });
 
-describe("MarketplaceCommands.refreshStale", () => {
-    it("fetches a registered marketplace nothing is cached for and refreshes open editors, without a toast", async () => {
-        const { commands, cachedTemplateNames, templates, notifier } = marketplaceHost();
+        await commands.offerUpdateIfNotFetched();
 
-        await commands.refreshStale();
-
-        expect(await cachedTemplateNames()).toEqual(["a.json"]);
-        expect(templates.reloads).toBe(1);
+        expect(actionNotifier.notices).toEqual([
+            expect.objectContaining({
+                id: MARKETPLACE_UPDATE_NOTICE_ID,
+                message:
+                    "The element templates of 2 marketplaces are not fetched in this workspace yet.",
+            }),
+        ]);
+        expect(await cachedTemplateNames()).toEqual([]);
+        expect(templates.reloads).toBe(0);
         expect(notifier.infos).toEqual([]);
-        expect(notifier.errors).toEqual([]);
-        expect(notifier.warnings).toEqual([]);
     });
 
-    it("leaves a marketplace fetched within its lifetime alone", async () => {
-        const { commands, templates, workspace, cachedTemplateNames, passTime } = marketplaceHost();
-        await commands.refreshStale();
-        await workspace.writeFile("/work/a/element-templates/new.json", templateFile("new"));
-        passTime(MARKETPLACE_CACHE_TTL_MS - 1);
-
-        await commands.refreshStale();
-
-        expect(await cachedTemplateNames()).toEqual(["a.json"]);
-        expect(templates.reloads).toBe(1);
-    });
-
-    it("fetches a marketplace again once its lifetime has passed", async () => {
-        const { commands, templates, workspace, cachedTemplateNames, passTime } = marketplaceHost();
-        await commands.refreshStale();
-        await workspace.writeFile("/work/a/element-templates/new.json", templateFile("new"));
-        passTime(MARKETPLACE_CACHE_TTL_MS);
-
-        await commands.refreshStale();
-
-        expect(await cachedTemplateNames()).toEqual(["a.json", "new.json"]);
-        expect(templates.reloads).toBe(2);
-    });
-
-    it("fetches only the marketplaces that are due", async () => {
-        const { commands, registrations, workspace, cachedTemplateNames, passTime } =
-            marketplaceHost({ registered: ["/work/a"] });
-        await commands.refreshStale();
-        passTime(MARKETPLACE_CACHE_TTL_MS / 2);
-        await registrations.register("/work/b", "project");
-        await commands.refreshStale();
-        await workspace.writeFile("/work/a/element-templates/new.json", templateFile("new"));
-        await workspace.writeFile("/work/b/element-templates/late.json", templateFile("late"));
-        passTime(MARKETPLACE_CACHE_TTL_MS / 2);
-
-        await commands.refreshStale();
-
-        expect(await cachedTemplateNames()).toEqual(["a.json", "b.json", "new.json"]);
-    });
-
-    it("keeps the last fetched templates of a marketplace it cannot reach and logs why", async () => {
-        const { commands, workspace, cachedTemplateNames, notifier, passTime } = marketplaceHost();
-        await commands.refreshStale();
-        passTime(MARKETPLACE_CACHE_TTL_MS);
-        await workspace.deleteDirectory("/work/a");
-
-        await commands.refreshStale();
-
-        expect(await cachedTemplateNames()).toEqual(["a.json"]);
-        expect(notifier.errors).toEqual([]);
-        expect(notifier.logged("warning")).toContainEqual(
-            expect.stringContaining('Skipped template marketplace "/work/a"'),
-        );
-    });
-
-    it("skips a private source without a stored token, never asks for one and logs that", async () => {
-        const { commands, tokenPrompt, notifier, cachedTemplateNames } = marketplaceHost({
-            registered: ["/work/a", "acme/templates"],
-            http: everyRequestDenied,
+    it("runs the update when the user clicks it", async () => {
+        const { commands, cachedTemplateNames, templates, notifier } = marketplaceHost({
+            registered: ["/work/a"],
+            noticeAnswers: { [MARKETPLACE_UPDATE_NOTICE_ID]: "update" },
         });
 
-        await commands.refreshStale();
-
-        expect(tokenPrompt.prompts).toEqual([]);
-        expect(await cachedTemplateNames()).toEqual(["a.json"]);
-        expect(notifier.errors).toEqual([]);
-        expect(notifier.logged("warning")).toContainEqual(
-            expect.stringContaining(
-                "acme/templates on github.com requires a personal access token",
-            ),
-        );
-        expect(notifier.logged("info")).toContain(
-            "Not asking for a github.com token while the host starts; update the marketplaces to enter one",
-        );
-    });
-
-    it("fetches nothing and reloads nothing when no marketplace is registered", async () => {
-        const { commands, templates, notifier } = marketplaceHost({ registered: [] });
-
-        await commands.refreshStale();
-
-        expect(templates.reloads).toBe(0);
-        expect(notifier.progressTitles).toEqual([]);
-        expect(notifier.infos).toEqual([]);
-    });
-
-    it("runs behind a command that is already running", async () => {
-        const { commands, holdRead, cachedTemplateNames } = marketplaceHost();
-        const held = holdRead("/work/a/marketplace.json");
-        const update = commands.update();
-        await letPendingWorkRun();
-
-        const refresh = commands.refreshStale();
-        held.open();
-        await Promise.all([update, refresh]);
+        await commands.offerUpdateIfNotFetched();
 
         expect(await cachedTemplateNames()).toEqual(["a.json"]);
+        expect(templates.reloads).toBe(1);
+        expect(notifier.infos).toEqual(["Updated 1 marketplace(s)."]);
+    });
+
+    it("names only the marketplace this workspace has not fetched", async () => {
+        const { commands, actionNotifier, marketplaces } = marketplaceHost({
+            registered: ["/work/a"],
+        });
+        await commands.update();
+        marketplaces.push("/work/b");
+
+        await commands.offerUpdateIfNotFetched();
+
+        expect(actionNotifier.notices.map((notice) => notice.message)).toEqual([
+            'The element templates of the marketplace "/work/b" are not fetched in this workspace yet.',
+        ]);
+    });
+
+    it("offers nothing when this workspace fetched every marketplace", async () => {
+        const { commands, actionNotifier } = marketplaceHost({ registered: ["/work/a"] });
+        await commands.update();
+
+        await commands.offerUpdateIfNotFetched();
+
+        expect(actionNotifier.notices).toEqual([]);
+    });
+
+    it("offers nothing when nothing is registered", async () => {
+        const { commands, actionNotifier } = marketplaceHost({ registered: [] });
+
+        await commands.offerUpdateIfNotFetched();
+
+        expect(actionNotifier.notices).toEqual([]);
+    });
+
+    it("logs a cache it cannot read instead of throwing", async () => {
+        const { commands, actionNotifier, workspace, notifier } = marketplaceHost();
+        vi.spyOn(workspace, "readDirectory").mockRejectedValue(new Error("disk gone"));
+
+        await expect(commands.offerUpdateIfNotFetched()).resolves.toBeUndefined();
+
+        expect(actionNotifier.notices).toEqual([]);
+        expect(notifier.loggedErrors.map((error) => error.message)).toEqual(["disk gone"]);
+    });
+});
+
+describe("MarketplaceCommands.update when it fails", () => {
+    it.each<{ behaviour: string; fail: (host: ReturnType<typeof marketplaceHost>) => void }>([
+        {
+            behaviour: "the update",
+            fail: ({ service }) => {
+                vi.spyOn(service, "updateAll").mockRejectedValue(new Error("cache gone"));
+            },
+        },
+        {
+            behaviour: "the reload of the open editors",
+            fail: ({ templates }) => {
+                vi.spyOn(templates, "reloadMarketplaceTemplates").mockRejectedValue(
+                    new Error("editor gone"),
+                );
+            },
+        },
+    ])("reports a failure of $behaviour without a success toast", async ({ fail }) => {
+        const host = marketplaceHost({ registered: ["/work/a"] });
+        fail(host);
+
+        await expect(host.commands.update()).resolves.toBeUndefined();
+
+        expect(host.notifier.infos).toEqual([]);
+        expect(host.notifier.errors).toEqual([
+            expect.stringMatching(/^Failed to update marketplaces\.\n/),
+        ]);
     });
 });
 
@@ -623,6 +602,107 @@ describe("MarketplaceCommands.remove", () => {
         expect(notifier.errors).toEqual([
             "Failed to remove marketplace(s).\nsettings are read-only",
         ]);
+    });
+});
+
+describe("MarketplaceCommands.remove of one named marketplace", () => {
+    it("asks its confirm, then unregisters it from every scope, drops its cache and reloads", async () => {
+        const {
+            commands,
+            registrations,
+            registered,
+            cachedTemplateNames,
+            templates,
+            picker,
+            notifier,
+        } = marketplaceHost({
+            registered: ["/work/a", "/work/b"],
+            promptAnswers: { marketplaceRemovalConfirm: true },
+        });
+        registrations.lists.project.push("/work/a");
+        await commands.update();
+
+        await commands.remove("/work/a");
+
+        expect(picker.prompts).toEqual([
+            {
+                method: "confirm",
+                args: [
+                    {
+                        id: "marketplaceRemovalConfirm",
+                        title: "Remove the template marketplace /work/a?",
+                        confirmLabel: "Remove",
+                        details: [
+                            "It is removed from all my projects and this project, and its cached templates are deleted.",
+                        ],
+                    },
+                ],
+            },
+        ]);
+        expect(await registered()).toEqual([{ entry: "/work/b", scopes: ["allProjects"] }]);
+        expect(await cachedTemplateNames()).toEqual(["b.json"]);
+        expect(templates.reloads).toBe(2);
+        expect(notifier.progressTitles).toEqual([
+            "Updating marketplaces…",
+            "Removing marketplace(s)…",
+        ]);
+        expect(notifier.infos).toEqual(["Updated 2 marketplace(s).", "Removed 1 marketplace(s)."]);
+    });
+
+    it("removes nothing when the confirm is declined", async () => {
+        const { commands, registered, templates, notifier } = marketplaceHost();
+
+        await commands.remove("/work/a");
+
+        expect(await registered()).toEqual([{ entry: "/work/a", scopes: ["allProjects"] }]);
+        expect(templates.reloads).toBe(0);
+        expect(notifier.infos).toEqual([]);
+    });
+
+    it("says a marketplace removed meanwhile is no longer registered, and asks nothing", async () => {
+        const { commands, picker, notifier } = marketplaceHost();
+
+        await commands.remove("/work/b");
+
+        expect(picker.prompts).toEqual([]);
+        expect(notifier.infos).toEqual([
+            "The template marketplace /work/b is no longer registered.",
+        ]);
+    });
+});
+
+describe("MarketplaceCommands change event", () => {
+    it("fires once at the end of each flow that ran, failed ones included, and never for a dismissed question", async () => {
+        const { commands, registrations, notifier } = marketplaceHost({
+            answers: [{ location: "/work/b", scope: "project" }],
+            promptAnswers: { marketplaceRemovalConfirm: true },
+        });
+        const changes: string[] = [];
+        commands.onDidChange(() => changes.push(notifier.infos.at(-1) ?? ""));
+
+        await commands.add();
+        await commands.update();
+        await commands.remove();
+        vi.spyOn(registrations, "unregister").mockRejectedValueOnce(new Error("read-only"));
+        await commands.remove("/work/b");
+        await commands.remove("/work/a");
+
+        expect(changes).toEqual([
+            "",
+            "Marketplace added.",
+            "Updated 2 marketplace(s).",
+            "Updated 2 marketplace(s).",
+        ]);
+    });
+
+    it("stops firing once its subscription is disposed", async () => {
+        const { commands } = marketplaceHost();
+        let changes = 0;
+        commands.onDidChange(() => changes++).dispose();
+
+        await commands.update();
+
+        expect(changes).toBe(0);
     });
 });
 

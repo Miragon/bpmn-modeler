@@ -1,0 +1,33 @@
+/// <reference types="vitest" />
+import { defineConfig } from "vite";
+import tsconfigPaths from "vite-tsconfig-paths";
+import { resolve } from "path";
+
+export default defineConfig({
+    root: __dirname,
+    cacheDir: "../../node_modules/.vite/modeler-plugin-add-ons-webview",
+    plugins: [tsconfigPaths()],
+    build: {
+        target: "es2021",
+        chunkSizeWarningLimit: 1200,
+        outDir: "../../dist/webview-staging/add-ons-webview",
+        emptyOutDir: true,
+        rollupOptions: {
+            input: {
+                index: resolve(__dirname, "src/main.ts"),
+            },
+            output: {
+                entryFileNames: `[name].js`,
+                assetFileNames: "[name].[ext]",
+            },
+        },
+    },
+    define: {
+        "process.env.NODE_ENV": JSON.stringify(process.env.NODE_ENV),
+    },
+    server: {
+        // portless proxies the dev server behind a `<name>.localhost` host; Vite
+        // rejects unknown Host headers unless the suffix is allow-listed.
+        allowedHosts: [".localhost"],
+    },
+});

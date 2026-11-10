@@ -75,6 +75,7 @@ class WebviewServerTest {
         assertTrue(shellUrl.matches(Regex("""http://127\.0\.0\.1:\d+/index\.html""")), shellUrl)
         assertEquals(shellUrl, server.ensureStarted())
         assertEquals(shellUrl.replace("/index.html", "/deployment.html"), server.deploymentUrl())
+        assertEquals(shellUrl.replace("/index.html", "/addOns.html"), server.addOnsUrl())
     }
 
     @Test
@@ -115,9 +116,24 @@ class WebviewServerTest {
     }
 
     @Test
+    fun `the add-ons shell loads the add-ons bundle into an empty app with its own theme vars`() {
+        val response = get(server.addOnsUrl())
+
+        assertEquals(200, response.status)
+        assertTrue(response.body.contains("<title>Artifacts</title>"))
+        assertTrue(response.body.contains("""<link href="/add-ons/index.css" rel="stylesheet"/>"""))
+        assertTrue(response.body.contains("--vscode-list-warningForeground"))
+        assertTrue(response.body.contains("""<body class="vscode-light">"""))
+        assertTrue(response.body.contains("""<div id="app"></div>"""))
+        assertTrue(response.body.contains("window.acquireVsCodeApi"))
+        assertTrue(response.body.contains("""<script type="module" src="/add-ons/index.js"></script>"""))
+    }
+
+    @Test
     fun `bundle assets are served from the classpath with their mime type`() {
         val bpmnAsset = get("${origin()}/test-asset.css")
         val deploymentAsset = get("${origin()}/deployment/test-asset.svg")
+        val addOnsAsset = get("${origin()}/add-ons/test-asset.css")
 
         assertEquals(200, bpmnAsset.status)
         assertEquals("text/css; charset=utf-8", bpmnAsset.contentType)
@@ -125,6 +141,8 @@ class WebviewServerTest {
         assertEquals(200, deploymentAsset.status)
         assertEquals("image/svg+xml", deploymentAsset.contentType)
         assertTrue(deploymentAsset.body.contains("test-asset"))
+        assertEquals(200, addOnsAsset.status)
+        assertTrue(addOnsAsset.body.contains(".add-ons-test-asset"))
     }
 
     @Test

@@ -74,10 +74,12 @@ Plugins load in the [Design and Implement modes](/vscode/features/modes), never 
 
 When you open a diagram and its workspace holds plugins you have not allowed yet, the editor opens right away with the plugins you already allowed, and a notification says how many are waiting, for example *2 BPMN plugins in this workspace are not allowed yet.*
 
-1. Click **Review…** to see the list. Each entry shows the plugin's name, whether it is new or changed since you allowed it, and its folder.
-2. Check the plugins you trust and confirm. Every open BPMN editor that offered one of them reloads with it.
+1. Click **Review…**. The [Artifacts view](/vscode/features/artifacts) opens at the waiting plugins and shows each one's folder, files and content hash.
+2. Click **Allow this content** on each plugin you trust. Every open BPMN editor that offered it reloads with it.
 
-A plugin you leave unchecked is not offered again until the window reloads or its files change. Closing the notification without **Review…** decides nothing: the modeler does not ask again in this window for the same plugins, and asks again in a later session. Only one question is open at a time, even when you open several diagrams. Questions about [bpmnlint rule packages](/vscode/features/linting#allow-a-rule-package) wait for the same turn.
+**Review…** shows a list to check instead when a waiting plugin lies outside every open folder. Each entry shows the plugin's name, whether it is new or changed since you allowed it, and its folder. Check the plugins you trust and confirm.
+
+Once **Review…** opened the view, the modeler does not ask again in this window about the same plugins; they wait in the view until you allow them. A plugin you leave unchecked in the list is not offered again until the window reloads or its files change. Closing the notification without **Review…** decides nothing: the modeler does not ask again in this window for the same plugins, and asks again in a later session. Only one question is open at a time, even when you open several diagrams. Questions about [bpmnlint rule packages](/vscode/features/linting#allow-a-rule-package) wait for the same turn.
 
 An approval is for one plugin folder and its exact content, a SHA-256 hash of the script and the stylesheet:
 
@@ -132,11 +134,13 @@ In VS Code the output channel names the error of a left-out plugin only as *Scri
 - Camunda Modeler `client` extensions, menus and DMN plugins do not run. Plugins extend the BPMN editor only, not DMN or forms.
 - An error a plugin throws after the editor opened, for example while you edit, is not contained: the editor may stop responding in parts until you reopen it, and the log does not name the plugin ([#2270](https://github.com/Miragon/bpmn-modeler/issues/2270)). Remove the plugin's folder if that happens.
 - Plugins load when an editor opens. A change to a plugin's files reaches an editor the next time it opens, after you allow the changed version.
-- There is no command yet to list or revoke approvals. Remove a plugin's folder to stop loading it. Copies of allowed plugins stay in VS Code's global storage. When the extension starts, it removes the copies no approval names any more, such as the version before you allowed an update.
+- The [Artifacts view](/vscode/features/artifacts) lists and revokes approvals in VS Code, and the **Artifacts** tab of the **BPMN Modeler** tool window does in IntelliJ. Copies of allowed plugins stay in VS Code's global storage. When the extension starts, and after a revoke, it removes the copies no approval names any more, such as the version before you allowed an update.
 
 ## IntelliJ
 
-The IntelliJ plugin loads BPMN plugins the same way: the same folders, the same notification with **Review…**, the same list and the same rules. These parts differ:
+The IntelliJ plugin loads BPMN plugins the same way: the same folders, the same notification with **Review…** and the same rules. These parts differ:
+
+- **Review…** opens the **Artifacts** tab of the **BPMN Modeler** tool window at the plugin's row, where you allow it, and where **Revoke** takes an approval back. When a plugin lies outside the project, or the tab cannot open, the list appears as in VS Code.
 
 - The question is an IDE notification balloon. Closing the balloon with its X keeps it in the **Notifications** tool window, where **Review…** still works. Clearing it there decides nothing, like closing the notification in VS Code.
 - Approvals are kept by the IDE for all your projects, outside every project, so a repository cannot allow its own plugins. A plugin you allow in one project window is allowed in the others too.

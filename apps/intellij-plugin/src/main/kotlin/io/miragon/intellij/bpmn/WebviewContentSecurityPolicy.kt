@@ -58,17 +58,20 @@ internal object WebviewContentSecurityPolicy {
     private val shimHashSource = "'sha256-${sha256Base64(ACQUIRE_VS_CODE_API_SHIM)}'"
 
     // Element-template icons may be remote `https:` URLs; the deployment form shows none.
-    val BPMN_SHELL = policy(imageSources = "'self' data: https:")
+    val BPMN_SHELL = policy(imageSources = "'self' data: https:", fontSources = "'self' data:")
 
-    val DEPLOYMENT_SHELL = policy(imageSources = "'self' data:")
+    val DEPLOYMENT_SHELL = policy(imageSources = "'self' data:", fontSources = "'self' data:")
 
-    private fun policy(imageSources: String): String =
-        listOf(
+    // The add-ons page loads no image and no font, so `default-src 'none'` refuses both.
+    val ADD_ONS_SHELL = policy(imageSources = null, fontSources = null)
+
+    private fun policy(imageSources: String?, fontSources: String?): String =
+        listOfNotNull(
             "default-src 'none'",
             "script-src 'self' $shimHashSource",
             "style-src 'self' 'unsafe-inline'",
-            "img-src $imageSources",
-            "font-src 'self' data:",
+            imageSources?.let { "img-src $it" },
+            fontSources?.let { "font-src $it" },
             "base-uri 'none'",
             "form-action 'none'",
         ).joinToString("; ")

@@ -17,6 +17,7 @@ export {
     approvalsKey,
     codeApprovalChange,
     type CodeApprovalChange,
+    type ReviewAnswer,
     revoking,
 } from "./kernel/domain/codeApproval";
 export * from "./kernel/domain/engineVersions";
@@ -28,12 +29,15 @@ export * from "./kernel/domain/globToRegExp";
 export * from "./kernel/port/hostPorts";
 export * from "./kernel/domain/http";
 export * from "./kernel/port/HttpClient";
+export * from "./kernel/port/templatePreferencePorts";
 export * from "./kernel/domain/locateResult";
 export * from "./kernel/domain/modelerSettings";
 export * from "./kernel/domain/newModelEngine";
+export * from "./kernel/domain/projectScopes";
 export * from "./kernel/domain/prompts";
 export * from "./kernel/domain/rootContainment";
 export * from "./kernel/domain/statusView";
+export * from "./kernel/domain/templatePreferences";
 export * from "./kernel/domain/textReplacement";
 export * from "./kernel/domain/viewTypes";
 export * from "./kernel/domain/watcherEvents";
@@ -41,6 +45,8 @@ export * from "./kernel/domain/workspacePath";
 export * from "./kernel/service/ArtifactService";
 export * from "./kernel/service/QuestionQueue";
 export * from "./kernel/adapter/out/FetchHttpClient";
+export { ListReview } from "./kernel/adapter/out/ListReview";
+export type { ApprovalReviewPort, ApprovalReviewRequest } from "./kernel/port/approvalPorts";
 export * from "./kernel/domain/nonce";
 
 // ── editorSession ────────────────────────────────────────────────────────────
@@ -105,19 +111,31 @@ export type {
     ActionView,
     AddOnCatalogModel,
     AddOnGroupView,
+    AddOnReveal,
     AddOnReview,
     AddOnSourceView,
     AddOnView,
+    CodeAddOnView,
+    TemplateAddOnView,
 } from "./addOns/domain/addOnCatalogModel";
 export type {
     AddOnActionKind,
     AddOnKind,
     CatalogActionKind,
+    CodeAddOnKind,
+    SourceActionKind,
     SourceKind,
+    TemplateState,
 } from "./addOns/domain/addOnIds";
 export type { AddOnActionResult, AddOnRefusal, AddOnRequest } from "./addOns/domain/addOnRequests";
-export type { SettingChanges } from "./addOns/port/addOnSourcePorts";
+export type {
+    MarketplaceAddOnSource,
+    SettingChanges,
+    TemplateAddOnSource,
+} from "./addOns/port/addOnSourcePorts";
 export type { AddOnViewConnection } from "./addOns/service/AddOnViewHub";
+export type { AddOnViewRevealPort } from "./addOns/port/addOnViewPorts";
+export { ViewReview } from "./addOns/adapter/out/ViewReview";
 export * from "./addOns/composition/AddOnsFeature";
 
 // ── diff ─────────────────────────────────────────────────────────────────────
@@ -205,6 +223,8 @@ export * from "./template-marketplace/adapter/out/GitLabSource";
 export * from "./template-marketplace/adapter/out/LocalFileSource";
 export * from "./template-marketplace/service/MarketplaceCache";
 export * from "./template-marketplace/service/MarketplaceCommands";
+export * from "./template-marketplace/service/MarketplaceInventory";
+export * from "./template-marketplace/service/MarketplaceTemplateSources";
 export * from "./template-marketplace/service/TemplateMarketplaceService";
 export * from "./template-marketplace/composition/MarketplaceFeature";
 

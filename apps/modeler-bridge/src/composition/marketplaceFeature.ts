@@ -1,7 +1,9 @@
 import {
     BpmnElementTemplatesService,
+    createMarketplaceCommands,
     createTemplateMarketplaceService,
-    MarketplaceCommands,
+    MarketplaceInventory,
+    MarketplaceTemplateSources,
     TemplateMarketplaceService,
 } from "@miragon/bpmn-modeler-core";
 
@@ -49,7 +51,11 @@ export interface MarketplaceOptions {
 export function register(
     deps: BridgeSharedDeps,
     options: MarketplaceOptions,
-): { marketplaceSvc: TemplateMarketplaceService } {
+): {
+    marketplaceSvc: TemplateMarketplaceService;
+    templateSources: MarketplaceTemplateSources;
+    registrations: RpcMarketplaceRegistrations;
+} {
     const marketplaceSvc = createTemplateMarketplaceService({
         workspace: deps.nodeWorkspace,
         settings: deps.settings,
@@ -60,31 +66,42 @@ export function register(
         homeDir: options.homeDir,
     });
 
-    return { marketplaceSvc };
+    const registrations = new RpcMarketplaceRegistrations(deps.rpc);
+    return {
+        marketplaceSvc,
+        templateSources: new MarketplaceTemplateSources(
+            marketplaceSvc,
+            deps.notifier,
+            registrations,
+        ),
+        registrations,
+    };
 }
 
-/** Registers the Host→Core marketplace notifications, once the templates service exists. */
+/**
+ * Registers the Host→Core marketplace notifications, once the templates
+ * service exists. The add-on catalog runs the same commands, so their flows
+ * queue together and every view follows them.
+ */
 export function registerHandlers(
     deps: BridgeSharedDeps,
     handles: {
         marketplaceSvc: TemplateMarketplaceService;
         templatesSvc: BpmnElementTemplatesService;
+        registrations: RpcMarketplaceRegistrations;
         homeDir: string;
     },
-): void {
-    bindHandlers(
-        deps.rpc,
-        marketplaceHandlers({
-            commands: new MarketplaceCommands({
-                marketplaces: handles.marketplaceSvc,
-                templates: handles.templatesSvc,
-                registrations: new RpcMarketplaceRegistrations(deps.rpc),
-                prompt: new RpcMarketplacePrompt(deps.rpc),
-                picker: deps.picker,
-                notifier: deps.notifier,
-                homeDir: handles.homeDir,
-            }),
-            settingsMirror: deps.settings,
-        }),
-    );
+): { marketplaces: MarketplaceInventory } {
+    const { commands, inventory } = createMarketplaceCommands({
+        marketplaces: handles.marketplaceSvc,
+        templates: handles.templatesSvc,
+        registrations: handles.registrations,
+        prompt: new RpcMarketplacePrompt(deps.rpc),
+        picker: deps.picker,
+        notifier: deps.notifier,
+        actionNotifier: deps.actionNotifier,
+        homeDir: handles.homeDir,
+    });
+    bindHandlers(deps.rpc, marketplaceHandlers({ commands, settingsMirror: deps.settings }));
+    return { marketplaces: inventory };
 }

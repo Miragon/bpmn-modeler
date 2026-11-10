@@ -46,9 +46,15 @@ IDE, synced back live.
 
 ## Deploy to Camunda
 
-Deploy a diagram to a running Camunda 7 or Camunda 8 engine from the **Miragon Deployment** tool
-window, and check it against a Camunda 7 engine before you do. Passwords and client secrets stay in
-the IDE's password safe.
+Deploy a diagram to a running Camunda 7 or Camunda 8 engine from the **Deploy** tab of the
+**BPMN Modeler** tool window, and check it against a Camunda 7 engine before you do. Passwords and
+client secrets stay in the IDE's password safe.
+
+## Review your project's add-ons
+
+The **Artifacts** tab of the same tool window lists the bpmn-js plugins, lint rule packages and
+element templates of your project. Allow or revoke a plugin or rule package there, and turn element
+templates off and on.
 
 ## Good to know
 

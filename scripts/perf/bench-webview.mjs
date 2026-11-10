@@ -90,7 +90,11 @@ function installHostShim({ lintMode, locale }) {
                     replyWithModelFile();
                     break;
                 case "GetElementTemplatesCommand":
-                    reply({ type: "ElementTemplatesQuery", elementTemplates: [] });
+                    reply({
+                        type: "ElementTemplatesQuery",
+                        elementTemplates: [],
+                        hiddenTemplates: [],
+                    });
                     break;
                 case "GetBpmnlintConfigCommand":
                     reply(

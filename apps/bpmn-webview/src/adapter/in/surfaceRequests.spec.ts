@@ -6,6 +6,7 @@ import {
     type Command,
     ElementTemplatesQuery,
     GetDiagramAsSVGCommand,
+    HiddenElementTemplatesQuery,
     ImplementationStatusQuery,
     type Query,
     UpdateOpenScriptEditorsQuery,
@@ -52,6 +53,7 @@ function modelerSurface() {
         applyOpenScriptEditors: vi.fn(),
         applyImplementationStatus: vi.fn(),
         setElementTemplates: vi.fn(),
+        setHiddenElementTemplates: vi.fn(),
         setSettings: vi.fn(),
     };
 }
@@ -358,7 +360,8 @@ describe("createSurfaceRequests", () => {
         );
         handlers.UpdateOpenScriptEditorsQuery(new UpdateOpenScriptEditorsQuery(openScripts));
         handlers.ImplementationStatusQuery(new ImplementationStatusQuery({}));
-        handlers.ElementTemplatesQuery(new ElementTemplatesQuery([{ id: "tpl" }]));
+        handlers.ElementTemplatesQuery(new ElementTemplatesQuery([{ id: "tpl" }], []));
+        handlers.HiddenElementTemplatesQuery(new HiddenElementTemplatesQuery([{ id: "tpl" }]));
 
         expect(host.postMessage).not.toHaveBeenCalled();
         expect(hostModelerState.rememberOpenScripts).toHaveBeenCalledWith(openScripts);
@@ -367,11 +370,52 @@ describe("createSurfaceRequests", () => {
     describe("element templates", () => {
         it("loads the templates into the modeler and answers the wait", () => {
             const { surface, replies, handlers } = surfaceRequestsOn(modelerSurface());
-            const query = new ElementTemplatesQuery([{ id: "tpl" }]);
+            const query = new ElementTemplatesQuery([{ id: "tpl" }], []);
 
             handlers.ElementTemplatesQuery(query);
 
             expect(surface.setElementTemplates).toHaveBeenCalledWith([{ id: "tpl" }]);
+            expect(replies.elementTemplates.done).toHaveBeenCalledWith(query);
+        });
+
+        it("hides the templates the host keeps out before it loads the list", () => {
+            const { surface, handlers } = surfaceRequestsOn(modelerSurface());
+
+            handlers.ElementTemplatesQuery(
+                new ElementTemplatesQuery([{ id: "tpl" }, { id: "mail" }], [{ id: "mail" }]),
+            );
+
+            expect(surface.setHiddenElementTemplates).toHaveBeenCalledExactlyOnceWith([
+                { id: "mail" },
+            ]);
+            expect(surface.setHiddenElementTemplates.mock.invocationCallOrder[0]).toBeLessThan(
+                surface.setElementTemplates.mock.invocationCallOrder[0],
+            );
+        });
+
+        it("replaces only the hidden templates on a hidden-templates change", () => {
+            const { surface, replies, handlers } = surfaceRequestsOn(modelerSurface());
+
+            handlers.HiddenElementTemplatesQuery(
+                new HiddenElementTemplatesQuery([{ id: "mail", version: 2 }]),
+            );
+
+            expect(surface.setHiddenElementTemplates).toHaveBeenCalledExactlyOnceWith([
+                { id: "mail", version: 2 },
+            ]);
+            expect(surface.setElementTemplates).not.toHaveBeenCalled();
+            expect(replies.elementTemplates.done).not.toHaveBeenCalled();
+        });
+
+        it("answers the wait even when the modeler rejects the hidden templates", () => {
+            const surface = modelerSurface();
+            surface.setHiddenElementTemplates.mockImplementation(() => {
+                throw new Error("destroyed");
+            });
+            const { replies, handlers } = surfaceRequestsOn(surface);
+            const query = new ElementTemplatesQuery([{ id: "tpl" }], [{ id: "tpl" }]);
+
+            expect(() => handlers.ElementTemplatesQuery(query)).toThrow("destroyed");
             expect(replies.elementTemplates.done).toHaveBeenCalledWith(query);
         });
 
@@ -381,7 +425,7 @@ describe("createSurfaceRequests", () => {
                 throw new Error("invalid templates");
             });
             const { replies, handlers } = surfaceRequestsOn(surface);
-            const query = new ElementTemplatesQuery([{ id: "tpl" }]);
+            const query = new ElementTemplatesQuery([{ id: "tpl" }], []);
 
             expect(() => handlers.ElementTemplatesQuery(query)).toThrow("invalid templates");
             expect(replies.elementTemplates.done).toHaveBeenCalledWith(query);

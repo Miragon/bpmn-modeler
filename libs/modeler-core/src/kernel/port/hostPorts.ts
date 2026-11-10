@@ -226,6 +226,9 @@ export interface WorkspacePort {
      * files therefore watches every path, as
      * {@link import("../domain/watchedFiles").watchedChangeOf} reads its events.
      *
+     * A `rootPath` that does not exist yet arms without throwing, and the files
+     * created below it once it appears arrive as creates.
+     *
      * Returns a handle that disposes the watcher and its listeners in one call.
      */
     createWatcher(

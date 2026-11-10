@@ -7,6 +7,8 @@ import { GitHubSource } from "../adapter/out/GitHubSource";
 import { GitLabSource } from "../adapter/out/GitLabSource";
 import { LocalFileSource } from "../adapter/out/LocalFileSource";
 import { MarketplaceCache } from "../service/MarketplaceCache";
+import { MarketplaceCommandPorts, MarketplaceCommands } from "../service/MarketplaceCommands";
+import { MarketplaceInventory } from "../service/MarketplaceInventory";
 import { TemplateMarketplaceService } from "../service/TemplateMarketplaceService";
 
 export interface MarketplaceHostPorts {
@@ -20,15 +22,12 @@ export interface MarketplaceHostPorts {
     /** Expands `~` in a pasted path or a local source; the core cannot read it. */
     homeDir: string;
     http?: HttpClient;
-    /** Epoch ms; a host with no better clock passes nothing. */
-    now?: () => number;
 }
 
 export function createTemplateMarketplaceService(
     ports: MarketplaceHostPorts,
 ): TemplateMarketplaceService {
     const http = ports.http ?? new FetchHttpClient();
-    const now = ports.now ?? Date.now;
     const sourceFor = (config: RepositorySourceConfig): RepositorySource => {
         switch (config.kind) {
             case "github":
@@ -41,12 +40,32 @@ export function createTemplateMarketplaceService(
     };
     return new TemplateMarketplaceService(
         sourceFor,
-        new MarketplaceCache(ports.cacheRoot, ports.workspace, now),
+        new MarketplaceCache(ports.cacheRoot, ports.workspace),
         ports.settings,
         ports.notifier,
         ports.tokens,
         ports.tokenPrompt,
         ports.homeDir,
-        now,
     );
+}
+
+/**
+ * The flows behind a host's marketplace commands and the add-on catalog's
+ * view of them over that one instance, so a flow started from either queues
+ * behind the other and both follow it.
+ */
+export function createMarketplaceCommands(ports: MarketplaceCommandPorts): {
+    readonly commands: MarketplaceCommands;
+    readonly inventory: MarketplaceInventory;
+} {
+    const commands = new MarketplaceCommands(ports);
+    return {
+        commands,
+        inventory: new MarketplaceInventory(
+            ports.registrations,
+            ports.marketplaces,
+            commands,
+            ports.notifier,
+        ),
+    };
 }

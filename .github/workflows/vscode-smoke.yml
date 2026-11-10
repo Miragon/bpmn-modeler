@@ -14,6 +14,7 @@ on:
       - 'apps/dmn-webview/**'
       - 'apps/form-webview/**'
       - 'apps/deployment-webview/**'
+      - 'apps/add-ons-webview/**'
       - 'libs/**'
       - '!libs/standalone-extension/**'
       - 'packages/bpmn-modeler/**'

@@ -16,9 +16,9 @@ import { PluginApprovalsMirror } from "../../port/PluginApprovalsMirror";
 
 /**
  * IntelliJ's application-level approval store, mirrored for the core's
- * synchronous `read()`. The host seeds the mirror on `session/register` and
- * pushes every list it stores in `pluginApprovals/didChange` to every running
- * bridge of the IDE.
+ * synchronous `read()`. The host seeds the mirror after every spawn and on
+ * `session/register`, and pushes every list it stores in
+ * `pluginApprovals/didChange` to every running bridge of the IDE.
  *
  * The host is the writer of record: `change` sends only the rows to allow and
  * the ids to revoke, the host merges them into the list it stores and answers

@@ -73,7 +73,7 @@ jobs:
           cache: yarn
 
       - name: Setup JDK 21
-        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
         with:
           distribution: temurin
           java-version: '21'
@@ -89,7 +89,7 @@ jobs:
           bun-version-file: apps/modeler-bridge/.bun-version
 
       - name: Install dependencies (focused)
-        run: yarn workspaces focus bpmn-modeler @miragon/bpmn-modeler-webview @miragon/bpmn-modeler-deployment-webview @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-types @miragon/bpmn-modeler-core @miragon/bpmn-modeler-bridge @miragon/bpmn-modeler-append-menu @miragon/bpmn-modeler-clipboard @miragon/bpmn-modeler-i18n-extras @miragon/bpmn-modeler-element-template-chooser
+        run: yarn workspaces focus bpmn-modeler @miragon/bpmn-modeler-webview @miragon/bpmn-modeler-deployment-webview @miragon/bpmn-modeler-add-ons-webview @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-types @miragon/bpmn-modeler-core @miragon/bpmn-modeler-bridge @miragon/bpmn-modeler-append-menu @miragon/bpmn-modeler-clipboard @miragon/bpmn-modeler-i18n-extras @miragon/bpmn-modeler-element-template-chooser
 
       - name: Build shared libraries
         run: yarn build:libs
@@ -99,6 +99,9 @@ jobs:
 
       - name: Build deployment-webview
         run: yarn build:deployment-webview
+
+      - name: Build add-ons-webview
+        run: yarn build:add-ons-webview
 
       - name: Smoke-test the rule package gate under Bun
         run: yarn workspace @miragon/bpmn-modeler-bridge smoke:rule-package-gate

@@ -60,10 +60,12 @@ If a referenced rule or plugin is not installed, only that entry is skipped. The
 
 When a lint needs a rule package you have not allowed yet, the diagram is linted without it right away, and a notification says how many are waiting, for example *1 bpmnlint rule package in this workspace is not allowed yet, so rules from it are skipped.*
 
-1. Click **Review…** to see the list. Each entry shows the package's name and version, whether it is *new* or *changed since you allowed it*, and its folder.
-2. Check the packages you trust and confirm. Every open diagram that was linted without one of them lints again with it.
+1. Click **Review…**. The [Artifacts view](/vscode/features/artifacts) opens at the waiting packages and shows each one's folder, version, files and content hash.
+2. Click **Allow this content** on each package you trust. Every open diagram that was linted without it lints again with it.
 
-A package you leave unchecked is not offered again until the window reloads or its files change, and its rules stay skipped. Closing the notification without **Review…** counts the same as leaving every package unchecked. Only one question is open at a time, shared with the questions about [BPMN plugins](/vscode/features/bpmn-plugins#allow-a-plugin).
+**Review…** shows a list to check instead when a waiting package lies outside every open folder, for example when the config links to it. Each entry shows the package's name and version, whether it is *new* or *changed since you allowed it*, and its folder. Check the packages you trust and confirm.
+
+Once **Review…** opened the view, the modeler does not ask again in this window about the same packages; their rules stay skipped until you allow them there. To stop a package you allowed, **Revoke** it in the view. A package you leave unchecked in the list is not offered again until the window reloads or its files change, and its rules stay skipped. Closing the notification without **Review…** counts the same as leaving every package unchecked. Only one question is open at a time, shared with the questions about [BPMN plugins](/vscode/features/bpmn-plugins#allow-a-plugin).
 
 The modeler asks only when a rule would be skipped. When its bundled rules cover what your config takes from a package you have not allowed, for example the rules of `bpmnlint-plugin-camunda-compat`, it lints with the bundled rules without asking and notes that in the output channel.
 
@@ -99,7 +101,7 @@ When a dependency, not the package itself, cannot be checked, a `cannot be allow
 
 ### IntelliJ
 
-The IntelliJ plugin asks the same way as for [BPMN plugins in IntelliJ](/vscode/features/bpmn-plugins#intellij): an IDE notification balloon with **Review…**, and approvals that the IDE keeps for all your projects, outside every project. The output channel lines go to the IDE log.
+The IntelliJ plugin asks the same way as for [BPMN plugins in IntelliJ](/vscode/features/bpmn-plugins#intellij): an IDE notification balloon with **Review…**, which opens the rule package's row in the **Artifacts** tab of the **BPMN Modeler** tool window when the package lies inside the project, and approvals that the IDE keeps for all your projects, outside every project. **Revoke** there takes an approval back; rules that already ran stay loaded until you restart the IDE. The output channel lines go to the IDE log.
 
 In IntelliJ, rule packages whose `package.json` sets `main` or `exports`, and most that have dependencies, do not load yet, even once allowed: the bundled rules stand in for them, or their rules are skipped. A later release lifts this limit.
 

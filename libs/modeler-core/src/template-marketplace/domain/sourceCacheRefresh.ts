@@ -16,14 +16,10 @@ export type SourceFetchOutcome =
       }
     | { readonly kind: "failed"; readonly sourceIndex: number; readonly sourceIdentity: string };
 
-/**
- * `sourceIdentity` is `undefined` for a slot cached before slots recorded their
- * source, `fetchedAt` for one cached before they recorded when.
- */
+/** `sourceIdentity` is `undefined` for a slot cached before slots recorded their source. */
 export interface CachedSourceSlot {
     readonly sourceIndex: number;
     readonly sourceIdentity: string | undefined;
-    readonly fetchedAt?: number;
 }
 
 export type SourceSlotAction =
@@ -97,42 +93,30 @@ function slotActionsFor(
 export interface SourceSlotRecord {
     readonly sourceIdentity: string;
     readonly generation: number;
-    /** Epoch ms of the fetch that filled the generation; absent in a record an earlier version wrote. */
-    readonly fetchedAt?: number;
 }
 
 /** `undefined` for text that holds no record, such as a torn write. */
 export function parseSourceSlotRecord(text: string): SourceSlotRecord | undefined {
-    let value: { sourceIdentity?: unknown; generation?: unknown; fetchedAt?: unknown } | null;
+    let value: { sourceIdentity?: unknown; generation?: unknown } | null;
     try {
         value = JSON.parse(text);
     } catch {
         return undefined;
     }
-    const { sourceIdentity, generation, fetchedAt } = value ?? {};
-    if (typeof sourceIdentity !== "string" || !Number.isSafeInteger(generation)) {
-        return undefined;
-    }
-    return {
-        sourceIdentity,
-        generation: generation as number,
-        ...(Number.isFinite(fetchedAt) ? { fetchedAt: fetchedAt as number } : {}),
-    };
+    const { sourceIdentity, generation } = value ?? {};
+    return typeof sourceIdentity === "string" && Number.isSafeInteger(generation)
+        ? { sourceIdentity, generation: generation as number }
+        : undefined;
 }
 
-export function formatSourceSlotRecord({
-    sourceIdentity,
-    generation,
-    fetchedAt,
-}: SourceSlotRecord): string {
-    return JSON.stringify({ sourceIdentity, generation, fetchedAt });
+export function formatSourceSlotRecord({ sourceIdentity, generation }: SourceSlotRecord): string {
+    return JSON.stringify({ sourceIdentity, generation });
 }
 
 /** Never the live generation, so its files stay served until the new record is written. */
 export function nextSourceSlotRecord(
     current: SourceSlotRecord | undefined,
     sourceIdentity: string,
-    fetchedAt: number,
 ): SourceSlotRecord {
-    return { sourceIdentity, generation: (current?.generation ?? 0) + 1, fetchedAt };
+    return { sourceIdentity, generation: (current?.generation ?? 0) + 1 };
 }

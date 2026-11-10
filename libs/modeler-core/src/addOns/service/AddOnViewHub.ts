@@ -1,6 +1,7 @@
 import { LoggerPort, WorkspacePort } from "../../kernel/port/hostPorts";
-import type { AddOnCatalogModel } from "../domain/addOnCatalogModel";
+import type { AddOnCatalogModel, AddOnReveal } from "../domain/addOnCatalogModel";
 import { AddOnActionResult, AddOnRequest, CLOSED_VIEW } from "../domain/addOnRequests";
+import { firstRevisionOf } from "../domain/shownRevisions";
 import { AddOnCatalogService } from "./AddOnCatalogService";
 import { AddOnWatchers } from "./AddOnWatchers";
 
@@ -13,17 +14,24 @@ export interface AddOnViewConnection {
 
 interface AttachedView {
     readonly post: (model: AddOnCatalogModel) => void;
+    readonly onReveal?: (reveal: AddOnReveal) => void;
     visible: boolean;
+    revealedId?: number;
 }
 
 /**
  * Posts every model to the visible views. A hidden view gets the latest one
  * once it is shown, and the catalog reads again then, since nothing tells it
- * about another window's write or a package installed meanwhile.
+ * about another window's write or a package installed meanwhile. The latest
+ * reveal reaches each view at most once, when it is visible, so a view
+ * attached or shown later still lands on the rows it names.
  */
 export class AddOnViewHub {
     private readonly views = new Set<AttachedView>();
     private readonly built: { dispose(): void };
+    private latestReveal?: AddOnReveal;
+    /** From the clock as revisions are, as a page that outlives this process keeps the last id it applied. */
+    private lastRevealId = firstRevisionOf(Date.now());
 
     constructor(
         private readonly catalog: AddOnCatalogService,
@@ -38,11 +46,18 @@ export class AddOnViewHub {
         );
     }
 
-    attach(post: (model: AddOnCatalogModel) => void, visible: boolean): AddOnViewConnection {
-        const view: AttachedView = { post, visible };
+    attach(
+        post: (model: AddOnCatalogModel) => void,
+        visible: boolean,
+        onReveal?: (reveal: AddOnReveal) => void,
+    ): AddOnViewConnection {
+        const view: AttachedView = { post, visible, ...(onReveal && { onReveal }) };
         this.views.add(view);
         this.followViews();
-        if (visible) this.refresh();
+        if (visible) {
+            this.revealTo(view);
+            this.refresh();
+        }
         return {
             handle: (request) =>
                 this.views.has(view) ? this.catalog.handle(request) : Promise.resolve(CLOSED_VIEW),
@@ -52,6 +67,14 @@ export class AddOnViewHub {
                 this.followViews();
             },
         };
+    }
+
+    reveal(addOnIds: readonly string[]): void {
+        this.latestReveal = {
+            revealId: ++this.lastRevealId,
+            addOnIds: [...addOnIds],
+        };
+        this.views.forEach((view) => this.revealTo(view));
     }
 
     refresh(): void {
@@ -73,6 +96,7 @@ export class AddOnViewHub {
         if (!shown) return;
         const latest = this.catalog.latest();
         if (latest !== undefined) this.post(view, latest);
+        this.revealTo(view);
         this.refresh();
     }
 
@@ -82,9 +106,20 @@ export class AddOnViewHub {
         this.catalog.setActive([...this.views].some(({ visible }) => visible));
     }
 
+    private revealTo(view: AttachedView): void {
+        const reveal = this.latestReveal;
+        if (!view.visible || reveal === undefined || view.revealedId === reveal.revealId) return;
+        view.revealedId = reveal.revealId;
+        this.deliver(() => view.onReveal?.(reveal));
+    }
+
     private post(view: AttachedView, model: AddOnCatalogModel): void {
+        this.deliver(() => view.post(model));
+    }
+
+    private deliver(send: () => void): void {
         try {
-            view.post(model);
+            send();
         } catch (error) {
             this.logger.logError(error instanceof Error ? error : new Error(String(error)));
         }

@@ -52,6 +52,7 @@ import {
 } from "@miragon/bpmn-modeler-core";
 
 import { SeenPaths } from "./seenPaths";
+import { watchOnceFolderExists } from "./watchOnceFolderExists";
 import { WorkspaceRoots } from "../../port/WorkspaceRoots";
 
 /**
@@ -74,17 +75,38 @@ function isIgnoredWatchPath(root: string, path: string): boolean {
     return relative(root, path).split(/[/\\]/).some(isIgnoredWatchDirName);
 }
 
-function watchWithChokidar(root: string, emit: WatchSubscriber): { close(): unknown } {
-    return watch(root, {
-        ignoreInitial: true,
-        ignored: (path: string) => isIgnoredWatchPath(root, path),
+function platformWatchOptions() {
+    return {
         usePolling: process.platform === "win32",
         interval: 300,
         binaryInterval: 300,
+    };
+}
+
+function watchWithChokidar(root: string, emit: WatchSubscriber, onArmed: () => void): { close(): unknown } {
+    return watch(root, {
+        ignoreInitial: true,
+        ignored: (path: string) => isIgnoredWatchPath(root, path),
+        ...platformWatchOptions(),
     })
+        // chokidar lists each folder before it watches it; `ready` follows once every folder it found is watched.
+        .on("ready", onArmed)
         .on("add", emit.onAdd)
         .on("change", emit.onChange)
         .on("unlink", emit.onUnlink);
+}
+
+function watchChildFolders(folder: string, onChange: () => void): { close(): unknown } {
+    return watch(folder, { ignoreInitial: true, depth: 0, ...platformWatchOptions() })
+        // A folder created while chokidar armed is part of its first scan and raises no addDir.
+        .on("ready", onChange)
+        .on("addDir", onChange)
+        .on("unlinkDir", onChange)
+        .on("error", onChange);
+}
+
+function isIgnoredWatchFolder(relativeFolder: string): boolean {
+    return relativeFolder.split("/").some(isIgnoredWatchDirName);
 }
 
 /**
@@ -265,6 +287,10 @@ export class NodeWorkspace implements WorkspacePort, WorkspaceRoots {
      * The folders {@link isIgnoredWatchDirName} names are pruned so arming the
      * recursive watch on a large repo stays within the OS watch-descriptor
      * budget (inotify on Linux).
+     *
+     * A root that does not exist yet is watched once it appears, see
+     * {@link watchOnceFolderExists}; the files it already holds then arrive
+     * as creates.
      */
     createWatcher(
         rootPath: string,
@@ -345,10 +371,26 @@ export class NodeWorkspace implements WorkspacePort, WorkspaceRoots {
             onChange: (p) => subscribers.forEach((s) => s.onChange(p)),
             onUnlink: (p) => subscribers.forEach((s) => s.onUnlink(p)),
         };
-        const watcher =
-            process.platform === "darwin"
-                ? watchRecursivelyWithFsEvents(root, emit)
-                : watchWithChokidar(root, emit);
+        const watcher = watchOnceFolderExists(root, {
+            arm: (late) => {
+                // A late arming follows the folder's creation, and the files written with
+                // it may land before the watch covers them: a listing once armed sees them.
+                const reportFilesHeld = (): void => {
+                    if (late) {
+                        void listFilesBelow(root, isIgnoredWatchFolder).then((files) =>
+                            files.forEach((file) => emit.onAdd(joinWorkspacePath(root, file))),
+                        );
+                    }
+                };
+                if (process.platform !== "darwin") {
+                    return watchWithChokidar(root, emit, reportFilesHeld);
+                }
+                const armed = watchRecursivelyWithFsEvents(root, emit);
+                reportFilesHeld();
+                return armed;
+            },
+            watchChildren: watchChildFolders,
+        });
         const shared = { watcher, subscribers };
         this.rootWatchers.set(root, shared);
         return shared;

@@ -11,14 +11,17 @@ import {
     CodeApprovalChange,
 } from "../../kernel/domain/codeApproval";
 import { ChoicePrompt } from "../../kernel/domain/prompts";
-import { PluginApprovalStorePort } from "../../kernel/port/approvalPorts";
+import { ApprovalReviewPort, PluginApprovalStorePort } from "../../kernel/port/approvalPorts";
 import { ArtifactService } from "../../kernel/service/ArtifactService";
+import { ListReview } from "../../kernel/adapter/out/ListReview";
+import { ViewReview } from "../../addOns/adapter/out/ViewReview";
 import { QuestionQueue } from "../../kernel/service/QuestionQueue";
 import {
     createTestHost,
     FakeEditorHandle,
     fingerprintHasher,
     InMemoryPluginApprovals,
+    RecordingAddOnViewReveal,
     ScriptedReview,
     TestHostOptions,
 } from "../../testing";
@@ -71,7 +74,7 @@ function setUp(
         approvals?: PluginApprovalStorePort;
         questions?: QuestionQueue;
         hasher?: ContentHasherPort;
-        review?: ScriptedReview;
+        review?: ScriptedReview | ((host: ReturnType<typeof createTestHost>) => ApprovalReviewPort);
     } = {},
 ) {
     const host = createTestHost({ folders: ["/work", "/other"], files, ...options });
@@ -82,7 +85,12 @@ function setUp(
         cacheRoot: options.cacheRoot ?? CACHE,
         hasher: options.hasher ?? fingerprintHasher,
         questions: options.questions ?? new QuestionQueue(),
-        ...(options.review === undefined ? {} : { review: options.review }),
+        ...(options.review === undefined
+            ? {}
+            : {
+                  review:
+                      typeof options.review === "function" ? options.review(host) : options.review,
+              }),
     });
     const requestPlugins = async (editor: FakeEditorHandle) => {
         await feature.editorContribution.commandHandlers.GetBpmnPluginsCommand(
@@ -449,6 +457,25 @@ describe("BpmnPluginsFeature", () => {
             expect(host.picker.prompts).toEqual([]);
             expect(host.pluginApprovals.approvals).toEqual([]);
             expect(host.actionNotifier.notices).toHaveLength(1);
+            expect(editor.reloadCount).toBe(0);
+        });
+
+        it("takes Review… to the add-ons view at the plugin's row when the view lists it", async () => {
+            const view = new RecordingAddOnViewReveal();
+            const { host, requestPlugins, openEditor } = setUp(RESIZE_FILES, {
+                noticeAnswers: { [PLUGIN_APPROVAL_NOTICE_ID]: "review" },
+                review: (testHost) =>
+                    new ViewReview("plugin", view, new ListReview(testHost.picker)),
+            });
+            const editor = await openEditor();
+
+            await requestPlugins(editor);
+            await requestPlugins(await openEditor("/work/invoice.bpmn"));
+
+            expect(view.revealed).toEqual([[`plugin:${RESIZE}`]]);
+            expect(host.picker.prompts).toEqual([]);
+            expect(host.actionNotifier.notices).toHaveLength(1);
+            expect(host.pluginApprovals.approvals).toEqual([]);
             expect(editor.reloadCount).toBe(0);
         });
 

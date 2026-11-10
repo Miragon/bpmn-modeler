@@ -1,7 +1,7 @@
 # BPMN modeler
 
 - Status: accepted
-- Last reviewed: 2026-11-08
+- Last reviewed: 2026-11-10
 
 ## Context
 
@@ -91,6 +91,26 @@ same name and code, in one undoable command. The package also exports
 `extractModelDefinitions(xml)`, so host-less consumers can build their own index
 with the same tag scanner the IDE hosts use. It is a scanner rather than a
 moddle parse because hosts index whole workspaces.
+
+`setHiddenElementTemplates(refs)` keeps templates out of new choices without
+removing them. The filter sits at the four points that offer a template: the
+chooser, the append, create and replace menus of create-append-anything, and
+the default template upstream applies after every shape and connection create.
+Loading is not filtered, and neither are `get`, `getLatest` and `getAll`: the
+properties panel reads applied templates and their update check through them,
+so an element that uses a hidden template keeps it. Its own replace menu still
+lists that template while it is the latest version of its id: on C8, re-applying
+it from there is the only way to pick another of its presets. The default is
+narrowed by replacing `getDefault` on the `elementTemplates` instance, a narrow
+reach into upstream that browser specs pin for both engines. It is a method of its own
+rather than a filtered `setElementTemplates` call, because a new template set
+re-validates every template and reports the rejections again. Refs are
+`{ id, version? }`, the identity upstream indexes templates by, so the page
+cannot tell two loaded copies of one ref apart; the host decides which refs to
+hide. When the latest version of an id is hidden, the id is not offered, and no
+older version takes its place. The panel's update prompt may still suggest a
+hidden newer version. The refs live on the facade, so they outlive a new
+template set and a re-init.
 
 `getService` has a typed overload for seven semver-covered services: `canvas`,
 `commandStack`, `elementRegistry`, `eventBus`, `modeling`, `overlays`, and
@@ -605,7 +625,22 @@ ids, or `leftForView`, which a review that shows the pending code in a view
 returns ([#2250](https://github.com/Miragon/bpmn-modeler/issues/2250)). The
 question then settles at once, so the queue does not wait on the view; the
 code keeps its state, is not declined for the gate, and no notice asks about
-the same content again this session. The catalogs keep these session answers
+the same content again this session. `ViewReview` in `addOns/adapter/out/`
+is that review: it leaves the code to the host's add-ons view through the
+`AddOnViewRevealPort`, naming the rows (`addOnIdOf` of each pending artifact
+id), only when `leavesToView` holds, that is when a folder is open and every
+pending id lies inside one. All or nothing: the view lists only code inside
+a workspace folder, so an item a link put outside every folder could be
+allowed nowhere this session. Otherwise, or when the reveal answers `false`
+or rejects, it answers with its fallback, `ListReview`, which stays for good.
+The review request carries the folders the prompt was built for
+(`ApprovalReviewRequest.workspaceFolders`), so the prompt and this decision
+use one reading. Both hosts pass a `ViewReview` to both features: VS Code
+over its Artifacts view, IntelliJ over `RpcAddOnViewReveal` and the Artifacts
+tab of its BPMN Modeler tool window. **Review…** opens the view unless an
+item lies outside every folder or the view cannot open. The feature's
+`review` port is still optional; making it required and removing
+`reviewOrChecklist` is a follow-up now that both hosts pass one. The catalogs keep these session answers
 by content (`SESSION_ANSWERS`). The kernel's
 `ApprovalQuestion` runs this flow for every approval kind and knows no
 editor: one question is open at a time, and plugins found while it is open
@@ -693,7 +728,8 @@ supplies these parts:
   IDE. Bridges run per project, so the host is the single writer: the bridge
   mirrors the list for the port's synchronous `read()`, seeded on every
   `session/register` (a separate seed would race the page's first plugin
-  query) and replaced by `pluginApprovals/didChange`. A bridge writes with
+  query) and replaced by `pluginApprovals/didChange`, which the host also
+  sends after every spawn. A bridge writes with
   `pluginApprovals/change`, which carries only the rows to allow and the ids to
   revoke; the store reads, merges, writes and bumps its revision under one
   lock, pushes the list to every running bridge and then answers with it.
@@ -765,20 +801,41 @@ contract test as preconditions.
 host-neutral read model of the artifacts view
 ([#2263](https://github.com/Miragon/bpmn-modeler/issues/2263); the views are
 [#2250](https://github.com/Miragon/bpmn-modeler/issues/2250)). It owns no
-rule of the code it lists: the plugin and rule package features each meet a
+rule of what it lists: the plugin and rule package features each meet a
 structural port of `addOns/port/` with an inventory (`PluginInventory`,
 `RulePackageInventory`) that finds, places, hashes and answers for their code
 as their notices do, says what it can do once allowed, what follows an
 allow or a revoke and which revoked code stays loaded, and runs what
-follows a revoke. The host compositions wire one into the
-other ([package boundaries](architecture-and-hosts.md#package-boundaries)).
-Both hosts build an `AddOnsFeature`; no view attaches to it yet. Templates and
-marketplaces are not listed yet: their listing, the targeted remove and its
-confirm follow with the views.
+follows a revoke. The element templates meet one with `TemplateInventory`,
+which reads each template file by the loader's rule (`templatesOfFileText`,
+`templateEngineOf`), and the marketplaces with `MarketplaceInventory`
+over the host's `MarketplaceCommands`, which `createMarketplaceCommands`
+builds together. The host compositions wire one into the other ([package boundaries](architecture-and-hosts.md#package-boundaries)).
+Both hosts build an `AddOnsFeature` and bind one view to it: VS Code its
+Artifacts view, IntelliJ the Artifacts tab of its BPMN Modeler tool window,
+attached hidden when the bridge starts; IntelliJ's watchers follow the folders
+known whenever the views change or the catalog refreshes, so they follow the
+project root from the first `addOns/open` on
+([host integrations](architecture-and-hosts.md#host-integrations)).
+`AddOnsFeature.attachPanel(post, visible)` serves the add-ons view protocol
+of `libs/shared` (`addOnsView.ts`) for one page through `AddOnViewMessages`
+in `addOns/adapter/in/`, so a host only passes a `post` and the page's
+commands; `panelRoutes` answer the surface coverage before any page attaches.
+A page asks for the last model when it loads, as a push can land before it
+listens. `AddOnsFeature.reveal(addOnIds)` keeps the latest reveal and
+delivers it at most once to each attached view while it is visible, so a view
+shown or attached later still lands on the rows; it may arrive before any
+model, and the page holds it until a model lists one of its rows. A panel
+posts a reveal again to the page that asks once it loads, until a page that
+listens has it, and again after the panel was hidden, as a host may load a
+hidden page anew; a page loaded later gets no old reveal. Reveal ids start
+from the clock, as revisions do, so a page that outlives a core process still
+applies the next reveal.
 
 - *Scope.* It lists the open workspace only: the root config folder's
-  `plugins/` of every workspace folder, the nested config folders an editor or
-  a listing already looked in, each folder's `node_modules` and the
+  `plugins/` and `element-templates/` of every workspace folder, the nested
+  config folders an editor or a listing already looked in (for templates, the
+  templates folders an open editor loaded), each folder's `node_modules` and the
   `node_modules` of each lint config read so far inside one, the packages the gate
   reported, and every stored row inside a folder that discovery missed, read
   directly, so a row whose folder is gone shows as gone. A row outside every
@@ -787,16 +844,119 @@ confirm follow with the views.
   the reader only fetches. Add-ons group by the
   innermost workspace folder, then by source (the root config folder, nested
   config folders by path, package folders), then by name. A nested config
-  folder's plugins apply only to the diagrams below it, and the source says so.
-  The bridge lists the folders the host registered.
+  folder's plugins and templates apply only to the diagrams below it, and the
+  source says so; a config folder's plugins and templates share its source,
+  plugins first. The bridge lists the folders the host registered.
+- *Templates.* One row per template, `template:<source>|<file>#<index>[:<id>][@<version>]`, with
+  its version and engine (`templateEngineOf`: its own, else its file's, as
+  the builder reads it); a file that cannot be read is one row,
+  by its file name, that says why, enabled and without a switch.
+- *Template switches.* On a host that keeps them (the optional
+  `TemplatePreferenceStorePort`; VS Code and the IntelliJ bridge do), a
+  template with an id offers Disable or Enable, and a config folder that
+  lists one, or a marketplace whose entry parses, offers "Disable templates"
+  or "Enable templates" for all of them; a source turned off says "Templates
+  disabled", and its templates show disabled with no switch of their own,
+  which they keep for when the source is on again. A switch is a preference,
+  not trust: it keeps a template out of new choices (the core sends the
+  hidden refs with `ElementTemplatesQuery` and, after a switch change,
+  `HiddenElementTemplatesQuery`; the page applies them with
+  `setHiddenElementTemplates`, see "Public API"), and an element that uses
+  one keeps it. The rules live in `kernel/domain/templatePreferences.ts`:
+  - A switch is `{ source, templateId? }`, the template id within its source,
+    every version and file of it. The source key survives what it must: a
+    config folder is `configFolder:<innermost workspace folder's name>/<path
+    below it>` (a moved repository or a second root keeps it), a marketplace
+    `marketplace:<provider>:<host>/<repository>` without the ref
+    (`marketplacePreferenceKeyOf`), so a ref edit, a re-fetch and a new cache
+    generation keep it. Two roots with the same name and config path, and
+    one repository registered at two refs, share their switches.
+  - Each source's switches live in one scope, which the core decides
+    (`templateSourceScopeOf`): a config folder's in `project`, a
+    marketplace's in `allProjects` once any entry of its repository is
+    registered for all projects, else in `project`. `isTemplateOffered`
+    reads that scope only. A union of both scopes was rejected: a row left in
+    `allProjects` after a User registration was removed would hide the
+    marketplace in every project that registers it per project. A row left in
+    the other scope is never read, and wakes up if the source moves back; a
+    registration that moves scope starts with no switches. A marketplace
+    registered only for this project whose repository keeps its switches in
+    all projects says so on its row (`marketplaceListingScopeText`).
+  - A ref is hidden only when every loaded copy of it comes from a source
+    that does not offer it (`hiddenElementTemplateRefs` in
+    `modeler/bpmn/domain/`), as the page tells copies apart only by id and
+    version. A template without a string id is always offered. Versions of
+    one id are not merged across sources: when the copy switched off is the
+    latest version, its id is not offered, though another source still on
+    serves an older version, as no older version takes a hidden latest one's
+    place on the page. That older copy was not offered before the switch
+    either, since upstream offers only the latest version, so its row keeps
+    its state. Offering it instead would mean a substitute rule on the page
+    for one case.
+  - A change names the switches to disable and to enable in one scope and is
+    merged by the store (`templatePreferencesAfter`, rows in
+    `templatePreferenceChange.cases.json`), so a writer never drops a switch
+    it had not read. The settings snapshot was rejected as the store: VS Code
+    workspace settings live in the repository, and a whole-list write races
+    across IntelliJ projects.
+  - Each switch action is refused unless the latest build offered it, on the
+    switch that build showed (`templateSwitchTargetOf`,
+    `sourceSwitchTargetOf`); clicked twice before a rebuild, the second write
+    changes nothing. A write that fails answers `failed` and logs why.
+  - `BpmnElementTemplatesService` computes the hidden refs when it sends the
+    templates, from the store's synchronous `read()`, and records what it
+    sent; a store change sends only `HiddenElementTemplatesQuery` to each
+    editor whose refs changed, so nothing is read, validated or reported
+    again. It records them before the post, so a change during the post
+    still reaches the editor; a post the editor refuses or that fails is
+    forgotten, so the next change sends the refs again. A webview that is
+    hidden or reloads asks for its templates again and gets the current refs.
+  - Both hosts' Artifacts views offer the switches, and both user guides
+    describe them.
+- *Marketplaces.* A group after the folders lists each registered
+  marketplace entry as a source, in the order the hosts fetch them, keyed by the entry,
+  as two spellings of one repository share a cache slot: its label, the
+  scopes that hold it in the words of the removal choice (and where its
+  switches apply when that differs), its cached
+  templates (`cachedTemplatePathsByRegistration`, the cache's own layout) and
+  why it has none: an entry the registry cannot parse, nothing fetched yet,
+  or a cache that cannot be read. Editors load the same templates, those of
+  the registered entries, grouped by registered slot with the source their
+  switches live in (`registeredTemplateSources`, read by
+  `MarketplaceTemplateSources` from the host's registrations; when those
+  cannot be read, one group without switches), and read them
+  again when the marketplaces setting changes, so the slot of an entry
+  removed by hand serves nothing though it stays cached until the next prune.
+  Registrations that cannot be read, such
+  as a host's reply that fails, leave the group without sources and say why;
+  the folders are still listed. The catalog offers "Add marketplace…" and
+  "Update marketplaces", and each source "Remove". All three run the
+  host's `MarketplaceCommands`, the same instance its commands run
+  (`createMarketplaceCommands` builds the inventory over it), so a flow
+  started from either queues behind the other on its one-at-a-time queue and
+  asks its own questions; the result is `reportedByFlow`. A removal names the
+  entry the latest build showed for the source, never a payload, and asks
+  `marketplaceRemovalConfirm` before the queued unregister, prune and reload.
+  `MarketplaceCommands` fires `onDidChange` at the end of every flow that ran,
+  failed ones included, and the catalog lists again on it.
 - *Read model.* `catalogModelOf` in `addOns/domain/` builds every text, the
   state (`codeStateOf`, the same reading as the notices), and the actions a
   row offers from one table keyed by what the owner read and that state:
   allowed content offers Revoke, other hashed content "Allow this content",
-  content not hashed yet "Review…", a gone row "Forget". A rule package no row
-  or decline asks about is not hashed, as for a lint: its row offers
+  content not hashed yet "Review…", a gone row "Forget". A rule package no row,
+  decline or answer asks about is not hashed, as for a lint: its row offers
   "Review…", which hashes it, and then the allow, so allowing one takes two
-  steps. The config's own package hashes without its models, so the
+  steps. One a notice left to the view is hashed (`isHashWanted` reads every
+  session answer), as the gate hashed it to ask, so the row offers "Allow this
+  content" at once. A view shows its own state labels (`CODE_STATE_LABEL`:
+  Allowed, Not allowed yet, Changed, review needed, Declined this session,
+  Folder gone); the checklist and the log keep `CODE_STATE_TEXT`, which reads
+  inside a sentence. A listing that throws is logged and still reaches the
+  views: `failedCatalogOf` keeps the model shown before, under its own
+  revision so an allow against it holds, with a `problem`, or without one
+  sends a new revision that lists nothing and says why. A view's request is
+  untrusted: `addOnRequestOf` keeps only a known kind with the fields it
+  names, and anything else is refused as not offered. The config's own package hashes without its models, so the
   inventory hashes a folder outside `node_modules` as one only once a lint
   read its config or the gate reported it, and as a package once a
   `node_modules` entry links to it, unless it holds a lint config read so
@@ -822,13 +982,14 @@ confirm follow with the views.
   plugin copies" answers a prune that fails as `failed`, with the core's
   text, and logs why.
 - *Builds.* Only while a view is visible, one at a time with a dirty flag, each
-  from `readStored()`, so an unseeded IntelliJ mirror never makes every row
-  look new; in VS Code a view shown again shows what this window's global
+  from `readStored()` of the approvals and the template switches, so an
+  unseeded IntelliJ mirror never makes every row look new; in VS Code a view shown again shows what this window's global
   state holds (see the multi-window residual under "One question at a
   time"). A change of the
-  approvals, of an owner, below a config folder (one watcher per workspace
-  folder while a view is attached) or of the config folder setting lists
-  again; `node_modules` is not watched, and a refresh or a view shown again
+  approvals or the template switches, of an owner, below a config folder (one watcher per workspace
+  folder while a view is attached), of the templates folders the open editors
+  loaded, a marketplace flow's end, or a change of the config folder or
+  marketplaces setting lists again; `node_modules` is not watched, and a refresh or a view shown again
   reads it. Its actions run on a queue of their own, so a notice left open
   never holds back the view.
 
@@ -956,7 +1117,8 @@ editor forgets it, and `BpmnLintConfigService.dispose`, which
 `BpmnEditorFeature.dispose` calls, stops following. `RulePackageCatalog`
 hashes only the packages it asks about, or the one the user opens with
 "Review…" in the add-on catalog, and never one left to the view, which it
-tells apart by id before any hash; it keeps declines for its lifetime unless
+tells apart by id before any hash (the add-on catalog hashes that one for
+its row); it keeps declines for its lifetime unless
 the content changes, and exposes them read-only to the gate, which then reports
 a package as `declined` rather than `new`. The notice and the list have their
 own ids (`bpmnlintPackageApprovalNotice`, `bpmnlintPackageApproval`), and the

@@ -52,7 +52,12 @@ export class ApprovalQuestion<Found, Pending, Allowed> {
     }
 
     private reviewed(pending: readonly Pending[]): Promise<ReviewAnswer> {
-        const prompt = this.catalog.reviewPrompt(pending, this.workspace.getWorkspaceFolderPaths());
-        return this.review.review({ prompt, artifactIds: prompt.items.map(({ value }) => value) });
+        const workspaceFolders = this.workspace.getWorkspaceFolderPaths();
+        const prompt = this.catalog.reviewPrompt(pending, workspaceFolders);
+        return this.review.review({
+            prompt,
+            artifactIds: prompt.items.map(({ value }) => value),
+            workspaceFolders,
+        });
     }
 }

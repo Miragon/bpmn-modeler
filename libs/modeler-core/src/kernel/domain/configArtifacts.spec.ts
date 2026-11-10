@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { configArtifactLocation, configFolderPath, folderOfConfigFolder } from "./configArtifacts";
+import {
+    configArtifactLocation,
+    configFolderOfArea,
+    configFolderPath,
+    folderOfConfigFolder,
+} from "./configArtifacts";
 
 describe("configFolderPath", () => {
     it.each([
@@ -102,6 +107,17 @@ describe("folderOfConfigFolder", () => {
         },
     ])("$behaviour", ({ configDir, configFolder, folder }) => {
         expect(folderOfConfigFolder(configDir, configFolder)).toBe(folder);
+    });
+});
+
+describe("configFolderOfArea", () => {
+    it.each([
+        { areaDir: "/work/.camunda/element-templates", configDir: "/work/.camunda" },
+        { areaDir: "/work/orders/config/bpmn/plugins", configDir: "/work/orders/config/bpmn" },
+        { areaDir: "/plugins", configDir: "/" },
+        { areaDir: "/", configDir: "/" },
+    ])("puts the area $areaDir in the config folder $configDir", ({ areaDir, configDir }) => {
+        expect(configFolderOfArea(areaDir)).toBe(configDir);
     });
 });
 

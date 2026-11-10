@@ -21,10 +21,12 @@ import {
     MarketplaceSettingsEntry,
     MethodDef,
     PluginApproval,
+    ProjectScope,
     RawDeploymentState,
     RawModelerSettings,
     StatusSlot,
     StatusView,
+    TemplateSwitch,
 } from "@miragon/bpmn-modeler-core";
 import { Command, Query } from "@miragon/bpmn-modeler-shared";
 import { DiffOrigin, VariableDef } from "@miragon/bpmn-modeler-types";
@@ -57,6 +59,8 @@ export interface RegisterParams extends SessionMeta {
     pluginApprovals?: PluginApproval[];
     /** The host's revision of `pluginApprovals`, sent with it (see {@link PluginApprovalsSnapshot}). */
     pluginApprovalsRevision?: number;
+    /** The user's template switches, so the first templates the editor sends hide the switched-off ones. */
+    templatePreferences?: TemplatePreferencesSnapshot;
 }
 
 /** Empty-body notification/request (e.g. `clipboard/read`, `notifier/openConsole`). */
@@ -202,6 +206,32 @@ export interface PluginApprovalsSnapshot {
 export interface PluginApprovalsChangeParams {
     allow: PluginApproval[];
     revoke: string[];
+}
+
+/** One scope's template switches as the host stores them, with that scope's revision. */
+export interface TemplatePreferencesScopeSnapshot {
+    disabled: TemplateSwitch[];
+    revision: number;
+}
+
+/**
+ * `templatePreferences/didChange` — both scopes' switches as the host stores
+ * them for this bridge's project, pushed after a change: an `allProjects`
+ * change to every running bridge of the IDE, a `project` change to the
+ * project's own. Also the result of `templatePreferences/change` and
+ * `templatePreferences/read`. Each scope's `revision` grows with every list
+ * the host stores for it, so a mirror keeps the newest per scope.
+ */
+export interface TemplatePreferencesSnapshot {
+    project: TemplatePreferencesScopeSnapshot;
+    allProjects: TemplatePreferencesScopeSnapshot;
+}
+
+/** `templatePreferences/change` — the host merges it into the scope's stored list, so no switch another writer stored is lost. */
+export interface TemplatePreferencesChangeParams {
+    scope: ProjectScope;
+    disable: TemplateSwitch[];
+    enable: TemplateSwitch[];
 }
 
 // ── Core → Host requests (params + results) ──────────────────────────────────
@@ -473,6 +503,33 @@ export interface DeploymentWorkspaceRootParams {
 /** `deployment/postMessage` — the core pushes a {@link Query} into the deployment panel. */
 export interface DeploymentPostMessageParams {
     message: Query;
+}
+
+/** `addOns/webviewMessage` — a {@link Command} from the add-ons view's page. */
+export interface AddOnsWebviewMessageParams {
+    message: Command;
+}
+
+/**
+ * `addOns/open` — the host shows or hides its add-ons view. `workspaceRoot` is
+ * the project root the view lists, held for the life of the process; absent
+ * when the project has none. `settings` is applied first, so the first listing
+ * already reads the configured folder.
+ */
+export interface AddOnsOpenParams {
+    open: boolean;
+    workspaceRoot?: string;
+    settings: RawModelerSettings;
+}
+
+/** `addOns/postMessage` — the core pushes a {@link Query} into the add-ons view's page. */
+export interface AddOnsPostMessageParams {
+    message: Query;
+}
+
+/** `addOns/reveal` — whether the host now shows its add-ons view. */
+export interface AddOnsRevealResult {
+    shown: boolean;
 }
 
 /** Completion bean shipped to the host so it never needs BPMN/PSI knowledge. */

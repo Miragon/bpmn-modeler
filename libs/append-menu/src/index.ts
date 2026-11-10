@@ -18,6 +18,7 @@ import "./append-menu.css";
 export { getPopupMenuContext } from "./upstreamInternals/popupMenuInternals";
 export type { PopupMenuContext } from "./upstreamInternals/popupMenuInternals";
 export { PLAIN_ENTRY_ACTION_BY_BPMN_TYPE } from "./plainEntryCatalog";
+export { templateIdOfEntryKey } from "./templateEntryKey";
 
 export const AppendMenuModule = {
     __init__: ["appendMenuOverride"],

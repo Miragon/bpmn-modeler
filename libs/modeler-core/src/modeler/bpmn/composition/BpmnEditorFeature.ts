@@ -4,6 +4,7 @@ import { BpmnEditorCommandType } from "@miragon/bpmn-modeler-shared";
 
 import { reviewOrChecklist } from "../../../kernel/adapter/out/ListReview";
 import { ApprovalReviewPort, PluginApprovalStorePort } from "../../../kernel/port/approvalPorts";
+import { TemplatePreferenceStorePort } from "../../../kernel/port/templatePreferencePorts";
 import {
     ActionNotifierPort,
     ClipboardPort,
@@ -79,6 +80,7 @@ import { EngineVersionStatusBarParticipant } from "../service/EngineVersionStatu
 import { PackageClosureFingerprinter } from "../service/PackageClosureFingerprinter";
 import { RulePackageCatalog } from "../service/RulePackageCatalog";
 import { RulePackageInventory } from "../service/RulePackageInventory";
+import { TemplateInventory } from "../service/TemplateInventory";
 
 /** The document plumbing: a host routes all three to the core's document services, or none. */
 export const DOCUMENT_SYNC_COMMAND_TYPES = [
@@ -103,6 +105,8 @@ export interface BpmnEditorHostPorts {
     readonly diagnostics?: DiagnosticsPort;
     /** Merges the marketplace cache into element-template discovery. */
     readonly templateProvider?: CachedTemplateProvider;
+    /** Absent: the host keeps no template switches, and every template is offered. */
+    readonly templatePreferences?: TemplatePreferenceStorePort;
     /** Absent: bpmnlint runs no workspace rule package, only the bundled rules. */
     readonly rulePackages?: BpmnRulePackagePorts;
 }
@@ -175,6 +179,8 @@ const PANEL_ALWAYS_VISIBLE: PropertiesPanelStatePort = {
 export class BpmnEditorFeature {
     readonly bpmnService: BpmnModelerService;
     readonly templates: BpmnElementTemplatesService;
+    /** What the add-on catalog lists of the element templates. */
+    readonly templateInventory: TemplateInventory;
     readonly layout: BpmnLayoutService;
     readonly lintConfig: BpmnLintConfigService;
     /** Absent without {@link BpmnRulePackagePorts}. */
@@ -186,6 +192,7 @@ export class BpmnEditorFeature {
 
     private readonly panel: BpmnPropertiesPanelService;
     private readonly rendering: BpmnEditorHostExtensions["rendering"];
+    private readonly switchSubscription?: { dispose(): void };
 
     constructor(
         private readonly ports: BpmnEditorHostPorts,
@@ -208,7 +215,15 @@ export class BpmnEditorFeature {
             ports.statusBar,
             ports.notifier,
             ports.templateProvider,
+            ports.templatePreferences && {
+                preferences: ports.templatePreferences,
+                workspace: ports.workspace,
+            },
         );
+        this.switchSubscription = ports.templatePreferences?.onDidChange(() => {
+            void this.templates.refreshOffers();
+        });
+        this.templateInventory = new TemplateInventory(this.templates, ports.artifacts);
         this.layout = new BpmnLayoutService(ports.store, ports.notifier, ports.picker);
         const lintConfigLocator = new BpmnLintConfigLocator(
             ports.workspace,
@@ -341,6 +356,7 @@ export class BpmnEditorFeature {
     }
 
     dispose(): void {
+        this.switchSubscription?.dispose();
         this.templates.dispose();
         this.lintConfig.dispose();
         this.rulePackageCatalog?.dispose();

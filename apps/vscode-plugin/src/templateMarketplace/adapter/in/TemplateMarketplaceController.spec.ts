@@ -2,12 +2,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("vscode", () => import("../../../__fixtures__/vscodeWindowFake"));
 
-import { createTemplateMarketplaceService, MarketplaceAddAnswer } from "@miragon/bpmn-modeler-core";
+import {
+    createTemplateMarketplaceService,
+    MarketplaceAddAnswer,
+    MarketplaceCommands,
+} from "@miragon/bpmn-modeler-core";
 import { createTestHost, RecordingNotifier } from "@miragon/bpmn-modeler-core/testing";
 
 import { resetVscodeWindow, vscodeWindow } from "../../../__fixtures__/vscodeWindowFake";
 import {
     ADD_MARKETPLACE_CMD,
+    reloadForUnregisteredSetting,
     REMOVE_MARKETPLACE_CMD,
     TemplateMarketplaceController,
     UPDATE_MARKETPLACES_CMD,
@@ -42,8 +47,8 @@ function registeredController(answers: MarketplaceAddAnswer[] = [], removed: str
     });
     const notifier = new ReloadRecordingNotifier();
     const context = { subscriptions: [] as { dispose(): void }[] };
-    const controller = new TemplateMarketplaceController(
-        {
+    new TemplateMarketplaceController(
+        new MarketplaceCommands({
             marketplaces: createTemplateMarketplaceService({
                 workspace: host.workspace,
                 settings: host.settings,
@@ -57,16 +62,15 @@ function registeredController(answers: MarketplaceAddAnswer[] = [], removed: str
             registrations: host.marketplaceRegistrations,
             prompt: host.marketplacePrompt,
             picker: host.picker,
+            notifier,
+            actionNotifier: host.actionNotifier,
             homeDir: "/home/ada",
-        },
-        notifier,
-    );
-    controller.register(context);
+            explainAddFailure: reloadForUnregisteredSetting(notifier),
+        }),
+    ).register(context);
     const run = (command: string) => vscodeWindow.registeredCommands.get(command)!();
     return {
         run,
-        controller,
-        workspace: host.workspace,
         context,
         notifier,
         registrations: host.marketplaceRegistrations,
@@ -79,16 +83,6 @@ beforeEach(() => {
 });
 
 describe("TemplateMarketplaceController", () => {
-    it("fills the cache of a registered marketplace on startup, without a toast", async () => {
-        const { controller, workspace, notifier } = registeredController();
-
-        await controller.refreshOnStartup();
-
-        expect([...workspace.files.keys()].some((path) => path.endsWith("/a.json"))).toBe(true);
-        expect(notifier.infos).toEqual([]);
-        expect(notifier.errors).toEqual([]);
-    });
-
     it("registers its three commands with the extension", () => {
         const { context } = registeredController();
 

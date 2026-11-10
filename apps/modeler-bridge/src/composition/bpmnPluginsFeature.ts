@@ -1,4 +1,4 @@
-import { BpmnPluginsFeature } from "@miragon/bpmn-modeler-core";
+import { ApprovalReviewPort, BpmnPluginsFeature } from "@miragon/bpmn-modeler-core";
 
 import { pluginApprovalHandlers } from "../bpmnPlugins/adapter/in/pluginApprovalHandlers";
 import { NodeContentHasher } from "../bpmnPlugins/adapter/out/NodeContentHasher";
@@ -8,11 +8,12 @@ import { BridgeSharedDeps } from "./sharedDeps";
 /**
  * The workspace bpmn-js plugins are the core {@link BpmnPluginsFeature}, the
  * one VS Code builds. The host keeps the approvals in its application store
- * and serves the cache below `cacheRoot` from its loopback webview origin.
+ * and serves the cache below `cacheRoot` from its loopback webview origin;
+ * `review` is where "Review…" takes the user.
  */
 export function register(
     deps: BridgeSharedDeps,
-    { cacheRoot }: { cacheRoot: string },
+    { cacheRoot, review }: { cacheRoot: string; review: ApprovalReviewPort },
 ): BpmnPluginsFeature {
     const plugins = new BpmnPluginsFeature({
         store: deps.store,
@@ -23,6 +24,7 @@ export function register(
         actionNotifier: deps.actionNotifier,
         approvals: deps.pluginApprovals,
         questions: deps.approvalQuestions,
+        review,
         cacheRoot,
         hasher: new NodeContentHasher(),
     });

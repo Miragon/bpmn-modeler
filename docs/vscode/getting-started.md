@@ -32,7 +32,7 @@ To start from scratch, run **New BPMN Model**, **New DMN Model** or **New Form**
    any folder up to the workspace root). They show up in the
    [element template chooser](/vscode/features/element-template-chooser) and the append menu.
 4. **Try the flow.** Switch on [token simulation](/vscode/features/token-simulation) and start a token.
-5. **Deploy.** Open **Deploy Diagram** in the activity bar to deploy to Camunda 7 or Camunda 8. See
+5. **Deploy.** Open the **Deploy** view in the **BPMN Modeler** container of the activity bar to deploy to Camunda 7 or Camunda 8. See
    [Deployment](/vscode/features/deployment).
 
 ## Change the language
@@ -57,6 +57,7 @@ Open the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`) and search for "Mirago
 | Toggle Linting | | Turn [linting](/vscode/features/linting) on or off |
 | Toggle Automatic Form Preview | | Turn automatic [linked form previews](/vscode/features/code-navigation#linked-form-previews) on or off |
 | Reload Modeler | | Re-read element templates and re-render open diagrams |
+| Refresh Artifacts | | Read the [Artifacts view](/vscode/features/artifacts) again, installed packages included |
 | Display Logging Information | | Open the modeler log |
 
 ## Next steps

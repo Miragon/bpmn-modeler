@@ -35,9 +35,10 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-import { AddOnsFeature, RouteLookup } from "@miragon/bpmn-modeler-core";
+import { AddOnsFeature, ListReview, RouteLookup, ViewReview } from "@miragon/bpmn-modeler-core";
 import { WebviewSurface } from "@miragon/bpmn-modeler-shared";
 
+import { RpcAddOnViewReveal } from "../addOns/adapter/out/RpcAddOnViewReveal";
 import { Rpc } from "../transport/adapter/out/Rpc";
 import { buildSharedDeps } from "./sharedDeps";
 import * as diffFeature from "./diffFeature";
@@ -73,7 +74,10 @@ export interface BridgeOptions {
  * Constructs the bridge: the shared collaborators, then every per-feature wiring
  * module. Handles flow forward: diff's `rebroadcastLanguage`, the marketplace
  * cache, the script editor and the deployment status into the BPMN editor, whose
- * router and participants the editor-session feature's lifecycle runs.
+ * router and participants the editor-session feature's lifecycle runs. The
+ * add-ons panel and its reveal come last: the plugins' and rule packages'
+ * "Review…" opens the add-ons view, so the reveal is built before them and
+ * connected to the catalog once it exists.
  *
  * @param write Emits one framed JSON line (caller appends the newline + flushes).
  * @param log   Diagnostic sink (stderr in production; a spy in tests). Kept off
@@ -111,13 +115,19 @@ export function createBridge(
     const marketplace = marketplaceFeature.register(deps, { cacheRoot, homeDir });
     const script = scriptFeature.register(deps);
     const deployment = deploymentFeature.register(deps);
-    const plugins = bpmnPluginsFeature.register(deps, { cacheRoot: pluginCacheRoot });
+    // Built before the features whose "Review…" opens the add-ons view, connected once the catalog exists.
+    const reveal = new RpcAddOnViewReveal(deps.rpc, deps.log);
+    const plugins = bpmnPluginsFeature.register(deps, {
+        cacheRoot: pluginCacheRoot,
+        review: new ViewReview("plugin", reveal, new ListReview(deps.picker)),
+    });
     const editor = bpmnEditorFeature.register(deps, {
         onSettingsApplied: diff.rebroadcastLanguage,
-        templateProvider: marketplace.marketplaceSvc,
+        templateProvider: marketplace.templateSources,
         scriptEditor: script.editorContribution,
         deploymentStatus: deployment.statusParticipant,
         plugins: plugins.editorContribution,
+        rulePackageReview: new ViewReview("rulePackage", reveal, new ListReview(deps.picker)),
     });
     editorSessionFeature.register(deps, editor, { pluginCacheRoot });
     // Portable modeler commands (change engine version, layout, migrate all) reuse
@@ -127,12 +137,14 @@ export function createBridge(
         layout: editor.layout,
         coreWriteRenderer: editor,
     });
-    const addOns = addOnsFeature.register(deps, { editor, plugins });
-    marketplaceFeature.registerHandlers(deps, {
+    const { marketplaces } = marketplaceFeature.registerHandlers(deps, {
         marketplaceSvc: marketplace.marketplaceSvc,
         templatesSvc: editor.templates,
+        registrations: marketplace.registrations,
         homeDir,
     });
+    const addOns = addOnsFeature.register(deps, { editor, plugins, marketplaces });
+    reveal.connect(addOns);
 
     return {
         rpc: deps.rpc,
@@ -140,6 +152,7 @@ export function createBridge(
             bpmnEditor: editor.router,
             bpmnDiffPane: diff.paneRoutes,
             deploymentSidebar: deployment.panelRoutes,
+            addOnsView: addOns.panelRoutes,
         },
         prunePluginCache: () => plugins.pruneCache(),
         addOns,

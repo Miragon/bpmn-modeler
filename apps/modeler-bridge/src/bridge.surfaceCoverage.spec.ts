@@ -77,6 +77,12 @@ const INTELLIJ_SURFACES: HostSurfaceCoverage = {
         StartInstanceCommand: HANDLED,
         RequestPayloadFilesCommand: HANDLED,
     },
+    addOnsView: {
+        LogInfoCommand: HANDLED,
+        LogErrorCommand: HANDLED,
+        GetAddOnCatalogCommand: HANDLED,
+        AddOnRequestCommand: HANDLED,
+    },
 };
 
 describe("the bridge's webview surfaces", () => {

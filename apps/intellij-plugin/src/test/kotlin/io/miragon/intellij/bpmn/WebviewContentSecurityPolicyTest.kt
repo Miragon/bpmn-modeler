@@ -52,6 +52,17 @@ class WebviewContentSecurityPolicyTest {
     }
 
     @Test
+    fun `pins the add-ons shell policy, which loads no image and no font`() {
+        assertEquals(
+            "default-src 'none'; " +
+                "script-src 'self' 'sha256-gRNMaVliC1NArQo19O2For+mqk6lM6huJLujAnYaytk='; " +
+                "style-src 'self' 'unsafe-inline'; " +
+                "base-uri 'none'; form-action 'none'",
+            WebviewContentSecurityPolicy.ADD_ONS_SHELL,
+        )
+    }
+
+    @Test
     fun `the shim removes the sink setter once the host installed its sink`() {
         val shim = WebviewContentSecurityPolicy.ACQUIRE_VS_CODE_API_SHIM
 
@@ -86,6 +97,16 @@ class WebviewContentSecurityPolicyTest {
         val policy = response.headers().firstValue("Content-Security-Policy").orElse(null)
 
         assertEquals(WebviewContentSecurityPolicy.DEPLOYMENT_SHELL, policy)
+        assertEquals(listOf(policy.scriptHashSource()), inlineScriptHashSources(response.body()))
+    }
+
+    @Test
+    fun `serves the add-ons shell with a policy that admits its inline script`() {
+        val response = get(server.addOnsUrl())
+
+        val policy = response.headers().firstValue("Content-Security-Policy").orElse(null)
+
+        assertEquals(WebviewContentSecurityPolicy.ADD_ONS_SHELL, policy)
         assertEquals(listOf(policy.scriptHashSource()), inlineScriptHashSources(response.body()))
     }
 

@@ -1,4 +1,8 @@
-import type { AddOnCatalogModel, AddOnView } from "../addOns/domain/addOnCatalogModel";
+import type {
+    AddOnCatalogModel,
+    AddOnView,
+    CodeAddOnView,
+} from "../addOns/domain/addOnCatalogModel";
 import { AddOnViewConnection } from "../addOns/service/AddOnViewHub";
 
 /** A view that keeps every model the catalog posted to it. */
@@ -38,6 +42,13 @@ export class RecordingAddOnView {
     addOnNamed(name: string): AddOnView {
         const found = this.addOns().find((addOn) => addOn.name === name);
         if (found === undefined) throw new Error(`no add-on named ${name}`);
+        return found;
+    }
+
+    /** A plugin or rule package row, with what only code rows show. */
+    codeAddOnNamed(name: string): CodeAddOnView {
+        const found = this.addOnNamed(name);
+        if (found.kind === "elementTemplate") throw new Error(`${name} is a template`);
         return found;
     }
 }

@@ -24,6 +24,7 @@ import {
 } from "./inMemoryHostSurfaces";
 import { InMemorySettings } from "./InMemorySettings";
 import { InMemoryPluginApprovals } from "./InMemoryPluginApprovals";
+import { InMemoryTemplatePreferences } from "./InMemoryTemplatePreferences";
 import { InMemoryWorkspace } from "./InMemoryWorkspace";
 import { RecordingNotifier } from "./RecordingNotifier";
 import { RecordingStatusBar } from "./RecordingStatusBar";
@@ -88,6 +89,7 @@ export function createTestHost(options: TestHostOptions = {}) {
         marketplaceRegistrations: new InMemoryMarketplaceRegistrations(settings),
         marketplacePrompt: new ScriptedMarketplacePrompt(options.marketplaceAnswers),
         pluginApprovals: new InMemoryPluginApprovals(),
+        templatePreferences: new InMemoryTemplatePreferences(),
         deploymentState: new InMemoryDeploymentState(),
         propertiesPanelState: new InMemoryPropertiesPanelState(),
         lintingPreference: new InMemoryLintingPreference(settings),

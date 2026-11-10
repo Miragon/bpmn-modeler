@@ -225,6 +225,8 @@ internal class EditorSessionRouter(
                 // newer push cannot roll its mirror back.
                 "pluginApprovals" to approvals.approvals,
                 "pluginApprovalsRevision" to approvals.revision,
+                // Seeds the mirror the editor reads when it first sends its templates.
+                "templatePreferences" to TemplatePreferencesResult.of(deps.project),
                 "content" to content,
             ),
         )
@@ -233,7 +235,7 @@ internal class EditorSessionRouter(
     /**
      * Pushes the current settings snapshot to the running core so an open editor
      * reacts live (language re-render, configFolder template reload). No-ops when
-     * no bridge is alive: the snapshot is re-seeded on the next [sendRegister].
+     * no bridge is alive: the snapshot is seeded again after the next spawn and [sendRegister].
      */
     fun pushSettings() {
         if (!deps.isProcessAlive()) return

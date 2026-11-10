@@ -1,12 +1,13 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("vscode", () => import("../__fixtures__/vscodeCompositionFake"));
 
-import { ExtensionContext, Uri } from "vscode";
+import { ExtensionContext, Uri, WebviewViewProvider } from "vscode";
 
 import {
     AddOnCatalogModel,
     allowing,
+    templatePreferenceChange,
     BpmnDiffService,
     DiffPaneStore,
     EditorSessionParticipant,
@@ -15,20 +16,56 @@ import {
     ScriptVariableStore,
 } from "@miragon/bpmn-modeler-core";
 import { RecordingScriptEditor } from "@miragon/bpmn-modeler-core/testing";
+import { AddOnCatalogQuery, Query, RevealAddOnsQuery } from "@miragon/bpmn-modeler-shared";
 
+import {
+    registeredViewProviders,
+    resetVscodeWindow,
+    vscodeWindow,
+} from "../__fixtures__/vscodeCompositionFake";
 import { InMemoryMemento } from "../__fixtures__/vscodeStorage";
+import { ADD_ONS_VIEW_ID } from "../addOns/adapter/in/AddOnsViewProvider";
 import { BpmnDiffController } from "../diff/adapter/in/BpmnDiffController";
 import { setContext } from "../shared/adapter/out/extensionContext";
 import * as addOnsFeature from "./addOnsFeature";
 import * as bpmnEditorFeature from "./bpmnEditorFeature";
 import { buildSharedDeps } from "./sharedDeps";
+import * as templateMarketplaceFeature from "./templateMarketplaceFeature";
 
 function createExtensionContext(): ExtensionContext {
     return {
         subscriptions: [],
         globalState: new InMemoryMemento(),
+        workspaceState: new InMemoryMemento(),
         globalStorageUri: Uri.file("/global-storage"),
+        extensionUri: Uri.file("/extension"),
     } as unknown as ExtensionContext;
+}
+
+/** Plays VS Code resolving the Artifacts view, visible, and records what it posts to the page. */
+function resolveArtifactsView(): Query[] {
+    const posted: Query[] = [];
+    const inert = () => ({ dispose: () => undefined });
+    const registration = registeredViewProviders.get(ADD_ONS_VIEW_ID);
+    if (registration === undefined) throw new Error("No provider serves the Artifacts view.");
+    (registration.provider as WebviewViewProvider).resolveWebviewView(
+        {
+            visible: true,
+            webview: {
+                options: {},
+                html: "",
+                cspSource: "webview-csp:",
+                asWebviewUri: (uri: Uri) => uri,
+                postMessage: async (message: Query) => posted.push(message) > 0,
+                onDidReceiveMessage: inert,
+            },
+            onDidChangeVisibility: inert,
+            onDidDispose: inert,
+        } as never,
+        {} as never,
+        {} as never,
+    );
+    return posted;
 }
 
 /** The add-on catalog as VS Code's activation builds it, after the BPMN editor. */
@@ -46,6 +83,8 @@ function createVsCodeAddOns(context = createExtensionContext()) {
     );
     const diffStore = new DiffPaneStore();
     const deploymentStatus: EditorSessionParticipant = { onResolve: () => undefined };
+    const { marketplaceSvc, templateSources } = templateMarketplaceFeature.register(context, deps);
+    const reviews = addOnsFeature.createViewReviews(deps);
     const bpmn = bpmnEditorFeature.register(context, deps, {
         diffController: new BpmnDiffController(
             diffStore,
@@ -56,8 +95,9 @@ function createVsCodeAddOns(context = createExtensionContext()) {
             },
             deps.preferences,
         ),
-        marketplaceSvc: { getCachedTemplatePaths: () => Promise.resolve([]) },
+        templateSources,
         deploymentStatusParticipant: deploymentStatus,
+        reviews,
         scriptEditor: new ScriptEditorFeature({
             scriptEditor: new RecordingScriptEditor(deps.editorStore, scriptFiles, deps.picker),
             variables: new ScriptVariableStore(),
@@ -65,10 +105,28 @@ function createVsCodeAddOns(context = createExtensionContext()) {
             notifier: deps.notifier,
         }).editorContribution,
     });
-    return { deps, bpmn, ...addOnsFeature.register(context, deps, bpmn) };
+    const marketplace = templateMarketplaceFeature.registerCommands(context, deps, {
+        marketplaceSvc,
+        templatesSvc: bpmn.editor.templates,
+    });
+    return {
+        deps,
+        bpmn,
+        marketplace,
+        reviews,
+        ...addOnsFeature.register(context, deps, {
+            ...bpmn,
+            marketplaces: marketplace.marketplaces,
+            reviews,
+        }),
+    };
 }
 
 const LEFT = { id: "/work/x", name: "x", contentHash: "h" };
+
+beforeEach(() => {
+    resetVscodeWindow();
+});
 
 describe("VS Code's add-on catalog", () => {
     it("lists again when the BPMN editor's plugins, its rule packages or their one approval list change", async () => {
@@ -87,6 +145,20 @@ describe("VS Code's add-on catalog", () => {
         expect(models).toHaveLength(4);
     });
 
+    it("lists again when the user's template switches change", async () => {
+        const { deps, addOns } = createVsCodeAddOns();
+        const models: AddOnCatalogModel[] = [];
+        addOns.attachView((model) => models.push(model), true);
+        await addOns.whenSettled();
+
+        await deps.templatePreferences.change(
+            templatePreferenceChange("project", [{ source: "configFolder:shop/.camunda" }], []),
+        );
+        await addOns.whenSettled();
+
+        expect(models).toHaveLength(2);
+    });
+
     it("asks for a folder while none is open", async () => {
         const { addOns } = createVsCodeAddOns();
         const posted: string[] = [];
@@ -94,7 +166,56 @@ describe("VS Code's add-on catalog", () => {
         addOns.attachView((model) => posted.push(model.emptyText ?? ""), true);
         await addOns.whenSettled();
 
-        expect(posted).toEqual(["Open a folder to see the plugins and rule packages it brings."]);
+        expect(posted).toEqual([
+            "Open a folder to see the plugins, rule packages and element templates it brings.",
+        ]);
+    });
+
+    it("offers the marketplace flows and lists again once one ran", async () => {
+        const { marketplace, addOns } = createVsCodeAddOns();
+        const models: AddOnCatalogModel[] = [];
+        addOns.attachView((model) => models.push(model), true);
+        await addOns.whenSettled();
+
+        await marketplace.marketplaces.update();
+        await addOns.whenSettled();
+
+        expect(models).toHaveLength(2);
+        expect(models[0].actions.map(({ kind }) => kind)).toEqual([
+            "addMarketplace",
+            "updateMarketplaces",
+            "pruneCache",
+        ]);
+    });
+
+    it("serves the Artifacts view the catalog it builds", async () => {
+        const { addOns } = createVsCodeAddOns();
+
+        const posted = resolveArtifactsView();
+        await addOns.whenSettled();
+
+        expect(posted).toHaveLength(1);
+        expect(posted[0]).toBeInstanceOf(AddOnCatalogQuery);
+        expect((posted[0] as AddOnCatalogQuery).model.emptyText).toBe(
+            "Open a folder to see the plugins, rule packages and element templates it brings.",
+        );
+    });
+
+    it("has Review… show its rows in the Artifacts page the catalog serves", async () => {
+        const { addOns, reviews } = createVsCodeAddOns();
+        const posted: Query[] = [];
+        addOns.attachPanel((message) => posted.push(message), true);
+        const row = "plugin:/work/.camunda/plugins/resize";
+
+        await expect(reviews.reveal.reveal([row])).resolves.toBe(true);
+        await addOns.whenSettled();
+
+        expect(vscodeWindow.executedCommands).toContainEqual({
+            command: `${ADD_ONS_VIEW_ID}.focus`,
+            args: [],
+        });
+        const reveals = posted.filter((message) => message instanceof RevealAddOnsQuery);
+        expect(reveals.map(({ reveal }) => reveal.addOnIds)).toEqual([[row]]);
     });
 
     it("stops the catalog when the extension deactivates", async () => {

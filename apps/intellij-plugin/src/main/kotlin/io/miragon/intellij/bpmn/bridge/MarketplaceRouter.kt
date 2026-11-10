@@ -6,11 +6,11 @@ import io.miragon.intellij.bpmn.CoreProcess
 import io.miragon.intellij.bpmn.IntellijMarketplaceTokenStore
 import io.miragon.intellij.bpmn.MarketplaceAddAnswer
 import io.miragon.intellij.bpmn.MarketplaceAddQuestion
-import io.miragon.intellij.bpmn.MarketplaceScope
 import io.miragon.intellij.bpmn.MarketplaceScopeChoice
 import io.miragon.intellij.bpmn.ModelerSettingsConfigurable
 import io.miragon.intellij.bpmn.ModelerSettingsStore
 import io.miragon.intellij.bpmn.ProjectMarketplacesStore
+import io.miragon.intellij.bpmn.ProjectScope
 import io.miragon.intellij.bpmn.pushSettingsToRunningBridges
 
 /**
@@ -49,7 +49,7 @@ internal class MarketplaceRouter(
             .on("marketplaceState/save") { params ->
                 val location = params.string("location")
                 val scope = params.string("scope")
-                RpcAction { id -> handleStateSave(location, MarketplaceScope.ofWireName(scope), id) }
+                RpcAction { id -> handleStateSave(location, ProjectScope.ofWireName(scope), id) }
             }
             .on("marketplaceState/remove") { params ->
                 val locations = params.jsonArray("entries").map { it.asString }
@@ -86,8 +86,8 @@ internal class MarketplaceRouter(
         MarketplaceStateReadResult(
             registered =
                 mapOf(
-                    MarketplaceScope.PROJECT.wireName to ProjectMarketplacesStore.getInstance(deps.project).list(),
-                    MarketplaceScope.ALL_PROJECTS.wireName to ModelerSettingsStore.getInstance().current().marketplaces,
+                    ProjectScope.PROJECT.wireName to ProjectMarketplacesStore.getInstance(deps.project).list(),
+                    ProjectScope.ALL_PROJECTS.wireName to ModelerSettingsStore.getInstance().current().marketplaces,
                 ),
             writable = WRITABLE_SCOPES,
         )
@@ -96,13 +96,13 @@ internal class MarketplaceRouter(
      * Persists the just-fetched registration in the scope the user chose, then
      * acks, so a persist failure surfaces as a rejected promise on the core.
      *
-     * - [MarketplaceScope.PROJECT]: persist to *this* project's store and refresh
+     * - [ProjectScope.PROJECT]: persist to *this* project's store and refresh
      *   only its own bridge; a sibling window must not inherit it.
-     * - [MarketplaceScope.ALL_PROJECTS]: persist app-wide and fan the fresh
+     * - [ProjectScope.ALL_PROJECTS]: persist app-wide and fan the fresh
      *   snapshot to *every* open window, since each one's merged list changed.
      */
-    private fun handleStateSave(location: String, scope: MarketplaceScope, id: CoreRequestId?) {
-        if (scope == MarketplaceScope.ALL_PROJECTS) {
+    private fun handleStateSave(location: String, scope: ProjectScope, id: CoreRequestId?) {
+        if (scope == ProjectScope.ALL_PROJECTS) {
             ModelerSettingsStore.getInstance().addMarketplace(location)
             pushToRunningBridges()
         } else {
@@ -197,11 +197,11 @@ internal class MarketplaceRouter(
         val WRITABLE_SCOPES =
             listOf(
                 WritableScope(
-                    MarketplaceScope.PROJECT.wireName,
+                    ProjectScope.PROJECT.wireName,
                     SettingsPlace("file", listOf(".idea", "workspace.xml")),
                 ),
                 WritableScope(
-                    MarketplaceScope.ALL_PROJECTS.wireName,
+                    ProjectScope.ALL_PROJECTS.wireName,
                     SettingsPlace(
                         "settingsPage",
                         listOf(

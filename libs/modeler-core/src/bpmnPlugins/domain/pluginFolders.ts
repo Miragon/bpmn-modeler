@@ -1,4 +1,4 @@
-import { configFolderPath } from "../../kernel/domain/configArtifacts";
+import { configFolderOfArea, configFolderPath } from "../../kernel/domain/configArtifacts";
 import { relativeToRoot } from "../../kernel/domain/rootContainment";
 import { joinWorkspacePath, parentWorkspacePath } from "../../kernel/domain/workspacePath";
 
@@ -14,8 +14,7 @@ export function pluginsDirOf(dir: string, configFolder: string): string {
  * folder holds `plugins`. Nothing is above a filesystem root, which stays.
  */
 export function configFolderOfPlugin(pluginId: string): string {
-    const pluginsDir = parentWorkspacePath(pluginId) ?? pluginId;
-    return parentWorkspacePath(pluginsDir) ?? pluginsDir;
+    return configFolderOfArea(parentWorkspacePath(pluginId) ?? pluginId);
 }
 
 export type PluginFolderChange =

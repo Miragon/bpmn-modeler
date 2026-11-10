@@ -1,6 +1,7 @@
 import { ElementTemplateSource } from "../domain/elementTemplates";
 
 type LoadTemplateSource = () => Promise<ElementTemplateSource>;
+type LoadTemplateSources = () => Promise<readonly ElementTemplateSource[]>;
 
 /**
  * Parsed element templates shared by every editor of a host process. An entry
@@ -9,7 +10,7 @@ type LoadTemplateSource = () => Promise<ElementTemplateSource>;
  */
 export class ElementTemplateCache {
     private readonly directories = new Map<string, Promise<ElementTemplateSource>>();
-    private marketplace: Promise<ElementTemplateSource> | undefined;
+    private marketplace: Promise<readonly ElementTemplateSource[]> | undefined;
 
     holdsDirectory(dir: string): boolean {
         return this.directories.has(dir);
@@ -34,7 +35,7 @@ export class ElementTemplateCache {
         return loading;
     }
 
-    marketplaceTemplates(load: LoadTemplateSource): Promise<ElementTemplateSource> {
+    marketplaceTemplates(load: LoadTemplateSources): Promise<readonly ElementTemplateSource[]> {
         if (this.marketplace) {
             return this.marketplace;
         }

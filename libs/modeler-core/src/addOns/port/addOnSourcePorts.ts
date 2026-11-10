@@ -6,6 +6,12 @@ import {
     SessionAnswer,
 } from "../../kernel/domain/codeApproval";
 import { SettingChange } from "../../editorSession/domain/EditorSession";
+import { MarketplacesListing } from "../../kernel/domain/marketplaceListing";
+import { MarketplaceSettingsEntry } from "../../kernel/domain/modelerSettings";
+import {
+    FolderTemplateFileListing,
+    TemplateFileListing,
+} from "../../kernel/domain/templateListing";
 
 /**
  * What every owner of approvable code gives the catalog. The owners keep the
@@ -51,6 +57,29 @@ export interface RulePackageAddOnSource extends CodeAddOnSource {
     lintConfigDirs(): readonly string[];
     /** Hashing reads every byte of the package and its dependencies, so only on request. */
     currentRulePackage(id: string, options: { readonly hash: boolean }): ListedPresence;
+}
+
+/** The element templates as their owner reads them: per file, by the loader's rule. */
+export interface TemplateAddOnSource {
+    /** The templates folders the open editors loaded, nested config folders included. */
+    knownTemplateDirs(): readonly string[];
+    /** Where a folder's own config folder keeps its templates. */
+    templatesDirOf(dir: string, configFolder: string): string;
+    templatesIn(templatesDirs: readonly string[]): Promise<readonly FolderTemplateFileListing[]>;
+    templatesOf(files: readonly string[]): Promise<readonly TemplateFileListing[]>;
+    /** After the templates folders the open editors loaded changed. */
+    onDidChange(listener: () => void): { dispose(): void };
+}
+
+/** The registered marketplaces and the flows that change them, which ask and report on their own. */
+export interface MarketplaceAddOnSource {
+    /** Logs and says why when the registrations cannot be read. */
+    listMarketplaces(): Promise<MarketplacesListing>;
+    add(): Promise<void>;
+    update(): Promise<void>;
+    remove(entry: MarketplaceSettingsEntry): Promise<void>;
+    /** After each flow that ran. */
+    onDidChange(listener: () => void): { dispose(): void };
 }
 
 export interface SettingChanges {
