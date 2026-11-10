@@ -7,7 +7,14 @@ import { CHROME_TEXT, matchCountText } from "../../domain/chromeTexts";
 import { headsOf, isShownOpen } from "../../domain/expansion";
 import type { FocusTarget } from "../../domain/focusAfter";
 import { catalogPhaseOf, ListContent, listContentOf } from "../../domain/listContent";
-import { CATALOG_TARGET, isBusy, selectedIdOf, ViewEvent, ViewState } from "../../domain/viewState";
+import {
+    CATALOG_TARGET,
+    isBusy,
+    listExpansionOf,
+    selectedIdOf,
+    ViewEvent,
+    ViewState,
+} from "../../domain/viewState";
 import { backButton, detailOf, hintOf } from "./detailView";
 import { el, elementAt, setBusy } from "./dom";
 import {
@@ -158,6 +165,7 @@ export class AddOnsView {
             state.scope,
             state.filter,
             state.expansion,
+            state.filterExpansion,
             state.pending,
             selectedId,
             this.revealedId,
@@ -195,15 +203,12 @@ export class AddOnsView {
                 ];
             case "groups": {
                 const heads = new Map(headsOf(model).map((head) => [head.id, head]));
-                const filterActive = isFilterActive(state.filter);
+                const shown = listExpansionOf(state);
                 const groups = groupsOf(content.groups, content.flat, {
                     state,
-                    filterActive,
                     isOpen: (id) => {
                         const head = heads.get(id);
-                        return (
-                            head !== undefined && isShownOpen(head, state.expansion, filterActive)
-                        );
+                        return head !== undefined && isShownOpen(head, shown);
                     },
                     selectedId: selectedIdOf(state),
                     revealedId: this.revealedId,

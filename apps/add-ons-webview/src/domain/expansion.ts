@@ -38,9 +38,21 @@ export function isOpen(head: Head, expansion: Expansion): boolean {
     return head.openByDefault !== undefined && (expansion.get(head.id) ?? head.openByDefault);
 }
 
-/** A search or filter shows every match, closed or not, and leaves the user's choice as it was. */
-export function isShownOpen(head: Head, expansion: Expansion, filterActive: boolean): boolean {
-    return filterActive || isOpen(head, expansion);
+/**
+ * The open or closed choices the list follows: the user's kept ones, or, while
+ * a filter is on, the page's own choices over its matches.
+ */
+export interface ListExpansion {
+    readonly expansion: Expansion;
+    /** What the user opened or closed while the filter is on; it ends with the filter. */
+    readonly filterExpansion: Expansion;
+    readonly filterActive: boolean;
+}
+
+/** A search or filter shows every head with a match open, until the user closes it, and leaves their kept choice as it was. */
+export function isShownOpen(head: Head, shown: ListExpansion): boolean {
+    if (!shown.filterActive) return isOpen(head, shown.expansion);
+    return head.openByDefault !== undefined && (shown.filterExpansion.get(head.id) ?? true);
 }
 
 export function ancestorsOf(heads: readonly Head[], id: string): string[] {

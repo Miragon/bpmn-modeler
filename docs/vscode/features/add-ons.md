@@ -37,7 +37,7 @@ The details show each plugin's and rule package's full state:
 
 The search field narrows the list of the open tab to the add-ons whose name, path or version, kind, state, engine, source or folder contains every word you type. `Escape` in the field clears it.
 
-The chips below it filter by kind (**Plugins**, **Rule packages**, **Templates**) and to **Needs review**. Each chip counts its add-ons in the open tab. Pick several kinds to see all of them; **Needs review** applies on top. While a search or filter is on, every folder and source with a match shows open. When nothing matches, **Clear filters** removes the search and the chips.
+The chips below it filter by kind (**Plugins**, **Rule packages**, **Templates**) and to **Needs review**. Each chip counts its add-ons in the open tab. Pick several kinds to see all of them; **Needs review** applies on top. While a search or filter is on, every folder and source with a match opens, so no match stays hidden; you can still close one, and it stays closed while you refine the search or change the chips. When you clear the search and the chips, the folders and sources show as you left them before. When nothing matches, **Clear filters** removes the search and the chips.
 
 ## Details
 

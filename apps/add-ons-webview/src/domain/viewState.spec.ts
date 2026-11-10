@@ -394,6 +394,20 @@ describe("nextViewState", () => {
             expect([hidden.state.filter, kept.state.filter.query]).toEqual([NO_FILTER, "resize"]);
         });
 
+        it("opens the row's heads the user closed while a kept filter is on", () => {
+            const { state } = after([
+                shown(),
+                { kind: "queryChanged", query: "resize" },
+                { kind: "toggled", key: "folder:/work" },
+                reveal(1, [RESIZE.id]),
+            ]);
+
+            expect([state.filter.query, state.filterExpansion.get("folder:/work")]).toEqual([
+                "resize",
+                true,
+            ]);
+        });
+
         it("lands on the first revealed row in model order", () => {
             expect(selectedIdOf(after([shown(), reveal(1, [RESIZE.id, PALETTE.id])]).state)).toBe(
                 PALETTE.id,
@@ -535,6 +549,78 @@ describe("nextViewState", () => {
                 opened.state.expansion.get(reviewKeyOf(RESIZE.id)),
             ]).toEqual([false, true]);
         });
+
+        it("keeps a head the user toggles while filtering apart from their kept choices", () => {
+            const before = after([shown(), { kind: "toggled", key: MARKETPLACE_SOURCE.id }]);
+            const { state } = after(
+                [
+                    { kind: "queryChanged", query: "a" },
+                    { kind: "toggled", key: CONFIG_SOURCE.id },
+                    { kind: "toggled", key: MARKETPLACE_SOURCE.id },
+                ],
+                before.state,
+            );
+
+            expect([[...state.filterExpansion], persistedChoicesOf(state)]).toEqual([
+                [
+                    [CONFIG_SOURCE.id, false],
+                    [MARKETPLACE_SOURCE.id, false],
+                ],
+                persistedChoicesOf(before.state),
+            ]);
+        });
+
+        it.each<{ case: string; refined: ViewEvent }>([
+            { case: "a refined query", refined: { kind: "queryChanged", query: "re" } },
+            { case: "a kind chip", refined: { kind: "kindToggled", addOnKind: "plugin" } },
+            { case: "the review chip", refined: { kind: "needsReviewToggled" } },
+        ])("keeps what the user closed while filtering across $case", ({ refined }) => {
+            const { state } = after([
+                shown(),
+                { kind: "queryChanged", query: "r" },
+                { kind: "toggled", key: CONFIG_SOURCE.id },
+                refined,
+            ]);
+
+            expect([...state.filterExpansion]).toEqual([[CONFIG_SOURCE.id, false]]);
+        });
+
+        it.each<{ case: string; filterOn: ViewEvent; filterOff: ViewEvent }>([
+            {
+                case: "the filters are cleared",
+                filterOn: { kind: "kindToggled", addOnKind: "plugin" },
+                filterOff: { kind: "filtersCleared" },
+            },
+            {
+                case: "the query is emptied",
+                filterOn: { kind: "queryChanged", query: "r" },
+                filterOff: { kind: "queryChanged", query: " " },
+            },
+            {
+                case: "the last chip goes off",
+                filterOn: { kind: "needsReviewToggled" },
+                filterOff: { kind: "needsReviewToggled" },
+            },
+        ])(
+            "forgets what the user toggled while filtering once $case",
+            ({ filterOn, filterOff }) => {
+                const layout = after([shown(), { kind: "toggled", key: CONFIG_SOURCE.id }]);
+                const { state } = after(
+                    [
+                        filterOn,
+                        { kind: "toggled", key: "folder:/work" },
+                        { kind: "toggled", key: CONFIG_SOURCE.id },
+                        filterOff,
+                    ],
+                    layout.state,
+                );
+
+                expect([state.filterExpansion.size, state.expansion]).toEqual([
+                    0,
+                    layout.state.expansion,
+                ]);
+            },
+        );
 
         it("toggles nothing before the first model", () => {
             expect(after([{ kind: "toggled", key: CONFIG_SOURCE.id }]).state.expansion.size).toBe(

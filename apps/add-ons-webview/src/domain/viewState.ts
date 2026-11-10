@@ -10,6 +10,7 @@ import {
     AddOnKind,
     CatalogFilter,
     filteredGroups,
+    isFilterActive,
     NO_FILTER,
     withKindToggled,
 } from "./catalogFilter";
@@ -26,8 +27,9 @@ import {
     ancestorsOf,
     Expansion,
     headsOf,
-    isOpen,
     isReviewKeyOpen,
+    isShownOpen,
+    ListExpansion,
     prunedExpansion,
     reviewKeyOf,
 } from "./expansion";
@@ -50,6 +52,8 @@ type Pane = "list" | "detail";
 export interface ViewState {
     readonly model?: AddOnCatalogPayload;
     readonly expansion: Expansion;
+    /** What the user opened or closed while a filter is on: kept with the page, and only while the filter stays on. */
+    readonly filterExpansion: Expansion;
     readonly scope: CatalogScope;
     readonly selection: Selection;
     readonly filter: CatalogFilter;
@@ -104,6 +108,7 @@ export const CATALOG_TARGET = "catalog";
 export function initialViewState(persisted?: PersistedChoices): ViewState {
     return {
         expansion: new Map(persisted?.expansion ?? []),
+        filterExpansion: new Map(),
         scope: isCatalogScope(persisted?.scope) ? persisted.scope : "workspace",
         selection: selectionOf(persisted?.selection),
         filter: NO_FILTER,
@@ -131,13 +136,21 @@ export function selectedIdOf(state: ViewState): string | undefined {
     return state.selection[state.scope];
 }
 
+export function listExpansionOf(state: ViewState): ListExpansion {
+    return {
+        expansion: state.expansion,
+        filterExpansion: state.filterExpansion,
+        filterActive: isFilterActive(state.filter),
+    };
+}
+
 /**
  * The view's one decision: what an event from the host or the user changes,
  * what to ask the host, which add-on each tab selects and where focus goes.
  * Focus is only named once the model holds its target.
  */
 export function nextViewState(state: ViewState, event: ViewEvent): Transition {
-    const change = withSelection(changedBy(state, event), state);
+    const change = withSelection(withFilterExpansionEnded(changedBy(state, event)), state);
     return withFocus(change, change.state.model !== state.model);
 }
 
@@ -209,7 +222,11 @@ function revealed(state: ViewState): Change {
     const scope = target && scopeOfAddOn(model, target.id);
     if (target === undefined || scope === undefined) return { state };
     const expansion = new Map(state.expansion);
-    ancestorsOf(heads, target.id).forEach((id) => expansion.set(id, true));
+    const filterExpansion = new Map(state.filterExpansion);
+    ancestorsOf(heads, target.id).forEach((id) => {
+        expansion.set(id, true);
+        filterExpansion.set(id, true);
+    });
     const addOn = placementOf(model.groups, target.id)?.addOn;
     if (addOn !== undefined && reviewOf(addOn) !== undefined) {
         expansion.set(reviewKeyOf(target.id), true);
@@ -221,6 +238,7 @@ function revealed(state: ViewState): Change {
             ...state,
             reveal: undefined,
             expansion,
+            filterExpansion,
             scope,
             filter,
             selection: { ...state.selection, [scope]: target.id },
@@ -280,13 +298,27 @@ function resultArrived(
     return { state: { ...state, pending, banner: resultBannerOf(result), awaitingFocus } };
 }
 
+/** A head toggled while a filter is on changes only the filter's own choices; a review keeps its choice in either case. */
 function toggled(state: ViewState, key: string): Change {
     const { model } = state;
     if (model === undefined) return { state };
     const head = headsOf(model).find(({ id }) => id === key);
-    const open =
-        head === undefined ? isReviewKeyOpen(key, state.expansion) : isOpen(head, state.expansion);
-    return { state: { ...state, expansion: new Map(state.expansion).set(key, !open) } };
+    if (head === undefined) {
+        const open = isReviewKeyOpen(key, state.expansion);
+        return { state: { ...state, expansion: new Map(state.expansion).set(key, !open) } };
+    }
+    const shown = listExpansionOf(state);
+    const open = isShownOpen(head, shown);
+    return shown.filterActive
+        ? { state: { ...state, filterExpansion: new Map(state.filterExpansion).set(key, !open) } }
+        : { state: { ...state, expansion: new Map(state.expansion).set(key, !open) } };
+}
+
+/** What the user opened or closed over a filter's matches ends with the filter, so their own layout shows again. */
+function withFilterExpansionEnded(change: Change): Change {
+    const { state } = change;
+    if (isFilterActive(state.filter) || state.filterExpansion.size === 0) return change;
+    return { ...change, state: { ...state, filterExpansion: new Map() } };
 }
 
 /**

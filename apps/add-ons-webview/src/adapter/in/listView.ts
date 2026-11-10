@@ -23,10 +23,8 @@ import { kindTile, problemLine, statusBadge } from "./statusMarks";
 
 export interface ListContext {
     readonly state: ViewState;
-    /** Whether a group or source shows open: the user's choice, or every match while filtering. */
+    /** Whether a group or source shows open: the user's choice, or, while filtering, open until they close it. */
     readonly isOpen: (headId: string) => boolean;
-    /** A search or filter shows every match: the heads are plain headers then. */
-    readonly filterActive: boolean;
     readonly selectedId?: string;
     readonly revealedId?: string;
     readonly openMenu?: string;
@@ -46,7 +44,7 @@ function groupOf(group: AddOnGroupPayload, context: ListContext): HTMLElement {
     const open = context.isOpen(group.id);
     const section = el("section", "av-group");
     section.setAttribute("aria-label", group.label);
-    const control = headControl(group.id, open, context.filterActive, "av-group-head");
+    const control = headControl(group.id, open, "av-group-head");
     const text = el("span", "av-group-text");
     text.append(
         el("span", "av-group-label", group.label),
@@ -79,8 +77,8 @@ function sourceOf(source: AddOnSourcePayload, context: ListContext): HTMLElement
     const head = el("div", "av-source-head");
     // A source without rows has nothing to open: a plain header with the chevron's room kept.
     const control = hasRows
-        ? headControl(source.id, open, context.filterActive, "av-source-toggle")
-        : staticHead("av-source-toggle", false);
+        ? headControl(source.id, open, "av-source-toggle")
+        : staticHead("av-source-toggle");
     const titleLine = el("span", "av-source-title");
     titleLine.append(el("span", "av-source-label", source.label));
     if (source.stateText !== undefined) titleLine.append(el("span", "av-badge", source.stateText));
@@ -124,18 +122,15 @@ function sourceOf(source: AddOnSourcePayload, context: ListContext): HTMLElement
     return block;
 }
 
-/** The whole header row is the toggle; while a filter shows every match it is a plain header. */
-function headControl(headId: string, open: boolean, filterActive: boolean, className: string) {
-    if (filterActive) return staticHead(className, open);
+/** The whole header row is the toggle. */
+function headControl(headId: string, open: boolean, className: string) {
     const toggle = markFocus(toggleButton(headId, open, `av-head ${className}`), "head", headId);
     toggle.dataset.open = String(open);
     return toggle;
 }
 
-function staticHead(className: string, open: boolean): HTMLElement {
-    const head = el("span", `av-head av-head-static ${className}`);
-    head.dataset.open = String(open);
-    return head;
+function staticHead(className: string): HTMLElement {
+    return el("span", `av-head av-head-static ${className}`);
 }
 
 function chevron(): SVGElement {

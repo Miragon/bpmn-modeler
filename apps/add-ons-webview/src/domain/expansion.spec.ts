@@ -75,34 +75,100 @@ describe("isOpen", () => {
 });
 
 describe("isShownOpen", () => {
-    const marketplace = headsOf(CATALOG).find(({ id }) => id === MARKETPLACE_SOURCE.id)!;
-    const closedWork = new Map([["folder:/work", false]]);
-    const work = headsOf(CATALOG)[0]!;
+    const heads = headsOf(CATALOG);
+    const head = (id: string) => heads.find((each) => each.id === id)!;
+    const NONE: Expansion = new Map();
 
-    it.each<{ case: string; open: boolean; filterActive: boolean; expected: boolean }>([
+    it.each<{
+        case: string;
+        id: string;
+        expansion: Expansion;
+        filterExpansion: Expansion;
+        filterActive: boolean;
+        open: boolean;
+    }>([
         {
-            case: "follows the user's choice without a filter",
-            open: false,
+            case: "follows the default without a filter",
+            id: MARKETPLACE_SOURCE.id,
+            expansion: NONE,
+            filterExpansion: NONE,
             filterActive: false,
-            expected: false,
+            open: false,
         },
         {
-            case: "shows a closed head open while a filter is active",
-            open: false,
+            case: "shows a head with matches open while a filter is on",
+            id: MARKETPLACE_SOURCE.id,
+            expansion: NONE,
+            filterExpansion: NONE,
             filterActive: true,
-            expected: true,
+            open: true,
         },
-        { case: "keeps an open head open", open: true, filterActive: false, expected: true },
-    ])("$case", ({ open, filterActive, expected }) => {
-        const expansion = new Map([[MARKETPLACE_SOURCE.id, open]]);
-
-        expect(isShownOpen(marketplace, expansion, filterActive)).toBe(expected);
-    });
-
-    it("leaves the stored choice as it was", () => {
-        isShownOpen(work, closedWork, true);
-
-        expect([...closedWork]).toEqual([["folder:/work", false]]);
+        {
+            case: "follows a head the user opened without a filter",
+            id: MARKETPLACE_SOURCE.id,
+            expansion: new Map([[MARKETPLACE_SOURCE.id, true]]),
+            filterExpansion: NONE,
+            filterActive: false,
+            open: true,
+        },
+        {
+            case: "keeps a head the user opened open while a filter is on",
+            id: MARKETPLACE_SOURCE.id,
+            expansion: new Map([[MARKETPLACE_SOURCE.id, true]]),
+            filterExpansion: NONE,
+            filterActive: true,
+            open: true,
+        },
+        {
+            case: "follows a head the user closed without a filter",
+            id: CONFIG_SOURCE.id,
+            expansion: new Map([[CONFIG_SOURCE.id, false]]),
+            filterExpansion: NONE,
+            filterActive: false,
+            open: false,
+        },
+        {
+            case: "shows a head the user closed open while a filter is on, so no match hides",
+            id: CONFIG_SOURCE.id,
+            expansion: new Map([[CONFIG_SOURCE.id, false]]),
+            filterExpansion: NONE,
+            filterActive: true,
+            open: true,
+        },
+        {
+            case: "ignores a head closed while filtering once no filter is on",
+            id: CONFIG_SOURCE.id,
+            expansion: NONE,
+            filterExpansion: new Map([[CONFIG_SOURCE.id, false]]),
+            filterActive: false,
+            open: true,
+        },
+        {
+            case: "closes a head the user closed while a filter is on",
+            id: CONFIG_SOURCE.id,
+            expansion: NONE,
+            filterExpansion: new Map([[CONFIG_SOURCE.id, false]]),
+            filterActive: true,
+            open: false,
+        },
+        {
+            case: "opens a head the user opened while a filter is on over their closed choice",
+            id: "folder:/work",
+            expansion: new Map([["folder:/work", false]]),
+            filterExpansion: new Map([["folder:/work", true]]),
+            filterActive: true,
+            open: true,
+        },
+        {
+            case: "never opens a row, filter or not",
+            id: RESIZE.id,
+            expansion: NONE,
+            filterExpansion: NONE,
+            filterActive: true,
+            open: false,
+        },
+    ])("$case", ({ id, expansion, filterExpansion, filterActive, open }) => {
+        expect(isShownOpen(head(id), { expansion, filterExpansion, filterActive })).toBe(open);
     });
 });
 

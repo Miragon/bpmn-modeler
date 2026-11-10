@@ -8,6 +8,7 @@ import {
     CONFIG_SOURCE,
     MAIL,
     MARKETPLACE_SOURCE,
+    PACKAGES_SOURCE,
     PALETTE,
     RESIZE,
     without,
@@ -272,7 +273,7 @@ describe("AddOnsView", () => {
             ]);
         });
 
-        it("keep the matches of a chosen kind, with plain headers, and announce how many", () => {
+        it("keep the matches of a chosen kind, under open headers, and announce how many", () => {
             const { chip, rowNames, head, root } = mountedView(CATALOG);
 
             chip("Plugins").click();
@@ -280,9 +281,67 @@ describe("AddOnsView", () => {
             expect([
                 chip("Plugins").getAttribute("aria-pressed"),
                 rowNames(),
-                head(CONFIG_SOURCE.id),
+                head(CONFIG_SOURCE.id)?.getAttribute("aria-expanded"),
                 text(root.querySelector("[aria-live=polite].av-vh")),
-            ]).toEqual(["true", [PALETTE.name, RESIZE.name], null, "2 add-ons shown"]);
+            ]).toEqual(["true", [PALETTE.name, RESIZE.name], "true", "2 add-ons shown"]);
+        });
+
+        it("let the user close a source while filtering, summed up over its matches", () => {
+            const { type, head, rowNames, search } = mountedView(CATALOG);
+            type("resize");
+            head(CONFIG_SOURCE.id)!.focus();
+
+            head(CONFIG_SOURCE.id)!.click();
+            const closed = head(CONFIG_SOURCE.id)!;
+
+            expect([
+                closed.tagName,
+                closed.getAttribute("aria-expanded"),
+                rowNames(),
+                text(closed.querySelector(".ds-count")),
+                closed.querySelectorAll(".av-dot").length,
+                text(closed.querySelector(".av-vh")),
+                search().value,
+                document.activeElement,
+            ]).toEqual([
+                "BUTTON",
+                "false",
+                [],
+                "1",
+                1,
+                ", 1 add-on, 1 needs review",
+                "resize",
+                closed,
+            ]);
+        });
+
+        it("let the user close a folder while filtering, and keep it closed as the query grows", () => {
+            const { type, head, rowNames } = mountedView(CATALOG);
+            type("re");
+
+            head(FOLDER.id)!.click();
+            type("res");
+
+            expect([head(FOLDER.id)?.getAttribute("aria-expanded"), rowNames()]).toEqual([
+                "false",
+                [],
+            ]);
+        });
+
+        it("restore the user's own layout once the filter is cleared", () => {
+            const { type, head, chip, button, rowNames } = mountedView(CATALOG);
+            head(PACKAGES_SOURCE.id)!.click();
+            chip("Plugins").click();
+            head(CONFIG_SOURCE.id)!.click();
+            type("nothing like this");
+
+            button("Clear filters").click();
+
+            expect([
+                head(CONFIG_SOURCE.id)?.getAttribute("aria-expanded"),
+                head(PACKAGES_SOURCE.id)?.getAttribute("aria-expanded"),
+                rowNames(),
+            ]).toEqual(["true", "false", [PALETTE.name, RESIZE.name]]);
         });
 
         it("keep only what needs review", () => {

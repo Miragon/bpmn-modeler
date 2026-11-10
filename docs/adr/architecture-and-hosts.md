@@ -260,7 +260,11 @@ follows a resized sidebar or tool window without a reload. The reducer
 (`src/domain/viewState.ts`) holds the tab, each tab's selection, the filter
 and the pane, and keeps the tab, the selections and the open or closed headers
 in the host's saved state, so a reload, which IntelliJ does after a bridge
-restart, lands where the user was; the search stays with the page.
+restart, lands where the user was; the search stays with the page. A search or
+filter opens every header with a match, and what the user opens or closes
+while it is on goes into `filterExpansion`, which stays with the page and ends
+with the filter, so the saved headers never change while filtering and show
+again once it is cleared.
 
 The brand's own components draw it: the vendored tokens
 (`cd-tokens.generated.css`, unchanged from the `miragon-brand` skill), Geist
