@@ -8,6 +8,8 @@ import {
     type ApprovableArtifact,
     approvalChangeBetween,
     type ApprovalState,
+    type CarriedApproval,
+    carriedApprovals,
     approvalOutcome,
     approvalsAfter,
     approvalsKey,
@@ -31,10 +33,12 @@ import {
     isLeftForView,
     needsContentHash,
     notAskedAgain,
+    orphanedCarries,
     type PendingCodeApproval,
     pendingApprovalDescription,
     isApprovedState,
     pendingApprovals,
+    placesAllowing,
     presenceIdOf,
     PROCESS_RESTART_TEXT,
     PROCESS_RESTARTS,
@@ -42,6 +46,7 @@ import {
     type ReviewedAllow,
     reviewedAllowDecision,
     revoking,
+    revokingContent,
     SESSION_ANSWERS,
     type SessionAnswer,
 } from "./codeApproval";
@@ -118,6 +123,27 @@ describe("approvalStateOf", () => {
             case: "an approval of the same content in another folder",
             artifact: resize,
             approvals: [{ pluginId: "/elsewhere/resize-tasks", contentHash: "aaa" }],
+            state: "approved",
+        },
+        {
+            case: "an old row here and this content allowed in another folder",
+            artifact: resize,
+            approvals: [
+                { pluginId: resize.id, contentHash: "old" },
+                { pluginId: "/elsewhere/resize-tasks", contentHash: "aaa" },
+            ],
+            state: "approved",
+        },
+        {
+            case: "other content allowed in another folder",
+            artifact: resize,
+            approvals: [{ pluginId: "/elsewhere/resize-tasks", contentHash: "aab" }],
+            state: "new",
+        },
+        {
+            case: "a plugin row of the same digest, which never approves a rule package",
+            artifact: acmeRules,
+            approvals: [{ pluginId: "/elsewhere/.camunda/plugins/acme", contentHash: "ddd" }],
             state: "new",
         },
         {
@@ -159,9 +185,9 @@ describe("approvedArtifacts", () => {
             approved: [resize, palette],
         },
         {
-            case: "keeps none for an approval of the same content in another folder",
+            case: "keeps an artifact whose content the user allowed in another folder",
             approvals: [{ pluginId: "/elsewhere/resize-tasks", contentHash: "aaa" }],
-            approved: [],
+            approved: [resize],
         },
         { case: "keeps none without approvals", approvals: [], approved: [] },
     ])("$case", ({ approvals, approved }) => {
@@ -219,6 +245,207 @@ describe("revoking", () => {
             allow: [],
             revoke: [resize.id, palette.id],
         });
+    });
+});
+
+describe("placesAllowing and revokingContent", () => {
+    const here = resize.id;
+    const elsewhere = "/elsewhere/.camunda/plugins/resize-tasks";
+    const third = "/third/.camunda/plugins/resize-tasks";
+
+    it.each<{
+        case: string;
+        approvals: CodeApproval[];
+        places: string[];
+        revoke: string[];
+    }>([
+        {
+            case: "only this place",
+            approvals: [{ pluginId: here, contentHash: "aaa" }, other],
+            places: [here],
+            revoke: [here],
+        },
+        {
+            case: "this place and every other holder, this place first",
+            approvals: [
+                { pluginId: elsewhere, contentHash: "aaa" },
+                other,
+                { pluginId: here, contentHash: "aaa" },
+                { pluginId: third, contentHash: "aaa" },
+            ],
+            places: [elsewhere, here, third],
+            revoke: [here, elsewhere, third],
+        },
+        {
+            case: "this place without a row, naming it",
+            approvals: [{ pluginId: elsewhere, contentHash: "aaa" }],
+            places: [elsewhere],
+            revoke: [here, elsewhere],
+        },
+        {
+            case: "this place's row of older content goes too",
+            approvals: [
+                { pluginId: here, contentHash: "old" },
+                { pluginId: elsewhere, contentHash: "aaa" },
+            ],
+            places: [elsewhere],
+            revoke: [here, elsewhere],
+        },
+        {
+            case: "rows of other content stay",
+            approvals: [other, { pluginId: third, contentHash: "aab" }],
+            places: [],
+            revoke: [here],
+        },
+        {
+            case: "a place stored twice, named once",
+            approvals: [
+                { pluginId: elsewhere, contentHash: "aaa" },
+                { pluginId: elsewhere, contentHash: "aaa" },
+            ],
+            places: [elsewhere],
+            revoke: [here, elsewhere],
+        },
+    ])("withdraws $case", ({ approvals, places, revoke }) => {
+        expect(placesAllowing("aaa", approvals)).toEqual(places);
+        expect(revokingContent(here, "aaa", approvals)).toEqual(revoking(revoke));
+    });
+});
+
+describe("carriedApprovals", () => {
+    const elsewhere = "/elsewhere/.camunda/plugins/resize-tasks";
+    const third = "/third/.camunda/plugins/resize-tasks";
+    const copy: ApprovableArtifact = { ...resize, id: "/worktree/.camunda/plugins/resize-tasks" };
+
+    it.each<{
+        case: string;
+        artifacts: ApprovableArtifact[];
+        approvals: CodeApproval[];
+        carried: CarriedApproval[];
+    }>([
+        { case: "nothing without a row", artifacts: [resize], approvals: [], carried: [] },
+        {
+            case: "nothing for content its own row holds",
+            artifacts: [resize],
+            approvals: [
+                { pluginId: elsewhere, contentHash: "aaa" },
+                { pluginId: resize.id, contentHash: "aaa" },
+            ],
+            carried: [],
+        },
+        {
+            case: "code allowed only in another folder, from the first row holding it",
+            artifacts: [resize, palette],
+            approvals: [
+                other,
+                { pluginId: elsewhere, contentHash: "aaa" },
+                { pluginId: third, contentHash: "aaa" },
+            ],
+            carried: [{ artifact: resize, allowedAt: elsewhere }],
+        },
+        {
+            case: "an old row here and the content allowed elsewhere",
+            artifacts: [resize],
+            approvals: [
+                { pluginId: resize.id, contentHash: "old" },
+                { pluginId: elsewhere, contentHash: "aaa" },
+            ],
+            carried: [{ artifact: resize, allowedAt: elsewhere }],
+        },
+        {
+            case: "one place found twice, named once",
+            artifacts: [resize, { ...resize, name: "Again" }],
+            approvals: [{ pluginId: elsewhere, contentHash: "aaa" }],
+            carried: [{ artifact: resize, allowedAt: elsewhere }],
+        },
+        {
+            case: "two places of one content, each",
+            artifacts: [resize, copy],
+            approvals: [{ pluginId: elsewhere, contentHash: "aaa" }],
+            carried: [
+                { artifact: resize, allowedAt: elsewhere },
+                { artifact: copy, allowedAt: elsewhere },
+            ],
+        },
+        {
+            case: "nothing for other content elsewhere",
+            artifacts: [resize],
+            approvals: [{ pluginId: elsewhere, contentHash: "aab" }],
+            carried: [],
+        },
+        {
+            case: "a place stored twice, its first row of older content, from another place first",
+            artifacts: [resize],
+            approvals: [
+                { pluginId: resize.id, contentHash: "old" },
+                { pluginId: resize.id, contentHash: "aaa" },
+                { pluginId: elsewhere, contentHash: "aaa" },
+            ],
+            carried: [{ artifact: resize, allowedAt: elsewhere }],
+        },
+        {
+            case: "nothing for a place stored twice whose own later row is the only holder",
+            artifacts: [resize],
+            approvals: [
+                { pluginId: resize.id, contentHash: "old" },
+                { pluginId: resize.id, contentHash: "aaa" },
+            ],
+            carried: [],
+        },
+    ])("carries $case", ({ artifacts, approvals, carried }) => {
+        expect(carriedApprovals(artifacts, approvals)).toEqual(carried);
+    });
+
+    it("keeps the artifacts' own fields, so a writer can allow them as they are", () => {
+        const carried: CarriedApproval<RulePackage>[] = carriedApprovals(
+            [acmeRules],
+            [{ pluginId: "/elsewhere/node_modules/acme", contentHash: acmeRules.contentHash }],
+        );
+
+        expect(allowing(carried.map(({ artifact }) => artifact))).toEqual(allowing([acmeRules]));
+    });
+});
+
+describe("orphanedCarries", () => {
+    const copy: ApprovableArtifact = { ...resize, id: "/worktree/.camunda/plugins/resize-tasks" };
+    const source = { pluginId: "/elsewhere/.camunda/plugins/resize-tasks", contentHash: "aaa" };
+    const row = ({ id, contentHash }: ApprovableArtifact): CodeApproval => ({
+        pluginId: id,
+        contentHash,
+    });
+
+    it.each<{
+        case: string;
+        carried: ApprovableArtifact[];
+        approvals: CodeApproval[];
+        orphaned: string[];
+    }>([
+        {
+            case: "none while another place holds the content",
+            carried: [resize],
+            approvals: [source, row(resize)],
+            orphaned: [],
+        },
+        {
+            case: "a carried row left alone after a revoke",
+            carried: [resize],
+            approvals: [row(resize), other],
+            orphaned: [resize.id],
+        },
+        {
+            case: "two carried rows of one content with no source",
+            carried: [resize, copy],
+            approvals: [row(resize), row(copy)],
+            orphaned: [resize.id, copy.id],
+        },
+        {
+            case: "a carried row of other content than the orphan, which stays",
+            carried: [resize, palette],
+            approvals: [row(resize), row(palette), { pluginId: "/x", contentHash: "bbb" }],
+            orphaned: [resize.id],
+        },
+    ])("finds $case", ({ carried, approvals, orphaned }) => {
+        expect(orphanedCarries(carried, approvals)).toEqual(orphaned);
     });
 });
 
@@ -445,6 +672,15 @@ describe("pendingApprovals", () => {
             ],
         },
         {
+            case: "asks nothing about content allowed in another folder",
+            approvals: [
+                { pluginId: "/elsewhere/resize-tasks", contentHash: "aaa" },
+                { pluginId: "/elsewhere/reduced-palette", contentHash: "bbb" },
+            ],
+            declined: [],
+            pending: [],
+        },
+        {
             case: "asks nothing when every artifact is allowed or declined",
             approvals: [{ pluginId: resize.id, contentHash: "aaa" }],
             declined: [declineKeyOf(palette)],
@@ -471,6 +707,10 @@ describe("approvalOutcome", () => {
         { artifact: palette, state: "changed" },
     ];
     const checked = (...ids: string[]): ReviewAnswer => ({ kind: "checked", ids });
+    const resizeCopy: ApprovableArtifact = {
+        ...resize,
+        id: "/worktree/.camunda/plugins/resize-tasks",
+    };
 
     it.each<{
         case: string;
@@ -533,6 +773,60 @@ describe("approvalOutcome", () => {
         },
     ])("$case", ({ answer, outcome }) => {
         expect(approvalOutcome(pending, answer)).toEqual(outcome);
+    });
+
+    it.each<{
+        case: string;
+        answer: ReviewAnswer;
+        outcome: CodeApprovalOutcome<ApprovableArtifact>;
+    }>([
+        {
+            case: "a checked artifact allows every pending copy of its content and declines none of them",
+            answer: checked(resize.id),
+            outcome: { allowed: [resize, resizeCopy], answers: new Map() },
+        },
+        {
+            case: "checking the other copy allows both",
+            answer: checked(resizeCopy.id),
+            outcome: { allowed: [resize, resizeCopy], answers: new Map() },
+        },
+        {
+            case: "unchecked copies of unchecked content are each declined",
+            answer: checked(),
+            outcome: {
+                allowed: [],
+                answers: new Map([
+                    [declineKeyOf(resize), "declined"],
+                    [declineKeyOf(resizeCopy), "declined"],
+                ]),
+            },
+        },
+    ])("$case", ({ answer, outcome }) => {
+        expect(
+            approvalOutcome(
+                [
+                    { artifact: resize, state: "new" },
+                    { artifact: resizeCopy, state: "new" },
+                ],
+                answer,
+            ),
+        ).toEqual(outcome);
+    });
+
+    it("declines unchecked other content beside a checked copy", () => {
+        expect(
+            approvalOutcome(
+                [
+                    { artifact: resize, state: "new" },
+                    { artifact: resizeCopy, state: "new" },
+                    { artifact: palette, state: "changed" },
+                ],
+                checked(resizeCopy.id),
+            ),
+        ).toEqual({
+            allowed: [resize, resizeCopy],
+            answers: new Map([[declineKeyOf(palette), "declined"]]),
+        });
     });
 
     it("allows a checked rule package as it was asked about", () => {
@@ -653,7 +947,12 @@ describe("needsContentHash", () => {
             declined: [declineKeyOf({ ...resize, contentHash: "old" })],
             needed: true,
         },
-        { case: "only another id's row", approvals: [other], declined: [], needed: false },
+        {
+            case: "a row of this kind at another place, which may hold its content",
+            approvals: [other],
+            declined: [],
+            needed: true,
+        },
         {
             case: "only declines whose id starts or ends like this one",
             approvals: [],
@@ -765,10 +1064,23 @@ describe("codeStateOf", () => {
             reading: state("changed"),
         },
         {
-            case: "unhashed content without a row or a decline",
+            case: "content allowed in another folder, declined here",
+            presence: found,
+            approvals: [{ pluginId: "/elsewhere/resize-tasks", contentHash: "aaa" }],
+            declined: [declinedNow],
+            reading: state("approved"),
+        },
+        {
+            case: "unhashed content without any row or a decline",
+            presence: { kind: "unhashed", id: resize.id },
+            approvals: [],
+            reading: state("new"),
+        },
+        {
+            case: "unhashed content with only another place's row, which may hold its content",
             presence: { kind: "unhashed", id: resize.id },
             approvals: [other],
-            reading: state("new"),
+            reading: { kind: "hashNeeded" },
         },
         {
             case: "unhashed content with a row",
@@ -793,6 +1105,12 @@ describe("codeStateOf", () => {
             case: "unreadable content without a row",
             presence: { kind: "unreadable", id: resize.id, reason: "manifest missing" },
             approvals: [other],
+            reading: state("new"),
+        },
+        {
+            case: "unreadable content with no row here but this id's content elsewhere",
+            presence: { kind: "unreadable", id: resize.id, reason: "manifest missing" },
+            approvals: [{ pluginId: "/elsewhere/resize-tasks", contentHash: "aaa" }],
             reading: state("new"),
         },
     ])("reads $case", ({ presence, approvals, declined = [], reading }) => {

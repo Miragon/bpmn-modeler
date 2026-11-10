@@ -31,7 +31,7 @@ export interface AddOnInventoryPorts {
     readonly templatePreferences?: TemplatePreferenceStorePort;
 }
 
-type ListingFacts = Pick<AddOnFacts, "folders" | "configFolder" | "approvals">;
+type ListingFacts = Pick<AddOnFacts, "folders" | "configFolder" | "approvalsByKind">;
 
 /** Collects what the owners find in the open workspace folders, and the rows they missed there. */
 export class AddOnInventoryReader {
@@ -41,10 +41,15 @@ export class AddOnInventoryReader {
     async read(inspected: ReadonlySet<string>): Promise<AddOnFacts> {
         // From the host, so a mirror not yet seeded never makes every row look new.
         const approvals = await this.ports.approvals.readStored();
+        const { plugins, rulePackages } = this.ports;
+        const approvalsByKind = {
+            plugin: approvals.filter((row) => plugins.ownsApproval(row)),
+            rulePackage: approvals.filter((row) => rulePackages?.ownsApproval(row) ?? false),
+        };
         const templatePreferences = await this.ports.templatePreferences?.readStored();
         const folders = this.ports.workspace.getWorkspaceFolderPaths();
         const configFolder = this.ports.settings.getConfigFolder();
-        const facts = { folders, configFolder, approvals };
+        const facts = { folders, configFolder, approvalsByKind };
         return {
             ...facts,
             plugins: await this.plugins(facts),
@@ -94,7 +99,7 @@ export class AddOnInventoryReader {
     private async plugins({
         folders,
         configFolder,
-        approvals,
+        approvalsByKind,
     }: ListingFacts): Promise<OwnedPresence[]> {
         const { plugins } = this.ports;
         const listed = [
@@ -106,9 +111,7 @@ export class AddOnInventoryReader {
                 }),
             )),
         ];
-        const ownedRowIds = approvals
-            .filter((row) => plugins.ownsApproval(row))
-            .map(({ pluginId }) => pluginId);
+        const ownedRowIds = approvalsByKind.plugin.map(({ pluginId }) => pluginId);
         for (const id of missedRowIds(ownedRowIds, listed.map(presenceIdOf), folders)) {
             listed.push(await plugins.current(id));
         }
@@ -120,25 +123,24 @@ export class AddOnInventoryReader {
     }
 
     private rulePackages(
-        { folders, approvals }: ListingFacts,
+        { folders, approvalsByKind }: ListingFacts,
         inspected: ReadonlySet<string>,
     ): OwnedPresence[] {
         const { rulePackages } = this.ports;
         if (rulePackages === undefined) {
             return [];
         }
+        const ownedRows = approvalsByKind.rulePackage;
         const ids = rulePackageIdsToList(folders, {
             installed: rulePackages.installedIn(
                 rulePackageDirsToList(folders, rulePackages.lintConfigDirs()),
             ),
             seen: rulePackages.seenPackageIds(),
-            ownedRowIds: approvals
-                .filter((row) => rulePackages.ownsApproval(row))
-                .map(({ pluginId }) => pluginId),
+            ownedRowIds: ownedRows.map(({ pluginId }) => pluginId),
         });
         const hashContext = {
             inspected,
-            approvals,
+            rowsOfKind: ownedRows,
             answers: rulePackages.sessionAnswers(),
         };
         return ids.map((id) => ({

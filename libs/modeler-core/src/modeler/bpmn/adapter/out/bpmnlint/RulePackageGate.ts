@@ -14,6 +14,7 @@ import {
     BlockedState,
     loadsWithoutApproval,
     requestedPackageNameOf,
+    RulePackage,
     RulePackageVerdict,
     rulePackageVerdict,
 } from "../../../domain/rulePackageApproval";
@@ -67,6 +68,8 @@ const NO_DECLINES: ReadonlySet<string> = new Set();
  */
 export class RulePackageGate implements RequestAttribution {
     private readonly admittedMembers = new Set<string>();
+    /** Roots an approval admitted, by id; a closure member admitted through its root is not one. */
+    private readonly admittedRoots = new Map<string, RulePackage>();
     private readonly admittedStamps: ClosureStamp[] = [];
     private readonly blocked = new Map<
         string,
@@ -117,6 +120,11 @@ export class RulePackageGate implements RequestAttribution {
             state,
             needed: needed.has(id),
         }));
+    }
+
+    /** The workspace rule packages an approval admitted, at the content they ran with. */
+    admittedRulePackages(): RulePackage[] {
+        return [...this.admittedRoots.values()];
     }
 
     /** Stats only, so the linter can ask before every run. */
@@ -202,6 +210,7 @@ export class RulePackageGate implements RequestAttribution {
         }
         const hashed = rulePackageVerdict(root.id, context, fingerprint.rulePackage.contentHash);
         if (hashed.kind === "admitted") {
+            this.admittedRoots.set(root.id, fingerprint.rulePackage);
             this.admitClosure(fingerprint, cache);
         }
         return hashed;

@@ -54,8 +54,9 @@ templates and the template marketplaces. It lists this project only. It is the s
   opens the details in place of the list, with **Back**.
 - Each plugin and rule package shows its state: **Allowed**, **Not allowed yet**, **Changed, review needed**,
   **Declined this session** or **Folder gone**. **Review…** shows what you would allow, **Allow this content** at the
-  end of the review allows it, **Revoke** takes an approval back, and **Forget** drops the approval of a
-  **Folder gone** row. Rules from a rule package that already ran stay loaded until you restart the IDE.
+  end of the review allows it, **Revoke** takes the approval of that content back in every folder, and **Forget**
+  drops only the approval of a **Folder gone** row. Content you allowed in another folder, clone or git worktree
+  shows as **Allowed** without asking. Rules from a rule package that already ran stay loaded until you restart the IDE.
 - **Disable** and **Enable** switch an element template off and on; a source's **⋯** menu does it for all of its
   templates. A switch holds for this project, which the IDE keeps in `.idea/workspace.xml`, or for all your projects.
 - The **Marketplaces** tab adds, updates and removes [template marketplaces](/vscode/features/template-marketplace).

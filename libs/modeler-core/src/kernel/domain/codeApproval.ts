@@ -1,8 +1,8 @@
 import { relativeToWorkspace } from "./rootContainment";
 
-/** Workspace code that runs only once the user allowed this content at this place. */
+/** Workspace code that runs only once the user allowed this content. */
 export interface ApprovableArtifact {
-    /** Where the code lives: an approval is for this place, never for a name a repo can copy. */
+    /** Where the code lives; a row records each place, the content decides. */
     readonly id: string;
     readonly name: string;
     /** Covers every byte that can run, so any change to it asks again. */
@@ -10,9 +10,10 @@ export interface ApprovableArtifact {
 }
 
 /**
- * The user allowed this content at this place. Kept by the host for the user,
- * outside the workspace, so a repository cannot approve itself. One list holds
- * the rows of every approval kind; the field names are the hosts' stored ones.
+ * The user allowed this content, recorded at the place it was found. Kept by
+ * the host for the user, outside the workspace, so a repository cannot approve
+ * itself. One list holds the rows of every approval kind; the field names are
+ * the hosts' stored ones.
  */
 export interface CodeApproval {
     readonly pluginId: string;
@@ -73,6 +74,15 @@ export interface ApprovableCodeTexts {
     readonly allowedFollowUp: string;
     /** Also the note of a row whose code its owner says stays loaded after a revoke. */
     readonly revokedFollowUp: (restart: ProcessRestart) => string;
+    /** The output channel line when code runs because the user allowed the same content at another place. */
+    readonly carriedOver: (carried: CarriedApproval) => string;
+}
+
+/** Code allowed only through another place's row of its content. */
+export interface CarriedApproval<A extends ApprovableArtifact = ApprovableArtifact> {
+    readonly artifact: A;
+    /** The row that holds the content, another place's first. */
+    readonly allowedAt: string;
 }
 
 /** Code as its owner lists it, named even when it could not be read. */
@@ -93,15 +103,20 @@ function approvalRowOf(id: string, approvals: readonly CodeApproval[]): CodeAppr
     return approvals.find((approval) => approval.pluginId === id);
 }
 
+/** The content the row at `id` holds, which an unreadable folder's Revoke takes back. */
+export function rowContentOf(id: string, approvals: readonly CodeApproval[]): string | undefined {
+    return approvalRowOf(id, approvals)?.contentHash;
+}
+
+/** A row counts for its content wherever it sits; a row here of other content is `changed`. */
 export function approvalStateOf(
     artifact: ApprovableArtifact,
     approvals: readonly CodeApproval[],
 ): ApprovalState {
-    const approval = approvalRowOf(artifact.id, approvals);
-    if (approval === undefined) {
-        return "new";
+    if (approvals.some((row) => row.contentHash === artifact.contentHash)) {
+        return "approved";
     }
-    return approval.contentHash === artifact.contentHash ? "approved" : "changed";
+    return approvalRowOf(artifact.id, approvals) === undefined ? "new" : "changed";
 }
 
 export function approvedArtifacts<A extends ApprovableArtifact>(
@@ -145,6 +160,56 @@ export function allowing(artifacts: readonly ApprovableArtifact[]): CodeApproval
 
 export function revoking(ids: readonly string[]): CodeApprovalChange {
     return codeApprovalChange([], ids);
+}
+
+/** Each id once, first artifact wins: `allowing` throws on an id named twice. */
+export function carriedApprovals<A extends ApprovableArtifact>(
+    artifacts: readonly A[],
+    approvals: readonly CodeApproval[],
+): CarriedApproval<A>[] {
+    const named = new Set<string>();
+    return artifacts.flatMap((artifact): CarriedApproval<A>[] => {
+        const { id, contentHash } = artifact;
+        if (named.has(id)) return [];
+        named.add(id);
+        if (rowContentOf(id, approvals) === contentHash) return [];
+        // A later row of its own is no source: the post-write check would find the carry orphaned.
+        const source = approvals.find(
+            (row) => row.contentHash === contentHash && row.pluginId !== id,
+        );
+        return source === undefined ? [] : [{ artifact, allowedAt: source.pluginId }];
+    });
+}
+
+/** Carried rows whose content no other row holds any more: a revoke landed between decision and write. */
+export function orphanedCarries(
+    carried: readonly ApprovableArtifact[],
+    approvals: readonly CodeApproval[],
+): string[] {
+    const carriedIds = new Set(carried.map(({ id }) => id));
+    const isHeldOutside = (contentHash: string) =>
+        approvals.some((row) => row.contentHash === contentHash && !carriedIds.has(row.pluginId));
+    return carried.filter(({ contentHash }) => !isHeldOutside(contentHash)).map(({ id }) => id);
+}
+
+/** Every place whose row holds this content, each once, in list order. */
+export function placesAllowing(contentHash: string, approvals: readonly CodeApproval[]): string[] {
+    return [
+        ...new Set(
+            approvals
+                .filter((row) => row.contentHash === contentHash)
+                .map(({ pluginId }) => pluginId),
+        ),
+    ];
+}
+
+/** Takes the content back everywhere, and the row at `id` whatever it holds, so no row carries it back. */
+export function revokingContent(
+    id: string,
+    contentHash: string,
+    approvals: readonly CodeApproval[],
+): CodeApprovalChange {
+    return revoking([...new Set([id, ...placesAllowing(contentHash, approvals)])]);
 }
 
 /**
@@ -221,7 +286,7 @@ function rowOf({ pluginId, contentHash }: CodeApproval): CodeApproval {
     return { pluginId, contentHash };
 }
 
-/** The first row wins, as {@link approvalStateOf} reads it. */
+/** The first row of an id wins, as {@link approvalStateOf} reads a row of other content. */
 function firstRowById(approvals: readonly CodeApproval[]): Map<string, CodeApproval> {
     const byId = new Map<string, CodeApproval>();
     for (const row of approvals) {
@@ -236,18 +301,16 @@ export function declineKeyOf(artifact: ApprovableArtifact): string {
 }
 
 /**
- * Only a row or a decline of the id can match, so code with neither is `new`
- * without reading every byte of it.
+ * Any row of its kind may hold its content, and a decline of its id may name
+ * it, so only code with neither is `new` without reading every byte of it.
+ * `rowsOfKind` holds only the rows of this code's kind.
  */
 export function needsContentHash(
     id: string,
-    approvals: readonly CodeApproval[],
+    rowsOfKind: readonly CodeApproval[],
     declined: ReadonlySet<string>,
 ): boolean {
-    return (
-        approvalRowOf(id, approvals) !== undefined ||
-        [...declined].some((key) => isAnswerKeyOf(id, key))
-    );
+    return rowsOfKind.length > 0 || [...declined].some((key) => isAnswerKeyOf(id, key));
 }
 
 /** A path id can hold a `#`; a content hash never does, so the key's last `#` ends the id. */
@@ -266,35 +329,42 @@ export function foundCodeState(
     return !isApprovedState(state) && declined.has(declineKeyOf(artifact)) ? "declined" : state;
 }
 
-/** A row decides `changed` for code that cannot be read, so the user still sees what was allowed there. */
+/**
+ * A row decides `changed` for code that cannot be read, so the user still sees
+ * what was allowed there. `rowsOfKind` holds only the rows of this code's kind:
+ * a row of another kind never holds its content but would ask for a hash.
+ */
 export function codeStateOf(
     presence: Exclude<CodePresence, { readonly kind: "gone" }>,
-    approvals: readonly CodeApproval[],
+    rowsOfKind: readonly CodeApproval[],
     declined: ReadonlySet<string>,
 ): CodeStateReading<Exclude<CodeState, "gone">>;
 export function codeStateOf(
     presence: CodePresence,
-    approvals: readonly CodeApproval[],
+    rowsOfKind: readonly CodeApproval[],
     declined: ReadonlySet<string>,
 ): CodeStateReading;
 export function codeStateOf(
     presence: CodePresence,
-    approvals: readonly CodeApproval[],
+    rowsOfKind: readonly CodeApproval[],
     declined: ReadonlySet<string>,
 ): CodeStateReading {
     switch (presence.kind) {
         case "gone":
             return { kind: "state", state: "gone" };
         case "found":
-            return { kind: "state", state: foundCodeState(presence.artifact, approvals, declined) };
+            return {
+                kind: "state",
+                state: foundCodeState(presence.artifact, rowsOfKind, declined),
+            };
         case "unhashed":
-            return needsContentHash(presence.id, approvals, declined)
+            return needsContentHash(presence.id, rowsOfKind, declined)
                 ? { kind: "hashNeeded" }
                 : { kind: "state", state: "new" };
         case "unreadable":
             return {
                 kind: "state",
-                state: approvalRowOf(presence.id, approvals) === undefined ? "new" : "changed",
+                state: approvalRowOf(presence.id, rowsOfKind) === undefined ? "new" : "changed",
             };
     }
 }
@@ -357,7 +427,11 @@ export interface CodeApprovalOutcome<A extends ApprovableArtifact> {
     readonly answers: ReadonlyMap<string, SessionAnswer>;
 }
 
-/** Unchecked content is declined; content left to a view is neither allowed nor declined. */
+/**
+ * Checked content is allowed at every pending place that holds it, as an
+ * approval counts for its content anywhere; only other unchecked content is
+ * declined. Content left to a view is neither allowed nor declined.
+ */
 export function approvalOutcome<A extends ApprovableArtifact>(
     pending: readonly PendingCodeApproval<A>[],
     answer: ReviewAnswer,
@@ -370,14 +444,19 @@ export function approvalOutcome<A extends ApprovableArtifact>(
             ),
         };
     }
-    const checked = new Set(answer.ids);
+    const checkedIds = new Set(answer.ids);
+    const checkedContent = new Set(
+        pending
+            .filter(({ artifact }) => checkedIds.has(artifact.id))
+            .map(({ artifact }) => artifact.contentHash),
+    );
+    const isChecked = ({ artifact }: PendingCodeApproval<A>) =>
+        checkedContent.has(artifact.contentHash);
     return {
-        allowed: pending
-            .filter(({ artifact }) => checked.has(artifact.id))
-            .map(({ artifact }) => artifact),
+        allowed: pending.filter(isChecked).map(({ artifact }) => artifact),
         answers: new Map(
             pending
-                .filter(({ artifact }) => !checked.has(artifact.id))
+                .filter((each) => !isChecked(each))
                 .map(({ artifact }) => [declineKeyOf(artifact), "declined"]),
         ),
     };

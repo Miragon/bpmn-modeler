@@ -1,13 +1,15 @@
 import { describe, expect, it } from "vitest";
 
-import { allowing, ReviewedAllow } from "../../kernel/domain/codeApproval";
+import { allowing, ReviewedAllow, revoking } from "../../kernel/domain/codeApproval";
 import { ShownCode } from "./codeAddOnCatalog";
 import {
     allowResultOf,
     allowTargetOf,
     inspectResultOf,
     pruneResultOf,
-    revokeResultOf,
+    revokeChangeOf,
+    revokeOutcomeOf,
+    revokeSweepOf,
     shownTargetOf,
 } from "./codeAddOnRequests";
 import { ShownRevisions } from "./shownRevisions";
@@ -24,6 +26,7 @@ const plugin: ShownCode = {
     allowedFollowUp: "Open editors reload with it.",
     revokedFollowUp: "Open editors reload without it.",
     leftForViewByRevoke: [],
+    withdrawal: { kind: "content", contentHash: "h1" },
 };
 const approvedPlugin: ShownCode = { ...plugin, actions: ["revoke"] };
 const unhashed: ShownCode = {
@@ -34,6 +37,7 @@ const unhashed: ShownCode = {
     allowedFollowUp: "Open editors lint again with it.",
     revokedFollowUp: "Code it already ran stays loaded until you reload the window.",
     leftForViewByRevoke: [],
+    withdrawal: { kind: "row" },
 };
 const rulePackage: ShownCode = {
     ...unhashed,
@@ -199,7 +203,47 @@ describe("allowResultOf", () => {
     });
 });
 
-describe("revokeResultOf", () => {
+describe("revokeChangeOf", () => {
+    const stored = [
+        { pluginId: "/a/.camunda/plugins/resize", contentHash: "h1" },
+        { pluginId: RESIZE, contentHash: "h1" },
+        { pluginId: "/b/.camunda/plugins/other", contentHash: "h2" },
+    ];
+
+    it("withdraws found content from every place whose row holds it", () => {
+        expect(revokeChangeOf(approvedPlugin, stored)).toEqual(
+            revoking([RESIZE, "/a/.camunda/plugins/resize"]),
+        );
+    });
+
+    it("withdraws only the row of a gone folder", () => {
+        expect(revokeChangeOf({ ...approvedPlugin, withdrawal: { kind: "row" } }, stored)).toEqual(
+            revoking([RESIZE]),
+        );
+    });
+});
+
+describe("revokeSweepOf", () => {
+    const after = [
+        { pluginId: "/a/.camunda/plugins/resize", contentHash: "h1" },
+        { pluginId: "/b/.camunda/plugins/other", contentHash: "h2" },
+    ];
+
+    it("names a row of the revoked content stored while the revoke ran", () => {
+        expect(revokeSweepOf(approvedPlugin, after)).toEqual(["/a/.camunda/plugins/resize"]);
+    });
+
+    it("names nothing after a revoke of only a row", () => {
+        expect(revokeSweepOf({ ...approvedPlugin, withdrawal: { kind: "row" } }, after)).toEqual(
+            [],
+        );
+    });
+});
+
+describe("revokeOutcomeOf", () => {
+    const OTHER = "/other/.camunda/plugins/resize";
+    const THIRD = "/third/.camunda/plugins/resize";
+
     it.each([
         { code: plugin, message: "Revoked Resize. Open editors reload without it." },
         {
@@ -208,8 +252,59 @@ describe("revokeResultOf", () => {
                 "Revoked bpmnlint-plugin-acme. Code it already ran stays loaded until you reload the window.",
         },
     ])("says what its owner says follows the revoke: $message", ({ code, message }) => {
-        expect(revokeResultOf(code)).toEqual({ kind: "done", message });
+        expect(revokeOutcomeOf(code, revoking([code.id]), [])).toEqual({
+            revokedIds: [code.id],
+            result: { kind: "done", message },
+        });
     });
+
+    it.each<{
+        case: string;
+        revoke: string[];
+        swept: string[];
+        revokedIds: string[];
+        where: string;
+    }>([
+        {
+            case: "one other folder in the revoke",
+            revoke: [RESIZE, OTHER],
+            swept: [],
+            revokedIds: [RESIZE, OTHER],
+            where: " here and in 1 other folder",
+        },
+        {
+            case: "a folder the sweep caught",
+            revoke: [RESIZE, OTHER],
+            swept: [THIRD],
+            revokedIds: [RESIZE, OTHER, THIRD],
+            where: " here and in 2 other folders",
+        },
+        {
+            case: "a folder in both, counted once",
+            revoke: [RESIZE, OTHER],
+            swept: [OTHER, THIRD],
+            revokedIds: [RESIZE, OTHER, THIRD],
+            where: " here and in 2 other folders",
+        },
+        {
+            case: "only this folder, swept again",
+            revoke: [RESIZE],
+            swept: [RESIZE],
+            revokedIds: [RESIZE],
+            where: "",
+        },
+    ])(
+        "counts the other folders a revoke reached: $case",
+        ({ revoke, swept, revokedIds, where }) => {
+            expect(revokeOutcomeOf(plugin, revoking(revoke), swept)).toEqual({
+                revokedIds,
+                result: {
+                    kind: "done",
+                    message: `Revoked Resize${where}. Open editors reload without it.`,
+                },
+            });
+        },
+    );
 });
 
 describe("inspectResultOf", () => {

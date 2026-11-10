@@ -63,18 +63,20 @@ export function rulePackageIdsToList(
 export interface HashContext {
     /** The user asked to read these with "Review…". */
     readonly inspected: ReadonlySet<string>;
-    readonly approvals: readonly CodeApproval[];
+    /** The rows of this kind, any of which may hold a package's content. */
+    readonly rowsOfKind: readonly CodeApproval[];
     /** This session's answers, by `declineKeyOf`. */
     readonly answers: ReadonlyMap<string, SessionAnswer>;
 }
 
 /**
- * Hashing reads every byte, so only for a package the user asked to read, a
- * row or decline can match, or one a notice left to the view: the gate hashed
- * it to ask, and the view then offers to allow it without a "Review…" first.
+ * Hashing reads every byte, so only for a package the user asked to read, one
+ * any row of its kind or a decline can match, or one a notice left to the
+ * view: the gate hashed it to ask, and the view then offers to allow it
+ * without a "Review…" first.
  */
-export function isHashWanted(id: string, { inspected, approvals, answers }: HashContext): boolean {
-    return inspected.has(id) || needsContentHash(id, approvals, notAskedAgain(answers));
+export function isHashWanted(id: string, { inspected, rowsOfKind, answers }: HashContext): boolean {
+    return inspected.has(id) || needsContentHash(id, rowsOfKind, notAskedAgain(answers));
 }
 
 /**

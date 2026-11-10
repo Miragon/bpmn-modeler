@@ -8,7 +8,7 @@ import { PluginApprovalStorePort } from "../../kernel/port/approvalPorts";
 import { LoggerPort } from "../../kernel/port/hostPorts";
 import { catalogModelOf, failedCatalogOf } from "../domain/addOnCatalog";
 import type { AddOnCatalogModel } from "../domain/addOnCatalogModel";
-import { CatalogActionKind, CodeAddOnKind } from "../domain/addOnIds";
+import { CatalogActionKind, CODE_ADD_ON_KINDS, CodeAddOnKind } from "../domain/addOnIds";
 import {
     AddOnActionResult,
     AddOnRequest,
@@ -22,10 +22,12 @@ import {
     inspectResultOf,
     PRUNE_FAILED,
     pruneResultOf,
-    revokeResultOf,
+    revokeChangeOf,
+    revokeOutcomeOf,
+    revokeSweepOf,
     shownTargetOf,
 } from "../domain/codeAddOnRequests";
-import { ShownCode } from "../domain/codeAddOnCatalog";
+import { foundArtifactsOf, ShownCode } from "../domain/codeAddOnCatalog";
 import { firstRevisionOf, ShownRevisions } from "../domain/shownRevisions";
 import { marketplaceRemovalTargetOf, TemplateSwitchRequest } from "../domain/templateAddOnRequests";
 import { ShownSource, ShownTemplate } from "../domain/templateAddOnViews";
@@ -205,11 +207,17 @@ export class AddOnCatalogService {
         const target = shownTargetOf(this.revisions, addOnId, "revoke");
         if (target.kind === "refused") return target.result;
         const { code } = target;
+        const { approvals } = this.ports;
+        const source = this.sourceOf(code.kind);
         // Before the change, whose reload or relint could ask about it at once.
-        code.leftForViewByRevoke.forEach((each) => this.sourceOf(code.kind)?.leaveForView(each));
-        await this.ports.approvals.change(revoking([code.id]));
-        await this.sourceOf(code.kind)?.afterRevoke();
-        return revokeResultOf(code);
+        code.leftForViewByRevoke.forEach((each) => source?.leaveForView(each));
+        const change = revokeChangeOf(code, await approvals.readStored());
+        await approvals.change(change);
+        const swept = revokeSweepOf(code, await approvals.readStored());
+        if (swept.length > 0) await approvals.change(revoking(swept));
+        const { revokedIds, result } = revokeOutcomeOf(code, change, swept);
+        await source?.afterRevoke(revokedIds);
+        return result;
     }
 
     private async prune(): Promise<AddOnActionResult> {
@@ -269,6 +277,13 @@ export class AddOnCatalogService {
         this.latestCatalogActions = catalogActions;
         this.latestReadModel = model;
         this.publish(model);
+        // Its write lists once more, which finds every row in place and writes nothing.
+        CODE_ADD_ON_KINDS.forEach((kind) =>
+            this.track(
+                this.sourceOf(kind)?.recordCarried(foundArtifactsOf(facts, kind)) ??
+                    Promise.resolve(),
+            ),
+        );
     }
 
     private publishFailed(): void {

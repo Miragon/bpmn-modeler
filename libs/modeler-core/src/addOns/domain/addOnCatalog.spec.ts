@@ -16,7 +16,7 @@ import {
     type TemplateSwitch,
 } from "../../kernel/domain/templatePreferences";
 import { AddOnFacts, catalogModelOf, failedCatalogOf } from "./addOnCatalog";
-import { AddOnSession } from "./codeAddOnCatalog";
+import { AddOnSession, foundArtifactsOf, ShownCode } from "./codeAddOnCatalog";
 import { ListedMarketplace } from "./templateAddOnViews";
 import type { AddOnView, CodeAddOnView } from "./addOnCatalogModel";
 
@@ -48,11 +48,13 @@ const PLUGIN_TEXTS: ApprovableCodeTexts = {
     risk: "Plugin risk.",
     allowedFollowUp: "Plugin follow-up.",
     revokedFollowUp: () => "Plugin revoked.",
+    carriedOver: () => "Plugin carried.",
 };
 const RULE_PACKAGE_TEXTS: ApprovableCodeTexts = {
     risk: "A rule package runs as a program with your user's rights, not only inside the editor.",
     allowedFollowUp: "Rule package follow-up.",
     revokedFollowUp: (restart) => `Rule package revoked until ${restart}.`,
+    carriedOver: () => "Rule package carried.",
 };
 
 /** Placed as the owners place them: a plugin in its config folder, a rule package in its `node_modules`. */
@@ -62,14 +64,20 @@ const rulePackageSourceDirOf = (id: string) =>
         ? id.slice(0, id.lastIndexOf("/node_modules/") + "/node_modules".length)
         : id;
 
+/** As the owners claim rows here: a rule package's sits in a `node_modules`. */
+const isRulePackageRow = ({ pluginId }: CodeApproval) => pluginId.includes("/node_modules/");
+
 function factsOf(
-    overrides: Partial<Omit<AddOnFacts, "plugins" | "rulePackages" | "marketplaces">> & {
+    overrides: Partial<
+        Omit<AddOnFacts, "plugins" | "rulePackages" | "marketplaces" | "approvalsByKind">
+    > & {
+        approvals?: readonly CodeApproval[];
         marketplaces?: readonly ListedMarketplace[];
         plugins?: ListedPresence[];
         rulePackages?: ListedPresence[];
     } = {},
 ): AddOnFacts {
-    const { plugins = [], rulePackages = [], marketplaces, ...rest } = overrides;
+    const { plugins = [], rulePackages = [], marketplaces, approvals = [], ...rest } = overrides;
     const placedBy =
         (sourceDirOf: (id: string) => string, texts: ApprovableCodeTexts) =>
         (presence: ListedPresence) => ({
@@ -80,7 +88,10 @@ function factsOf(
     return {
         folders: ["/work"],
         configFolder: ".camunda",
-        approvals: [],
+        approvalsByKind: {
+            plugin: approvals.filter((row) => !isRulePackageRow(row)),
+            rulePackage: approvals.filter(isRulePackageRow),
+        },
         templates: [],
         ...rest,
         ...(marketplaces && { marketplaces: { kind: "listed", sources: marketplaces } }),
@@ -350,6 +361,25 @@ describe("catalogModelOf", () => {
             actions: ["revoke:Revoke"],
         },
         {
+            case: "content allowed only in another folder",
+            presence: found(RESIZE, "Resize", "h1"),
+            approvals: [{ pluginId: "/worktree/.camunda/plugins/resize", contentHash: "h1" }],
+            state: "approved",
+            stateText: "Allowed",
+            actions: ["revoke:Revoke"],
+        },
+        {
+            case: "content changed here but allowed in another folder",
+            presence: found(RESIZE, "Resize", "h2"),
+            approvals: [
+                { pluginId: RESIZE, contentHash: "h1" },
+                { pluginId: "/worktree/.camunda/plugins/resize", contentHash: "h2" },
+            ],
+            state: "approved",
+            stateText: "Allowed",
+            actions: ["revoke:Revoke"],
+        },
+        {
             case: "content never allowed",
             presence: found(RESIZE, "Resize", "h1"),
             approvals: [],
@@ -578,6 +608,7 @@ describe("catalogModelOf", () => {
                     allowedFollowUp: PLUGIN_TEXTS.allowedFollowUp,
                     revokedFollowUp: "Plugin revoked.",
                     leftForViewByRevoke: [],
+                    withdrawal: { kind: "content", contentHash: "h1" },
                 },
             ],
             [
@@ -590,6 +621,7 @@ describe("catalogModelOf", () => {
                     allowedFollowUp: RULE_PACKAGE_TEXTS.allowedFollowUp,
                     revokedFollowUp: "Rule package revoked until reloadWindow.",
                     leftForViewByRevoke: [],
+                    withdrawal: { kind: "row" },
                 },
             ],
         ]);
@@ -633,6 +665,170 @@ describe("catalogModelOf", () => {
                 .get(`plugin:${RESIZE}`)
                 ?.leftForViewByRevoke.map(({ contentHash }) => contentHash),
         ).toEqual(left);
+    });
+
+    it.each<{ case: string; presence: ListedPresence; withdrawal: ShownCode["withdrawal"] }>([
+        {
+            case: "found code its content",
+            presence: found(RESIZE, "Resize", "h2"),
+            withdrawal: { kind: "content", contentHash: "h2" },
+        },
+        {
+            case: "an unreadable row the content its row held",
+            presence: { kind: "unreadable", id: RESIZE, name: "Resize", reason: "broken" },
+            withdrawal: { kind: "content", contentHash: "h1" },
+        },
+        {
+            case: "a gone folder only its row",
+            presence: { kind: "gone", id: RESIZE, name: "Resize" },
+            withdrawal: { kind: "row" },
+        },
+    ])("withdraws on Revoke for $case", ({ presence, withdrawal }) => {
+        const { shown } = build(
+            factsOf({
+                plugins: [presence],
+                approvals: [
+                    { pluginId: RESIZE, contentHash: "h1" },
+                    { pluginId: "/other/.camunda/plugins/resize", contentHash: "h2" },
+                ],
+            }),
+        );
+
+        expect(shown.get(`plugin:${RESIZE}`)?.withdrawal).toEqual(withdrawal);
+    });
+
+    it("leaves every listed place of the revoked content to the view, of its own kind only", () => {
+        const { shown } = build(
+            factsOf({
+                plugins: [
+                    found(RESIZE, "Resize", "h1"),
+                    found(NESTED, "Resize", "h1"),
+                    found(PALETTE, "Palette", "h2"),
+                ],
+                rulePackages: [found(ACME, "bpmnlint-plugin-acme", "h1")],
+                approvals: [{ pluginId: RESIZE, contentHash: "h1" }],
+            }),
+        );
+
+        expect(shown.get(`plugin:${RESIZE}`)?.leftForViewByRevoke.map(({ id }) => id)).toEqual([
+            RESIZE,
+            NESTED,
+        ]);
+    });
+
+    it("leaves only rule packages of the revoked content to the view, never a plugin", () => {
+        const { shown } = build(
+            factsOf({
+                plugins: [found(RESIZE, "Resize", "r1")],
+                rulePackages: [
+                    found(ACME, "bpmnlint-plugin-acme", "r1"),
+                    found(RULES, "@acme/bpmnlint-plugin-rules", "r1"),
+                ],
+                approvals: [{ pluginId: ACME, contentHash: "r1" }],
+            }),
+        );
+
+        expect(shown.get(`rulePackage:${ACME}`)?.leftForViewByRevoke.map(({ id }) => id)).toEqual([
+            ACME,
+            RULES,
+        ]);
+    });
+
+    it("leaves the listed places of an unreadable row's content to the view", () => {
+        const { shown } = build(
+            factsOf({
+                plugins: [
+                    { kind: "unreadable", id: RESIZE, name: "Resize", reason: "broken" },
+                    found(NESTED, "Resize", "h1"),
+                ],
+                approvals: [{ pluginId: RESIZE, contentHash: "h1" }],
+            }),
+        );
+
+        expect(shown.get(`plugin:${RESIZE}`)?.leftForViewByRevoke.map(({ id }) => id)).toEqual([
+            NESTED,
+        ]);
+    });
+
+    it.each<{ case: string; elsewhere: string[]; note: string | undefined }>([
+        { case: "no other folder", elsewhere: [], note: undefined },
+        {
+            case: "one other folder",
+            elsewhere: ["/a/.camunda/plugins/resize"],
+            note: "The same content is allowed in 1 other folder; Revoke takes it back there too.",
+        },
+        {
+            case: "two other folders, one stored twice",
+            elsewhere: [
+                "/a/.camunda/plugins/resize",
+                "/b/.camunda/plugins/resize",
+                "/a/.camunda/plugins/resize",
+            ],
+            note: "The same content is allowed in 2 other folders; Revoke takes it back there too.",
+        },
+    ])(
+        "notes on an allowed row that Revoke takes its content back in $case",
+        ({ elsewhere, note }) => {
+            const row = onlyRow(
+                factsOf({
+                    plugins: [found(RESIZE, "Resize", "h1")],
+                    approvals: [
+                        { pluginId: RESIZE, contentHash: "h1" },
+                        ...elsewhere.map((pluginId) => ({ pluginId, contentHash: "h1" })),
+                        { pluginId: "/c/.camunda/plugins/other", contentHash: "h9" },
+                    ],
+                }),
+            );
+
+            expect(asCode(row).note).toBe(note);
+        },
+    );
+
+    it("notes on an unreadable row that Revoke takes the content its row held back elsewhere too", () => {
+        const row = onlyRow(
+            factsOf({
+                plugins: [{ kind: "unreadable", id: RESIZE, name: "Resize", reason: "broken" }],
+                approvals: [
+                    { pluginId: RESIZE, contentHash: "h1" },
+                    { pluginId: "/a/.camunda/plugins/resize", contentHash: "h1" },
+                ],
+            }),
+        );
+
+        expect(asCode(row).note).toBe(
+            "The same content is allowed in 1 other folder; Revoke takes it back there too.",
+        );
+    });
+
+    it("joins the still-loaded note and the other folders' note on a row offering Revoke", () => {
+        const row = onlyRow(
+            factsOf({
+                rulePackages: [{ kind: "unreadable", id: ACME, name: "acme", reason: "broken" }],
+                approvals: [
+                    { pluginId: ACME, contentHash: "r1" },
+                    { pluginId: "/a/node_modules/bpmnlint-plugin-acme", contentHash: "r1" },
+                ],
+            }),
+            sessionOf({ stillLoaded: { rulePackage: [ACME] } }),
+        );
+
+        expect(asCode(row).note).toBe(
+            "Rule package revoked until reloadWindow. The same content is allowed in 1 other folder; Revoke takes it back there too.",
+        );
+    });
+
+    it("notes no other folder on a row offering no Revoke", () => {
+        const row = onlyRow(
+            factsOf({
+                plugins: [{ kind: "gone", id: RESIZE, name: "Resize" }],
+                approvals: [
+                    { pluginId: RESIZE, contentHash: "h1" },
+                    { pluginId: "/a/.camunda/plugins/resize", contentHash: "h1" },
+                ],
+            }),
+        );
+
+        expect(asCode(row).note).toBeUndefined();
     });
 
     it("gives the same ids to the same add-ons in two builds", () => {
@@ -1370,6 +1566,38 @@ describe("catalogModelOf for template switches", () => {
 
         expect(templates.size).toBe(0);
     });
+});
+
+describe("foundArtifactsOf", () => {
+    const facts = factsOf({
+        folders: ["/work"],
+        plugins: [
+            found(RESIZE, "Resize", "h1"),
+            { kind: "unreadable", id: PALETTE, name: "palette", reason: "broken" },
+            { kind: "gone", id: NESTED, name: "order-tools" },
+            found("/elsewhere/.camunda/plugins/x", "X", "h9"),
+        ],
+        rulePackages: [
+            found(ACME, "bpmnlint-plugin-acme", "r1", "1.0.0"),
+            { kind: "unhashed", id: RULES, name: "@acme/bpmnlint-plugin-rules" },
+        ],
+    });
+
+    it.each<{
+        kind: "plugin" | "rulePackage";
+        artifacts: { id: string; name: string; contentHash: string }[];
+    }>([
+        { kind: "plugin", artifacts: [{ id: RESIZE, name: "Resize", contentHash: "h1" }] },
+        {
+            kind: "rulePackage",
+            artifacts: [{ id: ACME, name: "bpmnlint-plugin-acme", contentHash: "r1" }],
+        },
+    ])(
+        "gives the listed found $kind code for the carry write, by its content only",
+        ({ kind, artifacts }) => {
+            expect(foundArtifactsOf(facts, kind)).toEqual(artifacts);
+        },
+    );
 });
 
 describe("failedCatalogOf", () => {

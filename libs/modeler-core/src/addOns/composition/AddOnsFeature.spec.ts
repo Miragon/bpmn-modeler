@@ -19,7 +19,7 @@ import {
     PLUGIN_APPROVAL_NOTICE_ID,
 } from "../../bpmnPlugins/domain/pluginApproval";
 import { settingChangeNaming, SettingChange } from "../../editorSession/domain/EditorSession";
-import { ProcessRestart } from "../../kernel/domain/codeApproval";
+import { ProcessRestart, revoking } from "../../kernel/domain/codeApproval";
 import { ArtifactService } from "../../kernel/service/ArtifactService";
 import { ApprovalQuestion } from "../../kernel/service/ApprovalQuestion";
 import { ListReview } from "../../kernel/adapter/out/ListReview";
@@ -256,6 +256,103 @@ describe("AddOnsFeature", () => {
 
             expect(view.addOnNamed("bpmnlint-plugin-acme").state).toBe("new");
             expect(disk.filesHashed).toEqual([]);
+        });
+
+        it("lists code allowed in another folder as Allowed with Revoke and stores its rows", async () => {
+            const { host, install, addOns, view, rulePackageHashOf } = setUp();
+            install(ACME, "bpmnlint-plugin-acme");
+            const elsewhere = [
+                { pluginId: "/worktree/.camunda/plugins/resize-tasks", contentHash: RESIZE_HASH },
+                {
+                    pluginId: "/worktree/node_modules/bpmnlint-plugin-acme",
+                    contentHash: rulePackageHashOf(ACME),
+                },
+            ];
+            host.pluginApprovals.approvals = elsewhere;
+
+            view.attachTo(addOns);
+            await shown(addOns);
+
+            expect(host.pluginApprovals.approvals).toEqual([
+                ...elsewhere,
+                { pluginId: RESIZE, contentHash: RESIZE_HASH },
+                { pluginId: ACME, contentHash: rulePackageHashOf(ACME) },
+            ]);
+            expect(
+                host.notifier.logged("info").filter((line) => line.startsWith("Allowed")),
+            ).toEqual([
+                `Allowed BPMN plugin Resize Tasks in ${RESIZE}: you allowed the same content in /worktree/.camunda/plugins/resize-tasks.`,
+                `Allowed bpmnlint rule package bpmnlint-plugin-acme in ${ACME}: you allowed the same content in /worktree/node_modules/bpmnlint-plugin-acme.`,
+            ]);
+
+            expect(
+                view
+                    .addOns()
+                    .map(({ name, stateText, actions }) => [
+                        name,
+                        stateText,
+                        actions.map(({ label }) => label),
+                    ]),
+            ).toEqual([
+                ["Resize Tasks", "Allowed", ["Revoke"]],
+                ["bpmnlint-plugin-acme", "Allowed", ["Revoke"]],
+            ]);
+        });
+
+        // Needs review reads the offered actions, so no listing may offer Allow before the carry write lands.
+        it("offers code allowed in another folder only Revoke from the first listing, before its rows are stored", async () => {
+            const { host, install, addOns, view, rulePackageHashOf } = setUp();
+            install(ACME, "bpmnlint-plugin-acme");
+            host.pluginApprovals.approvals = [
+                { pluginId: "/worktree/.camunda/plugins/resize-tasks", contentHash: RESIZE_HASH },
+                {
+                    pluginId: "/worktree/node_modules/bpmnlint-plugin-acme",
+                    contentHash: rulePackageHashOf(ACME),
+                },
+            ];
+
+            view.attachTo(addOns);
+            await shown(addOns);
+
+            const codeActionKindsPerListing = view.models.map((model) =>
+                model.groups
+                    .flatMap(({ sources }) => sources.flatMap(({ addOns: rows }) => rows))
+                    .filter((row) => row.kind !== "elementTemplate")
+                    .map(({ actions }) => actions.map(({ kind }) => kind)),
+            );
+            expect(codeActionKindsPerListing.length).toBeGreaterThan(1);
+            codeActionKindsPerListing.forEach((listing) =>
+                expect(listing).toEqual([["revoke"], ["revoke"]]),
+            );
+        });
+
+        it("hashes a rule package with no row once a rule package row exists", async () => {
+            const { host, disk, install, addOns, view } = setUp({ files: {} });
+            install(ACME, "bpmnlint-plugin-acme");
+            host.pluginApprovals.approvals = [
+                { pluginId: "/worktree/.camunda/plugins/resize-tasks", contentHash: RESIZE_HASH },
+            ];
+            view.attachTo(addOns);
+            await shown(addOns);
+            const hashedWithPluginRowOnly = [...disk.filesHashed];
+
+            host.pluginApprovals.storeElsewhere(
+                [
+                    ...host.pluginApprovals.approvals,
+                    {
+                        pluginId: "/worktree/node_modules/bpmnlint-plugin-other",
+                        contentHash: "bpmnlint-closure-v1:other",
+                    },
+                ],
+                { notify: true },
+            );
+            await shown(addOns);
+
+            expect(hashedWithPluginRowOnly).toEqual([]);
+            expect(disk.filesHashed).not.toEqual([]);
+            expect(
+                view.codeAddOnNamed("bpmnlint-plugin-acme").actions.map(({ kind }) => kind),
+            ).toEqual(["allow"]);
         });
 
         it("lists a stored row whose folder is gone, and none outside the workspace folders", async () => {
@@ -625,6 +722,34 @@ describe("AddOnsFeature", () => {
             },
         );
 
+        it("a revoked rule package allowed in another folder, whose row here could not be stored, still says its code stays loaded", async () => {
+            const { host, install, addOns, view, rulePackageHashOf } = setUp({ files: {} });
+            install(ACME, "bpmnlint-plugin-acme");
+            const source = {
+                pluginId: "/worktree/node_modules/bpmnlint-plugin-acme",
+                contentHash: rulePackageHashOf(ACME),
+            };
+            host.pluginApprovals.approvals = [source];
+            vi.spyOn(host.pluginApprovals, "change").mockRejectedValueOnce(new Error("disk full"));
+            view.attachTo(addOns);
+            await shown(addOns);
+            expect(host.pluginApprovals.approvals).toEqual([source]);
+
+            const result = await view.connection?.handle({
+                kind: "revoke",
+                addOnId: `rulePackage:${ACME}`,
+            });
+            await shown(addOns);
+
+            const stillLoaded = "Code it already ran stays loaded until you reload the window.";
+            expect(result).toEqual({
+                kind: "done",
+                message: `Revoked bpmnlint-plugin-acme here and in 1 other folder. ${stillLoaded}`,
+            });
+            expect(host.pluginApprovals.approvals).toEqual([]);
+            expect(view.codeAddOnNamed("bpmnlint-plugin-acme").note).toBe(stillLoaded);
+        });
+
         it("asks no notice here about a rule package revoked from the view", async () => {
             const { host, install, addOns, view, rulePackageCatalog, rulePackageHashOf } = setUp({
                 files: {},
@@ -683,6 +808,156 @@ describe("AddOnsFeature", () => {
 
             expect(result).toMatchObject({ kind: "refused", reason: "notOffered" });
             expect(host.pluginApprovals.approvals).toEqual([]);
+        });
+
+        it("Revoke withdraws the content from every folder that holds it and says how many", async () => {
+            const { host, addOns, view } = setUp();
+            host.pluginApprovals.approvals = [
+                { pluginId: "/old-clone/.camunda/plugins/resize-tasks", contentHash: RESIZE_HASH },
+                { pluginId: RESIZE, contentHash: RESIZE_HASH },
+                { pluginId: "/worktree/.camunda/plugins/resize-tasks", contentHash: RESIZE_HASH },
+                { pluginId: "/other/.camunda/plugins/palette", contentHash: "c".repeat(64) },
+            ];
+            view.attachTo(addOns);
+            await shown(addOns);
+            const note = view.codeAddOnNamed("Resize Tasks").note;
+            const changesBefore = host.pluginApprovals.receivedChanges.length;
+
+            const result = await view.connection?.handle({
+                kind: "revoke",
+                addOnId: `plugin:${RESIZE}`,
+            });
+            await shown(addOns);
+
+            expect(note).toBe(
+                "The same content is allowed in 2 other folders; Revoke takes it back there too.",
+            );
+            expect(result).toEqual({
+                kind: "done",
+                message:
+                    "Revoked Resize Tasks here and in 2 other folders. Open editors reload without it.",
+            });
+            expect(host.pluginApprovals.approvals).toEqual([
+                { pluginId: "/other/.camunda/plugins/palette", contentHash: "c".repeat(64) },
+            ]);
+            // In one write, so no other window carries a place back between two.
+            expect(host.pluginApprovals.receivedChanges.slice(changesBefore)).toEqual([
+                revoking([
+                    RESIZE,
+                    "/old-clone/.camunda/plugins/resize-tasks",
+                    "/worktree/.camunda/plugins/resize-tasks",
+                ]),
+            ]);
+        });
+
+        it("Forget of a gone folder keeps the other folders' rows of its content", async () => {
+            const { host, addOns, view } = setUp({ files: {} });
+            const elsewhere = {
+                pluginId: "/worktree/.camunda/plugins/removed",
+                contentHash: "a".repeat(64),
+            };
+            host.pluginApprovals.approvals = [
+                { pluginId: `${PLUGINS}/removed`, contentHash: "a".repeat(64) },
+                elsewhere,
+            ];
+            view.attachTo(addOns);
+            await shown(addOns);
+
+            const result = await view.connection?.handle({
+                kind: "revoke",
+                addOnId: `plugin:${PLUGINS}/removed`,
+            });
+
+            expect(result).toEqual({
+                kind: "done",
+                message: "Revoked removed. Open editors reload without it.",
+            });
+            expect(host.pluginApprovals.approvals).toEqual([elsewhere]);
+        });
+
+        it("Revoke of an unreadable row withdraws the content its row held", async () => {
+            const broken = `${PLUGINS}/broken`;
+            const { host, addOns, view } = setUp({
+                files: { [`${broken}/plugin.json`]: '{ "name": "Broken", "script": "client.js" }' },
+            });
+            host.pluginApprovals.approvals = [
+                { pluginId: broken, contentHash: "a".repeat(64) },
+                { pluginId: "/worktree/.camunda/plugins/broken", contentHash: "a".repeat(64) },
+                { pluginId: "/worktree/.camunda/plugins/other", contentHash: "b".repeat(64) },
+            ];
+            view.attachTo(addOns);
+            await shown(addOns);
+
+            const result = await view.connection?.handle({
+                kind: "revoke",
+                addOnId: `plugin:${broken}`,
+            });
+
+            expect(result).toMatchObject({ kind: "done" });
+            expect(host.pluginApprovals.approvals).toEqual([
+                { pluginId: "/worktree/.camunda/plugins/other", contentHash: "b".repeat(64) },
+            ]);
+        });
+
+        it("a revoke sweeps a row of the content stored while it ran", async () => {
+            const { host, addOns, view } = setUp();
+            const store = host.pluginApprovals;
+            store.approvals = [{ pluginId: RESIZE, contentHash: RESIZE_HASH }];
+            view.attachTo(addOns);
+            await shown(addOns);
+            const change = store.change.bind(store);
+            vi.spyOn(store, "change").mockImplementationOnce(async (revoke) => {
+                await change(revoke);
+                store.storeElsewhere([
+                    ...store.approvals,
+                    {
+                        pluginId: "/worktree/.camunda/plugins/resize-tasks",
+                        contentHash: RESIZE_HASH,
+                    },
+                ]);
+            });
+
+            const result = await view.connection?.handle({
+                kind: "revoke",
+                addOnId: `plugin:${RESIZE}`,
+            });
+
+            expect(store.approvals).toEqual([]);
+            expect(result).toMatchObject({
+                message:
+                    "Revoked Resize Tasks here and in 1 other folder. Open editors reload without it.",
+            });
+        });
+
+        it("after Revoke no notice here asks about another listed folder of that content", async () => {
+            const second = "/second";
+            const { host, plugins, addOns, view } = setUp({
+                folders: [WORK, second],
+                files: {
+                    ...RESIZE_FILES,
+                    [`${second}/.camunda/plugins/resize-tasks/plugin.json`]:
+                        RESIZE_FILES[`${RESIZE}/plugin.json`],
+                    [`${second}/.camunda/plugins/resize-tasks/client.js`]:
+                        RESIZE_FILES[`${RESIZE}/client.js`],
+                },
+            });
+            host.pluginApprovals.approvals = [{ pluginId: RESIZE, contentHash: RESIZE_HASH }];
+            view.attachTo(addOns);
+            await shown(addOns);
+            await view.connection?.handle({ kind: "revoke", addOnId: `plugin:${RESIZE}` });
+
+            const editor = await host.openSession(`${second}/order.bpmn`, [
+                plugins.editorContribution.participant,
+            ]);
+            await plugins.editorContribution.commandHandlers.GetBpmnPluginsCommand(
+                new GetBpmnPluginsCommand(),
+                editor.id,
+            );
+            await plugins.service.whenApprovalSettled();
+
+            expect(host.actionNotifier.notices.map(({ id }) => id)).not.toContain(
+                PLUGIN_APPROVAL_NOTICE_ID,
+            );
         });
 
         it("removes the plugin copies no stored approval names", async () => {

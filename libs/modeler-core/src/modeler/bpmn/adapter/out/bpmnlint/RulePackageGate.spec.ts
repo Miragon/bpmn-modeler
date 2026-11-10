@@ -156,6 +156,70 @@ describe("RulePackageGate", () => {
         ]);
     });
 
+    it("admits a package whose content another folder's row holds, hashing it, and reports it admitted", () => {
+        const clone = "/clone/node_modules/bpmnlint-plugin-acme";
+        install(ACME, "bpmnlint-plugin-acme");
+        install(clone, "bpmnlint-plugin-acme", {}, { "index.js": `module.exports = "${ACME}";` });
+        approve({ kind: "package", id: clone });
+        const fake = fakeScopedRequire({ "bpmnlint-plugin-acme": `${ACME}/index.js` });
+        const gate = gateFor();
+
+        const outcome = requireFor(gate, fake, "bpmnlint-plugin-acme", "bpmnlint-plugin-acme");
+
+        expect(outcome).toEqual({ loaded: true, blocked: [] });
+        expect(gate.admittedRulePackages()).toEqual([
+            {
+                id: ACME,
+                name: "bpmnlint-plugin-acme",
+                version: "1.0.0",
+                contentHash: contentHashOf({ kind: "package", id: clone }),
+            },
+        ]);
+    });
+
+    it("hashes a package with no row once any rule package row exists", () => {
+        install(ACME, "bpmnlint-plugin-acme");
+        install(OTHER, "bpmnlint-plugin-other");
+        approvals.push({ pluginId: "/clone/node_modules/bpmnlint-plugin-other", contentHash: contentHashOf({ kind: "package", id: OTHER }) });
+        disk.filesHashed.length = 0;
+        const fake = fakeScopedRequire({ "bpmnlint-plugin-acme": `${ACME}/index.js` });
+        const gate = gateFor();
+
+        const outcome = requireFor(gate, fake, "bpmnlint-plugin-acme", "bpmnlint-plugin-acme");
+
+        expect(outcome).toEqual({ loaded: false, blocked: [ACME] });
+        expect(disk.filesHashed).toContain(`${ACME}/index.js`);
+        expect(gate.admittedRulePackages()).toEqual([]);
+    });
+
+    it("hashes no package for a plugin row alone", () => {
+        install(ACME, "bpmnlint-plugin-acme");
+        approvals.push({ pluginId: "/repo/.camunda/plugins/resize", contentHash: "a".repeat(64) });
+        const fake = fakeScopedRequire({ "bpmnlint-plugin-acme": `${ACME}/index.js` });
+
+        requireFor(gateFor(), fake, "bpmnlint-plugin-acme", "bpmnlint-plugin-acme");
+
+        expect(disk.filesHashed).toEqual([]);
+    });
+
+    it("reports the approved root as admitted, and no closure member", () => {
+        install(ACME, "bpmnlint-plugin-acme", { "acme-dep": "1.0.0" });
+        install(ACME_DEP, "acme-dep");
+        disk.writeFile(`${ACME_DEP}/rules/label.js`, "module.exports = 1;");
+        approve({ kind: "package", id: ACME });
+        const fake = fakeScopedRequire({
+            "bpmnlint-plugin-acme": `${ACME}/index.js`,
+            "acme-dep/rules/label": `${ACME_DEP}/rules/label.js`,
+        });
+        const gate = gateFor();
+
+        requireFor(gate, fake, "bpmnlint-plugin-acme", "bpmnlint-plugin-acme");
+        requireFor(gate, fake, "acme-dep", "acme-dep/rules/label");
+        requireFor(gate, fake, "bpmnlint-plugin-acme", "bpmnlint-plugin-acme");
+
+        expect(gate.admittedRulePackages().map(({ id }) => id)).toEqual([ACME]);
+    });
+
     it("throws a miss that NodeResolver swallows like a package that is not installed", () => {
         install(ACME, "bpmnlint-plugin-acme");
         const fake = fakeScopedRequire({ "bpmnlint-plugin-acme": `${ACME}/index.js` });

@@ -27,7 +27,7 @@ The details show each plugin's and rule package's full state:
 
 | State | Meaning |
 |---|---|
-| Allowed | You allowed exactly this content. It runs. |
+| Allowed | You allowed exactly this content, here or in another folder. It runs. |
 | Not allowed yet | Never allowed. It does not run. |
 | Changed, review needed | You allowed an earlier content; its files changed since. It does not run until you allow it again. |
 | Declined this session | You left it unchecked in the list, or closed the list, this session. |
@@ -57,19 +57,19 @@ When the view opens, it starts on the tab you chose last. Until you choose one, 
 
 ## Allow code
 
-Select a plugin or rule package that needs a review, check what its review says, then click **Allow this content**. The approval is for exactly this content: a later change shows it as *Changed, review needed*, and the code stops running until you allow it again. Every open BPMN editor that offered an allowed plugin reloads with it.
+Select a plugin or rule package that needs a review, check what its review says, then click **Allow this content**. The approval is for exactly this content: a later change shows it as *Changed, review needed*, and the code stops running until you allow it again. The same content in another folder, clone or git worktree shows as *Allowed* without asking, and the view records the approval for that folder too. Every open BPMN editor that offered an allowed plugin reloads with it.
 
 **Review…** on a notification opens the view at the waiting plugins or rule packages when every one of them lies inside an open folder: it switches to the right tab, clears a search or filter that hides the first of them, selects it and opens its review. The notification then counts as answered for this window. Otherwise, for example when a rule package is linked from outside the workspace, **Review…** shows the list to check, as in [BPMN plugins](/vscode/features/bpmn-plugins#allow-a-plugin).
 
 **Review Add-ons** in the Command Palette opens the view on the **Workspace** tab with only **Needs review** on, every folder and source with an add-on to review open. It clears the search and the kind chips, keeps your selection when it needs a review, else selects the first add-on that does, and moves focus to it. When the workspace lists add-ons but none needs a review, the list says *No add-ons need review.*; **Clear filters** shows everything again.
 
-A rule package that no lint has asked about yet offers **Review…** in its details first. It reads the package; then its review offers **Allow this content**.
+Before you allowed any rule package, one that no lint has asked about yet offers **Review…** in its details first. It reads the package; then its review offers **Allow this content**. Once you allowed one, the view reads every rule package at once.
 
 ## Revoke
 
-**Revoke** takes your approval back. A plugin stops at once: open editors reload without it, and its copy is removed from VS Code's global storage. A rule package's rules are skipped from the next lint; code it already ran stays loaded until you reload the window. No notification asks about it again in this window; allow it again here.
+**Revoke** takes your approval of this content back, in every folder where you allowed it; when other folders hold it, the details say how many before you click, and the result says how many it reached. A plugin stops at once: open editors reload without it, and its copy is removed from VS Code's global storage. A rule package's rules are skipped from the next lint; code it already ran stays loaded until you reload the window. No notification in this window asks about it again, in any folder the view lists; allow it again here. Other windows ask again about their copies.
 
-**Forget** removes the approval of a folder that no longer exists.
+**Forget** removes only the approval of a folder that no longer exists. The content stays allowed in the other folders.
 
 ## Templates
 
