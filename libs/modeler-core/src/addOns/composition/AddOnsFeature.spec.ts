@@ -19,7 +19,7 @@ import {
     PLUGIN_APPROVAL_NOTICE_ID,
 } from "../../bpmnPlugins/domain/pluginApproval";
 import { settingChangeNaming, SettingChange } from "../../editorSession/domain/EditorSession";
-import { ProcessRestart } from "../../kernel/domain/codeApproval";
+import { ProcessRestart, revoking } from "../../kernel/domain/codeApproval";
 import { ArtifactService } from "../../kernel/service/ArtifactService";
 import { ApprovalQuestion } from "../../kernel/service/ApprovalQuestion";
 import { ListReview } from "../../kernel/adapter/out/ListReview";
@@ -794,6 +794,7 @@ describe("AddOnsFeature", () => {
             view.attachTo(addOns);
             await shown(addOns);
             const note = view.codeAddOnNamed("Resize Tasks").note;
+            const changesBefore = host.pluginApprovals.receivedChanges.length;
 
             const result = await view.connection?.handle({
                 kind: "revoke",
@@ -811,6 +812,14 @@ describe("AddOnsFeature", () => {
             });
             expect(host.pluginApprovals.approvals).toEqual([
                 { pluginId: "/other/.camunda/plugins/palette", contentHash: "c".repeat(64) },
+            ]);
+            // In one write, so no other window carries a place back between two.
+            expect(host.pluginApprovals.receivedChanges.slice(changesBefore)).toEqual([
+                revoking([
+                    RESIZE,
+                    "/old-clone/.camunda/plugins/resize-tasks",
+                    "/worktree/.camunda/plugins/resize-tasks",
+                ]),
             ]);
         });
 
