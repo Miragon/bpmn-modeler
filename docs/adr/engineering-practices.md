@@ -280,12 +280,7 @@ Kotlin host copies is pinned the same way, to the TypeScript source file itself:
 `ModelerSettingsStoreTest` the `SURFACE_MODES` array in `surfaceMode.ts` and
 the `COLOR_THEMES` array in `settings.ts` of `libs/modeler-types`,
 `ModelerSettingsConfigurableTest` the `MODE_LABEL` table in the modeler's
-`modeStrip.ts`; each fails when the Kotlin copy differs. The add-ons view's
-`hostThemeVariables.json` (`apps/add-ons-webview/src/adapter/in/styles/`)
-lists the `--vscode-*` variables IntelliJ still writes for its add-ons tab,
-though the page's brand stylesheet reads none; `IdeThemeSignal.addOnsThemeVarsCss` maps that set, and
-`IdeThemeSignalTest` reads the file, a declared input of the Gradle test task
-listed in the `intellij-plugin` CI filter. A text the Kotlin
+`modeStrip.ts`; each fails when the Kotlin copy differs. A text the Kotlin
 host copies is pinned the same way: `EmptyDmnDiagramTest` compares the scaffold
 IntelliJ's New DMN Model writes with `EMPTY_DMN_DIAGRAM` in `emptyDmn.ts` byte
 for byte. No generated file sits in between that could go stale. One Kotlin

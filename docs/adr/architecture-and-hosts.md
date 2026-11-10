@@ -284,11 +284,11 @@ that relays its messages verbatim, and counts as open only while the tool
 window is visible and the tab selected (`VisibilityLatch`), so Deploy refreshes
 its form defaults only while its tab shows. The Add-ons browser is built the
 first time its tab shows, since each browser costs a renderer. Its shell
-(`/addOns.html`, bundle under `/webview-add-ons/`) maps the deployment palette
-plus the extras in `hostThemeVariables.json` (`IdeThemeSignal.addOnsThemeVarsCss`,
-held to that file by `IdeThemeSignalTest`) and carries the brand mode on
-`<html>`; the tab's theme script (`addOnsApplyJs`) sets it again on a LaF or
-modeler settings change, and the Deploy shell stays without it. High Contrast
+(`/addOns.html`, bundle under `/webview-add-ons/`) maps no IDE colour or font,
+as the page wears the Miragon brand: it carries only the brand mode on
+`<html>`, and the tab's theme script (`addOnsApplyJs`) sets it again on a LaF or
+modeler settings change. The Deploy shell keeps its `#ide-theme-vars` palette
+and has no brand mode. High Contrast
 is the bundled theme's id, as 2024.2 has no API for it. The bridge attaches one panel, hidden,
 at start. **Review…** reaches it through `RpcAddOnViewReveal`, the second
 adapter of `AddOnViewRevealPort`: `addOns/reveal` asks Kotlin to select the tab
@@ -1085,8 +1085,9 @@ bundle needs:
 - `style-src` keeps `'unsafe-inline'` in every editor and deployment shell:
   diagram-js, the properties panel and CodeMirror set style attributes and
   inject `<style>` elements without a nonce, and the deployment form's markup
-  carries a style attribute. VS Code's add-ons shell has only its linked
-  stylesheet and allows `style-src` from the webview alone.
+  carries a style attribute. The add-ons shells have only their linked
+  stylesheet and allow `style-src` from the bundle alone (`webview.cspSource`
+  in VS Code, `'self'` in IntelliJ); the bundle sets no style attribute.
 - In the BPMN, DMN and form shells `img-src` allows `data:`, and for BPMN also
   `https:`, because element-template icons may be either. BPMN and DMN have no
   `connect-src`, so a copy-as-PNG of a remote `.svg` icon renders without that
@@ -1109,8 +1110,8 @@ VS Code and the standalone app set the policy as a `<meta>` tag, because Theia
 injects its own unnonced scripts ahead of it, and limit `localResourceRoots` to
 each webview's bundle directory. IntelliJ sends it as a response header from
 `WebviewServer` and allows the inline `acquireVsCodeApi` shim by its SHA-256
-hash. The `#ide-theme-vars` block is computed per request and rewritten live, so
-it relies on `'unsafe-inline'`. Each host builds its policies in one place,
+hash. The `#ide-theme-vars` block of the editor and deployment shells is
+computed per request and rewritten live, so it relies on `'unsafe-inline'`. Each host builds its policies in one place,
 VS Code in `webviewContentSecurityPolicy.ts` and IntelliJ in
 `WebviewContentSecurityPolicy.kt`: the directives every shell shares are written
 once, and a shell lists only what its bundle adds, so a shell can neither drop

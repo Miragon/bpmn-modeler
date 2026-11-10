@@ -96,8 +96,6 @@ val codeApprovalChangeCases =
 val templatePreferenceChangeCases =
     layout.projectDirectory.file("../../libs/modeler-core/src/kernel/domain/templatePreferenceChange.cases.json")
 val projectScopes = layout.projectDirectory.file("../../libs/modeler-core/src/kernel/domain/projectScopes.ts")
-val addOnsHostThemeVariables =
-    layout.projectDirectory.file("../../apps/add-ons-webview/src/adapter/in/styles/hostThemeVariables.json")
 val brandModeCases = layout.projectDirectory.file("../../libs/shared/src/lib/brandMode.cases.json")
 
 tasks.test {
@@ -113,8 +111,7 @@ tasks.test {
     // matchers run, WebviewRouteTest the plugin asset urls the bridge builds, ActionNoticeToneTest
     // the core's notice tones, PluginApprovalStoreTest the rows the core merges approval changes
     // by, TemplatePreferenceStoreTest the rows it merges template switch changes by, ProjectScopeTest
-    // the core's project scopes, IdeThemeSignalTest the theme variables the add-ons page may read,
-    // BrandModeTest the rows the shared brand mode rule runs. As
+    // the core's project scopes, BrandModeTest the rows the shared brand mode rule runs. As
     // declared inputs, a change on the TypeScript side alone reruns the tests instead of restoring
     // them from the build cache.
     mapOf(
@@ -134,7 +131,6 @@ tasks.test {
         "codeApprovalChangeCases" to codeApprovalChangeCases,
         "templatePreferenceChangeCases" to templatePreferenceChangeCases,
         "projectScopes" to projectScopes,
-        "addOnsHostThemeVariables" to addOnsHostThemeVariables,
         "brandModeCases" to brandModeCases,
     ).forEach { (name, file) ->
         inputs.file(file).withPropertyName(name).withPathSensitivity(PathSensitivity.RELATIVE)
