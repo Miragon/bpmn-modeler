@@ -4,9 +4,12 @@ vi.mock("vscode", () => import("../__fixtures__/vscodeCompositionFake"));
 
 import { ExtensionContext, Uri, workspace } from "vscode";
 
+import { BpmnElementTemplatesService } from "@miragon/bpmn-modeler-core";
+
 import { marketplacePreferenceKeyOf, parseMarketplaceUrl } from "@miragon/bpmn-modeler-core";
 
 import { InMemoryMemento } from "../__fixtures__/vscodeStorage";
+import { resetVscodeWindow, vscodeWindow } from "../__fixtures__/vscodeWindowFake";
 import { setContext } from "../shared/adapter/out/extensionContext";
 import { buildSharedDeps } from "./sharedDeps";
 import * as templateMarketplaceFeature from "./templateMarketplaceFeature";
@@ -32,6 +35,7 @@ function registerInUserSettings(location: string): void {
 
 afterEach(() => {
     vi.restoreAllMocks();
+    resetVscodeWindow();
 });
 
 describe("VS Code's template marketplace feature", () => {
@@ -54,5 +58,30 @@ describe("VS Code's template marketplace feature", () => {
                 paths: [ACME_TEMPLATE],
             },
         ]);
+    });
+
+    it("offers the update at start when this workspace has fetched nothing for a marketplace", async () => {
+        const context = createExtensionContext();
+        setContext(context);
+        registerInUserSettings(ACME_URL);
+        const deps = buildSharedDeps(context);
+        const { marketplaceSvc } = templateMarketplaceFeature.register(context, deps);
+
+        templateMarketplaceFeature.registerCommands(context, deps, {
+            marketplaceSvc,
+            templatesSvc: {} as BpmnElementTemplatesService,
+        });
+
+        await vi.waitFor(() =>
+            expect(vscodeWindow.toasts.map(({ message, labels }) => ({ message, labels }))).toEqual(
+                [
+                    {
+                        message:
+                            'The element templates of the marketplace "https://github.com/acme/templates" are not fetched in this workspace yet.',
+                        labels: ["Update marketplaces"],
+                    },
+                ],
+            ),
+        );
     });
 });

@@ -61,6 +61,7 @@ describe("createMarketplaceCommands", () => {
             prompt: host.marketplacePrompt,
             picker: host.picker,
             notifier: host.notifier,
+            actionNotifier: host.actionNotifier,
             homeDir: "/work",
         });
         let inventoryChanges = 0;
