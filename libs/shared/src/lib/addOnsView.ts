@@ -1,3 +1,4 @@
+import type { BrandMode } from "./brandMode";
 import { Command, Query } from "./messages";
 
 /*
@@ -169,5 +170,15 @@ export class RevealAddOnsQuery extends Query<"RevealAddOnsQuery"> {
     constructor(reveal: AddOnRevealPayload) {
         super("RevealAddOnsQuery");
         this.reveal = reveal;
+    }
+}
+
+/** A theme change in the IDE or of the `colorTheme` setting; the shell carried the mode until then. */
+export class BrandModeQuery extends Query<"BrandModeQuery"> {
+    public readonly mode: BrandMode;
+
+    constructor(mode: BrandMode) {
+        super("BrandModeQuery");
+        this.mode = mode;
     }
 }

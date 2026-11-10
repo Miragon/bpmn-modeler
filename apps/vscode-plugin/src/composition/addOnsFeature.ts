@@ -11,6 +11,7 @@ import {
     ViewReview,
 } from "@miragon/bpmn-modeler-core";
 import { AddOnsViewProvider } from "../addOns/adapter/in/AddOnsViewProvider";
+import { VsCodeBrandModeSignal } from "../addOns/adapter/in/VsCodeBrandModeSignal";
 import { VsCodeAddOnsViewReveal } from "../addOns/adapter/out/VsCodeAddOnsViewReveal";
 import { createWebviewNonce } from "../shared/adapter/out/webviewNonce";
 import { SharedDeps } from "./sharedDeps";
@@ -68,7 +69,16 @@ export function register(
         templatePreferences: deps.templatePreferences,
     });
     context.subscriptions.push(addOns);
-    const view = new AddOnsViewProvider(addOns, context.extensionUri, createWebviewNonce);
+    const brandMode = new VsCodeBrandModeSignal(
+        () => deps.vsSettings.getColorTheme(),
+        (listener) => deps.preferences.onDidChangeSetting(listener),
+    );
+    const view = new AddOnsViewProvider(
+        addOns,
+        context.extensionUri,
+        createWebviewNonce,
+        brandMode,
+    );
     view.register(context);
     handles.reviews.reveal.connect(addOns, view);
     return { addOns, addOnsViewRoutes: addOns.panelRoutes };

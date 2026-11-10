@@ -18,7 +18,12 @@ vi.mock("./AddOnsViewHtml", () => ({
 
 import { commands, window } from "vscode";
 import { AddOnsFeature } from "@miragon/bpmn-modeler-core";
-import { type Command, type Query } from "@miragon/bpmn-modeler-shared";
+import {
+    type BrandMode,
+    BrandModeQuery,
+    type Command,
+    type Query,
+} from "@miragon/bpmn-modeler-shared";
 import { addOnsViewHtml } from "./AddOnsViewHtml";
 import { ADD_ONS_VIEW_ID, AddOnsViewProvider, REFRESH_ADD_ONS_CMD } from "./AddOnsViewProvider";
 
@@ -51,12 +56,34 @@ function createProvider() {
         ),
     };
     const extensionUri = { path: "/extension" };
+    const brandMode = new FakeBrandModeSignal();
     const provider = new AddOnsViewProvider(
         addOns as unknown as AddOnsFeature,
         extensionUri as never,
         () => "n0nce",
+        brandMode,
     );
-    return { provider, addOns, panel, extensionUri };
+    return { provider, addOns, panel, extensionUri, brandMode };
+}
+
+/** The IDE's brand mode, switched by the test as the user switches the theme. */
+class FakeBrandModeSignal {
+    private mode: BrandMode = { theme: "dark" };
+    private readonly listeners = new Set<(mode: BrandMode) => void>();
+
+    current(): BrandMode {
+        return this.mode;
+    }
+
+    onDidChange(listener: (mode: BrandMode) => void): { dispose(): void } {
+        this.listeners.add(listener);
+        return { dispose: () => this.listeners.delete(listener) };
+    }
+
+    switchTo(mode: BrandMode): void {
+        this.mode = mode;
+        this.listeners.forEach((listener) => listener(mode));
+    }
 }
 
 function resolveView(provider: AddOnsViewProvider, visible = true) {
@@ -106,8 +133,45 @@ describe("AddOnsViewProvider.resolveWebviewView", () => {
             enableScripts: true,
             localResourceRoots: [{ path: "/extension/add-ons-webview" }],
         });
-        expect(addOnsViewHtml).toHaveBeenCalledWith(view.webview, extensionUri, "n0nce");
+        expect(addOnsViewHtml).toHaveBeenCalledWith(view.webview, extensionUri, "n0nce", {
+            theme: "dark",
+        });
         expect(view.webview.html).toBe("<html>artifacts</html>");
+    });
+
+    it("posts the new brand mode to the page when the theme changes", () => {
+        const { provider, brandMode } = createProvider();
+        const view = resolveView(provider);
+
+        brandMode.switchTo({ theme: "light", contrast: "hoch" });
+
+        expect(view.webview.postMessage).toHaveBeenCalledWith(
+            new BrandModeQuery({ theme: "light", contrast: "hoch" }),
+        );
+    });
+
+    // The page listens only once it has loaded, so a switch while it loads can be lost.
+    it("posts the current brand mode again when the page asks for its catalog", () => {
+        const { provider, brandMode } = createProvider();
+        const view = resolveView(provider);
+        brandMode.switchTo({ theme: "light", contrast: "hoch" });
+        view.webview.postMessage.mockClear();
+
+        pagePosts(view);
+
+        expect(view.webview.postMessage.mock.calls).toEqual([
+            [new BrandModeQuery({ theme: "light", contrast: "hoch" })],
+        ]);
+    });
+
+    it("stops following the theme once the view is disposed", () => {
+        const { provider, brandMode } = createProvider();
+        const view = resolveView(provider);
+
+        view.onDidDispose.mock.calls[0][0]();
+        brandMode.switchTo({ theme: "light" });
+
+        expect(view.webview.postMessage).not.toHaveBeenCalled();
     });
 
     it.each([true, false])("attaches a panel with the view's visibility (%s)", (visible) => {

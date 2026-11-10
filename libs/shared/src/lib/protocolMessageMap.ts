@@ -2,6 +2,7 @@ import type {
     AddOnActionResultQuery,
     AddOnCatalogQuery,
     AddOnRequestCommand,
+    BrandModeQuery,
     GetAddOnCatalogCommand,
     RevealAddOnsQuery,
 } from "./addOnsView";
@@ -154,7 +155,8 @@ export type ProtocolQuery =
     | SyncCursorQuery
     | AddOnCatalogQuery
     | AddOnActionResultQuery
-    | RevealAddOnsQuery;
+    | RevealAddOnsQuery
+    | BrandModeQuery;
 
 export type ProtocolCommand =
     | SyncDocumentCommand

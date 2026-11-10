@@ -185,15 +185,26 @@ class WebviewServer(private val pluginCacheRoot: Path = BpmnPluginCache.root()) 
     private fun deploymentHtml(): String =
         sidePanelHtml("Deploy Diagram", "/deployment", service<IdeThemeSignal>().deploymentThemeVarsCss())
 
-    /** The add-ons view, built from the core's model into `#app` by its bundle under `/add-ons/...`. */
-    private fun addOnsHtml(): String = sidePanelHtml("Artifacts", "/add-ons", service<IdeThemeSignal>().addOnsThemeVarsCss())
+    /**
+     * The add-ons view, built from the core's model into `#app` by its bundle under `/add-ons/...`.
+     * `<html>` carries its brand mode, so the first frame paints in it.
+     */
+    private fun addOnsHtml(): String {
+        val signal = service<IdeThemeSignal>()
+        return sidePanelHtml("Artifacts", "/add-ons", signal.addOnsThemeVarsCss(), signal.addOnsBrandMode().htmlAttributes())
+    }
 
     /** A tool window page: its bundle under [assetPrefix], its own theme vars and an empty `#app` it fills. */
-    private fun sidePanelHtml(title: String, assetPrefix: String, themeVarsCss: String): String {
+    private fun sidePanelHtml(
+        title: String,
+        assetPrefix: String,
+        themeVarsCss: String,
+        htmlAttributes: String = "",
+    ): String {
         val signal = service<IdeThemeSignal>()
         return listOf(
             "<!DOCTYPE html>",
-            "<html lang=\"en\">",
+            "<html lang=\"en\"$htmlAttributes>",
             "<head>",
             "  <meta charset=\"UTF-8\"/>",
             "  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"/>",

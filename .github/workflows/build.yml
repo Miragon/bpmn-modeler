@@ -68,6 +68,8 @@ jobs:
               # IdeThemeSignalTest checks the Artifacts tab's theme against the
               # variables the add-ons page may read.
               - 'apps/add-ons-webview/src/adapter/in/styles/hostThemeVariables.json'
+              # BrandModeTest runs these rows against the Kotlin brand mode.
+              - 'libs/shared/src/lib/brandMode.cases.json'
             standalone:
               - 'apps/standalone/**'
               - 'libs/standalone-extension/**'

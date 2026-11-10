@@ -61,6 +61,7 @@ const COLOR_THEMES = [
         workbenchClass: "vs",
         bodyClass: "vscode-light",
         modelerTheme: "light",
+        brandMode: { theme: "light", contrast: null },
     },
     {
         id: "dark",
@@ -68,6 +69,7 @@ const COLOR_THEMES = [
         workbenchClass: "vs-dark",
         bodyClass: "vscode-dark",
         modelerTheme: "dark",
+        brandMode: { theme: "dark", contrast: null },
     },
     {
         id: "high-contrast",
@@ -75,6 +77,7 @@ const COLOR_THEMES = [
         workbenchClass: "hc-black",
         bodyClass: "vscode-high-contrast",
         modelerTheme: "dark",
+        brandMode: { theme: "dark", contrast: "hoch" },
     },
 ] as const;
 
@@ -1497,6 +1500,27 @@ describe("the packaged extension in a real VS Code", () => {
             await settle(artifacts);
             await vscode().screenshot(join(RESULTS_DIRECTORY, "artifacts-view.png"));
             expectNoCspViolations();
+            await vscode().runCommand("View: Show Explorer");
+        });
+
+        it("marks the Artifacts view with the brand mode of each theme", async () => {
+            await vscode().runCommand("Focus on Artifacts View");
+            const html = (await vscode().viewWebview(ARTIFACTS_OUTLINE)).locator("html");
+
+            for (const theme of COLOR_THEMES) {
+                await vscode().setColorTheme(theme.name);
+                await expect
+                    .poll(
+                        async () => ({
+                            theme: await html.getAttribute("data-cd-theme"),
+                            contrast: await html.getAttribute("data-cd-kontrast"),
+                        }),
+                        { timeout: TIMEOUT_MS },
+                    )
+                    .toEqual(theme.brandMode);
+            }
+
+            await vscode().setColorTheme(COLOR_THEMES[0].name);
             await vscode().runCommand("View: Show Explorer");
         });
     });

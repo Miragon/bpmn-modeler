@@ -268,7 +268,9 @@ copies. The settings rows in `settingsNormalization.cases.json` are the first
 such file (see [host-replicated state](architecture-and-hosts.md#host-replicated-state)).
 `codeApprovalChange.cases.json` holds how a code approval change merges into
 the stored list and which changes are refused; `PluginApprovalStoreTest` runs
-it against the Kotlin merge.
+it against the Kotlin merge. `brandMode.cases.json` in `libs/shared` holds
+the add-ons view's brand mode for each IDE theme and `colorTheme` setting, with
+the `<html>` attributes it writes; `BrandModeTest` runs it against `BrandMode.kt`.
 Rows whose shapes the typed Kotlin side cannot hold, such as a value of the
 wrong type, live in the core's testing kit (`TYPESCRIPT_ONLY_SETTINGS_CASES`),
 and `describeSettingsContract` runs them beside the JSON rows against every
