@@ -14,9 +14,9 @@ import { Command, Query } from "@miragon/bpmn-modeler-shared";
 import { addOnsViewHtml } from "./AddOnsViewHtml";
 
 /** The Add-ons view; users see the id in keybindings and in "Focus on Add-ons View". */
-export const ADD_ONS_VIEW_ID = "bpmn-modeler.artifactsView";
+export const ADD_ONS_VIEW_ID = "bpmn-modeler.addOnsView";
 
-export const REFRESH_ADD_ONS_CMD = "bpmn-modeler.refreshArtifacts";
+export const REFRESH_ADD_ONS_CMD = "bpmn-modeler.refreshAddOns";
 
 /**
  * The Add-ons view in the BPMN Modeler container and its title bar's

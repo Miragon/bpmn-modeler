@@ -164,7 +164,7 @@
     <actions>
         <!-- The Add-ons tab's title button; in no menu, but Find Action finds it. -->
         <action
-            id="io.miragon.bpmn-modeler.refreshArtifacts"
+            id="io.miragon.bpmn-modeler.refreshAddOns"
             class="io.miragon.intellij.bpmn.RefreshAddOnsAction"
             icon="AllIcons.Actions.Refresh"
             text="Refresh Add-ons"

@@ -278,7 +278,7 @@
                 },
                 {
                     "type": "webview",
-                    "id": "bpmn-modeler.artifactsView",
+                    "id": "bpmn-modeler.addOnsView",
                     "name": "Add-ons",
                     "when": "workspaceFolderCount > 0"
                 }
@@ -369,7 +369,7 @@
                 "category": "Miragon BPMN Modeler"
             },
             {
-                "command": "bpmn-modeler.refreshArtifacts",
+                "command": "bpmn-modeler.refreshAddOns",
                 "title": "Refresh Add-ons",
                 "category": "Miragon BPMN Modeler",
                 "icon": "$(refresh)"
@@ -547,7 +547,7 @@
                     "when": "false"
                 },
                 {
-                    "command": "bpmn-modeler.refreshArtifacts",
+                    "command": "bpmn-modeler.refreshAddOns",
                     "when": "workspaceFolderCount > 0"
                 },
                 {
@@ -589,8 +589,8 @@
             ],
             "view/title": [
                 {
-                    "command": "bpmn-modeler.refreshArtifacts",
-                    "when": "view == bpmn-modeler.artifactsView",
+                    "command": "bpmn-modeler.refreshAddOns",
+                    "when": "view == bpmn-modeler.addOnsView",
                     "group": "navigation"
                 }
             ],

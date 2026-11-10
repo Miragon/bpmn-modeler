@@ -509,7 +509,7 @@ Miragon itself (IntelliJ's tool window stripe shows it too); the rocket stays
 on the deploy action. It kept the id of the
 deployment-only container, so a user's layout survives. It holds two webview
 views: **Deploy** (`bpmn-modeler.deploymentView`), shown while a custom editor
-is open, and **Add-ons** (`bpmn-modeler.artifactsView`), shown whenever a
+is open, and **Add-ons** (`bpmn-modeler.addOnsView`), shown whenever a
 folder is open, so the container now shows whenever a folder is open. Both
 set `retainContextWhenHidden`: the core posts nothing to a hidden view, so
 keeping its page costs memory only, and a page shown again keeps its banners
@@ -519,13 +519,10 @@ stylesheet and nothing else, no inline styles either, as the page uses no
 codicons, no images and no style attributes.
 `AddOnsViewProvider` attaches one core panel per resolved view and hands it
 the page's commands, its visibility and its disposal; the core refreshes on
-show. The view's title bar **Refresh Add-ons** (`bpmn-modeler.refreshArtifacts`)
+show. The view's title bar **Refresh Add-ons** (`bpmn-modeler.refreshAddOns`)
 is host chrome over `AddOnsFeature.refresh()`: no watcher covers
-`node_modules`, so it is read again only then or when the view is shown again. Code names say `addOns`.
-The view was once called "Artifacts"; its ids keep that name
-(`bpmn-modeler.artifactsView`, `bpmn-modeler.refreshArtifacts`, IntelliJ's
-action `io.miragon.bpmn-modeler.refreshArtifacts`), so a user's layout,
-keybindings and keymap survive the rename. **Review…** on a plugin or rule
+`node_modules`, so it is read again only then or when the view is shown again. Code names and
+ids say `addOns`. **Review…** on a plugin or rule
 package notice opens the view through `VsCodeAddOnsViewReveal`, the
 `AddOnViewRevealPort` adapter: it has the provider focus the view, then asks
 the core to reveal the rows, and answers `false` when focusing fails, as in a

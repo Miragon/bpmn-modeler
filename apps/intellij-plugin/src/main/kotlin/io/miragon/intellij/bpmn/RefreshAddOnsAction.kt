@@ -24,7 +24,7 @@ class RefreshAddOnsAction : DumbAwareAction() {
     override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.EDT
 
     companion object {
-        const val ID = "io.miragon.bpmn-modeler.refreshArtifacts"
+        const val ID = "io.miragon.bpmn-modeler.refreshAddOns"
     }
 }
 
