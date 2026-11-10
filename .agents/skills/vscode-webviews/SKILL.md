@@ -80,7 +80,9 @@ base-uri 'none'; form-action 'none'
   the properties panel and CodeMirror set style attributes and inject `<style>`
   elements, and the deployment form's markup carries a style attribute. The
   add-ons page has only its linked stylesheet, so its policy allows
-  `style-src ${webview.cspSource}` alone.
+  `style-src ${webview.cspSource}` alone, plus `font-src ${webview.cspSource}`
+  for the fonts its bundle ships (Vite `base: "./"` keeps their `url()`s
+  relative).
 - `img-src data: https:`: element-template icons are `data:` URIs or remote
   URLs (DMN has no templates and omits `https:`).
 - The form shell adds what form-js components load at runtime:
@@ -313,6 +315,15 @@ name is passed in per package (`applyPageThemeScope("data-dmn-theme", kind)`), s
 each package's CSS stays self-contained. The package still mirrors the resolved
 kind onto a legacy `#theme-link` when a consumer links one (a silent no-op
 otherwise).
+
+### Brand mode (Artifacts view)
+
+The Artifacts view takes the Miragon brand look, not the IDE's colours. The
+host writes `data-cd-theme="light|dark"` (always) and `data-cd-kontrast="hoch"`
+(high contrast) on `<html>`: `addOnsViewHtml` from `window.activeColorTheme.kind`
+and the `colorTheme` setting through `brandModeOf` (`libs/shared/src/lib/brandMode.ts`),
+then a `BrandModeQuery` on every change (`VsCodeBrandModeSignal`). The page
+never reads body classes for it.
 
 ### CSS Custom Properties
 

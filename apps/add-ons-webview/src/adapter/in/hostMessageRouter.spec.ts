@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
     AddOnActionResultQuery,
     AddOnCatalogQuery,
+    type BrandMode,
+    BrandModeQuery,
     LanguageQuery,
     RevealAddOnsQuery,
 } from "@miragon/bpmn-modeler-shared";
@@ -13,7 +15,11 @@ import { routeHostMessage } from "./hostMessageRouter";
 
 function routed(message: unknown): ViewEvent[] {
     const events: ViewEvent[] = [];
-    routeHostMessage(message, (event) => events.push(event));
+    routeHostMessage(
+        message,
+        (event) => events.push(event),
+        () => undefined,
+    );
     return events;
 }
 
@@ -43,5 +49,18 @@ describe("routeHostMessage", () => {
         { case: "nothing for no message", message: null, events: [] },
     ])("turns $case into view events", ({ message, events }) => {
         expect(routed(message)).toEqual(events);
+    });
+
+    it("shows a brand mode on the page, not in the view state", () => {
+        const events: ViewEvent[] = [];
+        const shown: BrandMode[] = [];
+
+        routeHostMessage(
+            new BrandModeQuery({ theme: "dark", contrast: "hoch" }),
+            (event) => events.push(event),
+            (mode) => shown.push(mode),
+        );
+
+        expect([events, shown]).toEqual([[], [{ theme: "dark", contrast: "hoch" }]]);
     });
 });

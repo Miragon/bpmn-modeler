@@ -10,8 +10,9 @@ import {
 } from "vscode";
 
 import { AddOnsFeature } from "@miragon/bpmn-modeler-core";
-import { Command, Query } from "@miragon/bpmn-modeler-shared";
+import { BrandModeQuery, Command, Query } from "@miragon/bpmn-modeler-shared";
 import { addOnsViewHtml } from "./AddOnsViewHtml";
+import type { VsCodeBrandModeSignal } from "./VsCodeBrandModeSignal";
 
 /** The Artifacts view; users see the id in keybindings and in "Focus on Artifacts View". */
 export const ADD_ONS_VIEW_ID = "bpmn-modeler.artifactsView";
@@ -31,6 +32,7 @@ export class AddOnsViewProvider implements WebviewViewProvider {
         private readonly addOns: AddOnsFeature,
         private readonly extensionUri: Uri,
         private readonly createNonce: () => string,
+        private readonly brandMode: Pick<VsCodeBrandModeSignal, "current" | "onDidChange">,
     ) {}
 
     register(context: ExtensionContext): void {
@@ -63,15 +65,21 @@ export class AddOnsViewProvider implements WebviewViewProvider {
             webviewView.webview,
             this.extensionUri,
             this.createNonce(),
+            this.brandMode.current(),
         );
 
         const panel = this.addOns.attachPanel(
             (message: Query) => void webviewView.webview.postMessage(message),
             webviewView.visible,
         );
+        // VS Code never renders the shell again, so the page follows a theme change by message.
+        const brandModeChanges = this.brandMode.onDidChange(
+            (mode) => void webviewView.webview.postMessage(new BrandModeQuery(mode)),
+        );
         webviewView.onDidDispose(() => {
             this.pageLoaded = false;
             this.focusOnLoad = false;
+            brandModeChanges.dispose();
             panel.dispose();
         });
         webviewView.webview.onDidReceiveMessage((message: Command) => {

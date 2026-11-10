@@ -61,6 +61,7 @@ describe("webviewContentSecurityPolicy", () => {
                 "default-src 'none'",
                 "script-src 'nonce-n0nce'",
                 "style-src webview-csp:",
+                "font-src webview-csp:",
                 "base-uri 'none'",
                 "form-action 'none'",
             ],

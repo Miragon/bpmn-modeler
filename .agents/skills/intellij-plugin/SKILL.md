@@ -62,8 +62,9 @@ lint/tsc globs never touch the Kotlin sources.
 
 ### Staging (where "already-built artefacts" come from)
 
-`build.gradle.kts` registers `Copy` tasks that `processResources` /
-`PrepareSandboxTask` depend on:
+`build.gradle.kts` registers copy tasks that `processResources` /
+`PrepareSandboxTask` depend on; `copyWebview` and `copyAddOnsWebview` are
+`Sync`s, so a renamed chunk or font leaves no stale file behind:
 
 | Task | Source | Lands at (classpath) |
 |---|---|---|

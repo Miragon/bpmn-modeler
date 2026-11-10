@@ -1,5 +1,6 @@
 import { GetAddOnCatalogCommand } from "@miragon/bpmn-modeler-shared";
 
+import { applyBrandMode } from "../adapter/in/brandModeRoot";
 import { CatalogView } from "../adapter/in/catalogView";
 import { routeHostMessage } from "../adapter/in/hostMessageRouter";
 import { bindOutlineKeyboard } from "../adapter/in/outlineKeyboard";
@@ -14,7 +15,11 @@ export function bootstrap(host: AddOnsHost): void {
     const session = new AddOnsViewSession(host, (state, focus) => view.render(state, focus));
     bindOutlineKeyboard(app, session, view);
     window.addEventListener("message", (event: MessageEvent<unknown>) =>
-        routeHostMessage(event.data, (viewEvent) => session.dispatch(viewEvent)),
+        routeHostMessage(
+            event.data,
+            (viewEvent) => session.dispatch(viewEvent),
+            (mode) => applyBrandMode(document.documentElement, mode),
+        ),
     );
     window.addEventListener("focus", () => view.focusActiveHeadFromOutside());
     view.render(session.state);

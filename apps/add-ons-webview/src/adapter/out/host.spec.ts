@@ -6,6 +6,7 @@ import {
     AddOnCatalogQuery,
     AddOnRequestCommand,
     AddOnsViewCommandType,
+    BrandModeQuery,
     GetAddOnCatalogCommand,
     HostApiImpl,
     LogErrorCommand,
@@ -24,7 +25,7 @@ const COMMANDS: { [Type in AddOnsViewCommandType]: MessageOfType<Type> } = {
     AddOnRequestCommand: new AddOnRequestCommand(1, { kind: "refresh" }),
 };
 
-type Reply = AddOnCatalogQuery | AddOnActionResultQuery | RevealAddOnsQuery;
+type Reply = AddOnCatalogQuery | AddOnActionResultQuery | RevealAddOnsQuery | BrandModeQuery;
 
 function previewAt(search = "") {
     window.history.replaceState(null, "", `/${search}`);
@@ -179,7 +180,7 @@ describe("the preview's host", () => {
 
         host.postMessage(new GetAddOnCatalogCommand());
 
-        expect(replies.map(({ type }) => type)).toEqual(["AddOnCatalogQuery", "RevealAddOnsQuery"]);
+        expect(replies.map(({ type }) => type)).toEqual(["BrandModeQuery", "AddOnCatalogQuery", "RevealAddOnsQuery"]);
     });
 
     it("refuses the first allow as stale when asked to", () => {
@@ -196,5 +197,17 @@ describe("the preview's host", () => {
         previewAt(`?theme=${theme}`);
 
         expect(document.documentElement.style.getPropertyValue("--vscode-foreground")).not.toBe("");
+    });
+
+    it.each([
+        { search: "", mode: { theme: "light" } },
+        { search: "?theme=dark", mode: { theme: "dark" } },
+        { search: "?theme=hc", mode: { theme: "dark", contrast: "hoch" } },
+    ] as const)("posts the brand mode a host would for $search, before the catalog", ({ search, mode }) => {
+        const { host, replies } = previewAt(search);
+
+        host.postMessage(new GetAddOnCatalogCommand());
+
+        expect(replies[0]).toEqual(new BrandModeQuery(mode));
     });
 });

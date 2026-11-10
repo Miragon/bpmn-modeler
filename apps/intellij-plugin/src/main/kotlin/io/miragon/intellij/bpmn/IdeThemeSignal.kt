@@ -29,15 +29,19 @@ import org.cef.browser.CefBrowser
  * neither, so `automatic` always rendered light. This service reproduces both
  * signals from the live IDE theme and keeps them in sync on theme changes.
  *
- * It owns dark detection, the IDE→`--vscode-*` color mapping, the HTML/JS
- * snippet generation, and the change fan-out — keeping [WebviewServer] and the
- * editors free of theming logic (SRP). Dark detection deliberately uses the
- * **LaF** ([JBColor.isBright]), not the editor scheme, so the palette and
+ * It owns dark detection, the IDE→`--vscode-*` color mapping, the add-ons
+ * page's [BrandMode], the HTML/JS snippet generation, and the change fan-out —
+ * keeping [WebviewServer] and the editors free of theming logic (SRP). Dark
+ * detection deliberately uses the **LaF** ([JBColor.isBright]), not the editor
+ * scheme, so the palette and
  * properties panel match the IDE chrome; the canvas additionally receives the
  * real editor-scheme background/foreground through the injected variables.
  */
 @Service(Service.Level.APP)
-class IdeThemeSignal(private val isHighContrast: () -> Boolean = ::isHighContrastTheme) : Disposable {
+class IdeThemeSignal(
+    private val isHighContrast: () -> Boolean = ::isHighContrastTheme,
+    private val colorTheme: () -> String = { ModelerSettingsStore.getInstance().current().colorTheme },
+) : Disposable {
     // The literal is only ever run via executeJavaScript, never inlined into HTML.
     private val gson = GsonBuilder().disableHtmlEscaping().create()
 
@@ -55,6 +59,8 @@ class IdeThemeSignal(private val isHighContrast: () -> Boolean = ::isHighContras
         val connection = ApplicationManager.getApplication().messageBus.connect(this)
         connection.subscribe(LafManagerListener.TOPIC, LafManagerListener { notifyListeners() })
         connection.subscribe(EditorColorsManager.TOPIC, EditorColorsListener { notifyListeners() })
+        // The add-ons page's brand mode also follows the `colorTheme` setting.
+        connection.subscribe(ModelerSettingsListener.TOPIC, ModelerSettingsListener { notifyListeners() })
     }
 
     /** LaF-based dark detection — matches the IDE chrome the webview sits in. */
@@ -233,8 +239,11 @@ class IdeThemeSignal(private val isHighContrast: () -> Boolean = ::isHighContras
         }
     }
 
-    /** [applyJs] specialised for the add-ons page's variable set. */
-    fun addOnsApplyJs(): String = applyJs(addOnsThemeVarsCss())
+    /** The brand mode of the add-ons page, from the LaF and the `colorTheme` setting. */
+    internal fun addOnsBrandMode(): BrandMode = BrandMode.of(HostColorThemeKind.of(isDark(), isHighContrast()), colorTheme())
+
+    /** [applyJs] specialised for the add-ons page's variable set, plus its brand mode. */
+    fun addOnsApplyJs(): String = applyJs(addOnsThemeVarsCss()) + addOnsBrandMode().applyJs()
 
     /** [applyJs] specialised for the deployment form's variable set. */
     fun deploymentApplyJs(): String = applyJs(deploymentThemeVarsCss())
