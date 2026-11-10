@@ -10,6 +10,7 @@ vi.hoisted(() => {
 // Mirrors the parts of Theia's registry the subclass builds on: registration
 // stores the title options, prepareViewContainer applies them to the widget.
 vi.mock("@theia/plugin-ext/lib/main/browser/view/plugin-view-registry", () => ({
+    PLUGIN_VIEW_CONTAINER_FACTORY_ID: "plugin-view-container",
     PluginViewRegistry: class {
         private readonly titleOptionsByContainer = new Map<string, ViewContainerTitleOptions>();
         private nextIconId = 0;
@@ -170,6 +171,40 @@ describe("CurrentTitlePluginViewRegistry", () => {
         await registry["prepareViewContainer"](DEPLOY_CONTAINER_ID, container);
 
         expect(movedPart.originalContainerTitle).toBe(otherTitle);
+    });
+
+    it("shows the current title on a container left with only a view moved out of a stale container", async () => {
+        const { registry } = registryWithDeployContainer();
+        registry.registerViewContainer("left", {
+            id: "other",
+            title: "Other",
+            iconUrl: "/hostedPlugin/other/icon.svg",
+        });
+        const otherContainerWidgetId = "plugin-view-container:workbench.view.extension.other";
+        const otherTitle = { label: "Other", iconClass: "other-icon" };
+        const other = restoredContainer(otherContainerWidgetId, otherTitle, [
+            viewPart("Deploy", DEPLOY_CONTAINER_WIDGET_ID, STALE_TITLE),
+        ]);
+
+        await registry["prepareViewContainer"]("workbench.view.extension.other", other);
+
+        expect(other.title.label).toBe(`${CURRENT_TITLE.label}: Deploy`);
+        expect(other.title.iconClass).toBe(CURRENT_TITLE.iconClass);
+    });
+
+    it("refreshes a view moved out of a stale container into a built-in one", async () => {
+        const { registry } = registryWithDeployContainer();
+        const explorerTitle = { label: "Explorer", iconClass: "codicon codicon-files" };
+        const movedPart = viewPart("Deploy", DEPLOY_CONTAINER_WIDGET_ID, STALE_TITLE);
+        const explorer = restoredContainer("explorer-view-container", explorerTitle, [
+            viewPart("Files", "explorer-view-container", explorerTitle),
+            movedPart,
+        ]);
+
+        await registry["prepareViewContainer"]("explorer", explorer);
+
+        expect(movedPart.originalContainerTitle).toEqual(CURRENT_TITLE);
+        expect(explorer.title.label).toBe("Explorer");
     });
 
     it("leaves built-in view containers alone", async () => {
