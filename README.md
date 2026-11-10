@@ -8,7 +8,7 @@
 [![Build](https://github.com/Miragon/bpmn-modeler/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/Miragon/bpmn-modeler/actions/workflows/build.yml)
 [![License: Apache 2.0](https://img.shields.io/github/license/Miragon/bpmn-modeler)](LICENSE)
 
-![In VS Code, appending the missing end event to "Ship order" clears the lint error and the modeler reports no issues](https://raw.githubusercontent.com/Miragon/bpmn-modeler/main/images/modeler-demo.gif)
+![Miragon Modeler for BPMN: processes, decisions and forms from plain files, with an order process open in the modeler](docs/public/shots/vscode/cover.png)
 
 **Model processes and decisions right where their code lives.**
 
