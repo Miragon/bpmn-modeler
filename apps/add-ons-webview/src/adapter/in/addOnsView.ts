@@ -77,6 +77,10 @@ export class AddOnsView {
         frame.setAttribute("aria-label", CHROME_TEXT.title);
         frame.append(this.app);
         root.replaceChildren(frame);
+        // A narrow view's toolbar sticks over the page; Tab must not focus a row beneath it.
+        layout.watchHeight(this.toolbar.element, (height) =>
+            document.documentElement.style.setProperty("--av-sticky-top", `${height}px`),
+        );
         root.addEventListener("click", (event) => this.clicked(event));
         root.addEventListener("keydown", (event) => this.closeMenuOnKey(event));
     }

@@ -81,7 +81,7 @@ function headOf({ group, source, addOn }: Placement, revealed: boolean): HTMLEle
     [addOn.kindText, addOn.detail, "engineText" in addOn ? addOn.engineText : undefined]
         .filter((part): part is string => part !== undefined && part !== "")
         .forEach((part, index) => {
-            if (index > 0) metaLine.append(el("span", "av-sep", "·"));
+            if (index > 0) metaLine.append(separator("·"));
             metaLine.append(el("span", "", part));
         });
     const tone = stateToneOf(addOn);
@@ -93,11 +93,17 @@ function headOf({ group, source, addOn }: Placement, revealed: boolean): HTMLEle
     where.append(
         icon(SOURCE_ICON[source.kind], 14, "av-location-icon"),
         el("span", "", group.label),
-        el("span", "av-sep", "›"),
+        separator("›"),
         el("span", "", source.label),
     );
     head.append(top, name, metaLine, where);
     return head;
+}
+
+function separator(glyph: string): HTMLElement {
+    const sep = el("span", "av-sep", glyph);
+    sep.setAttribute("aria-hidden", "true");
+    return sep;
 }
 
 function noteOf(note: string): HTMLElement {

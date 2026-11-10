@@ -38,6 +38,27 @@ describe("BROWSER_LAYOUT", () => {
         },
     );
 
+    it("reports an element's height whenever its size changes", () => {
+        let observed: (() => void) | undefined;
+        vi.stubGlobal(
+            "ResizeObserver",
+            class {
+                constructor(callback: () => void) {
+                    observed = callback;
+                }
+                observe = vi.fn();
+            },
+        );
+        const element = document.createElement("div");
+        vi.spyOn(element, "getBoundingClientRect").mockReturnValue({ height: 160 } as DOMRect);
+        const heights: number[] = [];
+
+        BROWSER_LAYOUT.watchHeight(element, (height) => heights.push(height));
+        observed?.();
+
+        expect(heights).toEqual([160]);
+    });
+
     it("reads and scrolls the page", () => {
         const scrollTo = vi.fn();
         vi.stubGlobal("scrollTo", scrollTo);

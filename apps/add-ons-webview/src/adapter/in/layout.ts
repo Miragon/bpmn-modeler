@@ -6,6 +6,7 @@ export interface Layout {
     pageScrollTop(): number;
     scrollPageTo(top: number): void;
     scrollIntoView(element: Element): void;
+    watchHeight(element: Element, onHeight: (height: number) => void): void;
 }
 
 export const BROWSER_LAYOUT: Layout = {
@@ -18,5 +19,8 @@ export const BROWSER_LAYOUT: Layout = {
             block: "center",
             behavior: this.prefersReducedMotion() ? "auto" : "smooth",
         });
+    },
+    watchHeight(element, onHeight) {
+        new ResizeObserver(() => onHeight(element.getBoundingClientRect().height)).observe(element);
     },
 };

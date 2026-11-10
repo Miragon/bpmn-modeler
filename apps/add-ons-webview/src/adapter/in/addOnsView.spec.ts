@@ -499,14 +499,23 @@ describe("AddOnsView", () => {
             expect(host.posted.length).toBe(1);
         });
 
-        it("hints at what to do while nothing is selected", () => {
+        // The view selects an add-on whenever its list shows one, so the hint only meets an empty list.
+        it("says nothing is selected, never asks to select, while the list shows no add-on", () => {
             const { type, root } = mountedView(CATALOG);
 
             type("nothing like this");
 
-            expect(text(root.querySelector(".av-hint"))).toBe(
-                "Select an add-on to read what it is and what you can do with it.",
-            );
+            expect(text(root.querySelector(".av-hint"))).toBe("No add-on selected.");
+        });
+
+        it("keeps the separators of its meta and location lines from a screen reader", () => {
+            const { root } = mountedView(changed(RESIZE.id, reviewed));
+
+            expect(
+                [...root.querySelectorAll(".av-detail-card .av-sep")].map((sep) =>
+                    sep.getAttribute("aria-hidden"),
+                ),
+            ).toEqual(["true", "true"]);
         });
     });
 
@@ -881,6 +890,18 @@ describe("AddOnsView", () => {
             session.dispatch(reveal(ACME.id));
 
             expect(root.contains(document.activeElement)).toBe(false);
+        });
+    });
+
+    describe("the sticky toolbar", () => {
+        it("keeps the page's scroll padding at its height, so focus never lands beneath it", () => {
+            const { layout } = mountedView(CATALOG, { narrow: true });
+
+            layout.resize(".av-toolbar", 160);
+
+            expect(document.documentElement.style.getPropertyValue("--av-sticky-top")).toBe(
+                "160px",
+            );
         });
     });
 

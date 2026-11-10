@@ -36,4 +36,18 @@ export class FakeLayout implements Layout {
     scrollIntoView = (element: Element): void => {
         this.scrolledIntoView.push(element);
     };
+
+    private readonly heightWatchers: { element: Element; onHeight: (height: number) => void }[] =
+        [];
+
+    watchHeight = (element: Element, onHeight: (height: number) => void): void => {
+        this.heightWatchers.push({ element, onHeight });
+    };
+
+    /** Lays the element that matches the selector out at a new height. */
+    resize(selector: string, height: number): void {
+        this.heightWatchers
+            .filter(({ element }) => element.matches(selector))
+            .forEach(({ onHeight }) => onHeight(height));
+    }
 }

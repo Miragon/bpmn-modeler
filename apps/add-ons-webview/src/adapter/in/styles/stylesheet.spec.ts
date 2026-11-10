@@ -45,6 +45,12 @@ describe("the add-ons view's stylesheets", () => {
         ]).toEqual([true, true, true, true, true]);
     });
 
+    it("pad the page's scroll by the sticky toolbar's height, which the view writes", () => {
+        expect(view).toMatch(
+            /html\s*\{\s*scroll-padding-top: calc\(var\(--av-sticky-top, 0px\) \+ 8px\);/,
+        );
+    });
+
     it("switch the drill-down to two panes at 640px of the view's own width", () => {
         expect([
             view.includes("@container view (max-width: 639.98px)"),

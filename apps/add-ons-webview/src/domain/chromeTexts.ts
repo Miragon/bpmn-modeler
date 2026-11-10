@@ -19,7 +19,7 @@ export const CHROME_TEXT = {
     noMatch: "No add-ons match your search and filters.",
     clearFilters: "Clear filters",
     noMarketplace: "No marketplaces registered yet.",
-    hint: "Select an add-on to read what it is and what you can do with it.",
+    hint: "No add-on selected.",
     back: "Back",
     moreActions: "More actions",
 } as const;

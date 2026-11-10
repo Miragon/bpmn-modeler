@@ -25,6 +25,11 @@
 
 /* --- Toolbar --- */
 
+/* The view writes the sticky toolbar's height; 8px keeps a focus ring clear of its edge. */
+html {
+    scroll-padding-top: calc(var(--av-sticky-top, 0px) + 8px);
+}
+
 .av-toolbar {
     position: sticky;
     top: 0;
@@ -1017,9 +1022,10 @@ button.av-head:hover .av-head-count {
         display: contents;
     }
 
+    /* Wide enough for the whole placeholder. */
     .av-search {
         flex: 0 1000 240px;
-        min-width: 160px;
+        min-width: 176px;
     }
 
     /* One row beside the search, which gives way first; it scrolls sideways (wheel included) when the window is tight. */

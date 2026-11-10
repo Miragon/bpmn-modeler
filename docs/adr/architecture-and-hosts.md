@@ -1107,7 +1107,10 @@ bundle needs:
   inject `<style>` elements without a nonce, and the deployment form's markup
   carries a style attribute. The add-ons shells have only their linked
   stylesheet and allow `style-src` from the bundle alone (`webview.cspSource`
-  in VS Code, `'self'` in IntelliJ); the bundle sets no style attribute.
+  in VS Code, `'self'` in IntelliJ); the bundle writes no style attribute or
+  `<style>` element. Its one CSSOM write, the sticky toolbar's height as `--av-sticky-top` on
+  `<html>` for `scroll-padding-top`, is outside what `style-src` governs, and
+  without it Tab in a narrow view focused rows beneath the toolbar.
 - In the BPMN, DMN and form shells `img-src` allows `data:`, and for BPMN also
   `https:`, because element-template icons may be either. BPMN and DMN have no
   `connect-src`, so a copy-as-PNG of a remote `.svg` icon renders without that
