@@ -55,6 +55,19 @@ jobs:
               - 'libs/modeler-types/src/emptyDmn.ts'
               # ScriptCompletionMatchersTest runs these rows against the Kotlin matchers.
               - 'libs/modeler-core/src/scriptTask/domain/scriptCompletion.cases.json'
+              # WebviewRouteTest runs the plugin asset urls the bridge builds,
+              # ActionNoticeToneTest checks the Kotlin tones against the core's.
+              - 'apps/modeler-bridge/src/editorSession/domain/pluginAssetUrl.cases.json'
+              - 'libs/modeler-core/src/kernel/domain/actionNotice.ts'
+              # PluginApprovalStoreTest runs these rows against the Kotlin merge.
+              - 'libs/modeler-core/src/kernel/domain/codeApprovalChange.cases.json'
+              # TemplatePreferenceStoreTest runs these rows against the Kotlin merge,
+              # ProjectScopeTest checks the Kotlin scopes against PROJECT_SCOPES.
+              - 'libs/modeler-core/src/kernel/domain/templatePreferenceChange.cases.json'
+              - 'libs/modeler-core/src/kernel/domain/projectScopes.ts'
+              # IdeThemeSignalTest checks the Artifacts tab's theme against the
+              # variables the add-ons page may read.
+              - 'apps/add-ons-webview/src/adapter/in/styles/hostThemeVariables.json'
             standalone:
               - 'apps/standalone/**'
               - 'libs/standalone-extension/**'
@@ -203,7 +216,7 @@ jobs:
       - name: Report coverage in the job summary
         if: always() && github.event_name == 'pull_request' && matrix.report
         continue-on-error: true
-        uses: davelosert/vitest-coverage-report-action@8f86cfb56ed6d5613ea8cdc5259f207fbfd51ece # v2.13.1
+        uses: davelosert/vitest-coverage-report-action@74c2d9210b4fc44c84d8213f61d7ec99837b7aa0 # v2.13.2
         with:
           # One PR comment per matrix leg buried the conversation.
           comment-on: none
@@ -235,7 +248,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Setup JDK 21
-        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
         with:
           distribution: temurin
           java-version: '21'
@@ -251,6 +264,22 @@ jobs:
         working-directory: apps/intellij-plugin
         run: ./gradlew verifyPlugin --no-daemon
 
+  smoke-modeler-bridge-bun:
+    needs: detect-changes
+    if: contains(fromJSON(needs.detect-changes.outputs.affected-targets), 'modeler-bridge')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup-workspaces
+        with:
+          focus: "@miragon/bpmn-modeler-bridge bpmn-modeler @miragon/bpmn-modeler-core @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-types"
+      # The Bun that compiles the bridge IntelliJ ships (publish-intellij.yml).
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: apps/modeler-bridge/.bun-version
+      - name: Run the rule package gate under Bun
+        run: yarn workspace @miragon/bpmn-modeler-bridge smoke:rule-package-gate
+
   e2e-vscode-plugin:
     needs: detect-changes
     if: >-
@@ -263,7 +292,8 @@ jobs:
       contains(fromJSON(needs.detect-changes.outputs.affected-targets), 'bpmn-webview') ||
       contains(fromJSON(needs.detect-changes.outputs.affected-targets), 'dmn-webview') ||
       contains(fromJSON(needs.detect-changes.outputs.affected-targets), 'form-webview') ||
-      contains(fromJSON(needs.detect-changes.outputs.affected-targets), 'deployment-webview')
+      contains(fromJSON(needs.detect-changes.outputs.affected-targets), 'deployment-webview') ||
+      contains(fromJSON(needs.detect-changes.outputs.affected-targets), 'add-ons-webview')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -371,6 +401,8 @@ jobs:
           test -f packages/bpmn-modeler/dist/mode.js
           test -f packages/bpmn-modeler/dist/mode.d.ts
           test -f packages/bpmn-modeler/dist/mode.css
+          test -f packages/bpmn-modeler/dist/plugins.js
+          test -f packages/bpmn-modeler/dist/plugins.d.ts
           test -f packages/bpmn-modeler/dist/bpmn-modeler.css
           test -f packages/bpmn-modeler/dist/lightTheme.css
           test -f packages/bpmn-modeler/dist/darkTheme.css
@@ -443,6 +475,17 @@ jobs:
           focus: "@miragon/bpmn-modeler-deployment-webview @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-types"
       - run: yarn workspace @miragon/bpmn-modeler-deployment-webview build
 
+  build-add-ons-webview:
+    needs: detect-changes
+    if: contains(fromJSON(needs.detect-changes.outputs.affected-targets), 'add-ons-webview')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup-workspaces
+        with:
+          focus: "@miragon/bpmn-modeler-add-ons-webview @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-types"
+      - run: yarn workspace @miragon/bpmn-modeler-add-ons-webview build
+
   check-dep-alignment:
     needs: detect-changes
     if: needs.detect-changes.outputs.dep-alignment == 'true'
@@ -482,6 +525,7 @@ jobs:
       - test
       - test-standalone
       - test-intellij-plugin
+      - smoke-modeler-bridge-bun
       - e2e-vscode-plugin
       - e2e-orca-plugin
       - build-vscode-plugin
@@ -491,6 +535,7 @@ jobs:
       - build-dmn-webview
       - build-form-webview
       - build-deployment-webview
+      - build-add-ons-webview
       - check-dep-alignment
       - verify-docs
     runs-on: ubuntu-latest

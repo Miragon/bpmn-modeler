@@ -18,6 +18,27 @@ class WebviewRouteTest {
     }
 
     @Test
+    fun `addOns html serves the add-ons shell`() {
+        assertEquals(WebviewRoute.AddOnsShell, WebviewRoute.forPath("/addOns.html"))
+    }
+
+    @Test
+    fun `add-ons assets resolve under the add-ons bundle root`() {
+        assertEquals(
+            WebviewRoute.ClasspathAsset("/webview-add-ons/index.js", "text/javascript; charset=utf-8"),
+            WebviewRoute.forPath("/add-ons/index.js"),
+        )
+    }
+
+    @Test
+    fun `a path that merely starts with add-ons stays in the bpmn bundle`() {
+        assertEquals(
+            "/webview/add-onsx/a.js",
+            (WebviewRoute.forPath("/add-onsx/a.js") as WebviewRoute.ClasspathAsset).resourcePath,
+        )
+    }
+
+    @Test
     fun `templatePreview html serves the element template preview shell`() {
         assertEquals(WebviewRoute.TemplatePreviewShell, WebviewRoute.forPath("/templatePreview.html"))
     }
@@ -57,6 +78,25 @@ class WebviewRouteTest {
             (WebviewRoute.forPath("/fonts/my%20font.woff2") as WebviewRoute.ClasspathAsset).resourcePath,
         )
     }
+
+    @Test
+    fun `maps every plugin asset url the bridge builds to its cached file`() {
+        val mapped = pluginAssetUrlCases().getAsJsonArray("mapped").map { it.asJsonObject.get("url").asString }
+
+        mapped.forEach { url ->
+            val (hash, fileName) = url.removePrefix("/bpmn-plugins/").split("/")
+            assertEquals(WebviewRoute.PluginAsset(hash, fileName), WebviewRoute.forPath(url), url)
+        }
+    }
+
+    @Test
+    fun `refuses every plugin url outside the cached asset shape instead of reading the classpath`() {
+        val refused = pluginAssetUrlCases().getAsJsonArray("refusedUrls").map { it.asString }
+
+        refused.forEach { url -> assertEquals(WebviewRoute.NotFound, WebviewRoute.forPath(url), url) }
+    }
+
+    private fun pluginAssetUrlCases() = readTypeScriptJson("miragon.pluginAssetUrlCases").asJsonObject
 
     @ParameterizedTest
     @CsvSource(

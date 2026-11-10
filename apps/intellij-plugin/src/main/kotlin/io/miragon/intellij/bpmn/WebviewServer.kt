@@ -9,6 +9,8 @@ import com.sun.net.httpserver.HttpServer
 import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.nio.charset.StandardCharsets
+import java.nio.file.Files
+import java.nio.file.Path
 import java.util.concurrent.Executors
 
 /**
@@ -27,10 +29,12 @@ import java.util.concurrent.Executors
  *
  * A single application-level instance serves every editor (in every project):
  * the static bundle is identical across files, and all per-file data flows over
- * the JCEF message bridge, never over HTTP.
+ * the JCEF message bridge, never over HTTP. The one exception is the files of
+ * approved workspace plugins, which it reads from [pluginCacheRoot] under
+ * `/bpmn-plugins/<hash>/plugin.js|plugin.css`.
  */
 @Service(Service.Level.APP)
-class WebviewServer : Disposable {
+class WebviewServer(private val pluginCacheRoot: Path = BpmnPluginCache.root()) : Disposable {
     private val log = Logger.getInstance(WebviewServer::class.java)
 
     private var server: HttpServer? = null
@@ -82,6 +86,12 @@ class WebviewServer : Disposable {
         return "${origin}/deployment.html"
     }
 
+    /** The add-ons view of the BPMN Modeler tool window's Artifacts tab, from `/webview-add-ons/...`. */
+    fun addOnsUrl(): String {
+        ensureStarted()
+        return "${origin}/addOns.html"
+    }
+
     /** The element template preview: the template editor entry of the bpmn bundle, without its builder. */
     fun templatePreviewUrl(): String {
         ensureStarted()
@@ -90,17 +100,20 @@ class WebviewServer : Disposable {
 
     private fun handle(exchange: HttpExchange) {
         try {
-            val path = exchange.requestURI.path
+            val path = exchange.requestURI.rawPath
             when (val route = WebviewRoute.forPath(path)) {
                 WebviewRoute.BpmnShell -> respondHtml(exchange, indexHtml(), WebviewContentSecurityPolicy.BPMN_SHELL)
                 WebviewRoute.DeploymentShell ->
                     respondHtml(exchange, deploymentHtml(), WebviewContentSecurityPolicy.DEPLOYMENT_SHELL)
+                WebviewRoute.AddOnsShell -> respondHtml(exchange, addOnsHtml(), WebviewContentSecurityPolicy.ADD_ONS_SHELL)
                 WebviewRoute.TemplatePreviewShell ->
                     respondHtml(exchange, templatePreviewHtml(), WebviewContentSecurityPolicy.BPMN_SHELL)
+                is WebviewRoute.PluginAsset -> respondPluginAsset(exchange, route, path)
+                WebviewRoute.NotFound -> respondNotFound(exchange, path)
                 is WebviewRoute.ClasspathAsset -> {
                     val bytes = javaClass.getResourceAsStream(route.resourcePath)?.use { it.readBytes() }
                     if (bytes == null) {
-                        respond(exchange, 404, "text/plain; charset=utf-8", "Not found: $path".toByteArray())
+                        respondNotFound(exchange, path)
                     } else {
                         respond(exchange, 200, route.mimeType, bytes)
                     }
@@ -162,15 +175,21 @@ class WebviewServer : Disposable {
      * mirroring [indexHtml]: the [IdeThemeSignal.bodyClass] on `<body>` and an
      * `#ide-theme-vars` block carrying the deployment form's mapped `--vscode-*`
      * colors (the id `applyJs` rewrites live) so the form follows the IDE theme,
-     * not the OS. The body
-     * is just `<div id="app"></div>` because the deployment bundle
-     * (`src/adapter/in/formTemplate.ts`) renders the form itself. Assets resolve under
-     * `/deployment/...` → classpath `/webview-deployment`.
+     * not the OS. The deployment bundle (`src/adapter/in/formTemplate.ts`)
+     * renders the form itself. Assets resolve under `/deployment/...` →
+     * classpath `/webview-deployment`.
      *
      * The off-EDT palette read on the HTTP pool thread is safe for the same reason
      * documented on [indexHtml].
      */
-    private fun deploymentHtml(): String {
+    private fun deploymentHtml(): String =
+        sidePanelHtml("Deploy Diagram", "/deployment", service<IdeThemeSignal>().deploymentThemeVarsCss())
+
+    /** The add-ons view, built from the core's model into `#app` by its bundle under `/add-ons/...`. */
+    private fun addOnsHtml(): String = sidePanelHtml("Artifacts", "/add-ons", service<IdeThemeSignal>().addOnsThemeVarsCss())
+
+    /** A tool window page: its bundle under [assetPrefix], its own theme vars and an empty `#app` it fills. */
+    private fun sidePanelHtml(title: String, assetPrefix: String, themeVarsCss: String): String {
         val signal = service<IdeThemeSignal>()
         return listOf(
             "<!DOCTYPE html>",
@@ -178,14 +197,14 @@ class WebviewServer : Disposable {
             "<head>",
             "  <meta charset=\"UTF-8\"/>",
             "  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"/>",
-            "  <link href=\"/deployment/index.css\" rel=\"stylesheet\"/>",
-            "  <title>Deploy Diagram</title>",
-            "  <style id=\"ide-theme-vars\">${signal.deploymentThemeVarsCss()}</style>",
+            "  <link href=\"$assetPrefix/index.css\" rel=\"stylesheet\"/>",
+            "  <title>$title</title>",
+            "  <style id=\"ide-theme-vars\">$themeVarsCss</style>",
             "  <script>${WebviewContentSecurityPolicy.ACQUIRE_VS_CODE_API_SHIM}</script>",
             "</head>",
             "<body class=\"${signal.bodyClass()}\">",
             "  <div id=\"app\"></div>",
-            "  <script type=\"module\" src=\"/deployment/index.js\"></script>",
+            "  <script type=\"module\" src=\"$assetPrefix/index.js\"></script>",
             "</body>",
             "</html>",
         ).joinToString("\n")
@@ -213,6 +232,18 @@ class WebviewServer : Disposable {
             "</html>",
         ).joinToString("\n")
     }
+
+    /** Served without a policy, like the bundle; the page's `script-src 'self'` already admits the same origin. */
+    private fun respondPluginAsset(exchange: HttpExchange, asset: WebviewRoute.PluginAsset, path: String) {
+        val file = PluginAssetFile.resolve(pluginCacheRoot, asset) ?: return respondNotFound(exchange, path)
+        exchange.responseHeaders.set("X-Content-Type-Options", "nosniff")
+        // The same hash names the same bytes, but a cleared cache must not be answered from memory.
+        exchange.responseHeaders.set("Cache-Control", "no-cache")
+        respond(exchange, 200, WebviewRoute.mimeTypeOf(asset.fileName), Files.readAllBytes(file))
+    }
+
+    private fun respondNotFound(exchange: HttpExchange, path: String) =
+        respond(exchange, 404, "text/plain; charset=utf-8", "Not found: $path".toByteArray())
 
     private fun respond(exchange: HttpExchange, code: Int, contentType: String, body: ByteArray) {
         exchange.responseHeaders.set("Content-Type", contentType)

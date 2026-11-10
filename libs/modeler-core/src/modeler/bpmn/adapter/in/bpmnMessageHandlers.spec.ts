@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+    BpmnPluginsQuery,
     Command,
     SetClipboardCommand,
     SetPropertiesPanelStateCommand,
@@ -8,7 +9,9 @@ import {
     UpdateLintResultsCommand,
 } from "@miragon/bpmn-modeler-shared";
 
+import { createTestHost } from "../../../../testing";
 import {
+    answerWithoutPluginsHandler,
     getBpmnlintConfigHandler,
     getBpmnModelerSettingHandler,
     getClipboardHandler,
@@ -154,5 +157,29 @@ describe("a rejecting service promise propagates through the handler", () => {
         ).rejects.toThrow(boom);
         // Language is posted before settings is awaited, so it still fires.
         expect(broadcaster.setLanguage).toHaveBeenCalledWith(EDITOR);
+    });
+});
+
+describe("answerWithoutPluginsHandler", () => {
+    it("answers with no plugins at once", async () => {
+        const host = createTestHost();
+        const editor = host.openEditor("/work/diagram.bpmn");
+
+        await answerWithoutPluginsHandler(host.store)(ANY, editor.id);
+
+        expect(editor.postedOfType<BpmnPluginsQuery>("BpmnPluginsQuery")).toEqual([
+            new BpmnPluginsQuery([]),
+        ]);
+    });
+
+    it("leaves a hidden editor alone, which asks again once shown", async () => {
+        const host = createTestHost();
+        const editor = host.openEditor("/work/diagram.bpmn");
+        editor.hidden = true;
+
+        await expect(
+            answerWithoutPluginsHandler(host.store)(ANY, editor.id),
+        ).resolves.toBeUndefined();
+        expect(editor.posted).toEqual([]);
     });
 });

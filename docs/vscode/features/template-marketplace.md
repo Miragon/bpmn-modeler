@@ -22,6 +22,8 @@ Adding a marketplace that is already registered saves nothing: it is still fetch
 
 These commands run one at a time. A command you start while another one runs shows its progress and waits for it.
 
+The [Artifacts view](/vscode/features/artifacts) lists each registered marketplace with its cached templates. Its toolbar adds and updates marketplaces, each marketplace offers **Remove**, and **Disable templates** keeps a marketplace's templates out of new choices without removing it.
+
 ## The `marketplace.json` file
 
 A marketplace lists one or more sources. Every `.json` file under a source's `path` is loaded as a template unless `include` narrows it down.
@@ -118,7 +120,7 @@ Templates with an `engines` field are only offered on Camunda 8 diagrams whose `
 
 ## IntelliJ
 
-The IntelliJ plugin has the same feature as **Add Template Marketplace…**, **Update Template Marketplaces** and **Remove Template Marketplace…** (see [Actions](/intellij/getting-started#actions)). App-wide entries are listed under **Settings ▸ Tools ▸ Miragon BPMN Modeler ▸ Template Marketplaces**; tokens live in the IDE's password safe. Entries there are strings only, so self-hosted instances with `baseUrl` are VS Code only for now.
+The IntelliJ plugin has the same feature as **Add Template Marketplace…**, **Update Template Marketplaces** and **Remove Template Marketplace…** (see [Actions](/intellij/getting-started#actions)); the [Artifacts tab](/intellij/getting-started#artifacts) of the **BPMN Modeler** tool window lists the marketplaces and offers the same. App-wide entries are listed under **Settings ▸ Tools ▸ Miragon BPMN Modeler ▸ Template Marketplaces**; tokens live in the IDE's password safe. Entries there are strings only, so self-hosted instances with `baseUrl` are VS Code only for now.
 
 ## Next steps
 

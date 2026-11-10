@@ -18,6 +18,11 @@ import com.intellij.testFramework.junit5.RunInEdt
 import com.intellij.testFramework.junit5.TestApplication
 import com.intellij.testFramework.junit5.fixture.tempPathFixture
 import io.miragon.intellij.bpmn.CoreSession
+import io.miragon.intellij.bpmn.PluginApproval
+import io.miragon.intellij.bpmn.PluginApprovalStore
+import io.miragon.intellij.bpmn.ProjectTemplatePreferenceStore
+import io.miragon.intellij.bpmn.TemplatePreferenceStore
+import io.miragon.intellij.bpmn.TemplateSwitch
 import io.miragon.intellij.bpmn.projectFixtureWithoutServicePreload
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -28,6 +33,7 @@ import org.junit.jupiter.api.Test
 import java.nio.file.Files
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executor
 import java.util.concurrent.Future
 import java.util.concurrent.TimeUnit
 
@@ -81,7 +87,12 @@ class EditorSessionRouterTest {
         val scheduler = DeterministicScheduler()
         val selectedEditorIds = CopyOnWriteArrayList<String>()
         val router =
-            EditorSessionRouter(bridgeDeps(project, wired.channel, wired.handlers), scheduler, readDocumentText) {
+            EditorSessionRouter(
+                bridgeDeps(project, wired.channel, wired.handlers),
+                scheduler,
+                readDocumentText,
+                reloadExecutor = Executor(Runnable::run),
+            ) {
                 selectedEditorIds.toList()
             }
         router.register()
@@ -1081,11 +1092,12 @@ class EditorSessionRouterTest {
         file: BpmnTestFile = bpmn,
         pageRevision: Long = 0,
         editedSinceRender: Boolean = true,
+        onReload: () -> Unit = {},
         whileHostWaits: (reply: () -> Unit) -> Unit = { reply -> reply() },
     ): FakePage {
         val page = FakePage()
         page.session =
-            CoreSession(file.file.url, file.file, session.project) { raw ->
+            CoreSession(file.file.url, file.file, session.project, reloadPage = onReload) { raw ->
                 val message = parse(raw)
                 val type = message.get("type")?.asString ?: return@CoreSession
                 page.received.add(type)
@@ -1204,6 +1216,148 @@ class EditorSessionRouterTest {
             params.get("editorId")?.asString == page.session.editorId &&
                 params.get("sessionId")?.asLong == page.sessionId
         }.map { it.frameLabel() }
+
+    @Test
+    fun `a register seeds the plugin approvals the IDE stores with their revision`() {
+        val store = PluginApprovalStore.getInstance()
+        val storedBefore = store.read()
+        try {
+            store.replaceAll(listOf(PluginApproval(PLUGIN_ID, PLUGIN_HASH)))
+            val f = setUpRouter(INITIAL_XML)
+
+            val second = createSecondBpmnFile()
+
+            f.router.registerSession(CoreSession(second.file.url, second.file, f.session.project) {})
+
+            val register = parse(f.wired.fake.nextFrame())
+            assertEquals(
+                parse("""{"approvals": [{"pluginId": "$PLUGIN_ID", "contentHash": "$PLUGIN_HASH"}]}""").get("approvals"),
+                register.getAsJsonObject("params").get("pluginApprovals"),
+            )
+            assertEquals(store.snapshot().revision, register.getAsJsonObject("params").get("pluginApprovalsRevision").asLong)
+        } finally {
+            store.replaceAll(storedBefore)
+        }
+    }
+
+    @Test
+    fun `a register seeds both scopes' template switches with their revisions`() {
+        val appStore = TemplatePreferenceStore.getInstance()
+        val appStoredBefore = appStore.snapshot().disabled
+        try {
+            appStore.replaceAll(listOf(TemplateSwitch("marketplace:github:github.com/acme/templates")))
+            val f = setUpRouter(INITIAL_XML)
+            val projectStore = ProjectTemplatePreferenceStore.getInstance(f.session.project)
+            projectStore.replaceAll(listOf(TemplateSwitch("configFolder:shop/.camunda", "mail")))
+
+            val second = createSecondBpmnFile()
+
+            f.router.registerSession(CoreSession(second.file.url, second.file, f.session.project) {})
+
+            val register = parse(f.wired.fake.nextFrame())
+            assertEquals(
+                parse(
+                    """{
+                        "project": {"disabled": [{"source": "configFolder:shop/.camunda", "templateId": "mail"}], "revision": ${projectStore.snapshot().revision}},
+                        "allProjects": {"disabled": [{"source": "marketplace:github:github.com/acme/templates"}], "revision": ${appStore.snapshot().revision}}
+                    }""",
+                ),
+                register.getAsJsonObject("params").getAsJsonObject("templatePreferences"),
+            )
+            projectStore.replaceAll(emptyList())
+        } finally {
+            appStore.replaceAll(appStoredBefore)
+        }
+    }
+
+    @Test
+    fun `a page reload writes the page's edit, reseeds the bridge with it and then reloads the page once`() {
+        val f = setUpRouter(INITIAL_XML)
+        val framesAtReload = mutableListOf<JsonObject>()
+        lateinit var page: FakePage
+        page = f.openPageShowing(EDITED_XML, onReload = { framesAtReload += f.wired.fake.framesUntilQuiet().map(::parse) })
+
+        f.dispatchPageReload(page.sessionId)
+
+        assertEquals(EDITED_XML, f.bpmn.document.text, "the reloaded page renders from the Document")
+        assertEquals(listOf("DocumentFlushedCommand", "session/register"), framesAtReload.map { it.frameLabel() })
+        val register = framesAtReload.last()
+        assertEquals(page.sessionId, register.getAsJsonObject("params").get("sessionId").asLong)
+        assertEquals(EDITED_XML, register.getAsJsonObject("params").get("content").asString)
+        assertEquals(listOf("FlushDocumentQuery"), page.received, "the page is reloaded, not released or replayed")
+        f.wired.fake.expectNoFrame()
+    }
+
+    @Test
+    fun `a page reload for a replaced session is ignored`() {
+        val f = setUpRouter(INITIAL_XML)
+        var reloads = 0
+        val page = f.openPageShowing(EDITED_XML, onReload = { reloads++ })
+
+        f.dispatchPageReload(page.sessionId + 1)
+
+        assertEquals(0, reloads)
+        assertTrue(page.received.isEmpty(), "a stale reload does not flush the page")
+        assertEquals(INITIAL_XML, f.bpmn.document.text)
+        f.wired.fake.expectNoFrame()
+    }
+
+    @Test
+    fun `a page closed while its reload reseeds the bridge is not reloaded and ends up disposed in the bridge`() {
+        var whileRegisterFrameIsBuilt: (() -> Unit)? = null
+        val f =
+            setUpRouter(INITIAL_XML) { file ->
+                whileRegisterFrameIsBuilt?.also { whileRegisterFrameIsBuilt = null }?.invoke()
+                readDocumentTextInReadAction(file)
+            }
+        var reloads = 0
+        val page = f.openPageShowing(INITIAL_XML, editedSinceRender = false, onReload = { reloads++ })
+        whileRegisterFrameIsBuilt = { f.router.disposeSession(page.session) }
+
+        f.dispatchPageReload(page.sessionId)
+
+        val sessionFrames = f.wired.fake.framesUntilQuiet().map(::parse).sessionFramesFor(page.session.editorId)
+        assertEquals(
+            "session/dispose" to page.sessionId,
+            sessionFrames.lastOrNull(),
+            "the new bridge must not keep a session for a closed tab: $sessionFrames",
+        )
+        assertEquals(0, reloads, "a closed page's browser is gone")
+    }
+
+    @Test
+    fun `a file reopened while its page reload reseeds the bridge keeps the reopened session and no reload`() {
+        var whileRegisterFrameIsBuilt: (() -> Unit)? = null
+        val f =
+            setUpRouter(INITIAL_XML) { file ->
+                whileRegisterFrameIsBuilt?.also { whileRegisterFrameIsBuilt = null }?.invoke()
+                readDocumentTextInReadAction(file)
+            }
+        var reloads = 0
+        val page = f.openPageShowing(INITIAL_XML, editedSinceRender = false, onReload = { reloads++ })
+        whileRegisterFrameIsBuilt = {
+            f.router.disposeSession(page.session)
+            f.router.registerSession(CoreSession(page.session.editorId, page.session.file, page.session.project) {})
+        }
+
+        f.dispatchPageReload(page.sessionId)
+
+        val sessionFrames = f.wired.fake.framesUntilQuiet().map(::parse).sessionFramesFor(page.session.editorId)
+        val reopenedSessionId =
+            sessionFrames.first { (method, sessionId) -> method == "session/register" && sessionId != page.sessionId }.second
+        assertEquals(
+            "session/register" to reopenedSessionId,
+            sessionFrames.lastOrNull(),
+            "the bridge keeps the last register for an id: $sessionFrames",
+        )
+        assertEquals(0, reloads, "the superseded page is not reloaded")
+    }
+
+    private fun Fixture.dispatchPageReload(pageSessionId: Long) {
+        val params = linkedMapOf<String, Any>("editorId" to session.editorId, "sessionId" to pageSessionId)
+        wired.handlers.dispatch("editor/reload", wired.channel.gson.toJsonTree(params).asJsonObject, null)
+        PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
+    }
 
     @Test
     fun `late traffic and disposal from a replaced same-uri session are ignored`() {
@@ -1417,5 +1571,8 @@ class EditorSessionRouterTest {
         val SESSION_LIFECYCLE_METHODS = setOf("session/register", "session/dispose")
 
         const val TEXT_TAB_EDITOR_ID = "file:///notes.txt"
+
+        const val PLUGIN_ID = "/ws/.camunda/plugins/resize-tasks"
+        const val PLUGIN_HASH = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     }
 }

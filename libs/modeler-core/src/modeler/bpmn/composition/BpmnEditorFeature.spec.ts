@@ -1,22 +1,50 @@
-import { describe, expect, it, vi } from "vitest";
+import { createHash } from "node:crypto";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { realpathSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
     BPMN_EDITOR_COMMAND_TYPES,
     BpmnEditorCommandType,
     BpmnFileQuery,
+    BpmnlintResultsQuery,
+    BpmnPluginsQuery,
     Command,
+    HiddenElementTemplatesQuery,
     GetBpmnModelerSettingCommand,
     GetPropertiesPanelStateCommand,
     LogWarningCommand,
     SetLintingEnabledCommand,
 } from "@miragon/bpmn-modeler-shared";
 
+import { templatePreferenceChange } from "../../../kernel/domain/templatePreferences";
+import { toWorkspacePath } from "../../../kernel/domain/workspacePath";
 import { ArtifactService } from "../../../kernel/service/ArtifactService";
+import { QuestionQueue } from "../../../kernel/service/QuestionQueue";
 import { EditorSessionParticipant } from "../../../editorSession/domain/EditorSessionParticipant";
 import { DocumentFlushService } from "../../../editorSession/service/DocumentFlushService";
 import { MessageRoute } from "../../../editorSession/service/WebviewMessageRouter";
 import { DocumentRenderParticipant } from "../../../editorSession/service/DocumentRenderParticipant";
-import { createTestHost, FakeEditorHandle, HANDLED, ignored, routesOf } from "../../../testing";
+import {
+    createTestHost,
+    FakeEditorHandle,
+    HANDLED,
+    ignored,
+    InMemoryInstalledPackages,
+    RecordingAddOnView,
+    routesOf,
+    ScriptedReview,
+} from "../../../testing";
+import { AddOnsFeature } from "../../../addOns/composition/AddOnsFeature";
+import { BpmnPluginsFeature } from "../../../bpmnPlugins/composition/BpmnPluginsFeature";
+import {
+    RULE_PACKAGE_APPROVAL_NOTICE_ID,
+    RULE_PACKAGE_APPROVAL_PROMPT_ID,
+    rulePackageContentHash,
+} from "../domain/rulePackageApproval";
 import {
     BpmnEditorContributions,
     BpmnEditorFeature,
@@ -52,6 +80,7 @@ const FULL_HOST_ROUTES: Record<BpmnEditorCommandType, MessageRoute> = {
     GetBpmnFileCommand: HANDLED,
     GetDiagramAsSVGCommand: ignored("the SVG export awaits this reply outside the router"),
     GetElementTemplatesCommand: HANDLED,
+    GetBpmnPluginsCommand: HANDLED,
     GetBpmnlintConfigCommand: HANDLED,
     GetBpmnModelerSettingCommand: HANDLED,
     GetPropertiesPanelStateCommand: HANDLED,
@@ -144,11 +173,29 @@ function createFeature(
     capabilities: HostCapabilities = "full",
     rendering: BpmnEditorHostExtensions["rendering"] = "host-driven",
     onScriptResync: () => void = () => undefined,
+    {
+        servesPlugins = false,
+        keepsSwitches = false,
+    }: { servesPlugins?: boolean; keepsSwitches?: boolean } = {},
 ) {
     const host = createTestHost({ folders: ["/work"] });
     const calls: string[] = [];
     const servedExtensions: string[] = [];
-    const contributions = recordingContributions(calls, onScriptResync);
+    const contributions: BpmnEditorContributions = {
+        ...recordingContributions(calls, onScriptResync),
+        ...(servesPlugins
+            ? {
+                  plugins: {
+                      commandHandlers: {
+                          GetBpmnPluginsCommand: () => {
+                              calls.push("serve plugins");
+                          },
+                      },
+                      participant: { onResolve: () => undefined },
+                  },
+              }
+            : {}),
+    };
     const extensions: BpmnEditorHostExtensions =
         capabilities === "full"
             ? {
@@ -172,6 +219,7 @@ function createFeature(
             statusBar: host.statusBar,
             clipboard: host.clipboard,
             artifacts: new ArtifactService(host.workspace, host.settings, host.notifier),
+            ...(keepsSwitches && { templatePreferences: host.templatePreferences }),
         },
         extensions,
         contributions,
@@ -245,6 +293,36 @@ describe("BpmnEditorFeature", () => {
             "codeLink",
         ]);
     });
+
+    it("adds the plugins participant last on a host that serves plugins", () => {
+        const { feature, contributions } = createFeature("full", "host-driven", undefined, {
+            servesPlugins: true,
+        });
+
+        expect(feature.participants.at(-1)).toBe(contributions.plugins?.participant);
+    });
+
+    it.each([
+        { servesPlugins: true, posted: [], calls: ["serve plugins"] },
+        { servesPlugins: false, posted: [[]], calls: [] },
+    ])(
+        "answers the plugin request with the contributed handler or with no plugins (serves plugins: $servesPlugins)",
+        async ({ servesPlugins, posted, calls: expectedCalls }) => {
+            const { host, feature, calls } = createFeature("full", "host-driven", undefined, {
+                servesPlugins,
+            });
+            const editor = host.openEditor(DIAGRAM, C7_XML);
+
+            await feature.router.dispatch(new RecordedCommand("GetBpmnPluginsCommand"), editor.id);
+
+            expect(
+                editor
+                    .postedOfType<BpmnPluginsQuery>("BpmnPluginsQuery")
+                    .map(({ plugins }) => plugins),
+            ).toEqual(posted);
+            expect(calls).toEqual(expectedCalls);
+        },
+    );
 
     it.each<{ rendering: BpmnEditorHostExtensions["rendering"]; renders: number }>([
         { rendering: "on-host-document-change", renders: 1 },
@@ -454,6 +532,31 @@ describe("BpmnEditorFeature", () => {
         },
     );
 
+    it("sends an open editor the templates a switch change hides, until disposed", async () => {
+        const { host, feature } = createFeature("full", "host-driven", undefined, {
+            keepsSwitches: true,
+        });
+        const mailOff = { source: "configFolder:work/.camunda", templateId: "mail" };
+        await host.workspace.writeFile(
+            "/work/.camunda/element-templates/mail.json",
+            JSON.stringify({ id: "mail", name: "Mail" }),
+        );
+        const editor = host.openEditor(DIAGRAM, C7_XML);
+        await feature.templates.setElementTemplates(editor.id);
+
+        await host.templatePreferences.change(templatePreferenceChange("project", [mailOff], []));
+        await settle();
+        feature.dispose();
+        await host.templatePreferences.change(templatePreferenceChange("project", [], [mailOff]));
+        await settle();
+
+        expect(
+            editor
+                .postedOfType<HiddenElementTemplatesQuery>("HiddenElementTemplatesQuery")
+                .map((query) => query.hiddenTemplates),
+        ).toEqual([[{ id: "mail" }]]);
+    });
+
     it("drops a pending template refresh once disposed", async () => {
         vi.useFakeTimers();
         try {
@@ -470,5 +573,228 @@ describe("BpmnEditorFeature", () => {
         } finally {
             vi.useRealTimers();
         }
+    });
+});
+
+describe("BpmnEditorFeature with workspace rule packages", () => {
+    const TASK_FOUND_CONFIG = JSON.stringify({
+        rules: { "acme/task-found": "warn" },
+        // A string extension lints on the host; the missing file is only skipped.
+        moddleExtensions: { acme: "./acme.json" },
+    });
+    const DIAGRAM_WITH_TASK = `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" id="Definitions_1">
+  <bpmn:process id="Process_1"><bpmn:task id="Task_1" /></bpmn:process>
+</bpmn:definitions>`;
+    const PLUGIN_FILES: Record<string, string> = {
+        "package.json": JSON.stringify({ name: "bpmnlint-plugin-acme", version: "1.0.0" }),
+        "index.js": "module.exports = {};",
+        "rules/task-found.js": `module.exports = () => ({
+    check(node, reporter) {
+        if (node.$type === "bpmn:Task") reporter.report(node.id, "found");
+    },
+});`,
+    };
+
+    let workspaceDir: string;
+
+    beforeEach(async () => {
+        workspaceDir = toWorkspacePath(
+            realpathSync(await mkdtemp(join(tmpdir(), "bpmn-editor-rule-packages-"))),
+        );
+    });
+
+    afterEach(async () => {
+        await rm(workspaceDir, { recursive: true, force: true });
+    });
+
+    /** The package on disk for Node's require, and the same bytes in memory for the gate's port. */
+    async function installAcme(packages: InMemoryInstalledPackages): Promise<string> {
+        const pluginDir = `${workspaceDir}/node_modules/bpmnlint-plugin-acme`;
+        for (const [relPath, content] of Object.entries(PLUGIN_FILES)) {
+            const path = `${pluginDir}/${relPath}`;
+            await mkdir(join(path, ".."), { recursive: true });
+            await writeFile(path, content);
+            packages.writeFile(path, content);
+        }
+        return pluginDir;
+    }
+
+    async function lintWithAcmeInstalled({
+        wiresRulePackages,
+        allows = true,
+        review,
+    }: {
+        wiresRulePackages: boolean;
+        allows?: boolean;
+        review?: ScriptedReview;
+    }) {
+        const configPath = `${workspaceDir}/.bpmnlintrc`;
+        const diagramPath = `${workspaceDir}/order.bpmn`;
+        const packages = new InMemoryInstalledPackages((bytes) =>
+            createHash("sha256").update(bytes).digest("hex"),
+        );
+        const pluginDir = await installAcme(packages);
+        const host = createTestHost({
+            folders: [workspaceDir],
+            files: { [configPath]: TASK_FOUND_CONFIG },
+            noticeAnswers: { [RULE_PACKAGE_APPROVAL_NOTICE_ID]: "review" },
+            promptAnswers: allows ? { [RULE_PACKAGE_APPROVAL_PROMPT_ID]: [pluginDir] } : {},
+        });
+        const feature = new BpmnEditorFeature(
+            {
+                ...host,
+                artifacts: new ArtifactService(host.workspace, host.settings, host.notifier),
+                ...(wiresRulePackages
+                    ? {
+                          rulePackages: {
+                              approvals: host.pluginApprovals,
+                              installedPackages: packages,
+                              actionNotifier: host.actionNotifier,
+                              questions: new QuestionQueue(),
+                              ...(review === undefined ? {} : { review }),
+                          },
+                      }
+                    : {}),
+            },
+            { rendering: "host-driven" },
+            recordingContributions([], () => undefined),
+        );
+        const editor = host.openEditor(diagramPath, DIAGRAM_WITH_TASK, { focused: true });
+
+        await feature.lintConfig.setBpmnlintConfig(editor.id);
+        await feature.lintConfig.whenApprovalSettled();
+
+        const results = editor
+            .postedOfType<BpmnlintResultsQuery>("BpmnlintResultsQuery")
+            .map((query) => Object.keys(query.results ?? {}));
+        return { host, feature, editor, pluginDir, results };
+    }
+
+    it("asks about a rule package that skipped rules, and lints with it once allowed", async () => {
+        const { host, pluginDir, results } = await lintWithAcmeInstalled({
+            wiresRulePackages: true,
+        });
+
+        expect(host.actionNotifier.notices.map(({ id }) => id)).toEqual([
+            RULE_PACKAGE_APPROVAL_NOTICE_ID,
+        ]);
+        expect(host.pluginApprovals.approvals.map(({ pluginId }) => pluginId)).toEqual([pluginDir]);
+        expect(results).toEqual([[], ["acme/task-found"]]);
+    });
+
+    it("takes Review… to the review the host passes, which can leave the package to a view", async () => {
+        const review = new ScriptedReview({ [RULE_PACKAGE_APPROVAL_PROMPT_ID]: "leftForView" });
+        const { host, pluginDir, results } = await lintWithAcmeInstalled({
+            wiresRulePackages: true,
+            review,
+        });
+
+        expect(review.requests.map(({ artifactIds }) => artifactIds)).toEqual([[pluginDir]]);
+        expect(host.picker.prompts).toEqual([]);
+        expect(host.pluginApprovals.approvals).toEqual([]);
+        expect(results).toEqual([[]]);
+    });
+
+    it("lists for the add-on catalog the lint config it read and the package the gate reported", async () => {
+        const { feature, pluginDir } = await lintWithAcmeInstalled({ wiresRulePackages: true });
+
+        expect(feature.rulePackageInventory?.lintConfigDirs()).toEqual([workspaceDir]);
+        expect(feature.rulePackageInventory?.seenPackageIds()).toEqual([pluginDir]);
+    });
+
+    it("lints the open editors again when a view revokes an allowed package, and asks no notice", async () => {
+        const { host, feature, editor, pluginDir } = await lintWithAcmeInstalled({
+            wiresRulePackages: true,
+        });
+        const plugins = new BpmnPluginsFeature({
+            ...host,
+            artifacts: new ArtifactService(host.workspace, host.settings, host.notifier),
+            approvals: host.pluginApprovals,
+            cacheRoot: "/storage/bpmn-plugins",
+            hasher: { sha256: (text) => createHash("sha256").update(text).digest("hex") },
+            questions: new QuestionQueue(),
+        });
+        const addOns = new AddOnsFeature({
+            workspace: host.workspace,
+            settings: host.settings,
+            notifier: host.notifier,
+            approvals: host.pluginApprovals,
+            settingChanges: { onDidChange: () => ({ dispose: () => undefined }) },
+            restart: "reloadWindow",
+            plugins: plugins.inventory,
+            rulePackages: feature.rulePackageInventory,
+        });
+        const view = new RecordingAddOnView();
+        view.attachTo(addOns);
+        await addOns.whenSettled();
+        const lints = editor.postedOfType("BpmnlintResultsQuery").length;
+
+        await view.connection?.handle({ kind: "revoke", addOnId: `rulePackage:${pluginDir}` });
+        await feature.lintConfig.whenApprovalSettled();
+
+        expect(host.pluginApprovals.approvals).toEqual([]);
+        expect(editor.postedOfType("BpmnlintResultsQuery")).toHaveLength(lints + 1);
+        expect(host.actionNotifier.notices.map(({ id }) => id)).toEqual([
+            RULE_PACKAGE_APPROVAL_NOTICE_ID,
+        ]);
+    });
+
+    it("lists no rule package without the ports to run one", async () => {
+        const { feature } = await lintWithAcmeInstalled({ wiresRulePackages: false });
+
+        expect(feature.rulePackageInventory).toBeUndefined();
+    });
+
+    it("lets the gate report a package the user declined as declined", async () => {
+        const { feature, editor, pluginDir } = await lintWithAcmeInstalled({
+            wiresRulePackages: true,
+            allows: false,
+        });
+
+        await feature.lintConfig.setBpmnlintConfig(editor.id);
+
+        expect(feature.rulePackageCatalog?.seenPackages()).toEqual([
+            { id: pluginDir, kind: "package", state: "declined", needed: true },
+        ]);
+    });
+
+    it.each([
+        { case: "lints a diagram blocked on a package again", disposed: false, relints: 1 },
+        { case: "follows no approval change once disposed", disposed: true, relints: 0 },
+    ])("$case when another writer allows it", async ({ disposed, relints }) => {
+        const { host, feature, editor, pluginDir, results } = await lintWithAcmeInstalled({
+            wiresRulePackages: true,
+            allows: false,
+        });
+
+        if (disposed) feature.dispose();
+        host.pluginApprovals.storeElsewhere(
+            [{ pluginId: pluginDir, contentHash: rulePackageContentHash("elsewhere") }],
+            { notify: true },
+        );
+        await feature.lintConfig.whenApprovalSettled();
+
+        expect(editor.postedOfType("BpmnlintResultsQuery")).toHaveLength(results.length + relints);
+    });
+
+    it("stops following the approval store once disposed, so a revoke elsewhere leaves no trace", async () => {
+        const { host, feature, editor, results } = await lintWithAcmeInstalled({
+            wiresRulePackages: true,
+        });
+
+        feature.dispose();
+        host.pluginApprovals.storeElsewhere([], { notify: true });
+        await feature.lintConfig.whenApprovalSettled();
+
+        expect(feature.rulePackageCatalog?.revokedThisSession()).toEqual(new Set());
+        expect(editor.postedOfType("BpmnlintResultsQuery")).toHaveLength(results.length);
+    });
+
+    it("runs no workspace rule package and asks nothing on a host that wires no rule package ports", async () => {
+        const { host, results } = await lintWithAcmeInstalled({ wiresRulePackages: false });
+
+        expect(host.actionNotifier.notices).toEqual([]);
+        expect(results).toEqual([[]]);
     });
 });

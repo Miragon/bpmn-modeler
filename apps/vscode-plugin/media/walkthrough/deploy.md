@@ -5,8 +5,9 @@ leaving VS Code:
 
 - Click the 🚀 rocket in the editor title bar to **save and deploy the current
   diagram** to the active target in one step (you're prompted to pick a target
-  the first time). Open the full **Deployment** sidebar from the activity bar
-  when you need additional resources or a custom deployment name.
+  the first time). Open the **Deploy** view in the **BPMN Modeler** container
+  of the activity bar when you need additional resources or a custom
+  deployment name.
 - The modeler supports both **Camunda 7** and **Camunda 8** — pick the engine
   version that matches your target cluster.
 - Save your dev/staging/prod connections as named **deployment targets** (stored

@@ -40,12 +40,22 @@ export interface EditorHandle {
     postMessage(message: Command | Query): Promise<boolean>;
 
     /**
-     * Reloads the webview UI in place, re-requesting document content, element
-     * templates, and settings from the host — the same startup handshake a
-     * tab-switch-back triggers on a non-retained webview. Optional so hosts that
-     * cannot restart a webview (e.g. the IntelliJ bridge) simply omit it.
+     * Reloads the webview UI, re-requesting document content, element
+     * templates, plugins and settings from the host — the same startup
+     * handshake a tab-switch-back triggers on a non-retained webview. The
+     * IntelliJ bridge reloads the whole page. Optional so a host that cannot
+     * restart its webview omits it.
      */
     reload?(): void;
+
+    /**
+     * The URL under which this editor's webview loads the file at `path`, a
+     * file below the host's plugin cache: a webview resource URI on VS Code,
+     * a route of the loopback webview server on IntelliJ. Optional so a host
+     * whose webview cannot load such files omits it, and its editors get no
+     * plugins.
+     */
+    webviewUrlOf?(path: string): string;
 
     /** Whether this session's panel currently holds focus. */
     isActive(): boolean;

@@ -1,7 +1,7 @@
 # Release and publishing
 
 - Status: accepted
-- Last reviewed: 2026-11-05
+- Last reviewed: 2026-11-10
 
 ## Context
 
@@ -9,8 +9,10 @@ Published packages and IDE hosts have independent version lines but bundle
 shared source. Release routing must account for changes in those shared inputs
 without treating every package API break as a host break. Releases are cut
 occasionally and usually ship every component with pending changes. npm
-publishing also needs installable tarballs, consumer validation and
-authentication without a standing CI token.
+publishing also needs installable tarballs and consumer validation. npm and
+VS Code Marketplace publishing need authentication without a standing CI
+token; Azure DevOps retires the global PATs the Marketplace accepted on
+December 1, 2026, and Open VSX offers the same OIDC exchange.
 
 The standalone Linux app needs Git inside its Flatpak sandbox without requiring
 users to install a full development SDK or allowing host-command execution.
@@ -120,6 +122,21 @@ bootstrap. Normal real publishing is gated by release approval and the npm
 registry environment. Manual dispatch of the reusable workflow is dry-run-only;
 retry a failed real publish through its release-please job. Skip versions that
 already exist on npm so retries are idempotent.
+
+Publish the VS Code extension with `vsce publish --oidc` (Marketplace Trusted
+Publishing), not a PAT. The publisher's policy names
+`publish-vscode-modeler.yml` and the `vscode-marketplace` environment, and the
+job and its `release-please.yml` caller grant `id-token: write`. Microsoft
+does not document whether a reusable workflow is matched by its own file or
+its caller, so a manual dispatch with `dry-run: false` is the fallback until a
+release run has proven the called-file match.
+
+Publish to Open VSX with `ovsx publish --trusted-publishing`, without a token.
+Open VSX matches the token's `workflow_ref`, the top-level caller, and allows
+one trusted publisher per extension, so it is registered for
+`release-please.yml` and the `open-vsx-marketplace` environment. As with npm,
+manual dispatch of its reusable workflow is dry-run-only; retry a failed real
+publish through its release-please job.
 
 Validate the packed artifact in scratch consumers before publishing: no
 `workspace:` ranges, resolvable declared exports, appropriate browser entries,
@@ -242,7 +259,9 @@ the hosts that ship them. They release together from one PR and one approval;
 a single line cannot be held back. Routing exclusions and marker input sets are
 maintained configuration, not inferred automatically from the module graph. npm
 publishing uses short-lived identity with provenance; package bootstrap and
-trusted publisher registration remain explicit setup steps.
+trusted publisher registration remain explicit setup steps. VS Code Marketplace
+and Open VSX publishing use short-lived identity too and tie the workflow file
+name and the environment name to each registry's policy.
 
 External dependencies permit consumer plugin interoperability but make version
 alignment and declared dependencies part of release correctness. Yarn Berry

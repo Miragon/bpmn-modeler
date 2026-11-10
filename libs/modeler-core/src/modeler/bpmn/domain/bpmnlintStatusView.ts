@@ -23,6 +23,16 @@ export function bpmnlintStatusView(indicator: BpmnlintIndicator): StatusView {
                 tone: "warning",
             };
         }
+        case "blocked": {
+            const { configPath, unresolved, notAllowed } = indicator;
+            const single = notAllowed.length === 1;
+            return {
+                text: `BPMNlint: ${notAllowed.length} rule package${single ? "" : "s"} not allowed`,
+                icon: "warning",
+                tooltip: `${configPath}\n\n${notAllowed.length} rule package${single ? " in this workspace is" : "s in this workspace are"} not allowed yet.\nSkipped: ${unresolved.join(", ")}`,
+                tone: "warning",
+            };
+        }
         case "default": {
             const engine = indicator.platform
                 ? ENGINE_LABEL[indicator.platform]

@@ -5,6 +5,7 @@ import {
     type Command,
     ElementTemplatesQuery,
     FlushDocumentQuery,
+    HiddenElementTemplatesQuery,
     LanguageQuery,
     type Query,
     ReleaseDocumentFlushQuery,
@@ -39,6 +40,7 @@ function fakeSessionHandlers() {
     return {
         BpmnFileQuery: vi.fn(),
         ElementTemplatesQuery: vi.fn(),
+        HiddenElementTemplatesQuery: vi.fn(),
         BpmnlintResultsQuery: vi.fn(),
         BpmnLintDisabledQuery: vi.fn(),
         BpmnlintInPageQuery: vi.fn(),
@@ -62,6 +64,7 @@ function fakeSessionHandlers() {
         TakeFocusQuery: vi.fn(),
         FlushDocumentQuery: vi.fn(),
         ReleaseDocumentFlushQuery: vi.fn(),
+        BpmnPluginsQuery: vi.fn(),
     } satisfies HostMessageHandlers<SessionHostMessages>;
 }
 
@@ -206,7 +209,7 @@ describe("createSessionMessageRouter", () => {
         handlers.BpmnModelerSettingQuery.mockImplementation(() => delivered.push("settings"));
         handlers.LanguageQuery.mockImplementation(() => delivered.push("language"));
 
-        await router.route(new ElementTemplatesQuery([]));
+        await router.route(new ElementTemplatesQuery([], []));
         await router.route(settingsQuery());
         expect(delivered).toEqual([]);
 
@@ -214,6 +217,25 @@ describe("createSessionMessageRouter", () => {
         await router.route(new LanguageQuery("de"));
 
         expect(delivered).toEqual(["templates", "settings", "language"]);
+    });
+
+    it("replays a hidden-templates change after the template list it arrived behind", async () => {
+        const { handlers, router } = sessionRouter();
+        const hiddenRefs: unknown[] = [];
+        handlers.ElementTemplatesQuery.mockImplementation((query) =>
+            hiddenRefs.push(query.hiddenTemplates),
+        );
+        handlers.HiddenElementTemplatesQuery.mockImplementation((query) =>
+            hiddenRefs.push(query.hiddenTemplates),
+        );
+
+        await router.route(new ElementTemplatesQuery([{ id: "mail" }], []));
+        await router.route(new HiddenElementTemplatesQuery([{ id: "mail" }]));
+        expect(hiddenRefs).toEqual([]);
+
+        router.openImportBound();
+
+        expect(hiddenRefs).toEqual([[], [{ id: "mail" }]]);
     });
 
     it("drops held messages when they are discarded and routes later ones directly", async () => {

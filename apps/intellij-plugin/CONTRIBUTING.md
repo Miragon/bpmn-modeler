@@ -115,6 +115,56 @@ does not answer is saved as it is. See
   (`linting/toggle`), or the deployment menu. `StatusSlotPlacementTest` fails
   when the core's `statusView.ts` gains a slot, icon, tone or action without a
   Kotlin counterpart.
+- **ActionNotifier → a balloon with one action per label** (`actionNotice/show`,
+  `HostNotifications.actionNotice`). The reply carries the chosen label's index,
+  or none once the notice expires unanswered (cleared from the Notifications
+  tool window); a balloon closed with its X stays there and can still be
+  answered. `ActionNoticeToneTest` holds the tones to the core's
+  `ACTION_NOTICE_TONES`.
+
+### Workspace bpmn-js plugins
+
+The core finds plugins in the workspace, asks through the action notice and
+the picker, and copies approved ones into a content-addressed cache under
+`<IDE system dir>/miragon-bpmn-modeler/bpmn-plugins` (`BpmnPluginCache`, passed
+to the bridge as `MIRAGON_BPMN_PLUGIN_CACHE`). The host's part:
+
+- **Approvals** live in `PluginApprovalStore`, one application value under
+  `miragon.bpmnModeler.pluginApprovals`, never in a project file. They reach
+  the bridge on every `session/register` and through `pluginApprovals/didChange`
+  after a `pluginApprovals/change`, which every running bridge gets. A bridge
+  sends only the rows to allow and the ids to revoke; the store merges them
+  under one lock with `approvalsAfter`, a copy of the core's that
+  `PluginApprovalStoreTest` holds to `codeApprovalChange.cases.json`.
+- **Serving.** `WebviewServer` answers `/bpmn-plugins/<64 hex>/plugin.js|plugin.css`
+  from the cache, matched before decoding (`WebviewRoute`), with no symbolic
+  link and no path outside the cache (`PluginAssetFile`); anything else under
+  `/bpmn-plugins/` is a 404. The shell's CSP (`script-src 'self'`) already
+  admits these same-origin files. `WebviewRouteTest` runs the bridge's
+  `pluginAssetUrl.cases.json` rows.
+- **Reload.** A page asks for its plugins only while it boots, so after an
+  approval the core sends `editor/reload`: the host writes the page's unsynced
+  edit into the `Document`, re-registers the session and reloads the page.
+- **Shim.** The page's own wiring is single-use: `acquireVsCodeApi()` hands
+  out its API once, `__modelerSetSink` deletes itself on its first call, and
+  the sink script (`WebviewSinkScript`) captures the `JBCefJSQuery` function
+  once instead of looking up its global per message. That stops accidental
+  reuse, not an approved plugin: CEF keeps the `cefQuery_…` function on
+  `window`, so a plugin can still post to the JVM and the bridge. A plugin has
+  the page's full authority, as in VS Code; approval is the control.
+
+### Element template switches
+
+The user's switches live under `miragon.bpmnModeler.templatePreferences`: the
+`project` scope in the project `PropertiesComponent`
+(`ProjectTemplatePreferenceStore`, so `.idea/workspace.xml`), the
+`allProjects` scope in the application's (`TemplatePreferenceStore`), each
+with its own revision. They reach the bridge on every `session/register` and
+through `templatePreferences/didChange` after a `templatePreferences/change`:
+every running bridge for an `allProjects` change, the project's own for a
+`project` change (`TemplatePreferenceRouter`). The stores merge with
+`templatePreferencesAfter`, which `TemplatePreferenceStoreTest` holds to
+`templatePreferenceChange.cases.json`.
 
 ## Build & run
 
@@ -128,7 +178,7 @@ sandbox IDE:
 corepack yarn intellij:run
 ```
 
-`intellij:run` = `intellij:build` (libs → bpmn + deployment webviews → bridge
+`intellij:run` = `intellij:build` (libs → bpmn, deployment and add-ons webviews → bridge
 `compile`) then `./gradlew runIde`. Use `corepack yarn intellij:build` alone to
 refresh the artefacts without launching, then re-run `runIde` yourself.
 
@@ -139,6 +189,7 @@ refresh the artefacts without launching, then re-run `runIde` yourself.
 corepack yarn build:libs
 corepack yarn build:bpmn-webview          # → dist/webview-staging/bpmn-webview/
 corepack yarn build:deployment-webview    # → dist/webview-staging/deployment-webview/
+corepack yarn build:add-ons-webview       # → dist/webview-staging/add-ons-webview/
 corepack yarn workspace @miragon/bpmn-modeler-bridge compile
                                           # → apps/modeler-bridge/dist/modeler-bridge
 cd apps/intellij-plugin && ./gradlew runIde
@@ -152,6 +203,14 @@ a **BPMN Modeler** tab and the diagram renders. Move/add an element, then
 The status bar shows the template load, the engine version, the BPMNlint status
 and the deployment target, one widget each; loading errors surface as balloons.
 Tail the IDE log for `[bridge stderr]` lines to watch the seam.
+
+The **BPMN Modeler** tool window (right stripe) has a **Deploy** and an
+**Artifacts** tab. Each is a `JcefRelayPanel` that relays its page verbatim
+through its router (`DeploymentRouter`, `AddOnsRouter`); the Artifacts browser
+is built the first time its tab shows. **Review…** on a plugin or rule package
+notice reaches the tab over `addOns/reveal`. To try the reload after a crash
+respawn, `kill` the bridge process while an **Allow this content** runs: the
+Artifacts page reloads and no row stays busy.
 
 > The Gradle build only repackages the artefacts `intellij:build` produced — a
 > webview/CSS change is **not** picked up until you rebuild them. Re-run
@@ -231,8 +290,8 @@ modeler core or the bridge.
 
 ## Scope
 
-BPMN editor + element templates + Notifier/StatusBar, plus diff, deployment, the
-inline "Edit Script" tab, and the template marketplace (Tools ▸ Add / Update
+BPMN editor + element templates + Notifier/StatusBar, plus diff, deployment, the add-ons view, the
+inline "Edit Script" tab, approved workspace bpmn-js plugins, and the template marketplace (Tools ▸ Add / Update
 Template Marketplace; the source list is edited on the Settings page, per-host
 PATs live in `PasswordSafe`). DMN has no IntelliJ editor yet.
 

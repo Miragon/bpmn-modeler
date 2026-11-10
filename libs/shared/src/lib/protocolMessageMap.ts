@@ -1,4 +1,11 @@
 import type {
+    AddOnActionResultQuery,
+    AddOnCatalogQuery,
+    AddOnRequestCommand,
+    GetAddOnCatalogCommand,
+    RevealAddOnsQuery,
+} from "./addOnsView";
+import type {
     DocumentFlushedCommand,
     FlushDocumentQuery,
     LogDebugCommand,
@@ -17,6 +24,7 @@ import type {
     BpmnFileQuery,
     BpmnLintDisabledQuery,
     BpmnModelerSettingQuery,
+    BpmnPluginsQuery,
     BpmnlintInPageQuery,
     BpmnlintResultsQuery,
     CleanupDiagramQuery,
@@ -50,12 +58,14 @@ import type {
     GetDmnFileCommand,
     GetDmnModelerSettingCommand,
     GetElementTemplatesCommand,
+    GetBpmnPluginsCommand,
     GetElementTemplateFileCommand,
     GetFormFileCommand,
     GetFormInputValuesCommand,
     GetFormReferenceStatusCommand,
     GetPropertiesPanelStateCommand,
     GetTextClipboardCommand,
+    HiddenElementTemplatesQuery,
     ImplementationStatusQuery,
     LanguageQuery,
     NavigateToImplementationCommand,
@@ -108,6 +118,8 @@ export type ProtocolQuery =
     | FormInputValuesQuery
     | ElementTemplateFileQuery
     | ElementTemplatesQuery
+    | HiddenElementTemplatesQuery
+    | BpmnPluginsQuery
     | BpmnlintResultsQuery
     | BpmnLintDisabledQuery
     | BpmnlintInPageQuery
@@ -139,7 +151,10 @@ export type ProtocolQuery =
     | ProcessDefinitionKeyQuery
     | ApplyDiffHighlightsQuery
     | SyncViewportQuery
-    | SyncCursorQuery;
+    | SyncCursorQuery
+    | AddOnCatalogQuery
+    | AddOnActionResultQuery
+    | RevealAddOnsQuery;
 
 export type ProtocolCommand =
     | SyncDocumentCommand
@@ -158,6 +173,7 @@ export type ProtocolCommand =
     | UpdateFormOutputValuesCommand
     | GetElementTemplateFileCommand
     | GetElementTemplatesCommand
+    | GetBpmnPluginsCommand
     | GetBpmnlintConfigCommand
     | GetBpmnModelerSettingCommand
     | GetDmnModelerSettingCommand
@@ -195,7 +211,9 @@ export type ProtocolCommand =
     | ViewportChangedCommand
     | CursorChangedCommand
     | DiffReadyCommand
-    | SwapCompareSidesCommand;
+    | SwapCompareSidesCommand
+    | GetAddOnCatalogCommand
+    | AddOnRequestCommand;
 
 export type ProtocolMessage = ProtocolQuery | ProtocolCommand;
 

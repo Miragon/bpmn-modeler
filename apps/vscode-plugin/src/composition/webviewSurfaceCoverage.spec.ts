@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("vscode", () => import("../__fixtures__/vscodeCompositionFake"));
 
-import { ExtensionContext } from "vscode";
+import { ExtensionContext, Uri } from "vscode";
 
 import {
     ScriptEditorFeature,
@@ -19,12 +19,14 @@ import {
 
 import { InMemoryMemento } from "../__fixtures__/vscodeStorage";
 import { setContext } from "../shared/adapter/out/extensionContext";
+import * as addOnsFeature from "./addOnsFeature";
 import * as bpmnEditorFeature from "./bpmnEditorFeature";
 import * as deploymentFeature from "./deploymentFeature";
 import * as diffFeature from "./diffFeature";
 import * as editorFeature from "./editorFeature";
 import * as elementTemplateFeature from "./elementTemplateFeature";
 import { buildSharedDeps } from "./sharedDeps";
+import * as templateMarketplaceFeature from "./templateMarketplaceFeature";
 
 /** How VS Code serves each command of each webview surface. */
 const VSCODE_SURFACES: HostSurfaceCoverage = {
@@ -40,6 +42,7 @@ const VSCODE_SURFACES: HostSurfaceCoverage = {
         GetBpmnFileCommand: HANDLED,
         GetDiagramAsSVGCommand: ignored("the SVG export awaits this reply outside the router"),
         GetElementTemplatesCommand: HANDLED,
+        GetBpmnPluginsCommand: HANDLED,
         GetBpmnlintConfigCommand: HANDLED,
         GetBpmnModelerSettingCommand: HANDLED,
         GetPropertiesPanelStateCommand: HANDLED,
@@ -117,6 +120,12 @@ const VSCODE_SURFACES: HostSurfaceCoverage = {
         StartInstanceCommand: HANDLED,
         RequestPayloadFilesCommand: HANDLED,
     },
+    addOnsView: {
+        LogInfoCommand: HANDLED,
+        LogErrorCommand: HANDLED,
+        GetAddOnCatalogCommand: HANDLED,
+        AddOnRequestCommand: HANDLED,
+    },
 };
 
 /** The webview surfaces as VS Code's activation registers them. */
@@ -126,10 +135,14 @@ function registerVsCodeSurfaces() {
         globalState: new InMemoryMemento(),
         workspaceState: new InMemoryMemento(),
         secrets: {},
+        globalStorageUri: Uri.file("/global-storage"),
+        extensionUri: Uri.file("/extension"),
     } as unknown as ExtensionContext;
     setContext(context);
     const deps = buildSharedDeps(context);
     const { diffController } = diffFeature.register(context, deps);
+    const { marketplaceSvc, templateSources } = templateMarketplaceFeature.register(context, deps);
+    const reviews = addOnsFeature.createViewReviews(deps);
     const { deploymentStatusParticipant, deploymentSidebarRoutes } = deploymentFeature.register(
         context,
         deps,
@@ -145,8 +158,9 @@ function registerVsCodeSurfaces() {
     );
     const bpmnEditor = bpmnEditorFeature.register(context, deps, {
         diffController,
-        marketplaceSvc: { getCachedTemplatePaths: () => Promise.resolve([]) },
+        templateSources,
         deploymentStatusParticipant,
+        reviews,
         scriptEditor: new ScriptEditorFeature({
             scriptEditor: new RecordingScriptEditor(deps.editorStore, scriptFiles, deps.picker),
             variables: new ScriptVariableStore(),
@@ -155,14 +169,24 @@ function registerVsCodeSurfaces() {
         }).editorContribution,
     });
     const { dmnEditorRoutes, formEditorRoutes } = editorFeature.register(context, deps);
+    const { marketplaces } = templateMarketplaceFeature.registerCommands(context, deps, {
+        marketplaceSvc,
+        templatesSvc: bpmnEditor.editor.templates,
+    });
+    const { addOnsViewRoutes } = addOnsFeature.register(context, deps, {
+        ...bpmnEditor,
+        marketplaces,
+        reviews,
+    });
     const { templateEditorRoutes } = elementTemplateFeature.register(context, deps);
     return {
-        bpmnEditor: bpmnEditor.router,
+        bpmnEditor: bpmnEditor.editor.router,
         bpmnDiffPane: diffController.paneRoutes,
         dmnEditor: dmnEditorRoutes,
         formEditor: formEditorRoutes,
         templateEditor: templateEditorRoutes,
         deploymentSidebar: deploymentSidebarRoutes,
+        addOnsView: addOnsViewRoutes,
     };
 }
 

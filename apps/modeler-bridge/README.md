@@ -17,12 +17,20 @@ isn't talking to VS Code.
 
 | Direction   | Method(s)                               | Port / handle                                                                                 |
 | ----------- | --------------------------------------- | --------------------------------------------------------------------------------------------- |
-| host → core | `session/register`, `session/dispose`   | editor lifecycle (seeds the `DocumentPort` mirror)                                            |
+| host → core | `session/register`, `session/dispose`   | editor lifecycle (seeds the `DocumentPort` mirror, the plugin-approval mirror and the template-switch mirror) |
 | host → core | `document/didChange`                    | external document change → re-render                                                          |
 | host → core | `session/setActive`                     | focused tab → `EditorSessionStore` active-editor pointer                                      |
 | host → core | `webview/message`                       | inbound `Command` → `WebviewMessageRouter`                                                    |
 | core → host | `document/write`, `document/save`       | `DocumentPort.write` / `.save`                                                                |
 | core → host | `editor/postMessage`                    | `EditorHandle.postMessage` (Query/Command → webview)                                          |
+| core → host | `editor/reload`                         | `EditorHandle.reload` → the host reloads the whole page, after an approval, so it loads the newly allowed plugins |
+| core → host | `actionNotice/show`                     | `ActionNotifierPort` → an IntelliJ notification with one action per label; replies the clicked index as `chosen`, none once the notification expired |
+| core → host | `pluginApprovals/change`                | `PluginApprovalStorePort.change` → the host merges the rows to allow and the ids to revoke into the application-level approval store, pushes the list to every running bridge, then answers with it |
+| core → host | `pluginApprovals/read`                  | `PluginApprovalStorePort.readStored` → the stored list and its revision, never the mirror                        |
+| host → core | `pluginApprovals/didChange`             | the stored list and its revision; the plugin-approval mirror the core reads synchronously keeps the newest revision |
+| core → host | `templatePreferences/change`            | `TemplatePreferenceStorePort.change` → the host merges the switches to disable and to enable into the store of their scope (project or application properties), pushes both lists, then answers with them |
+| core → host | `templatePreferences/read`              | `TemplatePreferenceStorePort.readStored` → both stored lists with their revisions, never the mirror               |
+| host → core | `templatePreferences/didChange`         | both lists with one revision each, after an all-projects change to every running bridge, after a project change to the project's own; the mirror keeps the newest revision per scope |
 | core → host | `notifier/*`                            | `NotifierPort` → IntelliJ `Notifications.Bus` + IDE log                                       |
 | core → host | `statusBar/update`                      | `StatusBarPort` → `{slot, view}`, `view: null` hides the slot; IntelliJ shows each slot in its own `StatusBarWidget` |
 | host → core | `linting/toggle`                        | BPMNlint widget click → reports the flipped lint choice over `settings/setLintingEnabled`, as the webview toggle does |
@@ -42,6 +50,11 @@ isn't talking to VS Code.
 | core → host | `tokenStore/*`                          | `TokenStorePort` → `PasswordSafe` (per-host marketplace PATs, distinct subsystem)             |
 | core → host | `tokenPrompt/show`                      | `TokenPromptPort` → modal password dialog with the core's title and prompt; replies the answer as typed (`null` on cancel), the core judges a blank one |
 | host → core | `script/openAll`                        | Tools-menu action → post `OpenAllScriptTasksQuery` to the active webview, bulk-open the reply |
+| host → core | `addOns/open`                           | Artifacts tab shown or hidden (reliable, coalesced) → apply the settings, claim the project root for the life of the process, then the panel's visibility; re-sent after every spawn |
+| host → core | `addOns/webviewMessage`                 | inbound add-ons view `Command` (reliable) → the core `AddOnsFeature`'s panel                    |
+| host → core | `addOns/refresh`                        | the Artifacts tab's Refresh → `AddOnsFeature.refresh()`                                          |
+| core → host | `addOns/postMessage`                    | add-ons view `Query` → the Artifacts tab's webview (`window.postMessage`)                       |
+| core → host | `addOns/reveal`                         | `RpcAddOnViewReveal` for **Review…** → select the Artifacts tab and activate the tool window; `{shown}`, `false` when it cannot, under the 10 s `hostShow` deadline. The core then reveals the rows through the panel |
 
 The RPC method index above is prose; the authoritative surface is generated by
 `protocolTable()` from `src/protocol/domain/descriptor.ts` and pinned by `protocol.spec.ts`
@@ -135,7 +148,12 @@ The bridge follows the role folders of the
   editor webview command and lists the session participants in VS Code's
   order; `bridge.surfaceCoverage.spec.ts` pins its routes with every other
   webview surface's. The marketplace cache root arrives via the
-  `MIRAGON_BPMN_MARKETPLACE_CACHE` env var (`server.ts`).
+  `MIRAGON_BPMN_MARKETPLACE_CACHE` env var, the plugin cache root via
+  `MIRAGON_BPMN_PLUGIN_CACHE` (`server.ts`). The plugins module builds the core
+  `BpmnPluginsFeature`; `RpcEditorHandle.webviewUrlOf` maps a cached
+  `<hash>/plugin.js|css` to the host's `/bpmn-plugins/` route
+  (`editorSession/domain/pluginAssetUrl.ts`, whose cases file the Kotlin
+  route test runs).
   `stdioBinding.ts` feeds stdin frames to the `Rpc` and tags every stderr line
   with `[core]`.
 - `src/<context>/adapter/in/*Handlers.ts` — the Host→Core handler tables.
@@ -143,9 +161,10 @@ The bridge follows the role folders of the
   `RpcDocumentPort`, `RpcNotifier`, `RpcStatusBar`, `RpcClipboard`,
   `RpcPicker`, `RpcSecretStore`, `RpcDeploymentState`, `RpcTokenStore`,
   `RpcTokenPrompt`, `RpcMarketplacePrompt`, `RpcMarketplaceRegistrations`,
+  `RpcActionNotifier`, `RpcPluginApprovalStore`,
   `RpcLintingPreference`, `RpcDiffPaneHandle`,
   `BridgeScriptEditor`) and the pure-`fs` `NodeWorkspace` / `BridgeSettings`.
-- `src/<context>/port/` — what the handlers feed: the settings and
+- `src/<context>/port/` — what the handlers feed: the settings, plugin-approval and
   deployment-state mirrors, the workspace roots, the editor-handle and
   diff-pane factories, the script tabs.
 - `src/editorSession/domain/DocumentMirror.ts` — the mirrored document text.

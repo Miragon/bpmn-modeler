@@ -26,11 +26,15 @@ import {
     LintSession,
     LintSessionEvent,
     lintsInPage,
+    lintsOnHost,
     Negotiation,
     reduceLintSession,
     UNTRACKED_LINT_SESSION,
 } from "../domain/LintSession";
 import { DiagnosticsPort, LintRunnerPort } from "../port/bpmnPorts";
+import { RulePackageApprovals, RulePackageFollowUp } from "./RulePackageFollowUp";
+
+export type { RulePackageApprovals } from "./RulePackageFollowUp";
 
 const DROP_LOG_LINES: Partial<Record<LintDropReason, string>> = {
     supersededVersion: "[bpmnlint] dropping in-page results for a superseded config version",
@@ -61,10 +65,16 @@ const DROP_LOG_LINES: Partial<Record<LintDropReason, string>> = {
  * the new tier. Config runs of one editor can finish out of order, so only the
  * newest one reaches the session. Filesystem discovery lives in
  * {@link BpmnLintConfigLocator}.
+ *
+ * A host lint that skipped rules of a workspace rule package the user has not
+ * allowed asks about it afterwards, so the results never wait on the user. An
+ * allow, whoever made it, lints again every open editor whose last host lint
+ * was blocked on an allowed package, and a revoke every host-linted editor.
  */
 export class BpmnLintConfigService implements BpmnlintChangeTarget {
     private readonly sessions = new Map<string, LintSession>();
     private readonly latestRuns = new Map<string, symbol>();
+    private readonly rulePackageFollowUp: RulePackageFollowUp;
 
     /** Monotonic source for opaque config-version tokens; never reset. */
     private tokenCounter = 0;
@@ -78,7 +88,25 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
         private readonly statusBar: StatusBarPort,
         private readonly notifier: NotifierPort,
         private readonly settings: SettingsPort,
-    ) {}
+        rulePackages?: RulePackageApprovals,
+    ) {
+        this.rulePackageFollowUp = new RulePackageFollowUp(
+            notifier,
+            (editorId) => this.setBpmnlintConfig(editorId),
+            () => this.hostLintedEditors(),
+            rulePackages,
+        );
+    }
+
+    /** Resolves once every rule package question raised so far is answered and its relints ran. */
+    whenApprovalSettled(): Promise<void> {
+        return this.rulePackageFollowUp.whenSettled();
+    }
+
+    /** Stops following the rule package approvals. */
+    dispose(): void {
+        this.rulePackageFollowUp.dispose();
+    }
 
     /** Re-evaluates the lint tier for the document and drives it. */
     setBpmnlintConfig(editorId: string): Promise<boolean> {
@@ -94,6 +122,7 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
         this.diagnostics.clear(editorId);
         this.sessions.delete(editorId);
         this.latestRuns.delete(editorId);
+        this.rulePackageFollowUp.release(editorId);
     }
 
     applyWebviewLintResults(
@@ -105,11 +134,17 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
         const xml = this.vsDocument.getContent(editorId);
         void this.dispatch(editorId, {
             type: "webviewLinted",
-            output: { xml, results, unresolved },
+            output: { xml, results, unresolved, blocked: [] },
             platform: this.detectPlatform(xml),
             configToken,
             lintingEnabled: this.settings.getLintingEnabled(),
         });
+    }
+
+    private hostLintedEditors(): string[] {
+        return [...this.sessions]
+            .filter(([, session]) => lintsOnHost(session))
+            .map(([editorId]) => editorId);
     }
 
     private async lintAndPush(editorId: string): Promise<boolean> {
@@ -154,17 +189,23 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
         const { configPath, config, token } = negotiation;
         try {
             const xml = this.vsDocument.getContent(editorId);
-            const { results, unresolved } = await this.lintRunner.lint(
+            const lintRun = await this.lintRunner.lint(
                 xml,
                 configPath,
                 config as Record<string, unknown>,
             );
             if (this.isSuperseded(editorId, run)) return this.dropSupersededRun();
-            return this.dispatch(editorId, {
+            this.rulePackageFollowUp.log(negotiation, lintRun);
+            const { results, unresolved, blocked } = lintRun;
+            const pushed = await this.dispatch(editorId, {
                 type: "hostLintFinished",
                 token,
-                output: { xml, results, unresolved },
+                output: { xml, results, unresolved, blocked },
             });
+            if (this.editorStore.hasEditor(editorId)) {
+                this.rulePackageFollowUp.ask(editorId, blocked);
+            }
+            return pushed;
         } catch (error) {
             this.logLintFailure(error);
             if (this.isSuperseded(editorId, run)) return this.dropSupersededRun();
@@ -246,10 +287,10 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
 
     /** Feeds a host run and an in-page run to the same chrome. Diagnostics always publish. */
     private applyFindings(editorId: string, findings: LintFindings): void {
-        const { xml, results, unresolved, source } = findings;
+        const { xml, results, unresolved, blocked, source } = findings;
         this.diagnostics.publish(editorId, xml, results);
 
-        this.showStatusIfFocused(editorId, indicatorForFindings(source, unresolved));
+        this.showStatusIfFocused(editorId, indicatorForFindings(source, unresolved, blocked));
 
         if (unresolved.length > 0) {
             // Surface skipped rules plainly rather than burying them in the

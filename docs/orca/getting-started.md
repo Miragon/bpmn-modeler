@@ -20,6 +20,9 @@ which also lists the modelers of the Miragon modeler suite. New releases reach y
 
 You need the Orca desktop app, version 1.4.248 or later.
 
+**Try it** on the plugin's page opens an example process. **+** in the tab bar starts a new process or decision
+from an example.
+
 ## What you get
 
 | `.bpmn` | `.dmn` |

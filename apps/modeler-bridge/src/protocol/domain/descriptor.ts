@@ -20,6 +20,12 @@
 import { Command, Query } from "@miragon/bpmn-modeler-shared";
 
 import {
+    ActionNoticeShowParams,
+    ActionNoticeShowResult,
+    AddOnsOpenParams,
+    AddOnsPostMessageParams,
+    AddOnsRevealResult,
+    AddOnsWebviewMessageParams,
     BasicAuthCredentials,
     ClipboardReadResult,
     ClipboardWriteParams,
@@ -57,6 +63,8 @@ import {
     ConfirmShowResult,
     PickerShowParams,
     PickerShowResult,
+    PluginApprovalsChangeParams,
+    PluginApprovalsSnapshot,
     RegisterParams,
     SecretApprovedDestinations,
     SecretDeleteParams,
@@ -75,6 +83,8 @@ import {
     SettingsDidChangeParams,
     SettingsSetLintingEnabledParams,
     StatusBarUpdateParams,
+    TemplatePreferencesChangeParams,
+    TemplatePreferencesSnapshot,
     TokenPromptShowParams,
     TokenPromptShowResult,
     TokenStoreGetParams,
@@ -98,8 +108,10 @@ type Kind = "notification" | "request";
  *   state out of step with the host.
  * - `hostWork`: fails after {@link HOST_WORK_REPLY_DEADLINE_MS}, so a reply the
  *   host never sends cannot hold the caller's editor queue.
+ * - `hostShow`: fails after {@link HOST_SHOW_REPLY_DEADLINE_MS}; the host shows
+ *   one of its views, and the caller offers another surface once it gives up.
  */
-type ReplyWait = "prompt" | "syncedWrite" | "hostWork";
+type ReplyWait = "prompt" | "syncedWrite" | "hostWork" | "hostShow";
 
 interface ProtocolEntryShape {
     readonly method: string;
@@ -151,6 +163,11 @@ export const METHODS = {
     deploymentDeployActive: "deployment/deployActive",
     deploymentVerify: "deployment/verify",
     deploymentStatusBarMenu: "deployment/statusBarMenu",
+    pluginApprovalsDidChange: "pluginApprovals/didChange",
+    templatePreferencesDidChange: "templatePreferences/didChange",
+    addOnsWebviewMessage: "addOns/webviewMessage",
+    addOnsOpen: "addOns/open",
+    addOnsRefresh: "addOns/refresh",
 
     // Core → Host requests
     documentWrite: "document/write",
@@ -174,9 +191,16 @@ export const METHODS = {
     tokenStoreSet: "tokenStore/set",
     tokenPromptShow: "tokenPrompt/show",
     settingsSetLintingEnabled: "settings/setLintingEnabled",
+    actionNoticeShow: "actionNotice/show",
+    pluginApprovalsChange: "pluginApprovals/change",
+    pluginApprovalsRead: "pluginApprovals/read",
+    templatePreferencesChange: "templatePreferences/change",
+    templatePreferencesRead: "templatePreferences/read",
+    addOnsReveal: "addOns/reveal",
 
     // Core → Host notifications
     editorPostMessage: "editor/postMessage",
+    editorReload: "editor/reload",
     clipboardWrite: "clipboard/write",
     notifierShowInfo: "notifier/showInfo",
     notifierShowWarning: "notifier/showWarning",
@@ -193,6 +217,7 @@ export const METHODS = {
     scriptUpdateVariables: "script/updateVariables",
     scriptUpdateContent: "script/updateContent",
     scriptClose: "script/close",
+    addOnsPostMessage: "addOns/postMessage",
 } as const;
 
 // Plain-object stand-ins for the opaque message payloads. The snapshot only
@@ -201,6 +226,22 @@ export const METHODS = {
 // round-trippable plain object (no class instance), which these are.
 const SAMPLE_COMMAND: Command = { type: "GetBpmnFileCommand" };
 const SAMPLE_QUERY: Query = { type: "FormDefaultsQuery" };
+
+const PLUGIN_APPROVAL_SAMPLE = {
+    pluginId: "/ws/.camunda/plugins/resize-tasks",
+    contentHash: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+};
+
+const TEMPLATE_PREFERENCES_SAMPLE = {
+    project: {
+        disabled: [{ source: "configFolder:shop/.camunda", templateId: 'mail#2@"v"' }],
+        revision: 3,
+    },
+    allProjects: {
+        disabled: [{ source: "marketplace:github:github.com/acme/templates" }],
+        revision: 7,
+    },
+} satisfies TemplatePreferencesSnapshot;
 
 /**
  * Every RPC method, in a fixed order. `paramsFixture`/`resultFixture` are bound
@@ -225,6 +266,9 @@ export const PROTOCOL = [
             workspaceRoot: "/repo",
             content: "<bpmn/>",
             settings: {},
+            pluginApprovals: [PLUGIN_APPROVAL_SAMPLE],
+            pluginApprovalsRevision: 7,
+            templatePreferences: TEMPLATE_PREFERENCES_SAMPLE,
         } satisfies RegisterParams,
     },
     {
@@ -413,6 +457,45 @@ export const PROTOCOL = [
         direction: "hostToCore",
         kind: "notification",
         paramsFixture: { workspaceRoot: "/repo" } satisfies DeploymentWorkspaceRootParams,
+    },
+    {
+        method: METHODS.pluginApprovalsDidChange,
+        direction: "hostToCore",
+        kind: "notification",
+        paramsFixture: {
+            approvals: [PLUGIN_APPROVAL_SAMPLE],
+            revision: 7,
+        } satisfies PluginApprovalsSnapshot,
+    },
+    // An allProjects change goes to every running bridge of the IDE, a project
+    // change to the project's own; each carries both scopes of that project.
+    {
+        method: METHODS.templatePreferencesDidChange,
+        direction: "hostToCore",
+        kind: "notification",
+        paramsFixture: TEMPLATE_PREFERENCES_SAMPLE,
+    },
+    {
+        method: METHODS.addOnsWebviewMessage,
+        direction: "hostToCore",
+        kind: "notification",
+        paramsFixture: { message: SAMPLE_COMMAND } satisfies AddOnsWebviewMessageParams,
+    },
+    {
+        method: METHODS.addOnsOpen,
+        direction: "hostToCore",
+        kind: "notification",
+        paramsFixture: {
+            open: true,
+            workspaceRoot: "/repo",
+            settings: { configFolder: ".camunda" },
+        } satisfies AddOnsOpenParams,
+    },
+    {
+        method: METHODS.addOnsRefresh,
+        direction: "hostToCore",
+        kind: "notification",
+        paramsFixture: {} satisfies EmptyParams,
     },
 
     // ── Core → Host requests ─────────────────────────────────────────────────
@@ -691,6 +774,79 @@ export const PROTOCOL = [
         replyWait: "hostWork",
         paramsFixture: { enabled: false } satisfies SettingsSetLintingEnabledParams,
     },
+    {
+        method: METHODS.actionNoticeShow,
+        direction: "coreToHost",
+        kind: "request",
+        replyWait: "prompt",
+        paramsFixture: {
+            tone: "info",
+            message: "1 BPMN plugin in this workspace is not allowed yet.",
+            labels: ["Review…"],
+        } satisfies ActionNoticeShowParams,
+        // `chosen` is absent when the user dismissed the notification.
+        resultFixture: { chosen: 0 } satisfies ActionNoticeShowResult,
+    },
+    // The host merges the change into the list it stores, pushes that list to
+    // every running bridge in `pluginApprovals/didChange`, then answers with it.
+    {
+        method: METHODS.pluginApprovalsChange,
+        direction: "coreToHost",
+        kind: "request",
+        replyWait: "syncedWrite",
+        paramsFixture: {
+            allow: [PLUGIN_APPROVAL_SAMPLE],
+            revoke: ["/ws/.camunda/plugins/reduced-palette"],
+        } satisfies PluginApprovalsChangeParams,
+        resultFixture: {
+            approvals: [PLUGIN_APPROVAL_SAMPLE],
+            revision: 7,
+        } satisfies PluginApprovalsSnapshot,
+    },
+    // The host's stored list, never a mirror; a read, so under the host-work deadline.
+    {
+        method: METHODS.pluginApprovalsRead,
+        direction: "coreToHost",
+        kind: "request",
+        replyWait: "hostWork",
+        paramsFixture: {} satisfies EmptyParams,
+        resultFixture: {
+            approvals: [PLUGIN_APPROVAL_SAMPLE],
+            revision: 7,
+        } satisfies PluginApprovalsSnapshot,
+    },
+    // The host merges the change into the scope's stored list, pushes the
+    // lists in `templatePreferences/didChange`, then answers with both.
+    {
+        method: METHODS.templatePreferencesChange,
+        direction: "coreToHost",
+        kind: "request",
+        replyWait: "syncedWrite",
+        paramsFixture: {
+            scope: "project",
+            disable: [{ source: "configFolder:shop/.camunda", templateId: 'mail#2@"v"' }],
+            enable: [{ source: "configFolder:shop/.camunda" }],
+        } satisfies TemplatePreferencesChangeParams,
+        resultFixture: TEMPLATE_PREFERENCES_SAMPLE,
+    },
+    // Both scopes as the host stores them, never a mirror; a read, so under the host-work deadline.
+    {
+        method: METHODS.templatePreferencesRead,
+        direction: "coreToHost",
+        kind: "request",
+        replyWait: "hostWork",
+        paramsFixture: {} satisfies EmptyParams,
+        resultFixture: TEMPLATE_PREFERENCES_SAMPLE,
+    },
+    // Without the rows: the core delivers them to the view it attached, once shown.
+    {
+        method: METHODS.addOnsReveal,
+        direction: "coreToHost",
+        kind: "request",
+        replyWait: "hostShow",
+        paramsFixture: {} satisfies EmptyParams,
+        resultFixture: { shown: true } satisfies AddOnsRevealResult,
+    },
 
     // ── Core → Host notifications ────────────────────────────────────────────
     {
@@ -702,6 +858,12 @@ export const PROTOCOL = [
             sessionId: 1,
             message: SAMPLE_QUERY,
         } satisfies EditorPostMessageParams,
+    },
+    {
+        method: METHODS.editorReload,
+        direction: "coreToHost",
+        kind: "notification",
+        paramsFixture: { editorId: "e1", sessionId: 1 } satisfies EditorRefParams,
     },
     {
         method: METHODS.clipboardWrite,
@@ -819,20 +981,36 @@ export const PROTOCOL = [
         kind: "notification",
         paramsFixture: { scriptId: "s1" } satisfies ScriptCloseNotifyParams,
     },
+    {
+        method: METHODS.addOnsPostMessage,
+        direction: "coreToHost",
+        kind: "notification",
+        paramsFixture: { message: SAMPLE_QUERY } satisfies AddOnsPostMessageParams,
+    },
 ] as const satisfies readonly ProtocolEntry[];
+
+/** Short, because the caller falls back to another surface once it passes. */
+export const HOST_SHOW_REPLY_DEADLINE_MS = 10_000;
 
 /** Generous, because host work can queue behind a modal dialog or a keychain prompt. */
 export const HOST_WORK_REPLY_DEADLINE_MS = 120_000;
 
-const HOST_WORK_REQUESTS: ReadonlySet<string> = new Set(
-    PROTOCOL.filter((entry) => "replyWait" in entry && entry.replyWait === "hostWork").map(
-        (entry) => entry.method,
+const DEADLINE_MS_BY_REPLY_WAIT: Readonly<Partial<Record<ReplyWait, number>>> = {
+    hostWork: HOST_WORK_REPLY_DEADLINE_MS,
+    hostShow: HOST_SHOW_REPLY_DEADLINE_MS,
+};
+
+const REPLY_DEADLINES: ReadonlyMap<string, number | undefined> = new Map(
+    PROTOCOL.flatMap((entry) =>
+        "replyWait" in entry
+            ? [[entry.method, DEADLINE_MS_BY_REPLY_WAIT[entry.replyWait]] as const]
+            : [],
     ),
 );
 
 /** How long a request to `method` waits for its reply; `undefined` waits until the host answers. */
 export function replyDeadlineMs(method: string): number | undefined {
-    return HOST_WORK_REQUESTS.has(method) ? HOST_WORK_REPLY_DEADLINE_MS : undefined;
+    return REPLY_DEADLINES.get(method);
 }
 
 /** Language-neutral, per-method key contract — what the Kotlin host verifies against. */
@@ -844,6 +1022,8 @@ export interface ProtocolSnapshotEntry {
     paramKeys: string[];
     /** Sorted top-level result keys; absent for notifications and void requests. */
     resultKeys?: string[];
+    /** How long the core waits for the reply; absent where it waits until the host answers. */
+    replyDeadlineMs?: number;
 }
 
 /**
@@ -863,6 +1043,8 @@ export function protocolSnapshot(): ProtocolSnapshotEntry[] {
         if ("resultFixture" in entry && entry.resultFixture) {
             snapshot.resultKeys = Object.keys(entry.resultFixture).sort();
         }
+        const deadlineMs = replyDeadlineMs(entry.method);
+        if (deadlineMs !== undefined) snapshot.replyDeadlineMs = deadlineMs;
         return snapshot;
     });
 }

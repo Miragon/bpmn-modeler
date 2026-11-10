@@ -56,8 +56,8 @@ for the sources they bundle from elsewhere
 | Line | Natively watched paths | Bundled sources (marker-covered) | Marker file |
 |---|---|---|---|
 | **npm** (root `.`) | `packages/bpmn-modeler`, the inlined libs + remaining root files | — | — |
-| **vscode** (`apps/vscode-plugin`) | `apps/vscode-plugin` only | the four webviews, `apps/standalone`, `libs/modeler-core`, `libs/shared`, `libs/standalone-extension`, `packages/dmn-modeler`, the npm-package sphere | `apps/vscode-plugin/BUNDLED_WEBVIEW` |
-| **intellij** (`apps/intellij-plugin`) | `apps/intellij-plugin` only | `apps/bpmn-webview`, `apps/deployment-webview`, `apps/modeler-bridge`, `libs/modeler-core`, `libs/shared`, the npm-package sphere | `apps/intellij-plugin/BUNDLED_WEBVIEW` |
+| **vscode** (`apps/vscode-plugin`) | `apps/vscode-plugin` only | the five webviews, `apps/standalone`, `libs/modeler-core`, `libs/shared`, `libs/standalone-extension`, `packages/dmn-modeler`, the npm-package sphere | `apps/vscode-plugin/BUNDLED_WEBVIEW` |
+| **intellij** (`apps/intellij-plugin`) | `apps/intellij-plugin` only | `apps/bpmn-webview`, `apps/deployment-webview`, `apps/add-ons-webview`, `apps/modeler-bridge`, `libs/modeler-core`, `libs/shared`, the npm-package sphere | `apps/intellij-plugin/BUNDLED_WEBVIEW` |
 | **dmn-modeler** (`packages/dmn-modeler`) | `packages/dmn-modeler` only | `libs/modeler-types`, `libs/bpmn-i18n-extras` | `packages/dmn-modeler/BUNDLED_LIBS` |
 | **orca** (`apps/orca-plugin`) | `apps/orca-plugin` only | `packages/dmn-modeler`, `libs/shared`, the npm-package sphere | `apps/orca-plugin/BUNDLED_WEBVIEW` |
 
@@ -227,7 +227,7 @@ Merging the Release PR fans out via `release-please.yml` to every released line:
 
 | Line | Auto-publishes | Notes |
 |---|---|---|
-| `vscode` | `publish-vscode-modeler.yml`, `publish-open-vsx-modeler.yml`, `release-standalone.yml` | Marketplace + Open VSX + DMG/NSIS/Flatpak + Homebrew. |
+| `vscode` | `publish-vscode-modeler.yml`, `publish-open-vsx-modeler.yml`, `release-standalone.yml` | Marketplace + Open VSX (both Trusted Publishing, OIDC) + DMG/NSIS/Flatpak + Homebrew. |
 | `intellij` | `publish-intellij.yml` | Multi-platform ZIP → JetBrains Marketplace, refreshes `docs/public/updatePlugins.xml`. |
 | `npm` | `publish-npm-modeler.yml` (`npm` job) | Builds + packs + smoke-tests, then `npm publish --provenance` to the npm registry via Trusted Publishing (OIDC). |
 | `dmn-modeler` | `publish-npm-modeler.yml` (`npm-dmn` job) | Same workflow, parameterised for `@miragon/dmn-modeler` (`workspace`/`package-dir`/`smoke-extra-deps: jsdom esbuild` inputs); publishes to npm via Trusted Publishing. |
@@ -235,6 +235,11 @@ Merging the Release PR fans out via `release-please.yml` to every released line:
 Each `publish-*` workflow is also runnable on its own via `workflow_dispatch`
 (pass the line's tag, e.g. `tag: vscode-v1.4.0` / `tag: intellij-v1.4.0`) with a
 `dry-run` option for reruns.
+
+> **`publish-open-vsx-modeler.yml` dispatch is dry-run-only** for the same
+> reason as npm below: its trusted publisher is registered for
+> `release-please.yml`. Re-run a failed real publish through the `open-vsx` job
+> of the release run.
 
 > **`publish-npm-modeler.yml` dispatch is dry-run-only.** The one workflow
 > serves both npm packages — dispatch it with the `workspace` /`package-dir` /
@@ -324,3 +329,59 @@ points at the **same** caller workflow (`release-please.yml`) and the shared
 - `id-token: write` is required in **both** the caller job (`npm` / `npm-dmn`) in
   `release-please.yml` and `publish-npm-modeler.yml` itself, and npm ≥ 11.5.1
   (the workflow upgrades npm, since Node 22 ships npm 10).
+
+## VS Code Marketplace Trusted Publishing
+
+`publish-vscode-modeler.yml` publishes with `vsce publish --oidc`: the job
+mints a GitHub OIDC token for the `marketplace.visualstudio.com` audience and
+exchanges it for a Marketplace credential that lasts 15 minutes. No PAT lives
+in CI, and vsce does not fall back to one when the exchange fails.
+
+The trusted publishing policy on the `miragon-gmbh` publisher names:
+
+| Field | Value |
+|---|---|
+| Repository owner | `Miragon` |
+| Repository | `bpmn-modeler` |
+| Workflow | `publish-vscode-modeler.yml` |
+| Environment | `vscode-marketplace` |
+
+Renaming the workflow file or the environment breaks publishing until the
+policy is updated. The job needs `id-token: write`, both in
+`publish-vscode-modeler.yml` and in the `vscode` caller job of
+`release-please.yml`, and vsce 4.1.0 or later: 4.0.0 calls the token exchange
+without the `FederatedToken` scheme and API version the Marketplace expects.
+
+The policy names the called workflow, not `release-please.yml` as npm does.
+Microsoft does not document which of the two a reusable workflow is matched
+against. If the `vscode` job of a release run fails at the token exchange,
+publish by dispatching `publish-vscode-modeler.yml` with the release tag and
+`dry-run: false`. If that also fails, add a second policy for
+`release-please.yml`.
+
+## Open VSX Trusted Publishing
+
+`publish-open-vsx-modeler.yml` publishes with `ovsx publish
+--trusted-publishing`: the job exchanges a GitHub OIDC token for an Open VSX
+token scoped to the extension that expires within minutes. No token lives in
+CI; `--pat` / `OVSX_PAT` would take precedence over the exchange, so the
+workflow sets neither.
+
+The trusted publisher for `miragon-gmbh.vs-code-bpmn-modeler` (open-vsx.org →
+Settings → Trusted Publishers) names:
+
+| Field | Value |
+|---|---|
+| Organization or user | `Miragon` |
+| Repository | `bpmn-modeler` |
+| Workflow filename | `release-please.yml` |
+| Environment | `open-vsx-marketplace` |
+
+Open VSX matches the workflow name in the token's `workflow_ref`, which GitHub
+fills with the top-level caller, so the registration names
+`release-please.yml`, not the called workflow. An extension takes only one
+trusted publisher, and a registration cannot be edited, only deleted and
+recreated. The job needs `id-token: write`, both in
+`publish-open-vsx-modeler.yml` and in the `open-vsx` caller job of
+`release-please.yml`, and an `ovsx` with `--trusted-publishing` (the workflow
+pins 1.3.0).

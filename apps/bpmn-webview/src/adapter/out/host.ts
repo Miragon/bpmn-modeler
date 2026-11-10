@@ -9,6 +9,7 @@ import {
     BpmnFileQuery,
     BpmnlintResultsQuery,
     BpmnModelerSettingQuery,
+    BpmnPluginsQuery,
     ClipboardQuery,
     Command,
     ElementTemplatesQuery,
@@ -30,6 +31,7 @@ import c8Samples from "../../__fixtures__/c8-samples.json";
 import { MOCK_BPMN_XML, MOCK_NEUTRAL_BPMN_XML } from "../../__fixtures__/mock-bpmn";
 import { MOCK_DIFF_AFTER_XML, MOCK_DIFF_BEFORE_XML } from "../../__fixtures__/mock-diff";
 import { MOCK_WORKSPACE_DEFINITIONS } from "../../__fixtures__/mock-workspace-definitions";
+import { mockPluginAssets } from "../../__fixtures__/mock-plugins";
 import type { WebviewState } from "../../port/webviewState";
 
 declare const process: { env: { NODE_ENV: string } };
@@ -116,13 +118,18 @@ class MockHost extends MockHostApi<StateType, MessageType> {
                 this.handleGetBpmnFile();
                 break;
             }
+            case "GetBpmnPluginsCommand": {
+                const variant = new URLSearchParams(window.location.search).get("plugins");
+                dispatchEvent(new BpmnPluginsQuery(mockPluginAssets(variant)));
+                break;
+            }
             case "GetElementTemplatesCommand": {
                 console.debug("[DEBUG] GetElementTemplatesCommand", message);
                 dispatchEvent(
-                    new ElementTemplatesQuery([
-                        ...(c7Samples as unknown as JSON[]),
-                        ...(c8Samples as unknown as JSON[]),
-                    ]),
+                    new ElementTemplatesQuery(
+                        [...(c7Samples as unknown as JSON[]), ...(c8Samples as unknown as JSON[])],
+                        [],
+                    ),
                 );
                 break;
             }

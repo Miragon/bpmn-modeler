@@ -152,7 +152,8 @@ just the tree it needs via `yarn workspaces focus`:
 ```bash
 # Modeler-only tree (no Theia, no native-keymap, no apt-step required)
 yarn workspaces focus bpmn-modeler vs-code-bpmn-modeler @miragon/bpmn-modeler-webview \
-  @miragon/dmn-modeler-webview @miragon/bpmn-modeler-deployment-webview @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-append-menu \
+  @miragon/dmn-modeler-webview @miragon/bpmn-modeler-deployment-webview @miragon/bpmn-modeler-add-ons-webview \
+  @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-append-menu \
   @miragon/bpmn-modeler-clipboard @miragon/bpmn-modeler-i18n \
   @miragon/bpmn-modeler-element-template-chooser
 
@@ -290,11 +291,16 @@ nor the workspace's coverage-gated `test` picks up.
    saves with Ctrl/Cmd+S and parses the file with `bpmn-moddle`. Undo has to
    restore the canvas and, saved again, the file. It then switches to Default
    Light+, Dark+ and High Contrast and checks the webview's body class and
-   `data-bpmn-theme`. Finally it opens `smoke.dmn` and `smoke.form`.
+   `data-bpmn-theme`. Finally it opens `smoke.dmn` and `smoke.form`. For
+   BPMN plugins it opens `bpmn-plugin/plugin-smoke.bpmn`, allows the folder's
+   fixture plugin through the notification and its list, and checks that the
+   reloaded editor runs its script and stylesheet from the copy in global
+   storage. It logs the time from opening a diagram to its first surface, with
+   and without the plugin.
 
 The results go to `test-results/vscode-smoke/` (git-ignored, emptied on every
-run): `bpmn-light.png`, `bpmn-dark.png`, `bpmn-high-contrast.png`, `dmn.png`
-and `form.png`. A failed step adds `failure-<step>.png` and VS Code's logs in
+run): `bpmn-light.png`, `bpmn-dark.png`, `bpmn-high-contrast.png`, `dmn.png`,
+`form.png` and `bpmn-plugin.png`, among others. A failed step adds `failure-<step>.png` and VS Code's logs in
 `vscode-logs/`.
 
 Run it in a container locally, where no VS Code window opens and nothing takes
@@ -491,7 +497,7 @@ Common types: `feat`, `fix`, `refactor`, `chore`, `docs`, `test`.
 
 | Workflow            | Trigger                                                  | Purpose                                                                       |
 |---------------------|----------------------------------------------------------|-------------------------------------------------------------------------------|
-| **Build**           | every push / PR                                          | lint → test → build, full install (apt-step for Theia native modules)         |
+| **Build**           | every push / PR                                          | lint → test → build, full install (apt-step for Theia native modules); when the bridge changes, the rule package gate smoke under the Bun pinned in `apps/modeler-bridge/.bun-version` |
 | **VS Code smoke**   | PR touching the extension or what it bundles, weekly, manual | packaged extension in a real VS Code (not a required check)             |
 | **PR Labeler**      | PR opened / updated                                      | auto-labels PRs by changed workspace                                          |
 | **Prepare Release ***| manual (`workflow_dispatch`)                            | bump version, sanity build, commit, tag, create GitHub Release                |

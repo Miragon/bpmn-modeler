@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import {
+    innermostFolderOf,
     isWithinRoot,
     outermostPaths,
     relativeToRoot,
     relativeToWorkspace,
+    staysInsideFolder,
 } from "./rootContainment";
 
 describe("relativeToRoot", () => {
@@ -105,6 +107,25 @@ describe("isWithinRoot", () => {
     });
 });
 
+describe("innermostFolderOf", () => {
+    const folders = ["/work", "/work/orders", "/other"];
+
+    it.each([
+        { path: "/work/.camunda/plugins/a", folder: "/work" },
+        { path: "/work/orders/.camunda/plugins/a", folder: "/work/orders" },
+        { path: "/other/node_modules/bpmnlint-plugin-a", folder: "/other" },
+        { path: "/work", folder: "/work" },
+        { path: "/elsewhere/node_modules/x", folder: undefined },
+        { path: "/work2/x", folder: undefined },
+    ])("puts $path in $folder", ({ path, folder }) => {
+        expect(innermostFolderOf(path, folders)).toBe(folder);
+    });
+
+    it("finds the innermost folder whatever order the folders were opened in", () => {
+        expect(innermostFolderOf("/work/orders/x", ["/work/orders", "/work"])).toBe("/work/orders");
+    });
+});
+
 describe("relativeToWorkspace", () => {
     it.each<{ behaviour: string; path: string; folders: string[]; relative: string }>([
         {
@@ -179,5 +200,47 @@ describe("outermostPaths", () => {
         { behaviour: "returns nothing for no paths", paths: [], outermost: [] },
     ])("$behaviour", ({ paths, outermost }) => {
         expect(outermostPaths(paths)).toEqual(outermost);
+    });
+});
+
+describe("staysInsideFolder", () => {
+    it.each<{ behaviour: string; relativePath: string; inside: boolean }>([
+        { behaviour: "keeps a nested relative path", relativePath: "dist/client.js", inside: true },
+        { behaviour: "keeps a bare file name", relativePath: "client.js", inside: true },
+        { behaviour: "keeps dots inside a segment", relativePath: "a..b/..hidden/c", inside: true },
+        { behaviour: "keeps the folder itself", relativePath: "", inside: true },
+        {
+            behaviour: "keeps a leading current-folder segment",
+            relativePath: "./c.js",
+            inside: true,
+        },
+        { behaviour: "refuses a lone parent segment", relativePath: "..", inside: false },
+        { behaviour: "refuses a leading parent segment", relativePath: "../c.js", inside: false },
+        {
+            behaviour: "refuses a parent segment mid-path",
+            relativePath: "a/../../c",
+            inside: false,
+        },
+        {
+            behaviour: "refuses a backslash parent segment",
+            relativePath: "a\\..\\c",
+            inside: false,
+        },
+        { behaviour: "refuses an absolute posix path", relativePath: "/etc/c", inside: false },
+        {
+            behaviour: "refuses a path rooted by a backslash",
+            relativePath: "\\Windows\\c",
+            inside: false,
+        },
+        { behaviour: "refuses a UNC path", relativePath: "\\\\server\\share\\c", inside: false },
+        { behaviour: "refuses a drive path with a slash", relativePath: "c:/c.js", inside: false },
+        {
+            behaviour: "refuses a drive path with a backslash",
+            relativePath: "C:\\c.js",
+            inside: false,
+        },
+        { behaviour: "refuses a drive-relative path", relativePath: "C:c.js", inside: false },
+    ])("$behaviour", ({ relativePath, inside }) => {
+        expect(staysInsideFolder(relativePath)).toBe(inside);
     });
 });

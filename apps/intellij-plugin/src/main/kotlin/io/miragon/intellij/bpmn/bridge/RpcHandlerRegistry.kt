@@ -39,9 +39,14 @@ internal class RpcHandlerRegistry {
 
     fun handler(method: String): RpcHandler? = handlers[method]
 
-    /** @return false when no handler is registered (caller logs the debug line). */
+    /**
+     * @return false for a notification no handler is registered for.
+     * @throws IllegalStateException for such a request, which the channel answers
+     *   with the error: the core sets no deadline on most requests, so an
+     *   unanswered one would stall its queue.
+     */
     fun dispatch(method: String, params: JsonObject, requestId: CoreRequestId?): Boolean {
-        val handler = handlers[method] ?: return false
+        val handler = handlers[method] ?: return if (requestId == null) false else error("No handler for $method")
         val frameParams = JsonRpcParams(params)
         val action = handler.read(frameParams)
         frameParams.seal()

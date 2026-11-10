@@ -118,7 +118,8 @@ const HANDLE_EVENTS: readonly HandleEvent[] = [
  *   document: the core checks the revision before it calls the handle, VS Code
  *   ignores it and the bridge's host checks it again; VS Code's handle throws
  *   on a read-only file system, where the bridge leaves the write to its host.
- * - `reload`: optional, and the bridge cannot restart its webview.
+ * - `reload` and `webviewUrlOf`: optional, and each host restarts its webview
+ *   and spells a webview URL its own way.
  */
 export function describeEditorHandleContract(
     adapter: string,

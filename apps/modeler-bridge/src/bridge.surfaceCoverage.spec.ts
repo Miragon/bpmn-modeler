@@ -24,6 +24,7 @@ const INTELLIJ_SURFACES: HostSurfaceCoverage = {
         GetBpmnFileCommand: HANDLED,
         GetDiagramAsSVGCommand: ignored("the SVG export awaits this reply outside the router"),
         GetElementTemplatesCommand: HANDLED,
+        GetBpmnPluginsCommand: HANDLED,
         GetBpmnlintConfigCommand: HANDLED,
         GetBpmnModelerSettingCommand: HANDLED,
         GetPropertiesPanelStateCommand: HANDLED,
@@ -75,6 +76,12 @@ const INTELLIJ_SURFACES: HostSurfaceCoverage = {
         OpenTargetsFileCommand: HANDLED,
         StartInstanceCommand: HANDLED,
         RequestPayloadFilesCommand: HANDLED,
+    },
+    addOnsView: {
+        LogInfoCommand: HANDLED,
+        LogErrorCommand: HANDLED,
+        GetAddOnCatalogCommand: HANDLED,
+        AddOnRequestCommand: HANDLED,
     },
 };
 

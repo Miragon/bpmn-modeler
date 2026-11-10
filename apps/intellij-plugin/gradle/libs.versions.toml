@@ -1,6 +1,6 @@
 [versions]
 kotlin = "2.4.21"
-intellijPlatform = "2.19.0"
+intellijPlatform = "2.20.0"
 gson = "2.15.0"
 junit = "6.1.3"
 

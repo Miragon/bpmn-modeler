@@ -6,6 +6,7 @@ import {
 } from "@miragon/bpmn-modeler-types";
 
 import { LintFindingsSource } from "./bpmnlintIndicator";
+import { BlockedRulePackage } from "./rulePackageApproval";
 
 /** One `.bpmnlintrc` version: its path and exact bytes identify it. */
 export interface LintConfigVersion {
@@ -28,6 +29,8 @@ export interface LintRunOutput {
     readonly xml: string;
     readonly results: LintResults;
     readonly unresolved: readonly string[];
+    /** Workspace rule packages the run could not use; a webview run has none. */
+    readonly blocked: readonly BlockedRulePackage[];
 }
 
 export interface LintFindings extends LintRunOutput {
@@ -117,6 +120,11 @@ export function lintsInPage(session: LintSession): session is InPageSession {
     return (
         session.tier === "default" || session.tier === "covered" || session.tier === "escalating"
     );
+}
+
+/** A newer host lint supersedes one in flight, so an escalating session counts too. */
+export function lintsOnHost(session: LintSession): session is HostLintedSession {
+    return session.tier === "escalating" || session.tier === "escalated";
 }
 
 export function reduceLintSession(session: LintSession, event: LintSessionEvent): LintTransition {
@@ -255,10 +263,7 @@ function receiveWebviewRun(session: LintSession, event: WebviewLinted): LintTran
 }
 
 function ownsHostLint(session: LintSession, token: string): session is HostLintedSession {
-    return (
-        (session.tier === "escalating" || session.tier === "escalated") &&
-        session.negotiation.token === token
-    );
+    return lintsOnHost(session) && session.negotiation.token === token;
 }
 
 function drop(session: LintSession, reason: LintDropReason): LintTransition {

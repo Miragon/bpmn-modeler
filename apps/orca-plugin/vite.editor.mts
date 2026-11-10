@@ -43,6 +43,21 @@ function evalFree(): Plugin {
 }
 
 /**
+ * The bpmn and dmn icon fonts also declare EOT and SVG fonts for old browsers. Chromium loads
+ * only their WOFF, and Orca's plugin directory refuses EOT files, so those rules are dropped.
+ */
+function webFontsOnly() {
+    return {
+        postcssPlugin: "orca-web-fonts-only",
+        AtRule: {
+            "font-face"(rule: { toString(): string; remove(): void }) {
+                if (!/format\(['"]?woff2?['"]?\)/.test(rule.toString())) rule.remove();
+            },
+        },
+    };
+}
+
+/**
  * Both editor pages in one build, so the code they share ships once, in `editor/shared/`:
  * unminified and with sourcemaps, but without the libraries' comments.
  */
@@ -52,6 +67,7 @@ export default defineConfig({
     base: "./",
     cacheDir: "../../node_modules/.vite/orca-plugin",
     plugins: [tsconfigPaths(), evalFree()],
+    css: { postcss: { plugins: [webFontsOnly()] } },
     oxc: { jsx: { runtime: "automatic", importSource: "preact" } },
     resolve: {
         alias: {

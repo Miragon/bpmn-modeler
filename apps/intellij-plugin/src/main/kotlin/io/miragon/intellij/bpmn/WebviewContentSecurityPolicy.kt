@@ -21,6 +21,12 @@ internal object WebviewContentSecurityPolicy {
      * top level. Outgoing messages are buffered until the JVM installs its sink
      * via `__modelerSetSink`, because the module may post before the host
      * callback is injected (which only happens on `onLoadEnd`).
+     *
+     * The page's wiring is single-use: `__modelerSetSink` deletes itself on
+     * its first call, before any plugin script arrives, and
+     * `acquireVsCodeApi()` hands out its frozen API once, as VS Code does, to
+     * the page's own bootstrap. That stops accidental reuse, not an approved
+     * plugin, which has the page's full authority (see [WebviewSinkScript]).
      */
     val ACQUIRE_VS_CODE_API_SHIM =
         listOf(
@@ -28,17 +34,23 @@ internal object WebviewContentSecurityPolicy {
             "  var outbox = [];",
             "  var sink = null;",
             "  var state = {};",
+            "  var acquired = false;",
             "  function flush() {",
             "    if (!sink) return;",
             "    while (outbox.length) { sink(outbox.shift()); }",
             "  }",
-            "  window.__modelerSetSink = function (fn) { sink = fn; flush(); };",
+            "  Object.defineProperty(window, \"__modelerSetSink\", {",
+            "    configurable: true,",
+            "    value: function (fn) { delete window.__modelerSetSink; sink = fn; flush(); }",
+            "  });",
             "  window.acquireVsCodeApi = function () {",
-            "    return {",
+            "    if (acquired) throw new Error(\"An instance of the VS Code API has already been acquired\");",
+            "    acquired = true;",
+            "    return Object.freeze({",
             "      postMessage: function (msg) { outbox.push(JSON.stringify(msg)); flush(); },",
             "      getState: function () { return state; },",
             "      setState: function (s) { state = s; return s; }",
-            "    };",
+            "    });",
             "  };",
             "})();",
         ).joinToString("\n")
@@ -46,17 +58,20 @@ internal object WebviewContentSecurityPolicy {
     private val shimHashSource = "'sha256-${sha256Base64(ACQUIRE_VS_CODE_API_SHIM)}'"
 
     // Element-template icons may be remote `https:` URLs; the deployment form shows none.
-    val BPMN_SHELL = policy(imageSources = "'self' data: https:")
+    val BPMN_SHELL = policy(imageSources = "'self' data: https:", fontSources = "'self' data:")
 
-    val DEPLOYMENT_SHELL = policy(imageSources = "'self' data:")
+    val DEPLOYMENT_SHELL = policy(imageSources = "'self' data:", fontSources = "'self' data:")
 
-    private fun policy(imageSources: String): String =
-        listOf(
+    // The add-ons page loads no image and no font, so `default-src 'none'` refuses both.
+    val ADD_ONS_SHELL = policy(imageSources = null, fontSources = null)
+
+    private fun policy(imageSources: String?, fontSources: String?): String =
+        listOfNotNull(
             "default-src 'none'",
             "script-src 'self' $shimHashSource",
             "style-src 'self' 'unsafe-inline'",
-            "img-src $imageSources",
-            "font-src 'self' data:",
+            imageSources?.let { "img-src $it" },
+            fontSources?.let { "font-src $it" },
             "base-uri 'none'",
             "form-action 'none'",
         ).joinToString("; ")

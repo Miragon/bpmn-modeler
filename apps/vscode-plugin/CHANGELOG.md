@@ -1,5 +1,69 @@
 # Changelog
 
+## [1.21.0](https://github.com/Miragon/bpmn-modeler/compare/vscode-v1.20.0...vscode-v1.21.0) (2026-11-09)
+
+
+### 🎉 New Features
+
+* **intellij-plugin:** load approved workspace bpmn-js plugins ([#2252](https://github.com/Miragon/bpmn-modeler/issues/2252)) ([838040d](https://github.com/Miragon/bpmn-modeler/commit/838040d0ec00a078029ba2a2d81f123d8895d22a))
+* **modeler-core:** ask before running workspace bpmnlint rule packages ([#2274](https://github.com/Miragon/bpmn-modeler/issues/2274)) ([2e9b592](https://github.com/Miragon/bpmn-modeler/commit/2e9b5928615a1f566198ee90dd659851aab55b61))
+* **modeler-core:** load approved workspace bpmn-js plugins in VS Code ([#2251](https://github.com/Miragon/bpmn-modeler/issues/2251)) ([5457858](https://github.com/Miragon/bpmn-modeler/commit/5457858becea52d1c51e4bdfd3597c29df362da6))
+
+
+### 🐞 Bug Fixes
+
+* **modeler-core:** run no workspace code in host linting outside rule packages ([#2272](https://github.com/Miragon/bpmn-modeler/issues/2272)) [sync 2bce0e5] ([9f8498f](https://github.com/Miragon/bpmn-modeler/commit/9f8498f4613bb198ab92d3bdbb11c991894ac9fa))
+
+## [1.20.0](https://github.com/Miragon/bpmn-modeler/compare/vscode-v1.19.0...vscode-v1.20.0) (2026-11-08)
+
+
+### 🎉 New Features
+
+* **orca-plugin:** open .bpmn and .dmn files in Orca ([#2210](https://github.com/Miragon/bpmn-modeler/issues/2210)) ([b7d4773](https://github.com/Miragon/bpmn-modeler/commit/b7d4773f0aa9e80d757a87b8ed613a923e2d7db0))
+
+
+### 🐞 Bug Fixes
+
+* **bpmn-modeler:** fit a diagram with the same gap to the palette as to the right edge ([#2255](https://github.com/Miragon/bpmn-modeler/issues/2255)) [sync b691b66] ([dc13bc8](https://github.com/Miragon/bpmn-modeler/commit/dc13bc8377a1ed0b22b6d0dc6a7e6f55ac8a7f1e))
+* **bpmn-modeler:** keep the mode chip beside the token simulation toggle when the toggle grows ([#2258](https://github.com/Miragon/bpmn-modeler/issues/2258)) [sync 2e8ec37] ([276369a](https://github.com/Miragon/bpmn-modeler/commit/276369a55e28880d6a09462c66ac4a07c1ce7699))
+* **deployment-webview:** check start-instance auth fields like deploy ([#2197](https://github.com/Miragon/bpmn-modeler/issues/2197)) [sync 755b32e] ([c099cf4](https://github.com/Miragon/bpmn-modeler/commit/c099cf4bd2d0a13c1683eea8ded4f8aa1385c267))
+* **dmn-modeler:** separate a rule's outputs in the simulation result ([#2257](https://github.com/Miragon/bpmn-modeler/issues/2257)) [sync 1b074dd] ([461a293](https://github.com/Miragon/bpmn-modeler/commit/461a293dd862811af80bb2c341e258eecd8e1226))
+* **modeler-bridge:** keep the spinner until every run of its title ends ([#2189](https://github.com/Miragon/bpmn-modeler/issues/2189)) ([b34a0cb](https://github.com/Miragon/bpmn-modeler/commit/b34a0cbafa7e809ae5daac1a88fa4a57bbcba5e3))
+* **modeler-bridge:** show no sync error when IntelliJ fails an edit ([#2186](https://github.com/Miragon/bpmn-modeler/issues/2186)) ([8456263](https://github.com/Miragon/bpmn-modeler/commit/845626323bfdc75dc5fcc486a2ea2cdc655a8842))
+* **modeler-core:** follow the C8 API version in requests and form hints ([#2209](https://github.com/Miragon/bpmn-modeler/issues/2209)) [sync 80bf642] ([8bfb20f](https://github.com/Miragon/bpmn-modeler/commit/8bfb20fc8c5541bbdfc3451f99723086cf90ad25))
+* **modeler-core:** say a marketplace is already registered, not added ([#2201](https://github.com/Miragon/bpmn-modeler/issues/2201)) [sync d974411] ([5bef969](https://github.com/Miragon/bpmn-modeler/commit/5bef9696ffc888574b31657b706453c1b6a51928))
+* **modeler-core:** start new model files with the XML declaration ([#2198](https://github.com/Miragon/bpmn-modeler/issues/2198)) [sync 0a57387] ([ef3efb3](https://github.com/Miragon/bpmn-modeler/commit/ef3efb322a833d09149b78a0c20d4affe38eedce))
+
+
+### 🔨 Refactoring
+
+* **modeler-core:** build the marketplace add and remove texts ([#2172](https://github.com/Miragon/bpmn-modeler/issues/2172)) ([75786e9](https://github.com/Miragon/bpmn-modeler/commit/75786e96ad9ebea4ac0e7b787b91a23a5b30f6f2))
+* **modeler-core:** give the colour themes and engines one home ([#2207](https://github.com/Miragon/bpmn-modeler/issues/2207)) ([7f49d8b](https://github.com/Miragon/bpmn-modeler/commit/7f49d8b17b34ecc2541289c277056b355fec3bd6))
+* **modeler-core:** spell the marketplace host rule once ([#2200](https://github.com/Miragon/bpmn-modeler/issues/2200)) ([f4e1007](https://github.com/Miragon/bpmn-modeler/commit/f4e1007330801ad7f3a0ec4d0d6187a2522b0979))
+* **webviews:** move three webviews into their role folders ([#2180](https://github.com/Miragon/bpmn-modeler/issues/2180)) ([72c4e69](https://github.com/Miragon/bpmn-modeler/commit/72c4e6963c676ccc18e8f6343343fddd99e75f17))
+
+
+### 📔 Documentation
+
+* make the store images with the product-shots skill and rewrite the store READMEs ([#2254](https://github.com/Miragon/bpmn-modeler/issues/2254)) ([4eb590a](https://github.com/Miragon/bpmn-modeler/commit/4eb590a154b892e19ce9d6f1e06e7b25555d65dd))
+* write each README for one reader, its users or its developers ([#2253](https://github.com/Miragon/bpmn-modeler/issues/2253)) ([3d28322](https://github.com/Miragon/bpmn-modeler/commit/3d28322c3ad26e0038fb88fc90f3dd44dc4a1417))
+
+
+### 🛠️ Misc
+
+* **intellij-plugin:** pin the default modes to the surface modes ([#2177](https://github.com/Miragon/bpmn-modeler/issues/2177)) ([180b8cc](https://github.com/Miragon/bpmn-modeler/commit/180b8cc20d6235eb06c525d8f5baa8c0152cfb12))
+* **modeler-core:** add a settings contract suite for every host ([#2193](https://github.com/Miragon/bpmn-modeler/issues/2193)) ([f960ce4](https://github.com/Miragon/bpmn-modeler/commit/f960ce4c9a2dcf6ea6ec8eaa23da15f8a3fcc7de))
+* **modeler-core:** add picker and token prompt contract suites ([#2192](https://github.com/Miragon/bpmn-modeler/issues/2192)) ([01e4abc](https://github.com/Miragon/bpmn-modeler/commit/01e4abcc030cbe93539e5eed48b280c35360b97c))
+* **modeler-core:** add secret and token store contract suites ([#2182](https://github.com/Miragon/bpmn-modeler/issues/2182)) ([292f73d](https://github.com/Miragon/bpmn-modeler/commit/292f73d32797070a74503e502b491972deba903f))
+* **modeler-core:** add the marketplace prompt contract suite ([#2195](https://github.com/Miragon/bpmn-modeler/issues/2195)) ([eb4fe89](https://github.com/Miragon/bpmn-modeler/commit/eb4fe8998fd98061733a7078d6b54a514dea2e99))
+* **modeler-core:** run a marketplace registrations suite on each host ([#2194](https://github.com/Miragon/bpmn-modeler/issues/2194)) ([1f0293a](https://github.com/Miragon/bpmn-modeler/commit/1f0293aa54f8bb36142370de55b019633f3a13e3))
+* **modeler-core:** run clipboard and preference suites on every host ([#2187](https://github.com/Miragon/bpmn-modeler/issues/2187)) ([ade634a](https://github.com/Miragon/bpmn-modeler/commit/ade634a12272c9db78748e5292957d780807b7da))
+* **modeler-core:** run one deployment state contract on every host ([#2185](https://github.com/Miragon/bpmn-modeler/issues/2185)) ([dea1913](https://github.com/Miragon/bpmn-modeler/commit/dea1913630049c1fd7c9dbfdc7a852683342ec54))
+* **modeler-core:** run one diff pane contract suite on every host ([#2188](https://github.com/Miragon/bpmn-modeler/issues/2188)) ([5392a1f](https://github.com/Miragon/bpmn-modeler/commit/5392a1f79a17e892693482a9d82cbce8eb73b59f))
+* **modeler-core:** run one editor handle contract suite on every host ([#2184](https://github.com/Miragon/bpmn-modeler/issues/2184)) ([6254210](https://github.com/Miragon/bpmn-modeler/commit/6254210a921b159c08c5e209323cd59df557acd3))
+* **modeler-core:** run one script editor contract suite on every host ([#2183](https://github.com/Miragon/bpmn-modeler/issues/2183)) ([add816a](https://github.com/Miragon/bpmn-modeler/commit/add816a2e2c001ead7f31caeb0b4bf450abf5aa3))
+* **modeler-core:** run the workspace contract suite on every host ([#2190](https://github.com/Miragon/bpmn-modeler/issues/2190)) ([67fc0cb](https://github.com/Miragon/bpmn-modeler/commit/67fc0cb132a214bf8b754970ca182b0f1793dce2))
+
 ## [1.19.0](https://github.com/Miragon/bpmn-modeler/compare/vscode-v1.18.0...vscode-v1.19.0) (2026-11-05)
 
 

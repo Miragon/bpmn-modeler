@@ -15,6 +15,7 @@ import { BridgeSharedDeps } from "./sharedDeps";
 export function register(
     deps: BridgeSharedDeps,
     editor: Pick<BpmnEditorFeature, "bpmnService" | "router" | "participants">,
+    { pluginCacheRoot }: { pluginCacheRoot: string },
 ): void {
     const lifecycle = new EditorSessionLifecycle(
         deps.store,
@@ -30,9 +31,11 @@ export function register(
             lifecycle,
             mirror: deps.mirror,
             settingsMirror: deps.settings,
+            pluginApprovals: deps.pluginApprovals,
+            templatePreferences: deps.templatePreferences,
             workspaceRoots: deps.nodeWorkspace,
             createEditorHandle: (session) =>
-                new RpcEditorHandle(session, deps.mirror, deps.rpc, deps.settings),
+                new RpcEditorHandle(session, deps.mirror, deps.rpc, deps.settings, pluginCacheRoot),
             bpmnService: editor.bpmnService,
             log: deps.log,
         }),

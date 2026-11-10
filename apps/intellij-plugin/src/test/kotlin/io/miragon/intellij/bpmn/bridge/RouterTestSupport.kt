@@ -64,8 +64,8 @@ internal fun wireChannel(): WiredBridge {
 }
 
 /**
- * Constructs [BridgeDeps] for a router under test. `isProcessAlive` returns true so
- * `notify`/`seed` sends are not no-oped, and `notifications` by default fails loudly
+ * Constructs [BridgeDeps] for a router under test. `isProcessAlive` returns true by
+ * default so `notify`/`seed` sends are not no-oped, and `notifications` by default fails loudly
  * if a tested path forces it without the test passing its own. The default
  * [parentDisposable] dies with the project: a router's message-bus subscriptions
  * would leak it otherwise.
@@ -76,14 +76,16 @@ internal fun bridgeDeps(
     handlers: RpcHandlerRegistry,
     parentDisposable: Disposable = Disposer.newDisposable(project, "router-under-test"),
     notifications: Lazy<HostNotifications> = lazy { error("HostNotifications must not be forced in router tests") },
+    isProcessAlive: () -> Boolean = { true },
+    ensureStartedAsync: () -> Unit = {},
 ): BridgeDeps =
     BridgeDeps(
         project = project,
         channel = channel,
         handlers = handlers,
         gson = channel.gson,
-        isProcessAlive = { true },
-        ensureStartedAsync = {},
+        isProcessAlive = isProcessAlive,
+        ensureStartedAsync = ensureStartedAsync,
         parentDisposable = parentDisposable,
         notifications = notifications,
         credentialStoreExecutor = orderedCredentialStoreExecutor(),

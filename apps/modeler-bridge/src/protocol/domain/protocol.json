@@ -9,9 +9,12 @@
             "editorId",
             "fsPath",
             "path",
+            "pluginApprovals",
+            "pluginApprovalsRevision",
             "scheme",
             "sessionId",
             "settings",
+            "templatePreferences",
             "uriString",
             "workspaceRoot"
         ]
@@ -185,6 +188,36 @@
         "paramKeys": ["workspaceRoot"]
     },
     {
+        "method": "pluginApprovals/didChange",
+        "direction": "hostToCore",
+        "kind": "notification",
+        "paramKeys": ["approvals", "revision"]
+    },
+    {
+        "method": "templatePreferences/didChange",
+        "direction": "hostToCore",
+        "kind": "notification",
+        "paramKeys": ["allProjects", "project"]
+    },
+    {
+        "method": "addOns/webviewMessage",
+        "direction": "hostToCore",
+        "kind": "notification",
+        "paramKeys": ["message"]
+    },
+    {
+        "method": "addOns/open",
+        "direction": "hostToCore",
+        "kind": "notification",
+        "paramKeys": ["open", "settings", "workspaceRoot"]
+    },
+    {
+        "method": "addOns/refresh",
+        "direction": "hostToCore",
+        "kind": "notification",
+        "paramKeys": []
+    },
+    {
         "method": "document/write",
         "direction": "coreToHost",
         "kind": "request",
@@ -196,7 +229,8 @@
         "direction": "coreToHost",
         "kind": "request",
         "paramKeys": ["editorId", "sessionId"],
-        "resultKeys": ["saved"]
+        "resultKeys": ["saved"],
+        "replyDeadlineMs": 120000
     },
     {
         "method": "picker/show",
@@ -217,52 +251,60 @@
         "direction": "coreToHost",
         "kind": "request",
         "paramKeys": [],
-        "resultKeys": ["text"]
+        "resultKeys": ["text"],
+        "replyDeadlineMs": 120000
     },
     {
         "method": "secretStore/saveBasicAuth",
         "direction": "coreToHost",
         "kind": "request",
-        "paramKeys": ["password", "slot", "username"]
+        "paramKeys": ["password", "slot", "username"],
+        "replyDeadlineMs": 120000
     },
     {
         "method": "secretStore/getBasicAuth",
         "direction": "coreToHost",
         "kind": "request",
         "paramKeys": ["slot"],
-        "resultKeys": ["password", "username"]
+        "resultKeys": ["password", "username"],
+        "replyDeadlineMs": 120000
     },
     {
         "method": "secretStore/saveOAuth2",
         "direction": "coreToHost",
         "kind": "request",
-        "paramKeys": ["clientId", "clientSecret", "slot"]
+        "paramKeys": ["clientId", "clientSecret", "slot"],
+        "replyDeadlineMs": 120000
     },
     {
         "method": "secretStore/getOAuth2",
         "direction": "coreToHost",
         "kind": "request",
         "paramKeys": ["slot"],
-        "resultKeys": ["clientId", "clientSecret"]
+        "resultKeys": ["clientId", "clientSecret"],
+        "replyDeadlineMs": 120000
     },
     {
         "method": "secretStore/getApprovedDestinations",
         "direction": "coreToHost",
         "kind": "request",
         "paramKeys": ["slot"],
-        "resultKeys": ["origins"]
+        "resultKeys": ["origins"],
+        "replyDeadlineMs": 120000
     },
     {
         "method": "secretStore/saveApprovedDestinations",
         "direction": "coreToHost",
         "kind": "request",
-        "paramKeys": ["origins", "slot"]
+        "paramKeys": ["origins", "slot"],
+        "replyDeadlineMs": 120000
     },
     {
         "method": "secretStore/delete",
         "direction": "coreToHost",
         "kind": "request",
-        "paramKeys": ["slot"]
+        "paramKeys": ["slot"],
+        "replyDeadlineMs": 120000
     },
     {
         "method": "deploymentState/save",
@@ -275,7 +317,8 @@
         "direction": "coreToHost",
         "kind": "request",
         "paramKeys": [],
-        "resultKeys": ["registered", "writable"]
+        "resultKeys": ["registered", "writable"],
+        "replyDeadlineMs": 120000
     },
     {
         "method": "marketplaceState/save",
@@ -309,13 +352,15 @@
         "direction": "coreToHost",
         "kind": "request",
         "paramKeys": ["host"],
-        "resultKeys": ["token"]
+        "resultKeys": ["token"],
+        "replyDeadlineMs": 120000
     },
     {
         "method": "tokenStore/set",
         "direction": "coreToHost",
         "kind": "request",
-        "paramKeys": ["host", "token"]
+        "paramKeys": ["host", "token"],
+        "replyDeadlineMs": 120000
     },
     {
         "method": "tokenPrompt/show",
@@ -328,13 +373,65 @@
         "method": "settings/setLintingEnabled",
         "direction": "coreToHost",
         "kind": "request",
-        "paramKeys": ["enabled"]
+        "paramKeys": ["enabled"],
+        "replyDeadlineMs": 120000
+    },
+    {
+        "method": "actionNotice/show",
+        "direction": "coreToHost",
+        "kind": "request",
+        "paramKeys": ["labels", "message", "tone"],
+        "resultKeys": ["chosen"]
+    },
+    {
+        "method": "pluginApprovals/change",
+        "direction": "coreToHost",
+        "kind": "request",
+        "paramKeys": ["allow", "revoke"],
+        "resultKeys": ["approvals", "revision"]
+    },
+    {
+        "method": "pluginApprovals/read",
+        "direction": "coreToHost",
+        "kind": "request",
+        "paramKeys": [],
+        "resultKeys": ["approvals", "revision"],
+        "replyDeadlineMs": 120000
+    },
+    {
+        "method": "templatePreferences/change",
+        "direction": "coreToHost",
+        "kind": "request",
+        "paramKeys": ["disable", "enable", "scope"],
+        "resultKeys": ["allProjects", "project"]
+    },
+    {
+        "method": "templatePreferences/read",
+        "direction": "coreToHost",
+        "kind": "request",
+        "paramKeys": [],
+        "resultKeys": ["allProjects", "project"],
+        "replyDeadlineMs": 120000
+    },
+    {
+        "method": "addOns/reveal",
+        "direction": "coreToHost",
+        "kind": "request",
+        "paramKeys": [],
+        "resultKeys": ["shown"],
+        "replyDeadlineMs": 10000
     },
     {
         "method": "editor/postMessage",
         "direction": "coreToHost",
         "kind": "notification",
         "paramKeys": ["editorId", "message", "sessionId"]
+    },
+    {
+        "method": "editor/reload",
+        "direction": "coreToHost",
+        "kind": "notification",
+        "paramKeys": ["editorId", "sessionId"]
     },
     {
         "method": "clipboard/write",
@@ -431,5 +528,11 @@
         "direction": "coreToHost",
         "kind": "notification",
         "paramKeys": ["scriptId"]
+    },
+    {
+        "method": "addOns/postMessage",
+        "direction": "coreToHost",
+        "kind": "notification",
+        "paramKeys": ["message"]
     }
 ]

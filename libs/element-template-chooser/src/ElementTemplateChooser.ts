@@ -29,6 +29,11 @@ interface InjectorLike {
     get<T = unknown>(name: string, strict: false): T | null;
 }
 
+/** The modeler's `elementTemplateOffer` service, when one is registered. */
+export interface TemplateOffer {
+    isOffered(template: ElementTemplate): boolean;
+}
+
 /**
  * Opens the element template chooser overlay when the properties panel
  * fires an `elementTemplates.select` event.
@@ -59,11 +64,12 @@ class ElementTemplateChooser {
         }
 
         const translate = injector.get<Translate>("translate", false) ?? fallbackTranslate;
+        const offer = injector.get<TemplateOffer>("elementTemplateOffer", false);
 
         eventBus.on<{ element: Element }>("elementTemplates.select", (event) => {
             const { element } = event;
 
-            this.open(element, elementTemplates, canvas, translate)
+            this.open(element, elementTemplates, canvas, translate, offer)
                 .then((template) => {
                     elementTemplates.applyTemplate(element, template);
                 })
@@ -81,6 +87,7 @@ class ElementTemplateChooser {
      * @param element The selected BPMN element.
      * @param elementTemplates The bpmn-js element templates service.
      * @param canvas The bpmn-js canvas service.
+     * @param offer Narrows the templates to the offered ones; every template without it.
      * @returns A promise that resolves with the chosen template or rejects on cancel.
      */
     private open(
@@ -88,11 +95,13 @@ class ElementTemplateChooser {
         elementTemplates: ElementTemplatesService,
         canvas: Canvas,
         translate: Translate,
+        offer: TemplateOffer | null,
     ): Promise<ElementTemplate> {
         return new Promise((resolve, reject) => {
             const templates: ElementTemplate[] = elementTemplates
                 .getLatest(element)
-                .filter((t: ElementTemplate) => !isTemplateApplied(element, t));
+                .filter((t: ElementTemplate) => !isTemplateApplied(element, t))
+                .filter((t: ElementTemplate) => offer?.isOffered(t) ?? true);
 
             const container = document.createElement("div");
             container.className = "etc-overlay-root";

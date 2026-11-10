@@ -1,14 +1,11 @@
 import { MarketplaceSettingsEntry } from "../../kernel/domain/modelerSettings";
+import { PROJECT_SCOPES, ProjectScope } from "../../kernel/domain/projectScopes";
 import { expandHomePath, parseMarketplaceUrl } from "./marketplace";
 
-/**
- * For the open project only, or for every project the user opens; in the
- * order the core offers them, as an add is a per-project concern unless the
- * user shares it.
- */
-export const MARKETPLACE_SCOPES = ["project", "allProjects"] as const;
+/** Project first, as an add is a per-project concern unless the user shares it. */
+export const MARKETPLACE_SCOPES = PROJECT_SCOPES;
 
-export type MarketplaceScope = (typeof MARKETPLACE_SCOPES)[number];
+export type MarketplaceScope = ProjectScope;
 
 /**
  * Where a host keeps something the user can open, as a fact the core words: a
@@ -64,8 +61,15 @@ export function registrableLocation(
     }
 }
 
-/** All-projects entries first, as both hosts union their lists for the fetch. */
-const LISTING_ORDER: readonly MarketplaceScope[] = ["allProjects", "project"];
+/**
+ * All-projects entries first, as both hosts union their lists for the fetch.
+ * Upstream keeps the last copy of a template, so this order decides between
+ * two marketplaces' copies; it does not follow the order scopes are offered in.
+ */
+export const MARKETPLACE_LISTING_ORDER = [
+    "allProjects",
+    "project",
+] as const satisfies readonly MarketplaceScope[];
 
 /**
  * Each registered entry once, with every scope whose list holds it. Entries
@@ -76,14 +80,25 @@ export function registeredMarketplaces(registered: RegistrationsByScope): Regist
         string,
         { entry: MarketplaceSettingsEntry; scopes: MarketplaceScope[] }
     >();
-    for (const scope of LISTING_ORDER) {
+    for (const scope of MARKETPLACE_LISTING_ORDER) {
         for (const entry of registered[scope]) {
-            const listed = byKey.get(entryKey(entry));
-            if (!listed) byKey.set(entryKey(entry), { entry, scopes: [scope] });
+            const listed = byKey.get(marketplaceEntryKey(entry));
+            if (!listed) byKey.set(marketplaceEntryKey(entry), { entry, scopes: [scope] });
             else if (!listed.scopes.includes(scope)) listed.scopes.push(scope);
         }
     }
     return [...byKey.values()];
+}
+
+/** The entry with every scope whose list holds it, matched as {@link registeredMarketplaces} matches them. */
+export function registeredMarketplaceOf(
+    registered: RegistrationsByScope,
+    entry: MarketplaceSettingsEntry,
+): RegisteredMarketplace | undefined {
+    const key = marketplaceEntryKey(entry);
+    return registeredMarketplaces(registered).find(
+        (listed) => marketplaceEntryKey(listed.entry) === key,
+    );
 }
 
 /** This project fetches the entries of every list, all projects only their own. */
@@ -123,9 +138,9 @@ function scopesHolding(
     registered: RegistrationsByScope,
     entry: MarketplaceSettingsEntry,
 ): MarketplaceScope[] {
-    const key = entryKey(entry);
-    return LISTING_ORDER.filter((scope) =>
-        registered[scope].some((listed) => entryKey(listed) === key),
+    const key = marketplaceEntryKey(entry);
+    return MARKETPLACE_LISTING_ORDER.filter((scope) =>
+        registered[scope].some((listed) => marketplaceEntryKey(listed) === key),
     );
 }
 
@@ -142,11 +157,11 @@ export function withoutMarketplaceEntries(
     list: readonly MarketplaceSettingsEntry[],
     removed: readonly MarketplaceSettingsEntry[],
 ): MarketplaceSettingsEntry[] {
-    const removedKeys = new Set(removed.map(entryKey));
-    return list.filter((entry) => !removedKeys.has(entryKey(entry)));
+    const removedKeys = new Set(removed.map(marketplaceEntryKey));
+    return list.filter((entry) => !removedKeys.has(marketplaceEntryKey(entry)));
 }
 
 // Field order counts, which is safe: a removal names the entries as read from these lists.
-function entryKey(entry: MarketplaceSettingsEntry): string {
+export function marketplaceEntryKey(entry: MarketplaceSettingsEntry): string {
     return JSON.stringify(entry);
 }

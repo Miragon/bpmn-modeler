@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import * as addOnsViewMessages from "./addOnsView";
 import * as baseMessages from "./messages";
 import {
     Command,
@@ -18,6 +19,7 @@ const abstractMessageClasses: unknown[] = [Query, Command, LogMessageCommand];
 const concreteMessageClasses = Object.entries<unknown>({
     ...baseMessages,
     ...modelerMessages,
+    ...addOnsViewMessages,
 }).filter(
     (entry): entry is [string, MessageClass] =>
         typeof entry[1] === "function" && !abstractMessageClasses.includes(entry[1]),
@@ -29,11 +31,20 @@ const concreteMessageClasses = Object.entries<unknown>({
  * so a drifted literal silently routes a message to no handler at all.
  */
 describe("protocol messages", () => {
-    it("collects the message classes of both protocol modules", () => {
+    it("collects the message classes of every protocol module", () => {
         const names = concreteMessageClasses.map(([name]) => name);
 
         expect(names).toContain("SyncDocumentCommand");
         expect(names).toContain("ApplyDiffHighlightsQuery");
+        expect(names).toEqual(
+            expect.arrayContaining([
+                "GetAddOnCatalogCommand",
+                "AddOnRequestCommand",
+                "AddOnCatalogQuery",
+                "AddOnActionResultQuery",
+                "RevealAddOnsQuery",
+            ]),
+        );
     });
 
     it.each(concreteMessageClasses)("%s carries its class name as type over JSON", (name, Cls) => {

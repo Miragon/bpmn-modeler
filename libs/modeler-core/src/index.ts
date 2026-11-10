@@ -8,8 +8,18 @@
  */
 
 // ── kernel ───────────────────────────────────────────────────────────────────
+export * from "./kernel/domain/actionNotice";
 export * from "./kernel/domain/affectedItems";
 export * from "./kernel/domain/BpmnDocument";
+export {
+    allowing,
+    approvalsAfter,
+    approvalsKey,
+    codeApprovalChange,
+    type CodeApprovalChange,
+    type ReviewAnswer,
+    revoking,
+} from "./kernel/domain/codeApproval";
 export * from "./kernel/domain/engineVersions";
 export * from "./kernel/domain/errorLogText";
 export * from "./kernel/domain/errors";
@@ -19,18 +29,24 @@ export * from "./kernel/domain/globToRegExp";
 export * from "./kernel/port/hostPorts";
 export * from "./kernel/domain/http";
 export * from "./kernel/port/HttpClient";
+export * from "./kernel/port/templatePreferencePorts";
 export * from "./kernel/domain/locateResult";
 export * from "./kernel/domain/modelerSettings";
 export * from "./kernel/domain/newModelEngine";
+export * from "./kernel/domain/projectScopes";
 export * from "./kernel/domain/prompts";
 export * from "./kernel/domain/rootContainment";
 export * from "./kernel/domain/statusView";
+export * from "./kernel/domain/templatePreferences";
 export * from "./kernel/domain/textReplacement";
 export * from "./kernel/domain/viewTypes";
 export * from "./kernel/domain/watcherEvents";
 export * from "./kernel/domain/workspacePath";
 export * from "./kernel/service/ArtifactService";
+export * from "./kernel/service/QuestionQueue";
 export * from "./kernel/adapter/out/FetchHttpClient";
+export { ListReview } from "./kernel/adapter/out/ListReview";
+export type { ApprovalReviewPort, ApprovalReviewRequest } from "./kernel/port/approvalPorts";
 export * from "./kernel/domain/nonce";
 
 // ── editorSession ────────────────────────────────────────────────────────────
@@ -59,6 +75,7 @@ export * from "./editorSession/adapter/in/webviewNotificationMessageHandlers";
 export * from "./modeler/bpmn/composition/BpmnEditorFeature";
 export * from "./modeler/bpmn/domain/model";
 export * from "./modeler/bpmn/port/bpmnPorts";
+export * from "./modeler/bpmn/port/installedPackagesPort";
 export * from "./modeler/bpmn/service/BpmnModelerService";
 export * from "./modeler/bpmn/adapter/in/bpmnMessageHandlers";
 export * from "./modeler/bpmn/service/BpmnElementTemplatesService";
@@ -83,6 +100,43 @@ export * from "./modeler/form/domain/emptyForm";
 export * from "./modeler/form/service/FormModelerService";
 export * from "./modeler/elementTemplate/domain/newTemplateFile";
 export * from "./modeler/elementTemplate/composition/ElementTemplateEditorFeature";
+
+// ── bpmnPlugins ──────────────────────────────────────────────────────────────
+export * from "./bpmnPlugins/domain/pluginApproval";
+export * from "./bpmnPlugins/port/pluginPorts";
+export * from "./bpmnPlugins/composition/BpmnPluginsFeature";
+
+// ── addOns ───────────────────────────────────────────────────────────────────
+export type {
+    ActionView,
+    AddOnCatalogModel,
+    AddOnGroupView,
+    AddOnReveal,
+    AddOnReview,
+    AddOnSourceView,
+    AddOnView,
+    CodeAddOnView,
+    TemplateAddOnView,
+} from "./addOns/domain/addOnCatalogModel";
+export type {
+    AddOnActionKind,
+    AddOnKind,
+    CatalogActionKind,
+    CodeAddOnKind,
+    SourceActionKind,
+    SourceKind,
+    TemplateState,
+} from "./addOns/domain/addOnIds";
+export type { AddOnActionResult, AddOnRefusal, AddOnRequest } from "./addOns/domain/addOnRequests";
+export type {
+    MarketplaceAddOnSource,
+    SettingChanges,
+    TemplateAddOnSource,
+} from "./addOns/port/addOnSourcePorts";
+export type { AddOnViewConnection } from "./addOns/service/AddOnViewHub";
+export type { AddOnViewRevealPort } from "./addOns/port/addOnViewPorts";
+export { ViewReview } from "./addOns/adapter/out/ViewReview";
+export * from "./addOns/composition/AddOnsFeature";
 
 // ── diff ─────────────────────────────────────────────────────────────────────
 export * from "./diff/domain/basenameOfUriString";
@@ -169,6 +223,8 @@ export * from "./template-marketplace/adapter/out/GitLabSource";
 export * from "./template-marketplace/adapter/out/LocalFileSource";
 export * from "./template-marketplace/service/MarketplaceCache";
 export * from "./template-marketplace/service/MarketplaceCommands";
+export * from "./template-marketplace/service/MarketplaceInventory";
+export * from "./template-marketplace/service/MarketplaceTemplateSources";
 export * from "./template-marketplace/service/TemplateMarketplaceService";
 export * from "./template-marketplace/composition/MarketplaceFeature";
 

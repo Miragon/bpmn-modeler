@@ -734,12 +734,28 @@ describe("TemplateMarketplaceService include filtering", () => {
 });
 
 describe("TemplateMarketplaceService.getCachedTemplatePaths", () => {
-    it("lists the cached element templates", async () => {
-        const { service } = createService({
-            cachedFiles: { "/cache/acme/0/element-templates/a.json": "{}" },
+    it("lists the cached element templates of the registered marketplaces", async () => {
+        const { service, settings } = createService({
+            cachedFiles: { "/cache/acme__one/0/element-templates/a.json": "{}" },
         });
+        settings.values.marketplaces = ["https://github.com/acme/one"];
+
         expect(await service.getCachedTemplatePaths()).toEqual([
-            "/cache/acme/0/element-templates/a.json",
+            "/cache/acme__one/0/element-templates/a.json",
+        ]);
+    });
+
+    it("serves no cached templates of a marketplace removed from the settings by hand", async () => {
+        const { service, settings } = createService({
+            cachedFiles: {
+                "/cache/acme__one/0/element-templates/a.json": "{}",
+                "/cache/acme__two/0/element-templates/b.json": "{}",
+            },
+        });
+        settings.values.marketplaces = ["https://github.com/acme/one"];
+
+        expect(await service.getCachedTemplatePaths()).toEqual([
+            "/cache/acme__one/0/element-templates/a.json",
         ]);
     });
 });

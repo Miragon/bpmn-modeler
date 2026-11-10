@@ -337,15 +337,19 @@ whole chain. For a real `Publish Standalone` rerun, pass the release tag as
 | `APPLE_ID` | Apple ID email of a Miragon team member |
 | `APPLE_APP_SPECIFIC_PASSWORD` | generated at appleid.apple.com |
 | `APPLE_TEAM_ID` | `G5JZQ328LJ` |
-| `HOMEBREW_TAP_TOKEN` | Repository or organization PAT with `repo` scope on `Miragon/homebrew-tap` |
+
+The Homebrew job writes to `Miragon/homebrew-tap` as the
+`miragon-release-please` GitHub App, through the organization-level
+`RELEASE_PLEASE_APP_CLIENT_ID` variable and `RELEASE_PLEASE_APP_PRIVATE_KEY`
+secret. It needs no secret of its own.
 
 ### Approval gate / environment setup
 
 The signed macOS job targets the `standalone` GitHub environment. Configure
 required reviewers on that environment to gate the release chain before any
 desktop package is published. The Homebrew job deliberately reuses that
-approval instead of requiring a second one, so `HOMEBREW_TAP_TOKEN` must remain
-a repository or organization secret. A direct dispatch of only the Homebrew
+approval instead of requiring a second one, so the App credentials must remain
+repository or organization-level. A direct dispatch of only the Homebrew
 workflow bypasses the `standalone` environment; use its dry-run mode first.
 
 ## Structure

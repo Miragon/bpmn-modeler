@@ -2,7 +2,11 @@ import { basename } from "path";
 
 import { BpmnEditorCommandType } from "@miragon/bpmn-modeler-shared";
 
+import { reviewOrChecklist } from "../../../kernel/adapter/out/ListReview";
+import { ApprovalReviewPort, PluginApprovalStorePort } from "../../../kernel/port/approvalPorts";
+import { TemplatePreferenceStorePort } from "../../../kernel/port/templatePreferencePorts";
 import {
+    ActionNotifierPort,
     ClipboardPort,
     DocumentPort,
     NotifierPort,
@@ -11,7 +15,9 @@ import {
     StatusBarPort,
     WorkspacePort,
 } from "../../../kernel/port/hostPorts";
+import { ApprovalQuestion } from "../../../kernel/service/ApprovalQuestion";
 import { ArtifactService } from "../../../kernel/service/ArtifactService";
+import { QuestionQueue } from "../../../kernel/service/QuestionQueue";
 import { EditorSessionParticipant } from "../../../editorSession/domain/EditorSessionParticipant";
 import {
     displayDocumentHandler,
@@ -37,9 +43,11 @@ import {
     LintingPreferencePort,
     PropertiesPanelStatePort,
 } from "../port/bpmnPorts";
+import { InstalledPackagesPort } from "../port/installedPackagesPort";
 import { NodeBpmnLinter } from "../adapter/out/bpmnlint/NodeBpmnLinter";
 import { NoopDiagnostics } from "../adapter/out/bpmnlint/NoopDiagnostics";
 import {
+    answerWithoutPluginsHandler,
     cleanupReportHandler,
     diagramFormattedHandler,
     getBpmnlintConfigHandler,
@@ -61,7 +69,7 @@ import {
 } from "../service/BpmnElementTemplatesService";
 import { BpmnLayoutService } from "../service/BpmnLayoutService";
 import { BpmnLintConfigLocator } from "../service/BpmnLintConfigLocator";
-import { BpmnLintConfigService } from "../service/BpmnLintConfigService";
+import { BpmnLintConfigService, RulePackageApprovals } from "../service/BpmnLintConfigService";
 import { BpmnModelerService } from "../service/BpmnModelerService";
 import { BpmnPropertiesPanelService } from "../service/BpmnPropertiesPanelService";
 import { BpmnSettingsBroadcaster } from "../service/BpmnSettingsBroadcaster";
@@ -69,6 +77,10 @@ import { BpmnlintParticipant } from "../service/BpmnlintParticipant";
 import { BpmnSettingsParticipant } from "../service/BpmnSettingsParticipant";
 import { ElementTemplatesParticipant } from "../service/ElementTemplatesParticipant";
 import { EngineVersionStatusBarParticipant } from "../service/EngineVersionStatusBarParticipant";
+import { PackageClosureFingerprinter } from "../service/PackageClosureFingerprinter";
+import { RulePackageCatalog } from "../service/RulePackageCatalog";
+import { RulePackageInventory } from "../service/RulePackageInventory";
+import { TemplateInventory } from "../service/TemplateInventory";
 
 /** The document plumbing: a host routes all three to the core's document services, or none. */
 export const DOCUMENT_SYNC_COMMAND_TYPES = [
@@ -93,6 +105,22 @@ export interface BpmnEditorHostPorts {
     readonly diagnostics?: DiagnosticsPort;
     /** Merges the marketplace cache into element-template discovery. */
     readonly templateProvider?: CachedTemplateProvider;
+    /** Absent: the host keeps no template switches, and every template is offered. */
+    readonly templatePreferences?: TemplatePreferenceStorePort;
+    /** Absent: bpmnlint runs no workspace rule package, only the bundled rules. */
+    readonly rulePackages?: BpmnRulePackagePorts;
+}
+
+/** What a host wires so that the workspace bpmnlint rule packages the user allowed run. */
+export interface BpmnRulePackagePorts {
+    /** The host's one approval list, which the plugin approvals share. */
+    readonly approvals: PluginApprovalStorePort;
+    readonly installedPackages: InstalledPackagesPort;
+    readonly actionNotifier: ActionNotifierPort;
+    /** Shared with the host's other approval questions, so two notices never stand side by side. */
+    readonly questions: QuestionQueue;
+    /** Where "Review…" takes the user, as {@link reviewOrChecklist} defaults it. */
+    readonly review?: ApprovalReviewPort;
 }
 
 /** The core's document services behind {@link DOCUMENT_SYNC_COMMAND_TYPES}. */
@@ -133,6 +161,8 @@ export interface BpmnEditorContributions {
     readonly codeLink: EditorContribution<
         "NavigateToImplementationCommand" | "SyncActivitiesCommand"
     >;
+    /** Absent: the host serves no plugins, and the editor is told so at once. */
+    readonly plugins?: EditorContribution<"GetBpmnPluginsCommand">;
 }
 
 const PANEL_ALWAYS_VISIBLE: PropertiesPanelStatePort = {
@@ -149,12 +179,20 @@ const PANEL_ALWAYS_VISIBLE: PropertiesPanelStatePort = {
 export class BpmnEditorFeature {
     readonly bpmnService: BpmnModelerService;
     readonly templates: BpmnElementTemplatesService;
+    /** What the add-on catalog lists of the element templates. */
+    readonly templateInventory: TemplateInventory;
     readonly layout: BpmnLayoutService;
+    readonly lintConfig: BpmnLintConfigService;
+    /** Absent without {@link BpmnRulePackagePorts}. */
+    readonly rulePackageCatalog?: RulePackageCatalog;
+    /** What the add-on catalog lists of the rule packages; absent without {@link BpmnRulePackagePorts}. */
+    readonly rulePackageInventory?: RulePackageInventory;
     readonly router: WebviewMessageRouter;
     readonly participants: readonly EditorSessionParticipant[];
 
     private readonly panel: BpmnPropertiesPanelService;
     private readonly rendering: BpmnEditorHostExtensions["rendering"];
+    private readonly switchSubscription?: { dispose(): void };
 
     constructor(
         private readonly ports: BpmnEditorHostPorts,
@@ -177,23 +215,35 @@ export class BpmnEditorFeature {
             ports.statusBar,
             ports.notifier,
             ports.templateProvider,
+            ports.templatePreferences && {
+                preferences: ports.templatePreferences,
+                workspace: ports.workspace,
+            },
         );
+        this.switchSubscription = ports.templatePreferences?.onDidChange(() => {
+            void this.templates.refreshOffers();
+        });
+        this.templateInventory = new TemplateInventory(this.templates, ports.artifacts);
         this.layout = new BpmnLayoutService(ports.store, ports.notifier, ports.picker);
         const lintConfigLocator = new BpmnLintConfigLocator(
             ports.workspace,
             ports.settings,
             ports.artifacts,
         );
-        const lintConfig = new BpmnLintConfigService(
+        const { linter, approvals, inventory } = this.rulePackageLinting(ports.rulePackages);
+        this.rulePackageCatalog = approvals?.catalog;
+        this.rulePackageInventory = inventory;
+        const lintConfig = (this.lintConfig = new BpmnLintConfigService(
             ports.store,
             ports.documents,
             lintConfigLocator,
-            new NodeBpmnLinter(),
+            linter,
             ports.diagnostics ?? new NoopDiagnostics(),
             ports.statusBar,
             ports.notifier,
             ports.settings,
-        );
+            approvals,
+        ));
         const clipboard = new BpmnClipboardMediator(ports.store, ports.clipboard, ports.notifier);
         const settingsBroadcaster = new BpmnSettingsBroadcaster(
             ports.store,
@@ -220,6 +270,10 @@ export class BpmnEditorFeature {
                 ignored: "the SVG export awaits this reply outside the router",
             },
             GetElementTemplatesCommand: [getElementTemplatesHandler(this.templates)],
+            GetBpmnPluginsCommand: [
+                contributions.plugins?.commandHandlers.GetBpmnPluginsCommand ??
+                    answerWithoutPluginsHandler(ports.store),
+            ],
             GetBpmnlintConfigCommand: [getBpmnlintConfigHandler(lintConfig)],
             UpdateLintResultsCommand: [updateLintResultsHandler(lintConfig)],
             SetLintingEnabledCommand: extensions.lintingPreference
@@ -279,6 +333,7 @@ export class BpmnEditorFeature {
             contributions.deploymentStatus,
             scriptEditor.participant,
             codeLink.participant,
+            ...(contributions.plugins ? [contributions.plugins.participant] : []),
         ];
     }
 
@@ -301,7 +356,40 @@ export class BpmnEditorFeature {
     }
 
     dispose(): void {
+        this.switchSubscription?.dispose();
         this.templates.dispose();
+        this.lintConfig.dispose();
+        this.rulePackageCatalog?.dispose();
+    }
+
+    private rulePackageLinting(rulePackages: BpmnRulePackagePorts | undefined): {
+        readonly linter: NodeBpmnLinter;
+        readonly approvals?: RulePackageApprovals;
+        readonly inventory?: RulePackageInventory;
+    } {
+        if (rulePackages === undefined) {
+            return { linter: new NodeBpmnLinter() };
+        }
+        const { approvals, installedPackages, actionNotifier, questions, review } = rulePackages;
+        const fingerprints = new PackageClosureFingerprinter(installedPackages);
+        const catalog = new RulePackageCatalog(approvals, fingerprints, this.ports.notifier);
+        const question = new ApprovalQuestion(
+            catalog,
+            reviewOrChecklist(review, this.ports.picker),
+            actionNotifier,
+            this.ports.workspace,
+            questions,
+        );
+        return {
+            approvals: { catalog, question },
+            inventory: new RulePackageInventory(catalog, fingerprints, installedPackages),
+            linter: new NodeBpmnLinter({
+                approvals,
+                fingerprints,
+                packages: installedPackages,
+                declinedThisSession: () => catalog.declinedThisSession(),
+            }),
+        };
     }
 
     private documentSyncRoutes(

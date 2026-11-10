@@ -34,6 +34,7 @@ import type {
 import type {
     CleanupOutcome,
     CleanupStatus,
+    ElementTemplateRef,
     LayoutOutcome,
     ModelNavigationPort as ModelNavigationPortFromRoot,
     ModelReference as ModelReferenceFromRoot,
@@ -361,6 +362,26 @@ const _viewerHasNoEditing = (v: BpmnViewerHandle) => {
     void v.setElementTemplates;
 };
 void _viewerHasNoEditing;
+
+const _hiddenTemplates = (m: BpmnModelerHandle) => {
+    const refs: readonly ElementTemplateRef[] = [{ id: "rest", version: 2 }, { id: "mail" }];
+    m.setHiddenElementTemplates(refs);
+    m.setHiddenElementTemplates([]);
+};
+void _hiddenTemplates;
+
+expectTypeOf<ElementTemplateRef>().toEqualTypeOf<{
+    readonly id: string;
+    readonly version?: number;
+}>();
+
+const _hiddenTemplatesAreModelerOnly = (v: BpmnViewerHandle, d: BpmnDesignerHandle) => {
+    // @ts-expect-error — element templates are modeler-only, absent from the viewer.
+    void v.setHiddenElementTemplates;
+    // @ts-expect-error — element templates are engine-bound, absent from the designer.
+    void d.setHiddenElementTemplates;
+};
+void _hiddenTemplatesAreModelerOnly;
 
 const _modelerSatisfiesDesignerHandle = (m: BpmnModelerHandle): BpmnDesignerHandle => m;
 void _modelerSatisfiesDesignerHandle;

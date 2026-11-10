@@ -1,8 +1,11 @@
 name: Publish VS Code Modeler
 
-# Builds and publishes the VS Code extension. Manual workflow_dispatch only;
-# dry-run uploads a vsix artifact, non-dry-run publishes to the VS Code
-# Marketplace using the version in apps/vscode-plugin/package.json.
+# Builds and publishes the VS Code extension. Dry-run uploads a vsix artifact;
+# non-dry-run publishes to the VS Code Marketplace using the version in
+# apps/vscode-plugin/package.json, authenticated by Marketplace Trusted
+# Publishing (GitHub OIDC). The publisher's trusted publishing policy names
+# this file and the vscode-marketplace environment; renaming either breaks
+# publishing until the policy is updated.
 
 on:
   workflow_dispatch:
@@ -33,6 +36,7 @@ on:
 permissions:
   contents: write
   deployments: write
+  id-token: write
 
 concurrency:
   group: bpmn-modeler-publish
@@ -42,10 +46,9 @@ jobs:
   publish:
     name: Publish
     runs-on: ubuntu-latest
-    # Gate only real publishes behind the vscode-marketplace environment so
-    # VSCE_PUBLISH stays behind the environment's protection rules. VSCE_PUBLISH
-    # is read solely in the dry-run == false publish step, so an empty
-    # environment name leaves dry-runs ungated (no approval wait).
+    # Only real publishes run in the vscode-marketplace environment, which the
+    # trusted publishing policy requires in the OIDC token; an empty name
+    # leaves dry-runs ungated (no approval wait).
     environment:
       name: ${{ inputs.dry-run == false && 'vscode-marketplace' || '' }}
 
@@ -70,7 +73,7 @@ jobs:
           cache: yarn
 
       - name: Install dependencies (focused)
-        run: yarn workspaces focus bpmn-modeler vs-code-bpmn-modeler @miragon/bpmn-modeler-webview @miragon/dmn-modeler-webview @miragon/form-modeler-webview @miragon/bpmn-modeler-deployment-webview @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-types @miragon/bpmn-modeler-core @miragon/bpmn-modeler-append-menu @miragon/bpmn-modeler-clipboard @miragon/bpmn-modeler-i18n-extras @miragon/bpmn-modeler-element-template-chooser
+        run: yarn workspaces focus bpmn-modeler vs-code-bpmn-modeler @miragon/bpmn-modeler-webview @miragon/dmn-modeler-webview @miragon/form-modeler-webview @miragon/bpmn-modeler-deployment-webview @miragon/bpmn-modeler-add-ons-webview @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-types @miragon/bpmn-modeler-core @miragon/bpmn-modeler-append-menu @miragon/bpmn-modeler-clipboard @miragon/bpmn-modeler-i18n-extras @miragon/bpmn-modeler-element-template-chooser
 
       - name: Resolve version
         id: version
@@ -82,7 +85,7 @@ jobs:
         run: yarn build
 
       - name: Install vsce
-        run: npm install -g @vscode/vsce@3.2.2
+        run: npm install -g @vscode/vsce@4.1.0
 
       - name: Package vsix
         working-directory: dist/apps/vscode-plugin
@@ -99,9 +102,7 @@ jobs:
       - name: Publish to VS Code Marketplace
         if: inputs.dry-run == false
         working-directory: dist/apps/vscode-plugin
-        run: vsce publish --yarn --no-dependencies
-        env:
-          VSCE_PAT: ${{ secrets.VSCE_PUBLISH }}
+        run: vsce publish --oidc --yarn --no-dependencies
 
       # Record a per-host deployment so the repo Environments page shows the
       # VS Code extension's last-published version. The environment

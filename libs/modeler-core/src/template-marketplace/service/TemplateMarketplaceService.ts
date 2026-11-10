@@ -10,6 +10,7 @@ import {
     TemplateSource,
 } from "../domain/marketplace";
 import { CachePrune, MarketplaceRegistry } from "../domain/marketplaceRegistry";
+import { registeredTemplateFiles } from "../domain/marketplaceSources";
 import { RepositorySourceConfig } from "../domain/repositorySourceConfig";
 import { RepositorySourceFactory, TokenPromptPort, TokenStorePort } from "../port/marketplacePorts";
 import {
@@ -193,9 +194,20 @@ export class TemplateMarketplaceService {
         }
     }
 
-    /** The merge input handed to `BpmnElementTemplatesService`. */
-    getCachedTemplatePaths(): Promise<string[]> {
-        return this.cache.getCachedTemplatePaths();
+    /**
+     * Every registered marketplace's cached templates as one group, served by
+     * `MarketplaceTemplateSources` when the registrations cannot be read.
+     */
+    async getCachedTemplatePaths(): Promise<string[]> {
+        return registeredTemplateFiles(
+            this.settings.getMarketplaces(),
+            await this.cache.cachedTemplatePathsByRegistration(),
+        );
+    }
+
+    /** What the add-on catalog lists under each marketplace. */
+    cachedTemplatePathsByRegistration(): Promise<ReadonlyMap<string, readonly string[]>> {
+        return this.cache.cachedTemplatePathsByRegistration();
     }
 
     /**

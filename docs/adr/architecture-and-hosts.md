@@ -1,7 +1,7 @@
 # Architecture and hosts
 
 - Status: accepted
-- Last reviewed: 2026-11-06
+- Last reviewed: 2026-11-10
 
 ## Context
 
@@ -113,6 +113,24 @@ and the `domain/` of `kernel/` and `editorSession/`.
   it is a service, not an adapter. `editorSession/` imports only `kernel/`,
   which the cross-feature rule already implies.
 
+A context that lists what other contexts own declares structural ports in its
+own `port/` and leaves the rules with the owners. `addOns/` (the add-on
+catalog behind the artifacts view) is the first. The ports of
+`addOns/port/addOnSourcePorts.ts` are met by inventories that import nothing
+of `addOns/`: `PluginAddOnSource` by `PluginInventory` in
+`bpmnPlugins/service/`, `RulePackageAddOnSource` and `TemplateAddOnSource` by
+`RulePackageInventory` and `TemplateInventory` in `modeler/bpmn/service/`, and
+`MarketplaceAddOnSource` by `MarketplaceInventory` in
+`template-marketplace/service/`, which `createMarketplaceCommands` builds over
+the host's `MarketplaceCommands`. The host compositions hand one to the other,
+as they hand `CachedTemplateProvider` to the BPMN editor. The values both
+sides name live in `kernel/domain/`: `ListedPresence` and
+`ApprovableCodeTexts` in `codeApproval.ts`, the template file listing in
+`templateListing.ts` and the marketplace listing in `marketplaceListing.ts`,
+from which the catalog derives its own view with the templates read. The context is
+named `addOns` because no core identifier may start with `Artifact` next to
+`ArtifactService`; "artifacts view" stays a word of the UI.
+
 The shared role-folder rules keep services off adapters, outbound adapters off
 services, and every import away from the package entry and the test kit; the
 core has no import cycles. A port file holds only interfaces: the value types,
@@ -178,10 +196,10 @@ the bridge does not, because IntelliJ's diff viewer swaps the sides before it
 forwards a message. The preview host's spec posts every command of the editor
 and diff-pane lists.
 
-The DMN and Form editors, the element-template editor and the deployment
-sidebar have closed lists of their own (`dmnEditorCommands.ts`,
-`formEditorCommands.ts`, `templateEditorCommands.ts`,
-`deploymentSidebarCommands.ts`), and each of these pages narrows its host
+The DMN and Form editors, the element-template editor, the deployment
+sidebar and the add-ons view have closed lists of their own
+(`dmnEditorCommands.ts`, `formEditorCommands.ts`, `templateEditorCommands.ts`,
+`deploymentSidebarCommands.ts`, `addOnsViewCommands.ts`), and each of these pages narrows its host
 channel to its list, so a page cannot post a command of another surface.
 `WEBVIEW_SURFACE_COMMAND_TYPES` (`libs/shared/src/lib/webviewSurfaces.ts`)
 registers every surface with its list; the diff pane's entry is the handshake
@@ -201,7 +219,51 @@ command the page echoes back.
 The deployment sidebar's commands reach the core's `DeploymentMessageDispatcher`
 through a `CommandTable` over its list, as the editor's and the diff pane's do;
 its log rows share `routeWebviewLogCommand`. `DeploymentFeature.panelRoutes`
-reads that table before any panel attaches. Each host keeps one coverage spec
+reads that table before any panel attaches.
+
+The add-ons view (`apps/add-ons-webview`, surface `addOnsView`) follows the
+same shape. Its messages sit in `libs/shared/src/lib/addOnsView.ts`, a
+feature file of their own, which both shared protocol specs import; its
+payloads copy the core's catalog model, request, result and reveal field for
+field, and `AddOnViewMessages.spec.ts` pins each whole type and each value set
+to its home with `expectTypeOf`. `AddOnViewMessages` in the core's
+`addOns/adapter/in/` maps the protocol for one page, so no host translates
+it, and `AddOnsFeature.panelRoutes` reads its table before any page attaches.
+The page asks for the last model when it loads (`GetAddOnCatalogCommand`), as
+a host can drop a push that lands before the page listens. A request from the
+page is untrusted: `addOnRequestOf` keeps only a kind the core knows with the
+fields it names. The model holds workspace text (file, template and folder
+names), so the page builds its DOM with the DOM API from the model and never
+with `innerHTML`, and every `--vscode-*` variable its stylesheet reads is
+listed in `src/adapter/in/styles/hostThemeVariables.json`, the set IntelliJ
+maps for it. VS Code serves the surface; the bridge declares it `absent`
+until IntelliJ does.
+
+IntelliJ shows the add-ons view as the **Artifacts** tab of its BPMN Modeler
+tool window, next to the **Deploy** tab, as VS Code holds Deploy and Artifacts
+in one container. The tool window keeps the id of the former deployment tool
+window (`Miragon Deployment`), so a layout a user saved still applies; its
+factory sets the stripe title. Each tab is one `JcefRelayPanel`, a JCEF page
+that relays its messages verbatim, and counts as open only while the tool
+window is visible and the tab selected (`VisibilityLatch`), so Deploy refreshes
+its form defaults only while its tab shows. The Artifacts browser is built the
+first time its tab shows, since each browser costs a renderer. Its shell
+(`/addOns.html`, bundle under `/webview-add-ons/`) maps the deployment palette
+plus the extras in `hostThemeVariables.json` (`IdeThemeSignal.addOnsThemeVarsCss`,
+held to that file by `IdeThemeSignalTest`); High Contrast is the bundled
+theme's id, as 2024.2 has no API for it. The bridge attaches one panel, hidden,
+at start. **Review…** reaches it through `RpcAddOnViewReveal`, the second
+adapter of `AddOnViewRevealPort`: `addOns/reveal` asks Kotlin to select the tab
+and activate the tool window, and the core then delivers the rows through the
+panel, so no row id rides the wire. Kotlin answers `false` where JCEF is
+missing, the tool window is not registered or the project is closing, and the
+`ListReview` fallback asks instead. The tab's title button sends
+`addOns/refresh`, as nothing reports an installed package or another window's
+approval. Every process after the first, a crash respawn or a start after the
+supervisor gave up, reloads the page: only a result frees a busy row, and a
+request the dead process took would leave its row busy.
+
+Each host keeps one coverage spec
 over every surface, typed `HostSurfaceCoverage` (`libs/modeler-core/src/testing/`):
 per surface a `Record` of every listed command to `HANDLED` or
 `ignored(reason)`, or `absent(reason)` for a surface the host does not offer, as
@@ -251,7 +313,7 @@ imports show the role it has. Each workspace declares its kind once, in the
 
 | Kind | Workspaces |
 | --- | --- |
-| `hexagonal` | `libs/modeler-core`, `apps/vscode-plugin`, `apps/modeler-bridge`, the four webviews, the template builder, `apps/orca-plugin`, `tools/repo-checks` |
+| `hexagonal` | `libs/modeler-core`, `apps/vscode-plugin`, `apps/modeler-bridge`, the five webviews, the template builder, `apps/orca-plugin`, `tools/repo-checks` |
 | `diagram-js` | the diagram-js feature libraries in `libs/` and `packages/bpmn-modeler`, `packages/dmn-modeler`, which follow the bpmn-js module layout |
 | `flat` | `modeler-types`, `shared`, `bpmn-diff`, `bpmn-i18n-extras`, `standalone-extension`, `tools/architecture-testing`, `docs`, `apps/standalone` |
 
@@ -356,7 +418,7 @@ function in an adapter (#2053) covers `**/src/**/adapter/**/*.ts`.
 VS Code runs the core in-process. The standalone app loads that extension in
 Theia/Electron and adds shell behavior through `libs/standalone-extension`.
 IntelliJ runs the same core out-of-process and renders its BPMN editor in JCEF.
-Its host also integrates diff, deployment and scripting; its visual editor does
+Its host also integrates diff, deployment, the add-ons view and scripting; its visual editor does
 not currently provide DMN or Forms parity, nor the element-template editor.
 
 [Orca](https://www.onorca.dev) hosts the two npm packages without the core.
@@ -440,6 +502,40 @@ composition root, and a helper both directions use is pure and sits in
 `domain/` (`canonicalPath` reads only the parts of a `Uri`). A context of the
 VS Code host reaches another only through `shared/`, which the VS Code
 architecture test checks.
+
+VS Code's side bar has one activity bar container, `bpmn-modeler-deploy`,
+titled **BPMN Modeler** with the rocket icon. It kept the id of the
+deployment-only container, so a user's layout survives. It holds two webview
+views: **Deploy** (`bpmn-modeler.deploymentView`), shown while a custom editor
+is open, and **Artifacts** (`bpmn-modeler.artifactsView`), shown whenever a
+folder is open, so the container now shows whenever a folder is open. Both
+set `retainContextWhenHidden`: the core posts nothing to a hidden view, so
+keeping its page costs memory only, and a page shown again keeps its banners
+and the results of requests in flight. The Artifacts view's shell
+(`AddOnsViewHtml`, CSP shell `addOns`) allows its nonced script and its linked
+stylesheet and nothing else, no inline styles either, as the page uses no
+codicons, no images and no style attributes.
+`AddOnsViewProvider` attaches one core panel per resolved view and hands it
+the page's commands, its visibility and its disposal; the core refreshes on
+show. The view's title bar **Refresh Artifacts** (`bpmn-modeler.refreshArtifacts`)
+is host chrome over `AddOnsFeature.refresh()`: no watcher covers
+`node_modules`, so it is read again only then or when the view is shown again. Code names say `addOns`;
+"Artifacts" is the view id and UI text only. **Review…** on a plugin or rule
+package notice opens the view through `VsCodeAddOnsViewReveal`, the
+`AddOnViewRevealPort` adapter: it has the provider focus the view, then asks
+the core to reveal the rows, and answers `false` when focusing fails, as in a
+shell without the command, so `ViewReview` falls back to the list. The
+provider runs the view's `<viewId>.focus` command, which opens the container
+and resolves the view; a page that is still loading then loses that focus, so
+the provider shows the view with focus once more on the page's first message,
+and the page focuses the revealed row (the smoke test found a fresh view left
+unfocused, with the row out of sight). A disposed view (hidden, moved or out
+of its `when` clause) drops both the page state and an unanswered focus, so
+the next view VS Code resolves starts clean. The reviews are built before the
+BPMN editor that takes them, while the catalog is built later from that
+editor's owners, so the composition connects the reveal once the catalog
+exists; activation is synchronous, so no notice can ask before then. The
+adapter runs `describeAddOnViewRevealContract`.
 
 The element-template editor is the main editor for template files in VS Code:
 files in an `element-templates` folder open in it through a default editor
@@ -693,6 +789,25 @@ the core. The deployment services search the workspace through
 `WorkspacePort.findFiles` themselves and offer the found files through
 `chooseMany`.
 
+A notification with actions follows the same split (proposed with the
+[BPMN plugins](bpmn-modeler.md#user-supplied-plugins-proposed), not released).
+`NotifierPort` only shows text, and a `PickerPort` list is too heavy for a
+yes-or-later question, so the kernel adds a generic port
+(`ActionNotifierPort.offer(notice)` in `kernel/port/hostPorts.ts`). The core
+builds the `ActionNotice` in full (`kernel/domain/actionNotice.ts`): an id, a
+tone (`info` or `warning`), the message and the actions, each a label and the
+value it returns. The host shows the message with one button per action and
+returns the chosen value, or `undefined` when the user dismisses it; the
+caller decides what a dismissal means. VS Code renders it with
+`showInformationMessage` or `showWarningMessage`. IntelliJ shows a balloon
+with one `NotificationAction` per label over `actionNotice/show`, which
+answers the clicked label's index, and the bridge's `RpcActionNotifier` maps it
+back to the value. A balloon closed with its X stays in the Notifications tool
+window and can still be answered, as a VS Code notice stays in its centre; the
+notice is dismissed once it expires there. The test kit's
+fake answers a notice by its id, with a scripted action or a dismissal, as
+`ScriptedPicker` answers a prompt.
+
 The core also decides which folders a workspace listing leaves out.
 `excludedDirsGlob` (`kernel/domain/excludedDirs.ts`) builds one exclude glob
 from `EXCLUDED_DIRS` (`node_modules` and build output) and every folder whose
@@ -745,12 +860,17 @@ the core (`enteredToken`) takes a blank answer for no token, so a blank token
 is never stored and no host trims.
 
 The template marketplace's add and remove flows run in the core's
-`MarketplaceCommands` (`template-marketplace/service/`) on both hosts, and
+`MarketplaceCommands` (`template-marketplace/service/`) on both hosts, which
+build them with `createMarketplaceCommands` (`template-marketplace/composition/`)
+together with the add-on catalog's `MarketplaceInventory` over the same instance, and
 `template-marketplace/domain/marketplacePrompts.ts` builds all their text.
 Removing is a choice: `marketplaceRemoval` returns the nothing-registered
 message, or a `chooseMany` prompt whose items name each entry and the scopes
-that hold it (`This project`, `All my projects`, or both), so it needed no new
-port method. Adding asks for free text and a scope together, which no
+that hold it (`This project`, `All my projects`, or both, from
+`marketplaceScopesText`, which the add-on catalog uses too), so it needed no
+new port method. The add-on catalog removes one named entry instead:
+`marketplaceRemovalConfirm` builds a confirm that names it and its scopes, or
+says it is no longer registered, and the same queued body follows. Adding asks for free text and a scope together, which no
 `PickerPort` method can, so it is a new kind of input:
 `MarketplacePromptPort.promptForMarketplace` takes the `MarketplaceAddPrompt`
 that `marketplaceAddPrompt` builds (title, prompt, placeholder, the scopes to
@@ -795,9 +915,12 @@ matches a removal the same way. A write resolves only once `SettingsPort` reads 
 after a removal keeps exactly what is still registered: VS Code reads its
 settings live, and IntelliJ pushes the new snapshot before it acks
 `marketplaceState/save` or `marketplaceState/remove`; `marketplaceState/read`
-reads its stores. The scope vocabulary is the core's `MarketplaceScope`
-(`project`, `allProjects`), whose one home is `MARKETPLACE_SCOPES`; VS Code's
-settings adapter and Kotlin's `MarketplaceScope` speak it too. Where a scope is
+reads its stores. The scope vocabulary (`project`, `allProjects`) has its one
+home in the kernel, `PROJECT_SCOPES` in `kernel/domain/projectScopes.ts`, as the
+template switches speak it too; the marketplace keeps `MARKETPLACE_SCOPES` and
+`MarketplaceScope` as aliases of it. VS Code's settings adapter and Kotlin's
+`ProjectScope` speak it too, the
+latter held to the list by `ProjectScopeTest`. Where a scope is
 saved differs per host, so it reaches the core as a typed `SettingsPlace`, a
 file by its path segments or a settings page by the names that lead to it, and
 the core words it: `Saved in .vscode/settings.json` (or the open
@@ -905,19 +1028,21 @@ serves the whole bundle directory. VS Code and the standalone app copy it into
 the extension; IntelliJ syncs it into plugin resources and serves any path
 below it from the loopback asset server.
 
-Every BPMN, DMN, form and deployment shell sends a Content-Security-Policy with
-`default-src 'none'`, so injected markup cannot run script with the host
-message channel. Each policy allows only what its bundle needs:
+Every BPMN, DMN, form, deployment and add-ons shell sends a
+Content-Security-Policy with `default-src 'none'`, so injected markup cannot
+run script with the host message channel. Each policy allows only what its
+bundle needs:
 
 - `script-src` allows the entry by nonce in VS Code and by `'self'` in
   IntelliJ. The VS Code BPMN and DMN shells also list `webview.cspSource`,
   because the chunk loader's modulepreload links carry no nonce; the form and
   deployment bundles are one script each, so the nonce alone covers them. No
   `'unsafe-eval'`: nothing in the bundles compiles strings at runtime.
-- `style-src` keeps `'unsafe-inline'` in every shell: diagram-js, the
-  properties panel and CodeMirror set style attributes and inject `<style>`
-  elements without a nonce, and the deployment form's markup carries a style
-  attribute.
+- `style-src` keeps `'unsafe-inline'` in every editor and deployment shell:
+  diagram-js, the properties panel and CodeMirror set style attributes and
+  inject `<style>` elements without a nonce, and the deployment form's markup
+  carries a style attribute. VS Code's add-ons shell has only its linked
+  stylesheet and allows `style-src` from the webview alone.
 - In the BPMN, DMN and form shells `img-src` allows `data:`, and for BPMN also
   `https:`, because element-template icons may be either. BPMN and DMN have no
   `connect-src`, so a copy-as-PNG of a remote `.svg` icon renders without that
@@ -929,6 +1054,8 @@ message channel. Each policy allows only what its bundle needs:
 - VS Code's deployment shell allows only its script and its styles, because the
   deployment form loads no images or fonts. IntelliJ builds its deployment
   policy from the BPMN one without `https:` images.
+- IntelliJ's add-ons shell allows only its script and its styles, as the add-ons
+  page loads no images or fonts.
 - `base-uri` and `form-action` are `'none'` in every shell: `default-src` does
   not cover them, and no bundle needs a `<base>` or a native form submission.
 
@@ -990,6 +1117,19 @@ carry an `RpcResult` class, whose property names are its keys; the test replies
 once with each request's result class and compares its keys with the snapshot's.
 The snapshot is an input of the Gradle test task and of the IntelliJ CI path
 filter, so a TypeScript-only protocol change runs the test.
+
+A request's `replyWait` says how long the core waits for the reply: `prompt`
+and `syncedWrite` until the host answers, `hostWork` 120 s, and `hostShow`
+10 s. `hostShow` is for `addOns/reveal`, where the host shows one of its
+views: the approval question queue waits on the reveal, so a host stuck behind
+a modal dialog would otherwise hold every later notice; once it passes, the
+list appears instead. Kotlin counts the same deadline from the request's
+arrival and shows no tab once it passed, so the user does not get both; it
+holds its copy of the deadline to the one `protocol.json` lists. The relayed
+page messages and visibility of the add-ons view (`addOns/webviewMessage`,
+`addOns/open`) are reliable frames that wait for the next process, unlike the
+best-effort deployment relay: only a result frees a busy row on the page, so a
+dropped request would leave its row busy.
 
 ### Process lifecycle
 
@@ -1088,12 +1228,30 @@ keeps explicit local mirrors with these ownership rules:
 | Mirror | Seed and updates | Writer of record |
 | --- | --- | --- |
 | Documents, keyed by editor | `session/register`, then `document/didChange` | Host Document; bridge writes are accepted by the host before its content becomes authoritative |
-| Settings snapshot | Settings in `session/register`, then `settings/didChange` | Host only; one shared snapshot fans changes out to editors |
+| Settings snapshot | Settings in `session/register`, then `settings/didChange` after a change and after each spawn, since a register queued before the spawn read them early and a push while it started was dropped | Host only; one shared snapshot fans changes out to editors |
 | Deployment state | `deploymentState/seed` with what the host stored, then `deploymentState/save` patches | Host; a bridge patch reaches the snapshot only after the host accepted it |
+| Plugin approvals (bpmn-js plugins and bpmnlint rule packages) | `pluginApprovals` with `pluginApprovalsRevision` in `session/register`, then `pluginApprovals/didChange` with its `revision`, which every running bridge of the IDE gets after any `pluginApprovals/change` and each bridge after its spawn; `pluginApprovals/read` answers the stored list | Host (`PluginApprovalStore`, application level): a bridge sends only the rows to allow and the ids to revoke, and the host merges them under one lock and bumps the revision. The mirror keeps only a newer revision, the change's answer included |
+| Workspace roots | `session/register`'s `workspaceRoot`, counted per session and released with it; `addOns/open`'s, claimed once per process, re-sent after every spawn and never released, so the add-ons view lists the project after its last editor closed. `addOns/open` carries the settings, as a register does, since one queued while the bridge was down reaches the new process before the spawn's `settings/didChange` | Host: `project.basePath` in IntelliJ, or the file's folder for a session without one; an `addOns/open` without it lists no folder |
+| Template switches (element templates and their sources turned off per user) | `templatePreferences` in `session/register`: both scopes, each with its own `revision`. Then `templatePreferences/didChange` with both again, which every running bridge of the IDE gets after an `allProjects` change, only the project's own bridge after a `project` change, and each bridge after its spawn, since a register queued before the spawn read them early and a push while it started was dropped; `templatePreferences/read` answers both stored lists. The add-on catalog reads `readStored` for every listing, so it needs no seed; the editor reads the seeded mirror when it sends its templates | Host. IntelliJ: `ProjectTemplatePreferenceStore` (project `PropertiesComponent`, so `.idea/workspace.xml`, per user) for `project` and `TemplatePreferenceStore` (application `PropertiesComponent`) for `allProjects`, one key each. A bridge sends the switches to disable and to enable for one scope; the store of that scope merges them under its lock with the Kotlin `templatePreferencesAfter`, held to `templatePreferenceChange.cases.json`, and bumps its revision, and the host pushes before it answers. The mirror keeps only a newer revision per scope, the change's answer included. VS Code (`VsCodeTemplatePreferenceStore`): `workspaceState` for `project` and `globalState` for `allProjects`, on this machine only (no `setKeysForSync`), merged on a queue; another window's write arrives through `readStored` when the window gains focus |
 
 Apply settings before initial artifact discovery. Seed every synchronous mirror
 before its first consumer, and re-seed on process restart; mirrors do not
 survive the subprocess.
+
+A mirror fed from more than one frame cannot rely on the host's send order.
+The bridge runs each inbound call on a queue keyed by its editor or its method
+(`Rpc.handleLine`), so a `session/register` waits behind its editor's earlier
+frames while a later push on another queue runs at once, and a request's reply
+can arrive after a newer push. The approvals therefore carry a host revision,
+read together with the list, on every frame that carries a list, and the mirror
+ignores an older one. The template switches do the same per scope: the two
+scopes live in different stores, so one revision each, and a frame's older
+scope never replaces a newer one while its newer scope still applies. The host holds no lock while it queues the frames and
+does not coalesce them: two projects' changes queue from their own threads, so
+a frame queued later can carry the older revision and must not replace the
+newer one. The
+revision lives in memory per IDE run, since every bridge is a child of that
+run, and a respawned bridge starts below it.
 
 Every host reads a setting the same way, as `normalizeSettings` in the core's
 [`kernel/domain/modelerSettings.ts`](../../libs/modeler-core/src/kernel/domain/modelerSettings.ts)
@@ -1243,6 +1401,17 @@ a cached result must equal an uncached run.
   still watches, because a change there would otherwise go unnoticed.
   Accepted cost: a marketplace update made by another window is not seen while
   editors of this process stay open.
+- **BPMN plugin copies.** `BpmnPluginService` copies the approved bytes into
+  a content-addressed folder on disk, which every process of the host shares
+  (IntelliJ: one per machine; VS Code: the extension's global storage), and
+  keeps each copy per process once written. The approval list owns the folder:
+  `pruneCache`, run when a process starts, removes the copies no stored row
+  names. Because another process can prune, a copy found in the memo is
+  checked on disk and written again when it is gone. VS Code's `readStored`
+  returns this window's memento, which can lag another window's write, so a
+  prune there may delete a copy that window just wrote; the same check writes
+  it again. Accepted cost: a page that loads between another process's delete
+  and that check leaves the plugin out once.
 - **Escalated lint setup.** `NodeBpmnLinter` keeps the moddle, the loaded
   moddle extensions and the resolved rules and configs per `.bpmnlintrc` path,
   keyed by the config content. A changed config replaces the entry. Every run

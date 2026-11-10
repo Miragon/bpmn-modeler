@@ -20,9 +20,11 @@ import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.util.concurrency.AppExecutorUtil
 import io.miragon.intellij.bpmn.CoreSession
 import io.miragon.intellij.bpmn.ModelerSettingsStore
+import io.miragon.intellij.bpmn.PluginApprovalStore
 import java.io.StringReader
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executor
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.TimeUnit
@@ -39,6 +41,8 @@ import java.util.concurrent.atomic.AtomicReference
  *   tests step time deterministically instead of waiting on the shared pool.
  * @param readDocumentText Reads the content a `session/register` frame seeds.
  *   Injectable so tests can close a tab while its register frame is built.
+ * @param reloadExecutor Runs a page reload off the reader thread, which its page
+ *   flush would otherwise block. Injectable so tests reload synchronously.
  * @param selectedEditorIds The editor ids of the tabs selected in the editor
  *   windows, the focused window's first. Injectable because tests open no tabs.
  */
@@ -46,6 +50,7 @@ internal class EditorSessionRouter(
     private val deps: BridgeDeps,
     private val scheduler: ScheduledExecutorService = AppExecutorUtil.getAppScheduledExecutorService(),
     private val readDocumentText: (VirtualFile) -> String = ::readDocumentTextInReadAction,
+    private val reloadExecutor: Executor = AppExecutorUtil.getAppExecutorService(),
     private val selectedEditorIds: () -> List<String> = { selectedEditorIdsOf(deps.project) },
 ) {
     private val log = Logger.getInstance(EditorSessionRouter::class.java)
@@ -170,6 +175,11 @@ internal class EditorSessionRouter(
                 val sessionId = params.optionalLong("sessionId")
                 RpcAction { id -> handleSave(editorId, sessionId, id) }
             }
+            .on("editor/reload") { params ->
+                val editorId = params.string("editorId")
+                val sessionId = params.optionalLong("sessionId")
+                RpcAction { reloadPage(editorId, sessionId) }
+            }
     }
 
     // ── host → core ────────────────────────────────────────────────────────────
@@ -191,6 +201,7 @@ internal class EditorSessionRouter(
         // before the read, so a page write the read misses keeps its claim.
         entry.forgetUnmirroredContent()
         val content = readDocumentText(session.file)
+        val approvals = PluginApprovalStore.getInstance().snapshot()
         deps.channel.notify(
             HostToCoreMethod.SESSION_REGISTER,
             linkedMapOf(
@@ -208,6 +219,14 @@ internal class EditorSessionRouter(
                 // Seed the core's SettingsPort before it scans templates, so the
                 // very first discovery uses the configured folder, not the default.
                 "settings" to ModelerSettingsStore.getInstance().snapshotMap(deps.project),
+                // Rides on the register, so the page's first plugin query never
+                // races a separate seed and reads approved plugins as new. Read
+                // with its revision, so a register the bridge applies after a
+                // newer push cannot roll its mirror back.
+                "pluginApprovals" to approvals.approvals,
+                "pluginApprovalsRevision" to approvals.revision,
+                // Seeds the mirror the editor reads when it first sends its templates.
+                "templatePreferences" to TemplatePreferencesResult.of(deps.project),
                 "content" to content,
             ),
         )
@@ -216,7 +235,7 @@ internal class EditorSessionRouter(
     /**
      * Pushes the current settings snapshot to the running core so an open editor
      * reacts live (language re-render, configFolder template reload). No-ops when
-     * no bridge is alive: the snapshot is re-seeded on the next [sendRegister].
+     * no bridge is alive: the snapshot is seeded again after the next spawn and [sendRegister].
      */
     fun pushSettings() {
         if (!deps.isProcessAlive()) return
@@ -490,6 +509,24 @@ internal class EditorSessionRouter(
     }
 
     // ── core → host ────────────────────────────────────────────────────────────
+
+    /**
+     * Loads the page of [editorId] anew, as the core asks once newly approved
+     * plugins must load: a page asks for its plugins only while it boots. The
+     * page's edits the Document lacks are written first and the bridge is
+     * seeded from the Document again, so the new page renders them. The new
+     * page holds no render lock, so the flush's lock is not kept. A page closed
+     * or replaced meanwhile is not reloaded.
+     */
+    private fun reloadPage(editorId: String, sessionId: Long?) {
+        val entry = sessions[editorId] ?: return
+        if (!matchesSession(sessionId, entry)) return
+        reloadExecutor.execute {
+            recoverPageEdits(listOf(entry), PageFlushPurpose.CLOSE_OR_RERENDER)
+            if (sessions[editorId] !== entry) return@execute
+            if (reregisterCurrentOwner(entry)) entry.session.reloadPage()
+        }
+    }
 
     private fun deliverToWebview(editorId: String, sessionId: Long?, message: JsonObject) {
         val entry = sessions[editorId] ?: return

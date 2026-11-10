@@ -29,7 +29,7 @@
         "@vitest/coverage-v8": "5.0.5",
         "@vscode/test-cli": "0.0.15",
         "@vscode/test-electron": "3.1.0",
-        "@vscode/vsce": "4.0.0",
+        "@vscode/vsce": "4.1.0",
         "bpmn-moddle": "10.3.1",
         "copy-webpack-plugin": "14.0.0",
         "playwright-core": "1.64.1",
@@ -44,7 +44,7 @@
     "displayName": "BPMN Modeler",
     "description": "Create and edit BPMN 2.0, DMN, and Camunda Form models in VS Code. Supports Camunda 7 and Camunda 8.",
     "license": "SEE LICENSE IN LICENSE",
-    "version": "1.19.0",
+    "version": "1.21.0",
     "publisher": "miragon-gmbh",
     "homepage": "https://www.miragon.io/",
     "galleryBanner": {
@@ -263,7 +263,7 @@
             "activitybar": [
                 {
                     "id": "bpmn-modeler-deploy",
-                    "title": "Deploy Diagram",
+                    "title": "BPMN Modeler",
                     "icon": "$(rocket)"
                 }
             ]
@@ -273,8 +273,14 @@
                 {
                     "type": "webview",
                     "id": "bpmn-modeler.deploymentView",
-                    "name": "Deploy Diagram",
+                    "name": "Deploy",
                     "when": "bpmn-modeler.openCustomEditors > 0"
+                },
+                {
+                    "type": "webview",
+                    "id": "bpmn-modeler.artifactsView",
+                    "name": "Artifacts",
+                    "when": "workspaceFolderCount > 0"
                 }
             ]
         },
@@ -361,6 +367,12 @@
                 "command": "bpmn-modeler.deploymentStatusMenu",
                 "title": "Deployment Status Menu",
                 "category": "Miragon BPMN Modeler"
+            },
+            {
+                "command": "bpmn-modeler.refreshArtifacts",
+                "title": "Refresh Artifacts",
+                "category": "Miragon BPMN Modeler",
+                "icon": "$(refresh)"
             },
             {
                 "command": "bpmn-modeler.migrateAllDiagrams",
@@ -535,6 +547,10 @@
                     "when": "false"
                 },
                 {
+                    "command": "bpmn-modeler.refreshArtifacts",
+                    "when": "workspaceFolderCount > 0"
+                },
+                {
                     "command": "bpmn-modeler.migrateAllDiagrams",
                     "when": "workspaceFolderCount > 0"
                 },
@@ -569,6 +585,13 @@
                 {
                     "command": "bpmn-modeler.cleanupDiagram",
                     "when": "bpmn-modeler.openCustomEditors > 0"
+                }
+            ],
+            "view/title": [
+                {
+                    "command": "bpmn-modeler.refreshArtifacts",
+                    "when": "view == bpmn-modeler.artifactsView",
+                    "group": "navigation"
                 }
             ],
             "explorer/context": [

@@ -1,7 +1,7 @@
 # Engineering practices
 
 - Status: accepted
-- Last reviewed: 2026-11-07
+- Last reviewed: 2026-11-10
 
 ## Context
 
@@ -74,6 +74,12 @@ IntelliJ runs over an RPC loopback that answers as the Kotlin side does. So a
 run pins each adapter's own mapping, not the host itself: where a fake and its
 host part, the suite cannot tell, and the Kotlin half is #2056.
 
+- `describeAddOnViewRevealContract`: `RecordingAddOnViewReveal` and
+  `VsCodeAddOnsViewReveal` over a view focus that rejects where the host
+  cannot show its view, as the provider's does when the focus command fails.
+- `describeApprovalReviewContract`: `ListReview` over `ScriptedPicker`,
+  `ScriptedReview`, and `ViewReview` when the view cannot open
+  (`RecordingAddOnViewReveal({ shows: false })` over a `ListReview`).
 - `describeClipboardContract`: `InMemoryClipboard`, `VsCodeClipboard` over a
   fake `env.clipboard` and the bridge's `RpcClipboard` over a loopback that
   answers as `HostUiRouter` does.
@@ -113,6 +119,15 @@ host part, the suite cannot tell, and the Kotlin half is #2056.
   `RecordingNotifier`, `VsCodeNotifier` over `vscodeWindowFake.ts` and the
   bridge's `RpcNotifier` over a loopback that answers as `HostUiRouter.kt`
   does.
+- `describePluginApprovalStoreContract`: `InMemoryPluginApprovals`,
+  `VsCodePluginApprovalStore` over an in-memory `Memento` and over one that
+  sets its value only after `update` yields (so two changes started together
+  need the store's own ordering), and the bridge's
+  `RpcPluginApprovalStore` over a loopback that merges each change with
+  `approvalsAfter` and stamps revisions as `PluginApprovalRouter` and
+  `PluginApprovalStore` do. Its fixture can store a list as another writer
+  (another IDE project or VS Code window), so the suite holds that a change
+  keeps a row the store never read.
 - `describePickerContract`: `ScriptedPicker`, `VsCodePicker` over mocks of
   the `vscode` window and the bridge's `RpcPicker` over the
   `intellijPromptHost.ts` loopback, which answers as `HostUiRouter` does.
@@ -251,6 +266,9 @@ job; `tools/repo-checks/src/kotlinTestInputs.spec.ts` fails when the filter
 misses a test input. A mirrored Kotlin table would drift like the rule it
 copies. The settings rows in `settingsNormalization.cases.json` are the first
 such file (see [host-replicated state](architecture-and-hosts.md#host-replicated-state)).
+`codeApprovalChange.cases.json` holds how a code approval change merges into
+the stored list and which changes are refused; `PluginApprovalStoreTest` runs
+it against the Kotlin merge.
 Rows whose shapes the typed Kotlin side cannot hold, such as a value of the
 wrong type, live in the core's testing kit (`TYPESCRIPT_ONLY_SETTINGS_CASES`),
 and `describeSettingsContract` runs them beside the JSON rows against every
@@ -260,7 +278,12 @@ Kotlin host copies is pinned the same way, to the TypeScript source file itself:
 `ModelerSettingsStoreTest` the `SURFACE_MODES` array in `surfaceMode.ts` and
 the `COLOR_THEMES` array in `settings.ts` of `libs/modeler-types`,
 `ModelerSettingsConfigurableTest` the `MODE_LABEL` table in the modeler's
-`modeStrip.ts`; each fails when the Kotlin copy differs. A text the Kotlin
+`modeStrip.ts`; each fails when the Kotlin copy differs. The add-ons view's
+`hostThemeVariables.json` (`apps/add-ons-webview/src/adapter/in/styles/`)
+lists every `--vscode-*` variable its stylesheet reads, which its own spec
+checks; `IdeThemeSignal.addOnsThemeVarsCss` maps that set for IntelliJ, and
+`IdeThemeSignalTest` reads the file, a declared input of the Gradle test task
+listed in the `intellij-plugin` CI filter. A text the Kotlin
 host copies is pinned the same way: `EmptyDmnDiagramTest` compares the scaffold
 IntelliJ's New DMN Model writes with `EMPTY_DMN_DIAGRAM` in `emptyDmn.ts` byte
 for byte. No generated file sits in between that could go stale. One Kotlin

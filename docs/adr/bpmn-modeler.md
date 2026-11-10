@@ -1,7 +1,7 @@
 # BPMN modeler
 
 - Status: accepted
-- Last reviewed: 2026-11-06
+- Last reviewed: 2026-11-10
 
 ## Context
 
@@ -25,6 +25,8 @@ boundaries are defined in [Architecture and hosts](architecture-and-hosts.md#pac
 - [Element template preview](#element-template-preview)
 - [Themes and locale](#themes-and-locale)
 - [Linting](#linting)
+- [User-supplied plugins (proposed)](#user-supplied-plugins-proposed)
+  - [Workspace rule packages](#workspace-rule-packages)
 - [Transaction boundaries](#transaction-boundaries)
 - [Diff](#diff)
 - [Formatting and cleanup](#formatting-and-cleanup)
@@ -89,6 +91,26 @@ same name and code, in one undoable command. The package also exports
 `extractModelDefinitions(xml)`, so host-less consumers can build their own index
 with the same tag scanner the IDE hosts use. It is a scanner rather than a
 moddle parse because hosts index whole workspaces.
+
+`setHiddenElementTemplates(refs)` keeps templates out of new choices without
+removing them. The filter sits at the four points that offer a template: the
+chooser, the append, create and replace menus of create-append-anything, and
+the default template upstream applies after every shape and connection create.
+Loading is not filtered, and neither are `get`, `getLatest` and `getAll`: the
+properties panel reads applied templates and their update check through them,
+so an element that uses a hidden template keeps it. Its own replace menu still
+lists that template while it is the latest version of its id: on C8, re-applying
+it from there is the only way to pick another of its presets. The default is
+narrowed by replacing `getDefault` on the `elementTemplates` instance, a narrow
+reach into upstream that browser specs pin for both engines. It is a method of its own
+rather than a filtered `setElementTemplates` call, because a new template set
+re-validates every template and reports the rejections again. Refs are
+`{ id, version? }`, the identity upstream indexes templates by, so the page
+cannot tell two loaded copies of one ref apart; the host decides which refs to
+hide. When the latest version of an id is hidden, the id is not offered, and no
+older version takes its place. The panel's update prompt may still suggest a
+hidden newer version. The refs live on the facade, so they outlive a new
+template set and a re-init.
 
 `getService` has a typed overload for seven semver-covered services: `canvas`,
 `commandStack`, `elementRegistry`, `eventBus`, `modeling`, `overlays`, and
@@ -431,9 +453,733 @@ pins their reports and order, so a bpmnlint bump that changes either rule's
 output fails. 11.15.0 reports the same elements as 11.14.0, but
 `no-overlapping-elements` lists them in element order instead of detection order.
 
+Host linting (`NodeBpmnLinter`, in the VS Code extension host and the
+IntelliJ bridge) runs workspace code only through `bpmnlint-plugin-*` rule
+packages the user allowed, behind the gate described in
+[Workspace rule packages](#workspace-rule-packages); a host that wires no
+`rulePackages` ports lints with the bundled rules only. bpmnlint's own rules
+and configs always come from the bundled bpmnlint: through the workspace,
+bpmnlint's `NodeResolver` would run the workspace's `bpmnlint` install or, via
+`requireLocal`, scripts two folders above the `.bpmnlintrc`. A string
+`moddleExtensions` entry is resolved without running anything and loaded only
+when it is a `.json` descriptor; every known one is. Accepted cost: a workspace
+that pins another bpmnlint version gets the bundled version's built-in rules.
+
+A host lint returns, besides the results and the unresolved names, the rule
+packages the gate blocked and the modules it refused. When a blocked package
+left a rule or config unresolved, the status bar shows the `blocked` state
+(`BPMNlint: N rule packages not allowed`). It wins over `unresolved` and
+carries no install hint: installing would not help, allowing would.
+
 The webview owns lazy `/lint` loading and routes results to either editable
 surface. The [lint-free entry check](../../packages/bpmn-modeler/scripts/check-lint-free-entry.mjs)
 and source architecture tests guard the import boundary.
+
+### User-supplied plugins (proposed)
+
+Proposed for [#1626](https://github.com/Miragon/bpmn-modeler/issues/1626) and
+shipped for VS Code by [#2240](https://github.com/Miragon/bpmn-modeler/issues/2240)
+and for IntelliJ by [#2242](https://github.com/Miragon/bpmn-modeler/issues/2242);
+not released. Orca ([#2244](https://github.com/Miragon/bpmn-modeler/issues/2244))
+reuses the same core and package. Teams want to load bpmn-js plugins, many written for
+the Camunda Modeler, without forking a host or building an app on the package.
+The [user guide](../vscode/features/bpmn-plugins.md) carries what users must
+know. Workspace bpmnlint rule packages share the approval list and the
+question; [Workspace rule packages](#workspace-rule-packages) records how they
+differ.
+
+**Format.** A plugin is a classic script that pushes `{ type, plugin }` onto
+`window.plugins`, the contract of `camunda-modeler-plugin-helpers`, plus an
+optional stylesheet. Unmodified Camunda bundles that register bpmn-js modules
+or moddle extensions therefore load ([#2241](https://github.com/Miragon/bpmn-modeler/issues/2241)
+ran 12 real ones; the [user guide](../vscode/features/bpmn-plugins.md#camunda-modeler-plugins-we-tested)
+has the table). The registration types map to engines as Camunda's product
+lines do: `bpmn.modeler.*` applies to every engine, `bpmn.platform.modeler.*`
+to C7 and `bpmn.cloud.modeler.*` to C8, for `additionalModules` and
+`moddleExtension`. A registration of any other type (`lintRules.*`, `dmn.*`,
+`client`) is ignored and logged. A bundle that imports the helpers'
+`vendor/*` modules (properties panel extensions, React client extensions)
+throws while it runs, before it registers anything, because the editor defines
+none of Camunda's host globals; it is reported as a failed plugin. An untagged
+model gets only the registrations made for every engine.
+
+**Ownership.** Each layer owns one part, so every host and npm consumer takes
+only what it needs:
+
+| Layer | Owns | Does not own |
+| --- | --- | --- |
+| `@miragon/bpmn-modeler/plugins` | Loading scripts from URLs, mapping registrations to engines (`modulesFor(engine)`), building with a fallback | Discovery, trust, network, UI |
+| `libs/modeler-types` | The load report texts (`pluginLoadReport`), pure | Where they are shown |
+| `libs/modeler-core/src/bpmnPlugins` | Discovery, manifest reading, the approval rule, the `PluginCatalog`, the file-cache delivery and the `GetBpmnPluginsCommand` handler | Webview code, host widgets |
+| Hosts | The ports below and a cache folder the webview may read | Any rule or text |
+
+**Package.** `@miragon/bpmn-modeler/plugins` exports `loadPlugins(sources)`,
+which runs one script at a time, attributes what it registers, restores
+`window.plugins`, and reports a failing plugin without stopping the others.
+The result's `modulesFor(engine)` returns the `additionalModules` and
+`moddleExtensions` a surface passes in. `buildWithPluginsOrWithout` builds a
+surface with those modules and, when the build throws or rejects, reports the
+error to a callback and builds again without them; an engine that gets no
+plugin modules is built once. The fallback lives in the package rather than
+the IDE webview, so Orca's frame and npm consumers get "a broken plugin never
+keeps a diagram from opening" too. The fallback covers construction only; a
+plugin that throws later, in a listener or a render, is neither contained nor
+named ([#2270](https://github.com/Miragon/bpmn-modeler/issues/2270)).
+The loader takes URLs: a host-served URL (the IDE webviews), a `blob:` URL or a
+plain URL. Orca's isolated frame admits neither `blob:` nor `data:` scripts,
+only its own files and inline text, so its delivery needs inline text or a
+policy change upstream ([#2244](https://github.com/Miragon/bpmn-modeler/issues/2244)).
+The package decides no trust: plugin code runs
+with the page's authority, and an npm consumer decides where plugins come from
+and whether to load them. It is a subpath like `/lint`, so a consumer without
+plugins never bundles the loader; the
+[plugins-free entry check](../../packages/bpmn-modeler/scripts/check-plugins-free-entry.mjs)
+keeps the root, `/design` and `/mode` from reaching it.
+
+**IDE webview.** Modules are fixed at construction, so the BPMN webview needs
+the plugins before it builds a surface. It posts `GetBpmnPluginsCommand` as
+soon as the file reply shows the page is an editor, because a diff pane never
+asks and the webview cannot tell the two apart earlier without adding the
+command to the diff pane's handshake. It does not wait there: the Design and
+Implement factories await the reply and the script loading together with their
+surface module and lint options, so the round trip overlaps the module load.
+The wait lasts at most `HOST_REPLY_TIMEOUT_MS`; when no answer comes, the
+editor opens without plugins and logs that the host did not answer. It
+loads the `/plugins` chunk only when the answer holds a plugin and shows the
+`modeler-types` report: a log line per failed or ignored registration and one
+notice. Plugins go into Design and Implement, never into View, whose
+NavigatedViewer lacks the modeling services plugins build on. A tagged model
+keeps one instance across Design and Implement, so its engine's plugins stay
+loaded in Design. The answer stays its own message instead of joining
+`BpmnFileQuery`: the VS Code smoke suite measures the time from opening a file
+to its first surface, and one small cached plugin left it unchanged (median of
+three, about 360 ms with and without).
+
+**Discovery and approval (core).** `bpmnPlugins/` finds one plugin per
+subfolder of each `<configFolder>/plugins/` between the document and its
+workspace root. It reads `plugin.json`, or scans a Camunda `index.js` for
+string literals without running it. Paths must stay inside the plugin folder,
+by the kernel's `staysInsideFolder`, the rule the template marketplace applies
+to repository paths too, and a folder name holding a separator or `..` is
+skipped. A plugin runs only after the user approved this content in this
+folder: the approval is a SHA-256 of the script and the style, each prefixed
+with its length and a missing style marked apart from an empty one, so bytes
+moved from one file to the other change the hash. It is kept by the host outside
+every workspace (`PluginApprovalStorePort`; VS Code global state, an IntelliJ
+application value), so a repository cannot approve itself and any change (a
+pull, an update) asks again. Every write is a change, rows to allow and ids to
+revoke (`CodeApprovalChange`), that the host merges into the list it stores
+with `approvalsAfter` in one step: rows the change does not name keep their
+place, an allowed row replaces its id's row in place, new ids append. A writer
+therefore never drops a row it had not read, such as one another IDE project
+or window stored. A change that names an id twice, or allows and revokes one,
+is refused in both languages and stores nothing; no caller sends one, so it is
+a bug, and failing closed is the safe answer. `codeApprovalChange.cases.json`
+holds the rows for the TypeScript and the Kotlin merge. The port also gives
+`readStored()`, the host's list rather than a mirror, and `onDidChange`, which
+fires once whenever the store learns of a new list: its own change, a host push
+or `readStored()`. VS Code learns of another window's write only on the focus
+re-read, although `read()` may show it earlier. `WorkspacePluginLocator` keeps a memo per plugin folder and drops it on
+a `WorkspacePort.createWatcher` event for that `<configFolder>/plugins`
+folder, so an editor open does not reread and rehash every bundle (Camunda
+bundles can be several MB). The feature disposes the watchers with itself.
+
+`PluginCatalog` is host-neutral and returns values: `pluginsFor(documentPath)`
+gives the approved plugins with their bytes, the pending ones and every one
+withheld, `reviewPrompt(pending)` the prompt the domain builds, and
+`applyAnswer(pending, answer)` allows the checked ones and records the
+declines. A decline lasts for the catalog's lifetime (the extension host
+session) or until the content changes. The catalog knows no
+`EditorSessionStore` or `EditorHandle`, so Orca's worker can answer its frame
+from it directly.
+
+`CODE_STATES` (`approved`, `new`, `changed`, `declined`, `gone`) in
+`kernel/domain/codeApproval.ts` is the one spelling of the state a piece of
+workspace code is in, and `CODE_STATE_TEXT` the one text of each, which the
+approval list and the log use; `ApprovalState` and the rule packages'
+`BlockedState` are subsets of it. `needsContentHash` is the one rule for when
+code must be hashed before its state is known (a row or a decline of its id),
+and `codeStateOf` the one dispatcher from what an owner found (found,
+unhashed, unreadable, gone) to that state; `rulePackageVerdict` reads it.
+The add-on catalog (below) reads them too: `reviewedAllowDecision` allows only
+content that is still as it was reviewed, `PROCESS_RESTARTS` names, as a typed
+host fact, how the user unloads code that already ran (reload the window,
+restart the IDE), and `RulePackageCatalog` keeps the packages revoked this
+session.
+
+**Prompt flow.** Per the
+[VS Code UX guidelines](../../.agents/skills/vscode-ux-guidelines/SKILL.md), a
+list never opens unasked: the spike's QuickPick opened when an editor opened
+and took the focus. The editor opens with the approved plugins at once, and
+when plugins are pending the core offers a notification it builds in
+`bpmnPlugins/domain/` ("N BPMN plugins in this workspace are not allowed
+yet.") with one **Review…** action through the generic
+[action notice port](architecture-and-hosts.md#host-integrations). Only
+**Review…** opens the review, an `ApprovalReviewPort` each feature takes as
+an optional port. Its default, `ListReview` in `kernel/adapter/out/`, opens
+the `chooseMany` prompt. Dismissing the notification or the list, or leaving
+a plugin unchecked, is the same answer: those plugin versions are declined
+for this session, offered again in a later one, and offered again at once
+when their content changes. A review answers a `ReviewAnswer`: the checked
+ids, or `leftForView`, which a review that shows the pending code in a view
+returns ([#2250](https://github.com/Miragon/bpmn-modeler/issues/2250)). The
+question then settles at once, so the queue does not wait on the view; the
+code keeps its state, is not declined for the gate, and no notice asks about
+the same content again this session. `ViewReview` in `addOns/adapter/out/`
+is that review: it leaves the code to the host's add-ons view through the
+`AddOnViewRevealPort`, naming the rows (`addOnIdOf` of each pending artifact
+id), only when `leavesToView` holds, that is when a folder is open and every
+pending id lies inside one. All or nothing: the view lists only code inside
+a workspace folder, so an item a link put outside every folder could be
+allowed nowhere this session. Otherwise, or when the reveal answers `false`
+or rejects, it answers with its fallback, `ListReview`, which stays for good.
+The review request carries the folders the prompt was built for
+(`ApprovalReviewRequest.workspaceFolders`), so the prompt and this decision
+use one reading. Both hosts pass a `ViewReview` to both features: VS Code
+over its Artifacts view, IntelliJ over `RpcAddOnViewReveal` and the Artifacts
+tab of its BPMN Modeler tool window. **Review…** opens the view unless an
+item lies outside every folder or the view cannot open. The feature's
+`review` port is still optional; making it required and removing
+`reviewOrChecklist` is a follow-up now that both hosts pass one. The catalogs keep these session answers
+by content (`SESSION_ANSWERS`). The kernel's
+`ApprovalQuestion` runs this flow for every approval kind and knows no
+editor: one question is open at a time, and plugins found while it is open
+are asked afterwards, as far as that answer left them pending. A VS Code
+notice can stay unanswered in the notification centre, so dropping them would
+leave a second workspace's plugins unasked for the session.
+Modules are fixed once a modeler is built, so every change of the approval
+list reloads the open BPMN editors it makes stale, whoever made it: the
+notice, another IntelliJ bridge's push, or another VS Code window after the
+focus re-read. `BpmnPluginsFeature` follows the store's `onDidChange`, and
+`editorsToReload` names an editor that serves a plugin no longer allowed at
+the content it loaded, or was withheld a plugin now allowed at the content it
+was offered, declined ones included. The delivery records per editor the
+plugins it served and withheld, drops the entry on a reload until the page
+asks again, and a session participant drops it when the editor is disposed.
+The question itself reloads nothing.
+
+**Serving.** The delivery service answers `GetBpmnPluginsCommand` with
+`postUnlessHidden`, as element templates do. It copies the approved bytes into
+a content-addressed cache (`<globalStorage>/bpmn-plugins/<hash>/plugin.js` and
+`plugin.css`) and maps them to URLs through `EditorHandle.webviewUrlOf`. Each
+hash is copied once per session, editors asking at the same time share that
+copy, and a failed copy is tried again on the next request. A copy found in
+that memo is checked on disk first and written again when it is not whole,
+because another process's prune may have removed it. The copy reads each
+cached file back and rewrites it when its bytes differ from the approved ones
+or cannot be read: a write cut short by a crash would otherwise be served as it
+is. The webview never
+reads a workspace folder, so a file swapped after the approval and an
+unapproved file beside the script cannot reach it, and `localResourceRoots`
+stays fixed at creation. The host passes the cache root as a platform path
+(VS Code's `fsPath`, `C:\…` on Windows); the core normalizes it once with
+`toWorkspacePath`, so the written path and the URL path agree. VS Code roots
+the webview's cache folder at a `file:` URI of that path: desktop VS Code
+hands out global storage as `vscode-userdata:`, and a webview serves a file
+only below an allowed folder of the same scheme as its URL. A host that does
+not wire the feature answers with no plugins. That answer has one home,
+`answerWithoutPlugins` in `editorSession/`, built on `postUnlessHidden` like
+the delivery's own answer.
+
+**Pruning.** `BpmnPluginService.pruneCache` removes the cache folders named
+like a content hash (`PLUGIN_CONTENT_HASH_PATTERN`, 64 lower-case hex digits)
+that no stored approval
+names (`cacheEntriesToPrune`). The keep set is every row the host stores, of
+every workspace and project, read with `readStored()` rather than a mirror,
+because the cache is shared. Files, other names and upper case stay, and a
+rule package row's prefixed hash names no copy. A prune waits for the copies
+in flight, and a copy waits for a running prune. VS Code prunes at
+activation, and the bridge once `server.ts` has bound its streams, so the
+harness specs see no extra frame. A plugin revoke from the add-on catalog
+prunes in the process that revoked, and so does its "Remove unused plugin
+copies" action. Pruning on
+every approval change in every process was rejected: until then the next
+start's prune covers the shared cache, after it the revoking process's prune
+does, and N bridges pruning at once only adds noise.
+Residual: a page that loads between another process's delete and this
+process's memo check leaves the plugin out once, and the next open writes the
+copy again. A grace marker would close that gap and is deferred.
+
+**IntelliJ.** The bridge wires the same `BpmnPluginsFeature` as VS Code, so the
+texts, the notification, the list and the reload rule are the core's. The host
+supplies these parts:
+
+- *Cache root.* One folder per machine,
+  `<IDE system path>/miragon-bpmn-modeler/bpmn-plugins` (`BpmnPluginCache`).
+  The cache is content-addressed, so every project and bridge shares it.
+  The bridge's `NodeWorkspace.writeFile` writes a temporary sibling and
+  renames it over the file, so a page never loads a file that another
+  project's bridge is still writing. The launcher passes the root to the bridge as `MIRAGON_BPMN_PLUGIN_CACHE`, and the
+  `WebviewServer` serves from the same value, so the two cannot disagree.
+- *Route.* `RpcEditorHandle.webviewUrlOf` maps only
+  `<root>/<64 lowercase hex>/plugin.js|plugin.css` (the core's
+  `CACHED_PLUGIN_FILE_PATTERN`; Kotlin keeps its own copy) to the root-relative URL
+  `/bpmn-plugins/<hash>/<file>` and throws for any other path. The page loads
+  it from its own loopback origin, so the bridge needs no port. `WebviewRoute`
+  matches the raw request path before decoding, so `%2F` or `%2e%2e` cannot
+  form a separator, and anything else under `/bpmn-plugins/` is a 404, never a
+  classpath lookup. The served file must be a regular file that is not a
+  symbolic link, and its real path must stay inside the cache's real path. The
+  CSP is unchanged: `script-src 'self'` and `style-src 'self'` already admit
+  same-origin files. One cases file (`pluginAssetUrl.cases.json`) holds the
+  mapped, unmapped and refused rows for the bridge spec and `WebviewRouteTest`.
+- *Approval store.* An application service over `PropertiesComponent`
+  (`PluginApprovalStore`), outside every project, shared by all projects of the
+  IDE. Bridges run per project, so the host is the single writer: the bridge
+  mirrors the list for the port's synchronous `read()`, seeded on every
+  `session/register` (a separate seed would race the page's first plugin
+  query) and replaced by `pluginApprovals/didChange`, which the host also
+  sends after every spawn. A bridge writes with
+  `pluginApprovals/change`, which carries only the rows to allow and the ids to
+  revoke; the store reads, merges, writes and bumps its revision under one
+  lock, pushes the list to every running bridge and then answers with it.
+  `pluginApprovals/read` answers the stored list. Every list the host sends
+  carries that revision and the mirror keeps the newest, since the bridge's
+  per-editor and per-method queues can apply a register after a newer push
+  (see [host-replicated state](architecture-and-hosts.md#host-replicated-state)).
+  There is no `pluginApprovals/save` alias, which would keep the whole-list
+  replace: plugin and bridge ship together, and a mismatched dev bridge's
+  change fails with "No handler" rather than losing a row. The stored JSON is
+  unchanged.
+- *VS Code store.* `VsCodePluginApprovalStore` merges each change on one
+  in-process promise chain, so two answers in one extension host keep both
+  rows whether or not `Memento.update` sets its value before it resolves.
+  VS Code announces no write another window makes to the global state, so the
+  composition calls `readStored()` when the window gains focus.
+- *Notice.* `actionNotice/show` becomes a balloon with one action per label;
+  see [host integrations](architecture-and-hosts.md#host-integrations).
+- *Reload.* The page asks for plugins only while it boots, so the soft reload
+  that re-renders the diagram cannot load new ones. `RpcEditorHandle.reload`
+  sends `editor/reload`; the host writes the page's unsynced edit into the
+  `Document`, sends the session's `session/register` again and reloads the
+  page. `WarmBrowser` installs the sink on every load of a bound browser,
+  reloads included.
+- *Shim.* The shim makes the page's own wiring single-use.
+  `acquireVsCodeApi()` hands out a frozen API once and throws on a second
+  call, as VS Code does; every page calls it once. `__modelerSetSink` deletes
+  itself on its first call, and the JVM's sink script captures the
+  `JBCefJSQuery` function once instead of looking up its global for every
+  message, so a later script cannot swap the sink. Plugins arrive only in a
+  reply to a message that waits in the outbox until the sink is installed, so
+  both doors are spent before a plugin runs. This stops accidental or casual
+  reuse; it is no boundary against an approved plugin. CEF's message router
+  keeps the query function on `window` in every page context, so a plugin can
+  call it and post to the JVM and, through it, to the bridge. It can also read
+  the host's messages, which arrive as `window.postMessage`, and patch the
+  built-ins the shim calls per message (`JSON.stringify`) to read the page's.
+  An approved plugin has the page's full authority, as in VS Code; approval is
+  the control.
+
+**What an approved plugin can do.** It gets the modeler's injector, so it can
+edit the diagram (edits sync to the file) and call every DI service, including
+those holding host ports (navigation, clipboard, script editors). The BPMN
+webview's `img-src https:`, needed for element-template icons, lets it send
+data out through image URLs. Approval is the control; a tighter CSP cannot
+close this, and the user guide says so.
+
+**Not shared.** The editor exposes none of its bpmn-js, diagram-js, moddle,
+preact or properties-panel instances, and never will expose bpmn-js,
+diagram-js, moddle, React or Camunda app-shell components. In
+[#2241](https://github.com/Miragon/bpmn-modeler/issues/2241) every bpmn-js
+plugin that works got what it needs through injection, including plugins that
+bundle diagram-js 3 and bpmn-js 3 helpers (`RuleProvider`,
+`CommandInterceptor`, `is()`) and run against our instances; the Camunda
+Modeler exposes none of these either. Of the other failures, none was an
+instance problem (private bpmn-js 0.22 APIs, the Camunda app shell, a module we
+bundle already). Instance identity matters only for properties panel extensions:
+helpers-built ones read `window.vendor.propertiesPanel`, and a plugin with its
+own copy of the panel stack breaks the whole panel (a second preact), with no
+report naming it. They stay unsupported for now. A partial
+`window.vendor.propertiesPanel` built from the Implement panel's own instances
+made the unmodified process-io plugin work, but a full one would make `@bpmn-io/properties-panel`, `bpmn-js-properties-panel` and
+its preact a plugin API with a version policy; it is left to its own decision
+([#2265](https://github.com/Miragon/bpmn-modeler/issues/2265)),
+with one exported instance set, an error boundary around plugin groups and a
+contract test as preconditions.
+
+**Listing, allowing and revoking.** The `addOns` context of the core is the
+host-neutral read model of the artifacts view
+([#2263](https://github.com/Miragon/bpmn-modeler/issues/2263); the views are
+[#2250](https://github.com/Miragon/bpmn-modeler/issues/2250)). It owns no
+rule of what it lists: the plugin and rule package features each meet a
+structural port of `addOns/port/` with an inventory (`PluginInventory`,
+`RulePackageInventory`) that finds, places, hashes and answers for their code
+as their notices do, says what it can do once allowed, what follows an
+allow or a revoke and which revoked code stays loaded, and runs what
+follows a revoke. The element templates meet one with `TemplateInventory`,
+which reads each template file by the loader's rule (`templatesOfFileText`,
+`templateEngineOf`), and the marketplaces with `MarketplaceInventory`
+over the host's `MarketplaceCommands`, which `createMarketplaceCommands`
+builds together. The host compositions wire one into the other ([package boundaries](architecture-and-hosts.md#package-boundaries)).
+Both hosts build an `AddOnsFeature` and bind one view to it: VS Code its
+Artifacts view, IntelliJ the Artifacts tab of its BPMN Modeler tool window,
+attached hidden when the bridge starts; IntelliJ's watchers follow the folders
+known whenever the views change or the catalog refreshes, so they follow the
+project root from the first `addOns/open` on
+([host integrations](architecture-and-hosts.md#host-integrations)).
+`AddOnsFeature.attachPanel(post, visible)` serves the add-ons view protocol
+of `libs/shared` (`addOnsView.ts`) for one page through `AddOnViewMessages`
+in `addOns/adapter/in/`, so a host only passes a `post` and the page's
+commands; `panelRoutes` answer the surface coverage before any page attaches.
+A page asks for the last model when it loads, as a push can land before it
+listens. `AddOnsFeature.reveal(addOnIds)` keeps the latest reveal and
+delivers it at most once to each attached view while it is visible, so a view
+shown or attached later still lands on the rows; it may arrive before any
+model, and the page holds it until a model lists one of its rows. A panel
+posts a reveal again to the page that asks once it loads, until a page that
+listens has it, and again after the panel was hidden, as a host may load a
+hidden page anew; a page loaded later gets no old reveal. Reveal ids start
+from the clock, as revisions do, so a page that outlives a core process still
+applies the next reveal.
+
+- *Scope.* It lists the open workspace only: the root config folder's
+  `plugins/` and `element-templates/` of every workspace folder, the nested
+  config folders an editor or a listing already looked in (for templates, the
+  templates folders an open editor loaded), each folder's `node_modules` and the
+  `node_modules` of each lint config read so far inside one, the packages the gate
+  reported, and every stored row inside a folder that discovery missed, read
+  directly, so a row whose folder is gone shows as gone. A row outside every
+  folder is not listed, though the prune still keeps it. `addOnScope` in
+  `addOns/domain/` decides what to read and which rule packages to hash;
+  the reader only fetches. Add-ons group by the
+  innermost workspace folder, then by source (the root config folder, nested
+  config folders by path, package folders), then by name. A nested config
+  folder's plugins and templates apply only to the diagrams below it, and the
+  source says so; a config folder's plugins and templates share its source,
+  plugins first. The bridge lists the folders the host registered.
+- *Templates.* One row per template, `template:<source>|<file>#<index>[:<id>][@<version>]`, with
+  its version and engine (`templateEngineOf`: its own, else its file's, as
+  the builder reads it); a file that cannot be read is one row,
+  by its file name, that says why, enabled and without a switch.
+- *Template switches.* On a host that keeps them (the optional
+  `TemplatePreferenceStorePort`; VS Code and the IntelliJ bridge do), a
+  template with an id offers Disable or Enable, and a config folder that
+  lists one, or a marketplace whose entry parses, offers "Disable templates"
+  or "Enable templates" for all of them; a source turned off says "Templates
+  disabled", and its templates show disabled with no switch of their own,
+  which they keep for when the source is on again. A switch is a preference,
+  not trust: it keeps a template out of new choices (the core sends the
+  hidden refs with `ElementTemplatesQuery` and, after a switch change,
+  `HiddenElementTemplatesQuery`; the page applies them with
+  `setHiddenElementTemplates`, see "Public API"), and an element that uses
+  one keeps it. The rules live in `kernel/domain/templatePreferences.ts`:
+  - A switch is `{ source, templateId? }`, the template id within its source,
+    every version and file of it. The source key survives what it must: a
+    config folder is `configFolder:<innermost workspace folder's name>/<path
+    below it>` (a moved repository or a second root keeps it), a marketplace
+    `marketplace:<provider>:<host>/<repository>` without the ref
+    (`marketplacePreferenceKeyOf`), so a ref edit, a re-fetch and a new cache
+    generation keep it. Two roots with the same name and config path, and
+    one repository registered at two refs, share their switches.
+  - Each source's switches live in one scope, which the core decides
+    (`templateSourceScopeOf`): a config folder's in `project`, a
+    marketplace's in `allProjects` once any entry of its repository is
+    registered for all projects, else in `project`. `isTemplateOffered`
+    reads that scope only. A union of both scopes was rejected: a row left in
+    `allProjects` after a User registration was removed would hide the
+    marketplace in every project that registers it per project. A row left in
+    the other scope is never read, and wakes up if the source moves back; a
+    registration that moves scope starts with no switches. A marketplace
+    registered only for this project whose repository keeps its switches in
+    all projects says so on its row (`marketplaceListingScopeText`).
+  - A ref is hidden only when every loaded copy of it comes from a source
+    that does not offer it (`hiddenElementTemplateRefs` in
+    `modeler/bpmn/domain/`), as the page tells copies apart only by id and
+    version. A template without a string id is always offered. Versions of
+    one id are not merged across sources: when the copy switched off is the
+    latest version, its id is not offered, though another source still on
+    serves an older version, as no older version takes a hidden latest one's
+    place on the page. That older copy was not offered before the switch
+    either, since upstream offers only the latest version, so its row keeps
+    its state. Offering it instead would mean a substitute rule on the page
+    for one case.
+  - A change names the switches to disable and to enable in one scope and is
+    merged by the store (`templatePreferencesAfter`, rows in
+    `templatePreferenceChange.cases.json`), so a writer never drops a switch
+    it had not read. The settings snapshot was rejected as the store: VS Code
+    workspace settings live in the repository, and a whole-list write races
+    across IntelliJ projects.
+  - Each switch action is refused unless the latest build offered it, on the
+    switch that build showed (`templateSwitchTargetOf`,
+    `sourceSwitchTargetOf`); clicked twice before a rebuild, the second write
+    changes nothing. A write that fails answers `failed` and logs why.
+  - `BpmnElementTemplatesService` computes the hidden refs when it sends the
+    templates, from the store's synchronous `read()`, and records what it
+    sent; a store change sends only `HiddenElementTemplatesQuery` to each
+    editor whose refs changed, so nothing is read, validated or reported
+    again. It records them before the post, so a change during the post
+    still reaches the editor; a post the editor refuses or that fails is
+    forgotten, so the next change sends the refs again. A webview that is
+    hidden or reloads asks for its templates again and gets the current refs.
+  - Both hosts' Artifacts views offer the switches, and both user guides
+    describe them.
+- *Marketplaces.* A group after the folders lists each registered
+  marketplace entry as a source, in the order the hosts fetch them, keyed by the entry,
+  as two spellings of one repository share a cache slot: its label, the
+  scopes that hold it in the words of the removal choice (and where its
+  switches apply when that differs), its cached
+  templates (`cachedTemplatePathsByRegistration`, the cache's own layout) and
+  why it has none: an entry the registry cannot parse, nothing fetched yet,
+  or a cache that cannot be read. Editors load the same templates, those of
+  the registered entries, grouped by registered slot with the source their
+  switches live in (`registeredTemplateSources`, read by
+  `MarketplaceTemplateSources` from the host's registrations; when those
+  cannot be read, one group without switches), and read them
+  again when the marketplaces setting changes, so the slot of an entry
+  removed by hand serves nothing though it stays cached until the next prune.
+  Registrations that cannot be read, such
+  as a host's reply that fails, leave the group without sources and say why;
+  the folders are still listed. The catalog offers "Add marketplace…" and
+  "Update marketplaces", and each source "Remove". All three run the
+  host's `MarketplaceCommands`, the same instance its commands run
+  (`createMarketplaceCommands` builds the inventory over it), so a flow
+  started from either queues behind the other on its one-at-a-time queue and
+  asks its own questions; the result is `reportedByFlow`. A removal names the
+  entry the latest build showed for the source, never a payload, and asks
+  `marketplaceRemovalConfirm` before the queued unregister, prune and reload.
+  `MarketplaceCommands` fires `onDidChange` at the end of every flow that ran,
+  failed ones included, and the catalog lists again on it.
+- *Read model.* `catalogModelOf` in `addOns/domain/` builds every text, the
+  state (`codeStateOf`, the same reading as the notices), and the actions a
+  row offers from one table keyed by what the owner read and that state:
+  allowed content offers Revoke, other hashed content "Allow this content",
+  content not hashed yet "Review…", a gone row "Forget". A rule package no row,
+  decline or answer asks about is not hashed, as for a lint: its row offers
+  "Review…", which hashes it, and then the allow, so allowing one takes two
+  steps. One a notice left to the view is hashed (`isHashWanted` reads every
+  session answer), as the gate hashed it to ask, so the row offers "Allow this
+  content" at once. A view shows its own state labels (`CODE_STATE_LABEL`:
+  Allowed, Not allowed yet, Changed, review needed, Declined this session,
+  Folder gone); the checklist and the log keep `CODE_STATE_TEXT`, which reads
+  inside a sentence. A listing that throws is logged and still reaches the
+  views: `failedCatalogOf` keeps the model shown before, under its own
+  revision so an allow against it holds, with a `problem`, or without one
+  sends a new revision that lists nothing and says why. A view's request is
+  untrusted: `addOnRequestOf` keeps only a known kind with the fields it
+  names, and anything else is refused as not offered. The config's own package hashes without its models, so the
+  inventory hashes a folder outside `node_modules` as one only once a lint
+  read its config or the gate reported it, and as a package once a
+  `node_modules` entry links to it, unless it holds a lint config read so
+  far, which the gate refuses with the same reason; any other such folder
+  cannot be allowed until a lint reads its config. Ids are only looked up in what the core
+  recorded, never parsed.
+- *Allow by the reviewed hash.* Each build has a revision, counted from the
+  clock so a view kept across a respawn never names one the new process
+  used, and `ShownRevisions` keeps what the last sixteen showed and which
+  actions each row offered, never sent. An allow names the revision and is
+  refused unless that revision offered it; the content comes from what that
+  revision showed, never from a payload, the owner reads it again past any
+  memo, and `reviewedAllowDecision` refuses it when it changed, is gone or
+  cannot be read. A revoke or a review is refused unless the latest revision
+  offered it, and a disposed view's requests are refused.
+- *Revoke.* A revoke records `leftForView` for the allowed content the row
+  showed (`leftForViewByRevoke`, decided when the row is built), in this
+  process only, so no notice here asks about it at once, then writes the
+  change. The reload or relint follows the change event, as for a notice. The
+  plugin owner then prunes its cache, and only logs a prune that fails, as
+  the revoke stands; a rule package row then says its code stays loaded
+  until the user reloads the window or restarts the IDE. "Remove unused
+  plugin copies" answers a prune that fails as `failed`, with the core's
+  text, and logs why.
+- *Builds.* Only while a view is visible, one at a time with a dirty flag, each
+  from `readStored()` of the approvals and the template switches, so an
+  unseeded IntelliJ mirror never makes every row look new; in VS Code a view shown again shows what this window's global
+  state holds (see the multi-window residual under "One question at a
+  time"). A change of the
+  approvals or the template switches, of an owner, below a config folder (one watcher per workspace
+  folder while a view is attached), of the templates folders the open editors
+  loaded, a marketplace flow's end, or a change of the config folder or
+  marketplaces setting lists again; `node_modules` is not watched, and a refresh or a view shown again
+  reads it. Its actions run on a queue of their own, so a notice left open
+  never holds back the view.
+
+Alternatives: our own module format only (loses the Camunda ecosystem);
+running `index.js` in the extension host (runs unapproved code with Node
+authority); serving from the workspace folder (approval and load race, and
+siblings of the script become loadable); Workspace Trust alone (granted once
+per folder, off in the standalone); discovery and approval in the package
+(would force one trust model on npm consumers and pull filesystem access into
+a browser package); the fallback in the IDE webview (Orca and npm consumers
+would each copy it); opening the approval list when an editor opens (steals
+focus and asks before the user looked at the diagram); exposing bpmn-js and
+diagram-js to plugins (no tested plugin needed it, and it would make their
+versions a plugin API); a `window.vendor` with only the properties panel
+components and no preact entries (still couples us to that preact, and breaks
+the plugins compiled against its JSX runtime or hooks).
+
+#### Workspace rule packages
+
+Host linting loads `bpmnlint-plugin-*` packages from the workspace
+([#2247](https://github.com/Miragon/bpmn-modeler/issues/2247)). Unlike a
+bpmn-js plugin, a rule package runs in the extension host or the bridge with
+the user's rights. Workspace Trust does not cover the IntelliJ bridge, and the
+standalone turns it off, so a rule package, like a bpmn-js plugin, runs only
+once the user allowed this content in this folder. In VS Code, the approval
+comes on top of Workspace Trust. A host opts in with the optional
+`rulePackages` group of `BpmnEditorFeature` (`BpmnRulePackagePorts`: the
+approval store, an `InstalledPackagesPort`, the action notifier and the shared
+`QuestionQueue`). VS Code and the IntelliJ bridge wire it with the store the
+plugins use, each with its own `NodeInstalledPackages`; one contract suite in
+the core's `testing/` pins both. Without the group, `NodeBpmnLinter` builds no
+workspace resolver at all.
+
+**Unit and row.** One approval covers one installed package root: the
+realpath of the `node_modules/<name>` or `node_modules/@scope/<name>` folder a
+require resolved into, taken at the last `node_modules`, so a nested copy is a
+unit of its own. A pnpm `.pnpm` path and the target of a `file:` link are
+realpaths like any other. The config's own package, whose `package.json`
+names the requested plugin so that bpmnlint requires `.`, is the config
+folder; it needs approval like any other root, because the repository picks
+the name. Any other root is refused, logged and never offered: the folder an
+absolute rule reference points into, or a `file:` link whose target holds the
+config folder, would make one approval cover the repository. The row is the
+existing `{ pluginId, contentHash }` in the host's one approval list, beside
+the bpmn-js plugins. The content hash carries the prefix
+`bpmnlint-closure-v1:`, which marks the row's kind for the artifacts view
+([#2263](https://github.com/Miragon/bpmn-modeler/issues/2263)) and names the
+digest algorithm, so changing the algorithm asks again. The row round-trips
+through VS Code's global state, `RpcPluginApprovalStore` and the Kotlin
+`PluginApproval` unchanged, so neither the protocol nor the IntelliJ plugin
+changed. `rulePackageApproval.ts` owns the root, the verdict and the notice
+and list texts; `rulePackageLog.ts` owns the output channel lines.
+
+**Closure hash.** The approval covers the package and what it declares it runs
+with: `dependencies`, `optionalDependencies` and `peerDependencies`,
+recursively, each one found by Node's ancestor `node_modules` lookup from the
+declaring member's realpath. The lookup is done by hand, as
+`require.resolve("<name>/package.json")` fails on a package whose `exports`
+hide its manifest; a dependency that is not installed is skipped, one installed
+as a file Node takes before the folder or as a folder with only an index file
+refuses the package (no name and version to make it a member), and members are
+deduplicated by realpath. A member's digest is a SHA-256 over every regular
+file's relative path and SHA-256 of its bytes, in a fixed order, with no
+extension filter: Node runs a file of any unknown extension as a script. It
+leaves out the member's own `node_modules` (separate members) and `.git`. The
+config's own package also leaves out `*.bpmn`, `*.dmn`, `*.form` and
+`.bpmnlintrc` files, so editing a model or the config being linted asks
+nothing; a folder of such a name stays in. A linked folder, a link to a file
+outside the member, a special file, a file or manifest that cannot be read, or
+a closure above 5,000 files and folders or 50 MB (about eight times the largest
+closure measured) refuses the package with its reason. The closure digest
+hashes the root and each member by `name@version` and member digest, never by
+folder, so hoisting or deduplicating keeps it. `PackageClosureFingerprinter`,
+one per host composition, keeps a memo of each member's stamps (device, inode,
+size and modification and change times of every file and folder, and of every
+folder the dependency lookup looked in) and rehashes only the files whose
+stamps changed. At the start of every lint, the linter's setup checks the
+stamps of the closures it admitted (`isUnchanged`, stats only) and is rebuilt
+on a mismatch. The check sits at the lint's start, not at the gate, because a
+cached setup answers later lints from its `resolved` map without calling the
+gate. Nothing watches `node_modules`: VS Code's watcher excludes it by default,
+and the stat pass costs about 1 ms per lint for the largest closure measured.
+
+**Gate.** `RulePackageGate` wraps the scoped require that bpmnlint's
+`NodeResolver` loads packages with. Each call resolves the request, admits
+built-in modules and `.json` data without approval, maps the realpath to its
+root and lets the require run only when the root's row matches the current
+closure digest, or the root is a member of a closure already admitted in this
+setup. A root with no row and no decline is blocked as `new` without hashing
+(`needsContentHash`).
+Otherwise the gate records the package as blocked (`new`, `changed` or
+`declined`) and throws `MODULE_NOT_FOUND`, which the resolvers' catches turn
+into a miss: the bundled rule or a no-op. A file inside an approvable root that
+its hash leaves out, such as a model file of the config's own package, is
+refused, because the approval does not cover it. The gate is synchronous,
+since `require` cannot wait, and uses no module loader hooks: the bridge runs
+on Bun, which does not fire them. The setup's fingerprint holds the
+config and the sorted rule package rows, so an allow, a revoke or an IntelliJ
+`pluginApprovals/didChange` with a newer list builds a new setup, and no bundled fallback cached
+before the allow shadows the allowed package. When a member is admitted under
+another closure hash than the one it was last loaded under, the gate evicts
+its `require.cache` entries, so the newly allowed bytes run.
+
+**Asking only when needed.** `CompositeResolver` brackets each synchronous
+request with the gate (`beginRequest`, `blockedSinceBegin`). A blocked package
+is *needed* when a request ended unresolved because of it, and *shadowed* when
+the bundle served the request instead. Only needed packages are asked about; a
+shadowed one is logged once per config version and kept in the catalog's seen
+registry for the artifacts view. Otherwise the common Camunda config, which
+lints on the host because of its string `moddleExtensions`, would ask about
+`bpmnlint-plugin-camunda-compat` even where the bundle serves every entry the
+config uses, and train users to allow everything. After `hostLintFinished`,
+`RulePackageFollowUp`, which `BpmnLintConfigService` hands the lint run, logs
+it and asks without awaiting the answer, so results never wait on the user;
+one question per package stays queued until it is answered. Relints follow
+the approval store, not the question: `RulePackageCatalog` announces each
+change of the rule package rows, whoever made it (`followedApprovalChange`),
+and `RulePackageFollowUp` lints again `editorsToRelint`. An allow relints the
+open editors whose last host lint was blocked on an allowed package; a
+withdrawn approval relints every editor linted on the host (`lintsOnHost`,
+which counts a first host lint in flight), because `LintRun` records no
+admitted roots, and relints are cheap. A revoke withdraws an approval, and so
+does a row that now holds another hash, which also counts as an allow. Closing an
+editor forgets it, and `BpmnLintConfigService.dispose`, which
+`BpmnEditorFeature.dispose` calls, stops following. `RulePackageCatalog`
+hashes only the packages it asks about, or the one the user opens with
+"Review…" in the add-on catalog, and never one left to the view, which it
+tells apart by id before any hash (the add-on catalog hashes that one for
+its row); it keeps declines for its lifetime unless
+the content changes, and exposes them read-only to the gate, which then reports
+a package as `declined` rather than `new`. The notice and the list have their
+own ids (`bpmnlintPackageApprovalNotice`, `bpmnlintPackageApproval`), and the
+list says that a rule package runs as a program with the user's rights.
+
+**One question at a time.** Each host composition builds one `QuestionQueue`
+and passes it to `BpmnPluginsFeature` and `BpmnEditorFeature`, so the
+kernel's `ApprovalQuestion` keeps one question open across both kinds. The
+queue serialises questions for the user, not writes: each answer is a change
+the host merges, so two answers, from one bridge or from two IntelliJ projects
+that each show a notice at once, keep each other's rows
+([#2275](https://github.com/Miragon/bpmn-modeler/issues/2275)). One residual is
+unverified: whether two VS Code windows share the global state live. Each
+window's store merges into the list its own `Memento` holds; if another
+window's write has not reached that `Memento` when this window writes, the
+whole value this window writes can drop it. The focus re-read narrows the gap
+but does not close it; one key per approval row would.
+
+**Weaker guarantee than a plugin's.** A bpmn-js plugin runs from a
+content-addressed copy of the approved bytes, so a file swapped after the
+approval cannot run. A rule package is hashed and run in place: between the
+stamp check at the lint's start (or the hash at admission) and the `require`,
+a process that can write the workspace's `node_modules` can swap a file, and
+the swapped code runs; the next lint's stamp check then blocks the package as
+changed. Accepted residuals:
+
+- Phantom dependencies (undeclared, found through hoisting) and requires a
+  package makes later, from inside its own code, are Node's and not gated.
+- Code already loaded stays loaded until the host restarts, so removing an
+  approval takes full effect only then. The revoke lints the host-linted
+  editors again, so the gate refuses the package from that lint on, and the
+  catalog keeps the packages revoked this session, so the add-on catalog says
+  so. A row allowed again at another content is not kept there: the user
+  allowed both contents.
+- Admission depends on order within a setup: a member resolved before its
+  approved closure root was admitted is blocked, and its bundled fallback
+  stays cached until the setup is rebuilt.
+
+**IntelliJ ordering.** The compiled bridge binary lacks
+`--compile-autoload-package-json`, so a package whose entry comes from `main`
+or `exports` does not resolve in it, and most rule packages with dependencies
+fall back to the bundle or are skipped. Adding the flag widens what the bridge
+runs from the workspace, so it lands only after the gate
+([#2273](https://github.com/Miragon/bpmn-modeler/issues/2273)).
+
+The [gate specs](../../libs/modeler-core/src/modeler/bpmn/adapter/out/bpmnlint/RulePackageGate.spec.ts),
+the [linter specs](../../libs/modeler-core/src/modeler/bpmn/adapter/out/bpmnlint/NodeBpmnLinter.spec.ts)
+on a temporary folder, the
+[fingerprinter specs](../../libs/modeler-core/src/modeler/bpmn/service/PackageClosureFingerprinter.spec.ts)
+and the [installed packages contract](../../libs/modeler-core/src/testing/installedPackagesContract.ts)
+pin these rules.
+
+Alternatives: Workspace Trust alone (not in the IntelliJ bridge, off in the
+standalone, granted once per folder); asking about every blocked package
+(asks about packages the bundle serves); running a content-addressed copy of
+the closure, as for bpmn-js plugins, recorded as the follow-up if the in-place
+window must close. Rejected for now because it changes what works today:
+absolute rule references would resolve from the copy, phantom dependencies
+would fail closed with no way out for the user, and an asynchronous copy
+inside resolution would break the synchronous per-request bracketing that
+asking only when needed relies on.
 
 ### Transaction boundaries
 
@@ -652,9 +1398,13 @@ explicit maintenance costs.
 Use [API conformance tests](../../packages/bpmn-modeler/src/publicApi.spec.ts),
 [architecture tests](../../packages/bpmn-modeler/src/architecture.spec.ts),
 [declaration checks](../../packages/bpmn-modeler/scripts/check-dts.mjs), and
-the [design](../../packages/bpmn-modeler/scripts/check-design-pure-entry.mjs)
-and [mode](../../packages/bpmn-modeler/scripts/check-mode-pure-entry.mjs) import
-checks. [Lifecycle browser tests](../../packages/bpmn-modeler/src/lifecycleContract.browser.spec.ts)
+the [design](../../packages/bpmn-modeler/scripts/check-design-pure-entry.mjs),
+[mode](../../packages/bpmn-modeler/scripts/check-mode-pure-entry.mjs) and
+[plugins-free](../../packages/bpmn-modeler/scripts/check-plugins-free-entry.mjs)
+import checks. The
+[plugin loader browser tests](../../packages/bpmn-modeler/src/plugins/loadPlugins.browser.spec.ts)
+run real scripts through `loadPlugins` and a real bpmn-js modeler.
+[Lifecycle browser tests](../../packages/bpmn-modeler/src/lifecycleContract.browser.spec.ts)
 exercise all four surfaces, and the
 [editable-surface contract](../../packages/bpmn-modeler/src/editableSurfaceContract.browser.spec.ts)
 pins that post-destroy lint pushes throw and what the command-stack and format

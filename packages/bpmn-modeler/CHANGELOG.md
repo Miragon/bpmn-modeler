@@ -1,5 +1,70 @@
 # Changelog
 
+## [1.7.0](https://github.com/Miragon/bpmn-modeler/compare/bpmn-modeler-v1.6.0...bpmn-modeler-v1.7.0) (2026-11-09)
+
+
+### 🎉 New Features
+
+* **modeler-core:** load approved workspace bpmn-js plugins in VS Code ([#2251](https://github.com/Miragon/bpmn-modeler/issues/2251)) ([5457858](https://github.com/Miragon/bpmn-modeler/commit/5457858becea52d1c51e4bdfd3597c29df362da6))
+
+
+### 🛠️ Misc
+
+* release main ([#2261](https://github.com/Miragon/bpmn-modeler/issues/2261)) ([4ee79a5](https://github.com/Miragon/bpmn-modeler/commit/4ee79a5f1f049f7df13d0aecea1aa49fe2f31f9e))
+
+## [1.6.0](https://github.com/Miragon/bpmn-modeler/compare/bpmn-modeler-v1.5.0...bpmn-modeler-v1.6.0) (2026-11-08)
+
+
+### 🎉 New Features
+
+* **orca-plugin:** open .bpmn and .dmn files in Orca ([#2210](https://github.com/Miragon/bpmn-modeler/issues/2210)) ([b7d4773](https://github.com/Miragon/bpmn-modeler/commit/b7d4773f0aa9e80d757a87b8ed613a923e2d7db0))
+
+
+### 🐞 Bug Fixes
+
+* **bpmn-modeler:** fit a diagram with the same gap to the palette as to the right edge ([#2255](https://github.com/Miragon/bpmn-modeler/issues/2255)) ([b691b66](https://github.com/Miragon/bpmn-modeler/commit/b691b66e0557a4011537c1a1ef9c674d828a2c93))
+* **bpmn-modeler:** keep the mode chip beside the token simulation toggle when the toggle grows ([#2258](https://github.com/Miragon/bpmn-modeler/issues/2258)) ([2e8ec37](https://github.com/Miragon/bpmn-modeler/commit/2e8ec37ff1621bdcfa9335146041532c894d7eca))
+
+
+### 🔨 Refactoring
+
+* **bpmn-i18n-extras:** import overlay languages from their home ([#2173](https://github.com/Miragon/bpmn-modeler/issues/2173)) ([db05439](https://github.com/Miragon/bpmn-modeler/commit/db05439d357636b49d8eddae17271efbc3da6073))
+* **bpmn-webview:** move every file into its role folder ([#2181](https://github.com/Miragon/bpmn-modeler/issues/2181)) ([79c0268](https://github.com/Miragon/bpmn-modeler/commit/79c0268ad805d771ba5c33e69a75e830e1350e69))
+* **element-template-builder:** move every file into its role folder ([#2179](https://github.com/Miragon/bpmn-modeler/issues/2179)) ([e372dfc](https://github.com/Miragon/bpmn-modeler/commit/e372dfcbb6e82f571472dfdc60cf62c54879387f))
+* import respelled value sets from their home ([#2203](https://github.com/Miragon/bpmn-modeler/issues/2203)) ([0a2785e](https://github.com/Miragon/bpmn-modeler/commit/0a2785ea9b3ac2a1db286bbbed8fee8a7b0cf945))
+* **modeler-bridge:** take the ignored watch folders from the core ([#2202](https://github.com/Miragon/bpmn-modeler/issues/2202)) ([ac62f49](https://github.com/Miragon/bpmn-modeler/commit/ac62f49efdc6853da91271be8a92abba7919cd8b))
+* **modeler-core:** give the colour themes and engines one home ([#2207](https://github.com/Miragon/bpmn-modeler/issues/2207)) ([7f49d8b](https://github.com/Miragon/bpmn-modeler/commit/7f49d8b17b34ecc2541289c277056b355fec3bd6))
+* **modeler-types:** compare a surface mode only in its home ([#2178](https://github.com/Miragon/bpmn-modeler/issues/2178)) ([ec9a562](https://github.com/Miragon/bpmn-modeler/commit/ec9a562d6e523279960a727efb73731c5b6b67e5))
+* **modeler-types:** give ReferenceKind decisions one home ([#2174](https://github.com/Miragon/bpmn-modeler/issues/2174)) ([f9f2a0e](https://github.com/Miragon/bpmn-modeler/commit/f9f2a0e86525a253d9241743070e9c8f3b8895cd))
+* **theme:** give the theme modes one home in modeler-types ([#2171](https://github.com/Miragon/bpmn-modeler/issues/2171)) ([ba79907](https://github.com/Miragon/bpmn-modeler/commit/ba79907c504b47522ce5227e41871466f5d6ce6f))
+* **webviews:** move three webviews into their role folders ([#2180](https://github.com/Miragon/bpmn-modeler/issues/2180)) ([72c4e69](https://github.com/Miragon/bpmn-modeler/commit/72c4e6963c676ccc18e8f6343343fddd99e75f17))
+
+
+### 📔 Documentation
+
+* correct stale dark-theme comments and the npm surface sentence ([#2204](https://github.com/Miragon/bpmn-modeler/issues/2204)) ([af795aa](https://github.com/Miragon/bpmn-modeler/commit/af795aa22a2c4eb494d69aa5c22ff41d6345ef2a))
+* make the store images with the product-shots skill and rewrite the store READMEs ([#2254](https://github.com/Miragon/bpmn-modeler/issues/2254)) ([4eb590a](https://github.com/Miragon/bpmn-modeler/commit/4eb590a154b892e19ce9d6f1e06e7b25555d65dd))
+* write each README for one reader, its users or its developers ([#2253](https://github.com/Miragon/bpmn-modeler/issues/2253)) ([3d28322](https://github.com/Miragon/bpmn-modeler/commit/3d28322c3ad26e0038fb88fc90f3dd44dc4a1417))
+
+
+### 🛠️ Misc
+
+* **agents:** add an architecture review skill over the fitness report ([#2191](https://github.com/Miragon/bpmn-modeler/issues/2191)) ([b96d02b](https://github.com/Miragon/bpmn-modeler/commit/b96d02bd26e6122e007d1fc7b627ebcc56b7d6c3))
+* **ci:** show the fitness report's changes on every pull request ([#2239](https://github.com/Miragon/bpmn-modeler/issues/2239)) ([7fc3223](https://github.com/Miragon/bpmn-modeler/commit/7fc3223c216cb7899400b2e71e4faf12c2939e4b))
+* **intellij-plugin:** pin the default modes to the surface modes ([#2177](https://github.com/Miragon/bpmn-modeler/issues/2177)) ([180b8cc](https://github.com/Miragon/bpmn-modeler/commit/180b8cc20d6235eb06c525d8f5baa8c0152cfb12))
+* **modeler-core:** add a settings contract suite for every host ([#2193](https://github.com/Miragon/bpmn-modeler/issues/2193)) ([f960ce4](https://github.com/Miragon/bpmn-modeler/commit/f960ce4c9a2dcf6ea6ec8eaa23da15f8a3fcc7de))
+* release main ([#2160](https://github.com/Miragon/bpmn-modeler/issues/2160)) ([334c941](https://github.com/Miragon/bpmn-modeler/commit/334c941b9cb7b370954e7cb849f10675a6c72f07))
+* **repo-checks:** correct the limits four fitness functions declare ([#2196](https://github.com/Miragon/bpmn-modeler/issues/2196)) ([dbbc0a8](https://github.com/Miragon/bpmn-modeler/commit/dbbc0a828d282c0546ff571a43135c7e5fe92365))
+* **repo-checks:** follow renames before marking the report delta ([#2205](https://github.com/Miragon/bpmn-modeler/issues/2205)) ([fea3094](https://github.com/Miragon/bpmn-modeler/commit/fea309408463594f559941e6ff1229e5a100a4db))
+* **repo-checks:** leave barrels out of the hotspot ranking ([#2206](https://github.com/Miragon/bpmn-modeler/issues/2206)) ([cc050a7](https://github.com/Miragon/bpmn-modeler/commit/cc050a73aadb2be33699d07a9cc2ec32653fc3e3))
+* **repo-checks:** report a PR that changes a file without its usual partner ([#2166](https://github.com/Miragon/bpmn-modeler/issues/2166)) ([8d75923](https://github.com/Miragon/bpmn-modeler/commit/8d75923bea6f5b8150b24fce02c6c53b0a7ed436))
+* **repo-checks:** report ports whose adapters run no contract suite ([#2176](https://github.com/Miragon/bpmn-modeler/issues/2176)) ([d462811](https://github.com/Miragon/bpmn-modeler/commit/d46281175abae51a131436915b722c178f475a60))
+* **repo-checks:** report size, complexity and hotspots per file ([#2163](https://github.com/Miragon/bpmn-modeler/issues/2163)) ([eea336e](https://github.com/Miragon/bpmn-modeler/commit/eea336eb1c9602b19994caed80cf3a235a54f1a0))
+* **repo-checks:** report the mutation score per context as a trend ([#2164](https://github.com/Miragon/bpmn-modeler/issues/2164)) ([f9560b0](https://github.com/Miragon/bpmn-modeler/commit/f9560b0abf086e612b37ae08b446b034f20004e5))
+* **repo-checks:** report user-visible text built in host code ([#2169](https://github.com/Miragon/bpmn-modeler/issues/2169)) ([cd48f2c](https://github.com/Miragon/bpmn-modeler/commit/cd48f2cd8699cb195f391f7bcafdd808efa81402))
+* **repo-checks:** report user-visible text built in Kotlin host code ([#2175](https://github.com/Miragon/bpmn-modeler/issues/2175)) ([98ae201](https://github.com/Miragon/bpmn-modeler/commit/98ae201d96a0cb2c643148aa639f640fe1a57227))
+* **repo-checks:** trend declared finding values across stored snapshots ([#2162](https://github.com/Miragon/bpmn-modeler/issues/2162)) ([3e63394](https://github.com/Miragon/bpmn-modeler/commit/3e63394e7e298a717663e7fc598a966b9e6f2a79))
+
 ## [1.5.0](https://github.com/Miragon/bpmn-modeler/compare/bpmn-modeler-v1.4.0...bpmn-modeler-v1.5.0) (2026-11-04)
 
 

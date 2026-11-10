@@ -34,3 +34,4 @@ export * from "./xmlMarkup";
 export * from "./formPreview";
 export * from "./formRuntimeCompatibility";
 export * from "./emptyDmn";
+export * from "./pluginLoadReport";

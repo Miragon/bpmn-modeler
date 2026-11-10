@@ -52,6 +52,7 @@ import {
 } from "@miragon/bpmn-modeler-core";
 
 import { SeenPaths } from "./seenPaths";
+import { watchOnceFolderExists } from "./watchOnceFolderExists";
 import { WorkspaceRoots } from "../../port/WorkspaceRoots";
 
 /**
@@ -74,17 +75,38 @@ function isIgnoredWatchPath(root: string, path: string): boolean {
     return relative(root, path).split(/[/\\]/).some(isIgnoredWatchDirName);
 }
 
-function watchWithChokidar(root: string, emit: WatchSubscriber): { close(): unknown } {
-    return watch(root, {
-        ignoreInitial: true,
-        ignored: (path: string) => isIgnoredWatchPath(root, path),
+function platformWatchOptions() {
+    return {
         usePolling: process.platform === "win32",
         interval: 300,
         binaryInterval: 300,
+    };
+}
+
+function watchWithChokidar(root: string, emit: WatchSubscriber, onArmed: () => void): { close(): unknown } {
+    return watch(root, {
+        ignoreInitial: true,
+        ignored: (path: string) => isIgnoredWatchPath(root, path),
+        ...platformWatchOptions(),
     })
+        // chokidar lists each folder before it watches it; `ready` follows once every folder it found is watched.
+        .on("ready", onArmed)
         .on("add", emit.onAdd)
         .on("change", emit.onChange)
         .on("unlink", emit.onUnlink);
+}
+
+function watchChildFolders(folder: string, onChange: () => void): { close(): unknown } {
+    return watch(folder, { ignoreInitial: true, depth: 0, ...platformWatchOptions() })
+        // A folder created while chokidar armed is part of its first scan and raises no addDir.
+        .on("ready", onChange)
+        .on("addDir", onChange)
+        .on("unlinkDir", onChange)
+        .on("error", onChange);
+}
+
+function isIgnoredWatchFolder(relativeFolder: string): boolean {
+    return relativeFolder.split("/").some(isIgnoredWatchDirName);
 }
 
 /**
@@ -265,6 +287,10 @@ export class NodeWorkspace implements WorkspacePort, WorkspaceRoots {
      * The folders {@link isIgnoredWatchDirName} names are pruned so arming the
      * recursive watch on a large repo stays within the OS watch-descriptor
      * budget (inotify on Linux).
+     *
+     * A root that does not exist yet is watched once it appears, see
+     * {@link watchOnceFolderExists}; the files it already holds then arrive
+     * as creates.
      */
     createWatcher(
         rootPath: string,
@@ -345,10 +371,26 @@ export class NodeWorkspace implements WorkspacePort, WorkspaceRoots {
             onChange: (p) => subscribers.forEach((s) => s.onChange(p)),
             onUnlink: (p) => subscribers.forEach((s) => s.onUnlink(p)),
         };
-        const watcher =
-            process.platform === "darwin"
-                ? watchRecursivelyWithFsEvents(root, emit)
-                : watchWithChokidar(root, emit);
+        const watcher = watchOnceFolderExists(root, {
+            arm: (late) => {
+                // A late arming follows the folder's creation, and the files written with
+                // it may land before the watch covers them: a listing once armed sees them.
+                const reportFilesHeld = (): void => {
+                    if (late) {
+                        void listFilesBelow(root, isIgnoredWatchFolder).then((files) =>
+                            files.forEach((file) => emit.onAdd(joinWorkspacePath(root, file))),
+                        );
+                    }
+                };
+                if (process.platform !== "darwin") {
+                    return watchWithChokidar(root, emit, reportFilesHeld);
+                }
+                const armed = watchRecursivelyWithFsEvents(root, emit);
+                reportFilesHeld();
+                return armed;
+            },
+            watchChildren: watchChildFolders,
+        });
         const shared = { watcher, subscribers };
         this.rootWatchers.set(root, shared);
         return shared;
@@ -395,11 +437,14 @@ export class NodeWorkspace implements WorkspacePort, WorkspaceRoots {
      * Writes `content`, creating missing parent directories first. The mkdirp
      * mirrors `VsCodeWorkspace.writeFile`: the code-link artifact lands under a
      * nested `<configFolder>/code-link/<dir>/…` path that need not exist yet.
+     *
+     * The write is atomic: bridges of several projects share one plugin cache
+     * and serve its files while another bridge may be rewriting them.
      */
     async writeFile(path: string, content: string): Promise<void> {
         const fsPath = withoutFileScheme(path);
         await fs.mkdir(posix.dirname(fsPath), { recursive: true });
-        await fs.writeFile(fsPath, content, "utf8");
+        await writeFileAtomically(fsPath, content);
     }
 
     /**
@@ -443,6 +488,64 @@ export class NodeWorkspace implements WorkspacePort, WorkspaceRoots {
             }
         }
         return results;
+    }
+}
+
+let temporaryFileCount = 0;
+
+/**
+ * Writes a temporary sibling and renames it over the target, so a reader sees
+ * the old or the new content, never a part. A link is resolved first, and the
+ * replaced file's permission bits carried over, so neither is lost to the
+ * rename.
+ */
+async function writeFileAtomically(fsPath: string, content: string): Promise<void> {
+    // Windows' realpath answers with backslashes, which the posix split below would not see.
+    const target = toWorkspacePath(await noneIfAbsent(() => fs.realpath(fsPath), fsPath));
+    const replaced = await noneIfAbsent(() => fs.stat(target), undefined);
+    const temporary = posix.join(
+        posix.dirname(target),
+        `.${posix.basename(target)}.${process.pid}.${++temporaryFileCount}.tmp`,
+    );
+    try {
+        await fs.writeFile(temporary, content, "utf8");
+        if (replaced) {
+            await fs.chmod(temporary, replaced.mode & 0o7777);
+        }
+        await renameRetryingWhileLocked(temporary, target);
+    } catch (error) {
+        await fs.rm(temporary, { force: true });
+        throw error;
+    }
+}
+
+// Windows refuses to replace a file another process holds open without
+// FILE_SHARE_DELETE (java.io, a virus scanner, an indexer) until it closes it.
+const LOCKED_CODES = new Set(["EPERM", "EACCES", "EBUSY"]);
+const RENAME_RETRY_DELAYS_MS = [10, 30, 100, 300];
+
+async function renameRetryingWhileLocked(from: string, to: string): Promise<void> {
+    for (const delay of RENAME_RETRY_DELAYS_MS) {
+        try {
+            return await fs.rename(from, to);
+        } catch (error) {
+            if (!LOCKED_CODES.has((error as NodeJS.ErrnoException).code ?? "")) {
+                throw error;
+            }
+            await new Promise((resolve) => setTimeout(resolve, delay));
+        }
+    }
+    await fs.rename(from, to);
+}
+
+async function noneIfAbsent<T>(read: () => Promise<T>, none: T): Promise<T> {
+    try {
+        return await read();
+    } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+            return none;
+        }
+        throw error;
     }
 }
 

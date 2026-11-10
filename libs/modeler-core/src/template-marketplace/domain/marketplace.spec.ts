@@ -3,8 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 import {
     expandHomePath,
     InvalidMarketplaceError,
-    isSafeRepoPath,
     marketplaceEntryLabel,
+    marketplacePreferenceKeyOf,
     parseMarketplace,
     parseMarketplaceEntry,
     parseMarketplaceUrl,
@@ -339,48 +339,6 @@ describe("parseMarketplaceUrl (local)", () => {
     });
 });
 
-describe("isSafeRepoPath", () => {
-    it.each<{ behaviour: string; repoPath: string; safe: boolean }>([
-        { behaviour: "accepts a nested relative path", repoPath: "templates/a.json", safe: true },
-        { behaviour: "accepts a bare file name", repoPath: "a.json", safe: true },
-        {
-            behaviour: "accepts dots inside a segment",
-            repoPath: "a..b/..hidden/c.json",
-            safe: true,
-        },
-        { behaviour: "rejects a lone parent segment", repoPath: "..", safe: false },
-        {
-            behaviour: "rejects a leading parent traversal",
-            repoPath: "../../../settings.json",
-            safe: false,
-        },
-        {
-            behaviour: "rejects a parent traversal mid-path",
-            repoPath: "templates/../../x.json",
-            safe: false,
-        },
-        {
-            behaviour: "rejects a backslash parent traversal",
-            repoPath: "templates\\..\\..\\settings.json",
-            safe: false,
-        },
-        { behaviour: "rejects an absolute posix path", repoPath: "/etc/passwd", safe: false },
-        {
-            behaviour: "rejects a drive path with a backslash",
-            repoPath: "C:\\Windows\\x.json",
-            safe: false,
-        },
-        { behaviour: "rejects a drive path with a slash", repoPath: "c:/x.json", safe: false },
-        {
-            behaviour: "rejects a UNC path",
-            repoPath: "\\\\server\\share\\x.json",
-            safe: false,
-        },
-    ])("$behaviour", ({ repoPath, safe }) => {
-        expect(isSafeRepoPath(repoPath)).toBe(safe);
-    });
-});
-
 describe("expandHomePath", () => {
     const HOME = "/home/me";
 
@@ -696,5 +654,72 @@ describe("parseMarketplace source include globs", () => {
         expect(() =>
             parseMarketplace({ sources: [{ path: "templates", include: ["a/../x.json"] }] }),
         ).toThrow(InvalidMarketplaceError);
+    });
+
+    it.each(["\\abs\\x.json", "a\\..\\x.json", "C:/x.json"])(
+        "rejects the Windows spelling %s of a rooted or escaping pattern",
+        (pattern) => {
+            expect(() =>
+                parseMarketplace({ sources: [{ path: "templates", include: [pattern] }] }),
+            ).toThrow(InvalidMarketplaceError);
+        },
+    );
+});
+
+describe("marketplacePreferenceKeyOf", () => {
+    it.each<{ case: string; entry: Parameters<typeof parseMarketplaceEntry>[0]; key: string }>([
+        {
+            case: "a github.com repository",
+            entry: "https://github.com/acme/templates",
+            key: "marketplace:github:github.com/acme/templates",
+        },
+        {
+            case: "the same repository at a ref",
+            entry: "https://github.com/acme/templates/tree/release/2.x",
+            key: "marketplace:github:github.com/acme/templates",
+        },
+        {
+            case: "the owner/repo shorthand",
+            entry: "acme/templates",
+            key: "marketplace:github:github.com/acme/templates",
+        },
+        {
+            case: "a github object entry at a ref",
+            entry: { provider: "github", repo: "acme/templates", ref: "v2" },
+            key: "marketplace:github:github.com/acme/templates",
+        },
+        {
+            case: "a GitHub Enterprise host with a port",
+            entry: {
+                provider: "github",
+                repo: "acme/templates",
+                baseUrl: "https://GHE.example.com:8443/",
+                ref: "main",
+            },
+            key: "marketplace:github:ghe.example.com:8443/acme/templates",
+        },
+        {
+            case: "a gitlab.com project in a subgroup",
+            entry: "https://gitlab.com/acme/bpmn/templates/-/tree/main",
+            key: "marketplace:gitlab:gitlab.com/acme/bpmn/templates",
+        },
+        {
+            case: "a self-hosted GitLab project",
+            entry: { provider: "gitlab", repo: "acme/templates", baseUrl: "https://git.acme.io" },
+            key: "marketplace:gitlab:git.acme.io/acme/templates",
+        },
+        {
+            case: "a local folder",
+            entry: "/opt/Templates/acme",
+            key: "marketplace:local:/opt/Templates/acme",
+        },
+    ])("keys $case", ({ entry, key }) => {
+        expect(marketplacePreferenceKeyOf(parseMarketplaceEntry(entry).location)).toBe(key);
+    });
+
+    it("keys two repositories apart that differ only in their owner", () => {
+        expect(marketplacePreferenceKeyOf(parseMarketplaceUrl("acme/templates").location)).not.toBe(
+            marketplacePreferenceKeyOf(parseMarketplaceUrl("acme2/templates").location),
+        );
     });
 });

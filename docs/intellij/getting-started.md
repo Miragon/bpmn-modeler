@@ -36,6 +36,30 @@ beside the IDE's JSON editor; the buttons in the editor's top right switch betwe
 Templates live in the template folder under the config folder (`.camunda/element-templates/` by default). The form
 that creates and edits them is in VS Code so far.
 
+## BPMN plugins
+
+The editor loads [bpmn-js plugins](/vscode/features/bpmn-plugins) from `.camunda/plugins/` in your project once you
+allow them in the notification it shows. The IDE keeps your approvals for all projects; see
+[IntelliJ](/vscode/features/bpmn-plugins#intellij) for what differs from VS Code.
+
+## Artifacts
+
+The **Artifacts** tab of the **BPMN Modeler** tool window lists what your project brings to the modeler: the BPMN
+plugins under the config folder, the bpmnlint rule packages your `.bpmnlintrc` takes from `node_modules`, the element
+templates and the template marketplaces. It lists this project only.
+
+- Each plugin and rule package shows its state: **Allowed**, **Not allowed yet**, **Changed, review needed**,
+  **Declined this session** or **Folder gone**. **Review…** shows what you would allow, **Allow this content** allows
+  it, **Revoke** takes an approval back, and **Forget** drops the approval of a **Folder gone** row. Rules from a rule package that
+  already ran stay loaded until you restart the IDE.
+- **Disable** and **Enable** switch an element template, or all templates of a source, off and on. A switch holds for
+  this project, which the IDE keeps in `.idea/workspace.xml`, or for all your projects.
+- The marketplaces group adds, updates and removes [template marketplaces](/vscode/features/template-marketplace).
+- The **Refresh** button in the tab's title reads everything again, for example after you installed a rule package.
+
+**Review…** in the notification about a new plugin or rule package opens this tab at its row when everything the
+notification names lies inside the project. Otherwise, or when the tab cannot open, the list appears as before.
+
 ## Actions
 
 Find every action with **Find Action** (`Ctrl+Shift+A` / `Cmd+Shift+A`) or under **Tools ▸ Miragon BPMN Modeler**.
@@ -50,12 +74,13 @@ Find every action with **Find Action** (`Ctrl+Shift+A` / `Cmd+Shift+A`) or under
 | Change Modeler Language… | Switch the modeler UI language |
 | Toggle Automatic Form Preview | Enable or disable automatic linked-form previews across all projects; manual preview remains available |
 | Copy Diagram as SVG / Save Diagram as SVG… | Export the focused diagram as SVG |
-| Deploy Diagram / Deploy Files… | Deploy to the active target (see the **Miragon Deployment** tool window) |
+| Deploy Diagram / Deploy Files… | Deploy to the active target (see the **BPMN Modeler** tool window, **Deploy** tab) |
 | Switch Deployment Target… | Pick the active deployment target for the project |
 | Verify Deployment on Engine… | Check the focused diagram against the active Camunda 7 target |
 | Generate Script Files for Script Tasks | Write a file for every inline script task of the active diagram; edits sync back live |
 | Add / Update / Remove Template Marketplace… | Manage [template marketplaces](/vscode/features/template-marketplace) |
 | Reload Modeler | Re-read element templates and re-render open diagrams |
+| Refresh Artifacts | Read the plugins, rule packages and element templates of the **Artifacts** tab again |
 
 ## Status bar
 

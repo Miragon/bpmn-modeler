@@ -20,9 +20,12 @@ function createServices() {
         host.notifier,
     );
     const refresh = vi.spyOn(templates, "refreshElementTemplates").mockImplementation(() => {});
+    const refreshMarketplace = vi
+        .spyOn(templates, "refreshMarketplaceTemplates")
+        .mockImplementation(() => {});
     const release = vi.spyOn(templates, "releaseEditor");
     const participant = new ElementTemplatesParticipant(templates, artifacts, host.notifier);
-    return { host, artifacts, participant, refresh, release };
+    return { host, artifacts, participant, refresh, refreshMarketplace, release };
 }
 
 function settle(): Promise<void> {
@@ -51,6 +54,23 @@ describe("ElementTemplatesParticipant", () => {
         expect(refresh).not.toHaveBeenCalled();
         await host.workspace.writeFile("/work/.config/element-templates/a.json", "[]");
         expect(refresh).toHaveBeenCalledExactlyOnceWith(editor.id);
+    });
+
+    it("refreshes the marketplace templates only when the marketplaces setting changes", async () => {
+        const { host, participant, refresh, refreshMarketplace } = createServices();
+        const editor = await host.openSession(PATH, [participant]);
+
+        editor.changeSetting("configFolder");
+        await settle();
+        expect(refreshMarketplace).not.toHaveBeenCalled();
+
+        refresh.mockClear();
+        editor.changeSetting("marketplaces");
+        await settle();
+
+        expect(refreshMarketplace).toHaveBeenCalledExactlyOnceWith(editor.id);
+        expect(refresh).not.toHaveBeenCalled();
+        expect(host.workspace.watchers.filter(({ disposed }) => !disposed)).toHaveLength(1);
     });
 
     it("disposes the watcher and releases the editor's templates when the session closes", async () => {
@@ -88,7 +108,7 @@ describe("ElementTemplatesParticipant", () => {
 
         expect(host.workspace.watchers.map(({ disposed }) => disposed)).toEqual([true, false]);
         expect(editor.postedOfType("ElementTemplatesQuery")).toEqual([
-            new ElementTemplatesQuery([]),
+            new ElementTemplatesQuery([], []),
         ]);
     });
 });

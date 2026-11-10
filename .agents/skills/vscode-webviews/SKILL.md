@@ -32,19 +32,31 @@ ships only an empty `<div id="app"></div>`; none carries a copy of the form.
 Edit form markup **only** in `formTemplate.ts` (see the Deployment Webview
 section in AGENTS.md).
 
+### Add-ons Webview (Artifacts view)
+
+`apps/add-ons-webview` renders the core's add-on catalog. Its host shells ship
+only an empty `<div id="app"></div>` too; `src/adapter/in/catalogView.ts`
+builds the DOM from the model with the DOM API, never `innerHTML`, as the model
+holds workspace text. Its protocol is `libs/shared/src/lib/addOnsView.ts`, and
+the core's `AddOnsFeature.attachPanel` answers it, so a host only passes
+messages through. VS Code serves it as the Artifacts view
+(`apps/vscode-plugin/src/addOns/`: `AddOnsViewHtml.ts`, `AddOnsViewProvider.ts`);
+IntelliJ bundles it as the Artifacts tab of its BPMN Modeler tool window.
+
 ## Content Security Policy (CSP)
 
-Every shell (BPMN, DMN, form, deployment) defines a CSP in a `<meta>` tag and
+Every shell (BPMN, DMN, form, deployment, add-ons) defines a CSP in a `<meta>` tag and
 limits `localResourceRoots` to its bundle directory: `bootstrapWebview` does it
-for the editors (DMN also gets `assets/` for `reset.css`), and
-`DeploymentController.resolveWebviewView` for the deployment sidebar.
+for the editors (DMN also gets `assets/` for `reset.css`),
+`DeploymentController.resolveWebviewView` for the deployment sidebar and
+`AddOnsViewProvider.resolveWebviewView` for the Artifacts view.
 `webviewContentSecurityPolicy(shell, { cspSource, nonce })` in
 `apps/vscode-plugin/src/shared/domain/webviewContentSecurityPolicy.ts`
-builds all four policies: the directives every shell shares are written once,
+builds all five policies: the directives every shell shares are written once,
 and its `BUNDLE_SOURCES` table lists what each bundle adds. A table entry may
-only widen `script-src` and the load directives (`img-src`, `font-src`,
-`connect-src`, `frame-src`, `object-src`); another key fails the typecheck and
-never reaches the policy. Its spec pins each policy, so widen a shell in the
+only widen `script-src`, `style-src` and the load directives (`img-src`,
+`font-src`, `connect-src`, `frame-src`, `object-src`); another key fails the
+typecheck and never reaches the policy. Its spec pins each policy, so widen a shell in the
 table and in that spec. Every shell spec runs `describeShellPolicy` from
 `src/__fixtures__/webviewShell.ts`, which checks only that the shell carries the
 builder's policy for its script's nonce and draws a fresh nonce per render. The
@@ -64,9 +76,11 @@ base-uri 'none'; form-action 'none'
   modulepreload links carry no nonce. A nonce-only `script-src` breaks
   View/Design/Implement. The form and deployment bundles are one classic
   script each and allow the nonce alone.
-- `style-src 'unsafe-inline'` in every shell: diagram-js, the properties panel
-  and CodeMirror set style attributes and inject `<style>` elements, and the
-  deployment form's markup carries a style attribute.
+- `style-src 'unsafe-inline'` in every shell but the add-ons one: diagram-js,
+  the properties panel and CodeMirror set style attributes and inject `<style>`
+  elements, and the deployment form's markup carries a style attribute. The
+  add-ons page has only its linked stylesheet, so its policy allows
+  `style-src ${webview.cspSource}` alone.
 - `img-src data: https:`: element-template icons are `data:` URIs or remote
   URLs (DMN has no templates and omits `https:`).
 - The form shell adds what form-js components load at runtime:
@@ -104,7 +118,8 @@ Each message has a `type` string discriminator used for routing.
 **Queries (host → webview):**
 - `BpmnFileQuery`: delivers BPMN XML, engine type (`c7` | `c8`) and the initial UI locale
 - `DmnFileQuery`: delivers DMN XML
-- `ElementTemplatesQuery`: delivers the resolved element-template list
+- `ElementTemplatesQuery`: delivers the resolved element-template list and the templates hidden from new choices
+- `HiddenElementTemplatesQuery`: replaces the hidden templates alone, without re-sending (and re-validating) the list
 - `BpmnModelerSettingQuery`: delivers modeler settings (alignToOrigin, showTransactionBoundaries)
 - `ClipboardQuery`: delivers clipboard text (host mediates sandboxed reads)
 
@@ -230,9 +245,10 @@ Note: BPMN/DMN editors do **not** set `retainContextWhenHidden`: their
 webviews are torn down when hidden and recreated when shown, so `getState`/
 `setState` is the *only* thing that survives a hide, not just a restart.
 (`VsCodeEditorHandle.postMessage` throws for a hidden panel precisely because
-the webview is gone.) Only the deployment sidebar view sets
-`retainContextWhenHidden: true` (`DeploymentController.ts`), because it uses
-`registerWebviewViewProvider`, not a custom editor.
+the webview is gone.) Only the two side bar views set
+`retainContextWhenHidden: true` (`DeploymentController.ts`,
+`AddOnsViewProvider.ts`), because they use `registerWebviewViewProvider`, not a
+custom editor, and the core posts nothing to a hidden one.
 
 ## VS Code API in Webviews
 
@@ -322,6 +338,8 @@ See `apps/vscode-plugin/src/shared/adapter/out/WebviewHtml.ts`.
 - **Deployment HTML shell**: `apps/vscode-plugin/src/deployment/adapter/in/DeploymentWebviewHtml.ts` (CSP + asset URIs only)
 - **Shell CSP builder**: `apps/vscode-plugin/src/shared/domain/webviewContentSecurityPolicy.ts`
 - **Deployment form markup (single source)**: `apps/deployment-webview/src/adapter/in/formTemplate.ts` (`FORM_TEMPLATE`)
+- **Add-ons view**: `apps/add-ons-webview/src/adapter/in/catalogView.ts` (DOM), `src/domain/viewState.ts` (reducer), `libs/shared/src/lib/addOnsView.ts` (protocol)
+- **Artifacts view shell and provider**: `apps/vscode-plugin/src/addOns/adapter/in/AddOnsViewHtml.ts`, `AddOnsViewProvider.ts`
 - **Message router**: `libs/modeler-core/src/editorSession/service/WebviewMessageRouter.ts`
 - **Base message types**: `libs/shared/src/lib/messages.ts`
 - **Modeler message types**: `libs/shared/src/lib/modeler.ts`

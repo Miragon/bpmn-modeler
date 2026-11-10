@@ -7,14 +7,17 @@ import { VsCodeSettings } from "../shared/adapter/out/VsCodeSettings";
 import { VsCodeStatusBar } from "../shared/adapter/out/VsCodeStatusBar";
 import { VsCodeNotifier } from "../shared/adapter/out/VsCodeNotifier";
 import { VsCodePicker } from "../shared/adapter/out/VsCodePicker";
+import { VsCodeActionNotifier } from "../shared/adapter/out/VsCodeActionNotifier";
 import { VsCodeClipboard } from "../shared/adapter/out/VsCodeClipboard";
 import { VsCodeTextEditor } from "../shared/adapter/in/VsCodeTextEditor";
 import { VsCodeEditorHandle } from "../shared/adapter/out/VsCodeEditorHandle";
 import { vsCodeModelerPreferences } from "../shared/adapter/out/modelerConfiguration";
 import { ModelerPreferences } from "../shared/port/ModelerPreferences";
 import { EditorHandleFactory } from "../modeler/editor-session/adapter/in/ModelerEditorController";
-import { ArtifactService } from "@miragon/bpmn-modeler-core";
+import { ArtifactService, QuestionQueue } from "@miragon/bpmn-modeler-core";
 import { DocumentFlushService, PendingEditsFlush } from "@miragon/bpmn-modeler-core";
+import { VsCodePluginApprovalStore } from "../modeler/bpmn/adapter/out/VsCodePluginApprovalStore";
+import { VsCodeTemplatePreferenceStore } from "../modeler/bpmn/adapter/out/VsCodeTemplatePreferenceStore";
 
 /**
  * The cross-cutting collaborators every feature draws from: the host-capability
@@ -32,6 +35,7 @@ export interface SharedDeps {
     statusBar: VsCodeStatusBar;
     notifier: VsCodeNotifier;
     picker: VsCodePicker;
+    actionNotifier: VsCodeActionNotifier;
     clipboard: VsCodeClipboard;
     textEditor: VsCodeTextEditor;
     preferences: ModelerPreferences;
@@ -39,6 +43,12 @@ export interface SharedDeps {
     artifactSvc: ArtifactService;
     flushSvc: DocumentFlushService;
     pendingEdits: PendingEditsFlush;
+    /** The one approval list the plugins, the rule packages and the add-on catalog share. */
+    pluginApprovals: VsCodePluginApprovalStore;
+    /** Every approval question, so two notices never stand side by side. */
+    approvalQuestions: QuestionQueue;
+    /** The user's template switches, which the BPMN editor and the add-on catalog share. */
+    templatePreferences: VsCodeTemplatePreferenceStore;
 }
 
 /**
@@ -71,6 +81,7 @@ export function buildSharedDeps(context: ExtensionContext): SharedDeps {
         statusBar: new VsCodeStatusBar(),
         notifier,
         picker: new VsCodePicker(),
+        actionNotifier: new VsCodeActionNotifier(),
         clipboard: new VsCodeClipboard(),
         textEditor: new VsCodeTextEditor(context.subscriptions),
         preferences: vsCodeModelerPreferences,
@@ -78,5 +89,11 @@ export function buildSharedDeps(context: ExtensionContext): SharedDeps {
         artifactSvc: new ArtifactService(vsWorkspace, vsSettings, notifier),
         flushSvc,
         pendingEdits: new PendingEditsFlush(editorStore, flushSvc, notifier),
+        pluginApprovals: new VsCodePluginApprovalStore(context.globalState),
+        approvalQuestions: new QuestionQueue(),
+        templatePreferences: new VsCodeTemplatePreferenceStore({
+            project: context.workspaceState,
+            allProjects: context.globalState,
+        }),
     };
 }

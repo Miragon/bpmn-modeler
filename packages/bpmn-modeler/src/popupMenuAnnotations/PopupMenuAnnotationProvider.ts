@@ -3,6 +3,7 @@ import type { ReplaceOption } from "bpmn-js/lib/features/replace/ReplaceOptions"
 import { isDifferentType } from "bpmn-js/lib/features/popup-menu/util/TypeUtil";
 import type { Element } from "bpmn-js/lib/model/Types";
 
+import { ELEMENT_POPUP_MENUS } from "../popupMenus";
 import {
     annotateEntry,
     popupEntryKeyOf,
@@ -18,8 +19,6 @@ interface PopupMenuRegistry {
 
 // Below the default priority, so the entries of every other provider already exist.
 const ANNOTATION_PRIORITY = 500;
-
-const ANNOTATED_MENUS = ["bpmn-create", "bpmn-append", "bpmn-replace"] as const;
 
 // Replaces the element with its own type minus the template, so it carries no type in its id.
 const REMOVE_TEMPLATE_ENTRY_ID = "replace-remove-element-template";
@@ -46,7 +45,7 @@ export class PopupMenuAnnotationProvider {
         private readonly translate: (text: string) => string,
         private readonly annotations: PopupMenuAnnotations,
     ) {
-        for (const menuId of ANNOTATED_MENUS) {
+        for (const menuId of ELEMENT_POPUP_MENUS) {
             popupMenu.registerProvider(menuId, ANNOTATION_PRIORITY, this);
         }
     }

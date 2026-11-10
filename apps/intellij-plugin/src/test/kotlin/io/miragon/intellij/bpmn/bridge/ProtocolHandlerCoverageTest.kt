@@ -7,6 +7,10 @@ import com.intellij.openapi.util.Disposer
 import com.intellij.testFramework.LightVirtualFile
 import com.intellij.testFramework.junit5.TestApplication
 import io.miragon.intellij.bpmn.CoreSession
+import io.miragon.intellij.bpmn.PluginApproval
+import io.miragon.intellij.bpmn.PluginApprovalStore
+import io.miragon.intellij.bpmn.TemplatePreferenceSnapshot
+import io.miragon.intellij.bpmn.TemplateSwitch
 import io.miragon.intellij.bpmn.projectFixtureWithoutServicePreload
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -172,6 +176,11 @@ class ProtocolHandlerCoverageTest {
                 HostToCoreMethod.DEPLOYMENT_DEPLOY_ACTIVE to { modelerCommands.deployDiagram() },
                 HostToCoreMethod.DEPLOYMENT_VERIFY to { modelerCommands.verifyDeployment() },
                 HostToCoreMethod.DEPLOYMENT_STATUS_BAR_MENU to { modelerCommands.deploymentStatusMenu() },
+                HostToCoreMethod.PLUGIN_APPROVALS_DID_CHANGE to { pluginApprovals.push(PluginApprovalStore.getInstance().snapshot()) },
+                HostToCoreMethod.TEMPLATE_PREFERENCES_DID_CHANGE to { templatePreferences.push() },
+                HostToCoreMethod.ADD_ONS_WEBVIEW_MESSAGE to { addOns.forwardMessage("""{"type":"GetAddOnCatalogCommand"}""") },
+                HostToCoreMethod.ADD_ONS_OPEN to { addOns.setOpen(true) },
+                HostToCoreMethod.ADD_ONS_REFRESH to { addOns.refresh() },
             )
         val framesBySentMethod = linkedMapOf<String, SentFrame>()
         for ((method, send) in senders) {
@@ -209,11 +218,17 @@ class ProtocolHandlerCoverageTest {
                 "tokenStore/get" to TokenStoreGetResult(token = "ghp_stored"),
                 "tokenPrompt/show" to TokenPromptShowResult(token = "ghp_typed"),
                 "marketplacePrompt/show" to MarketplacePromptShowResult(location = "/work/t", scope = "project"),
+                "actionNotice/show" to ActionNoticeShowResult(chosen = 0),
                 "marketplaceState/read" to
                     MarketplaceStateReadResult(
                         registered = mapOf("project" to listOf("/work/t"), "allProjects" to emptyList()),
                         writable = listOf(WritableScope("project", SettingsPlace("file", listOf(".idea")))),
                     ),
+                "pluginApprovals/change" to PluginApprovalsResult(listOf(PluginApproval("/ws/plugins/resize", "9f2c")), revision = 2),
+                "pluginApprovals/read" to PluginApprovalsResult(listOf(PluginApproval("/ws/plugins/resize", "9f2c")), revision = 2),
+                "templatePreferences/change" to TEMPLATE_PREFERENCES,
+                "templatePreferences/read" to TEMPLATE_PREFERENCES,
+                "addOns/reveal" to AddOnsRevealResult(shown = true),
             )
         return resultsByMethod.entries.withIndex().associate { (requestId, entry) ->
             wired.channel.reply(wired.requestId(requestId), entry.value)
@@ -256,5 +271,10 @@ class ProtocolHandlerCoverageTest {
     private companion object {
         const val BEFORE_URI = "file:///process.bpmn#diff-1-before"
         const val AFTER_URI = "file:///process.bpmn#diff-1-after"
+        val TEMPLATE_PREFERENCES =
+            TemplatePreferencesResult(
+                project = TemplatePreferenceSnapshot(listOf(TemplateSwitch("configFolder:shop/.camunda", "mail")), revision = 3),
+                allProjects = TemplatePreferenceSnapshot(listOf(TemplateSwitch("marketplace:local:/opt/templates")), revision = 2),
+            )
     }
 }

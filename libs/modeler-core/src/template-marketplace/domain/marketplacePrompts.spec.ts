@@ -7,6 +7,8 @@ import {
     marketplaceAddNotice,
     marketplaceAddPrompt,
     marketplaceRemoval,
+    marketplaceRemovalConfirm,
+    marketplaceScopesText,
 } from "./marketplacePrompts";
 import {
     MarketplaceAddOutcome,
@@ -378,5 +380,70 @@ describe("marketplaceRemoval", () => {
         expect(removal.kind === "choose" && removal.prompt.items.map((item) => item.value)).toEqual(
             ["https://github.com/acme/b", "https://github.com/acme/a"],
         );
+    });
+});
+
+describe("marketplaceScopesText", () => {
+    it.each<{ scopes: RegisteredMarketplace["scopes"]; text: string }>([
+        { scopes: ["allProjects"], text: "All my projects" },
+        { scopes: ["project"], text: "This project" },
+        { scopes: ["project", "allProjects"], text: "All my projects and this project" },
+    ])("words $scopes as $text", ({ scopes, text }) => {
+        expect(marketplaceScopesText(scopes)).toBe(text);
+    });
+});
+
+describe("marketplaceRemovalConfirm", () => {
+    const SHARED = "https://github.com/acme/shared";
+    const SELF_HOSTED = {
+        provider: "gitlab",
+        repo: "acme/templates",
+        baseUrl: "https://git.acme.io",
+    } as const;
+
+    it.each<{
+        behaviour: string;
+        entry: string | typeof SELF_HOSTED;
+        registered: {
+            project: (string | typeof SELF_HOSTED)[];
+            allProjects: (string | typeof SELF_HOSTED)[];
+        };
+        details: string;
+        title: string;
+    }>([
+        {
+            behaviour: "an entry of all my projects",
+            entry: SHARED,
+            registered: { project: [], allProjects: [SHARED] },
+            title: `Remove the template marketplace ${SHARED}?`,
+            details: `It is removed from all my projects, and its cached templates are deleted.`,
+        },
+        {
+            behaviour: "a self-hosted entry of both scopes, matched by its fields",
+            entry: { ...SELF_HOSTED },
+            registered: { project: [SELF_HOSTED], allProjects: [SELF_HOSTED] },
+            title: "Remove the template marketplace git.acme.io/acme/templates?",
+            details:
+                "It is removed from all my projects and this project, and its cached templates are deleted.",
+        },
+    ])("asks before it removes $behaviour", ({ entry, registered, title, details }) => {
+        expect(marketplaceRemovalConfirm(entry, registered)).toStrictEqual({
+            kind: "confirm",
+            request: {
+                id: "marketplaceRemovalConfirm",
+                title,
+                confirmLabel: "Remove",
+                details: [details],
+            },
+        });
+    });
+
+    it("says an entry removed meanwhile is no longer registered, and asks nothing", () => {
+        expect(
+            marketplaceRemovalConfirm(SHARED, { project: ["/work/templates"], allProjects: [] }),
+        ).toStrictEqual({
+            kind: "notRegistered",
+            message: `The template marketplace ${SHARED} is no longer registered.`,
+        });
     });
 });

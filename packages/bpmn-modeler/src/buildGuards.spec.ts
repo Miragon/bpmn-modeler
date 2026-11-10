@@ -6,6 +6,7 @@ import { checkConsumerTypes } from "../scripts/check-consumer-types.mjs";
 import { checkDts } from "../scripts/check-dts.mjs";
 import { checkExternals, collectModuleSpecifiers } from "../scripts/check-externals.mjs";
 import { checkInlinedPeers } from "../scripts/check-inlined-peers.mjs";
+import { checkPluginsFreeEntries } from "../scripts/check-plugins-free-entry.mjs";
 
 const temporaryDirectories: string[] = [];
 
@@ -310,5 +311,62 @@ describe("inlined library peer guard", () => {
         });
 
         expect(checkInlinedPeers({ packageRoot })).toEqual({ checkedLibraries: 2 });
+    });
+});
+
+describe("plugins-free entry guard", () => {
+    const PLUGIN_CODE =
+        "//#region src/plugins/loadPlugins.ts\nfunction loadPlugins() {}\n//#endregion";
+
+    function distWith(files: Record<string, string>): string {
+        const distDir = join(temporaryDirectory(), "dist");
+        mkdirSync(join(distDir, "chunks"), { recursive: true });
+        const defaults: Record<string, string> = {
+            "index.js": 'import "./chunks/shared.js";',
+            "design.js": 'import "./chunks/shared.js";',
+            "mode.js": "export const mode = 1;",
+            "plugins.js": `import "./chunks/shared.js";\n${PLUGIN_CODE}`,
+            "chunks/shared.js": "//#region src/engines.ts\nexport const engines = [];",
+        };
+        for (const [name, code] of Object.entries({ ...defaults, ...files })) {
+            writeFileSync(join(distDir, name), code);
+        }
+        return distDir;
+    }
+
+    it("accepts entries that share chunks with the plugins entry but none of its code", () => {
+        expect(checkPluginsFreeEntries({ distDir: distWith({}) })).toEqual({
+            checkedEntries: ["index.js", "design.js", "mode.js"],
+        });
+    });
+
+    it.each([
+        ["a static import", 'import "./chunks/loader.js";'],
+        ["a re-export", 'export { loadPlugins } from "./chunks/loader.js";'],
+        ["a lazy import", 'const lazy = () => import("./chunks/loader.js");'],
+    ])("rejects an entry that reaches plugin code through %s", (_kind, importer) => {
+        const distDir = distWith({ "design.js": importer, "chunks/loader.js": PLUGIN_CODE });
+
+        expect(() => checkPluginsFreeEntries({ distDir })).toThrow("design.js → chunks/loader.js");
+    });
+
+    it("rejects an entry that imports the plugins entry itself", () => {
+        const distDir = distWith({ "mode.js": 'import "./plugins.js";' });
+
+        expect(() => checkPluginsFreeEntries({ distDir })).toThrow("mode.js → plugins.js");
+    });
+
+    it("refuses to pass when the plugins entry carries no marker it could look for", () => {
+        const distDir = distWith({ "plugins.js": "function loadPlugins() {}" });
+
+        expect(() => checkPluginsFreeEntries({ distDir })).toThrow(
+            /no "\/\/#region src\/plugins\/"/,
+        );
+    });
+
+    it("rejects a missing build output", () => {
+        expect(() => checkPluginsFreeEntries({ distDir: temporaryDirectory() })).toThrow(
+            /not found/,
+        );
     });
 });

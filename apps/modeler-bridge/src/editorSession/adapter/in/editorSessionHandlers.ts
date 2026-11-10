@@ -12,7 +12,9 @@ import {
     RegisterParams,
     WebviewMessageParams,
 } from "../../../protocol/domain/types";
+import { PluginApprovalsMirror } from "../../../bpmnPlugins/port/PluginApprovalsMirror";
 import { HostSettingsMirror } from "../../../kernel/port/HostSettingsMirror";
+import { TemplatePreferencesMirror } from "../../../kernel/port/TemplatePreferencesMirror";
 import { WorkspaceRoots } from "../../../kernel/port/WorkspaceRoots";
 import { DocumentMirror } from "../../domain/DocumentMirror";
 import { HostEditorHandle, HostEditorHandleFactory } from "../../port/HostEditorHandle";
@@ -29,6 +31,8 @@ export function editorSessionHandlers({
     lifecycle,
     mirror,
     settingsMirror,
+    pluginApprovals,
+    templatePreferences,
     workspaceRoots,
     createEditorHandle,
     bpmnService,
@@ -38,6 +42,8 @@ export function editorSessionHandlers({
     lifecycle: EditorSessionLifecycle;
     mirror: DocumentMirror;
     settingsMirror: HostSettingsMirror;
+    pluginApprovals: PluginApprovalsMirror;
+    templatePreferences: TemplatePreferencesMirror;
     workspaceRoots: WorkspaceRoots;
     createEditorHandle: HostEditorHandleFactory;
     bpmnService: Pick<BpmnModelerService, "display">;
@@ -73,6 +79,17 @@ export function editorSessionHandlers({
             // shared seam) so it precedes every participant.
             if (params.settings) {
                 settingsMirror.apply(params.settings);
+            }
+            // Seeded here rather than at startup, so it cannot race the first plugin request.
+            if (params.pluginApprovals && params.pluginApprovalsRevision !== undefined) {
+                pluginApprovals.apply({
+                    approvals: params.pluginApprovals,
+                    revision: params.pluginApprovalsRevision,
+                });
+            }
+            // Before the editor opens, so its first templates already hide the switched-off ones.
+            if (params.templatePreferences) {
+                templatePreferences.apply(params.templatePreferences);
             }
 
             if (
