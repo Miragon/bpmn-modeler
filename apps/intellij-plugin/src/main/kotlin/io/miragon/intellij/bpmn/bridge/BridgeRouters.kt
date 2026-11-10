@@ -43,6 +43,7 @@ internal class BridgeRouters(deps: BridgeDeps) {
      */
     fun seedAfterSpawn() {
         deployment.sendSeed()
+        deployment.followNewProcess()
         editor.pushSettings()
         templatePreferences.push()
         pluginApprovals.pushStored()
