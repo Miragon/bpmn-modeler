@@ -82,13 +82,8 @@ internal class AddOnsRouter(
     }
 
     private fun sendVisibility() {
-        val params =
-            linkedMapOf<String, Any>(
-                "open" to open,
-                "settings" to ModelerSettingsStore.getInstance().snapshotMap(deps.project),
-            )
-        // Left out, not null, without a project root: the core then shows its no-folder text.
-        deps.project.basePath?.let { params["workspaceRoot"] = it }
+        val settings = ModelerSettingsStore.getInstance().snapshotMap(deps.project)
+        val params = addOnsOpenParams(open, settings, deps.project.basePath)
         deps.channel.notify(HostToCoreMethod.ADD_ONS_OPEN, params, coalesceKey = "addOns/open", reliable = true)
     }
 
@@ -119,3 +114,11 @@ internal class AddOnsRouter(
         window = null
     }
 }
+
+/** The params of `addOns/open`; a project without a root, as in light edit, leaves the key out so the core shows its no-folder text. */
+internal fun addOnsOpenParams(open: Boolean, settings: Map<String, Any>, workspaceRoot: String?): Map<String, Any> =
+    buildMap {
+        put("open", open)
+        put("settings", settings)
+        workspaceRoot?.let { put("workspaceRoot", it) }
+    }

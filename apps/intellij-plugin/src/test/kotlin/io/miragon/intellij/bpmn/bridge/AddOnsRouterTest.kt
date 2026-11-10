@@ -116,6 +116,13 @@ class AddOnsRouterTest {
     }
 
     @Test
+    fun `leaves the project root out, not null, for a project without one`() {
+        val params = addOnsOpenParams(open = true, settings = mapOf("configFolder" to ".camunda"), workspaceRoot = null)
+
+        assertEquals(mapOf("open" to true, "settings" to mapOf("configFolder" to ".camunda")), params)
+    }
+
+    @Test
     fun `sends only the last of the visibility changes made while the bridge restarts`() {
         val (wired, router) = routed().let { it.wired to it.router }
 
