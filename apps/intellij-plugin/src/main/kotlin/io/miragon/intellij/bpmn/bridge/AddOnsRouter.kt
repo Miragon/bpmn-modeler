@@ -28,10 +28,10 @@ internal class AddOnsRouter(
     @Volatile
     private var window: Window? = null
 
-    @Volatile
+    // Guarded by this, with the frame that sends it: the coalesced queue keeps
+    // the last visibility enqueued, which must be the one this field holds.
     private var open = false
 
-    @Volatile
     private var spawnedBefore = false
 
     fun register() {
@@ -58,6 +58,7 @@ internal class AddOnsRouter(
     }
 
     /** Closes the view without starting a bridge for it. */
+    @Synchronized
     fun unregisterWindow() {
         window = null
         setOpen(false)
@@ -74,8 +75,13 @@ internal class AddOnsRouter(
         deps.channel.notify(HostToCoreMethod.ADD_ONS_WEBVIEW_MESSAGE, linkedMapOf("message" to parsed), reliable = true)
     }
 
+    @Synchronized
     fun setOpen(open: Boolean) {
         this.open = open
+        sendVisibility()
+    }
+
+    private fun sendVisibility() {
         val params =
             linkedMapOf<String, Any>(
                 "open" to open,
@@ -93,11 +99,15 @@ internal class AddOnsRouter(
      * requests with it.
      */
     fun followNewProcess() {
-        val replacedOne = spawnedBefore
-        spawnedBefore = true
-        val registered = window ?: return
-        setOpen(open)
-        if (replacedOne) registered.reload()
+        val reloadPage =
+            synchronized(this) {
+                val replacedOne = spawnedBefore
+                spawnedBefore = true
+                val registered = window ?: return
+                sendVisibility()
+                registered.reload.takeIf { replacedOne }
+            }
+        reloadPage?.invoke()
     }
 
     fun refresh() {
