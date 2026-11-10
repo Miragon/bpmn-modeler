@@ -12,7 +12,13 @@ import {
     without,
 } from "../__fixtures__/catalogs";
 import type { ActionKindPayload } from "./actionRequest";
-import { focusAfterDone, FocusTarget, isFocusable, isListed } from "./focusAfter";
+import {
+    focusAfterDone,
+    FocusTarget,
+    isFocusable,
+    isListed,
+    isRequestedByHost,
+} from "./focusAfter";
 
 describe("focusAfterDone", () => {
     it.each<{ case: string; action: ActionKindPayload; target: FocusTarget }>([
@@ -153,5 +159,39 @@ describe("isListed", () => {
         [RESIZE.id, false, without(RESIZE.id)],
     ] as const)("finds %s: %s", (id, listed, model = CATALOG) => {
         expect(isListed(model, id)).toBe(listed);
+    });
+});
+
+describe("isRequestedByHost", () => {
+    it.each<{ case: string; target: FocusTarget | undefined; requested: boolean }>([
+        { case: "no target", target: undefined, requested: false },
+        {
+            case: "a row after an action",
+            target: { kind: "head", headId: "row" },
+            requested: false,
+        },
+        {
+            case: "the list's start after a render",
+            target: { kind: "listStart" },
+            requested: false,
+        },
+        { case: "a review", target: { kind: "review", addOnId: "row" }, requested: false },
+        {
+            case: "a row a Review… revealed",
+            target: { kind: "head", headId: "row", reveal: true },
+            requested: true,
+        },
+        {
+            case: "the row Review Add-ons selected",
+            target: { kind: "head", headId: "row", requested: true },
+            requested: true,
+        },
+        {
+            case: "the list's start Review Add-ons found empty",
+            target: { kind: "listStart", requested: true },
+            requested: true,
+        },
+    ])("takes $case as requested by the host: $requested", ({ target, requested }) => {
+        expect(isRequestedByHost(target)).toBe(requested);
     });
 });

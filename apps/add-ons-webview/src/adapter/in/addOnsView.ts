@@ -5,7 +5,7 @@ import { addOnsOf, placementOf } from "../../domain/catalogQueries";
 import { CatalogScope, scopedCatalog } from "../../domain/catalogScope";
 import { CHROME_TEXT, matchCountText, NO_MATCH_TEXT } from "../../domain/chromeTexts";
 import { headsOf, isShownOpen } from "../../domain/expansion";
-import type { FocusTarget } from "../../domain/focusAfter";
+import { FocusTarget, isRequestedByHost } from "../../domain/focusAfter";
 import { catalogPhaseOf, ListContent, listContentOf } from "../../domain/listContent";
 import {
     CATALOG_TARGET,
@@ -95,6 +95,7 @@ export class AddOnsView {
     render(state: ViewState, target?: FocusTarget): void {
         const reveal =
             target?.kind === "head" && target.reveal === true ? target.headId : undefined;
+        if (isRequestedByHost(target)) this.openMenu = undefined;
         if (reveal !== undefined) this.startReveal(reveal);
         this.show(state, target);
         if (reveal !== undefined) this.finishReveal(reveal);
@@ -109,10 +110,16 @@ export class AddOnsView {
         if (catalogPhaseOf(state.model) === "ready") this.toolbar.focusTab(state.scope);
     }
 
-    /** A focus target only moves focus the view holds, or that fell to the page with a removed control. */
+    /**
+     * A focus target only moves focus the view holds, or that fell to the page
+     * with a removed control; one a host requested also moves it from the search.
+     */
     private show(state: ViewState, target?: FocusTarget): void {
         const held = this.focus.held();
-        const owned = held !== undefined || document.activeElement === document.body;
+        const owned =
+            held !== undefined ||
+            document.activeElement === document.body ||
+            (isRequestedByHost(target) && this.root.contains(document.activeElement));
         this.state = state;
         this.draw(state);
         const revealing = target?.kind === "head" && target.reveal === true;
@@ -341,7 +348,6 @@ export class AddOnsView {
 
     /** A host "Review…": the reducer selected the add-on and opened its review; the view rings it. */
     private startReveal(addOnId: string): void {
-        this.openMenu = undefined;
         this.revealedId = addOnId;
         clearTimeout(this.revealTimer);
         this.revealTimer = setTimeout(() => this.endReveal(), REVEAL_MS);

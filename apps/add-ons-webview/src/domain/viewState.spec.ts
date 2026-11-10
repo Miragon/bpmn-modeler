@@ -478,7 +478,7 @@ describe("nextViewState", () => {
                 "list",
                 undefined,
                 5,
-                { kind: "head", headId: RESIZE.id },
+                { kind: "head", headId: RESIZE.id, requested: true },
             ]);
         });
 
@@ -491,7 +491,7 @@ describe("nextViewState", () => {
 
             expect([selectedIdOf(state), focus]).toEqual([
                 ACME.id,
-                { kind: "head", headId: ACME.id },
+                { kind: "head", headId: ACME.id, requested: true },
             ]);
         });
 
@@ -530,7 +530,7 @@ describe("nextViewState", () => {
             expect(["workspace" in state.selection, state.filter, focus]).toEqual([
                 false,
                 NEEDS_REVIEW_ONLY,
-                { kind: "listStart" },
+                { kind: "listStart", requested: true },
             ]);
         });
 
@@ -552,7 +552,7 @@ describe("nextViewState", () => {
             expect([waiting.state.filter, state.filter, focus]).toEqual([
                 NO_FILTER,
                 NEEDS_REVIEW_ONLY,
-                { kind: "head", headId: RESIZE.id },
+                { kind: "head", headId: RESIZE.id, requested: true },
             ]);
         });
 
@@ -578,7 +578,7 @@ describe("nextViewState", () => {
                 state.scope,
                 listContentOf(ONLY_MARKETPLACES, state.scope, state.filter).kind,
                 focus,
-            ]).toEqual(["workspace", "workspaceEmpty", { kind: "listStart" }]);
+            ]).toEqual(["workspace", "workspaceEmpty", { kind: "listStart", requested: true }]);
         });
 
         it("keeps the preset's id but no tab across a reload", () => {

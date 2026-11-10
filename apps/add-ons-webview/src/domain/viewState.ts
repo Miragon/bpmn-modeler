@@ -318,7 +318,10 @@ function reviewRevealed(state: ViewState, model: AddOnCatalogPayload, revealId: 
             ...reviewing,
             selection: selected === undefined ? others : { ...others, [REVIEW_SCOPE]: selected },
         },
-        focus: selected === undefined ? { kind: "listStart" } : { kind: "head", headId: selected },
+        focus:
+            selected === undefined
+                ? { kind: "listStart", requested: true }
+                : { kind: "head", headId: selected, requested: true },
     };
 }
 

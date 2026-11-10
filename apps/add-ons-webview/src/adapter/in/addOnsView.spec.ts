@@ -1021,6 +1021,44 @@ describe("AddOnsView", () => {
                 "No add-on selected.",
             ]);
         });
+
+        it.each<{
+            case: string;
+            model: AddOnCatalogPayload;
+            focused: (view: ReturnType<typeof mountedView>) => Element;
+        }>([
+            {
+                case: "the first add-on to review",
+                model: CATALOG,
+                focused: ({ row }) => row(RESIZE.name),
+            },
+            {
+                case: "Clear filters when nothing needs review",
+                model: without(ACME.id, without(RESIZE.id)),
+                focused: ({ button }) => button("Clear filters"),
+            },
+        ])("moves focus from the search box to $case", ({ model, focused }) => {
+            const view = mountedView(model);
+            view.search().focus();
+            view.type("zzz");
+
+            view.session.dispatch(review);
+
+            expect([view.search().value, document.activeElement]).toEqual(["", focused(view)]);
+        });
+
+        it("closes an open menu as it moves focus to the list", () => {
+            const { session, root, button, row } = mountedView(CATALOG);
+            button("More actions").click();
+
+            session.dispatch(review);
+
+            expect([
+                root.querySelectorAll("[role=menu]").length,
+                button("More actions").getAttribute("aria-expanded"),
+                document.activeElement,
+            ]).toEqual([0, "false", row(RESIZE.name)]);
+        });
     });
 
     describe("the sticky toolbar", () => {
