@@ -4,7 +4,7 @@ Deploy BPMN and DMN files to Camunda 7 or Camunda 8 and start process instances 
 
 ## The Deploy sidebar
 
-Open the **Deploy** view from the rocket icon in the activity bar: it sits in the **BPMN Modeler** container while a diagram is open, above the [Artifacts view](/vscode/features/artifacts). It has two tabs:
+Open the **Deploy** view from the Miragon comet in the activity bar: it sits in the **BPMN Modeler** container while a diagram is open, above the [Artifacts view](/vscode/features/artifacts). It has two tabs:
 
 - **Deploy** saves the open diagram and uploads it, optionally with additional files. If the diagram cannot be saved, nothing is uploaded. Additional files go out as last saved.
 - **Start Instance** starts a process instance, optionally with a JSON payload. It fills in the id of the diagram's first executable process, which you can change.

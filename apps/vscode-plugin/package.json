@@ -264,7 +264,7 @@
                 {
                     "id": "bpmn-modeler-deploy",
                     "title": "BPMN Modeler",
-                    "icon": "$(rocket)"
+                    "icon": "./icons/komet.svg"
                 }
             ]
         },

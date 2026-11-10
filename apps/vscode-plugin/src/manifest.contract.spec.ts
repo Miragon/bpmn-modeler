@@ -237,8 +237,12 @@ describe("package.json ↔ code contract", () => {
     // The container keeps its id, so a user's layout survives, and shows whenever a folder is open.
     it("shows Deploy and Artifacts in one BPMN Modeler container", () => {
         expect(manifest.contributes.viewsContainers.activitybar).toEqual([
-            { id: "bpmn-modeler-deploy", title: "BPMN Modeler", icon: "$(rocket)" },
+            { id: "bpmn-modeler-deploy", title: "BPMN Modeler", icon: "./icons/komet.svg" },
         ]);
+        // VS Code draws an activity bar icon as a mask in its own colour.
+        expect(readFileSync(resolve(__dirname, "../icons/komet.svg"), "utf-8")).toContain(
+            'fill="currentColor"',
+        );
         expect(manifest.contributes.views["bpmn-modeler-deploy"]).toEqual([
             {
                 type: "webview",

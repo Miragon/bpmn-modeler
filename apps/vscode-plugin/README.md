@@ -54,7 +54,7 @@ visual editor with a preview, and a Camunda 8 user task links straight to its fo
 ![Two versions of a process side by side, with added, removed, changed and moved elements in colour](/docs/public/shots/bpmn-diff.png)
 
 Select two `.bpmn` files in the Explorer and **Compare Selected (BPMN)** to see what changed,
-element by element. The **Deploy** view in the **BPMN Modeler** container (the rocket) deploys a diagram to Camunda 7 or
+element by element. The **Deploy** view in the **BPMN Modeler** container (the Miragon comet) deploys a diagram to Camunda 7 or
 Camunda 8 and starts an instance with a payload from `.camunda/payloads/`.
 
 ## Good to know

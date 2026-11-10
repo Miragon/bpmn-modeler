@@ -4,7 +4,7 @@ See and manage everything your workspace adds to the BPMN editor in one place: [
 
 ## Open the view
 
-Click the rocket in the activity bar to open the **BPMN Modeler** container. **Artifacts** shows there whenever a folder is open; **Deploy** shows above it while a diagram is open. **Review…** on a plugin or rule package notification opens the view too (see [Allow code](#allow-code)).
+Click the Miragon comet in the activity bar to open the **BPMN Modeler** container. **Artifacts** shows there whenever a folder is open; **Deploy** shows above it while a diagram is open. **Review…** on a plugin or rule package notification opens the view too (see [Allow code](#allow-code)).
 
 ## What it lists
 

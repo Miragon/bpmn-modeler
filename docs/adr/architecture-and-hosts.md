@@ -504,7 +504,9 @@ VS Code host reaches another only through `shared/`, which the VS Code
 architecture test checks.
 
 VS Code's side bar has one activity bar container, `bpmn-modeler-deploy`,
-titled **BPMN Modeler** with the rocket icon. It kept the id of the
+titled **BPMN Modeler** with the Miragon comet, the brand's sign for
+Miragon itself (IntelliJ's tool window stripe shows it too); the rocket stays
+on the deploy action. It kept the id of the
 deployment-only container, so a user's layout survives. It holds two webview
 views: **Deploy** (`bpmn-modeler.deploymentView`), shown while a custom editor
 is open, and **Artifacts** (`bpmn-modeler.artifactsView`), shown whenever a
