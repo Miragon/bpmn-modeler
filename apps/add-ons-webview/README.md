@@ -58,8 +58,9 @@ their ARIA roles require.
   use the `--cd-ui-*` roles, palette tokens only for button, badge and kind
   surfaces, and no `--vscode-*` variable.
 - Geist and Geist Mono (`@fontsource-variable`, OFL-1.1) and Lucide (ISC)
-  ship in the bundle; both plugins carry their licenses (`licenses/` in the
-  VSIX, `META-INF/licenses/` in the IntelliJ jar).
+  ship in the bundle. The build emits their licenses to `licenses/` beside
+  it, and both plugins carry them (`licenses/` in the VSIX,
+  `META-INF/licenses/` in the IntelliJ jar).
 
 ## Local development
 

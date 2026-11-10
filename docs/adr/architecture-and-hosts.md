@@ -271,10 +271,12 @@ variable, and its spec checks that, the tokens' checksum, `[hidden]`, forced
 colours and reduced motion. The type sizes are the brand's (13px base, 11px
 small), so the IDE's font size does not reach the page; the host's zoom
 still scales it. The fonts are OFL-1.1 and Lucide is ISC, so both plugins
-carry their licenses: `apps/vscode-plugin/webpack.config.js` copies them into
-the VSIX's `licenses/` and fails the build when one is missing, and the
-IntelliJ build's `copyThirdPartyLicenses` puts them into the jar's
-`META-INF/licenses/`, which `verifyReleaseBundles` checks for a release.
+carry their licenses. The add-ons build emits them beside the bundle
+(`licenses/`), so a host job needs no install of the webview's dependencies:
+`apps/vscode-plugin/webpack.config.js` copies them into the VSIX's
+`licenses/` with the bundle, and the IntelliJ build's
+`copyThirdPartyLicenses` puts them into the jar's `META-INF/licenses/`,
+which `verifyReleaseBundles` checks for a release.
 
 Every control is reached with Tab, and the list has no roving tree (see
 [Alternatives](#alternatives-and-consequences)). The tabs keep the arrow,

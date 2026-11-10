@@ -18,7 +18,7 @@ export function loadingOf(): HTMLElement {
 }
 
 /** The catalog actions a list offers as buttons, labelled by the model. */
-export function catalogButtonsOf(buttons: CatalogButtons, busy: boolean): HTMLButtonElement[] {
+function catalogButtonsOf(buttons: CatalogButtons, busy: boolean): HTMLButtonElement[] {
     return buttons.map((action) =>
         actionButton(action, {
             busy,

@@ -171,25 +171,6 @@ module.exports = (env, argv) => {
                         ),
                         to: "licenses/form-json-schema.LICENSE",
                     },
-                    // The add-ons view bundles the Geist fonts (OFL-1.1) and lucide icons (ISC).
-                    {
-                        from: path.resolve(
-                            __dirname,
-                            "../../node_modules/@fontsource-variable/geist/LICENSE",
-                        ),
-                        to: "licenses/geist.LICENSE",
-                    },
-                    {
-                        from: path.resolve(
-                            __dirname,
-                            "../../node_modules/@fontsource-variable/geist-mono/LICENSE",
-                        ),
-                        to: "licenses/geist-mono.LICENSE",
-                    },
-                    {
-                        from: path.resolve(__dirname, "../../node_modules/lucide/LICENSE"),
-                        to: "licenses/lucide.LICENSE",
-                    },
                     {
                         // Copy the deployment webview build artefacts into the extension output.
                         from: path.resolve(
@@ -204,8 +185,19 @@ module.exports = (env, argv) => {
                         // Copy the add-ons webview build artefacts (the Add-ons view) into the extension output.
                         from: path.resolve(__dirname, "../../dist/webview-staging/add-ons-webview"),
                         to: "add-ons-webview",
+                        // Its licenses go to licenses/ below.
+                        filter: (file) => path.basename(path.dirname(file)) !== "licenses",
                         noErrorOnMissing: true,
                         info: { minimized: true },
+                    },
+                    {
+                        // The licenses of the fonts and icons that bundle carries, beside the others.
+                        from: path.resolve(
+                            __dirname,
+                            "../../dist/webview-staging/add-ons-webview/licenses",
+                        ),
+                        to: "licenses",
+                        noErrorOnMissing: true,
                     },
                 ],
             }),

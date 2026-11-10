@@ -317,23 +317,20 @@ val copyAddOnsWebview =
     // Sync, not Copy: a renamed or dropped asset, such as a font file, would otherwise stay in the jar.
     tasks.register<Sync>("copyAddOnsWebview") {
         description = "Stages the pre-built add-ons-webview bundle into plugin resources (served from the classpath at runtime)."
-        from(addOnsWebviewDist)
+        from(addOnsWebviewDist) { exclude("licenses/**") }
         // Nest under `webview-add-ons/` so the served classpath path is `/webview-add-ons/...`.
         into(stagedResourcesRoot.map { it.dir("webview-add-ons") })
     }
 
-// The add-ons page bundles the Geist fonts (OFL-1.1) and lucide icons (ISC); their licenses ship in the jar.
+// The add-ons build emits the licenses of the fonts (OFL-1.1) and icons (ISC) it bundles.
+val addOnsLicensesDist = addOnsWebviewDist.dir("licenses")
 val thirdPartyLicenses =
-    mapOf(
-        "geist.LICENSE" to "../../node_modules/@fontsource-variable/geist/LICENSE",
-        "geist-mono.LICENSE" to "../../node_modules/@fontsource-variable/geist-mono/LICENSE",
-        "lucide.LICENSE" to "../../node_modules/lucide/LICENSE",
-    ).mapValues { (_, path) -> layout.projectDirectory.file(path) }
+    listOf("geist.LICENSE", "geist-mono.LICENSE", "lucide.LICENSE").map { addOnsLicensesDist.file(it) }
 
 val copyThirdPartyLicenses =
     tasks.register<Sync>("copyThirdPartyLicenses") {
         description = "Stages the licenses of the third-party code the webview bundles ship into plugin resources."
-        thirdPartyLicenses.forEach { (name, file) -> from(file) { rename { name } } }
+        from(addOnsLicensesDist)
         into(stagedResourcesRoot.map { it.dir("META-INF/licenses") })
     }
 
@@ -380,7 +377,7 @@ val verifyReleaseBundles =
                 addOnsWebviewDist.file("index.js").asFile to "corepack yarn build:add-ons-webview",
                 // Without it the tab ships unstyled and nothing fails.
                 addOnsWebviewDist.file("index.css").asFile to "corepack yarn build:add-ons-webview",
-            ) + thirdPartyLicenses.values.map { it.asFile to "corepack yarn install" } +
+            ) + thirdPartyLicenses.map { it.asFile to "corepack yarn build:add-ons-webview" } +
                 releaseBridgeTargets.map { (dir, name) -> bridgeDistRoot.file("$dir/$name").asFile to buildBridges }
         doLast {
             val missing = required.filterNot { (file, _) -> file.exists() }

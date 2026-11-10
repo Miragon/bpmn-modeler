@@ -42,10 +42,10 @@ interface PendingRequest {
 }
 
 /** Each tab's own selected add-on. */
-export type Selection = Readonly<Partial<Record<CatalogScope, string>>>;
+type Selection = Readonly<Partial<Record<CatalogScope, string>>>;
 
 /** Which pane a narrow view shows; a wide one shows both. */
-export type Pane = "list" | "detail";
+type Pane = "list" | "detail";
 
 export interface ViewState {
     readonly model?: AddOnCatalogPayload;
