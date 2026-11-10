@@ -1,7 +1,7 @@
 # Engineering practices
 
 - Status: accepted
-- Last reviewed: 2026-11-09
+- Last reviewed: 2026-11-10
 
 ## Context
 
@@ -281,8 +281,9 @@ the `COLOR_THEMES` array in `settings.ts` of `libs/modeler-types`,
 `modeStrip.ts`; each fails when the Kotlin copy differs. The add-ons view's
 `hostThemeVariables.json` (`apps/add-ons-webview/src/adapter/in/styles/`)
 lists every `--vscode-*` variable its stylesheet reads, which its own spec
-checks; the IntelliJ tool window of #2250's third PR maps that set and its
-Kotlin test reads the file. A text the Kotlin
+checks; `IdeThemeSignal.addOnsThemeVarsCss` maps that set for IntelliJ, and
+`IdeThemeSignalTest` reads the file, a declared input of the Gradle test task
+listed in the `intellij-plugin` CI filter. A text the Kotlin
 host copies is pinned the same way: `EmptyDmnDiagramTest` compares the scaffold
 IntelliJ's New DMN Model writes with `EMPTY_DMN_DIAGRAM` in `emptyDmn.ts` byte
 for byte. No generated file sits in between that could go stale. One Kotlin

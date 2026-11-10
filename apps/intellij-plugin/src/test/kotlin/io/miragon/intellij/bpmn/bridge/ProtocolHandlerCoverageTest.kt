@@ -178,6 +178,9 @@ class ProtocolHandlerCoverageTest {
                 HostToCoreMethod.DEPLOYMENT_STATUS_BAR_MENU to { modelerCommands.deploymentStatusMenu() },
                 HostToCoreMethod.PLUGIN_APPROVALS_DID_CHANGE to { pluginApprovals.push(PluginApprovalStore.getInstance().snapshot()) },
                 HostToCoreMethod.TEMPLATE_PREFERENCES_DID_CHANGE to { templatePreferences.push() },
+                HostToCoreMethod.ADD_ONS_WEBVIEW_MESSAGE to { addOns.forwardMessage("""{"type":"GetAddOnCatalogCommand"}""") },
+                HostToCoreMethod.ADD_ONS_OPEN to { addOns.setOpen(true) },
+                HostToCoreMethod.ADD_ONS_REFRESH to { addOns.refresh() },
             )
         val framesBySentMethod = linkedMapOf<String, SentFrame>()
         for ((method, send) in senders) {
@@ -225,6 +228,7 @@ class ProtocolHandlerCoverageTest {
                 "pluginApprovals/read" to PluginApprovalsResult(listOf(PluginApproval("/ws/plugins/resize", "9f2c")), revision = 2),
                 "templatePreferences/change" to TEMPLATE_PREFERENCES,
                 "templatePreferences/read" to TEMPLATE_PREFERENCES,
+                "addOns/reveal" to AddOnsRevealResult(shown = true),
             )
         return resultsByMethod.entries.withIndex().associate { (requestId, entry) ->
             wired.channel.reply(wired.requestId(requestId), entry.value)

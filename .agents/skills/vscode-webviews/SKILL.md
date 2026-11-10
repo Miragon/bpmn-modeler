@@ -41,7 +41,7 @@ holds workspace text. Its protocol is `libs/shared/src/lib/addOnsView.ts`, and
 the core's `AddOnsFeature.attachPanel` answers it, so a host only passes
 messages through. VS Code serves it as the Artifacts view
 (`apps/vscode-plugin/src/addOns/`: `AddOnsViewHtml.ts`, `AddOnsViewProvider.ts`);
-IntelliJ does not bundle it yet.
+IntelliJ bundles it as the Artifacts tab of its BPMN Modeler tool window.
 
 ## Content Security Policy (CSP)
 

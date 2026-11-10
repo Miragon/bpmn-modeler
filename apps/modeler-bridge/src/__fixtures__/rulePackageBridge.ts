@@ -204,9 +204,10 @@ export function waitForNotice({ frames }: AcmeBridge, fromIndex = 0): Promise<Fr
 }
 
 /**
- * Answers an open notice with "Review…", checks every listed item and answers
- * the change with the list it merged into `stored` at the next revision, as
- * the IntelliJ host does.
+ * Answers an open notice with "Review…", reports the add-ons view as not shown,
+ * so the list appears, checks every listed item and answers the change with
+ * the list it merged into `stored` at the next revision, as the IntelliJ host
+ * does.
  * @returns the change the bridge sent and what the host now stores.
  */
 export async function reviewAndAllowAll(
@@ -219,6 +220,8 @@ export async function reviewAndAllowAll(
 }> {
     const fromIndex = frames.length;
     await rpc.handleLine(hostReply(notice.id!, { chosen: 0 }));
+    const reveal = await waitForFrame(frames, isRequest("addOns/reveal"), { fromIndex });
+    await rpc.handleLine(hostReply(reveal.id!, { shown: false }));
     const list: Frame = await waitForFrame(frames, isRequest("picker/show"), { fromIndex });
     const items = list.params.items as readonly unknown[];
     await rpc.handleLine(hostReply(list.id!, { selected: items.map((_, index) => index) }));

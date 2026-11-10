@@ -6,7 +6,8 @@
  * Covered: the approvals `session/register` seeds serve an approved plugin
  * from the cache under the loopback origin's `/bpmn-plugins/` route; an
  * unapproved plugin raises `actionNotice/show`, "Review…" opens the
- * `picker/show` list, and the checked plugin is allowed through a
+ * `picker/show` list once the host reports its add-ons view as not shown, and
+ * the checked plugin is allowed through a
  * `pluginApprovals/change` the host answers before the page gets `editor/reload`;
  * a `pluginApprovals/didChange` from another bridge keeps an editor from
  * asking again, and one that revokes a served plugin reloads the page.
@@ -210,6 +211,8 @@ describe("workspace bpmn-js plugins on the bridge", () => {
             labels: ["Review…"],
         });
         await rpc.handleLine(hostReply(notice.id, { chosen: 0 }));
+        const reveal = await waitForFrame(frames, isRequest("addOns/reveal"));
+        await rpc.handleLine(hostReply(reveal.id, { shown: false }));
 
         const list = await waitForFrame(frames, isRequest("picker/show"));
         expect(list.params).toMatchObject({ canPickMany: true });

@@ -14,6 +14,7 @@ internal class BridgeRouters(deps: BridgeDeps) {
     val settings = SettingsRouter(deps)
     val pluginApprovals = PluginApprovalRouter(deps)
     val templatePreferences = TemplatePreferenceRouter(deps)
+    val addOns = AddOnsRouter(deps)
 
     // Outbound only: it sends host→core notifications and handles no method.
     val modelerCommands = ModelerCommandsRouter(deps)
@@ -29,6 +30,7 @@ internal class BridgeRouters(deps: BridgeDeps) {
         settings.register()
         pluginApprovals.register()
         templatePreferences.register()
+        addOns.register()
         hostUi.register()
     }
 
@@ -36,12 +38,15 @@ internal class BridgeRouters(deps: BridgeDeps) {
      * Runs once the bridge's writer is attached, after every spawn. A register
      * queued before it read the settings, switches and approvals when it was
      * queued, and a push while the process was starting was dropped, so each is
-     * read again here.
+     * read again here. The add-ons view opens after the settings, so it never
+     * lists from an older config folder.
      */
     fun seedAfterSpawn() {
         deployment.sendSeed()
+        deployment.followNewProcess()
         editor.pushSettings()
         templatePreferences.push()
         pluginApprovals.pushStored()
+        addOns.followNewProcess()
     }
 }

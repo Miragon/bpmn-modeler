@@ -122,7 +122,7 @@ jobs:
           SPHERE='^packages/bpmn-modeler/|^libs/(append-menu|bpmn-clipboard|bpmn-diff|bpmn-i18n-extras|bpmn-layout|code-link|definition-search|element-template-chooser|flow-navigation|inline-scripting|model-navigation|modeler-types|properties-panel)/'
 
           VSC_RELEVANT="^apps/(bpmn-webview|dmn-webview|form-webview|deployment-webview|add-ons-webview|standalone)/|^libs/(modeler-core|shared|standalone-extension)/|^packages/dmn-modeler/|${SPHERE}"
-          IJ_RELEVANT="^apps/(bpmn-webview|deployment-webview|modeler-bridge)/|^libs/(modeler-core|shared)/|${SPHERE}"
+          IJ_RELEVANT="^apps/(bpmn-webview|deployment-webview|add-ons-webview|modeler-bridge)/|^libs/(modeler-core|shared)/|${SPHERE}"
           ORCA_RELEVANT="^packages/dmn-modeler/|^libs/shared/|${SPHERE}"
           VSC_NATIVE='^apps/vscode-plugin/'
           IJ_NATIVE='^apps/intellij-plugin/'

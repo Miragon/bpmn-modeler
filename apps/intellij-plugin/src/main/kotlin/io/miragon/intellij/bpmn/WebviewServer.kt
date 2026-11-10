@@ -86,6 +86,12 @@ class WebviewServer(private val pluginCacheRoot: Path = BpmnPluginCache.root()) 
         return "${origin}/deployment.html"
     }
 
+    /** The add-ons view of the BPMN Modeler tool window's Artifacts tab, from `/webview-add-ons/...`. */
+    fun addOnsUrl(): String {
+        ensureStarted()
+        return "${origin}/addOns.html"
+    }
+
     /** The element template preview: the template editor entry of the bpmn bundle, without its builder. */
     fun templatePreviewUrl(): String {
         ensureStarted()
@@ -99,6 +105,7 @@ class WebviewServer(private val pluginCacheRoot: Path = BpmnPluginCache.root()) 
                 WebviewRoute.BpmnShell -> respondHtml(exchange, indexHtml(), WebviewContentSecurityPolicy.BPMN_SHELL)
                 WebviewRoute.DeploymentShell ->
                     respondHtml(exchange, deploymentHtml(), WebviewContentSecurityPolicy.DEPLOYMENT_SHELL)
+                WebviewRoute.AddOnsShell -> respondHtml(exchange, addOnsHtml(), WebviewContentSecurityPolicy.ADD_ONS_SHELL)
                 WebviewRoute.TemplatePreviewShell ->
                     respondHtml(exchange, templatePreviewHtml(), WebviewContentSecurityPolicy.BPMN_SHELL)
                 is WebviewRoute.PluginAsset -> respondPluginAsset(exchange, route, path)
@@ -168,15 +175,21 @@ class WebviewServer(private val pluginCacheRoot: Path = BpmnPluginCache.root()) 
      * mirroring [indexHtml]: the [IdeThemeSignal.bodyClass] on `<body>` and an
      * `#ide-theme-vars` block carrying the deployment form's mapped `--vscode-*`
      * colors (the id `applyJs` rewrites live) so the form follows the IDE theme,
-     * not the OS. The body
-     * is just `<div id="app"></div>` because the deployment bundle
-     * (`src/adapter/in/formTemplate.ts`) renders the form itself. Assets resolve under
-     * `/deployment/...` → classpath `/webview-deployment`.
+     * not the OS. The deployment bundle (`src/adapter/in/formTemplate.ts`)
+     * renders the form itself. Assets resolve under `/deployment/...` →
+     * classpath `/webview-deployment`.
      *
      * The off-EDT palette read on the HTTP pool thread is safe for the same reason
      * documented on [indexHtml].
      */
-    private fun deploymentHtml(): String {
+    private fun deploymentHtml(): String =
+        sidePanelHtml("Deploy Diagram", "/deployment", service<IdeThemeSignal>().deploymentThemeVarsCss())
+
+    /** The add-ons view, built from the core's model into `#app` by its bundle under `/add-ons/...`. */
+    private fun addOnsHtml(): String = sidePanelHtml("Artifacts", "/add-ons", service<IdeThemeSignal>().addOnsThemeVarsCss())
+
+    /** A tool window page: its bundle under [assetPrefix], its own theme vars and an empty `#app` it fills. */
+    private fun sidePanelHtml(title: String, assetPrefix: String, themeVarsCss: String): String {
         val signal = service<IdeThemeSignal>()
         return listOf(
             "<!DOCTYPE html>",
@@ -184,14 +197,14 @@ class WebviewServer(private val pluginCacheRoot: Path = BpmnPluginCache.root()) 
             "<head>",
             "  <meta charset=\"UTF-8\"/>",
             "  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"/>",
-            "  <link href=\"/deployment/index.css\" rel=\"stylesheet\"/>",
-            "  <title>Deploy Diagram</title>",
-            "  <style id=\"ide-theme-vars\">${signal.deploymentThemeVarsCss()}</style>",
+            "  <link href=\"$assetPrefix/index.css\" rel=\"stylesheet\"/>",
+            "  <title>$title</title>",
+            "  <style id=\"ide-theme-vars\">$themeVarsCss</style>",
             "  <script>${WebviewContentSecurityPolicy.ACQUIRE_VS_CODE_API_SHIM}</script>",
             "</head>",
             "<body class=\"${signal.bodyClass()}\">",
             "  <div id=\"app\"></div>",
-            "  <script type=\"module\" src=\"/deployment/index.js\"></script>",
+            "  <script type=\"module\" src=\"$assetPrefix/index.js\"></script>",
             "</body>",
             "</html>",
         ).joinToString("\n")

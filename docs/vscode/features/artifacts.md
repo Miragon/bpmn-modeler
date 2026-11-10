@@ -70,7 +70,7 @@ In the toolbar, `←` and `→` move between its buttons.
 
 ## IntelliJ
 
-The IntelliJ plugin has no Artifacts tool window yet. **Review…** there still shows the list until it does.
+The IntelliJ plugin shows the same page as the **Artifacts** tab of its **BPMN Modeler** tool window, for the open project; **Review…** opens it at the item's row, and **Refresh Artifacts** sits in the tool window's title. See [Getting started in IntelliJ](/intellij/getting-started#artifacts).
 
 ## Next steps
 

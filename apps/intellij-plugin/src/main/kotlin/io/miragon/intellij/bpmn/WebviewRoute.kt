@@ -9,6 +9,8 @@ internal sealed interface WebviewRoute {
 
     data object DeploymentShell : WebviewRoute
 
+    data object AddOnsShell : WebviewRoute
+
     data object TemplatePreviewShell : WebviewRoute
 
     data class ClasspathAsset(val resourcePath: String, val mimeType: String) : WebviewRoute
@@ -28,21 +30,23 @@ internal sealed interface WebviewRoute {
         fun forPath(requestPath: String): WebviewRoute {
             if (requestPath == "/" || requestPath == "/index.html") return BpmnShell
             if (requestPath == "/deployment.html") return DeploymentShell
+            if (requestPath == "/addOns.html") return AddOnsShell
             if (requestPath == "/templatePreview.html") return TemplatePreviewShell
             if (requestPath.startsWith(PLUGIN_PREFIX)) {
                 val match = PLUGIN_ASSET_PATH.matchEntire(requestPath) ?: return NotFound
                 return PluginAsset(match.groupValues[1], match.groupValues[2])
             }
 
-            // The two bundles live under distinct classpath roots; the
+            // Each side panel bundle lives under its own classpath root: the
             // `/deployment/...` request prefix maps to `/webview-deployment/...`,
-            // everything else to the bpmn bundle's `/webview/...`.
+            // `/add-ons/...` to `/webview-add-ons/...`, everything else to the
+            // bpmn bundle's `/webview/...`.
             val decoded = URLDecoder.decode(requestPath, StandardCharsets.UTF_8)
             val resourcePath =
-                if (decoded.startsWith("/deployment/")) {
-                    "/webview-deployment" + decoded.removePrefix("/deployment")
-                } else {
-                    "/webview$decoded"
+                when {
+                    decoded.startsWith("/deployment/") -> "/webview-deployment" + decoded.removePrefix("/deployment")
+                    decoded.startsWith("/add-ons/") -> "/webview-add-ons" + decoded.removePrefix("/add-ons")
+                    else -> "/webview$decoded"
                 }
             return ClasspathAsset(resourcePath, mimeTypeOf(requestPath))
         }

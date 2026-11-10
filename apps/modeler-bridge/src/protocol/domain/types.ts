@@ -505,6 +505,33 @@ export interface DeploymentPostMessageParams {
     message: Query;
 }
 
+/** `addOns/webviewMessage` — a {@link Command} from the add-ons view's page. */
+export interface AddOnsWebviewMessageParams {
+    message: Command;
+}
+
+/**
+ * `addOns/open` — the host shows or hides its add-ons view. `workspaceRoot` is
+ * the project root the view lists, held for the life of the process; absent
+ * when the project has none. `settings` is applied first, so the first listing
+ * already reads the configured folder.
+ */
+export interface AddOnsOpenParams {
+    open: boolean;
+    workspaceRoot?: string;
+    settings: RawModelerSettings;
+}
+
+/** `addOns/postMessage` — the core pushes a {@link Query} into the add-ons view's page. */
+export interface AddOnsPostMessageParams {
+    message: Query;
+}
+
+/** `addOns/reveal` — whether the host now shows its add-ons view. */
+export interface AddOnsRevealResult {
+    shown: boolean;
+}
+
 /** Completion bean shipped to the host so it never needs BPMN/PSI knowledge. */
 interface ScriptCompletionBean {
     name: string;

@@ -1,7 +1,7 @@
 # BPMN modeler
 
 - Status: accepted
-- Last reviewed: 2026-11-09
+- Last reviewed: 2026-11-10
 
 ## Context
 
@@ -635,11 +635,12 @@ allowed nowhere this session. Otherwise, or when the reveal answers `false`
 or rejects, it answers with its fallback, `ListReview`, which stays for good.
 The review request carries the folders the prompt was built for
 (`ApprovalReviewRequest.workspaceFolders`), so the prompt and this decision
-use one reading. VS Code passes a `ViewReview` over its Artifacts view to both
-features, so **Review…** opens the view there unless an item lies outside
-every folder. The feature's `review` port stays optional until IntelliJ passes
-one too (#2250's third PR); then it becomes required and `reviewOrChecklist`
-goes. The catalogs keep these session answers
+use one reading. Both hosts pass a `ViewReview` to both features: VS Code
+over its Artifacts view, IntelliJ over `RpcAddOnViewReveal` and the Artifacts
+tab of its BPMN Modeler tool window. **Review…** opens the view unless an
+item lies outside every folder or the view cannot open. The feature's
+`review` port is still optional; making it required and removing
+`reviewOrChecklist` is a follow-up now that both hosts pass one. The catalogs keep these session answers
 by content (`SESSION_ANSWERS`). The kernel's
 `ApprovalQuestion` runs this flow for every approval kind and knows no
 editor: one question is open at a time, and plugins found while it is open
@@ -810,9 +811,12 @@ which reads each template file by the loader's rule (`templatesOfFileText`,
 `templateEngineOf`), and the marketplaces with `MarketplaceInventory`
 over the host's `MarketplaceCommands`, which `createMarketplaceCommands`
 builds together. The host compositions wire one into the other ([package boundaries](architecture-and-hosts.md#package-boundaries)).
-Both hosts build an `AddOnsFeature`; VS Code binds its Artifacts view to it
-([host integrations](architecture-and-hosts.md#host-integrations)), and
-IntelliJ's tool window follows.
+Both hosts build an `AddOnsFeature` and bind one view to it: VS Code its
+Artifacts view, IntelliJ the Artifacts tab of its BPMN Modeler tool window,
+attached hidden when the bridge starts; IntelliJ's watchers follow the folders
+known whenever the views change or the catalog refreshes, so they follow the
+project root from the first `addOns/open` on
+([host integrations](architecture-and-hosts.md#host-integrations)).
 `AddOnsFeature.attachPanel(post, visible)` serves the add-ons view protocol
 of `libs/shared` (`addOnsView.ts`) for one page through `AddOnViewMessages`
 in `addOns/adapter/in/`, so a host only passes a `post` and the page's
@@ -907,6 +911,8 @@ applies the next reveal.
     still reaches the editor; a post the editor refuses or that fails is
     forgotten, so the next change sends the refs again. A webview that is
     hidden or reloads asks for its templates again and gets the current refs.
+  - Both hosts' Artifacts views offer the switches, and both user guides
+    describe them.
 - *Marketplaces.* A group after the folders lists each registered
   marketplace entry as a source, in the order the hosts fetch them, keyed by the entry,
   as two spellings of one repository share a cache slot: its label, the

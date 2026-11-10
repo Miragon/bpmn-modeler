@@ -101,7 +101,7 @@ When a dependency, not the package itself, cannot be checked, a `cannot be allow
 
 ### IntelliJ
 
-The IntelliJ plugin asks the same way as for [BPMN plugins in IntelliJ](/vscode/features/bpmn-plugins#intellij): an IDE notification balloon with **Review…**, which shows the list, and approvals that the IDE keeps for all your projects, outside every project. The output channel lines go to the IDE log.
+The IntelliJ plugin asks the same way as for [BPMN plugins in IntelliJ](/vscode/features/bpmn-plugins#intellij): an IDE notification balloon with **Review…**, which opens the rule package's row in the **Artifacts** tab of the **BPMN Modeler** tool window when the package lies inside the project, and approvals that the IDE keeps for all your projects, outside every project. **Revoke** there takes an approval back; rules that already ran stay loaded until you restart the IDE. The output channel lines go to the IDE log.
 
 In IntelliJ, rule packages whose `package.json` sets `main` or `exports`, and most that have dependencies, do not load yet, even once allowed: the bundled rules stand in for them, or their rules are skipped. A later release lifts this limit.
 

@@ -26,6 +26,7 @@ Why publishing on the official Marketplace matters:
    corepack yarn build:libs
    corepack yarn build:bpmn-webview
    corepack yarn build:deployment-webview
+   corepack yarn build:add-ons-webview
    corepack yarn workspace @miragon/bpmn-modeler-bridge compile:all
    cd apps/intellij-plugin
    ./gradlew buildPlugin -PbundleAllPlatforms

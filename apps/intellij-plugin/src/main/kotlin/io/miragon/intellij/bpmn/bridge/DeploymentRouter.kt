@@ -19,6 +19,9 @@ internal class DeploymentRouter(private val deps: BridgeDeps) {
     @Volatile
     private var deploymentSink: ((String) -> Unit)? = null
 
+    // Guarded by this with its frame, as in AddOnsRouter: a respawn seed must not resend a stale one.
+    private var open = false
+
     fun register() {
         deps.handlers
             .on("deployment/postMessage") { params ->
@@ -53,6 +56,7 @@ internal class DeploymentRouter(private val deps: BridgeDeps) {
     }
 
     /** Drops the deployment sink and marks the panel closed (stops default refreshes). */
+    @Synchronized
     fun unregisterDeploymentWindow() {
         deploymentSink = null
         setDeploymentOpen(false)
@@ -75,7 +79,16 @@ internal class DeploymentRouter(private val deps: BridgeDeps) {
     }
 
     /** Tells the core whether the deployment panel is visible (drives form-default refresh). */
+    @Synchronized
     fun setDeploymentOpen(open: Boolean) {
+        this.open = open
+        deps.channel.notify(HostToCoreMethod.DEPLOYMENT_OPEN, linkedMapOf("open" to open))
+    }
+
+    /** A new process attached the deployment panel hidden; it follows the registered tab again. */
+    @Synchronized
+    fun followNewProcess() {
+        if (deploymentSink == null) return
         deps.channel.notify(HostToCoreMethod.DEPLOYMENT_OPEN, linkedMapOf("open" to open))
     }
 

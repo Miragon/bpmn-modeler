@@ -22,6 +22,10 @@ import { Command, Query } from "@miragon/bpmn-modeler-shared";
 import {
     ActionNoticeShowParams,
     ActionNoticeShowResult,
+    AddOnsOpenParams,
+    AddOnsPostMessageParams,
+    AddOnsRevealResult,
+    AddOnsWebviewMessageParams,
     BasicAuthCredentials,
     ClipboardReadResult,
     ClipboardWriteParams,
@@ -104,8 +108,10 @@ type Kind = "notification" | "request";
  *   state out of step with the host.
  * - `hostWork`: fails after {@link HOST_WORK_REPLY_DEADLINE_MS}, so a reply the
  *   host never sends cannot hold the caller's editor queue.
+ * - `hostShow`: fails after {@link HOST_SHOW_REPLY_DEADLINE_MS}; the host shows
+ *   one of its views, and the caller offers another surface once it gives up.
  */
-type ReplyWait = "prompt" | "syncedWrite" | "hostWork";
+type ReplyWait = "prompt" | "syncedWrite" | "hostWork" | "hostShow";
 
 interface ProtocolEntryShape {
     readonly method: string;
@@ -159,6 +165,9 @@ export const METHODS = {
     deploymentStatusBarMenu: "deployment/statusBarMenu",
     pluginApprovalsDidChange: "pluginApprovals/didChange",
     templatePreferencesDidChange: "templatePreferences/didChange",
+    addOnsWebviewMessage: "addOns/webviewMessage",
+    addOnsOpen: "addOns/open",
+    addOnsRefresh: "addOns/refresh",
 
     // Core → Host requests
     documentWrite: "document/write",
@@ -187,6 +196,7 @@ export const METHODS = {
     pluginApprovalsRead: "pluginApprovals/read",
     templatePreferencesChange: "templatePreferences/change",
     templatePreferencesRead: "templatePreferences/read",
+    addOnsReveal: "addOns/reveal",
 
     // Core → Host notifications
     editorPostMessage: "editor/postMessage",
@@ -207,6 +217,7 @@ export const METHODS = {
     scriptUpdateVariables: "script/updateVariables",
     scriptUpdateContent: "script/updateContent",
     scriptClose: "script/close",
+    addOnsPostMessage: "addOns/postMessage",
 } as const;
 
 // Plain-object stand-ins for the opaque message payloads. The snapshot only
@@ -463,6 +474,28 @@ export const PROTOCOL = [
         direction: "hostToCore",
         kind: "notification",
         paramsFixture: TEMPLATE_PREFERENCES_SAMPLE,
+    },
+    {
+        method: METHODS.addOnsWebviewMessage,
+        direction: "hostToCore",
+        kind: "notification",
+        paramsFixture: { message: SAMPLE_COMMAND } satisfies AddOnsWebviewMessageParams,
+    },
+    {
+        method: METHODS.addOnsOpen,
+        direction: "hostToCore",
+        kind: "notification",
+        paramsFixture: {
+            open: true,
+            workspaceRoot: "/repo",
+            settings: { configFolder: ".camunda" },
+        } satisfies AddOnsOpenParams,
+    },
+    {
+        method: METHODS.addOnsRefresh,
+        direction: "hostToCore",
+        kind: "notification",
+        paramsFixture: {} satisfies EmptyParams,
     },
 
     // ── Core → Host requests ─────────────────────────────────────────────────
@@ -805,6 +838,15 @@ export const PROTOCOL = [
         paramsFixture: {} satisfies EmptyParams,
         resultFixture: TEMPLATE_PREFERENCES_SAMPLE,
     },
+    // Without the rows: the core delivers them to the view it attached, once shown.
+    {
+        method: METHODS.addOnsReveal,
+        direction: "coreToHost",
+        kind: "request",
+        replyWait: "hostShow",
+        paramsFixture: {} satisfies EmptyParams,
+        resultFixture: { shown: true } satisfies AddOnsRevealResult,
+    },
 
     // ── Core → Host notifications ────────────────────────────────────────────
     {
@@ -939,20 +981,36 @@ export const PROTOCOL = [
         kind: "notification",
         paramsFixture: { scriptId: "s1" } satisfies ScriptCloseNotifyParams,
     },
+    {
+        method: METHODS.addOnsPostMessage,
+        direction: "coreToHost",
+        kind: "notification",
+        paramsFixture: { message: SAMPLE_QUERY } satisfies AddOnsPostMessageParams,
+    },
 ] as const satisfies readonly ProtocolEntry[];
+
+/** Short, because the caller falls back to another surface once it passes. */
+export const HOST_SHOW_REPLY_DEADLINE_MS = 10_000;
 
 /** Generous, because host work can queue behind a modal dialog or a keychain prompt. */
 export const HOST_WORK_REPLY_DEADLINE_MS = 120_000;
 
-const HOST_WORK_REQUESTS: ReadonlySet<string> = new Set(
-    PROTOCOL.filter((entry) => "replyWait" in entry && entry.replyWait === "hostWork").map(
-        (entry) => entry.method,
+const DEADLINE_MS_BY_REPLY_WAIT: Readonly<Partial<Record<ReplyWait, number>>> = {
+    hostWork: HOST_WORK_REPLY_DEADLINE_MS,
+    hostShow: HOST_SHOW_REPLY_DEADLINE_MS,
+};
+
+const REPLY_DEADLINES: ReadonlyMap<string, number | undefined> = new Map(
+    PROTOCOL.flatMap((entry) =>
+        "replyWait" in entry
+            ? [[entry.method, DEADLINE_MS_BY_REPLY_WAIT[entry.replyWait]] as const]
+            : [],
     ),
 );
 
 /** How long a request to `method` waits for its reply; `undefined` waits until the host answers. */
 export function replyDeadlineMs(method: string): number | undefined {
-    return HOST_WORK_REQUESTS.has(method) ? HOST_WORK_REPLY_DEADLINE_MS : undefined;
+    return REPLY_DEADLINES.get(method);
 }
 
 /** Language-neutral, per-method key contract — what the Kotlin host verifies against. */
@@ -964,6 +1022,8 @@ export interface ProtocolSnapshotEntry {
     paramKeys: string[];
     /** Sorted top-level result keys; absent for notifications and void requests. */
     resultKeys?: string[];
+    /** How long the core waits for the reply; absent where it waits until the host answers. */
+    replyDeadlineMs?: number;
 }
 
 /**
@@ -983,6 +1043,8 @@ export function protocolSnapshot(): ProtocolSnapshotEntry[] {
         if ("resultFixture" in entry && entry.resultFixture) {
             snapshot.resultKeys = Object.keys(entry.resultFixture).sort();
         }
+        const deadlineMs = replyDeadlineMs(entry.method);
+        if (deadlineMs !== undefined) snapshot.replyDeadlineMs = deadlineMs;
         return snapshot;
     });
 }

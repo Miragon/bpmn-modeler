@@ -92,6 +92,54 @@ class BridgeRoutersTest {
         }
     }
 
+    @Test
+    fun `a spawn opens the Artifacts view again after the settings`() {
+        val wired = wireChannel().also { this.wired = it }
+        val routers = BridgeRouters(bridgeDeps(projectFixture.get(), wired.channel, wired.handlers))
+        routers.register()
+        routers.addOns.registerWindow(post = {}, reload = {})
+        routers.addOns.setOpen(true)
+        wired.fake.framesUntilQuiet()
+
+        routers.seedAfterSpawn()
+
+        val methods = wired.fake.framesUntilQuiet().map { parse(it).get("method").asString }
+        assertEquals(true, methods.indexOf("settings/didChange") in 0 until methods.indexOf("addOns/open"), methods.toString())
+    }
+
+    @Test
+    fun `a spawn shows the Deploy tab again at its last visibility`() {
+        val wired = wireChannel().also { this.wired = it }
+        val routers = BridgeRouters(bridgeDeps(projectFixture.get(), wired.channel, wired.handlers))
+        routers.register()
+        routers.deployment.registerDeploymentWindow {}
+        routers.deployment.setDeploymentOpen(true)
+        wired.fake.framesUntilQuiet()
+
+        routers.seedAfterSpawn()
+
+        val opens =
+            wired.fake.framesUntilQuiet().map(::parse)
+                .filter { it.get("method").asString == "deployment/open" }
+                .map { it.getAsJsonObject("params").get("open").asBoolean }
+        assertEquals(listOf(true), opens)
+    }
+
+    @Test
+    fun `every spawn after the first reloads the Artifacts page, also one after the supervisor gave up`() {
+        val wired = wireChannel().also { this.wired = it }
+        val routers = BridgeRouters(bridgeDeps(projectFixture.get(), wired.channel, wired.handlers))
+        routers.register()
+        var reloads = 0
+        routers.addOns.registerWindow(post = {}, reload = { reloads++ })
+
+        routers.seedAfterSpawn()
+        val afterFirstSpawn = reloads
+        routers.seedAfterSpawn()
+
+        assertEquals(listOf(0, 1), listOf(afterFirstSpawn, reloads))
+    }
+
     private companion object {
         const val SWITCHES_KEY = "miragon.bpmnModeler.templatePreferences"
         const val ACME = "marketplace:github:github.com/acme/templates"

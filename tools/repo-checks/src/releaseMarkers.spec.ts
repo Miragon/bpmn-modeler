@@ -108,11 +108,11 @@ describe("release markers for inlined libraries", () => {
 });
 
 describe("release markers for bundled webviews", () => {
-    it("routes a fix in the add-ons webview to the VS Code release line only, as only VS Code bundles it", () => {
+    it("routes a fix in the add-ons webview to the VS Code and IntelliJ release lines, as both bundle it", () => {
         const fix = "apps/add-ons-webview/src/adapter/in/catalogView.ts";
 
         expect(pushTriggerPaths()).toContain("apps/add-ons-webview/**");
         expect(workflowPattern("VSC_RELEVANT").test(fix)).toBe(true);
-        expect(workflowPattern("IJ_RELEVANT").test(fix)).toBe(false);
+        expect(workflowPattern("IJ_RELEVANT").test(fix)).toBe(true);
     });
 });
