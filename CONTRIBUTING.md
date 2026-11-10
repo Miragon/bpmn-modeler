@@ -209,7 +209,7 @@ The store pages take their text from these places:
 The covers and screenshots of the store pages and READMEs are made with the
 `product-shots` skill of the `miragon-brand` plugin
 ([Miragon/corporate-identity](https://github.com/Miragon/corporate-identity)),
-from [`.miragon/product-shots.json`](.miragon/product-shots.json). That file
+from [`.miragon/product-shots.yaml`](.miragon/product-shots.yaml). That file
 names the skill version the images were made with and, per store, the title,
 claim, badge and the files to show. The demo files are in
 `.miragon/product-shots/order-service/`, and
