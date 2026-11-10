@@ -1,5 +1,6 @@
-import { AddOnKind, CatalogFilter, isOnlyNeedsReview } from "./catalogFilter";
-import type { NoMatchReason } from "./listContent";
+import { AddOnKind, CatalogFilter, isFilterActive, isOnlyNeedsReview } from "./catalogFilter";
+import { addOnsOf } from "./catalogQueries";
+import type { ListContent, NoMatchReason } from "./listContent";
 import type { CatalogScope } from "./catalogScope";
 
 /*
@@ -63,4 +64,11 @@ export function matchCountText(count: number, filter: CatalogFilter): string {
     }
     if (count === 0) return CHROME_TEXT.noMatch;
     return `${count} ${count === 1 ? "add-on" : "add-ons"} shown`;
+}
+
+/** What the list a search or filter left says, for a screen reader; a tab's empty text stands alone. */
+export function announcementOf(content: ListContent, filter: CatalogFilter): string {
+    if (!isFilterActive(filter)) return "";
+    if (content.kind === "groups") return matchCountText(addOnsOf(content.groups).length, filter);
+    return content.kind === "noMatch" ? matchCountText(0, filter) : "";
 }

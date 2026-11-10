@@ -1,9 +1,8 @@
 import type { AddOnCatalogPayload } from "@miragon/bpmn-modeler-shared";
 
-import { filteredGroups, isFilterActive } from "../../domain/catalogFilter";
-import { addOnsOf, placementOf } from "../../domain/catalogQueries";
-import { CatalogScope, scopedCatalog } from "../../domain/catalogScope";
-import { CHROME_TEXT, matchCountText, NO_MATCH_TEXT } from "../../domain/chromeTexts";
+import { placementOf } from "../../domain/catalogQueries";
+import type { CatalogScope } from "../../domain/catalogScope";
+import { announcementOf, CHROME_TEXT, NO_MATCH_TEXT } from "../../domain/chromeTexts";
 import { headsOf, isShownOpen } from "../../domain/expansion";
 import { FocusTarget, isRequestedByHost } from "../../domain/focusAfter";
 import { catalogPhaseOf, ListContent, listContentOf } from "../../domain/listContent";
@@ -147,9 +146,10 @@ export class AddOnsView {
             return;
         }
         this.toolbar.update(model, state, this.openMenu);
-        this.drawList(model, state);
+        const content = listContentOf(model, state.scope, state.filter);
+        this.drawList(content, model, state);
         this.drawDetail(model, state);
-        this.announce(model, state);
+        this.announce(content, state);
     }
 
     /** The list is the tab's panel while the tabs show, else the view's one region. */
@@ -165,7 +165,7 @@ export class AddOnsView {
         this.list.removeAttribute("aria-label");
     }
 
-    private drawList(model: AddOnCatalogPayload, state: ViewState): void {
+    private drawList(content: ListContent, model: AddOnCatalogPayload, state: ViewState): void {
         const selectedId = selectedIdOf(state);
         const inputs = [
             model,
@@ -184,9 +184,7 @@ export class AddOnsView {
         if (model.problem !== undefined) {
             parts.push(statusBox("danger", model.problem, "av-catalog-problem"));
         }
-        parts.push(
-            ...this.contentOf(listContentOf(model, state.scope, state.filter), model, state),
-        );
+        parts.push(...this.contentOf(content, model, state));
         this.list.replaceChildren(...parts);
     }
 
@@ -255,12 +253,8 @@ export class AddOnsView {
         }
     }
 
-    /** What a search or filter left, for a screen reader; nothing while none is active. */
-    private announce(model: AddOnCatalogPayload, state: ViewState): void {
-        const count = addOnsOf(
-            filteredGroups(scopedCatalog(model, state.scope), state.filter),
-        ).length;
-        const text = isFilterActive(state.filter) ? matchCountText(count, state.filter) : "";
+    private announce(content: ListContent, state: ViewState): void {
+        const text = announcementOf(content, state.filter);
         if (this.announcer.textContent !== text) this.announcer.textContent = text;
     }
 

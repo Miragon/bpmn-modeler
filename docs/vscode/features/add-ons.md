@@ -61,7 +61,7 @@ Select a plugin or rule package that needs a review, check what its review says,
 
 **Review…** on a notification opens the view at the waiting plugins or rule packages when every one of them lies inside an open folder: it switches to the right tab, clears a search or filter that hides the first of them, selects it and opens its review. The notification then counts as answered for this window. Otherwise, for example when a rule package is linked from outside the workspace, **Review…** shows the list to check, as in [BPMN plugins](/vscode/features/bpmn-plugins#allow-a-plugin).
 
-**Review Add-ons** in the Command Palette opens the view on the **Workspace** tab with only **Needs review** on, every folder and source with an add-on to review open. It clears the search and the kind chips, keeps your selection when it needs a review, else selects the first add-on that does, and moves focus to it. When nothing needs a review, the list says *No add-ons need review.*; **Clear filters** shows everything again.
+**Review Add-ons** in the Command Palette opens the view on the **Workspace** tab with only **Needs review** on, every folder and source with an add-on to review open. It clears the search and the kind chips, keeps your selection when it needs a review, else selects the first add-on that does, and moves focus to it. When the workspace lists add-ons but none needs a review, the list says *No add-ons need review.*; **Clear filters** shows everything again.
 
 A rule package that no lint has asked about yet offers **Review…** in its details first. It reads the package; then its review offers **Allow this content**.
 

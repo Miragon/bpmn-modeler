@@ -1059,6 +1059,22 @@ describe("AddOnsView", () => {
                 document.activeElement,
             ]).toEqual([0, "false", row(RESIZE.name)]);
         });
+
+        it("announces no count where the workspace shows its own empty text", () => {
+            const emptyText = "Open a folder to see its add-ons.";
+            const { session, root } = mountedView({
+                ...CATALOG,
+                groups: [MARKETPLACES],
+                emptyText,
+            });
+
+            session.dispatch(review);
+
+            expect([
+                text(root.querySelector(".av-empty-text")),
+                text(root.querySelector("[aria-live=polite].av-vh")),
+            ]).toEqual([emptyText, ""]);
+        });
     });
 
     describe("the sticky toolbar", () => {
