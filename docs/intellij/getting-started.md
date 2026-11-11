@@ -99,6 +99,7 @@ Find every action with **Find Action** (`Ctrl+Shift+A` / `Cmd+Shift+A`) or under
 | New BPMN Model… / New DMN Model… | Create a model (also in the project view under **New**) |
 | Format Diagram (`Ctrl+Alt+L`) | Lay out the focused diagram |
 | Clean Up Diagram | List leftovers in the diagram and remove them after you confirm |
+| Generate IDs from Names | Review the IDs the element names give, and rename the ones you keep ticked in one undo step ([IDs from names](/vscode/features/element-ids)) |
 | Change Engine Version… | Change the engine version of the focused diagram |
 | Migrate All Diagrams… | Change the engine version of every BPMN diagram in the project, except copies in `node_modules`, build output or folders whose name starts with a dot |
 | Change Modeler Language… | Switch the modeler UI language |
@@ -124,7 +125,7 @@ targets or, for Camunda 7, verify against the engine.
 
 The settings live under **Settings ▸ Tools ▸ Miragon BPMN Modeler**: default mode, language, colour theme, config
 folder, Camunda 8 API version, align to origin, transaction boundaries, SPIN completion, the code-link map, favourite
-elements and template marketplaces. They mean the same as the [VS Code settings](/vscode/configuration). The language
+elements, template marketplaces, and the ID style and IDs follow names of [IDs from names](/vscode/features/element-ids). They mean the same as the [VS Code settings](/vscode/configuration). The language
 list offers every language under [Language support](/vscode/features/language-support). Linting has no field there:
 the lint toggle in the editor and the BPMNlint widget turn it on or off for all your projects, and the IDE keeps the
 choice across restarts.
