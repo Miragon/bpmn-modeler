@@ -1,0 +1,377 @@
+/* ─── Element ID review and the ID-from-name links ─────────────────────── */
+/* Classes are prefixed with `eid-`. These are the light tokens; the dark   */
+/* theme redefines them from the modeler package (dark-theme/element-ids). */
+
+.eid-root,
+.eid-id-actions {
+    --eid-bg: #ffffff;
+    --eid-bar-bg: #f7f7f8;
+    --eid-border: #e2e2e5;
+    --eid-border-strong: #b9bcc6;
+    --eid-fg: #202020;
+    --eid-fg-muted: #61646b;
+    --eid-accent: #0069cc;
+    --eid-accent-hover: #0058ad;
+    --eid-accent-fg: #ffffff;
+    --eid-secondary-bg: #e9e9ec;
+    --eid-secondary-hover: #dcdce0;
+    --eid-secondary-fg: #202020;
+    --eid-hover: #f2f3f5;
+    --eid-focus: #0069cc;
+    --eid-link: #0069cc;
+    --eid-added-bg: #dcefdc;
+    --eid-added-fg: #1d5e2b;
+    --eid-added-border: transparent;
+    --eid-removed-bg: #f6dcdc;
+    --eid-removed-fg: #7f2424;
+    --eid-warn: #8f5a00;
+    --eid-warn-bg: #fdf1dc;
+    --eid-badge-bg: #e9e9ec;
+    --eid-badge-fg: #3b3b3b;
+    --eid-contrast: transparent;
+    --eid-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08);
+    --eid-font: var(--vscode-font-family, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif);
+    --eid-mono: var(--vscode-editor-font-family, Menlo, Consolas, "Liberation Mono", monospace);
+}
+
+/* ── Panel ─────────────────────────────────────────────────────────────── */
+
+.eid-root {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    /* Above the bpmn.io watermark (100), below the popup menus (5000). */
+    z-index: 120;
+    height: clamp(180px, 42%, 420px);
+}
+
+.eid-panel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: var(--eid-bg);
+    color: var(--eid-fg);
+    border-top: 1px solid var(--eid-border);
+    outline: 1px solid var(--eid-contrast);
+    box-shadow: var(--eid-shadow);
+    font-family: var(--eid-font);
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+.eid-bar {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: 8px;
+    min-height: 36px;
+    padding: 4px 8px 4px 12px;
+    border-bottom: 1px solid var(--eid-border);
+    background: var(--eid-bar-bg);
+    flex-wrap: wrap;
+}
+
+.eid-title {
+    margin: 0;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.eid-summary {
+    color: var(--eid-fg-muted);
+    font-size: 12px;
+}
+
+.eid-tools {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+}
+
+.eid-select {
+    height: 24px;
+    padding: 0 4px;
+    border: 1px solid var(--eid-border-strong);
+    border-radius: 2px;
+    background: var(--eid-bg);
+    color: var(--eid-fg);
+    font-family: var(--eid-mono);
+    font-size: 12px;
+}
+
+.eid-btn {
+    height: 24px;
+    padding: 0 12px;
+    border: 1px solid var(--eid-contrast);
+    border-radius: 2px;
+    background: var(--eid-secondary-bg);
+    color: var(--eid-secondary-fg);
+    font: inherit;
+    cursor: pointer;
+}
+
+.eid-btn:hover:not(:disabled) {
+    background: var(--eid-secondary-hover);
+}
+
+.eid-btn.eid-primary {
+    background: var(--eid-accent);
+    color: var(--eid-accent-fg);
+}
+
+.eid-btn.eid-primary:hover:not(:disabled) {
+    background: var(--eid-accent-hover);
+}
+
+.eid-btn:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.eid-icon-btn,
+.eid-twistie {
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--eid-fg-muted);
+    cursor: pointer;
+}
+
+.eid-icon-btn:hover,
+.eid-twistie:hover {
+    background: var(--eid-hover);
+    color: var(--eid-fg);
+}
+
+.eid-panel :focus-visible {
+    outline: 1px solid var(--eid-focus);
+    outline-offset: -1px;
+}
+
+/* ── Tree ──────────────────────────────────────────────────────────────── */
+
+.eid-tree {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    padding: 2px 0;
+}
+
+.eid-empty {
+    margin: 12px 16px;
+    color: var(--eid-fg-muted);
+}
+
+.eid-group-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 24px;
+    padding: 0 12px 0 6px;
+    font-weight: 600;
+}
+
+.eid-group-quiet .eid-group-head {
+    color: var(--eid-fg-muted);
+    font-weight: 400;
+}
+
+.eid-count {
+    display: inline-grid;
+    place-items: center;
+    min-width: 18px;
+    height: 16px;
+    padding: 0 5px;
+    border-radius: 8px;
+    outline: 1px solid var(--eid-contrast);
+    background: var(--eid-badge-bg);
+    color: var(--eid-badge-fg);
+    font-size: 11px;
+    font-weight: 400;
+}
+
+.eid-rows {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.eid-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 24px;
+    padding: 0 12px 0 34px;
+}
+
+.eid-row.eid-plain {
+    padding-left: 34px;
+}
+
+.eid-row:hover {
+    background: var(--eid-hover);
+}
+
+.eid-check {
+    flex: none;
+    width: 14px;
+    height: 14px;
+    margin: 0;
+    accent-color: var(--eid-accent);
+}
+
+.eid-row-main {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    padding: 2px 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.eid-type {
+    flex: none;
+    width: 16px;
+    color: var(--eid-fg-muted);
+    font-size: 16px;
+    line-height: 1;
+}
+
+.eid-name {
+    flex: 0 0 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.eid-ids {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    font-family: var(--eid-mono);
+    font-size: 12px;
+}
+
+.eid-old,
+.eid-new mark,
+.eid-id {
+    padding: 0 2px;
+    border-radius: 2px;
+}
+
+.eid-row:not(.eid-off) .eid-old {
+    background: var(--eid-removed-bg);
+    color: var(--eid-removed-fg);
+    text-decoration: line-through;
+}
+
+.eid-new mark {
+    outline: 1px dashed var(--eid-added-border);
+    background: var(--eid-added-bg);
+    color: var(--eid-added-fg);
+}
+
+.eid-off .eid-name,
+.eid-off .eid-new mark {
+    color: var(--eid-fg-muted);
+}
+
+.eid-off .eid-new mark {
+    outline: 0;
+    background: none;
+    text-decoration: line-through;
+}
+
+.eid-id {
+    color: var(--eid-fg-muted);
+}
+
+.eid-tag {
+    padding: 0 6px;
+    border-radius: 9px;
+    outline: 1px solid var(--eid-contrast);
+    background: var(--eid-warn-bg);
+    color: var(--eid-warn);
+    font-family: var(--eid-font);
+    font-size: 11px;
+}
+
+.eid-foot {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: 6px;
+    min-height: 26px;
+    padding: 2px 12px;
+    border-top: 1px solid var(--eid-border);
+    color: var(--eid-fg-muted);
+    font-size: 12px;
+}
+
+/* ── ID-from-name links in the properties panel ────────────────────────── */
+
+.eid-id-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: -6px;
+    font-size: 12px;
+}
+
+.eid-link {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--eid-link);
+    font: inherit;
+    cursor: pointer;
+}
+
+.eid-link:hover:not(:disabled) {
+    text-decoration: underline;
+}
+
+.eid-link:disabled {
+    color: var(--eid-fg-muted);
+    cursor: default;
+}
+
+.eid-link:focus-visible {
+    outline: 1px solid var(--eid-focus);
+    outline-offset: 1px;
+}
+
+.eid-separator {
+    color: var(--eid-fg-muted);
+}
+
+@media (forced-colors: active) {
+    .eid-old,
+    .eid-new mark,
+    .eid-tag,
+    .eid-count {
+        forced-color-adjust: none;
+        outline: 1px solid CanvasText;
+        background: Canvas;
+        color: CanvasText;
+    }
+}

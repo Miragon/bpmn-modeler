@@ -74,6 +74,7 @@ on:
       - 'libs/bpmn-layout/**'
       - 'libs/code-link/**'
       - 'libs/definition-search/**'
+      - 'libs/element-ids/**'
       - 'libs/element-template-chooser/**'
       - 'libs/flow-navigation/**'
       - 'libs/inline-scripting/**'
@@ -121,7 +122,7 @@ jobs:
           # inlines (packages/bpmn-modeler/inlined-libraries.json; the
           # repo-checks releaseMarkers spec keeps the two in step). Bundled by
           # both hosts.
-          SPHERE='^packages/bpmn-modeler/|^libs/(append-menu|bpmn-clipboard|bpmn-diff|bpmn-i18n-extras|bpmn-layout|code-link|definition-search|element-template-chooser|flow-navigation|inline-scripting|model-navigation|modeler-types|properties-panel)/'
+          SPHERE='^packages/bpmn-modeler/|^libs/(append-menu|bpmn-clipboard|bpmn-diff|bpmn-i18n-extras|bpmn-layout|code-link|definition-search|element-ids|element-template-chooser|flow-navigation|inline-scripting|model-navigation|modeler-types|properties-panel)/'
 
           # The Vite preset every modeler bundle spreads, so all three hosts ship it.
           PRESET='^vite\.shared\.ts$'

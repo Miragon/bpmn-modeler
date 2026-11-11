@@ -89,6 +89,7 @@
                 "libs/inline-scripting/**",
                 "libs/flow-navigation/**",
                 "libs/bpmn-layout/**",
+                "libs/element-ids/**",
                 "yarn.lock"
             ],
             "typecheck": "typecheck"
@@ -148,6 +149,7 @@
                 "libs/inline-scripting/**",
                 "libs/flow-navigation/**",
                 "libs/bpmn-layout/**",
+                "libs/element-ids/**",
                 "yarn.lock"
             ],
             "typecheck": "typecheck"
@@ -212,6 +214,7 @@
                 "libs/inline-scripting/**",
                 "libs/flow-navigation/**",
                 "libs/bpmn-layout/**",
+                "libs/element-ids/**",
                 "yarn.lock"
             ],
             "typecheck": "typecheck",
@@ -372,6 +375,15 @@
             "paths": [
                 "libs/append-menu/**",
                 "libs/element-template-chooser/**"
+            ],
+            "typecheck": "build"
+        },
+        "element-ids": {
+            "dir": "libs/element-ids",
+            "package": "@miragon/bpmn-modeler-element-ids",
+            "paths": [
+                "libs/element-ids/**",
+                "libs/modeler-types/**"
             ],
             "typecheck": "build"
         },
