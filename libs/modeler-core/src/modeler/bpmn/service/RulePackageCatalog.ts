@@ -19,8 +19,9 @@ import {
 import { approvalRowsOf } from "../../../kernel/domain/approvalRowKind";
 import { ChoicePrompt } from "../../../kernel/domain/prompts";
 import { parentWorkspacePath } from "../../../kernel/domain/workspacePath";
+import { askedInWorkspace } from "../../../kernel/domain/workspaceTrust";
 import { PluginApprovalStorePort } from "../../../kernel/port/approvalPorts";
-import { LoggerPort } from "../../../kernel/port/hostPorts";
+import { LoggerPort, WorkspaceTrustPort } from "../../../kernel/port/hostPorts";
 import { ApprovalCatalog } from "../../../kernel/service/ApprovalQuestion";
 import {
     BlockedRulePackage,
@@ -38,7 +39,8 @@ import {
  * A package the user left unchecked, or a notice the user closed, is declined
  * by its allowance for the catalog's lifetime. The gate reads the declines,
  * so it reports such a package as declined rather than new. A package left
- * to a view is not asked about again either, but stays new.
+ * to a view is not asked about again either, but stays new. In a workspace
+ * the user did not trust, none is asked about.
  *
  * It follows the approval store and announces each change of the rule
  * package rows, whoever made it.
@@ -59,6 +61,7 @@ export class RulePackageCatalog implements ApprovalCatalog<
 
     constructor(
         private readonly approvals: PluginApprovalStorePort,
+        private readonly trust: Pick<WorkspaceTrustPort, "isTrusted">,
         private readonly logger: LoggerPort,
     ) {
         this.rulePackageRows = approvalRowsOf("rulePackage", approvals.read());
@@ -128,11 +131,14 @@ export class RulePackageCatalog implements ApprovalCatalog<
         this.approvalChanges.dispose();
     }
 
-    stillPendingOf(found: readonly BlockedRulePackage[]): BlockedRulePackage[] {
-        return pendingAllowances(
-            rulePackagesToAsk(found),
-            this.approvals.read(),
-            notAskedAgain(this.answers),
+    stillPendingOf(found: readonly BlockedRulePackage[]): readonly BlockedRulePackage[] {
+        return askedInWorkspace(
+            pendingAllowances(
+                rulePackagesToAsk(found),
+                this.approvals.read(),
+                notAskedAgain(this.answers),
+            ),
+            this.trust.isTrusted(),
         );
     }
 

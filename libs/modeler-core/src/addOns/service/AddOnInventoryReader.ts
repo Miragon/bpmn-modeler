@@ -2,7 +2,7 @@ import { approvalRowsOf } from "../../kernel/domain/approvalRowKind";
 import { presenceIdOf } from "../../kernel/domain/listedCode";
 import { PluginApprovalStorePort } from "../../kernel/port/approvalPorts";
 import { FolderTemplateFileListing } from "../../kernel/domain/templateListing";
-import { SettingsPort, WorkspacePort } from "../../kernel/port/hostPorts";
+import { SettingsPort, WorkspacePort, WorkspaceTrustPort } from "../../kernel/port/hostPorts";
 import { TemplatePreferenceStorePort } from "../../kernel/port/templatePreferencePorts";
 import { AddOnFacts } from "../domain/addOnCatalog";
 import { OwnedPresence } from "../domain/codeAddOnCatalog";
@@ -28,6 +28,7 @@ export interface AddOnInventoryPorts {
     readonly templates?: TemplateAddOnSource;
     readonly marketplaces?: MarketplaceAddOnSource;
     readonly templatePreferences?: TemplatePreferenceStorePort;
+    readonly workspaceTrust: Pick<WorkspaceTrustPort, "isTrusted">;
 }
 
 type ListingFacts = Pick<AddOnFacts, "folders" | "configFolder">;
@@ -49,6 +50,7 @@ export class AddOnInventoryReader {
         const facts = { folders, configFolder };
         return {
             ...facts,
+            trusted: this.ports.workspaceTrust.isTrusted(),
             approvalsByKind,
             plugins: await this.plugins(facts),
             rulePackages: this.rulePackages(facts),

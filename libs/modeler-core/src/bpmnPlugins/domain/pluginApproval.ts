@@ -1,9 +1,5 @@
 import { ActionNotice } from "../../kernel/domain/actionNotice";
-import {
-    ALLOWANCE_COVERS_TEXT,
-    ApprovableArtifact,
-    isAllowed,
-} from "../../kernel/domain/allowance";
+import { ALLOWANCE_COVERS_TEXT, ApprovableArtifact } from "../../kernel/domain/allowance";
 import {
     ApprovableCodeTexts,
     ApprovalNoticeAction,
@@ -14,6 +10,7 @@ import { escapeRegExpLiteral } from "../../kernel/domain/escapeRegExpLiteral";
 import { ChoicePrompt } from "../../kernel/domain/prompts";
 import { relativeToWorkspace } from "../../kernel/domain/rootContainment";
 import { joinWorkspacePath } from "../../kernel/domain/workspacePath";
+import { runsInWorkspace } from "../../kernel/domain/workspaceTrust";
 import { LAST_USE_MARKER_FILE, lastUseMarkerText } from "./pluginCacheLastUse";
 
 /** A plugin found in a workspace's `<configFolder>/plugins/<folder>`; its id is that folder. */
@@ -94,19 +91,21 @@ export interface OfferedPlugins {
 }
 
 /**
- * The editors whose modules no longer match the approvals, each once in the
- * map's order: one serves a plugin no longer allowed, or was withheld one now
- * allowed. A content edit reloads none: the next request serves its new copy.
+ * The editors whose modules no longer match the approvals and the workspace's
+ * trust, each once in the map's order: one serves a plugin that may no longer
+ * run, or was withheld one that may now. A content edit reloads none: the
+ * next request serves its new copy.
  */
 export function editorsToReload(
     offeredByEditor: ReadonlyMap<string, OfferedPlugins>,
     approvals: readonly CodeApproval[],
+    trusted: boolean,
 ): string[] {
-    const isPluginAllowed = (plugin: WorkspacePlugin) => isAllowed(plugin, approvals);
+    const runs = (plugin: WorkspacePlugin) => runsInWorkspace(plugin, approvals, trusted);
     return [...offeredByEditor]
         .filter(
             ([, { served, withheld }]) =>
-                served.some((plugin) => !isPluginAllowed(plugin)) || withheld.some(isPluginAllowed),
+                served.some((plugin) => !runs(plugin)) || withheld.some(runs),
         )
         .map(([editorId]) => editorId);
 }

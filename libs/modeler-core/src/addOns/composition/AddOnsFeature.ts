@@ -2,7 +2,14 @@ import { Command, Query } from "@miragon/bpmn-modeler-shared";
 
 import { ProcessRestart } from "../../kernel/domain/codeApproval";
 import { PluginApprovalStorePort } from "../../kernel/port/approvalPorts";
-import { LoggerPort, NotifierPort, SettingsPort, WorkspacePort } from "../../kernel/port/hostPorts";
+import { trustOrTrusted } from "../../kernel/adapter/out/TrustedWorkspace";
+import {
+    LoggerPort,
+    NotifierPort,
+    SettingsPort,
+    WorkspacePort,
+    WorkspaceTrustPort,
+} from "../../kernel/port/hostPorts";
 import { TemplatePreferenceStorePort } from "../../kernel/port/templatePreferencePorts";
 import { ContentRows } from "../../kernel/service/ContentRowMigration";
 import { RouteLookup } from "../../editorSession/service/WebviewMessageRouter";
@@ -48,6 +55,8 @@ export interface AddOnsHostPorts {
     readonly marketplaces?: MarketplaceAddOnSource;
     /** Absent: the host keeps no template switches, and the catalog offers none. */
     readonly templatePreferences?: TemplatePreferenceStorePort;
+    /** Absent: the host has no trust feature, and the workspace counts as trusted. */
+    readonly workspaceTrust?: WorkspaceTrustPort;
 }
 
 /**
@@ -72,8 +81,9 @@ export class AddOnsFeature {
             ports.notifier,
             () => undefined,
         );
+        const workspaceTrust = trustOrTrusted(ports.workspaceTrust);
         this.catalog = new AddOnCatalogService(
-            new AddOnInventoryReader(ports),
+            new AddOnInventoryReader({ ...ports, workspaceTrust }),
             new TemplateSwitchActions(ports.templatePreferences, ports.notifier),
             {
                 approvals: ports.approvals,
@@ -94,6 +104,7 @@ export class AddOnsFeature {
         );
         this.subscriptions = [
             ports.approvals.onDidChange(invalidate),
+            workspaceTrust.onDidChange(invalidate),
             ports.plugins.onDidChange(invalidate),
             ...[
                 ports.rulePackages,

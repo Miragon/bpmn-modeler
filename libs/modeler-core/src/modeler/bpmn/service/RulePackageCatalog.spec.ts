@@ -38,7 +38,11 @@ const blocked = (
 
 function setUp() {
     const host = createTestHost({ folders: [WORK] });
-    const catalog = new RulePackageCatalog(host.pluginApprovals, host.notifier);
+    const catalog = new RulePackageCatalog(
+        host.pluginApprovals,
+        host.workspaceTrust,
+        host.notifier,
+    );
     return { host, catalog };
 }
 
@@ -49,6 +53,13 @@ describe("RulePackageCatalog", () => {
         const pending = catalog.stillPendingOf([blocked(ACME, true), blocked(OTHER, false)]);
 
         expect(pending).toEqual([blocked(ACME, true)]);
+    });
+
+    it("asks about no package in a workspace the user did not trust", () => {
+        const { host, catalog } = setUp();
+        host.workspaceTrust.setTrusted(false);
+
+        expect(catalog.stillPendingOf([blocked(ACME, true)])).toEqual([]);
     });
 
     it("asks once about a hoisted and a nested copy of one allowance", () => {

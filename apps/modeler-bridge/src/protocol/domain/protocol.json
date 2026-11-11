@@ -16,7 +16,8 @@
             "settings",
             "templatePreferences",
             "uriString",
-            "workspaceRoot"
+            "workspaceRoot",
+            "workspaceTrust"
         ]
     },
     {
@@ -198,6 +199,12 @@
         "direction": "hostToCore",
         "kind": "notification",
         "paramKeys": ["allProjects", "project"]
+    },
+    {
+        "method": "workspaceTrust/didChange",
+        "direction": "hostToCore",
+        "kind": "notification",
+        "paramKeys": ["revision", "trusted"]
     },
     {
         "method": "addOns/webviewMessage",

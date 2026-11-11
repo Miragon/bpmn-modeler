@@ -28,6 +28,9 @@ export const env = { remoteName: undefined as string | undefined };
 export const workspace = {
     fs: {},
     workspaceFolders: [],
+    // Restricted Mode never runs the extension.
+    isTrusted: true,
+    onDidGrantWorkspaceTrust: () => disposable,
     getConfiguration: () => ({
         get: () => undefined,
         inspect: () => undefined,

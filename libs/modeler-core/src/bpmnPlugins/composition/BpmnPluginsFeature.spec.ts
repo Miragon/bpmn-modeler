@@ -445,6 +445,72 @@ describe("BpmnPluginsFeature", () => {
         });
     });
 
+    describe("workspace trust", () => {
+        it("serves no allowed plugin and asks about none in a workspace the user did not trust", async () => {
+            const { host, requestPlugins, openEditor } = setUp({
+                ...RESIZE_FILES,
+                ...PALETTE_FILES,
+            });
+            host.pluginApprovals.approvals = [folderRowOf(PALETTE)];
+            host.workspaceTrust.setTrusted(false);
+            const editor = await openEditor();
+
+            await requestPlugins(editor);
+
+            expect(answeredPlugins(editor)).toEqual([]);
+            expect(host.actionNotifier.notices).toEqual([]);
+        });
+
+        it("reloads the editor once the user trusts the workspace, then serves the allowed plugin and asks about the other", async () => {
+            const { host, feature, requestPlugins, openEditor } = setUp({
+                ...RESIZE_FILES,
+                ...PALETTE_FILES,
+            });
+            host.pluginApprovals.approvals = [folderRowOf(PALETTE)];
+            host.workspaceTrust.setTrusted(false);
+            const editor = await openEditor();
+            await requestPlugins(editor);
+
+            host.workspaceTrust.setTrusted(true);
+            await requestPlugins(editor);
+            await feature.service.whenApprovalSettled();
+
+            expect(editor.reloadCount).toBe(1);
+            expect(answeredPlugins(editor)?.map(({ name }) => name)).toEqual(["Reduced Palette"]);
+            expect(host.actionNotifier.notices).toHaveLength(1);
+        });
+
+        it("reloads an editor that loads a plugin once the user withdraws trust, and serves it no more", async () => {
+            const { host, requestPlugins, openEditor } = setUp(PALETTE_FILES);
+            host.pluginApprovals.approvals = [folderRowOf(PALETTE)];
+            const editor = await openEditor();
+            await requestPlugins(editor);
+
+            host.workspaceTrust.setTrusted(false);
+            await requestPlugins(editor);
+
+            expect(editor.reloadCount).toBe(1);
+            expect(answeredPlugins(editor)).toEqual([]);
+        });
+
+        it("asks nothing about a plugin found before the user withdrew trust", async () => {
+            const questions = new QuestionQueue();
+            let answerEarlierQuestion: () => void = () => undefined;
+            void questions.ask(
+                () => new Promise<void>((resolve) => (answerEarlierQuestion = resolve)),
+            );
+            const { host, feature, openEditor } = setUp(RESIZE_FILES, { questions });
+            const editor = await openEditor();
+            await answerRequest(feature, editor);
+
+            host.workspaceTrust.setTrusted(false);
+            answerEarlierQuestion();
+            await feature.service.whenApprovalSettled();
+
+            expect(host.actionNotifier.notices).toEqual([]);
+        });
+    });
+
     describe("approval", () => {
         it("opens the editor without an unapproved plugin and only notifies about it", async () => {
             const { host, requestPlugins, openEditor } = setUp(RESIZE_FILES);

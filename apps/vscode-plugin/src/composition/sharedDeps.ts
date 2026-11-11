@@ -13,6 +13,7 @@ import { VsCodeNotifier } from "../shared/adapter/out/VsCodeNotifier";
 import { VsCodePicker } from "../shared/adapter/out/VsCodePicker";
 import { VsCodeActionNotifier } from "../shared/adapter/out/VsCodeActionNotifier";
 import { VsCodeClipboard } from "../shared/adapter/out/VsCodeClipboard";
+import { VsCodeWorkspaceTrust } from "../shared/adapter/out/VsCodeWorkspaceTrust";
 import { VsCodeTextEditor } from "../shared/adapter/in/VsCodeTextEditor";
 import { VsCodeEditorHandle } from "../shared/adapter/out/VsCodeEditorHandle";
 import { vsCodeModelerPreferences } from "../shared/adapter/out/modelerConfiguration";
@@ -59,6 +60,8 @@ export interface SharedDeps {
     installedPackages: NodeInstalledPackages;
     allowances: AllowanceLocator;
     contentRows: ContentRowMigration;
+    /** Read by the plugins, the rule packages and the add-on catalog. */
+    workspaceTrust: VsCodeWorkspaceTrust;
 }
 
 /**
@@ -115,5 +118,6 @@ export function buildSharedDeps(context: ExtensionContext): SharedDeps {
         installedPackages,
         allowances,
         contentRows: new ContentRowMigration(pluginApprovals, allowances, notifier),
+        workspaceTrust: new VsCodeWorkspaceTrust(),
     };
 }

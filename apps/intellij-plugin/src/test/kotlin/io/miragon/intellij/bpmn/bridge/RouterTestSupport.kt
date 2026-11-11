@@ -78,6 +78,7 @@ internal fun bridgeDeps(
     notifications: Lazy<HostNotifications> = lazy { error("HostNotifications must not be forced in router tests") },
     isProcessAlive: () -> Boolean = { true },
     ensureStartedAsync: () -> Unit = {},
+    projectTrust: ProjectTrust = ProjectTrust { true },
 ): BridgeDeps =
     BridgeDeps(
         project = project,
@@ -89,6 +90,7 @@ internal fun bridgeDeps(
         parentDisposable = parentDisposable,
         notifications = notifications,
         credentialStoreExecutor = orderedCredentialStoreExecutor(),
+        projectTrust = projectTrust,
     )
 
 /**

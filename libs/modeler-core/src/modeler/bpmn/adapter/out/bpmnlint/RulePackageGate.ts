@@ -4,6 +4,7 @@ import { CodeApproval } from "../../../../../kernel/domain/codeApproval";
 import { isRootedPath, isWithinRoot } from "../../../../../kernel/domain/rootContainment";
 import { fileSystemPathOf, toWorkspacePath } from "../../../../../kernel/domain/workspacePath";
 import { PluginApprovalStorePort } from "../../../../../kernel/port/approvalPorts";
+import { WorkspaceTrustPort } from "../../../../../kernel/port/hostPorts";
 import {
     dependencyCandidates,
     manifestPathOf,
@@ -43,6 +44,8 @@ export interface RulePackageSources {
     readonly allowances: RuleRootAllowances;
     /** `allowanceKeyOf` of each rule package declined this session. */
     readonly declinedThisSession?: () => ReadonlySet<string>;
+    /** Absent: the workspace counts as trusted. Untrusted, no workspace package is even resolved. */
+    readonly trust?: Pick<WorkspaceTrustPort, "isTrusted">;
 }
 
 export interface RulePackageGateOptions {

@@ -33,6 +33,7 @@ export function register(
             settingsMirror: deps.settings,
             pluginApprovals: deps.pluginApprovals,
             templatePreferences: deps.templatePreferences,
+            workspaceTrust: deps.workspaceTrust,
             workspaceRoots: deps.nodeWorkspace,
             createEditorHandle: (session) =>
                 new RpcEditorHandle(session, deps.mirror, deps.rpc, deps.settings, pluginCacheRoot),

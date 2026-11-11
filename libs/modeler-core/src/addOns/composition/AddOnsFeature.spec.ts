@@ -56,6 +56,7 @@ import {
     writeLinkedWorktree,
     writeRepository,
 } from "../../testing";
+import { UNTRUSTED_WORKSPACE_TEXT } from "../domain/addOnTexts";
 import { AddOnsFeature } from "./AddOnsFeature";
 
 const WORK = "/work";
@@ -174,7 +175,11 @@ function setUp({
         disk.createDirectory(RESIZE);
         disk.createDirectory(TASK_RESIZE);
     };
-    const rulePackageCatalog = new RulePackageCatalog(host.pluginApprovals, host.notifier);
+    const rulePackageCatalog = new RulePackageCatalog(
+        host.pluginApprovals,
+        host.workspaceTrust,
+        host.notifier,
+    );
     const settingChanges = new ScriptedSettingChanges();
     const templatesService = new BpmnElementTemplatesService(
         host.store,
@@ -210,6 +215,7 @@ function setUp({
         settingChanges,
         restart,
         contentRows,
+        workspaceTrust: host.workspaceTrust,
         plugins: plugins.inventory,
         rulePackages: new RulePackageInventory(rulePackageCatalog, disk, allowances),
         templates: new TemplateInventory(templatesService, artifacts),
@@ -403,6 +409,52 @@ describe("AddOnsFeature", () => {
                 allowanceRowOf(inFolder("rulePackage", ORDERS)),
             ]);
             expect(view.addOns().map(({ state }) => state)).toEqual(["approved"]);
+        });
+    });
+
+    describe("workspace trust", () => {
+        it("offers no Allow in a project the user did not trust, says why, and refuses an allow", async () => {
+            const { host, install, addOns, view } = setUp();
+            install(ACME, "bpmnlint-plugin-acme");
+            host.workspaceTrust.setTrusted(false);
+            view.attachTo(addOns);
+            await shown(addOns);
+
+            const result = await view.connection?.handle({
+                kind: "allow",
+                addOnId: `plugin:${RESIZE}`,
+                revision: view.latest().revision,
+            });
+
+            expect(
+                view.addOns().map(({ name, actions, problem }) => ({
+                    name,
+                    actions: actions.map(({ kind }) => kind),
+                    problem,
+                })),
+            ).toEqual([
+                { name: "Resize Tasks", actions: [], problem: UNTRUSTED_WORKSPACE_TEXT },
+                { name: ACME_LABEL, actions: [], problem: UNTRUSTED_WORKSPACE_TEXT },
+            ]);
+            expect(result).toMatchObject({ kind: "refused", reason: "notOffered" });
+            expect(host.pluginApprovals.receivedChanges).toEqual([]);
+        });
+
+        it.each([
+            { change: "trusts it", before: false, actions: ["allow"] },
+            { change: "withdraws the trust", before: true, actions: [] },
+        ])("lists the add-ons again once the user $change", async ({ before, actions }) => {
+            const { host, addOns, view } = setUp();
+            host.workspaceTrust.setTrusted(before);
+            view.attachTo(addOns);
+            await shown(addOns);
+
+            host.workspaceTrust.setTrusted(!before);
+            await shown(addOns);
+
+            expect(view.codeAddOnNamed("Resize Tasks").actions.map(({ kind }) => kind)).toEqual(
+                actions,
+            );
         });
     });
 

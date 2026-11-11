@@ -263,6 +263,17 @@ export interface DocumentPort {
 }
 
 /**
+ * Whether the user trusts the open workspace with its own code, as the host's
+ * trust feature decides: VS Code's Workspace Trust, IntelliJ's trusted
+ * projects. A host without one wires none and counts as trusted.
+ */
+export interface WorkspaceTrustPort {
+    isTrusted(): boolean;
+    /** Fires after the trust changed, so a listener reads the new value; never for an unchanged one. */
+    onDidChange(listener: () => void): { dispose(): void };
+}
+
+/**
  * The status items the core shows, one view per slot. The host only places a
  * slot and renders its view; a later `show` or `hide` of a slot cancels the
  * pending auto-hide of its transient view.

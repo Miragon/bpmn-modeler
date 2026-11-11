@@ -29,6 +29,7 @@ export function register(
         review,
         cacheRoot,
         hasher: new NodeContentHasher(),
+        workspaceTrust: deps.workspaceTrust,
     });
 
     bindHandlers(deps.rpc, pluginApprovalHandlers(deps.pluginApprovals));

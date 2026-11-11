@@ -968,7 +968,7 @@ describe("BpmnLintConfigService — workspace rule packages the user has not all
             promptAnswers: options.promptAnswers,
         });
         const approvals = options.approvals ?? host.pluginApprovals;
-        const catalog = new RulePackageCatalog(approvals, host.notifier);
+        const catalog = new RulePackageCatalog(approvals, host.workspaceTrust, host.notifier);
         const question = new ApprovalQuestion(
             catalog,
             new ListReview(host.picker),
@@ -1010,7 +1010,12 @@ describe("BpmnLintConfigService — workspace rule packages the user has not all
             host.statusBar,
             host.notifier,
             host.settings,
-            { catalog, question, contentRows: options.contentRows ?? host.contentRows },
+            {
+                catalog,
+                question,
+                contentRows: options.contentRows ?? host.contentRows,
+                trust: host.workspaceTrust,
+            },
         );
         const hostResults = (editor: FakeEditorHandle) =>
             editor.postedOfType<BpmnlintResultsQuery>("BpmnlintResultsQuery").map((m) => m.results);

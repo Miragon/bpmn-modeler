@@ -5,8 +5,30 @@ import {
     LintingPreferencePort,
     PropertiesPanelStatePort,
 } from "../modeler/bpmn/port/bpmnPorts";
-import { ClipboardPort } from "../kernel/port/hostPorts";
+import { ClipboardPort, WorkspaceTrustPort } from "../kernel/port/hostPorts";
 import { InMemorySettings } from "./InMemorySettings";
+
+/** Trusted unless a spec withdraws it, as a host without a trust feature reads. */
+export class InMemoryWorkspaceTrust implements WorkspaceTrustPort {
+    private readonly listeners = new Set<() => void>();
+
+    constructor(private trusted = true) {}
+
+    isTrusted(): boolean {
+        return this.trusted;
+    }
+
+    setTrusted(trusted: boolean): void {
+        if (trusted === this.trusted) return;
+        this.trusted = trusted;
+        this.listeners.forEach((listener) => listener());
+    }
+
+    onDidChange(listener: () => void): { dispose(): void } {
+        this.listeners.add(listener);
+        return { dispose: () => this.listeners.delete(listener) };
+    }
+}
 
 export class InMemoryClipboard implements ClipboardPort {
     text = "";

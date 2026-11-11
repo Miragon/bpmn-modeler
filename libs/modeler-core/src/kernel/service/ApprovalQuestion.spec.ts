@@ -53,6 +53,7 @@ function setUp(
         ),
         host.pluginApprovals,
         host.contentRows,
+        host.workspaceTrust,
         host.notifier,
     );
     const scripted = new ScriptedReview(options.reviewAnswers);

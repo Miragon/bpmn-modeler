@@ -197,7 +197,7 @@ describe("editorsToReload", () => {
         contentHash: "0".repeat(64),
     });
 
-    it.each<{ case: string; approvals: CodeApproval[]; editors: string[] }>([
+    it.each<{ case: string; approvals: CodeApproval[]; trusted?: boolean; editors: string[] }>([
         {
             case: "none while every served plugin stays allowed and nothing withheld is, as after the migration",
             approvals: [allowanceOfPlugin(resize)],
@@ -242,8 +242,14 @@ describe("editorsToReload", () => {
             approvals: [allowanceOfPlugin(resize), contentRowAt("/x")],
             editors: [],
         },
-    ])("returns $case", ({ approvals, editors }) => {
-        expect(editorsToReload(offered, approvals)).toEqual(editors);
+        {
+            case: "only the editors that load a plugin once the user withdrew trust, none for one withheld an allowed plugin",
+            approvals: [allowanceOfPlugin(resize), allowanceOfPlugin(palette)],
+            trusted: false,
+            editors: ["file:///repo/a.bpmn", "file:///repo/c.bpmn"],
+        },
+    ])("returns $case", ({ approvals, trusted = true, editors }) => {
+        expect(editorsToReload(offered, approvals, trusted)).toEqual(editors);
     });
 });
 

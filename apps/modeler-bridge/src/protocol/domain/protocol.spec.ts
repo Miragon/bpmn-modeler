@@ -138,6 +138,7 @@ describe("RPC protocol descriptor", () => {
                     "  deployment/statusBarMenu",
                     "  pluginApprovals/didChange",
                     "  templatePreferences/didChange",
+                    "  workspaceTrust/didChange",
                     "  addOns/webviewMessage",
                     "  addOns/open",
                     "  addOns/refresh",

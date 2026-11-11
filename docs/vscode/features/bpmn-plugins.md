@@ -95,7 +95,7 @@ An allowance is for the plugin at its place in your repository, not for its cont
 
 - It covers the plugin in every worktree of its repository, later changes included: a `git pull`, an update or an edit runs without asking. Outside a git repository it covers the plugin's folder only.
 - A second clone of the repository, another repository and a new plugin folder ask once.
-- Allowances are kept for you in VS Code's global state, outside every workspace, so a repository cannot allow its own plugins. [Workspace Trust](https://code.visualstudio.com/docs/editor/workspace-trust) does not replace them. In a remote window (SSH, dev container, WSL) an allowance holds only for that remote.
+- Allowances are kept for you in VS Code's global state, outside every workspace, so a repository cannot allow its own plugins. [Workspace Trust](https://code.visualstudio.com/docs/editor/workspace-trust) does not replace them: the extension does not run in Restricted Mode, and in a trusted workspace a plugin still needs its allowance. In a remote window (SSH, dev container, WSL) an allowance holds only for that remote.
 - The editor loads a copy of the plugin's files from VS Code's global storage, made when the editor opens, never the files in your workspace. An edit reaches an editor the next time it opens, without asking.
 - Approvals from earlier versions are rewritten as allowances when the extension starts. An earlier version of the extension does not read the new allowances and asks again.
 
@@ -155,6 +155,7 @@ The IntelliJ plugin loads BPMN plugins the same way: the same folders, the same 
 
 - The question is an IDE notification balloon. Closing the balloon with its X keeps it in the **Notifications** tool window, where **Review…** still works. Clearing it there decides nothing, like closing the notification in VS Code.
 - Allowances are kept by the IDE for all your projects, outside every project, so a repository cannot allow its own plugins. A plugin you allow in one project window is allowed in the others too.
+- Plugins load only in a project you trust in the IDE. In a project you did not trust, no plugin loads and nothing asks, though you allowed it in another worktree; trusting the project reloads the open editors with it. See [Project trust](/intellij/getting-started#project-trust).
 - The editor loads a copy of the plugin's files from the IDE's system folder (`miragon-bpmn-modeler/bpmn-plugins`), never the files in your project. When a project starts its modeler process, the process removes the copies there that no editor has opened for 30 days.
 - After you allow a plugin, every open BPMN editor that offered it loads anew. Your unsaved edits stay.
 - An allowed plugin can do everything the editor can, as in VS Code, including sending its own messages to the IDE plugin. The allowance is the control here too.

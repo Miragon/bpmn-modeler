@@ -23,7 +23,11 @@ function setUp() {
         disk.writeFile(`${dir}/package.json`, JSON.stringify({ name, version }));
         disk.writeFile(`${dir}/index.js`, `module.exports = "${name}";`);
     };
-    const catalog = new RulePackageCatalog(host.pluginApprovals, host.notifier);
+    const catalog = new RulePackageCatalog(
+        host.pluginApprovals,
+        host.workspaceTrust,
+        host.notifier,
+    );
     const inventory = new RulePackageInventory(catalog, disk, allowances);
     const allowanceAt = (id: string) => allowances.allowanceAt("rulePackage", id);
     return { host, disk, install, catalog, inventory, allowanceAt };

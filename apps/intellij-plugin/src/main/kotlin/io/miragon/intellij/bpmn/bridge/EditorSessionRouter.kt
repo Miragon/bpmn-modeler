@@ -227,6 +227,8 @@ internal class EditorSessionRouter(
                 "pluginApprovalsRevision" to approvals.revision,
                 // Seeds the mirror the editor reads when it first sends its templates.
                 "templatePreferences" to TemplatePreferencesResult.of(deps.project),
+                // The bridge counts the project as untrusted until told, so its first plugin request needs it.
+                "workspaceTrust" to deps.projectTrust.snapshot().toParams(),
                 "content" to content,
             ),
         )

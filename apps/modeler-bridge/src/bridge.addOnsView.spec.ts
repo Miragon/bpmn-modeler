@@ -133,6 +133,10 @@ async function projectBridge(
         })),
         keepAnswering(handleLine, frames, METHODS.pluginApprovalsRead, () => project.stored),
     ];
+    // As the host seeds it after every spawn, before the view opens.
+    await handleLine(
+        hostNotification(METHODS.workspaceTrustDidChange, { trusted: true, revision: 1 }),
+    );
     disposeLater(async () => {
         stopAnswering.forEach((stop) => stop());
         bridge.dispose();

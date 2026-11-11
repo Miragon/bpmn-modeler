@@ -41,6 +41,21 @@ The editor loads [bpmn-js plugins](/vscode/features/bpmn-plugins) from `.camunda
 allow them in the notification it shows, once per repository. The IDE keeps your allowances for all projects; see
 [IntelliJ](/vscode/features/bpmn-plugins#intellij) for what differs from VS Code.
 
+## Project trust
+
+The modeler runs your project's BPMN plugins and bpmnlint rule packages only in a project you trust in the IDE. In a
+project you did not trust, for example one you opened in **Safe Mode**, no plugin loads and no rule package runs,
+even one you allowed in another worktree of the same repository; the bundled lint rules still run, and the modeler
+asks about nothing. The **Add-ons** tab offers no **Allow** there and says why on each plugin and rule package;
+**Revoke** still works. The IDE counts a project it never asked you about as not trusted.
+
+Trust the project where the IDE offers it, for example in the banner of a project opened in Safe Mode, or add its
+folder under **Settings ▸ Build, Execution, Deployment ▸ Trusted Locations**. Once you trust it, open BPMN editors
+load anew with the plugins you allowed, lint again with the rule packages, and the **Add-ons** tab lists them again;
+no restart needed. A Trusted Locations change takes effect with the next diagram you open or when you click
+**Refresh** in the **Add-ons** tab. Withdrawing the trust does the same in reverse, though rules a rule package
+already ran stay loaded until you restart the IDE.
+
 ## Add-ons
 
 The **Add-ons** tab of the **BPMN Modeler** tool window lists what your project brings to the modeler: the BPMN

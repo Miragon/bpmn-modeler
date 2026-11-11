@@ -625,10 +625,14 @@ describe("BpmnEditorFeature with workspace rule packages", () => {
         wiresRulePackages,
         allows = true,
         review,
+        trusted = true,
+        allowedBefore = false,
     }: {
         wiresRulePackages: boolean;
         allows?: boolean;
         review?: ScriptedReview;
+        trusted?: boolean;
+        allowedBefore?: boolean;
     }) {
         const configPath = `${workspaceDir}/.bpmnlintrc`;
         const diagramPath = `${workspaceDir}/order.bpmn`;
@@ -640,6 +644,12 @@ describe("BpmnEditorFeature with workspace rule packages", () => {
             noticeAnswers: { [RULE_PACKAGE_APPROVAL_NOTICE_ID]: "review" },
             promptAnswers: allows ? { [RULE_PACKAGE_APPROVAL_PROMPT_ID]: [pluginDir] } : {},
         });
+        host.workspaceTrust.setTrusted(trusted);
+        if (allowedBefore) {
+            host.pluginApprovals.approvals = [
+                allowanceRowOf(host.allowances.allowanceAt("rulePackage", pluginDir)),
+            ];
+        }
         const feature = new BpmnEditorFeature(
             {
                 ...host,
@@ -653,6 +663,7 @@ describe("BpmnEditorFeature with workspace rule packages", () => {
                               contentRows: host.contentRows,
                               actionNotifier: host.actionNotifier,
                               questions: new QuestionQueue(),
+                              workspaceTrust: host.workspaceTrust,
                               ...(review === undefined ? {} : { review }),
                           },
                       }
@@ -666,10 +677,13 @@ describe("BpmnEditorFeature with workspace rule packages", () => {
         await feature.lintConfig.setBpmnlintConfig(editor.id);
         await feature.lintConfig.whenApprovalSettled();
 
-        const results = editor
+        return { host, feature, editor, pluginDir, results: lintedRules(editor) };
+    }
+
+    function lintedRules(editor: FakeEditorHandle): string[][] {
+        return editor
             .postedOfType<BpmnlintResultsQuery>("BpmnlintResultsQuery")
             .map((query) => Object.keys(query.results ?? {}));
-        return { host, feature, editor, pluginDir, results };
     }
 
     it("asks about a rule package that skipped rules, and lints with it once allowed", async () => {
@@ -801,6 +815,42 @@ describe("BpmnEditorFeature with workspace rule packages", () => {
 
         expect(feature.rulePackageCatalog?.revokedThisSession()).toEqual(new Set());
         expect(editor.postedOfType("BpmnlintResultsQuery")).toHaveLength(results.length);
+    });
+
+    it("runs no allowed rule package and asks about none in a workspace the user did not trust", async () => {
+        const { host, results } = await lintWithAcmeInstalled({
+            wiresRulePackages: true,
+            trusted: false,
+        });
+
+        expect(host.actionNotifier.notices).toEqual([]);
+        expect(results).toEqual([[]]);
+    });
+
+    it("lints the open editors again with an allowed package once the user trusts the workspace", async () => {
+        const { host, feature, editor } = await lintWithAcmeInstalled({
+            wiresRulePackages: true,
+            trusted: false,
+            allowedBefore: true,
+        });
+
+        host.workspaceTrust.setTrusted(true);
+        await feature.lintConfig.whenApprovalSettled();
+
+        expect(lintedRules(editor)).toEqual([[], ["acme/task-found"]]);
+        expect(host.actionNotifier.notices).toEqual([]);
+    });
+
+    it("lints the open editors again without an allowed package once the user withdraws trust", async () => {
+        const { host, feature, editor } = await lintWithAcmeInstalled({
+            wiresRulePackages: true,
+            allowedBefore: true,
+        });
+
+        host.workspaceTrust.setTrusted(false);
+        await feature.lintConfig.whenApprovalSettled();
+
+        expect(lintedRules(editor)).toEqual([["acme/task-found"], []]);
     });
 
     it("runs no workspace rule package and asks nothing on a host that wires no rule package ports", async () => {

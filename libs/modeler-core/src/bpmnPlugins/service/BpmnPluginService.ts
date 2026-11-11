@@ -33,8 +33,9 @@ import { DiscoveredPlugin } from "./WorkspacePluginLocator";
 /**
  * Answers a BPMN editor's plugin request with the approved plugins and asks
  * about the others afterwards, so the editor never waits on the user. Any
- * change of the approvals, whoever made it, reloads every open editor whose
- * plugins it changes, because modules are fixed once a modeler is built.
+ * change of the approvals or of the workspace's trust, whoever made it,
+ * reloads every open editor whose plugins it changes, because modules are
+ * fixed once a modeler is built.
  */
 export class BpmnPluginService {
     private readonly cacheRoot: string;
@@ -133,8 +134,9 @@ export class BpmnPluginService {
         this.offeredByEditor.delete(editorId);
     }
 
-    approvalsChanged(approvals: readonly CodeApproval[]): void {
-        for (const editorId of editorsToReload(this.offeredByEditor, approvals)) {
+    /** After a change of the approvals or of the workspace's trust, whoever made it. */
+    runnablePluginsChanged(approvals: readonly CodeApproval[], trusted: boolean): void {
+        for (const editorId of editorsToReload(this.offeredByEditor, approvals, trusted)) {
             this.offeredByEditor.delete(editorId);
             this.reload(editorId);
         }

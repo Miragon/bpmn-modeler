@@ -1299,21 +1299,48 @@ that has it.
 
 **Host trust below it.** The allowance stays the host-neutral gate, because
 host trust has gaps: the standalone turns it off, VS Code treats an empty
-window as trusted, and Orca has no workspace. In VS Code the extension
-declares no support for untrusted workspaces, so it does not run in Restricted
-Mode and the allowance comes on top of Workspace Trust. The IntelliJ plugin
-does not read the IDE's trust state yet (`TrustedProjects`); in a project the
-user did not trust, it is to run and offer no workspace code. Until it does,
-an untrusted IntelliJ project that is a worktree of an allowed repository runs
-that repository's add-ons without asking, so the release that ships the
-allowance waits for the IntelliJ trust check.
+window as trusted, and Orca has no workspace. Host trust comes first: in a
+workspace the user did not trust, no plugin is served and no workspace rule
+package runs, whatever its allowance, nothing asks to allow one, and the
+Add-ons view offers no Allow for a code add-on and says why in the row's
+problem (`UNTRUSTED_WORKSPACE_TEXT`); Revoke stays. The rule has one home,
+`kernel/domain/workspaceTrust.ts` (`runsInWorkspace`, `askedInWorkspace`),
+and the plugin catalog, the rule package catalog, `editorsToReload` and the
+add-on catalog apply it. An untrusted linter builds no rule package gate, so it
+asks the workspace for nothing and lints with the bundled rules alone; a rule
+of a workspace package is skipped as unresolved. The core reads the trust
+through `WorkspaceTrustPort` (`kernel/port/hostPorts.ts`), which the
+plugins, rule packages and add-ons features take as an optional
+`workspaceTrust`; a host that wires none is trusted (`TRUSTED_WORKSPACE`),
+which suits Orca and npm consumers, as they run no workspace code. A change
+of the trust reloads the editors whose plugins it changes, lints every
+host-linted editor again and rebuilds the view, without a restart.
+
+In VS Code the extension declares no support for untrusted workspaces, so it
+does not run in Restricted Mode; `VsCodeWorkspaceTrust` answers
+`workspace.isTrusted` and follows `onDidGrantWorkspaceTrust`, as VS Code
+reloads the window when the user withdraws trust. The standalone turns
+Workspace Trust off, where `isTrusted` is true. The IntelliJ plugin reads
+`Project.isTrusted()` and follows `TrustedProjectsListener.TOPIC`; both are
+experimental API in the 2024.2 floor, and `isTrusted()` is deprecated but
+present in 2026.1, where `verifyPlugin` reports both as compatible. The bridge
+mirrors it, untrusted until the host says
+otherwise (see [Architecture and hosts](architecture-and-hosts.md#host-replicated-state)).
+IntelliJ counts a project it never asked about as not trusted, as
+`isTrusted()` answers only a trusted state, so such a project runs no
+workspace code until the user trusts it or adds its folder under Trusted
+Locations. A Trusted Locations change announces nothing, so it reaches the
+bridge with the next editor, the next spawn or **Refresh** of the Add-ons
+tab.
 
 Accepted:
 
 - Whoever can change the files of an allowed repository (a pull, an install,
   an agent in a worktree) changes code that runs with the user's rights, as
   for every tool that runs under host trust, and an untrusted branch in a
-  worktree of an allowed repository runs its version. "Any change asks
+  worktree of an allowed repository the user trusts runs its version.
+- A rule package that ran before the user withdrew trust stays loaded in the
+  process until it restarts; it runs no rule after the relint. "Any change asks
   again", which the 1.21.0 user guide promised, ends, and the release notes
   say so.
 - A rule package runs in place and unhashed, so the swap window under "Weaker
@@ -1362,13 +1389,15 @@ reuse (a re-clone or a moved checkout would ask again).
 Host linting loads `bpmnlint-plugin-*` packages from the workspace
 ([#2247](https://github.com/Miragon/bpmn-modeler/issues/2247)). Unlike a
 bpmn-js plugin, a rule package runs in the extension host or the bridge with
-the user's rights. Workspace Trust does not cover the IntelliJ bridge, and the
-standalone turns it off, so a rule package, like a bpmn-js plugin, runs only
-once its [allowance](#allowance-per-repository-and-add-on) holds. In VS Code,
-the allowance comes on top of Workspace Trust. A host opts in with the
+the user's rights. The standalone turns Workspace Trust off, so a rule
+package, like a bpmn-js plugin, runs only once its
+[allowance](#allowance-per-repository-and-add-on) holds, and only in a
+workspace the host trusts (VS Code's Workspace Trust, IntelliJ's trusted
+projects). A host opts in with the
 optional `rulePackages` group of `BpmnEditorFeature` (`BpmnRulePackagePorts`:
 the approval store, an `InstalledPackagesPort`, the `AllowanceLocator`, the
-content row migration, the action notifier and the shared `QuestionQueue`).
+content row migration, the action notifier, the shared `QuestionQueue` and
+the optional `workspaceTrust`).
 VS Code and the IntelliJ bridge wire it with the store, the
 `NodeInstalledPackages` and the locator the plugins use; one contract suite in
 the core's `testing/` pins both adapters. Without the group,
@@ -1560,8 +1589,8 @@ on a temporary folder with a git worktree layout, the
 and the Bun smoke (`apps/modeler-bridge/scripts/rule-package-gate-smoke.ts`)
 pin these rules.
 
-Alternatives: Workspace Trust alone (not in the IntelliJ bridge, off in the
-standalone, granted once per folder); asking about every blocked package
+Alternatives: host trust alone (off in the standalone, granted once per
+folder or project); asking about every blocked package
 (asks about packages the bundle serves); running a content-addressed copy of
 the package and its dependencies, as for bpmn-js plugins, recorded as the
 follow-up if the in-place window must close. Rejected for now because it
