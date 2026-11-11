@@ -39,6 +39,18 @@ const FOLLOW_UP: Record<CodeAddOnPayload["kind"], { readonly allowed: string; re
 
 const IN_REPOSITORY = " in every worktree of its repository";
 
+// A rule package's name carries its version, as the core labels it.
+const VERSION_OF: Record<CodeAddOnPayload["kind"], (name: string) => string | undefined> = {
+    plugin: () => undefined,
+    rulePackage: (name) => (name.lastIndexOf("@") > 0 ? name.slice(name.lastIndexOf("@") + 1) : undefined),
+};
+
+// A revoked plugin unloads at once; code a revoked rule package ran stays loaded.
+const NOTE_AFTER_REVOKE: Record<CodeAddOnPayload["kind"], string | undefined> = {
+    plugin: undefined,
+    rulePackage: FOLLOW_UP.rulePackage.revoked,
+};
+
 function reviewOf(name: string, risk: string, folder: string, version?: string): AddOnReviewPayload {
     return {
         heading: `Review ${name} before you allow it`,
@@ -170,7 +182,7 @@ function fullCatalog(): AddOnGroupPayload[] {
                             name: "@acme/bpmnlint-plugin-rules@2.1.0",
                             state: "new",
                             stateText: STATE_TEXT.new,
-                            note: "Code it already ran stays loaded until you reload the window.",
+                            note: FOLLOW_UP.rulePackage.revoked,
                             review: reviewOf(
                                 "@acme/bpmnlint-plugin-rules@2.1.0",
                                 RULE_RISK,
@@ -381,8 +393,14 @@ export class MockCatalog {
                 ...each,
                 state: "new",
                 stateText: STATE_TEXT.new,
+                ...(NOTE_AFTER_REVOKE[each.kind] !== undefined && { note: NOTE_AFTER_REVOKE[each.kind] }),
                 ...(each.problem === undefined && {
-                    review: reviewOf(each.name, RISK[each.kind], each.id.replace(/^\w+:\/work\//, "")),
+                    review: reviewOf(
+                        each.name,
+                        RISK[each.kind],
+                        each.id.replace(/^\w+:\/work\//, ""),
+                        VERSION_OF[each.kind](each.name),
+                    ),
                 }),
                 actions: each.problem === undefined ? [ALLOW] : [],
             }),

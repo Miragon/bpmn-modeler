@@ -132,6 +132,34 @@ describe("the preview's host", () => {
     });
 
     it.each([
+        {
+            name: "Palette",
+            facts: [
+                { label: "Folder", value: ".camunda/plugins/palette" },
+                { label: "Allowed in", value: "every worktree of /work" },
+            ],
+            note: undefined,
+        },
+        {
+            name: "bpmnlint-plugin-acme@1.0.0",
+            facts: [
+                { label: "Folder", value: "node_modules/bpmnlint-plugin-acme" },
+                { label: "Version", value: "1.0.0" },
+                { label: "Allowed in", value: "every worktree of /work" },
+            ],
+            note: "Code it already ran stays loaded until you reload the window.",
+        },
+    ])("gives revoked $name the review facts and note the core sends", ({ name, facts, note }) => {
+        const { host, rowNamed } = previewAt();
+        host.postMessage(new GetAddOnCatalogCommand());
+
+        host.postMessage(new AddOnRequestCommand(1, { kind: "revoke", addOnId: rowNamed(name).id }));
+        const revoked = rowNamed(name);
+
+        expect([revoked.kind !== "elementTemplate" && revoked.review?.facts, revoked.note]).toEqual([facts, note]);
+    });
+
+    it.each([
         { request: { kind: "disableTemplates", sourceId: "config:/work/.camunda" }, result: { kind: "done" } },
         { request: { kind: "enableTemplates", sourceId: "config:/work/orders/.camunda" }, result: { kind: "done" } },
         { request: { kind: "removeMarketplace", sourceId: "marketplace:broken" }, result: { kind: "reportedByFlow" } },
