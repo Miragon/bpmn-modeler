@@ -73,7 +73,7 @@ export function register(
         cacheRoot: bpmnPluginCacheUri(context.globalStorageUri).fsPath,
         review: handles.reviews.plugin,
     });
-    void plugins.pruneCache();
+    void plugins.pruneIdleCopies();
     const editor = new BpmnEditorFeature(
         {
             ...ports,

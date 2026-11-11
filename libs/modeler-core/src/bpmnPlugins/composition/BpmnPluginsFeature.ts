@@ -35,6 +35,8 @@ export interface BpmnPluginsHostPorts {
     readonly questions: QuestionQueue;
     /** Where "Review…" takes the user, as {@link reviewOrChecklist} defaults it. */
     readonly review?: ApprovalReviewPort;
+    /** The clock the plugin cache records last use by; `Date.now` unless a spec passes one. */
+    readonly now?: () => number;
 }
 
 /**
@@ -74,15 +76,10 @@ export class BpmnPluginsFeature {
                 ports.questions,
             ),
             ports.notifier,
-            ports.approvals,
             ports.cacheRoot,
+            ports.now,
         );
-        this.inventory = new PluginInventory(
-            this.locator,
-            this.catalog,
-            this.service,
-            ports.notifier,
-        );
+        this.inventory = new PluginInventory(this.locator, this.catalog, this.service);
         this.approvalChanges = ports.approvals.onDidChange(() =>
             this.service.approvalsChanged(ports.approvals.read()),
         );
@@ -92,10 +89,10 @@ export class BpmnPluginsFeature {
         };
     }
 
-    /** Never rejects, so a host can run it without awaiting it. */
-    async pruneCache(): Promise<void> {
+    /** For a host's start-up; never rejects, so a host can run it without awaiting it. */
+    async pruneIdleCopies(): Promise<void> {
         try {
-            await this.service.pruneCache();
+            await this.service.pruneIdleCopies();
         } catch (error) {
             this.notifier.logError(error instanceof Error ? error : new Error(String(error)));
         }

@@ -51,5 +51,5 @@ process.on("SIGTERM", () => process.exit(0));
 
 process.stderr.write(coreLogText("modeler-core bridge ready"));
 
-// After the streams are bound: it asks the host for the stored approvals.
+// After the streams are bound, as it logs through them.
 void prunePluginCache();

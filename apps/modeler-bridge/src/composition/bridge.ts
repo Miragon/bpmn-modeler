@@ -154,7 +154,7 @@ export function createBridge(
             deploymentSidebar: deployment.panelRoutes,
             addOnsView: addOns.panelRoutes,
         },
-        prunePluginCache: () => plugins.pruneCache(),
+        prunePluginCache: () => plugins.pruneIdleCopies(),
         addOns,
         dispose: () => {
             addOns.dispose();

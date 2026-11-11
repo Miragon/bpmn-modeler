@@ -8,17 +8,25 @@ import { ApprovalQuestion } from "../../kernel/service/ApprovalQuestion";
 import { answerWithoutPlugins } from "../../editorSession/service/answerWithoutPlugins";
 import { EditorSessionStore, PostOutcome } from "../../editorSession/service/EditorSessionStore";
 import {
-    cacheEntriesToPrune,
+    cachedCopyNames,
     cachedPluginCopy,
     cachedPluginDirectory,
     cachedPluginFiles,
+    contentServedByEditors,
     editorsToReload,
     isWholeCachedCopy,
+    lastUseMarkerOf,
     OfferedPlugins,
     PendingApproval,
     WorkspacePlugin,
 } from "../domain/pluginApproval";
-import { PluginApprovalStorePort } from "../port/pluginPorts";
+import {
+    copiesToPrune,
+    lastUseMarkerText,
+    ON_REQUEST_IDLE_LIMIT_MS,
+    shouldRefreshLastUse,
+    START_UP_IDLE_LIMIT_MS,
+} from "../domain/pluginCacheLastUse";
 import { CodeApproval } from "../../kernel/domain/codeApproval";
 import { PluginCatalog } from "./PluginCatalog";
 import { DiscoveredPlugin } from "./WorkspacePluginLocator";
@@ -33,10 +41,14 @@ export class BpmnPluginService {
     private readonly cacheRoot: string;
     /** One copy per content hash and session; a failed copy is dropped, so the next request retries it. */
     private readonly copies = new Map<string, Promise<void>>();
+    /** When this process last wrote each copy's last use, so opening editors writes it once a day. */
+    private readonly lastUseWritten = new Map<string, number>();
+    /** Awaited by a prune, as the copies are. */
+    private readonly lastUseWrites = new Set<Promise<void>>();
     /** Dropped on a reload until the editor asks again, so one change reloads it once. */
     private readonly offeredByEditor = new Map<string, OfferedPlugins>();
     private approvalSettled: Promise<void> = Promise.resolve();
-    /** Set while a prune runs, so no copy starts until it has finished. */
+    /** Set while a prune runs, so no copy or last-use write starts until it has finished. */
     private pruning?: Promise<unknown>;
 
     /**
@@ -53,8 +65,8 @@ export class BpmnPluginService {
             WorkspacePlugin
         >,
         private readonly notifier: NotifierPort,
-        private readonly approvals: PluginApprovalStorePort,
         cacheRoot: string,
+        private readonly now: () => number = Date.now,
     ) {
         this.cacheRoot = toWorkspacePath(cacheRoot);
     }
@@ -96,14 +108,20 @@ export class BpmnPluginService {
         this.approvalSettled = Promise.all([this.approvalSettled, asking]).then(() => undefined);
     }
 
-    /**
-     * Removes the copies no stored approval names, read from the host rather
-     * than a mirror, once every copy in flight has finished.
-     */
-    pruneCache(): Promise<{ readonly removed: number }> {
+    /** At start-up: the copies no editor of any process was served for weeks. */
+    pruneIdleCopies(): Promise<{ readonly removed: number }> {
+        return this.prune(START_UP_IDLE_LIMIT_MS);
+    }
+
+    /** Another process that still serves a removed copy writes it again on its next request. */
+    pruneUnusedCopies(): Promise<{ readonly removed: number }> {
+        return this.prune(ON_REQUEST_IDLE_LIMIT_MS);
+    }
+
+    private prune(maxIdleMs: number): Promise<{ readonly removed: number }> {
         const pruning = (this.pruning ?? Promise.resolve())
             .catch(() => undefined)
-            .then(() => this.removeUnnamedCopies());
+            .then(() => this.removeIdleCopies(maxIdleMs));
         this.pruning = pruning;
         const done = () => {
             if (this.pruning === pruning) this.pruning = undefined;
@@ -151,6 +169,7 @@ export class BpmnPluginService {
             );
             return undefined;
         }
+        await this.recordUse(discovered.plugin);
         return {
             name: discovered.plugin.name,
             scriptUrl: webviewUrlOf(files.script),
@@ -158,14 +177,23 @@ export class BpmnPluginService {
         };
     }
 
-    private async removeUnnamedCopies(): Promise<{ readonly removed: number }> {
-        await Promise.allSettled(this.copies.values());
-        const entries = await this.cacheEntries();
-        if (cacheEntriesToPrune(entries, []).length === 0) {
-            return { removed: 0 };
+    /** Waits for the copies and last-use writes in flight, so it never removes a copy half written. */
+    private async removeIdleCopies(maxIdleMs: number): Promise<{ readonly removed: number }> {
+        await Promise.allSettled([...this.copies.values(), ...this.lastUseWrites]);
+        const copies = cachedCopyNames(await this.cacheEntries());
+        const markerTextByCopy = new Map<string, string>();
+        for (const copy of copies) {
+            const text = await this.cachedContentOf(lastUseMarkerOf(this.cacheRoot, copy));
+            if (text !== undefined) markerTextByCopy.set(copy, text);
         }
+        const idle = copiesToPrune(copies, {
+            markerTextByCopy,
+            inUse: contentServedByEditors(this.offeredByEditor),
+            nowMs: this.now(),
+            maxIdleMs,
+        });
         let removed = 0;
-        for (const name of cacheEntriesToPrune(entries, await this.approvals.readStored())) {
+        for (const name of idle) {
             const directory = joinWorkspacePath(this.cacheRoot, name);
             try {
                 await this.workspace.deleteDirectory(directory);
@@ -241,14 +269,44 @@ export class BpmnPluginService {
      */
     private async copy(discovered: DiscoveredPlugin): Promise<void> {
         const files = cachedPluginFiles(this.cacheRoot, discovered.plugin);
+        const nowMs = this.now();
         for (const { path, content } of cachedPluginCopy(
             files,
             discovered.script,
             discovered.style,
+            nowMs,
         )) {
             if ((await this.cachedContentOf(path)) !== content) {
                 await this.workspace.writeFile(path, content);
             }
+        }
+        this.lastUseWritten.set(discovered.plugin.contentHash, nowMs);
+    }
+
+    /** Never rejects: a copy whose use goes unrecorded is still served, and ages out at worst. */
+    private async recordUse(plugin: WorkspacePlugin): Promise<void> {
+        const hash = plugin.contentHash;
+        await this.noPruneRunning();
+        const nowMs = this.now();
+        // A prune here removed the copy; a marker alone would make an empty folder look used.
+        if (!this.copies.has(hash) || !shouldRefreshLastUse(this.lastUseWritten.get(hash), nowMs)) {
+            return;
+        }
+        this.lastUseWritten.set(hash, nowMs);
+        const write = this.workspace.writeFile(
+            cachedPluginFiles(this.cacheRoot, plugin).lastUse,
+            lastUseMarkerText(nowMs),
+        );
+        this.lastUseWrites.add(write);
+        try {
+            await write;
+        } catch (error) {
+            this.lastUseWritten.delete(hash);
+            this.notifier.logWarning(
+                `BPMN plugin cache: could not record the use of ${cachedPluginDirectory(this.cacheRoot, plugin)} (${String(error)})`,
+            );
+        } finally {
+            this.lastUseWrites.delete(write);
         }
     }
 

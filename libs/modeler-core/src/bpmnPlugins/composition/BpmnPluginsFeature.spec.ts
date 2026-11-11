@@ -76,6 +76,7 @@ function setUp(
         questions?: QuestionQueue;
         hasher?: ContentHasherPort;
         review?: ScriptedReview | ((host: ReturnType<typeof createTestHost>) => ApprovalReviewPort);
+        now?: () => number;
     } = {},
 ) {
     const host = createTestHost({ folders: ["/work", "/other"], files, ...options });
@@ -86,6 +87,7 @@ function setUp(
         cacheRoot: options.cacheRoot ?? CACHE,
         hasher: options.hasher ?? fingerprintHasher,
         questions: options.questions ?? new QuestionQueue(),
+        ...(options.now === undefined ? {} : { now: options.now }),
         ...(options.review === undefined
             ? {}
             : {
@@ -126,15 +128,6 @@ class LaggingPluginApprovals extends InMemoryPluginApprovals {
     override async change(change: CodeApprovalChange): Promise<void> {
         await new Promise((resolve) => setTimeout(resolve, 0));
         await super.change(change);
-    }
-}
-
-/** A mirror that has not heard of every row the host stores yet, as the bridge's can lag. */
-class MirrorBehindHost extends InMemoryPluginApprovals {
-    mirrored: readonly CodeApproval[] = [];
-
-    override read(): readonly CodeApproval[] {
-        return this.mirrored;
     }
 }
 
@@ -253,9 +246,10 @@ describe("BpmnPluginsFeature", () => {
                     scriptUrl: `webview-resource:${CACHE}/${RESIZE_HASH}/plugin.js`,
                 },
             ]);
-            expect(
-                [...host.workspace.files.keys()].filter((path) => path.startsWith(CACHE)),
-            ).toEqual([`${CACHE}/${RESIZE_HASH}/plugin.js`]);
+            expect(cachePaths(host)).toEqual([
+                `${CACHE}/${RESIZE_HASH}/last-used`,
+                `${CACHE}/${RESIZE_HASH}/plugin.js`,
+            ]);
         });
 
         it("leaves a plugin out once its code changed", async () => {
@@ -791,7 +785,7 @@ describe("BpmnPluginsFeature", () => {
             expect(writes).toEqual([]);
         });
 
-        it("serves a copy an earlier session wrote without writing it again", async () => {
+        it("serves a copy an earlier session wrote and writes only its last use", async () => {
             const { host, requestPlugins, openEditor } = setUp({
                 ...PALETTE_FILES,
                 [`${CACHE}/${PALETTE_HASH}/plugin.js`]: "registerPalette();",
@@ -803,7 +797,7 @@ describe("BpmnPluginsFeature", () => {
 
             await requestPlugins(editor);
 
-            expect(writes).toEqual([]);
+            expect(writes).toEqual([`${CACHE}/${PALETTE_HASH}/last-used`]);
             expect(answeredPlugins(editor)).toHaveLength(1);
         });
 
@@ -818,7 +812,10 @@ describe("BpmnPluginsFeature", () => {
 
             await requestPlugins(await openEditor());
 
-            expect(writes).toEqual([`${CACHE}/${PALETTE_HASH}/plugin.js`]);
+            expect(writes).toEqual([
+                `${CACHE}/${PALETTE_HASH}/last-used`,
+                `${CACHE}/${PALETTE_HASH}/plugin.js`,
+            ]);
             expect(host.workspace.files.get(`${CACHE}/${PALETTE_HASH}/plugin.js`)).toBe(
                 "registerPalette();",
             );
@@ -843,6 +840,7 @@ describe("BpmnPluginsFeature", () => {
             await requestPlugins(editor);
 
             expect(writes.sort()).toEqual([
+                `${CACHE}/${PALETTE_HASH}/last-used`,
                 `${CACHE}/${PALETTE_HASH}/plugin.css`,
                 `${CACHE}/${PALETTE_HASH}/plugin.js`,
             ]);
@@ -863,6 +861,7 @@ describe("BpmnPluginsFeature", () => {
             await Promise.all(editors.map((editor) => answerRequest(feature, editor)));
 
             expect(writes.sort()).toEqual([
+                `${CACHE}/${PALETTE_HASH}/last-used`,
                 `${CACHE}/${PALETTE_HASH}/plugin.css`,
                 `${CACHE}/${PALETTE_HASH}/plugin.js`,
             ]);
@@ -932,101 +931,203 @@ describe("BpmnPluginsFeature", () => {
         });
     });
 
+    describe("recording the last use of a copy", () => {
+        const DAY = 24 * 60 * 60 * 1000;
+        const NOW = Date.UTC(2026, 10, 11);
+        const MARKER = `${CACHE}/${PALETTE_HASH}/last-used`;
+
+        function clockAt(start: number) {
+            const clock = { ms: start, now: () => clock.ms };
+            return clock;
+        }
+
+        it("writes the time it copied a plugin beside the copy", async () => {
+            const { host, requestPlugins, openEditor } = setUp(PALETTE_FILES, {
+                now: () => NOW,
+            });
+            host.pluginApprovals.approvals = [{ pluginId: PALETTE, contentHash: PALETTE_HASH }];
+
+            await requestPlugins(await openEditor());
+
+            expect(host.workspace.files.get(MARKER)).toBe(String(NOW));
+        });
+
+        it("records a served copy's use at most once a day", async () => {
+            const clock = clockAt(NOW);
+            const { host, requestPlugins, openEditor } = setUp(PALETTE_FILES, {
+                now: clock.now,
+            });
+            host.pluginApprovals.approvals = [{ pluginId: PALETTE, contentHash: PALETTE_HASH }];
+            const editor = await openEditor();
+            await requestPlugins(editor);
+
+            clock.ms = NOW + DAY - 1;
+            await requestPlugins(await openEditor("/work/invoice.bpmn"));
+            const withinTheDay = host.workspace.files.get(MARKER);
+            clock.ms = NOW + DAY;
+            await requestPlugins(editor);
+
+            expect(withinTheDay).toBe(String(NOW));
+            expect(host.workspace.files.get(MARKER)).toBe(String(NOW + DAY));
+        });
+
+        it("serves a plugin whose use it cannot record, logs why and tries again on the next request", async () => {
+            const clock = clockAt(NOW);
+            const { host, requestPlugins, openEditor } = setUp(PALETTE_FILES, {
+                now: clock.now,
+            });
+            host.pluginApprovals.approvals = [{ pluginId: PALETTE, contentHash: PALETTE_HASH }];
+            const editor = await openEditor();
+            await requestPlugins(editor);
+            clock.ms = NOW + DAY;
+            const writeFile = host.workspace.writeFile.bind(host.workspace);
+            vi.spyOn(host.workspace, "writeFile").mockImplementation(async (path, content) => {
+                if (path === MARKER) throw new Error("EROFS");
+                await writeFile(path, content);
+            });
+
+            await requestPlugins(editor);
+            const whileFailing = answeredPlugins(editor)?.map(({ name }) => name);
+            vi.mocked(host.workspace.writeFile).mockRestore();
+            await requestPlugins(editor);
+
+            expect(whileFailing).toEqual(["Reduced Palette"]);
+            expect(host.notifier.logged("warning")).toEqual([
+                `BPMN plugin cache: could not record the use of ${CACHE}/${PALETTE_HASH} (Error: EROFS)`,
+            ]);
+            expect(host.workspace.files.get(MARKER)).toBe(String(NOW + DAY));
+        });
+    });
+
     describe("pruning the cache", () => {
-        const UNNAMED = "0".repeat(64);
+        const DAY = 24 * 60 * 60 * 1000;
+        const NOW = Date.UTC(2026, 10, 11);
         const UPPER = "A".repeat(64);
+        const IDLE = "1".repeat(64);
+        const RECENT = "2".repeat(64);
+        const UNMARKED = "3".repeat(64);
+        const UNREADABLE = "4".repeat(64);
+        const HEX_FILE = "5".repeat(64);
         // A prune takes only SHA-256 names, so these specs hash as the hosts do.
         const hasher: ContentHasherPort = {
             sha256: (text) => createHash("sha256").update(text, "utf8").digest("hex"),
         };
         const PALETTE_SHA = hasher.sha256(approvedContent("registerPalette();", ".djs-palette {}"));
         const RESIZE_SHA = hasher.sha256(approvedContent("registerResize();", undefined));
+        const copyUsed = (hash: string, lastUse: string) => ({
+            [`${CACHE}/${hash}/plugin.js`]: "registerPlugin();",
+            [`${CACHE}/${hash}/last-used`]: lastUse,
+        });
 
-        it("removes the copies no stored approval names and keeps anything else in the folder", async () => {
+        it("removes at start-up the copies idle for 30 days or without a last use, reads no approval and keeps anything else", async () => {
             const { host, feature } = setUp(
                 {
-                    ...PALETTE_FILES,
-                    [`${CACHE}/${PALETTE_SHA}/plugin.js`]: "registerPalette();",
-                    [`${CACHE}/${UNNAMED}/plugin.js`]: "registerGone();",
-                    [`${CACHE}/${UNNAMED}/plugin.css`]: ".gone {}",
-                    [`${CACHE}/${UPPER}/plugin.js`]: "registerUpper();",
+                    ...copyUsed(IDLE, String(NOW - 30 * DAY)),
+                    ...copyUsed(RECENT, String(NOW - 30 * DAY + 1)),
+                    ...copyUsed(UNREADABLE, "yesterday"),
+                    [`${CACHE}/${UNMARKED}/plugin.js`]: "registerUnmarked();",
+                    ...copyUsed(UPPER, "0"),
                     [`${CACHE}/notes/readme.md`]: "# Notes",
-                    [`${CACHE}/${"1".repeat(64)}`]: "a file",
+                    [`${CACHE}/notes/last-used`]: "0",
+                    [`${CACHE}/${HEX_FILE}`]: "a file",
                 },
-                { hasher },
+                { hasher, approvals: new UnreachableHost(), now: () => NOW },
             );
-            host.pluginApprovals.approvals = [{ pluginId: PALETTE, contentHash: PALETTE_SHA }];
 
-            const pruned = await feature.service.pruneCache();
+            const pruned = await feature.service.pruneIdleCopies();
 
-            expect(pruned).toEqual({ removed: 1 });
+            expect(pruned).toEqual({ removed: 3 });
             expect(cachePaths(host)).toEqual(
                 [
-                    `${CACHE}/${PALETTE_SHA}/plugin.js`,
+                    `${CACHE}/${RECENT}/last-used`,
+                    `${CACHE}/${RECENT}/plugin.js`,
+                    `${CACHE}/${UPPER}/last-used`,
                     `${CACHE}/${UPPER}/plugin.js`,
+                    `${CACHE}/notes/last-used`,
                     `${CACHE}/notes/readme.md`,
-                    `${CACHE}/${"1".repeat(64)}`,
+                    `${CACHE}/${HEX_FILE}`,
                 ].sort(),
             );
         });
 
-        it("keeps every hash a stored approval names even when read() lags", async () => {
-            const approvals = new MirrorBehindHost();
-            const { host, feature } = setUp(
-                {
-                    [`${CACHE}/${PALETTE_SHA}/plugin.js`]: "registerPalette();",
-                    [`${CACHE}/${RESIZE_SHA}/plugin.js`]: "registerResize();",
-                },
-                { approvals, hasher },
+        it("removes on request every copy no editor here is served, however recently used", async () => {
+            const { host, feature, requestPlugins, openEditor } = setUp(
+                { ...PALETTE_FILES, ...copyUsed(RECENT, String(NOW)) },
+                { hasher, now: () => NOW },
             );
-            approvals.approvals = [
-                { pluginId: PALETTE, contentHash: PALETTE_SHA },
-                { pluginId: OTHER_PALETTE, contentHash: RESIZE_SHA },
-            ];
+            host.pluginApprovals.approvals = [{ pluginId: PALETTE, contentHash: PALETTE_SHA }];
+            await requestPlugins(await openEditor());
 
-            await expect(feature.service.pruneCache()).resolves.toEqual({ removed: 0 });
-            expect(cachePaths(host)).toHaveLength(2);
+            const pruned = await feature.service.pruneUnusedCopies();
+
+            expect(pruned).toEqual({ removed: 1 });
+            expect(cachePaths(host)).toEqual([
+                `${CACHE}/${PALETTE_SHA}/last-used`,
+                `${CACHE}/${PALETTE_SHA}/plugin.css`,
+                `${CACHE}/${PALETTE_SHA}/plugin.js`,
+            ]);
         });
 
-        it("asks the host nothing when the cache holds no copy", async () => {
-            const { feature } = setUp(
-                { [`${CACHE}/notes/readme.md`]: "# Notes" },
-                { approvals: new UnreachableHost(), hasher },
-            );
+        it("keeps at start-up a copy an editor here is served, even with its last use gone", async () => {
+            const { host, feature, requestPlugins, openEditor } = setUp(PALETTE_FILES, {
+                hasher,
+                now: () => NOW,
+            });
+            host.pluginApprovals.approvals = [{ pluginId: PALETTE, contentHash: PALETTE_SHA }];
+            await requestPlugins(await openEditor());
+            host.workspace.files.delete(`${CACHE}/${PALETTE_SHA}/last-used`);
 
-            await expect(feature.service.pruneCache()).resolves.toEqual({ removed: 0 });
+            await expect(feature.service.pruneIdleCopies()).resolves.toEqual({ removed: 0 });
         });
 
-        it("logs a prune the host cannot answer and removes nothing", async () => {
+        it("removes on request the copy of an editor that closed", async () => {
+            const { host, feature, requestPlugins, openEditor } = setUp(PALETTE_FILES, {
+                hasher,
+            });
+            host.pluginApprovals.approvals = [{ pluginId: PALETTE, contentHash: PALETTE_SHA }];
+            const editor = await openEditor();
+            await requestPlugins(editor);
+            editor.dispose();
+
+            await expect(feature.service.pruneUnusedCopies()).resolves.toEqual({ removed: 1 });
+            expect(cachePaths(host)).toEqual([]);
+        });
+
+        it("logs a start-up prune whose cache cannot be listed and removes nothing", async () => {
             const { host, feature } = setUp(
-                { [`${CACHE}/${UNNAMED}/plugin.js`]: "registerGone();" },
-                { approvals: new UnreachableHost(), hasher },
+                { [`${CACHE}/${IDLE}/plugin.js`]: "registerGone();" },
+                { hasher, now: () => NOW },
             );
+            const readDirectory = host.workspace.readDirectory.bind(host.workspace);
+            vi.spyOn(host.workspace, "readDirectory").mockImplementation(async (path) => {
+                if (path === CACHE) throw new Error("cache unreadable");
+                return readDirectory(path);
+            });
 
-            await feature.pruneCache();
+            await feature.pruneIdleCopies();
 
-            expect(cachePaths(host)).toEqual([`${CACHE}/${UNNAMED}/plugin.js`]);
+            expect(cachePaths(host)).toEqual([`${CACHE}/${IDLE}/plugin.js`]);
             expect(host.notifier.logged("error")).toEqual([
-                expect.stringContaining("host unreachable"),
+                expect.stringContaining("cache unreadable"),
             ]);
         });
 
         it("removes nothing before the cache folder exists", async () => {
             const { feature } = setUp(PALETTE_FILES, { hasher });
 
-            await expect(feature.service.pruneCache()).resolves.toEqual({ removed: 0 });
+            await expect(feature.service.pruneIdleCopies()).resolves.toEqual({ removed: 0 });
         });
 
         it("waits for a copy being written before it prunes", async () => {
-            const approvals = new MirrorBehindHost();
-            const { host, feature, openEditor } = setUp(RESIZE_FILES, { approvals, hasher });
-            approvals.mirrored = [{ pluginId: RESIZE, contentHash: RESIZE_SHA }];
+            const { host, feature, openEditor } = setUp(RESIZE_FILES, { hasher });
+            host.pluginApprovals.approvals = [{ pluginId: RESIZE, contentHash: RESIZE_SHA }];
             const editor = await openEditor();
             const write = holdNext(host.workspace, "writeFile");
             const answering = answerRequest(feature, editor);
             await write.reached;
+            feature.service.releaseEditor(editor.id);
 
-            const pruning = feature.service.pruneCache();
+            const pruning = feature.service.pruneUnusedCopies();
             await new Promise((resolve) => setTimeout(resolve, 0));
             write.release();
             await answering;
@@ -1035,35 +1136,86 @@ describe("BpmnPluginsFeature", () => {
             expect(cachePaths(host)).toEqual([]);
         });
 
-        it("copies a plugin again once a prune that ran while it was asked for removed it", async () => {
-            const approvals = new MirrorBehindHost();
+        it("waits for a last use being recorded before it prunes", async () => {
+            const clock = { ms: NOW };
+            const { host, feature, requestPlugins, openEditor } = setUp(RESIZE_FILES, {
+                hasher,
+                now: () => clock.ms,
+            });
+            host.pluginApprovals.approvals = [{ pluginId: RESIZE, contentHash: RESIZE_SHA }];
+            const editor = await openEditor();
+            await requestPlugins(editor);
+            clock.ms = NOW + DAY;
+            const write = holdNext(host.workspace, "writeFile");
+            const answering = answerRequest(feature, editor);
+            await write.reached;
+            feature.service.releaseEditor(editor.id);
+
+            const pruning = feature.service.pruneUnusedCopies();
+            await new Promise((resolve) => setTimeout(resolve, 0));
+            write.release();
+            await answering;
+
+            await expect(pruning).resolves.toEqual({ removed: 1 });
+            expect(cachePaths(host)).toEqual([]);
+        });
+
+        it("records no last use while a prune runs", async () => {
+            const clock = { ms: NOW };
+            const { host, feature, requestPlugins, openEditor } = setUp(RESIZE_FILES, {
+                hasher,
+                now: () => clock.ms,
+            });
+            host.pluginApprovals.approvals = [{ pluginId: RESIZE, contentHash: RESIZE_SHA }];
+            const editor = await openEditor();
+            await requestPlugins(editor);
+            clock.ms = NOW + 31 * DAY;
+            const [checkingCopy, listingCache] = holdListings(host, [
+                `${CACHE}/${RESIZE_SHA}`,
+                CACHE,
+            ]);
+
+            const answering = answerRequest(feature, editor);
+            await checkingCopy.reached;
+            feature.service.releaseEditor(editor.id);
+            const pruning = feature.service.pruneIdleCopies();
+            await listingCache.reached;
+            checkingCopy.release();
+            await new Promise((resolve) => setTimeout(resolve, 0));
+            listingCache.release();
+
+            await expect(pruning).resolves.toEqual({ removed: 1 });
+            await answering;
+            expect(cachePaths(host)).toEqual([]);
+        });
+
+        it("keeps a copy an editor asks for while a prune lists the cache", async () => {
             const { host, feature, requestPlugins, openEditor } = setUp(
                 { ...RESIZE_FILES, [`${CACHE}/${RESIZE_SHA}/plugin.js`]: "registerResize();" },
-                { approvals, hasher },
+                { hasher },
             );
-            approvals.mirrored = [{ pluginId: RESIZE, contentHash: RESIZE_SHA }];
+            host.pluginApprovals.approvals = [{ pluginId: RESIZE, contentHash: RESIZE_SHA }];
             const editor = await openEditor();
-            const read = holdNext(approvals, "readStored");
-            const pruning = feature.service.pruneCache();
-            await read.reached;
+            const [listingCache] = holdListings(host, [CACHE]);
+            const pruning = feature.service.pruneIdleCopies();
+            await listingCache.reached;
 
             const requesting = requestPlugins(editor);
             await new Promise((resolve) => setTimeout(resolve, 0));
-            read.release();
-            await pruning;
-            await requesting;
+            listingCache.release();
 
+            await expect(pruning).resolves.toEqual({ removed: 0 });
+            await requesting;
             expect(answeredPlugins(editor)?.map(({ name }) => name)).toEqual(["Resize Tasks"]);
-            expect(cachePaths(host)).toEqual([`${CACHE}/${RESIZE_SHA}/plugin.js`]);
+            expect(cachePaths(host)).toEqual([
+                `${CACHE}/${RESIZE_SHA}/last-used`,
+                `${CACHE}/${RESIZE_SHA}/plugin.js`,
+            ]);
         });
 
         it("waits for a prune that starts while it checks a copy another process deleted", async () => {
-            const approvals = new MirrorBehindHost();
-            const { host, feature, requestPlugins, openEditor } = setUp(RESIZE_FILES, {
-                approvals,
-                hasher,
-            });
-            approvals.mirrored = [{ pluginId: RESIZE, contentHash: RESIZE_SHA }];
+            const { host, feature, requestPlugins, openEditor } = setUp(RESIZE_FILES, { hasher });
+            host.pluginApprovals.approvals = [{ pluginId: RESIZE, contentHash: RESIZE_SHA }];
             const editor = await openEditor();
             await requestPlugins(editor);
             await host.workspace.deleteDirectory(`${CACHE}/${RESIZE_SHA}`);
@@ -1074,7 +1226,7 @@ describe("BpmnPluginsFeature", () => {
 
             const answering = answerRequest(feature, editor);
             await checkingCopy.reached;
-            const pruning = feature.service.pruneCache();
+            const pruning = feature.service.pruneIdleCopies();
             await listingCache.reached;
             checkingCopy.release();
             await new Promise((resolve) => setTimeout(resolve, 0));
@@ -1083,7 +1235,10 @@ describe("BpmnPluginsFeature", () => {
             await answering;
 
             expect(answeredPlugins(editor)?.map(({ name }) => name)).toEqual(["Resize Tasks"]);
-            expect(cachePaths(host)).toEqual([`${CACHE}/${RESIZE_SHA}/plugin.js`]);
+            expect(cachePaths(host)).toEqual([
+                `${CACHE}/${RESIZE_SHA}/last-used`,
+                `${CACHE}/${RESIZE_SHA}/plugin.js`,
+            ]);
         });
 
         it("copies again an entry another process deleted", async () => {
@@ -1096,30 +1251,30 @@ describe("BpmnPluginsFeature", () => {
             await requestPlugins(editor);
 
             expect(cachePaths(host)).toEqual([
+                `${CACHE}/${PALETTE_SHA}/last-used`,
                 `${CACHE}/${PALETTE_SHA}/plugin.css`,
                 `${CACHE}/${PALETTE_SHA}/plugin.js`,
             ]);
         });
 
         it("logs a copy it cannot remove and still removes the others", async () => {
-            const OTHER_UNNAMED = "2".repeat(64);
             const { host, feature } = setUp(
                 {
-                    [`${CACHE}/${UNNAMED}/plugin.js`]: "registerGone();",
-                    [`${CACHE}/${OTHER_UNNAMED}/plugin.js`]: "registerGoneToo();",
+                    [`${CACHE}/${IDLE}/plugin.js`]: "registerGone();",
+                    [`${CACHE}/${UNMARKED}/plugin.js`]: "registerGoneToo();",
                 },
                 { hasher },
             );
             const deleteDirectory = host.workspace.deleteDirectory.bind(host.workspace);
             vi.spyOn(host.workspace, "deleteDirectory").mockImplementation(async (path) => {
-                if (path.endsWith(UNNAMED)) throw new Error("EBUSY");
+                if (path.endsWith(IDLE)) throw new Error("EBUSY");
                 await deleteDirectory(path);
             });
 
-            await expect(feature.service.pruneCache()).resolves.toEqual({ removed: 1 });
-            expect(cachePaths(host)).toEqual([`${CACHE}/${UNNAMED}/plugin.js`]);
+            await expect(feature.service.pruneIdleCopies()).resolves.toEqual({ removed: 1 });
+            expect(cachePaths(host)).toEqual([`${CACHE}/${IDLE}/plugin.js`]);
             expect(host.notifier.logged("warning")).toEqual([
-                `BPMN plugin cache: could not remove ${CACHE}/${UNNAMED} (Error: EBUSY)`,
+                `BPMN plugin cache: could not remove ${CACHE}/${IDLE} (Error: EBUSY)`,
             ]);
         });
     });
