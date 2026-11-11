@@ -10,7 +10,7 @@ vi.mock("vscode", () => ({
 
 import type { Uri } from "vscode";
 
-import { CompareSelectionStore } from "./CompareSelectionStore";
+import { BPMN_COMPARE_SELECTION_KEY, CompareSelectionStore } from "./CompareSelectionStore";
 
 // Matches the literal in the production source; the `when` clause depends on it.
 const CONTEXT_KEY = "bpmn-modeler.compareSelectionActive";
@@ -24,11 +24,11 @@ beforeEach(() => {
 
 describe("CompareSelectionStore", () => {
     it("starts with nothing selected", () => {
-        expect(new CompareSelectionStore().get()).toBeUndefined();
+        expect(new CompareSelectionStore(BPMN_COMPARE_SELECTION_KEY).get()).toBeUndefined();
     });
 
     it("set records the uri and flips the context key on", async () => {
-        const store = new CompareSelectionStore();
+        const store = new CompareSelectionStore(BPMN_COMPARE_SELECTION_KEY);
 
         await store.set(URI);
 
@@ -37,7 +37,7 @@ describe("CompareSelectionStore", () => {
     });
 
     it("clear drops the selection and flips the context key off", async () => {
-        const store = new CompareSelectionStore();
+        const store = new CompareSelectionStore(BPMN_COMPARE_SELECTION_KEY);
         await store.set(URI);
 
         await store.clear();

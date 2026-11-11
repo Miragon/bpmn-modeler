@@ -26,11 +26,7 @@ import {
     TOGGLE_LINTING_CMD,
     TOGGLE_AUTOMATIC_FORM_PREVIEW_CMD,
 } from "./modeler/bpmn/adapter/in/CommandController";
-import {
-    COMPARE_SELECTED_CMD,
-    COMPARE_WITH_SELECTED_CMD,
-    SELECT_FOR_COMPARE_CMD,
-} from "./diff/adapter/in/BpmnCompareController";
+import { BPMN_COMPARE } from "./diff/adapter/in/CompareController";
 import {
     DEPLOY_CMD,
     DEPLOY_FILES_CMD,
@@ -143,9 +139,9 @@ const CODE_COMMAND_IDS = [
     RELOAD_MODELER_CMD,
     FORMAT_DIAGRAM_CMD,
     CLEANUP_DIAGRAM_CMD,
-    SELECT_FOR_COMPARE_CMD,
-    COMPARE_WITH_SELECTED_CMD,
-    COMPARE_SELECTED_CMD,
+    BPMN_COMPARE.selectForCompare,
+    BPMN_COMPARE.compareWithSelected,
+    BPMN_COMPARE.compareSelected,
     DEPLOY_CMD,
     SWITCH_TARGET_CMD,
     DEPLOY_FILES_CMD,

@@ -35,7 +35,7 @@ import javax.swing.SwingConstants
  * ([BpmnDiffService] + `bpmn-js-differ`) runs entirely in the shared TypeScript
  * core. The one exception is **swap-sides** (see [swap]): swapping recreates the
  * two panes, a host/lifecycle concern, so it is handled here rather than in the
- * vscode-free core — mirroring how VS Code keeps swap in `BpmnDiffController`.
+ * vscode-free core — mirroring how VS Code keeps swap in `DiffController`.
  *
  * **Pane identity** ([uriFor]) is the key wrinkle: a `#<diffId>-<role>` fragment
  * is appended to each side's file URL so that (a) the two sides stay distinct

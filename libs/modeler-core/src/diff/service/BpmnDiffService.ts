@@ -23,7 +23,7 @@ import { DiffPaneRelay } from "./DiffPaneRelay";
  *
  * Stays free of `vscode` — it works through the abstract {@link DiffPaneHandle}
  * and reads session state from {@link DiffPaneStore}. Pane lifecycle (creation,
- * pairing, disposal) and every VS Code call live in `BpmnDiffController`.
+ * pairing, disposal) and every VS Code call live in `DiffController`.
  */
 export class BpmnDiffService {
     private readonly relay: DiffPaneRelay;

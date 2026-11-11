@@ -1,8 +1,8 @@
 import { ExtensionContext } from "vscode";
 
-import { DiffPaneStore } from "@miragon/bpmn-modeler-core";
+import { createDiffPaneRouter, DiffPaneStore } from "@miragon/bpmn-modeler-core";
 import { BpmnDiffService } from "@miragon/bpmn-modeler-core";
-import { BpmnDiffController } from "../diff/adapter/in/BpmnDiffController";
+import { DiffController, DiffPaneFormat } from "../diff/adapter/in/DiffController";
 import { WebviewPaneHandle } from "../diff/adapter/out/WebviewPaneHandle";
 import { SharedDeps } from "./sharedDeps";
 
@@ -15,18 +15,26 @@ import { SharedDeps } from "./sharedDeps";
 export function register(
     context: ExtensionContext,
     deps: SharedDeps,
-): { diffController: BpmnDiffController; diffStore: DiffPaneStore } {
+): { diffController: DiffController; diffStore: DiffPaneStore } {
     const diffStore = new DiffPaneStore();
     context.subscriptions.push(diffStore);
     const diffService = new BpmnDiffService(deps.notifier, deps.vsSettings, diffStore);
-    const diffController = new BpmnDiffController(
+    const diffController = new DiffController(
         diffStore,
-        diffService,
         deps.notifier,
         (panel, document) => new WebviewPaneHandle(panel, document),
         deps.preferences,
+        bpmnDiffFormat(diffService),
     );
     diffController.register(context);
 
     return { diffController, diffStore };
+}
+
+export function bpmnDiffFormat(service: BpmnDiffService): DiffPaneFormat {
+    return {
+        extension: ".bpmn",
+        createRouter: (extensions) => createDiffPaneRouter(service, extensions),
+        rebroadcastLanguage: () => service.rebroadcastLanguage(),
+    };
 }

@@ -13,7 +13,7 @@ vi.mock("vscode", () => ({
 
 import { RecordingNotifier } from "@miragon/bpmn-modeler-core/testing";
 
-import { BpmnCompareController } from "./BpmnCompareController";
+import { BPMN_COMPARE, CompareController } from "./CompareController";
 
 /** Minimal vscode `Uri` stand-in carrying the two fields the controller reads. */
 function uri(path: string) {
@@ -29,10 +29,11 @@ function createController() {
     const diffController = { openCompareFilesDiff: vi.fn() };
     const notifier = new RecordingNotifier();
     return {
-        controller: new BpmnCompareController(
+        controller: new CompareController(
             selection as never,
             diffController as never,
             notifier,
+            BPMN_COMPARE,
         ),
         selection,
         diffController,
@@ -42,7 +43,7 @@ function createController() {
 
 beforeEach(() => vi.clearAllMocks());
 
-describe("BpmnCompareController.selectForCompare", () => {
+describe("CompareController.selectForCompare", () => {
     it("ignores an undefined URI without touching the store", async () => {
         const { controller, selection } = createController();
         await controller.selectForCompare(undefined);
@@ -70,7 +71,7 @@ describe("BpmnCompareController.selectForCompare", () => {
     });
 });
 
-describe("BpmnCompareController.compareWithSelected", () => {
+describe("CompareController.compareWithSelected", () => {
     it("ignores a non-.bpmn right-hand URI", async () => {
         const { controller, selection, notifier, diffController } = createController();
         await controller.compareWithSelected(uri("/repo/diagram.dmn"));
@@ -108,7 +109,7 @@ describe("BpmnCompareController.compareWithSelected", () => {
     });
 });
 
-describe("BpmnCompareController.compareSelected", () => {
+describe("CompareController.compareSelected", () => {
     it("informs the user when the selection is not exactly two .bpmn files", async () => {
         const { controller, notifier, diffController } = createController();
         // A single .bpmn plus a non-.bpmn collapses to one after the filter.

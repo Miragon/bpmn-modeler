@@ -16,7 +16,7 @@ import {
 
 /**
  * Pure helper with no persistent state, so both `VsCodeEditorHandle` (editable
- * editors) and `BpmnDiffController` (readonly diff panes) can invoke it
+ * editors) and `DiffController` (readonly diff panes) can invoke it
  * independently without going through each other.
  *
  * @param initialPanelVisible When `false`, HTML renders the properties panel

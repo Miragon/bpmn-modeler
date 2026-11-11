@@ -13,10 +13,10 @@ vi.mock("vscode", () => ({
 
 import { commands, workspace } from "vscode";
 
-import { DiffPaneStore } from "@miragon/bpmn-modeler-core";
+import { createDiffPaneRouter, DiffPaneStore } from "@miragon/bpmn-modeler-core";
 import { FakeDiffPaneHandle, RecordingNotifier } from "@miragon/bpmn-modeler-core/testing";
 import { vsCodeModelerPreferences } from "../../../shared/adapter/out/modelerConfiguration";
-import { BootstrappableDiffPane, BpmnDiffController } from "./BpmnDiffController";
+import { BootstrappableDiffPane, DiffController } from "./DiffController";
 
 const bootstrapSpy = vi.fn();
 
@@ -69,13 +69,11 @@ function createController() {
         rebroadcastLanguage: vi.fn(),
     };
     const notifier = new RecordingNotifier();
-    const controller = new BpmnDiffController(
-        store,
-        diffService as never,
-        notifier,
-        fakePane,
-        vsCodeModelerPreferences,
-    );
+    const controller = new DiffController(store, notifier, fakePane, vsCodeModelerPreferences, {
+        extension: ".bpmn",
+        createRouter: (extensions) => createDiffPaneRouter(diffService as never, extensions),
+        rebroadcastLanguage: diffService.rebroadcastLanguage,
+    });
     return { controller, store, diffService, notifier };
 }
 
@@ -84,7 +82,7 @@ beforeEach(() => {
     tabs.length = 0;
 });
 
-describe("BpmnDiffController.shouldResolveAsDiff", () => {
+describe("DiffController.shouldResolveAsDiff", () => {
     it("returns false when a pane already exists for the URI (second resolve)", () => {
         const { controller, store } = createController();
         const value = "file:///repo/diagram.bpmn";
@@ -129,7 +127,7 @@ describe("BpmnDiffController.shouldResolveAsDiff", () => {
     });
 });
 
-describe("BpmnDiffController.openCompareFilesDiff", () => {
+describe("DiffController.openCompareFilesDiff", () => {
     it("registers the session before invoking vscode.diff", async () => {
         const { controller, store } = createController();
 
@@ -167,7 +165,7 @@ describe("BpmnDiffController.openCompareFilesDiff", () => {
     });
 });
 
-describe("BpmnDiffController.resolveDiffPane", () => {
+describe("DiffController.resolveDiffPane", () => {
     it("attaches a compare-files pane to its session and bootstraps the webview", () => {
         const { controller, store } = createController();
         store.registerCompareFiles("file:///a.bpmn", "file:///b.bpmn");
@@ -206,7 +204,7 @@ describe("BpmnDiffController.resolveDiffPane", () => {
     });
 });
 
-describe("BpmnDiffController message dispatch", () => {
+describe("DiffController message dispatch", () => {
     /** Resolves a pane and returns the captured webview message handler. */
     function paneWithMessageHandler() {
         const ctx = createController();
@@ -251,7 +249,7 @@ describe("BpmnDiffController message dispatch", () => {
     });
 });
 
-describe("BpmnDiffController.swapCompareFilesSides", () => {
+describe("DiffController.swapCompareFilesSides", () => {
     it("reopens a compare-files diff with the sides reversed", async () => {
         const { controller, store } = createController();
         store.registerCompareFiles("file:///a.bpmn", "file:///b.bpmn");
@@ -299,7 +297,7 @@ describe("BpmnDiffController.swapCompareFilesSides", () => {
     });
 });
 
-describe("BpmnDiffController configuration", () => {
+describe("DiffController configuration", () => {
     it("registers a configuration listener on the extension context", () => {
         const { controller } = createController();
         const subscription = { dispose: vi.fn() };
