@@ -367,6 +367,38 @@ describe("DmnModeler", () => {
         expect(changed).toHaveBeenCalledTimes(2);
     });
 
+    it("rings the DRD canvas while it holds the keyboard and drops the ring with the view", () => {
+        new DmnModeler(document.createElement("main"), {
+            propertiesPanel: { parent: document.createElement("aside") },
+        });
+        const vendor = mocks.vendors[0];
+        const container = document.createElement("div");
+        const listeners = new Map<string, (event: { focused: boolean }) => void>();
+        const eventBus = {
+            on: (event: string, callback: (event: { focused: boolean }) => void) =>
+                listeners.set(event, callback),
+            off: vi.fn(),
+        };
+        const ringed = () =>
+            container.querySelector<HTMLElement>(".canvas-focus-ring")?.hidden === false;
+
+        vendor.activeView = drdView;
+        vendor.activeViewer = createViewer({
+            canvas: { getContainer: () => container, isFocused: () => false },
+            eventBus,
+        });
+        vendor.emitViews();
+        expect(ringed()).toBe(false);
+
+        listeners.get("canvas.focus.changed")!({ focused: true });
+        expect(ringed()).toBe(true);
+
+        vendor.activeView = tableView;
+        vendor.activeViewer = createViewer({ eventBus: createEventBus() });
+        vendor.emitViews();
+        expect(ringed()).toBe(false);
+    });
+
     it("resizes the current canvas and only focuses a DRD canvas", () => {
         const handle = new DmnModeler(document.createElement("main"), {
             propertiesPanel: { parent: document.createElement("aside") },

@@ -1,7 +1,7 @@
 import {
     type Disposer,
     DisposableStore,
-    installCanvasFocusIndicator,
+    installCanvasFocusRing,
 } from "@miragon/bpmn-modeler-types";
 
 import { installKeyboardFocus } from "./keyboardFocus";
@@ -21,7 +21,7 @@ export interface SurfaceFocusOptions {
 
 /**
  * Installs the shared canvas focus features — keyboard-focus/Escape handling and
- * the canvas focus indicator — every surface wires identically. Services resolve
+ * the canvas focus ring — every surface wires identically. Services resolve
  * lazily through `getService` because the guard is armed right after the bpmn-js
  * instance exists.
  *
@@ -43,7 +43,16 @@ export function installSurfaceFocusFeatures(
         getService<{ get(): unknown[]; select(elements: null): void }>("selection");
 
     const store = new DisposableStore();
-
+    store.add(
+        installCanvasFocusRing({
+            container: canvasContainer,
+            isFocused: () => canvas.isFocused(),
+            onFocusChanged: (listener) =>
+                eventBus().on("canvas.focus.changed", (event: { focused: boolean }) =>
+                    listener(event.focused),
+                ),
+        }),
+    );
     store.add(
         installKeyboardFocus({
             roots: [canvasContainer, ...(options.extraRoots ?? [])],
@@ -60,23 +69,5 @@ export function installSurfaceFocusFeatures(
                 : () => {},
         }),
     );
-
-    // Canvas focus events exclude controls such as the lint chip that would match container focusin.
-    store.add(
-        installCanvasFocusIndicator({
-            parent: canvasContainer,
-            isFocused: () => canvas.isFocused(),
-            onFocusChanged: (listener) =>
-                eventBus().on("canvas.focus.changed", (e: { focused: boolean }) =>
-                    listener(e.focused),
-                ),
-            hasSelection: () => selection().get().length > 0,
-            onSelectionChanged: (listener) =>
-                eventBus().on("selection.changed", (e: { newSelection: unknown[] }) =>
-                    listener(e.newSelection.length > 0),
-                ),
-        }),
-    );
-
     return () => store.dispose();
 }

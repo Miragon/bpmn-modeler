@@ -11,7 +11,7 @@ import {
     createFlushableDebounceInput,
     DisposableStore,
     type FlushableDebounceInput,
-    installCanvasFocusIndicator,
+    installCanvasFocusRing,
     MutableDisposable,
     NoModelerError,
     observeCanvasSize,
@@ -67,18 +67,13 @@ interface FocusableCanvas extends ResizableCanvas {
     isFocused(): boolean;
 }
 
-interface FocusIndicatorCanvas {
+interface DrdCanvas {
     getContainer(): HTMLElement;
     isFocused(): boolean;
 }
 
-interface DrdSelection {
-    get(): unknown[];
-}
-
 interface FocusEventBus {
     on(event: "canvas.focus.changed", callback: (event: { focused: boolean }) => void): void;
-    on(event: "selection.changed", callback: (event: { newSelection: unknown[] }) => void): void;
 }
 
 interface Viewbox {
@@ -97,7 +92,7 @@ interface ViewboxCanvas extends ResizableCanvas {
 export class DmnModeler implements DmnModelerHandle, DmnPendingInputHandle {
     private readonly modeler: VendorDmnModeler;
     private readonly store = new DisposableStore();
-    private readonly focusIndicator = new MutableDisposable();
+    private readonly canvasOverlays = new MutableDisposable();
     private readonly commandStackBinding = new MutableDisposable();
     // Held here rather than read from the active viewer, so the handle sees the
     // input of every view, not only the open one.
@@ -188,7 +183,7 @@ export class DmnModeler implements DmnModelerHandle, DmnPendingInputHandle {
                 this.commandStackBinding.dispose();
                 this.activeEventBus = undefined;
             },
-            () => this.focusIndicator.dispose(),
+            () => this.canvasOverlays.dispose(),
         );
     }
 
@@ -340,35 +335,29 @@ export class DmnModeler implements DmnModelerHandle, DmnPendingInputHandle {
             this.commandStackBinding.set(
                 eventBus && (() => eventBus.off("commandStack.changed", this.handleContentChanged)),
             );
-            this.syncCanvasFocusIndicator();
+            this.syncCanvasOverlays();
         }
     }
 
-    // Only the DRD view has diagram-js canvas focus.
-    private syncCanvasFocusIndicator(): void {
-        this.focusIndicator.set(undefined);
+    // Only the DRD view has a diagram-js canvas to focus.
+    private syncCanvasOverlays(): void {
+        this.canvasOverlays.set(undefined);
 
         if (this.modeler.getActiveView()?.type !== "drd") {
             return;
         }
         const viewer = this.getActiveViewer();
-        const canvas = viewer?.get<FocusIndicatorCanvas>("canvas", false);
-        const selection = viewer?.get<DrdSelection>("selection", false);
+        const canvas = viewer?.get<DrdCanvas>("canvas", false);
         const eventBus = viewer?.get<FocusEventBus>("eventBus", false);
-        if (!canvas || !selection || !eventBus) {
+        if (!canvas || !eventBus) {
             return;
         }
-        this.focusIndicator.set(
-            installCanvasFocusIndicator({
-                parent: canvas.getContainer(),
+        this.canvasOverlays.set(
+            installCanvasFocusRing({
+                container: canvas.getContainer(),
                 isFocused: () => canvas.isFocused(),
                 onFocusChanged: (listener) =>
                     eventBus.on("canvas.focus.changed", (event) => listener(event.focused)),
-                hasSelection: () => selection.get().length > 0,
-                onSelectionChanged: (listener) =>
-                    eventBus.on("selection.changed", (event) =>
-                        listener(event.newSelection.length > 0),
-                    ),
             }),
         );
     }
