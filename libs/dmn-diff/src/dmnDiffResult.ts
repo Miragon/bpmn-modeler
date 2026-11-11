@@ -50,8 +50,9 @@ export interface DecisionTableChanges {
  * The DRD lists hold the ids of decisions, input data, business knowledge
  * models, knowledge sources, text annotations, associations and requirements,
  * each ordered as the user reads the DRD: top to bottom, then left to right.
- * `navigationOrder` merges them; a removed element takes its position from the
- * before version.
+ * `navigationOrder` merges them for a stepper, which steps past an edge that
+ * only moved with its shape, as the BPMN diff's does; a removed element takes
+ * its position from the before version.
  */
 export interface DmnDiffResult {
     readonly added: readonly string[];

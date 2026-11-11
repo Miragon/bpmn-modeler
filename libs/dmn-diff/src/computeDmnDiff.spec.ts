@@ -40,7 +40,6 @@ describe("computeDmnDiff", () => {
             counts: { added: 2, removed: 2, changed: 1, layoutChanged: 2 },
             navigationOrder: [
                 "Source_Contracts",
-                "AR_Contracts",
                 "Decision_Shipping",
                 "Decision_Surcharge",
                 "IR_Surcharge",
@@ -100,6 +99,23 @@ describe("computeDmnDiff", () => {
         );
 
         expect(result.layoutChanged).toEqual(["IR_1"]);
+    });
+
+    it("steps past an edge that only moved with its shape, but still counts it", async () => {
+        const body =
+            '<decision id="D1" name="D1"><informationRequirement id="IR_1"><requiredInput href="#I1" /></informationRequirement></decision><inputData id="I1" name="Weight" />';
+        const diagram = (x: number) =>
+            shape("D1", 100, 100) +
+            shape("I1", x, 300, 125, 45) +
+            edge("IR_1", [
+                [x + 60, 300],
+                [160, 180],
+            ]);
+
+        const result = await computeDmnDiff(dmn(body, diagram(100)), dmn(body, diagram(400)));
+
+        expect(result.layoutChanged).toEqual(["IR_1", "I1"]);
+        expect(result.navigationOrder).toEqual(["I1"]);
     });
 
     it("ignores column widths, which only change the layout", async () => {

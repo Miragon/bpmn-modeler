@@ -30,6 +30,8 @@ interface DrdElement {
     readonly element: ModdleElement;
     readonly signature: string;
     readonly order: number;
+    /** A requirement or an association, drawn as an edge between shapes. */
+    readonly isEdge: boolean;
 }
 
 interface Layout {
@@ -86,9 +88,11 @@ export function compareDefinitions(before: ModdleElement, after: ModdleElement):
             changed: changed.length,
             layoutChanged: layoutChanged.length,
         },
-        navigationOrder: inReadingOrder([
-            ...new Set([...added, ...removed, ...changed, ...layoutChanged]),
-        ]),
+        navigationOrder: inReadingOrder(
+            [...new Set([...added, ...removed, ...changed, ...layoutChanged])].filter(
+                (id) => !(to.get(id)?.isEdge && !changed.includes(id) && !added.includes(id)),
+            ),
+        ),
         tables,
         expressions: inReadingOrder(expressions),
     };
@@ -109,19 +113,22 @@ function compareReadingOrder(
 
 function drdElements(definitions: ModdleElement): Map<string, DrdElement> {
     const elements = new Map<string, DrdElement>();
-    const add = (element: ModdleElement, value: string) => {
-        if (element.id)
-            elements.set(element.id, { element, signature: value, order: elements.size });
+    const add = (element: ModdleElement, value: string, isEdge: boolean) => {
+        if (element.id) {
+            elements.set(element.id, { element, signature: value, order: elements.size, isEdge });
+        }
     };
     for (const element of many(definitions, "drgElement")) {
-        add(element, signature(element, OWN_CONTENT));
+        add(element, signature(element, OWN_CONTENT), false);
         for (const name of REQUIREMENTS) {
             for (const requirement of many(element, name)) {
-                add(requirement, `${element.id ?? ""}${signature(requirement)}`);
+                add(requirement, `${element.id ?? ""}${signature(requirement)}`, true);
             }
         }
     }
-    for (const artifact of many(definitions, "artifact")) add(artifact, signature(artifact));
+    for (const artifact of many(definitions, "artifact")) {
+        add(artifact, signature(artifact), artifact.$type === "dmn:Association");
+    }
     return elements;
 }
 
