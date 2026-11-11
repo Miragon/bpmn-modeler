@@ -12,7 +12,7 @@ export interface IdCandidate {
  * `matches`: the ID already follows the name. `unchecked`: the user keeps the
  * current ID. `skipped`: the name yields no ID.
  */
-export type IdProposalStatus = "rename" | "matches" | "unchecked" | "skipped";
+type IdProposalStatus = "rename" | "matches" | "unchecked" | "skipped";
 
 export interface IdProposal<C extends IdCandidate = IdCandidate> {
     readonly candidate: C;
