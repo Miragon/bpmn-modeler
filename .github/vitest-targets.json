@@ -305,6 +305,16 @@
             ],
             "typecheck": "build"
         },
+        "dmn-diff": {
+            "dir": "libs/dmn-diff",
+            "package": "@miragon/dmn-modeler-diff",
+            "paths": [
+                "libs/dmn-diff/**",
+                "libs/bpmn-diff/src/diffResult.ts",
+                "yarn.lock"
+            ],
+            "typecheck": "build"
+        },
         "bpmn-i18n-extras": {
             "dir": "libs/bpmn-i18n-extras",
             "package": "@miragon/bpmn-modeler-i18n-extras",
