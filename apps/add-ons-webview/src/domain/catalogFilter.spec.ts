@@ -18,8 +18,7 @@ import {
     withKindToggled,
 } from "./catalogFilter";
 
-const ALLOW = { kind: "allow", label: "Allow this content" } as const;
-const INSPECT = { kind: "inspect", label: "Review…" } as const;
+const ALLOW = { kind: "allow", label: "Allow" } as const;
 const REVOKE = { kind: "revoke", label: "Revoke" } as const;
 const DISABLE = { kind: "disable", label: "Disable" } as const;
 
@@ -49,7 +48,7 @@ const acme: AddOnPayload = {
     name: "bpmnlint-plugin-acme",
     state: "new",
     stateText: "Not allowed yet",
-    actions: [INSPECT],
+    actions: [ALLOW],
 };
 const mail: AddOnPayload = {
     id: "template:/work/mail",
@@ -107,7 +106,7 @@ function namesOf(shown: readonly AddOnGroupPayload[]): string[] {
 describe("needsReview", () => {
     it.each([
         ["an add-on that offers Allow", resize, true],
-        ["an add-on that offers Review…", acme, true],
+        ["a rule package that offers Allow", acme, true],
         ["an allowed add-on", palette, false],
         ["a template", mail, false],
     ])("is %s: %s", (_, addOn, expected) => {

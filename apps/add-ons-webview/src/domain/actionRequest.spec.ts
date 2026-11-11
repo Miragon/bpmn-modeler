@@ -2,11 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import type { AddOnRequestPayload } from "@miragon/bpmn-modeler-shared";
 
-import { actionRequestOf } from "./actionRequest";
+import { actionRequestOf, isActionKind } from "./actionRequest";
 import type { ActionKindPayload } from "./actionRequest";
 
 const ROWS = {
-    inspect: { kind: "inspect", addOnId: "target" },
     allow: { kind: "allow", addOnId: "target", revision: 42 },
     revoke: { kind: "revoke", addOnId: "target" },
     enable: { kind: "enable", addOnId: "target" },
@@ -26,4 +25,15 @@ describe("actionRequestOf", () => {
             expect(actionRequestOf(actionKind, "target", 42)).toEqual(request);
         },
     );
+});
+
+describe("isActionKind", () => {
+    it.each<[string, boolean]>([
+        ["allow", true],
+        ["pruneCache", true],
+        ["inspect", false],
+        ["toString", false],
+    ])("%s: %s", (kind, expected) => {
+        expect(isActionKind(kind)).toBe(expected);
+    });
 });

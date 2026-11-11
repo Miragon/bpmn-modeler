@@ -16,7 +16,6 @@ import {
 } from "../../__fixtures__/catalogs";
 import { mountedView } from "../../__fixtures__/mountedView";
 
-const DIGEST = "526573697a65205461736b7300000000000000000000000000000000000000ab";
 const ADD = { kind: "addMarketplace", label: "Add marketplace…" } as const;
 const UPDATE = { kind: "updateMarketplaces", label: "Update marketplaces" } as const;
 const PRUNE = { kind: "pruneCache", label: "Remove unused plugin copies" } as const;
@@ -467,7 +466,7 @@ describe("AddOnsView", () => {
                 ...RESIZE.review!,
                 facts: [
                     { label: "Folder", value: ".camunda/plugins/resize" },
-                    { label: "Content hash", value: DIGEST },
+                    { label: "Allowed in", value: "every worktree of /work" },
                 ],
             },
         };
@@ -493,7 +492,7 @@ describe("AddOnsView", () => {
             ]);
         });
 
-        it("shows the review open, with its warning, facts, the hash in mono and Allow at its end", () => {
+        it("shows the review open, with its warning, facts and Allow at its end", () => {
             const { root } = mountedView(changed(RESIZE.id, reviewed));
             const review = root.querySelector(".av-review")!;
 
@@ -501,14 +500,14 @@ describe("AddOnsView", () => {
                 review.querySelector(".av-review-toggle")?.getAttribute("aria-expanded"),
                 text(review.querySelector(".av-box-warning")),
                 [...review.querySelectorAll("dt")].map(text),
-                [...review.querySelectorAll(".av-mono")].map(text),
+                [...review.querySelectorAll("dd")].map(text),
                 text(review.querySelector(".av-review-end button")),
             ]).toEqual([
                 "true",
                 RESIZE.review!.warning,
-                ["Folder", "Content hash"],
-                [DIGEST],
-                "Allow this content",
+                ["Folder", "Allowed in"],
+                [".camunda/plugins/resize", "every worktree of /work"],
+                "Allow",
             ]);
         });
 
@@ -543,13 +542,13 @@ describe("AddOnsView", () => {
         it("asks for Allow and marks the add-on busy until the result", () => {
             const { button, host, root, row } = mountedView(CATALOG);
 
-            button("Allow this content").click();
+            button("Allow").click();
 
             expect([
                 host.posted.at(-1),
                 root.querySelector(".av-detail-card")?.getAttribute("aria-busy"),
                 row(RESIZE.name).parentElement?.getAttribute("aria-busy"),
-                button("Allow this content").getAttribute("aria-disabled"),
+                button("Allow").getAttribute("aria-disabled"),
             ]).toEqual([
                 new AddOnRequestCommand(1, {
                     kind: "allow",
@@ -564,9 +563,9 @@ describe("AddOnsView", () => {
 
         it("asks nothing for a busy button", () => {
             const { button, host } = mountedView(CATALOG);
-            button("Allow this content").click();
+            button("Allow").click();
 
-            button("Allow this content").click();
+            button("Allow").click();
 
             expect(host.posted.length).toBe(1);
         });
@@ -595,7 +594,7 @@ describe("AddOnsView", () => {
         it("swaps the text of a live region that stays in the page", () => {
             const { root, button, session } = mountedView(CATALOG);
             const status = root.querySelector("[role=status]")!;
-            button("Allow this content").click();
+            button("Allow").click();
 
             session.dispatch({
                 kind: "resultArrived",
@@ -612,7 +611,7 @@ describe("AddOnsView", () => {
 
         it("shows a refusal as an alert and dismisses it", () => {
             const { root, button, session, events } = mountedView(CATALOG);
-            button("Allow this content").click();
+            button("Allow").click();
             session.dispatch({
                 kind: "resultArrived",
                 requestId: 1,
@@ -1139,7 +1138,7 @@ describe("AddOnsView", () => {
     describe("focus after an action", () => {
         it("returns to the row after an allow, never to the button that replaced Allow", () => {
             const { button, session, row, arrive } = mountedView(CATALOG);
-            button("Allow this content").click();
+            button("Allow").click();
 
             session.dispatch({ kind: "resultArrived", requestId: 1, result: { kind: "done" } });
             arrive(
@@ -1154,25 +1153,6 @@ describe("AddOnsView", () => {
             );
 
             expect(document.activeElement).toBe(row(RESIZE.name));
-        });
-
-        it("goes to the review a read offers", () => {
-            const { row, button, session, arrive, root } = mountedView(CATALOG);
-            row(ACME.name).click();
-            button("Review…").click();
-
-            session.dispatch({ kind: "resultArrived", requestId: 1, result: { kind: "done" } });
-            arrive(
-                withRevision(
-                    11,
-                    changed(ACME.id, {
-                        review: RESIZE.review,
-                        actions: [{ kind: "allow", label: "Allow this content" }],
-                    }),
-                ),
-            );
-
-            expect(document.activeElement).toBe(root.querySelector(".av-review-toggle"));
         });
 
         it("stays on a switch that takes its own place", () => {

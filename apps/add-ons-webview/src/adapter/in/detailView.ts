@@ -12,10 +12,9 @@ import type { Placement } from "../../domain/catalogQueries";
 import { CHROME_TEXT } from "../../domain/chromeTexts";
 import { isReviewOpen, reviewKeyOf } from "../../domain/expansion";
 import { placedActions, reviewOf } from "../../domain/placedActions";
-import { isDigestValue } from "../../domain/reviewFacts";
 import { isBusy, ViewState } from "../../domain/viewState";
 import { actionButton, button, el, icon, markFocus, setBusy, toggleButton } from "./dom";
-import { addOnActionIcon, SOURCE_ICON } from "./icons";
+import { ADD_ON_ACTION_ICON, SOURCE_ICON } from "./icons";
 import { kindTag, statusBox, statusMark } from "./statusMarks";
 
 export function backButton(onBack: () => void): HTMLButtonElement {
@@ -67,7 +66,7 @@ function addOnButton(
         targetId: addOn.id,
         busy,
         emphasis: addOnActionEmphasis(action.kind),
-        icon: addOnActionIcon(action.kind, addOn),
+        icon: ADD_ON_ACTION_ICON[action.kind],
         focus: "action",
     });
 }
@@ -136,8 +135,7 @@ function reviewSection(
     const facts = el("dl", "av-facts");
     review.facts.forEach(({ label, value }) => {
         const fact = el("div", "av-fact");
-        const valueClass = isDigestValue(value) ? "av-fact-value av-mono" : "av-fact-value";
-        fact.append(el("dt", "av-fact-label", label), el("dd", valueClass, value));
+        fact.append(el("dt", "av-fact-label", label), el("dd", "av-fact-value", value));
         facts.append(fact);
     });
     body.append(statusBox("warning", review.warning), facts);

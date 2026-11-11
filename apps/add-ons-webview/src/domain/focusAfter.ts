@@ -3,7 +3,6 @@ import type { AddOnCatalogPayload, CatalogActionKindPayload } from "@miragon/bpm
 import type { ActionKindPayload } from "./actionRequest";
 import { placementOf, sourceOf } from "./catalogQueries";
 import { headsOf } from "./expansion";
-import { reviewOf } from "./placedActions";
 
 /**
  * `reveal`: a "Review…" asked for it, so it may take focus the page does not hold yet.
@@ -16,7 +15,6 @@ export type FocusTarget =
           readonly reveal?: true;
           readonly requested?: true;
       }
-    | { readonly kind: "review"; readonly addOnId: string }
     /** The button at this place among its add-on's or source's actions. */
     | { readonly kind: "action"; readonly targetId: string; readonly slot: number }
     | { readonly kind: "toolbar"; readonly actionKind: CatalogActionKindPayload }
@@ -39,7 +37,6 @@ const toToolbar =
 const AFTER_DONE: Record<ActionKindPayload, AfterDone> = {
     allow: toRow,
     revoke: toRow,
-    inspect: (targetId) => ({ kind: "review", addOnId: targetId }),
     enable: toSlot,
     disable: toSlot,
     enableTemplates: toSlot,
@@ -67,10 +64,6 @@ export function isFocusable(target: FocusTarget, model: AddOnCatalogPayload): bo
     switch (target.kind) {
         case "head":
             return isListed(model, target.headId);
-        case "review": {
-            const addOn = placementOf(model.groups, target.addOnId)?.addOn;
-            return addOn !== undefined && reviewOf(addOn) !== undefined;
-        }
         case "action":
             return actionsOf(model, target.targetId).length > target.slot;
         case "toolbar":

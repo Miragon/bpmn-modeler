@@ -18,10 +18,10 @@ export const RESIZE: CodeAddOnPayload = {
         warning: "Plugin risk. Allow it only if you trust it.",
         facts: [
             { label: "Folder", value: ".camunda/plugins/resize" },
-            { label: "Content hash", value: "ab12" },
+            { label: "Allowed in", value: "every worktree of /work" },
         ],
     },
-    actions: [{ kind: "allow", label: "Allow this content" }],
+    actions: [{ kind: "allow", label: "Allow" }],
 };
 
 export const PALETTE: CodeAddOnPayload = {
@@ -41,7 +41,16 @@ export const ACME: CodeAddOnPayload = {
     name: "bpmnlint-plugin-acme",
     state: "new",
     stateText: "Not allowed yet",
-    actions: [{ kind: "inspect", label: "Review…" }],
+    review: {
+        heading: "Review bpmnlint-plugin-acme before you allow it",
+        warning: "Rule package risk. Allow it only if you trust it.",
+        facts: [
+            { label: "Folder", value: "node_modules/bpmnlint-plugin-acme" },
+            { label: "Version", value: "1.0.0" },
+            { label: "Allowed in", value: "every worktree of /work" },
+        ],
+    },
+    actions: [{ kind: "allow", label: "Allow" }],
 };
 
 export const MAIL: TemplateAddOnPayload = {

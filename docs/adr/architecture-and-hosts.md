@@ -299,7 +299,7 @@ module, `src/domain/chromeTexts.ts`: they name the view's controls and
 summaries, which the core's model does not have, as "Loading…" does, and one
 module keeps them from scattering into adapters where a reviewer cannot tell
 them from model text. A row's "Needs review" is read from what the core
-offers (Allow or Review…), never from a rule of its own, and the detail shows
+offers (Allow), never from a rule of its own, and the detail shows
 the core's state text. Every other text comes from the core, which also sends
 `emptyText`, why no folder lists an add-on, whenever the workspace has none,
 marketplaces or not.
