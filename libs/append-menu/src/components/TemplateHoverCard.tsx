@@ -12,7 +12,7 @@ import {
     extractImplementationDetail,
     partitionVisibleProperties,
     propertyDisplayLabel,
-    templatePropertyValue,
+    templatePropertyDisplayText,
     type TemplateProperty,
 } from "@miragon/bpmn-modeler-element-template-chooser/types";
 import type { HoverCardPosition } from "../positioning";
@@ -141,7 +141,7 @@ function ParameterSection({
             <h5 class="am-hover-param-title">{title}</h5>
             <ul class="am-hover-param-list">
                 {items.map((p, i) => {
-                    const value = templatePropertyValue(p);
+                    const displayText = templatePropertyDisplayText(p);
                     return (
                         <li key={i} class="am-hover-param-item">
                             <div class="am-hover-param-header">
@@ -167,7 +167,7 @@ function ParameterSection({
                                 </div>
                             </div>
                             {p.description && <p class="am-hover-param-desc">{p.description}</p>}
-                            {value && <code class="am-hover-param-value">{value}</code>}
+                            {displayText && <code class="am-hover-param-value">{displayText}</code>}
                         </li>
                     );
                 })}

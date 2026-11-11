@@ -10,7 +10,7 @@ export interface TemplateProperty {
     id?: string;
     label?: string;
     type: string;
-    value?: string;
+    value?: string | number | boolean;
     description?: string;
     editable?: boolean;
     optional?: boolean;
@@ -93,12 +93,17 @@ export function applyTemplatePreset(
 
 // Mirrors bpmn-js-element-templates' `getTemplateValue`: a required dropdown
 // without a value is created with its first choice, like a <select>.
-export function templatePropertyValue(property: TemplateProperty): string | undefined {
+export function templatePropertyValue(property: TemplateProperty): TemplateProperty["value"] {
     const { choices, optional, type, value } = property;
     if (value === undefined && type === "Dropdown" && !optional && choices?.length) {
         return choices[0].value;
     }
     return value;
+}
+
+export function templatePropertyDisplayText(property: TemplateProperty): string | undefined {
+    const value = templatePropertyValue(property);
+    return value === undefined || value === "" ? undefined : String(value);
 }
 
 /** Binding-type groupings used to classify template properties for the preview panel. */
@@ -164,8 +169,8 @@ export function extractImplementationDetail(
                     (!bindingName || p.binding.name === bindingName) &&
                     (!bindingProperty || p.binding.property === bindingProperty),
             )
-            .map(templatePropertyValue)
-            .find((candidate) => !!candidate);
+            .map(templatePropertyDisplayText)
+            .find((text) => text !== undefined);
         if (value) {
             return { label, value };
         }

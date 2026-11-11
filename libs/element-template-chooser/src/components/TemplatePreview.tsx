@@ -7,7 +7,7 @@ import {
     extractImplementationDetail,
     partitionVisibleProperties,
     propertyDisplayLabel,
-    templatePropertyValue,
+    templatePropertyDisplayText,
 } from "../types";
 
 interface TemplatePreviewProps {
@@ -133,7 +133,7 @@ function ParameterSection({
             <h4 class="etc-param-title">{title}</h4>
             <ul class="etc-param-list">
                 {items.map((p, i) => {
-                    const value = templatePropertyValue(p);
+                    const displayText = templatePropertyDisplayText(p);
                     return (
                         <li key={i} class="etc-param-item">
                             <div class="etc-param-header">
@@ -159,7 +159,7 @@ function ParameterSection({
                                 </div>
                             </div>
                             {p.description && <p class="etc-param-desc">{p.description}</p>}
-                            {value && <code class="etc-param-value">{value}</code>}
+                            {displayText && <code class="etc-param-value">{displayText}</code>}
                         </li>
                     );
                 })}

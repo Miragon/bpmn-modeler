@@ -372,6 +372,41 @@ describe("AppendMenuOverlay", () => {
         expect(container.querySelector(".am-hover-param-value")?.textContent).toBe("send-mail");
     });
 
+    it("previews Boolean and Number values", () => {
+        const http = templateEntry("http", "HTTP", {
+            template: {
+                properties: [
+                    {
+                        label: "Follow redirects",
+                        type: "Boolean",
+                        value: true,
+                        binding: { type: "zeebe:input", name: "followRedirects" },
+                    },
+                    {
+                        label: "Strict",
+                        type: "Boolean",
+                        value: false,
+                        binding: { type: "zeebe:input", name: "strict" },
+                    },
+                    {
+                        label: "Retries",
+                        type: "Number",
+                        value: 0,
+                        binding: { type: "zeebe:input", name: "retries" },
+                    },
+                ],
+            },
+        });
+
+        renderOverlay({ templateEntries: [http] });
+
+        expect(
+            [...container.querySelectorAll(".am-hover-param-value")].map(
+                (chip) => chip.textContent,
+            ),
+        ).toEqual(["true", "false", "0"]);
+    });
+
     describe("hover previews", () => {
         beforeEach(() => {
             vi.useFakeTimers();
