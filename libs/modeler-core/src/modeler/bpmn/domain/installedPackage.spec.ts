@@ -11,7 +11,7 @@ import {
     InstalledEntry,
     rulePackageFolderNames,
     rulePackageScopesToList,
-} from "./packageClosure";
+} from "./installedPackage";
 
 const STAMP: PathStamp = {
     kind: "file",

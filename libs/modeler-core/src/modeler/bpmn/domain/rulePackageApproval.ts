@@ -25,7 +25,7 @@ import {
     relativeToWorkspace,
 } from "../../../kernel/domain/rootContainment";
 import { joinWorkspacePath } from "../../../kernel/domain/workspacePath";
-import { manifestPathOf, packageManifestOf } from "./packageClosure";
+import { manifestPathOf, packageManifestOf } from "./installedPackage";
 
 export const RULE_PACKAGE_APPROVAL_NOTICE_ID = "bpmnlintPackageApprovalNotice";
 

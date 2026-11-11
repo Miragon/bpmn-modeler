@@ -1,7 +1,7 @@
 import { RepositoryFilesPort } from "../../../kernel/port/repositoryFilesPort";
-import { InstalledEntry, PathStamp } from "../domain/packageClosure";
+import { InstalledEntry, PathStamp } from "../domain/installedPackage";
 
-export type { InstalledEntry, InstalledEntryKind, PathStamp } from "../domain/packageClosure";
+export type { InstalledEntry, InstalledEntryKind, PathStamp } from "../domain/installedPackage";
 
 /**
  * Reads installed packages on disk, so the core can find, name and stamp a

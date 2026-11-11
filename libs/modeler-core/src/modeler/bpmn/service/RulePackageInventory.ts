@@ -9,7 +9,7 @@ import {
     manifestPathOf,
     rulePackageFolderNames,
     rulePackageScopesToList,
-} from "../domain/packageClosure";
+} from "../domain/installedPackage";
 import {
     installedPackagesDirOf,
     nodeModulesDirOf,

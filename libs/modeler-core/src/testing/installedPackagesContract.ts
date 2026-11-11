@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { samePathStamp } from "../modeler/bpmn/domain/packageClosure";
+import { samePathStamp } from "../modeler/bpmn/domain/installedPackage";
 import { InstalledPackagesPort } from "../modeler/bpmn/port/installedPackagesPort";
 
 /** One {@link InstalledPackagesPort} adapter under the {@link describeInstalledPackagesContract} scenarios. */

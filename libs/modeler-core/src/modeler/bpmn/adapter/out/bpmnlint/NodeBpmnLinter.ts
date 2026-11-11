@@ -6,7 +6,7 @@ import { createBundledResolver } from "@miragon/bpmnlint-plugin-rules";
 
 import { CodeApproval } from "../../../../../kernel/domain/codeApproval";
 import { fileSystemPathOf, toWorkspacePath } from "../../../../../kernel/domain/workspacePath";
-import { PathStamp } from "../../../domain/packageClosure";
+import { PathStamp } from "../../../domain/installedPackage";
 import { isParsedAsJson, rulePackageApprovalsKey } from "../../../domain/rulePackageApproval";
 import { LintRun, LintRunnerPort } from "../../../port/bpmnPorts";
 import { CompositeResolver, Resolver } from "./CompositeResolver";

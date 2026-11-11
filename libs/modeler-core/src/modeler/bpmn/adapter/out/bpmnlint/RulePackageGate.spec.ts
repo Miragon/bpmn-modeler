@@ -13,7 +13,7 @@ import {
     writeLinkedWorktree,
     writeRepository,
 } from "../../../../../testing";
-import { PathStamp } from "../../../domain/packageClosure";
+import { PathStamp } from "../../../domain/installedPackage";
 import { RulePackageGate } from "./RulePackageGate";
 
 const REPO = "/repo";

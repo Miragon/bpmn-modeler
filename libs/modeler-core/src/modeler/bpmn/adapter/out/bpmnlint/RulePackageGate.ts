@@ -10,7 +10,7 @@ import {
     packageManifestOf,
     PathStamp,
     samePathStamp,
-} from "../../../domain/packageClosure";
+} from "../../../domain/installedPackage";
 import {
     AllowableRoot,
     BlockedRulePackage,
