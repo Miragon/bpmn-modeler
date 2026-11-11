@@ -32,6 +32,7 @@ internal enum class HostToCoreMethod(val wireName: String) {
     MARKETPLACE_UPDATE("marketplace/update"),
     MARKETPLACE_REMOVE("marketplace/remove"),
     MODELER_CHANGE_ENGINE_VERSION("modeler/changeEngineVersion"),
+    MODELER_CHANGE_LANGUAGE("modeler/changeLanguage"),
     LINTING_TOGGLE("linting/toggle"),
     MIGRATION_MIGRATE_ALL("migration/migrateAll"),
     LAYOUT_FORMAT("layout/format"),

@@ -17,6 +17,7 @@ import {
     getDmnModelerSettingHandler,
 } from "@miragon/bpmn-modeler-core";
 import { FormModelerService } from "@miragon/bpmn-modeler-core";
+import { FormEngineStatusBarParticipant, JsonFormTextEdits } from "@miragon/bpmn-modeler-core";
 import { ModelerEditorController } from "../modeler/editor-session/adapter/in/ModelerEditorController";
 import { DocumentSaveFlushController } from "../modeler/editor-session/adapter/in/DocumentSaveFlushController";
 import { FormValuesParticipant } from "../modeler/form/adapter/in/editor-participants/FormValuesParticipant";
@@ -41,7 +42,11 @@ import { SharedDeps } from "./sharedDeps";
 export function register(
     context: ExtensionContext,
     deps: SharedDeps,
-): { dmnEditorRoutes: RouteLookup; formEditorRoutes: RouteLookup } {
+): {
+    dmnEditorRoutes: RouteLookup;
+    formEditorRoutes: RouteLookup;
+    formService: FormModelerService;
+} {
     // DMN keeps its own default under a distinct key; the panel service is
     // engine-agnostic, so the BPMN implementation is reused.
     const dmnPanelStateRepo = new PropertiesPanelStateRepository(
@@ -54,7 +59,11 @@ export function register(
         deps.notifier,
     );
     const dmnService = new DmnModelerService(deps.editorStore, deps.vsDocument, deps.notifier);
-    const formService = new FormModelerService(deps.editorStore, deps.vsDocument, deps.notifier);
+    const formService = new FormModelerService(deps.editorStore, deps.vsDocument, deps.notifier, {
+        picker: deps.picker,
+        pendingEdits: deps.pendingEdits,
+        textEdits: new JsonFormTextEdits(),
+    });
     const formValues = new FormValuesController(deps.editorStore, deps.notifier);
     formValues.register(context);
     const dmnSettingsBroadcaster = new DmnSettingsBroadcaster(
@@ -114,6 +123,11 @@ export function register(
         messageRouter: formMessageRouter,
         participants: [
             new DocumentRenderParticipant(formService, ".form", deps.notifier),
+            new FormEngineStatusBarParticipant(
+                deps.statusBar,
+                deps.vsDocument,
+                deps.engineVersionOwnership,
+            ),
             new FormValuesParticipant(formValues),
         ],
     }).register(context);
@@ -124,5 +138,5 @@ export function register(
     // persist never trails the live model.
     new DocumentSaveFlushController(deps.editorStore, deps.pendingEdits).register(context);
 
-    return { dmnEditorRoutes: dmnMessageRouter, formEditorRoutes: formMessageRouter };
+    return { dmnEditorRoutes: dmnMessageRouter, formEditorRoutes: formMessageRouter, formService };
 }

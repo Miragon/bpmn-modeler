@@ -14,7 +14,6 @@ vi.mock("@miragon/bpmn-modeler-i18n-extras", () => ({
 
 // Hoisted because `vi.mock` is hoisted above imports; the factory closes over
 // these so each test can drive the vscode surface the controller touches.
-const showQuickPickMock = vi.fn();
 const showSaveDialogMock = vi.fn();
 const executeCommandMock = vi.fn();
 const clipboardWriteTextMock = vi.fn();
@@ -54,7 +53,6 @@ vi.mock("vscode", () => ({
         executeCommand: (...args: unknown[]) => executeCommandMock(...args),
     },
     window: {
-        showQuickPick: (...args: unknown[]) => showQuickPickMock(...args),
         showSaveDialog: (...args: unknown[]) => showSaveDialogMock(...args),
     },
     workspace: {
@@ -78,6 +76,7 @@ import {
     FOCUS_BPMN_DIAGRAM_MESSAGE,
     getLatestVersion,
     newModelEnginePrompt,
+    ModelerLanguageService,
 } from "@miragon/bpmn-modeler-core";
 import { createTestHost, PromptAnswers } from "@miragon/bpmn-modeler-core/testing";
 
@@ -94,6 +93,7 @@ function createController(promptAnswers: PromptAnswers = {}) {
     const editor = host.openEditor("/work/diagram.bpmn");
     const textEditor = { toggle: vi.fn().mockResolvedValue(true) };
     const bpmnService = { changeEngineVersion: vi.fn().mockResolvedValue(true) };
+    const formService = { changeEngineVersion: vi.fn().mockResolvedValue(true) };
     const migrationSvc = { migrateAllDiagrams: vi.fn().mockResolvedValue(true) };
     const documentFlush = {
         flushIntoDocument: vi.fn().mockResolvedValue({ status: "safe" as const, session: editor }),
@@ -112,6 +112,8 @@ function createController(promptAnswers: PromptAnswers = {}) {
         documentFlush as never,
         layoutSvc as never,
         vsCodeModelerPreferences,
+        new ModelerLanguageService(host.picker, vsCodeModelerPreferences, host.notifier),
+        formService,
     );
 
     return {
@@ -121,6 +123,7 @@ function createController(promptAnswers: PromptAnswers = {}) {
         notifier: host.notifier,
         textEditor,
         bpmnService,
+        formService,
         migrationSvc,
         picker: host.picker,
         documentFlush,
@@ -233,6 +236,36 @@ describe("CommandController layout commands", () => {
 });
 
 describe("CommandController.changeEngineVersion", () => {
+    it.each(["/work/request.form", "/work/request.FORM"])(
+        "uses the native Form selector for %s",
+        async (path) => {
+            const { controller, host, formService, bpmnService } = createController();
+            const editor = host.openEditor(path, "{}", { focused: true });
+            expect(await controller.changeEngineVersion()).toBe(true);
+            expect(formService.changeEngineVersion).toHaveBeenCalledWith(editor.id);
+            expect(bpmnService.changeEngineVersion).not.toHaveBeenCalled();
+        },
+    );
+
+    it("dispatches by the document path, not an editor URI suffix", async () => {
+        const { controller, host, editor, formService, bpmnService } = createController();
+        vi.spyOn(host.documents, "getFilePath").mockReturnValue("/work/request.FORM");
+        await controller.changeEngineVersion();
+        expect(formService.changeEngineVersion).toHaveBeenCalledWith(editor.id);
+        expect(bpmnService.changeEngineVersion).not.toHaveBeenCalled();
+    });
+
+    it.each(["/work/decision.dmn", "/work/template.json"])(
+        "declines unrelated editors: %s",
+        async (path) => {
+            const { controller, host, formService, bpmnService } = createController();
+            host.openEditor(path, "", { focused: true });
+            expect(await controller.changeEngineVersion()).toBe(false);
+            expect(formService.changeEngineVersion).not.toHaveBeenCalled();
+            expect(bpmnService.changeEngineVersion).not.toHaveBeenCalled();
+        },
+    );
+
     it("delegates to the bpmn service for the active editor", async () => {
         const { controller, editor, bpmnService } = createController();
 
@@ -254,25 +287,21 @@ describe("CommandController.migrateAllDiagrams", () => {
 
 describe("CommandController.changeLanguage", () => {
     it("offers every supported language as a label/locale pick", async () => {
-        const { controller } = createController();
-        showQuickPickMock.mockResolvedValue(undefined);
+        const { controller, picker } = createController();
 
         await controller.changeLanguage();
 
-        const items = showQuickPickMock.mock.calls[0][0] as {
-            label: string;
-            description: string;
-        }[];
+        const items = (picker.prompts[0].args[0] as { items: unknown[] }).items;
         expect(items).toHaveLength(supportedModelerLanguages.length);
         expect(items[0]).toEqual({
             label: supportedModelerLanguages[0].label,
             description: supportedModelerLanguages[0].locale,
+            value: supportedModelerLanguages[0].locale,
         });
     });
 
     it("writes nothing when the user dismisses the pick", async () => {
         const { controller } = createController();
-        showQuickPickMock.mockResolvedValue(undefined);
 
         await controller.changeLanguage();
 
@@ -280,9 +309,10 @@ describe("CommandController.changeLanguage", () => {
         expect(configUpdateMock).not.toHaveBeenCalled();
     });
 
-    it("persists the picked locale for the user", async () => {
-        const { controller } = createController();
-        showQuickPickMock.mockResolvedValue({ label: "English", description: "en" });
+    it("persists the picked locale for the user without an editor, even with an override", async () => {
+        const { controller, editor } = createController({ modelerLanguage: "en" });
+        editor.dispose();
+        configGetMock.mockReturnValue("en");
 
         await controller.changeLanguage();
 
@@ -502,8 +532,7 @@ describe("CommandController.writeToFile", () => {
 
 describe("CommandController command error surfacing", () => {
     it("logs and rethrows when changeLanguage's config update rejects", async () => {
-        const { controller, notifier } = createController();
-        showQuickPickMock.mockResolvedValue({ label: "English", description: "en" });
+        const { controller, notifier } = createController({ modelerLanguage: "en" });
         const failure = new Error("update denied");
         configUpdateMock.mockRejectedValueOnce(failure);
 

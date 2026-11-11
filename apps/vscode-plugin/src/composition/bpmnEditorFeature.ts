@@ -92,6 +92,7 @@ export function register(
         },
         {
             rendering: "on-host-document-change",
+            engineVersionOwnership: deps.engineVersionOwnership,
             documentSync: { flushes: deps.flushSvc, pendingEdits: deps.pendingEdits },
             lintingPreference: new VsCodeLintingPreference(),
             propertiesPanelState: new PropertiesPanelStateRepository(context),

@@ -3,19 +3,17 @@ import {
     BpmnMigrationService,
     BpmnModelerService,
     CoreWriteRenderer,
+    ModelerLanguageService,
 } from "@miragon/bpmn-modeler-core";
 
 import { modelerCommandHandlers } from "../modeler/bpmn/adapter/in/modelerCommandHandlers";
 import { bindHandlers } from "./bindHandlers";
 import { BridgeSharedDeps } from "./sharedDeps";
+import { RpcLanguagePreference } from "../modelerSettings/adapter/out/RpcLanguagePreference";
 
 /**
- * Wires the two portable modeler commands the IntelliJ host fires as Host→Core
- * notifications: change the active diagram's engine version, and migrate every
- * `.bpmn` in the workspace. Both reuse production core services unchanged — the
- * results surface through the existing `picker/show`, `document/write`, and
- * `notifier/*` ports, so no new Core→Host method is needed (the protocol contract
- * forbids Host→Core requests anyway).
+ * Wires portable modeler commands as Host→Core notifications. Core services
+ * choose through the generic picker and persist through host ports.
  *
  * The engine-version change and the layout commands reuse the BPMN editor's
  * {@link BpmnModelerService} and {@link BpmnLayoutService} (handed in via
@@ -45,6 +43,11 @@ export function register(
     bindHandlers(
         deps.rpc,
         modelerCommandHandlers({
+            language: new ModelerLanguageService(
+                deps.picker,
+                new RpcLanguagePreference(deps.rpc),
+                deps.notifier,
+            ),
             bpmnService: handles.bpmnService,
             layout: handles.layout,
             migration,

@@ -191,6 +191,8 @@ class CoreProcess(private val project: Project) : Disposable {
     fun changeEngineVersion(editorId: String) =
         routers.modelerCommands.changeEngineVersion(editorId)
 
+    fun changeLanguage() = routers.modelerCommands.changeLanguage()
+
     /** Fires `linting/toggle`; the bridge flips the user's lint choice. */
     fun toggleLinting() = routers.modelerCommands.toggleLinting()
 

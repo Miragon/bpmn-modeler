@@ -21,6 +21,7 @@ import { FOCUS_BPMN_DIAGRAM_MESSAGE } from "@miragon/bpmn-modeler-core";
 import {
     hostNotification,
     hostReply,
+    hostErrorReply,
     isStatusSlotUpdate,
     registerParams,
     settle,
@@ -101,6 +102,110 @@ describe("bridge modeler commands (real core over a fake transport)", () => {
         );
         return context;
     }
+
+    describe("change modeler language", () => {
+        it("refreshes editors and diff panes only from the host's settings event", async () => {
+            const { rpc, frames } = await setupWithOpenEditor();
+            await rpc.handleLine(
+                hostNotification("diff/open", {
+                    diffId: "language-diff",
+                    origin: "compare-files",
+                    before: { uri: "diff:before", content: BPMN_C7_XML },
+                    after: { uri: "diff:after", content: BPMN_C7_XML },
+                }),
+            );
+            for (const paneUri of ["diff:before", "diff:after"]) {
+                await rpc.handleLine(
+                    hostNotification("diff/webviewMessage", {
+                        paneUri,
+                        message: { type: "DiffReadyCommand" },
+                    }),
+                );
+            }
+            await settle();
+            const baseline = frames.length;
+            const command = rpc.handleLine(hostNotification("modeler/changeLanguage", {}));
+            const picker = await waitForFrame(frames, isPickerShow, { fromIndex: baseline });
+            await rpc.handleLine(hostReply(picker.id, { selected: [0] }));
+            const write = await waitForFrame(frames, (f) => f.method === "settings/setLanguage");
+            await rpc.handleLine(hostReply(write.id, null));
+            await command;
+            const languagePosts = () =>
+                frames.slice(baseline).filter((f) => f.params?.message?.type === "LanguageQuery");
+            expect(languagePosts()).toEqual([]);
+
+            await rpc.handleLine(
+                hostNotification("settings/didChange", { settings: { language: "de" } }),
+            );
+            await settle();
+            expect(languagePosts().map((f) => [f.method, f.params.message.locale])).toEqual([
+                ["editor/postMessage", "de"],
+                ["diff/postMessage", "de"],
+                ["diff/postMessage", "de"],
+            ]);
+        });
+
+        it("uses the core prompt and waits for the host to persist, without an editor", async () => {
+            const { rpc, frames } = await setup();
+            const command = rpc.handleLine(hostNotification("modeler/changeLanguage", {}));
+            const picker = await waitForFrame(frames, isPickerShow);
+            expect(picker.params).toMatchObject({
+                title: "Change Modeler Language",
+                placeholder: "Select the modeler UI language",
+                items: [
+                    ["Deutsch", "de"],
+                    ["English", "en"],
+                    ["Español", "es"],
+                    ["Français", "fr"],
+                    ["Italiano", "it"],
+                    ["Português (Brasil)", "pt-br"],
+                    ["简体中文", "zh-Hans"],
+                    ["繁体中文", "zh-Hant"],
+                    ["Русский", "ru"],
+                    ["Nederlands (Netherlands)", "nl-nl"],
+                    ["日本語", "ja"],
+                    ["한국어", "ko"],
+                ].map(([label, description]) => ({ label, description })),
+            });
+            await rpc.handleLine(hostReply(picker.id, { selected: [0] }));
+            const write = await waitForFrame(frames, (f) => f.method === "settings/setLanguage");
+            expect(write.params).toEqual({ locale: "de" });
+            expect(
+                frames.filter((f) => f.params?.message === "Modeler language changed to de"),
+            ).toEqual([]);
+            await rpc.handleLine(hostReply(write.id, null));
+            await command;
+            expect(frames.some((f) => f.params?.message === "Modeler language changed to de")).toBe(
+                true,
+            );
+        });
+
+        it("writes and logs nothing on cancellation", async () => {
+            const { rpc, frames } = await setup();
+            const command = rpc.handleLine(hostNotification("modeler/changeLanguage", {}));
+            const picker = await waitForFrame(frames, isPickerShow);
+            const afterPicker = frames.length;
+            await rpc.handleLine(hostReply(picker.id, { selected: null }));
+            await command;
+            expect(frames.slice(afterPicker)).toEqual([]);
+        });
+
+        it("logs persistence failure without a success breadcrumb", async () => {
+            const { rpc, frames } = await setup();
+            const command = rpc.handleLine(hostNotification("modeler/changeLanguage", {}));
+            const picker = await waitForFrame(frames, isPickerShow);
+            await rpc.handleLine(hostReply(picker.id, { selected: [0] }));
+            const write = await waitForFrame(frames, (f) => f.method === "settings/setLanguage");
+            await rpc.handleLine(hostErrorReply(write.id, "write denied"));
+            await command;
+            expect(
+                frames.some((f) => f.method === "notifier/log" && f.params?.level === "error"),
+            ).toBe(true);
+            expect(frames.some((f) => f.params?.message === "Modeler language changed to de")).toBe(
+                false,
+            );
+        });
+    });
 
     describe("change engine version", () => {
         it("opens the version picker for the registered editor", async () => {

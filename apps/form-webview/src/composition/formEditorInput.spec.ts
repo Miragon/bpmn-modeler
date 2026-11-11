@@ -4,6 +4,7 @@ import {
     type DocumentFlushedCommand,
     FlushDocumentQuery,
     FormFileQuery,
+    ReleaseDocumentFlushQuery,
 } from "@miragon/bpmn-modeler-shared";
 
 import { bootstrap } from "./bootstrap";
@@ -40,7 +41,7 @@ function bootstrapWithRealFormJs() {
             (message): message is Posted & DocumentFlushedCommand =>
                 message.type === "DocumentFlushedCommand",
         );
-    return { flushReplies };
+    return { flushReplies, posted };
 }
 
 function dispatch(data: unknown): void {
@@ -74,6 +75,7 @@ describe("form webview with the real form-js editor", () => {
     beforeEach(() => {
         windowAddEventListener = vi.spyOn(window, "addEventListener");
         document.body.innerHTML = '<div id="app"></div>';
+        document.body.inert = false;
     });
 
     afterEach(() => {
@@ -100,4 +102,42 @@ describe("form webview with the real form-js editor", () => {
         };
         expect(saved.components[0].validate?.minLength).toBe(5);
     });
+
+    it.each([
+        ["Camunda Cloud", "8.8.0"],
+        ["Camunda Cloud", "8.9.0"],
+        ["Camunda Cloud", "8.10.0"],
+        ["Camunda Platform", "7"],
+    ])(
+        "keeps %s/%s after host reload and subsequent visual edits",
+        async (executionPlatform, executionPlatformVersion) => {
+            const { flushReplies, posted } = bootstrapWithRealFormJs();
+            const source = JSON.stringify({
+                ...JSON.parse(FORM),
+                schemaVersion: 18,
+                executionPlatform,
+                executionPlatformVersion,
+            });
+            dispatch(new FormFileQuery(source, 2));
+            await selectField("Field_1");
+            dispatch(new FlushDocumentQuery(8, true));
+            await vi.waitFor(() => expect(flushReplies()).toHaveLength(1));
+            expect(flushReplies()[0].status).toBe("clean");
+            expect(posted.filter((message) => message.type === "SyncDocumentCommand")).toEqual([]);
+            dispatch(new ReleaseDocumentFlushQuery(8));
+            await vi.waitFor(() => expect(document.body.inert).toBe(false));
+
+            await typeInto("minLength", "6");
+            dispatch(new FlushDocumentQuery(9, true));
+            await vi.waitFor(() => expect(flushReplies()).toHaveLength(2));
+            const reply = flushReplies()[1];
+            expect(reply.documentRevision).toBe(2);
+            expect(JSON.parse(reply.content!)).toMatchObject({
+                executionPlatform,
+                executionPlatformVersion,
+                components: [{ validate: { minLength: 6 } }],
+            });
+            dispatch(new ReleaseDocumentFlushQuery(9));
+        },
+    );
 });

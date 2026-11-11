@@ -663,7 +663,10 @@ when the item is written. A ledger write or a
 [target change](deployment.md#targets-and-credentials) refreshes the
 deployment item for the focused editor (`refreshFocused`), not the editor it
 acted on. Each item's participant hides it on blur and close, and
-`StatusItemOwnership` decides only that hide. Only BPMN sessions run these
+`StatusItemOwnership` decides only that hide. BPMN and Form participants share
+one engine-version owner from VS Code's composition, so a late blur or close
+from either format cannot hide the other's newly focused status. The BPMN-only
+bridge keeps a default owner. Only BPMN sessions run the deployment and lint
 participants, so `refreshFocused` hides the deployment item when no BPMN
 editor is focused (a DMN or Form editor, or none) instead of showing an item
 nothing would hide. The store's command target (`CommandTarget`, read as
@@ -788,6 +791,28 @@ confirmations to delete a target and to approve a credential host) come from
 the core. The deployment services search the workspace through
 `WorkspacePort.findFiles` themselves and offer the found files through
 `chooseMany`.
+
+The modeler UI language command also uses `PickerPort`: `modelerSettings` owns
+the pure `modelerLanguagePrompt` and `ModelerLanguageService`. The service reads
+the authoritative `supportedModelerLanguages` catalogue from `bpmn-i18n-extras`
+(a core dependency); the domain receives only its labels and locale values.
+Both hosts render the same title, placeholder and ordered choices, even with no
+editor open. `LanguagePreferencePort` writes only the selected locale and leaves
+`SettingsPort` read-only. VS Code saves at User scope, even if a workspace
+override has the same effective value. IntelliJ sends `modeler/changeLanguage`
+as a notification, lazily starting the bridge; its generic `picker/show`
+roundtrip stays unchanged. `settings/setLanguage` is a narrow Core→Host request
+with a host-work deadline and null acknowledgement. Kotlin atomically updates
+only the application language, pushes the settings to every running bridge and
+native listener, then acknowledges; an unchanged language only acknowledges.
+Neither host optimistically changes a settings mirror. The service logs success
+only after persistence. The domain/service specs, bridge command specs and Kotlin
+settings-router tests pin this boundary.
+
+Optional BPMN contributions keep their command declarations in their owning
+contexts. Exact type-equality assertions in `BpmnEditorFeature.spec.ts` pin the
+navigation, script-editor and code-link producer contributions to the consumer,
+including keys and handler signatures, without production cross-context imports.
 
 A notification with actions follows the same split (proposed with the
 [BPMN plugins](bpmn-modeler.md#user-supplied-plugins-proposed), not released).
@@ -1077,6 +1102,48 @@ the existing VS Code extension. Forms share the modeling workflow, host
 infrastructure and release lifecycle with BPMN/DMN. A separate form extension
 would duplicate that infrastructure and require another installation; the
 accepted cost is a larger extension for users who do not model forms.
+
+Forms use the existing native `engineVersion` status slot and Change Engine
+Version command, not webview selectors. The core owns a Form-specific platform
+and compatibility table: Camunda Cloud offers 8.8.0, 8.9.0 and 8.10.0; Camunda 7
+offers 7 and stores the execution platform as `Camunda Platform`. This table
+does not change BPMN's version registry or either format's defaults. Missing
+and unsupported declarations remain visible and untouched until an explicit,
+complete choice. Escape and an unchanged pair do not flush or write.
+
+`FormModelerService` captures the session, host revision and engine metadata
+before the two native pickers. It rejects session or host-revision changes, but
+allows unrelated guarded visual syncs while either picker is open. It flushes
+pending visual input destructively outside the editor queue, then checks the
+session, revision and captured engine metadata against the flushed document.
+The final queued write also checks that the flushed baseline text is still
+current. It patches that source in the queue, advances the host
+revision and reloads the editor, releasing the flush lock in `finally`. This
+keeps pending input while rejecting old-revision exports. Host imports and
+destructive flushes share an inert-lock group in the Form page; releasing the
+flush cannot enable interaction while the replacement schema is importing.
+
+A narrow `FormTextEdits` port keeps source editing separate from domain rules.
+Its core output adapter depends on pinned `jsonc-parser` and applies only the
+two metadata edits. The domain accepts plain JSON only; the adapter does not
+repair invalid source. Whole-schema serialization through form-js would upgrade
+unrelated schemaVersion 18 to 19 and normalize custom properties and formatting.
+Metadata-only edits instead preserve that source and use the ordinary document
+write for dirty tracking and undo, never an autosave. The accepted cost is one
+small JSON editing dependency and a separate adapter rather than importing the
+element-template builder's template-specific editing rules.
+
+The contracts live in `formEngine.spec.ts`, `JsonFormTextEdits.spec.ts`,
+`FormModelerService.selection.spec.ts` and `FormEngineStatusBarParticipant.spec.ts`
+under `libs/modeler-core/src/modeler/form/`. The real form-js input harness and
+VS Code smoke test cover re-import, visual editability and native persistence.
+See [#2319](https://github.com/Miragon/bpmn-modeler/issues/2319).
+
+Form source-recovery messages live in the private, browser-safe
+`shared/lib/formEditorMessages` module so the core service and Form page use
+the same text without importing the core into the webview. The shared
+engine-version tooltip lives in `kernel/domain/engineVersionStatus`; both
+domain status builders import it without depending on each other's feature.
 
 ### Runtime and transport
 

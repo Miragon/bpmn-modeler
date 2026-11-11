@@ -412,6 +412,129 @@ describe("the packaged extension in a real VS Code", () => {
         expectNoCspViolations();
     });
 
+    it("selects Form engine metadata natively, preserves source, and persists across save, reopen and source reload", async () => {
+        const page = vscode().page;
+        const file = join(workspaceDirectory, FORM_FILE);
+        const original = await readFile(file, "utf8");
+        const picker = page.locator(".quick-input-widget");
+        const rows = picker.locator(".monaco-list-row");
+        const labels = rows.locator(".label-name");
+        const option = (label: string) =>
+            labels.filter({
+                hasText: new RegExp(`^${label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`),
+            });
+        const expectChoices = (expected: readonly string[]) =>
+            expect
+                .poll(async () => ({
+                    rows: await rows.count(),
+                    labels: await labels.allTextContents(),
+                }))
+                .toEqual({ rows: expected.length, labels: expected });
+        const status = (text: string) => page.locator(".statusbar-item").filter({ hasText: text });
+        const choosePlatform = async (label: string) => {
+            await vscode().runCommand("Change Engine Version");
+            await expectChoices(["Camunda Cloud", "Camunda 7"]);
+            await option(label).click();
+        };
+        try {
+            await status("Camunda Cloud (8.8.0)").waitFor();
+            expect(await vscode().isActiveTabDirty()).toBe(false);
+            await status("Camunda Cloud (8.8.0)").click();
+            await expectChoices(["Camunda Cloud", "Camunda 7"]);
+            await page.keyboard.press("Escape");
+            expect(await vscode().isActiveTabDirty()).toBe(false);
+
+            await choosePlatform("Camunda 7");
+            await expectChoices(["7"]);
+            await page.keyboard.press("Escape");
+            expect(await vscode().isActiveTabDirty()).toBe(false);
+            expect(await readFile(file, "utf8")).toBe(original);
+
+            await choosePlatform("Camunda 7");
+            await expectChoices(["7"]);
+            await option("7").click();
+            await status("Camunda 7 (7)").waitFor();
+            await expect.poll(() => vscode().isActiveTabDirty()).toBe(true);
+            expect(await readFile(file, "utf8")).toBe(original);
+            await page.keyboard.press(`${COMMAND_KEY}+s`);
+            const c7Source = original
+                .replace('"Camunda Cloud"', '"Camunda Platform"')
+                .replace('"8.8.0"', '"7"');
+            await expect.poll(() => readFile(file, "utf8")).toBe(c7Source);
+            await expect.poll(() => vscode().isActiveTabDirty()).toBe(false);
+            await page.keyboard.press(`${COMMAND_KEY}+w`);
+            await vscode().openFromExplorer(FORM_FILE);
+            await vscode().showInCustomEditor(FORM_FILE, (webview) =>
+                webview.getByText("Customer name").first().isVisible(),
+            );
+            await status("Camunda 7 (7)").waitFor();
+
+            await choosePlatform("Camunda Cloud");
+            await expectChoices(["8.8.0", "8.9.0", "8.10.0"]);
+            await option("8.10.0").click();
+            await status("Camunda Cloud (8.10.0)").waitFor();
+            await page.keyboard.press(`${COMMAND_KEY}+s`);
+            await expect
+                .poll(() => jsonInFile(file))
+                .toMatchObject({
+                    executionPlatform: "Camunda Cloud",
+                    executionPlatformVersion: "8.10.0",
+                    schemaVersion: 18,
+                });
+            await expect.poll(() => vscode().isActiveTabDirty()).toBe(false);
+
+            const sourceUpdate = original.replace('"8.8.0"', '"8.9.0"');
+            await writeFile(file, sourceUpdate);
+            await status("Camunda Cloud (8.9.0)").waitFor();
+            const webview = vscode().webview();
+            await webview.locator('.fjs-element[data-id="Field_Name"]').click();
+            const label = webview.locator("#bio-properties-panel-label");
+            if (!(await label.isVisible())) {
+                await webview
+                    .locator('[data-group-id="group-general"]')
+                    .getByRole("button", { name: "Toggle section", exact: true })
+                    .click();
+            }
+            await label.waitFor({ state: "visible" });
+            await label.click();
+            await page.keyboard.press(`${COMMAND_KEY}+a`);
+            await label.pressSequentially("Name after engine reload");
+            await status("Camunda Cloud (8.9.0)").click();
+            await expectChoices(["Camunda Cloud", "Camunda 7"]);
+            // Let the properties-panel debounce sync while the native picker remains open.
+            await expect.poll(() => vscode().isActiveTabDirty()).toBe(true);
+            expect(await picker.isVisible()).toBe(true);
+            await option("Camunda 7").click();
+            await expectChoices(["7"]);
+            await option("7").click();
+            await status("Camunda 7 (7)").waitFor();
+            expect(await readFile(file, "utf8")).toBe(sourceUpdate);
+            await page.keyboard.press(`${COMMAND_KEY}+s`);
+            await expect
+                .poll(() => jsonInFile(file))
+                .toMatchObject({
+                    executionPlatform: "Camunda Platform",
+                    executionPlatformVersion: "7",
+                    components: [{ label: "Name after engine reload" }],
+                });
+            await expect.poll(() => vscode().isActiveTabDirty()).toBe(false);
+
+            const unsupported = original
+                .replace('"Camunda Cloud"', '"Other platform"')
+                .replace('"8.8.0"', '"99"');
+            await writeFile(file, unsupported);
+            await status("Other platform (99)").waitFor();
+            await vscode().runCommand("Change Engine Version");
+            await expectChoices(["Camunda Cloud", "Camunda 7"]);
+            await page.keyboard.press("Escape");
+            expect(await vscode().isActiveTabDirty()).toBe(false);
+            expect(await readFile(file, "utf8")).toBe(unsupported);
+            expectNoCspViolations();
+        } finally {
+            await writeFile(file, original);
+        }
+    });
+
     it("creates an element template through New Element Template", async () => {
         const page = vscode().page;
         const file = join(workspaceDirectory, ".camunda", "element-templates", NEW_TEMPLATE_FILE);

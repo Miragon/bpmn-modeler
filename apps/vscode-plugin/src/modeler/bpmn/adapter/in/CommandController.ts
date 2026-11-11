@@ -1,7 +1,6 @@
-import { commands, env, ExtensionContext, Uri, window, workspace } from "vscode";
+import { commands, env, ExtensionContext, Uri, workspace } from "vscode";
 
 import { Command, GetDiagramAsSVGCommand, isMessageOfType } from "@miragon/bpmn-modeler-shared";
-import { supportedModelerLanguages } from "@miragon/bpmn-modeler-i18n-extras";
 
 import { EditorSubscription } from "@miragon/bpmn-modeler-core";
 import { EditorSessionStore } from "@miragon/bpmn-modeler-core";
@@ -13,6 +12,8 @@ import {
     DMN_VIEW_TYPE,
     FOCUS_BPMN_DIAGRAM_MESSAGE,
     FORM_VIEW_TYPE,
+    FormModelerService,
+    ModelerLanguageService,
     newModelEnginePrompt,
 } from "@miragon/bpmn-modeler-core";
 import { EMPTY_DMN_DIAGRAM } from "@miragon/bpmn-modeler-types";
@@ -62,6 +63,8 @@ export class CommandController {
         private readonly documentFlush: DocumentFlusher,
         private readonly layoutSvc: BpmnLayoutService,
         private readonly preferences: ModelerPreferences,
+        private readonly languageService: ModelerLanguageService,
+        private readonly formService?: Pick<FormModelerService, "changeEngineVersion">,
     ) {}
 
     /** Registers all commands and pushes their disposables into the extension context. */
@@ -147,11 +150,16 @@ export class CommandController {
         this.notifier.openLoggingConsole();
     }
 
-    /** Prompts for a new engine version for the active BPMN editor. */
+    /** Prompts for the active document's supported engine metadata. */
     changeEngineVersion(): Promise<boolean> {
-        return this.logAndRethrow(() =>
-            this.bpmnService.changeEngineVersion(this.editorStore.getActiveEditorId()),
-        );
+        return this.logAndRethrow(async () => {
+            const editorId = this.editorStore.getActiveEditorId();
+            const path = this.vsDocument.getFilePath(editorId).toLowerCase();
+            if (path.endsWith(".form"))
+                return this.formService?.changeEngineVersion(editorId) ?? false;
+            if (path.endsWith(".bpmn")) return this.bpmnService.changeEngineVersion(editorId);
+            return false;
+        });
     }
 
     /** Migrates all workspace BPMN diagrams to a user-selected version. */
@@ -159,27 +167,9 @@ export class CommandController {
         return this.logAndRethrow(() => this.migrationSvc.migrateAllDiagrams());
     }
 
-    /** Prompts for a UI language and applies it to the active modeler webview. */
+    /** Changes the application UI language, including with no editor open. */
     changeLanguage(): Promise<void> {
-        return this.logAndRethrow(async () => {
-            const items = supportedModelerLanguages.map((lang) => ({
-                label: lang.label,
-                description: lang.locale,
-            }));
-
-            const picked = await window.showQuickPick(items, {
-                placeHolder: "Select the modeler language",
-            });
-
-            if (!picked) {
-                return;
-            }
-
-            await this.preferences.setLanguage(picked.description);
-            // Breadcrumb: a language switch changes UI strings across the modeler,
-            // so record it to explain later "why is the panel in German?" reports.
-            this.notifier.logInfo(`Modeler language changed to ${picked.description}`);
-        });
+        return this.logAndRethrow(() => this.languageService.changeLanguage());
     }
 
     /**

@@ -4,7 +4,10 @@ import { realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, expectTypeOf, it, vi } from "vitest";
+import type { NavigationFeature } from "../../../navigation/composition/NavigationFeature";
+import type { ScriptEditorFeature } from "../../../scriptTask/composition/ScriptEditorFeature";
+import type { CodeLinkFeature } from "../../../codeLink/composition/CodeLinkFeature";
 
 import {
     BPMN_EDITOR_COMMAND_TYPES,
@@ -232,6 +235,17 @@ async function settle(): Promise<void> {
 }
 
 describe("BpmnEditorFeature", () => {
+    it("pins contribution command sets and signatures to their producers", () => {
+        expectTypeOf<BpmnEditorContributions["navigation"]>().toEqualTypeOf<
+            NavigationFeature["editorContribution"]
+        >();
+        expectTypeOf<BpmnEditorContributions["scriptEditor"]>().toEqualTypeOf<
+            ScriptEditorFeature["editorContribution"]
+        >();
+        expectTypeOf<BpmnEditorContributions["codeLink"]>().toEqualTypeOf<
+            CodeLinkFeature["editorContribution"]
+        >();
+    });
     it("routes or explicitly ignores every BPMN editor command", () => {
         const { feature } = createFeature("full");
 

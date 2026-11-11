@@ -5,6 +5,7 @@ import {
     EditorSessionStore,
     FOCUS_BPMN_DIAGRAM_MESSAGE,
     NotifierPort,
+    ModelerLanguageService,
 } from "@miragon/bpmn-modeler-core";
 
 import { METHODS } from "../../../../protocol/domain/descriptor";
@@ -13,7 +14,7 @@ import { EditorRefParams, MigrateAllParams } from "../../../../protocol/domain/t
 import { WorkspaceRoots } from "../../../../kernel/port/WorkspaceRoots";
 
 /**
- * RPC (Host → Core): modeler/changeEngineVersion, layout/format,
+ * RPC (Host → Core): modeler/changeEngineVersion, modeler/changeLanguage, layout/format,
  * layout/cleanup, migration/migrateAll.
  */
 export function modelerCommandHandlers({
@@ -23,6 +24,7 @@ export function modelerCommandHandlers({
     store,
     notifier,
     workspaceRoots,
+    language,
 }: {
     bpmnService: BpmnModelerService;
     layout: BpmnLayoutService;
@@ -30,6 +32,7 @@ export function modelerCommandHandlers({
     store: EditorSessionStore;
     notifier: NotifierPort;
     workspaceRoots: WorkspaceRoots;
+    language: ModelerLanguageService;
 }): RpcHandlerTable {
     const withActiveEditor = async (action: (editorId: string) => Promise<void>): Promise<void> => {
         try {
@@ -41,6 +44,13 @@ export function modelerCommandHandlers({
     };
 
     return {
+        [METHODS.modelerChangeLanguage]: async () => {
+            try {
+                await language.changeLanguage();
+            } catch (error) {
+                notifier.logError(error instanceof Error ? error : new Error(String(error)));
+            }
+        },
         // Both services swallow their own errors (a dismissed prompt → silent, others →
         // a notifier balloon), so these handlers just await and never need a try/catch.
         [METHODS.modelerChangeEngineVersion]: async (params: EditorRefParams) => {

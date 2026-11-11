@@ -4,6 +4,8 @@ import {
     BpmnLayoutService,
     BpmnMigrationService,
     CoreWriteRenderer,
+    FormModelerService,
+    ModelerLanguageService,
 } from "@miragon/bpmn-modeler-core";
 import { BpmnModelerService } from "@miragon/bpmn-modeler-core";
 import { CommandController } from "../modeler/bpmn/adapter/in/CommandController";
@@ -19,6 +21,7 @@ export function register(
     deps: SharedDeps,
     handles: {
         bpmnService: BpmnModelerService;
+        formService: FormModelerService;
         layoutSvc: BpmnLayoutService;
         coreWriteRenderer: CoreWriteRenderer;
     },
@@ -42,5 +45,7 @@ export function register(
         deps.pendingEdits,
         handles.layoutSvc,
         deps.preferences,
+        new ModelerLanguageService(deps.picker, deps.preferences, deps.notifier),
+        handles.formService,
     ).register(context);
 }

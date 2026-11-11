@@ -34,6 +34,8 @@ isn't talking to VS Code.
 | core → host | `notifier/*`                            | `NotifierPort` → IntelliJ `Notifications.Bus` + IDE log                                       |
 | core → host | `statusBar/update`                      | `StatusBarPort` → `{slot, view}`, `view: null` hides the slot; IntelliJ shows each slot in its own `StatusBarWidget` |
 | host → core | `linting/toggle`                        | BPMNlint widget click → reports the flipped lint choice over `settings/setLintingEnabled`, as the webview toggle does |
+| host → core | `modeler/changeLanguage` | application UI-language command, works without an editor; the core builds its choice over generic `picker/show` |
+| core → host | `settings/setLanguage` | `LanguagePreferencePort` → atomically stores `{locale}` in application settings, broadcasts changed snapshots, then acknowledges with null; no optimistic mirror write |
 | core → host | `settings/setLintingEnabled`            | `LintingPreferencePort` → the host stores the user's lint choice and pushes the snapshot to every open bridge, then acks; the bridge re-lints from that push |
 | core → host | `secretStore/*`                         | `SecretStorePort` → `PasswordSafe` (application-scoped, encrypted); `slot` scopes a named target, `delete` removes one with its approved destinations |
 | host → core | `deploymentState/seed`                  | seeds the `DeploymentStatePort` mirror with what the host stored; the core fills in the defaults (synchronous `load()`; see BridgeSettings) |
