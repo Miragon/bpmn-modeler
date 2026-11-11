@@ -19,7 +19,6 @@ import {
 } from "../modeler/bpmn/adapter/in/FocusLintElementController";
 import { PropertiesPanelStateRepository } from "../modeler/bpmn/adapter/out/PropertiesPanelStateRepository";
 import { NodeContentHasher } from "../modeler/bpmn/adapter/out/NodeContentHasher";
-import { NodeInstalledPackages } from "../modeler/bpmn/adapter/out/NodeInstalledPackages";
 import { bpmnPluginCacheUri } from "../shared/adapter/out/bootstrapWebview";
 import { VsCodeLintingPreference } from "../modeler/bpmn/adapter/out/VsCodeLintingPreference";
 import { ModelerEditorController } from "../modeler/editor-session/adapter/in/ModelerEditorController";
@@ -84,7 +83,7 @@ export function register(
             templatePreferences: deps.templatePreferences,
             rulePackages: {
                 approvals,
-                installedPackages: new NodeInstalledPackages(),
+                installedPackages: deps.installedPackages,
                 actionNotifier: deps.actionNotifier,
                 questions,
                 review: handles.reviews.rulePackage,

@@ -98,7 +98,7 @@ function createVsCodeBpmnEditor(context = createExtensionContext()) {
     );
     const diffStore = new DiffPaneStore();
     const deploymentStatus: EditorSessionParticipant = { onResolve: () => undefined };
-    return bpmnEditorFeature.register(context, deps, {
+    const features = bpmnEditorFeature.register(context, deps, {
         diffController: new BpmnDiffController(
             diffStore,
             new BpmnDiffService(deps.notifier, deps.vsSettings, diffStore),
@@ -118,6 +118,7 @@ function createVsCodeBpmnEditor(context = createExtensionContext()) {
             notifier: deps.notifier,
         }).editorContribution,
     });
+    return { ...features, deps };
 }
 
 const revealedRows: (readonly string[])[] = [];
@@ -197,7 +198,7 @@ describe("VS Code's BPMN editor", () => {
     });
 
     it("asks about plugins and rule packages in one queue and keeps both in one approval list", () => {
-        createVsCodeBpmnEditor();
+        const { deps } = createVsCodeBpmnEditor();
 
         const [plugins] = injectedPorts.plugins;
         const rulePackages = injectedPorts.editors[0]?.rulePackages;
@@ -205,7 +206,8 @@ describe("VS Code's BPMN editor", () => {
         expect(rulePackages?.questions).toBe(plugins?.questions);
         expect(rulePackages?.approvals).toBe(plugins?.approvals);
         expect(rulePackages?.actionNotifier).toBe(plugins?.actionNotifier);
-        expect(rulePackages?.installedPackages).toBeInstanceOf(NodeInstalledPackages);
+        expect(deps.installedPackages).toBeInstanceOf(NodeInstalledPackages);
+        expect(rulePackages?.installedPackages).toBe(deps.installedPackages);
     });
 
     it("reads the approvals another window stored once this window gains focus", async () => {

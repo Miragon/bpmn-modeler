@@ -44,6 +44,8 @@ const TEXT_OUTSIDE_ASCII = "Prüfung ✓";
 const TEXT_OUTSIDE_ASCII_SHA256 =
     "2ab1d0f52489af0314671f153d0ab416cc1ceb6081c37667e5ff2c918f0c2042";
 
+const WINDOWS_DRIVE = /^[A-Za-z]:/;
+
 // Longer than the coarsest file system clock tick a host may run on.
 const CLOCK_TICK_MS = 25;
 
@@ -58,7 +60,8 @@ const CLOCK_TICK_MS = 25;
  * which every adapter of this port runs too.
  *
  * Left out: the order of directory entries, which the core sorts, and a same
- * size rewrite within one clock tick, which no stamp can see.
+ * size rewrite within one clock tick, which no stamp can see. The `/c:/…`
+ * spelling runs only where the root has a drive letter, that is on Windows.
  */
 export function describeInstalledPackagesContract(
     adapter: string,
@@ -168,6 +171,21 @@ export function describeInstalledPackagesContract(
                 expect(packages.stamp(`${root}/missing`)).toBeUndefined();
                 expect(packages.stamp(`${root}/dangling`)).toBeUndefined();
             });
+        });
+
+        it("reads a Windows path spelled as a URI path, /c:/…", (context) => {
+            if (!WINDOWS_DRIVE.test(root)) context.skip();
+            fixture.writeFile(`${root}/pkg/package.json`, "abc");
+            const uriPath = `/${root}/pkg`;
+
+            expect(packages.realPath(uriPath)).toBe(`${root}/pkg`);
+            expect(packages.entryKindOf(uriPath)).toBe("directory");
+            expect(packages.listDirectory(uriPath)).toEqual([
+                { name: "package.json", kind: "file" },
+            ]);
+            expect(packages.stamp(`${uriPath}/package.json`)?.kind).toBe("file");
+            expect(packages.readTextFile(`${uriPath}/package.json`)).toBe("abc");
+            expect(packages.sha256OfFile(`${uriPath}/package.json`)).toBe(BYTE_VECTORS[1].sha256);
         });
 
         describe("sha256OfFile", () => {

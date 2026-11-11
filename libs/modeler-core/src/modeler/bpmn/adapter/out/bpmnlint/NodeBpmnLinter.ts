@@ -5,7 +5,7 @@ import { LintResults } from "@miragon/bpmn-modeler-types";
 import { createBundledResolver } from "@miragon/bpmnlint-plugin-rules";
 
 import { CodeApproval } from "../../../../../kernel/domain/codeApproval";
-import { toWorkspacePath } from "../../../../../kernel/domain/workspacePath";
+import { fileSystemPathOf, toWorkspacePath } from "../../../../../kernel/domain/workspacePath";
 import { isParsedAsJson, rulePackageApprovalsKey } from "../../../domain/rulePackageApproval";
 import { LintRun, LintRunnerPort } from "../../../port/bpmnPorts";
 import { CompositeResolver, Resolver } from "./CompositeResolver";
@@ -144,7 +144,7 @@ export class NodeBpmnLinter implements LintRunnerPort {
         config: Record<string, unknown>,
         approvals: readonly CodeApproval[],
     ): Promise<LintSetup> {
-        const configDir = dirname(uriPathToFsPath(configPath));
+        const configDir = dirname(fileSystemPathOf(configPath));
         const scopedRequire = createScopedRequire(configDir);
         const { extensions, misses } = loadModdleExtensions(config, scopedRequire);
         const moddle = (await this.loadModdleFactory())(extensions);
@@ -277,12 +277,3 @@ async function importModdleFactory(): Promise<BpmnModdleFactory> {
     return factory;
 }
 
-/**
- * Converts a URI-style POSIX path (`.bpmnlintrc` paths arrive as `uri.path`, e.g.
- * `/c:/proj/.bpmnlintrc` on Windows) to an OS path Node's module resolution
- * accepts. Forward slashes are fine for Node on every platform; only the leading
- * slash before a drive letter has to go.
- */
-function uriPathToFsPath(uriPath: string): string {
-    return /^\/[a-zA-Z]:/.test(uriPath) ? uriPath.slice(1) : uriPath;
-}
