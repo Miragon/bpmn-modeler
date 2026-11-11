@@ -694,9 +694,10 @@ is. Each copy folder also holds a `last-used` marker, the epoch milliseconds
 as decimal text, which the copy writes first, so no whole copy lacks one.
 Serving a copy writes its marker again at most once a day per hash and
 process, so opening editors does not write on every open; a marker write that
-fails is logged and the plugin is still served. `CACHED_PLUGIN_FILE_PATTERN`
-names only `plugin.js` and `plugin.css`, so no page can load the marker.
-The webview never
+fails is logged and the plugin is still served. The marker holds only a time,
+so a page may read it: the IntelliJ server serves only
+`CACHED_PLUGIN_FILE_PATTERN` (`plugin.js` and `plugin.css`), but VS Code's
+`localResourceRoots` covers the whole cache. The webview never
 reads a workspace folder, so a file swapped after the approval and an
 unapproved file beside the script cannot reach it, and `localResourceRoots`
 stays fixed at creation. The host passes the cache root as a platform path
@@ -715,9 +716,12 @@ Only folders named like a content hash (`PLUGIN_CONTENT_HASH_PATTERN`, 64
 lower-case hex digits, `cachedCopyNames`) are copies; files, other names and
 upper case stay. `copiesToPrune` (`pluginCacheLastUse.ts`) keeps every copy an
 editor of this process is served (`contentServedByEditors`) and removes the
-others whose marker is missing, unreadable or at least the idle limit old; a
-marker later than now counts as used now, since another process can write one
-after this one read the clock. `BpmnPluginService.pruneIdleCopies` runs at
+others whose marker is missing, unreadable or at least the idle limit old. A
+marker up to a day ahead counts as used now, since another process can write
+one after this one read the clock or run on a clock a little ahead; one further
+ahead counts as unreadable, so a marker from a clock that ran far ahead does
+not keep its copy for years, and serving writes the marker again once the
+clock went back. `BpmnPluginService.pruneIdleCopies` runs at
 start-up with an idle limit of 30 days: VS Code at activation, and the bridge
 once `server.ts` has bound its streams, which sends no frame. The Add-ons
 action "Remove unused plugin copies" runs `pruneUnusedCopies`, whose idle
@@ -734,7 +738,11 @@ prune covers the shared cache, and N bridges pruning at once only adds noise.
 Residual: a page that loads between another process's delete and this
 process's memo check leaves the plugin out once, and the next open writes the
 copy again; a marker written in that gap leaves a folder with only a marker,
-which the next request completes or the idle limit removes.
+which the next request completes or the idle limit removes. VS Code writes a
+file in place, so a prune in another window can read a marker being rewritten
+as empty and remove a copy an editor there was just served; that editor lacks
+the plugin until it asks again, which writes the copy again. An atomic write in
+`VsCodeWorkspace` would close it but changes every write of that adapter.
 
 **IntelliJ.** The bridge wires the same `BpmnPluginsFeature` as VS Code, so the
 texts, the notification, the list and the reload rule are the core's. The host

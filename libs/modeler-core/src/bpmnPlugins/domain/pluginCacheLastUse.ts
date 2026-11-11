@@ -1,6 +1,6 @@
 /**
  * A copy folder's file that holds when an editor was last served the copy.
- * The cached file pattern does not name it, so no page can load it.
+ * It holds only a time: VS Code's webview may load any file of the cache.
  */
 export const LAST_USE_MARKER_FILE = "last-used";
 
@@ -27,8 +27,13 @@ export function lastUseOf(markerText: string | undefined): number | undefined {
     return Number.isSafeInteger(lastUse) ? lastUse : undefined;
 }
 
+/** Also after the clock went back, so a marker from a clock that ran ahead does not stay. */
 export function shouldRefreshLastUse(lastWrittenMs: number | undefined, nowMs: number): boolean {
-    return lastWrittenMs === undefined || nowMs - lastWrittenMs >= LAST_USE_REFRESH_MS;
+    return (
+        lastWrittenMs === undefined ||
+        nowMs < lastWrittenMs ||
+        nowMs - lastWrittenMs >= LAST_USE_REFRESH_MS
+    );
 }
 
 export interface CopyUse {
@@ -41,13 +46,16 @@ export interface CopyUse {
 }
 
 /**
- * The copies idle for at least the limit. A marker later than now counts as
- * used now: another process can write one after this one read the clock.
+ * The copies idle for at least the limit. A marker up to a day ahead counts
+ * as used now, as another process can write one after this one read the
+ * clock, or run on a clock a little ahead. One further ahead came from a clock
+ * that ran far ahead and counts as unreadable, or it would stay for years.
  */
 export function copiesToPrune(copies: readonly string[], use: CopyUse): string[] {
     return copies.filter((copy) => {
         if (use.inUse.has(copy)) return false;
         const lastUse = lastUseOf(use.markerTextByCopy.get(copy));
-        return lastUse === undefined || Math.max(0, use.nowMs - lastUse) >= use.maxIdleMs;
+        if (lastUse === undefined || lastUse - use.nowMs > LAST_USE_REFRESH_MS) return true;
+        return Math.max(0, use.nowMs - lastUse) >= use.maxIdleMs;
     });
 }

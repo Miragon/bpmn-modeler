@@ -67,9 +67,9 @@ describe("shouldRefreshLastUse", () => {
         { case: "a marker written a day ago", lastWritten: NOW - DAY, refresh: true },
         { case: "a marker written a week ago", lastWritten: NOW - 7 * DAY, refresh: true },
         {
-            case: "a marker written after the clock went back",
-            lastWritten: NOW + DAY,
-            refresh: false,
+            case: "a marker written before the clock went back",
+            lastWritten: NOW + 1,
+            refresh: true,
         },
     ])("is $refresh for $case", ({ lastWritten, refresh }) => {
         expect(shouldRefreshLastUse(lastWritten, NOW)).toBe(refresh);
@@ -134,6 +134,20 @@ describe("copiesToPrune", () => {
             inUse: false,
             maxIdleMs: 30 * DAY,
             pruned: false,
+        },
+        {
+            case: "a copy marked a day ahead, as clocks of two processes can differ",
+            marker: usedAgo(-DAY),
+            inUse: false,
+            maxIdleMs: 30 * DAY,
+            pruned: false,
+        },
+        {
+            case: "a copy marked more than a day ahead, while a clock ran ahead",
+            marker: usedAgo(-DAY - 1),
+            inUse: false,
+            maxIdleMs: 30 * DAY,
+            pruned: true,
         },
         {
             case: "a copy without a marker that an editor here is served",
