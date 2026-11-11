@@ -1,5 +1,7 @@
 import { Uri, Webview } from "vscode";
 
+import type { WebviewSurface } from "@miragon/bpmn-modeler-shared";
+
 import { webviewContentSecurityPolicy } from "../../domain/webviewContentSecurityPolicy";
 import { createWebviewNonce } from "./webviewNonce";
 
@@ -71,11 +73,15 @@ export function bpmnEditorUi(
  * `#theme-link`. The script loads as a module because the bundle may code-split
  * lazy chunks whose URL is resolved via import.meta.url (a syntax error in a
  * classic script); matches `bpmnEditorUi`.
+ *
+ * `surface` names the page on `<body data-surface>`: a diff pane gets no
+ * properties panel and boots the read-only diff instead of the modeler.
  */
 export function dmnModelerHtml(
     webview: Webview,
     extensionUri: Uri,
     initialPanelVisible: boolean = true,
+    surface: Extract<WebviewSurface, "dmnEditor" | "dmnDiffPane"> = "dmnEditor",
 ): string {
     const baseUri = Uri.joinPath(extensionUri, DMN_WEBVIEW_PATH);
 
@@ -90,6 +96,12 @@ export function dmnModelerHtml(
         : "properties-panel-parent collapsed";
     const resizerClass = initialPanelVisible ? "panel-resizer" : "panel-resizer collapsed";
     const panelStyle = initialPanelVisible ? "" : ` style="width: 0"`;
+    const panelMarkup =
+        surface === "dmnDiffPane"
+            ? ""
+            : `
+                    <div id="js-panel-resizer" class="${resizerClass}"></div>
+                    <div class="${panelClass}" id="js-properties-panel"${panelStyle}></div>`;
 
     return `
             <!DOCTYPE html>
@@ -104,11 +116,9 @@ export function dmnModelerHtml(
 
                 <title>DMN Modeler</title>
             </head>
-            <body>
+            <body data-surface="${surface}">
                 <div class="content with-diagram" id="js-drop-zone">
-                    <div class="canvas" id="js-canvas"></div>
-                    <div id="js-panel-resizer" class="${resizerClass}"></div>
-                    <div class="${panelClass}" id="js-properties-panel"${panelStyle}></div>
+                    <div class="canvas" id="js-canvas"></div>${panelMarkup}
                 </div>
                 <script type="module" nonce="${nonce}" src="${scriptUri}"></script>
             </body>

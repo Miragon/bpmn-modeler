@@ -8,15 +8,17 @@ import { bootstrapWebview } from "../../../shared/adapter/out/bootstrapWebview";
  * pair into the {@link DiffPaneHandle} the diff machinery uses.
  *
  * Confining the only `WebviewPanel`/`TextDocument` references to this adapter
- * is what lets {@link DiffSession}, `DiffPaneStore`, and `BpmnDiffService`
+ * is what lets {@link DiffSession}, `DiffPaneStore` and the diff services
  * stay vscode-free — they see only the abstract handle.
  */
 export class WebviewPaneHandle implements DiffPaneHandle {
     private readyFlag = false;
 
+    /** @param viewType The custom editor whose page the pane loads, in its diff-pane form. */
     constructor(
         readonly panel: WebviewPanel,
         readonly document: TextDocument,
+        private readonly viewType: string = BPMN_VIEW_TYPE,
     ) {}
 
     get uri(): string {
@@ -44,6 +46,6 @@ export class WebviewPaneHandle implements DiffPaneHandle {
     }
 
     bootstrap(): void {
-        bootstrapWebview(BPMN_VIEW_TYPE, this.panel);
+        bootstrapWebview(this.viewType, this.panel, true, true);
     }
 }

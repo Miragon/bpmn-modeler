@@ -3,6 +3,9 @@ import { commands, Uri } from "vscode";
 /** Context key that shows "Compare with Selected (BPMN)" once a file is picked. */
 export const BPMN_COMPARE_SELECTION_KEY = "bpmn-modeler.compareSelectionActive";
 
+/** Context key that shows "Compare with Selected (DMN)" once a file is picked. */
+export const DMN_COMPARE_SELECTION_KEY = "bpmn-modeler.dmnCompareSelectionActive";
+
 /**
  * Holds the URI the user picked via "Select for Compare" until they follow
  * up with "Compare with Selected".

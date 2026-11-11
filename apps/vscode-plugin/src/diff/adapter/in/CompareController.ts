@@ -29,6 +29,14 @@ export const BPMN_COMPARE: CompareCommands = {
     compareSelected: "bpmn-modeler.compareSelected",
 };
 
+export const DMN_COMPARE: CompareCommands = {
+    extension: ".dmn",
+    label: "DMN",
+    selectForCompare: "bpmn-modeler.dmn.selectForCompare",
+    compareWithSelected: "bpmn-modeler.dmn.compareWithSelected",
+    compareSelected: "bpmn-modeler.dmn.compareSelected",
+};
+
 // How long the status-bar acknowledgement sits before fading.
 const STATUS_MESSAGE_TIMEOUT_MS = 3_000;
 

@@ -3,8 +3,9 @@ import { ExtensionContext } from "vscode";
 import {
     BPMN_COMPARE_SELECTION_KEY,
     CompareSelectionStore,
+    DMN_COMPARE_SELECTION_KEY,
 } from "../diff/adapter/in/CompareSelectionStore";
-import { BPMN_COMPARE, CompareController } from "../diff/adapter/in/CompareController";
+import { BPMN_COMPARE, CompareController, DMN_COMPARE } from "../diff/adapter/in/CompareController";
 import { DiffController } from "../diff/adapter/in/DiffController";
 import { SharedDeps } from "./sharedDeps";
 
@@ -16,12 +17,18 @@ import { SharedDeps } from "./sharedDeps";
 export function register(
     context: ExtensionContext,
     deps: SharedDeps,
-    handles: { diffController: DiffController },
+    handles: { diffController: DiffController; dmnDiffController: DiffController },
 ): void {
     new CompareController(
         new CompareSelectionStore(BPMN_COMPARE_SELECTION_KEY),
         handles.diffController,
         deps.notifier,
         BPMN_COMPARE,
+    ).register(context);
+    new CompareController(
+        new CompareSelectionStore(DMN_COMPARE_SELECTION_KEY),
+        handles.dmnDiffController,
+        deps.notifier,
+        DMN_COMPARE,
     ).register(context);
 }

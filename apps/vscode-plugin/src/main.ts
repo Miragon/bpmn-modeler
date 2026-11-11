@@ -45,7 +45,10 @@ export function activate(context: ExtensionContext): TestApi {
         context.globalState,
         deps.notifier,
     );
-    const { diffController, diffStore } = diffFeature.register(context, deps);
+    const { diffController, diffStore, dmnDiffController, dmnDiffStore } = diffFeature.register(
+        context,
+        deps,
+    );
     const script = scriptFeature.register(context, deps);
     // Service built before the BPMN editor (which merges its cache); commands
     // deferred after, since they re-run the resulting template service.
@@ -61,7 +64,7 @@ export function activate(context: ExtensionContext): TestApi {
         scriptEditor: script.editorContribution,
         reviews,
     });
-    editorFeature.register(context, deps);
+    editorFeature.register(context, deps, { dmnDiffController });
     const { marketplaces } = templateMarketplaceFeature.registerCommands(context, deps, {
         marketplaceSvc,
         templatesSvc: bpmnEditor.templates,
@@ -73,7 +76,7 @@ export function activate(context: ExtensionContext): TestApi {
         reviews,
     });
     elementTemplateFeature.register(context, deps);
-    compareFeature.register(context, deps, { diffController });
+    compareFeature.register(context, deps, { diffController, dmnDiffController });
     commandsFeature.register(context, deps, {
         bpmnService: bpmnEditor.bpmnService,
         layoutSvc: bpmnEditor.layout,
@@ -83,7 +86,7 @@ export function activate(context: ExtensionContext): TestApi {
     return {
         diff: {
             sessionFor(uri: string) {
-                const session = diffStore.findByUri(uri);
+                const session = diffStore.findByUri(uri) ?? dmnDiffStore.findByUri(uri);
                 if (!session) {
                     return undefined;
                 }

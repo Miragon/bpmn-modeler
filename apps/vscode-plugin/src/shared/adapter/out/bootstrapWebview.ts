@@ -22,12 +22,15 @@ import {
  * @param initialPanelVisible When `false`, HTML renders the properties panel
  *   pre-collapsed so it never flashes visible on first paint. Honoured by both
  *   the BPMN and DMN editors; defaults to `true` (safe for diff panes).
+ * @param diffPane Loads the page as one side of a diff. The DMN page reads it
+ *   from its HTML; the BPMN page learns it from the first file query instead.
  * @throws {Error} if `viewType` is unknown.
  */
 export function bootstrapWebview(
     viewType: string,
     webviewPanel: WebviewPanel,
     initialPanelVisible: boolean = true,
+    diffPane: boolean = false,
 ): WebviewPanel {
     const webview = webviewPanel.webview;
     const extensionUri = getContext().extensionUri;
@@ -39,7 +42,12 @@ export function bootstrapWebview(
     if (viewType === BPMN_VIEW_TYPE) {
         webview.html = bpmnEditorUi(webview, extensionUri, initialPanelVisible);
     } else if (viewType === DMN_VIEW_TYPE) {
-        webview.html = dmnModelerHtml(webview, extensionUri, initialPanelVisible);
+        webview.html = dmnModelerHtml(
+            webview,
+            extensionUri,
+            initialPanelVisible,
+            diffPane ? "dmnDiffPane" : "dmnEditor",
+        );
     } else if (viewType === ELEMENT_TEMPLATE_EDITOR_VIEW_TYPE) {
         webview.html = elementTemplateEditorHtml(webview, extensionUri);
     } else {

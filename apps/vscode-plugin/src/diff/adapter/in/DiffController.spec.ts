@@ -59,7 +59,7 @@ function fakePanel() {
     return { panel: panel as never, cbs };
 }
 
-function createController() {
+function createController(extension = ".bpmn") {
     const store = new DiffPaneStore();
     const diffService = {
         sendViewerFile: vi.fn().mockResolvedValue(undefined),
@@ -70,7 +70,7 @@ function createController() {
     };
     const notifier = new RecordingNotifier();
     const controller = new DiffController(store, notifier, fakePane, vsCodeModelerPreferences, {
-        extension: ".bpmn",
+        extension,
         createRouter: (extensions) => createDiffPaneRouter(diffService as never, extensions),
         rebroadcastLanguage: diffService.rebroadcastLanguage,
     });
@@ -116,6 +116,15 @@ describe("DiffController.shouldResolveAsDiff", () => {
         // A label-only tab (input undefined) annotated like a diff → diff.
         tabs.push({ input: undefined, label: "diagram.bpmn (Working Tree)" });
         expect(controller.shouldResolveAsDiff(uri("file", value))).toBe(true);
+    });
+
+    it("reads the diff-tab label only for files of its own format", () => {
+        const dmn = createController(".dmn").controller;
+        const bpmn = createController(".bpmn").controller;
+        tabs.push({ input: undefined, label: "shipping.dmn (Working Tree)" });
+
+        expect(dmn.shouldResolveAsDiff(uri("file", "file:///repo/shipping.dmn"))).toBe(true);
+        expect(bpmn.shouldResolveAsDiff(uri("file", "file:///repo/shipping.dmn"))).toBe(false);
     });
 
     it("ignores tabs that carry an input (regular editors, not diffs)", () => {
