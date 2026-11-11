@@ -74,7 +74,8 @@ An allowance is for the package at its place in your repository, not for its con
 - It covers the package in every worktree of its repository, later changes included: a branch with another version, an update and an edit run without asking. Outside a git repository it covers the package's folder only.
 - A second clone of the repository, another repository and a new package ask once.
 - Without git, a pnpm update installs the package into a new folder, so it asks again.
-- An update loads when it changes the package's `package.json`, as `npm install` of a new version does. Any other edit to the package's files loads after you reload the window.
+- An update loads when it changes the package's `package.json`, as `npm install` of a new version does, or links the package to a new folder, as `pnpm update` does, whether pnpm keeps the old folder or not. Any other edit to the package's files loads after you reload the window.
+- An update that moves the package's entry or a rule file to another path loads after you reload the window. Until then its rules are skipped, the old version never runs, and the output channel says to reload.
 - A dependency that is itself a rule package, for example one your config's package extends, needs its own allowance.
 - Allowances are kept with your [BPMN plugin](/vscode/features/bpmn-plugins) allowances in VS Code's global state, outside every workspace, so a repository cannot allow its own rule packages. [Workspace Trust](https://code.visualstudio.com/docs/editor/workspace-trust) does not replace them. In a remote window (SSH, dev container, WSL) an allowance holds only for that remote.
 - When the `.bpmnlintrc` sits in the rule package's own folder, because its `package.json` names the plugin, that folder is the package.
@@ -95,6 +96,7 @@ The *bpmn.modeler* output channel explains what happened:
 | `bpmnlint: rule package <name>@<version> (<folder>) is not allowed yet (new), so rules from it are skipped.` | The package's rules were skipped. Instead of `new` it can say `declined this session`. |
 | `bpmnlint: bundled rules stand in for a rule package that is not allowed yet: <name>@<version> (<folder>)` | The bundled rules covered everything the config takes from the package, so the modeler does not ask. |
 | `bpmnlint: refused to run <file>: it is neither in node_modules nor in the config's own package, so no allowance can cover it.` | A rule outside every package that can be allowed. It never runs. Other reasons are `it belongs to no installed package folder`, `the package link it comes through points to a folder that holds the config`, and `it lies inside a .git folder, which no allowance covers`. |
+| `bpmnlint: refused to run <file>: an update moved the package to a new folder that has no such file; reload the window or restart the IDE to load the updated package.` | An update, such as `pnpm update`, moved the package's entry or a rule file. The old file never runs; reload the window. |
 | `Allowed bpmnlint rule package(s): <name>@<version>, …` | Your answer allowed these packages. |
 | `Approvals: rewrote <n> approvals pinned to content as allowances of their add-ons, later changes included.` | At start, approvals from an earlier version were rewritten as allowances. |
 

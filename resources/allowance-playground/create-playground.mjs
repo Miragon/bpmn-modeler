@@ -60,9 +60,10 @@ const SCENARIOS = [
         steps: [
             "Open order.bpmn after allowing both add-ons in acme/.",
             "Keep it open, run the bump command, then edit the diagram (move a task) to lint again.",
+            "Optionally delete the old node_modules/.pnpm/bpmnlint-plugin-acme@<old> folder, as pnpm does, and lint again.",
         ],
         expected:
-            "No question. After bump the lint messages show the new version without a question and without a window reload; Refresh Add-ons lists the new name@version.",
+            "No question. After bump the lint messages show the new version without a question and without a window reload, the old folder kept or deleted; Refresh Add-ons lists the new name@version.",
     },
     {
         folder: "acme-clone",
@@ -521,10 +522,10 @@ function bump(target) {
     const pnpmTo = nextMinorOf(pnpmFrom);
     installPnpm(pnpmCheckout, pnpmTo, currentStore);
     console.log(
-        `acme-worktrees/pnpm/: ${RULE_PACKAGE_NAME} ${pnpmFrom} -> ${pnpmTo}; node_modules/${RULE_PACKAGE_NAME} now links to ${path.relative(pnpmCheckout, pnpmStoreFolder(pnpmCheckout, pnpmTo))}, the ${pnpmFrom} folder stays.`,
+        `acme-worktrees/pnpm/: ${RULE_PACKAGE_NAME} ${pnpmFrom} -> ${pnpmTo}; node_modules/${RULE_PACKAGE_NAME} now links to ${path.relative(pnpmCheckout, pnpmStoreFolder(pnpmCheckout, pnpmTo))}, the ${pnpmFrom} folder stays. Delete ${path.relative(pnpmCheckout, path.dirname(path.dirname(currentStore)))} to try what pnpm usually does.`,
     );
     console.log(
-        `\nEdit a diagram in either folder to lint again: the warnings name the new version without a question or a reload. Click Refresh Add-ons to see the new name@version in the view.`,
+        `\nEdit a diagram in either folder to lint again: the warnings name the new version without a question or a reload, the old pnpm folder kept or deleted. Only an update that moves the package's entry or a rule file needs a window reload or an IDE restart. Click Refresh Add-ons to see the new name@version in the view.`,
     );
 }
 

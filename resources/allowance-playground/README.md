@@ -113,7 +113,7 @@ waiting add-on **Needs review**. The rule package is listed as `bpmnlint-plugin-
 | 2 | `acme-worktrees/feature/order.bpmn` | Nothing | No question. Badge v1, warnings `acme 1.0.0`, both add-ons **Allowed**, *Allowed in: every worktree of `<playground>/acme`* | Same |
 | 3 | `acme-worktrees/upgrade/order.bpmn` | Nothing | No question. Badge **Hello badge v2**; warnings `acme 2.0.0`; the view lists `bpmnlint-plugin-acme@2.0.0` as **Allowed** | Same |
 | 4 | `acme-worktrees/relative/order.bpmn` | Nothing | No question, as in row 2 | Same |
-| 5 | `acme-worktrees/pnpm/order.bpmn` | Keep it open, run `bump`, then move a task to lint again | No question before or after. After `bump` the warnings say `acme 1.1.0` without a question and without a window reload. **Refresh Add-ons** lists `bpmnlint-plugin-acme@1.1.0` | Same, without reloading the project |
+| 5 | `acme-worktrees/pnpm/order.bpmn` | Keep it open, run `bump`, then move a task to lint again. Optionally delete the old `node_modules/.pnpm/bpmnlint-plugin-acme@1.0.0` folder, as pnpm does, and move a task again | No question before or after. After `bump` the warnings say `acme 1.1.0` without a question and without a window reload, the old folder kept or deleted. **Refresh Add-ons** lists `bpmnlint-plugin-acme@1.1.0` | Same, without reloading the project |
 | 6 | `acme/order.bpmn` after `bump` | Move a task | Warnings say `acme 1.1.0`, no question, no reload (an update rewrites the package's `package.json` in place) | Same |
 | 7 | `acme-clone/order.bpmn` | Allow both | Asks once per add-on (another clone). *Allowed in: every worktree of `<playground>/acme-clone`* | Same |
 | 8 | `other-repo/order.bpmn` | Allow both | Asks once per add-on (another repository) | Same |
@@ -142,11 +142,16 @@ two places:
   rewrites it;
 - in `acme-worktrees/pnpm/` it creates
   `node_modules/.pnpm/bpmnlint-plugin-acme@<new>/node_modules/bpmnlint-plugin-acme` and points the
-  `node_modules/bpmnlint-plugin-acme` link at it; the old folder stays, as pnpm can leave it.
+  `node_modules/bpmnlint-plugin-acme` link at it; the old folder stays, as pnpm can leave it. Delete
+  it to try what pnpm usually does.
 
 The modeler checks the stamps of the package's `package.json` (and of the link's) before each lint,
-so the next lint runs the new version without a question. The Add-ons view does not watch
-`node_modules`: click **Refresh Add-ons** to see the new `name@version`.
+so the next lint runs the new version without a question. Node and Bun keep where a link led for
+the whole process, so after the pnpm `bump` they still name the old folder; the modeler loads the
+same file from the folder the link leads to now. An update that moves the package's entry or a rule
+file to another path is refused instead, and the output channel asks you to reload the window or
+restart the IDE. The Add-ons view does not watch `node_modules`: click **Refresh Add-ons** to see the
+new `name@version`.
 
 ## Reset between runs
 

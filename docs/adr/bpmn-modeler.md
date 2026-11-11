@@ -1270,9 +1270,14 @@ inside it, so evicting only the root would run the new root against the
 cached old dependency; the cost is reloading sibling packages once per
 update. An update that rewrites the root's `package.json` therefore loads
 without a reload; an edit that leaves every stamped `package.json` alone
-loads after one. The gate, the question, the log and the Add-ons view name a
-rule package as `name@version` (`rulePackageLabelOf`), so an update shows
-without a question.
+loads after one. A pnpm update links `node_modules/<name>` to a new
+`.pnpm` folder, but Node and Bun keep a resolution and a link's target for
+the whole process, so a fresh scoped require still answers with the old
+folder, gone or not; the gate moves such an answer to the current folder (see
+"Gate"). Only an update that moves the entry or a rule file needs a
+reload. The gate, the question, the log and the Add-ons view name a rule
+package as `name@version` (`rulePackageLabelOf`), so an update shows without
+a question.
 
 **A plugin keeps its hash for serving only.** The content-addressed copy and
 the cache stay, so the page still never reads a workspace folder.
@@ -1388,8 +1393,9 @@ bpmn-js plugins. A 1.21.0 row, `bpmnlint-closure-v1:<hash>` at a root, still
 allows that root until it is rewritten. The row round-trips through VS Code's
 global state, `RpcPluginApprovalStore` and the Kotlin `PluginApproval`
 unchanged, so neither the protocol nor the IntelliJ plugin changed.
-`rulePackageApproval.ts` owns the root, the blocked package, the stamps, the
-eviction scope and the notice and list texts; `rulePackageLog.ts` owns the
+`rulePackageApproval.ts` owns the root, the move to the current folder, the
+blocked package, the stamps, the eviction scope and the notice and list
+texts; `rulePackageLog.ts` owns the
 output channel lines; `installedPackage.ts` reads manifests, dependency
 candidates and path stamps.
 
@@ -1430,6 +1436,30 @@ loaded under (`loadedManifestStamps`, kept across setups by
 `NodeBpmnLinter`), the gate evicts every `require.cache` entry within
 `evictionScopeOf(root)`, so the updated bytes, and those of its hoisted
 dependencies, run.
+
+*Current folder.* Node's resolution cache (`Module._pathCache` and the
+loader's realpath cache) and Bun's are per process and see no retargeted
+link. The gate touches neither, as Bun has no such internals. It looks the
+requested name up itself (`dependencyCandidates` from the config folder, with
+the port's uncached `realPath`) and, when that lookup path is a link, takes
+Node's answer only inside the folder the link leads to now. An answer in
+another root of the same name, such as the old `.pnpm` folder, moves to the
+same path below the current folder (`currentResolutionOf`): for a bare
+request, for an absolute path into the old folder and for the gate's own
+`resolve`, so NodeResolver's `dirname(require.resolve(pkg))` names the
+current folder for a rule its `rules` map names by a local path. A request
+Node fails with `ENOENT` or `MODULE_NOT_FOUND`, as its cached target misses a
+file only the new folder holds, is resolved once more below the current
+folder (`requestedFileBelow`); an `exports` refusal stands. Admission, the
+allowance, the stamps and eviction then apply to the current folder, which
+keeps the add-on place `node_modules/<name>`, so the update runs under the
+same allowance. When the current folder has no file at that path, because the
+update moved the entry or a rule file, the gate refuses the module
+(`movedByUpdate`) and the log asks for a window reload or an IDE restart; it
+never runs the old path. A lookup path that is a folder of its own has no
+earlier target, so a nested copy stays its own root. A switch from a `file:`
+link to the store keeps Node's answer and is refused as outside
+`node_modules` until a reload.
 
 **Asking only when needed.** `CompositeResolver` brackets each synchronous
 request with the gate (`beginRequest`, `blockedSinceBegin`). A blocked package
