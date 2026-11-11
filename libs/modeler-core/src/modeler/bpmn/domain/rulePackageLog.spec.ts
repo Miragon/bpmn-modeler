@@ -77,9 +77,9 @@ describe("shadowedRulePackageLogLine", () => {
         {
             case: "several packages, sorted, so the same set reads the same",
             blocked: [
-                blocked(OTHER, false),
-                blocked(ACME, true),
                 blocked("/a/node_modules/z", false),
+                blocked(ACME, true),
+                blocked(OTHER, false),
             ],
             line: `bpmnlint: bundled rules stand in for rule packages that are not allowed yet: @scope/bpmnlint-plugin-other@1.0.0 (${OTHER}), z@1.0.0 (/a/node_modules/z)`,
         },

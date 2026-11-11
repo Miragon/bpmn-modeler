@@ -283,6 +283,11 @@ describe("parentWorkspacePath", () => {
             path: "file:///c%3A",
             parent: undefined,
         },
+        {
+            behaviour: "reads no server into a relative path without a scheme",
+            path: "server/share",
+            parent: "server",
+        },
     ])("$behaviour", ({ path, parent }) => {
         expect(parentWorkspacePath(path)).toBe(parent);
     });
