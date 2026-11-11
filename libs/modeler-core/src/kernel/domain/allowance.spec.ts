@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+    ALLOWANCE_COVERS_TEXT,
     AllowableCode,
     Allowance,
     allowanceKeyOf,
@@ -10,6 +11,9 @@ import {
     allowanceStateOf,
     allowingAllowances,
     isAllowed,
+    LOCAL_HOST,
+    pendingAllowances,
+    repositoryFolderOf,
     revokingAllowance,
 } from "./allowance";
 import { AllowanceKind } from "./approvalRowKind";
@@ -286,8 +290,16 @@ describe("allowingAllowances", () => {
 
 describe("revokingAllowance", () => {
     const trace = codeAt("plugin", "/work/repo/.camunda/plugins/trace", MAIN);
+    const traceInTask = codeAt("plugin", "/work/task/.camunda/plugins/trace", TASK);
+    const other = codeAt("plugin", "/work/repo/.camunda/plugins/other", MAIN);
+    const contentRow = (pluginId: string): CodeApproval => ({ pluginId, contentHash: PLUGIN_HASH });
 
-    it.each<{ behaviour: string; rows: CodeApproval[]; revoke: string[] }>([
+    it.each<{
+        behaviour: string;
+        rows: CodeApproval[];
+        located?: [string, Allowance][];
+        revoke: string[];
+    }>([
         {
             behaviour: "revokes the allowance",
             rows: [allowanceRowOf(trace.allowance)],
@@ -295,15 +307,12 @@ describe("revokingAllowance", () => {
         },
         {
             behaviour: "revokes a content row at its place too, which would allow it again",
-            rows: [{ pluginId: trace.id, contentHash: PLUGIN_HASH }],
+            rows: [contentRow(trace.id)],
             revoke: [allowanceKeyOf(trace.allowance), trace.id],
         },
         {
             behaviour: "revokes both when its allowance and a content row at its place are stored",
-            rows: [
-                allowanceRowOf(trace.allowance),
-                { pluginId: trace.id, contentHash: PLUGIN_HASH },
-            ],
+            rows: [allowanceRowOf(trace.allowance), contentRow(trace.id)],
             revoke: [allowanceKeyOf(trace.allowance), trace.id],
         },
         {
@@ -311,8 +320,148 @@ describe("revokingAllowance", () => {
             rows: [{ pluginId: trace.id, contentHash: "bpmnlint-closure-v1:abc" }],
             revoke: [allowanceKeyOf(trace.allowance)],
         },
-    ])("$behaviour", ({ rows, revoke }) => {
-        expect(revokingAllowance(trace, rows)).toEqual({ allow: [], revoke });
+        {
+            behaviour: "revokes a content row at another place located as the same allowance",
+            rows: [contentRow(traceInTask.id)],
+            located: [[traceInTask.id, traceInTask.allowance]],
+            revoke: [allowanceKeyOf(trace.allowance), traceInTask.id],
+        },
+        {
+            behaviour: "leaves a content row located as another allowance",
+            rows: [contentRow(other.id)],
+            located: [[other.id, other.allowance]],
+            revoke: [allowanceKeyOf(trace.allowance)],
+        },
+        {
+            behaviour: "leaves a content row of another kind located as the same place",
+            rows: [{ pluginId: traceInTask.id, contentHash: "bpmnlint-closure-v1:abc" }],
+            located: [[traceInTask.id, traceInTask.allowance]],
+            revoke: [allowanceKeyOf(trace.allowance)],
+        },
+        {
+            behaviour: "leaves a content row nobody located at another place",
+            rows: [contentRow(traceInTask.id)],
+            revoke: [allowanceKeyOf(trace.allowance)],
+        },
+        {
+            behaviour: "names the content row at its place once when it is located too",
+            rows: [contentRow(trace.id)],
+            located: [[trace.id, trace.allowance]],
+            revoke: [allowanceKeyOf(trace.allowance), trace.id],
+        },
+    ])("$behaviour", ({ rows, located = [], revoke }) => {
+        expect(revokingAllowance(trace, rows, new Map(located))).toEqual({ allow: [], revoke });
+    });
+
+    it("takes no content row on a remote host, where it may have been given on another machine", () => {
+        const remote = codeAt("plugin", trace.id, MAIN, "ssh-remote+box");
+        const remoteInTask = codeAt("plugin", traceInTask.id, TASK, "ssh-remote+box");
+
+        expect(
+            revokingAllowance(
+                remote,
+                [contentRow(remote.id), contentRow(remoteInTask.id)],
+                new Map([[remoteInTask.id, remoteInTask.allowance]]),
+            ),
+        ).toEqual({ allow: [], revoke: [allowanceKeyOf(remote.allowance)] });
+    });
+});
+
+describe("isAllowed on another host", () => {
+    it("takes a content row at its place only on the local host", () => {
+        const rows = [{ pluginId: "/work/repo/p", contentHash: PLUGIN_HASH }];
+
+        expect(isAllowed(codeAt("plugin", "/work/repo/p", MAIN, LOCAL_HOST), rows)).toBe(true);
+        expect(isAllowed(codeAt("plugin", "/work/repo/p", MAIN, "ssh-remote+box"), rows)).toBe(
+            false,
+        );
+    });
+
+    it("takes the allowance of its host", () => {
+        const remote = codeAt("plugin", "/work/repo/p", MAIN, "ssh-remote+box");
+
+        expect(isAllowed(remote, [allowanceRowOf(remote.allowance)])).toBe(true);
+    });
+});
+
+describe("pendingAllowances", () => {
+    const traceInTask = codeAt("plugin", "/work/task/.camunda/plugins/trace", TASK);
+    const trace = codeAt("plugin", "/work/repo/.camunda/plugins/trace", MAIN);
+    const other = codeAt("plugin", "/work/repo/.camunda/plugins/other", MAIN);
+    const third = codeAt("plugin", "/work/repo/.camunda/plugins/third", MAIN);
+
+    it.each<{
+        behaviour: string;
+        rows?: CodeApproval[];
+        answered?: string[];
+        pending: AllowableCode[];
+    }>([
+        {
+            behaviour: "keeps one place per allowance, the first found",
+            pending: [traceInTask, other, third],
+        },
+        {
+            behaviour: "leaves an allowance answered this session",
+            answered: [allowanceKeyOf(trace.allowance)],
+            pending: [other, third],
+        },
+        {
+            behaviour: "leaves an allowed allowance",
+            rows: [allowanceRowOf(other.allowance)],
+            pending: [traceInTask, third],
+        },
+        {
+            behaviour: "counts a local content row as allowing its place",
+            rows: [{ pluginId: third.id, contentHash: PLUGIN_HASH }],
+            pending: [traceInTask, other],
+        },
+        {
+            behaviour:
+                "keeps the next place of an allowance whose first place a content row allows",
+            rows: [{ pluginId: traceInTask.id, contentHash: PLUGIN_HASH }],
+            pending: [trace, other, third],
+        },
+    ])("$behaviour", ({ rows = [], answered = [], pending }) => {
+        expect(
+            pendingAllowances([traceInTask, trace, other, third], rows, new Set(answered)),
+        ).toEqual(pending);
+    });
+});
+
+describe("repositoryFolderOf", () => {
+    const allowanceIn = (origin: Allowance["origin"]): Allowance => ({
+        kind: "plugin",
+        host: LOCAL_HOST,
+        origin,
+        addOn: "",
+    });
+
+    it.each<{ behaviour: string; origin: Allowance["origin"]; folder: string | undefined }>([
+        {
+            behaviour: "takes the folder that holds the .git folder",
+            origin: { kind: "repository", path: "/x/app/.git" },
+            folder: "/x/app",
+        },
+        {
+            behaviour: "takes a bare repository as its own folder",
+            origin: { kind: "repository", path: "/x/app.git" },
+            folder: "/x/app.git",
+        },
+        {
+            behaviour: "names no repository for a folder origin",
+            origin: { kind: "folder", path: "/x/app/.git" },
+            folder: undefined,
+        },
+    ])("$behaviour", ({ origin, folder }) => {
+        expect(repositoryFolderOf(allowanceIn(origin))).toBe(folder);
+    });
+});
+
+describe("ALLOWANCE_COVERS_TEXT", () => {
+    it("says that an allowance follows later changes", () => {
+        expect(ALLOWANCE_COVERS_TEXT).toBe(
+            "covers it in every worktree of its repository, or in its folder outside a repository, later changes included",
+        );
     });
 });
 

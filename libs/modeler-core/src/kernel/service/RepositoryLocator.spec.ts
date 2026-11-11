@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
+import { writeLinkedWorktree, writeRepository } from "../../testing/gitLayout";
 import { InMemoryInstalledPackages } from "../../testing/InMemoryInstalledPackages";
 import { CodeOrigin } from "../domain/repositoryIdentity";
 import { RepositoryLocator } from "./RepositoryLocator";
@@ -14,23 +15,13 @@ describe("RepositoryLocator", () => {
     beforeEach(() => {
         files = new InMemoryInstalledPackages(() => "unused");
         locator = new RepositoryLocator(files);
-        files.createDirectory("/work/repo/.git/objects");
+        writeRepository(files, "/work/repo");
         files.createDirectory(`/work/repo/${PLUGIN}`);
     });
 
-    /** Lays out a linked worktree as `git worktree add` does, absolute or relative. */
     function addWorktree(name: string, paths: "absolute" | "relative" = "absolute"): string {
         const worktree = `/work/${name}`;
-        const adminDir = `/work/repo/.git/worktrees/${name}`;
-        files.writeFile(
-            `${worktree}/.git`,
-            `gitdir: ${paths === "absolute" ? adminDir : `../repo/.git/worktrees/${name}`}\n`,
-        );
-        files.writeFile(`${adminDir}/commondir`, "../..\n");
-        files.writeFile(
-            `${adminDir}/gitdir`,
-            `${paths === "absolute" ? `${worktree}/.git` : `../../../../${name}/.git`}\n`,
-        );
+        writeLinkedWorktree(files, "/work/repo", worktree, { paths });
         files.createDirectory(`${worktree}/${PLUGIN}`);
         return worktree;
     }

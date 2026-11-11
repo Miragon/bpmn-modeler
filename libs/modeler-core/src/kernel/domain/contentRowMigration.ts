@@ -1,4 +1,4 @@
-import { Allowance, allowanceKeyOf, allowanceRowOf } from "./allowance";
+import { Allowance, allowanceKeyOf, allowanceRowOf, LOCAL_HOST } from "./allowance";
 import { AllowanceKind, approvalRowReadingOf } from "./approvalRowKind";
 import { CodeApproval, codeApprovalChange, CodeApprovalChange } from "./codeApproval";
 
@@ -23,6 +23,7 @@ export function contentRowsToLocate(rows: readonly CodeApproval[]): ContentRowPl
  * Rewrites each row pinned to content whose place was located as the
  * allowance of the add-on there. A row whose place was not found stays: one
  * list can serve several machines, and a folder gone here may exist on another.
+ * For that reason a row located on a remote host stays too.
  */
 export function contentRowMigrationOf(
     rows: readonly CodeApproval[],
@@ -33,7 +34,7 @@ export function contentRowMigrationOf(
     const revoke: string[] = [];
     for (const { id, kind } of contentRowsToLocate(rows)) {
         const allowance = located.get(id);
-        if (allowance?.kind !== kind) {
+        if (allowance?.kind !== kind || allowance.host !== LOCAL_HOST) {
             continue;
         }
         revoke.push(id);
@@ -43,4 +44,13 @@ export function contentRowMigrationOf(
         }
     }
     return revoke.length === 0 ? undefined : codeApprovalChange([...allow.values()], revoke);
+}
+
+/** How long code that would ask waits for the migration; past it the rows pinned to content still allow their places. */
+export const CONTENT_ROW_MIGRATION_WAIT_MS = 10_000;
+
+export function contentRowMigrationLogLine(rewritten: number): string {
+    return rewritten === 1
+        ? "Approvals: rewrote 1 approval pinned to content as an allowance of its add-on, later changes included."
+        : `Approvals: rewrote ${rewritten} approvals pinned to content as allowances of their add-ons, later changes included.`;
 }

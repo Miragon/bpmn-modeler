@@ -9,6 +9,13 @@ import {
 import { installedPackageNameOf, NODE_MODULES } from "./installedPackagePath";
 import { CodeOrigin } from "./repositoryIdentity";
 import { relativeToRoot } from "./rootContainment";
+import { lastWorkspacePathSegment, parentWorkspacePath } from "./workspacePath";
+
+/** The host part of code found on this machine. */
+export const LOCAL_HOST = "";
+
+export const ALLOWANCE_COVERS_TEXT =
+    "covers it in every worktree of its repository, or in its folder outside a repository, later changes included";
 
 /**
  * The user allowed an add-on at its origin, whatever content it has there now
@@ -17,7 +24,7 @@ import { relativeToRoot } from "./rootContainment";
  */
 export interface Allowance {
     readonly kind: AllowanceKind;
-    /** The remote the code was found on; empty locally. One host list can hold rows of several. */
+    /** The remote the code was found on; {@link LOCAL_HOST} locally. One host list can hold rows of several. */
     readonly host: string;
     /** The repository's common directory, or the add-on's own folder outside every repository. */
     readonly origin: { readonly kind: "repository" | "folder"; readonly path: string };
@@ -38,6 +45,8 @@ export interface AllowanceOutcome<C extends AllowableCode> {
     /** Keyed by {@link allowanceKeyOf}, one entry per allowance. */
     readonly answers: ReadonlyMap<string, SessionAnswer>;
 }
+
+const DOT_GIT = ".git";
 
 const ADD_ON_PLACE_RULES: Record<AllowanceKind, (belowWorktree: string) => string> = {
     plugin: (belowWorktree) => belowWorktree,
@@ -89,7 +98,7 @@ export function allowanceRowOf(allowance: Allowance): CodeApproval {
     return { pluginId: allowanceKeyOf(allowance), contentHash: allowanceMarkerOf(allowance.kind) };
 }
 
-/** Its allowance, or a row pinned to content at its own place, whatever that content was. */
+/** Its allowance, or, found locally, a row pinned to content at its own place, whatever that content was. */
 export function isAllowed(code: AllowableCode, rows: readonly CodeApproval[]): boolean {
     const allowanceRow = allowanceRowOf(code.allowance);
     return rows.some(
@@ -119,16 +128,58 @@ export function allowingAllowances(codes: readonly AllowableCode[]): CodeApprova
     return codeApprovalChange([...rows.values()], []);
 }
 
-/** A content row at its place goes too: it would allow the add-on there again. */
+/**
+ * Every local content row at its place, or at a place `located` as the same
+ * allowance, goes too: each would allow the add-on there again.
+ */
 export function revokingAllowance(
     code: AllowableCode,
     rows: readonly CodeApproval[],
+    located: ReadonlyMap<string, Allowance>,
 ): CodeApprovalChange {
-    const contentRowHere = rows.some((row) => isContentRowAt(code, row));
-    return codeApprovalChange(
-        [],
-        [allowanceKeyOf(code.allowance), ...(contentRowHere ? [code.id] : [])],
-    );
+    const key = allowanceKeyOf(code.allowance);
+    const revoked = new Set([key]);
+    if (code.allowance.host === LOCAL_HOST) {
+        for (const row of rows) {
+            const allowanceThere = located.get(row.pluginId);
+            const isOfThisAllowance =
+                row.pluginId === code.id ||
+                (allowanceThere !== undefined && allowanceKeyOf(allowanceThere) === key);
+            if (isOfThisAllowance && isContentRowOf(code.allowance.kind, row)) {
+                revoked.add(row.pluginId);
+            }
+        }
+    }
+    return codeApprovalChange([], [...revoked]);
+}
+
+/**
+ * The code to ask about: one place per allowance, the first found, as two
+ * worktrees or a hoisted and a nested copy show one add-on.
+ */
+export function pendingAllowances<C extends AllowableCode>(
+    found: readonly C[],
+    rows: readonly CodeApproval[],
+    answeredKeys: ReadonlySet<string>,
+): C[] {
+    const pending = new Map<string, C>();
+    for (const code of found) {
+        const key = allowanceKeyOf(code.allowance);
+        if (!pending.has(key) && !answeredKeys.has(key) && !isAllowed(code, rows)) {
+            pending.set(key, code);
+        }
+    }
+    return [...pending.values()];
+}
+
+/** The folder a repository origin names: the worktree that holds `.git`, or a bare repository itself. */
+export function repositoryFolderOf({ origin }: Allowance): string | undefined {
+    if (origin.kind === "folder") {
+        return undefined;
+    }
+    return lastWorkspacePathSegment(origin.path) === DOT_GIT
+        ? (parentWorkspacePath(origin.path) ?? origin.path)
+        : origin.path;
 }
 
 /**
@@ -158,11 +209,19 @@ export function allowanceOutcome<C extends AllowableCode>(
     };
 }
 
+/**
+ * A content row names no host, and VS Code keeps the list on the client, so
+ * in a remote window it may have been given on another machine at that path.
+ */
 function isContentRowAt(code: AllowableCode, row: CodeApproval): boolean {
-    const reading = approvalRowReadingOf(row);
     return (
+        code.allowance.host === LOCAL_HOST &&
         row.pluginId === code.id &&
-        reading?.format === "content" &&
-        reading.kind === code.allowance.kind
+        isContentRowOf(code.allowance.kind, row)
     );
+}
+
+function isContentRowOf(kind: AllowanceKind, row: CodeApproval): boolean {
+    const reading = approvalRowReadingOf(row);
+    return reading?.format === "content" && reading.kind === kind;
 }

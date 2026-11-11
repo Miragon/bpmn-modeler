@@ -13,6 +13,7 @@ import { MarketplaceScope } from "../template-marketplace/domain/marketplaceRegi
 import { tokenPromptFor } from "../template-marketplace/domain/tokenPrompt";
 import { createTestHost } from "./createTestHost";
 import { fingerprintHasher } from "./fingerprintHasher";
+import { folderOriginAllowances } from "./folderOriginAllowances";
 import { InMemorySettings } from "./InMemorySettings";
 import { InMemoryWorkspace } from "./InMemoryWorkspace";
 import { RecordingStatusBar } from "./RecordingStatusBar";
@@ -594,5 +595,19 @@ describe("ScriptedActionNotifier", () => {
         held.answer("allowAll");
 
         await expect(first).rejects.toThrow('"allowAll" is not an action of notice "first"');
+    });
+});
+
+describe("folderOriginAllowances", () => {
+    it("takes every add-on as its own folder origin on the host given", () => {
+        expect(folderOriginAllowances().allowanceAt("plugin", "/work/repo/plugins/trace")).toEqual({
+            kind: "plugin",
+            host: "",
+            origin: { kind: "folder", path: "/work/repo/plugins/trace" },
+            addOn: "",
+        });
+        expect(
+            folderOriginAllowances("ssh-remote+box").locatedAllowanceAt("rulePackage", "/rules"),
+        ).toMatchObject({ host: "ssh-remote+box", origin: { kind: "folder", path: "/rules" } });
     });
 });

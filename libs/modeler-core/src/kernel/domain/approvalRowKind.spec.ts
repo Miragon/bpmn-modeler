@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+    ALLOWANCE_KINDS,
     allowanceMarkerOf,
     ApprovalRowReading,
     approvalRowReadingOf,
@@ -17,6 +18,19 @@ describe("allowanceMarkerOf", () => {
         { kind: "rulePackage" as const, marker: "allowance-v1:rulePackage" },
     ])("marks a $kind allowance row with the rule it was given under", ({ kind, marker }) => {
         expect(allowanceMarkerOf(kind)).toBe(marker);
+    });
+});
+
+describe("ALLOWANCE_KINDS", () => {
+    it("reads each kind's marker back as an allowance of that kind", () => {
+        expect(
+            ALLOWANCE_KINDS.map((kind) =>
+                approvalRowReadingOf({ contentHash: allowanceMarkerOf(kind) }),
+            ),
+        ).toEqual([
+            { kind: "plugin", format: "allowance" },
+            { kind: "rulePackage", format: "allowance" },
+        ]);
     });
 });
 

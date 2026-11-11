@@ -2,6 +2,7 @@ import { win32 } from "path";
 import { describe, expect, it } from "vitest";
 
 import {
+    fileSystemPathOf,
     joinWorkspacePath,
     lastWorkspacePathSegment,
     parentWorkspacePath,
@@ -326,5 +327,18 @@ describe("withoutFileScheme", () => {
         },
     ])("$behaviour", ({ path, stripped }) => {
         expect(withoutFileScheme(path)).toBe(stripped);
+    });
+});
+
+describe("fileSystemPathOf", () => {
+    it.each([
+        { behaviour: "drops the slash before a lower-case drive", path: "/c:/x", fsPath: "c:/x" },
+        { behaviour: "drops the slash before an upper-case drive", path: "/C:/x", fsPath: "C:/x" },
+        { behaviour: "keeps a POSIX path", path: "/x", fsPath: "/x" },
+        { behaviour: "keeps a UNC path", path: "//server/share", fsPath: "//server/share" },
+        { behaviour: "keeps a file URI", path: "file:///x", fsPath: "file:///x" },
+        { behaviour: "keeps a drive path without the slash", path: "c:/x", fsPath: "c:/x" },
+    ])("$behaviour", ({ path, fsPath }) => {
+        expect(fileSystemPathOf(path)).toBe(fsPath);
     });
 });

@@ -11,6 +11,8 @@ export * from "./editorHandleContract";
 export * from "./FakeDiffPaneHandle";
 export * from "./FakeEditorHandle";
 export * from "./fingerprintHasher";
+export * from "./folderOriginAllowances";
+export * from "./gitLayout";
 export * from "./InMemoryCredentials";
 export * from "./InMemoryDeploymentState";
 export * from "./InMemoryInstalledPackages";
