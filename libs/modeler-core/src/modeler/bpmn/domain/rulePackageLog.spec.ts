@@ -114,7 +114,7 @@ describe("refusedRuleModuleLogLine", () => {
         {
             case: "a file an update moved out of the package's new folder",
             refused: { kind: "module", file: FILE, reason: "movedByUpdate" },
-            line: `bpmnlint: refused to run ${FILE}: an update moved the package to a new folder that has no such file; reload the window or restart the IDE to load the updated package.`,
+            line: `bpmnlint: refused to run ${FILE}: an update moved the package to another folder, from which this process cannot load the file; reload the window or restart the IDE to load the updated package.`,
         },
     ])("logs $case", ({ refused, line }) => {
         expect(refusedRuleModuleLogLine(refused)).toEqual(line);

@@ -1274,10 +1274,10 @@ loads after one. A pnpm update links `node_modules/<name>` to a new
 `.pnpm` folder, but Node and Bun keep a resolution and a link's target for
 the whole process, so a fresh scoped require still answers with the old
 folder, gone or not; the gate moves such an answer to the current folder (see
-"Gate"). Only an update that moves the entry or a rule file needs a
-reload. The gate, the question, the log and the Add-ons view name a rule
-package as `name@version` (`rulePackageLabelOf`), so an update shows without
-a question.
+"Gate"). Only such an update that leaves no file where the entry or a
+rule lay, because it moved one, needs a reload. The gate, the question, the
+log and the Add-ons view name a rule package as `name@version`
+(`rulePackageLabelOf`), so an update shows without a question.
 
 **A plugin keeps its hash for serving only.** The content-addressed copy and
 the cache stay, so the page still never reads a workspace folder.
@@ -1438,28 +1438,41 @@ loaded under (`loadedManifestStamps`, kept across setups by
 dependencies, run.
 
 *Current folder.* Node's resolution cache (`Module._pathCache` and the
-loader's realpath cache) and Bun's are per process and see no retargeted
-link. The gate touches neither, as Bun has no such internals. It looks the
-requested name up itself (`dependencyCandidates` from the config folder, with
-the port's uncached `realPath`) and, when that lookup path is a link, takes
-Node's answer only inside the folder the link leads to now. An answer in
-another root of the same name, such as the old `.pnpm` folder, moves to the
-same path below the current folder (`currentResolutionOf`): for a bare
-request, for an absolute path into the old folder and for the gate's own
-`resolve`, so NodeResolver's `dirname(require.resolve(pkg))` names the
-current folder for a rule its `rules` map names by a local path. A request
-Node fails with `ENOENT` or `MODULE_NOT_FOUND`, as its cached target misses a
-file only the new folder holds, is resolved once more below the current
-folder (`requestedFileBelow`); an `exports` refusal stands. Admission, the
-allowance, the stamps and eviction then apply to the current folder, which
-keeps the add-on place `node_modules/<name>`, so the update runs under the
-same allowance. When the current folder has no file at that path, because the
-update moved the entry or a rule file, the gate refuses the module
-(`movedByUpdate`) and the log asks for a window reload or an IDE restart; it
-never runs the old path. A lookup path that is a folder of its own has no
-earlier target, so a nested copy stays its own root. A switch from a `file:`
-link to the store keeps Node's answer and is refused as outside
-`node_modules` until a reload.
+loader's realpath and `package.json` caches) and Bun's are per process and
+see no retargeted link. The gate touches neither, as Bun has no such
+internals. It looks the requested name up itself (`dependencyCandidates` from
+the config folder, with the port's uncached `realPath`) and takes Node's
+answer only inside the folder that lookup path leads to now
+(`currentResolutionOf`). When the lookup path is a link, an answer in another
+root of the same package, such as the old `.pnpm` folder, moves to the same
+path below the current folder: for a bare request, for an absolute path into
+the old folder and for the gate's own `resolve`, so NodeResolver's
+`dirname(require.resolve(pkg))` names the current folder for a rule its
+`rules` map names by a local path. The same package is the requested name or
+the name the current store folder carries, as pnpm stores an alias under the
+package's own name. An answer outside every `node_modules`, left by a `file:`
+link the name no longer leads to, has no root to move from, so a bare request
+is looked up again in the current folder. So is a request Node fails with
+`ENOENT` or `MODULE_NOT_FOUND`, as its cached target misses a file only the
+new folder holds; an `exports` refusal stands. Such a lookup
+(`currentFolderRequestOf`) joins the subpath to the current folder, or, when
+the current `package.json` has `exports`, resolves the package's own name
+from inside that folder (`requireFrom`), so Node applies the new `exports`
+instead of those it cached for the link; an answer outside the current folder
+is dropped. Admission, the allowance, the stamps and eviction then apply to
+the current folder, which keeps the add-on place `node_modules/<name>`, so the
+update runs under the same allowance. When the current folder has no file at
+that path, because the update moved the entry or a rule file, the gate
+refuses the module (`movedByUpdate`) and the log asks for a window reload or
+an IDE restart; it never runs the old path. A move drops the old root's
+`require.cache` entries, which nothing requires again, so updates do not pile
+up versions in the process; only the root, as its dependencies are links into
+store folders the new version may share. A lookup path that is a folder of
+its own has no earlier target, so a nested copy in `node_modules` stays its
+own root. An npm update in place keeps the folder, so the gate keeps Node's
+answer there. A folder npm installs in place of a `file:` link keeps the
+link's path, which Node's realpath cache still maps to the linked folder, so
+its files are refused (`movedByUpdate`) until a reload.
 
 **Asking only when needed.** `CompositeResolver` brackets each synchronous
 request with the gate (`beginRequest`, `blockedSinceBegin`). A blocked package

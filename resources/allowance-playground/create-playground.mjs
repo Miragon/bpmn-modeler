@@ -525,7 +525,7 @@ function bump(target) {
         `acme-worktrees/pnpm/: ${RULE_PACKAGE_NAME} ${pnpmFrom} -> ${pnpmTo}; node_modules/${RULE_PACKAGE_NAME} now links to ${path.relative(pnpmCheckout, pnpmStoreFolder(pnpmCheckout, pnpmTo))}, the ${pnpmFrom} folder stays. Delete ${path.relative(pnpmCheckout, path.dirname(path.dirname(currentStore)))} to try what pnpm usually does.`,
     );
     console.log(
-        `\nEdit a diagram in either folder to lint again: the warnings name the new version without a question or a reload, the old pnpm folder kept or deleted. Only an update that moves the package's entry or a rule file needs a window reload or an IDE restart. Click Refresh Add-ons to see the new name@version in the view.`,
+        `\nEdit a diagram in either folder to lint again: the warnings name the new version without a question or a reload, the old pnpm folder kept or deleted. Only a pnpm update that moves the package's entry or a rule file needs a window reload or an IDE restart. Click Refresh Add-ons to see the new name@version in the view.`,
     );
 }
 

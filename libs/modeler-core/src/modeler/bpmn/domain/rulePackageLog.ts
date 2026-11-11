@@ -9,7 +9,7 @@ const MODULE_REFUSAL_TEXT: Record<ModuleRefusal, string> = {
         "the package link it comes through points to a folder that holds the config",
     insideGitFolder: "it lies inside a .git folder, which no allowance covers",
     movedByUpdate:
-        "an update moved the package to a new folder that has no such file; reload the window or restart the IDE to load the updated package",
+        "an update moved the package to another folder, from which this process cannot load the file; reload the window or restart the IDE to load the updated package",
 };
 
 const BLOCKED_STATE_TEXT: Record<BlockedState, string> = {

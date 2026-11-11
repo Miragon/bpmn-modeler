@@ -13,7 +13,9 @@
  * question. A second bridge over a repository with pnpm's layout pins that
  * Bun's resolution cache does not hold the old store folder: an update that
  * links the package to a new folder and removes the old one runs the new
- * version without a question. Exits non-zero on the first failed step.
+ * version without a question. A third does so for a package whose `exports`
+ * map its rules, where the update adds a rule Bun's cached `exports` cannot
+ * reach. Exits non-zero on the first failed step.
  *
  * Run from the repository root (not part of `test`):
  *   corepack yarn workspace @miragon/bpmn-modeler-bridge smoke:rule-package-gate
@@ -23,6 +25,7 @@
 import { allowanceKeyOf, allowanceOf, LOCAL_HOST } from "@miragon/bpmn-modeler-core";
 
 import {
+    ACME_ADDED_RULE,
     ACME_RULE,
     AcmeBridge,
     acmeRuns,
@@ -142,7 +145,7 @@ async function smoke(bridge: AcmeBridge): Promise<void> {
     );
 }
 
-async function smokePnpm(bridge: AcmeBridge): Promise<void> {
+async function allowPnpmInstall(bridge: AcmeBridge): Promise<Frame> {
     stored = { approvals: [], revision: 1 };
     await lintOnHost(bridge);
     const origin: CodeOrigin = {
@@ -150,7 +153,11 @@ async function smokePnpm(bridge: AcmeBridge): Promise<void> {
         commonDir: `${bridge.root}/.git`,
         worktreeRoot: bridge.root,
     };
-    const allowed = await allowEveryPending(bridge, 0, origin);
+    return allowEveryPending(bridge, 0, origin);
+}
+
+async function smokePnpm(bridge: AcmeBridge): Promise<void> {
+    const allowed = await allowPnpmInstall(bridge);
     check(ranWith(allowed, "v1"), "the allowed pnpm install runs", findingsOf(allowed));
     const notices = noticesOf(bridge);
     const logged = bridge.frames.length;
@@ -162,6 +169,32 @@ async function smokePnpm(bridge: AcmeBridge): Promise<void> {
             noticesOf(bridge) === notices &&
             !warned(bridge, logged, "refused to run"),
         "a pnpm update that removes the old store folder runs the new version, without a notice",
+        { findings: findingsOf(updated), notices: noticesOf(bridge) },
+    );
+}
+
+async function smokePnpmExports(bridge: AcmeBridge): Promise<void> {
+    const allowed = await allowPnpmInstall(bridge);
+    check(
+        ranWith(allowed, "v1"),
+        "the allowed pnpm install with exports runs",
+        findingsOf(allowed),
+    );
+    const notices = noticesOf(bridge);
+    const logged = bridge.frames.length;
+
+    await updateAcmeWithPnpm(bridge.root, "1.0.0", "1.1.0", PNPM_UPDATED, {
+        exports: true,
+        addsRule: true,
+    });
+    const updated = await relint(bridge);
+    const added = findingsOf(updated)[ACME_ADDED_RULE] ?? [];
+    check(
+        ranWith(updated, PNPM_UPDATED) &&
+            added.length > 0 &&
+            noticesOf(bridge) === notices &&
+            !warned(bridge, logged, "refused to run"),
+        "a pnpm update runs a rule it adds behind the package's exports, without a notice",
         { findings: findingsOf(updated), notices: noticesOf(bridge) },
     );
 }
@@ -185,7 +218,8 @@ async function main(): Promise<number> {
     }
     try {
         await runPhase(createAcmeWorkspace, smoke);
-        await runPhase(createPnpmAcmeWorkspace, smokePnpm);
+        await runPhase(() => createPnpmAcmeWorkspace(), smokePnpm);
+        await runPhase(() => createPnpmAcmeWorkspace({ exports: true }), smokePnpmExports);
         console.log("rule package gate smoke passed");
         return 0;
     } catch (error) {

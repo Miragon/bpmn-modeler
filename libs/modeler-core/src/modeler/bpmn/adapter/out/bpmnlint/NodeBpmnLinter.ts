@@ -156,6 +156,7 @@ export class NodeBpmnLinter implements LintRunnerPort {
                 approvals,
                 configDir: toWorkspacePath(configDir),
                 loadedManifestStamps: this.loadedManifestStamps,
+                requireFrom: createScopedRequire,
             });
 
         return {

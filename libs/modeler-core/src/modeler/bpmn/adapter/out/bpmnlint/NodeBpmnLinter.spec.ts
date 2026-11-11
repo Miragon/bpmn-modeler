@@ -10,6 +10,7 @@ import {
     writeFileSync,
 } from "node:fs";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -947,6 +948,158 @@ module.exports = () => ({
             expect(messagesOf(before.results)).toEqual(["task-found@1.0.0"]);
             expect(messagesOf(after.results)).toEqual(["task-found@1.1.0"]);
             expect(after.refused).toEqual([]);
+        });
+
+        it("drops the old version's modules from the module cache", async () => {
+            await lintAllowedV1();
+            const loadedFrom = (dir: string) =>
+                Object.keys(createRequire(configPath).cache).filter((key) =>
+                    toWorkspacePath(key).startsWith(`${dir}/`),
+                );
+            const loadedBefore = loadedFrom(storeDir("1.0.0"));
+
+            await installInStore("1.1.0");
+            linkTo("1.1.0");
+            rmSync(storeDir("1.0.0"), { recursive: true, force: true });
+            await linter.lint(BPMN_WITH_TASK, configPath, TASK_FOUND);
+
+            expect(loadedBefore).toHaveLength(2);
+            expect(loadedFrom(storeDir("1.0.0"))).toEqual([]);
+            expect(loadedFrom(storeDir("1.1.0"))).toHaveLength(2);
+        });
+
+        it("runs the new version of a package installed under an alias", async () => {
+            writeRepository(diskLayout, workspaceDir);
+            const aliasedFolder = (version: string) =>
+                `node_modules/.pnpm/@corp+bpmnlint-plugin-acme@${version}/node_modules/@corp/bpmnlint-plugin-acme`;
+            const installAliased = (version: string) =>
+                installPackage(
+                    aliasedFolder(version),
+                    { name: "@corp/bpmnlint-plugin-acme", version },
+                    {
+                        "index.js": marked(`acme@${version}`, "module.exports = {};"),
+                        "rules/task-found.js": ruleOf(`task-found@${version}`),
+                    },
+                );
+            const linkAliased = (version: string) => {
+                rmSync(acmeDir(), { force: true });
+                symlinkSync(join(workspaceDir, aliasedFolder(version)), acmeDir(), "dir");
+            };
+            await installAliased("1.0.0");
+            linkAliased("1.0.0");
+            allowAcme();
+            const before = await linter.lint(BPMN_WITH_TASK, configPath, TASK_FOUND);
+
+            await installAliased("1.1.0");
+            linkAliased("1.1.0");
+            rmSync(join(workspaceDir, aliasedFolder("1.0.0")), { recursive: true, force: true });
+            const after = await linter.lint(BPMN_WITH_TASK, configPath, TASK_FOUND);
+
+            expect(messagesOf(before.results)).toEqual(["task-found@1.0.0"]);
+            expect(messagesOf(after.results)).toEqual(["task-found@1.1.0"]);
+            expect([after.blocked, after.refused]).toEqual([[], []]);
+        });
+
+        it("runs a rule only the new version adds behind its exports", async () => {
+            writeRepository(diskLayout, workspaceDir);
+            const exportsMap = { ".": "./index.js", "./rules/*": "./src/rules/*.js" };
+            await installInStore(
+                "1.0.0",
+                {
+                    "index.js": marked("acme@1.0.0", "module.exports = {};"),
+                    "src/rules/task-found.js": ruleOf("task-found@1.0.0"),
+                },
+                { exports: exportsMap },
+            );
+            linkTo("1.0.0");
+            allowAcme();
+            await linter.lint(BPMN_WITH_TASK, configPath, TASK_FOUND);
+
+            await installInStore(
+                "1.1.0",
+                {
+                    "index.js": marked("acme@1.1.0", "module.exports = {};"),
+                    "src/rules/task-found.js": ruleOf("task-found@1.1.0"),
+                    "src/rules/task-named.js": ruleOf("task-named@1.1.0"),
+                },
+                { exports: exportsMap },
+            );
+            linkTo("1.1.0");
+            const { results, unresolved, refused } = await linter.lint(BPMN_WITH_TASK, configPath, {
+                rules: { ...TASK_FOUND.rules, "acme/task-named": "warn" },
+            });
+
+            expect(unresolved).toEqual([]);
+            expect(refused).toEqual([]);
+            expect(messagesOf(results)).toEqual(["task-found@1.1.0"]);
+            expect((results["acme/task-named"] ?? []).map(({ message }) => message)).toEqual([
+                "task-named@1.1.0",
+            ]);
+        });
+
+        it("runs the installed version once a file: link is replaced by a link to the store", async () => {
+            writeRepository(diskLayout, workspaceDir);
+            await installPackage(
+                "packages/acme",
+                { name: "bpmnlint-plugin-acme", version: "0.0.1" },
+                {
+                    "index.js": marked("acme@local", "module.exports = {};"),
+                    "rules/task-found.js": ruleOf("task-found@local"),
+                },
+            );
+            mkdirSync(join(workspaceDir, "node_modules"), { recursive: true });
+            symlinkSync(join(workspaceDir, "packages/acme"), acmeDir(), "dir");
+            allowAcme();
+            const before = await linter.lint(BPMN_WITH_TASK, configPath, TASK_FOUND);
+
+            await installInStore("1.1.0");
+            linkTo("1.1.0");
+            allow(storeDir("1.1.0"));
+            const after = await linter.lint(BPMN_WITH_TASK, configPath, TASK_FOUND);
+
+            expect(messagesOf(before.results)).toEqual(["task-found@local"]);
+            expect(messagesOf(after.results)).toEqual(["task-found@1.1.0"]);
+            expect([after.unresolved, after.refused]).toEqual([[], []]);
+        });
+
+        /** Node keeps the link's target for the path, which the new folder now has itself. */
+        it("asks for a reload once npm replaces a file: link with a folder of its own, and never runs the linked one", async () => {
+            writeRepository(diskLayout, workspaceDir);
+            await installPackage(
+                "packages/acme",
+                { name: "bpmnlint-plugin-acme", version: "0.0.1" },
+                {
+                    "index.js": marked("acme@local", "module.exports = {};"),
+                    "rules/task-found.js": ruleOf("task-found@local"),
+                },
+            );
+            mkdirSync(join(workspaceDir, "node_modules"), { recursive: true });
+            symlinkSync(join(workspaceDir, "packages/acme"), acmeDir(), "dir");
+            allowAcme();
+            await linter.lint(BPMN_WITH_TASK, configPath, TASK_FOUND);
+            delete (globalThis as Record<string, unknown>)[RAN];
+
+            rmSync(acmeDir());
+            await installPackage(
+                "node_modules/bpmnlint-plugin-acme",
+                { name: "bpmnlint-plugin-acme", version: "1.1.0" },
+                {
+                    "index.js": marked("acme@1.1.0", "module.exports = {};"),
+                    "rules/task-found.js": ruleOf("task-found@1.1.0"),
+                },
+            );
+            const after = await linter.lint(BPMN_WITH_TASK, configPath, TASK_FOUND);
+
+            expect(ran()).toEqual([]);
+            expect(after.unresolved).toEqual(["bpmnlint-plugin-acme/task-found"]);
+            expect(after.refused).toEqual([
+                { kind: "module", file: `${workspaceDir}/packages/acme/index.js`, reason: "movedByUpdate" },
+                {
+                    kind: "module",
+                    file: `${workspaceDir}/packages/acme/rules/task-found.js`,
+                    reason: "movedByUpdate",
+                },
+            ]);
         });
 
         it("runs a rule file only the new version adds", async () => {

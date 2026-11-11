@@ -15,10 +15,10 @@ import {
     AllowableRoot,
     BlockedRulePackage,
     CurrentPackageFolder,
+    currentFolderRequestOf,
     currentResolutionOf,
     evictionScopeOf,
     loadsWithoutApproval,
-    requestedFileBelow,
     requestedPackageNameOf,
     rootStampPathsOf,
     rulePackageOf,
@@ -53,6 +53,8 @@ export interface RulePackageGateOptions {
     readonly configDir: string;
     /** The root's package.json stamp it was last loaded under, kept across setups by NodeBpmnLinter. */
     readonly loadedManifestStamps: Map<string, PathStamp | undefined>;
+    /** A require that looks up from inside a folder, spelled as Node's `require` takes it. */
+    readonly requireFrom: (dir: string) => NodeRequire;
 }
 
 interface StampedPath {
@@ -93,6 +95,7 @@ export class RulePackageGate implements RequestAttribution {
     /** By the refused file. */
     private readonly refused = new Map<string, RefusedRuleModule>();
     private readonly allowanceByRoot = new Map<string, Allowance>();
+    private readonly evictedStaleRoots = new Set<string>();
     private request: { readonly pkg: string; readonly blocked: Set<string> } | undefined;
     private readonly realConfigDir: string;
     private readonly selfPackageName: string | undefined;
@@ -142,19 +145,18 @@ export class RulePackageGate implements RequestAttribution {
     }
 
     /**
-     * Where the request leads now. Node's answer stands unless it lies in an
-     * older folder of the requested package, as its cache can hold after a pnpm
-     * update: then the same file below the current folder, or a refusal, as
-     * running the old folder would run code the update replaced.
+     * Where the request leads now. Node's answer stands unless it lies in a
+     * folder the requested package name led to before, as its cache can hold
+     * after a pnpm update: then the same file in the current folder, or a
+     * refusal, as running the old folder would run code the update replaced.
      */
     private currentResolution(request: string, scopedRequire: NodeRequire): ResolvedRequest {
         let resolved: string;
         try {
             resolved = scopedRequire.resolve(request);
         } catch (miss) {
-            const current = isNotFound(miss)
-                ? this.resolvedInCurrentFolder(request, scopedRequire)
-                : undefined;
+            const lookup = isNotFound(miss) ? this.requestedPackageDir(request) : undefined;
+            const current = lookup && this.resolvedInCurrentFolder(request, lookup, scopedRequire);
             if (current === undefined) {
                 throw miss;
             }
@@ -162,30 +164,53 @@ export class RulePackageGate implements RequestAttribution {
         }
         const path = toWorkspacePath(resolved);
         const lookup = isRootedPath(path) ? this.requestedPackageDir(request) : undefined;
-        const current = lookup === undefined ? undefined : currentResolutionOf(path, lookup);
-        if (current === undefined || current.kind === "keep") {
+        const current = lookup && currentResolutionOf(path, request, lookup);
+        if (lookup === undefined || current === undefined || current.kind === "keep") {
             return { file: resolved, lookup };
         }
-        if (this.options.sources.packages.realPath(current.file) === undefined) {
+        let moved: ResolvedRequest | undefined;
+        if (current.kind === "redirect") {
+            this.evictStaleRoot(current.staleRoot, scopedRequire.cache);
+            const exists = this.options.sources.packages.realPath(current.file) !== undefined;
+            moved = exists ? { file: fileSystemPathOf(current.file), lookup } : undefined;
+        } else {
+            moved = this.resolvedInCurrentFolder(request, lookup, scopedRequire);
+        }
+        if (moved === undefined) {
             this.refused.set(path, { kind: "module", file: path, reason: "movedByUpdate" });
             throw notAllowed(request);
         }
         this.refused.delete(path);
-        return { file: fileSystemPathOf(current.file), lookup };
+        return moved;
     }
 
-    /** A file only the current folder holds, which Node's cached link target cannot resolve. */
+    /** What Node's cached link target cannot answer: a file only the current folder holds, or one its `exports` now name. */
     private resolvedInCurrentFolder(
         request: string,
+        lookup: PackageLookup,
         scopedRequire: NodeRequire,
     ): ResolvedRequest | undefined {
-        const lookup = this.requestedPackageDir(request);
-        const below = lookup && requestedFileBelow(request, lookup);
-        if (below === undefined) {
+        const manifest = this.options.sources.packages.readTextFile(
+            manifestPathOf(lookup.currentRoot),
+        );
+        const target = currentFolderRequestOf(
+            request,
+            lookup,
+            manifest === undefined ? undefined : packageManifestOf(manifest),
+        );
+        if (target === undefined) {
             return undefined;
         }
         try {
-            return { file: scopedRequire.resolve(fileSystemPathOf(below)), lookup };
+            const file =
+                target.kind === "file"
+                    ? scopedRequire.resolve(fileSystemPathOf(target.file))
+                    : this.options
+                          .requireFrom(fileSystemPathOf(lookup.currentRoot))
+                          .resolve(target.request);
+            return isWithinRoot(toWorkspacePath(file), lookup.currentRoot)
+                ? { file, lookup }
+                : undefined;
         } catch {
             return undefined;
         }
@@ -250,14 +275,20 @@ export class RulePackageGate implements RequestAttribution {
         const before = loaded.get(rootId);
         const now = packages.stamp(manifestPathOf(rootId));
         loaded.set(rootId, now);
-        if (before === undefined || samePathStamp(before, now)) {
-            return;
+        if (before !== undefined && !samePathStamp(before, now)) {
+            dropCachedWithin(evictionScopeOf(rootId), cache);
         }
-        const scope = evictionScopeOf(rootId);
-        for (const path of Object.keys(cache)) {
-            if (isWithinRoot(toWorkspacePath(path), scope)) {
-                delete cache[path];
-            }
+    }
+
+    /**
+     * Nothing requires the old folder again, so its modules would stay cached
+     * for the whole process, one version per update. Only the root: its
+     * dependencies are links into other store folders the new version may share.
+     */
+    private evictStaleRoot(staleRoot: string, cache: ModuleCache): void {
+        if (!this.evictedStaleRoots.has(staleRoot)) {
+            this.evictedStaleRoots.add(staleRoot);
+            dropCachedWithin(staleRoot, cache);
         }
     }
 
@@ -304,6 +335,14 @@ export class RulePackageGate implements RequestAttribution {
             }
         }
         return undefined;
+    }
+}
+
+function dropCachedWithin(scope: string, cache: ModuleCache): void {
+    for (const path of Object.keys(cache)) {
+        if (isWithinRoot(toWorkspacePath(path), scope)) {
+            delete cache[path];
+        }
     }
 }
 

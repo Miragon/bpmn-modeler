@@ -16,6 +16,9 @@ import {
 import {
     type BlockedRulePackage,
     type BlockedState,
+    type CurrentFolderRequest,
+    currentFolderRequestOf,
+    type CurrentResolution,
     currentResolutionOf,
     editorsToRelint,
     evictionScopeOf,
@@ -23,7 +26,6 @@ import {
     nodeModulesDirOf,
     isParsedAsJson,
     loadsWithoutApproval,
-    requestedFileBelow,
     requestedPackageNameOf,
     RULE_PACKAGE_APPROVAL_NOTICE_ID,
     RULE_PACKAGE_APPROVAL_PROMPT_ID,
@@ -42,6 +44,7 @@ import {
     rootStampPathsOf,
     type ResolvedRuleModule,
 } from "./rulePackageApproval";
+import { type PackageManifest } from "./installedPackage";
 
 const repositoryAllowance = (addOn: string, path = "/repo/.git"): Allowance => ({
     kind: "rulePackage",
@@ -492,93 +495,239 @@ describe("currentResolutionOf", () => {
     const store = "/repo/node_modules/.pnpm";
     const v1 = `${store}/acme@1.0.0/node_modules/acme`;
     const v2 = `${store}/acme@1.1.0/node_modules/acme`;
+    const aliased = (version: string) => `${store}/@corp+acme@${version}/node_modules/@corp/acme`;
+    const KEEP: CurrentResolution = { kind: "keep" };
 
     it.each<{
         case: string;
         resolved: string;
+        request?: string;
         name?: string;
         currentRoot?: string;
         linked?: boolean;
-        file?: string;
+        expected: CurrentResolution;
     }>([
-        { case: "a file in the current target", resolved: `${v2}/index.js` },
+        { case: "a file in the current target", resolved: `${v2}/index.js`, expected: KEEP },
         {
             case: "another copy of the name when the lookup path is no link",
             resolved: `${v1}/index.js`,
             currentRoot: "/repo/node_modules/acme",
             linked: false,
+            expected: KEEP,
         },
         {
             case: "a file nested below the current target",
             resolved: `${v2}/node_modules/dep/index.js`,
+            expected: KEEP,
         },
         {
             case: "the entry an older store folder of the name held",
             resolved: `${v1}/index.js`,
-            file: `${v2}/index.js`,
+            expected: { kind: "redirect", file: `${v2}/index.js`, staleRoot: v1 },
         },
         {
             case: "a rule an older store folder held",
             resolved: `${v1}/rules/label.js`,
-            file: `${v2}/rules/label.js`,
+            expected: { kind: "redirect", file: `${v2}/rules/label.js`, staleRoot: v1 },
+        },
+        {
+            case: "an absolute path request into an older store folder",
+            resolved: `${v1}/rules/label.js`,
+            request: `${v1}/rules/label.js`,
+            expected: { kind: "redirect", file: `${v2}/rules/label.js`, staleRoot: v1 },
         },
         {
             case: "a scoped package's older store folder",
             resolved: `${store}/@acme+rules@1.0.0/node_modules/@acme/rules/config/all.js`,
+            request: "@acme/rules/config/all",
             name: "@acme/rules",
             currentRoot: `${store}/@acme+rules@1.1.0/node_modules/@acme/rules`,
-            file: `${store}/@acme+rules@1.1.0/node_modules/@acme/rules/config/all.js`,
+            expected: {
+                kind: "redirect",
+                file: `${store}/@acme+rules@1.1.0/node_modules/@acme/rules/config/all.js`,
+                staleRoot: `${store}/@acme+rules@1.0.0/node_modules/@acme/rules`,
+            },
+        },
+        {
+            case: "an older store folder of the package an alias names",
+            resolved: `${aliased("1.0.0")}/index.js`,
+            currentRoot: aliased("1.1.0"),
+            expected: {
+                kind: "redirect",
+                file: `${aliased("1.1.0")}/index.js`,
+                staleRoot: aliased("1.0.0"),
+            },
+        },
+        {
+            case: "another package's store folder while an alias leads to the current one",
+            resolved: `${store}/other@1.0.0/node_modules/other/index.js`,
+            currentRoot: aliased("1.1.0"),
+            expected: KEEP,
+        },
+        {
+            case: "a store folder named like a current folder outside node_modules",
+            resolved: `${store}/other@1.0.0/node_modules/other/index.js`,
+            currentRoot: "/work/other",
+            expected: KEEP,
         },
         {
             case: "an older store folder when the name now links outside node_modules",
             resolved: `${v1}/index.js`,
             currentRoot: "/work/acme",
-            file: "/work/acme/index.js",
+            expected: { kind: "redirect", file: "/work/acme/index.js", staleRoot: v1 },
         },
         {
             case: "another package's file",
             resolved: `${store}/other@1.0.0/node_modules/other/index.js`,
+            expected: KEEP,
         },
         {
             case: "a package whose name only starts alike",
             resolved: `${store}/acme-dep@1.0.0/node_modules/acme-dep/index.js`,
+            expected: KEEP,
         },
-        { case: "a file outside every node_modules", resolved: "/work/acme/index.js" },
-        { case: "a file in no package folder", resolved: `${store}/acme@1.0.0/node_modules/acme` },
-        { case: "a path that would climb out of the target", resolved: `${v1}/../../../evil.js` },
+        {
+            case: "a bare request answered outside every node_modules, where the name led before",
+            resolved: "/work/acme/index.js",
+            expected: { kind: "lookUp" },
+        },
+        {
+            case: "a bare request for a rule answered outside every node_modules",
+            resolved: "/work/acme/rules/label.js",
+            request: "acme/rules/label",
+            expected: { kind: "lookUp" },
+        },
+        {
+            case: "such an answer when the lookup path is a folder of its own now",
+            resolved: "/work/acme/index.js",
+            currentRoot: "/repo/node_modules/acme",
+            linked: false,
+            expected: { kind: "lookUp" },
+        },
+        {
+            case: "an absolute path request outside every node_modules",
+            resolved: "/work/acme/rules/label.js",
+            request: "/work/acme/rules/label.js",
+            expected: KEEP,
+        },
+        {
+            case: "a bare request for another name answered outside every node_modules",
+            resolved: "/work/other/index.js",
+            request: "other",
+            expected: KEEP,
+        },
+        {
+            case: "a file in no package folder",
+            resolved: `${store}/acme@1.0.0/node_modules/acme`,
+            expected: KEEP,
+        },
+        {
+            case: "a path that would climb out of the target",
+            resolved: `${v1}/../../../evil.js`,
+            expected: KEEP,
+        },
     ])(
-        "for $case gives $file",
-        ({ resolved, name = "acme", currentRoot = v2, linked = true, file }) => {
-            expect(currentResolutionOf(resolved, { name, currentRoot, linked })).toEqual(
-                file === undefined ? { kind: "keep" } : { kind: "redirect", file },
+        "for $case gives $expected.kind",
+        ({
+            resolved,
+            request = "acme",
+            name = "acme",
+            currentRoot = v2,
+            linked = true,
+            expected,
+        }) => {
+            expect(currentResolutionOf(resolved, request, { name, currentRoot, linked })).toEqual(
+                expected,
             );
         },
     );
 });
 
-describe("requestedFileBelow", () => {
+describe("currentFolderRequestOf", () => {
     const root = "/repo/node_modules/.pnpm/acme@1.1.0/node_modules/acme";
-    const linkedAcme = { name: "acme", currentRoot: root, linked: true };
+    const acme = { name: "acme", currentRoot: root };
+    const plain: PackageManifest = { name: "acme", version: "1.1.0", hasExports: false };
+    const exporting: PackageManifest = { ...plain, hasExports: true };
 
-    it.each<{ request: string; name?: string; linked?: boolean; file: string | undefined }>([
-        { request: "acme", file: root },
-        { request: "acme/rules/label", file: `${root}/rules/label` },
-        { request: "acme/config/all.js", file: `${root}/config/all.js` },
-        { request: "@acme/rules/config/all", name: "@acme/rules", file: `${root}/config/all` },
-        { request: "acme/rules/label", linked: false, file: undefined },
-        { request: "other/rules/label", file: undefined },
-        { request: "acme-dep/rules/label", file: undefined },
-        { request: "acme/../evil", file: undefined },
-        { request: "acme/rules/../../evil", file: undefined },
-        { request: "acme/rules\\..\\..\\evil", file: undefined },
-        { request: "./rules/label", file: undefined },
-        { request: "/repo/rules/label.js", file: undefined },
-    ])(
-        "finds $request below the current target at $file (linked: $linked)",
-        ({ request, name = linkedAcme.name, linked = linkedAcme.linked, file }) => {
-            expect(requestedFileBelow(request, { ...linkedAcme, name, linked })).toBe(file);
+    it.each<{
+        case: string;
+        request: string;
+        name?: string;
+        manifest?: PackageManifest;
+        expected: CurrentFolderRequest | undefined;
+    }>([
+        { case: "the entry", request: "acme", expected: { kind: "file", file: root } },
+        {
+            case: "a rule",
+            request: "acme/rules/label",
+            expected: { kind: "file", file: `${root}/rules/label` },
         },
-    );
+        {
+            case: "a config with its extension",
+            request: "acme/config/all.js",
+            expected: { kind: "file", file: `${root}/config/all.js` },
+        },
+        {
+            case: "a scoped package's config",
+            request: "@acme/rules/config/all",
+            name: "@acme/rules",
+            expected: { kind: "file", file: `${root}/config/all` },
+        },
+        {
+            case: "a rule of a package whose manifest cannot be read",
+            request: "acme/rules/label",
+            manifest: undefined,
+            expected: { kind: "file", file: `${root}/rules/label` },
+        },
+        {
+            case: "a rule of a package with exports, by its own name",
+            request: "acme/rules/label",
+            manifest: exporting,
+            expected: { kind: "selfReference", request: "acme/rules/label" },
+        },
+        {
+            case: "the entry of a package with exports",
+            request: "acme",
+            manifest: exporting,
+            expected: { kind: "selfReference", request: "acme" },
+        },
+        {
+            case: "a rule of an aliased package with exports, by the name its manifest gives",
+            request: "acme/rules/label",
+            manifest: { ...exporting, name: "@corp/acme" },
+            expected: { kind: "selfReference", request: "@corp/acme/rules/label" },
+        },
+        {
+            case: "a package with exports and no name, which cannot refer to itself",
+            request: "acme/rules/label",
+            manifest: { ...exporting, name: "" },
+            expected: undefined,
+        },
+        { case: "another package", request: "other/rules/label", expected: undefined },
+        {
+            case: "a name that only starts alike",
+            request: "acme-dep/rules/label",
+            expected: undefined,
+        },
+        { case: "a climb out of the package", request: "acme/../evil", expected: undefined },
+        { case: "a climb below a folder", request: "acme/rules/../../evil", expected: undefined },
+        {
+            case: "a climb with exports",
+            request: "acme/rules/../../evil",
+            manifest: exporting,
+            expected: undefined,
+        },
+        {
+            case: "a climb with Windows separators",
+            request: "acme/rules\\..\\..\\evil",
+            expected: undefined,
+        },
+        { case: "a relative path", request: "./rules/label", expected: undefined },
+        { case: "an absolute path", request: "/repo/rules/label.js", expected: undefined },
+    ])("for $case gives $expected", ({ request, name = acme.name, expected, ...row }) => {
+        const manifest = "manifest" in row ? row.manifest : plain;
+        expect(currentFolderRequestOf(request, { ...acme, name }, manifest)).toEqual(expected);
+    });
 });
 
 describe("evictionScopeOf", () => {

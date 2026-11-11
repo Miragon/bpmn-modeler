@@ -27,6 +27,8 @@ export interface PathStamp {
 export interface PackageManifest {
     readonly name: string;
     readonly version: string;
+    /** Node then reaches the package's files only through its `exports`. */
+    readonly hasExports: boolean;
 }
 
 export interface DependencyCandidate {
@@ -55,7 +57,11 @@ export function packageManifestOf(text: string): PackageManifest | undefined {
     if (manifest === undefined) {
         return undefined;
     }
-    return { name: stringOrEmpty(manifest.name), version: stringOrEmpty(manifest.version) };
+    return {
+        name: stringOrEmpty(manifest.name),
+        version: stringOrEmpty(manifest.version),
+        hasExports: manifest.exports !== undefined && manifest.exports !== null,
+    };
 }
 
 export function manifestPathOf(dir: string): string {

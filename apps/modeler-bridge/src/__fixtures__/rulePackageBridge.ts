@@ -20,6 +20,9 @@ import { hostNotification, hostReply, registerParams, waitForFrame } from "./bri
 
 export const ACME_RULE = "acme/task-found";
 
+/** Turned on only by a version installed with `addsRule`. */
+export const ACME_ADDED_RULE = "acme/task-added";
+
 export const ACME_NOTICE_MESSAGE =
     "1 bpmnlint rule package in this workspace is not allowed yet, so rules from it are skipped.";
 
@@ -120,12 +123,19 @@ export async function bumpAcmeVersion(root: string, version: string): Promise<vo
  * its `.pnpm` store folder, where its dependency lies beside it.
  * @returns the workspace, a realpath.
  */
-export async function createPnpmAcmeWorkspace(): Promise<string> {
+export async function createPnpmAcmeWorkspace(install: AcmeInstall = {}): Promise<string> {
     const root = await fs.realpath(await fs.mkdtemp(join(tmpdir(), "bridge-rule-pnpm-")));
     GIT_FILES.createDirectory(join(root, ".git", "objects"));
     await writeAcmeConfig(root);
-    await installAcmeWithPnpm(root, "1.0.0", "v1");
+    await installAcmeWithPnpm(root, "1.0.0", "v1", install);
     return root;
+}
+
+export interface AcmeInstall {
+    /** The package reaches its rules only through `exports`, which map them into `src/`. */
+    readonly exports?: boolean;
+    /** Its recommended config turns on {@link ACME_ADDED_RULE}, whose file earlier versions lack. */
+    readonly addsRule?: boolean;
 }
 
 /** As `pnpm update` does: a new store folder, the link retargeted to it and the old folder removed. */
@@ -134,22 +144,31 @@ export async function updateAcmeWithPnpm(
     from: string,
     to: string,
     message: string,
+    install: AcmeInstall = {},
 ): Promise<void> {
-    await installAcmeWithPnpm(root, to, message);
+    await installAcmeWithPnpm(root, to, message, install);
     await fs.rm(pnpmStoreOf(root, from), { recursive: true, force: true });
 }
 
 const pnpmStoreOf = (root: string, version: string) =>
     join(root, "node_modules", ".pnpm", `bpmnlint-plugin-acme@${version}`);
 
-async function installAcmeWithPnpm(root: string, version: string, message: string): Promise<void> {
+async function installAcmeWithPnpm(
+    root: string,
+    version: string,
+    message: string,
+    install: AcmeInstall,
+): Promise<void> {
     const storeModules = join(pnpmStoreOf(root, version), "node_modules");
     const packageDir = join(storeModules, "bpmnlint-plugin-acme");
+    const exportsMap = install.exports
+        ? { exports: { ".": "./index.js", "./rules/*": "./src/rules/*.js" } }
+        : {};
     await installPackageAt(
         packageDir,
         "bpmnlint-plugin-acme",
-        { ...ACME_MANIFEST, version },
-        acmeFilesOf(root),
+        { ...ACME_MANIFEST, ...exportsMap, version },
+        acmeFilesOf(root, install),
     );
     await installPackageAt(
         join(storeModules, "acme-dep"),
@@ -169,17 +188,25 @@ async function writeAcmeConfig(root: string): Promise<void> {
     );
 }
 
-function acmeFilesOf(root: string): Record<string, string> {
-    return {
-        "index.js": `module.exports = { configs: { recommended: { rules: { ${JSON.stringify(ACME_RULE)}: "warn" } } } };`,
-        "rules/task-found.js": `const message = require("acme-dep");
+function acmeFilesOf(
+    root: string,
+    { exports = false, addsRule = false }: AcmeInstall = {},
+): Record<string, string> {
+    const rules = [ACME_RULE, ...(addsRule ? [ACME_ADDED_RULE] : [])];
+    const ruleFile = `const message = require("acme-dep");
 module.exports = () => ({
     check(node, reporter) {
         if (node.$type !== "bpmn:Task") return;
         require("fs").appendFileSync(${JSON.stringify(join(root, RAN_LOG))}, message + "\\n");
         reporter.report(node.id, message);
     },
-});`,
+});`;
+    const rulesDir = exports ? "src/rules" : "rules";
+    return {
+        "index.js": `module.exports = { configs: { recommended: { rules: ${JSON.stringify(Object.fromEntries(rules.map((rule) => [rule, "warn"])))} } } };`,
+        ...Object.fromEntries(
+            rules.map((rule) => [`${rulesDir}/${rule.slice("acme/".length)}.js`, ruleFile]),
+        ),
     };
 }
 

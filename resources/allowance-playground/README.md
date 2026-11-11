@@ -148,9 +148,9 @@ two places:
 The modeler checks the stamps of the package's `package.json` (and of the link's) before each lint,
 so the next lint runs the new version without a question. Node and Bun keep where a link led for
 the whole process, so after the pnpm `bump` they still name the old folder; the modeler loads the
-same file from the folder the link leads to now. An update that moves the package's entry or a rule
-file to another path is refused instead, and the output channel asks you to reload the window or
-restart the IDE. The Add-ons view does not watch `node_modules`: click **Refresh Add-ons** to see the
+same file from the folder the link leads to now. A pnpm update that moves the package's entry or a
+rule file to another path is refused instead, and the output channel asks you to reload the window
+or restart the IDE. The Add-ons view does not watch `node_modules`: click **Refresh Add-ons** to see the
 new `name@version`.
 
 ## Reset between runs

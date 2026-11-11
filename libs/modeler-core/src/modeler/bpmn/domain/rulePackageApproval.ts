@@ -26,7 +26,7 @@ import {
     staysInsideFolder,
 } from "../../../kernel/domain/rootContainment";
 import { joinWorkspacePath } from "../../../kernel/domain/workspacePath";
-import { manifestPathOf, packageManifestOf } from "./installedPackage";
+import { manifestPathOf, PackageManifest, packageManifestOf } from "./installedPackage";
 
 export const RULE_PACKAGE_APPROVAL_NOTICE_ID = "bpmnlintPackageApprovalNotice";
 
@@ -99,46 +99,83 @@ export interface CurrentPackageFolder {
 }
 
 export type CurrentResolution =
-    { readonly kind: "keep" } | { readonly kind: "redirect"; readonly file: string };
+    | { readonly kind: "keep" }
+    | { readonly kind: "redirect"; readonly file: string; readonly staleRoot: string }
+    /** Node's answer lies in a folder outside every `node_modules` the name led to before, whose root is unknown: look the request up again in the current folder. */
+    | { readonly kind: "lookUp" };
+
+export type CurrentFolderRequest =
+    | { readonly kind: "file"; readonly file: string }
+    /** Resolved from inside the current folder, so Node reads that folder's `exports`, not the ones it cached for the link. */
+    | { readonly kind: "selfReference"; readonly request: string };
 
 const KEEP: CurrentResolution = { kind: "keep" };
 
 /**
  * Node and Bun cache a resolution per process, so after pnpm retargets
  * `node_modules/<name>` to a new store folder they still answer with the old
- * one, gone or not. A file in another root of the same name moves to the same
- * place below the current one; whether it exists there is the caller's to check.
- * A lookup path that is a folder of its own has no earlier target, so another
- * copy of the name, such as a nested one, stays its own root.
+ * one, gone or not. A file in another root of the same package moves to the
+ * same place below the current one; whether it exists there is the caller's
+ * to check. The store folders of an alias carry the package's own name, not
+ * the requested one. A lookup path that is a folder of its own has no earlier
+ * target, so another copy of the name, such as a nested one, stays its own root.
  */
 export function currentResolutionOf(
     resolved: string,
+    request: string,
     { name, currentRoot, linked }: CurrentPackageFolder,
 ): CurrentResolution {
-    if (!linked || isWithinRoot(resolved, currentRoot)) {
+    if (isWithinRoot(resolved, currentRoot)) {
         return KEEP;
     }
     const staleRoot = installedPackageRootOf(resolved);
-    if (staleRoot?.kind !== "package" || installedPackageNameOf(staleRoot.id) !== name) {
+    if (staleRoot === undefined) {
+        return requestedPackageNameOf(request) === name ? { kind: "lookUp" } : KEEP;
+    }
+    if (!linked || staleRoot.kind !== "package") {
+        return KEEP;
+    }
+    const staleName = installedPackageNameOf(staleRoot.id);
+    if (staleName !== name && staleName !== storeNameOf(currentRoot)) {
         return KEEP;
     }
     const file = fileBelow(currentRoot, resolved.slice(staleRoot.id.length + 1));
-    return file === undefined ? KEEP : { kind: "redirect", file };
+    return file === undefined ? KEEP : { kind: "redirect", file, staleRoot: staleRoot.id };
+}
+
+function storeNameOf(root: string): string | undefined {
+    return installedPackagesDirOf(root) === undefined ? undefined : installedPackageNameOf(root);
 }
 
 /**
- * The file a bare request for the package names below its current folder,
- * for a request Node failed: its cache of the link's old target misses a file
- * only the new folder holds.
+ * Where a bare request for the package leads in its current folder, for a
+ * request Node failed or answered from a folder the name no longer leads to.
+ * A package with `exports` is asked by its own name from inside that folder,
+ * as joining the subpath would skip its `exports`.
  */
-export function requestedFileBelow(
+export function currentFolderRequestOf(
     request: string,
-    { name, currentRoot, linked }: CurrentPackageFolder,
-): string | undefined {
-    if (!linked || requestedPackageNameOf(request) !== name) {
+    { name, currentRoot }: Pick<CurrentPackageFolder, "name" | "currentRoot">,
+    manifest: PackageManifest | undefined,
+): CurrentFolderRequest | undefined {
+    if (requestedPackageNameOf(request) !== name) {
         return undefined;
     }
-    return fileBelow(currentRoot, request.slice(name.length + 1));
+    const belowRoot = request.slice(name.length + 1);
+    const file = fileBelow(currentRoot, belowRoot);
+    if (file === undefined) {
+        return undefined;
+    }
+    if (manifest?.hasExports !== true) {
+        return { kind: "file", file };
+    }
+    if (manifest.name === "") {
+        return undefined;
+    }
+    return {
+        kind: "selfReference",
+        request: belowRoot === "" ? manifest.name : `${manifest.name}/${belowRoot}`,
+    };
 }
 
 function fileBelow(root: string, belowRoot: string): string | undefined {
