@@ -10,6 +10,7 @@ const dictionary: Record<string, string> = {
     "The linked form is missing or invalid. Check the form reference.":
         "Het gekoppelde formulier ontbreekt of is ongeldig. Controleer de formulierverwijzing.",
     "Preview linked form": "Gekoppeld formulier bekijken",
+    "Fit diagram to view": "Diagram passend maken",
     "Linked form preview": "Voorbeeld van gekoppeld formulier",
     "Refresh": "Vernieuwen",
     "Close form preview": "Formuliervoorbeeld sluiten",

@@ -14,7 +14,7 @@
         "test:orca:docker": "node test/smoke/run-in-container.mjs"
     },
     "dependencies": {
-        "@bpmn-io/properties-panel": "3.58.1",
+        "@bpmn-io/properties-panel": "3.57.0",
         "@miragon/bpmn-modeler": "workspace:*",
         "@miragon/bpmn-modeler-i18n": "0.2.0",
         "@miragon/bpmn-modeler-i18n-extras": "workspace:*",

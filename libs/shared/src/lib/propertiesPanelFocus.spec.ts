@@ -397,6 +397,19 @@ describe("installPanelShortcuts (escapeToCanvas)", () => {
         expect(event.defaultPrevented).toBe(false);
     });
 
+    // A browser's own Escape handling may blur the focused element after the page's handlers ran.
+    it("Escape takes the focus back when the rest of the keystroke drops it", () => {
+        vi.useFakeTimers();
+        try {
+            dispatchKeydown("Escape");
+            vi.runAllTimers();
+
+            expect(focusCanvas).toHaveBeenCalledTimes(2);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
     it("Escape is ignored when defaultPrevented", () => {
         dispatchKeydown("Escape", { defaultPrevented: true });
         // focusCanvas was called by the beforeAll listener plus the non-

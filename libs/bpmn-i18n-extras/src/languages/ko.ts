@@ -10,6 +10,7 @@ const dictionary: Record<string, string> = {
     "The linked form is missing or invalid. Check the form reference.":
         "연결된 양식이 없거나 유효하지 않습니다. 양식 참조를 확인하세요.",
     "Preview linked form": "연결된 양식 미리보기",
+    "Fit diagram to view": "다이어그램을 화면에 맞추기",
     "Linked form preview": "연결된 양식 미리보기",
     "Refresh": "새로 고침",
     "Close form preview": "양식 미리보기 닫기",

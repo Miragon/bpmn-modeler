@@ -65,6 +65,22 @@ describe("installKeyboardFocus", () => {
         expect(deps.closeSearchPad).not.toHaveBeenCalled();
     });
 
+    // A browser's own Escape handling may blur the focused element after the page's handlers ran.
+    it("takes the focus back when the rest of the Escape keystroke drops it", () => {
+        vi.useFakeTimers();
+        try {
+            const deps = makeDeps(root);
+            install(deps);
+
+            fireKeydown(child, "Escape");
+            vi.runAllTimers();
+
+            expect(deps.focusCanvas).toHaveBeenCalledTimes(2);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
     it("ignores keys other than Escape", () => {
         const deps = makeDeps(root);
         install(deps);

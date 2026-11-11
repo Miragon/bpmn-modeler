@@ -2,6 +2,7 @@ import type BaseViewer from "bpmn-js/lib/BaseViewer";
 import {
     type DisposableStore,
     type FlushableDebounceInput,
+    installFitViewportButton,
     NoModelerError,
     ThemeController,
 } from "@miragon/bpmn-modeler-types";
@@ -87,6 +88,17 @@ export class SurfaceCore<T extends SurfaceInstance> implements SurfaceServices {
         store.add(() => view.dispose());
 
         store.add(installSurfaceFocusFeatures(accessor, focus));
+        const canvas = this.service<{ getContainer(): HTMLElement; focus(): void }>("canvas");
+        store.add(
+            installFitViewportButton({
+                parent: canvas.getContainer(),
+                label: this.service<(template: string) => string>("translate")(
+                    "Fit diagram to view",
+                ),
+                fit: () => view.viewport.fitViewport(),
+                focusCanvas: () => canvas.focus(),
+            }),
+        );
     }
 
     /** Drops the managers once the facade's store has torn the instance down. */

@@ -76,7 +76,8 @@ interface SurfaceDescriptor {
 function assertClean(roots: HTMLElement[]): void {
     for (const root of roots) {
         expect(root.querySelector(".bjs-container")).toBeNull();
-        expect(root.querySelector(".canvas-focus-indicator")).toBeNull();
+        expect(root.querySelector(".canvas-focus-ring")).toBeNull();
+        expect(root.querySelector(".fit-viewport-button")).toBeNull();
         expect(root.querySelector("[data-bpmn-theme]")).toBeNull();
         expect(root.querySelector("[data-bpmn-mode]")).toBeNull();
         // The container/panel roots carry the theme/mode attributes themselves.

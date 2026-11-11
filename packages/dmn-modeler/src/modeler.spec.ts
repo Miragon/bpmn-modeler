@@ -367,6 +367,76 @@ describe("DmnModeler", () => {
         expect(changed).toHaveBeenCalledTimes(2);
     });
 
+    it("mounts the fit button on the DRD canvas only and fits the diagram from it", () => {
+        new DmnModeler(document.createElement("main"), {
+            propertiesPanel: { parent: document.createElement("aside") },
+        });
+        const vendor = mocks.vendors[0];
+        const container = document.createElement("div");
+        const canvas = {
+            getContainer: () => container,
+            viewbox: vi.fn(() => ({
+                inner: { x: 0, y: 0, width: 0, height: 0 },
+                outer: { width: 1000, height: 800 },
+            })),
+            zoom: vi.fn(),
+            focus: vi.fn(),
+            isFocused: () => false,
+        };
+        const fitButton = () => container.querySelector<HTMLButtonElement>(".fit-viewport-button");
+
+        vendor.activeView = drdView;
+        vendor.activeViewer = createViewer({
+            canvas,
+            eventBus: createEventBus(),
+            translate: (template: string) => `translated: ${template}`,
+        });
+        vendor.emitViews();
+        expect(fitButton()?.title).toBe("translated: Fit diagram to view");
+
+        fitButton()!.dispatchEvent(new MouseEvent("click", { detail: 1 }));
+        expect(canvas.zoom).toHaveBeenCalledWith("fit-viewport");
+        expect(canvas.focus).toHaveBeenCalledOnce();
+
+        vendor.activeView = tableView;
+        vendor.activeViewer = createViewer({ eventBus: createEventBus() });
+        vendor.emitViews();
+        expect(fitButton()).toBeNull();
+    });
+
+    it("rings the DRD canvas while it holds the keyboard and drops the ring with the view", () => {
+        new DmnModeler(document.createElement("main"), {
+            propertiesPanel: { parent: document.createElement("aside") },
+        });
+        const vendor = mocks.vendors[0];
+        const container = document.createElement("div");
+        const listeners = new Map<string, (event: { focused: boolean }) => void>();
+        const eventBus = {
+            on: (event: string, callback: (event: { focused: boolean }) => void) =>
+                listeners.set(event, callback),
+            off: vi.fn(),
+        };
+        const ringed = () =>
+            container.querySelector<HTMLElement>(".canvas-focus-ring")?.hidden === false;
+
+        vendor.activeView = drdView;
+        vendor.activeViewer = createViewer({
+            canvas: { getContainer: () => container, focus: vi.fn(), isFocused: () => false },
+            eventBus,
+            translate: (template: string) => template,
+        });
+        vendor.emitViews();
+        expect(ringed()).toBe(false);
+
+        listeners.get("canvas.focus.changed")!({ focused: true });
+        expect(ringed()).toBe(true);
+
+        vendor.activeView = tableView;
+        vendor.activeViewer = createViewer({ eventBus: createEventBus() });
+        vendor.emitViews();
+        expect(ringed()).toBe(false);
+    });
+
     it("resizes the current canvas and only focuses a DRD canvas", () => {
         const handle = new DmnModeler(document.createElement("main"), {
             propertiesPanel: { parent: document.createElement("aside") },
