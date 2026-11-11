@@ -971,17 +971,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@bpmn-io/feel-analyzer@npm:^0.5.0":
-  version: 0.5.0
-  resolution: "@bpmn-io/feel-analyzer@npm:0.5.0"
-  dependencies:
-    "@bpmn-io/lezer-feel": "npm:^3.0.1"
-    "@lezer/common": "npm:^1.5.2"
-  checksum: 10c0/37107cf0f341e1dde8735aad0743fb05c594b985bd0c0520934ae867f6cffd220cf2a45e10099ad4b4b382a107a7837ee8ea277ea61bb513255b4a7e9680f69c
-  languageName: node
-  linkType: hard
-
-"@bpmn-io/feel-analyzer@npm:^0.5.1":
+"@bpmn-io/feel-analyzer@npm:^0.5.0, @bpmn-io/feel-analyzer@npm:^0.5.1":
   version: 0.5.1
   resolution: "@bpmn-io/feel-analyzer@npm:0.5.1"
   dependencies:
@@ -991,29 +981,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@bpmn-io/feel-editor@npm:^2.6.0, @bpmn-io/feel-editor@npm:^2.7.1":
-  version: 2.7.1
-  resolution: "@bpmn-io/feel-editor@npm:2.7.1"
-  dependencies:
-    "@bpmn-io/cm-theme": "npm:^0.2.2"
-    "@bpmn-io/feel-lint": "npm:^3.2.0"
-    "@bpmn-io/lang-feel": "npm:^4.0.2"
-    "@bpmn-io/semver-compat": "npm:^0.1.0"
-    "@camunda/feel-builtins": "npm:^1.4.0"
-    "@codemirror/autocomplete": "npm:^6.20.0"
-    "@codemirror/commands": "npm:^6.10.3"
-    "@codemirror/language": "npm:^6.11.3"
-    "@codemirror/lint": "npm:^6.9.7"
-    "@codemirror/state": "npm:^6.6.0"
-    "@codemirror/view": "npm:^6.43.1"
-    "@lezer/highlight": "npm:^1.2.3"
-    min-dom: "npm:^5.3.0"
-    mitt: "npm:^3.0.1"
-  checksum: 10c0/8a69b9a55ee2be77bbc6963316bf01f01523b9ac9b5d975a269067282e8f472baee318f35ab62d8122a654c9d20c1ac3ff0cb4dd83db851d7c4c0a9f93f56321
-  languageName: node
-  linkType: hard
-
-"@bpmn-io/feel-editor@npm:^2.8.1":
+"@bpmn-io/feel-editor@npm:^2.6.0, @bpmn-io/feel-editor@npm:^2.8.1":
   version: 2.8.1
   resolution: "@bpmn-io/feel-editor@npm:2.8.1"
   dependencies:
@@ -1258,7 +1226,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@bpmn-io/properties-panel@npm:3.58.1":
+"@bpmn-io/properties-panel@npm:3.58.1, @bpmn-io/properties-panel@npm:^3.55.0":
   version: 3.58.1
   resolution: "@bpmn-io/properties-panel@npm:3.58.1"
   dependencies:
@@ -1276,27 +1244,6 @@ __metadata:
     min-dash: "npm:^5.1.0"
     min-dom: "npm:^5.3.0"
   checksum: 10c0/aa0bf54fe04f57179a609f0d49532d672363de3b407d19721dad17f989d0d5ab7a17289c8314191b249ec83c1f681657933efd1b77ef37b1e113a8dc8736a8df
-  languageName: node
-  linkType: hard
-
-"@bpmn-io/properties-panel@npm:^3.55.0":
-  version: 3.57.0
-  resolution: "@bpmn-io/properties-panel@npm:3.57.0"
-  dependencies:
-    "@bpmn-io/feel-editor": "npm:^2.7.1"
-    "@bpmn-io/feelers-editor": "npm:^1.1.1"
-    "@codemirror/autocomplete": "npm:^6.18.6"
-    "@codemirror/commands": "npm:^6.10.3"
-    "@codemirror/lang-json": "npm:^6.0.2"
-    "@codemirror/language": "npm:^6.11.0"
-    "@codemirror/lint": "npm:^6.9.5"
-    "@codemirror/state": "npm:^6.6.0"
-    "@codemirror/view": "npm:^6.28.1"
-    classnames: "npm:^2.5.1"
-    focus-trap: "npm:^8.0.0"
-    min-dash: "npm:^5.1.0"
-    min-dom: "npm:^5.3.0"
-  checksum: 10c0/c7fdf81ebee4f0869bdf28290455762688cf52aae75bc351834cb35332cb27bf8bea0595f816c9d0ad1057f50ff661bf58fea05a06676d0a3063896a9b5eb4fd
   languageName: node
   linkType: hard
 
@@ -1403,14 +1350,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@camunda/feel-builtins@npm:^1.2.0, @camunda/feel-builtins@npm:^1.3.0, @camunda/feel-builtins@npm:^1.4.0":
-  version: 1.4.1
-  resolution: "@camunda/feel-builtins@npm:1.4.1"
-  checksum: 10c0/cb42ea30adc2e23005548866871db561eed95aa730c3b5e834f7cd61cffe484e575198a1c3121471ff38f82bf3b5e61caf1df9449f6191fcf95fc656d018bf37
-  languageName: node
-  linkType: hard
-
-"@camunda/feel-builtins@npm:^1.4.1":
+"@camunda/feel-builtins@npm:^1.2.0, @camunda/feel-builtins@npm:^1.3.0, @camunda/feel-builtins@npm:^1.4.1":
   version: 1.5.0
   resolution: "@camunda/feel-builtins@npm:1.5.0"
   checksum: 10c0/309e073638b355be17d89c8ecb4156f462ce47be00c9e80844705193c8a7c0de8d7858fec4a5aafd3b24a4e8afef5d270eaa721f1595d11844b1f449f5abac13
@@ -1502,19 +1442,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@codemirror/commands@npm:^6.0.0, @codemirror/commands@npm:^6.10.1, @codemirror/commands@npm:^6.10.3":
-  version: 6.11.0
-  resolution: "@codemirror/commands@npm:6.11.0"
-  dependencies:
-    "@codemirror/language": "npm:^6.0.0"
-    "@codemirror/state": "npm:^6.7.0"
-    "@codemirror/view": "npm:^6.27.0"
-    "@lezer/common": "npm:^1.1.0"
-  checksum: 10c0/53754247b71529abddad867dc8195b557bea23642688fd2ef23c536bda3fdf0c5dcd02d447e754b5696d1f09aeb4c15affa146812ba8986d73b3d394b6b79e75
-  languageName: node
-  linkType: hard
-
-"@codemirror/commands@npm:^6.11.0":
+"@codemirror/commands@npm:^6.0.0, @codemirror/commands@npm:^6.10.1, @codemirror/commands@npm:^6.10.3, @codemirror/commands@npm:^6.11.0":
   version: 6.11.1
   resolution: "@codemirror/commands@npm:6.11.1"
   dependencies:
@@ -1536,21 +1464,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@codemirror/language@npm:^6.0.0, @codemirror/language@npm:^6.11.0, @codemirror/language@npm:^6.11.3, @codemirror/language@npm:^6.12.1, @codemirror/language@npm:^6.12.3":
-  version: 6.12.4
-  resolution: "@codemirror/language@npm:6.12.4"
-  dependencies:
-    "@codemirror/state": "npm:^6.0.0"
-    "@codemirror/view": "npm:^6.23.0"
-    "@lezer/common": "npm:^1.5.0"
-    "@lezer/highlight": "npm:^1.0.0"
-    "@lezer/lr": "npm:^1.0.0"
-    style-mod: "npm:^4.0.0"
-  checksum: 10c0/1b704a66f618d96eddf5937a41996e1ab42a70b5333a90b768e5539c25b7ab822e91a93e66b14d47a886cd73b3e3e22ddf77b8f11fb2f496ebd7ba010f3c4deb
-  languageName: node
-  linkType: hard
-
-"@codemirror/language@npm:^6.12.4":
+"@codemirror/language@npm:^6.0.0, @codemirror/language@npm:^6.11.0, @codemirror/language@npm:^6.12.1, @codemirror/language@npm:^6.12.3, @codemirror/language@npm:^6.12.4":
   version: 6.13.1
   resolution: "@codemirror/language@npm:6.13.1"
   dependencies:
@@ -1603,19 +1517,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@codemirror/view@npm:^6.0.0, @codemirror/view@npm:^6.17.0, @codemirror/view@npm:^6.23.0, @codemirror/view@npm:^6.27.0, @codemirror/view@npm:^6.28.1, @codemirror/view@npm:^6.37.0, @codemirror/view@npm:^6.39.12, @codemirror/view@npm:^6.42.0, @codemirror/view@npm:^6.43.1":
-  version: 6.43.9
-  resolution: "@codemirror/view@npm:6.43.9"
-  dependencies:
-    "@codemirror/state": "npm:^6.7.0"
-    crelt: "npm:^1.0.6"
-    style-mod: "npm:^4.1.0"
-    w3c-keyname: "npm:^2.2.4"
-  checksum: 10c0/c64b076f2739a9fa8b8c67e01091ddc8d7f653dd66954088fa5837ab30b59152efb959b359b7806662add8cd97011030e0eef8eb77ca71840acd5d824af00b8e
-  languageName: node
-  linkType: hard
-
-"@codemirror/view@npm:^6.43.11":
+"@codemirror/view@npm:^6.0.0, @codemirror/view@npm:^6.17.0, @codemirror/view@npm:^6.23.0, @codemirror/view@npm:^6.27.0, @codemirror/view@npm:^6.28.1, @codemirror/view@npm:^6.37.0, @codemirror/view@npm:^6.39.12, @codemirror/view@npm:^6.42.0, @codemirror/view@npm:^6.43.11":
   version: 6.43.15
   resolution: "@codemirror/view@npm:6.43.15"
   dependencies:
