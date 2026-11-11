@@ -4,13 +4,15 @@ import { type CodeApproval, PROCESS_RESTARTS } from "../../kernel/domain/codeApp
 import { type DirectoryEntryKind } from "../../kernel/domain/directoryEntry";
 import {
     approvedContent,
-    cacheEntriesToPrune,
     CACHED_PLUGIN_FILE_PATTERN,
+    cachedCopyNames,
     cachedPluginCopy,
     cachedPluginFiles,
     type CachedPluginFiles,
+    contentServedByEditors,
     editorsToReload,
     isWholeCachedCopy,
+    lastUseMarkerOf,
     type OfferedPlugins,
     type PendingApproval,
     PLUGIN_APPROVAL_NOTICE_ID,
@@ -109,16 +111,27 @@ describe("cachedPluginFiles", () => {
         expect(cachedPluginFiles("/storage/bpmn-plugins", palette)).toEqual({
             script: "/storage/bpmn-plugins/bbb/plugin.js",
             style: "/storage/bpmn-plugins/bbb/plugin.css",
+            lastUse: "/storage/bpmn-plugins/bbb/last-used",
         });
         expect(cachedPluginFiles("/storage/bpmn-plugins", resize)).toEqual({
             script: "/storage/bpmn-plugins/aaa/plugin.js",
+            lastUse: "/storage/bpmn-plugins/aaa/last-used",
         });
+    });
+});
+
+describe("lastUseMarkerOf", () => {
+    it("names the marker of a copy folder found in the cache, as a copy of that hash writes it", () => {
+        expect(lastUseMarkerOf("/storage/bpmn-plugins", "aaa")).toBe(
+            cachedPluginFiles("/storage/bpmn-plugins", resize).lastUse,
+        );
     });
 });
 
 describe("cachedPluginCopy", () => {
     const withStyle = cachedPluginFiles("/storage", palette);
     const scriptOnly = cachedPluginFiles("/storage", resize);
+    const NOW = 1794355200000;
 
     it.each<{
         case: string;
@@ -131,6 +144,7 @@ describe("cachedPluginCopy", () => {
             files: withStyle,
             style: ".palette {}",
             copy: [
+                { path: "/storage/bbb/last-used", content: "1794355200000" },
                 { path: "/storage/bbb/plugin.js", content: "client();" },
                 { path: "/storage/bbb/plugin.css", content: ".palette {}" },
             ],
@@ -139,23 +153,35 @@ describe("cachedPluginCopy", () => {
             case: "a plugin without a style",
             files: scriptOnly,
             style: undefined,
-            copy: [{ path: "/storage/aaa/plugin.js", content: "client();" }],
+            copy: [
+                { path: "/storage/aaa/last-used", content: "1794355200000" },
+                { path: "/storage/aaa/plugin.js", content: "client();" },
+            ],
         },
         {
             case: "a style file with no text read for it",
             files: withStyle,
             style: undefined,
-            copy: [{ path: "/storage/bbb/plugin.js", content: "client();" }],
+            copy: [
+                { path: "/storage/bbb/last-used", content: "1794355200000" },
+                { path: "/storage/bbb/plugin.js", content: "client();" },
+            ],
         },
         {
             case: "a style text with no style file",
             files: scriptOnly,
             style: ".palette {}",
-            copy: [{ path: "/storage/aaa/plugin.js", content: "client();" }],
+            copy: [
+                { path: "/storage/aaa/last-used", content: "1794355200000" },
+                { path: "/storage/aaa/plugin.js", content: "client();" },
+            ],
         },
-    ])("pairs each file with the approved bytes it must hold: $case", ({ files, style, copy }) => {
-        expect(cachedPluginCopy(files, "client();", style)).toEqual(copy);
-    });
+    ])(
+        "pairs each file with the bytes it must hold, the last use first so no whole copy lacks it: $case",
+        ({ files, style, copy }) => {
+            expect(cachedPluginCopy(files, "client();", style, NOW)).toEqual(copy);
+        },
+    );
 });
 
 describe("pluginApprovalNotice", () => {
@@ -280,77 +306,86 @@ describe("approvedContent", () => {
     });
 });
 
-describe("cacheEntriesToPrune", () => {
-    const named = "a".repeat(64);
-    const unnamed = "b".repeat(64);
-    const elsewhere = "c".repeat(64);
-    const stored: CodeApproval[] = [
-        { pluginId: resize.id, contentHash: named },
-        { pluginId: "/other-repo/.camunda/plugins/resize-tasks", contentHash: elsewhere },
-        {
-            pluginId: "/repo/node_modules/bpmnlint-plugin-acme",
-            contentHash: `bpmnlint-closure-v1:${unnamed}`,
-        },
-    ];
+describe("cachedCopyNames", () => {
+    const copy = "a".repeat(64);
 
-    it.each<{ case: string; entry: [string, DirectoryEntryKind]; pruned: boolean }>([
-        { case: "a copy no stored row names", entry: [unnamed, "directory"], pruned: true },
-        {
-            case: "a copy a row of this workspace names",
-            entry: [named, "directory"],
-            pruned: false,
-        },
-        {
-            case: "a copy a row of another workspace names",
-            entry: [elsewhere, "directory"],
-            pruned: false,
-        },
-        { case: "a file named like a copy", entry: ["d".repeat(64), "file"], pruned: false },
-        { case: "an upper-case hash", entry: ["D".repeat(64), "directory"], pruned: false },
-        { case: "a hash one digit short", entry: ["d".repeat(63), "directory"], pruned: false },
-        { case: "a hash one digit long", entry: ["d".repeat(65), "directory"], pruned: false },
-        { case: "a folder of another name", entry: ["notes", "directory"], pruned: false },
+    it.each<{ case: string; entry: [string, DirectoryEntryKind]; copy: boolean }>([
+        { case: "a folder named like a content hash", entry: [copy, "directory"], copy: true },
+        { case: "a file named like a copy", entry: ["d".repeat(64), "file"], copy: false },
+        { case: "an upper-case hash", entry: ["D".repeat(64), "directory"], copy: false },
+        { case: "a hash one digit short", entry: ["d".repeat(63), "directory"], copy: false },
+        { case: "a hash one digit long", entry: ["d".repeat(65), "directory"], copy: false },
+        { case: "a folder of another name", entry: ["notes", "directory"], copy: false },
         {
             case: "a hash with a suffix",
             entry: [`${"d".repeat(64)}.old`, "directory"],
-            pruned: false,
+            copy: false,
         },
-    ])("prunes $case: $pruned", ({ entry, pruned }) => {
-        expect(cacheEntriesToPrune([entry], stored)).toEqual(pruned ? [entry[0]] : []);
+        {
+            case: "a hash with a prefix",
+            entry: [`old.${"d".repeat(64)}`, "directory"],
+            copy: false,
+        },
+    ])("counts $case as a copy: $copy", ({ entry, copy: isCopy }) => {
+        expect(cachedCopyNames([entry])).toEqual(isCopy ? [entry[0]] : []);
     });
 
-    it("keeps a copy a rule package row only resembles, and prunes each unnamed copy in order", () => {
+    it("lists every copy in the folder's order", () => {
         const other = "e".repeat(64);
 
         expect(
-            cacheEntriesToPrune(
-                [
-                    [other, "directory"],
-                    [named, "directory"],
-                    [unnamed, "directory"],
-                ],
-                stored,
-            ),
-        ).toEqual([other, unnamed]);
+            cachedCopyNames([
+                [other, "directory"],
+                ["notes", "directory"],
+                [copy, "directory"],
+            ]),
+        ).toEqual([other, copy]);
     });
 
     it("spells a content hash as the copy folder's name", () => {
-        expect(cachedPluginFiles("/cache", { ...resize, contentHash: named }).script).toMatch(
+        expect(cachedPluginFiles("/cache", { ...resize, contentHash: copy }).script).toMatch(
             new RegExp(`^/cache/${PLUGIN_CONTENT_HASH_PATTERN}/`),
         );
     });
 
-    it("names each copy file as a cache path a page may load", () => {
+    it("names each copy file as a cache path a page may load, and the last use as none", () => {
         const files = cachedPluginFiles("/cache", {
             ...resize,
             stylePath: "/repo/.camunda/plugins/resize-tasks/style.css",
-            contentHash: named,
+            contentHash: copy,
         });
         const loadable = new RegExp(`^/cache/${CACHED_PLUGIN_FILE_PATTERN}$`);
 
         expect(files.script).toMatch(loadable);
         expect(files.style).toMatch(loadable);
-        expect(`/cache/${named}/plugin.json`).not.toMatch(loadable);
+        expect(files.lastUse).not.toMatch(loadable);
+        expect(`/cache/${copy}/plugin.json`).not.toMatch(loadable);
+    });
+});
+
+describe("contentServedByEditors", () => {
+    it.each<{ case: string; offered: [string, OfferedPlugins][]; served: string[] }>([
+        { case: "no open editor", offered: [], served: [] },
+        {
+            case: "an editor served nothing",
+            offered: [["file:///repo/a.bpmn", { served: [], withheld: [resize] }]],
+            served: [],
+        },
+        {
+            case: "every editor's served content, each once",
+            offered: [
+                ["file:///repo/a.bpmn", { served: [resize, palette], withheld: [] }],
+                ["file:///repo/b.bpmn", { served: [resize], withheld: [] }],
+            ],
+            served: ["aaa", "bbb"],
+        },
+        {
+            case: "no withheld content",
+            offered: [["file:///repo/a.bpmn", { served: [resize], withheld: [palette] }]],
+            served: ["aaa"],
+        },
+    ])("holds $case", ({ offered, served }) => {
+        expect([...contentServedByEditors(new Map(offered))].sort()).toEqual(served);
     });
 });
 

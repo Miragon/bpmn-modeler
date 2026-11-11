@@ -67,7 +67,7 @@ Before you allowed any rule package, one that no lint has asked about yet offers
 
 ## Revoke
 
-**Revoke** takes your approval of this content back, in every folder where you allowed it; when other folders hold it, the details say how many before you click, and the result says how many it reached. A plugin stops at once: open editors reload without it, and its copy is removed from VS Code's global storage. A rule package's rules are skipped from the next lint; code it already ran stays loaded until you reload the window. No notification in this window asks about it again, in any folder the view lists; allow it again here. Other windows ask again about their copies.
+**Revoke** takes your approval of this content back, in every folder where you allowed it; when other folders hold it, the details say how many before you click, and the result says how many it reached. A plugin stops at once: open editors reload without it. Its copy in VS Code's global storage is no longer loaded and is removed once it has gone unused for 30 days, or with **Remove unused plugin copies**. A rule package's rules are skipped from the next lint; code it already ran stays loaded until you reload the window. No notification in this window asks about it again, in any folder the view lists; allow it again here. Other windows ask again about their copies.
 
 **Forget** removes only the approval of a folder that no longer exists. The content stays allowed in the other folders.
 
@@ -79,7 +79,7 @@ Each template with an id offers **Disable** or **Enable** in its details. Each c
 
 The **Marketplaces** tab shows **Add marketplace…** and **Update marketplaces** above its list. With no marketplace registered, it says so and offers **Add marketplace…**; when the registrations cannot be read, it says why. Each marketplace's **⋯** menu offers **Remove**, which asks before it unregisters the marketplace. The [marketplace commands](/vscode/features/template-marketplace#add-a-marketplace) work as before.
 
-**More actions** (**⋯**, next to the search field) holds **Add marketplace…**, **Update marketplaces** and **Remove unused plugin copies** in either tab. **Remove unused plugin copies** deletes the copies of allowed plugins in VS Code's global storage that no approval names any more.
+**More actions** (**⋯**, next to the search field) holds **Add marketplace…**, **Update marketplaces** and **Remove unused plugin copies** in either tab. **Remove unused plugin copies** deletes every plugin copy in VS Code's global storage that no open editor of this window uses. Another window that still needs a copy writes it again the next time an editor there opens.
 
 The result of an action shows at the top of the view; **Dismiss** closes it.
 

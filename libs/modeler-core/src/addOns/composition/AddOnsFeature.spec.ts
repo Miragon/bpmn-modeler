@@ -614,7 +614,7 @@ describe("AddOnsFeature", () => {
     });
 
     describe("revoking", () => {
-        it("revoking a plugin reloads its editors and removes its copy", async () => {
+        it("revoking a plugin reloads its editors and leaves its copy to age out", async () => {
             const { host, plugins, addOns, view } = setUp();
             host.pluginApprovals.approvals = [{ pluginId: RESIZE, contentHash: RESIZE_HASH }];
             const editor = await host.openSession("/work/order.bpmn", [
@@ -640,12 +640,12 @@ describe("AddOnsFeature", () => {
             expect(host.pluginApprovals.approvals).toEqual([]);
             expect(editor.reloadCount).toBe(1);
             expect(
-                [...host.workspace.files.keys()].filter((path) => path.startsWith(CACHE)),
-            ).toEqual([]);
+                [...host.workspace.files.keys()].filter((path) => path.startsWith(CACHE)).sort(),
+            ).toEqual([`${CACHE}/${RESIZE_HASH}/last-used`, `${CACHE}/${RESIZE_HASH}/plugin.js`]);
             expect(view.addOnNamed("Resize Tasks").state).toBe("new");
         });
 
-        it("keeps a plugin revoke whose cache prune fails, and logs why", async () => {
+        it("revokes a plugin without reading the plugin cache", async () => {
             const { host, addOns, view } = setUp();
             host.pluginApprovals.approvals = [{ pluginId: RESIZE, contentHash: RESIZE_HASH }];
             view.attachTo(addOns);
@@ -663,9 +663,7 @@ describe("AddOnsFeature", () => {
                 message: "Revoked Resize Tasks. Open editors reload without it.",
             });
             expect(host.pluginApprovals.approvals).toEqual([]);
-            expect(host.notifier.logged("error")).toEqual([
-                expect.stringContaining("cache unreadable"),
-            ]);
+            expect(host.notifier.logged("error")).toEqual([]);
         });
 
         it("asks no notice here about a plugin revoked from the view", async () => {
@@ -960,9 +958,10 @@ describe("AddOnsFeature", () => {
             );
         });
 
-        it("removes the plugin copies no stored approval names", async () => {
-            const { host, addOns, view } = setUp({ files: {} });
-            host.workspace.createDirectory(`${CACHE}/${"a".repeat(64)}`);
+        it("removes the plugin copies no editor is served, however recently used", async () => {
+            const { addOns, view } = setUp({
+                files: { [`${CACHE}/${"a".repeat(64)}/last-used`]: String(Date.now()) },
+            });
             view.attachTo(addOns);
             await shown(addOns);
 

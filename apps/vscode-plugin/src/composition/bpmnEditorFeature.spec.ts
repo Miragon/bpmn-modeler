@@ -15,7 +15,7 @@ vi.mock("@miragon/bpmn-modeler-core", async (importOriginal) => {
         constructor(ports: BpmnPluginsHostPorts) {
             super(ports);
             injectedPorts.plugins.push(ports);
-            this.service.pruneCache = async () => {
+            this.service.pruneIdleCopies = async () => {
                 injectedPorts.prunes.push(ports.cacheRoot);
                 return { removed: 0 };
             };
@@ -190,7 +190,7 @@ describe("VS Code's BPMN editor", () => {
         expect(revealedRows).toEqual([]);
     });
 
-    it("removes unused plugin copies from its cache once when the extension activates", () => {
+    it("removes idle plugin copies from its cache once when the extension activates", () => {
         createVsCodeBpmnEditor();
 
         expect(injectedPorts.prunes).toEqual([injectedPorts.plugins[0]?.cacheRoot]);

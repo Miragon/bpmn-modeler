@@ -690,7 +690,14 @@ that memo is checked on disk first and written again when it is not whole,
 because another process's prune may have removed it. The copy reads each
 cached file back and rewrites it when its bytes differ from the approved ones
 or cannot be read: a write cut short by a crash would otherwise be served as it
-is. The webview never
+is. Each copy folder also holds a `last-used` marker, the epoch milliseconds
+as decimal text, which the copy writes first, so no whole copy lacks one.
+Serving a copy writes its marker again at most once a day per hash and
+process, so opening editors does not write on every open; a marker write that
+fails is logged and the plugin is still served. The marker holds only a time,
+so a page may read it: the IntelliJ server serves only
+`CACHED_PLUGIN_FILE_PATTERN` (`plugin.js` and `plugin.css`), but VS Code's
+`localResourceRoots` covers the whole cache. The webview never
 reads a workspace folder, so a file swapped after the approval and an
 unapproved file beside the script cannot reach it, and `localResourceRoots`
 stays fixed at creation. The host passes the cache root as a platform path
@@ -703,24 +710,39 @@ not wire the feature answers with no plugins. That answer has one home,
 `answerWithoutPlugins` in `editorSession/`, built on `postUnlessHidden` like
 the delivery's own answer.
 
-**Pruning.** `BpmnPluginService.pruneCache` removes the cache folders named
-like a content hash (`PLUGIN_CONTENT_HASH_PATTERN`, 64 lower-case hex digits)
-that no stored approval
-names (`cacheEntriesToPrune`). The keep set is every row the host stores, of
-every workspace and project, read with `readStored()` rather than a mirror,
-because the cache is shared. Files, other names and upper case stay, and a
-rule package row's prefixed hash names no copy. A prune waits for the copies
-in flight, and a copy waits for a running prune. VS Code prunes at
-activation, and the bridge once `server.ts` has bound its streams, so the
-harness specs see no extra frame. A plugin revoke from the add-on catalog
-prunes in the process that revoked, and so does its "Remove unused plugin
-copies" action. Pruning on
-every approval change in every process was rejected: until then the next
-start's prune covers the shared cache, after it the revoking process's prune
-does, and N bridges pruning at once only adds noise.
+**Pruning.** The cache prunes by last use and reads no approval row, as the
+allowance per repository and add-on (below) leaves no row that names a hash.
+Only folders named like a content hash (`PLUGIN_CONTENT_HASH_PATTERN`, 64
+lower-case hex digits, `cachedCopyNames`) are copies; files, other names and
+upper case stay. `copiesToPrune` (`pluginCacheLastUse.ts`) keeps every copy an
+editor of this process is served (`contentServedByEditors`) and removes the
+others whose marker is missing, unreadable or at least the idle limit old. A
+marker up to a day ahead counts as used now, since another process can write
+one after this one read the clock or run on a clock a little ahead; one further
+ahead counts as unreadable, so a marker from a clock that ran far ahead does
+not keep its copy for years, and serving writes the marker again once the
+clock went back. `BpmnPluginService.pruneIdleCopies` runs at
+start-up with an idle limit of 30 days: VS Code at activation, and the bridge
+once `server.ts` has bound its streams, which sends no frame. The Add-ons
+action "Remove unused plugin copies" runs `pruneUnusedCopies`, whose idle
+limit is zero, so it removes every copy no editor of this process is served;
+another process that still needs one writes it again on its next request, as
+its memo checks the copy on disk. A revoke prunes nothing: a copy is served
+only for an approved plugin, so a revoked plugin's copy ages out. A prune
+waits for the copies and marker writes in flight, and neither starts while a
+prune runs; a marker write skips a copy this process's prune removed, so a
+marker alone never makes an empty folder look used. The service takes its
+clock as `now` (default `Date.now`), and the domain takes the time as a number.
+Pruning on every approval change was rejected: until then the next start's
+prune covers the shared cache, and N bridges pruning at once only adds noise.
 Residual: a page that loads between another process's delete and this
 process's memo check leaves the plugin out once, and the next open writes the
-copy again. A grace marker would close that gap and is deferred.
+copy again; a marker written in that gap leaves a folder with only a marker,
+which the next request completes or the idle limit removes. VS Code writes a
+file in place, so a prune in another window can read a marker being rewritten
+as empty and remove a copy an editor there was just served; that editor lacks
+the plugin until it asks again, which writes the copy again. An atomic write in
+`VsCodeWorkspace` would close it but changes every write of that adapter.
 
 **IntelliJ.** The bridge wires the same `BpmnPluginsFeature` as VS Code, so the
 texts, the notification, the list and the reload rule are the core's. The host
@@ -1037,8 +1059,8 @@ hides ([the page](architecture-and-hosts.md#package-boundaries)).
   legacy duplicate row of other content goes too, in the safe direction.
   The owner hears every revoked id (`afterRevoke`), so a rule package carried
   without a row yet still says its code stays loaded. The reload or relint follows the change event, as for a notice. The
-  plugin owner then prunes its cache, and only logs a prune that fails, as
-  the revoke stands; a rule package row then says its code stays loaded
+  plugin owner leaves its cache alone, as a revoked plugin's copy ages out
+  (see "Pruning"); a rule package row then says its code stays loaded
   until the user reloads the window or restarts the IDE. "Remove unused
   plugin copies" answers a prune that fails as `failed`, with the core's
   text, and logs why.
@@ -1191,9 +1213,9 @@ after one. The Add-ons view and the log name each rule package as
 
 **A plugin keeps its hash for serving only.** The content-addressed copy, the
 reload rule (`editorsToReload`) and the cache stay, so the page still never
-reads a workspace folder. No row names a hash any more, so the cache prunes by
-last use (a copy no editor asked for in some weeks), the rule #2317 needs for
-its shared cache too.
+reads a workspace folder. No row names a hash any more, so the cache already
+prunes by last use (see "Pruning" under User-supplied plugins), the rule
+#2317 needs for its shared cache too.
 
 **Read model.** A found add-on is allowed, not allowed yet or declined this
 session, and offers Allow or Revoke. "Review…" as a hashing step, "Allow this
