@@ -55,6 +55,7 @@ function modelerSurface() {
         setElementTemplates: vi.fn(),
         setHiddenElementTemplates: vi.fn(),
         setSettings: vi.fn(),
+        openElementIdReview: vi.fn(() => ({ status: "opened" as const })),
     };
 }
 
@@ -64,6 +65,8 @@ function designerSurface() {
         formatDiagram: vi.fn(async () => undefined),
         cleanupDiagram: vi.fn(() => ({ status: "clean", items: [] })),
         setFavouriteBpmnElements: vi.fn(),
+        setElementIdSettings: vi.fn(),
+        openElementIdReview: vi.fn(() => ({ status: "opened" as const })),
     };
 }
 
@@ -210,6 +213,32 @@ describe("createSurfaceRequests", () => {
                     code: "ENGINE_FAILED",
                     message: "layout engine crashed",
                 }),
+            ]);
+        });
+    });
+
+    describe("element IDs", () => {
+        it.each([
+            ["modeler", modelerSurface],
+            ["designer", designerSurface],
+        ])("opens the review on the %s and says so", (_, makeSurface) => {
+            const { host, surface, handlers } = surfaceRequestsOn(makeSurface());
+
+            handlers.GenerateElementIdsQuery();
+
+            expect(surface.openElementIdReview).toHaveBeenCalledOnce();
+            expect(host.sent).toEqual([
+                expect.objectContaining({ type: "ElementIdReviewCommand", status: "opened" }),
+            ]);
+        });
+
+        it("answers the readonly viewer as unsupported", () => {
+            const { host, handlers } = surfaceRequestsOn(viewerSurface());
+
+            handlers.GenerateElementIdsQuery();
+
+            expect(host.sent).toEqual([
+                expect.objectContaining({ type: "ElementIdReviewCommand", status: "unsupported" }),
             ]);
         });
     });
@@ -456,12 +485,22 @@ describe("createSurfaceRequests", () => {
             expect(surface.setFavouriteBpmnElements).not.toHaveBeenCalled();
         });
 
-        it("hands the designer only the favourites", () => {
+        it("hands the designer the favourites and the element ID settings", () => {
             const { surface, handlers } = surfaceRequestsOn(designerSurface());
 
-            handlers.BpmnModelerSettingQuery(new BpmnModelerSettingQuery(hostSettings));
+            handlers.BpmnModelerSettingQuery(
+                new BpmnModelerSettingQuery({
+                    ...hostSettings,
+                    elementIdStyle: "snakeCase",
+                    elementIdsFollowName: true,
+                }),
+            );
 
             expect(surface.setFavouriteBpmnElements).toHaveBeenCalledWith(["bpmn:UserTask"]);
+            expect(surface.setElementIdSettings).toHaveBeenCalledWith({
+                style: "snakeCase",
+                followName: true,
+            });
         });
 
         it("leaves the designer's favourites alone when the settings carry none", () => {

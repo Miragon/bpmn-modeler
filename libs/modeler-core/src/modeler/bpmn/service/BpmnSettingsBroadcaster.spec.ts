@@ -45,7 +45,21 @@ describe("BpmnSettingsBroadcaster.setSettings", () => {
             showTransactionBoundaries: false,
             colorTheme: "light",
             favouriteBpmnElements: ["bpmn:Task"],
+            elementIdStyle: "typePrefix",
+            elementIdsFollowName: false,
         });
+    });
+
+    it("delivers the ID style and whether IDs follow names on first load", async () => {
+        const { broadcaster, host, editor } = createBroadcaster();
+        host.settings.values.elementIdStyle = "typeSuffix";
+        host.settings.values.elementIdsFollowName = true;
+
+        await broadcaster.setSettings(editor.id);
+
+        expect(
+            editor.postedOfType<BpmnModelerSettingQuery>("BpmnModelerSettingQuery")[0].setting,
+        ).toMatchObject({ elementIdStyle: "typeSuffix", elementIdsFollowName: true });
     });
 
     it("notifies and returns false when the webview rejects the post", async () => {
@@ -113,6 +127,26 @@ describe("BpmnSettingsBroadcaster.subscribe", () => {
             ]);
         }
     });
+    it.each([
+        { key: "elementIds.style" as const, change: { elementIdStyle: "snakeCase" as const } },
+        { key: "elementIds.followName" as const, change: { elementIdsFollowName: true } },
+    ])("pushes a changed $key to every subscribed editor", ({ key, change }) => {
+        const { broadcaster, host, editor } = createBroadcaster();
+        const second = host.openEditor("/work/other.bpmn");
+        broadcaster.subscribe(editor.id);
+        broadcaster.subscribe(second.id);
+        Object.assign(host.settings.values, change);
+
+        for (const target of [editor, second]) {
+            target.changeSetting(key);
+            expect(
+                target
+                    .postedOfType<BpmnModelerSettingQuery>("BpmnModelerSettingQuery")
+                    .map(({ setting }) => setting),
+            ).toMatchObject([change]);
+        }
+    });
+
     it("re-pushes settings when a modeler setting changes", () => {
         const { broadcaster, editor } = createBroadcaster();
 

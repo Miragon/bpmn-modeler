@@ -43,6 +43,7 @@ import {
     answerWithoutPluginsHandler,
     cleanupReportHandler,
     diagramFormattedHandler,
+    elementIdReviewHandler,
     getBpmnlintConfigHandler,
     getBpmnModelerSettingHandler,
     getClipboardHandler,
@@ -68,6 +69,7 @@ import { BpmnPropertiesPanelService } from "../service/BpmnPropertiesPanelServic
 import { BpmnSettingsBroadcaster } from "../service/BpmnSettingsBroadcaster";
 import { BpmnlintParticipant } from "../service/BpmnlintParticipant";
 import { BpmnSettingsParticipant } from "../service/BpmnSettingsParticipant";
+import { ElementIdsService } from "../service/ElementIdsService";
 import { ElementTemplatesParticipant } from "../service/ElementTemplatesParticipant";
 import { EngineVersionStatusBarParticipant } from "../service/EngineVersionStatusBarParticipant";
 import { LoadedTemplateDirs } from "../service/LoadedTemplateDirs";
@@ -165,6 +167,7 @@ export class BpmnEditorFeature {
     /** What the add-on catalog lists of the element templates. */
     readonly templateInventory: TemplateInventory;
     readonly layout: BpmnLayoutService;
+    readonly elementIds: ElementIdsService;
     readonly lintConfig: BpmnLintConfigService;
     /** What the add-on catalog lists of the rule packages; absent without {@link BpmnRulePackagePorts}. */
     readonly rulePackageInventory?: RulePackageInventory;
@@ -209,6 +212,7 @@ export class BpmnEditorFeature {
         });
         this.templateInventory = new TemplateInventory(loadedTemplateDirs, ports.artifacts);
         this.layout = new BpmnLayoutService(ports.store, ports.notifier, ports.picker);
+        this.elementIds = new ElementIdsService(ports.store, ports.notifier);
         const lintConfigLocator = new BpmnLintConfigLocator(
             ports.workspace,
             ports.settings,
@@ -282,6 +286,7 @@ export class BpmnEditorFeature {
             SetTextClipboardCommand: [setTextClipboardHandler(clipboard)],
             DiagramFormattedCommand: [diagramFormattedHandler(this.layout)],
             CleanupReportCommand: [cleanupReportHandler(this.layout)],
+            ElementIdReviewCommand: [elementIdReviewHandler(this.elementIds)],
             NavigateToReferencedModelCommand: [
                 navigation.commandHandlers.NavigateToReferencedModelCommand,
             ],

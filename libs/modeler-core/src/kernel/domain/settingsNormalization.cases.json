@@ -53,6 +53,26 @@
             "normalized": { "formPreviewAutomatic": true }
         },
         {
+            "name": "keeps the type suffix ID style",
+            "raw": { "elementIdStyle": "typeSuffix" },
+            "normalized": { "elementIdStyle": "typeSuffix" }
+        },
+        {
+            "name": "keeps the snake case ID style",
+            "raw": { "elementIdStyle": "snakeCase" },
+            "normalized": { "elementIdStyle": "snakeCase" }
+        },
+        {
+            "name": "reads an unknown ID style as the type prefix",
+            "raw": { "elementIdStyle": "kebabCase" },
+            "normalized": { "elementIdStyle": "typePrefix" }
+        },
+        {
+            "name": "keeps IDs following names turned on",
+            "raw": { "elementIdsFollowName": true },
+            "normalized": { "elementIdsFollowName": true }
+        },
+        {
             "name": "reads an empty config folder as the default",
             "raw": { "configFolder": "" },
             "normalized": { "configFolder": ".camunda" }
