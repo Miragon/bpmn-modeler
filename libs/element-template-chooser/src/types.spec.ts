@@ -7,6 +7,7 @@ import {
     fallbackTranslate,
     partitionVisibleProperties,
     propertyDisplayLabel,
+    templatePropertyValue,
 } from "./types";
 import type { BindingDirection, ElementTemplate, TemplateProperty } from "./types";
 
@@ -50,6 +51,26 @@ describe("applyTemplatePreset", () => {
         ["an unknown preset id", "missing"],
     ])("returns the template unchanged for %s", (_label, presetId) => {
         expect(applyTemplatePreset(template, presetId)).toBe(template);
+    });
+});
+
+describe("templatePropertyValue", () => {
+    const choices = [
+        { name: "Send mail", value: "send-mail" },
+        { name: "Send SMS", value: "send-sms" },
+    ];
+    const taskTypeBinding = { type: "zeebe:taskDefinition", property: "type" };
+
+    it.each<[string, Partial<TemplateProperty>, string | undefined]>([
+        ["a required dropdown without a value", { type: "Dropdown", choices }, "send-mail"],
+        ["a dropdown with a value", { type: "Dropdown", choices, value: "send-sms" }, "send-sms"],
+        ["a dropdown with an empty value", { type: "Dropdown", choices, value: "" }, ""],
+        ["an optional dropdown", { type: "Dropdown", choices, optional: true }, undefined],
+        ["a dropdown without choices", { type: "Dropdown", choices: [] }, undefined],
+        ["a string property", { type: "String", choices }, undefined],
+        ["a string property with a value", { type: "String", value: "x" }, "x"],
+    ])("gives %s the value the element is created with", (_label, overrides, value) => {
+        expect(templatePropertyValue(property(taskTypeBinding, overrides))).toBe(value);
     });
 });
 
@@ -132,6 +153,23 @@ describe("extractImplementationDetail", () => {
             value: "io.camunda:http-json:1",
         });
         expect(extractImplementationDetail([retries, taskType("")])).toBeUndefined();
+    });
+
+    it("takes the first choice of a required dropdown task type without a value", () => {
+        const detail = extractImplementationDetail([
+            property(
+                { type: "zeebe:taskDefinition", property: "type" },
+                {
+                    type: "Dropdown",
+                    choices: [
+                        { name: "Send mail", value: "send-mail" },
+                        { name: "Send SMS", value: "send-sms" },
+                    ],
+                },
+            ),
+        ]);
+
+        expect(detail).toEqual({ label: "Task Type", value: "send-mail" });
     });
 
     it("returns undefined when no property names the implementation", () => {

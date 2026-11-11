@@ -83,6 +83,38 @@ describe("ChooserOverlay", () => {
         expect(container.querySelector(".etc-badge--props")?.textContent).toBe("1 property");
     });
 
+    it("previews the first choice a required dropdown without a value is created with", () => {
+        const choices = [
+            { name: "Send mail", value: "send-mail" },
+            { name: "Send SMS", value: "send-sms" },
+        ];
+        const notify = template({
+            id: "notify",
+            name: "Notify",
+            properties: [
+                {
+                    label: "Task type",
+                    type: "Dropdown",
+                    choices,
+                    binding: { type: "zeebe:taskDefinition", property: "type" },
+                },
+                {
+                    label: "Channel",
+                    type: "Dropdown",
+                    choices,
+                    binding: { type: "zeebe:input", name: "channel" },
+                },
+            ],
+        });
+        renderOverlay([notify]);
+
+        expect(container.querySelector(".etc-card-impl")?.textContent).toBe("Task Type:send-mail");
+
+        click(cards()[0]);
+        expect(container.querySelector(".etc-impl-value")?.textContent).toBe("send-mail");
+        expect(container.querySelector(".etc-param-value")?.textContent).toBe("send-mail");
+    });
+
     it("uses the plural property label for every count other than one", () => {
         const webhook = template({
             id: "webhook",
