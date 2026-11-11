@@ -10,6 +10,7 @@ const dictionary: Record<string, string> = {
     "The linked form is missing or invalid. Check the form reference.":
         "Il modulo collegato è mancante o non valido. Controllare il riferimento al modulo.",
     "Preview linked form": "Visualizza anteprima del modulo collegato",
+    "Fit diagram to view": "Adatta il diagramma alla vista",
     "Linked form preview": "Anteprima del modulo collegato",
     "Refresh": "Aggiorna",
     "Close form preview": "Chiudi anteprima del modulo",

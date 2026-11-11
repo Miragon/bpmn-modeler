@@ -48,146 +48,20 @@ function setterCalls(viewbox: ReturnType<typeof vi.fn>): unknown[] {
     return viewbox.mock.calls.filter((call) => call.length > 0 && call[0] !== undefined);
 }
 
-/** Screen position of a diagram point under the viewbox the setter received. */
-function project(point: number, boxOrigin: number, scale: number): number {
-    return (point - boxOrigin) * scale;
-}
-
 afterEach(() => {
     vi.restoreAllMocks();
 });
 
 describe("ViewportManager.fitViewport", () => {
-    it("falls back to bpmn-js fit for an empty diagram", () => {
-        const { manager, zoom, viewbox } = setup(
+    // The fit rules themselves are covered by fitCanvas.spec.ts in modeler-types.
+    it("fits through the shared canvas fit", () => {
+        const { manager, zoom } = setup(
             { x: 0, y: 0, width: 0, height: 0 },
             { width: 1000, height: 800 },
         );
 
         expect(manager.fitViewport()).toBe(true);
-
         expect(zoom).toHaveBeenCalledWith("fit-viewport");
-        // No manual viewbox is set in the degenerate case.
-        expect(setterCalls(viewbox)).toHaveLength(0);
-    });
-
-    // Fitting against an unlaid-out container is what produced the NaN
-    // transform that renders nothing.
-    it.each([
-        ["not laid out at all", { width: 0, height: 0 }],
-        ["laid out at the IntelliJ pre-warm size", { width: 1, height: 1 }],
-        ["too short to fit into", { width: 1200, height: 8 }],
-    ])("applies nothing when the canvas is %s", (_case, outer) => {
-        const { manager, zoom, viewbox } = setup({ x: 150, y: 80, width: 600, height: 300 }, outer);
-
-        expect(manager.fitViewport()).toBe(false);
-
-        expect(zoom).not.toHaveBeenCalled();
-        expect(setterCalls(viewbox)).toHaveLength(0);
-    });
-
-    it("clears the palette and never zooms in past 1.0", () => {
-        // Diagram authored far from the origin, smaller than the viewport.
-        const inner = { x: 5000, y: 4000, width: 400, height: 200 };
-        const { manager, viewbox } = setup(inner, { width: 1000, height: 800 });
-
-        manager.fitViewport();
-
-        const box = viewbox.mock.calls.at(-1)?.[0] as Rect;
-        const scale = 1000 / box.width;
-        expect(scale).toBe(1); // fits comfortably → no zoom in
-
-        // Left edge of the diagram must land to the right of the 50px palette
-        // fallback (+20 margin), so no element hides behind it.
-        const leftPx = project(inner.x, box.x, scale);
-        expect(leftPx).toBeGreaterThanOrEqual(70);
-        const topPx = project(inner.y, box.y, scale);
-        expect(topPx).toBeGreaterThanOrEqual(40);
-    });
-
-    // An unstyled palette is a full-width block; reserving it collapsed the
-    // fit to an invisible diagram on a perfectly sized canvas.
-    it("ignores an unstyled, full-width palette inside its own container", () => {
-        const inner = { x: 0, y: 0, width: 1176, height: 537 };
-        const { manager, viewbox, container } = setup(inner, { width: 1000, height: 800 });
-
-        const palette = document.createElement("div");
-        palette.className = "djs-palette";
-        container.appendChild(palette);
-        vi.spyOn(palette, "getBoundingClientRect").mockReturnValue({
-            left: 0,
-            right: 1000,
-            width: 1000,
-        } as DOMRect);
-
-        manager.fitViewport();
-
-        const box = viewbox.mock.calls.at(-1)?.[0] as Rect;
-        const scale = 1000 / box.width;
-        // At least half the canvas stays available, so the diagram is visible.
-        expect(inner.width * scale).toBeGreaterThan(400);
-    });
-
-    // With two modelers on a page a bare document query would measure the
-    // first (foreign) palette; scoping to the container ignores it entirely.
-    it("ignores a palette that belongs to another modeler's container", () => {
-        const inner = { x: 5000, y: 4000, width: 400, height: 200 };
-        const { manager, viewbox } = setup(inner, { width: 1000, height: 800 });
-
-        // A full-width decoy palette elsewhere in the document (not in our
-        // container). If the query were unscoped it would collapse the fit.
-        const decoy = document.createElement("div");
-        decoy.className = "djs-palette";
-        document.body.appendChild(decoy);
-        vi.spyOn(decoy, "getBoundingClientRect").mockReturnValue({ width: 1000 } as DOMRect);
-
-        manager.fitViewport();
-
-        const box = viewbox.mock.calls.at(-1)?.[0] as Rect;
-        const scale = 1000 / box.width;
-        // The 50px fallback is used (our container has no palette), not the decoy.
-        expect(scale).toBe(1);
-        const leftPx = project(inner.x, box.x, scale);
-        expect(leftPx).toBeGreaterThanOrEqual(70);
-        decoy.remove();
-    });
-
-    // The palette floats inset from the canvas edge, so its width alone put the
-    // first shape flush against it once the diagram filled the width.
-    it("leaves the same gap to the palette as to the right edge", () => {
-        const inner = { x: 0, y: 0, width: 2000, height: 400 };
-        const { manager, viewbox, container } = setup(inner, { width: 1000, height: 800 });
-        const palette = document.createElement("div");
-        palette.className = "djs-palette";
-        container.appendChild(palette);
-        vi.spyOn(palette, "getBoundingClientRect").mockReturnValue({
-            left: 12,
-            right: 60,
-            width: 48,
-        } as DOMRect);
-
-        manager.fitViewport();
-
-        const box = viewbox.mock.calls.at(-1)?.[0] as Rect;
-        const scale = 1000 / box.width;
-        const gapToPalette = project(inner.x, box.x, scale) - 60;
-        const gapToRightEdge = 1000 - project(inner.x + inner.width, box.x, scale);
-        expect(gapToPalette).toBeCloseTo(40);
-        expect(gapToRightEdge).toBeCloseTo(40);
-    });
-
-    it("zooms out a diagram larger than the inset area to fit", () => {
-        const inner = { x: 0, y: 0, width: 4000, height: 3000 };
-        const { manager, viewbox } = setup(inner, { width: 1000, height: 800 });
-
-        manager.fitViewport();
-
-        const box = viewbox.mock.calls.at(-1)?.[0] as Rect;
-        const scale = 1000 / box.width;
-        expect(scale).toBeLessThan(1);
-        // The whole diagram width fits within the inset-reduced viewport.
-        const rightPx = project(inner.x + inner.width, box.x, scale);
-        expect(rightPx).toBeLessThanOrEqual(1000);
     });
 });
 

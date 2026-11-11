@@ -1,6 +1,6 @@
 {
     "note": "Templates the running dmn-js views passed to translate(), harvested via tools/harvest-drain-dmn.js (union of successive runs across the DRD, decision-table and literal-expression views — additive runtime truth). Feeds the needed-key set alongside harvested.json; coverage.spec.ts fails if any key here resolves via neither the shared library nor the overlay.",
-    "count": 92,
+    "count": 93,
     "keys": [
         "Activate hand tool",
         "Activate lasso tool",
@@ -45,6 +45,7 @@
         "Expression language",
         "Expression language:",
         "First",
+        "Fit diagram to view",
         "Hit policy",
         "Hit policy:",
         "ID",

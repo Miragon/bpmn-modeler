@@ -187,9 +187,10 @@ The panel's mode filter owns the mode. Applying a change updates the filter,
 actual change. Design hides engine-template popup/chooser chrome. It does not
 stop or hide token simulation.
 
-Minimap, token simulation and keyboard/canvas focus are engine-neutral chrome
-on every surface. The viewer uses the readonly simulation module. Simulation
-survives a live toggle but not destruction/recreation of its instance.
+Minimap, token simulation, keyboard/canvas focus and the fit button are
+engine-neutral chrome on every surface. The viewer uses the readonly simulation
+module. Simulation survives a live toggle but not destruction/recreation of its
+instance.
 
 `/design` stays free of Camunda moddles/behaviors, element templates and
 transaction boundaries; it has no engine settings, engine conversion helpers,
