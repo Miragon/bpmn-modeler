@@ -11,6 +11,7 @@ interface IndicatorCase {
     readonly source: LintFindingsSource;
     readonly unresolved: readonly string[];
     readonly blocked?: readonly BlockedRulePackage[];
+    readonly untrusted?: boolean;
     readonly indicator: BpmnlintIndicator;
 }
 
@@ -126,10 +127,24 @@ const cases: IndicatorCase[] = [
         blocked: [blockedPackage(ACME, false)],
         indicator: { state: "unresolved", configPath: CONFIG_PATH, unresolved: SKIPPED_RULES },
     },
+    {
+        name: "shows a workspace run that skipped rules in a workspace the user did not trust as untrusted, not unresolved",
+        source: workspaceRun,
+        unresolved: SKIPPED_RULES,
+        untrusted: true,
+        indicator: { state: "untrusted", configPath: CONFIG_PATH, unresolved: SKIPPED_RULES },
+    },
+    {
+        name: "shows a clean workspace run in a workspace the user did not trust as active",
+        source: workspaceRun,
+        unresolved: [],
+        untrusted: true,
+        indicator: { state: "active", configPath: CONFIG_PATH },
+    },
 ];
 
 describe("bpmnlint indicator for applied findings", () => {
-    it.each(cases)("$name", ({ source, unresolved, blocked = [], indicator }) => {
-        expect(indicatorForFindings(source, unresolved, blocked)).toEqual(indicator);
+    it.each(cases)("$name", ({ source, unresolved, blocked = [], untrusted, indicator }) => {
+        expect(indicatorForFindings(source, unresolved, blocked, untrusted)).toEqual(indicator);
     });
 });

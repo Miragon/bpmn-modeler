@@ -25,6 +25,12 @@ export type BpmnlintIndicator =
           readonly unresolved: readonly string[];
       }
     | {
+          /** Skipped rules, the workspace's rule packages included: none runs until the user trusts the workspace. */
+          readonly state: "untrusted";
+          readonly configPath: string;
+          readonly unresolved: readonly string[];
+      }
+    | {
           readonly state: "blocked";
           readonly configPath: string;
           readonly unresolved: readonly string[];
@@ -39,6 +45,7 @@ export function indicatorForFindings(
     source: LintFindingsSource,
     unresolved: readonly string[],
     blocked: readonly BlockedRulePackage[],
+    untrusted = false,
 ): BpmnlintIndicator {
     if (source.kind === "workspace") {
         const notAllowed = [...new Set(blocked.filter((each) => each.needed).map(({ id }) => id))];
@@ -46,9 +53,15 @@ export function indicatorForFindings(
             // Not "unresolved": installing the plugin would not help, allowing it would.
             return { state: "blocked", configPath: source.configPath, unresolved, notAllowed };
         }
-        return unresolved.length > 0
-            ? { state: "unresolved", configPath: source.configPath, unresolved }
-            : { state: "active", configPath: source.configPath };
+        if (unresolved.length === 0) {
+            return { state: "active", configPath: source.configPath };
+        }
+        // Untrusted, not "unresolved": installing would not help, trusting the workspace would.
+        return {
+            state: untrusted ? "untrusted" : "unresolved",
+            configPath: source.configPath,
+            unresolved,
+        };
     }
     // A covered run lints a real `.bpmnlintrc`, so it never reads as the bundled default.
     return source.configPath !== undefined

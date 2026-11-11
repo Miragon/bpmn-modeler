@@ -193,6 +193,13 @@ export function contentServedByEditors(
     );
 }
 
+/** Each editor's withheld plugins; the question asks about each allowance once. */
+export function withheldByEditors(
+    offeredByEditor: ReadonlyMap<string, OfferedPlugins>,
+): WorkspacePlugin[] {
+    return [...offeredByEditor.values()].flatMap(({ withheld }) => withheld);
+}
+
 /** Another process's prune can remove a copy this one already wrote. */
 export function isWholeCachedCopy(
     plugin: WorkspacePlugin,

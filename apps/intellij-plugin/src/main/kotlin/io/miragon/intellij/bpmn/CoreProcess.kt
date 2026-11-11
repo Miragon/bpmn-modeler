@@ -245,14 +245,8 @@ class CoreProcess(private val project: Project) : Disposable {
 
     fun setAddOnsOpen(open: Boolean) = routers.addOns.setOpen(open)
 
-    /**
-     * Fires `addOns/refresh`; the core reads every add-on again, installed packages and stored approvals included.
-     * The trust goes first: adding a Trusted Location announces no change of the project's trust.
-     */
-    fun refreshAddOns() {
-        routers.workspaceTrust.push()
-        routers.addOns.refresh()
-    }
+    /** Fires `addOns/refresh`; the core reads every add-on again, installed packages, stored approvals and the trust included. */
+    fun refreshAddOns() = routers.refreshAddOns()
 
     /** Fires `addOns/review`, starting the bridge; the Add-ons tab is already shown. */
     fun reviewAddOns() = routers.addOns.review()

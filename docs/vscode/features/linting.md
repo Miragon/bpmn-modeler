@@ -104,7 +104,7 @@ The *bpmn.modeler* output channel explains what happened:
 
 The IntelliJ plugin asks the same way as for [BPMN plugins in IntelliJ](/vscode/features/bpmn-plugins#intellij): an IDE notification balloon with **Review…**, which selects the rule package in the **Add-ons** tab of the **BPMN Modeler** tool window when the package lies inside the project, and allowances that the IDE keeps for all your projects, outside every project. **Revoke** there takes an allowance back, in every worktree of its repository; rules that already ran stay loaded until you restart the IDE. The output channel lines go to the IDE log.
 
-Rule packages run only in a project you trust in the IDE. In a project you did not trust, the bundled rules lint alone: a rule from a workspace package is skipped (`BPMNlint: N rules skipped`) and nothing asks, though you allowed the package in another worktree. Trusting the project lints the open diagrams again with it. See [Project trust](/intellij/getting-started#project-trust).
+Rule packages run only in a project you trust in the IDE. In a project you did not trust, the bundled rules lint alone: a rule from a workspace package is skipped (`BPMNlint: N rules skipped`, and the tooltip says the rule packages wait for your trust) and nothing asks, though you allowed the package in another worktree. Trusting the project lints the open diagrams again with it and asks about the packages you have not allowed yet. See [Project trust](/intellij/getting-started#project-trust).
 
 In IntelliJ, rule packages whose `package.json` sets `main` or `exports`, and most that have dependencies, do not load yet, even once allowed: the bundled rules stand in for them, or their rules are skipped. A later release lifts this limit.
 

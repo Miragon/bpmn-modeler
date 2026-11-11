@@ -52,4 +52,10 @@ internal class BridgeRouters(deps: BridgeDeps) {
         workspaceTrust.push()
         addOns.followNewProcess()
     }
+
+    /** The trust goes first: adding a Trusted Location announces no change of the project's trust. */
+    fun refreshAddOns() {
+        workspaceTrust.push()
+        addOns.refresh()
+    }
 }

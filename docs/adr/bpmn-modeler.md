@@ -471,7 +471,10 @@ A host lint returns, besides the results and the unresolved names, the rule
 packages the gate blocked and the modules it refused. When a blocked package
 left a rule or config unresolved, the status bar shows the `blocked` state
 (`BPMNlint: N rule packages not allowed`). It wins over `unresolved` and
-carries no install hint: installing would not help, allowing would.
+carries no install hint: installing would not help, allowing would. A run in a
+workspace the user did not trust says so, and its skipped rules show the
+`untrusted` state, which carries no install hint either (see "Host trust below
+it" under the allowance).
 
 The webview owns lazy `/lint` loading and routes results to either editable
 surface. The [lint-free entry check](../../packages/bpmn-modeler/scripts/check-lint-free-entry.mjs)
@@ -1304,17 +1307,26 @@ workspace the user did not trust, no plugin is served and no workspace rule
 package runs, whatever its allowance, nothing asks to allow one, and the
 Add-ons view offers no Allow for a code add-on and says why in the row's
 problem (`UNTRUSTED_WORKSPACE_TEXT`); Revoke stays. The rule has one home,
-`kernel/domain/workspaceTrust.ts` (`runsInWorkspace`, `askedInWorkspace`),
-and the plugin catalog, the rule package catalog, `editorsToReload` and the
-add-on catalog apply it. An untrusted linter builds no rule package gate, so it
-asks the workspace for nothing and lints with the bundled rules alone; a rule
-of a workspace package is skipped as unresolved. The core reads the trust
+`kernel/domain/workspaceTrust.ts`: `runsInWorkspace`, which the plugin
+catalog and `editorsToReload` apply, and `offersAllowInWorkspace`, which
+`askedInWorkspace` (the plugin and rule package catalogs) and the add-on
+catalog's actions and problem apply. An untrusted linter builds no rule
+package gate, so it asks the workspace for nothing and lints with the bundled
+rules alone; the gate it builds when trusted applies the allowance. A rule of a
+workspace package is skipped, and the run says it was untrusted, so the status
+bar shows the `untrusted` state (`BPMNlint: N rules skipped`, with a tooltip
+that the workspace's rule packages wait for the user's trust) instead of the
+install hint of `unresolved`. The core reads the trust
 through `WorkspaceTrustPort` (`kernel/port/hostPorts.ts`), which the
 plugins, rule packages and add-ons features take as an optional
 `workspaceTrust`; a host that wires none is trusted (`TRUSTED_WORKSPACE`),
 which suits Orca and npm consumers, as they run no workspace code. A change
 of the trust reloads the editors whose plugins it changes, lints every
-host-linted editor again and rebuilds the view, without a restart.
+host-linted editor again and rebuilds the view, without a restart. An editor
+that requested its plugins while the workspace was untrusted was asked
+nothing, so a grant asks about the plugins the open editors withhold, as the
+relint does for rule packages; an editor the grant reloads asks on its own
+request.
 
 In VS Code the extension declares no support for untrusted workspaces, so it
 does not run in Restricted Mode; `VsCodeWorkspaceTrust` answers
@@ -1338,11 +1350,11 @@ Accepted:
 - Whoever can change the files of an allowed repository (a pull, an install,
   an agent in a worktree) changes code that runs with the user's rights, as
   for every tool that runs under host trust, and an untrusted branch in a
-  worktree of an allowed repository the user trusts runs its version.
+  worktree of an allowed repository the user trusts runs its version. "Any
+  change asks again", which the 1.21.0 user guide promised, ends, and the
+  release notes say so.
 - A rule package that ran before the user withdrew trust stays loaded in the
-  process until it restarts; it runs no rule after the relint. "Any change asks
-  again", which the 1.21.0 user guide promised, ends, and the release notes
-  say so.
+  process until it restarts; it runs no rule after the relint.
 - A rule package runs in place and unhashed, so the swap window under "Weaker
   guarantee than a plugin's" is no longer a residual but the rule.
 - An archive unpacked into an allowed repository without a `.git` of its own

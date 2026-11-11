@@ -97,6 +97,17 @@ class WorkspaceTrustRouterTest {
     }
 
     @Test
+    fun `a Refresh of the add-ons sends the trust first, which a new Trusted Location does not announce`() {
+        val (wired, routers) = routers(isTrusted = { true })
+
+        routers.refreshAddOns()
+
+        val frames = wired.fake.framesUntilQuiet().map(::parse)
+        assertEquals(listOf("workspaceTrust/didChange", "addOns/refresh"), frames.map { it.get("method").asString })
+        assertEquals(true, trustOf(frames.first()).get("trusted").asBoolean)
+    }
+
+    @Test
     fun `a spawn seeds the trust the user changed while the bridge was still starting`() {
         var alive = false
         var trusted = false

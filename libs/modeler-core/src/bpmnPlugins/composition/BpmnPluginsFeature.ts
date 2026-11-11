@@ -98,11 +98,13 @@ export class BpmnPluginsFeature {
             ports.now,
         );
         this.inventory = new PluginInventory(this.locator, this.catalog, this.service);
-        const runnableChanged = () =>
-            this.service.runnablePluginsChanged(ports.approvals.read(), trust.isTrusted());
         this.runnableChanges = [
-            ports.approvals.onDidChange(runnableChanged),
-            trust.onDidChange(runnableChanged),
+            ports.approvals.onDidChange(() =>
+                this.service.runnablePluginsChanged(ports.approvals.read(), trust.isTrusted()),
+            ),
+            trust.onDidChange(() =>
+                this.service.trustChanged(ports.approvals.read(), trust.isTrusted()),
+            ),
         ];
         this.editorContribution = {
             commandHandlers: { GetBpmnPluginsCommand: getBpmnPluginsHandler(this.service) },

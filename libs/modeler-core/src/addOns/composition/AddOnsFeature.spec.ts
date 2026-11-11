@@ -137,6 +137,7 @@ function setUp({
     restart = "reloadWindow",
     marketplaces: listsMarketplaces = true,
     switches: keepsSwitches = true,
+    trustUnwired = false,
     ...hostOptions
 }: {
     files?: Record<string, string>;
@@ -144,6 +145,8 @@ function setUp({
     restart?: ProcessRestart;
     marketplaces?: boolean;
     switches?: boolean;
+    /** The host wires no trust port; the fake's trust still changes, reaching nothing. */
+    trustUnwired?: boolean;
 } & Pick<TestHostOptions, "settings" | "promptAnswers" | "marketplaceAnswers"> = {}) {
     const host = createTestHost({ folders, files, ...hostOptions });
     const artifacts = new ArtifactService(host.workspace, host.settings, host.notifier);
@@ -215,7 +218,7 @@ function setUp({
         settingChanges,
         restart,
         contentRows,
-        workspaceTrust: host.workspaceTrust,
+        ...(trustUnwired ? {} : { workspaceTrust: host.workspaceTrust }),
         plugins: plugins.inventory,
         rulePackages: new RulePackageInventory(rulePackageCatalog, disk, allowances),
         templates: new TemplateInventory(templatesService, artifacts),
@@ -438,6 +441,17 @@ describe("AddOnsFeature", () => {
             ]);
             expect(result).toMatchObject({ kind: "refused", reason: "notOffered" });
             expect(host.pluginApprovals.receivedChanges).toEqual([]);
+        });
+
+        it("offers Allow without a problem where the host wires no trust", async () => {
+            const { host, addOns, view } = setUp({ trustUnwired: true });
+            host.workspaceTrust.setTrusted(false);
+            view.attachTo(addOns);
+            await shown(addOns);
+
+            const resize = view.codeAddOnNamed("Resize Tasks");
+            expect(resize.actions.map(({ kind }) => kind)).toEqual(["allow"]);
+            expect(resize.problem).toBeUndefined();
         });
 
         it.each([

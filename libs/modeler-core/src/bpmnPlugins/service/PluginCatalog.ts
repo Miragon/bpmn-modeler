@@ -61,6 +61,10 @@ export class PluginCatalog {
         return this.selectionOf(discovered);
     }
 
+    whenRowsSettled(): Promise<void> {
+        return this.contentRows.whenSettled();
+    }
+
     /** Those of `pending` that no answer settled since they were found. */
     stillPendingOf(pending: readonly WorkspacePlugin[]): readonly WorkspacePlugin[] {
         return askedInWorkspace(

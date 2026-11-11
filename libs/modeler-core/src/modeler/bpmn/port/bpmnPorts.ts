@@ -12,6 +12,8 @@ export interface LintRun {
     readonly blocked: BlockedRulePackage[];
     /** Workspace code that may never run, with the reason. */
     readonly refused: RefusedRuleModule[];
+    /** The user did not trust the workspace, so no workspace rule package was asked for. */
+    readonly untrusted?: boolean;
 }
 
 /**

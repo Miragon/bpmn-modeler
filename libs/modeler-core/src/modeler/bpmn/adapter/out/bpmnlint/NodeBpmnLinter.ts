@@ -37,6 +37,8 @@ interface LintSetup {
     readonly resolved: Map<string, unknown>;
     readonly moddleExtensionMisses: readonly string[];
     readonly gate?: RulePackageGate;
+    /** Built without a gate because the user did not trust the workspace. */
+    readonly untrusted: boolean;
 }
 
 /** The rule packages a lint setup may run: those the rows it was built for allow. */
@@ -105,6 +107,7 @@ export class NodeBpmnLinter implements LintRunnerPort {
             unresolved: resolver.unresolved,
             blocked: setup.gate?.blockedPackages(resolver.neededBlocked) ?? [],
             refused: setup.gate?.refusedModules() ?? [],
+            untrusted: setup.untrusted,
         };
     }
 
@@ -133,7 +136,9 @@ export class NodeBpmnLinter implements LintRunnerPort {
 
         const workspaceRules =
             this.rulePackages && trusted ? { sources: this.rulePackages, approvals } : undefined;
-        const setup = this.createLintSetup(configPath, config, workspaceRules);
+        const setup = this.createLintSetup(configPath, config, workspaceRules, {
+            untrusted: this.rulePackages !== undefined && !trusted,
+        });
         this.setupsByConfigPath.set(configPath, { configFingerprint, setup });
         const forget = () => this.forgetSetup(configPath, setup);
         // A missing moddle extension may be installed later; retry it next run.
@@ -156,6 +161,7 @@ export class NodeBpmnLinter implements LintRunnerPort {
         configPath: string,
         config: Record<string, unknown>,
         workspaceRules: WorkspaceRules | undefined,
+        { untrusted }: Pick<LintSetup, "untrusted">,
     ): Promise<LintSetup> {
         const configDir = dirname(fileSystemPathOf(configPath));
         const scopedRequire = createScopedRequire(configDir);
@@ -179,6 +185,7 @@ export class NodeBpmnLinter implements LintRunnerPort {
             resolved: new Map(),
             moddleExtensionMisses: misses,
             gate,
+            untrusted,
         };
     }
 

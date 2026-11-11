@@ -17,6 +17,7 @@ import {
     isWholeCachedCopy,
     lastUseMarkerOf,
     OfferedPlugins,
+    withheldByEditors,
     WorkspacePlugin,
 } from "../domain/pluginApproval";
 import {
@@ -100,12 +101,7 @@ export class BpmnPluginService {
         }
         // Not awaited: the router runs this editor's commands in order, and a
         // question left open would hold back its document syncs.
-        const asking = this.question
-            .ask(pending)
-            .catch((error: unknown) =>
-                this.notifier.logError(error instanceof Error ? error : new Error(String(error))),
-            );
-        this.approvalSettled = Promise.all([this.approvalSettled, asking]).then(() => undefined);
+        this.askAbout(pending);
     }
 
     /** At start-up: the copies no editor of any process was served for weeks. */
@@ -142,9 +138,29 @@ export class BpmnPluginService {
         }
     }
 
+    /**
+     * After a change of the workspace's trust. An editor that asked while the
+     * workspace was untrusted was asked nothing, so a grant asks about what the
+     * editors it does not reload withhold; a reloaded one asks on its request.
+     */
+    trustChanged(approvals: readonly CodeApproval[], trusted: boolean): void {
+        this.runnablePluginsChanged(approvals, trusted);
+        // Asked while untrusted, the request did not wait for the start-up migration.
+        this.askAbout(withheldByEditors(this.offeredByEditor), this.catalog.whenRowsSettled());
+    }
+
     /** Resolves once every approval question raised so far is answered. */
     whenApprovalSettled(): Promise<void> {
         return this.approvalSettled;
+    }
+
+    private askAbout(found: readonly WorkspacePlugin[], after = Promise.resolve()): void {
+        const asking = after
+            .then(() => this.question.ask(found))
+            .catch((error: unknown) =>
+                this.notifier.logError(error instanceof Error ? error : new Error(String(error))),
+            );
+        this.approvalSettled = Promise.all([this.approvalSettled, asking]).then(() => undefined);
     }
 
     private logUnsent(editorId: string, outcome: PostOutcome): void {

@@ -22,6 +22,7 @@ import {
     PLUGIN_CODE_TEXTS,
     PLUGIN_CONTENT_HASH_PATTERN,
     type WorkspacePlugin,
+    withheldByEditors,
 } from "./pluginApproval";
 
 const repositoryAllowance = (addOn: string): Allowance => ({
@@ -371,6 +372,27 @@ describe("contentServedByEditors", () => {
         },
     ])("holds $case", ({ offered, served }) => {
         expect([...contentServedByEditors(new Map(offered))].sort()).toEqual(served);
+    });
+});
+
+describe("withheldByEditors", () => {
+    it.each<{ case: string; offered: [string, OfferedPlugins][]; withheld: WorkspacePlugin[] }>([
+        { case: "nothing without an open editor", offered: [], withheld: [] },
+        {
+            case: "nothing an editor was served",
+            offered: [["file:///repo/a.bpmn", { served: [resize], withheld: [] }]],
+            withheld: [],
+        },
+        {
+            case: "what every editor withholds, in the map's order",
+            offered: [
+                ["file:///repo/a.bpmn", { served: [resize], withheld: [palette] }],
+                ["file:///repo/b.bpmn", { served: [], withheld: [resize, palette] }],
+            ],
+            withheld: [palette, resize, palette],
+        },
+    ])("holds $case", ({ offered, withheld }) => {
+        expect(withheldByEditors(new Map(offered))).toEqual(withheld);
     });
 });
 

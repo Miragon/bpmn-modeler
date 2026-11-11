@@ -113,14 +113,18 @@ function setUp(
         review?: ScriptedReview | ((host: ReturnType<typeof createTestHost>) => ApprovalReviewPort);
         now?: () => number;
         allowances?: AllowanceLocator;
+        /** The host wires no trust port; the fake's trust still changes, reaching nothing. */
+        trustUnwired?: boolean;
     } = {},
 ) {
     const host = createTestHost({ folders: ["/work", "/other"], files, ...options });
     const approvals = options.approvals ?? host.pluginApprovals;
     const allowances = options.allowances ?? host.allowances;
     const contentRows = new ContentRowMigration(approvals, allowances, host.notifier);
+    const { workspaceTrust, ...hostPorts } = host;
     const feature = new BpmnPluginsFeature({
-        ...host,
+        ...hostPorts,
+        ...(options.trustUnwired ? {} : { workspaceTrust }),
         artifacts: new ArtifactService(host.workspace, host.settings, host.notifier),
         approvals,
         allowances,
@@ -478,6 +482,48 @@ describe("BpmnPluginsFeature", () => {
             expect(editor.reloadCount).toBe(1);
             expect(answeredPlugins(editor)?.map(({ name }) => name)).toEqual(["Reduced Palette"]);
             expect(host.actionNotifier.notices).toHaveLength(1);
+        });
+
+        it("asks about an open editor's new plugin once the user trusts the workspace, without reloading it", async () => {
+            const { host, feature, requestPlugins, openEditor } = setUp(RESIZE_FILES);
+            host.workspaceTrust.setTrusted(false);
+            const editor = await openEditor();
+            await requestPlugins(editor);
+
+            host.workspaceTrust.setTrusted(true);
+            await feature.service.whenApprovalSettled();
+
+            expect(editor.reloadCount).toBe(0);
+            expect(host.actionNotifier.notices.map(({ message }) => message)).toEqual([
+                "1 BPMN plugin in this workspace is not allowed yet.",
+            ]);
+        });
+
+        it("asks about a plugin that two open editors withhold once, after the user trusts the workspace", async () => {
+            const { host, feature, requestPlugins, openEditor } = setUp(RESIZE_FILES);
+            host.workspaceTrust.setTrusted(false);
+            const first = await openEditor();
+            const second = await openEditor("/work/invoice.bpmn");
+            await requestPlugins(first);
+            await requestPlugins(second);
+
+            host.workspaceTrust.setTrusted(true);
+            await feature.service.whenApprovalSettled();
+
+            expect(host.actionNotifier.notices).toHaveLength(1);
+        });
+
+        it("serves an allowed plugin where the host wires no trust", async () => {
+            const { host, requestPlugins, openEditor } = setUp(PALETTE_FILES, {
+                trustUnwired: true,
+            });
+            host.pluginApprovals.approvals = [folderRowOf(PALETTE)];
+            host.workspaceTrust.setTrusted(false);
+            const editor = await openEditor();
+
+            await requestPlugins(editor);
+
+            expect(answeredPlugins(editor)?.map(({ name }) => name)).toEqual(["Reduced Palette"]);
         });
 
         it("reloads an editor that loads a plugin once the user withdraws trust, and serves it no more", async () => {

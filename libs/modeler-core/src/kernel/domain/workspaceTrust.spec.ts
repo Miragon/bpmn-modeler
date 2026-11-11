@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { AllowableCode, allowanceOf, allowanceRowOf, LOCAL_HOST } from "./allowance";
 import { CodeApproval } from "./codeApproval";
-import { askedInWorkspace, runsInWorkspace } from "./workspaceTrust";
+import { askedInWorkspace, offersAllowInWorkspace, runsInWorkspace } from "./workspaceTrust";
 
 const PLUGIN: AllowableCode = {
     id: "/work/.camunda/plugins/trace",
@@ -55,5 +55,18 @@ describe("askedInWorkspace", () => {
         },
     ])("$behaviour", ({ trusted, asked }) => {
         expect(askedInWorkspace(["a", "b"], trusted)).toEqual(asked);
+    });
+});
+
+describe("offersAllowInWorkspace", () => {
+    it.each([
+        { behaviour: "offers Allow in a trusted workspace", trusted: true, offered: true },
+        {
+            behaviour: "offers no Allow in a workspace the user did not trust",
+            trusted: false,
+            offered: false,
+        },
+    ])("$behaviour", ({ trusted, offered }) => {
+        expect(offersAllowInWorkspace(trusted)).toBe(offered);
     });
 });

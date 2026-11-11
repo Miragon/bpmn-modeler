@@ -626,6 +626,42 @@ module.exports = () => ({
         expect(refused).toEqual([]);
     });
 
+    it.each([
+        { case: "runs no allowed package and says why", trusted: false, ran: [], untrusted: true },
+        {
+            case: "runs an allowed package and reports no trust problem",
+            trusted: true,
+            ran: ["acme", "acme/task-found", "acme-dep"],
+            untrusted: false,
+        },
+    ])("$case where the user's trust is $trusted", async ({ trusted, ran: modules, untrusted }) => {
+        await installAcme();
+        allowAcme();
+        const trust = { isTrusted: () => trusted };
+
+        const run = await new NodeBpmnLinter({
+            approvals,
+            packages: nodePackages,
+            allowances,
+            trust,
+        }).lint(BPMN_WITH_TASK, configPath, TASK_FOUND);
+
+        expect(ran()).toEqual(modules);
+        expect(run.untrusted).toBe(untrusted);
+    });
+
+    it("reports no trust problem for a linter that runs no workspace package", async () => {
+        await installAcme();
+
+        const { untrusted } = await new NodeBpmnLinter().lint(
+            BPMN_WITH_TASK,
+            configPath,
+            TASK_FOUND,
+        );
+
+        expect(untrusted).toBe(false);
+    });
+
     it("runs a package a 1.21.0 row allows at its folder", async () => {
         await installAcme();
         approvals.approvals = [

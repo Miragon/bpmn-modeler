@@ -14,7 +14,15 @@ export function runsInWorkspace(
     return trusted && isAllowed(code, rows);
 }
 
-/** Allowing code in a workspace the user did not trust would not run it, so nothing asks; trusting comes first. */
+/**
+ * Allowing code in a workspace the user did not trust would not run it, so
+ * neither a question nor a view offers it; trusting comes first. Revoking
+ * stays offered.
+ */
+export function offersAllowInWorkspace(trusted: boolean): boolean {
+    return trusted;
+}
+
 export function askedInWorkspace<C>(pending: readonly C[], trusted: boolean): readonly C[] {
-    return trusted ? pending : [];
+    return offersAllowInWorkspace(trusted) ? pending : [];
 }

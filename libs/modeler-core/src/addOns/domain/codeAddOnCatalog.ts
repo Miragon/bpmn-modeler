@@ -13,6 +13,7 @@ import {
     SessionAnswer,
 } from "../../kernel/domain/codeApproval";
 import { ListedCode, ListedPresence, presenceIdOf } from "../../kernel/domain/listedCode";
+import { offersAllowInWorkspace } from "../../kernel/domain/workspaceTrust";
 import {
     innermostFolderOf,
     relativeToRoot,
@@ -123,13 +124,12 @@ const CODE_ACTIONS: Record<
     unreadable: NO_ALLOW,
 };
 
-/** Trusting the workspace comes first, so a workspace the user did not trust offers no Allow. */
 function codeActionsOf(
     kind: ListedKind,
     state: AllowanceState,
     trusted: boolean,
 ): readonly ActionView<AddOnActionKind>[] {
-    return (trusted ? CODE_ACTIONS[kind] : NO_ALLOW)[state];
+    return (offersAllowInWorkspace(trusted) ? CODE_ACTIONS[kind] : NO_ALLOW)[state];
 }
 
 const DETAIL: Record<
@@ -222,7 +222,7 @@ function viewOf(
 
 function problemOf(presence: ListablePresence, trusted: boolean): string | undefined {
     if (presence.kind === "unreadable") return cannotBeAllowedText(presence.reason);
-    return trusted ? undefined : UNTRUSTED_WORKSPACE_TEXT;
+    return offersAllowInWorkspace(trusted) ? undefined : UNTRUSTED_WORKSPACE_TEXT;
 }
 
 function noteOf(

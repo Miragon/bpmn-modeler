@@ -627,12 +627,15 @@ describe("BpmnEditorFeature with workspace rule packages", () => {
         review,
         trusted = true,
         allowedBefore = false,
+        wiresTrust = true,
     }: {
         wiresRulePackages: boolean;
         allows?: boolean;
         review?: ScriptedReview;
         trusted?: boolean;
         allowedBefore?: boolean;
+        /** False: the fake's trust still changes, reaching nothing. */
+        wiresTrust?: boolean;
     }) {
         const configPath = `${workspaceDir}/.bpmnlintrc`;
         const diagramPath = `${workspaceDir}/order.bpmn`;
@@ -663,7 +666,7 @@ describe("BpmnEditorFeature with workspace rule packages", () => {
                               contentRows: host.contentRows,
                               actionNotifier: host.actionNotifier,
                               questions: new QuestionQueue(),
-                              workspaceTrust: host.workspaceTrust,
+                              ...(wiresTrust ? { workspaceTrust: host.workspaceTrust } : {}),
                               ...(review === undefined ? {} : { review }),
                           },
                       }
@@ -825,6 +828,35 @@ describe("BpmnEditorFeature with workspace rule packages", () => {
 
         expect(host.actionNotifier.notices).toEqual([]);
         expect(results).toEqual([[]]);
+    });
+
+    it("lints with an allowed package where the host wires no trust", async () => {
+        const { results } = await lintWithAcmeInstalled({
+            wiresRulePackages: true,
+            trusted: false,
+            allowedBefore: true,
+            wiresTrust: false,
+        });
+
+        expect(results).toEqual([["acme/task-found"]]);
+    });
+
+    it("says on the status item and in the log that the skipped rules wait for the user's trust", async () => {
+        const { host } = await lintWithAcmeInstalled({
+            wiresRulePackages: true,
+            trusted: false,
+            allowedBefore: true,
+        });
+
+        expect(host.statusBar.views.bpmnlint?.tooltip).toContain(
+            "Workspace rule packages run only once you trust this project.",
+        );
+        expect(host.notifier.logs).toContainEqual({
+            level: "warning",
+            message: expect.stringContaining(
+                "workspace rule packages run only once you trust this project",
+            ),
+        });
     });
 
     it("lints the open editors again with an allowed package once the user trusts the workspace", async () => {

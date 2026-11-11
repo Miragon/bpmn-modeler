@@ -38,6 +38,11 @@ interface ProjectBridge {
     readonly rpc: Rpc;
     readonly frames: Frame[];
     readonly editorId: string;
+    /** Registers another diagram of the project, as IntelliJ does when the user opens one. */
+    registerEditor(
+        fileName: string,
+        workspaceTrust: RegisterParams["workspaceTrust"],
+    ): Promise<void>;
 }
 
 const disposals: Array<() => Promise<void>> = [];
@@ -71,29 +76,40 @@ async function editorOfProject(
             [root, cacheRoot].map((dir) => fs.rm(dir, { recursive: true, force: true })),
         );
     });
-    const editorId = `file://${join(root, "order.bpmn")}`;
-    const { workspaceTrust: _trusted, ...untold } = registerParams(
-        editorId,
-        root,
-        editorId.slice(7),
-        "",
-        {
-            sessionId: 1,
-            pluginApprovals: [
-                allowanceRowOf(
-                    allowanceOf("plugin", pluginId, { kind: "noRepository" }, LOCAL_HOST),
-                ),
-            ],
-            pluginApprovalsRevision: 1,
-        },
-    );
-    await bridge.rpc.handleLine(
-        hostNotification(
-            METHODS.sessionRegister,
-            workspaceTrust === undefined ? untold : { ...untold, workspaceTrust },
-        ),
-    );
-    return { rpc: bridge.rpc, frames, editorId };
+    const registerEditor = async (
+        fileName: string,
+        trust: RegisterParams["workspaceTrust"],
+    ): Promise<void> => {
+        const path = join(root, fileName);
+        const { workspaceTrust: _trusted, ...untold } = registerParams(
+            `file://${path}`,
+            root,
+            path,
+            "",
+            {
+                sessionId: 1,
+                pluginApprovals: [
+                    allowanceRowOf(
+                        allowanceOf("plugin", pluginId, { kind: "noRepository" }, LOCAL_HOST),
+                    ),
+                ],
+                pluginApprovalsRevision: 1,
+            },
+        );
+        await bridge.rpc.handleLine(
+            hostNotification(
+                METHODS.sessionRegister,
+                trust === undefined ? untold : { ...untold, workspaceTrust: trust },
+            ),
+        );
+    };
+    await registerEditor("order.bpmn", workspaceTrust);
+    return {
+        rpc: bridge.rpc,
+        frames,
+        editorId: `file://${join(root, "order.bpmn")}`,
+        registerEditor,
+    };
 }
 
 async function servedPlugins({ rpc, frames, editorId }: ProjectBridge): Promise<string[]> {
@@ -163,6 +179,21 @@ describe("the project's trust on the bridge", () => {
     });
 
     it("keeps the newer trust when an older register arrives after it", async () => {
+        const project = await editorOfProject({ trusted: false, revision: 1 });
+        await servedPlugins(project);
+        await project.rpc.handleLine(
+            hostNotification(METHODS.workspaceTrustDidChange, { trusted: true, revision: 5 }),
+        );
+        await waitForFrame(project.frames, (frame) => frame.method === METHODS.editorReload);
+
+        await project.registerEditor("invoice.bpmn", { trusted: false, revision: 4 });
+        await settle();
+
+        expect(reloads(project)).toHaveLength(1);
+        expect(await servedPlugins(project)).toEqual(["Resize Tasks"]);
+    });
+
+    it("keeps the newer trust when an older push arrives after it", async () => {
         const project = await editorOfProject({ trusted: true, revision: 5 });
         await servedPlugins(project);
 
