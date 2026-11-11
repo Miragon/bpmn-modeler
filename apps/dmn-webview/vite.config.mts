@@ -6,7 +6,10 @@ import { resolve } from "path";
 // Asset-bundle build embedded by the VS Code / IntelliJ / desktop hosts.
 export default defineConfig({
     root: __dirname,
-    base: "/",
+    // Relative base: the preload helper bakes `base` into the diff chunk's dep URLs.
+    // With "/" they resolve to the webview's origin root, a 404 under VS Code's
+    // resource scheme that rejects the dynamic import and leaves the pane blank.
+    base: "./",
     cacheDir: "../../node_modules/.vite/dmn-webview",
     plugins: [tsconfigPaths()],
     resolve: {
@@ -30,6 +33,8 @@ export default defineConfig({
     },
     build: {
         target: "es2021",
+        // The host shell links one `index.css`; the diff chunk's own sheet would load late.
+        cssCodeSplit: false,
         chunkSizeWarningLimit: 1200,
         outDir: "../../dist/webview-staging/dmn-webview",
         emptyOutDir: true,
@@ -43,7 +48,11 @@ export default defineConfig({
             },
             output: {
                 entryFileNames: `[name].js`,
-                assetFileNames: `[name].[ext]`,
+                // The shells link `index.css`; without CSS splitting Vite names the sheet `style.css`.
+                assetFileNames: (asset) =>
+                    asset.names.some((name) => name.endsWith(".css"))
+                        ? "index.css"
+                        : "[name].[ext]",
             },
         },
     },
