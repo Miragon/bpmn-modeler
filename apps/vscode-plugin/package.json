@@ -500,6 +500,11 @@
                 "title": "Clean Up Diagram",
                 "category": "Miragon BPMN Modeler",
                 "icon": "$(clear-all)"
+            },
+            {
+                "command": "bpmn-modeler.generateElementIds",
+                "title": "Generate IDs from Names",
+                "category": "Miragon BPMN Modeler"
             }
         ],
         "keybindings": [
@@ -631,6 +636,10 @@
                 {
                     "command": "bpmn-modeler.cleanupDiagram",
                     "when": "bpmn-modeler.openCustomEditors > 0"
+                },
+                {
+                    "command": "bpmn-modeler.generateElementIds",
+                    "when": "bpmn-modeler.openCustomEditors > 0"
                 }
             ],
             "view/title": [
@@ -711,6 +720,11 @@
                 {
                     "command": "bpmn-modeler.formatDiagram",
                     "group": "navigation",
+                    "when": "activeWebviewPanelId == 'bpmn-modeler.bpmn'"
+                },
+                {
+                    "command": "bpmn-modeler.generateElementIds",
+                    "group": "1_modeler",
                     "when": "activeWebviewPanelId == 'bpmn-modeler.bpmn'"
                 }
             ],
@@ -805,6 +819,26 @@
                         "View"
                     ],
                     "markdownDescription": "The mode a BPMN editor opens in when it has no remembered mode. `implement` is the full Camunda modeler, `design` is the engine-neutral editable surface, and `view` is the readonly viewer. Applies only per new editor — an already-open editor keeps its mode. On an untagged (engine-neutral) model, `implement` is unavailable and falls back to `design`."
+                },
+                "miragon.bpmnModeler.elementIds.style": {
+                    "type": "string",
+                    "default": "typePrefix",
+                    "enum": [
+                        "typePrefix",
+                        "typeSuffix",
+                        "snakeCase"
+                    ],
+                    "enumItemLabels": [
+                        "Activity_ProcessData",
+                        "ProcessDataTask",
+                        "activity_process_data"
+                    ],
+                    "markdownDescription": "How an ID generated from an element's name is spelled, by the **Generate IDs from Names** command and the ID field's **Generate from name**: `typePrefix` writes `Activity_ProcessData`, `typeSuffix` writes `ProcessDataTask` as the Camunda Modeler plugin rename-technical-ids does, and `snakeCase` writes `activity_process_data`."
+                },
+                "miragon.bpmnModeler.elementIds.followName": {
+                    "type": "boolean",
+                    "default": false,
+                    "markdownDescription": "Rename an element's ID as you change its name while the ID is still random (`Activity_0x1y2z3`) or was generated from the old name. IDs you typed yourself never change."
                 },
                 "miragon.bpmnModeler.favouriteBpmnElements": {
                     "type": "array",

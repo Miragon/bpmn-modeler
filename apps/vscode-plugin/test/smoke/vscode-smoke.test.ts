@@ -512,6 +512,51 @@ describe("the packaged extension in a real VS Code", () => {
         expectNoCspViolations();
     });
 
+    it("generates IDs from names, keeps an unticked one and saves them", async () => {
+        const file = join(workspaceDirectory, BPMN_FILE);
+        await vscode().openFromExplorer(BPMN_FILE);
+        await vscode().showInCustomEditor(BPMN_FILE, diagramRendered);
+        const webview = vscode().webview();
+
+        await vscode().runCommand("Generate IDs from Names");
+        const panel = webview.locator(".eid-panel");
+        await panel.waitFor({ state: "visible", timeout: TIMEOUT_MS });
+        await expect
+            .poll(() => panel.locator(".eid-summary").textContent())
+            .toBe("3 of 3 IDs will change");
+        await settle(webview);
+        await vscode().screenshot(join(RESULTS_DIRECTORY, "element-ids.png"));
+
+        await panel.locator('input[aria-label="Rename Order checked"]').click();
+        await panel.locator(".eid-primary").click();
+        await panel.waitFor({ state: "detached", timeout: TIMEOUT_MS });
+        await vscode().page.keyboard.press(`${COMMAND_KEY}+s`);
+
+        await expect
+            .poll(() => readFile(file, "utf8"), { timeout: TIMEOUT_MS })
+            .toContain('<bpmn:task id="Activity_CheckOrder" name="Check order">');
+        const xml = await readFile(file, "utf8");
+        expect(xml).toContain('<bpmn:endEvent id="End_Order" name="Order checked">');
+        expect(xml).toContain('sourceRef="Event_OrderReceived" targetRef="Activity_CheckOrder"');
+        expect(xml).toContain(
+            '<bpmndi:BPMNShape id="Activity_CheckOrder_di" bpmnElement="Activity_CheckOrder">',
+        );
+        expectNoCspViolations();
+    });
+
+    it("undoes all generated IDs in one step", async () => {
+        const file = join(workspaceDirectory, BPMN_FILE);
+        await vscode().page.keyboard.press(`${COMMAND_KEY}+z`);
+        await vscode().page.keyboard.press(`${COMMAND_KEY}+s`);
+
+        await expect
+            .poll(() => readFile(file, "utf8"), { timeout: TIMEOUT_MS })
+            .toContain(`<bpmn:task id="${TASK_ID}" name="${ORIGINAL_TASK_NAME}">`);
+        expect(await readFile(file, "utf8")).toContain(
+            'sourceRef="Start_Order" targetRef="Task_Check"',
+        );
+    });
+
     it("opens a DMN file in the DMN custom editor", async () => {
         await vscode().openFromExplorer(DMN_FILE);
         await vscode().showInCustomEditor(DMN_FILE, (webview) =>

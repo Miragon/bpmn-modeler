@@ -21,6 +21,7 @@ import {
     RELOAD_MODELER_CMD,
     FORMAT_DIAGRAM_CMD,
     CLEANUP_DIAGRAM_CMD,
+    GENERATE_ELEMENT_IDS_CMD,
     SAVE_SVG_CMD,
     TOGGLE_CMD,
     TOGGLE_LINTING_CMD,
@@ -63,13 +64,16 @@ import {
     ELEMENT_TEMPLATE_EDITOR_VIEW_TYPE,
     FORM_VIEW_TYPE,
     MARKETPLACE_PROVIDERS,
+    ModelerSettingsSnapshot,
     parseSetting,
     SettingKey,
+    settingKeyOf,
 } from "@miragon/bpmn-modeler-core";
 import { InMemorySettings } from "@miragon/bpmn-modeler-core/testing";
 import { supportedModelerLanguages } from "@miragon/bpmn-modeler-i18n-extras";
 import {
     COLOR_THEMES,
+    ELEMENT_ID_STYLES,
     ELEMENT_TEMPLATE_FOLDER_NAME,
     ELEMENT_TEMPLATE_SCHEMA_URL,
     SURFACE_MODES,
@@ -89,7 +93,7 @@ interface Manifest {
     activationEvents: string[];
     contributes: {
         commands: { command: string; title: string; category?: string }[];
-        keybindings: { command: string }[];
+        keybindings: { command: string; key?: string }[];
         menus: Record<string, { command: string; when?: string; group?: string }[]>;
         viewsContainers: Record<string, { id: string; title: string; icon: string }[]>;
         views: Record<string, { type: string; id: string; name: string; when?: string }[]>;
@@ -140,6 +144,7 @@ const CODE_COMMAND_IDS = [
     RELOAD_MODELER_CMD,
     FORMAT_DIAGRAM_CMD,
     CLEANUP_DIAGRAM_CMD,
+    GENERATE_ELEMENT_IDS_CMD,
     BPMN_COMPARE.selectForCompare,
     BPMN_COMPARE.compareWithSelected,
     BPMN_COMPARE.compareSelected,
@@ -199,6 +204,50 @@ describe("package.json ↔ code contract", () => {
             category: "Miragon BPMN Modeler",
         });
     });
+    it("offers Generate IDs from Names in the palette and the BPMN editor's title overflow, without a key", () => {
+        expect(
+            manifest.contributes.commands.find(
+                ({ command }) => command === GENERATE_ELEMENT_IDS_CMD,
+            ),
+        ).toMatchObject({ title: "Generate IDs from Names", category: "Miragon BPMN Modeler" });
+        expect(manifest.contributes.menus.commandPalette).toContainEqual({
+            command: GENERATE_ELEMENT_IDS_CMD,
+            when: "bpmn-modeler.openCustomEditors > 0",
+        });
+        const titleEntry = manifest.contributes.menus["editor/title"].find(
+            ({ command }) => command === GENERATE_ELEMENT_IDS_CMD,
+        );
+        expect(titleEntry).toEqual({
+            command: GENERATE_ELEMENT_IDS_CMD,
+            group: "1_modeler",
+            when: `activeWebviewPanelId == '${BPMN_VIEW_TYPE}'`,
+        });
+        expect(
+            manifest.contributes.keybindings.filter(
+                ({ command }) => command === GENERATE_ELEMENT_IDS_CMD,
+            ),
+        ).toEqual([]);
+    });
+
+    // No `scope`: a workspace can hold its team's ID convention.
+    it("lets a workspace choose how generated IDs are spelled and whether they follow names", () => {
+        const { properties } = manifest.contributes.configuration;
+
+        expect(properties[`${MODELER_SETTINGS_SECTION}.elementIds.style`]).toMatchObject({
+            type: "string",
+            default: "typePrefix",
+            enum: [...ELEMENT_ID_STYLES],
+            enumItemLabels: ["Activity_ProcessData", "ProcessDataTask", "activity_process_data"],
+        });
+        expect(properties[`${MODELER_SETTINGS_SECTION}.elementIds.followName`]).toMatchObject({
+            type: "boolean",
+            default: false,
+        });
+        for (const key of ["elementIds.style", "elementIds.followName"]) {
+            expect(properties[`${MODELER_SETTINGS_SECTION}.${key}`].scope).toBeUndefined();
+        }
+    });
+
     it("activates to clean up restored form values documents", () => {
         expect(manifest.activationEvents).toEqual(
             expect.arrayContaining([
@@ -458,21 +507,27 @@ describe("package.json ↔ code contract", () => {
             "marketplaces": true,
             "linting.enabled": true,
             "formPreview.automatic": true,
+            "elementIds.style": true,
+            "elementIds.followName": true,
         };
 
         expect(new Set(Object.keys(settingKeys))).toEqual(new Set(declaredKeys));
     });
 
     it("gives the core and its in-memory settings the defaults the manifest declares", () => {
-        // `scripting.spin` → `scriptingSpin`
-        const settingsValueName = (key: string) =>
-            key
-                .slice(MODELER_SETTINGS_SECTION.length + 1)
-                .replace(/\.(\w)/g, (_, initial: string) => initial.toUpperCase());
+        // `scripting.spin` → `scriptingSpin`, by the core's own key map.
+        const snapshotKeyOf = new Map<string, string>(
+            (Object.keys(DEFAULT_MODELER_SETTINGS) as (keyof ModelerSettingsSnapshot)[]).map(
+                (key) => [settingKeyOf(key), key],
+            ),
+        );
         const manifestDefaults = Object.fromEntries(
             Object.entries(manifest.contributes.configuration.properties)
                 .filter(([key]) => key.startsWith(`${MODELER_SETTINGS_SECTION}.`))
-                .map(([key, property]) => [settingsValueName(key), property.default]),
+                .map(([key, property]) => [
+                    snapshotKeyOf.get(key.slice(MODELER_SETTINGS_SECTION.length + 1)) ?? key,
+                    property.default,
+                ]),
         );
 
         expect(DEFAULT_MODELER_SETTINGS).toEqual(manifestDefaults);
@@ -480,24 +535,28 @@ describe("package.json ↔ code contract", () => {
     });
 
     it.each(
-        (["colorTheme", "defaultMode"] as const).flatMap((key) =>
+        (["colorTheme", "defaultMode", "elementIdStyle"] as const).flatMap((key) =>
             (
-                manifest.contributes.configuration.properties[`${MODELER_SETTINGS_SECTION}.${key}`]
-                    .enum ?? []
+                manifest.contributes.configuration.properties[
+                    `${MODELER_SETTINGS_SECTION}.${settingKeyOf(key)}`
+                ].enum ?? []
             ).map((value) => ({ key, value })),
         ),
     )("reads the $key $value the manifest offers as itself", ({ key, value }) => {
         expect(parseSetting(key, value)).toBe(value);
     });
 
-    it.each([
+    it.each<{ key: keyof ModelerSettingsSnapshot; accepted: readonly string[] }>([
         { key: "colorTheme", accepted: COLOR_THEMES },
         { key: "defaultMode", accepted: SURFACE_MODES },
+        { key: "elementIdStyle", accepted: ELEMENT_ID_STYLES },
     ])(
         "offers exactly the $key values the core accepts, each with a label",
         ({ key, accepted }) => {
             const { enum: offered = [], enumItemLabels: labels = [] } =
-                manifest.contributes.configuration.properties[`${MODELER_SETTINGS_SECTION}.${key}`];
+                manifest.contributes.configuration.properties[
+                    `${MODELER_SETTINGS_SECTION}.${settingKeyOf(key)}`
+                ];
 
             expect([...offered].sort()).toEqual([...accepted].sort());
             expect(labels).toHaveLength(offered.length);
