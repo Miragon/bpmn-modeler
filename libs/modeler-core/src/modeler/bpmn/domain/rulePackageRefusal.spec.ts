@@ -40,22 +40,44 @@ describe("approvalRootOf", () => {
             },
         },
         {
-            case: "a package file its hash leaves out to a refusal",
+            case: "a package file inside a .git folder to a refusal",
             module: {
                 file: `${ACME}/.git/evil.js`,
                 configDir: WORKSPACE,
                 requestsSelfPackage: false,
             },
-            root: { kind: "module", file: `${ACME}/.git/evil.js`, reason: "notHashed" },
+            root: { kind: "module", file: `${ACME}/.git/evil.js`, reason: "insideGitFolder" },
         },
         {
-            case: "a self-package model file to a refusal",
+            case: "a self-package file inside a nested .git folder to a refusal",
             module: {
-                file: `${WORKSPACE}/evil.bpmn`,
+                file: `${WORKSPACE}/rules/.git/hooks/evil.js`,
                 configDir: WORKSPACE,
                 requestsSelfPackage: true,
             },
-            root: { kind: "module", file: `${WORKSPACE}/evil.bpmn`, reason: "notHashed" },
+            root: {
+                kind: "module",
+                file: `${WORKSPACE}/rules/.git/hooks/evil.js`,
+                reason: "insideGitFolder",
+            },
+        },
+        {
+            case: "a self-package model file to the config folder, as its allowance covers it",
+            module: {
+                file: `${WORKSPACE}/rules.bpmn`,
+                configDir: WORKSPACE,
+                requestsSelfPackage: true,
+            },
+            root: { kind: "selfPackage", id: WORKSPACE },
+        },
+        {
+            case: "a file whose name only starts like .git to its package",
+            module: {
+                file: `${ACME}/.github/rule.js`,
+                configDir: WORKSPACE,
+                requestsSelfPackage: false,
+            },
+            root: { kind: "package", id: ACME },
         },
     ])("maps $case", ({ module, root }) => {
         expect(approvalRootOf(module)).toEqual(root);

@@ -33,6 +33,7 @@ export function register(
         approvals: deps.pluginApprovals,
         settingChanges: deps.settings,
         restart: "restartIde",
+        contentRows: deps.contentRows,
         plugins: handles.plugins.inventory,
         rulePackages: handles.editor.rulePackageInventory,
         templates: handles.editor.templateInventory,

@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import {
-    approvedContent,
     PLUGIN_APPROVAL_NOTICE_ID,
     PLUGIN_APPROVAL_PROMPT_ID,
 } from "../../bpmnPlugins/domain/pluginApproval";
@@ -15,6 +14,7 @@ import {
     TestHostOptions,
 } from "../../testing";
 import { ListReview } from "../adapter/out/ListReview";
+import { allowanceOf, allowanceRowOf, LOCAL_HOST } from "../domain/allowance";
 import { ApprovalReviewPort } from "../port/approvalPorts";
 import { ApprovalQuestion } from "./ApprovalQuestion";
 import { ArtifactService } from "./ArtifactService";
@@ -25,8 +25,6 @@ const RESIZE = `${PLUGINS}/resize-tasks`;
 const PALETTE = `${PLUGINS}/reduced-palette`;
 const DOCUMENT = "/work/order.bpmn";
 const REVIEW = { [PLUGIN_APPROVAL_NOTICE_ID]: "review" };
-
-const hashOf = (script: string) => fingerprintHasher.sha256(approvedContent(script, undefined));
 
 function setUp(
     options: Pick<TestHostOptions, "noticeAnswers" | "promptAnswers"> & {
@@ -50,9 +48,11 @@ function setUp(
             new ArtifactService(host.workspace, host.settings, host.notifier),
             host.workspace,
             fingerprintHasher,
+            host.allowances,
             host.notifier,
         ),
         host.pluginApprovals,
+        host.contentRows,
         host.notifier,
     );
     const scripted = new ScriptedReview(options.reviewAnswers);
@@ -100,7 +100,7 @@ describe("ApprovalQuestion", () => {
         expect(host.actionNotifier.notices).toHaveLength(1);
     });
 
-    it("asks again about code left to the view once its content changed", async () => {
+    it("does not ask again about code left to the view once its content changed", async () => {
         const { host, askAboutDocument } = setUp({
             noticeAnswers: REVIEW,
             reviewAnswers: { [PLUGIN_APPROVAL_PROMPT_ID]: "leftForView" },
@@ -112,7 +112,6 @@ describe("ApprovalQuestion", () => {
 
         expect(host.actionNotifier.notices.map(({ message }) => message)).toEqual([
             "2 BPMN plugins in this workspace are not allowed yet.",
-            "1 BPMN plugin in this workspace is not allowed yet.",
         ]);
     });
 
@@ -126,7 +125,7 @@ describe("ApprovalQuestion", () => {
 
         expect(allowed.map(({ id }) => id)).toEqual([RESIZE]);
         expect(host.pluginApprovals.read()).toEqual([
-            { pluginId: RESIZE, contentHash: hashOf("registerResize();") },
+            allowanceRowOf(allowanceOf("plugin", RESIZE, { kind: "noRepository" }, LOCAL_HOST)),
         ]);
     });
 

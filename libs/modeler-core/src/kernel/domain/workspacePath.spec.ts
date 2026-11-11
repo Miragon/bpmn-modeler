@@ -2,10 +2,12 @@ import { win32 } from "path";
 import { describe, expect, it } from "vitest";
 
 import {
+    fileSystemPathOf,
     joinWorkspacePath,
     lastWorkspacePathSegment,
     parentWorkspacePath,
     toWorkspacePath,
+    withLowerCaseDrive,
     withoutFileScheme,
 } from "./workspacePath";
 
@@ -282,6 +284,11 @@ describe("parentWorkspacePath", () => {
             path: "file:///c%3A",
             parent: undefined,
         },
+        {
+            behaviour: "reads no server into a relative path without a scheme",
+            path: "server/share",
+            parent: "server",
+        },
     ])("$behaviour", ({ path, parent }) => {
         expect(parentWorkspacePath(path)).toBe(parent);
     });
@@ -326,5 +333,35 @@ describe("withoutFileScheme", () => {
         },
     ])("$behaviour", ({ path, stripped }) => {
         expect(withoutFileScheme(path)).toBe(stripped);
+    });
+});
+
+describe("fileSystemPathOf", () => {
+    it.each([
+        { behaviour: "drops the slash before a lower-case drive", path: "/c:/x", fsPath: "c:/x" },
+        { behaviour: "drops the slash before an upper-case drive", path: "/C:/x", fsPath: "C:/x" },
+        { behaviour: "keeps a POSIX path", path: "/x", fsPath: "/x" },
+        { behaviour: "keeps a UNC path", path: "//server/share", fsPath: "//server/share" },
+        { behaviour: "keeps a file URI", path: "file:///x", fsPath: "file:///x" },
+        { behaviour: "keeps a drive path without the slash", path: "c:/x", fsPath: "c:/x" },
+    ])("$behaviour", ({ path, fsPath }) => {
+        expect(fileSystemPathOf(path)).toBe(fsPath);
+    });
+});
+
+describe("withLowerCaseDrive", () => {
+    it.each([
+        { behaviour: "lowers an upper-case drive", path: "C:/Users/U", folded: "c:/Users/U" },
+        {
+            behaviour: "lowers an upper-case drive after a slash",
+            path: "/C:/Users/U",
+            folded: "/c:/Users/U",
+        },
+        { behaviour: "keeps a lower-case drive", path: "c:/Users/U", folded: "c:/Users/U" },
+        { behaviour: "keeps a POSIX path", path: "/Work/C:/x", folded: "/Work/C:/x" },
+        { behaviour: "keeps a UNC path", path: "//Server/Share", folded: "//Server/Share" },
+        { behaviour: "keeps a folder named like a drive", path: "C/x", folded: "C/x" },
+    ])("$behaviour", ({ path, folded }) => {
+        expect(withLowerCaseDrive(path)).toBe(folded);
     });
 });

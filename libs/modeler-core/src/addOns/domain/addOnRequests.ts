@@ -1,4 +1,3 @@
-import { ReviewedAllow } from "../../kernel/domain/codeApproval";
 import { CatalogActionKind, TemplateActionKind, TemplateSourceActionKind } from "./addOnIds";
 
 /** What a view asks of the core; every id names something the core itself showed. */
@@ -20,7 +19,10 @@ export type AddOnRefusal =
     | "staleView"
     | "closedView"
     | "notOffered"
-    | Extract<ReviewedAllow, { kind: "refused" }>["reason"];
+    /** Never produced; stays until the view protocol narrows it. */
+    | "changedSinceReview"
+    | "gone"
+    | "unreadable";
 
 export type AddOnActionResult =
     | { readonly kind: "done"; readonly message?: string }

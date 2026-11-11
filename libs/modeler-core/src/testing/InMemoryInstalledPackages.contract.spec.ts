@@ -1,5 +1,3 @@
-import { createHash } from "node:crypto";
-
 import { InMemoryInstalledPackages } from "./InMemoryInstalledPackages";
 import {
     describeInstalledPackagesContract,
@@ -10,9 +8,7 @@ import { describeRepositoryFilesContract } from "./repositoryFilesContract";
 const ROOT = "/work";
 
 function inMemoryFixture(): InstalledPackagesContractFixture {
-    const packages = new InMemoryInstalledPackages((bytes) =>
-        createHash("sha256").update(bytes).digest("hex"),
-    );
+    const packages = new InMemoryInstalledPackages();
     packages.createDirectory(ROOT);
     return {
         packages,

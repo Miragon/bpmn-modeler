@@ -50,7 +50,7 @@ Run `npm install`, then reference the plugin by its short name:
 }
 ```
 
-A rule package is a program: it runs in the extension host with your user's rights, not only inside the editor. The modeler runs a package from your workspace only after you [allow it](#allow-a-rule-package). Check parity with `npx bpmnlint <diagram>.bpmn`.
+A rule package is a program: it runs in the extension host with your user's rights, not only inside the editor. The modeler runs a package from your workspace only after you [allow it](#allow-a-rule-package), once per repository. Check parity with `npx bpmnlint <diagram>.bpmn`.
 
 The modeler takes bpmnlint's own rules and configs (`bpmnlint:recommended`, `label-required`, …) from its bundled bpmnlint, also when your workspace installs `bpmnlint`, so a different installed version can report slightly differently than your CI. A `moddleExtensions` entry must name a JSON descriptor, such as `camunda-bpmn-moddle/resources/camunda.json`; an entry that names a script is skipped and reported like a missing one. A runnable example lives in [`resources/example-process/`](https://github.com/Miragon/bpmn-modeler/tree/main/resources/example-process).
 
@@ -60,49 +60,49 @@ If a referenced rule or plugin is not installed, only that entry is skipped. The
 
 When a lint needs a rule package you have not allowed yet, the diagram is linted without it right away, and a notification says how many are waiting, for example *1 bpmnlint rule package in this workspace is not allowed yet, so rules from it are skipped.*
 
-1. Click **Review…**. The [Add-ons view](/vscode/features/add-ons) opens with the first waiting package selected and shows its folder, version, files and content hash; the others carry **Needs review** in the list.
-2. For each package you trust, select it and click **Allow this content** at the end of its review. Every open diagram that was linted without it lints again with it.
+1. Click **Review…**. The [Add-ons view](/vscode/features/add-ons) opens with the first waiting package selected and shows its folder, its version and where an allowance would hold (**Allowed in**); the others carry **Needs review** in the list.
+2. For each package you trust, select it and click **Allow** at the end of its review. Every open diagram that was linted without it lints again with it.
 
-**Review…** shows a list to check instead when a waiting package lies outside every open folder, for example when the config links to it. Each entry shows the package's name and version, whether it is *new* or *changed since you allowed it*, and its folder. Check the packages you trust and confirm.
+**Review…** shows a list to check instead when a waiting package lies outside every open folder, for example when the config links to it. Each entry shows the package's name and version and its folder; the package the `.bpmnlintrc` sits in says so. Check the packages you trust and confirm.
 
-Once **Review…** opened the view, the modeler does not ask again in this window about the same packages; their rules stay skipped until you allow them there. To stop a package you allowed, **Revoke** it in the view; that takes its content back in every folder where you allowed it. A package you leave unchecked in the list is not offered again until the window reloads or its files change, and its rules stay skipped. Closing the notification without **Review…** counts the same as leaving every package unchecked. Only one question is open at a time, shared with the questions about [BPMN plugins](/vscode/features/bpmn-plugins#allow-a-plugin).
+Once **Review…** opened the view, the modeler does not ask again in this window about the same packages; their rules stay skipped until you allow them there. To stop a package you allowed, **Revoke** it in the view; that takes the allowance back in every worktree of its repository. A package you leave unchecked in the list is not offered again until the window reloads, and its rules stay skipped. Closing the notification without **Review…** counts the same as leaving every package unchecked. Only one question is open at a time, shared with the questions about [BPMN plugins](/vscode/features/bpmn-plugins#allow-a-plugin).
 
 The modeler asks only when a rule would be skipped. When its bundled rules cover what your config takes from a package you have not allowed, for example the rules of `bpmnlint-plugin-camunda-compat`, it lints with the bundled rules without asking and notes that in the output channel.
 
-An approval is for the package's exact content:
+An allowance is for the package at its place in your repository, not for its content:
 
-- It covers the package and the dependencies it declares in its `package.json` (`dependencies`, `optionalDependencies` and `peerDependencies`), as installed.
-- Any change to the package or to one of those dependencies, from `npm install`, an update or an edit, makes the package *changed*. Its rules are skipped until you allow it again. The modeler checks this before every lint.
-- The same content in another folder, clone or git worktree is allowed there too, without asking. The modeler records the approval for that folder as well, and the output channel says so. The package the `.bpmnlintrc` sits in carries over only when the repository's files, apart from diagrams and the config, are identical.
-- Approvals are kept with your [BPMN plugin](/vscode/features/bpmn-plugins) approvals in VS Code's global state, outside every workspace, so a repository cannot allow its own rule packages. [Workspace Trust](https://code.visualstudio.com/docs/editor/workspace-trust) does not replace them.
-- When the `.bpmnlintrc` sits in the rule package's own folder, because its `package.json` names the plugin, that folder is the package. Editing diagrams, DMN and form files or the `.bpmnlintrc` there does not make it *changed*.
+- It covers the package in every worktree of its repository, later changes included: a branch with another version, an update and an edit run without asking. Outside a git repository it covers the package's folder only.
+- A second clone of the repository, another repository and a new package ask once.
+- Without git, a pnpm update installs the package into a new folder, so it asks again.
+- An update loads when it changes the package's `package.json`, as `npm install` of a new version does, or links the package to a new folder, as `pnpm update` does, whether pnpm keeps the old folder or not. That includes a switch from a folder you linked with `file:` or `link:` to a version pnpm installed; npm installs one into the link's place, which loads after you reload the window. Any other edit to the package's files loads after you reload the window.
+- When an update links the package to a new folder that has no file where the package's entry or a rule lay before, because the update moved it, that file loads after you reload the window. Until then it is skipped, the old version never runs, and the output channel says to reload.
+- A dependency that is itself a rule package, for example one your config's package extends, needs its own allowance.
+- Allowances are kept with your [BPMN plugin](/vscode/features/bpmn-plugins) allowances in VS Code's global state, outside every workspace, so a repository cannot allow its own rule packages. [Workspace Trust](https://code.visualstudio.com/docs/editor/workspace-trust) does not replace them. In a remote window (SSH, dev container, WSL) an allowance holds only for that remote.
+- When the `.bpmnlintrc` sits in the rule package's own folder, because its `package.json` names the plugin, that folder is the package.
+- Approvals from earlier versions are rewritten as allowances when the extension starts; the output channel says how many. An earlier version of the extension does not read the new allowances and asks again.
 
 Only installed packages, in a `node_modules` folder or linked with `file:`, and the package the `.bpmnlintrc` sits in can be allowed. A rule file anywhere else, for example one referenced by an absolute path, never runs, and the output channel says why.
 
 ::: warning Only allow rule packages you trust
-An allowed rule package runs as a program with your user's rights, with the same access to your files and the network as VS Code itself.
+An allowed rule package runs as a program with your user's rights, with the same access to your files and the network as VS Code itself. Whoever can change your repository, for example by a pull, an install or an agent working in a worktree, changes what runs. **Revoke** a package before you check out code you do not trust.
 :::
 
-The modeler checks an allowed package's files before each lint but runs them from your workspace, not from a copy as it does for BPMN plugins. A file replaced between that check and the run is caught only at the next lint. Code that a package loads without declaring it as a dependency is not covered by the approval. A package that has run stays loaded until the window reloads.
+The modeler runs an allowed package from your workspace, not from a copy as it does for BPMN plugins, and checks only whether its `package.json` changed before a lint. Code that a package loads without declaring it as a dependency runs under the package's allowance. A package that has run stays loaded until the window reloads.
 
 The *bpmn.modeler* output channel explains what happened:
 
 | Output channel line | Meaning |
 |---|---|
-| `bpmnlint: rule package <folder> is not allowed yet (new), so rules from it are skipped.` | The package's rules were skipped. Instead of `new` it can say `changed since you allowed it` or `declined this session`. |
-| `bpmnlint: bundled rules stand in for a rule package that is not allowed yet: <folder>` | The bundled rules covered everything the config takes from the package, so the modeler does not ask. |
-| `bpmnlint: rule package <folder> cannot be allowed: it links to files outside its folder.` | The package, or one of its dependencies, holds a link to a folder or to a file outside its folder. It is not offered. |
-| `bpmnlint: rule package <folder> cannot be allowed: it is too large to check.` | The package with its dependencies has more than 5,000 files and folders or 50 MB. It is not offered. |
-| `bpmnlint: rule package <folder> cannot be allowed: it could not be read.` | A file or the `package.json` of the package or of a dependency could not be read. The line can also say `holds a file that is not a regular file`, or `is installed in a layout the check does not support`: a dependency installed as a single file, or as a folder with an index file but no `package.json`. It is not offered. |
-| `bpmnlint: refused to run <file>: it is neither in node_modules nor in the config's own package, so no approval can cover it.` | A rule outside every package that can be allowed. It never runs. Other reasons are `it belongs to no installed package folder`, `the package link it comes through points to a folder that holds the config`, and `the rule package's content hash leaves it out`, for example a diagram file in the config's own package. |
-| `Allowed bpmnlint rule package(s): <names>` | Your answer allowed these packages. |
-| `Allowed bpmnlint rule package <name> in <folder>: you allowed the same content in <folder>.` | You allowed the same content in another folder, so it runs here too without asking. |
-
-When a dependency, not the package itself, cannot be checked, a `cannot be allowed` line names it: `cannot be allowed: its dependency <folder> links to files outside its folder.`
+| `bpmnlint: rule package <name>@<version> (<folder>) is not allowed yet (new), so rules from it are skipped.` | The package's rules were skipped. Instead of `new` it can say `declined this session`. |
+| `bpmnlint: bundled rules stand in for a rule package that is not allowed yet: <name>@<version> (<folder>)` | The bundled rules covered everything the config takes from the package, so the modeler does not ask. |
+| `bpmnlint: refused to run <file>: it is neither in node_modules nor in the config's own package, so no allowance can cover it.` | A rule outside every package that can be allowed. It never runs. Other reasons are `it belongs to no installed package folder`, `the package link it comes through points to a folder that holds the config`, and `it lies inside a .git folder, which no allowance covers`. |
+| `bpmnlint: refused to run <file>: an update moved the package to another folder, from which this process cannot load the file; reload the window or restart the IDE to load the updated package.` | An update moved the package to another folder, and the file cannot load from there before a reload: the update moved the package's entry or a rule file, or npm replaced a folder linked with `file:` by an installed one. The old file never runs; reload the window. |
+| `Allowed bpmnlint rule package(s): <name>@<version>, …` | Your answer allowed these packages. |
+| `Approvals: rewrote <n> approvals pinned to content as allowances of their add-ons, later changes included.` | At start, approvals from an earlier version were rewritten as allowances. |
 
 ### IntelliJ
 
-The IntelliJ plugin asks the same way as for [BPMN plugins in IntelliJ](/vscode/features/bpmn-plugins#intellij): an IDE notification balloon with **Review…**, which selects the rule package in the **Add-ons** tab of the **BPMN Modeler** tool window when the package lies inside the project, and approvals that the IDE keeps for all your projects, outside every project. **Revoke** there takes an approval back, in every folder with the same content; rules that already ran stay loaded until you restart the IDE. The output channel lines go to the IDE log.
+The IntelliJ plugin asks the same way as for [BPMN plugins in IntelliJ](/vscode/features/bpmn-plugins#intellij): an IDE notification balloon with **Review…**, which selects the rule package in the **Add-ons** tab of the **BPMN Modeler** tool window when the package lies inside the project, and allowances that the IDE keeps for all your projects, outside every project. **Revoke** there takes an allowance back, in every worktree of its repository; rules that already ran stay loaded until you restart the IDE. The output channel lines go to the IDE log.
 
 In IntelliJ, rule packages whose `package.json` sets `main` or `exports`, and most that have dependencies, do not load yet, even once allowed: the bundled rules stand in for them, or their rules are skipped. A later release lifts this limit.
 

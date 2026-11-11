@@ -7,14 +7,19 @@
  * queries in `addOns/postMessage`.
  */
 
-import { createHash } from "node:crypto";
 import { promises as fs } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { approvedContent } from "@miragon/bpmn-modeler-core";
+import {
+    allowanceOf,
+    allowanceRowOf,
+    approvalsAfter,
+    LOCAL_HOST,
+    PluginApproval,
+} from "@miragon/bpmn-modeler-core";
 
 import {
     hostNotification,
@@ -39,6 +44,7 @@ interface AddOnRow {
     readonly id: string;
     readonly name: string;
     readonly state: string;
+    readonly actions?: readonly { readonly kind: string; readonly label: string }[];
 }
 
 interface PostedQuery {
@@ -51,7 +57,11 @@ interface PostedQuery {
         readonly emptyText?: string;
     };
     readonly requestId?: number;
-    readonly result?: { readonly kind: string; readonly reason?: string };
+    readonly result?: {
+        readonly kind: string;
+        readonly reason?: string;
+        readonly message?: string;
+    };
     readonly reveal?: { readonly kind: string; readonly addOnIds?: readonly string[] };
 }
 
@@ -302,10 +312,7 @@ describe("the add-ons view on the bridge", () => {
         expect(row?.state).toBe("new");
         const pluginId = row!.id.replace(/^plugin:/, "");
         await untilQuiet(project);
-        project.stored = {
-            approvals: [{ pluginId, contentHash: await contentHashOf(pluginId) }],
-            revision: 2,
-        };
+        project.stored = { approvals: [allowanceRowOf(folderAllowanceOf(pluginId))], revision: 2 };
         const fromIndex = project.frames.length;
 
         await project.rpc.handleLine(hostNotification(METHODS.addOnsRefresh, {}));
@@ -317,6 +324,46 @@ describe("the add-ons view on the bridge", () => {
             { fromIndex },
         );
         expect(refreshed.params.message?.model?.revision).toBeGreaterThan(0);
+    });
+
+    it("allows a plugin in one step from its row, as the allowance of its folder", async () => {
+        const project = await projectBridge((dispose) => disposals.push(dispose));
+        await openView(project);
+        const model = await nextModel(project);
+        const [row] = rowsOf(model);
+        await untilQuiet(project);
+
+        await fromPage(project, {
+            type: "AddOnRequestCommand",
+            requestId: 9,
+            request: {
+                kind: "allow",
+                addOnId: row!.id,
+                revision: model.params.message!.model!.revision,
+            },
+        });
+
+        const request = await waitForFrame(
+            project.frames,
+            isRequest(METHODS.pluginApprovalsChange),
+        );
+        const change = request.params as unknown as { allow: PluginApproval[]; revoke: string[] };
+        project.stored = {
+            approvals: approvalsAfter(project.stored.approvals, change),
+            revision: project.stored.revision + 1,
+        };
+        await project.rpc.handleLine(hostReply(request.id!, project.stored));
+        const answer = await waitForFrame(project.frames, isPosted("AddOnActionResultQuery"));
+        const pluginId = row!.id.replace(/^plugin:/, "");
+        expect(row?.actions).toEqual([{ kind: "allow", label: "Allow" }]);
+        expect(answer.params.message).toMatchObject({
+            requestId: 9,
+            result: {
+                kind: "done",
+                message: "Allowed Resize Tasks. Open editors reload with it.",
+            },
+        });
+        expect(project.stored.approvals).toEqual([allowanceRowOf(folderAllowanceOf(pluginId))]);
     });
 
     it("keeps listing the project root after its last editor closes", async () => {
@@ -501,8 +548,7 @@ describe("Review Add-ons on the bridge of the IntelliJ host", () => {
     });
 });
 
-/** The hash the host stores for an allowed plugin's script. */
-async function contentHashOf(pluginId: string): Promise<string> {
-    const script = await fs.readFile(join(pluginId, "client.js"), "utf8");
-    return createHash("sha256").update(approvedContent(script, undefined), "utf8").digest("hex");
+/** A temp project holds no `.git`, so each plugin is allowed in its own folder. */
+function folderAllowanceOf(pluginId: string) {
+    return allowanceOf("plugin", pluginId, { kind: "noRepository" }, LOCAL_HOST);
 }

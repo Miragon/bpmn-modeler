@@ -4,6 +4,7 @@ import { ProcessRestart } from "../../kernel/domain/codeApproval";
 import { PluginApprovalStorePort } from "../../kernel/port/approvalPorts";
 import { LoggerPort, NotifierPort, SettingsPort, WorkspacePort } from "../../kernel/port/hostPorts";
 import { TemplatePreferenceStorePort } from "../../kernel/port/templatePreferencePorts";
+import { ContentRows } from "../../kernel/service/ContentRowMigration";
 import { RouteLookup } from "../../editorSession/service/WebviewMessageRouter";
 import { AddOnViewMessages } from "../adapter/in/AddOnViewMessages";
 import type { AddOnCatalogModel } from "../domain/addOnCatalogModel";
@@ -36,6 +37,8 @@ export interface AddOnsHostPorts {
     readonly settingChanges: SettingChanges;
     /** What the user does before code a revoked rule package ran is unloaded. */
     readonly restart: ProcessRestart;
+    /** A revoke waits for the start-up rewrite of rows pinned to content and takes the ones located to it. */
+    readonly contentRows: ContentRows;
     readonly plugins: PluginAddOnSource;
     /** Absent: the host runs no workspace rule package. */
     readonly rulePackages?: RulePackageAddOnSource;
@@ -79,6 +82,7 @@ export class AddOnsFeature {
                 marketplaces: ports.marketplaces,
                 logger: ports.notifier,
                 restart: ports.restart,
+                contentRows: ports.contentRows,
             },
         );
         const invalidate = () => this.catalog.invalidate();

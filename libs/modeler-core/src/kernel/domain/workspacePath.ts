@@ -4,6 +4,8 @@ const FILE_SCHEME = "file://";
 const UNC_ROOT = /^[\\/]{2}(?=[^\\/])/;
 const UNC_SHARE_ROOT = /^\/\/[^/]+\/[^/]+\/?$/;
 const WINDOWS_DRIVE = /^[A-Za-z]:/;
+const SLASHED_DRIVE = /^\/[A-Za-z]:/;
+const LEADING_DRIVE = /^\/?[A-Za-z]:/;
 const SLASHED_DRIVE_ROOT = /^\/[A-Za-z](:|%3A)\/?$/i;
 
 /**
@@ -63,4 +65,21 @@ export function joinWorkspacePath(directory: string, ...segments: string[]): str
         .join("/")
         .replace(/\\/g, "/");
     return scheme + uncRoot + posix.normalize(joined);
+}
+
+/**
+ * A workspace path as `node:fs` reads it: a host spells a Windows path as
+ * `uri.path` (`/c:/a`), which Node would resolve below the current drive.
+ */
+export function fileSystemPathOf(path: string): string {
+    return SLASHED_DRIVE.test(path) ? path.slice(1) : path;
+}
+
+/**
+ * Windows ignores a drive letter's case, but VS Code lowercases it while git
+ * and IntelliJ keep the case they were given, so a path compared or keyed
+ * across them is folded first.
+ */
+export function withLowerCaseDrive(path: string): string {
+    return path.replace(LEADING_DRIVE, (drive) => drive.toLowerCase());
 }

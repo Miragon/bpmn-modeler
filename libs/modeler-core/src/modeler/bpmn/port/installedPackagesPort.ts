@@ -1,11 +1,11 @@
 import { RepositoryFilesPort } from "../../../kernel/port/repositoryFilesPort";
-import { InstalledEntry, PathStamp } from "../domain/packageClosure";
+import { InstalledEntry, PathStamp } from "../domain/installedPackage";
 
-export type { InstalledEntry, InstalledEntryKind, PathStamp } from "../domain/packageClosure";
+export type { InstalledEntry, InstalledEntryKind, PathStamp } from "../domain/installedPackage";
 
 /**
- * Reads installed packages on disk, so the core can fingerprint a workspace
- * rule package before it runs. Synchronous because bpmnlint resolves rules
+ * Reads installed packages on disk, so the core can find, name and stamp a
+ * workspace rule package before it runs. Synchronous because bpmnlint resolves rules
  * through `require`, which cannot wait. Every path is absolute and spelled
  * like `toWorkspacePath`; a path that names nothing gives `undefined`.
  */
@@ -14,8 +14,4 @@ export interface InstalledPackagesPort extends RepositoryFilesPort {
     listDirectory(path: string): InstalledEntry[] | undefined;
     /** What the path names, following links, so a retargeted link or a replaced file stamps differently. */
     stamp(path: string): PathStamp | undefined;
-    /** SHA-256 of the file's bytes, never of a decoded text, as 64 lowercase hex digits. */
-    sha256OfFile(path: string): string | undefined;
-    /** SHA-256 of the text's UTF-8 bytes, as 64 lowercase hex digits. */
-    sha256OfText(text: string): string;
 }

@@ -4,6 +4,7 @@ import {
     lastWorkspacePathSegment,
     parentWorkspacePath,
     toWorkspacePath,
+    withLowerCaseDrive,
 } from "./workspacePath";
 
 export type FileEntryKind = "file" | "directory" | "symbolicLink" | "other";
@@ -116,11 +117,17 @@ export function linkedWorktreeOriginOf(facts: LinkedWorktreeFacts): CodeOrigin {
     const commonDir = commonDirHolding(adminDirRealPath);
     const isConfirmed =
         commonDir !== undefined &&
-        gitPathOf(adminDirRealPath, commondirText.trim()) === commonDir &&
-        backPointerRealPath === claim.dotGit;
+        isSamePath(gitPathOf(adminDirRealPath, commondirText.trim()), commonDir) &&
+        backPointerRealPath !== undefined &&
+        isSamePath(backPointerRealPath, claim.dotGit);
     return isConfirmed
         ? { kind: "repository", commonDir, worktreeRoot: claim.worktreeRoot }
         : NO_REPOSITORY;
+}
+
+/** Git writes its paths with the drive as given; the claim comes from the host's spelling. */
+function isSamePath(path: string, other: string): boolean {
+    return withLowerCaseDrive(path) === withLowerCaseDrive(other);
 }
 
 /** The folder above `<commonDir>/worktrees/<name>`; `undefined` for an admin folder anywhere else. */

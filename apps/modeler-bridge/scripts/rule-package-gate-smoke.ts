@@ -2,24 +2,36 @@
  * Smoke test of the bpmnlint rule package gate under Bun, the runtime the
  * IntelliJ bridge ships in. Vitest runs the same flow under Node only, so this
  * pins what Node cannot: the gate needs no loader hook in Bun, and evicting
- * `require.cache` there makes a package allowed again run its new bytes.
+ * `require.cache` there makes an updated package run its new bytes, those of
+ * its hoisted dependency included.
  *
  * It drives the real bridge over a temp workspace whose `.bpmnlintrc` extends
  * `plugin:acme/recommended`, playing the host through the RPC frames, so the
  * linter runs with the bridge's `NodeInstalledPackages`: not allowed, the rule
- * does not run; allowed, it runs; its dependency edited, it stops; allowed
- * again, the edited bytes run. Exits non-zero on the first failed step.
+ * does not run; allowed, it runs; its dependency edited in place, the loaded
+ * bytes keep running; its version bumped, the edited bytes run without a
+ * question. A second bridge over a repository with pnpm's layout pins that
+ * Bun's resolution cache does not hold the old store folder: an update that
+ * links the package to a new folder and removes the old one runs the new
+ * version without a question. A third does so for a package whose `exports`
+ * map its rules, where the update adds a rule Bun's cached `exports` cannot
+ * reach. Exits non-zero on the first failed step.
  *
  * Run from the repository root (not part of `test`):
  *   corepack yarn workspace @miragon/bpmn-modeler-bridge smoke:rule-package-gate
  * or `bun run scripts/rule-package-gate-smoke.ts` inside apps/modeler-bridge.
  */
 
+import { allowanceKeyOf, allowanceOf, LOCAL_HOST } from "@miragon/bpmn-modeler-core";
+
 import {
+    ACME_ADDED_RULE,
     ACME_RULE,
     AcmeBridge,
     acmeRuns,
+    bumpAcmeVersion,
     createAcmeWorkspace,
+    createPnpmAcmeWorkspace,
     findingsOf,
     Frame,
     lintOnHost,
@@ -27,12 +39,16 @@ import {
     openAcmeBridge,
     relint,
     reviewAndAllowAll,
+    updateAcmeWithPnpm,
     waitForNotice,
     writeAcmeDependency,
 } from "../src/__fixtures__/rulePackageBridge";
 import { PluginApprovalsSnapshot } from "../src/protocol/domain/types";
 
-const EDITED = "v2, edited after the approval";
+const EDITED = "v2, edited after the allow";
+const PNPM_UPDATED = "v2, installed by pnpm";
+
+type CodeOrigin = Parameters<typeof allowanceOf>[2];
 
 class SmokeFailure extends Error {}
 
@@ -59,29 +75,46 @@ const ranRule = (results: Frame) => ACME_RULE in findingsOf(results);
 // The host's list across allows: the bridge ignores a reply no newer than the list it holds.
 let stored: PluginApprovalsSnapshot = { approvals: [], revision: 1 };
 
-async function allowEveryPending(bridge: AcmeBridge, fromIndex: number): Promise<Frame> {
+async function allowEveryPending(
+    bridge: AcmeBridge,
+    fromIndex: number,
+    origin: CodeOrigin = { kind: "noRepository" },
+): Promise<Frame> {
     const notice = await waitForNotice(bridge, fromIndex);
     const relintFrom = bridge.frames.length;
     const answered = await reviewAndAllowAll(bridge, notice, stored);
     stored = answered.stored;
     const { change } = answered;
+    const key = allowanceKeyOf(allowanceOf("rulePackage", bridge.acmeDir, origin, LOCAL_HOST));
     check(
-        change.allow.some(
-            ({ pluginId, contentHash }) =>
-                pluginId === bridge.acmeDir && contentHash.startsWith("bpmnlint-closure-v1:"),
-        ),
-        "the change allows a bpmnlint-closure-v1 row for the package",
+        change.allow.length === 1 &&
+            change.allow[0]?.contentHash === "allowance-v1:rulePackage" &&
+            change.allow[0]?.pluginId === key,
+        "the change holds exactly the package's allowance row",
         change,
     );
     return nextLintResults(bridge, relintFrom);
 }
+
+const noticesOf = (bridge: AcmeBridge) =>
+    bridge.frames.filter((frame) => frame.method === "actionNotice/show" && frame.id !== undefined)
+        .length;
+
+const ranWith = (results: Frame, message: string) =>
+    findingsOf(results)[ACME_RULE]?.some(
+        (finding) => (finding as { message?: string }).message === message,
+    ) === true;
 
 async function smoke(bridge: AcmeBridge): Promise<void> {
     const blocked = await lintOnHost(bridge);
     check(!ranRule(blocked), "a package nobody allowed reports no finding", findingsOf(blocked));
     check((await acmeRuns(bridge.root)).length === 0, "its rule never ran", []);
     check(
-        warned(bridge, 0, `rule package ${bridge.acmeDir} is not allowed yet (new)`),
+        warned(
+            bridge,
+            0,
+            `rule package bpmnlint-plugin-acme@1.0.0 (${bridge.acmeDir}) is not allowed yet (new)`,
+        ),
         "the bridge logs it as not allowed yet",
         bridge.acmeDir,
     );
@@ -90,26 +123,92 @@ async function smoke(bridge: AcmeBridge): Promise<void> {
     check(ranRule(allowed), "the allowed package reports its finding", findingsOf(allowed));
     const afterAllow = await acmeRuns(bridge.root);
     check(afterAllow.join() === "v1", "the allowed bytes ran", afterAllow);
+    const notices = noticesOf(bridge);
 
     await writeAcmeDependency(bridge.root, EDITED);
-    const changedFrom = bridge.frames.length;
-    const changed = await relint(bridge);
-    check(!ranRule(changed), "an edited dependency stops the package", findingsOf(changed));
+    const edited = await relint(bridge);
     check(
-        warned(bridge, changedFrom, "(changed since you allowed it)"),
-        "the bridge logs it as changed",
-        bridge.acmeDir,
+        ranWith(edited, "v1") && noticesOf(bridge) === notices,
+        "an edit that leaves package.json alone keeps the loaded bytes, without a notice",
+        { findings: findingsOf(edited), notices: noticesOf(bridge) },
     );
 
-    const reallowed = await allowEveryPending(bridge, changedFrom);
+    await bumpAcmeVersion(bridge.root, "1.0.1");
+    const updated = await relint(bridge);
     const runs = await acmeRuns(bridge.root);
     check(
-        findingsOf(reallowed)[ACME_RULE]?.some(
-            (finding) => (finding as { message?: string }).message === EDITED,
-        ) === true && runs.join("|") === `v1|${EDITED}`,
-        "allowed again, the edited bytes run",
-        { findings: findingsOf(reallowed), runs },
+        ranWith(updated, EDITED) &&
+            runs.join("|") === `v1|v1|${EDITED}` &&
+            noticesOf(bridge) === notices,
+        "an update runs the edited dependency bytes, without a notice",
+        { findings: findingsOf(updated), runs, notices: noticesOf(bridge) },
     );
+}
+
+async function allowPnpmInstall(bridge: AcmeBridge): Promise<Frame> {
+    stored = { approvals: [], revision: 1 };
+    await lintOnHost(bridge);
+    const origin: CodeOrigin = {
+        kind: "repository",
+        commonDir: `${bridge.root}/.git`,
+        worktreeRoot: bridge.root,
+    };
+    return allowEveryPending(bridge, 0, origin);
+}
+
+async function smokePnpm(bridge: AcmeBridge): Promise<void> {
+    const allowed = await allowPnpmInstall(bridge);
+    check(ranWith(allowed, "v1"), "the allowed pnpm install runs", findingsOf(allowed));
+    const notices = noticesOf(bridge);
+    const logged = bridge.frames.length;
+
+    await updateAcmeWithPnpm(bridge.root, "1.0.0", "1.1.0", PNPM_UPDATED);
+    const updated = await relint(bridge);
+    check(
+        ranWith(updated, PNPM_UPDATED) &&
+            noticesOf(bridge) === notices &&
+            !warned(bridge, logged, "refused to run"),
+        "a pnpm update that removes the old store folder runs the new version, without a notice",
+        { findings: findingsOf(updated), notices: noticesOf(bridge) },
+    );
+}
+
+async function smokePnpmExports(bridge: AcmeBridge): Promise<void> {
+    const allowed = await allowPnpmInstall(bridge);
+    check(
+        ranWith(allowed, "v1"),
+        "the allowed pnpm install with exports runs",
+        findingsOf(allowed),
+    );
+    const notices = noticesOf(bridge);
+    const logged = bridge.frames.length;
+
+    await updateAcmeWithPnpm(bridge.root, "1.0.0", "1.1.0", PNPM_UPDATED, {
+        exports: true,
+        addsRule: true,
+    });
+    const updated = await relint(bridge);
+    const added = findingsOf(updated)[ACME_ADDED_RULE] ?? [];
+    check(
+        ranWith(updated, PNPM_UPDATED) &&
+            added.length > 0 &&
+            noticesOf(bridge) === notices &&
+            !warned(bridge, logged, "refused to run"),
+        "a pnpm update runs a rule it adds behind the package's exports, without a notice",
+        { findings: findingsOf(updated), notices: noticesOf(bridge) },
+    );
+}
+
+async function runPhase(
+    createWorkspace: () => Promise<string>,
+    phase: (bridge: AcmeBridge) => Promise<void>,
+): Promise<void> {
+    const bridge = await openAcmeBridge(await createWorkspace());
+    try {
+        await phase(bridge);
+    } finally {
+        await bridge.dispose();
+    }
 }
 
 async function main(): Promise<number> {
@@ -117,16 +216,15 @@ async function main(): Promise<number> {
         console.error("Run this with bun: it checks the gate under Bun, not Node.");
         return 2;
     }
-    const bridge = await openAcmeBridge(await createAcmeWorkspace());
     try {
-        await smoke(bridge);
+        await runPhase(createAcmeWorkspace, smoke);
+        await runPhase(() => createPnpmAcmeWorkspace(), smokePnpm);
+        await runPhase(() => createPnpmAcmeWorkspace({ exports: true }), smokePnpmExports);
         console.log("rule package gate smoke passed");
         return 0;
     } catch (error) {
         console.error(`FAIL ${error instanceof SmokeFailure ? error.message : String(error)}`);
         return 1;
-    } finally {
-        await bridge.dispose();
     }
 }
 

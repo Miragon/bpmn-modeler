@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { cachedPluginFiles } from "@miragon/bpmn-modeler-core";
+import { allowanceOf, cachedPluginFiles, LOCAL_HOST } from "@miragon/bpmn-modeler-core";
 
 import { pluginAssetUrlOf } from "./pluginAssetUrl";
 
@@ -43,6 +43,12 @@ describe("pluginAssetUrlOf", () => {
             const files = cachedPluginFiles(cacheRoot, {
                 id: "/ws/.camunda/plugins/resize-tasks",
                 name: "Resize Tasks",
+                allowance: allowanceOf(
+                    "plugin",
+                    "/ws/.camunda/plugins/resize-tasks",
+                    { kind: "noRepository" },
+                    LOCAL_HOST,
+                ),
                 scriptPath: "/ws/.camunda/plugins/resize-tasks/client.js",
                 ...(style ? { stylePath: "/ws/.camunda/plugins/resize-tasks/style.css" } : {}),
                 contentHash: HASH,

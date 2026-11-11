@@ -201,6 +201,18 @@ describe("linkedWorktreeOriginOf", () => {
         commonDir: "/work/repo/.git",
         worktreeRoot: "/work/task",
     };
+    // VS Code lowercases the drive letter; git writes it as it was given.
+    const windowsClaim: LinkedWorktreeClaim = {
+        kind: "linkedWorktreeClaim",
+        worktreeRoot: "c:/work/task",
+        dotGit: "c:/work/task/.git",
+        adminDir: "C:/work/repo/.git/worktrees/task",
+    };
+    const windowsRepository: CodeOrigin = {
+        kind: "repository",
+        commonDir: "C:/work/repo/.git",
+        worktreeRoot: "c:/work/task",
+    };
 
     it.each([
         {
@@ -261,6 +273,37 @@ describe("linkedWorktreeOriginOf", () => {
         {
             behaviour: "refuses an admin folder that names another worktree back",
             facts: { ...verified, backPointerRealPath: "/work/other-task/.git" },
+            origin: NO_REPOSITORY,
+        },
+        {
+            behaviour: "confirms a back-pointer that spells the drive letter in another case",
+            facts: {
+                claim: windowsClaim,
+                adminDirRealPath: "C:/work/repo/.git/worktrees/task",
+                commondirText: "../..\n",
+                backPointerRealPath: "C:/work/task/.git",
+            },
+            origin: windowsRepository,
+        },
+        {
+            behaviour:
+                "confirms an absolute commondir that spells the drive letter in another case",
+            facts: {
+                claim: windowsClaim,
+                adminDirRealPath: "C:/work/repo/.git/worktrees/task",
+                commondirText: "c:/work/repo/.git\n",
+                backPointerRealPath: "c:/work/task/.git",
+            },
+            origin: windowsRepository,
+        },
+        {
+            behaviour: "refuses a back-pointer that differs from the claim in more than the drive",
+            facts: {
+                claim: windowsClaim,
+                adminDirRealPath: "C:/work/repo/.git/worktrees/task",
+                commondirText: "../..\n",
+                backPointerRealPath: "C:/work/Task/.git",
+            },
             origin: NO_REPOSITORY,
         },
         {

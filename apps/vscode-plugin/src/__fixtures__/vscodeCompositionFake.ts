@@ -23,6 +23,8 @@ export class EventEmitter<T> {
     }
 }
 
+export const env = { remoteName: undefined as string | undefined };
+
 export const workspace = {
     fs: {},
     workspaceFolders: [],

@@ -38,7 +38,7 @@ that creates and edits them is in VS Code so far.
 ## BPMN plugins
 
 The editor loads [bpmn-js plugins](/vscode/features/bpmn-plugins) from `.camunda/plugins/` in your project once you
-allow them in the notification it shows. The IDE keeps your approvals for all projects; see
+allow them in the notification it shows, once per repository. The IDE keeps your allowances for all projects; see
 [IntelliJ](/vscode/features/bpmn-plugins#intellij) for what differs from VS Code.
 
 ## Add-ons
@@ -52,11 +52,12 @@ templates and the template marketplaces. It lists this project only. It is the s
   field and the chips **Needs review**, **Plugins**, **Rule packages** and **Templates** narrow the list.
 - Click a row to see its details. A tool window wide enough shows the list and the details side by side; a narrow one
   opens the details in place of the list, with **Back**.
-- Each plugin and rule package shows its state: **Allowed**, **Not allowed yet**, **Changed, review needed**,
-  **Declined this session** or **Folder gone**. **Review…** shows what you would allow, **Allow this content** at the
-  end of the review allows it, **Revoke** takes the approval of that content back in every folder, and **Forget**
-  drops only the approval of a **Folder gone** row. Content you allowed in another folder, clone or git worktree
-  shows as **Allowed** without asking. Rules from a rule package that already ran stay loaded until you restart the IDE.
+- Each plugin and rule package shows its state: **Allowed**, **Not allowed yet** or **Declined this session**. The
+  review shows what you would allow and where the allowance would hold; **Allow** at its end allows the add-on in
+  every worktree of its repository, later changes included, or in its folder outside a repository, and **Revoke**
+  takes the allowance back in every worktree. A worktree of a repository you allowed an add-on in shows it as
+  **Allowed** without asking; a second clone asks once. Rules from a rule package that already ran stay loaded until
+  you restart the IDE.
 - **Disable** and **Enable** switch an element template off and on; a source's **⋯** menu does it for all of its
   templates. A switch holds for this project, which the IDE keeps in `.idea/workspace.xml`, or for all your projects.
 - The **Marketplaces** tab adds, updates and removes [template marketplaces](/vscode/features/template-marketplace).

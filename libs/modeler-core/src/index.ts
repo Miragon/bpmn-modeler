@@ -12,7 +12,15 @@ export * from "./kernel/domain/actionNotice";
 export * from "./kernel/domain/affectedItems";
 export * from "./kernel/domain/BpmnDocument";
 export {
-    allowing,
+    type Allowance,
+    allowanceKeyOf,
+    allowanceOf,
+    allowanceRowOf,
+    allowingAllowances,
+    LOCAL_HOST,
+} from "./kernel/domain/allowance";
+export type { AllowanceKind } from "./kernel/domain/approvalRowKind";
+export {
     approvalsAfter,
     approvalsKey,
     codeApprovalChange,
@@ -43,7 +51,9 @@ export * from "./kernel/domain/textReplacement";
 export * from "./kernel/domain/viewTypes";
 export * from "./kernel/domain/watcherEvents";
 export * from "./kernel/domain/workspacePath";
+export * from "./kernel/service/AllowanceLocator";
 export * from "./kernel/service/ArtifactService";
+export * from "./kernel/service/ContentRowMigration";
 export * from "./kernel/service/QuestionQueue";
 export * from "./kernel/adapter/out/FetchHttpClient";
 export { ListReview } from "./kernel/adapter/out/ListReview";

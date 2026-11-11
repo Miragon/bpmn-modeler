@@ -15,8 +15,10 @@ import {
     StatusBarPort,
     WorkspacePort,
 } from "../../../kernel/port/hostPorts";
+import { AllowanceLocator } from "../../../kernel/service/AllowanceLocator";
 import { ApprovalQuestion } from "../../../kernel/service/ApprovalQuestion";
 import { ArtifactService } from "../../../kernel/service/ArtifactService";
+import { ContentRows } from "../../../kernel/service/ContentRowMigration";
 import { QuestionQueue } from "../../../kernel/service/QuestionQueue";
 import { EditorSessionParticipant } from "../../../editorSession/domain/EditorSessionParticipant";
 import {
@@ -77,7 +79,6 @@ import { BpmnlintParticipant } from "../service/BpmnlintParticipant";
 import { BpmnSettingsParticipant } from "../service/BpmnSettingsParticipant";
 import { ElementTemplatesParticipant } from "../service/ElementTemplatesParticipant";
 import { EngineVersionStatusBarParticipant } from "../service/EngineVersionStatusBarParticipant";
-import { PackageClosureFingerprinter } from "../service/PackageClosureFingerprinter";
 import { RulePackageCatalog } from "../service/RulePackageCatalog";
 import { RulePackageInventory } from "../service/RulePackageInventory";
 import { TemplateInventory } from "../service/TemplateInventory";
@@ -116,6 +117,10 @@ export interface BpmnRulePackagePorts {
     /** The host's one approval list, which the plugin approvals share. */
     readonly approvals: PluginApprovalStorePort;
     readonly installedPackages: InstalledPackagesPort;
+    /** The host process's one locator, so plugins, rule packages and the view agree on each allowance. */
+    readonly allowances: AllowanceLocator;
+    /** What a question about a rule package waits for, so the start-up migration is not asked about. */
+    readonly contentRows: ContentRows;
     readonly actionNotifier: ActionNotifierPort;
     /** Shared with the host's other approval questions, so two notices never stand side by side. */
     readonly questions: QuestionQueue;
@@ -370,9 +375,16 @@ export class BpmnEditorFeature {
         if (rulePackages === undefined) {
             return { linter: new NodeBpmnLinter() };
         }
-        const { approvals, installedPackages, actionNotifier, questions, review } = rulePackages;
-        const fingerprints = new PackageClosureFingerprinter(installedPackages);
-        const catalog = new RulePackageCatalog(approvals, fingerprints, this.ports.notifier);
+        const {
+            approvals,
+            installedPackages,
+            allowances,
+            contentRows,
+            actionNotifier,
+            questions,
+            review,
+        } = rulePackages;
+        const catalog = new RulePackageCatalog(approvals, this.ports.notifier);
         const question = new ApprovalQuestion(
             catalog,
             reviewOrChecklist(review, this.ports.picker),
@@ -381,12 +393,12 @@ export class BpmnEditorFeature {
             questions,
         );
         return {
-            approvals: { catalog, question },
-            inventory: new RulePackageInventory(catalog, fingerprints, installedPackages),
+            approvals: { catalog, question, contentRows },
+            inventory: new RulePackageInventory(catalog, installedPackages, allowances),
             linter: new NodeBpmnLinter({
                 approvals,
-                fingerprints,
                 packages: installedPackages,
+                allowances,
                 declinedThisSession: () => catalog.declinedThisSession(),
             }),
         };

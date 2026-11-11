@@ -1,13 +1,8 @@
-import {
-    ApprovableArtifact,
-    CodeApproval,
-    ListedCode,
-    ListedPresence,
-    SessionAnswer,
-} from "../../kernel/domain/codeApproval";
-import { isApprovalRowOf } from "../../kernel/domain/approvalRowKind";
+import { AllowableCode } from "../../kernel/domain/allowance";
+import { SessionAnswer } from "../../kernel/domain/codeApproval";
+import { ListedPresence } from "../../kernel/domain/listedCode";
 import { lastWorkspacePathSegment } from "../../kernel/domain/workspacePath";
-import { PLUGIN_CODE_TEXTS, WorkspacePlugin } from "../domain/pluginApproval";
+import { PLUGIN_CODE_TEXTS } from "../domain/pluginApproval";
 import { configFolderOfPlugin, pluginsDirOf } from "../domain/pluginFolders";
 import { BpmnPluginService } from "./BpmnPluginService";
 import { PluginCatalog } from "./PluginCatalog";
@@ -16,7 +11,7 @@ import { PluginReading, WorkspacePluginLocator } from "./WorkspacePluginLocator"
 const NONE_LOADED: ReadonlySet<string> = new Set();
 
 /**
- * The plugins as the add-on catalog lists them: found, hashed and answered
+ * The plugins as the add-on catalog lists them: found, located and answered
  * for by the plugin feature's own locator and catalog, which keep the rules.
  */
 export class PluginInventory {
@@ -38,10 +33,6 @@ export class PluginInventory {
         return listed;
     }
 
-    ownsApproval(approval: CodeApproval): boolean {
-        return isApprovalRowOf("plugin", approval);
-    }
-
     knownPluginDirs(): readonly string[] {
         return this.locator.knownPluginDirs();
     }
@@ -58,15 +49,6 @@ export class PluginInventory {
         return presenceOf(await this.locator.readFresh(pluginId));
     }
 
-    recordCarried(found: readonly ApprovableArtifact[]): Promise<void> {
-        return this.catalog.recordCarried(found);
-    }
-
-    /** A copy is served only for an approved plugin, so a revoked plugin's copy ages out. */
-    afterRevoke(): Promise<void> {
-        return Promise.resolve();
-    }
-
     sessionAnswers(): ReadonlyMap<string, SessionAnswer> {
         return this.catalog.sessionAnswers();
     }
@@ -76,8 +58,8 @@ export class PluginInventory {
         return NONE_LOADED;
     }
 
-    leaveForView(artifact: ApprovableArtifact): void {
-        this.catalog.leaveForView(artifact);
+    leaveForView(code: AllowableCode): void {
+        this.catalog.leaveForView(code);
     }
 
     pruneCache(): Promise<{ readonly removed: number }> {
@@ -96,8 +78,8 @@ export class PluginInventory {
 function presenceOf(reading: PluginReading): ListedPresence {
     switch (reading.kind) {
         case "found": {
-            const artifact = listedPluginOf(reading.discovered.plugin);
-            return { kind: "found", artifact, name: artifact.name };
+            const { id, name, allowance } = reading.discovered.plugin;
+            return { kind: "found", artifact: { id, name, allowance }, name };
         }
         case "unreadable":
             return {
@@ -105,6 +87,7 @@ function presenceOf(reading: PluginReading): ListedPresence {
                 id: reading.folder,
                 name: lastWorkspacePathSegment(reading.folder),
                 reason: reading.reason,
+                allowance: reading.allowance,
             };
         case "gone":
             return {
@@ -113,19 +96,4 @@ function presenceOf(reading: PluginReading): ListedPresence {
                 name: lastWorkspacePathSegment(reading.folder),
             };
     }
-}
-
-function listedPluginOf({
-    id,
-    name,
-    contentHash,
-    scriptPath,
-    stylePath,
-}: WorkspacePlugin): ListedCode {
-    return {
-        id,
-        name,
-        contentHash,
-        files: stylePath === undefined ? [scriptPath] : [scriptPath, stylePath],
-    };
 }

@@ -1,10 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
-    HashContext,
-    isHashWanted,
     leavesToView,
-    missedRowIds,
     configAreaDirsToList,
     rulePackageDirsToList,
     rulePackageIdsToList,
@@ -44,37 +41,6 @@ describe("configAreaDirsToList", () => {
     });
 });
 
-describe("missedRowIds", () => {
-    it.each<{ case: string; owned: string[]; listed: string[]; ids: string[] }>([
-        {
-            case: "a row inside a folder that discovery missed",
-            owned: ["/work/.camunda/plugins/gone"],
-            listed: [],
-            ids: ["/work/.camunda/plugins/gone"],
-        },
-        {
-            case: "no row discovery listed",
-            owned: ["/work/.camunda/plugins/a"],
-            listed: ["/work/.camunda/plugins/a"],
-            ids: [],
-        },
-        {
-            case: "no row outside every folder",
-            owned: ["/elsewhere/.camunda/plugins/a"],
-            listed: [],
-            ids: [],
-        },
-        {
-            case: "a row once though stored twice",
-            owned: ["/other/.camunda/plugins/a", "/other/.camunda/plugins/a"],
-            listed: [],
-            ids: ["/other/.camunda/plugins/a"],
-        },
-    ])("reads $case", ({ owned, listed, ids }) => {
-        expect(missedRowIds(owned, listed, FOLDERS)).toEqual(ids);
-    });
-});
-
 describe("rulePackageDirsToList", () => {
     it.each<{ case: string; lintConfigDirs: string[]; dirs: string[] }>([
         { case: "each folder", lintConfigDirs: [], dirs: FOLDERS },
@@ -96,78 +62,27 @@ describe("rulePackageDirsToList", () => {
 describe("rulePackageIdsToList", () => {
     const ACME = "/work/node_modules/bpmnlint-plugin-acme";
 
-    it.each<{ case: string; installed: string[]; seen: string[]; owned: string[]; ids: string[] }>([
+    it.each<{ case: string; installed: string[]; seen: string[]; ids: string[] }>([
         {
             case: "every source, each id once",
             installed: [ACME],
             seen: [ACME, "/work"],
-            owned: ["/other/node_modules/bpmnlint-plugin-gone", ACME],
-            ids: [ACME, "/work", "/other/node_modules/bpmnlint-plugin-gone"],
+            ids: [ACME, "/work"],
         },
         {
             case: "no installed package linked to a folder outside every workspace folder",
             installed: ["/store/bpmnlint-plugin-linked"],
             seen: [],
-            owned: [],
             ids: [],
         },
         {
-            case: "no reported package or row outside every folder",
+            case: "no reported package outside every folder",
             installed: [],
             seen: ["/elsewhere/node_modules/a"],
-            owned: ["/elsewhere/node_modules/b"],
             ids: [],
         },
-    ])("lists $case", ({ installed, seen, owned, ids }) => {
-        expect(rulePackageIdsToList(FOLDERS, { installed, seen, ownedRowIds: owned })).toEqual(ids);
-    });
-});
-
-describe("isHashWanted", () => {
-    const ID = "/work/node_modules/bpmnlint-plugin-acme";
-    const none: HashContext = { inspected: new Set(), rowsOfKind: [], answers: new Map() };
-
-    it.each<{ case: string; context: HashContext; wanted: boolean }>([
-        { case: "not for a package nothing asks about", context: none, wanted: false },
-        {
-            case: "for a package the user asked to read",
-            context: { ...none, inspected: new Set([ID]) },
-            wanted: true,
-        },
-        {
-            case: "for a package a stored row names",
-            context: { ...none, rowsOfKind: [{ pluginId: ID, contentHash: "h" }] },
-            wanted: true,
-        },
-        {
-            case: "for a package declined this session",
-            context: { ...none, answers: new Map([[`${ID}#h`, "declined"]]) },
-            wanted: true,
-        },
-        {
-            case: "for a package the user left to the view, so the view offers to allow it",
-            context: { ...none, answers: new Map([[`${ID}#h`, "leftForView"]]) },
-            wanted: true,
-        },
-        {
-            case: "for a package while another place's row of its kind may hold its content",
-            context: {
-                ...none,
-                rowsOfKind: [{ pluginId: "/work/node_modules/other", contentHash: "h" }],
-            },
-            wanted: true,
-        },
-        {
-            case: "not for a package only another was asked about",
-            context: {
-                inspected: new Set(["/work/node_modules/other"]),
-                rowsOfKind: [],
-                answers: new Map([["/work/node_modules/other#h", "leftForView"]]),
-            },
-            wanted: false,
-        },
-    ])("hashes $case", ({ context, wanted }) => {
-        expect(isHashWanted(ID, context)).toBe(wanted);
+    ])("lists $case", ({ installed, seen, ids }) => {
+        expect(rulePackageIdsToList(FOLDERS, { installed, seen })).toEqual(ids);
     });
 });
 

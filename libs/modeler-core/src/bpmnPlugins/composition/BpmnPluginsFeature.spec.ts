@@ -5,14 +5,18 @@ import { describe, expect, it, vi } from "vitest";
 import { BpmnPluginsQuery, GetBpmnPluginsCommand } from "@miragon/bpmn-modeler-shared";
 
 import {
-    allowing,
-    ApprovableArtifact,
-    CodeApproval,
-    CodeApprovalChange,
-} from "../../kernel/domain/codeApproval";
+    Allowance,
+    allowanceOf,
+    allowanceRowOf,
+    allowingAllowances,
+    LOCAL_HOST,
+} from "../../kernel/domain/allowance";
+import { CodeApproval, CodeApprovalChange } from "../../kernel/domain/codeApproval";
 import { ChoicePrompt } from "../../kernel/domain/prompts";
 import { ApprovalReviewPort, PluginApprovalStorePort } from "../../kernel/port/approvalPorts";
+import { AllowanceLocator } from "../../kernel/service/AllowanceLocator";
 import { ArtifactService } from "../../kernel/service/ArtifactService";
+import { ContentRowMigration } from "../../kernel/service/ContentRowMigration";
 import { ListReview } from "../../kernel/adapter/out/ListReview";
 import { ViewReview } from "../../addOns/adapter/out/ViewReview";
 import { QuestionQueue } from "../../kernel/service/QuestionQueue";
@@ -20,10 +24,13 @@ import {
     createTestHost,
     FakeEditorHandle,
     fingerprintHasher,
+    InMemoryInstalledPackages,
     InMemoryPluginApprovals,
     RecordingAddOnViewReveal,
     ScriptedReview,
     TestHostOptions,
+    writeLinkedWorktree,
+    writeRepository,
 } from "../../testing";
 import {
     approvedContent,
@@ -37,7 +44,8 @@ const PLUGINS = "/work/.camunda/plugins";
 const RESIZE = `${PLUGINS}/resize-tasks`;
 const PALETTE = `${PLUGINS}/reduced-palette`;
 const OTHER_PALETTE = "/other/.camunda/plugins/reduced-palette";
-const WORKTREE_RESIZE = "/worktree/.camunda/plugins/resize-tasks";
+/** `/other` is a linked worktree of `/work` wherever a spec lays out git. */
+const WORKTREE_RESIZE = "/other/.camunda/plugins/resize-tasks";
 const CACHE = "/storage/bpmn-plugins";
 
 const RESIZE_FILES = {
@@ -60,6 +68,33 @@ const PALETTE_HASH = fingerprintHasher.sha256(
 const RESIZE_HASH = fingerprintHasher.sha256(approvedContent("registerResize();", undefined));
 /** `registerResize();` with one character changed, so its length stays. */
 const RESIZE_EDITED = "registerResizE();";
+const RESIZE_EDITED_HASH = fingerprintHasher.sha256(approvedContent(RESIZE_EDITED, undefined));
+const WORKTREE_RESIZE_FILES = {
+    [`${WORKTREE_RESIZE}/index.js`]:
+        "module.exports = { name: 'Resize Tasks', script: './client.js' };",
+    [`${WORKTREE_RESIZE}/client.js`]: RESIZE_EDITED,
+};
+
+const RESIZE_ALLOWANCE: Allowance = allowanceOf(
+    "plugin",
+    RESIZE,
+    { kind: "repository", worktreeRoot: "/work", commonDir: "/work/.git" },
+    LOCAL_HOST,
+);
+const folderRowOf = (folder: string) =>
+    allowanceRowOf(allowanceOf("plugin", folder, { kind: "noRepository" }, LOCAL_HOST));
+const RESIZE_FOLDER_ROW = folderRowOf(RESIZE);
+/** As 1.21.0 stored it: pinned to the content found at the folder. */
+const LEGACY_RESIZE_ROW = { pluginId: RESIZE, contentHash: "a".repeat(64) };
+
+/** `/work` a repository and `/other` its linked worktree, with each plugin folder on disk. */
+function worktreeAllowances(...pluginFolders: string[]): AllowanceLocator {
+    const disk = new InMemoryInstalledPackages();
+    writeRepository(disk, "/work");
+    writeLinkedWorktree(disk, "/work", "/other");
+    pluginFolders.forEach((folder) => disk.createDirectory(folder));
+    return new AllowanceLocator(disk, LOCAL_HOST);
+}
 
 const REVIEW_AND_ALLOW = (
     ...ids: string[]
@@ -77,13 +112,19 @@ function setUp(
         hasher?: ContentHasherPort;
         review?: ScriptedReview | ((host: ReturnType<typeof createTestHost>) => ApprovalReviewPort);
         now?: () => number;
+        allowances?: AllowanceLocator;
     } = {},
 ) {
     const host = createTestHost({ folders: ["/work", "/other"], files, ...options });
+    const approvals = options.approvals ?? host.pluginApprovals;
+    const allowances = options.allowances ?? host.allowances;
+    const contentRows = new ContentRowMigration(approvals, allowances, host.notifier);
     const feature = new BpmnPluginsFeature({
         ...host,
         artifacts: new ArtifactService(host.workspace, host.settings, host.notifier),
-        approvals: options.approvals ?? host.pluginApprovals,
+        approvals,
+        allowances,
+        contentRows,
         cacheRoot: options.cacheRoot ?? CACHE,
         hasher: options.hasher ?? fingerprintHasher,
         questions: options.questions ?? new QuestionQueue(),
@@ -104,11 +145,15 @@ function setUp(
     };
     const openEditor = (path = "/work/order.bpmn") =>
         host.openSession(path, [feature.editorContribution.participant]);
-    return { host, feature, requestPlugins, openEditor };
+    return { host, feature, contentRows, requestPlugins, openEditor };
 }
 
 const answeredPlugins = (editor: FakeEditorHandle) =>
     editor.postedOfType<BpmnPluginsQuery>("BpmnPluginsQuery").at(-1)?.plugins;
+
+/** The content hash of each copy the editor was last served, which names what was read. */
+const servedCopies = (editor: FakeEditorHandle) =>
+    answeredPlugins(editor)?.map(({ scriptUrl }) => scriptUrl.split("/").at(-2));
 
 const reviewedLabels = (host: ReturnType<typeof createTestHost>) =>
     host.picker.prompts.map(({ args }) =>
@@ -212,7 +257,7 @@ describe("BpmnPluginsFeature", () => {
     describe("delivery", () => {
         it("serves an approved plugin from a copy of the approved bytes, without a notice", async () => {
             const { host, requestPlugins, openEditor } = setUp(PALETTE_FILES);
-            host.pluginApprovals.approvals = [{ pluginId: PALETTE, contentHash: PALETTE_HASH }];
+            host.pluginApprovals.approvals = [folderRowOf(PALETTE)];
             const editor = await openEditor();
 
             await requestPlugins(editor);
@@ -235,7 +280,7 @@ describe("BpmnPluginsFeature", () => {
 
         it("serves an approved plugin without a style from its script alone", async () => {
             const { host, requestPlugins, openEditor } = setUp(RESIZE_FILES);
-            host.pluginApprovals.approvals = [{ pluginId: RESIZE, contentHash: RESIZE_HASH }];
+            host.pluginApprovals.approvals = [folderRowOf(RESIZE)];
             const editor = await openEditor();
 
             await requestPlugins(editor);
@@ -252,16 +297,26 @@ describe("BpmnPluginsFeature", () => {
             ]);
         });
 
-        it("leaves a plugin out once its code changed", async () => {
+        it("serves an updated plugin from its new copy without asking", async () => {
             const { host, requestPlugins, openEditor } = setUp(RESIZE_FILES);
-            host.pluginApprovals.approvals = [{ pluginId: RESIZE, contentHash: RESIZE_HASH }];
-            await host.workspace.writeFile(`${RESIZE}/client.js`, RESIZE_EDITED);
+            host.pluginApprovals.approvals = [RESIZE_FOLDER_ROW];
             const editor = await openEditor();
-
             await requestPlugins(editor);
 
-            expect(answeredPlugins(editor)).toEqual([]);
-            expect(host.actionNotifier.notices).toHaveLength(1);
+            await host.workspace.writeFile(`${RESIZE}/client.js`, RESIZE_EDITED);
+            await requestPlugins(editor);
+
+            expect(answeredPlugins(editor)).toEqual([
+                {
+                    name: "Resize Tasks",
+                    scriptUrl: `webview-resource:${CACHE}/${RESIZE_EDITED_HASH}/plugin.js`,
+                },
+            ]);
+            expect(host.workspace.files.get(`${CACHE}/${RESIZE_EDITED_HASH}/plugin.js`)).toBe(
+                RESIZE_EDITED,
+            );
+            expect(host.actionNotifier.notices).toEqual([]);
+            expect(editor.reloadCount).toBe(0);
         });
 
         it("skips a plugin folder it cannot read and still serves the others", async () => {
@@ -269,7 +324,7 @@ describe("BpmnPluginsFeature", () => {
                 ...PALETTE_FILES,
                 [`${PLUGINS}/broken/plugin.json`]: '{ "script": "../../escape.js" }',
             });
-            host.pluginApprovals.approvals = [{ pluginId: PALETTE, contentHash: PALETTE_HASH }];
+            host.pluginApprovals.approvals = [folderRowOf(PALETTE)];
             const editor = await openEditor();
 
             await requestPlugins(editor);
@@ -300,7 +355,7 @@ describe("BpmnPluginsFeature", () => {
             "skips $case, says why and still serves the others",
             async ({ files, folder, reason }) => {
                 const { host, requestPlugins, openEditor } = setUp({ ...PALETTE_FILES, ...files });
-                host.pluginApprovals.approvals = [{ pluginId: PALETTE, contentHash: PALETTE_HASH }];
+                host.pluginApprovals.approvals = [folderRowOf(PALETTE)];
                 const editor = await openEditor();
 
                 await requestPlugins(editor);
@@ -329,15 +384,7 @@ describe("BpmnPluginsFeature", () => {
                     ? [...(await listDirectory(path)), ["..", "directory"]]
                     : listDirectory(path),
             );
-            host.pluginApprovals.approvals = [
-                { pluginId: PALETTE, contentHash: PALETTE_HASH },
-                {
-                    pluginId: configFolder,
-                    contentHash: fingerprintHasher.sha256(
-                        approvedContent("registerConfig();", undefined),
-                    ),
-                },
-            ];
+            host.pluginApprovals.approvals = [folderRowOf(PALETTE), folderRowOf(configFolder)];
             const editor = await openEditor();
 
             await requestPlugins(editor);
@@ -349,7 +396,7 @@ describe("BpmnPluginsFeature", () => {
 
         it("answers with no plugins at once on a host whose webview cannot load them", async () => {
             const { host, requestPlugins, openEditor } = setUp(PALETTE_FILES);
-            host.pluginApprovals.approvals = [{ pluginId: PALETTE, contentHash: PALETTE_HASH }];
+            host.pluginApprovals.approvals = [folderRowOf(PALETTE)];
             const editor = await openEditor();
             editor.servesNoFiles = true;
 
@@ -431,9 +478,7 @@ describe("BpmnPluginsFeature", () => {
                 "2 BPMN plugins in this workspace are not allowed yet.",
             );
             expect(host.picker.prompts).toHaveLength(1);
-            expect(host.pluginApprovals.approvals).toEqual([
-                { pluginId: RESIZE, contentHash: RESIZE_HASH },
-            ]);
+            expect(host.pluginApprovals.approvals).toEqual([RESIZE_FOLDER_ROW]);
             expect(editor.reloadCount).toBe(1);
         });
 
@@ -474,78 +519,106 @@ describe("BpmnPluginsFeature", () => {
             expect(editor.reloadCount).toBe(0);
         });
 
-        it("serves a plugin allowed in another folder without a notice, stores its row and logs one line", async () => {
-            const { host, requestPlugins, openEditor } = setUp(RESIZE_FILES);
-            const worktree = { pluginId: WORKTREE_RESIZE, contentHash: RESIZE_HASH };
-            host.pluginApprovals.approvals = [worktree];
-            const editor = await openEditor();
+        it("asks once about a plugin found in two worktrees and reloads both editors with it", async () => {
+            const { host, feature, openEditor } = setUp(
+                { ...RESIZE_FILES, ...WORKTREE_RESIZE_FILES },
+                {
+                    ...REVIEW_AND_ALLOW(RESIZE),
+                    allowances: worktreeAllowances(RESIZE, WORKTREE_RESIZE),
+                },
+            );
+            const notice = host.actionNotifier.holdNextNotice();
+            const main = await openEditor("/work/order.bpmn");
+            const worktree = await openEditor("/other/order.bpmn");
+            await answerRequest(feature, main);
+            await answerRequest(feature, worktree);
 
-            await requestPlugins(editor);
+            notice.answer("review");
+            await feature.service.whenApprovalSettled();
+
+            expect(host.actionNotifier.notices).toHaveLength(1);
+            expect(reviewedLabels(host)).toEqual([["Resize Tasks"]]);
+            expect(host.pluginApprovals.approvals).toEqual([allowanceRowOf(RESIZE_ALLOWANCE)]);
+            expect([main.reloadCount, worktree.reloadCount]).toEqual([1, 1]);
+        });
+
+        it("serves a plugin in a second worktree without asking once the first allowed it", async () => {
+            const { host, requestPlugins, openEditor } = setUp(WORKTREE_RESIZE_FILES, {
+                allowances: worktreeAllowances(WORKTREE_RESIZE),
+            });
+            host.pluginApprovals.approvals = [allowanceRowOf(RESIZE_ALLOWANCE)];
+            const editor = await openEditor("/other/order.bpmn");
+
             await requestPlugins(editor);
 
             expect(answeredPlugins(editor)).toEqual([
                 {
                     name: "Resize Tasks",
-                    scriptUrl: `webview-resource:${CACHE}/${RESIZE_HASH}/plugin.js`,
+                    scriptUrl: `webview-resource:${CACHE}/${RESIZE_EDITED_HASH}/plugin.js`,
                 },
             ]);
             expect(host.actionNotifier.notices).toEqual([]);
-            expect(host.pluginApprovals.approvals).toEqual([
-                worktree,
-                { pluginId: RESIZE, contentHash: RESIZE_HASH },
-            ]);
-            expect(host.notifier.logged("info")).toEqual([
-                `Allowed BPMN plugin Resize Tasks in ${RESIZE}: you allowed the same content in ${WORKTREE_RESIZE}.`,
-            ]);
         });
 
-        it("a stored row of content allowed elsewhere reloads no editor", async () => {
-            const { host, requestPlugins, openEditor } = setUp(RESIZE_FILES);
-            host.pluginApprovals.approvals = [
-                { pluginId: WORKTREE_RESIZE, contentHash: RESIZE_HASH },
-            ];
-            const first = await openEditor("/work/order.bpmn");
-            await requestPlugins(first);
-            const second = await openEditor("/work/shipping.bpmn");
-
-            await requestPlugins(second);
-
-            expect([first.reloadCount, second.reloadCount]).toEqual([0, 0]);
-        });
-
-        it("replaces a row here of older content with content allowed in another folder", async () => {
-            const { host, requestPlugins, openEditor } = setUp(RESIZE_FILES);
-            const worktree = { pluginId: WORKTREE_RESIZE, contentHash: RESIZE_HASH };
-            host.pluginApprovals.approvals = [
-                { pluginId: RESIZE, contentHash: "0".repeat(64) },
-                worktree,
-            ];
+        it("serves a plugin a 1.21.0 row allows at its folder, before and after the migration, without a reload", async () => {
+            const { host, contentRows, requestPlugins, openEditor } = setUp(RESIZE_FILES, {
+                allowances: worktreeAllowances(RESIZE),
+            });
+            host.pluginApprovals.approvals = [LEGACY_RESIZE_ROW];
             const editor = await openEditor();
+            await requestPlugins(editor);
+            const before = answeredPlugins(editor);
 
+            await contentRows.run();
             await requestPlugins(editor);
 
+            expect(host.pluginApprovals.approvals).toEqual([allowanceRowOf(RESIZE_ALLOWANCE)]);
+            expect(before?.map(({ name }) => name)).toEqual(["Resize Tasks"]);
             expect(answeredPlugins(editor)?.map(({ name }) => name)).toEqual(["Resize Tasks"]);
             expect(host.actionNotifier.notices).toEqual([]);
-            expect(host.pluginApprovals.approvals).toEqual([
-                { pluginId: RESIZE, contentHash: RESIZE_HASH },
-                worktree,
-            ]);
+            expect(editor.reloadCount).toBe(0);
         });
 
-        it("still serves a plugin allowed in another folder when storing its row fails, and logs why", async () => {
-            const { host, requestPlugins, openEditor } = setUp(RESIZE_FILES);
-            host.pluginApprovals.approvals = [
-                { pluginId: WORKTREE_RESIZE, contentHash: RESIZE_HASH },
-            ];
-            vi.spyOn(host.pluginApprovals, "change").mockRejectedValue(new Error("store locked"));
-            const editor = await openEditor();
+        it("does not ask about a second worktree while the migration is in flight", async () => {
+            const { host, feature, contentRows, openEditor } = setUp(
+                { ...RESIZE_FILES, ...WORKTREE_RESIZE_FILES },
+                { allowances: worktreeAllowances(RESIZE, WORKTREE_RESIZE) },
+            );
+            host.pluginApprovals.approvals = [LEGACY_RESIZE_ROW];
+            const migrationWrite = holdNext(host.pluginApprovals, "change");
+            const migration = contentRows.run();
+            await migrationWrite.reached;
+            const worktree = await openEditor("/other/order.bpmn");
 
-            await requestPlugins(editor);
+            const request = answerRequest(feature, worktree);
+            await new Promise((resolve) => setTimeout(resolve, 0));
+            const noticesInFlight = host.actionNotifier.notices.length;
+            migrationWrite.release();
+            await migration;
+            await request;
+            await feature.service.whenApprovalSettled();
 
-            expect(answeredPlugins(editor)?.map(({ name }) => name)).toEqual(["Resize Tasks"]);
-            expect(host.notifier.logged("error")).toEqual([
-                expect.stringContaining("store locked"),
-            ]);
+            expect(noticesInFlight).toBe(0);
+            expect(host.actionNotifier.notices).toEqual([]);
+            expect(answeredPlugins(worktree)?.map(({ name }) => name)).toEqual(["Resize Tasks"]);
+        });
+
+        it("reloads every worktree's editor once the allowance is revoked", async () => {
+            const { host, requestPlugins, openEditor } = setUp(
+                { ...RESIZE_FILES, ...WORKTREE_RESIZE_FILES },
+                { allowances: worktreeAllowances(RESIZE, WORKTREE_RESIZE) },
+            );
+            host.pluginApprovals.storeElsewhere([allowanceRowOf(RESIZE_ALLOWANCE)], {
+                notify: true,
+            });
+            const main = await openEditor("/work/order.bpmn");
+            const worktree = await openEditor("/other/order.bpmn");
+            await requestPlugins(main);
+            await requestPlugins(worktree);
+
+            host.pluginApprovals.storeElsewhere([], { notify: true });
+
+            expect([main.reloadCount, worktree.reloadCount]).toEqual([1, 1]);
         });
 
         it("does not notify again in this session once the notice was closed", async () => {
@@ -572,7 +645,7 @@ describe("BpmnPluginsFeature", () => {
             expect(editor.reloadCount).toBe(0);
         });
 
-        it("notifies again about a closed plugin once its code changed", async () => {
+        it("does not notify again about a closed plugin once its code changed", async () => {
             const { host, requestPlugins, openEditor } = setUp(RESIZE_FILES);
             const editor = await openEditor();
             await requestPlugins(editor);
@@ -580,7 +653,7 @@ describe("BpmnPluginsFeature", () => {
             await host.workspace.writeFile(`${RESIZE}/client.js`, RESIZE_EDITED);
             await requestPlugins(editor);
 
-            expect(host.actionNotifier.notices).toHaveLength(2);
+            expect(host.actionNotifier.notices).toHaveLength(1);
         });
 
         it("reloads every open editor that was offered an allowed plugin", async () => {
@@ -609,7 +682,7 @@ describe("BpmnPluginsFeature", () => {
             const editor = await openEditor();
             await requestPlugins(editor);
 
-            host.pluginApprovals.storeElsewhere([{ pluginId: RESIZE, contentHash: RESIZE_HASH }], {
+            host.pluginApprovals.storeElsewhere([folderRowOf(RESIZE)], {
                 notify: true,
             });
 
@@ -621,7 +694,7 @@ describe("BpmnPluginsFeature", () => {
                 ...RESIZE_FILES,
                 ...OTHER_PALETTE_FILES,
             });
-            host.pluginApprovals.storeElsewhere([{ pluginId: RESIZE, contentHash: RESIZE_HASH }], {
+            host.pluginApprovals.storeElsewhere([folderRowOf(RESIZE)], {
                 notify: true,
             });
             const loaded = await openEditor("/work/order.bpmn");
@@ -636,7 +709,7 @@ describe("BpmnPluginsFeature", () => {
 
         it("reloads an editor once until it asks for its plugins again", async () => {
             const { host, requestPlugins, openEditor } = setUp(RESIZE_FILES);
-            const allowed = [{ pluginId: RESIZE, contentHash: RESIZE_HASH }];
+            const allowed = [folderRowOf(RESIZE)];
             host.pluginApprovals.storeElsewhere(allowed, { notify: true });
             const editor = await openEditor();
             await requestPlugins(editor);
@@ -655,7 +728,7 @@ describe("BpmnPluginsFeature", () => {
             const editor = await openEditor();
             await requestPlugins(editor);
 
-            host.pluginApprovals.storeElsewhere([{ pluginId: RESIZE, contentHash: RESIZE_HASH }]);
+            host.pluginApprovals.storeElsewhere([folderRowOf(RESIZE)]);
 
             expect(editor.reloadCount).toBe(0);
         });
@@ -666,7 +739,7 @@ describe("BpmnPluginsFeature", () => {
             await requestPlugins(editor);
 
             feature.dispose();
-            host.pluginApprovals.storeElsewhere([{ pluginId: RESIZE, contentHash: RESIZE_HASH }], {
+            host.pluginApprovals.storeElsewhere([folderRowOf(RESIZE)], {
                 notify: true,
             });
 
@@ -731,24 +804,28 @@ describe("BpmnPluginsFeature", () => {
                 approvals,
                 questions,
             });
-            const rulePackage: ApprovableArtifact = {
+            const rulePackage = {
                 id: "/work/node_modules/bpmnlint-plugin-acme",
-                name: "bpmnlint-plugin-acme",
-                contentHash: "bpmnlint-closure-v1:ddd",
+                allowance: allowanceOf(
+                    "rulePackage",
+                    "/work/node_modules/bpmnlint-plugin-acme",
+                    { kind: "noRepository" },
+                    LOCAL_HOST,
+                ),
             };
             const notice = host.actionNotifier.holdNextNotice();
             await answerRequest(feature, await openEditor());
 
             const rulePackageAnswer = questions.ask(() =>
-                approvals.change(allowing([rulePackage])),
+                approvals.change(allowingAllowances([rulePackage])),
             );
             notice.answer("review");
             await feature.service.whenApprovalSettled();
             await rulePackageAnswer;
 
             expect(approvals.approvals).toEqual([
-                { pluginId: RESIZE, contentHash: RESIZE_HASH },
-                { pluginId: rulePackage.id, contentHash: "bpmnlint-closure-v1:ddd" },
+                RESIZE_FOLDER_ROW,
+                allowanceRowOf(rulePackage.allowance),
             ]);
         });
 
@@ -776,7 +853,7 @@ describe("BpmnPluginsFeature", () => {
     describe("cache", () => {
         it("writes the copy of an approved plugin once", async () => {
             const { host, requestPlugins, openEditor } = setUp(PALETTE_FILES);
-            host.pluginApprovals.approvals = [{ pluginId: PALETTE, contentHash: PALETTE_HASH }];
+            host.pluginApprovals.approvals = [folderRowOf(PALETTE)];
             await requestPlugins(await openEditor("/work/order.bpmn"));
             const writes = recordCacheWrites(host);
 
@@ -791,7 +868,7 @@ describe("BpmnPluginsFeature", () => {
                 [`${CACHE}/${PALETTE_HASH}/plugin.js`]: "registerPalette();",
                 [`${CACHE}/${PALETTE_HASH}/plugin.css`]: ".djs-palette {}",
             });
-            host.pluginApprovals.approvals = [{ pluginId: PALETTE, contentHash: PALETTE_HASH }];
+            host.pluginApprovals.approvals = [folderRowOf(PALETTE)];
             const writes = recordCacheWrites(host);
             const editor = await openEditor();
 
@@ -807,7 +884,7 @@ describe("BpmnPluginsFeature", () => {
                 [`${CACHE}/${PALETTE_HASH}/plugin.js`]: "registerPal",
                 [`${CACHE}/${PALETTE_HASH}/plugin.css`]: ".djs-palette {}",
             });
-            host.pluginApprovals.approvals = [{ pluginId: PALETTE, contentHash: PALETTE_HASH }];
+            host.pluginApprovals.approvals = [folderRowOf(PALETTE)];
             const writes = recordCacheWrites(host);
 
             await requestPlugins(await openEditor());
@@ -826,7 +903,7 @@ describe("BpmnPluginsFeature", () => {
                 ...PALETTE_FILES,
                 [`${CACHE}/${PALETTE_HASH}/plugin.js`]: "registerPalette();",
             });
-            host.pluginApprovals.approvals = [{ pluginId: PALETTE, contentHash: PALETTE_HASH }];
+            host.pluginApprovals.approvals = [folderRowOf(PALETTE)];
             const readFile = host.workspace.readFile.bind(host.workspace);
             vi.spyOn(host.workspace, "readFile").mockImplementation(async (path) => {
                 if (path.startsWith(CACHE)) {
@@ -851,7 +928,7 @@ describe("BpmnPluginsFeature", () => {
 
         it("writes the copy once for editors that ask at the same time", async () => {
             const { host, feature, openEditor } = setUp(PALETTE_FILES);
-            host.pluginApprovals.approvals = [{ pluginId: PALETTE, contentHash: PALETTE_HASH }];
+            host.pluginApprovals.approvals = [folderRowOf(PALETTE)];
             const editors = [
                 await openEditor("/work/order.bpmn"),
                 await openEditor("/work/invoice.bpmn"),
@@ -873,10 +950,7 @@ describe("BpmnPluginsFeature", () => {
                 ...PALETTE_FILES,
                 ...RESIZE_FILES,
             });
-            host.pluginApprovals.approvals = [
-                { pluginId: PALETTE, contentHash: PALETTE_HASH },
-                { pluginId: RESIZE, contentHash: RESIZE_HASH },
-            ];
+            host.pluginApprovals.approvals = [folderRowOf(PALETTE), folderRowOf(RESIZE)];
             const writeFile = host.workspace.writeFile.bind(host.workspace);
             vi.spyOn(host.workspace, "writeFile").mockImplementation(async (path, content) => {
                 if (path.endsWith(`${PALETTE_HASH}/plugin.js`)) {
@@ -907,7 +981,7 @@ describe("BpmnPluginsFeature", () => {
                 ...PALETTE_FILES,
                 [`${CACHE}/${PALETTE_HASH}/plugin.js`]: "registerPalette();",
             });
-            host.pluginApprovals.approvals = [{ pluginId: PALETTE, contentHash: PALETTE_HASH }];
+            host.pluginApprovals.approvals = [folderRowOf(PALETTE)];
 
             await requestPlugins(await openEditor());
 
@@ -920,7 +994,7 @@ describe("BpmnPluginsFeature", () => {
             const { host, requestPlugins, openEditor } = setUp(PALETTE_FILES, {
                 cacheRoot: "C:\\Users\\me\\AppData\\Roaming\\Code\\globalStorage\\bpmn-plugins",
             });
-            host.pluginApprovals.approvals = [{ pluginId: PALETTE, contentHash: PALETTE_HASH }];
+            host.pluginApprovals.approvals = [folderRowOf(PALETTE)];
             const editor = await openEditor();
 
             await requestPlugins(editor);
@@ -945,7 +1019,7 @@ describe("BpmnPluginsFeature", () => {
             const { host, requestPlugins, openEditor } = setUp(PALETTE_FILES, {
                 now: () => NOW,
             });
-            host.pluginApprovals.approvals = [{ pluginId: PALETTE, contentHash: PALETTE_HASH }];
+            host.pluginApprovals.approvals = [folderRowOf(PALETTE)];
 
             await requestPlugins(await openEditor());
 
@@ -957,7 +1031,7 @@ describe("BpmnPluginsFeature", () => {
             const { host, requestPlugins, openEditor } = setUp(PALETTE_FILES, {
                 now: clock.now,
             });
-            host.pluginApprovals.approvals = [{ pluginId: PALETTE, contentHash: PALETTE_HASH }];
+            host.pluginApprovals.approvals = [folderRowOf(PALETTE)];
             const editor = await openEditor();
             await requestPlugins(editor);
 
@@ -976,7 +1050,7 @@ describe("BpmnPluginsFeature", () => {
             const { host, requestPlugins, openEditor } = setUp(PALETTE_FILES, {
                 now: clock.now,
             });
-            host.pluginApprovals.approvals = [{ pluginId: PALETTE, contentHash: PALETTE_HASH }];
+            host.pluginApprovals.approvals = [folderRowOf(PALETTE)];
             const editor = await openEditor();
             await requestPlugins(editor);
             clock.ms = NOW + DAY;
@@ -1282,24 +1356,26 @@ describe("BpmnPluginsFeature", () => {
     describe("discovery", () => {
         it("does not read a plugin again until a file in its folder changes", async () => {
             const { host, requestPlugins, openEditor } = setUp(PALETTE_FILES);
-            host.pluginApprovals.approvals = [{ pluginId: PALETTE, contentHash: PALETTE_HASH }];
+            host.pluginApprovals.approvals = [folderRowOf(PALETTE)];
             const editor = await openEditor();
             await requestPlugins(editor);
 
             // Behind the watcher's back: what was read before still counts.
             host.workspace.files.set(`${PALETTE}/client.js`, "registerPalette(2);");
             await requestPlugins(editor);
-            const unnoticed = answeredPlugins(editor);
+            const unnoticed = servedCopies(editor);
             await host.workspace.writeFile(`${PALETTE}/client.js`, "registerPalette(3);");
             await requestPlugins(editor);
 
-            expect(unnoticed).toHaveLength(1);
-            expect(answeredPlugins(editor)).toEqual([]);
+            expect(unnoticed).toEqual([PALETTE_HASH]);
+            expect(servedCopies(editor)).toEqual([
+                fingerprintHasher.sha256(approvedContent("registerPalette(3);", ".djs-palette {}")),
+            ]);
         });
 
         it("reads a plugin folder replaced as a whole again", async () => {
             const { host, requestPlugins, openEditor } = setUp(PALETTE_FILES);
-            host.pluginApprovals.approvals = [{ pluginId: PALETTE, contentHash: PALETTE_HASH }];
+            host.pluginApprovals.approvals = [folderRowOf(PALETTE)];
             const editor = await openEditor();
             await requestPlugins(editor);
 
@@ -1310,7 +1386,9 @@ describe("BpmnPluginsFeature", () => {
             });
             await requestPlugins(editor);
 
-            expect(answeredPlugins(editor)).toEqual([]);
+            expect(servedCopies(editor)).toEqual([
+                fingerprintHasher.sha256(approvedContent("registerPalette();", undefined)),
+            ]);
         });
 
         it("reads every plugin again when the plugins folder changes as a whole", async () => {
@@ -1318,24 +1396,24 @@ describe("BpmnPluginsFeature", () => {
                 ...PALETTE_FILES,
                 ...RESIZE_FILES,
             });
-            host.pluginApprovals.approvals = [
-                { pluginId: PALETTE, contentHash: PALETTE_HASH },
-                { pluginId: RESIZE, contentHash: RESIZE_HASH },
-            ];
+            host.pluginApprovals.approvals = [folderRowOf(PALETTE), folderRowOf(RESIZE)];
             const editor = await openEditor();
             await requestPlugins(editor);
             host.workspace.files.set(`${PALETTE}/client.js`, "registerPalettE();");
             host.workspace.files.set(`${RESIZE}/client.js`, RESIZE_EDITED);
             await requestPlugins(editor);
-            const unnoticed = answeredPlugins(editor);
+            const unnoticed = servedCopies(editor);
 
             host.workspace.watchers
                 .find(({ root, disposed }) => root === PLUGINS && !disposed)
                 ?.handlers.onChange?.(PLUGINS);
             await requestPlugins(editor);
 
-            expect(unnoticed).toHaveLength(2);
-            expect(answeredPlugins(editor)).toEqual([]);
+            expect(unnoticed).toEqual([PALETTE_HASH, RESIZE_HASH]);
+            expect(servedCopies(editor)).toEqual([
+                fingerprintHasher.sha256(approvedContent("registerPalettE();", ".djs-palette {}")),
+                RESIZE_EDITED_HASH,
+            ]);
         });
 
         it("watches each plugins folder once and stops when the feature is disposed", async () => {

@@ -1,21 +1,17 @@
 import { ActionNotice } from "../../kernel/domain/actionNotice";
+import {
+    AllowableCode,
+    allowanceKeyOf,
+    allowanceOutcome,
+    allowingAllowances,
+    isAllowed,
+    pendingAllowances,
+} from "../../kernel/domain/allowance";
+import { notAskedAgain, ReviewAnswer, SessionAnswer } from "../../kernel/domain/codeApproval";
 import { ChoicePrompt } from "../../kernel/domain/prompts";
 import { LoggerPort } from "../../kernel/port/hostPorts";
-import { CarriedApprovalWriter } from "../../kernel/service/CarriedApprovalWriter";
+import { ContentRows } from "../../kernel/service/ContentRowMigration";
 import {
-    allowing,
-    ApprovableArtifact,
-    declineKeyOf,
-    notAskedAgain,
-    ReviewAnswer,
-    SessionAnswer,
-} from "../../kernel/domain/codeApproval";
-import {
-    approvalOutcome,
-    approvedPlugins,
-    PendingApproval,
-    pendingApprovals,
-    PLUGIN_CODE_TEXTS,
     PluginApprovalNoticeAction,
     pluginApprovalNotice,
     pluginApprovalPrompt,
@@ -27,7 +23,7 @@ import { DiscoveredPlugin, WorkspacePluginLocator } from "./WorkspacePluginLocat
 /** The plugins of one document: those it may load now, and those the user has not decided on. */
 export interface PluginSelection {
     readonly approved: readonly DiscoveredPlugin[];
-    readonly pending: readonly PendingApproval[];
+    readonly pending: readonly WorkspacePlugin[];
     /** Every plugin it may not load, including those no notice asks about again. */
     readonly withheld: readonly WorkspacePlugin[];
 }
@@ -38,59 +34,44 @@ export interface PluginSelection {
  * plugins shares it.
  *
  * A plugin the user left unchecked, left to a view, or a notice the user
- * closed, is not asked about again for the catalog's lifetime, unless its
- * content changes.
+ * closed, is not asked about again for the catalog's lifetime, at any place
+ * of its allowance and whatever its content becomes.
  */
 export class PluginCatalog {
     private readonly answers = new Map<string, SessionAnswer>();
     private readonly answerListeners = new Set<() => void>();
-    private readonly carriedApprovalWriter: CarriedApprovalWriter;
 
     constructor(
         private readonly locator: WorkspacePluginLocator,
         private readonly approvals: PluginApprovalStorePort,
+        private readonly contentRows: ContentRows,
         private readonly logger: LoggerPort,
-    ) {
-        this.carriedApprovalWriter = new CarriedApprovalWriter(
-            approvals,
-            logger,
-            PLUGIN_CODE_TEXTS,
-        );
-    }
+    ) {}
 
     async pluginsFor(documentPath: string): Promise<PluginSelection> {
         const discovered = await this.discover(documentPath);
-        const plugins = discovered.map(({ plugin }) => plugin);
-        // Awaited, so each place is written once before the editor is answered; it never rejects.
-        await this.carriedApprovalWriter.record(plugins);
-        const approvedIds = new Set(
-            approvedPlugins(plugins, this.approvals.read()).map((plugin) => plugin.id),
-        );
-        return {
-            approved: discovered.filter(({ plugin }) => approvedIds.has(plugin.id)),
-            pending: this.stillPending(plugins),
-            withheld: plugins.filter((plugin) => !approvedIds.has(plugin.id)),
-        };
-    }
-
-    /** Stores a row where a plugin is allowed only by another place's row of its content; never rejects. */
-    recordCarried(found: readonly ApprovableArtifact[]): Promise<void> {
-        return this.carriedApprovalWriter.record(found);
+        const selection = this.selectionOf(discovered);
+        if (selection.pending.length === 0) {
+            return selection;
+        }
+        // The start-up migration may be about to allow it, as in a second worktree.
+        await this.contentRows.whenSettled();
+        return this.selectionOf(discovered);
     }
 
     /** Those of `pending` that no answer settled since they were found. */
-    stillPendingOf(pending: readonly PendingApproval[]): PendingApproval[] {
-        return this.stillPending(pending.map(({ artifact }) => artifact));
+    stillPendingOf(pending: readonly WorkspacePlugin[]): WorkspacePlugin[] {
+        return pendingAllowances(pending, this.approvals.read(), notAskedAgain(this.answers));
     }
 
-    /** By `declineKeyOf`: what the user answered this session about each content. */
+    /** By `allowanceKeyOf`: what the user answered this session about each allowance. */
     sessionAnswers(): ReadonlyMap<string, SessionAnswer> {
         return this.answers;
     }
 
-    /** No notice asks about this content again this session; a view shows it instead. */
-    leaveForView(artifact: ApprovableArtifact): void {
-        this.answers.set(declineKeyOf(artifact), "leftForView");
+    /** No notice asks about this allowance again this session; a view shows it instead. */
+    leaveForView(code: AllowableCode): void {
+        this.answers.set(allowanceKeyOf(code.allowance), "leftForView");
         this.answerListeners.forEach((listener) => listener());
     }
 
@@ -99,12 +80,12 @@ export class PluginCatalog {
         return { dispose: () => this.answerListeners.delete(listener) };
     }
 
-    reviewNotice(pending: readonly PendingApproval[]): ActionNotice<PluginApprovalNoticeAction> {
+    reviewNotice(pending: readonly WorkspacePlugin[]): ActionNotice<PluginApprovalNoticeAction> {
         return pluginApprovalNotice(pending);
     }
 
     reviewPrompt(
-        pending: readonly PendingApproval[],
+        pending: readonly WorkspacePlugin[],
         workspaceFolders: readonly string[],
     ): ChoicePrompt<string> {
         return pluginApprovalPrompt(pending, workspaceFolders);
@@ -117,16 +98,16 @@ export class PluginCatalog {
      * @returns the plugins now allowed.
      */
     async applyAnswer(
-        pending: readonly PendingApproval[],
+        pending: readonly WorkspacePlugin[],
         answer: ReviewAnswer,
     ): Promise<readonly WorkspacePlugin[]> {
-        const outcome = approvalOutcome(pending, answer);
+        const outcome = allowanceOutcome(pending, answer);
         outcome.answers.forEach((each, key) => this.answers.set(key, each));
         if (outcome.answers.size > 0) {
             this.answerListeners.forEach((listener) => listener());
         }
         if (outcome.allowed.length > 0) {
-            await this.approvals.change(allowing(outcome.allowed));
+            await this.approvals.change(allowingAllowances(outcome.allowed));
             this.logger.logInfo(
                 `Allowed BPMN plugin(s): ${outcome.allowed.map((plugin) => plugin.name).join(", ")}`,
             );
@@ -134,8 +115,14 @@ export class PluginCatalog {
         return outcome.allowed;
     }
 
-    private stillPending(plugins: readonly WorkspacePlugin[]): PendingApproval[] {
-        return pendingApprovals(plugins, this.approvals.read(), notAskedAgain(this.answers));
+    private selectionOf(discovered: readonly DiscoveredPlugin[]): PluginSelection {
+        const rows = this.approvals.read();
+        const plugins = discovered.map(({ plugin }) => plugin);
+        return {
+            approved: discovered.filter(({ plugin }) => isAllowed(plugin, rows)),
+            pending: this.stillPendingOf(plugins),
+            withheld: plugins.filter((plugin) => !isAllowed(plugin, rows)),
+        };
     }
 
     private async discover(documentPath: string): Promise<DiscoveredPlugin[]> {

@@ -19,7 +19,6 @@ import {
 } from "../modeler/bpmn/adapter/in/FocusLintElementController";
 import { PropertiesPanelStateRepository } from "../modeler/bpmn/adapter/out/PropertiesPanelStateRepository";
 import { NodeContentHasher } from "../modeler/bpmn/adapter/out/NodeContentHasher";
-import { NodeInstalledPackages } from "../modeler/bpmn/adapter/out/NodeInstalledPackages";
 import { bpmnPluginCacheUri } from "../shared/adapter/out/bootstrapWebview";
 import { VsCodeLintingPreference } from "../modeler/bpmn/adapter/out/VsCodeLintingPreference";
 import { ModelerEditorController } from "../modeler/editor-session/adapter/in/ModelerEditorController";
@@ -68,12 +67,16 @@ export function register(
         ...ports,
         actionNotifier: deps.actionNotifier,
         approvals,
+        allowances: deps.allowances,
+        contentRows: deps.contentRows,
         questions,
         hasher: new NodeContentHasher(),
         cacheRoot: bpmnPluginCacheUri(context.globalStorageUri).fsPath,
         review: handles.reviews.plugin,
     });
     void plugins.pruneIdleCopies();
+    // Before any editor resolves, so the first request already finds the rows it rewrites.
+    void deps.contentRows.run();
     const editor = new BpmnEditorFeature(
         {
             ...ports,
@@ -84,7 +87,9 @@ export function register(
             templatePreferences: deps.templatePreferences,
             rulePackages: {
                 approvals,
-                installedPackages: new NodeInstalledPackages(),
+                installedPackages: deps.installedPackages,
+                allowances: deps.allowances,
+                contentRows: deps.contentRows,
                 actionNotifier: deps.actionNotifier,
                 questions,
                 review: handles.reviews.rulePackage,

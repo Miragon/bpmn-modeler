@@ -3,8 +3,10 @@
  * real bridge (`createBridge`) over a temp workspace and a temp plugin cache,
  * with the host's side played by the test through the recorded frames.
  *
- * Covered: the approvals `session/register` seeds serve an approved plugin
- * from the cache under the loopback origin's `/bpmn-plugins/` route; an
+ * Covered: the approvals `session/register` seeds serve an allowed plugin
+ * from the cache under the loopback origin's `/bpmn-plugins/` route, a 1.21.0
+ * row pinned to content included, and so does the allowance of its repository
+ * in another worktree; an
  * unapproved plugin raises `actionNotice/show`, "Review…" opens the
  * `picker/show` list once the host reports its add-ons view as not shown, and
  * the checked plugin is allowed through a
@@ -14,18 +16,22 @@
  */
 
 import { createHash } from "node:crypto";
-import { promises as fs } from "node:fs";
+import { mkdirSync, promises as fs, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
     AddOnCatalogModel,
     AddOnsFeature,
+    allowanceOf,
+    allowanceRowOf,
     approvedContent,
+    LOCAL_HOST,
     PluginApproval,
 } from "@miragon/bpmn-modeler-core";
+import { writeLinkedWorktree, writeRepository } from "@miragon/bpmn-modeler-core/testing";
 
 import {
     hostNotification,
@@ -62,6 +68,27 @@ interface Bridge {
     readonly root: string;
     readonly cacheRoot: string;
     readonly pluginId: string;
+    /** The row that allows the plugin, its folder outside every repository. */
+    readonly allowedRow: PluginApproval;
+}
+
+const GIT_FILES = {
+    writeFile: (path: string, content: string) => {
+        mkdirSync(dirname(path), { recursive: true });
+        writeFileSync(path, content);
+    },
+    createDirectory: (path: string) => mkdirSync(path, { recursive: true }),
+};
+
+async function writePlugin(root: string): Promise<string> {
+    const pluginId = join(root, ".camunda", "plugins", "resize-tasks");
+    await fs.mkdir(pluginId, { recursive: true });
+    await fs.writeFile(
+        join(pluginId, "plugin.json"),
+        JSON.stringify({ name: "Resize Tasks", script: "client.js" }),
+    );
+    await fs.writeFile(join(pluginId, "client.js"), SCRIPT);
+    return pluginId;
 }
 
 const disposals: Array<() => Promise<void>> = [];
@@ -73,13 +100,7 @@ afterEach(async () => {
 async function bridgeWithPlugin(): Promise<Bridge> {
     const root = await fs.realpath(await fs.mkdtemp(join(tmpdir(), "bridge-plugins-")));
     const cacheRoot = await fs.mkdtemp(join(tmpdir(), "bridge-plugin-cache-"));
-    const pluginId = join(root, ".camunda", "plugins", "resize-tasks");
-    await fs.mkdir(pluginId, { recursive: true });
-    await fs.writeFile(
-        join(pluginId, "plugin.json"),
-        JSON.stringify({ name: "Resize Tasks", script: "client.js" }),
-    );
-    await fs.writeFile(join(pluginId, "client.js"), SCRIPT);
+    const pluginId = await writePlugin(root);
     const frames: Frame[] = [];
     const bridge = createBridge(
         (line) => frames.push(JSON.parse(line)),
@@ -92,7 +113,18 @@ async function bridgeWithPlugin(): Promise<Bridge> {
             [root, cacheRoot].map((dir) => fs.rm(dir, { recursive: true, force: true })),
         );
     });
-    return { rpc: bridge.rpc, addOns: bridge.addOns, frames, root, cacheRoot, pluginId };
+    const allowedRow = allowanceRowOf(
+        allowanceOf("plugin", pluginId, { kind: "noRepository" }, LOCAL_HOST),
+    );
+    return {
+        rpc: bridge.rpc,
+        addOns: bridge.addOns,
+        frames,
+        root,
+        cacheRoot,
+        pluginId,
+        allowedRow,
+    };
 }
 
 async function openEditor(
@@ -159,10 +191,7 @@ describe("workspace bpmn-js plugins on the bridge", () => {
                 fromIndex,
             });
             await bridge.rpc.handleLine(
-                hostReply(read.id, {
-                    approvals: [{ pluginId: bridge.pluginId, contentHash: HASH }],
-                    revision: 2,
-                }),
+                hostReply(read.id, { approvals: [bridge.allowedRow], revision: 2 }),
             );
             return bridge.frames.indexOf(read) + 1;
         };
@@ -178,11 +207,15 @@ describe("workspace bpmn-js plugins on the bridge", () => {
         ]);
     });
 
-    it("serves a plugin the registered approvals allow from the plugin cache route", async () => {
+    it.each([
+        { case: "its allowance", rowOf: (bridge: Bridge) => bridge.allowedRow },
+        {
+            case: "a row pinned to content at its folder, as 1.21.0 stored it",
+            rowOf: (bridge: Bridge) => ({ pluginId: bridge.pluginId, contentHash: "f".repeat(64) }),
+        },
+    ])("serves a plugin $case allows from the plugin cache route", async ({ rowOf }) => {
         const bridge = await bridgeWithPlugin();
-        const editorId = await openEditor(bridge, "order.bpmn", [
-            { pluginId: bridge.pluginId, contentHash: HASH },
-        ]);
+        const editorId = await openEditor(bridge, "order.bpmn", [rowOf(bridge)]);
 
         const answer = await requestPlugins(bridge, editorId);
 
@@ -220,19 +253,11 @@ describe("workspace bpmn-js plugins on the bridge", () => {
         await rpc.handleLine(hostReply(list.id, { selected: [0] }));
 
         const change = await waitForFrame(frames, isRequest("pluginApprovals/change"));
-        expect(change.params).toEqual({
-            allow: [{ pluginId: bridge.pluginId, contentHash: HASH }],
-            revoke: [],
-        });
+        expect(change.params).toEqual({ allow: [bridge.allowedRow], revoke: [] });
         await settle();
         expect(frames.some((frame) => frame.method === "editor/reload")).toBe(false);
 
-        await rpc.handleLine(
-            hostReply(change.id, {
-                approvals: [{ pluginId: bridge.pluginId, contentHash: HASH }],
-                revision: 2,
-            }),
-        );
+        await rpc.handleLine(hostReply(change.id, { approvals: [bridge.allowedRow], revision: 2 }));
 
         const reload = await waitForFrame(frames, (frame) => frame.method === "editor/reload");
         expect(reload.params).toEqual({ editorId, sessionId: 1 });
@@ -240,9 +265,7 @@ describe("workspace bpmn-js plugins on the bridge", () => {
 
     it("reloads the page that loaded a plugin another bridge revoked", async () => {
         const bridge = await bridgeWithPlugin();
-        const editorId = await openEditor(bridge, "order.bpmn", [
-            { pluginId: bridge.pluginId, contentHash: HASH },
-        ]);
+        const editorId = await openEditor(bridge, "order.bpmn", [bridge.allowedRow]);
         await requestPlugins(bridge, editorId);
         const fromIndex = bridge.frames.length;
 
@@ -264,10 +287,36 @@ describe("workspace bpmn-js plugins on the bridge", () => {
 
         await bridge.rpc.handleLine(
             hostNotification("pluginApprovals/didChange", {
-                approvals: [{ pluginId: bridge.pluginId, contentHash: HASH }],
+                approvals: [bridge.allowedRow],
                 revision: 2,
             }),
         );
+        const answer = await requestPlugins(bridge, editorId);
+
+        expect(answer.params.message?.plugins).toEqual([
+            { name: "Resize Tasks", scriptUrl: `/bpmn-plugins/${HASH}/plugin.js` },
+        ]);
+        await settle();
+        expect(bridge.frames.filter(isRequest("actionNotice/show"))).toEqual([]);
+    });
+
+    it("serves the plugin of another worktree without asking once its repository allowed it", async () => {
+        const bridge = await bridgeWithPlugin();
+        writeRepository(GIT_FILES, bridge.root);
+        const worktree = await fs.realpath(await fs.mkdtemp(join(tmpdir(), "bridge-worktree-")));
+        disposals.push(() => fs.rm(worktree, { recursive: true, force: true }));
+        writeLinkedWorktree(GIT_FILES, bridge.root, worktree);
+        await writePlugin(worktree);
+        const repositoryAllowance = allowanceOf(
+            "plugin",
+            bridge.pluginId,
+            { kind: "repository", commonDir: join(bridge.root, ".git"), worktreeRoot: bridge.root },
+            LOCAL_HOST,
+        );
+
+        const editorId = await openEditor({ ...bridge, root: worktree }, "order.bpmn", [
+            allowanceRowOf(repositoryAllowance),
+        ]);
         const answer = await requestPlugins(bridge, editorId);
 
         expect(answer.params.message?.plugins).toEqual([
