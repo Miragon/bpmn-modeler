@@ -567,7 +567,20 @@ describe("the packaged extension in a real VS Code", () => {
             expect(await readFile(file, "utf8")).toBe(unsupported);
             expectNoCspViolations();
         } finally {
-            await writeFile(file, original);
+            try {
+                await page.keyboard.press("Escape");
+                await expect.poll(() => picker.isVisible(), { timeout: TIMEOUT_MS }).toBe(false);
+                const formTabs = page
+                    .locator(".tabs-container .tab")
+                    .filter({ hasText: FORM_FILE });
+                if (await formTabs.count()) {
+                    await formTabs.first().click();
+                    await vscode().runCommand("View: Revert and Close Editor");
+                }
+                await expect.poll(() => formTabs.count(), { timeout: TIMEOUT_MS }).toBe(0);
+            } finally {
+                await writeFile(file, original);
+            }
         }
     });
 
