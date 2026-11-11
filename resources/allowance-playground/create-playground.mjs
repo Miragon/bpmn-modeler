@@ -38,7 +38,7 @@ const SCENARIOS = [
         what: "git worktree add on branch feature, rule package 1.0.0.",
         steps: ["Open order.bpmn after allowing both add-ons in acme/."],
         expected:
-            "No question. Badge v1, lint messages say acme 1.0.0, both add-ons Allowed; Allowed in: every worktree of <playground>/acme.",
+            "No question. Badge v1, lint messages say acme 1.0.0, both add-ons Allowed with Revoke. The view shows no Allowed in here: only the review of an add-on not allowed yet has it.",
     },
     {
         folder: "acme-worktrees/upgrade",
