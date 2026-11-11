@@ -10,6 +10,65 @@ import { hostNotification, registerParams, waitForFrame } from "./__fixtures__/b
 import { createBridge } from "./composition/bridge";
 
 describe("the bridge's BPMN editor", () => {
+    it("delivers the host's ID style and follow-name choice, and pushes a changed one", async () => {
+        const root = await fs.mkdtemp(join(tmpdir(), "bridge-element-ids-"));
+        roots.push(root);
+        const frames: Array<{
+            method: string;
+            params?: {
+                editorId?: string;
+                message?: {
+                    type: string;
+                    setting?: { elementIdStyle?: string; elementIdsFollowName?: boolean };
+                };
+            };
+        }> = [];
+        const { rpc } = createBridge((line) => frames.push(JSON.parse(line)));
+        const editorId = `file://${join(root, "ids.bpmn")}`;
+        const settingQueries = () =>
+            frames
+                .filter(
+                    (frame) =>
+                        frame.params?.editorId === editorId &&
+                        frame.params.message?.type === "BpmnModelerSettingQuery",
+                )
+                .map((frame) => frame.params?.message?.setting);
+        await rpc.handleLine(
+            hostNotification(
+                "session/register",
+                registerParams(editorId, root, editorId.slice(7), "", {
+                    settings: { elementIdStyle: "typeSuffix" },
+                }),
+            ),
+        );
+        await rpc.handleLine(
+            hostNotification("webview/message", {
+                editorId,
+                message: { type: "GetBpmnModelerSettingCommand" },
+            }),
+        );
+
+        expect(settingQueries()).toMatchObject([
+            { elementIdStyle: "typeSuffix", elementIdsFollowName: false },
+        ]);
+
+        await rpc.handleLine(
+            hostNotification("settings/didChange", { settings: { elementIdsFollowName: true } }),
+        );
+        await waitForFrame(
+            frames,
+            (frame) =>
+                frame.params?.editorId === editorId &&
+                frame.params.message?.setting?.elementIdsFollowName === true,
+        );
+
+        expect(settingQueries().slice(-1)[0]).toMatchObject({
+            elementIdStyle: "typeSuffix",
+            elementIdsFollowName: true,
+        });
+        await rpc.handleLine(hostNotification("session/dispose", { editorId }));
+    });
+
     it("delivers the same automatic preview setting to two live editors and on reload", async () => {
         const root = await fs.mkdtemp(join(tmpdir(), "bridge-preview-"));
         roots.push(root);

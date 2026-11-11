@@ -368,6 +368,24 @@ describe("BridgeSettings", () => {
         expect(settings.getFormPreviewAutomatic()).toBe(false);
         expect(events.map((event) => event.affects("formPreview.automatic"))).toEqual([true]);
     });
+
+    it("reports a changed ID style and follow-name choice once, under their central keys", () => {
+        const settings = new BridgeSettings();
+        const events: SettingChange[] = [];
+        settings.onDidChange((event) => events.push(event));
+
+        settings.apply({ elementIdStyle: "typeSuffix", elementIdsFollowName: true });
+        settings.apply({ elementIdStyle: "typeSuffix", elementIdsFollowName: true });
+
+        expect(settings.getElementIdStyle()).toBe("typeSuffix");
+        expect(settings.getElementIdsFollowName()).toBe(true);
+        expect(
+            events.map((event) => [
+                event.affects("elementIds.style"),
+                event.affects("elementIds.followName"),
+            ]),
+        ).toEqual([[true, true]]);
+    });
 });
 
 describe("RpcLintingPreference", () => {

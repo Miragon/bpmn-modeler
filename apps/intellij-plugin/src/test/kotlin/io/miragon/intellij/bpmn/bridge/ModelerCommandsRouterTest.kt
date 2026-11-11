@@ -60,6 +60,11 @@ class ModelerCommandsRouterTest {
     }
 
     @Test
+    fun `generateElementIds notifies elementIds generate`() {
+        assertEquals(descriptorFrame("elementIds/generate"), sentFrame { generateElementIds() })
+    }
+
+    @Test
     fun `toggleLinting notifies linting toggle once`() {
         val (wired, router) = router()
 

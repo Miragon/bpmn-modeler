@@ -67,6 +67,25 @@ class ModelerSettingsStoreTest {
     }
 
     @Test
+    fun `offers and keeps exactly the ID styles the core reads, in its order`() {
+        assertEquals(coreElementIdStyles(), ModelerSettingsStore.ELEMENT_ID_STYLES)
+    }
+
+    @Test
+    fun `the ID style and follow-name choice survive a new store under the shared persisted keys`() {
+        store.update { it.copy(elementIdStyle = "typeSuffix", elementIdsFollowName = true) }
+
+        assertEquals("typeSuffix", appProperties.getValue("${NAMESPACE}elementIds.style"))
+        assertEquals("true", appProperties.getValue("${NAMESPACE}elementIds.followName"))
+        val reread = ModelerSettingsStore().current()
+        assertEquals("typeSuffix", reread.elementIdStyle)
+        assertEquals(true, reread.elementIdsFollowName)
+        val snapshot = store.snapshotMap(projectFixture.get())
+        assertEquals("typeSuffix", snapshot["elementIdStyle"])
+        assertEquals(true, snapshot["elementIdsFollowName"])
+    }
+
+    @Test
     fun `addMarketplace appends once`() {
         store.addMarketplace("https://a")
         store.addMarketplace("https://b")
@@ -153,6 +172,8 @@ class ModelerSettingsStoreTest {
                 "scriptingSpin",
                 "lintingEnabled",
                 "formPreviewAutomatic",
+                "elementIdStyle",
+                "elementIdsFollowName",
                 "marketplaces",
             ),
             snapshot.keys.toList(),
@@ -194,6 +215,8 @@ class ModelerSettingsStoreTest {
                 "scripting.spin",
                 "linting.enabled",
                 "formPreview.automatic",
+                "elementIds.style",
+                "elementIds.followName",
             ).map { NAMESPACE + it }
 
         private val GSON = Gson()
@@ -245,10 +268,15 @@ class ModelerSettingsStoreTest {
                     .getAsJsonObject("contributes")
                     .getAsJsonObject("configuration")
                     .getAsJsonObject("properties")
+            val snapshotNames = coreSnapshotNames()
             return JsonObject().apply {
                 properties.entrySet()
                     .filter { (key, _) -> key.startsWith(NAMESPACE) }
-                    .map { (key, property) -> snapshotName(key.removePrefix(NAMESPACE)) to property.asJsonObject.get("default") }
+                    .map { (key, property) ->
+                        val section = key.removePrefix(NAMESPACE)
+                        val name = requireNotNull(snapshotNames[section]) { "the core names no snapshot key for $section" }
+                        name to property.asJsonObject.get("default")
+                    }
                     .forEach { (name, default) -> add(name, default) }
             }
         }
@@ -261,10 +289,18 @@ class ModelerSettingsStoreTest {
         private fun coreColorThemes(): List<String> =
             readTypeScriptStringArray("miragon.colorThemes", "COLOR_THEMES")
 
-        /** `scripting.spin` → `scriptingSpin`. */
-        private fun snapshotName(section: String): String {
-            val segments = section.split(".")
-            return segments.first() + segments.drop(1).joinToString("") { segment -> segment.replaceFirstChar { it.uppercaseChar() } }
+        /** `ELEMENT_ID_STYLES` in the types' `elementIds.ts`, the styles the core's `normalizeSettings` keeps. */
+        private fun coreElementIdStyles(): List<String> =
+            readTypeScriptStringArray("miragon.elementIdStyles", "ELEMENT_ID_STYLES")
+
+        /** `SETTING_KEY_OF_SNAPSHOT_KEY` in the core's `modelerSettings.ts`, read backwards: `scripting.spin` → `scriptingSpin`. */
+        private fun coreSnapshotNames(): Map<String, String> {
+            val source = readTypeScriptFile("miragon.modelerSettings")
+            val entries =
+                requireNotNull(Regex("""const SETTING_KEY_OF_SNAPSHOT_KEY\b[^=]*=\s*\{([^}]*)}""").find(source)) {
+                    "modelerSettings.ts declares no SETTING_KEY_OF_SNAPSHOT_KEY object literal"
+                }.groupValues[1]
+            return Regex("""(\w+):\s*"([^"]+)"""").findAll(entries).associate { it.groupValues[2] to it.groupValues[1] }
         }
 
         private fun ModelerSettings.overriddenBy(values: JsonObject): ModelerSettings {

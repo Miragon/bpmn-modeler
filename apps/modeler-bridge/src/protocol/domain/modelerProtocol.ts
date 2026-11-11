@@ -15,6 +15,7 @@ export const MODELER_METHODS = {
     migrationMigrateAll: "migration/migrateAll",
     layoutFormat: "layout/format",
     layoutCleanup: "layout/cleanup",
+    elementIdsGenerate: "elementIds/generate",
     settingsSetLintingEnabled: "settings/setLintingEnabled",
 } as const;
 
@@ -61,6 +62,12 @@ export const MODELER_COMMAND_NOTIFICATIONS = [
     },
     {
         method: MODELER_METHODS.layoutCleanup,
+        direction: "hostToCore",
+        kind: "notification",
+        paramsFixture: {} satisfies EmptyParams,
+    },
+    {
+        method: MODELER_METHODS.elementIdsGenerate,
         direction: "hostToCore",
         kind: "notification",
         paramsFixture: {} satisfies EmptyParams,

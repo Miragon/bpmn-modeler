@@ -296,6 +296,12 @@
                 icon="io.miragon.intellij.bpmn.MiragonIcons.Bpmn"
                 text="Clean Up Diagram"
                 description="Remove orphan diagram interchange, dangling flows and other invisible leftovers, after confirmation"/>
+            <action
+                id="io.miragon.bpmn-modeler.generateElementIds"
+                class="io.miragon.intellij.bpmn.GenerateElementIdsAction"
+                icon="io.miragon.intellij.bpmn.MiragonIcons.Bpmn"
+                text="Generate IDs from Names"
+                description="Review new IDs for the active diagram's elements, generated from their names"/>
 
             <separator/>
 

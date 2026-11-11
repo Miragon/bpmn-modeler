@@ -165,6 +165,12 @@
         "paramKeys": []
     },
     {
+        "method": "elementIds/generate",
+        "direction": "hostToCore",
+        "kind": "notification",
+        "paramKeys": []
+    },
+    {
         "method": "deployment/switchTarget",
         "direction": "hostToCore",
         "kind": "notification",

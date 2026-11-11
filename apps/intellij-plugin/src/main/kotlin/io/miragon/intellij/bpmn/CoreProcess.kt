@@ -200,6 +200,9 @@ class CoreProcess(private val project: Project) : Disposable {
     /** Fires `layout/cleanup`; nothing is removed before the user confirms. */
     fun cleanupDiagram() = routers.modelerCommands.cleanupDiagram()
 
+    /** Fires `elementIds/generate` for the core's active editor session. */
+    fun generateElementIds() = routers.modelerCommands.generateElementIds()
+
     /** Fires `deployment/switchTarget`; the core shows the target picker. */
     fun switchDeploymentTarget() = routers.modelerCommands.switchDeploymentTarget()
 

@@ -66,6 +66,36 @@ class ModelerSettingsConfigurableTest {
     }
 
     @Test
+    fun `ID style box and follow-name checkbox apply and reset the persisted settings`() {
+        withSettingsPage { page ->
+            val component = page.createComponent()
+            page.reset()
+            val style = labelledCombo(component, "ID style:")
+            val followName = UIUtil.findComponentsOfType(component, JCheckBox::class.java)
+                .first { it.text == "IDs follow names" }
+
+            style.selectedItem = "typeSuffix"
+            followName.isSelected = true
+            page.apply()
+
+            val stored = ModelerSettingsStore.getInstance().current()
+            assertEquals("typeSuffix", stored.elementIdStyle)
+            assertEquals(true, stored.elementIdsFollowName)
+            ModelerSettingsStore.getInstance().update { it.copy(elementIdStyle = "snakeCase", elementIdsFollowName = false) }
+            page.reset()
+            assertEquals("snakeCase", style.selectedItem)
+            assertFalse(followName.isSelected)
+        }
+    }
+
+    @Test
+    fun `offers the ID styles of the VS Code setting, labelled as it labels them, in its order`() {
+        withSettingsPage { page ->
+            assertEquals(manifestChoices("elementIds.style"), labelledChoices(page.createComponent(), "ID style:"))
+        }
+    }
+
+    @Test
     fun `keeps an app-wide marketplace added after reset when Apply changes another setting`() {
         withSettingsPage { page ->
             val component = page.createComponent()
@@ -102,29 +132,31 @@ class ModelerSettingsConfigurableTest {
     @Test
     fun `offers the default modes of the VS Code setting, labelled as it labels them, in its order`() {
         withSettingsPage { page ->
-            assertEquals(manifestDefaultModes(), defaultModeChoices(page.createComponent()))
+            assertEquals(manifestChoices("defaultMode"), labelledChoices(page.createComponent(), "Default mode:"))
         }
     }
 
     @Test
     fun `labels the default modes as the modeler's mode strip labels them`() {
         withSettingsPage { page ->
-            assertEquals(modeStripLabels(), defaultModeChoices(page.createComponent()).toMap())
+            assertEquals(modeStripLabels(), labelledChoices(page.createComponent(), "Default mode:").toMap())
         }
     }
 
-    /** Each mode the Default mode box offers, with its label: the DSL renderer's accessible name is its cell text. */
-    private fun defaultModeChoices(page: JComponent): List<Pair<String?, String?>> {
-        @Suppress("UNCHECKED_CAST")
-        val combo =
-            UIUtil.findComponentsOfType(page, JLabel::class.java)
-                .first { it.text == "Default mode:" }
-                .labelFor as JComboBox<String?>
+    @Suppress("UNCHECKED_CAST")
+    private fun labelledCombo(page: JComponent, label: String): JComboBox<String?> =
+        UIUtil.findComponentsOfType(page, JLabel::class.java)
+            .first { it.text == label }
+            .labelFor as JComboBox<String?>
+
+    /** Each value the box offers, with its label: the DSL renderer's accessible name is its cell text. */
+    private fun labelledChoices(page: JComponent, label: String): List<Pair<String?, String?>> {
+        val combo = labelledCombo(page, label)
         val list = JList<String?>()
         return (0 until combo.itemCount).map { index ->
-            val mode = combo.getItemAt(index)
-            val cell = combo.renderer.getListCellRendererComponent(list, mode, index, false, false)
-            mode to cell.accessibleContext.accessibleName
+            val value = combo.getItemAt(index)
+            val cell = combo.renderer.getListCellRendererComponent(list, value, index, false, false)
+            value to cell.accessibleContext.accessibleName
         }
     }
 
@@ -139,17 +171,17 @@ class ModelerSettingsConfigurableTest {
             .associate { it.groupValues[1] to it.groupValues[2] }
     }
 
-    /** `manifest.contract.spec.ts` holds these modes to `SURFACE_MODES`. */
-    private fun manifestDefaultModes(): List<Pair<String, String>> {
-        val defaultMode =
+    /** `manifest.contract.spec.ts` holds these values to the core's: `SURFACE_MODES`, `ELEMENT_ID_STYLES`. */
+    private fun manifestChoices(section: String): List<Pair<String, String>> {
+        val setting =
             readTypeScriptJson("miragon.vscodeManifest").asJsonObject
                 .getAsJsonObject("contributes")
                 .getAsJsonObject("configuration")
                 .getAsJsonObject("properties")
-                .getAsJsonObject("miragon.bpmnModeler.defaultMode")
-        val modes = defaultMode.getAsJsonArray("enum").map { it.asString }
-        val labels = defaultMode.getAsJsonArray("enumItemLabels").map { it.asString }
-        return modes.zip(labels)
+                .getAsJsonObject("miragon.bpmnModeler.$section")
+        val values = setting.getAsJsonArray("enum").map { it.asString }
+        val labels = setting.getAsJsonArray("enumItemLabels").map { it.asString }
+        return values.zip(labels)
     }
 
     private fun languageCombo(page: JComponent): JComboBox<*> =
@@ -169,7 +201,14 @@ class ModelerSettingsConfigurableTest {
 
     private companion object {
         const val ADDED_MEANWHILE = "https://github.com/acme/templates"
-        val SCALAR_KEYS = listOf("miragon.bpmnModeler.linting.enabled", "miragon.bpmnModeler.language", "miragon.bpmnModeler.formPreview.automatic")
+        val SCALAR_KEYS =
+            listOf(
+                "miragon.bpmnModeler.linting.enabled",
+                "miragon.bpmnModeler.language",
+                "miragon.bpmnModeler.formPreview.automatic",
+                "miragon.bpmnModeler.elementIds.style",
+                "miragon.bpmnModeler.elementIds.followName",
+            )
         val LIST_KEYS = listOf("miragon.bpmnModeler.favouriteBpmnElements", "miragon.bpmnModeler.marketplaces")
     }
 }
