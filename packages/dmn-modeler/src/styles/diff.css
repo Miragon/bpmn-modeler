@@ -13,27 +13,27 @@
 
 /* ─── DRD markers ─────────────────────────────────────────────────────── */
 
-.dmn-diff .djs-element.diff-added .djs-visual > :nth-child(1) {
+.dmn-diff .djs-shape.diff-added .djs-visual > :nth-child(1) {
     stroke: var(--dmn-diff-added) !important;
     stroke-width: 3px !important;
 }
 
-.dmn-diff .djs-element.diff-removed .djs-visual > :nth-child(1) {
+.dmn-diff .djs-shape.diff-removed .djs-visual > :nth-child(1) {
     stroke: var(--dmn-diff-removed) !important;
     stroke-width: 3px !important;
 }
 
-.dmn-diff .djs-element.diff-changed .djs-visual > :nth-child(1) {
+.dmn-diff .djs-shape.diff-changed .djs-visual > :nth-child(1) {
     stroke: var(--dmn-diff-changed) !important;
     stroke-width: 3px !important;
 }
 
-.dmn-diff .djs-element.diff-layout-changed .djs-visual > :nth-child(1) {
+.dmn-diff .djs-shape.diff-layout-changed .djs-visual > :nth-child(1) {
     stroke-dasharray: 5 3 !important;
     stroke-width: 2px !important;
 }
 
-/* Requirement edges carry their colour on the arrowhead too. */
+/* Requirement edges keep their width: dmn-js scales an arrowhead with its edge. */
 .dmn-diff .djs-connection.diff-added .djs-visual path {
     stroke: var(--dmn-diff-added) !important;
 }
@@ -44,6 +44,10 @@
 
 .dmn-diff .djs-connection.diff-changed .djs-visual path {
     stroke: var(--dmn-diff-changed) !important;
+}
+
+.dmn-diff .djs-connection.diff-layout-changed .djs-visual path {
+    stroke-dasharray: 5 3 !important;
 }
 
 .dmn-diff .djs-element.diff-selected .djs-visual {
