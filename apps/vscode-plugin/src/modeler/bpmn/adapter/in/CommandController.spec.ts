@@ -92,8 +92,7 @@ function createController(promptAnswers: PromptAnswers = {}) {
     const host = createTestHost({ promptAnswers });
     const editor = host.openEditor("/work/diagram.bpmn");
     const textEditor = { toggle: vi.fn().mockResolvedValue(true) };
-    const bpmnService = { changeEngineVersion: vi.fn().mockResolvedValue(true) };
-    const formService = { changeEngineVersion: vi.fn().mockResolvedValue(true) };
+    const engineSelection = { changeEngineVersion: vi.fn().mockResolvedValue(true) };
     const migrationSvc = { migrateAllDiagrams: vi.fn().mockResolvedValue(true) };
     const documentFlush = {
         flushIntoDocument: vi.fn().mockResolvedValue({ status: "safe" as const, session: editor }),
@@ -106,14 +105,13 @@ function createController(promptAnswers: PromptAnswers = {}) {
         host.documents,
         host.notifier,
         textEditor as never,
-        bpmnService as never,
+        engineSelection,
         migrationSvc as never,
         host.picker,
         documentFlush as never,
         layoutSvc as never,
         vsCodeModelerPreferences,
         new ModelerLanguageService(host.picker, vsCodeModelerPreferences, host.notifier),
-        formService,
     );
 
     return {
@@ -122,8 +120,7 @@ function createController(promptAnswers: PromptAnswers = {}) {
         editor,
         notifier: host.notifier,
         textEditor,
-        bpmnService,
-        formService,
+        engineSelection,
         migrationSvc,
         picker: host.picker,
         documentFlush,
@@ -236,42 +233,13 @@ describe("CommandController layout commands", () => {
 });
 
 describe("CommandController.changeEngineVersion", () => {
-    it.each(["/work/request.form", "/work/request.FORM"])(
-        "uses the native Form selector for %s",
-        async (path) => {
-            const { controller, host, formService, bpmnService } = createController();
-            const editor = host.openEditor(path, "{}", { focused: true });
-            expect(await controller.changeEngineVersion()).toBe(true);
-            expect(formService.changeEngineVersion).toHaveBeenCalledWith(editor.id);
-            expect(bpmnService.changeEngineVersion).not.toHaveBeenCalled();
-        },
-    );
-
-    it("dispatches by the document path, not an editor URI suffix", async () => {
-        const { controller, host, editor, formService, bpmnService } = createController();
-        vi.spyOn(host.documents, "getFilePath").mockReturnValue("/work/request.FORM");
-        await controller.changeEngineVersion();
-        expect(formService.changeEngineVersion).toHaveBeenCalledWith(editor.id);
-        expect(bpmnService.changeEngineVersion).not.toHaveBeenCalled();
-    });
-
-    it.each(["/work/decision.dmn", "/work/template.json"])(
-        "declines unrelated editors: %s",
-        async (path) => {
-            const { controller, host, formService, bpmnService } = createController();
-            host.openEditor(path, "", { focused: true });
-            expect(await controller.changeEngineVersion()).toBe(false);
-            expect(formService.changeEngineVersion).not.toHaveBeenCalled();
-            expect(bpmnService.changeEngineVersion).not.toHaveBeenCalled();
-        },
-    );
-
-    it("delegates to the bpmn service for the active editor", async () => {
-        const { controller, editor, bpmnService } = createController();
-
-        await controller.changeEngineVersion();
-
-        expect(bpmnService.changeEngineVersion).toHaveBeenCalledWith(editor.id);
+    it("delegates the active editor to the required core dispatcher", async () => {
+        const { controller, host, engineSelection } = createController();
+        const editor = host.openEditor("/work/request.form", "{}", { focused: true });
+        expect(await controller.changeEngineVersion()).toBe(true);
+        expect(engineSelection.changeEngineVersion).toHaveBeenCalledExactlyOnceWith(editor.id);
+        engineSelection.changeEngineVersion.mockResolvedValueOnce(false);
+        expect(await controller.changeEngineVersion()).toBe(false);
     });
 });
 
@@ -541,13 +509,46 @@ describe("CommandController command error surfacing", () => {
     });
 
     it("logs and rethrows when changeEngineVersion rejects", async () => {
-        const { controller, bpmnService, notifier } = createController();
+        const { controller, engineSelection, notifier } = createController();
         const failure = new Error("engine change failed");
-        bpmnService.changeEngineVersion.mockRejectedValueOnce(failure);
+        engineSelection.changeEngineVersion.mockRejectedValueOnce(failure);
 
         await expect(controller.changeEngineVersion()).rejects.toThrow(failure);
         expect(notifier.logged("error")).toEqual([failure.stack]);
     });
+});
+
+describe("CommandController new model save prompts", () => {
+    it.each([
+        ["newBpmnModel", "New BPMN Model", "BPMN", "bpmn", "new-diagram.bpmn"],
+        ["newDmnModel", "New DMN Model", "DMN", "dmn", "new-diagram.dmn"],
+        ["newFormModel", "New Camunda Form", "Camunda Form", "form", "new-form.form"],
+    ] as const)(
+        "renders the exact %s prompt and cancels without side effects",
+        async (command, title, filterLabel, extension, filename) => {
+            const { controller, picker } = createController();
+            showSaveDialogMock.mockResolvedValue(undefined);
+            await controller[command]();
+            expect(showSaveDialogMock).toHaveBeenLastCalledWith({
+                title,
+                filters: { [filterLabel]: [extension] },
+                defaultUri: undefined,
+            });
+            workspaceState.folders = [
+                { uri: fakeUri("/work/first") },
+                { uri: fakeUri("/work/second") },
+            ];
+            await controller[command]();
+            expect(showSaveDialogMock).toHaveBeenLastCalledWith({
+                title,
+                filters: { [filterLabel]: [extension] },
+                defaultUri: expect.objectContaining({ path: `/work/first/${filename}` }),
+            });
+            expect(picker.prompts).toEqual([]);
+            expect(fsWriteFileMock).not.toHaveBeenCalled();
+            expect(executeCommandMock).not.toHaveBeenCalled();
+        },
+    );
 });
 
 describe("CommandController.newBpmnModel", () => {
@@ -652,6 +653,10 @@ describe("CommandController.newFormModel", () => {
             id: string;
         };
         expect(form.id).toMatch(/^Form_[A-Za-z0-9]{8}$/);
+        expect(form).toMatchObject({
+            executionPlatform: "Camunda Cloud",
+            executionPlatformVersion: "8.10.0",
+        });
         expect(executeCommandMock).toHaveBeenCalledWith(
             "vscode.openWith",
             target,

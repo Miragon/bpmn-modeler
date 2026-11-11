@@ -1,7 +1,7 @@
 # Architecture and hosts
 
 - Status: accepted
-- Last reviewed: 2026-11-10
+- Last reviewed: 2026-11-11
 
 ## Context
 
@@ -879,6 +879,22 @@ the core. The deployment services search the workspace through
 `WorkspacePort.findFiles` themselves and offer the found files through
 `chooseMany`.
 
+Engine-version prompt presentation has one kernel builder,
+`engineVersionChoicePrompt`: it renders the canonical engine label and supplied
+versions without sorting or adding defaults. BPMN and Form keep separate
+catalogues and prompt ids in their thin `engineVersionPrompt` and
+`formVersionPrompt` wrappers.
+
+The core's `newModelFilePrompt` builders own the BPMN, DMN and Form creation
+titles, filter labels, extensions and full default filenames. VS Code computes
+the default URI from the first workspace folder and renders the native save
+dialog; overwrite confirmation and appending a missing extension remain host
+concerns. `newModelFilePrompt.spec.ts` and `CommandController.spec.ts` pin these
+contents and cancellation behavior. IntelliJ creation titles, descriptions,
+defaults and cancellation flow remain host-owned in `NewBpmnModelAction`,
+`NewDmnModelAction` and `NewModelSupport`; their different defaults and empty-BPMN
+creation behavior are not migrated here ([#2222](https://github.com/Miragon/bpmn-modeler/issues/2222)).
+
 The modeler UI language command also uses `PickerPort`: `modelerSettings` owns
 the pure `modelerLanguagePrompt` and `ModelerLanguageService`. The service reads
 the authoritative `supportedModelerLanguages` catalogue from `bpmn-i18n-extras`
@@ -1050,7 +1066,8 @@ triggers it, stay in its `TemplateMarketplaceController`.
 fake, VS Code's adapter over its settings and the bridge's adapter over a
 loopback that answers as `MarketplaceRouter` does; the Kotlin half is #2056.
 
-No adapter builds prompt text. A new choice or confirmation needs a builder and
+Adapters render core prompt text, except for the remaining IntelliJ creation
+prompts tracked in #2222. A new choice or confirmation needs a builder and
 an id, and no new port method, RPC or Kotlin handler. A new kind of input, such
 as the masked token or the marketplace's free-text location, needs its own port
 method, RPC and Kotlin handler, as those two have.
@@ -1058,7 +1075,8 @@ method, RPC and Kotlin handler, as those two have.
 Two kinds of text belong to the host and are written there: its chrome, such as
 VS Code's "Reload Window" button, and messages about its own failure, such as
 the bridge process dying (`ProcessSupervisor.kt`) or VS Code failing to open a
-compare view. The core builds every other user-visible text. The `host-text`
+compare view. Outside the tracked IntelliJ creation exception, the core builds
+every other user-visible text. The `host-text`
 fitness function reports the texts host code writes
 ([Host text](engineering-practices.md#host-text)).
 
@@ -1198,15 +1216,24 @@ would duplicate that infrastructure and require another installation; the
 accepted cost is a larger extension for users who do not model forms.
 
 Forms use the existing native `engineVersion` status slot and Change Engine
-Version command, not webview selectors. The core owns a Form-specific platform
-and compatibility table: Camunda Cloud offers 8.8.0, 8.9.0 and 8.10.0; Camunda 7
-offers 7 and stores the execution platform as `Camunda Platform`. This table
-does not change BPMN's version registry or either format's defaults. Missing
-and unsupported declarations remain visible and untouched until an explicit,
-complete choice. Escape and an unchanged pair do not flush or write.
+Version command, not webview selectors. Platform choices reuse the canonical
+engine order and display names: Camunda 7, then Camunda 8. The independent Form
+compatibility table offers Camunda 8 versions 8.10.0, 8.9.0 and 8.8.0, newest
+first, and Camunda 7 version 7. Serialized platform names remain `Camunda Cloud`
+and `Camunda Platform`. New Forms use the newest version from the Form table,
+8.10.0; BPMN's registry and 8.9 default remain independent. Missing and unsupported
+declarations remain visible and untouched until an explicit, complete choice.
+Escape, incomplete or unsupported choices and an unchanged pair do not flush,
+write or notify, even when the original snapshot has since become stale.
 
-`FormModelerService` captures the session, host revision and engine metadata
-before the two native pickers. It rejects session or host-revision changes, but
+`EngineVersionSelectionService` dispatches the explicit editor id by the
+authoritative document path, case-insensitively. Each host registers its
+supported capabilities in composition: VS Code registers BPMN and Form; the
+IntelliJ bridge registers only BPMN. Closed editors and unregistered formats
+are quiet no-ops; hosts do not duplicate extension routing policy.
+
+`FormEngineSelectionService` captures the session, host revision and engine
+metadata before the two native pickers. It rejects session or host-revision changes, but
 allows unrelated guarded visual syncs while either picker is open. It flushes
 pending visual input destructively outside the editor queue, then checks the
 session, revision and captured engine metadata against the flushed document.
@@ -1216,6 +1243,14 @@ revision and reloads the editor, releasing the flush lock in `finally`. This
 keeps pending input while rejecting old-revision exports. Host imports and
 destructive flushes share an inert-lock group in the Form page; releasing the
 flush cannot enable interaction while the replacement schema is importing.
+
+The public `FormModelerService` remains the display and sync facade and shares
+its single `EditorDocumentSync` with the selection use case, preserving echo
+guards. Stale or refused selections report one informational retry message,
+only while the captured editor session is still current. Closure, replacement
+and a dropped queued callback stay silent. Unexpected failures notify only that
+original session; otherwise they are logged. A confirmed write superseded before
+rendering is not reported as a refusal.
 
 A narrow `FormTextEdits` port keeps source editing separate from domain rules.
 Its core output adapter depends on pinned `jsonc-parser` and applies only the

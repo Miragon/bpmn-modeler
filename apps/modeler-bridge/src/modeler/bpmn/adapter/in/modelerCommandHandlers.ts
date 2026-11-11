@@ -1,7 +1,7 @@
 import {
     BpmnLayoutService,
     BpmnMigrationService,
-    BpmnModelerService,
+    EngineVersionSelectionService,
     EditorSessionStore,
     FOCUS_BPMN_DIAGRAM_MESSAGE,
     NotifierPort,
@@ -18,7 +18,7 @@ import { WorkspaceRoots } from "../../../../kernel/port/WorkspaceRoots";
  * layout/cleanup, migration/migrateAll.
  */
 export function modelerCommandHandlers({
-    bpmnService,
+    engineSelection,
     layout,
     migration,
     store,
@@ -26,7 +26,7 @@ export function modelerCommandHandlers({
     workspaceRoots,
     language,
 }: {
-    bpmnService: BpmnModelerService;
+    engineSelection: EngineVersionSelectionService;
     layout: BpmnLayoutService;
     migration: BpmnMigrationService;
     store: EditorSessionStore;
@@ -54,7 +54,7 @@ export function modelerCommandHandlers({
         // Both services swallow their own errors (a dismissed prompt → silent, others →
         // a notifier balloon), so these handlers just await and never need a try/catch.
         [METHODS.modelerChangeEngineVersion]: async (params: EditorRefParams) => {
-            await bpmnService.changeEngineVersion(params.editorId);
+            await engineSelection.changeEngineVersion(params.editorId);
         },
         // Formatting and cleanup: the host fires them as notifications and the
         // outcome comes back over the webview channel, which the BPMN editor routes.

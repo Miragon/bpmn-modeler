@@ -25,15 +25,17 @@ const FORM = `{
 }
 `;
 const ANSWERS = { formExecutionPlatform: "c7", c7FormEngineVersion: "7" };
+const REFUSAL = "The form engine version could not be changed safely. Try again.";
 
 async function createSelection(content = FORM, promptAnswers: Record<string, unknown> = ANSWERS) {
     const host = createTestHost({ promptAnswers });
     const flushes = new DocumentFlushService(host.store, host.notifier);
     const pendingEdits = new PendingEditsFlush(host.store, flushes, host.notifier);
+    const textEdits = new JsonFormTextEdits();
     const service = new FormModelerService(host.store, host.documents, host.notifier, {
         picker: host.picker,
         pendingEdits,
-        textEdits: new JsonFormTextEdits(),
+        textEdits,
     });
     pendingEdits.serve(".form", service);
     const editor = await host.openSession(
@@ -41,7 +43,7 @@ async function createSelection(content = FORM, promptAnswers: Record<string, unk
         [new DocumentRenderParticipant(service, ".form", host.notifier)],
         { content },
     );
-    return { host, editor, service, flushes, pendingEdits };
+    return { host, editor, service, flushes, pendingEdits, textEdits };
 }
 
 type Selection = Awaited<ReturnType<typeof createSelection>>;
@@ -52,9 +54,9 @@ async function replyToFlush(
     status: "clean" | "flushed" | "unavailable" = content === undefined ? "clean" : "flushed",
 ) {
     await vi.waitFor(() => {
-        expect(editor.postedOfType("FlushDocumentQuery")).toHaveLength(1);
+        expect(editor.postedOfType("FlushDocumentQuery").length).toBeGreaterThan(0);
     });
-    const [query] = editor.postedOfType<FlushDocumentQuery>("FlushDocumentQuery");
+    const query = editor.postedOfType<FlushDocumentQuery>("FlushDocumentQuery").at(-1)!;
     expect(query.destructive).toBe(true);
     flushes.handleReply(new DocumentFlushedCommand(query.token, content, status, 0), editor.id);
 }
@@ -76,6 +78,153 @@ function holdNextChoice(host: TestHost, step: "platform" | "version" = "platform
 afterEach(() => vi.restoreAllMocks());
 
 describe("Form platform and version selection", () => {
+    it("keeps a missing session quiet without reading or prompting", async () => {
+        const { service, host, editor } = await createSelection();
+        host.store.unregister(editor.id, editor);
+        const read = vi.spyOn(host.documents, "getContent");
+        expect(await service.changeEngineVersion(editor.id)).toBe(false);
+        expect(read).not.toHaveBeenCalled();
+        expect(host.picker.prompts).toEqual([]);
+        expect(host.notifier.infos).toEqual([]);
+        expect(host.notifier.errors).toEqual([]);
+    });
+
+    it("reports an unpatchable baseline and permits a retry with the same shared sync", async () => {
+        const selection = await createSelection();
+        const { service, editor, host, textEdits } = selection;
+        vi.spyOn(textEdits, "withEngine").mockReturnValueOnce(undefined);
+        const first = service.changeEngineVersion(editor.id);
+        await replyToFlush(selection);
+        expect(await first).toBe(false);
+        expect(host.notifier.infos).toEqual([REFUSAL]);
+        expect(host.notifier.errors).toEqual([]);
+        expect(editor.content).toBe(FORM);
+        expect(editor.postedOfType("ReleaseDocumentFlushQuery")).toHaveLength(1);
+        const retry = service.changeEngineVersion(editor.id);
+        await vi.waitFor(() => expect(editor.postedOfType("FlushDocumentQuery")).toHaveLength(2));
+        await replyToFlush(selection);
+        expect(await retry).toBe(true);
+        expect(editor.postedOfType("ReleaseDocumentFlushQuery")).toHaveLength(2);
+    });
+
+    it.each(["timeout", "undelivered"] as const)(
+        "reports a %s flush exactly once",
+        async (failure) => {
+            const { service, host, editor } = await createSelection();
+            if (failure === "undelivered")
+                vi.spyOn(editor, "postMessage").mockResolvedValueOnce(false);
+            expect(await service.changeEngineVersion(editor.id)).toBe(false);
+            expect(host.notifier.infos).toEqual([REFUSAL]);
+            expect(host.notifier.errors).toEqual([]);
+            expect(editor.content).toBe(FORM);
+        },
+    );
+
+    it.each(["closed", "replacement"] as const)(
+        "only logs a delayed picker rejection after session %s",
+        async (change) => {
+            const { service, host, editor } = await createSelection();
+            let reject!: (error: Error) => void;
+            vi.spyOn(host.picker, "choose").mockReturnValueOnce(
+                new Promise((_resolve, fail) => {
+                    reject = fail;
+                }),
+            );
+            const changing = service.changeEngineVersion(editor.id);
+            if (change === "closed") host.store.unregister(editor.id, editor);
+            else host.openEditor(PATH, FORM);
+            reject(new Error("picker failed"));
+            expect(await changing).toBe(false);
+            expect(host.notifier.infos).toEqual([]);
+            expect(host.notifier.errors).toEqual([]);
+            expect(host.notifier.logged("error")).toHaveLength(1);
+        },
+    );
+
+    it.each(["closed", "replacement"] as const)(
+        "keeps a flush abandoned by session %s quiet",
+        async (change) => {
+            const selection = await createSelection();
+            const { service, host, editor } = selection;
+            const changing = service.changeEngineVersion(editor.id);
+            await vi.waitFor(() =>
+                expect(editor.postedOfType("FlushDocumentQuery")).toHaveLength(1),
+            );
+            if (change === "closed") host.store.unregister(editor.id, editor);
+            else host.openEditor(PATH, FORM);
+            await replyToFlush(selection);
+            expect(await changing).toBe(false);
+            expect(host.notifier.infos).toEqual([]);
+            expect(host.notifier.errors).toEqual([]);
+            expect(editor.content).toBe(FORM);
+        },
+    );
+
+    it("keeps a dropped queued callback quiet and releases the destructive lock", async () => {
+        const selection = await createSelection();
+        const { service, host, editor } = selection;
+        vi.spyOn(host.store, "runInEditorQueue").mockResolvedValueOnce(undefined);
+        const changing = service.changeEngineVersion(editor.id);
+        await replyToFlush(selection);
+        expect(await changing).toBe(false);
+        expect(host.notifier.infos).toEqual([]);
+        expect(host.notifier.errors).toEqual([]);
+        expect(editor.content).toBe(FORM);
+        expect(editor.postedOfType("ReleaseDocumentFlushQuery")).toHaveLength(1);
+    });
+
+    it("reports an unexpected picker failure once to the original session", async () => {
+        const { service, host, editor } = await createSelection();
+        vi.spyOn(host.picker, "choose").mockRejectedValueOnce(new Error("picker failed"));
+        expect(await service.changeEngineVersion(editor.id)).toBe(false);
+        expect(host.notifier.infos).toEqual([]);
+        expect(host.notifier.errors).toEqual([
+            "A problem occurred while trying to change the form engine version.\npicker failed",
+        ]);
+    });
+
+    it.each(["closed", "replacement"] as const)(
+        "only logs a delayed write rejection after session %s",
+        async (change) => {
+            const selection = await createSelection();
+            const { service, host, editor } = selection;
+            let reject!: (error: Error) => void;
+            const write = vi.spyOn(host.documents, "write").mockReturnValueOnce(
+                new Promise((_resolve, fail) => {
+                    reject = fail;
+                }),
+            );
+            const changing = service.changeEngineVersion(editor.id);
+            await replyToFlush(selection);
+            await vi.waitFor(() => expect(write).toHaveBeenCalledOnce());
+            if (change === "closed") host.store.unregister(editor.id, editor);
+            else host.openEditor(PATH, FORM);
+            reject(new Error("write failed"));
+            expect(await changing).toBe(false);
+            expect(host.notifier.infos).toEqual([]);
+            expect(host.notifier.errors).toEqual([]);
+            expect(host.notifier.logged("error")).toHaveLength(1);
+        },
+    );
+
+    it.each([undefined, "8.8.0"])(
+        "keeps cancellation or an unchanged pair quiet even after staleness: %s",
+        async (answer) => {
+            const { service, host, editor } = await createSelection(FORM, {
+                formExecutionPlatform: "c8",
+            });
+            const finish = holdNextChoice(host, "version");
+            const changing = service.changeEngineVersion(editor.id);
+            await vi.waitFor(() => expect(host.picker.choose).toHaveBeenCalledTimes(2));
+            host.store.markHostDocumentUpdated(editor.id);
+            finish(answer);
+            expect(await changing).toBe(false);
+            expect(host.notifier.infos).toEqual([]);
+            expect(host.notifier.errors).toEqual([]);
+            expect(editor.posted).toEqual([]);
+        },
+    );
+
     it("explains how to recover invalid JSON without prompting, flushing or changing it", async () => {
         const { service, host, editor } = await createSelection("not json");
 
@@ -135,6 +284,7 @@ describe("Form platform and version selection", () => {
 
         expect(await changing).toBe(false);
         expect(editor.content).toBe(interleaved);
+        expect(host.notifier.infos).toEqual([REFUSAL]);
         expect(editor.postedOfType("FormFileQuery")).toEqual([]);
         expect(editor.postedOfType("ReleaseDocumentFlushQuery")).toHaveLength(1);
         expect(editor.saveCount).toBe(0);
@@ -164,6 +314,8 @@ describe("Form platform and version selection", () => {
 
         expect(await changing).toBe(false);
         expect(editor.content).toBe(hostEdit);
+        expect(host.notifier.infos).toEqual([]);
+        expect(host.notifier.errors).toEqual([]);
         expect(editor.postedOfType("FormFileQuery")).toEqual([new FormFileQuery(hostEdit, 1)]);
         expect(editor.postedOfType("ReleaseDocumentFlushQuery")).toHaveLength(1);
         expect(host.store.currentHostDocumentRevision(editor.id)).toBe(1);
@@ -200,10 +352,22 @@ describe("Form platform and version selection", () => {
             const changing = service.changeEngineVersion(editor.id);
             await replyToFlush(selection);
             expect(await changing).toBe(false);
+            expect(host.notifier.infos).toEqual(failure === "refused" ? [REFUSAL] : []);
+            expect(host.notifier.errors).toHaveLength(failure === "failed" ? 1 : 0);
             expect(editor.content).toBe(FORM);
             expect(editor.postedOfType("ReleaseDocumentFlushQuery")).toHaveLength(1);
             expect(editor.postedOfType("FormFileQuery")).toEqual([]);
             expect(editor.saveCount).toBe(0);
+            if (failure === "refused") {
+                editor.refusesWrites = false;
+                const retry = service.changeEngineVersion(editor.id);
+                await vi.waitFor(() =>
+                    expect(editor.postedOfType("FlushDocumentQuery")).toHaveLength(2),
+                );
+                await replyToFlush(selection);
+                expect(await retry).toBe(true);
+                expect(editor.postedOfType("ReleaseDocumentFlushQuery")).toHaveLength(2);
+            }
         },
     );
 
@@ -218,6 +382,7 @@ describe("Form platform and version selection", () => {
         await replyToFlush(selection);
         expect(await changing).toBe(false);
         expect(editor.content).toBe(edited);
+        expect(host.notifier.infos).toEqual([REFUSAL]);
         expect(editor.postedOfType("ReleaseDocumentFlushQuery")).toHaveLength(1);
     });
 
@@ -231,6 +396,8 @@ describe("Form platform and version selection", () => {
         expect(editor.content).toBe(FORM);
         expect(replacement.content).toBe(FORM);
         expect(replacement.posted).toEqual([]);
+        expect(host.notifier.infos).toEqual([]);
+        expect(host.notifier.errors).toEqual([]);
     });
 
     it("commits both fields in one unsaved source-preserving write and reloads at a newer revision", async () => {
@@ -286,13 +453,15 @@ describe("Form platform and version selection", () => {
     ])(
         "does not normalize unsupported or missing metadata on display or cancellation",
         async (content) => {
-            const { service, editor } = await createSelection(content, {});
+            const { service, editor, host } = await createSelection(content, {});
 
             expect(await service.display(editor.id)).toBe(true);
             expect(await service.changeEngineVersion(editor.id)).toBe(false);
             expect(editor.content).toBe(content);
             expect(editor.posted).toEqual([new FormFileQuery(content)]);
             expect(editor.saveCount).toBe(0);
+            expect(host.notifier.infos).toEqual([]);
+            expect(host.notifier.errors).toEqual([]);
         },
     );
 
@@ -314,12 +483,13 @@ describe("Form platform and version selection", () => {
 
     it("leaves the document unchanged when the webview cannot confirm a flush", async () => {
         const selection = await createSelection();
-        const { service, editor } = selection;
+        const { service, editor, host } = selection;
 
         const changing = service.changeEngineVersion(editor.id);
         await replyToFlush(selection, undefined, "unavailable");
 
         expect(await changing).toBe(false);
+        expect(host.notifier.infos).toEqual([REFUSAL]);
         expect(editor.content).toBe(FORM);
         expect(editor.postedOfType("FormFileQuery")).toEqual([]);
         expect(editor.saveCount).toBe(0);
@@ -327,7 +497,7 @@ describe("Form platform and version selection", () => {
 
     it("does not overwrite metadata changed in the flush", async () => {
         const selection = await createSelection();
-        const { service, editor } = selection;
+        const { service, editor, host } = selection;
         const changedMetadata = FORM.replace('"8.8.0"', '"8.9.0"');
 
         const changing = service.changeEngineVersion(editor.id);
@@ -335,6 +505,7 @@ describe("Form platform and version selection", () => {
 
         expect(await changing).toBe(false);
         expect(editor.content).toBe(changedMetadata);
+        expect(host.notifier.infos).toEqual([REFUSAL]);
         expect(editor.postedOfType("FormFileQuery")).toEqual([]);
         expect(editor.postedOfType("ReleaseDocumentFlushQuery")).toHaveLength(1);
     });
@@ -360,6 +531,10 @@ describe("Form platform and version selection", () => {
 
             expect(await changing).toBe(false);
             expect(editor.content).toBe(expected);
+            expect(host.notifier.infos).toEqual(
+                change === "source" || change === "revision" ? [REFUSAL] : [],
+            );
+            expect(host.notifier.errors).toEqual([]);
             expect(editor.posted).toEqual(
                 change === "source" ? [new FormFileQuery(expected, 1)] : [],
             );
@@ -390,8 +565,31 @@ describe("Form platform and version selection", () => {
 
         expect(await service.changeEngineVersion(editor.id)).toBe(false);
         expect(host.picker.choose).toHaveBeenCalledOnce();
+        expect(host.notifier.infos).toEqual([]);
+        expect(host.notifier.errors).toEqual([]);
         finishChoice("c7");
         await replyToFlush(selection);
         expect(await first).toBe(true);
+    });
+
+    it("quietly declines an unsupported version returned by a picker", async () => {
+        const { service, editor, host } = await createSelection();
+        vi.spyOn(host.picker, "choose")
+            .mockResolvedValueOnce("c8")
+            .mockResolvedValueOnce("unsupported");
+        expect(await service.changeEngineVersion(editor.id)).toBe(false);
+        expect(host.notifier.infos).toEqual([]);
+        expect(host.notifier.errors).toEqual([]);
+        expect(editor.posted).toEqual([]);
+    });
+
+    it("quietly declines an unsupported platform returned by a picker", async () => {
+        const { service, editor, host } = await createSelection();
+        vi.spyOn(host.picker, "choose").mockResolvedValueOnce("other");
+        expect(await service.changeEngineVersion(editor.id)).toBe(false);
+        expect(host.notifier.infos).toEqual([]);
+        expect(host.notifier.errors).toEqual([]);
+        expect(host.picker.choose).toHaveBeenCalledOnce();
+        expect(editor.posted).toEqual([]);
     });
 });

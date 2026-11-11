@@ -208,6 +208,27 @@ describe("bridge modeler commands (real core over a fake transport)", () => {
     });
 
     describe("change engine version", () => {
+        it("does not prompt for a closed editor", async () => {
+            const { rpc, frames, editorId } = await setup();
+            await rpc.handleLine(hostNotification("modeler/changeEngineVersion", { editorId }));
+            expect(frames).toEqual([]);
+        });
+
+        it("does not expose Form selection on the BPMN-only bridge", async () => {
+            const { rpc, frames, workspaceRoot, sourcePath } = await setup();
+            const formPath = sourcePath.replace(/\.bpmn$/, ".form");
+            const editorId = `file://${formPath}`;
+            await rpc.handleLine(
+                hostNotification(
+                    "session/register",
+                    registerParams(editorId, workspaceRoot, formPath, BPMN_C7_XML),
+                ),
+            );
+            const beforeCommand = frames.length;
+            await rpc.handleLine(hostNotification("modeler/changeEngineVersion", { editorId }));
+            expect(frames.slice(beforeCommand)).toEqual([]);
+        });
+
         it("opens the version picker for the registered editor", async () => {
             const { rpc, frames, editorId } = await setupWithOpenEditor();
 

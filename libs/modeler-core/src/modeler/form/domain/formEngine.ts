@@ -1,8 +1,14 @@
-import { ENGINE_EXECUTION_PLATFORM, ENGINES, Engine } from "@miragon/bpmn-modeler-types";
+import {
+    ENGINE_EXECUTION_PLATFORM,
+    ENGINE_LABEL,
+    ENGINES,
+    Engine,
+} from "@miragon/bpmn-modeler-types";
 
 import { ChoicePrompt } from "../../../kernel/domain/prompts";
 import { StatusView } from "../../../kernel/domain/statusView";
 import { ENGINE_VERSION_STATUS_TOOLTIP } from "../../../kernel/domain/engineVersionStatus";
+import { engineVersionChoicePrompt } from "../../../kernel/domain/engineVersionChoicePrompt";
 
 export interface FormEngineMetadata {
     readonly executionPlatform?: unknown;
@@ -19,11 +25,15 @@ export type FormEngineChange =
     | { readonly kind: "changed"; readonly metadata: FormEngineSelection };
 
 const FORM_VERSIONS: Record<Engine, readonly string[]> = {
-    c8: ["8.8.0", "8.9.0", "8.10.0"],
+    c8: ["8.10.0", "8.9.0", "8.8.0"],
     c7: ["7"],
 };
-const FORM_PLATFORM_LABEL: Record<Engine, string> = { c8: "Camunda Cloud", c7: "Camunda 7" };
-const FORM_PLATFORM_PICKER_ORDER: readonly Engine[] = ["c8", "c7"];
+export const FORM_VERSION_NOT_CHANGED =
+    "The form engine version could not be changed safely. Try again.";
+
+export function latestFormVersion(engine: Engine): string {
+    return FORM_VERSIONS[engine][0];
+}
 
 export function readFormEngineMetadata(content: string): FormEngineMetadata | undefined {
     try {
@@ -40,19 +50,15 @@ export function formPlatformPrompt(): ChoicePrompt<Engine> {
     return {
         id: "formExecutionPlatform",
         placeholder: "Select execution platform",
-        items: FORM_PLATFORM_PICKER_ORDER.map((engine) => ({
-            label: FORM_PLATFORM_LABEL[engine],
+        items: ENGINES.map((engine) => ({
+            label: ENGINE_LABEL[engine],
             value: engine,
         })),
     };
 }
 
 export function formVersionPrompt(engine: Engine): ChoicePrompt<string> {
-    return {
-        id: `${engine}FormEngineVersion`,
-        placeholder: `Select ${FORM_PLATFORM_LABEL[engine]} engine version`,
-        items: FORM_VERSIONS[engine].map((version) => ({ label: version, value: version })),
-    };
+    return engineVersionChoicePrompt(engine, FORM_VERSIONS[engine], `${engine}FormEngineVersion`);
 }
 
 export function formEngineChange(
@@ -93,9 +99,7 @@ export function formEngineStatusView(metadata: FormEngineMetadata | undefined): 
     const supported =
         engine !== undefined &&
         FORM_VERSIONS[engine].includes(metadata.executionPlatformVersion as string);
-    const platform = engine
-        ? FORM_PLATFORM_LABEL[engine]
-        : displayValue(metadata.executionPlatform);
+    const platform = engine ? ENGINE_LABEL[engine] : displayValue(metadata.executionPlatform);
     return {
         text: `${platform} (${displayValue(metadata.executionPlatformVersion)})`,
         icon: "engine",

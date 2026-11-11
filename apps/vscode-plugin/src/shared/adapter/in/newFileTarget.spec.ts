@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { Uri } from "vscode";
 
 const showSaveDialog = vi.fn();
 
@@ -16,13 +17,34 @@ const OPTIONS = {
     defaultUri: undefined,
 };
 
-function uriOf(path: string) {
-    return { path, with: (change: { path: string }) => uriOf(change.path) };
+function uriOf(path: string): Uri {
+    return {
+        scheme: "file",
+        authority: "",
+        path,
+        query: "",
+        fragment: "",
+        fsPath: path,
+        with: (change) => uriOf(change.path ?? path),
+        toString: () => `file://${path}`,
+        toJSON: () => ({ scheme: "file", path }),
+    };
 }
 
 beforeEach(() => showSaveDialog.mockReset());
 
 describe("promptNewFileTarget", () => {
+    it("forwards the supplied native dialog contents without changing the default URI", async () => {
+        const defaultUri = uriOf("/work/custom.json");
+        showSaveDialog.mockResolvedValue(undefined);
+        await promptNewFileTarget({ ...OPTIONS, defaultUri });
+        expect(showSaveDialog).toHaveBeenCalledExactlyOnceWith({
+            title: "New Element Template",
+            filters: { "Element Template": ["json"] },
+            defaultUri,
+        });
+        expect(showSaveDialog.mock.calls[0][0].defaultUri).toBe(defaultUri);
+    });
     it("writes nothing when the dialog is cancelled", async () => {
         showSaveDialog.mockResolvedValue(undefined);
 
@@ -36,8 +58,9 @@ describe("promptNewFileTarget", () => {
     });
 
     it.each(["/work/send-mail.json", "/work/send-mail.JSON"])("keeps %s", async (path) => {
-        showSaveDialog.mockResolvedValue(uriOf(path));
+        const target = uriOf(path);
+        showSaveDialog.mockResolvedValue(target);
 
-        expect((await promptNewFileTarget(OPTIONS))?.path).toBe(path);
+        expect(await promptNewFileTarget(OPTIONS)).toBe(target);
     });
 });

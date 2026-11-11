@@ -1,6 +1,7 @@
-import { ENGINE_LABEL, Engine, getVersions } from "@miragon/bpmn-modeler-types";
+import { Engine, getVersions } from "@miragon/bpmn-modeler-types";
 
 import { ChoicePrompt } from "./prompts";
+import { engineVersionChoicePrompt } from "./engineVersionChoicePrompt";
 
 export {
     C7_VERSIONS,
@@ -10,10 +11,6 @@ export {
 } from "@miragon/bpmn-modeler-types";
 
 export function engineVersionPrompt(platform: Engine): ChoicePrompt<string> {
-    return {
-        // One id per engine: migrating both engines asks for both versions in one run.
-        id: `${platform}EngineVersion`,
-        placeholder: `Select ${ENGINE_LABEL[platform]} engine version`,
-        items: getVersions(platform).map((version) => ({ label: version, value: version })),
-    };
+    // One id per engine: migrating both engines asks for both versions in one run.
+    return engineVersionChoicePrompt(platform, getVersions(platform), `${platform}EngineVersion`);
 }

@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { ENGINE_EXECUTION_PLATFORM, ENGINES, Engine } from "@miragon/bpmn-modeler-types";
+import {
+    ENGINE_EXECUTION_PLATFORM,
+    ENGINE_LABEL,
+    ENGINES,
+    Engine,
+} from "@miragon/bpmn-modeler-types";
 
 import {
     formEngineChange,
@@ -9,6 +14,7 @@ import {
     formVersionPrompt,
     readFormEngineMetadata,
     sameFormEngineMetadata,
+    latestFormVersion,
 } from "./formEngine";
 
 const CLOUD = {
@@ -43,9 +49,12 @@ describe("Form engine metadata", () => {
 });
 
 describe("Form engine choices", () => {
-    it("offers every canonical engine exactly once independently of presentation order", () => {
+    it("offers every canonical engine once in canonical order with canonical labels", () => {
         const choices = formPlatformPrompt().items.map(({ value }) => value);
-        expect([...choices].sort()).toEqual([...ENGINES].sort());
+        expect(choices).toEqual(ENGINES);
+        expect(formPlatformPrompt().items.map(({ label }) => label)).toEqual(
+            ENGINES.map((engine) => ENGINE_LABEL[engine]),
+        );
     });
 
     it("offers native platform labels separately from the JSON names", () => {
@@ -53,14 +62,14 @@ describe("Form engine choices", () => {
             id: "formExecutionPlatform",
             placeholder: "Select execution platform",
             items: [
-                { label: "Camunda Cloud", value: "c8" },
                 { label: "Camunda 7", value: "c7" },
+                { label: "Camunda 8", value: "c8" },
             ],
         });
     });
 
     it.each([
-        ["c8", "Camunda Cloud", ["8.8.0", "8.9.0", "8.10.0"]],
+        ["c8", "Camunda 8", ["8.10.0", "8.9.0", "8.8.0"]],
         ["c7", "Camunda 7", ["7"]],
     ] as const)(
         "constrains %s versions independently of the BPMN registry",
@@ -70,6 +79,7 @@ describe("Form engine choices", () => {
                 placeholder: `Select ${label} engine version`,
                 items: versions.map((version) => ({ label: version, value: version })),
             });
+            expect(latestFormVersion(engine)).toBe(versions[0]);
         },
     );
 
@@ -145,7 +155,7 @@ describe("Form engine status", () => {
     });
 
     it.each([
-        [CLOUD, "Camunda Cloud (8.8.0)"],
+        [CLOUD, "Camunda 8 (8.8.0)"],
         [
             { executionPlatform: ENGINE_EXECUTION_PLATFORM.c7, executionPlatformVersion: "7" },
             "Camunda 7 (7)",
@@ -162,12 +172,12 @@ describe("Form engine status", () => {
 
     it.each([
         [{}, "Not configured (Not configured)"],
-        [{ executionPlatform: "Camunda Cloud" }, "Camunda Cloud (Not configured)"],
+        [{ executionPlatform: "Camunda Cloud" }, "Camunda 8 (Not configured)"],
         [{ executionPlatformVersion: "8.8.0" }, "Not configured (8.8.0)"],
         [{ executionPlatform: "Other", executionPlatformVersion: "99" }, "Other (99)"],
         [
             { executionPlatform: "Camunda Cloud", executionPlatformVersion: "8.7.0" },
-            "Camunda Cloud (8.7.0)",
+            "Camunda 8 (8.7.0)",
         ],
         [
             { executionPlatform: "Camunda Platform", executionPlatformVersion: "7.24.0" },

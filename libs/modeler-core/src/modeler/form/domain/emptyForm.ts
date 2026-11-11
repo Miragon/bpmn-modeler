@@ -1,4 +1,5 @@
-import { getLatestVersion } from "../../../kernel/domain/engineVersions";
+import { ENGINE_EXECUTION_PLATFORM } from "@miragon/bpmn-modeler-types";
+import { latestFormVersion } from "./formEngine";
 
 const FORM_ID_CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 
@@ -13,8 +14,8 @@ export function createEmptyForm(): string {
             components: [],
             type: "default",
             id,
-            executionPlatform: "Camunda Cloud",
-            executionPlatformVersion: getLatestVersion("c8"),
+            executionPlatform: ENGINE_EXECUTION_PLATFORM.c8,
+            executionPlatformVersion: latestFormVersion("c8"),
         },
         null,
         2,

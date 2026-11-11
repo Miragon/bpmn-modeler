@@ -469,14 +469,14 @@ describe("the packaged extension in a real VS Code", () => {
         const status = (text: string) => page.locator(".statusbar-item").filter({ hasText: text });
         const choosePlatform = async (label: string) => {
             await vscode().runCommand("Change Engine Version");
-            await expectChoices(["Camunda Cloud", "Camunda 7"]);
+            await expectChoices(["Camunda 7", "Camunda 8"]);
             await option(label).click();
         };
         try {
-            await status("Camunda Cloud (8.8.0)").waitFor();
+            await status("Camunda 8 (8.8.0)").waitFor();
             expect(await vscode().isActiveTabDirty()).toBe(false);
-            await status("Camunda Cloud (8.8.0)").click();
-            await expectChoices(["Camunda Cloud", "Camunda 7"]);
+            await status("Camunda 8 (8.8.0)").click();
+            await expectChoices(["Camunda 7", "Camunda 8"]);
             await page.keyboard.press("Escape");
             expect(await vscode().isActiveTabDirty()).toBe(false);
 
@@ -505,10 +505,10 @@ describe("the packaged extension in a real VS Code", () => {
             );
             await status("Camunda 7 (7)").waitFor();
 
-            await choosePlatform("Camunda Cloud");
-            await expectChoices(["8.8.0", "8.9.0", "8.10.0"]);
+            await choosePlatform("Camunda 8");
+            await expectChoices(["8.10.0", "8.9.0", "8.8.0"]);
             await option("8.10.0").click();
-            await status("Camunda Cloud (8.10.0)").waitFor();
+            await status("Camunda 8 (8.10.0)").waitFor();
             await page.keyboard.press(`${COMMAND_KEY}+s`);
             await expect
                 .poll(() => jsonInFile(file))
@@ -521,7 +521,7 @@ describe("the packaged extension in a real VS Code", () => {
 
             const sourceUpdate = original.replace('"8.8.0"', '"8.9.0"');
             await writeFile(file, sourceUpdate);
-            await status("Camunda Cloud (8.9.0)").waitFor();
+            await status("Camunda 8 (8.9.0)").waitFor();
             const webview = vscode().webview();
             await webview.locator('.fjs-element[data-id="Field_Name"]').click();
             const label = webview.locator("#bio-properties-panel-label");
@@ -535,8 +535,8 @@ describe("the packaged extension in a real VS Code", () => {
             await label.click();
             await page.keyboard.press(`${COMMAND_KEY}+a`);
             await label.pressSequentially("Name after engine reload");
-            await status("Camunda Cloud (8.9.0)").click();
-            await expectChoices(["Camunda Cloud", "Camunda 7"]);
+            await status("Camunda 8 (8.9.0)").click();
+            await expectChoices(["Camunda 7", "Camunda 8"]);
             // Let the properties-panel debounce sync while the native picker remains open.
             await expect.poll(() => vscode().isActiveTabDirty()).toBe(true);
             expect(await picker.isVisible()).toBe(true);
@@ -561,7 +561,7 @@ describe("the packaged extension in a real VS Code", () => {
             await writeFile(file, unsupported);
             await status("Other platform (99)").waitFor();
             await vscode().runCommand("Change Engine Version");
-            await expectChoices(["Camunda Cloud", "Camunda 7"]);
+            await expectChoices(["Camunda 7", "Camunda 8"]);
             await page.keyboard.press("Escape");
             expect(await vscode().isActiveTabDirty()).toBe(false);
             expect(await readFile(file, "utf8")).toBe(unsupported);

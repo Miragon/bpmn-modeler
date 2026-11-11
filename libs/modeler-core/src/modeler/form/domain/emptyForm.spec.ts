@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { getLatestVersion } from "../../../kernel/domain/engineVersions";
+import { formVersionPrompt } from "./formEngine";
 import { createEmptyForm } from "./emptyForm";
 
 afterEach(() => vi.restoreAllMocks());
@@ -18,9 +18,10 @@ describe("createEmptyForm", () => {
             type: "default",
             id: "Form_AAAAAAAA",
             executionPlatform: "Camunda Cloud",
-            executionPlatformVersion: getLatestVersion("c8"),
+            executionPlatformVersion: "8.10.0",
         });
         expect(secondForm.id).toBe("Form_99999999");
+        expect(firstForm.executionPlatformVersion).toBe(formVersionPrompt("c8").items[0].value);
         expect(random).toHaveBeenCalledTimes(16);
     });
 });

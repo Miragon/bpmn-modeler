@@ -4,6 +4,7 @@ import {
     BpmnModelerService,
     CoreWriteRenderer,
     ModelerLanguageService,
+    EngineVersionSelectionService,
 } from "@miragon/bpmn-modeler-core";
 
 import { modelerCommandHandlers } from "../modeler/bpmn/adapter/in/modelerCommandHandlers";
@@ -48,7 +49,9 @@ export function register(
                 new RpcLanguagePreference(deps.rpc),
                 deps.notifier,
             ),
-            bpmnService: handles.bpmnService,
+            engineSelection: new EngineVersionSelectionService(deps.store, deps.documentPort, {
+                ".bpmn": (id) => handles.bpmnService.changeEngineVersion(id),
+            }),
             layout: handles.layout,
             migration,
             store: deps.store,
