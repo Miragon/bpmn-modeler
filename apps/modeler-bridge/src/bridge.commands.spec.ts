@@ -1,6 +1,6 @@
 /**
  * End-to-end coverage for the portable modeler-command RPC paths on the bridge
- * (change engine version, migrate all, format, clean up). Same harness as
+ * (change engine version, migrate all, format, clean up, generate IDs from names). Same harness as
  * `bridge.marketplace.spec.ts`: the real bridge (`createBridge`) runs against a
  * fake transport over a real temp filesystem, so the core services it constructs
  * do genuine document reads, fs globs and fs writes.
@@ -16,7 +16,10 @@ import { join } from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
-import { FOCUS_BPMN_DIAGRAM_MESSAGE } from "@miragon/bpmn-modeler-core";
+import {
+    FOCUS_BPMN_DIAGRAM_MESSAGE,
+    SWITCH_MODE_TO_GENERATE_IDS,
+} from "@miragon/bpmn-modeler-core";
 
 import {
     hostNotification,
@@ -628,6 +631,63 @@ describe("bridge modeler commands (real core over a fake transport)", () => {
             const { rpc, frames } = await setup();
 
             await rpc.handleLine(hostNotification("layout/format", {}));
+
+            expect(frames).toContainEqual({
+                method: "notifier/log",
+                params: {
+                    level: "error",
+                    message: expect.stringMatching(/^Error: No active editor\.\n\s+at /),
+                },
+            });
+            expect(frames.some(isShowInfo(FOCUS_BPMN_DIAGRAM_MESSAGE))).toBe(true);
+            expect(frames.some((f) => f.method === "editor/postMessage")).toBe(false);
+        });
+    });
+
+    describe("generate IDs from names", () => {
+        it("asks the focused editor to open the review of IDs generated from names", async () => {
+            const { rpc, frames, editorId } = await setupWithOpenEditor();
+
+            await rpc.handleLine(hostNotification("elementIds/generate", {}));
+
+            const queries = postedQueries(frames, "GenerateElementIdsQuery");
+            expect(queries.map((f) => f.params.editorId)).toEqual([editorId]);
+        });
+
+        it("tells the user to switch modes when the editor cannot change IDs", async () => {
+            const { rpc, frames, editorId } = await setupWithOpenEditor();
+
+            await rpc.handleLine(
+                hostNotification("webview/message", {
+                    editorId,
+                    message: { type: "ElementIdReviewCommand", status: "unsupported" },
+                }),
+            );
+
+            await waitForFrame(frames, isShowInfo(SWITCH_MODE_TO_GENERATE_IDS));
+        });
+
+        it("stays quiet when the review opened", async () => {
+            const { rpc, frames, editorId } = await setupWithOpenEditor();
+            const before = frames.length;
+
+            await rpc.handleLine(
+                hostNotification("webview/message", {
+                    editorId,
+                    message: { type: "ElementIdReviewCommand", status: "opened" },
+                }),
+            );
+            await settle();
+
+            expect(
+                frames.slice(before).filter((f) => /^notifier\/show/.test(f.method ?? "")),
+            ).toEqual([]);
+        });
+
+        it("asks the user to focus a diagram when no editor is open", async () => {
+            const { rpc, frames } = await setup();
+
+            await rpc.handleLine(hostNotification("elementIds/generate", {}));
 
             expect(frames).toContainEqual({
                 method: "notifier/log",

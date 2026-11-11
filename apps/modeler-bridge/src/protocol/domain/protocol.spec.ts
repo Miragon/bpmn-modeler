@@ -132,6 +132,7 @@ describe("RPC protocol descriptor", () => {
                     "  migration/migrateAll",
                     "  layout/format",
                     "  layout/cleanup",
+                    "  elementIds/generate",
                     "  deployment/switchTarget",
                     "  deployment/deployFiles",
                     "  deployment/deployActive",

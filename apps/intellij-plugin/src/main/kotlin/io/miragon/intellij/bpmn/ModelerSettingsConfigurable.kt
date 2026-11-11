@@ -39,6 +39,8 @@ class ModelerSettingsConfigurable : Configurable {
         var language: String,
         var scriptingSpin: Boolean,
         var formPreviewAutomatic: Boolean,
+        var elementIdStyle: String,
+        var elementIdsFollowName: Boolean,
         var marketplacesText: String,
     )
 
@@ -125,6 +127,29 @@ class ModelerSettingsConfigurable : Configurable {
                         { state.language = it ?: ModelerSettingsStore.DEFAULT_LANGUAGE },
                     )
                 }
+                row("ID style:") {
+                    comboBox(
+                        ModelerSettingsStore.ELEMENT_ID_STYLES,
+                        textListCellRenderer<String?> { style -> style?.let { ELEMENT_ID_STYLE_LABELS[it] ?: it } ?: "" },
+                    ).bindItem(
+                        { state.elementIdStyle },
+                        { state.elementIdStyle = it ?: ModelerSettingsStore.DEFAULT_ELEMENT_ID_STYLE },
+                    )
+                        .comment(
+                            "How <b>Generate IDs from Names</b> and the ID field's <b>Generate from name</b> " +
+                                "spell an ID. <b>ProcessDataTask</b> matches the Camunda Modeler plugin " +
+                                "rename-technical-ids.",
+                        )
+                }
+                row {
+                    checkBox("IDs follow names")
+                        .bindSelected({ state.elementIdsFollowName }, { state.elementIdsFollowName = it })
+                        .comment(
+                            "Rename an element's ID as you change its name while the ID is still random " +
+                                "(<code>Activity_0x1y2z3</code>) or was generated from the old name. IDs you " +
+                                "typed yourself never change.",
+                        )
+                }
                 row {
                     checkBox("Enable Camunda SPIN script completion")
                         .bindSelected({ state.scriptingSpin }, { state.scriptingSpin = it })
@@ -206,6 +231,8 @@ class ModelerSettingsConfigurable : Configurable {
             language = language,
             scriptingSpin = scriptingSpin,
             formPreviewAutomatic = formPreviewAutomatic,
+            elementIdStyle = elementIdStyle,
+            elementIdsFollowName = elementIdsFollowName,
             marketplaces = parseMarketplaces(marketplacesText),
         )
 
@@ -221,6 +248,8 @@ class ModelerSettingsConfigurable : Configurable {
         language = other.language
         scriptingSpin = other.scriptingSpin
         formPreviewAutomatic = other.formPreviewAutomatic
+        elementIdStyle = other.elementIdStyle
+        elementIdsFollowName = other.elementIdsFollowName
         marketplacesText = other.marketplacesText
     }
 
@@ -237,6 +266,8 @@ class ModelerSettingsConfigurable : Configurable {
             language = settings.language,
             scriptingSpin = settings.scriptingSpin,
             formPreviewAutomatic = settings.formPreviewAutomatic,
+            elementIdStyle = settings.elementIdStyle,
+            elementIdsFollowName = settings.elementIdsFollowName,
             marketplacesText = settings.marketplaces.joinToString("\n"),
         )
 
@@ -255,5 +286,13 @@ class ModelerSettingsConfigurable : Configurable {
         private const val MARKETPLACES_ROWS = 4
 
         private val MODE_LABELS = mapOf("implement" to "Implement", "design" to "Design", "view" to "View")
+
+        // ModelerSettingsConfigurableTest holds these to the VS Code setting's labels.
+        private val ELEMENT_ID_STYLE_LABELS =
+            mapOf(
+                "typePrefix" to "Activity_ProcessData",
+                "typeSuffix" to "ProcessDataTask",
+                "snakeCase" to "activity_process_data",
+            )
     }
 }

@@ -171,6 +171,7 @@ class ProtocolHandlerCoverageTest {
                 HostToCoreMethod.MIGRATION_MIGRATE_ALL to { modelerCommands.migrateAllDiagrams() },
                 HostToCoreMethod.LAYOUT_FORMAT to { modelerCommands.formatDiagram() },
                 HostToCoreMethod.LAYOUT_CLEANUP to { modelerCommands.cleanupDiagram() },
+                HostToCoreMethod.ELEMENT_IDS_GENERATE to { modelerCommands.generateElementIds() },
                 HostToCoreMethod.DEPLOYMENT_SWITCH_TARGET to { modelerCommands.switchDeploymentTarget() },
                 HostToCoreMethod.DEPLOYMENT_DEPLOY_FILES to { modelerCommands.deployFiles() },
                 HostToCoreMethod.DEPLOYMENT_DEPLOY_ACTIVE to { modelerCommands.deployDiagram() },

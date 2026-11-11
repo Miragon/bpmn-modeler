@@ -133,11 +133,12 @@ export function createBridge(
         rulePackageReview: new ViewReview("rulePackage", reveal, new ListReview(deps.picker)),
     });
     editorSessionFeature.register(deps, editor, { pluginCacheRoot });
-    // Portable modeler commands (change engine version, layout, migrate all) reuse
-    // the editor's services.
+    // Portable modeler commands (change engine version, layout, generate IDs, migrate
+    // all) reuse the editor's services.
     commandsFeature.register(deps, {
         bpmnService: editor.bpmnService,
         layout: editor.layout,
+        elementIds: editor.elementIds,
         coreWriteRenderer: editor,
     });
     const { marketplaces } = marketplaceFeature.registerHandlers(deps, {

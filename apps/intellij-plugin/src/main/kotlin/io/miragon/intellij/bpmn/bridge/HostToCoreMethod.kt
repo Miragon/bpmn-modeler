@@ -37,6 +37,7 @@ internal enum class HostToCoreMethod(val wireName: String) {
     MIGRATION_MIGRATE_ALL("migration/migrateAll"),
     LAYOUT_FORMAT("layout/format"),
     LAYOUT_CLEANUP("layout/cleanup"),
+    ELEMENT_IDS_GENERATE("elementIds/generate"),
     PLUGIN_APPROVALS_DID_CHANGE("pluginApprovals/didChange"),
     TEMPLATE_PREFERENCES_DID_CHANGE("templatePreferences/didChange"),
     WORKSPACE_TRUST_DID_CHANGE("workspaceTrust/didChange"),
