@@ -78,6 +78,12 @@ export type {
     LayoutErrorCode,
     LayoutStatus,
 } from "@miragon/bpmn-modeler-types";
+export type {
+    ElementIdReviewOutcome,
+    ElementIdReviewStatus,
+    ElementIdSettings,
+    ElementIdStyle,
+} from "@miragon/bpmn-modeler-types";
 
 export type { ViewportManager } from "./viewport";
 export type { ViewportData } from "./viewport";

@@ -23,6 +23,12 @@ export type {
     LayoutErrorCode,
     LayoutStatus,
 } from "@miragon/bpmn-modeler-types";
+export type {
+    ElementIdReviewOutcome,
+    ElementIdReviewStatus,
+    ElementIdSettings,
+    ElementIdStyle,
+} from "@miragon/bpmn-modeler-types";
 
 export type { ModelNavigationPort, ModelReference } from "@miragon/bpmn-model-navigation";
 export type { ReferenceKind } from "@miragon/bpmn-modeler-types";

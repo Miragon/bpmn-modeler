@@ -6,6 +6,8 @@ import type {
     BpmnlintConfig,
     BpmnModelerSetting,
     CleanupOutcome,
+    ElementIdReviewOutcome,
+    ElementIdSettings,
     ElementTemplateRef,
     Engine,
     LintResults,
@@ -309,6 +311,15 @@ export interface BpmnModelerHandle extends BpmnSurfaceHandle, PendingInputHandle
      */
     cleanupDiagram(options?: { apply?: boolean }): CleanupOutcome;
 
+    /**
+     * [A] Open the review of IDs generated from element names: a panel along the
+     * bottom of the canvas lists every ID a name would change, grouped by kind,
+     * and applying it renames the checked elements in one undo step. DI and
+     * label IDs that follow the old ID follow the new one. References from other
+     * files are not updated.
+     */
+    openElementIdReview(): ElementIdReviewOutcome;
+
     /** [A] Push a new set of element templates (data, never a path). */
     setElementTemplates(templates: object[]): void;
 
@@ -339,6 +350,14 @@ export interface BpmnModelerHandle extends BpmnSurfaceHandle, PendingInputHandle
      * empty list clears the row. Takes effect the next time the menu opens.
      */
     setFavouriteBpmnElements(types: readonly string[]): void;
+
+    /**
+     * [A] Set how IDs generated from names are spelled, and whether an ID that
+     * is still random or generated follows its element's name as the name
+     * changes — equivalent to `setSettings({ elementIdStyle, elementIdsFollowName })`,
+     * and present on {@link BpmnDesignerHandle} too.
+     */
+    setElementIdSettings(settings: Partial<ElementIdSettings>): void;
 
     /**
      * [B] Switch the design/implement mode live on this same instance — no

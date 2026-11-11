@@ -1,4 +1,5 @@
 import { createClipboardModules } from "@miragon/bpmn-modeler-clipboard";
+import type { ElementIdReview, ElementIdsService } from "@miragon/bpmn-modeler-element-ids";
 import {
     type CleanupService,
     LAYOUT_FORMATTED_EVENT,
@@ -6,8 +7,11 @@ import {
     type Layouter,
 } from "@miragon/bpmn-modeler-layout";
 import {
+    type BpmnModelerSetting,
     type CleanupOutcome,
     type Disposer,
+    type ElementIdReviewOutcome,
+    type ElementIdSettings,
     type DisposableStore,
     type MinimalEventBus,
     subscribe,
@@ -105,6 +109,35 @@ export function applyFavouriteBpmnElements(
     surface
         .optionalService<AppendMenuOverrideService>("appendMenuOverride")
         ?.setFavourites([...types]);
+}
+
+/** A surface built without the element ID module cannot open the review. */
+export function openSurfaceElementIdReview(surface: SurfaceServices): ElementIdReviewOutcome {
+    const review = surface.optionalService<ElementIdReview>("elementIdReview");
+    if (!review) {
+        return { status: "unsupported" };
+    }
+    review.open();
+    return { status: "opened" };
+}
+
+export function applyElementIdSettings(
+    surface: SurfaceServices,
+    settings: Partial<ElementIdSettings>,
+): void {
+    surface.optionalService<ElementIdsService>("elementIds")?.configure(settings);
+}
+
+/** The element ID options among the modeler settings, as the element ID module takes them. */
+export function elementIdSettingsOf(
+    settings: Partial<BpmnModelerSetting>,
+): Partial<ElementIdSettings> {
+    return {
+        ...(settings.elementIdStyle === undefined ? {} : { style: settings.elementIdStyle }),
+        ...(settings.elementIdsFollowName === undefined
+            ? {}
+            : { followName: settings.elementIdsFollowName }),
+    };
 }
 
 export function createSurfaceLintHandle(

@@ -14,6 +14,7 @@ import { AppendMenuModule } from "@miragon/bpmn-modeler-append-menu";
 import { FlowNavigationModule } from "@miragon/bpmn-modeler-flow-navigation";
 import { createBpmnLayoutModule } from "@miragon/bpmn-modeler-layout";
 import type { LayoutOutcome } from "@miragon/bpmn-modeler-layout";
+import { ElementIdsModule } from "@miragon/bpmn-modeler-element-ids";
 import { createModelNavigationModule } from "@miragon/bpmn-model-navigation";
 import { createDefinitionSearchModule } from "@miragon/bpmn-modeler-definition-search";
 import { TranslateModule } from "@miragon/bpmn-modeler-i18n";
@@ -28,17 +29,25 @@ import type { LintHandleMethods } from "../lintHandle";
 import { wireContentSaved } from "../contentSaved";
 import { exportFormattedXml, exportSvg, importDiagram } from "../diagramXml";
 import {
+    applyElementIdSettings,
     applyFavouriteBpmnElements,
     cleanupSurfaceDiagram,
     createSurfaceLintHandle,
     formatSurfaceDiagram,
     installClipboardSupport,
+    openSurfaceElementIdReview,
     subscribeCommandStackChanged,
     subscribeFormatted,
 } from "../editableSurface";
 import { SurfaceCore } from "../surfaceCore";
 import { createReporter, type SurfaceReporter } from "../reporting/reporting";
-import type { BpmnlintConfig, CleanupOutcome, LintResults } from "@miragon/bpmn-modeler-types";
+import type {
+    BpmnlintConfig,
+    CleanupOutcome,
+    ElementIdReviewOutcome,
+    ElementIdSettings,
+    LintResults,
+} from "@miragon/bpmn-modeler-types";
 import type { ThemeMode } from "../publicApi";
 import type { CoreDesignerServices, DesignerOptions } from "./publicApi";
 
@@ -171,6 +180,8 @@ export class BpmnDesigner {
                 // Formatting is pure geometry, so it is engine-neutral and
                 // belongs on this surface as much as on the modeler.
                 createBpmnLayoutModule(),
+                // Names and IDs are engine-neutral, so IDs follow names here too.
+                ElementIdsModule,
                 MinimapModule,
                 TokenSimulationModule,
                 // Design never enabled linting implicitly, so omission needs no migration notice.
@@ -229,6 +240,16 @@ export class BpmnDesigner {
     /** @see BpmnDesignerHandle.setFavouriteBpmnElements */
     setFavouriteBpmnElements(types: readonly string[]): void {
         applyFavouriteBpmnElements(this.core, types);
+    }
+
+    /** @see BpmnDesignerHandle.setElementIdSettings */
+    setElementIdSettings(settings: Partial<ElementIdSettings>): void {
+        applyElementIdSettings(this.core, settings);
+    }
+
+    /** @see BpmnDesignerHandle.openElementIdReview */
+    openElementIdReview(): ElementIdReviewOutcome {
+        return openSurfaceElementIdReview(this.core);
     }
 
     /**
