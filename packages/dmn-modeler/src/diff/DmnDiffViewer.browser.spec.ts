@@ -318,4 +318,42 @@ describe("DMN diff pane (real dmn-js)", () => {
 
         expect(container.querySelector(".dmn-diff-counts")).toBeNull();
     });
+
+    it("brings a rule into view without outlining it", async () => {
+        const { viewer, container } = await pane(undefined, 520, 160);
+        viewer.setMarks(MARKS);
+        await viewer.openView("Decision_1");
+
+        viewer.reveal("R6");
+        await nextFrame();
+
+        const scroller = container.querySelector<HTMLElement>(".tjs-table-container")!;
+        const row = container.querySelector<HTMLElement>('td.rule-index[data-row-id="R6"]')!;
+        expect(row.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+            scroller.getBoundingClientRect().bottom + 1,
+        );
+        expect(getComputedStyle(row.parentElement!).outlineStyle).toBe("none");
+    });
+
+    it("fits the DRD below the top inset without zooming in, and brings it back after a table", async () => {
+        const container = document.createElement("div");
+        container.style.cssText = "position: relative; width: 520px; height: 400px;";
+        document.body.append(container);
+        mounts.push(container);
+        const viewer = createDiffViewer(container, { theme: "light", topInset: 100 });
+        viewers.push(viewer);
+        await viewer.importXML(decisionXml());
+
+        const fitted = viewer.getViewport()!;
+        const scale = 520 / fitted.width;
+        expect(scale).toBeLessThanOrEqual(1);
+        // The topmost shape starts at y = 80, below the inset and a 24px margin.
+        expect((80 - fitted.y) * scale).toBeCloseTo(124, 0);
+
+        viewer.setViewport({ ...fitted, x: fitted.x + 50 });
+        await viewer.openView("Decision_1");
+        await viewer.openView(null);
+
+        expect(viewer.getViewport()?.x).toBeCloseTo(fitted.x + 50, 0);
+    });
 });

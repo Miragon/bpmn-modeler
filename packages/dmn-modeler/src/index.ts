@@ -27,6 +27,11 @@ export type { DmnPendingInputHandle } from "./publicApi";
 /** @internal The IDE's DMN diff panes; not public API yet. */
 export { createDiffViewer } from "./diff/DmnDiffViewer";
 /** @internal */
-export type { DmnDiffMarkOptions, DmnDiffMarks, DmnDiffViewerHandle } from "./diff/DmnDiffViewer";
+export type {
+    DmnDiffMarkOptions,
+    DmnDiffMarks,
+    DmnDiffViewerHandle,
+    DmnDiffViewerOptions,
+} from "./diff/DmnDiffViewer";
 /** @internal */
 export type { DmnTableMarks } from "./diff/diffMarks";

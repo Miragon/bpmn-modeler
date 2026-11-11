@@ -12,6 +12,7 @@ import {
     type Viewport,
 } from "@miragon/bpmn-modeler-types";
 import { i18n, TranslateModule, type SupportedLocale } from "@miragon/bpmn-modeler-i18n";
+import { extras as i18nExtras } from "@miragon/bpmn-modeler-i18n-extras";
 
 import type { DmnThemeMode } from "../publicApi";
 import {
@@ -56,6 +57,8 @@ export interface DmnDiffViewerHandle {
     onViewChanged(listener: (elementId: string | null) => void): () => void;
     /** Outlines and scrolls to a DRD element, rule, column or table, or clears the outline. */
     focus(id: string | undefined): void;
+    /** Brings a DRD element, rule, column or table into view without outlining it. */
+    reveal(id: string): void;
     getViewport(): Viewport | undefined;
     setViewport(viewport: Viewport): void;
     /** Calls back when the user pans or zooms the DRD. */
@@ -80,7 +83,7 @@ interface Element {
 interface DrdCanvas extends ResizableCanvas {
     addMarker(id: string, marker: string): void;
     removeMarker(id: string, marker: string): void;
-    viewbox(): Viewport & { outer: { width: number; height: number } };
+    viewbox(): Viewport & { inner: Viewport; outer: { width: number; height: number } };
     viewbox(box: Viewport): void;
 }
 
@@ -138,9 +141,14 @@ export class DmnDiffViewer implements DmnDiffViewerHandle {
     private movingViewport = false;
     private expectedScroll?: { top: number; left: number };
     private viewportTimer?: ReturnType<typeof setTimeout>;
+    /** Where the DRD was, so it comes back there when dmn-js renders it again. */
+    private drdViewport?: Viewport;
     private themeController?: ThemeController;
 
-    constructor(private readonly container: HTMLElement) {
+    constructor(
+        private readonly container: HTMLElement,
+        private readonly topInset = 0,
+    ) {
         panes += 1;
         this.scope = `[data-dmn-diff="${panes}"]`;
         container.classList.add("dmn-diff");
@@ -158,7 +166,10 @@ export class DmnDiffViewer implements DmnDiffViewerHandle {
             moddleExtensions: { camunda: camundaModdleDescriptor },
         });
 
-        const rendered = () => this.applyMarks();
+        const rendered = () => {
+            this.placeDrd();
+            this.applyMarks();
+        };
         const viewsChanged = () => this.notifyViewChanged();
         const scrolled = (event: Event) => this.onScroll(event);
         this.viewer.on("import.render.complete", rendered);
@@ -225,13 +236,16 @@ export class DmnDiffViewer implements DmnDiffViewerHandle {
     focus(id: string | undefined): void {
         this.focused = id;
         this.applyMarks();
-        if (id === undefined) return;
+        if (id !== undefined) this.reveal(id);
+    }
+
+    reveal(id: string): void {
         const drd = this.drd();
         if (drd) {
             this.centerOn(drd, id);
-            return;
+        } else {
+            this.scrollTableTo(id);
         }
-        this.scrollTableTo(id);
     }
 
     getViewport(): Viewport | undefined {
@@ -245,6 +259,7 @@ export class DmnDiffViewer implements DmnDiffViewerHandle {
         this.movingViewport = true;
         try {
             canvas.viewbox(viewport);
+            this.drdViewport = viewport;
         } finally {
             this.movingViewport = false;
         }
@@ -301,15 +316,12 @@ export class DmnDiffViewer implements DmnDiffViewerHandle {
         i18n.setLanguage(locale as SupportedLocale);
         const view = this.viewer.getActiveView();
         if (i18n.getLocale() === before || !view) return;
-        // Reopening resets the DRD viewbox; keep it so the diagram does not move.
-        const viewport = this.getViewport();
         this.openingView = true;
         try {
             await this.viewer.open(view);
         } finally {
             this.openingView = false;
         }
-        if (viewport) this.setViewport(viewport);
     }
 
     destroy(): void {
@@ -413,11 +425,41 @@ export class DmnDiffViewer implements DmnDiffViewerHandle {
         this.boundDrdBuses.add(drd.eventBus);
         drd.eventBus.on("canvas.viewbox.changed", () => {
             if (this.movingViewport || this.openingView) return;
+            this.drdViewport = this.getViewport();
             clearTimeout(this.viewportTimer);
             this.viewportTimer = setTimeout(() => {
                 const viewport = this.getViewport();
                 if (viewport) this.viewportListeners.forEach((listener) => listener(viewport));
             }, VIEWPORT_DEBOUNCE_MS);
+        });
+    }
+
+    /**
+     * dmn-js renders the DRD anew each time it opens. The first time the
+     * diagram is fitted below the top inset, never zoomed past 100 %; after
+     * that it comes back where it was.
+     */
+    private placeDrd(): void {
+        const drd = this.drd();
+        if (!drd) return;
+        if (this.drdViewport) {
+            this.setViewport(this.drdViewport);
+            return;
+        }
+        const { inner, outer } = drd.canvas.viewbox();
+        if (!outer.width || !outer.height || !inner.width || !inner.height) return;
+        const margin = 24;
+        const scale = Math.min(
+            1,
+            (outer.width - 2 * margin) / inner.width,
+            (outer.height - this.topInset - 2 * margin) / inner.height,
+        );
+        const width = outer.width / scale;
+        this.setViewport({
+            x: inner.x + inner.width / 2 - width / 2,
+            y: inner.y - (this.topInset + margin) / scale,
+            width,
+            height: outer.height / scale,
         });
     }
 
@@ -486,12 +528,19 @@ export class DmnDiffViewer implements DmnDiffViewerHandle {
     }
 }
 
+export interface DmnDiffViewerOptions {
+    readonly theme?: DmnThemeMode;
+    /** Pixels at the top of the pane the first DRD fit leaves free, for chrome floating there. */
+    readonly topInset?: number;
+}
+
 /** Stand up one read-only DMN diff pane in `container`. */
 export function createDiffViewer(
     container: HTMLElement,
-    options: { readonly theme?: DmnThemeMode } = {},
+    options: DmnDiffViewerOptions = {},
 ): DmnDiffViewerHandle {
-    const viewer = new DmnDiffViewer(container);
+    i18n.extend(i18nExtras);
+    const viewer = new DmnDiffViewer(container, options.topInset);
     if (options.theme) viewer.setTheme(options.theme);
     return viewer;
 }
