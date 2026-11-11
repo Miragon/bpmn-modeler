@@ -11,6 +11,8 @@ Tune the modeler with settings under the `miragon.bpmnModeler` namespace. Edit t
 | `miragon.bpmnModeler.language` | `en` | UI language as a locale code, for example `de`. [Language support](/vscode/features/language-support) lists every language. |
 | `miragon.bpmnModeler.colorTheme` | `automatic` | `automatic` follows the VS Code theme, `light` always uses the light canvas. |
 | `miragon.bpmnModeler.configFolder` | `.camunda` | Folder searched from each BPMN file up to the workspace root. Element templates live in `<configFolder>/element-templates/`. A blank value uses `.camunda`. |
+| `miragon.bpmnModeler.elementIds.style` | `typePrefix` | How [IDs from names](/vscode/features/element-ids) are spelled: `typePrefix` (`Activity_ProcessData`), `typeSuffix` (`ProcessDataTask`, as the Camunda Modeler plugin rename-technical-ids writes them) or `snakeCase` (`activity_process_data`). |
+| `miragon.bpmnModeler.elementIds.followName` | `false` | Rename an element's ID as you change its name while the ID is still random or was generated from the old name. IDs you typed yourself never change. |
 | `miragon.bpmnModeler.favouriteBpmnElements` | Service task, user task, call activity, exclusive gateway | BPMN types pinned at the top of the [append menu](/vscode/features/append-menu), max 6 (for example `bpmn:ServiceTask`). |
 | `miragon.bpmnModeler.alignToOrigin` | `false` | Move the diagram to the top-left origin when opening ([align-to-origin](https://github.com/bpmn-io/align-to-origin)). |
 | `miragon.bpmnModeler.showTransactionBoundaries` | `true` | Show transaction boundaries on the canvas (Camunda 7 only). |

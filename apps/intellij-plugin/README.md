@@ -20,6 +20,7 @@ A `.bpmn` file opens on a canvas in IntelliJ IDEA, for Camunda 7, Camunda 8, Ope
 ![return-handling.bpmn in IntelliJ with red error markers on a service task without a job type and on two flows without a condition, and 3 errors in the lint hint](../../docs/public/shots/intellij/linting.png)
 
 - **Format Diagram** in the **Tools** menu lays a diagram out.
+- **Generate IDs from Names** in the **Tools** menu renames IDs like `Activity_0x1y2z3` after the element names, after you review them.
 - **Compare versions** side by side in the IDE's diff and version-control views.
 - **Element templates** under `.camunda/element-templates/` show up in the modeler, and a template's JSON opens with a preview of its properties panel; the form that creates templates is in VS Code so far.
 - **Scripts in the IDE:** **Generate Script Files for Script Tasks** writes each inline script to a file you edit with suggestions, synced back live.

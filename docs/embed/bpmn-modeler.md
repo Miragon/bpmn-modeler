@@ -517,10 +517,12 @@ abort — the factory rejects with the thrown error and nothing is left mounted.
 | `newDiagram()`                                                                                 | Replace the diagram with a fresh empty one stamped for `engine`/`engineVersion`, so it reopens in the same engine and mode; fits it to view like a load. |
 | `formatDiagram()`                                                                              | Lay the diagram out left to right as one undoable step; resolves a `LayoutOutcome`.   |
 | `cleanupDiagram({ apply? })`                                                                   | Report orphan DI and other leftovers as a `CleanupOutcome`; `apply` removes them.     |
+| `openElementIdReview()`                                                                        | Open the review of [IDs from names](/vscode/features/element-ids) along the bottom of the canvas; applying it renames the checked elements in one undo step. Returns `{ status: "opened" }`, or `"unsupported"` on a surface built without it. Also on `BpmnDesignerHandle`. |
 | `setElementTemplates(templates)`                                                               | Push a new template set (data, never a path).                                         |
 | `setHiddenElementTemplates(refs)`                                                              | Keep templates, named by `{ id, version? }`, out of new choices: the chooser, the create, append and replace menus and the default template of a new shape or connection. Elements that use one keep it. Replaces the previous set and outlives `setElementTemplates`; a hidden latest version hides its id. |
 | `setSettings(settings)`                                                                        | Merge a partial settings update (`colorTheme` excluded — theme is host policy).       |
 | `setFavouriteBpmnElements(types)`                                                              | Replace the append/create-menu favourites live; same as `setSettings({ favouriteBpmnElements })`. Also on `BpmnDesignerHandle`. |
+| `setElementIdSettings({ style?, followName? })`                                                | How generated IDs are spelled (`"typePrefix"`, `"typeSuffix"`, `"snakeCase"`) and whether a still random or generated ID follows its element's name; same as `setSettings({ elementIdStyle, elementIdsFollowName })`. Also on `BpmnDesignerHandle`. |
 | `viewport` / `selection`                                                                       | Viewport (zoom/scroll/fit) and selection accessors.                                   |
 | `captureViewState()` / `applyViewState(state)`                                                 | [View state](#view-state-capture--restore) capture/restore across an instance switch. |
 | `setTheme(theme)`                                                                              | Switch the colour theme live; a no-op once destroyed.                                 |
@@ -730,7 +732,8 @@ compile time. Unlike the root `ModelerCapabilities`, the design
 `cleanupDiagram`, `getDiagramSvg`, `viewport`, `selection`,
 `captureViewState`, `applyViewState`, `setTheme`, `getService`,
 `applyLintResults`, `applyLintingDisabled`, `startInPageLinting`,
-`setFavouriteBpmnElements`, `onCommandStackChanged`, `onFormatted`, and
+`setFavouriteBpmnElements`, `openElementIdReview`, `setElementIdSettings`,
+`onCommandStackChanged`, `onFormatted`, and
 `destroy` — each **signature-identical** to its `BpmnModelerHandle`
 counterpart, so a modeler handle narrows to a designer handle with no adapter.
 The outcome types `LayoutOutcome`, `CleanupOutcome` and `CleanupStatus` are exported from `/design` too.

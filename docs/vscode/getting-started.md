@@ -48,6 +48,7 @@ Open the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`) and search for "Mirago
 | Toggle Standard Text Editor | `Ctrl+Shift+E` | Switch between the visual editor and the XML |
 | Format Diagram | `Shift+Alt+F` | Lay out the open diagram |
 | Clean Up Diagram | | List leftovers in the diagram and remove them after you confirm |
+| Generate IDs from Names | | Review the IDs the element names give and rename the ones you keep ticked, in one undo step ([IDs from names](/vscode/features/element-ids)) |
 | Copy Diagram as SVG | | Copy the diagram to the clipboard as SVG |
 | Save Diagram as SVG | | Save an SVG file next to the BPMN file |
 | Change Modeler Language | | Switch the modeler UI language |
