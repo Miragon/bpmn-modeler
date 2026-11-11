@@ -13,9 +13,7 @@ export interface CodeApproval {
  * The states the add-ons view protocol names. No reading produces `changed`
  * or `gone` any more; they stay until the protocol narrows them.
  */
-const CODE_STATES = ["approved", "new", "changed", "declined", "gone"] as const;
-
-export type CodeState = (typeof CODE_STATES)[number];
+export type CodeState = "approved" | "new" | "changed" | "declined" | "gone";
 
 /** What a host makes the user do before code it already ran is unloaded; a typed fact, never host prose. */
 export const PROCESS_RESTARTS = ["reloadWindow", "restartIde"] as const;

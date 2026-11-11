@@ -615,7 +615,7 @@ once. `kernel/domain/listedCode.ts` holds what an owner found for the view
 (`ListedPresence`: found, unreadable with its allowance, or gone).
 `PROCESS_RESTARTS` in `codeApproval.ts` names, as a typed host fact, how the
 user unloads code that already ran (reload the window, restart the IDE), and
-`RulePackageCatalog` keeps the packages revoked this session. `CODE_STATES`
+`RulePackageCatalog` keeps the packages revoked this session. `CodeState`
 (`approved`, `new`, `changed`, `declined`, `gone`) stays only for the view
 protocol, which pins all five; no reading produces `changed` or `gone`.
 
