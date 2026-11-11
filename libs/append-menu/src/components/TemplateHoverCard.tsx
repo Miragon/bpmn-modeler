@@ -12,6 +12,7 @@ import {
     extractImplementationDetail,
     partitionVisibleProperties,
     propertyDisplayLabel,
+    templatePropertyValue,
     type TemplateProperty,
 } from "@miragon/bpmn-modeler-element-template-chooser/types";
 import type { HoverCardPosition } from "../positioning";
@@ -139,34 +140,37 @@ function ParameterSection({
         <div class="am-hover-param-section">
             <h5 class="am-hover-param-title">{title}</h5>
             <ul class="am-hover-param-list">
-                {items.map((p, i) => (
-                    <li key={i} class="am-hover-param-item">
-                        <div class="am-hover-param-header">
-                            <span class="am-hover-param-label">
-                                {propertyDisplayLabel(p) ?? translate("Unnamed")}
-                            </span>
-                            <div class="am-hover-param-badges">
-                                {p.constraints?.notEmpty && (
-                                    <span class="am-badge am-badge--required">
-                                        {translate("required")}
-                                    </span>
-                                )}
-                                {p.editable === false && (
-                                    <span class="am-badge am-badge--readonly">
-                                        {translate("read-only")}
-                                    </span>
-                                )}
-                                {p.optional && (
-                                    <span class="am-badge am-badge--optional">
-                                        {translate("optional")}
-                                    </span>
-                                )}
+                {items.map((p, i) => {
+                    const value = templatePropertyValue(p);
+                    return (
+                        <li key={i} class="am-hover-param-item">
+                            <div class="am-hover-param-header">
+                                <span class="am-hover-param-label">
+                                    {propertyDisplayLabel(p) ?? translate("Unnamed")}
+                                </span>
+                                <div class="am-hover-param-badges">
+                                    {p.constraints?.notEmpty && (
+                                        <span class="am-badge am-badge--required">
+                                            {translate("required")}
+                                        </span>
+                                    )}
+                                    {p.editable === false && (
+                                        <span class="am-badge am-badge--readonly">
+                                            {translate("read-only")}
+                                        </span>
+                                    )}
+                                    {p.optional && (
+                                        <span class="am-badge am-badge--optional">
+                                            {translate("optional")}
+                                        </span>
+                                    )}
+                                </div>
                             </div>
-                        </div>
-                        {p.description && <p class="am-hover-param-desc">{p.description}</p>}
-                        {p.value && <code class="am-hover-param-value">{p.value}</code>}
-                    </li>
-                ))}
+                            {p.description && <p class="am-hover-param-desc">{p.description}</p>}
+                            {value && <code class="am-hover-param-value">{value}</code>}
+                        </li>
+                    );
+                })}
             </ul>
         </div>
     );

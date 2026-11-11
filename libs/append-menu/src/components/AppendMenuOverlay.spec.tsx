@@ -342,6 +342,36 @@ describe("AppendMenuOverlay", () => {
         );
     });
 
+    it("previews the first choice a required dropdown without a value is created with", () => {
+        const choices = [
+            { name: "Send mail", value: "send-mail" },
+            { name: "Send SMS", value: "send-sms" },
+        ];
+        const notify = templateEntry("notify", "Notify", {
+            template: {
+                properties: [
+                    {
+                        label: "Task type",
+                        type: "Dropdown",
+                        choices,
+                        binding: { type: "zeebe:taskDefinition", property: "type" },
+                    },
+                    {
+                        label: "Channel",
+                        type: "Dropdown",
+                        choices,
+                        binding: { type: "zeebe:input", name: "channel" },
+                    },
+                ],
+            },
+        });
+
+        renderOverlay({ templateEntries: [notify] });
+
+        expect(container.querySelector(".am-impl-value")?.textContent).toBe("send-mail");
+        expect(container.querySelector(".am-hover-param-value")?.textContent).toBe("send-mail");
+    });
+
     describe("hover previews", () => {
         beforeEach(() => {
             vi.useFakeTimers();
