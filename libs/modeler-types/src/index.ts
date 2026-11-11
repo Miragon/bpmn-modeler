@@ -15,6 +15,7 @@ export * from "./elementTemplates";
 export * from "./surfaceMode";
 export * from "./lint";
 export * from "./settings";
+export * from "./elementIds";
 export * from "./scripting";
 export * from "./scriptSurface";
 export * from "./processVariables";
