@@ -2,6 +2,7 @@ import {
     CleanupReportCommand,
     Command,
     DiagramFormattedCommand,
+    ElementIdReviewCommand,
     SetClipboardCommand,
     SetLintingEnabledCommand,
     SetPropertiesPanelStateCommand,
@@ -20,6 +21,7 @@ import { BpmnLayoutService } from "../../service/BpmnLayoutService";
 import { BpmnLintConfigService } from "../../service/BpmnLintConfigService";
 import { BpmnPropertiesPanelService } from "../../service/BpmnPropertiesPanelService";
 import { BpmnSettingsBroadcaster } from "../../service/BpmnSettingsBroadcaster";
+import { ElementIdsService } from "../../service/ElementIdsService";
 
 // Factories that turn a BPMN-webview command into a call on the owning service,
 // registered on each host's WebviewMessageRouter. A handler awaits its service
@@ -173,5 +175,14 @@ export function cleanupReportHandler(
 ): MessageHandler<CleanupReportCommand> {
     return async (message, editorId) => {
         await layoutSvc.reportCleanup(message, editorId);
+    };
+}
+
+/** `ElementIdReviewCommand` → tell the user when the review could not open. */
+export function elementIdReviewHandler(
+    elementIdsSvc: ElementIdsService,
+): MessageHandler<ElementIdReviewCommand> {
+    return (message) => {
+        elementIdsSvc.reportReview(message);
     };
 }

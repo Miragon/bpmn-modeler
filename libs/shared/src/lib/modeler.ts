@@ -24,6 +24,7 @@
  * - {@link ImplementationStatusQuery}     — push the per-activity implementation-resolution map for context-pad visibility
  * - {@link FormatDiagramQuery}            — rearrange the diagram (DI only), one undo step
  * - {@link CleanupDiagramQuery}           — report, or on confirmation remove, diagram garbage
+ * - {@link GenerateElementIdsQuery}       — open the review of IDs generated from element names
  * - {@link WorkspaceDefinitionsQuery}     — answer a definition search with matches from other models
  *
  * Commands (webview → extension host):
@@ -38,6 +39,7 @@
  * - {@link GetBpmnlintConfigCommand}          — webview is ready; trigger a host lint pass
  * - {@link DiagramFormattedCommand}           — outcome of a format attempt, successful or not
  * - {@link CleanupReportCommand}              — what a cleanup found, and whether it was applied
+ * - {@link ElementIdReviewCommand}            — whether the element ID review opened
  * - {@link GetBpmnModelerSettingCommand}      — request current modeler settings
  * - {@link GetDmnModelerSettingCommand}       — request current DMN modeler settings
  * - {@link GetPropertiesPanelStateCommand}    — request the global properties-panel visibility default
@@ -69,6 +71,7 @@ import type {
     DiffOrigin,
     DiffSide,
     DmnModelerSetting,
+    ElementIdReviewStatus,
     ElementTemplateRef,
     Engine,
     ImplementationEntry,
@@ -974,6 +977,26 @@ export class CleanupReportCommand extends Command<"CleanupReportCommand"> {
         public readonly applied: boolean,
     ) {
         super("CleanupReportCommand");
+    }
+}
+
+/**
+ * Host → webview: open the review of IDs generated from element names. Carries
+ * no payload; the webview answers with an {@link ElementIdReviewCommand}.
+ */
+export class GenerateElementIdsQuery extends Query<"GenerateElementIdsQuery"> {
+    constructor() {
+        super("GenerateElementIdsQuery");
+    }
+}
+
+/**
+ * Webview → host: whether the review opened. Always sent, so a surface that
+ * cannot change IDs reaches the user as a notice instead of silence.
+ */
+export class ElementIdReviewCommand extends Command<"ElementIdReviewCommand"> {
+    constructor(public readonly status: ElementIdReviewStatus) {
+        super("ElementIdReviewCommand");
     }
 }
 

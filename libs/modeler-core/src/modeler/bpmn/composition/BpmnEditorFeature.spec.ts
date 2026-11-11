@@ -107,6 +107,7 @@ const FULL_HOST_ROUTES: Record<BpmnEditorCommandType, MessageRoute> = {
     UpdateScriptVariablesCommand: HANDLED,
     DiagramFormattedCommand: HANDLED,
     CleanupReportCommand: HANDLED,
+    ElementIdReviewCommand: HANDLED,
 };
 
 const OWN_PLUMBING = ignored("the host's own plumbing owns the document");

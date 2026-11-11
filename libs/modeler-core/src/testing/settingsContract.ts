@@ -51,6 +51,7 @@ export const TYPESCRIPT_ONLY_SETTINGS_CASES: readonly SettingsNormalizationCase[
             scriptingSpin: null,
             lintingEnabled: "false",
             formPreviewAutomatic: "false",
+            elementIdsFollowName: "true",
         },
         normalized: {},
     },
@@ -62,6 +63,11 @@ export const TYPESCRIPT_ONLY_SETTINGS_CASES: readonly SettingsNormalizationCase[
     {
         name: "reads a theme and mode that are no strings as their defaults",
         raw: { colorTheme: 1, defaultMode: null },
+        normalized: {},
+    },
+    {
+        name: "reads an ID style that is no string as the default",
+        raw: { elementIdStyle: ["typeSuffix"] },
         normalized: {},
     },
     {
@@ -101,6 +107,8 @@ export function readSettingsSnapshot(settings: SettingsPort): ModelerSettingsSna
         scriptingSpin: settings.getScriptingSpin(),
         lintingEnabled: settings.getLintingEnabled(),
         formPreviewAutomatic: settings.getFormPreviewAutomatic(),
+        elementIdStyle: settings.getElementIdStyle(),
+        elementIdsFollowName: settings.getElementIdsFollowName(),
         marketplaces: settings.getMarketplaces(),
     };
 }

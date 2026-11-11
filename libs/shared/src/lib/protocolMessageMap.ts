@@ -51,6 +51,7 @@ import type {
     DiffReadyCommand,
     DmnFileQuery,
     DmnModelerSettingQuery,
+    ElementIdReviewCommand,
     ElementTemplateFileQuery,
     ElementTemplatesQuery,
     FocusElementQuery,
@@ -61,6 +62,7 @@ import type {
     FormPreviewQuery,
     GetFormPreviewCommand,
     FormatDiagramQuery,
+    GenerateElementIdsQuery,
     GetBpmnFileCommand,
     GetBpmnModelerSettingCommand,
     GetBpmnlintConfigCommand,
@@ -152,6 +154,7 @@ export type ProtocolQuery =
     | OpenAllScriptTasksQuery
     | FormatDiagramQuery
     | CleanupDiagramQuery
+    | GenerateElementIdsQuery
     | FormDefaultsQuery
     | DeploymentResultQuery
     | StoredCredentialsQuery
@@ -212,6 +215,7 @@ export type ProtocolCommand =
     | OpenScriptEditorCommand
     | DiagramFormattedCommand
     | CleanupReportCommand
+    | ElementIdReviewCommand
     | OpenScriptEditorsCommand
     | UpdateScriptSourceCommand
     | UpdateScriptVariablesCommand

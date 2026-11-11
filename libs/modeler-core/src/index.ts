@@ -88,6 +88,7 @@ export * from "./editorSession/adapter/in/webviewNotificationMessageHandlers";
 // ── modeler ─────────────────────────────────────────────────────────────────
 export * from "./modeler/bpmn/composition/BpmnEditorFeature";
 export * from "./modeler/bpmn/domain/model";
+export * from "./modeler/bpmn/domain/elementIdTexts";
 export * from "./modeler/bpmn/port/bpmnPorts";
 export * from "./modeler/bpmn/port/installedPackagesPort";
 export * from "./modeler/bpmn/service/BpmnModelerService";
@@ -101,6 +102,7 @@ export * from "./modeler/bpmn/adapter/out/bpmnlint/NoopDiagnostics";
 export * from "./modeler/bpmn/service/BpmnClipboardMediator";
 export * from "./modeler/bpmn/service/BpmnPropertiesPanelService";
 export * from "./modeler/bpmn/service/BpmnLayoutService";
+export * from "./modeler/bpmn/service/ElementIdsService";
 export * from "./modeler/bpmn/service/BpmnSettingsBroadcaster";
 export * from "./modeler/bpmn/service/BpmnSettingsParticipant";
 export * from "./modeler/bpmn/service/BpmnlintParticipant";

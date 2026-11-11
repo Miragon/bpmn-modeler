@@ -1,4 +1,4 @@
-import { ColorThemeSetting, SurfaceMode } from "@miragon/bpmn-modeler-types";
+import { ColorThemeSetting, ElementIdStyle, SurfaceMode } from "@miragon/bpmn-modeler-types";
 
 import {
     MarketplaceSettingsEntry,
@@ -63,6 +63,14 @@ export class InMemorySettings implements SettingsPort {
 
     getScriptingSpin(): boolean {
         return this.values.scriptingSpin;
+    }
+
+    getElementIdStyle(): ElementIdStyle {
+        return this.values.elementIdStyle;
+    }
+
+    getElementIdsFollowName(): boolean {
+        return this.values.elementIdsFollowName;
     }
 
     getMarketplaces(): MarketplaceSettingsEntry[] {

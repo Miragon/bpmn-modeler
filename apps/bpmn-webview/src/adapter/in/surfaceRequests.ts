@@ -3,6 +3,7 @@ import {
     type CleanupDiagramQuery,
     CleanupReportCommand,
     DiagramFormattedCommand,
+    ElementIdReviewCommand,
     type ElementTemplatesQuery,
     type GetDiagramAsSVGCommand,
     type HiddenElementTemplatesQuery,
@@ -31,6 +32,7 @@ interface SurfaceRequestHandlers {
     OpenAllScriptTasksQuery(): void;
     FormatDiagramQuery(): Promise<void>;
     CleanupDiagramQuery(query: CleanupDiagramQuery): void;
+    GenerateElementIdsQuery(): void;
     UpdateScriptContentQuery(query: UpdateScriptContentQuery): void;
     UpdateScriptFormatQuery(query: UpdateScriptFormatQuery): void;
     UpdateOpenScriptEditorsQuery(query: UpdateOpenScriptEditorsQuery): void;
@@ -146,6 +148,14 @@ export function createSurfaceRequests(
                     );
                 }
             },
+            GenerateElementIdsQuery: () => {
+                const surface = getSurface();
+                // Always reply, so View mode reaches the user as a notice.
+                const { status } = isEditableSurface(surface)
+                    ? surface.openElementIdReview()
+                    : { status: "unsupported" as const };
+                host.postMessage(new ElementIdReviewCommand(status));
+            },
             UpdateScriptContentQuery: (query) => {
                 const surface = getSurface();
                 if (isModelerSurface(surface)) {
@@ -211,14 +221,24 @@ export function createSurfaceRequests(
                     // Theme is host policy: the package's setSettings does not
                     // apply `colorTheme`, so the host adapter drives it.
                     theme.setMode(query.setting.colorTheme);
-                    // Of the rest, the designer honours only the favourites and
-                    // the viewer nothing.
+                    // Of the rest, the designer honours the favourites and the
+                    // element ID settings, the viewer nothing.
                     const surface = getSurface();
-                    const favourites = query.setting.favouriteBpmnElements;
+                    const {
+                        favouriteBpmnElements: favourites,
+                        elementIdStyle,
+                        elementIdsFollowName,
+                    } = query.setting;
                     if (isModelerSurface(surface)) {
                         surface.setSettings(query.setting);
-                    } else if (isEditableSurface(surface) && favourites) {
-                        surface.setFavouriteBpmnElements(favourites);
+                    } else if (isEditableSurface(surface)) {
+                        if (favourites) {
+                            surface.setFavouriteBpmnElements(favourites);
+                        }
+                        surface.setElementIdSettings({
+                            style: elementIdStyle,
+                            followName: elementIdsFollowName,
+                        });
                     }
                 } finally {
                     // Resolve even on a facade throw — otherwise the boot
