@@ -476,21 +476,6 @@ describe("AddOnsFeature", () => {
             expect(host.pluginApprovals.approvals).toEqual([allowanceRowOf(RESIZE_IN_REPOSITORY)]);
         });
 
-        it("answers an inspect request as not offered", async () => {
-            const { host, install, addOns, view } = setUp({ files: {} });
-            install(ACME, "bpmnlint-plugin-acme");
-            view.attachTo(addOns);
-            await shown(addOns);
-
-            const result = await view.connection?.handle({
-                kind: "inspect",
-                addOnId: `rulePackage:${ACME}`,
-            });
-
-            expect(result).toMatchObject({ kind: "refused", reason: "notOffered" });
-            expect(host.pluginApprovals.receivedChanges).toEqual([]);
-        });
-
         it("offers Allow at once for a rule package a notice left to the view", async () => {
             const { host, install, rulePackageCatalog, addOns, view, blockedPackageOf } = setUp({
                 files: {},

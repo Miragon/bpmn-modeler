@@ -79,13 +79,10 @@ export function nestedConfigFolderText(belowRoot: string): string {
     return `Applies to diagrams below ${belowRoot}/`;
 }
 
-/** `changed` and `gone` are never shown; they stay until the view protocol narrows `CodeState`. */
 export const CODE_STATE_LABEL: Record<CodeState, string> = {
     approved: "Allowed",
     new: "Not allowed yet",
-    changed: "Changed, review needed",
     declined: "Declined this session",
-    gone: "Folder gone",
 };
 
 export function reviewHeading(name: string): string {

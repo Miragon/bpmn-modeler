@@ -450,12 +450,7 @@ function fallbackFocus(
     state: ViewState,
     model: AddOnCatalogPayload,
 ): FocusTarget | undefined {
-    const ownerId =
-        target.kind === "review"
-            ? target.addOnId
-            : target.kind === "action"
-              ? target.targetId
-              : undefined;
+    const ownerId = target.kind === "action" ? target.targetId : undefined;
     if (ownerId !== undefined && isListed(model, ownerId)) return { kind: "head", headId: ownerId };
     const selected = selectedIdOf(state);
     return selected === undefined ? undefined : { kind: "head", headId: selected };

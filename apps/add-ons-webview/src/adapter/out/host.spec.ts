@@ -97,7 +97,7 @@ describe("the preview's host", () => {
             group.sources.flatMap((source) => source.addOns.map((addOn) => addOn.stateText)),
         );
         expect(new Set(states)).toEqual(
-            new Set(["Allowed", "Not allowed yet", "Changed, review needed", "Declined this session", "Folder gone", "Enabled", "Disabled"]),
+            new Set(["Allowed", "Not allowed yet", "Declined this session", "Enabled", "Disabled"]),
         );
     });
 
@@ -109,14 +109,15 @@ describe("the preview's host", () => {
 
         host.postMessage(new AddOnRequestCommand(1, { kind: "allow", addOnId: row.id, revision: first.revision }));
 
-        expect(results()).toEqual([{ kind: "done", message: "Allowed Resize Tasks. Open editors reload with it." }]);
+        expect(results()).toEqual([
+            { kind: "done", message: "Allowed Resize Tasks in every worktree of its repository. Open editors reload with it." },
+        ]);
         expect([models().at(-1)!.revision > first.revision, rowNamed("Resize Tasks").stateText]).toEqual([true, "Allowed"]);
     });
 
     it.each([
-        { name: "Palette", request: "revoke", result: { kind: "done", message: "Revoked Palette. Open editors reload without it." }, stateText: "Not allowed yet" },
-        { name: "Old Tool", request: "revoke", result: { kind: "done", message: "Forgot Old Tool." }, stateText: undefined },
-        { name: "bpmnlint-plugin-acme", request: "inspect", result: { kind: "done", message: "Read bpmnlint-plugin-acme. Review what it covers, then allow this content." }, stateText: "Not allowed yet" },
+        { name: "Palette", request: "revoke", result: { kind: "done", message: "Revoked Palette in every worktree of its repository. Open editors reload without it." }, stateText: "Not allowed yet" },
+        { name: "bpmnlint-plugin-acme@1.0.0", request: "revoke", result: { kind: "done", message: "Revoked bpmnlint-plugin-acme@1.0.0 in every worktree of its repository. Code it already ran stays loaded until you reload the window." }, stateText: "Not allowed yet" },
         { name: "Mail Task", request: "disable", result: { kind: "done" }, stateText: "Disabled" },
         { name: "Legacy Task", request: "enable", result: { kind: "done" }, stateText: "Enabled" },
         { name: "Gone", request: "revoke", result: { kind: "refused", reason: "unknownAddOn", message: "This add-on is no longer listed." }, stateText: undefined },
@@ -244,7 +245,7 @@ describe("the preview's host", () => {
         const codeRows = rows.filter(({ kind }) => kind !== "elementTemplate");
 
         expect([
-            rows.filter(({ actions }) => actions.some(({ kind }) => kind === "allow" || kind === "inspect")),
+            rows.filter(({ actions }) => actions.some(({ kind }) => kind === "allow")),
             codeRows.length > 0,
             codeRows.filter(({ stateText }) => stateText === "Allowed").length > 0,
         ]).toEqual([[], true, true]);

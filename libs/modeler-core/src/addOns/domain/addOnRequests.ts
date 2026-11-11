@@ -2,7 +2,6 @@ import { CatalogActionKind, TemplateActionKind, TemplateSourceActionKind } from 
 
 /** What a view asks of the core; every id names something the core itself showed. */
 export type AddOnRequest =
-    | { readonly kind: "inspect"; readonly addOnId: string }
     | { readonly kind: "allow"; readonly addOnId: string; readonly revision: number }
     | { readonly kind: "revoke"; readonly addOnId: string }
     | { readonly kind: TemplateActionKind; readonly addOnId: string }
@@ -19,8 +18,6 @@ export type AddOnRefusal =
     | "staleView"
     | "closedView"
     | "notOffered"
-    /** Never produced; stays until the view protocol narrows it. */
-    | "changedSinceReview"
     | "gone"
     | "unreadable";
 
@@ -64,7 +61,6 @@ export function refused(reason: AddOnRefusal, message: string): AddOnActionResul
 type RequestField = "addOnId" | "sourceId" | "revision";
 
 const REQUEST_FIELDS: Record<AddOnRequest["kind"], readonly RequestField[]> = {
-    inspect: ["addOnId"],
     allow: ["addOnId", "revision"],
     revoke: ["addOnId"],
     enable: ["addOnId"],

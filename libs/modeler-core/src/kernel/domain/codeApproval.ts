@@ -9,11 +9,8 @@ export interface CodeApproval {
     readonly contentHash: string;
 }
 
-/**
- * The states the add-ons view protocol names. No reading produces `changed`
- * or `gone` any more; they stay until the protocol narrows them.
- */
-export type CodeState = "approved" | "new" | "changed" | "declined" | "gone";
+/** The state the add-ons view shows a code add-on in. */
+export type CodeState = "approved" | "new" | "declined";
 
 /** What a host makes the user do before code it already ran is unloaded; a typed fact, never host prose. */
 export const PROCESS_RESTARTS = ["reloadWindow", "restartIde"] as const;

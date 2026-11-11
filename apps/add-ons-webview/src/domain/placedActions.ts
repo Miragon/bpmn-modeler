@@ -11,7 +11,7 @@ export interface PlacedActions {
     readonly allow?: ActionViewPayload<AddOnActionKindPayload>;
 }
 
-/** A code row's review, once the user asked to read it; a template has none. */
+/** A code row's review, which the core writes for a row that offers Allow; a template has none. */
 export function reviewOf(addOn: AddOnPayload): AddOnReviewPayload | undefined {
     return "review" in addOn ? addOn.review : undefined;
 }

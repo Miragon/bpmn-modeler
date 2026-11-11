@@ -829,12 +829,6 @@ button.av-head:hover .av-head-count {
     overflow-wrap: anywhere;
 }
 
-.av-mono {
-    font-family: var(--ds-mono);
-    font-size: 12px;
-    word-break: break-all;
-}
-
 .av-review-end {
     display: flex;
     padding-top: 12px;

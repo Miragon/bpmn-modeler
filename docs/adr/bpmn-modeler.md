@@ -615,9 +615,9 @@ once. `kernel/domain/listedCode.ts` holds what an owner found for the view
 (`ListedPresence`: found, unreadable with its allowance, or gone).
 `PROCESS_RESTARTS` in `codeApproval.ts` names, as a typed host fact, how the
 user unloads code that already ran (reload the window, restart the IDE), and
-`RulePackageCatalog` keeps the packages revoked this session. `CodeState`
-(`approved`, `new`, `changed`, `declined`, `gone`) stays only for the view
-protocol, which pins all five; no reading produces `changed` or `gone`.
+`RulePackageCatalog` keeps the packages revoked this session. The view
+protocol names a code add-on's state as `CodeState` (`approved`, `new`,
+`declined`), the three an allowance state maps to.
 
 **Prompt flow.** Per the
 [VS Code UX guidelines](../../.agents/skills/vscode-ux-guidelines/SKILL.md), a
@@ -1019,8 +1019,7 @@ hides ([the page](architecture-and-hosts.md#package-boundaries)).
   only). A rule package is named `name@version` (`rulePackageLabelOf`) and has
   no detail; a plugin's detail is its folder below the config folder. A view
   shows its own state labels (`CODE_STATE_LABEL`: Allowed, Not allowed yet,
-  Declined this session; the labels of `changed` and `gone` stay for the
-  protocol and are never shown). The view id stays per place
+  Declined this session). The view id stays per place
   (`addOnIdOf(kind, place)`), so revisions and reveals do not change; the
   allowance rides in `ShownCode` only, and two worktrees' rows of one add-on
   change state together. A listing that throws is logged and still reaches the
@@ -1028,8 +1027,8 @@ hides ([the page](architecture-and-hosts.md#package-boundaries)).
   revision so an allow against it holds, with a `problem`, or without one
   sends a new revision that lists nothing and says why. A view's request is
   untrusted: `addOnRequestOf` keeps only a known kind with the fields it
-  names, and anything else is refused as not offered; an `inspect` request,
-  which the protocol still names, is always refused so. Rule package ids
+  names, and anything else, a retired `inspect` among it, is refused as not
+  offered. Rule package ids
   come only from the workspace folders' `node_modules` and from what the gate
   reported in this process, so the config's own package is listed once a lint
   reported it, or while a `node_modules` entry links to it. Residual: after a

@@ -29,7 +29,7 @@ export function isOnlyNeedsReview(filter: CatalogFilter): boolean {
 
 /** Read from what the core offers, so the view never repeats the core's approval rule. */
 export function needsReview(addOn: AddOnPayload): boolean {
-    return addOn.actions.some(({ kind }) => kind === "allow" || kind === "inspect");
+    return addOn.actions.some(({ kind }) => kind === "allow");
 }
 
 export function isFilterActive(filter: CatalogFilter): boolean {

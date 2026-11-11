@@ -12,7 +12,6 @@ import {
     AddOnRequest,
     CATALOG_NOT_OFFERED,
     catalogActionRefusalOf,
-    NOT_OFFERED,
     REPORTED_BY_FLOW,
 } from "../domain/addOnRequests";
 import {
@@ -48,8 +47,7 @@ export interface AddOnCatalogPorts {
 }
 
 type QueuedRequest =
-    | Extract<AddOnRequest, { kind: "inspect" | "allow" | "revoke" | "pruneCache" }>
-    | TemplateSwitchRequest;
+    Extract<AddOnRequest, { kind: "allow" | "revoke" | "pruneCache" }> | TemplateSwitchRequest;
 type MarketplaceRequest = Extract<
     AddOnRequest,
     { kind: "addMarketplace" | "updateMarketplaces" | "removeMarketplace" }
@@ -167,8 +165,6 @@ export class AddOnCatalogService {
 
     private actOn(request: QueuedRequest): Promise<AddOnActionResult> {
         switch (request.kind) {
-            case "inspect":
-                return Promise.resolve(NOT_OFFERED);
             case "allow":
                 return this.allow(request.addOnId, request.revision);
             case "revoke":
