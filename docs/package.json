@@ -18,12 +18,12 @@
         "cytoscape-cose-bilkent": "4.1.0",
         "dayjs": "1.11.23",
         "debug": "4.4.3",
-        "mermaid": "12.2.0",
-        "portless": "0.15.8",
-        "vite": "8.3.4",
+        "mermaid": "12.3.0",
+        "portless": "0.16.0",
+        "vite": "8.3.6",
         "vitepress": "1.6.4",
         "vitepress-plugin-mermaid": "2.0.17",
-        "vitest": "5.0.5"
+        "vitest": "5.1.0"
     },
     "type": "module"
 }
