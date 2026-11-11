@@ -9,6 +9,7 @@
  */
 export * from "./asyncDebounce";
 export * from "./flushableDebounceInput";
+export * from "./popupDraftInput";
 export * from "./engine";
 export * from "./engineVersions";
 export * from "./elementTemplates";

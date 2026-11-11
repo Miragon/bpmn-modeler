@@ -184,8 +184,8 @@ export interface DmnModelerHandle {
 }
 
 /**
- * @internal Input a view editor holds in its input debounce, so it is not in
- * the document or an export yet.
+ * @internal Input a view editor holds in its input debounce, or the DRD panel's
+ * open FEEL pop-up in its draft, so it is not in the document or an export yet.
  */
 export interface DmnPendingInputHandle {
     /** Whether such input waits; `false` once destroyed. */

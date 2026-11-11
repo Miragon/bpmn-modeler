@@ -14,6 +14,7 @@ import type { CleanupOutcome } from "@miragon/bpmn-modeler-types";
 import { ModeFilterModule } from "@miragon/bpmn-modeler-properties-panel/modeFilter/ModeFilterProvider";
 import { CustomGroupsModule } from "@miragon/bpmn-modeler-properties-panel/customGroups/CustomGroupsRegistry";
 import { FlushableDebounceInputModule } from "@miragon/bpmn-modeler-properties-panel/debounceInput/flushableDebounceInput";
+import { PopupDraftInputModule } from "@miragon/bpmn-modeler-properties-panel/debounceInput/popupDraftInput";
 import { TranslateModule } from "@miragon/bpmn-modeler-i18n";
 import {
     BpmnlintConfig,
@@ -238,6 +239,7 @@ export class BpmnModeler {
             CustomGroupsModule,
             // After the upstream panel, so its `debounceInput` is the flushable one.
             FlushableDebounceInputModule,
+            PopupDraftInputModule,
             ModeUiModule,
             ElementTemplateOfferModule,
             DrilldownFitModule,
