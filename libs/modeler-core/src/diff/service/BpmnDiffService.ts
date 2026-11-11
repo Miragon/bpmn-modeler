@@ -1,7 +1,6 @@
 import {
     ApplyDiffHighlightsQuery,
     BpmnFileQuery,
-    LanguageQuery,
     SyncCursorQuery,
     SyncViewportQuery,
     ViewportChangedCommand,
@@ -14,6 +13,7 @@ import { DiffSession } from "./DiffSession";
 import { basenameOfUriString } from "../domain/basenameOfUriString";
 import { NotifierPort, SettingsPort } from "../../kernel/port/hostPorts";
 import { DiffPaneStore } from "./DiffPaneStore";
+import { DiffPaneRelay } from "./DiffPaneRelay";
 
 /**
  * Drives the diff *content* for already-resolved BPMN diff panes: it answers
@@ -26,6 +26,8 @@ import { DiffPaneStore } from "./DiffPaneStore";
  * pairing, disposal) and every VS Code call live in `BpmnDiffController`.
  */
 export class BpmnDiffService {
+    private readonly relay: DiffPaneRelay;
+
     /**
      * @param notifier Logging helper for parse failures and dropped posts.
      * @param vsSettings Settings reader — provides the active UI locale so
@@ -36,9 +38,11 @@ export class BpmnDiffService {
      */
     constructor(
         private readonly notifier: NotifierPort,
-        private readonly vsSettings: SettingsPort,
-        private readonly store: DiffPaneStore,
-    ) {}
+        vsSettings: SettingsPort,
+        store: DiffPaneStore,
+    ) {
+        this.relay = new DiffPaneRelay(notifier, vsSettings, store);
+    }
 
     /**
      * Replies to the webview's initial `GetBpmnFileCommand` with the pane's
@@ -61,17 +65,9 @@ export class BpmnDiffService {
      * once both panes of the session report ready.
      */
     async markReady(handle: DiffPaneHandle): Promise<void> {
-        handle.setReady();
-        await this.sendLanguage(handle);
-
-        const session = this.store.findByUri(handle.uri);
-        if (!session || !session.isArmed()) {
-            return;
-        }
-        const before = session.before();
-        const after = session.after();
-        if (before && after) {
-            await this.computeAndBroadcast(session, before, after);
+        const armed = await this.relay.markReady(handle);
+        if (armed) {
+            await this.computeAndBroadcast(armed.session, armed.before, armed.after);
         }
     }
 
@@ -80,32 +76,18 @@ export class BpmnDiffService {
      * controller when the user changes `miragon.bpmnModeler.language`.
      */
     rebroadcastLanguage(): void {
-        for (const session of this.store.allSessions()) {
-            for (const handle of session.attachedPanes()) {
-                if (handle.isReady()) {
-                    void this.sendLanguage(handle);
-                }
-            }
-        }
+        this.relay.rebroadcastLanguage();
     }
 
     /**
      * Posts the partner's viewport change to this pane so panning/zoom stays
      * in lockstep.  Silently drops posts when the partner is hidden or gone.
      */
-    async forwardViewport(
+    forwardViewport(
         handle: DiffPaneHandle,
         viewport: ViewportChangedCommand["viewport"],
     ): Promise<void> {
-        const partner = this.partnerOf(handle);
-        if (!partner) {
-            return;
-        }
-        try {
-            await partner.postMessage(new SyncViewportQuery(viewport));
-        } catch (error) {
-            this.notifier.logInfo(`syncViewport dropped: ${(error as Error).message}`);
-        }
+        return this.relay.toPartner(handle, new SyncViewportQuery(viewport), "syncViewport");
     }
 
     /**
@@ -113,35 +95,8 @@ export class BpmnDiffService {
      * navigation stays in lockstep.  Mirrors {@link forwardViewport} — same
      * partner lookup, same drop-silently-on-failure semantics.
      */
-    async forwardCursor(handle: DiffPaneHandle, index: number): Promise<void> {
-        const partner = this.partnerOf(handle);
-        if (!partner) {
-            return;
-        }
-        try {
-            await partner.postMessage(new SyncCursorQuery(index));
-        } catch (error) {
-            this.notifier.logInfo(`syncCursor dropped: ${(error as Error).message}`);
-        }
-    }
-
-    /**
-     * Posts the current UI locale to the given pane so its legend and other
-     * non-bpmn-js UI render in the user's language.  Silently drops the post
-     * when the pane is hidden or already disposed — the pane will request the
-     * language again on its next resolve.
-     */
-    private async sendLanguage(handle: DiffPaneHandle): Promise<void> {
-        try {
-            await handle.postMessage(new LanguageQuery(this.vsSettings.getLanguage()));
-        } catch (error) {
-            this.notifier.logInfo(`setLanguage dropped: ${(error as Error).message}`);
-        }
-    }
-
-    private partnerOf(handle: DiffPaneHandle): DiffPaneHandle | undefined {
-        const session = this.store.findByUri(handle.uri);
-        return session?.partnerOf(handle);
+    forwardCursor(handle: DiffPaneHandle, index: number): Promise<void> {
+        return this.relay.toPartner(handle, new SyncCursorQuery(index), "syncCursor");
     }
 
     /**
@@ -202,14 +157,7 @@ export class BpmnDiffService {
         );
     }
 
-    private async postHighlights(
-        handle: DiffPaneHandle,
-        query: ApplyDiffHighlightsQuery,
-    ): Promise<void> {
-        try {
-            await handle.postMessage(query);
-        } catch (error) {
-            this.notifier.logInfo(`ApplyDiffHighlights dropped: ${(error as Error).message}`);
-        }
+    private postHighlights(handle: DiffPaneHandle, query: ApplyDiffHighlightsQuery): Promise<void> {
+        return this.relay.post(handle, query, "ApplyDiffHighlights");
     }
 }
