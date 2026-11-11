@@ -194,6 +194,45 @@ describe("allowanceKeyOf", () => {
         expect(allowanceKeyOf(other) === allowanceKeyOf(main)).toBe(same);
     });
 
+    it.each([
+        {
+            case: "a repository whose drive letter git and VS Code spell differently",
+            upper: allowanceOf(
+                "plugin",
+                "C:/work/repo/.camunda/plugins/trace",
+                {
+                    kind: "repository",
+                    commonDir: "C:/work/repo/.git",
+                    worktreeRoot: "C:/work/repo",
+                },
+                "",
+            ),
+            lower: allowanceOf(
+                "plugin",
+                "c:/work/task/.camunda/plugins/trace",
+                {
+                    kind: "repository",
+                    commonDir: "c:/work/repo/.git",
+                    worktreeRoot: "c:/work/task",
+                },
+                "",
+            ),
+        },
+        {
+            case: "a folder origin whose drive letter two hosts spell differently",
+            upper: allowanceOf("rulePackage", "C:/rules/acme", NO_REPOSITORY, ""),
+            lower: allowanceOf("rulePackage", "c:/rules/acme", NO_REPOSITORY, ""),
+        },
+    ])("gives $case one key, as Windows ignores the drive letter's case", ({ upper, lower }) => {
+        expect(allowanceKeyOf(upper)).toBe(allowanceKeyOf(lower));
+    });
+
+    it("tells folders apart whose names differ in case beyond the drive letter", () => {
+        expect(
+            allowanceKeyOf(allowanceOf("rulePackage", "C:/Rules/acme", NO_REPOSITORY, "")),
+        ).not.toBe(allowanceKeyOf(allowanceOf("rulePackage", "c:/rules/acme", NO_REPOSITORY, "")));
+    });
+
     it("stores an allowance as a row the hosts keep unchanged", () => {
         expect(allowanceRowOf(main)).toEqual({
             pluginId: allowanceKeyOf(main),

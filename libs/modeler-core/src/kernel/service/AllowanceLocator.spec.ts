@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { writeLinkedWorktree, writeRepository } from "../../testing/gitLayout";
+import { GitLayoutFiles, writeLinkedWorktree, writeRepository } from "../../testing/gitLayout";
 import { InMemoryInstalledPackages } from "../../testing/InMemoryInstalledPackages";
 import { allowanceKeyOf, LOCAL_HOST } from "../domain/allowance";
+import { RepositoryFilesPort } from "../port/repositoryFilesPort";
 import { AllowanceLocator } from "./AllowanceLocator";
 
 const PLUGIN = ".camunda/plugins/trace";
@@ -69,6 +70,32 @@ describe("AllowanceLocator", () => {
             addOn: "",
         });
         expect(allowances.locatedAllowanceAt("rulePackage", "/gone/rules")).toBeUndefined();
+    });
+
+    it("gives a linked worktree its repository's key when git spells the drive in upper case", () => {
+        // The posix tree holds the drive as a folder.
+        const stored = (path: string) => path.replace(/^[Cc]:/, "/c:");
+        const windowsLayout: GitLayoutFiles = {
+            writeFile: (path, content) => files.writeFile(stored(path), content),
+            createDirectory: (path) => files.createDirectory(stored(path)),
+        };
+        // As Windows looks paths up whatever the drive case, and Node's realpathSync keeps it.
+        const windowsFiles: RepositoryFilesPort = {
+            realPath: (path) => (files.realPath(stored(path)) === undefined ? undefined : path),
+            entryKindOf: (path) => files.entryKindOf(stored(path)),
+            readTextFile: (path) => files.readTextFile(stored(path)),
+        };
+        writeRepository(windowsLayout, "C:/Users/u/A");
+        writeLinkedWorktree(windowsLayout, "C:/Users/u/A", "C:/Users/u/wt");
+        windowsLayout.createDirectory(`c:/Users/u/A/${PLUGIN}`);
+        windowsLayout.createDirectory(`c:/Users/u/wt/${PLUGIN}`);
+        const onWindows = new AllowanceLocator(windowsFiles, LOCAL_HOST);
+
+        const main = onWindows.allowanceAt("plugin", `c:/Users/u/A/${PLUGIN}`);
+        const linked = onWindows.allowanceAt("plugin", `c:/Users/u/wt/${PLUGIN}`);
+
+        expect(linked.origin.kind).toBe("repository");
+        expect(allowanceKeyOf(linked)).toBe(allowanceKeyOf(main));
     });
 
     it("puts the host into the key", () => {

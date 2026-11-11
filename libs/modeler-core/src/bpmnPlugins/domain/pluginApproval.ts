@@ -121,9 +121,10 @@ export interface CachedPluginFiles {
 }
 
 /**
- * Where the approved bytes are copied for the webview to load. The webview
- * never reads the workspace folder, so neither a file changed after the
- * approval nor an unapproved file beside the script can reach it.
+ * Where the allowed bytes read for a request are copied for the webview to
+ * load. The webview never reads the workspace folder, so neither a file
+ * swapped after the copy nor a file beside the script that no manifest names
+ * can reach it.
  */
 export function cachedPluginFiles(cacheRoot: string, plugin: WorkspacePlugin): CachedPluginFiles {
     const directory = cachedPluginDirectory(cacheRoot, plugin);

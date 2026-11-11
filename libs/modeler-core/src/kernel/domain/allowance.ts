@@ -9,7 +9,7 @@ import {
 import { installedPackageNameOf, NODE_MODULES } from "./installedPackagePath";
 import { CodeOrigin } from "./repositoryIdentity";
 import { relativeToRoot } from "./rootContainment";
-import { lastWorkspacePathSegment, parentWorkspacePath } from "./workspacePath";
+import { lastWorkspacePathSegment, parentWorkspacePath, withLowerCaseDrive } from "./workspacePath";
 
 /** The host part of code found on this machine. */
 export const LOCAL_HOST = "";
@@ -94,8 +94,9 @@ function installedAddOnPlaceOf(belowWorktree: string): string {
           );
 }
 
+/** A linked worktree's origin comes from git's files, its main worktree's from the host's spelling. */
 export function allowanceKeyOf({ kind, host, origin, addOn }: Allowance): string {
-    return JSON.stringify([kind, host, origin.kind, origin.path, addOn]);
+    return JSON.stringify([kind, host, origin.kind, withLowerCaseDrive(origin.path), addOn]);
 }
 
 /** The row the hosts store unchanged: the key as its id, the marker in place of a hash. */

@@ -7,6 +7,7 @@ import {
     lastWorkspacePathSegment,
     parentWorkspacePath,
     toWorkspacePath,
+    withLowerCaseDrive,
     withoutFileScheme,
 } from "./workspacePath";
 
@@ -345,5 +346,22 @@ describe("fileSystemPathOf", () => {
         { behaviour: "keeps a drive path without the slash", path: "c:/x", fsPath: "c:/x" },
     ])("$behaviour", ({ path, fsPath }) => {
         expect(fileSystemPathOf(path)).toBe(fsPath);
+    });
+});
+
+describe("withLowerCaseDrive", () => {
+    it.each([
+        { behaviour: "lowers an upper-case drive", path: "C:/Users/U", folded: "c:/Users/U" },
+        {
+            behaviour: "lowers an upper-case drive after a slash",
+            path: "/C:/Users/U",
+            folded: "/c:/Users/U",
+        },
+        { behaviour: "keeps a lower-case drive", path: "c:/Users/U", folded: "c:/Users/U" },
+        { behaviour: "keeps a POSIX path", path: "/Work/C:/x", folded: "/Work/C:/x" },
+        { behaviour: "keeps a UNC path", path: "//Server/Share", folded: "//Server/Share" },
+        { behaviour: "keeps a folder named like a drive", path: "C/x", folded: "C/x" },
+    ])("$behaviour", ({ path, folded }) => {
+        expect(withLowerCaseDrive(path)).toBe(folded);
     });
 });

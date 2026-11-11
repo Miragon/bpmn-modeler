@@ -1232,7 +1232,11 @@ outcome of a review and the changes; `contentRowMigration.ts` rewrites rows
 pinned to content; `listedCode.ts` holds what an owner found for the view;
 `workspacePath.ts` holds `fileSystemPathOf`, which strips the slash before a
 drive letter (`/c:/x` to `c:/x`), so both hosts' `NodeInstalledPackages` and
-`NodeBpmnLinter` read the `/c:/…` ids `VsCodeWorkspace` spells on Windows.
+`NodeBpmnLinter` read the `/c:/…` ids `VsCodeWorkspace` spells on Windows,
+and `withLowerCaseDrive`, which the allowance key and the linked worktree
+check use: VS Code lowercases the drive letter, git and Node's
+`realpathSync` keep the case they were given, so a linked worktree whose git
+files spell `C:` still resolves to the repository VS Code spells `c:`.
 `kernel/service/`: `RepositoryLocator` gathers the facts through the
 synchronous `RepositoryFilesPort` (`realPath`, `entryKindOf` without
 following a link, `readTextFile`), which `InstalledPackagesPort` extends, so
@@ -1323,9 +1327,9 @@ Accepted:
   notes say so.
 - A second clone asks once. A submodule, a `--separate-git-dir` checkout and
   other version control systems ask per folder, and without git a pnpm update
-  asks again, as the package's folder changes. On Windows `realpathSync`
-  keeps the drive letter's case, so `c:` and `C:` can give two keys and ask
-  once more.
+  asks again, as the package's folder changes. On Windows the key folds only
+  the drive letter's case: a folder that two hosts or git spell in another
+  case beyond the drive gives another key and asks once more.
 - Rows of deleted repositories stay; no view lists them. An allowance of an
   add-on removed from the repository cannot be revoked from the view.
 - A hoisted and a nested copy of one rule package share an allowance.
