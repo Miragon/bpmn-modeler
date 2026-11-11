@@ -11,11 +11,11 @@
     "devDependencies": {
         "@miragon/architecture-testing": "workspace:*",
         "@miragon/bpmn-modeler-shared": "workspace:*",
-        "@types/node": "26.6.5",
+        "@types/node": "26.6.6",
         "@typescript/native": "npm:typescript@7.0.2",
-        "@vitest/coverage-v8": "5.0.5",
+        "@vitest/coverage-v8": "5.1.0",
         "typescript": "npm:@typescript/typescript6@6.0.2",
-        "vite": "8.3.4",
-        "vitest": "5.0.5"
+        "vite": "8.3.6",
+        "vitest": "5.1.0"
     }
 }
