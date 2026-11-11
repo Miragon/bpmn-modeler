@@ -1,0 +1,13 @@
+.hello-badge {
+    position: absolute;
+    top: 56px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 6px 16px;
+    border-radius: 6px;
+    background-color: #00e676;
+    color: #1d1d1d;
+    font: bold 18px sans-serif;
+    pointer-events: none;
+    z-index: 10;
+}

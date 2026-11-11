@@ -1,0 +1,3 @@
+{
+    "extends": ["bpmnlint:recommended", "plugin:acme/recommended"]
+}
