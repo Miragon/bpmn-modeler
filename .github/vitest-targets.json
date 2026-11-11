@@ -105,6 +105,7 @@
                 "packages/dmn-modeler/**",
                 "libs/shared/**",
                 "libs/modeler-types/**",
+                "libs/dmn-diff/**",
                 "libs/bpmn-i18n-extras/**"
             ],
             "typecheck": "typecheck"

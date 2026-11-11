@@ -6,6 +6,7 @@
  * round-tripping is not implemented for dmn-js.
  */
 import type {
+    DmnDiffPaneCommand,
     DmnEditorCommand,
     HostApi,
     PropertiesPanelUiState,
@@ -14,3 +15,6 @@ import type {
 export type WebviewState = PropertiesPanelUiState;
 
 export type DmnHost = HostApi<WebviewState, DmnEditorCommand>;
+
+/** The host of a page loaded as one side of a DMN diff: it posts only the diff pane's commands. */
+export type DmnDiffPaneHost = HostApi<WebviewState, DmnDiffPaneCommand>;

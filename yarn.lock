@@ -3764,10 +3764,12 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@miragon/dmn-modeler-webview@workspace:apps/dmn-webview"
   dependencies:
+    "@fontsource-variable/geist": "npm:5.3.0"
     "@miragon/bpmn-modeler-i18n": "npm:0.2.0"
     "@miragon/bpmn-modeler-shared": "workspace:*"
     "@miragon/bpmn-modeler-types": "workspace:*"
     "@miragon/dmn-modeler": "workspace:*"
+    "@miragon/dmn-modeler-diff": "workspace:*"
     "@types/node": "npm:26.6.6"
     "@types/vscode-webview": "npm:1.57.5"
     "@typescript/native": "npm:typescript@7.0.2"

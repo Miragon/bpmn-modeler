@@ -31,6 +31,11 @@ const dictionary: Record<string, string> = {
         "Il modulo salvato non è valido o supportato. Aprilo nell’editor di moduli.",
     "The form preview could not be loaded. Refresh to try again.":
         "Impossibile caricare l’anteprima del modulo. Aggiorna per riprovare.",
+    "Changes": "Modifiche",
+    "Not in this version": "Non presente in questa versione",
+    "It was removed. The version on the left shows it.":
+        "È stato rimosso. La versione a sinistra lo mostra.",
+    "It is new. The version on the right shows it.": "È nuovo. La versione a destra lo mostra.",
     "A form is either a form id or an external reference, not both.":
         "Un modulo usa un ID modulo o un riferimento esterno, non entrambi.",
     "A property cannot depend on itself.": "Una proprietà non può dipendere da sé stessa.",

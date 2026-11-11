@@ -1,0 +1,254 @@
+/*
+ * A page loaded as one side of a DMN diff: the floating legend and the card
+ * for a decision the version lacks. Miragon chrome (Geist, blue #335de5 leads,
+ * 12px radius) on VS Code's theme colours; the change colours come from the
+ * package's `.dmn-diff` palette, which both elements carry.
+ */
+.dmn-diff-page {
+    --dmn-diff-font: "Geist Variable", "Geist", var(--vscode-font-family, sans-serif);
+    --dmn-diff-surface: var(--vscode-editorWidget-background, #fff);
+    --dmn-diff-border: var(--vscode-editorWidget-border, #d0d0d0);
+    --dmn-diff-text: var(--vscode-editorWidget-foreground, var(--vscode-foreground, #1d1d1d));
+    --dmn-diff-muted: var(--vscode-descriptionForeground, #606060);
+    --dmn-diff-shadow: 0 6px 20px rgba(29, 29, 29, 0.1), 0 1px 2px rgba(29, 29, 29, 0.06);
+}
+
+:root[data-dmn-theme="dark"] .dmn-diff-page {
+    --dmn-diff-surface: var(--vscode-editorWidget-background, #252526);
+    --dmn-diff-border: var(--vscode-editorWidget-border, #454545);
+    --dmn-diff-text: var(--vscode-editorWidget-foreground, var(--vscode-foreground, #e8e8e8));
+    --dmn-diff-muted: var(--vscode-descriptionForeground, #9d9d9d);
+    --dmn-diff-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+body.vscode-light.dmn-diff-page {
+    --dmn-diff-surface: #fff;
+}
+
+body.vscode-high-contrast.dmn-diff-page {
+    --dmn-diff-border: var(--vscode-contrastBorder, #6fc3df);
+    --dmn-diff-shadow: none;
+}
+
+/* The preview shell carries the editor's properties panel; a diff pane has none. */
+.dmn-diff-page #js-panel-resizer,
+.dmn-diff-page #js-properties-panel {
+    display: none;
+}
+
+.dmn-diff-page--missing #js-canvas {
+    visibility: hidden;
+}
+
+/* The decision table and expression views start below the floating legend. */
+.dmn-diff-page .dmn-decision-table-container,
+.dmn-diff-page .dmn-literal-expression-container,
+.dmn-diff-page .dmn-boxed-expression-container {
+    padding-top: calc(var(--dmn-diff-chrome-height, 64px) + 24px);
+}
+
+/* The two panes' edges meet at VS Code's sash: a dashed line shows where to drag. */
+body.dmn-diff-page[data-diff-side="before"] {
+    border-right: 1px dashed var(--vscode-editorGroup-border, #d0d0d0);
+}
+
+body.dmn-diff-page[data-diff-side="after"] {
+    border-left: 1px dashed var(--vscode-editorGroup-border, #d0d0d0);
+}
+
+/* ─── Legend ──────────────────────────────────────────────────────────── */
+
+/* Centred with left/right: a chip at left: 50% would wrap at half the pane's width. */
+.dmn-diff-legend {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    left: 12px;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    width: fit-content;
+    margin: 0 auto;
+    padding: 8px 12px;
+    font: 500 12px/1.3 var(--dmn-diff-font);
+    color: var(--dmn-diff-text);
+    background: var(--dmn-diff-surface);
+    border: 1px solid var(--dmn-diff-border);
+    border-radius: 12px;
+    box-shadow: var(--dmn-diff-shadow);
+    user-select: none;
+}
+
+.dmn-diff-legend[hidden] {
+    display: none;
+}
+
+.dmn-diff-legend__file {
+    max-width: 360px;
+    overflow: hidden;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.dmn-diff-legend__row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 6px 12px;
+}
+
+.dmn-diff-legend__slot {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+}
+
+.dmn-diff-legend__slot b {
+    font-weight: 650;
+}
+
+.dmn-diff-legend__swatch {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+}
+
+.dmn-diff-legend__swatch[data-kind="added"] {
+    background: var(--dmn-diff-added);
+}
+
+.dmn-diff-legend__swatch[data-kind="removed"] {
+    background: var(--dmn-diff-removed);
+}
+
+.dmn-diff-legend__swatch[data-kind="changed"] {
+    background: var(--dmn-diff-changed);
+}
+
+.dmn-diff-legend__swatch[data-kind="layoutChanged"] {
+    border: 1px solid var(--dmn-diff-moved);
+    background: repeating-linear-gradient(
+        135deg,
+        var(--dmn-diff-moved),
+        var(--dmn-diff-moved) 2px,
+        transparent 2px,
+        transparent 4px
+    );
+}
+
+.dmn-diff-legend__group {
+    display: inline-flex;
+    gap: 6px;
+    padding-left: 12px;
+    border-left: 1px solid var(--dmn-diff-border);
+}
+
+.dmn-diff-legend button,
+.dmn-diff-empty button {
+    padding: 6px 10px;
+    font: inherit;
+    color: inherit;
+    white-space: nowrap;
+    background: transparent;
+    border: 1px solid var(--dmn-diff-border);
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.dmn-diff-legend button:hover:not(:disabled) {
+    background: var(--vscode-toolbar-hoverBackground, rgba(29, 29, 29, 0.06));
+}
+
+.dmn-diff .dmn-diff-legend__next {
+    color: #fff;
+    background: #335de5;
+    border-color: #335de5;
+}
+
+.dmn-diff .dmn-diff-legend__next:hover:not(:disabled) {
+    background: #2b50d4;
+}
+
+body.vscode-high-contrast .dmn-diff .dmn-diff-legend__next {
+    color: inherit;
+    background: transparent;
+    border-color: var(--vscode-contrastBorder, #6fc3df);
+}
+
+.dmn-diff-legend button:disabled {
+    opacity: 0.45;
+    cursor: default;
+}
+
+.dmn-diff-legend button:focus-visible,
+.dmn-diff-empty button:focus-visible {
+    outline: 1px solid var(--vscode-focusBorder, #335de5);
+    outline-offset: 2px;
+}
+
+/* ─── A decision the version lacks ────────────────────────────────────── */
+
+.dmn-diff-empty {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    display: grid;
+    place-items: center;
+}
+
+.dmn-diff-empty[hidden] {
+    display: none;
+}
+
+.dmn-diff-empty__card {
+    width: 320px;
+    max-width: calc(100% - 32px);
+    padding: 24px;
+    font: 400 13px/1.45 var(--dmn-diff-font);
+    color: var(--dmn-diff-text);
+    text-align: center;
+    background: var(--dmn-diff-surface);
+    border: 1px solid var(--dmn-diff-border);
+    border-radius: 12px;
+    box-shadow: var(--dmn-diff-shadow);
+}
+
+.dmn-diff-empty__mark {
+    width: 40px;
+    height: 40px;
+    margin: 0 auto 12px;
+    border: 2px solid currentColor;
+    border-radius: 50%;
+    background: linear-gradient(
+        135deg,
+        transparent 47%,
+        currentColor 47%,
+        currentColor 53%,
+        transparent 53%
+    );
+}
+
+.dmn-diff-empty__card[data-kind="removed"] .dmn-diff-empty__mark {
+    color: var(--dmn-diff-removed);
+}
+
+.dmn-diff-empty__card[data-kind="added"] .dmn-diff-empty__mark {
+    color: var(--dmn-diff-added);
+}
+
+.dmn-diff-empty__title {
+    margin-bottom: 4px;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.dmn-diff-empty__text {
+    margin-bottom: 16px;
+    color: var(--dmn-diff-muted);
+}

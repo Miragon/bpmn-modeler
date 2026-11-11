@@ -31,6 +31,11 @@ const dictionary: Record<string, string> = {
         "O formulário salvo é inválido ou não suportado. Abra-o no editor de formulários.",
     "The form preview could not be loaded. Refresh to try again.":
         "Não foi possível carregar a prévia do formulário. Atualize para tentar novamente.",
+    "Changes": "Alterações",
+    "Not in this version": "Não está nesta versão",
+    "It was removed. The version on the left shows it.":
+        "Foi removido. A versão à esquerda o mostra.",
+    "It is new. The version on the right shows it.": "É novo. A versão à direita o mostra.",
     "A form is either a form id or an external reference, not both.":
         "Um formulário usa um ID de formulário ou uma referência externa, não ambos.",
     "A property cannot depend on itself.": "Uma propriedade não pode depender de si mesma.",

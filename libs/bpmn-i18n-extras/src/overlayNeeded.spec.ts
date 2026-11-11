@@ -63,6 +63,11 @@ const SOURCE_ONLY = new Set([
     "Searching…",
     "thrown by {elements}",
     "caught by {elements}",
+    // The DMN diff pane: the harvest driver runs the BPMN modeler only.
+    "Changes",
+    "Not in this version",
+    "It was removed. The version on the left shows it.",
+    "It is new. The version on the right shows it.",
     // Mode-strip labels the webview emits before any surface exists, so the
     // harvest driver (which drives a live modeler) never records them.
     "View",

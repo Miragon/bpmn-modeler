@@ -31,6 +31,12 @@ const dictionary: Record<string, string> = {
         "保存済みフォームが無効か未対応です。フォームエディターで開いてください。",
     "The form preview could not be loaded. Refresh to try again.":
         "フォームのプレビューを読み込めませんでした。更新して再試行してください。",
+    "Changes": "変更",
+    "Not in this version": "このバージョンにはありません",
+    "It was removed. The version on the left shows it.":
+        "削除されました。左側のバージョンに表示されています。",
+    "It is new. The version on the right shows it.":
+        "新しく追加されました。右側のバージョンに表示されています。",
     "A form is either a form id or an external reference, not both.":
         "フォームに指定できるのは、フォーム ID か外部参照のどちらか一方だけです。",
     "A property cannot depend on itself.": "プロパティは自分自身に依存できません。",

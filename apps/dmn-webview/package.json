@@ -15,10 +15,12 @@
         "typecheck": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.spec.json"
     },
     "dependencies": {
+        "@fontsource-variable/geist": "5.3.0",
         "@miragon/bpmn-modeler-i18n": "0.2.0",
         "@miragon/bpmn-modeler-shared": "workspace:*",
         "@miragon/bpmn-modeler-types": "workspace:*",
         "@miragon/dmn-modeler": "workspace:*",
+        "@miragon/dmn-modeler-diff": "workspace:*",
         "tslib": "2.9.1"
     },
     "devDependencies": {
