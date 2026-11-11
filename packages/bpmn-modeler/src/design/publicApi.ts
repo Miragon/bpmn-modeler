@@ -4,6 +4,8 @@ import type { DefinitionSearchPort } from "@miragon/bpmn-modeler-definition-sear
 import type {
     BpmnlintConfig,
     CleanupOutcome,
+    ElementIdReviewOutcome,
+    ElementIdSettings,
     LintResults,
     LintRunEvent,
 } from "@miragon/bpmn-modeler-types";
@@ -182,6 +184,18 @@ export interface BpmnDesignerHandle extends BpmnSurfaceHandle, PendingInputHandl
 
     /** Report — or, with `apply`, remove — orphan DI and other leftovers. */
     cleanupDiagram(options?: { apply?: boolean }): CleanupOutcome;
+
+    /**
+     * Open the review of IDs generated from element names; applying it renames
+     * the checked elements in one undo step. Engine-neutral like formatting.
+     */
+    openElementIdReview(): ElementIdReviewOutcome;
+
+    /**
+     * Set how IDs generated from names are spelled, and whether a still random
+     * or generated ID follows its element's name.
+     */
+    setElementIdSettings(settings: Partial<ElementIdSettings>): void;
 
     /**
      * Replace the element types pinned at the top of the append/create menu —

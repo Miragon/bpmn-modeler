@@ -8,6 +8,7 @@ import type { CodeLinkMapClient } from "@miragon/bpmn-modeler-code-link";
 import { FlowNavigationModule } from "@miragon/bpmn-modeler-flow-navigation";
 import { createBpmnLayoutModule } from "@miragon/bpmn-modeler-layout";
 import type { LayoutOutcome } from "@miragon/bpmn-modeler-layout";
+import { ElementIdsModule } from "@miragon/bpmn-modeler-element-ids";
 import type { CleanupOutcome } from "@miragon/bpmn-modeler-types";
 // The full panel conflicts with Camunda's propertiesPanel service. Deep imports also avoid
 // its TSX renderer, whose JSX runtime does not resolve in Vite development builds.
@@ -20,6 +21,8 @@ import {
     BpmnModelerSetting,
     describeScriptSurface,
     DisposableStore,
+    type ElementIdReviewOutcome,
+    type ElementIdSettings,
     type ElementTemplateRef,
     Engine,
     engineSupports,
@@ -49,11 +52,14 @@ import { capabilityModules } from "./capabilityModules";
 import { wireContentSaved } from "./contentSaved";
 import { exportFormattedXml, exportSvg, importDiagram } from "./diagramXml";
 import {
+    applyElementIdSettings,
     applyFavouriteBpmnElements,
     cleanupSurfaceDiagram,
     createSurfaceLintHandle,
+    elementIdSettingsOf,
     formatSurfaceDiagram,
     installClipboardSupport,
+    openSurfaceElementIdReview,
     subscribeCommandStackChanged,
     subscribeFormatted,
 } from "./editableSurface";
@@ -233,6 +239,7 @@ export class BpmnModeler {
             ReplaceTemplatesTabModule,
             FlowNavigationModule,
             createBpmnLayoutModule(),
+            ElementIdsModule,
             propertiesPanelRootModule,
             ModeFilterModule,
             CustomGroupsModule,
@@ -285,6 +292,7 @@ export class BpmnModeler {
         );
 
         this.applyHiddenElementTemplates();
+        applyElementIdSettings(this.core, elementIdSettingsOf(this.settings));
 
         // Subscribe before initial templates are supplied so their validation errors are observed.
         const onElementTemplatesErrors = this.options.onElementTemplatesErrors;
@@ -516,11 +524,28 @@ export class BpmnModeler {
         if (settings.favouriteBpmnElements !== undefined) {
             applyFavouriteBpmnElements(this.core, settings.favouriteBpmnElements);
         }
+
+        applyElementIdSettings(this.core, elementIdSettingsOf(settings));
     }
 
     /** @see BpmnModelerHandle.setFavouriteBpmnElements */
     setFavouriteBpmnElements(types: readonly string[]): void {
         this.setSettings({ favouriteBpmnElements: [...types] });
+    }
+
+    /** @see BpmnModelerHandle.setElementIdSettings */
+    setElementIdSettings(settings: Partial<ElementIdSettings>): void {
+        this.setSettings({
+            ...(settings.style === undefined ? {} : { elementIdStyle: settings.style }),
+            ...(settings.followName === undefined
+                ? {}
+                : { elementIdsFollowName: settings.followName }),
+        });
+    }
+
+    /** @see BpmnModelerHandle.openElementIdReview */
+    openElementIdReview(): ElementIdReviewOutcome {
+        return openSurfaceElementIdReview(this.core);
     }
 
     /** @internal */

@@ -286,6 +286,33 @@ const dictionary: Record<string, string> = {
     "Use the task definition": "Usar a definição de tarefa",
     "Users cannot enter FEEL into a field they cannot edit.":
         "Os usuários não podem inserir FEEL em um campo que não podem editar.",
+    "Generate IDs from names": "Gerar IDs a partir dos nomes",
+    "{count} of {total} IDs will change": "{count} de {total} IDs serão alterados",
+    "ID style": "Estilo de ID",
+    "Apply": "Aplicar",
+    "Discard": "Descartar",
+    "Processes": "Processos",
+    "Pools": "Pools",
+    "Lanes": "Raias",
+    "Activities": "Atividades",
+    "Flows": "Fluxos",
+    "Other elements": "Outros elementos",
+    "Rename all {group}": "Renomear tudo: {group}",
+    "Rename {name}": "Renomear {name}",
+    "{name}: {oldId} becomes {newId}": "{name}: {oldId} passa a ser {newId}",
+    "same name as another element": "mesmo nome de outro elemento",
+    "Already match": "Já correspondem",
+    "No name, skipped": "Sem nome, ignorados",
+    "No name": "Sem nome",
+    "Every ID already follows its name.": "Cada ID já segue o seu nome.",
+    "No element has a name yet.": "Nenhum elemento tem nome ainda.",
+    "IDs used in other files (call activities, tests, workers) are not updated. Apply is one undo step.":
+        "IDs usados em outros arquivos (atividades de chamada, testes, workers) não são atualizados. Aplicar pode ser desfeito em um único passo.",
+    "Generate from name": "Gerar a partir do nome",
+    "Review all IDs…": "Revisar todos os IDs…",
+    "Rename the ID to {id}": "Renomear o ID para {id}",
+    "The ID already follows the name.": "O ID já segue o nome.",
+    "Add a name to generate the ID from it.": "Adicione um nome para gerar o ID a partir dele.",
 };
 
 export default dictionary;

@@ -276,6 +276,34 @@ const dictionary: Record<string, string> = {
     "Use the task definition": "작업 정의 사용",
     "Users cannot enter FEEL into a field they cannot edit.":
         "사용자는 편집할 수 없는 필드에 FEEL을 입력할 수 없습니다.",
+    "Generate IDs from names": "이름으로 ID 생성",
+    "{count} of {total} IDs will change": "ID {total}개 중 {count}개가 변경됩니다",
+    "ID style": "ID 형식",
+    "Apply": "적용",
+    "Discard": "취소",
+    "Processes": "프로세스",
+    "Pools": "풀",
+    "Lanes": "레인",
+    "Activities": "활동",
+    "Flows": "흐름",
+    "Other elements": "기타 요소",
+    "Rename all {group}": "{group} 모두 이름 변경",
+    "Rename {name}": "{name} ID 변경",
+    "{name}: {oldId} becomes {newId}": "{name}: {oldId} → {newId}",
+    "same name as another element": "다른 요소와 이름이 같음",
+    "Already match": "이미 일치",
+    "No name, skipped": "이름 없음, 건너뜀",
+    "No name": "이름 없음",
+    "Every ID already follows its name.": "모든 ID가 이미 이름과 일치합니다.",
+    "No element has a name yet.": "아직 이름이 있는 요소가 없습니다.",
+    "IDs used in other files (call activities, tests, workers) are not updated. Apply is one undo step.":
+        "다른 파일(호출 활동, 테스트, 워커)에서 사용하는 ID는 업데이트되지 않습니다. 적용은 한 번에 실행 취소할 수 있습니다.",
+    "Generate from name": "이름으로 생성",
+    "Review all IDs…": "모든 ID 검토…",
+    "Rename the ID to {id}": "ID를 {id}(으)로 변경",
+    "The ID already follows the name.": "ID가 이미 이름과 일치합니다.",
+    "Add a name to generate the ID from it.":
+        "이름을 추가하면 그 이름으로 ID를 생성할 수 있습니다.",
 };
 
 export default dictionary;

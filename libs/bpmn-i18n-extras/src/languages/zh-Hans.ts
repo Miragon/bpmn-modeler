@@ -259,6 +259,33 @@ const dictionary: Record<string, string> = {
     "Use the task definition": "使用任务定义",
     "Users cannot enter FEEL into a field they cannot edit.":
         "用户无法在不可编辑的字段中输入 FEEL。",
+    "Generate IDs from names": "根据名称生成 ID",
+    "{count} of {total} IDs will change": "{total} 个 ID 中有 {count} 个将更改",
+    "ID style": "ID 样式",
+    "Apply": "应用",
+    "Discard": "放弃",
+    "Processes": "流程",
+    "Pools": "池",
+    "Lanes": "泳道",
+    "Activities": "活动",
+    "Flows": "流",
+    "Other elements": "其他元素",
+    "Rename all {group}": "全部重命名：{group}",
+    "Rename {name}": "重命名 {name}",
+    "{name}: {oldId} becomes {newId}": "{name}：{oldId} 改为 {newId}",
+    "same name as another element": "与其他元素同名",
+    "Already match": "已一致",
+    "No name, skipped": "无名称，已跳过",
+    "No name": "无名称",
+    "Every ID already follows its name.": "所有 ID 都已与名称一致。",
+    "No element has a name yet.": "还没有元素有名称。",
+    "IDs used in other files (call activities, tests, workers) are not updated. Apply is one undo step.":
+        "其他文件（调用活动、测试、Worker）中引用的 ID 不会更新。应用操作可一步撤销。",
+    "Generate from name": "根据名称生成",
+    "Review all IDs…": "检查所有 ID…",
+    "Rename the ID to {id}": "将 ID 重命名为 {id}",
+    "The ID already follows the name.": "ID 已与名称一致。",
+    "Add a name to generate the ID from it.": "添加名称后即可据此生成 ID。",
 };
 
 export default dictionary;
