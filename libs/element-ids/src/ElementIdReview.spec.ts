@@ -15,7 +15,7 @@ const proposal: ElementIdProposal = {
         shown: task,
     },
     status: "rename",
-    newId: "Activity_Check",
+    newId: "Task_Check",
     clash: false,
 };
 

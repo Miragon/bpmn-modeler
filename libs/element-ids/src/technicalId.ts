@@ -1,6 +1,6 @@
 import type { ElementIdStyle } from "@miragon/bpmn-modeler-types";
 
-import { idPrefixOf, idSuffixOf } from "./elementKinds";
+import { idSuffixOf, localType } from "./elementKinds";
 
 // Letters NFD does not take apart, spelled the way German and Nordic users would write them in ASCII.
 const TRANSLITERATIONS: Readonly<Record<string, string>> = {
@@ -48,13 +48,13 @@ const humps = (word: string) =>
 const snake = (words: readonly string[]) => words.flatMap(humps).join("_").toLowerCase();
 
 const SPELLINGS: Readonly<Record<ElementIdStyle, (words: string[], bpmnType: string) => string>> = {
-    typePrefix: (words, bpmnType) => `${idPrefixOf(bpmnType)}_${words.map(capitalize).join("")}`,
+    typePrefix: (words, bpmnType) => `${localType(bpmnType)}_${words.map(capitalize).join("")}`,
     typeSuffix: (words, bpmnType) => {
         const pascal = words.map(capitalize).join("");
         // An ID may not start with a digit; the plugin masks one with an `N`.
         return `${/^\d/.test(pascal) ? "N" : ""}${pascal}${idSuffixOf(bpmnType)}`;
     },
-    snakeCase: (words, bpmnType) => `${snake([idPrefixOf(bpmnType)])}_${snake(words)}`,
+    snakeCase: (words, bpmnType) => `${snake([localType(bpmnType)])}_${snake(words)}`,
 };
 
 /** The ID an element of this type and name gets, or none when no letter or digit survives. */

@@ -53,16 +53,20 @@ describe("RenameElementIdsHandler", () => {
 
         handler.preExecute({
             steps: [
-                { item: elementTarget(event), from: "Event_0x1y2z3", to: "Event_OrderReceived" },
+                {
+                    item: elementTarget(event),
+                    from: "Event_0x1y2z3",
+                    to: "StartEvent_OrderReceived",
+                },
             ],
         });
 
         expect(calls).toEqual([
-            'updateProperties Event_0x1y2z3 {"id":"Event_OrderReceived"}',
+            'updateProperties Event_0x1y2z3 {"id":"StartEvent_OrderReceived"}',
             "unclaim Event_0x1y2z3_di",
-            'updateProperties Event_OrderReceived {"di":{"id":"Event_OrderReceived_di"}}',
-            "claim Event_OrderReceived_di",
-            `${UPDATE_LABEL_ID_COMMAND} Event_OrderReceived_label`,
+            'updateProperties StartEvent_OrderReceived {"di":{"id":"StartEvent_OrderReceived_di"}}',
+            "claim StartEvent_OrderReceived_di",
+            `${UPDATE_LABEL_ID_COMMAND} StartEvent_OrderReceived_label`,
         ]);
     });
 

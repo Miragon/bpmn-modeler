@@ -534,12 +534,12 @@ describe("the packaged extension in a real VS Code", () => {
 
         await expect
             .poll(() => readFile(file, "utf8"), { timeout: TIMEOUT_MS })
-            .toContain('<bpmn:task id="Activity_CheckOrder" name="Check order">');
+            .toContain('<bpmn:task id="Task_CheckOrder" name="Check order">');
         const xml = await readFile(file, "utf8");
         expect(xml).toContain('<bpmn:endEvent id="End_Order" name="Order checked">');
-        expect(xml).toContain('sourceRef="Event_OrderReceived" targetRef="Activity_CheckOrder"');
+        expect(xml).toContain('sourceRef="StartEvent_OrderReceived" targetRef="Task_CheckOrder"');
         expect(xml).toContain(
-            '<bpmndi:BPMNShape id="Activity_CheckOrder_di" bpmnElement="Activity_CheckOrder">',
+            '<bpmndi:BPMNShape id="Task_CheckOrder_di" bpmnElement="Task_CheckOrder">',
         );
         expectNoCspViolations();
     });

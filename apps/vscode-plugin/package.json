@@ -829,16 +829,16 @@
                         "snakeCase"
                     ],
                     "enumItemLabels": [
-                        "Activity_ProcessData",
+                        "UserTask_ProcessData",
                         "ProcessDataTask",
-                        "activity_process_data"
+                        "user_task_process_data"
                     ],
-                    "markdownDescription": "How an ID generated from an element's name is spelled, by the **Generate IDs from Names** command and the ID field's **Generate from name**: `typePrefix` writes `Activity_ProcessData`, `typeSuffix` writes `ProcessDataTask` as the Camunda Modeler plugin rename-technical-ids does, and `snakeCase` writes `activity_process_data`."
+                    "markdownDescription": "How an ID generated from an element's name is spelled, by the **Generate IDs from Names** command and the ID field's **Generate from name**: `typePrefix` puts the element's type first and writes `UserTask_ProcessData`, `typeSuffix` writes `ProcessDataTask` as the Camunda Modeler plugin rename-technical-ids does, and `snakeCase` writes `user_task_process_data`."
                 },
                 "miragon.bpmnModeler.elementIds.followName": {
                     "type": "boolean",
                     "default": false,
-                    "markdownDescription": "Rename an element's ID as you change its name while the ID is still random (`Activity_0x1y2z3`) or was generated from the old name. IDs you typed yourself never change."
+                    "markdownDescription": "Rename an element's ID as you change its name or type while the ID is still random (`Activity_0x1y2z3`) or was generated from the old name and type. IDs you typed yourself never change."
                 },
                 "miragon.bpmnModeler.favouriteBpmnElements": {
                     "type": "array",

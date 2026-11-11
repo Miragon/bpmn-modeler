@@ -1,16 +1,16 @@
 import type { ElementIdStyle } from "@miragon/bpmn-modeler-types";
 import { describe, expect, it } from "vitest";
 
-import { followsNameChange } from "./followName";
+import { followsChange } from "./followName";
 
 const follows = (
     id: string,
     oldName: string | undefined,
     style: ElementIdStyle = "typePrefix",
-    type = "bpmn:Task",
-) => followsNameChange({ id, oldName, type, style });
+    oldType = "bpmn:Task",
+) => followsChange({ id, oldName, oldType, style });
 
-describe("followsNameChange", () => {
+describe("followsChange", () => {
     it.each(["Activity_0x1y2z3", "Flow_1m2n3b4", "SequenceFlow_0h21x7r", "Gateway_1q2w3e4"])(
         "follows the random ID %s bpmn-js generated",
         (id) => {
@@ -26,17 +26,25 @@ describe("followsNameChange", () => {
     );
 
     it.each<[string, string, ElementIdStyle]>([
-        ["Activity_CheckStock", "Check stock", "typePrefix"],
-        ["Activity_CheckStock_2", "Check stock", "typePrefix"],
+        ["Task_CheckStock", "Check stock", "typePrefix"],
+        ["Task_CheckStock_2", "Check stock", "typePrefix"],
         ["CheckStockTask", "Check stock", "typeSuffix"],
-        ["activity_check_stock", "Check stock", "snakeCase"],
+        ["task_check_stock", "Check stock", "snakeCase"],
     ])("follows %s, which was generated from the old name %j", (id, oldName, style) => {
         expect(follows(id, oldName, style)).toBe(true);
     });
 
+    it("follows an ID generated for the old type, not for another one", () => {
+        expect(follows("Task_CheckOrder", "Check order", "typePrefix", "bpmn:Task")).toBe(true);
+        expect(follows("Task_CheckOrder", "Check order", "typePrefix", "bpmn:UserTask")).toBe(
+            false,
+        );
+    });
+
     it.each<[string, string | undefined]>([
         ["checkStock", "Check stock"],
-        ["Activity_CheckStock", "Ship order"],
+        ["Task_CheckStock", "Ship order"],
+        ["Activity_CheckStock", "Check stock"],
         ["Event_started", undefined],
         ["Gateway_approve", "Approve?"],
         ["ORDER_TASK", "Order"],
@@ -45,6 +53,6 @@ describe("followsNameChange", () => {
     });
 
     it("compares with the style in use", () => {
-        expect(follows("Activity_CheckStock", "Check stock", "typeSuffix")).toBe(false);
+        expect(follows("Task_CheckStock", "Check stock", "typeSuffix")).toBe(false);
     });
 });

@@ -28,8 +28,20 @@ describe("proposeIds", () => {
         ]);
 
         expect(summary(proposals)).toEqual([
-            ["Activity_0x1y2z3", "rename", "Activity_CheckStock", false],
-            ["Event_1p0o9i8", "rename", "Event_Done", false],
+            ["Activity_0x1y2z3", "rename", "Task_CheckStock", false],
+            ["Event_1p0o9i8", "rename", "EndEvent_Done", false],
+        ]);
+    });
+
+    it("renames an ID that spells another type, as after a task became a service task", () => {
+        const proposals = propose([
+            task("Activity_CheckOrder", "Check order", "bpmn:ServiceTask"),
+            task("Task_ShipOrder", "Ship order", "bpmn:ServiceTask"),
+        ]);
+
+        expect(summary(proposals)).toEqual([
+            ["Activity_CheckOrder", "rename", "ServiceTask_CheckOrder", false],
+            ["Task_ShipOrder", "rename", "ServiceTask_ShipOrder", false],
         ]);
     });
 
@@ -40,14 +52,14 @@ describe("proposeIds", () => {
         ]);
 
         expect(summary(proposals)).toEqual([
-            ["Activity_a", "rename", "Activity_NotifyCustomer", false],
-            ["Activity_b", "rename", "Activity_NotifyCustomer_2", true],
+            ["Activity_a", "rename", "Task_NotifyCustomer", false],
+            ["Activity_b", "rename", "Task_NotifyCustomer_2", true],
         ]);
     });
 
     it.each<[ElementIdStyle, string]>([
-        ["typePrefix", "Activity_Notify_2"],
-        ["snakeCase", "activity_notify_2"],
+        ["typePrefix", "Task_Notify_2"],
+        ["snakeCase", "task_notify_2"],
         ["typeSuffix", "NotifyTask2"],
     ])("counts a clash the %s way", (style, second) => {
         const proposals = propose([task("a1", "Notify"), task("a2", "Notify")], { style });
@@ -58,12 +70,12 @@ describe("proposeIds", () => {
     it("leaves an element whose ID already follows its name, and keeps that ID for it", () => {
         const proposals = propose([
             task("Activity_x", "Ship order"),
-            task("Activity_ShipOrder", "Ship order"),
+            task("Task_ShipOrder", "Ship order"),
         ]);
 
         expect(summary(proposals)).toEqual([
-            ["Activity_x", "rename", "Activity_ShipOrder_2", true],
-            ["Activity_ShipOrder", "matches", "Activity_ShipOrder", false],
+            ["Activity_x", "rename", "Task_ShipOrder_2", true],
+            ["Task_ShipOrder", "matches", "Task_ShipOrder", false],
         ]);
     });
 
@@ -76,29 +88,29 @@ describe("proposeIds", () => {
 
     it("never proposes an ID another element outside the review holds", () => {
         const proposals = propose([task("a", "Check")], {
-            takenElsewhere: ["Activity_Check", "Activity_Check_2"],
+            takenElsewhere: ["Task_Check", "Task_Check_2"],
         });
 
-        expect(proposals[0]?.newId).toBe("Activity_Check_3");
+        expect(proposals[0]?.newId).toBe("Task_Check_3");
     });
 
     it("lets an element take an ID that another renamed element gives up", () => {
-        const proposals = propose([task("Activity_B", "A"), task("Activity_A", "B")]);
+        const proposals = propose([task("Task_B", "A"), task("Task_A", "B")]);
 
         expect(summary(proposals)).toEqual([
-            ["Activity_B", "rename", "Activity_A", false],
-            ["Activity_A", "rename", "Activity_B", false],
+            ["Task_B", "rename", "Task_A", false],
+            ["Task_A", "rename", "Task_B", false],
         ]);
     });
 
     it("keeps the ID of an unchecked element and steers the others around it", () => {
-        const proposals = propose([task("Activity_Check", "Ship"), task("b", "Check")], {
-            unchecked: ["Activity_Check"],
+        const proposals = propose([task("Task_Check", "Ship"), task("b", "Check")], {
+            unchecked: ["Task_Check"],
         });
 
         expect(summary(proposals)).toEqual([
-            ["Activity_Check", "unchecked", "Activity_Ship", false],
-            ["b", "rename", "Activity_Check_2", true],
+            ["Task_Check", "unchecked", "Task_Ship", false],
+            ["b", "rename", "Task_Check_2", true],
         ]);
     });
 

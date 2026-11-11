@@ -193,7 +193,7 @@ export interface BpmnDesignerHandle extends BpmnSurfaceHandle, PendingInputHandl
 
     /**
      * Set how IDs generated from names are spelled, and whether a still random
-     * or generated ID follows its element's name.
+     * or generated ID follows its element's name and type.
      */
     setElementIdSettings(settings: Partial<ElementIdSettings>): void;
 

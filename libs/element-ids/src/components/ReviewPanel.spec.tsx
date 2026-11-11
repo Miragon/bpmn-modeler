@@ -30,7 +30,7 @@ const proposal = (
 
 /** A stand-in for the service: the style picks the spelling, unchecked IDs come back unchecked. */
 function propose(style: ElementIdStyle, unchecked: ReadonlySet<string>): ElementIdProposal[] {
-    const spell = (name: string) => (style === "typeSuffix" ? `${name}Task` : `Activity_${name}`);
+    const spell = (name: string) => (style === "typeSuffix" ? `${name}Task` : `Task_${name}`);
     const rows = [
         ["Activity_1", "Check", "activity"],
         ["Activity_2", "Ship", "activity"],
@@ -47,7 +47,7 @@ function propose(style: ElementIdStyle, unchecked: ReadonlySet<string>): Element
                 name === "Ship",
             ),
         ),
-        proposal("Activity_Done", "Done", "activity", "matches", "Activity_Done"),
+        proposal("Task_Done", "Done", "activity", "matches", "Task_Done"),
         proposal("Flow_2", "", "flow", "skipped"),
     ];
 }
@@ -107,9 +107,9 @@ describe("ReviewPanel", () => {
             "Flow_1",
         ]);
         expect(text(".eid-row:not(.eid-plain) .eid-new")).toEqual([
-            "Activity_Check",
-            "Activity_Ship",
-            "Activity_Yes",
+            "Task_Check",
+            "Task_Ship",
+            "Task_Yes",
         ]);
     });
 
@@ -227,7 +227,7 @@ describe("ReviewPanel", () => {
 
     it.each([
         [
-            [proposal("Activity_Done", "Done", "activity", "matches", "Activity_Done")],
+            [proposal("Task_Done", "Done", "activity", "matches", "Task_Done")],
             "Every ID already follows its name.",
         ],
         [[proposal("Flow_2", "", "flow", "skipped")], "No element has a name yet."],

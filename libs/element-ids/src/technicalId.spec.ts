@@ -8,25 +8,27 @@ const VALID_ID = /^[a-z_][\w-.]*$/i;
 
 describe("technicalIdFor", () => {
     it.each<[string, string, string]>([
-        ["Process data", "bpmn:UserTask", "Activity_ProcessData"],
-        ["Payment received", "bpmn:StartEvent", "Event_PaymentReceived"],
-        ["Order valid?", "bpmn:ExclusiveGateway", "Gateway_OrderValid"],
-        ["yes", "bpmn:SequenceFlow", "Flow_Yes"],
-        ["Notify", "bpmn:MessageFlow", "Flow_Notify"],
-        ["10 days", "bpmn:BoundaryEvent", "Event_10Days"],
-        ["Review", "bpmn:SubProcess", "Activity_Review"],
-        ["Rate", "bpmn:CallActivity", "Activity_Rate"],
+        ["Process data", "bpmn:UserTask", "UserTask_ProcessData"],
+        ["Check order", "bpmn:ServiceTask", "ServiceTask_CheckOrder"],
+        ["Check order", "bpmn:Task", "Task_CheckOrder"],
+        ["Payment received", "bpmn:StartEvent", "StartEvent_PaymentReceived"],
+        ["Order valid?", "bpmn:ExclusiveGateway", "ExclusiveGateway_OrderValid"],
+        ["yes", "bpmn:SequenceFlow", "SequenceFlow_Yes"],
+        ["Notify", "bpmn:MessageFlow", "MessageFlow_Notify"],
+        ["10 days", "bpmn:BoundaryEvent", "BoundaryEvent_10Days"],
+        ["Review", "bpmn:SubProcess", "SubProcess_Review"],
+        ["Rate", "bpmn:CallActivity", "CallActivity_Rate"],
         ["Order fulfilment", "bpmn:Process", "Process_OrderFulfilment"],
         ["Customer", "bpmn:Participant", "Participant_Customer"],
         ["Back office", "bpmn:Lane", "Lane_BackOffice"],
         ["Invoice", "bpmn:DataObjectReference", "DataObjectReference_Invoice"],
-        ["Bestand prüfen", "bpmn:Task", "Activity_BestandPruefen"],
-        ["Größe übernehmen", "bpmn:Task", "Activity_GroesseUebernehmen"],
-        ["Café crème", "bpmn:Task", "Activity_CafeCreme"],
-        ["Søren's læring", "bpmn:Task", "Activity_SorensLaering"],
-        ["follow-up e-mail", "bpmn:Task", "Activity_FollowUpEMail"],
-        ["check orderID", "bpmn:Task", "Activity_CheckOrderID"],
-        ["  lots   of\nspace ", "bpmn:Task", "Activity_LotsOfSpace"],
+        ["Bestand prüfen", "bpmn:Task", "Task_BestandPruefen"],
+        ["Größe übernehmen", "bpmn:Task", "Task_GroesseUebernehmen"],
+        ["Café crème", "bpmn:Task", "Task_CafeCreme"],
+        ["Søren's læring", "bpmn:Task", "Task_SorensLaering"],
+        ["follow-up e-mail", "bpmn:Task", "Task_FollowUpEMail"],
+        ["check orderID", "bpmn:Task", "Task_CheckOrderID"],
+        ["  lots   of\nspace ", "bpmn:Task", "Task_LotsOfSpace"],
         ["Approve (manager)", "custom:Approval", "Approval_ApproveManager"],
     ])("spells %j on a %s as %s with the type prefix", (name, type, id) => {
         expect(technicalIdFor(name, type, "typePrefix")).toBe(id);
@@ -52,11 +54,11 @@ describe("technicalIdFor", () => {
     });
 
     it.each<[string, string, string]>([
-        ["Process data", "bpmn:UserTask", "activity_process_data"],
-        ["check orderID", "bpmn:Task", "activity_check_order_id"],
-        ["IDNumber lookup", "bpmn:Task", "activity_id_number_lookup"],
-        ["10 days", "bpmn:BoundaryEvent", "event_10_days"],
-        ["Order valid?", "bpmn:ExclusiveGateway", "gateway_order_valid"],
+        ["Process data", "bpmn:UserTask", "user_task_process_data"],
+        ["check orderID", "bpmn:Task", "task_check_order_id"],
+        ["IDNumber lookup", "bpmn:Task", "task_id_number_lookup"],
+        ["10 days", "bpmn:BoundaryEvent", "boundary_event_10_days"],
+        ["Order valid?", "bpmn:ExclusiveGateway", "exclusive_gateway_order_valid"],
         ["Invoice", "bpmn:DataObjectReference", "data_object_reference_invoice"],
     ])("spells %j on a %s as %s in snake case", (name, type, id) => {
         expect(technicalIdFor(name, type, "snakeCase")).toBe(id);

@@ -51,13 +51,13 @@ const ORDER_PROCESS = `<?xml version="1.0" encoding="UTF-8"?>
 const SWAPPED_NAMES = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions ${NS} id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">
   <bpmn:process id="Process_1" isExecutable="true">
-    <bpmn:task id="Activity_A" name="B" />
-    <bpmn:task id="Activity_B" name="A" />
+    <bpmn:task id="Task_A" name="B" />
+    <bpmn:task id="Task_B" name="A" />
   </bpmn:process>
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">
-      <bpmndi:BPMNShape id="Activity_A_di" bpmnElement="Activity_A"><dc:Bounds x="100" y="80" width="100" height="80" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Activity_B_di" bpmnElement="Activity_B"><dc:Bounds x="260" y="80" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_A_di" bpmnElement="Task_A"><dc:Bounds x="100" y="80" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_B_di" bpmnElement="Task_B"><dc:Bounds x="260" y="80" width="100" height="80" /></bpmndi:BPMNShape>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>
 </bpmn:definitions>`;
@@ -93,13 +93,19 @@ const POOL_AND_SUB_PROCESS = `<?xml version="1.0" encoding="UTF-8"?>
 
 interface DiagramElement {
     id: string;
-    businessObject: { id: string; name?: string };
+    businessObject: { id: string; $type: string; name?: string };
     label?: { id: string };
 }
 
 interface Services {
     elementRegistry: { get(id: string): DiagramElement | undefined; getAll(): DiagramElement[] };
-    modeling: { updateLabel(element: DiagramElement, text: string): void };
+    modeling: {
+        updateLabel(element: DiagramElement, text: string): void;
+        updateProperties(element: DiagramElement, properties: { id: string }): void;
+    };
+    bpmnReplace: {
+        replaceElement(element: DiagramElement, target: { type: string }): DiagramElement;
+    };
     commandStack: { undo(): void; redo(): void };
     selection: { select(element: DiagramElement): void };
 }
@@ -138,12 +144,18 @@ function servicesOf(handle: { getService(name: never): unknown }): Services {
     return {
         elementRegistry: get("elementRegistry") as Services["elementRegistry"],
         modeling: get("modeling") as Services["modeling"],
+        bpmnReplace: get("bpmnReplace") as Services["bpmnReplace"],
         commandStack: get("commandStack") as Services["commandStack"],
         selection: get("selection") as Services["selection"],
     };
 }
 
 const panelRoot = () => document.querySelector<HTMLElement>(".eid-root");
+
+const proposedIds = () =>
+    [...panelRoot()!.querySelectorAll(".eid-row:not(.eid-plain) .eid-new")].map(
+        (n) => n.textContent,
+    );
 
 async function apply(): Promise<void> {
     panelRoot()!.querySelector<HTMLButtonElement>(".eid-primary")!.click();
@@ -171,16 +183,12 @@ describe("generating element IDs from names", () => {
 
         const root = panelRoot()!;
         expect(container.contains(root)).toBe(true);
-        expect(
-            [...root.querySelectorAll(".eid-row:not(.eid-plain) .eid-new")].map(
-                (n) => n.textContent,
-            ),
-        ).toEqual([
+        expect(proposedIds()).toEqual([
             "Process_OrderFulfilment",
-            "Activity_CheckStock",
-            "Activity_ShipOrder",
-            "Event_OrderReceived",
-            "Flow_InStock",
+            "ServiceTask_CheckStock",
+            "Task_ShipOrder",
+            "StartEvent_OrderReceived",
+            "SequenceFlow_InStock",
         ]);
         expect(root.querySelector(".eid-summary")?.textContent).toBe("5 of 5 IDs will change");
     });
@@ -195,20 +203,22 @@ describe("generating element IDs from names", () => {
         const xml = await handle.exportDiagram();
         expect(xml).toContain('<bpmn:process id="Process_OrderFulfilment"');
         expect(xml).toContain(
-            '<bpmn:sequenceFlow id="Flow_0aaaaaa" sourceRef="Event_OrderReceived" targetRef="Activity_CheckStock"',
+            '<bpmn:sequenceFlow id="Flow_0aaaaaa" sourceRef="StartEvent_OrderReceived" targetRef="ServiceTask_CheckStock"',
         );
         expect(xml).toContain(
-            '<bpmn:sequenceFlow id="Flow_InStock" name="in stock" sourceRef="Activity_CheckStock" targetRef="Activity_ShipOrder"',
+            '<bpmn:sequenceFlow id="SequenceFlow_InStock" name="in stock" sourceRef="ServiceTask_CheckStock" targetRef="Task_ShipOrder"',
         );
         expect(xml).toContain(
-            '<bpmndi:BPMNShape id="Activity_CheckStock_di" bpmnElement="Activity_CheckStock">',
+            '<bpmndi:BPMNShape id="ServiceTask_CheckStock_di" bpmnElement="ServiceTask_CheckStock">',
         );
-        expect(xml).toContain('<bpmndi:BPMNEdge id="Flow_InStock_di" bpmnElement="Flow_InStock">');
+        expect(xml).toContain(
+            '<bpmndi:BPMNEdge id="SequenceFlow_InStock_di" bpmnElement="SequenceFlow_InStock">',
+        );
         expect(xml).toContain(
             '<bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_OrderFulfilment">',
         );
-        expect(services.elementRegistry.get("Event_OrderReceived")?.label?.id).toBe(
-            "Event_OrderReceived_label",
+        expect(services.elementRegistry.get("StartEvent_OrderReceived")?.label?.id).toBe(
+            "StartEvent_OrderReceived_label",
         );
         expect(panelRoot()).toBeNull();
     });
@@ -244,7 +254,7 @@ describe("generating element IDs from names", () => {
         await apply();
 
         expect(services.elementRegistry.get("Activity_0h7g6f5")).toBeDefined();
-        expect(services.elementRegistry.get("Activity_CheckStock")).toBeDefined();
+        expect(services.elementRegistry.get("ServiceTask_CheckStock")).toBeDefined();
     });
 
     it("swaps the IDs, and the DI IDs, of two elements whose names ask for it", async () => {
@@ -254,14 +264,14 @@ describe("generating element IDs from names", () => {
 
         await apply();
 
-        expect(services.elementRegistry.get("Activity_A")?.businessObject.name).toBe("A");
-        expect(services.elementRegistry.get("Activity_B")?.businessObject.name).toBe("B");
+        expect(services.elementRegistry.get("Task_A")?.businessObject.name).toBe("A");
+        expect(services.elementRegistry.get("Task_B")?.businessObject.name).toBe("B");
         const xml = await handle.exportDiagram();
-        expect(xml).toContain('<bpmndi:BPMNShape id="Activity_A_di" bpmnElement="Activity_A">');
-        expect(xml).toContain('<bpmndi:BPMNShape id="Activity_B_di" bpmnElement="Activity_B">');
+        expect(xml).toContain('<bpmndi:BPMNShape id="Task_A_di" bpmnElement="Task_A">');
+        expect(xml).toContain('<bpmndi:BPMNShape id="Task_B_di" bpmnElement="Task_B">');
 
         services.commandStack.undo();
-        expect(services.elementRegistry.get("Activity_A")?.businessObject.name).toBe("B");
+        expect(services.elementRegistry.get("Task_A")?.businessObject.name).toBe("B");
     });
 
     it("renames a pool's process after the pool and a collapsed sub-process with its plane", async () => {
@@ -277,10 +287,10 @@ describe("generating element IDs from names", () => {
         );
         expect(xml).toContain('<bpmn:process id="Process_OrderHandling"');
         expect(xml).toContain(
-            '<bpmndi:BPMNPlane id="BPMNPlane_2" bpmnElement="Activity_ReviewOrder">',
+            '<bpmndi:BPMNPlane id="BPMNPlane_2" bpmnElement="SubProcess_ReviewOrder">',
         );
-        expect(services.elementRegistry.get("Activity_ReviewOrder_plane")).toBeDefined();
-        expect(services.elementRegistry.get("Activity_CheckItems")).toBeDefined();
+        expect(services.elementRegistry.get("SubProcess_ReviewOrder_plane")).toBeDefined();
+        expect(services.elementRegistry.get("Task_CheckItems")).toBeDefined();
 
         services.commandStack.undo();
         expect(await handle.exportDiagram()).toContain('processRef="Process_0s9t8u7"');
@@ -307,7 +317,7 @@ describe("generating element IDs from names", () => {
 
             services.modeling.updateLabel(task, "Pick items");
 
-            expect(task.id).toBe("Activity_PickItems");
+            expect(task.id).toBe("ServiceTask_PickItems");
             services.commandStack.undo();
             expect(task.id).toBe("Activity_1x9f2ab");
             expect(task.businessObject.name).toBe("Check stock");
@@ -329,8 +339,47 @@ describe("generating element IDs from names", () => {
 
             services.modeling.updateLabel(task, "Send parcel");
 
-            expect(task.id).toBe("activity_send_parcel");
+            expect(task.id).toBe("task_send_parcel");
         });
+
+        it("renames a generated ID with the element's type, and one undo reverts both", async () => {
+            const { handle, services } = await openModeler();
+            handle.setElementIdSettings({ followName: true });
+            services.modeling.updateProperties(services.elementRegistry.get("Activity_0h7g6f5")!, {
+                id: "Task_ShipOrder",
+            });
+
+            services.bpmnReplace.replaceElement(services.elementRegistry.get("Task_ShipOrder")!, {
+                type: "bpmn:ServiceTask",
+            });
+
+            expect(services.elementRegistry.get("Task_ShipOrder")).toBeUndefined();
+            expect(
+                services.elementRegistry.get("ServiceTask_ShipOrder")?.businessObject.$type,
+            ).toBe("bpmn:ServiceTask");
+            services.commandStack.undo();
+            expect(services.elementRegistry.get("Task_ShipOrder")?.businessObject.$type).toBe(
+                "bpmn:Task",
+            );
+        });
+    });
+
+    it("proposes the new type's ID after the element's type changed", async () => {
+        const { handle, services } = await openModeler();
+        services.modeling.updateProperties(services.elementRegistry.get("Activity_0h7g6f5")!, {
+            id: "Task_ShipOrder",
+        });
+        services.bpmnReplace.replaceElement(services.elementRegistry.get("Task_ShipOrder")!, {
+            type: "bpmn:ServiceTask",
+        });
+
+        handle.openElementIdReview();
+        await afterPaint();
+
+        expect(services.elementRegistry.get("Task_ShipOrder")?.businessObject.$type).toBe(
+            "bpmn:ServiceTask",
+        );
+        expect(proposedIds()).toContain("ServiceTask_ShipOrder");
     });
 
     it("renames one element from the link under the ID field", async () => {
@@ -347,11 +396,11 @@ describe("generating element IDs from names", () => {
         }
 
         const generate = panel.querySelector<HTMLButtonElement>(".eid-id-actions .eid-link")!;
-        expect(generate.title).toBe("Rename the ID to Activity_CheckStock");
+        expect(generate.title).toBe("Rename the ID to ServiceTask_CheckStock");
         generate.click();
         await afterPaint();
 
-        expect(services.elementRegistry.get("Activity_CheckStock")).toBeDefined();
+        expect(services.elementRegistry.get("ServiceTask_CheckStock")).toBeDefined();
         expect(panel.querySelector<HTMLButtonElement>(".eid-id-actions .eid-link")!.disabled).toBe(
             true,
         );
@@ -370,6 +419,6 @@ describe("generating element IDs from names", () => {
         await afterPaint();
         await apply();
 
-        expect(servicesOf(designer).elementRegistry.get("Activity_CheckStock")).toBeDefined();
+        expect(servicesOf(designer).elementRegistry.get("ServiceTask_CheckStock")).toBeDefined();
     });
 });

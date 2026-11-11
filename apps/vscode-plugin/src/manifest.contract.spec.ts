@@ -237,7 +237,7 @@ describe("package.json ↔ code contract", () => {
             type: "string",
             default: "typePrefix",
             enum: [...ELEMENT_ID_STYLES],
-            enumItemLabels: ["Activity_ProcessData", "ProcessDataTask", "activity_process_data"],
+            enumItemLabels: ["UserTask_ProcessData", "ProcessDataTask", "user_task_process_data"],
         });
         expect(properties[`${MODELER_SETTINGS_SECTION}.elementIds.followName`]).toMatchObject({
             type: "boolean",

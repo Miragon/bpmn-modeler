@@ -1,7 +1,7 @@
 /**
- * How an ID generated from an element's name is spelled: `Activity_ProcessData`
- * (bpmn-js' own prefixes), `ProcessDataTask` (as the Camunda Modeler plugin
- * rename-technical-ids writes it) or `activity_process_data`.
+ * How an ID generated from an element's name is spelled: `UserTask_ProcessData`
+ * (the element's own type first), `ProcessDataTask` (as the Camunda Modeler
+ * plugin rename-technical-ids writes it) or `user_task_process_data`.
  */
 export type ElementIdStyle = "typePrefix" | "typeSuffix" | "snakeCase";
 
@@ -24,7 +24,7 @@ export const DEFAULT_ELEMENT_IDS_FOLLOW_NAME = false;
 /** The element ID options a surface applies live. */
 export interface ElementIdSettings {
     readonly style: ElementIdStyle;
-    /** Rename an ID that is still random or generated whenever its element's name changes. */
+    /** Rename an ID that is still random or generated whenever its element's name or type changes. */
     readonly followName: boolean;
 }
 
