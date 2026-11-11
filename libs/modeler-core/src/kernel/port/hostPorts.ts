@@ -142,7 +142,7 @@ export interface SettingsPort {
     getScriptingSpin(): boolean;
     /** How Generate IDs from Names and the ID field's Generate from name spell an ID. */
     getElementIdStyle(): ElementIdStyle;
-    /** Whether a still-generated ID follows its element's name. Defaults to `false`. */
+    /** Whether a still-generated ID follows its element's name and type. Defaults to `false`. */
     getElementIdsFollowName(): boolean;
     getMarketplaces(): MarketplaceSettingsEntry[];
 }

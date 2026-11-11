@@ -1,8 +1,4 @@
-/**
- * The kinds the review groups elements by, and bpmn-js names IDs after:
- * `BpmnFactory._ensureId` gives activities, events, gateways and flows a shared
- * prefix and every other type its own name.
- */
+/** The kinds the review groups elements by. */
 export type ElementKind =
     "process" | "participant" | "lane" | "activity" | "event" | "gateway" | "flow" | "other";
 
@@ -56,18 +52,6 @@ export function localType(bpmnType: string): string {
 
 export function elementKindOf(bpmnType: string): ElementKind {
     return KIND_OF_TYPE[localType(bpmnType)] ?? "other";
-}
-
-const SHARED_PREFIX: Partial<Record<ElementKind, string>> = {
-    activity: "Activity",
-    event: "Event",
-    gateway: "Gateway",
-    flow: "Flow",
-};
-
-/** The prefix bpmn-js gives a new element's ID, without the underscore. */
-export function idPrefixOf(bpmnType: string): string {
-    return SHARED_PREFIX[elementKindOf(bpmnType)] ?? localType(bpmnType);
 }
 
 const SUFFIX_OF_TYPE: Readonly<Record<string, string>> = {

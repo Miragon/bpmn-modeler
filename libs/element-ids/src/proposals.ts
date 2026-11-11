@@ -38,7 +38,7 @@ const COUNTER_SEPARATOR: Readonly<Record<ElementIdStyle, string>> = {
 
 const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-/** An ID with a counter still follows its name, so a second run leaves `Activity_Notify_2` alone. */
+/** An ID with a counter still follows its name, so a second run leaves `Task_Notify_2` alone. */
 function followsName(id: string, base: string, style: ElementIdStyle): boolean {
     return new RegExp(
         `^${escapeRegExp(base)}(${escapeRegExp(COUNTER_SEPARATOR[style])}\\d+)?$`,

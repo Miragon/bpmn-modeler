@@ -1,8 +1,12 @@
 import type { DiagramElementLike } from "./candidates";
 import type { ElementIdsService } from "./ElementIdsService";
-import { followsNameChange } from "./followName";
+import { followsChange } from "./followName";
 
 interface EventBusLike {
+    on(
+        event: "commandStack.shape.replace.postExecuted",
+        listener: (event: { context: ReplaceContext }) => void,
+    ): void;
     on(event: string, listener: (event: { context: NameChangeContext }) => void): void;
 }
 
@@ -14,9 +18,14 @@ interface NameChangeContext {
     readonly moddleElement?: unknown;
 }
 
+interface ReplaceContext {
+    readonly oldShape: DiagramElementLike;
+    readonly newShape: DiagramElementLike;
+}
+
 /**
- * Renames an ID along with its element's name while the setting is on. It runs
- * in the name change's `postExecute`, so one undo reverts name and ID together.
+ * Renames an ID along with its element's name or type while the setting is on.
+ * It runs inside the changing command, so one undo reverts the change and the ID together.
  */
 export class FollowNameBehavior {
     static $inject = ["eventBus", "elementIds"];
@@ -42,9 +51,14 @@ export class FollowNameBehavior {
                 this.follow(context.element, context.oldProperties?.name);
             }
         });
+        // After bpmn-js hands the old ID to the new shape, which it does at priority 1500.
+        eventBus.on("commandStack.shape.replace.postExecuted", ({ context }) => {
+            const { oldShape, newShape } = context;
+            this.follow(newShape, newShape.businessObject?.name, oldShape.businessObject?.$type);
+        });
     }
 
-    private follow(element: DiagramElementLike, oldName: unknown): void {
+    private follow(element: DiagramElementLike, oldName: unknown, oldType?: string): void {
         const { followName, style } = this.elementIds.getSettings();
         const target = (element.labelTarget as DiagramElementLike | undefined) ?? element;
         const businessObject = target.businessObject;
@@ -54,10 +68,10 @@ export class FollowNameBehavior {
         const change = {
             id: businessObject.id,
             oldName: typeof oldName === "string" && oldName !== "" ? oldName : undefined,
-            type: businessObject.$type,
+            oldType: oldType ?? businessObject.$type,
             style,
         };
-        if (followsNameChange(change)) {
+        if (followsChange(change)) {
             this.elementIds.renameFromName(target);
         }
     }

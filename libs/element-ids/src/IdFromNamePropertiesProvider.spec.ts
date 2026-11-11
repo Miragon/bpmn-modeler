@@ -98,7 +98,7 @@ describe("IdFromNameEntry", () => {
                     ? undefined
                     : ({
                           status,
-                          newId: status === "rename" ? "Activity_Check" : undefined,
+                          newId: status === "rename" ? "Task_Check" : undefined,
                       } as ElementIdProposal),
             renameFromName: vi.fn(),
             openReview: vi.fn(),
@@ -113,7 +113,7 @@ describe("IdFromNameEntry", () => {
         const { props, generate } = mount("rename");
 
         expect(generate.disabled).toBe(false);
-        expect(generate.title).toBe("Rename the ID to Activity_Check");
+        expect(generate.title).toBe("Rename the ID to Task_Check");
 
         act(() => generate.click());
 

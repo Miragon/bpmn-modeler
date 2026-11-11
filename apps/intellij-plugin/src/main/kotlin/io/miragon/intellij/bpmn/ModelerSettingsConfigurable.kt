@@ -145,9 +145,9 @@ class ModelerSettingsConfigurable : Configurable {
                     checkBox("IDs follow names")
                         .bindSelected({ state.elementIdsFollowName }, { state.elementIdsFollowName = it })
                         .comment(
-                            "Rename an element's ID as you change its name while the ID is still random " +
-                                "(<code>Activity_0x1y2z3</code>) or was generated from the old name. IDs you " +
-                                "typed yourself never change.",
+                            "Rename an element's ID as you change its name or type while the ID is still " +
+                                "random (<code>Activity_0x1y2z3</code>) or was generated from the old name and " +
+                                "type. IDs you typed yourself never change.",
                         )
                 }
                 row {
@@ -290,9 +290,9 @@ class ModelerSettingsConfigurable : Configurable {
         // ModelerSettingsConfigurableTest holds these to the VS Code setting's labels.
         private val ELEMENT_ID_STYLE_LABELS =
             mapOf(
-                "typePrefix" to "Activity_ProcessData",
+                "typePrefix" to "UserTask_ProcessData",
                 "typeSuffix" to "ProcessDataTask",
-                "snakeCase" to "activity_process_data",
+                "snakeCase" to "user_task_process_data",
             )
     }
 }

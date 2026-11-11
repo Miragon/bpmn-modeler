@@ -353,8 +353,8 @@ export interface BpmnModelerHandle extends BpmnSurfaceHandle, PendingInputHandle
 
     /**
      * [A] Set how IDs generated from names are spelled, and whether an ID that
-     * is still random or generated follows its element's name as the name
-     * changes — equivalent to `setSettings({ elementIdStyle, elementIdsFollowName })`,
+     * is still random or generated follows its element's name and type as they
+     * change — equivalent to `setSettings({ elementIdStyle, elementIdsFollowName })`,
      * and present on {@link BpmnDesignerHandle} too.
      */
     setElementIdSettings(settings: Partial<ElementIdSettings>): void;

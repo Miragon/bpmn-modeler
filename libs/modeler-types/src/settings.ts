@@ -18,7 +18,7 @@ export interface BpmnModelerSetting {
     readonly favouriteBpmnElements?: string[];
     /** Spelling of IDs generated from names; `typePrefix` when absent. */
     readonly elementIdStyle?: ElementIdStyle;
-    /** Rename a still-generated ID whenever its element's name changes; off when absent. */
+    /** Rename a still-generated ID whenever its element's name or type changes; off when absent. */
     readonly elementIdsFollowName?: boolean;
 }
 

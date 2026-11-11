@@ -22,9 +22,9 @@ export interface ReviewPanelProps {
 }
 
 const STYLE_EXAMPLES: Readonly<Record<ElementIdStyle, string>> = {
-    typePrefix: "Activity_ProcessData",
+    typePrefix: "UserTask_ProcessData",
     typeSuffix: "ProcessDataTask",
-    snakeCase: "activity_process_data",
+    snakeCase: "user_task_process_data",
 };
 
 const GROUPS: readonly { readonly kind: ElementKind; readonly label: string }[] = [
