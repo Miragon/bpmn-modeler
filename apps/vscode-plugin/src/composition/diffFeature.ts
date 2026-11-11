@@ -60,7 +60,7 @@ export function bpmnDiffFormat(service: BpmnDiffService): DiffPaneFormat {
     };
 }
 
-export function dmnDiffFormat(service: DmnDiffService): DiffPaneFormat {
+function dmnDiffFormat(service: DmnDiffService): DiffPaneFormat {
     return {
         extension: ".dmn",
         createRouter: (extensions) => createDmnDiffPaneRouter(service, extensions),

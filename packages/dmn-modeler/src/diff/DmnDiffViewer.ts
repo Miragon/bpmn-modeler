@@ -121,8 +121,7 @@ const VIEWPORT_DEBOUNCE_MS = 80;
 
 let panes = 0;
 
-/** @internal */
-export class DmnDiffViewer implements DmnDiffViewerHandle {
+class DmnDiffViewer implements DmnDiffViewerHandle {
     private readonly viewer: VendorDmnViewer;
     private readonly store = new DisposableStore();
     private readonly style: HTMLStyleElement;

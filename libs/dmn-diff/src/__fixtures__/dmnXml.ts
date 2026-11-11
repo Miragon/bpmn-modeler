@@ -27,7 +27,7 @@ export function edge(id: string, points: ReadonlyArray<readonly [number, number]
     return `<dmndi:DMNEdge id="Edge_${id}" dmnElementRef="${id}">${waypoints}</dmndi:DMNEdge>`;
 }
 
-export interface TableRule {
+interface TableRule {
     readonly id: string;
     /** One text per input column, then one per output column. */
     readonly entries: readonly string[];
