@@ -405,14 +405,36 @@ describe("the allowance playground in a real VS Code, one profile for every wind
         const facts = await factsOf(detail);
         const review = (await detail.locator(".av-review-body").textContent()) ?? "";
         const status = addOns.getByRole("status");
-        await detail
+        const allowed = new RegExp(`^Allowed ${escapeRegExp(title)}[ .]`);
+        const allow = detail
             .locator(".av-review-end")
-            .getByRole("button", { name: "Allow", exact: true })
-            .click();
+            .getByRole("button", { name: "Allow", exact: true });
+        await allow.click();
+        // A rebuild after the previous action can replace the detail while the click lands, which
+        // then reaches no button. Click once more only if the click left no trace: no result, no
+        // refusal, and the add-on is still not allowed. A refusal fails the poll below with its text.
+        const landed = await expect
+            .poll(() => status.textContent(), { timeout: 5_000 })
+            .toMatch(allowed)
+            .then(() => true)
+            .catch(() => false);
+        if (!landed) {
+            const banner = (await status.textContent()) ?? "";
+            const state = (await detail.locator(".av-state-line").textContent()) ?? "";
+            if (!banner.startsWith(`Allowed ${title}`) && /Not allowed yet/.test(state)) {
+                log(`Allow of ${title} left no trace (banner "${banner}"), clicking once more`);
+                await allow.click();
+            }
+        }
         // The banner still holds the result of an earlier action until this one lands.
+        await expect.poll(() => status.textContent(), { timeout: TIMEOUT_MS }).toMatch(allowed);
+        // Wait for the rebuild that this allow causes, so the next click does not race it.
         await expect
-            .poll(() => status.textContent(), { timeout: TIMEOUT_MS })
-            .toMatch(new RegExp(`^Allowed ${escapeRegExp(title)}[ .]`));
+            .poll(async () => (await detail.locator(".av-state-line").textContent()) ?? "", {
+                timeout: TIMEOUT_MS,
+                message: `${title}: the detail never showed Allowed after the allow landed`,
+            })
+            .toMatch(/^Allowed/);
         return { status: (await status.textContent()) ?? "", facts, title, review };
     }
 
