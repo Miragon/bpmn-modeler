@@ -16,12 +16,14 @@ import {
 import {
     type BlockedRulePackage,
     type BlockedState,
+    currentResolutionOf,
     editorsToRelint,
     evictionScopeOf,
     installedPackagesDirOf,
     nodeModulesDirOf,
     isParsedAsJson,
     loadsWithoutApproval,
+    requestedFileBelow,
     requestedPackageNameOf,
     RULE_PACKAGE_APPROVAL_NOTICE_ID,
     RULE_PACKAGE_APPROVAL_PROMPT_ID,
@@ -484,6 +486,99 @@ describe("rootStampPathsOf", () => {
     ])("stamps $case", ({ lookupDir, paths }) => {
         expect(rootStampPathsOf(root, lookupDir)).toEqual(paths);
     });
+});
+
+describe("currentResolutionOf", () => {
+    const store = "/repo/node_modules/.pnpm";
+    const v1 = `${store}/acme@1.0.0/node_modules/acme`;
+    const v2 = `${store}/acme@1.1.0/node_modules/acme`;
+
+    it.each<{
+        case: string;
+        resolved: string;
+        name?: string;
+        currentRoot?: string;
+        linked?: boolean;
+        file?: string;
+    }>([
+        { case: "a file in the current target", resolved: `${v2}/index.js` },
+        {
+            case: "another copy of the name when the lookup path is no link",
+            resolved: `${v1}/index.js`,
+            currentRoot: "/repo/node_modules/acme",
+            linked: false,
+        },
+        {
+            case: "a file nested below the current target",
+            resolved: `${v2}/node_modules/dep/index.js`,
+        },
+        {
+            case: "the entry an older store folder of the name held",
+            resolved: `${v1}/index.js`,
+            file: `${v2}/index.js`,
+        },
+        {
+            case: "a rule an older store folder held",
+            resolved: `${v1}/rules/label.js`,
+            file: `${v2}/rules/label.js`,
+        },
+        {
+            case: "a scoped package's older store folder",
+            resolved: `${store}/@acme+rules@1.0.0/node_modules/@acme/rules/config/all.js`,
+            name: "@acme/rules",
+            currentRoot: `${store}/@acme+rules@1.1.0/node_modules/@acme/rules`,
+            file: `${store}/@acme+rules@1.1.0/node_modules/@acme/rules/config/all.js`,
+        },
+        {
+            case: "an older store folder when the name now links outside node_modules",
+            resolved: `${v1}/index.js`,
+            currentRoot: "/work/acme",
+            file: "/work/acme/index.js",
+        },
+        {
+            case: "another package's file",
+            resolved: `${store}/other@1.0.0/node_modules/other/index.js`,
+        },
+        {
+            case: "a package whose name only starts alike",
+            resolved: `${store}/acme-dep@1.0.0/node_modules/acme-dep/index.js`,
+        },
+        { case: "a file outside every node_modules", resolved: "/work/acme/index.js" },
+        { case: "a file in no package folder", resolved: `${store}/acme@1.0.0/node_modules/acme` },
+        { case: "a path that would climb out of the target", resolved: `${v1}/../../../evil.js` },
+    ])(
+        "for $case gives $file",
+        ({ resolved, name = "acme", currentRoot = v2, linked = true, file }) => {
+            expect(currentResolutionOf(resolved, { name, currentRoot, linked })).toEqual(
+                file === undefined ? { kind: "keep" } : { kind: "redirect", file },
+            );
+        },
+    );
+});
+
+describe("requestedFileBelow", () => {
+    const root = "/repo/node_modules/.pnpm/acme@1.1.0/node_modules/acme";
+    const linkedAcme = { name: "acme", currentRoot: root, linked: true };
+
+    it.each<{ request: string; name?: string; linked?: boolean; file: string | undefined }>([
+        { request: "acme", file: root },
+        { request: "acme/rules/label", file: `${root}/rules/label` },
+        { request: "acme/config/all.js", file: `${root}/config/all.js` },
+        { request: "@acme/rules/config/all", name: "@acme/rules", file: `${root}/config/all` },
+        { request: "acme/rules/label", linked: false, file: undefined },
+        { request: "other/rules/label", file: undefined },
+        { request: "acme-dep/rules/label", file: undefined },
+        { request: "acme/../evil", file: undefined },
+        { request: "acme/rules/../../evil", file: undefined },
+        { request: "acme/rules\\..\\..\\evil", file: undefined },
+        { request: "./rules/label", file: undefined },
+        { request: "/repo/rules/label.js", file: undefined },
+    ])(
+        "finds $request below the current target at $file (linked: $linked)",
+        ({ request, name = linkedAcme.name, linked = linkedAcme.linked, file }) => {
+            expect(requestedFileBelow(request, { ...linkedAcme, name, linked })).toBe(file);
+        },
+    );
 });
 
 describe("evictionScopeOf", () => {

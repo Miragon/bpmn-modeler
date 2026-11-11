@@ -6,8 +6,12 @@ import {
     ruleModuleRootOf,
 } from "./rulePackageApproval";
 
-/** `insideGitFolder`: a file below the root inside a `.git` folder, which no allowance covers. */
-export type ModuleRefusal = RuleModuleRefusal | "insideGitFolder";
+/**
+ * `insideGitFolder`: a file below the root inside a `.git` folder, which no
+ * allowance covers. `movedByUpdate`: the folder the package's link leads to
+ * now has no file where the one Node's cache still names lay in the old folder.
+ */
+export type ModuleRefusal = RuleModuleRefusal | "insideGitFolder" | "movedByUpdate";
 
 /** Workspace code that may not run whatever the user allows: logged with its reason, never offered. */
 export interface RefusedRuleModule {

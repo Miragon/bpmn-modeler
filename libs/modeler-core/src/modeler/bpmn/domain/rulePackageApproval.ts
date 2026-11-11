@@ -23,6 +23,7 @@ import {
     isRootedPath,
     isWithinRoot,
     relativeToWorkspace,
+    staysInsideFolder,
 } from "../../../kernel/domain/rootContainment";
 import { joinWorkspacePath } from "../../../kernel/domain/workspacePath";
 import { manifestPathOf, packageManifestOf } from "./installedPackage";
@@ -88,16 +89,71 @@ export function requestedPackageNameOf(request: string): string | undefined {
         : nameParts.join("/");
 }
 
+/** Where a package name leads now from the config folder. */
+export interface CurrentPackageFolder {
+    readonly name: string;
+    /** The realpath of the folder the name's lookup path leads to. */
+    readonly currentRoot: string;
+    /** The lookup path is a link, whose earlier target Node's cache can still hold. */
+    readonly linked: boolean;
+}
+
+export type CurrentResolution =
+    { readonly kind: "keep" } | { readonly kind: "redirect"; readonly file: string };
+
+const KEEP: CurrentResolution = { kind: "keep" };
+
+/**
+ * Node and Bun cache a resolution per process, so after pnpm retargets
+ * `node_modules/<name>` to a new store folder they still answer with the old
+ * one, gone or not. A file in another root of the same name moves to the same
+ * place below the current one; whether it exists there is the caller's to check.
+ * A lookup path that is a folder of its own has no earlier target, so another
+ * copy of the name, such as a nested one, stays its own root.
+ */
+export function currentResolutionOf(
+    resolved: string,
+    { name, currentRoot, linked }: CurrentPackageFolder,
+): CurrentResolution {
+    if (!linked || isWithinRoot(resolved, currentRoot)) {
+        return KEEP;
+    }
+    const staleRoot = installedPackageRootOf(resolved);
+    if (staleRoot?.kind !== "package" || installedPackageNameOf(staleRoot.id) !== name) {
+        return KEEP;
+    }
+    const file = fileBelow(currentRoot, resolved.slice(staleRoot.id.length + 1));
+    return file === undefined ? KEEP : { kind: "redirect", file };
+}
+
+/**
+ * The file a bare request for the package names below its current folder,
+ * for a request Node failed: its cache of the link's old target misses a file
+ * only the new folder holds.
+ */
+export function requestedFileBelow(
+    request: string,
+    { name, currentRoot, linked }: CurrentPackageFolder,
+): string | undefined {
+    if (!linked || requestedPackageNameOf(request) !== name) {
+        return undefined;
+    }
+    return fileBelow(currentRoot, request.slice(name.length + 1));
+}
+
+function fileBelow(root: string, belowRoot: string): string | undefined {
+    return staysInsideFolder(belowRoot) ? joinWorkspacePath(root, belowRoot) : undefined;
+}
+
 /**
  * The root a module belongs to. Only an installed package folder or the
  * config's own package can be one: any other folder, such as the one an
  * absolute rule reference points into, would let one allowance cover the repo.
  */
 export function ruleModuleRootOf(module: ResolvedRuleModule): RuleModuleRoot {
-    const segments = module.file.split("/");
-    const nodeModules = segments.lastIndexOf(NODE_MODULES);
-    if (nodeModules !== -1) {
-        return installedPackageRoot(segments, nodeModules);
+    const installed = installedPackageRootOf(module.file);
+    if (installed !== undefined) {
+        return installed;
     }
     const linked = module.requestedPackageDir;
     if (linked !== undefined && isWithinRoot(module.file, linked)) {
@@ -116,8 +172,13 @@ function linkedPackageRoot(linked: string, configDirs: readonly string[]): RuleM
         : { kind: "package", id: linked };
 }
 
-/** The last `node_modules`, so a nested copy is its own root for stamps and ids. */
-function installedPackageRoot(segments: readonly string[], nodeModules: number): RuleModuleRoot {
+/** By the last `node_modules`, so a nested copy is its own root for stamps and ids; `undefined` outside every one. */
+function installedPackageRootOf(file: string): RuleModuleRoot | undefined {
+    const segments = file.split("/");
+    const nodeModules = segments.lastIndexOf(NODE_MODULES);
+    if (nodeModules === -1) {
+        return undefined;
+    }
     const scoped = segments[nodeModules + 1]?.startsWith(SCOPE_PREFIX) === true;
     const nameEnd = nodeModules + (scoped ? 2 : 1);
     const nameSegments = segments.slice(nodeModules + 1, nameEnd + 1);

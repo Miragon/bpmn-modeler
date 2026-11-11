@@ -4,7 +4,9 @@ import {
     readdirSync,
     readFileSync,
     realpathSync,
+    rmSync,
     statSync,
+    symlinkSync,
     writeFileSync,
 } from "node:fs";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
@@ -809,6 +811,162 @@ module.exports = () => ({
         expect(unresolved).toEqual([]);
         expect(blocked).toEqual([]);
         expect(refused).toEqual([]);
+    });
+
+    /** Each test has its own folder: Node and Bun cache a link's target for the whole process. */
+    describe("a pnpm update that links the package to a new store folder", () => {
+        const storeFolder = (version: string) =>
+            `node_modules/.pnpm/bpmnlint-plugin-acme@${version}/node_modules/bpmnlint-plugin-acme`;
+        const storeDir = (version: string) => join(workspaceDir, storeFolder(version));
+        const ruleOf = (label: string) =>
+            marked(
+                label,
+                `module.exports = () => ({
+    check(node, reporter) {
+        if (node.$type === "bpmn:Task") reporter.report(node.id, ${JSON.stringify(label)});
+    },
+});`,
+            );
+
+        async function installInStore(
+            version: string,
+            files: Record<string, string> = {
+                "index.js": marked(`acme@${version}`, "module.exports = {};"),
+                "rules/task-found.js": ruleOf(`task-found@${version}`),
+            },
+            manifest: Record<string, unknown> = {},
+        ): Promise<void> {
+            await installPackage(
+                storeFolder(version),
+                { name: "bpmnlint-plugin-acme", version, ...manifest },
+                files,
+            );
+        }
+
+        function linkTo(version: string): void {
+            rmSync(acmeDir(), { force: true });
+            symlinkSync(storeDir(version), acmeDir(), "dir");
+        }
+
+        async function lintAllowedV1(): Promise<void> {
+            writeRepository(diskLayout, workspaceDir);
+            await installInStore("1.0.0");
+            linkTo("1.0.0");
+            allowAcme();
+            const first = await linter.lint(BPMN_WITH_TASK, configPath, TASK_FOUND);
+            expect(messagesOf(first.results)).toEqual(["task-found@1.0.0"]);
+            delete (globalThis as Record<string, unknown>)[RAN];
+        }
+
+        it("runs the new version on the next lint, keeping the old folder, without asking", async () => {
+            await lintAllowedV1();
+
+            await installInStore("1.1.0");
+            linkTo("1.1.0");
+            const { results, blocked, refused } = await linter.lint(
+                BPMN_WITH_TASK,
+                configPath,
+                TASK_FOUND,
+            );
+
+            expect(messagesOf(results)).toEqual(["task-found@1.1.0"]);
+            expect(ran()).toEqual(["acme@1.1.0", "task-found@1.1.0"]);
+            expect([blocked, refused]).toEqual([[], []]);
+        });
+
+        it("runs the new version once pnpm removed the old folder", async () => {
+            await lintAllowedV1();
+
+            await installInStore("1.1.0");
+            linkTo("1.1.0");
+            rmSync(storeDir("1.0.0"), { recursive: true, force: true });
+            const { results, blocked, refused } = await linter.lint(
+                BPMN_WITH_TASK,
+                configPath,
+                TASK_FOUND,
+            );
+
+            expect(messagesOf(results)).toEqual(["task-found@1.1.0"]);
+            expect([blocked, refused]).toEqual([[], []]);
+        });
+
+        it("refuses a new version that moved its files, asking for a reload, and never runs the old one", async () => {
+            await lintAllowedV1();
+
+            await installInStore(
+                "1.1.0",
+                {
+                    "lib/index.js": marked(
+                        "acme@1.1.0",
+                        `module.exports = { rules: { "task-found": "./rules/task-found" } };`,
+                    ),
+                    "lib/rules/task-found.js": ruleOf("task-found@1.1.0"),
+                },
+                { main: "lib/index.js" },
+            );
+            linkTo("1.1.0");
+            const { results, unresolved, blocked, refused } = await linter.lint(
+                BPMN_WITH_TASK,
+                configPath,
+                TASK_FOUND,
+            );
+
+            expect(ran()).toEqual([]);
+            expect(results).toEqual({});
+            expect(unresolved).toEqual(["bpmnlint-plugin-acme/task-found"]);
+            expect(blocked).toEqual([]);
+            expect(refused).toEqual([
+                { kind: "module", file: `${storeDir("1.0.0")}/index.js`, reason: "movedByUpdate" },
+                {
+                    kind: "module",
+                    file: `${storeDir("1.0.0")}/rules/task-found.js`,
+                    reason: "movedByUpdate",
+                },
+            ]);
+        });
+
+        it("follows the new folder for a rule its rules map names by a local path", async () => {
+            writeRepository(diskLayout, workspaceDir);
+            const files = (version: string) => ({
+                "index.js": marked(
+                    `acme@${version}`,
+                    `module.exports = { rules: { "task-found": "./lib/task-found" } };`,
+                ),
+                "lib/task-found.js": ruleOf(`task-found@${version}`),
+            });
+            await installInStore("1.0.0", files("1.0.0"));
+            linkTo("1.0.0");
+            allowAcme();
+            const before = await linter.lint(BPMN_WITH_TASK, configPath, TASK_FOUND);
+
+            await installInStore("1.1.0", files("1.1.0"));
+            linkTo("1.1.0");
+            rmSync(storeDir("1.0.0"), { recursive: true, force: true });
+            const after = await linter.lint(BPMN_WITH_TASK, configPath, TASK_FOUND);
+
+            expect(messagesOf(before.results)).toEqual(["task-found@1.0.0"]);
+            expect(messagesOf(after.results)).toEqual(["task-found@1.1.0"]);
+            expect(after.refused).toEqual([]);
+        });
+
+        it("runs a rule file only the new version adds", async () => {
+            await lintAllowedV1();
+
+            await installInStore("1.1.0", {
+                "index.js": marked("acme@1.1.0", "module.exports = {};"),
+                "rules/task-found.js": ruleOf("task-found@1.1.0"),
+                "rules/task-named.js": ruleOf("task-named@1.1.0"),
+            });
+            linkTo("1.1.0");
+            const { results, unresolved } = await linter.lint(BPMN_WITH_TASK, configPath, {
+                rules: { ...TASK_FOUND.rules, "acme/task-named": "warn" },
+            });
+
+            expect(unresolved).toEqual([]);
+            expect((results["acme/task-named"] ?? []).map(({ message }) => message)).toEqual([
+                "task-named@1.1.0",
+            ]);
+        });
     });
 
     describe("a workspace camunda-compat nobody allowed", () => {

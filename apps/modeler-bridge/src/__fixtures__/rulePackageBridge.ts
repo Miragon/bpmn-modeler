@@ -115,12 +115,62 @@ export async function bumpAcmeVersion(root: string, version: string): Promise<vo
     );
 }
 
-async function installAcme(root: string): Promise<void> {
+/**
+ * A repository whose `node_modules` has pnpm's layout: the package links into
+ * its `.pnpm` store folder, where its dependency lies beside it.
+ * @returns the workspace, a realpath.
+ */
+export async function createPnpmAcmeWorkspace(): Promise<string> {
+    const root = await fs.realpath(await fs.mkdtemp(join(tmpdir(), "bridge-rule-pnpm-")));
+    GIT_FILES.createDirectory(join(root, ".git", "objects"));
+    await writeAcmeConfig(root);
+    await installAcmeWithPnpm(root, "1.0.0", "v1");
+    return root;
+}
+
+/** As `pnpm update` does: a new store folder, the link retargeted to it and the old folder removed. */
+export async function updateAcmeWithPnpm(
+    root: string,
+    from: string,
+    to: string,
+    message: string,
+): Promise<void> {
+    await installAcmeWithPnpm(root, to, message);
+    await fs.rm(pnpmStoreOf(root, from), { recursive: true, force: true });
+}
+
+const pnpmStoreOf = (root: string, version: string) =>
+    join(root, "node_modules", ".pnpm", `bpmnlint-plugin-acme@${version}`);
+
+async function installAcmeWithPnpm(root: string, version: string, message: string): Promise<void> {
+    const storeModules = join(pnpmStoreOf(root, version), "node_modules");
+    const packageDir = join(storeModules, "bpmnlint-plugin-acme");
+    await installPackageAt(
+        packageDir,
+        "bpmnlint-plugin-acme",
+        { ...ACME_MANIFEST, version },
+        acmeFilesOf(root),
+    );
+    await installPackageAt(
+        join(storeModules, "acme-dep"),
+        "acme-dep",
+        {},
+        acmeDependencyOf(message),
+    );
+    const link = join(root, "node_modules", "bpmnlint-plugin-acme");
+    await fs.rm(link, { force: true });
+    await fs.symlink(packageDir, link, "dir");
+}
+
+async function writeAcmeConfig(root: string): Promise<void> {
     await fs.writeFile(
         join(root, ".bpmnlintrc"),
         JSON.stringify({ extends: "plugin:acme/recommended" }),
     );
-    await installPackage(root, "bpmnlint-plugin-acme", ACME_MANIFEST, {
+}
+
+function acmeFilesOf(root: string): Record<string, string> {
+    return {
         "index.js": `module.exports = { configs: { recommended: { rules: { ${JSON.stringify(ACME_RULE)}: "warn" } } } };`,
         "rules/task-found.js": `const message = require("acme-dep");
 module.exports = () => ({
@@ -130,20 +180,22 @@ module.exports = () => ({
         reporter.report(node.id, message);
     },
 });`,
-    });
+    };
+}
+
+const acmeDependencyOf = (message: string) => ({
+    "index.js": `module.exports = ${JSON.stringify(message)};`,
+});
+
+async function installAcme(root: string): Promise<void> {
+    await writeAcmeConfig(root);
+    await installPackage(root, "bpmnlint-plugin-acme", ACME_MANIFEST, acmeFilesOf(root));
     await writeAcmeDependency(root, "v1");
 }
 
 /** Any other length than the text before, so the file's size changes too. */
 export async function writeAcmeDependency(root: string, message: string): Promise<void> {
-    await installPackage(
-        root,
-        "acme-dep",
-        {},
-        {
-            "index.js": `module.exports = ${JSON.stringify(message)};`,
-        },
-    );
+    await installPackage(root, "acme-dep", {}, acmeDependencyOf(message));
 }
 
 /** The dependency text of every rule run so far, oldest first. */
@@ -280,13 +332,21 @@ export async function reviewAndAllowAll(
     return { change, stored: merged };
 }
 
-async function installPackage(
+function installPackage(
     root: string,
     name: string,
     manifest: Record<string, unknown>,
     files: Record<string, string>,
 ): Promise<void> {
-    const dir = join(root, "node_modules", name);
+    return installPackageAt(join(root, "node_modules", name), name, manifest, files);
+}
+
+async function installPackageAt(
+    dir: string,
+    name: string,
+    manifest: Record<string, unknown>,
+    files: Record<string, string>,
+): Promise<void> {
     for (const [relPath, content] of Object.entries({
         "package.json": JSON.stringify({ name, version: "1.0.0", ...manifest }),
         ...files,

@@ -30,12 +30,26 @@ interface FakeScopedRequire {
     readonly cache: Record<string, unknown>;
 }
 
-/** Resolves a request by the table, as Node would from the config folder, and loads nothing real. */
-function fakeScopedRequire(resolutions: Record<string, string>): FakeScopedRequire {
+/**
+ * Resolves a request by the table, as Node would from the config folder, and
+ * loads nothing real. Given `exists`, an absolute path resolves only to a file
+ * on disk, its `.js` extension added as Node does.
+ */
+function fakeScopedRequire(
+    resolutions: Record<string, string>,
+    exists?: (path: string) => boolean,
+): FakeScopedRequire {
     const loaded: string[] = [];
     const cache: Record<string, unknown> = {};
+    const absoluteFile = (request: string) => {
+        if (exists === undefined) {
+            return request;
+        }
+        return [request, `${request}.js`].find(exists);
+    };
     const resolve = (request: string) => {
-        const file = resolutions[request] ?? (request.startsWith("/") ? request : undefined);
+        const file =
+            resolutions[request] ?? (request.startsWith("/") ? absoluteFile(request) : undefined);
         if (file === undefined) {
             throw Object.assign(new Error(`Cannot find module '${request}'`), {
                 code: "MODULE_NOT_FOUND",
@@ -445,6 +459,136 @@ describe("RulePackageGate", () => {
             disk.createSymbolicLink(ACME, v2);
 
             expect([outcome.loaded, linked, gate.isUnchanged()]).toEqual([true, true, false]);
+        });
+    });
+
+    describe("after a pnpm update retargets the link", () => {
+        const store = `${NODE_MODULES}/.pnpm`;
+        const v1 = `${store}/bpmnlint-plugin-acme@1.0.0/node_modules/bpmnlint-plugin-acme`;
+        const v2 = `${store}/bpmnlint-plugin-acme@1.1.0/node_modules/bpmnlint-plugin-acme`;
+
+        /** Node's resolution cache still answers with the folder the link led to before. */
+        const staleRequire = () =>
+            fakeScopedRequire(
+                {
+                    "bpmnlint-plugin-acme": `${v1}/index.js`,
+                    "bpmnlint-plugin-acme/rules/label": `${v1}/rules/label.js`,
+                },
+                (path) => disk.entryKindOf(path) === "file",
+            );
+
+        beforeEach(() => {
+            install(v1, "bpmnlint-plugin-acme", "1.0.0");
+            install(v2, "bpmnlint-plugin-acme", "1.1.0");
+            disk.writeFile(`${v1}/rules/label.js`, "module.exports = 1;");
+            disk.writeFile(`${v2}/rules/label.js`, "module.exports = 2;");
+            disk.createSymbolicLink(ACME, v2);
+            allow(v1);
+        });
+
+        it.each([
+            { case: "its entry", request: "bpmnlint-plugin-acme", file: `${v2}/index.js` },
+            { case: "a rule", request: "bpmnlint-plugin-acme/rules/label", file: `${v2}/rules/label.js` },
+            { case: "an absolute path into the old folder", request: `${v1}/rules/label.js`, file: `${v2}/rules/label.js` },
+        ])("loads $case from the folder the link leads to now, by the same allowance", ({ request, file }) => {
+            const fake = staleRequire();
+            const gate = gateFor();
+
+            const outcome = requireFor(gate, fake, "bpmnlint-plugin-acme", request);
+
+            expect(outcome).toEqual({ loaded: true, blocked: [] });
+            expect(fake.loaded).toEqual([file]);
+            expect(gate.refusedModules()).toEqual([]);
+        });
+
+        it("loads the same file when the old folder is gone", () => {
+            disk.remove(v1);
+            const fake = staleRequire();
+
+            const outcome = requireFor(gateFor(), fake, "bpmnlint-plugin-acme", "bpmnlint-plugin-acme");
+
+            expect(outcome.loaded).toBe(true);
+            expect(fake.loaded).toEqual([`${v2}/index.js`]);
+        });
+
+        it("resolves the package to the folder the link leads to now", () => {
+            const gated = gateFor().require(staleRequire().scopedRequire);
+
+            expect(gated.resolve("bpmnlint-plugin-acme")).toBe(`${v2}/index.js`);
+        });
+
+        it("stamps the folder it loaded, so the next update builds a new setup", () => {
+            const gate = gateFor();
+            requireFor(gate, staleRequire(), "bpmnlint-plugin-acme", "bpmnlint-plugin-acme");
+
+            disk.writeFile(`${v2}/package.json`, '{ "name": "bpmnlint-plugin-acme", "version": "1.1.1" }');
+
+            expect(gate.isUnchanged()).toBe(false);
+        });
+
+        it("refuses a file the new folder lacks, asks for a reload and never runs the old one", () => {
+            disk.remove(`${v2}/index.js`);
+            const fake = staleRequire();
+            const gate = gateFor();
+
+            const outcome = requireFor(gate, fake, "bpmnlint-plugin-acme", "bpmnlint-plugin-acme");
+
+            expect(outcome).toEqual({ loaded: false, blocked: [] });
+            expect(fake.loaded).toEqual([]);
+            expect(gate.refusedModules()).toEqual([
+                { kind: "module", file: `${v1}/index.js`, reason: "movedByUpdate" },
+            ]);
+        });
+
+        it("loads the file once a later update holds it again, and reports no refusal", () => {
+            disk.remove(`${v2}/index.js`);
+            const fake = staleRequire();
+            const gate = gateFor();
+            requireFor(gate, fake, "bpmnlint-plugin-acme", "bpmnlint-plugin-acme");
+
+            disk.writeFile(`${v2}/index.js`, "module.exports = 'restored';");
+            const outcome = requireFor(gate, fake, "bpmnlint-plugin-acme", "bpmnlint-plugin-acme");
+
+            expect(outcome.loaded).toBe(true);
+            expect(gate.refusedModules()).toEqual([]);
+        });
+
+        it("finds a file only the new folder holds, which Node's cache cannot resolve", () => {
+            disk.writeFile(`${v2}/rules/added.js`, "module.exports = 3;");
+            const fake = staleRequire();
+
+            const outcome = requireFor(gateFor(), fake, "bpmnlint-plugin-acme", "bpmnlint-plugin-acme/rules/added");
+
+            expect(outcome.loaded).toBe(true);
+            expect(fake.loaded).toEqual([`${v2}/rules/added.js`]);
+        });
+
+        it("keeps a file the package's exports hide hidden", () => {
+            disk.writeFile(`${v2}/rules/hidden.js`, "module.exports = 4;");
+            const fake = staleRequire();
+            const resolve = fake.scopedRequire.resolve;
+            fake.scopedRequire.resolve = ((request: string) => {
+                if (request === "bpmnlint-plugin-acme/rules/hidden") {
+                    throw Object.assign(new Error("not exported"), {
+                        code: "ERR_PACKAGE_PATH_NOT_EXPORTED",
+                    });
+                }
+                return resolve(request);
+            }) as NodeRequire["resolve"];
+
+            const outcome = requireFor(gateFor(), fake, "bpmnlint-plugin-acme", "bpmnlint-plugin-acme/rules/hidden");
+
+            expect(outcome.loaded).toBe(false);
+            expect(fake.loaded).toEqual([]);
+        });
+
+        it("keeps a miss that the new folder cannot resolve either", () => {
+            const fake = staleRequire();
+
+            const outcome = requireFor(gateFor(), fake, "bpmnlint-plugin-acme", "bpmnlint-plugin-acme/rules/missing");
+
+            expect(outcome).toEqual({ loaded: false, blocked: [] });
+            expect(fake.loaded).toEqual([]);
         });
     });
 

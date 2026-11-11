@@ -111,6 +111,11 @@ describe("refusedRuleModuleLogLine", () => {
             refused: { kind: "module", file: FILE, reason: "insideGitFolder" },
             line: `bpmnlint: refused to run ${FILE}: it lies inside a .git folder, which no allowance covers.`,
         },
+        {
+            case: "a file an update moved out of the package's new folder",
+            refused: { kind: "module", file: FILE, reason: "movedByUpdate" },
+            line: `bpmnlint: refused to run ${FILE}: an update moved the package to a new folder that has no such file; reload the window or restart the IDE to load the updated package.`,
+        },
     ])("logs $case", ({ refused, line }) => {
         expect(refusedRuleModuleLogLine(refused)).toEqual(line);
     });

@@ -1,8 +1,8 @@
 import { Allowance, allowanceStateOf } from "../../../../../kernel/domain/allowance";
 import { AllowanceKind } from "../../../../../kernel/domain/approvalRowKind";
 import { CodeApproval } from "../../../../../kernel/domain/codeApproval";
-import { isWithinRoot } from "../../../../../kernel/domain/rootContainment";
-import { toWorkspacePath } from "../../../../../kernel/domain/workspacePath";
+import { isRootedPath, isWithinRoot } from "../../../../../kernel/domain/rootContainment";
+import { fileSystemPathOf, toWorkspacePath } from "../../../../../kernel/domain/workspacePath";
 import { PluginApprovalStorePort } from "../../../../../kernel/port/approvalPorts";
 import {
     dependencyCandidates,
@@ -14,8 +14,11 @@ import {
 import {
     AllowableRoot,
     BlockedRulePackage,
+    CurrentPackageFolder,
+    currentResolutionOf,
     evictionScopeOf,
     loadsWithoutApproval,
+    requestedFileBelow,
     requestedPackageNameOf,
     rootStampPathsOf,
     rulePackageOf,
@@ -58,9 +61,14 @@ interface StampedPath {
 }
 
 /** A package folder a bare name led to: the path looked up, and where its links end. */
-interface PackageLookup {
+interface PackageLookup extends CurrentPackageFolder {
     readonly lookupDir: string;
-    readonly realDir: string;
+}
+
+interface ResolvedRequest {
+    /** Spelled as Node's `require` takes it. */
+    readonly file: string;
+    readonly lookup: PackageLookup | undefined;
 }
 
 type ModuleCache = NodeRequire["cache"];
@@ -96,15 +104,17 @@ export class RulePackageGate implements RequestAttribution {
         this.selfPackageName = packageManifestOf(manifest ?? "")?.name;
     }
 
+    /** Its `resolve` answers like the require, so NodeResolver's `dirname(require.resolve(pkg))` names the current folder. */
     require(scopedRequire: NodeRequire): NodeRequire {
+        const resolve = (request: string) => this.currentResolution(request, scopedRequire).file;
         const gated = (request: string): unknown => {
-            const resolved = scopedRequire.resolve(request);
-            if (!loadsWithoutApproval(toWorkspacePath(resolved))) {
-                this.admit(resolved, request, scopedRequire.cache);
+            const { file, lookup } = this.currentResolution(request, scopedRequire);
+            if (!loadsWithoutApproval(toWorkspacePath(file))) {
+                this.admit(file, request, lookup, scopedRequire.cache);
             }
-            return scopedRequire(resolved);
+            return scopedRequire(file);
         };
-        return Object.assign(gated, { resolve: scopedRequire.resolve }) as unknown as NodeRequire;
+        return Object.assign(gated, { resolve }) as unknown as NodeRequire;
     }
 
     beginRequest(pkg: string): void {
@@ -131,9 +141,63 @@ export class RulePackageGate implements RequestAttribution {
         );
     }
 
-    private admit(resolved: string, request: string, cache: ModuleCache): void {
+    /**
+     * Where the request leads now. Node's answer stands unless it lies in an
+     * older folder of the requested package, as its cache can hold after a pnpm
+     * update: then the same file below the current folder, or a refusal, as
+     * running the old folder would run code the update replaced.
+     */
+    private currentResolution(request: string, scopedRequire: NodeRequire): ResolvedRequest {
+        let resolved: string;
+        try {
+            resolved = scopedRequire.resolve(request);
+        } catch (miss) {
+            const current = isNotFound(miss)
+                ? this.resolvedInCurrentFolder(request, scopedRequire)
+                : undefined;
+            if (current === undefined) {
+                throw miss;
+            }
+            return current;
+        }
+        const path = toWorkspacePath(resolved);
+        const lookup = isRootedPath(path) ? this.requestedPackageDir(request) : undefined;
+        const current = lookup === undefined ? undefined : currentResolutionOf(path, lookup);
+        if (current === undefined || current.kind === "keep") {
+            return { file: resolved, lookup };
+        }
+        if (this.options.sources.packages.realPath(current.file) === undefined) {
+            this.refused.set(path, { kind: "module", file: path, reason: "movedByUpdate" });
+            throw notAllowed(request);
+        }
+        this.refused.delete(path);
+        return { file: fileSystemPathOf(current.file), lookup };
+    }
+
+    /** A file only the current folder holds, which Node's cached link target cannot resolve. */
+    private resolvedInCurrentFolder(
+        request: string,
+        scopedRequire: NodeRequire,
+    ): ResolvedRequest | undefined {
+        const lookup = this.requestedPackageDir(request);
+        const below = lookup && requestedFileBelow(request, lookup);
+        if (below === undefined) {
+            return undefined;
+        }
+        try {
+            return { file: scopedRequire.resolve(fileSystemPathOf(below)), lookup };
+        } catch {
+            return undefined;
+        }
+    }
+
+    private admit(
+        resolved: string,
+        request: string,
+        lookup: PackageLookup | undefined,
+        cache: ModuleCache,
+    ): void {
         const requestsSelfPackage = this.requestsSelfPackage();
-        const lookup = this.requestedPackageDir(request, requestsSelfPackage);
         const root = this.rootOfResolved(toWorkspacePath(resolved), requestsSelfPackage, lookup);
         if (root.kind === "module") {
             this.refused.set(root.file, root);
@@ -147,7 +211,7 @@ export class RulePackageGate implements RequestAttribution {
         const declined = sources.declinedThisSession?.() ?? NO_DECLINES;
         const state = allowanceStateOf({ id: root.id, allowance }, approvals, declined);
         if (state === "allowed") {
-            const lookupDir = lookup?.realDir === root.id ? lookup.lookupDir : undefined;
+            const lookupDir = lookup?.currentRoot === root.id ? lookup.lookupDir : undefined;
             this.admitted.set(
                 root.id,
                 rootStampPathsOf(root.id, lookupDir).map((path) => ({
@@ -215,7 +279,7 @@ export class RulePackageGate implements RequestAttribution {
             file,
             configDir: this.realConfigDir,
             requestsSelfPackage,
-            requestedPackageDir: lookup?.realDir,
+            requestedPackageDir: lookup?.currentRoot,
         });
     }
 
@@ -223,11 +287,8 @@ export class RulePackageGate implements RequestAttribution {
      * A path request is a package's own file, such as a rule its `rules` map
      * names, so it belongs to the folder the requested package name leads to.
      */
-    private requestedPackageDir(
-        request: string,
-        requestsSelfPackage: boolean,
-    ): PackageLookup | undefined {
-        const pkg = requestsSelfPackage ? undefined : this.request?.pkg;
+    private requestedPackageDir(request: string): PackageLookup | undefined {
+        const pkg = this.requestsSelfPackage() ? undefined : this.request?.pkg;
         const name =
             requestedPackageNameOf(request) ??
             (pkg === undefined ? undefined : requestedPackageNameOf(pkg));
@@ -235,13 +296,22 @@ export class RulePackageGate implements RequestAttribution {
             return undefined;
         }
         for (const { packageDir } of dependencyCandidates(this.options.configDir, name)) {
-            const realDir = this.options.sources.packages.realPath(packageDir);
-            if (realDir !== undefined) {
-                return { lookupDir: packageDir, realDir };
+            const { packages } = this.options.sources;
+            const currentRoot = packages.realPath(packageDir);
+            if (currentRoot !== undefined) {
+                const linked = packages.entryKindOf(packageDir) === "symbolicLink";
+                return { name, lookupDir: packageDir, currentRoot, linked };
             }
         }
         return undefined;
     }
+}
+
+const NOT_FOUND_CODES: ReadonlySet<unknown> = new Set(["MODULE_NOT_FOUND", "ENOENT"]);
+
+/** Node fails a cached link target with `ENOENT`, Bun with `MODULE_NOT_FOUND`; an `exports` refusal stands. */
+function isNotFound(error: unknown): boolean {
+    return NOT_FOUND_CODES.has((error as { code?: unknown } | undefined)?.code);
 }
 
 function notAllowed(request: string): Error {
