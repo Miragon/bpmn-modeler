@@ -1,7 +1,9 @@
 import {
     type Disposer,
-    MIN_CANVAS_SIZE_PX,
+    type FittableCanvas,
     type MinimalEventBus,
+    fitCanvasToContent,
+    isCanvasSized,
     isUsableViewbox,
 } from "@miragon/bpmn-modeler-types";
 
@@ -25,9 +27,6 @@ export interface ViewportData {
 
 // Keep focused elements legible without zooming out from the current view.
 const MIN_FOCUS_ZOOM = 0.75;
-const FIT_MARGIN = 40;
-// Keeps the former 50px palette + 20px margin when there is no palette to measure.
-const UNMEASURED_PALETTE_EDGE = 30;
 
 /**
  * Reads, restores, and subscribes to canvas viewbox changes.
@@ -121,8 +120,7 @@ export class CanvasViewportManager implements ViewportManager {
      * container yields a NaN transform, which SVG renders as nothing.
      */
     isCanvasSized(): boolean {
-        const { outer } = this.getService("canvas").viewbox();
-        return outer.width >= MIN_CANVAS_SIZE_PX && outer.height >= MIN_CANVAS_SIZE_PX;
+        return isCanvasSized(this.fittableCanvas());
     }
 
     /**
@@ -205,44 +203,11 @@ export class CanvasViewportManager implements ViewportManager {
      * @returns `false` if nothing was applied, so the caller can retry.
      */
     fitViewport(): boolean {
-        const canvas = this.getService("canvas");
-        const { inner, outer } = canvas.viewbox();
+        return fitCanvasToContent(this.fittableCanvas());
+    }
 
-        // Fitting a zero-sized container would produce a NaN transform and blank the canvas.
-        if (!this.isCanvasSized()) {
-            return false;
-        }
-
-        if (!inner.width || !inner.height) {
-            canvas.zoom("fit-viewport");
-            return true;
-        }
-
-        // An unstyled palette can measure as full-width; cap insets so it cannot consume the viewport.
-        const maxInsetX = outer.width / 4;
-        const maxInsetY = outer.height / 4;
-        const inset = {
-            top: Math.min(FIT_MARGIN, maxInsetY),
-            right: Math.min(FIT_MARGIN, maxInsetX),
-            bottom: Math.min(FIT_MARGIN, maxInsetY),
-            left: Math.min(paletteRightEdge(canvas.getContainer()) + FIT_MARGIN, maxInsetX),
-        };
-
-        const availableWidth = outer.width - inset.left - inset.right;
-        const availableHeight = outer.height - inset.top - inset.bottom;
-
-        const scale = Math.min(1, availableWidth / inner.width, availableHeight / inner.height);
-
-        const marginX = inset.left + (availableWidth - inner.width * scale) / 2;
-        const marginY = inset.top + (availableHeight - inner.height * scale) / 2;
-
-        canvas.viewbox({
-            x: inner.x - marginX / scale,
-            y: inner.y - marginY / scale,
-            width: outer.width / scale,
-            height: outer.height / scale,
-        });
-        return true;
+    private fittableCanvas(): FittableCanvas {
+        return this.getService("canvas") as unknown as FittableCanvas;
     }
 
     /**
@@ -355,12 +320,4 @@ export function subscribeViewboxChanged<
     eventBus.on("canvas.viewbox.changed", handler);
     eventBus.on("diagram.destroy", dispose);
     return dispose;
-}
-
-function paletteRightEdge(container: Element): number {
-    const palette = container.querySelector(".djs-palette");
-    if (!palette) {
-        return UNMEASURED_PALETTE_EDGE;
-    }
-    return palette.getBoundingClientRect().right - container.getBoundingClientRect().left;
 }

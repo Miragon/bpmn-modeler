@@ -109,6 +109,23 @@ async function diagramRendered(webview: FrameLocator): Promise<boolean> {
     return shapes >= 3 && connections >= 2;
 }
 
+async function diagramInView(webview: FrameLocator): Promise<boolean> {
+    return webview.locator(".djs-container").evaluate((container) => {
+        const view = container.getBoundingClientRect();
+        return [...container.querySelectorAll(".djs-element.djs-shape")].every((shape) => {
+            const box = shape.getBoundingClientRect();
+            const onAnotherPlane = box.width === 0;
+            return (
+                onAnotherPlane ||
+                (box.left >= view.left &&
+                    box.right <= view.right &&
+                    box.top >= view.top &&
+                    box.bottom <= view.bottom)
+            );
+        });
+    });
+}
+
 function focusRingShown(container: Locator): Promise<boolean> {
     return container.locator(".canvas-focus-ring").isVisible();
 }
@@ -344,6 +361,23 @@ describe("the packaged extension in a real VS Code", () => {
         await expect
             .poll(() => taskNameInFile(file), { timeout: TIMEOUT_MS })
             .toBe(ORIGINAL_TASK_NAME);
+    });
+
+    it("fits the panned-away diagram back into view from the canvas button", async () => {
+        const webview = vscode().webview();
+        const canvas = await webview.locator(".djs-container").boundingBox();
+        if (!canvas) throw new Error("The canvas is not visible");
+        await vscode().page.mouse.move(canvas.x + canvas.width / 2, canvas.y + canvas.height / 2);
+        await vscode().page.mouse.wheel(2000, 1500);
+        await expect.poll(() => diagramInView(webview), { timeout: TIMEOUT_MS }).toBe(false);
+        await settle(webview);
+        await vscode().screenshot(join(RESULTS_DIRECTORY, "bpmn-fit-before.png"));
+
+        await webview.getByRole("button", { name: "Fit diagram to view" }).click();
+
+        await expect.poll(() => diagramInView(webview), { timeout: TIMEOUT_MS }).toBe(true);
+        await settle(webview);
+        await vscode().screenshot(join(RESULTS_DIRECTORY, "bpmn-fit-after.png"));
     });
 
     it("rings the canvas once Escape hands it the keyboard from the properties panel", async () => {

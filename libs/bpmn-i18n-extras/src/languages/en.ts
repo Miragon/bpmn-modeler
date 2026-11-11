@@ -10,6 +10,7 @@ const dictionary: Record<string, string> = {
     "The linked form is missing or invalid. Check the form reference.":
         "The linked form is missing or invalid. Check the form reference.",
     "Preview linked form": "Preview linked form",
+    "Fit diagram to view": "Fit diagram to view",
     "Linked form preview": "Linked form preview",
     "Refresh": "Refresh",
     "Close form preview": "Close form preview",

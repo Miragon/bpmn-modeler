@@ -17,6 +17,7 @@ function fakeInstance(container: HTMLElement) {
         canvas: { getContainer: () => container, focus: vi.fn(), isFocused: () => false },
         eventBus: { on: vi.fn() },
         selection: { get: () => [], select: vi.fn() },
+        translate: (template: string) => template,
     };
     // Mirrors didi: a missing name resolves to null when not strict, else throws.
     const get = (name: string, strict?: boolean): unknown => {

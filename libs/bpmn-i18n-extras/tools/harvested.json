@@ -1,6 +1,6 @@
 {
     "note": "Templates the running C7 modeler passed to translate(), harvested via tools/harvest-drain.js (union of successive runs — additive runtime truth). Authoritative needed-key set: the overlay is pruned against it and coverage.spec.ts fails if any key here resolves via neither the shared library nor the overlay.",
-    "count": 284,
+    "count": 285,
     "keys": [
         "<none>",
         "Activate create/remove space tool",
@@ -133,6 +133,7 @@
         "External task",
         "Field injection",
         "Field injections",
+        "Fit diagram to view",
         "Follow up date",
         "Form fields",
         "Form key",

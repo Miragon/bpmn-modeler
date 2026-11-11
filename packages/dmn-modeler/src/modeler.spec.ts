@@ -367,6 +367,43 @@ describe("DmnModeler", () => {
         expect(changed).toHaveBeenCalledTimes(2);
     });
 
+    it("mounts the fit button on the DRD canvas only and fits the diagram from it", () => {
+        new DmnModeler(document.createElement("main"), {
+            propertiesPanel: { parent: document.createElement("aside") },
+        });
+        const vendor = mocks.vendors[0];
+        const container = document.createElement("div");
+        const canvas = {
+            getContainer: () => container,
+            viewbox: vi.fn(() => ({
+                inner: { x: 0, y: 0, width: 0, height: 0 },
+                outer: { width: 1000, height: 800 },
+            })),
+            zoom: vi.fn(),
+            focus: vi.fn(),
+            isFocused: () => false,
+        };
+        const fitButton = () => container.querySelector<HTMLButtonElement>(".fit-viewport-button");
+
+        vendor.activeView = drdView;
+        vendor.activeViewer = createViewer({
+            canvas,
+            eventBus: createEventBus(),
+            translate: (template: string) => `translated: ${template}`,
+        });
+        vendor.emitViews();
+        expect(fitButton()?.title).toBe("translated: Fit diagram to view");
+
+        fitButton()!.dispatchEvent(new MouseEvent("click", { detail: 1 }));
+        expect(canvas.zoom).toHaveBeenCalledWith("fit-viewport");
+        expect(canvas.focus).toHaveBeenCalledOnce();
+
+        vendor.activeView = tableView;
+        vendor.activeViewer = createViewer({ eventBus: createEventBus() });
+        vendor.emitViews();
+        expect(fitButton()).toBeNull();
+    });
+
     it("rings the DRD canvas while it holds the keyboard and drops the ring with the view", () => {
         new DmnModeler(document.createElement("main"), {
             propertiesPanel: { parent: document.createElement("aside") },
@@ -384,8 +421,9 @@ describe("DmnModeler", () => {
 
         vendor.activeView = drdView;
         vendor.activeViewer = createViewer({
-            canvas: { getContainer: () => container, isFocused: () => false },
+            canvas: { getContainer: () => container, focus: vi.fn(), isFocused: () => false },
             eventBus,
+            translate: (template: string) => template,
         });
         vendor.emitViews();
         expect(ringed()).toBe(false);

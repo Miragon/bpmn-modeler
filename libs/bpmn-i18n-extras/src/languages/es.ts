@@ -10,6 +10,7 @@ const dictionary: Record<string, string> = {
     "The linked form is missing or invalid. Check the form reference.":
         "El formulario vinculado no existe o no es válido. Compruebe la referencia al formulario.",
     "Preview linked form": "Previsualizar formulario vinculado",
+    "Fit diagram to view": "Ajustar el diagrama a la vista",
     "Linked form preview": "Vista previa del formulario vinculado",
     "Refresh": "Actualizar",
     "Close form preview": "Cerrar vista previa del formulario",

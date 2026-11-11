@@ -10,8 +10,11 @@ import camundaModdleDescriptor from "camunda-dmn-moddle/resources/camunda.json";
 import {
     createFlushableDebounceInput,
     DisposableStore,
+    fitCanvasToContent,
+    type FittableCanvas,
     type FlushableDebounceInput,
     installCanvasFocusRing,
+    installFitViewportButton,
     MutableDisposable,
     NoModelerError,
     observeCanvasSize,
@@ -67,14 +70,16 @@ interface FocusableCanvas extends ResizableCanvas {
     isFocused(): boolean;
 }
 
-interface DrdCanvas {
-    getContainer(): HTMLElement;
+interface DrdCanvas extends FittableCanvas {
+    focus(): void;
     isFocused(): boolean;
 }
 
 interface FocusEventBus {
     on(event: "canvas.focus.changed", callback: (event: { focused: boolean }) => void): void;
 }
+
+type Translate = (template: string) => string;
 
 interface Viewbox {
     x: number;
@@ -339,7 +344,7 @@ export class DmnModeler implements DmnModelerHandle, DmnPendingInputHandle {
         }
     }
 
-    // Only the DRD view has a diagram-js canvas to focus.
+    // Only the DRD view has a diagram-js canvas to fit and focus.
     private syncCanvasOverlays(): void {
         this.canvasOverlays.set(undefined);
 
@@ -348,18 +353,27 @@ export class DmnModeler implements DmnModelerHandle, DmnPendingInputHandle {
         }
         const viewer = this.getActiveViewer();
         const canvas = viewer?.get<DrdCanvas>("canvas", false);
+        const translate = viewer?.get<Translate>("translate", false);
         const eventBus = viewer?.get<FocusEventBus>("eventBus", false);
-        if (!canvas || !eventBus) {
+        if (!canvas || !translate || !eventBus) {
             return;
         }
-        this.canvasOverlays.set(
+        const overlays = new DisposableStore();
+        overlays.add(
             installCanvasFocusRing({
                 container: canvas.getContainer(),
                 isFocused: () => canvas.isFocused(),
                 onFocusChanged: (listener) =>
                     eventBus.on("canvas.focus.changed", (event) => listener(event.focused)),
             }),
+            installFitViewportButton({
+                parent: canvas.getContainer(),
+                label: translate("Fit diagram to view"),
+                fit: () => fitCanvasToContent(canvas),
+                focusCanvas: () => canvas.focus(),
+            }),
         );
+        this.canvasOverlays.set(() => overlays.dispose());
     }
 
     private readonly handleContentChanged = (): void => {

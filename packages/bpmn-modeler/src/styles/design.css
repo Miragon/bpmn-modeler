@@ -3,7 +3,7 @@
  * `@miragon/bpmn-modeler/design.css` (see `vite.viewer-css.config.mts`). It
  * carries the bpmn-js base diagram/font CSS, the engine-neutral properties panel
  * and append-menu chrome, the definition-search results list, and the mode-invariant canvas chrome (minimap, token
- * simulation and canvas focus ring), plus the injection-only lint
+ * simulation, fit button and canvas focus ring), plus the injection-only lint
  * chrome (hide-until-configured, so it costs nothing unless a host
  * injects linting) — plus the dark-theme overrides scoped under
  * `[data-bpmn-theme="dark"]`. It loads none of the Camunda editor chrome

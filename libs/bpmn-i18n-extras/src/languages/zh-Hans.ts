@@ -10,6 +10,7 @@ const dictionary: Record<string, string> = {
     "The linked form is missing or invalid. Check the form reference.":
         "关联的表单不存在或无效。请检查表单引用。",
     "Preview linked form": "预览关联表单",
+    "Fit diagram to view": "使图表适合视图",
     "Linked form preview": "关联表单预览",
     "Refresh": "刷新",
     "Close form preview": "关闭表单预览",
