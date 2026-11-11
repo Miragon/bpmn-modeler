@@ -315,8 +315,7 @@ describe("inlined library peer guard", () => {
 });
 
 describe("plugins-free entry guard", () => {
-    const PLUGIN_CODE =
-        "//#region src/plugins/loadPlugins.ts\nfunction loadPlugins() {}\n//#endregion";
+    const PLUGIN_CODE = "// src/plugins/loadPlugins.ts\nfunction loadPlugins() {}";
 
     function distWith(files: Record<string, string>): string {
         const distDir = join(temporaryDirectory(), "dist");
@@ -326,7 +325,7 @@ describe("plugins-free entry guard", () => {
             "design.js": 'import "./chunks/shared.js";',
             "mode.js": "export const mode = 1;",
             "plugins.js": `import "./chunks/shared.js";\n${PLUGIN_CODE}`,
-            "chunks/shared.js": "//#region src/engines.ts\nexport const engines = [];",
+            "chunks/shared.js": "// src/engines.ts\nexport const engines = [];",
         };
         for (const [name, code] of Object.entries({ ...defaults, ...files })) {
             writeFileSync(join(distDir, name), code);
@@ -359,9 +358,15 @@ describe("plugins-free entry guard", () => {
     it("refuses to pass when the plugins entry carries no marker it could look for", () => {
         const distDir = distWith({ "plugins.js": "function loadPlugins() {}" });
 
-        expect(() => checkPluginsFreeEntries({ distDir })).toThrow(
-            /no "\/\/#region src\/plugins\/"/,
-        );
+        expect(() => checkPluginsFreeEntries({ distDir })).toThrow(/no "\/\/ src\/plugins\/"/);
+    });
+
+    it("does not take a mention of the plugin path inside code for a module marker", () => {
+        const distDir = distWith({
+            "plugins.js": 'const hint = "see // src/plugins/loadPlugins.ts";',
+        });
+
+        expect(() => checkPluginsFreeEntries({ distDir })).toThrow(/no "\/\/ src\/plugins\/"/);
     });
 
     it("rejects a missing build output", () => {

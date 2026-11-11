@@ -9,9 +9,10 @@ import { collectModuleSpecifiers } from "./check-externals.mjs";
 const DIST_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "../dist");
 const PLUGIN_FREE_ENTRIES = ["index.js", "design.js", "mode.js"];
 const PLUGINS_ENTRY = "plugins.js";
-// Rolldown keeps a region comment per source module, the only trace of where
-// minified plugin code came from once it lands in a shared chunk.
-const PLUGIN_CODE_MARKER = "//#region src/plugins/";
+// Rolldown starts each source module with a `// <id>` line comment, the only trace
+// of where minified plugin code came from once it lands in a shared chunk.
+const PLUGIN_CODE_MARKER = "// src/plugins/";
+const PLUGIN_CODE_LINE = /^\/\/ src\/plugins\//m;
 
 function reachableFiles(entry) {
     const visited = new Set();
@@ -38,10 +39,10 @@ export function checkPluginsFreeEntries({ distDir = DIST_DIR } = {}) {
     }
 
     const holdsPluginCode = (file) =>
-        file === pluginsEntry || readFileSync(file, "utf8").includes(PLUGIN_CODE_MARKER);
+        file === pluginsEntry || PLUGIN_CODE_LINE.test(readFileSync(file, "utf8"));
 
     const pluginsGraphHasMarker = reachableFiles(pluginsEntry).some((file) =>
-        readFileSync(file, "utf8").includes(PLUGIN_CODE_MARKER),
+        PLUGIN_CODE_LINE.test(readFileSync(file, "utf8")),
     );
     if (!pluginsGraphHasMarker) {
         throw new Error(
