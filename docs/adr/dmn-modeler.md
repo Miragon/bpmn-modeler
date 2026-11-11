@@ -1,7 +1,7 @@
 # DMN modeler
 
 - Status: accepted
-- Last reviewed: 2026-11-06
+- Last reviewed: 2026-11-11
 
 ## Context
 
@@ -16,6 +16,7 @@ and a clear contract for changing language.
 - [Package and API](#package-and-api)
 - [Themes](#themes)
 - [Locale](#locale)
+- [Diff](#diff)
 - [Alternatives and consequences](#alternatives-and-consequences)
 
 ## Decision
@@ -115,6 +116,41 @@ Translation harvesting covers dmn-js through the shared recorder and the local
 i18n overlay. The overlay supplies missing modeler strings; it does not replace
 the shared translation package.
 
+### Diff
+
+`libs/dmn-diff` owns `computeDmnDiff(beforeXml, afterXml): Promise<DmnDiffResult>`
+and `dmnSideView(result, side)`, safe in Node and the browser and without DOM,
+like [`libs/bpmn-diff`](bpmn-modeler.md#diff), whose `DiffSide` and `DiffCounts`
+it reuses. It compares by id: DRG elements, artifacts, requirements (the DRD
+uses a requirement's id as its connection's), input and output clauses, rules
+and their cells. An element's signature holds its properties with tracked
+children reduced to their ids, references to `#id`, and the layout-only
+`biodi:*` attributes left out; a table's change marks its decision changed in
+the DRD. Each version matches its cells to its columns by position, and cells
+are compared per shared column id. A longest common subsequence over the rule
+ids both versions share finds moved rules, since order decides a FIRST or
+PRIORITY table. Changes are stepped through in reading order of the DI (top to
+bottom, then left to right), a removed element at its place in the old version;
+an edge whose only change is its layout is counted but not stepped to, as in
+the BPMN diff. Parser warnings about unparsable content are errors.
+
+The core's `DmnDiffService` computes the diff once both panes are ready and
+sends each pane its side's view; it shares `DiffPaneRelay` with the BPMN diff
+for the viewport and the cursor and adds the open view and the table's scroll.
+The scroll is anchored on the topmost rule both versions share, plus an offset,
+so inserted or removed rows do not shift the partner.
+
+The panes render through `createDiffViewer`, internal to
+`packages/dmn-modeler` and not public API: dmn-js's `Viewer`, the DRD with pan
+and zoom, marked as in the BPMN diff. Table highlights are one scoped
+stylesheet per pane whose attribute selectors (`data-row-id`, `data-col-id`,
+`data-element-id`) survive every re-render of the table; output headers carry
+no column id, so they are selected by position. The colours are the BPMN
+diff's, and `diffPalette.spec.ts` keeps both stylesheets equal. VS Code opens
+the panes for Git diffs (`priority.diffEditor`) and for its Compare commands
+with "(DMN)" in their titles; the page learns that it is a diff pane from its
+HTML ([Architecture and hosts](architecture-and-hosts.md)).
+
 ## Alternatives and consequences
 
 - A per-instance translator would require separate translation bindings for
@@ -127,3 +163,15 @@ the shared translation package.
   modules through a bundler. It is not a promise of bare Node ESM execution.
 - Both the IDE webview and npm consumers use one composition, so features land
   once while the public facade remains a compatibility commitment.
+- bpmn-js-differ, which the BPMN diff uses, knows BPMN only: its change handler
+  walks BPMN types, and its moved indices have no DMN meaning. The id-based
+  comparison costs its own code and tests in `libs/dmn-diff`.
+- Classes on table cells, as the DRD markers are, would vanish whenever dmn-js
+  renders the table again. The scoped stylesheet costs a positional selector for
+  output headers, which a browser spec checks against real dmn-js rendering.
+- A diff flag in the file query, as BPMN's viewer mode is, would arrive after
+  the DMN bootstrap created its modeler. The HTML flag needs the host's HTML to
+  name the pane.
+- A copied rule gets a new id and shows as removed and added, as in the BPMN
+  diff. IntelliJ has no DMN editor and Orca no diff, so only the VS Code
+  extension opens the DMN diff.

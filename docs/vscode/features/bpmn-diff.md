@@ -34,5 +34,6 @@ The comparison uses [bpmn-js-differ](https://github.com/bpmn-io/bpmn-js-differ) 
 
 ## Next steps
 
+- [DMN diff](/vscode/features/dmn-diff): the same view for decision models and their tables.
 - [Linting](/vscode/features/linting): check the new version for errors.
 - [Deployment](/vscode/features/deployment): ship the reviewed diagram.
