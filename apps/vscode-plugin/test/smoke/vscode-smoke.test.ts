@@ -22,6 +22,12 @@ const FIXTURES_DIRECTORY = fileURLToPath(new URL("./fixtures/", import.meta.url)
 
 const BPMN_FILE = "smoke.bpmn";
 const DMN_FILE = "smoke.dmn";
+/** Two versions of one decision model, shared with the e2e compare tests. */
+const DMN_DIFF_FIXTURES = fileURLToPath(new URL("../e2e/fixtures/", import.meta.url));
+const DMN_BEFORE_FILE = "shipping.dmn";
+const DMN_AFTER_FILE = "shipping-v2.dmn";
+const DIFF_ADDED = "rgb(82, 180, 21)";
+const DIFF_REMOVED = "rgb(204, 0, 0)";
 const FORM_FILE = "smoke.form";
 const TEMPLATE_FILE = "smoke-template.json";
 const UPPER_CASE_TEMPLATE_FILE = "smoke-upper-case.JSON";
@@ -140,6 +146,29 @@ async function expectAbsentFor(locator: Locator, milliseconds: number): Promise<
 }
 
 /** Repaints after a DOM change, so a screenshot shows the settled frame. */
+async function expectMarked(
+    webview: FrameLocator,
+    elementId: string,
+    marker: string,
+): Promise<void> {
+    await expect
+        .poll(
+            () =>
+                webview
+                    .locator(`.djs-element[data-element-id="${elementId}"]`)
+                    .getAttribute("class"),
+            { timeout: TIMEOUT_MS },
+        )
+        .toContain(marker);
+}
+
+/** The bar a DMN diff draws on the number cell of a rule. */
+function ruleBar(webview: FrameLocator, ruleId: string): Promise<string> {
+    return webview
+        .locator(`td.rule-index[data-row-id="${ruleId}"]`)
+        .evaluate((cell) => getComputedStyle(cell).boxShadow);
+}
+
 async function settle(webview: FrameLocator): Promise<void> {
     await webview
         .locator("html")
@@ -489,6 +518,64 @@ describe("the packaged extension in a real VS Code", () => {
         );
         await settle(vscode().webview());
         await vscode().screenshot(join(RESULTS_DIRECTORY, "dmn.png"));
+        expectNoCspViolations();
+    });
+
+    it("shows a DMN file's changes in the visual diff, down to its decision table", async ({
+        onTestFinished,
+    }) => {
+        // Only while this test runs: one more Explorer row moves the rows the plugin scenarios click.
+        await cp(
+            join(DMN_DIFF_FIXTURES, "shipping.dmn"),
+            join(workspaceDirectory, DMN_BEFORE_FILE),
+        );
+        await cp(
+            join(DMN_DIFF_FIXTURES, "shipping-b.dmn"),
+            join(workspaceDirectory, DMN_AFTER_FILE),
+        );
+        onTestFinished(async () => {
+            await vscode().runCommand("View: Close All Editors");
+            await rm(join(workspaceDirectory, DMN_BEFORE_FILE), { force: true });
+            await rm(join(workspaceDirectory, DMN_AFTER_FILE), { force: true });
+        });
+
+        await vscode().openFromExplorer(DMN_BEFORE_FILE);
+        await vscode().showInCustomEditor(DMN_BEFORE_FILE, (webview) =>
+            webview.getByText("Choose carrier").first().isVisible(),
+        );
+        await vscode().compareActiveFileWith(DMN_AFTER_FILE);
+        const before = await vscode().editorWebview('body[data-diff-side="before"]');
+        const after = await vscode().editorWebview('body[data-diff-side="after"]');
+
+        await expectMarked(before, "Decision_Surcharge", "diff-removed");
+        await expectMarked(before, "Decision_Shipping", "diff-changed");
+        await expectMarked(after, "Input_Insured", "diff-added");
+        await expectMarked(after, "Decision_Shipping", "diff-changed");
+        await expect
+            .poll(() => after.locator(".dmn-diff-legend").textContent(), { timeout: TIMEOUT_MS })
+            .toContain("Added 2");
+
+        // Next in one pane outlines the same change in both.
+        await after.locator(".dmn-diff-legend__next").click();
+        await expectMarked(after, "Source_Contracts", "diff-selected");
+        await expectMarked(before, "Source_Contracts", "diff-selected");
+        await settle(after);
+        await vscode().screenshot(join(RESULTS_DIRECTORY, "dmn-diff.png"));
+
+        // Opening the decision's table in one pane opens it in the other.
+        await after
+            .locator(
+                '.djs-overlays[data-container-id="Decision_Shipping"] .drill-down-overlay button',
+            )
+            .click();
+        await expect
+            .poll(() => ruleBar(after, "Rule_10"), { timeout: TIMEOUT_MS })
+            .toContain(DIFF_ADDED);
+        await expect
+            .poll(() => ruleBar(before, "Rule_6"), { timeout: TIMEOUT_MS })
+            .toContain(DIFF_REMOVED);
+        await settle(after);
+        await vscode().screenshot(join(RESULTS_DIRECTORY, "dmn-diff-table.png"));
         expectNoCspViolations();
     });
 

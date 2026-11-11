@@ -193,25 +193,37 @@ export class VsCodeSession {
      * frames carry no view id, and the Deploy view can show beside Add-ons.
      */
     async viewWebview(shows: string): Promise<FrameLocator> {
-        const frames = this.page
-            .locator(
-                `iframe.webview[src*="extensionId=${this.options.extensionId}" i][src*="purpose=webviewView"]`,
-            )
-            .filter({ visible: true });
+        const frames = this.page.locator(
+            `iframe.webview[src*="extensionId=${this.options.extensionId}" i][src*="purpose=webviewView"]`,
+        );
+        return this.firstShowing(frames, shows, "view");
+    }
+
+    /** The extension's visible editor webview whose page holds `shows`, such as one side of a diff. */
+    editorWebview(shows: string): Promise<FrameLocator> {
+        return this.firstShowing(this.editorFrames(), shows, "editor");
+    }
+
+    private async firstShowing(
+        frames: Locator,
+        shows: string,
+        kind: string,
+    ): Promise<FrameLocator> {
+        const visible = frames.filter({ visible: true });
         const deadline = Date.now() + this.options.timeoutMs;
         while (Date.now() < deadline) {
-            const count = await frames.count();
+            const count = await visible.count();
             for (let index = 0; index < count; index++) {
-                const view = pageOf(frames.nth(index));
-                const matches = await view
+                const page = pageOf(visible.nth(index));
+                const matches = await page
                     .locator(shows)
                     .count()
                     .catch(() => 0);
-                if (matches > 0) return view;
+                if (matches > 0) return page;
             }
             await delay(200);
         }
-        throw new Error(`no visible view of the extension shows ${shows}`);
+        throw new Error(`no visible ${kind} of the extension shows ${shows}`);
     }
 
     /**
@@ -307,6 +319,31 @@ export class VsCodeSession {
             await this.page.keyboard.press("F1");
             try {
                 await input.fill(`>${title}`, { timeout: PALETTE_ATTEMPT_MS });
+                await row.click({ timeout: PALETTE_ATTEMPT_MS });
+                await this.movePointerAway();
+                return;
+            } catch (error) {
+                if (attempt === PALETTE_ATTEMPTS) {
+                    throw error;
+                }
+            }
+        }
+    }
+
+    /**
+     * Opens VS Code's own diff of the active file (left) and `fileName` (right), the way
+     * Source Control opens one. The file picker can close as the palette does, so a closed
+     * picker starts the command over.
+     */
+    async compareActiveFileWith(fileName: string): Promise<void> {
+        const picker = this.page.locator(".quick-input-widget");
+        const row = picker.locator(".monaco-list-row.focused").filter({ hasText: fileName });
+        for (let attempt = 1; ; attempt++) {
+            await this.runCommand("Compare Active File With...");
+            try {
+                await picker
+                    .locator(".quick-input-box input")
+                    .fill(fileName, { timeout: PALETTE_ATTEMPT_MS });
                 await row.click({ timeout: PALETTE_ATTEMPT_MS });
                 await this.movePointerAway();
                 return;
