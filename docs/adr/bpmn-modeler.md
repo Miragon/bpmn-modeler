@@ -1,7 +1,7 @@
 # BPMN modeler
 
 - Status: accepted
-- Last reviewed: 2026-11-10
+- Last reviewed: 2026-11-11
 
 ## Context
 
@@ -26,6 +26,7 @@ boundaries are defined in [Architecture and hosts](architecture-and-hosts.md#pac
 - [Themes and locale](#themes-and-locale)
 - [Linting](#linting)
 - [User-supplied plugins (proposed)](#user-supplied-plugins-proposed)
+  - [Allowance per repository and add-on (proposed)](#allowance-per-repository-and-add-on-proposed)
   - [Workspace rule packages](#workspace-rule-packages)
 - [Transaction boundaries](#transaction-boundaries)
 - [Diff](#diff)
@@ -570,7 +571,9 @@ workspace (`PluginApprovalStorePort`; VS Code global state, an IntelliJ
 application value), so a repository cannot approve itself and any change (a
 pull, an update) asks again.
 
-*Same content anywhere* (decided 2026-11-10). A row `{ pluginId, contentHash }`
+*Same content anywhere* (decided 2026-11-10; to be replaced by
+[an allowance per repository and add-on](#allowance-per-repository-and-add-on-proposed)).
+A row `{ pluginId, contentHash }`
 names the place it was given at, but it counts for its content wherever that
 content is found (`approvalStateOf`): a folder holding content the user
 allowed in another folder, clone or git worktree counts as allowed, and the
@@ -1070,6 +1073,172 @@ diagram-js to plugins (no tested plugin needed it, and it would make their
 versions a plugin API); a `window.vendor` with only the properties panel
 components and no preact entries (still couples us to that preact, and breaks
 the plugins compiled against its JSX runtime or hooks).
+
+#### Allowance per repository and add-on (proposed)
+
+Decided 2026-11-11 ([#2345](https://github.com/Miragon/bpmn-modeler/issues/2345)).
+The kernel holds the rule (see "Where the rule lives"), but no feature decides
+by it yet: plugins and rule packages still decide by content as described
+above and below. It replaces "Same content anywhere" above and, under
+[Workspace rule packages](#workspace-rule-packages), "Unit and row", "Closure
+hash" and the hashing in "Gate". The change that switches the features
+rewrites those passages, the read model and Revoke under "Listing, allowing
+and revoking", and drops "(proposed)" here.
+
+**Context.** Until VS Code 1.21.0 a rule package ran with no question beyond
+Workspace Trust. 1.21.0 asks per folder and content, so every git worktree
+asks again, and one worktree per agent task makes that a question per task.
+"Same content anywhere" removed the question only for byte-identical content:
+a branch with another dependency version, a package an agent edited and a pull
+that updates a package still ask. Its rows stay per folder, with three costs:
+allowing new content at a folder drops the old content, so switching back to a
+branch asks again; rows grow by one per worktree per add-on; and rows written
+without the user cause the revoke races under "One question at a time". The
+question about changed content also comes right after the user's own pull or
+install, about files nobody reviews, so it is answered with Allow. The defence
+against a bad update is the lockfile, the registry's integrity check and the
+review of the update, none of them the modeler's.
+
+**Decision.** An allowance names an add-on at its origin, not its content:
+`{ kind, host, origin, addOn }`. It holds for whatever content the add-on has
+there, now and later, and the question says so.
+
+- *Origin of workspace code* is the repository that holds it: the realpath of
+  the git directory that all worktrees of one clone share (git's common
+  directory). Code in no repository has its own folder as origin, which is the
+  1.21.0 unit without the hash.
+- *Host* is the remote the code was found on, empty locally. VS Code keeps its
+  global state on the client, so one list can hold rows of several remote
+  machines or dev containers, and two of them can hold a repository at the
+  same path.
+- *Add-on* is the code's place in the repository, spelled so that an update
+  keeps it. A plugin: its folder path below the worktree root. An installed
+  rule package: the path below the worktree root up to the first
+  `node_modules`, and the package's name. The realpath itself would not do:
+  pnpm's `.pnpm/<name>@<version>` segment makes every update a new path. A
+  hoisted copy and a nested copy of one name therefore share an allowance. A
+  linked package and the config's own package: the folder path. Code in no
+  repository has an empty add-on, as its origin already names it.
+- *Origin of installed code* (marketplace plugins,
+  [#2243](https://github.com/Miragon/bpmn-modeler/issues/2243) and
+  [#2317](https://github.com/Miragon/bpmn-modeler/issues/2317)) is the
+  marketplace link, and the install step picks the commit. Enabling is the
+  allowance. Nothing is per folder, as with that epic's cache keyed by commit.
+
+A worktree of an allowed repository therefore asks nothing, whatever its
+branch holds. A new add-on, another repository and a second clone ask once.
+
+**Finding the repository.** A wrong answer makes one allowance cover foreign
+code, so the rule fails towards "no repository". From the add-on's realpath,
+the nearest folder upward that holds a `.git` entry is the worktree root.
+
+- A `.git` that is a directory and not a link is the common directory.
+- A `.git` file is a linked worktree only when both hold: the folder its
+  `gitdir:` line names is a direct child of `<common directory>/worktrees/`,
+  where the common directory is what that folder's `commondir` file names; and
+  that folder's `gitdir` file names this `.git` file back. The first check
+  stops a `.git` file that points at an administrative folder of its own
+  making, the second one that points at another worktree's.
+- Anything else is no repository, and the add-on's folder is the origin: a
+  `.git` that is a link, a submodule, `--separate-git-dir`, another version
+  control system.
+
+The remote URL is never read, as any repository can claim any URL. Git is not
+run: the domain decides from file facts a port reads.
+
+**Rows.** The domain type is the allowance; one mapper turns it into the
+hosts' stored `{ pluginId, contentHash }`. `pluginId` holds the key of kind,
+host, origin and add-on, and `contentHash` the marker `allowance-v1:<kind>`,
+which names the rule the row was given under. The VS Code global state, the
+bridge protocol, the Kotlin store and the merge (`approvalsAfter`,
+`codeApprovalChange.cases.json`) stay as they are, and an older build reads
+such a row as matching nothing. A row pinned to content, as 1.21.0 stored it
+(`pluginId` a folder, `contentHash` a hash), still allows the add-on found at
+that folder, whatever its hash, so nobody is asked again while it waits to be
+rewritten. At start the core rewrites every such row whose folder it can
+locate as the allowance of the add-on there, in one change. A row whose folder
+it does not find stays: the list may serve several machines, and a folder gone
+here may exist on another. These are the only rows written without the user.
+Rows no longer grow per worktree: at most one per add-on per repository.
+
+**Where the rule lives.** `kernel/domain/`: `repositoryIdentity.ts` reads the
+git files' facts into a `CodeOrigin`; `approvalRowKind.ts` is the one reading
+of a row's kind and format, which every feature uses to pick its rows
+([#2285](https://github.com/Miragon/bpmn-modeler/issues/2285));
+`allowance.ts` builds the allowance, its key and row, its state (allowed, new
+or declined this session), the outcome of a review and the changes;
+`contentRowMigration.ts` rewrites rows pinned to content. `RepositoryLocator`
+in `kernel/service/` gathers the facts through the synchronous
+`RepositoryFilesPort` (`realPath`, `entryKindOf` without following a link,
+`readTextFile`), which `InstalledPackagesPort` extends, so both hosts'
+`NodeInstalledPackages` serve it; `describeRepositoryFilesContract` pins them
+and the in-memory fake, and a spec runs the locator on worktrees that git
+itself wrote.
+
+**No hash for a rule package.** The closure hash, `PackageClosureFingerprinter`,
+its size limits and its refusals (too large, links outside, unreadable),
+`needsContentHash`, the states `changed` and `gone`, `CarriedApprovalWriter`
+and the content revoke with its sweep go. What can be allowed stays
+(`ruleModuleRootOf`: an installed package root or the config's own package).
+The gate admits a root whose origin and add-on hold an allowance. Each root
+bpmnlint requests needs its own: a dependency that is itself a rule package no
+longer rides on the closure of the package that declares it. At the start of a
+lint the setup compares the stamp of each admitted root's `package.json` and,
+on a change, is rebuilt and evicts that root's `require.cache` entries, so an
+update loads without a reload; an edit that leaves `package.json` alone loads
+after one. The Add-ons view and the log name each rule package as
+`name@version`, so an update shows without a question.
+
+**A plugin keeps its hash for serving only.** The content-addressed copy, the
+reload rule (`editorsToReload`) and the cache stay, so the page still never
+reads a workspace folder. No row names a hash any more, so the cache prunes by
+last use (a copy no editor asked for in some weeks), the rule #2317 needs for
+its shared cache too.
+
+**Read model.** A found add-on is allowed, not allowed yet or declined this
+session, and offers Allow or Revoke. "Review…" as a hashing step, "Allow this
+content" and "Forget" go, and an allow no longer waits on a hash: it names the
+add-on the revision showed and is refused when that add-on is gone. Revoke
+removes the allowance, so every worktree of the repository asks again. An
+allowance whose add-on this worktree does not hold is not listed: an add-on
+that only one branch has is missing from the others, and a Revoke there would
+take it from the worktree that has it.
+
+**Host trust below it.** The allowance stays the host-neutral gate, because
+host trust has gaps: the standalone turns it off, VS Code treats an empty
+window as trusted, and Orca has no workspace. In VS Code the extension
+declares no support for untrusted workspaces, so it does not run in Restricted
+Mode and the allowance comes on top of Workspace Trust. The IntelliJ plugin
+does not read the IDE's trust state yet (`TrustedProjects`); in a project the
+user did not trust, it is to run and offer no workspace code.
+
+Accepted:
+
+- Whoever can change the files of an allowed repository (a pull, an install,
+  an agent in a worktree) changes code that runs with the user's rights, as
+  for every tool that runs under host trust. "Any change asks again", which
+  the 1.21.0 user guide promised, ends, and the release notes say so.
+- A rule package runs in place and unhashed, so the swap window under "Weaker
+  guarantee than a plugin's" is no longer a residual but the rule.
+- An archive unpacked into an allowed repository without a `.git` of its own
+  belongs to that repository. Its add-ons ask unless they sit at an allowed
+  add-on's place.
+- A second clone asks once. A submodule, a `--separate-git-dir` checkout and
+  other version control systems ask per folder, and without git a pnpm update
+  asks again, as the package's folder changes.
+- Rows of deleted repositories stay; no view lists them. An allowance of an
+  add-on removed from the repository cannot be revoked from the view.
+- A hoisted and a nested copy of one rule package share an allowance.
+- The VS Code multi-window residual stays for the user's own writes.
+
+Alternatives: per folder and content (1.21.0: every worktree asks); same
+content anywhere (the context above); repository and content (asks in every
+case same content anywhere asks in, and in a second clone); repository and
+declared version (the same click-through, with the package's rules skipped
+until it is answered; worth it only as a documented control, and it can
+become an opt-in setting on this model); host trust alone (the gaps above);
+the remote URL or an id file in the repository as its identity (a repository
+would allow itself).
 
 #### Workspace rule packages
 

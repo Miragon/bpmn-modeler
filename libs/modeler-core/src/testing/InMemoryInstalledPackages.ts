@@ -2,6 +2,7 @@ import { posix } from "path";
 
 import {
     InstalledEntry,
+    InstalledEntryKind,
     InstalledPackagesPort,
     PathStamp,
 } from "../modeler/bpmn/port/installedPackagesPort";
@@ -74,6 +75,15 @@ export class InMemoryInstalledPackages implements InstalledPackagesPort {
         return this.resolve(path, 0);
     }
 
+    entryKindOf(path: string): InstalledEntryKind | undefined {
+        const parent = this.realPath(posix.dirname(path));
+        const node =
+            parent === undefined
+                ? undefined
+                : this.nodes.get(posix.join(parent, posix.basename(path)));
+        return node === undefined ? undefined : kindOfNode(node);
+    }
+
     listDirectory(path: string): InstalledEntry[] | undefined {
         const directory = this.realPath(path);
         if (directory === undefined || this.nodes.get(directory)?.kind !== "directory") {
@@ -82,10 +92,7 @@ export class InMemoryInstalledPackages implements InstalledPackagesPort {
         this.directoriesListed.push(path);
         return [...this.nodes]
             .filter(([each]) => each !== directory && posix.dirname(each) === directory)
-            .map(([each, node]) => ({
-                name: posix.basename(each),
-                kind: node.kind === "link" ? "symbolicLink" : node.kind,
-            }));
+            .map(([each, node]) => ({ name: posix.basename(each), kind: kindOfNode(node) }));
     }
 
     stamp(path: string): PathStamp | undefined {
@@ -173,4 +180,8 @@ export class InMemoryInstalledPackages implements InstalledPackagesPort {
         this.inodes += 1n;
         return this.inodes;
     }
+}
+
+function kindOfNode(node: InMemoryNode): InstalledEntryKind {
+    return node.kind === "link" ? "symbolicLink" : node.kind;
 }

@@ -1,11 +1,15 @@
 import { createHash } from "node:crypto";
 
 import { InMemoryInstalledPackages } from "./InMemoryInstalledPackages";
-import { describeInstalledPackagesContract } from "./installedPackagesContract";
+import {
+    describeInstalledPackagesContract,
+    InstalledPackagesContractFixture,
+} from "./installedPackagesContract";
+import { describeRepositoryFilesContract } from "./repositoryFilesContract";
 
 const ROOT = "/work";
 
-describeInstalledPackagesContract("InMemoryInstalledPackages", () => {
+function inMemoryFixture(): InstalledPackagesContractFixture {
     const packages = new InMemoryInstalledPackages((bytes) =>
         createHash("sha256").update(bytes).digest("hex"),
     );
@@ -18,4 +22,11 @@ describeInstalledPackagesContract("InMemoryInstalledPackages", () => {
         createSymbolicLink: (path, target) => packages.createSymbolicLink(path, target),
         dispose: () => undefined,
     };
+}
+
+describeInstalledPackagesContract("InMemoryInstalledPackages", inMemoryFixture);
+
+describeRepositoryFilesContract("InMemoryInstalledPackages", () => {
+    const fixture = inMemoryFixture();
+    return { ...fixture, files: fixture.packages };
 });

@@ -4,6 +4,8 @@ import {
     ListedPresence,
     SessionAnswer,
 } from "../../../kernel/domain/codeApproval";
+import { isApprovalRowOf } from "../../../kernel/domain/approvalRowKind";
+import { installedPackageNameOf } from "../../../kernel/domain/installedPackagePath";
 import { joinWorkspacePath } from "../../../kernel/domain/workspacePath";
 import {
     InstalledEntry,
@@ -11,9 +13,7 @@ import {
     rulePackageScopesToList,
 } from "../domain/packageClosure";
 import {
-    installedPackageNameOf,
     installedPackagesDirOf,
-    isRulePackageApproval,
     nodeModulesDirOf,
     RULE_PACKAGE_CODE_TEXTS,
     rootKindOf,
@@ -63,7 +63,7 @@ export class RulePackageInventory {
     }
 
     ownsApproval(approval: CodeApproval): boolean {
-        return isRulePackageApproval(approval);
+        return isApprovalRowOf("rulePackage", approval);
     }
 
     seenPackageIds(): readonly string[] {

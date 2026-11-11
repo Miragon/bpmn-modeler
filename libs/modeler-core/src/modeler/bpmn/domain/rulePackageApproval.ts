@@ -15,15 +15,14 @@ import {
     pendingApprovalDescription,
     PROCESS_RESTART_TEXT,
 } from "../../../kernel/domain/codeApproval";
+import {
+    approvalRowsOf,
+    RULE_PACKAGE_CONTENT_HASH_PREFIX,
+} from "../../../kernel/domain/approvalRowKind";
+import { NODE_MODULES } from "../../../kernel/domain/installedPackagePath";
 import { ChoicePrompt } from "../../../kernel/domain/prompts";
 import { isRootedPath, isWithinRoot } from "../../../kernel/domain/rootContainment";
 import { joinWorkspacePath } from "../../../kernel/domain/workspacePath";
-
-/**
- * Marks a row in the shared approval list as a rule package's and names the
- * digest algorithm, so a change to {@link closureDigestInput} asks again.
- */
-export const RULE_PACKAGE_CONTENT_HASH_PREFIX = "bpmnlint-closure-v1:";
 
 export const RULE_PACKAGE_APPROVAL_NOTICE_ID = "bpmnlintPackageApprovalNotice";
 
@@ -91,7 +90,6 @@ export interface BlockedRulePackage {
 export type RulePackageApprovalNoticeAction = ApprovalNoticeAction;
 
 const SCOPE_PREFIX = "@";
-const NODE_MODULES = "node_modules";
 
 /**
  * Npm allows none of these: joined under `node_modules`, a `.`-led part or a
@@ -176,12 +174,9 @@ export function closureDigestInput(root: ClosureMember, members: readonly Closur
     return `${line(root)}\n${memberLines.join("")}`;
 }
 
+/** The prefix names the digest algorithm, so a change to {@link closureDigestInput} asks again. */
 export function rulePackageContentHash(closureDigest: string): string {
     return RULE_PACKAGE_CONTENT_HASH_PREFIX + closureDigest;
-}
-
-export function isRulePackageApproval(approval: CodeApproval): boolean {
-    return approval.contentHash.startsWith(RULE_PACKAGE_CONTENT_HASH_PREFIX);
 }
 
 /**
@@ -202,7 +197,7 @@ export function rulePackageVerdict(
         contentHash === undefined
             ? { kind: "unhashed", id: rootId }
             : { kind: "found", artifact: { id: rootId, name: rootId, contentHash } },
-        context.approvals.filter(isRulePackageApproval),
+        approvalRowsOf("rulePackage", context.approvals),
         context.declinedThisSession,
     );
     if (reading.kind === "hashNeeded") {
@@ -258,7 +253,7 @@ export function editorsToRelint(
  * setup and drops the bundled fallbacks it cached.
  */
 export function rulePackageApprovalsKey(approvals: readonly CodeApproval[]): string {
-    return approvalsKey(approvals.filter(isRulePackageApproval));
+    return approvalsKey(approvalRowsOf("rulePackage", approvals));
 }
 
 /** Opens nothing by itself: only "Review…" shows the list. */
@@ -318,16 +313,6 @@ export function isParsedAsJson(path: string): boolean {
 /** A built-in module, which resolves to no path, or JSON data. */
 export function loadsWithoutApproval(resolved: string): boolean {
     return !isRootedPath(resolved) || isParsedAsJson(resolved);
-}
-
-/** A package's name as its folder below the last `node_modules` spells it, else the folder's own name. */
-export function installedPackageNameOf(id: string): string {
-    const segments = id.split("/");
-    const nodeModules = segments.lastIndexOf(NODE_MODULES);
-    if (nodeModules === -1) {
-        return segments[segments.length - 1];
-    }
-    return segments.slice(nodeModules + 1).join("/");
 }
 
 export function nodeModulesDirOf(dir: string): string {
