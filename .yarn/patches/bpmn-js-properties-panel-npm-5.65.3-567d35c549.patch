@@ -1,5 +1,5 @@
 diff --git a/dist/index.esm.js b/dist/index.esm.js
-index ccc3765ae7dcb34e983635dc044833474f524ad9..475d4266fcf5bf75cf25f7bdb51ac42a559737af 100644
+index b1f4f6b18166a6e330095dbc193bc0ed24f0a54b..21e679d6abfbf26964ff0e33fcb90d61c492554d 100644
 --- a/dist/index.esm.js
 +++ b/dist/index.esm.js
 @@ -1543,6 +1543,13 @@ function BpmnPropertiesPanel(props) {
@@ -17,7 +17,7 @@ index ccc3765ae7dcb34e983635dc044833474f524ad9..475d4266fcf5bf75cf25f7bdb51ac42a
        eventBus.off('selection.changed', onSelectionChanged);
      };
 diff --git a/dist/index.js b/dist/index.js
-index 6389f88ed3e9c238d0414ec8c9be25823db1e938..c6fcf18911f0e85c7470c1ec124c3ce066043c0a 100644
+index e6eff02c192a48f0739416d19c0a974a444bf63b..2d346f008a4d08e6c06073886746e524af6f227f 100644
 --- a/dist/index.js
 +++ b/dist/index.js
 @@ -1545,6 +1545,13 @@ function BpmnPropertiesPanel(props) {

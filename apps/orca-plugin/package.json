@@ -21,7 +21,7 @@
         "@miragon/bpmn-modeler-shared": "workspace:*",
         "@miragon/bpmn-modeler-types": "workspace:*",
         "@miragon/dmn-modeler": "workspace:*",
-        "bpmn-js": "18.31.0",
+        "bpmn-js": "18.31.1",
         "tslib": "2.9.1"
     },
     "devDependencies": {

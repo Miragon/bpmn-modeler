@@ -26,7 +26,7 @@
         "@miragon/bpmn-modeler-types": "workspace:*",
         "@miragon/bpmnlint-plugin-rules": "0.22.0",
         "bpmn-auto-layout": "2.0.0-alpha.2",
-        "bpmn-js": "18.31.0",
+        "bpmn-js": "18.31.1",
         "bpmn-js-bpmnlint": "0.25.0",
         "bpmnlint": "12.0.0",
         "tslib": "2.9.1"
