@@ -65,8 +65,11 @@ function jobType(surface: Surface): string | undefined {
 }
 
 afterEach(async () => {
-    // A pop-up still open at destroy applies its draft to a torn-down canvas.
-    surfaces.forEach((surface) => surface.getService("eventBus").fire("propertiesPanel.closePopup"));
+    // Input still waiting at destroy, in a pop-up draft or the debounce, lands on a torn-down canvas.
+    surfaces.forEach((surface) => {
+        surface.flushPendingInput();
+        surface.getService("eventBus").fire("propertiesPanel.closePopup");
+    });
     await afterPaint();
     surfaces.splice(0).forEach((surface) => surface.destroy());
     removeMounts();
