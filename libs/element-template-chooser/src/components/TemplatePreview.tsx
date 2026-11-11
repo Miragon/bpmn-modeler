@@ -7,6 +7,7 @@ import {
     extractImplementationDetail,
     partitionVisibleProperties,
     propertyDisplayLabel,
+    templatePropertyDisplayText,
 } from "../types";
 
 interface TemplatePreviewProps {
@@ -131,34 +132,37 @@ function ParameterSection({
         <div class="etc-param-section">
             <h4 class="etc-param-title">{title}</h4>
             <ul class="etc-param-list">
-                {items.map((p, i) => (
-                    <li key={i} class="etc-param-item">
-                        <div class="etc-param-header">
-                            <span class="etc-param-label">
-                                {propertyDisplayLabel(p) ?? translate("Unnamed")}
-                            </span>
-                            <div class="etc-param-badges">
-                                {p.constraints?.notEmpty && (
-                                    <span class="etc-badge etc-badge--required">
-                                        {translate("required")}
-                                    </span>
-                                )}
-                                {p.editable === false && (
-                                    <span class="etc-badge etc-badge--readonly">
-                                        {translate("read-only")}
-                                    </span>
-                                )}
-                                {p.optional && (
-                                    <span class="etc-badge etc-badge--optional">
-                                        {translate("optional")}
-                                    </span>
-                                )}
+                {items.map((p, i) => {
+                    const displayText = templatePropertyDisplayText(p);
+                    return (
+                        <li key={i} class="etc-param-item">
+                            <div class="etc-param-header">
+                                <span class="etc-param-label">
+                                    {propertyDisplayLabel(p) ?? translate("Unnamed")}
+                                </span>
+                                <div class="etc-param-badges">
+                                    {p.constraints?.notEmpty && (
+                                        <span class="etc-badge etc-badge--required">
+                                            {translate("required")}
+                                        </span>
+                                    )}
+                                    {p.editable === false && (
+                                        <span class="etc-badge etc-badge--readonly">
+                                            {translate("read-only")}
+                                        </span>
+                                    )}
+                                    {p.optional && (
+                                        <span class="etc-badge etc-badge--optional">
+                                            {translate("optional")}
+                                        </span>
+                                    )}
+                                </div>
                             </div>
-                        </div>
-                        {p.description && <p class="etc-param-desc">{p.description}</p>}
-                        {p.value && <code class="etc-param-value">{p.value}</code>}
-                    </li>
-                ))}
+                            {p.description && <p class="etc-param-desc">{p.description}</p>}
+                            {displayText && <code class="etc-param-value">{displayText}</code>}
+                        </li>
+                    );
+                })}
             </ul>
         </div>
     );

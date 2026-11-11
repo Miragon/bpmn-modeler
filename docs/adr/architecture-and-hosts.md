@@ -1601,13 +1601,13 @@ a cached result must equal an uncached run.
 - **BPMN plugin copies.** `BpmnPluginService` copies the approved bytes into
   a content-addressed folder on disk, which every process of the host shares
   (IntelliJ: one per machine; VS Code: the extension's global storage), and
-  keeps each copy per process once written. The approval list owns the folder:
-  `pruneCache`, run when a process starts, removes the copies no stored row
-  names. Because another process can prune, a copy found in the memo is
-  checked on disk and written again when it is gone. VS Code's `readStored`
-  returns this window's memento, which can lag another window's write, so a
-  prune there may delete a copy that window just wrote; the same check writes
-  it again. Accepted cost: a page that loads between another process's delete
+  keeps each copy per process once written. Last use owns the folder: each
+  copy holds a `last-used` marker that serving refreshes at most once a day,
+  and `pruneIdleCopies`, run when a process starts, removes the copies no
+  editor of this process is served whose marker is missing or 30 days old,
+  without reading the approval list. Because another process can prune, a
+  copy found in the memo is checked on disk and written again when it is
+  gone. Accepted cost: a page that loads between another process's delete
   and that check leaves the plugin out once.
 - **Escalated lint setup.** `NodeBpmnLinter` keeps the moddle, the loaded
   moddle extensions and the resolved rules and configs per `.bpmnlintrc` path,

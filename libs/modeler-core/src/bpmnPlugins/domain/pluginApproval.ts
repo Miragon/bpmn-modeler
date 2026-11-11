@@ -16,6 +16,7 @@ import { DirectoryEntryKind } from "../../kernel/domain/directoryEntry";
 import { escapeRegExpLiteral } from "../../kernel/domain/escapeRegExpLiteral";
 import { ChoicePrompt } from "../../kernel/domain/prompts";
 import { joinWorkspacePath } from "../../kernel/domain/workspacePath";
+import { LAST_USE_MARKER_FILE, lastUseMarkerText } from "./pluginCacheLastUse";
 
 export {
     approvalOutcome,
@@ -131,6 +132,7 @@ const CACHED_STYLE = "plugin.css";
 export interface CachedPluginFiles {
     readonly script: string;
     readonly style?: string;
+    readonly lastUse: string;
 }
 
 /**
@@ -145,11 +147,16 @@ export function cachedPluginFiles(cacheRoot: string, plugin: WorkspacePlugin): C
         ...(plugin.stylePath === undefined
             ? {}
             : { style: joinWorkspacePath(directory, CACHED_STYLE) }),
+        lastUse: joinWorkspacePath(directory, LAST_USE_MARKER_FILE),
     };
 }
 
 export function cachedPluginDirectory(cacheRoot: string, plugin: WorkspacePlugin): string {
     return joinWorkspacePath(cacheRoot, plugin.contentHash);
+}
+
+export function lastUseMarkerOf(cacheRoot: string, copyName: string): string {
+    return joinWorkspacePath(cacheRoot, copyName, LAST_USE_MARKER_FILE);
 }
 
 export interface CachedPluginFile {
@@ -160,9 +167,11 @@ export interface CachedPluginFile {
 export function cachedPluginCopy(
     files: CachedPluginFiles,
     script: string,
-    style?: string,
+    style: string | undefined,
+    nowMs: number,
 ): CachedPluginFile[] {
     return [
+        { path: files.lastUse, content: lastUseMarkerText(nowMs) },
         { path: files.script, content: script },
         ...(files.style === undefined || style === undefined
             ? []
@@ -180,27 +189,23 @@ export const CACHED_PLUGIN_FILE_PATTERN = `${PLUGIN_CONTENT_HASH_PATTERN}/(?:${C
 
 const PLUGIN_CACHE_ENTRY = new RegExp(`^${PLUGIN_CONTENT_HASH_PATTERN}$`);
 
-/** A plugin's row in the shared list: a rule package's hash carries a prefix. */
-export function isPluginApproval({ contentHash }: CodeApproval): boolean {
-    return PLUGIN_CACHE_ENTRY.test(contentHash);
+/** Only a folder named like a content hash is a copy, so whatever else shares the folder stays. */
+export function cachedCopyNames(
+    entries: readonly (readonly [string, DirectoryEntryKind])[],
+): string[] {
+    return entries
+        .filter(([name, kind]) => kind === "directory" && PLUGIN_CACHE_ENTRY.test(name))
+        .map(([name]) => name);
 }
 
-/**
- * The copies no stored approval names, of any workspace or project. Only a
- * folder named like a content hash is a candidate, so whatever else shares
- * the folder stays; a rule package row's prefixed hash names no copy.
- */
-export function cacheEntriesToPrune(
-    entries: readonly (readonly [string, DirectoryEntryKind])[],
-    stored: readonly CodeApproval[],
-): string[] {
-    const named = new Set(stored.map(({ contentHash }) => contentHash));
-    return entries
-        .filter(
-            ([name, kind]) =>
-                kind === "directory" && PLUGIN_CACHE_ENTRY.test(name) && !named.has(name),
-        )
-        .map(([name]) => name);
+export function contentServedByEditors(
+    offeredByEditor: ReadonlyMap<string, OfferedPlugins>,
+): ReadonlySet<string> {
+    return new Set(
+        [...offeredByEditor.values()].flatMap(({ served }) =>
+            served.map(({ contentHash }) => contentHash),
+        ),
+    );
 }
 
 /** Another process's prune can remove a copy this one already wrote. */

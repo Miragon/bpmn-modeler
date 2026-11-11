@@ -5,9 +5,9 @@ import {
     ListedPresence,
     SessionAnswer,
 } from "../../kernel/domain/codeApproval";
+import { isApprovalRowOf } from "../../kernel/domain/approvalRowKind";
 import { lastWorkspacePathSegment } from "../../kernel/domain/workspacePath";
-import { LoggerPort } from "../../kernel/port/hostPorts";
-import { isPluginApproval, PLUGIN_CODE_TEXTS, WorkspacePlugin } from "../domain/pluginApproval";
+import { PLUGIN_CODE_TEXTS, WorkspacePlugin } from "../domain/pluginApproval";
 import { configFolderOfPlugin, pluginsDirOf } from "../domain/pluginFolders";
 import { BpmnPluginService } from "./BpmnPluginService";
 import { PluginCatalog } from "./PluginCatalog";
@@ -26,7 +26,6 @@ export class PluginInventory {
         private readonly locator: WorkspacePluginLocator,
         private readonly catalog: PluginCatalog,
         private readonly service: BpmnPluginService,
-        private readonly logger: LoggerPort,
     ) {}
 
     async pluginsIn(pluginDirs: readonly string[]): Promise<readonly ListedPresence[]> {
@@ -40,7 +39,7 @@ export class PluginInventory {
     }
 
     ownsApproval(approval: CodeApproval): boolean {
-        return isPluginApproval(approval);
+        return isApprovalRowOf("plugin", approval);
     }
 
     knownPluginDirs(): readonly string[] {
@@ -63,13 +62,9 @@ export class PluginInventory {
         return this.catalog.recordCarried(found);
     }
 
-    /** A revoked plugin's copy is no longer served, so it goes; the revoke stands if it cannot. */
-    async afterRevoke(): Promise<void> {
-        try {
-            await this.service.pruneCache();
-        } catch (error) {
-            this.logger.logError(error instanceof Error ? error : new Error(String(error)));
-        }
+    /** A copy is served only for an approved plugin, so a revoked plugin's copy ages out. */
+    afterRevoke(): Promise<void> {
+        return Promise.resolve();
     }
 
     sessionAnswers(): ReadonlyMap<string, SessionAnswer> {
@@ -86,7 +81,7 @@ export class PluginInventory {
     }
 
     pruneCache(): Promise<{ readonly removed: number }> {
-        return this.service.pruneCache();
+        return this.service.pruneUnusedCopies();
     }
 
     onDidChange(listener: () => void): { dispose(): void } {

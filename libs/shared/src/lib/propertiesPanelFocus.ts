@@ -2,7 +2,7 @@
  * Page-level webview chrome coupled to the `js-properties-panel` DOM id and
  * the panel shortcuts. Not part of the modeler public API.
  */
-import { isTextEditingSurface } from "@miragon/bpmn-modeler-types";
+import { focusCanvasFromKeystroke, isTextEditingSurface } from "@miragon/bpmn-modeler-types";
 
 import type { PropertiesPanelHandle } from "./propertiesPanelResizer";
 
@@ -115,7 +115,7 @@ export function installPanelShortcuts(deps: PanelShortcutDeps, opts?: PanelFocus
 
         if (e.key === "Escape" && deps.escapeToCanvas) {
             if (e.defaultPrevented) return;
-            deps.focusCanvas();
+            focusCanvasFromKeystroke(deps.focusCanvas);
             return;
         }
 

@@ -144,7 +144,7 @@ In VS Code the output channel names the error of a left-out plugin only as *Scri
 - Camunda Modeler `client` extensions, menus and DMN plugins do not run. Plugins extend the BPMN editor only, not DMN or forms.
 - An error a plugin throws after the editor opened, for example while you edit, is not contained: the editor may stop responding in parts until you reopen it, and the log does not name the plugin ([#2270](https://github.com/Miragon/bpmn-modeler/issues/2270)). Remove the plugin's folder if that happens.
 - Plugins load when an editor opens. A change to a plugin's files reaches an editor the next time it opens, after you allow the changed version.
-- The [Add-ons view](/vscode/features/add-ons) lists and revokes approvals in VS Code, and the **Add-ons** tab of the **BPMN Modeler** tool window does in IntelliJ. **Revoke** takes the plugin's content back in every folder where you allowed it. Copies of allowed plugins stay in VS Code's global storage. When the extension starts, and after a revoke, it removes the copies no approval names any more, such as the version before you allowed an update.
+- The [Add-ons view](/vscode/features/add-ons) lists and revokes approvals in VS Code, and the **Add-ons** tab of the **BPMN Modeler** tool window does in IntelliJ. **Revoke** takes the plugin's content back in every folder where you allowed it. Copies of allowed plugins stay in VS Code's global storage. When the extension starts, it removes the copies no editor has opened for 30 days, such as the version before you allowed an update or a plugin you revoked.
 
 ## IntelliJ
 
@@ -154,7 +154,7 @@ The IntelliJ plugin loads BPMN plugins the same way: the same folders, the same 
 
 - The question is an IDE notification balloon. Closing the balloon with its X keeps it in the **Notifications** tool window, where **Review…** still works. Clearing it there decides nothing, like closing the notification in VS Code.
 - Approvals are kept by the IDE for all your projects, outside every project, so a repository cannot allow its own plugins. A plugin you allow in one project window is allowed in the others too.
-- The editor loads a copy of the bytes you allowed from the IDE's system folder (`miragon-bpmn-modeler/bpmn-plugins`), never the files in your project. When a project starts its modeler process, the process removes the copies there that no approval names any more.
+- The editor loads a copy of the bytes you allowed from the IDE's system folder (`miragon-bpmn-modeler/bpmn-plugins`), never the files in your project. When a project starts its modeler process, the process removes the copies there that no editor has opened for 30 days.
 - After you allow a plugin, every open BPMN editor that offered it loads anew. Your unsaved edits stay.
 - An allowed plugin can do everything the editor can, as in VS Code, including sending its own messages to the IDE plugin. The approval is the control here too.
 - Messages that VS Code writes to the *bpmn.modeler* output channel, for example why a plugin was skipped, go to the IDE log (**Help ▸ Show Log in Finder**; **Explorer** on Windows, **Files** on Linux).

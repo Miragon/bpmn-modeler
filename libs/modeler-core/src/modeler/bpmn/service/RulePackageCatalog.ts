@@ -15,6 +15,7 @@ import {
     ReviewAnswer,
     SessionAnswer,
 } from "../../../kernel/domain/codeApproval";
+import { approvalRowsOf } from "../../../kernel/domain/approvalRowKind";
 import { ChoicePrompt } from "../../../kernel/domain/prompts";
 import { parentWorkspacePath } from "../../../kernel/domain/workspacePath";
 import { PluginApprovalStorePort } from "../../../kernel/port/approvalPorts";
@@ -23,7 +24,6 @@ import { ApprovalCatalog } from "../../../kernel/service/ApprovalQuestion";
 import { CarriedApprovalWriter } from "../../../kernel/service/CarriedApprovalWriter";
 import {
     BlockedRulePackage,
-    isRulePackageApproval,
     PendingRulePackage,
     RulePackage,
     rulePackageApprovalNotice,
@@ -72,7 +72,7 @@ export class RulePackageCatalog implements ApprovalCatalog<
             logger,
             RULE_PACKAGE_CODE_TEXTS,
         );
-        this.rulePackageRows = approvals.read().filter(isRulePackageApproval);
+        this.rulePackageRows = approvalRowsOf("rulePackage", approvals.read());
         this.approvalChanges = approvals.onDidChange(() => this.followApprovals());
     }
 
@@ -160,7 +160,7 @@ export class RulePackageCatalog implements ApprovalCatalog<
             .flatMap((each) => this.rulePackageOf(each));
         return pendingApprovals(
             rulePackages,
-            this.approvals.read().filter(isRulePackageApproval),
+            approvalRowsOf("rulePackage", this.approvals.read()),
             notAskedAgain(this.answers),
         );
     }
@@ -198,7 +198,7 @@ export class RulePackageCatalog implements ApprovalCatalog<
     }
 
     private followApprovals(): void {
-        const rows = this.approvals.read().filter(isRulePackageApproval);
+        const rows = approvalRowsOf("rulePackage", this.approvals.read());
         const followed = followedApprovalChange(this.rulePackageRows, rows);
         this.rulePackageRows = rows;
         const { allow, revoke } = followed.change;

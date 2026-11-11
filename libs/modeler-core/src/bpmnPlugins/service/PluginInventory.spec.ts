@@ -194,22 +194,22 @@ describe("PluginInventory", () => {
         ).toEqual([true, false]);
     });
 
-    it("removes the copies no stored approval names", async () => {
-        const { host, inventory } = setUp({
-            [`${CACHE}/${RESIZE_HASH}/plugin.js`]: "registerResize();",
+    it("removes on request every copy no editor is served, however recently used", async () => {
+        const { inventory } = setUp({
+            [`${CACHE}/${"a".repeat(64)}/plugin.js`]: "registerResize();",
+            [`${CACHE}/${"a".repeat(64)}/last-used`]: String(Date.now()),
+            [`${CACHE}/${"b".repeat(64)}/plugin.js`]: "registerPalette();",
         });
-        host.workspace.createDirectory(`${CACHE}/${"a".repeat(64)}`);
-        host.pluginApprovals.approvals = [{ pluginId: RESIZE, contentHash: RESIZE_HASH }];
 
-        expect(await inventory.pruneCache()).toEqual({ removed: 1 });
+        expect(await inventory.pruneCache()).toEqual({ removed: 2 });
     });
 
-    it("removes a revoked plugin's copy after a revoke", async () => {
-        const { host, inventory } = setUp({});
-        host.workspace.createDirectory(`${CACHE}/${RESIZE_HASH}`);
+    it("leaves a revoked plugin's copy to age out", async () => {
+        const copy = `${CACHE}/${"a".repeat(64)}/plugin.js`;
+        const { host, inventory } = setUp({ [copy]: "registerResize();" });
 
         await inventory.afterRevoke();
 
-        expect(await inventory.pruneCache()).toEqual({ removed: 0 });
+        expect(host.workspace.files.get(copy)).toBe("registerResize();");
     });
 });

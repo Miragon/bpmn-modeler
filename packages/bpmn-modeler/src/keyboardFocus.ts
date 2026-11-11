@@ -1,3 +1,5 @@
+import { focusCanvasFromKeystroke } from "@miragon/bpmn-modeler-types";
+
 /** @internal */
 
 // Resolve services lazily because the guard can be wired before the modeler exists.
@@ -31,7 +33,7 @@ export function installKeyboardFocus(deps: KeyboardFocusDeps): () => void {
         // SearchPad closes on keyup; moving focus first would prevent it from receiving that event.
         if (deps.isSearchPadOpen()) {
             deps.closeSearchPad();
-            deps.focusCanvas();
+            focusCanvasFromKeystroke(deps.focusCanvas);
             return;
         }
 
@@ -41,7 +43,7 @@ export function installKeyboardFocus(deps: KeyboardFocusDeps): () => void {
             return;
         }
 
-        deps.focusCanvas();
+        focusCanvasFromKeystroke(deps.focusCanvas);
     };
     // Bubble after overlays and label editors have had a chance to stop propagation.
     document.addEventListener("keydown", handler);

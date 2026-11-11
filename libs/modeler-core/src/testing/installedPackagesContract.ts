@@ -54,6 +54,9 @@ const CLOCK_TICK_MS = 25;
  * are no UTF-8 gets the same digest everywhere, and a stamp follows links,
  * so retargeting a link changes it.
  *
+ * `realPath` and `readTextFile` are pinned by `describeRepositoryFilesContract`,
+ * which every adapter of this port runs too.
+ *
  * Left out: the order of directory entries, which the core sorts, and a same
  * size rewrite within one clock tick, which no stamp can see.
  */
@@ -73,28 +76,6 @@ export function describeInstalledPackagesContract(
 
         afterEach(() => {
             fixture.dispose();
-        });
-
-        describe("realPath", () => {
-            it("gives an existing directory as it is", () => {
-                expect(packages.realPath(root)).toBe(root);
-            });
-
-            it("resolves a linked folder on the way to a file", () => {
-                fixture.writeFile(`${root}/store/pkg/index.js`, "x");
-                fixture.createSymbolicLink(`${root}/linked`, `${root}/store/pkg`);
-
-                expect(packages.realPath(`${root}/linked/index.js`)).toBe(
-                    `${root}/store/pkg/index.js`,
-                );
-            });
-
-            it("gives nothing for a missing path or a dangling link", () => {
-                fixture.createSymbolicLink(`${root}/dangling`, `${root}/nowhere`);
-
-                expect(packages.realPath(`${root}/missing`)).toBeUndefined();
-                expect(packages.realPath(`${root}/dangling`)).toBeUndefined();
-            });
         });
 
         describe("listDirectory", () => {
@@ -214,19 +195,6 @@ export function describeInstalledPackagesContract(
                 expect(packages.sha256OfText("")).toBe(BYTE_VECTORS[0].sha256);
                 expect(packages.sha256OfText("abc")).toBe(BYTE_VECTORS[1].sha256);
                 expect(packages.sha256OfText(TEXT_OUTSIDE_ASCII)).toBe(TEXT_OUTSIDE_ASCII_SHA256);
-            });
-        });
-
-        describe("readTextFile", () => {
-            it("reads a file as UTF-8", () => {
-                fixture.writeFile(`${root}/package.json`, TEXT_OUTSIDE_ASCII);
-
-                expect(packages.readTextFile(`${root}/package.json`)).toBe(TEXT_OUTSIDE_ASCII);
-            });
-
-            it("reads nothing for a missing path or a directory", () => {
-                expect(packages.readTextFile(`${root}/missing`)).toBeUndefined();
-                expect(packages.readTextFile(root)).toBeUndefined();
             });
         });
     });

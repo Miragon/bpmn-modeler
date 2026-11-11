@@ -10,7 +10,7 @@ export interface TemplateProperty {
     id?: string;
     label?: string;
     type: string;
-    value?: string;
+    value?: string | number | boolean;
     description?: string;
     editable?: boolean;
     optional?: boolean;
@@ -91,6 +91,21 @@ export function applyTemplatePreset(
     };
 }
 
+// Mirrors bpmn-js-element-templates' `getTemplateValue`: a required dropdown
+// without a value is created with its first choice, like a <select>.
+export function templatePropertyValue(property: TemplateProperty): TemplateProperty["value"] {
+    const { choices, optional, type, value } = property;
+    if (value === undefined && type === "Dropdown" && !optional && choices?.length) {
+        return choices[0].value;
+    }
+    return value;
+}
+
+export function templatePropertyDisplayText(property: TemplateProperty): string | undefined {
+    const value = templatePropertyValue(property);
+    return value === undefined || value === "" ? undefined : String(value);
+}
+
 /** Binding-type groupings used to classify template properties for the preview panel. */
 export type BindingDirection = "input" | "output" | "property" | "hidden";
 
@@ -147,21 +162,17 @@ export function extractImplementationDetail(
     properties: TemplateProperty[],
 ): ImplementationDetail | undefined {
     for (const { label, bindingType, bindingName, bindingProperty } of IMPLEMENTATION_BINDINGS) {
-        const prop = properties.find((p) => {
-            if (p.binding.type !== bindingType) {
-                return false;
-            }
-            // For "property" bindings, also match on the binding name.
-            if (bindingName && p.binding.name !== bindingName) {
-                return false;
-            }
-            if (bindingProperty && p.binding.property !== bindingProperty) {
-                return false;
-            }
-            return !!p.value;
-        });
-        if (prop) {
-            return { label, value: prop.value! };
+        const value = properties
+            .filter(
+                (p) =>
+                    p.binding.type === bindingType &&
+                    (!bindingName || p.binding.name === bindingName) &&
+                    (!bindingProperty || p.binding.property === bindingProperty),
+            )
+            .map(templatePropertyDisplayText)
+            .find((text) => text !== undefined);
+        if (value) {
+            return { label, value };
         }
     }
     return undefined;

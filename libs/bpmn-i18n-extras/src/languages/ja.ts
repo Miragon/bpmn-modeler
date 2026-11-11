@@ -10,6 +10,7 @@ const dictionary: Record<string, string> = {
     "The linked form is missing or invalid. Check the form reference.":
         "リンクされたフォームが見つからないか無効です。フォームの参照を確認してください。",
     "Preview linked form": "リンクされたフォームをプレビュー",
+    "Fit diagram to view": "ダイアグラムを画面に合わせる",
     "Linked form preview": "リンクされたフォームのプレビュー",
     "Refresh": "更新",
     "Close form preview": "フォームのプレビューを閉じる",
