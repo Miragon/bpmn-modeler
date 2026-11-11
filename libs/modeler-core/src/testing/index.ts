@@ -31,6 +31,7 @@ export * from "./propertiesPanelStateContract";
 export * from "./RecordingNotifier";
 export * from "./RecordingScriptEditor";
 export * from "./RecordingStatusBar";
+export * from "./repositoryFilesContract";
 export * from "./scriptEditorContract";
 export * from "./ScriptedActionNotifier";
 export * from "./ScriptedPicker";

@@ -1,10 +1,11 @@
 import { posix } from "path";
 
+import { FileEntryKind } from "../../../kernel/domain/repositoryIdentity";
 import { isWithinRoot, relativeToRoot } from "../../../kernel/domain/rootContainment";
 import { joinWorkspacePath, parentWorkspacePath } from "../../../kernel/domain/workspacePath";
 import { requestedPackageNameOf, RuleModuleRoot, RulePackage } from "./rulePackageApproval";
 
-export type InstalledEntryKind = "file" | "directory" | "symbolicLink" | "other";
+export type InstalledEntryKind = FileEntryKind;
 
 export interface InstalledEntry {
     readonly name: string;

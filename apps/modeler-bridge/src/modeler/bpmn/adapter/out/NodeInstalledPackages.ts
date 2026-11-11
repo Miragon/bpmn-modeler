@@ -1,5 +1,14 @@
 import { createHash } from "node:crypto";
-import { BigIntStats, Dirent, readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
+import {
+    BigIntStats,
+    Dirent,
+    lstatSync,
+    readdirSync,
+    readFileSync,
+    realpathSync,
+    Stats,
+    statSync,
+} from "node:fs";
 
 import {
     InstalledEntry,
@@ -21,11 +30,15 @@ export class NodeInstalledPackages implements InstalledPackagesPort {
         return orUndefined(() => toWorkspacePath(realpathSync(path)));
     }
 
+    entryKindOf(path: string): InstalledEntryKind | undefined {
+        return orUndefined(() => kindOfEntry(lstatSync(path)));
+    }
+
     listDirectory(path: string): InstalledEntry[] | undefined {
         return orUndefined(() =>
             readdirSync(path, { withFileTypes: true }).map((entry) => ({
                 name: entry.name,
-                kind: entryKindOf(entry),
+                kind: kindOfEntry(entry),
             })),
         );
     }
@@ -57,9 +70,9 @@ export class NodeInstalledPackages implements InstalledPackagesPort {
     }
 }
 
-type EntryTypes = Dirent | BigIntStats;
+type EntryTypes = Dirent | Stats | BigIntStats;
 
-function entryKindOf(entry: EntryTypes): InstalledEntryKind {
+function kindOfEntry(entry: EntryTypes): InstalledEntryKind {
     return entry.isSymbolicLink() ? "symbolicLink" : stampKindOf(entry);
 }
 

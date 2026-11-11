@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { InMemoryInstalledPackages } from "../../../testing";
 import type { ClosureFingerprint, ClosureSize, FingerprintedRoot } from "../domain/packageClosure";
-import { RULE_PACKAGE_CONTENT_HASH_PREFIX } from "../domain/rulePackageApproval";
+import { RULE_PACKAGE_CONTENT_HASH_PREFIX } from "../../../kernel/domain/approvalRowKind";
 import { PackageClosureFingerprinter } from "./PackageClosureFingerprinter";
 
 const REPO = "/repo";

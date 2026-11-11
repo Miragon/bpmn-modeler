@@ -1,3 +1,4 @@
+import { RepositoryFilesPort } from "../../../kernel/port/repositoryFilesPort";
 import { InstalledEntry, PathStamp } from "../domain/packageClosure";
 
 export type { InstalledEntry, InstalledEntryKind, PathStamp } from "../domain/packageClosure";
@@ -8,9 +9,7 @@ export type { InstalledEntry, InstalledEntryKind, PathStamp } from "../domain/pa
  * through `require`, which cannot wait. Every path is absolute and spelled
  * like `toWorkspacePath`; a path that names nothing gives `undefined`.
  */
-export interface InstalledPackagesPort {
-    /** The path with every symbolic link on the way resolved. */
-    realPath(path: string): string | undefined;
+export interface InstalledPackagesPort extends RepositoryFilesPort {
     /** A directory's entries in any order, each link reported as a link rather than followed. */
     listDirectory(path: string): InstalledEntry[] | undefined;
     /** What the path names, following links, so a retargeted link or a replaced file stamps differently. */
@@ -19,6 +18,4 @@ export interface InstalledPackagesPort {
     sha256OfFile(path: string): string | undefined;
     /** SHA-256 of the text's UTF-8 bytes, as 64 lowercase hex digits. */
     sha256OfText(text: string): string;
-    /** A file read as UTF-8, such as a `package.json`. */
-    readTextFile(path: string): string | undefined;
 }

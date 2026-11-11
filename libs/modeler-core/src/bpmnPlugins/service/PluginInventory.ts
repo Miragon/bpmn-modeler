@@ -5,9 +5,10 @@ import {
     ListedPresence,
     SessionAnswer,
 } from "../../kernel/domain/codeApproval";
+import { isApprovalRowOf } from "../../kernel/domain/approvalRowKind";
 import { lastWorkspacePathSegment } from "../../kernel/domain/workspacePath";
 import { LoggerPort } from "../../kernel/port/hostPorts";
-import { isPluginApproval, PLUGIN_CODE_TEXTS, WorkspacePlugin } from "../domain/pluginApproval";
+import { PLUGIN_CODE_TEXTS, WorkspacePlugin } from "../domain/pluginApproval";
 import { configFolderOfPlugin, pluginsDirOf } from "../domain/pluginFolders";
 import { BpmnPluginService } from "./BpmnPluginService";
 import { PluginCatalog } from "./PluginCatalog";
@@ -40,7 +41,7 @@ export class PluginInventory {
     }
 
     ownsApproval(approval: CodeApproval): boolean {
-        return isPluginApproval(approval);
+        return isApprovalRowOf("plugin", approval);
     }
 
     knownPluginDirs(): readonly string[] {

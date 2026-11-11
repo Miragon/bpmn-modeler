@@ -27,6 +27,7 @@ export * from "./kernel/domain/escapeRegExpLiteral";
 export { isIgnoredWatchDirName } from "./kernel/domain/excludedDirs";
 export * from "./kernel/domain/globToRegExp";
 export * from "./kernel/port/hostPorts";
+export * from "./kernel/port/repositoryFilesPort";
 export * from "./kernel/domain/http";
 export * from "./kernel/port/HttpClient";
 export * from "./kernel/port/templatePreferencePorts";

@@ -15,11 +15,9 @@ import {
     closureDigestInput,
     type ClosureMember,
     editorsToRelint,
-    installedPackageNameOf,
     installedPackagesDirOf,
     nodeModulesDirOf,
     isParsedAsJson,
-    isRulePackageApproval,
     loadsWithoutApproval,
     memberDigestInput,
     type PendingRulePackage,
@@ -27,7 +25,6 @@ import {
     RULE_PACKAGE_APPROVAL_NOTICE_ID,
     RULE_PACKAGE_APPROVAL_PROMPT_ID,
     RULE_PACKAGE_CODE_TEXTS,
-    RULE_PACKAGE_CONTENT_HASH_PREFIX,
     ruleModuleRootOf,
     type RuleModuleRoot,
     rulePackageApprovalNotice,
@@ -371,30 +368,7 @@ describe("closureDigestInput", () => {
 
 describe("rulePackageContentHash", () => {
     it("marks the closure digest as a rule package hash of algorithm version 1", () => {
-        expect(RULE_PACKAGE_CONTENT_HASH_PREFIX).toBe("bpmnlint-closure-v1:");
         expect(rulePackageContentHash("abc")).toBe("bpmnlint-closure-v1:abc");
-    });
-});
-
-describe("isRulePackageApproval", () => {
-    it.each<{ case: string; approval: CodeApproval; isRulePackage: boolean }>([
-        {
-            case: "a rule package row",
-            approval: { pluginId: "/repo/node_modules/x", contentHash: "bpmnlint-closure-v1:abc" },
-            isRulePackage: true,
-        },
-        {
-            case: "a webview plugin row",
-            approval: { pluginId: "/repo/.camunda/plugins/x", contentHash: "abc" },
-            isRulePackage: false,
-        },
-        {
-            case: "a row whose hash only mentions the marker",
-            approval: { pluginId: "/x", contentHash: "abc:bpmnlint-closure-v1:abc" },
-            isRulePackage: false,
-        },
-    ])("tells $case", ({ approval, isRulePackage }) => {
-        expect(isRulePackageApproval(approval)).toBe(isRulePackage);
     });
 });
 
@@ -770,17 +744,6 @@ describe("rule package approval question", () => {
             rulePackageApprovalPrompt([{ artifact: linked, state: "new" }], ["/repo"]).items[0]
                 ?.description,
         ).toBe("new · /work/acme-rules");
-    });
-});
-
-describe("installedPackageNameOf", () => {
-    it.each([
-        { id: "/work/node_modules/bpmnlint-plugin-acme", name: "bpmnlint-plugin-acme" },
-        { id: "/work/node_modules/@acme/bpmnlint-plugin", name: "@acme/bpmnlint-plugin" },
-        { id: "/work/node_modules/a/node_modules/bpmnlint-plugin-b", name: "bpmnlint-plugin-b" },
-        { id: "/work/packages/rules", name: "rules" },
-    ])("names $id $name", ({ id, name }) => {
-        expect(installedPackageNameOf(id)).toBe(name);
     });
 });
 

@@ -3,11 +3,15 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
 import { toWorkspacePath } from "@miragon/bpmn-modeler-core";
-import { describeInstalledPackagesContract } from "@miragon/bpmn-modeler-core/testing";
+import {
+    describeInstalledPackagesContract,
+    describeRepositoryFilesContract,
+    InstalledPackagesContractFixture,
+} from "@miragon/bpmn-modeler-core/testing";
 
 import { NodeInstalledPackages } from "./NodeInstalledPackages";
 
-describeInstalledPackagesContract("VS Code's NodeInstalledPackages on a real directory", () => {
+function realDirectoryFixture(): InstalledPackagesContractFixture {
     const root = toWorkspacePath(
         realpathSync(mkdtempSync(join(tmpdir(), "installed-packages-contract-"))),
     );
@@ -22,4 +26,14 @@ describeInstalledPackagesContract("VS Code's NodeInstalledPackages on a real dir
         createSymbolicLink: (path, target) => symlinkSync(target, path),
         dispose: () => rmSync(root, { recursive: true, force: true }),
     };
+}
+
+describeInstalledPackagesContract(
+    "VS Code's NodeInstalledPackages on a real directory",
+    realDirectoryFixture,
+);
+
+describeRepositoryFilesContract("VS Code's NodeInstalledPackages on a real directory", () => {
+    const fixture = realDirectoryFixture();
+    return { ...fixture, files: fixture.packages };
 });

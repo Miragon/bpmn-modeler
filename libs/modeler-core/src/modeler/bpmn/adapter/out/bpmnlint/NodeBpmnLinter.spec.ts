@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
+import { lstatSync, readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -438,6 +438,11 @@ describe("NodeBpmnLinter with workspace rule packages", () => {
     };
     const nodePackages: InstalledPackagesPort = {
         realPath: (path) => orUndefined(() => toWorkspacePath(realpathSync(path))),
+        entryKindOf: (path) =>
+            orUndefined(() => {
+                const stats = lstatSync(path);
+                return stats.isSymbolicLink() ? "symbolicLink" : kindOf(stats);
+            }),
         listDirectory: (path) =>
             orUndefined(() =>
                 readdirSync(path, { withFileTypes: true }).map((entry) => ({
