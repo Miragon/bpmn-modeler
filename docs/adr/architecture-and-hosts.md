@@ -1231,7 +1231,6 @@ The contracts live in `formEngine.spec.ts`, `JsonFormTextEdits.spec.ts`,
 `FormModelerService.selection.spec.ts` and `FormEngineStatusBarParticipant.spec.ts`
 under `libs/modeler-core/src/modeler/form/`. The real form-js input harness and
 VS Code smoke test cover re-import, visual editability and native persistence.
-See [#2319](https://github.com/Miragon/bpmn-modeler/issues/2319).
 
 Form source-recovery messages live in the private, browser-safe
 `shared/lib/formEditorMessages` module so the core service and Form page use
