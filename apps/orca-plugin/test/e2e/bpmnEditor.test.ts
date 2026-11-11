@@ -84,8 +84,12 @@ describe("the BPMN editor in Orca", () => {
         await editor.page.locator(".eid-primary").click();
         await editor.save();
         const state = await editor.stub();
-        expect(state.disk).toContain('<bpmn:serviceTask id="Activity_ShipOrder" name="Ship Order">');
-        expect(state.disk).toContain('sourceRef="Event_OrderReceived" targetRef="Activity_PlaceOrder"');
+        expect(state.disk).toContain(
+            '<bpmn:serviceTask id="Activity_ShipOrder" name="Ship Order">',
+        );
+        expect(state.disk).toContain(
+            'sourceRef="Event_OrderReceived" targetRef="Activity_PlaceOrder"',
+        );
         expect(state.cspViolations).toBe(0);
         expect(state.errors).toEqual([]);
     });

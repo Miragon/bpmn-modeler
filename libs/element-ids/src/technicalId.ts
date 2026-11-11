@@ -26,7 +26,7 @@ const TRANSLITERATIONS: Readonly<Record<string, string>> = {
 };
 
 /** The ASCII words of a name; apostrophes join, every other non-alphanumeric splits. */
-export function nameWords(name: string): string[] {
+function nameWords(name: string): string[] {
     return name
         .replace(/[äöüÄÖÜßæÆøØœŒłŁđĐðþ]/g, (letter) => TRANSLITERATIONS[letter] ?? letter)
         .normalize("NFD")
