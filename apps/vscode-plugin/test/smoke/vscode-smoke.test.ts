@@ -109,6 +109,10 @@ async function diagramRendered(webview: FrameLocator): Promise<boolean> {
     return shapes >= 3 && connections >= 2;
 }
 
+function focusRingShown(container: Locator): Promise<boolean> {
+    return container.locator(".canvas-focus-ring").isVisible();
+}
+
 /** A poll for zero passes at once, so this watches the whole window for an element that appears late. */
 async function expectAbsentFor(locator: Locator, milliseconds: number): Promise<void> {
     const until = Date.now() + milliseconds;
@@ -340,6 +344,22 @@ describe("the packaged extension in a real VS Code", () => {
         await expect
             .poll(() => taskNameInFile(file), { timeout: TIMEOUT_MS })
             .toBe(ORIGINAL_TASK_NAME);
+    });
+
+    it("rings the canvas once Escape hands it the keyboard from the properties panel", async () => {
+        const webview = vscode().webview();
+        const container = webview.locator(".bjs-container .djs-container");
+        await webview
+            .locator("#js-properties-panel .bio-properties-panel-group-header")
+            .first()
+            .click();
+        expect(await focusRingShown(container)).toBe(false);
+
+        await vscode().page.keyboard.press("Escape");
+
+        await expect.poll(() => focusRingShown(container), { timeout: TIMEOUT_MS }).toBe(true);
+        await settle(webview);
+        await vscode().screenshot(join(RESULTS_DIRECTORY, "bpmn-focus-ring.png"));
     });
 
     it.each(COLOR_THEMES)("follows VS Code's $name theme", async (theme) => {

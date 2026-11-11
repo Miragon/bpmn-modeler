@@ -1,5 +1,5 @@
 import "./styles/canvas.css";
-import "./styles/canvasFocusIndicator.css";
+import "../../../libs/modeler-types/src/canvasOverlays.css";
 import "./styles/themes.css";
 
 export { createModeler } from "./createModeler";

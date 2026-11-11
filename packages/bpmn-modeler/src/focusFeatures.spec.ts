@@ -80,15 +80,21 @@ afterEach(() => {
 });
 
 describe("installSurfaceFocusFeatures", () => {
-    it("tracks canvas focus and selection on the focus indicator", () => {
-        install({ hasSearchPad: true });
-        const indicator = surface.canvasContainer.querySelector(".canvas-focus-indicator")!;
+    it("rings the canvas container while the canvas holds the keyboard", () => {
+        const dispose = install({ hasSearchPad: true });
+        const ringed = () =>
+            surface.canvasContainer.querySelector<HTMLElement>(".canvas-focus-ring")?.hidden ===
+            false;
 
         surface.fire("canvas.focus.changed", { focused: true });
-        expect(indicator.classList.contains("is-focused")).toBe(true);
+        expect(ringed()).toBe(true);
 
-        surface.fire("selection.changed", { newSelection: [{ id: "Task_1" }] });
-        expect(indicator.classList.contains("is-focused")).toBe(false);
+        surface.fire("canvas.focus.changed", { focused: false });
+        expect(ringed()).toBe(false);
+
+        surface.fire("canvas.focus.changed", { focused: true });
+        dispose();
+        expect(ringed()).toBe(false);
     });
 
     it("closes an open search pad before refocusing the canvas", () => {
@@ -141,13 +147,12 @@ describe("installSurfaceFocusFeatures", () => {
         expect(surface.canvas.focus).toHaveBeenCalledOnce();
     });
 
-    it("removes the indicator and stops handling Escape once disposed", () => {
+    it("stops handling Escape once disposed", () => {
         const dispose = install({ hasSearchPad: true });
 
         dispose();
         pressEscape(surface.canvasContainer);
 
-        expect(surface.canvasContainer.querySelector(".canvas-focus-indicator")).toBeNull();
         expect(surface.canvas.focus).not.toHaveBeenCalled();
     });
 });
