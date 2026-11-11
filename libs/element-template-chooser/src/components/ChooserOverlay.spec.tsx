@@ -115,6 +115,39 @@ describe("ChooserOverlay", () => {
         expect(container.querySelector(".etc-param-value")?.textContent).toBe("send-mail");
     });
 
+    it("shows Boolean and Number values in the preview", () => {
+        const http = template({
+            id: "http",
+            name: "HTTP",
+            properties: [
+                {
+                    label: "Follow redirects",
+                    type: "Boolean",
+                    value: true,
+                    binding: { type: "zeebe:input", name: "followRedirects" },
+                },
+                {
+                    label: "Strict",
+                    type: "Boolean",
+                    value: false,
+                    binding: { type: "zeebe:input", name: "strict" },
+                },
+                {
+                    label: "Retries",
+                    type: "Number",
+                    value: 0,
+                    binding: { type: "zeebe:input", name: "retries" },
+                },
+            ],
+        });
+        renderOverlay([http]);
+
+        click(cards()[0]);
+        expect(
+            [...container.querySelectorAll(".etc-param-value")].map((chip) => chip.textContent),
+        ).toEqual(["true", "false", "0"]);
+    });
+
     it("uses the plural property label for every count other than one", () => {
         const webhook = template({
             id: "webhook",

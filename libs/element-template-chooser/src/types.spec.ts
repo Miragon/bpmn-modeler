@@ -7,6 +7,7 @@ import {
     fallbackTranslate,
     partitionVisibleProperties,
     propertyDisplayLabel,
+    templatePropertyDisplayText,
     templatePropertyValue,
 } from "./types";
 import type { BindingDirection, ElementTemplate, TemplateProperty } from "./types";
@@ -71,6 +72,27 @@ describe("templatePropertyValue", () => {
         ["a string property with a value", { type: "String", value: "x" }, "x"],
     ])("gives %s the value the element is created with", (_label, overrides, value) => {
         expect(templatePropertyValue(property(taskTypeBinding, overrides))).toBe(value);
+    });
+});
+
+describe("templatePropertyDisplayText", () => {
+    const input = { type: "zeebe:input", name: "flag" };
+
+    it.each<[string, Partial<TemplateProperty>, string | undefined]>([
+        ["a string", { value: "GET" }, "GET"],
+        ["a Boolean true", { type: "Boolean", value: true }, "true"],
+        ["a Boolean false", { type: "Boolean", value: false }, "false"],
+        ["a Number zero", { type: "Number", value: 0 }, "0"],
+        ["a Number", { type: "Number", value: 5 }, "5"],
+        [
+            "a required dropdown without a value",
+            { type: "Dropdown", choices: [{ name: "Send mail", value: "send-mail" }] },
+            "send-mail",
+        ],
+        ["an empty string", { value: "" }, undefined],
+        ["no value", {}, undefined],
+    ])("shows %s as its text", (_label, overrides, text) => {
+        expect(templatePropertyDisplayText(property(input, overrides))).toBe(text);
     });
 });
 
