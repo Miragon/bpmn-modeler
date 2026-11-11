@@ -1,5 +1,9 @@
 import { LoggerPort, WorkspacePort } from "../../kernel/port/hostPorts";
-import type { AddOnCatalogModel, AddOnReveal } from "../domain/addOnCatalogModel";
+import type {
+    AddOnCatalogModel,
+    AddOnReveal,
+    AddOnRevealTarget,
+} from "../domain/addOnCatalogModel";
 import { AddOnActionResult, AddOnRequest, CLOSED_VIEW } from "../domain/addOnRequests";
 import { firstRevisionOf } from "../domain/shownRevisions";
 import { AddOnCatalogService } from "./AddOnCatalogService";
@@ -69,11 +73,8 @@ export class AddOnViewHub {
         };
     }
 
-    reveal(addOnIds: readonly string[]): void {
-        this.latestReveal = {
-            revealId: ++this.lastRevealId,
-            addOnIds: [...addOnIds],
-        };
+    reveal(target: AddOnRevealTarget): void {
+        this.latestReveal = revealOf(target, ++this.lastRevealId);
         this.views.forEach((view) => this.revealTo(view));
     }
 
@@ -123,5 +124,14 @@ export class AddOnViewHub {
         } catch (error) {
             this.logger.logError(error instanceof Error ? error : new Error(String(error)));
         }
+    }
+}
+
+function revealOf(target: AddOnRevealTarget, revealId: number): AddOnReveal {
+    switch (target.kind) {
+        case "rows":
+            return { kind: "rows", revealId, addOnIds: [...target.addOnIds] };
+        case "needsReview":
+            return { kind: "needsReview", revealId };
     }
 }

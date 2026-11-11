@@ -32,16 +32,29 @@ ships only an empty `<div id="app"></div>`; none carries a copy of the form.
 Edit form markup **only** in `formTemplate.ts` (see the Deployment Webview
 section in AGENTS.md).
 
-### Add-ons Webview (Artifacts view)
+### Add-ons Webview
 
 `apps/add-ons-webview` renders the core's add-on catalog. Its host shells ship
-only an empty `<div id="app"></div>` too; `src/adapter/in/catalogView.ts`
+only an empty `<div id="app"></div>` too; `src/adapter/in/addOnsView.ts`
 builds the DOM from the model with the DOM API, never `innerHTML`, as the model
 holds workspace text. Its protocol is `libs/shared/src/lib/addOnsView.ts`, and
 the core's `AddOnsFeature.attachPanel` answers it, so a host only passes
-messages through. VS Code serves it as the Artifacts view
+messages through. VS Code serves it as the Add-ons view
 (`apps/vscode-plugin/src/addOns/`: `AddOnsViewHtml.ts`, `AddOnsViewProvider.ts`);
-IntelliJ bundles it as the Artifacts tab of its BPMN Modeler tool window.
+IntelliJ bundles it as the Add-ons tab of its BPMN Modeler tool window.
+
+The page is a list beside a detail pane, in **Workspace** and **Marketplaces**
+tabs by `group.kind`, with a search and filter chips; below 640px of the view's
+own width (container queries) the detail replaces the list with Back. Its
+rules sit in `src/domain/` (the reducer `viewState.ts`, `catalogScope.ts`,
+`catalogFilter.ts`, `catalogSelection.ts`, `listContent.ts`), and the
+adapters (`toolbar.ts`, `listView.ts`, `detailView.ts`, `emptyStates.ts`)
+only draw. Every model text comes from the core; the view's own words (tab
+and chip labels, "Needs review", empty and no-match texts, screen-reader
+summaries) live only in `src/domain/chromeTexts.ts`. Tab reaches every
+control; a widget that keeps `role=tablist` or `role=menu` keeps that role's
+arrow keys. It wears the Miragon brand, not the IDE's look (see
+[Brand mode](#brand-mode-add-ons-view)).
 
 ## Content Security Policy (CSP)
 
@@ -49,7 +62,7 @@ Every shell (BPMN, DMN, form, deployment, add-ons) defines a CSP in a `<meta>` t
 limits `localResourceRoots` to its bundle directory: `bootstrapWebview` does it
 for the editors (DMN also gets `assets/` for `reset.css`),
 `DeploymentController.resolveWebviewView` for the deployment sidebar and
-`AddOnsViewProvider.resolveWebviewView` for the Artifacts view.
+`AddOnsViewProvider.resolveWebviewView` for the Add-ons view.
 `webviewContentSecurityPolicy(shell, { cspSource, nonce })` in
 `apps/vscode-plugin/src/shared/domain/webviewContentSecurityPolicy.ts`
 builds all five policies: the directives every shell shares are written once,
@@ -80,7 +93,9 @@ base-uri 'none'; form-action 'none'
   the properties panel and CodeMirror set style attributes and inject `<style>`
   elements, and the deployment form's markup carries a style attribute. The
   add-ons page has only its linked stylesheet, so its policy allows
-  `style-src ${webview.cspSource}` alone.
+  `style-src ${webview.cspSource}` alone, plus `font-src ${webview.cspSource}`
+  for the fonts its bundle ships (Vite `base: "./"` keeps their `url()`s
+  relative).
 - `img-src data: https:`: element-template icons are `data:` URIs or remote
   URLs (DMN has no templates and omits `https:`).
 - The form shell adds what form-js components load at runtime:
@@ -250,6 +265,10 @@ the webview is gone.) Only the two side bar views set
 `AddOnsViewProvider.ts`), because they use `registerWebviewViewProvider`, not a
 custom editor, and the core posts nothing to a hidden one.
 
+The Add-ons view persists `PersistedChoices` (`src/domain/viewState.ts`): the
+open or closed headers, the tab, each tab's selection and the last reveal id,
+each validated on load. Its search and filter chips stay page-local.
+
 ## VS Code API in Webviews
 
 The webview gets a limited VS Code API via `acquireVsCodeApi()`. In this
@@ -314,9 +333,29 @@ each package's CSS stays self-contained. The package still mirrors the resolved
 kind onto a legacy `#theme-link` when a consumer links one (a silent no-op
 otherwise).
 
+### Brand mode (Add-ons view)
+
+The Add-ons view takes the Miragon brand look, not the IDE's colours. The
+host writes `data-cd-theme="light|dark"` (always) and `data-cd-kontrast="hoch"`
+(high contrast) on `<html>`: `addOnsViewHtml` from `window.activeColorTheme.kind`
+and the `colorTheme` setting through `brandModeOf` (`libs/shared/src/lib/brandMode.ts`),
+then a `BrandModeQuery` on every change (`VsCodeBrandModeSignal`) and when the
+page asks for its catalog, since a post during its load can be lost. The page
+never reads body classes for it. IntelliJ writes the same attributes into its
+`/addOns.html` shell and resets them on a LaF or settings change
+(`IdeThemeSignal.addOnsApplyJs`); it maps no IDE colour or font for this page.
+
+The stylesheet reads no `--vscode-*` variable (its spec fails on one): it uses
+the vendored brand tokens (`src/adapter/in/styles/cd-tokens.generated.css`,
+never edited by hand; listed in `.miragon/brand-assets.yaml`, its checksum in
+`.miragon/brand-assets.sha256`), the `--cd-ui-*` roles in
+components and the palette only for button, badge and kind surfaces. Geist,
+Geist Mono and Lucide ship in the bundle, and the type sizes are the brand's,
+so the editor font size does not apply here.
+
 ### CSS Custom Properties
 
-VS Code also exposes theme colors as CSS custom properties (e.g., `--vscode-editor-background`). These can be used in webview CSS for seamless theme integration without stylesheet swapping.
+VS Code also exposes theme colors as CSS custom properties (e.g., `--vscode-editor-background`). These can be used in webview CSS for seamless theme integration without stylesheet swapping. The Add-ons view is the exception and reads none of them.
 
 ## URI Conversion
 
@@ -338,8 +377,8 @@ See `apps/vscode-plugin/src/shared/adapter/out/WebviewHtml.ts`.
 - **Deployment HTML shell**: `apps/vscode-plugin/src/deployment/adapter/in/DeploymentWebviewHtml.ts` (CSP + asset URIs only)
 - **Shell CSP builder**: `apps/vscode-plugin/src/shared/domain/webviewContentSecurityPolicy.ts`
 - **Deployment form markup (single source)**: `apps/deployment-webview/src/adapter/in/formTemplate.ts` (`FORM_TEMPLATE`)
-- **Add-ons view**: `apps/add-ons-webview/src/adapter/in/catalogView.ts` (DOM), `src/domain/viewState.ts` (reducer), `libs/shared/src/lib/addOnsView.ts` (protocol)
-- **Artifacts view shell and provider**: `apps/vscode-plugin/src/addOns/adapter/in/AddOnsViewHtml.ts`, `AddOnsViewProvider.ts`
+- **Add-ons view**: `apps/add-ons-webview/src/adapter/in/addOnsView.ts` (DOM), `src/domain/viewState.ts` (reducer), `libs/shared/src/lib/addOnsView.ts` (protocol)
+- **Add-ons view shell and provider**: `apps/vscode-plugin/src/addOns/adapter/in/AddOnsViewHtml.ts`, `AddOnsViewProvider.ts`
 - **Message router**: `libs/modeler-core/src/editorSession/service/WebviewMessageRouter.ts`
 - **Base message types**: `libs/shared/src/lib/messages.ts`
 - **Modeler message types**: `libs/shared/src/lib/modeler.ts`

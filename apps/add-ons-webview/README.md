@@ -1,37 +1,43 @@
-# `apps/add-ons-webview/` — Artifacts view webview
+# `@miragon/bpmn-modeler-add-ons-webview`
 
-Internal module. **Not published separately.**
+Renders the **Add-ons** view: the BPMN plugins, bpmnlint rule packages and element templates of the
+open workspace and the registered marketplaces, with the actions the user may take on each. VS Code,
+the desktop app and IntelliJ load it. Internal workspace, not published on its own.
 
-Renders the **Artifacts** view: the BPMN plugins, bpmnlint rule packages and
-element templates of the open workspace, grouped by workspace folder and
-source, with what the user may do about each. The core
-(`libs/modeler-core/src/addOns`) builds every text and decides every action;
-this page only renders the catalog it is sent and posts what the user chose.
+## How it works
 
-It talks to its host over the add-ons view protocol in
-[`libs/shared`](../../libs/shared/README.md) (`addOnsView.ts`). Every host
-shell ships only an empty `<div id="app"></div>`.
+- **The core decides, the page renders.** `libs/modeler-core/src/addOns` builds every text of the
+  model and decides every action; this page renders the catalog it receives and posts the user's
+  choice. The protocol is `addOnsView.ts` in [`libs/shared`](../../libs/shared/README.md).
+- **One empty shell.** Every host ships only `<div id="app"></div>` and writes the brand mode
+  (`data-cd-theme`, `data-cd-kontrast`) on `<html>`; `src/adapter/in/addOnsView.ts` builds the DOM
+  with the DOM API, never `innerHTML`, because names and paths are workspace text.
+- **One reducer.** `src/domain/viewState.ts` decides what a model, a reveal, a result or a user
+  choice changes, which add-on each tab selects, what to ask the host and where focus goes. Actions
+  resolve from the model, never from the markup. Tab, selections and open headers survive a reload;
+  the search does not.
+- **The view's own words** (tabs, chips, empty states, screen-reader summaries) live in
+  `src/domain/chromeTexts.ts`; every other text comes from the core.
+- **Layout by container width.** From 640px of the view's own width, list and detail sit side by
+  side; below, the detail replaces the list with **Back**. `src/adapter/in/layout.ts` is the seam
+  the specs replace, as jsdom does no layout.
+- **Miragon brand, not the IDE look.** The host only signals light, dark and high contrast; type
+  sizes are the brand's, the host's zoom still scales them. `src/adapter/in/styles/cd-tokens.generated.css`
+  is vendored from the `miragon-brand` skill: never edit it, copy a new release over it with the
+  plugin's `brand-assets.mjs`, which reads `.miragon/brand-assets.yaml` and rewrites the checksums in
+  `.miragon/brand-assets.sha256`. Components use the `--cd-ui-*` roles and no `--vscode-*`
+  variable.
+- **Bundled licenses.** Geist, Geist Mono (OFL-1.1) and Lucide (ISC) ship in the bundle; the build
+  writes their licenses to `licenses/`, which both IDE plugins carry.
 
-## Where the rules live
-
-- `src/domain/viewState.ts`: the one reducer. It decides what a model, a
-  reveal, a result or a user choice changes, what to ask the host and where
-  focus goes. An action is resolved from the model, never from the markup.
-- `src/domain/outline.ts` and `outlineMove.ts`: the heads in order, what is
-  open by default (a marketplace starts closed) and what each key does.
-- `src/domain/placedActions.ts`: Allow sits only at the end of a review.
-- `src/adapter/in/catalogView.ts`: builds the DOM with the DOM API, never
-  `innerHTML`, as names and paths are workspace text.
-- `src/adapter/in/styles/hostThemeVariables.json`: every `--vscode-*`
-  variable the stylesheet may read, the set IntelliJ maps.
-
-## Local development
+## Develop
 
 ```bash
-corepack yarn workspace @miragon/bpmn-modeler-add-ons-webview dev   # browser preview (portless)
+corepack yarn workspace @miragon/bpmn-modeler-add-ons-webview dev    # browser preview
 corepack yarn workspace @miragon/bpmn-modeler-add-ons-webview test
 ```
 
 The preview answers from `src/adapter/out/mockCatalog.ts`. Query flags:
-`?state=loading|empty|noFolder|failed`, `?reveal=<add-on id or name>`,
-`?stale=1` (the first allow is refused as stale) and `?theme=dark|hc`.
+`?state=loading|empty|noFolder|onlyMarketplaces|noMarketplace|marketplacesFailed|rereadFailed|failed|allReviewed`,
+`?reveal=<add-on id or name>`, `?preset=needsReview` (Review Add-ons, after any reveal), `?stale=1` (the first allow is refused as stale) and
+`?theme=dark|hc`.

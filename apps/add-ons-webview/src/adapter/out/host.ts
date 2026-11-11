@@ -3,7 +3,11 @@ import {
     AddOnCatalogQuery,
     AddOnsViewCommand,
     asProtocolMessage,
+    type BrandMode,
+    BrandModeQuery,
+    brandModeOf,
     HostApiImpl,
+    type HostColorThemeKind,
     MockHostApi,
     Query,
     RevealAddOnsQuery,
@@ -23,67 +27,30 @@ export function getHostApi(): AddOnsHost {
     return new HostApiImpl();
 }
 
-/** A few host colours, so the preview shows the view on a dark and a high-contrast host too. */
-const PREVIEW_THEMES: Readonly<Record<string, Readonly<Record<string, string>>>> = {
-    dark: {
-        "--vscode-foreground": "#cccccc",
-        "--vscode-descriptionForeground": "#9d9d9d",
-        "--vscode-sideBar-background": "#181818",
-        "--vscode-sideBarSectionHeader-foreground": "#cccccc",
-        "--vscode-panel-border": "#2b2b2b",
-        "--vscode-list-hoverBackground": "#2a2d2e",
-        "--vscode-focusBorder": "#0078d4",
-        "--vscode-icon-foreground": "#cccccc",
-        "--vscode-editor-background": "#1f1f1f",
-        "--vscode-button-background": "#0078d4",
-        "--vscode-button-foreground": "#ffffff",
-        "--vscode-button-secondaryBackground": "#313131",
-        "--vscode-button-secondaryForeground": "#cccccc",
-        "--vscode-errorForeground": "#f85149",
-        "--vscode-list-warningForeground": "#cca700",
-        "--vscode-inputValidation-infoBackground": "#063b49",
-        "--vscode-inputValidation-infoBorder": "#007acc",
-        "--vscode-inputValidation-infoForeground": "#cccccc",
-        "--vscode-inputValidation-errorBackground": "#5a1d1d",
-        "--vscode-inputValidation-errorBorder": "#be1100",
-        "--vscode-inputValidation-errorForeground": "#cccccc",
-    },
-    hc: {
-        "--vscode-foreground": "#ffffff",
-        "--vscode-descriptionForeground": "#ffffff",
-        "--vscode-sideBar-background": "#000000",
-        "--vscode-panel-border": "#6fc3df",
-        "--vscode-focusBorder": "#f38518",
-        "--vscode-contrastBorder": "#6fc3df",
-        "--vscode-contrastActiveBorder": "#f38518",
-        "--vscode-editor-background": "#000000",
-        "--vscode-button-background": "#000000",
-        "--vscode-button-foreground": "#ffffff",
-        "--vscode-button-secondaryBackground": "#000000",
-        "--vscode-button-secondaryForeground": "#ffffff",
-        "--vscode-icon-foreground": "#ffffff",
-        "--vscode-sideBarSectionHeader-foreground": "#ffffff",
-        "--vscode-errorForeground": "#f48771",
-        "--vscode-list-warningForeground": "#ffd700",
-    },
+const PREVIEW_HOST_THEMES: Readonly<Record<string, HostColorThemeKind>> = {
+    dark: "dark",
+    hc: "highContrast",
 };
 
 /**
  * Answers the view's commands from {@link MockCatalog}. Query flags:
- * `state=loading|empty|noFolder|failed`, `reveal=<add-on id or name>`,
+ * `state=loading|empty|noFolder|onlyMarketplaces|noMarketplace|marketplacesFailed|rereadFailed|failed|allReviewed`,
+ * `reveal=<add-on id or name>`, `preset=needsReview` (Review Add-ons, after any reveal),
  * `stale=1` (the first allow is refused as stale) and `theme=dark|hc`.
  */
 class MockHost extends MockHostApi<PersistedChoices, AddOnsViewCommand> {
     private readonly catalog: MockCatalog;
     private readonly revealed?: string;
+    private readonly reviewPreset: boolean;
+    private readonly brandMode: BrandMode;
 
     constructor(flags: URLSearchParams) {
         super();
         this.catalog = new MockCatalog(previewStateOf(flags.get("state")), { stale: flags.get("stale") === "1" });
         this.revealed = flags.get("reveal") ?? undefined;
-        Object.entries(PREVIEW_THEMES[flags.get("theme") ?? ""] ?? {}).forEach(([name, value]) =>
-            document.documentElement.style.setProperty(name, value),
-        );
+        this.reviewPreset = flags.get("preset") === "needsReview";
+        const theme = flags.get("theme") ?? "";
+        this.brandMode = brandModeOf(PREVIEW_HOST_THEMES[theme] ?? "light", "automatic");
     }
 
     override postMessage(message: AddOnsViewCommand): void {
@@ -94,6 +61,8 @@ class MockHost extends MockHostApi<PersistedChoices, AddOnsViewCommand> {
                 console.debug(`[add-ons preview] ${command.type}`, command.message);
                 return;
             case "GetAddOnCatalogCommand":
+                // The preview has no host shell to carry the mode, so it arrives as a theme change would.
+                dispatch(new BrandModeQuery(this.brandMode));
                 this.postModel();
                 this.postReveal();
                 return;
@@ -115,7 +84,8 @@ class MockHost extends MockHostApi<PersistedChoices, AddOnsViewCommand> {
 
     private postReveal(): void {
         const id = this.revealed === undefined ? undefined : this.catalog.idOf(this.revealed);
-        if (id !== undefined) dispatch(new RevealAddOnsQuery({ revealId: 1, addOnIds: [id] }));
+        if (id !== undefined) dispatch(new RevealAddOnsQuery({ kind: "rows", revealId: 1, addOnIds: [id] }));
+        if (this.reviewPreset) dispatch(new RevealAddOnsQuery({ kind: "needsReview", revealId: 2 }));
     }
 }
 

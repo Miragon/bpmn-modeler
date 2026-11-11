@@ -1,7 +1,7 @@
 import { join } from "path";
 
 import { MarketplaceSettingsEntry } from "../../kernel/domain/modelerSettings";
-import { NotifierPort, PickerPort } from "../../kernel/port/hostPorts";
+import { ActionNotifierPort, NotifierPort, PickerPort } from "../../kernel/port/hostPorts";
 import { MarketplaceUpdateOutcome } from "../domain/marketplace";
 import {
     MarketplaceAddAnswer,
@@ -18,6 +18,7 @@ import {
     registeredMarketplaces,
     registrableLocation,
 } from "../domain/marketplaceRegistrations";
+import { marketplaceUpdateNotice } from "../domain/notFetchedMarketplaces";
 import { MarketplacePromptPort, MarketplaceRegistrationsPort } from "../port/marketplacePorts";
 import { TemplateMarketplaceService } from "./TemplateMarketplaceService";
 
@@ -32,6 +33,7 @@ export interface MarketplaceCommandPorts {
     readonly prompt: MarketplacePromptPort;
     readonly picker: PickerPort;
     readonly notifier: NotifierPort;
+    readonly actionNotifier: ActionNotifierPort;
     /** Expands `~` in an entered path; the core cannot read it. */
     readonly homeDir: string;
     /**
@@ -121,6 +123,28 @@ export class MarketplaceCommands {
         notifier.showError(
             `Updated ${outcome.succeeded} of ${total} marketplaces. Failed:\n${details}`,
         );
+    }
+
+    /**
+     * Offers the update when this workspace has fetched nothing for a
+     * registered marketplace, as a new workspace or git worktree starts with an
+     * empty cache. Fetches nothing itself and never throws: nobody waits on it.
+     * Not queued, so a notice left open holds back no flow.
+     */
+    async offerUpdateIfNotFetched(): Promise<void> {
+        const { notifier, marketplaces, actionNotifier } = this.ports;
+        try {
+            const notFetched = await marketplaces.marketplacesNotFetched();
+            if (notFetched.length === 0) return;
+            notifier.logInfo(
+                `Marketplaces not fetched in this workspace: ${notFetched.join(", ")}`,
+            );
+            if ((await actionNotifier.offer(marketplaceUpdateNotice(notFetched))) === "update") {
+                await this.update();
+            }
+        } catch (error) {
+            notifier.logError(error as Error);
+        }
     }
 
     /**

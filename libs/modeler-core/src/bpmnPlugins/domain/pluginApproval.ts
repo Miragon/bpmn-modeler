@@ -58,6 +58,8 @@ export const PLUGIN_CODE_TEXTS: ApprovableCodeTexts = {
     risk: "A plugin runs its own code in the BPMN editor.",
     allowedFollowUp: "Open editors reload with it.",
     revokedFollowUp: () => "Open editors reload without it.",
+    carriedOver: ({ artifact, allowedAt }) =>
+        `Allowed BPMN plugin ${artifact.name} in ${artifact.id}: you allowed the same content in ${allowedAt}.`,
 };
 
 export function pluginApprovalPrompt(

@@ -59,6 +59,10 @@ export class PluginInventory {
         return presenceOf(await this.locator.readFresh(pluginId));
     }
 
+    recordCarried(found: readonly ApprovableArtifact[]): Promise<void> {
+        return this.catalog.recordCarried(found);
+    }
+
     /** A revoked plugin's copy is no longer served, so it goes; the revoke stands if it cannot. */
     async afterRevoke(): Promise<void> {
         try {

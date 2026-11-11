@@ -164,6 +164,7 @@
             "package": "@miragon/bpmn-modeler-add-ons-webview",
             "paths": [
                 "apps/add-ons-webview/**",
+                ".miragon/brand-assets.sha256",
                 "libs/shared/**",
                 "libs/modeler-types/**"
             ],

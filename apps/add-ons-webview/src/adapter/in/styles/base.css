@@ -1,0 +1,403 @@
+/*
+ * The brand base of the Add-ons view (Miragon design system, modeler-tool-design).
+ * Only roles (--cd-ui-*) in components; the palette directly only for button,
+ * badge and kind surfaces.
+ */
+
+:root {
+    /* Kind colours: blue and green from the palette, the third an ink tag that flips with the mode. */
+    --ds-kind-plugin-bg: var(--cd-blau);
+    --ds-kind-plugin-fg: var(--cd-weiss);
+    --ds-kind-rulePackage-bg: var(--cd-ui-text);
+    --ds-kind-rulePackage-fg: var(--cd-ui-plot);
+    --ds-kind-elementTemplate-bg: var(--cd-gruen);
+    --ds-kind-elementTemplate-fg: var(--cd-schwarz);
+
+    --ds-font: "Geist Variable", "Geist", ui-sans-serif, system-ui, sans-serif;
+    --ds-mono: "Geist Mono Variable", "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+    --ds-ease: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+html,
+body {
+    margin: 0;
+    padding: 0;
+    color: var(--cd-ui-text);
+    background: var(--cd-ui-grund);
+    font-family: var(--ds-font);
+    font-size: 13px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+/* jsdom hides a [hidden] element over any author display rule; a browser does not. */
+[hidden] {
+    display: none !important;
+}
+
+/* :where() keeps the reset at zero specificity, so .ds-btn's colour and weight win. */
+:where(button, input) {
+    font: inherit;
+    color: inherit;
+}
+
+:focus-visible {
+    outline: 2px solid var(--cd-ui-fokus);
+    outline-offset: 2px;
+}
+
+[data-cd-kontrast="hoch"] :focus-visible {
+    outline-width: 3px;
+}
+
+.ds-icon {
+    flex: none;
+    display: block;
+}
+
+/* --- Buttons (brand §8) --- */
+
+.ds-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 32px;
+    padding: 0 12px;
+    border: 1px solid transparent;
+    border-radius: var(--cd-radius-md);
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+    transition:
+        background-color 150ms var(--ds-ease),
+        border-color 150ms var(--ds-ease),
+        color 150ms var(--ds-ease),
+        box-shadow 150ms var(--ds-ease),
+        transform 150ms var(--ds-ease);
+}
+
+.ds-btn-primary {
+    color: var(--cd-weiss);
+    background: var(--cd-blau);
+    box-shadow: var(--cd-shadow-1);
+}
+
+.ds-btn-primary:hover {
+    background: var(--cd-blau-link);
+    box-shadow: var(--cd-shadow-2);
+    transform: translateY(-1px);
+}
+
+.ds-btn-secondary {
+    color: var(--cd-ui-text);
+    background: var(--cd-ui-flaeche-hoch);
+    border-color: var(--cd-ui-linie);
+}
+
+.ds-btn-secondary:hover {
+    color: var(--cd-ui-link);
+    background: var(--cd-ui-hover);
+    border-color: var(--cd-ui-interaktion);
+}
+
+.ds-btn-ghost {
+    color: var(--cd-ui-text);
+    background: transparent;
+}
+
+.ds-btn-ghost:hover {
+    background: var(--cd-ui-hover);
+}
+
+.ds-btn-danger {
+    color: var(--cd-ui-text);
+    background: transparent;
+}
+
+.ds-btn-danger .ds-icon {
+    color: var(--cd-ui-danger);
+}
+
+.ds-btn-danger:hover {
+    background: var(--cd-ui-hover);
+}
+
+.ds-btn[aria-disabled="true"],
+.ds-btn[aria-disabled="true"]:hover {
+    color: var(--cd-ui-text-leise);
+    background: var(--cd-ui-hover);
+    border-color: var(--cd-ui-linie);
+    box-shadow: none;
+    transform: none;
+    cursor: not-allowed;
+}
+
+.ds-btn-ghost[aria-disabled="true"],
+.ds-btn-danger[aria-disabled="true"] {
+    background: transparent;
+    border-color: transparent;
+}
+
+.ds-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--cd-radius-sm);
+    color: var(--cd-ui-text);
+    background: transparent;
+    cursor: pointer;
+}
+
+.ds-icon-btn:hover,
+.ds-icon-btn[aria-expanded="true"] {
+    color: var(--cd-ui-interaktion);
+    background: var(--cd-ui-hover);
+}
+
+/* --- Search (an inset field, brand §8 inputs) --- */
+
+.ds-search {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.ds-search-icon {
+    position: absolute;
+    left: 12px;
+    color: var(--cd-ui-text-leise);
+    pointer-events: none;
+}
+
+.ds-search-input {
+    width: 100%;
+    min-height: 36px;
+    padding: 8px 36px 8px 36px;
+    border: 1px solid var(--cd-ui-kontur);
+    border-radius: var(--cd-radius-sm);
+    color: var(--cd-ui-text);
+    background: var(--cd-ui-grund);
+    outline-offset: 2px;
+}
+
+.ds-search-input::placeholder {
+    color: var(--cd-ui-text-leise);
+}
+
+.ds-search-input:focus {
+    border-color: var(--cd-ui-interaktion);
+}
+
+.ds-search-input::-webkit-search-cancel-button {
+    display: none;
+}
+
+.ds-search-clear {
+    position: absolute;
+    right: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: 0;
+    border-radius: var(--cd-radius-sm);
+    color: var(--cd-ui-text-leise);
+    background: transparent;
+    cursor: pointer;
+}
+
+.ds-search-clear:hover {
+    color: var(--cd-ui-text);
+    background: var(--cd-ui-hover);
+}
+
+/* --- Chips (filter toggles) --- */
+
+.ds-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 28px;
+    padding: 0 10px;
+    border: 1px solid var(--cd-ui-linie);
+    border-radius: var(--cd-radius-pill);
+    color: var(--cd-ui-text);
+    background: var(--cd-ui-flaeche);
+    font-weight: 500;
+    cursor: pointer;
+    transition: border-color 150ms var(--ds-ease), background-color 150ms var(--ds-ease);
+}
+
+.ds-chip:hover {
+    border-color: var(--cd-ui-interaktion);
+}
+
+.ds-chip[aria-pressed="true"] {
+    border-color: var(--cd-ui-interaktion);
+    background: var(--cd-ui-hover);
+    box-shadow: inset 0 0 0 1px var(--cd-ui-interaktion);
+}
+
+.ds-count {
+    min-width: 18px;
+    padding: 0 5px;
+    border-radius: var(--cd-radius-pill);
+    color: var(--cd-ui-text-leise);
+    background: var(--cd-ui-grund);
+    font-family: var(--ds-mono);
+    font-size: 11px;
+    line-height: 18px;
+    text-align: center;
+}
+
+/* --- Kind colours --- */
+
+.ds-kind-plugin {
+    --ds-kind-bg: var(--ds-kind-plugin-bg);
+    --ds-kind-fg: var(--ds-kind-plugin-fg);
+}
+
+.ds-kind-rulePackage {
+    --ds-kind-bg: var(--ds-kind-rulePackage-bg);
+    --ds-kind-fg: var(--ds-kind-rulePackage-fg);
+}
+
+.ds-kind-elementTemplate {
+    --ds-kind-bg: var(--ds-kind-elementTemplate-bg);
+    --ds-kind-fg: var(--ds-kind-elementTemplate-fg);
+}
+
+.ds-kind-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 20px;
+    padding: 0 7px 0 5px;
+    border-radius: var(--cd-radius-sm);
+    color: var(--ds-kind-fg);
+    background: var(--ds-kind-bg);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+}
+
+/* --- Status box (brand §8: tinted surface, 4px edge, icon in the status role) --- */
+
+.ds-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 6px 4px 6px 12px;
+    border: 1px solid var(--ds-banner-tone);
+    border-left-width: 4px;
+    border-radius: var(--cd-radius-sm);
+    color: var(--cd-ui-text);
+    background: var(--ds-banner-surface);
+}
+
+.ds-banner-status {
+    --ds-banner-tone: var(--cd-ui-success);
+    --ds-banner-surface: var(--cd-ui-success-flaeche);
+}
+
+.ds-banner-alert {
+    --ds-banner-tone: var(--cd-ui-danger);
+    --ds-banner-surface: var(--cd-ui-danger-flaeche);
+}
+
+.ds-banner-icon {
+    margin-top: 7px;
+    color: var(--ds-banner-tone);
+}
+
+/* Green fails 3:1 on white as an icon; the light success icon takes the text colour. */
+:root:not([data-cd-theme="dark"]) .ds-banner-status .ds-banner-icon {
+    color: var(--cd-ui-text);
+}
+
+.ds-banner-text {
+    flex: 1;
+    padding-top: 5px;
+    overflow-wrap: anywhere;
+}
+
+/* The live text stays in the page between results, so its next one is announced. */
+.ds-banner[data-empty] {
+    display: block;
+    padding: 0;
+    border: 0;
+}
+
+.ds-banner[data-empty] .ds-banner-text {
+    padding: 0;
+}
+
+/* --- Busy: a thin bar, static without motion --- */
+
+@keyframes ds-progress {
+    from {
+        background-position: 100% 0;
+    }
+    to {
+        background-position: -100% 0;
+    }
+}
+
+.ds-busy-bar {
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--cd-ui-interaktion), transparent);
+    background-size: 200% 100%;
+    animation: ds-progress 1.2s linear infinite;
+}
+
+/* --- High contrast: no shadows, contour borders --- */
+
+[data-cd-kontrast="hoch"] * {
+    box-shadow: none !important;
+}
+
+[data-cd-kontrast="hoch"] .ds-kind-tag {
+    outline: 1px solid var(--cd-ui-kontur);
+}
+
+@media (forced-colors: active) {
+    .ds-btn,
+    .ds-chip,
+    .ds-kind-tag,
+    .ds-banner:not([data-empty]) {
+        border: 1px solid ButtonText;
+    }
+
+    .ds-chip[aria-pressed="true"] {
+        outline: 2px solid Highlight;
+    }
+
+    :focus-visible {
+        outline: 2px solid Highlight;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+    }
+
+    .ds-busy-bar {
+        background: var(--cd-ui-interaktion);
+    }
+}

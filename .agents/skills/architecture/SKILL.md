@@ -22,7 +22,7 @@ verify details against source because older guides and ADRs may be outdated.
 | Host-independent domain logic and services | Feature folders in `libs/modeler-core/src/`, with the shared vocabulary in `kernel/` and the editor-session core in `editorSession/`; consumers use its `index.ts`. |
 | IDE protocol-to-modeler adaptation | `apps/bpmn-webview/src/composition/bootstrap.ts` and the adapters and services it wires, `apps/dmn-webview/src/composition/bootstrap.ts`. |
 | Form editing and deployment UI | `apps/form-webview`; `apps/deployment-webview`, whose markup lives in `src/adapter/in/formTemplate.ts`. |
-| Artifacts view (add-ons) UI | `apps/add-ons-webview`: a reducer in `src/domain/viewState.ts`, the DOM in `src/adapter/in/catalogView.ts`; the catalog, its texts and the protocol adapter (`AddOnViewMessages`) live in the core's `addOns/`. |
+| Add-ons view UI | `apps/add-ons-webview`: the reducer `src/domain/viewState.ts` and the view's rules beside it (`catalogScope.ts`, `catalogFilter.ts`, `catalogSelection.ts`, `listContent.ts`), the view's own words in `src/domain/chromeTexts.ts`, the DOM in `src/adapter/in/addOnsView.ts` and its parts (`toolbar.ts`, `listView.ts`, `detailView.ts`, `emptyStates.ts`); the catalog, its texts and the protocol adapter (`AddOnViewMessages`) live in the core's `addOns/`. |
 | Host integration and lifecycle | `apps/vscode-plugin/src/main.ts` and `src/composition/`; `apps/modeler-bridge/src/server.ts` and `src/composition/` (`bridge.ts`); Kotlin host in `apps/intellij-plugin`. |
 
 Decisions (rules, state transitions, validations) go into the owning feature's
@@ -75,7 +75,11 @@ function reports every literal with two words in host code: a file that imports
 file in `src/main/kotlin` that imports `com.intellij`, so IntelliJ's dialogs,
 actions and settings page count too. A text a branch adds shows as new. It also
 lists host chrome and technical strings (HTML, CSS classes, scripts); judge
-each, and leave the host's own text where it is.
+each, and leave the host's own text where it is. The add-ons webview is not
+host code, so the fitness function does not read it: its chrome (tab and chip
+labels, empty texts, screen-reader summaries) has one home,
+`apps/add-ons-webview/src/domain/chromeTexts.ts`, and every other text comes
+from the core's model.
 
 A port the core reads back from has a contract suite in the core's test kit
 once a second class implements it, and every adapter of the port runs it, the

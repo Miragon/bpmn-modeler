@@ -8,6 +8,8 @@ import { PluginApprovalStorePort } from "../kernel/port/approvalPorts";
 
 export class InMemoryPluginApprovals implements PluginApprovalStorePort {
     approvals: readonly CodeApproval[] = [];
+    /** Every change this store was given, in order, so a spec can tell one write from two. */
+    readonly receivedChanges: CodeApprovalChange[] = [];
 
     private readonly listeners = new Set<() => void>();
     private reportedKey = approvalsKey([]);
@@ -17,6 +19,7 @@ export class InMemoryPluginApprovals implements PluginApprovalStorePort {
     }
 
     async change(change: CodeApprovalChange): Promise<void> {
+        this.receivedChanges.push(change);
         this.approvals = approvalsAfter(this.approvals, change);
         this.report();
     }

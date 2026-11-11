@@ -1,61 +1,31 @@
 # `@miragon/bpmn-modeler-types`
 
-The **public**, host-agnostic half of the modeler's shared code: domain/model
-types (engine, lint, settings, scripting, implementation, diff), browser
-utilities (canvas resize, text-editing-surface predicate, the flushable input
-debounce of the BPMN, DMN and Form editors) and the pure rules browser
-code and `@miragon/bpmn-modeler-core` both apply (script-surface addressing in
-`scriptSurface.ts`, workspace definitions, the XML comment and CDATA scan in
-`xmlMarkup.ts`, process-variable extraction in `processVariables.ts`). None of
-it depends on the webview ↔ host message protocol.
+The publishable half of the shared code: model types (engine, lint, settings, scripting, implementation,
+diff), browser utilities (canvas resize, the text-editing predicate, the flushable input debounce) and
+pure rules that browser code and `@miragon/bpmn-modeler-core` both apply (`scriptSurface.ts`,
+`workspaceDefinitions.ts`, `xmlMarkup.ts`, `processVariables.ts`). Nearly every workspace imports it;
+both npm packages inline it.
 
-This package draws a hard line so the modeler can ship as a publishable
-`@miragon/bpmn-modeler` npm package without dragging the host protocol along:
-publishable types the package needs live here, while the internal Query/Command
-protocol + `HostApi` stay private in `@miragon/bpmn-modeler-shared`. Everything
-here is safe to publish; everything protocol-shaped stays in
-`@miragon/bpmn-modeler-shared`.
+Internal workspace, not published on its own.
 
 ## The boundary
 
-- **Public (here):** anything a consumer of the modeler package may import.
-  A package entry's `.d.ts` ships what it re-exports by name and, unnamed,
-  every declaration here that a public type references, so an edit to such a
-  declaration changes the published types. A shared rule adds nothing to the
-  published types while no public type references its types. `check-dts` scans
-  the whole `.d.ts` for protocol symbols, private-lib imports and ambient
-  functions with a body but does not notice a changed declaration;
-  `publicApi.spec.ts` pins only the public names it lists, so an edit to an
-  unpinned one that still compiles ships without a failing check.
-- **Protocol (in `@miragon/bpmn-modeler-shared`):** `Query`/`Command` bases,
-  the concrete message classes, `HostApi`, document-flush plumbing.
+Everything here may ship in the npm packages. The webview ↔ host protocol (`Query`, `Command`, `HostApi`,
+document flush) stays private in [`@miragon/bpmn-modeler-shared`](../shared/README.md).
 
-The publishable libraries (`append-menu`, `bpmn-clipboard`, `code-link`,
-`definition-search`, `element-template-chooser`, `flow-navigation`,
-`inline-scripting`, `model-navigation`, `properties-panel`) and the
-`packages/bpmn-modeler` and `packages/dmn-modeler` npm packages may import
-**this** package but never `@miragon/bpmn-modeler-shared`. An eslint
-`no-restricted-imports` rule (`BND-PROTOCOL-PRIVATE` in `eslint.config.cjs`)
-fails the build if any of them, or this package itself, imports the protocol
-package. The webview apps (`apps/*-webview`) are left out on purpose: they are
-the host adapters that speak the protocol. Each npm package's
-`architecture.spec.ts` also forbids its sources from naming the protocol.
+- This package, the bpmn-js modules (`append-menu`, `bpmn-clipboard`, `code-link`, `definition-search`,
+  `element-template-builder`, `element-template-chooser`, `flow-navigation`, `inline-scripting`,
+  `model-navigation`, `properties-panel`) and both npm packages must never import
+  `@miragon/bpmn-modeler-shared`. The ESLint rule `BND-PROTOCOL-PRIVATE` in `eslint.config.cjs` fails
+  otherwise, and each npm package's `architecture.spec.ts` forbids naming the protocol.
+- The webview apps are left out on purpose: they are the adapters that speak the protocol.
+- A declaration here that a public type references ships in the published `.d.ts`, even unnamed. The
+  `check-dts` scripts catch protocol symbols and private imports there, and `publicApi.spec.ts` pins the
+  listed public names, but neither notices a changed declaration that still compiles. Treat such edits as
+  public API changes.
 
 ## Usage
 
-```json
-{
-  "dependencies": {
-    "@miragon/bpmn-modeler-types": "workspace:*"
-  }
-}
-```
-
 ```ts
-import { Engine, isTextEditingSurface, observeCanvasSize } from "@miragon/bpmn-modeler-types";
+import { type Engine, isTextEditingSurface, observeCanvasSize } from "@miragon/bpmn-modeler-types";
 ```
-
-Path resolution is handled by `tsconfig.base.json` (`paths`) plus
-`vite-tsconfig-paths` (webviews) and `tsconfig-paths-webpack-plugin` (extension
-host). Vitest projects take the `workspaceAliases` that the root
-`vitest.shared.ts` generates from the same `paths`.

@@ -93,7 +93,7 @@ class BridgeRoutersTest {
     }
 
     @Test
-    fun `a spawn opens the Artifacts view again after the settings`() {
+    fun `a spawn opens the Add-ons view again after the settings`() {
         val wired = wireChannel().also { this.wired = it }
         val routers = BridgeRouters(bridgeDeps(projectFixture.get(), wired.channel, wired.handlers))
         routers.register()
@@ -126,7 +126,7 @@ class BridgeRoutersTest {
     }
 
     @Test
-    fun `every spawn after the first reloads the Artifacts page, also one after the supervisor gave up`() {
+    fun `every spawn after the first reloads the Add-ons page, also one after the supervisor gave up`() {
         val wired = wireChannel().also { this.wired = it }
         val routers = BridgeRouters(bridgeDeps(projectFixture.get(), wired.channel, wired.handlers))
         routers.register()

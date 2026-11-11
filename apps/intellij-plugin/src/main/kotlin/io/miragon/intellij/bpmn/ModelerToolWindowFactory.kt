@@ -13,7 +13,7 @@ import javax.swing.SwingConstants
 
 /**
  * The **BPMN Modeler** tool window: a **Deploy** tab with the deployment form
- * and an **Artifacts** tab with the add-ons of the project, each a JCEF page
+ * and an **Add-ons** tab with the add-ons of the project, each a JCEF page
  * the out-of-process core ([CoreProcess]) drives exactly like [BpmnFileEditor]
  * drives the editor, with no protocol logic in Kotlin.
  *
@@ -38,7 +38,7 @@ class ModelerToolWindowFactory : ToolWindowFactory {
         }
         DeploymentToolWindowContent.addTo(project, toolWindow)
         AddOnsToolWindowContent.addTo(project, toolWindow)
-        toolWindow.setTitleActions(listOfNotNull(ActionManager.getInstance().getAction(RefreshArtifactsAction.ID)))
+        toolWindow.setTitleActions(listOfNotNull(ActionManager.getInstance().getAction(RefreshAddOnsAction.ID)))
     }
 
     companion object {
@@ -49,23 +49,23 @@ class ModelerToolWindowFactory : ToolWindowFactory {
 }
 
 /**
- * Opens the BPMN Modeler tool window at its Artifacts tab, on the EDT, and
+ * Opens the BPMN Modeler tool window at its Add-ons tab, on the EDT, and
  * tells [onDone] whether the tab is shown; false where the IDE cannot show it,
  * so the core asks with its list instead.
  */
-internal fun revealArtifacts(project: Project, onDone: (Boolean) -> Unit) {
+internal fun revealAddOns(project: Project, onDone: (Boolean) -> Unit) {
     if (project.isDisposed || !JBCefApp.isSupported()) return onDone(false)
     val toolWindow = ToolWindowManager.getInstance(project).getToolWindow(ModelerToolWindowFactory.TOOL_WINDOW_ID) ?: return onDone(false)
     // Creates the contents of a tool window that was never shown.
     val contentManager = toolWindow.contentManager
-    val artifacts = contentManager.contents.firstOrNull(AddOnsToolWindowContent::isArtifacts) ?: return onDone(false)
-    contentManager.setSelectedContent(artifacts, true)
+    val addOns = contentManager.contents.firstOrNull(AddOnsToolWindowContent::isAddOns) ?: return onDone(false)
+    contentManager.setSelectedContent(addOns, true)
     toolWindow.activate({ onDone(true) }, true)
 }
 
-/** Whether this project's BPMN Modeler tool window shows its Artifacts tab; never creates the contents. */
-internal fun isArtifactsTabShown(project: Project): Boolean {
+/** Whether this project's BPMN Modeler tool window shows its Add-ons tab; never creates the contents. */
+internal fun isAddOnsTabShown(project: Project): Boolean {
     val toolWindow = ToolWindowManager.getInstance(project).getToolWindow(ModelerToolWindowFactory.TOOL_WINDOW_ID) ?: return false
     val selected: Content? = toolWindow.takeIf { it.isVisible }?.contentManagerIfCreated?.selectedContent
-    return selected != null && AddOnsToolWindowContent.isArtifacts(selected)
+    return selected != null && AddOnsToolWindowContent.isAddOns(selected)
 }

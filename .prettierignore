@@ -28,6 +28,10 @@ apps/standalone/esbuild.mjs
 apps/standalone/plugins
 apps/standalone/configs/builtins.json
 
+# Brand files copied from the miragon-brand plugin (.miragon/brand-assets.yaml)
+.miragon/brand-assets.*
+apps/add-ons-webview/src/adapter/in/styles/cd-tokens.generated.css
+
 # Docs site (handled by its own workspace if needed)
 docs
 

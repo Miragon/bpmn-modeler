@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("vscode", () => import("../__fixtures__/vscodeCompositionFake"));
 
-import { ExtensionContext, Uri, WebviewViewProvider } from "vscode";
+import { ColorThemeKind, commands, ExtensionContext, Uri, WebviewViewProvider } from "vscode";
 
 import {
     AddOnCatalogModel,
@@ -16,15 +16,22 @@ import {
     ScriptVariableStore,
 } from "@miragon/bpmn-modeler-core";
 import { RecordingScriptEditor } from "@miragon/bpmn-modeler-core/testing";
-import { AddOnCatalogQuery, Query, RevealAddOnsQuery } from "@miragon/bpmn-modeler-shared";
+import {
+    AddOnCatalogQuery,
+    BrandModeQuery,
+    Query,
+    RevealAddOnsQuery,
+} from "@miragon/bpmn-modeler-shared";
 
 import {
+    changeColorTheme,
     registeredViewProviders,
     resetVscodeWindow,
     vscodeWindow,
 } from "../__fixtures__/vscodeCompositionFake";
 import { InMemoryMemento } from "../__fixtures__/vscodeStorage";
 import { ADD_ONS_VIEW_ID } from "../addOns/adapter/in/AddOnsViewProvider";
+import { REVIEW_ADD_ONS_CMD } from "../addOns/adapter/in/ReviewAddOnsCommand";
 import { BpmnDiffController } from "../diff/adapter/in/BpmnDiffController";
 import { setContext } from "../shared/adapter/out/extensionContext";
 import * as addOnsFeature from "./addOnsFeature";
@@ -42,30 +49,31 @@ function createExtensionContext(): ExtensionContext {
     } as unknown as ExtensionContext;
 }
 
-/** Plays VS Code resolving the Artifacts view, visible, and records what it posts to the page. */
-function resolveArtifactsView(): Query[] {
+/** Plays VS Code resolving the Add-ons view, visible, and records its shell and what it posts to the page. */
+function resolveAddOnsView(): { posted: Query[]; html: () => string } {
     const posted: Query[] = [];
     const inert = () => ({ dispose: () => undefined });
     const registration = registeredViewProviders.get(ADD_ONS_VIEW_ID);
-    if (registration === undefined) throw new Error("No provider serves the Artifacts view.");
+    if (registration === undefined) throw new Error("No provider serves the Add-ons view.");
+    const webview = {
+        options: {},
+        html: "",
+        cspSource: "webview-csp:",
+        asWebviewUri: (uri: Uri) => uri,
+        postMessage: async (message: Query) => posted.push(message) > 0,
+        onDidReceiveMessage: inert,
+    };
     (registration.provider as WebviewViewProvider).resolveWebviewView(
         {
             visible: true,
-            webview: {
-                options: {},
-                html: "",
-                cspSource: "webview-csp:",
-                asWebviewUri: (uri: Uri) => uri,
-                postMessage: async (message: Query) => posted.push(message) > 0,
-                onDidReceiveMessage: inert,
-            },
+            webview,
             onDidChangeVisibility: inert,
             onDidDispose: inert,
         } as never,
         {} as never,
         {} as never,
     );
-    return posted;
+    return { posted, html: () => webview.html };
 }
 
 /** The add-on catalog as VS Code's activation builds it, after the BPMN editor. */
@@ -188,10 +196,10 @@ describe("VS Code's add-on catalog", () => {
         ]);
     });
 
-    it("serves the Artifacts view the catalog it builds", async () => {
+    it("serves the Add-ons view the catalog it builds", async () => {
         const { addOns } = createVsCodeAddOns();
 
-        const posted = resolveArtifactsView();
+        const { posted } = resolveAddOnsView();
         await addOns.whenSettled();
 
         expect(posted).toHaveLength(1);
@@ -201,7 +209,21 @@ describe("VS Code's add-on catalog", () => {
         );
     });
 
-    it("has Review… show its rows in the Artifacts page the catalog serves", async () => {
+    it("shows the Add-ons view in VS Code's theme and follows a switch", async () => {
+        changeColorTheme(ColorThemeKind.Dark);
+        const { addOns } = createVsCodeAddOns();
+        const { posted, html } = resolveAddOnsView();
+        await addOns.whenSettled();
+
+        changeColorTheme(ColorThemeKind.HighContrastLight);
+
+        expect(html()).toContain('<html lang="en" data-cd-theme="dark">');
+        expect(posted.filter((message) => message instanceof BrandModeQuery)).toEqual([
+            new BrandModeQuery({ theme: "light", contrast: "hoch" }),
+        ]);
+    });
+
+    it("has Review… show its rows in the Add-ons page the catalog serves", async () => {
         const { addOns, reviews } = createVsCodeAddOns();
         const posted: Query[] = [];
         addOns.attachPanel((message) => posted.push(message), true);
@@ -215,7 +237,30 @@ describe("VS Code's add-on catalog", () => {
             args: [],
         });
         const reveals = posted.filter((message) => message instanceof RevealAddOnsQuery);
-        expect(reveals.map(({ reveal }) => reveal.addOnIds)).toEqual([[row]]);
+        expect(reveals.map(({ reveal }) => reveal)).toMatchObject([
+            { kind: "rows", addOnIds: [row] },
+        ]);
+    });
+
+    it("has Review Add-ons show the Add-ons view, then land its page on what needs review", async ({
+        onTestFinished,
+    }) => {
+        const registerCommand = vi.spyOn(commands, "registerCommand");
+        onTestFinished(() => registerCommand.mockRestore());
+        const { addOns } = createVsCodeAddOns();
+        const { posted } = resolveAddOnsView();
+        const reviewAddOns = registerCommand.mock.calls.find(
+            ([command]) => command === REVIEW_ADD_ONS_CMD,
+        )?.[1];
+
+        await reviewAddOns?.();
+        await addOns.whenSettled();
+
+        expect(vscodeWindow.executedCommands).toEqual([
+            { command: `${ADD_ONS_VIEW_ID}.focus`, args: [] },
+        ]);
+        const reveals = posted.filter((message) => message instanceof RevealAddOnsQuery);
+        expect(reveals.map(({ reveal }) => reveal.kind)).toEqual(["needsReview"]);
     });
 
     it("stops the catalog when the extension deactivates", async () => {

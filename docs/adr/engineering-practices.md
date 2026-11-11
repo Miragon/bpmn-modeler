@@ -268,7 +268,9 @@ copies. The settings rows in `settingsNormalization.cases.json` are the first
 such file (see [host-replicated state](architecture-and-hosts.md#host-replicated-state)).
 `codeApprovalChange.cases.json` holds how a code approval change merges into
 the stored list and which changes are refused; `PluginApprovalStoreTest` runs
-it against the Kotlin merge.
+it against the Kotlin merge. `brandMode.cases.json` in `libs/shared` holds
+the add-ons view's brand mode for each IDE theme and `colorTheme` setting, with
+the `<html>` attributes it writes; `BrandModeTest` runs it against `BrandMode.kt`.
 Rows whose shapes the typed Kotlin side cannot hold, such as a value of the
 wrong type, live in the core's testing kit (`TYPESCRIPT_ONLY_SETTINGS_CASES`),
 and `describeSettingsContract` runs them beside the JSON rows against every
@@ -278,12 +280,7 @@ Kotlin host copies is pinned the same way, to the TypeScript source file itself:
 `ModelerSettingsStoreTest` the `SURFACE_MODES` array in `surfaceMode.ts` and
 the `COLOR_THEMES` array in `settings.ts` of `libs/modeler-types`,
 `ModelerSettingsConfigurableTest` the `MODE_LABEL` table in the modeler's
-`modeStrip.ts`; each fails when the Kotlin copy differs. The add-ons view's
-`hostThemeVariables.json` (`apps/add-ons-webview/src/adapter/in/styles/`)
-lists every `--vscode-*` variable its stylesheet reads, which its own spec
-checks; `IdeThemeSignal.addOnsThemeVarsCss` maps that set for IntelliJ, and
-`IdeThemeSignalTest` reads the file, a declared input of the Gradle test task
-listed in the `intellij-plugin` CI filter. A text the Kotlin
+`modeStrip.ts`; each fails when the Kotlin copy differs. A text the Kotlin
 host copies is pinned the same way: `EmptyDmnDiagramTest` compares the scaffold
 IntelliJ's New DMN Model writes with `EMPTY_DMN_DIAGRAM` in `emptyDmn.ts` byte
 for byte. No generated file sits in between that could go stale. One Kotlin
@@ -357,11 +354,16 @@ workspace's `tsconfig.lib.json` is unproven, and the runner works without it.
 `corepack yarn test:mutation` runs it; pass `--mutate <file>` to check the
 rules a change touched. The [mutation workflow](../../.github/workflows/mutation.yml)
 is report-only, like the VS Code smoke test, and not part of the required
-`ci` check: it runs every mutant weekly and on demand on `main`, caches
-Stryker's incremental file, and on pull requests and merges to `main` that
-touch a `domain/` folder re-tests only the mutants affected by the change.
-Each merge's run refreshes the cached baseline, so a pull request is compared
-against the `main` it branched from rather than last week's. Its step summary
+`ci` check: it runs every mutant weekly and on demand on `main`, and on pull
+requests and merges to `main` that touch a `domain/` folder re-tests only the
+mutants affected by the change. Each `main` run uploads Stryker's incremental
+file as the `stryker-incremental-modeler-core` artifact, and the next run
+restores the newest one, so a pull request is compared against the `main` it
+branched from rather than last week's. The baseline was a cache entry first;
+the repository's caches exceed the 10 GB limit, eviction removed it within
+hours, and every run fell back to all mutants and hit the timeout. A full run
+takes about 30 minutes, so runs on `main` get 60 and are not cancelled by the
+next merge, which would leave the baseline lost again. Its step summary
 lists the score per context and every undetected mutant
 (`corepack yarn fitness mutation summary --report <json>`). The first full run
 (2026-10-26, run 40365142588) scored 85.7 % over 2,918 mutants in 48 files

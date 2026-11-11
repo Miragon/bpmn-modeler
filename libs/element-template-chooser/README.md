@@ -1,46 +1,27 @@
 # `@miragon/bpmn-modeler-element-template-chooser`
 
-Replaces `@bpmn-io/element-template-chooser` with a richer overlay for picking
-an element template. When the user clicks **Select** in the properties panel's
-template section, a modal opens with a searchable, category-filterable template
-list on the left and a live detail preview on the right (description,
-documentation link, and a breakdown of inputs / outputs / properties), with
-keyboard navigation and apply-on-Enter/double-click.
+Replaces `@bpmn-io/element-template-chooser` with a searchable overlay for picking an element template:
+a filterable list on the left, a preview of the template's description, documentation link, inputs,
+outputs and properties on the right. `@miragon/bpmn-modeler` registers it for both engines (`commonModules`
+in `src/modeler.ts`).
+
+Internal workspace, not published on its own.
 
 ## How it works
 
-`ElementTemplateChooserModule` registers the `elementTemplateChooser` bpmn-js
-DI service. It listens for the properties panel's `elementTemplates.select`
-event, asks `elementTemplates.getLatest(element)` for the applicable (not
-already applied) templates, renders the Preact overlay into a `position: fixed`
-container mounted on the canvas parent, and on confirm calls
-`elementTemplates.applyTemplate(element, template)`. Property bindings are
-classified (`classifyBinding`) and the implementation summary is derived
-(`extractImplementationDetail`) for both Camunda 7 (`camunda:topic`,
-`camunda:class`, …) and Camunda 8 (`zeebe:taskDefinition:type`, …) shapes.
-
-## Why this lives in its own library
-
-- **It is a self-contained properties-panel integration.** All it needs from the
-  host is the bpmn-js `elementTemplates` service; keeping it separate keeps the
-  overlay reusable in any bpmn-js application and lets its UX evolve
-  independently. `@miragon/bpmn-modeler` registers it in the `commonModules` of
-  `packages/bpmn-modeler/src/modeler.ts` (both engines) and inlines this
-  private, source-only package into its bundle
-  (`packages/bpmn-modeler/inlined-libraries.json`).
-- **Its template types are shared.** `append-menu` reuses the `ElementTemplate`
-  types. It is reachable from the engine-neutral `/design` entry, so its value
-  imports target chooser subpaths (e.g. `/types`), never the barrel, which pulls
-  in the DI module, minisearch, and the CSS
-  (`packages/bpmn-modeler/src/architecture.spec.ts`).
+- `ElementTemplateChooserModule` registers `elementTemplateChooser`. It listens for the properties panel's
+  `elementTemplates.select`, offers the applicable templates from `elementTemplates.getLatest(element)`, and
+  applies the choice with `elementTemplates.applyTemplate(element, template)`.
+- `classifyBinding` and `extractImplementationDetail` read both Camunda 7 (`camunda:topic`,
+  `camunda:class`, ...) and Camunda 8 (`zeebe:taskDefinition:type`, ...) bindings.
+- `append-menu` reuses the template types. Because the engine-neutral `/design` entry reaches them, value
+  imports go to subpaths such as `/types`, never the barrel, which pulls in the DI module, minisearch and
+  the CSS. `packages/bpmn-modeler/src/architecture.spec.ts` enforces this.
 
 ## Usage
 
-`@miragon/bpmn-modeler` already registers the module. On a plain bpmn-js
-`Modeler`, add it next to the properties panel and an element-templates module
-that provides `elementTemplates`. The Camunda 7 templates module below also
-needs the Camunda moddle extension (on Camunda 8, use
-`CloudElementTemplatesPropertiesProviderModule` with the Zeebe extension):
+On a plain bpmn-js modeler, register it next to the properties panel and a module that provides
+`elementTemplates`:
 
 ```ts
 import Modeler from "bpmn-js/lib/Modeler";
@@ -62,6 +43,4 @@ new Modeler({
 });
 ```
 
-The DI container wires the service automatically; it subscribes to
-`elementTemplates.select` and shows the overlay when the properties panel's
-template **Select** button is pressed.
+On Camunda 8, use `CloudElementTemplatesPropertiesProviderModule` with the Zeebe moddle instead.

@@ -29,7 +29,7 @@ internal class ActionNoticeShowResult(val chosen: Int?) : RpcResult
 
 internal class ConfirmShowResult(val confirmed: Boolean) : RpcResult
 
-/** Whether the BPMN Modeler tool window now shows its Artifacts tab. */
+/** Whether the BPMN Modeler tool window now shows its Add-ons tab. */
 internal class AddOnsRevealResult(val shown: Boolean) : RpcResult
 
 internal class ClipboardReadResult(val text: String) : RpcResult

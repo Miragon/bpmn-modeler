@@ -205,12 +205,13 @@ and the deployment target, one widget each; loading errors surface as balloons.
 Tail the IDE log for `[bridge stderr]` lines to watch the seam.
 
 The **BPMN Modeler** tool window (right stripe) has a **Deploy** and an
-**Artifacts** tab. Each is a `JcefRelayPanel` that relays its page verbatim
-through its router (`DeploymentRouter`, `AddOnsRouter`); the Artifacts browser
+**Add-ons** tab. Each is a `JcefRelayPanel` that relays its page verbatim
+through its router (`DeploymentRouter`, `AddOnsRouter`); the Add-ons browser
 is built the first time its tab shows. **Review…** on a plugin or rule package
-notice reaches the tab over `addOns/reveal`. To try the reload after a crash
-respawn, `kill` the bridge process while an **Allow this content** runs: the
-Artifacts page reloads and no row stays busy.
+notice reaches the tab over `addOns/reveal`; **Review Add-ons** (Tools ▸
+Miragon BPMN Modeler) shows the tab, then sends `addOns/review`. To try the
+reload after a crash respawn, `kill` the bridge process while an **Allow this
+content** runs: the Add-ons page reloads and no row stays busy.
 
 > The Gradle build only repackages the artefacts `intellij:build` produced — a
 > webview/CSS change is **not** picked up until you rebuild them. Re-run

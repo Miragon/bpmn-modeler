@@ -65,9 +65,8 @@ jobs:
               # ProjectScopeTest checks the Kotlin scopes against PROJECT_SCOPES.
               - 'libs/modeler-core/src/kernel/domain/templatePreferenceChange.cases.json'
               - 'libs/modeler-core/src/kernel/domain/projectScopes.ts'
-              # IdeThemeSignalTest checks the Artifacts tab's theme against the
-              # variables the add-ons page may read.
-              - 'apps/add-ons-webview/src/adapter/in/styles/hostThemeVariables.json'
+              # BrandModeTest runs these rows against the Kotlin brand mode.
+              - 'libs/shared/src/lib/brandMode.cases.json'
             standalone:
               - 'apps/standalone/**'
               - 'libs/standalone-extension/**'
@@ -143,6 +142,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: yarn lint
       - run: yarn format:check
+      - name: Brand files copied from miragon-brand are unchanged
+        run: sha256sum -c .miragon/brand-assets.sha256
       - name: Unused files/deps/exports (knip)
         run: yarn knip
       - name: Every Vitest workspace is a CI test target
@@ -313,14 +314,19 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Build the extension
         run: corepack yarn build
+      # The key names the VS Code builds the folder holds, so an entry is saved once per stable
+      # release. A per-run key saved 486 MB on every run and pushed other caches out.
+      - id: vscode
+        name: Resolve the stable VS Code version
+        run: |
+          stable=$(curl -fsSL --retry 3 https://update.code.visualstudio.com/api/releases/stable | jq -r '.[0]')
+          test -n "$stable"
+          echo "stable=$stable" >> "$GITHUB_OUTPUT"
       - name: Cache VS Code download
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: apps/vscode-plugin/.vscode-test
-          key: vscode-test-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('apps/vscode-plugin/test/e2e/.vscode-test.mjs', 'yarn.lock') }}-${{ github.run_id }}
-          restore-keys: |
-            vscode-test-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('apps/vscode-plugin/test/e2e/.vscode-test.mjs', 'yarn.lock') }}-
-            vscode-test-${{ runner.os }}-${{ runner.arch }}-
+          key: vscode-test-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('apps/vscode-plugin/test/e2e/.vscode-test.mjs') }}-${{ steps.vscode.outputs.stable }}
       - name: Download VS Code test versions
         working-directory: apps/vscode-plugin
         run: |

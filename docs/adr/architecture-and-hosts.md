@@ -115,7 +115,7 @@ and the `domain/` of `kernel/` and `editorSession/`.
 
 A context that lists what other contexts own declares structural ports in its
 own `port/` and leaves the rules with the owners. `addOns/` (the add-on
-catalog behind the artifacts view) is the first. The ports of
+catalog behind the Add-ons view) is the first. The ports of
 `addOns/port/addOnSourcePorts.ts` are met by inventories that import nothing
 of `addOns/`: `PluginAddOnSource` by `PluginInventory` in
 `bpmnPlugins/service/`, `RulePackageAddOnSource` and `TemplateAddOnSource` by
@@ -128,8 +128,8 @@ sides name live in `kernel/domain/`: `ListedPresence` and
 `ApprovableCodeTexts` in `codeApproval.ts`, the template file listing in
 `templateListing.ts` and the marketplace listing in `marketplaceListing.ts`,
 from which the catalog derives its own view with the templates read. The context is
-named `addOns` because no core identifier may start with `Artifact` next to
-`ArtifactService`; "artifacts view" stays a word of the UI.
+named `addOns` after the view it serves, **Add-ons**; the `Artifact` prefix
+in the core belongs to `ArtifactService`.
 
 The shared role-folder rules keep services off adapters, outbound adapters off
 services, and every import away from the package entry and the test kit; the
@@ -224,8 +224,8 @@ reads that table before any panel attaches.
 The add-ons view (`apps/add-ons-webview`, surface `addOnsView`) follows the
 same shape. Its messages sit in `libs/shared/src/lib/addOnsView.ts`, a
 feature file of their own, which both shared protocol specs import; its
-payloads copy the core's catalog model, request, result and reveal field for
-field, and `AddOnViewMessages.spec.ts` pins each whole type and each value set
+payloads copy the core's catalog model, request, result and reveal (rows or
+needs review) field for field, and `AddOnViewMessages.spec.ts` pins each whole type and each value set
 to its home with `expectTypeOf`. `AddOnViewMessages` in the core's
 `addOns/adapter/in/` maps the protocol for one page, so no host translates
 it, and `AddOnsFeature.panelRoutes` reads its table before any page attaches.
@@ -234,30 +234,101 @@ a host can drop a push that lands before the page listens. A request from the
 page is untrusted: `addOnRequestOf` keeps only a kind the core knows with the
 fields it names. The model holds workspace text (file, template and folder
 names), so the page builds its DOM with the DOM API from the model and never
-with `innerHTML`, and every `--vscode-*` variable its stylesheet reads is
-listed in `src/adapter/in/styles/hostThemeVariables.json`, the set IntelliJ
-maps for it. VS Code serves the surface; the bridge declares it `absent`
-until IntelliJ does.
+with `innerHTML`. VS Code serves the surface, and IntelliJ through the bridge.
 
-IntelliJ shows the add-ons view as the **Artifacts** tab of its BPMN Modeler
-tool window, next to the **Deploy** tab, as VS Code holds Deploy and Artifacts
+The add-ons view wears the Miragon brand look, not the host's: it is
+Miragon's own product surface, and one look serves both hosts. Its tokens
+switch on `<html data-cd-theme="light|dark">` and `data-cd-kontrast="hoch"`,
+never on IDE colours. The host only signals the mode and is its only writer. One rule,
+`brandModeOf` in `libs/shared/src/lib/brandMode.ts`, maps the IDE theme
+(light, dark, high contrast, high contrast light) and the `colorTheme` setting
+to it: `automatic` follows the IDE, `light` forces light, and high contrast
+always passes through. `brandModeAttributes` names the attributes. Each host
+writes them into the shell it serves, `data-cd-theme` always, so the first
+frame paints in the mode. On a change VS Code posts a `BrandModeQuery`, which
+the page's router hands to `applyBrandMode` outside the view state, and
+IntelliJ sets both attributes through `executeJavaScript`. IntelliJ's copy,
+`BrandMode.kt`, runs `brandMode.cases.json` in `BrandModeTest`.
+
+The page is a list beside a detail pane. Two tabs split the catalog by the
+group's `kind`, the workspace's folders and the marketplaces; inside a tab a
+search and filter chips narrow the list, grouped by folder and source, and the
+detail shows the selected add-on with its actions as buttons. From 640px of
+the view's own width the panes stand side by side, below that the detail
+replaces the list with a Back button; container queries decide, so the layout
+follows a resized sidebar or tool window without a reload. The reducer
+(`src/domain/viewState.ts`) holds the tab, each tab's selection, the filter
+and the pane, and keeps the tab the user chose (`chosenScope`), the selections
+and the open or closed headers in the host's saved state, so a reload, which
+IntelliJ does after a bridge restart, lands where the user was; the search
+stays with the page. Until the user chooses a tab, the first model that lists
+something opens Marketplaces when the Workspace tab lists nothing and a
+marketplace is listed, else Workspace (`openingScopeOf`). A tab selects on its
+own only a row its open headers show (`rowsInSight`). A search or
+filter opens every header with a match, and what the user opens or closes
+while it is on goes into `filterExpansion`, which stays with the page and ends
+with the filter, so the saved headers never change while filtering and show
+again once it is cleared.
+
+The brand's own components draw it: the vendored tokens
+(`cd-tokens.generated.css`, unchanged from the `miragon-brand` skill), Geist
+and Geist Mono from `@fontsource-variable` and Lucide icons, all in the bundle
+and tree-shaken; components use the `--cd-ui-*` roles and the palette only
+for button, badge and kind surfaces. The stylesheet reads no `--vscode-*`
+variable, and its spec checks that, the tokens' checksum, `[hidden]`, forced
+colours and reduced motion. The type sizes are the brand's (13px base, 11px
+small), so the IDE's font size does not reach the page; the host's zoom
+still scales it. The fonts are OFL-1.1 and Lucide is ISC, so both plugins
+carry their licenses. The add-ons build emits them beside the bundle
+(`licenses/`), so a host job needs no install of the webview's dependencies:
+`apps/vscode-plugin/webpack.config.js` copies them into the VSIX's
+`licenses/` with the bundle, and the IntelliJ build's
+`copyThirdPartyLicenses` puts them into the jar's `META-INF/licenses/`,
+which `verifyReleaseBundles` checks for a release.
+
+Every control is reached with Tab, and the list has no roving tree (see
+[Alternatives](#alternatives-and-consequences)). The tabs keep the arrow,
+Home and End keys of the tab pattern and the "…" menus those of the menu
+pattern, with Escape back to their button and Tab on from it, as a role
+promises its keys. When the host focuses the page (VS Code's view focus,
+IntelliJ's tool window activation), focus goes to the selected add-on, its row or, in the
+drill-down, its detail heading, else to the active tab. The view's own words,
+its tab, chip and empty-state labels, "Needs review" and "Problem" on a row,
+the hint of an empty detail and its screen-reader summaries, live in one
+module, `src/domain/chromeTexts.ts`: they name the view's controls and
+summaries, which the core's model does not have, as "Loading…" does, and one
+module keeps them from scattering into adapters where a reviewer cannot tell
+them from model text. A row's "Needs review" is read from what the core
+offers (Allow or Review…), never from a rule of its own, and the detail shows
+the core's state text. Every other text comes from the core, which also sends
+`emptyText`, why no folder lists an add-on, whenever the workspace has none,
+marketplaces or not.
+
+IntelliJ shows the add-ons view as the **Add-ons** tab of its BPMN Modeler
+tool window, next to the **Deploy** tab, as VS Code holds Deploy and Add-ons
 in one container. The tool window keeps the id of the former deployment tool
 window (`Miragon Deployment`), so a layout a user saved still applies; its
 factory sets the stripe title. Each tab is one `JcefRelayPanel`, a JCEF page
 that relays its messages verbatim, and counts as open only while the tool
 window is visible and the tab selected (`VisibilityLatch`), so Deploy refreshes
-its form defaults only while its tab shows. The Artifacts browser is built the
+its form defaults only while its tab shows. The Add-ons browser is built the
 first time its tab shows, since each browser costs a renderer. Its shell
-(`/addOns.html`, bundle under `/webview-add-ons/`) maps the deployment palette
-plus the extras in `hostThemeVariables.json` (`IdeThemeSignal.addOnsThemeVarsCss`,
-held to that file by `IdeThemeSignalTest`); High Contrast is the bundled
-theme's id, as 2024.2 has no API for it. The bridge attaches one panel, hidden,
+(`/addOns.html`, bundle under `/webview-add-ons/`) maps no IDE colour or font,
+as the page wears the Miragon brand: it carries only the brand mode on
+`<html>`, and the tab's theme script (`addOnsApplyJs`) sets it again on a LaF or
+modeler settings change. The Deploy shell keeps its `#ide-theme-vars` palette
+and has no brand mode. High Contrast
+is the bundled theme's id, as 2024.2 has no API for it. The bridge attaches one panel, hidden,
 at start. **Review…** reaches it through `RpcAddOnViewReveal`, the second
 adapter of `AddOnViewRevealPort`: `addOns/reveal` asks Kotlin to select the tab
 and activate the tool window, and the core then delivers the rows through the
 panel, so no row id rides the wire. Kotlin answers `false` where JCEF is
 missing, the tool window is not registered or the project is closing, and the
-`ListReview` fallback asks instead. The tab's title button sends
+`ListReview` fallback asks instead. The Tools action **Review Add-ons**
+(`ReviewAddOnsAction`) selects the tab itself through `revealAddOns`, then
+sends `addOns/review`, a reliable, coalesced notification that starts the
+bridge; the core then reveals what needs review through the panel. Where the
+tab cannot show, it asks the core nothing. The tab's title button sends
 `addOns/refresh`, as nothing reports an installed package or another window's
 approval. Every process after the first, a crash respawn or a start after the
 supervisor gave up, reloads the page: only a result frees a busy row, and a
@@ -504,23 +575,33 @@ VS Code host reaches another only through `shared/`, which the VS Code
 architecture test checks.
 
 VS Code's side bar has one activity bar container, `bpmn-modeler-deploy`,
-titled **BPMN Modeler** with the rocket icon. It kept the id of the
-deployment-only container, so a user's layout survives. It holds two webview
+titled **BPMN Modeler** with the Miragon comet, the brand's sign for
+Miragon itself (IntelliJ's tool window stripe shows it too); the rocket stays
+on the deploy action. It kept the id of the
+deployment-only container, so a user's layout survives. Theia stores a plugin
+view container's title and icon in that layout and restores them over the ones
+the extension contributes now, so the standalone app rebinds its
+`PluginViewRegistry` in `libs/standalone-extension` to give a restored
+container the current title and icon. The container holds two webview
 views: **Deploy** (`bpmn-modeler.deploymentView`), shown while a custom editor
-is open, and **Artifacts** (`bpmn-modeler.artifactsView`), shown whenever a
+is open, and **Add-ons** (`bpmn-modeler.addOnsView`), shown whenever a
 folder is open, so the container now shows whenever a folder is open. Both
 set `retainContextWhenHidden`: the core posts nothing to a hidden view, so
 keeping its page costs memory only, and a page shown again keeps its banners
-and the results of requests in flight. The Artifacts view's shell
-(`AddOnsViewHtml`, CSP shell `addOns`) allows its nonced script and its linked
-stylesheet and nothing else, no inline styles either, as the page uses no
-codicons, no images and no style attributes.
+and the results of requests in flight. The Add-ons view's shell
+(`AddOnsViewHtml`, CSP shell `addOns`) allows its nonced script, its linked
+stylesheet and the fonts its bundle ships, and no inline styles, as the page
+uses no codicons, no images and no style attributes. The shell carries the
+brand mode of `window.activeColorTheme` and the `colorTheme` setting
+(`VsCodeBrandModeSignal`), and the provider posts a `BrandModeQuery` on each
+change of either until the view is disposed, and again when the page asks for
+its catalog, as a change posted while the page loads can be lost.
 `AddOnsViewProvider` attaches one core panel per resolved view and hands it
 the page's commands, its visibility and its disposal; the core refreshes on
-show. The view's title bar **Refresh Artifacts** (`bpmn-modeler.refreshArtifacts`)
+show. The view's title bar **Refresh Add-ons** (`bpmn-modeler.refreshAddOns`)
 is host chrome over `AddOnsFeature.refresh()`: no watcher covers
-`node_modules`, so it is read again only then or when the view is shown again. Code names say `addOns`;
-"Artifacts" is the view id and UI text only. **Review…** on a plugin or rule
+`node_modules`, so it is read again only then or when the view is shown again. Code names and
+ids say `addOns`. **Review…** on a plugin or rule
 package notice opens the view through `VsCodeAddOnsViewReveal`, the
 `AddOnViewRevealPort` adapter: it has the provider focus the view, then asks
 the core to reveal the rows, and answers `false` when focusing fails, as in a
@@ -528,14 +609,20 @@ shell without the command, so `ViewReview` falls back to the list. The
 provider runs the view's `<viewId>.focus` command, which opens the container
 and resolves the view; a page that is still loading then loses that focus, so
 the provider shows the view with focus once more on the page's first message,
-and the page focuses the revealed row (the smoke test found a fresh view left
-unfocused, with the row out of sight). A disposed view (hidden, moved or out
+and the page focuses the revealed add-on, its row or, in the drill-down the
+narrow side bar shows, its detail heading (the smoke test found a fresh view
+left unfocused, with the row out of sight). A disposed view (hidden, moved or out
 of its `when` clause) drops both the page state and an unanswered focus, so
 the next view VS Code resolves starts clean. The reviews are built before the
 BPMN editor that takes them, while the catalog is built later from that
 editor's owners, so the composition connects the reveal once the catalog
 exists; activation is synchronous, so no notice can ask before then. The
-adapter runs `describeAddOnViewRevealContract`.
+adapter runs `describeAddOnViewRevealContract`. The palette command
+**Review Add-ons** (`bpmn-modeler.reviewAddOns`, `ReviewAddOnsCommand`) has
+the provider focus the view the same way, then calls
+`AddOnsFeature.revealNeedsReview()`; when focusing fails it only logs a
+warning and asks the core nothing. It is offered while a folder is open, as
+the view is.
 
 The element-template editor is the main editor for template files in VS Code:
 files in an `element-templates` folder open in it through a default editor
@@ -815,7 +902,8 @@ navigation, script-editor and code-link producer contributions to the consumer,
 including keys and handler signatures, without production cross-context imports.
 
 A notification with actions follows the same split (proposed with the
-[BPMN plugins](bpmn-modeler.md#user-supplied-plugins-proposed), not released).
+[BPMN plugins](bpmn-modeler.md#user-supplied-plugins-proposed), released in
+VS Code 1.21.0 and IntelliJ 1.16.0).
 `NotifierPort` only shows text, and a `PickerPort` list is too heavy for a
 yes-or-later question, so the kernel adds a generic port
 (`ActionNotifierPort.offer(notice)` in `kernel/port/hostPorts.ts`). The core
@@ -1066,8 +1154,12 @@ bundle needs:
 - `style-src` keeps `'unsafe-inline'` in every editor and deployment shell:
   diagram-js, the properties panel and CodeMirror set style attributes and
   inject `<style>` elements without a nonce, and the deployment form's markup
-  carries a style attribute. VS Code's add-ons shell has only its linked
-  stylesheet and allows `style-src` from the webview alone.
+  carries a style attribute. The add-ons shells have only their linked
+  stylesheet and allow `style-src` from the bundle alone (`webview.cspSource`
+  in VS Code, `'self'` in IntelliJ); the bundle writes no style attribute or
+  `<style>` element. Its one CSSOM write, the sticky toolbar's height as `--av-sticky-top` on
+  `<html>` for `scroll-padding-top`, is outside what `style-src` governs, and
+  without it Tab in a narrow view focused rows beneath the toolbar.
 - In the BPMN, DMN and form shells `img-src` allows `data:`, and for BPMN also
   `https:`, because element-template icons may be either. BPMN and DMN have no
   `connect-src`, so a copy-as-PNG of a remote `.svg` icon renders without that
@@ -1079,8 +1171,10 @@ bundle needs:
 - VS Code's deployment shell allows only its script and its styles, because the
   deployment form loads no images or fonts. IntelliJ builds its deployment
   policy from the BPMN one without `https:` images.
-- IntelliJ's add-ons shell allows only its script and its styles, as the add-ons
-  page loads no images or fonts.
+- Both add-ons shells allow fonts from the bundle alone (`font-src` is
+  `webview.cspSource` in VS Code, `'self'` in IntelliJ) and no images. The
+  bundle builds with Vite `base: "./"`, so its stylesheet's `url()`s resolve
+  next to `index.css` in both hosts.
 - `base-uri` and `form-action` are `'none'` in every shell: `default-src` does
   not cover them, and no bundle needs a `<base>` or a native form submission.
 
@@ -1088,8 +1182,8 @@ VS Code and the standalone app set the policy as a `<meta>` tag, because Theia
 injects its own unnonced scripts ahead of it, and limit `localResourceRoots` to
 each webview's bundle directory. IntelliJ sends it as a response header from
 `WebviewServer` and allows the inline `acquireVsCodeApi` shim by its SHA-256
-hash. The `#ide-theme-vars` block is computed per request and rewritten live, so
-it relies on `'unsafe-inline'`. Each host builds its policies in one place,
+hash. The `#ide-theme-vars` block of the editor and deployment shells is
+computed per request and rewritten live, so it relies on `'unsafe-inline'`. Each host builds its policies in one place,
 VS Code in `webviewContentSecurityPolicy.ts` and IntelliJ in
 `WebviewContentSecurityPolicy.kt`: the directives every shell shares are written
 once, and a shell lists only what its bundle adds, so a shell can neither drop
@@ -1196,7 +1290,9 @@ holds its copy of the deadline to the one `protocol.json` lists. The relayed
 page messages and visibility of the add-ons view (`addOns/webviewMessage`,
 `addOns/open`) are reliable frames that wait for the next process, unlike the
 best-effort deployment relay: only a result frees a busy row on the page, so a
-dropped request would leave its row busy.
+dropped request would leave its row busy. `addOns/review` is reliable too, as
+the user waits for its result across a cold start; its coalesce key
+`addOns/review` keeps one of the presses made while the bridge is down.
 
 ### Process lifecycle
 
@@ -1548,6 +1644,25 @@ a cached result must equal an uncached run.
   touched both adapters, the RPC and Kotlin. Core-built views and prompts cost
   the hosts per-item freedom: a host renders only what the shared shape
   carries, so a widget-specific touch needs a field in that shape first.
+- The add-ons view could follow the IDE's look through VS Code's `--vscode-*`
+  variables, with IntelliJ mapping its palette onto the same names. That
+  needed a pinned list of every variable the stylesheet read, a Kotlin mapping
+  held to it, `'unsafe-inline'` for the mapped block in IntelliJ's shell, and
+  still looked different in each host. The brand look costs the view its
+  match with the IDE's colours and font size; the host keeps only light, dark
+  and high contrast.
+- The core could send the view's own words (tab and chip labels, "Needs
+  review", the empty and no-match texts) in the catalog model. They name
+  controls and filters of one page, not the catalog, so each would be a
+  protocol field no other view reads. Keeping them in `chromeTexts.ts` costs a
+  second home for words beside the core's, so a review checks that a new word
+  there names the view and does not restate a model text.
+- The outline's roving tree kept the list one tab stop, with arrows, Home,
+  End and type-ahead inside it. The list-and-detail layout of
+  [#2321](https://github.com/Miragon/bpmn-modeler/issues/2321) puts each row's
+  actions in the detail pane, and the product decision put that layout before
+  the tree model. Dropping it costs keyboard users one Tab per shown row and
+  header; closing a folder, the search and the chips shorten the way.
 - The marketplace's free-text location could have come through a generic
   text-input port beside `TokenPromptPort`, with the scope through
   `PickerPort.choose`. That costs the same protocol as the add question (one

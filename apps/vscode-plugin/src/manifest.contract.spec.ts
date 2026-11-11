@@ -40,6 +40,7 @@ import {
     VERIFY_DEPLOYMENT_CMD,
 } from "./deployment/adapter/in/DeploymentController";
 import { ADD_ONS_VIEW_ID, REFRESH_ADD_ONS_CMD } from "./addOns/adapter/in/AddOnsViewProvider";
+import { REVIEW_ADD_ONS_CMD } from "./addOns/adapter/in/ReviewAddOnsCommand";
 import {
     ADD_MARKETPLACE_CMD,
     REMOVE_MARKETPLACE_CMD,
@@ -160,6 +161,7 @@ const CODE_COMMAND_IDS = [
     TOGGLE_ELEMENT_TEMPLATE_JSON_CMD,
     NEW_ELEMENT_TEMPLATE_CMD,
     REFRESH_ADD_ONS_CMD,
+    REVIEW_ADD_ONS_CMD,
 ];
 
 const LEGACY_NAMESPACE = ["miragon", "camundaModeler"].join("."); // built so this file is not its own false positive
@@ -235,10 +237,14 @@ describe("package.json ↔ code contract", () => {
     });
 
     // The container keeps its id, so a user's layout survives, and shows whenever a folder is open.
-    it("shows Deploy and Artifacts in one BPMN Modeler container", () => {
+    it("shows Deploy and Add-ons in one BPMN Modeler container", () => {
         expect(manifest.contributes.viewsContainers.activitybar).toEqual([
-            { id: "bpmn-modeler-deploy", title: "BPMN Modeler", icon: "$(rocket)" },
+            { id: "bpmn-modeler-deploy", title: "BPMN Modeler", icon: "./icons/komet.svg" },
         ]);
+        // VS Code draws an activity bar icon as a mask in its own colour.
+        expect(readFileSync(resolve(__dirname, "../icons/komet.svg"), "utf-8")).toContain(
+            'fill="currentColor"',
+        );
         expect(manifest.contributes.views["bpmn-modeler-deploy"]).toEqual([
             {
                 type: "webview",
@@ -249,13 +255,16 @@ describe("package.json ↔ code contract", () => {
             {
                 type: "webview",
                 id: ADD_ONS_VIEW_ID,
-                name: "Artifacts",
+                name: "Add-ons",
                 when: "workspaceFolderCount > 0",
             },
         ]);
     });
 
-    it("offers the refresh in the Artifacts view's title bar and while a folder is open", () => {
+    it("offers the refresh in the Add-ons view's title bar and while a folder is open", () => {
+        expect(
+            manifest.contributes.commands.find(({ command }) => command === REFRESH_ADD_ONS_CMD),
+        ).toMatchObject({ title: "Refresh Add-ons", category: "Miragon BPMN Modeler" });
         expect(manifest.contributes.menus["view/title"]).toContainEqual({
             command: REFRESH_ADD_ONS_CMD,
             when: `view == ${ADD_ONS_VIEW_ID}`,
@@ -265,6 +274,20 @@ describe("package.json ↔ code contract", () => {
             command: REFRESH_ADD_ONS_CMD,
             when: "workspaceFolderCount > 0",
         });
+    });
+
+    // The view exists only while a folder is open, so the command is offered only then.
+    it("offers Review Add-ons in the palette while a folder is open", () => {
+        expect(
+            manifest.contributes.commands.find(({ command }) => command === REVIEW_ADD_ONS_CMD),
+        ).toMatchObject({ title: "Review Add-ons", category: "Miragon BPMN Modeler" });
+        expect(manifest.contributes.menus.commandPalette).toContainEqual({
+            command: REVIEW_ADD_ONS_CMD,
+            when: "workspaceFolderCount > 0",
+        });
+        expect(
+            manifest.contributes.menus["view/title"].map(({ command }) => command),
+        ).not.toContain(REVIEW_ADD_ONS_CMD);
     });
 
     it("declares exactly the custom-editor viewTypes the code uses", () => {

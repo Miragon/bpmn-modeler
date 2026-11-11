@@ -10,8 +10,10 @@ import java.util.Base64
  * `script-src` allows the bundle (`'self'`, which also covers the lazily loaded
  * chunks) and the inline [ACQUIRE_VS_CODE_API_SHIM] by hash; the shim is a
  * constant, so its hash is too. `style-src` stays `'unsafe-inline'` without a
- * nonce or hash: `#ide-theme-vars` is computed per request and rewritten live,
- * and Chromium ignores `'unsafe-inline'` once a nonce or hash is listed. The JCEF
+ * nonce or hash where a shell carries `#ide-theme-vars`: it is computed per
+ * request and rewritten live, and Chromium ignores `'unsafe-inline'` once a nonce
+ * or hash is listed. The add-ons shell carries none, so it admits only its bundle's
+ * stylesheet. The JCEF
  * bridge runs through `executeJavaScript`, which a page policy does not govern.
  */
 internal object WebviewContentSecurityPolicy {
@@ -62,14 +64,18 @@ internal object WebviewContentSecurityPolicy {
 
     val DEPLOYMENT_SHELL = policy(imageSources = "'self' data:", fontSources = "'self' data:")
 
-    // The add-ons page loads no image and no font, so `default-src 'none'` refuses both.
-    val ADD_ONS_SHELL = policy(imageSources = null, fontSources = null)
+    // The add-ons page loads only the fonts its bundle ships and no image, which `default-src 'none'` refuses.
+    val ADD_ONS_SHELL = policy(imageSources = null, fontSources = "'self'", styleSources = "'self'")
 
-    private fun policy(imageSources: String?, fontSources: String?): String =
+    private fun policy(
+        imageSources: String?,
+        fontSources: String?,
+        styleSources: String = "'self' 'unsafe-inline'",
+    ): String =
         listOfNotNull(
             "default-src 'none'",
             "script-src 'self' $shimHashSource",
-            "style-src 'self' 'unsafe-inline'",
+            "style-src $styleSources",
             imageSources?.let { "img-src $it" },
             fontSources?.let { "font-src $it" },
             "base-uri 'none'",

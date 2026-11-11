@@ -24,7 +24,8 @@
   "dependencies": {
     "@theia/core": "1.76.0",
     "@theia/editor": "1.76.0",
-    "@theia/monaco": "1.76.0"
+    "@theia/monaco": "1.76.0",
+    "@theia/plugin-ext": "1.76.0"
   },
   "peerDependencies": {
     "react": "^19.0.0",

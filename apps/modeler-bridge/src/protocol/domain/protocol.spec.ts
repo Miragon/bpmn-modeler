@@ -142,6 +142,7 @@ describe("RPC protocol descriptor", () => {
                     "  addOns/webviewMessage",
                     "  addOns/open",
                     "  addOns/refresh",
+                    "  addOns/review",
                     "",
                     "Core → Host (requests):",
                     "  document/write",

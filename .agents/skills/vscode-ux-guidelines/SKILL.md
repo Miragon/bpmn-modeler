@@ -86,7 +86,7 @@ Place a slot as VS Code's [status bar guideline](https://code.visualstudio.com/a
 
 If the user cancels (Escape), the generic prompts answer `undefined`, `[]` or `false` and the caller decides what that means: dismissing an engine, migration or deployment choice writes nothing and shows no message, while declining to send credentials to a new host reports that nothing was sent. Use quick picks for selection from a list. Don't abuse notification buttons for this.
 
-A list that the user manages over time belongs in a view, not a quick pick. **Review…** on a plugin or rule package notice opens the Artifacts view at the pending rows (`ViewReview` over `VsCodeAddOnsViewReveal`, which has `AddOnsViewProvider.focus` run `bpmn-modeler.artifactsView.focus` and focus the view again once a page still loading has loaded); the `chooseMany` checklist (`ListReview`) appears only when a pending item lies outside every open folder or the view cannot be focused. A view gets focus only on such an explicit user action, never on its own.
+A list that the user manages over time belongs in a view, not a quick pick. **Review…** on a plugin or rule package notice opens the Add-ons view at the pending rows (`ViewReview` over `VsCodeAddOnsViewReveal`, which has `AddOnsViewProvider.focus` run `bpmn-modeler.addOnsView.focus` and focus the view again once a page still loading has loaded); the `chooseMany` checklist (`ListReview`) appears only when a pending item lies outside every open folder or the view cannot be focused. **Review Add-ons** (`bpmn-modeler.reviewAddOns`) is such an action too: it focuses the view, then the core lands it on what needs review. A view gets focus only on such an explicit user action, never on its own.
 
 Two input boxes come from core services, both for the template marketplace. `VsCodeTokenPrompt` (`apps/vscode-plugin/src/templateMarketplace/adapter/out/VsCodeTokenPrompt.ts`) implements `TokenPromptPort` and shows the `TokenPrompt` the core builds (`libs/modeler-core/src/template-marketplace/domain/tokenPrompt.ts`: the title, the prompt and `password: true`) in `window.showInputBox`. It adds only `ignoreFocusOut: true`, because the user leaves VS Code to create the token. It returns the answer as typed, and the core takes a blank answer for no token, so the adapter does not trim.
 
@@ -218,11 +218,24 @@ Webviews **must** respect the user's VS Code theme:
 - Test with light, dark, and high-contrast themes
 - See the vscode-webviews skill for implementation details
 
+**Exception: the Add-ons view.** It wears the Miragon brand look (brand
+tokens, Geist, Lucide icons), not VS Code's colours, and reads no `--vscode-*`
+variable. It still respects the user's theme through the brand mode: the host
+writes `data-cd-theme="light|dark"` and `data-cd-kontrast="hoch"` on `<html>`
+from the theme kind and the `miragon.bpmnModeler.colorTheme` setting
+(`brandModeOf` in `libs/shared/src/lib/brandMode.ts`), so light, dark, high
+contrast and high contrast light all apply. Colour is never its only signal:
+a kind or status also has an icon and a word. Keep any new surface of this
+view on the brand tokens; do not add `--vscode-*` fallbacks to it. See
+[Architecture and hosts](../../../docs/adr/architecture-and-hosts.md) for the
+decision.
+
 ## Accessibility & Keyboard Shortcuts
 
 - All interactive elements must be keyboard-accessible
 - Use ARIA labels for non-text elements
-- Respect VS Code's `editor.fontSize` and zoom level
+- Respect VS Code's `editor.fontSize` and zoom level. The Add-ons view uses the brand's type sizes and follows only the zoom
+- A widget with an ARIA role keeps that role's keys: the Add-ons view dropped its roving tree for plain Tab order, but its `role=tablist` and `role=menu` keep their arrow, Home, End and Escape keys
 - The properties panel uses standard HTML form elements with labels
 - Keyboard shortcuts (Cmd/Ctrl+C/V/A) work in both diagram and properties panel via the polyfills described above
 - The select-all guard (`onSelectAllKeydown` in `packages/bpmn-modeler/src/propertiesPanelClipboard.ts`) ensures Cmd/Ctrl+A works correctly in contenteditable fields

@@ -182,6 +182,7 @@ class ProtocolHandlerCoverageTest {
                 HostToCoreMethod.ADD_ONS_WEBVIEW_MESSAGE to { addOns.forwardMessage("""{"type":"GetAddOnCatalogCommand"}""") },
                 HostToCoreMethod.ADD_ONS_OPEN to { addOns.setOpen(true) },
                 HostToCoreMethod.ADD_ONS_REFRESH to { addOns.refresh() },
+                HostToCoreMethod.ADD_ONS_REVIEW to { addOns.review() },
             )
         val framesBySentMethod = linkedMapOf<String, SentFrame>()
         for ((method, send) in senders) {

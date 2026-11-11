@@ -480,7 +480,7 @@ and source architecture tests guard the import boundary.
 Proposed for [#1626](https://github.com/Miragon/bpmn-modeler/issues/1626) and
 shipped for VS Code by [#2240](https://github.com/Miragon/bpmn-modeler/issues/2240)
 and for IntelliJ by [#2242](https://github.com/Miragon/bpmn-modeler/issues/2242);
-not released. Orca ([#2244](https://github.com/Miragon/bpmn-modeler/issues/2244))
+released in VS Code 1.21.0 and IntelliJ 1.16.0. Orca ([#2244](https://github.com/Miragon/bpmn-modeler/issues/2244))
 reuses the same core and package. Teams want to load bpmn-js plugins, many written for
 the Camunda Modeler, without forking a host or building an app on the package.
 The [user guide](../vscode/features/bpmn-plugins.md) carries what users must
@@ -561,13 +561,30 @@ workspace root. It reads `plugin.json`, or scans a Camunda `index.js` for
 string literals without running it. Paths must stay inside the plugin folder,
 by the kernel's `staysInsideFolder`, the rule the template marketplace applies
 to repository paths too, and a folder name holding a separator or `..` is
-skipped. A plugin runs only after the user approved this content in this
-folder: the approval is a SHA-256 of the script and the style, each prefixed
-with its length and a missing style marked apart from an empty one, so bytes
-moved from one file to the other change the hash. It is kept by the host outside
-every workspace (`PluginApprovalStorePort`; VS Code global state, an IntelliJ
+skipped. A plugin runs only after the user approved this content: the
+approval is a SHA-256 of the script and the style, each prefixed with its
+length and a missing style marked apart from an empty one, so bytes moved from
+one file to the other change the hash. It is kept by the host outside every
+workspace (`PluginApprovalStorePort`; VS Code global state, an IntelliJ
 application value), so a repository cannot approve itself and any change (a
-pull, an update) asks again. Every write is a change, rows to allow and ids to
+pull, an update) asks again.
+
+*Same content anywhere* (decided 2026-11-10). A row `{ pluginId, contentHash }`
+names the place it was given at, but it counts for its content wherever that
+content is found (`approvalStateOf`): a folder holding content the user
+allowed in another folder, clone or git worktree counts as allowed, and the
+core stores a row of its own there (`CarriedApprovalWriter`, see "Unit and row"
+below). Worktree-per-task workflows asked again for every task's checkout of
+code already allowed. A row here of other content still reads `changed`,
+unless another row holds the current content. Both hashes were already
+place-independent and of distinct shapes (a bare SHA-256 for a plugin,
+`bpmnlint-closure-v1:` for a rule package), so existing rows carry over
+without a migration and a plugin row never admits a rule package. Rejected:
+approval per place (every worktree asks again) and rows of content alone
+(the Add-ons view, Revoke and Forget need places). Accepted: the rule is
+"same bytes", not "same repository", so an unrelated repository vendoring the
+identical code is allowed too, and code that loads undeclared workspace files
+at runtime behaves differently in another repository. Every write is a change, rows to allow and ids to
 revoke (`CodeApprovalChange`), that the host merges into the list it stores
 with `approvalsAfter` in one step: rows the change does not name keep their
 place, an allowed row replaces its id's row in place, new ids append. A writer
@@ -598,7 +615,8 @@ from it directly.
 workspace code is in, and `CODE_STATE_TEXT` the one text of each, which the
 approval list and the log use; `ApprovalState` and the rule packages'
 `BlockedState` are subsets of it. `needsContentHash` is the one rule for when
-code must be hashed before its state is known (a row or a decline of its id),
+code must be hashed before its state is known (any row of its kind, which may
+hold its content, or a decline of its id),
 and `codeStateOf` the one dispatcher from what an owner found (found,
 unhashed, unreadable, gone) to that state; `rulePackageVerdict` reads it.
 The add-on catalog (below) reads them too: `reviewedAllowDecision` allows only
@@ -636,7 +654,7 @@ or rejects, it answers with its fallback, `ListReview`, which stays for good.
 The review request carries the folders the prompt was built for
 (`ApprovalReviewRequest.workspaceFolders`), so the prompt and this decision
 use one reading. Both hosts pass a `ViewReview` to both features: VS Code
-over its Artifacts view, IntelliJ over `RpcAddOnViewReveal` and the Artifacts
+over its Add-ons view, IntelliJ over `RpcAddOnViewReveal` and the Add-ons
 tab of its BPMN Modeler tool window. **Review…** opens the view unless an
 item lies outside every folder or the view cannot open. The feature's
 `review` port is still optional; making it required and removing
@@ -798,7 +816,7 @@ with one exported instance set, an error boundary around plugin groups and a
 contract test as preconditions.
 
 **Listing, allowing and revoking.** The `addOns` context of the core is the
-host-neutral read model of the artifacts view
+host-neutral read model of the Add-ons view
 ([#2263](https://github.com/Miragon/bpmn-modeler/issues/2263); the views are
 [#2250](https://github.com/Miragon/bpmn-modeler/issues/2250)). It owns no
 rule of what it lists: the plugin and rule package features each meet a
@@ -812,7 +830,7 @@ which reads each template file by the loader's rule (`templatesOfFileText`,
 over the host's `MarketplaceCommands`, which `createMarketplaceCommands`
 builds together. The host compositions wire one into the other ([package boundaries](architecture-and-hosts.md#package-boundaries)).
 Both hosts build an `AddOnsFeature` and bind one view to it: VS Code its
-Artifacts view, IntelliJ the Artifacts tab of its BPMN Modeler tool window,
+Add-ons view, IntelliJ the Add-ons tab of its BPMN Modeler tool window,
 attached hidden when the bridge starts; IntelliJ's watchers follow the folders
 known whenever the views change or the catalog refreshes, so they follow the
 project root from the first `addOns/open` on
@@ -822,15 +840,30 @@ of `libs/shared` (`addOnsView.ts`) for one page through `AddOnViewMessages`
 in `addOns/adapter/in/`, so a host only passes a `post` and the page's
 commands; `panelRoutes` answer the surface coverage before any page attaches.
 A page asks for the last model when it loads, as a push can land before it
-listens. `AddOnsFeature.reveal(addOnIds)` keeps the latest reveal and
-delivers it at most once to each attached view while it is visible, so a view
-shown or attached later still lands on the rows; it may arrive before any
-model, and the page holds it until a model lists one of its rows. A panel
-posts a reveal again to the page that asks once it loads, until a page that
-listens has it, and again after the panel was hidden, as a host may load a
-hidden page anew; a page loaded later gets no old reveal. Reveal ids start
-from the clock, as revisions do, so a page that outlives a core process still
-applies the next reveal.
+listens. A reveal names its target: the rows a **Review…** left to the view
+(`AddOnsFeature.reveal(addOnIds)`), or every add-on that needs review
+(`AddOnsFeature.revealNeedsReview()`, for **Review Add-ons**). The protocol's
+`AddOnRevealPayload` is a union on `kind` (`rows`, `needsReview`), written out
+field for field in the core's `AddOnReveal`. The latest reveal of either kind
+wins and is delivered at most once to each attached view while it is visible,
+so a view shown or attached later still lands on it; it may arrive before any
+model, and the page holds a rows reveal until a model lists one of its rows
+and a needs-review reveal until any model arrives. A panel posts a reveal
+again to the page that asks once it loads, until a page that listens has it,
+and again after the panel was hidden, as a host may load a hidden page anew; a
+page loaded later gets no old reveal. Reveal ids start from the clock, as
+revisions do, so a page that outlives a core process still applies the next
+reveal. The core knows no tabs: the page maps `needsReview` to the Workspace
+tab with only the Needs review chip, every header open, its selection kept
+when it needs review, else the first add-on that does. **Review Add-ons** is
+host-first, the host shows its view and then asks the core, because the
+IntelliJ tab must open at once while a cold bridge still starts; **Review…**
+stays core-first through `AddOnViewRevealPort`, because there the core decides
+whether a view can show the rows. The page keeps only a tab the user chose
+(`chosenScope`); until then the first model that lists something opens
+Marketplaces when the Workspace tab lists nothing and a marketplace is listed.
+A tab selects on its own only a row the list shows, never one a closed header
+hides ([the page](architecture-and-hosts.md#package-boundaries)).
 
 - *Scope.* It lists the open workspace only: the root config folder's
   `plugins/` and `element-templates/` of every workspace folder, the nested
@@ -911,7 +944,7 @@ applies the next reveal.
     still reaches the editor; a post the editor refuses or that fails is
     forgotten, so the next change sends the refs again. A webview that is
     hidden or reloads asks for its templates again and gets the current refs.
-  - Both hosts' Artifacts views offer the switches, and both user guides
+  - Both hosts' Add-ons views offer the switches, and both user guides
     describe them.
 - *Marketplaces.* A group after the folders lists each registered
   marketplace entry as a source, in the order the hosts fetch them, keyed by the entry,
@@ -929,7 +962,13 @@ applies the next reveal.
   removed by hand serves nothing though it stays cached until the next prune.
   Registrations that cannot be read, such
   as a host's reply that fails, leave the group without sources and say why;
-  the folders are still listed. The catalog offers "Add marketplace…" and
+  the folders are still listed. Each group carries its kind (`GROUP_KINDS`:
+  `folder` or `marketplaces`), so a view tells that source-less group from a
+  folder's without parsing an id. A catalog without a folder group carries
+  `emptyText` (`emptyTextOf`): "Open a folder…" when no folder is open, else
+  the text that no folder brings an add-on, whether marketplaces are listed or
+  not, so a view that shows the marketplaces apart still says why the
+  workspace part is empty. The catalog offers "Add marketplace…" and
   "Update marketplaces", and each source "Remove". All three run the
   host's `MarketplaceCommands`, the same instance its commands run
   (`createMarketplaceCommands` builds the inventory over it), so a flow
@@ -943,10 +982,14 @@ applies the next reveal.
   state (`codeStateOf`, the same reading as the notices), and the actions a
   row offers from one table keyed by what the owner read and that state:
   allowed content offers Revoke, other hashed content "Allow this content",
-  content not hashed yet "Review…", a gone row "Forget". A rule package no row,
-  decline or answer asks about is not hashed, as for a lint: its row offers
-  "Review…", which hashes it, and then the allow, so allowing one takes two
-  steps. One a notice left to the view is hashed (`isHashWanted` reads every
+  content not hashed yet "Review…", a gone row "Forget". While no rule package
+  row exists, a rule package no decline or answer asks about is not hashed,
+  as for a lint: its row offers "Review…", which hashes it, and then the
+  allow, so allowing one takes two steps. Once any rule package row exists,
+  every listed package is hashed, as any row may hold its content, and
+  "Review…" no longer shows. The reader passes only the owner's rows to that
+  decision. A row offering Revoke whose content other folders' rows hold says
+  how many, and that Revoke takes it back there too. One a notice left to the view is hashed (`isHashWanted` reads every
   session answer), as the gate hashed it to ask, so the row offers "Allow this
   content" at once. A view shows its own state labels (`CODE_STATE_LABEL`:
   Allowed, Not allowed yet, Changed, review needed, Declined this session,
@@ -972,10 +1015,24 @@ applies the next reveal.
   memo, and `reviewedAllowDecision` refuses it when it changed, is gone or
   cannot be read. A revoke or a review is refused unless the latest revision
   offered it, and a disposed view's requests are refused.
-- *Revoke.* A revoke records `leftForView` for the allowed content the row
-  showed (`leftForViewByRevoke`, decided when the row is built), in this
-  process only, so no notice here asks about it at once, then writes the
-  change. The reload or relint follows the change event, as for a notice. The
+- *Revoke.* Revoke takes back content, not a row: an approval of the content
+  would otherwise carry it straight back to the revoked folder. Each row
+  decides when it is built what Revoke withdraws (`ShownCode.withdrawal`):
+  found code its current hash, an unreadable row the hash its row holds,
+  and a gone folder only its row ("Forget"), so the content stays allowed
+  where other rows hold it. `revokeChangeOf` revokes this id and every id
+  whose row holds the content (`revokingContent`), read from `readStored()`;
+  a sweep after the change (`revokeSweepOf`) revokes once more any row of the
+  content stored while it ran, such as another place's carried row, and the
+  result says how many other folders the revoke reached. Before the change,
+  the revoke records `leftForView` for every listed found place of the
+  content of the row's kind (`leftForViewByRevoke`), in this process only,
+  so no notice here asks about it or a sibling folder at once. Other windows
+  and projects reload or relint and ask again for their copies: the user
+  withdrew trust. A content revoke drops every row of a revoked id, so a
+  legacy duplicate row of other content goes too, in the safe direction.
+  The owner hears every revoked id (`afterRevoke`), so a rule package carried
+  without a row yet still says its code stays loaded. The reload or relint follows the change event, as for a notice. The
   plugin owner then prunes its cache, and only logs a prune that fails, as
   the revoke stands; a rule package row then says its code stays loaded
   until the user reloads the window or restarts the IDE. "Remove unused
@@ -985,7 +1042,13 @@ applies the next reveal.
   from `readStored()` of the approvals and the template switches, so an
   unseeded IntelliJ mirror never makes every row look new; in VS Code a view shown again shows what this window's global
   state holds (see the multi-window residual under "One question at a
-  time"). A change of the
+  time"). After each build the catalog has each owner store a row for every
+  listed found add-on allowed only through another place's row
+  (`foundArtifactsOf`, `CodeAddOnSource.recordCarried`), so opening the view
+  writes rows for code allowed elsewhere even if it never ran; the write
+  lists once more, which writes nothing. The build already reads such code
+  as allowed, before its row lands, so it never offers Allow and never counts
+  toward Needs review or a needs-review reveal. A change of the
   approvals or the template switches, of an owner, below a config folder (one watcher per workspace
   folder while a view is attached), of the templates folders the open editors
   loaded, a marketplace flow's end, or a change of the config folder or
@@ -1014,7 +1077,8 @@ Host linting loads `bpmnlint-plugin-*` packages from the workspace
 bpmn-js plugin, a rule package runs in the extension host or the bridge with
 the user's rights. Workspace Trust does not cover the IntelliJ bridge, and the
 standalone turns it off, so a rule package, like a bpmn-js plugin, runs only
-once the user allowed this content in this folder. In VS Code, the approval
+once the user allowed this content, in this folder or another (see "Same
+content anywhere" above). In VS Code, the approval
 comes on top of Workspace Trust. A host opts in with the optional
 `rulePackages` group of `BpmnEditorFeature` (`BpmnRulePackagePorts`: the
 approval store, an `InstalledPackagesPort`, the action notifier and the shared
@@ -1035,12 +1099,32 @@ absolute rule reference points into, or a `file:` link whose target holds the
 config folder, would make one approval cover the repository. The row is the
 existing `{ pluginId, contentHash }` in the host's one approval list, beside
 the bpmn-js plugins. The content hash carries the prefix
-`bpmnlint-closure-v1:`, which marks the row's kind for the artifacts view
+`bpmnlint-closure-v1:`, which marks the row's kind for the Add-ons view
 ([#2263](https://github.com/Miragon/bpmn-modeler/issues/2263)) and names the
 digest algorithm, so changing the algorithm asks again. The row round-trips
 through VS Code's global state, `RpcPluginApprovalStore` and the Kotlin
 `PluginApproval` unchanged, so neither the protocol nor the IntelliJ plugin
-changed. `rulePackageApproval.ts` owns the root, the verdict and the notice
+changed, and carrying approvals across places changed neither either.
+
+The row stays per place while the approval is per content. When code runs
+only through another place's row of its content, the owner stores a row for
+its own place through `CarriedApprovalWriter`, one instance per owner catalog:
+`carriedApprovals` decides from the mirror and returns at once when every
+place has its row (the hot path, no host call); otherwise it decides again
+from `readStored()`, writes `allowing` the places, and checks after its own
+write (`orphanedCarries`) that another row still holds each content, revoking
+any carried row a revoke left alone in between. It logs one line per stored
+row naming both places (`ApprovableCodeTexts.carriedOver`) and shows no
+notification. The writer runs one write at a time and does not queue a
+content at a place twice, and a write that fails is logged once and not tried
+again this session; the code runs
+anyway, as the rule already allows it. The plugin catalog records the plugins
+it discovers, `RulePackageFollowUp` the packages a lint admitted
+(`LintRun.admitted`, which the gate reports per approved root, never per
+closure member) and the add-on catalog every listed found add-on. A carried
+row at a new id relints at most one round: the lint it causes admits
+packages that have rows. Checking one copy in the approval list allows every
+pending copy of its content. `rulePackageApproval.ts` owns the root, the verdict and the notice
 and list texts; `rulePackageLog.ts` owns the output channel lines.
 
 **Closure hash.** The approval covers the package and what it declares it runs
@@ -1076,10 +1160,15 @@ and the stat pass costs about 1 ms per lint for the largest closure measured.
 **Gate.** `RulePackageGate` wraps the scoped require that bpmnlint's
 `NodeResolver` loads packages with. Each call resolves the request, admits
 built-in modules and `.json` data without approval, maps the realpath to its
-root and lets the require run only when the root's row matches the current
-closure digest, or the root is a member of a closure already admitted in this
-setup. A root with no row and no decline is blocked as `new` without hashing
-(`needsContentHash`).
+root and lets the require run only when any rule package row holds the
+current closure digest, or the root is a member of a closure already admitted
+in this setup. While no rule package row exists, a root with no decline is
+blocked as `new` without hashing (`needsContentHash`); once one exists, every
+root is hashed, synchronously inside `require`, since it cannot await the
+store. `PackageClosureFingerprinter` memoizes, so each worktree pays one full
+hash per root per process (the largest closure measured takes about 10 ms, the
+limit about 100 ms). A closure that is too large is then refused at the gate
+instead of being blocked as `new` first.
 Otherwise the gate records the package as blocked (`new`, `changed` or
 `declined`) and throws `MODULE_NOT_FOUND`, which the resolvers' catches turn
 into a miss: the bundled rule or a no-op. A file inside an approvable root that
@@ -1098,7 +1187,7 @@ request with the gate (`beginRequest`, `blockedSinceBegin`). A blocked package
 is *needed* when a request ended unresolved because of it, and *shadowed* when
 the bundle served the request instead. Only needed packages are asked about; a
 shadowed one is logged once per config version and kept in the catalog's seen
-registry for the artifacts view. Otherwise the common Camunda config, which
+registry for the Add-ons view. Otherwise the common Camunda config, which
 lints on the host because of its string `moddleExtensions`, would ask about
 `bpmnlint-plugin-camunda-compat` even where the bundle serves every entry the
 config uses, and train users to allow everything. After `hostLintFinished`,
@@ -1107,11 +1196,12 @@ it and asks without awaiting the answer, so results never wait on the user;
 one question per package stays queued until it is answered. Relints follow
 the approval store, not the question: `RulePackageCatalog` announces each
 change of the rule package rows, whoever made it (`followedApprovalChange`),
-and `RulePackageFollowUp` lints again `editorsToRelint`. An allow relints the
-open editors whose last host lint was blocked on an allowed package; a
-withdrawn approval relints every editor linted on the host (`lintsOnHost`,
-which counts a first host lint in flight), because `LintRun` records no
-admitted roots, and relints are cheap. A revoke withdraws an approval, and so
+and `RulePackageFollowUp` lints again `editorsToRelint`. An allow relints
+every open editor whose last host lint was blocked on some package, as a row
+at one place admits the same content at every other; a withdrawn approval
+relints every editor linted on the host (`lintsOnHost`, which counts a first
+host lint in flight), so the withdrawal reaches the loaded code wherever it
+ran, and relints are cheap. `LintRun.admitted` feeds only the carry write. A revoke withdraws an approval, and so
 does a row that now holds another hash, which also counts as an allow. Closing an
 editor forgets it, and `BpmnLintConfigService.dispose`, which
 `BpmnEditorFeature.dispose` calls, stops following. `RulePackageCatalog`
@@ -1135,7 +1225,19 @@ unverified: whether two VS Code windows share the global state live. Each
 window's store merges into the list its own `Memento` holds; if another
 window's write has not reached that `Memento` when this window writes, the
 whole value this window writes can drop it. The focus re-read narrows the gap
-but does not close it; one key per approval row would.
+but does not close it; one key per approval row would. Carried rows are
+written without the user acting, which makes this residual more likely: a
+window with a stale global state can write rows back after a revoke in
+another window. Each owner's carry writer runs one write at a time, so in one
+process a later carry decides from a list that already holds an earlier
+carry's revoke of its orphaned row; two concurrent writes would each take the
+other's fresh row as a source and keep revoked content allowed. In IntelliJ,
+whose host serialises merges, the core's checks close the revoke race in every
+order but one: two other projects carrying the same content within one round
+trip of a revoke can each take the other's carried row as its source and keep
+the content allowed. A host-side
+conditional carry would close it but not the VS Code residual, so the
+protocol stays as it is.
 
 **Weaker guarantee than a plugin's.** A bpmn-js plugin runs from a
 content-addressed copy of the approved bytes, so a file swapped after the
@@ -1156,6 +1258,14 @@ changed. Accepted residuals:
 - Admission depends on order within a setup: a member resolved before its
   approved closure root was admitted is blocked, and its bundled fallback
   stays cached until the setup is rebuilt.
+- Since an approval counts for its content anywhere, the config's own package
+  carries over only when the repository's files, apart from models and the
+  config, are identical, and its model files, which the hash leaves out, now
+  differ across repositories too.
+- Rows grow by one per worktree per add-on; rows of deleted worktrees outside
+  the open folders are never listed, so nobody forgets them.
+- The plugin manifest's name is not in the plugin hash, so identical bytes
+  under another name carry over; the bytes served are the approved ones.
 
 **IntelliJ ordering.** The compiled bridge binary lacks
 `--compile-autoload-package-json`, so a package whose entry comes from `main`

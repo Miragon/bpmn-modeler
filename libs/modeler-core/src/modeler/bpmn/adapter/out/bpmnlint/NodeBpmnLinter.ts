@@ -95,6 +95,7 @@ export class NodeBpmnLinter implements LintRunnerPort {
             unresolved: resolver.unresolved,
             blocked: setup.gate?.blockedPackages(resolver.neededBlocked) ?? [],
             refused: setup.gate?.refusedModules() ?? [],
+            admitted: setup.gate?.admittedRulePackages() ?? [],
         };
     }
 

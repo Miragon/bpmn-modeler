@@ -29,15 +29,19 @@ import org.cef.browser.CefBrowser
  * neither, so `automatic` always rendered light. This service reproduces both
  * signals from the live IDE theme and keeps them in sync on theme changes.
  *
- * It owns dark detection, the IDE→`--vscode-*` color mapping, the HTML/JS
- * snippet generation, and the change fan-out — keeping [WebviewServer] and the
- * editors free of theming logic (SRP). Dark detection deliberately uses the
- * **LaF** ([JBColor.isBright]), not the editor scheme, so the palette and
+ * It owns dark detection, the IDE→`--vscode-*` color mapping, the add-ons
+ * page's [BrandMode], the HTML/JS snippet generation, and the change fan-out —
+ * keeping [WebviewServer] and the editors free of theming logic (SRP). Dark
+ * detection deliberately uses the **LaF** ([JBColor.isBright]), not the editor
+ * scheme, so the palette and
  * properties panel match the IDE chrome; the canvas additionally receives the
  * real editor-scheme background/foreground through the injected variables.
  */
 @Service(Service.Level.APP)
-class IdeThemeSignal(private val isHighContrast: () -> Boolean = ::isHighContrastTheme) : Disposable {
+class IdeThemeSignal(
+    private val isHighContrast: () -> Boolean = ::isHighContrastTheme,
+    private val colorTheme: () -> String = { ModelerSettingsStore.getInstance().current().colorTheme },
+) : Disposable {
     // The literal is only ever run via executeJavaScript, never inlined into HTML.
     private val gson = GsonBuilder().disableHtmlEscaping().create()
 
@@ -55,6 +59,8 @@ class IdeThemeSignal(private val isHighContrast: () -> Boolean = ::isHighContras
         val connection = ApplicationManager.getApplication().messageBus.connect(this)
         connection.subscribe(LafManagerListener.TOPIC, LafManagerListener { notifyListeners() })
         connection.subscribe(EditorColorsManager.TOPIC, EditorColorsListener { notifyListeners() })
+        // The add-ons page's brand mode also follows the `colorTheme` setting.
+        connection.subscribe(ModelerSettingsListener.TOPIC, ModelerSettingsListener { notifyListeners() })
     }
 
     /** LaF-based dark detection — matches the IDE chrome the webview sits in. */
@@ -123,27 +129,6 @@ class IdeThemeSignal(private val isHighContrast: () -> Boolean = ::isHighContras
      * each carry a fallback, so an absent key degrades gracefully.
      */
     fun deploymentThemeVarsCss(): String = rootBlock(deploymentPalette())
-
-    /**
-     * The `--vscode-*` set the add-ons page may read: the deployment form's
-     * palette, so the two side panels cannot drift apart, plus the label font,
-     * the high contrast borders and a warning text color. No IntelliJ theme key
-     * names a warning text color, so it is VS Code's default for each scheme.
-     */
-    fun addOnsThemeVarsCss(): String = rootBlock(deploymentPalette() + addOnsExtras())
-
-    private fun addOnsExtras(): List<String> {
-        val font = UIUtil.getLabelFont()
-        val contrastBorder =
-            if (isHighContrast()) ColorUtil.toHtmlColor(JBUI.CurrentTheme.Focus.focusColor()) else "transparent"
-        return listOf(
-            "  --vscode-font-family: ${fontFamilyValue(font.family)};",
-            "  --vscode-font-size: ${font.size}px;",
-            "  --vscode-contrastBorder: $contrastBorder;",
-            "  --vscode-contrastActiveBorder: $contrastBorder;",
-            "  --vscode-list-warningForeground: ${ColorUtil.toHtmlColor(WARNING_FOREGROUND)};",
-        )
-    }
 
     private fun rootBlock(declarations: List<String>): String =
         (listOf(":root {", "  color-scheme: ${if (isDark()) "dark" else "light"};") + declarations + "}").joinToString("\n")
@@ -233,8 +218,11 @@ class IdeThemeSignal(private val isHighContrast: () -> Boolean = ::isHighContras
         }
     }
 
-    /** [applyJs] specialised for the add-ons page's variable set. */
-    fun addOnsApplyJs(): String = applyJs(addOnsThemeVarsCss())
+    /** The brand mode of the add-ons page, from the LaF and the `colorTheme` setting. */
+    internal fun addOnsBrandMode(): BrandMode = BrandMode.of(HostColorThemeKind.of(isDark(), isHighContrast()), colorTheme())
+
+    /** The add-ons page reads no IDE colour, only its brand mode. */
+    fun addOnsApplyJs(): String = addOnsBrandMode().applyJs()
 
     /** [applyJs] specialised for the deployment form's variable set. */
     fun deploymentApplyJs(): String = applyJs(deploymentThemeVarsCss())
@@ -270,18 +258,7 @@ class IdeThemeSignal(private val isHighContrast: () -> Boolean = ::isHighContras
     }
 }
 
-private val WARNING_FOREGROUND = JBColor(0x855F00, 0xCCA700)
-
 // The bundled High Contrast theme's id; 2024.2 has no API that says a theme is one.
 private const val HIGH_CONTRAST_THEME_ID = "JetBrainsHighContrastTheme"
 
 internal fun isHighContrastTheme(): Boolean = LafManager.getInstance().currentUIThemeLookAndFeel?.id == HIGH_CONTRAST_THEME_ID
-
-/**
- * The label font as a CSS `font-family` value. Only name characters survive, so
- * no family can close the declaration or the `<style>` element it sits in; the
- * generic fallbacks cover a system font Chromium cannot resolve, such as macOS's
- * `.AppleSystemUIFont`.
- */
-internal fun fontFamilyValue(family: String): String =
-    "\"${family.filter { it.isLetterOrDigit() || it in " .-_" }}\", system-ui, sans-serif"

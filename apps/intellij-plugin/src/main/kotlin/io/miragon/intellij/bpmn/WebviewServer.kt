@@ -86,7 +86,7 @@ class WebviewServer(private val pluginCacheRoot: Path = BpmnPluginCache.root()) 
         return "${origin}/deployment.html"
     }
 
-    /** The add-ons view of the BPMN Modeler tool window's Artifacts tab, from `/webview-add-ons/...`. */
+    /** The add-ons view of the BPMN Modeler tool window's Add-ons tab, from `/webview-add-ons/...`. */
     fun addOnsUrl(): String {
         ensureStarted()
         return "${origin}/addOns.html"
@@ -182,33 +182,49 @@ class WebviewServer(private val pluginCacheRoot: Path = BpmnPluginCache.root()) 
      * The off-EDT palette read on the HTTP pool thread is safe for the same reason
      * documented on [indexHtml].
      */
-    private fun deploymentHtml(): String =
-        sidePanelHtml("Deploy Diagram", "/deployment", service<IdeThemeSignal>().deploymentThemeVarsCss())
-
-    /** The add-ons view, built from the core's model into `#app` by its bundle under `/add-ons/...`. */
-    private fun addOnsHtml(): String = sidePanelHtml("Artifacts", "/add-ons", service<IdeThemeSignal>().addOnsThemeVarsCss())
-
-    /** A tool window page: its bundle under [assetPrefix], its own theme vars and an empty `#app` it fills. */
-    private fun sidePanelHtml(title: String, assetPrefix: String, themeVarsCss: String): String {
+    private fun deploymentHtml(): String {
         val signal = service<IdeThemeSignal>()
-        return listOf(
+        return sidePanelHtml(
+            "Deploy Diagram",
+            "/deployment",
+            themeVarsCss = signal.deploymentThemeVarsCss(),
+            bodyClass = signal.bodyClass(),
+        )
+    }
+
+    /**
+     * The add-ons view, built from the core's model into `#app` by its bundle under `/add-ons/...`.
+     * It wears the Miragon brand, not the IDE palette: `<html>` carries only its brand mode, so the
+     * first frame paints in it.
+     */
+    private fun addOnsHtml(): String =
+        sidePanelHtml("Add-ons", "/add-ons", htmlAttributes = service<IdeThemeSignal>().addOnsBrandMode().htmlAttributes())
+
+    /** A tool window page: its bundle under [assetPrefix] and an empty `#app` it fills. */
+    private fun sidePanelHtml(
+        title: String,
+        assetPrefix: String,
+        htmlAttributes: String = "",
+        themeVarsCss: String? = null,
+        bodyClass: String? = null,
+    ): String =
+        listOfNotNull(
             "<!DOCTYPE html>",
-            "<html lang=\"en\">",
+            "<html lang=\"en\"$htmlAttributes>",
             "<head>",
             "  <meta charset=\"UTF-8\"/>",
             "  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"/>",
             "  <link href=\"$assetPrefix/index.css\" rel=\"stylesheet\"/>",
             "  <title>$title</title>",
-            "  <style id=\"ide-theme-vars\">$themeVarsCss</style>",
+            themeVarsCss?.let { "  <style id=\"ide-theme-vars\">$it</style>" },
             "  <script>${WebviewContentSecurityPolicy.ACQUIRE_VS_CODE_API_SHIM}</script>",
             "</head>",
-            "<body class=\"${signal.bodyClass()}\">",
+            "<body${bodyClass?.let { " class=\"$it\"" } ?: ""}>",
             "  <div id=\"app\"></div>",
             "  <script type=\"module\" src=\"$assetPrefix/index.js\"></script>",
             "</body>",
             "</html>",
         ).joinToString("\n")
-    }
 
     /** The preview shell, themed like [indexHtml]; `data-view` asks the page for the preview alone. */
     private fun templatePreviewHtml(): String {

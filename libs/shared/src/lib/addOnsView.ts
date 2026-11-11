@@ -1,3 +1,4 @@
+import type { BrandMode } from "./brandMode";
 import { Command, Query } from "./messages";
 
 /*
@@ -11,6 +12,8 @@ export type CodeStatePayload = "approved" | "new" | "changed" | "declined" | "go
 export type TemplateStatePayload = "enabled" | "disabled";
 
 export type SourceKindPayload = "configFolder" | "installedPackages" | "marketplace";
+
+export type GroupKindPayload = "folder" | "marketplaces";
 
 export type CodeAddOnKindPayload = "plugin" | "rulePackage";
 
@@ -45,6 +48,7 @@ export interface AddOnCatalogPayload {
 
 export interface AddOnGroupPayload {
     readonly id: string;
+    readonly kind: GroupKindPayload;
     readonly label: string;
     readonly description: string;
     readonly problem?: string;
@@ -116,10 +120,10 @@ export type AddOnActionResultPayload =
     | { readonly kind: "failed"; readonly message: string }
     | { readonly kind: "reportedByFlow" };
 
-export interface AddOnRevealPayload {
-    readonly revealId: number;
-    readonly addOnIds: readonly string[];
-}
+/** Where a view is to go, once: rows a "Review…" left to it, or every add-on that needs review. */
+export type AddOnRevealPayload =
+    | { readonly kind: "rows"; readonly revealId: number; readonly addOnIds: readonly string[] }
+    | { readonly kind: "needsReview"; readonly revealId: number };
 
 /** The add-ons view asks for the latest catalog once its page has loaded. */
 export class GetAddOnCatalogCommand extends Command<"GetAddOnCatalogCommand"> {
@@ -162,12 +166,22 @@ export class AddOnActionResultQuery extends Query<"AddOnActionResultQuery"> {
     }
 }
 
-/** Shows these rows: a "Review…" left the code they name to the view. */
+/** Shows these rows, as a "Review…" left their code to the view, or every add-on that needs review, as Review Add-ons asks. */
 export class RevealAddOnsQuery extends Query<"RevealAddOnsQuery"> {
     public readonly reveal: AddOnRevealPayload;
 
     constructor(reveal: AddOnRevealPayload) {
         super("RevealAddOnsQuery");
         this.reveal = reveal;
+    }
+}
+
+/** A theme change in the IDE or of the `colorTheme` setting; the shell carried the mode until then. */
+export class BrandModeQuery extends Query<"BrandModeQuery"> {
+    public readonly mode: BrandMode;
+
+    constructor(mode: BrandMode) {
+        super("BrandModeQuery");
+        this.mode = mode;
     }
 }

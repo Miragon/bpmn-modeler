@@ -138,7 +138,12 @@ export class AddOnsFeature {
 
     /** Has every view show and focus these rows, once; one that is hidden or not attached yet when it is shown. */
     reveal(addOnIds: readonly string[]): void {
-        this.hub.reveal(addOnIds);
+        this.hub.reveal({ kind: "rows", addOnIds });
+    }
+
+    /** Has every view show what needs review, once: Review Add-ons, after the host showed its view. */
+    revealNeedsReview(): void {
+        this.hub.reveal({ kind: "needsReview" });
     }
 
     /** Reads everything again, installed packages and stored approvals included. */

@@ -48,6 +48,19 @@ describe("PLUGIN_CODE_TEXTS", () => {
     );
 });
 
+describe("PLUGIN_CODE_TEXTS.carriedOver", () => {
+    it("logs where a plugin runs and where the user allowed its content", () => {
+        expect(
+            PLUGIN_CODE_TEXTS.carriedOver({
+                artifact: resize,
+                allowedAt: "/clone/.camunda/plugins/resize",
+            }),
+        ).toBe(
+            `Allowed BPMN plugin Resize Tasks in ${resize.id}: you allowed the same content in /clone/.camunda/plugins/resize.`,
+        );
+    });
+});
+
 describe("pluginApprovalPrompt", () => {
     it("lists each plugin with why it is asked and its folder in the workspace", () => {
         expect(
@@ -206,6 +219,24 @@ describe("editorsToReload", () => {
             case: "none for a row of a plugin no editor was offered",
             approvals: [row(resize), { pluginId: "/x", contentHash: "x" }],
             editors: [],
+        },
+        {
+            case: "none while a served plugin's content stays allowed in another folder",
+            approvals: [
+                { pluginId: "/worktree/.camunda/plugins/resize", contentHash: resize.contentHash },
+            ],
+            editors: [],
+        },
+        {
+            case: "the editors withheld a plugin whose content is now allowed in another folder",
+            approvals: [
+                row(resize),
+                {
+                    pluginId: "/worktree/.camunda/plugins/palette",
+                    contentHash: palette.contentHash,
+                },
+            ],
+            editors: ["file:///repo/a.bpmn", "file:///repo/b.bpmn"],
         },
     ])("returns $case", ({ approvals, editors }) => {
         expect(editorsToReload(offered, approvals)).toEqual(editors);

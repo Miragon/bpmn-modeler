@@ -20,12 +20,14 @@ import { parentWorkspacePath } from "../../../kernel/domain/workspacePath";
 import { PluginApprovalStorePort } from "../../../kernel/port/approvalPorts";
 import { LoggerPort } from "../../../kernel/port/hostPorts";
 import { ApprovalCatalog } from "../../../kernel/service/ApprovalQuestion";
+import { CarriedApprovalWriter } from "../../../kernel/service/CarriedApprovalWriter";
 import {
     BlockedRulePackage,
     isRulePackageApproval,
     PendingRulePackage,
     RulePackage,
     rulePackageApprovalNotice,
+    RULE_PACKAGE_CODE_TEXTS,
     rulePackageApprovalPrompt,
     rulePackagesToAsk,
 } from "../domain/rulePackageApproval";
@@ -57,6 +59,7 @@ export class RulePackageCatalog implements ApprovalCatalog<
     private readonly listingListeners = new Set<() => void>();
     private readonly changeListeners = new Set<(followed: FollowedApprovalChange) => void>();
     private readonly approvalChanges: { dispose(): void };
+    private readonly carriedApprovalWriter: CarriedApprovalWriter;
     private rulePackageRows: readonly CodeApproval[];
 
     constructor(
@@ -64,6 +67,11 @@ export class RulePackageCatalog implements ApprovalCatalog<
         private readonly fingerprints: Pick<PackageClosureFingerprinter, "fingerprint">,
         private readonly logger: LoggerPort,
     ) {
+        this.carriedApprovalWriter = new CarriedApprovalWriter(
+            approvals,
+            logger,
+            RULE_PACKAGE_CODE_TEXTS,
+        );
         this.rulePackageRows = approvals.read().filter(isRulePackageApproval);
         this.approvalChanges = approvals.onDidChange(() => this.followApprovals());
     }
@@ -122,6 +130,16 @@ export class RulePackageCatalog implements ApprovalCatalog<
         return this.revoked;
     }
 
+    /** Stores a row where a package runs on another place's row of its content; never rejects. */
+    recordCarried(found: readonly ApprovableArtifact[]): Promise<void> {
+        return this.carriedApprovalWriter.record(found);
+    }
+
+    /** Revoked from a view, also at places whose code ran on another place's row. */
+    noteRevoked(ids: readonly string[]): void {
+        ids.forEach((id) => this.revoked.add(id));
+    }
+
     onApprovalsChanged(listener: (followed: FollowedApprovalChange) => void): { dispose(): void } {
         this.changeListeners.add(listener);
         return { dispose: () => this.changeListeners.delete(listener) };
@@ -132,8 +150,9 @@ export class RulePackageCatalog implements ApprovalCatalog<
     }
 
     /**
-     * Hashed only now: the gate blocks a package it has no row for without
-     * reading it, and a package left to the view is not hashed again at all.
+     * Hashed only now: while no rule package row exists the gate blocks a
+     * package without reading it, and a package left to the view is not
+     * hashed again at all.
      */
     stillPendingOf(found: readonly BlockedRulePackage[]): PendingRulePackage[] {
         const rulePackages = rulePackagesToAsk(found)

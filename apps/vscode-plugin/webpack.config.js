@@ -182,11 +182,22 @@ module.exports = (env, argv) => {
                         info: { minimized: true },
                     },
                     {
-                        // Copy the Artifacts view (add-ons webview) build artefacts into the extension output.
+                        // Copy the add-ons webview build artefacts (the Add-ons view) into the extension output.
                         from: path.resolve(__dirname, "../../dist/webview-staging/add-ons-webview"),
                         to: "add-ons-webview",
+                        // Its licenses go to licenses/ below.
+                        filter: (file) => path.basename(path.dirname(file)) !== "licenses",
                         noErrorOnMissing: true,
                         info: { minimized: true },
+                    },
+                    {
+                        // The licenses of the fonts and icons that bundle carries, beside the others.
+                        from: path.resolve(
+                            __dirname,
+                            "../../dist/webview-staging/add-ons-webview/licenses",
+                        ),
+                        to: "licenses",
+                        noErrorOnMissing: true,
                     },
                 ],
             }),

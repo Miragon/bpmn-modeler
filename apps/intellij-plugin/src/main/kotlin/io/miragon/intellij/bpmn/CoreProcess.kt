@@ -237,7 +237,7 @@ class CoreProcess(private val project: Project) : Disposable {
 
     fun setDeploymentOpen(open: Boolean) = routers.deployment.setDeploymentOpen(open)
 
-    // ── add-ons view (the BPMN Modeler tool window's Artifacts tab) ─────────────
+    // ── add-ons view (the BPMN Modeler tool window's Add-ons tab) ─────────────
 
     fun registerAddOnsWindow(post: (String) -> Unit, reload: () -> Unit) = routers.addOns.registerWindow(post, reload)
 
@@ -249,6 +249,9 @@ class CoreProcess(private val project: Project) : Disposable {
 
     /** Fires `addOns/refresh`; the core reads every add-on again, installed packages and stored approvals included. */
     fun refreshAddOns() = routers.addOns.refresh()
+
+    /** Fires `addOns/review`, starting the bridge; the Add-ons tab is already shown. */
+    fun reviewAddOns() = routers.addOns.review()
 
     // ── diff ─────────────────────────────────────────────────────────────────────
 

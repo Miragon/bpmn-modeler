@@ -12,8 +12,13 @@ import {
     without,
 } from "../__fixtures__/catalogs";
 import type { ActionKindPayload } from "./actionRequest";
-import { focusAfterDone, FocusTarget, isFocusable, neighbourAfterRemoval } from "./focusAfter";
-import { Expansion, visibleHeadsOf } from "./outline";
+import {
+    focusAfterDone,
+    FocusTarget,
+    isFocusable,
+    isListed,
+    isRequestedByHost,
+} from "./focusAfter";
 
 describe("focusAfterDone", () => {
     it.each<{ case: string; action: ActionKindPayload; target: FocusTarget }>([
@@ -77,82 +82,18 @@ describe("focusAfterDone", () => {
     });
 });
 
-describe("neighbourAfterRemoval", () => {
-    const before = visibleHeadsOf(CATALOG, new Map());
-
-    it.each<{ case: string; removed: string; next: typeof CATALOG; neighbour: string | undefined }>(
-        [
-            {
-                case: "the next sibling",
-                removed: PALETTE.id,
-                next: without(PALETTE.id),
-                neighbour: RESIZE.id,
-            },
-            {
-                case: "the previous sibling when it was the last",
-                removed: RESIZE.id,
-                next: without(RESIZE.id),
-                neighbour: PALETTE.id,
-            },
-            {
-                case: "the parent when it was the only child",
-                removed: ACME.id,
-                next: without(ACME.id),
-                neighbour: PACKAGES_SOURCE.id,
-            },
-            {
-                case: "the first head when its parent went too",
-                removed: ACME.id,
-                next: {
-                    ...CATALOG,
-                    groups: [{ ...CATALOG.groups[0], sources: [CONFIG_SOURCE] }, CATALOG.groups[1]],
-                },
-                neighbour: "folder:/work",
-            },
-            {
-                case: "nothing when no head is left",
-                removed: ACME.id,
-                next: { ...CATALOG, groups: [] },
-                neighbour: undefined,
-            },
-        ],
-    )("is $case", ({ removed, next, neighbour }) => {
-        expect(neighbourAfterRemoval(removed, before, visibleHeadsOf(next, new Map()))).toBe(
-            neighbour,
-        );
-    });
-});
-
-describe("neighbourAfterRemoval between two siblings", () => {
-    it("prefers the next sibling over the previous one", () => {
-        const LASSO = { ...PALETTE, id: "plugin:/work/.camunda/plugins/lasso", name: "Lasso" };
-        const three = {
-            ...CATALOG,
-            groups: [
-                {
-                    ...CATALOG.groups[0],
-                    sources: [{ ...CONFIG_SOURCE, addOns: [PALETTE, RESIZE, LASSO] }],
-                },
-            ],
-        };
-
-        expect(
-            neighbourAfterRemoval(
-                RESIZE.id,
-                visibleHeadsOf(three, new Map()),
-                visibleHeadsOf(without(RESIZE.id, three), new Map()),
-            ),
-        ).toBe(LASSO.id);
-    });
-});
-
 describe("isFocusable", () => {
-    it.each<{ case: string; target: FocusTarget; expansion?: Expansion; focusable: boolean }>([
-        { case: "a shown head", target: { kind: "head", headId: RESIZE.id }, focusable: true },
+    it.each<{ case: string; target: FocusTarget; focusable: boolean }>([
+        { case: "a listed row", target: { kind: "head", headId: RESIZE.id }, focusable: true },
         {
-            case: "not a head under a closed one",
+            case: "a row in a closed source, as its detail can take focus",
             target: { kind: "head", headId: MAIL.id },
-            focusable: false,
+            focusable: true,
+        },
+        {
+            case: "a source's header",
+            target: { kind: "head", headId: CONFIG_SOURCE.id },
+            focusable: true,
         },
         {
             case: "not a head the model lost",
@@ -166,8 +107,18 @@ describe("isFocusable", () => {
             focusable: false,
         },
         {
+            case: "not the review of a row the model lost",
+            target: { kind: "review", addOnId: "plugin:/gone" },
+            focusable: false,
+        },
+        {
             case: "a source's action in its slot",
             target: { kind: "action", targetId: MARKETPLACE_SOURCE.id, slot: 1 },
+            focusable: true,
+        },
+        {
+            case: "a row's action in its slot",
+            target: { kind: "action", targetId: MAIL.id, slot: 0 },
             focusable: true,
         },
         {
@@ -176,22 +127,71 @@ describe("isFocusable", () => {
             focusable: false,
         },
         {
-            case: "a row's action under an open source",
-            target: { kind: "action", targetId: MAIL.id, slot: 0 },
-            expansion: new Map([[MARKETPLACE_SOURCE.id, true]]),
-            focusable: true,
+            case: "not an action of a target the model lost",
+            target: { kind: "action", targetId: "marketplace:gone", slot: 0 },
+            focusable: false,
         },
         {
-            case: "a toolbar action the catalog offers",
+            case: "a catalog action the catalog offers",
             target: { kind: "toolbar", actionKind: "pruneCache" },
             focusable: true,
         },
         {
-            case: "not a toolbar action it does not offer",
+            case: "not a catalog action it does not offer",
             target: { kind: "toolbar", actionKind: "updateMarketplaces" },
             focusable: false,
         },
-    ])("$case", ({ target, expansion = new Map(), focusable }) => {
-        expect(isFocusable(target, CATALOG, expansion)).toBe(focusable);
+        {
+            case: "the list's start, which always has a place",
+            target: { kind: "listStart" },
+            focusable: true,
+        },
+    ])("$case", ({ target, focusable }) => {
+        expect(isFocusable(target, CATALOG)).toBe(focusable);
+    });
+});
+
+describe("isListed", () => {
+    it.each([
+        ["folder:/work", true],
+        [PACKAGES_SOURCE.id, true],
+        [RESIZE.id, true],
+        [RESIZE.id, false, without(RESIZE.id)],
+    ] as const)("finds %s: %s", (id, listed, model = CATALOG) => {
+        expect(isListed(model, id)).toBe(listed);
+    });
+});
+
+describe("isRequestedByHost", () => {
+    it.each<{ case: string; target: FocusTarget | undefined; requested: boolean }>([
+        { case: "no target", target: undefined, requested: false },
+        {
+            case: "a row after an action",
+            target: { kind: "head", headId: "row" },
+            requested: false,
+        },
+        {
+            case: "the list's start after a render",
+            target: { kind: "listStart" },
+            requested: false,
+        },
+        { case: "a review", target: { kind: "review", addOnId: "row" }, requested: false },
+        {
+            case: "a row a Review… revealed",
+            target: { kind: "head", headId: "row", reveal: true },
+            requested: true,
+        },
+        {
+            case: "the row Review Add-ons selected",
+            target: { kind: "head", headId: "row", requested: true },
+            requested: true,
+        },
+        {
+            case: "the list's start Review Add-ons found empty",
+            target: { kind: "listStart", requested: true },
+            requested: true,
+        },
+    ])("takes $case as requested by the host: $requested", ({ target, requested }) => {
+        expect(isRequestedByHost(target)).toBe(requested);
     });
 });

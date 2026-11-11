@@ -40,6 +40,7 @@ function setUp(promptAnswers: PromptAnswers = {}) {
         prompt: host.marketplacePrompt,
         picker: host.picker,
         notifier: host.notifier,
+        actionNotifier: host.actionNotifier,
         homeDir: "/work",
     });
     return { host, service, inventory };

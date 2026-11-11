@@ -1,12 +1,11 @@
 # Get started in IntelliJ
 
-Install the Miragon BPMN Modeler in IntelliJ IDEA or another JetBrains IDE and edit `.bpmn` files with the same modeler
+Install the Miragon BPMN Modeler in IntelliJ IDEA and edit `.bpmn` files with the same modeler
 as in VS Code.
 
 ## Requirements
 
-- IntelliJ IDEA Community or Ultimate 2024.2 or newer. Other IDEs on the IntelliJ Platform 2024.2+ work too (PyCharm,
-  WebStorm, GoLand and others).
+- IntelliJ IDEA Community or Ultimate 2024.2 or newer, or Android Studio Ladybug or newer.
 - macOS (arm64, x64), Linux (x64, arm64) or Windows (x64). The plugin brings its own bridge binary for these
   platforms, so you do not need Node.js.
 
@@ -42,23 +41,35 @@ The editor loads [bpmn-js plugins](/vscode/features/bpmn-plugins) from `.camunda
 allow them in the notification it shows. The IDE keeps your approvals for all projects; see
 [IntelliJ](/vscode/features/bpmn-plugins#intellij) for what differs from VS Code.
 
-## Artifacts
+## Add-ons
 
-The **Artifacts** tab of the **BPMN Modeler** tool window lists what your project brings to the modeler: the BPMN
+The **Add-ons** tab of the **BPMN Modeler** tool window lists what your project brings to the modeler: the BPMN
 plugins under the config folder, the bpmnlint rule packages your `.bpmnlintrc` takes from `node_modules`, the element
-templates and the template marketplaces. It lists this project only.
+templates and the template marketplaces. It lists this project only. It is the same page as the
+[Add-ons view in VS Code](/vscode/features/add-ons), which describes it in full.
 
+- Two tabs split it: **Workspace** with the project's config folders and packages, and **Marketplaces**. A search
+  field and the chips **Needs review**, **Plugins**, **Rule packages** and **Templates** narrow the list.
+- Click a row to see its details. A tool window wide enough shows the list and the details side by side; a narrow one
+  opens the details in place of the list, with **Back**.
 - Each plugin and rule package shows its state: **Allowed**, **Not allowed yet**, **Changed, review needed**,
-  **Declined this session** or **Folder gone**. **Review…** shows what you would allow, **Allow this content** allows
-  it, **Revoke** takes an approval back, and **Forget** drops the approval of a **Folder gone** row. Rules from a rule package that
-  already ran stay loaded until you restart the IDE.
-- **Disable** and **Enable** switch an element template, or all templates of a source, off and on. A switch holds for
-  this project, which the IDE keeps in `.idea/workspace.xml`, or for all your projects.
-- The marketplaces group adds, updates and removes [template marketplaces](/vscode/features/template-marketplace).
+  **Declined this session** or **Folder gone**. **Review…** shows what you would allow, **Allow this content** at the
+  end of the review allows it, **Revoke** takes the approval of that content back in every folder, and **Forget**
+  drops only the approval of a **Folder gone** row. Content you allowed in another folder, clone or git worktree
+  shows as **Allowed** without asking. Rules from a rule package that already ran stay loaded until you restart the IDE.
+- **Disable** and **Enable** switch an element template off and on; a source's **⋯** menu does it for all of its
+  templates. A switch holds for this project, which the IDE keeps in `.idea/workspace.xml`, or for all your projects.
+- The **Marketplaces** tab adds, updates and removes [template marketplaces](/vscode/features/template-marketplace).
 - The **Refresh** button in the tab's title reads everything again, for example after you installed a rule package.
+- The page wears the Miragon look in light, dark and high contrast. It follows whether your IDE theme is light, dark
+  or high contrast, and the colour theme setting under **Settings ▸ Tools ▸ Miragon BPMN Modeler**; it does not take
+  the IDE's colours or font size.
 
-**Review…** in the notification about a new plugin or rule package opens this tab at its row when everything the
-notification names lies inside the project. Otherwise, or when the tab cannot open, the list appears as before.
+**Review…** in the notification about a new plugin or rule package opens this tab with it selected when everything
+the notification names lies inside the project. Otherwise, or when the tab cannot open, the list appears as before.
+
+**Tools ▸ Miragon BPMN Modeler ▸ Review Add-ons**, also in Find Action, opens this tab on **Workspace** with only
+**Needs review** on.
 
 ## Actions
 
@@ -80,7 +91,8 @@ Find every action with **Find Action** (`Ctrl+Shift+A` / `Cmd+Shift+A`) or under
 | Generate Script Files for Script Tasks | Write a file for every inline script task of the active diagram; edits sync back live |
 | Add / Update / Remove Template Marketplace… | Manage [template marketplaces](/vscode/features/template-marketplace) |
 | Reload Modeler | Re-read element templates and re-render open diagrams |
-| Refresh Artifacts | Read the plugins, rule packages and element templates of the **Artifacts** tab again |
+| Review Add-ons | Open the **Add-ons** tab on the add-ons that need your review |
+| Refresh Add-ons | Read the plugins, rule packages and element templates of the **Add-ons** tab again |
 
 ## Status bar
 

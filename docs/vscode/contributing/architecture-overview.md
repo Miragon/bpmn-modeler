@@ -51,7 +51,8 @@ overlay.
 messages, theme signals, and persisted view state. `apps/form-webview` integrates
 form-js editing and preview; `apps/deployment-webview` renders the deployment UI,
 with its markup owned by `src/adapter/in/formTemplate.ts`. `apps/add-ons-webview`
-renders the core's add-on catalog in VS Code's Artifacts view.
+renders the core's add-on catalog in VS Code's Add-ons view and IntelliJ's Add-ons
+tab, in the Miragon brand look rather than the IDE's colours.
 
 ## Boundaries and extension points
 

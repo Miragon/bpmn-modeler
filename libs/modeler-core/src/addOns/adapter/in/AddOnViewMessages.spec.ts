@@ -15,6 +15,7 @@ import {
     CodeAddOnKindPayload,
     CodeStatePayload,
     GetAddOnCatalogCommand,
+    GroupKindPayload,
     LogErrorCommand,
     LogInfoCommand,
     Query,
@@ -31,6 +32,7 @@ import type {
     AddOnActionKind,
     CatalogActionKind,
     CodeAddOnKind,
+    GroupKind,
     SourceActionKind,
     SourceKind,
     TemplateState,
@@ -43,7 +45,11 @@ const MODEL: AddOnCatalogModel = {
     groups: [],
     actions: [{ kind: "pruneCache", label: "Remove unused plugin copies" }],
 };
-const REVEAL: AddOnReveal = { revealId: 1, addOnIds: ["plugin:/work/.camunda/plugins/resize"] };
+const REVEAL: AddOnReveal = {
+    kind: "rows",
+    revealId: 1,
+    addOnIds: ["plugin:/work/.camunda/plugins/resize"],
+};
 const ALLOW: AddOnRequest = { kind: "allow", addOnId: "plugin:/work/x", revision: 7 };
 
 function setUp(
@@ -78,6 +84,7 @@ describe("AddOnViewMessages", () => {
             expectTypeOf<CodeStatePayload>().toEqualTypeOf<CodeState>();
             expectTypeOf<TemplateStatePayload>().toEqualTypeOf<TemplateState>();
             expectTypeOf<SourceKindPayload>().toEqualTypeOf<SourceKind>();
+            expectTypeOf<GroupKindPayload>().toEqualTypeOf<GroupKind>();
             expectTypeOf<CodeAddOnKindPayload>().toEqualTypeOf<CodeAddOnKind>();
             expectTypeOf<AddOnActionKindPayload>().toEqualTypeOf<AddOnActionKind>();
             expectTypeOf<SourceActionKindPayload>().toEqualTypeOf<SourceActionKind>();

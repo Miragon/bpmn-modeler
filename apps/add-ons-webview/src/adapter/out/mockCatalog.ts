@@ -11,6 +11,8 @@ import type {
     TemplateAddOnPayload,
 } from "@miragon/bpmn-modeler-shared";
 
+import { needsReview } from "../../domain/catalogFilter";
+
 /*
  * The preview's catalog: one row in every state a view can show. The texts
  * copy the core's so the preview reads like a host; the core stays their home.
@@ -105,6 +107,7 @@ function fullCatalog(): AddOnGroupPayload[] {
     return [
         {
             id: "folder:/work",
+            kind: "folder",
             label: "work",
             description: "/work",
             sources: [
@@ -115,7 +118,9 @@ function fullCatalog(): AddOnGroupPayload[] {
                     description: "Applies to every diagram in this folder",
                     actions: [DISABLE_TEMPLATES],
                     addOns: [
-                        plugin("Palette", ".camunda/plugins/palette", "approved"),
+                        plugin("Palette", ".camunda/plugins/palette", "approved", {
+                            note: "The same content is allowed in 2 other folders; Revoke takes it back there too.",
+                        }),
                         plugin("Resize Tasks", ".camunda/plugins/resize", "new"),
                         plugin("Token Simulation", ".camunda/plugins/token-simulation", "changed"),
                         plugin("Lasso", ".camunda/plugins/lasso", "declined"),
@@ -188,6 +193,7 @@ function fullCatalog(): AddOnGroupPayload[] {
         },
         {
             id: "folder:/billing",
+            kind: "folder",
             label: "billing",
             description: "/billing",
             sources: [
@@ -203,6 +209,7 @@ function fullCatalog(): AddOnGroupPayload[] {
         },
         {
             id: "marketplaces",
+            kind: "marketplaces",
             label: "Marketplaces",
             description: "Element templates fetched from the registered marketplaces",
             sources: [
@@ -234,7 +241,18 @@ const CATALOG_ACTIONS: AddOnCatalogPayload["actions"] = [
     { kind: "pruneCache", label: "Remove unused plugin copies" },
 ];
 
-const PREVIEW_STATES = ["full", "loading", "empty", "noFolder", "failed"] as const;
+const PREVIEW_STATES = [
+    "full",
+    "allReviewed",
+    "loading",
+    "empty",
+    "noFolder",
+    "onlyMarketplaces",
+    "noMarketplace",
+    "marketplacesFailed",
+    "rereadFailed",
+    "failed",
+] as const;
 
 type PreviewState = (typeof PREVIEW_STATES)[number];
 
@@ -243,16 +261,43 @@ export function previewStateOf(name: string | null): PreviewState {
     return PREVIEW_STATES.find((state) => state === name) ?? "full";
 }
 
+function allowed(row: CodeAddOnPayload): CodeAddOnPayload {
+    return { ...row, state: "approved", stateText: STATE_TEXT.approved, review: undefined, note: undefined, actions: [REVOKE] };
+}
+
+function everyCodeAllowed(groups: AddOnGroupPayload[]): AddOnGroupPayload[] {
+    return groups.map((group) => ({
+        ...group,
+        sources: group.sources.map((source) => ({
+            ...source,
+            addOns: source.addOns.map((row) => (row.kind !== "elementTemplate" && needsReview(row) ? allowed(row) : row)),
+        })),
+    }));
+}
+
+const NO_ADD_ON_TEXT = "No BPMN plugins, bpmnlint rule packages or element templates in this workspace.";
+const NO_FOLDER_TEXT = "Open a folder to see the plugins, rule packages and element templates it brings.";
+
+const folderGroups = () => fullCatalog().filter(({ kind }) => kind === "folder");
+const marketplacesGroup = () => fullCatalog().filter(({ kind }) => kind === "marketplaces");
+
 const GROUPS_OF: Record<PreviewState, () => Partial<AddOnCatalogPayload> | undefined> = {
     full: () => ({ groups: fullCatalog() }),
+    allReviewed: () => ({ groups: everyCodeAllowed(fullCatalog()) }),
     loading: () => undefined,
-    empty: () => ({
-        groups: [],
-        emptyText: "No BPMN plugins, bpmnlint rule packages or element templates in this workspace.",
+    empty: () => ({ groups: [], emptyText: NO_ADD_ON_TEXT }),
+    noFolder: () => ({ groups: [], emptyText: NO_FOLDER_TEXT }),
+    onlyMarketplaces: () => ({ groups: marketplacesGroup(), emptyText: NO_FOLDER_TEXT }),
+    noMarketplace: () => ({ groups: folderGroups() }),
+    marketplacesFailed: () => ({
+        groups: [
+            ...folderGroups(),
+            { ...marketplacesGroup()[0]!, problem: "Could not read the registered marketplaces.", sources: [] },
+        ],
     }),
-    noFolder: () => ({
-        groups: [],
-        emptyText: "Open a folder to see the plugins, rule packages and element templates it brings.",
+    rereadFailed: () => ({
+        groups: fullCatalog(),
+        problem: "Could not list the add-ons again. The list shows what it read before; the log says why.",
     }),
     failed: () => ({ groups: [], actions: [], problem: "Could not list the add-ons. The log says why." }),
 };
@@ -338,7 +383,7 @@ export class MockCatalog {
         }
         return this.changeRow<CodeAddOnPayload>(
             addOnId,
-            (row) => ({ ...row, state: "approved", stateText: STATE_TEXT.approved, review: undefined, note: undefined, actions: [REVOKE] }),
+            allowed,
             (row) => `Allowed ${row.name}. Open editors reload with it.`,
         );
     }

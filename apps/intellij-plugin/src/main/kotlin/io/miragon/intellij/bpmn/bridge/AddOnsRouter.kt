@@ -4,13 +4,14 @@ import com.google.gson.JsonParser
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.Project
 import io.miragon.intellij.bpmn.ModelerSettingsStore
-import io.miragon.intellij.bpmn.revealArtifacts
+import io.miragon.intellij.bpmn.revealAddOns
 
 /**
- * Routes the add-ons view of the BPMN Modeler tool window's Artifacts tab: one
+ * Routes the add-ons view of the BPMN Modeler tool window's Add-ons tab: one
  * page per project, whose messages it relays verbatim, and whose visibility it
  * reports with the project root and the settings. The core asks it to show
- * the tab, then delivers the rows to the page itself.
+ * the tab, then delivers the rows to the page itself. Review Add-ons shows the
+ * tab first, then asks the core for what needs review.
  *
  * The page's messages and the visibility are reliable frames: only a result
  * frees a busy row on the page, so a request lost while the bridge restarts
@@ -19,7 +20,7 @@ import io.miragon.intellij.bpmn.revealArtifacts
 internal class AddOnsRouter(
     private val deps: BridgeDeps,
     // A seam for tests: a headless test cannot show a tool window.
-    private val revealArtifacts: (Project, (Boolean) -> Unit) -> Unit = ::revealArtifacts,
+    private val revealAddOns: (Project, (Boolean) -> Unit) -> Unit = ::revealAddOns,
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
     private val log = Logger.getInstance(AddOnsRouter::class.java)
@@ -50,7 +51,7 @@ internal class AddOnsRouter(
                             if (clock() - askedAt >= REVEAL_REPLY_DEADLINE_MS) {
                                 reply.result(AddOnsRevealResult(false))
                             } else {
-                                revealArtifacts(deps.project) { shown -> reply.result(AddOnsRevealResult(shown)) }
+                                revealAddOns(deps.project) { shown -> reply.result(AddOnsRevealResult(shown)) }
                             }
                         }
                     }
@@ -115,6 +116,12 @@ internal class AddOnsRouter(
     /** Starts no bridge: a new one reads every add-on anyway, so the frame is only for a running one. */
     fun refresh() {
         deps.channel.notify(HostToCoreMethod.ADD_ONS_REFRESH, linkedMapOf<String, Any>())
+    }
+
+    /** Reliable and started: the user waits to see the result, also across a cold start; repeated presses coalesce. */
+    fun review() {
+        deps.channel.notify(HostToCoreMethod.ADD_ONS_REVIEW, linkedMapOf<String, Any>(), coalesceKey = "addOns/review", reliable = true)
+        deps.ensureStartedAsync()
     }
 
     fun clear() {

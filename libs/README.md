@@ -1,39 +1,43 @@
-# `libs/` — building blocks
+# `libs/`: building blocks
 
-Each package in `libs/` is reusable code that other packages consume through its
-public API with an `import` statement. The runnable and shippable ends of the
-project, namely the webviews and hosts, live in [`../apps`](../apps). These
-libraries are the shared foundation that both the hosts and the webviews depend
-on.
+Reusable code that other workspaces import through each package's public entry point. The runnable and
+shipped ends (webviews, hosts, the Orca plugin) live in [`../apps`](../apps/README.md), the npm packages in
+[`../packages`](../packages). Every package here is private: the bpmn-js modules are inlined into
+`@miragon/bpmn-modeler` (listed in
+[`inlined-libraries.json`](../packages/bpmn-modeler/inlined-libraries.json)), the rest is bundled into the
+hosts.
+
+Where code belongs and which imports are allowed is in the
+[package boundaries ADR](../docs/adr/architecture-and-hosts.md#package-boundaries).
 
 ## Foundation
 
-| Package | What's inside |
+| Package | What it holds |
 | --- | --- |
-| `modeler-core` | This is the host-agnostic BPMN and DMN engine, holding the domain models, services, host-capability ports, and the `vscode`-free editor-session registries such as `EditorSessionStore` and `WebviewMessageRouter`. It must never import `vscode`. |
-| `shared` | This holds the `Command` and `Query` message types and utilities that both the extension host and the webviews use, so it defines the vocabulary of the `postMessage` seam. |
+| [`modeler-core`](modeler-core/README.md) | The host-agnostic engine behind the VS Code extension and the IntelliJ bridge: domain, services and host ports. |
+| [`modeler-types`](modeler-types/README.md) | Types, browser utilities and pure rules safe to publish with the npm packages. |
+| [`shared`](shared/README.md) | The private webview ↔ host message protocol and the webview chrome the hosts share. |
 
-## bpmn-js and dmn-js feature modules
+## bpmn-js modules (inlined into `@miragon/bpmn-modeler`)
 
-Each of these is a self-contained editor feature, packaged separately so that it
-can be composed into a webview and unit-tested in isolation.
-
-| Package | What's inside |
+| Package | What it adds |
 | --- | --- |
-| `append-menu` | This replaces the flat "Append element" dropdown with a two-panel Preact overlay. |
-| `properties-panel` | An engine-neutral properties panel for bpmn-js: a fork of `bpmn-js-properties-panel` (MIT) whose renderer mounts on a readonly viewer and derives a readonly flag, plus a neutral (standard-BPMN) provider, a design/implement mode filter, and a host custom-group slot. Consumed by the `/design` subpath (epic #1438). |
-| `element-template-chooser` | This provides a richer, searchable overlay for picking an element template. |
-| `bpmn-clipboard` | Host-bridge override for element and label-text copy/paste; the native browser clipboard is the default, this routes it through the host when a sandboxed webview iframe can't reach the system clipboard. |
-| `code-link` | This adds a "Go to implementation" context-pad action that jumps to the task's source file. |
-| `inline-scripting` | This lets the user edit a Camunda 7 script task's (or script-typed listener's) inline script in a real host editor tab, arbitrating a single writer per script surface and keeping the panel field in sync. |
-| `definition-search` | This adds a "Search other models" field below the message, signal, error and escalation reference select. Picking a result copies the definition into the current model and links it; results come from the `definitionSearch` capability port. |
-| `element-template-builder` | The graphical builder of the element template editor: a form over a template's JSON that edits it in place (keeping the file's formatting and unknown fields), with a per-engine binding catalog checked against the official C7/C8 schemas. Composed by the `bpmn-webview` template editor page. |
-| `model-navigation` | This adds a "Navigate to referenced model" action, jumping from a Call Activity to its BPMN process or from a Business Rule Task to its DMN decision. |
-| `bpmn-i18n` | This provides runtime language switching for bpmn-js, dmn-js, the properties panel, and the app's own strings. |
-| `bpmn-layout` | This formats a diagram (left-to-right relayout through `bpmn-auto-layout`, applied as one undoable step) and cleans up orphan DI, dangling flows and invisible leftovers. The engine sits behind a geometry-only port, which is what keeps its greenfield relayout from destroying what it does not understand. |
+| [`append-menu`](append-menu/README.md) | The two-panel overlay behind **Append element** and **Create element**. |
+| [`bpmn-clipboard`](bpmn-clipboard/README.md) | Copy and paste through the host, for webviews without clipboard access. |
+| [`bpmn-diff`](bpmn-diff/README.md) | The DOM-free diff data layer behind `/diff` and the hosts' BPMN diff. |
+| [`bpmn-layout`](bpmn-layout/README.md) | **Format Diagram** and **Clean Up Diagram**. |
+| [`code-link`](code-link/README.md) | The **Go to implementation** context-pad action. |
+| [`definition-search`](definition-search/README.md) | **Search other models** for messages, signals, errors and escalations. |
+| [`element-template-chooser`](element-template-chooser/README.md) | The searchable overlay for picking an element template. |
+| [`flow-navigation`](flow-navigation/README.md) | Keyboard traversal along sequence flows. |
+| [`inline-scripting`](inline-scripting/README.md) | Editing Camunda 7 inline scripts in a host editor tab. |
+| [`model-navigation`](model-navigation/README.md) | Jumping to a called process, decision or linked form, and the form preview. |
+| [`properties-panel`](properties-panel/README.md) | The engine-neutral properties panel fork for the View, Design and Implement modes. |
 
-## Host extension
+## Other libraries
 
-| Package | What's inside |
+| Package | What it holds |
 | --- | --- |
-| `standalone-extension` | This is a Theia frontend extension contributing Miragon themes, a splash screen, and view overrides, consumed by [`apps/standalone`](../apps/standalone). It ships as its own package because Theia only discovers `theiaExtensions` that are declared on dependencies. |
+| [`bpmn-i18n-extras`](bpmn-i18n-extras/README.md) | The few translations the shared `@miragon/bpmn-modeler-i18n` library lacks; also inlined into `@miragon/dmn-modeler`. |
+| [`element-template-builder`](element-template-builder) | The form of the element template editor, used by the `bpmn-webview` template editor page. |
+| [`standalone-extension`](standalone-extension/README.md) | The Theia frontend extension of the desktop app. |

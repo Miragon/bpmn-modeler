@@ -52,8 +52,8 @@ constraints do not need a new decision section.
   inferred rationale for review. Retain issue/PR references when they provide
   useful evidence, without making readers reconstruct the decision from them.
 
-This replaces the chronological, one-file-per-decision convention. Consult Git
-history for superseded choices; the working tree is the current reference.
+Consult Git history for superseded choices; the working tree is the current
+reference.
 
 ## Publication
 

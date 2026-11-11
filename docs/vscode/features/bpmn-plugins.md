@@ -4,6 +4,12 @@ Extend the BPMN editor with [bpmn-js](https://bpmn.io/toolkit/bpmn-js/) plugins 
 
 A plugin runs its own code inside the editor. The modeler loads it only after you allow it, and asks again whenever its files change.
 
+::: info Alpha
+BPMN plugins are in alpha. Not every Camunda Modeler plugin runs yet: see [the plugins we tested](#camunda-modeler-plugins-we-tested) and [Limits](#limits). Open work includes plugins for the DMN editor ([#2246](https://github.com/Miragon/bpmn-modeler/issues/2246)), style-only plugins ([#2266](https://github.com/Miragon/bpmn-modeler/issues/2266)), the lint rules Camunda plugins register ([#2267](https://github.com/Miragon/bpmn-modeler/issues/2267)) and a versioned host API for plugins ([#2316](https://github.com/Miragon/bpmn-modeler/issues/2316)).
+:::
+
+<figure class="shot"><img src="./images/bp-allowed.png" alt="The order fulfilment diagram with two allowed Camunda Modeler plugins at work: the viadee Tooltip Plugin shows the implementation and job type of the service task Check stock, and the selected task Ship order has resize handles from BPMN Resize Tasks. The Add-ons view on the left marks both plugins as allowed and still lists a bpmnlint rule package that needs review"><figcaption>Two unmodified Camunda Modeler plugins after you allowed them: the tooltip from the viadee Tooltip Plugin and the resize handles from BPMN Resize Tasks.</figcaption></figure>
+
 ## Add a plugin
 
 Put each plugin in its own folder under `<configFolder>/plugins/` (`.camunda/plugins/` by default). Like element templates, plugins are collected from the diagram's folder up to the workspace root:
@@ -74,17 +80,21 @@ Plugins load in the [Design and Implement modes](/vscode/features/modes), never 
 
 When you open a diagram and its workspace holds plugins you have not allowed yet, the editor opens right away with the plugins you already allowed, and a notification says how many are waiting, for example *2 BPMN plugins in this workspace are not allowed yet.*
 
-1. Click **Review…**. The [Artifacts view](/vscode/features/artifacts) opens at the waiting plugins and shows each one's folder, files and content hash.
-2. Click **Allow this content** on each plugin you trust. Every open BPMN editor that offered it reloads with it.
+<figure class="shot"><img src="./images/bp-notification.png" alt="The diagram order-fulfilment.bpmn open in the BPMN editor without plugins, and the notification 2 BPMN plugins in this workspace are not allowed yet, with a Review… button"><figcaption>The editor opens right away; the notification counts the plugins that wait for you.</figcaption></figure>
+
+1. Click **Review…**. The [Add-ons view](/vscode/features/add-ons) opens with the first waiting plugin selected and shows its folder, files and content hash; the others carry **Needs review** in the list.
+2. For each plugin you trust, select it and click **Allow this content** at the end of its review. Every open BPMN editor that offered it reloads with it.
+
+<figure class="shot"><img src="./images/bp-review.png" alt="The Add-ons view in the BPMN Modeler side bar, opened by Review… on the plugin BPMN Resize Tasks: Not allowed yet, a warning that a plugin runs its own code in the BPMN editor, its folder .camunda/plugins/resize-tasks, the bundle it covers, its content hash and the button Allow this content, next to the diagram"><figcaption>Review… opens the Add-ons view on the first waiting plugin, with its folder, files and content hash.</figcaption></figure>
 
 **Review…** shows a list to check instead when a waiting plugin lies outside every open folder. Each entry shows the plugin's name, whether it is new or changed since you allowed it, and its folder. Check the plugins you trust and confirm.
 
 Once **Review…** opened the view, the modeler does not ask again in this window about the same plugins; they wait in the view until you allow them. A plugin you leave unchecked in the list is not offered again until the window reloads or its files change. Closing the notification without **Review…** decides nothing: the modeler does not ask again in this window for the same plugins, and asks again in a later session. Only one question is open at a time, even when you open several diagrams. Questions about [bpmnlint rule packages](/vscode/features/linting#allow-a-rule-package) wait for the same turn.
 
-An approval is for one plugin folder and its exact content, a SHA-256 hash of the script and the stylesheet:
+An approval is for the plugin's exact content, a SHA-256 hash of the script and the stylesheet:
 
 - Any change, from a `git pull`, an update or an edit, makes the plugin *changed*. It is left out until you allow it again.
-- The same plugin in another folder or repository asks on its own.
+- The same content in another folder, clone or git worktree is allowed there too, without asking. The modeler records the approval for that folder as well, and the *bpmn.modeler* output channel says so: `Allowed BPMN plugin <name> in <folder>: you allowed the same content in <folder>.`
 - Approvals are kept for you in VS Code's global state, outside every workspace, so a repository cannot allow its own plugins. [Workspace Trust](https://code.visualstudio.com/docs/editor/workspace-trust) does not replace them.
 - The editor loads a copy of the bytes you allowed from VS Code's global storage, never the files in your workspace. A file changed after you allowed it does not run.
 
@@ -134,13 +144,13 @@ In VS Code the output channel names the error of a left-out plugin only as *Scri
 - Camunda Modeler `client` extensions, menus and DMN plugins do not run. Plugins extend the BPMN editor only, not DMN or forms.
 - An error a plugin throws after the editor opened, for example while you edit, is not contained: the editor may stop responding in parts until you reopen it, and the log does not name the plugin ([#2270](https://github.com/Miragon/bpmn-modeler/issues/2270)). Remove the plugin's folder if that happens.
 - Plugins load when an editor opens. A change to a plugin's files reaches an editor the next time it opens, after you allow the changed version.
-- The [Artifacts view](/vscode/features/artifacts) lists and revokes approvals in VS Code, and the **Artifacts** tab of the **BPMN Modeler** tool window does in IntelliJ. Copies of allowed plugins stay in VS Code's global storage. When the extension starts, and after a revoke, it removes the copies no approval names any more, such as the version before you allowed an update.
+- The [Add-ons view](/vscode/features/add-ons) lists and revokes approvals in VS Code, and the **Add-ons** tab of the **BPMN Modeler** tool window does in IntelliJ. **Revoke** takes the plugin's content back in every folder where you allowed it. Copies of allowed plugins stay in VS Code's global storage. When the extension starts, and after a revoke, it removes the copies no approval names any more, such as the version before you allowed an update.
 
 ## IntelliJ
 
 The IntelliJ plugin loads BPMN plugins the same way: the same folders, the same notification with **Review…** and the same rules. These parts differ:
 
-- **Review…** opens the **Artifacts** tab of the **BPMN Modeler** tool window at the plugin's row, where you allow it, and where **Revoke** takes an approval back. When a plugin lies outside the project, or the tab cannot open, the list appears as in VS Code.
+- **Review…** opens the **Add-ons** tab of the **BPMN Modeler** tool window with the plugin selected, where you allow it, and where **Revoke** takes an approval back. When a plugin lies outside the project, or the tab cannot open, the list appears as in VS Code.
 
 - The question is an IDE notification balloon. Closing the balloon with its X keeps it in the **Notifications** tool window, where **Review…** still works. Clearing it there decides nothing, like closing the notification in VS Code.
 - Approvals are kept by the IDE for all your projects, outside every project, so a repository cannot allow its own plugins. A plugin you allow in one project window is allowed in the others too.

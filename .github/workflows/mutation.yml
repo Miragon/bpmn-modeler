@@ -22,36 +22,55 @@ permissions:
   contents: read
 
 # The event is part of the group: a push to main must not cancel the weekly
-# full run, whose score is stored.
+# full run, whose score is stored. A merge waits for the running one: cancelling
+# a full run that rebuilds a lost baseline would leave every later run without one.
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   modeler-core-domain:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # A full run (every mutant) takes about 30 minutes; a pull request with a baseline takes a few.
+    timeout-minutes: ${{ github.event_name == 'pull_request' && 30 || 60 }}
+    permissions:
+      contents: read
+      actions: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup-workspaces
         with:
           focus: bpmn-modeler @miragon/bpmn-modeler-core @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-types @miragon/bpmn-modeler-repo-checks
-      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: libs/modeler-core/reports/mutation/incremental.json
-          key: stryker-modeler-core-${{ github.sha }}
-          restore-keys: stryker-modeler-core-
       # Pull requests and merges mutate only what changed since the last main run; a merge's run
       # becomes the baseline the next pull request restores. The weekly run re-runs everything.
+      # The baseline is an artifact, not a cache entry: the repository's caches exceed the 10 GB
+      # limit, and eviction removed the baseline within hours, so every run re-tested every mutant.
       - if: github.event_name == 'pull_request' || github.event_name == 'push'
-        run: yarn workspace @miragon/bpmn-modeler-core test:mutation
+        name: Restore the incremental baseline of the last main run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          artifact_id=$(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?name=stryker-incremental-modeler-core&per_page=100" \
+            --jq '[.artifacts[] | select((.expired | not) and .workflow_run.head_branch == "main")] | sort_by(.created_at) | last | .id // empty')
+          if [ -z "$artifact_id" ]; then
+            echo "::warning::No incremental baseline from main; Stryker tests every mutant."
+            exit 0
+          fi
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$artifact_id/zip" > "$RUNNER_TEMP/stryker-baseline.zip"
+          mkdir -p libs/modeler-core/reports/mutation
+          unzip -o "$RUNNER_TEMP/stryker-baseline.zip" -d libs/modeler-core/reports/mutation
+      # Vitest appends a job summary per Stryker test run, which outgrows the 1 MB step summary limit.
+      - if: github.event_name == 'pull_request' || github.event_name == 'push'
+        run: env -u GITHUB_STEP_SUMMARY yarn workspace @miragon/bpmn-modeler-core test:mutation
       - if: github.event_name != 'pull_request' && github.event_name != 'push'
-        run: yarn workspace @miragon/bpmn-modeler-core test:mutation --force
-      - if: github.event_name != 'pull_request'
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        run: env -u GITHUB_STEP_SUMMARY yarn workspace @miragon/bpmn-modeler-core test:mutation --force
+      - if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
+          name: stryker-incremental-modeler-core
           path: libs/modeler-core/reports/mutation/incremental.json
-          key: stryker-modeler-core-${{ github.sha }}
+          if-no-files-found: error
+          retention-days: 30
       - if: always()
         run: yarn fitness mutation summary --report libs/modeler-core/reports/mutation/mutation.json >> "$GITHUB_STEP_SUMMARY"
       - if: always()

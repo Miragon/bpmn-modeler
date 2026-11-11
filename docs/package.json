@@ -18,7 +18,7 @@
         "cytoscape-cose-bilkent": "4.1.0",
         "dayjs": "1.11.23",
         "debug": "4.4.3",
-        "mermaid": "11.17.2",
+        "mermaid": "12.2.0",
         "portless": "0.15.8",
         "vite": "8.3.4",
         "vitepress": "1.6.4",

@@ -1,61 +1,38 @@
 # `@miragon/bpmn-modeler-i18n-extras`
 
-The modeler's local translation **overlay** on top of the shared
+The modeler's own translation overlay on top of the shared
 [`@miragon/bpmn-modeler-i18n`](https://github.com/Miragon/camunda-modeler-i18n-plugin/tree/develop/packages/translations)
-library.
+library. It holds only the strings the shared library lacks, such as the script-lock badge labels and the
+popup-menu texts `@miragon/bpmn-modeler` adds. Both npm packages inline it; the webviews, the VS Code
+extension and the Orca plugin import it too.
 
-The shared library ships this modeler's Camunda-7 (Platform) palette /
-context-pad / properties-panel strings (`en` ≈ 1016 keys, 12 locales), so this
-overlay covers **only the handful of modeler-internal strings the shared library
-lacks** — for example the script-lock badge labels the webview emits (`Read-only`,
-`Being edited in`) and the popup-menu keywords and descriptions `@miragon/bpmn-modeler`
-adds (`Child process`, `Automated work carried out by a system`). The webviews merge
-them onto the shared dictionaries at startup:
+Internal workspace, not published on its own.
+
+## Usage
 
 ```ts
 import { i18n } from "@miragon/bpmn-modeler-i18n";
 import { extras } from "@miragon/bpmn-modeler-i18n-extras";
 
-i18n.extend(extras); // consumer-wins merge; persists across setLanguage()
+i18n.extend(extras);
 ```
 
-The shared translations stay authoritative for every key they cover; the overlay
-only fills the residual gap.
+The shared translations win for every key they cover; the overlay fills the gap and survives
+`setLanguage()`.
 
-## Exports
+`supportedModelerLanguages` is the one list of languages the modeler offers. Copies that cannot import
+it are pinned to it: `apps/vscode-plugin/src/manifest.contract.spec.ts` checks the
+`miragon.bpmnModeler.language` setting and the table in `docs/vscode/features/language-support.md`, and
+IntelliJ's `ModelerLocalesTest` checks `ModelerLocales.kt`.
 
-- **`extras`** — `Partial<Record<SupportedLocale, Record<string, string>>>`, the
-  overlay keys per locale (English source string → localized value), for every
-  locale the shared library ships.
-- **`supportedModelerLanguages`** — the shared `supportedLanguages` catalogue
-  (locale code and label): the one list of languages the modeler offers. The VS
-  Code language QuickPick and `tools/build-overlay.mjs` read it. The copies that
-  cannot import it are pinned to it: `manifest.contract.spec.ts` checks the
-  `miragon.bpmnModeler.language` enum and labels in
-  `apps/vscode-plugin/package.json` and the table in
-  `docs/vscode/features/language-support.md`, and IntelliJ's
-  `ModelerLocalesTest` checks `ModelerLocales.kt` against that manifest.
-  `parity.spec.ts` fails when an offered locale has no overlay dictionary.
+## Rules
 
-## How the key set is chosen (runtime harvest)
+The overlay is temporary debt and should shrink to empty. Three tests keep it honest:
 
-The key set is chosen against **runtime truth**, not a static dictionary diff. A
-browser driver records every template the running modeler passes to `translate()`
-(`tools/harvest-drain.js`). `tools/build-overlay.mjs` then keeps an overlay key
-only when the shared library has no entry for it (exact or normalized) **and**
-the harvest recorded the modeler asking for it — plus a small `SOURCE_ONLY`
-allowlist for strings the webview emits from a feature the harvest driver does
-not exercise (script-lock). Everything else is dropped: keys the shared library
-now covers (the upstreamed C7 strings and legacy casing twins), unwired dmn-js
-labels, bpmn-js import diagnostics, and diagram/test junk. Two guards keep it
-honest — `overlayScope.spec.ts` forbids any key the shared library covers, and
-`overlayNeeded.spec.ts` forbids any key the harvest never requests.
+- `overlayScope.spec.ts` fails when the shared library ships a key the overlay still defines, and names
+  the keys to delete from `src/languages/*`.
+- `overlayNeeded.spec.ts` fails for a key the running modeler never asks for.
+- `parity.spec.ts` keeps every offered locale at the same key set with intact `{param}` placeholders.
 
-## Maintaining the overlay (shrinking it)
-
-The overlay is temporary debt: as the shared library grows, the residual keys
-here become redundant. `overlayScope.spec.ts` enforces the cleanup — it fails the
-moment the shared library ships a key the overlay still defines, naming the keys
-to delete from `src/languages/*`. `parity.spec.ts` keeps every locale at the same
-key set with intact `{param}` placeholders. See `tools/README.md` to refresh the
-harvest and re-prune.
+Which keys the modeler asks for is recorded from the running webviews, not diffed from dictionaries. How
+to refresh that record and prune the overlay is in [`tools/README.md`](tools/README.md).

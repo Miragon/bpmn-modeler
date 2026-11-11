@@ -4,7 +4,7 @@
     "version": "0.0.1",
     "private": true,
     "license": "Apache-2.0",
-    "description": "Webview frontend for the Artifacts view: the add-ons of the open workspace.",
+    "description": "Webview frontend for the Add-ons view: the add-ons of the open workspace.",
     "scripts": {
         "build": "vite build",
         "dev": "portless",
@@ -15,7 +15,10 @@
         "typecheck": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.spec.json"
     },
     "dependencies": {
+        "@fontsource-variable/geist": "5.3.0",
+        "@fontsource-variable/geist-mono": "5.3.0",
         "@miragon/bpmn-modeler-shared": "workspace:*",
+        "lucide": "1.56.0",
         "tslib": "2.8.1"
     },
     "devDependencies": {

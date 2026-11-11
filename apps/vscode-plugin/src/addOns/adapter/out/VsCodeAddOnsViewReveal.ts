@@ -1,12 +1,12 @@
 import { AddOnsFeature, AddOnViewRevealPort } from "@miragon/bpmn-modeler-core";
 
-/** Shows and focuses the Artifacts view; rejects when the host cannot. */
+/** Shows and focuses the Add-ons view; rejects when the host cannot. */
 export interface AddOnsViewFocus {
     focus(): Promise<void>;
 }
 
 /**
- * Opens the Artifacts view at the rows Review… leaves to it. Built before the
+ * Opens the Add-ons view at the rows Review… leaves to it. Built before the
  * BPMN editor whose reviews use it, and connected once the catalog and the
  * view exist.
  */

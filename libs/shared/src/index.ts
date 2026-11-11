@@ -21,6 +21,7 @@ export * from "./lib/propertiesPanelResizer";
 export * from "./lib/propertiesPanelFocus";
 export * from "./lib/canvasAutoFocus";
 export * from "./lib/hostTheme";
+export * from "./lib/brandMode";
 export * from "./lib/harvestRecorder";
 export * from "./lib/webviewStateStore";
 export * from "./lib/propertiesPanelUiState";

@@ -42,4 +42,5 @@ internal enum class HostToCoreMethod(val wireName: String) {
     ADD_ONS_WEBVIEW_MESSAGE("addOns/webviewMessage"),
     ADD_ONS_OPEN("addOns/open"),
     ADD_ONS_REFRESH("addOns/refresh"),
+    ADD_ONS_REVIEW("addOns/review"),
 }

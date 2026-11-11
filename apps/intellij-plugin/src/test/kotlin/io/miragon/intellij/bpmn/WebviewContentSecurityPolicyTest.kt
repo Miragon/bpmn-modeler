@@ -52,11 +52,12 @@ class WebviewContentSecurityPolicyTest {
     }
 
     @Test
-    fun `pins the add-ons shell policy, which loads no image and no font`() {
+    fun `pins the add-ons shell policy, which loads its bundled fonts, no image and no inline style`() {
         assertEquals(
             "default-src 'none'; " +
                 "script-src 'self' 'sha256-gRNMaVliC1NArQo19O2For+mqk6lM6huJLujAnYaytk='; " +
-                "style-src 'self' 'unsafe-inline'; " +
+                "style-src 'self'; " +
+                "font-src 'self'; " +
                 "base-uri 'none'; form-action 'none'",
             WebviewContentSecurityPolicy.ADD_ONS_SHELL,
         )

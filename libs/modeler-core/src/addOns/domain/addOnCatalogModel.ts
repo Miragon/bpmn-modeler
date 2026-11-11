@@ -3,6 +3,7 @@ import type {
     AddOnActionKind,
     CatalogActionKind,
     CodeAddOnKind,
+    GroupKind,
     SourceActionKind,
     SourceKind,
     TemplateState,
@@ -20,6 +21,7 @@ export interface AddOnCatalogModel {
     /** Workspace folders in the order they were opened, then the marketplaces. */
     readonly groups: readonly AddOnGroupView[];
     readonly actions: readonly ActionView<CatalogActionKind>[];
+    /** Why no workspace folder lists an add-on: none is open, or none brings one. */
     readonly emptyText?: string;
     /** Why the catalog could not be read; the groups are then what it read before, if anything. */
     readonly problem?: string;
@@ -27,6 +29,8 @@ export interface AddOnCatalogModel {
 
 export interface AddOnGroupView {
     readonly id: string;
+    /** Ids are never parsed, and the marketplaces group may list no source to tell it by. */
+    readonly kind: GroupKind;
     readonly label: string;
     readonly description: string;
     /** Why it lists none of its sources. */
@@ -85,8 +89,11 @@ export interface TemplateAddOnView {
 
 export type AddOnView = CodeAddOnView | TemplateAddOnView;
 
-/** Rows a view is to show and focus, once: a "Review…" left the code they name to it. */
-export interface AddOnReveal {
-    readonly revealId: number;
-    readonly addOnIds: readonly string[];
-}
+/** What a host asks a view to show, once: rows a "Review…" left to it, or every add-on that needs review. */
+export type AddOnRevealTarget =
+    | { readonly kind: "rows"; readonly addOnIds: readonly string[] }
+    | { readonly kind: "needsReview" };
+/** Field for field the protocol's AddOnRevealPayload; written out, as the type pin is strict about intersections. */
+export type AddOnReveal =
+    | { readonly kind: "rows"; readonly revealId: number; readonly addOnIds: readonly string[] }
+    | { readonly kind: "needsReview"; readonly revealId: number };

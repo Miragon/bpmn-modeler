@@ -1,61 +1,45 @@
 # `@miragon/bpmn-modeler-layout`
 
-Formats and cleans up a BPMN diagram — the modeler's equivalent of *Reformat
-Code*. **Format** rearranges the diagram left to right and reroutes its
-connections, touching only diagram interchange. **Cleanup** removes orphan DI,
-dangling flows and invisible leftovers, after reporting what it found.
+**Format Diagram** and **Clean Up Diagram** for bpmn-js. Format lays a diagram out left to right and
+reroutes its connections, changing only the diagram interchange (DI). Cleanup reports orphan DI,
+dangling flows and invisible leftovers, then removes them after the user confirms. `@miragon/bpmn-modeler`
+inlines it.
 
-## Why this exists
+Internal workspace, not published on its own.
 
-The modeler had no layout automation at all: the only geometry it ever wrote
-was align-to-origin, which translates the whole graph and nothing else. An
-imported, generated or long-grown diagram had to be tidied by hand.
+## How it works
 
-The layout itself comes from [`bpmn-auto-layout`](https://github.com/bpmn-io/bpmn-auto-layout).
-What this library adds is everything around it:
+- The layout comes from `bpmn-auto-layout` behind the `LayoutEngine` port, which returns shape bounds and
+  waypoints, never XML. The engine rebuilds DI from scratch; reading only its geometry keeps the DI of
+  everything it omits.
+- Every `modeling.*` call runs in the `preExecute` of one `layout.apply` command, so one undo reverts the
+  whole format.
+- The preflight check (`preflight.ts`) decides what may be formatted, independently of the engine.
+- Zero overlap and minimal crossings are not promised: the library does not assert bounds on the
+  engine's output.
 
-- **A geometry-only port.** `LayoutEngine` returns absolute shape bounds and
-  waypoints, never XML. That is not just swappability — it is what contains the
-  engine's destructiveness. The engine clears `definitions.diagrams` and
-  rebuilds DI from scratch; because we *read* geometry instead of writing its
-  XML back, everything it omits or mislays keeps the DI it already has.
-- **A single undo step.** The applier runs every `modeling.*` call from the
-  `preExecute` of one `layout.apply` command. diagram-js's `CommandStack`
-  hands nested commands the outer action's id, so one Ctrl+Z reverts the whole
-  format.
-- **Our own refusal taxonomy.** The pre-flight check decides what may be
-  formatted independently of the engine, so it keeps holding when the engine
-  starts accepting cases we refuse today.
+The full decision, outcome codes included, is in the
+[Formatting and cleanup ADR](../../docs/adr/bpmn-modeler.md#formatting-and-cleanup).
+
+## Layers
+
+| Layer | Files | May import |
+|---|---|---|
+| Pure | `types`, `port`, `preflight`, `plan`, `cleanup/rules` | nothing |
+| Engine | `engine/` | `bpmn-auto-layout`, `bpmn-moddle` |
+| Applier | `apply/` | bpmn-js |
 
 ## Usage
 
 ```ts
 import { createBpmnLayoutModule } from "@miragon/bpmn-modeler-layout";
 
-new BpmnModeler({ additionalModules: [createBpmnLayoutModule()] });
-```
+const modeler = new BpmnModeler({ additionalModules: [createBpmnLayoutModule()] });
 
-Then, from the modeler:
-
-```ts
 const outcome = await modeler.get("bpmnLayouter").format();
-const report = await modeler.get("bpmnCleanup").inspect();
+const report = modeler.get("bpmnCleanup").inspect();
 ```
 
-Pass your own `LayoutEngine` to `createBpmnLayoutModule(engine)` to replace the
-layout implementation — the applier, the commands and the hosts are unaffected.
-
-## Layout quality
-
-Left-to-right layering and orthogonal routing come from the engine. Zero node
-overlap and minimal edge crossings are *not* contractual here: crossings cannot
-be driven to zero on a non-planar process graph, and this library does not
-assert bounds on the engine's output.
-
-## Structure
-
-| Layer | Files | Imports |
-|---|---|---|
-| Pure | `types`, `port`, `preflight`, `plan`, `cleanup/rules` | nothing |
-| Engine | `engine/` | `bpmn-auto-layout`, `bpmn-moddle` |
-| Applier | `apply/` | bpmn-js |
+`createBpmnLayoutModule(engine)` takes another `LayoutEngine`. `createBpmnLayoutServiceModule` and
+`createBpmnLayoutUiModule` split the services from the palette and keyboard entries for hosts with their
+own controls.

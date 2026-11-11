@@ -29,7 +29,7 @@ class AddOnsRouterTest {
     private fun routed(
         ensureStartedAsync: () -> Unit = {},
         clock: () -> Long = System::currentTimeMillis,
-        revealArtifacts: (Project, (Boolean) -> Unit) -> Unit = { _, onDone -> onDone(false) },
+        revealAddOns: (Project, (Boolean) -> Unit) -> Unit = { _, onDone -> onDone(false) },
     ): Routed {
         val wired =
             wireChannel().also {
@@ -37,7 +37,7 @@ class AddOnsRouterTest {
                 disposals += it.fake::close
             }
         val deps = bridgeDeps(projectFixture.get(), wired.channel, wired.handlers, ensureStartedAsync = ensureStartedAsync)
-        val router = AddOnsRouter(deps, revealArtifacts, clock)
+        val router = AddOnsRouter(deps, revealAddOns, clock)
         router.register()
         return Routed(wired, router)
     }
@@ -52,12 +52,12 @@ class AddOnsRouterTest {
     }
 
     @Test
-    fun `answers a reveal with whether the Artifacts tab is now shown`() {
-        val showing = routed(revealArtifacts = { _, onDone -> onDone(true) }).wired
+    fun `answers a reveal with whether the Add-ons tab is now shown`() {
+        val showing = routed(revealAddOns = { _, onDone -> onDone(true) }).wired
         showing.handlers.dispatch("addOns/reveal", JsonObject(), showing.requestId(3))
         assertEquals(json("""{"id": 3, "result": {"shown": true}}"""), json(showing.fake.nextFrame()))
 
-        val hidden = routed(revealArtifacts = { _, onDone -> onDone(false) }).wired
+        val hidden = routed(revealAddOns = { _, onDone -> onDone(false) }).wired
         hidden.handlers.dispatch("addOns/reveal", JsonObject(), hidden.requestId(4))
         assertEquals(json("""{"id": 4, "result": {"shown": false}}"""), json(hidden.fake.nextFrame()))
     }
@@ -66,7 +66,7 @@ class AddOnsRouterTest {
     fun `shows no tab for a reveal the core stopped waiting for, as it shows its list then`() {
         val readings = ArrayDeque(listOf(0L, AddOnsRouter.REVEAL_REPLY_DEADLINE_MS))
         var revealed = false
-        val wired = routed(clock = readings::removeFirst, revealArtifacts = { _, onDone -> revealed = true.also(onDone) }).wired
+        val wired = routed(clock = readings::removeFirst, revealAddOns = { _, onDone -> revealed = true.also(onDone) }).wired
 
         wired.handlers.dispatch("addOns/reveal", JsonObject(), wired.requestId(6))
 
@@ -81,7 +81,7 @@ class AddOnsRouterTest {
 
     @Test
     fun `answers a reveal with an error when the tool window throws`() {
-        val wired = routed(revealArtifacts = { _, _ -> error("tool window gone") }).wired
+        val wired = routed(revealAddOns = { _, _ -> error("tool window gone") }).wired
 
         wired.handlers.dispatch("addOns/reveal", JsonObject(), wired.requestId(5))
 
@@ -213,5 +213,37 @@ class AddOnsRouterTest {
         router.refresh()
 
         assertEquals(0, starts)
+    }
+
+    @Test
+    fun `asks the core to show what needs review`() {
+        val (wired, router) = routed().let { it.wired to it.router }
+
+        router.review()
+
+        assertEquals(json("""{"method": "addOns/review", "params": {}}"""), json(wired.fake.nextFrame()))
+    }
+
+    @Test
+    fun `starts the bridge to review the add-ons`() {
+        var starts = 0
+        val router = routed(ensureStartedAsync = { starts++ }).router
+
+        router.review()
+
+        assertEquals(1, starts)
+    }
+
+    @Test
+    fun `sends one review for presses made while the bridge restarts`() {
+        val (wired, router) = routed().let { it.wired to it.router }
+
+        val frames =
+            framesAfterRestart(wired) {
+                router.review()
+                router.review()
+            }
+
+        assertEquals(listOf("addOns/review"), frames.map { it.get("method").asString })
     }
 }

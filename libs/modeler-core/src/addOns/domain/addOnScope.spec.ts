@@ -125,7 +125,7 @@ describe("rulePackageIdsToList", () => {
 
 describe("isHashWanted", () => {
     const ID = "/work/node_modules/bpmnlint-plugin-acme";
-    const none: HashContext = { inspected: new Set(), approvals: [], answers: new Map() };
+    const none: HashContext = { inspected: new Set(), rowsOfKind: [], answers: new Map() };
 
     it.each<{ case: string; context: HashContext; wanted: boolean }>([
         { case: "not for a package nothing asks about", context: none, wanted: false },
@@ -136,7 +136,7 @@ describe("isHashWanted", () => {
         },
         {
             case: "for a package a stored row names",
-            context: { ...none, approvals: [{ pluginId: ID, contentHash: "h" }] },
+            context: { ...none, rowsOfKind: [{ pluginId: ID, contentHash: "h" }] },
             wanted: true,
         },
         {
@@ -150,10 +150,18 @@ describe("isHashWanted", () => {
             wanted: true,
         },
         {
+            case: "for a package while another place's row of its kind may hold its content",
+            context: {
+                ...none,
+                rowsOfKind: [{ pluginId: "/work/node_modules/other", contentHash: "h" }],
+            },
+            wanted: true,
+        },
+        {
             case: "not for a package only another was asked about",
             context: {
                 inspected: new Set(["/work/node_modules/other"]),
-                approvals: [{ pluginId: "/work/node_modules/other", contentHash: "h" }],
+                rowsOfKind: [],
                 answers: new Map([["/work/node_modules/other#h", "leftForView"]]),
             },
             wanted: false,

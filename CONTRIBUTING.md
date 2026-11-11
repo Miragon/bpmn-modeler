@@ -90,7 +90,7 @@ a `README.md` for its users and a `CONTRIBUTING.md` for its developers.
 | [`apps/modeler-bridge`](apps/modeler-bridge/README.md) | The binary that runs the modeler core for the IntelliJ plugin over stdio JSON-RPC | [README.md](apps/modeler-bridge/README.md) |
 | [`apps/standalone`](apps/standalone/README.md) | The Theia/Electron desktop app for macOS, Windows and Linux | [CONTRIBUTING.md](apps/standalone/CONTRIBUTING.md) |
 | [`apps/orca-plugin`](apps/orca-plugin/README.md) | The Orca plugin for `.bpmn` and `.dmn` files, experimental, published to [Miragon/orca-modelers](https://github.com/Miragon/orca-modelers) | [CONTRIBUTING.md](apps/orca-plugin/CONTRIBUTING.md) |
-| [`apps/bpmn-webview`](apps/bpmn-webview/README.md), [`dmn-webview`](apps/dmn-webview/README.md), [`form-webview`](apps/form-webview/README.md), [`deployment-webview`](apps/deployment-webview/README.md), [`add-ons-webview`](apps/add-ons-webview/README.md) | The webviews the hosts embed: the BPMN and DMN canvases, the Camunda Form editor, the deployment sidebar and the Artifacts view | Each README |
+| [`apps/bpmn-webview`](apps/bpmn-webview/README.md), [`dmn-webview`](apps/dmn-webview/README.md), [`form-webview`](apps/form-webview/README.md), [`deployment-webview`](apps/deployment-webview/README.md), [`add-ons-webview`](apps/add-ons-webview/README.md) | The webviews the hosts embed: the BPMN and DMN canvases, the Camunda Form editor, the deployment sidebar and the Add-ons view | Each README |
 | [`packages/bpmn-modeler`](packages/bpmn-modeler/README.md), [`packages/dmn-modeler`](packages/dmn-modeler/README.md) | The modelers as npm libraries | Each README |
 | [`libs/`](libs/README.md) | The building blocks the modelers and hosts share | Each README |
 
@@ -190,8 +190,9 @@ Every README is written for one reader. A host's `README.md` (VS Code, IntelliJ,
 desktop, Orca) and the root `README.md` are for its users: what it does, how to
 start, what it leaves out, with screenshots. Everything a developer needs (layout,
 build, tests, releases) goes into a `CONTRIBUTING.md` next to it, linked from the
-README as **Source and contributing**. The libraries' and webviews' READMEs are
-for developers.
+README's **Contributing** section. The npm packages' READMEs are for the
+developers who embed them, with the full reference on the documentation site
+(`docs/embed/`). The libraries' and webviews' READMEs are for contributors.
 
 The store pages take their text from these places:
 
@@ -208,7 +209,7 @@ The store pages take their text from these places:
 The covers and screenshots of the store pages and READMEs are made with the
 `product-shots` skill of the `miragon-brand` plugin
 ([Miragon/corporate-identity](https://github.com/Miragon/corporate-identity)),
-from [`.miragon/product-shots.json`](.miragon/product-shots.json). That file
+from [`.miragon/product-shots.yaml`](.miragon/product-shots.yaml). That file
 names the skill version the images were made with and, per store, the title,
 claim, badge and the files to show. The demo files are in
 `.miragon/product-shots/order-service/`, and
