@@ -77,7 +77,7 @@ An allowance is for the package at its place in your repository, not for its con
 - An update loads when it changes the package's `package.json`, as `npm install` of a new version does, or links the package to a new folder, as `pnpm update` does, whether pnpm keeps the old folder or not. That includes a switch from a folder you linked with `file:` or `link:` to a version pnpm installed; npm installs one into the link's place, which loads after you reload the window. Any other edit to the package's files loads after you reload the window.
 - When an update links the package to a new folder that has no file where the package's entry or a rule lay before, because the update moved it, that file loads after you reload the window. Until then it is skipped, the old version never runs, and the output channel says to reload.
 - A dependency that is itself a rule package, for example one your config's package extends, needs its own allowance.
-- Allowances are kept with your [BPMN plugin](/vscode/features/bpmn-plugins) allowances in VS Code's global state, outside every workspace, so a repository cannot allow its own rule packages. [Workspace Trust](https://code.visualstudio.com/docs/editor/workspace-trust) does not replace them. In a remote window (SSH, dev container, WSL) an allowance holds only for that remote.
+- Allowances are kept with your [BPMN plugin](/vscode/features/bpmn-plugins) allowances in VS Code's global state, outside every workspace, so a repository cannot allow its own rule packages. [Workspace Trust](https://code.visualstudio.com/docs/editor/workspace-trust) does not replace them: the extension does not run in Restricted Mode, and in a trusted workspace a rule package still needs its allowance. In a remote window (SSH, dev container, WSL) an allowance holds only for that remote.
 - When the `.bpmnlintrc` sits in the rule package's own folder, because its `package.json` names the plugin, that folder is the package.
 - Approvals from earlier versions are rewritten as allowances when the extension starts; the output channel says how many. An earlier version of the extension does not read the new allowances and asks again.
 
@@ -103,6 +103,8 @@ The *bpmn.modeler* output channel explains what happened:
 ### IntelliJ
 
 The IntelliJ plugin asks the same way as for [BPMN plugins in IntelliJ](/vscode/features/bpmn-plugins#intellij): an IDE notification balloon with **Review…**, which selects the rule package in the **Add-ons** tab of the **BPMN Modeler** tool window when the package lies inside the project, and allowances that the IDE keeps for all your projects, outside every project. **Revoke** there takes an allowance back, in every worktree of its repository; rules that already ran stay loaded until you restart the IDE. The output channel lines go to the IDE log.
+
+Rule packages run only in a project you trust in the IDE. In a project you did not trust, the bundled rules lint alone: a rule from a workspace package is skipped (`BPMNlint: N rules skipped`, and the tooltip says the rule packages wait for your trust) and nothing asks, though you allowed the package in another worktree. Trusting the project lints the open diagrams again with it and asks about the packages you have not allowed yet. See [Project trust](/intellij/getting-started#project-trust).
 
 In IntelliJ, rule packages whose `package.json` sets `main` or `exports`, and most that have dependencies, do not load yet, even once allowed: the bundled rules stand in for them, or their rules are skipped. A later release lifts this limit.
 

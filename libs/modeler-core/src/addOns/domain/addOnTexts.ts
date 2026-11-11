@@ -89,6 +89,9 @@ export function reviewHeading(name: string): string {
     return `Review ${name} before you allow it`;
 }
 
+export const UNTRUSTED_WORKSPACE_TEXT =
+    "Does not run: you have not trusted this project. Trust it to allow and run its code.";
+
 export function cannotBeAllowedText(reason: string): string {
     return `Cannot be allowed: ${reason}.`;
 }

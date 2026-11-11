@@ -3,6 +3,7 @@ import { basename } from "path";
 import { BpmnEditorCommandType } from "@miragon/bpmn-modeler-shared";
 
 import { reviewOrChecklist } from "../../../kernel/adapter/out/ListReview";
+import { trustOrTrusted } from "../../../kernel/adapter/out/TrustedWorkspace";
 import { ApprovalReviewPort, PluginApprovalStorePort } from "../../../kernel/port/approvalPorts";
 import { TemplatePreferenceStorePort } from "../../../kernel/port/templatePreferencePorts";
 import {
@@ -14,6 +15,7 @@ import {
     SettingsPort,
     StatusBarPort,
     WorkspacePort,
+    WorkspaceTrustPort,
 } from "../../../kernel/port/hostPorts";
 import { AllowanceLocator } from "../../../kernel/service/AllowanceLocator";
 import { ApprovalQuestion } from "../../../kernel/service/ApprovalQuestion";
@@ -126,6 +128,8 @@ export interface BpmnRulePackagePorts {
     readonly questions: QuestionQueue;
     /** Where "Review…" takes the user, as {@link reviewOrChecklist} defaults it. */
     readonly review?: ApprovalReviewPort;
+    /** Absent: the host has no trust feature, and the workspace counts as trusted. */
+    readonly workspaceTrust?: WorkspaceTrustPort;
 }
 
 /** The core's document services behind {@link DOCUMENT_SYNC_COMMAND_TYPES}. */
@@ -384,7 +388,8 @@ export class BpmnEditorFeature {
             questions,
             review,
         } = rulePackages;
-        const catalog = new RulePackageCatalog(approvals, this.ports.notifier);
+        const trust = trustOrTrusted(rulePackages.workspaceTrust);
+        const catalog = new RulePackageCatalog(approvals, trust, this.ports.notifier);
         const question = new ApprovalQuestion(
             catalog,
             reviewOrChecklist(review, this.ports.picker),
@@ -393,13 +398,14 @@ export class BpmnEditorFeature {
             questions,
         );
         return {
-            approvals: { catalog, question, contentRows },
+            approvals: { catalog, question, contentRows, trust },
             inventory: new RulePackageInventory(catalog, installedPackages, allowances),
             linter: new NodeBpmnLinter({
                 approvals,
                 packages: installedPackages,
                 allowances,
                 declinedThisSession: () => catalog.declinedThisSession(),
+                trust,
             }),
         };
     }

@@ -73,6 +73,7 @@ export function register(
         hasher: new NodeContentHasher(),
         cacheRoot: bpmnPluginCacheUri(context.globalStorageUri).fsPath,
         review: handles.reviews.plugin,
+        workspaceTrust: deps.workspaceTrust,
     });
     void plugins.pruneIdleCopies();
     // Before any editor resolves, so the first request already finds the rows it rewrites.
@@ -93,6 +94,7 @@ export function register(
                 actionNotifier: deps.actionNotifier,
                 questions,
                 review: handles.reviews.rulePackage,
+                workspaceTrust: deps.workspaceTrust,
             },
         },
         {

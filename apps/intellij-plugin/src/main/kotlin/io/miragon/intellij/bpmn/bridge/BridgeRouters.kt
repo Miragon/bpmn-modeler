@@ -14,6 +14,7 @@ internal class BridgeRouters(deps: BridgeDeps) {
     val settings = SettingsRouter(deps)
     val pluginApprovals = PluginApprovalRouter(deps)
     val templatePreferences = TemplatePreferenceRouter(deps)
+    val workspaceTrust = WorkspaceTrustRouter(deps)
     val addOns = AddOnsRouter(deps)
 
     // Outbound only: it sends host→core notifications and handles no method.
@@ -30,15 +31,16 @@ internal class BridgeRouters(deps: BridgeDeps) {
         settings.register()
         pluginApprovals.register()
         templatePreferences.register()
+        workspaceTrust.register()
         addOns.register()
         hostUi.register()
     }
 
     /**
      * Runs once the bridge's writer is attached, after every spawn. A register
-     * queued before it read the settings, switches and approvals when it was
-     * queued, and a push while the process was starting was dropped, so each is
-     * read again here. The add-ons view opens after the settings, so it never
+     * queued before it read the settings, switches, approvals and trust when it
+     * was queued, and a push while the process was starting was dropped, so each
+     * is read again here. The add-ons view opens after the settings, so it never
      * lists from an older config folder.
      */
     fun seedAfterSpawn() {
@@ -47,6 +49,13 @@ internal class BridgeRouters(deps: BridgeDeps) {
         editor.pushSettings()
         templatePreferences.push()
         pluginApprovals.pushStored()
+        workspaceTrust.push()
         addOns.followNewProcess()
+    }
+
+    /** The trust goes first: adding a Trusted Location announces no change of the project's trust. */
+    fun refreshAddOns() {
+        workspaceTrust.push()
+        addOns.refresh()
     }
 }

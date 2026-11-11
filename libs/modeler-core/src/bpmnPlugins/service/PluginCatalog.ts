@@ -4,12 +4,12 @@ import {
     allowanceKeyOf,
     allowanceOutcome,
     allowingAllowances,
-    isAllowed,
     pendingAllowances,
 } from "../../kernel/domain/allowance";
 import { notAskedAgain, ReviewAnswer, SessionAnswer } from "../../kernel/domain/codeApproval";
 import { ChoicePrompt } from "../../kernel/domain/prompts";
-import { LoggerPort } from "../../kernel/port/hostPorts";
+import { askedInWorkspace, runsInWorkspace } from "../../kernel/domain/workspaceTrust";
+import { LoggerPort, WorkspaceTrustPort } from "../../kernel/port/hostPorts";
 import { ContentRows } from "../../kernel/service/ContentRowMigration";
 import {
     PluginApprovalNoticeAction,
@@ -35,7 +35,8 @@ export interface PluginSelection {
  *
  * A plugin the user left unchecked, left to a view, or a notice the user
  * closed, is not asked about again for the catalog's lifetime, at any place
- * of its allowance and whatever its content becomes.
+ * of its allowance and whatever its content becomes. In a workspace the user
+ * did not trust, no plugin loads and none is asked about.
  */
 export class PluginCatalog {
     private readonly answers = new Map<string, SessionAnswer>();
@@ -45,6 +46,7 @@ export class PluginCatalog {
         private readonly locator: WorkspacePluginLocator,
         private readonly approvals: PluginApprovalStorePort,
         private readonly contentRows: ContentRows,
+        private readonly trust: Pick<WorkspaceTrustPort, "isTrusted">,
         private readonly logger: LoggerPort,
     ) {}
 
@@ -59,9 +61,16 @@ export class PluginCatalog {
         return this.selectionOf(discovered);
     }
 
+    whenRowsSettled(): Promise<void> {
+        return this.contentRows.whenSettled();
+    }
+
     /** Those of `pending` that no answer settled since they were found. */
-    stillPendingOf(pending: readonly WorkspacePlugin[]): WorkspacePlugin[] {
-        return pendingAllowances(pending, this.approvals.read(), notAskedAgain(this.answers));
+    stillPendingOf(pending: readonly WorkspacePlugin[]): readonly WorkspacePlugin[] {
+        return askedInWorkspace(
+            pendingAllowances(pending, this.approvals.read(), notAskedAgain(this.answers)),
+            this.trust.isTrusted(),
+        );
     }
 
     /** By `allowanceKeyOf`: what the user answered this session about each allowance. */
@@ -117,11 +126,13 @@ export class PluginCatalog {
 
     private selectionOf(discovered: readonly DiscoveredPlugin[]): PluginSelection {
         const rows = this.approvals.read();
+        const trusted = this.trust.isTrusted();
+        const runs = (plugin: WorkspacePlugin) => runsInWorkspace(plugin, rows, trusted);
         const plugins = discovered.map(({ plugin }) => plugin);
         return {
-            approved: discovered.filter(({ plugin }) => isAllowed(plugin, rows)),
+            approved: discovered.filter(({ plugin }) => runs(plugin)),
             pending: this.stillPendingOf(plugins),
-            withheld: plugins.filter((plugin) => !isAllowed(plugin, rows)),
+            withheld: plugins.filter((plugin) => !runs(plugin)),
         };
     }
 

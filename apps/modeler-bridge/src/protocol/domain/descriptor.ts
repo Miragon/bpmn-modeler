@@ -91,6 +91,7 @@ import {
     TokenStoreGetResult,
     TokenStoreSetParams,
     WebviewMessageParams,
+    WorkspaceTrustSnapshot,
 } from "./types";
 
 /** Which peer initiates the call. Requests are only ever Core→Host (see the contract test). */
@@ -165,6 +166,7 @@ export const METHODS = {
     deploymentStatusBarMenu: "deployment/statusBarMenu",
     pluginApprovalsDidChange: "pluginApprovals/didChange",
     templatePreferencesDidChange: "templatePreferences/didChange",
+    workspaceTrustDidChange: "workspaceTrust/didChange",
     addOnsWebviewMessage: "addOns/webviewMessage",
     addOnsOpen: "addOns/open",
     addOnsRefresh: "addOns/refresh",
@@ -270,6 +272,7 @@ export const PROTOCOL = [
             pluginApprovals: [PLUGIN_APPROVAL_SAMPLE],
             pluginApprovalsRevision: 7,
             templatePreferences: TEMPLATE_PREFERENCES_SAMPLE,
+            workspaceTrust: { trusted: true, revision: 4 },
         } satisfies RegisterParams,
     },
     {
@@ -475,6 +478,12 @@ export const PROTOCOL = [
         direction: "hostToCore",
         kind: "notification",
         paramsFixture: TEMPLATE_PREFERENCES_SAMPLE,
+    },
+    {
+        method: METHODS.workspaceTrustDidChange,
+        direction: "hostToCore",
+        kind: "notification",
+        paramsFixture: { trusted: false, revision: 5 } satisfies WorkspaceTrustSnapshot,
     },
     {
         method: METHODS.addOnsWebviewMessage,

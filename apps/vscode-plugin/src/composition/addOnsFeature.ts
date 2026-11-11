@@ -69,6 +69,7 @@ export function register(
         templates: handles.editor.templateInventory,
         marketplaces: handles.marketplaces,
         templatePreferences: deps.templatePreferences,
+        workspaceTrust: deps.workspaceTrust,
     });
     context.subscriptions.push(addOns);
     const brandMode = new VsCodeBrandModeSignal(

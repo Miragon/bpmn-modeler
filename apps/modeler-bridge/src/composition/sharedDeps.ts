@@ -18,6 +18,7 @@ import { RpcPicker } from "../kernel/adapter/out/RpcPicker";
 import { RpcStatusBar } from "../kernel/adapter/out/RpcStatusBar";
 import { RpcTemplatePreferenceStore } from "../kernel/adapter/out/RpcTemplatePreferenceStore";
 import { BridgeSettings } from "../kernel/adapter/out/BridgeSettings";
+import { HostWorkspaceTrust } from "../kernel/adapter/out/HostWorkspaceTrust";
 import { NodeWorkspace } from "../kernel/adapter/out/NodeWorkspace";
 import { NodeInstalledPackages } from "../modeler/bpmn/adapter/out/NodeInstalledPackages";
 import { Rpc } from "../transport/adapter/out/Rpc";
@@ -63,6 +64,11 @@ export interface BridgeSharedDeps {
     installedPackages: NodeInstalledPackages;
     allowances: AllowanceLocator;
     contentRows: ContentRowMigration;
+    /**
+     * Seeded by `session/register`, so it is shared with the editor-session
+     * feature; the plugins, the rule packages and the add-on catalog read it.
+     */
+    workspaceTrust: HostWorkspaceTrust;
 }
 
 /**
@@ -123,5 +129,6 @@ export function buildSharedDeps(
         installedPackages,
         allowances,
         contentRows: new ContentRowMigration(pluginApprovals, allowances, notifier),
+        workspaceTrust: new HostWorkspaceTrust(),
     };
 }

@@ -22,6 +22,7 @@ import {
     PLUGIN_CODE_TEXTS,
     PLUGIN_CONTENT_HASH_PATTERN,
     type WorkspacePlugin,
+    withheldByEditors,
 } from "./pluginApproval";
 
 const repositoryAllowance = (addOn: string): Allowance => ({
@@ -197,7 +198,7 @@ describe("editorsToReload", () => {
         contentHash: "0".repeat(64),
     });
 
-    it.each<{ case: string; approvals: CodeApproval[]; editors: string[] }>([
+    it.each<{ case: string; approvals: CodeApproval[]; trusted?: boolean; editors: string[] }>([
         {
             case: "none while every served plugin stays allowed and nothing withheld is, as after the migration",
             approvals: [allowanceOfPlugin(resize)],
@@ -242,8 +243,14 @@ describe("editorsToReload", () => {
             approvals: [allowanceOfPlugin(resize), contentRowAt("/x")],
             editors: [],
         },
-    ])("returns $case", ({ approvals, editors }) => {
-        expect(editorsToReload(offered, approvals)).toEqual(editors);
+        {
+            case: "only the editors that load a plugin once the user withdrew trust, none for one withheld an allowed plugin",
+            approvals: [allowanceOfPlugin(resize), allowanceOfPlugin(palette)],
+            trusted: false,
+            editors: ["file:///repo/a.bpmn", "file:///repo/c.bpmn"],
+        },
+    ])("returns $case", ({ approvals, trusted = true, editors }) => {
+        expect(editorsToReload(offered, approvals, trusted)).toEqual(editors);
     });
 });
 
@@ -365,6 +372,27 @@ describe("contentServedByEditors", () => {
         },
     ])("holds $case", ({ offered, served }) => {
         expect([...contentServedByEditors(new Map(offered))].sort()).toEqual(served);
+    });
+});
+
+describe("withheldByEditors", () => {
+    it.each<{ case: string; offered: [string, OfferedPlugins][]; withheld: WorkspacePlugin[] }>([
+        { case: "nothing without an open editor", offered: [], withheld: [] },
+        {
+            case: "nothing an editor was served",
+            offered: [["file:///repo/a.bpmn", { served: [resize], withheld: [] }]],
+            withheld: [],
+        },
+        {
+            case: "what every editor withholds, in the map's order",
+            offered: [
+                ["file:///repo/a.bpmn", { served: [resize], withheld: [palette] }],
+                ["file:///repo/b.bpmn", { served: [], withheld: [resize, palette] }],
+            ],
+            withheld: [palette, resize, palette],
+        },
+    ])("holds $case", ({ offered, withheld }) => {
+        expect(withheldByEditors(new Map(offered))).toEqual(withheld);
     });
 });
 

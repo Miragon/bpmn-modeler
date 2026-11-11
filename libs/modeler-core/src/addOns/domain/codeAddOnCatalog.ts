@@ -13,6 +13,7 @@ import {
     SessionAnswer,
 } from "../../kernel/domain/codeApproval";
 import { ListedCode, ListedPresence, presenceIdOf } from "../../kernel/domain/listedCode";
+import { offersAllowInWorkspace } from "../../kernel/domain/workspaceTrust";
 import {
     innermostFolderOf,
     relativeToRoot,
@@ -30,6 +31,7 @@ import {
     CODE_STATE_LABEL,
     REVIEW_FACT_LABEL,
     reviewHeading,
+    UNTRUSTED_WORKSPACE_TEXT,
 } from "./addOnTexts";
 import { optional } from "./addOnViewParts";
 
@@ -43,6 +45,8 @@ export interface OwnedPresence {
 
 /** What one listing found of the code add-ons. */
 export interface CodeAddOnFacts extends FolderFacts {
+    /** Whether the user trusts the workspace; untrusted, no code add-on runs or offers Allow. */
+    readonly trusted: boolean;
     /** The stored rows of each kind, so a kind's rules never read another kind's rows. */
     readonly approvalsByKind: Readonly<Record<CodeAddOnKind, readonly CodeApproval[]>>;
     readonly plugins: readonly OwnedPresence[];
@@ -105,14 +109,28 @@ const REVOKE: readonly ActionView<AddOnActionKind>[] = [
     { kind: "revoke", label: ACTION_LABEL.revoke },
 ];
 
+const NO_ALLOW: Record<AllowanceState, readonly ActionView<AddOnActionKind>[]> = {
+    allowed: REVOKE,
+    new: [],
+    declined: [],
+};
+
 /** Code that cannot be read offers no Allow; its problem says why. */
 const CODE_ACTIONS: Record<
     ListedKind,
     Record<AllowanceState, readonly ActionView<AddOnActionKind>[]>
 > = {
     found: { allowed: REVOKE, new: ALLOW, declined: ALLOW },
-    unreadable: { allowed: REVOKE, new: [], declined: [] },
+    unreadable: NO_ALLOW,
 };
+
+function codeActionsOf(
+    kind: ListedKind,
+    state: AllowanceState,
+    trusted: boolean,
+): readonly ActionView<AddOnActionKind>[] {
+    return (offersAllowInWorkspace(trusted) ? CODE_ACTIONS[kind] : NO_ALLOW)[state];
+}
 
 const DETAIL: Record<
     CodeAddOnKind,
@@ -168,12 +186,12 @@ function placedAddOn(
         id,
         allowance,
         state,
-        actions: CODE_ACTIONS[presence.kind][state],
+        actions: codeActionsOf(presence.kind, state, facts.trusted),
     };
     return {
         root,
         source,
-        view: viewOf(row, source, facts.folders, session, restart),
+        view: viewOf(row, source, facts, session, restart),
         shown: shownOf(row, restart),
     };
 }
@@ -181,7 +199,7 @@ function placedAddOn(
 function viewOf(
     row: StatedAddOn,
     source: SourcePlace,
-    folders: readonly string[],
+    { folders, trusted }: Pick<CodeAddOnFacts, "folders" | "trusted">,
     session: AddOnSession,
     restart: ProcessRestart,
 ): CodeAddOnView {
@@ -195,15 +213,16 @@ function viewOf(
         ...optional("detail", DETAIL[kind](presence, source.dir)),
         state: viewState,
         stateText: CODE_STATE_LABEL[viewState],
-        ...optional("problem", problemOf(presence)),
+        ...optional("problem", problemOf(presence, trusted)),
         ...optional("note", noteOf(row, session, restart)),
         ...optional("review", reviewOfRow(row, folders)),
         actions,
     };
 }
 
-function problemOf(presence: ListablePresence): string | undefined {
-    return presence.kind === "unreadable" ? cannotBeAllowedText(presence.reason) : undefined;
+function problemOf(presence: ListablePresence, trusted: boolean): string | undefined {
+    if (presence.kind === "unreadable") return cannotBeAllowedText(presence.reason);
+    return offersAllowInWorkspace(trusted) ? undefined : UNTRUSTED_WORKSPACE_TEXT;
 }
 
 function noteOf(

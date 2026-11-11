@@ -101,7 +101,7 @@ The view wears the Miragon look, with its own colours, fonts and text sizes, in 
 
 ## IntelliJ
 
-The IntelliJ plugin shows the same page as the **Add-ons** tab of its **BPMN Modeler** tool window, for the open project; **Review…** opens it with the item selected, **Review Add-ons** (Tools ▸ Miragon BPMN Modeler, or Find Action) opens it on what needs your review, and **Refresh Add-ons** sits in the tool window's title. A tool window docked at the bottom is usually wide enough for the list and the details side by side. See [Getting started in IntelliJ](/intellij/getting-started#add-ons).
+The IntelliJ plugin shows the same page as the **Add-ons** tab of its **BPMN Modeler** tool window, for the open project; **Review…** opens it with the item selected, **Review Add-ons** (Tools ▸ Miragon BPMN Modeler, or Find Action) opens it on what needs your review, and **Refresh Add-ons** sits in the tool window's title. A tool window docked at the bottom is usually wide enough for the list and the details side by side. In a project you did not trust in the IDE, plugins and rule packages offer no **Allow** and each says why; see [Project trust](/intellij/getting-started#project-trust). See [Getting started in IntelliJ](/intellij/getting-started#add-ons).
 
 ## Next steps
 

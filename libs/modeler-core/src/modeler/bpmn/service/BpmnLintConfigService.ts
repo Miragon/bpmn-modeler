@@ -196,11 +196,11 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
             );
             if (this.isSuperseded(editorId, run)) return this.dropSupersededRun();
             this.rulePackageFollowUp.log(negotiation, lintRun);
-            const { results, unresolved, blocked } = lintRun;
+            const { results, unresolved, blocked, untrusted = false } = lintRun;
             const pushed = await this.dispatch(editorId, {
                 type: "hostLintFinished",
                 token,
-                output: { xml, results, unresolved, blocked },
+                output: { xml, results, unresolved, blocked, untrusted },
             });
             if (this.editorStore.hasEditor(editorId)) {
                 this.rulePackageFollowUp.ask(editorId, blocked);
@@ -287,19 +287,22 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
 
     /** Feeds a host run and an in-page run to the same chrome. Diagnostics always publish. */
     private applyFindings(editorId: string, findings: LintFindings): void {
-        const { xml, results, unresolved, blocked, source } = findings;
+        const { xml, results, unresolved, blocked, untrusted, source } = findings;
         this.diagnostics.publish(editorId, xml, results);
 
-        this.showStatusIfFocused(editorId, indicatorForFindings(source, unresolved, blocked));
+        const indicator = indicatorForFindings(source, unresolved, blocked, untrusted);
+        this.showStatusIfFocused(editorId, indicator);
 
         if (unresolved.length > 0) {
             // Surface skipped rules plainly rather than burying them in the
             // output channel while the status bar shows a green tick.
             this.notifier.logWarning(
                 source.kind === "workspace"
-                    ? `bpmnlint: ${unresolved.length} rule(s)/config(s) could not be resolved and were skipped: ${unresolved.join(
-                          ", ",
-                      )}`
+                    ? `bpmnlint: ${unresolved.length} rule(s)/config(s) ${
+                          indicator.state === "untrusted"
+                              ? "skipped, as workspace rule packages run only once you trust this project"
+                              : "could not be resolved and were skipped"
+                      }: ${unresolved.join(", ")}`
                     : `bpmnlint (in-page default): ${unresolved.length} rule(s)/config(s) unresolved: ${unresolved.join(
                           ", ",
                       )}`,

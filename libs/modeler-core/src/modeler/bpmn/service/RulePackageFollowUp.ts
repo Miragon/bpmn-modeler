@@ -1,6 +1,6 @@
 import { allowanceKeyOf } from "../../../kernel/domain/allowance";
 import { CodeApprovalChange } from "../../../kernel/domain/codeApproval";
-import { NotifierPort } from "../../../kernel/port/hostPorts";
+import { NotifierPort, WorkspaceTrustPort } from "../../../kernel/port/hostPorts";
 import { ApprovalQuestion } from "../../../kernel/service/ApprovalQuestion";
 import { ContentRows } from "../../../kernel/service/ContentRowMigration";
 import { Negotiation } from "../domain/LintSession";
@@ -24,12 +24,15 @@ export interface RulePackageApprovals {
     readonly question: ApprovalQuestion<BlockedRulePackage, BlockedRulePackage, RulePackage>;
     /** A question waits for it, so the start-up migration is not asked about. */
     readonly contentRows: ContentRows;
+    /** The linter reads it too: a change lints every host-linted editor again. */
+    readonly trust: WorkspaceTrustPort;
 }
 
 /**
  * What follows a host lint that skipped or refused workspace rule packages:
  * the output channel lines and the question. Each change of the rule package
- * approvals, whoever made it, lints again the editors it makes stale.
+ * approvals, whoever made it, lints again the editors it makes stale, and a
+ * change of the workspace's trust every editor linted on the host.
  */
 export class RulePackageFollowUp {
     private readonly blockedByEditor = new Map<string, readonly string[]>();
@@ -38,7 +41,7 @@ export class RulePackageFollowUp {
     /** Lines logged once per config version, so a relint on every edit repeats none of them. */
     private readonly loggedOncePerConfig = new Set<string>();
     private settled: Promise<void> = Promise.resolve();
-    private readonly approvalChanges?: { dispose(): void };
+    private readonly subscriptions: readonly { dispose(): void }[];
 
     constructor(
         private readonly notifier: NotifierPort,
@@ -46,9 +49,12 @@ export class RulePackageFollowUp {
         private readonly hostLintedEditors: () => readonly string[],
         private readonly approvals?: RulePackageApprovals,
     ) {
-        this.approvalChanges = approvals?.catalog.onApprovalsChanged((change) =>
-            this.relintAfter(change),
-        );
+        this.subscriptions = approvals
+            ? [
+                  approvals.catalog.onApprovalsChanged((change) => this.relintAfter(change)),
+                  approvals.trust.onDidChange(() => this.relintEditors(this.hostLintedEditors())),
+              ]
+            : [];
     }
 
     /** Resolves once every question raised so far is answered and the relints its answer caused ran. */
@@ -61,7 +67,7 @@ export class RulePackageFollowUp {
     }
 
     dispose(): void {
-        this.approvalChanges?.dispose();
+        this.subscriptions.forEach((each) => each.dispose());
     }
 
     log(negotiation: Negotiation, { blocked, refused }: LintRun): void {
@@ -115,7 +121,10 @@ export class RulePackageFollowUp {
     }
 
     private relintAfter(change: CodeApprovalChange): void {
-        const editorIds = editorsToRelint(this.blockedByEditor, this.hostLintedEditors(), change);
+        this.relintEditors(editorsToRelint(this.blockedByEditor, this.hostLintedEditors(), change));
+    }
+
+    private relintEditors(editorIds: readonly string[]): void {
         this.settle(
             Promise.all(editorIds.map((editorId) => this.relint(editorId))).catch(
                 (error: unknown) => this.logError(error),

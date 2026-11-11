@@ -53,7 +53,7 @@ flowchart TD
 
 [Architecture and hosts: process lifecycle](../../docs/adr/architecture-and-hosts.md#process-lifecycle) records:
 
-- **Transport — one stdio JSON-RPC pipe.** Core↔host *and* the webview-message
+- **Transport — one stdio JSON-RPC pipe.** Core↔host _and_ the webview-message
   relay ride a single supervised NDJSON pipe (not a webview↔server WebSocket
   seam). Single transport ⇒ simplest crash detection/recovery, smallest attack
   surface, leanest binary (no embedded HTTP/WS server, no open port).
@@ -136,6 +136,12 @@ to the bridge as `MIRAGON_BPMN_PLUGIN_CACHE`). The host's part:
   sends only the rows to allow and the ids to revoke; the store merges them
   under one lock with `approvalsAfter`, a copy of the core's that
   `PluginApprovalStoreTest` holds to `codeApprovalChange.cases.json`.
+- **Project trust.** `ProjectTrust` reads `Project.isTrusted()` with a new
+  revision per read; the trust rides on every `session/register` and on
+  `workspaceTrust/didChange` after each spawn, on every
+  `TrustedProjectsListener` event and before **Refresh Add-ons**
+  (`WorkspaceTrustRouter`). The bridge counts the project as untrusted until
+  told, and an untrusted project runs no plugin or rule package.
 - **Serving.** `WebviewServer` answers `/bpmn-plugins/<64 hex>/plugin.js|plugin.css`
   from the cache, matched before decoding (`WebviewRoute`), with no symbolic
   link and no path outside the cache (`PluginAssetFile`); anything else under
@@ -265,7 +271,7 @@ frame late. It looks like the modeler is always one input event behind.
 **Cause.** On IntelliJ 2025+/2026 builds JCEF (the embedded Chromium) runs
 **out-of-process** ("remote" CEF). The plugin's browsers render **off-screen**
 (OSR) — the only mode available under remote CEF — and that remote-OSR frame
-pipeline presents a frame only on the *next* input event when the DOM mutates on
+pipeline presents a frame only on the _next_ input event when the DOM mutates on
 a click. The lag is entirely in Chromium's frame delivery; it never touches the
 modeler core or the bridge.
 

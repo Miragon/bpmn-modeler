@@ -4,6 +4,7 @@ import { LintResults } from "@miragon/bpmn-modeler-types";
 
 import { createBundledResolver } from "@miragon/bpmnlint-plugin-rules";
 
+import { TRUSTED_WORKSPACE } from "../../../../../kernel/adapter/out/TrustedWorkspace";
 import { CodeApproval } from "../../../../../kernel/domain/codeApproval";
 import { fileSystemPathOf, toWorkspacePath } from "../../../../../kernel/domain/workspacePath";
 import { PathStamp } from "../../../domain/installedPackage";
@@ -36,6 +37,14 @@ interface LintSetup {
     readonly resolved: Map<string, unknown>;
     readonly moddleExtensionMisses: readonly string[];
     readonly gate?: RulePackageGate;
+    /** Built without a gate because the user did not trust the workspace. */
+    readonly untrusted: boolean;
+}
+
+/** The rule packages a lint setup may run: those the rows it was built for allow. */
+interface WorkspaceRules {
+    readonly sources: RulePackageSources;
+    readonly approvals: readonly CodeApproval[];
 }
 
 interface CachedLintSetup {
@@ -55,13 +64,15 @@ interface CachedLintSetup {
  * built-ins + camunda-compat engine layers + the Miragon rules), so a workspace
  * without those installed still lints. Built-ins never come from the workspace.
  * A workspace package runs only through a {@link RulePackageGate}, once the
- * user allowed it; a linter built without {@link RulePackageSources} asks the
- * workspace for nothing. A rule the workspace declares but cannot provide
- * (plugin not installed or not allowed) is skipped and reported, never fatal.
+ * user allowed it; a linter built without {@link RulePackageSources}, or in a
+ * workspace the user did not trust, asks the workspace for nothing. A rule the
+ * workspace declares but cannot provide (plugin not installed or not allowed)
+ * is skipped and reported, never fatal.
  *
  * The moddle, the loaded extensions and the resolved rules are kept per config
- * path until the config or the rule package approvals change, or an allowed
- * package's `package.json` does, so an edit only pays for the parse and the rules.
+ * path until the config, the rule package approvals or the trust change, or an
+ * allowed package's `package.json` does, so an edit only pays for the parse and
+ * the rules.
  *
  * Host-agnostic on purpose (no `vscode` import): the IntelliJ bridge, a Bun
  * process, reuses it verbatim.
@@ -96,6 +107,7 @@ export class NodeBpmnLinter implements LintRunnerPort {
             unresolved: resolver.unresolved,
             blocked: setup.gate?.blockedPackages(resolver.neededBlocked) ?? [],
             refused: setup.gate?.refusedModules() ?? [],
+            untrusted: setup.untrusted,
         };
     }
 
@@ -115,13 +127,18 @@ export class NodeBpmnLinter implements LintRunnerPort {
 
     private lintSetupFor(configPath: string, config: Record<string, unknown>): Promise<LintSetup> {
         const approvals = this.rulePackages?.approvals.read() ?? [];
-        const configFingerprint = `${JSON.stringify(config)}\0${rulePackageApprovalsKey(approvals)}`;
+        const trusted = (this.rulePackages?.trust ?? TRUSTED_WORKSPACE).isTrusted();
+        const configFingerprint = `${JSON.stringify(config)}\0${rulePackageApprovalsKey(approvals)}\0${trusted}`;
         const cached = this.setupsByConfigPath.get(configPath);
         if (cached?.configFingerprint === configFingerprint) {
             return cached.setup;
         }
 
-        const setup = this.createLintSetup(configPath, config, approvals);
+        const workspaceRules =
+            this.rulePackages && trusted ? { sources: this.rulePackages, approvals } : undefined;
+        const setup = this.createLintSetup(configPath, config, workspaceRules, {
+            untrusted: this.rulePackages !== undefined && !trusted,
+        });
         this.setupsByConfigPath.set(configPath, { configFingerprint, setup });
         const forget = () => this.forgetSetup(configPath, setup);
         // A missing moddle extension may be installed later; retry it next run.
@@ -139,10 +156,12 @@ export class NodeBpmnLinter implements LintRunnerPort {
         }
     }
 
+    /** Without `workspaceRules` no gate is built, so the workspace is asked for nothing. */
     private async createLintSetup(
         configPath: string,
         config: Record<string, unknown>,
-        approvals: readonly CodeApproval[],
+        workspaceRules: WorkspaceRules | undefined,
+        { untrusted }: Pick<LintSetup, "untrusted">,
     ): Promise<LintSetup> {
         const configDir = dirname(fileSystemPathOf(configPath));
         const scopedRequire = createScopedRequire(configDir);
@@ -150,10 +169,9 @@ export class NodeBpmnLinter implements LintRunnerPort {
         const moddle = (await this.loadModdleFactory())(extensions);
         this.bundledResolver ??= createBundledResolver() as Resolver;
         const gate =
-            this.rulePackages &&
+            workspaceRules &&
             new RulePackageGate({
-                sources: this.rulePackages,
-                approvals,
+                ...workspaceRules,
                 configDir: toWorkspacePath(configDir),
                 loadedManifestStamps: this.loadedManifestStamps,
                 requireFrom: createScopedRequire,
@@ -167,6 +185,7 @@ export class NodeBpmnLinter implements LintRunnerPort {
             resolved: new Map(),
             moddleExtensionMisses: misses,
             gate,
+            untrusted,
         };
     }
 

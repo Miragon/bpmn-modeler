@@ -3,6 +3,14 @@ import { ENGINE_LABEL } from "@miragon/bpmn-modeler-types";
 import { StatusView } from "../../../kernel/domain/statusView";
 import { BpmnlintIndicator } from "./bpmnlintIndicator";
 
+/** Says "project": only the IntelliJ host lints in a workspace the user did not trust. */
+const UNTRUSTED_RULE_PACKAGES_TEXT =
+    "Workspace rule packages run only once you trust this project.";
+
+function skippedRulesText(unresolved: readonly string[]): string {
+    return `BPMNlint: ${unresolved.length} rule${unresolved.length === 1 ? "" : "s"} skipped`;
+}
+
 export function bpmnlintStatusView(indicator: BpmnlintIndicator): StatusView {
     switch (indicator.state) {
         case "active":
@@ -15,11 +23,20 @@ export function bpmnlintStatusView(indicator: BpmnlintIndicator): StatusView {
         case "unresolved": {
             const { configPath, unresolved } = indicator;
             return {
-                text: `BPMNlint: ${unresolved.length} rule${unresolved.length === 1 ? "" : "s"} skipped`,
+                text: skippedRulesText(unresolved),
                 icon: "warning",
                 tooltip: `${configPath}\n\nUnresolved (install the plugin providing these): ${unresolved.join(", ")}`,
                 // A warning tone so a partly-applied config can't be mistaken for the
                 // tick of a fully applied one — the exact ambiguity this state exists to remove.
+                tone: "warning",
+            };
+        }
+        case "untrusted": {
+            const { configPath, unresolved } = indicator;
+            return {
+                text: skippedRulesText(unresolved),
+                icon: "warning",
+                tooltip: `${configPath}\n\n${UNTRUSTED_RULE_PACKAGES_TEXT}\nSkipped: ${unresolved.join(", ")}`,
                 tone: "warning",
             };
         }

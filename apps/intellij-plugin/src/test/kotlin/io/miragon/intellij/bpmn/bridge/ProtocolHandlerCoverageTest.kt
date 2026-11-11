@@ -178,6 +178,7 @@ class ProtocolHandlerCoverageTest {
                 HostToCoreMethod.DEPLOYMENT_STATUS_BAR_MENU to { modelerCommands.deploymentStatusMenu() },
                 HostToCoreMethod.PLUGIN_APPROVALS_DID_CHANGE to { pluginApprovals.push(PluginApprovalStore.getInstance().snapshot()) },
                 HostToCoreMethod.TEMPLATE_PREFERENCES_DID_CHANGE to { templatePreferences.push() },
+                HostToCoreMethod.WORKSPACE_TRUST_DID_CHANGE to { workspaceTrust.push() },
                 HostToCoreMethod.ADD_ONS_WEBVIEW_MESSAGE to { addOns.forwardMessage("""{"type":"GetAddOnCatalogCommand"}""") },
                 HostToCoreMethod.ADD_ONS_OPEN to { addOns.setOpen(true) },
                 HostToCoreMethod.ADD_ONS_REFRESH to { addOns.refresh() },

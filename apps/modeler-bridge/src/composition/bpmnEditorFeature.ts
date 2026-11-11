@@ -10,6 +10,7 @@ import {
 } from "@miragon/bpmn-modeler-core";
 
 import { templatePreferenceHandlers } from "../kernel/adapter/in/templatePreferenceHandlers";
+import { workspaceTrustHandlers } from "../kernel/adapter/in/workspaceTrustHandlers";
 import { RpcClipboard } from "../kernel/adapter/out/RpcClipboard";
 import { RpcLintingPreference } from "../modeler/bpmn/adapter/out/RpcLintingPreference";
 import { bpmnEditorHandlers } from "../modeler/bpmn/adapter/in/bpmnEditorHandlers";
@@ -66,6 +67,7 @@ export function register(
                 actionNotifier: deps.actionNotifier,
                 questions: deps.approvalQuestions,
                 review: handles.rulePackageReview,
+                workspaceTrust: deps.workspaceTrust,
             },
         },
         {
@@ -93,6 +95,7 @@ export function register(
         }),
     );
     bindHandlers(deps.rpc, templatePreferenceHandlers(deps.templatePreferences));
+    bindHandlers(deps.rpc, workspaceTrustHandlers(deps.workspaceTrust));
 
     return editor;
 }

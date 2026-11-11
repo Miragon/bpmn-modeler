@@ -56,6 +56,7 @@ import {
     writeLinkedWorktree,
     writeRepository,
 } from "../../testing";
+import { UNTRUSTED_WORKSPACE_TEXT } from "../domain/addOnTexts";
 import { AddOnsFeature } from "./AddOnsFeature";
 
 const WORK = "/work";
@@ -136,6 +137,7 @@ function setUp({
     restart = "reloadWindow",
     marketplaces: listsMarketplaces = true,
     switches: keepsSwitches = true,
+    trustUnwired = false,
     ...hostOptions
 }: {
     files?: Record<string, string>;
@@ -143,6 +145,8 @@ function setUp({
     restart?: ProcessRestart;
     marketplaces?: boolean;
     switches?: boolean;
+    /** The host wires no trust port; the fake's trust still changes, reaching nothing. */
+    trustUnwired?: boolean;
 } & Pick<TestHostOptions, "settings" | "promptAnswers" | "marketplaceAnswers"> = {}) {
     const host = createTestHost({ folders, files, ...hostOptions });
     const artifacts = new ArtifactService(host.workspace, host.settings, host.notifier);
@@ -174,7 +178,11 @@ function setUp({
         disk.createDirectory(RESIZE);
         disk.createDirectory(TASK_RESIZE);
     };
-    const rulePackageCatalog = new RulePackageCatalog(host.pluginApprovals, host.notifier);
+    const rulePackageCatalog = new RulePackageCatalog(
+        host.pluginApprovals,
+        host.workspaceTrust,
+        host.notifier,
+    );
     const settingChanges = new ScriptedSettingChanges();
     const templatesService = new BpmnElementTemplatesService(
         host.store,
@@ -210,6 +218,7 @@ function setUp({
         settingChanges,
         restart,
         contentRows,
+        ...(trustUnwired ? {} : { workspaceTrust: host.workspaceTrust }),
         plugins: plugins.inventory,
         rulePackages: new RulePackageInventory(rulePackageCatalog, disk, allowances),
         templates: new TemplateInventory(templatesService, artifacts),
@@ -403,6 +412,63 @@ describe("AddOnsFeature", () => {
                 allowanceRowOf(inFolder("rulePackage", ORDERS)),
             ]);
             expect(view.addOns().map(({ state }) => state)).toEqual(["approved"]);
+        });
+    });
+
+    describe("workspace trust", () => {
+        it("offers no Allow in a project the user did not trust, says why, and refuses an allow", async () => {
+            const { host, install, addOns, view } = setUp();
+            install(ACME, "bpmnlint-plugin-acme");
+            host.workspaceTrust.setTrusted(false);
+            view.attachTo(addOns);
+            await shown(addOns);
+
+            const result = await view.connection?.handle({
+                kind: "allow",
+                addOnId: `plugin:${RESIZE}`,
+                revision: view.latest().revision,
+            });
+
+            expect(
+                view.addOns().map(({ name, actions, problem }) => ({
+                    name,
+                    actions: actions.map(({ kind }) => kind),
+                    problem,
+                })),
+            ).toEqual([
+                { name: "Resize Tasks", actions: [], problem: UNTRUSTED_WORKSPACE_TEXT },
+                { name: ACME_LABEL, actions: [], problem: UNTRUSTED_WORKSPACE_TEXT },
+            ]);
+            expect(result).toMatchObject({ kind: "refused", reason: "notOffered" });
+            expect(host.pluginApprovals.receivedChanges).toEqual([]);
+        });
+
+        it("offers Allow without a problem where the host wires no trust", async () => {
+            const { host, addOns, view } = setUp({ trustUnwired: true });
+            host.workspaceTrust.setTrusted(false);
+            view.attachTo(addOns);
+            await shown(addOns);
+
+            const resize = view.codeAddOnNamed("Resize Tasks");
+            expect(resize.actions.map(({ kind }) => kind)).toEqual(["allow"]);
+            expect(resize.problem).toBeUndefined();
+        });
+
+        it.each([
+            { change: "trusts it", before: false, actions: ["allow"] },
+            { change: "withdraws the trust", before: true, actions: [] },
+        ])("lists the add-ons again once the user $change", async ({ before, actions }) => {
+            const { host, addOns, view } = setUp();
+            host.workspaceTrust.setTrusted(before);
+            view.attachTo(addOns);
+            await shown(addOns);
+
+            host.workspaceTrust.setTrusted(!before);
+            await shown(addOns);
+
+            expect(view.codeAddOnNamed("Resize Tasks").actions.map(({ kind }) => kind)).toEqual(
+                actions,
+            );
         });
     });
 

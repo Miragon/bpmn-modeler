@@ -76,7 +76,13 @@ function setUp({ onWait }: { onWait?: (host: ReturnType<typeof createTestHost>) 
         host.notifier,
     );
     const contentRows = new CountedContentRows(() => onWait?.(host));
-    const catalog = new PluginCatalog(locator, host.pluginApprovals, contentRows, host.notifier);
+    const catalog = new PluginCatalog(
+        locator,
+        host.pluginApprovals,
+        contentRows,
+        host.workspaceTrust,
+        host.notifier,
+    );
     return { host, catalog, contentRows };
 }
 

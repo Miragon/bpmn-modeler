@@ -39,6 +39,7 @@ export function register(
         templates: handles.editor.templateInventory,
         marketplaces: handles.marketplaces,
         templatePreferences: deps.templatePreferences,
+        workspaceTrust: deps.workspaceTrust,
     });
     // Building for a hidden tab would be wasted RPC; the host reports it in `addOns/open`.
     const panel = addOns.attachPanel(

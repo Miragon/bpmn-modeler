@@ -21,6 +21,7 @@ import {
     type TemplateSwitch,
 } from "../../kernel/domain/templatePreferences";
 import { AddOnFacts, catalogModelOf, failedCatalogOf } from "./addOnCatalog";
+import { UNTRUSTED_WORKSPACE_TEXT } from "./addOnTexts";
 import { AddOnSession } from "./codeAddOnCatalog";
 import { ListedMarketplace } from "./templateAddOnViews";
 import type { AddOnView, CodeAddOnView } from "./addOnCatalogModel";
@@ -108,6 +109,7 @@ function factsOf(
     return {
         folders: ["/work"],
         configFolder: ".camunda",
+        trusted: true,
         approvalsByKind: {
             plugin: approvalRowsOf("plugin", approvals),
             rulePackage: approvalRowsOf("rulePackage", approvals),
@@ -391,6 +393,7 @@ describe("catalogModelOf", () => {
         presence: ListedPresence;
         allowed: boolean;
         declined?: boolean;
+        trusted?: boolean;
         state: string;
         stateText: string;
         actions: string[];
@@ -449,12 +452,57 @@ describe("catalogModelOf", () => {
             actions: [],
             problem: "Cannot be allowed: it is broken.",
         },
+        {
+            case: "found code its allowance holds in a workspace the user did not trust",
+            presence: plugin(RESIZE, "Resize"),
+            allowed: true,
+            trusted: false,
+            state: "approved",
+            stateText: "Allowed",
+            actions: ["revoke:Revoke"],
+            problem: UNTRUSTED_WORKSPACE_TEXT,
+        },
+        {
+            case: "found code not allowed yet in a workspace the user did not trust",
+            presence: plugin(RESIZE, "Resize"),
+            allowed: false,
+            trusted: false,
+            state: "new",
+            stateText: "Not allowed yet",
+            actions: [],
+            problem: UNTRUSTED_WORKSPACE_TEXT,
+        },
+        {
+            case: "found code declined this session in a workspace the user did not trust",
+            presence: plugin(RESIZE, "Resize"),
+            allowed: false,
+            declined: true,
+            trusted: false,
+            state: "declined",
+            stateText: "Declined this session",
+            actions: [],
+            problem: UNTRUSTED_WORKSPACE_TEXT,
+        },
+        {
+            case: "unreadable code not allowed yet in a workspace the user did not trust",
+            presence: unreadable("plugin", RESIZE, "resize"),
+            allowed: false,
+            trusted: false,
+            state: "new",
+            stateText: "Not allowed yet",
+            actions: [],
+            problem: "Cannot be allowed: it is broken.",
+        },
     ])(
         "offers for $case: $actions",
-        ({ presence, allowed, declined, state, stateText, actions, problem }) => {
+        ({ presence, allowed, declined, trusted = true, state, stateText, actions, problem }) => {
             const key = allowanceKeyOf(inFolder("plugin", RESIZE));
             const row = onlyRow(
-                factsOf({ plugins: [presence], approvals: allowed ? [allowedRow(presence)] : [] }),
+                factsOf({
+                    plugins: [presence],
+                    approvals: allowed ? [allowedRow(presence)] : [],
+                    trusted,
+                }),
                 sessionOf({ plugin: declined ? [[key, "declined"]] : [] }),
             );
 
@@ -466,6 +514,14 @@ describe("catalogModelOf", () => {
             }).toEqual({ state, stateText, actions, problem });
         },
     );
+
+    it("shows no review of code in a workspace the user did not trust", () => {
+        const row = asCode(
+            onlyRow(factsOf({ plugins: [plugin(RESIZE, "Resize")], trusted: false })),
+        );
+
+        expect(row.review).toBeUndefined();
+    });
 
     it("offers no Review…, no Allow this content and no Forget on any row", () => {
         const labels = rows(

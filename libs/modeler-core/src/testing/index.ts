@@ -44,6 +44,7 @@ export * from "./templatePreferenceStoreContract";
 export * from "./tokenPromptContract";
 export * from "./tokenStoreContract";
 export * from "./workspaceContract";
+export * from "./workspaceTrustContract";
 export * from "./surfaceCoverage";
 export * from "./RecordingAddOnView";
 export * from "./RecordingAddOnViewReveal";

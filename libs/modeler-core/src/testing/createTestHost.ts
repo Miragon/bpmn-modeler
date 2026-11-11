@@ -22,6 +22,7 @@ import {
     InMemoryClipboard,
     InMemoryLintingPreference,
     InMemoryPropertiesPanelState,
+    InMemoryWorkspaceTrust,
     RecordingDiagnostics,
 } from "./inMemoryHostSurfaces";
 import { InMemorySettings } from "./InMemorySettings";
@@ -87,6 +88,7 @@ export function createTestHost(options: TestHostOptions = {}) {
         actionNotifier: new ScriptedActionNotifier(options.noticeAnswers),
         settings,
         workspace: new InMemoryWorkspace(options.folders, options.files),
+        workspaceTrust: new InMemoryWorkspaceTrust(),
         statusBar: new RecordingStatusBar(),
         clipboard: new InMemoryClipboard(),
         secrets: new InMemorySecretStore(),
