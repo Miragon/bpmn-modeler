@@ -3,7 +3,7 @@ import { DisposableStore } from "@miragon/bpmn-modeler-types";
 
 import { DiffNavigator } from "./DiffNavigator";
 import { DiffViewer } from "./DiffViewer";
-import { stepCursor } from "./stepCursor";
+import { stepCursor } from "@miragon/bpmn-modeler-types";
 
 /**
  * In-page coordinator for a two-pane BPMN diff — the host-free counterpart to

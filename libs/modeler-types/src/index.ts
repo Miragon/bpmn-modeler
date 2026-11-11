@@ -21,6 +21,7 @@ export * from "./processVariables";
 export * from "./implementation";
 export * from "./referenceKind";
 export * from "./diff";
+export * from "./diffStepper";
 export * from "./layout";
 export * from "./errors";
 export * from "./canvasResize";

@@ -1,7 +1,7 @@
 import { DiffSideView } from "@miragon/bpmn-modeler-diff";
 
 import { DiffViewer } from "./DiffViewer";
-import { stepCursor } from "./stepCursor";
+import { nearestPresent, stepCursor } from "@miragon/bpmn-modeler-types";
 
 /**
  * Portable diff-stepper logic for a single {@link DiffViewer} pane.
@@ -97,30 +97,13 @@ export class DiffNavigator {
         // propagates via viewport-sync so the partner pane brings the actual
         // element into view with its diff highlight.  Without this anchoring the
         // stepper appears frozen whenever the cursor lands on a partner-only id.
-        const anchor = this.findAnchor(this._cursor, direction);
+        const anchor = nearestPresent(this.changeIds, this._cursor, direction, (id) =>
+            this.viewer.hasElement(id),
+        );
         if (anchor !== undefined) {
             this.viewer.centerOnElement(anchor);
         }
         this.viewer.clearSelectionMarker();
         return false;
-    }
-
-    /**
-     * Walks outward from `cursor`, preferring `direction`, to locate an id
-     * present on this pane.  Returns `undefined` only in the degenerate case
-     * where every id in the cycle lives exclusively on the partner pane.
-     */
-    private findAnchor(cursor: number, direction: 1 | -1): string | undefined {
-        const len = this.changeIds.length;
-        for (let i = 1; i < len; i++) {
-            for (const dir of [direction, -direction] as const) {
-                const idx = (((cursor + dir * i) % len) + len) % len;
-                const id = this.changeIds[idx];
-                if (this.viewer.hasElement(id)) {
-                    return id;
-                }
-            }
-        }
-        return undefined;
     }
 }
