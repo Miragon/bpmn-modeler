@@ -20,6 +20,8 @@ import {
     SetLintingEnabledCommand,
 } from "@miragon/bpmn-modeler-shared";
 
+import { allowanceRowOf } from "../../../kernel/domain/allowance";
+import { RULE_PACKAGE_CONTENT_HASH_PREFIX } from "../../../kernel/domain/approvalRowKind";
 import { templatePreferenceChange } from "../../../kernel/domain/templatePreferences";
 import { toWorkspacePath } from "../../../kernel/domain/workspacePath";
 import { ArtifactService } from "../../../kernel/service/ArtifactService";
@@ -43,7 +45,6 @@ import { BpmnPluginsFeature } from "../../../bpmnPlugins/composition/BpmnPlugins
 import {
     RULE_PACKAGE_APPROVAL_NOTICE_ID,
     RULE_PACKAGE_APPROVAL_PROMPT_ID,
-    rulePackageContentHash,
 } from "../domain/rulePackageApproval";
 import {
     BpmnEditorContributions,
@@ -631,9 +632,7 @@ describe("BpmnEditorFeature with workspace rule packages", () => {
     }) {
         const configPath = `${workspaceDir}/.bpmnlintrc`;
         const diagramPath = `${workspaceDir}/order.bpmn`;
-        const packages = new InMemoryInstalledPackages((bytes) =>
-            createHash("sha256").update(bytes).digest("hex"),
-        );
+        const packages = new InMemoryInstalledPackages();
         const pluginDir = await installAcme(packages);
         const host = createTestHost({
             folders: [workspaceDir],
@@ -650,6 +649,8 @@ describe("BpmnEditorFeature with workspace rule packages", () => {
                           rulePackages: {
                               approvals: host.pluginApprovals,
                               installedPackages: packages,
+                              allowances: host.allowances,
+                              contentRows: host.contentRows,
                               actionNotifier: host.actionNotifier,
                               questions: new QuestionQueue(),
                               ...(review === undefined ? {} : { review }),
@@ -679,7 +680,9 @@ describe("BpmnEditorFeature with workspace rule packages", () => {
         expect(host.actionNotifier.notices.map(({ id }) => id)).toEqual([
             RULE_PACKAGE_APPROVAL_NOTICE_ID,
         ]);
-        expect(host.pluginApprovals.approvals.map(({ pluginId }) => pluginId)).toEqual([pluginDir]);
+        expect(host.pluginApprovals.approvals).toEqual([
+            allowanceRowOf(host.allowances.allowanceAt("rulePackage", pluginDir)),
+        ]);
         expect(results).toEqual([[], ["acme/task-found"]]);
     });
 
@@ -724,6 +727,7 @@ describe("BpmnEditorFeature with workspace rule packages", () => {
             restart: "reloadWindow",
             plugins: plugins.inventory,
             rulePackages: feature.rulePackageInventory,
+            contentRows: host.contentRows,
         });
         const view = new RecordingAddOnView();
         view.attachTo(addOns);
@@ -747,7 +751,7 @@ describe("BpmnEditorFeature with workspace rule packages", () => {
     });
 
     it("lets the gate report a package the user declined as declined", async () => {
-        const { feature, editor, pluginDir } = await lintWithAcmeInstalled({
+        const { host, feature, editor, pluginDir } = await lintWithAcmeInstalled({
             wiresRulePackages: true,
             allows: false,
         });
@@ -755,7 +759,15 @@ describe("BpmnEditorFeature with workspace rule packages", () => {
         await feature.lintConfig.setBpmnlintConfig(editor.id);
 
         expect(feature.rulePackageCatalog?.seenPackages()).toEqual([
-            { id: pluginDir, kind: "package", state: "declined", needed: true },
+            {
+                id: pluginDir,
+                name: "bpmnlint-plugin-acme",
+                version: "1.0.0",
+                allowance: host.allowances.allowanceAt("rulePackage", pluginDir),
+                kind: "package",
+                state: "declined",
+                needed: true,
+            },
         ]);
     });
 
@@ -770,7 +782,7 @@ describe("BpmnEditorFeature with workspace rule packages", () => {
 
         if (disposed) feature.dispose();
         host.pluginApprovals.storeElsewhere(
-            [{ pluginId: pluginDir, contentHash: rulePackageContentHash("elsewhere") }],
+            [{ pluginId: pluginDir, contentHash: `${RULE_PACKAGE_CONTENT_HASH_PREFIX}elsewhere` }],
             { notify: true },
         );
         await feature.lintConfig.whenApprovalSettled();

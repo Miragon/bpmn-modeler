@@ -9,7 +9,7 @@ import {
 
 type InMemoryNode =
     | { readonly kind: "file"; bytes: Uint8Array; readonly ino: bigint; time: bigint }
-    | { readonly kind: "directory" | "other"; readonly ino: bigint; time: bigint }
+    | { readonly kind: "directory"; readonly ino: bigint; time: bigint }
     | { readonly kind: "link"; readonly target: string; readonly ino: bigint; time: bigint };
 
 // As Linux's limit on links followed in one lookup.
@@ -18,19 +18,17 @@ const MAX_LINK_HOPS = 40;
 /**
  * A posix file tree in memory. Every change ticks a clock that stamps the
  * entry and its parent directory, as a disk does with nanosecond times.
- * The core's test kit imports no `node:crypto`, so the SHA-256 of bytes is
- * passed in. `filesHashed` and `directoriesListed` keep every file hashed
- * and every directory listed, so a spec can see whether a check reread a package.
+ * `directoriesListed` keeps every directory listed, so a spec can see whether
+ * a check reread a package.
  */
 export class InMemoryInstalledPackages implements InstalledPackagesPort {
-    readonly filesHashed: string[] = [];
     readonly directoriesListed: string[] = [];
 
     private readonly nodes = new Map<string, InMemoryNode>();
     private clock = 0n;
     private inodes = 0n;
 
-    constructor(private readonly sha256OfBytes: (bytes: Uint8Array) => string) {
+    constructor() {
         this.nodes.set("/", { kind: "directory", ino: this.nextInode(), time: this.tick() });
     }
 
@@ -54,11 +52,6 @@ export class InMemoryInstalledPackages implements InstalledPackagesPort {
 
     createSymbolicLink(path: string, target: string): void {
         this.addEntry(path, { kind: "link", target, ino: this.nextInode(), time: this.tick() });
-    }
-
-    /** A named pipe or socket, whose bytes no hash can read. */
-    createSpecialFile(path: string): void {
-        this.addEntry(path, { kind: "other", ino: this.nextInode(), time: this.tick() });
     }
 
     /** Removes the entry and everything below it, as `rm -r` would. */
@@ -108,19 +101,6 @@ export class InMemoryInstalledPackages implements InstalledPackagesPort {
             mtimeNs: node.time,
             ctimeNs: node.time,
         };
-    }
-
-    sha256OfFile(path: string): string | undefined {
-        const node = this.nodeAt(path);
-        if (node?.kind !== "file") {
-            return undefined;
-        }
-        this.filesHashed.push(path);
-        return this.sha256OfBytes(node.bytes);
-    }
-
-    sha256OfText(text: string): string {
-        return this.sha256OfBytes(new TextEncoder().encode(text));
     }
 
     readTextFile(path: string): string | undefined {

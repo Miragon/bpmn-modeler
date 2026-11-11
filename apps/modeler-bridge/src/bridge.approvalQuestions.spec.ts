@@ -11,6 +11,8 @@ import { join } from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
+import { allowanceKeyOf, allowanceOf, LOCAL_HOST } from "@miragon/bpmn-modeler-core";
+
 import { hostNotification, settle } from "./__fixtures__/bridgeHarness";
 import {
     ACME_NOTICE_MESSAGE,
@@ -85,14 +87,20 @@ describe("bridge approval questions", () => {
 
         expect(pluginNotice.params.message).not.toBe(ACME_NOTICE_MESSAGE);
         expect(rulePackageNotice.params.message).toBe(ACME_NOTICE_MESSAGE);
-        expect(pluginAnswer.change.allow.map((row) => row.pluginId)).toEqual([pluginId]);
+        const pluginKey = allowanceKeyOf(
+            allowanceOf("plugin", pluginId, { kind: "noRepository" }, LOCAL_HOST),
+        );
+        const acmeKey = allowanceKeyOf(
+            allowanceOf("rulePackage", bridge.acmeDir, { kind: "noRepository" }, LOCAL_HOST),
+        );
+        expect(pluginAnswer.change.allow.map((row) => row.pluginId)).toEqual([pluginKey]);
         expect(rulePackageAnswer.change).toEqual({
-            allow: [expect.objectContaining({ pluginId: bridge.acmeDir })],
+            allow: [expect.objectContaining({ pluginId: acmeKey })],
             revoke: [],
         });
         expect(rulePackageAnswer.stored.approvals.map((row) => row.pluginId)).toEqual([
-            pluginId,
-            bridge.acmeDir,
+            pluginKey,
+            acmeKey,
         ]);
     });
 });

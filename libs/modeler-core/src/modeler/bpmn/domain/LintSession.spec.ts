@@ -45,6 +45,14 @@ const HOST_OUTPUT: LintRunOutput = {
     blocked: [
         {
             id: "/work/node_modules/bpmnlint-plugin-acme",
+            name: "bpmnlint-plugin-acme",
+            version: "1.0.0",
+            allowance: {
+                kind: "rulePackage",
+                host: "",
+                origin: { kind: "folder", path: "/work/node_modules/bpmnlint-plugin-acme" },
+                addOn: "",
+            },
             kind: "package",
             state: "new",
             needed: true,

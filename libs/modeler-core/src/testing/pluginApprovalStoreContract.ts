@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { allowing, CodeApproval, revoking } from "../kernel/domain/codeApproval";
+import { allowanceRowOf } from "../kernel/domain/allowance";
+import { CodeApproval, codeApprovalChange, revoking } from "../kernel/domain/codeApproval";
 import { PluginApprovalStorePort } from "../kernel/port/approvalPorts";
 
 /** One {@link PluginApprovalStorePort} adapter under the {@link describePluginApprovalStoreContract} scenarios. */
@@ -40,6 +41,17 @@ const rowOf = ({ id, contentHash }: { id: string; contentHash: string }): CodeAp
     contentHash,
 });
 
+const allowingRows = (artifacts: readonly { id: string; contentHash: string }[]) =>
+    codeApprovalChange(artifacts.map(rowOf), []);
+
+/** Its id is a JSON array holding quotes, brackets, commas and a path, which no host may reshape. */
+const ALLOWANCE_ROW = allowanceRowOf({
+    kind: "plugin",
+    host: 'ssh-remote+"box",1',
+    origin: { kind: "repository", path: 'C:/work/[repo], "main"/.git' },
+    addOn: ".camunda/plugins/resize, tasks",
+});
+
 /**
  * The rules of {@link PluginApprovalStorePort} the core relies on, run against
  * one adapter. A store with no approvals reads `[]`. A change is merged into
@@ -69,14 +81,21 @@ export function describePluginApprovalStoreContract(
             expect(fixture.store.read()).toEqual([]);
         });
 
+        it("keeps an allowance row unchanged, its id's quotes, brackets and commas included", async () => {
+            await fixture.store.change(codeApprovalChange([ALLOWANCE_ROW], []));
+
+            expect(fixture.store.read()).toEqual([ALLOWANCE_ROW]);
+            expect(await fixture.store.readStored()).toEqual([ALLOWANCE_ROW]);
+        });
+
         it("reads an allowed row back once the change resolved", async () => {
-            await fixture.store.change(allowing([PALETTE, RESIZE]));
+            await fixture.store.change(allowingRows([PALETTE, RESIZE]));
 
             expect(fixture.store.read()).toEqual([rowOf(PALETTE), rowOf(RESIZE)]);
         });
 
         it("replaces a row in place, revokes another and keeps the rows the change does not name", async () => {
-            await fixture.store.change(allowing([RESIZE, PALETTE, ACME]));
+            await fixture.store.change(allowingRows([RESIZE, PALETTE, ACME]));
 
             await fixture.store.change({
                 allow: [{ ...rowOf(RESIZE), contentHash: "b07e" }],
@@ -90,45 +109,45 @@ export function describePluginApprovalStoreContract(
         });
 
         it("keeps a row another writer stored that this store had not read", async () => {
-            await fixture.store.change(allowing([RESIZE]));
+            await fixture.store.change(allowingRows([RESIZE]));
             await fixture.storeElsewhere([rowOf(RESIZE), rowOf(ACME)]);
 
-            await fixture.store.change(allowing([PALETTE]));
+            await fixture.store.change(allowingRows([PALETTE]));
 
             expect(fixture.store.read()).toEqual([rowOf(RESIZE), rowOf(ACME), rowOf(PALETTE)]);
         });
 
         it("does not bring back a revoked row with a later allow of another one", async () => {
-            await fixture.store.change(allowing([RESIZE, PALETTE]));
+            await fixture.store.change(allowingRows([RESIZE, PALETTE]));
             await fixture.store.change(revoking([RESIZE.id]));
 
-            await fixture.store.change(allowing([ACME]));
+            await fixture.store.change(allowingRows([ACME]));
 
             expect(fixture.store.read()).toEqual([rowOf(PALETTE), rowOf(ACME)]);
         });
 
         it("rejects a change that names an id twice and stores nothing", async () => {
-            await fixture.store.change(allowing([RESIZE]));
+            await fixture.store.change(allowingRows([RESIZE]));
 
             await expect(
                 fixture.store.change({ allow: [rowOf(PALETTE)], revoke: [PALETTE.id] }),
             ).rejects.toThrow();
-            await fixture.store.change(allowing([ACME]));
+            await fixture.store.change(allowingRows([ACME]));
 
             expect(fixture.store.read()).toEqual([rowOf(RESIZE), rowOf(ACME)]);
         });
 
         it("keeps both rows of two changes started together", async () => {
             await Promise.all([
-                fixture.store.change(allowing([RESIZE])),
-                fixture.store.change(allowing([PALETTE])),
+                fixture.store.change(allowingRows([RESIZE])),
+                fixture.store.change(allowingRows([PALETTE])),
             ]);
 
             expect(fixture.store.read()).toEqual([rowOf(RESIZE), rowOf(PALETTE)]);
         });
 
         it("reads the list another writer stored once readStored answered it", async () => {
-            await fixture.store.change(allowing([RESIZE]));
+            await fixture.store.change(allowingRows([RESIZE]));
             await fixture.storeElsewhere([rowOf(ACME), rowOf(RESIZE)]);
 
             const stored = await fixture.store.readStored();
@@ -141,8 +160,8 @@ export function describePluginApprovalStoreContract(
             let announced = 0;
             fixture.store.onDidChange(() => announced++);
 
-            await fixture.store.change(allowing([RESIZE]));
-            await fixture.store.change(allowing([RESIZE]));
+            await fixture.store.change(allowingRows([RESIZE]));
+            await fixture.store.change(allowingRows([RESIZE]));
             await fixture.store.change(revoking([PALETTE.id]));
             await fixture.store.change(revoking([RESIZE.id]));
 
@@ -159,7 +178,7 @@ export function describePluginApprovalStoreContract(
         });
 
         it("announces a list readStored found changed, and not the same rows again", async () => {
-            await fixture.store.change(allowing([RESIZE]));
+            await fixture.store.change(allowingRows([RESIZE]));
             let announced = 0;
             fixture.store.onDidChange(() => announced++);
             await fixture.storeElsewhere([rowOf(RESIZE), rowOf(ACME)]);
@@ -173,17 +192,17 @@ export function describePluginApprovalStoreContract(
         it("announces nothing to a listener it disposed", async () => {
             let announced = 0;
             const subscription = fixture.store.onDidChange(() => announced++);
-            await fixture.store.change(allowing([RESIZE]));
+            await fixture.store.change(allowingRows([RESIZE]));
 
             subscription.dispose();
-            await fixture.store.change(allowing([PALETTE]));
+            await fixture.store.change(allowingRows([PALETTE]));
             await fixture.storeElsewhere([rowOf(ACME)], { notify: true });
 
             expect(announced).toBe(1);
         });
 
         it("reads no approvals once every row is revoked", async () => {
-            await fixture.store.change(allowing([RESIZE]));
+            await fixture.store.change(allowingRows([RESIZE]));
 
             await fixture.store.change(revoking([RESIZE.id]));
 

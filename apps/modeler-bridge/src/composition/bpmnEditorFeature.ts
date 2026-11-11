@@ -61,6 +61,8 @@ export function register(
             rulePackages: {
                 approvals: deps.pluginApprovals,
                 installedPackages: deps.installedPackages,
+                allowances: deps.allowances,
+                contentRows: deps.contentRows,
                 actionNotifier: deps.actionNotifier,
                 questions: deps.approvalQuestions,
                 review: handles.rulePackageReview,

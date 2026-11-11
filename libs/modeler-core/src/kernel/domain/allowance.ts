@@ -38,6 +38,11 @@ export interface AllowableCode {
     readonly allowance: Allowance;
 }
 
+/** Workspace code that runs only once the user allowed its add-on. */
+export interface ApprovableArtifact extends AllowableCode {
+    readonly name: string;
+}
+
 export type AllowanceState = "allowed" | "new" | "declined";
 
 export interface AllowanceOutcome<C extends AllowableCode> {

@@ -7,9 +7,9 @@
  * script drives the same workspace.
  */
 
-import { promises as fs } from "node:fs";
+import { mkdirSync, promises as fs, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 import { approvalsAfter } from "@miragon/bpmn-modeler-core";
 
@@ -69,19 +69,60 @@ const isConfigInstruction = (frame: Frame): boolean =>
     postedMessageOf(frame)?.type === "BpmnlintInPageQuery" &&
     postedMessageOf(frame)?.config != null;
 
-export async function createAcmeWorkspace(): Promise<string> {
+const ACME_MANIFEST = { dependencies: { "acme-dep": "1.0.0" } };
+
+/** The git files on disk, as the testing kit's layout writes them. */
+const GIT_FILES = {
+    writeFile: (path: string, content: string) => {
+        mkdirSync(dirname(path), { recursive: true });
+        writeFileSync(path, content);
+    },
+    createDirectory: (path: string) => mkdirSync(path, { recursive: true }),
+};
+
+/** The testing kit imports Vitest, which the Bun smoke must not load, so only a git layout loads it. */
+const gitLayout = () => import("@miragon/bpmn-modeler-core/testing");
+
+/** @param git Makes the workspace the main worktree of a repository. */
+export async function createAcmeWorkspace({
+    git = false,
+}: { git?: boolean } = {}): Promise<string> {
     const root = await fs.realpath(await fs.mkdtemp(join(tmpdir(), "bridge-rule-packages-")));
+    if (git) {
+        (await gitLayout()).writeRepository(GIT_FILES, root);
+    }
+    await installAcme(root);
+    return root;
+}
+
+/**
+ * A linked worktree of the repository at `root`, as `git worktree add` lays it
+ * out, with its own install of the rule package.
+ * @returns the worktree, a realpath.
+ */
+export async function addAcmeWorktree(root: string): Promise<string> {
+    const worktree = await fs.realpath(await fs.mkdtemp(join(tmpdir(), "bridge-rule-worktree-")));
+    (await gitLayout()).writeLinkedWorktree(GIT_FILES, root, worktree);
+    await installAcme(worktree);
+    return worktree;
+}
+
+/** An update as a package manager installs it: the manifest names the new version. */
+export async function bumpAcmeVersion(root: string, version: string): Promise<void> {
+    await fs.writeFile(
+        join(root, "node_modules", "bpmnlint-plugin-acme", "package.json"),
+        JSON.stringify({ name: "bpmnlint-plugin-acme", version, ...ACME_MANIFEST }),
+    );
+}
+
+async function installAcme(root: string): Promise<void> {
     await fs.writeFile(
         join(root, ".bpmnlintrc"),
         JSON.stringify({ extends: "plugin:acme/recommended" }),
     );
-    await installPackage(
-        root,
-        "bpmnlint-plugin-acme",
-        { dependencies: { "acme-dep": "1.0.0" } },
-        {
-            "index.js": `module.exports = { configs: { recommended: { rules: { ${JSON.stringify(ACME_RULE)}: "warn" } } } };`,
-            "rules/task-found.js": `const message = require("acme-dep");
+    await installPackage(root, "bpmnlint-plugin-acme", ACME_MANIFEST, {
+        "index.js": `module.exports = { configs: { recommended: { rules: { ${JSON.stringify(ACME_RULE)}: "warn" } } } };`,
+        "rules/task-found.js": `const message = require("acme-dep");
 module.exports = () => ({
     check(node, reporter) {
         if (node.$type !== "bpmn:Task") return;
@@ -89,10 +130,8 @@ module.exports = () => ({
         reporter.report(node.id, message);
     },
 });`,
-        },
-    );
+    });
     await writeAcmeDependency(root, "v1");
-    return root;
 }
 
 /** Any other length than the text before, so the file's size changes too. */
@@ -207,7 +246,7 @@ export function waitForNotice({ frames }: AcmeBridge, fromIndex = 0): Promise<Fr
  * Answers an open notice with "Review…", reports the add-ons view as not shown,
  * so the list appears, checks every listed item and answers the change with
  * the list it merged into `stored` at the next revision, as the IntelliJ host
- * does.
+ * does. Throws on a change that allows anything but allowances.
  * @returns the change the bridge sent and what the host now stores.
  */
 export async function reviewAndAllowAll(
@@ -227,6 +266,12 @@ export async function reviewAndAllowAll(
     await rpc.handleLine(hostReply(list.id!, { selected: items.map((_, index) => index) }));
     const request = await waitForFrame(frames, isRequest("pluginApprovals/change"), { fromIndex });
     const change = request.params as unknown as PluginApprovalsChangeParams;
+    const notAllowance = change.allow.find(
+        ({ contentHash }) => !contentHash.startsWith("allowance-v1:"),
+    );
+    if (notAllowance !== undefined) {
+        throw new Error(`Expected only allowances, got ${JSON.stringify(notAllowance)}`);
+    }
     const merged: PluginApprovalsSnapshot = {
         approvals: approvalsAfter(stored.approvals, change),
         revision: stored.revision + 1,

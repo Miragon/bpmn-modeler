@@ -6,6 +6,7 @@ import { createBundledResolver } from "@miragon/bpmnlint-plugin-rules";
 
 import { CodeApproval } from "../../../../../kernel/domain/codeApproval";
 import { fileSystemPathOf, toWorkspacePath } from "../../../../../kernel/domain/workspacePath";
+import { PathStamp } from "../../../domain/packageClosure";
 import { isParsedAsJson, rulePackageApprovalsKey } from "../../../domain/rulePackageApproval";
 import { LintRun, LintRunnerPort } from "../../../port/bpmnPorts";
 import { CompositeResolver, Resolver } from "./CompositeResolver";
@@ -60,7 +61,7 @@ interface CachedLintSetup {
  *
  * The moddle, the loaded extensions and the resolved rules are kept per config
  * path until the config or the rule package approvals change, or an allowed
- * package's files do, so an edit only pays for the parse and the rules.
+ * package's `package.json` does, so an edit only pays for the parse and the rules.
  *
  * Host-agnostic on purpose (no `vscode` import): the IntelliJ bridge, a Bun
  * process, reuses it verbatim.
@@ -69,7 +70,7 @@ export class NodeBpmnLinter implements LintRunnerPort {
     private readonly setupsByConfigPath = new Map<string, CachedLintSetup>();
     private bundledResolver: Resolver | undefined;
     private moddleFactory: Promise<BpmnModdleFactory> | undefined;
-    private readonly loadedContentHashes = new Map<string, string>();
+    private readonly loadedManifestStamps = new Map<string, PathStamp | undefined>();
 
     constructor(private readonly rulePackages?: RulePackageSources) {}
 
@@ -95,7 +96,6 @@ export class NodeBpmnLinter implements LintRunnerPort {
             unresolved: resolver.unresolved,
             blocked: setup.gate?.blockedPackages(resolver.neededBlocked) ?? [],
             refused: setup.gate?.refusedModules() ?? [],
-            admitted: setup.gate?.admittedRulePackages() ?? [],
         };
     }
 
@@ -155,7 +155,7 @@ export class NodeBpmnLinter implements LintRunnerPort {
                 sources: this.rulePackages,
                 approvals,
                 configDir: toWorkspacePath(configDir),
-                loadedContentHashes: this.loadedContentHashes,
+                loadedManifestStamps: this.loadedManifestStamps,
             });
 
         return {

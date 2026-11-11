@@ -1,14 +1,19 @@
 import { describe, expect, it } from "vitest";
 
 import {
+    Allowance,
+    allowanceKeyOf,
+    allowanceOf,
+    allowanceRowOf,
+} from "../../kernel/domain/allowance";
+import { AllowanceKind, approvalRowsOf } from "../../kernel/domain/approvalRowKind";
+import {
     ApprovableCodeTexts,
     CodeApproval,
-    declineKeyOf,
-    ListedPresence,
-    presenceIdOf,
     PROCESS_RESTARTS,
     SessionAnswer,
 } from "../../kernel/domain/codeApproval";
+import { ListedPresence, presenceIdOf } from "../../kernel/domain/listedCode";
 import { FolderTemplateFileListing } from "../../kernel/domain/templateListing";
 import {
     NO_TEMPLATE_PREFERENCES,
@@ -16,7 +21,7 @@ import {
     type TemplateSwitch,
 } from "../../kernel/domain/templatePreferences";
 import { AddOnFacts, catalogModelOf, failedCatalogOf } from "./addOnCatalog";
-import { AddOnSession, foundArtifactsOf, ShownCode } from "./codeAddOnCatalog";
+import { AddOnSession } from "./codeAddOnCatalog";
 import { ListedMarketplace } from "./templateAddOnViews";
 import type { AddOnView, CodeAddOnView } from "./addOnCatalogModel";
 
@@ -26,35 +31,53 @@ const NESTED = "/work/orders/.camunda/plugins/order-tools";
 const ACME = "/work/node_modules/bpmnlint-plugin-acme";
 const RULES = "/work/node_modules/@acme/bpmnlint-plugin-rules";
 const OTHER_RULES = "/other/node_modules/bpmnlint-plugin-other";
+const PLUGIN_HASH = "0123456789abcdef".repeat(4);
 
-const found = (
-    id: string,
-    name: string,
-    contentHash: string,
-    version?: string,
-): ListedPresence => ({
+const inFolder = (kind: AllowanceKind, id: string): Allowance =>
+    allowanceOf(kind, id, { kind: "noRepository" }, "");
+const inRepository = (kind: AllowanceKind, id: string, host = ""): Allowance =>
+    allowanceOf(
+        kind,
+        id,
+        { kind: "repository", commonDir: "/work/.git", worktreeRoot: "/work" },
+        host,
+    );
+
+const plugin = (id: string, name: string, allowance = inFolder("plugin", id)): ListedPresence => ({
     kind: "found",
     name,
-    artifact: {
-        id,
-        name,
-        contentHash,
-        files: [`${id}/client.js`],
-        ...(version ? { version } : {}),
-    },
+    artifact: { id, name, allowance },
+});
+
+/** Named as the owner names it: `name@version`. */
+const rulePackage = (
+    id: string,
+    name: string,
+    version?: string,
+    allowance = inFolder("rulePackage", id),
+): ListedPresence => ({
+    kind: "found",
+    name: version === undefined ? name : `${name}@${version}`,
+    artifact: { id, name, allowance, ...(version === undefined ? {} : { version }) },
+});
+
+const unreadable = (kind: AllowanceKind, id: string, name: string): ListedPresence => ({
+    kind: "unreadable",
+    id,
+    name,
+    reason: "it is broken",
+    allowance: inFolder(kind, id),
 });
 
 const PLUGIN_TEXTS: ApprovableCodeTexts = {
     risk: "Plugin risk.",
     allowedFollowUp: "Plugin follow-up.",
     revokedFollowUp: () => "Plugin revoked.",
-    carriedOver: () => "Plugin carried.",
 };
 const RULE_PACKAGE_TEXTS: ApprovableCodeTexts = {
     risk: "A rule package runs as a program with your user's rights, not only inside the editor.",
     allowedFollowUp: "Rule package follow-up.",
     revokedFollowUp: (restart) => `Rule package revoked until ${restart}.`,
-    carriedOver: () => "Rule package carried.",
 };
 
 /** Placed as the owners place them: a plugin in its config folder, a rule package in its `node_modules`. */
@@ -63,9 +86,6 @@ const rulePackageSourceDirOf = (id: string) =>
     id.includes("/node_modules/")
         ? id.slice(0, id.lastIndexOf("/node_modules/") + "/node_modules".length)
         : id;
-
-/** As the owners claim rows here: a rule package's sits in a `node_modules`. */
-const isRulePackageRow = ({ pluginId }: CodeApproval) => pluginId.includes("/node_modules/");
 
 function factsOf(
     overrides: Partial<
@@ -89,8 +109,8 @@ function factsOf(
         folders: ["/work"],
         configFolder: ".camunda",
         approvalsByKind: {
-            plugin: approvals.filter((row) => !isRulePackageRow(row)),
-            rulePackage: approvals.filter(isRulePackageRow),
+            plugin: approvalRowsOf("plugin", approvals),
+            rulePackage: approvalRowsOf("rulePackage", approvals),
         },
         templates: [],
         ...rest,
@@ -138,13 +158,24 @@ const asCode = (row: AddOnView): CodeAddOnView => {
     return row;
 };
 
+const allowedRow = (presence: ListedPresence): CodeApproval => {
+    const allowance =
+        presence.kind === "found"
+            ? presence.artifact.allowance
+            : presence.kind === "unreadable"
+              ? presence.allowance
+              : undefined;
+    if (allowance === undefined) throw new Error("expected an allowance");
+    return allowanceRowOf(allowance);
+};
+
 describe("catalogModelOf", () => {
     it("groups add-ons by the innermost workspace folder, in the order the folders were opened", () => {
         const { model } = build(
             factsOf({
                 folders: ["/work", "/other", "/work/orders"],
-                plugins: [found(RESIZE, "Resize", "h1"), found(NESTED, "Order Tools", "h2")],
-                rulePackages: [found(OTHER_RULES, "bpmnlint-plugin-other", "r1", "1.0.0")],
+                plugins: [plugin(RESIZE, "Resize"), plugin(NESTED, "Order Tools")],
+                rulePackages: [rulePackage(OTHER_RULES, "bpmnlint-plugin-other")],
             }),
         );
 
@@ -184,8 +215,20 @@ describe("catalogModelOf", () => {
     it("lists nothing outside every workspace folder", () => {
         const { model, shown } = build(
             factsOf({
-                plugins: [found("/elsewhere/.camunda/plugins/x", "X", "h1")],
-                rulePackages: [found("/elsewhere/node_modules/bpmnlint-plugin-x", "x", "r1")],
+                plugins: [plugin("/elsewhere/.camunda/plugins/x", "X")],
+                rulePackages: [rulePackage("/elsewhere/node_modules/bpmnlint-plugin-x", "x")],
+            }),
+        );
+
+        expect(model.groups).toEqual([]);
+        expect(shown.size).toBe(0);
+    });
+
+    it("lists no gone place, which only an allow reading it again reports", () => {
+        const { model, shown } = build(
+            factsOf({
+                plugins: [{ kind: "gone", id: RESIZE, name: "resize" }],
+                approvals: [{ pluginId: RESIZE, contentHash: PLUGIN_HASH }],
             }),
         );
 
@@ -196,8 +239,8 @@ describe("catalogModelOf", () => {
     it("puts each add-on in its source: config folders first, the root's leading, then packages", () => {
         const { model } = build(
             factsOf({
-                plugins: [found(NESTED, "Order Tools", "h2"), found(RESIZE, "Resize", "h1")],
-                rulePackages: [found(ACME, "bpmnlint-plugin-acme", "r1", "1.2.0")],
+                plugins: [plugin(NESTED, "Order Tools"), plugin(RESIZE, "Resize")],
+                rulePackages: [rulePackage(ACME, "bpmnlint-plugin-acme", "1.2.0")],
             }),
         );
 
@@ -235,8 +278,8 @@ describe("catalogModelOf", () => {
             factsOf({
                 configFolder: ".config/camunda",
                 plugins: [
-                    found("/work/orders/.config/camunda/plugins/tools", "Tools", "h1"),
-                    found("/work/.config/camunda/plugins/resize", "Resize", "h2"),
+                    plugin("/work/orders/.config/camunda/plugins/tools", "Tools"),
+                    plugin("/work/.config/camunda/plugins/resize", "Resize"),
                 ],
             }),
         );
@@ -259,9 +302,9 @@ describe("catalogModelOf", () => {
         const { model } = build(
             factsOf({
                 plugins: [
-                    found("/work/b/.camunda/plugins/x", "X", "h1"),
-                    found("/work/a/.camunda/plugins/y", "Y", "h2"),
-                    found(RESIZE, "Resize", "h3"),
+                    plugin("/work/b/.camunda/plugins/x", "X"),
+                    plugin("/work/a/.camunda/plugins/y", "Y"),
+                    plugin(RESIZE, "Resize"),
                 ],
             }),
         );
@@ -277,9 +320,9 @@ describe("catalogModelOf", () => {
         const { model } = build(
             factsOf({
                 plugins: [
-                    found(RESIZE, "Same", "h1"),
-                    found(PALETTE, "Same", "h2"),
-                    found("/work/.camunda/plugins/a", "Alpha", "h3"),
+                    plugin(RESIZE, "Same"),
+                    plugin(PALETTE, "Same"),
+                    plugin("/work/.camunda/plugins/a", "Alpha"),
                 ],
             }),
         );
@@ -295,8 +338,8 @@ describe("catalogModelOf", () => {
         const { model } = build(
             factsOf({
                 plugins: [
-                    found("/work/.archive/.camunda/plugins/x", "X", "h1"),
-                    found(RESIZE, "Resize", "h2"),
+                    plugin("/work/.archive/.camunda/plugins/x", "X"),
+                    plugin(RESIZE, "Resize"),
                 ],
             }),
         );
@@ -313,10 +356,10 @@ describe("catalogModelOf", () => {
         { case: "shuffled", order: [2, 0, 3, 1] },
     ])("sorts add-ons listed $case by name, then by id", ({ order }) => {
         const listed = [
-            found("/work/.camunda/plugins/a", "Alpha", "h1"),
-            found("/work/.camunda/plugins/b", "Beta", "h2"),
-            found("/work/.camunda/plugins/c", "Beta", "h3"),
-            found("/work/.camunda/plugins/d", "Gamma", "h4"),
+            plugin("/work/.camunda/plugins/a", "Alpha"),
+            plugin("/work/.camunda/plugins/b", "Beta"),
+            plugin("/work/.camunda/plugins/c", "Beta"),
+            plugin("/work/.camunda/plugins/d", "Gamma"),
         ];
 
         const { model } = build(factsOf({ plugins: order.map((index) => listed[index]) }));
@@ -328,14 +371,14 @@ describe("catalogModelOf", () => {
 
     it("names a filesystem root opened as a folder by its path", () => {
         const { model } = build(
-            factsOf({ folders: ["/"], plugins: [found("/.camunda/plugins/x", "X", "h1")] }),
+            factsOf({ folders: ["/"], plugins: [plugin("/.camunda/plugins/x", "X")] }),
         );
 
         expect(model.groups.map(({ label }) => label)).toEqual(["/"]);
     });
 
     it("names a lint config's own package by its folder", () => {
-        const { model } = build(factsOf({ rulePackages: [found("/work/rules", "rules", "r1")] }));
+        const { model } = build(factsOf({ rulePackages: [rulePackage("/work/rules", "rules")] }));
 
         expect(model.groups[0].sources[0]).toMatchObject({
             id: "packages:/work/rules",
@@ -346,93 +389,74 @@ describe("catalogModelOf", () => {
     it.each<{
         case: string;
         presence: ListedPresence;
-        approvals: CodeApproval[];
+        allowed: boolean;
+        declined?: boolean;
         state: string;
         stateText: string;
         actions: string[];
         problem?: string;
     }>([
         {
-            case: "allowed content",
-            presence: found(RESIZE, "Resize", "h1"),
-            approvals: [{ pluginId: RESIZE, contentHash: "h1" }],
+            case: "found code its allowance holds",
+            presence: plugin(RESIZE, "Resize"),
+            allowed: true,
             state: "approved",
             stateText: "Allowed",
             actions: ["revoke:Revoke"],
         },
         {
-            case: "content allowed only in another folder",
-            presence: found(RESIZE, "Resize", "h1"),
-            approvals: [{ pluginId: "/worktree/.camunda/plugins/resize", contentHash: "h1" }],
-            state: "approved",
-            stateText: "Allowed",
-            actions: ["revoke:Revoke"],
-        },
-        {
-            case: "content changed here but allowed in another folder",
-            presence: found(RESIZE, "Resize", "h2"),
-            approvals: [
-                { pluginId: RESIZE, contentHash: "h1" },
-                { pluginId: "/worktree/.camunda/plugins/resize", contentHash: "h2" },
-            ],
-            state: "approved",
-            stateText: "Allowed",
-            actions: ["revoke:Revoke"],
-        },
-        {
-            case: "content never allowed",
-            presence: found(RESIZE, "Resize", "h1"),
-            approvals: [],
+            case: "found code not allowed yet",
+            presence: plugin(RESIZE, "Resize"),
+            allowed: false,
             state: "new",
             stateText: "Not allowed yet",
-            actions: ["allow:Allow this content"],
+            actions: ["allow:Allow"],
         },
         {
-            case: "content changed since it was allowed",
-            presence: found(RESIZE, "Resize", "h2"),
-            approvals: [{ pluginId: RESIZE, contentHash: "h1" }],
-            state: "changed",
-            stateText: "Changed, review needed",
-            actions: ["allow:Allow this content"],
+            case: "found code declined this session",
+            presence: plugin(RESIZE, "Resize"),
+            allowed: false,
+            declined: true,
+            state: "declined",
+            stateText: "Declined this session",
+            actions: ["allow:Allow"],
         },
         {
-            case: "content not hashed yet",
-            presence: { kind: "unhashed", id: RESIZE, name: "resize" },
-            approvals: [],
-            state: "new",
-            stateText: "Not allowed yet",
-            actions: ["inspect:Review…"],
-        },
-        {
-            case: "unreadable content once allowed",
-            presence: { kind: "unreadable", id: RESIZE, name: "resize", reason: "it is broken" },
-            approvals: [{ pluginId: RESIZE, contentHash: "h1" }],
-            state: "changed",
-            stateText: "Changed, review needed",
+            case: "unreadable code its allowance holds",
+            presence: unreadable("plugin", RESIZE, "resize"),
+            allowed: true,
+            state: "approved",
+            stateText: "Allowed",
             actions: ["revoke:Revoke"],
             problem: "Cannot be allowed: it is broken.",
         },
         {
-            case: "unreadable content never allowed",
-            presence: { kind: "unreadable", id: RESIZE, name: "resize", reason: "it is broken" },
-            approvals: [],
+            case: "unreadable code not allowed yet",
+            presence: unreadable("plugin", RESIZE, "resize"),
+            allowed: false,
             state: "new",
             stateText: "Not allowed yet",
             actions: [],
             problem: "Cannot be allowed: it is broken.",
         },
         {
-            case: "a folder gone since it was allowed",
-            presence: { kind: "gone", id: RESIZE, name: "resize" },
-            approvals: [{ pluginId: RESIZE, contentHash: "h1" }],
-            state: "gone",
-            stateText: "Folder gone",
-            actions: ["revoke:Forget"],
+            case: "unreadable code declined this session",
+            presence: unreadable("plugin", RESIZE, "resize"),
+            allowed: false,
+            declined: true,
+            state: "declined",
+            stateText: "Declined this session",
+            actions: [],
+            problem: "Cannot be allowed: it is broken.",
         },
     ])(
         "offers for $case: $actions",
-        ({ presence, approvals, state, stateText, actions, problem }) => {
-            const row = onlyRow(factsOf({ plugins: [presence], approvals }));
+        ({ presence, allowed, declined, state, stateText, actions, problem }) => {
+            const key = allowanceKeyOf(inFolder("plugin", RESIZE));
+            const row = onlyRow(
+                factsOf({ plugins: [presence], approvals: allowed ? [allowedRow(presence)] : [] }),
+                sessionOf({ plugin: declined ? [[key, "declined"]] : [] }),
+            );
 
             expect({
                 state: row.state,
@@ -443,46 +467,51 @@ describe("catalogModelOf", () => {
         },
     );
 
-    it("reads a hash it was not given as new, and offers to read it", () => {
-        const row = onlyRow(
+    it("offers no Review…, no Allow this content and no Forget on any row", () => {
+        const labels = rows(
             factsOf({
-                rulePackages: [{ kind: "unhashed", id: ACME, name: "bpmnlint-plugin-acme" }],
-                approvals: [{ pluginId: ACME, contentHash: "r1" }],
+                plugins: [plugin(RESIZE, "Resize"), unreadable("plugin", PALETTE, "palette")],
+                rulePackages: [rulePackage(ACME, "bpmnlint-plugin-acme", "1.0.0")],
+                approvals: [allowedRow(unreadable("plugin", PALETTE, "palette"))],
             }),
-        );
+        ).flatMap((row) => row.actions.map(({ label }) => label));
 
-        expect([row.state, row.actions.map(({ kind }) => kind)]).toEqual(["new", ["inspect"]]);
+        expect(labels.sort()).toEqual(["Allow", "Allow", "Revoke"]);
     });
 
-    it("shows content declined this session as declined, and still offers to allow it", () => {
-        const presence = found(RESIZE, "Resize", "h1");
-        const row = onlyRow(
-            factsOf({ plugins: [presence] }),
-            sessionOf({
-                plugin: [
-                    [declineKeyOf({ id: RESIZE, name: "Resize", contentHash: "h1" }), "declined"],
-                ],
+    it("allows the place a local row pinned to content names, and only that place", () => {
+        const states = rows(
+            factsOf({
+                plugins: [plugin(RESIZE, "Resize"), plugin(PALETTE, "Palette")],
+                approvals: [{ pluginId: RESIZE, contentHash: PLUGIN_HASH }],
             }),
-        );
+        ).map(({ name, state }) => `${name}:${state}`);
 
-        expect([row.state, row.stateText, row.actions.map(({ kind }) => kind)]).toEqual([
-            "declined",
-            "Declined this session",
-            ["allow"],
-        ]);
+        expect(states).toEqual(["Palette:new", "Resize:approved"]);
     });
 
-    it("keeps content left to the view new", () => {
-        const row = onlyRow(
-            factsOf({ plugins: [found(RESIZE, "Resize", "h1")] }),
-            sessionOf({
-                plugin: [
-                    [
-                        declineKeyOf({ id: RESIZE, name: "Resize", contentHash: "h1" }),
-                        "leftForView",
+    it("gives two worktrees' rows of one allowance one state", () => {
+        const shared = inRepository("plugin", RESIZE);
+        const states = (approvals: CodeApproval[]) =>
+            rows(
+                factsOf({
+                    folders: ["/work", "/task"],
+                    plugins: [
+                        plugin(RESIZE, "Resize", shared),
+                        plugin("/task/.camunda/plugins/resize", "Resize", shared),
                     ],
-                ],
-            }),
+                    approvals,
+                }),
+            ).map(({ state }) => state);
+
+        expect(states([])).toEqual(["new", "new"]);
+        expect(states([allowanceRowOf(shared)])).toEqual(["approved", "approved"]);
+    });
+
+    it("keeps code left to the view new", () => {
+        const row = onlyRow(
+            factsOf({ plugins: [plugin(RESIZE, "Resize")] }),
+            sessionOf({ plugin: [[allowanceKeyOf(inFolder("plugin", RESIZE)), "leftForView"]] }),
         );
 
         expect(row.state).toBe("new");
@@ -490,69 +519,79 @@ describe("catalogModelOf", () => {
 
     it("reads each kind's answers only for that kind", () => {
         const row = onlyRow(
-            factsOf({ rulePackages: [found(ACME, "bpmnlint-plugin-acme", "r1")] }),
+            factsOf({ rulePackages: [rulePackage(ACME, "bpmnlint-plugin-acme")] }),
             sessionOf({
-                plugin: [[declineKeyOf({ id: ACME, name: "x", contentHash: "r1" }), "declined"]],
+                plugin: [[allowanceKeyOf(inFolder("rulePackage", ACME)), "declined"]],
             }),
         );
 
         expect(row.state).toBe("new");
     });
 
-    it("shows what the user allows before they allow it", () => {
+    it("names a rule package by name and version, without a detail, and shows what the user allows", () => {
         const row = onlyRow(
-            factsOf({ rulePackages: [found(ACME, "bpmnlint-plugin-acme", "r1", "1.2.0")] }),
+            factsOf({ rulePackages: [rulePackage(ACME, "bpmnlint-plugin-acme", "1.2.0")] }),
         );
 
-        expect(row).toMatchObject({
-            id: `rulePackage:${ACME}`,
-            kind: "rulePackage",
-            kindText: "bpmnlint rule package",
-            name: "bpmnlint-plugin-acme",
-            detail: "1.2.0",
-            review: {
-                heading: "Review bpmnlint-plugin-acme before you allow it",
-                warning:
-                    "A rule package runs as a program with your user's rights, not only inside the editor. Allow it only if you trust it.",
-                facts: [
-                    { label: "Folder", value: "node_modules/bpmnlint-plugin-acme" },
-                    { label: "Version", value: "1.2.0" },
-                    { label: "Covers", value: "node_modules/bpmnlint-plugin-acme/client.js" },
-                    { label: "Content hash", value: "r1" },
-                ],
-            },
+        expect(row).toEqual(
+            expect.objectContaining({
+                id: `rulePackage:${ACME}`,
+                kind: "rulePackage",
+                kindText: "bpmnlint rule package",
+                name: "bpmnlint-plugin-acme@1.2.0",
+                review: {
+                    heading: "Review bpmnlint-plugin-acme@1.2.0 before you allow it",
+                    warning:
+                        "A rule package runs as a program with your user's rights, not only inside the editor. Allowing it covers this folder, later changes included. Allow it only if you trust it.",
+                    facts: [
+                        { label: "Folder", value: "node_modules/bpmnlint-plugin-acme" },
+                        { label: "Version", value: "1.2.0" },
+                        { label: "Allowed in", value: "this folder only" },
+                    ],
+                },
+            }),
+        );
+        expect(asCode(row).detail).toBeUndefined();
+    });
+
+    it.each<{ case: string; allowance: Allowance; warning: string; allowedIn: string }>([
+        {
+            case: "a plugin in a repository",
+            allowance: inRepository("plugin", RESIZE),
+            warning:
+                "Plugin risk. Allowing it covers it in every worktree of this repository, later changes included. Allow it only if you trust it.",
+            allowedIn: "every worktree of /work",
+        },
+        {
+            case: "a plugin in a repository on a remote host",
+            allowance: inRepository("plugin", RESIZE, "ssh-remote+box"),
+            warning:
+                "Plugin risk. Allowing it covers it in every worktree of this repository, later changes included. Allow it only if you trust it.",
+            allowedIn: "every worktree of /work on ssh-remote+box",
+        },
+        {
+            case: "a plugin outside every repository",
+            allowance: inFolder("plugin", RESIZE),
+            warning:
+                "Plugin risk. Allowing it covers this folder, later changes included. Allow it only if you trust it.",
+            allowedIn: "this folder only",
+        },
+    ])("reviews $case by where its allowance holds", ({ allowance, warning, allowedIn }) => {
+        expect(
+            asCode(onlyRow(factsOf({ plugins: [plugin(RESIZE, "Resize", allowance)] }))).review,
+        ).toEqual({
+            heading: "Review Resize before you allow it",
+            warning,
+            facts: [
+                { label: "Folder", value: ".camunda/plugins/resize" },
+                { label: "Allowed in", value: allowedIn },
+            ],
         });
     });
 
-    it("reviews a plugin without a version, naming every file it covers", () => {
-        const plugin: ListedPresence = {
-            kind: "found",
-            name: "Palette",
-            artifact: {
-                id: PALETTE,
-                name: "Palette",
-                contentHash: "h2",
-                files: [`${PALETTE}/client.js`, `${PALETTE}/palette.css`],
-            },
-        };
-
-        expect(asCode(onlyRow(factsOf({ plugins: [plugin] }))).review?.facts).toEqual([
-            { label: "Folder", value: ".camunda/plugins/palette" },
-            {
-                label: "Covers",
-                value: ".camunda/plugins/palette/client.js, .camunda/plugins/palette/palette.css",
-            },
-            { label: "Content hash", value: "h2" },
-        ]);
-    });
-
     it("shows a plugin's folder as its detail, and no review once it is allowed", () => {
-        const row = onlyRow(
-            factsOf({
-                plugins: [found(RESIZE, "Resize", "h1")],
-                approvals: [{ pluginId: RESIZE, contentHash: "h1" }],
-            }),
-        );
+        const presence = plugin(RESIZE, "Resize");
+        const row = onlyRow(factsOf({ plugins: [presence], approvals: [allowedRow(presence)] }));
 
         expect(row).toMatchObject({ kindText: "BPMN plugin", detail: "plugins/resize" });
         expect(asCode(row).review).toBeUndefined();
@@ -562,7 +601,7 @@ describe("catalogModelOf", () => {
         "notes what follows the revoke of a row whose owner says its code stays loaded, for %s",
         (restart) => {
             const { model } = catalogModelOf(
-                factsOf({ rulePackages: [found(ACME, "bpmnlint-plugin-acme", "r1")] }),
+                factsOf({ rulePackages: [rulePackage(ACME, "bpmnlint-plugin-acme")] }),
                 sessionOf({ stillLoaded: { rulePackage: [ACME] } }),
                 restart,
                 1,
@@ -574,11 +613,23 @@ describe("catalogModelOf", () => {
         },
     );
 
+    it("notes the loaded code of a row whose allowance key was revoked", () => {
+        const row = onlyRow(
+            factsOf({ rulePackages: [rulePackage(ACME, "bpmnlint-plugin-acme")] }),
+            sessionOf({
+                stillLoaded: { rulePackage: [allowanceKeyOf(inFolder("rulePackage", ACME))] },
+            }),
+        );
+
+        expect(asCode(row).note).toBe("Rule package revoked until reloadWindow.");
+    });
+
     it("notes no loaded code once a row is allowed again, nor for a kind whose owner names none", () => {
+        const acme = rulePackage(ACME, "bpmnlint-plugin-acme");
         const facts = factsOf({
-            plugins: [found(RESIZE, "Resize", "h1")],
-            rulePackages: [found(ACME, "bpmnlint-plugin-acme", "r1")],
-            approvals: [{ pluginId: ACME, contentHash: "r1" }],
+            plugins: [plugin(RESIZE, "Resize")],
+            rulePackages: [acme],
+            approvals: [allowedRow(acme)],
         });
 
         expect(
@@ -588,11 +639,13 @@ describe("catalogModelOf", () => {
         ).toEqual([undefined, undefined]);
     });
 
-    it("keeps what it showed of each add-on, the content only where it was hashed, and what it offered", () => {
+    it("keeps what it showed of each add-on: its place, allowance and what it offered", () => {
+        const acme = rulePackage(ACME, "bpmnlint-plugin-acme", "1.0.0");
         const { shown } = build(
             factsOf({
-                plugins: [found(RESIZE, "Resize", "h1")],
-                rulePackages: [{ kind: "unhashed", id: ACME, name: "bpmnlint-plugin-acme" }],
+                plugins: [plugin(RESIZE, "Resize")],
+                rulePackages: [acme],
+                approvals: [allowedRow(acme)],
             }),
         );
 
@@ -603,12 +656,10 @@ describe("catalogModelOf", () => {
                     kind: "plugin",
                     id: RESIZE,
                     name: "Resize",
-                    content: { id: RESIZE, name: "Resize", contentHash: "h1" },
+                    allowance: inFolder("plugin", RESIZE),
                     actions: ["allow"],
                     allowedFollowUp: PLUGIN_TEXTS.allowedFollowUp,
                     revokedFollowUp: "Plugin revoked.",
-                    leftForViewByRevoke: [],
-                    withdrawal: { kind: "content", contentHash: "h1" },
                 },
             ],
             [
@@ -616,225 +667,20 @@ describe("catalogModelOf", () => {
                 {
                     kind: "rulePackage",
                     id: ACME,
-                    name: "bpmnlint-plugin-acme",
-                    actions: ["inspect"],
+                    name: "bpmnlint-plugin-acme@1.0.0",
+                    allowance: inFolder("rulePackage", ACME),
+                    actions: ["revoke"],
                     allowedFollowUp: RULE_PACKAGE_TEXTS.allowedFollowUp,
                     revokedFollowUp: "Rule package revoked until reloadWindow.",
-                    leftForViewByRevoke: [],
-                    withdrawal: { kind: "row" },
                 },
             ],
         ]);
     });
 
-    it.each<{ case: string; presence: ListedPresence; approved: boolean; left: string[] }>([
-        {
-            case: "the allowed content it shows",
-            presence: found(RESIZE, "Resize", "h1"),
-            approved: true,
-            left: ["h1"],
-        },
-        {
-            case: "nothing for a row it cannot read",
-            presence: { kind: "unreadable", id: RESIZE, name: "Resize", reason: "broken" },
-            approved: true,
-            left: [],
-        },
-        {
-            case: "nothing for a gone row",
-            presence: { kind: "gone", id: RESIZE, name: "Resize" },
-            approved: true,
-            left: [],
-        },
-        {
-            case: "nothing for content it offers no revoke for",
-            presence: found(RESIZE, "Resize", "h1"),
-            approved: false,
-            left: [],
-        },
-    ])("leaves for the view, once revoked, $case", ({ presence, approved, left }) => {
-        const { shown } = build(
-            factsOf({
-                plugins: [presence],
-                approvals: approved ? [{ pluginId: RESIZE, contentHash: "h1" }] : [],
-            }),
-        );
-
-        expect(
-            shown
-                .get(`plugin:${RESIZE}`)
-                ?.leftForViewByRevoke.map(({ contentHash }) => contentHash),
-        ).toEqual(left);
-    });
-
-    it.each<{ case: string; presence: ListedPresence; withdrawal: ShownCode["withdrawal"] }>([
-        {
-            case: "found code its content",
-            presence: found(RESIZE, "Resize", "h2"),
-            withdrawal: { kind: "content", contentHash: "h2" },
-        },
-        {
-            case: "an unreadable row the content its row held",
-            presence: { kind: "unreadable", id: RESIZE, name: "Resize", reason: "broken" },
-            withdrawal: { kind: "content", contentHash: "h1" },
-        },
-        {
-            case: "a gone folder only its row",
-            presence: { kind: "gone", id: RESIZE, name: "Resize" },
-            withdrawal: { kind: "row" },
-        },
-    ])("withdraws on Revoke for $case", ({ presence, withdrawal }) => {
-        const { shown } = build(
-            factsOf({
-                plugins: [presence],
-                approvals: [
-                    { pluginId: RESIZE, contentHash: "h1" },
-                    { pluginId: "/other/.camunda/plugins/resize", contentHash: "h2" },
-                ],
-            }),
-        );
-
-        expect(shown.get(`plugin:${RESIZE}`)?.withdrawal).toEqual(withdrawal);
-    });
-
-    it("leaves every listed place of the revoked content to the view, of its own kind only", () => {
-        const { shown } = build(
-            factsOf({
-                plugins: [
-                    found(RESIZE, "Resize", "h1"),
-                    found(NESTED, "Resize", "h1"),
-                    found(PALETTE, "Palette", "h2"),
-                ],
-                rulePackages: [found(ACME, "bpmnlint-plugin-acme", "h1")],
-                approvals: [{ pluginId: RESIZE, contentHash: "h1" }],
-            }),
-        );
-
-        expect(shown.get(`plugin:${RESIZE}`)?.leftForViewByRevoke.map(({ id }) => id)).toEqual([
-            RESIZE,
-            NESTED,
-        ]);
-    });
-
-    it("leaves only rule packages of the revoked content to the view, never a plugin", () => {
-        const { shown } = build(
-            factsOf({
-                plugins: [found(RESIZE, "Resize", "r1")],
-                rulePackages: [
-                    found(ACME, "bpmnlint-plugin-acme", "r1"),
-                    found(RULES, "@acme/bpmnlint-plugin-rules", "r1"),
-                ],
-                approvals: [{ pluginId: ACME, contentHash: "r1" }],
-            }),
-        );
-
-        expect(shown.get(`rulePackage:${ACME}`)?.leftForViewByRevoke.map(({ id }) => id)).toEqual([
-            ACME,
-            RULES,
-        ]);
-    });
-
-    it("leaves the listed places of an unreadable row's content to the view", () => {
-        const { shown } = build(
-            factsOf({
-                plugins: [
-                    { kind: "unreadable", id: RESIZE, name: "Resize", reason: "broken" },
-                    found(NESTED, "Resize", "h1"),
-                ],
-                approvals: [{ pluginId: RESIZE, contentHash: "h1" }],
-            }),
-        );
-
-        expect(shown.get(`plugin:${RESIZE}`)?.leftForViewByRevoke.map(({ id }) => id)).toEqual([
-            NESTED,
-        ]);
-    });
-
-    it.each<{ case: string; elsewhere: string[]; note: string | undefined }>([
-        { case: "no other folder", elsewhere: [], note: undefined },
-        {
-            case: "one other folder",
-            elsewhere: ["/a/.camunda/plugins/resize"],
-            note: "The same content is allowed in 1 other folder; Revoke takes it back there too.",
-        },
-        {
-            case: "two other folders, one stored twice",
-            elsewhere: [
-                "/a/.camunda/plugins/resize",
-                "/b/.camunda/plugins/resize",
-                "/a/.camunda/plugins/resize",
-            ],
-            note: "The same content is allowed in 2 other folders; Revoke takes it back there too.",
-        },
-    ])(
-        "notes on an allowed row that Revoke takes its content back in $case",
-        ({ elsewhere, note }) => {
-            const row = onlyRow(
-                factsOf({
-                    plugins: [found(RESIZE, "Resize", "h1")],
-                    approvals: [
-                        { pluginId: RESIZE, contentHash: "h1" },
-                        ...elsewhere.map((pluginId) => ({ pluginId, contentHash: "h1" })),
-                        { pluginId: "/c/.camunda/plugins/other", contentHash: "h9" },
-                    ],
-                }),
-            );
-
-            expect(asCode(row).note).toBe(note);
-        },
-    );
-
-    it("notes on an unreadable row that Revoke takes the content its row held back elsewhere too", () => {
-        const row = onlyRow(
-            factsOf({
-                plugins: [{ kind: "unreadable", id: RESIZE, name: "Resize", reason: "broken" }],
-                approvals: [
-                    { pluginId: RESIZE, contentHash: "h1" },
-                    { pluginId: "/a/.camunda/plugins/resize", contentHash: "h1" },
-                ],
-            }),
-        );
-
-        expect(asCode(row).note).toBe(
-            "The same content is allowed in 1 other folder; Revoke takes it back there too.",
-        );
-    });
-
-    it("joins the still-loaded note and the other folders' note on a row offering Revoke", () => {
-        const row = onlyRow(
-            factsOf({
-                rulePackages: [{ kind: "unreadable", id: ACME, name: "acme", reason: "broken" }],
-                approvals: [
-                    { pluginId: ACME, contentHash: "r1" },
-                    { pluginId: "/a/node_modules/bpmnlint-plugin-acme", contentHash: "r1" },
-                ],
-            }),
-            sessionOf({ stillLoaded: { rulePackage: [ACME] } }),
-        );
-
-        expect(asCode(row).note).toBe(
-            "Rule package revoked until reloadWindow. The same content is allowed in 1 other folder; Revoke takes it back there too.",
-        );
-    });
-
-    it("notes no other folder on a row offering no Revoke", () => {
-        const row = onlyRow(
-            factsOf({
-                plugins: [{ kind: "gone", id: RESIZE, name: "Resize" }],
-                approvals: [
-                    { pluginId: RESIZE, contentHash: "h1" },
-                    { pluginId: "/a/.camunda/plugins/resize", contentHash: "h1" },
-                ],
-            }),
-        );
-
-        expect(asCode(row).note).toBeUndefined();
-    });
-
     it("gives the same ids to the same add-ons in two builds", () => {
         const facts = factsOf({
-            plugins: [found(RESIZE, "Resize", "h1")],
-            rulePackages: [found(RULES, "@acme/bpmnlint-plugin-rules", "r2")],
+            plugins: [plugin(RESIZE, "Resize")],
+            rulePackages: [rulePackage(RULES, "@acme/bpmnlint-plugin-rules")],
         });
         const ids = (revision: number) => {
             const { model } = build(facts, sessionOf(), revision);
@@ -885,7 +731,7 @@ describe("catalogModelOf", () => {
 
     it("says nothing is empty once one add-on is listed", () => {
         expect(
-            build(factsOf({ plugins: [found(RESIZE, "Resize", "h1")] })).model.emptyText,
+            build(factsOf({ plugins: [plugin(RESIZE, "Resize")] })).model.emptyText,
         ).toBeUndefined();
     });
 });
@@ -1021,7 +867,7 @@ describe("catalogModelOf for element templates", () => {
     it("puts a config folder's plugins and templates in one source, plugins first", () => {
         const { model } = build(
             factsOf({
-                plugins: [found(RESIZE, "Resize", "h1")],
+                plugins: [plugin(RESIZE, "Resize")],
                 templates: [
                     templateFile(`${TEMPLATES}/a.json`, {
                         kind: "read",
@@ -1090,7 +936,7 @@ describe("catalogModelOf for marketplaces", () => {
     it("lists each marketplace after the folders, with where it is registered, why it has no templates, and its removal", () => {
         const { model } = build(
             factsOf({
-                plugins: [found(RESIZE, "Resize", "h1")],
+                plugins: [plugin(RESIZE, "Resize")],
                 marketplaces: [SHARED, UNFETCHED],
             }),
         );
@@ -1163,8 +1009,8 @@ describe("catalogModelOf for marketplaces", () => {
     it("offers no action on a folder's sources", () => {
         const { model } = build(
             factsOf({
-                plugins: [found(RESIZE, "Resize", "h1")],
-                rulePackages: [found(ACME, "bpmnlint-plugin-acme", "r1", "1.2.0")],
+                plugins: [plugin(RESIZE, "Resize")],
+                rulePackages: [rulePackage(ACME, "bpmnlint-plugin-acme", "1.2.0")],
             }),
         );
 
@@ -1416,7 +1262,7 @@ describe("catalogModelOf for template switches", () => {
     ])("offers a config folder's templates switch with $case", ({ preferences, source }) => {
         const { model } = build(
             factsOf({
-                plugins: [found(RESIZE, "Resize", "h1")],
+                plugins: [plugin(RESIZE, "Resize")],
                 templates: [mailFile],
                 templatePreferences: preferences,
             }),
@@ -1430,7 +1276,7 @@ describe("catalogModelOf for template switches", () => {
         {
             case: "only plugins",
             facts: factsOf({
-                plugins: [found(RESIZE, "Resize", "h1")],
+                plugins: [plugin(RESIZE, "Resize")],
                 templatePreferences: NO_TEMPLATE_PREFERENCES,
             }),
         },
@@ -1568,38 +1414,6 @@ describe("catalogModelOf for template switches", () => {
     });
 });
 
-describe("foundArtifactsOf", () => {
-    const facts = factsOf({
-        folders: ["/work"],
-        plugins: [
-            found(RESIZE, "Resize", "h1"),
-            { kind: "unreadable", id: PALETTE, name: "palette", reason: "broken" },
-            { kind: "gone", id: NESTED, name: "order-tools" },
-            found("/elsewhere/.camunda/plugins/x", "X", "h9"),
-        ],
-        rulePackages: [
-            found(ACME, "bpmnlint-plugin-acme", "r1", "1.0.0"),
-            { kind: "unhashed", id: RULES, name: "@acme/bpmnlint-plugin-rules" },
-        ],
-    });
-
-    it.each<{
-        kind: "plugin" | "rulePackage";
-        artifacts: { id: string; name: string; contentHash: string }[];
-    }>([
-        { kind: "plugin", artifacts: [{ id: RESIZE, name: "Resize", contentHash: "h1" }] },
-        {
-            kind: "rulePackage",
-            artifacts: [{ id: ACME, name: "bpmnlint-plugin-acme", contentHash: "r1" }],
-        },
-    ])(
-        "gives the listed found $kind code for the carry write, by its content only",
-        ({ kind, artifacts }) => {
-            expect(foundArtifactsOf(facts, kind)).toEqual(artifacts);
-        },
-    );
-});
-
 describe("failedCatalogOf", () => {
     it("says the add-ons could not be listed when nothing was read before", () => {
         expect(failedCatalogOf(undefined, 9)).toEqual({
@@ -1612,7 +1426,7 @@ describe("failedCatalogOf", () => {
 
     it("keeps what was read before, with its own revision, so an allow against it still holds", () => {
         const previous = build(
-            factsOf({ plugins: [found(RESIZE, "Resize", "h1")] }),
+            factsOf({ plugins: [plugin(RESIZE, "Resize")] }),
             sessionOf(),
             4,
         ).model;

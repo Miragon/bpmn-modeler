@@ -20,7 +20,15 @@ const blockedPackage = (
     id: string,
     needed: boolean,
     state: BlockedRulePackage["state"] = "new",
-): BlockedRulePackage => ({ id, kind: "package", state, needed });
+): BlockedRulePackage => ({
+    id,
+    name: id,
+    version: "1.0.0",
+    allowance: { kind: "rulePackage", host: "", origin: { kind: "folder", path: id }, addOn: "" },
+    kind: "package",
+    state,
+    needed,
+});
 
 const workspaceRun: LintFindingsSource = { kind: "workspace", configPath: CONFIG_PATH };
 const coveredRun: LintFindingsSource = { kind: "in-page", platform: "c7", configPath: CONFIG_PATH };
@@ -84,7 +92,7 @@ const cases: IndicatorCase[] = [
         name: "keeps a package declined this session in the blocked state",
         source: workspaceRun,
         unresolved: SKIPPED_RULES,
-        blocked: [blockedPackage(ACME, true, "declined"), blockedPackage(OTHER, true, "changed")],
+        blocked: [blockedPackage(ACME, true, "declined"), blockedPackage(OTHER, true)],
         indicator: {
             state: "blocked",
             configPath: CONFIG_PATH,

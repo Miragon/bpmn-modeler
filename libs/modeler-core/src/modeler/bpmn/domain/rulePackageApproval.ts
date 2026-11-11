@@ -2,27 +2,30 @@ import { posix } from "path";
 
 import { ActionNotice } from "../../../kernel/domain/actionNotice";
 import {
+    ALLOWANCE_COVERS_TEXT,
+    Allowance,
+    allowanceKeyOf,
+    AllowanceState,
     ApprovableArtifact,
+} from "../../../kernel/domain/allowance";
+import { approvalRowsOf } from "../../../kernel/domain/approvalRowKind";
+import {
     ApprovableCodeTexts,
     ApprovalNoticeAction,
     approvalsKey,
     CodeApproval,
-    CodeState,
-    codeStateOf,
-    FollowedApprovalChange,
-    isApprovedState,
-    PendingCodeApproval,
-    pendingApprovalDescription,
+    CodeApprovalChange,
     PROCESS_RESTART_TEXT,
 } from "../../../kernel/domain/codeApproval";
-import {
-    approvalRowsOf,
-    RULE_PACKAGE_CONTENT_HASH_PREFIX,
-} from "../../../kernel/domain/approvalRowKind";
-import { NODE_MODULES } from "../../../kernel/domain/installedPackagePath";
+import { installedPackageNameOf, NODE_MODULES } from "../../../kernel/domain/installedPackagePath";
 import { ChoicePrompt } from "../../../kernel/domain/prompts";
-import { isRootedPath, isWithinRoot } from "../../../kernel/domain/rootContainment";
+import {
+    isRootedPath,
+    isWithinRoot,
+    relativeToWorkspace,
+} from "../../../kernel/domain/rootContainment";
 import { joinWorkspacePath } from "../../../kernel/domain/workspacePath";
+import { manifestPathOf, packageManifestOf } from "./packageClosure";
 
 export const RULE_PACKAGE_APPROVAL_NOTICE_ID = "bpmnlintPackageApprovalNotice";
 
@@ -30,10 +33,9 @@ export const RULE_PACKAGE_APPROVAL_PROMPT_ID = "bpmnlintPackageApproval";
 
 /** An installed bpmnlint rule package; its id is the realpath of its root folder. */
 export interface RulePackage extends ApprovableArtifact {
+    /** Empty when its manifest names none. */
     readonly version: string;
 }
-
-export type PendingRulePackage = PendingCodeApproval<RulePackage>;
 
 /** A module a rule package request resolved to; every path is a realpath spelled like `toWorkspacePath`. */
 export interface ResolvedRuleModule {
@@ -51,37 +53,14 @@ export type RuleModuleRoot =
     | { readonly kind: "package" | "selfPackage"; readonly id: string }
     | { readonly kind: "refused"; readonly reason: RuleModuleRefusal };
 
-export interface PackageFileDigest {
-    /** `/`-separated below the member folder. */
-    readonly relPath: string;
-    readonly sha256: string;
-}
+export type AllowableRoot = Exclude<RuleModuleRoot, { kind: "refused" }>;
 
-export interface ClosureMember {
-    readonly name: string;
-    readonly version: string;
-    readonly digest: string;
-}
+export type BlockedState = Exclude<AllowanceState, "allowed">;
 
-export interface RulePackageVerdictContext {
-    readonly approvals: readonly CodeApproval[];
-    /** Member folders of every closure admitted so far in this lint setup. */
-    readonly admittedMembers: ReadonlySet<string>;
-    /** {@link declineKeyOf} of each package the user declined this session. */
-    readonly declinedThisSession: ReadonlySet<string>;
-}
-
-export type BlockedState = Extract<CodeState, "new" | "changed" | "declined">;
-
-export type RulePackageVerdict =
-    | { readonly kind: "admitted"; readonly via: "approval" | "closure" }
-    | { readonly kind: "hashNeeded" }
-    | { readonly kind: "blocked"; readonly state: BlockedState };
-
-export interface BlockedRulePackage {
-    readonly id: string;
-    /** The config's own package hashes without its models, so asking about it must know which it is. */
-    readonly kind: Exclude<RuleModuleRoot["kind"], "refused">;
+/** As the gate reports it, ready to ask about without reading anything again. */
+export interface BlockedRulePackage extends RulePackage {
+    /** The config's own package is named so in the list. */
+    readonly kind: AllowableRoot["kind"];
     readonly state: BlockedState;
     /** A request ended unresolved because of it; otherwise the bundle served it. */
     readonly needed: boolean;
@@ -110,9 +89,9 @@ export function requestedPackageNameOf(request: string): string | undefined {
 }
 
 /**
- * The approval unit a module belongs to. Only an installed package folder or
- * the config's own package can be one: any other folder, such as the one an
- * absolute rule reference points into, would let one approval cover the repo.
+ * The root a module belongs to. Only an installed package folder or the
+ * config's own package can be one: any other folder, such as the one an
+ * absolute rule reference points into, would let one allowance cover the repo.
  */
 export function ruleModuleRootOf(module: ResolvedRuleModule): RuleModuleRoot {
     const segments = module.file.split("/");
@@ -130,14 +109,14 @@ export function ruleModuleRootOf(module: ResolvedRuleModule): RuleModuleRoot {
     return { kind: "refused", reason: "outsideNodeModules" };
 }
 
-/** A linked folder that holds a lint config would let one approval cover that config's repo. */
+/** A linked folder that holds a lint config would let one allowance cover that config's repo. */
 function linkedPackageRoot(linked: string, configDirs: readonly string[]): RuleModuleRoot {
     return configDirs.some((configDir) => isWithinRoot(configDir, linked))
         ? { kind: "refused", reason: "linkHoldsConfigFolder" }
         : { kind: "package", id: linked };
 }
 
-/** The last `node_modules`, so a nested package is its own unit and never its parent's. */
+/** The last `node_modules`, so a nested copy is its own root for stamps and ids. */
 function installedPackageRoot(segments: readonly string[], nodeModules: number): RuleModuleRoot {
     const scoped = segments[nodeModules + 1]?.startsWith(SCOPE_PREFIX) === true;
     const nameEnd = nodeModules + (scoped ? 2 : 1);
@@ -148,80 +127,42 @@ function installedPackageRoot(segments: readonly string[], nodeModules: number):
     return { kind: "package", id: segments.slice(0, nameEnd + 1).join("/") };
 }
 
-/**
- * NUL ends every field: no path or name holds one, so no two inputs read alike.
- * Lines sort by UTF-16 code unit, `sort()`'s default, never by locale.
- */
-const field = (text: string) => `${text}\u0000`;
+export function rulePackageOf(
+    id: string,
+    manifestText: string | undefined,
+    allowance: Allowance,
+): RulePackage {
+    const manifest = manifestText === undefined ? undefined : packageManifestOf(manifestText);
+    const name = manifest?.name ?? "";
+    return {
+        id,
+        name: name === "" ? installedPackageNameOf(id) : name,
+        version: manifest?.version ?? "",
+        allowance,
+    };
+}
 
-/** What a member's digest hashes: every file by path and content hash, in a fixed order. */
-export function memberDigestInput(files: readonly PackageFileDigest[]): string {
-    return files
-        .map(({ relPath, sha256 }) => field(relPath) + field(sha256))
-        .sort()
-        .join("");
+export function rulePackageLabelOf({
+    name,
+    version,
+}: Pick<RulePackage, "name" | "version">): string {
+    return version === "" ? name : `${name}@${version}`;
 }
 
 /**
- * What a closure's digest hashes: the root, then each member by name@version.
- * No member's folder enters it, so hoisting or deduping keeps the digest,
- * and identical copies count once.
+ * Only packages whose absence left a rule or config unresolved, one per
+ * allowance, the first: a package the bundle stood in for is never asked
+ * about, and a hoisted and a nested copy are one add-on.
  */
-export function closureDigestInput(root: ClosureMember, members: readonly ClosureMember[]): string {
-    const line = ({ name, version, digest }: ClosureMember) =>
-        field(`${name}@${version}`) + field(digest);
-    const memberLines = [...new Set(members.map(line))].sort();
-    return `${line(root)}\n${memberLines.join("")}`;
-}
-
-/** The prefix names the digest algorithm, so a change to {@link closureDigestInput} asks again. */
-export function rulePackageContentHash(closureDigest: string): string {
-    return RULE_PACKAGE_CONTENT_HASH_PREFIX + closureDigest;
-}
-
-/**
- * Whether a rule package may run: admitted by any rule package row of its
- * content, wherever that row sits. It hashes only when a row or a decline
- * could match, so while no rule package row exists a package costs no
- * hashing: `hashNeeded` asks the caller to come back with the current hash.
- */
-export function rulePackageVerdict(
-    rootId: string,
-    context: RulePackageVerdictContext,
-    contentHash?: string,
-): RulePackageVerdict {
-    if (context.admittedMembers.has(rootId)) {
-        return { kind: "admitted", via: "closure" };
-    }
-    const reading = codeStateOf(
-        contentHash === undefined
-            ? { kind: "unhashed", id: rootId }
-            : { kind: "found", artifact: { id: rootId, name: rootId, contentHash } },
-        approvalRowsOf("rulePackage", context.approvals),
-        context.declinedThisSession,
-    );
-    if (reading.kind === "hashNeeded") {
-        return reading;
-    }
-    return isApprovedState(reading.state)
-        ? { kind: "admitted", via: "approval" }
-        : { kind: "blocked", state: reading.state };
-}
-
-/** Only packages whose absence left a rule or config unresolved: a package the bundle stood in for is never asked about. */
 export function rulePackagesToAsk(
     blocked: readonly BlockedRulePackage[],
-    alreadyQueuedIds: ReadonlySet<string> = new Set(),
+    queuedKeys: ReadonlySet<string> = new Set(),
 ): BlockedRulePackage[] {
     const asked = new Map<string, BlockedRulePackage>();
     for (const each of blocked) {
-        if (
-            each.needed &&
-            each.state !== "declined" &&
-            !alreadyQueuedIds.has(each.id) &&
-            !asked.has(each.id)
-        ) {
-            asked.set(each.id, each);
+        const key = allowanceKeyOf(each.allowance);
+        if (each.needed && each.state !== "declined" && !queuedKeys.has(key) && !asked.has(key)) {
+            asked.set(key, each);
         }
     }
     return [...asked.values()];
@@ -229,15 +170,14 @@ export function rulePackagesToAsk(
 
 /**
  * The editors whose last host lint a change of rule package approvals makes
- * stale, each once: an allow every editor blocked on any package, because a
- * row at one place admits the same content at every other; a withdrawn
- * approval every host-linted editor, because a withdrawal must reach the
- * loaded code wherever it ran.
+ * stale, each once: an allow every editor blocked on any package, because an
+ * allowance covers every place of its add-on; a revoke every host-linted
+ * editor, because it must reach the loaded code wherever it ran.
  */
 export function editorsToRelint(
     blockedByEditor: ReadonlyMap<string, readonly string[]>,
     hostLinted: readonly string[],
-    { change, withdrawn }: FollowedApprovalChange,
+    change: CodeApprovalChange,
 ): string[] {
     const blocked =
         change.allow.length === 0
@@ -245,7 +185,26 @@ export function editorsToRelint(
             : [...blockedByEditor]
                   .filter(([, blockedIds]) => blockedIds.length > 0)
                   .map(([editorId]) => editorId);
-    return [...new Set([...blocked, ...(withdrawn.length > 0 ? hostLinted : [])])];
+    return [...new Set([...blocked, ...(change.revoke.length > 0 ? hostLinted : [])])];
+}
+
+/**
+ * The lookup path is left unresolved: `stat` follows its link, so a pnpm
+ * update that retargets it stamps differently even when the old store folder stays.
+ */
+export function rootStampPathsOf(rootId: string, lookupDir: string | undefined): string[] {
+    return [...new Set([rootId, ...(lookupDir === undefined ? [] : [lookupDir])])].map(
+        manifestPathOf,
+    );
+}
+
+/**
+ * The `node_modules` the root is installed in: a hoisted dependency lives
+ * beside the root, so evicting the root alone would rerun it against the old
+ * dependency. The config's own package and a linked one keep theirs inside.
+ */
+export function evictionScopeOf(rootId: string): string {
+    return installedPackagesDirOf(rootId) ?? rootId;
 }
 
 /**
@@ -258,7 +217,7 @@ export function rulePackageApprovalsKey(approvals: readonly CodeApproval[]): str
 
 /** Opens nothing by itself: only "Review…" shows the list. */
 export function rulePackageApprovalNotice(
-    pending: readonly PendingRulePackage[],
+    pending: readonly RulePackage[],
 ): ActionNotice<RulePackageApprovalNoticeAction> {
     const message =
         pending.length === 1
@@ -277,12 +236,16 @@ export const RULE_PACKAGE_CODE_TEXTS: ApprovableCodeTexts = {
     allowedFollowUp: "Open editors lint again with it.",
     revokedFollowUp: (restart) =>
         `Code it already ran stays loaded until you ${PROCESS_RESTART_TEXT[restart]}.`,
-    carriedOver: ({ artifact, allowedAt }) =>
-        `Allowed bpmnlint rule package ${artifact.name} in ${artifact.id}: you allowed the same content in ${allowedAt}.`,
 };
 
+const ROOT_KIND_DESCRIPTION: Record<AllowableRoot["kind"], string> = {
+    package: "",
+    selfPackage: " · the package the .bpmnlintrc sits in",
+};
+
+/** The folder goes into `description`: every host shows a `path` in place of it. */
 export function rulePackageApprovalPrompt(
-    pending: readonly PendingRulePackage[],
+    pending: readonly BlockedRulePackage[],
     workspaceFolders: readonly string[],
 ): ChoicePrompt<string> {
     const single = pending.length === 1;
@@ -292,12 +255,13 @@ export function rulePackageApprovalPrompt(
             ? "Allow a bpmnlint rule package from this workspace?"
             : "Allow bpmnlint rule packages from this workspace?",
         placeholder: single
-            ? `${RULE_PACKAGE_CODE_TEXTS.risk} Check it only if you trust it. ${RULE_PACKAGE_CODE_TEXTS.allowedFollowUp}`
-            : "Rule packages run as programs with your user's rights, not only inside the editor. Check only the ones you trust; open editors lint again with them.",
+            ? `${RULE_PACKAGE_CODE_TEXTS.risk} Allowing it ${ALLOWANCE_COVERS_TEXT}. Check it only if you trust it. ${RULE_PACKAGE_CODE_TEXTS.allowedFollowUp}`
+            : `Rule packages run as programs with your user's rights, not only inside the editor. Allowing one ${ALLOWANCE_COVERS_TEXT}. Check only the ones you trust; open editors lint again with them.`,
         items: pending.map((each) => ({
-            label: `${each.artifact.name} ${each.artifact.version}`,
-            description: pendingApprovalDescription(each, workspaceFolders),
-            value: each.artifact.id,
+            label: rulePackageLabelOf(each),
+            description:
+                relativeToWorkspace(each.id, workspaceFolders) + ROOT_KIND_DESCRIPTION[each.kind],
+            value: each.id,
         })),
     };
 }
@@ -336,9 +300,9 @@ export interface RootKindFacts {
 }
 
 /**
- * How the gate would hash a folder, or why it refuses it: the config's own
- * package hashes without its models, and a linked folder holding a config
- * read so far is refused. A folder outside `node_modules` that is neither a
+ * How the gate would take a folder, or why it refuses it: as the config's own
+ * package or as an installed one, while a linked folder holding a config read
+ * so far is refused. A folder outside `node_modules` that is neither a
  * config's folder read so far nor linked from one cannot be told yet.
  */
 export function rootKindOf(id: string, facts: RootKindFacts): RuleModuleRoot | undefined {

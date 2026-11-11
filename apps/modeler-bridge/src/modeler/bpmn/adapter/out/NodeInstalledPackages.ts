@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import {
     BigIntStats,
     Dirent,
@@ -58,14 +57,6 @@ export class NodeInstalledPackages implements InstalledPackagesPort {
                 ctimeNs: stats.ctimeNs,
             }
         );
-    }
-
-    sha256OfFile(path: string): string | undefined {
-        return orUndefined(() => createHash("sha256").update(readFileSync(fileSystemPathOf(path))).digest("hex"));
-    }
-
-    sha256OfText(text: string): string {
-        return createHash("sha256").update(text, "utf8").digest("hex");
     }
 
     readTextFile(path: string): string | undefined {

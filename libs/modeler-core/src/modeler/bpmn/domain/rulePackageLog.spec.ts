@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { installedPackageNameOf } from "../../../kernel/domain/installedPackagePath";
 import { BlockedRulePackage } from "./rulePackageApproval";
 import {
     neededRulePackageLogLines,
@@ -15,7 +16,15 @@ const blocked = (
     id: string,
     needed: boolean,
     state: BlockedRulePackage["state"] = "new",
-): BlockedRulePackage => ({ id, kind: "package", state, needed });
+): BlockedRulePackage => ({
+    id,
+    name: installedPackageNameOf(id),
+    version: "1.0.0",
+    allowance: { kind: "rulePackage", host: "", origin: { kind: "folder", path: id }, addOn: "" },
+    kind: "package",
+    state,
+    needed,
+});
 
 describe("neededRulePackageLogLines", () => {
     it.each<{ case: string; blocked: BlockedRulePackage[]; lines: string[] }>([
@@ -23,28 +32,28 @@ describe("neededRulePackageLogLines", () => {
             case: "a new package whose rules were skipped",
             blocked: [blocked(ACME, true)],
             lines: [
-                `bpmnlint: rule package ${ACME} is not allowed yet (new), so rules from it are skipped.`,
-            ],
-        },
-        {
-            case: "a package changed since it was allowed",
-            blocked: [blocked(ACME, true, "changed")],
-            lines: [
-                `bpmnlint: rule package ${ACME} is not allowed yet (changed since you allowed it), so rules from it are skipped.`,
+                `bpmnlint: rule package bpmnlint-plugin-acme@1.0.0 (${ACME}) is not allowed yet (new), so rules from it are skipped.`,
             ],
         },
         {
             case: "a package declined this session",
             blocked: [blocked(ACME, true, "declined")],
             lines: [
-                `bpmnlint: rule package ${ACME} is not allowed yet (declined this session), so rules from it are skipped.`,
+                `bpmnlint: rule package bpmnlint-plugin-acme@1.0.0 (${ACME}) is not allowed yet (declined this session), so rules from it are skipped.`,
+            ],
+        },
+        {
+            case: "a package without a version by its name alone",
+            blocked: [{ ...blocked(ACME, true), version: "" }],
+            lines: [
+                `bpmnlint: rule package bpmnlint-plugin-acme (${ACME}) is not allowed yet (new), so rules from it are skipped.`,
             ],
         },
         {
             case: "one line per package, and none for a package the bundle stood in for",
             blocked: [blocked(OTHER, true), blocked(ACME, false), blocked(OTHER, true)],
             lines: [
-                `bpmnlint: rule package ${OTHER} is not allowed yet (new), so rules from it are skipped.`,
+                `bpmnlint: rule package @scope/bpmnlint-plugin-other@1.0.0 (${OTHER}) is not allowed yet (new), so rules from it are skipped.`,
             ],
         },
     ])("logs $case", ({ blocked: given, lines }) => {
@@ -63,7 +72,7 @@ describe("shadowedRulePackageLogLine", () => {
         {
             case: "one package the bundle stood in for",
             blocked: [blocked(ACME, false)],
-            line: `bpmnlint: bundled rules stand in for a rule package that is not allowed yet: ${ACME}`,
+            line: `bpmnlint: bundled rules stand in for a rule package that is not allowed yet: bpmnlint-plugin-acme@1.0.0 (${ACME})`,
         },
         {
             case: "several packages, sorted, so the same set reads the same",
@@ -72,7 +81,7 @@ describe("shadowedRulePackageLogLine", () => {
                 blocked(ACME, true),
                 blocked("/a/node_modules/z", false),
             ],
-            line: `bpmnlint: bundled rules stand in for rule packages that are not allowed yet: /a/node_modules/z, ${OTHER}`,
+            line: `bpmnlint: bundled rules stand in for rule packages that are not allowed yet: @scope/bpmnlint-plugin-other@1.0.0 (${OTHER}), z@1.0.0 (/a/node_modules/z)`,
         },
     ])("logs $case", ({ blocked: given, line }) => {
         expect(shadowedRulePackageLogLine(given)).toEqual(line);
@@ -85,7 +94,7 @@ describe("refusedRuleModuleLogLine", () => {
         {
             case: "a file outside every package",
             refused: { kind: "module", file: FILE, reason: "outsideNodeModules" },
-            line: `bpmnlint: refused to run ${FILE}: it is neither in node_modules nor in the config's own package, so no approval can cover it.`,
+            line: `bpmnlint: refused to run ${FILE}: it is neither in node_modules nor in the config's own package, so no allowance can cover it.`,
         },
         {
             case: "a file in no package folder",
@@ -98,34 +107,9 @@ describe("refusedRuleModuleLogLine", () => {
             line: `bpmnlint: refused to run ${FILE}: the package link it comes through points to a folder that holds the config.`,
         },
         {
-            case: "a file the content hash leaves out",
-            refused: { kind: "module", file: FILE, reason: "notHashed" },
-            line: `bpmnlint: refused to run ${FILE}: the rule package's content hash leaves it out.`,
-        },
-        {
-            case: "a package that links outside its folder",
-            refused: { kind: "closure", id: ACME, memberDir: ACME, reason: "linksOutsideFolder" },
-            line: `bpmnlint: rule package ${ACME} cannot be allowed: it links to files outside its folder.`,
-        },
-        {
-            case: "a dependency too large to check",
-            refused: { kind: "closure", id: ACME, memberDir: OTHER, reason: "tooLarge" },
-            line: `bpmnlint: rule package ${ACME} cannot be allowed: its dependency ${OTHER} is too large to check.`,
-        },
-        {
-            case: "an unreadable package",
-            refused: { kind: "closure", id: ACME, memberDir: ACME, reason: "unreadable" },
-            line: `bpmnlint: rule package ${ACME} cannot be allowed: it could not be read.`,
-        },
-        {
-            case: "a package holding a special file",
-            refused: { kind: "closure", id: ACME, memberDir: ACME, reason: "specialFile" },
-            line: `bpmnlint: rule package ${ACME} cannot be allowed: it holds a file that is not a regular file.`,
-        },
-        {
-            case: "a package in a layout the check does not support",
-            refused: { kind: "closure", id: ACME, memberDir: ACME, reason: "unsupportedLayout" },
-            line: `bpmnlint: rule package ${ACME} cannot be allowed: it is installed in a layout the check does not support.`,
+            case: "a file inside a .git folder",
+            refused: { kind: "module", file: FILE, reason: "insideGitFolder" },
+            line: `bpmnlint: refused to run ${FILE}: it lies inside a .git folder, which no allowance covers.`,
         },
     ])("logs $case", ({ refused, line }) => {
         expect(refusedRuleModuleLogLine(refused)).toEqual(line);

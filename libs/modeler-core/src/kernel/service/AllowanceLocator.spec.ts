@@ -12,7 +12,7 @@ describe("AllowanceLocator", () => {
     let allowances: AllowanceLocator;
 
     beforeEach(() => {
-        files = new InMemoryInstalledPackages(() => "unused");
+        files = new InMemoryInstalledPackages();
         allowances = new AllowanceLocator(files, LOCAL_HOST);
         writeRepository(files, "/work/repo");
         files.createDirectory(`/work/repo/${PLUGIN}`);

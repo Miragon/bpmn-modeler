@@ -23,6 +23,8 @@ export function register(
         picker: deps.picker,
         actionNotifier: deps.actionNotifier,
         approvals: deps.pluginApprovals,
+        allowances: deps.allowances,
+        contentRows: deps.contentRows,
         questions: deps.approvalQuestions,
         review,
         cacheRoot,

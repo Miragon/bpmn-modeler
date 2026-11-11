@@ -4,8 +4,10 @@ import { EditorSessionLifecycle } from "../editorSession/service/EditorSessionLi
 import { EditorSessionStore } from "../editorSession/service/EditorSessionStore";
 import { WebviewMessageRouter } from "../editorSession/service/WebviewMessageRouter";
 import { ModelerSettingsSnapshot } from "../kernel/domain/modelerSettings";
+import { ContentRowMigration } from "../kernel/service/ContentRowMigration";
 import { MarketplaceAddAnswer } from "../template-marketplace/domain/marketplacePrompts";
 import { DocumentChangeStream, FakeEditorHandle } from "./FakeEditorHandle";
+import { folderOriginAllowances } from "./folderOriginAllowances";
 import {
     InMemorySecretStore,
     InMemoryTokenStore,
@@ -53,6 +55,8 @@ export interface TestSessionOptions {
  * `documents` reads and writes through the editors `openEditor` registers, as
  * the hosts' document adapters do. `openSession` runs participants through the
  * real {@link EditorSessionLifecycle}; the returned editor plays the host events.
+ * Every add-on is its own folder origin, and `contentRows` never runs, so its
+ * waits resolve at once.
  */
 export function createTestHost(options: TestHostOptions = {}) {
     const store = new EditorSessionStore(() => undefined);
@@ -60,6 +64,8 @@ export function createTestHost(options: TestHostOptions = {}) {
     const lifecycles = new Map<string, EditorSessionLifecycle>();
     const documentChanges = new DocumentChangeStream();
     const settings = new InMemorySettings(options.settings);
+    const pluginApprovals = new InMemoryPluginApprovals();
+    const allowances = folderOriginAllowances();
     const openHandles = new Set<FakeEditorHandle>();
     const registerHandle = (handle: FakeEditorHandle, focused: boolean): void => {
         handle.active = focused;
@@ -88,7 +94,9 @@ export function createTestHost(options: TestHostOptions = {}) {
         tokenPrompt: new ScriptedTokenPrompt(options.tokenAnswers),
         marketplaceRegistrations: new InMemoryMarketplaceRegistrations(settings),
         marketplacePrompt: new ScriptedMarketplacePrompt(options.marketplaceAnswers),
-        pluginApprovals: new InMemoryPluginApprovals(),
+        pluginApprovals,
+        allowances,
+        contentRows: new ContentRowMigration(pluginApprovals, allowances, notifier),
         templatePreferences: new InMemoryTemplatePreferences(),
         deploymentState: new InMemoryDeploymentState(),
         propertiesPanelState: new InMemoryPropertiesPanelState(),

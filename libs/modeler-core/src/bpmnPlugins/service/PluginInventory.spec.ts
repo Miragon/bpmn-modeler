@@ -2,10 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import { GetBpmnPluginsCommand } from "@miragon/bpmn-modeler-shared";
 
+import { allowanceOf, LOCAL_HOST } from "../../kernel/domain/allowance";
 import { ArtifactService } from "../../kernel/service/ArtifactService";
 import { QuestionQueue } from "../../kernel/service/QuestionQueue";
 import { createTestHost, fingerprintHasher } from "../../testing";
-import { approvedContent, PLUGIN_APPROVAL_NOTICE_ID } from "../domain/pluginApproval";
+import { PLUGIN_APPROVAL_NOTICE_ID } from "../domain/pluginApproval";
 import { NO_MANIFEST_REASON } from "../domain/pluginManifest";
 import { BpmnPluginsFeature } from "../composition/BpmnPluginsFeature";
 
@@ -26,10 +27,8 @@ const PALETTE_FILES = {
     [`${PALETTE}/client.js`]: "registerPalette();",
     [`${PALETTE}/palette.css`]: ".djs-palette {}",
 };
-const RESIZE_HASH = fingerprintHasher.sha256(approvedContent("registerResize();", undefined));
-const PALETTE_HASH = fingerprintHasher.sha256(
-    approvedContent("registerPalette();", ".djs-palette {}"),
-);
+const folderAllowance = (folder: string) =>
+    allowanceOf("plugin", folder, { kind: "noRepository" }, LOCAL_HOST);
 
 function setUp(files: Record<string, string>) {
     const host = createTestHost({ folders: ["/work"], files });
@@ -57,12 +56,7 @@ describe("PluginInventory", () => {
         expect(listed).toEqual([
             {
                 kind: "found",
-                artifact: {
-                    id: RESIZE,
-                    name: "Resize Tasks",
-                    contentHash: RESIZE_HASH,
-                    files: [`${RESIZE}/client.js`],
-                },
+                artifact: { id: RESIZE, name: "Resize Tasks", allowance: folderAllowance(RESIZE) },
                 name: "Resize Tasks",
             },
             {
@@ -70,12 +64,17 @@ describe("PluginInventory", () => {
                 artifact: {
                     id: PALETTE,
                     name: "Reduced Palette",
-                    contentHash: PALETTE_HASH,
-                    files: [`${PALETTE}/client.js`, `${PALETTE}/palette.css`],
+                    allowance: folderAllowance(PALETTE),
                 },
                 name: "Reduced Palette",
             },
-            { kind: "unreadable", id: BROKEN, name: "broken", reason: NO_MANIFEST_REASON },
+            {
+                kind: "unreadable",
+                id: BROKEN,
+                name: "broken",
+                reason: NO_MANIFEST_REASON,
+                allowance: folderAllowance(BROKEN),
+            },
         ]);
     });
 
@@ -98,7 +97,10 @@ describe("PluginInventory", () => {
         const { host, inventory } = setUp({ ...RESIZE_FILES });
         await inventory.pluginsIn([PLUGINS]);
         // Changed without a watcher event, so only a fresh read sees it.
-        host.workspace.files.set(`${RESIZE}/client.js`, "registerResizE();");
+        host.workspace.files.set(
+            `${RESIZE}/plugin.json`,
+            '{ "name": "Resize Tasks (edited)", "script": "client.js" }',
+        );
 
         const current = await inventory.current(RESIZE);
 
@@ -106,13 +108,10 @@ describe("PluginInventory", () => {
             kind: "found",
             artifact: {
                 id: RESIZE,
-                name: "Resize Tasks",
-                contentHash: fingerprintHasher.sha256(
-                    approvedContent("registerResizE();", undefined),
-                ),
-                files: [`${RESIZE}/client.js`],
+                name: "Resize Tasks (edited)",
+                allowance: folderAllowance(RESIZE),
             },
-            name: "Resize Tasks",
+            name: "Resize Tasks (edited)",
         });
     });
 
@@ -130,6 +129,7 @@ describe("PluginInventory", () => {
                 id: BROKEN,
                 name: "broken",
                 reason: NO_MANIFEST_REASON,
+                allowance: folderAllowance(BROKEN),
             },
         },
     ])("reads a plugin as $case", async ({ folder, presence }) => {
@@ -148,13 +148,11 @@ describe("PluginInventory", () => {
         await feature.catalog.applyAnswer(
             [
                 {
-                    artifact: {
-                        id: RESIZE,
-                        name: "Resize Tasks",
-                        contentHash: "h",
-                        scriptPath: "s",
-                    },
-                    state: "new",
+                    id: RESIZE,
+                    name: "Resize Tasks",
+                    allowance: folderAllowance(RESIZE),
+                    contentHash: "h",
+                    scriptPath: "s",
                 },
             ],
             { kind: "checked", ids: [] },
@@ -163,7 +161,7 @@ describe("PluginInventory", () => {
         expect(changes).toBe(2);
     });
 
-    it("asks no notice about content left to the view, and remembers it for the session", async () => {
+    it("asks no notice about a plugin left to the view, and remembers it for the session", async () => {
         const { host, feature, inventory } = setUp({ ...RESIZE_FILES });
         const [listed] = await inventory.pluginsIn([PLUGINS]);
         if (listed.kind !== "found") throw new Error("not found");
@@ -184,16 +182,6 @@ describe("PluginInventory", () => {
         expect([...inventory.sessionAnswers().values()]).toEqual(["leftForView"]);
     });
 
-    it("owns the plugin rows of the shared approval list", () => {
-        const { inventory } = setUp({});
-
-        expect(
-            ["a".repeat(64), "bpmnlint-closure-v1:abc"].map((contentHash) =>
-                inventory.ownsApproval({ pluginId: RESIZE, contentHash }),
-            ),
-        ).toEqual([true, false]);
-    });
-
     it("removes on request every copy no editor is served, however recently used", async () => {
         const { inventory } = setUp({
             [`${CACHE}/${"a".repeat(64)}/plugin.js`]: "registerResize();",
@@ -202,14 +190,5 @@ describe("PluginInventory", () => {
         });
 
         expect(await inventory.pruneCache()).toEqual({ removed: 2 });
-    });
-
-    it("leaves a revoked plugin's copy to age out", async () => {
-        const copy = `${CACHE}/${"a".repeat(64)}/plugin.js`;
-        const { host, inventory } = setUp({ [copy]: "registerResize();" });
-
-        await inventory.afterRevoke();
-
-        expect(host.workspace.files.get(copy)).toBe("registerResize();");
     });
 });

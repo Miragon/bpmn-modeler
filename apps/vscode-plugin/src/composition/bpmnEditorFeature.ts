@@ -67,12 +67,16 @@ export function register(
         ...ports,
         actionNotifier: deps.actionNotifier,
         approvals,
+        allowances: deps.allowances,
+        contentRows: deps.contentRows,
         questions,
         hasher: new NodeContentHasher(),
         cacheRoot: bpmnPluginCacheUri(context.globalStorageUri).fsPath,
         review: handles.reviews.plugin,
     });
     void plugins.pruneIdleCopies();
+    // Before any editor resolves, so the first request already finds the rows it rewrites.
+    void deps.contentRows.run();
     const editor = new BpmnEditorFeature(
         {
             ...ports,
@@ -84,6 +88,8 @@ export function register(
             rulePackages: {
                 approvals,
                 installedPackages: deps.installedPackages,
+                allowances: deps.allowances,
+                contentRows: deps.contentRows,
                 actionNotifier: deps.actionNotifier,
                 questions,
                 review: handles.reviews.rulePackage,

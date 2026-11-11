@@ -1,67 +1,69 @@
 import { describe, expect, it } from "vitest";
 
-import { allowing, ReviewedAllow, revoking } from "../../kernel/domain/codeApproval";
+import { Allowance, allowanceOf, allowingAllowances } from "../../kernel/domain/allowance";
+import { ListedPresence } from "../../kernel/domain/listedCode";
 import { ShownCode } from "./codeAddOnCatalog";
 import {
+    AllowDecision,
+    allowDecisionOf,
     allowResultOf,
     allowTargetOf,
-    inspectResultOf,
     pruneResultOf,
-    revokeChangeOf,
-    revokeOutcomeOf,
-    revokeSweepOf,
+    revokeResultOf,
     shownTargetOf,
 } from "./codeAddOnRequests";
 import { ShownRevisions } from "./shownRevisions";
 
 const RESIZE = "/work/.camunda/plugins/resize";
 const ACME = "/work/node_modules/bpmnlint-plugin-acme";
-const content = { id: RESIZE, name: "Resize", contentHash: "h1" };
+const IN_REPOSITORY = allowanceOf(
+    "plugin",
+    RESIZE,
+    { kind: "repository", commonDir: "/work/.git", worktreeRoot: "/work" },
+    "",
+);
+const IN_FOLDER = allowanceOf("plugin", RESIZE, { kind: "noRepository" }, "");
 const plugin: ShownCode = {
     kind: "plugin",
     id: RESIZE,
     name: "Resize",
-    content,
+    allowance: IN_FOLDER,
     actions: ["allow"],
     allowedFollowUp: "Open editors reload with it.",
     revokedFollowUp: "Open editors reload without it.",
-    leftForViewByRevoke: [],
-    withdrawal: { kind: "content", contentHash: "h1" },
 };
-const approvedPlugin: ShownCode = { ...plugin, actions: ["revoke"] };
-const unhashed: ShownCode = {
+const allowedPlugin: ShownCode = { ...plugin, actions: ["revoke"] };
+const rulePackage: ShownCode = {
     kind: "rulePackage",
     id: ACME,
-    name: "bpmnlint-plugin-acme",
-    actions: ["inspect"],
+    name: "bpmnlint-plugin-acme@1.0.0",
+    allowance: allowanceOf("rulePackage", ACME, { kind: "noRepository" }, ""),
+    actions: ["allow"],
     allowedFollowUp: "Open editors lint again with it.",
     revokedFollowUp: "Code it already ran stays loaded until you reload the window.",
-    leftForViewByRevoke: [],
-    withdrawal: { kind: "row" },
-};
-const rulePackage: ShownCode = {
-    ...unhashed,
-    content: { id: ACME, name: "bpmnlint-plugin-acme", contentHash: "r1" },
-    actions: ["allow"],
 };
 
 const revisions = ShownRevisions.empty()
     .recorded(1, new Map([[`plugin:${RESIZE}`, plugin]]))
-    .recorded(2, new Map([[`rulePackage:${ACME}`, unhashed]]))
-    .recorded(3, new Map([[`plugin:${RESIZE}`, approvedPlugin]]));
+    .recorded(2, new Map([[`rulePackage:${ACME}`, rulePackage]]))
+    .recorded(3, new Map([[`plugin:${RESIZE}`, allowedPlugin]]));
 
 const NOT_OFFERED = {
     kind: "refused",
     reason: "notOffered",
     message: "The list offers no such action for this add-on now. Check it again.",
 };
+const STALE_VIEW = {
+    kind: "refused",
+    reason: "staleView",
+    message: "The list changed since you looked at it. Check it again, then allow.",
+};
 
 describe("allowTargetOf", () => {
-    it("allows the content the named revision showed, though a later one shows other content", () => {
+    it("allows what the named revision showed, though a later one offers no allow", () => {
         expect(allowTargetOf(revisions, 1, `plugin:${RESIZE}`)).toEqual({
-            kind: "reviewed",
+            kind: "shown",
             code: plugin,
-            content,
         });
     });
 
@@ -70,47 +72,26 @@ describe("allowTargetOf", () => {
             case: "a revision it does not keep",
             revision: 9,
             addOnId: `plugin:${RESIZE}`,
-            reason: "staleView",
-            message: "The list changed since you looked at it. Check it again, then allow.",
+            result: STALE_VIEW,
         },
         {
             case: "an add-on that revision did not show",
             revision: 2,
             addOnId: `plugin:${RESIZE}`,
-            reason: "unknownAddOn",
-            message: "This add-on is no longer listed.",
+            result: {
+                kind: "refused",
+                reason: "unknownAddOn",
+                message: "This add-on is no longer listed.",
+            },
         },
         {
-            case: "an add-on shown without its content",
-            revision: 2,
-            addOnId: `rulePackage:${ACME}`,
-            reason: NOT_OFFERED.reason,
-            message: NOT_OFFERED.message,
-        },
-        {
-            case: "an add-on that revision offered no allow for, its content shown",
+            case: "an add-on that revision offered no allow for",
             revision: 3,
             addOnId: `plugin:${RESIZE}`,
-            reason: NOT_OFFERED.reason,
-            message: NOT_OFFERED.message,
+            result: NOT_OFFERED,
         },
-        {
-            case: "an allow offered for a row shown without content, as stale",
-            revision: 4,
-            addOnId: `rulePackage:${ACME}`,
-            reason: "staleView",
-            message: "The list changed since you looked at it. Check it again, then allow.",
-        },
-    ])("refuses $case", ({ revision, addOnId, reason, message }) => {
-        const withContentless = revisions.recorded(
-            4,
-            new Map([[`rulePackage:${ACME}`, { ...unhashed, actions: ["allow"] }]]),
-        );
-
-        expect(allowTargetOf(withContentless, revision, addOnId)).toEqual({
-            kind: "refused",
-            result: { kind: "refused", reason, message },
-        });
+    ])("refuses $case", ({ revision, addOnId, result }) => {
+        expect(allowTargetOf(revisions, revision, addOnId)).toEqual({ kind: "refused", result });
     });
 });
 
@@ -118,33 +99,27 @@ describe("shownTargetOf", () => {
     const latest = ShownRevisions.empty().recorded(
         1,
         new Map([
-            [`rulePackage:${ACME}`, unhashed],
-            [`plugin:${RESIZE}`, approvedPlugin],
+            [`rulePackage:${ACME}`, rulePackage],
+            [`plugin:${RESIZE}`, allowedPlugin],
         ]),
     );
 
-    it.each([
-        { kind: "inspect" as const, addOnId: `rulePackage:${ACME}`, code: unhashed },
-        { kind: "revoke" as const, addOnId: `plugin:${RESIZE}`, code: approvedPlugin },
-    ])("finds an add-on the latest revision offered $kind for", ({ kind, addOnId, code }) => {
-        expect(shownTargetOf(latest, addOnId, kind)).toEqual({ kind: "shown", code });
+    it("finds an add-on the latest revision offered revoke for", () => {
+        expect(shownTargetOf(latest, `plugin:${RESIZE}`, "revoke")).toEqual({
+            kind: "shown",
+            code: allowedPlugin,
+        });
     });
 
-    it.each([
-        { kind: "revoke" as const, addOnId: `rulePackage:${ACME}` },
-        { kind: "inspect" as const, addOnId: `plugin:${RESIZE}` },
-    ])(
-        "refuses $kind on an add-on the latest revision offered no $kind for",
-        ({ kind, addOnId }) => {
-            expect(shownTargetOf(latest, addOnId, kind)).toEqual({
-                kind: "refused",
-                result: NOT_OFFERED,
-            });
-        },
-    );
+    it("refuses revoke on an add-on the latest revision offered no revoke for", () => {
+        expect(shownTargetOf(latest, `rulePackage:${ACME}`, "revoke")).toEqual({
+            kind: "refused",
+            result: NOT_OFFERED,
+        });
+    });
 
     it("refuses an add-on the latest revision no longer shows", () => {
-        expect(shownTargetOf(revisions, `rulePackage:${ACME}`, "inspect")).toEqual({
+        expect(shownTargetOf(revisions, `rulePackage:${ACME}`, "revoke")).toEqual({
             kind: "refused",
             result: {
                 kind: "refused",
@@ -155,41 +130,88 @@ describe("shownTargetOf", () => {
     });
 });
 
-describe("allowResultOf", () => {
-    it.each<{ case: string; code: ShownCode; decision: ReviewedAllow; result: unknown }>([
+describe("allowDecisionOf", () => {
+    const foundWith = (allowance: Allowance): ListedPresence => ({
+        kind: "found",
+        name: "Resize",
+        artifact: { id: RESIZE, name: "Resize", allowance },
+    });
+
+    it.each<{ case: string; current: ListedPresence; decision: AllowDecision }>([
         {
-            case: "an allowed plugin",
+            case: "allows the shown allowance while the place still resolves to it",
+            current: foundWith(IN_FOLDER),
+            decision: {
+                kind: "allow",
+                change: allowingAllowances([{ id: RESIZE, allowance: IN_FOLDER }]),
+            },
+        },
+        {
+            case: "refuses as stale once the place resolves to another allowance",
+            current: foundWith(IN_REPOSITORY),
+            decision: { kind: "refused", reason: "staleView" },
+        },
+        {
+            case: "refuses a gone place",
+            current: { kind: "gone", id: RESIZE, name: "resize" },
+            decision: { kind: "refused", reason: "gone" },
+        },
+        {
+            case: "refuses a place it can no longer read",
+            current: {
+                kind: "unreadable",
+                id: RESIZE,
+                name: "resize",
+                reason: "broken",
+                allowance: IN_FOLDER,
+            },
+            decision: { kind: "refused", reason: "unreadable" },
+        },
+    ])("$case", ({ current, decision }) => {
+        expect(allowDecisionOf(plugin, current)).toEqual(decision);
+    });
+});
+
+describe("allowResultOf", () => {
+    const allow: AllowDecision = {
+        kind: "allow",
+        change: allowingAllowances([{ id: RESIZE, allowance: IN_FOLDER }]),
+    };
+
+    it.each<{ case: string; code: ShownCode; decision: AllowDecision; result: unknown }>([
+        {
+            case: "a plugin allowed in its folder",
             code: plugin,
-            decision: { kind: "allow", change: allowing([content]) },
+            decision: allow,
             result: { kind: "done", message: "Allowed Resize. Open editors reload with it." },
+        },
+        {
+            case: "a plugin allowed in its repository",
+            code: { ...plugin, allowance: IN_REPOSITORY },
+            decision: allow,
+            result: {
+                kind: "done",
+                message:
+                    "Allowed Resize in every worktree of its repository. Open editors reload with it.",
+            },
         },
         {
             case: "an allowed rule package",
             code: rulePackage,
-            decision: { kind: "allow", change: allowing([content]) },
+            decision: allow,
             result: {
                 kind: "done",
-                message: "Allowed bpmnlint-plugin-acme. Open editors lint again with it.",
+                message: "Allowed bpmnlint-plugin-acme@1.0.0. Open editors lint again with it.",
             },
         },
         {
-            case: "content changed since the review",
-            code: plugin,
-            decision: { kind: "refused", reason: "changedSinceReview" },
-            result: {
-                kind: "refused",
-                reason: "changedSinceReview",
-                message: "Resize changed after you reviewed it. Review it again, then allow.",
-            },
-        },
-        {
-            case: "content gone",
+            case: "a gone add-on",
             code: plugin,
             decision: { kind: "refused", reason: "gone" },
             result: { kind: "refused", reason: "gone", message: "Resize is gone." },
         },
         {
-            case: "content no longer readable",
+            case: "an add-on no longer readable",
             code: plugin,
             decision: { kind: "refused", reason: "unreadable" },
             result: {
@@ -198,121 +220,32 @@ describe("allowResultOf", () => {
                 message: "Resize can no longer be read.",
             },
         },
+        {
+            case: "a place that resolves to another allowance now",
+            code: plugin,
+            decision: { kind: "refused", reason: "staleView" },
+            result: STALE_VIEW,
+        },
     ])("reports $case", ({ code, decision, result }) => {
         expect(allowResultOf(code, decision)).toEqual(result);
     });
 });
 
-describe("revokeChangeOf", () => {
-    const stored = [
-        { pluginId: "/a/.camunda/plugins/resize", contentHash: "h1" },
-        { pluginId: RESIZE, contentHash: "h1" },
-        { pluginId: "/b/.camunda/plugins/other", contentHash: "h2" },
-    ];
-
-    it("withdraws found content from every place whose row holds it", () => {
-        expect(revokeChangeOf(approvedPlugin, stored)).toEqual(
-            revoking([RESIZE, "/a/.camunda/plugins/resize"]),
-        );
-    });
-
-    it("withdraws only the row of a gone folder", () => {
-        expect(revokeChangeOf({ ...approvedPlugin, withdrawal: { kind: "row" } }, stored)).toEqual(
-            revoking([RESIZE]),
-        );
-    });
-});
-
-describe("revokeSweepOf", () => {
-    const after = [
-        { pluginId: "/a/.camunda/plugins/resize", contentHash: "h1" },
-        { pluginId: "/b/.camunda/plugins/other", contentHash: "h2" },
-    ];
-
-    it("names a row of the revoked content stored while the revoke ran", () => {
-        expect(revokeSweepOf(approvedPlugin, after)).toEqual(["/a/.camunda/plugins/resize"]);
-    });
-
-    it("names nothing after a revoke of only a row", () => {
-        expect(revokeSweepOf({ ...approvedPlugin, withdrawal: { kind: "row" } }, after)).toEqual(
-            [],
-        );
-    });
-});
-
-describe("revokeOutcomeOf", () => {
-    const OTHER = "/other/.camunda/plugins/resize";
-    const THIRD = "/third/.camunda/plugins/resize";
-
+describe("revokeResultOf", () => {
     it.each([
-        { code: plugin, message: "Revoked Resize. Open editors reload without it." },
+        { code: allowedPlugin, message: "Revoked Resize. Open editors reload without it." },
+        {
+            code: { ...allowedPlugin, allowance: IN_REPOSITORY },
+            message:
+                "Revoked Resize in every worktree of its repository. Open editors reload without it.",
+        },
         {
             code: rulePackage,
             message:
-                "Revoked bpmnlint-plugin-acme. Code it already ran stays loaded until you reload the window.",
+                "Revoked bpmnlint-plugin-acme@1.0.0. Code it already ran stays loaded until you reload the window.",
         },
-    ])("says what its owner says follows the revoke: $message", ({ code, message }) => {
-        expect(revokeOutcomeOf(code, revoking([code.id]), [])).toEqual({
-            revokedIds: [code.id],
-            result: { kind: "done", message },
-        });
-    });
-
-    it.each<{
-        case: string;
-        revoke: string[];
-        swept: string[];
-        revokedIds: string[];
-        where: string;
-    }>([
-        {
-            case: "one other folder in the revoke",
-            revoke: [RESIZE, OTHER],
-            swept: [],
-            revokedIds: [RESIZE, OTHER],
-            where: " here and in 1 other folder",
-        },
-        {
-            case: "a folder the sweep caught",
-            revoke: [RESIZE, OTHER],
-            swept: [THIRD],
-            revokedIds: [RESIZE, OTHER, THIRD],
-            where: " here and in 2 other folders",
-        },
-        {
-            case: "a folder in both, counted once",
-            revoke: [RESIZE, OTHER],
-            swept: [OTHER, THIRD],
-            revokedIds: [RESIZE, OTHER, THIRD],
-            where: " here and in 2 other folders",
-        },
-        {
-            case: "only this folder, swept again",
-            revoke: [RESIZE],
-            swept: [RESIZE],
-            revokedIds: [RESIZE],
-            where: "",
-        },
-    ])(
-        "counts the other folders a revoke reached: $case",
-        ({ revoke, swept, revokedIds, where }) => {
-            expect(revokeOutcomeOf(plugin, revoking(revoke), swept)).toEqual({
-                revokedIds,
-                result: {
-                    kind: "done",
-                    message: `Revoked Resize${where}. Open editors reload without it.`,
-                },
-            });
-        },
-    );
-});
-
-describe("inspectResultOf", () => {
-    it("asks the user to review what was read before allowing it", () => {
-        expect(inspectResultOf(unhashed)).toEqual({
-            kind: "done",
-            message: "Read bpmnlint-plugin-acme. Review what it covers, then allow this content.",
-        });
+    ])("says where and what its owner says follows the revoke: $message", ({ code, message }) => {
+        expect(revokeResultOf(code)).toEqual({ kind: "done", message });
     });
 });
 

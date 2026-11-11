@@ -63,6 +63,7 @@ export function register(
             onDidChange: (listener) => deps.preferences.onDidChangeSetting(listener),
         },
         restart: "reloadWindow",
+        contentRows: deps.contentRows,
         plugins: handles.plugins.inventory,
         rulePackages: handles.editor.rulePackageInventory,
         templates: handles.editor.templateInventory,

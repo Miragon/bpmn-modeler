@@ -13,7 +13,7 @@ describe("RepositoryLocator", () => {
     let locator: RepositoryLocator;
 
     beforeEach(() => {
-        files = new InMemoryInstalledPackages(() => "unused");
+        files = new InMemoryInstalledPackages();
         locator = new RepositoryLocator(files);
         writeRepository(files, "/work/repo");
         files.createDirectory(`/work/repo/${PLUGIN}`);

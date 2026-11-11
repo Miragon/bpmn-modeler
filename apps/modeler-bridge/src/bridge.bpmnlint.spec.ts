@@ -22,9 +22,10 @@
  * *deleted* hands linting back to the webview's in-page default.
  *
  * A workspace `bpmnlint-plugin-*` package runs only once the user allowed it:
- * the host lint skips it and asks, the answer is sent as a
- * `pluginApprovals/change` and lints again, an approval pushed by another bridge
- * takes effect on the next lint, and an edit after the approval stops it again.
+ * the host lint skips it and asks, the allowance is sent as a
+ * `pluginApprovals/change` and lints again, an allowance pushed by another
+ * bridge takes effect on the next lint, it covers every worktree of its
+ * repository, and an update runs once its `package.json` changes.
  */
 
 import { promises as fs } from "node:fs";
@@ -33,7 +34,12 @@ import { join } from "node:path";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { RawModelerSettings } from "@miragon/bpmn-modeler-core";
+import {
+    allowanceOf,
+    allowanceRowOf,
+    LOCAL_HOST,
+    RawModelerSettings,
+} from "@miragon/bpmn-modeler-core";
 
 import {
     hostNotification,
@@ -49,6 +55,8 @@ import {
     ACME_RULE,
     AcmeBridge,
     acmeRuns,
+    addAcmeWorktree,
+    bumpAcmeVersion,
     createAcmeWorkspace,
     findingsOf,
     isRequest,
@@ -622,6 +630,15 @@ describe("workspace bpmnlint rule packages on the bridge", () => {
         return stored;
     }
 
+    async function allowedElsewhere(bridge: AcmeBridge, approvals: PluginApprovalsSnapshot) {
+        await bridge.rpc.handleLine(hostNotification("pluginApprovals/didChange", approvals));
+    }
+
+    async function settledNotices(bridge: AcmeBridge): Promise<number> {
+        await settle();
+        return bridge.frames.filter(isRequest("actionNotice/show")).length;
+    }
+
     it("skips a rule package nobody allowed, says so and asks about it", async () => {
         const bridge = await openAcme();
 
@@ -637,7 +654,7 @@ describe("workspace bpmnlint rule packages on the bridge", () => {
                 method: "notifier/log",
                 params: {
                     level: "warn",
-                    message: `bpmnlint: rule package ${bridge.acmeDir} is not allowed yet (new), so rules from it are skipped.`,
+                    message: `bpmnlint: rule package bpmnlint-plugin-acme@1.0.0 (${bridge.acmeDir}) is not allowed yet (new), so rules from it are skipped.`,
                 },
             }),
         );
@@ -646,7 +663,7 @@ describe("workspace bpmnlint rule packages on the bridge", () => {
         });
     });
 
-    it("saves the allowed package with its closure hash and lints again with its rule", async () => {
+    it("saves the allowance row and lints again with its rule", async () => {
         const bridge = await openAcme();
         await lintOnHost(bridge);
         const notice = await waitForNotice(bridge);
@@ -656,10 +673,14 @@ describe("workspace bpmnlint rule packages on the bridge", () => {
 
         expect(change).toEqual({
             allow: [
-                {
-                    pluginId: bridge.acmeDir,
-                    contentHash: expect.stringMatching(/^bpmnlint-closure-v1:/),
-                },
+                allowanceRowOf(
+                    allowanceOf(
+                        "rulePackage",
+                        bridge.acmeDir,
+                        { kind: "noRepository" },
+                        LOCAL_HOST,
+                    ),
+                ),
             ],
             revoke: [],
         });
@@ -682,13 +703,74 @@ describe("workspace bpmnlint rule packages on the bridge", () => {
         await expect(acmeRuns(root)).resolves.toEqual(["v1"]);
         expect(bridge.frames.filter(isRequest("actionNotice/show"))).toHaveLength(1);
 
-        await bridge.rpc.handleLine(hostNotification("pluginApprovals/didChange", stored));
+        await allowedElsewhere(bridge, stored);
         const results = await relint(bridge);
 
         expect(findingsOf(results)).toHaveProperty([ACME_RULE]);
         await expect(acmeRuns(root)).resolves.toEqual(["v1", "v1"]);
-        await settle();
-        expect(bridge.frames.filter(isRequest("actionNotice/show"))).toHaveLength(1);
+        expect(await settledNotices(bridge)).toBe(1);
+    });
+
+    it("runs an updated package without asking: its new bytes, a hoisted dependency's included", async () => {
+        const bridge = await openAcme();
+        await allowAcme(bridge);
+        const noticesBefore = await settledNotices(bridge);
+
+        await writeAcmeDependency(bridge.root, "v2, updated");
+        await bumpAcmeVersion(bridge.root, "1.0.1");
+        const results = await relint(bridge);
+
+        expect(findingsOf(results)[ACME_RULE]).toEqual([
+            expect.objectContaining({ message: "v2, updated" }),
+        ]);
+        await expect(acmeRuns(bridge.root)).resolves.toEqual(["v1", "v2, updated"]);
+        expect(await settledNotices(bridge)).toBe(noticesBefore);
+    });
+
+    it("keeps running the bytes it loaded after an edit that leaves package.json alone", async () => {
+        const bridge = await openAcme();
+        await allowAcme(bridge);
+
+        await writeAcmeDependency(bridge.root, "v2, edited in place");
+        const results = await relint(bridge);
+
+        expect(findingsOf(results)[ACME_RULE]).toEqual([
+            expect.objectContaining({ message: "v1" }),
+        ]);
+        await expect(acmeRuns(bridge.root)).resolves.toEqual(["v1", "v1"]);
+    });
+
+    it("lints a linked worktree of the allowed repository without asking", async () => {
+        const root = await createAcmeWorkspace({ git: true });
+        const main = await openAcmeBridge(root, { keepRoot: true });
+        disposals.push(async () => {
+            await main.dispose();
+            await fs.rm(root, { recursive: true, force: true, maxRetries: 3 });
+        });
+        const stored = await allowAcme(main);
+        const worktree = await openAcme(await addAcmeWorktree(root));
+
+        await allowedElsewhere(worktree, stored);
+        const results = await lintOnHost(worktree);
+
+        expect(findingsOf(results)[ACME_RULE]).toEqual([
+            expect.objectContaining({ message: "v1" }),
+        ]);
+        await expect(acmeRuns(worktree.root)).resolves.toEqual(["v1"]);
+        expect(await settledNotices(worktree)).toBe(0);
+    });
+
+    it("runs a package a row pinned to content at its folder allows, as 1.21.0 stored it", async () => {
+        const bridge = await openAcme();
+
+        await allowedElsewhere(bridge, {
+            approvals: [{ pluginId: bridge.acmeDir, contentHash: "bpmnlint-closure-v1:abc" }],
+            revision: 1,
+        });
+        const results = await lintOnHost(bridge);
+
+        expect(findingsOf(results)).toHaveProperty([ACME_RULE]);
+        expect(await settledNotices(bridge)).toBe(0);
     });
 
     it("lints again without the package once another bridge revoked it", async () => {
@@ -696,12 +778,7 @@ describe("workspace bpmnlint rule packages on the bridge", () => {
         const stored = await allowAcme(bridge);
         const fromIndex = bridge.frames.length;
 
-        await bridge.rpc.handleLine(
-            hostNotification("pluginApprovals/didChange", {
-                approvals: [],
-                revision: stored.revision + 1,
-            }),
-        );
+        await allowedElsewhere(bridge, { approvals: [], revision: stored.revision + 1 });
         const results = await nextLintResults(bridge, fromIndex);
 
         expect(findingsOf(results)).not.toHaveProperty([ACME_RULE]);
@@ -716,55 +793,8 @@ describe("workspace bpmnlint rule packages on the bridge", () => {
         await bridge.dispose();
         const fromIndex = bridge.frames.length;
 
-        await bridge.rpc.handleLine(
-            hostNotification("pluginApprovals/didChange", {
-                approvals: [],
-                revision: stored.revision + 1,
-            }),
-        );
+        await allowedElsewhere(bridge, { approvals: [], revision: stored.revision + 1 });
 
         await expect(nextLintResults(bridge, fromIndex)).rejects.toThrow("waitForFrame timed out");
-    });
-
-    it("stops running a package whose dependency changed after the approval and reports it changed", async () => {
-        const bridge = await openAcme();
-        await allowAcme(bridge);
-
-        await writeAcmeDependency(bridge.root, "v2, edited after the approval");
-        const fromIndex = bridge.frames.length;
-        const results = await relint(bridge);
-
-        expect(findingsOf(results)).not.toHaveProperty([ACME_RULE]);
-        await expect(acmeRuns(bridge.root)).resolves.toEqual(["v1"]);
-        expect(bridge.frames.slice(fromIndex)).toContainEqual(
-            expect.objectContaining({
-                method: "notifier/log",
-                params: {
-                    level: "warn",
-                    message: `bpmnlint: rule package ${bridge.acmeDir} is not allowed yet (changed since you allowed it), so rules from it are skipped.`,
-                },
-            }),
-        );
-    });
-
-    it("runs the new bytes once the changed package is allowed again", async () => {
-        const bridge = await openAcme();
-        const stored = await allowAcme(bridge);
-        await writeAcmeDependency(bridge.root, "v2, edited after the approval");
-        const changedFrom = bridge.frames.length;
-        await relint(bridge);
-
-        const notice = await waitForNotice(bridge, changedFrom);
-        const fromIndex = bridge.frames.length;
-        await reviewAndAllowAll(bridge, notice, stored);
-        const results = await nextLintResults(bridge, fromIndex);
-
-        expect(findingsOf(results)[ACME_RULE]).toEqual([
-            expect.objectContaining({ message: "v2, edited after the approval" }),
-        ]);
-        await expect(acmeRuns(bridge.root)).resolves.toEqual([
-            "v1",
-            "v2, edited after the approval",
-        ]);
     });
 });

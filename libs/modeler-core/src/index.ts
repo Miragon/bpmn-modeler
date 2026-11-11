@@ -21,7 +21,6 @@ export {
 } from "./kernel/domain/allowance";
 export type { AllowanceKind } from "./kernel/domain/approvalRowKind";
 export {
-    allowing,
     approvalsAfter,
     approvalsKey,
     codeApprovalChange,

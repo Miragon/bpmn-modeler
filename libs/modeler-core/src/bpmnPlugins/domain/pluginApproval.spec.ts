@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { type Allowance, allowanceRowOf } from "../../kernel/domain/allowance";
 import { type CodeApproval, PROCESS_RESTARTS } from "../../kernel/domain/codeApproval";
 import { type DirectoryEntryKind } from "../../kernel/domain/directoryEntry";
 import {
@@ -14,7 +15,6 @@ import {
     isWholeCachedCopy,
     lastUseMarkerOf,
     type OfferedPlugins,
-    type PendingApproval,
     PLUGIN_APPROVAL_NOTICE_ID,
     PLUGIN_APPROVAL_PROMPT_ID,
     pluginApprovalNotice,
@@ -24,15 +24,24 @@ import {
     type WorkspacePlugin,
 } from "./pluginApproval";
 
+const repositoryAllowance = (addOn: string): Allowance => ({
+    kind: "plugin",
+    host: "",
+    origin: { kind: "repository", path: "/repo/.git" },
+    addOn,
+});
+
 const resize: WorkspacePlugin = {
     id: "/repo/.camunda/plugins/resize-tasks",
     name: "Resize Tasks",
+    allowance: repositoryAllowance(".camunda/plugins/resize-tasks"),
     scriptPath: "/repo/.camunda/plugins/resize-tasks/client.js",
     contentHash: "aaa",
 };
 const palette: WorkspacePlugin = {
     id: "/repo/.camunda/plugins/reduced-palette",
     name: "Reduced Palette",
+    allowance: repositoryAllowance(".camunda/plugins/reduced-palette"),
     scriptPath: "/repo/.camunda/plugins/reduced-palette/client.js",
     stylePath: "/repo/.camunda/plugins/reduced-palette/style.css",
     contentHash: "bbb",
@@ -49,61 +58,34 @@ describe("PLUGIN_CODE_TEXTS", () => {
     );
 });
 
-describe("PLUGIN_CODE_TEXTS.carriedOver", () => {
-    it("logs where a plugin runs and where the user allowed its content", () => {
-        expect(
-            PLUGIN_CODE_TEXTS.carriedOver({
-                artifact: resize,
-                allowedAt: "/clone/.camunda/plugins/resize",
-            }),
-        ).toBe(
-            `Allowed BPMN plugin Resize Tasks in ${resize.id}: you allowed the same content in /clone/.camunda/plugins/resize.`,
-        );
-    });
-});
-
 describe("pluginApprovalPrompt", () => {
-    it("lists each plugin with why it is asked and its folder in the workspace", () => {
-        expect(
-            pluginApprovalPrompt(
-                [
-                    { artifact: resize, state: "new" },
-                    { artifact: palette, state: "changed" },
-                ],
-                ["/repo"],
-            ),
-        ).toEqual({
+    it("lists each plugin by its name and its folder in the workspace", () => {
+        expect(pluginApprovalPrompt([resize, palette], ["/repo"])).toEqual({
             id: PLUGIN_APPROVAL_PROMPT_ID,
             title: "Allow BPMN plugins from this workspace?",
             placeholder:
-                "Plugins run their own code in the BPMN editor. Check only the ones you trust; open editors reload with them.",
+                "Plugins run their own code in the BPMN editor. Allowing one covers it in every worktree of its repository, or in its folder outside a repository, later changes included. Check only the ones you trust; open editors reload with them.",
             items: [
                 {
                     label: "Resize Tasks",
-                    description: "new · .camunda/plugins/resize-tasks",
+                    description: ".camunda/plugins/resize-tasks",
                     value: resize.id,
                 },
                 {
                     label: "Reduced Palette",
-                    description: "changed since you allowed it · .camunda/plugins/reduced-palette",
+                    description: ".camunda/plugins/reduced-palette",
                     value: palette.id,
                 },
             ],
         });
     });
 
-    it.each<{ case: string; state: PendingApproval["state"]; shown: string }>([
-        { case: "a new plugin", state: "new", shown: "new" },
-        { case: "a changed plugin", state: "changed", shown: "changed since you allowed it" },
-    ])(
-        "shows the state of $case in the text every host renders, not a path that replaces it",
-        ({ state, shown }) => {
-            const [item] = pluginApprovalPrompt([{ artifact: resize, state }], ["/repo"]).items;
+    it("shows the folder in the text every host renders, not a path that replaces it", () => {
+        const [item] = pluginApprovalPrompt([resize], ["/elsewhere"]).items;
 
-            expect(item?.path).toBeUndefined();
-            expect(item?.description?.startsWith(shown)).toBe(true);
-        },
-    );
+        expect(item?.path).toBeUndefined();
+        expect(item?.description).toBe(resize.id);
+    });
 });
 
 describe("cachedPluginFiles", () => {
@@ -185,11 +167,8 @@ describe("cachedPluginCopy", () => {
 });
 
 describe("pluginApprovalNotice", () => {
-    const pendingOf = (count: number): PendingApproval[] =>
-        Array.from({ length: count }, (_, index) => ({
-            artifact: { ...resize, id: `${resize.id}-${index}` },
-            state: "new" as const,
-        }));
+    const pendingOf = (count: number): WorkspacePlugin[] =>
+        Array.from({ length: count }, (_, index) => ({ ...resize, id: `${resize.id}-${index}` }));
 
     it.each([
         { count: 1, message: "1 BPMN plugin in this workspace is not allowed yet." },
@@ -212,12 +191,16 @@ describe("editorsToReload", () => {
         ["file:///repo/c.bpmn", { served: [resize], withheld: [] }],
         ["file:///other/d.bpmn", { served: [], withheld: [] }],
     ]);
-    const row = ({ id, contentHash }: typeof resize) => ({ pluginId: id, contentHash });
+    const allowanceOfPlugin = ({ allowance }: WorkspacePlugin) => allowanceRowOf(allowance);
+    const contentRowAt = (pluginId: string): CodeApproval => ({
+        pluginId,
+        contentHash: "0".repeat(64),
+    });
 
     it.each<{ case: string; approvals: CodeApproval[]; editors: string[] }>([
         {
-            case: "none while every served plugin stays allowed and nothing withheld is",
-            approvals: [row(resize)],
+            case: "none while every served plugin stays allowed and nothing withheld is, as after the migration",
+            approvals: [allowanceOfPlugin(resize)],
             editors: [],
         },
         {
@@ -226,42 +209,38 @@ describe("editorsToReload", () => {
             editors: ["file:///repo/a.bpmn", "file:///repo/c.bpmn"],
         },
         {
-            case: "the editors that load a plugin whose row now holds other content",
-            approvals: [{ pluginId: resize.id, contentHash: "r2" }],
+            case: "none while a row pinned to other content still allows a served plugin's place",
+            approvals: [contentRowAt(resize.id)],
+            editors: [],
+        },
+        {
+            case: "the editors that load a plugin whose content is allowed only in another folder",
+            approvals: [contentRowAt("/worktree/.camunda/plugins/resize-tasks")],
             editors: ["file:///repo/a.bpmn", "file:///repo/c.bpmn"],
         },
         {
-            case: "each editor once that was withheld a plugin now allowed",
-            approvals: [row(resize), row(palette)],
+            case: "each editor once that was withheld a plugin allowed in another worktree",
+            approvals: [
+                allowanceOfPlugin(resize),
+                allowanceOfPlugin({ ...palette, id: "/worktree/.camunda/plugins/reduced-palette" }),
+            ],
             editors: ["file:///repo/a.bpmn", "file:///repo/b.bpmn"],
         },
         {
-            case: "none for a withheld plugin allowed with other content",
-            approvals: [row(resize), { pluginId: palette.id, contentHash: "p2" }],
+            case: "none for a withheld plugin whose add-on is allowed in another repository",
+            approvals: [
+                allowanceOfPlugin(resize),
+                allowanceRowOf({
+                    ...palette.allowance,
+                    origin: { kind: "repository", path: "/clone/.git" },
+                }),
+            ],
             editors: [],
         },
         {
             case: "none for a row of a plugin no editor was offered",
-            approvals: [row(resize), { pluginId: "/x", contentHash: "x" }],
+            approvals: [allowanceOfPlugin(resize), contentRowAt("/x")],
             editors: [],
-        },
-        {
-            case: "none while a served plugin's content stays allowed in another folder",
-            approvals: [
-                { pluginId: "/worktree/.camunda/plugins/resize", contentHash: resize.contentHash },
-            ],
-            editors: [],
-        },
-        {
-            case: "the editors withheld a plugin whose content is now allowed in another folder",
-            approvals: [
-                row(resize),
-                {
-                    pluginId: "/worktree/.camunda/plugins/palette",
-                    contentHash: palette.contentHash,
-                },
-            ],
-            editors: ["file:///repo/a.bpmn", "file:///repo/b.bpmn"],
         },
     ])("returns $case", ({ approvals, editors }) => {
         expect(editorsToReload(offered, approvals)).toEqual(editors);

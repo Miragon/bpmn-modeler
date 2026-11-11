@@ -1,28 +1,33 @@
-import { ClosureRefusal, FingerprintedRoot, isHashedMemberFile } from "./packageClosure";
-import { ResolvedRuleModule, RuleModuleRefusal, ruleModuleRootOf } from "./rulePackageApproval";
+import { relativeToRoot } from "../../../kernel/domain/rootContainment";
+import {
+    AllowableRoot,
+    ResolvedRuleModule,
+    RuleModuleRefusal,
+    ruleModuleRootOf,
+} from "./rulePackageApproval";
 
-/** `notHashed`: a file in an approvable folder that its content hash leaves out, so no approval covers it. */
-export type ModuleRefusal = RuleModuleRefusal | "notHashed";
+/** `insideGitFolder`: a file below the root inside a `.git` folder, which no allowance covers. */
+export type ModuleRefusal = RuleModuleRefusal | "insideGitFolder";
 
 /** Workspace code that may not run whatever the user allows: logged with its reason, never offered. */
-export type RefusedRuleModule =
-    | { readonly kind: "module"; readonly file: string; readonly reason: ModuleRefusal }
-    | {
-          readonly kind: "closure";
-          readonly id: string;
-          readonly memberDir: string;
-          readonly reason: ClosureRefusal;
-      };
+export interface RefusedRuleModule {
+    readonly kind: "module";
+    readonly file: string;
+    readonly reason: ModuleRefusal;
+}
 
-export type RefusedModule = Extract<RefusedRuleModule, { readonly kind: "module" }>;
+export type RefusedModule = RefusedRuleModule;
 
-/** The root whose approval would cover running the module's file, or why none can. */
-export function approvalRootOf(module: ResolvedRuleModule): FingerprintedRoot | RefusedModule {
+const DOT_GIT = ".git";
+
+/** The root whose allowance would cover running the module's file, or why none can. */
+export function approvalRootOf(module: ResolvedRuleModule): AllowableRoot | RefusedModule {
     const root = ruleModuleRootOf(module);
     if (root.kind === "refused") {
         return { kind: "module", file: module.file, reason: root.reason };
     }
-    return isHashedMemberFile(module.file, root)
-        ? root
-        : { kind: "module", file: module.file, reason: "notHashed" };
+    const belowRoot = relativeToRoot(module.file, root.id)?.split("/") ?? [];
+    return belowRoot.includes(DOT_GIT)
+        ? { kind: "module", file: module.file, reason: "insideGitFolder" }
+        : root;
 }

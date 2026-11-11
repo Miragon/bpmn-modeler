@@ -17,7 +17,6 @@ import {
     isWholeCachedCopy,
     lastUseMarkerOf,
     OfferedPlugins,
-    PendingApproval,
     WorkspacePlugin,
 } from "../domain/pluginApproval";
 import {
@@ -60,8 +59,8 @@ export class BpmnPluginService {
         private readonly workspace: WorkspacePort,
         private readonly catalog: PluginCatalog,
         private readonly question: ApprovalQuestion<
-            PendingApproval,
-            PendingApproval,
+            WorkspacePlugin,
+            WorkspacePlugin,
             WorkspacePlugin
         >,
         private readonly notifier: NotifierPort,

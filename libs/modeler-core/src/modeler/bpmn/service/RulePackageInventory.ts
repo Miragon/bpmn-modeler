@@ -1,14 +1,12 @@
-import {
-    ApprovableArtifact,
-    CodeApproval,
-    ListedPresence,
-    SessionAnswer,
-} from "../../../kernel/domain/codeApproval";
-import { isApprovalRowOf } from "../../../kernel/domain/approvalRowKind";
+import { AllowableCode } from "../../../kernel/domain/allowance";
+import { SessionAnswer } from "../../../kernel/domain/codeApproval";
 import { installedPackageNameOf } from "../../../kernel/domain/installedPackagePath";
+import { ListedPresence } from "../../../kernel/domain/listedCode";
 import { joinWorkspacePath } from "../../../kernel/domain/workspacePath";
+import { AllowanceLocator } from "../../../kernel/service/AllowanceLocator";
 import {
     InstalledEntry,
+    manifestPathOf,
     rulePackageFolderNames,
     rulePackageScopesToList,
 } from "../domain/packageClosure";
@@ -17,31 +15,28 @@ import {
     nodeModulesDirOf,
     RULE_PACKAGE_CODE_TEXTS,
     rootKindOf,
+    rulePackageLabelOf,
+    rulePackageOf,
 } from "../domain/rulePackageApproval";
-import {
-    closureRefusalText,
-    ROOT_KIND_UNKNOWN_TEXT,
-    ruleModuleRefusalText,
-} from "../domain/rulePackageLog";
+import { ROOT_KIND_UNKNOWN_TEXT, ruleModuleRefusalText } from "../domain/rulePackageLog";
 import { InstalledPackagesPort } from "../port/installedPackagesPort";
-import { PackageClosureFingerprinter } from "./PackageClosureFingerprinter";
 import { RulePackageCatalog } from "./RulePackageCatalog";
 
 /**
  * The workspace rule packages as the add-on catalog lists them: installed or
- * reported by the gate, hashed only when asked, and answered for by the
- * catalog the lint questions use.
+ * reported by the gate, named by their manifest, located at their allowance,
+ * and answered for by the catalog the lint questions use.
  */
 export class RulePackageInventory {
     readonly texts = RULE_PACKAGE_CODE_TEXTS;
 
-    /** Real folders a `node_modules` entry linked to, so a linked folder hashes as a package. */
+    /** Real folders a `node_modules` entry linked to, so a linked folder reads as a package. */
     private readonly linkedFolders = new Set<string>();
 
     constructor(
         private readonly catalog: RulePackageCatalog,
-        private readonly fingerprints: Pick<PackageClosureFingerprinter, "fingerprint">,
         private readonly packages: InstalledPackagesPort,
+        private readonly allowances: AllowanceLocator,
     ) {}
 
     /**
@@ -62,10 +57,6 @@ export class RulePackageInventory {
         return [...found];
     }
 
-    ownsApproval(approval: CodeApproval): boolean {
-        return isApprovalRowOf("rulePackage", approval);
-    }
-
     seenPackageIds(): readonly string[] {
         return this.catalog.seenPackages().map(({ id }) => id);
     }
@@ -74,36 +65,23 @@ export class RulePackageInventory {
         return this.catalog.lintConfigDirs();
     }
 
-    currentRulePackage(id: string, { hash }: { readonly hash: boolean }): ListedPresence {
+    currentRulePackage(id: string): ListedPresence {
         const name = installedPackageNameOf(id);
         if (this.packages.realPath(id) === undefined) {
             return { kind: "gone", id, name };
         }
-        if (!hash) {
-            return { kind: "unhashed", id, name };
-        }
+        const allowance = this.allowances.allowanceAt("rulePackage", id);
         const root = this.rootOf(id);
         if (root === undefined) {
-            return { kind: "unreadable", id, name, reason: ROOT_KIND_UNKNOWN_TEXT };
+            return { kind: "unreadable", id, name, reason: ROOT_KIND_UNKNOWN_TEXT, allowance };
         }
         if (root.kind === "refused") {
-            return { kind: "unreadable", id, name, reason: ruleModuleRefusalText(root.reason) };
+            const reason = ruleModuleRefusalText(root.reason);
+            return { kind: "unreadable", id, name, reason, allowance };
         }
-        const fingerprint = this.fingerprints.fingerprint(root);
-        if (fingerprint.kind === "refused") {
-            return {
-                kind: "unreadable",
-                id,
-                name,
-                reason: closureRefusalText({ id, ...fingerprint }),
-            };
-        }
-        const { rulePackage, memberDirs } = fingerprint;
-        return {
-            kind: "found",
-            artifact: { ...rulePackage, files: memberDirs },
-            name: rulePackage.name,
-        };
+        const manifest = this.packages.readTextFile(manifestPathOf(id));
+        const artifact = rulePackageOf(id, manifest, allowance);
+        return { kind: "found", artifact, name: rulePackageLabelOf(artifact) };
     }
 
     /** The `node_modules` a package is installed in, or its own folder when it is installed elsewhere. */
@@ -112,20 +90,7 @@ export class RulePackageInventory {
     }
 
     async current(id: string): Promise<ListedPresence> {
-        return this.currentRulePackage(id, { hash: true });
-    }
-
-    recordCarried(found: readonly ApprovableArtifact[]): Promise<void> {
-        return this.catalog.recordCarried(found);
-    }
-
-    /**
-     * Code a revoked package already ran stays loaded; nothing else to undo.
-     * A place the revoke reached without a row of its own may have run too.
-     */
-    afterRevoke(revokedIds: readonly string[]): Promise<void> {
-        this.catalog.noteRevoked(revokedIds);
-        return Promise.resolve();
+        return this.currentRulePackage(id);
     }
 
     sessionAnswers(): ReadonlyMap<string, SessionAnswer> {
@@ -137,8 +102,8 @@ export class RulePackageInventory {
         return this.catalog.revokedThisSession();
     }
 
-    leaveForView(artifact: ApprovableArtifact): void {
-        this.catalog.leaveForView(artifact);
+    leaveForView(code: AllowableCode): void {
+        this.catalog.leaveForView(code);
     }
 
     onDidChange(listener: () => void): { dispose(): void } {

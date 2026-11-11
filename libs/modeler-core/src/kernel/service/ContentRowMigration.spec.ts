@@ -41,7 +41,7 @@ describe("ContentRowMigration", () => {
     let allowances: AllowanceLocator;
 
     beforeEach(() => {
-        files = new InMemoryInstalledPackages(() => "unused");
+        files = new InMemoryInstalledPackages();
         writeRepository(files, "/work/repo");
         writeLinkedWorktree(files, "/work/repo", "/work/task");
         files.createDirectory(MAIN_PLUGIN);
