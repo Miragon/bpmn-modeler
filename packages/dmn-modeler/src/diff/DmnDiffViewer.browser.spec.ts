@@ -68,6 +68,27 @@ describe("DMN diff pane (real dmn-js)", () => {
         expect(container.querySelector(".dmn-diff-counts")?.textContent).toBe("2021");
     });
 
+    it("colours a requirement at its own width, so its arrowhead keeps its size", async () => {
+        const { viewer, container } = await pane();
+        const edge = '.djs-element[data-element-id="IR_1"] .djs-visual path';
+        const ownWidth = styleOf(container, edge).strokeWidth;
+
+        viewer.setMarks({ ...MARKS, added: ["Input_1", "IR_1"], layoutChanged: [] });
+        const { stroke, strokeWidth: addedWidth } = styleOf(container, edge);
+        const shapeWidth = styleOf(
+            container,
+            '.djs-element[data-element-id="Input_1"] .djs-visual > :nth-child(1)',
+        ).strokeWidth;
+        viewer.setMarks(MARKS);
+        const { strokeWidth: movedWidth, strokeDasharray } = styleOf(container, edge);
+
+        expect(stroke).toBe(ADDED);
+        expect(addedWidth).toBe(ownWidth);
+        expect(shapeWidth).toBe("3px");
+        expect(movedWidth).toBe(ownWidth);
+        expect(strokeDasharray).toBe("5px, 3px");
+    });
+
     it("marks a decision table's rules, cells, columns and hit policy", async () => {
         const { viewer, container } = await pane();
         viewer.setMarks(MARKS);
