@@ -534,18 +534,28 @@ describe("the packaged extension in a real VS Code", () => {
             join(workspaceDirectory, DMN_AFTER_FILE),
         );
         onTestFinished(async () => {
-            await vscode().runCommand("View: Close All Editors");
-            await rm(join(workspaceDirectory, DMN_BEFORE_FILE), { force: true });
-            await rm(join(workspaceDirectory, DMN_AFTER_FILE), { force: true });
+            try {
+                await vscode().page.keyboard.press("Escape");
+                await vscode().runCommand("View: Close All Editors");
+            } finally {
+                await rm(join(workspaceDirectory, DMN_BEFORE_FILE), { force: true });
+                await rm(join(workspaceDirectory, DMN_AFTER_FILE), { force: true });
+            }
         });
 
+        // Its webview takes the focus once it loads, which would close the context menu.
         await vscode().openFromExplorer(DMN_BEFORE_FILE);
         await vscode().showInCustomEditor(DMN_BEFORE_FILE, (webview) =>
             webview.getByText("Choose carrier").first().isVisible(),
         );
-        await vscode().compareActiveFileWith(DMN_AFTER_FILE);
+        await vscode().runExplorerCommand(
+            [DMN_BEFORE_FILE, DMN_AFTER_FILE],
+            "Compare Selected (DMN)",
+        );
         const before = await vscode().editorWebview('body[data-diff-side="before"]');
         const after = await vscode().editorWebview('body[data-diff-side="after"]');
+        expect(await before.locator(".dmn-diff-legend__file").textContent()).toBe(DMN_BEFORE_FILE);
+        expect(await after.locator(".dmn-diff-legend__file").textContent()).toBe(DMN_AFTER_FILE);
 
         await expectMarked(before, "Decision_Surcharge", "diff-removed");
         await expectMarked(before, "Decision_Shipping", "diff-changed");

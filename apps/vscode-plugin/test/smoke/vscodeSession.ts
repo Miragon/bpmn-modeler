@@ -20,6 +20,8 @@ const delay = (ms: number) => new Promise<void>((done) => setTimeout(done, ms));
 export const COMMAND_KEY = process.platform === "darwin" ? "Meta" : "Control";
 const PALETTE_ATTEMPT_MS = 5_000;
 const PALETTE_ATTEMPTS = 6;
+// A menu item listens for the mouse only 100 ms after it renders; a quicker click is lost.
+const MENU_MOUSE_DELAY_MS = 150;
 
 const WINDOW_SIZE = { width: 1280, height: 800 };
 const REOPEN_INTERVAL_MS = 2_000;
@@ -331,20 +333,27 @@ export class VsCodeSession {
     }
 
     /**
-     * Opens VS Code's own diff of the active file (left) and `fileName` (right), the way
-     * Source Control opens one. The file picker can close as the palette does, so a closed
-     * picker starts the command over.
+     * Selects the Explorer rows in order, as a user does with Ctrl or Cmd, and runs
+     * `command` from their context menu. A webview that takes the focus closes the menu,
+     * as it closes the palette, so a closed menu is opened again.
      */
-    async compareActiveFileWith(fileName: string): Promise<void> {
-        const picker = this.page.locator(".quick-input-widget");
-        const row = picker.locator(".monaco-list-row.focused").filter({ hasText: fileName });
+    async runExplorerCommand(fileNames: readonly string[], command: string): Promise<void> {
+        const item = this.page.locator(".context-view").getByText(command, { exact: true });
         for (let attempt = 1; ; attempt++) {
-            await this.runCommand("Compare Active File With...");
+            await this.page.mouse.move(0, 0);
+            await this.page.keyboard.press("Escape");
+            for (const [index, fileName] of fileNames.entries()) {
+                await (
+                    await this.explorerRow(fileName)
+                ).click({ modifiers: index === 0 ? [] : ["ControlOrMeta"] });
+            }
+            await (
+                await this.explorerRow(fileNames[fileNames.length - 1])
+            ).click({ button: "right" });
             try {
-                await picker
-                    .locator(".quick-input-box input")
-                    .fill(fileName, { timeout: PALETTE_ATTEMPT_MS });
-                await row.click({ timeout: PALETTE_ATTEMPT_MS });
+                await item.waitFor({ timeout: PALETTE_ATTEMPT_MS });
+                await delay(MENU_MOUSE_DELAY_MS);
+                await item.click({ timeout: PALETTE_ATTEMPT_MS });
                 await this.movePointerAway();
                 return;
             } catch (error) {
@@ -439,6 +448,8 @@ async function writeUserSettings(options: VsCodeLaunchOptions, colorTheme: strin
         "window.autoDetectColorScheme": false,
         "window.autoDetectHighContrast": false,
         "window.restoreWindows": "none",
+        // Context menus in the DOM, where a test can click them; macOS draws native ones.
+        "window.menuStyle": "custom",
         "workbench.startupEditor": "none",
         "workbench.tips.enabled": false,
         "workbench.enableExperiments": false,
