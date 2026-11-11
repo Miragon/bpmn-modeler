@@ -11,6 +11,9 @@ export default defineConfig({
             "!packages/bpmn-modeler/vitest.config.ts",
             "packages/bpmn-modeler/vitest.unit.config.ts",
             "packages/bpmn-modeler/vitest.browser.config.ts",
+            "!packages/dmn-modeler/vitest.config.ts",
+            "packages/dmn-modeler/vitest.unit.config.ts",
+            "packages/dmn-modeler/vitest.browser.config.ts",
         ],
         // Coverage options are root-only in a multi-project run, so the
         // per-workspace include/thresholds never apply here; `test:coverage`

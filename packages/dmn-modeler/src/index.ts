@@ -1,6 +1,7 @@
 import "./styles/canvas.css";
 import "../../../libs/modeler-types/src/canvasOverlays.css";
 import "./styles/themes.css";
+import "./styles/diff.css";
 
 export { createModeler } from "./createModeler";
 export { NoModelerError } from "@miragon/bpmn-modeler-types";
@@ -23,3 +24,9 @@ export type {
 } from "./publicApi";
 /** @internal */
 export type { DmnPendingInputHandle } from "./publicApi";
+/** @internal The IDE's DMN diff panes; not public API yet. */
+export { createDiffViewer } from "./diff/DmnDiffViewer";
+/** @internal */
+export type { DmnDiffMarkOptions, DmnDiffMarks, DmnDiffViewerHandle } from "./diff/DmnDiffViewer";
+/** @internal */
+export type { DmnTableMarks } from "./diff/diffMarks";
