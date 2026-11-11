@@ -23,3 +23,16 @@ export interface Viewport {
     readonly width: number;
     readonly height: number;
 }
+
+/**
+ * A decision table's scroll position in a DMN diff pane, anchored on the
+ * topmost visible rule both versions share, so the partner pane lines up the
+ * same rule even when rules were added or removed above it.
+ */
+export interface TableScroll {
+    /** The rule at the top of the view; absent when no shared rule is visible. */
+    readonly rule?: string;
+    /** Pixels scrolled past the top of that rule, or past the table's top without one. */
+    readonly offset: number;
+    readonly left: number;
+}

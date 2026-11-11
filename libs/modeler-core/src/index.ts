@@ -146,6 +146,7 @@ export * from "./diff/domain/basenameOfUriString";
 export * from "./diff/port/DiffPaneHandle";
 export * from "./diff/service/DiffSession";
 export * from "./diff/service/BpmnDiffService";
+export * from "./diff/service/DmnDiffService";
 export * from "./diff/service/DiffPaneStore";
 export * from "./diff/service/diffPaneRouter";
 

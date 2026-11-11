@@ -22,6 +22,7 @@ import type {
 import type {
     AdditionalFilesQuery,
     ApplyDiffHighlightsQuery,
+    ApplyDmnDiffHighlightsQuery,
     BpmnFileQuery,
     BpmnLintDisabledQuery,
     BpmnModelerSettingQuery,
@@ -39,6 +40,8 @@ import type {
     DeploymentTargetsQuery,
     DiagramFormattedCommand,
     DiffReadyCommand,
+    DmnDiffScrollChangedCommand,
+    DmnDiffViewChangedCommand,
     DmnFileQuery,
     DmnModelerSettingQuery,
     ElementTemplateFileQuery,
@@ -95,6 +98,8 @@ import type {
     SwapCompareSidesCommand,
     SyncActivitiesCommand,
     SyncCursorQuery,
+    SyncDmnDiffScrollQuery,
+    SyncDmnDiffViewQuery,
     SyncViewportQuery,
     TargetSavedQuery,
     TextClipboardQuery,
@@ -153,6 +158,9 @@ export type ProtocolQuery =
     | ApplyDiffHighlightsQuery
     | SyncViewportQuery
     | SyncCursorQuery
+    | ApplyDmnDiffHighlightsQuery
+    | SyncDmnDiffViewQuery
+    | SyncDmnDiffScrollQuery
     | AddOnCatalogQuery
     | AddOnActionResultQuery
     | RevealAddOnsQuery
@@ -214,6 +222,8 @@ export type ProtocolCommand =
     | CursorChangedCommand
     | DiffReadyCommand
     | SwapCompareSidesCommand
+    | DmnDiffViewChangedCommand
+    | DmnDiffScrollChangedCommand
     | GetAddOnCatalogCommand
     | AddOnRequestCommand;
 

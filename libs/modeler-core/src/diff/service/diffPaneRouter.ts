@@ -1,11 +1,19 @@
-import { DiffPaneCommandType, DiffPaneHandshakeCommandType } from "@miragon/bpmn-modeler-shared";
+import {
+    DiffPaneCommandType,
+    DiffPaneHandshakeCommandType,
+    DmnDiffPaneCommandType,
+} from "@miragon/bpmn-modeler-shared";
 
 import { routeWebviewLogCommand } from "../../editorSession/service/webviewLog";
-import { WebviewMessageRouter } from "../../editorSession/service/WebviewMessageRouter";
+import {
+    CommandTable,
+    WebviewMessageRouter,
+} from "../../editorSession/service/WebviewMessageRouter";
 import { LoggerPort } from "../../kernel/port/hostPorts";
 import { DiffPaneHandle } from "../port/DiffPaneHandle";
 import { basenameOfUriString } from "../domain/basenameOfUriString";
 import { BpmnDiffService } from "./BpmnDiffService";
+import { DmnDiffService } from "./DmnDiffService";
 
 /**
  * What a host adds to the diff panes' routes. An absent entry makes the router
@@ -24,7 +32,7 @@ export interface DiffPaneHostExtensions {
  */
 export function createDiffPaneRouter(
     diffService: BpmnDiffService,
-    { swapSides, paneLog }: DiffPaneHostExtensions,
+    extensions: DiffPaneHostExtensions,
 ): WebviewMessageRouter<DiffPaneHandle> {
     return WebviewMessageRouter.fromTable<
         DiffPaneHandshakeCommandType | DiffPaneCommandType,
@@ -40,6 +48,40 @@ export function createDiffPaneRouter(
             (command, pane) => diffService.forwardViewport(pane, command.viewport),
         ],
         CursorChangedCommand: [(command, pane) => diffService.forwardCursor(pane, command.index)],
+        ...hostRoutes(extensions),
+    });
+}
+
+/** Routes every command a DMN diff pane posts. */
+export function createDmnDiffPaneRouter(
+    diffService: DmnDiffService,
+    extensions: DiffPaneHostExtensions,
+): WebviewMessageRouter<DiffPaneHandle> {
+    return WebviewMessageRouter.fromTable<DmnDiffPaneCommandType, DiffPaneHandle>({
+        GetDmnFileCommand: [(_command, pane) => diffService.sendViewerFile(pane)],
+        DiffReadyCommand: [(_command, pane) => diffService.markReady(pane)],
+        ViewportChangedCommand: [
+            (command, pane) => diffService.forwardViewport(pane, command.viewport),
+        ],
+        CursorChangedCommand: [(command, pane) => diffService.forwardCursor(pane, command.index)],
+        DmnDiffViewChangedCommand: [
+            (command, pane) => diffService.forwardView(pane, command.elementId),
+        ],
+        DmnDiffScrollChangedCommand: [
+            (command, pane) => diffService.forwardScroll(pane, command.scroll),
+        ],
+        ...hostRoutes(extensions),
+    });
+}
+
+function hostRoutes({
+    swapSides,
+    paneLog,
+}: DiffPaneHostExtensions): CommandTable<
+    "SwapCompareSidesCommand" | "LogErrorCommand",
+    DiffPaneHandle
+> {
+    return {
         SwapCompareSidesCommand: swapSides
             ? [(_command, pane) => swapSides(pane)]
             : { ignored: "the host does not swap diff sides through the core" },
@@ -50,5 +92,5 @@ export function createDiffPaneRouter(
                   },
               ]
             : { ignored: "the host keeps no log of its diff panes" },
-    });
+    };
 }

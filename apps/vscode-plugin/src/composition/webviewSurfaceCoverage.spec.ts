@@ -10,6 +10,7 @@ import {
     ScriptVariableStore,
 } from "@miragon/bpmn-modeler-core";
 import {
+    absent,
     HANDLED,
     HostSurfaceCoverage,
     ignored,
@@ -76,6 +77,7 @@ const VSCODE_SURFACES: HostSurfaceCoverage = {
         SwapCompareSidesCommand: HANDLED,
         LogErrorCommand: HANDLED,
     },
+    dmnDiffPane: absent("DMN diff panes are not wired yet"),
     dmnEditor: {
         SyncDocumentCommand: HANDLED,
         DocumentFlushedCommand: HANDLED,
