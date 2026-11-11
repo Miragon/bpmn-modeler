@@ -4,6 +4,7 @@ import {
     BpmnLayoutService,
     BpmnMigrationService,
     CoreWriteRenderer,
+    ElementIdsService,
     FormModelerService,
     ModelerLanguageService,
     EngineVersionSelectionService,
@@ -24,6 +25,7 @@ export function register(
         bpmnService: BpmnModelerService;
         formService: FormModelerService;
         layoutSvc: BpmnLayoutService;
+        elementIds: ElementIdsService;
         coreWriteRenderer: CoreWriteRenderer;
     },
 ): void {
@@ -48,6 +50,7 @@ export function register(
         deps.picker,
         deps.pendingEdits,
         handles.layoutSvc,
+        handles.elementIds,
         deps.preferences,
         new ModelerLanguageService(deps.picker, deps.preferences, deps.notifier),
     ).register(context);
