@@ -1,12 +1,12 @@
 name: Publish Orca plugin
 
 # Builds the Orca plugin (apps/orca-plugin/plugin/), smoke-tests exactly that
-# folder in the newest Orca, and publishes it into Miragon/orca-modelers with
+# folder in the newest Orca, and publishes it into Miragon/orca-plugins with
 # that repository's publish-plugin action: it opens a pull request with the
 # plugin's bytes and then one with its catalog entry, and squash-merges each
 # once that repository's `validate` passes. A failed publish closes its pull
 # request; re-running this job retries and skips the bytes when they are on
-# main there already. The `orca-modelers-publish` concurrency group serializes
+# main there already. The `orca-plugins-publish` concurrency group serializes
 # publishes from this repository only. Manual dispatch is dry-run-only
 # (build + smoke); a real publish runs from release-please.yml after the
 # release approval.
@@ -40,7 +40,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     concurrency:
-      group: ${{ (github.event_name == 'workflow_dispatch' || inputs.dry-run) && format('orca-plugin-dry-run-{0}', github.run_id) || 'orca-modelers-publish' }}
+      group: ${{ (github.event_name == 'workflow_dispatch' || inputs.dry-run) && format('orca-plugin-dry-run-{0}', github.run_id) || 'orca-plugins-publish' }}
       cancel-in-progress: false
     env:
       # A dispatch has no dry-run input, and `null == false` holds in an expression.
@@ -60,7 +60,7 @@ jobs:
       - run: yarn workspace @miragon/bpmn-modeler-orca build
 
       - id: orca
-        uses: miragon/orca-modelers/.github/actions/setup-orca@7207762e896fe49cc949dc86edb2170ae35035dd # main
+        uses: Miragon/orca-plugin-kit/setup-orca@6b56b4938c9352a8be5c666019b2f43e557235aa # v1.0.0
         with:
           channel: latest
       - name: Smoke-test exactly this plugin folder in Orca
@@ -92,9 +92,9 @@ jobs:
           client-id: ${{ vars.RELEASE_PLEASE_APP_CLIENT_ID }}
           private-key: ${{ secrets.RELEASE_PLEASE_APP_PRIVATE_KEY }}
           owner: miragon
-          repositories: orca-modelers
+          repositories: orca-plugins
       - if: env.EFFECTIVE_DRY_RUN == 'false'
-        uses: miragon/orca-modelers/.github/actions/publish-plugin@e48874dd694e42a3d6e9960d5754134f001d2587 # main
+        uses: Miragon/orca-plugin-kit/publish-plugin@6b56b4938c9352a8be5c666019b2f43e557235aa # v1.0.0
         with:
           token: ${{ steps.app-token.outputs.token }}
           plugins-dir: orca-plugins

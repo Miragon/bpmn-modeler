@@ -189,7 +189,7 @@ evaluates pnpm on other grounds.
 
 Orca builds nothing and installs the files of a pinned commit, so the built
 plugin folder has to live in a repository. Every Miragon modeler publishes into
-one catalog, [Miragon/orca-modelers](https://github.com/Miragon/orca-modelers),
+one catalog, [Miragon/orca-plugins](https://github.com/Miragon/orca-plugins),
 whose `sources.json` allows this repository to publish `bpmn-modeler`. After
 the release approval, the
 [publish workflow](../../.github/workflows/publish-orca-plugin.yml) builds
@@ -199,10 +199,10 @@ to that repository's `publish-plugin` action, pinned to a commit. The action
 opens a pull request with the plugin's bytes and then one with its catalog
 entry, and squash-merges each once that repository's `validate` passes, so a
 release is one catalog change and one tag there. It authenticates with the
-release-please GitHub App, whose token is scoped to `miragon/orca-modelers`
+release-please GitHub App, whose token is scoped to `miragon/orca-plugins`
 with `contents: write` and `pull-requests: write`. A failed publish closes its
 pull request; re-running the job retries and skips the bytes when they are on
-main there already. The `orca-modelers-publish` concurrency group serializes
+main there already. The `orca-plugins-publish` concurrency group serializes
 publishes from this repository only; a publish from another source repository
 that conflicts fails, and a re-run starts from the new main.
 This repository stays free of build output. Manual dispatch is a dry run.

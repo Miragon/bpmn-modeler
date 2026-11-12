@@ -11,7 +11,7 @@ const RELEASES_URL = "https://github.com/Miragon/bpmn-modeler/releases";
 const VSCODE_INSTALL = "code --install-extension miragon-gmbh.vs-code-bpmn-modeler";
 const JETBRAINS_MARKETPLACE = "https://plugins.jetbrains.com/plugin/32634-miragon-bpmn-modeler";
 const ORCA_PLUGIN_URL =
-    "https://onorca.dev/plugins/miragon.bpmn-modeler?catalog=https://github.com/miragon/orca-modelers.git";
+    "https://onorca.dev/plugins/miragon.bpmn-modeler?catalog=https://github.com/miragon/orca-plugins.git";
 const HOMEBREW_INSTALL = "brew install --cask miragon/tap/miragon-bpmn-modeler";
 
 const tabs: { id: InstallTab; label: string }[] = [
