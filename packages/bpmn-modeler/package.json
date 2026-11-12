@@ -1,7 +1,7 @@
 {
     "name": "@miragon/bpmn-modeler",
     "architecture": "diagram-js",
-    "version": "1.7.0",
+    "version": "1.8.0",
     "license": "Apache-2.0",
     "description": "Host-free, embeddable BPMN modeler (Camunda 7 & 8) built on bpmn-js.",
     "type": "module",

@@ -1,5 +1,45 @@
 # Changelog
 
+## [1.8.0](https://github.com/Miragon/bpmn-modeler/compare/bpmn-modeler-v1.7.0...bpmn-modeler-v1.8.0) (2026-11-12)
+
+
+### 🎉 New Features
+
+* **add-ons-webview:** render the add-on catalog in a host-neutral webview ([#2308](https://github.com/Miragon/bpmn-modeler/issues/2308)) ([aace17c](https://github.com/Miragon/bpmn-modeler/commit/aace17c9d9ed6755da15cfd9413c34fe76e2f3d5))
+* **add-ons-webview:** show add-ons as a searchable list with a detail pane ([#2327](https://github.com/Miragon/bpmn-modeler/issues/2327)) ([f7fad7c](https://github.com/Miragon/bpmn-modeler/commit/f7fad7c11e646e1d35726fe5fb7df0d8ba7c1479))
+* **bpmn-modeler:** keep hidden element templates out of new choices ([#2301](https://github.com/Miragon/bpmn-modeler/issues/2301)) ([2d6033d](https://github.com/Miragon/bpmn-modeler/commit/2d6033db9d53fcd541d0c4c01c16056ea55b1906))
+* call the artifacts view add-ons ([#2326](https://github.com/Miragon/bpmn-modeler/issues/2326)) ([1e2f3a6](https://github.com/Miragon/bpmn-modeler/commit/1e2f3a6fd73cd5598642ede3fd9c66bbe6aa684a))
+* **dmn-diff:** show DMN changes in a visual diff of DRD and decision tables ([#2359](https://github.com/Miragon/bpmn-modeler/issues/2359)) ([e66b46d](https://github.com/Miragon/bpmn-modeler/commit/e66b46d056f5c72b87a81152182a695249dc9937))
+* fit the diagram to the view from a canvas button ([#2343](https://github.com/Miragon/bpmn-modeler/issues/2343)) ([00da896](https://github.com/Miragon/bpmn-modeler/commit/00da8960e5bbdf0cf0c5fd9c8518ff3495aa5775))
+* **intellij-plugin:** manage add-ons in the artifacts tab of the bpmn modeler tool window ([#2310](https://github.com/Miragon/bpmn-modeler/issues/2310)) ([e3d0b8c](https://github.com/Miragon/bpmn-modeler/commit/e3d0b8cd32b4e831747c228b7fce828ab295f172))
+* **modeler-core:** add form engine and shared language selection ([#2341](https://github.com/Miragon/bpmn-modeler/issues/2341)) ([c28a403](https://github.com/Miragon/bpmn-modeler/commit/c28a403a9b3e887169b9773062a2da0889604525))
+* **modeler-core:** allow workspace code per repository and add-on ([#2358](https://github.com/Miragon/bpmn-modeler/issues/2358)) ([192d740](https://github.com/Miragon/bpmn-modeler/commit/192d74074fb05ffd5f675fb12bb93e15b688fd32))
+* **modeler-core:** list element templates and marketplaces in the add-on catalog ([#2296](https://github.com/Miragon/bpmn-modeler/issues/2296)) ([d7dd275](https://github.com/Miragon/bpmn-modeler/commit/d7dd275bf80964d3292f3e8d7a733475ee0a745a))
+* replace the canvas focus reticle with a focus ring ([#2342](https://github.com/Miragon/bpmn-modeler/issues/2342)) ([3f64891](https://github.com/Miragon/bpmn-modeler/commit/3f648910c76288ec018eaa25a2d9743ca7b33f42))
+* show the canvas keyboard focus as a dot on the fit button ([#2362](https://github.com/Miragon/bpmn-modeler/issues/2362)) ([0f56772](https://github.com/Miragon/bpmn-modeler/commit/0f567728f53e88561a6d28de68d18207ff94a9d3))
+* **vscode-plugin:** show the artifacts view in the bpmn modeler container ([#2309](https://github.com/Miragon/bpmn-modeler/issues/2309)) ([e50109a](https://github.com/Miragon/bpmn-modeler/commit/e50109a5465998ddb7eb621ab5304336b3beeb51))
+
+
+### 🐞 Bug Fixes
+
+* **element-template-chooser:** preview the first choice of a required dropdown ([#2351](https://github.com/Miragon/bpmn-modeler/issues/2351)) ([64a5abf](https://github.com/Miragon/bpmn-modeler/commit/64a5abf279e11ad73542d387e522ac35bc55751f))
+* **element-template-chooser:** show Boolean and Number values in the previews ([#2357](https://github.com/Miragon/bpmn-modeler/issues/2357)) ([7095db6](https://github.com/Miragon/bpmn-modeler/commit/7095db6cd6331226dd588c73364bc2591f34e854))
+* **standalone:** show the current title and icon of a restored plugin view container ([#2333](https://github.com/Miragon/bpmn-modeler/issues/2333)) ([ea776c9](https://github.com/Miragon/bpmn-modeler/commit/ea776c932f5eb0875740d401a72bcd248e6b5499))
+
+
+### 📔 Documentation
+
+* rewrite READMEs for users, move package reference to the docs ([#2331](https://github.com/Miragon/bpmn-modeler/issues/2331)) ([6177741](https://github.com/Miragon/bpmn-modeler/commit/6177741ca798c7c86da068cabb1e4802cb187e6a))
+
+
+### 🛠️ Misc
+
+* **brand:** bring the repo onto miragon-brand 1.32.0 ([#2332](https://github.com/Miragon/bpmn-modeler/issues/2332)) ([e3dc726](https://github.com/Miragon/bpmn-modeler/commit/e3dc726be4e5c8fbf2fca11706a7f595eef563cd))
+* **deps:** bump the bpmn-io group except @bpmn-io/properties-panel ([#2123](https://github.com/Miragon/bpmn-modeler/issues/2123)) ([4a03893](https://github.com/Miragon/bpmn-modeler/commit/4a0389337341a562ed9e2b366df1e175c7adf5cb))
+* **deps:** bump the bpmnlint group across 1 directory with 2 updates ([#2311](https://github.com/Miragon/bpmn-modeler/issues/2311)) ([8ff96a5](https://github.com/Miragon/bpmn-modeler/commit/8ff96a53b0123fe36728ec973f45c0ce1297fe0b))
+* **deps:** bump the npm-minor-patch group across 1 directory with 24 updates ([#2334](https://github.com/Miragon/bpmn-modeler/issues/2334)) ([0f3f59d](https://github.com/Miragon/bpmn-modeler/commit/0f3f59db46031a56defb0a48e839c50de4f17a00))
+* **vscode-plugin:** publish with vsce 4.1.0 for the final oidc token exchange ([#2288](https://github.com/Miragon/bpmn-modeler/issues/2288)) ([e389733](https://github.com/Miragon/bpmn-modeler/commit/e389733ae34dcc327f50ae1d2c146408eace4a9f))
+
 ## [1.7.0](https://github.com/Miragon/bpmn-modeler/compare/bpmn-modeler-v1.6.0...bpmn-modeler-v1.7.0) (2026-11-09)
 
 
