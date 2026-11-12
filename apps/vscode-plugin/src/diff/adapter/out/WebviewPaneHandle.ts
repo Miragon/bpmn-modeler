@@ -1,22 +1,27 @@
 import { TextDocument, WebviewPanel } from "vscode";
 
-import { BPMN_VIEW_TYPE, DiffPaneHandle } from "@miragon/bpmn-modeler-core";
-import { bootstrapWebview } from "../../../shared/adapter/out/bootstrapWebview";
+import { DiffPaneHandle } from "@miragon/bpmn-modeler-core";
+import {
+    bootstrapWebview,
+    DiffPaneSurface,
+} from "../../../shared/adapter/out/bootstrapWebview";
 
 /**
  * Outbound adapter that wraps a real `WebviewPanel` + `TextDocument`
  * pair into the {@link DiffPaneHandle} the diff machinery uses.
  *
  * Confining the only `WebviewPanel`/`TextDocument` references to this adapter
- * is what lets {@link DiffSession}, `DiffPaneStore`, and `BpmnDiffService`
+ * is what lets {@link DiffSession}, `DiffPaneStore` and the diff services
  * stay vscode-free — they see only the abstract handle.
  */
 export class WebviewPaneHandle implements DiffPaneHandle {
     private readyFlag = false;
 
+    /** @param surface The diff-pane page the panel loads. */
     constructor(
         readonly panel: WebviewPanel,
         readonly document: TextDocument,
+        private readonly surface: DiffPaneSurface,
     ) {}
 
     get uri(): string {
@@ -44,6 +49,6 @@ export class WebviewPaneHandle implements DiffPaneHandle {
     }
 
     bootstrap(): void {
-        bootstrapWebview(BPMN_VIEW_TYPE, this.panel);
+        bootstrapWebview(this.panel, { diffPane: this.surface });
     }
 }

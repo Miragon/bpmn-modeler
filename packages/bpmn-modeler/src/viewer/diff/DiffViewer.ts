@@ -6,6 +6,9 @@ import type EventBus from "diagram-js/lib/core/EventBus";
 import type { Point } from "diagram-js/lib/util/Types";
 
 import {
+    DIFF_MARKERS,
+    type DiffMarker,
+    DIFF_SELECTED_MARKER,
     DisposableStore,
     MIN_CANVAS_SIZE_PX,
     MutableDisposable,
@@ -18,14 +21,10 @@ import { centreOf, type PositionedElement } from "../../elementGeometry";
 import { armInitialViewportPolicy, InitialViewportLatch } from "../../initialViewport";
 import { subscribeViewboxChanged } from "../../viewport";
 
-/**
- * CSS class applied to each element category on the canvas.
- */
-export type DiffMarkerClass =
-    "diff-added" | "diff-removed" | "diff-changed" | "diff-layout-changed";
+/** CSS class applied to each element category on the canvas, as `DIFF_MARKERS` maps them. */
+export type DiffMarkerClass = DiffMarker;
 
-// CSS class applied to the element currently targeted by the stepper.
-const DIFF_SELECTED_CLASS = "diff-selected";
+const DIFF_CLASSES: readonly string[] = [...Object.values(DIFF_MARKERS), DIFF_SELECTED_MARKER];
 
 /**
  * Readonly BPMN canvas for one side of a diff view.
@@ -114,8 +113,9 @@ export class DiffViewer {
     }
 
     /**
-     * Applies a marker class to each id, skipping ids absent from this canvas
-     * (the partner pane may carry deliveries specific to its side).
+     * Applies a marker class (a {@link DiffMarkerClass}, as `DIFF_MARKERS` maps
+     * each category) to each id, skipping ids absent from this canvas (the
+     * partner pane may carry deliveries specific to its side).
      */
     applyHighlights(ids: readonly string[], klass: DiffMarkerClass): void {
         const canvas = this.getCanvas();
@@ -131,16 +131,9 @@ export class DiffViewer {
     clearHighlights(): void {
         const canvas = this.getCanvas();
         const registry = this.getViewer().get<ElementRegistry>("elementRegistry");
-        const classes: string[] = [
-            "diff-added",
-            "diff-removed",
-            "diff-changed",
-            "diff-layout-changed",
-            DIFF_SELECTED_CLASS,
-        ];
         registry.forEach((element: { id: string }) => {
-            for (const c of classes) {
-                canvas.removeMarker(element.id, c);
+            for (const markerClass of DIFF_CLASSES) {
+                canvas.removeMarker(element.id, markerClass);
             }
         });
         this.selectedId = undefined;
@@ -202,9 +195,9 @@ export class DiffViewer {
         }
         const canvas = this.getCanvas();
         if (this.selectedId && this.selectedId !== id) {
-            canvas.removeMarker(this.selectedId, DIFF_SELECTED_CLASS);
+            canvas.removeMarker(this.selectedId, DIFF_SELECTED_MARKER);
         }
-        canvas.addMarker(id, DIFF_SELECTED_CLASS);
+        canvas.addMarker(id, DIFF_SELECTED_MARKER);
         this.selectedId = id;
         return true;
     }
@@ -268,16 +261,14 @@ export class DiffViewer {
         if (!this.selectedId) {
             return;
         }
-        this.getCanvas().removeMarker(this.selectedId, DIFF_SELECTED_CLASS);
+        this.getCanvas().removeMarker(this.selectedId, DIFF_SELECTED_MARKER);
         this.selectedId = undefined;
     }
 
     /**
      * Returns `true` if the element with the given id is a connection
      * (sequence flow, message flow, association) — i.e. carries waypoints
-     * instead of shape bounds.  Used by the diff nav to filter out edges
-     * whose only change is a waypoint adjustment, which are visually
-     * redundant with the attached shape's change.
+     * instead of shape bounds.
      */
     isConnection(id: string): boolean {
         const registry = this.getViewer().get<ElementRegistry>("elementRegistry");

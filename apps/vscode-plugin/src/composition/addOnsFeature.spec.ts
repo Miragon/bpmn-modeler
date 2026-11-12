@@ -34,7 +34,8 @@ import {
 import { InMemoryMemento } from "../__fixtures__/vscodeStorage";
 import { ADD_ONS_VIEW_ID } from "../addOns/adapter/in/AddOnsViewProvider";
 import { REVIEW_ADD_ONS_CMD } from "../addOns/adapter/in/ReviewAddOnsCommand";
-import { BpmnDiffController } from "../diff/adapter/in/BpmnDiffController";
+import { DiffController } from "../diff/adapter/in/DiffController";
+import { bpmnDiffFormat } from "./diffFeature";
 import { setContext } from "../shared/adapter/out/extensionContext";
 import * as addOnsFeature from "./addOnsFeature";
 import * as bpmnEditorFeature from "./bpmnEditorFeature";
@@ -96,14 +97,14 @@ function createVsCodeAddOns(context = createExtensionContext()) {
     const { marketplaceSvc, templateSources } = templateMarketplaceFeature.register(context, deps);
     const reviews = addOnsFeature.createViewReviews(deps);
     const bpmn = bpmnEditorFeature.register(context, deps, {
-        diffController: new BpmnDiffController(
+        diffController: new DiffController(
             diffStore,
-            new BpmnDiffService(deps.notifier, deps.vsSettings, diffStore),
             deps.notifier,
             () => {
                 throw new Error("no diff pane resolves here");
             },
             deps.preferences,
+            bpmnDiffFormat(new BpmnDiffService(deps.notifier, deps.vsSettings, diffStore)),
         ),
         templateSources,
         deploymentStatusParticipant: deploymentStatus,

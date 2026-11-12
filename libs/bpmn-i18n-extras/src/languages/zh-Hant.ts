@@ -28,6 +28,10 @@ const dictionary: Record<string, string> = {
         "已儲存的表單無效或不受支援。請在表單編輯器中開啟。",
     "The form preview could not be loaded. Refresh to try again.":
         "無法載入表單預覽。請重新整理後再試。",
+    "Changes": "變更",
+    "Not in this version": "此版本中不存在",
+    "It was removed. The version on the left shows it.": "它已被刪除。左側版本中可以看到它。",
+    "It is new. The version on the right shows it.": "它是新增的。右側版本中可以看到它。",
     "A form is either a form id or an external reference, not both.":
         "表單只能使用表單 ID 或外部引用之一，不能同時使用兩者。",
     "A property cannot depend on itself.": "屬性不能依賴自身。",

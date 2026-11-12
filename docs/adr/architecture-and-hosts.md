@@ -1,7 +1,7 @@
 # Architecture and hosts
 
 - Status: accepted
-- Last reviewed: 2026-11-11
+- Last reviewed: 2026-11-12
 
 ## Context
 
@@ -196,15 +196,30 @@ the bridge does not, because IntelliJ's diff viewer swaps the sides before it
 forwards a message. The preview host's spec posts every command of the editor
 and diff-pane lists.
 
+A DMN diff pane posts through its own list, `DMN_DIFF_PANE_COMMAND_TYPES`,
+routed by `createDmnDiffPaneRouter`. It has no handshake: the DMN bootstrap
+creates its modeler before the file arrives, so VS Code names the page a diff
+pane in its HTML (`<body data-surface="dmnDiffPane">`) and the page loads the
+diff bootstrap instead of the editor. VS Code's `bootstrapWebview(panel, page)`
+takes a `WebviewPage`: an editor page (`viewType`, `initialPanelVisible`) or a
+diff pane page that names its surface (`bpmnDiffPane` or `dmnDiffPane`), so a
+pane cannot be handed a panel flag it would ignore; only the DMN surface reaches
+the HTML. On top of the BPMN pane's viewport and cursor, its partner follows the
+view the user opens and the table's scroll. Its messages sit in
+`libs/shared/src/lib/dmnDiffMessages.ts`, a feature file like the add-ons
+view's. The bridge registers the surface as absent, because IntelliJ has no
+DMN editor.
+
 The DMN and Form editors, the element-template editor, the deployment
 sidebar and the add-ons view have closed lists of their own
 (`dmnEditorCommands.ts`, `formEditorCommands.ts`, `templateEditorCommands.ts`,
 `deploymentSidebarCommands.ts`, `addOnsViewCommands.ts`), and each of these pages narrows its host
 channel to its list, so a page cannot post a command of another surface.
 `WEBVIEW_SURFACE_COMMAND_TYPES` (`libs/shared/src/lib/webviewSurfaces.ts`)
-registers every surface with its list; the diff pane's entry is the handshake
-plus the pane list. A spec in `libs/shared` fails when a protocol command is on
-no surface, so a command no webview posts is deleted, not kept routed. A
+registers every surface with its list; the BPMN diff pane's entry is the
+handshake plus the pane list, the DMN diff pane's its list alone. A spec in
+`libs/shared` fails when a protocol command is on no surface, so a command no
+webview posts is deleted, not kept routed. A
 command may be on several surfaces: the log commands and the document sync
 are. A repo-level spec ties the lists to the code: it type-checks each
 `apps/*-webview` program from its `tsconfig.app.json` and finds every
@@ -386,7 +401,7 @@ imports show the role it has. Each workspace declares its kind once, in the
 | --- | --- |
 | `hexagonal` | `libs/modeler-core`, `apps/vscode-plugin`, `apps/modeler-bridge`, the five webviews, the template builder, `apps/orca-plugin`, `tools/repo-checks` |
 | `diagram-js` | the diagram-js feature libraries in `libs/` and `packages/bpmn-modeler`, `packages/dmn-modeler`, which follow the bpmn-js module layout |
-| `flat` | `modeler-types`, `shared`, `bpmn-diff`, `bpmn-i18n-extras`, `standalone-extension`, `tools/architecture-testing`, `docs`, `apps/standalone` |
+| `flat` | `modeler-types`, `shared`, `bpmn-diff`, `dmn-diff`, `bpmn-i18n-extras`, `standalone-extension`, `tools/architecture-testing`, `docs`, `apps/standalone` |
 
 Every webview (#2129) and the template builder (#2130) sit in their role
 folders.

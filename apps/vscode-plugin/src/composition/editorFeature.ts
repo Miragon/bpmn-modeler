@@ -32,6 +32,7 @@ import {
     updateFormOutputValuesHandler,
 } from "../modeler/form/adapter/in/webview-handlers/formMessageHandlers";
 import { DMN_VIEW_TYPE, FORM_VIEW_TYPE } from "@miragon/bpmn-modeler-core";
+import { DiffController } from "../diff/adapter/in/DiffController";
 import { SharedDeps } from "./sharedDeps";
 
 /**
@@ -42,6 +43,7 @@ import { SharedDeps } from "./sharedDeps";
 export function register(
     context: ExtensionContext,
     deps: SharedDeps,
+    handles: { dmnDiffController: DiffController },
 ): {
     dmnEditorRoutes: RouteLookup;
     formEditorRoutes: RouteLookup;
@@ -116,6 +118,14 @@ export function register(
             new DocumentRenderParticipant(dmnService, ".dmn", deps.notifier),
             new DmnSettingsParticipant(dmnSettingsBroadcaster),
         ],
+        // A DMN diff pane belongs to the DMN diff controller, which starts no editor session.
+        delegateResolve: (document, panel) => {
+            if (!handles.dmnDiffController.shouldResolveAsDiff(document.uri)) {
+                return false;
+            }
+            handles.dmnDiffController.resolveDiffPane(panel, document);
+            return true;
+        },
         initialPanelVisible: () => dmnPanelSvc.getPersistedPanelVisibility(),
     }).register(context);
     new ModelerEditorController(deps.editorStore, deps.notifier, deps.createEditorHandle, {

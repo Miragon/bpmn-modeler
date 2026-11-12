@@ -1,16 +1,15 @@
 import { defineConfig } from "vitest/config";
 
-import { coveragePreset, workspaceAliases } from "../../vitest.shared";
+import { coveragePreset } from "../../vitest.shared";
 
+// One run over both projects so the jsdom and Chromium coverage merge into a
+// single report; separately, browser-only code would read as uncovered.
 export default defineConfig({
-    resolve: { alias: workspaceAliases },
     test: {
-        name: "dmn-modeler",
-        environment: "jsdom",
-        include: ["src/**/*.{spec,test}.{ts,tsx}"],
+        projects: ["./vitest.unit.config.ts", "./vitest.browser.config.ts"],
         coverage: {
             ...coveragePreset(__dirname),
-            thresholds: { statements: 90, branches: 85, functions: 83, lines: 91 },
+            thresholds: { statements: 96, branches: 86, functions: 94, lines: 97 },
         },
     },
 });

@@ -56,11 +56,14 @@
 
 /* ─── Floating legend chip ─────────────────────────────────────────────── */
 
+/* Centred with left/right: a chip at left: 50% would wrap at half the pane's width. */
 .diff-legend {
     position: absolute;
     top: 12px;
-    left: 50%;
-    transform: translateX(-50%);
+    right: 12px;
+    left: 12px;
+    width: fit-content;
+    margin: 0 auto;
     display: none;
     flex-direction: column;
     align-items: center;
@@ -90,13 +93,19 @@
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 12px;
+    justify-content: center;
+    gap: 6px 12px;
 }
 
 .diff-legend__slot {
     display: inline-flex;
     align-items: center;
     gap: 6px;
+    white-space: nowrap;
+}
+
+.diff-legend__count {
+    font-weight: 650;
 }
 
 .diff-legend__swatch {
@@ -152,6 +161,12 @@
     background: #fafafa;
     color: #1f1f1f;
     cursor: pointer;
+}
+
+/* Icon-only: its name is in the title and aria-label. */
+.diff-legend__swap-btn {
+    justify-content: center;
+    min-width: 28px;
 }
 
 .diff-legend__nav-btn:hover:not(:disabled) {

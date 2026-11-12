@@ -31,6 +31,11 @@ const dictionary: Record<string, string> = {
         "Сохранённая форма недопустима или не поддерживается. Откройте её в редакторе форм.",
     "The form preview could not be loaded. Refresh to try again.":
         "Не удалось загрузить предпросмотр формы. Обновите для повторной попытки.",
+    "Changes": "Изменения",
+    "Not in this version": "Нет в этой версии",
+    "It was removed. The version on the left shows it.":
+        "Элемент удалён. Он показан в версии слева.",
+    "It is new. The version on the right shows it.": "Элемент новый. Он показан в версии справа.",
     "A form is either a form id or an external reference, not both.":
         "Форма задаётся либо ID формы, либо внешней ссылкой, но не обоими сразу.",
     "A property cannot depend on itself.": "Свойство не может зависеть от самого себя.",

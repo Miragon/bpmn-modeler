@@ -1,9 +1,13 @@
 import { DiffResult, sideView } from "@miragon/bpmn-modeler-diff";
-import { DisposableStore } from "@miragon/bpmn-modeler-types";
+import {
+    DIFF_CATEGORIES,
+    DIFF_MARKERS,
+    DisposableStore,
+    stepCursor,
+} from "@miragon/bpmn-modeler-types";
 
 import { DiffNavigator } from "./DiffNavigator";
 import { DiffViewer } from "./DiffViewer";
-import { stepCursor } from "./stepCursor";
 
 /**
  * In-page coordinator for a two-pane BPMN diff — the host-free counterpart to
@@ -18,8 +22,7 @@ import { stepCursor } from "./stepCursor";
  *   - steps a single shared cursor across both navigators.
  *
  * The shared cursor is sound because both panes navigate the same
- * `navigationOrder` and prune the same layout-only connections (which exist on
- * both canvases), so their cycles have identical length — the same
+ * `navigationOrder`, so their cycles have identical length — the same
  * symmetric-cycle invariant the relayed protocol relies on.
  *
  * Consumers own the {@link DiffViewer} lifecycle; {@link destroy} only unhooks
@@ -60,11 +63,10 @@ export class DiffPaneCoordinator {
         ] as const;
         for (const { viewer, nav, view } of panes) {
             viewer.clearHighlights();
-            viewer.applyHighlights(view.added, "diff-added");
-            viewer.applyHighlights(view.removed, "diff-removed");
-            viewer.applyHighlights(view.changed, "diff-changed");
-            viewer.applyHighlights(view.layoutChanged, "diff-layout-changed");
-            nav.setChanges(view, result.navigationOrder);
+            for (const category of DIFF_CATEGORIES) {
+                viewer.applyHighlights(view[category], DIFF_MARKERS[category]);
+            }
+            nav.setChanges(result.navigationOrder);
         }
     }
 
@@ -78,6 +80,11 @@ export class DiffPaneCoordinator {
 
     get cursor(): number {
         return this._cursor;
+    }
+
+    /** Whether Next and Previous have a change to step to; pass it to each pane's legend. */
+    get canStep(): boolean {
+        return this.beforeNav.canStep;
     }
 
     destroy(): void {

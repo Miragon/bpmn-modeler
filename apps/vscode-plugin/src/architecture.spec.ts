@@ -45,11 +45,11 @@ describe("context isolation on a synthetic graph", () => {
     const tree = [
         { path: "shared/adapter/out/VsCodeNotifier.ts", text: "" },
         { path: "deployment/adapter/in/DeploymentController.ts", text: "" },
-        { path: "diff/adapter/in/BpmnDiffController.ts", text: "" },
+        { path: "diff/adapter/in/DiffController.ts", text: "" },
         {
             path: "composition/diffFeature.ts",
             text: importsOf(
-                "../diff/adapter/in/BpmnDiffController",
+                "../diff/adapter/in/DiffController",
                 "../deployment/adapter/in/DeploymentController",
             ),
         },

@@ -58,7 +58,7 @@ export class VsCodeEditorHandle implements EditorHandle {
         document: TextDocument,
         initialPanelVisible: boolean = true,
     ): VsCodeEditorHandle {
-        const panel = bootstrapWebview(viewType, webviewPanel, initialPanelVisible);
+        const panel = bootstrapWebview(webviewPanel, { viewType, initialPanelVisible });
         return new VsCodeEditorHandle(editorId, panel, document, viewType, initialPanelVisible);
     }
 
@@ -143,7 +143,10 @@ export class VsCodeEditorHandle implements EditorHandle {
      * settings. Equivalent to switching away from and back to a non-retained tab.
      */
     reload(): void {
-        bootstrapWebview(this.viewType, this.panel, this.initialPanelVisible);
+        bootstrapWebview(this.panel, {
+            viewType: this.viewType,
+            initialPanelVisible: this.initialPanelVisible,
+        });
     }
 
     /** Loads only below the webview's `localResourceRoots`, which hold the plugin cache. */

@@ -1,5 +1,11 @@
 import { DiffCounts } from "@miragon/bpmn-modeler-diff";
 import { i18n } from "@miragon/bpmn-modeler-i18n";
+import {
+    DIFF_CATEGORIES,
+    DIFF_CATEGORY_LABELS,
+    DIFF_LEGEND_TEXTS,
+    type DiffCategory,
+} from "@miragon/bpmn-modeler-types";
 
 export interface DiffLegendCallbacks {
     onPrevious: () => void;
@@ -13,7 +19,19 @@ export interface DiffLegendCallbacks {
     onSwap?: () => void;
 }
 
-type SlotKey = "Added" | "Removed" | "Changed" | "Moved";
+// Public styling hooks: consumers select the swatches by these modifiers.
+const SLOT_MODIFIERS: Readonly<Record<DiffCategory, string>> = {
+    added: "added",
+    removed: "removed",
+    changed: "changed",
+    layoutChanged: "layout",
+};
+
+interface CountSlot {
+    readonly category: DiffCategory;
+    readonly label: Text;
+    readonly count: HTMLElement;
+}
 
 /**
  * Per-update info the legend renders.  Presentation-only: the consumer decides
@@ -32,6 +50,14 @@ export interface DiffLegendContext {
      * callback was supplied at construction; defaults to hidden.
      */
     readonly showSwap?: boolean;
+    /**
+     * Whether Previous and Next have a change to step to, e.g. a
+     * `DiffNavigator`'s or `DiffPaneCoordinator`'s `canStep`.
+     * Counts alone can overstate it: they include connections that only moved,
+     * which the stepper skips. Without it, the legend can only guess from the
+     * counts and enables the buttons whenever any count is above zero.
+     */
+    readonly canStep?: boolean;
 }
 
 /**
@@ -54,7 +80,7 @@ export class DiffLegend {
 
     private readonly filenameEl: HTMLElement;
 
-    private readonly slots: readonly { key: SlotKey; el: HTMLElement }[];
+    private readonly slots: readonly CountSlot[];
 
     private readonly prevButton: HTMLButtonElement;
 
@@ -78,6 +104,7 @@ export class DiffLegend {
 
         this.root = document.createElement("div");
         this.root.className = "diff-legend";
+        this.root.setAttribute("role", "toolbar");
         this.root.style.display = "none";
 
         // Filename subtitle — rendered above the counts row.  Hidden until a
@@ -92,12 +119,7 @@ export class DiffLegend {
         countsRow.className = "diff-legend__counts";
         this.root.append(countsRow);
 
-        this.slots = [
-            { key: "Added", el: this.makeCountSlot(countsRow, "added") },
-            { key: "Removed", el: this.makeCountSlot(countsRow, "removed") },
-            { key: "Changed", el: this.makeCountSlot(countsRow, "changed") },
-            { key: "Moved", el: this.makeCountSlot(countsRow, "layout") },
-        ];
+        this.slots = DIFF_CATEGORIES.map((category) => this.makeCountSlot(countsRow, category));
 
         this.prevButton = this.makeNavButton(callbacks.onPrevious);
         this.nextButton = this.makeNavButton(callbacks.onNext);
@@ -124,10 +146,9 @@ export class DiffLegend {
         this.renderLabels();
 
         const { counts, filename, showSwap } = context;
-        const total = counts.added + counts.removed + counts.changed + counts.layoutChanged;
-        const hasChanges = total > 0;
-        this.prevButton.disabled = !hasChanges;
-        this.nextButton.disabled = !hasChanges;
+        const canStep = context.canStep ?? DIFF_CATEGORIES.some((category) => counts[category] > 0);
+        this.prevButton.disabled = !canStep;
+        this.nextButton.disabled = !canStep;
 
         this.filenameEl.style.display = filename ? "block" : "none";
         this.swapButton.style.display = this.hasSwap && showSwap ? "inline-flex" : "none";
@@ -135,20 +156,24 @@ export class DiffLegend {
         this.root.style.display = "flex";
     }
 
-    private makeCountSlot(parent: HTMLElement, kind: string): HTMLElement {
+    private makeCountSlot(parent: HTMLElement, category: DiffCategory): CountSlot {
+        const modifier = SLOT_MODIFIERS[category];
         const slot = document.createElement("div");
-        slot.className = `diff-legend__slot diff-legend__slot--${kind}`;
+        slot.className = `diff-legend__slot diff-legend__slot--${modifier}`;
 
         const swatch = document.createElement("span");
-        swatch.className = `diff-legend__swatch diff-legend__swatch--${kind}`;
-        slot.append(swatch);
+        swatch.className = `diff-legend__swatch diff-legend__swatch--${modifier}`;
 
         const text = document.createElement("span");
         text.className = "diff-legend__label";
-        slot.append(text);
+        const label = document.createTextNode("");
+        const count = document.createElement("b");
+        count.className = "diff-legend__count";
+        text.append(label, count);
 
+        slot.append(swatch, text);
         parent.append(slot);
-        return text;
+        return { category, label, count };
     }
 
     private makeNavButton(onClick: () => void): HTMLButtonElement {
@@ -162,10 +187,9 @@ export class DiffLegend {
     private makeSwapButton(onClick?: () => void): HTMLButtonElement {
         const btn = document.createElement("button");
         btn.type = "button";
-        // Reuses the same visual class as the nav buttons so both button
-        // groups align and theme consistently, and adds a marker class for
-        // the swap-only spacing rule in diff.css.
+        // Shares the nav buttons' class so both groups align and theme alike.
         btn.className = "diff-legend__nav-btn diff-legend__swap-btn";
+        btn.textContent = "⇄";
         btn.style.display = "none";
         if (onClick) {
             btn.addEventListener("click", onClick);
@@ -175,18 +199,16 @@ export class DiffLegend {
 
     private renderLabels(): void {
         const { counts, filename } = this.context;
-        const countFor: Record<SlotKey, number> = {
-            Added: counts.added,
-            Removed: counts.removed,
-            Changed: counts.changed,
-            Moved: counts.layoutChanged,
-        };
-        for (const { key, el } of this.slots) {
-            el.textContent = `${i18n.translate(key)}: ${countFor[key]}`;
+        this.root.setAttribute("aria-label", i18n.translate(DIFF_LEGEND_TEXTS.changes));
+        for (const { category, label, count } of this.slots) {
+            label.data = `${i18n.translate(DIFF_CATEGORY_LABELS[category])} `;
+            count.textContent = String(counts[category]);
         }
-        this.prevButton.textContent = `‹ ${i18n.translate("Prev change")}`;
-        this.nextButton.textContent = `${i18n.translate("Next change")} ›`;
-        this.swapButton.textContent = `⇄ ${i18n.translate("Swap sides")}`;
+        this.prevButton.textContent = `‹ ${i18n.translate(DIFF_LEGEND_TEXTS.previous)}`;
+        this.nextButton.textContent = `${i18n.translate(DIFF_LEGEND_TEXTS.next)} ›`;
+        const swapLabel = i18n.translate(DIFF_LEGEND_TEXTS.swap);
+        this.swapButton.title = swapLabel;
+        this.swapButton.setAttribute("aria-label", swapLabel);
         this.filenameEl.textContent = filename ?? "";
     }
 

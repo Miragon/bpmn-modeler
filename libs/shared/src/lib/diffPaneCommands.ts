@@ -30,3 +30,23 @@ export const DIFF_PANE_HANDSHAKE_COMMAND_TYPES = [
 ] as const satisfies readonly BpmnEditorCommandType[];
 
 export type DiffPaneHandshakeCommandType = (typeof DIFF_PANE_HANDSHAKE_COMMAND_TYPES)[number];
+
+/**
+ * Every command a DMN diff pane posts. Its host names the pane a diff pane in
+ * the page's HTML, so the page asks only for its file and posts no editor
+ * request it would then have to ignore.
+ */
+export const DMN_DIFF_PANE_COMMAND_TYPES = [
+    "GetDmnFileCommand",
+    "DiffReadyCommand",
+    "ViewportChangedCommand",
+    "CursorChangedCommand",
+    "DmnDiffViewChangedCommand",
+    "DmnDiffScrollChangedCommand",
+    "SwapCompareSidesCommand",
+    "LogErrorCommand",
+] as const satisfies readonly ProtocolCommandType[];
+
+export type DmnDiffPaneCommandType = (typeof DMN_DIFF_PANE_COMMAND_TYPES)[number];
+
+export type DmnDiffPaneCommand = MessageOfType<DmnDiffPaneCommandType>;

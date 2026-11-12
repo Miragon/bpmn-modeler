@@ -1,0 +1,247 @@
+/** The shipping DMN before and after a change of every kind, for the diff preview (`?mode=diff-before|diff-after`). */
+export const SHIPPING_BEFORE_XML = `<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/" xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/" xmlns:modeler="http://camunda.org/schema/modeler/1.0" id="Definitions_Shipping" name="Shipping" namespace="http://camunda.org/schema/1.0/dmn" modeler:executionPlatform="Camunda Cloud" modeler:executionPlatformVersion="8.6.0">
+  <decision id="Decision_Shipping" name="Choose carrier">
+    <informationRequirement id="IR_Country"><requiredInput href="#Input_Country" /></informationRequirement>
+    <informationRequirement id="IR_Weight"><requiredInput href="#Input_Weight" /></informationRequirement>
+    <informationRequirement id="IR_Express"><requiredInput href="#Input_Express" /></informationRequirement>
+    <informationRequirement id="IR_Surcharge"><requiredDecision href="#Decision_Surcharge" /></informationRequirement>
+    <authorityRequirement id="AR_Contracts"><requiredAuthority href="#Source_Contracts" /></authorityRequirement>
+    <decisionTable id="Table_Shipping" hitPolicy="FIRST">
+      <input id="Col_Country" label="Country">
+        <inputExpression id="Expr_Country" typeRef="string"><text>country</text></inputExpression>
+      </input>
+      <input id="Col_Weight" label="Weight (kg)">
+        <inputExpression id="Expr_Weight" typeRef="number"><text>weight</text></inputExpression>
+      </input>
+      <input id="Col_Express" label="Express">
+        <inputExpression id="Expr_Express" typeRef="boolean"><text>express</text></inputExpression>
+      </input>
+      <output id="Col_Carrier" label="Carrier" name="carrier" typeRef="string" />
+      <output id="Col_Cost" label="Cost (EUR)" name="cost" typeRef="number" />
+      <rule id="Rule_1">
+        <description>Parcel within Germany</description>
+        <inputEntry id="In_Country_1"><text>"DE"</text></inputEntry>
+        <inputEntry id="In_Weight_1"><text>&lt;= 5</text></inputEntry>
+        <inputEntry id="In_Express_1"><text>false</text></inputEntry>
+        <outputEntry id="Out_Carrier_1"><text>"DHL"</text></outputEntry>
+        <outputEntry id="Out_Cost_1"><text>4.99</text></outputEntry>
+      </rule>
+      <rule id="Rule_2">
+        <description>Next working day</description>
+        <inputEntry id="In_Country_2"><text>"DE"</text></inputEntry>
+        <inputEntry id="In_Weight_2"><text>&lt;= 5</text></inputEntry>
+        <inputEntry id="In_Express_2"><text>true</text></inputEntry>
+        <outputEntry id="Out_Carrier_2"><text>"DHL Express"</text></outputEntry>
+        <outputEntry id="Out_Cost_2"><text>9.99</text></outputEntry>
+      </rule>
+      <rule id="Rule_3">
+        <description>Heavy parcel, no express</description>
+        <inputEntry id="In_Country_3"><text>"DE"</text></inputEntry>
+        <inputEntry id="In_Weight_3"><text>&gt; 5</text></inputEntry>
+        <inputEntry id="In_Express_3"><text>-</text></inputEntry>
+        <outputEntry id="Out_Carrier_3"><text>"DHL Freight"</text></outputEntry>
+        <outputEntry id="Out_Cost_3"><text>12.90</text></outputEntry>
+      </rule>
+      <rule id="Rule_4">
+        <description>Neighbouring countries</description>
+        <inputEntry id="In_Country_4"><text>"AT","CH"</text></inputEntry>
+        <inputEntry id="In_Weight_4"><text>&lt;= 5</text></inputEntry>
+        <inputEntry id="In_Express_4"><text>false</text></inputEntry>
+        <outputEntry id="Out_Carrier_4"><text>"DPD"</text></outputEntry>
+        <outputEntry id="Out_Cost_4"><text>9.90</text></outputEntry>
+      </rule>
+      <rule id="Rule_5">
+        <description>Within two working days</description>
+        <inputEntry id="In_Country_5"><text>"AT","CH"</text></inputEntry>
+        <inputEntry id="In_Weight_5"><text>&lt;= 5</text></inputEntry>
+        <inputEntry id="In_Express_5"><text>true</text></inputEntry>
+        <outputEntry id="Out_Carrier_5"><text>"DPD Express"</text></outputEntry>
+        <outputEntry id="Out_Cost_5"><text>16.90</text></outputEntry>
+      </rule>
+      <rule id="Rule_6">
+        <description>Heavy parcel, no express</description>
+        <inputEntry id="In_Country_6"><text>"AT","CH"</text></inputEntry>
+        <inputEntry id="In_Weight_6"><text>&gt; 5</text></inputEntry>
+        <inputEntry id="In_Express_6"><text>-</text></inputEntry>
+        <outputEntry id="Out_Carrier_6"><text>"DPD"</text></outputEntry>
+        <outputEntry id="Out_Cost_6"><text>19.90</text></outputEntry>
+      </rule>
+      <rule id="Rule_7">
+        <description>Rest of the EU</description>
+        <inputEntry id="In_Country_7"><text>"FR","IT","NL"</text></inputEntry>
+        <inputEntry id="In_Weight_7"><text>-</text></inputEntry>
+        <inputEntry id="In_Express_7"><text>-</text></inputEntry>
+        <outputEntry id="Out_Carrier_7"><text>"GLS"</text></outputEntry>
+        <outputEntry id="Out_Cost_7"><text>14.90</text></outputEntry>
+      </rule>
+      <rule id="Rule_8">
+        <description>Express everywhere else</description>
+        <inputEntry id="In_Country_8"><text>-</text></inputEntry>
+        <inputEntry id="In_Weight_8"><text>-</text></inputEntry>
+        <inputEntry id="In_Express_8"><text>true</text></inputEntry>
+        <outputEntry id="Out_Carrier_8"><text>"UPS Express"</text></outputEntry>
+        <outputEntry id="Out_Cost_8"><text>39.00</text></outputEntry>
+      </rule>
+      <rule id="Rule_9">
+        <description>Everything else</description>
+        <inputEntry id="In_Country_9"><text>-</text></inputEntry>
+        <inputEntry id="In_Weight_9"><text>-</text></inputEntry>
+        <inputEntry id="In_Express_9"><text>-</text></inputEntry>
+        <outputEntry id="Out_Carrier_9"><text>"UPS"</text></outputEntry>
+        <outputEntry id="Out_Cost_9"><text>29.00</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+  <inputData id="Input_Country" name="Country" />
+  <inputData id="Input_Weight" name="Parcel weight" />
+  <inputData id="Input_Express" name="Express delivery" />
+  <decision id="Decision_Surcharge" name="Legacy surcharge">
+    <variable id="Var_Surcharge" name="surcharge" typeRef="number" />
+    <literalExpression id="Expr_Surcharge"><text>if weight &gt; 30 then weight * 0.5 else 0</text></literalExpression>
+  </decision>
+  <knowledgeSource id="Source_Contracts" name="Carrier contracts" />
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DRD_Shipping">
+      <dmndi:DMNShape id="Shape_Decision" dmnElementRef="Decision_Shipping"><dc:Bounds height="80" width="180" x="250" y="100" /></dmndi:DMNShape>
+      <dmndi:DMNShape id="Shape_Country" dmnElementRef="Input_Country"><dc:Bounds height="45" width="125" x="97" y="290" /></dmndi:DMNShape>
+      <dmndi:DMNShape id="Shape_Weight" dmnElementRef="Input_Weight"><dc:Bounds height="45" width="125" x="277" y="290" /></dmndi:DMNShape>
+      <dmndi:DMNShape id="Shape_Express" dmnElementRef="Input_Express"><dc:Bounds height="45" width="125" x="457" y="290" /></dmndi:DMNShape>
+      <dmndi:DMNShape id="Shape_Surcharge" dmnElementRef="Decision_Surcharge"><dc:Bounds height="80" width="180" x="530" y="100" /></dmndi:DMNShape>
+      <dmndi:DMNShape id="Shape_Contracts" dmnElementRef="Source_Contracts"><dc:Bounds height="63" width="100" x="60" y="108" /></dmndi:DMNShape>
+      <dmndi:DMNEdge id="Edge_Country" dmnElementRef="IR_Country"><di:waypoint x="160" y="290" /><di:waypoint x="290" y="180" /></dmndi:DMNEdge>
+      <dmndi:DMNEdge id="Edge_Weight" dmnElementRef="IR_Weight"><di:waypoint x="340" y="290" /><di:waypoint x="340" y="180" /></dmndi:DMNEdge>
+      <dmndi:DMNEdge id="Edge_Express" dmnElementRef="IR_Express"><di:waypoint x="520" y="290" /><di:waypoint x="390" y="180" /></dmndi:DMNEdge>
+      <dmndi:DMNEdge id="Edge_Surcharge" dmnElementRef="IR_Surcharge"><di:waypoint x="530" y="140" /><di:waypoint x="430" y="140" /></dmndi:DMNEdge>
+      <dmndi:DMNEdge id="Edge_Contracts" dmnElementRef="AR_Contracts"><di:waypoint x="160" y="140" /><di:waypoint x="250" y="140" /></dmndi:DMNEdge>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+</definitions>`;
+
+export const SHIPPING_AFTER_XML = `<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/" xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/" xmlns:modeler="http://camunda.org/schema/modeler/1.0" id="Definitions_Shipping" name="Shipping" namespace="http://camunda.org/schema/1.0/dmn" modeler:executionPlatform="Camunda Cloud" modeler:executionPlatformVersion="8.6.0">
+  <decision id="Decision_Shipping" name="Choose carrier">
+    <informationRequirement id="IR_Country"><requiredInput href="#Input_Country" /></informationRequirement>
+    <informationRequirement id="IR_Weight"><requiredInput href="#Input_Weight" /></informationRequirement>
+    <informationRequirement id="IR_Express"><requiredInput href="#Input_Express" /></informationRequirement>
+    <informationRequirement id="IR_Insured"><requiredInput href="#Input_Insured" /></informationRequirement>
+    <authorityRequirement id="AR_Contracts"><requiredAuthority href="#Source_Contracts" /></authorityRequirement>
+    <decisionTable id="Table_Shipping" hitPolicy="FIRST">
+      <input id="Col_Country" label="Country">
+        <inputExpression id="Expr_Country" typeRef="string"><text>country</text></inputExpression>
+      </input>
+      <input id="Col_Weight" label="Weight (kg)">
+        <inputExpression id="Expr_Weight" typeRef="number"><text>weight</text></inputExpression>
+      </input>
+      <input id="Col_Express" label="Express">
+        <inputExpression id="Expr_Express" typeRef="boolean"><text>express</text></inputExpression>
+      </input>
+      <input id="Col_Insured" label="Insured">
+        <inputExpression id="Expr_Insured" typeRef="boolean"><text>insured</text></inputExpression>
+      </input>
+      <output id="Col_Carrier" label="Carrier" name="carrier" typeRef="string" />
+      <output id="Col_Cost" label="Cost (EUR)" name="cost" typeRef="number" />
+      <rule id="Rule_1">
+        <description>Parcel within Germany</description>
+        <inputEntry id="In_Country_1"><text>"DE"</text></inputEntry>
+        <inputEntry id="In_Weight_1"><text>&lt;= 5</text></inputEntry>
+        <inputEntry id="In_Express_1"><text>false</text></inputEntry>
+        <inputEntry id="In_Insured_1"><text>-</text></inputEntry>
+        <outputEntry id="Out_Carrier_1"><text>"DHL"</text></outputEntry>
+        <outputEntry id="Out_Cost_1"><text>4.99</text></outputEntry>
+      </rule>
+      <rule id="Rule_2">
+        <description>Next working day</description>
+        <inputEntry id="In_Country_2"><text>"DE"</text></inputEntry>
+        <inputEntry id="In_Weight_2"><text>&lt;= 5</text></inputEntry>
+        <inputEntry id="In_Express_2"><text>true</text></inputEntry>
+        <inputEntry id="In_Insured_2"><text>-</text></inputEntry>
+        <outputEntry id="Out_Carrier_2"><text>"DHL Express"</text></outputEntry>
+        <outputEntry id="Out_Cost_2"><text>9.99</text></outputEntry>
+      </rule>
+      <rule id="Rule_3">
+        <description>Heavy parcel, no express</description>
+        <inputEntry id="In_Country_3"><text>"DE"</text></inputEntry>
+        <inputEntry id="In_Weight_3"><text>&gt; 5</text></inputEntry>
+        <inputEntry id="In_Express_3"><text>-</text></inputEntry>
+        <inputEntry id="In_Insured_3"><text>-</text></inputEntry>
+        <outputEntry id="Out_Carrier_3"><text>"DHL Freight"</text></outputEntry>
+        <outputEntry id="Out_Cost_3"><text>13.90</text></outputEntry>
+      </rule>
+      <rule id="Rule_4">
+        <description>Neighbouring countries</description>
+        <inputEntry id="In_Country_4"><text>"AT","CH"</text></inputEntry>
+        <inputEntry id="In_Weight_4"><text>&lt;= 5</text></inputEntry>
+        <inputEntry id="In_Express_4"><text>false</text></inputEntry>
+        <inputEntry id="In_Insured_4"><text>-</text></inputEntry>
+        <outputEntry id="Out_Carrier_4"><text>"DPD"</text></outputEntry>
+        <outputEntry id="Out_Cost_4"><text>9.90</text></outputEntry>
+      </rule>
+      <rule id="Rule_5">
+        <description>Within two working days</description>
+        <inputEntry id="In_Country_5"><text>"AT","CH"</text></inputEntry>
+        <inputEntry id="In_Weight_5"><text>&lt;= 5</text></inputEntry>
+        <inputEntry id="In_Express_5"><text>true</text></inputEntry>
+        <inputEntry id="In_Insured_5"><text>-</text></inputEntry>
+        <outputEntry id="Out_Carrier_5"><text>"DPD Express"</text></outputEntry>
+        <outputEntry id="Out_Cost_5"><text>16.90</text></outputEntry>
+      </rule>
+      <rule id="Rule_8">
+        <description>Express everywhere else</description>
+        <inputEntry id="In_Country_8"><text>-</text></inputEntry>
+        <inputEntry id="In_Weight_8"><text>-</text></inputEntry>
+        <inputEntry id="In_Express_8"><text>true</text></inputEntry>
+        <inputEntry id="In_Insured_8"><text>-</text></inputEntry>
+        <outputEntry id="Out_Carrier_8"><text>"UPS Express"</text></outputEntry>
+        <outputEntry id="Out_Cost_8"><text>39.00</text></outputEntry>
+      </rule>
+      <rule id="Rule_7">
+        <description>Rest of the EU</description>
+        <inputEntry id="In_Country_7"><text>"FR","IT","NL"</text></inputEntry>
+        <inputEntry id="In_Weight_7"><text>-</text></inputEntry>
+        <inputEntry id="In_Express_7"><text>-</text></inputEntry>
+        <inputEntry id="In_Insured_7"><text>-</text></inputEntry>
+        <outputEntry id="Out_Carrier_7"><text>"GLS"</text></outputEntry>
+        <outputEntry id="Out_Cost_7"><text>14.90</text></outputEntry>
+      </rule>
+      <rule id="Rule_10">
+        <description>Nordic countries</description>
+        <inputEntry id="In_Country_10"><text>"SE","DK","NO"</text></inputEntry>
+        <inputEntry id="In_Weight_10"><text>-</text></inputEntry>
+        <inputEntry id="In_Express_10"><text>false</text></inputEntry>
+        <inputEntry id="In_Insured_10"><text>true</text></inputEntry>
+        <outputEntry id="Out_Carrier_10"><text>"PostNord"</text></outputEntry>
+        <outputEntry id="Out_Cost_10"><text>18.90</text></outputEntry>
+      </rule>
+      <rule id="Rule_9">
+        <description>Everything else</description>
+        <inputEntry id="In_Country_9"><text>-</text></inputEntry>
+        <inputEntry id="In_Weight_9"><text>-</text></inputEntry>
+        <inputEntry id="In_Express_9"><text>-</text></inputEntry>
+        <inputEntry id="In_Insured_9"><text>-</text></inputEntry>
+        <outputEntry id="Out_Carrier_9"><text>"UPS"</text></outputEntry>
+        <outputEntry id="Out_Cost_9"><text>29.00</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+  <inputData id="Input_Country" name="Country" />
+  <inputData id="Input_Weight" name="Parcel weight" />
+  <inputData id="Input_Express" name="Express delivery" />
+  <inputData id="Input_Insured" name="Insured shipping" />
+  <knowledgeSource id="Source_Contracts" name="Carrier contracts" />
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DRD_Shipping">
+      <dmndi:DMNShape id="Shape_Decision" dmnElementRef="Decision_Shipping"><dc:Bounds height="80" width="180" x="250" y="100" /></dmndi:DMNShape>
+      <dmndi:DMNShape id="Shape_Country" dmnElementRef="Input_Country"><dc:Bounds height="45" width="125" x="97" y="290" /></dmndi:DMNShape>
+      <dmndi:DMNShape id="Shape_Weight" dmnElementRef="Input_Weight"><dc:Bounds height="45" width="125" x="277" y="290" /></dmndi:DMNShape>
+      <dmndi:DMNShape id="Shape_Express" dmnElementRef="Input_Express"><dc:Bounds height="45" width="125" x="457" y="290" /></dmndi:DMNShape>
+      <dmndi:DMNShape id="Shape_Insured" dmnElementRef="Input_Insured"><dc:Bounds height="45" width="125" x="637" y="290" /></dmndi:DMNShape>
+      <dmndi:DMNShape id="Shape_Contracts" dmnElementRef="Source_Contracts"><dc:Bounds height="63" width="100" x="40" y="30" /></dmndi:DMNShape>
+      <dmndi:DMNEdge id="Edge_Country" dmnElementRef="IR_Country"><di:waypoint x="160" y="290" /><di:waypoint x="290" y="180" /></dmndi:DMNEdge>
+      <dmndi:DMNEdge id="Edge_Weight" dmnElementRef="IR_Weight"><di:waypoint x="340" y="290" /><di:waypoint x="340" y="180" /></dmndi:DMNEdge>
+      <dmndi:DMNEdge id="Edge_Express" dmnElementRef="IR_Express"><di:waypoint x="520" y="290" /><di:waypoint x="390" y="180" /></dmndi:DMNEdge>
+      <dmndi:DMNEdge id="Edge_Insured" dmnElementRef="IR_Insured"><di:waypoint x="690" y="290" /><di:waypoint x="430" y="172" /></dmndi:DMNEdge>
+      <dmndi:DMNEdge id="Edge_Contracts" dmnElementRef="AR_Contracts"><di:waypoint x="140" y="62" /><di:waypoint x="250" y="112" /></dmndi:DMNEdge>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+</definitions>`;

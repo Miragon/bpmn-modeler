@@ -1,7 +1,10 @@
 import { commands, Uri } from "vscode";
 
-// Context key that gates the "Compare with Selected" menu entry.
-const CONTEXT_KEY = "bpmn-modeler.compareSelectionActive";
+/** Context key that shows "Compare with Selected (BPMN)" once a file is picked. */
+export const BPMN_COMPARE_SELECTION_KEY = "bpmn-modeler.compareSelectionActive";
+
+/** Context key that shows "Compare with Selected (DMN)" once a file is picked. */
+export const DMN_COMPARE_SELECTION_KEY = "bpmn-modeler.dmnCompareSelectionActive";
 
 /**
  * Holds the URI the user picked via "Select for Compare" until they follow
@@ -20,6 +23,9 @@ const CONTEXT_KEY = "bpmn-modeler.compareSelectionActive";
 export class CompareSelectionStore {
     private selected?: Uri;
 
+    /** @param contextKey The context key the format's "Compare with Selected" menu entry waits for. */
+    constructor(private readonly contextKey: string) {}
+
     /**
      * Returns the currently selected URI, or `undefined` when nothing is selected.
      */
@@ -36,7 +42,7 @@ export class CompareSelectionStore {
      */
     async set(uri: Uri): Promise<void> {
         this.selected = uri;
-        await commands.executeCommand("setContext", CONTEXT_KEY, true);
+        await commands.executeCommand("setContext", this.contextKey, true);
     }
 
     /**
@@ -45,6 +51,6 @@ export class CompareSelectionStore {
      */
     async clear(): Promise<void> {
         this.selected = undefined;
-        await commands.executeCommand("setContext", CONTEXT_KEY, false);
+        await commands.executeCommand("setContext", this.contextKey, false);
     }
 }

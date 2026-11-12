@@ -34,7 +34,6 @@ function stubViewer(present: string[] = []) {
         applyHighlights: (ids: readonly string[], klass: string) => {
             calls.highlights[klass] = ids;
         },
-        isConnection: () => false,
         hasElement: (id: string) => has.has(id),
         focusElement: (id: string) => {
             calls.focus.push(id);
@@ -125,6 +124,19 @@ describe("DiffPaneCoordinator", () => {
         coord.apply(RESULT);
         coord.previous();
         expect(coord.cursor).toBe(3);
+    });
+
+    it("can step only once a diff with a change to step to is applied", () => {
+        const before = stubViewer(["S1"]);
+        const after = stubViewer(["S1"]);
+        const coord = new DiffPaneCoordinator(before.viewer, after.viewer);
+        expect(coord.canStep).toBe(false);
+
+        coord.apply(RESULT);
+        expect(coord.canStep).toBe(true);
+
+        coord.apply({ ...RESULT, navigationOrder: [] });
+        expect(coord.canStep).toBe(false);
     });
 
     it("ignores navigation before any diff is applied", () => {

@@ -1,0 +1,150 @@
+/*
+ * A read-only DMN diff pane (`createDiffViewer`). The change colours are the
+ * BPMN diff's (packages/bpmn-modeler/src/styles/diffView.css), so both diffs
+ * read the same; `diffPalette.spec.ts` keeps them equal.
+ */
+.dmn-diff {
+    --dmn-diff-added: #52b415;
+    --dmn-diff-removed: #cc0000;
+    --dmn-diff-changed: #316fbe;
+    --dmn-diff-moved: #888;
+    --dmn-diff-current: #ffbe00;
+}
+
+/* ─── DRD markers ─────────────────────────────────────────────────────── */
+
+.dmn-diff .djs-shape.diff-added .djs-visual > :nth-child(1) {
+    stroke: var(--dmn-diff-added) !important;
+    stroke-width: 3px !important;
+}
+
+.dmn-diff .djs-shape.diff-removed .djs-visual > :nth-child(1) {
+    stroke: var(--dmn-diff-removed) !important;
+    stroke-width: 3px !important;
+}
+
+.dmn-diff .djs-shape.diff-changed .djs-visual > :nth-child(1) {
+    stroke: var(--dmn-diff-changed) !important;
+    stroke-width: 3px !important;
+}
+
+.dmn-diff .djs-shape.diff-layout-changed .djs-visual > :nth-child(1) {
+    stroke-dasharray: 5 3 !important;
+    stroke-width: 2px !important;
+}
+
+/* Requirement edges keep their width: dmn-js scales an arrowhead with its edge. */
+.dmn-diff .djs-connection.diff-added .djs-visual path {
+    stroke: var(--dmn-diff-added) !important;
+}
+
+.dmn-diff .djs-connection.diff-removed .djs-visual path {
+    stroke: var(--dmn-diff-removed) !important;
+}
+
+.dmn-diff .djs-connection.diff-changed .djs-visual path {
+    stroke: var(--dmn-diff-changed) !important;
+}
+
+.dmn-diff .djs-connection.diff-layout-changed .djs-visual path {
+    stroke-dasharray: 5 3 !important;
+}
+
+.dmn-diff .djs-element.diff-selected .djs-visual {
+    filter: drop-shadow(0 0 6px var(--dmn-diff-current))
+        drop-shadow(0 0 3px var(--dmn-diff-current));
+}
+
+/* A decision whose table changed: its counts, top right. */
+.dmn-diff .dmn-diff-counts {
+    display: inline-flex;
+    gap: 7px;
+    padding: 1px 8px;
+    border: 1.5px solid var(--dmn-diff-changed);
+    border-radius: 999px;
+    font: 600 11px/16px var(--dmn-diff-font, inherit);
+    white-space: nowrap;
+    color: var(--dt-surface-a70, #1d1d1d);
+    background: var(--dt-surface-a10, #fff);
+}
+
+.dmn-diff .dmn-diff-counts > span::before {
+    content: "";
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    margin-right: 3px;
+    border-radius: 50%;
+}
+
+.dmn-diff .dmn-diff-counts__added::before {
+    background: var(--dmn-diff-added);
+}
+
+.dmn-diff .dmn-diff-counts__removed::before {
+    background: var(--dmn-diff-removed);
+}
+
+.dmn-diff .dmn-diff-counts__changed::before {
+    background: var(--dmn-diff-changed);
+}
+
+.dmn-diff .dmn-diff-counts .dmn-diff-counts__layoutChanged::before {
+    content: "↕";
+    width: auto;
+    height: auto;
+    color: var(--dmn-diff-moved);
+}
+
+/* ─── Decision tables ─────────────────────────────────────────────────── */
+
+/* The definitions box sits where the legend floats; the tab names the file. */
+.dmn-diff .dmn-definitions {
+    display: none;
+}
+
+/* Read-only cells need no room for an editor: narrower columns show more of the table. */
+.dmn-diff .dmn-decision-table-container thead th:not(.index-column) {
+    width: 150px;
+}
+
+/* The rule numbers and their change bars stay visible while the table scrolls sideways. */
+.dmn-diff .dmn-decision-table-container td.rule-index,
+.dmn-diff .dmn-decision-table-container th.index-column {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    background-color: var(--decision-table-background-color);
+}
+
+.dmn-diff .dmn-decision-table-container thead th.index-column {
+    z-index: 3;
+}
+
+.dmn-diff .dmn-decision-table-container tbody tr:nth-child(2n) td.rule-index {
+    background-color: var(--table-row-alternative-background-color);
+}
+
+/* ─── A view of an element only one version has, or whose expression changed ── */
+
+.dmn-diff[data-dmn-diff-view="added"] {
+    --dmn-diff-view: var(--dmn-diff-added);
+}
+
+.dmn-diff[data-dmn-diff-view="removed"] {
+    --dmn-diff-view: var(--dmn-diff-removed);
+}
+
+.dmn-diff[data-dmn-diff-view="changed"] {
+    --dmn-diff-view: var(--dmn-diff-changed);
+}
+
+.dmn-diff[data-dmn-diff-view] .dmn-literal-expression-container .decision-properties,
+.dmn-diff[data-dmn-diff-view] .dmn-literal-expression-container .textarea,
+.dmn-diff[data-dmn-diff-view] .dmn-literal-expression-container .literal-expression-properties,
+.dmn-diff[data-dmn-diff-view] .dmn-boxed-expression-container .element-properties,
+.dmn-diff[data-dmn-diff-view] .dmn-boxed-expression-container .function-definition,
+.dmn-diff[data-dmn-diff-view] .dmn-boxed-expression-container .element-variable,
+.dmn-diff[data-dmn-diff-view] .tjs-table-container {
+    box-shadow: inset 4px 0 0 var(--dmn-diff-view);
+}

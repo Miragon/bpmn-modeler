@@ -30,6 +30,11 @@ const dictionary: Record<string, string> = {
         "저장된 양식이 유효하지 않거나 지원되지 않습니다. 양식 편집기에서 여세요.",
     "The form preview could not be loaded. Refresh to try again.":
         "양식 미리보기를 불러올 수 없습니다. 새로 고침하여 다시 시도하세요.",
+    "Changes": "변경 사항",
+    "Not in this version": "이 버전에 없음",
+    "It was removed. The version on the left shows it.": "제거되었습니다. 왼쪽 버전에 표시됩니다.",
+    "It is new. The version on the right shows it.":
+        "새로 추가되었습니다. 오른쪽 버전에 표시됩니다.",
     "A form is either a form id or an external reference, not both.":
         "양식에는 양식 ID와 외부 참조 중 하나만 지정할 수 있습니다.",
     "A property cannot depend on itself.": "속성은 자기 자신에 종속될 수 없습니다.",

@@ -12,7 +12,7 @@ import {
     EditorSessionParticipant,
     NavigationFeature,
 } from "@miragon/bpmn-modeler-core";
-import { BpmnDiffController } from "../diff/adapter/in/BpmnDiffController";
+import { DiffController } from "../diff/adapter/in/DiffController";
 import {
     FocusLintElementController,
     FOCUS_LINT_ELEMENT_CMD,
@@ -26,7 +26,7 @@ import { VsCodeDiagnostics } from "../shared/adapter/out/VsCodeDiagnostics";
 import { SharedDeps } from "./sharedDeps";
 
 interface BpmnEditorHandles {
-    diffController: BpmnDiffController;
+    diffController: DiffController;
     templateSources: CachedTemplateProvider;
     deploymentStatusParticipant: EditorSessionParticipant;
     scriptEditor: BpmnEditorContributions["scriptEditor"];

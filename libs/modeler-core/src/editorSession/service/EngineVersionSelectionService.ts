@@ -1,6 +1,6 @@
+import type { ModelerFileExtension } from "../../kernel/domain/modelerFileExtension";
 import { DocumentPort } from "../../kernel/port/hostPorts";
 import { EditorSessionStore } from "./EditorSessionStore";
-import { ModelerFileExtension } from "./PendingEditsFlush";
 
 type EngineSelector = (editorId: string) => Promise<boolean>;
 

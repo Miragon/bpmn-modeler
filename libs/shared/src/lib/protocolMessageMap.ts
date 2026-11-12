@@ -7,6 +7,13 @@ import type {
     RevealAddOnsQuery,
 } from "./addOnsView";
 import type {
+    ApplyDmnDiffHighlightsQuery,
+    DmnDiffScrollChangedCommand,
+    DmnDiffViewChangedCommand,
+    SyncDmnDiffScrollQuery,
+    SyncDmnDiffViewQuery,
+} from "./dmnDiffMessages";
+import type {
     DocumentFlushedCommand,
     FlushDocumentQuery,
     LogDebugCommand,
@@ -153,6 +160,9 @@ export type ProtocolQuery =
     | ApplyDiffHighlightsQuery
     | SyncViewportQuery
     | SyncCursorQuery
+    | ApplyDmnDiffHighlightsQuery
+    | SyncDmnDiffViewQuery
+    | SyncDmnDiffScrollQuery
     | AddOnCatalogQuery
     | AddOnActionResultQuery
     | RevealAddOnsQuery
@@ -214,6 +224,8 @@ export type ProtocolCommand =
     | CursorChangedCommand
     | DiffReadyCommand
     | SwapCompareSidesCommand
+    | DmnDiffViewChangedCommand
+    | DmnDiffScrollChangedCommand
     | GetAddOnCatalogCommand
     | AddOnRequestCommand;
 

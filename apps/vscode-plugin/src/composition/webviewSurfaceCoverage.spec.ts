@@ -76,6 +76,16 @@ const VSCODE_SURFACES: HostSurfaceCoverage = {
         SwapCompareSidesCommand: HANDLED,
         LogErrorCommand: HANDLED,
     },
+    dmnDiffPane: {
+        GetDmnFileCommand: HANDLED,
+        DiffReadyCommand: HANDLED,
+        ViewportChangedCommand: HANDLED,
+        CursorChangedCommand: HANDLED,
+        DmnDiffViewChangedCommand: HANDLED,
+        DmnDiffScrollChangedCommand: HANDLED,
+        SwapCompareSidesCommand: HANDLED,
+        LogErrorCommand: HANDLED,
+    },
     dmnEditor: {
         SyncDocumentCommand: HANDLED,
         DocumentFlushedCommand: HANDLED,
@@ -140,7 +150,7 @@ function registerVsCodeSurfaces() {
     } as unknown as ExtensionContext;
     setContext(context);
     const deps = buildSharedDeps(context);
-    const { diffController } = diffFeature.register(context, deps);
+    const { diffController, dmnDiffController } = diffFeature.register(context, deps);
     const { marketplaceSvc, templateSources } = templateMarketplaceFeature.register(context, deps);
     const reviews = addOnsFeature.createViewReviews(deps);
     const { deploymentStatusParticipant, deploymentSidebarRoutes } = deploymentFeature.register(
@@ -168,7 +178,9 @@ function registerVsCodeSurfaces() {
             notifier: deps.notifier,
         }).editorContribution,
     });
-    const { dmnEditorRoutes, formEditorRoutes } = editorFeature.register(context, deps);
+    const { dmnEditorRoutes, formEditorRoutes } = editorFeature.register(context, deps, {
+        dmnDiffController,
+    });
     const { marketplaces } = templateMarketplaceFeature.registerCommands(context, deps, {
         marketplaceSvc,
         templatesSvc: bpmnEditor.editor.templates,
@@ -182,6 +194,7 @@ function registerVsCodeSurfaces() {
     return {
         bpmnEditor: bpmnEditor.editor.router,
         bpmnDiffPane: diffController.paneRoutes,
+        dmnDiffPane: dmnDiffController.paneRoutes,
         dmnEditor: dmnEditorRoutes,
         formEditor: formEditorRoutes,
         templateEditor: templateEditorRoutes,

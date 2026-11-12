@@ -23,7 +23,8 @@ name: Sync release markers
 #               libs/shared. BUNDLED_WEBVIEW marker, as the other hosts,
 #               outside every trigger path.
 #   - dmn-modeler (packages/dmn-modeler): the publishable @miragon/dmn-modeler
-#               package inlines libs/modeler-types and libs/bpmn-i18n-extras.
+#               package inlines libs/modeler-types, libs/bpmn-diff and
+#               libs/bpmn-i18n-extras.
 #               Its BUNDLED_LIBS marker records bundled *libs* into a package
 #               (vs BUNDLED_WEBVIEW's webviews into a host). Unlike the host
 #               markers, this one sits under a trigger path, so the trigger
@@ -131,13 +132,13 @@ jobs:
           IJ_MARKER="apps/intellij-plugin/BUNDLED_WEBVIEW"
           ORCA_MARKER="apps/orca-plugin/BUNDLED_WEBVIEW"
 
-          # The DMN package inlines only libs/modeler-types and
+          # The DMN package inlines only libs/modeler-types, libs/bpmn-diff and
           # libs/bpmn-i18n-extras (vite.config.mts INLINED_LIB_SRC, kept in step
-          # by the same spec); a change to either bumps its release line
+          # by the same spec); a change to any of them bumps its release line
           # via BUNDLED_LIBS. IntelliJ ships no DMN editor, so DMN is not in
           # IJ_RELEVANT; vscode bundles the DMN webview (which inlines the
           # package), so packages/dmn-modeler IS in VSC_RELEVANT above.
-          DMN_RELEVANT='^libs/(modeler-types|bpmn-i18n-extras)/'
+          DMN_RELEVANT='^libs/(modeler-types|bpmn-diff|bpmn-i18n-extras)/'
           DMN_NATIVE='^packages/dmn-modeler/'
           DMN_MARKER="packages/dmn-modeler/BUNDLED_LIBS"
 

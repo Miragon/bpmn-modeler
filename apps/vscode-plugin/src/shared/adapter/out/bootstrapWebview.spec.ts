@@ -55,7 +55,7 @@ describe("bootstrapWebview", () => {
     ])("limits the %s webview to its own directories", (viewType, expectedRoots) => {
         const panel = createPanel();
 
-        bootstrapWebview(viewType, panel as never);
+        bootstrapWebview(panel as never, { viewType, initialPanelVisible: true });
 
         const options = panel.webview.options as {
             enableScripts?: boolean;
@@ -77,15 +77,65 @@ describe("bootstrapWebview", () => {
     it("loads the template preview entry for the preview view type", () => {
         const panel = createPanel();
 
-        bootstrapWebview(ELEMENT_TEMPLATE_EDITOR_VIEW_TYPE, panel as never);
+        bootstrapWebview(panel as never, {
+            viewType: ELEMENT_TEMPLATE_EDITOR_VIEW_TYPE,
+            initialPanelVisible: true,
+        });
 
         expect(panel.webview.html).toContain("webview:extension/bpmn-webview/templateEditor.js");
+    });
+
+    it.each([
+        ["bpmnDiffPane", ["file:extension/bpmn-webview", "file:global-storage/bpmn-plugins"]],
+        ["dmnDiffPane", ["file:extension/dmn-webview", "file:extension/assets"]],
+    ] as const)("limits the %s to its editor's directories", (diffPane, expectedRoots) => {
+        const panel = createPanel();
+
+        bootstrapWebview(panel as never, { diffPane });
+
+        const options = panel.webview.options as { localResourceRoots?: MockUri[] };
+        expect(options.localResourceRoots?.map((root) => `${root.scheme}:${root.path}`)).toEqual(
+            expectedRoots,
+        );
+    });
+
+    it("names the page of a DMN diff pane and of a DMN editor", () => {
+        const diffPanel = createPanel();
+        const editorPanel = createPanel();
+
+        bootstrapWebview(diffPanel as never, { diffPane: "dmnDiffPane" });
+        bootstrapWebview(editorPanel as never, {
+            viewType: DMN_VIEW_TYPE,
+            initialPanelVisible: true,
+        });
+
+        expect(diffPanel.webview.html).toContain('data-surface="dmnDiffPane"');
+        expect(editorPanel.webview.html).toContain('data-surface="dmnEditor"');
+    });
+
+    it("loads the BPMN editor page for a BPMN diff pane, with its properties panel shown", () => {
+        const panel = createPanel();
+
+        bootstrapWebview(panel as never, { diffPane: "bpmnDiffPane" });
+
+        expect(panel.webview.html).toContain("webview:extension/bpmn-webview/index.js");
+        expect(panel.webview.html).not.toContain("collapsed");
+    });
+
+    it("renders an editor's properties panel collapsed when the host hides it", () => {
+        const panel = createPanel();
+
+        bootstrapWebview(panel as never, { viewType: DMN_VIEW_TYPE, initialPanelVisible: false });
+
+        expect(panel.webview.html).toContain("properties-panel-parent collapsed");
     });
 
     it("rejects an unknown view type before touching the webview", () => {
         const panel = createPanel();
 
-        expect(() => bootstrapWebview("unknown", panel as never)).toThrow(
+        expect(() =>
+            bootstrapWebview(panel as never, { viewType: "unknown", initialPanelVisible: true }),
+        ).toThrow(
             "Unsupported view type: unknown",
         );
         expect(panel.webview.options).toEqual({});

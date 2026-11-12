@@ -31,6 +31,11 @@ const dictionary: Record<string, string> = {
         "Het opgeslagen formulier is ongeldig of niet ondersteund. Open het in de formuliereditor.",
     "The form preview could not be loaded. Refresh to try again.":
         "Het formuliervoorbeeld kon niet worden geladen. Vernieuw om opnieuw te proberen.",
+    "Changes": "Wijzigingen",
+    "Not in this version": "Niet in deze versie",
+    "It was removed. The version on the left shows it.":
+        "Het is verwijderd. De versie links toont het.",
+    "It is new. The version on the right shows it.": "Het is nieuw. De versie rechts toont het.",
     "A form is either a form id or an external reference, not both.":
         "Een formulier is óf een form-ID óf een externe referentie, niet allebei.",
     "A property cannot depend on itself.": "Een eigenschap kan niet van zichzelf afhangen.",

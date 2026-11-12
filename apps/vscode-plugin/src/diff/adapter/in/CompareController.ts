@@ -1,35 +1,61 @@
 import { commands, ExtensionContext, Uri, window } from "vscode";
 
+import {
+    COMPARE_WITH_ITSELF_TEXT,
+    CompareFormat,
+    NotifierPort,
+    nothingSelectedForCompareText,
+    selectedForCompareText,
+    selectTwoFilesText,
+} from "@miragon/bpmn-modeler-core";
 import { CompareSelectionStore } from "./CompareSelectionStore";
-import { BpmnDiffController } from "./BpmnDiffController";
-import { NotifierPort } from "@miragon/bpmn-modeler-core";
+import { DiffController } from "./DiffController";
 
-// VS Code command ID for the first step of a two-file BPMN compare.
-export const SELECT_FOR_COMPARE_CMD = "bpmn-modeler.selectForCompare";
-// VS Code command ID for the second step — compares the given URI against the stored selection.
-export const COMPARE_WITH_SELECTED_CMD = "bpmn-modeler.compareWithSelected";
-// VS Code command ID for the single-step compare driven by an Explorer multi-selection of exactly two files.
-export const COMPARE_SELECTED_CMD = "bpmn-modeler.compareSelected";
+/** The menu label and the three compare commands of one file format. */
+export interface CompareCommands {
+    /** Such as `BPMN`, as in "Select for Compare (BPMN)". */
+    readonly label: string;
+    /** First step of a two-file compare: remembers the file. */
+    readonly selectForCompare: string;
+    /** Second step: compares the given file with the remembered one. */
+    readonly compareWithSelected: string;
+    /** Single step, for an Explorer multi-selection of exactly two files. */
+    readonly compareSelected: string;
+}
+
+export const BPMN_COMPARE: CompareCommands = {
+    label: "BPMN",
+    selectForCompare: "bpmn-modeler.selectForCompare",
+    compareWithSelected: "bpmn-modeler.compareWithSelected",
+    compareSelected: "bpmn-modeler.compareSelected",
+};
+
+export const DMN_COMPARE: CompareCommands = {
+    label: "DMN",
+    selectForCompare: "bpmn-modeler.selectDmnForCompare",
+    compareWithSelected: "bpmn-modeler.compareDmnWithSelected",
+    compareSelected: "bpmn-modeler.compareSelectedDmn",
+};
 
 // How long the status-bar acknowledgement sits before fading.
 const STATUS_MESSAGE_TIMEOUT_MS = 3_000;
 
 /**
- * Bridges VS Code's Explorer context menu to the existing BPMN diff UI.
+ * Bridges VS Code's Explorer context menu to the diff of one file format.
  *
  * Offers two entry points that mirror VS Code's built-in compare UX:
  *
  * - **Two-step** (single right-click at a time): "Select for Compare" stores
  *   the URI in {@link CompareSelectionStore} and activates a context key so
  *   "Compare with Selected" appears on the next right-click.  The second
- *   step opens the diff via {@link BpmnDiffController.openCompareFilesDiff} and
+ *   step opens the diff via {@link DiffController.openCompareFilesDiff} and
  *   clears the selection (one-shot).
  * - **Single-step** (multi-selection of exactly two files): "Compare Selected"
  *   receives both URIs at once via the Explorer's `(uri, uris)` callback
  *   signature, skips the store entirely, and dispatches the same diff-open
  *   path.
  *
- * Both paths funnel through {@link BpmnDiffController.openCompareFilesDiff} so
+ * Both paths funnel through {@link DiffController.openCompareFilesDiff} so
  * session registration, tab-title construction, and error reporting stay in
  * one place — and the swap-sides flow can re-use the exact same entry point.
  *
@@ -38,19 +64,22 @@ const STATUS_MESSAGE_TIMEOUT_MS = 3_000;
  * from explorer resources and have a different lifecycle than the other,
  * modeler-active commands.
  */
-export class BpmnCompareController {
+export class CompareController {
     /**
      * @param selection Cross-command store holding the URI picked by the
      *   first step of the workflow.
      * @param diffController Owns diff-session registration; must be notified
      *   *before* `vscode.diff` is invoked so pane resolution finds the
      *   session synchronously.
+     *   It also names the file extension the commands accept.
      * @param notifier User-facing messages and logging.
+     * @param compareCommands The format's menu label and command IDs.
      */
     constructor(
         private readonly selection: CompareSelectionStore,
-        private readonly diffController: BpmnDiffController,
+        private readonly diffController: DiffController,
         private readonly notifier: NotifierPort,
+        private readonly compareCommands: CompareCommands,
     ) {}
 
     /**
@@ -59,9 +88,21 @@ export class BpmnCompareController {
      */
     register(context: ExtensionContext): void {
         context.subscriptions.push(
-            commands.registerCommand(SELECT_FOR_COMPARE_CMD, this.selectForCompare, this),
-            commands.registerCommand(COMPARE_WITH_SELECTED_CMD, this.compareWithSelected, this),
-            commands.registerCommand(COMPARE_SELECTED_CMD, this.compareSelected, this),
+            commands.registerCommand(
+                this.compareCommands.selectForCompare,
+                this.selectForCompare,
+                this,
+            ),
+            commands.registerCommand(
+                this.compareCommands.compareWithSelected,
+                this.compareWithSelected,
+                this,
+            ),
+            commands.registerCommand(
+                this.compareCommands.compareSelected,
+                this.compareSelected,
+                this,
+            ),
         );
     }
 
@@ -71,19 +112,19 @@ export class BpmnCompareController {
      * without interrupting the user's flow.
      */
     async selectForCompare(uri: Uri | undefined): Promise<void> {
-        if (!isBpmnUri(uri)) {
+        if (!this.isOfFormat(uri)) {
             return;
         }
         await this.selection.set(uri);
         window.setStatusBarMessage(
-            `BPMN Modeler: ${basenameOf(uri)} selected for compare`,
+            selectedForCompareText(basenameOf(uri)),
             STATUS_MESSAGE_TIMEOUT_MS,
         );
     }
 
     /**
      * Step 2: pair `rightUri` with the previously-selected URI and open a
-     * BPMN diff tab.
+     * diff tab.
      *
      * Pre-registers a `compare-files` {@link DiffSession} before invoking
      * `vscode.diff`, so when VS Code resolves each pane through our
@@ -94,20 +135,18 @@ export class BpmnCompareController {
      * matching VS Code's built-in "Compare with Selected").
      */
     async compareWithSelected(rightUri: Uri | undefined): Promise<void> {
-        if (!isBpmnUri(rightUri)) {
+        if (!this.isOfFormat(rightUri)) {
             return;
         }
 
         const leftUri = this.selection.get();
         if (!leftUri) {
-            this.notifier.showInfo(
-                'No file selected for compare. Right-click a .bpmn file and choose "Select for Compare (BPMN)" first.',
-            );
+            this.notifier.showInfo(nothingSelectedForCompareText(this.compareFormat));
             return;
         }
 
         if (leftUri.toString() === rightUri.toString()) {
-            this.notifier.showInfo("Cannot compare a file with itself.");
+            this.notifier.showInfo(COMPARE_WITH_ITSELF_TEXT);
             return;
         }
 
@@ -123,7 +162,7 @@ export class BpmnCompareController {
      * argument and work from `uris` so selection order determines left/right.
      * The menu is gated on `listDoubleSelection` so there are always exactly
      * two entries; the runtime filter guards against the edge case where the
-     * other selected item is not `.bpmn` (the built-in `resourceExtname`
+     * other selected item is of another format (the built-in `resourceExtname`
      * `when` clause only evaluates the clicked resource).
      *
      * Unlike {@link compareWithSelected} this path never touches
@@ -131,24 +170,28 @@ export class BpmnCompareController {
      * previously-stored "Select for Compare" pick is intentionally preserved.
      */
     async compareSelected(_uri: Uri | undefined, uris: Uri[] | undefined): Promise<void> {
-        const bpmnUris = (uris ?? []).filter(isBpmnUri);
-        if (bpmnUris.length !== 2) {
-            this.notifier.showInfo("Select exactly two .bpmn files to compare.");
+        const matching = (uris ?? []).filter((candidate) => this.isOfFormat(candidate));
+        if (matching.length !== 2) {
+            this.notifier.showInfo(selectTwoFilesText(this.compareFormat));
             return;
         }
 
-        const [leftUri, rightUri] = bpmnUris;
+        const [leftUri, rightUri] = matching;
         if (leftUri.toString() === rightUri.toString()) {
-            this.notifier.showInfo("Cannot compare a file with itself.");
+            this.notifier.showInfo(COMPARE_WITH_ITSELF_TEXT);
             return;
         }
 
         await this.diffController.openCompareFilesDiff(leftUri, rightUri);
     }
-}
 
-function isBpmnUri(uri: Uri | undefined): uri is Uri {
-    return uri !== undefined && uri.path.endsWith(".bpmn");
+    private get compareFormat(): CompareFormat {
+        return { extension: this.diffController.extension, label: this.compareCommands.label };
+    }
+
+    private isOfFormat(uri: Uri | undefined): uri is Uri {
+        return uri !== undefined && uri.path.endsWith(this.diffController.extension);
+    }
 }
 
 function basenameOf(uri: Uri): string {

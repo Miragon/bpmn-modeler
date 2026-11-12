@@ -28,6 +28,7 @@
                 "libs/shared/**",
                 "libs/modeler-types/**",
                 "libs/bpmn-diff/**",
+                "libs/dmn-diff/**",
                 "libs/bpmn-i18n-extras/**",
                 "docs/vscode/features/language-support.md"
             ],
@@ -49,6 +50,7 @@
                 "libs/shared/**",
                 "libs/modeler-types/**",
                 "libs/bpmn-diff/**",
+                "libs/dmn-diff/**",
                 "libs/bpmn-i18n-extras/**"
             ],
             "typecheck": "typecheck"
@@ -104,6 +106,8 @@
                 "packages/dmn-modeler/**",
                 "libs/shared/**",
                 "libs/modeler-types/**",
+                "libs/bpmn-diff/**",
+                "libs/dmn-diff/**",
                 "libs/bpmn-i18n-extras/**"
             ],
             "typecheck": "typecheck"
@@ -217,12 +221,14 @@
             ],
             "paths": [
                 "packages/dmn-modeler/**",
+                "packages/bpmn-modeler/src/styles/diffView.css",
                 "tools/architecture-testing/**",
                 "libs/*/src/**",
                 "libs/modeler-types/**",
                 "libs/bpmn-i18n-extras/**"
             ],
-            "typecheck": "typecheck"
+            "typecheck": "typecheck",
+            "browser": true
         },
         "modeler-core": {
             "dir": "libs/modeler-core",
@@ -239,6 +245,7 @@
                 "libs/shared/**",
                 "libs/modeler-types/**",
                 "libs/bpmn-diff/**",
+                "libs/dmn-diff/**",
                 "libs/bpmn-i18n-extras/**",
                 "packages/bpmn-modeler/src/bpmnlint/**",
                 "scripts/perf/**"
@@ -303,6 +310,16 @@
             "package": "@miragon/bpmn-modeler-diff",
             "paths": [
                 "libs/bpmn-diff/**",
+                "yarn.lock"
+            ],
+            "typecheck": "build"
+        },
+        "dmn-diff": {
+            "dir": "libs/dmn-diff",
+            "package": "@miragon/dmn-modeler-diff",
+            "paths": [
+                "libs/dmn-diff/**",
+                "libs/bpmn-diff/src/**",
                 "yarn.lock"
             ],
             "typecheck": "build"

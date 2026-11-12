@@ -40,8 +40,25 @@ const view = (over: Partial<DiffSideView> = {}): DiffSideView => ({
 });
 
 describe("DiffNavigator", () => {
-    it("prunes layout-only connections from the cycle", () => {
-        const { viewer } = stubViewer({ present: ["A", "Flow_1", "B"], connections: ["Flow_1"] });
+    it("steps through the navigation order as computed by the diff", () => {
+        const { viewer, calls } = stubViewer({
+            present: ["A", "Flow_1", "B"],
+            connections: ["Flow_1"],
+        });
+        const nav = new DiffNavigator(viewer);
+
+        nav.setChanges(["A", "Flow_1", "B"]);
+        [1, 2, 3].forEach(() => nav.advance(1));
+
+        expect(nav.cycleLength).toBe(3);
+        expect(calls.focus).toEqual(["A", "Flow_1", "B"]);
+    });
+
+    it("skips a layout-only connection in a navigation order passed with its side view", () => {
+        const { viewer, calls } = stubViewer({
+            present: ["A", "Flow_1", "B"],
+            connections: ["Flow_1"],
+        });
         const nav = new DiffNavigator(viewer);
 
         nav.setChanges(view({ changed: ["A", "B"], layoutChanged: ["Flow_1"] }), [
@@ -49,11 +66,13 @@ describe("DiffNavigator", () => {
             "Flow_1",
             "B",
         ]);
+        [1, 2].forEach(() => nav.advance(1));
 
         expect(nav.cycleLength).toBe(2);
+        expect(calls.focus).toEqual(["A", "B"]);
     });
 
-    it("keeps a connection that is also a semantic change", () => {
+    it("keeps a connection that is also a semantic change when passed with its side view", () => {
         const { viewer } = stubViewer({ present: ["Flow_1"], connections: ["Flow_1"] });
         const nav = new DiffNavigator(viewer);
 
@@ -62,10 +81,22 @@ describe("DiffNavigator", () => {
         expect(nav.cycleLength).toBe(1);
     });
 
+    it("can step only when the navigation order has a change", () => {
+        const { viewer } = stubViewer({ present: ["A"] });
+        const nav = new DiffNavigator(viewer);
+        expect(nav.canStep).toBe(false);
+
+        nav.setChanges(["A"]);
+        expect(nav.canStep).toBe(true);
+
+        nav.setChanges([]);
+        expect(nav.canStep).toBe(false);
+    });
+
     it("wraps the cursor forward and backward", () => {
         const { viewer } = stubViewer({ present: ["A", "B", "C"] });
         const nav = new DiffNavigator(viewer);
-        nav.setChanges(view({ changed: ["A", "B", "C"] }), ["A", "B", "C"]);
+        nav.setChanges(["A", "B", "C"]);
 
         expect(nav.advance(1)).toBe(0);
         expect(nav.advance(1)).toBe(1);
@@ -77,7 +108,7 @@ describe("DiffNavigator", () => {
     it("starts backward navigation at the last change (#1498)", () => {
         const { viewer } = stubViewer({ present: ["A", "B", "C"] });
         const nav = new DiffNavigator(viewer);
-        nav.setChanges(view({ changed: ["A", "B", "C"] }), ["A", "B", "C"]);
+        nav.setChanges(["A", "B", "C"]);
 
         expect(nav.advance(-1)).toBe(2);
     });
@@ -85,42 +116,42 @@ describe("DiffNavigator", () => {
     it("anchors the initial step at an end of the cycle for lengths 1-3", () => {
         const len1 = stubViewer({ present: ["A"] });
         const nav1 = new DiffNavigator(len1.viewer);
-        nav1.setChanges(view({ changed: ["A"] }), ["A"]);
+        nav1.setChanges(["A"]);
         expect(nav1.advance(1)).toBe(0);
-        nav1.setChanges(view({ changed: ["A"] }), ["A"]);
+        nav1.setChanges(["A"]);
         expect(nav1.advance(-1)).toBe(0);
 
         const len2 = stubViewer({ present: ["A", "B"] });
         const nav2 = new DiffNavigator(len2.viewer);
-        nav2.setChanges(view({ changed: ["A", "B"] }), ["A", "B"]);
+        nav2.setChanges(["A", "B"]);
         expect(nav2.advance(1)).toBe(0);
-        nav2.setChanges(view({ changed: ["A", "B"] }), ["A", "B"]);
+        nav2.setChanges(["A", "B"]);
         expect(nav2.advance(-1)).toBe(1);
 
         const len3 = stubViewer({ present: ["A", "B", "C"] });
         const nav3 = new DiffNavigator(len3.viewer);
-        nav3.setChanges(view({ changed: ["A", "B", "C"] }), ["A", "B", "C"]);
+        nav3.setChanges(["A", "B", "C"]);
         expect(nav3.advance(1)).toBe(0);
-        nav3.setChanges(view({ changed: ["A", "B", "C"] }), ["A", "B", "C"]);
+        nav3.setChanges(["A", "B", "C"]);
         expect(nav3.advance(-1)).toBe(2);
     });
 
     it("resets the initial step after a new diff", () => {
         const { viewer } = stubViewer({ present: ["A", "B", "C"] });
         const nav = new DiffNavigator(viewer);
-        nav.setChanges(view({ changed: ["A", "B", "C"] }), ["A", "B", "C"]);
+        nav.setChanges(["A", "B", "C"]);
 
         expect(nav.advance(1)).toBe(0);
         expect(nav.advance(1)).toBe(1);
 
-        nav.setChanges(view({ changed: ["A", "B", "C"] }), ["A", "B", "C"]);
+        nav.setChanges(["A", "B", "C"]);
         expect(nav.advance(-1)).toBe(2);
     });
 
     it("focuses a target present on this canvas", () => {
         const { viewer, calls } = stubViewer({ present: ["A", "B"] });
         const nav = new DiffNavigator(viewer);
-        nav.setChanges(view({ changed: ["A", "B"] }), ["A", "B"]);
+        nav.setChanges(["A", "B"]);
 
         expect(nav.applyCursor(1)).toBe(true);
         expect(calls.focus).toContain("B");
@@ -131,7 +162,7 @@ describe("DiffNavigator", () => {
         // Cursor lands on A (absent); B is the only present id — walk anchors on it.
         const { viewer, calls } = stubViewer({ present: ["B"] });
         const nav = new DiffNavigator(viewer);
-        nav.setChanges(view({ changed: ["A", "B", "C"] }), ["A", "B", "C"]);
+        nav.setChanges(["A", "B", "C"]);
 
         expect(nav.applyCursor(0, 1)).toBe(false);
         expect(calls.center).toEqual(["B"]);
@@ -141,7 +172,7 @@ describe("DiffNavigator", () => {
     it("is a no-op on an empty cycle", () => {
         const { viewer } = stubViewer();
         const nav = new DiffNavigator(viewer);
-        nav.setChanges(view(), []);
+        nav.setChanges([]);
 
         expect(nav.advance(1)).toBeUndefined();
         expect(nav.applyCursor(0)).toBe(false);

@@ -4,15 +4,15 @@ import { Command } from "@miragon/bpmn-modeler-shared";
 
 import {
     DiffPaneHandle,
+    DiffPaneHostExtensions,
     DiffSession,
     basenameOfUriString,
-    createDiffPaneRouter,
+    DiffFileExtension,
     SettingChange,
     WebviewMessageRouter,
 } from "@miragon/bpmn-modeler-core";
 import { ModelerPreferences } from "../../../shared/port/ModelerPreferences";
 import { DiffPaneStore } from "@miragon/bpmn-modeler-core";
-import { BpmnDiffService } from "@miragon/bpmn-modeler-core";
 import { NotifierPort } from "@miragon/bpmn-modeler-core";
 
 /**
@@ -34,40 +34,56 @@ export type DiffPaneFactory = (
     document: TextDocument,
 ) => BootstrappableDiffPane;
 
+/** What a {@link DiffController} needs to know about the format its panes compare. */
+export interface DiffPaneFormat {
+    readonly extension: DiffFileExtension;
+    /** Routes the panes' commands, with what this host adds. */
+    readonly createRouter: (
+        extensions: DiffPaneHostExtensions,
+    ) => WebviewMessageRouter<DiffPaneHandle>;
+    /** Re-posts the locale to every ready pane. */
+    readonly rebroadcastLanguage: () => void;
+}
+
 /**
- * VS Code-facing surface for the BPMN diff feature.
+ * VS Code-facing surface for the diff panes of one file format (BPMN or DMN).
  *
  * Owns every interaction with `vscode`: deciding whether a resolving editor is
  * a diff pane, opening a `compare-files` diff (`vscode.diff`), bootstrapping a
  * resolved pane, pairing SCM panes, routing webview messages, and the
  * language-setting subscription. The session registry lives in
- * {@link DiffPaneStore} and the diff content logic in {@link BpmnDiffService},
- * both kept vscode-free.
+ * {@link DiffPaneStore} and the diff content logic in the core service the
+ * format names (`BpmnDiffService`, `DmnDiffService`), both kept vscode-free.
  *
  * The domain is {@link DiffSession}: an explicit object with fixed `before` /
  * `after` URIs that any diff origin (SCM, `compare-files`) can register into.
  * Pane resolution is a session lookup rather than a scheme-based heuristic.
  */
-export class BpmnDiffController {
+export class DiffController {
     private readonly paneRouter: WebviewMessageRouter<DiffPaneHandle>;
 
     /**
      * @param store Session registry (lookups, pending SCM panes, TTL timers).
-     * @param diffService Diff content driver (viewer file, differ, sync,
-     *   language broadcast).
      * @param notifier Surfaces `vscode.diff` failures to the user.
+     * @param format The file format the panes compare and the core service
+     *   that drives their content.
      */
     constructor(
         private readonly store: DiffPaneStore,
-        private readonly diffService: BpmnDiffService,
         private readonly notifier: NotifierPort,
         private readonly createPane: DiffPaneFactory,
         private readonly preferences: ModelerPreferences,
+        private readonly format: DiffPaneFormat,
     ) {
-        this.paneRouter = createDiffPaneRouter(diffService, {
+        this.paneRouter = format.createRouter({
             swapSides: (pane) => this.swapCompareFilesSides(pane),
             paneLog: notifier,
         });
+    }
+
+    /** The file extension of the format this controller's panes compare. */
+    get extension(): DiffFileExtension {
+        return this.format.extension;
     }
 
     /** How this host routes each command its diff panes post. */
@@ -97,7 +113,7 @@ export class BpmnDiffController {
      * SCM label heuristic.
      *
      * Errors from `vscode.diff` are surfaced to the user here so both entry
-     * points (`BpmnCompareController` and {@link swapCompareFilesSides}) share
+     * points (`CompareController` and {@link swapCompareFilesSides}) share
      * the same failure UX.
      */
     async openCompareFilesDiff(leftUri: Uri, rightUri: Uri): Promise<void> {
@@ -186,7 +202,7 @@ export class BpmnDiffController {
     }
 
     /**
-     * Returns `true` when `uri` belongs to an open BPMN diff tab.
+     * Returns `true` when `uri` belongs to an open diff tab of this format.
      *
      * Label-based heuristic: when a file type has a `CustomTextEditorProvider`
      * registered as default, VS Code's diff tabs surface as `Tab` objects with
@@ -199,7 +215,7 @@ export class BpmnDiffController {
      */
     private isPartOfDiff(uri: Uri): boolean {
         const basename = basenameOfUriString(uri.toString());
-        if (!basename.endsWith(".bpmn")) {
+        if (!basename.endsWith(this.format.extension)) {
             return false;
         }
         for (const group of window.tabGroups.all) {
@@ -308,7 +324,7 @@ export class BpmnDiffController {
         if (!change.affects("language")) {
             return;
         }
-        this.diffService.rebroadcastLanguage();
+        this.format.rebroadcastLanguage();
     }
 }
 

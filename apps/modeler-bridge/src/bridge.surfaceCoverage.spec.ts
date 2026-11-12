@@ -60,6 +60,7 @@ const INTELLIJ_SURFACES: HostSurfaceCoverage = {
         LogErrorCommand: HANDLED,
     },
     dmnEditor: absent("IntelliJ has no DMN editor"),
+    dmnDiffPane: absent("IntelliJ has no DMN editor"),
     formEditor: absent("IntelliJ has no Form editor"),
     templateEditor: absent("IntelliJ answers the template preview page itself"),
     deploymentSidebar: {

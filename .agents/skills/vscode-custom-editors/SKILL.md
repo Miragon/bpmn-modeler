@@ -94,9 +94,9 @@ Both editors share `ModelerEditorController`; the difference is purely in the `o
 |---|---|---|
 | **Router handlers** | every BPMN editor command, from a `CommandTable` (`GetDiagramAsSVGCommand` ignored with a reason) | 5 (`GetDmnFileCommand`, `GetDmnModelerSettingCommand`, `GetPropertiesPanelStateCommand`, `SetPropertiesPanelStateCommand`, `SyncDocumentCommand`) |
 | **Participants** | `DocumentRenderParticipant`, `FormReferenceStatusParticipant`, `DefinitionSearchParticipant`, `ElementTemplatesParticipant`, `BpmnlintParticipant`, `BpmnSettingsParticipant`, `EngineVersionStatusBarParticipant`, `DeploymentStatusParticipant`, `ScriptEditorParticipant`, `CodeLinkParticipant` | `DocumentRenderParticipant`, `DmnSettingsParticipant` |
-| **Diff delegation** | yes (`delegateResolve` → `BpmnDiffController`) | no |
+| **Diff delegation** | yes (`delegateResolve` → the BPMN `DiffController`) | yes (`delegateResolve` → the DMN `DiffController`) |
 
-DMN files don't use element templates, BPMN settings, inline scripts, or the diff viewer, so the DMN editor simply gets fewer handlers and one participant.
+DMN files don't use element templates, BPMN settings or inline scripts, so the DMN editor simply gets fewer handlers and participants. Both formats share `DiffController`, which `composition/diffFeature.ts` builds once per format with its file extension, pane router and language rebroadcast.
 
 ## Disposable Management
 

@@ -13,9 +13,9 @@
  */
 import { diff, type DiffResult } from "bpmn-js-differ";
 
-/** Public change categories, mapped to bpmn-js-differ's private result keys. */
-export type DiffCategory = "added" | "removed" | "changed" | "layoutChanged";
+import type { DiffCategory } from "../diffResult";
 
+/** The public change categories mapped to bpmn-js-differ's private result keys. */
 const CATEGORY_KEYS: Readonly<Record<DiffCategory, keyof DiffResult>> = {
     added: "_added",
     removed: "_removed",

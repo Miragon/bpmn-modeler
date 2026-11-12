@@ -4,6 +4,7 @@
  * `@miragon/dmn-modeler` boundary.
  */
 import {
+    ApplyDmnDiffHighlightsQuery,
     asProtocolMessage,
     Command,
     DmnFileQuery,
@@ -14,7 +15,11 @@ import {
     Query,
     TakeFocusQuery,
 } from "@miragon/bpmn-modeler-shared";
-import type { DmnHost, WebviewState } from "../../port/dmnHost";
+import type { WebviewSurface } from "@miragon/bpmn-modeler-shared";
+import type { DiffSide } from "@miragon/bpmn-modeler-types";
+
+import { SHIPPING_AFTER_XML, SHIPPING_BEFORE_XML } from "../../__fixtures__/shippingDiff";
+import type { DmnDiffPaneHost, DmnHost, WebviewState } from "../../port/dmnHost";
 
 declare const process: { env: { NODE_ENV: string } };
 
@@ -34,6 +39,32 @@ export function getHostApi(): DmnHost {
         return new MockHost();
     }
     return new HostApiImpl<StateType, MessageType>();
+}
+
+const DIFF_PANE: WebviewSurface = "dmnDiffPane";
+
+/**
+ * Whether this page is one side of a DMN diff: the host's HTML names it on
+ * `<body data-surface>`, or the preview's `?mode=diff-before|diff-after` asks.
+ */
+export function isDiffPane(): boolean {
+    return document.body.dataset.surface === DIFF_PANE || previewDiffSide() !== undefined;
+}
+
+/** The channel of a diff pane; the preview serves the shipping change itself. */
+export function getDiffPaneHostApi(): DmnDiffPaneHost {
+    if (process.env.NODE_ENV === "development") {
+        return new MockDiffPaneHost(previewDiffSide() ?? "after");
+    }
+    return new HostApiImpl<StateType, MessageType>();
+}
+
+function previewDiffSide(): DiffSide | undefined {
+    if (process.env.NODE_ENV !== "development") {
+        return undefined;
+    }
+    const mode = new URLSearchParams(location.search).get("mode");
+    return mode === "diff-before" ? "before" : mode === "diff-after" ? "after" : undefined;
 }
 
 // Minimal DRD for standalone browser runs, so the palette and an element's
@@ -58,17 +89,17 @@ class MockHost extends MockHostApi<StateType, MessageType> {
         const command = asProtocolMessage(message);
         switch (command.type) {
             case "GetDmnFileCommand": {
-                dispatchEvent(new DmnFileQuery(SAMPLE_DMN));
+                dispatch(new DmnFileQuery(SAMPLE_DMN));
                 break;
             }
             case "GetPropertiesPanelStateCommand": {
-                dispatchEvent(new PropertiesPanelStateQuery(true));
+                dispatch(new PropertiesPanelStateQuery(true));
                 break;
             }
             case "GetDmnModelerSettingCommand": {
                 // Follow the (mock) VS Code theme so the browser preview themes
                 // off the `vscode-dark`/`vscode-light` body class.
-                dispatchEvent(new DmnModelerSettingQuery({ colorTheme: "automatic" }));
+                dispatch(new DmnModelerSettingQuery({ colorTheme: "automatic" }));
                 break;
             }
             case "SetPropertiesPanelStateCommand": {
@@ -77,7 +108,7 @@ class MockHost extends MockHostApi<StateType, MessageType> {
             }
             case "RequestFocusCommand": {
                 // The preview page is always the active editor.
-                dispatchEvent(new TakeFocusQuery());
+                dispatch(new TakeFocusQuery());
                 break;
             }
             case "SyncDocumentCommand": {
@@ -99,13 +130,49 @@ class MockHost extends MockHostApi<StateType, MessageType> {
                 throw new Error(`Unknown message type ${message.type}`);
             }
         }
+    }
+}
 
-        function dispatchEvent(event: MessageType) {
-            window.dispatchEvent(
-                new MessageEvent("message", {
-                    data: event,
-                }),
-            );
+/** One side of a compare-files diff of the shipping change, without a partner pane. */
+class MockDiffPaneHost extends MockHostApi<StateType, MessageType> {
+    constructor(private readonly side: DiffSide) {
+        super();
+    }
+
+    override postMessage(message: MessageType): void {
+        const command = asProtocolMessage(message);
+        switch (command.type) {
+            case "GetDmnFileCommand":
+                dispatch(
+                    new DmnFileQuery(this.side === "before" ? SHIPPING_BEFORE_XML : SHIPPING_AFTER_XML),
+                );
+                break;
+            case "DiffReadyCommand":
+                void this.sendHighlights();
+                break;
+            case "LogErrorCommand":
+                console.error(command.message);
+                break;
+            default:
+                // No partner pane in the preview to forward a sync to.
+                console.debug(`[dev] ${command.type}`);
         }
     }
+
+    private async sendHighlights(): Promise<void> {
+        const { computeDmnDiff, dmnSideView } = await import("@miragon/dmn-modeler-diff");
+        const result = await computeDmnDiff(SHIPPING_BEFORE_XML, SHIPPING_AFTER_XML);
+        dispatch(
+            new ApplyDmnDiffHighlightsQuery(
+                this.side,
+                dmnSideView(result, this.side),
+                "compare-files",
+                this.side === "before" ? "shipping-v1.dmn" : "shipping-v2.dmn",
+            ),
+        );
+    }
+}
+
+function dispatch(event: MessageType): void {
+    window.dispatchEvent(new MessageEvent("message", { data: event }));
 }

@@ -18,6 +18,10 @@ const FIXTURE_B = resolve(FIXTURES, "example-b.bpmn");
 
 const DIFF_TAB_LABEL = "example.bpmn ↔ example-b.bpmn";
 
+const DMN_FIXTURE_A = resolve(FIXTURES, "shipping.dmn");
+const DMN_FIXTURE_B = resolve(FIXTURES, "shipping-b.dmn");
+const DMN_DIFF_TAB_LABEL = "shipping.dmn ↔ shipping-b.dmn";
+
 interface TestApi {
     diff: {
         sessionFor(uri: string): { origin: string; paneCount: number } | undefined;
@@ -69,7 +73,7 @@ function waitForBothPanes(api: TestApi, uri: string): Promise<void> {
         () => api.diff.sessionFor(uri)?.paneCount === 2,
         () =>
             `diff panes never attached — session: ${JSON.stringify(api.diff.sessionFor(uri))}; ` +
-            `the diff likely opened in the text editor instead of the BPMN viewer`,
+            `the diff likely opened in the text editor instead of the visual diff`,
     );
 }
 
@@ -103,6 +107,35 @@ suite("BPMN compare commands", () => {
     test("single-step flow opens the BPMN diff with both panes attached", async () => {
         await vscode.commands.executeCommand("bpmn-modeler.compareSelected", uriA, [uriA, uriB]);
         await waitForTab(DIFF_TAB_LABEL);
+        await waitForBothPanes(api, uriA.toString());
+    });
+});
+
+suite("DMN compare commands", () => {
+    let api: TestApi;
+    const uriA = vscode.Uri.file(DMN_FIXTURE_A);
+    const uriB = vscode.Uri.file(DMN_FIXTURE_B);
+
+    suiteSetup(async () => {
+        api = await getExtension().activate();
+    });
+
+    teardown(async () => {
+        await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+    });
+
+    test("two-step flow opens the DMN diff with both panes attached", async () => {
+        await vscode.commands.executeCommand("bpmn-modeler.selectDmnForCompare", uriA);
+        await vscode.commands.executeCommand("bpmn-modeler.compareDmnWithSelected", uriB);
+        await waitForTab(DMN_DIFF_TAB_LABEL);
+        await waitForBothPanes(api, uriA.toString());
+
+        assert.strictEqual(api.diff.sessionFor(uriA.toString())?.origin, "compare-files");
+    });
+
+    test("single-step flow opens the DMN diff with both panes attached", async () => {
+        await vscode.commands.executeCommand("bpmn-modeler.compareSelectedDmn", uriA, [uriA, uriB]);
+        await waitForTab(DMN_DIFF_TAB_LABEL);
         await waitForBothPanes(api, uriA.toString());
     });
 });

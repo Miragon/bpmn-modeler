@@ -1,7 +1,7 @@
 # Release and publishing
 
 - Status: accepted
-- Last reviewed: 2026-11-10
+- Last reviewed: 2026-11-12
 
 ## Context
 
@@ -39,7 +39,7 @@ source of truth for routing and version-stamped files.
 | Component | Watched location | Shared-source mechanism |
 | --- | --- | --- |
 | `bpmn-modeler` | Root `.` with exclusions | Receives its package and inlined-library changes directly |
-| `dmn-modeler` | `packages/dmn-modeler` | `BUNDLED_LIBS` for `modeler-types` and `bpmn-i18n-extras` |
+| `dmn-modeler` | `packages/dmn-modeler` | `BUNDLED_LIBS` for `modeler-types`, `bpmn-diff` and `bpmn-i18n-extras` |
 | `vscode` | `apps/vscode-plugin` | `BUNDLED_WEBVIEW` for bundled packages, webviews, core/shared and standalone sources |
 | `intellij` | `apps/intellij-plugin` | `BUNDLED_WEBVIEW` for its bundled webviews, bridge/core and relevant package/library sources |
 | `orca` | `apps/orca-plugin` | `BUNDLED_WEBVIEW` for both packages, the libraries they inline and `libs/shared` |
@@ -64,7 +64,7 @@ component must be touched in its own directory or receive an explicit
 next release without marker attribution. Markers skip redundant native touches
 and use same-SHA idempotence.
 
-DMN's two inlined libraries use this same mechanism. Its marker also strips
+DMN's three inlined libraries use this same mechanism. Its marker also strips
 `!`, so a genuinely breaking DMN API change needs a native DMN-package touch
 or explicit release override. IntelliJ does not bundle a DMN editor and does
 not receive DMN-only markers. Exclude marker files from trigger paths where

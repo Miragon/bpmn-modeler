@@ -40,6 +40,7 @@ const declared: HostSurfaceCoverage = {
     bpmnEditor: coverageOf("bpmnEditor", servedRoute),
     bpmnDiffPane: coverageOf("bpmnDiffPane", servedRoute),
     dmnEditor: absent("no DMN editor"),
+    dmnDiffPane: absent("no DMN diff pane"),
     formEditor: coverageOf("formEditor", servedRoute),
     templateEditor: absent("no template editor"),
     deploymentSidebar: absent("no deployment sidebar"),

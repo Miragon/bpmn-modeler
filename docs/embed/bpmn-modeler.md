@@ -343,7 +343,10 @@ The diff surface is a companion to `createModeler`, split in two so the data lay
 | `changed`         | `readonly string[]` | ids whose attributes changed                                       |
 | `layoutChanged`   | `readonly string[]` | ids that only moved on the canvas                                  |
 | `counts`          | `DiffCounts`        | per-category counts (`{ added, removed, changed, layoutChanged }`) |
-| `navigationOrder` | `readonly string[]` | merged, deduped, flow-sorted union — the order a stepper walks     |
+| `navigationOrder` | `readonly string[]` | merged, deduped, flow-sorted union — the order a stepper walks¹    |
+
+¹ It leaves out connections whose only change is layout (a flow or association that moved with its
+shapes); they stay in `layoutChanged` and `counts`, so they are still highlighted.
 
 Ids are sorted by BPMN sequence-flow position (start event → end event) rather than the differ's
 insertion order. `sideView(result, side)` projects the result onto one pane's canvas (blanks `added`
@@ -375,18 +378,26 @@ await before.importXML( beforeXml );
 await after.importXML( afterXml );
 
 const coordinator = new DiffPaneCoordinator( before, after ); // arms viewport lockstep
-coordinator.apply( await computeDiff( beforeXml, afterXml ) );  // paints both panes
+const result = await computeDiff( beforeXml, afterXml );
+coordinator.apply( result );                                   // paints both panes
 
 // One legend per pane, both stepping the shared cursor:
 new DiffLegend( document.querySelector( "#before" )!, {
     onPrevious: () => coordinator.previous(),
     onNext: () => coordinator.next(),
-} ).update( { counts: (await computeDiff( beforeXml, afterXml )).counts } );
+} ).update( { counts: result.counts, canStep: coordinator.canStep } );
 ```
 
 `DiffPaneCoordinator` keeps the two panes' pan/zoom in lockstep and steps a single shared cursor
-across both. Call `coordinator.destroy()` to unhook the viewport subscriptions and`viewer.destroy()`
-to tear each pane down.
+across both. Pass its `canStep` to each legend so **Prev** and **Next** are enabled only when there is
+a change to step to; without it the legend enables them whenever a count is above zero. A pane that
+steps on its own uses `DiffNavigator`: `setChanges( result.navigationOrder )` takes the order as
+`computeDiff` returns it, and its `canStep` feeds the legend the same way. The older
+`setChanges( view, navigationOrder )` form is deprecated; it still skips the view's connections whose
+only change is layout.
+
+Call `coordinator.destroy()` to unhook the viewport subscriptions and `viewer.destroy()` to tear each
+pane down.
 
 **Semver:** `DiffResult` and the exported signatures are the contract; the flow-order heuristics
 that decide *where* an id sorts are not — they may change without a major bump.

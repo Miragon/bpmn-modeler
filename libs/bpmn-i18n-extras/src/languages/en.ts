@@ -30,6 +30,12 @@ const dictionary: Record<string, string> = {
         "The saved form is invalid or unsupported. Open it in the form editor.",
     "The form preview could not be loaded. Refresh to try again.":
         "The form preview could not be loaded. Refresh to try again.",
+    "Changes": "Changes",
+    "Not in this version": "Not in this version",
+    "It was removed. The version on the left shows it.":
+        "It was removed. The version on the left shows it.",
+    "It is new. The version on the right shows it.":
+        "It is new. The version on the right shows it.",
     "A form is either a form id or an external reference, not both.":
         "A form is either a form id or an external reference, not both.",
     "A property cannot depend on itself.": "A property cannot depend on itself.",

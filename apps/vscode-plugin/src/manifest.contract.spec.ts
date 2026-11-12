@@ -26,11 +26,8 @@ import {
     TOGGLE_LINTING_CMD,
     TOGGLE_AUTOMATIC_FORM_PREVIEW_CMD,
 } from "./modeler/bpmn/adapter/in/CommandController";
-import {
-    COMPARE_SELECTED_CMD,
-    COMPARE_WITH_SELECTED_CMD,
-    SELECT_FOR_COMPARE_CMD,
-} from "./diff/adapter/in/BpmnCompareController";
+import { BPMN_COMPARE, DMN_COMPARE } from "./diff/adapter/in/CompareController";
+import { bpmnDiffFormat, dmnDiffFormat } from "./composition/diffFeature";
 import {
     DEPLOY_CMD,
     DEPLOY_FILES_CMD,
@@ -143,9 +140,12 @@ const CODE_COMMAND_IDS = [
     RELOAD_MODELER_CMD,
     FORMAT_DIAGRAM_CMD,
     CLEANUP_DIAGRAM_CMD,
-    SELECT_FOR_COMPARE_CMD,
-    COMPARE_WITH_SELECTED_CMD,
-    COMPARE_SELECTED_CMD,
+    BPMN_COMPARE.selectForCompare,
+    BPMN_COMPARE.compareWithSelected,
+    BPMN_COMPARE.compareSelected,
+    DMN_COMPARE.selectForCompare,
+    DMN_COMPARE.compareWithSelected,
+    DMN_COMPARE.compareSelected,
     DEPLOY_CMD,
     SWITCH_TARGET_CMD,
     DEPLOY_FILES_CMD,
@@ -375,14 +375,44 @@ describe("package.json ↔ code contract", () => {
         });
     });
 
-    it("opts the BPMN editor into diffs explicitly", () => {
-        // Since VS Code 1.129 a custom editor is excluded from `vscode.diff`
-        // unless `priority.diffEditor` opts in; the string form silently drops
-        // the BPMN diff view back to the text diff.
-        const bpmn = manifest.contributes.customEditors.find((e) => e.viewType === BPMN_VIEW_TYPE);
+    it.each([BPMN_VIEW_TYPE, DMN_VIEW_TYPE])(
+        "opts the %s editor into diffs explicitly",
+        (viewType) => {
+            // Since VS Code 1.129 a custom editor is excluded from `vscode.diff`
+            // unless `priority.diffEditor` opts in; the string form silently drops
+            // the visual diff back to the text diff.
+            const editor = manifest.contributes.customEditors.find((e) => e.viewType === viewType);
 
-        expect(bpmn?.priority).toEqual({ textEditor: "default", diffEditor: "default" });
-    });
+            expect(editor?.priority).toEqual({ textEditor: "default", diffEditor: "default" });
+        },
+    );
+
+    // The formats' services are never called here; only their extension is read.
+    it.each([
+        { commands: BPMN_COMPARE, extension: bpmnDiffFormat({} as never).extension },
+        { commands: DMN_COMPARE, extension: dmnDiffFormat({} as never).extension },
+    ])(
+        "offers the $commands.label compare commands only in the Explorer, on $extension files",
+        ({ commands, extension }) => {
+            const explorer = manifest.contributes.menus["explorer/context"] ?? [];
+            const palette = manifest.contributes.menus.commandPalette ?? [];
+            const ids = [
+                commands.selectForCompare,
+                commands.compareWithSelected,
+                commands.compareSelected,
+            ];
+
+            for (const id of ids) {
+                expect(palette).toContainEqual({ command: id, when: "false" });
+                expect(explorer.find((entry) => entry.command === id)?.when).toContain(
+                    `resourceExtname == ${extension}`,
+                );
+                expect(manifest.contributes.commands.find((c) => c.command === id)?.title).toMatch(
+                    new RegExp(`\\(${commands.label}\\)$`),
+                );
+            }
+        },
+    );
 
     const declaredKeys = Object.keys(manifest.contributes.configuration.properties)
         .filter((key) => key.startsWith(`${MODELER_SETTINGS_SECTION}.`))
@@ -572,6 +602,7 @@ describe("package.json ↔ code contract", () => {
         const contextKeys = [
             "bpmn-modeler.openCustomEditors",
             "bpmn-modeler.compareSelectionActive",
+            "bpmn-modeler.dmnCompareSelectionActive",
             "bpmn-modeler.isElementTemplate",
             "bpmn-modeler.templateEditorShowsFile",
         ];

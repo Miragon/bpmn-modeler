@@ -68,7 +68,8 @@ import {
     vscodeWindow,
 } from "../__fixtures__/vscodeCompositionFake";
 import { InMemoryMemento } from "../__fixtures__/vscodeStorage";
-import { BpmnDiffController } from "../diff/adapter/in/BpmnDiffController";
+import { DiffController } from "../diff/adapter/in/DiffController";
+import { bpmnDiffFormat } from "./diffFeature";
 import { NodeInstalledPackages } from "../modeler/bpmn/adapter/out/NodeInstalledPackages";
 import { VsCodeTemplatePreferenceStore } from "../modeler/bpmn/adapter/out/VsCodeTemplatePreferenceStore";
 import { setContext } from "../shared/adapter/out/extensionContext";
@@ -106,14 +107,14 @@ function createVsCodeBpmnEditor(context = createExtensionContext()) {
     const diffStore = new DiffPaneStore();
     const deploymentStatus: EditorSessionParticipant = { onResolve: () => undefined };
     const features = bpmnEditorFeature.register(context, deps, {
-        diffController: new BpmnDiffController(
+        diffController: new DiffController(
             diffStore,
-            new BpmnDiffService(deps.notifier, deps.vsSettings, diffStore),
             deps.notifier,
             () => {
                 throw new Error("no diff pane resolves here");
             },
             deps.preferences,
+            bpmnDiffFormat(new BpmnDiffService(deps.notifier, deps.vsSettings, diffStore)),
         ),
         templateSources: { getCachedTemplateSources: () => Promise.resolve([]) },
         deploymentStatusParticipant: deploymentStatus,

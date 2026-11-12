@@ -26,6 +26,10 @@ const dictionary: Record<string, string> = {
     "The saved form is invalid or unsupported. Open it in the form editor.":
         "已保存的表单无效或不受支持。请在表单编辑器中打开。",
     "The form preview could not be loaded. Refresh to try again.": "无法加载表单预览。请刷新重试。",
+    "Changes": "更改",
+    "Not in this version": "此版本中不存在",
+    "It was removed. The version on the left shows it.": "它已被删除。左侧版本中可以看到它。",
+    "It is new. The version on the right shows it.": "它是新增的。右侧版本中可以看到它。",
     "A form is either a form id or an external reference, not both.":
         "表单只能使用表单 ID 或外部引用之一，不能同时使用两者。",
     "A property cannot depend on itself.": "属性不能依赖自身。",

@@ -1,15 +1,14 @@
-import { DiffSideView } from "@miragon/bpmn-modeler-diff";
+import { DiffSideView, layoutOnlyEdgeIds } from "@miragon/bpmn-modeler-diff";
+import { canStep, nearestPresent, stepCursor } from "@miragon/bpmn-modeler-types";
 
 import { DiffViewer } from "./DiffViewer";
-import { stepCursor } from "./stepCursor";
 
 /**
  * Portable diff-stepper logic for a single {@link DiffViewer} pane.
  *
- * Owns the navigable cycle and cursor for one canvas: it prunes layout-only
- * connections out of the navigation order, focuses the current element (or
- * anchors on a surviving neighbour when the target lives only on the partner
- * pane), and walks the cycle bidirectionally.
+ * Owns the navigable cycle and cursor for one canvas: it walks the diff's
+ * navigation order bidirectionally, focusing the current element or, when the
+ * target lives only on the partner pane, anchoring on a surviving neighbour.
  *
  * This is the shared core reused by both the in-page {@link DiffPaneCoordinator}
  * and the host-relayed `DiffMode` protocol glue — neither re-implements
@@ -17,11 +16,6 @@ import { stepCursor } from "./stepCursor";
  * emitting cursor changes to a partner pane is the caller's concern.
  */
 export class DiffNavigator {
-    /**
-     * Ids this pane can navigate to, in flow order.  Populated by
-     * {@link setChanges} from the shared navigation order minus layout-only
-     * connections.
-     */
     private changeIds: readonly string[] = [];
 
     private _cursor = -1;
@@ -29,22 +23,35 @@ export class DiffNavigator {
     constructor(private readonly viewer: DiffViewer) {}
 
     /**
-     * Rebuilds the navigable cycle from a side view and the shared navigation
-     * order, then resets the cursor.
-     *
-     * Connections whose *only* change is `layoutChanged` are dropped: that
-     * happens when a task moves and its incoming/outgoing flows get new
-     * waypoints as a side-effect.  The flow carries no semantic change of its
-     * own, and the user already sees it highlighted when the attached shape
-     * comes up in the cycle.
+     * Rebuilds the navigable cycle from the diff's `navigationOrder` and resets
+     * the cursor. The order already leaves out connections whose only change
+     * is layout, so the cycle is the order as given.
      */
-    setChanges(view: DiffSideView, navigationOrder: readonly string[]): void {
-        const semanticIds = new Set<string>([...view.removed, ...view.added, ...view.changed]);
-        const isLayoutOnlyConnection = (id: string): boolean =>
-            !semanticIds.has(id) && view.layoutChanged.includes(id) && this.viewer.isConnection(id);
-
-        this.changeIds = navigationOrder.filter((id) => !isLayoutOnlyConnection(id));
+    setChanges(navigationOrder: readonly string[]): void;
+    /**
+     * @deprecated Pass only the navigation order. With a side view, the cycle
+     * also leaves out the view's layout-only connections, for a navigation
+     * order that still lists them.
+     */
+    setChanges(view: DiffSideView, navigationOrder: readonly string[]): void;
+    setChanges(
+        viewOrNavigationOrder: DiffSideView | readonly string[],
+        navigationOrder: readonly string[] = [],
+    ): void {
+        if (isNavigationOrder(viewOrNavigationOrder)) {
+            this.changeIds = viewOrNavigationOrder;
+        } else {
+            const skipped = layoutOnlyEdgeIds(viewOrNavigationOrder, (id) =>
+                this.viewer.isConnection(id),
+            );
+            this.changeIds = navigationOrder.filter((id) => !skipped.has(id));
+        }
         this._cursor = -1;
+    }
+
+    /** Whether Next and Previous have a change to step to. */
+    get canStep(): boolean {
+        return canStep(this.changeIds);
     }
 
     get cursor(): number {
@@ -97,30 +104,18 @@ export class DiffNavigator {
         // propagates via viewport-sync so the partner pane brings the actual
         // element into view with its diff highlight.  Without this anchoring the
         // stepper appears frozen whenever the cursor lands on a partner-only id.
-        const anchor = this.findAnchor(this._cursor, direction);
+        const anchor = nearestPresent(this.changeIds, this._cursor, direction, (id) =>
+            this.viewer.hasElement(id),
+        );
         if (anchor !== undefined) {
             this.viewer.centerOnElement(anchor);
         }
         this.viewer.clearSelectionMarker();
         return false;
     }
+}
 
-    /**
-     * Walks outward from `cursor`, preferring `direction`, to locate an id
-     * present on this pane.  Returns `undefined` only in the degenerate case
-     * where every id in the cycle lives exclusively on the partner pane.
-     */
-    private findAnchor(cursor: number, direction: 1 | -1): string | undefined {
-        const len = this.changeIds.length;
-        for (let i = 1; i < len; i++) {
-            for (const dir of [direction, -direction] as const) {
-                const idx = (((cursor + dir * i) % len) + len) % len;
-                const id = this.changeIds[idx];
-                if (this.viewer.hasElement(id)) {
-                    return id;
-                }
-            }
-        }
-        return undefined;
-    }
+// Array.isArray does not narrow a union with a readonly array.
+function isNavigationOrder(value: DiffSideView | readonly string[]): value is readonly string[] {
+    return Array.isArray(value);
 }

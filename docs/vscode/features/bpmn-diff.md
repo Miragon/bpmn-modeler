@@ -13,7 +13,7 @@ See what changed between two versions of a `.bpmn` file as two diagrams side by 
 - Select two `.bpmn` files, right-click, **Compare Selected (BPMN)**. The first selected file is the before side.
 - Or right-click one file, **Select for Compare (BPMN)**, then right-click the other, **Compare with Selected (BPMN)**. The pick is kept until you compare or reload the window.
 
-File comparisons also show each file name above its pane and a **Swap sides** (⇄) button.
+File comparisons also show each file name above its pane and a ⇄ button that swaps the sides (its tooltip reads **Swap sides**).
 
 If a Git diff still opens as XML, check `workbench.diffEditorAssociations` in your settings: a `*.bpmn` entry there overrides the modeler.
 
@@ -28,11 +28,12 @@ In IntelliJ, **Show Diff** and **Compare Files** open the same view.
 | Blue | Both panes | Changed attribute (name, condition, implementation, …) |
 | Dashed outline | Both panes | Moved: only the layout changed |
 
-The legend above each pane counts the changes per type. **Prev change** and **Next change** step through all changes in flow order and move both panes together; the current element glows gold. Both panes are read-only but you can pan, zoom and use the keyboard.
+The legend above each pane counts the changes per type. **Prev change** and **Next change** step through the changes in flow order and move both panes together; the current element glows gold. A sequence flow or other connection that only moved along with its shapes is highlighted and counted, but not a step of its own. Both panes are read-only but you can pan, zoom and use the keyboard.
 
 The comparison uses [bpmn-js-differ](https://github.com/bpmn-io/bpmn-js-differ) with the same colours as [demo.bpmn.io/diff](https://demo.bpmn.io/diff).
 
 ## Next steps
 
+- [DMN diff](/vscode/features/dmn-diff): the same view for decision models and their tables.
 - [Linting](/vscode/features/linting): check the new version for errors.
 - [Deployment](/vscode/features/deployment): ship the reviewed diagram.
