@@ -1,5 +1,54 @@
 # Changelog
 
+## [1.17.0](https://github.com/Miragon/bpmn-modeler/compare/intellij-v1.16.0...intellij-v1.17.0) (2026-11-12)
+
+
+### 🎉 New Features
+
+* **add-ons-webview:** render the add-on catalog in a host-neutral webview ([#2308](https://github.com/Miragon/bpmn-modeler/issues/2308)) [sync aace17c] ([799a005](https://github.com/Miragon/bpmn-modeler/commit/799a00522f925d9ee58d6f54f01c30a3b90c47db))
+* **add-ons-webview:** show add-ons as a searchable list with a detail pane ([#2327](https://github.com/Miragon/bpmn-modeler/issues/2327)) ([f7fad7c](https://github.com/Miragon/bpmn-modeler/commit/f7fad7c11e646e1d35726fe5fb7df0d8ba7c1479))
+* **bpmn-modeler:** keep hidden element templates out of new choices ([#2301](https://github.com/Miragon/bpmn-modeler/issues/2301)) [sync 2d6033d] ([e40e3c8](https://github.com/Miragon/bpmn-modeler/commit/e40e3c8bfaa5f74c88a80882d01e5f68c50d0541))
+* call the artifacts view add-ons ([#2326](https://github.com/Miragon/bpmn-modeler/issues/2326)) ([1e2f3a6](https://github.com/Miragon/bpmn-modeler/commit/1e2f3a6fd73cd5598642ede3fd9c66bbe6aa684a))
+* **dmn-diff:** show DMN changes in a visual diff of DRD and decision tables ([#2359](https://github.com/Miragon/bpmn-modeler/issues/2359)) ([e66b46d](https://github.com/Miragon/bpmn-modeler/commit/e66b46d056f5c72b87a81152182a695249dc9937))
+* fit the diagram to the view from a canvas button ([#2343](https://github.com/Miragon/bpmn-modeler/issues/2343)) [sync 00da896] ([86091c1](https://github.com/Miragon/bpmn-modeler/commit/86091c149da7d5869d4a784554d6c7d26188b45b))
+* **intellij-plugin:** keep element template switches per user in intellij ([#2307](https://github.com/Miragon/bpmn-modeler/issues/2307)) ([cb671dd](https://github.com/Miragon/bpmn-modeler/commit/cb671ddb8e2bbac813b09363e59055c0f8b1935a))
+* **intellij-plugin:** manage add-ons in the artifacts tab of the bpmn modeler tool window ([#2310](https://github.com/Miragon/bpmn-modeler/issues/2310)) ([e3d0b8c](https://github.com/Miragon/bpmn-modeler/commit/e3d0b8cd32b4e831747c228b7fce828ab295f172))
+* **intellij-plugin:** run no workspace code in a project you did not trust ([#2361](https://github.com/Miragon/bpmn-modeler/issues/2361)) ([781d9bb](https://github.com/Miragon/bpmn-modeler/commit/781d9bb6b38c3a9ea253a7dbd386e9897cde3516))
+* **modeler-core:** add form engine and shared language selection ([#2341](https://github.com/Miragon/bpmn-modeler/issues/2341)) ([c28a403](https://github.com/Miragon/bpmn-modeler/commit/c28a403a9b3e887169b9773062a2da0889604525))
+* **modeler-core:** allow code whose content you allowed in another folder ([#2337](https://github.com/Miragon/bpmn-modeler/issues/2337)) [sync 9b3dc90] ([687770e](https://github.com/Miragon/bpmn-modeler/commit/687770e80d927fcd8c51cdfac89a6471bae0514b))
+* **modeler-core:** allow workspace code per repository and add-on ([#2358](https://github.com/Miragon/bpmn-modeler/issues/2358)) [sync 192d740] ([9c038a7](https://github.com/Miragon/bpmn-modeler/commit/9c038a7d1a00765fb3dbc041115a0752884c5029))
+* **modeler-core:** follow approval changes everywhere and prune the plugin cache ([#2286](https://github.com/Miragon/bpmn-modeler/issues/2286)) [sync a49ab82] ([2df7b5f](https://github.com/Miragon/bpmn-modeler/commit/2df7b5f8d2697042a192b46f780f35ecb86c8bf9))
+* **modeler-core:** host-neutral add-on catalog for the artifacts view ([#2289](https://github.com/Miragon/bpmn-modeler/issues/2289)) [sync 68770b6] ([0d8ae72](https://github.com/Miragon/bpmn-modeler/commit/0d8ae722f85e58db2a38d89c56310b47ef16b24b))
+* **modeler-core:** list element templates and marketplaces in the add-on catalog ([#2296](https://github.com/Miragon/bpmn-modeler/issues/2296)) [sync d7dd275] ([4eab152](https://github.com/Miragon/bpmn-modeler/commit/4eab1525a247dd18626a3de5ee6d9a98783e86bf))
+* **modeler-core:** offer a marketplace update when the workspace has fetched nothing ([#2318](https://github.com/Miragon/bpmn-modeler/issues/2318)) [sync 4c128e7] ([70d3686](https://github.com/Miragon/bpmn-modeler/commit/70d368635801e73175de263dbee89a9a7be7c057))
+* **modeler-core:** tell which repository holds workspace code ([#2346](https://github.com/Miragon/bpmn-modeler/issues/2346)) [sync cc6eacf] ([4f9aefc](https://github.com/Miragon/bpmn-modeler/commit/4f9aefc6029230fdebf2690b23fab4a1684b8e0a))
+* **modeler-core:** turn element templates and their sources off per user ([#2304](https://github.com/Miragon/bpmn-modeler/issues/2304)) [sync 48bab6d] ([3f9636f](https://github.com/Miragon/bpmn-modeler/commit/3f9636fb809a3066a10f13c8b9f808577bf2c199))
+* open the add-ons that need review from a command in both hosts ([#2335](https://github.com/Miragon/bpmn-modeler/issues/2335)) ([18ddb38](https://github.com/Miragon/bpmn-modeler/commit/18ddb38f93f3d9567d6b76353d812bad75cdb1ea))
+* replace the canvas focus reticle with a focus ring ([#2342](https://github.com/Miragon/bpmn-modeler/issues/2342)) [sync 3f64891] ([62a7f36](https://github.com/Miragon/bpmn-modeler/commit/62a7f360915853d666ac0178fb70cdb3b4d9d5e7))
+* show the canvas keyboard focus as a dot on the fit button ([#2362](https://github.com/Miragon/bpmn-modeler/issues/2362)) [sync 0f56772] ([370fd65](https://github.com/Miragon/bpmn-modeler/commit/370fd65108f77cc65dbf5218153d0a219c0a193f))
+* show the miragon comet as the bpmn modeler container icon ([#2322](https://github.com/Miragon/bpmn-modeler/issues/2322)) ([f4f87fb](https://github.com/Miragon/bpmn-modeler/commit/f4f87fb2cc73510014e78544729751eaa1e42598))
+
+
+### 🐞 Bug Fixes
+
+* **add-ons-webview:** render the newest state when the host answers at once ([#2323](https://github.com/Miragon/bpmn-modeler/issues/2323)) [sync 3538366] ([4fe6128](https://github.com/Miragon/bpmn-modeler/commit/4fe61285fb152f9cc52f0de037eda7867bda1be9))
+* **element-template-chooser:** preview the first choice of a required dropdown ([#2351](https://github.com/Miragon/bpmn-modeler/issues/2351)) [sync 64a5abf] ([949b86e](https://github.com/Miragon/bpmn-modeler/commit/949b86e48bab29990802551d28b9cc00d628d69c))
+* **element-template-chooser:** show Boolean and Number values in the previews ([#2357](https://github.com/Miragon/bpmn-modeler/issues/2357)) [sync 7095db6] ([54d895d](https://github.com/Miragon/bpmn-modeler/commit/54d895dec7f0009e6ee1c3f92568a5c2b0166024))
+* **intellij-plugin:** write approvals as changes the host merges ([#2279](https://github.com/Miragon/bpmn-modeler/issues/2279)) ([2e017bc](https://github.com/Miragon/bpmn-modeler/commit/2e017bc3d9cb42a5ac9da77e46b4c4c5b04ac0cf))
+* **modeler-bridge:** report the files a late linux watch missed while arming ([#2302](https://github.com/Miragon/bpmn-modeler/issues/2302)) [sync 6d38092] ([aeb71f3](https://github.com/Miragon/bpmn-modeler/commit/aeb71f3ea51d94c519b1c5551a396fa770aadaee))
+* **modeler-bridge:** watch a folder that does not exist yet once it appears ([#2299](https://github.com/Miragon/bpmn-modeler/issues/2299)) [sync f469851] ([5b962a6](https://github.com/Miragon/bpmn-modeler/commit/5b962a629fa0d1ba87b9da934b4c74e53e836cb0))
+
+
+### 📔 Documentation
+
+* rewrite READMEs for users, move package reference to the docs ([#2331](https://github.com/Miragon/bpmn-modeler/issues/2331)) ([6177741](https://github.com/Miragon/bpmn-modeler/commit/6177741ca798c7c86da068cabb1e4802cb187e6a))
+
+
+### 🛠️ Misc
+
+* **deps:** bump org.jetbrains.intellij.platform from 2.19.0 to 2.20.0 in /apps/intellij-plugin in the gradle-minor-patch group ([#2312](https://github.com/Miragon/bpmn-modeler/issues/2312)) ([618a9e1](https://github.com/Miragon/bpmn-modeler/commit/618a9e190e17a95ada259e377e9baed6b835ad4d))
+* signal the brand mode to the add-ons view ([#2325](https://github.com/Miragon/bpmn-modeler/issues/2325)) ([4a7d838](https://github.com/Miragon/bpmn-modeler/commit/4a7d8386241cee629cdee903280ea9528045a484))
+
 ## [1.16.0](https://github.com/Miragon/bpmn-modeler/compare/intellij-v1.15.0...intellij-v1.16.0) (2026-11-09)
 
 

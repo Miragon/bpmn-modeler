@@ -1,5 +1,61 @@
 # Changelog
 
+## [1.22.0](https://github.com/Miragon/bpmn-modeler/compare/vscode-v1.21.0...vscode-v1.22.0) (2026-11-12)
+
+
+### 🎉 New Features
+
+* **add-ons-webview:** render the add-on catalog in a host-neutral webview ([#2308](https://github.com/Miragon/bpmn-modeler/issues/2308)) ([aace17c](https://github.com/Miragon/bpmn-modeler/commit/aace17c9d9ed6755da15cfd9413c34fe76e2f3d5))
+* **add-ons-webview:** show add-ons as a searchable list with a detail pane ([#2327](https://github.com/Miragon/bpmn-modeler/issues/2327)) ([f7fad7c](https://github.com/Miragon/bpmn-modeler/commit/f7fad7c11e646e1d35726fe5fb7df0d8ba7c1479))
+* **bpmn-modeler:** keep hidden element templates out of new choices ([#2301](https://github.com/Miragon/bpmn-modeler/issues/2301)) [sync 2d6033d] ([e40e3c8](https://github.com/Miragon/bpmn-modeler/commit/e40e3c8bfaa5f74c88a80882d01e5f68c50d0541))
+* call the artifacts view add-ons ([#2326](https://github.com/Miragon/bpmn-modeler/issues/2326)) ([1e2f3a6](https://github.com/Miragon/bpmn-modeler/commit/1e2f3a6fd73cd5598642ede3fd9c66bbe6aa684a))
+* **dmn-diff:** show DMN changes in a visual diff of DRD and decision tables ([#2359](https://github.com/Miragon/bpmn-modeler/issues/2359)) ([e66b46d](https://github.com/Miragon/bpmn-modeler/commit/e66b46d056f5c72b87a81152182a695249dc9937))
+* fit the diagram to the view from a canvas button ([#2343](https://github.com/Miragon/bpmn-modeler/issues/2343)) ([00da896](https://github.com/Miragon/bpmn-modeler/commit/00da8960e5bbdf0cf0c5fd9c8518ff3495aa5775))
+* **intellij-plugin:** keep element template switches per user in intellij ([#2307](https://github.com/Miragon/bpmn-modeler/issues/2307)) [sync cb671dd] ([a2b54f0](https://github.com/Miragon/bpmn-modeler/commit/a2b54f0ced6ca3e8b9160f6475f2f831245ad7f7))
+* **intellij-plugin:** run no workspace code in a project you did not trust ([#2361](https://github.com/Miragon/bpmn-modeler/issues/2361)) ([781d9bb](https://github.com/Miragon/bpmn-modeler/commit/781d9bb6b38c3a9ea253a7dbd386e9897cde3516))
+* **modeler-core:** add form engine and shared language selection ([#2341](https://github.com/Miragon/bpmn-modeler/issues/2341)) ([c28a403](https://github.com/Miragon/bpmn-modeler/commit/c28a403a9b3e887169b9773062a2da0889604525))
+* **modeler-core:** allow code whose content you allowed in another folder ([#2337](https://github.com/Miragon/bpmn-modeler/issues/2337)) [sync 9b3dc90] ([687770e](https://github.com/Miragon/bpmn-modeler/commit/687770e80d927fcd8c51cdfac89a6471bae0514b))
+* **modeler-core:** allow workspace code per repository and add-on ([#2358](https://github.com/Miragon/bpmn-modeler/issues/2358)) ([192d740](https://github.com/Miragon/bpmn-modeler/commit/192d74074fb05ffd5f675fb12bb93e15b688fd32))
+* **modeler-core:** follow approval changes everywhere and prune the plugin cache ([#2286](https://github.com/Miragon/bpmn-modeler/issues/2286)) ([a49ab82](https://github.com/Miragon/bpmn-modeler/commit/a49ab82d1715927a7652547c03f90bbc73c2af39))
+* **modeler-core:** host-neutral add-on catalog for the artifacts view ([#2289](https://github.com/Miragon/bpmn-modeler/issues/2289)) ([68770b6](https://github.com/Miragon/bpmn-modeler/commit/68770b6a57eb8d1657b84886286f737597f2b650))
+* **modeler-core:** list element templates and marketplaces in the add-on catalog ([#2296](https://github.com/Miragon/bpmn-modeler/issues/2296)) ([d7dd275](https://github.com/Miragon/bpmn-modeler/commit/d7dd275bf80964d3292f3e8d7a733475ee0a745a))
+* **modeler-core:** offer a marketplace update when the workspace has fetched nothing ([#2318](https://github.com/Miragon/bpmn-modeler/issues/2318)) ([4c128e7](https://github.com/Miragon/bpmn-modeler/commit/4c128e710416831d48f75f8451140c1e36be0a9b))
+* **modeler-core:** tell which repository holds workspace code ([#2346](https://github.com/Miragon/bpmn-modeler/issues/2346)) ([cc6eacf](https://github.com/Miragon/bpmn-modeler/commit/cc6eacffc9edab94b14c1d1a613ce9192f05d5c1))
+* **modeler-core:** turn element templates and their sources off per user ([#2304](https://github.com/Miragon/bpmn-modeler/issues/2304)) ([48bab6d](https://github.com/Miragon/bpmn-modeler/commit/48bab6d027be92939709fb6b5bf04d4244b8a350))
+* open the add-ons that need review from a command in both hosts ([#2335](https://github.com/Miragon/bpmn-modeler/issues/2335)) ([18ddb38](https://github.com/Miragon/bpmn-modeler/commit/18ddb38f93f3d9567d6b76353d812bad75cdb1ea))
+* replace the canvas focus reticle with a focus ring ([#2342](https://github.com/Miragon/bpmn-modeler/issues/2342)) ([3f64891](https://github.com/Miragon/bpmn-modeler/commit/3f648910c76288ec018eaa25a2d9743ca7b33f42))
+* show the canvas keyboard focus as a dot on the fit button ([#2362](https://github.com/Miragon/bpmn-modeler/issues/2362)) ([0f56772](https://github.com/Miragon/bpmn-modeler/commit/0f567728f53e88561a6d28de68d18207ff94a9d3))
+* show the miragon comet as the bpmn modeler container icon ([#2322](https://github.com/Miragon/bpmn-modeler/issues/2322)) ([f4f87fb](https://github.com/Miragon/bpmn-modeler/commit/f4f87fb2cc73510014e78544729751eaa1e42598))
+* **vscode-plugin:** show the artifacts view in the bpmn modeler container ([#2309](https://github.com/Miragon/bpmn-modeler/issues/2309)) ([e50109a](https://github.com/Miragon/bpmn-modeler/commit/e50109a5465998ddb7eb621ab5304336b3beeb51))
+
+
+### 🐞 Bug Fixes
+
+* **add-ons-webview:** render the newest state when the host answers at once ([#2323](https://github.com/Miragon/bpmn-modeler/issues/2323)) [sync 3538366] ([4fe6128](https://github.com/Miragon/bpmn-modeler/commit/4fe61285fb152f9cc52f0de037eda7867bda1be9))
+* **element-template-chooser:** preview the first choice of a required dropdown ([#2351](https://github.com/Miragon/bpmn-modeler/issues/2351)) [sync 64a5abf] ([949b86e](https://github.com/Miragon/bpmn-modeler/commit/949b86e48bab29990802551d28b9cc00d628d69c))
+* **element-template-chooser:** show Boolean and Number values in the previews ([#2357](https://github.com/Miragon/bpmn-modeler/issues/2357)) [sync 7095db6] ([54d895d](https://github.com/Miragon/bpmn-modeler/commit/54d895dec7f0009e6ee1c3f92568a5c2b0166024))
+* **forms:** numeric validaton ([#2320](https://github.com/Miragon/bpmn-modeler/issues/2320)) [sync 2d001ff] ([fe7d1c8](https://github.com/Miragon/bpmn-modeler/commit/fe7d1c8e7698e7332896e85e85b4662d79f32378))
+* **intellij-plugin:** write approvals as changes the host merges ([#2279](https://github.com/Miragon/bpmn-modeler/issues/2279)) ([2e017bc](https://github.com/Miragon/bpmn-modeler/commit/2e017bc3d9cb42a5ac9da77e46b4c4c5b04ac0cf))
+* **modeler-bridge:** watch a folder that does not exist yet once it appears ([#2299](https://github.com/Miragon/bpmn-modeler/issues/2299)) [sync f469851] ([5b962a6](https://github.com/Miragon/bpmn-modeler/commit/5b962a629fa0d1ba87b9da934b4c74e53e836cb0))
+* **standalone:** show the current title and icon of a restored plugin view container ([#2333](https://github.com/Miragon/bpmn-modeler/issues/2333)) [sync ea776c9] ([fa82901](https://github.com/Miragon/bpmn-modeler/commit/fa829018c20606e8e9cdfa01726fcd9644eb9fd9))
+
+
+### 🔨 Refactoring
+
+* **modeler-core:** prune plugin copies by last use ([#2348](https://github.com/Miragon/bpmn-modeler/issues/2348)) ([8653b86](https://github.com/Miragon/bpmn-modeler/commit/8653b86a01775ea48e6d9d84df8f72bbd0f57401))
+
+
+### 📔 Documentation
+
+* rewrite READMEs for users, move package reference to the docs ([#2331](https://github.com/Miragon/bpmn-modeler/issues/2331)) ([6177741](https://github.com/Miragon/bpmn-modeler/commit/6177741ca798c7c86da068cabb1e4802cb187e6a))
+
+
+### 🛠️ Misc
+
+* **deps:** bump the npm-minor-patch group across 1 directory with 24 updates ([#2334](https://github.com/Miragon/bpmn-modeler/issues/2334)) ([0f3f59d](https://github.com/Miragon/bpmn-modeler/commit/0f3f59db46031a56defb0a48e839c50de4f17a00))
+* signal the brand mode to the add-ons view ([#2325](https://github.com/Miragon/bpmn-modeler/issues/2325)) ([4a7d838](https://github.com/Miragon/bpmn-modeler/commit/4a7d8386241cee629cdee903280ea9528045a484))
+* **vscode-plugin:** publish with vsce 4.1.0 for the final oidc token exchange ([#2288](https://github.com/Miragon/bpmn-modeler/issues/2288)) ([e389733](https://github.com/Miragon/bpmn-modeler/commit/e389733ae34dcc327f50ae1d2c146408eace4a9f))
+
 ## [1.21.0](https://github.com/Miragon/bpmn-modeler/compare/vscode-v1.20.0...vscode-v1.21.0) (2026-11-09)
 
 

@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.9.0](https://github.com/Miragon/bpmn-modeler/compare/dmn-modeler-v0.8.0...dmn-modeler-v0.9.0) (2026-11-12)
+
+
+### 🎉 New Features
+
+* **bpmn-modeler:** keep hidden element templates out of new choices ([#2301](https://github.com/Miragon/bpmn-modeler/issues/2301)) [sync 2d6033d] ([e40e3c8](https://github.com/Miragon/bpmn-modeler/commit/e40e3c8bfaa5f74c88a80882d01e5f68c50d0541))
+* **dmn-diff:** show DMN changes in a visual diff of DRD and decision tables ([#2359](https://github.com/Miragon/bpmn-modeler/issues/2359)) ([e66b46d](https://github.com/Miragon/bpmn-modeler/commit/e66b46d056f5c72b87a81152182a695249dc9937))
+* fit the diagram to the view from a canvas button ([#2343](https://github.com/Miragon/bpmn-modeler/issues/2343)) ([00da896](https://github.com/Miragon/bpmn-modeler/commit/00da8960e5bbdf0cf0c5fd9c8518ff3495aa5775))
+* **modeler-core:** list element templates and marketplaces in the add-on catalog ([#2296](https://github.com/Miragon/bpmn-modeler/issues/2296)) [sync d7dd275] ([4eab152](https://github.com/Miragon/bpmn-modeler/commit/4eab1525a247dd18626a3de5ee6d9a98783e86bf))
+* replace the canvas focus reticle with a focus ring ([#2342](https://github.com/Miragon/bpmn-modeler/issues/2342)) ([3f64891](https://github.com/Miragon/bpmn-modeler/commit/3f648910c76288ec018eaa25a2d9743ca7b33f42))
+* show the canvas keyboard focus as a dot on the fit button ([#2362](https://github.com/Miragon/bpmn-modeler/issues/2362)) ([0f56772](https://github.com/Miragon/bpmn-modeler/commit/0f567728f53e88561a6d28de68d18207ff94a9d3))
+
+
+### 📔 Documentation
+
+* rewrite READMEs for users, move package reference to the docs ([#2331](https://github.com/Miragon/bpmn-modeler/issues/2331)) ([6177741](https://github.com/Miragon/bpmn-modeler/commit/6177741ca798c7c86da068cabb1e4802cb187e6a))
+
+
+### 🛠️ Misc
+
+* **deps:** bump the bpmn-io group except @bpmn-io/properties-panel ([#2123](https://github.com/Miragon/bpmn-modeler/issues/2123)) ([4a03893](https://github.com/Miragon/bpmn-modeler/commit/4a0389337341a562ed9e2b366df1e175c7adf5cb))
+* **deps:** bump the npm-minor-patch group across 1 directory with 24 updates ([#2334](https://github.com/Miragon/bpmn-modeler/issues/2334)) ([0f3f59d](https://github.com/Miragon/bpmn-modeler/commit/0f3f59db46031a56defb0a48e839c50de4f17a00))
+
 ## [0.8.0](https://github.com/Miragon/bpmn-modeler/compare/dmn-modeler-v0.7.0...dmn-modeler-v0.8.0) (2026-11-09)
 
 
