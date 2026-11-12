@@ -72,6 +72,7 @@ dmg:
 win:
   target:
     - nsis
+    - zip
   icon: resources/icon.ico
   # Mirror the DMG naming; GitHub Releases rewrites spaces in uploaded asset
   # names to dots, so we pre-flatten to keep download URLs stable.

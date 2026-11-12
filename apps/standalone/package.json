@@ -97,7 +97,7 @@
     "yaml": "2.9.1"
   },
   "scripts": {
-    "test:runtime": "node --test scripts/theia-runtime.test.mjs",
+    "test:runtime": "node --test scripts/theia-runtime.test.mjs scripts/standalone-installation.test.mjs",
     "test:packaged": "node --test scripts/packaged-runtime.test.mjs",
     "test:packaged-search": "node --test scripts/packaged-search.test.mjs",
     "test:security": "node --test scripts/dependency-security.test.mjs",

@@ -12,6 +12,7 @@ Get the package for your system from the [Download page](/download):
 |---|---|---|
 | macOS | Signed and notarized `.dmg` | In-app updater |
 | Windows | `.exe` installer | In-app updater |
+| Windows without installer | `.zip`: extract it and start `Miragon BPMN Modeler.exe` | Download a newer `.zip` |
 | Linux x86_64 | Flatpak from the Miragon repository, or a `.flatpak` bundle | `flatpak update` |
 
 All files are also on [GitHub Releases](https://github.com/Miragon/bpmn-modeler/releases).
