@@ -61,7 +61,7 @@ export function activate(context: ExtensionContext): TestApi {
         scriptEditor: script.editorContribution,
         reviews,
     });
-    editorFeature.register(context, deps);
+    const { formService } = editorFeature.register(context, deps);
     const { marketplaces } = templateMarketplaceFeature.registerCommands(context, deps, {
         marketplaceSvc,
         templatesSvc: bpmnEditor.templates,
@@ -76,6 +76,7 @@ export function activate(context: ExtensionContext): TestApi {
     compareFeature.register(context, deps, { diffController });
     commandsFeature.register(context, deps, {
         bpmnService: bpmnEditor.bpmnService,
+        formService,
         layoutSvc: bpmnEditor.layout,
         coreWriteRenderer: bpmnEditor,
     });

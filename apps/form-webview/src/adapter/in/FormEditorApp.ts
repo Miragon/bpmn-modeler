@@ -1,5 +1,7 @@
 import {
-    createInertLock,
+    createInertLockGroup,
+    FORM_INVALID_JSON_MESSAGE,
+    FORM_SCHEMA_IMPORT_ERROR_MESSAGE,
     HostDocumentRevisions,
     LogErrorCommand,
     LogWarningCommand,
@@ -51,7 +53,9 @@ export class FormEditorApp {
     private readonly importPreviewInOrder = serializeAsync((version: number) =>
         this.importPreview(version),
     );
-    private readonly flushLock = createInertLock(document.body);
+    private readonly locks = createInertLockGroup(document.body);
+    private readonly flushLock = this.locks.createLock();
+    private readonly importLock = this.locks.createLock();
     private readonly revisions = new HostDocumentRevisions();
     private previewRefreshVersion = 0;
     private sourceContent = "";
@@ -98,14 +102,12 @@ export class FormEditorApp {
         try {
             schema = JSON.parse(content) as Schema;
         } catch (error) {
-            this.showError(
-                "The form contains invalid JSON. Open the raw JSON editor to fix it.",
-                error,
-            );
+            this.showError(FORM_INVALID_JSON_MESSAGE, error);
             return;
         }
 
         this.activeHostUpdates++;
+        this.importLock.acquire();
         try {
             const result = await this.importSchema(schema);
             if (!this.revisions.isCurrent(version)) return;
@@ -120,13 +122,11 @@ export class FormEditorApp {
             if (this.mode === "preview") await this.refreshPreview();
         } catch (error) {
             if (this.revisions.isCurrent(version)) {
-                this.showError(
-                    "The form schema could not be loaded. Open the raw JSON editor to fix it.",
-                    error,
-                );
+                this.showError(FORM_SCHEMA_IMPORT_ERROR_MESSAGE, error);
             }
         } finally {
             this.activeHostUpdates--;
+            if (this.activeHostUpdates === 0) this.importLock.release();
         }
     }
 

@@ -135,6 +135,12 @@
         "paramKeys": ["editorId"]
     },
     {
+        "method": "modeler/changeLanguage",
+        "direction": "hostToCore",
+        "kind": "notification",
+        "paramKeys": []
+    },
+    {
         "method": "linting/toggle",
         "direction": "hostToCore",
         "kind": "notification",
@@ -381,6 +387,13 @@
         "kind": "request",
         "paramKeys": ["prompt", "title"],
         "resultKeys": ["token"]
+    },
+    {
+        "method": "settings/setLanguage",
+        "direction": "coreToHost",
+        "kind": "request",
+        "paramKeys": ["locale"],
+        "replyDeadlineMs": 120000
     },
     {
         "method": "settings/setLintingEnabled",

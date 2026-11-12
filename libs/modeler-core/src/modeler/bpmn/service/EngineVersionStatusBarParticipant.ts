@@ -13,11 +13,10 @@ import { engineVersionStatusView } from "../domain/engineVersionStatusView";
  * hides it otherwise.
  */
 export class EngineVersionStatusBarParticipant implements EditorSessionParticipant {
-    private readonly statusOwnership = new StatusItemOwnership();
-
     constructor(
         private readonly statusBar: StatusBarPort,
         private readonly documents: DocumentPort,
+        private readonly statusOwnership = new StatusItemOwnership(),
     ) {}
 
     onResolve(session: EditorSessionContext): void {

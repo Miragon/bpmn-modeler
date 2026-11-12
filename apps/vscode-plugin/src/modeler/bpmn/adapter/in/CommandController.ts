@@ -1,7 +1,6 @@
-import { commands, env, ExtensionContext, Uri, window, workspace } from "vscode";
+import { commands, env, ExtensionContext, Uri, workspace } from "vscode";
 
 import { Command, GetDiagramAsSVGCommand, isMessageOfType } from "@miragon/bpmn-modeler-shared";
-import { supportedModelerLanguages } from "@miragon/bpmn-modeler-i18n-extras";
 
 import { EditorSubscription } from "@miragon/bpmn-modeler-core";
 import { EditorSessionStore } from "@miragon/bpmn-modeler-core";
@@ -13,13 +12,19 @@ import {
     DMN_VIEW_TYPE,
     FOCUS_BPMN_DIAGRAM_MESSAGE,
     FORM_VIEW_TYPE,
+    EngineVersionSelectionService,
+    ModelerLanguageService,
     newModelEnginePrompt,
+    NewModelFilePrompt,
+    newBpmnModelFilePrompt,
+    newDmnModelFilePrompt,
+    newFormModelFilePrompt,
 } from "@miragon/bpmn-modeler-core";
 import { EMPTY_DMN_DIAGRAM } from "@miragon/bpmn-modeler-types";
 import { ModelerPreferences } from "../../../../shared/port/ModelerPreferences";
 import { promptNewFileTarget } from "../../../../shared/adapter/in/newFileTarget";
 import { VsCodeTextEditor } from "../../../../shared/adapter/in/VsCodeTextEditor";
-import { BpmnLayoutService, BpmnModelerService } from "@miragon/bpmn-modeler-core";
+import { BpmnLayoutService } from "@miragon/bpmn-modeler-core";
 import { NotifierPort, PendingEditsFlush, PickerPort } from "@miragon/bpmn-modeler-core";
 import { BpmnMigrationService } from "@miragon/bpmn-modeler-core";
 
@@ -56,12 +61,16 @@ export class CommandController {
         private readonly vsDocument: EditorSessionDocuments,
         private readonly notifier: NotifierPort,
         private readonly textEditor: VsCodeTextEditor,
-        private readonly bpmnService: BpmnModelerService,
+        private readonly engineSelection: Pick<
+            EngineVersionSelectionService,
+            "changeEngineVersion"
+        >,
         private readonly migrationSvc: BpmnMigrationService,
         private readonly picker: PickerPort,
         private readonly documentFlush: DocumentFlusher,
         private readonly layoutSvc: BpmnLayoutService,
         private readonly preferences: ModelerPreferences,
+        private readonly languageService: ModelerLanguageService,
     ) {}
 
     /** Registers all commands and pushes their disposables into the extension context. */
@@ -147,10 +156,10 @@ export class CommandController {
         this.notifier.openLoggingConsole();
     }
 
-    /** Prompts for a new engine version for the active BPMN editor. */
+    /** Prompts for the active document's supported engine metadata. */
     changeEngineVersion(): Promise<boolean> {
         return this.logAndRethrow(() =>
-            this.bpmnService.changeEngineVersion(this.editorStore.getActiveEditorId()),
+            this.engineSelection.changeEngineVersion(this.editorStore.getActiveEditorId()),
         );
     }
 
@@ -159,27 +168,9 @@ export class CommandController {
         return this.logAndRethrow(() => this.migrationSvc.migrateAllDiagrams());
     }
 
-    /** Prompts for a UI language and applies it to the active modeler webview. */
+    /** Changes the application UI language, including with no editor open. */
     changeLanguage(): Promise<void> {
-        return this.logAndRethrow(async () => {
-            const items = supportedModelerLanguages.map((lang) => ({
-                label: lang.label,
-                description: lang.locale,
-            }));
-
-            const picked = await window.showQuickPick(items, {
-                placeHolder: "Select the modeler language",
-            });
-
-            if (!picked) {
-                return;
-            }
-
-            await this.preferences.setLanguage(picked.description);
-            // Breadcrumb: a language switch changes UI strings across the modeler,
-            // so record it to explain later "why is the panel in German?" reports.
-            this.notifier.logInfo(`Modeler language changed to ${picked.description}`);
-        });
+        return this.logAndRethrow(() => this.languageService.changeLanguage());
     }
 
     /**
@@ -217,7 +208,7 @@ export class CommandController {
      */
     newBpmnModel(): Promise<void> {
         return this.logAndRethrow(async () => {
-            const target = await this.promptNewModelTarget("New BPMN Model", "BPMN", "bpmn");
+            const target = await this.promptNewModelTarget(newBpmnModelFilePrompt());
             if (!target) {
                 return; // dialog dismissed — silent no-op
             }
@@ -236,7 +227,7 @@ export class CommandController {
     /** Scaffolds a new DMN model and opens it. DMN has no engine choice, so no quick-pick. */
     newDmnModel(): Promise<void> {
         return this.logAndRethrow(async () => {
-            const target = await this.promptNewModelTarget("New DMN Model", "DMN", "dmn");
+            const target = await this.promptNewModelTarget(newDmnModelFilePrompt());
             if (!target) {
                 return;
             }
@@ -248,12 +239,7 @@ export class CommandController {
     /** Creates a valid Camunda Form and opens it in the visual editor. */
     newFormModel(): Promise<void> {
         return this.logAndRethrow(async () => {
-            const target = await this.promptNewModelTarget(
-                "New Camunda Form",
-                "Camunda Form",
-                "form",
-                "new-form",
-            );
+            const target = await this.promptNewModelTarget(newFormModelFilePrompt());
             if (!target) {
                 return;
             }
@@ -263,18 +249,13 @@ export class CommandController {
     }
 
     /** Works without a workspace folder open: the `defaultUri` is simply omitted. */
-    private promptNewModelTarget(
-        title: string,
-        filterLabel: string,
-        ext: string,
-        defaultName = "new-diagram",
-    ): Promise<Uri | undefined> {
+    private promptNewModelTarget(prompt: NewModelFilePrompt): Promise<Uri | undefined> {
         const folder = workspace.workspaceFolders?.[0];
         return promptNewFileTarget({
-            title,
-            filterLabel,
-            extension: ext,
-            defaultUri: folder ? Uri.joinPath(folder.uri, `${defaultName}.${ext}`) : undefined,
+            title: prompt.title,
+            filterLabel: prompt.filterLabel,
+            extension: prompt.extension,
+            defaultUri: folder ? Uri.joinPath(folder.uri, prompt.defaultFileName) : undefined,
         });
     }
 

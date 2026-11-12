@@ -167,6 +167,7 @@ class ProtocolHandlerCoverageTest {
                 HostToCoreMethod.MARKETPLACE_UPDATE to { marketplace.updateMarketplaces() },
                 HostToCoreMethod.MARKETPLACE_REMOVE to { marketplace.removeMarketplaces() },
                 HostToCoreMethod.MODELER_CHANGE_ENGINE_VERSION to { modelerCommands.changeEngineVersion(session.editorId) },
+                HostToCoreMethod.MODELER_CHANGE_LANGUAGE to { modelerCommands.changeLanguage() },
                 HostToCoreMethod.LINTING_TOGGLE to { modelerCommands.toggleLinting() },
                 HostToCoreMethod.MIGRATION_MIGRATE_ALL to { modelerCommands.migrateAllDiagrams() },
                 HostToCoreMethod.LAYOUT_FORMAT to { modelerCommands.formatDiagram() },

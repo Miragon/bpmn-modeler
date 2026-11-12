@@ -426,6 +426,10 @@ export interface SettingsSetLintingEnabledParams {
     enabled: boolean;
 }
 
+export interface SettingsSetLanguageParams {
+    locale: string;
+}
+
 /**
  * `actionNotice/show` — a non-modal notification with one button per label,
  * in order. The result names the clicked button by its index; no index means
