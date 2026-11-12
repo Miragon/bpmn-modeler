@@ -1,7 +1,7 @@
 # BPMN modeler
 
 - Status: accepted
-- Last reviewed: 2026-11-11
+- Last reviewed: 2026-11-12
 
 ## Context
 
@@ -1523,8 +1523,32 @@ the core and browser package reuse one implementation without a library importin
 a package. Public `/diff` exposes it without DOM, CSS, viewer or i18n dependencies.
 The result is serializable IDs, counts and navigation order; its shape is a
 semver contract, while ordering heuristics are not. Failures throw and hosts own
-their error reporting. Diff vocabulary is defined in that library and re-exported
-type-only where compatibility requires it.
+their error reporting. `DiffSide` and `DiffCounts` are defined in that library and
+re-exported type-only where compatibility requires it.
+
+`navigationOrder` is the order a stepper walks. It leaves out a connection whose
+only change is layout: an element drawn by a `bpmndi:BPMNEdge` (sequence or
+message flow, association, data association) that is in `layoutChanged` but not
+in `added`, `removed` or `changed`. Such a connection moves with its shapes, so
+it stays in `layoutChanged` and `counts` and is highlighted, but it is no stop of
+its own. The rule has one home, `layoutOnlyEdgeIds` in `drawnEdges.ts`, which
+takes the four id lists and an edge predicate. `computeDiff` asks it with the
+edges in the parsed DI of both versions, so every consumer of `/diff` and the
+core's `BpmnDiffService` get the same order; the [DMN diff](dmn-modeler.md#diff)
+asks it with the requirements and associations of both versions. A consumer
+that read `navigationOrder` as every changed id sees fewer stops.
+
+Both diffs share one vocabulary in `libs/modeler-types/src/diffVocabulary.ts`:
+`DiffCategory` (`keyof DiffCounts`, defined beside `DiffCounts` in the data
+library, which also keys the upstream differ's categories by it, and
+re-exported), `DIFF_CATEGORIES` in legend order, the
+canvas markers `DIFF_MARKERS` and `DIFF_SELECTED_MARKER`, and the legends' i18n
+keys `DIFF_LEGEND_TEXTS` (the toolbar label "Changes" included) and
+`DIFF_CATEGORY_LABELS`. `DIFF_CATEGORIES` is typed
+with its home type, not `as const`, because the declaration roll-up fails on a
+public type derived from a const list; a spec pins it to `DiffCategory`. The
+stepping rules (`canStep`, `stepCursor`, `nearestPresent`) live beside it in
+`diffStepper.ts`.
 
 Parse each revision separately with the C7 and C8 descriptors, remove the other
 engine's extensions from each pair, then merge and deduplicate the comparisons.
@@ -1540,9 +1564,25 @@ remain external.
 Browser rendering lives on `/viewer`: `DiffViewer`, `DiffLegend`,
 `DiffNavigator`, `DiffPaneCoordinator`, and related types. Root re-exports
 remain deprecated compatibility aliases. `DiffNavigator` owns stepping for both
-in-page coordination and host-relayed panes. The coordinator synchronizes
-in-page viewport/cursor state; the private host protocol handles separate
-webviews. Legends accept presentation props rather than host-origin vocabulary.
+in-page coordination and host-relayed panes and walks `navigationOrder` as
+given: `setChanges(navigationOrder)`. The older `setChanges(view,
+navigationOrder)` stays as a deprecated overload; it still leaves out the view's
+layout-only connections, asking `layoutOnlyEdgeIds` with
+`DiffViewer.isConnection`, so a navigation order from an older `computeDiff` or
+built by the consumer steps as before. The
+coordinator synchronizes in-page viewport/cursor state; the private host
+protocol handles separate webviews. Legends accept presentation props rather
+than host-origin vocabulary. Prev and Next are enabled only when there is a step,
+by `canStep(steps)`: `DiffNavigator.canStep` and `DiffPaneCoordinator.canStep`
+pass it to the optional `DiffLegendContext.canStep`. A consumer without a
+stepper may omit it; the legend then enables the buttons whenever a count is
+above zero, which overstates a diff of connections that only moved. The legend matches the DMN
+pane's: a `role="toolbar"` labelled "Changes", each count as swatch, label and
+bold `.diff-legend__count`, and an icon-only swap button (⇄) named by its
+`title` and `aria-label`. Its `diff-legend__*` classes and colours are
+unchanged. The public `DiffMarkerClass` keeps its literals, pinned to
+`DIFF_MARKERS` by a spec, and `DiffViewer.applyHighlights` takes any marker
+`string`.
 
 The [Node import check](../../packages/bpmn-modeler/scripts/check-diff-node.mjs)
 and [data-library tests](../../libs/bpmn-diff/src) guard the data/browser split.

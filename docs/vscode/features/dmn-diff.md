@@ -13,7 +13,7 @@ See what changed between two versions of a `.dmn` file as two decision requireme
 - Select two `.dmn` files, right-click, **Compare Selected (DMN)**. The first selected file is the before side.
 - Or right-click one file, **Select for Compare (DMN)**, then right-click the other, **Compare with Selected (DMN)**. The pick is kept until you compare or reload the window.
 
-File comparisons also show each file name above its pane and a **Swap sides** (⇄) button.
+File comparisons also show each file name above its pane and a ⇄ button that swaps the sides (its tooltip reads **Swap sides**).
 
 If a Git diff still opens as XML, check `workbench.diffEditorAssociations` in your settings: a `*.dmn` entry there overrides the modeler.
 
@@ -49,7 +49,7 @@ The rule numbers stay in view while the table scrolls sideways. Scroll one table
 
 ## Step through the changes
 
-The legend above each pane counts the changes in the open view: the DRD, or the open table. **Prev change** and **Next change** step through them and move both panes together; the current change glows gold. In the DRD they go from top to bottom, then left to right; in a table, the table's settings first, then the columns, then the rules. Both panes are read-only, but you can pan and zoom the DRD and scroll the tables.
+The legend above each pane counts the changes in the open view: the DRD, or the open table. **Prev change** and **Next change** step through them and move both panes together; the current change glows gold. In the DRD they go from top to bottom, then left to right; in a table, the table's settings first, then the columns, then the rules. A requirement or association that only moved along with its shapes is highlighted and counted, but not a step of its own. Both panes are read-only, but you can pan and zoom the DRD and scroll the tables.
 
 The comparison follows element ids, as the [BPMN diff](/vscode/features/bpmn-diff) does: a rule you copy and paste gets a new id and shows as removed and added. The colours are the BPMN diff's.
 

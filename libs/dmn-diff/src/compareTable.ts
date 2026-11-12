@@ -38,6 +38,7 @@ export function compareTable(
         ].every((ids) => ids.length === 0) && properties.length === 0;
     if (isEmpty) return undefined;
 
+    const attributesStep = properties.length > 0 && after.id ? after.id : undefined;
     return {
         columns,
         rules: {
@@ -56,7 +57,8 @@ export function compareTable(
                 columns.changed.length + rules.changed.length + (properties.length > 0 ? 1 : 0),
             layoutChanged: rules.moved.length,
         },
-        navigationOrder: navigationOrder(before, after, columns, rules, properties),
+        ...(attributesStep === undefined ? {} : { attributesStep }),
+        navigationOrder: navigationOrder(before, after, columns, rules, attributesStep),
     };
 }
 
@@ -169,15 +171,15 @@ function changedProperties(before: ModdleElement, after: ModdleElement): string[
 }
 
 /**
- * The table id first, then columns, then rules; a removed column or rule takes
- * the place after the neighbour it followed in the before version.
+ * The attributes step first, then columns, then rules; a removed column or rule
+ * takes the place after the neighbour it followed in the before version.
  */
 function navigationOrder(
     before: ModdleElement,
     after: ModdleElement,
     columns: DecisionTableChanges["columns"],
     rules: RuleChanges,
-    properties: readonly string[],
+    attributesStep: string | undefined,
 ): string[] {
     const columnSlots = slots(idsOf(columnsOf(before)), idsOf(columnsOf(after)), 0);
     const ruleSlots = slots(
@@ -193,7 +195,7 @@ function navigationOrder(
         ...rules.moved,
     ]);
     const steps: Array<[string, number]> = [
-        ...(properties.length > 0 && after.id ? [[after.id, -1] as [string, number]] : []),
+        ...(attributesStep === undefined ? [] : [[attributesStep, -1] as [string, number]]),
         ...[...columnSlots].filter(([id]) => changedColumns.has(id)),
         ...[...ruleSlots].filter(([id]) => changedRules.has(id)),
     ];

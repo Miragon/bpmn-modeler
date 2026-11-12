@@ -34,6 +34,7 @@ const fakes = vi.hoisted(() => {
 
     class FakeDiffNavigator {
         static last: FakeDiffNavigator;
+        canStep = true;
         setChanges = vi.fn();
         applyCursor = vi.fn();
         advance = vi.fn((_direction: 1 | -1): number | undefined => undefined);
@@ -171,14 +172,24 @@ describe("DiffMode", () => {
             expect(viewer().clearHighlights.mock.invocationCallOrder[0]).toBeLessThan(
                 viewer().applyHighlights.mock.invocationCallOrder[0],
             );
-            expect(navigator().setChanges).toHaveBeenCalledWith(
-                {
-                    added: ["Added_1"],
-                    removed: ["Removed_1"],
-                    changed: ["Changed_1"],
-                    layoutChanged: ["Moved_1"],
-                },
-                ["Changed_1", "Added_1", "Removed_1"],
+            expect(navigator().setChanges).toHaveBeenCalledWith([
+                "Changed_1",
+                "Added_1",
+                "Removed_1",
+            ]);
+        });
+
+        it("lets the legend step only when the navigator has a change to step to", async () => {
+            await startDiffPane();
+            navigator().canStep = false;
+
+            dispatch(highlights("scm"));
+
+            expect(legend().update).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    counts: { added: 1, removed: 1, changed: 1, layoutChanged: 1 },
+                    canStep: false,
+                }),
             );
         });
 
@@ -190,8 +201,8 @@ describe("DiffMode", () => {
             dispatch(highlights("scm"));
 
             expect(legend().update.mock.calls).toEqual([
-                [{ counts, filename: "after.bpmn", showSwap: true }],
-                [{ counts, filename: undefined, showSwap: false }],
+                [{ counts, filename: "after.bpmn", showSwap: true, canStep: true }],
+                [{ counts, filename: undefined, showSwap: false, canStep: true }],
             ]);
         });
     });

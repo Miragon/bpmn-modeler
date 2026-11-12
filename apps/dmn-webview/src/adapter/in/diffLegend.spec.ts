@@ -123,15 +123,17 @@ describe("DiffLegend", () => {
 
 describe("DiffEmptyState", () => {
     it.each([
-        ["after", "removed", "It was removed. The version on the left shows it."],
-        ["before", "added", "It is new. The version on the right shows it."],
-    ] as const)("tells the %s pane the decision is %s", (side, kind, text) => {
+        ["removed", "It was removed. The version on the left shows it."],
+        ["added", "It is new. The version on the right shows it."],
+    ] as const)("tells the pane the decision is %s", (status, text) => {
         const card = new DiffEmptyState(parent, vi.fn());
 
-        card.show(side);
+        card.show(status);
 
         expect(parent.querySelector<HTMLElement>(".dmn-diff-empty")?.hidden).toBe(false);
-        expect(parent.querySelector<HTMLElement>(".dmn-diff-empty__card")?.dataset.kind).toBe(kind);
+        expect(parent.querySelector<HTMLElement>(".dmn-diff-empty__card")?.dataset.kind).toBe(
+            status,
+        );
         expect(parent.textContent).toContain("Not in this version");
         expect(parent.textContent).toContain(text);
         expect(document.body.classList).toContain("dmn-diff-page--missing");
@@ -140,7 +142,7 @@ describe("DiffEmptyState", () => {
     it("leads back to the DRD and hides again", () => {
         const onViewDrd = vi.fn();
         const card = new DiffEmptyState(parent, onViewDrd);
-        card.show("after");
+        card.show("removed");
 
         parent.querySelector<HTMLButtonElement>(".dmn-diff-empty button")?.click();
         card.show(undefined);

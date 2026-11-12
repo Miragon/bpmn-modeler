@@ -1,5 +1,11 @@
 import type { DmnDiffView } from "@miragon/bpmn-modeler-shared";
-import { type DiffCounts, nearestPresent } from "@miragon/bpmn-modeler-types";
+import {
+    DIFF_CATEGORIES,
+    type DiffCounts,
+    type DiffSide,
+    nearestPresent,
+} from "@miragon/bpmn-modeler-types";
+import type { DmnDiffStatus } from "@miragon/dmn-modeler";
 
 /** The changes a pane's stepper walks in the open view: the DRD's, or the open decision table's. */
 export function stepsOf(view: DmnDiffView, elementId: string | null): readonly string[] {
@@ -8,13 +14,10 @@ export function stepsOf(view: DmnDiffView, elementId: string | null): readonly s
         : (view.tables[elementId]?.navigationOrder ?? []);
 }
 
-/**
- * The changes of the open view this pane's version has. The pane's view lists
- * only those, and a changed table puts its own id first in its order.
- */
+/** The changes of the open view this pane's version has; the pane's view lists only those. */
 export function presentIn(view: DmnDiffView, elementId: string | null): ReadonlySet<string> {
     if (elementId === null) {
-        return new Set([...view.added, ...view.removed, ...view.changed, ...view.layoutChanged]);
+        return new Set(DIFF_CATEGORIES.flatMap((category) => view[category]));
     }
     const table = view.tables[elementId];
     if (!table) {
@@ -22,7 +25,7 @@ export function presentIn(view: DmnDiffView, elementId: string | null): Readonly
     }
     const { columns, rules } = table;
     return new Set([
-        ...(table.properties.length > 0 ? table.navigationOrder.slice(0, 1) : []),
+        ...(table.attributesStep === undefined ? [] : [table.attributesStep]),
         ...columns.added,
         ...columns.removed,
         ...columns.changed,
@@ -56,13 +59,10 @@ export function countsOf(view: DmnDiffView, elementId: string | null): DiffCount
     return elementId === null ? view.counts : view.tables[elementId]?.counts;
 }
 
-/** How the open element differs, for a view without a table to mark. */
-export function statusOf(
-    view: DmnDiffView,
-    elementId: string,
-): "added" | "removed" | "changed" | undefined {
-    if (view.added.includes(elementId)) return "added";
-    if (view.removed.includes(elementId)) return "removed";
-    if (view.expressions.includes(elementId)) return "changed";
-    return undefined;
+/** How an element differs that the partner pane has open and this pane's version lacks. */
+export type DmnMissingStatus = Exclude<DmnDiffStatus, "changed">;
+
+/** The after pane lacks what was removed; the before pane lacks what was added. */
+export function missingStatusOf(side: DiffSide): DmnMissingStatus {
+    return side === "after" ? "removed" : "added";
 }

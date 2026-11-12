@@ -1,12 +1,10 @@
 import { ExtensionContext } from "vscode";
 
 import {
-    BPMN_VIEW_TYPE,
     BpmnDiffService,
     createDiffPaneRouter,
     createDmnDiffPaneRouter,
     DiffPaneStore,
-    DMN_VIEW_TYPE,
     DmnDiffService,
 } from "@miragon/bpmn-modeler-core";
 import { DiffController, DiffPaneFormat } from "../diff/adapter/in/DiffController";
@@ -35,14 +33,14 @@ export function register(
     const diffController = new DiffController(
         diffStore,
         deps.notifier,
-        (panel, document) => new WebviewPaneHandle(panel, document, BPMN_VIEW_TYPE),
+        (panel, document) => new WebviewPaneHandle(panel, document, "bpmnDiffPane"),
         deps.preferences,
         bpmnDiffFormat(new BpmnDiffService(deps.notifier, deps.vsSettings, diffStore)),
     );
     const dmnDiffController = new DiffController(
         dmnDiffStore,
         deps.notifier,
-        (panel, document) => new WebviewPaneHandle(panel, document, DMN_VIEW_TYPE),
+        (panel, document) => new WebviewPaneHandle(panel, document, "dmnDiffPane"),
         deps.preferences,
         dmnDiffFormat(new DmnDiffService(deps.notifier, deps.vsSettings, dmnDiffStore)),
     );
@@ -60,7 +58,7 @@ export function bpmnDiffFormat(service: BpmnDiffService): DiffPaneFormat {
     };
 }
 
-function dmnDiffFormat(service: DmnDiffService): DiffPaneFormat {
+export function dmnDiffFormat(service: DmnDiffService): DiffPaneFormat {
     return {
         extension: ".dmn",
         createRouter: (extensions) => createDmnDiffPaneRouter(service, extensions),

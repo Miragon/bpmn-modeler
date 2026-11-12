@@ -1,0 +1,80 @@
+// Strings our own code passes to translate() that the harvest driver never
+// reaches, so they are absent from harvested.json but genuinely needed and
+// absent from the shared library. Keep them until upstreamed.
+export const SOURCE_ONLY: ReadonlySet<string> = new Set([
+    // Anchored form-preview chrome is outside the harvest driver's modeler interactions.
+    "Preview linked form",
+    "Linked form preview",
+    "The linked form is missing or invalid. Check the form reference.",
+    "Refresh",
+    "Close form preview",
+    "Read-only preview of the saved local form.",
+    "Saved form loaded.",
+    "Open a workspace folder to preview linked forms.",
+    "No saved local form matches this reference. Refresh to try again.",
+    "Multiple saved forms match this reference. Choose a form to preview.",
+    "The saved form could not be read. Refresh to try again.",
+    "The host did not answer. Refresh to try again.",
+    "The saved form is invalid or unsupported. Open it in the form editor.",
+    "The form preview could not be loaded. Refresh to try again.",
+    "Read-only",
+    "Being edited in",
+    "Element actions",
+    // Workspace definition-search entry: it only renders with a search port,
+    // which the harvest driver does not supply.
+    "Search other models",
+    "Name or code",
+    "No matches in other models",
+    "Search failed",
+    "Searching…",
+    "thrown by {elements}",
+    "caught by {elements}",
+    // The BPMN and DMN diff legends: the harvest driver opens no diff pane.
+    "Changes",
+    "Not in this version",
+    "It was removed. The version on the left shows it.",
+    "It is new. The version on the right shows it.",
+    // Mode-strip labels the webview emits before any surface exists, so the
+    // harvest driver (which drives a live modeler) never records them.
+    "View",
+    "Design",
+    "Implement",
+    "Mode",
+    "Implement needs a Camunda execution platform — this model has none. Assign one to enable it.",
+    "Mode: {mode}",
+    "Engine-neutral modeling",
+    "Camunda properties, templates and lint",
+    // Append-menu / element-template-chooser chrome. The harvest driver never
+    // opens either overlay (no popupMenu.open of bpmn-append/bpmn-create, no
+    // elementTemplates.select), and none of these are conditional on search /
+    // hover / selection states it could reach, so they cannot be harvested.
+    "Apply Template",
+    "Clear search",
+    "Close",
+    "Collapse",
+    "Delegate",
+    "Element Templates",
+    "Expand",
+    "Favourites",
+    "No templates found",
+    "No visible parameters",
+    "Other",
+    "Search templates...",
+    "Search...",
+    "Select a template to see its details",
+    "Task Type",
+    "Try a different search term",
+    "Unnamed",
+    "optional",
+    "read-only",
+    "required",
+    "{count} properties",
+    "{count} property",
+    // Popup-menu annotations: the harvest snapshot predates them, and the
+    // Design- and C8-only strings are out of the C7 driver's reach anyway.
+    "Automated work carried out by a Java delegate, expression, or external task",
+    "Automated work carried out by a system",
+    "Child process",
+    "Human",
+    "Java delegate",
+]);

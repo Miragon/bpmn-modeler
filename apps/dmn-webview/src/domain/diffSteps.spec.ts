@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { DmnDiffView } from "@miragon/bpmn-modeler-shared";
 
-import { countsOf, presentIn, statusOf, stepsOf, targetAt } from "./diffSteps";
+import { countsOf, missingStatusOf, presentIn, stepsOf, targetAt } from "./diffSteps";
 
 const TABLE = {
     columns: { added: ["Col_Insured"], removed: [], changed: [] },
@@ -11,6 +11,7 @@ const TABLE = {
     annotations: [],
     properties: ["hitPolicy"],
     counts: { added: 2, removed: 1, changed: 2, layoutChanged: 1 },
+    attributesStep: "Table_Shipping",
     navigationOrder: ["Table_Shipping", "Col_Insured", "Rule_3", "Rule_6", "Rule_8", "Rule_10"],
 };
 
@@ -60,6 +61,16 @@ describe("presentIn", () => {
         );
     });
 
+    it("knows no attributes step of a table without an id, even when its attributes changed", () => {
+        const { attributesStep: _none, ...withoutId } = TABLE;
+        const view = {
+            ...AFTER,
+            tables: { Decision_Shipping: { ...withoutId, navigationOrder: ["Rule_6", "Rule_3"] } },
+        };
+
+        expect(presentIn(view, "Decision_Shipping").has("Rule_6")).toBe(false);
+    });
+
     it("knows no changes of a table without changes", () => {
         expect(presentIn(AFTER, "Decision_Other").size).toBe(0);
     });
@@ -97,18 +108,11 @@ describe("countsOf", () => {
     });
 });
 
-describe("statusOf", () => {
+describe("missingStatusOf", () => {
     it.each([
-        ["an element only this version has", "Input_Insured", "added"],
-        ["an element whose expression changed", "Decision_Literal", "changed"],
-        ["an element without changes", "Input_Country", undefined],
-    ])("names %s", (_case, elementId, status) => {
-        expect(statusOf(AFTER, elementId)).toBe(status);
-    });
-
-    it("names a removed element on the before side", () => {
-        expect(statusOf({ ...AFTER, removed: ["Decision_Surcharge"] }, "Decision_Surcharge")).toBe(
-            "removed",
-        );
+        ["after", "removed"],
+        ["before", "added"],
+    ] as const)("names an element the %s pane lacks as %s", (side, status) => {
+        expect(missingStatusOf(side)).toBe(status);
     });
 });

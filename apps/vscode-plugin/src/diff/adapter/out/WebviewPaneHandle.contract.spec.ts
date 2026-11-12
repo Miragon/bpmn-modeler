@@ -1,11 +1,12 @@
-import { vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { TextDocument, WebviewPanel } from "vscode";
 
 import { describeDiffPaneContract } from "@miragon/bpmn-modeler-core/testing";
 
+import { bootstrapWebview } from "../../../shared/adapter/out/bootstrapWebview";
 import { WebviewPaneHandle } from "./WebviewPaneHandle";
 
-// bootstrapWebview imports `vscode`, which Vitest cannot resolve; the suite never calls bootstrap().
+// bootstrapWebview imports `vscode`, which Vitest cannot resolve; the contract never calls bootstrap().
 vi.mock("../../../shared/adapter/out/bootstrapWebview", () => ({
     bootstrapWebview: vi.fn(),
 }));
@@ -49,10 +50,24 @@ describeDiffPaneContract("WebviewPaneHandle", (sides) => {
                 uri: documentUri(sides[side].uri),
                 getText: () => sides[side].text,
             } as unknown as TextDocument,
+            "bpmnDiffPane",
         );
     return {
         before: paneFor("before"),
         after: paneFor("after"),
         receivedBy: (side) => panels[side].posted,
     };
+});
+
+describe("WebviewPaneHandle.bootstrap", () => {
+    it.each(["bpmnDiffPane", "dmnDiffPane"] as const)(
+        "loads the page of the %s it was made for",
+        (surface) => {
+            const panel = new FakeWebviewPanel() as unknown as WebviewPanel;
+
+            new WebviewPaneHandle(panel, {} as TextDocument, surface).bootstrap();
+
+            expect(bootstrapWebview).toHaveBeenLastCalledWith(panel, { diffPane: surface });
+        },
+    );
 });

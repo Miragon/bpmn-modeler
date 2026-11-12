@@ -12,6 +12,7 @@ const TABLE: DmnTableMarks = {
     annotations: [],
     properties: ["hitPolicy"],
     counts: { added: 2, removed: 0, changed: 2, layoutChanged: 1 },
+    attributesStep: "Table_1",
 };
 
 const MARKS: DmnDiffMarks = {
@@ -233,6 +234,17 @@ describe("DMN diff pane (real dmn-js)", () => {
         expect(styleOf(container, ".hit-policy").outlineColor).toBe(CURRENT);
     });
 
+    it("takes no step for the table attributes of a table whose changes name none", async () => {
+        const { viewer, container } = await pane();
+        const { attributesStep: _none, ...withoutAttributesStep } = TABLE;
+        viewer.setMarks({ ...MARKS, tables: { Decision_1: withoutAttributesStep } });
+        await viewer.openView("Decision_1");
+
+        viewer.focus("Table_1");
+
+        expect(styleOf(container, ".hit-policy").outlineStyle).toBe("none");
+    });
+
     it.each([
         ["added", { ...MARKS, added: ["Decision_1"], tables: {} }],
         ["removed", { ...MARKS, removed: ["Decision_1"], tables: {} }],
@@ -245,13 +257,26 @@ describe("DMN diff pane (real dmn-js)", () => {
             await viewer.openView("Decision_1");
 
             expect(container.dataset.dmnDiffView).toBe(status);
+            expect(viewer.getViewStatus()).toBe(status);
             expect(styleOf(container, ".tjs-table-container").boxShadow).toContain(
                 status === "added" ? ADDED : "rgb(204, 0, 0)",
             );
             await viewer.openView(null);
             expect(container.dataset.dmnDiffView).toBeUndefined();
+            expect(viewer.getViewStatus()).toBeUndefined();
         },
     );
+
+    it("names no status for a changed table, nor before it has marks", async () => {
+        const { viewer } = await pane();
+        await viewer.openView("Decision_1");
+        const withoutMarks = viewer.getViewStatus();
+
+        viewer.setMarks(MARKS);
+
+        expect(withoutMarks).toBeUndefined();
+        expect(viewer.getViewStatus()).toBeUndefined();
+    });
 
     it("reports the user's pan, not a viewport the partner pane sent", async () => {
         const { viewer, container } = await pane();
@@ -303,6 +328,7 @@ describe("DMN diff pane (real dmn-js)", () => {
         await viewer.openView("Decision_2");
 
         expect(container.dataset.dmnDiffView).toBe("changed");
+        expect(viewer.getViewStatus()).toBe("changed");
         expect(
             styleOf(container, ".dmn-literal-expression-container .textarea").boxShadow,
         ).toContain(CHANGED);

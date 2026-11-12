@@ -245,7 +245,10 @@ describe("VsCodeEditorHandle.reload", () => {
 
         handle.reload();
 
-        expect(bootstrapWebview).toHaveBeenCalledWith("bpmn", panel, true);
+        expect(bootstrapWebview).toHaveBeenCalledWith(panel, {
+            viewType: "bpmn",
+            initialPanelVisible: true,
+        });
     });
 });
 

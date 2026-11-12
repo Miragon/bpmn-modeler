@@ -1,6 +1,15 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 
-import { focusCss, tableMarksCss, type DmnTableMarks } from "./diffMarks";
+import type { DiffCategory, DiffCounts } from "@miragon/bpmn-modeler-types";
+
+import {
+    type DmnDiffMarks,
+    type DmnDiffStatus,
+    focusCss,
+    tableMarksCss,
+    type DmnTableMarks,
+    viewStatusOf,
+} from "./diffMarks";
 
 const SCOPE = '[data-dmn-diff="pane-1"]';
 const COLUMNS = ["In_Country", "In_Insured", "Out_Carrier", "Out_Cost"];
@@ -108,5 +117,36 @@ describe("focusCss", () => {
 
     it("outlines nothing without a current change", () => {
         expect(focusCss(SCOPE, undefined, COLUMNS)).toBe("");
+    });
+});
+
+describe("DmnTableMarks", () => {
+    it("counts a table's changes like every diff and names a status by a diff category", () => {
+        expectTypeOf<DmnTableMarks["counts"]>().toEqualTypeOf<DiffCounts>();
+        expectTypeOf<DmnTableMarks["attributesStep"]>().toEqualTypeOf<string | undefined>();
+        expectTypeOf<DmnDiffStatus>().toEqualTypeOf<Exclude<DiffCategory, "layoutChanged">>();
+    });
+});
+
+describe("viewStatusOf", () => {
+    const DRD: DmnDiffMarks = {
+        added: ["Decision_New"],
+        removed: ["Decision_Old"],
+        changed: ["Decision_Table", "Decision_Expression"],
+        layoutChanged: [],
+        tables: {},
+        expressions: ["Decision_Expression"],
+    };
+
+    it.each([
+        ["Decision_New", "added"],
+        ["Decision_Old", "removed"],
+        ["Decision_Expression", "changed"],
+    ] as const)("marks the open view of %s as %s", (elementId, status) => {
+        expect(viewStatusOf(DRD, elementId)).toBe(status);
+    });
+
+    it("gives a changed decision table no view status, since its cells carry the marks", () => {
+        expect(viewStatusOf(DRD, "Decision_Table")).toBeUndefined();
     });
 });

@@ -7,6 +7,7 @@ import {
     DiffPaneHostExtensions,
     DiffSession,
     basenameOfUriString,
+    DiffFileExtension,
     SettingChange,
     WebviewMessageRouter,
 } from "@miragon/bpmn-modeler-core";
@@ -35,8 +36,7 @@ export type DiffPaneFactory = (
 
 /** What a {@link DiffController} needs to know about the format its panes compare. */
 export interface DiffPaneFormat {
-    /** The format's file extension, such as `.bpmn`. */
-    readonly extension: string;
+    readonly extension: DiffFileExtension;
     /** Routes the panes' commands, with what this host adds. */
     readonly createRouter: (
         extensions: DiffPaneHostExtensions,
@@ -79,6 +79,11 @@ export class DiffController {
             swapSides: (pane) => this.swapCompareFilesSides(pane),
             paneLog: notifier,
         });
+    }
+
+    /** The file extension of the format this controller's panes compare. */
+    get extension(): DiffFileExtension {
+        return this.format.extension;
     }
 
     /** How this host routes each command its diff panes post. */

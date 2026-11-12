@@ -1,4 +1,6 @@
-import { Uri, WebviewPanel } from "vscode";
+import { Uri, Webview, WebviewPanel } from "vscode";
+
+import type { WebviewSurface } from "@miragon/bpmn-modeler-shared";
 
 import { getContext } from "./extensionContext";
 import {
@@ -14,47 +16,73 @@ import {
     FORM_VIEW_TYPE,
 } from "@miragon/bpmn-modeler-core";
 
+export type DiffPaneSurface = Extract<WebviewSurface, "bpmnDiffPane" | "dmnDiffPane">;
+
+/** A custom editor's page. Only the BPMN and DMN editors have a properties panel to collapse. */
+interface EditorPage {
+    readonly viewType: string;
+    readonly initialPanelVisible: boolean;
+}
+
+/** One side of a diff, read-only and with no collapsed panel. */
+interface DiffPanePage {
+    readonly diffPane: DiffPaneSurface;
+}
+
+export type WebviewPage = EditorPage | DiffPanePage;
+
+const DIFF_PANE_VIEW_TYPES: Record<DiffPaneSurface, string> = {
+    bpmnDiffPane: BPMN_VIEW_TYPE,
+    dmnDiffPane: DMN_VIEW_TYPE,
+};
+
 /**
  * Pure helper with no persistent state, so both `VsCodeEditorHandle` (editable
- * editors) and `DiffController` (readonly diff panes) can invoke it
+ * editors) and `WebviewPaneHandle` (readonly diff panes) can invoke it
  * independently without going through each other.
  *
- * @param initialPanelVisible When `false`, HTML renders the properties panel
- *   pre-collapsed so it never flashes visible on first paint. Honoured by both
- *   the BPMN and DMN editors; defaults to `true` (safe for diff panes).
- * @param diffPane Loads the page as one side of a diff. The DMN page reads it
- *   from its HTML; the BPMN page learns it from the first file query instead.
- * @throws {Error} if `viewType` is unknown.
+ * @throws {Error} if the editor page's `viewType` is unknown.
  */
-export function bootstrapWebview(
-    viewType: string,
-    webviewPanel: WebviewPanel,
-    initialPanelVisible: boolean = true,
-    diffPane: boolean = false,
-): WebviewPanel {
+export function bootstrapWebview(webviewPanel: WebviewPanel, page: WebviewPage): WebviewPanel {
     const webview = webviewPanel.webview;
     const extensionUri = getContext().extensionUri;
+    const viewType = "diffPane" in page ? DIFF_PANE_VIEW_TYPES[page.diffPane] : page.viewType;
     webview.options = {
         enableScripts: true,
         localResourceRoots: localResourceRootsFor(viewType, extensionUri),
     };
-
-    if (viewType === BPMN_VIEW_TYPE) {
-        webview.html = bpmnEditorUi(webview, extensionUri, initialPanelVisible);
-    } else if (viewType === DMN_VIEW_TYPE) {
-        webview.html = dmnModelerHtml(
-            webview,
-            extensionUri,
-            initialPanelVisible,
-            diffPane ? "dmnDiffPane" : "dmnEditor",
-        );
-    } else if (viewType === ELEMENT_TEMPLATE_EDITOR_VIEW_TYPE) {
-        webview.html = elementTemplateEditorHtml(webview, extensionUri);
-    } else {
-        webview.html = formEditorHtml(webview, extensionUri);
-    }
+    webview.html =
+        "diffPane" in page
+            ? diffPaneHtml(page.diffPane, webview, extensionUri)
+            : editorHtml(page, webview, extensionUri);
 
     return webviewPanel;
+}
+
+function editorHtml(page: EditorPage, webview: Webview, extensionUri: Uri): string {
+    switch (page.viewType) {
+        case BPMN_VIEW_TYPE:
+            return bpmnEditorUi(webview, extensionUri, page.initialPanelVisible);
+        case DMN_VIEW_TYPE:
+            return dmnModelerHtml(webview, extensionUri, {
+                surface: "dmnEditor",
+                initialPanelVisible: page.initialPanelVisible,
+            });
+        case ELEMENT_TEMPLATE_EDITOR_VIEW_TYPE:
+            return elementTemplateEditorHtml(webview, extensionUri);
+        default:
+            return formEditorHtml(webview, extensionUri);
+    }
+}
+
+function diffPaneHtml(surface: DiffPaneSurface, webview: Webview, extensionUri: Uri): string {
+    switch (surface) {
+        // The BPMN page learns it is a diff pane from its first file query.
+        case "bpmnDiffPane":
+            return bpmnEditorUi(webview, extensionUri);
+        case "dmnDiffPane":
+            return dmnModelerHtml(webview, extensionUri, { surface: "dmnDiffPane" });
+    }
 }
 
 function localResourceRootsFor(viewType: string, extensionUri: Uri): Uri[] {

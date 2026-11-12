@@ -1,3 +1,5 @@
+import { layoutOnlyEdgeIds } from "@miragon/bpmn-modeler-diff";
+
 import { compareTable } from "./compareTable";
 import type { DecisionTableChanges, DmnDiffResult } from "./dmnDiffResult";
 import { many, one, type ModdleElement } from "./moddleElement";
@@ -80,6 +82,10 @@ export function compareDefinitions(before: ModdleElement, after: ModdleElement):
         changed: inReadingOrder(changed),
         layoutChanged: inReadingOrder(layoutChanged),
     };
+    const skipped = layoutOnlyEdgeIds(
+        result,
+        (id) => !!(from.get(id)?.isEdge || to.get(id)?.isEdge),
+    );
     return {
         ...result,
         counts: {
@@ -90,7 +96,7 @@ export function compareDefinitions(before: ModdleElement, after: ModdleElement):
         },
         navigationOrder: inReadingOrder(
             [...new Set([...added, ...removed, ...changed, ...layoutChanged])].filter(
-                (id) => !(to.get(id)?.isEdge && !changed.includes(id) && !added.includes(id)),
+                (id) => !skipped.has(id),
             ),
         ),
         tables,

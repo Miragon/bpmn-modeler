@@ -105,6 +105,7 @@
                 "packages/dmn-modeler/**",
                 "libs/shared/**",
                 "libs/modeler-types/**",
+                "libs/bpmn-diff/**",
                 "libs/dmn-diff/**",
                 "libs/bpmn-i18n-extras/**"
             ],
@@ -219,6 +220,7 @@
             ],
             "paths": [
                 "packages/dmn-modeler/**",
+                "packages/bpmn-modeler/src/styles/diffView.css",
                 "tools/architecture-testing/**",
                 "libs/*/src/**",
                 "libs/modeler-types/**",
@@ -315,7 +317,7 @@
             "package": "@miragon/dmn-modeler-diff",
             "paths": [
                 "libs/dmn-diff/**",
-                "libs/bpmn-diff/src/diffResult.ts",
+                "libs/bpmn-diff/src/**",
                 "yarn.lock"
             ],
             "typecheck": "build"

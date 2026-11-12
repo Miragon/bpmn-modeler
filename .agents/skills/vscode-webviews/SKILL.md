@@ -117,10 +117,12 @@ styles, images or fonts.
 
 ### Direction Convention
 
-Messages are defined across two files in `libs/shared/src/lib/`:
+Messages are defined in `libs/shared/src/lib/`:
 
 - **`messages.ts`**: Base `Query` and `Command` abstract classes, plus cross-cutting messages (`SyncDocumentCommand`, `LogInfoCommand`, `LogErrorCommand`).
-- **`modeler.ts`**: All modeler-specific concrete message types that extend the base classes.
+- **`modeler.ts`**: The modeler-specific concrete message types that extend the base classes. A feature
+  with a protocol of its own keeps it in a feature file instead: `addOnsView.ts` (add-ons view) and
+  `dmnDiffMessages.ts` (DMN diff panes).
 
 The naming convention:
 - **Query** (host → webview): Carries data for the webview to display or apply. Named `*Query` (e.g., `BpmnFileQuery`, `ClipboardQuery`, `BpmnModelerSettingQuery`).
@@ -381,7 +383,7 @@ See `apps/vscode-plugin/src/shared/adapter/out/WebviewHtml.ts`.
 - **Add-ons view shell and provider**: `apps/vscode-plugin/src/addOns/adapter/in/AddOnsViewHtml.ts`, `AddOnsViewProvider.ts`
 - **Message router**: `libs/modeler-core/src/editorSession/service/WebviewMessageRouter.ts`
 - **Base message types**: `libs/shared/src/lib/messages.ts`
-- **Modeler message types**: `libs/shared/src/lib/modeler.ts`
+- **Modeler message types**: `libs/shared/src/lib/modeler.ts`; DMN diff panes: `libs/shared/src/lib/dmnDiffMessages.ts`
 - **Host API interface + implementations** (`HostApi`/`HostApiImpl`/`MockHostApi`): `libs/shared/src/lib/host.ts`
 - **Webview host wrapper + mock** (`getHostApi`/`MockHost`): `apps/bpmn-webview/src/adapter/out/host.ts`
 - **Resolver utilities**: `libs/shared/src/lib/utils.ts` (`createResolver`, `createReplyRegistry`, `HOST_REPLY_TIMEOUT_MS`)

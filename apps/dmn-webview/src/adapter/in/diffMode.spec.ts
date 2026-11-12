@@ -11,7 +11,7 @@ import {
     SyncViewportQuery,
 } from "@miragon/bpmn-modeler-shared";
 import type { TableScroll, Viewport } from "@miragon/bpmn-modeler-types";
-import type { DmnDiffViewerHandle } from "@miragon/dmn-modeler";
+import type { DmnDiffStatus, DmnDiffViewerHandle } from "@miragon/dmn-modeler";
 
 import type { DmnDiffPaneHost } from "../../port/dmnHost";
 import { DiffMode } from "./diffMode";
@@ -44,6 +44,7 @@ class FakeViewer implements DmnDiffViewerHandle {
     readonly viewports: Array<(viewport: Viewport) => void> = [];
     readonly scrolls: Array<(scroll: TableScroll) => void> = [];
     activeElement: string | null = null;
+    viewStatus: DmnDiffStatus | undefined;
     hasElement = true;
     importFails = false;
 
@@ -61,6 +62,9 @@ class FakeViewer implements DmnDiffViewerHandle {
     }
     getActiveElementId(): string | null {
         return this.activeElement;
+    }
+    getViewStatus(): DmnDiffStatus | undefined {
+        return this.viewStatus;
     }
     onViewChanged(listener: (elementId: string | null) => void): () => void {
         this.views.push(listener);
@@ -264,6 +268,43 @@ describe("DiffMode", () => {
         await vi.waitFor(() => expect(card?.hidden).toBe(true));
         expect(viewer.called("openView").at(-1)).toEqual([null]);
         expect(posted.at(-1)).toMatchObject({ type: "DmnDiffViewChangedCommand", elementId: null });
+    });
+
+    it("names the open view's change as the viewer marks it", async () => {
+        await readyPane();
+        viewer.viewStatus = "added";
+
+        viewer.views.forEach((listener) => listener("Decision_New"));
+
+        expect(chrome.querySelector('.dmn-diff-legend__swatch[data-kind="added"]')).not.toBeNull();
+        expect(legendText()).not.toContain("Added 1");
+    });
+
+    it("opens the view the partner opened before the import once the file is in", async () => {
+        const mode = startPane();
+
+        await mode.handle(new SyncDmnDiffViewQuery("Decision_Shipping"));
+        const openedBeforeImport = viewer.called("openView");
+        await mode.handle(new DmnFileQuery("<definitions />"));
+        await mode.handle(new ApplyDmnDiffHighlightsQuery("before", VIEW, "scm", "shipping.dmn"));
+
+        expect(openedBeforeImport).toEqual([]);
+        expect(viewer.called("openView")).toEqual([["Decision_Shipping"]]);
+        expect(chrome.querySelector<HTMLElement>(".dmn-diff-empty")?.hidden).toBe(true);
+        expect(legendText()).toContain("Added 1");
+        expect(postedTypes()).not.toContain("DmnDiffViewChangedCommand");
+        expect(postedTypes().at(-1)).toBe("DiffReadyCommand");
+    });
+
+    it("shows the card for a view the partner opened before the import that this version lacks", async () => {
+        const mode = startPane();
+        viewer.hasElement = false;
+
+        await mode.handle(new SyncDmnDiffViewQuery("Decision_Surcharge"));
+        await mode.handle(new DmnFileQuery("<definitions />"));
+        await mode.handle(new ApplyDmnDiffHighlightsQuery("after", VIEW, "scm", "shipping.dmn"));
+
+        expect(chrome.querySelector(".dmn-diff-empty")?.textContent).toContain("It was removed.");
     });
 
     it("names a decision the before version lacks as new", async () => {

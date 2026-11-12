@@ -27,6 +27,7 @@ import {
     TOGGLE_AUTOMATIC_FORM_PREVIEW_CMD,
 } from "./modeler/bpmn/adapter/in/CommandController";
 import { BPMN_COMPARE, DMN_COMPARE } from "./diff/adapter/in/CompareController";
+import { bpmnDiffFormat, dmnDiffFormat } from "./composition/diffFeature";
 import {
     DEPLOY_CMD,
     DEPLOY_FILES_CMD,
@@ -386,24 +387,28 @@ describe("package.json ↔ code contract", () => {
         },
     );
 
-    it.each([BPMN_COMPARE, DMN_COMPARE])(
-        "offers the $label compare commands only in the Explorer, on $extension files",
-        (format) => {
+    // The formats' services are never called here; only their extension is read.
+    it.each([
+        { commands: BPMN_COMPARE, extension: bpmnDiffFormat({} as never).extension },
+        { commands: DMN_COMPARE, extension: dmnDiffFormat({} as never).extension },
+    ])(
+        "offers the $commands.label compare commands only in the Explorer, on $extension files",
+        ({ commands, extension }) => {
             const explorer = manifest.contributes.menus["explorer/context"] ?? [];
             const palette = manifest.contributes.menus.commandPalette ?? [];
             const ids = [
-                format.selectForCompare,
-                format.compareWithSelected,
-                format.compareSelected,
+                commands.selectForCompare,
+                commands.compareWithSelected,
+                commands.compareSelected,
             ];
 
             for (const id of ids) {
                 expect(palette).toContainEqual({ command: id, when: "false" });
                 expect(explorer.find((entry) => entry.command === id)?.when).toContain(
-                    `resourceExtname == ${format.extension}`,
+                    `resourceExtname == ${extension}`,
                 );
                 expect(manifest.contributes.commands.find((c) => c.command === id)?.title).toMatch(
-                    new RegExp(`\\(${format.label}\\)$`),
+                    new RegExp(`\\(${commands.label}\\)$`),
                 );
             }
         },

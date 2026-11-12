@@ -1,6 +1,16 @@
 import { describe, expect, it } from "vitest";
 
-import { nearestPresent, stepCursor } from "./diffStepper";
+import { canStep, nearestPresent, stepCursor } from "./diffStepper";
+
+describe("canStep", () => {
+    it("steps when there is a change to step to", () => {
+        expect(canStep(["a"])).toBe(true);
+    });
+
+    it("does not step through an empty list of changes", () => {
+        expect(canStep([])).toBe(false);
+    });
+});
 
 describe("stepCursor", () => {
     it.each([

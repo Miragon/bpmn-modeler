@@ -45,7 +45,7 @@ vi.mock("vscode", () => ({
 
 // `create` keeps the panel the bootstrap returns, which is the one VS Code handed over.
 vi.mock("./bootstrapWebview", () => ({
-    bootstrapWebview: (_viewType: string, panel: unknown) => panel,
+    bootstrapWebview: (panel: unknown) => panel,
 }));
 
 interface FakeRange {

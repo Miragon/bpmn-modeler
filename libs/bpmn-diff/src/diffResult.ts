@@ -13,6 +13,9 @@ export interface DiffCounts {
     readonly layoutChanged: number;
 }
 
+/** A kind of change a diff counts and marks. */
+export type DiffCategory = keyof DiffCounts;
+
 /**
  * Serializable (plain JSON) result of comparing two BPMN XML documents.
  *
@@ -33,9 +36,11 @@ export interface DiffResult {
     readonly layoutChanged: readonly string[];
     readonly counts: DiffCounts;
     /**
-     * Merged, deduped, flow-sorted union of all four categories — the order a
-     * stepper walks so removed elements interleave with added/changed at their
-     * anchored positions instead of sitting in their own block.
+     * The order a stepper walks: the merged, deduped, flow-sorted union of all
+     * four categories, so removed elements interleave with added/changed at
+     * their anchored positions instead of sitting in their own block. It leaves
+     * out connections whose only change is layout (they move with their shapes);
+     * those stay in `layoutChanged` and `counts`.
      */
     readonly navigationOrder: readonly string[];
 }

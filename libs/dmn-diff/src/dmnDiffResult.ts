@@ -37,7 +37,12 @@ export interface DecisionTableChanges {
      */
     readonly counts: DiffCounts;
     /**
-     * The table id (for its attributes), then columns left to right, then rules
+     * The step that stands for the table attributes: the table id, present
+     * exactly when `properties` is not empty and the table has an id.
+     */
+    readonly attributesStep?: string;
+    /**
+     * The {@link attributesStep}, then columns left to right, then rules
      * top to bottom: the order a stepper walks. Removed columns and rules sit
      * next to the neighbour they followed in the before version.
      */

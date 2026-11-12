@@ -34,4 +34,4 @@ export type {
     DmnDiffViewerOptions,
 } from "./diff/DmnDiffViewer";
 /** @internal */
-export type { DmnTableMarks } from "./diff/diffMarks";
+export type { DmnDiffStatus, DmnTableMarks } from "./diff/diffMarks";

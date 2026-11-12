@@ -10,6 +10,7 @@
  */
 export { computeDiff } from "./computeDiff";
 export { sideView } from "./sideView";
-export type { DiffSide, DiffCounts, DiffResult, DiffSideView } from "./diffResult";
+export { layoutOnlyEdgeIds } from "./drawnEdges";
+export type { DiffSide, DiffCounts, DiffCategory, DiffResult, DiffSideView } from "./diffResult";
 export { buildFlowOrder, buildRemovedAnchors, sortIdsByOrder } from "./bpmnFlowOrder";
 export type { ModdleElement, FlowPosition } from "./bpmnFlowOrder";

@@ -22,7 +22,7 @@ type ShellBuilder = (initialPanelVisible?: boolean) => string;
 const renderBpmn: ShellBuilder = (initialPanelVisible) =>
     bpmnEditorUi(shellWebview, shellExtensionUri, initialPanelVisible);
 const renderDmn: ShellBuilder = (initialPanelVisible) =>
-    dmnModelerHtml(shellWebview, shellExtensionUri, initialPanelVisible);
+    dmnModelerHtml(shellWebview, shellExtensionUri, { surface: "dmnEditor", initialPanelVisible });
 const renderForm: ShellBuilder = () => formEditorHtml(shellWebview, shellExtensionUri);
 
 function elementById(html: string, id: string): Record<string, string> {
@@ -98,7 +98,7 @@ describe("dmnModelerHtml", () => {
 
 describe("dmnModelerHtml for a diff pane", () => {
     const renderDiffPane = () =>
-        dmnModelerHtml(shellWebview, shellExtensionUri, true, "dmnDiffPane");
+        dmnModelerHtml(shellWebview, shellExtensionUri, { surface: "dmnDiffPane" });
 
     describeShellPolicy("dmn", renderDiffPane);
 

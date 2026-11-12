@@ -11,6 +11,7 @@
 
 import { buildFlowOrder, buildRemovedAnchors, sortIdsByOrder } from "./bpmnFlowOrder";
 import { categoryIds, runDiff } from "./upstreamInternals/differResult";
+import { collectDrawnEdgeIds, layoutOnlyEdgeIds } from "./drawnEdges";
 import { DiffCounts, DiffResult } from "./diffResult";
 
 const CAMUNDA_NAMESPACE = "http://camunda.org/schema/1.0/bpmn";
@@ -165,10 +166,21 @@ export async function computeDiff(beforeXml: string, afterXml: string): Promise<
     const sortedChanged = sortIdsByOrder(changedIds, afterOrder);
     const sortedLayoutChanged = sortIdsByOrder(layoutChangedIds, afterOrder);
 
+    const drawnEdgeIds = collectDrawnEdgeIds([beforeDefs, afterDefs]);
+    const skipped = layoutOnlyEdgeIds(
+        {
+            added: addedIds,
+            removed: removedIds,
+            changed: changedIds,
+            layoutChanged: layoutChangedIds,
+        },
+        (id) => drawnEdgeIds.has(id),
+    );
+
     const merged: string[] = [];
     const seen = new Set<string>();
     for (const id of [...sortedAdded, ...sortedRemoved, ...sortedChanged, ...sortedLayoutChanged]) {
-        if (!seen.has(id)) {
+        if (!seen.has(id) && !skipped.has(id)) {
             seen.add(id);
             merged.push(id);
         }

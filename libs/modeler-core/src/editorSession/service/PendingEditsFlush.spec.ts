@@ -9,11 +9,8 @@ import {
 
 import { createTestHost, FakeEditorHandle, TestHost } from "../../testing";
 import { DocumentFlushService } from "./DocumentFlushService";
-import {
-    ModelerFileExtension,
-    PendingEditsFlush,
-    PendingEditsFlushResult,
-} from "./PendingEditsFlush";
+import type { ModelerFileExtension } from "../../kernel/domain/modelerFileExtension";
+import { PendingEditsFlush, PendingEditsFlushResult } from "./PendingEditsFlush";
 
 interface RecordedSync {
     editorId: string;

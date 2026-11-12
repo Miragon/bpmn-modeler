@@ -32,6 +32,7 @@ export * from "./kernel/domain/http";
 export * from "./kernel/port/HttpClient";
 export * from "./kernel/port/templatePreferencePorts";
 export * from "./kernel/domain/locateResult";
+export * from "./kernel/domain/modelerFileExtension";
 export * from "./kernel/domain/modelerSettings";
 export * from "./kernel/domain/newModelEngine";
 export * from "./kernel/domain/projectScopes";
@@ -144,6 +145,7 @@ export * from "./addOns/composition/AddOnsFeature";
 // ── diff ─────────────────────────────────────────────────────────────────────
 export * from "./diff/domain/basenameOfUriString";
 export * from "./diff/domain/compareTexts";
+export * from "./diff/domain/diffFileExtension";
 export * from "./diff/port/DiffPaneHandle";
 export * from "./diff/service/DiffSession";
 export * from "./diff/service/BpmnDiffService";

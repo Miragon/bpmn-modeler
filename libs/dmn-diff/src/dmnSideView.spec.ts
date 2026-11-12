@@ -23,6 +23,7 @@ const RESULT: DmnDiffResult = {
             annotations: ["Rule_Changed"],
             properties: ["hitPolicy"],
             counts: { added: 2, removed: 2, changed: 3, layoutChanged: 1 },
+            attributesStep: "Table",
             navigationOrder: ["Table", "Col_Old", "Col_New", "Rule_Old", "Rule_New"],
         },
     },
@@ -75,6 +76,7 @@ describe("dmnSideView", () => {
                 annotations: ["Rule_Changed"],
                 properties: ["hitPolicy"],
                 counts: RESULT.tables.Decision_Table?.counts,
+                attributesStep: "Table",
                 navigationOrder: RESULT.tables.Decision_Table?.navigationOrder,
             });
         },

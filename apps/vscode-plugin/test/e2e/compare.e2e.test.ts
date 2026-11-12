@@ -125,8 +125,8 @@ suite("DMN compare commands", () => {
     });
 
     test("two-step flow opens the DMN diff with both panes attached", async () => {
-        await vscode.commands.executeCommand("bpmn-modeler.dmn.selectForCompare", uriA);
-        await vscode.commands.executeCommand("bpmn-modeler.dmn.compareWithSelected", uriB);
+        await vscode.commands.executeCommand("bpmn-modeler.selectDmnForCompare", uriA);
+        await vscode.commands.executeCommand("bpmn-modeler.compareDmnWithSelected", uriB);
         await waitForTab(DMN_DIFF_TAB_LABEL);
         await waitForBothPanes(api, uriA.toString());
 
@@ -134,10 +134,7 @@ suite("DMN compare commands", () => {
     });
 
     test("single-step flow opens the DMN diff with both panes attached", async () => {
-        await vscode.commands.executeCommand("bpmn-modeler.dmn.compareSelected", uriA, [
-            uriA,
-            uriB,
-        ]);
+        await vscode.commands.executeCommand("bpmn-modeler.compareSelectedDmn", uriA, [uriA, uriB]);
         await waitForTab(DMN_DIFF_TAB_LABEL);
         await waitForBothPanes(api, uriA.toString());
     });

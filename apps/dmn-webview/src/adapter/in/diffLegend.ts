@@ -1,17 +1,13 @@
 import { i18n } from "@miragon/bpmn-modeler-i18n";
-import type { DiffCounts, DiffSide } from "@miragon/bpmn-modeler-types";
+import {
+    DIFF_CATEGORIES,
+    DIFF_CATEGORY_LABELS,
+    DIFF_LEGEND_TEXTS,
+} from "@miragon/bpmn-modeler-types";
 
-import { DIFF_TEXTS } from "../../domain/diffTexts";
-
-export interface DiffLegendState {
-    /** The open view's counts; a view without a changed table shows `status` instead. */
-    readonly counts?: DiffCounts;
-    readonly status?: "added" | "removed" | "changed";
-    /** Shown above the counts on compare-files panes, where the tab names both files. */
-    readonly filename?: string;
-    readonly showSwap: boolean;
-    readonly canStep: boolean;
-}
+import type { DiffLegendState } from "../../domain/diffPaneState";
+import type { DmnMissingStatus } from "../../domain/diffSteps";
+import { DMN_DIFF_TEXTS } from "../../domain/diffTexts";
 
 export interface DiffLegendActions {
     readonly onPrevious: () => void;
@@ -19,12 +15,10 @@ export interface DiffLegendActions {
     readonly onSwap: () => void;
 }
 
-const COUNT_KINDS = [
-    ["added", DIFF_TEXTS.added],
-    ["removed", DIFF_TEXTS.removed],
-    ["changed", DIFF_TEXTS.changed],
-    ["layoutChanged", DIFF_TEXTS.moved],
-] as const;
+const MISSING_TEXTS: Readonly<Record<DmnMissingStatus, string>> = {
+    removed: DMN_DIFF_TEXTS.removedHere,
+    added: DMN_DIFF_TEXTS.addedHere,
+};
 
 /**
  * The floating chip above a DMN diff pane: the open view's counts, Previous
@@ -71,15 +65,20 @@ export class DiffLegend {
         const state = this.state;
         if (!state) return;
         this.root.hidden = false;
-        this.root.setAttribute("aria-label", i18n.translate(DIFF_TEXTS.changes));
+        this.root.setAttribute("aria-label", i18n.translate(DIFF_LEGEND_TEXTS.changes));
         const row = element("div", "dmn-diff-legend__row");
         if (state.status) {
-            row.append(swatchLabel(state.status, i18n.translate(DIFF_TEXTS[state.status])));
+            row.append(
+                swatchLabel(state.status, i18n.translate(DIFF_CATEGORY_LABELS[state.status])),
+            );
         }
         if (state.counts) {
-            for (const [kind, label] of COUNT_KINDS) {
-                const slot = swatchLabel(kind, `${i18n.translate(label)} `);
-                slot.append(element("b", "", String(state.counts[kind])));
+            for (const category of DIFF_CATEGORIES) {
+                const slot = swatchLabel(
+                    category,
+                    `${i18n.translate(DIFF_CATEGORY_LABELS[category])} `,
+                );
+                slot.append(element("b", "", String(state.counts[category])));
                 row.append(slot);
             }
         }
@@ -87,13 +86,13 @@ export class DiffLegend {
         nav.append(
             button(
                 "dmn-diff-legend__previous",
-                `‹ ${i18n.translate(DIFF_TEXTS.previous)}`,
+                `‹ ${i18n.translate(DIFF_LEGEND_TEXTS.previous)}`,
                 !state.canStep,
                 this.actions.onPrevious,
             ),
             button(
                 "dmn-diff-legend__next",
-                `${i18n.translate(DIFF_TEXTS.next)} ›`,
+                `${i18n.translate(DIFF_LEGEND_TEXTS.next)} ›`,
                 !state.canStep,
                 this.actions.onNext,
             ),
@@ -102,7 +101,7 @@ export class DiffLegend {
         if (state.showSwap) {
             const swap = element("span", "dmn-diff-legend__group");
             const swapButton = button("dmn-diff-legend__swap", "⇄", false, this.actions.onSwap);
-            swapButton.title = i18n.translate(DIFF_TEXTS.swap);
+            swapButton.title = i18n.translate(DIFF_LEGEND_TEXTS.swap);
             swapButton.setAttribute("aria-label", swapButton.title);
             swap.append(swapButton);
             row.append(swap);
@@ -122,7 +121,7 @@ export class DiffLegend {
  */
 export class DiffEmptyState {
     private readonly root: HTMLElement;
-    private side?: DiffSide;
+    private status?: DmnMissingStatus;
     private readonly stopTranslating: () => void;
 
     constructor(
@@ -135,9 +134,9 @@ export class DiffEmptyState {
         this.stopTranslating = i18n.onChange(() => this.render());
     }
 
-    /** Shows the card for the side this pane is, or hides it. */
-    show(side: DiffSide | undefined): void {
-        this.side = side;
+    /** Shows the card for how the missing decision differs, or hides it. */
+    show(status: DmnMissingStatus | undefined): void {
+        this.status = status;
         this.render();
     }
 
@@ -147,23 +146,19 @@ export class DiffEmptyState {
     }
 
     private render(): void {
-        const side = this.side;
-        this.root.hidden = side === undefined;
-        document.body.classList.toggle("dmn-diff-page--missing", side !== undefined);
-        if (side === undefined) return;
+        const status = this.status;
+        this.root.hidden = status === undefined;
+        document.body.classList.toggle("dmn-diff-page--missing", status !== undefined);
+        if (status === undefined) return;
         const card = element("div", "dmn-diff-empty__card");
-        card.dataset.kind = side === "after" ? "removed" : "added";
+        card.dataset.kind = status;
         card.append(
             element("div", "dmn-diff-empty__mark"),
-            element("div", "dmn-diff-empty__title", i18n.translate(DIFF_TEXTS.notInVersion)),
-            element(
-                "div",
-                "dmn-diff-empty__text",
-                i18n.translate(side === "after" ? DIFF_TEXTS.removedHere : DIFF_TEXTS.addedHere),
-            ),
+            element("div", "dmn-diff-empty__title", i18n.translate(DMN_DIFF_TEXTS.notInVersion)),
+            element("div", "dmn-diff-empty__text", i18n.translate(MISSING_TEXTS[status])),
             button(
                 "dmn-diff-legend__next",
-                i18n.translate(DIFF_TEXTS.viewDrd),
+                i18n.translate(DMN_DIFF_TEXTS.viewDrd),
                 false,
                 this.onViewDrd,
             ),

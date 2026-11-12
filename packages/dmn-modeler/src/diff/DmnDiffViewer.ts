@@ -4,6 +4,10 @@ import ZoomScrollModule from "diagram-js/lib/navigation/zoomscroll";
 import camundaModdleDescriptor from "camunda-dmn-moddle/resources/camunda.json";
 
 import {
+    DIFF_CATEGORIES,
+    DIFF_MARKERS,
+    DIFF_SELECTED_MARKER,
+    type DiffCounts,
     DisposableStore,
     observeCanvasSize,
     type ResizableCanvas,
@@ -18,20 +22,15 @@ import type { DmnThemeMode } from "../publicApi";
 import {
     attributeValue,
     type DmnDiffFocus,
+    type DmnDiffMarks,
+    type DmnDiffStatus,
     type DmnTableMarks,
     focusCss,
     tableMarksCss,
+    viewStatusOf,
 } from "./diffMarks";
 
-/** What one DMN diff pane marks: the DRD's changes, each changed table's and the changed expressions. */
-export interface DmnDiffMarks {
-    readonly added: readonly string[];
-    readonly removed: readonly string[];
-    readonly changed: readonly string[];
-    readonly layoutChanged: readonly string[];
-    readonly tables: Readonly<Record<string, DmnTableMarks>>;
-    readonly expressions: readonly string[];
-}
+export type { DmnDiffMarks } from "./diffMarks";
 
 export interface DmnDiffMarkOptions {
     /** Puts each changed table's counts on its decision in the DRD. */
@@ -53,6 +52,11 @@ export interface DmnDiffViewerHandle {
     openView(elementId: string | null): Promise<boolean>;
     /** The open view: `null` for the DRD, else its element's id. */
     getActiveElementId(): string | null;
+    /**
+     * How the open view's element differs, as its view is marked; `undefined`
+     * for the DRD, a changed table, an element without changes or before marks.
+     */
+    getViewStatus(): DmnDiffStatus | undefined;
     /** Calls back when the user opens another view; not for {@link openView}. */
     onViewChanged(listener: (elementId: string | null) => void): () => void;
     /** Outlines and scrolls to a DRD element, rule, column or table, or clears the outline. */
@@ -100,20 +104,10 @@ interface DrdServices {
 interface ViewElement {
     readonly id: string;
     readonly decisionLogic?: {
-        readonly id?: string;
         readonly input?: readonly { id: string }[];
         readonly output?: readonly { id: string }[];
     };
 }
-
-const MARKERS = {
-    added: "diff-added",
-    removed: "diff-removed",
-    changed: "diff-changed",
-    layoutChanged: "diff-layout-changed",
-} as const;
-
-const SELECTED = "diff-selected";
 
 const BADGE_OVERLAY = "dmn-diff-counts";
 
@@ -226,6 +220,11 @@ class DmnDiffViewer implements DmnDiffViewerHandle {
     getActiveElementId(): string | null {
         const view = this.viewer.getActiveView();
         return !view || view.type === "drd" ? null : view.element.id;
+    }
+
+    getViewStatus(): DmnDiffStatus | undefined {
+        const element = this.activeElement();
+        return element && this.statusOf(element);
     }
 
     onViewChanged(listener: (elementId: string | null) => void): () => void {
@@ -364,17 +363,17 @@ class DmnDiffViewer implements DmnDiffViewerHandle {
         this.bindViewport(drd);
         const marks = this.marks;
         if (!marks) return;
-        for (const [kind, marker] of Object.entries(MARKERS)) {
-            for (const id of marks[kind as keyof typeof MARKERS]) {
-                if (drd.elementRegistry.get(id)) drd.canvas.addMarker(id, marker);
+        for (const category of DIFF_CATEGORIES) {
+            for (const id of marks[category]) {
+                if (drd.elementRegistry.get(id)) drd.canvas.addMarker(id, DIFF_MARKERS[category]);
             }
         }
         if (this.selectedOnCanvas && drd.elementRegistry.get(this.selectedOnCanvas)) {
-            drd.canvas.removeMarker(this.selectedOnCanvas, SELECTED);
+            drd.canvas.removeMarker(this.selectedOnCanvas, DIFF_SELECTED_MARKER);
         }
         this.selectedOnCanvas = undefined;
         if (this.focused && drd.elementRegistry.get(this.focused)) {
-            drd.canvas.addMarker(this.focused, SELECTED);
+            drd.canvas.addMarker(this.focused, DIFF_SELECTED_MARKER);
             this.selectedOnCanvas = this.focused;
         }
         drd.overlays.remove({ type: BADGE_OVERLAY });
@@ -390,28 +389,24 @@ class DmnDiffViewer implements DmnDiffViewerHandle {
     }
 
     private markView(element: ViewElement): void {
-        const marks = this.marks;
-        if (!marks) return;
-        const status = marks.added.includes(element.id)
-            ? "added"
-            : marks.removed.includes(element.id)
-              ? "removed"
-              : marks.expressions.includes(element.id)
-                ? "changed"
-                : undefined;
+        const status = this.statusOf(element);
         if (status) this.container.dataset.dmnDiffView = status;
-        const table = marks.tables[element.id];
+        const table = this.marks?.tables[element.id];
         if (!table) return;
         const columns = columnIds(element);
         this.style.textContent =
             tableMarksCss(this.scope, table, columns) +
-            focusCss(this.scope, this.tableFocus(element, table), columns);
+            focusCss(this.scope, this.tableFocus(table), columns);
     }
 
-    private tableFocus(element: ViewElement, table: DmnTableMarks): DmnDiffFocus | undefined {
+    private statusOf(element: ViewElement): DmnDiffStatus | undefined {
+        return this.marks && viewStatusOf(this.marks, element.id);
+    }
+
+    private tableFocus(table: DmnTableMarks): DmnDiffFocus | undefined {
         const id = this.focused;
         if (id === undefined) return undefined;
-        if (id === element.decisionLogic?.id) return { kind: "table", id };
+        if (id === table.attributesStep) return { kind: "table", id };
         const { columns } = table;
         if ([...columns.added, ...columns.removed, ...columns.changed].includes(id)) {
             return { kind: "column", id };
@@ -555,13 +550,13 @@ function rowTop(scroller: HTMLElement, cell: HTMLElement): number {
     );
 }
 
-function countBadge(counts: DmnTableMarks["counts"]): HTMLElement {
+function countBadge(counts: DiffCounts): HTMLElement {
     const badge = document.createElement("div");
     badge.className = "dmn-diff-counts";
-    for (const kind of ["added", "removed", "changed", "layoutChanged"] as const) {
+    for (const category of DIFF_CATEGORIES) {
         const count = document.createElement("span");
-        count.className = `dmn-diff-counts__${kind}`;
-        count.textContent = String(counts[kind]);
+        count.className = `dmn-diff-counts__${category}`;
+        count.textContent = String(counts[category]);
         badge.append(count);
     }
     return badge;

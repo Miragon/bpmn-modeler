@@ -135,8 +135,45 @@ describe("computeDmnDiff", () => {
         expect(result.tables.D1).toMatchObject({
             properties: ["hitPolicy"],
             counts: { added: 0, removed: 0, changed: 1, layoutChanged: 0 },
+            attributesStep: "Table_1",
             navigationOrder: ["Table_1"],
         });
+    });
+
+    it("names no attributes step when the table attributes did not change", async () => {
+        const after = withRules(TWO_RULES, [
+            { id: "R1", entries: ['"a"', "&lt; 20", '"x"'], description: "First" },
+            TWO_RULES.rules[1],
+        ]);
+
+        const result = await computeDmnDiff(withTable(TWO_RULES), withTable(after));
+
+        expect(result.tables.D1).toBeDefined();
+        expect(result.tables.D1).not.toHaveProperty("attributesStep");
+    });
+
+    it("names no attributes step for a table without id, and starts its steps with the changed rule", async () => {
+        const withoutTableId = (xml: string) => xml.replace(' id="Table_1"', "");
+        const before = withoutTableId(
+            withTable({ ...TWO_RULES, attributes: 'hitPolicy="UNIQUE"' }),
+        );
+        const after = withoutTableId(
+            withTable({
+                ...withRules(TWO_RULES, [
+                    { id: "R1", entries: ['"a"', "&lt; 20", '"x"'], description: "First" },
+                    TWO_RULES.rules[1],
+                ]),
+                attributes: 'hitPolicy="FIRST"',
+            }),
+        );
+
+        const result = await computeDmnDiff(before, after);
+
+        expect(result.tables.D1).toMatchObject({
+            properties: ["hitPolicy"],
+            navigationOrder: ["R1"],
+        });
+        expect(result.tables.D1).not.toHaveProperty("attributesStep");
     });
 
     it("reports a changed input expression as a changed column", async () => {

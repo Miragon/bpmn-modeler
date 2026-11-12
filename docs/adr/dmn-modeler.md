@@ -1,7 +1,7 @@
 # DMN modeler
 
 - Status: accepted
-- Last reviewed: 2026-11-11
+- Last reviewed: 2026-11-12
 
 ## Context
 
@@ -31,7 +31,9 @@ boundaries are defined in [Architecture and hosts](architecture-and-hosts.md#pac
 
 Externalize dmn-js, diagram-js, the DMN properties panel, Camunda moddle,
 simulation and upstream primitives as declared dependencies. Inline only the
-private `modeler-types` and `bpmn-i18n-extras` libraries. A separate package
+private `modeler-types`, `bpmn-diff` and `bpmn-i18n-extras` libraries;
+`bpmn-diff` contributes the `DiffCounts` and `DiffCategory` types that the diff
+marks and the shared diff vocabulary expose. A separate package
 keeps dmn-js installation weight out of BPMN-only consumers and allows its own
 release cadence; publishing the webview or folding DMN into the BPMN package
 would defeat those goals.
@@ -131,14 +133,23 @@ are compared per shared column id. A longest common subsequence over the rule
 ids both versions share finds moved rules, since order decides a FIRST or
 PRIORITY table. Changes are stepped through in reading order of the DI (top to
 bottom, then left to right), a removed element at its place in the old version;
-an edge whose only change is its layout is counted but not stepped to, as in
-the BPMN diff. Parser warnings about unparsable content are errors.
+an edge whose only change is its layout is counted but not stepped to, by the
+BPMN diff's `layoutOnlyEdgeIds`. A table is stepped through by its attributes, then
+its columns, then its rules. The attributes step is explicit: `attributesStep`
+on `DecisionTableChanges` is the table id, present exactly when the table's
+attributes (`properties`) changed and the table has an id. It is still the first
+entry of the table's `navigationOrder`, but readers take the field, not the
+position, and a table without an id has no attributes step. Parser warnings
+about unparsable content are errors.
 
 The core's `DmnDiffService` computes the diff once both panes are ready and
 sends each pane its side's view; it shares `DiffPaneRelay` with the BPMN diff
 for the viewport and the cursor and adds the open view and the table's scroll.
 The scroll is anchored on the topmost rule both versions share, plus an offset,
-so inserted or removed rows do not shift the partner.
+so inserted or removed rows do not shift the partner. The pane messages
+(`DmnDiffView`, `DmnTableDiffView` and the highlight, view and scroll messages)
+sit in a feature file of their own, `libs/shared/src/lib/dmnDiffMessages.ts`, as
+the add-ons view's do, and the shared index exports them.
 
 The panes render through `createDiffViewer`, internal to
 `packages/dmn-modeler` and not public API: dmn-js's `Viewer`, the DRD with pan
@@ -146,10 +157,31 @@ and zoom, marked as in the BPMN diff. Table highlights are one scoped
 stylesheet per pane whose attribute selectors (`data-row-id`, `data-col-id`,
 `data-element-id`) survive every re-render of the table; output headers carry
 no column id, so they are selected by position. The colours are the BPMN
-diff's, and `diffPalette.spec.ts` keeps both stylesheets equal. VS Code opens
-the panes for Git diffs (`priority.diffEditor`) and for its Compare commands
-with "(DMN)" in their titles; the page learns that it is a diff pane from its
-HTML ([Architecture and hosts](architecture-and-hosts.md)).
+diff's, and `diffPalette.spec.ts` keeps both stylesheets equal. The categories,
+markers, selected marker and legend words come from the vocabulary both diffs
+share ([BPMN modeler](bpmn-modeler.md#diff)); `DMN_DIFF_TEXTS` in the webview
+holds only the pane's own words. The viewer decides once how the open element
+differs, `DmnDiffStatus` (`Exclude<DiffCategory, "layoutChanged">`, exported
+`@internal`), and both marks its view and answers `getViewStatus()` with it:
+undefined for the DRD, a changed table, an unchanged element or before marks
+are set. Its table focus
+is the attributes step when the focused id equals `attributesStep`.
+
+The pane's state is a pure reducer in the webview's domain,
+`nextDiffPaneState` in `apps/dmn-webview/src/domain/diffPaneState.ts`, as the
+add-ons view's `viewState` is; `DiffMode` only translates between the host, the
+viewer and the DOM. A view the partner opens before the import is held in the
+state and opened once the import is done, so both panes show the same view; a
+view the viewer reports before the import is ignored. The import clears the
+missing view and the cursor. A
+pane whose version lacks the partner's open element shows it as removed on the
+after side and added on the before side (`missingStatusOf(side)`), so its "Not
+in this version" card waits until the highlights name the side, and the legend
+waits for both the file and the highlights. Prev and Next follow the shared
+`canStep` over the open view's steps. VS Code opens the panes for Git diffs
+(`priority.diffEditor`) and for its Compare commands with "(DMN)" in their
+titles; the page learns that it is a diff pane from its HTML
+([Architecture and hosts](architecture-and-hosts.md)).
 
 ## Alternatives and consequences
 
@@ -161,6 +193,13 @@ HTML ([Architecture and hosts](architecture-and-hosts.md)).
   document edit through `commandStack.changed`.
 - Externalizing the upstream stack requires consumers to resolve its browser
   modules through a bundler. It is not a promise of bare Node ESM execution.
+- Inlining `bpmn-diff` for its `DiffCounts` and `DiffCategory` types ties the package's release line
+  to every change under `libs/bpmn-diff`, though the bundle carries none of its
+  code. Moving `DiffSide`, `DiffCounts` and `DiffCategory` to `modeler-types`,
+  with `bpmn-diff` importing them, would end that. It is not done yet: the
+  `modeler-types` barrel carries DOM helpers, and `bpmn-diff` and `dmn-diff`
+  compile without the DOM library to prove they need no DOM, so the move needs a
+  DOM-free entry of `modeler-types` or another guard first.
 - Both the IDE webview and npm consumers use one composition, so features land
   once while the public facade remains a compatibility commitment.
 - bpmn-js-differ, which the BPMN diff uses, knows BPMN only: its change handler

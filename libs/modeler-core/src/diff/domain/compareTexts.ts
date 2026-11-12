@@ -1,7 +1,8 @@
+import type { DiffFileExtension } from "./diffFileExtension";
+
 /** A file format the compare commands open, named as their menu titles name it. */
 export interface CompareFormat {
-    /** Such as `.bpmn`. */
-    readonly extension: string;
+    readonly extension: DiffFileExtension;
     /** Such as `BPMN`, as in "Select for Compare (BPMN)". */
     readonly label: string;
 }

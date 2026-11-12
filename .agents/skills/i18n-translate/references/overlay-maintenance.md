@@ -55,8 +55,8 @@ The recorder seam lives in `libs/shared/src/lib/harvestRecorder.ts`, wired only 
 Some strings the webview genuinely emits come from a feature the harvest driver does not exercise (today
 the script-lock badges: `Read-only`, `Being edited in`, `Element actions`). These cannot appear in
 `harvested.json`, so `overlayNeeded` would wrongly flag them as dead. They are allowlisted in `SOURCE_ONLY`
-— kept in sync between `tools/build-overlay.mjs` and `src/overlayNeeded.spec.ts`. If you add a genuinely
-needed modeler-internal string the harvest can't reach, add it to *both* `SOURCE_ONLY` sets.
+in `src/sourceOnlyKeys.ts`, which both `tools/build-overlay.mjs` and `src/overlayNeeded.spec.ts` import. If
+you add a genuinely needed modeler-internal string the harvest can't reach, add it there.
 
 ## The overlay is temporary debt
 

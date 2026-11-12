@@ -1,3 +1,8 @@
+import type { DiffCategory, DiffCounts } from "@miragon/bpmn-modeler-types";
+
+/** How an element a diff pane shows differs; a move is a DRD layout change only. */
+export type DmnDiffStatus = Exclude<DiffCategory, "layoutChanged">;
+
 /** One decision table's changes, as one diff pane marks them. */
 export interface DmnTableMarks {
     readonly columns: {
@@ -14,12 +19,30 @@ export interface DmnTableMarks {
     readonly cells: readonly string[];
     readonly annotations: readonly string[];
     readonly properties: readonly string[];
-    readonly counts: {
-        readonly added: number;
-        readonly removed: number;
-        readonly changed: number;
-        readonly layoutChanged: number;
-    };
+    readonly counts: DiffCounts;
+    /** The table's id when its attributes changed and it has one: the step that focuses them. */
+    readonly attributesStep?: string;
+}
+
+/** What one DMN diff pane marks: the DRD's changes, each changed table's and the changed expressions. */
+export interface DmnDiffMarks {
+    readonly added: readonly string[];
+    readonly removed: readonly string[];
+    readonly changed: readonly string[];
+    readonly layoutChanged: readonly string[];
+    readonly tables: Readonly<Record<string, DmnTableMarks>>;
+    readonly expressions: readonly string[];
+}
+
+/**
+ * How the open view of a decision or business knowledge model differs. A
+ * changed decision table has none: its rows and cells carry the marks.
+ */
+export function viewStatusOf(marks: DmnDiffMarks, elementId: string): DmnDiffStatus | undefined {
+    if (marks.added.includes(elementId)) return "added";
+    if (marks.removed.includes(elementId)) return "removed";
+    if (marks.expressions.includes(elementId)) return "changed";
+    return undefined;
 }
 
 /** The change a diff pane's stepper is on, in a decision table. */
@@ -27,8 +50,6 @@ export interface DmnDiffFocus {
     readonly kind: "rule" | "column" | "table";
     readonly id: string;
 }
-
-type Kind = "added" | "removed" | "changed";
 
 /**
  * The stylesheet that marks one decision table's changes in a pane whose
@@ -43,10 +64,11 @@ export function tableMarksCss(
     columns: readonly string[],
 ): string {
     const select = selectors(scope, columns);
-    const tint = (kind: Kind, share: number) =>
+    const tint = (kind: DmnDiffStatus, share: number) =>
         `background-color: color-mix(in srgb, var(--dmn-diff-${kind}) ${share}%, var(--decision-table-background-color)) !important;`;
-    const bar = (kind: Kind | "moved") => `box-shadow: inset 4px 0 0 var(--dmn-diff-${kind});`;
-    const outline = (kind: Kind) => `box-shadow: inset 0 0 0 2px var(--dmn-diff-${kind});`;
+    const bar = (kind: DmnDiffStatus | "moved") =>
+        `box-shadow: inset 4px 0 0 var(--dmn-diff-${kind});`;
+    const outline = (kind: DmnDiffStatus) => `box-shadow: inset 0 0 0 2px var(--dmn-diff-${kind});`;
     const { rules, columns: changedColumns } = marks;
 
     return [

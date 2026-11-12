@@ -1,4 +1,12 @@
 /**
+ * Whether a diff pane's Next and Previous have a change to step to. Counts are
+ * not enough: a pane can count changes it has no element to step to.
+ */
+export function canStep(steps: readonly string[]): boolean {
+    return steps.length > 0;
+}
+
+/**
  * Where a diff pane's Next or Previous lands among `length` changes, wrapping
  * round. From the start (`-1`) a plain modulo would land Previous on the
  * second to last change; it lands on the last instead.

@@ -433,17 +433,17 @@
                 "category": "Miragon BPMN Modeler"
             },
             {
-                "command": "bpmn-modeler.dmn.selectForCompare",
+                "command": "bpmn-modeler.selectDmnForCompare",
                 "title": "Select for Compare (DMN)",
                 "category": "Miragon BPMN Modeler"
             },
             {
-                "command": "bpmn-modeler.dmn.compareWithSelected",
+                "command": "bpmn-modeler.compareDmnWithSelected",
                 "title": "Compare with Selected (DMN)",
                 "category": "Miragon BPMN Modeler"
             },
             {
-                "command": "bpmn-modeler.dmn.compareSelected",
+                "command": "bpmn-modeler.compareSelectedDmn",
                 "title": "Compare Selected (DMN)",
                 "category": "Miragon BPMN Modeler"
             },
@@ -602,15 +602,15 @@
                     "when": "false"
                 },
                 {
-                    "command": "bpmn-modeler.dmn.selectForCompare",
+                    "command": "bpmn-modeler.selectDmnForCompare",
                     "when": "false"
                 },
                 {
-                    "command": "bpmn-modeler.dmn.compareWithSelected",
+                    "command": "bpmn-modeler.compareDmnWithSelected",
                     "when": "false"
                 },
                 {
-                    "command": "bpmn-modeler.dmn.compareSelected",
+                    "command": "bpmn-modeler.compareSelectedDmn",
                     "when": "false"
                 },
                 {
@@ -650,17 +650,17 @@
                     "when": "resourceExtname == .bpmn && listDoubleSelection"
                 },
                 {
-                    "command": "bpmn-modeler.dmn.selectForCompare",
+                    "command": "bpmn-modeler.selectDmnForCompare",
                     "group": "3_compare",
                     "when": "resourceExtname == .dmn && !listMultiSelection"
                 },
                 {
-                    "command": "bpmn-modeler.dmn.compareWithSelected",
+                    "command": "bpmn-modeler.compareDmnWithSelected",
                     "group": "3_compare",
                     "when": "resourceExtname == .dmn && bpmn-modeler.dmnCompareSelectionActive && !listMultiSelection"
                 },
                 {
-                    "command": "bpmn-modeler.dmn.compareSelected",
+                    "command": "bpmn-modeler.compareSelectedDmn",
                     "group": "3_compare",
                     "when": "resourceExtname == .dmn && listDoubleSelection"
                 },

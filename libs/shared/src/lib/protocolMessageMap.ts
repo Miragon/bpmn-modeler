@@ -7,6 +7,13 @@ import type {
     RevealAddOnsQuery,
 } from "./addOnsView";
 import type {
+    ApplyDmnDiffHighlightsQuery,
+    DmnDiffScrollChangedCommand,
+    DmnDiffViewChangedCommand,
+    SyncDmnDiffScrollQuery,
+    SyncDmnDiffViewQuery,
+} from "./dmnDiffMessages";
+import type {
     DocumentFlushedCommand,
     FlushDocumentQuery,
     LogDebugCommand,
@@ -22,7 +29,6 @@ import type {
 import type {
     AdditionalFilesQuery,
     ApplyDiffHighlightsQuery,
-    ApplyDmnDiffHighlightsQuery,
     BpmnFileQuery,
     BpmnLintDisabledQuery,
     BpmnModelerSettingQuery,
@@ -40,8 +46,6 @@ import type {
     DeploymentTargetsQuery,
     DiagramFormattedCommand,
     DiffReadyCommand,
-    DmnDiffScrollChangedCommand,
-    DmnDiffViewChangedCommand,
     DmnFileQuery,
     DmnModelerSettingQuery,
     ElementTemplateFileQuery,
@@ -98,8 +102,6 @@ import type {
     SwapCompareSidesCommand,
     SyncActivitiesCommand,
     SyncCursorQuery,
-    SyncDmnDiffScrollQuery,
-    SyncDmnDiffViewQuery,
     SyncViewportQuery,
     TargetSavedQuery,
     TextClipboardQuery,

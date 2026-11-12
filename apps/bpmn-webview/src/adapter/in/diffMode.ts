@@ -8,6 +8,7 @@ import {
     SwapCompareSidesCommand,
     ViewportChangedCommand,
 } from "@miragon/bpmn-modeler-shared";
+import { DIFF_CATEGORIES, DIFF_MARKERS } from "@miragon/bpmn-modeler-types";
 
 import { DiffLegend, DiffNavigator, DiffViewer } from "@miragon/bpmn-modeler/viewer";
 import type { DiffPaneChannel } from "../../port/hostChannel";
@@ -29,9 +30,10 @@ import type { DiffPaneChannel } from "../../port/hostChannel";
  *   - Outgoing {@link CursorChangedCommand} on user-driven Next/Prev so the
  *     partner pane's stepper stays in lockstep.
  *
- * The stepper, anchor walk, and layout-only-connection filter all live in
- * {@link DiffNavigator}; this class keeps only the protocol wiring and the
- * origin→legend-props mapping (a VS Code presentation concern).
+ * The stepper and anchor walk live in {@link DiffNavigator}; the host's
+ * navigationOrder already leaves out connections whose only change is layout.
+ * This class keeps only the protocol wiring and the origin→legend-props
+ * mapping (a VS Code presentation concern).
  */
 export class DiffMode {
     private readonly viewer: DiffViewer;
@@ -126,20 +128,11 @@ export class DiffMode {
         document.body.dataset.diffSide = query.side;
 
         this.viewer.clearHighlights();
-        this.viewer.applyHighlights(query.added, "diff-added");
-        this.viewer.applyHighlights(query.removed, "diff-removed");
-        this.viewer.applyHighlights(query.changed, "diff-changed");
-        this.viewer.applyHighlights(query.layoutChanged, "diff-layout-changed");
+        for (const category of DIFF_CATEGORIES) {
+            this.viewer.applyHighlights(query[category], DIFF_MARKERS[category]);
+        }
 
-        this.navigator.setChanges(
-            {
-                added: query.added,
-                removed: query.removed,
-                changed: query.changed,
-                layoutChanged: query.layoutChanged,
-            },
-            query.navigationOrder,
-        );
+        this.navigator.setChanges(query.navigationOrder);
 
         // Both panes render the legend now: counts are symmetric across sides,
         // and each pane drives a synced cursor over the same navigationOrder, so
@@ -151,6 +144,7 @@ export class DiffMode {
             counts: query.counts,
             filename: isCompareFiles ? query.paneFilename : undefined,
             showSwap: isCompareFiles,
+            canStep: this.navigator.canStep,
         });
     }
 

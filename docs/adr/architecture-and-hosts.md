@@ -1,7 +1,7 @@
 # Architecture and hosts
 
 - Status: accepted
-- Last reviewed: 2026-11-11
+- Last reviewed: 2026-11-12
 
 ## Context
 
@@ -200,10 +200,15 @@ A DMN diff pane posts through its own list, `DMN_DIFF_PANE_COMMAND_TYPES`,
 routed by `createDmnDiffPaneRouter`. It has no handshake: the DMN bootstrap
 creates its modeler before the file arrives, so VS Code names the page a diff
 pane in its HTML (`<body data-surface="dmnDiffPane">`) and the page loads the
-diff bootstrap instead of the editor. On top of the BPMN pane's viewport and
-cursor, its partner follows the view the user opens and the table's scroll.
-The bridge registers the surface as absent, because IntelliJ has no DMN
-editor.
+diff bootstrap instead of the editor. VS Code's `bootstrapWebview(panel, page)`
+takes a `WebviewPage`: an editor page (`viewType`, `initialPanelVisible`) or a
+diff pane page that names its surface (`bpmnDiffPane` or `dmnDiffPane`), so a
+pane cannot be handed a panel flag it would ignore; only the DMN surface reaches
+the HTML. On top of the BPMN pane's viewport and cursor, its partner follows the
+view the user opens and the table's scroll. Its messages sit in
+`libs/shared/src/lib/dmnDiffMessages.ts`, a feature file like the add-ons
+view's. The bridge registers the surface as absent, because IntelliJ has no
+DMN editor.
 
 The DMN and Form editors, the element-template editor, the deployment
 sidebar and the add-ons view have closed lists of their own

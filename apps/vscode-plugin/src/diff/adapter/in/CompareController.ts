@@ -11,8 +11,10 @@ import {
 import { CompareSelectionStore } from "./CompareSelectionStore";
 import { DiffController } from "./DiffController";
 
-/** One file format's three compare commands. */
-export interface CompareCommands extends CompareFormat {
+/** The menu label and the three compare commands of one file format. */
+export interface CompareCommands {
+    /** Such as `BPMN`, as in "Select for Compare (BPMN)". */
+    readonly label: string;
     /** First step of a two-file compare: remembers the file. */
     readonly selectForCompare: string;
     /** Second step: compares the given file with the remembered one. */
@@ -22,7 +24,6 @@ export interface CompareCommands extends CompareFormat {
 }
 
 export const BPMN_COMPARE: CompareCommands = {
-    extension: ".bpmn",
     label: "BPMN",
     selectForCompare: "bpmn-modeler.selectForCompare",
     compareWithSelected: "bpmn-modeler.compareWithSelected",
@@ -30,11 +31,10 @@ export const BPMN_COMPARE: CompareCommands = {
 };
 
 export const DMN_COMPARE: CompareCommands = {
-    extension: ".dmn",
     label: "DMN",
-    selectForCompare: "bpmn-modeler.dmn.selectForCompare",
-    compareWithSelected: "bpmn-modeler.dmn.compareWithSelected",
-    compareSelected: "bpmn-modeler.dmn.compareSelected",
+    selectForCompare: "bpmn-modeler.selectDmnForCompare",
+    compareWithSelected: "bpmn-modeler.compareDmnWithSelected",
+    compareSelected: "bpmn-modeler.compareSelectedDmn",
 };
 
 // How long the status-bar acknowledgement sits before fading.
@@ -71,14 +71,15 @@ export class CompareController {
      * @param diffController Owns diff-session registration; must be notified
      *   *before* `vscode.diff` is invoked so pane resolution finds the
      *   session synchronously.
+     *   It also names the file extension the commands accept.
      * @param notifier User-facing messages and logging.
-     * @param format The file format and the IDs of its commands.
+     * @param compareCommands The format's menu label and command IDs.
      */
     constructor(
         private readonly selection: CompareSelectionStore,
         private readonly diffController: DiffController,
         private readonly notifier: NotifierPort,
-        private readonly format: CompareCommands,
+        private readonly compareCommands: CompareCommands,
     ) {}
 
     /**
@@ -87,13 +88,21 @@ export class CompareController {
      */
     register(context: ExtensionContext): void {
         context.subscriptions.push(
-            commands.registerCommand(this.format.selectForCompare, this.selectForCompare, this),
             commands.registerCommand(
-                this.format.compareWithSelected,
+                this.compareCommands.selectForCompare,
+                this.selectForCompare,
+                this,
+            ),
+            commands.registerCommand(
+                this.compareCommands.compareWithSelected,
                 this.compareWithSelected,
                 this,
             ),
-            commands.registerCommand(this.format.compareSelected, this.compareSelected, this),
+            commands.registerCommand(
+                this.compareCommands.compareSelected,
+                this.compareSelected,
+                this,
+            ),
         );
     }
 
@@ -132,7 +141,7 @@ export class CompareController {
 
         const leftUri = this.selection.get();
         if (!leftUri) {
-            this.notifier.showInfo(nothingSelectedForCompareText(this.format));
+            this.notifier.showInfo(nothingSelectedForCompareText(this.compareFormat));
             return;
         }
 
@@ -163,7 +172,7 @@ export class CompareController {
     async compareSelected(_uri: Uri | undefined, uris: Uri[] | undefined): Promise<void> {
         const matching = (uris ?? []).filter((candidate) => this.isOfFormat(candidate));
         if (matching.length !== 2) {
-            this.notifier.showInfo(selectTwoFilesText(this.format));
+            this.notifier.showInfo(selectTwoFilesText(this.compareFormat));
             return;
         }
 
@@ -176,8 +185,12 @@ export class CompareController {
         await this.diffController.openCompareFilesDiff(leftUri, rightUri);
     }
 
+    private get compareFormat(): CompareFormat {
+        return { extension: this.diffController.extension, label: this.compareCommands.label };
+    }
+
     private isOfFormat(uri: Uri | undefined): uri is Uri {
-        return uri !== undefined && uri.path.endsWith(this.format.extension);
+        return uri !== undefined && uri.path.endsWith(this.diffController.extension);
     }
 }
 

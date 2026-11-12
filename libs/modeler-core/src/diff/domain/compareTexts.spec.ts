@@ -1,13 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import {
+    type CompareFormat,
     nothingSelectedForCompareText,
     selectedForCompareText,
     selectTwoFilesText,
 } from "./compareTexts";
 
-const BPMN = { extension: ".bpmn", label: "BPMN" };
-const DMN = { extension: ".dmn", label: "DMN" };
+const BPMN: CompareFormat = { extension: ".bpmn", label: "BPMN" };
+const DMN: CompareFormat = { extension: ".dmn", label: "DMN" };
 
 describe("compare texts", () => {
     it("names the file picked for compare", () => {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import * as addOnsViewMessages from "./addOnsView";
+import * as dmnDiffMessages from "./dmnDiffMessages";
 import * as baseMessages from "./messages";
 import {
     Command,
@@ -20,6 +21,7 @@ const concreteMessageClasses = Object.entries<unknown>({
     ...baseMessages,
     ...modelerMessages,
     ...addOnsViewMessages,
+    ...dmnDiffMessages,
 }).filter(
     (entry): entry is [string, MessageClass] =>
         typeof entry[1] === "function" && !abstractMessageClasses.includes(entry[1]),
@@ -44,6 +46,11 @@ describe("protocol messages", () => {
                 "AddOnActionResultQuery",
                 "RevealAddOnsQuery",
                 "BrandModeQuery",
+                "ApplyDmnDiffHighlightsQuery",
+                "DmnDiffViewChangedCommand",
+                "SyncDmnDiffViewQuery",
+                "DmnDiffScrollChangedCommand",
+                "SyncDmnDiffScrollQuery",
             ]),
         );
     });

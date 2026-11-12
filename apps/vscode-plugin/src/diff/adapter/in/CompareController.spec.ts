@@ -11,6 +11,7 @@ vi.mock("vscode", () => ({
     window: { setStatusBarMessage: (...args: unknown[]) => setStatusBarMessageMock(...args) },
 }));
 
+import { DiffFileExtension } from "@miragon/bpmn-modeler-core";
 import { RecordingNotifier } from "@miragon/bpmn-modeler-core/testing";
 
 import { BPMN_COMPARE, CompareController, DMN_COMPARE } from "./CompareController";
@@ -24,16 +25,19 @@ function uri(path: string) {
  * Assembles the controller with port doubles so each test can stage the
  * stored selection and assert which collaborator the dispatch reached.
  */
-function createController(format = BPMN_COMPARE) {
+function createController(
+    compareCommands = BPMN_COMPARE,
+    diffExtension: DiffFileExtension = ".bpmn",
+) {
     const selection = { get: vi.fn(), set: vi.fn(), clear: vi.fn() };
-    const diffController = { openCompareFilesDiff: vi.fn() };
+    const diffController = { extension: diffExtension, openCompareFilesDiff: vi.fn() };
     const notifier = new RecordingNotifier();
     return {
         controller: new CompareController(
             selection as never,
             diffController as never,
             notifier,
-            format,
+            compareCommands,
         ),
         selection,
         diffController,
@@ -147,19 +151,19 @@ describe("CompareController.compareSelected", () => {
 
 describe("CompareController for DMN files", () => {
     it("registers the DMN commands", () => {
-        const { controller } = createController(DMN_COMPARE);
+        const { controller } = createController(DMN_COMPARE, ".dmn");
 
         controller.register({ subscriptions: [] } as never);
 
         expect(registerCommandMock.mock.calls.map(([id]) => id)).toEqual([
-            "bpmn-modeler.dmn.selectForCompare",
-            "bpmn-modeler.dmn.compareWithSelected",
-            "bpmn-modeler.dmn.compareSelected",
+            "bpmn-modeler.selectDmnForCompare",
+            "bpmn-modeler.compareDmnWithSelected",
+            "bpmn-modeler.compareSelectedDmn",
         ]);
     });
 
     it("compares two .dmn files and leaves a .bpmn file out", async () => {
-        const { controller, notifier, diffController } = createController(DMN_COMPARE);
+        const { controller, notifier, diffController } = createController(DMN_COMPARE, ".dmn");
         const left = uri("/repo/shipping-v1.dmn");
         const right = uri("/repo/shipping-v2.dmn");
 
@@ -171,7 +175,7 @@ describe("CompareController for DMN files", () => {
     });
 
     it("names the DMN menu entry when nothing was selected first", async () => {
-        const { controller, selection, notifier } = createController(DMN_COMPARE);
+        const { controller, selection, notifier } = createController(DMN_COMPARE, ".dmn");
         selection.get.mockReturnValue(undefined);
 
         await controller.compareWithSelected(uri("/repo/shipping.dmn"));
@@ -182,7 +186,7 @@ describe("CompareController for DMN files", () => {
     });
 
     it("remembers a .dmn file for the second step", async () => {
-        const { controller, selection } = createController(DMN_COMPARE);
+        const { controller, selection } = createController(DMN_COMPARE, ".dmn");
 
         await controller.selectForCompare(uri("/repo/order.bpmn"));
         await controller.selectForCompare(uri("/repo/shipping.dmn"));
