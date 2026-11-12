@@ -94,9 +94,8 @@ describe("SurfaceCore", () => {
             ([event]) => event === "canvas.focus.changed",
         )!;
         const marked = () =>
-            container
-                .querySelector(".fit-viewport-button")
-                ?.hasAttribute("data-canvas-focused") ?? false;
+            container.querySelector(".fit-viewport-button")?.hasAttribute("data-canvas-focused") ??
+            false;
 
         onFocusChanged({ focused: true });
         expect(marked()).toBe(true);
