@@ -3,12 +3,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { installSurfaceFocusFeatures } from "./focusFeatures";
 
 /**
- * The adapter between diagram-js services and the keyboard-focus / focus
- * indicator features. The Escape decision table itself is covered by
+ * The adapter between diagram-js services and the keyboard-focus feature.
+ * The Escape decision table itself is covered by
  * `keyboardFocus.spec.ts`; this pins which service each decision reads.
  */
-
-type EventHandler = (event: never) => void;
 
 function fakeSurface() {
     const canvasContainer = document.createElement("div");
@@ -16,7 +14,6 @@ function fakeSurface() {
     const outside = document.createElement("div");
     document.body.append(canvasContainer, panel, outside);
 
-    const eventHandlers = new Map<string, EventHandler>();
     const canvas = {
         getContainer: () => canvasContainer,
         focus: vi.fn(),
@@ -26,9 +23,6 @@ function fakeSurface() {
     const searchPad = { isOpen: vi.fn(() => false), close: vi.fn() };
     const services: Record<string, unknown> = {
         canvas,
-        eventBus: {
-            on: (event: string, handler: EventHandler) => eventHandlers.set(event, handler),
-        },
         selection,
         searchPad,
     };
@@ -52,8 +46,6 @@ function fakeSurface() {
         selection,
         searchPad,
         removeService: (name: string) => delete services[name],
-        fire: (event: string, payload: unknown) =>
-            (eventHandlers.get(event) as (payload: unknown) => void)(payload),
     };
 }
 
@@ -80,23 +72,6 @@ afterEach(() => {
 });
 
 describe("installSurfaceFocusFeatures", () => {
-    it("rings the canvas container while the canvas holds the keyboard", () => {
-        const dispose = install({ hasSearchPad: true });
-        const ringed = () =>
-            surface.canvasContainer.querySelector<HTMLElement>(".canvas-focus-ring")?.hidden ===
-            false;
-
-        surface.fire("canvas.focus.changed", { focused: true });
-        expect(ringed()).toBe(true);
-
-        surface.fire("canvas.focus.changed", { focused: false });
-        expect(ringed()).toBe(false);
-
-        surface.fire("canvas.focus.changed", { focused: true });
-        dispose();
-        expect(ringed()).toBe(false);
-    });
-
     it("closes an open search pad before refocusing the canvas", () => {
         install({ hasSearchPad: true });
         surface.searchPad.isOpen.mockReturnValue(true);

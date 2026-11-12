@@ -126,8 +126,8 @@ async function diagramInView(webview: FrameLocator): Promise<boolean> {
     });
 }
 
-function focusRingShown(container: Locator): Promise<boolean> {
-    return container.locator(".canvas-focus-ring").isVisible();
+function canvasFocusMarked(container: Locator): Promise<boolean> {
+    return container.locator(".fit-viewport-button[data-canvas-focused]").isVisible();
 }
 
 /** A poll for zero passes at once, so this watches the whole window for an element that appears late. */
@@ -380,26 +380,26 @@ describe("the packaged extension in a real VS Code", () => {
         await vscode().screenshot(join(RESULTS_DIRECTORY, "bpmn-fit-after.png"));
     });
 
-    it("rings the canvas once Escape hands it the keyboard from the properties panel", async () => {
+    it("marks the fit button once Escape hands the canvas the keyboard from the properties panel", async () => {
         const webview = vscode().webview();
         const container = webview.locator(".bjs-container .djs-container");
         await webview
             .locator("#js-properties-panel .bio-properties-panel-group-header")
             .first()
             .click();
-        expect(await focusRingShown(container)).toBe(false);
+        expect(await canvasFocusMarked(container)).toBe(false);
 
         await vscode().page.keyboard.press("Escape");
 
-        await expect.poll(() => focusRingShown(container), { timeout: TIMEOUT_MS }).toBe(true);
+        await expect.poll(() => canvasFocusMarked(container), { timeout: TIMEOUT_MS }).toBe(true);
         await settle(webview);
-        await vscode().screenshot(join(RESULTS_DIRECTORY, "bpmn-focus-ring.png"));
+        await vscode().screenshot(join(RESULTS_DIRECTORY, "bpmn-canvas-focus.png"));
     });
 
     it.each(COLOR_THEMES)("follows VS Code's $name theme", async (theme) => {
         const webview = vscode().webview();
         const html = webview.locator("html");
-        // The edit left the canvas focused; its focus ring would show in every screenshot.
+        // The edit left the canvas focused; its focus dot would show in every screenshot.
         await html.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
 
         await vscode().setColorTheme(theme.name);

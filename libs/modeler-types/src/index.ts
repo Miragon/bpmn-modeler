@@ -25,7 +25,6 @@ export * from "./layout";
 export * from "./errors";
 export * from "./canvasResize";
 export * from "./disposableStore";
-export * from "./canvasFocusRing";
 export * from "./fitCanvas";
 export * from "./focusCanvasFromKeystroke";
 export * from "./fitViewportButton";
