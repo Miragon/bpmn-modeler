@@ -20,6 +20,7 @@ class SettingsRouterTest {
 
     @AfterEach
     fun tearDown() {
+        PropertiesComponent.getInstance().unsetValue("miragon.bpmnModeler.language")
         PropertiesComponent.getInstance().unsetValue(LINTING_ENABLED_KEY)
         PropertiesComponent.getInstance().setList(FAVOURITES_KEY, null)
         wired?.dispose()
@@ -62,6 +63,35 @@ class SettingsRouterTest {
         wired.handlers.dispatch("settings/setLintingEnabled", lintChoice(false), wired.requestId(REQUEST_ID))
 
         assertNull(PropertiesComponent.getInstance().getList(FAVOURITES_KEY))
+    }
+
+    @Test
+    fun `stores language alone and broadcasts before acknowledging`() {
+        val project = projectFixture.get()
+        val wired = wireChannel().also { this.wired = it }
+        ModelerSettingsStore.getInstance().setLintingEnabled(false)
+        SettingsRouter(bridgeDeps(project, wired.channel, wired.handlers)) {
+            assertEquals("de", ModelerSettingsStore.getInstance().current().language)
+            wired.channel.notify(HostToCoreMethod.SETTINGS_DID_CHANGE, linkedMapOf("settings" to emptyMap<String, Any>()))
+        }.register()
+
+        wired.handlers.dispatch("settings/setLanguage", JsonObject().apply { addProperty("locale", "de") }, wired.requestId(REQUEST_ID))
+
+        assertEquals("settings/didChange", frame(wired.fake.nextFrame()).get("method").asString)
+        assertEquals(REQUEST_ID, frame(wired.fake.nextFrame()).get("id").asInt)
+        assertEquals(false, ModelerSettingsStore.getInstance().current().lintingEnabled)
+        assertNull(PropertiesComponent.getInstance().getList(FAVOURITES_KEY))
+    }
+
+    @Test
+    fun `acknowledges an unchanged language without broadcasting`() {
+        val wired = wireChannel().also { this.wired = it }
+        var pushes = 0
+        SettingsRouter(bridgeDeps(projectFixture.get(), wired.channel, wired.handlers)) { pushes++ }.register()
+        val locale = ModelerSettingsStore.getInstance().current().language
+        wired.handlers.dispatch("settings/setLanguage", JsonObject().apply { addProperty("locale", locale) }, wired.requestId(REQUEST_ID))
+        assertEquals(REQUEST_ID, frame(wired.fake.nextFrame()).get("id").asInt)
+        assertEquals(0, pushes)
     }
 
     private fun lintChoice(enabled: Boolean) = JsonObject().apply { addProperty("enabled", enabled) }

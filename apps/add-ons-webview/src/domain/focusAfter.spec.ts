@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import {
-    ACME,
     CATALOG,
     CONFIG_SOURCE,
     MAIL,
@@ -28,14 +27,9 @@ describe("focusAfterDone", () => {
             target: { kind: "head", headId: "row" },
         },
         {
-            case: "a revoke or forget returns to the row",
+            case: "a revoke returns to the row",
             action: "revoke",
             target: { kind: "head", headId: "row" },
-        },
-        {
-            case: "a read goes to the review it offers",
-            action: "inspect",
-            target: { kind: "review", addOnId: "row" },
         },
         {
             case: "an enable stays on the switch that takes its place",
@@ -98,17 +92,6 @@ describe("isFocusable", () => {
         {
             case: "not a head the model lost",
             target: { kind: "head", headId: "plugin:/gone" },
-            focusable: false,
-        },
-        { case: "a row's review", target: { kind: "review", addOnId: RESIZE.id }, focusable: true },
-        {
-            case: "not a review the row does not offer yet",
-            target: { kind: "review", addOnId: ACME.id },
-            focusable: false,
-        },
-        {
-            case: "not the review of a row the model lost",
-            target: { kind: "review", addOnId: "plugin:/gone" },
             focusable: false,
         },
         {
@@ -175,7 +158,11 @@ describe("isRequestedByHost", () => {
             target: { kind: "listStart" },
             requested: false,
         },
-        { case: "a review", target: { kind: "review", addOnId: "row" }, requested: false },
+        {
+            case: "a switch's slot after an action",
+            target: { kind: "action", targetId: "row", slot: 0 },
+            requested: false,
+        },
         {
             case: "a row a Review… revealed",
             target: { kind: "head", headId: "row", reveal: true },

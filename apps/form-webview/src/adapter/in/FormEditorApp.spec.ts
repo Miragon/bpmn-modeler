@@ -107,6 +107,46 @@ function setup() {
 beforeEach(() => vi.useFakeTimers());
 
 describe("FormEditorApp", () => {
+    it("keeps interaction locked through host import after the destructive flush is released", async () => {
+        const { app, editor } = setup();
+        document.body.inert = false;
+        await app.load(ORIGINAL, 1);
+        let finishImport!: (value: { warnings: never[] }) => void;
+        editor.importSchema.mockReturnValueOnce(
+            new Promise((resolve) => {
+                finishImport = resolve;
+            }),
+        );
+        app.beginDestructiveFlush();
+        const importing = app.load(ORIGINAL, 2);
+        app.endDestructiveFlush();
+        expect(document.body.inert).toBe(true);
+        finishImport({ warnings: [] });
+        await importing;
+        expect(document.body.inert).toBe(false);
+    });
+
+    it("does not unlock a destructive flush when host import finishes first", async () => {
+        const { app } = setup();
+        document.body.inert = false;
+        app.beginDestructiveFlush();
+        await app.load(ORIGINAL, 1);
+        expect(document.body.inert).toBe(true);
+        app.endDestructiveFlush();
+        expect(document.body.inert).toBe(false);
+    });
+
+    it("restores interaction after a failed host import", async () => {
+        const { app, editor } = setup();
+        document.body.inert = false;
+        editor.importSchema.mockRejectedValueOnce(new Error("bad schema"));
+        await app.load(ORIGINAL, 1);
+        expect(document.body.inert).toBe(false);
+        expect(document.getElementById("error")?.textContent).toBe(
+            "The form schema could not be loaded. Open the raw JSON editor to fix it.",
+        );
+    });
+
     it("preserves source bytes until a visual edit changes the schema", async () => {
         const { app, editor, host } = setup();
         await app.load(ORIGINAL);
@@ -352,6 +392,9 @@ describe("FormEditorApp", () => {
 
         expect(editor.importSchema).not.toHaveBeenCalled();
         expect(document.getElementById("error")?.hidden).toBe(false);
+        expect(document.getElementById("error")?.textContent).toBe(
+            "The form contains invalid JSON. Open the raw JSON editor to fix it.",
+        );
         expect(app.isReady()).toBe(false);
         expect(host.postMessage).not.toHaveBeenCalledWith(expect.any(SyncDocumentCommand));
     });

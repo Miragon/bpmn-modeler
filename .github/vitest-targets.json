@@ -50,7 +50,8 @@
                 "libs/shared/**",
                 "libs/modeler-types/**",
                 "libs/bpmn-diff/**",
-                "libs/dmn-diff/**"
+                "libs/dmn-diff/**",
+                "libs/bpmn-i18n-extras/**"
             ],
             "typecheck": "typecheck"
         },
@@ -245,6 +246,7 @@
                 "libs/modeler-types/**",
                 "libs/bpmn-diff/**",
                 "libs/dmn-diff/**",
+                "libs/bpmn-i18n-extras/**",
                 "packages/bpmn-modeler/src/bpmnlint/**",
                 "scripts/perf/**"
             ],

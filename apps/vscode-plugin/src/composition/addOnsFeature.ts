@@ -63,11 +63,13 @@ export function register(
             onDidChange: (listener) => deps.preferences.onDidChangeSetting(listener),
         },
         restart: "reloadWindow",
+        contentRows: deps.contentRows,
         plugins: handles.plugins.inventory,
         rulePackages: handles.editor.rulePackageInventory,
         templates: handles.editor.templateInventory,
         marketplaces: handles.marketplaces,
         templatePreferences: deps.templatePreferences,
+        workspaceTrust: deps.workspaceTrust,
     });
     context.subscriptions.push(addOns);
     const brandMode = new VsCodeBrandModeSignal(

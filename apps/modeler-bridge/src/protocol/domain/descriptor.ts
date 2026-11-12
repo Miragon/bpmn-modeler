@@ -82,6 +82,7 @@ import {
     ScriptUpdateVariablesParams,
     SettingsDidChangeParams,
     SettingsSetLintingEnabledParams,
+    SettingsSetLanguageParams,
     StatusBarUpdateParams,
     TemplatePreferencesChangeParams,
     TemplatePreferencesSnapshot,
@@ -91,6 +92,7 @@ import {
     TokenStoreGetResult,
     TokenStoreSetParams,
     WebviewMessageParams,
+    WorkspaceTrustSnapshot,
 } from "./types";
 
 /** Which peer initiates the call. Requests are only ever Core→Host (see the contract test). */
@@ -154,6 +156,7 @@ export const METHODS = {
     marketplaceUpdate: "marketplace/update",
     marketplaceRemove: "marketplace/remove",
     modelerChangeEngineVersion: "modeler/changeEngineVersion",
+    modelerChangeLanguage: "modeler/changeLanguage",
     lintingToggle: "linting/toggle",
     migrationMigrateAll: "migration/migrateAll",
     layoutFormat: "layout/format",
@@ -165,6 +168,7 @@ export const METHODS = {
     deploymentStatusBarMenu: "deployment/statusBarMenu",
     pluginApprovalsDidChange: "pluginApprovals/didChange",
     templatePreferencesDidChange: "templatePreferences/didChange",
+    workspaceTrustDidChange: "workspaceTrust/didChange",
     addOnsWebviewMessage: "addOns/webviewMessage",
     addOnsOpen: "addOns/open",
     addOnsRefresh: "addOns/refresh",
@@ -192,6 +196,7 @@ export const METHODS = {
     tokenStoreSet: "tokenStore/set",
     tokenPromptShow: "tokenPrompt/show",
     settingsSetLintingEnabled: "settings/setLintingEnabled",
+    settingsSetLanguage: "settings/setLanguage",
     actionNoticeShow: "actionNotice/show",
     pluginApprovalsChange: "pluginApprovals/change",
     pluginApprovalsRead: "pluginApprovals/read",
@@ -270,6 +275,7 @@ export const PROTOCOL = [
             pluginApprovals: [PLUGIN_APPROVAL_SAMPLE],
             pluginApprovalsRevision: 7,
             templatePreferences: TEMPLATE_PREFERENCES_SAMPLE,
+            workspaceTrust: { trusted: true, revision: 4 },
         } satisfies RegisterParams,
     },
     {
@@ -406,6 +412,12 @@ export const PROTOCOL = [
         paramsFixture: { editorId: "e1" } satisfies EditorRefParams,
     },
     {
+        method: METHODS.modelerChangeLanguage,
+        direction: "hostToCore",
+        kind: "notification",
+        paramsFixture: {} satisfies EmptyParams,
+    },
+    {
         method: METHODS.lintingToggle,
         direction: "hostToCore",
         kind: "notification",
@@ -475,6 +487,12 @@ export const PROTOCOL = [
         direction: "hostToCore",
         kind: "notification",
         paramsFixture: TEMPLATE_PREFERENCES_SAMPLE,
+    },
+    {
+        method: METHODS.workspaceTrustDidChange,
+        direction: "hostToCore",
+        kind: "notification",
+        paramsFixture: { trusted: false, revision: 5 } satisfies WorkspaceTrustSnapshot,
     },
     {
         method: METHODS.addOnsWebviewMessage,
@@ -773,6 +791,13 @@ export const PROTOCOL = [
             prompt: "github.com denied access; enter a personal access token.",
         } satisfies TokenPromptShowParams,
         resultFixture: { token: "ghp_example" } satisfies TokenPromptShowResult,
+    },
+    {
+        method: METHODS.settingsSetLanguage,
+        direction: "coreToHost",
+        kind: "request",
+        replyWait: "hostWork",
+        paramsFixture: { locale: "de" } satisfies SettingsSetLanguageParams,
     },
     {
         method: METHODS.settingsSetLintingEnabled,

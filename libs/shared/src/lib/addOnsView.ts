@@ -7,7 +7,7 @@ import { Command, Query } from "./messages";
  * core's protocol adapter pins each copy to its home.
  */
 
-export type CodeStatePayload = "approved" | "new" | "changed" | "declined" | "gone";
+export type CodeStatePayload = "approved" | "new" | "declined";
 
 export type TemplateStatePayload = "enabled" | "disabled";
 
@@ -17,7 +17,7 @@ export type GroupKindPayload = "folder" | "marketplaces";
 
 export type CodeAddOnKindPayload = "plugin" | "rulePackage";
 
-export type AddOnActionKindPayload = "inspect" | "allow" | "revoke" | "enable" | "disable";
+export type AddOnActionKindPayload = "allow" | "revoke" | "enable" | "disable";
 
 export type SourceActionKindPayload = "removeMarketplace" | "enableTemplates" | "disableTemplates";
 
@@ -29,7 +29,6 @@ export type AddOnRefusalPayload =
     | "staleView"
     | "closedView"
     | "notOffered"
-    | "changedSinceReview"
     | "gone"
     | "unreadable";
 
@@ -103,7 +102,6 @@ export interface TemplateAddOnPayload {
 export type AddOnPayload = CodeAddOnPayload | TemplateAddOnPayload;
 
 export type AddOnRequestPayload =
-    | { readonly kind: "inspect"; readonly addOnId: string }
     | { readonly kind: "allow"; readonly addOnId: string; readonly revision: number }
     | { readonly kind: "revoke"; readonly addOnId: string }
     | { readonly kind: "enable" | "disable"; readonly addOnId: string }

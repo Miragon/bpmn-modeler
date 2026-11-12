@@ -40,6 +40,16 @@ class ModelerCommandsRouterTest {
     private fun descriptorFrame(method: String) = SentFrame(method, descriptor.paramKeys(method))
 
     @Test
+    fun `changeLanguage starts a bridge without an editor`() {
+        val wired = wireChannel().also { this.wired = it }
+        var starts = 0
+        val deps = bridgeDeps(projectFixture.get(), wired.channel, wired.handlers, ensureStartedAsync = { starts++ })
+        ModelerCommandsRouter(deps).changeLanguage()
+        assertEquals(descriptorFrame("modeler/changeLanguage"), SentFrame.of(wired.fake.nextFrame()))
+        assertEquals(1, starts)
+    }
+
+    @Test
     fun `formatDiagram notifies layout format`() {
         assertEquals(descriptorFrame("layout/format"), sentFrame { formatDiagram() })
     }

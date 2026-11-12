@@ -1,19 +1,19 @@
 import {
-    ApprovableArtifact,
+    Allowance,
+    allowanceKeyOf,
+    AllowanceState,
+    allowanceStateOf,
+} from "../../kernel/domain/allowance";
+import {
     ApprovableCodeTexts,
     CodeApproval,
     CodeState,
-    codeStateOf,
     declinedKeys,
-    isApprovedState,
-    ListedCode,
-    ListedPresence,
-    placesAllowing,
-    presenceIdOf,
     ProcessRestart,
-    rowContentOf,
     SessionAnswer,
 } from "../../kernel/domain/codeApproval";
+import { ListedCode, ListedPresence, presenceIdOf } from "../../kernel/domain/listedCode";
+import { offersAllowInWorkspace } from "../../kernel/domain/workspaceTrust";
 import {
     innermostFolderOf,
     relativeToRoot,
@@ -25,12 +25,13 @@ import { FolderFacts, PlacedAddOn, SOURCE_PLACE, SourcePlace } from "./addOnSour
 import {
     ACTION_LABEL,
     ADD_ON_KIND_TEXT,
-    alsoAllowedText,
+    allowedInText,
     allowWarningText,
     cannotBeAllowedText,
     CODE_STATE_LABEL,
     REVIEW_FACT_LABEL,
     reviewHeading,
+    UNTRUSTED_WORKSPACE_TEXT,
 } from "./addOnTexts";
 import { optional } from "./addOnViewParts";
 
@@ -44,7 +45,9 @@ export interface OwnedPresence {
 
 /** What one listing found of the code add-ons. */
 export interface CodeAddOnFacts extends FolderFacts {
-    /** The stored rows each owner claims, so a kind's rules never read another kind's rows. */
+    /** Whether the user trusts the workspace; untrusted, no code add-on runs or offers Allow. */
+    readonly trusted: boolean;
+    /** The stored rows of each kind, so a kind's rules never read another kind's rows. */
     readonly approvalsByKind: Readonly<Record<CodeAddOnKind, readonly CodeApproval[]>>;
     readonly plugins: readonly OwnedPresence[];
     readonly rulePackages: readonly OwnedPresence[];
@@ -52,75 +55,90 @@ export interface CodeAddOnFacts extends FolderFacts {
 
 /** What this process remembers beyond the stored approvals, by kind as each owner tells it. */
 export interface AddOnSession {
+    /** By `allowanceKeyOf`. */
     readonly answers: Readonly<Record<CodeAddOnKind, ReadonlyMap<string, SessionAnswer>>>;
-    /** Revoked this session, with code that may still be loaded. */
+    /** Revoked this session, with code that may still be loaded: allowance keys and places. */
     readonly stillLoaded: Readonly<Record<CodeAddOnKind, ReadonlySet<string>>>;
 }
 
 /** What the core showed of one add-on; kept by the core and never sent. */
 export interface ShownCode {
     readonly kind: CodeAddOnKind;
-    /** The id its approval row names. */
+    /** The place it was found at. */
     readonly id: string;
     readonly name: string;
-    /** The content shown, when it was hashed. */
-    readonly content?: ApprovableArtifact;
+    /** What Allow and Revoke act on, as the row showed it. */
+    readonly allowance: Allowance;
     /** A request is checked against these, so no view acts on a row as it was not shown. */
     readonly actions: readonly AddOnActionKind[];
     readonly allowedFollowUp: string;
     readonly revokedFollowUp: string;
-    /** No notice in this process asks about it again once revoked from the view. */
-    readonly leftForViewByRevoke: readonly ApprovableArtifact[];
-    /** What Revoke takes back: the content wherever a row holds it, or only this row. */
-    readonly withdrawal: CodeWithdrawal;
 }
 
-type CodeWithdrawal =
-    { readonly kind: "content"; readonly contentHash: string } | { readonly kind: "row" };
+type ListedKind = Exclude<ListedPresence["kind"], "gone">;
+
+type ListablePresence = Extract<ListedPresence, { kind: ListedKind }>;
 
 interface ListedAddOn extends OwnedPresence {
     readonly kind: CodeAddOnKind;
+    readonly presence: ListablePresence;
 }
 
 interface StatedAddOn extends ListedAddOn {
     readonly id: string;
-    readonly state: CodeState;
+    readonly allowance: Allowance;
+    readonly state: AllowanceState;
     readonly actions: readonly ActionView<AddOnActionKind>[];
-    readonly withdrawal: CodeWithdrawal;
 }
-
-/** The listed found code of one kind by content, each place a revoke of that content reaches. */
-type FoundByContent = ReadonlyMap<string, readonly ApprovableArtifact[]>;
 
 /** A code add-on placed, with what the core showed of it. */
 export interface PlacedCode extends PlacedAddOn {
     readonly shown: ShownCode;
 }
 
-type PresenceKind = ListedPresence["kind"];
-
-/** Keyed by what the owner read and the state it decides, so no row compares raw values. */
-const CODE_ACTIONS: Record<
-    PresenceKind,
-    Partial<Record<CodeState, readonly ActionView<AddOnActionKind>[]>>
-> = {
-    found: {
-        approved: [{ kind: "revoke", label: ACTION_LABEL.revoke }],
-        new: [{ kind: "allow", label: ACTION_LABEL.allow }],
-        changed: [{ kind: "allow", label: ACTION_LABEL.allow }],
-        declined: [{ kind: "allow", label: ACTION_LABEL.allow }],
-    },
-    unhashed: { new: [{ kind: "inspect", label: ACTION_LABEL.inspect }] },
-    unreadable: { changed: [{ kind: "revoke", label: ACTION_LABEL.revoke }] },
-    gone: { gone: [{ kind: "revoke", label: ACTION_LABEL.forget }] },
+const VIEW_STATE: Record<AllowanceState, CodeState> = {
+    allowed: "approved",
+    new: "new",
+    declined: "declined",
 };
+
+const ALLOW: readonly ActionView<AddOnActionKind>[] = [
+    { kind: "allow", label: ACTION_LABEL.allow },
+];
+const REVOKE: readonly ActionView<AddOnActionKind>[] = [
+    { kind: "revoke", label: ACTION_LABEL.revoke },
+];
+
+const NO_ALLOW: Record<AllowanceState, readonly ActionView<AddOnActionKind>[]> = {
+    allowed: REVOKE,
+    new: [],
+    declined: [],
+};
+
+/** Code that cannot be read offers no Allow; its problem says why. */
+const CODE_ACTIONS: Record<
+    ListedKind,
+    Record<AllowanceState, readonly ActionView<AddOnActionKind>[]>
+> = {
+    found: { allowed: REVOKE, new: ALLOW, declined: ALLOW },
+    unreadable: NO_ALLOW,
+};
+
+function codeActionsOf(
+    kind: ListedKind,
+    state: AllowanceState,
+    trusted: boolean,
+): readonly ActionView<AddOnActionKind>[] {
+    return (offersAllowInWorkspace(trusted) ? CODE_ACTIONS[kind] : NO_ALLOW)[state];
+}
 
 const DETAIL: Record<
     CodeAddOnKind,
-    (presence: ListedPresence, sourceDir: string) => string | undefined
+    (presence: ListablePresence, sourceDir: string) => string | undefined
 > = {
     plugin: (presence, sourceDir) => relativeToRoot(presenceIdOf(presence), sourceDir),
-    rulePackage: (presence) => (presence.kind === "found" ? presence.artifact.version : undefined),
+    // Its name carries the version.
+    rulePackage: () => undefined,
 };
 
 /** Each plugin and rule package inside a workspace folder, with its state and the actions it allows. */
@@ -130,45 +148,22 @@ export function codeAddOnsOf(
     restart: ProcessRestart,
 ): PlacedCode[] {
     const listed: ListedAddOn[] = [
-        ...facts.plugins.map((each) => ({ kind: "plugin" as const, ...each })),
-        ...facts.rulePackages.map((each) => ({ kind: "rulePackage" as const, ...each })),
+        ...facts.plugins.flatMap((each) => listedOf("plugin", each)),
+        ...facts.rulePackages.flatMap((each) => listedOf("rulePackage", each)),
     ];
-    const placed = listed.flatMap((each) => {
+    return listed.flatMap((each) => {
         const root = innermostFolderOf(presenceIdOf(each.presence), facts.folders);
-        return root === undefined ? [] : [{ ...each, root }];
-    });
-    const foundByContent: Record<CodeAddOnKind, FoundByContent> = {
-        plugin: byContentOf(foundArtifactsOf(facts, "plugin")),
-        rulePackage: byContentOf(foundArtifactsOf(facts, "rulePackage")),
-    };
-    return placed.map((each) =>
-        placedAddOn(each, facts, session, restart, foundByContent[each.kind]),
-    );
-}
-
-/**
- * The listed found code of one kind: what a carry write records, and so what
- * a Revoke of its content leaves to the view.
- */
-export function foundArtifactsOf(facts: CodeAddOnFacts, kind: CodeAddOnKind): ApprovableArtifact[] {
-    const owned = { plugin: facts.plugins, rulePackage: facts.rulePackages }[kind];
-    return owned.flatMap(({ presence }) => {
-        const content = shownContentOf(presence);
-        return content !== undefined && innermostFolderOf(content.id, facts.folders) !== undefined
-            ? [content]
-            : [];
+        return root === undefined ? [] : [placedAddOn({ ...each, root }, facts, session, restart)];
     });
 }
 
-function byContentOf(found: readonly ApprovableArtifact[]): FoundByContent {
-    const byContent = new Map<string, ApprovableArtifact[]>();
-    for (const content of found) {
-        byContent.set(content.contentHash, [
-            ...(byContent.get(content.contentHash) ?? []),
-            content,
-        ]);
-    }
-    return byContent;
+function listedOf(kind: CodeAddOnKind, owned: OwnedPresence): ListedAddOn[] {
+    const { presence } = owned;
+    return presence.kind === "gone" ? [] : [{ ...owned, kind, presence }];
+}
+
+function allowanceOfPresence(presence: ListablePresence): Allowance {
+    return presence.kind === "found" ? presence.artifact.allowance : presence.allowance;
 }
 
 function placedAddOn(
@@ -176,104 +171,68 @@ function placedAddOn(
     facts: CodeAddOnFacts,
     session: AddOnSession,
     restart: ProcessRestart,
-    foundByContent: FoundByContent,
 ): PlacedCode {
     const { kind, presence, sourceDir, root } = listed;
     const id = presenceIdOf(presence);
+    const allowance = allowanceOfPresence(presence);
     const source = SOURCE_PLACE[kind](sourceDir, root, facts.configFolder);
-    const rowsOfKind = facts.approvalsByKind[kind];
-    const reading = codeStateOf(presence, rowsOfKind, declinedKeys(session.answers[kind]));
-    const state = reading.kind === "state" ? reading.state : "new";
+    const state = allowanceStateOf(
+        { id, allowance },
+        facts.approvalsByKind[kind],
+        declinedKeys(session.answers[kind]),
+    );
     const row: StatedAddOn = {
         ...listed,
         id,
+        allowance,
         state,
-        actions: CODE_ACTIONS[presence.kind][state] ?? [],
-        withdrawal: withdrawalOf(presence, rowsOfKind),
+        actions: codeActionsOf(presence.kind, state, facts.trusted),
     };
     return {
         root,
         source,
-        view: viewOf(row, source, facts.folders, rowsOfKind, session, restart),
-        shown: shownOf(row, restart, foundByContent),
+        view: viewOf(row, source, facts, session, restart),
+        shown: shownOf(row, restart),
     };
-}
-
-/** Found code withdraws its content; an unreadable row the content it held; anything else its row. */
-function withdrawalOf(
-    presence: ListedPresence,
-    approvals: readonly CodeApproval[],
-): CodeWithdrawal {
-    const contentHash =
-        presence.kind === "found"
-            ? presence.artifact.contentHash
-            : presence.kind === "unreadable"
-              ? rowContentOf(presence.id, approvals)
-              : undefined;
-    return contentHash === undefined ? { kind: "row" } : { kind: "content", contentHash };
-}
-
-/** The content a Revoke of this row takes back, when it offers one. */
-function revokedContentOf({ actions, withdrawal }: StatedAddOn): string | undefined {
-    return offers(actions, "revoke") && withdrawal.kind === "content"
-        ? withdrawal.contentHash
-        : undefined;
 }
 
 function viewOf(
     row: StatedAddOn,
     source: SourcePlace,
-    folders: readonly string[],
-    rowsOfKind: readonly CodeApproval[],
+    { folders, trusted }: Pick<CodeAddOnFacts, "folders" | "trusted">,
     session: AddOnSession,
     restart: ProcessRestart,
 ): CodeAddOnView {
     const { kind, presence, id, state, actions } = row;
+    const viewState = VIEW_STATE[state];
     return {
         id: addOnIdOf(kind, id),
         kind,
         kindText: ADD_ON_KIND_TEXT[kind],
         name: presence.name,
         ...optional("detail", DETAIL[kind](presence, source.dir)),
-        state,
-        stateText: CODE_STATE_LABEL[state],
-        ...optional("problem", problemOf(presence)),
-        ...optional("note", noteOf(row, rowsOfKind, session, restart)),
+        state: viewState,
+        stateText: CODE_STATE_LABEL[viewState],
+        ...optional("problem", problemOf(presence, trusted)),
+        ...optional("note", noteOf(row, session, restart)),
         ...optional("review", reviewOfRow(row, folders)),
         actions,
     };
 }
 
-function problemOf(presence: ListedPresence): string | undefined {
-    return presence.kind === "unreadable" ? cannotBeAllowedText(presence.reason) : undefined;
+function problemOf(presence: ListablePresence, trusted: boolean): string | undefined {
+    if (presence.kind === "unreadable") return cannotBeAllowedText(presence.reason);
+    return offersAllowInWorkspace(trusted) ? undefined : UNTRUSTED_WORKSPACE_TEXT;
 }
 
 function noteOf(
-    row: StatedAddOn,
-    approvals: readonly CodeApproval[],
+    { kind, id, allowance, state, texts }: StatedAddOn,
     session: AddOnSession,
     restart: ProcessRestart,
 ): string | undefined {
-    const { kind, id, state, texts } = row;
-    const notes = [
-        !isApprovedState(state) && session.stillLoaded[kind].has(id)
-            ? texts.revokedFollowUp(restart)
-            : undefined,
-        alsoAllowedNoteOf(row, approvals),
-    ].filter((note) => note !== undefined);
-    return notes.length === 0 ? undefined : notes.join(" ");
-}
-
-function alsoAllowedNoteOf(
-    row: StatedAddOn,
-    approvals: readonly CodeApproval[],
-): string | undefined {
-    const contentHash = revokedContentOf(row);
-    if (contentHash === undefined) return undefined;
-    const otherFolders = placesAllowing(contentHash, approvals).filter(
-        (id) => id !== row.id,
-    ).length;
-    return otherFolders === 0 ? undefined : alsoAllowedText(otherFolders);
+    const stillLoaded = session.stillLoaded[kind];
+    const revoked = stillLoaded.has(allowanceKeyOf(allowance)) || stillLoaded.has(id);
+    return state !== "allowed" && revoked ? texts.revokedFollowUp(restart) : undefined;
 }
 
 function reviewOfRow(
@@ -281,39 +240,21 @@ function reviewOfRow(
     folders: readonly string[],
 ): AddOnReview | undefined {
     return presence.kind === "found" && offers(actions, "allow")
-        ? reviewOf(texts, presence.artifact, folders)
+        ? reviewOf(texts, presence.name, presence.artifact, folders)
         : undefined;
 }
 
-function shownOf(
-    row: StatedAddOn,
-    restart: ProcessRestart,
-    foundByContent: FoundByContent,
-): ShownCode {
-    const { kind, id, presence, texts, actions, withdrawal } = row;
-    const content = shownContentOf(presence);
-    const revokedContent = revokedContentOf(row);
+function shownOf(row: StatedAddOn, restart: ProcessRestart): ShownCode {
+    const { kind, id, presence, allowance, texts, actions } = row;
     return {
         kind,
         id,
         name: presence.name,
-        ...optional("content", content),
+        allowance,
         actions: actions.map((action) => action.kind),
         allowedFollowUp: texts.allowedFollowUp,
         revokedFollowUp: texts.revokedFollowUp(restart),
-        leftForViewByRevoke:
-            revokedContent === undefined ? [] : (foundByContent.get(revokedContent) ?? []),
-        withdrawal,
     };
-}
-
-/** Only what an allow is checked against, never the listing's extra facts. */
-function shownContentOf(presence: ListedPresence): ApprovableArtifact | undefined {
-    if (presence.kind !== "found") {
-        return undefined;
-    }
-    const { id, name, contentHash } = presence.artifact;
-    return { id, name, contentHash };
 }
 
 function offers(actions: readonly ActionView<AddOnActionKind>[], kind: AddOnActionKind): boolean {
@@ -322,20 +263,19 @@ function offers(actions: readonly ActionView<AddOnActionKind>[], kind: AddOnActi
 
 function reviewOf(
     texts: ApprovableCodeTexts,
-    content: ListedCode,
+    name: string,
+    code: ListedCode,
     folders: readonly string[],
 ): AddOnReview {
-    const where = (path: string) => relativeToWorkspace(path, folders);
     return {
-        heading: reviewHeading(content.name),
-        warning: allowWarningText(texts.risk),
+        heading: reviewHeading(name),
+        warning: allowWarningText(texts.risk, code.allowance),
         facts: [
-            { label: REVIEW_FACT_LABEL.folder, value: where(content.id) },
-            ...(content.version === undefined
+            { label: REVIEW_FACT_LABEL.folder, value: relativeToWorkspace(code.id, folders) },
+            ...(code.version === undefined
                 ? []
-                : [{ label: REVIEW_FACT_LABEL.version, value: content.version }]),
-            { label: REVIEW_FACT_LABEL.files, value: content.files.map(where).join(", ") },
-            { label: REVIEW_FACT_LABEL.contentHash, value: content.contentHash },
+                : [{ label: REVIEW_FACT_LABEL.version, value: code.version }]),
+            { label: REVIEW_FACT_LABEL.allowedIn, value: allowedInText(code.allowance) },
         ],
     };
 }

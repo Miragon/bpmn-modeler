@@ -404,7 +404,7 @@ describe("DmnModeler", () => {
         expect(fitButton()).toBeNull();
     });
 
-    it("rings the DRD canvas while it holds the keyboard and drops the ring with the view", () => {
+    it("marks the DRD fit button while the canvas holds the keyboard and drops it with the view", () => {
         new DmnModeler(document.createElement("main"), {
             propertiesPanel: { parent: document.createElement("aside") },
         });
@@ -416,8 +416,9 @@ describe("DmnModeler", () => {
                 listeners.set(event, callback),
             off: vi.fn(),
         };
-        const ringed = () =>
-            container.querySelector<HTMLElement>(".canvas-focus-ring")?.hidden === false;
+        const marked = () =>
+            container.querySelector(".fit-viewport-button")?.hasAttribute("data-canvas-focused") ??
+            false;
 
         vendor.activeView = drdView;
         vendor.activeViewer = createViewer({
@@ -426,15 +427,15 @@ describe("DmnModeler", () => {
             translate: (template: string) => template,
         });
         vendor.emitViews();
-        expect(ringed()).toBe(false);
+        expect(marked()).toBe(false);
 
         listeners.get("canvas.focus.changed")!({ focused: true });
-        expect(ringed()).toBe(true);
+        expect(marked()).toBe(true);
 
         vendor.activeView = tableView;
         vendor.activeViewer = createViewer({ eventBus: createEventBus() });
         vendor.emitViews();
-        expect(ringed()).toBe(false);
+        expect(marked()).toBe(false);
     });
 
     it("resizes the current canvas and only focuses a DRD canvas", () => {

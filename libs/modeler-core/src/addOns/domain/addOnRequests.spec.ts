@@ -38,7 +38,6 @@ describe("catalogActionRefusalOf", () => {
 
 describe("addOnRequestOf", () => {
     it.each<AddOnRequest>([
-        { kind: "inspect", addOnId: "rulePackage:/work/node_modules/acme" },
         { kind: "allow", addOnId: "plugin:/work/.camunda/plugins/resize", revision: 1_794_000 },
         { kind: "revoke", addOnId: "plugin:/work/.camunda/plugins/resize" },
         { kind: "enable", addOnId: "template:config:/work/.camunda|mail.json#0" },
@@ -72,7 +71,11 @@ describe("addOnRequestOf", () => {
         { case: "a kind that only reads as a known one", value: { kind: ["refresh"] } },
         { case: "no kind", value: { addOnId: "plugin:/work/x" } },
         { case: "a kind inherited from the prototype", value: { kind: "toString" } },
-        { case: "a missing id", value: { kind: "inspect" } },
+        { case: "a missing id", value: { kind: "revoke" } },
+        {
+            case: "the retired inspect",
+            value: { kind: "inspect", addOnId: "rulePackage:/work/node_modules/acme" },
+        },
         { case: "an id that is no string", value: { kind: "revoke", addOnId: 7 } },
         {
             case: "a source id that is no string",

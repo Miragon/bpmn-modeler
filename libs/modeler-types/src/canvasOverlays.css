@@ -1,21 +1,4 @@
-/* The overlays the BPMN modeler and the DMN DRD lay over their canvas: the fit button and the keyboard focus ring. */
-
-/* canvasFocusRing.ts shows the ring while the canvas holds the keyboard. It sits inset, so no host
-   edge, frame or panel resizer next to the canvas clips one side of it, and a box-shadow keeps all
-   four sides equally thick at fractional zoom levels, where a border rounds unevenly.
-   z-index 1 with the panel toggle's own 1 keeps the later toggle above the ring. */
-.canvas-focus-ring {
-    position: absolute;
-    inset: 4px;
-    z-index: 1;
-    border-radius: 4px;
-    box-shadow: inset 0 0 0 2px var(--vscode-focusBorder, var(--bio-focus, #0090f1));
-    pointer-events: none;
-}
-
-.canvas-focus-ring[hidden] {
-    display: none;
-}
+/* The overlay the BPMN modeler and the DMN DRD lay over their canvas: the fit button, which also shows the canvas keyboard focus. */
 
 .fit-viewport-button {
     position: absolute;
@@ -45,6 +28,20 @@
     height: 100%;
 }
 
+/* The halo in the button's own background keeps the dot apart from the border it overlaps. */
+.fit-viewport-button[data-canvas-focused]::after {
+    content: "";
+    position: absolute;
+    top: -3px;
+    right: -3px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: var(--vscode-focusBorder, var(--bio-focus, #0090f1));
+    box-shadow: 0 0 0 2px hsl(0, 0%, 100%);
+    pointer-events: none;
+}
+
 [data-bpmn-theme="dark"] .fit-viewport-button,
 [data-dmn-theme="dark"] .fit-viewport-button {
     border-color: var(--dt-surface-tonal-a50);
@@ -55,6 +52,11 @@
 [data-bpmn-theme="dark"] .fit-viewport-button:hover,
 [data-dmn-theme="dark"] .fit-viewport-button:hover {
     background-color: var(--dt-surface-tonal-a20);
+}
+
+[data-bpmn-theme="dark"] .fit-viewport-button[data-canvas-focused]::after,
+[data-dmn-theme="dark"] .fit-viewport-button[data-canvas-focused]::after {
+    box-shadow: 0 0 0 2px var(--dt-surface-a10);
 }
 
 /* The fit button takes the top-right corner, so the BPMN minimap toggle moves left of it.

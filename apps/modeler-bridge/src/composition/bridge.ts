@@ -84,10 +84,11 @@ export interface BridgeOptions {
  *              the RPC `write` so it can never corrupt the stdout frame stream.
  * @returns the live {@link Rpc} peer — feed it inbound lines via `handleLine` —
  *   the routes of each webview surface the bridge serves, which the
- *   coverage spec reads, `prunePluginCache`, which `server.ts` runs once the
- *   streams are bound and which logs its own failure, the add-on catalog a
- *   view attaches to, and `dispose`, which stops the plugin folder watchers,
- *   the catalog and the editor's approval and template subscriptions.
+ *   coverage spec reads, `prunePluginCache` and `migrateContentRows`, which
+ *   `server.ts` runs once the streams are bound and which log their own
+ *   failure, the add-on catalog a view attaches to, and `dispose`, which
+ *   stops the plugin folder watchers, the catalog and the editor's approval
+ *   and template subscriptions.
  */
 export function createBridge(
     write: (line: string) => void,
@@ -97,6 +98,7 @@ export function createBridge(
     rpc: Rpc;
     surfaceRoutes: Partial<Record<WebviewSurface, RouteLookup>>;
     prunePluginCache(): Promise<void>;
+    migrateContentRows(): Promise<void>;
     addOns: AddOnsFeature;
     dispose(): void;
 } {
@@ -155,6 +157,7 @@ export function createBridge(
             addOnsView: addOns.panelRoutes,
         },
         prunePluginCache: () => plugins.pruneIdleCopies(),
+        migrateContentRows: () => deps.contentRows.run(),
         addOns,
         dispose: () => {
             addOns.dispose();

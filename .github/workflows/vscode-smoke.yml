@@ -91,13 +91,17 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: vscode-smoke-screenshots
-          path: test-results/vscode-smoke/*.png
+          path: |
+            test-results/vscode-smoke/*.png
+            test-results/vscode-smoke-allowance/*.png
           if-no-files-found: ignore
           retention-days: 7
       - if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: vscode-smoke-logs
-          path: test-results/vscode-smoke/vscode-logs/
+          path: |
+            test-results/vscode-smoke/vscode-logs/
+            test-results/vscode-smoke-allowance/
           if-no-files-found: ignore
           retention-days: 7

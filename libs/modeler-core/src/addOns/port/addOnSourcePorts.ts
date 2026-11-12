@@ -1,10 +1,6 @@
-import {
-    ApprovableArtifact,
-    ApprovableCodeTexts,
-    CodeApproval,
-    ListedPresence,
-    SessionAnswer,
-} from "../../kernel/domain/codeApproval";
+import { AllowableCode } from "../../kernel/domain/allowance";
+import { ApprovableCodeTexts, SessionAnswer } from "../../kernel/domain/codeApproval";
+import { ListedPresence } from "../../kernel/domain/listedCode";
 import { SettingChange } from "../../editorSession/domain/EditorSession";
 import { MarketplacesListing } from "../../kernel/domain/marketplaceListing";
 import { MarketplaceSettingsEntry } from "../../kernel/domain/modelerSettings";
@@ -14,25 +10,19 @@ import {
 } from "../../kernel/domain/templateListing";
 
 /**
- * What every owner of approvable code gives the catalog. The owners keep the
- * rules: they find, hash and answer for their code, and the catalog only
+ * What every owner of allowable code gives the catalog. The owners keep the
+ * rules: they find, locate and answer for their code, and the catalog only
  * lists what they read.
  */
 export interface CodeAddOnSource {
     readonly texts: ApprovableCodeTexts;
-    /** Its rows in the one approval list every kind shares. */
-    ownsApproval(approval: CodeApproval): boolean;
-    /** By `declineKeyOf`. */
+    /** By `allowanceKeyOf`. */
     sessionAnswers(): ReadonlyMap<string, SessionAnswer>;
-    /** No notice asks about this content again this session. */
-    leaveForView(artifact: ApprovableArtifact): void;
-    /** Read and hashed now, past any memo. */
+    /** No notice asks about this allowance again this session. */
+    leaveForView(code: AllowableCode): void;
+    /** Read and located now, past any memo. */
     current(id: string): Promise<ListedPresence>;
-    /** Stores a row where listed code is allowed only by another place's row of its content; never rejects. */
-    recordCarried(found: readonly ApprovableArtifact[]): Promise<void>;
-    /** After the catalog revoked these ids: one place, or every place of one content. */
-    afterRevoke(revokedIds: readonly string[]): Promise<void>;
-    /** Revoked this session, with code that may still be loaded although no approval covers it. */
+    /** Revoked this session, with code that may still be loaded although no allowance covers it. */
     stillLoadedAfterRevoke(): ReadonlySet<string>;
     /** After anything it lists or answered changed. */
     onDidChange(listener: () => void): { dispose(): void };
@@ -57,8 +47,7 @@ export interface RulePackageAddOnSource extends CodeAddOnSource {
     /** The packages a lint reported, the config's own package included. */
     seenPackageIds(): readonly string[];
     lintConfigDirs(): readonly string[];
-    /** Hashing reads every byte of the package and its dependencies, so only on request. */
-    currentRulePackage(id: string, options: { readonly hash: boolean }): ListedPresence;
+    currentRulePackage(id: string): ListedPresence;
 }
 
 /** The element templates as their owner reads them: per file, by the loader's rule. */

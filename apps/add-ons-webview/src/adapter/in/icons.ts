@@ -1,13 +1,11 @@
 import type {
     AddOnActionKindPayload,
-    AddOnPayload,
     CatalogActionKindPayload,
     SourceActionKindPayload,
     SourceKindPayload,
 } from "@miragon/bpmn-modeler-shared";
 import {
     Eraser,
-    FileSearch,
     Folder,
     IconNode,
     LayoutTemplate,
@@ -24,7 +22,6 @@ import {
     Trash,
 } from "lucide";
 
-import { revokeForgets } from "../../domain/actionEmphasis";
 import type { AddOnKind } from "../../domain/catalogFilter";
 
 /** The one home of the view's icon choices for the model's kinds and actions. */
@@ -53,14 +50,9 @@ export const CATALOG_ACTION_ICON: Readonly<Record<CatalogActionKindPayload, Icon
     pruneCache: Eraser,
 };
 
-const ADD_ON_ACTION_ICON: Readonly<Record<AddOnActionKindPayload, IconNode>> = {
-    inspect: FileSearch,
+export const ADD_ON_ACTION_ICON: Readonly<Record<AddOnActionKindPayload, IconNode>> = {
     allow: ShieldCheck,
     revoke: ShieldOff,
     enable: Power,
     disable: PowerOff,
 };
-
-export function addOnActionIcon(kind: AddOnActionKindPayload, addOn: AddOnPayload): IconNode {
-    return kind === "revoke" && revokeForgets(addOn) ? Trash : ADD_ON_ACTION_ICON[kind];
-}

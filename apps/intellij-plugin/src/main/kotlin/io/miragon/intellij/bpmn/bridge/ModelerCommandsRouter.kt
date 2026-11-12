@@ -11,6 +11,11 @@ package io.miragon.intellij.bpmn.bridge
  * [ensureStartedAsync][BridgeDeps.ensureStartedAsync] is enough to guarantee delivery.
  */
 internal class ModelerCommandsRouter(private val deps: BridgeDeps) {
+    fun changeLanguage() {
+        deps.channel.notify(HostToCoreMethod.MODELER_CHANGE_LANGUAGE, linkedMapOf<String, Any>())
+        deps.ensureStartedAsync()
+    }
+
     /**
      * Fires `modeler/changeEngineVersion` for one editor. [editorId] is the session
      * key (the file url), passed explicitly rather than relying on the core's

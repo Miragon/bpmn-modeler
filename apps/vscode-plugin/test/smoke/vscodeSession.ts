@@ -428,7 +428,7 @@ export class VsCodeSession {
         await this.page.screenshot({ path, scale: "css" });
     }
 
-    close(): Promise<void> {
+    close(): Promise<"quit" | "killed"> {
         return closeApplication(this.app);
     }
 }
@@ -489,8 +489,11 @@ function environmentWithoutParentVsCode(): Record<string, string> {
     );
 }
 
-/** A modal dialog left by a failed step blocks a graceful quit. */
-async function closeApplication(app: ElectronApplication): Promise<void> {
+/**
+ * A modal dialog left by a failed step blocks a graceful quit. A killed VS Code
+ * may not have flushed its global state, so the caller learns which it was.
+ */
+async function closeApplication(app: ElectronApplication): Promise<"quit" | "killed"> {
     let timer: ReturnType<typeof setTimeout> | undefined;
     const closed = await Promise.race([
         app.close().then(
@@ -500,5 +503,7 @@ async function closeApplication(app: ElectronApplication): Promise<void> {
         new Promise<false>((done) => (timer = setTimeout(() => done(false), CLOSE_TIMEOUT_MS))),
     ]);
     clearTimeout(timer);
-    if (!closed) app.process().kill("SIGKILL");
+    if (closed) return "quit";
+    app.process().kill("SIGKILL");
+    return "killed";
 }

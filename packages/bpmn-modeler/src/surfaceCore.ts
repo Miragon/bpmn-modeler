@@ -88,7 +88,14 @@ export class SurfaceCore<T extends SurfaceInstance> implements SurfaceServices {
         store.add(() => view.dispose());
 
         store.add(installSurfaceFocusFeatures(accessor, focus));
-        const canvas = this.service<{ getContainer(): HTMLElement; focus(): void }>("canvas");
+        const canvas = this.service<{
+            getContainer(): HTMLElement;
+            focus(): void;
+            isFocused(): boolean;
+        }>("canvas");
+        const eventBus = this.service<{
+            on(event: "canvas.focus.changed", handler: (event: { focused: boolean }) => void): void;
+        }>("eventBus");
         store.add(
             installFitViewportButton({
                 parent: canvas.getContainer(),
@@ -97,6 +104,9 @@ export class SurfaceCore<T extends SurfaceInstance> implements SurfaceServices {
                 ),
                 fit: () => view.viewport.fitViewport(),
                 focusCanvas: () => canvas.focus(),
+                isCanvasFocused: () => canvas.isFocused(),
+                onCanvasFocusChanged: (listener) =>
+                    eventBus.on("canvas.focus.changed", (event) => listener(event.focused)),
             }),
         );
     }

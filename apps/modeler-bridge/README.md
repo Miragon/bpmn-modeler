@@ -33,6 +33,10 @@ It imports only the public entry of `@miragon/bpmn-modeler-core`, never deep pat
   current. The host reports only external changes; the core's own write is confirmed by its reply,
   and an error reply reads as a refused write, as on VS Code. Details:
   [Architecture and hosts: document causation and session identity](../../docs/adr/architecture-and-hosts.md#document-causation-and-session-identity).
+- **UI language.** The host → core `modeler/changeLanguage` command builds the application UI-language
+  choice through generic `picker/show`, even without an editor. The core → host `settings/setLanguage`
+  request stores the selected locale in application settings, pushes snapshots, then acknowledges
+  with null, without an optimistic mirror write.
 
 ## Scope
 

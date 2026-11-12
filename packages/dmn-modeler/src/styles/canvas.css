@@ -1,4 +1,4 @@
-/* canvasOverlays.css draws the keyboard focus ring above the canvas instead. */
+/* canvasOverlays.css shows the canvas keyboard focus as a dot on the fit button instead. */
 .djs-container svg:focus {
     outline: none;
 }

@@ -124,7 +124,7 @@ of `addOns/`: `PluginAddOnSource` by `PluginInventory` in
 `template-marketplace/service/`, which `createMarketplaceCommands` builds over
 the host's `MarketplaceCommands`. The host compositions hand one to the other,
 as they hand `CachedTemplateProvider` to the BPMN editor. The values both
-sides name live in `kernel/domain/`: `ListedPresence` and
+sides name live in `kernel/domain/`: `ListedPresence` in `listedCode.ts`,
 `ApprovableCodeTexts` in `codeApproval.ts`, the template file listing in
 `templateListing.ts` and the marketplace listing in `marketplaceListing.ts`,
 from which the catalog derives its own view with the templates read. The context is
@@ -314,7 +314,7 @@ module, `src/domain/chromeTexts.ts`: they name the view's controls and
 summaries, which the core's model does not have, as "Loading…" does, and one
 module keeps them from scattering into adapters where a reviewer cannot tell
 them from model text. A row's "Needs review" is read from what the core
-offers (Allow or Review…), never from a rule of its own, and the detail shows
+offers (Allow), never from a rule of its own, and the detail shows
 the core's state text. Every other text comes from the core, which also sends
 `emptyText`, why no folder lists an add-on, whenever the workspace has none,
 marketplaces or not.
@@ -579,7 +579,14 @@ in-memory fake included, as `describeWorkspaceContract` runs against
 `InMemoryWorkspace`, `NodeWorkspace` and `VsCodeWorkspace`; a port that only
 renders and a strategy the core chooses between need none. The
 [`contract-suites`](engineering-practices.md#contract-suites) report lists the
-adapters that run no suite of their port. Inbound
+adapters that run no suite of their port. Each host process builds one
+`NodeInstalledPackages`, one `AllowanceLocator` and one `ContentRowMigration`
+in its shared dependencies (`composition/sharedDeps.ts`): the plugins and the
+rule packages get the same locator over that reader, and they and the add-ons
+the same migration, so every feature locates an allowance the same way and waits
+on the same run
+([allowance per repository and add-on](bpmn-modeler.md#allowance-per-repository-and-add-on)).
+Inbound
 adapters never import outbound ones (rule 6 of the
 [role folders](#workspace-kinds-and-role-folders)): a VS Code controller gets a
 port (`ModelerPreferences`), a factory (`EditorHandleFactory`,
@@ -765,7 +772,10 @@ when the item is written. A ledger write or a
 [target change](deployment.md#targets-and-credentials) refreshes the
 deployment item for the focused editor (`refreshFocused`), not the editor it
 acted on. Each item's participant hides it on blur and close, and
-`StatusItemOwnership` decides only that hide. Only BPMN sessions run these
+`StatusItemOwnership` decides only that hide. BPMN and Form participants share
+one engine-version owner from VS Code's composition, so a late blur or close
+from either format cannot hide the other's newly focused status. The BPMN-only
+bridge keeps a default owner. Only BPMN sessions run the deployment and lint
 participants, so `refreshFocused` hides the deployment item when no BPMN
 editor is focused (a DMN or Form editor, or none) instead of showing an item
 nothing would hide. The store's command target (`CommandTarget`, read as
@@ -890,6 +900,44 @@ confirmations to delete a target and to approve a credential host) come from
 the core. The deployment services search the workspace through
 `WorkspacePort.findFiles` themselves and offer the found files through
 `chooseMany`.
+
+Engine-version prompt presentation has one kernel builder,
+`engineVersionChoicePrompt`: it renders the canonical engine label and supplied
+versions without sorting or adding defaults. BPMN and Form keep separate
+catalogues and prompt ids in their thin `engineVersionPrompt` and
+`formVersionPrompt` wrappers.
+
+The core's `newModelFilePrompt` builders own the BPMN, DMN and Form creation
+titles, filter labels, extensions and full default filenames. VS Code computes
+the default URI from the first workspace folder and renders the native save
+dialog; overwrite confirmation and appending a missing extension remain host
+concerns. `newModelFilePrompt.spec.ts` and `CommandController.spec.ts` pin these
+contents and cancellation behavior. IntelliJ creation titles, descriptions,
+defaults and cancellation flow remain host-owned in `NewBpmnModelAction`,
+`NewDmnModelAction` and `NewModelSupport`; their different defaults and empty-BPMN
+creation behavior are not migrated here ([#2222](https://github.com/Miragon/bpmn-modeler/issues/2222)).
+
+The modeler UI language command also uses `PickerPort`: `modelerSettings` owns
+the pure `modelerLanguagePrompt` and `ModelerLanguageService`. The service reads
+the authoritative `supportedModelerLanguages` catalogue from `bpmn-i18n-extras`
+(a core dependency); the domain receives only its labels and locale values.
+Both hosts render the same title, placeholder and ordered choices, even with no
+editor open. `LanguagePreferencePort` writes only the selected locale and leaves
+`SettingsPort` read-only. VS Code saves at User scope, even if a workspace
+override has the same effective value. IntelliJ sends `modeler/changeLanguage`
+as a notification, lazily starting the bridge; its generic `picker/show`
+roundtrip stays unchanged. `settings/setLanguage` is a narrow Core→Host request
+with a host-work deadline and null acknowledgement. Kotlin atomically updates
+only the application language, pushes the settings to every running bridge and
+native listener, then acknowledges; an unchanged language only acknowledges.
+Neither host optimistically changes a settings mirror. The service logs success
+only after persistence. The domain/service specs, bridge command specs and Kotlin
+settings-router tests pin this boundary.
+
+Optional BPMN contributions keep their command declarations in their owning
+contexts. Exact type-equality assertions in `BpmnEditorFeature.spec.ts` pin the
+navigation, script-editor and code-link producer contributions to the consumer,
+including keys and handler signatures, without production cross-context imports.
 
 A notification with actions follows the same split (proposed with the
 [BPMN plugins](bpmn-modeler.md#user-supplied-plugins-proposed), released in
@@ -1040,7 +1088,8 @@ triggers it, stay in its `TemplateMarketplaceController`.
 fake, VS Code's adapter over its settings and the bridge's adapter over a
 loopback that answers as `MarketplaceRouter` does; the Kotlin half is #2056.
 
-No adapter builds prompt text. A new choice or confirmation needs a builder and
+Adapters render core prompt text, except for the remaining IntelliJ creation
+prompts tracked in #2222. A new choice or confirmation needs a builder and
 an id, and no new port method, RPC or Kotlin handler. A new kind of input, such
 as the masked token or the marketplace's free-text location, needs its own port
 method, RPC and Kotlin handler, as those two have.
@@ -1048,7 +1097,8 @@ method, RPC and Kotlin handler, as those two have.
 Two kinds of text belong to the host and are written there: its chrome, such as
 VS Code's "Reload Window" button, and messages about its own failure, such as
 the bridge process dying (`ProcessSupervisor.kt`) or VS Code failing to open a
-compare view. The core builds every other user-visible text. The `host-text`
+compare view. Outside the tracked IntelliJ creation exception, the core builds
+every other user-visible text. The `host-text`
 fitness function reports the texts host code writes
 ([Host text](engineering-practices.md#host-text)).
 
@@ -1186,6 +1236,64 @@ the existing VS Code extension. Forms share the modeling workflow, host
 infrastructure and release lifecycle with BPMN/DMN. A separate form extension
 would duplicate that infrastructure and require another installation; the
 accepted cost is a larger extension for users who do not model forms.
+
+Forms use the existing native `engineVersion` status slot and Change Engine
+Version command, not webview selectors. Platform choices reuse the canonical
+engine order and display names: Camunda 7, then Camunda 8. The independent Form
+compatibility table offers Camunda 8 versions 8.10.0, 8.9.0 and 8.8.0, newest
+first, and Camunda 7 version 7. Serialized platform names remain `Camunda Cloud`
+and `Camunda Platform`. New Forms use the newest version from the Form table,
+8.10.0; BPMN's registry and 8.9 default remain independent. Missing and unsupported
+declarations remain visible and untouched until an explicit, complete choice.
+Escape, incomplete or unsupported choices and an unchanged pair do not flush,
+write or notify, even when the original snapshot has since become stale.
+
+`EngineVersionSelectionService` dispatches the explicit editor id by the
+authoritative document path, case-insensitively. Each host registers its
+supported capabilities in composition: VS Code registers BPMN and Form; the
+IntelliJ bridge registers only BPMN. Closed editors and unregistered formats
+are quiet no-ops; hosts do not duplicate extension routing policy.
+
+`FormEngineSelectionService` captures the session, host revision and engine
+metadata before the two native pickers. It rejects session or host-revision changes, but
+allows unrelated guarded visual syncs while either picker is open. It flushes
+pending visual input destructively outside the editor queue, then checks the
+session, revision and captured engine metadata against the flushed document.
+The final queued write also checks that the flushed baseline text is still
+current. It patches that source in the queue, advances the host
+revision and reloads the editor, releasing the flush lock in `finally`. This
+keeps pending input while rejecting old-revision exports. Host imports and
+destructive flushes share an inert-lock group in the Form page; releasing the
+flush cannot enable interaction while the replacement schema is importing.
+
+The public `FormModelerService` remains the display and sync facade and shares
+its single `EditorDocumentSync` with the selection use case, preserving echo
+guards. Stale or refused selections report one informational retry message,
+only while the captured editor session is still current. Closure, replacement
+and a dropped queued callback stay silent. Unexpected failures notify only that
+original session; otherwise they are logged. A confirmed write superseded before
+rendering is not reported as a refusal.
+
+A narrow `FormTextEdits` port keeps source editing separate from domain rules.
+Its core output adapter depends on pinned `jsonc-parser` and applies only the
+two metadata edits. The domain accepts plain JSON only; the adapter does not
+repair invalid source. Whole-schema serialization through form-js would upgrade
+unrelated schemaVersion 18 to 19 and normalize custom properties and formatting.
+Metadata-only edits instead preserve that source and use the ordinary document
+write for dirty tracking and undo, never an autosave. The accepted cost is one
+small JSON editing dependency and a separate adapter rather than importing the
+element-template builder's template-specific editing rules.
+
+The contracts live in `formEngine.spec.ts`, `JsonFormTextEdits.spec.ts`,
+`FormModelerService.selection.spec.ts` and `FormEngineStatusBarParticipant.spec.ts`
+under `libs/modeler-core/src/modeler/form/`. The real form-js input harness and
+VS Code smoke test cover re-import, visual editability and native persistence.
+
+Form source-recovery messages live in the private, browser-safe
+`shared/lib/formEditorMessages` module so the core service and Form page use
+the same text without importing the core into the webview. The shared
+engine-version tooltip lives in `kernel/domain/engineVersionStatus`; both
+domain status builders import it without depending on each other's feature.
 
 ### Runtime and transport
 
@@ -1341,9 +1449,10 @@ keeps explicit local mirrors with these ownership rules:
 | Documents, keyed by editor | `session/register`, then `document/didChange` | Host Document; bridge writes are accepted by the host before its content becomes authoritative |
 | Settings snapshot | Settings in `session/register`, then `settings/didChange` after a change and after each spawn, since a register queued before the spawn read them early and a push while it started was dropped | Host only; one shared snapshot fans changes out to editors |
 | Deployment state | `deploymentState/seed` with what the host stored, then `deploymentState/save` patches | Host; a bridge patch reaches the snapshot only after the host accepted it |
-| Plugin approvals (bpmn-js plugins and bpmnlint rule packages) | `pluginApprovals` with `pluginApprovalsRevision` in `session/register`, then `pluginApprovals/didChange` with its `revision`, which every running bridge of the IDE gets after any `pluginApprovals/change` and each bridge after its spawn; `pluginApprovals/read` answers the stored list | Host (`PluginApprovalStore`, application level): a bridge sends only the rows to allow and the ids to revoke, and the host merges them under one lock and bumps the revision. The mirror keeps only a newer revision, the change's answer included |
+| Plugin approvals (bpmn-js plugins and bpmnlint rule packages; each row is an allowance, `allowance-v1:<kind>`, or a 1.21.0 row pinned to content, and the protocol carries both unchanged) | `pluginApprovals` with `pluginApprovalsRevision` in `session/register`, then `pluginApprovals/didChange` with its `revision`, which every running bridge of the IDE gets after any `pluginApprovals/change` and each bridge after its spawn; `pluginApprovals/read` answers the stored list | Host (`PluginApprovalStore`, application level): a bridge sends only the rows to allow and the ids to revoke, and the host merges them under one lock and bumps the revision. The mirror keeps only a newer revision, the change's answer included |
 | Workspace roots | `session/register`'s `workspaceRoot`, counted per session and released with it; `addOns/open`'s, claimed once per process, re-sent after every spawn and never released, so the add-ons view lists the project after its last editor closed. `addOns/open` carries the settings, as a register does, since one queued while the bridge was down reaches the new process before the spawn's `settings/didChange` | Host: `project.basePath` in IntelliJ, or the file's folder for a session without one; an `addOns/open` without it lists no folder |
 | Template switches (element templates and their sources turned off per user) | `templatePreferences` in `session/register`: both scopes, each with its own `revision`. Then `templatePreferences/didChange` with both again, which every running bridge of the IDE gets after an `allProjects` change, only the project's own bridge after a `project` change, and each bridge after its spawn, since a register queued before the spawn read them early and a push while it started was dropped; `templatePreferences/read` answers both stored lists. The add-on catalog reads `readStored` for every listing, so it needs no seed; the editor reads the seeded mirror when it sends its templates | Host. IntelliJ: `ProjectTemplatePreferenceStore` (project `PropertiesComponent`, so `.idea/workspace.xml`, per user) for `project` and `TemplatePreferenceStore` (application `PropertiesComponent`) for `allProjects`, one key each. A bridge sends the switches to disable and to enable for one scope; the store of that scope merges them under its lock with the Kotlin `templatePreferencesAfter`, held to `templatePreferenceChange.cases.json`, and bumps its revision, and the host pushes before it answers. The mirror keeps only a newer revision per scope, the change's answer included. VS Code (`VsCodeTemplatePreferenceStore`): `workspaceState` for `project` and `globalState` for `allProjects`, on this machine only (no `setKeysForSync`), merged on a queue; another window's write arrives through `readStored` when the window gains focus |
+| Workspace trust (whether the user trusts the project, so its plugins and rule packages may run) | `workspaceTrust` (`trusted`, `revision`) in `session/register`, then `workspaceTrust/didChange` with both after each spawn and whenever IntelliJ's `TrustedProjectsListener` announces a change of any project's trust, and before **Refresh** of the Add-ons tab, since adding a Trusted Location announces nothing. Untrusted until the first frame | Host: `Project.isTrusted()` (`com.intellij.ide.impl`), read with a new revision under one lock (`ProjectTrust`), so a newer revision never carries an older read. The mirror keeps only a newer revision and tells its listeners only when the value changes |
 
 Apply settings before initial artifact discovery. Seed every synchronous mirror
 before its first consumer, and re-seed on process restart; mirrors do not
@@ -1357,7 +1466,8 @@ can arrive after a newer push. The approvals therefore carry a host revision,
 read together with the list, on every frame that carries a list, and the mirror
 ignores an older one. The template switches do the same per scope: the two
 scopes live in different stores, so one revision each, and a frame's older
-scope never replaces a newer one while its newer scope still applies. The host holds no lock while it queues the frames and
+scope never replaces a newer one while its newer scope still applies. The
+workspace trust carries one revision per read too. The host holds no lock while it queues the frames and
 does not coalesce them: two projects' changes queue from their own threads, so
 a frame queued later can carry the older revision and must not replace the
 newer one. The
@@ -1512,7 +1622,7 @@ a cached result must equal an uncached run.
   still watches, because a change there would otherwise go unnoticed.
   Accepted cost: a marketplace update made by another window is not seen while
   editors of this process stay open.
-- **BPMN plugin copies.** `BpmnPluginService` copies the approved bytes into
+- **BPMN plugin copies.** `BpmnPluginService` copies the bytes of an allowed plugin into
   a content-addressed folder on disk, which every process of the host shares
   (IntelliJ: one per machine; VS Code: the extension's global storage), and
   keeps each copy per process once written. Last use owns the folder: each
@@ -1525,7 +1635,11 @@ a cached result must equal an uncached run.
   and that check leaves the plugin out once.
 - **Escalated lint setup.** `NodeBpmnLinter` keeps the moddle, the loaded
   moddle extensions and the resolved rules and configs per `.bpmnlintrc` path,
-  keyed by the config content. A changed config replaces the entry. Every run
+  keyed by the config content and the rule package rows. A changed config or
+  a changed row replaces the entry, and so does an admitted rule package whose
+  `package.json` stamps differently; the new setup then evicts the cached
+  modules within that package's `node_modules` (see
+  [Workspace rule packages](bpmn-modeler.md#workspace-rule-packages)). Every run
   still builds its own `Linter`, as [Linting](bpmn-modeler.md#linting) requires.
   Rules no resolver finds, and setups with a missing moddle extension, are not
   kept, so installing the package takes effect on the next run. Accepted cost:

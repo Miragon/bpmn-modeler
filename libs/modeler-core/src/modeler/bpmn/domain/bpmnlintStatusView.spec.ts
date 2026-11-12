@@ -47,6 +47,34 @@ const cases: ViewCase[] = [
         },
     },
     {
+        name: "says that rules wait for the user's trust, without an install hint",
+        indicator: {
+            state: "untrusted",
+            configPath: CONFIG_PATH,
+            unresolved: ["plugin:acme/recommended"],
+        },
+        view: {
+            text: "BPMNlint: 1 rule skipped",
+            icon: "warning",
+            tooltip: `${CONFIG_PATH}\n\nWorkspace rule packages run only once you trust this project.\nSkipped: plugin:acme/recommended`,
+            tone: "warning",
+        },
+    },
+    {
+        name: "counts the rules that wait for the user's trust in the plural",
+        indicator: {
+            state: "untrusted",
+            configPath: CONFIG_PATH,
+            unresolved: ["plugin:acme/recommended", "acme/naming"],
+        },
+        view: {
+            text: "BPMNlint: 2 rules skipped",
+            icon: "warning",
+            tooltip: `${CONFIG_PATH}\n\nWorkspace rule packages run only once you trust this project.\nSkipped: plugin:acme/recommended, acme/naming`,
+            tone: "warning",
+        },
+    },
+    {
         name: "warns that one rule package is not allowed yet, without an install hint",
         indicator: {
             state: "blocked",

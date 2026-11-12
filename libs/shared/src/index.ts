@@ -13,6 +13,7 @@ export * from "./lib/diffPaneCommands";
 export * from "./lib/templateEditorCommands";
 export * from "./lib/dmnEditorCommands";
 export * from "./lib/formEditorCommands";
+export * from "./lib/formEditorMessages";
 export * from "./lib/deploymentSidebarCommands";
 export * from "./lib/addOnsView";
 export * from "./lib/addOnsViewCommands";

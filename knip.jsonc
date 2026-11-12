@@ -16,6 +16,9 @@
         // cannot see statically. On CI the fixture's node_modules is absent,
         // so knip flags these unless ignored outright.
         "resources/example-process/bpmnlint-custom-rules/**",
+        // Run by hand (`node create-playground.mjs`); the template's plugin and
+        // rule package are copied into generated folders and loaded there at runtime.
+        "resources/allowance-playground/**",
         // Gradle build output (gitignored, absent on CI); the staged webview
         // bundles here would otherwise read as unused source locally.
         "apps/intellij-plugin/build/**",

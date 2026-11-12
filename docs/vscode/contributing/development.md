@@ -303,12 +303,32 @@ run): `bpmn-light.png`, `bpmn-dark.png`, `bpmn-high-contrast.png`, `dmn.png`,
 `form.png` and `bpmn-plugin.png`, among others. A failed step adds `failure-<step>.png` and VS Code's logs in
 `vscode-logs/`.
 
+A second file, `allowance-playground.smoke.test.ts`, runs the checklist of
+`resources/allowance-playground/README.md` in the same VS Code build: it builds
+a fresh playground with `create-playground.mjs`, opens one window per row on
+one shared profile, each its own VS Code process after the previous one quit,
+and checks the notices, the badge, the `acme` lint warnings, the Add-ons view
+and the pnpm and in-place updates. Its file header names the rows it covers;
+row 4 runs only where git 2.48 or later can add a worktree with relative
+paths, and row 12, the 1.21.0 migration, remote windows and Windows are not
+covered. It adds about two minutes. Its results go to
+`test-results/vscode-smoke-allowance/` (emptied on every run, kept apart because
+the first file empties `test-results/vscode-smoke/`): a screenshot and the
+window's **bpmn.modeler** output channel lines per row, `playground.txt`, and
+VS Code's logs in `vscode-logs/`. A failed row adds `failure-<row>.png` and the
+notification center's texts in `failure-<row>.notices.txt`.
+
+`VSCODE_SMOKE_FILTER` narrows a container run to the test files whose path
+contains it, for example `VSCODE_SMOKE_FILTER=allowance` for the playground
+rows only. Without it both files run.
+
 Run it in a container locally, where no VS Code window opens and nothing takes
 the focus:
 
 ```bash
 corepack yarn workspace vs-code-bpmn-modeler test:vscode:docker
 VSCODE_SMOKE_VERSION=1.78.2 corepack yarn workspace vs-code-bpmn-modeler test:vscode:docker
+VSCODE_SMOKE_FILTER=allowance corepack yarn workspace vs-code-bpmn-modeler test:vscode:docker
 CONTAINER_ENGINE=docker corepack yarn workspace vs-code-bpmn-modeler test:vscode:docker
 ```
 
@@ -322,13 +342,15 @@ run mounts the repository read-only and copies the files Git sees into the
 container, uncommitted changes included, without ignored files such as
 `node_modules`, `dist` and `.git`. There it runs `yarn install --immutable`,
 `yarn build` and the test under `xvfb-run`, then copies `test-results/vscode-smoke/`
-back. The host's `node_modules` and `dist` stay as they are. VS Code's download
-and Yarn's cache live in the volumes `bpmn-modeler-vscode-smoke-vscode` and
+back, with the playground's results in its `allowance-playground/` folder. The
+host's `node_modules` and `dist` stay as they are. VS Code's download and Yarn's
+cache live in the volumes `bpmn-modeler-vscode-smoke-vscode` and
 `bpmn-modeler-vscode-smoke-yarn`. The image is built for the host's
 architecture, arm64 on Apple silicon, x64 elsewhere. With the image and both
-volumes warm, a run takes about 80 s on an Apple silicon Mac: about 40 s
-install, 30 s build and 10 s for the test itself. The first run also builds the
-image and downloads VS Code, a few minutes more.
+volumes warm, a run takes about four minutes on an Apple silicon Mac: about
+45 s install, 30 s build, 70 s for `vscode-smoke.test.ts` and 110 s for the
+playground file. The first run also builds the image and downloads VS Code, a
+few minutes more.
 
 On the host, the same test opens a VS Code window for some seconds, which takes
 the focus on macOS. On Linux, run it under an X server:
@@ -347,8 +369,10 @@ In CI, `.github/workflows/vscode-smoke.yml` runs it on `ubuntu-latest` under
 Code smoke → Run workflow, optionally with a VS Code version) and on pull
 requests that change the extension, a webview, a library or package it bundles,
 the lockfile or the workflow. It is not a required check. The downloaded VS Code
-is cached per version; the screenshots are uploaded as `vscode-smoke-screenshots`
-and, when a step failed, VS Code's logs as `vscode-smoke-logs` (7 days each).
+is cached per version; the screenshots of both files are uploaded as
+`vscode-smoke-screenshots` and, when a step failed, VS Code's logs and the
+whole `test-results/vscode-smoke-allowance/` folder as `vscode-smoke-logs`
+(7 days each).
 
 ## Performance harness
 

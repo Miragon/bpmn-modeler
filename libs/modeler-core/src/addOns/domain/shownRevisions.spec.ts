@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { allowanceOf } from "../../kernel/domain/allowance";
 import { ShownCode } from "./codeAddOnCatalog";
 import { firstRevisionOf, ShownRevisions } from "./shownRevisions";
 
@@ -11,11 +12,10 @@ const shownOf = (name: string): ReadonlyMap<string, ShownCode> =>
                 kind: "plugin",
                 id: `/p/${name}`,
                 name,
+                allowance: allowanceOf("plugin", `/p/${name}`, { kind: "noRepository" }, ""),
                 actions: [],
                 allowedFollowUp: "",
                 revokedFollowUp: "",
-                leftForViewByRevoke: [],
-                withdrawal: { kind: "row" },
             },
         ],
     ]);

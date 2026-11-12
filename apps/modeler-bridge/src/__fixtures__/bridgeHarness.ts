@@ -31,10 +31,15 @@ export async function waitForFrame(
 
 type RegisterOverrides = Pick<
     RegisterParams,
-    "sessionId" | "documentRevision" | "settings" | "pluginApprovals" | "pluginApprovalsRevision"
+    | "sessionId"
+    | "documentRevision"
+    | "settings"
+    | "pluginApprovals"
+    | "pluginApprovalsRevision"
+    | "workspaceTrust"
 >;
 
-/** The `session/register` params the host sends when it opens a `.bpmn` editor. */
+/** The `session/register` params the host sends when it opens a `.bpmn` editor of a trusted project. */
 export function registerParams(
     editorId: string,
     workspaceRoot: string,
@@ -50,6 +55,7 @@ export function registerParams(
         scheme: "file",
         workspaceRoot,
         content,
+        workspaceTrust: { trusted: true, revision: 1 },
         ...overrides,
     };
 }

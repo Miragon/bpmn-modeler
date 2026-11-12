@@ -39,10 +39,15 @@ git init -q
 step install corepack yarn install --immutable
 step build corepack yarn build
 set +e
-xvfb-run -a -s "-screen 0 1920x1200x24" corepack yarn workspace vs-code-bpmn-modeler test:vscode
+# VSCODE_SMOKE_FILTER narrows the run to the test files whose path contains it.
+xvfb-run -a -s "-screen 0 1920x1200x24" corepack yarn workspace vs-code-bpmn-modeler test:vscode \${VSCODE_SMOKE_FILTER:-}
 code=$?
 set -e
 if [ -d test-results/vscode-smoke ]; then cp -R test-results/vscode-smoke/. /results/; fi
+if [ -d test-results/vscode-smoke-allowance ]; then
+  mkdir -p /results/allowance-playground
+  cp -R test-results/vscode-smoke-allowance/. /results/allowance-playground/
+fi
 if [ -n "$HOST_UID" ]; then chown -R "$HOST_UID:$HOST_GID" /results; fi
 exit "$code"
 `;
@@ -90,7 +95,9 @@ const listDirectory = mkdtempSync(join(tmpdir(), "bpmn-modeler-vscode-smoke-"));
 const fileList = join(listDirectory, "files.txt");
 writeFileSync(fileList, workingTreeFiles().join("\0"));
 
-const forwarded = ["VSCODE_SMOKE_VERSION"].filter((name) => process.env[name]);
+const forwarded = ["VSCODE_SMOKE_VERSION", "VSCODE_SMOKE_FILTER"].filter(
+    (name) => process.env[name],
+);
 const started = Date.now();
 const exitCode = await run(engine, [
     "run",

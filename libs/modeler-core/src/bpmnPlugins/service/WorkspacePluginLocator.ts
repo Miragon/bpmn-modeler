@@ -1,7 +1,9 @@
+import { Allowance } from "../../kernel/domain/allowance";
 import { DirectoryNotFound, FileNotFound } from "../../kernel/domain/errors";
 import { EVERY_PATH_GLOB } from "../../kernel/domain/watchedFiles";
 import { joinWorkspacePath, lastWorkspacePathSegment } from "../../kernel/domain/workspacePath";
 import { NotifierPort, WorkspacePort } from "../../kernel/port/hostPorts";
+import { AllowanceLocator } from "../../kernel/service/AllowanceLocator";
 import { ArtifactService } from "../../kernel/service/ArtifactService";
 import { approvedContent, WorkspacePlugin } from "../domain/pluginApproval";
 import { isPluginFolderName, pluginFolderChangedBy, PLUGINS_AREA } from "../domain/pluginFolders";
@@ -25,7 +27,12 @@ export interface DiscoveredPlugin {
 /** One plugin folder as last read. */
 export type PluginReading =
     | { readonly kind: "found"; readonly discovered: DiscoveredPlugin }
-    | { readonly kind: "unreadable"; readonly folder: string; readonly reason: string }
+    | {
+          readonly kind: "unreadable";
+          readonly folder: string;
+          readonly reason: string;
+          readonly allowance: Allowance;
+      }
     | { readonly kind: "gone"; readonly folder: string };
 
 /**
@@ -33,10 +40,12 @@ export type PluginReading =
  * its workspace root. Each subfolder is one plugin. A folder it cannot read
  * is logged and skipped, so one broken plugin never hides the others.
  *
- * Each plugin folder is read and hashed once, with its bytes kept, until a
- * watcher on its plugins folder reports a change below it; so opening an
- * editor does not reread every bundle, and the bytes served are the bytes
- * hashed.
+ * Each plugin folder is read and hashed once, with its bytes and its
+ * allowance kept, until a watcher on its plugins folder reports a change
+ * below it; so opening an editor does not reread every bundle, and the bytes
+ * served are the bytes hashed. A plugin's id is its folder as the workspace
+ * spells it, which a row pinned to content names; its allowance comes from
+ * the folder's realpath.
  */
 export class WorkspacePluginLocator {
     private readonly readings = new Map<string, Promise<PluginReading>>();
@@ -47,6 +56,7 @@ export class WorkspacePluginLocator {
         private readonly artifacts: ArtifactService,
         private readonly workspace: WorkspacePort,
         private readonly hasher: ContentHasherPort,
+        private readonly allowances: AllowanceLocator,
         private readonly notifier: NotifierPort,
     ) {}
 
@@ -79,7 +89,7 @@ export class WorkspacePluginLocator {
         return [...this.watchers.keys()];
     }
 
-    /** Read and hashed now, past what it remembered. */
+    /** Read and located now, past what it remembered. */
     async readFresh(folder: string): Promise<PluginReading> {
         try {
             await this.workspace.readDirectory(folder);
@@ -163,15 +173,19 @@ export class WorkspacePluginLocator {
     }
 
     private async readPlugin(folder: string, folderName: string): Promise<PluginReading> {
+        const allowance = this.allowances.allowanceAt("plugin", folder);
         try {
             const reading = await this.readManifest(folder, folderName);
             if (reading.kind === "unreadable") {
-                return { kind: "unreadable", folder, reason: reading.reason };
+                return { kind: "unreadable", folder, reason: reading.reason, allowance };
             }
-            return { kind: "found", discovered: await this.withContent(folder, reading.manifest) };
+            return {
+                kind: "found",
+                discovered: await this.withContent(folder, reading.manifest, allowance),
+            };
         } catch (error) {
             const reason = error instanceof FileNotFound ? MISSING_FILE_REASON : String(error);
-            return { kind: "unreadable", folder, reason };
+            return { kind: "unreadable", folder, reason, allowance };
         }
     }
 
@@ -189,7 +203,11 @@ export class WorkspacePluginLocator {
         return { kind: "unreadable", reason: NO_MANIFEST_REASON };
     }
 
-    private async withContent(folder: string, manifest: PluginManifest): Promise<DiscoveredPlugin> {
+    private async withContent(
+        folder: string,
+        manifest: PluginManifest,
+        allowance: Allowance,
+    ): Promise<DiscoveredPlugin> {
         const scriptPath = joinWorkspacePath(folder, manifest.script);
         const stylePath =
             manifest.style === undefined ? undefined : joinWorkspacePath(folder, manifest.style);
@@ -199,6 +217,7 @@ export class WorkspacePluginLocator {
         const plugin: WorkspacePlugin = {
             id: folder,
             name: manifest.name,
+            allowance,
             scriptPath,
             ...(stylePath === undefined ? {} : { stylePath }),
             contentHash: this.hasher.sha256(approvedContent(script, style)),

@@ -12,7 +12,15 @@ export * from "./kernel/domain/actionNotice";
 export * from "./kernel/domain/affectedItems";
 export * from "./kernel/domain/BpmnDocument";
 export {
-    allowing,
+    type Allowance,
+    allowanceKeyOf,
+    allowanceOf,
+    allowanceRowOf,
+    allowingAllowances,
+    LOCAL_HOST,
+} from "./kernel/domain/allowance";
+export type { AllowanceKind } from "./kernel/domain/approvalRowKind";
+export {
     approvalsAfter,
     approvalsKey,
     codeApprovalChange,
@@ -44,7 +52,9 @@ export * from "./kernel/domain/textReplacement";
 export * from "./kernel/domain/viewTypes";
 export * from "./kernel/domain/watcherEvents";
 export * from "./kernel/domain/workspacePath";
+export * from "./kernel/service/AllowanceLocator";
 export * from "./kernel/service/ArtifactService";
+export * from "./kernel/service/ContentRowMigration";
 export * from "./kernel/service/QuestionQueue";
 export * from "./kernel/adapter/out/FetchHttpClient";
 export { ListReview } from "./kernel/adapter/out/ListReview";
@@ -59,6 +69,7 @@ export * from "./editorSession/domain/session";
 export * from "./editorSession/service/DocumentFlushService";
 export * from "./editorSession/service/EditorContribution";
 export * from "./editorSession/service/EditorDocumentSync";
+export * from "./editorSession/service/EngineVersionSelectionService";
 export * from "./editorSession/port/EditorHandle";
 export * from "./editorSession/service/EditorSessionDocuments";
 export * from "./editorSession/service/EditorSessionLifecycle";
@@ -99,7 +110,12 @@ export * from "./modeler/dmn/service/DmnSettingsBroadcaster";
 export * from "./modeler/dmn/service/DmnSettingsParticipant";
 export * from "./modeler/dmn/adapter/in/dmnMessageHandlers";
 export * from "./modeler/form/domain/emptyForm";
+export * from "./modeler/domain/newModelFilePrompt";
 export * from "./modeler/form/service/FormModelerService";
+export type { FormEngineSelectionPorts } from "./modeler/form/service/FormEngineSelectionService";
+export * from "./modeler/form/service/FormEngineStatusBarParticipant";
+export * from "./modeler/form/adapter/out/JsonFormTextEdits";
+export * from "./editorSession/domain/StatusItemOwnership";
 export * from "./modeler/elementTemplate/domain/newTemplateFile";
 export * from "./modeler/elementTemplate/composition/ElementTemplateEditorFeature";
 
@@ -255,3 +271,7 @@ export * from "./scriptTask/service/ScriptFileStore";
 export * from "./scriptTask/service/ScriptXmlService";
 export * from "./scriptTask/service/scriptBatch";
 export * from "./scriptTask/composition/ScriptEditorFeature";
+
+// ── modelerSettings ──────────────────────────────────────────────────────────
+export { ModelerLanguageService } from "./modelerSettings/service/ModelerLanguageService";
+export type { LanguagePreferencePort } from "./modelerSettings/port/LanguagePreferencePort";

@@ -23,10 +23,13 @@ export function register(
         picker: deps.picker,
         actionNotifier: deps.actionNotifier,
         approvals: deps.pluginApprovals,
+        allowances: deps.allowances,
+        contentRows: deps.contentRows,
         questions: deps.approvalQuestions,
         review,
         cacheRoot,
         hasher: new NodeContentHasher(),
+        workspaceTrust: deps.workspaceTrust,
     });
 
     bindHandlers(deps.rpc, pluginApprovalHandlers(deps.pluginApprovals));

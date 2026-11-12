@@ -1,3 +1,7 @@
+import { mkdirSync, mkdtempSync, realpathSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("vscode", () => import("../__fixtures__/vscodeCompositionFake"));
@@ -37,6 +41,8 @@ vi.mock("@miragon/bpmn-modeler-core", async (importOriginal) => {
 import { ExtensionContext, Uri } from "vscode";
 
 import {
+    allowanceOf,
+    allowanceRowOf,
     BpmnDiffService,
     BpmnEditorFeature,
     BpmnEditorHostPorts,
@@ -47,6 +53,7 @@ import {
     DiffPaneStore,
     DOCUMENT_SYNC_COMMAND_TYPES,
     EditorSessionParticipant,
+    LOCAL_HOST,
     NavigationFeature,
     QuestionQueue,
     ScriptEditorFeature,
@@ -99,7 +106,7 @@ function createVsCodeBpmnEditor(context = createExtensionContext()) {
     );
     const diffStore = new DiffPaneStore();
     const deploymentStatus: EditorSessionParticipant = { onResolve: () => undefined };
-    return bpmnEditorFeature.register(context, deps, {
+    const features = bpmnEditorFeature.register(context, deps, {
         diffController: new DiffController(
             diffStore,
             deps.notifier,
@@ -119,6 +126,7 @@ function createVsCodeBpmnEditor(context = createExtensionContext()) {
             notifier: deps.notifier,
         }).editorContribution,
     });
+    return { ...features, deps };
 }
 
 const revealedRows: (readonly string[])[] = [];
@@ -198,7 +206,7 @@ describe("VS Code's BPMN editor", () => {
     });
 
     it("asks about plugins and rule packages in one queue and keeps both in one approval list", () => {
-        createVsCodeBpmnEditor();
+        const { deps } = createVsCodeBpmnEditor();
 
         const [plugins] = injectedPorts.plugins;
         const rulePackages = injectedPorts.editors[0]?.rulePackages;
@@ -206,7 +214,42 @@ describe("VS Code's BPMN editor", () => {
         expect(rulePackages?.questions).toBe(plugins?.questions);
         expect(rulePackages?.approvals).toBe(plugins?.approvals);
         expect(rulePackages?.actionNotifier).toBe(plugins?.actionNotifier);
-        expect(rulePackages?.installedPackages).toBeInstanceOf(NodeInstalledPackages);
+        expect(deps.installedPackages).toBeInstanceOf(NodeInstalledPackages);
+        expect(rulePackages?.installedPackages).toBe(deps.installedPackages);
+    });
+
+    it("locates the plugins and the rule packages through one allowance locator, and both wait for one migration", () => {
+        const { deps } = createVsCodeBpmnEditor();
+
+        const [plugins] = injectedPorts.plugins;
+        const rulePackages = injectedPorts.editors[0]?.rulePackages;
+        expect(plugins?.allowances).toBe(deps.allowances);
+        expect(rulePackages?.allowances).toBe(deps.allowances);
+        expect(plugins?.contentRows).toBe(deps.contentRows);
+        expect(rulePackages?.contentRows).toBe(deps.contentRows);
+    });
+
+    it("rewrites an approval pinned to content as the allowance of its plugin when the extension activates", async () => {
+        const root = realpathSync(mkdtempSync(join(tmpdir(), "bpmn-migration-")));
+        try {
+            const pluginDir = `${root}/.camunda/plugins/resize`;
+            mkdirSync(pluginDir, { recursive: true });
+            const context = createExtensionContext();
+            await context.globalState.update("bpmnPluginApprovals", [
+                { pluginId: pluginDir, contentHash: "0123456789abcdef".repeat(4) },
+            ]);
+
+            const { deps } = createVsCodeBpmnEditor(context);
+            await deps.contentRows.whenSettled();
+
+            expect(context.globalState.get("bpmnPluginApprovals")).toEqual([
+                allowanceRowOf(
+                    allowanceOf("plugin", pluginDir, { kind: "noRepository" }, LOCAL_HOST),
+                ),
+            ]);
+        } finally {
+            rmSync(root, { recursive: true, force: true });
+        }
     });
 
     it("reads the approvals another window stored once this window gains focus", async () => {

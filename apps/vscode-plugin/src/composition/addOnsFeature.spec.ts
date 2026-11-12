@@ -6,7 +6,9 @@ import { ColorThemeKind, commands, ExtensionContext, Uri, WebviewViewProvider } 
 
 import {
     AddOnCatalogModel,
-    allowing,
+    allowanceOf,
+    allowingAllowances,
+    LOCAL_HOST,
     templatePreferenceChange,
     BpmnDiffService,
     DiffPaneStore,
@@ -131,7 +133,10 @@ function createVsCodeAddOns(context = createExtensionContext()) {
     };
 }
 
-const LEFT = { id: "/work/x", name: "x", contentHash: "h" };
+const LEFT = {
+    id: "/work/x",
+    allowance: allowanceOf("plugin", "/work/x", { kind: "noRepository" }, LOCAL_HOST),
+};
 
 beforeEach(() => {
     resetVscodeWindow();
@@ -144,7 +149,7 @@ describe("VS Code's add-on catalog", () => {
         addOns.attachView((model) => models.push(model), true);
         await addOns.whenSettled();
 
-        await deps.pluginApprovals.change(allowing([LEFT]));
+        await deps.pluginApprovals.change(allowingAllowances([LEFT]));
         await addOns.whenSettled();
         bpmn.plugins.inventory.leaveForView(LEFT);
         await addOns.whenSettled();
@@ -274,7 +279,7 @@ describe("VS Code's add-on catalog", () => {
         for (const subscription of context.subscriptions) {
             subscription.dispose();
         }
-        await deps.pluginApprovals.change(allowing([LEFT]));
+        await deps.pluginApprovals.change(allowingAllowances([LEFT]));
         await addOns.whenSettled();
 
         expect(models).toHaveLength(1);

@@ -56,7 +56,7 @@ const PLUGIN_NAME = "Smoke trace";
 const PLUGIN_NOTICE = "1 BPMN plugin in this workspace is not allowed yet.";
 /** The Add-ons view's frame, which tells its page from the Deploy view's. */
 const ADD_ONS_VIEW = 'main[aria-label="Add-ons"]';
-const REVIEW_FACTS = ["Folder", "Covers", "Content hash"];
+const REVIEW_FACTS = ["Folder", "Allowed in"];
 const PLUGIN_BADGE_COLOR = "rgb(255, 0, 255)";
 const OPEN_TIMING_ROUNDS = 3;
 
@@ -132,8 +132,8 @@ async function diagramInView(webview: FrameLocator): Promise<boolean> {
     });
 }
 
-function focusRingShown(container: Locator): Promise<boolean> {
-    return container.locator(".canvas-focus-ring").isVisible();
+function canvasFocusMarked(container: Locator): Promise<boolean> {
+    return container.locator(".fit-viewport-button[data-canvas-focused]").isVisible();
 }
 
 /** A poll for zero passes at once, so this watches the whole window for an element that appears late. */
@@ -409,26 +409,26 @@ describe("the packaged extension in a real VS Code", () => {
         await vscode().screenshot(join(RESULTS_DIRECTORY, "bpmn-fit-after.png"));
     });
 
-    it("rings the canvas once Escape hands it the keyboard from the properties panel", async () => {
+    it("marks the fit button once Escape hands the canvas the keyboard from the properties panel", async () => {
         const webview = vscode().webview();
         const container = webview.locator(".bjs-container .djs-container");
         await webview
             .locator("#js-properties-panel .bio-properties-panel-group-header")
             .first()
             .click();
-        expect(await focusRingShown(container)).toBe(false);
+        expect(await canvasFocusMarked(container)).toBe(false);
 
         await vscode().page.keyboard.press("Escape");
 
-        await expect.poll(() => focusRingShown(container), { timeout: TIMEOUT_MS }).toBe(true);
+        await expect.poll(() => canvasFocusMarked(container), { timeout: TIMEOUT_MS }).toBe(true);
         await settle(webview);
-        await vscode().screenshot(join(RESULTS_DIRECTORY, "bpmn-focus-ring.png"));
+        await vscode().screenshot(join(RESULTS_DIRECTORY, "bpmn-canvas-focus.png"));
     });
 
     it.each(COLOR_THEMES)("follows VS Code's $name theme", async (theme) => {
         const webview = vscode().webview();
         const html = webview.locator("html");
-        // The edit left the canvas focused; its focus ring would show in every screenshot.
+        // The edit left the canvas focused; its focus dot would show in every screenshot.
         await html.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
 
         await vscode().setColorTheme(theme.name);
@@ -597,6 +597,142 @@ describe("the packaged extension in a real VS Code", () => {
         await settle(vscode().webview());
         await vscode().screenshot(join(RESULTS_DIRECTORY, "form.png"));
         expectNoCspViolations();
+    });
+
+    it("selects Form engine metadata natively, preserves source, and persists across save, reopen and source reload", async () => {
+        const page = vscode().page;
+        const file = join(workspaceDirectory, FORM_FILE);
+        const original = await readFile(file, "utf8");
+        const picker = page.locator(".quick-input-widget");
+        const rows = picker.locator(".monaco-list-row");
+        const labels = rows.locator(".label-name");
+        const option = (label: string) =>
+            labels.filter({
+                hasText: new RegExp(`^${label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`),
+            });
+        const expectChoices = (expected: readonly string[]) =>
+            expect
+                .poll(async () => ({
+                    rows: await rows.count(),
+                    labels: await labels.allTextContents(),
+                }))
+                .toEqual({ rows: expected.length, labels: expected });
+        const status = (text: string) => page.locator(".statusbar-item").filter({ hasText: text });
+        const choosePlatform = async (label: string) => {
+            await vscode().runCommand("Change Engine Version");
+            await expectChoices(["Camunda 7", "Camunda 8"]);
+            await option(label).click();
+        };
+        try {
+            await status("Camunda 8 (8.8.0)").waitFor();
+            expect(await vscode().isActiveTabDirty()).toBe(false);
+            await status("Camunda 8 (8.8.0)").click();
+            await expectChoices(["Camunda 7", "Camunda 8"]);
+            await page.keyboard.press("Escape");
+            expect(await vscode().isActiveTabDirty()).toBe(false);
+
+            await choosePlatform("Camunda 7");
+            await expectChoices(["7"]);
+            await page.keyboard.press("Escape");
+            expect(await vscode().isActiveTabDirty()).toBe(false);
+            expect(await readFile(file, "utf8")).toBe(original);
+
+            await choosePlatform("Camunda 7");
+            await expectChoices(["7"]);
+            await option("7").click();
+            await status("Camunda 7 (7)").waitFor();
+            await expect.poll(() => vscode().isActiveTabDirty()).toBe(true);
+            expect(await readFile(file, "utf8")).toBe(original);
+            await page.keyboard.press(`${COMMAND_KEY}+s`);
+            const c7Source = original
+                .replace('"Camunda Cloud"', '"Camunda Platform"')
+                .replace('"8.8.0"', '"7"');
+            await expect.poll(() => readFile(file, "utf8")).toBe(c7Source);
+            await expect.poll(() => vscode().isActiveTabDirty()).toBe(false);
+            await page.keyboard.press(`${COMMAND_KEY}+w`);
+            await vscode().openFromExplorer(FORM_FILE);
+            await vscode().showInCustomEditor(FORM_FILE, (webview) =>
+                webview.getByText("Customer name").first().isVisible(),
+            );
+            await status("Camunda 7 (7)").waitFor();
+
+            await choosePlatform("Camunda 8");
+            await expectChoices(["8.10.0", "8.9.0", "8.8.0"]);
+            await option("8.10.0").click();
+            await status("Camunda 8 (8.10.0)").waitFor();
+            await page.keyboard.press(`${COMMAND_KEY}+s`);
+            await expect
+                .poll(() => jsonInFile(file))
+                .toMatchObject({
+                    executionPlatform: "Camunda Cloud",
+                    executionPlatformVersion: "8.10.0",
+                    schemaVersion: 18,
+                });
+            await expect.poll(() => vscode().isActiveTabDirty()).toBe(false);
+
+            const sourceUpdate = original.replace('"8.8.0"', '"8.9.0"');
+            await writeFile(file, sourceUpdate);
+            await status("Camunda 8 (8.9.0)").waitFor();
+            const webview = vscode().webview();
+            await webview.locator('.fjs-element[data-id="Field_Name"]').click();
+            const label = webview.locator("#bio-properties-panel-label");
+            if (!(await label.isVisible())) {
+                await webview
+                    .locator('[data-group-id="group-general"]')
+                    .getByRole("button", { name: "Toggle section", exact: true })
+                    .click();
+            }
+            await label.waitFor({ state: "visible" });
+            await label.click();
+            await page.keyboard.press(`${COMMAND_KEY}+a`);
+            await label.pressSequentially("Name after engine reload");
+            await status("Camunda 8 (8.9.0)").click();
+            await expectChoices(["Camunda 7", "Camunda 8"]);
+            // Let the properties-panel debounce sync while the native picker remains open.
+            await expect.poll(() => vscode().isActiveTabDirty()).toBe(true);
+            expect(await picker.isVisible()).toBe(true);
+            await option("Camunda 7").click();
+            await expectChoices(["7"]);
+            await option("7").click();
+            await status("Camunda 7 (7)").waitFor();
+            expect(await readFile(file, "utf8")).toBe(sourceUpdate);
+            await page.keyboard.press(`${COMMAND_KEY}+s`);
+            await expect
+                .poll(() => jsonInFile(file))
+                .toMatchObject({
+                    executionPlatform: "Camunda Platform",
+                    executionPlatformVersion: "7",
+                    components: [{ label: "Name after engine reload" }],
+                });
+            await expect.poll(() => vscode().isActiveTabDirty()).toBe(false);
+
+            const unsupported = original
+                .replace('"Camunda Cloud"', '"Other platform"')
+                .replace('"8.8.0"', '"99"');
+            await writeFile(file, unsupported);
+            await status("Other platform (99)").waitFor();
+            await vscode().runCommand("Change Engine Version");
+            await expectChoices(["Camunda 7", "Camunda 8"]);
+            await page.keyboard.press("Escape");
+            expect(await vscode().isActiveTabDirty()).toBe(false);
+            expect(await readFile(file, "utf8")).toBe(unsupported);
+            expectNoCspViolations();
+        } finally {
+            try {
+                await page.keyboard.press("Escape");
+                await expect.poll(() => picker.isVisible(), { timeout: TIMEOUT_MS }).toBe(false);
+                const formTabs = page
+                    .locator(".tabs-container .tab")
+                    .filter({ hasText: FORM_FILE });
+                if (await formTabs.count()) {
+                    await formTabs.first().click();
+                    await vscode().runCommand("View: Revert and Close Editor");
+                }
+                await expect.poll(() => formTabs.count(), { timeout: TIMEOUT_MS }).toBe(0);
+            } finally {
+                await writeFile(file, original);
+            }
+        }
     });
 
     it("creates an element template through New Element Template", async () => {
@@ -1603,7 +1739,7 @@ describe("the packaged extension in a real VS Code", () => {
             // Allow ends the review, so Tab reaches it from the heading or the row.
             const allow = detail
                 .locator(".av-review-end")
-                .getByRole("button", { name: "Allow this content" });
+                .getByRole("button", { name: "Allow", exact: true });
             for (let presses = 0; presses < 10 && !(await isFocused(allow)); presses++) {
                 await page().keyboard.press("Tab");
             }

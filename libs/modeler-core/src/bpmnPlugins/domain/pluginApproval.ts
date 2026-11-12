@@ -1,45 +1,27 @@
 import { ActionNotice } from "../../kernel/domain/actionNotice";
+import { ALLOWANCE_COVERS_TEXT, ApprovableArtifact } from "../../kernel/domain/allowance";
 import {
-    ApprovableArtifact,
     ApprovableCodeTexts,
     ApprovalNoticeAction,
-    ApprovalState,
-    approvalStateOf,
-    approvedArtifacts,
     CodeApproval,
-    CodeApprovalOutcome,
-    isApprovedState,
-    PendingCodeApproval,
-    pendingApprovalDescription,
 } from "../../kernel/domain/codeApproval";
 import { DirectoryEntryKind } from "../../kernel/domain/directoryEntry";
 import { escapeRegExpLiteral } from "../../kernel/domain/escapeRegExpLiteral";
 import { ChoicePrompt } from "../../kernel/domain/prompts";
+import { relativeToWorkspace } from "../../kernel/domain/rootContainment";
 import { joinWorkspacePath } from "../../kernel/domain/workspacePath";
+import { runsInWorkspace } from "../../kernel/domain/workspaceTrust";
 import { LAST_USE_MARKER_FILE, lastUseMarkerText } from "./pluginCacheLastUse";
-
-export {
-    approvalOutcome,
-    approvalStateOf,
-    declineKeyOf,
-    pendingApprovals,
-} from "../../kernel/domain/codeApproval";
 
 /** A plugin found in a workspace's `<configFolder>/plugins/<folder>`; its id is that folder. */
 export interface WorkspacePlugin extends ApprovableArtifact {
     readonly scriptPath: string;
     readonly stylePath?: string;
+    /** Names the content-addressed cache copy; no allowance reads it. */
+    readonly contentHash: string;
 }
 
 export type PluginApproval = CodeApproval;
-
-export type PluginApprovalState = ApprovalState;
-
-export type PendingApproval = PendingCodeApproval<WorkspacePlugin>;
-
-export type ApprovalOutcome = CodeApprovalOutcome<WorkspacePlugin>;
-
-export const approvedPlugins = approvedArtifacts;
 
 export const PLUGIN_APPROVAL_PROMPT_ID = "bpmnPluginApproval";
 
@@ -59,23 +41,24 @@ export const PLUGIN_CODE_TEXTS: ApprovableCodeTexts = {
     risk: "A plugin runs its own code in the BPMN editor.",
     allowedFollowUp: "Open editors reload with it.",
     revokedFollowUp: () => "Open editors reload without it.",
-    carriedOver: ({ artifact, allowedAt }) =>
-        `Allowed BPMN plugin ${artifact.name} in ${artifact.id}: you allowed the same content in ${allowedAt}.`,
 };
 
+/**
+ * The folder goes into a list item's `description` rather than its `path`:
+ * every host shows a `path` in place of the description.
+ */
 export function pluginApprovalPrompt(
-    pending: readonly PendingApproval[],
+    pending: readonly WorkspacePlugin[],
     workspaceFolders: readonly string[],
 ): ChoicePrompt<string> {
     return {
         id: PLUGIN_APPROVAL_PROMPT_ID,
         title: "Allow BPMN plugins from this workspace?",
-        placeholder:
-            "Plugins run their own code in the BPMN editor. Check only the ones you trust; open editors reload with them.",
-        items: pending.map((each) => ({
-            label: each.artifact.name,
-            description: pendingApprovalDescription(each, workspaceFolders),
-            value: each.artifact.id,
+        placeholder: `Plugins run their own code in the BPMN editor. Allowing one ${ALLOWANCE_COVERS_TEXT}. Check only the ones you trust; open editors reload with them.`,
+        items: pending.map((plugin) => ({
+            label: plugin.name,
+            description: relativeToWorkspace(plugin.id, workspaceFolders),
+            value: plugin.id,
         })),
     };
 }
@@ -86,7 +69,7 @@ export type PluginApprovalNoticeAction = ApprovalNoticeAction;
 
 /** Opens nothing by itself: only "Review…" shows the list. */
 export function pluginApprovalNotice(
-    pending: readonly PendingApproval[],
+    pending: readonly WorkspacePlugin[],
 ): ActionNotice<PluginApprovalNoticeAction> {
     const message =
         pending.length === 1
@@ -100,28 +83,29 @@ export function pluginApprovalNotice(
     };
 }
 
-/** What an editor's last plugin answer held, each plugin at the content it was read with. */
+/** What an editor's last plugin answer held, each plugin as it was read then. */
 export interface OfferedPlugins {
-    readonly served: readonly ApprovableArtifact[];
+    readonly served: readonly WorkspacePlugin[];
     /** Every plugin found but not allowed, whether a notice still asks about it or not. */
-    readonly withheld: readonly ApprovableArtifact[];
+    readonly withheld: readonly WorkspacePlugin[];
 }
 
 /**
- * The editors whose modules no longer match the approvals, each once in the
- * map's order: one serves a plugin not allowed at that content any more, or
- * was withheld one now allowed at the content it was offered.
+ * The editors whose modules no longer match the approvals and the workspace's
+ * trust, each once in the map's order: one serves a plugin that may no longer
+ * run, or was withheld one that may now. A content edit reloads none: the
+ * next request serves its new copy.
  */
 export function editorsToReload(
     offeredByEditor: ReadonlyMap<string, OfferedPlugins>,
     approvals: readonly CodeApproval[],
+    trusted: boolean,
 ): string[] {
-    const isApproved = (plugin: ApprovableArtifact) =>
-        isApprovedState(approvalStateOf(plugin, approvals));
+    const runs = (plugin: WorkspacePlugin) => runsInWorkspace(plugin, approvals, trusted);
     return [...offeredByEditor]
         .filter(
             ([, { served, withheld }]) =>
-                served.some((plugin) => !isApproved(plugin)) || withheld.some(isApproved),
+                served.some((plugin) => !runs(plugin)) || withheld.some(runs),
         )
         .map(([editorId]) => editorId);
 }
@@ -136,9 +120,10 @@ export interface CachedPluginFiles {
 }
 
 /**
- * Where the approved bytes are copied for the webview to load. The webview
- * never reads the workspace folder, so neither a file changed after the
- * approval nor an unapproved file beside the script can reach it.
+ * Where the allowed bytes read for a request are copied for the webview to
+ * load. The webview never reads the workspace folder, so neither a file
+ * swapped after the copy nor a file beside the script that no manifest names
+ * can reach it.
  */
 export function cachedPluginFiles(cacheRoot: string, plugin: WorkspacePlugin): CachedPluginFiles {
     const directory = cachedPluginDirectory(cacheRoot, plugin);
@@ -206,6 +191,13 @@ export function contentServedByEditors(
             served.map(({ contentHash }) => contentHash),
         ),
     );
+}
+
+/** Each editor's withheld plugins; the question asks about each allowance once. */
+export function withheldByEditors(
+    offeredByEditor: ReadonlyMap<string, OfferedPlugins>,
+): WorkspacePlugin[] {
+    return [...offeredByEditor.values()].flatMap(({ withheld }) => withheld);
 }
 
 /** Another process's prune can remove a copy this one already wrote. */

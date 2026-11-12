@@ -15,6 +15,7 @@ import {
 import { PluginApprovalsMirror } from "../../../bpmnPlugins/port/PluginApprovalsMirror";
 import { HostSettingsMirror } from "../../../kernel/port/HostSettingsMirror";
 import { TemplatePreferencesMirror } from "../../../kernel/port/TemplatePreferencesMirror";
+import { WorkspaceTrustMirror } from "../../../kernel/port/WorkspaceTrustMirror";
 import { WorkspaceRoots } from "../../../kernel/port/WorkspaceRoots";
 import { DocumentMirror } from "../../domain/DocumentMirror";
 import { HostEditorHandle, HostEditorHandleFactory } from "../../port/HostEditorHandle";
@@ -33,6 +34,7 @@ export function editorSessionHandlers({
     settingsMirror,
     pluginApprovals,
     templatePreferences,
+    workspaceTrust,
     workspaceRoots,
     createEditorHandle,
     bpmnService,
@@ -44,6 +46,7 @@ export function editorSessionHandlers({
     settingsMirror: HostSettingsMirror;
     pluginApprovals: PluginApprovalsMirror;
     templatePreferences: TemplatePreferencesMirror;
+    workspaceTrust: WorkspaceTrustMirror;
     workspaceRoots: WorkspaceRoots;
     createEditorHandle: HostEditorHandleFactory;
     bpmnService: Pick<BpmnModelerService, "display">;
@@ -90,6 +93,10 @@ export function editorSessionHandlers({
             // Before the editor opens, so its first templates already hide the switched-off ones.
             if (params.templatePreferences) {
                 templatePreferences.apply(params.templatePreferences);
+            }
+            // Before the editor opens, so its first plugin request and lint read the project's trust.
+            if (params.workspaceTrust) {
+                workspaceTrust.apply(params.workspaceTrust);
             }
 
             if (

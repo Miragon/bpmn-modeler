@@ -5,16 +5,26 @@ import { DocumentPort, NotifierPort } from "../../../kernel/port/hostPorts";
 import { EditorDocumentSync } from "../../../editorSession/service/EditorDocumentSync";
 import { EditorSessionStore } from "../../../editorSession/service/EditorSessionStore";
 import { createEmptyForm } from "../domain/emptyForm";
+import { FormEngineSelectionPorts, FormEngineSelectionService } from "./FormEngineSelectionService";
 
 export class FormModelerService {
     private readonly documents: EditorDocumentSync;
+    private readonly selection: FormEngineSelectionService;
 
     constructor(
         private readonly editorStore: EditorSessionStore,
         document: DocumentPort,
         private readonly notifier: NotifierPort,
+        selection: FormEngineSelectionPorts,
     ) {
         this.documents = new EditorDocumentSync(editorStore, document);
+        this.selection = new FormEngineSelectionService(
+            editorStore,
+            this.documents,
+            notifier,
+            selection,
+            (id) => this.display(id),
+        );
     }
 
     registerSession(editorId: string): void {
@@ -23,6 +33,10 @@ export class FormModelerService {
 
     disposeSession(editorId: string): void {
         this.documents.dispose(editorId);
+    }
+
+    changeEngineVersion(editorId: string): Promise<boolean> {
+        return this.selection.changeEngineVersion(editorId);
     }
 
     async display(editorId: string, hostUpdated = false): Promise<boolean> {

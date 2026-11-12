@@ -1,65 +1,52 @@
-import {
-    ApprovableArtifact,
-    CodeApproval,
-    CodeApprovalChange,
-    placesAllowing,
-    ReviewedAllow,
-    revoking,
-    revokingContent,
-} from "../../kernel/domain/codeApproval";
+import { Allowance, allowanceKeyOf, allowingAllowances } from "../../kernel/domain/allowance";
+import { CodeApprovalChange } from "../../kernel/domain/codeApproval";
+import { ListedPresence } from "../../kernel/domain/listedCode";
 import { ShownCode } from "./codeAddOnCatalog";
 import { AddOnActionKind } from "./addOnIds";
 import { AddOnActionResult, NOT_OFFERED, refused, UNKNOWN_ADD_ON } from "./addOnRequests";
 import { ShownRevisions } from "./shownRevisions";
 
-export type AllowTarget =
-    | { readonly kind: "reviewed"; readonly code: ShownCode; readonly content: ApprovableArtifact }
-    | { readonly kind: "refused"; readonly result: AddOnActionResult };
-
 export type ShownTarget =
     | { readonly kind: "shown"; readonly code: ShownCode }
     | { readonly kind: "refused"; readonly result: AddOnActionResult };
+
+export type AllowDecision =
+    | { readonly kind: "allow"; readonly change: CodeApprovalChange }
+    | { readonly kind: "refused"; readonly reason: "gone" | "unreadable" | "staleView" };
 
 const STALE_VIEW = refused(
     "staleView",
     "The list changed since you looked at it. Check it again, then allow.",
 );
 
-const REFUSED_ALLOW_TEXT: Record<
-    Extract<ReviewedAllow, { kind: "refused" }>["reason"],
-    (name: string) => string
-> = {
-    changedSinceReview: (name) =>
-        `${name} changed after you reviewed it. Review it again, then allow.`,
+const REFUSED_ALLOW_TEXT: Record<"gone" | "unreadable", (name: string) => string> = {
     gone: (name) => `${name} is gone.`,
     unreadable: (name) => `${name} can no longer be read.`,
 };
 
-/** Only the content the named revision showed can be allowed, whatever is listed now. */
+const SCOPE_TEXT: Record<Allowance["origin"]["kind"], string> = {
+    repository: " in every worktree of its repository",
+    folder: "",
+};
+
+/** Only an add-on the named revision offered Allow for, whatever is listed now. */
 export function allowTargetOf(
     revisions: ShownRevisions,
     revision: number,
     addOnId: string,
-): AllowTarget {
+): ShownTarget {
     const shown = revisions.shownAt(revision);
     if (shown === undefined) {
         return { kind: "refused", result: STALE_VIEW };
     }
-    const target = offeredTargetOf(shown, addOnId, "allow");
-    if (target.kind === "refused") {
-        return target;
-    }
-    const { code } = target;
-    return code.content === undefined
-        ? { kind: "refused", result: STALE_VIEW }
-        : { kind: "reviewed", code, content: code.content };
+    return offeredTargetOf(shown, addOnId, "allow");
 }
 
 /** Only an action the latest revision offered for the add-on. */
 export function shownTargetOf(
     revisions: ShownRevisions,
     addOnId: string,
-    action: Extract<AddOnActionKind, "inspect" | "revoke">,
+    action: Extract<AddOnActionKind, "revoke">,
 ): ShownTarget {
     return offeredTargetOf(revisions.latest(), addOnId, action);
 }
@@ -78,60 +65,33 @@ function offeredTargetOf(
         : { kind: "refused", result: NOT_OFFERED };
 }
 
-export function allowResultOf(code: ShownCode, decision: ReviewedAllow): AddOnActionResult {
-    if (decision.kind === "refused") {
-        return refused(decision.reason, REFUSED_ALLOW_TEXT[decision.reason](code.name));
+/** Allows the allowance the row showed, unless its place now resolves to another one. */
+export function allowDecisionOf(code: ShownCode, current: ListedPresence): AllowDecision {
+    if (current.kind !== "found") {
+        return { kind: "refused", reason: current.kind };
     }
-    return { kind: "done", message: `Allowed ${code.name}. ${code.allowedFollowUp}` };
+    if (allowanceKeyOf(current.artifact.allowance) !== allowanceKeyOf(code.allowance)) {
+        return { kind: "refused", reason: "staleView" };
+    }
+    return { kind: "allow", change: allowingAllowances([code]) };
 }
 
-export function revokeChangeOf(
-    code: ShownCode,
-    stored: readonly CodeApproval[],
-): CodeApprovalChange {
-    return code.withdrawal.kind === "content"
-        ? revokingContent(code.id, code.withdrawal.contentHash, stored)
-        : revoking([code.id]);
-}
-
-/** Rows of the revoked content that landed after the revoke read the list, such as another place's carry. */
-export function revokeSweepOf(code: ShownCode, storedAfter: readonly CodeApproval[]): string[] {
-    return code.withdrawal.kind === "content"
-        ? placesAllowing(code.withdrawal.contentHash, storedAfter)
-        : [];
-}
-
-export interface RevokeOutcome {
-    /** Each place whose row the revoke or its sweep took back, once. */
-    readonly revokedIds: readonly string[];
-    readonly result: AddOnActionResult;
-}
-
-export function revokeOutcomeOf(
-    code: ShownCode,
-    change: CodeApprovalChange,
-    swept: readonly string[],
-): RevokeOutcome {
-    const revokedIds = [...new Set([...change.revoke, ...swept])];
+export function allowResultOf(code: ShownCode, decision: AllowDecision): AddOnActionResult {
+    if (decision.kind === "refused") {
+        return decision.reason === "staleView"
+            ? STALE_VIEW
+            : refused(decision.reason, REFUSED_ALLOW_TEXT[decision.reason](code.name));
+    }
     return {
-        revokedIds,
-        result: revokeResultOf(code, revokedIds.filter((id) => id !== code.id).length),
+        kind: "done",
+        message: `Allowed ${code.name}${SCOPE_TEXT[code.allowance.origin.kind]}. ${code.allowedFollowUp}`,
     };
 }
 
-/** @param otherFolders The places besides this one whose rows of its content the revoke took back. */
-function revokeResultOf(code: ShownCode, otherFolders: number): AddOnActionResult {
-    const where =
-        otherFolders === 0
-            ? ""
-            : ` here and in ${otherFolders} other ${otherFolders === 1 ? "folder" : "folders"}`;
-    return { kind: "done", message: `Revoked ${code.name}${where}. ${code.revokedFollowUp}` };
-}
-
-export function inspectResultOf(code: ShownCode): AddOnActionResult {
+export function revokeResultOf(code: ShownCode): AddOnActionResult {
     return {
         kind: "done",
-        message: `Read ${code.name}. Review what it covers, then allow this content.`,
+        message: `Revoked ${code.name}${SCOPE_TEXT[code.allowance.origin.kind]}. ${code.revokedFollowUp}`,
     };
 }
 

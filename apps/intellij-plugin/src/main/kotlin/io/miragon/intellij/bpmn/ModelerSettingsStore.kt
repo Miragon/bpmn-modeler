@@ -108,6 +108,13 @@ class ModelerSettingsStore {
         }
     }
 
+    fun setLanguage(locale: String): Boolean =
+        synchronized(writeLock) {
+            if (props.getValue(LANGUAGE, DEFAULT_LANGUAGE) == locale) return@synchronized false
+            props.setValue(LANGUAGE, locale, DEFAULT_LANGUAGE)
+            true
+        }
+
     /**
      * Appends a registration to the app-level ("all my projects") list unless that
      * list holds it; backs the all-projects add scope. Whether an add registers

@@ -18,7 +18,7 @@ import { needsReview } from "../../domain/catalogFilter";
  * copy the core's so the preview reads like a host; the core stays their home.
  */
 
-const ALLOW = { kind: "allow", label: "Allow this content" } as const;
+const ALLOW = { kind: "allow", label: "Allow" } as const;
 const REVOKE = { kind: "revoke", label: "Revoke" } as const;
 const ENABLE = { kind: "enable", label: "Enable" } as const;
 const DISABLE = { kind: "disable", label: "Disable" } as const;
@@ -26,18 +26,39 @@ const ENABLE_TEMPLATES = { kind: "enableTemplates", label: "Enable templates" } 
 const DISABLE_TEMPLATES = { kind: "disableTemplates", label: "Disable templates" } as const;
 const TEMPLATE_SWITCHES: readonly ActionViewPayload<string>[] = [ENABLE_TEMPLATES, DISABLE_TEMPLATES];
 const SOURCE_DISABLED_NOTE = "Its source is disabled.";
-const PLUGIN_RISK =
-    "A BPMN plugin runs as code inside the modeler and can read and change every diagram you open.";
+const PLUGIN_RISK = "A plugin runs its own code in the BPMN editor.";
 const RULE_RISK = "A rule package runs as a program with your user's rights, not only inside the editor.";
+const RISK: Record<CodeAddOnPayload["kind"], string> = { plugin: PLUGIN_RISK, rulePackage: RULE_RISK };
+const FOLLOW_UP: Record<CodeAddOnPayload["kind"], { readonly allowed: string; readonly revoked: string }> = {
+    plugin: { allowed: "Open editors reload with it.", revoked: "Open editors reload without it." },
+    rulePackage: {
+        allowed: "Open editors lint again with it.",
+        revoked: "Code it already ran stays loaded until you reload the window.",
+    },
+};
 
-function reviewOf(name: string, risk: string, folder: string, hash: string): AddOnReviewPayload {
+const IN_REPOSITORY = " in every worktree of its repository";
+
+// A rule package's name carries its version, as the core labels it.
+const VERSION_OF: Record<CodeAddOnPayload["kind"], (name: string) => string | undefined> = {
+    plugin: () => undefined,
+    rulePackage: (name) => (name.lastIndexOf("@") > 0 ? name.slice(name.lastIndexOf("@") + 1) : undefined),
+};
+
+// A revoked plugin unloads at once; code a revoked rule package ran stays loaded.
+const NOTE_AFTER_REVOKE: Record<CodeAddOnPayload["kind"], string | undefined> = {
+    plugin: undefined,
+    rulePackage: FOLLOW_UP.rulePackage.revoked,
+};
+
+function reviewOf(name: string, risk: string, folder: string, version?: string): AddOnReviewPayload {
     return {
         heading: `Review ${name} before you allow it`,
-        warning: `${risk} Allow it only if you trust it.`,
+        warning: `${risk} Allowing it covers it in every worktree of this repository, later changes included. Allow it only if you trust it.`,
         facts: [
             { label: "Folder", value: folder },
-            { label: "Covers", value: `${folder}/index.js, ${folder}/package.json` },
-            { label: "Content hash", value: hash },
+            ...(version === undefined ? [] : [{ label: "Version", value: version }]),
+            { label: "Allowed in", value: "every worktree of /work" },
         ],
     };
 }
@@ -57,7 +78,7 @@ function plugin(
         detail: folder.replace(/^\.camunda\//, ""),
         state,
         stateText: STATE_TEXT[state],
-        ...(allowable && { review: reviewOf(name, PLUGIN_RISK, folder, hashOf(name)) }),
+        ...(allowable && { review: reviewOf(name, PLUGIN_RISK, folder) }),
         actions: allowable ? [ALLOW] : [REVOKE],
         ...extra,
     };
@@ -86,22 +107,14 @@ function template(
 const ALLOWABLE: Record<CodeAddOnPayload["state"], boolean> = {
     approved: false,
     new: true,
-    changed: true,
     declined: true,
-    gone: false,
 };
 
 const STATE_TEXT: Record<CodeAddOnPayload["state"], string> = {
     approved: "Allowed",
     new: "Not allowed yet",
-    changed: "Changed, review needed",
     declined: "Declined this session",
-    gone: "Folder gone",
 };
-
-function hashOf(name: string): string {
-    return [...name].map((char) => char.charCodeAt(0).toString(16)).join("").padEnd(64, "0").slice(0, 64);
-}
 
 function fullCatalog(): AddOnGroupPayload[] {
     return [
@@ -118,19 +131,11 @@ function fullCatalog(): AddOnGroupPayload[] {
                     description: "Applies to every diagram in this folder",
                     actions: [DISABLE_TEMPLATES],
                     addOns: [
-                        plugin("Palette", ".camunda/plugins/palette", "approved", {
-                            note: "The same content is allowed in 2 other folders; Revoke takes it back there too.",
-                        }),
+                        plugin("Palette", ".camunda/plugins/palette", "approved"),
                         plugin("Resize Tasks", ".camunda/plugins/resize", "new"),
-                        plugin("Token Simulation", ".camunda/plugins/token-simulation", "changed"),
                         plugin("Lasso", ".camunda/plugins/lasso", "declined"),
-                        plugin("Old Tool", ".camunda/plugins/old-tool", "gone", {
-                            actions: [{ kind: "revoke", label: "Forget" }],
-                        }),
-                        plugin("broken", ".camunda/plugins/broken", "changed", {
+                        plugin("broken", ".camunda/plugins/broken", "approved", {
                             problem: "Cannot be allowed: plugin.json is not valid JSON.",
-                            review: undefined,
-                            actions: [REVOKE],
                         }),
                         template("Mail Task", "config:/work/.camunda|mail.json", "enabled"),
                         template("Legacy Task", "config:/work/.camunda|legacy.json", "disabled"),
@@ -165,25 +170,24 @@ function fullCatalog(): AddOnGroupPayload[] {
                             id: "rulePackage:/work/node_modules/bpmnlint-plugin-acme",
                             kind: "rulePackage",
                             kindText: "bpmnlint rule package",
-                            name: "bpmnlint-plugin-acme",
-                            state: "new",
-                            stateText: STATE_TEXT.new,
-                            actions: [{ kind: "inspect", label: "Review…" }],
+                            name: "bpmnlint-plugin-acme@1.0.0",
+                            state: "approved",
+                            stateText: STATE_TEXT.approved,
+                            actions: [REVOKE],
                         },
                         {
                             id: "rulePackage:/work/node_modules/@acme/bpmnlint-plugin-rules",
                             kind: "rulePackage",
                             kindText: "bpmnlint rule package",
-                            name: "@acme/bpmnlint-plugin-rules",
-                            detail: "2.1.0",
+                            name: "@acme/bpmnlint-plugin-rules@2.1.0",
                             state: "new",
                             stateText: STATE_TEXT.new,
-                            note: "Code it already ran stays loaded until you reload the window.",
+                            note: FOLLOW_UP.rulePackage.revoked,
                             review: reviewOf(
-                                "@acme/bpmnlint-plugin-rules",
+                                "@acme/bpmnlint-plugin-rules@2.1.0",
                                 RULE_RISK,
                                 "node_modules/@acme/bpmnlint-plugin-rules",
-                                hashOf("rules"),
+                                "2.1.0",
                             ),
                             actions: [ALLOW],
                         },
@@ -339,12 +343,6 @@ export class MockCatalog {
                 return this.allow(request.addOnId);
             case "revoke":
                 return this.revoke(request.addOnId);
-            case "inspect":
-                return this.changeRow<CodeAddOnPayload>(request.addOnId, (row) => ({
-                    ...row,
-                    review: reviewOf(row.name, RULE_RISK, row.id.replace(/^\w+:\/work\//, ""), hashOf(row.name)),
-                    actions: [ALLOW],
-                }), (row) => `Read ${row.name}. Review what it covers, then allow this content.`);
             case "enable":
             case "disable":
                 return this.changeRow<TemplateAddOnPayload>(request.addOnId, (row) =>
@@ -384,26 +382,29 @@ export class MockCatalog {
         return this.changeRow<CodeAddOnPayload>(
             addOnId,
             allowed,
-            (row) => `Allowed ${row.name}. Open editors reload with it.`,
+            (row) => `Allowed ${row.name}${IN_REPOSITORY}. ${FOLLOW_UP[row.kind].allowed}`,
         );
     }
 
     private revoke(addOnId: string): Done {
-        const row = this.rows().find(({ id }) => id === addOnId);
-        if (row?.state === "gone") {
-            this.removeRow(addOnId);
-            return { result: { kind: "done", message: `Forgot ${row.name}.` }, changed: true };
-        }
         return this.changeRow<CodeAddOnPayload>(
             addOnId,
             (each) => ({
                 ...each,
                 state: "new",
                 stateText: STATE_TEXT.new,
-                review: reviewOf(each.name, PLUGIN_RISK, each.id.replace(/^\w+:\/work\//, ""), hashOf(each.name)),
-                actions: [ALLOW],
+                ...(NOTE_AFTER_REVOKE[each.kind] !== undefined && { note: NOTE_AFTER_REVOKE[each.kind] }),
+                ...(each.problem === undefined && {
+                    review: reviewOf(
+                        each.name,
+                        RISK[each.kind],
+                        each.id.replace(/^\w+:\/work\//, ""),
+                        VERSION_OF[each.kind](each.name),
+                    ),
+                }),
+                actions: each.problem === undefined ? [ALLOW] : [],
             }),
-            (each) => `Revoked ${each.name}. Open editors reload without it.`,
+            (each) => `Revoked ${each.name}${IN_REPOSITORY}. ${FOLLOW_UP[each.kind].revoked}`,
         );
     }
 
@@ -452,16 +453,6 @@ export class MockCatalog {
             })),
         }));
         return { result: { kind: "done", ...(message && { message: message(row) }) }, changed: true };
-    }
-
-    private removeRow(addOnId: string): void {
-        this.groups = this.groups.map((group) => ({
-            ...group,
-            sources: group.sources.map((source) => ({
-                ...source,
-                addOns: source.addOns.filter(({ id }) => id !== addOnId),
-            })),
-        }));
     }
 
     private rows(): AddOnPayload[] {

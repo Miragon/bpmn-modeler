@@ -4,6 +4,9 @@ import { FormFileQuery } from "@miragon/bpmn-modeler-shared";
 
 import { createTestHost, TestHost } from "../../../testing";
 import { FormModelerService } from "./FormModelerService";
+import { JsonFormTextEdits } from "../adapter/out/JsonFormTextEdits";
+import { PendingEditsFlush } from "../../../editorSession/service/PendingEditsFlush";
+import { DocumentFlushService } from "../../../editorSession/service/DocumentFlushService";
 
 const PATH = "/work/request.form";
 const FORM = '{"components":[],"type":"default","id":"Form_Request"}';
@@ -11,7 +14,17 @@ const FORM = '{"components":[],"type":"default","id":"Form_Request"}';
 function createService(content: string) {
     const host = createTestHost();
     const editor = host.openEditor(PATH, content);
-    const service = new FormModelerService(host.store, host.documents, host.notifier);
+    const pendingEdits = new PendingEditsFlush(
+        host.store,
+        new DocumentFlushService(host.store, host.notifier),
+        host.notifier,
+    );
+    const service = new FormModelerService(host.store, host.documents, host.notifier, {
+        picker: host.picker,
+        pendingEdits,
+        textEdits: new JsonFormTextEdits(),
+    });
+    pendingEdits.serve(".form", service);
     service.registerSession(editor.id);
     return { service, host, editor };
 }
@@ -41,7 +54,11 @@ describe("FormModelerService", () => {
 
         expect(await service.display(editor.id)).toBe(true);
         expect(JSON.parse(editor.content)).toEqual(
-            expect.objectContaining({ id: expect.stringMatching(/^Form_[A-Za-z0-9]{8}$/) }),
+            expect.objectContaining({
+                id: expect.stringMatching(/^Form_[A-Za-z0-9]{8}$/),
+                executionPlatform: "Camunda Cloud",
+                executionPlatformVersion: "8.10.0",
+            }),
         );
         expect(editor.saveCount).toBe(1);
         expect(editor.posted).toEqual([new FormFileQuery(editor.content)]);

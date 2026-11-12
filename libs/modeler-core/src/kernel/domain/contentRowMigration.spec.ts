@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import { Allowance, allowanceOf, allowanceRowOf } from "./allowance";
 import { CodeApproval } from "./codeApproval";
-import { contentRowMigrationOf, contentRowsToLocate } from "./contentRowMigration";
+import {
+    contentRowMigrationLogLine,
+    contentRowMigrationOf,
+    contentRowsToLocate,
+} from "./contentRowMigration";
 import { CodeOrigin } from "./repositoryIdentity";
 
 const MAIN: CodeOrigin = {
@@ -88,6 +92,13 @@ describe("contentRowMigrationOf", () => {
             change: undefined,
         },
         {
+            behaviour:
+                "leaves a content row located on a remote host, given maybe on another machine",
+            rows: [pluginRow(MAIN_PLUGIN)],
+            located: [[MAIN_PLUGIN, allowanceOf("plugin", MAIN_PLUGIN, MAIN, "ssh-remote+box")]],
+            change: undefined,
+        },
+        {
             behaviour: "changes nothing without a content row",
             rows: [allowanceRowOf(pluginAllowance)],
             located: [],
@@ -95,5 +106,20 @@ describe("contentRowMigrationOf", () => {
         },
     ])("$behaviour", ({ rows, located, change }) => {
         expect(contentRowMigrationOf(rows, new Map(located))).toEqual(change);
+    });
+});
+
+describe("contentRowMigrationLogLine", () => {
+    it.each([
+        {
+            rewritten: 1,
+            line: "Approvals: rewrote 1 approval pinned to content as an allowance of its add-on, later changes included.",
+        },
+        {
+            rewritten: 3,
+            line: "Approvals: rewrote 3 approvals pinned to content as allowances of their add-ons, later changes included.",
+        },
+    ])("logs $rewritten rewritten rows", ({ rewritten, line }) => {
+        expect(contentRowMigrationLogLine(rewritten)).toBe(line);
     });
 });

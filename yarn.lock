@@ -3231,6 +3231,7 @@ __metadata:
   dependencies:
     "@miragon/architecture-testing": "workspace:*"
     "@miragon/bpmn-modeler-diff": "workspace:*"
+    "@miragon/bpmn-modeler-i18n-extras": "workspace:*"
     "@miragon/bpmn-modeler-shared": "workspace:*"
     "@miragon/bpmn-modeler-types": "workspace:*"
     "@miragon/bpmnlint-plugin-rules": "npm:0.22.0"
@@ -3243,6 +3244,7 @@ __metadata:
     bpmn-moddle: "npm:10.3.1"
     bpmnlint: "npm:12.0.0"
     camunda-bpmn-moddle: "npm:8.0.2"
+    jsonc-parser: "npm:3.3.1"
     tslib: "npm:2.9.1"
     typescript: "npm:@typescript/typescript6@6.0.2"
     vite: "npm:8.3.6"

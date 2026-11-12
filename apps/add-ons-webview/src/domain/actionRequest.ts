@@ -12,7 +12,6 @@ export type ActionKindPayload =
 type RequestOf = (targetId: string, revision: number) => AddOnRequestPayload;
 
 const REQUEST_OF: Record<ActionKindPayload, RequestOf> = {
-    inspect: (addOnId) => ({ kind: "inspect", addOnId }),
     allow: (addOnId, revision) => ({ kind: "allow", addOnId, revision }),
     revoke: (addOnId) => ({ kind: "revoke", addOnId }),
     enable: (addOnId) => ({ kind: "enable", addOnId }),
