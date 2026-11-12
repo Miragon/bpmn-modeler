@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.23.0](https://github.com/Miragon/bpmn-modeler/compare/vscode-v1.22.0...vscode-v1.23.0) (2026-11-12)
+
+
+### 🎉 New Features
+
+* **standalone:** offer a portable windows zip without installer ([#2367](https://github.com/Miragon/bpmn-modeler/issues/2367)) [sync 1e08ae2] ([93e160f](https://github.com/Miragon/bpmn-modeler/commit/93e160f5ccab5521b5dcf2b74d98f4987470425f))
+
 ## [1.22.0](https://github.com/Miragon/bpmn-modeler/compare/vscode-v1.21.0...vscode-v1.22.0) (2026-11-12)
 
 
