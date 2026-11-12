@@ -5,6 +5,7 @@
 const path = require("path");
 const { existsSync } = require("fs");
 const { app } = require("electron");
+const { StandaloneInstallation } = require("./standalone-installation");
 
 const isInsideAsar = __dirname.includes(".asar");
 const bundledPluginsDir = isInsideAsar
@@ -13,7 +14,7 @@ const bundledPluginsDir = isInsideAsar
 
 process.env.THEIA_DEFAULT_PLUGINS = `local-dir:${bundledPluginsDir}`;
 
-if (app.isPackaged && !process.env.FLATPAK_ID) {
+if (StandaloneInstallation.of(app).receivesUpdates) {
     const { autoUpdater } = require("electron-updater");
     app.whenReady().then(() => {
         autoUpdater.checkForUpdatesAndNotify().catch((err) => {

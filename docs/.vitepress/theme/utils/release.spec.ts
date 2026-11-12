@@ -10,6 +10,7 @@ import {
     ARM64_URL,
     INTEL_URL,
     WIN_EXE_URL,
+    WIN_ZIP_URL,
     FLATPAK_X86_64_URL,
     standaloneFull,
     standaloneArm64Only,
@@ -29,6 +30,7 @@ describe("parseStandaloneRelease", () => {
             dmgArm64Url: ARM64_URL,
             dmgIntelUrl: INTEL_URL,
             exeX64Url: WIN_EXE_URL,
+            zipX64Url: WIN_ZIP_URL,
             flatpakX86_64Url: FLATPAK_X86_64_URL,
             releasePageUrl:
                 "https://github.com/Miragon/bpmn-modeler/releases/tag/vscode-v0.9.2",
@@ -57,6 +59,11 @@ describe("parseStandaloneRelease", () => {
     it("exposes the Windows exe when present, null otherwise", () => {
         expect(parseStandaloneRelease(standaloneFull)!.exeX64Url).toBe(WIN_EXE_URL);
         expect(parseStandaloneRelease(standaloneArm64Only)!.exeX64Url).toBeNull();
+    });
+
+    it("exposes the portable Windows zip when present, null otherwise", () => {
+        expect(parseStandaloneRelease(standaloneFull)!.zipX64Url).toBe(WIN_ZIP_URL);
+        expect(parseStandaloneRelease(standaloneArm64Only)!.zipX64Url).toBeNull();
     });
 
     it("exposes the x86_64 Flatpak when present, null otherwise", () => {

@@ -1,7 +1,7 @@
 name: Publish Standalone
 
 # Builds the VS Code extension once on Linux, then packages the desktop app on
-# each target OS (macOS DMG, Windows NSIS .exe, Linux Flatpak). Native modules
+# each target OS (macOS DMG, Windows NSIS .exe and zip, Linux Flatpak). Native modules
 # must be compiled against each platform's Node ABI, so every packaging job
 # runs on its own runner — no cross-compilation.
 #
@@ -11,8 +11,9 @@ name: Publish Standalone
 #
 # In workflow_call mode the workflow exposes the DMG's sha256 and filename
 # so the homebrew job can skip re-downloading the ~150 MB DMG. The Windows
-# artifact ships to the GitHub Release directly and feeds electron-updater
-# (latest.yml) on next launch. Flatpak updates remain manual, so its bundle is
+# installer ships to the GitHub Release directly and feeds electron-updater
+# (latest.yml) on next launch; the portable zip is attached only to the
+# versioned GitHub Release, because electron-updater cannot update it. Flatpak updates remain manual, so its bundle is
 # attached only to the versioned GitHub Release.
 
 on:
@@ -247,7 +248,7 @@ jobs:
           gh release upload standalone-latest "${FILES[@]}" --clobber
 
   package-windows:
-    name: Package NSIS installer (Windows)
+    name: Package NSIS installer and zip (Windows)
     runs-on: windows-2022
     needs: build-vsix
     defaults:
@@ -282,12 +283,12 @@ jobs:
       - name: Bundle extension into standalone plugins/
         run: yarn workspace @miragon/bpmn-modeler-standalone bundle
 
-      - name: Build NSIS installer
+      - name: Build NSIS installer and zip
         run: yarn workspace @miragon/bpmn-modeler-standalone run package
         env:
           NODE_OPTIONS: --max-old-space-size=8192
 
-      - name: Upload NSIS artifact (dry-run)
+      - name: Upload Windows artifacts (dry-run)
         if: inputs.dry-run == true
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -296,6 +297,7 @@ jobs:
             apps/standalone/dist/*.exe
             apps/standalone/dist/*.exe.blockmap
             apps/standalone/dist/latest.yml
+            apps/standalone/dist/*.zip
           retention-days: 7
 
       - name: Upload artifacts to release
@@ -313,9 +315,9 @@ jobs:
           if [ "${#FILES[@]}" -eq 0 ]; then
             echo "No artifacts found in apps/standalone/dist/." && exit 1
           fi
-          gh release upload "$TAG" "${FILES[@]}" --clobber
+          gh release upload "$TAG" "${FILES[@]}" apps/standalone/dist/*.zip --clobber
 
-          # Mirror the same artifacts onto the rolling `standalone-latest`
+          # Mirror the updater artifacts (not the zip) onto the rolling `standalone-latest`
           # prerelease — the fixed feed electron-updater reads (see
           # electron-builder.yml `publish`). Prerelease so it never becomes the
           # repo's /releases/latest; create-if-missing tolerates the race with

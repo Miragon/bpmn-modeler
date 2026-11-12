@@ -36,6 +36,7 @@ const macAltUrl = computed(() => release.value?.dmgIntelUrl ?? null);
 
 // Windows and Linux packages ride along with the macOS DMG on the same release.
 const winUrl = computed(() => release.value?.exeX64Url ?? RELEASES_URL);
+const winPortableUrl = computed(() => release.value?.zipX64Url ?? RELEASES_URL);
 const linuxUrl = computed(() => release.value?.flatpakX86_64Url ?? RELEASES_URL);
 
 const platforms = computed<Platform[]>(() => [
@@ -62,6 +63,13 @@ const platforms = computed<Platform[]>(() => [
         format: "Installer (.exe)",
         icon: WindowsIcon,
         url: winUrl.value,
+        external: false,
+    },
+    {
+        name: "Windows (portable)",
+        format: "Zip, no installer",
+        icon: WindowsIcon,
+        url: winPortableUrl.value,
         external: false,
     },
     {

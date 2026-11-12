@@ -24,6 +24,7 @@ users to install a full development SDK or allowing host-command execution.
 - [Packing and publishing](#packing-and-publishing)
 - [Standalone Linux Git](#standalone-linux-git)
 - [Standalone built-in languages](#standalone-built-in-languages)
+- [Standalone Windows packages](#standalone-windows-packages)
 - [Consequences](#consequences)
 
 ## Decision
@@ -252,6 +253,17 @@ preparation after resolving the remaining members. Keep all other download
 errors fatal rather than enabling `--ignore-errors`. Recheck these exclusions
 when updating the pack.
 
+### Standalone Windows packages
+
+Users without administrator rights or with managed machines need the app
+without running an installer. Ship Windows as an NSIS installer and as a zip of
+the unpacked app, as Camunda Modeler does. Attach the zip only to the versioned
+release, not to the `standalone-latest` updater feed. electron-updater on
+Windows installs the NSIS build, so the app checks for updates only when the
+NSIS uninstaller sits next to its executable; the
+[installation test](../../apps/standalone/scripts/standalone-installation.test.mjs) guards
+that check and the targets.
+
 ## Consequences
 
 Packages retain separate version lines while bundled feature/fix changes reach
@@ -283,6 +295,9 @@ Theia-compatible versions at download time, so the pin alone does not make
 plugin downloads reproducible. Syntax grammars do not imply full language-server
 support. Prompt-file support and terminal suggestions from the two unavailable
 extensions do not ship; the selected common language grammars remain included.
+
+The Windows zip runs without installation but updates only by downloading a
+newer zip. It does not register file associations.
 
 Operational instructions live in the
 [release guide](../vscode/contributing/release-process.md); architecture and
