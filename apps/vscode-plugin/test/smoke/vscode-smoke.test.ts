@@ -50,7 +50,7 @@ const PLUGIN_NAME = "Smoke trace";
 const PLUGIN_NOTICE = "1 BPMN plugin in this workspace is not allowed yet.";
 /** The Add-ons view's frame, which tells its page from the Deploy view's. */
 const ADD_ONS_VIEW = 'main[aria-label="Add-ons"]';
-const REVIEW_FACTS = ["Folder", "Covers", "Content hash"];
+const REVIEW_FACTS = ["Folder", "Allowed in"];
 const PLUGIN_BADGE_COLOR = "rgb(255, 0, 255)";
 const OPEN_TIMING_ROUNDS = 3;
 
@@ -1642,7 +1642,7 @@ describe("the packaged extension in a real VS Code", () => {
             // Allow ends the review, so Tab reaches it from the heading or the row.
             const allow = detail
                 .locator(".av-review-end")
-                .getByRole("button", { name: "Allow this content" });
+                .getByRole("button", { name: "Allow", exact: true });
             for (let presses = 0; presses < 10 && !(await isFocused(allow)); presses++) {
                 await page().keyboard.press("Tab");
             }

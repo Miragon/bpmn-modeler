@@ -1,6 +1,7 @@
 package io.miragon.intellij.bpmn.bridge
 
 import com.google.gson.Gson
+import com.intellij.ide.impl.isTrusted
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.project.Project
 import com.intellij.util.concurrency.AppExecutorUtil
@@ -22,6 +23,7 @@ import java.util.concurrent.Executor
  * @param notifications Lazy host UI surface; constructed on first error/notifier.
  * @param credentialStoreExecutor Runs every PasswordSafe request, see
  *   [orderedCredentialStoreExecutor]; routers reach it only through [credentialStoreAction].
+ * @param projectTrust The project's trust, which the register frame and the trust pushes carry.
  */
 internal class BridgeDeps(
     val project: Project,
@@ -33,6 +35,7 @@ internal class BridgeDeps(
     val parentDisposable: Disposable,
     val notifications: Lazy<HostNotifications>,
     private val credentialStoreExecutor: Executor,
+    val projectTrust: ProjectTrust = ProjectTrust { project.isTrusted() },
 ) {
     /** The [RpcAction] for a request whose [work] calls PasswordSafe. */
     fun credentialStoreAction(method: String, work: () -> RpcResult?): RpcAction =

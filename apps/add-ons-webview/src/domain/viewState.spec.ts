@@ -227,60 +227,19 @@ describe("nextViewState", () => {
             expect([state.banner, focus]).toEqual([{ tone: "alert", text: "Stale." }, undefined]);
         });
 
-        it("focuses the review a read offers once a model holds it", () => {
-            const read = after([
+        it("focuses the selection's neighbour when the model after a revoke no longer lists the row", () => {
+            const revoked = after([
                 shown(),
-                { kind: "actionChosen", actionKind: "inspect", targetId: ACME.id },
-                {
-                    kind: "resultArrived",
-                    requestId: 1,
-                    result: { kind: "done", message: "Read it." },
-                },
-            ]);
-            const withReview = withRevision(11, {
-                ...CATALOG,
-                groups: [
-                    {
-                        ...CATALOG.groups[0],
-                        sources: [
-                            CONFIG_SOURCE,
-                            {
-                                ...CATALOG.groups[0].sources[1],
-                                addOns: [{ ...ACME, review: RESIZE.review }],
-                            },
-                        ],
-                    },
-                    CATALOG.groups[1],
-                ],
-            });
-
-            const { focus } = nextViewState(read.state, shown(withReview));
-
-            expect([read.focus, focus]).toEqual([undefined, { kind: "review", addOnId: ACME.id }]);
-        });
-
-        it("focuses the row when the model after a read offers no review", () => {
-            const read = after([
-                shown(),
-                { kind: "actionChosen", actionKind: "inspect", targetId: ACME.id },
+                { kind: "addOnSelected", addOnId: PALETTE.id },
+                { kind: "actionChosen", actionKind: "revoke", targetId: PALETTE.id },
+                shown(without(PALETTE.id, withRevision(11))),
                 { kind: "resultArrived", requestId: 1, result: { kind: "done" } },
             ]);
 
-            expect(nextViewState(read.state, shown(withRevision(11))).focus).toEqual({
-                kind: "head",
-                headId: ACME.id,
-            });
-        });
-
-        it("focuses the selection's neighbour when the model after a read no longer lists the row", () => {
-            const read = after([
-                shown(),
-                { kind: "addOnSelected", addOnId: ACME.id },
-                { kind: "actionChosen", actionKind: "inspect", targetId: ACME.id },
-                { kind: "resultArrived", requestId: 1, result: { kind: "done" } },
-            ]);
-
-            const { state, focus } = nextViewState(read.state, shown(without(ACME.id)));
+            const { state, focus } = nextViewState(
+                revoked.state,
+                shown(without(PALETTE.id, withRevision(12))),
+            );
 
             expect([focus, state.awaitingFocus]).toEqual([
                 { kind: "head", headId: RESIZE.id },
@@ -288,29 +247,31 @@ describe("nextViewState", () => {
             ]);
         });
 
-        it("waits for the review while the model stays the same", () => {
-            const read = after([
+        it("waits for the row while the model stays the same", () => {
+            const revoked = after([
                 shown(),
-                { kind: "actionChosen", actionKind: "inspect", targetId: ACME.id },
+                { kind: "actionChosen", actionKind: "revoke", targetId: PALETTE.id },
+                shown(without(PALETTE.id, withRevision(11))),
                 { kind: "resultArrived", requestId: 1, result: { kind: "done" } },
                 { kind: "toggled", key: CONFIG_SOURCE.id },
             ]);
 
-            expect([read.focus, read.state.awaitingFocus]).toEqual([
+            expect([revoked.focus, revoked.state.awaitingFocus]).toEqual([
                 undefined,
-                { kind: "review", addOnId: ACME.id },
+                { kind: "head", headId: PALETTE.id },
             ]);
         });
 
         it("ends the wait with no focus when nothing is left to take it", () => {
-            const read = after([
+            const revoked = after([
                 shown(),
-                { kind: "actionChosen", actionKind: "inspect", targetId: ACME.id },
+                { kind: "actionChosen", actionKind: "revoke", targetId: PALETTE.id },
+                shown(without(PALETTE.id, withRevision(11))),
                 { kind: "resultArrived", requestId: 1, result: { kind: "done" } },
             ]);
-            const nothing = { ...CATALOG, revision: 11, groups: [] };
+            const nothing = { ...CATALOG, revision: 12, groups: [] };
 
-            const { state, focus } = nextViewState(read.state, shown(nothing));
+            const { state, focus } = nextViewState(revoked.state, shown(nothing));
 
             expect([focus, state.awaitingFocus]).toEqual([undefined, undefined]);
         });

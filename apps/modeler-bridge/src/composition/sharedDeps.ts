@@ -1,7 +1,10 @@
 import {
+    AllowanceLocator,
     ArtifactService,
+    ContentRowMigration,
     DocumentFlushService,
     EditorSessionStore,
+    LOCAL_HOST,
     PendingEditsFlush,
     QuestionQueue,
 } from "@miragon/bpmn-modeler-core";
@@ -15,7 +18,9 @@ import { RpcPicker } from "../kernel/adapter/out/RpcPicker";
 import { RpcStatusBar } from "../kernel/adapter/out/RpcStatusBar";
 import { RpcTemplatePreferenceStore } from "../kernel/adapter/out/RpcTemplatePreferenceStore";
 import { BridgeSettings } from "../kernel/adapter/out/BridgeSettings";
+import { HostWorkspaceTrust } from "../kernel/adapter/out/HostWorkspaceTrust";
 import { NodeWorkspace } from "../kernel/adapter/out/NodeWorkspace";
+import { NodeInstalledPackages } from "../modeler/bpmn/adapter/out/NodeInstalledPackages";
 import { Rpc } from "../transport/adapter/out/Rpc";
 
 /**
@@ -55,6 +60,15 @@ export interface BridgeSharedDeps {
     artifactSvc: ArtifactService;
     flushSvc: DocumentFlushService;
     pendingEdits: PendingEditsFlush;
+    /** The one reader of installed packages and git files, for the plugins, the rule packages and the allowances. */
+    installedPackages: NodeInstalledPackages;
+    allowances: AllowanceLocator;
+    contentRows: ContentRowMigration;
+    /**
+     * Seeded by `session/register`, so it is shared with the editor-session
+     * feature; the plugins, the rule packages and the add-on catalog read it.
+     */
+    workspaceTrust: HostWorkspaceTrust;
 }
 
 /**
@@ -89,6 +103,10 @@ export function buildSharedDeps(
     const artifactSvc = new ArtifactService(nodeWorkspace, settings, notifier);
 
     const flushSvc = new DocumentFlushService(store, notifier);
+    const pluginApprovals = new RpcPluginApprovalStore(rpc);
+    const installedPackages = new NodeInstalledPackages();
+    // The bridge runs on the machine that holds the project files.
+    const allowances = new AllowanceLocator(installedPackages, LOCAL_HOST);
 
     return {
         rpc,
@@ -101,12 +119,16 @@ export function buildSharedDeps(
         settings,
         picker,
         actionNotifier: new RpcActionNotifier(rpc),
-        pluginApprovals: new RpcPluginApprovalStore(rpc),
+        pluginApprovals,
         templatePreferences: new RpcTemplatePreferenceStore(rpc),
         approvalQuestions: new QuestionQueue(),
         store,
         artifactSvc,
         flushSvc,
         pendingEdits: new PendingEditsFlush(store, flushSvc, notifier),
+        installedPackages,
+        allowances,
+        contentRows: new ContentRowMigration(pluginApprovals, allowances, notifier),
+        workspaceTrust: new HostWorkspaceTrust(),
     };
 }

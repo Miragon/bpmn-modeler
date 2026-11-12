@@ -13,7 +13,13 @@ import { join } from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
-import { approvedContent, PluginApproval } from "@miragon/bpmn-modeler-core";
+import {
+    allowanceOf,
+    allowanceRowOf,
+    approvedContent,
+    LOCAL_HOST,
+    PluginApproval,
+} from "@miragon/bpmn-modeler-core";
 
 import {
     hostNotification,
@@ -83,7 +89,9 @@ async function openPluginEditor() {
             }),
         );
     await bridge.rpc.handleLine(register([], 1));
-    const allowed: PluginApproval[] = [{ pluginId, contentHash: HASH }];
+    const allowed: PluginApproval[] = [
+        allowanceRowOf(allowanceOf("plugin", pluginId, { kind: "noRepository" }, LOCAL_HOST)),
+    ];
     return { rpc: bridge.rpc, frames, editorId, register, allowed };
 }
 

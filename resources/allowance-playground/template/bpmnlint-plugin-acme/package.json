@@ -1,0 +1,6 @@
+{
+    "name": "bpmnlint-plugin-acme",
+    "version": "1.0.0",
+    "private": true,
+    "description": "A bpmnlint rule package for the allowance playground; its rule reports the version that runs."
+}

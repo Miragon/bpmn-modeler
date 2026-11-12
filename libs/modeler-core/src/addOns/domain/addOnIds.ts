@@ -1,5 +1,7 @@
+import { ALLOWANCE_KINDS } from "../../kernel/domain/approvalRowKind";
+
 /** The add-ons that run code, which a user allows and revokes. */
-export const CODE_ADD_ON_KINDS = ["plugin", "rulePackage"] as const;
+export const CODE_ADD_ON_KINDS = ALLOWANCE_KINDS;
 
 export type CodeAddOnKind = (typeof CODE_ADD_ON_KINDS)[number];
 
@@ -20,7 +22,7 @@ export const TEMPLATE_STATES = ["enabled", "disabled"] as const;
 
 export type TemplateState = (typeof TEMPLATE_STATES)[number];
 
-export const ADD_ON_ACTION_KINDS = ["inspect", "allow", "revoke", "enable", "disable"] as const;
+export const ADD_ON_ACTION_KINDS = ["allow", "revoke", "enable", "disable"] as const;
 
 export type AddOnActionKind = (typeof ADD_ON_ACTION_KINDS)[number];
 

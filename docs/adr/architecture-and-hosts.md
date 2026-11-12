@@ -124,7 +124,7 @@ of `addOns/`: `PluginAddOnSource` by `PluginInventory` in
 `template-marketplace/service/`, which `createMarketplaceCommands` builds over
 the host's `MarketplaceCommands`. The host compositions hand one to the other,
 as they hand `CachedTemplateProvider` to the BPMN editor. The values both
-sides name live in `kernel/domain/`: `ListedPresence` and
+sides name live in `kernel/domain/`: `ListedPresence` in `listedCode.ts`,
 `ApprovableCodeTexts` in `codeApproval.ts`, the template file listing in
 `templateListing.ts` and the marketplace listing in `marketplaceListing.ts`,
 from which the catalog derives its own view with the templates read. The context is
@@ -299,7 +299,7 @@ module, `src/domain/chromeTexts.ts`: they name the view's controls and
 summaries, which the core's model does not have, as "Loading…" does, and one
 module keeps them from scattering into adapters where a reviewer cannot tell
 them from model text. A row's "Needs review" is read from what the core
-offers (Allow or Review…), never from a rule of its own, and the detail shows
+offers (Allow), never from a rule of its own, and the detail shows
 the core's state text. Every other text comes from the core, which also sends
 `emptyText`, why no folder lists an add-on, whenever the workspace has none,
 marketplaces or not.
@@ -564,7 +564,14 @@ in-memory fake included, as `describeWorkspaceContract` runs against
 `InMemoryWorkspace`, `NodeWorkspace` and `VsCodeWorkspace`; a port that only
 renders and a strategy the core chooses between need none. The
 [`contract-suites`](engineering-practices.md#contract-suites) report lists the
-adapters that run no suite of their port. Inbound
+adapters that run no suite of their port. Each host process builds one
+`NodeInstalledPackages`, one `AllowanceLocator` and one `ContentRowMigration`
+in its shared dependencies (`composition/sharedDeps.ts`): the plugins and the
+rule packages get the same locator over that reader, and they and the add-ons
+the same migration, so every feature locates an allowance the same way and waits
+on the same run
+([allowance per repository and add-on](bpmn-modeler.md#allowance-per-repository-and-add-on)).
+Inbound
 adapters never import outbound ones (rule 6 of the
 [role folders](#workspace-kinds-and-role-folders)): a VS Code controller gets a
 port (`ModelerPreferences`), a factory (`EditorHandleFactory`,
@@ -1427,9 +1434,10 @@ keeps explicit local mirrors with these ownership rules:
 | Documents, keyed by editor | `session/register`, then `document/didChange` | Host Document; bridge writes are accepted by the host before its content becomes authoritative |
 | Settings snapshot | Settings in `session/register`, then `settings/didChange` after a change and after each spawn, since a register queued before the spawn read them early and a push while it started was dropped | Host only; one shared snapshot fans changes out to editors |
 | Deployment state | `deploymentState/seed` with what the host stored, then `deploymentState/save` patches | Host; a bridge patch reaches the snapshot only after the host accepted it |
-| Plugin approvals (bpmn-js plugins and bpmnlint rule packages) | `pluginApprovals` with `pluginApprovalsRevision` in `session/register`, then `pluginApprovals/didChange` with its `revision`, which every running bridge of the IDE gets after any `pluginApprovals/change` and each bridge after its spawn; `pluginApprovals/read` answers the stored list | Host (`PluginApprovalStore`, application level): a bridge sends only the rows to allow and the ids to revoke, and the host merges them under one lock and bumps the revision. The mirror keeps only a newer revision, the change's answer included |
+| Plugin approvals (bpmn-js plugins and bpmnlint rule packages; each row is an allowance, `allowance-v1:<kind>`, or a 1.21.0 row pinned to content, and the protocol carries both unchanged) | `pluginApprovals` with `pluginApprovalsRevision` in `session/register`, then `pluginApprovals/didChange` with its `revision`, which every running bridge of the IDE gets after any `pluginApprovals/change` and each bridge after its spawn; `pluginApprovals/read` answers the stored list | Host (`PluginApprovalStore`, application level): a bridge sends only the rows to allow and the ids to revoke, and the host merges them under one lock and bumps the revision. The mirror keeps only a newer revision, the change's answer included |
 | Workspace roots | `session/register`'s `workspaceRoot`, counted per session and released with it; `addOns/open`'s, claimed once per process, re-sent after every spawn and never released, so the add-ons view lists the project after its last editor closed. `addOns/open` carries the settings, as a register does, since one queued while the bridge was down reaches the new process before the spawn's `settings/didChange` | Host: `project.basePath` in IntelliJ, or the file's folder for a session without one; an `addOns/open` without it lists no folder |
 | Template switches (element templates and their sources turned off per user) | `templatePreferences` in `session/register`: both scopes, each with its own `revision`. Then `templatePreferences/didChange` with both again, which every running bridge of the IDE gets after an `allProjects` change, only the project's own bridge after a `project` change, and each bridge after its spawn, since a register queued before the spawn read them early and a push while it started was dropped; `templatePreferences/read` answers both stored lists. The add-on catalog reads `readStored` for every listing, so it needs no seed; the editor reads the seeded mirror when it sends its templates | Host. IntelliJ: `ProjectTemplatePreferenceStore` (project `PropertiesComponent`, so `.idea/workspace.xml`, per user) for `project` and `TemplatePreferenceStore` (application `PropertiesComponent`) for `allProjects`, one key each. A bridge sends the switches to disable and to enable for one scope; the store of that scope merges them under its lock with the Kotlin `templatePreferencesAfter`, held to `templatePreferenceChange.cases.json`, and bumps its revision, and the host pushes before it answers. The mirror keeps only a newer revision per scope, the change's answer included. VS Code (`VsCodeTemplatePreferenceStore`): `workspaceState` for `project` and `globalState` for `allProjects`, on this machine only (no `setKeysForSync`), merged on a queue; another window's write arrives through `readStored` when the window gains focus |
+| Workspace trust (whether the user trusts the project, so its plugins and rule packages may run) | `workspaceTrust` (`trusted`, `revision`) in `session/register`, then `workspaceTrust/didChange` with both after each spawn and whenever IntelliJ's `TrustedProjectsListener` announces a change of any project's trust, and before **Refresh** of the Add-ons tab, since adding a Trusted Location announces nothing. Untrusted until the first frame | Host: `Project.isTrusted()` (`com.intellij.ide.impl`), read with a new revision under one lock (`ProjectTrust`), so a newer revision never carries an older read. The mirror keeps only a newer revision and tells its listeners only when the value changes |
 
 Apply settings before initial artifact discovery. Seed every synchronous mirror
 before its first consumer, and re-seed on process restart; mirrors do not
@@ -1443,7 +1451,8 @@ can arrive after a newer push. The approvals therefore carry a host revision,
 read together with the list, on every frame that carries a list, and the mirror
 ignores an older one. The template switches do the same per scope: the two
 scopes live in different stores, so one revision each, and a frame's older
-scope never replaces a newer one while its newer scope still applies. The host holds no lock while it queues the frames and
+scope never replaces a newer one while its newer scope still applies. The
+workspace trust carries one revision per read too. The host holds no lock while it queues the frames and
 does not coalesce them: two projects' changes queue from their own threads, so
 a frame queued later can carry the older revision and must not replace the
 newer one. The
@@ -1598,7 +1607,7 @@ a cached result must equal an uncached run.
   still watches, because a change there would otherwise go unnoticed.
   Accepted cost: a marketplace update made by another window is not seen while
   editors of this process stay open.
-- **BPMN plugin copies.** `BpmnPluginService` copies the approved bytes into
+- **BPMN plugin copies.** `BpmnPluginService` copies the bytes of an allowed plugin into
   a content-addressed folder on disk, which every process of the host shares
   (IntelliJ: one per machine; VS Code: the extension's global storage), and
   keeps each copy per process once written. Last use owns the folder: each
@@ -1611,7 +1620,11 @@ a cached result must equal an uncached run.
   and that check leaves the plugin out once.
 - **Escalated lint setup.** `NodeBpmnLinter` keeps the moddle, the loaded
   moddle extensions and the resolved rules and configs per `.bpmnlintrc` path,
-  keyed by the config content. A changed config replaces the entry. Every run
+  keyed by the config content and the rule package rows. A changed config or
+  a changed row replaces the entry, and so does an admitted rule package whose
+  `package.json` stamps differently; the new setup then evicts the cached
+  modules within that package's `node_modules` (see
+  [Workspace rule packages](bpmn-modeler.md#workspace-rule-packages)). Every run
   still builds its own `Linter`, as [Linting](bpmn-modeler.md#linting) requires.
   Rules no resolver finds, and setups with a missing moddle extension, are not
   kept, so installing the package takes effect on the next run. Accepted cost:

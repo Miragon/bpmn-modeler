@@ -1,6 +1,6 @@
 import { LintResults } from "@miragon/bpmn-modeler-types";
 
-import { BlockedRulePackage, RulePackage } from "../domain/rulePackageApproval";
+import { BlockedRulePackage } from "../domain/rulePackageApproval";
 import { RefusedRuleModule } from "../domain/rulePackageRefusal";
 
 export interface LintRun {
@@ -12,8 +12,8 @@ export interface LintRun {
     readonly blocked: BlockedRulePackage[];
     /** Workspace code that may never run, with the reason. */
     readonly refused: RefusedRuleModule[];
-    /** Workspace rule packages an approval admitted, at the content they ran with. */
-    readonly admitted: readonly RulePackage[];
+    /** The user did not trust the workspace, so no workspace rule package was asked for. */
+    readonly untrusted?: boolean;
 }
 
 /**

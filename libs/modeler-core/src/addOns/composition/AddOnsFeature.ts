@@ -2,8 +2,16 @@ import { Command, Query } from "@miragon/bpmn-modeler-shared";
 
 import { ProcessRestart } from "../../kernel/domain/codeApproval";
 import { PluginApprovalStorePort } from "../../kernel/port/approvalPorts";
-import { LoggerPort, NotifierPort, SettingsPort, WorkspacePort } from "../../kernel/port/hostPorts";
+import { trustOrTrusted } from "../../kernel/adapter/out/TrustedWorkspace";
+import {
+    LoggerPort,
+    NotifierPort,
+    SettingsPort,
+    WorkspacePort,
+    WorkspaceTrustPort,
+} from "../../kernel/port/hostPorts";
 import { TemplatePreferenceStorePort } from "../../kernel/port/templatePreferencePorts";
+import { ContentRows } from "../../kernel/service/ContentRowMigration";
 import { RouteLookup } from "../../editorSession/service/WebviewMessageRouter";
 import { AddOnViewMessages } from "../adapter/in/AddOnViewMessages";
 import type { AddOnCatalogModel } from "../domain/addOnCatalogModel";
@@ -36,6 +44,8 @@ export interface AddOnsHostPorts {
     readonly settingChanges: SettingChanges;
     /** What the user does before code a revoked rule package ran is unloaded. */
     readonly restart: ProcessRestart;
+    /** A revoke waits for the start-up rewrite of rows pinned to content and takes the ones located to it. */
+    readonly contentRows: ContentRows;
     readonly plugins: PluginAddOnSource;
     /** Absent: the host runs no workspace rule package. */
     readonly rulePackages?: RulePackageAddOnSource;
@@ -45,6 +55,8 @@ export interface AddOnsHostPorts {
     readonly marketplaces?: MarketplaceAddOnSource;
     /** Absent: the host keeps no template switches, and the catalog offers none. */
     readonly templatePreferences?: TemplatePreferenceStorePort;
+    /** Absent: the host has no trust feature, and the workspace counts as trusted. */
+    readonly workspaceTrust?: WorkspaceTrustPort;
 }
 
 /**
@@ -69,8 +81,9 @@ export class AddOnsFeature {
             ports.notifier,
             () => undefined,
         );
+        const workspaceTrust = trustOrTrusted(ports.workspaceTrust);
         this.catalog = new AddOnCatalogService(
-            new AddOnInventoryReader(ports),
+            new AddOnInventoryReader({ ...ports, workspaceTrust }),
             new TemplateSwitchActions(ports.templatePreferences, ports.notifier),
             {
                 approvals: ports.approvals,
@@ -79,6 +92,7 @@ export class AddOnsFeature {
                 marketplaces: ports.marketplaces,
                 logger: ports.notifier,
                 restart: ports.restart,
+                contentRows: ports.contentRows,
             },
         );
         const invalidate = () => this.catalog.invalidate();
@@ -90,6 +104,7 @@ export class AddOnsFeature {
         );
         this.subscriptions = [
             ports.approvals.onDidChange(invalidate),
+            workspaceTrust.onDidChange(invalidate),
             ports.plugins.onDidChange(invalidate),
             ...[
                 ports.rulePackages,

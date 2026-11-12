@@ -1,111 +1,101 @@
-import { createHash } from "node:crypto";
-
 import { describe, expect, it } from "vitest";
 
-import {
-    codeApprovalChange,
-    declineKeyOf,
-    type FollowedApprovalChange,
-} from "../../../kernel/domain/codeApproval";
-import { createTestHost, InMemoryInstalledPackages } from "../../../testing";
+import { Allowance, allowanceKeyOf, allowanceRowOf } from "../../../kernel/domain/allowance";
+import { RULE_PACKAGE_CONTENT_HASH_PREFIX } from "../../../kernel/domain/approvalRowKind";
+import { codeApprovalChange, type CodeApprovalChange } from "../../../kernel/domain/codeApproval";
+import { createTestHost } from "../../../testing";
 import { BlockedRulePackage } from "../domain/rulePackageApproval";
-import { PackageClosureFingerprinter } from "./PackageClosureFingerprinter";
 import { RulePackageCatalog } from "./RulePackageCatalog";
 
-const ACME = "/work/node_modules/bpmnlint-plugin-acme";
-const OTHER = "/work/node_modules/bpmnlint-plugin-other";
 const WORK = "/work";
+const ACME = `${WORK}/node_modules/bpmnlint-plugin-acme`;
+const NESTED_ACME = `${WORK}/node_modules/x/node_modules/bpmnlint-plugin-acme`;
+const OTHER = `${WORK}/node_modules/bpmnlint-plugin-other`;
+
+const allowanceOfAddOn = (addOn: string): Allowance => ({
+    kind: "rulePackage",
+    host: "",
+    origin: { kind: "repository", path: `${WORK}/.git` },
+    addOn,
+});
+const ACME_ALLOWANCE = allowanceOfAddOn("node_modules/bpmnlint-plugin-acme");
+const OTHER_ALLOWANCE = allowanceOfAddOn("node_modules/bpmnlint-plugin-other");
 
 const blocked = (
     id: string,
     needed: boolean,
     state: BlockedRulePackage["state"] = "new",
-    kind: BlockedRulePackage["kind"] = "package",
-): BlockedRulePackage => ({ id, kind, state, needed });
+    allowance = id === OTHER ? OTHER_ALLOWANCE : ACME_ALLOWANCE,
+): BlockedRulePackage => ({
+    id,
+    name: id === OTHER ? "bpmnlint-plugin-other" : "bpmnlint-plugin-acme",
+    version: "1.2.0",
+    allowance,
+    kind: "package",
+    state,
+    needed,
+});
 
 function setUp() {
     const host = createTestHost({ folders: [WORK] });
-    const disk = new InMemoryInstalledPackages((bytes) =>
-        createHash("sha256").update(bytes).digest("hex"),
+    const catalog = new RulePackageCatalog(
+        host.pluginApprovals,
+        host.workspaceTrust,
+        host.notifier,
     );
-    const install = (dir: string, name: string, files: Record<string, string> = {}) => {
-        disk.writeFile(`${dir}/package.json`, JSON.stringify({ name, version: "1.2.0" }));
-        disk.writeFile(`${dir}/index.js`, `module.exports = "${name}";`);
-        Object.entries(files).forEach(([relPath, content]) =>
-            disk.writeFile(`${dir}/${relPath}`, content),
-        );
-    };
-    install(ACME, "bpmnlint-plugin-acme");
-    install(OTHER, "bpmnlint-plugin-other");
-    const fingerprinter = new PackageClosureFingerprinter(disk);
-    const catalog = new RulePackageCatalog(host.pluginApprovals, fingerprinter, host.notifier);
-    const contentHashOf = (id: string, kind: BlockedRulePackage["kind"] = "package") => {
-        const fingerprint = fingerprinter.fingerprint({ kind, id });
-        if (fingerprint.kind !== "fingerprinted") {
-            throw new Error(`refused: ${fingerprint.reason}`);
-        }
-        return fingerprint.rulePackage.contentHash;
-    };
-    return { host, disk, install, catalog, contentHashOf };
+    return { host, catalog };
 }
 
 describe("RulePackageCatalog", () => {
-    it("asks about the packages whose rules were skipped, named by their manifest", () => {
-        const { catalog, contentHashOf } = setUp();
+    it("asks about the packages whose rules were skipped, as the gate reported them", () => {
+        const { catalog } = setUp();
 
         const pending = catalog.stillPendingOf([blocked(ACME, true), blocked(OTHER, false)]);
 
-        expect(pending).toEqual([
-            {
-                artifact: {
-                    id: ACME,
-                    name: "bpmnlint-plugin-acme",
-                    version: "1.2.0",
-                    contentHash: contentHashOf(ACME),
-                },
-                state: "new",
-            },
-        ]);
+        expect(pending).toEqual([blocked(ACME, true)]);
     });
 
-    it("hashes the config's own package without its models, as the gate does", () => {
-        const { install, catalog, contentHashOf } = setUp();
-        install(WORK, "bpmnlint-plugin-self", { "order.bpmn": "<definitions/>" });
+    it("asks about no package in a workspace the user did not trust", () => {
+        const { host, catalog } = setUp();
+        host.workspaceTrust.setTrusted(false);
 
-        const [pending] = catalog.stillPendingOf([blocked(WORK, true, "new", "selfPackage")]);
-
-        expect(pending.artifact.contentHash).toBe(contentHashOf(WORK, "selfPackage"));
-        expect(pending.artifact.contentHash).not.toBe(contentHashOf(WORK, "package"));
+        expect(catalog.stillPendingOf([blocked(ACME, true)])).toEqual([]);
     });
 
-    it("keeps a checked package allowed with its content hash, beside the other approval kinds", async () => {
-        const { host, catalog, contentHashOf } = setUp();
-        const pluginRow = { pluginId: "/work/.camunda/plugins/resize", contentHash: "h1" };
+    it("asks once about a hoisted and a nested copy of one allowance", () => {
+        const { catalog } = setUp();
+
+        const pending = catalog.stillPendingOf([blocked(ACME, true), blocked(NESTED_ACME, true)]);
+
+        expect(pending.map(({ id }) => id)).toEqual([ACME]);
+    });
+
+    it("allows a checked package by its allowance, beside the other approval kinds", async () => {
+        const { host, catalog } = setUp();
+        const pluginRow = {
+            pluginId: "/work/.camunda/plugins/resize",
+            contentHash: "a".repeat(64),
+        };
         host.pluginApprovals.approvals = [pluginRow];
         const pending = catalog.stillPendingOf([blocked(ACME, true), blocked(OTHER, true)]);
 
         const allowed = await catalog.applyAnswer(pending, { kind: "checked", ids: [ACME] });
 
         expect(allowed.map(({ id }) => id)).toEqual([ACME]);
-        expect(host.pluginApprovals.approvals).toEqual([
-            pluginRow,
-            { pluginId: ACME, contentHash: contentHashOf(ACME) },
-        ]);
+        expect(host.pluginApprovals.approvals).toEqual([pluginRow, allowanceRowOf(ACME_ALLOWANCE)]);
         expect(host.notifier.logged("info")).toEqual([
-            "Allowed bpmnlint rule package(s): bpmnlint-plugin-acme",
+            "Allowed bpmnlint rule package(s): bpmnlint-plugin-acme@1.2.0",
         ]);
-        expect(catalog.stillPendingOf([blocked(ACME, true)])).toEqual([]);
+        expect(catalog.stillPendingOf([blocked(NESTED_ACME, true)])).toEqual([]);
     });
 
-    it("declines the unchecked packages for this session and tells the gate so", async () => {
-        const { catalog, contentHashOf } = setUp();
+    it("declines the unchecked packages by their allowance for this session and tells the gate so", async () => {
+        const { catalog } = setUp();
         const pending = catalog.stillPendingOf([blocked(ACME, true), blocked(OTHER, true)]);
 
         await catalog.applyAnswer(pending, { kind: "checked", ids: [ACME] });
 
-        expect([...catalog.declinedThisSession()]).toEqual([
-            declineKeyOf({ id: OTHER, name: OTHER, contentHash: contentHashOf(OTHER) }),
-        ]);
+        expect([...catalog.declinedThisSession()]).toEqual([allowanceKeyOf(OTHER_ALLOWANCE)]);
         expect(catalog.stillPendingOf([blocked(OTHER, true)])).toEqual([]);
     });
 
@@ -121,29 +111,15 @@ describe("RulePackageCatalog", () => {
         expect(catalog.stillPendingOf([blocked(ACME, true), blocked(OTHER, true)])).toEqual([]);
     });
 
-    it("hashes no package it left to the view again on a later lint", async () => {
-        const { host, disk } = setUp();
-        const fingerprinter = new PackageClosureFingerprinter(disk);
-        const fingerprinted: string[] = [];
-        const catalog = new RulePackageCatalog(
-            host.pluginApprovals,
-            {
-                fingerprint: (root) => {
-                    fingerprinted.push(root.id);
-                    return fingerprinter.fingerprint(root);
-                },
-            },
-            host.notifier,
+    it("leaves a package to the view by its allowance", () => {
+        const { catalog } = setUp();
+
+        catalog.leaveForView({ id: NESTED_ACME, allowance: ACME_ALLOWANCE });
+
+        expect(catalog.sessionAnswers()).toEqual(
+            new Map([[allowanceKeyOf(ACME_ALLOWANCE), "leftForView"]]),
         );
-        await catalog.applyAnswer(catalog.stillPendingOf([blocked(ACME, true)]), {
-            kind: "leftForView",
-        });
-
-        fingerprinted.length = 0;
-        const pending = catalog.stillPendingOf([blocked(ACME, true), blocked(OTHER, true)]);
-
-        expect(fingerprinted).toEqual([OTHER]);
-        expect(pending.map(({ artifact }) => artifact.id)).toEqual([OTHER]);
+        expect(catalog.stillPendingOf([blocked(ACME, true)])).toEqual([]);
     });
 
     it("writes nothing and logs nothing when the answer allowed no package", async () => {
@@ -158,106 +134,50 @@ describe("RulePackageCatalog", () => {
         expect(host.notifier.logged("info")).toEqual([]);
     });
 
-    it("asks again about a declined package once its content changed", async () => {
-        const { disk, catalog } = setUp();
-        await catalog.applyAnswer(catalog.stillPendingOf([blocked(ACME, true)]), {
-            kind: "checked",
-            ids: [],
-        });
-
-        disk.writeFile(`${ACME}/index.js`, "module.exports = 'changed';");
-
-        expect(catalog.stillPendingOf([blocked(ACME, true)]).map(({ state }) => state)).toEqual([
-            "new",
-        ]);
-    });
-
-    it("asks about a package changed since it was allowed as changed", () => {
+    it("asks about nothing a 1.21.0 row allows at its root", () => {
         const { host, catalog } = setUp();
         host.pluginApprovals.approvals = [
-            { pluginId: ACME, contentHash: "bpmnlint-closure-v1:old" },
+            { pluginId: ACME, contentHash: `${RULE_PACKAGE_CONTENT_HASH_PREFIX}old` },
         ];
 
-        const pending = catalog.stillPendingOf([blocked(ACME, true, "changed")]);
-
-        expect(pending.map(({ state }) => state)).toEqual(["changed"]);
-    });
-
-    it("never offers a package it cannot fingerprint, and logs why once", () => {
-        const { host, disk, catalog } = setUp();
-        disk.createSymbolicLink(`${ACME}/escape.js`, "/etc/passwd");
-
-        const first = catalog.stillPendingOf([blocked(ACME, true)]);
-        const second = catalog.stillPendingOf([blocked(ACME, true)]);
-
-        expect([first, second]).toEqual([[], []]);
-        expect(host.notifier.logged("warning")).toEqual([
-            `bpmnlint: rule package ${ACME} cannot be allowed: it links to files outside its folder.`,
-        ]);
+        expect(catalog.stillPendingOf([blocked(ACME, true)])).toEqual([]);
     });
 
     it("announces each change of the rule package rows, whoever made it", () => {
         const { host, catalog } = setUp();
-        const acme = { pluginId: ACME, contentHash: "bpmnlint-closure-v1:a1" };
-        const other = { pluginId: OTHER, contentHash: "bpmnlint-closure-v1:o1" };
+        const acme = allowanceRowOf(ACME_ALLOWANCE);
+        const other = allowanceRowOf(OTHER_ALLOWANCE);
         host.pluginApprovals.storeElsewhere([acme], { notify: true });
-        const changes: FollowedApprovalChange[] = [];
-        catalog.onApprovalsChanged((followed) => changes.push(followed));
+        const changes: CodeApprovalChange[] = [];
+        catalog.onApprovalsChanged((change) => changes.push(change));
 
         host.pluginApprovals.storeElsewhere([other], { notify: true });
         host.pluginApprovals.storeElsewhere(
-            [other, { pluginId: "/work/.camunda/plugins/resize", contentHash: "h1" }],
+            [other, { pluginId: "/work/.camunda/plugins/resize", contentHash: "a".repeat(64) }],
             { notify: true },
         );
 
-        expect(changes).toEqual([
-            { change: codeApprovalChange([other], [ACME]), withdrawn: [ACME] },
-        ]);
+        expect(changes).toEqual([codeApprovalChange([other], [acme.pluginId])]);
     });
 
-    it("announces a package allowed at another content as withdrawn", () => {
+    it("remembers every id revoked this session, allowance keys and content row places alike", () => {
         const { host, catalog } = setUp();
-        const acme = { pluginId: ACME, contentHash: "bpmnlint-closure-v1:a1" };
-        host.pluginApprovals.storeElsewhere([acme], { notify: true });
-        const changes: FollowedApprovalChange[] = [];
-        catalog.onApprovalsChanged((followed) => changes.push(followed));
+        const contentRow = { pluginId: ACME, contentHash: `${RULE_PACKAGE_CONTENT_HASH_PREFIX}a` };
+        const other = allowanceRowOf(OTHER_ALLOWANCE);
+        host.pluginApprovals.storeElsewhere([contentRow, other], { notify: true });
 
-        const rehashed = { ...acme, contentHash: "bpmnlint-closure-v1:a2" };
-        host.pluginApprovals.storeElsewhere([rehashed], { notify: true });
+        host.pluginApprovals.storeElsewhere([], { notify: true });
 
-        expect(changes).toEqual([
-            { change: codeApprovalChange([rehashed], []), withdrawn: [ACME] },
-        ]);
-    });
-
-    it("remembers the packages revoked this session, since code they ran stays loaded", () => {
-        const { host, catalog } = setUp();
-        host.pluginApprovals.storeElsewhere(
-            [
-                { pluginId: ACME, contentHash: "bpmnlint-closure-v1:a1" },
-                { pluginId: OTHER, contentHash: "bpmnlint-closure-v1:o1" },
-            ],
-            { notify: true },
-        );
-
-        host.pluginApprovals.storeElsewhere(
-            [{ pluginId: OTHER, contentHash: "bpmnlint-closure-v1:o1" }],
-            { notify: true },
-        );
-
-        expect(catalog.revokedThisSession()).toEqual(new Set([ACME]));
+        expect(catalog.revokedThisSession()).toEqual(new Set([ACME, other.pluginId]));
     });
 
     it("follows no approval change once disposed", () => {
         const { host, catalog } = setUp();
-        const changes: FollowedApprovalChange[] = [];
-        catalog.onApprovalsChanged((followed) => changes.push(followed));
+        const changes: CodeApprovalChange[] = [];
+        catalog.onApprovalsChanged((change) => changes.push(change));
 
         catalog.dispose();
-        host.pluginApprovals.storeElsewhere(
-            [{ pluginId: ACME, contentHash: "bpmnlint-closure-v1:a1" }],
-            { notify: true },
-        );
+        host.pluginApprovals.storeElsewhere([allowanceRowOf(ACME_ALLOWANCE)], { notify: true });
 
         expect(changes).toEqual([]);
     });

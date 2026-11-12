@@ -1,3 +1,4 @@
+import { Allowance, LOCAL_HOST, repositoryFolderOf } from "../../kernel/domain/allowance";
 import type { CodeState } from "../../kernel/domain/codeApproval";
 import { AddOnKind, TemplateState } from "./addOnIds";
 
@@ -16,16 +17,28 @@ export const TEMPLATE_SOURCE_DISABLED_NOTE = "Its source is disabled.";
 
 export const TEMPLATES_DISABLED_TEXT = "Templates disabled";
 
-/** What the owner says its code can do once allowed, shown before the user allows it. */
-export function allowWarningText(risk: string): string {
-    return `${risk} Allow it only if you trust it.`;
+const ALLOWANCE_COVERAGE_TEXT: Record<Allowance["origin"]["kind"], string> = {
+    repository: "covers it in every worktree of this repository",
+    folder: "covers this folder",
+};
+
+/** What the owner says its code can do once allowed, and how far an allow reaches, shown before the user allows it. */
+export function allowWarningText(risk: string, allowance: Allowance): string {
+    return `${risk} Allowing it ${ALLOWANCE_COVERAGE_TEXT[allowance.origin.kind]}, later changes included. Allow it only if you trust it.`;
+}
+
+export function allowedInText(allowance: Allowance): string {
+    const repository = repositoryFolderOf(allowance);
+    if (repository === undefined) {
+        return "this folder only";
+    }
+    const host = allowance.host === LOCAL_HOST ? "" : ` on ${allowance.host}`;
+    return `every worktree of ${repository}${host}`;
 }
 
 export const ACTION_LABEL = {
-    inspect: "Review…",
-    allow: "Allow this content",
+    allow: "Allow",
     revoke: "Revoke",
-    forget: "Forget",
     pruneCache: "Remove unused plugin copies",
     addMarketplace: "Add marketplace…",
     updateMarketplaces: "Update marketplaces",
@@ -39,8 +52,7 @@ export const ACTION_LABEL = {
 export const REVIEW_FACT_LABEL = {
     folder: "Folder",
     version: "Version",
-    files: "Covers",
-    contentHash: "Content hash",
+    allowedIn: "Allowed in",
 } as const;
 
 export const NO_FOLDER_TEXT =
@@ -67,23 +79,18 @@ export function nestedConfigFolderText(belowRoot: string): string {
     return `Applies to diagrams below ${belowRoot}/`;
 }
 
-/** A view's own words: the checklist and the log keep `CODE_STATE_TEXT`, which reads inside a sentence. */
 export const CODE_STATE_LABEL: Record<CodeState, string> = {
     approved: "Allowed",
     new: "Not allowed yet",
-    changed: "Changed, review needed",
     declined: "Declined this session",
-    gone: "Folder gone",
 };
-
-/** On a row offering Revoke whose content other folders' rows hold too. */
-export function alsoAllowedText(otherFolders: number): string {
-    return `The same content is allowed in ${otherFolders} other ${otherFolders === 1 ? "folder" : "folders"}; Revoke takes it back there too.`;
-}
 
 export function reviewHeading(name: string): string {
     return `Review ${name} before you allow it`;
 }
+
+export const UNTRUSTED_WORKSPACE_TEXT =
+    "Does not run: you have not trusted this project. Trust it to allow and run its code.";
 
 export function cannotBeAllowedText(reason: string): string {
     return `Cannot be allowed: ${reason}.`;

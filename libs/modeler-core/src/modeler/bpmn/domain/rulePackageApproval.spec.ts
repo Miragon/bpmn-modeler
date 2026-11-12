@@ -1,26 +1,31 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 
 import {
+    type Allowance,
+    allowanceKeyOf,
+    allowanceRowOf,
+    type AllowanceState,
+} from "../../../kernel/domain/allowance";
+import { RULE_PACKAGE_CONTENT_HASH_PREFIX } from "../../../kernel/domain/approvalRowKind";
+import {
     type CodeApproval,
     type CodeApprovalChange,
     codeApprovalChange,
-    type CodeState,
-    declineKeyOf,
-    type FollowedApprovalChange,
     type ProcessRestart,
 } from "../../../kernel/domain/codeApproval";
 import {
     type BlockedRulePackage,
     type BlockedState,
-    closureDigestInput,
-    type ClosureMember,
+    type CurrentFolderRequest,
+    currentFolderRequestOf,
+    type CurrentResolution,
+    currentResolutionOf,
     editorsToRelint,
+    evictionScopeOf,
     installedPackagesDirOf,
     nodeModulesDirOf,
     isParsedAsJson,
     loadsWithoutApproval,
-    memberDigestInput,
-    type PendingRulePackage,
     requestedPackageNameOf,
     RULE_PACKAGE_APPROVAL_NOTICE_ID,
     RULE_PACKAGE_APPROVAL_PROMPT_ID,
@@ -30,16 +35,23 @@ import {
     rulePackageApprovalNotice,
     rulePackageApprovalPrompt,
     rulePackageApprovalsKey,
-    rulePackageContentHash,
+    rulePackageLabelOf,
+    rulePackageOf,
     rulePackagesToAsk,
     type RulePackage,
-    type RulePackageVerdict,
-    type RulePackageVerdictContext,
-    rulePackageVerdict,
     rootKindOf,
     type RootKindFacts,
+    rootStampPathsOf,
     type ResolvedRuleModule,
 } from "./rulePackageApproval";
+import { type PackageManifest } from "./installedPackage";
+
+const repositoryAllowance = (addOn: string, path = "/repo/.git"): Allowance => ({
+    kind: "rulePackage",
+    host: "",
+    origin: { kind: "repository", path },
+    addOn,
+});
 
 describe("requestedPackageNameOf", () => {
     it.each<{ request: string; name: string | undefined }>([
@@ -271,234 +283,52 @@ describe("ruleModuleRootOf", () => {
     });
 });
 
-describe("memberDigestInput", () => {
-    it("lists every file by its path and hash, sorted by code unit, not by locale", () => {
-        expect(
-            memberDigestInput([
-                { relPath: "rules/b.js", sha256: "22" },
-                { relPath: "index.js", sha256: "11" },
-                { relPath: "Rules/a.js", sha256: "33" },
-            ]),
-        ).toBe("Rules/a.js\u000033\u0000index.js\u000011\u0000rules/b.js\u000022\u0000");
-    });
+describe("rulePackageOf", () => {
+    const id =
+        "/repo/node_modules/.pnpm/bpmnlint-plugin-acme@1.2.0/node_modules/bpmnlint-plugin-acme";
+    const allowance = repositoryAllowance("node_modules/bpmnlint-plugin-acme");
 
-    it("is independent of the order the files were listed in", () => {
-        const a = { relPath: "a.js", sha256: "1" };
-        const b = { relPath: "b.js", sha256: "2" };
-
-        expect(memberDigestInput([b, a])).toBe(memberDigestInput([a, b]));
-    });
-
-    it.each<{ case: string; changed: { relPath: string; sha256: string }[] }>([
-        { case: "a changed file", changed: [{ relPath: "index.js", sha256: "99" }] },
-        { case: "a renamed file", changed: [{ relPath: "main.js", sha256: "11" }] },
+    it.each<{ case: string; manifest: string | undefined; name: string; version: string }>([
         {
-            case: "an added file",
-            changed: [
-                { relPath: "index.js", sha256: "11" },
-                { relPath: "extra.js", sha256: "11" },
-            ],
+            case: "its manifest's name and version",
+            manifest: '{ "name": "bpmnlint-plugin-acme", "version": "1.2.0" }',
+            name: "bpmnlint-plugin-acme",
+            version: "1.2.0",
         },
         {
-            case: "bytes moved between path and hash",
-            changed: [{ relPath: "index.js\u000011", sha256: "" }],
+            case: "its folder's name when the manifest names none",
+            manifest: '{ "name": "", "version": "1.2.0" }',
+            name: "bpmnlint-plugin-acme",
+            version: "1.2.0",
         },
-    ])("changes with $case", ({ changed }) => {
-        expect(memberDigestInput(changed)).not.toBe(
-            memberDigestInput([{ relPath: "index.js", sha256: "11" }]),
-        );
+        {
+            case: "its folder's name and no version without a manifest",
+            manifest: undefined,
+            name: "bpmnlint-plugin-acme",
+            version: "",
+        },
+        {
+            case: "its folder's name and no version for a manifest that is no JSON",
+            manifest: "{",
+            name: "bpmnlint-plugin-acme",
+            version: "",
+        },
+    ])("names a package by $case", ({ manifest, name, version }) => {
+        expect(rulePackageOf(id, manifest, allowance)).toEqual({ id, name, version, allowance });
     });
 });
 
-describe("closureDigestInput", () => {
-    const acme: ClosureMember = { name: "bpmnlint-plugin-acme", version: "1.2.0", digest: "aa" };
-    const shared: ClosureMember = { name: "@acme/shared", version: "2.0.0", digest: "bb" };
-    const lodash: ClosureMember = { name: "lodash", version: "4.17.21", digest: "cc" };
-
-    it("names the root first, then every member by name@version and digest, sorted", () => {
-        expect(closureDigestInput(acme, [lodash, acme, shared])).toBe(
-            "bpmnlint-plugin-acme@1.2.0\u0000aa\u0000\n" +
-                "@acme/shared@2.0.0\u0000bb\u0000" +
-                "bpmnlint-plugin-acme@1.2.0\u0000aa\u0000" +
-                "lodash@4.17.21\u0000cc\u0000",
-        );
-    });
-
-    it("is independent of the order the closure walk found the members in", () => {
-        expect(closureDigestInput(acme, [lodash, shared, acme])).toBe(
-            closureDigestInput(acme, [acme, shared, lodash]),
-        );
-    });
-
-    it("is independent of hoisting: a copy with the same content counts once", () => {
-        expect(closureDigestInput(acme, [acme, shared, lodash, { ...lodash }])).toBe(
-            closureDigestInput(acme, [acme, shared, lodash]),
-        );
-    });
-
-    it("keeps two copies of one version whose content differs", () => {
-        expect(closureDigestInput(acme, [acme, lodash, { ...lodash, digest: "dd" }])).not.toBe(
-            closureDigestInput(acme, [acme, lodash]),
-        );
-    });
-
-    it("orders two copies of one version by their digest, whatever order they came in", () => {
-        const patched = { ...lodash, digest: "dd" };
-
-        expect(closureDigestInput(acme, [acme, patched, lodash])).toBe(
-            closureDigestInput(acme, [acme, lodash, patched]),
-        );
-    });
-
-    it.each<{ case: string; root: ClosureMember; members: ClosureMember[] }>([
-        { case: "a changed member", root: acme, members: [acme, { ...shared, digest: "b2" }] },
+describe("rulePackageLabelOf", () => {
+    it.each([
+        { name: "bpmnlint-plugin-acme", version: "1.2.0", label: "bpmnlint-plugin-acme@1.2.0" },
         {
-            case: "a new member version",
-            root: acme,
-            members: [acme, { ...shared, version: "2.0.1" }],
+            name: "@acme/bpmnlint-plugin-rules",
+            version: "2.0.0",
+            label: "@acme/bpmnlint-plugin-rules@2.0.0",
         },
-        { case: "an added member", root: acme, members: [acme, shared, lodash] },
-        { case: "another member as the root", root: shared, members: [acme, shared] },
-    ])("changes with $case", ({ root, members }) => {
-        expect(closureDigestInput(root, members)).not.toBe(
-            closureDigestInput(acme, [acme, shared]),
-        );
-    });
-});
-
-describe("rulePackageContentHash", () => {
-    it("marks the closure digest as a rule package hash of algorithm version 1", () => {
-        expect(rulePackageContentHash("abc")).toBe("bpmnlint-closure-v1:abc");
-    });
-});
-
-describe("rulePackageVerdict", () => {
-    const root = "/repo/node_modules/bpmnlint-plugin-acme";
-    const current = rulePackageContentHash("now");
-    const old = rulePackageContentHash("old");
-    const context = (more: Partial<RulePackageVerdictContext> = {}): RulePackageVerdictContext => ({
-        approvals: [],
-        admittedMembers: new Set(),
-        declinedThisSession: new Set(),
-        ...more,
-    });
-    const declined = (contentHash: string) =>
-        new Set([declineKeyOf({ id: root, name: "bpmnlint-plugin-acme", contentHash })]);
-
-    it.each<{
-        case: string;
-        context: RulePackageVerdictContext;
-        contentHash?: string;
-        verdict: RulePackageVerdict;
-    }>([
-        {
-            case: "a package with no row, without hashing it",
-            context: context(),
-            verdict: { kind: "blocked", state: "new" },
-        },
-        {
-            case: "a package with no row while another folder's row exists, before it is hashed",
-            context: context({ approvals: [{ pluginId: "/other", contentHash: old }] }),
-            verdict: { kind: "hashNeeded" },
-        },
-        {
-            case: "a package whose content another folder's row holds",
-            context: context({ approvals: [{ pluginId: "/other", contentHash: current }] }),
-            contentHash: current,
-            verdict: { kind: "admitted", via: "approval" },
-        },
-        {
-            case: "a package whose content no folder's row holds",
-            context: context({ approvals: [{ pluginId: "/other", contentHash: old }] }),
-            contentHash: current,
-            verdict: { kind: "blocked", state: "new" },
-        },
-        {
-            case: "a package with a row, before it is hashed",
-            context: context({ approvals: [{ pluginId: root, contentHash: current }] }),
-            verdict: { kind: "hashNeeded" },
-        },
-        {
-            case: "a package whose row holds its current hash",
-            context: context({ approvals: [{ pluginId: root, contentHash: current }] }),
-            contentHash: current,
-            verdict: { kind: "admitted", via: "approval" },
-        },
-        {
-            case: "a package whose row holds another hash",
-            context: context({ approvals: [{ pluginId: root, contentHash: old }] }),
-            contentHash: current,
-            verdict: { kind: "blocked", state: "changed" },
-        },
-        {
-            case: "a member of an admitted closure at the same realpath, without hashing it",
-            context: context({ admittedMembers: new Set([root]) }),
-            verdict: { kind: "admitted", via: "closure" },
-        },
-        {
-            case: "a package of the same name as an admitted member, at another realpath",
-            context: context({
-                admittedMembers: new Set([
-                    "/repo/node_modules/x/node_modules/bpmnlint-plugin-acme",
-                ]),
-            }),
-            verdict: { kind: "blocked", state: "new" },
-        },
-        {
-            case: "a package whose only row is a webview plugin row with the same hash",
-            context: context({ approvals: [{ pluginId: root, contentHash: "plain" }] }),
-            contentHash: "plain",
-            verdict: { kind: "blocked", state: "new" },
-        },
-        {
-            case: "a new package declined this session, before it is hashed",
-            context: context({ declinedThisSession: declined(current) }),
-            verdict: { kind: "hashNeeded" },
-        },
-        {
-            case: "a new package declined this session",
-            context: context({ declinedThisSession: declined(current) }),
-            contentHash: current,
-            verdict: { kind: "blocked", state: "declined" },
-        },
-        {
-            case: "a new package that changed since it was declined",
-            context: context({ declinedThisSession: declined(old) }),
-            contentHash: current,
-            verdict: { kind: "blocked", state: "new" },
-        },
-        {
-            case: "a changed package declined this session",
-            context: context({
-                approvals: [{ pluginId: root, contentHash: old }],
-                declinedThisSession: declined(current),
-            }),
-            contentHash: current,
-            verdict: { kind: "blocked", state: "declined" },
-        },
-        {
-            case: "an approved package declined earlier in the session",
-            context: context({
-                approvals: [{ pluginId: root, contentHash: current }],
-                declinedThisSession: declined(current),
-            }),
-            contentHash: current,
-            verdict: { kind: "admitted", via: "approval" },
-        },
-        {
-            case: "a package another package's decline only mentions",
-            context: context({
-                declinedThisSession: new Set([`${root}-evil#${current}`, `x${root}#${current}`]),
-            }),
-            verdict: { kind: "blocked", state: "new" },
-        },
-    ])("decides $case", ({ context: given, contentHash, verdict }) => {
-        expect(rulePackageVerdict(root, given, contentHash)).toEqual(verdict);
-    });
-
-    it("spells the blocked states as code states", () => {
-        expectTypeOf<BlockedState>().toExtend<CodeState>();
-        expectTypeOf<BlockedState>().toEqualTypeOf<"new" | "changed" | "declined">();
+        { name: "bpmnlint-plugin-acme", version: "", label: "bpmnlint-plugin-acme" },
+    ])("labels $name at version '$version' as $label", ({ name, version, label }) => {
+        expect(rulePackageLabelOf({ name, version })).toBe(label);
     });
 });
 
@@ -507,20 +337,25 @@ describe("rulePackagesToAsk", () => {
         id: string,
         needed: boolean,
         state: BlockedRulePackage["state"] = "new",
-    ): BlockedRulePackage => ({ id, kind: "package", state, needed });
+        addOn = id,
+    ): BlockedRulePackage => ({
+        id,
+        name: id,
+        version: "1.0.0",
+        allowance: repositoryAllowance(addOn),
+        kind: "package",
+        state,
+        needed,
+    });
+    const keyOf = (addOn: string) => allowanceKeyOf(repositoryAllowance(addOn));
 
     it.each<{ case: string; blocked: BlockedRulePackage[]; queued?: string[]; asked: string[] }>([
         { case: "a needed package", blocked: [blocked("/a", true)], asked: ["/a"] },
         {
             case: "only the packages no queued question asks about yet",
             blocked: [blocked("/a", true), blocked("/b", true)],
-            queued: ["/a"],
+            queued: [keyOf("/a")],
             asked: ["/b"],
-        },
-        {
-            case: "a changed needed package",
-            blocked: [blocked("/a", true, "changed")],
-            asked: ["/a"],
         },
         { case: "a package the bundle shadowed", blocked: [blocked("/a", false)], asked: [] },
         {
@@ -534,12 +369,25 @@ describe("rulePackagesToAsk", () => {
             asked: ["/a"],
         },
         {
+            case: "a hoisted and a nested copy of one allowance, once at the first",
+            blocked: [
+                blocked("/repo/node_modules/acme", true, "new", "node_modules/acme"),
+                blocked("/repo/node_modules/x/node_modules/acme", true, "new", "node_modules/acme"),
+            ],
+            asked: ["/repo/node_modules/acme"],
+        },
+        {
             case: "several packages, in the order they were blocked",
             blocked: [blocked("/b", true), blocked("/c", false), blocked("/a", true)],
             asked: ["/b", "/a"],
         },
     ])("asks about $case", ({ blocked: given, queued = [], asked }) => {
         expect(rulePackagesToAsk(given, new Set(queued)).map(({ id }) => id)).toEqual(asked);
+    });
+
+    it("spells the blocked states as allowance states", () => {
+        expectTypeOf<BlockedState>().toExtend<AllowanceState>();
+        expectTypeOf<BlockedState>().toEqualTypeOf<"new" | "declined">();
     });
 });
 
@@ -551,61 +399,50 @@ describe("editorsToRelint", () => {
         ["d.bpmn", []],
     ]);
     const hostLinted = ["d.bpmn", "e.bpmn", "a.bpmn"];
-    const row = (pluginId: string) => ({ pluginId, contentHash: rulePackageContentHash("h") });
+    const row = (addOn: string) => allowanceRowOf(repositoryAllowance(addOn));
 
-    const followed = (
-        change: CodeApprovalChange,
-        withdrawn: readonly string[] = change.revoke,
-    ): FollowedApprovalChange => ({ change, withdrawn });
-
-    it.each<{ case: string; followed: FollowedApprovalChange; editors: string[] }>([
+    it.each<{ case: string; change: CodeApprovalChange; editors: string[] }>([
         {
             case: "every editor blocked on any package for one allowed package",
-            followed: followed(codeApprovalChange([row("/acme")], [])),
+            change: codeApprovalChange([row("node_modules/acme")], []),
             editors: ["a.bpmn", "b.bpmn", "c.bpmn"],
         },
         {
             case: "each editor once, blocked on two allowed packages",
-            followed: followed(codeApprovalChange([row("/acme"), row("/other")], [])),
-            editors: ["a.bpmn", "b.bpmn", "c.bpmn"],
-        },
-        {
-            case: "every editor blocked on any package, as another folder's allow may cover it",
-            followed: followed(codeApprovalChange([row("/nobody")], [])),
+            change: codeApprovalChange([row("node_modules/acme"), row("node_modules/other")], []),
             editors: ["a.bpmn", "b.bpmn", "c.bpmn"],
         },
         {
             case: "every host-linted editor on a revoke, since no lint records what it admitted",
-            followed: followed(codeApprovalChange([], ["/nobody"])),
+            change: codeApprovalChange([], ["/nobody"]),
             editors: ["d.bpmn", "e.bpmn", "a.bpmn"],
         },
         {
-            case: "every host-linted editor for a package allowed at another content",
-            followed: followed(codeApprovalChange([row("/acme")], []), ["/acme"]),
-            editors: ["a.bpmn", "b.bpmn", "c.bpmn", "d.bpmn", "e.bpmn"],
-        },
-        {
-            case: "each editor once on a revoke beside an allow",
-            followed: followed(codeApprovalChange([row("/other")], ["/acme"])),
+            case: "each editor once for the migration, which allows and revokes",
+            change: codeApprovalChange([row("node_modules/acme")], ["/repo/node_modules/acme"]),
             editors: ["a.bpmn", "b.bpmn", "c.bpmn", "d.bpmn", "e.bpmn"],
         },
         {
             case: "no editor for no change",
-            followed: followed(codeApprovalChange([], [])),
+            change: codeApprovalChange([], []),
             editors: [],
         },
-    ])("relints $case", ({ followed: given, editors }) => {
-        expect(editorsToRelint(blockedByEditor, hostLinted, given)).toEqual(editors);
+    ])("relints $case", ({ change, editors }) => {
+        expect(editorsToRelint(blockedByEditor, hostLinted, change)).toEqual(editors);
     });
 });
 
 describe("rulePackageApprovalsKey", () => {
-    const acme = { pluginId: "/repo/node_modules/acme", contentHash: rulePackageContentHash("a") };
-    const other = {
-        pluginId: "/repo/node_modules/other",
-        contentHash: rulePackageContentHash("b"),
+    const acme = allowanceRowOf(repositoryAllowance("node_modules/acme"));
+    const other = allowanceRowOf(repositoryAllowance("node_modules/other"));
+    const contentRow = {
+        pluginId: "/repo/node_modules/acme",
+        contentHash: `${RULE_PACKAGE_CONTENT_HASH_PREFIX}a`,
     };
-    const webviewPlugin = { pluginId: "/repo/.camunda/plugins/resize", contentHash: "c" };
+    const webviewPlugin = allowanceRowOf({
+        ...repositoryAllowance(".camunda/plugins/resize"),
+        kind: "plugin",
+    });
 
     it("is independent of the order of the rows", () => {
         expect(rulePackageApprovalsKey([other, acme])).toBe(rulePackageApprovalsKey([acme, other]));
@@ -620,48 +457,335 @@ describe("rulePackageApprovalsKey", () => {
     it.each<{ case: string; approvals: CodeApproval[] }>([
         { case: "an added row", approvals: [acme, other] },
         { case: "a revoked row", approvals: [] },
-        {
-            case: "a row of other content",
-            approvals: [{ ...acme, contentHash: other.contentHash }],
-        },
+        { case: "a row pinned to content, which the migration rewrites", approvals: [contentRow] },
         {
             case: "bytes moved between id and hash",
-            approvals: [
-                { pluginId: `${acme.pluginId}","`, contentHash: rulePackageContentHash("a") },
-            ],
+            approvals: [{ pluginId: `${acme.pluginId}","`, contentHash: acme.contentHash }],
         },
     ])("changes with $case", ({ approvals }) => {
         expect(rulePackageApprovalsKey(approvals)).not.toBe(rulePackageApprovalsKey([acme]));
     });
+});
 
-    it("orders two rows of one id by their hash", () => {
-        const acmeOld = { ...acme, contentHash: rulePackageContentHash("0") };
+describe("rootStampPathsOf", () => {
+    const root = "/repo/node_modules/.pnpm/acme@1.0.0/node_modules/acme";
 
-        expect(rulePackageApprovalsKey([acme, acmeOld])).toBe(
-            rulePackageApprovalsKey([acmeOld, acme]),
-        );
+    it.each<{ case: string; lookupDir: string | undefined; paths: string[] }>([
+        {
+            case: "the root's manifest alone without a lookup path",
+            lookupDir: undefined,
+            paths: [`${root}/package.json`],
+        },
+        {
+            case: "the root's manifest alone when the lookup path is the root",
+            lookupDir: root,
+            paths: [`${root}/package.json`],
+        },
+        {
+            case: "the lookup path's manifest too, so a retargeted link stamps differently",
+            lookupDir: "/repo/node_modules/acme",
+            paths: [`${root}/package.json`, "/repo/node_modules/acme/package.json"],
+        },
+    ])("stamps $case", ({ lookupDir, paths }) => {
+        expect(rootStampPathsOf(root, lookupDir)).toEqual(paths);
+    });
+});
+
+describe("currentResolutionOf", () => {
+    const store = "/repo/node_modules/.pnpm";
+    const v1 = `${store}/acme@1.0.0/node_modules/acme`;
+    const v2 = `${store}/acme@1.1.0/node_modules/acme`;
+    const aliased = (version: string) => `${store}/@corp+acme@${version}/node_modules/@corp/acme`;
+    const KEEP: CurrentResolution = { kind: "keep" };
+
+    it.each<{
+        case: string;
+        resolved: string;
+        request?: string;
+        name?: string;
+        currentRoot?: string;
+        linked?: boolean;
+        expected: CurrentResolution;
+    }>([
+        { case: "a file in the current target", resolved: `${v2}/index.js`, expected: KEEP },
+        {
+            case: "another copy of the name when the lookup path is no link",
+            resolved: `${v1}/index.js`,
+            currentRoot: "/repo/node_modules/acme",
+            linked: false,
+            expected: KEEP,
+        },
+        {
+            case: "a file nested below the current target",
+            resolved: `${v2}/node_modules/dep/index.js`,
+            expected: KEEP,
+        },
+        {
+            case: "the entry an older store folder of the name held",
+            resolved: `${v1}/index.js`,
+            expected: { kind: "redirect", file: `${v2}/index.js`, staleRoot: v1 },
+        },
+        {
+            case: "a rule an older store folder held",
+            resolved: `${v1}/rules/label.js`,
+            expected: { kind: "redirect", file: `${v2}/rules/label.js`, staleRoot: v1 },
+        },
+        {
+            case: "an absolute path request into an older store folder",
+            resolved: `${v1}/rules/label.js`,
+            request: `${v1}/rules/label.js`,
+            expected: { kind: "redirect", file: `${v2}/rules/label.js`, staleRoot: v1 },
+        },
+        {
+            case: "a scoped package's older store folder",
+            resolved: `${store}/@acme+rules@1.0.0/node_modules/@acme/rules/config/all.js`,
+            request: "@acme/rules/config/all",
+            name: "@acme/rules",
+            currentRoot: `${store}/@acme+rules@1.1.0/node_modules/@acme/rules`,
+            expected: {
+                kind: "redirect",
+                file: `${store}/@acme+rules@1.1.0/node_modules/@acme/rules/config/all.js`,
+                staleRoot: `${store}/@acme+rules@1.0.0/node_modules/@acme/rules`,
+            },
+        },
+        {
+            case: "an older store folder of the package an alias names",
+            resolved: `${aliased("1.0.0")}/index.js`,
+            currentRoot: aliased("1.1.0"),
+            expected: {
+                kind: "redirect",
+                file: `${aliased("1.1.0")}/index.js`,
+                staleRoot: aliased("1.0.0"),
+            },
+        },
+        {
+            case: "another package's store folder while an alias leads to the current one",
+            resolved: `${store}/other@1.0.0/node_modules/other/index.js`,
+            currentRoot: aliased("1.1.0"),
+            expected: KEEP,
+        },
+        {
+            case: "a store folder named like a current folder outside node_modules",
+            resolved: `${store}/other@1.0.0/node_modules/other/index.js`,
+            currentRoot: "/work/other",
+            expected: KEEP,
+        },
+        {
+            case: "an older store folder when the name now links outside node_modules",
+            resolved: `${v1}/index.js`,
+            currentRoot: "/work/acme",
+            expected: { kind: "redirect", file: "/work/acme/index.js", staleRoot: v1 },
+        },
+        {
+            case: "another package's file",
+            resolved: `${store}/other@1.0.0/node_modules/other/index.js`,
+            expected: KEEP,
+        },
+        {
+            case: "a package whose name only starts alike",
+            resolved: `${store}/acme-dep@1.0.0/node_modules/acme-dep/index.js`,
+            expected: KEEP,
+        },
+        {
+            case: "a bare request answered outside every node_modules, where the name led before",
+            resolved: "/work/acme/index.js",
+            expected: { kind: "lookUp" },
+        },
+        {
+            case: "a bare request for a rule answered outside every node_modules",
+            resolved: "/work/acme/rules/label.js",
+            request: "acme/rules/label",
+            expected: { kind: "lookUp" },
+        },
+        {
+            case: "such an answer when the lookup path is a folder of its own now",
+            resolved: "/work/acme/index.js",
+            currentRoot: "/repo/node_modules/acme",
+            linked: false,
+            expected: { kind: "lookUp" },
+        },
+        {
+            case: "an absolute path request outside every node_modules",
+            resolved: "/work/acme/rules/label.js",
+            request: "/work/acme/rules/label.js",
+            expected: KEEP,
+        },
+        {
+            case: "a bare request for another name answered outside every node_modules",
+            resolved: "/work/other/index.js",
+            request: "other",
+            expected: KEEP,
+        },
+        {
+            case: "a file in no package folder",
+            resolved: `${store}/acme@1.0.0/node_modules/acme`,
+            expected: KEEP,
+        },
+        {
+            case: "a path that would climb out of the target",
+            resolved: `${v1}/../../../evil.js`,
+            expected: KEEP,
+        },
+    ])(
+        "for $case gives $expected.kind",
+        ({
+            resolved,
+            request = "acme",
+            name = "acme",
+            currentRoot = v2,
+            linked = true,
+            expected,
+        }) => {
+            expect(currentResolutionOf(resolved, request, { name, currentRoot, linked })).toEqual(
+                expected,
+            );
+        },
+    );
+});
+
+describe("currentFolderRequestOf", () => {
+    const root = "/repo/node_modules/.pnpm/acme@1.1.0/node_modules/acme";
+    const acme = { name: "acme", currentRoot: root };
+    const plain: PackageManifest = { name: "acme", version: "1.1.0", hasExports: false };
+    const exporting: PackageManifest = { ...plain, hasExports: true };
+
+    it.each<{
+        case: string;
+        request: string;
+        name?: string;
+        manifest?: PackageManifest;
+        expected: CurrentFolderRequest | undefined;
+    }>([
+        { case: "the entry", request: "acme", expected: { kind: "file", file: root } },
+        {
+            case: "a rule",
+            request: "acme/rules/label",
+            expected: { kind: "file", file: `${root}/rules/label` },
+        },
+        {
+            case: "a config with its extension",
+            request: "acme/config/all.js",
+            expected: { kind: "file", file: `${root}/config/all.js` },
+        },
+        {
+            case: "a scoped package's config",
+            request: "@acme/rules/config/all",
+            name: "@acme/rules",
+            expected: { kind: "file", file: `${root}/config/all` },
+        },
+        {
+            case: "a rule of a package whose manifest cannot be read",
+            request: "acme/rules/label",
+            manifest: undefined,
+            expected: { kind: "file", file: `${root}/rules/label` },
+        },
+        {
+            case: "a rule of a package with exports, by its own name",
+            request: "acme/rules/label",
+            manifest: exporting,
+            expected: { kind: "selfReference", request: "acme/rules/label" },
+        },
+        {
+            case: "the entry of a package with exports",
+            request: "acme",
+            manifest: exporting,
+            expected: { kind: "selfReference", request: "acme" },
+        },
+        {
+            case: "a rule of an aliased package with exports, by the name its manifest gives",
+            request: "acme/rules/label",
+            manifest: { ...exporting, name: "@corp/acme" },
+            expected: { kind: "selfReference", request: "@corp/acme/rules/label" },
+        },
+        {
+            case: "a package with exports and no name, which cannot refer to itself",
+            request: "acme/rules/label",
+            manifest: { ...exporting, name: "" },
+            expected: undefined,
+        },
+        { case: "another package", request: "other/rules/label", expected: undefined },
+        {
+            case: "a name that only starts alike",
+            request: "acme-dep/rules/label",
+            expected: undefined,
+        },
+        { case: "a climb out of the package", request: "acme/../evil", expected: undefined },
+        { case: "a climb below a folder", request: "acme/rules/../../evil", expected: undefined },
+        {
+            case: "a climb with exports",
+            request: "acme/rules/../../evil",
+            manifest: exporting,
+            expected: undefined,
+        },
+        {
+            case: "a climb with Windows separators",
+            request: "acme/rules\\..\\..\\evil",
+            expected: undefined,
+        },
+        { case: "a relative path", request: "./rules/label", expected: undefined },
+        { case: "an absolute path", request: "/repo/rules/label.js", expected: undefined },
+    ])("for $case gives $expected", ({ request, name = acme.name, expected, ...row }) => {
+        const manifest = "manifest" in row ? row.manifest : plain;
+        expect(currentFolderRequestOf(request, { ...acme, name }, manifest)).toEqual(expected);
+    });
+});
+
+describe("evictionScopeOf", () => {
+    it.each([
+        {
+            case: "an installed package",
+            root: "/repo/node_modules/acme",
+            scope: "/repo/node_modules",
+        },
+        {
+            case: "a pnpm package, by its last node_modules",
+            root: "/repo/node_modules/.pnpm/acme@1.0.0/node_modules/acme",
+            scope: "/repo/node_modules/.pnpm/acme@1.0.0/node_modules",
+        },
+        {
+            case: "a scoped package",
+            root: "/repo/node_modules/@acme/rules",
+            scope: "/repo/node_modules",
+        },
+        { case: "the config's own package", root: "/repo/rules", scope: "/repo/rules" },
+        {
+            case: "a linked package outside node_modules",
+            root: "/work/acme-rules",
+            scope: "/work/acme-rules",
+        },
+    ])("drops the modules of $case below $scope", ({ root, scope }) => {
+        expect(evictionScopeOf(root)).toBe(scope);
     });
 });
 
 describe("rule package approval question", () => {
-    const acme: RulePackage = {
-        id: "/repo/node_modules/bpmnlint-plugin-acme",
-        name: "bpmnlint-plugin-acme",
-        version: "1.2.0",
-        contentHash: rulePackageContentHash("a"),
-    };
-    const compat: RulePackage = {
-        id: "/repo/node_modules/.pnpm/bpmnlint-plugin-camunda-compat@2.0.0/node_modules/bpmnlint-plugin-camunda-compat",
-        name: "bpmnlint-plugin-camunda-compat",
-        version: "2.0.0",
-        contentHash: rulePackageContentHash("b"),
-    };
-    const pending: PendingRulePackage[] = [
-        { artifact: acme, state: "new" },
-        { artifact: compat, state: "changed" },
-    ];
+    const blockedOf = (
+        id: string,
+        name: string,
+        version: string,
+        kind: BlockedRulePackage["kind"] = "package",
+    ): BlockedRulePackage => ({
+        id,
+        name,
+        version,
+        allowance: repositoryAllowance(`node_modules/${name}`),
+        kind,
+        state: "new",
+        needed: true,
+    });
+    const acme = blockedOf(
+        "/repo/node_modules/bpmnlint-plugin-acme",
+        "bpmnlint-plugin-acme",
+        "1.2.0",
+    );
+    const compat = blockedOf(
+        "/repo/node_modules/.pnpm/bpmnlint-plugin-camunda-compat@2.0.0/node_modules/bpmnlint-plugin-camunda-compat",
+        "bpmnlint-plugin-camunda-compat",
+        "2.0.0",
+    );
+    const pending = [acme, compat];
 
-    it.each<{ case: string; pending: PendingRulePackage[]; message: string }>([
+    it.each<{ case: string; pending: RulePackage[]; message: string }>([
         {
             case: "one package",
             pending: pending.slice(0, 1),
@@ -693,22 +817,22 @@ describe("rule package approval question", () => {
         ]);
     });
 
-    it("lists each package by name and version, with its state and folder", () => {
+    it("lists each package by name@version and its folder", () => {
         expect(rulePackageApprovalPrompt(pending, ["/repo"])).toEqual({
             id: RULE_PACKAGE_APPROVAL_PROMPT_ID,
             title: "Allow bpmnlint rule packages from this workspace?",
             placeholder:
-                "Rule packages run as programs with your user's rights, not only inside the editor. Check only the ones you trust; open editors lint again with them.",
+                "Rule packages run as programs with your user's rights, not only inside the editor. Allowing one covers it in every worktree of its repository, or in its folder outside a repository, later changes included. Check only the ones you trust; open editors lint again with them.",
             items: [
                 {
-                    label: "bpmnlint-plugin-acme 1.2.0",
-                    description: "new · node_modules/bpmnlint-plugin-acme",
+                    label: "bpmnlint-plugin-acme@1.2.0",
+                    description: "node_modules/bpmnlint-plugin-acme",
                     value: acme.id,
                 },
                 {
-                    label: "bpmnlint-plugin-camunda-compat 2.0.0",
+                    label: "bpmnlint-plugin-camunda-compat@2.0.0",
                     description:
-                        "changed since you allowed it · node_modules/.pnpm/bpmnlint-plugin-camunda-compat@2.0.0/node_modules/bpmnlint-plugin-camunda-compat",
+                        "node_modules/.pnpm/bpmnlint-plugin-camunda-compat@2.0.0/node_modules/bpmnlint-plugin-camunda-compat",
                     value: compat.id,
                 },
             ],
@@ -720,30 +844,30 @@ describe("rule package approval question", () => {
 
         expect([prompt.title, prompt.placeholder]).toEqual([
             "Allow a bpmnlint rule package from this workspace?",
-            "A rule package runs as a program with your user's rights, not only inside the editor. Check it only if you trust it. Open editors lint again with it.",
+            "A rule package runs as a program with your user's rights, not only inside the editor. Allowing it covers it in every worktree of its repository, or in its folder outside a repository, later changes included. Check it only if you trust it. Open editors lint again with it.",
         ]);
     });
 
-    it.each<{ case: string; state: PendingRulePackage["state"]; shown: string }>([
-        { case: "a new package", state: "new", shown: "new" },
-        { case: "a changed package", state: "changed", shown: "changed since you allowed it" },
-    ])(
-        "shows the state of $case first, in the text every host renders, not a path that replaces it",
-        ({ state, shown }) => {
-            const [item] = rulePackageApprovalPrompt([{ artifact: acme, state }], ["/repo"]).items;
+    it("says which package the .bpmnlintrc sits in", () => {
+        const self = blockedOf("/repo/rules", "acme-rules", "0.1.0", "selfPackage");
 
-            expect(item?.path).toBeUndefined();
-            expect(item?.description?.startsWith(`${shown} · `)).toBe(true);
-        },
-    );
+        expect(rulePackageApprovalPrompt([self], ["/repo"]).items[0]?.description).toBe(
+            "rules · the package the .bpmnlintrc sits in",
+        );
+    });
+
+    it("shows the folder in the text every host renders, not a path that replaces it", () => {
+        const [item] = rulePackageApprovalPrompt([acme], ["/repo"]).items;
+
+        expect(item?.path).toBeUndefined();
+    });
 
     it("shows a package linked from outside the workspace by its full path", () => {
         const linked = { ...acme, id: "/work/acme-rules" };
 
-        expect(
-            rulePackageApprovalPrompt([{ artifact: linked, state: "new" }], ["/repo"]).items[0]
-                ?.description,
-        ).toBe("new · /work/acme-rules");
+        expect(rulePackageApprovalPrompt([linked], ["/repo"]).items[0]?.description).toBe(
+            "/work/acme-rules",
+        );
     });
 });
 
@@ -813,23 +937,6 @@ describe("rootKindOf", () => {
         },
     ])("tells $case", ({ id, facts, root }) => {
         expect(rootKindOf(id, facts)).toEqual(root);
-    });
-});
-
-describe("RULE_PACKAGE_CODE_TEXTS.carriedOver", () => {
-    it("logs where a package runs and where the user allowed its content", () => {
-        expect(
-            RULE_PACKAGE_CODE_TEXTS.carriedOver({
-                artifact: {
-                    id: "/worktree/node_modules/bpmnlint-plugin-acme",
-                    name: "bpmnlint-plugin-acme",
-                    contentHash: rulePackageContentHash("a"),
-                },
-                allowedAt: "/repo/node_modules/bpmnlint-plugin-acme",
-            }),
-        ).toBe(
-            "Allowed bpmnlint rule package bpmnlint-plugin-acme in /worktree/node_modules/bpmnlint-plugin-acme: you allowed the same content in /repo/node_modules/bpmnlint-plugin-acme.",
-        );
     });
 });
 

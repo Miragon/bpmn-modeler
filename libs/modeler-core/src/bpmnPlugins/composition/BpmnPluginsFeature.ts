@@ -3,10 +3,14 @@ import {
     NotifierPort,
     PickerPort,
     WorkspacePort,
+    WorkspaceTrustPort,
 } from "../../kernel/port/hostPorts";
 import { reviewOrChecklist } from "../../kernel/adapter/out/ListReview";
+import { trustOrTrusted } from "../../kernel/adapter/out/TrustedWorkspace";
 import { ApprovalReviewPort } from "../../kernel/port/approvalPorts";
+import { AllowanceLocator } from "../../kernel/service/AllowanceLocator";
 import { ArtifactService } from "../../kernel/service/ArtifactService";
+import { ContentRows } from "../../kernel/service/ContentRowMigration";
 import { ApprovalQuestion } from "../../kernel/service/ApprovalQuestion";
 import { QuestionQueue } from "../../kernel/service/QuestionQueue";
 import { EditorContribution } from "../../editorSession/service/EditorContribution";
@@ -31,17 +35,23 @@ export interface BpmnPluginsHostPorts {
     readonly cacheRoot: string;
     /** SHA-256 needs a host's crypto; the core imports no host module. */
     readonly hasher: ContentHasherPort;
+    /** The host process's one locator, so plugins, rule packages and the view agree on each allowance. */
+    readonly allowances: AllowanceLocator;
+    /** What a question about a plugin waits for, so the start-up migration is not asked about. */
+    readonly contentRows: ContentRows;
     /** The host's one queue for every approval question: a queue of its own would show two notices at once. */
     readonly questions: QuestionQueue;
     /** Where "Review…" takes the user, as {@link reviewOrChecklist} defaults it. */
     readonly review?: ApprovalReviewPort;
+    /** Absent: the host has no trust feature, and the workspace counts as trusted. */
+    readonly workspaceTrust?: WorkspaceTrustPort;
     /** The clock the plugin cache records last use by; `Date.now` unless a spec passes one. */
     readonly now?: () => number;
 }
 
 /**
  * User-supplied bpmn-js plugins from `<configFolder>/plugins/`: discovery,
- * per-user approval by content hash, and serving the approved bytes to the
+ * per-user allowance by repository and add-on, and serving the allowed bytes to the
  * BPMN webview. A host that wires it hands its contribution to the BPMN editor.
  */
 export class BpmnPluginsFeature {
@@ -53,17 +63,25 @@ export class BpmnPluginsFeature {
 
     private readonly locator: WorkspacePluginLocator;
     private readonly notifier: NotifierPort;
-    private readonly approvalChanges: { dispose(): void };
+    private readonly runnableChanges: readonly { dispose(): void }[];
 
     constructor(ports: BpmnPluginsHostPorts) {
         this.notifier = ports.notifier;
+        const trust = trustOrTrusted(ports.workspaceTrust);
         this.locator = new WorkspacePluginLocator(
             ports.artifacts,
             ports.workspace,
             ports.hasher,
+            ports.allowances,
             ports.notifier,
         );
-        this.catalog = new PluginCatalog(this.locator, ports.approvals, ports.notifier);
+        this.catalog = new PluginCatalog(
+            this.locator,
+            ports.approvals,
+            ports.contentRows,
+            trust,
+            ports.notifier,
+        );
         this.service = new BpmnPluginService(
             ports.store,
             ports.workspace,
@@ -80,9 +98,14 @@ export class BpmnPluginsFeature {
             ports.now,
         );
         this.inventory = new PluginInventory(this.locator, this.catalog, this.service);
-        this.approvalChanges = ports.approvals.onDidChange(() =>
-            this.service.approvalsChanged(ports.approvals.read()),
-        );
+        this.runnableChanges = [
+            ports.approvals.onDidChange(() =>
+                this.service.runnablePluginsChanged(ports.approvals.read(), trust.isTrusted()),
+            ),
+            trust.onDidChange(() =>
+                this.service.trustChanged(ports.approvals.read(), trust.isTrusted()),
+            ),
+        ];
         this.editorContribution = {
             commandHandlers: { GetBpmnPluginsCommand: getBpmnPluginsHandler(this.service) },
             participant: new BpmnPluginsParticipant(this.service),
@@ -99,7 +122,7 @@ export class BpmnPluginsFeature {
     }
 
     dispose(): void {
-        this.approvalChanges.dispose();
+        this.runnableChanges.forEach((each) => each.dispose());
         this.locator.dispose();
     }
 }

@@ -38,12 +38,6 @@ export class FocusKeeper {
                 if (!this.first(places)) this.listStart();
                 return;
             }
-            case "review":
-                this.first([
-                    { kind: "review", id: focus.addOnId },
-                    { kind: "name", id: focus.addOnId },
-                ]);
-                return;
             case "action": {
                 const buttons = this.ownedButtons(focus.targetId);
                 const button = buttons[focus.slot] ?? buttons[0];

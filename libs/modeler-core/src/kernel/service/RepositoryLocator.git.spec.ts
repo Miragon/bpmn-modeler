@@ -5,8 +5,10 @@ import { join } from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
+import { allowanceKeyOf, LOCAL_HOST } from "../domain/allowance";
 import { toWorkspacePath } from "../domain/workspacePath";
 import { RepositoryFilesPort } from "../port/repositoryFilesPort";
+import { AllowanceLocator } from "./AllowanceLocator";
 import { RepositoryLocator } from "./RepositoryLocator";
 
 function orUndefined<T>(read: () => T): T | undefined {
@@ -94,6 +96,19 @@ describe("RepositoryLocator on worktrees git itself wrote", () => {
             commonDir: `${repo}/.git`,
             worktreeRoot: `${root}/task`,
         });
+    });
+
+    it("gives a folder in the main and in a linked worktree one allowance key", () => {
+        git(repo, "worktree", "add", "--quiet", "--detach", "../task");
+        mkdirSync(`${repo}/plugins/trace`, { recursive: true });
+        mkdirSync(`${root}/task/plugins/trace`, { recursive: true });
+        const allowances = new AllowanceLocator(diskFiles, LOCAL_HOST);
+
+        const main = allowances.allowanceAt("plugin", `${repo}/plugins/trace`);
+        const task = allowances.allowanceAt("plugin", `${root}/task/plugins/trace`);
+
+        expect(main.origin).toEqual({ kind: "repository", path: `${repo}/.git` });
+        expect(allowanceKeyOf(task)).toBe(allowanceKeyOf(main));
     });
 
     it.skipIf(!supportsRelativeWorktreePaths)(

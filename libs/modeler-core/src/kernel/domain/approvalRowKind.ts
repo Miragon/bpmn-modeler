@@ -1,6 +1,6 @@
 import { CodeApproval } from "./codeApproval";
 
-const ALLOWANCE_KINDS = ["plugin", "rulePackage"] as const;
+export const ALLOWANCE_KINDS = ["plugin", "rulePackage"] as const;
 
 export type AllowanceKind = (typeof ALLOWANCE_KINDS)[number];
 

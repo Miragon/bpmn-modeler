@@ -1,82 +1,74 @@
 import { ActionNotice } from "../../../kernel/domain/actionNotice";
 import {
-    allowing,
-    ApprovableArtifact,
+    AllowableCode,
+    allowanceKeyOf,
+    allowanceOutcome,
+    allowingAllowances,
+    pendingAllowances,
+} from "../../../kernel/domain/allowance";
+import {
     ApprovalNoticeAction,
+    approvalChangeBetween,
     CodeApproval,
-    approvalOutcome,
-    declineKeyOf,
+    CodeApprovalChange,
     declinedKeys,
-    FollowedApprovalChange,
-    followedApprovalChange,
-    isLeftForView,
     notAskedAgain,
-    pendingApprovals,
     ReviewAnswer,
     SessionAnswer,
 } from "../../../kernel/domain/codeApproval";
 import { approvalRowsOf } from "../../../kernel/domain/approvalRowKind";
 import { ChoicePrompt } from "../../../kernel/domain/prompts";
 import { parentWorkspacePath } from "../../../kernel/domain/workspacePath";
+import { askedInWorkspace } from "../../../kernel/domain/workspaceTrust";
 import { PluginApprovalStorePort } from "../../../kernel/port/approvalPorts";
-import { LoggerPort } from "../../../kernel/port/hostPorts";
+import { LoggerPort, WorkspaceTrustPort } from "../../../kernel/port/hostPorts";
 import { ApprovalCatalog } from "../../../kernel/service/ApprovalQuestion";
-import { CarriedApprovalWriter } from "../../../kernel/service/CarriedApprovalWriter";
 import {
     BlockedRulePackage,
-    PendingRulePackage,
     RulePackage,
     rulePackageApprovalNotice,
-    RULE_PACKAGE_CODE_TEXTS,
     rulePackageApprovalPrompt,
+    rulePackageLabelOf,
     rulePackagesToAsk,
 } from "../domain/rulePackageApproval";
-import { refusedRuleModuleLogLine } from "../domain/rulePackageLog";
-import { PackageClosureFingerprinter } from "./PackageClosureFingerprinter";
 
 /**
  * Which blocked workspace rule packages to ask about, and the user's answers.
  * Knows no editor, so every host shares it.
  *
  * A package the user left unchecked, or a notice the user closed, is declined
- * for the catalog's lifetime, unless its content changes. The gate reads the
- * declines, so it reports such a package as declined rather than new. A
- * package left to a view is not asked about again either, but stays new.
+ * by its allowance for the catalog's lifetime. The gate reads the declines,
+ * so it reports such a package as declined rather than new. A package left
+ * to a view is not asked about again either, but stays new. In a workspace
+ * the user did not trust, none is asked about.
  *
  * It follows the approval store and announces each change of the rule
  * package rows, whoever made it.
  */
 export class RulePackageCatalog implements ApprovalCatalog<
     BlockedRulePackage,
-    PendingRulePackage,
+    BlockedRulePackage,
     RulePackage
 > {
     private readonly answers = new Map<string, SessionAnswer>();
     private readonly seen = new Map<string, BlockedRulePackage>();
-    private readonly loggedRefusals = new Set<string>();
     private readonly revoked = new Set<string>();
     private readonly lintConfigFolders = new Set<string>();
     private readonly listingListeners = new Set<() => void>();
-    private readonly changeListeners = new Set<(followed: FollowedApprovalChange) => void>();
+    private readonly changeListeners = new Set<(change: CodeApprovalChange) => void>();
     private readonly approvalChanges: { dispose(): void };
-    private readonly carriedApprovalWriter: CarriedApprovalWriter;
     private rulePackageRows: readonly CodeApproval[];
 
     constructor(
         private readonly approvals: PluginApprovalStorePort,
-        private readonly fingerprints: Pick<PackageClosureFingerprinter, "fingerprint">,
+        private readonly trust: Pick<WorkspaceTrustPort, "isTrusted">,
         private readonly logger: LoggerPort,
     ) {
-        this.carriedApprovalWriter = new CarriedApprovalWriter(
-            approvals,
-            logger,
-            RULE_PACKAGE_CODE_TEXTS,
-        );
         this.rulePackageRows = approvalRowsOf("rulePackage", approvals.read());
         this.approvalChanges = approvals.onDidChange(() => this.followApprovals());
     }
 
-    /** `declineKeyOf` of each package declined this session. */
+    /** `allowanceKeyOf` of each package declined this session. */
     declinedThisSession(): ReadonlySet<string> {
         return declinedKeys(this.answers);
     }
@@ -104,14 +96,14 @@ export class RulePackageCatalog implements ApprovalCatalog<
         return [...this.lintConfigFolders];
     }
 
-    /** By `declineKeyOf`: what the user answered this session about each content. */
+    /** By `allowanceKeyOf`: what the user answered this session about each allowance. */
     sessionAnswers(): ReadonlyMap<string, SessionAnswer> {
         return this.answers;
     }
 
-    /** No notice asks about this package again this session, whatever its content; a view shows it. */
-    leaveForView(artifact: ApprovableArtifact): void {
-        this.answers.set(declineKeyOf(artifact), "leftForView");
+    /** No notice asks about this allowance again this session; a view shows it. */
+    leaveForView(code: AllowableCode): void {
+        this.answers.set(allowanceKeyOf(code.allowance), "leftForView");
         this.notifyListing();
     }
 
@@ -130,17 +122,7 @@ export class RulePackageCatalog implements ApprovalCatalog<
         return this.revoked;
     }
 
-    /** Stores a row where a package runs on another place's row of its content; never rejects. */
-    recordCarried(found: readonly ApprovableArtifact[]): Promise<void> {
-        return this.carriedApprovalWriter.record(found);
-    }
-
-    /** Revoked from a view, also at places whose code ran on another place's row. */
-    noteRevoked(ids: readonly string[]): void {
-        ids.forEach((id) => this.revoked.add(id));
-    }
-
-    onApprovalsChanged(listener: (followed: FollowedApprovalChange) => void): { dispose(): void } {
+    onApprovalsChanged(listener: (change: CodeApprovalChange) => void): { dispose(): void } {
         this.changeListeners.add(listener);
         return { dispose: () => this.changeListeners.delete(listener) };
     }
@@ -149,28 +131,23 @@ export class RulePackageCatalog implements ApprovalCatalog<
         this.approvalChanges.dispose();
     }
 
-    /**
-     * Hashed only now: while no rule package row exists the gate blocks a
-     * package without reading it, and a package left to the view is not
-     * hashed again at all.
-     */
-    stillPendingOf(found: readonly BlockedRulePackage[]): PendingRulePackage[] {
-        const rulePackages = rulePackagesToAsk(found)
-            .filter(({ id }) => !isLeftForView(id, this.answers))
-            .flatMap((each) => this.rulePackageOf(each));
-        return pendingApprovals(
-            rulePackages,
-            approvalRowsOf("rulePackage", this.approvals.read()),
-            notAskedAgain(this.answers),
+    stillPendingOf(found: readonly BlockedRulePackage[]): readonly BlockedRulePackage[] {
+        return askedInWorkspace(
+            pendingAllowances(
+                rulePackagesToAsk(found),
+                this.approvals.read(),
+                notAskedAgain(this.answers),
+            ),
+            this.trust.isTrusted(),
         );
     }
 
-    reviewNotice(pending: readonly PendingRulePackage[]): ActionNotice<ApprovalNoticeAction> {
+    reviewNotice(pending: readonly BlockedRulePackage[]): ActionNotice<ApprovalNoticeAction> {
         return rulePackageApprovalNotice(pending);
     }
 
     reviewPrompt(
-        pending: readonly PendingRulePackage[],
+        pending: readonly BlockedRulePackage[],
         workspaceFolders: readonly string[],
     ): ChoicePrompt<string> {
         return rulePackageApprovalPrompt(pending, workspaceFolders);
@@ -178,16 +155,16 @@ export class RulePackageCatalog implements ApprovalCatalog<
 
     /** @returns the packages now allowed. */
     async applyAnswer(
-        pending: readonly PendingRulePackage[],
+        pending: readonly BlockedRulePackage[],
         answer: ReviewAnswer,
     ): Promise<readonly RulePackage[]> {
-        const outcome = approvalOutcome(pending, answer);
+        const outcome = allowanceOutcome(pending, answer);
         outcome.answers.forEach((each, key) => this.answers.set(key, each));
         if (outcome.answers.size > 0) this.notifyListing();
         if (outcome.allowed.length > 0) {
-            await this.approvals.change(allowing(outcome.allowed));
+            await this.approvals.change(allowingAllowances(outcome.allowed));
             this.logger.logInfo(
-                `Allowed bpmnlint rule package(s): ${outcome.allowed.map(({ name }) => name).join(", ")}`,
+                `Allowed bpmnlint rule package(s): ${outcome.allowed.map(rulePackageLabelOf).join(", ")}`,
             );
         }
         return outcome.allowed;
@@ -199,25 +176,10 @@ export class RulePackageCatalog implements ApprovalCatalog<
 
     private followApprovals(): void {
         const rows = approvalRowsOf("rulePackage", this.approvals.read());
-        const followed = followedApprovalChange(this.rulePackageRows, rows);
+        const change = approvalChangeBetween(this.rulePackageRows, rows);
         this.rulePackageRows = rows;
-        const { allow, revoke } = followed.change;
-        if (allow.length === 0 && revoke.length === 0) return;
-        revoke.forEach((id) => this.revoked.add(id));
-        this.changeListeners.forEach((listener) => listener(followed));
-    }
-
-    private rulePackageOf({ id, kind }: BlockedRulePackage): RulePackage[] {
-        const fingerprint = this.fingerprints.fingerprint({ id, kind });
-        if (fingerprint.kind === "fingerprinted") {
-            return [fingerprint.rulePackage];
-        }
-        const { reason, memberDir } = fingerprint;
-        const line = refusedRuleModuleLogLine({ kind: "closure", id, memberDir, reason });
-        if (!this.loggedRefusals.has(line)) {
-            this.loggedRefusals.add(line);
-            this.logger.logWarning(line);
-        }
-        return [];
+        if (change.allow.length === 0 && change.revoke.length === 0) return;
+        change.revoke.forEach((id) => this.revoked.add(id));
+        this.changeListeners.forEach((listener) => listener(change));
     }
 }

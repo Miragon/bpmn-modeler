@@ -31,6 +31,8 @@ export interface LintRunOutput {
     readonly unresolved: readonly string[];
     /** Workspace rule packages the run could not use; a webview run has none. */
     readonly blocked: readonly BlockedRulePackage[];
+    /** A host run in a workspace the user did not trust, which asked for no workspace rule package. */
+    readonly untrusted?: boolean;
 }
 
 export interface LintFindings extends LintRunOutput {

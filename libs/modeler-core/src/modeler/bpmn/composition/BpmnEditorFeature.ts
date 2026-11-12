@@ -3,6 +3,7 @@ import { basename } from "path";
 import { BpmnEditorCommandType } from "@miragon/bpmn-modeler-shared";
 
 import { reviewOrChecklist } from "../../../kernel/adapter/out/ListReview";
+import { trustOrTrusted } from "../../../kernel/adapter/out/TrustedWorkspace";
 import { ApprovalReviewPort, PluginApprovalStorePort } from "../../../kernel/port/approvalPorts";
 import { TemplatePreferenceStorePort } from "../../../kernel/port/templatePreferencePorts";
 import {
@@ -14,9 +15,12 @@ import {
     SettingsPort,
     StatusBarPort,
     WorkspacePort,
+    WorkspaceTrustPort,
 } from "../../../kernel/port/hostPorts";
+import { AllowanceLocator } from "../../../kernel/service/AllowanceLocator";
 import { ApprovalQuestion } from "../../../kernel/service/ApprovalQuestion";
 import { ArtifactService } from "../../../kernel/service/ArtifactService";
+import { ContentRows } from "../../../kernel/service/ContentRowMigration";
 import { QuestionQueue } from "../../../kernel/service/QuestionQueue";
 import { EditorSessionParticipant } from "../../../editorSession/domain/EditorSessionParticipant";
 import {
@@ -78,7 +82,6 @@ import { BpmnSettingsParticipant } from "../service/BpmnSettingsParticipant";
 import { ElementTemplatesParticipant } from "../service/ElementTemplatesParticipant";
 import { EngineVersionStatusBarParticipant } from "../service/EngineVersionStatusBarParticipant";
 import { StatusItemOwnership } from "../../../editorSession/domain/StatusItemOwnership";
-import { PackageClosureFingerprinter } from "../service/PackageClosureFingerprinter";
 import { RulePackageCatalog } from "../service/RulePackageCatalog";
 import { RulePackageInventory } from "../service/RulePackageInventory";
 import { TemplateInventory } from "../service/TemplateInventory";
@@ -117,11 +120,17 @@ export interface BpmnRulePackagePorts {
     /** The host's one approval list, which the plugin approvals share. */
     readonly approvals: PluginApprovalStorePort;
     readonly installedPackages: InstalledPackagesPort;
+    /** The host process's one locator, so plugins, rule packages and the view agree on each allowance. */
+    readonly allowances: AllowanceLocator;
+    /** What a question about a rule package waits for, so the start-up migration is not asked about. */
+    readonly contentRows: ContentRows;
     readonly actionNotifier: ActionNotifierPort;
     /** Shared with the host's other approval questions, so two notices never stand side by side. */
     readonly questions: QuestionQueue;
     /** Where "Review…" takes the user, as {@link reviewOrChecklist} defaults it. */
     readonly review?: ApprovalReviewPort;
+    /** Absent: the host has no trust feature, and the workspace counts as trusted. */
+    readonly workspaceTrust?: WorkspaceTrustPort;
 }
 
 /** The core's document services behind {@link DOCUMENT_SYNC_COMMAND_TYPES}. */
@@ -376,9 +385,17 @@ export class BpmnEditorFeature {
         if (rulePackages === undefined) {
             return { linter: new NodeBpmnLinter() };
         }
-        const { approvals, installedPackages, actionNotifier, questions, review } = rulePackages;
-        const fingerprints = new PackageClosureFingerprinter(installedPackages);
-        const catalog = new RulePackageCatalog(approvals, fingerprints, this.ports.notifier);
+        const {
+            approvals,
+            installedPackages,
+            allowances,
+            contentRows,
+            actionNotifier,
+            questions,
+            review,
+        } = rulePackages;
+        const trust = trustOrTrusted(rulePackages.workspaceTrust);
+        const catalog = new RulePackageCatalog(approvals, trust, this.ports.notifier);
         const question = new ApprovalQuestion(
             catalog,
             reviewOrChecklist(review, this.ports.picker),
@@ -387,13 +404,14 @@ export class BpmnEditorFeature {
             questions,
         );
         return {
-            approvals: { catalog, question },
-            inventory: new RulePackageInventory(catalog, fingerprints, installedPackages),
+            approvals: { catalog, question, contentRows, trust },
+            inventory: new RulePackageInventory(catalog, installedPackages, allowances),
             linter: new NodeBpmnLinter({
                 approvals,
-                fingerprints,
                 packages: installedPackages,
+                allowances,
                 declinedThisSession: () => catalog.declinedThisSession(),
+                trust,
             }),
         };
     }

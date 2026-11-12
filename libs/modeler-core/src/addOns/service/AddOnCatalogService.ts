@@ -1,14 +1,12 @@
-import {
-    ListedPresence,
-    ProcessRestart,
-    reviewedAllowDecision,
-    revoking,
-} from "../../kernel/domain/codeApproval";
+import { revokingAllowance } from "../../kernel/domain/allowance";
+import { ProcessRestart } from "../../kernel/domain/codeApproval";
+import { ListedPresence } from "../../kernel/domain/listedCode";
 import { PluginApprovalStorePort } from "../../kernel/port/approvalPorts";
 import { LoggerPort } from "../../kernel/port/hostPorts";
+import { ContentRows } from "../../kernel/service/ContentRowMigration";
 import { catalogModelOf, failedCatalogOf } from "../domain/addOnCatalog";
 import type { AddOnCatalogModel } from "../domain/addOnCatalogModel";
-import { CatalogActionKind, CODE_ADD_ON_KINDS, CodeAddOnKind } from "../domain/addOnIds";
+import { CatalogActionKind, CodeAddOnKind } from "../domain/addOnIds";
 import {
     AddOnActionResult,
     AddOnRequest,
@@ -17,17 +15,15 @@ import {
     REPORTED_BY_FLOW,
 } from "../domain/addOnRequests";
 import {
+    allowDecisionOf,
     allowResultOf,
     allowTargetOf,
-    inspectResultOf,
     PRUNE_FAILED,
     pruneResultOf,
-    revokeChangeOf,
-    revokeOutcomeOf,
-    revokeSweepOf,
+    revokeResultOf,
     shownTargetOf,
 } from "../domain/codeAddOnRequests";
-import { foundArtifactsOf, ShownCode } from "../domain/codeAddOnCatalog";
+import { ShownCode } from "../domain/codeAddOnCatalog";
 import { firstRevisionOf, ShownRevisions } from "../domain/shownRevisions";
 import { marketplaceRemovalTargetOf, TemplateSwitchRequest } from "../domain/templateAddOnRequests";
 import { ShownSource, ShownTemplate } from "../domain/templateAddOnViews";
@@ -47,11 +43,11 @@ export interface AddOnCatalogPorts {
     readonly marketplaces?: MarketplaceAddOnSource;
     readonly logger: LoggerPort;
     readonly restart: ProcessRestart;
+    readonly contentRows: ContentRows;
 }
 
 type QueuedRequest =
-    | Extract<AddOnRequest, { kind: "inspect" | "allow" | "revoke" | "pruneCache" }>
-    | TemplateSwitchRequest;
+    Extract<AddOnRequest, { kind: "allow" | "revoke" | "pruneCache" }> | TemplateSwitchRequest;
 type MarketplaceRequest = Extract<
     AddOnRequest,
     { kind: "addMarketplace" | "updateMarketplaces" | "removeMarketplace" }
@@ -69,7 +65,6 @@ type MarketplaceRequest = Extract<
 export class AddOnCatalogService {
     private revision = firstRevisionOf(Date.now());
     private revisions = ShownRevisions.empty();
-    private readonly inspected = new Set<string>();
     private latestModel?: AddOnCatalogModel;
     /** The last listing that succeeded, which a failed one keeps showing. */
     private latestReadModel?: AddOnCatalogModel;
@@ -170,8 +165,6 @@ export class AddOnCatalogService {
 
     private actOn(request: QueuedRequest): Promise<AddOnActionResult> {
         switch (request.kind) {
-            case "inspect":
-                return Promise.resolve(this.inspect(request.addOnId));
             case "allow":
                 return this.allow(request.addOnId, request.revision);
             case "revoke":
@@ -186,17 +179,10 @@ export class AddOnCatalogService {
         }
     }
 
-    private inspect(addOnId: string): AddOnActionResult {
-        const target = shownTargetOf(this.revisions, addOnId, "inspect");
-        if (target.kind === "refused") return target.result;
-        this.inspected.add(target.code.id);
-        return inspectResultOf(target.code);
-    }
-
     private async allow(addOnId: string, revision: number): Promise<AddOnActionResult> {
         const target = allowTargetOf(this.revisions, revision, addOnId);
         if (target.kind === "refused") return target.result;
-        const decision = reviewedAllowDecision(target.content, await this.currentOf(target.code));
+        const decision = allowDecisionOf(target.code, await this.currentOf(target.code));
         if (decision.kind === "allow") {
             await this.ports.approvals.change(decision.change);
         }
@@ -204,20 +190,17 @@ export class AddOnCatalogService {
     }
 
     private async revoke(addOnId: string): Promise<AddOnActionResult> {
+        const { approvals, contentRows } = this.ports;
+        // Else the migration could write back the allowance this revoke takes.
+        await contentRows.whenSettled();
         const target = shownTargetOf(this.revisions, addOnId, "revoke");
         if (target.kind === "refused") return target.result;
         const { code } = target;
-        const { approvals } = this.ports;
-        const source = this.sourceOf(code.kind);
         // Before the change, whose reload or relint could ask about it at once.
-        code.leftForViewByRevoke.forEach((each) => source?.leaveForView(each));
-        const change = revokeChangeOf(code, await approvals.readStored());
-        await approvals.change(change);
-        const swept = revokeSweepOf(code, await approvals.readStored());
-        if (swept.length > 0) await approvals.change(revoking(swept));
-        const { revokedIds, result } = revokeOutcomeOf(code, change, swept);
-        await source?.afterRevoke(revokedIds);
-        return result;
+        this.sourceOf(code.kind)?.leaveForView(code);
+        const stored = await approvals.readStored();
+        await approvals.change(revokingAllowance(code, stored, contentRows.locate(stored)));
+        return revokeResultOf(code);
     }
 
     private async prune(): Promise<AddOnActionResult> {
@@ -254,7 +237,7 @@ export class AddOnCatalogService {
 
     private async build(): Promise<void> {
         const { plugins, rulePackages, restart } = this.ports;
-        const facts = await this.reader.read(this.inspected);
+        const facts = await this.reader.read();
         const revision = ++this.revision;
         const { model, shown, sources, templates, catalogActions } = catalogModelOf(
             facts,
@@ -277,13 +260,6 @@ export class AddOnCatalogService {
         this.latestCatalogActions = catalogActions;
         this.latestReadModel = model;
         this.publish(model);
-        // Its write lists once more, which finds every row in place and writes nothing.
-        CODE_ADD_ON_KINDS.forEach((kind) =>
-            this.track(
-                this.sourceOf(kind)?.recordCarried(foundArtifactsOf(facts, kind)) ??
-                    Promise.resolve(),
-            ),
-        );
     }
 
     private publishFailed(): void {

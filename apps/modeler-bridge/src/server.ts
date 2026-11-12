@@ -27,7 +27,7 @@ const marketplaceCacheRoot =
 // `BridgeProcessLauncher.kt`. Absent, `createBridge` falls back to a home-dir path.
 const pluginCacheRoot = process.env.MIRAGON_BPMN_PLUGIN_CACHE;
 
-const { rpc, prunePluginCache } = createBridge(
+const { rpc, prunePluginCache, migrateContentRows } = createBridge(
     (line) => process.stdout.write(line + "\n"),
     (message) => process.stderr.write(coreLogText(message)),
     { marketplaceCacheRoot, pluginCacheRoot, homeDir: homedir() },
@@ -51,5 +51,6 @@ process.on("SIGTERM", () => process.exit(0));
 
 process.stderr.write(coreLogText("modeler-core bridge ready"));
 
-// After the streams are bound, as it logs through them.
+// After the streams are bound, as they log through them; the rewrite also asks the host for its list.
 void prunePluginCache();
+void migrateContentRows();

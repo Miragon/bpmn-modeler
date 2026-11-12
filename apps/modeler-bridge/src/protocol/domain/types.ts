@@ -61,6 +61,8 @@ export interface RegisterParams extends SessionMeta {
     pluginApprovalsRevision?: number;
     /** The user's template switches, so the first templates the editor sends hide the switched-off ones. */
     templatePreferences?: TemplatePreferencesSnapshot;
+    /** Whether the user trusts the project, so the first plugin request and lint already read it. */
+    workspaceTrust?: WorkspaceTrustSnapshot;
 }
 
 /** Empty-body notification/request (e.g. `clipboard/read`, `notifier/openConsole`). */
@@ -199,6 +201,16 @@ export interface MigrateAllParams {
  */
 export interface PluginApprovalsSnapshot {
     approvals: PluginApproval[];
+    revision: number;
+}
+
+/**
+ * `workspaceTrust/didChange` — whether the user trusts the project, pushed
+ * after the IDE's trust changed and after every spawn. `revision` grows with
+ * every read, so the mirror keeps the newest of what its queues apply.
+ */
+export interface WorkspaceTrustSnapshot {
+    trusted: boolean;
     revision: number;
 }
 

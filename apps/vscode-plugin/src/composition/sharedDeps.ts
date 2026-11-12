@@ -1,7 +1,11 @@
-import { commands, ExtensionContext } from "vscode";
+import { commands, env, ExtensionContext, workspace } from "vscode";
 
-import { EditorSessionStore } from "@miragon/bpmn-modeler-core";
-import { StatusItemOwnership } from "@miragon/bpmn-modeler-core";
+import {
+    AllowanceLocator,
+    ContentRowMigration,
+    EditorSessionStore,
+    StatusItemOwnership,
+} from "@miragon/bpmn-modeler-core";
 import { EditorSessionDocuments } from "@miragon/bpmn-modeler-core";
 import { VsCodeWorkspace } from "../shared/adapter/out/VsCodeWorkspace";
 import { VsCodeSettings } from "../shared/adapter/out/VsCodeSettings";
@@ -10,6 +14,7 @@ import { VsCodeNotifier } from "../shared/adapter/out/VsCodeNotifier";
 import { VsCodePicker } from "../shared/adapter/out/VsCodePicker";
 import { VsCodeActionNotifier } from "../shared/adapter/out/VsCodeActionNotifier";
 import { VsCodeClipboard } from "../shared/adapter/out/VsCodeClipboard";
+import { VsCodeWorkspaceTrust } from "../shared/adapter/out/VsCodeWorkspaceTrust";
 import { VsCodeTextEditor } from "../shared/adapter/in/VsCodeTextEditor";
 import { VsCodeEditorHandle } from "../shared/adapter/out/VsCodeEditorHandle";
 import { vsCodeModelerPreferences } from "../shared/adapter/out/modelerConfiguration";
@@ -19,6 +24,8 @@ import { ArtifactService, QuestionQueue } from "@miragon/bpmn-modeler-core";
 import { DocumentFlushService, PendingEditsFlush } from "@miragon/bpmn-modeler-core";
 import { VsCodePluginApprovalStore } from "../modeler/bpmn/adapter/out/VsCodePluginApprovalStore";
 import { VsCodeTemplatePreferenceStore } from "../modeler/bpmn/adapter/out/VsCodeTemplatePreferenceStore";
+import { NodeInstalledPackages } from "../modeler/bpmn/adapter/out/NodeInstalledPackages";
+import { originHostOf } from "../shared/domain/originHost";
 
 /**
  * The cross-cutting collaborators every feature draws from: the host-capability
@@ -51,6 +58,12 @@ export interface SharedDeps {
     approvalQuestions: QuestionQueue;
     /** The user's template switches, which the BPMN editor and the add-on catalog share. */
     templatePreferences: VsCodeTemplatePreferenceStore;
+    /** The one reader of installed packages and git files, for the plugins, the rule packages and the allowances. */
+    installedPackages: NodeInstalledPackages;
+    allowances: AllowanceLocator;
+    contentRows: ContentRowMigration;
+    /** Read by the plugins, the rule packages and the add-on catalog. */
+    workspaceTrust: VsCodeWorkspaceTrust;
 }
 
 /**
@@ -74,6 +87,13 @@ export function buildSharedDeps(context: ExtensionContext): SharedDeps {
     const notifier = new VsCodeNotifier();
     // One flush service for every editor: requests are keyed per editorId.
     const flushSvc = new DocumentFlushService(editorStore, notifier);
+    const pluginApprovals = new VsCodePluginApprovalStore(context.globalState);
+    const installedPackages = new NodeInstalledPackages();
+    // A window changes its remote or its first folder only through an extension host restart.
+    const allowances = new AllowanceLocator(
+        installedPackages,
+        originHostOf(env.remoteName, workspace.workspaceFolders?.map(({ uri }) => uri) ?? []),
+    );
 
     return {
         editorStore,
@@ -92,11 +112,15 @@ export function buildSharedDeps(context: ExtensionContext): SharedDeps {
         artifactSvc: new ArtifactService(vsWorkspace, vsSettings, notifier),
         flushSvc,
         pendingEdits: new PendingEditsFlush(editorStore, flushSvc, notifier),
-        pluginApprovals: new VsCodePluginApprovalStore(context.globalState),
+        pluginApprovals,
         approvalQuestions: new QuestionQueue(),
         templatePreferences: new VsCodeTemplatePreferenceStore({
             project: context.workspaceState,
             allProjects: context.globalState,
         }),
+        installedPackages,
+        allowances,
+        contentRows: new ContentRowMigration(pluginApprovals, allowances, notifier),
+        workspaceTrust: new VsCodeWorkspaceTrust(),
     };
 }

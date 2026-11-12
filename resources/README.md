@@ -16,3 +16,8 @@ IntelliJ:
 `example-process/` is its own Yarn project, outside the repository's workspaces. For a local Camunda
 engine to deploy these diagrams to, see [`stack/c7`](../stack/c7/README.md) and
 [`stack/c8`](../stack/c8/README.md).
+
+[`allowance-playground/`](allowance-playground/README.md) builds git repositories, worktrees, a clone
+and plain folders on disk to try by hand how plugins and rule packages are allowed per repository
+and add-on, with a checklist for VS Code and IntelliJ. Run
+`node resources/allowance-playground/create-playground.mjs`; its `template/` holds the files it copies.

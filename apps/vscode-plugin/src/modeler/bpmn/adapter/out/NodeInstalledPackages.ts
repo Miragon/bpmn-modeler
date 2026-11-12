@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import {
     BigIntStats,
     Dirent,
@@ -11,6 +10,7 @@ import {
 } from "node:fs";
 
 import {
+    fileSystemPathOf,
     InstalledEntry,
     InstalledEntryKind,
     InstalledPackagesPort,
@@ -20,21 +20,23 @@ import {
 
 /**
  * Reads realpaths with `realpathSync`, as Node's module loader does, so a
- * package root matches the file a `require` resolved to.
+ * package root matches the file a `require` resolved to. Every path goes
+ * through `fileSystemPathOf` first, as a host spells a Windows path as
+ * `uri.path` (`/c:/a`).
  * The bridge keeps a copy for its Bun runtime; the contract suite pins both.
  */
 export class NodeInstalledPackages implements InstalledPackagesPort {
     realPath(path: string): string | undefined {
-        return orUndefined(() => toWorkspacePath(realpathSync(path)));
+        return orUndefined(() => toWorkspacePath(realpathSync(fileSystemPathOf(path))));
     }
 
     entryKindOf(path: string): InstalledEntryKind | undefined {
-        return orUndefined(() => kindOfEntry(lstatSync(path)));
+        return orUndefined(() => kindOfEntry(lstatSync(fileSystemPathOf(path))));
     }
 
     listDirectory(path: string): InstalledEntry[] | undefined {
         return orUndefined(() =>
-            readdirSync(path, { withFileTypes: true }).map((entry) => ({
+            readdirSync(fileSystemPathOf(path), { withFileTypes: true }).map((entry) => ({
                 name: entry.name,
                 kind: kindOfEntry(entry),
             })),
@@ -42,7 +44,7 @@ export class NodeInstalledPackages implements InstalledPackagesPort {
     }
 
     stamp(path: string): PathStamp | undefined {
-        const stats = orUndefined(() => statSync(path, { bigint: true }));
+        const stats = orUndefined(() => statSync(fileSystemPathOf(path), { bigint: true }));
         return (
             stats && {
                 kind: stampKindOf(stats),
@@ -55,16 +57,8 @@ export class NodeInstalledPackages implements InstalledPackagesPort {
         );
     }
 
-    sha256OfFile(path: string): string | undefined {
-        return orUndefined(() => createHash("sha256").update(readFileSync(path)).digest("hex"));
-    }
-
-    sha256OfText(text: string): string {
-        return createHash("sha256").update(text, "utf8").digest("hex");
-    }
-
     readTextFile(path: string): string | undefined {
-        return orUndefined(() => readFileSync(path, "utf8"));
+        return orUndefined(() => readFileSync(fileSystemPathOf(path), "utf8"));
     }
 }
 
