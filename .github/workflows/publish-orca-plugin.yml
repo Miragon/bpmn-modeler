@@ -57,21 +57,16 @@ jobs:
       - uses: ./.github/actions/setup-workspaces
         with:
           focus: "@miragon/bpmn-modeler-orca bpmn-modeler @miragon/bpmn-modeler @miragon/dmn-modeler @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-types @miragon/bpmn-modeler-i18n-extras @miragon/bpmn-modeler-append-menu @miragon/bpmn-modeler-element-template-chooser @miragon/bpmn-modeler-clipboard"
-      - run: sudo apt-get update && sudo apt-get install -y xvfb
       - run: yarn workspace @miragon/bpmn-modeler-orca build
 
-      - name: Download and extract the newest Orca
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          mkdir -p "$RUNNER_TEMP/orca" && cd "$RUNNER_TEMP/orca"
-          gh release download --repo stablyai/orca --pattern orca-linux.AppImage
-          chmod +x orca-linux.AppImage
-          ./orca-linux.AppImage --appimage-extract > /dev/null
+      - id: orca
+        uses: miragon/orca-modelers/.github/actions/setup-orca@7207762e896fe49cc949dc86edb2170ae35035dd # main
+        with:
+          channel: latest
       - name: Smoke-test exactly this plugin folder in Orca
         run: xvfb-run -a yarn workspace @miragon/bpmn-modeler-orca test:orca
         env:
-          ORCA_APP: ${{ runner.temp }}/orca/squashfs-root
+          ORCA_APP: ${{ steps.orca.outputs.app }}
           ORCA_SMOKE_PLUGIN: ${{ github.workspace }}/${{ env.PLUGIN_DIR }}
       - if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

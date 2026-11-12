@@ -57,7 +57,7 @@ corepack yarn workspace @miragon/bpmn-modeler-orca test:orca:docker  # both edit
 ```
 
 The e2e suite runs the built editors with the Orca stub of `@miragon/modeler-shell`. The smoke test drives a real
-Orca (default 1.4.250, `ORCA_VERSION=<version>` for another) with the shell's `runOrcaSmoke`: load with approval,
+Orca (Miragon/orca-modelers' image `ghcr.io/miragon/orca:<version>`, default 1.4.254, `ORCA_VERSION=<version>` for another) with the shell's `runOrcaSmoke`: load with approval,
 `plugin check`, both themes, undo, a saved delete, an agent's write and the plugin's logs. `test:orca` itself refuses
 to open Orca's window on a Mac. The click points both use are in `test/fixtures/smokePoints.ts`; the e2e suite checks
 that they hit their elements.

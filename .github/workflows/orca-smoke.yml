@@ -52,49 +52,18 @@ jobs:
       - uses: ./.github/actions/setup-workspaces
         with:
           focus: "@miragon/bpmn-modeler-orca bpmn-modeler @miragon/bpmn-modeler @miragon/dmn-modeler @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-types @miragon/bpmn-modeler-i18n-extras @miragon/bpmn-modeler-append-menu @miragon/bpmn-modeler-element-template-chooser @miragon/bpmn-modeler-clipboard"
-      - run: sudo apt-get update && sudo apt-get install -y xvfb
       - run: yarn workspace @miragon/bpmn-modeler-orca build
 
-      # The minimum comes from engines.orca, so raising the floor moves the smoke along.
       - id: orca
-        name: Resolve the Orca version
-        env:
-          CHANNEL: ${{ matrix.orca }}
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          if [[ "$CHANNEL" == minimum ]]; then
-            version=$(node -p "require('./apps/orca-plugin/orca-plugin.json').engines.orca.replace(/^>=/, '')")
-          else
-            version=$(gh release view --repo stablyai/orca --json tagName --jq '.tagName | ltrimstr("v")')
-          fi
-          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "::error::No Orca version for $CHANNEL: '$version'"
-            exit 1
-          fi
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        id: cache
+        uses: miragon/orca-modelers/.github/actions/setup-orca@7207762e896fe49cc949dc86edb2170ae35035dd # main
         with:
-          path: ${{ runner.temp }}/orca
-          key: orca-${{ runner.os }}-${{ runner.arch }}-${{ steps.orca.outputs.version }}
-
-      - if: steps.cache.outputs.cache-hit != 'true'
-        name: Download and extract the Orca AppImage
-        env:
-          VERSION: ${{ steps.orca.outputs.version }}
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          mkdir -p "$RUNNER_TEMP/orca" && cd "$RUNNER_TEMP/orca"
-          gh release download "v$VERSION" --repo stablyai/orca --pattern orca-linux.AppImage
-          chmod +x orca-linux.AppImage
-          ./orca-linux.AppImage --appimage-extract > /dev/null
-          rm orca-linux.AppImage
+          channel: ${{ matrix.orca }}
+          plugin-manifest: apps/orca-plugin/orca-plugin.json
 
       - name: Run the Orca smoke test
         run: xvfb-run -a yarn workspace @miragon/bpmn-modeler-orca test:orca
         env:
-          ORCA_APP: ${{ runner.temp }}/orca/squashfs-root
+          ORCA_APP: ${{ steps.orca.outputs.app }}
 
       - if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
