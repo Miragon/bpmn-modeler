@@ -36,11 +36,13 @@ describe("the plugin in a real Orca", () => {
             }
             if (!existsSync(plugin))
                 throw new Error(`no built plugin at ${plugin}: run build first`);
+            const element = { at: [...deletion.at] as [number, number], label: deletion.label };
             const result = await runOrcaSmoke({
                 plugin,
                 document: { name, text: fixture(name) },
-                deletion: { at: [...deletion.at], label: deletion.label },
+                deletions: [element, element, element],
                 addOutside,
+                changeOutside: (text) => text,
                 results: `${results}/${name}`,
             });
             expect(result.steps).toEqual([

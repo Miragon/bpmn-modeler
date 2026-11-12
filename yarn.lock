@@ -3453,7 +3453,7 @@ __metadata:
     "@miragon/bpmn-modeler-shared": "workspace:*"
     "@miragon/bpmn-modeler-types": "workspace:*"
     "@miragon/dmn-modeler": "workspace:*"
-    "@miragon/modeler-shell": "npm:0.11.0"
+    "@miragon/modeler-shell": "npm:0.13.0"
     "@types/node": "npm:26.6.6"
     "@typescript/native": "npm:typescript@7.0.2"
     "@vitest/coverage-v8": "npm:5.1.0"
@@ -3844,9 +3844,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@miragon/modeler-shell@npm:0.11.0":
-  version: 0.11.0
-  resolution: "@miragon/modeler-shell@npm:0.11.0"
+"@miragon/modeler-shell@npm:0.13.0":
+  version: 0.13.0
+  resolution: "@miragon/modeler-shell@npm:0.13.0"
   peerDependencies:
     "@vscode/test-electron": ^3.1.0
     playwright-core: ^1.50.0
@@ -3858,7 +3858,7 @@ __metadata:
   bin:
     modeler-shell-orca-docker: dist/orca-docker.js
     modeler-shell-vscode-docker: dist/vscode-docker.js
-  checksum: 10c0/ee2028313e0e83392ea19173bbd1f5883270456d1216bfe7b816c8be2e08561f0785fc7acf8dcd4891b14aa08dffdd4052aaf492af8bb1b917720f9eb9c009f2
+  checksum: 10c0/094767616376bf4fa39ea3598b1f02312f603281324f1531ad65cfc557d5b9aa4372de4796af5e787cd1187391c25fb4c871c3f51db4d12bbc0ae9a56a373215
   languageName: node
   linkType: hard
 

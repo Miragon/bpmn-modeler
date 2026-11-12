@@ -2,8 +2,7 @@
 // opens on the host and nothing takes the focus. ORCA_VERSION picks the Orca release.
 import { execFileSync, spawn, spawnSync } from "node:child_process";
 import console from "node:console";
-import { createHash } from "node:crypto";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import process from "node:process";
@@ -11,9 +10,8 @@ import { fileURLToPath } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = resolve(here, "../../../..");
-const containerfile = join(here, "Containerfile");
 const hostResults = join(repositoryRoot, "apps/orca-plugin/test-results/orca-smoke");
-const orcaVersion = (process.env.ORCA_VERSION || "1.4.250").replace(/^v/, "");
+const orcaVersion = (process.env.ORCA_VERSION || "1.4.254").replace(/^v/, "");
 const separator = process.argv.indexOf("--");
 const command =
     separator === -1
@@ -86,26 +84,7 @@ function workingTreeFiles() {
 }
 
 const engine = process.env.CONTAINER_ENGINE || (isOnPath("podman") ? "podman" : "docker");
-const recipeHash = createHash("sha256")
-    .update(readFileSync(containerfile))
-    .digest("hex")
-    .slice(0, 12);
-const image = `localhost/bpmn-modeler-orca-smoke:${orcaVersion}-${recipeHash}`;
-
-if (spawnSync(engine, ["image", "inspect", image], { stdio: "ignore" }).status !== 0) {
-    console.log(`[orca-smoke] building ${image} with ${engine}`);
-    const code = await run(engine, [
-        "build",
-        "--tag",
-        image,
-        "--build-arg",
-        `ORCA_VERSION=${orcaVersion}`,
-        "--file",
-        containerfile,
-        here,
-    ]);
-    if (code !== 0) process.exit(code);
-}
+const image = `ghcr.io/miragon/orca:${orcaVersion}`;
 
 rmSync(hostResults, { recursive: true, force: true });
 mkdirSync(hostResults, { recursive: true });
@@ -132,6 +111,10 @@ const exitCode = await run(engine, [
     `${hostResults}:/results`,
     "--volume",
     "bpmn-modeler-orca-smoke-yarn:/root/.yarn/berry",
+    "--env",
+    "COREPACK_ENABLE_DOWNLOAD_PROMPT=0",
+    "--env",
+    "CI=1",
     "--env",
     `HOST_UID=${process.getuid?.() ?? ""}`,
     "--env",
