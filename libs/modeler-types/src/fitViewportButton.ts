@@ -6,6 +6,9 @@ export interface FitViewportButtonOptions {
     label: string;
     fit: () => void;
     focusCanvas: () => void;
+    isCanvasFocused: () => boolean;
+    /** Adapts diagram-js's deduplicated `canvas.focus.changed` event. */
+    onCanvasFocusChanged: (listener: (focused: boolean) => void) => void;
 }
 
 // Material Symbols "fit_screen", viewBox 0 -960 960 960.
@@ -14,13 +17,17 @@ const FIT_SCREEN_SVG = `<svg viewBox="0 -960 960 960" fill="currentColor" aria-h
 /**
  * Mounts the canvas's "fit diagram to view" button, styled by `canvasOverlays.css`.
  * A pointer click hands the keyboard back to the canvas, so shortcuts keep
- * driving the diagram.
+ * driving the diagram. While the canvas holds the keyboard the button carries
+ * `data-canvas-focused`, which `canvasOverlays.css` draws as a dot: the canvas
+ * shows its focus on the one control it owns instead of a frame of its own.
  */
 export function installFitViewportButton({
     parent,
     label,
     fit,
     focusCanvas,
+    isCanvasFocused,
+    onCanvasFocusChanged,
 }: FitViewportButtonOptions): Disposer {
     const button = document.createElement("button");
     button.type = "button";
@@ -34,6 +41,10 @@ export function installFitViewportButton({
         if (pressedByPointer) {
             focusCanvas();
         }
+    });
+    button.toggleAttribute("data-canvas-focused", isCanvasFocused());
+    onCanvasFocusChanged((focused) => {
+        button.toggleAttribute("data-canvas-focused", focused);
     });
     parent.append(button);
     return () => button.remove();

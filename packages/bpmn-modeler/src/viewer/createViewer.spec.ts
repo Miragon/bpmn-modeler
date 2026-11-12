@@ -82,12 +82,10 @@ describe("createViewer (runtime, jsdom)", () => {
         // Minimap + the readonly token-simulation variant enter the DI graph …
         expect(viewer.getService("minimap")).toBeDefined();
         expect(viewer.getService("toggleMode")).toBeDefined();
-        // … and the focus ring and fit button mount inside this instance's canvas container.
-        expect(container.querySelector(".canvas-focus-ring")).not.toBeNull();
+        // … and the fit button mounts inside this instance's canvas container.
         expect(container.querySelector(".fit-viewport-button")).not.toBeNull();
 
         viewer.destroy();
-        expect(container.querySelector(".canvas-focus-ring")).toBeNull();
         expect(container.querySelector(".fit-viewport-button")).toBeNull();
     });
 
@@ -288,7 +286,6 @@ describe("createViewer (runtime, jsdom)", () => {
                 ).rejects.toThrow("matchMedia boom");
 
                 expect(container.querySelector(".bjs-container")).toBeNull();
-                expect(container.querySelector(".canvas-focus-ring")).toBeNull();
                 expect(container.querySelector(".fit-viewport-button")).toBeNull();
                 expect(parent.getAttribute("data-bpmn-theme")).toBeNull();
 

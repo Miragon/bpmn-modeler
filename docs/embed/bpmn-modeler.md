@@ -415,7 +415,7 @@ element-template chooser. It also **re-resolves the in-page lint config** for th
 the Camunda deployability layer (so `camunda-compat`
 findings the neutral panel cannot act on disappear), and switching back restores it —
 see [Linting tiers](#linting-tiers). A host-handed workspace config is mode-invariant. The canvas
-chrome (minimap, token simulation, fit button, canvas focus ring) is the same in every mode ([BPMN modeler: surfaces and modes](https://github.com/Miragon/bpmn-modeler/blob/main/docs/adr/bpmn-modeler.md#surfaces-and-modes)). Because
+chrome (minimap, token simulation, fit button with its canvas focus dot) is the same in every mode ([BPMN modeler: surfaces and modes](https://github.com/Miragon/bpmn-modeler/blob/main/docs/adr/bpmn-modeler.md#surfaces-and-modes)). Because
 nothing in the DI module graph is added or removed on a toggle, `zeebe:*` / `camunda:*` extensions
 are **never** at risk: replace and copy-paste keep engine data in both modes, and the drill-down
 plane, selection, and undo history survive the toggle.
@@ -527,7 +527,7 @@ context-pad entry (#1445 — the one interaction a readonly surface still offers
 browser-only
 [diff rendering primitives](#diff) (`DiffViewer`, `DiffLegend`, `DiffNavigator`,
 `DiffPaneCoordinator`), plus the mode-invariant canvas chrome every surface shares — the minimap,
-the readonly token-simulation variant, the fit button and the canvas focus ring
+the readonly token-simulation variant and the fit button with its canvas focus dot
 ([surface and mode decisions](https://github.com/Miragon/bpmn-modeler/blob/main/docs/adr/bpmn-modeler.md#surfaces-and-modes)).
 Camunda editing and lint stay out of its module graph. The entry includes the shared i18n
 translator for `DiffLegend` labels and reaches the optional panel's dependencies, including
@@ -722,7 +722,7 @@ shares ([BPMN modeler: surfaces and modes](https://github.com/Miragon/bpmn-model
 
 Load **`@miragon/bpmn-modeler/design.css`**, not `styles.css`: the design sheet carries the bpmn-js
 base diagram/font CSS, the engine-neutral panel and append-menu chrome, the minimap, token
-simulation, the fit button, the canvas focus ring, and the lint chrome (hide-until-configured, so it costs
+simulation, the fit button with its canvas focus dot, and the lint chrome (hide-until-configured, so it costs
 nothing unless you inject linting), plus the dark-theme overrides — none of the Camunda editor
 chrome. The two overlap, so do **not** load both on a design-only page.
 

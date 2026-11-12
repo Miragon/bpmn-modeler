@@ -85,6 +85,28 @@ describe("SurfaceCore", () => {
         }
     });
 
+    it("marks the fit button while the canvas holds the keyboard", () => {
+        const { container, core } = mount();
+        const store = new DisposableStore();
+        const instance = allocate(core, container, store);
+        const eventBus = instance.get("eventBus") as { on: ReturnType<typeof vi.fn> };
+        const [, onFocusChanged] = eventBus.on.mock.calls.find(
+            ([event]) => event === "canvas.focus.changed",
+        )!;
+        const marked = () =>
+            container.querySelector(".fit-viewport-button")?.hasAttribute("data-canvas-focused") ??
+            false;
+
+        onFocusChanged({ focused: true });
+        expect(marked()).toBe(true);
+
+        onFocusChanged({ focused: false });
+        expect(marked()).toBe(false);
+
+        store.dispose();
+        expect(container.querySelector(".fit-viewport-button")).toBeNull();
+    });
+
     it("resolves a service the instance was built without to undefined", () => {
         const { container, core } = mount();
         allocate(core, container, new DisposableStore());

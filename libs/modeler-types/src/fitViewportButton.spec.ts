@@ -6,8 +6,23 @@ function button(parent: HTMLElement): HTMLButtonElement | null {
     return parent.querySelector<HTMLButtonElement>("button.fit-viewport-button");
 }
 
-function options(parent: HTMLElement) {
-    return { parent, label: "Fit diagram to view", fit: vi.fn(), focusCanvas: vi.fn() };
+function options(parent: HTMLElement, canvasFocused = false) {
+    let emitCanvasFocus: (focused: boolean) => void = () => {};
+    return {
+        parent,
+        label: "Fit diagram to view",
+        fit: vi.fn(),
+        focusCanvas: vi.fn(),
+        isCanvasFocused: () => canvasFocused,
+        onCanvasFocusChanged: (listener: (focused: boolean) => void) => {
+            emitCanvasFocus = listener;
+        },
+        emitCanvasFocus: (focused: boolean) => emitCanvasFocus(focused),
+    };
+}
+
+function marksCanvasFocus(parent: HTMLElement): boolean {
+    return button(parent)?.hasAttribute("data-canvas-focused") ?? false;
 }
 
 describe("installFitViewportButton", () => {
@@ -16,6 +31,24 @@ describe("installFitViewportButton", () => {
     beforeEach(() => {
         parent = document.createElement("div");
         document.body.replaceChildren(parent);
+    });
+
+    it("marks the button on a canvas that already holds the keyboard", () => {
+        installFitViewportButton(options(parent, true));
+
+        expect(marksCanvasFocus(parent)).toBe(true);
+    });
+
+    it("marks the button while the canvas holds the keyboard", () => {
+        const install = options(parent);
+        installFitViewportButton(install);
+        expect(marksCanvasFocus(parent)).toBe(false);
+
+        install.emitCanvasFocus(true);
+        expect(marksCanvasFocus(parent)).toBe(true);
+
+        install.emitCanvasFocus(false);
+        expect(marksCanvasFocus(parent)).toBe(false);
     });
 
     it("mounts a button named by the translated label", () => {

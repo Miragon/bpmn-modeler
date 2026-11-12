@@ -1,8 +1,4 @@
-import {
-    type Disposer,
-    DisposableStore,
-    installCanvasFocusRing,
-} from "@miragon/bpmn-modeler-types";
+import type { Disposer } from "@miragon/bpmn-modeler-types";
 
 import { installKeyboardFocus } from "./keyboardFocus";
 
@@ -20,54 +16,36 @@ export interface SurfaceFocusOptions {
 }
 
 /**
- * Installs the shared canvas focus features — keyboard-focus/Escape handling and
- * the canvas focus ring — every surface wires identically. Services resolve
- * lazily through `getService` because the guard is armed right after the bpmn-js
- * instance exists.
+ * Installs the keyboard-focus/Escape handling every surface wires identically.
+ * Services resolve lazily through `getService` because the guard is armed right
+ * after the bpmn-js instance exists.
  *
  * @param options.extraRoots Sibling roots (the properties panel) whose Escape
  *   events must reach this canvas.
  * @param options.hasSearchPad Whether the surface registers a `searchPad` (the
  *   readonly viewer does not).
- * @returns a disposer that removes both features.
+ * @returns a disposer that removes the handling.
  */
 export function installSurfaceFocusFeatures(
     getService: <T>(name: string) => T,
     options: SurfaceFocusOptions,
 ): Disposer {
     const canvas = getService<CanvasService>("canvas");
-    const canvasContainer = canvas.getContainer();
-    const eventBus = () =>
-        getService<{ on(event: string, handler: (event: never) => void): void }>("eventBus");
     const selection = () =>
         getService<{ get(): unknown[]; select(elements: null): void }>("selection");
 
-    const store = new DisposableStore();
-    store.add(
-        installCanvasFocusRing({
-            container: canvasContainer,
-            isFocused: () => canvas.isFocused(),
-            onFocusChanged: (listener) =>
-                eventBus().on("canvas.focus.changed", (event: { focused: boolean }) =>
-                    listener(event.focused),
-                ),
-        }),
-    );
-    store.add(
-        installKeyboardFocus({
-            roots: [canvasContainer, ...(options.extraRoots ?? [])],
-            handleGlobalEscape: options.handleGlobalEscape ?? false,
-            focusCanvas: () => canvas.focus(),
-            isCanvasFocused: () => canvas.isFocused(),
-            hasSelection: () => selection().get().length > 0,
-            clearSelection: () => selection().select(null),
-            isSearchPadOpen: options.hasSearchPad
-                ? () => getService<{ isOpen(): boolean }>("searchPad").isOpen()
-                : () => false,
-            closeSearchPad: options.hasSearchPad
-                ? () => getService<{ close(): void }>("searchPad").close()
-                : () => {},
-        }),
-    );
-    return () => store.dispose();
+    return installKeyboardFocus({
+        roots: [canvas.getContainer(), ...(options.extraRoots ?? [])],
+        handleGlobalEscape: options.handleGlobalEscape ?? false,
+        focusCanvas: () => canvas.focus(),
+        isCanvasFocused: () => canvas.isFocused(),
+        hasSelection: () => selection().get().length > 0,
+        clearSelection: () => selection().select(null),
+        isSearchPadOpen: options.hasSearchPad
+            ? () => getService<{ isOpen(): boolean }>("searchPad").isOpen()
+            : () => false,
+        closeSearchPad: options.hasSearchPad
+            ? () => getService<{ close(): void }>("searchPad").close()
+            : () => {},
+    });
 }

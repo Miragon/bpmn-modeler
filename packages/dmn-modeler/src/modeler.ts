@@ -13,7 +13,6 @@ import {
     fitCanvasToContent,
     type FittableCanvas,
     type FlushableDebounceInput,
-    installCanvasFocusRing,
     installFitViewportButton,
     MutableDisposable,
     NoModelerError,
@@ -360,17 +359,14 @@ export class DmnModeler implements DmnModelerHandle, DmnPendingInputHandle {
         }
         const overlays = new DisposableStore();
         overlays.add(
-            installCanvasFocusRing({
-                container: canvas.getContainer(),
-                isFocused: () => canvas.isFocused(),
-                onFocusChanged: (listener) =>
-                    eventBus.on("canvas.focus.changed", (event) => listener(event.focused)),
-            }),
             installFitViewportButton({
                 parent: canvas.getContainer(),
                 label: translate("Fit diagram to view"),
                 fit: () => fitCanvasToContent(canvas),
                 focusCanvas: () => canvas.focus(),
+                isCanvasFocused: () => canvas.isFocused(),
+                onCanvasFocusChanged: (listener) =>
+                    eventBus.on("canvas.focus.changed", (event) => listener(event.focused)),
             }),
         );
         this.canvasOverlays.set(() => overlays.dispose());
