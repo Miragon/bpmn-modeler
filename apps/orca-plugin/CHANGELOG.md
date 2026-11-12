@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.1](https://github.com/Miragon/bpmn-modeler/compare/orca-v0.3.0...orca-v0.3.1) (2026-11-12)
+
+
+### 🛠️ Misc
+
+* **orca-plugin:** run the Orca smoke on Miragon/orca-modelers' shared Orca runtime ([#2369](https://github.com/Miragon/bpmn-modeler/issues/2369)) ([862b8a0](https://github.com/Miragon/bpmn-modeler/commit/862b8a02ff146857a91bf6d6706fbca7d02199f6))
+* **orca-plugin:** take setup-orca and publish-plugin from Miragon/orca-plugin-kit ([#2375](https://github.com/Miragon/bpmn-modeler/issues/2375)) ([808c58c](https://github.com/Miragon/bpmn-modeler/commit/808c58c82ff379161b43a99d2d2011ea089088ba))
+
 ## [0.3.0](https://github.com/Miragon/bpmn-modeler/compare/orca-v0.2.0...orca-v0.3.0) (2026-11-12)
 
 
