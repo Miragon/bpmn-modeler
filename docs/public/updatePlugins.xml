@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <plugins>
   <plugin id="io.miragon.bpmn-modeler"
-          url="https://github.com/Miragon/bpmn-modeler/releases/download/intellij-v1.16.0/bpmn-modeler-intellij-plugin-1.16.0.zip"
-          version="1.16.0">
+          url="https://github.com/Miragon/bpmn-modeler/releases/download/intellij-v1.17.0/bpmn-modeler-intellij-plugin-1.17.0.zip"
+          version="1.17.0">
     <idea-version since-build="242"/>
     <name>Miragon BPMN Modeler</name>
     <vendor>Miragon</vendor>
     <description><![CDATA[
-<p>Model BPMN 2.0 process diagrams visually, right inside your JetBrains IDE —
+<p>Model BPMN 2.0 process diagrams visually, right inside IntelliJ IDEA —
         no need to switch to a separate modeling tool.</p>
 
         <p>Open any <code>.bpmn</code> file on a drag-and-drop canvas and edit it like a
@@ -23,6 +23,8 @@
             <li>Write task scripts with context-aware suggestions.</li>
             <li>Deploy diagrams to a running Camunda 7 or Camunda 8 engine without
                 leaving the IDE.</li>
+            <li>Review, allow and revoke the bpmn-js plugins, lint rule packages and
+                element templates of your project.</li>
         </ul>
 
         <h4>Troubleshooting</h4>
