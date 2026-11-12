@@ -5,7 +5,7 @@ name: Release Please
 # package plus its inlined libs), "apps/vscode-plugin" (vscode),
 # "apps/intellij-plugin" (intellij), "packages/dmn-modeler" (the publishable
 # @miragon/dmn-modeler npm package) and "apps/orca-plugin" (orca, published
-# into Miragon/orca-modelers). They share one combined Release PR; each
+# into Miragon/orca-plugins). They share one combined Release PR; each
 # line keeps its own tag, changelog and publish jobs, which have no order among
 # them. Root outputs are unprefixed; sub-packages are prefixed by path.
 

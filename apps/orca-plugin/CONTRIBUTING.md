@@ -6,7 +6,7 @@ The [Orca](https://www.onorca.dev) plugin `bpmn-modeler`: `.bpmn` files open in 
 Implement) with the properties panel, token simulation and linting; `.dmn` files open in the DMN modeler with its
 DRD, decision tables, properties panel and simulation. Orca keeps the file, its dirty state, saving and read-only
 tabs; the editor owns undo. An agent's write to a clean tab shows at once; under unsaved edits Orca shows its
-Reload/Overwrite banner. Users install it from the [Miragon/orca-modelers](https://github.com/Miragon/orca-modelers)
+Reload/Overwrite banner. Users install it from the [Miragon/orca-plugins](https://github.com/Miragon/orca-plugins)
 catalog; see the [Orca guide](../../docs/orca/getting-started.md).
 
 The plugin bundles `@miragon/bpmn-modeler` and `@miragon/dmn-modeler` from source, without `modeler-core`: Orca's
@@ -57,7 +57,7 @@ corepack yarn workspace @miragon/bpmn-modeler-orca test:orca:docker  # both edit
 ```
 
 The e2e suite runs the built editors with the Orca stub of `@miragon/modeler-shell`. The smoke test drives a real
-Orca (Miragon/orca-modelers' image `ghcr.io/miragon/orca:<version>`, default 1.4.254, `ORCA_VERSION=<version>` for another) with the shell's `runOrcaSmoke`: load with approval,
+Orca (Miragon/orca-plugin-kit's image `ghcr.io/miragon/orca:<version>`, default 1.4.254, `ORCA_VERSION=<version>` for another) with the shell's `runOrcaSmoke`: load with approval,
 `plugin check`, both themes, undo, a saved delete, an agent's write and the plugin's logs. `test:orca` itself refuses
 to open Orca's window on a Mac. The click points both use are in `test/fixtures/smokePoints.ts`; the e2e suite checks
 that they hit their elements.
@@ -65,4 +65,4 @@ that they hit their elements.
 ## Release
 
 The release-please component `orca` (tag `orca-v<version>`) bumps `package.json` and `orca-plugin.json`;
-`publish-orca-plugin.yml` builds, smoke-tests and publishes the folder into Miragon/orca-modelers.
+`publish-orca-plugin.yml` builds, smoke-tests and publishes the folder into Miragon/orca-plugins.

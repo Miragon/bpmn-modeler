@@ -22,7 +22,7 @@ const releaseConfig = readJson<{
 }>(resolve(app, "../../release-please-config.json"));
 
 describe("the Orca plugin's manifest", () => {
-    it("is the id Miragon/orca-modelers allows this repository to publish", () => {
+    it("is the id Miragon/orca-plugins allows this repository to publish", () => {
         expect(manifest.id).toBe("bpmn-modeler");
     });
 

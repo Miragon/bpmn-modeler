@@ -14,8 +14,8 @@ and it may change between releases. See [Limits](#limits) before you rely on it,
 ## Install
 
 Open the plugin's page in Orca and press **Install**:
-[BPMN & DMN Modeler](https://onorca.dev/plugins/miragon.bpmn-modeler?catalog=https://github.com/miragon/orca-modelers.git).
-The first time, Orca asks whether to add the [Miragon modelers catalog](https://github.com/Miragon/orca-modelers),
+[BPMN & DMN Modeler](https://onorca.dev/plugins/miragon.bpmn-modeler?catalog=https://github.com/miragon/orca-plugins.git).
+The first time, Orca asks whether to add the [Miragon plugins catalog](https://github.com/Miragon/orca-plugins),
 which also lists the modelers of the Miragon modeler suite. New releases reach you through the same catalog.
 
 You need the Orca desktop app, version 1.4.248 or later.

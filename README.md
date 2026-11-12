@@ -3,7 +3,7 @@
 [![VS Code Marketplace](https://img.shields.io/badge/VS_Code_Marketplace-install-007ACC?logo=visualstudiocode&logoColor=white)](https://marketplace.visualstudio.com/items?itemName=miragon-gmbh.vs-code-bpmn-modeler)
 [![JetBrains Marketplace](https://img.shields.io/jetbrains/plugin/v/32634-miragon-bpmn-modeler?label=JetBrains%20Marketplace)](https://plugins.jetbrains.com/plugin/32634-miragon-bpmn-modeler)
 [![Desktop app](https://img.shields.io/badge/Desktop_app-download-335DE5)](https://miragon.github.io/bpmn-modeler/download)
-[![Orca](https://img.shields.io/badge/Orca-install-335DE5)](https://onorca.dev/plugins/miragon.bpmn-modeler?catalog=https://github.com/miragon/orca-modelers.git)
+[![Orca](https://img.shields.io/badge/Orca-install-335DE5)](https://onorca.dev/plugins/miragon.bpmn-modeler?catalog=https://github.com/miragon/orca-plugins.git)
 [![Build](https://github.com/Miragon/bpmn-modeler/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/Miragon/bpmn-modeler/actions/workflows/build.yml)
 [![License: Apache 2.0](https://img.shields.io/github/license/Miragon/bpmn-modeler)](LICENSE)
 
@@ -38,13 +38,13 @@ What each editor opens and how far it is:
 
 ## Install
 
-| Editor                     | Get it                                                                                                                        |
-| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| VS Code                    | [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=miragon-gmbh.vs-code-bpmn-modeler)                  |
-| VSCodium, Cursor, Windsurf | [Open VSX](https://open-vsx.org/extension/miragon-gmbh/vs-code-bpmn-modeler)                                                  |
-| IntelliJ IDEA              | [JetBrains Marketplace](https://plugins.jetbrains.com/plugin/32634-miragon-bpmn-modeler)                                      |
-| Desktop app                | [Download](https://miragon.github.io/bpmn-modeler/download)                                                                   |
-| Orca                       | [Orca plugin directory](https://onorca.dev/plugins/miragon.bpmn-modeler?catalog=https://github.com/miragon/orca-modelers.git) |
+| Editor                     | Get it                                                                                                                       |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| VS Code                    | [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=miragon-gmbh.vs-code-bpmn-modeler)                 |
+| VSCodium, Cursor, Windsurf | [Open VSX](https://open-vsx.org/extension/miragon-gmbh/vs-code-bpmn-modeler)                                                 |
+| IntelliJ IDEA              | [JetBrains Marketplace](https://plugins.jetbrains.com/plugin/32634-miragon-bpmn-modeler)                                     |
+| Desktop app                | [Download](https://miragon.github.io/bpmn-modeler/download)                                                                  |
+| Orca                       | [Orca plugin directory](https://onorca.dev/plugins/miragon.bpmn-modeler?catalog=https://github.com/miragon/orca-plugins.git) |
 
 VS Code extension from the command line:
 

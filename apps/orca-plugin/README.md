@@ -1,6 +1,6 @@
 # BPMN & DMN Modeler for Orca
 
-[![Orca](https://img.shields.io/badge/Orca-install-335DE5)](https://onorca.dev/plugins/miragon.bpmn-modeler?catalog=https://github.com/miragon/orca-modelers.git)
+[![Orca](https://img.shields.io/badge/Orca-install-335DE5)](https://onorca.dev/plugins/miragon.bpmn-modeler?catalog=https://github.com/miragon/orca-plugins.git)
 [![License: Apache 2.0](https://img.shields.io/github/license/Miragon/bpmn-modeler)](../../LICENSE)
 
 ![Miragon Modeler for BPMN, experimental: processes and decisions from plain .bpmn and .dmn files, edited by you and your agents](images/cover.webp)
@@ -35,7 +35,7 @@ In [Orca](https://www.onorca.dev), a `.bpmn` or `.dmn` file opens as a diagram i
 Needs the Orca desktop app 1.4.248 or later.
 
 1. Turn on plugins once in Orca's settings, under **Plugins**.
-2. Open the [plugin's page](https://onorca.dev/plugins/miragon.bpmn-modeler?catalog=https://github.com/miragon/orca-modelers.git) and press **Install**. The first time, Orca asks whether to add the [Miragon modelers catalog](https://github.com/Miragon/orca-modelers), which also brings you new releases.
+2. Open the [plugin's page](https://onorca.dev/plugins/miragon.bpmn-modeler?catalog=https://github.com/miragon/orca-plugins.git) and press **Install**. The first time, Orca asks whether to add the [Miragon plugins catalog](https://github.com/Miragon/orca-plugins), which also brings you new releases.
 
 ## Get started
 
@@ -49,7 +49,7 @@ A read-only tab, such as an agent transcript, opens in View mode. The [Orca guid
 
 - **Documentation:** the [Orca guide](https://miragon.github.io/bpmn-modeler/orca/getting-started), with its limits.
 - **Bugs and ideas:** tell us what you miss and [open an issue](https://github.com/Miragon/bpmn-modeler/issues).
-- **More modelers:** [all Miragon modelers for Orca](https://github.com/Miragon/orca-modelers).
+- **More modelers:** [all Miragon modelers for Orca](https://github.com/Miragon/orca-plugins).
 
 ## Contributing
 

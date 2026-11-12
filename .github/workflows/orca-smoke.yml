@@ -55,7 +55,7 @@ jobs:
       - run: yarn workspace @miragon/bpmn-modeler-orca build
 
       - id: orca
-        uses: miragon/orca-modelers/.github/actions/setup-orca@7207762e896fe49cc949dc86edb2170ae35035dd # main
+        uses: Miragon/orca-plugin-kit/setup-orca@6b56b4938c9352a8be5c666019b2f43e557235aa # v1.0.0
         with:
           channel: ${{ matrix.orca }}
           plugin-manifest: apps/orca-plugin/orca-plugin.json
