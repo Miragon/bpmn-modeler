@@ -116,6 +116,8 @@ describe("form webview with the real form-js editor", () => {
             window.removeEventListener(type, listener as EventListener, options);
         }
         vi.restoreAllMocks();
+        vi.clearAllTimers();
+        vi.useRealTimers();
         document.body.innerHTML = "";
     });
 
@@ -145,27 +147,35 @@ describe("form webview with the real form-js editor", () => {
     });
 
     it("syncs a focused numeric bound as a string after normal input debounce", async () => {
-        const { syncCommands } = bootstrapWithRealFormJs();
-        dispatch(new FormFileQuery(formWithField({ type: "number" }), 1));
-        await selectField("Field_1");
-
-        await typeInto("min", "-2.5");
-
-        await vi.waitFor(() => expect(syncCommands()).not.toHaveLength(0));
-        expect(savedField(syncCommands().at(-1)!.content).validate?.min).toBe("-2.5");
-    });
-
-    it("saves blurred and still-focused numeric bounds with the same string type", async () => {
+        // Number and FEEL inputs debounce in sequence; don't race the wall clock.
+        vi.useFakeTimers();
         const { flushReplies, syncCommands } = bootstrapWithRealFormJs();
         dispatch(new FormFileQuery(formWithField({ type: "number" }), 1));
         await selectField("Field_1");
+        await vi.runAllTimersAsync();
+
+        const minimum = await typeInto("min", "-2.5");
+        expect(document.activeElement).toBe(minimum);
+        expect(syncCommands()).toHaveLength(0);
+
+        await vi.runAllTimersAsync();
+        expect(syncCommands()).not.toHaveLength(0);
+        expect(savedField(syncCommands().at(-1)!.content).validate?.min).toBe("-2.5");
+        expect(flushReplies()).toHaveLength(0);
+    });
+
+    it("saves blurred and still-focused numeric bounds with the same string type", async () => {
+        vi.useFakeTimers();
+        const { flushReplies, syncCommands } = bootstrapWithRealFormJs();
+        dispatch(new FormFileQuery(formWithField({ type: "number" }), 1));
+        await selectField("Field_1");
+        await vi.runAllTimersAsync();
 
         const minimum = await typeInto("min", "5");
         minimum.blur();
-        await vi.waitFor(() => {
-            expect(syncCommands()).not.toHaveLength(0);
-            expect(savedField(syncCommands().at(-1)!.content).validate?.min).toBe("5");
-        });
+        await vi.runAllTimersAsync();
+        expect(syncCommands()).not.toHaveLength(0);
+        expect(savedField(syncCommands().at(-1)!.content).validate?.min).toBe("5");
         await typeInto("max", "20");
 
         expect((await flushField(flushReplies)).validate).toMatchObject({ min: "5", max: "20" });
