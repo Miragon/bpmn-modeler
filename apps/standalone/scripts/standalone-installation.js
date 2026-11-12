@@ -34,7 +34,9 @@ class StandaloneInstallation {
     // (no uninstaller next to the executable) would get a second copy installed.
     get isNsisInstall() {
         const installDir = path.win32.dirname(this.execPath);
-        return this.fileExists(path.win32.join(installDir, StandaloneInstallation.NSIS_UNINSTALLER));
+        return this.fileExists(
+            path.win32.join(installDir, StandaloneInstallation.NSIS_UNINSTALLER),
+        );
     }
 }
 

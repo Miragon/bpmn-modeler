@@ -52,7 +52,11 @@ test("a packaged macOS build receives updates", () => {
 });
 
 test("Flatpak and development builds receive no updates", () => {
-    const linux = { platform: "linux", execPath: "/app/main/miragon-bpmn-modeler", fileExists: () => true };
+    const linux = {
+        platform: "linux",
+        execPath: "/app/main/miragon-bpmn-modeler",
+        fileExists: () => true,
+    };
     const flatpak = new StandaloneInstallation({
         ...linux,
         isPackaged: true,
