@@ -1420,7 +1420,10 @@ projects). A host opts in with the
 optional `rulePackages` group of `BpmnEditorFeature` (`BpmnRulePackagePorts`:
 the approval store, an `InstalledPackagesPort`, the `AllowanceLocator`, the
 content row migration, the action notifier, the shared `QuestionQueue` and
-the optional `workspaceTrust`).
+the optional `workspaceTrust`). `rulePackageLinting` in
+`modeler/bpmn/composition/` builds from it the `RulePackageCatalog` and its
+question, the `RulePackageInventory`, which keeps the lint configs read and
+the packages the gate reported for the Add-ons view, and the linter.
 VS Code and the IntelliJ bridge wire it with the store, the
 `NodeInstalledPackages` and the locator the plugins use; one contract suite in
 the core's `testing/` pins both adapters. Without the group,

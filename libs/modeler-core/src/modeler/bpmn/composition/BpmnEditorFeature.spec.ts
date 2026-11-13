@@ -789,7 +789,7 @@ describe("BpmnEditorFeature with workspace rule packages", () => {
 
         await feature.lintConfig.setBpmnlintConfig(editor.id);
 
-        expect(feature.rulePackageCatalog?.seenPackages()).toEqual([
+        expect(feature.rulePackageInventory?.seenPackages()).toEqual([
             {
                 id: pluginDir,
                 name: "bpmnlint-plugin-acme",
@@ -830,7 +830,7 @@ describe("BpmnEditorFeature with workspace rule packages", () => {
         host.pluginApprovals.storeElsewhere([], { notify: true });
         await feature.lintConfig.whenApprovalSettled();
 
-        expect(feature.rulePackageCatalog?.revokedThisSession()).toEqual(new Set());
+        expect(feature.rulePackageInventory?.stillLoadedAfterRevoke()).toEqual(new Set());
         expect(editor.postedOfType("BpmnlintResultsQuery")).toHaveLength(results.length);
     });
 
