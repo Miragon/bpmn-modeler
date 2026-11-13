@@ -3,7 +3,7 @@
   "commit": "0f567728f53e88561a6d28de68d18207ff94a9d3",
   "entries": {
     "change-coupling": {
-      "version": 1,
+      "version": 2,
       "findings": [
         {
           "key": "apps/bpmn-webview/src/adapter/in/diffMode.ts ↔ apps/bpmn-webview/src/adapter/out/host.ts",
@@ -1537,7 +1537,7 @@
       ]
     },
     "hotspots": {
-      "version": 2,
+      "version": 3,
       "findings": [
         {
           "key": "apps/bpmn-webview/src/adapter/out/host.ts",
