@@ -5,8 +5,7 @@
  * the readonly `viewer.css`) and are pulled in via the @import below, so
  * `styles.css` consumers (bpmn-webview) see the full diff styling unchanged.
  * What remains here is only what depends on the host chrome: the VS Code
- * split-seam borders keyed off `[data-diff-side]` and the `body.vscode-*` legend
- * dark-mode tweaks.
+ * split-seam borders keyed off `[data-diff-side]`.
  */
 @import "./diffView.css";
 
@@ -39,14 +38,4 @@ body.vscode-high-contrast.viewer-mode[data-diff-side="before"] {
 body.vscode-dark.viewer-mode[data-diff-side="after"],
 body.vscode-high-contrast.viewer-mode[data-diff-side="after"] {
     border-left-color: #8a8a8a;
-}
-
-body.vscode-dark .diff-legend,
-body.vscode-high-contrast .diff-legend {
-    --diff-legend-surface: rgba(40, 40, 40, 0.96);
-    --diff-legend-border: #555;
-    --diff-legend-text: #e8e8e8;
-    --diff-legend-button-surface: #2b2b2b;
-    --diff-legend-button-border: #555;
-    --diff-legend-button-hover: #3a3a3a;
 }

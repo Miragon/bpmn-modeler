@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { DiffCounts } from "@miragon/bpmn-modeler-diff";
@@ -135,4 +137,15 @@ describe("DiffLegend", () => {
 
         expect(parent.querySelector(".diff-legend")).toBeNull();
     });
+});
+
+describe("the package's diff stylesheets", () => {
+    it.each(["diffView.css", "diff.css"])(
+        "leave the legend's look to the shared one: %s",
+        (file) => {
+            const css = readFileSync(join(__dirname, "../../styles", file), "utf8");
+
+            expect(css).not.toMatch(/--diff-legend-[\w-]+:/);
+        },
+    );
 });

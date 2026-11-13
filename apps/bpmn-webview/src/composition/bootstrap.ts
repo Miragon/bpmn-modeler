@@ -51,6 +51,8 @@ import { prefetchSurfaceModules } from "../adapter/out/surfaceModules";
 import type { WebviewState } from "../port/webviewState";
 import "../../../../libs/shared/src/lib/panelChrome.css";
 import "../../../../packages/bpmn-modeler/src/styles/mode.css";
+// The diff legend is set in Geist; the browser fetches it only where a legend shows.
+import "@fontsource-variable/geist/wght.css";
 
 interface BootstrapOptions {
     /** Host-specific extra bpmn-js DI modules. */

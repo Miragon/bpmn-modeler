@@ -69,6 +69,18 @@ describe("DMN diff pane (real dmn-js)", () => {
         expect(container.querySelector(".dmn-diff-counts")?.textContent).toBe("2021");
     });
 
+    it("sets a changed table's counts in its own small, bold type without a host font", async () => {
+        const { viewer, container } = await pane();
+
+        viewer.setMarks(MARKS, { countBadges: true });
+
+        const badge = styleOf(container, ".dmn-diff-counts");
+        expect(badge.fontWeight).toBe("600");
+        expect(badge.fontSize).toBe("11px");
+        expect(badge.lineHeight).toBe("16px");
+        expect(badge.fontFamily).toMatch(/^"Geist Variable", Geist, .*sans-serif$/);
+    });
+
     it("colours a requirement at its own width, so its arrowhead keeps its size", async () => {
         const { viewer, container } = await pane();
         const edge = '.djs-element[data-element-id="IR_1"] .djs-visual path';

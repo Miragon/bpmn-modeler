@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { i18n } from "@miragon/bpmn-modeler-i18n";
@@ -115,6 +117,9 @@ describe("DiffEmptyState", () => {
         expect(parent.querySelector<HTMLElement>(".dmn-diff-empty__card")?.dataset.kind).toBe(
             status,
         );
+        expect(parent.querySelector(".dmn-diff-empty__card")?.classList).toContain(
+            "diff-legend-theme",
+        );
         expect(parent.textContent).toContain("Not in this version");
         expect(parent.textContent).toContain(text);
         expect(document.body.classList).toContain("dmn-diff-page--missing");
@@ -133,5 +138,16 @@ describe("DiffEmptyState", () => {
         expect(document.body.classList).not.toContain("dmn-diff-page--missing");
         card.dispose();
         expect(parent.querySelector(".dmn-diff-empty")).toBeNull();
+    });
+});
+
+describe("the pane's stylesheet", () => {
+    it("leaves the legend's look to the shared stylesheet", () => {
+        const paneCss = readFileSync(join(__dirname, "diff.css"), "utf8");
+
+        expect(paneCss).toContain(
+            '@import "../../../../../libs/modeler-types/src/diffLegend.css";',
+        );
+        expect(paneCss).not.toMatch(/--diff-legend-[\w-]+:/);
     });
 });
