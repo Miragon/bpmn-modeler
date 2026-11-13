@@ -130,9 +130,10 @@ port has a suite.
   `service/` folders. Reach host facilities through ports and editor handles.
   Cross-cutting host ports live in the core's `kernel/port/hostPorts.ts`; a
   port one feature owns lives in that feature's `port/`, which holds only
-  interfaces, and the prompts it asks are built in its `domain/`, the
-  marketplace's masked token prompt (`tokenPrompt.ts`) and its add question
-  and remove choice (`marketplacePrompts.ts`) included. A host only renders a
+  types (interfaces, type aliases, type-only re-exports), and the prompts it
+  asks are built in its `domain/`, the marketplace's masked token prompt
+  (`tokenPrompt.ts`) and its add question and remove choice
+  (`marketplacePrompts.ts`) included. A host only renders a
   prompt in its own layout and returns the answer; the core reads it, takes a
   blank token for no token, and checks an entered location and asks again. A
   fact that differs per host, such as where a scope is saved, reaches the core
@@ -179,7 +180,7 @@ first one in a file's path is its role:
 ```
 <context>/
   domain/        rules as pure functions and values
-  port/          interfaces the services call
+  port/          types only: interfaces the services call
   service/       orchestration, session participants included
   adapter/in/    calls into the workspace: commands, message handlers, UI
   adapter/out/   implements a port: VS Code, Node, HTTP
@@ -202,6 +203,11 @@ file or type name:
    `fs` or `http`.
 8. Only `composition/` and entries import `composition/`.
 9. Only `testing/` imports `testing/`; nothing imports an entry.
+10. A `port/` file declares only types: no `const`, function, class, enum,
+    namespace, `export default`, value export, `import … =` or other
+    statement. Re-export an interface with `export type`. Rule 10 keeps its
+    own exception list in the same spec; neither a blanket role exception
+    nor `convention-coverage` covers it.
 
 In a webview the UI, its markup and the router for the host's queries are
 `adapter/in/`, the host channel and the modeler-library wrappers
@@ -216,7 +222,7 @@ has one blanket exception in the repo-level spec naming its migration issue.
 
 A class that implements a port sits in `adapter/out/` or `testing/`. No spec
 blocks this; the `convention-coverage` fitness function reports it, and runs
-the rules above without exceptions, so the files of a workspace not yet
+rules 1 to 9 without exceptions, so the files of a workspace not yet
 moved show as remaining work. The rules and the reasons are in the
 [ADR](../../../docs/adr/architecture-and-hosts.md#workspace-kinds-and-role-folders).
 

@@ -5,9 +5,11 @@ import {
     findImportCycles,
     instability,
     isWorkspaceKind,
+    readRuntimeDeclarations,
     readSourceTree,
     readWorkspaces,
     requireMatches,
+    roleOf,
     RULES_BY_KIND,
     staleExceptions,
     unexcusedViolations,
@@ -18,6 +20,7 @@ import {
 import type {
     ImportGraph,
     KnownException,
+    SourceFile,
     Violation,
     WorkspaceKind,
 } from "@miragon/architecture-testing";
@@ -42,6 +45,9 @@ const STABILITY_EXCEPTIONS: readonly KnownException[] = [];
 
 /** One per workspace not yet moved into role folders, naming the issue that moves it. */
 const ROLE_EXCEPTIONS: readonly KnownException[] = [];
+
+/** Keyed by file and `<form> <name>`, such as `const OPEN`; each names the issue that removes it. */
+const PORT_VALUE_EXCEPTIONS: readonly KnownException[] = [];
 
 const workspaces = readWorkspaces(REPO_ROOT);
 const workspacesWithSources = requireMatches(
@@ -114,11 +120,13 @@ describe("role folders", () => {
     });
 
     // Test fixtures stay out: they are inputs, not code with a role.
-    const workspacesWithRoles = workspacesWithSources.flatMap(({ dir, kind }) =>
-        isWorkspaceKind(kind)
-            ? [{ dir, kind, graph: buildImportGraph(readSourceTree(join(REPO_ROOT, dir, "src"))) }]
-            : [],
-    );
+    const workspacesWithRoles = workspacesWithSources.flatMap(({ dir, kind }) => {
+        if (!isWorkspaceKind(kind)) {
+            return [];
+        }
+        const tree = readSourceTree(join(REPO_ROOT, dir, "src"));
+        return [{ dir, kind, tree, graph: buildImportGraph(tree) }];
+    });
     const kindRules = (Object.keys(RULES_BY_KIND) as WorkspaceKind[]).flatMap((kind) =>
         RULES_BY_KIND[kind].map(({ rule, violations }) => ({ kind, rule, violations })),
     );
@@ -142,7 +150,50 @@ describe("role folders", () => {
     it("names the issue that removes each exception", () => {
         expect(exceptionsWithoutIssue(ROLE_EXCEPTIONS)).toEqual([]);
     });
+
+    // No import rule sees a value declared in place, so the port's declarations are read.
+    describe("hexagonal port/ files", () => {
+        const portFiles = requireMatches(
+            "port/ files of hexagonal workspaces",
+            workspacesWithRoles
+                .filter(({ kind }) => kind === "hexagonal")
+                .flatMap(({ dir, tree }) => tree.filter(isPortFile).map((file) => ({ dir, file }))),
+        );
+        const portValues = portFiles.flatMap(({ dir, file }) => runtimeValuesIn(dir, file));
+
+        it("a port/ file declares only types", () => {
+            expect(
+                unexcusedViolations(portValues, PORT_VALUE_EXCEPTIONS).map(
+                    ({ from, to, line }) =>
+                        `${from}:${line} declares ${to}; a port/ file holds only interfaces, type aliases and type-only exports`,
+                ),
+            ).toEqual([]);
+        });
+
+        it("lists no exception the code no longer needs", () => {
+            expect(staleExceptions(portValues, PORT_VALUE_EXCEPTIONS)).toEqual([]);
+        });
+
+        it("names the issue that removes each exception", () => {
+            expect(exceptionsWithoutIssue(PORT_VALUE_EXCEPTIONS)).toEqual([]);
+        });
+    });
 });
+
+function isPortFile({ path }: SourceFile): boolean {
+    return roleOf(path)?.role === "port";
+}
+
+function runtimeValuesIn(
+    dir: string,
+    { path, text }: SourceFile,
+): (Violation & { readonly line: number })[] {
+    return readRuntimeDeclarations(path, text).map(({ form, name, line }) => ({
+        from: `${dir}/src/${path}`,
+        to: `${form} ${name}`,
+        line,
+    }));
+}
 
 function inWorkspace(dir: string, graph: ImportGraph): (violation: Violation) => Violation {
     const files = new Set(graph.files);
