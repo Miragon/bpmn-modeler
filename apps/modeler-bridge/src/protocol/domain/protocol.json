@@ -171,6 +171,30 @@
         "paramKeys": []
     },
     {
+        "method": "elementIdReview/setChecked",
+        "direction": "hostToCore",
+        "kind": "notification",
+        "paramKeys": ["checked", "ids"]
+    },
+    {
+        "method": "elementIdReview/apply",
+        "direction": "hostToCore",
+        "kind": "notification",
+        "paramKeys": []
+    },
+    {
+        "method": "elementIdReview/discard",
+        "direction": "hostToCore",
+        "kind": "notification",
+        "paramKeys": []
+    },
+    {
+        "method": "elementIdReview/reveal",
+        "direction": "hostToCore",
+        "kind": "notification",
+        "paramKeys": ["elementId"]
+    },
+    {
         "method": "deployment/switchTarget",
         "direction": "hostToCore",
         "kind": "notification",
@@ -524,6 +548,18 @@
         "direction": "coreToHost",
         "kind": "notification",
         "paramKeys": ["slot", "view"]
+    },
+    {
+        "method": "elementIdReview/show",
+        "direction": "coreToHost",
+        "kind": "notification",
+        "paramKeys": ["view"]
+    },
+    {
+        "method": "elementIdReview/close",
+        "direction": "coreToHost",
+        "kind": "notification",
+        "paramKeys": []
     },
     {
         "method": "diff/postMessage",

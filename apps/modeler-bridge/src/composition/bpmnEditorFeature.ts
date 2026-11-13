@@ -12,8 +12,10 @@ import {
 import { templatePreferenceHandlers } from "../kernel/adapter/in/templatePreferenceHandlers";
 import { workspaceTrustHandlers } from "../kernel/adapter/in/workspaceTrustHandlers";
 import { RpcClipboard } from "../kernel/adapter/out/RpcClipboard";
+import { RpcElementIdReview } from "../modeler/bpmn/adapter/out/RpcElementIdReview";
 import { RpcLintingPreference } from "../modeler/bpmn/adapter/out/RpcLintingPreference";
 import { bpmnEditorHandlers } from "../modeler/bpmn/adapter/in/bpmnEditorHandlers";
+import { elementIdReviewHandlers } from "../modeler/bpmn/adapter/in/elementIdReviewHandlers";
 import { bindHandlers } from "./bindHandlers";
 import { BridgeSharedDeps } from "./sharedDeps";
 
@@ -26,7 +28,8 @@ import { BridgeSharedDeps } from "./sharedDeps";
  * and kept in the list the plugins use. The host renders on
  * `document/didChange` because it owns the document revision, it keeps no
  * properties-panel visibility, and it stores the lint choice that
- * {@link RpcLintingPreference} reports.
+ * {@link RpcLintingPreference} reports. The element ID review opens in an
+ * IntelliJ tool window ({@link RpcElementIdReview}).
  */
 export function register(
     deps: BridgeSharedDeps,
@@ -69,6 +72,7 @@ export function register(
                 review: handles.rulePackageReview,
                 workspaceTrust: deps.workspaceTrust,
             },
+            elementIdReview: new RpcElementIdReview(deps.rpc),
         },
         {
             rendering: "host-driven",
@@ -94,6 +98,7 @@ export function register(
             onSettingsApplied: handles.onSettingsApplied,
         }),
     );
+    bindHandlers(deps.rpc, elementIdReviewHandlers(editor.elementIds, deps.notifier));
     bindHandlers(deps.rpc, templatePreferenceHandlers(deps.templatePreferences));
     bindHandlers(deps.rpc, workspaceTrustHandlers(deps.workspaceTrust));
 

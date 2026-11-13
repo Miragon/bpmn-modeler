@@ -156,6 +156,15 @@
             anchor="right"
             icon="/icons/komet.svg"
             factoryClass="io.miragon.intellij.bpmn.ModelerToolWindowFactory"/>
+
+        <!-- The element ID review beside Problems and the terminal, there only while a review is
+             open (the IntelliJ counterpart of VS Code's Element IDs panel). -->
+        <toolWindow
+            id="Miragon Element IDs"
+            anchor="bottom"
+            icon="/icons/komet.svg"
+            canCloseContents="false"
+            factoryClass="io.miragon.intellij.bpmn.ElementIdReviewToolWindowFactory"/>
     </extensions>
 
     <!-- One popup subgroup under Tools gathers the ~11 portable modeler commands so they don't
