@@ -3,83 +3,69 @@
   "commit": "e166a8803fbc22464a435ce1635640cd7ce434c2",
   "entries": {
     "change-coupling": {
-      "version": 1,
+      "version": 3,
       "findings": [
         {
           "key": "apps/bpmn-webview/src/bootstrap.ts ↔ apps/dmn-webview/src/bootstrap.ts",
           "path": "apps/bpmn-webview/src/bootstrap.ts",
           "line": 1,
-          "message": "changes with `apps/dmn-webview/src/bootstrap.ts` in 10 PRs (42 and 13 revisions), degree 36 %",
-          "group": "across-workspaces"
-        },
-        {
-          "key": "apps/bpmn-webview/src/bootstrap.ts ↔ apps/vscode-plugin/src/composition/editorFeature.ts",
-          "path": "apps/bpmn-webview/src/bootstrap.ts",
-          "line": 1,
-          "message": "changes with `apps/vscode-plugin/src/composition/editorFeature.ts` in 9 PRs (42 and 17 revisions), degree 31 %; composition root: `apps/vscode-plugin/src/composition/editorFeature.ts`",
+          "message": "changes with `apps/dmn-webview/src/bootstrap.ts` in 10 PRs (40 and 13 revisions), degree 38 %",
           "group": "across-workspaces"
         },
         {
           "key": "apps/bpmn-webview/src/bootstrap.ts ↔ packages/bpmn-modeler/src/bpmnlint/LintConfigService.ts",
           "path": "apps/bpmn-webview/src/bootstrap.ts",
           "line": 1,
-          "message": "changes with `packages/bpmn-modeler/src/bpmnlint/LintConfigService.ts` in 8 PRs (42 and 11 revisions), degree 30 %",
+          "message": "changes with `packages/bpmn-modeler/src/bpmnlint/LintConfigService.ts` in 8 PRs (40 and 11 revisions), degree 31 %",
           "group": "across-workspaces"
         },
         {
           "key": "apps/bpmn-webview/src/diffMode.ts ↔ apps/bpmn-webview/src/host.ts",
           "path": "apps/bpmn-webview/src/diffMode.ts",
           "line": 1,
-          "message": "changes with `apps/bpmn-webview/src/host.ts` in 7 PRs (9 and 27 revisions), degree 39 %; explained by `libs/shared/src/lib/modeler.ts` (4 of 7)",
+          "message": "changes with `apps/bpmn-webview/src/host.ts` in 6 PRs (8 and 25 revisions), degree 36 %; explained by `libs/shared/src/lib/modeler.ts` (3 of 6)",
           "group": "explained"
         },
         {
           "key": "apps/bpmn-webview/src/diffMode.ts ↔ libs/modeler-core/src/diff/service/BpmnDiffService.ts",
           "path": "apps/bpmn-webview/src/diffMode.ts",
           "line": 1,
-          "message": "changes with `libs/modeler-core/src/diff/service/BpmnDiffService.ts` in 7 PRs (9 and 13 revisions), degree 64 %; explained by `libs/shared/src/lib/modeler.ts` (5 of 7)",
+          "message": "changes with `libs/modeler-core/src/diff/service/BpmnDiffService.ts` in 6 PRs (8 and 12 revisions), degree 60 %; explained by `libs/shared/src/lib/modeler.ts` (4 of 6)",
           "group": "explained"
         },
         {
           "key": "apps/bpmn-webview/src/host.ts ↔ apps/bpmn-webview/src/state.ts",
           "path": "apps/bpmn-webview/src/host.ts",
           "line": 1,
-          "message": "changes with `apps/bpmn-webview/src/state.ts` in 8 PRs (27 and 19 revisions), degree 35 %; explained by `apps/bpmn-webview/src/webviewState.ts` (4 of 8)",
-          "group": "explained"
+          "message": "changes with `apps/bpmn-webview/src/state.ts` in 7 PRs (25 and 18 revisions), degree 33 %",
+          "group": "within-workspace"
         },
         {
           "key": "apps/bpmn-webview/src/host.ts ↔ apps/dmn-webview/src/host.ts",
           "path": "apps/bpmn-webview/src/host.ts",
           "line": 1,
-          "message": "changes with `apps/dmn-webview/src/host.ts` in 8 PRs (27 and 12 revisions), degree 41 %; explained by `libs/shared/src/lib/host.ts` (4 of 8)",
+          "message": "changes with `apps/dmn-webview/src/host.ts` in 8 PRs (25 and 12 revisions), degree 43 %; explained by `libs/shared/src/lib/host.ts` (4 of 8)",
           "group": "explained"
         },
         {
           "key": "apps/bpmn-webview/src/host.ts ↔ apps/dmn-webview/src/main.ts",
           "path": "apps/bpmn-webview/src/host.ts",
           "line": 1,
-          "message": "changes with `apps/dmn-webview/src/main.ts` in 7 PRs (27 and 17 revisions), degree 32 %; composition root: `apps/dmn-webview/src/main.ts`",
-          "group": "across-workspaces"
-        },
-        {
-          "key": "apps/bpmn-webview/src/host.ts ↔ apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts",
-          "path": "apps/bpmn-webview/src/host.ts",
-          "line": 1,
-          "message": "changes with `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts` in 6 PRs (27 and 12 revisions), degree 31 %",
+          "message": "changes with `apps/dmn-webview/src/main.ts` in 7 PRs (25 and 17 revisions), degree 33 %; composition root: `apps/dmn-webview/src/main.ts`",
           "group": "across-workspaces"
         },
         {
           "key": "apps/bpmn-webview/src/host.ts ↔ apps/vscode-plugin/src/shared/infrastructure/WebviewHtml.ts",
           "path": "apps/bpmn-webview/src/host.ts",
           "line": 1,
-          "message": "changes with `apps/vscode-plugin/src/shared/infrastructure/WebviewHtml.ts` in 6 PRs (27 and 12 revisions), degree 31 %",
+          "message": "changes with `apps/vscode-plugin/src/shared/infrastructure/WebviewHtml.ts` in 6 PRs (25 and 12 revisions), degree 32 %",
           "group": "across-workspaces"
         },
         {
           "key": "apps/bpmn-webview/src/host.ts ↔ libs/modeler-core/src/modeler/bpmn/service/BpmnModelerService.ts",
           "path": "apps/bpmn-webview/src/host.ts",
           "line": 1,
-          "message": "changes with `libs/modeler-core/src/modeler/bpmn/service/BpmnModelerService.ts` in 8 PRs (27 and 18 revisions), degree 36 %; explained by `libs/shared/src/lib/modeler.ts` (7 of 8)",
+          "message": "changes with `libs/modeler-core/src/modeler/bpmn/service/BpmnModelerService.ts` in 7 PRs (25 and 17 revisions), degree 33 %; explained by `libs/shared/src/lib/modeler.ts` (6 of 7)",
           "group": "explained"
         },
         {
@@ -100,7 +86,7 @@
           "key": "apps/bpmn-webview/src/main.ts ↔ libs/shared/src/lib/modeler.ts",
           "path": "apps/bpmn-webview/src/main.ts",
           "line": 1,
-          "message": "changes with `libs/shared/src/lib/modeler.ts` in 18 PRs (43 and 39 revisions), degree 44 %; composition root: `apps/bpmn-webview/src/main.ts`",
+          "message": "changes with `libs/shared/src/lib/modeler.ts` in 18 PRs (43 and 37 revisions), degree 45 %; composition root: `apps/bpmn-webview/src/main.ts`",
           "group": "across-workspaces"
         },
         {
@@ -114,7 +100,7 @@
           "key": "apps/bpmn-webview/src/state.ts ↔ packages/bpmn-modeler/src/viewport.ts",
           "path": "apps/bpmn-webview/src/state.ts",
           "line": 1,
-          "message": "changes with `packages/bpmn-modeler/src/viewport.ts` in 8 PRs (19 and 13 revisions), degree 50 %",
+          "message": "changes with `packages/bpmn-modeler/src/viewport.ts` in 8 PRs (18 and 13 revisions), degree 52 %",
           "group": "across-workspaces"
         },
         {
@@ -156,98 +142,91 @@
           "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/CoreProcess.kt ↔ apps/modeler-bridge/src/adapters.ts",
           "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/CoreProcess.kt",
           "line": 1,
-          "message": "changes with `apps/modeler-bridge/src/adapters.ts` in 7 PRs (18 and 16 revisions), degree 41 %",
+          "message": "changes with `apps/modeler-bridge/src/adapters.ts` in 7 PRs (18 and 15 revisions), degree 42 %",
           "group": "across-languages"
         },
         {
           "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/CoreProcess.kt ↔ apps/modeler-bridge/src/bridge.ts",
           "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/CoreProcess.kt",
           "line": 1,
-          "message": "changes with `apps/modeler-bridge/src/bridge.ts` in 10 PRs (18 and 16 revisions), degree 59 %",
+          "message": "changes with `apps/modeler-bridge/src/bridge.ts` in 10 PRs (18 and 15 revisions), degree 61 %",
           "group": "across-languages"
         },
         {
           "key": "apps/modeler-bridge/src/adapters.ts ↔ apps/modeler-bridge/src/bridge.ts",
           "path": "apps/modeler-bridge/src/adapters.ts",
           "line": 1,
-          "message": "changes with `apps/modeler-bridge/src/bridge.ts` in 6 PRs (16 and 16 revisions), degree 38 %",
+          "message": "changes with `apps/modeler-bridge/src/bridge.ts` in 6 PRs (15 and 15 revisions), degree 40 %",
           "group": "within-workspace"
-        },
-        {
-          "key": "apps/modeler-bridge/src/adapters.ts ↔ apps/vscode-plugin/src/composition/editorFeature.ts",
-          "path": "apps/modeler-bridge/src/adapters.ts",
-          "line": 1,
-          "message": "changes with `apps/vscode-plugin/src/composition/editorFeature.ts` in 5 PRs (16 and 17 revisions), degree 30 %; composition root: `apps/vscode-plugin/src/composition/editorFeature.ts`",
-          "group": "across-workspaces"
         },
         {
           "key": "apps/modeler-bridge/src/adapters.ts ↔ apps/vscode-plugin/src/shared/infrastructure/VsCodeStatusBar.ts",
           "path": "apps/modeler-bridge/src/adapters.ts",
           "line": 1,
-          "message": "changes with `apps/vscode-plugin/src/shared/infrastructure/VsCodeStatusBar.ts` in 5 PRs (16 and 6 revisions), degree 45 %; explained by `libs/modeler-core/src/shared/domain/hostPorts.ts` (5 of 5)",
+          "message": "changes with `apps/vscode-plugin/src/shared/infrastructure/VsCodeStatusBar.ts` in 5 PRs (15 and 6 revisions), degree 48 %; explained by `libs/modeler-core/src/shared/domain/hostPorts.ts` (5 of 5)",
           "group": "explained"
         },
         {
           "key": "apps/modeler-bridge/src/bridge.ts ↔ apps/modeler-bridge/src/nodeAdapters.ts",
           "path": "apps/modeler-bridge/src/bridge.ts",
           "line": 1,
-          "message": "changes with `apps/modeler-bridge/src/nodeAdapters.ts` in 5 PRs (16 and 14 revisions), degree 33 %",
+          "message": "changes with `apps/modeler-bridge/src/nodeAdapters.ts` in 5 PRs (15 and 13 revisions), degree 36 %",
           "group": "within-workspace"
         },
         {
-          "key": "apps/modeler-bridge/src/nodeAdapters.ts ↔ apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts",
-          "path": "apps/modeler-bridge/src/nodeAdapters.ts",
+          "key": "apps/modeler-bridge/src/protocol/descriptor.ts ↔ apps/modeler-bridge/src/protocol/protocol.json",
+          "path": "apps/modeler-bridge/src/protocol/descriptor.ts",
           "line": 1,
-          "message": "changes with `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts` in 5 PRs (14 and 12 revisions), degree 38 %; explained by `libs/modeler-core/src/shared/domain/hostPorts.ts` (5 of 5)",
-          "group": "explained"
+          "message": "changes with `apps/modeler-bridge/src/protocol/protocol.json` in 5 PRs (7 and 5 revisions), degree 83 %",
+          "group": "across-languages"
+        },
+        {
+          "key": "apps/modeler-bridge/src/protocol/protocol.json ↔ apps/modeler-bridge/src/protocol/types.ts",
+          "path": "apps/modeler-bridge/src/protocol/protocol.json",
+          "line": 1,
+          "message": "changes with `apps/modeler-bridge/src/protocol/types.ts` in 5 PRs (5 and 7 revisions), degree 83 %",
+          "group": "across-languages"
         },
         {
           "key": "apps/vscode-plugin/package.json ↔ apps/vscode-plugin/src/main.ts",
           "path": "apps/vscode-plugin/package.json",
           "line": 1,
-          "message": "changes with `apps/vscode-plugin/src/main.ts` in 12 PRs (50 and 30 revisions), degree 30 %; composition root: `apps/vscode-plugin/package.json`, `apps/vscode-plugin/src/main.ts`",
-          "group": "across-languages"
-        },
-        {
-          "key": "apps/vscode-plugin/package.json ↔ apps/vscode-plugin/src/modeler/bpmn/controller/CommandController.ts",
-          "path": "apps/vscode-plugin/package.json",
-          "line": 1,
-          "message": "changes with `apps/vscode-plugin/src/modeler/bpmn/controller/CommandController.ts` in 10 PRs (50 and 15 revisions), degree 31 %; composition root: `apps/vscode-plugin/package.json`",
+          "message": "changes with `apps/vscode-plugin/src/main.ts` in 12 PRs (49 and 30 revisions), degree 30 %; composition root: `apps/vscode-plugin/package.json`, `apps/vscode-plugin/src/main.ts`",
           "group": "across-languages"
         },
         {
           "key": "apps/vscode-plugin/package.json ↔ apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts",
           "path": "apps/vscode-plugin/package.json",
           "line": 1,
-          "message": "changes with `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts` in 11 PRs (50 and 12 revisions), degree 35 %; composition root: `apps/vscode-plugin/package.json`",
+          "message": "changes with `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts` in 10 PRs (49 and 11 revisions), degree 33 %; composition root: `apps/vscode-plugin/package.json`",
           "group": "across-languages"
         },
         {
           "key": "apps/vscode-plugin/src/composition/editorFeature.ts ↔ libs/modeler-core/src/shared/domain/hostPorts.ts",
           "path": "apps/vscode-plugin/src/composition/editorFeature.ts",
           "line": 1,
-          "message": "changes with `libs/modeler-core/src/shared/domain/hostPorts.ts` in 6 PRs (17 and 14 revisions), degree 39 %; composition root: `apps/vscode-plugin/src/composition/editorFeature.ts`",
+          "message": "changes with `libs/modeler-core/src/shared/domain/hostPorts.ts` in 5 PRs (15 and 13 revisions), degree 36 %; composition root: `apps/vscode-plugin/src/composition/editorFeature.ts`",
           "group": "across-workspaces"
         },
         {
           "key": "apps/vscode-plugin/src/composition/editorFeature.ts ↔ libs/shared/src/lib/modeler.ts",
           "path": "apps/vscode-plugin/src/composition/editorFeature.ts",
           "line": 1,
-          "message": "changes with `libs/shared/src/lib/modeler.ts` in 11 PRs (17 and 39 revisions), degree 39 %; composition root: `apps/vscode-plugin/src/composition/editorFeature.ts`",
+          "message": "changes with `libs/shared/src/lib/modeler.ts` in 9 PRs (15 and 37 revisions), degree 35 %; composition root: `apps/vscode-plugin/src/composition/editorFeature.ts`",
           "group": "across-workspaces"
         },
         {
           "key": "apps/vscode-plugin/src/main.ts ↔ apps/vscode-plugin/src/modeler/bpmn/controller/CommandController.ts",
           "path": "apps/vscode-plugin/src/main.ts",
           "line": 1,
-          "message": "changes with `apps/vscode-plugin/src/modeler/bpmn/controller/CommandController.ts` in 7 PRs (30 and 15 revisions), degree 31 %; composition root: `apps/vscode-plugin/src/main.ts`",
+          "message": "changes with `apps/vscode-plugin/src/modeler/bpmn/controller/CommandController.ts` in 7 PRs (30 and 14 revisions), degree 32 %; composition root: `apps/vscode-plugin/src/main.ts`",
           "group": "within-workspace"
         },
         {
           "key": "apps/vscode-plugin/src/main.ts ↔ apps/vscode-plugin/src/shared/infrastructure/VsCodePicker.ts",
           "path": "apps/vscode-plugin/src/main.ts",
           "line": 1,
-          "message": "changes with `apps/vscode-plugin/src/shared/infrastructure/VsCodePicker.ts` in 9 PRs (30 and 13 revisions), degree 42 %; composition root: `apps/vscode-plugin/src/main.ts`",
+          "message": "changes with `apps/vscode-plugin/src/shared/infrastructure/VsCodePicker.ts` in 9 PRs (30 and 12 revisions), degree 43 %; composition root: `apps/vscode-plugin/src/main.ts`",
           "group": "within-workspace"
         },
         {
@@ -261,42 +240,35 @@
           "key": "apps/vscode-plugin/src/main.ts ↔ libs/shared/src/lib/modeler.ts",
           "path": "apps/vscode-plugin/src/main.ts",
           "line": 1,
-          "message": "changes with `libs/shared/src/lib/modeler.ts` in 11 PRs (30 and 39 revisions), degree 32 %; composition root: `apps/vscode-plugin/src/main.ts`",
+          "message": "changes with `libs/shared/src/lib/modeler.ts` in 11 PRs (30 and 37 revisions), degree 33 %; composition root: `apps/vscode-plugin/src/main.ts`",
           "group": "across-workspaces"
-        },
-        {
-          "key": "apps/vscode-plugin/src/modeler/bpmn/controller/CommandController.ts ↔ apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts",
-          "path": "apps/vscode-plugin/src/modeler/bpmn/controller/CommandController.ts",
-          "line": 1,
-          "message": "changes with `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts` in 5 PRs (15 and 12 revisions), degree 37 %",
-          "group": "within-workspace"
         },
         {
           "key": "apps/vscode-plugin/src/modeler/bpmn/controller/CommandController.ts ↔ libs/modeler-core/src/modeler/dmn/service/DmnModelerService.ts",
           "path": "apps/vscode-plugin/src/modeler/bpmn/controller/CommandController.ts",
           "line": 1,
-          "message": "changes with `libs/modeler-core/src/modeler/dmn/service/DmnModelerService.ts` in 5 PRs (15 and 6 revisions), degree 48 %",
+          "message": "changes with `libs/modeler-core/src/modeler/dmn/service/DmnModelerService.ts` in 5 PRs (14 and 6 revisions), degree 50 %",
           "group": "across-workspaces"
         },
         {
           "key": "apps/vscode-plugin/src/shared/infrastructure/VsCodePicker.ts ↔ libs/modeler-core/src/modeler/bpmn/service/BpmnModelerService.ts",
           "path": "apps/vscode-plugin/src/shared/infrastructure/VsCodePicker.ts",
           "line": 1,
-          "message": "changes with `libs/modeler-core/src/modeler/bpmn/service/BpmnModelerService.ts` in 8 PRs (13 and 18 revisions), degree 52 %",
+          "message": "changes with `libs/modeler-core/src/modeler/bpmn/service/BpmnModelerService.ts` in 7 PRs (12 and 17 revisions), degree 48 %",
           "group": "across-workspaces"
         },
         {
           "key": "apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts ↔ libs/modeler-core/src/modeler/bpmn/service/BpmnModelerService.ts",
           "path": "apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts",
           "line": 1,
-          "message": "changes with `libs/modeler-core/src/modeler/bpmn/service/BpmnModelerService.ts` in 7 PRs (12 and 18 revisions), degree 47 %",
+          "message": "changes with `libs/modeler-core/src/modeler/bpmn/service/BpmnModelerService.ts` in 6 PRs (11 and 17 revisions), degree 43 %",
           "group": "across-workspaces"
         },
         {
           "key": "apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts ↔ libs/shared/src/lib/modeler.ts",
           "path": "apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts",
           "line": 1,
-          "message": "changes with `libs/shared/src/lib/modeler.ts` in 10 PRs (12 and 39 revisions), degree 39 %",
+          "message": "changes with `libs/shared/src/lib/modeler.ts` in 9 PRs (11 and 37 revisions), degree 38 %",
           "group": "across-workspaces"
         },
         {
@@ -314,17 +286,563 @@
           "group": "explained"
         },
         {
+          "key": "libs/bpmn-i18n-extras/src/languages/de.ts ↔ libs/bpmn-i18n-extras/src/languages/en.ts",
+          "path": "libs/bpmn-i18n-extras/src/languages/de.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/src/languages/en.ts` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/de.ts ↔ libs/bpmn-i18n-extras/src/languages/es.ts",
+          "path": "libs/bpmn-i18n-extras/src/languages/de.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/src/languages/es.ts` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/de.ts ↔ libs/bpmn-i18n-extras/src/languages/fr.ts",
+          "path": "libs/bpmn-i18n-extras/src/languages/de.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/src/languages/fr.ts` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/de.ts ↔ libs/bpmn-i18n-extras/src/languages/it.ts",
+          "path": "libs/bpmn-i18n-extras/src/languages/de.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/src/languages/it.ts` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/de.ts ↔ libs/bpmn-i18n-extras/src/languages/ja.ts",
+          "path": "libs/bpmn-i18n-extras/src/languages/de.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/src/languages/ja.ts` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/de.ts ↔ libs/bpmn-i18n-extras/src/languages/ko.ts",
+          "path": "libs/bpmn-i18n-extras/src/languages/de.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/src/languages/ko.ts` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/de.ts ↔ libs/bpmn-i18n-extras/src/languages/nl-nl.ts",
+          "path": "libs/bpmn-i18n-extras/src/languages/de.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/src/languages/nl-nl.ts` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/de.ts ↔ libs/bpmn-i18n-extras/src/languages/pt-br.ts",
+          "path": "libs/bpmn-i18n-extras/src/languages/de.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/src/languages/pt-br.ts` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/de.ts ↔ libs/bpmn-i18n-extras/src/languages/ru.ts",
+          "path": "libs/bpmn-i18n-extras/src/languages/de.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/src/languages/ru.ts` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/de.ts ↔ libs/bpmn-i18n-extras/src/languages/zh-Hans.ts",
+          "path": "libs/bpmn-i18n-extras/src/languages/de.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/src/languages/zh-Hans.ts` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/de.ts ↔ libs/bpmn-i18n-extras/src/languages/zh-Hant.ts",
+          "path": "libs/bpmn-i18n-extras/src/languages/de.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/src/languages/zh-Hant.ts` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/de.ts ↔ libs/bpmn-i18n-extras/tools/build-overlay.mjs",
+          "path": "libs/bpmn-i18n-extras/src/languages/de.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/tools/build-overlay.mjs` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/en.ts ↔ libs/bpmn-i18n-extras/src/languages/es.ts",
+          "path": "libs/bpmn-i18n-extras/src/languages/en.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/src/languages/es.ts` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/en.ts ↔ libs/bpmn-i18n-extras/src/languages/fr.ts",
+          "path": "libs/bpmn-i18n-extras/src/languages/en.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/src/languages/fr.ts` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/en.ts ↔ libs/bpmn-i18n-extras/src/languages/it.ts",
+          "path": "libs/bpmn-i18n-extras/src/languages/en.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/src/languages/it.ts` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/en.ts ↔ libs/bpmn-i18n-extras/src/languages/ja.ts",
+          "path": "libs/bpmn-i18n-extras/src/languages/en.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/src/languages/ja.ts` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/en.ts ↔ libs/bpmn-i18n-extras/src/languages/ko.ts",
+          "path": "libs/bpmn-i18n-extras/src/languages/en.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/src/languages/ko.ts` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/en.ts ↔ libs/bpmn-i18n-extras/src/languages/nl-nl.ts",
+          "path": "libs/bpmn-i18n-extras/src/languages/en.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/src/languages/nl-nl.ts` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/en.ts ↔ libs/bpmn-i18n-extras/src/languages/pt-br.ts",
+          "path": "libs/bpmn-i18n-extras/src/languages/en.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/src/languages/pt-br.ts` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/en.ts ↔ libs/bpmn-i18n-extras/src/languages/ru.ts",
+          "path": "libs/bpmn-i18n-extras/src/languages/en.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/src/languages/ru.ts` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/en.ts ↔ libs/bpmn-i18n-extras/src/languages/zh-Hans.ts",
+          "path": "libs/bpmn-i18n-extras/src/languages/en.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/src/languages/zh-Hans.ts` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/en.ts ↔ libs/bpmn-i18n-extras/src/languages/zh-Hant.ts",
+          "path": "libs/bpmn-i18n-extras/src/languages/en.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/src/languages/zh-Hant.ts` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/en.ts ↔ libs/bpmn-i18n-extras/tools/build-overlay.mjs",
+          "path": "libs/bpmn-i18n-extras/src/languages/en.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/tools/build-overlay.mjs` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/es.ts ↔ libs/bpmn-i18n-extras/src/languages/fr.ts",
+          "path": "libs/bpmn-i18n-extras/src/languages/es.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/src/languages/fr.ts` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/es.ts ↔ libs/bpmn-i18n-extras/src/languages/it.ts",
+          "path": "libs/bpmn-i18n-extras/src/languages/es.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/src/languages/it.ts` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/es.ts ↔ libs/bpmn-i18n-extras/src/languages/ja.ts",
+          "path": "libs/bpmn-i18n-extras/src/languages/es.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/src/languages/ja.ts` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/es.ts ↔ libs/bpmn-i18n-extras/src/languages/ko.ts",
+          "path": "libs/bpmn-i18n-extras/src/languages/es.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/src/languages/ko.ts` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/es.ts ↔ libs/bpmn-i18n-extras/src/languages/nl-nl.ts",
+          "path": "libs/bpmn-i18n-extras/src/languages/es.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/src/languages/nl-nl.ts` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/es.ts ↔ libs/bpmn-i18n-extras/src/languages/pt-br.ts",
+          "path": "libs/bpmn-i18n-extras/src/languages/es.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/src/languages/pt-br.ts` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/es.ts ↔ libs/bpmn-i18n-extras/src/languages/ru.ts",
+          "path": "libs/bpmn-i18n-extras/src/languages/es.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/src/languages/ru.ts` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/es.ts ↔ libs/bpmn-i18n-extras/src/languages/zh-Hans.ts",
+          "path": "libs/bpmn-i18n-extras/src/languages/es.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/src/languages/zh-Hans.ts` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/es.ts ↔ libs/bpmn-i18n-extras/src/languages/zh-Hant.ts",
+          "path": "libs/bpmn-i18n-extras/src/languages/es.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/src/languages/zh-Hant.ts` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/es.ts ↔ libs/bpmn-i18n-extras/tools/build-overlay.mjs",
+          "path": "libs/bpmn-i18n-extras/src/languages/es.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/tools/build-overlay.mjs` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/fr.ts ↔ libs/bpmn-i18n-extras/src/languages/it.ts",
+          "path": "libs/bpmn-i18n-extras/src/languages/fr.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/src/languages/it.ts` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/fr.ts ↔ libs/bpmn-i18n-extras/src/languages/ja.ts",
+          "path": "libs/bpmn-i18n-extras/src/languages/fr.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/src/languages/ja.ts` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/fr.ts ↔ libs/bpmn-i18n-extras/src/languages/ko.ts",
+          "path": "libs/bpmn-i18n-extras/src/languages/fr.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/src/languages/ko.ts` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/fr.ts ↔ libs/bpmn-i18n-extras/src/languages/nl-nl.ts",
+          "path": "libs/bpmn-i18n-extras/src/languages/fr.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/src/languages/nl-nl.ts` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/fr.ts ↔ libs/bpmn-i18n-extras/src/languages/pt-br.ts",
+          "path": "libs/bpmn-i18n-extras/src/languages/fr.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/src/languages/pt-br.ts` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/fr.ts ↔ libs/bpmn-i18n-extras/src/languages/ru.ts",
+          "path": "libs/bpmn-i18n-extras/src/languages/fr.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/src/languages/ru.ts` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/fr.ts ↔ libs/bpmn-i18n-extras/src/languages/zh-Hans.ts",
+          "path": "libs/bpmn-i18n-extras/src/languages/fr.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/src/languages/zh-Hans.ts` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/fr.ts ↔ libs/bpmn-i18n-extras/src/languages/zh-Hant.ts",
+          "path": "libs/bpmn-i18n-extras/src/languages/fr.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/src/languages/zh-Hant.ts` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/fr.ts ↔ libs/bpmn-i18n-extras/tools/build-overlay.mjs",
+          "path": "libs/bpmn-i18n-extras/src/languages/fr.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/tools/build-overlay.mjs` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/it.ts ↔ libs/bpmn-i18n-extras/src/languages/ja.ts",
+          "path": "libs/bpmn-i18n-extras/src/languages/it.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/src/languages/ja.ts` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/it.ts ↔ libs/bpmn-i18n-extras/src/languages/ko.ts",
+          "path": "libs/bpmn-i18n-extras/src/languages/it.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/src/languages/ko.ts` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/it.ts ↔ libs/bpmn-i18n-extras/src/languages/nl-nl.ts",
+          "path": "libs/bpmn-i18n-extras/src/languages/it.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/src/languages/nl-nl.ts` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/it.ts ↔ libs/bpmn-i18n-extras/src/languages/pt-br.ts",
+          "path": "libs/bpmn-i18n-extras/src/languages/it.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/src/languages/pt-br.ts` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/it.ts ↔ libs/bpmn-i18n-extras/src/languages/ru.ts",
+          "path": "libs/bpmn-i18n-extras/src/languages/it.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/src/languages/ru.ts` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/it.ts ↔ libs/bpmn-i18n-extras/src/languages/zh-Hans.ts",
+          "path": "libs/bpmn-i18n-extras/src/languages/it.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/src/languages/zh-Hans.ts` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/it.ts ↔ libs/bpmn-i18n-extras/src/languages/zh-Hant.ts",
+          "path": "libs/bpmn-i18n-extras/src/languages/it.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/src/languages/zh-Hant.ts` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/it.ts ↔ libs/bpmn-i18n-extras/tools/build-overlay.mjs",
+          "path": "libs/bpmn-i18n-extras/src/languages/it.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/tools/build-overlay.mjs` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/ja.ts ↔ libs/bpmn-i18n-extras/src/languages/ko.ts",
+          "path": "libs/bpmn-i18n-extras/src/languages/ja.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/src/languages/ko.ts` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/ja.ts ↔ libs/bpmn-i18n-extras/src/languages/nl-nl.ts",
+          "path": "libs/bpmn-i18n-extras/src/languages/ja.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/src/languages/nl-nl.ts` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/ja.ts ↔ libs/bpmn-i18n-extras/src/languages/pt-br.ts",
+          "path": "libs/bpmn-i18n-extras/src/languages/ja.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/src/languages/pt-br.ts` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/ja.ts ↔ libs/bpmn-i18n-extras/src/languages/ru.ts",
+          "path": "libs/bpmn-i18n-extras/src/languages/ja.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/src/languages/ru.ts` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/ja.ts ↔ libs/bpmn-i18n-extras/src/languages/zh-Hans.ts",
+          "path": "libs/bpmn-i18n-extras/src/languages/ja.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/src/languages/zh-Hans.ts` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/ja.ts ↔ libs/bpmn-i18n-extras/src/languages/zh-Hant.ts",
+          "path": "libs/bpmn-i18n-extras/src/languages/ja.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/src/languages/zh-Hant.ts` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/ja.ts ↔ libs/bpmn-i18n-extras/tools/build-overlay.mjs",
+          "path": "libs/bpmn-i18n-extras/src/languages/ja.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/tools/build-overlay.mjs` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/ko.ts ↔ libs/bpmn-i18n-extras/src/languages/nl-nl.ts",
+          "path": "libs/bpmn-i18n-extras/src/languages/ko.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/src/languages/nl-nl.ts` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/ko.ts ↔ libs/bpmn-i18n-extras/src/languages/pt-br.ts",
+          "path": "libs/bpmn-i18n-extras/src/languages/ko.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/src/languages/pt-br.ts` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/ko.ts ↔ libs/bpmn-i18n-extras/src/languages/ru.ts",
+          "path": "libs/bpmn-i18n-extras/src/languages/ko.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/src/languages/ru.ts` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/ko.ts ↔ libs/bpmn-i18n-extras/src/languages/zh-Hans.ts",
+          "path": "libs/bpmn-i18n-extras/src/languages/ko.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/src/languages/zh-Hans.ts` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/ko.ts ↔ libs/bpmn-i18n-extras/src/languages/zh-Hant.ts",
+          "path": "libs/bpmn-i18n-extras/src/languages/ko.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/src/languages/zh-Hant.ts` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/ko.ts ↔ libs/bpmn-i18n-extras/tools/build-overlay.mjs",
+          "path": "libs/bpmn-i18n-extras/src/languages/ko.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/tools/build-overlay.mjs` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/nl-nl.ts ↔ libs/bpmn-i18n-extras/src/languages/pt-br.ts",
+          "path": "libs/bpmn-i18n-extras/src/languages/nl-nl.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/src/languages/pt-br.ts` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/nl-nl.ts ↔ libs/bpmn-i18n-extras/src/languages/ru.ts",
+          "path": "libs/bpmn-i18n-extras/src/languages/nl-nl.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/src/languages/ru.ts` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/nl-nl.ts ↔ libs/bpmn-i18n-extras/src/languages/zh-Hans.ts",
+          "path": "libs/bpmn-i18n-extras/src/languages/nl-nl.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/src/languages/zh-Hans.ts` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/nl-nl.ts ↔ libs/bpmn-i18n-extras/src/languages/zh-Hant.ts",
+          "path": "libs/bpmn-i18n-extras/src/languages/nl-nl.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/src/languages/zh-Hant.ts` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/nl-nl.ts ↔ libs/bpmn-i18n-extras/tools/build-overlay.mjs",
+          "path": "libs/bpmn-i18n-extras/src/languages/nl-nl.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/tools/build-overlay.mjs` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/pt-br.ts ↔ libs/bpmn-i18n-extras/src/languages/ru.ts",
+          "path": "libs/bpmn-i18n-extras/src/languages/pt-br.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/src/languages/ru.ts` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/pt-br.ts ↔ libs/bpmn-i18n-extras/src/languages/zh-Hans.ts",
+          "path": "libs/bpmn-i18n-extras/src/languages/pt-br.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/src/languages/zh-Hans.ts` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/pt-br.ts ↔ libs/bpmn-i18n-extras/src/languages/zh-Hant.ts",
+          "path": "libs/bpmn-i18n-extras/src/languages/pt-br.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/src/languages/zh-Hant.ts` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/pt-br.ts ↔ libs/bpmn-i18n-extras/tools/build-overlay.mjs",
+          "path": "libs/bpmn-i18n-extras/src/languages/pt-br.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/tools/build-overlay.mjs` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/ru.ts ↔ libs/bpmn-i18n-extras/src/languages/zh-Hans.ts",
+          "path": "libs/bpmn-i18n-extras/src/languages/ru.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/src/languages/zh-Hans.ts` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/ru.ts ↔ libs/bpmn-i18n-extras/src/languages/zh-Hant.ts",
+          "path": "libs/bpmn-i18n-extras/src/languages/ru.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/src/languages/zh-Hant.ts` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/ru.ts ↔ libs/bpmn-i18n-extras/tools/build-overlay.mjs",
+          "path": "libs/bpmn-i18n-extras/src/languages/ru.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/tools/build-overlay.mjs` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/zh-Hans.ts ↔ libs/bpmn-i18n-extras/src/languages/zh-Hant.ts",
+          "path": "libs/bpmn-i18n-extras/src/languages/zh-Hans.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/src/languages/zh-Hant.ts` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/zh-Hans.ts ↔ libs/bpmn-i18n-extras/tools/build-overlay.mjs",
+          "path": "libs/bpmn-i18n-extras/src/languages/zh-Hans.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/tools/build-overlay.mjs` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
+          "key": "libs/bpmn-i18n-extras/src/languages/zh-Hant.ts ↔ libs/bpmn-i18n-extras/tools/build-overlay.mjs",
+          "path": "libs/bpmn-i18n-extras/src/languages/zh-Hant.ts",
+          "line": 1,
+          "message": "changes with `libs/bpmn-i18n-extras/tools/build-overlay.mjs` in 5 PRs (5 and 5 revisions), degree 100 %",
+          "group": "within-workspace"
+        },
+        {
           "key": "libs/modeler-core/src/diff/service/BpmnDiffService.ts ↔ packages/bpmn-modeler/src/viewer/diff/DiffLegend.ts",
           "path": "libs/modeler-core/src/diff/service/BpmnDiffService.ts",
           "line": 1,
-          "message": "changes with `packages/bpmn-modeler/src/viewer/diff/DiffLegend.ts` in 5 PRs (13 and 6 revisions), degree 53 %",
+          "message": "changes with `packages/bpmn-modeler/src/viewer/diff/DiffLegend.ts` in 5 PRs (12 and 6 revisions), degree 56 %",
           "group": "across-workspaces"
         },
         {
           "key": "libs/modeler-core/src/modeler/bpmn/domain/model.ts ↔ libs/modeler-core/src/modeler/bpmn/service/BpmnModelerService.ts",
           "path": "libs/modeler-core/src/modeler/bpmn/domain/model.ts",
           "line": 1,
-          "message": "changes with `libs/modeler-core/src/modeler/bpmn/service/BpmnModelerService.ts` in 5 PRs (5 and 18 revisions), degree 43 %",
+          "message": "changes with `libs/modeler-core/src/modeler/bpmn/service/BpmnModelerService.ts` in 5 PRs (5 and 17 revisions), degree 45 %",
           "group": "within-workspace"
         },
         {
@@ -338,14 +856,14 @@
           "key": "libs/modeler-core/src/modeler/bpmn/service/BpmnModelerService.ts ↔ libs/modeler-core/src/modeler/dmn/service/DmnModelerService.ts",
           "path": "libs/modeler-core/src/modeler/bpmn/service/BpmnModelerService.ts",
           "line": 1,
-          "message": "changes with `libs/modeler-core/src/modeler/dmn/service/DmnModelerService.ts` in 5 PRs (18 and 6 revisions), degree 42 %",
+          "message": "changes with `libs/modeler-core/src/modeler/dmn/service/DmnModelerService.ts` in 5 PRs (17 and 6 revisions), degree 43 %",
           "group": "within-workspace"
         },
         {
           "key": "libs/shared/src/lib/modeler.ts ↔ packages/bpmn-modeler/src/modeler.ts",
           "path": "libs/shared/src/lib/modeler.ts",
           "line": 1,
-          "message": "changes with `packages/bpmn-modeler/src/modeler.ts` in 20 PRs (39 and 63 revisions), degree 39 %",
+          "message": "changes with `packages/bpmn-modeler/src/modeler.ts` in 20 PRs (37 and 63 revisions), degree 40 %",
           "group": "across-workspaces"
         },
         {
@@ -356,58 +874,37 @@
           "group": "within-workspace"
         },
         {
-          "key": "packages/bpmn-modeler/src/design/designer.ts ↔ packages/bpmn-modeler/src/index.ts",
-          "path": "packages/bpmn-modeler/src/design/designer.ts",
-          "line": 1,
-          "message": "changes with `packages/bpmn-modeler/src/index.ts` in 6 PRs (19 and 15 revisions), degree 35 %; explained by `packages/bpmn-modeler/src/publicApi.ts` (3 of 6); composition root: `packages/bpmn-modeler/src/index.ts`",
-          "group": "explained"
-        },
-        {
           "key": "packages/bpmn-modeler/src/design/designer.ts ↔ packages/bpmn-modeler/src/modeler.ts",
           "path": "packages/bpmn-modeler/src/design/designer.ts",
           "line": 1,
-          "message": "changes with `packages/bpmn-modeler/src/modeler.ts` in 14 PRs (19 and 63 revisions), degree 34 %; explained by `packages/bpmn-modeler/src/publicApi.ts` (9 of 14)",
+          "message": "changes with `packages/bpmn-modeler/src/modeler.ts` in 14 PRs (17 and 63 revisions), degree 35 %; explained by `packages/bpmn-modeler/src/publicApi.ts` (9 of 14)",
           "group": "explained"
         },
         {
           "key": "packages/bpmn-modeler/src/design/designer.ts ↔ packages/bpmn-modeler/src/viewer/publicApi.ts",
           "path": "packages/bpmn-modeler/src/design/designer.ts",
           "line": 1,
-          "message": "changes with `packages/bpmn-modeler/src/viewer/publicApi.ts` in 7 PRs (19 and 12 revisions), degree 45 %; explained by `packages/bpmn-modeler/src/publicApi.ts` (6 of 7)",
+          "message": "changes with `packages/bpmn-modeler/src/viewer/publicApi.ts` in 5 PRs (17 and 10 revisions), degree 37 %; explained by `packages/bpmn-modeler/src/publicApi.ts` (5 of 5)",
           "group": "explained"
         },
         {
           "key": "packages/bpmn-modeler/src/design/designer.ts ↔ packages/bpmn-modeler/src/viewer/viewer.ts",
           "path": "packages/bpmn-modeler/src/design/designer.ts",
           "line": 1,
-          "message": "changes with `packages/bpmn-modeler/src/viewer/viewer.ts` in 10 PRs (19 and 13 revisions), degree 63 %; explained by `packages/bpmn-modeler/src/publicApi.ts` (6 of 10)",
-          "group": "explained"
-        },
-        {
-          "key": "packages/bpmn-modeler/src/design/publicApi.ts ↔ packages/bpmn-modeler/src/index.ts",
-          "path": "packages/bpmn-modeler/src/design/publicApi.ts",
-          "line": 1,
-          "message": "changes with `packages/bpmn-modeler/src/index.ts` in 5 PRs (16 and 15 revisions), degree 32 %; explained by `packages/bpmn-modeler/src/publicApi.ts` (3 of 5); composition root: `packages/bpmn-modeler/src/index.ts`",
+          "message": "changes with `packages/bpmn-modeler/src/viewer/viewer.ts` in 9 PRs (17 and 12 revisions), degree 62 %; explained by `packages/bpmn-modeler/src/publicApi.ts` (5 of 9)",
           "group": "explained"
         },
         {
           "key": "packages/bpmn-modeler/src/design/publicApi.ts ↔ packages/bpmn-modeler/src/viewer/publicApi.ts",
           "path": "packages/bpmn-modeler/src/design/publicApi.ts",
           "line": 1,
-          "message": "changes with `packages/bpmn-modeler/src/viewer/publicApi.ts` in 8 PRs (16 and 12 revisions), degree 57 %; explained by `packages/bpmn-modeler/src/publicApi.ts` (7 of 8)",
-          "group": "explained"
-        },
-        {
-          "key": "packages/bpmn-modeler/src/design/publicApi.ts ↔ packages/bpmn-modeler/src/viewer/viewer.ts",
-          "path": "packages/bpmn-modeler/src/design/publicApi.ts",
-          "line": 1,
-          "message": "changes with `packages/bpmn-modeler/src/viewer/viewer.ts` in 5 PRs (16 and 13 revisions), degree 34 %; explained by `packages/bpmn-modeler/src/publicApi.ts` (5 of 5)",
+          "message": "changes with `packages/bpmn-modeler/src/viewer/publicApi.ts` in 6 PRs (14 and 10 revisions), degree 50 %; explained by `packages/bpmn-modeler/src/publicApi.ts` (6 of 6)",
           "group": "explained"
         }
       ]
     },
     "host-text": {
-      "version": 2,
+      "version": 4,
       "findings": [
         {
           "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/AddMarketplaceAction.kt — Add Template Marketplace",
@@ -1040,156 +1537,6 @@
           "message": "`text/plain; charset=utf-8`"
         },
         {
-          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <!DOCTYPE html>",
-          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
-          "line": 140,
-          "message": "`<!DOCTYPE html>`"
-        },
-        {
-          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <html lang=\"en\" data-bpmn-theme=\"${…}\">",
-          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
-          "line": 141,
-          "message": "`<html lang=\"en\" data-bpmn-theme=\"${…}\">`"
-        },
-        {
-          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <meta charset=\"UTF-8\"/>",
-          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
-          "line": 143,
-          "message": "`<meta charset=\"UTF-8\"/>`"
-        },
-        {
-          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"/>",
-          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
-          "line": 144,
-          "message": "`<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"/>`"
-        },
-        {
-          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <link href=\"/index.css\" rel=\"stylesheet\"/>",
-          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
-          "line": 145,
-          "message": "`<link href=\"/index.css\" rel=\"stylesheet\"/>`"
-        },
-        {
-          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <title>BPMN Modeler</title>",
-          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
-          "line": 146,
-          "message": "`<title>BPMN Modeler</title>`"
-        },
-        {
-          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <style>html, body { margin: 0; height: 100%; } #app { height: 100vh; }</style>",
-          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
-          "line": 147,
-          "message": "`<style>html, body { margin: 0; height: 100%; } #app { height: 100vh; }</style>`"
-        },
-        {
-          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <style id=\"ide-theme-vars\">${…}</style>",
-          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
-          "line": 148,
-          "message": "`<style id=\"ide-theme-vars\">${…}</style>`"
-        },
-        {
-          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <body class=\"${…}\">",
-          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
-          "line": 151,
-          "message": "`<body class=\"${…}\">`"
-        },
-        {
-          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <div id=\"app\">",
-          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
-          "line": 152,
-          "message": "`<div id=\"app\">`"
-        },
-        {
-          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <div class=\"content with-diagram\" id=\"js-drop-zone\">",
-          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
-          "line": 153,
-          "message": "`<div class=\"content with-diagram\" id=\"js-drop-zone\">`"
-        },
-        {
-          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <div class=\"canvas\" id=\"js-canvas\"></div>",
-          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
-          "line": 154,
-          "message": "`<div class=\"canvas\" id=\"js-canvas\"></div>`"
-        },
-        {
-          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <div id=\"js-panel-resizer\" class=\"panel-resizer\"></div>",
-          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
-          "line": 155,
-          "message": "`<div id=\"js-panel-resizer\" class=\"panel-resizer\"></div>`"
-        },
-        {
-          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <div class=\"properties-panel-parent\" id=\"js-properties-panel\"></div>",
-          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
-          "line": 156,
-          "message": "`<div class=\"properties-panel-parent\" id=\"js-properties-panel\"></div>`"
-        },
-        {
-          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <script type=\"module\" src=\"/index.js\"></script>",
-          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
-          "line": 159,
-          "message": "`<script type=\"module\" src=\"/index.js\"></script>`"
-        },
-        {
-          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <!DOCTYPE html>",
-          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
-          "line": 181,
-          "message": "`<!DOCTYPE html>`"
-        },
-        {
-          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <html lang=\"en\">",
-          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
-          "line": 182,
-          "message": "`<html lang=\"en\">`"
-        },
-        {
-          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <meta charset=\"UTF-8\"/>",
-          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
-          "line": 184,
-          "message": "`<meta charset=\"UTF-8\"/>`"
-        },
-        {
-          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"/>",
-          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
-          "line": 185,
-          "message": "`<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"/>`"
-        },
-        {
-          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <link href=\"/deployment/index.css\" rel=\"stylesheet\"/>",
-          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
-          "line": 186,
-          "message": "`<link href=\"/deployment/index.css\" rel=\"stylesheet\"/>`"
-        },
-        {
-          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <title>Deploy Diagram</title>",
-          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
-          "line": 187,
-          "message": "`<title>Deploy Diagram</title>`"
-        },
-        {
-          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <style id=\"ide-theme-vars\">${…}</style>",
-          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
-          "line": 188,
-          "message": "`<style id=\"ide-theme-vars\">${…}</style>`"
-        },
-        {
-          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <body class=\"${…}\">",
-          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
-          "line": 191,
-          "message": "`<body class=\"${…}\">`"
-        },
-        {
-          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <div id=\"app\"></div>",
-          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
-          "line": 192,
-          "message": "`<div id=\"app\"></div>`"
-        },
-        {
-          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <script type=\"module\" src=\"/deployment/index.js\"></script>",
-          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
-          "line": 193,
-          "message": "`<script type=\"module\" src=\"/deployment/index.js\"></script>`"
-        },
-        {
           "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — text/javascript; charset=utf-8",
           "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
           "line": 207,
@@ -1346,12 +1693,6 @@
           "message": "`host handler failed`"
         },
         {
-          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/bridge/RpcChannel.kt — <redacted: credential-bearing frame>",
-          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/bridge/RpcChannel.kt",
-          "line": 262,
-          "message": "`<redacted: credential-bearing frame>`"
-        },
-        {
           "key": "apps/modeler-bridge/src/adapters.ts — Which diagrams do you want to migrate?",
           "path": "apps/modeler-bridge/src/adapters.ts",
           "line": 767,
@@ -1422,12 +1763,6 @@
           "path": "apps/modeler-bridge/src/adapters.ts",
           "line": 921,
           "message": "`Select the referenced model to open`"
-        },
-        {
-          "key": "apps/vscode-plugin/src/deployment/infrastructure/DeploymentWebviewHtml.ts — <!DOCTYPE html> <html lang=\"en\"> <head> <meta charset=\"UTF-8\"/> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"/> <meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; style-src ${…} 'unsafe-inline'; script-src 'nonce-${…}';\"/> <link href=\"${…}\" rel=\"stylesheet\"/> <title>Deploy Diagram</title> </head> <body> <div id=\"app\"></div> <script nonce=\"${…}\" src=\"${…}\"></script> </body> </html>",
-          "path": "apps/vscode-plugin/src/deployment/infrastructure/DeploymentWebviewHtml.ts",
-          "line": 22,
-          "message": "`<!DOCTYPE html> <html lang=\"en\"> <head> <meta charset=\"UTF-8\"/> <meta name=\"viewport\" content=\"widt…`"
         },
         {
           "key": "apps/vscode-plugin/src/diff/controller/BpmnCompareController.ts — BPMN Modeler: ${…} selected for compare",
@@ -1778,12 +2113,6 @@
           "message": "`style=\"width: 0\"`"
         },
         {
-          "key": "apps/vscode-plugin/src/shared/infrastructure/WebviewHtml.ts — <!DOCTYPE html> <html lang=\"en\"> <head> <meta charset=\"UTF-8\"/> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"/> <link href=\"${…}\" rel=\"stylesheet\"/> <title>BPMN Modeler</title> </head> <body> <div class=\"content with-diagram\" id=\"js-drop-zone\"> <div class=\"canvas\" id=\"js-canvas\"></div> <div id=\"js-panel-resizer\" class=\"${…}\"></div> <div class=\"${…}\" id=\"js-properties-panel\"${…}></div> </div> <script type=\"module\" nonce=\"${…}\" src=\"${…}\"></script> </body> </html>",
-          "path": "apps/vscode-plugin/src/shared/infrastructure/WebviewHtml.ts",
-          "line": 43,
-          "message": "`<!DOCTYPE html> <html lang=\"en\"> <head> <meta charset=\"UTF-8\"/> <meta name=\"viewport\" content=\"widt…`"
-        },
-        {
           "key": "apps/vscode-plugin/src/shared/infrastructure/WebviewHtml.ts — properties-panel-parent collapsed",
           "path": "apps/vscode-plugin/src/shared/infrastructure/WebviewHtml.ts",
           "line": 86,
@@ -1800,18 +2129,6 @@
           "path": "apps/vscode-plugin/src/shared/infrastructure/WebviewHtml.ts",
           "line": 88,
           "message": "`style=\"width: 0\"`"
-        },
-        {
-          "key": "apps/vscode-plugin/src/shared/infrastructure/WebviewHtml.ts — <!DOCTYPE html> <html lang=\"en\"> <head> <meta charset=\"utf-8\" /> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"/> <link href=\"${…}\" rel=\"stylesheet\"> <link href=\"${…}\" rel=\"stylesheet\" type=\"text/css\" /> <title>DMN Modeler</title> </head> <body> <div class=\"content with-diagram\" id=\"js-drop-zone\"> <div class=\"canvas\" id=\"js-canvas\"></div> <div id=\"js-panel-resizer\" class=\"${…}\"></div> <div class=\"${…}\" id=\"js-properties-panel\"${…}></div> </div> <script type=\"module\" nonce=\"${…}\" src=\"${…}\"></script> </body> </html>",
-          "path": "apps/vscode-plugin/src/shared/infrastructure/WebviewHtml.ts",
-          "line": 90,
-          "message": "`<!DOCTYPE html> <html lang=\"en\"> <head> <meta charset=\"utf-8\" /> <meta name=\"viewport\" content=\"wid…`"
-        },
-        {
-          "key": "apps/vscode-plugin/src/shared/infrastructure/WebviewHtml.ts — <!DOCTYPE html> <html lang=\"en\"> <head> <meta charset=\"UTF-8\" /> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" /> <meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; img-src ${…} data: blob: https:; font-src ${…} data:; style-src ${…} 'unsafe-inline'; script-src 'nonce-${…}'; connect-src https:; frame-src https:; object-src blob:;\" /> <link href=\"${…}\" rel=\"stylesheet\" /> <title>Form Editor</title> </head> <body> <div id=\"app\"></div> <script nonce=\"${…}\" src=\"${…}\"></script> </body> </html>",
-          "path": "apps/vscode-plugin/src/shared/infrastructure/WebviewHtml.ts",
-          "line": 121,
-          "message": "`<!DOCTYPE html> <html lang=\"en\"> <head> <meta charset=\"UTF-8\" /> <meta name=\"viewport\" content=\"wid…`"
         },
         {
           "key": "apps/vscode-plugin/src/shared/infrastructure/releaseNotes.ts — View Release Notes",
@@ -1990,7 +2307,7 @@
       ]
     },
     "hotspots": {
-      "version": 2,
+      "version": 3,
       "findings": [
         {
           "key": "apps/bpmn-webview/src/bootstrap.ts",
@@ -2135,11 +2452,11 @@
       ]
     },
     "missed-partner": {
-      "version": 1,
+      "version": 2,
       "findings": []
     },
     "repeated-value-sets": {
-      "version": 1,
+      "version": 2,
       "findings": [
         {
           "key": "apps/bpmn-webview/src/bootstrap.ts — [\"FlushDocumentQuery\",\"ReleaseDocumentFlushQuery\"]",
@@ -2265,25 +2582,25 @@
           "key": "apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts — [\"user\",\"workspace\"]",
           "path": "apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts",
           "line": 126,
-          "message": "`user` · `workspace`, also at `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:133`, `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:143`, `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:229`, `apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts:25`, `apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts:146`"
+          "message": "`user` · `workspace`, also at `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:133`, `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:143`, `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:229`, `apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts:25`, `apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts:146`; in another order at `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:229`, `apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts:146`: pin the copy to the home's type, and derive it from the home only where the order is the same concern"
         },
         {
           "key": "apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts — [\"user\",\"workspace\"]",
           "path": "apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts",
           "line": 133,
-          "message": "`user` · `workspace`, also at `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:126`, `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:143`, `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:229`, `apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts:25`, `apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts:146`"
+          "message": "`user` · `workspace`, also at `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:126`, `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:143`, `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:229`, `apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts:25`, `apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts:146`; in another order at `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:229`, `apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts:146`: pin the copy to the home's type, and derive it from the home only where the order is the same concern"
         },
         {
           "key": "apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts — [\"user\",\"workspace\"]",
           "path": "apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts",
           "line": 143,
-          "message": "`user` · `workspace`, also at `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:126`, `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:133`, `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:229`, `apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts:25`, `apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts:146`"
+          "message": "`user` · `workspace`, also at `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:126`, `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:133`, `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:229`, `apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts:25`, `apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts:146`; in another order at `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:229`, `apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts:146`: pin the copy to the home's type, and derive it from the home only where the order is the same concern"
         },
         {
           "key": "apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts — [\"user\",\"workspace\"]",
           "path": "apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts",
           "line": 229,
-          "message": "`user` · `workspace`, also at `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:126`, `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:133`, `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:143`, `apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts:25`, `apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts:146`"
+          "message": "`user` · `workspace`, also at `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:126`, `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:133`, `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:143`, `apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts:25`, `apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts:146`; in another order at `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:126`, `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:133`, `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:143`, `apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts:25`: pin the copy to the home's type, and derive it from the home only where the order is the same concern"
         },
         {
           "key": "apps/vscode-plugin/src/shared/infrastructure/VsCodeWorkspace.ts — [\"directory\",\"file\"]",
@@ -2295,13 +2612,13 @@
           "key": "apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts — [\"user\",\"workspace\"]",
           "path": "apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts",
           "line": 25,
-          "message": "`user` · `workspace`, also at `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:126`, `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:133`, `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:143`, `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:229`, `apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts:146`"
+          "message": "`user` · `workspace`, also at `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:126`, `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:133`, `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:143`, `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:229`, `apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts:146`; in another order at `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:229`, `apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts:146`: pin the copy to the home's type, and derive it from the home only where the order is the same concern"
         },
         {
           "key": "apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts — [\"user\",\"workspace\"]",
           "path": "apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts",
           "line": 146,
-          "message": "`user` · `workspace`, also at `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:126`, `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:133`, `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:143`, `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:229`, `apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts:25`"
+          "message": "`user` · `workspace`, also at `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:126`, `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:133`, `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:143`, `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:229`, `apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts:25`; in another order at `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:126`, `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:133`, `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts:143`, `apps/vscode-plugin/src/templateMarketplace/controller/TemplateMarketplaceController.ts:25`: pin the copy to the home's type, and derive it from the home only where the order is the same concern"
         },
         {
           "key": "docs/.vitepress/miragon/config.ts — [\"de-DE\",\"en-US\"]",
@@ -2529,7 +2846,7 @@
           "key": "libs/shared/src/lib/hostTheme.ts — [\"automatic\",\"dark\",\"light\"]",
           "path": "libs/shared/src/lib/hostTheme.ts",
           "line": 18,
-          "message": "`automatic` · `dark` · `light`, also at `packages/bpmn-modeler/src/publicApi.ts:63`, `packages/dmn-modeler/src/publicApi.ts:76`"
+          "message": "`automatic` · `dark` · `light`, also at `packages/bpmn-modeler/src/publicApi.ts:63`, `packages/dmn-modeler/src/publicApi.ts:76`; in another order at `packages/bpmn-modeler/src/publicApi.ts:63`, `packages/dmn-modeler/src/publicApi.ts:76`: pin the copy to the home's type, and derive it from the home only where the order is the same concern"
         },
         {
           "key": "libs/shared/src/lib/modeler.ts — [\"decision\",\"form\",\"process\"]",
@@ -2589,7 +2906,7 @@
           "key": "packages/bpmn-modeler/src/publicApi.ts — [\"automatic\",\"dark\",\"light\"]",
           "path": "packages/bpmn-modeler/src/publicApi.ts",
           "line": 63,
-          "message": "`automatic` · `dark` · `light`, also at `libs/shared/src/lib/hostTheme.ts:18`, `packages/dmn-modeler/src/publicApi.ts:76`"
+          "message": "`automatic` · `dark` · `light`, also at `libs/shared/src/lib/hostTheme.ts:18`, `packages/dmn-modeler/src/publicApi.ts:76`; in another order at `libs/shared/src/lib/hostTheme.ts:18`: pin the copy to the home's type, and derive it from the home only where the order is the same concern"
         },
         {
           "key": "packages/bpmn-modeler/src/theme.ts — [\"dark\",\"light\"]",
@@ -2607,7 +2924,7 @@
           "key": "packages/dmn-modeler/src/publicApi.ts — [\"automatic\",\"dark\",\"light\"]",
           "path": "packages/dmn-modeler/src/publicApi.ts",
           "line": 76,
-          "message": "`automatic` · `dark` · `light`, also at `libs/shared/src/lib/hostTheme.ts:18`, `packages/bpmn-modeler/src/publicApi.ts:63`"
+          "message": "`automatic` · `dark` · `light`, also at `libs/shared/src/lib/hostTheme.ts:18`, `packages/bpmn-modeler/src/publicApi.ts:63`; in another order at `libs/shared/src/lib/hostTheme.ts:18`: pin the copy to the home's type, and derive it from the home only where the order is the same concern"
         },
         {
           "key": "packages/dmn-modeler/src/theme.ts — [\"dark\",\"light\"]",
