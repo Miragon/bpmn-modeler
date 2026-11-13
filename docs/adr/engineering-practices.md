@@ -72,7 +72,8 @@ differ, VS Code is the reference. A VS Code adapter runs over a fake of the
 `vscode` API that behaves as VS Code does, and a bridge adapter that calls
 IntelliJ runs over an RPC loopback that answers as the Kotlin side does. So a
 run pins each adapter's own mapping, not the host itself: where a fake and its
-host part, the suite cannot tell, and the Kotlin half is #2056.
+host part, the suite cannot tell. Shared rows hold some loopbacks to the
+Kotlin side; the list of suites is followed by which.
 
 - `describeAddOnViewRevealContract`: `RecordingAddOnViewReveal` and
   `VsCodeAddOnsViewReveal` over a view focus that rejects where the host
@@ -160,6 +161,50 @@ host part, the suite cannot tell, and the Kotlin half is #2056.
   `VsCodeWorkspace` runs over `vscodeWorkspaceFake.ts`, which serves
   `workspace.fs` and `findFiles` from the disk and delivers watcher events in
   coalesced batches, as VS Code does.
+
+A rule of the Kotlin side that a loopback answers by is held to Kotlin by
+shared rows (#2223), as `settingsNormalization.cases.json` holds a core rule:
+a file in `apps/modeler-bridge/src/__fixtures__/` that the bridge's spec runs
+against the loopback and a Kotlin test against the router behind it, read
+through a `miragon.*` test input in `build.gradle.kts`.
+
+- `intellijPasswordSafe.cases.json`: a pair saved with an empty name reads
+  back as absent, one with an empty secret as saved. `SecretStoreRouterTest`
+  runs it on the platform's unit-test PasswordSafe.
+- `intellijDocumentWrite.cases.json`: a write stores LF line endings and
+  replies with the stored text when it differs from the written one, reports a
+  change only when the text differs, and is refused (`accepted: false`) for
+  another session or at another revision. `EditorSessionRouterTest` runs it on
+  a real Document; both document loopbacks answer with `intellijDocumentWrite`.
+- `intellijScriptTabs.cases.json`: `script/close` closes the tab and acks with
+  `script/didClose`, also for a tab it never opened, and a tab the user closes
+  reports `script/didClose`. `ScriptRouterTest` runs it over the platform's
+  editor manager.
+- `intellijProgress.cases.json`: one spinner per progress title, which a
+  second start replaces. `HostUiRouterTest` runs it; the spinner itself is a
+  seam of the router.
+- `intellijWritableScopes.json`: where IntelliJ saves each marketplace scope,
+  which `MarketplaceRouterTest` compares with the `marketplaceState/read`
+  reply.
+
+Unpinned, with the reason:
+
+- What an OS keychain does with an empty secret. In unit-test mode
+  PasswordSafe is an in-memory store, so no test reaches a keychain, and the
+  suite accepts both answers. An empty name reads back as absent on every
+  backend: `Credentials` drops it before any store sees it.
+- How `DiffRouter.kt` hands a post to a pane's browser, and the pane URIs
+  `BpmnDiffViewer.uriFor` builds. Both need a diff viewer showing JCEF
+  browsers; the router tests run headless without one.
+- The clipboard loopback's order of reads and writes and its empty text for a
+  clipboard without text. No Kotlin test drives `clipboard/read` or
+  `clipboard/write`, and whether the headless test application's
+  `CopyPasteManager` keeps text as the system clipboard does is not checked.
+- The marketplaces merge the settings loopback applies
+  (`ProjectMarketplacesStore.merged()`) and the refusal of a write without a
+  revision while a host change has not reached the webview: hand-written
+  Kotlin tests hold them (`ModelerSettingsStoreTest`,
+  `EditorSessionRouterTest`), not shared rows.
 
 Real browser tests are necessary for SVG geometry, viewbox transforms and
 ResizeObserver delivery. Mocks can test viewport-latch decisions but cannot

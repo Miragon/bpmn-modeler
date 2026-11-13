@@ -11,7 +11,11 @@
         {
             "name": "CRLF line endings are stored as LF and the stored text comes back",
             "document": { "text": "<a/>\n", "revision": 0 },
-            "write": { "session": "own", "content": "<b>\r\n</b>\r\n", "expectedDocumentRevision": 0 },
+            "write": {
+                "session": "own",
+                "content": "<b>\r\n</b>\r\n",
+                "expectedDocumentRevision": 0
+            },
             "result": { "accepted": true, "changed": true, "normalizedContent": "<b>\n</b>\n" },
             "text": "<b>\n</b>\n"
         },

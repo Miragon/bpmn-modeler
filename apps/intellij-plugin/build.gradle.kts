@@ -97,12 +97,16 @@ val templatePreferenceChangeCases =
     layout.projectDirectory.file("../../libs/modeler-core/src/kernel/domain/templatePreferenceChange.cases.json")
 val projectScopes = layout.projectDirectory.file("../../libs/modeler-core/src/kernel/domain/projectScopes.ts")
 val brandModeCases = layout.projectDirectory.file("../../libs/shared/src/lib/brandMode.cases.json")
-val bridgeFixtures = layout.projectDirectory.dir("../modeler-bridge/src/__fixtures__")
-val intellijPasswordSafeCases = bridgeFixtures.file("intellijPasswordSafe.cases.json")
-val intellijDocumentWriteCases = bridgeFixtures.file("intellijDocumentWrite.cases.json")
-val intellijScriptTabsCases = bridgeFixtures.file("intellijScriptTabs.cases.json")
-val intellijProgressCases = bridgeFixtures.file("intellijProgress.cases.json")
-val intellijWritableScopes = bridgeFixtures.file("intellijWritableScopes.json")
+val intellijPasswordSafeCases =
+    layout.projectDirectory.file("../modeler-bridge/src/__fixtures__/intellijPasswordSafe.cases.json")
+val intellijDocumentWriteCases =
+    layout.projectDirectory.file("../modeler-bridge/src/__fixtures__/intellijDocumentWrite.cases.json")
+val intellijScriptTabsCases =
+    layout.projectDirectory.file("../modeler-bridge/src/__fixtures__/intellijScriptTabs.cases.json")
+val intellijProgressCases =
+    layout.projectDirectory.file("../modeler-bridge/src/__fixtures__/intellijProgress.cases.json")
+val intellijWritableScopes =
+    layout.projectDirectory.file("../modeler-bridge/src/__fixtures__/intellijWritableScopes.json")
 
 tasks.test {
     useJUnitPlatform()

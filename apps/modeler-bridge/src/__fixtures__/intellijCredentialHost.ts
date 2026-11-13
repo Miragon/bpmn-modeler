@@ -27,8 +27,10 @@ const credentials = (user: string, password: string): Credentials => ({
 });
 
 /** `SecretStoreRouter` answers a pair only when both halves are there. */
-const pairOf = <Pair>(toPair: (user: string, password: string) => Pair) =>
-    ({ user, password }: Credentials): Pair | null => (user === null ? null : toPair(user, password));
+const pairOf =
+    <Pair>(toPair: (user: string, password: string) => Pair) =>
+    ({ user, password }: Credentials): Pair | null =>
+        user === null ? null : toPair(user, password);
 
 const DEPLOYMENT = "Miragon BPMN Modeler Deployment";
 const MARKETPLACE = "Miragon BPMN Modeler Marketplace";

@@ -2,7 +2,7 @@ import { DocumentWriteParams, DocumentWriteResult } from "../protocol/domain/typ
 
 /** One open editor's Document as the IntelliJ host holds it. */
 export interface IntellijDocument {
-    readonly sessionId: number;
+    readonly sessionId?: number;
     readonly text: string;
     /** The outside edits the host counted and sent to the core. */
     readonly documentRevision: number;
@@ -25,7 +25,11 @@ export interface IntellijWriteAnswer {
  */
 export function intellijDocumentWrite(
     document: IntellijDocument,
-    { sessionId, content: written, expectedDocumentRevision }: Omit<DocumentWriteParams, "editorId">,
+    {
+        sessionId,
+        content: written,
+        expectedDocumentRevision,
+    }: Omit<DocumentWriteParams, "editorId">,
 ): IntellijWriteAnswer {
     const refused =
         (sessionId !== undefined && sessionId !== document.sessionId) ||

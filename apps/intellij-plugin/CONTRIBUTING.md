@@ -235,6 +235,12 @@ cd apps/intellij-plugin && ./gradlew check
 `build/reports/jacoco/test/html/index.html`. After adding tests, raise the
 floor to about three points below the new numbers.
 
+The bridge's contract suites reach this host through loopbacks. Where a
+loopback answers by a router's rule, the router test runs the same rows from
+`apps/modeler-bridge/src/__fixtures__/intellij*.json`, so a change to such a
+rule changes those rows, and the loopback with them. The engineering-practices
+ADR lists the rules with rows and the ones without.
+
 ### Verifying the dark-mode Token Simulation fix
 
 Token Simulation used to break the diagram in dark mode (white shapes, vanished
