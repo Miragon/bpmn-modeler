@@ -40,7 +40,7 @@ Below the top line, **All**, **Plugins**, **Lint** (rule packages) and **Templat
 
 ## Details
 
-Click a row to see its details:
+Click a row to open its details in an editor tab, **Add-on:** and its name, in the editor group you work in. The tab is reused for the next add-on you click and stays where you moved it; close it like any editor. The side bar keeps the list, with the row marked. The details show:
 
 - the kind, the state, the name, then what it is, its path or version and its engine;
 - where it lies: the folder and the source;
@@ -52,15 +52,13 @@ When an add-on cannot be read or is not trusted to run, its state reads **Not lo
 
 The view selects the first add-on that waits for a review, else the first add-on, among the rows it shows, so a closed marketplace selects none of its templates until you open it. Your selection stays when you close its folder or source. When the view reloads, it keeps the selection and the folders and sources you opened or closed; the search and the filter start empty.
 
-**From 640 pixels wide** the list and the details stand side by side. **Narrower**, as the side bar usually is, the details open in place of the list; **Back** returns to the list where you left it. The view follows its width as you resize it.
-
-<figure class="shot"><img src="./images/ao-drill-down.png" alt="Narrow Add-ons view showing only the details of the plugin Resize Tasks, with the Back button at the top and Allow at the end of its review"><figcaption>A narrow view: the details in place of the list, with Back.</figcaption></figure>
+A window reload closes the tab; the list keeps your selection.
 
 ## Allow code
 
 Select a plugin or rule package that needs a review, check what its review says, then click **Allow**. The allowance covers the add-on in every worktree of its repository, later changes included, so a pull, an update or an edit runs without asking; outside a git repository it covers the add-on's folder only. Its rows in other worktrees of the repository show as *Allowed* too. A second clone, another repository and a new add-on ask once. Every open BPMN editor that offered an allowed plugin reloads with it. When the add-on's folder moved into or out of a repository since the view showed it, **Allow** asks you to check the list again.
 
-**Review…** on a notification opens the view at the waiting plugins or rule packages when every one of them lies inside an open folder: it clears a search or filter that hides the first of them, selects it and shows its details with the review. The notification then counts as answered for this window. Otherwise, for example when a rule package is linked from outside the workspace, **Review…** shows the list to check, as in [BPMN plugins](/vscode/features/bpmn-plugins#allow-a-plugin).
+**Review…** on a notification opens the view at the waiting plugins or rule packages when every one of them lies inside an open folder: it clears a search or filter that hides the first of them, selects it and opens its details with the review in the tab. The notification then counts as answered for this window. Otherwise, for example when a rule package is linked from outside the workspace, **Review…** shows the list to check, as in [BPMN plugins](/vscode/features/bpmn-plugins#allow-a-plugin).
 
 **Review Add-ons** in the Command Palette opens the view on the whole list. It clears the search and the filter, keeps your selection when it waits for a review, else selects the first add-on in **Needs attention** that does, and moves focus to it. When nothing waits, your selection stays and focus goes to the top of the list. A screen reader hears how many add-ons need review, or *No add-ons need review.*
 
@@ -104,7 +102,7 @@ The view wears the Miragon look, with its own colours, fonts and text sizes, in 
 
 ## IntelliJ
 
-The IntelliJ plugin shows the same page as the **Add-ons** tab of its **BPMN Modeler** tool window, for the open project; **Review…** opens it with the item selected, **Review Add-ons** (Tools ▸ Miragon BPMN Modeler, or Find Action) opens it on what needs your review, and **Refresh Add-ons** sits in the tool window's title. A tool window docked at the bottom is usually wide enough for the list and the details side by side. In a project you did not trust in the IDE, plugins and rule packages offer no **Allow** and each says why; see [Project trust](/intellij/getting-started#project-trust). See [Getting started in IntelliJ](/intellij/getting-started#add-ons).
+The IntelliJ plugin shows the same page as the **Add-ons** tab of its **BPMN Modeler** tool window, for the open project; **Review…** opens it with the item selected, **Review Add-ons** (Tools ▸ Miragon BPMN Modeler, or Find Action) opens it on what needs your review, and **Refresh Add-ons** sits in the tool window's title. The tool window shows the details in the view, not in a tab: a tool window docked at the bottom is usually wide enough for the list and the details side by side; a narrower one opens the details in place of the list, with **Back**. In a project you did not trust in the IDE, plugins and rule packages offer no **Allow** and each says why; see [Project trust](/intellij/getting-started#project-trust). See [Getting started in IntelliJ](/intellij/getting-started#add-ons).
 
 ## Next steps
 

@@ -10,9 +10,9 @@ import {
 } from "vscode";
 
 import { AddOnsFeature } from "@miragon/bpmn-modeler-core";
-import { BrandModeQuery, Command, Query } from "@miragon/bpmn-modeler-shared";
+import { Query } from "@miragon/bpmn-modeler-shared";
+import { connectAddOnsPage, type BrandModeSource } from "./addOnsPageConnection";
 import { addOnsViewHtml } from "./AddOnsViewHtml";
-import type { VsCodeBrandModeSignal } from "./VsCodeBrandModeSignal";
 
 /** The Add-ons view; users see the id in keybindings and in "Focus on Add-ons View". */
 export const ADD_ONS_VIEW_ID = "bpmn-modeler.addOnsView";
@@ -32,7 +32,7 @@ export class AddOnsViewProvider implements WebviewViewProvider {
         private readonly addOns: AddOnsFeature,
         private readonly extensionUri: Uri,
         private readonly createNonce: () => string,
-        private readonly brandMode: Pick<VsCodeBrandModeSignal, "current" | "onDidChange">,
+        private readonly brandMode: BrandModeSource,
     ) {}
 
     register(context: ExtensionContext): void {
@@ -66,31 +66,26 @@ export class AddOnsViewProvider implements WebviewViewProvider {
             this.extensionUri,
             this.createNonce(),
             this.brandMode.current(),
+            // A row opens its details in an editor tab, so the view shows only the list.
+            "listWithTab",
         );
 
         const panel = this.addOns.attachPanel(
             (message: Query) => void webviewView.webview.postMessage(message),
             webviewView.visible,
         );
-        const postBrandMode = (mode = this.brandMode.current()) =>
-            void webviewView.webview.postMessage(new BrandModeQuery(mode));
-        // The shell keeps the mode of its first render, so the page follows a theme change by message.
-        const brandModeChanges = this.brandMode.onDidChange(postBrandMode);
-        webviewView.onDidDispose(() => {
-            this.pageLoaded = false;
-            this.focusOnLoad = false;
-            brandModeChanges.dispose();
-            panel.dispose();
-        });
-        webviewView.webview.onDidReceiveMessage((message: Command) => {
-            // The page asks once it listens; a change posted while it loaded may be lost.
-            if (message.type === "GetAddOnCatalogCommand") postBrandMode();
+        const connection = connectAddOnsPage(webviewView.webview, panel, this.brandMode, () => {
             this.pageLoaded = true;
             if (this.focusOnLoad) {
                 this.focusOnLoad = false;
                 webviewView.show(false);
             }
-            return panel.handle(message);
+        });
+        webviewView.onDidDispose(() => {
+            this.pageLoaded = false;
+            this.focusOnLoad = false;
+            connection.dispose();
+            panel.dispose();
         });
         webviewView.onDidChangeVisibility(() => panel.setVisible(webviewView.visible));
     }

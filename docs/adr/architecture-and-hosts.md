@@ -281,7 +281,21 @@ the page's router hands to `applyBrandMode` outside the view state, and
 IntelliJ sets both attributes through `executeJavaScript`. IntelliJ's copy,
 `BrandMode.kt`, runs `brandMode.cases.json` in `BrandModeTest`.
 
-The page is a list beside a detail pane. One list holds three sections
+The page is a list and the selected add-on's detail. Which page a host
+serves, it writes into the shell as `data-add-ons-page` (`ADD_ONS_PAGES` in
+`libs/shared`, `addOnsPage.ts`): `list`, the list with the detail beside it or
+in its place, for a host without tabs (IntelliJ, and any shell that writes
+nothing); `listWithTab`, the list whose rows and Review… open the detail in an
+editor tab (VS Code, and the standalone app through it); and `detail`, that
+tab's one add-on, which the core names with `ShowAddOnQuery` before any
+catalog, so the page never shows another first. In a `listWithTab` page a
+click or a rows reveal selects the row, keeps the list and posts
+`OpenAddOnDetailCommand`; the core resolves the id in its last model, builds
+the tab's title ("Add-on: <name>", `addOnDetailTitle`) and calls the host's
+`AddOnDetailPort`. A host capability is no catalog data, so it rides in the
+shell, not in the model; a model flag was rejected for that.
+
+One list holds three sections
 (`src/domain/listSections.ts`): Needs attention, every add-on that offers
 Allow or carries a problem, read from the model and in model order; Installed,
 the folder groups without those rows; and Marketplaces, the marketplaces
@@ -292,9 +306,9 @@ closes (`flatGroupIds`), whatever an older page saved. A header line counts
 what waits and what is not loaded, a search button opens the search field,
 a row of segments below it shows All or one kind with its count (a radio
 group, so the kinds stay in sight without the chips' rows), and the detail
-shows the selected add-on with
-its actions as buttons. From 640px of the view's own width the panes stand
-side by side, below that the detail replaces the list with a Back button;
+shows the selected add-on with its actions as buttons. In a `list` page,
+from 640px of the view's own width the panes stand side by side, below that
+the detail replaces the list with a Back button;
 container queries decide, so the layout follows a resized sidebar or tool
 window without a reload. The reducer (`src/domain/viewState.ts`) holds the
 selection, the filter and the pane, and keeps the selection and the open or
@@ -669,7 +683,20 @@ version put it there (its part's original container). Removing it disposes
 the view widget, so Theia builds Add-ons anew in its own container after an
 update, and a plugin container left without a visible view closes until its
 view shows again; a view the user dragged keeps its place.
-Both views set `retainContextWhenHidden`: the core posts nothing to a hidden view, so
+The add-on's details open in one editor tab (`AddOnDetailTab`, view type
+`bpmn-modeler.addOnDetail`, the extension's first `WebviewPanel`), reused for
+the next add-on, first in the active editor group and then where the user
+left it; the side bar then holds only the list, which a sidebar under 640px
+could not show beside a detail. `VsCodeAddOnDetail` in `adapter/out/` is the
+port; built before the catalog, it is connected to the tab in `adapter/in/`
+once the tab, which attaches its page to that catalog, exists, as the reveal
+is. The tab's page is a panel attached with `shows`, which takes no reveal:
+Review… lands in the list, which selects the row and opens the tab; Review
+Add-ons lands in the list and opens none. It follows
+the tab's visibility, posts the brand mode on a theme change, takes focus
+again once its page runs, and lets go of its panel when the user closes it.
+No serializer restores it, so a window reload closes it.
+Both views and the tab set `retainContextWhenHidden`: the core posts nothing to a hidden view, so
 keeping its page costs memory only, and a page shown again keeps its banners
 and the results of requests in flight. The Add-ons view's shell
 (`AddOnsViewHtml`, CSP shell `addOns`) allows its nonced script, its linked

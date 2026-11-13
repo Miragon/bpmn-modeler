@@ -1,4 +1,8 @@
-import { AddOnRequestCommand } from "@miragon/bpmn-modeler-shared";
+import {
+    AddOnRequestCommand,
+    AddOnsPage,
+    OpenAddOnDetailCommand,
+} from "@miragon/bpmn-modeler-shared";
 
 import type { AddOnsHost } from "../port/addOnsHost";
 import type { RenderView } from "../port/viewRenderer";
@@ -17,8 +21,9 @@ export class AddOnsViewSession {
     constructor(
         private readonly host: AddOnsHost,
         private readonly render: RenderView,
+        page: AddOnsPage = "list",
     ) {
-        this.current = initialViewState(host.getState());
+        this.current = initialViewState(host.getState(), page);
     }
 
     get state(): ViewState {
@@ -26,7 +31,7 @@ export class AddOnsViewSession {
     }
 
     dispatch(event: ViewEvent): void {
-        const { state, send, focus } = nextViewState(this.current, event);
+        const { state, send, focus, openDetail } = nextViewState(this.current, event);
         this.current = state;
         this.host.setState(persistedChoicesOf(state));
         this.render(state, focus);
@@ -34,5 +39,6 @@ export class AddOnsViewSession {
         if (send !== undefined) {
             this.host.postMessage(new AddOnRequestCommand(send.requestId, send.request));
         }
+        if (openDetail !== undefined) this.host.postMessage(new OpenAddOnDetailCommand(openDetail));
     }
 }

@@ -3,6 +3,8 @@ import { createHash } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
 
 import {
+    OpenAddOnDetailCommand,
+    ShowAddOnQuery,
     ADD_ONS_VIEW_COMMAND_TYPES,
     AddOnActionResultQuery,
     AddOnCatalogQuery,
@@ -59,6 +61,7 @@ import {
     writeRepository,
 } from "../../testing";
 import { UNTRUSTED_WORKSPACE_TEXT } from "../domain/addOnTexts";
+import type { AddOnDetailPort, AddOnDetailTarget } from "../port/addOnViewPorts";
 import { AddOnsFeature } from "./AddOnsFeature";
 
 const WORK = "/work";
@@ -140,6 +143,7 @@ function setUp({
     marketplaces: listsMarketplaces = true,
     switches: keepsSwitches = true,
     trustUnwired = false,
+    detail,
     ...hostOptions
 }: {
     files?: Record<string, string>;
@@ -149,6 +153,8 @@ function setUp({
     switches?: boolean;
     /** The host wires no trust port; the fake's trust still changes, reaching nothing. */
     trustUnwired?: boolean;
+    /** The host opens an add-on's details in an editor tab. */
+    detail?: AddOnDetailPort;
 } & Pick<TestHostOptions, "settings" | "promptAnswers" | "marketplaceAnswers"> = {}) {
     const host = createTestHost({ folders, files, ...hostOptions });
     const artifacts = new ArtifactService(host.workspace, host.settings, host.notifier);
@@ -224,6 +230,7 @@ function setUp({
         restart,
         contentRows,
         ...(trustUnwired ? {} : { workspaceTrust: host.workspaceTrust }),
+        ...(detail && { detail }),
         plugins: plugins.inventory,
         rulePackages: rulePackageInventory,
         templates: new TemplateInventory(loadedTemplateDirs, artifacts),
@@ -1270,6 +1277,80 @@ describe("AddOnsFeature", () => {
                     ),
             };
         }
+
+        describe("a detail tab", () => {
+            function recordingDetail() {
+                const opened: AddOnDetailTarget[] = [];
+                return { opened, open: (target: AddOnDetailTarget) => opened.push(target) };
+            }
+
+            it("opens the clicked add-on's details with the core's title", async () => {
+                const detail = recordingDetail();
+                const { addOns } = setUp({ detail });
+                const list = addOns.attachPanel(recordingPanel().post, true);
+                await shown(addOns);
+
+                await list.handle(new OpenAddOnDetailCommand(`plugin:${RESIZE}`));
+
+                expect(detail.opened).toEqual([
+                    { addOnId: `plugin:${RESIZE}`, title: "Add-on: Resize Tasks" },
+                ]);
+            });
+
+            it("opens nothing for an add-on the list no longer holds, and says so in the log", async () => {
+                const detail = recordingDetail();
+                const { host, addOns } = setUp({ detail });
+                const list = addOns.attachPanel(recordingPanel().post, true);
+                await shown(addOns);
+
+                await list.handle(new OpenAddOnDetailCommand("plugin:/gone"));
+
+                expect(detail.opened).toEqual([]);
+                expect(host.notifier.logged("warning")).toContain(
+                    "Opened no add-on details: the list no longer holds the add-on.",
+                );
+            });
+
+            it("tells its page which add-on it shows before the catalog, and again when it loads", async () => {
+                const { addOns } = setUp();
+                const page = recordingPanel();
+                const tab = addOns.attachPanel(page.post, true, { shows: `plugin:${RESIZE}` });
+                await shown(addOns);
+
+                await tab.handle(new GetAddOnCatalogCommand());
+
+                expect(page.types()).toEqual([
+                    "ShowAddOnQuery",
+                    "AddOnCatalogQuery",
+                    "ShowAddOnQuery",
+                    "AddOnCatalogQuery",
+                ]);
+            });
+
+            it("shows another add-on when the tab is reused", async () => {
+                const { addOns } = setUp();
+                const page = recordingPanel();
+                const tab = addOns.attachPanel(page.post, true, { shows: `plugin:${RESIZE}` });
+                await shown(addOns);
+
+                tab.show("plugin:/other");
+
+                expect(page.posted.at(-1)).toEqual(new ShowAddOnQuery("plugin:/other"));
+            });
+
+            it("gets no reveal, which lands in the list", async () => {
+                const { addOns } = setUp();
+                const page = recordingPanel();
+                addOns.attachPanel(page.post, true, { shows: `plugin:${RESIZE}` });
+                await shown(addOns);
+
+                addOns.reveal(REVEALED);
+                addOns.revealNeedsReview();
+                await shown(addOns);
+
+                expect(page.reveals()).toEqual([]);
+            });
+        });
 
         it("routes every command of the add-ons view before a panel attaches", () => {
             const { addOns } = setUp();

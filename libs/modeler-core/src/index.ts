@@ -155,7 +155,11 @@ export type {
     TemplateAddOnSource,
 } from "./addOns/port/addOnSourcePorts";
 export type { AddOnViewConnection } from "./addOns/service/AddOnViewHub";
-export type { AddOnViewRevealPort } from "./addOns/port/addOnViewPorts";
+export type {
+    AddOnDetailPort,
+    AddOnDetailTarget,
+    AddOnViewRevealPort,
+} from "./addOns/port/addOnViewPorts";
 export { ViewReview } from "./addOns/adapter/out/ViewReview";
 export * from "./addOns/composition/AddOnsFeature";
 

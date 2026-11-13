@@ -1,5 +1,5 @@
 import type { AddOnCatalogPayload, CodeAddOnPayload } from "@miragon/bpmn-modeler-shared";
-import { AddOnRequestCommand } from "@miragon/bpmn-modeler-shared";
+import { AddOnRequestCommand, OpenAddOnDetailCommand } from "@miragon/bpmn-modeler-shared";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -1251,6 +1251,80 @@ describe("AddOnsView", () => {
             });
 
             expect(document.activeElement).toBe(button("Search add-ons"));
+        });
+    });
+
+    describe("a list whose rows open the detail in a tab", () => {
+        it("asks the host for the tab, marks the row and shows no detail of its own", () => {
+            const { row, host, root } = mountedView(CATALOG, { page: "listWithTab", narrow: true });
+
+            row(PALETTE.name).click();
+
+            expect([
+                host.posted.at(-1),
+                row(PALETTE.name).getAttribute("aria-current"),
+                root.querySelector<HTMLElement>(".av-app")?.dataset.pane,
+            ]).toEqual([new OpenAddOnDetailCommand(PALETTE.id), "true", "list"]);
+        });
+    });
+
+    describe("a detail tab's page", () => {
+        it("shows only the add-on the host names, without toolbar, list or Back", () => {
+            const { root, detailName, layout } = mountedView(CATALOG, {
+                page: "detail",
+                shows: MAIL.id,
+            });
+            const shown = (selector: string) => layout.isShown(root.querySelector(selector)!);
+
+            expect([
+                detailName(),
+                shown(".av-toolbar"),
+                shown(".av-list"),
+                shown(".av-back"),
+                text(root.querySelector("[aria-live=polite].av-vh")),
+            ]).toEqual([MAIL.name, false, false, false, ""]);
+        });
+
+        it("shows the list's own word while the catalog is empty or failed", () => {
+            const { root, layout } = mountedView(
+                { revision: 1, groups: [], actions: [], problem: "Could not list the add-ons." },
+                { page: "detail", shows: MAIL.id },
+            );
+
+            expect([
+                text(root.querySelector(".av-catalog-problem")),
+                layout.isShown(root.querySelector(".av-catalog-problem")!),
+            ]).toEqual(["Could not list the add-ons.", true]);
+        });
+
+        it("says when the list no longer holds its add-on", () => {
+            const { root } = mountedView(CATALOG, { page: "detail", shows: "plugin:/gone" });
+
+            expect(text(root.querySelector(".av-hint-text"))).toBe(
+                "This add-on is no longer listed.",
+            );
+        });
+
+        it("returns focus to its heading after Allow, as it has no row", () => {
+            const { button, session, arrive, root } = mountedView(CATALOG, {
+                page: "detail",
+                shows: RESIZE.id,
+            });
+            button("Allow").click();
+
+            session.dispatch({ kind: "resultArrived", requestId: 1, result: { kind: "done" } });
+            arrive(
+                withRevision(
+                    11,
+                    changed(RESIZE.id, {
+                        state: "approved",
+                        review: undefined,
+                        actions: [{ kind: "revoke", label: "Revoke" }],
+                    }),
+                ),
+            );
+
+            expect(document.activeElement).toBe(root.querySelector(".av-detail-name"));
         });
     });
 });

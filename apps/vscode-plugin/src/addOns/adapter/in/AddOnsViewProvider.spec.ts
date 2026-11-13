@@ -133,9 +133,13 @@ describe("AddOnsViewProvider.resolveWebviewView", () => {
             enableScripts: true,
             localResourceRoots: [{ path: "/extension/add-ons-webview" }],
         });
-        expect(addOnsViewHtml).toHaveBeenCalledWith(view.webview, extensionUri, "n0nce", {
-            theme: "dark",
-        });
+        expect(addOnsViewHtml).toHaveBeenCalledWith(
+            view.webview,
+            extensionUri,
+            "n0nce",
+            { theme: "dark" },
+            "listWithTab",
+        );
         expect(view.webview.html).toBe("<html>add-ons</html>");
     });
 

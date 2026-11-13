@@ -69,7 +69,7 @@ export class AddOnsView {
             onMenu: (menuId) => this.toggleMenu(menuId),
             onSearchToggle: () => this.toggleSearch(),
         });
-        this.focus = new FocusKeeper(root, this.list, layout, () => this.toolbar.focusStart());
+        this.focus = new FocusKeeper(root, this.list, layout, () => this.focusStart());
         this.list.setAttribute("aria-label", CHROME_TEXT.title);
         this.announcer.setAttribute("aria-live", "polite");
         const body = el("div", "av-body");
@@ -102,7 +102,7 @@ export class AddOnsView {
         if (state === undefined || this.root.contains(document.activeElement)) return;
         const selected = selectedIdOf(state);
         if (selected !== undefined && this.focus.addOn(selected)) return;
-        if (catalogPhaseOf(state.model) === "ready") this.toolbar.focusStart();
+        if (catalogPhaseOf(state.model) === "ready") this.focusStart();
     }
 
     /**
@@ -134,15 +134,18 @@ export class AddOnsView {
         const phase = catalogPhaseOf(model);
         this.app.dataset.phase = phase;
         this.app.dataset.pane = state.pane;
+        this.app.dataset.page = state.page;
         setBusy(this.list, model === undefined);
         this.banner.show(state.banner);
         if (model === undefined) {
             this.list.replaceChildren(loadingOf());
             return;
         }
-        this.toolbar.update(model, state, this.openMenu, this.searchOpen);
         const content = listContentOf(model, state.filter);
-        this.drawList(content, model, state);
+        // A detail tab's page shows the list only for its loading, empty or failed state.
+        if (state.page !== "detail")
+            this.toolbar.update(model, state, this.openMenu, this.searchOpen);
+        if (state.page !== "detail" || phase !== "ready") this.drawList(content, model, state);
         this.drawDetail(model, state);
         this.announce(content, state);
     }
@@ -216,7 +219,7 @@ export class AddOnsView {
         this.detail.replaceChildren(
             back,
             placement === undefined
-                ? hintOf()
+                ? hintOf(state.page === "detail" && selectedId !== undefined)
                 : detailOf(placement, state, placement.addOn.id === this.revealedId),
         );
         if (this.shownDetailId !== selectedId) {
@@ -228,6 +231,8 @@ export class AddOnsView {
     /** A second Review Add-ons that finds as many is said again, though its words did not change. */
     private announce(content: ListContent, state: ViewState): void {
         const review = state.reviewCount !== undefined;
+        // A detail tab's page has no list to count.
+        if (state.page === "detail") return;
         const text = review
             ? reviewCountText(state.reviewCount!)
             : announcementOf(content, state.filter);
@@ -284,6 +289,15 @@ export class AddOnsView {
         const selected = this.state && selectedIdOf(this.state);
         if (selected === undefined || !this.focus.first([{ kind: "row", id: selected }])) {
             this.focus.listStart();
+        }
+    }
+
+    /** A detail tab's page has no toolbar: focus goes to its heading. */
+    private focusStart(): void {
+        if (this.state?.page === "detail") {
+            this.detail.querySelector<HTMLElement>(".av-detail-name")?.focus();
+        } else {
+            this.toolbar.focusStart();
         }
     }
 

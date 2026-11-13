@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("vscode", () => import("../../../__fixtures__/vscodeFileSystemFake"));
 
-import type { BrandMode } from "@miragon/bpmn-modeler-shared";
+import type { AddOnsPage, BrandMode } from "@miragon/bpmn-modeler-shared";
 
 import {
     describeShellPolicy,
@@ -15,8 +15,8 @@ import {
 import { createWebviewNonce } from "../../../shared/adapter/out/webviewNonce";
 import { addOnsViewHtml } from "./AddOnsViewHtml";
 
-const renderAddOns = (mode: BrandMode = { theme: "light" }) =>
-    addOnsViewHtml(shellWebview, shellExtensionUri, createWebviewNonce(), mode);
+const renderAddOns = (mode: BrandMode = { theme: "light" }, page: AddOnsPage = "list") =>
+    addOnsViewHtml(shellWebview, shellExtensionUri, createWebviewNonce(), mode, page);
 
 describe("addOnsViewHtml", () => {
     describeShellPolicy("addOns", renderAddOns);
@@ -35,6 +35,13 @@ describe("addOnsViewHtml", () => {
         ]);
     });
 
+    it.each<AddOnsPage>(["listWithTab", "detail"])(
+        "tells the bundle it serves the %s page",
+        (page) => {
+            expect(renderAddOns({ theme: "light" }, page)).toContain(`data-add-ons-page="${page}"`);
+        },
+    );
+
     // The bundle builds the outline from the core's model; the shell carries no markup.
     it("gives the bundle a single empty app root to render into", () => {
         const html = renderAddOns();
@@ -52,6 +59,8 @@ describe("addOnsViewHtml", () => {
             html: { "lang": "en", "data-cd-theme": "dark", "data-cd-kontrast": "hoch" },
         },
     ] as const)("marks the page with the $mode.theme brand mode", ({ mode, html }) => {
-        expect(tagsOf(renderAddOns(mode), "html")).toEqual([html]);
+        expect(tagsOf(renderAddOns(mode), "html")).toEqual([
+            { ...html, "data-add-ons-page": "list" },
+        ]);
     });
 });

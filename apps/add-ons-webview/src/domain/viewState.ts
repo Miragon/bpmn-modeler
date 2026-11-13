@@ -4,6 +4,7 @@ import type {
     AddOnPayload,
     AddOnRequestPayload,
     AddOnRevealPayload,
+    AddOnsPage,
 } from "@miragon/bpmn-modeler-shared";
 
 import { ActionKindPayload, actionRequestOf, isActionKind } from "./actionRequest";
@@ -41,6 +42,8 @@ interface PendingRequest {
 type Pane = "list" | "detail";
 
 export interface ViewState {
+    /** Which page the host serves: a detail tab's page shows only the add-on the host names. */
+    readonly page: AddOnsPage;
     readonly model?: AddOnCatalogPayload;
     readonly expansion: Expansion;
     /** What the user opened or closed while a filter is on: kept with the page, and only while the filter stays on. */
@@ -82,6 +85,7 @@ export type ViewEvent =
     | { readonly kind: "toggled"; readonly key: string }
     | { readonly kind: "bannerDismissed" }
     | { readonly kind: "addOnSelected"; readonly addOnId: string }
+    | { readonly kind: "addOnShown"; readonly addOnId: string }
     | { readonly kind: "backChosen" }
     | { readonly kind: "queryChanged"; readonly query: string }
     /** No kind: All. */
@@ -92,14 +96,20 @@ export interface Transition {
     readonly state: ViewState;
     readonly send?: { readonly requestId: number; readonly request: AddOnRequestPayload };
     readonly focus?: FocusTarget;
+    /** The add-on whose details the host is to show in its tab. */
+    readonly openDetail?: string;
 }
 
 /** Busy rows and sources, and the catalog actions under {@link CATALOG_TARGET}. */
 export const CATALOG_TARGET = "catalog";
 
-export function initialViewState(persisted?: PersistedChoices): ViewState {
-    const selectedId = selectedIdIn(persisted);
+export function initialViewState(
+    persisted?: PersistedChoices,
+    page: AddOnsPage = "list",
+): ViewState {
+    const selectedId = page === "detail" ? undefined : selectedIdIn(persisted);
     return {
+        page,
         expansion: new Map(persisted?.expansion ?? []),
         filterExpansion: new Map(),
         ...(selectedId !== undefined && { selectedId }),
@@ -114,7 +124,8 @@ export function initialViewState(persisted?: PersistedChoices): ViewState {
 export function persistedChoicesOf(state: ViewState): PersistedChoices {
     return {
         expansion: [...state.expansion],
-        ...(state.selectedId !== undefined && { selectedId: state.selectedId }),
+        ...(state.selectedId !== undefined &&
+            state.page !== "detail" && { selectedId: state.selectedId }),
         lastRevealId: state.lastRevealId,
     };
 }
@@ -149,6 +160,7 @@ type Change = {
     readonly state: ViewState;
     readonly send?: Transition["send"];
     readonly focus?: FocusTarget;
+    readonly openDetail?: string;
 };
 
 function changedBy(state: ViewState, event: ViewEvent): Change {
@@ -168,7 +180,9 @@ function changedBy(state: ViewState, event: ViewEvent): Change {
         case "bannerDismissed":
             return { state: { ...state, banner: undefined } };
         case "addOnSelected":
-            return { state: { ...state, selectedId: event.addOnId, pane: "detail" } };
+            return selected(state, event.addOnId);
+        case "addOnShown":
+            return { state: shown(state, event.addOnId) };
         case "backChosen":
             return { state: { ...state, pane: "list" } };
         case "queryChanged":
@@ -178,6 +192,20 @@ function changedBy(state: ViewState, event: ViewEvent): Change {
         case "filtersCleared":
             return filtered(state, NO_FILTER);
     }
+}
+
+/** A tab that shows another add-on drops the last one's result; the same one keeps it. */
+function shown(state: ViewState, addOnId: string): ViewState {
+    const banner = addOnId === state.selectedId ? state.banner : undefined;
+    return { ...state, selectedId: addOnId, pane: "detail", banner };
+}
+
+/** A list whose rows open a tab keeps showing the list and asks the host for the tab. */
+function selected(state: ViewState, addOnId: string): Change {
+    if (state.page === "listWithTab") {
+        return { state: { ...state, selectedId: addOnId, pane: "list" }, openDetail: addOnId };
+    }
+    return { state: { ...state, selectedId: addOnId, pane: "detail" } };
 }
 
 /** A search or filter speaks for itself, so what Review Add-ons found stops being said; so does an action. */
@@ -248,10 +276,11 @@ function rowsRevealed(
             filterExpansion,
             filter,
             selectedId: addOn.id,
-            pane: "detail",
+            pane: state.page === "listWithTab" ? "list" : "detail",
             lastRevealId: reveal.revealId,
         },
         focus: { kind: "head", headId: addOn.id, reveal: true },
+        ...(state.page === "listWithTab" && { openDetail: addOn.id }),
     };
 }
 
@@ -387,7 +416,8 @@ function shownListOf(model: AddOnCatalogPayload, state: ViewState): ShownList {
 function withSelection(change: Change, before: ViewState): Change {
     const { state } = change;
     const { model } = state;
-    if (model === undefined) return change;
+    // A detail tab's page shows the add-on the host named, wherever the list would select.
+    if (model === undefined || state.page === "detail") return change;
     const shown = shownListOf(model, state);
     const orderBefore =
         before.model === undefined

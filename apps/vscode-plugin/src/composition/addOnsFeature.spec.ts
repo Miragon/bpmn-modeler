@@ -228,7 +228,9 @@ describe("VS Code's add-on catalog", () => {
 
         changeColorTheme(ColorThemeKind.HighContrastLight);
 
-        expect(html()).toContain('<html lang="en" data-cd-theme="dark">');
+        expect(html()).toContain(
+            '<html lang="en" data-cd-theme="dark" data-add-ons-page="listWithTab">',
+        );
         expect(posted.filter((message) => message instanceof BrandModeQuery)).toEqual([
             new BrandModeQuery({ theme: "light", contrast: "hoch" }),
         ]);

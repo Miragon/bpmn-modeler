@@ -1,4 +1,4 @@
-import type { AddOnCatalogPayload } from "@miragon/bpmn-modeler-shared";
+import type { AddOnCatalogPayload, AddOnsPage } from "@miragon/bpmn-modeler-shared";
 
 import { AddOnsView } from "../adapter/in/addOnsView";
 import type { PersistedChoices, ViewEvent } from "../domain/viewState";
@@ -9,7 +9,13 @@ import { RecordingHost } from "./recordingHost";
 /** The view in a fresh document, wired to a session as the bootstrap wires it. */
 export function mountedView(
     model?: AddOnCatalogPayload,
-    options: { readonly narrow?: boolean; readonly saved?: PersistedChoices } = {},
+    options: {
+        readonly narrow?: boolean;
+        readonly saved?: PersistedChoices;
+        readonly page?: AddOnsPage;
+        /** A detail page's add-on, which the host names before the catalog. */
+        readonly shows?: string;
+    } = {},
 ) {
     document.body.innerHTML = '<button id="outside">Outside</button><div id="app"></div>';
     const root = document.getElementById("app")!;
@@ -25,8 +31,14 @@ export function mountedView(
         },
         layout,
     );
-    const session = new AddOnsViewSession(host, (state, focus) => view.render(state, focus));
+    const session = new AddOnsViewSession(
+        host,
+        (state, focus) => view.render(state, focus),
+        options.page,
+    );
     view.render(session.state);
+    if (options.shows !== undefined)
+        session.dispatch({ kind: "addOnShown", addOnId: options.shows });
     if (model !== undefined) session.dispatch({ kind: "modelArrived", model });
     const all = <E extends Element>(selector: string, within: ParentNode = root) => [
         ...within.querySelectorAll<E>(selector),

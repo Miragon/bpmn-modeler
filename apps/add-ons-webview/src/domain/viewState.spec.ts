@@ -779,4 +779,96 @@ describe("nextViewState", () => {
     ])("restores $case", ({ saved, selected }) => {
         expect(selectedIdOf(initialViewState(saved as never))).toBe(selected);
     });
+
+    describe("a list whose rows open the detail in a tab", () => {
+        const tabbed = () => initialViewState(undefined, "listWithTab");
+
+        it("selects a clicked row, stays on the list and asks for the tab", () => {
+            const { state, openDetail } = after(
+                [shown(), { kind: "addOnSelected", addOnId: PALETTE.id }],
+                tabbed(),
+            );
+
+            expect([selectedIdOf(state), state.pane, openDetail]).toEqual([
+                PALETTE.id,
+                "list",
+                PALETTE.id,
+            ]);
+        });
+
+        it("asks for the tab of the row a Review… reveals, and stays on the list", () => {
+            const { state, openDetail } = after([shown(), reveal(1, [ACME.id])], tabbed());
+
+            expect([selectedIdOf(state), state.pane, openDetail]).toEqual([
+                ACME.id,
+                "list",
+                ACME.id,
+            ]);
+        });
+
+        it("asks for no tab when it merely settles its selection", () => {
+            expect(after([shown()], tabbed()).openDetail).toBeUndefined();
+        });
+    });
+
+    describe("a detail tab's page", () => {
+        const page = () => initialViewState(undefined, "detail");
+        const showsMail: ViewEvent = { kind: "addOnShown", addOnId: MAIL.id };
+
+        it("shows the add-on the host names, though a closed marketplace hides its row", () => {
+            const { state } = after([showsMail, shown()], page());
+
+            expect([selectedIdOf(state), state.pane]).toEqual([MAIL.id, "detail"]);
+        });
+
+        it("keeps showing it when a newer model arrives", () => {
+            const { state } = after([showsMail, shown(), shown(withRevision(11))], page());
+
+            expect(selectedIdOf(state)).toBe(MAIL.id);
+        });
+
+        it("drops the last add-on's banner when the tab shows another", () => {
+            const { state } = after(
+                [
+                    showsMail,
+                    shown(),
+                    { kind: "actionChosen", actionKind: "disable", targetId: MAIL.id },
+                    {
+                        kind: "resultArrived",
+                        requestId: 1,
+                        result: { kind: "done", message: "Disabled Mail." },
+                    },
+                    { kind: "addOnShown", addOnId: PALETTE.id },
+                ],
+                page(),
+            );
+
+            expect([selectedIdOf(state), state.banner]).toEqual([PALETTE.id, undefined]);
+        });
+
+        it("keeps the banner when the host names the add-on it already shows", () => {
+            const { state } = after(
+                [
+                    showsMail,
+                    shown(),
+                    { kind: "actionChosen", actionKind: "disable", targetId: MAIL.id },
+                    {
+                        kind: "resultArrived",
+                        requestId: 1,
+                        result: { kind: "done", message: "Disabled Mail." },
+                    },
+                    showsMail,
+                ],
+                page(),
+            );
+
+            expect(state.banner).toBeDefined();
+        });
+
+        it("keeps no selection of its own across a reload", () => {
+            const { state } = after([showsMail, shown()], page());
+
+            expect(persistedChoicesOf(state).selectedId).toBeUndefined();
+        });
+    });
 });

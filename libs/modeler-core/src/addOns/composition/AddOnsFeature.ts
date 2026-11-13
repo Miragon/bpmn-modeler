@@ -15,7 +15,9 @@ import { ContentRows } from "../../kernel/service/ContentRowMigration";
 import { RouteLookup } from "../../editorSession/service/WebviewMessageRouter";
 import { AddOnViewMessages } from "../adapter/in/AddOnViewMessages";
 import type { AddOnCatalogModel } from "../domain/addOnCatalogModel";
+import { detailTargetOf } from "../domain/addOnDetail";
 import { CLOSED_VIEW } from "../domain/addOnRequests";
+import { UNLISTED_DETAIL_TEXT } from "../domain/addOnTexts";
 import {
     MarketplaceAddOnSource,
     PluginAddOnSource,
@@ -23,6 +25,7 @@ import {
     SettingChanges,
     TemplateAddOnSource,
 } from "../port/addOnSourcePorts";
+import type { AddOnDetailPort } from "../port/addOnViewPorts";
 import { AddOnCatalogService } from "../service/AddOnCatalogService";
 import { AddOnInventoryReader } from "../service/AddOnInventoryReader";
 import { AddOnViewConnection, AddOnViewHub } from "../service/AddOnViewHub";
@@ -32,7 +35,14 @@ import { TemplateSwitchActions } from "../service/TemplateSwitchActions";
 export interface AddOnsPanel {
     handle(command: Command): Promise<void>;
     setVisible(visible: boolean): void;
+    /** A detail page shows this add-on now; a list page ignores it. */
+    show(addOnId: string): void;
     dispose(): void;
+}
+
+/** `shows`: the panel is a detail tab's page with this add-on, which takes no reveal. */
+export interface AddOnsPanelOptions {
+    readonly shows?: string;
 }
 
 export interface AddOnsHostPorts {
@@ -57,6 +67,8 @@ export interface AddOnsHostPorts {
     readonly templatePreferences?: TemplatePreferenceStorePort;
     /** Absent: the host has no trust feature, and the workspace counts as trusted. */
     readonly workspaceTrust?: WorkspaceTrustPort;
+    /** Absent: the host shows an add-on's details in its view, not in a tab. */
+    readonly detail?: AddOnDetailPort;
 }
 
 /**
@@ -69,12 +81,14 @@ export class AddOnsFeature {
     private readonly hub: AddOnViewHub;
     private readonly subscriptions: { dispose(): void }[];
     private readonly logger: LoggerPort;
+    private readonly detail?: AddOnDetailPort;
 
     /** The routes of every panel, readable before one attaches. */
     readonly panelRoutes: RouteLookup;
 
     constructor(ports: AddOnsHostPorts) {
         this.logger = ports.notifier;
+        this.detail = ports.detail;
         // Every panel has the same table, so one that answers nothing reads for all.
         this.panelRoutes = new AddOnViewMessages(
             () => Promise.resolve(CLOSED_VIEW),
@@ -126,20 +140,31 @@ export class AddOnsFeature {
     }
 
     /** Attaches a host's add-ons view page; `post` delivers to it, and a throw is logged. */
-    attachPanel(post: (message: Query) => void, visible: boolean): AddOnsPanel {
+    attachPanel(
+        post: (message: Query) => void,
+        visible: boolean,
+        { shows }: AddOnsPanelOptions = {},
+    ): AddOnsPanel {
         // Built before the hub attaches it, so a reveal delivered while attaching reaches it.
         const messages = new AddOnViewMessages(
             (request) => connection.handle(request),
             this.logger,
             post,
+            {
+                openDetail: (addOnId, model) => this.openDetail(addOnId, model),
+                ...(shows !== undefined && { shows }),
+            },
         );
         const connection = this.hub.attach(
             (model) => messages.modelBuilt(model),
             visible,
-            (reveal) => messages.revealed(reveal),
+            shows === undefined ? (reveal) => messages.revealed(reveal) : undefined,
         );
         return {
             handle: (command) => messages.handle(command),
+            show: (addOnId) => {
+                if (shows !== undefined) messages.show(addOnId);
+            },
             setVisible: (nowVisible) => {
                 if (!nowVisible) messages.pageHidden();
                 connection.setVisible(nowVisible);
@@ -149,6 +174,15 @@ export class AddOnsFeature {
                 connection.dispose();
             },
         };
+    }
+
+    private openDetail(addOnId: string, model: AddOnCatalogModel | undefined): void {
+        const target = detailTargetOf(model, addOnId);
+        if (target === undefined) {
+            this.logger.logWarning(UNLISTED_DETAIL_TEXT);
+            return;
+        }
+        this.detail?.open(target);
     }
 
     /** Has every view show and focus these rows, once; one that is hidden or not attached yet when it is shown. */

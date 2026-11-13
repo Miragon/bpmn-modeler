@@ -1,4 +1,8 @@
-import { GetAddOnCatalogCommand } from "@miragon/bpmn-modeler-shared";
+import {
+    ADD_ONS_PAGE_ATTRIBUTE,
+    addOnsPageOf,
+    GetAddOnCatalogCommand,
+} from "@miragon/bpmn-modeler-shared";
 
 import { AddOnsView } from "../adapter/in/addOnsView";
 import { applyBrandMode } from "../adapter/in/brandModeRoot";
@@ -12,8 +16,12 @@ export function bootstrap(host: AddOnsHost, layout?: Layout): void {
     // Every host shell ships only an empty `#app`; the view builds itself in it.
     const app = document.getElementById("app");
     if (app === null) return;
+    // The host's shell says which page it serves; a shell that says nothing serves the list.
+    const page = addOnsPageOf(
+        document.documentElement.getAttribute(ADD_ONS_PAGE_ATTRIBUTE) ?? undefined,
+    );
     const view = new AddOnsView(app, (event) => session.dispatch(event), layout);
-    const session = new AddOnsViewSession(host, (state, focus) => view.render(state, focus));
+    const session = new AddOnsViewSession(host, (state, focus) => view.render(state, focus), page);
     window.addEventListener("message", (event: MessageEvent<unknown>) =>
         routeHostMessage(
             event.data,

@@ -17,6 +17,7 @@ export * from "./lib/formEditorMessages";
 export * from "./lib/deploymentSidebarCommands";
 export * from "./lib/addOnsView";
 export * from "./lib/addOnsViewCommands";
+export * from "./lib/addOnsPage";
 export * from "./lib/webviewSurfaces";
 export * from "./lib/propertiesPanelResizer";
 export * from "./lib/propertiesPanelFocus";

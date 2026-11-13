@@ -23,9 +23,10 @@ export function backButton(onBack: () => void): HTMLButtonElement {
     return back;
 }
 
-export function hintOf(): HTMLElement {
+/** @param unlisted a detail tab's add-on the list no longer holds */
+export function hintOf(unlisted = false): HTMLElement {
     const hint = el("div", "av-hint");
-    hint.append(el("p", "av-hint-text", CHROME_TEXT.hint));
+    hint.append(el("p", "av-hint-text", unlisted ? CHROME_TEXT.unlisted : CHROME_TEXT.hint));
     return hint;
 }
 

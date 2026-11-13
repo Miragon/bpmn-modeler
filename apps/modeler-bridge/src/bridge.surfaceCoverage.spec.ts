@@ -83,6 +83,7 @@ const INTELLIJ_SURFACES: HostSurfaceCoverage = {
         LogErrorCommand: HANDLED,
         GetAddOnCatalogCommand: HANDLED,
         AddOnRequestCommand: HANDLED,
+        OpenAddOnDetailCommand: HANDLED,
     },
 };
 

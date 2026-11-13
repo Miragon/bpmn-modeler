@@ -201,6 +201,16 @@ export class VsCodeSession {
         return this.firstShowing(frames, shows, "view");
     }
 
+    /** Closes the editor tab whose title matches, by its own close button, whichever editor is active. */
+    async closeEditorTab(title: RegExp): Promise<void> {
+        const tab = this.page.locator(".tabs-container .tab").filter({ hasText: title }).first();
+        await tab.click();
+        const close = tab.getByRole("button", { name: /^Close/ });
+        if (await close.count()) await close.first().click();
+        else await this.page.keyboard.press(`${COMMAND_KEY}+w`);
+        await tab.waitFor({ state: "detached", timeout: this.options.timeoutMs });
+    }
+
     /** The extension's visible editor webview whose page holds `shows`, such as one side of a diff. */
     editorWebview(shows: string): Promise<FrameLocator> {
         return this.firstShowing(this.editorFrames(), shows, "editor");
