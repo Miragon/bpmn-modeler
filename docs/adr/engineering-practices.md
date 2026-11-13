@@ -1476,9 +1476,9 @@ Kotlin adds less than 0.1 s.
 Version 3 at `fe75e584` (the same counts at `862b8a02`): 156 to 112 findings,
 44 dropped and none added. 41 are markup: the 33 rows of `WebviewServer.kt`'s
 three shells, written one line per literal (tags, two document titles, a style
-element), the 7 TypeScript shells (structure, a title and a script each) and a
-log redaction marker. 3 are `require(…)` invariants. No dropped row is a text a
-user sees. The 6 literals that start with a tag and hold text stay: two
+element), 6 TypeScript shells (structure, a title and a script each), 1 tag
+fragment (the DMN properties panel markup) and a log redaction marker. 3 are
+`require(…)` invariants. No dropped row is a text a user sees. The 6 literals that start with a tag and hold text stay: two
 JCEF-unavailable labels, the out-of-process notice (2) and two settings
 comments. "Starts with `<!DOCTYPE`" (#2309's proposal) dropped 9 and left 30
 lines of the Kotlin shells; "starts with a tag" dropped 47, those 6 user texts
@@ -1508,11 +1508,13 @@ Alternatives considered:
   messages unread, but hides the UI a wrapper runs, as `logAndRethrow` did in
   TypeScript, and needs class-body tracking to keep `class A : B(x) { … }` out
   of `B`'s arguments.
-- **Excluding `error(…)`, `require(…)` and `check(…)` by name.** It hides the
-  validation text of `AddMarketplaceAction.kt` to drop one developer error.
-- **Excluding markup or arguments of `executeJavaScript`.** Markup also wraps
-  user text (`<code>`, `<b>` on the settings page), and a callee name is not
-  call shape; the technical strings stay reported.
+- **Excluding `error(…)` by name.** At `cd48f2cd` it hides the validation text
+  of `AddMarketplaceAction.kt` to drop one developer error.
+- **Excluding a literal that starts with a tag, or the arguments of
+  `executeJavaScript`.** Markup also wraps user text (`<code>`, `<b>` on the
+  settings page): the first drops the 6 user texts measured above, and a
+  callee name is not call shape. Version 3 reads the text inside and after a
+  tag, and the JavaScript stays reported.
 
 ### Contract suites
 
