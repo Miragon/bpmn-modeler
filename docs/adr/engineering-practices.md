@@ -1787,16 +1787,25 @@ first parent) or a whole tree (`--base` the commit itself), and reads per
 fitness function the findings with their status (new, existing, resolved),
 the trend of the declared values and the limits a review needs (misses and
 false reports) from the same output, so no second document drifts from the
-code. It searches for copies of a rule with one `git grep` over the tracked
-TypeScript, Kotlin, build scripts, CI workflows, docs and JSON, looks for an
-existing home by concept, compares the other callers of each function the
-change calls, and takes the `change-coupling` and `missed-partner` findings
-of the touched files as the search for copies whose spelling is unknown. It
-reviews what no fitness function sees: a rule in another spelling, copies
-that already disagree, adapters of one port that disagree, two derivations of
-one state, logic in the wrong layer, wiring per host, a workspace without its
-siblings' guards, catch-all modules and silently ignored commands. On a whole
-tree it names what it did not cover. It proposes measures from trends. Each
+code. When a PR's head conflicts with its base, as a stacked PR's often
+does, its touched files are the change since the commit the head's newest
+merge took in, and each conflicted file is labelled as changed or not
+changed by the PR. It searches for copies of a rule with one `git grep` over
+the tracked TypeScript, Kotlin, build scripts, CI workflows, docs and JSON,
+searches a touched list, union or enum by two or three of its members to
+find copies with other names and members, looks for an existing home by
+concept, compares the other callers of each function the change calls, and
+takes the `change-coupling` and `missed-partner` findings of the touched
+files as the search for copies whose spelling is unknown. It reviews what no
+fitness function sees: a rule in another spelling, copies that already
+disagree, adapters of one port that disagree, two derivations of one state,
+logic in the wrong layer, wiring per host, a workspace without its siblings'
+guards, catch-all modules and silently ignored commands. A whole tree is
+reviewed one area per run, or at most five ports in hotspot order; the run
+checks every row in the areas it walked, and names the areas it did not
+cover and the rows it left unchecked. It proposes measures from trends. The
+reviewer runs the commands it writes itself under bash, because zsh and the
+regex of macOS broke them in 6 of the 9 runs of rounds 2 and 3 below. Each
 finding names `path:line`, its evidence and the fitness function, limit or
 trial that applies; a report row it drops goes under "Marked, no action".
 "Already duplicated before this PR" is never a reason to keep a copy: the PR
@@ -1808,11 +1817,14 @@ it, and marks a row the code disproves as a false alarm, with the evidence.
 Before it calls a row false, it looks up the function's trials that name the
 row's files: a trial that names the row and counts it as true, at a commit
 where the row's code reads as it does now, makes the row a finding, and any
-other trial is a lead. For each false alarm no `reportsWrongly` entry
-declares, and each erosion a function's `measures` covers but it missed, it
-proposes, apart from its findings, a narrower rule, an exclusion derived from
-types, folders, imports or configuration, or at least a `reportsWrongly` or
-`misses` entry. For a row an entry already declares, it proposes a narrower
+other trial is a lead. Before it calls a false alarm undeclared, it quotes
+the nearest `reportsWrongly` entry, or the collapsed group that sets the row
+aside, and says why it does not fit; before it proposes a `reportsWrongly`
+entry, it checks that the row is not one rule held in two places. For each
+false alarm no `reportsWrongly` entry declares, and each erosion a function's
+`measures` covers but it missed, it proposes, apart from its findings, a
+narrower rule, an exclusion derived from types, folders, imports or
+configuration, or at least a `reportsWrongly` or `misses` entry. For a row an entry already declares, it proposes a narrower
 rule or an exclusion only when the code can decide the case. It says whether
 each proposal is a fix in the PR or an issue for a maintainer to check before
 it is filed. A proposal that changes a function's rule bumps its version and
@@ -1953,32 +1965,33 @@ round-3 judge scored three findings as support for S1 and S2, not as added.
   and the round-3 run on #1799 flagged them. This section now names the
   answers of all three cases, so a further measurement needs held-out PRs.
 
-**No CI job yet.** A job that runs the review on every PR is not worth it
-now. The evidence is three calibration cases, the second round was tuned on
-them, and the tree states their answers. Runs differ, so the comment would
-change from push to push. At 10 to 17 minutes per run, most PRs would get a
-long review that mixes their own findings with older debt in the files they
-touch. Stacked PRs feed it a touched list with files the PR never changed:
-all three runs on #2047 since round 2 got 54 merge-tree conflicts, 20 of them
-in such files, and had to find the PR's own change by hand. A job needs a
-workflow, an API secret and possibly a dependency. The review runs by hand,
-on PRs that move rules between layers, add a host feature or add a
-workspace: the shape of #2040 and #2047, where it scored best. Its fitness
-function proposals go to a maintainer, who files the ones that hold.
+**The trial (#2238).** From 2026-11-07 to 2026-11-12 the skill ran on 16
+feature PRs and made about 75 findings, eight of them behaviour bugs. From
+#2274 on, nearly every finding was accepted and fixed; in the first two
+reviews (#2251, #2252), a skeptic judged 13 of 16 findings no defect. About
+7 of the 75 trace to a report row, and none of the eight behaviour bugs:
+those came from the copy search, from comparing a port's adapters and from
+comparing the wiring per host. Recall was not measured; no trial PR has a
+reference list.
 
-_Proposed, not decided:_ tell the reviewer to run its own commands under
-bash and name the hazards (in 5 of 6 round-2 runs and in the round-3 run on
-#1799 on macOS the reviewer's own commands hit zsh or BSD regex hazards; no
-block of the skill failed), take a stacked PR's own change from the last
-merge of its base, shard a whole tree by port family or give it a port and
-row budget, find second copies by their values, and check that a row is not
-one rule in two places before proposing to declare it a false report; then
-measure on 3 to 5 held-out merged PRs that no function's `evidence` names,
-whose erosion a later issue documented, with one judge per case and
-architecture items scored apart from correctness bugs. If that run matches
-most architectural items at a false rate under 10 %, a non-blocking,
-path-triggered job that posts only the top findings a PR introduced is worth
-a pilot. The 10 % bar is a judgement, not a measurement.
+**On demand, no CI job** (decided on #2238, 2026-11-12). The review stays a
+skill run by hand, on PRs that move rules between layers, add a host feature
+or add a workspace: the shape of #2040 and #2047, where it scored best. It
+gets no CI pilot. Only two trial runs were timed (379 s and 287 s), the first
+two reviews needed a skeptic to filter their findings, and runs differ, so
+the comment would change from push to push. A job would also need a
+workflow, an API secret and possibly a dependency. The held-out measurement
+this section proposed is dropped. Instead, one finished review is repeated
+without the fitness report, to measure what the report adds to the skill
+(#2231). The review's fitness function proposals go to a maintainer, who
+files the ones that hold.
+
+The changes the measurement above proposed are in the skill (#2231): the
+bash note, the stacked PR's own change and its labelled conflicts, the
+whole-tree areas with their port and row budget, the search by members, each
+function's `base.unmeasurable` in the summary, and the two checks before a
+false alarm is declared undeclared or a `reportsWrongly` entry proposed. No
+run has measured them.
 
 Alternatives considered:
 

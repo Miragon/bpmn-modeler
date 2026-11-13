@@ -31,8 +31,9 @@ in the checkout would count as a change. Two reviews at once need their own
 `TMPDIR`. A shell keeps no variables from one tool call to the next, so every
 block starts with the line that reads `OUT` (and `TREE`, `REV`, `R`) back.
 
-The blocks run under bash and zsh. Run the commands you write yourself with
-`bash -c '…'`: zsh and the BSD tools of macOS break them without an error.
+The blocks run under bash and zsh. Run the commands you write yourself under
+bash (`bash -c`, or a script file run with `bash`): zsh and the BSD tools of
+macOS break them, often without an error.
 
 - zsh ties `path` to `PATH`, so a loop variable named `path` leaves `jq` and
   `git` unfound (exit 127); name it `file`.
