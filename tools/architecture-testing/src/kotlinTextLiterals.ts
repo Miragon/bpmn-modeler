@@ -175,39 +175,58 @@ function callOpenedBy(tokens: readonly KotlinToken[], index: number): CallSite |
 
 interface Bracket {
     readonly closer: string;
+    /** For a `(`, the call it opens; for a `{`, the call whose `)` it follows. */
     readonly call: CallSite | undefined;
 }
 
+interface Surroundings {
+    readonly argumentOf: readonly CallSite[];
+    readonly trailingLambdaOf?: CallSite;
+}
+
+const NO_SURROUNDINGS: Surroundings = { argumentOf: [] };
+
 // A brace opens a lambda, a block or a body: code a callee runs is no value it is handed.
-function callsAround(outerCalls: readonly CallSite[], open: readonly Bracket[]): CallSite[] {
+function surroundingsOf(outer: Surroundings, open: readonly Bracket[]): Surroundings {
     const lastBrace = open.map(({ closer }) => closer).lastIndexOf("}");
     const calls = open
         .slice(lastBrace + 1)
         .flatMap(({ call }) => (call === undefined ? [] : [call]));
-    return lastBrace === -1 ? [...outerCalls, ...calls] : calls;
+    if (lastBrace === -1) {
+        return { ...outer, argumentOf: [...outer.argumentOf, ...calls] };
+    }
+    const trailingLambdaOf = open[lastBrace].call;
+    return trailingLambdaOf === undefined
+        ? { argumentOf: calls }
+        : { argumentOf: calls, trailingLambdaOf };
 }
 
 function readTokens(
     tokens: readonly KotlinToken[],
-    outerCalls: readonly CallSite[],
+    outer: Surroundings,
     literals: TextLiteral[],
 ): void {
     const open: Bracket[] = [];
+    let closedCall: { readonly index: number; readonly call: CallSite | undefined } | undefined;
     tokens.forEach((token, index) => {
         if (token.kind === "string") {
-            const argumentOf = callsAround(outerCalls, open);
-            literals.push({ line: token.line, parts: token.parts, argumentOf });
+            const surroundings = surroundingsOf(outer, open);
+            literals.push({ line: token.line, parts: token.parts, ...surroundings });
             token.placeholders.forEach((placeholder) =>
-                readTokens(placeholder, argumentOf, literals),
+                readTokens(placeholder, surroundings, literals),
             );
             return;
         }
         const closer = token.kind === "symbol" ? CLOSERS.get(token.text) : undefined;
-        if (closer !== undefined) {
+        if (closer === "}") {
+            const trailed = closedCall?.index === index - 1 ? closedCall.call : undefined;
+            open.push({ closer, call: trailed });
+        } else if (closer !== undefined) {
             const call = token.text === "(" ? callOpenedBy(tokens, index) : undefined;
             open.push({ closer, call });
         } else if (open[open.length - 1]?.closer === token.text) {
-            open.pop();
+            const closed = open.pop();
+            closedCall = token.text === ")" ? { index, call: closed?.call } : undefined;
         }
     });
 }
@@ -217,10 +236,11 @@ function readTokens(
  * with the calls whose arguments hold them up to the nearest brace. A callee
  * is the name before its `(`, a receiver the name or the callee before its
  * `.`; Kotlin has no `new`, so a call that `throw` raises is marked thrown.
+ * A brace right after a call's `)` names that call as the one its lambda trails.
  * Tokens only: no types are read.
  */
 export function readKotlinTextLiterals(text: string): TextLiteral[] {
     const literals: TextLiteral[] = [];
-    readTokens(lexKotlin(text), [], literals);
+    readTokens(lexKotlin(text), NO_SURROUNDINGS, literals);
     return literals;
 }

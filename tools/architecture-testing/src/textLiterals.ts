@@ -26,6 +26,12 @@ export interface TextLiteral {
      * the nearest function or lambda around it: code a callee runs is no value it is handed.
      */
     readonly argumentOf: readonly CallSite[];
+    /**
+     * Kotlin: the call whose parentheses the nearest lambda around the literal
+     * follows, `require` in `require(ok) { "…" }`. A class body after a
+     * supertype's constructor call counts as such a lambda.
+     */
+    readonly trailingLambdaOf?: CallSite;
 }
 
 function unwrap(expression: ts.Expression): ts.Expression {
