@@ -6,6 +6,7 @@ import { ArtifactService } from "../../../kernel/service/ArtifactService";
 import { createTestHost } from "../../../testing";
 import { BpmnElementTemplatesService } from "./BpmnElementTemplatesService";
 import { ElementTemplatesParticipant } from "./ElementTemplatesParticipant";
+import { LoadedTemplateDirs } from "./LoadedTemplateDirs";
 
 const PATH = "/work/diagram.bpmn";
 
@@ -18,6 +19,7 @@ function createServices() {
         artifacts,
         host.statusBar,
         host.notifier,
+        new LoadedTemplateDirs(),
     );
     const refresh = vi.spyOn(templates, "refreshElementTemplates").mockImplementation(() => {});
     const refreshMarketplace = vi

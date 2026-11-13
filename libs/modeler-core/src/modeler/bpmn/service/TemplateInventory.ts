@@ -6,23 +6,20 @@ import {
 } from "../../../kernel/domain/templateListing";
 import { ArtifactService } from "../../../kernel/service/ArtifactService";
 import { templateFileReadingOf, templatesDirOf } from "../domain/elementTemplates";
-import { BpmnElementTemplatesService } from "./BpmnElementTemplatesService";
+import { LoadedTemplateDirs } from "./LoadedTemplateDirs";
 
 /**
  * The element templates as the add-on catalog lists them: per file, read by
- * the loader's rule, from the folders the template service knows.
+ * the loader's rule, from the folders the open editors loaded.
  */
 export class TemplateInventory {
     constructor(
-        private readonly templates: Pick<
-            BpmnElementTemplatesService,
-            "knownTemplateDirs" | "onDidChangeTemplateDirs"
-        >,
+        private readonly loadedTemplateDirs: Pick<LoadedTemplateDirs, "list" | "onDidChange">,
         private readonly artifacts: Pick<ArtifactService, "readDirectory" | "readFile">,
     ) {}
 
     knownTemplateDirs(): readonly string[] {
-        return this.templates.knownTemplateDirs();
+        return this.loadedTemplateDirs.list();
     }
 
     templatesDirOf(dir: string, configFolder: string): string {
@@ -50,7 +47,7 @@ export class TemplateInventory {
     }
 
     onDidChange(listener: () => void): { dispose(): void } {
-        return this.templates.onDidChangeTemplateDirs(listener);
+        return this.loadedTemplateDirs.onDidChange(listener);
     }
 
     private async readingOf(path: string): Promise<TemplateFileReading> {

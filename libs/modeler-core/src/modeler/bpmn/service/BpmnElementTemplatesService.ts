@@ -16,6 +16,7 @@ import { elementTemplatesStatusView } from "../domain/elementTemplatesStatusView
 import { TemplateLoadStatus } from "../domain/TemplateLoadStatus";
 import { ElementTemplateCache } from "./ElementTemplateCache";
 import { ElementTemplateOffers, TemplateSwitchPorts } from "./ElementTemplateOffers";
+import { LoadedTemplateDirs } from "./LoadedTemplateDirs";
 
 const REFRESH_DEBOUNCE_MS = 150;
 
@@ -40,12 +41,10 @@ export interface CachedTemplateProvider {
 export class BpmnElementTemplatesService implements ArtifactChangeTarget {
     private readonly cache = new ElementTemplateCache();
     private readonly latestRequests = new Map<string, symbol>();
-    private readonly templateDirsByEditor = new Map<string, readonly string[]>();
     private readonly editorsAwaitingRefresh = new Set<string>();
     private readonly staleOnRefresh = { directories: false, marketplace: false };
     private refreshTimer: ReturnType<typeof setTimeout> | undefined;
     private templateLoadStatus = TemplateLoadStatus.idle;
-    private readonly templateDirListeners = new Set<() => void>();
     private readonly offers: ElementTemplateOffers;
 
     /**
@@ -58,6 +57,7 @@ export class BpmnElementTemplatesService implements ArtifactChangeTarget {
         private readonly artifactSvc: ArtifactService,
         private readonly statusBar: StatusBarPort,
         private readonly notifier: NotifierPort,
+        private readonly loadedTemplateDirs: LoadedTemplateDirs,
         private readonly marketplaceSvc?: CachedTemplateProvider,
         switches?: TemplateSwitchPorts,
     ) {
@@ -82,7 +82,7 @@ export class BpmnElementTemplatesService implements ArtifactChangeTarget {
             if (isSuperseded()) {
                 return false;
             }
-            this.recordTemplateDirs(() => this.templateDirsByEditor.set(editorId, templateDirs));
+            this.loadedTemplateDirs.record(editorId, templateDirs);
 
             // Served from the cache (a tab re-show, a second editor) the load is
             // instant, so a progress indicator would only flash.
@@ -190,37 +190,19 @@ export class BpmnElementTemplatesService implements ArtifactChangeTarget {
         this.latestRequests.delete(editorId);
         this.editorsAwaitingRefresh.delete(editorId);
         this.offers.release(editorId);
-        this.recordTemplateDirs(() => this.templateDirsByEditor.delete(editorId));
+        this.loadedTemplateDirs.release(editorId);
         // Only an open editor's watcher keeps an entry fresh; without one a
         // change on disk would go unnoticed until the host restarts.
-        this.cache.forgetDirectories(new Set([...this.templateDirsByEditor.values()].flat()));
-        if (this.templateDirsByEditor.size === 0) {
+        this.cache.forgetDirectories(new Set(this.loadedTemplateDirs.list()));
+        if (!this.loadedTemplateDirs.hasEditors()) {
             this.cache.forgetMarketplace();
         }
-    }
-
-    /** The template folders the open editors loaded, nested ones included, each once. */
-    knownTemplateDirs(): string[] {
-        return [...new Set([...this.templateDirsByEditor.values()].flat())];
-    }
-
-    onDidChangeTemplateDirs(listener: () => void): { dispose(): void } {
-        this.templateDirListeners.add(listener);
-        return { dispose: () => this.templateDirListeners.delete(listener) };
     }
 
     dispose(): void {
         clearTimeout(this.refreshTimer);
         this.refreshTimer = undefined;
         this.editorsAwaitingRefresh.clear();
-    }
-
-    private recordTemplateDirs(change: () => void): void {
-        const before = this.knownTemplateDirs().join("\n");
-        change();
-        if (this.knownTemplateDirs().join("\n") !== before) {
-            this.templateDirListeners.forEach((listener) => listener());
-        }
     }
 
     private scheduleRefresh(editorId: string): void {
