@@ -1,17 +1,26 @@
-import type { ElementIdStyle } from "@miragon/bpmn-modeler-types";
+import { naming } from "@miragon/bpmnlint-plugin-rules";
 import { describe, expect, it } from "vitest";
 
+import type { IdConvention } from "./convention";
+import { bpmn as moddle } from "./__fixtures__/moddle";
 import { proposeIds, type IdCandidate, type IdProposal } from "./proposals";
 
-const task = (id: string, name: string, type = "bpmn:Task"): IdCandidate => ({ id, name, type });
+const miragon = new naming.ElementIdConvention();
+
+const task = (id: string, name: string, type = "bpmn:Task"): IdCandidate => ({
+    id,
+    name,
+    type,
+    element: moddle.create(type, { id, name }),
+});
 
 function propose(
     candidates: IdCandidate[],
-    options: { style?: ElementIdStyle; unchecked?: string[]; takenElsewhere?: string[] } = {},
+    options: { convention?: IdConvention; unchecked?: string[]; takenElsewhere?: string[] } = {},
 ): IdProposal[] {
     const taken = new Set(options.takenElsewhere ?? []);
     return proposeIds(candidates, {
-        style: options.style ?? "typePrefix",
+        convention: options.convention ?? miragon,
         unchecked: new Set(options.unchecked ?? []),
         isTakenElsewhere: (id) => taken.has(id),
     });
@@ -28,41 +37,43 @@ describe("proposeIds", () => {
         ]);
 
         expect(summary(proposals)).toEqual([
-            ["Activity_0x1y2z3", "rename", "Task_CheckStock", false],
-            ["Event_1p0o9i8", "rename", "EndEvent_Done", false],
+            ["Activity_0x1y2z3", "rename", "task_checkStock", false],
+            ["Event_1p0o9i8", "rename", "endEvent_done", false],
         ]);
     });
 
     it("renames an ID that spells another type, as after a task became a service task", () => {
         const proposals = propose([
             task("Activity_CheckOrder", "Check order", "bpmn:ServiceTask"),
-            task("Task_ShipOrder", "Ship order", "bpmn:ServiceTask"),
+            task("task_shipOrder", "Ship order", "bpmn:ServiceTask"),
         ]);
 
         expect(summary(proposals)).toEqual([
-            ["Activity_CheckOrder", "rename", "ServiceTask_CheckOrder", false],
-            ["Task_ShipOrder", "rename", "ServiceTask_ShipOrder", false],
+            ["Activity_CheckOrder", "rename", "serviceTask_checkOrder", false],
+            ["task_shipOrder", "rename", "serviceTask_shipOrder", false],
         ]);
     });
 
-    it("numbers the second element with the same name", () => {
+    it("numbers the second element with the same name inside the case", () => {
         const proposals = propose([
             task("Activity_a", "Notify customer"),
             task("Activity_b", "Notify customer"),
         ]);
 
         expect(summary(proposals)).toEqual([
-            ["Activity_a", "rename", "Task_NotifyCustomer", false],
-            ["Activity_b", "rename", "Task_NotifyCustomer_2", true],
+            ["Activity_a", "rename", "task_notifyCustomer", false],
+            ["Activity_b", "rename", "task_notifyCustomer2", true],
         ]);
     });
 
-    it.each<[ElementIdStyle, string]>([
-        ["typePrefix", "Task_Notify_2"],
-        ["snakeCase", "task_notify_2"],
-        ["typeSuffix", "NotifyTask2"],
-    ])("counts a clash the %s way", (style, second) => {
-        const proposals = propose([task("a1", "Notify"), task("a2", "Notify")], { style });
+    it.each<[string, string]>([
+        ["camelCase", "task_notify2"],
+        ["PascalCase", "task_Notify2"],
+        ["snake_case", "task_notify_2"],
+        ["kebab-case", "task_notify-2"],
+    ])("counts a clash in %s so the ID still follows the rule", (namingCase, second) => {
+        const convention = new naming.ElementIdConvention({ case: namingCase });
+        const proposals = propose([task("a1", "Notify"), task("a2", "Notify")], { convention });
 
         expect(proposals[1]?.newId).toBe(second);
     });
@@ -70,13 +81,29 @@ describe("proposeIds", () => {
     it("leaves an element whose ID already follows its name, and keeps that ID for it", () => {
         const proposals = propose([
             task("Activity_x", "Ship order"),
-            task("Task_ShipOrder", "Ship order"),
+            task("task_shipOrder", "Ship order"),
         ]);
 
         expect(summary(proposals)).toEqual([
-            ["Activity_x", "rename", "Task_ShipOrder_2", true],
-            ["Task_ShipOrder", "matches", "Task_ShipOrder", false],
+            ["Activity_x", "rename", "task_shipOrder2", true],
+            ["task_shipOrder", "matches", "task_shipOrder", false],
         ]);
+    });
+
+    it("counts an ID with an event qualifier the rule accepts as following its name", () => {
+        const start = moddle.create("bpmn:StartEvent", {
+            id: "messageStartEvent_orderReceived",
+            name: "Order received",
+            eventDefinitions: [moddle.create("bpmn:MessageEventDefinition")],
+        });
+        const candidate = {
+            id: "messageStartEvent_orderReceived",
+            name: "Order received",
+            type: start.$type,
+            element: start,
+        };
+
+        expect(propose([candidate])[0]?.status).toBe("matches");
     });
 
     it("counts an ID with a counter as following its name, so a second run changes nothing", () => {
@@ -88,41 +115,41 @@ describe("proposeIds", () => {
 
     it("never proposes an ID another element outside the review holds", () => {
         const proposals = propose([task("a", "Check")], {
-            takenElsewhere: ["Task_Check", "Task_Check_2"],
+            takenElsewhere: ["task_check", "task_check2"],
         });
 
-        expect(proposals[0]?.newId).toBe("Task_Check_3");
+        expect(proposals[0]?.newId).toBe("task_check3");
     });
 
     it("lets an element take an ID that another renamed element gives up", () => {
-        const proposals = propose([task("Task_B", "A"), task("Task_A", "B")]);
+        const proposals = propose([task("task_b", "A"), task("task_a", "B")]);
 
         expect(summary(proposals)).toEqual([
-            ["Task_B", "rename", "Task_A", false],
-            ["Task_A", "rename", "Task_B", false],
+            ["task_b", "rename", "task_a", false],
+            ["task_a", "rename", "task_b", false],
         ]);
     });
 
     it("keeps the ID of an unchecked element and steers the others around it", () => {
-        const proposals = propose([task("Task_Check", "Ship"), task("b", "Check")], {
-            unchecked: ["Task_Check"],
+        const proposals = propose([task("task_check", "Ship"), task("b", "Check")], {
+            unchecked: ["task_check"],
         });
 
         expect(summary(proposals)).toEqual([
-            ["Task_Check", "unchecked", "Task_Ship", false],
-            ["b", "rename", "Task_Check_2", true],
+            ["task_check", "unchecked", "task_ship", false],
+            ["b", "rename", "task_check2", true],
         ]);
     });
 
     it("never proposes the ID an element without a name keeps", () => {
         const proposals = propose([
-            task("SequenceFlow_Yes", "", "bpmn:SequenceFlow"),
+            task("flow_yes", "", "bpmn:SequenceFlow"),
             task("Flow_1", "Yes", "bpmn:SequenceFlow"),
         ]);
 
         expect(summary(proposals)).toEqual([
-            ["SequenceFlow_Yes", "skipped", undefined, false],
-            ["Flow_1", "rename", "SequenceFlow_Yes_2", true],
+            ["flow_yes", "skipped", undefined, false],
+            ["Flow_1", "rename", "flow_yes2", true],
         ]);
     });
 
@@ -135,11 +162,11 @@ describe("proposeIds", () => {
         ]);
     });
 
-    it("spells IDs in the requested style", () => {
+    it("spells IDs as the convention it is given asks", () => {
         const proposals = propose([task("a", "Process data", "bpmn:UserTask")], {
-            style: "typeSuffix",
+            convention: new naming.ElementIdConvention({ case: "snake_case" }),
         });
 
-        expect(proposals[0]?.newId).toBe("ProcessDataTask");
+        expect(proposals[0]?.newId).toBe("userTask_process_data");
     });
 });

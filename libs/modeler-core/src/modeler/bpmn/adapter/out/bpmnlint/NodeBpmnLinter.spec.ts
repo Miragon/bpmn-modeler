@@ -209,6 +209,43 @@ describe("NodeBpmnLinter", () => {
     });
 });
 
+describe("NodeBpmnLinter's convention for IDs generated from names", () => {
+    it("takes the options a config gives element-id-naming over the preset it extends", async () => {
+        const options = await new NodeBpmnLinter().elementIdConventionOptions(CONFIG_PATH, {
+            extends: "plugin:@miragon/rules/strict",
+            rules: { "@miragon/rules/element-id-naming": ["error", { case: "snake_case" }] },
+        });
+
+        expect(options).toEqual({ case: "snake_case" });
+    });
+
+    it("has the rule's defaults when a config only extends a preset", async () => {
+        const options = await new NodeBpmnLinter().elementIdConventionOptions(CONFIG_PATH, {
+            extends: "plugin:@miragon/rules/strict",
+        });
+
+        expect(options).toEqual({});
+    });
+
+    it("reads the rule under the plugin's full package name", async () => {
+        const options = await new NodeBpmnLinter().elementIdConventionOptions(CONFIG_PATH, {
+            rules: {
+                "@miragon/bpmnlint-plugin-rules/element-id-naming": ["warn", { case: "PascalCase" }],
+            },
+        });
+
+        expect(options).toEqual({ case: "PascalCase" });
+    });
+
+    it("has the rule's defaults when a config it extends cannot be resolved", async () => {
+        const options = await new NodeBpmnLinter().elementIdConventionOptions(CONFIG_PATH, {
+            extends: "plugin:custom-plugin/recommended",
+        });
+
+        expect(options).toEqual({});
+    });
+});
+
 describe("NodeBpmnLinter across runs", () => {
     const BPMN_TWO_FLOWS = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">

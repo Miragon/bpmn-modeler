@@ -85,7 +85,6 @@ export const SOURCE_ONLY: ReadonlySet<string> = new Set([
     // predates them, and the driver never opens the review.
     "Generate IDs from names",
     "{count} of {total} IDs will change",
-    "ID style",
     "Apply",
     "Discard",
     "Processes",

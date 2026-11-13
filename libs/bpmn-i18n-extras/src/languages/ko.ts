@@ -278,7 +278,6 @@ const dictionary: Record<string, string> = {
         "사용자는 편집할 수 없는 필드에 FEEL을 입력할 수 없습니다.",
     "Generate IDs from names": "이름으로 ID 생성",
     "{count} of {total} IDs will change": "ID {total}개 중 {count}개가 변경됩니다",
-    "ID style": "ID 형식",
     "Apply": "적용",
     "Discard": "취소",
     "Processes": "프로세스",

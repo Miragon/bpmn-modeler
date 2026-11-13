@@ -22,7 +22,6 @@ import {
     describeScriptSurface,
     DisposableStore,
     type ElementIdReviewOutcome,
-    type ElementIdSettings,
     type ElementTemplateRef,
     Engine,
     engineSupports,
@@ -83,7 +82,12 @@ import {
 import { ModeUiModule } from "./mode/modeModules";
 import { ElementTemplateOfferModule, type ElementTemplateOffer } from "./elementTemplateOffer";
 import { DrilldownFitModule } from "./viewState";
-import type { CoreModelerServices, CreateModelerOptions, ThemeMode } from "./publicApi";
+import type {
+    CoreModelerServices,
+    CreateModelerOptions,
+    ElementIdOptions,
+    ThemeMode,
+} from "./publicApi";
 import type { LintConfigService } from "./bpmnlint/LintConfigService";
 
 // Structural slivers of non-core bpmn-js DI services — only the members this
@@ -534,13 +538,13 @@ export class BpmnModeler {
     }
 
     /** @see BpmnModelerHandle.setElementIdSettings */
-    setElementIdSettings(settings: Partial<ElementIdSettings>): void {
-        this.setSettings({
-            ...(settings.style === undefined ? {} : { elementIdStyle: settings.style }),
-            ...(settings.followName === undefined
-                ? {}
-                : { elementIdsFollowName: settings.followName }),
-        });
+    setElementIdSettings(options: ElementIdOptions): void {
+        if (options.followName !== undefined) {
+            this.setSettings({ elementIdsFollowName: options.followName });
+        }
+        if (options.convention) {
+            applyElementIdSettings(this.core, { convention: options.convention });
+        }
     }
 
     /** @see BpmnModelerHandle.openElementIdReview */

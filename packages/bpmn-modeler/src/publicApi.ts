@@ -7,7 +7,6 @@ import type {
     BpmnModelerSetting,
     CleanupOutcome,
     ElementIdReviewOutcome,
-    ElementIdSettings,
     ElementTemplateRef,
     Engine,
     LintResults,
@@ -24,6 +23,27 @@ import type { ThemeMode } from "./themeMode";
 
 export type { ModelerMode } from "./mode/mode";
 export type { LintConfigByMode, LintConfigOption } from "./bpmnlint/lintConfigResolution";
+
+/**
+ * [B] The convention IDs generated from names follow, in the shape of the
+ * bpmnlint rule `@miragon/rules/element-id-naming`'s `ElementIdConvention`.
+ * `createElementIdConvention` from `@miragon/bpmn-modeler/lint` builds it, with
+ * the rule's options from a `.bpmnlintrc` or its Miragon defaults. Until one is
+ * handed in, an ID is the element's type in camelCase, then a camelCase name.
+ */
+export interface ElementIdConvention {
+    /** Every prefix an ID of this business object may start with, the one to write first. */
+    prefixesFor(element: object): string[];
+    /** The case of the name after the prefix. */
+    readonly case: { readonly label: string; readonly pattern: RegExp };
+}
+
+/** [B] What {@link BpmnModelerHandle.setElementIdSettings} sets; a field left out keeps its value. */
+export interface ElementIdOptions {
+    /** Rename an ID that is still random or generated whenever its element's name or type changes. */
+    readonly followName?: boolean;
+    readonly convention?: ElementIdConvention;
+}
 
 /**
  * The public TypeScript surface of the `@miragon/bpmn-modeler` package:
@@ -352,12 +372,12 @@ export interface BpmnModelerHandle extends BpmnSurfaceHandle, PendingInputHandle
     setFavouriteBpmnElements(types: readonly string[]): void;
 
     /**
-     * [A] Set how IDs generated from names are spelled, and whether an ID that
-     * is still random or generated follows its element's name and type as they
-     * change — equivalent to `setSettings({ elementIdStyle, elementIdsFollowName })`,
-     * and present on {@link BpmnDesignerHandle} too.
+     * [A] Set the convention IDs generated from names follow, and whether an ID
+     * that is still random or generated follows its element's name and type as
+     * they change (as `setSettings({ elementIdsFollowName })` does). Present on
+     * {@link BpmnDesignerHandle} too.
      */
-    setElementIdSettings(settings: Partial<ElementIdSettings>): void;
+    setElementIdSettings(options: ElementIdOptions): void;
 
     /**
      * [B] Switch the design/implement mode live on this same instance — no

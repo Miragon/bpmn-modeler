@@ -61,7 +61,6 @@ describe("HostModelerState", () => {
         state.rememberSettings({
             ...settings(false),
             favouriteBpmnElements: ["bpmn:UserTask"],
-            elementIdStyle: "snakeCase",
             elementIdsFollowName: true,
         });
         state.applyDesignerSettingsPushedSince(builtWith, designer);
@@ -69,10 +68,7 @@ describe("HostModelerState", () => {
         expect(designer.setFavouriteBpmnElements).toHaveBeenCalledExactlyOnceWith([
             "bpmn:UserTask",
         ]);
-        expect(designer.setElementIdSettings).toHaveBeenCalledExactlyOnceWith({
-            style: "snakeCase",
-            followName: true,
-        });
+        expect(designer.setElementIdSettings).toHaveBeenCalledExactlyOnceWith({ followName: true });
     });
 
     it("leaves a designer alone when nothing was pushed since it was built", () => {
@@ -98,7 +94,6 @@ describe("HostModelerState", () => {
 
         expect(designer.setFavouriteBpmnElements).not.toHaveBeenCalled();
         expect(designer.setElementIdSettings).toHaveBeenCalledExactlyOnceWith({
-            style: undefined,
             followName: undefined,
         });
     });
@@ -107,11 +102,20 @@ describe("HostModelerState", () => {
         expect(
             elementIdSettingsOf({
                 ...settings(true),
-                elementIdStyle: "typeSuffix",
                 elementIdsFollowName: false,
             }),
-        ).toEqual({ style: "typeSuffix", followName: false });
-        expect(elementIdSettingsOf(undefined)).toEqual({ style: undefined, followName: undefined });
+        ).toEqual({ followName: false });
+        expect(elementIdSettingsOf(undefined)).toEqual({ followName: undefined });
+    });
+
+    it("keeps the lint rule options the host sent last for surfaces built later", () => {
+        const state = new HostModelerState();
+        expect(state.elementIdConventionOptions).toBeUndefined();
+
+        state.rememberElementIdConvention({ case: "PascalCase" });
+        state.rememberElementIdConvention({ case: "snake_case" });
+
+        expect(state.elementIdConventionOptions).toEqual({ case: "snake_case" });
     });
 
     it("leaves a modeler's open-script locks alone before the host reported any", () => {

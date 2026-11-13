@@ -820,21 +820,6 @@
                     ],
                     "markdownDescription": "The mode a BPMN editor opens in when it has no remembered mode. `implement` is the full Camunda modeler, `design` is the engine-neutral editable surface, and `view` is the readonly viewer. Applies only per new editor — an already-open editor keeps its mode. On an untagged (engine-neutral) model, `implement` is unavailable and falls back to `design`."
                 },
-                "miragon.bpmnModeler.elementIds.style": {
-                    "type": "string",
-                    "default": "typePrefix",
-                    "enum": [
-                        "typePrefix",
-                        "typeSuffix",
-                        "snakeCase"
-                    ],
-                    "enumItemLabels": [
-                        "UserTask_ProcessData",
-                        "ProcessDataTask",
-                        "user_task_process_data"
-                    ],
-                    "markdownDescription": "How an ID generated from an element's name is spelled, by the **Generate IDs from Names** command and the ID field's **Generate from name**: `typePrefix` puts the element's type first and writes `UserTask_ProcessData`, `typeSuffix` writes `ProcessDataTask` as the Camunda Modeler plugin rename-technical-ids does, and `snakeCase` writes `user_task_process_data`."
-                },
                 "miragon.bpmnModeler.elementIds.followName": {
                     "type": "boolean",
                     "default": false,

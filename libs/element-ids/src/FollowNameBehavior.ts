@@ -1,4 +1,4 @@
-import type { DiagramElementLike } from "./candidates";
+import type { DiagramElementLike, ModdleElementLike } from "./candidates";
 import { keepsIdUnlessAsked } from "./elementKinds";
 import type { ElementIdsService } from "./ElementIdsService";
 import { followsChange } from "./followName";
@@ -55,12 +55,16 @@ export class FollowNameBehavior {
         // After bpmn-js hands the old ID to the new shape, which it does at priority 1500.
         eventBus.on("commandStack.shape.replace.postExecuted", ({ context }) => {
             const { oldShape, newShape } = context;
-            this.follow(newShape, newShape.businessObject?.name, oldShape.businessObject?.$type);
+            this.follow(newShape, newShape.businessObject?.name, oldShape.businessObject);
         });
     }
 
-    private follow(element: DiagramElementLike, oldName: unknown, oldType?: string): void {
-        const { followName, style } = this.elementIds.getSettings();
+    private follow(
+        element: DiagramElementLike,
+        oldName: unknown,
+        oldElement?: ModdleElementLike,
+    ): void {
+        const { followName } = this.elementIds.getSettings();
         const target = (element.labelTarget as DiagramElementLike | undefined) ?? element;
         const businessObject = target.businessObject;
         if (
@@ -73,8 +77,8 @@ export class FollowNameBehavior {
         const change = {
             id: businessObject.id,
             oldName: typeof oldName === "string" && oldName !== "" ? oldName : undefined,
-            oldType: oldType ?? businessObject.$type,
-            style,
+            oldElement: oldElement ?? businessObject,
+            convention: this.elementIds.getConvention(),
         };
         if (followsChange(change)) {
             this.elementIds.renameFromName(target);

@@ -2,7 +2,9 @@
  * bpmn-js DI module that generates element IDs from element names: a review
  * panel for the whole diagram (`elementIdReview.open()`), "Generate from name"
  * under the properties panel's ID field, and IDs that follow their names when
- * `elementIds.configure({ followName: true })` is set.
+ * `elementIds.configure({ followName: true })` is set. IDs follow the lint rule
+ * `@miragon/rules/element-id-naming` through the convention the lint stack hands
+ * in with `elementIds.configure({ convention })`.
  */
 import "./elementIds.css";
 
@@ -18,7 +20,8 @@ import {
 } from "./RenameElementIdsHandler";
 
 export type { ElementIdReview } from "./ElementIdReview";
-export type { ElementIdProposal, ElementIdsService } from "./ElementIdsService";
+export type { IdConvention } from "./convention";
+export type { ElementIdOptions, ElementIdProposal, ElementIdsService } from "./ElementIdsService";
 
 interface EventBusLike {
     on(event: string, listener: () => void): void;

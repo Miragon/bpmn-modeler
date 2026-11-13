@@ -10,7 +10,7 @@ import {
     SettingKey,
     SettingsPort,
 } from "@miragon/bpmn-modeler-core";
-import { ColorThemeSetting, ElementIdStyle, SurfaceMode } from "@miragon/bpmn-modeler-types";
+import { ColorThemeSetting, SurfaceMode } from "@miragon/bpmn-modeler-types";
 import { HostSettingsMirror } from "../../port/HostSettingsMirror";
 
 /**
@@ -95,9 +95,6 @@ export class BridgeSettings implements SettingsPort, HostSettingsMirror {
      */
     getScriptingSpin(): boolean {
         return this.snapshot.scriptingSpin;
-    }
-    getElementIdStyle(): ElementIdStyle {
-        return this.snapshot.elementIdStyle;
     }
     getElementIdsFollowName(): boolean {
         return this.snapshot.elementIdsFollowName;

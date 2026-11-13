@@ -27,6 +27,8 @@ export type {
     LintModule,
     ClipboardOptions,
     ContentSavedEvent,
+    ElementIdConvention,
+    ElementIdOptions,
     ModelerOptions,
     BpmnModelerHandle,
     CoreModelerServices,
@@ -79,10 +81,10 @@ export type {
     LayoutStatus,
 } from "@miragon/bpmn-modeler-types";
 export type {
+    ElementIdConventionOptions,
     ElementIdReviewOutcome,
     ElementIdReviewStatus,
     ElementIdSettings,
-    ElementIdStyle,
 } from "@miragon/bpmn-modeler-types";
 
 export type { ViewportManager } from "./viewport";

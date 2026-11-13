@@ -88,7 +88,6 @@ export class ElementIdReview {
         }
         render(
             h(ReviewPanel, {
-                initialStyle: this.elementIds.getSettings().style,
                 initialUnchecked: this.initialUnchecked,
                 revision: this.revision,
                 propose: this.propose,
@@ -101,16 +100,11 @@ export class ElementIdReview {
         );
     }
 
-    private readonly propose = (
-        style: Parameters<ElementIdsService["propose"]>[0],
-        unchecked: ReadonlySet<string>,
-    ) => this.elementIds.propose(style, unchecked);
+    private readonly propose = (unchecked: ReadonlySet<string>) =>
+        this.elementIds.propose(unchecked);
 
-    private readonly apply = (
-        style: Parameters<ElementIdsService["rename"]>[0],
-        unchecked: ReadonlySet<string>,
-    ) => {
-        this.elementIds.rename(style, unchecked);
+    private readonly apply = (unchecked: ReadonlySet<string>) => {
+        this.elementIds.rename(unchecked);
         this.dismiss();
     };
 

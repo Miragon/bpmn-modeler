@@ -288,7 +288,6 @@ const dictionary: Record<string, string> = {
         "編集できないフィールドに FEEL は入力できません。",
     "Generate IDs from names": "名前から ID を生成",
     "{count} of {total} IDs will change": "{total} 件中 {count} 件の ID が変更されます",
-    "ID style": "ID の形式",
     "Apply": "適用",
     "Discard": "破棄",
     "Processes": "プロセス",

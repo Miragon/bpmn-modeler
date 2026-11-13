@@ -66,32 +66,20 @@ class ModelerSettingsConfigurableTest {
     }
 
     @Test
-    fun `ID style box and follow-name checkbox apply and reset the persisted settings`() {
+    fun `follow-name checkbox applies and resets the persisted setting`() {
         withSettingsPage { page ->
             val component = page.createComponent()
             page.reset()
-            val style = labelledCombo(component, "ID style:")
             val followName = UIUtil.findComponentsOfType(component, JCheckBox::class.java)
                 .first { it.text == "IDs follow names" }
 
-            style.selectedItem = "typeSuffix"
             followName.isSelected = true
             page.apply()
 
-            val stored = ModelerSettingsStore.getInstance().current()
-            assertEquals("typeSuffix", stored.elementIdStyle)
-            assertEquals(true, stored.elementIdsFollowName)
-            ModelerSettingsStore.getInstance().update { it.copy(elementIdStyle = "snakeCase", elementIdsFollowName = false) }
+            assertEquals(true, ModelerSettingsStore.getInstance().current().elementIdsFollowName)
+            ModelerSettingsStore.getInstance().update { it.copy(elementIdsFollowName = false) }
             page.reset()
-            assertEquals("snakeCase", style.selectedItem)
             assertFalse(followName.isSelected)
-        }
-    }
-
-    @Test
-    fun `offers the ID styles of the VS Code setting, labelled as it labels them, in its order`() {
-        withSettingsPage { page ->
-            assertEquals(manifestChoices("elementIds.style"), labelledChoices(page.createComponent(), "ID style:"))
         }
     }
 
@@ -171,7 +159,7 @@ class ModelerSettingsConfigurableTest {
             .associate { it.groupValues[1] to it.groupValues[2] }
     }
 
-    /** `manifest.contract.spec.ts` holds these values to the core's: `SURFACE_MODES`, `ELEMENT_ID_STYLES`. */
+    /** `manifest.contract.spec.ts` holds these values to the core's: `SURFACE_MODES`. */
     private fun manifestChoices(section: String): List<Pair<String, String>> {
         val setting =
             readTypeScriptJson("miragon.vscodeManifest").asJsonObject
@@ -206,7 +194,6 @@ class ModelerSettingsConfigurableTest {
                 "miragon.bpmnModeler.linting.enabled",
                 "miragon.bpmnModeler.language",
                 "miragon.bpmnModeler.formPreview.automatic",
-                "miragon.bpmnModeler.elementIds.style",
                 "miragon.bpmnModeler.elementIds.followName",
             )
         val LIST_KEYS = listOf("miragon.bpmnModeler.favouriteBpmnElements", "miragon.bpmnModeler.marketplaces")

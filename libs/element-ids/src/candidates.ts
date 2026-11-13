@@ -72,6 +72,7 @@ export function collectCandidates(registry: ElementRegistryLike): ElementIdCandi
             id: businessObject.id,
             name: name ?? businessObject.name ?? "",
             type: businessObject.$type,
+            element: businessObject,
             kind: elementKindOf(businessObject.$type),
             target,
             shown,

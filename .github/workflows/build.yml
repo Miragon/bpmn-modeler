@@ -37,17 +37,15 @@ jobs:
               - 'apps/modeler-bridge/src/protocol/domain/protocol.json'
               # ModelerSettingsStoreTest runs the core's settings rows and checks
               # the Kotlin defaults against the VS Code manifest under the core's
-              # snapshot names, the Kotlin default modes against SURFACE_MODES,
-              # the Kotlin colour themes against COLOR_THEMES and the Kotlin ID
-              # styles against ELEMENT_ID_STYLES, ModelerLocalesTest the Kotlin
-              # languages, ModelerSettingsConfigurableTest the Settings page's
-              # modes, ID styles and labels against the manifest and the mode strip.
+              # snapshot names, the Kotlin default modes against SURFACE_MODES and
+              # the Kotlin colour themes against COLOR_THEMES, ModelerLocalesTest
+              # the Kotlin languages, ModelerSettingsConfigurableTest the Settings
+              # page's modes and labels against the manifest and the mode strip.
               - 'libs/modeler-core/src/kernel/domain/settingsNormalization.cases.json'
               - 'libs/modeler-core/src/kernel/domain/modelerSettings.ts'
               - 'apps/vscode-plugin/package.json'
               - 'libs/modeler-types/src/surfaceMode.ts'
               - 'libs/modeler-types/src/settings.ts'
-              - 'libs/modeler-types/src/elementIds.ts'
               - 'packages/bpmn-modeler/src/modeSession/modeStrip.ts'
               # StatusSlotPlacementTest checks every status slot and view value has a Kotlin home.
               - 'libs/modeler-core/src/kernel/domain/statusView.ts'

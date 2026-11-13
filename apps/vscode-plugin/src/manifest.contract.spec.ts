@@ -73,7 +73,6 @@ import { InMemorySettings } from "@miragon/bpmn-modeler-core/testing";
 import { supportedModelerLanguages } from "@miragon/bpmn-modeler-i18n-extras";
 import {
     COLOR_THEMES,
-    ELEMENT_ID_STYLES,
     ELEMENT_TEMPLATE_FOLDER_NAME,
     ELEMENT_TEMPLATE_SCHEMA_URL,
     SURFACE_MODES,
@@ -229,23 +228,19 @@ describe("package.json ↔ code contract", () => {
         ).toEqual([]);
     });
 
-    // No `scope`: a workspace can hold its team's ID convention.
-    it("lets a workspace choose how generated IDs are spelled and whether they follow names", () => {
+    // No `scope`: a workspace can share whether its IDs follow names. The spelling has no
+    // setting: it comes from the lint rule `@miragon/rules/element-id-naming`.
+    it("lets a workspace choose whether generated IDs follow names", () => {
         const { properties } = manifest.contributes.configuration;
 
-        expect(properties[`${MODELER_SETTINGS_SECTION}.elementIds.style`]).toMatchObject({
-            type: "string",
-            default: "typePrefix",
-            enum: [...ELEMENT_ID_STYLES],
-            enumItemLabels: ["UserTask_ProcessData", "ProcessDataTask", "user_task_process_data"],
-        });
         expect(properties[`${MODELER_SETTINGS_SECTION}.elementIds.followName`]).toMatchObject({
             type: "boolean",
             default: false,
         });
-        for (const key of ["elementIds.style", "elementIds.followName"]) {
-            expect(properties[`${MODELER_SETTINGS_SECTION}.${key}`].scope).toBeUndefined();
-        }
+        expect(
+            properties[`${MODELER_SETTINGS_SECTION}.elementIds.followName`].scope,
+        ).toBeUndefined();
+        expect(properties[`${MODELER_SETTINGS_SECTION}.elementIds.style`]).toBeUndefined();
     });
 
     it("activates to clean up restored form values documents", () => {
@@ -507,7 +502,6 @@ describe("package.json ↔ code contract", () => {
             "marketplaces": true,
             "linting.enabled": true,
             "formPreview.automatic": true,
-            "elementIds.style": true,
             "elementIds.followName": true,
         };
 
@@ -535,7 +529,7 @@ describe("package.json ↔ code contract", () => {
     });
 
     it.each(
-        (["colorTheme", "defaultMode", "elementIdStyle"] as const).flatMap((key) =>
+        (["colorTheme", "defaultMode"] as const).flatMap((key) =>
             (
                 manifest.contributes.configuration.properties[
                     `${MODELER_SETTINGS_SECTION}.${settingKeyOf(key)}`
@@ -549,7 +543,6 @@ describe("package.json ↔ code contract", () => {
     it.each<{ key: keyof ModelerSettingsSnapshot; accepted: readonly string[] }>([
         { key: "colorTheme", accepted: COLOR_THEMES },
         { key: "defaultMode", accepted: SURFACE_MODES },
-        { key: "elementIdStyle", accepted: ELEMENT_ID_STYLES },
     ])(
         "offers exactly the $key values the core accepts, each with a label",
         ({ key, accepted }) => {

@@ -18,6 +18,7 @@ export type SessionMessageType =
     | "FormatDiagramQuery"
     | "CleanupDiagramQuery"
     | "GenerateElementIdsQuery"
+    | "ElementIdConventionQuery"
     | "UpdateScriptContentQuery"
     | "UpdateScriptFormatQuery"
     | "UpdateOpenScriptEditorsQuery"
@@ -46,6 +47,7 @@ const IMPORT_BOUND_MESSAGE_TYPES: ReadonlySet<string> = new Set([
     "ElementTemplatesQuery",
     "HiddenElementTemplatesQuery",
     "BpmnModelerSettingQuery",
+    "ElementIdConventionQuery",
     "BpmnlintResultsQuery",
     "BpmnLintDisabledQuery",
     "BpmnlintInPageQuery",

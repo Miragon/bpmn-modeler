@@ -292,7 +292,6 @@ const dictionary: Record<string, string> = {
         "Gebruikers kunnen geen FEEL invoeren in een veld dat ze niet kunnen bewerken.",
     "Generate IDs from names": "ID's genereren uit namen",
     "{count} of {total} IDs will change": "{count} van {total} ID's veranderen",
-    "ID style": "ID-stijl",
     "Apply": "Toepassen",
     "Discard": "Verwerpen",
     "Processes": "Processen",

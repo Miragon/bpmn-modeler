@@ -3,8 +3,6 @@ import { resolve } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { ELEMENT_ID_STYLES, ElementIdStyle } from "@miragon/bpmn-modeler-types";
-
 import { settingsNormalizationCases, TYPESCRIPT_ONLY_SETTINGS_CASES } from "../../testing";
 import {
     changedSettingKeys,
@@ -30,7 +28,6 @@ describe("DEFAULT_MODELER_SETTINGS", () => {
 
     it("spells generated IDs with the type prefix and leaves IDs alone by default", () => {
         expect(normalizeSettings({})).toMatchObject({
-            elementIdStyle: "typePrefix",
             elementIdsFollowName: false,
         });
     });
@@ -72,18 +69,6 @@ describe("normalizeSettings", () => {
             expect(normalizeSettings(raw)).toHaveProperty("formPreviewAutomatic", expected);
         },
     );
-
-    it.each<{ rawValue: unknown; expected: ElementIdStyle }>([
-        ...ELEMENT_ID_STYLES.map((style) => ({ rawValue: style, expected: style })),
-        { rawValue: "TypeSuffix", expected: "typePrefix" },
-        { rawValue: "kebabCase", expected: "typePrefix" },
-        { rawValue: "", expected: "typePrefix" },
-        { rawValue: 1, expected: "typePrefix" },
-        { rawValue: null, expected: "typePrefix" },
-        { rawValue: undefined, expected: "typePrefix" },
-    ])("reads the ID style $rawValue as $expected", ({ rawValue, expected }) => {
-        expect(normalizeSettings({ elementIdStyle: rawValue }).elementIdStyle).toBe(expected);
-    });
 
     it.each([
         { rawValue: true, expected: true },
@@ -142,7 +127,6 @@ describe("settingKeyOf", () => {
         { key: "scriptingSpin", settingKey: "scripting.spin" },
         { key: "lintingEnabled", settingKey: "linting.enabled" },
         { key: "formPreviewAutomatic", settingKey: "formPreview.automatic" },
-        { key: "elementIdStyle", settingKey: "elementIds.style" },
         { key: "elementIdsFollowName", settingKey: "elementIds.followName" },
     ])("names $key by the key VS Code stores it under", ({ key, settingKey }) => {
         expect(settingKeyOf(key)).toBe(settingKey);
@@ -218,7 +202,6 @@ describe("changedSettingKeys", () => {
         { next: { scriptingSpin: false }, changed: "scripting.spin" },
         { next: { lintingEnabled: false }, changed: "linting.enabled" },
         { next: { formPreviewAutomatic: false }, changed: "formPreview.automatic" },
-        { next: { elementIdStyle: "snakeCase" }, changed: "elementIds.style" },
         { next: { elementIdsFollowName: true }, changed: "elementIds.followName" },
         { next: { marketplaces: ["https://github.com/acme/templates"] }, changed: "marketplaces" },
     ])(

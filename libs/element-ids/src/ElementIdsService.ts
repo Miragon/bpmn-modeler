@@ -1,8 +1,6 @@
 import {
-    DEFAULT_ELEMENT_ID_STYLE,
     DEFAULT_ELEMENT_IDS_FOLLOW_NAME,
     type ElementIdSettings,
-    type ElementIdStyle,
 } from "@miragon/bpmn-modeler-types";
 
 import {
@@ -11,6 +9,7 @@ import {
     type ElementIdCandidate,
     type ElementRegistryLike,
 } from "./candidates";
+import { FALLBACK_CONVENTION, type IdConvention } from "./convention";
 import { keepsIdUnlessAsked } from "./elementKinds";
 import { proposeIds, type IdProposal } from "./proposals";
 import {
@@ -22,6 +21,13 @@ import { orderRenames } from "./renameOrder";
 
 export type ElementIdProposal = IdProposal<ElementIdCandidate>;
 
+/** What a surface sets on the service; a field left out keeps its value. */
+export interface ElementIdOptions {
+    readonly followName?: boolean;
+    /** The lint rule's convention, which the lint stack builds and hands in. */
+    readonly convention?: IdConvention;
+}
+
 /**
  * Proposes IDs from names and applies them. Everything recomputes from the live
  * diagram on each call, so an edit made while the review is open is never
@@ -30,10 +36,8 @@ export type ElementIdProposal = IdProposal<ElementIdCandidate>;
 export class ElementIdsService {
     static $inject = ["elementRegistry", "moddle", "commandStack"];
 
-    private settings: ElementIdSettings = {
-        style: DEFAULT_ELEMENT_ID_STYLE,
-        followName: DEFAULT_ELEMENT_IDS_FOLLOW_NAME,
-    };
+    private settings: ElementIdSettings = { followName: DEFAULT_ELEMENT_IDS_FOLLOW_NAME };
+    private convention: IdConvention = FALLBACK_CONVENTION;
 
     constructor(
         private readonly elementRegistry: ElementRegistryLike,
@@ -41,24 +45,23 @@ export class ElementIdsService {
         private readonly commandStack: CommandStackLike,
     ) {}
 
-    configure(settings: Partial<ElementIdSettings>): void {
-        this.settings = {
-            style: settings.style ?? this.settings.style,
-            followName: settings.followName ?? this.settings.followName,
-        };
+    configure(options: ElementIdOptions): void {
+        this.settings = { followName: options.followName ?? this.settings.followName };
+        this.convention = options.convention ?? this.convention;
     }
 
     getSettings(): ElementIdSettings {
         return this.settings;
     }
 
-    propose(
-        style: ElementIdStyle = this.settings.style,
-        unchecked: ReadonlySet<string> = new Set(),
-    ): ElementIdProposal[] {
+    getConvention(): IdConvention {
+        return this.convention;
+    }
+
+    propose(unchecked: ReadonlySet<string> = new Set()): ElementIdProposal[] {
         const candidates = collectCandidates(this.elementRegistry);
         return proposeIds(candidates, {
-            style,
+            convention: this.convention,
             unchecked,
             isTakenElsewhere: this.takenOutside(candidates),
         });
@@ -74,18 +77,12 @@ export class ElementIdsService {
     }
 
     /** Renames every checked element in one undo step and says how many changed. */
-    rename(
-        style: ElementIdStyle = this.settings.style,
-        unchecked: ReadonlySet<string> = new Set(),
-    ): number {
-        return this.apply(this.propose(style, unchecked));
+    rename(unchecked: ReadonlySet<string> = new Set()): number {
+        return this.apply(this.propose(unchecked));
     }
 
     /** The proposal for one element against every other ID in the diagram; none for an element without an ID of its own. */
-    proposalFor(
-        element: DiagramElementLike,
-        style: ElementIdStyle = this.settings.style,
-    ): ElementIdProposal | undefined {
+    proposalFor(element: DiagramElementLike): ElementIdProposal | undefined {
         const target = (element.labelTarget as DiagramElementLike | undefined) ?? element;
         const candidate = collectCandidates(this.elementRegistry).find(
             (each) => each.target.kind === "element" && each.target.element === target,
@@ -94,7 +91,7 @@ export class ElementIdsService {
             return undefined;
         }
         const [proposal] = proposeIds([candidate], {
-            style,
+            convention: this.convention,
             unchecked: new Set(),
             isTakenElsewhere: this.takenOutside([candidate]),
         });

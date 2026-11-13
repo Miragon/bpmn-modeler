@@ -12,7 +12,13 @@ export type {
     CoreDesignerServices,
     CreateDesigner,
 } from "./publicApi";
-export type { ThemeMode, ClipboardOptions, ContentSavedEvent } from "../publicApi";
+export type {
+    ThemeMode,
+    ClipboardOptions,
+    ContentSavedEvent,
+    ElementIdConvention,
+    ElementIdOptions,
+} from "../publicApi";
 export type { LayoutOutcome } from "@miragon/bpmn-modeler-layout";
 export type {
     CleanupItem,
@@ -24,10 +30,10 @@ export type {
     LayoutStatus,
 } from "@miragon/bpmn-modeler-types";
 export type {
+    ElementIdConventionOptions,
     ElementIdReviewOutcome,
     ElementIdReviewStatus,
     ElementIdSettings,
-    ElementIdStyle,
 } from "@miragon/bpmn-modeler-types";
 
 export type { ModelNavigationPort, ModelReference } from "@miragon/bpmn-model-navigation";

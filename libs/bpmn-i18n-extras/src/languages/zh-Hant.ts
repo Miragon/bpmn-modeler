@@ -263,7 +263,6 @@ const dictionary: Record<string, string> = {
         "使用者無法在不可編輯的欄位中輸入 FEEL。",
     "Generate IDs from names": "根據名稱產生 ID",
     "{count} of {total} IDs will change": "{total} 個 ID 中有 {count} 個將變更",
-    "ID style": "ID 樣式",
     "Apply": "套用",
     "Discard": "捨棄",
     "Processes": "流程",

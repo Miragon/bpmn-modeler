@@ -261,7 +261,6 @@ const dictionary: Record<string, string> = {
         "用户无法在不可编辑的字段中输入 FEEL。",
     "Generate IDs from names": "根据名称生成 ID",
     "{count} of {total} IDs will change": "{total} 个 ID 中有 {count} 个将更改",
-    "ID style": "ID 样式",
     "Apply": "应用",
     "Discard": "放弃",
     "Processes": "流程",

@@ -288,7 +288,6 @@ const dictionary: Record<string, string> = {
         "Os usuários não podem inserir FEEL em um campo que não podem editar.",
     "Generate IDs from names": "Gerar IDs a partir dos nomes",
     "{count} of {total} IDs will change": "{count} de {total} IDs serão alterados",
-    "ID style": "Estilo de ID",
     "Apply": "Aplicar",
     "Discard": "Descartar",
     "Processes": "Processos",

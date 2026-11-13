@@ -1,4 +1,3 @@
-import type { ElementIdStyle } from "@miragon/bpmn-modeler-types";
 import { render } from "preact";
 import { act } from "preact/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -19,6 +18,7 @@ const proposal = (
         id,
         name,
         type: "bpmn:Task",
+        element: { $type: "bpmn:Task", id, name },
         kind,
         target: { kind: "element", element: { id, type: "bpmn:Task" } },
         shown: { id, type: "bpmn:Task" },
@@ -28,9 +28,9 @@ const proposal = (
     clash,
 });
 
-/** A stand-in for the service: the style picks the spelling, unchecked IDs come back unchecked. */
-function propose(style: ElementIdStyle, unchecked: ReadonlySet<string>): ElementIdProposal[] {
-    const spell = (name: string) => (style === "typeSuffix" ? `${name}Task` : `Task_${name}`);
+/** A stand-in for the service: unchecked IDs come back unchecked. */
+function propose(unchecked: ReadonlySet<string>): ElementIdProposal[] {
+    const spell = (name: string) => `task_${name.toLowerCase()}`;
     const rows = [
         ["Activity_1", "Check", "activity"],
         ["Activity_2", "Ship", "activity"],
@@ -47,7 +47,7 @@ function propose(style: ElementIdStyle, unchecked: ReadonlySet<string>): Element
                 name === "Ship",
             ),
         ),
-        proposal("Task_Done", "Done", "activity", "matches", "Task_Done"),
+        proposal("task_done", "Done", "activity", "matches", "task_done"),
         proposal("Flow_2", "", "flow", "skipped"),
     ];
 }
@@ -57,7 +57,6 @@ let props: ReviewPanelProps;
 
 function mount(overrides: Partial<ReviewPanelProps> = {}) {
     props = {
-        initialStyle: "typePrefix",
         initialUnchecked: new Set(),
         revision: 0,
         propose,
@@ -108,9 +107,9 @@ describe("ReviewPanel", () => {
             "Flow_1",
         ]);
         expect(text(".eid-row:not(.eid-plain) .eid-new")).toEqual([
-            "Task_Check",
-            "Task_Ship",
-            "Task_Yes",
+            "task_check",
+            "task_ship",
+            "task_yes",
         ]);
     });
 
@@ -155,7 +154,7 @@ describe("ReviewPanel", () => {
 
         act$(() => $(".eid-primary").click());
 
-        expect(props.onApply).toHaveBeenCalledWith("typePrefix", new Set(["Activity_2"]));
+        expect(props.onApply).toHaveBeenCalledWith(new Set(["Activity_2"]));
     });
 
     it("unchecks a whole group from its checkbox and shows a partly checked group as mixed", () => {
@@ -183,20 +182,6 @@ describe("ReviewPanel", () => {
         toggle($<HTMLInputElement>('input[aria-label="Rename all Flows"]'));
 
         expect($<HTMLButtonElement>(".eid-primary").disabled).toBe(true);
-    });
-
-    it("reproposes in the style picked for this run", () => {
-        mount();
-
-        act$(() => {
-            const select = $<HTMLSelectElement>(".eid-select");
-            select.value = "typeSuffix";
-            select.dispatchEvent(new Event("change", { bubbles: true }));
-        });
-        act$(() => $(".eid-primary").click());
-
-        expect(text(".eid-row:not(.eid-plain) .eid-new")[0]).toBe("CheckTask");
-        expect(props.onApply).toHaveBeenCalledWith("typeSuffix", new Set());
     });
 
     it("reveals the element of a row that is clicked", () => {
@@ -235,7 +220,7 @@ describe("ReviewPanel", () => {
 
     it.each([
         [
-            [proposal("Task_Done", "Done", "activity", "matches", "Task_Done")],
+            [proposal("task_done", "Done", "activity", "matches", "task_done")],
             "Every ID already follows its name.",
         ],
         [[proposal("Flow_2", "", "flow", "skipped")], "No element has a name yet."],

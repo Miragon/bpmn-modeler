@@ -1,5 +1,6 @@
 import type {
     BpmnModelerSetting,
+    ElementIdConventionOptions,
     ElementIdSettings,
     OpenScriptEditorRef,
 } from "@miragon/bpmn-modeler-types";
@@ -20,7 +21,7 @@ interface OpenScriptEditorsTarget {
 export function elementIdSettingsOf(
     settings: BpmnModelerSetting | undefined,
 ): Partial<ElementIdSettings> {
-    return { style: settings?.elementIdStyle, followName: settings?.elementIdsFollowName };
+    return { followName: settings?.elementIdsFollowName };
 }
 
 /** Of the host settings, the designer honours the favourites and the element ID settings. */
@@ -41,6 +42,7 @@ export function applyDesignerSettings(
  */
 export class HostModelerState {
     private latestSettings: BpmnModelerSetting | undefined;
+    private latestConventionOptions: ElementIdConventionOptions | undefined;
     private latestOpenScripts: OpenScriptEditorRef[] | undefined;
 
     get settings(): BpmnModelerSetting | undefined {
@@ -49,6 +51,15 @@ export class HostModelerState {
 
     rememberSettings(settings: BpmnModelerSetting): void {
         this.latestSettings = settings;
+    }
+
+    /** The options the document's lint config gives `element-id-naming`; none until the host sent them. */
+    get elementIdConventionOptions(): ElementIdConventionOptions | undefined {
+        return this.latestConventionOptions;
+    }
+
+    rememberElementIdConvention(options: ElementIdConventionOptions): void {
+        this.latestConventionOptions = options;
     }
 
     rememberOpenScripts(openScripts: OpenScriptEditorRef[]): void {

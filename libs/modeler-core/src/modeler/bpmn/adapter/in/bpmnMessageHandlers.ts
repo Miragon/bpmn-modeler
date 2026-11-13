@@ -50,7 +50,7 @@ export function answerWithoutPluginsHandler(store: EditorSessionStore): MessageH
  */
 export function getBpmnlintConfigHandler(lintSvc: BpmnLintConfigService): MessageHandler {
     return async (_message: Command, editorId: string) => {
-        await lintSvc.setBpmnlintConfig(editorId);
+        await lintSvc.answerLintConfigRequest(editorId);
     };
 }
 

@@ -5,7 +5,6 @@ import type {
     BpmnlintConfig,
     CleanupOutcome,
     ElementIdReviewOutcome,
-    ElementIdSettings,
     LintResults,
     LintRunEvent,
 } from "@miragon/bpmn-modeler-types";
@@ -14,6 +13,7 @@ import type {
     ClipboardOptions,
     ContentSavedEvent,
     CoreModelerServices,
+    ElementIdOptions,
     LintingOptions,
     ThemeMode,
 } from "../publicApi";
@@ -105,12 +105,11 @@ export interface DesignerOptions {
     favouriteBpmnElements?: string[];
 
     /**
-     * How IDs generated from names are spelled and whether they follow names:
-     * the counterpart of the modeler settings `elementIdStyle` and
-     * `elementIdsFollowName`. Change them live with
-     * {@link BpmnDesignerHandle.setElementIdSettings}.
+     * The convention IDs generated from names follow and whether they follow
+     * names, the counterpart of the modeler setting `elementIdsFollowName`.
+     * Change them live with {@link BpmnDesignerHandle.setElementIdSettings}.
      */
-    elementIdSettings?: Partial<ElementIdSettings>;
+    elementIdSettings?: ElementIdOptions;
 
     /** Clipboard override — omit for the native browser clipboard. */
     clipboard?: ClipboardOptions;
@@ -203,7 +202,7 @@ export interface BpmnDesignerHandle extends BpmnSurfaceHandle, PendingInputHandl
      * Set how IDs generated from names are spelled, and whether a still random
      * or generated ID follows its element's name and type.
      */
-    setElementIdSettings(settings: Partial<ElementIdSettings>): void;
+    setElementIdSettings(options: ElementIdOptions): void;
 
     /**
      * Replace the element types pinned at the top of the append/create menu —

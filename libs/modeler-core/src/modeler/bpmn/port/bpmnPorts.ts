@@ -1,4 +1,4 @@
-import { LintResults } from "@miragon/bpmn-modeler-types";
+import { ElementIdConventionOptions, LintResults } from "@miragon/bpmn-modeler-types";
 
 import { BlockedRulePackage } from "../domain/rulePackageApproval";
 import { RefusedRuleModule } from "../domain/rulePackageRefusal";
@@ -36,6 +36,15 @@ export interface LintRunnerPort {
      * @param config the parsed `.bpmnlintrc` contents, or the bundled default.
      */
     lint(xml: string, configPath: string, config: Record<string, unknown>): Promise<LintRun>;
+    /**
+     * The options the config, with every config it extends, gives the rule
+     * `@miragon/rules/element-id-naming`; empty when it gives none or a config
+     * cannot be resolved, so the rule's defaults apply.
+     */
+    elementIdConventionOptions(
+        configPath: string,
+        config: Record<string, unknown>,
+    ): Promise<ElementIdConventionOptions>;
 }
 
 /**

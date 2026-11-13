@@ -3,6 +3,7 @@ import {
     type CleanupDiagramQuery,
     CleanupReportCommand,
     DiagramFormattedCommand,
+    type ElementIdConventionQuery,
     ElementIdReviewCommand,
     type ElementTemplatesQuery,
     type GetDiagramAsSVGCommand,
@@ -10,6 +11,7 @@ import {
     type HostThemeAdapter,
     type ImplementationStatusQuery,
     LogErrorCommand,
+    LogWarningCommand,
     OpenScriptEditorsCommand,
     type UpdateOpenScriptEditorsQuery,
     type UpdateScriptContentQuery,
@@ -23,6 +25,7 @@ import {
 import { isEditableSurface, isModelerSurface } from "@miragon/bpmn-modeler/mode";
 
 import { applyDesignerSettings, type HostModelerState } from "../../domain/hostModelerState";
+import { loadElementIdConvention } from "../out/elementIdConvention";
 import type { SurfaceHandle } from "../../domain/surface";
 import { receiveErrorPrefix } from "../../domain/receiveErrorPrefix";
 import type { HostChannel } from "../../port/hostChannel";
@@ -33,6 +36,7 @@ interface SurfaceRequestHandlers {
     FormatDiagramQuery(): Promise<void>;
     CleanupDiagramQuery(query: CleanupDiagramQuery): void;
     GenerateElementIdsQuery(): void;
+    ElementIdConventionQuery(query: ElementIdConventionQuery): Promise<void>;
     UpdateScriptContentQuery(query: UpdateScriptContentQuery): void;
     UpdateScriptFormatQuery(query: UpdateScriptFormatQuery): void;
     UpdateOpenScriptEditorsQuery(query: UpdateOpenScriptEditorsQuery): void;
@@ -69,7 +73,10 @@ export function createSurfaceRequests(
         replies,
         setFormPreviewAutomatic,
     }: {
-        hostModelerState: Pick<HostModelerState, "rememberSettings" | "rememberOpenScripts">;
+        hostModelerState: Pick<
+            HostModelerState,
+            "rememberSettings" | "rememberOpenScripts" | "rememberElementIdConvention"
+        >;
         theme: Pick<HostThemeAdapter, "setMode">;
         replies: SurfaceRequestReplies;
         setFormPreviewAutomatic: (enabled: boolean) => void;
@@ -155,6 +162,22 @@ export function createSurfaceRequests(
                     ? surface.openElementIdReview()
                     : { status: "unsupported" as const };
                 host.postMessage(new ElementIdReviewCommand(status));
+            },
+            ElementIdConventionQuery: async (query) => {
+                hostModelerState.rememberElementIdConvention(query.options);
+                try {
+                    const convention = await loadElementIdConvention(query.options);
+                    const surface = getSurface();
+                    if (isEditableSurface(surface)) {
+                        surface.setElementIdSettings({ convention });
+                    }
+                } catch (error) {
+                    host.postMessage(
+                        new LogWarningCommand(
+                            `Element IDs: the lint rule's convention did not load: ${String(error)}`,
+                        ),
+                    );
+                }
             },
             UpdateScriptContentQuery: (query) => {
                 const surface = getSurface();

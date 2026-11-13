@@ -66,11 +66,6 @@ export const TYPESCRIPT_ONLY_SETTINGS_CASES: readonly SettingsNormalizationCase[
         normalized: {},
     },
     {
-        name: "reads an ID style that is no string as the default",
-        raw: { elementIdStyle: ["typeSuffix"] },
-        normalized: {},
-    },
-    {
         name: "reads favourites that are no list as the default",
         raw: { favouriteBpmnElements: "bpmn:UserTask" },
         normalized: {},
@@ -107,7 +102,6 @@ export function readSettingsSnapshot(settings: SettingsPort): ModelerSettingsSna
         scriptingSpin: settings.getScriptingSpin(),
         lintingEnabled: settings.getLintingEnabled(),
         formPreviewAutomatic: settings.getFormPreviewAutomatic(),
-        elementIdStyle: settings.getElementIdStyle(),
         elementIdsFollowName: settings.getElementIdsFollowName(),
         marketplaces: settings.getMarketplaces(),
     };

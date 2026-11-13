@@ -1,14 +1,14 @@
-import type { ElementIdStyle } from "@miragon/bpmn-modeler-types";
-
+import type { ModdleElementLike } from "./candidates";
+import type { IdConvention } from "./convention";
 import { defaultIdPrefixesOf } from "./elementKinds";
 import { idFollowsName } from "./proposals";
 
-/** An element's ID with the name and type it had before a change. */
+/** An element's ID with the name and business object it had before a change. */
 export interface IdBeforeChange {
     readonly id: string;
     readonly oldName: string | undefined;
-    readonly oldType: string;
-    readonly style: ElementIdStyle;
+    readonly oldElement: ModdleElementLike;
+    readonly convention: IdConvention;
 }
 
 // bpmn-js pads a random 32-bit number to seven base-36 digits; requiring one digit
@@ -27,9 +27,9 @@ function isDefaultId(id: string, type: string): boolean {
  * Whether an ID should change along with its element's name or type: it was generated,
  * either by bpmn-js or a template, or from the old name and type. An ID someone wrote stays.
  */
-export function followsChange({ id, oldName, oldType, style }: IdBeforeChange): boolean {
-    if (isDefaultId(id, oldType)) {
+export function followsChange({ id, oldName, oldElement, convention }: IdBeforeChange): boolean {
+    if (isDefaultId(id, oldElement.$type)) {
         return true;
     }
-    return oldName !== undefined && idFollowsName(id, oldName, oldType, style);
+    return oldName !== undefined && idFollowsName(id, oldName, oldElement, convention);
 }

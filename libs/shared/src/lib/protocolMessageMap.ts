@@ -62,6 +62,7 @@ import type {
     FormPreviewQuery,
     GetFormPreviewCommand,
     FormatDiagramQuery,
+    ElementIdConventionQuery,
     GenerateElementIdsQuery,
     GetBpmnFileCommand,
     GetBpmnModelerSettingCommand,
@@ -155,6 +156,7 @@ export type ProtocolQuery =
     | FormatDiagramQuery
     | CleanupDiagramQuery
     | GenerateElementIdsQuery
+    | ElementIdConventionQuery
     | FormDefaultsQuery
     | DeploymentResultQuery
     | StoredCredentialsQuery

@@ -1,4 +1,5 @@
 import type { DiagramElementLike, ElementRegistryLike, ModdleElementLike } from "../candidates";
+import { bpmn } from "./moddle";
 
 /** A moddle element as bpmn-moddle would hand it over, minus everything the review never reads. */
 export interface FakeModdleElement extends ModdleElementLike {
@@ -16,7 +17,7 @@ export interface FakeElement extends DiagramElementLike {
 }
 
 export function moddle(type: string, id: string, name?: string): FakeModdleElement {
-    return { $type: type, id, ...(name === undefined ? {} : { name }) };
+    return bpmn.create(type, { id, ...(name === undefined ? {} : { name }) }) as FakeModdleElement;
 }
 
 export function shape(
