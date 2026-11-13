@@ -2114,8 +2114,20 @@ The skill changes proposed with that run are in (#2231): the bash note, the
 stacked PR's own change and its labelled conflicts, the whole-tree areas
 with their port and row budget, the search by members, each function's
 `base.unmeasurable` in the summary, and the two checks before it calls a
-false alarm undeclared or proposes a `reportsWrongly` entry. No run has
-measured them.
+false alarm undeclared or proposes a `reportsWrongly` entry. Only the run
+below has used them.
+
+**Without the report** (#2231, 2026-11-13). The review of #2359 at
+`048b2100` was repeated with the changed skill, skipping every step that
+reads the report. It found 7 of the posted review's 10 findings, two of them
+in part. Of the three findings that cite a report row, it found two without
+the row. Of its three misses, one came from the report (a size row and a
+trend); the other two had no row and are checks the skill already asks for.
+It also made six findings the posted review lacks, four of them real and
+minor. Only the report gave the trends and the proposals for the fitness
+functions. So the report's value lies in trends, placement leads and
+feedback on the functions, not in finding erosion. One run on one PR; the
+reviewer read the PR body, which names three of the original fixes.
 
 Alternatives considered:
 
