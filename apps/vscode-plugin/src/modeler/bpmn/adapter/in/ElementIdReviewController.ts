@@ -11,10 +11,14 @@ interface ElementIdReviewChecks extends Disposable {
     onDidChangeChecks(listener: (ids: string[], checked: boolean) => void): Disposable;
 }
 
-/** Hands the review panel's title actions, row clicks and checkboxes to the core. */
+/**
+ * Hands the review panel's title actions, row clicks and checkboxes to the
+ * core. The commands are registered on every VS Code the manifest declares
+ * them for; before 1.80 there is no panel, and the core has no review to act on.
+ */
 export class ElementIdReviewController {
     constructor(
-        private readonly review: ElementIdReviewChecks,
+        private readonly review: ElementIdReviewChecks | undefined,
         private readonly elementIds: Pick<
             ElementIdsService,
             "apply" | "discard" | "reveal" | "setChecked"
@@ -33,11 +37,15 @@ export class ElementIdReviewController {
             commands.registerCommand(REVEAL_ELEMENT_ID_ROW_CMD, (elementId: string) =>
                 this.run(() => this.elementIds.reveal(elementId)),
             ),
-            this.review.onDidChangeChecks((ids, checked) => {
-                void this.run(() => this.elementIds.setChecked(ids, checked));
-            }),
-            this.review,
         );
+        if (this.review) {
+            context.subscriptions.push(
+                this.review.onDidChangeChecks((ids, checked) => {
+                    void this.run(() => this.elementIds.setChecked(ids, checked));
+                }),
+                this.review,
+            );
+        }
     }
 
     private async run(action: () => Promise<void>): Promise<void> {
