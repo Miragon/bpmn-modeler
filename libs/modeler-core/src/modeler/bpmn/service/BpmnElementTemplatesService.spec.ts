@@ -11,6 +11,7 @@ import {
 import { createTestHost, FakeEditorHandle } from "../../../testing";
 import { elementTemplatesStatusView } from "../domain/elementTemplatesStatusView";
 import { BpmnElementTemplatesService } from "./BpmnElementTemplatesService";
+import { LoadedTemplateDirs } from "./LoadedTemplateDirs";
 
 const ROOT_TEMPLATES = "/work/.camunda/element-templates";
 const NESTED_TEMPLATES = "/work/sub/.camunda/element-templates";
@@ -58,6 +59,7 @@ function createService(options: { marketplace?: boolean; switches?: boolean } = 
         artifactSvc as never,
         host.statusBar,
         host.notifier,
+        new LoadedTemplateDirs(),
         options.marketplace === false ? undefined : marketplaceSvc,
         options.switches
             ? { preferences: host.templatePreferences, workspace: host.workspace }

@@ -81,6 +81,7 @@ import { BpmnlintParticipant } from "../service/BpmnlintParticipant";
 import { BpmnSettingsParticipant } from "../service/BpmnSettingsParticipant";
 import { ElementTemplatesParticipant } from "../service/ElementTemplatesParticipant";
 import { EngineVersionStatusBarParticipant } from "../service/EngineVersionStatusBarParticipant";
+import { LoadedTemplateDirs } from "../service/LoadedTemplateDirs";
 import { StatusItemOwnership } from "../../../editorSession/domain/StatusItemOwnership";
 import { RulePackageCatalog } from "../service/RulePackageCatalog";
 import { RulePackageInventory } from "../service/RulePackageInventory";
@@ -219,12 +220,14 @@ export class BpmnEditorFeature {
             ports.notifier,
             ports.settings,
         );
+        const loadedTemplateDirs = new LoadedTemplateDirs();
         this.templates = new BpmnElementTemplatesService(
             ports.store,
             ports.documents,
             ports.artifacts,
             ports.statusBar,
             ports.notifier,
+            loadedTemplateDirs,
             ports.templateProvider,
             ports.templatePreferences && {
                 preferences: ports.templatePreferences,
@@ -234,7 +237,7 @@ export class BpmnEditorFeature {
         this.switchSubscription = ports.templatePreferences?.onDidChange(() => {
             void this.templates.refreshOffers();
         });
-        this.templateInventory = new TemplateInventory(this.templates, ports.artifacts);
+        this.templateInventory = new TemplateInventory(loadedTemplateDirs, ports.artifacts);
         this.layout = new BpmnLayoutService(ports.store, ports.notifier, ports.picker);
         const lintConfigLocator = new BpmnLintConfigLocator(
             ports.workspace,

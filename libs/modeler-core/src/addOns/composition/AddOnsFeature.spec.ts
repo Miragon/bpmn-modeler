@@ -45,6 +45,7 @@ import { RulePackageCatalog } from "../../modeler/bpmn/service/RulePackageCatalo
 import { RulePackageInventory } from "../../modeler/bpmn/service/RulePackageInventory";
 import { ContentHasherPort } from "../../bpmnPlugins/port/pluginPorts";
 import { BpmnElementTemplatesService } from "../../modeler/bpmn/service/BpmnElementTemplatesService";
+import { LoadedTemplateDirs } from "../../modeler/bpmn/service/LoadedTemplateDirs";
 import { TemplateInventory } from "../../modeler/bpmn/service/TemplateInventory";
 import { createTemplateMarketplaceService } from "../../template-marketplace/composition/MarketplaceFeature";
 import { MarketplaceCommands } from "../../template-marketplace/service/MarketplaceCommands";
@@ -185,12 +186,14 @@ function setUp({
         host.notifier,
     );
     const settingChanges = new ScriptedSettingChanges();
+    const loadedTemplateDirs = new LoadedTemplateDirs();
     const templatesService = new BpmnElementTemplatesService(
         host.store,
         host.documents,
         artifacts,
         host.statusBar,
         host.notifier,
+        loadedTemplateDirs,
     );
     const marketplaceService = createTemplateMarketplaceService({
         workspace: host.workspace,
@@ -222,7 +225,7 @@ function setUp({
         ...(trustUnwired ? {} : { workspaceTrust: host.workspaceTrust }),
         plugins: plugins.inventory,
         rulePackages: new RulePackageInventory(rulePackageCatalog, disk, allowances),
-        templates: new TemplateInventory(templatesService, artifacts),
+        templates: new TemplateInventory(loadedTemplateDirs, artifacts),
         ...(keepsSwitches && { templatePreferences: host.templatePreferences }),
         ...(listsMarketplaces && {
             marketplaces: new MarketplaceInventory(

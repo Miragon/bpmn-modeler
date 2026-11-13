@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { ArtifactService } from "../../../kernel/service/ArtifactService";
 import { createTestHost } from "../../../testing";
 import { BpmnElementTemplatesService } from "./BpmnElementTemplatesService";
+import { LoadedTemplateDirs } from "./LoadedTemplateDirs";
 import { TemplateInventory } from "./TemplateInventory";
 
 const WORK = "/work";
@@ -12,14 +13,16 @@ const NESTED_TEMPLATES = `${WORK}/orders/.camunda/element-templates`;
 function setUp(files: Record<string, string> = {}) {
     const host = createTestHost({ folders: [WORK], files });
     const artifacts = new ArtifactService(host.workspace, host.settings, host.notifier);
+    const loadedTemplateDirs = new LoadedTemplateDirs();
     const templates = new BpmnElementTemplatesService(
         host.store,
         host.documents,
         artifacts,
         host.statusBar,
         host.notifier,
+        loadedTemplateDirs,
     );
-    return { host, templates, inventory: new TemplateInventory(templates, artifacts) };
+    return { host, templates, inventory: new TemplateInventory(loadedTemplateDirs, artifacts) };
 }
 
 describe("TemplateInventory", () => {
