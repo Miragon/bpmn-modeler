@@ -1,15 +1,13 @@
 import { isSameScript } from "@miragon/bpmn-modeler-types";
 
 import { EditorSessionStore } from "../editorSession/service/EditorSessionStore";
-import { PickerPort } from "../kernel/port/hostPorts";
 import { InlineScript, ScriptSourceChange } from "../scriptTask/domain/inlineScript";
 import { OpenScriptTab, OpenScriptTabs } from "../scriptTask/domain/OpenScriptTabs";
 import { ScriptMaterialization } from "../scriptTask/domain/scriptBatchSummary";
 import { matchScriptFile } from "../scriptTask/domain/scriptFileMatching";
-import { ScriptLanguage, scriptLanguagePrompt } from "../scriptTask/domain/scriptLanguage";
-import { ScriptUri } from "../scriptTask/domain/ScriptUri";
 import { ScriptEditorPort } from "../scriptTask/port/ScriptEditorPort";
 import { ScriptFileStore } from "../scriptTask/service/ScriptFileStore";
+import { ScriptTargetResolver } from "../scriptTask/service/ScriptTargetResolver";
 
 export interface ScriptEditorCall<TScript> {
     readonly editorId: string;
@@ -19,8 +17,8 @@ export interface ScriptEditorCall<TScript> {
 /**
  * A host's script tabs in memory: holds what was opened, written, changed,
  * resynced and closed, and keeps the `ScriptEditorPort` contract
- * (`describeScriptEditorContract`). It asks `picker` for a language the model
- * lacks, writes through `scriptFiles`, adopts a script file the user opens
+ * (`describeScriptEditorContract`). It resolves each script's file with
+ * `targets`, writes through `scriptFiles`, adopts a script file the user opens
  * from its editor's script folder and answers `alreadyOpen` for a script whose
  * tab is open. A spec steers it only to inject a failure or a hang:
  * `writeInterruptions` fails or holds the next writes in order (an `Error`
@@ -45,15 +43,15 @@ export class RecordingScriptEditor implements ScriptEditorPort {
     constructor(
         private readonly store: EditorSessionStore,
         private readonly scriptFiles: ScriptFileStore,
-        private readonly picker: PickerPort,
+        private readonly targets: ScriptTargetResolver,
     ) {}
 
     async open(editorId: string, script: InlineScript): Promise<void> {
         this.opened.push({ editorId, script: inlineScriptOf(script) });
         if (this.openFailure) throw this.openFailure;
-        const uri = await this.scriptUriOf(editorId, script);
-        if (uri === undefined) return;
-        const filePath = await this.scriptFiles.prepareScriptFile(editorId, uri);
+        const target = await this.targets.resolve(editorId, script);
+        if (target === undefined) return;
+        const filePath = await this.scriptFiles.prepareScriptFile(editorId, target.uri);
         if (this.openTabs.isOpen(filePath)) return;
         await this.scriptFiles.writeFile(filePath, script.content);
         const { elementId, kind, listenerIndex } = script;
@@ -66,9 +64,9 @@ export class RecordingScriptEditor implements ScriptEditorPort {
         if (interruption instanceof Error) throw interruption;
         await interruption;
 
-        const uri = await this.scriptUriOf(editorId, script);
-        if (uri === undefined) return { kind: "cancelled" };
-        const filePath = await this.scriptFiles.prepareScriptFile(editorId, uri);
+        const target = await this.targets.resolve(editorId, script);
+        if (target === undefined) return { kind: "cancelled" };
+        const filePath = await this.scriptFiles.prepareScriptFile(editorId, target.uri);
         const plan = this.openTabs.materializationOf(filePath);
         if (plan.kind === "alreadyOpen") return plan;
         await this.scriptFiles.writeFile(filePath, script.content);
@@ -116,19 +114,6 @@ export class RecordingScriptEditor implements ScriptEditorPort {
         for (const [filePath, tab] of this.openTabs.ofEditor(editorId)) {
             if (closes(tab)) this.openTabs.untrack(filePath);
         }
-    }
-
-    /** The script's file identity, in the model's language or the one picked; `undefined` when the pick is dismissed. */
-    private async scriptUriOf(
-        editorId: string,
-        { elementId, kind, listenerIndex, eventName, scriptFormat }: InlineScript,
-    ): Promise<ScriptUri | undefined> {
-        const format = ScriptLanguage.isSupported(scriptFormat)
-            ? scriptFormat
-            : await this.picker.choose(scriptLanguagePrompt(scriptFormat));
-        if (format === undefined) return undefined;
-        const { extension } = new ScriptLanguage(format);
-        return new ScriptUri(editorId, elementId, kind, listenerIndex, eventName, extension);
     }
 }
 

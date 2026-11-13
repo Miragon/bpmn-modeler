@@ -14,6 +14,7 @@ import { createTestHost, RecordingScriptEditor } from "../../testing";
 import { ScriptVariableStore } from "../domain/ScriptVariableStore";
 import { ScriptEditorFeature } from "./ScriptEditorFeature";
 import { ScriptFileStore } from "../service/ScriptFileStore";
+import { ScriptTargetResolver } from "../service/ScriptTargetResolver";
 
 const DIAGRAM = "/work/order.bpmn";
 const VARIABLES: VariableDef[] = [
@@ -31,7 +32,11 @@ function createFeature() {
         "/tmp",
         (path) => path,
     );
-    const scriptEditor = new RecordingScriptEditor(host.store, scriptFiles, host.picker);
+    const scriptEditor = new RecordingScriptEditor(
+        host.store,
+        scriptFiles,
+        new ScriptTargetResolver(host.store, host.picker, host.notifier),
+    );
     const variables = new ScriptVariableStore();
     const { editorContribution } = new ScriptEditorFeature({
         scriptEditor,

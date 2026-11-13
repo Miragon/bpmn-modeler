@@ -25,26 +25,20 @@ import {
     matchScriptFile,
     methodsForBean,
     NotifierPort,
-    OpenScriptTab,
     OpenScriptTabs,
-    PickerPort,
+    ScriptContentStream,
     ScriptEditorPort,
     ScriptFileStore,
-    ScriptLanguage,
-    scriptLanguagePrompt,
     ScriptMaterialization,
     ScriptSourceChange,
-    ScriptUri,
+    ScriptTarget,
+    ScriptTargetResolver,
     ScriptVariableStore,
     SettingsPort,
     toWorkspacePath,
 } from "@miragon/bpmn-modeler-core";
-import {
-    UpdateOpenScriptEditorsQuery,
-    UpdateScriptContentQuery,
-    UpdateScriptFormatQuery,
-} from "@miragon/bpmn-modeler-shared";
-import { AsyncDebounced, asyncDebounce, ScriptKind } from "@miragon/bpmn-modeler-types";
+import { UpdateOpenScriptEditorsQuery } from "@miragon/bpmn-modeler-shared";
+import { ScriptKind } from "@miragon/bpmn-modeler-types";
 
 import { Rpc } from "../../../transport/adapter/out/Rpc";
 import { METHODS } from "../../../protocol/domain/descriptor";
@@ -82,39 +76,25 @@ export class BridgeScriptEditor implements ScriptEditorPort, ScriptTabEvents {
      */
     private readonly swallowNextDidClose = new Set<string>();
 
-    /** How long host keystrokes coalesce before one streams into the webview model. */
-    private static readonly STREAM_DEBOUNCE_MS = 300;
-
-    /**
-     * One debounced content sender per open `scriptId`. Every host-reported
-     * keystroke re-arms the trailing edge, so a burst of typing produces a
-     * single `UpdateScriptContentQuery` (and the full diagram XML export behind
-     * it) instead of one per character. The sender body owns the error logging,
-     * so it never rejects. Perf-only here: JCEF webviews never hide, so unlike
-     * VS Code there is no lost-edit bug to guard against.
-     */
-    private readonly contentSenders = new Map<
-        string,
-        AsyncDebounced<(content: string) => Promise<void>>
-    >();
+    /** Keyed by `scriptId`. JCEF webviews never hide, so no edit waits for a resync. */
+    private readonly contentStream: ScriptContentStream;
 
     constructor(
         private readonly store: EditorSessionStore,
-        private readonly picker: PickerPort,
+        private readonly targets: ScriptTargetResolver,
         private readonly rpc: Rpc,
         private readonly notifier: NotifierPort,
         private readonly settings: SettingsPort,
         private readonly scriptFiles: ScriptFileStore,
         private readonly scriptVariables: ScriptVariableStore,
-    ) {}
+    ) {
+        this.contentStream = new ScriptContentStream(store, notifier);
+    }
 
     /**
      * Opens (or reveals) an inline script in a host text editor.
      *
-     * Prompts for a language only when the model's `scriptFormat` is missing or
-     * unsupported, persisting the pick back to the model so the next open skips
-     * the prompt — mirroring the VS Code flow. `script/open` always carries the
-     * content; the host ignores it when the `scriptId` is already tracked and
+     * `script/open` always carries the content; the host ignores it when the `scriptId` is already tracked and
      * just reveals the existing tab (so a re-open never clobbers in-flight edits).
      */
     async open(editorId: string, script: InlineScript): Promise<void> {
@@ -122,7 +102,7 @@ export class BridgeScriptEditor implements ScriptEditorPort, ScriptTabEvents {
         if (!target) {
             return; // language picker cancelled
         }
-        const { scriptId, uri, lang } = target;
+        const { scriptId, uri, language } = target;
 
         // Write the real file only on first open: a re-open just reveals the
         // existing tab, and rewriting the file underneath IntelliJ's (possibly
@@ -154,7 +134,7 @@ export class BridgeScriptEditor implements ScriptEditorPort, ScriptTabEvents {
         this.rpc.notify(METHODS.scriptOpen, {
             scriptId,
             fileName: uri.filename,
-            languageId: lang.languageId,
+            languageId: language.languageId,
             filePath,
             content: script.content,
             completion: this.completionPayloadFor(script.kind, editorId),
@@ -224,11 +204,9 @@ export class BridgeScriptEditor implements ScriptEditorPort, ScriptTabEvents {
     }
 
     /**
-     * Resolves a script's on-disk identity for {@link open} and
-     * {@link materialize}: prompts for a language when the model's
-     * `scriptFormat` is missing or unsupported (persisting the pick so the next
-     * open skips the prompt) and builds the {@link ScriptUri}. `undefined` when
-     * the picker was cancelled.
+     * The core's target for a script, keyed by its `scriptId`, for
+     * {@link open} and {@link materialize}. `undefined` when the language
+     * prompt was dismissed.
      *
      * Also cancels a pending close-ack deletion for the same script: the caller
      * is about to (re)write or reveal the file, so a late `script/didClose` ack
@@ -239,27 +217,12 @@ export class BridgeScriptEditor implements ScriptEditorPort, ScriptTabEvents {
     private async resolveScriptTarget(
         script: InlineScript,
         editorId: string,
-    ): Promise<{ scriptId: string; uri: ScriptUri; lang: ScriptLanguage } | undefined> {
-        let effectiveFormat = script.scriptFormat;
-        if (!ScriptLanguage.isSupported(script.scriptFormat)) {
-            const picked = await this.picker.choose(scriptLanguagePrompt(script.scriptFormat));
-            if (!picked) {
-                return undefined;
-            }
-            effectiveFormat = picked;
-            await this.sendFormatUpdate(editorId, script, picked);
+    ): Promise<(ScriptTarget & { scriptId: string }) | undefined> {
+        const target = await this.targets.resolve(editorId, script);
+        if (!target) {
+            return undefined;
         }
-
-        const lang = new ScriptLanguage(effectiveFormat);
-        const uri = new ScriptUri(
-            editorId,
-            script.elementId,
-            script.kind,
-            script.listenerIndex,
-            script.eventName,
-            lang.extension,
-        );
-        const scriptId = uri.toString();
+        const scriptId = target.uri.toString();
 
         if (this.pendingCloseAcks.delete(scriptId)) {
             this.filePathByScript.delete(scriptId);
@@ -267,7 +230,7 @@ export class BridgeScriptEditor implements ScriptEditorPort, ScriptTabEvents {
             // swallow it so it can't tear down this re-tracked script.
             this.swallowNextDidClose.add(scriptId);
         }
-        return { scriptId, uri, lang };
+        return { ...target, scriptId };
     }
 
     /**
@@ -357,14 +320,14 @@ export class BridgeScriptEditor implements ScriptEditorPort, ScriptTabEvents {
         if (change.content === undefined) {
             // Surface gone: drop the sender so a pending keystroke can't
             // fire against a deleted element.
-            this.dropSender(scriptId);
+            this.contentStream.stop(scriptId);
             this.scripts.untrack(scriptId);
             this.requestClose(scriptId);
             this.broadcastOpenScripts(editorId);
         } else {
             // Canvas undo/redo overwrites the tab; cancel any pending
             // keystroke so it can't fire afterwards and clobber the undo.
-            this.contentSenders.get(scriptId)?.cancel();
+            this.contentStream.cancel(scriptId);
             this.rpc.notify(METHODS.scriptUpdateContent, {
                 scriptId,
                 content: change.content,
@@ -427,47 +390,7 @@ export class BridgeScriptEditor implements ScriptEditorPort, ScriptTabEvents {
         if (!entry) {
             return;
         }
-        // Fire-and-forget through the per-script debounced sender: it owns the
-        // postMessage and error logging, and never rejects.
-        void this.getSender(scriptId, entry)(content);
-    }
-
-    /**
-     * Lazily creates (and caches) the debounced content sender for a script.
-     * The closure captures the tracked-script addressing — stable for a given
-     * `scriptId` — and streams the latest content into the webview model,
-     * owning its own error logging so the debounced body never rejects.
-     */
-    private getSender(
-        scriptId: string,
-        entry: OpenScriptTab,
-    ): AsyncDebounced<(content: string) => Promise<void>> {
-        let sender = this.contentSenders.get(scriptId);
-        if (!sender) {
-            sender = asyncDebounce(async (content: string) => {
-                try {
-                    await this.store.postMessage(
-                        entry.editorId,
-                        new UpdateScriptContentQuery(
-                            entry.elementId,
-                            entry.kind,
-                            entry.listenerIndex,
-                            content,
-                        ),
-                    );
-                } catch (error) {
-                    this.notifier.logError(error as Error);
-                }
-            }, BridgeScriptEditor.STREAM_DEBOUNCE_MS);
-            this.contentSenders.set(scriptId, sender);
-        }
-        return sender;
-    }
-
-    /** Cancels any pending keystroke for `scriptId` and forgets its sender. */
-    private dropSender(scriptId: string): void {
-        this.contentSenders.get(scriptId)?.cancel();
-        this.contentSenders.delete(scriptId);
+        this.contentStream.push(scriptId, entry, content);
     }
 
     /**
@@ -492,8 +415,8 @@ export class BridgeScriptEditor implements ScriptEditorPort, ScriptTabEvents {
         // script down, then drop the sender. On the ack branch the sender was
         // already cancelled by applyModelChange/disposeEditor, so this is a
         // no-op there.
-        await this.contentSenders.get(scriptId)?.flush();
-        this.dropSender(scriptId);
+        await this.contentStream.flush(scriptId);
+        this.contentStream.stop(scriptId);
 
         const pendingAck = this.pendingCloseAcks.get(scriptId);
         if (pendingAck) {
@@ -544,8 +467,8 @@ export class BridgeScriptEditor implements ScriptEditorPort, ScriptTabEvents {
                 // own errors so this never rejects; if the webview is already
                 // unreachable the keystroke is lost — accepted trade-off, there
                 // is no host-side XML fallback on this platform.
-                void this.contentSenders.get(scriptId)?.flush();
-                this.dropSender(scriptId);
+                void this.contentStream.flush(scriptId);
+                this.contentStream.stop(scriptId);
                 this.requestClose(scriptId, () => {
                     remaining -= 1;
                     if (remaining === 0) {
@@ -553,30 +476,6 @@ export class BridgeScriptEditor implements ScriptEditorPort, ScriptTabEvents {
                     }
                 });
             }
-        }
-    }
-
-    /**
-     * Posts the language pick back to the webview so it persists to the model
-     * (via the bpmn-js command stack) and subsequent opens skip the prompt.
-     */
-    private async sendFormatUpdate(
-        editorId: string,
-        script: InlineScript,
-        scriptFormat: string,
-    ): Promise<void> {
-        try {
-            await this.store.postMessage(
-                editorId,
-                new UpdateScriptFormatQuery(
-                    script.elementId,
-                    script.kind,
-                    script.listenerIndex,
-                    scriptFormat,
-                ),
-            );
-        } catch (error) {
-            this.notifier.logError(error as Error);
         }
     }
 }

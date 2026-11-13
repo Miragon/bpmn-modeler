@@ -6,6 +6,7 @@ import {
     BpmnEditorContributions,
     ScriptEditorFeature,
     ScriptFileStore,
+    ScriptTargetResolver,
     ScriptVariableStore,
     ScriptXmlService,
 } from "@miragon/bpmn-modeler-core";
@@ -44,7 +45,7 @@ export function register(
         scriptFiles,
         deps.vsSettings,
         deps.notifier,
-        deps.picker,
+        new ScriptTargetResolver(deps.editorStore, deps.picker, deps.notifier),
         new ScriptXmlService(),
     );
     scriptTaskSvc.register(context);

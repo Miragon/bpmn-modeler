@@ -4,8 +4,10 @@ import {
     ArtifactService,
     InlineScript,
     OpenScriptTabs,
+    SCRIPT_STREAM_DEBOUNCE_MS,
     ScriptFileStore,
     scriptLanguagePrompt,
+    ScriptTargetResolver,
     ScriptUri,
     ScriptVariableStore,
 } from "@miragon/bpmn-modeler-core";
@@ -57,7 +59,7 @@ function createEditor() {
 
     const editor = new BridgeScriptEditor(
         host.store,
-        host.picker,
+        new ScriptTargetResolver(host.store, host.picker, host.notifier),
         rpc as never,
         host.notifier,
         host.settings,
@@ -116,7 +118,7 @@ describe("BridgeScriptEditor keystroke debounce", () => {
         // Nothing posts before the window elapses.
         expect(contentPosts(modelerEditor)).toHaveLength(0);
 
-        await vi.advanceTimersByTimeAsync(300);
+        await vi.advanceTimersByTimeAsync(SCRIPT_STREAM_DEBOUNCE_MS);
 
         expect(contentPosts(modelerEditor)).toEqual([
             new UpdateScriptContentQuery(ELEMENT_ID, "script-task", undefined, "abc"),
@@ -136,7 +138,7 @@ describe("BridgeScriptEditor keystroke debounce", () => {
         const { editor, modelerEditor } = createEditor();
 
         editor.didChange("nope", "x");
-        await vi.advanceTimersByTimeAsync(300);
+        await vi.advanceTimersByTimeAsync(SCRIPT_STREAM_DEBOUNCE_MS);
 
         expect(modelerEditor.posted).toEqual([]);
     });
@@ -165,7 +167,7 @@ describe("BridgeScriptEditor keystroke debounce", () => {
             EDITOR_ID,
             new UpdateScriptSourceCommand(ELEMENT_ID, "script-task", undefined, "undone"),
         );
-        await vi.advanceTimersByTimeAsync(300);
+        await vi.advanceTimersByTimeAsync(SCRIPT_STREAM_DEBOUNCE_MS);
 
         // The stale keystroke never streamed back (it would clobber the undo).
         expect(contentPosts(modelerEditor)).toHaveLength(0);
@@ -184,7 +186,7 @@ describe("BridgeScriptEditor keystroke debounce", () => {
             // `content` omitted: the element is gone.
             new UpdateScriptSourceCommand(ELEMENT_ID, "script-task", undefined, undefined),
         );
-        await vi.advanceTimersByTimeAsync(300);
+        await vi.advanceTimersByTimeAsync(SCRIPT_STREAM_DEBOUNCE_MS);
 
         expect(contentPosts(modelerEditor)).toHaveLength(0);
         expect(rpc.notify).toHaveBeenCalledWith(METHODS.scriptClose, { scriptId: SCRIPT_ID });
@@ -232,7 +234,7 @@ describe("BridgeScriptEditor materialise + adopt-on-open", () => {
 
         const editor = new BridgeScriptEditor(
             host.store,
-            host.picker,
+            new ScriptTargetResolver(host.store, host.picker, host.notifier),
             rpc as never,
             host.notifier,
             host.settings,
@@ -494,7 +496,7 @@ describe("BridgeScriptEditor base directory", () => {
         const rpc = { notify: vi.fn(), request: vi.fn(), on: vi.fn() };
         const editor = new BridgeScriptEditor(
             host.store,
-            host.picker,
+            new ScriptTargetResolver(host.store, host.picker, host.notifier),
             rpc as never,
             host.notifier,
             host.settings,
@@ -556,7 +558,7 @@ describe("BridgeScriptEditor keeps the UNC root of script files in a workspace o
         const rpc = { notify: vi.fn(), request: vi.fn(), on: vi.fn() };
         const editor = new BridgeScriptEditor(
             host.store,
-            host.picker,
+            new ScriptTargetResolver(host.store, host.picker, host.notifier),
             rpc as never,
             host.notifier,
             host.settings,

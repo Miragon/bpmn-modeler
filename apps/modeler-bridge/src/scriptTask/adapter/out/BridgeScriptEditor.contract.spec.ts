@@ -91,12 +91,12 @@ function didClose(scriptId: string): Frame {
 
 describeScriptEditorContract(
     "BridgeScriptEditor over RPC to IntelliJ's tabs",
-    async ({ store, picker, notifier, settings, scriptFiles, variables }) => {
+    async ({ store, targets, notifier, settings, scriptFiles, variables }) => {
         const intellij = new IntelliJScriptTabs((frame) => rpc.handleLine(JSON.stringify(frame)));
         const rpc = new Rpc((line) => intellij.receive(JSON.parse(line) as Frame));
         const editor = new BridgeScriptEditor(
             store,
-            picker,
+            targets,
             rpc,
             notifier,
             settings,

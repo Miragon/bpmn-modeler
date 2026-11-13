@@ -15,12 +15,8 @@ import {
     WorkspaceEdit,
 } from "vscode";
 
-import {
-    UpdateOpenScriptEditorsQuery,
-    UpdateScriptContentQuery,
-    UpdateScriptFormatQuery,
-} from "@miragon/bpmn-modeler-shared";
-import { AsyncDebounced, asyncDebounce, ScriptKind } from "@miragon/bpmn-modeler-types";
+import { UpdateOpenScriptEditorsQuery, UpdateScriptContentQuery } from "@miragon/bpmn-modeler-shared";
+import { ScriptKind } from "@miragon/bpmn-modeler-types";
 
 import {
     EditorSessionStore,
@@ -31,18 +27,18 @@ import {
     OpenScriptTab,
     OpenScriptTabs,
     SCRIPT_JSCONFIG,
+    ScriptContentStream,
     ScriptContentUpdate,
     ScriptEditorPort,
     ScriptFileStore,
     ScriptLanguage,
-    scriptLanguagePrompt,
     ScriptMaterialization,
     ScriptSourceChange,
-    ScriptUri,
+    ScriptTargetResolver,
     ScriptXmlService,
     SettingsPort,
 } from "@miragon/bpmn-modeler-core";
-import { NotifierPort, PickerPort } from "@miragon/bpmn-modeler-core";
+import { NotifierPort } from "@miragon/bpmn-modeler-core";
 import { canonicalPath } from "../../../shared/domain/canonicalPath";
 import { toUri } from "../../../shared/adapter/out/uriPath";
 
@@ -108,9 +104,6 @@ export class ScriptTaskService implements ScriptEditorPort {
      */
     private readonly pendingResync = new Set<string>();
 
-    /** How long keystrokes coalesce before one streams into the webview model. */
-    private static readonly STREAM_DEBOUNCE_MS = 300;
-
     /**
      * Reveal options for script tabs. `preview: false` pins the tab so a batch
      * open doesn't self-replace — a preview tab is reused by the next open,
@@ -123,17 +116,8 @@ export class ScriptTaskService implements ScriptEditorPort {
         preview: false,
     } as const;
 
-    /**
-     * One debounced content sender per open script `uri.path`. Each keystroke
-     * re-arms the trailing edge, so a burst of typing produces a single
-     * `UpdateScriptContentQuery` (with a full diagram XML export behind it)
-     * instead of one per character. The sender body owns the hidden-webview
-     * catch and error logging, so it never rejects.
-     */
-    private readonly contentSenders = new Map<
-        string,
-        AsyncDebounced<(content: string) => Promise<void>>
-    >();
+    /** Keyed by `uri.path`; an edit a hidden webview missed marks its editor for {@link resync}. */
+    private readonly contentStream: ScriptContentStream;
 
     /**
      * Editor IDs whose diagram was discarded via "Don't Save" (or, indistinctly,
@@ -152,9 +136,13 @@ export class ScriptTaskService implements ScriptEditorPort {
         private readonly scriptFiles: ScriptFileStore,
         private readonly settings: SettingsPort,
         private readonly notifier: NotifierPort,
-        private readonly picker: PickerPort,
+        private readonly targets: ScriptTargetResolver,
         private readonly scriptXml: ScriptXmlService,
-    ) {}
+    ) {
+        this.contentStream = new ScriptContentStream(editorStore, notifier, (editorId) =>
+            this.pendingResync.add(editorId),
+        );
+    }
 
     /**
      * Registers the workspace listeners that drive the script lifecycle:
@@ -196,18 +184,9 @@ export class ScriptTaskService implements ScriptEditorPort {
      * (undefined for `script-task`); `eventName` is the listener's `event`
      * attribute, used for the editor tab title.
      */
-    async open(
-        editorId: string,
-        { elementId, kind, listenerIndex, eventName, scriptFormat, content }: InlineScript,
-    ): Promise<void> {
-        const target = await this.resolveScriptTarget(
-            editorId,
-            elementId,
-            kind,
-            listenerIndex,
-            eventName,
-            scriptFormat,
-        );
+    async open(editorId: string, script: InlineScript): Promise<void> {
+        const { elementId, kind, listenerIndex, content } = script;
+        const target = await this.resolveScriptTarget(editorId, script);
         if (!target) {
             return; // language picker cancelled
         }
@@ -255,18 +234,8 @@ export class ScriptTaskService implements ScriptEditorPort {
      * that tab's buffer is the authoritative copy, so overwriting it from the
      * model would clobber unsaved edits.
      */
-    async materialize(
-        editorId: string,
-        { elementId, kind, listenerIndex, eventName, scriptFormat, content }: InlineScript,
-    ): Promise<ScriptMaterialization> {
-        const target = await this.resolveScriptTarget(
-            editorId,
-            elementId,
-            kind,
-            listenerIndex,
-            eventName,
-            scriptFormat,
-        );
+    async materialize(editorId: string, script: InlineScript): Promise<ScriptMaterialization> {
+        const target = await this.resolveScriptTarget(editorId, script);
         if (!target) {
             return { kind: "cancelled" };
         }
@@ -276,46 +245,25 @@ export class ScriptTaskService implements ScriptEditorPort {
             return plan;
         }
 
-        await this.writeScriptToDisk(target.scriptUri, content, target.lang, kind);
+        await this.writeScriptToDisk(target.scriptUri, script.content, target.lang, script.kind);
         return { kind: "written" };
     }
 
     /**
-     * Resolves the on-disk target for a script: prompts for a language when the
-     * model's `scriptFormat` is missing or unsupported (persisting the pick so
-     * the next open skips the prompt), builds the {@link ScriptUri}, and takes
-     * its file path from the store, prepared for the write. `undefined` when the
-     * picker is cancelled.
+     * The core's target for a script, with its file path taken from the store
+     * and prepared for the write. `undefined` when the language prompt is
+     * dismissed.
      */
     private async resolveScriptTarget(
         editorId: string,
-        elementId: string,
-        kind: ScriptKind,
-        listenerIndex: number | undefined,
-        eventName: string | undefined,
-        scriptFormat: string,
+        script: InlineScript,
     ): Promise<{ scriptUri: Uri; lang: ScriptLanguage } | undefined> {
-        let effectiveFormat = scriptFormat;
-        if (!ScriptLanguage.isSupported(scriptFormat)) {
-            const picked = await this.picker.choose(scriptLanguagePrompt(scriptFormat));
-            if (!picked) {
-                return undefined;
-            }
-            effectiveFormat = picked;
-            await this.sendFormatUpdate(editorId, elementId, kind, listenerIndex, picked);
+        const target = await this.targets.resolve(editorId, script);
+        if (!target) {
+            return undefined;
         }
-
-        const lang = new ScriptLanguage(effectiveFormat);
-        const script = new ScriptUri(
-            editorId,
-            elementId,
-            kind,
-            listenerIndex,
-            eventName,
-            lang.extension,
-        );
-        const filePath = await this.scriptFiles.prepareScriptFile(editorId, script);
-        return { scriptUri: toUri(filePath), lang };
+        const filePath = await this.scriptFiles.prepareScriptFile(editorId, target.uri);
+        return { scriptUri: toUri(filePath), lang: target.language };
     }
 
     /**
@@ -502,7 +450,7 @@ export class ScriptTaskService implements ScriptEditorPort {
             // first so the tab-close event is a no-op, then save-before-close to
             // suppress the dirty prompt (the bytes are already gone from the
             // model; the file is deleted right after).
-            this.dropSender(entry.uri.path);
+            this.contentStream.stop(entry.uri.path);
             this.openDocuments.untrack(entry.uri.path);
             this.broadcastOpenScripts(editorId);
             await this.saveIfDirty(entry.uri);
@@ -514,7 +462,7 @@ export class ScriptTaskService implements ScriptEditorPort {
         // Canvas undo/redo (or a document reload) overwrites the buffer; cancel
         // any pending keystroke so it can't fire afterwards and clobber the
         // model-side content the user actually asked for.
-        this.contentSenders.get(entry.uri.path)?.cancel();
+        this.contentStream.cancel(entry.uri.path);
 
         const doc = this.findOpenTextDocument(entry.uri);
         if (!doc) {
@@ -586,7 +534,7 @@ export class ScriptTaskService implements ScriptEditorPort {
                 // The replay just carried the live buffer, so any keystroke
                 // still pending in this path's sender is redundant — cancel it
                 // to avoid a duplicate post landing right after.
-                this.contentSenders.get(entry.uri.path)?.cancel();
+                this.contentStream.cancel(entry.uri.path);
                 /**
                  * The user may have closed the script tab while the BPMN
                  * webview was hidden — `cleanupClosedScript` deferred the
@@ -627,7 +575,7 @@ export class ScriptTaskService implements ScriptEditorPort {
             // The handle is already gone (dispose ordering), so a pending
             // keystroke can never reach the webview. Cancel it — never flush;
             // any divergence is covered by the compare-and-write below.
-            this.dropSender(path);
+            this.contentStream.stop(path);
         }
 
         this.pendingResync.delete(editorId);
@@ -850,7 +798,7 @@ export class ScriptTaskService implements ScriptEditorPort {
         // hidden webview arms `pendingResync` *asynchronously*, so the
         // pendingResync re-check below MUST run after the await — a pre-await
         // check would race past it and drop the still-unreplayed buffer.
-        await this.contentSenders.get(uri.path)?.flush();
+        await this.contentStream.flush(uri.path);
 
         /**
          * Real close, but the BPMN webview was hidden when the user typed
@@ -878,7 +826,7 @@ export class ScriptTaskService implements ScriptEditorPort {
         // Capture the owning editor before removing so the lock broadcast below
         // reflects the removal — the entry is gone by the time we post.
         const editorId = this.openDocuments.untrack(uri.path)?.editorId;
-        this.dropSender(uri.path);
+        this.contentStream.stop(uri.path);
 
         if (editorId !== undefined) {
             this.broadcastOpenScripts(editorId);
@@ -917,10 +865,7 @@ export class ScriptTaskService implements ScriptEditorPort {
         // model through the same path as keystrokes.
         const updatedContent = event.document.getText();
 
-        // Fire-and-forget through the per-path debounced sender: it self-handles
-        // the hidden-webview and error cases (never rejecting), and awaiting the
-        // debounced promise here would deadlock the fake-timer tests.
-        void this.getSender(entry)(updatedContent);
+        this.contentStream.push(uri.path, entry, updatedContent);
     }
 
     /**
@@ -939,71 +884,6 @@ export class ScriptTaskService implements ScriptEditorPort {
             this.revertedEditors.delete(editorId);
         } else {
             this.revertedEditors.add(editorId);
-        }
-    }
-
-    /**
-     * Lazily creates (and caches) the debounced content sender for a script's
-     * path. The closure captures the open-document entry — stable for the tab's
-     * lifetime — and streams the latest buffer into the webview model, owning
-     * the hidden-webview catch so the debounced body never rejects.
-     */
-    private getSender(entry: OpenDocument): AsyncDebounced<(content: string) => Promise<void>> {
-        let sender = this.contentSenders.get(entry.uri.path);
-        if (!sender) {
-            sender = asyncDebounce(async (content: string) => {
-                try {
-                    const outcome = await this.editorStore.postUnlessHidden(
-                        entry.editorId,
-                        new UpdateScriptContentQuery(
-                            entry.elementId,
-                            entry.kind,
-                            entry.listenerIndex,
-                            content,
-                        ),
-                    );
-                    /**
-                     * The user may still be typing in the script while the
-                     * webview's tab isn't visible, so mark the editor and replay
-                     * all open documents on the next reload via `resyncOpenDocuments`.
-                     */
-                    if (outcome === "hidden") {
-                        this.pendingResync.add(entry.editorId);
-                    }
-                } catch (error) {
-                    this.notifier.logError(error as Error);
-                }
-            }, ScriptTaskService.STREAM_DEBOUNCE_MS);
-            this.contentSenders.set(entry.uri.path, sender);
-        }
-        return sender;
-    }
-
-    /** Cancels any pending keystroke for `path` and forgets its sender. */
-    private dropSender(path: string): void {
-        this.contentSenders.get(path)?.cancel();
-        this.contentSenders.delete(path);
-    }
-
-    /**
-     * Posts a script-format choice back to the BPMN modeler webview so the
-     * pick (e.g. via Quick-Pick) is persisted to the model and subsequent
-     * opens skip the prompt.
-     */
-    private async sendFormatUpdate(
-        editorId: string,
-        elementId: string,
-        kind: ScriptKind,
-        listenerIndex: number | undefined,
-        scriptFormat: string,
-    ): Promise<void> {
-        try {
-            await this.editorStore.postMessage(
-                editorId,
-                new UpdateScriptFormatQuery(elementId, kind, listenerIndex, scriptFormat),
-            );
-        } catch (error) {
-            this.notifier.logError(error as Error);
         }
     }
 }

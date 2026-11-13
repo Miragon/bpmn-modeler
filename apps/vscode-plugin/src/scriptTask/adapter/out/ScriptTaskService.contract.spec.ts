@@ -23,14 +23,14 @@ class DiagramHoldingEveryScript extends ScriptXmlService {
 
 describeScriptEditorContract(
     "ScriptTaskService",
-    async ({ store, scriptFiles, settings, notifier, picker }) => {
+    async ({ store, scriptFiles, settings, notifier, targets }) => {
         resetVscodeEditorTabs((path) => scriptFiles.readFile(path));
         const service = new ScriptTaskService(
             store,
             scriptFiles,
             settings,
             notifier,
-            picker,
+            targets,
             new DiagramHoldingEveryScript(),
         );
         service.register({ subscriptions: [] } as unknown as ExtensionContext);
