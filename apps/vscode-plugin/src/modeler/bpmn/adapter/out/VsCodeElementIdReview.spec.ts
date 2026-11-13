@@ -148,9 +148,14 @@ beforeEach(() => {
 });
 
 describe("VsCodeElementIdReview", () => {
-    it("is offered where VS Code has checkbox trees, from 1.80 on", () => {
-        expect(VsCodeElementIdReview.isSupported({ TreeItemCheckboxState: {} })).toBe(true);
-        expect(VsCodeElementIdReview.isSupported({})).toBe(false);
+    it.each([
+        ["1.80.0", true],
+        ["1.146.0", true],
+        ["2.0.0", true],
+        ["1.79.2", false],
+        ["1.76.0", false],
+    ])("is offered from VS Code 1.80, where checkbox trees are final: %s", (version, offered) => {
+        expect(VsCodeElementIdReview.isSupported(version)).toBe(offered);
     });
 
     it("draws its tree in the review's panel view, empty until a review opens", () => {
