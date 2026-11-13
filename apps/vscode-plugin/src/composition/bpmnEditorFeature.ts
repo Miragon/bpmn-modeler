@@ -17,7 +17,10 @@ import {
     FocusLintElementController,
     FOCUS_LINT_ELEMENT_CMD,
 } from "../modeler/bpmn/adapter/in/FocusLintElementController";
-import { ElementIdReviewController } from "../modeler/bpmn/adapter/in/ElementIdReviewController";
+import {
+    ElementIdReviewController,
+    REVEAL_ELEMENT_ID_ROW_CMD,
+} from "../modeler/bpmn/adapter/in/ElementIdReviewController";
 import { PropertiesPanelStateRepository } from "../modeler/bpmn/adapter/out/PropertiesPanelStateRepository";
 import { VsCodeElementIdReview } from "../modeler/bpmn/adapter/out/VsCodeElementIdReview";
 import { NodeContentHasher } from "../modeler/bpmn/adapter/out/NodeContentHasher";
@@ -81,7 +84,7 @@ export function register(
     // Before any editor resolves, so the first request already finds the rows it rewrites.
     void deps.contentRows.run();
     const elementIdReview = VsCodeElementIdReview.isSupported()
-        ? new VsCodeElementIdReview()
+        ? new VsCodeElementIdReview(REVEAL_ELEMENT_ID_ROW_CMD)
         : undefined;
     const editor = new BpmnEditorFeature(
         {

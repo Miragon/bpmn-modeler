@@ -49,11 +49,9 @@ import { FOCUS_LINT_ELEMENT_CMD } from "./modeler/bpmn/adapter/in/FocusLintEleme
 import {
     APPLY_ELEMENT_IDS_CMD,
     DISCARD_ELEMENT_IDS_CMD,
-} from "./modeler/bpmn/adapter/in/ElementIdReviewController";
-import {
-    ELEMENT_ID_REVIEW_VIEW,
     REVEAL_ELEMENT_ID_ROW_CMD,
-} from "./modeler/bpmn/adapter/out/VsCodeElementIdReview";
+} from "./modeler/bpmn/adapter/in/ElementIdReviewController";
+import { ELEMENT_ID_REVIEW_VIEW } from "./modeler/bpmn/adapter/out/VsCodeElementIdReview";
 import {
     NEW_ELEMENT_TEMPLATE_CMD,
     OPEN_ELEMENT_TEMPLATE_EDITOR_CMD,
