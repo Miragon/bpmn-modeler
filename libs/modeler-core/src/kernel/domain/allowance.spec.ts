@@ -86,7 +86,8 @@ describe("allowanceOf", () => {
             },
         },
         {
-            behaviour: "places a folder below a node_modules that names no package by its whole path",
+            behaviour:
+                "places a folder below a node_modules that names no package by its whole path",
             kind: "rulePackage",
             folder: "/work/repo/node_modules/.store/bpmnlint-plugin-acme-npm-1.2.0-0a1b/package",
             origin: MAIN,
