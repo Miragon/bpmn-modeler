@@ -6,7 +6,7 @@ import {
 import { EditorSessionStore } from "../../editorSession/service/EditorSessionStore";
 import { LoggerPort } from "../../kernel/port/hostPorts";
 import { InlineScript, ScriptSourceChange } from "../domain/inlineScript";
-import { OpenScriptTabs } from "../domain/OpenScriptTabs";
+import { OpenScriptTab, OpenScriptTabs } from "../domain/OpenScriptTabs";
 import { ScriptMaterialization } from "../domain/scriptBatchSummary";
 import { matchScriptFile } from "../domain/scriptFileMatching";
 import { ScriptEditorPort, ScriptTabListener, ScriptTabTarget } from "../port/ScriptEditorPort";
@@ -26,7 +26,7 @@ export interface ScriptTabServiceOptions {
  * edits a hidden webview missed, replayed on its reload. The host only writes
  * files and shows tabs, behind {@link ScriptEditorPort}.
  */
-export class ScriptTabService implements ScriptTabListener {
+export class ScriptTabService {
     private readonly tabs = new OpenScriptTabs();
     private readonly contentStream: ScriptContentStream;
 
@@ -44,7 +44,7 @@ export class ScriptTabService implements ScriptTabListener {
         this.contentStream = new ScriptContentStream(store, logger, (editorId) =>
             this.missedEdits.add(editorId),
         );
-        scriptEditor.listen(this);
+        scriptEditor.listen(this.tabEvents());
     }
 
     /** Opens the script's tab, or reveals the open one; asks for a language the model lacks. */
@@ -131,14 +131,22 @@ export class ScriptTabService implements ScriptTabListener {
         return this.tabs.get(tabPath)?.editorId;
     }
 
-    didChange(tabPath: string, content: string): void {
+    private tabEvents(): ScriptTabListener {
+        return {
+            didChange: (tabPath, content) => this.streamEdit(tabPath, content),
+            didClose: (tabPath) => this.releaseClosedTab(tabPath),
+            didOpenFile: (filePath) => this.adoptFile(filePath),
+        };
+    }
+
+    private streamEdit(tabPath: string, content: string): void {
         const tab = this.tabs.get(tabPath);
         if (tab) {
             this.contentStream.push(tabPath, tab, content);
         }
     }
 
-    async didClose(tabPath: string): Promise<void> {
+    private async releaseClosedTab(tabPath: string): Promise<void> {
         const tab = this.tabs.get(tabPath);
         if (!tab) {
             return;
@@ -156,7 +164,7 @@ export class ScriptTabService implements ScriptTabListener {
      * syncing; no content moves until the first edit, which streams the whole
      * tab.
      */
-    async didOpenFile(filePath: string): Promise<void> {
+    private async adoptFile(filePath: string): Promise<void> {
         // A host that tracks a tab under its file's path also reports the tabs
         // it opens itself; checked before any await, as the tab may close meanwhile.
         if (this.tabs.isOpen(filePath)) {
@@ -204,35 +212,37 @@ export class ScriptTabService implements ScriptTabListener {
             if (this.tabs.get(tabPath) !== tab) {
                 continue;
             }
-            const content = await this.scriptEditor.readTabContent(tabPath);
-            if (content === undefined) {
-                continue;
-            }
-            try {
-                const outcome = await this.store.postUnlessHidden(
-                    editorId,
-                    new UpdateScriptContentQuery(
-                        tab.elementId,
-                        tab.kind,
-                        tab.listenerIndex,
-                        content,
-                    ),
-                );
-                if (outcome === "hidden") {
-                    this.missedEdits.add(editorId);
-                    continue;
-                }
-                // The replay carried the whole tab, so its waiting edit would only repeat it.
-                this.contentStream.cancel(tabPath);
-                if (!this.scriptEditor.isTabShown(tabPath)) {
-                    closedMeanwhile.push(tabPath);
-                }
-            } catch (error) {
-                this.logger.logError(error as Error);
+            if ((await this.replay(tabPath, tab)) && !this.scriptEditor.isTabShown(tabPath)) {
+                closedMeanwhile.push(tabPath);
             }
         }
         for (const tabPath of closedMeanwhile) {
             this.release(tabPath);
+        }
+    }
+
+    /** Whether the webview took what the tab holds now. */
+    private async replay(tabPath: string, tab: OpenScriptTab): Promise<boolean> {
+        const content = await this.scriptEditor.readTabContent(tabPath);
+        if (content === undefined) {
+            return false;
+        }
+        const { editorId, elementId, kind, listenerIndex } = tab;
+        try {
+            const outcome = await this.store.postUnlessHidden(
+                editorId,
+                new UpdateScriptContentQuery(elementId, kind, listenerIndex, content),
+            );
+            if (outcome === "hidden") {
+                this.missedEdits.add(editorId);
+                return false;
+            }
+            // The replay carried the whole tab, so its waiting edit would only repeat it.
+            this.contentStream.cancel(tabPath);
+            return true;
+        } catch (error) {
+            this.logger.logError(error as Error);
+            return false;
         }
     }
 
