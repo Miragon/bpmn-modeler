@@ -20,9 +20,13 @@ and guarded.
 - `libs/bpmn-i18n-extras/tools/harvest-drain.js` — the browser-side driver that exercises the editor
   (palette, context pad, replace/append/create menus, linting) and walks the properties panel across a
   broad set of C7 elements and implementation configs.
-- `libs/bpmn-i18n-extras/tools/build-overlay.mjs` — prunes the overlay against `harvested.json` + the
-  shared library. Keeps a key only when the shared library lacks it **and** the harvest recorded it, plus a
-  small `SOURCE_ONLY` allowlist for strings the harvest driver structurally can't reach (script-lock).
+- `libs/bpmn-i18n-extras/tools/build-overlay.mjs` — prunes every registered overlay dictionary against the
+  harvests + the shared library. Keeps a key only when the shared library lacks it **and** a harvest
+  recorded it, plus a small `SOURCE_ONLY` allowlist for strings the harvest driver structurally can't reach
+  (script-lock).
+- `libs/bpmn-i18n-extras/src/normalizeKey.ts`, `src/harvestedKeys.ts` and `src/sourceOnlyKeys.ts` — the
+  one home of the key normalization, the harvest file list and `SOURCE_ONLY`. The builder and the guard
+  specs import them; change a rule there, never in a copy.
 - `libs/bpmn-i18n-extras/tools/README.md` — the authoritative, up-to-date version of this workflow. Prefer
   it if it disagrees with this file.
 
@@ -55,8 +59,9 @@ The recorder seam lives in `libs/shared/src/lib/harvestRecorder.ts`, wired only 
 Some strings the webview genuinely emits come from a feature the harvest driver does not exercise (today
 the script-lock badges: `Read-only`, `Being edited in`, `Element actions`). These cannot appear in
 `harvested.json`, so `overlayNeeded` would wrongly flag them as dead. They are allowlisted in `SOURCE_ONLY`
-in `src/sourceOnlyKeys.ts`, which both `tools/build-overlay.mjs` and `src/overlayNeeded.spec.ts` import. If
-you add a genuinely needed modeler-internal string the harvest can't reach, add it there.
+in `src/sourceOnlyKeys.ts`, the one set that both `tools/build-overlay.mjs` and `src/overlayNeeded.spec.ts`
+import. If you add a genuinely needed modeler-internal string the harvest can't reach, add it there and
+nowhere else.
 
 ## The overlay is temporary debt
 

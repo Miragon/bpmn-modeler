@@ -22,15 +22,7 @@ import { describe, expect, it } from "vitest";
 import { dictionaries } from "@miragon/bpmn-modeler-i18n";
 
 import { extras } from "./languages";
-
-// Mirrors tools/build-overlay.mjs and the plugin repo's drift tooling.
-const norm = (value: string): string =>
-    value
-        .toLowerCase()
-        .replace(/\bthe\b/g, " ")
-        .replace(/\s+/g, " ")
-        .trim()
-        .replace(/[.\s]+$/, "");
+import { normalizeKey } from "./normalizeKey";
 
 describe("i18n extras stay minimal against the shared library", () => {
     const overlayKeys = Object.keys(extras.en ?? {});
@@ -46,9 +38,11 @@ describe("i18n extras stay minimal against the shared library", () => {
     });
 
     it("defines no legacy variant of a shared key (normalized)", () => {
-        const sharedByNorm = new Map(Object.keys(dictionaries.en).map((key) => [norm(key), key]));
+        const sharedByNorm = new Map(
+            Object.keys(dictionaries.en).map((key) => [normalizeKey(key), key]),
+        );
         const superseded = overlayKeys
-            .map((key) => ({ key, modern: sharedByNorm.get(norm(key)) }))
+            .map((key) => ({ key, modern: sharedByNorm.get(normalizeKey(key)) }))
             .filter(({ key, modern }) => modern !== undefined && modern !== key);
 
         expect(

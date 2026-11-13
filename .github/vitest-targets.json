@@ -276,6 +276,7 @@
                 "tools/architecture-testing/**",
                 ".agents/skills/**",
                 "{apps,libs,packages,tools}/*/src/**",
+                "libs/bpmn-i18n-extras/tools/harvested*.json",
                 "{apps,libs,packages,tools}/*/package.json",
                 "docs/package.json",
                 "{apps,libs,packages,tools}/*/tsconfig*.json",

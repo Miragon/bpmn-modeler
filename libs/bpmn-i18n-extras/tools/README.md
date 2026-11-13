@@ -12,7 +12,11 @@ and prune the overlay against it.
 | `harvest-drain-dmn.js` | Browser driver for every dmn-js view: DRD, decision table, literal and boxed expressions. |
 | `harvest-drain-template-editor.js` | Browser driver for the element template editor page; its header lists the page states to run it on. |
 | `harvested.json`, `harvested-dmn.json`, `harvested-template-editor.json` | The recorded keys of each driver. |
-| `build-overlay.mjs` | Prunes every offered locale against the union of the harvests and the shared library. Keeps a key only when the shared library lacks it and a harvest recorded it, plus the `SOURCE_ONLY` allowlist for strings no driver can reach. |
+| `build-overlay.mjs` | Prunes every registered overlay dictionary against the union of the harvests and the shared library. Keeps a key only when the shared library lacks it and a harvest recorded it, plus the `SOURCE_ONLY` allowlist for strings no driver can reach. |
+
+The builder and the guard specs share one copy of each rule in `src/`: the key normalization in
+`normalizeKey.ts`, the list of harvest files and their union in `harvestedKeys.ts`, and `SOURCE_ONLY` in
+`sourceOnlyKeys.ts`. A new harvest file goes into `harvestedKeys.ts`.
 
 The recorder is `libs/shared/src/lib/harvestRecorder.ts`. The webview entries (`apps/bpmn-webview/src/main.ts`,
 `templateEditorMain.ts`, `apps/dmn-webview/src/main.ts`) wire it only under `import.meta.env.DEV`, so
@@ -41,6 +45,6 @@ production builds leave it out.
    corepack yarn format --loglevel warn
    ```
 
-What is left today is the floor: the script-lock and mode-strip labels in `SOURCE_ONLY` and the dmn-js
-type names `integer` and `double`. Once the shared library covers them, `overlayScope.spec.ts` flags them
-and the overlay is empty.
+What is left are the `SOURCE_ONLY` strings and the harvested strings the shared library lacks, most of
+them from the element template editor. Once the shared library covers a key, `overlayScope.spec.ts` flags
+it; the end state is an empty overlay.
