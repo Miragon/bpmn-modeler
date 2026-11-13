@@ -127,6 +127,23 @@ describe("DiffController.shouldResolveAsDiff", () => {
         expect(bpmn.shouldResolveAsDiff(uri("file", "file:///repo/shipping.dmn"))).toBe(false);
     });
 
+    it("opens an unrelated file as an editor while a compare tab is open", () => {
+        const bpmn = createController(".bpmn").controller;
+        const dmn = createController(".dmn").controller;
+        tabs.push({ input: undefined, label: "a.bpmn ↔ b.bpmn" });
+
+        expect(bpmn.shouldResolveAsDiff(uri("file", "file:///repo/c.bpmn"))).toBe(false);
+        expect(dmn.shouldResolveAsDiff(uri("file", "file:///repo/shipping.dmn"))).toBe(false);
+    });
+
+    it("treats a file named on either side of a compare tab label as part of the diff", () => {
+        const { controller } = createController();
+        tabs.push({ input: undefined, label: "a.bpmn ↔ b.bpmn" });
+
+        expect(controller.shouldResolveAsDiff(uri("file", "file:///repo/a.bpmn"))).toBe(true);
+        expect(controller.shouldResolveAsDiff(uri("file", "file:///repo/b.bpmn"))).toBe(true);
+    });
+
     it("ignores tabs that carry an input (regular editors, not diffs)", () => {
         const { controller } = createController();
         const value = "file:///repo/diagram.bpmn";
