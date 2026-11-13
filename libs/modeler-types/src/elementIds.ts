@@ -1,3 +1,13 @@
+/** Whether an event's ID names its event definition, such as `messageStartEvent_orderReceived`. */
+export type EventDefinitionQualifierMode = "off" | "optional" | "required";
+
+/** Every qualifier mode the rule takes. Not `as const`, like `COLOR_THEMES`. */
+export const EVENT_DEFINITION_QUALIFIER_MODES: readonly EventDefinitionQualifierMode[] = [
+    "off",
+    "optional",
+    "required",
+];
+
 /**
  * The options of the bpmnlint rule `@miragon/rules/element-id-naming`, as a
  * `.bpmnlintrc` sets them. IDs generated from names follow this convention, so
@@ -8,7 +18,7 @@ export interface ElementIdConventionOptions {
     readonly prefixes?: Readonly<Record<string, string | false | null>>;
     /** The case of the name after the prefix: `camelCase` (the default), `PascalCase`, `snake_case`, `kebab-case` or `any`. */
     readonly case?: string;
-    readonly eventDefinitionQualifier?: "off" | "optional" | "required";
+    readonly eventDefinitionQualifier?: EventDefinitionQualifierMode;
 }
 
 /** IDs follow names only when the user opts in: renaming an ID can break references in other files. */
@@ -47,6 +57,11 @@ export const ELEMENT_ID_GROUPS: readonly {
  * current ID. `skipped`: the name yields no ID.
  */
 export type ElementIdRowStatus = "rename" | "matches" | "unchecked" | "skipped";
+
+/** Whether a row's ID changes once it is checked; only these rows have a checkbox. */
+export function isChangingStatus(status: ElementIdRowStatus): boolean {
+    return status === "rename" || status === "unchecked";
+}
 
 /** One row of the review, for a host that shows the review in its own panel. */
 export interface ElementIdRow {

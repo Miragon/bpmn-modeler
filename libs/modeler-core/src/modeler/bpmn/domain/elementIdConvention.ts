@@ -1,9 +1,12 @@
-import type { ElementIdConventionOptions } from "@miragon/bpmn-modeler-types";
+import {
+    type ElementIdConventionOptions,
+    EVENT_DEFINITION_QUALIFIER_MODES,
+} from "@miragon/bpmn-modeler-types";
 
 /** The rule's name in a config bpmnlint resolved: the package's short name, then the rule. */
 export const ELEMENT_ID_NAMING_RULE = "@miragon/rules/element-id-naming";
 
-const QUALIFIER_MODES: ReadonlySet<string> = new Set(["off", "optional", "required"]);
+const QUALIFIER_MODES: ReadonlySet<string> = new Set(EVENT_DEFINITION_QUALIFIER_MODES);
 
 type PrefixMap = NonNullable<ElementIdConventionOptions["prefixes"]>;
 

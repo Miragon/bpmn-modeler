@@ -1,4 +1,4 @@
-import { ELEMENT_ID_GROUPS } from "@miragon/bpmn-modeler-types";
+import { ELEMENT_ID_GROUPS, isChangingStatus } from "@miragon/bpmn-modeler-types";
 import type { ComponentChildren } from "preact";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 
@@ -83,7 +83,7 @@ export function ReviewPanel(props: ReviewPanelProps) {
 
     // `revision` is a dependency on purpose: the diagram changed under the same inputs.
     const proposals = useMemo(() => propose(unchecked), [propose, unchecked, revision]);
-    const changing = proposals.filter((p) => p.status === "rename" || p.status === "unchecked");
+    const changing = proposals.filter((p) => isChangingStatus(p.status));
     const renamed = changing.filter((p) => p.status === "rename").length;
     const matches = proposals.filter((p) => p.status === "matches");
     const skipped = proposals.filter((p) => p.status === "skipped");

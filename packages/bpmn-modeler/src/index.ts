@@ -83,6 +83,7 @@ export type {
 export type {
     ElementIdConventionOptions,
     ElementIdKind,
+    EventDefinitionQualifierMode,
     ElementIdProposals,
     ElementIdReviewOutcome,
     ElementIdReviewStatus,

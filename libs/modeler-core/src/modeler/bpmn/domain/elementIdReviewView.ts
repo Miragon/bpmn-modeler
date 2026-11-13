@@ -1,4 +1,8 @@
-import { ELEMENT_ID_GROUPS, type ElementIdRow } from "@miragon/bpmn-modeler-types";
+import {
+    ELEMENT_ID_GROUPS,
+    type ElementIdRow,
+    isChangingStatus,
+} from "@miragon/bpmn-modeler-types";
 
 import { SWITCH_MODE_TO_GENERATE_IDS } from "./elementIdTexts";
 
@@ -38,7 +42,7 @@ export interface ElementIdReviewView {
 const OTHER_FILES_NOTE =
     "IDs used in other files (call activities, tests, workers) are not updated.";
 
-const isChanging = (row: ElementIdRow) => row.status === "rename" || row.status === "unchecked";
+const isChanging = (row: ElementIdRow) => isChangingStatus(row.status);
 
 function changingRow(row: ElementIdRow, unchecked: ReadonlySet<string>): ElementIdReviewRowView {
     const change = `${row.id} becomes ${row.newId ?? ""}`;
