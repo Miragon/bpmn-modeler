@@ -35,7 +35,6 @@ import type { WebviewState } from "../../port/webviewState";
 
 declare const process: { env: { NODE_ENV: string } };
 
-
 /**
  * Returns the channel to the host application embedding this webview. In
  * `development` mode a {@link MockHost} is returned for standalone browser
