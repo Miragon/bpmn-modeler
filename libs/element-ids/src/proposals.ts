@@ -1,3 +1,5 @@
+import type { ElementIdRowStatus } from "@miragon/bpmn-modeler-types";
+
 import type { ModdleElementLike } from "./candidates";
 import type { IdConvention } from "./convention";
 import { counterSeparatorOf, technicalIdFor } from "./technicalId";
@@ -10,15 +12,9 @@ export interface IdCandidate {
     readonly element: ModdleElementLike;
 }
 
-/**
- * `matches`: the ID already follows the name. `unchecked`: the user keeps the
- * current ID. `skipped`: the name yields no ID.
- */
-type IdProposalStatus = "rename" | "matches" | "unchecked" | "skipped";
-
 export interface IdProposal<C extends IdCandidate = IdCandidate> {
     readonly candidate: C;
-    readonly status: IdProposalStatus;
+    readonly status: ElementIdRowStatus;
     /** The ID the element gets, or would get if checked; absent when skipped. */
     readonly newId: string | undefined;
     /** A counter was added because another element claims the plain ID. */
