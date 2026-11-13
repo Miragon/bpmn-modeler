@@ -1500,7 +1500,7 @@ against every adapter, so a rule one adapter breaks fails a spec: every
 implementation has to keep the specification of the type it implements
 (Liskov and Wing, A Behavioral Notion of Subtyping, 1994). The rule it relies
 on is in the `architecture` skill: a port the core reads back from has a
-contract suite in the core's test kit once a second class implements it, and
+contract suite in the core's test kit once a second adapter meets it, and
 every adapter of the port runs it, the in-memory fake included. A port that
 only renders and a strategy the core chooses between are correct without one,
 so a rule over every port would fire on correct code; the function reports and
@@ -1524,6 +1524,30 @@ lives in `tools/repo-checks/src/contractSuites/domain`.
   the bridge's `HostEditorHandle`, which extends `EditorHandle`, and every
   `NotifierPort` adapter is a `LoggerPort` adapter. Host adapters and the
   in-memory kit count alike.
+- **Structural adapters (version 2, #2370).** A class without an
+  `implements` clause is an adapter when a production file of a hexagonal
+  workspace hands it over where the port is expected: an argument, an
+  assignment, a return value, an initializer, a property, an array element or
+  a branch of a conditional, as the type checker's contextual type shows. An
+  interface handed over as the port passes it on to what meets that
+  interface: VS Code's `vsCodeModelerPreferences` is typed by the host's
+  `ModelerPreferences`, which the composition hands to
+  `ModelerLanguageService` as `LanguagePreferencePort`. Outside the core's
+  workspace, a variable or function that names an object literal handed over
+  that way is an adapter too, and a spec covers it by importing it. What a
+  spec hands over counts for nothing, a class reached only as its own type or
+  through a type parameter bounded by the port is not seen, and an interface
+  none of whose members is a function holds data and lists no pair.
+- **Inside the core (#2355).** An implementer inside the core counts like a
+  host's. The add-on inventories meet the add-on source ports, and
+  `PluginInventory` and `RulePackageInventory` both meet `CodeAddOnSource`,
+  the shape of the disagreement the review of #2289 found by hand.
+  `JsonFormTextEdits` stays the only adapter of `FormTextEdits`, set aside;
+  a second implementation lists it. Object literals in the core are not
+  counted: the four the trial found (`TRUSTED_WORKSPACE`,
+  `PANEL_ALWAYS_VISIBLE`, `fingerprintHasher`, `NO_GIT_FILES`) are defaults
+  or kit stubs that drop the port's behaviour by design, so a kit fake
+  written as a literal is missed with them.
 - **Helpers.** A function the kit exports with a parameter that produces the
   port: a factory whose awaited return is the port or an object one of whose
   properties holds it, as `WorkspaceContractFixture.workspace` holds
@@ -1536,7 +1560,7 @@ lives in `tools/repo-checks/src/contractSuites/domain`.
   the VS Code and bridge settings specs call over the shared normalization
   cases, and it would make any kit function that reads a port a suite. A
   helper whose fixture holds several ports counts as a suite of each.
-- **Coverage.** A spec covers a pair when it imports the adapter class as a
+- **Coverage.** A spec covers a pair when it imports the adapter as a
   value and calls a helper of the port. The label argument is free, the call
   need not pass the class, and a type-only import does not count. Coverage is
   decided per spec, not per call: a spec that imports two adapters of a port
@@ -1561,7 +1585,7 @@ lives in `tools/repo-checks/src/contractSuites/domain`.
   suite has nothing to drift from yet: the kit has no fake of it, and a fake
   written inside a spec is no adapter. Its pair is set aside in a collapsed
   group, derived from the adapter count as render-only is from the types, and
-  moves up to the ports without a suite when a second class implements the
+  moves up to the ports without a suite when a second adapter meets the
   port.
 - **Types, not names.** The type checker resolves every implemented
   interface, helper parameter, member and import over one program: the
@@ -1616,6 +1640,16 @@ findings. `corepack yarn fitness` took 6.4 to 6.6 s in nine runs instead of
 measures the base on a checkout; once the push job stores this function in the
 base snapshot, only the working tree is read.
 
+Version 2 at `fe75e584`: 88 to 93 adapters and 17 to 25 findings, none lost:
+the two `CodeAddOnSource` pairs listed without a suite, five pairs set aside
+with one adapter (the four inventories' own ports and `BridgeSettings` as
+`SettingChanges`) and one render-only pair, so `LanguagePreferencePort` has
+two adapters. At the heads of #2289, #2296 and #2341 the findings go from 15
+to 20, 15 to 22 and 17 to 25. Counting every object literal would list 30 on
+main, the 4 core literals as adapters that skip their suite and a kit value
+of `ApprovalReviewRequest`, an interface of data. The read took 2.2 to 3.8 s
+per tree instead of 1.5 to 2.2 s, on a machine loaded by other runs.
+
 Alternatives considered:
 
 - **A gate with an exception list**, every port needing a suite. It fires on
@@ -1635,7 +1669,16 @@ Alternatives considered:
 - **Syntax only, as `findImplementations`.** It resolves the file of an
   implemented interface, but not a helper's parameter type or a member's
   return type through generics, unions and promises, which the factory rule
-  and the render-only derivation need.
+  and the render-only derivation need. For the same reason
+  `convention-coverage`, which reads syntax only, does not take over the
+  structural derivation.
+- **Structural assignability to every port.** Any class whose shape fits a
+  port would count, a `dispose()` holder as an adapter of every port that
+  only disposes; a handover is the composition's own statement.
+- **No implementer inside the core (#2355).** At `fe75e584` it drops 17 of
+  25 findings: the six strategy pairs declared as false reports, but also
+  both `CodeAddOnSource` pairs and every core port with one adapter. The
+  single-implementation case #2355 named is already set aside.
 
 ### Architecture review
 

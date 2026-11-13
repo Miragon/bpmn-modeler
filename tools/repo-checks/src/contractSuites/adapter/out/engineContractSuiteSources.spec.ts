@@ -14,6 +14,7 @@ const KIT = "libs/core/src/testing/index.ts";
 const IN_MEMORY = "libs/core/src/testing/InMemoryFoo.ts";
 const HOST = "apps/host/src/adapter/out/HostFoo.ts";
 const HOST_SPEC = "apps/host/src/adapter/out/HostFoo.spec.ts";
+const HOST_LITERAL = "apps/host/src/adapter/out/literalFoo.ts";
 
 function implementation(className: string, from: string): string {
     return [
@@ -64,6 +65,16 @@ const TREE: Readonly<Record<string, string>> = {
         'describeFoo("in memory", () => new InMemoryFoo());',
     ].join("\n"),
     [HOST]: implementation("HostFoo", CORE),
+    [HOST_LITERAL]: [
+        `import type { Foo } from "${CORE}";`,
+        "",
+        'export const literalFoo: Foo = { read: async () => "literal" };',
+    ].join("\n"),
+    "libs/core/src/kernel/adapter/out/defaultFoo.ts": [
+        'import type { Foo } from "../../port/ports";',
+        "",
+        'export const DEFAULT_FOO: Foo = { read: async () => "default" };',
+    ].join("\n"),
     "apps/host/src/__fixtures__/FixtureFoo.ts": implementation("FixtureFoo", CORE),
     "apps/host/src/types/shims.d.ts": "declare module 'shim';",
     "apps/flat/src/FlatFoo.ts": implementation("FlatFoo", CORE),
@@ -151,14 +162,15 @@ describe("the engine contract suite sources", () => {
         expect(new EngineContractSuiteSources().readLayout(repository.root)).toEqual(layout);
     });
 
-    it("read the core's ports and the tracked classes of hexagonal workspaces that implement them, not a host's port or a flat workspace's class", () => {
+    it("read the core's ports and the tracked classes of hexagonal workspaces and the object literals outside the core that meet them, not a host's port or a flat workspace's class", () => {
         commitFiles(TREE);
         repository.write("apps/host/src/adapter/out/Untracked.ts", implementation("Untracked", CORE));
 
         expect(new EngineContractSuiteSources().read(repository.root, SCOPE)).toEqual({
-            ports: [{ ...FOO, members: [{ name: "read", returnsNothing: false }] }],
+            ports: [{ ...FOO, members: [{ name: "read", returnsNothing: false, callable: true }] }],
             adapters: [
                 { path: HOST, name: "HostFoo", line: 3, ports: [FOO] },
+                { path: HOST_LITERAL, name: "literalFoo", line: 3, ports: [FOO] },
                 { path: IN_MEMORY, name: "InMemoryFoo", line: 3, ports: [FOO] },
             ],
             helpers: [{ ...DESCRIBE_FOO, ports: [FOO] }],

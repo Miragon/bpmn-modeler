@@ -300,6 +300,8 @@ export class HostPreferencesClass implements HostPreferences {
     async read(): Promise<string> { return "host class"; }
     extra(): boolean { return true; }
 }
+export class DefaultFoo { async read(): Promise<string> { return "default"; } }
+export class ConditionalFoo { async read(): Promise<string> { return "conditional"; } }
 export class ExtendsArgumentFoo extends ArgumentFoo {}
 export class NeverHandedOver { async read(): Promise<string> { return "never"; } }
 export class DisposableThing { dispose(): void { return; } }
@@ -333,6 +335,8 @@ import {
     AssignedFoo,
     BothWays,
     BoundFoo,
+    ConditionalFoo,
+    DefaultFoo,
     DisposableThing,
     FieldFoo,
     OptionalFoo,
@@ -360,6 +364,28 @@ export function provide(): Foo {
 
 export class Composer {
     private readonly foo: Foo = new FieldFoo();
+
+    build(): Foo {
+        return { read: async () => "method" };
+    }
+}
+
+export function withDefault(given: Foo = new DefaultFoo()): Foo {
+    return given;
+}
+
+export const chosen: Foo = Math.random() > 0.5 ? new ArgumentFoo() : new ConditionalFoo();
+export const mapped = [1].map((): Foo => ({ read: async () => "callback" }));
+export const { read: destructured }: Foo = { read: async () => "destructured" };
+export const blockArrow = (): Foo => {
+    return new ReturnedFoo();
+};
+export const bare = new Composer;
+let counter = 0;
+counter += 1;
+
+export function nothing(): void {
+    return;
 }
 
 const foo = new ShorthandFoo();
@@ -390,6 +416,7 @@ describeFoo("typed", async () => ({ foo: typedFoo }));
 const SCOPE: ContractSuiteScope = {
     isPortFile: (fileName) => fileName.includes("/port/"),
     isAdapterFile: (fileName) => !fileName.includes(".spec."),
+    isLiteralAdapterFile: (fileName) => !fileName.includes(".spec."),
     isSpecFile: (fileName) => fileName.includes(".spec."),
     helperModule: KIT,
 };
@@ -437,48 +464,51 @@ const BOX = { fileName: PORTS, name: "Box" };
 const MERGED = { fileName: PORTS, name: "Merged" };
 const DESCRIBE_FOO = { fileName: KIT, name: "describeFoo" };
 const RENDERER_MEMBERS = [
-    { name: "show", returnsNothing: true },
-    { name: "hide", returnsNothing: true },
-    { name: "flush", returnsNothing: true },
-    { name: "settle", returnsNothing: true },
-    { name: "reload", returnsNothing: true },
+    { name: "show", returnsNothing: true, callable: true },
+    { name: "hide", returnsNothing: true, callable: true },
+    { name: "flush", returnsNothing: true, callable: true },
+    { name: "settle", returnsNothing: true, callable: true },
+    { name: "reload", returnsNothing: true, callable: true },
 ];
 
 describe("findContractSuites", () => {
-    it("lists each interface of a port file once, with whether each member returns nothing", () => {
+    it("lists each interface of a port file once, with whether each member can be called and returns nothing", () => {
         expect(suites.ports).toEqual([
-            { ...FOO, line: 3, members: [{ name: "read", returnsNothing: false }] },
+            { ...FOO, line: 3, members: [{ name: "read", returnsNothing: false, callable: true }] },
             { ...RENDERER, line: 7, members: RENDERER_MEMBERS },
             {
                 fileName: PORTS,
                 name: "Reader",
                 line: 15,
                 members: [
-                    { name: "id", returnsNothing: false },
-                    { name: "withProgress", returnsNothing: false },
-                    { name: "pick", returnsNothing: false },
+                    { name: "id", returnsNothing: false, callable: false },
+                    { name: "withProgress", returnsNothing: false, callable: true },
+                    { name: "pick", returnsNothing: false, callable: true },
                 ],
             },
             {
                 ...HANDLE,
                 line: 22,
-                members: [{ name: "isActive", returnsNothing: false }, ...RENDERER_MEMBERS],
+                members: [
+                    { name: "isActive", returnsNothing: false, callable: true },
+                    ...RENDERER_MEMBERS,
+                ],
             },
             {
                 fileName: PORTS,
                 name: "Merged",
                 line: 26,
                 members: [
-                    { name: "first", returnsNothing: true },
-                    { name: "second", returnsNothing: false },
+                    { name: "first", returnsNothing: true, callable: true },
+                    { name: "second", returnsNothing: false, callable: true },
                 ],
             },
             {
                 ...BOX,
                 line: 34,
                 members: [
-                    { name: "get", returnsNothing: false },
-                    { name: "odd", returnsNothing: false },
+                    { name: "get", returnsNothing: false, callable: true },
+                    { name: "odd", returnsNothing: false, callable: true },
                 ],
             },
         ]);
@@ -543,31 +573,46 @@ describe("findContractSuites", () => {
             ports,
         });
 
+        // BoundFoo meets a type parameter bounded by the port, which the checker infers as the class itself.
         it("lists a named class a production file hands over where a port is expected, also through a host interface", () => {
             expect(structural.adapters.filter(({ name }) => /^[A-Z]/.test(name))).toEqual([
                 adapter("ArgumentFoo", 5),
                 adapter("AssignedFoo", 6),
                 adapter("ReturnedFoo", 7),
                 adapter("FieldFoo", 8),
-                adapter("BoundFoo", 9),
                 adapter("OptionalFoo", 10),
                 adapter("ShorthandFoo", 11),
                 adapter("ArrayRenderer", 12, [RENDERER]),
                 adapter("BothWays", 18, [FOO, RENDERER]),
                 adapter("HostPreferencesClass", 25),
+                adapter("DefaultFoo", 29),
+                adapter("ConditionalFoo", 30),
             ]);
         });
 
         it("lists an object literal by the variable or function that names it", () => {
             expect(structural.adapters.filter(({ name }) => /^[a-z]/.test(name))).toEqual([
-                adapter("typedFoo", 34),
-                adapter("untypedFoo", 35),
-                adapter("satisfyingFoo", 36),
-                adapter("hostPreferences", 37),
-                adapter("mirrored", 38),
-                adapter("createFoo", 40),
-                adapter("arrowFoo", 43),
+                adapter("typedFoo", 36),
+                adapter("untypedFoo", 37),
+                adapter("satisfyingFoo", 38),
+                adapter("hostPreferences", 39),
+                adapter("mirrored", 40),
+                adapter("createFoo", 42),
+                adapter("arrowFoo", 45),
             ]);
+        });
+
+        it("lists no object literal in a file the scope keeps literals out of, but still follows its handovers", () => {
+            const classesOnly = findContractSuites(programOf(STRUCTURAL_FILES), {
+                ...SCOPE,
+                isLiteralAdapterFile: (fileName) => fileName !== STRUCTURAL,
+            });
+
+            expect(classesOnly.adapters.map(({ name }) => name)).toEqual(
+                structural.adapters
+                    .filter(({ name }) => /^[A-Z]/.test(name))
+                    .map(({ name }) => name),
+            );
         });
 
         it("covers an object literal adapter a spec imports as a value, and ignores what a spec hands over", () => {

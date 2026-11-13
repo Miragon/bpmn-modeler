@@ -189,7 +189,9 @@ Erosion recurs as:
   and how it propagates and logs errors. Check that the port's contract suite
   exercises every parameter the core passes. `contract-suites` proves that a
   suite runs, not what it asserts; when it is unmeasurable, do this for every
-  port the change touches.
+  port the change touches. It sees an adapter without an `implements` clause
+  only where production code hands it over as the port, and skips the core's
+  own object literals; find those with `git grep` on the port's name.
 - **Two derivations of one state**: one function derives a state from a
   narrow input (whether an optional field is set, a boolean) while another
   view of the same state reads the full value (a union, an enum). Walk every

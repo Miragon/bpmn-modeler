@@ -82,8 +82,11 @@ labels, empty texts, screen-reader summaries) has one home,
 from the core's model.
 
 A port the core reads back from has a contract suite in the core's test kit
-once a second class implements it, and every adapter of the port runs it, the
-in-memory fake included. A suite is a function exported from
+once a second adapter meets it, and every adapter of the port runs it, the
+in-memory fake included. An adapter is a class that implements the port or
+that production code hands over where the port is expected, inside the core
+too, or a host's object literal handed over that way. A suite is a function
+exported from
 `@miragon/bpmn-modeler-core/testing` that takes a factory of the adapter, or of
 a fixture that holds it, and runs the rules the core relies on (sorting, path
 spelling, the dismissal value), not one adapter's quirks;
