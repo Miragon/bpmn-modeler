@@ -1723,11 +1723,24 @@ than host-origin vocabulary. Prev and Next are enabled only when there is a step
 by `canStep(steps)`: `DiffNavigator.canStep` and `DiffPaneCoordinator.canStep`
 pass it to the optional `DiffLegendContext.canStep`. A consumer without a
 stepper may omit it; the legend then enables the buttons whenever a count is
-above zero, which overstates a diff of connections that only moved. The legend matches the DMN
-pane's: a `role="toolbar"` labelled "Changes", each count as swatch, label and
-bold `.diff-legend__count`, and an icon-only swap button (⇄) named by its
-`title` and `aria-label`. Its `diff-legend__*` classes and colours are
-unchanged. The public `DiffMarkerClass` keeps its literals, pinned to
+above zero, which overstates a diff of connections that only moved.
+
+Both diffs render one legend: `DiffLegendView` in
+`libs/modeler-types/src/diffLegendView.ts`, styled by `diffLegend.css` beside
+it, which both the BPMN package's `diffView.css` and the DMN webview's
+`diff.css` import, as both modeler packages import `canvasOverlays.css`. It is
+a `role="toolbar"` labelled "Changes", each count as swatch, label and bold
+`.diff-legend__count` (or a status chip for a single change), Prev and Next, an
+icon-only swap button (⇄) named by its `title` and `aria-label`, and the file
+name above on compare-files panes. It takes a translator (`translate` and
+`onChange`, which `i18n` meets) instead of importing one, so the library stays
+free of the i18n package. A host themes it through the `--diff-legend-*`
+custom properties on `.diff-legend`: the BPMN package sets its dark values
+under `[data-bpmn-theme="dark"]` and the VS Code `body.vscode-*` classes, the
+DMN pane maps its Miragon chrome onto them. The public `DiffLegend` wraps it
+and keeps `DiffLegendCallbacks`, `DiffLegendContext` (with its counts fallback
+for a missing `canStep`) and the `diff-legend__*` classes; the DMN pane's
+wrapper adds only the observer that publishes the chip's height. The public `DiffMarkerClass` keeps its literals, pinned to
 `DIFF_MARKERS` by a spec, and `DiffViewer.applyHighlights` takes any marker
 `string`.
 

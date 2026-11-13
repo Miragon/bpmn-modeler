@@ -22,10 +22,19 @@ const FIXTURES_DIRECTORY = fileURLToPath(new URL("./fixtures/", import.meta.url)
 
 const BPMN_FILE = "smoke.bpmn";
 const DMN_FILE = "smoke.dmn";
-/** Two versions of one decision model, shared with the e2e compare tests. */
-const DMN_DIFF_FIXTURES = fileURLToPath(new URL("../e2e/fixtures/", import.meta.url));
+/** Two versions of one decision model and of one process, shared with the e2e compare tests. */
+const COMPARE_FIXTURES = fileURLToPath(new URL("../e2e/fixtures/", import.meta.url));
 const DMN_BEFORE_FILE = "shipping.dmn";
 const DMN_AFTER_FILE = "shipping-v2.dmn";
+const BPMN_BEFORE_FILE = "example.bpmn";
+const BPMN_AFTER_FILE = "example-v2.bpmn";
+/** The count slots of the legend both diffs share, in their order. */
+const DIFF_LEGEND_SLOTS = [
+    "diff-legend__slot diff-legend__slot--added",
+    "diff-legend__slot diff-legend__slot--removed",
+    "diff-legend__slot diff-legend__slot--changed",
+    "diff-legend__slot diff-legend__slot--layout",
+];
 const DIFF_ADDED = "rgb(82, 180, 21)";
 const DIFF_REMOVED = "rgb(204, 0, 0)";
 const FORM_FILE = "smoke.form";
@@ -167,6 +176,12 @@ function ruleBar(webview: FrameLocator, ruleId: string): Promise<string> {
     return webview
         .locator(`td.rule-index[data-row-id="${ruleId}"]`)
         .evaluate((cell) => getComputedStyle(cell).boxShadow);
+}
+
+function legendSlots(webview: FrameLocator): Promise<(string | null)[]> {
+    return webview
+        .locator(".diff-legend__slot")
+        .evaluateAll((slots) => slots.map((slot) => slot.getAttribute("class")));
 }
 
 async function settle(webview: FrameLocator): Promise<void> {
@@ -507,16 +522,74 @@ describe("the packaged extension in a real VS Code", () => {
         expectNoCspViolations();
     });
 
-    it("shows a DMN file's changes in the visual diff, down to its decision table", async ({
+    it("shows a BPMN file's changes in the visual diff under the shared legend", async ({
         onTestFinished,
     }) => {
         // Only while this test runs: one more Explorer row moves the rows the plugin scenarios click.
         await cp(
-            join(DMN_DIFF_FIXTURES, "shipping.dmn"),
-            join(workspaceDirectory, DMN_BEFORE_FILE),
+            join(COMPARE_FIXTURES, "example.bpmn"),
+            join(workspaceDirectory, BPMN_BEFORE_FILE),
         );
         await cp(
-            join(DMN_DIFF_FIXTURES, "shipping-b.dmn"),
+            join(COMPARE_FIXTURES, "example-b.bpmn"),
+            join(workspaceDirectory, BPMN_AFTER_FILE),
+        );
+        onTestFinished(async () => {
+            try {
+                await vscode().page.keyboard.press("Escape");
+                await vscode().runCommand("View: Close All Editors");
+            } finally {
+                await rm(join(workspaceDirectory, BPMN_BEFORE_FILE), { force: true });
+                await rm(join(workspaceDirectory, BPMN_AFTER_FILE), { force: true });
+            }
+        });
+
+        // Its webview takes the focus once it loads, which would close the context menu.
+        await vscode().openFromExplorer(BPMN_BEFORE_FILE);
+        await vscode().showInCustomEditor(BPMN_BEFORE_FILE, diagramRendered);
+        await vscode().runExplorerCommand(
+            [BPMN_BEFORE_FILE, BPMN_AFTER_FILE],
+            "Compare Selected (BPMN)",
+        );
+        const before = await vscode().editorWebview('body[data-diff-side="before"]');
+        const after = await vscode().editorWebview('body[data-diff-side="after"]');
+        await expectMarked(after, "Activity_review", "diff-added");
+        await expect
+            .poll(() => after.locator(".diff-legend").textContent(), { timeout: TIMEOUT_MS })
+            .toContain("Added 2");
+
+        await expect
+            .poll(() => before.locator(".diff-legend__filename").textContent(), {
+                timeout: TIMEOUT_MS,
+            })
+            .toBe(BPMN_BEFORE_FILE);
+        await expect
+            .poll(() => after.locator(".diff-legend__filename").textContent(), {
+                timeout: TIMEOUT_MS,
+            })
+            .toBe(BPMN_AFTER_FILE);
+        expect(await legendSlots(after)).toEqual(DIFF_LEGEND_SLOTS);
+        expect(await after.locator(".diff-legend__swap-btn").isVisible()).toBe(true);
+
+        // Next in one pane outlines the same change in both.
+        await after.locator(".diff-legend__next-btn").click();
+        await expect
+            .poll(() => after.locator(".djs-element.diff-selected").count(), {
+                timeout: TIMEOUT_MS,
+            })
+            .toBeGreaterThan(0);
+        await settle(after);
+        await vscode().screenshot(join(RESULTS_DIRECTORY, "bpmn-diff.png"));
+        expectNoCspViolations();
+    });
+
+    it("shows a DMN file's changes in the visual diff, down to its decision table", async ({
+        onTestFinished,
+    }) => {
+        // Only while this test runs: one more Explorer row moves the rows the plugin scenarios click.
+        await cp(join(COMPARE_FIXTURES, "shipping.dmn"), join(workspaceDirectory, DMN_BEFORE_FILE));
+        await cp(
+            join(COMPARE_FIXTURES, "shipping-b.dmn"),
             join(workspaceDirectory, DMN_AFTER_FILE),
         );
         onTestFinished(async () => {
@@ -540,19 +613,28 @@ describe("the packaged extension in a real VS Code", () => {
         );
         const before = await vscode().editorWebview('body[data-diff-side="before"]');
         const after = await vscode().editorWebview('body[data-diff-side="after"]');
-        expect(await before.locator(".dmn-diff-legend__file").textContent()).toBe(DMN_BEFORE_FILE);
-        expect(await after.locator(".dmn-diff-legend__file").textContent()).toBe(DMN_AFTER_FILE);
+        await expect
+            .poll(() => before.locator(".diff-legend__filename").textContent(), {
+                timeout: TIMEOUT_MS,
+            })
+            .toBe(DMN_BEFORE_FILE);
+        await expect
+            .poll(() => after.locator(".diff-legend__filename").textContent(), {
+                timeout: TIMEOUT_MS,
+            })
+            .toBe(DMN_AFTER_FILE);
+        expect(await legendSlots(after)).toEqual(DIFF_LEGEND_SLOTS);
 
         await expectMarked(before, "Decision_Surcharge", "diff-removed");
         await expectMarked(before, "Decision_Shipping", "diff-changed");
         await expectMarked(after, "Input_Insured", "diff-added");
         await expectMarked(after, "Decision_Shipping", "diff-changed");
         await expect
-            .poll(() => after.locator(".dmn-diff-legend").textContent(), { timeout: TIMEOUT_MS })
+            .poll(() => after.locator(".diff-legend").textContent(), { timeout: TIMEOUT_MS })
             .toContain("Added 2");
 
         // Next in one pane outlines the same change in both.
-        await after.locator(".dmn-diff-legend__next").click();
+        await after.locator(".diff-legend__next-btn").click();
         await expectMarked(after, "Source_Contracts", "diff-selected");
         await expectMarked(before, "Source_Contracts", "diff-selected");
         await settle(after);

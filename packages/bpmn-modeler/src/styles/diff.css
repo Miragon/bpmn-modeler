@@ -53,26 +53,10 @@ body.vscode-high-contrast.viewer-mode[data-diff-side="after"] {
 
 body.vscode-dark .diff-legend,
 body.vscode-high-contrast .diff-legend {
-    background: rgba(40, 40, 40, 0.96);
-    border-color: #555;
-    color: #e8e8e8;
-}
-
-body.vscode-dark .diff-legend__nav,
-body.vscode-dark .diff-legend__swap-group,
-body.vscode-high-contrast .diff-legend__nav,
-body.vscode-high-contrast .diff-legend__swap-group {
-    border-left-color: #555;
-}
-
-body.vscode-dark .diff-legend__nav-btn,
-body.vscode-high-contrast .diff-legend__nav-btn {
-    background: #2b2b2b;
-    border-color: #555;
-    color: #e8e8e8;
-}
-
-body.vscode-dark .diff-legend__nav-btn:hover:not(:disabled),
-body.vscode-high-contrast .diff-legend__nav-btn:hover:not(:disabled) {
-    background: #3a3a3a;
+    --diff-legend-surface: rgba(40, 40, 40, 0.96);
+    --diff-legend-border: #555;
+    --diff-legend-text: #e8e8e8;
+    --diff-legend-button-surface: #2b2b2b;
+    --diff-legend-button-border: #555;
+    --diff-legend-button-hover: #3a3a3a;
 }
