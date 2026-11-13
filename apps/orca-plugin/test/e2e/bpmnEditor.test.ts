@@ -123,6 +123,11 @@ describe("the BPMN editor in Orca", () => {
         expect((await editor.stub()).edits).toBe(0);
     });
 
+    it("draws no focus ring and selects no text on the canvas of a read-only tab", async () => {
+        const editor = await open({ readOnly: true });
+        expect(await editor.canvasSvgStyle()).toEqual({ outlineStyle: "none", userSelect: "none" });
+    });
+
     it("closes and reopens the properties panel with Shift+P", async () => {
         const editor = await open();
         await editor.page.mouse.click(...BLANK_POINT);

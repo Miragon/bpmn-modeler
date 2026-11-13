@@ -170,6 +170,11 @@ describe("the DMN editor in Orca", () => {
         expect((await editor.stub()).edits).toBe(0);
     });
 
+    it("draws no focus ring and selects no text on the DRD canvas", async () => {
+        const editor = await open();
+        expect(await editor.canvasSvgStyle()).toEqual({ outlineStyle: "none", userSelect: "none" });
+    });
+
     it("starts an empty file with a new decision and writes nothing until an edit", async () => {
         const editor = await open({ text: "" });
         await editor.settle();

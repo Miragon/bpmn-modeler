@@ -43,6 +43,16 @@ export class EditorPage {
         return new EditorPage(page);
     }
 
+    canvasSvgStyle(): Promise<{ outlineStyle: string; userSelect: string }> {
+        return this.page.evaluate(() => {
+            const svg = document.querySelector(".djs-container svg");
+            if (!(svg instanceof SVGElement)) throw new Error("no canvas svg");
+            svg.focus();
+            const style = getComputedStyle(svg);
+            return { outlineStyle: style.outlineStyle, userSelect: style.userSelect };
+        });
+    }
+
     focusIsIn(selector: string): Promise<boolean> {
         return this.page.evaluate(
             (container) => document.activeElement?.closest(container) != null,

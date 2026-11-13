@@ -1,4 +1,5 @@
 // The modeler's sheets load with the page: the viewer brings none, and a read-only tab loads only it.
+import "../../../../packages/bpmn-modeler/src/styles/default.css";
 import "../../../../libs/shared/src/lib/panelChrome.css";
 import "../../../../packages/bpmn-modeler/src/styles/diff.css";
 import "../../../../libs/modeler-types/src/canvasOverlays.css";

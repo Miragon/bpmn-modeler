@@ -1,3 +1,4 @@
+import "../../../../packages/bpmn-modeler/src/styles/default.css";
 import "../../../../libs/shared/src/lib/panelChrome.css";
 import "./orcaEditor.css";
 
