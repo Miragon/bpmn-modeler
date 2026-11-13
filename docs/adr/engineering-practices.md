@@ -72,8 +72,8 @@ differ, VS Code is the reference. A VS Code adapter runs over a fake of the
 `vscode` API that behaves as VS Code does, and a bridge adapter that calls
 IntelliJ runs over an RPC loopback that answers as the Kotlin side does. So a
 run pins each adapter's own mapping, not the host itself: where a fake and its
-host part, the suite cannot tell. Shared rows hold some loopbacks to the
-Kotlin side; the list of suites is followed by which.
+host part, the suite cannot tell. The lists after the suites name what holds
+each loopback to the Kotlin side.
 
 - `describeAddOnViewRevealContract`: `RecordingAddOnViewReveal` and
   `VsCodeAddOnsViewReveal` over a view focus that rejects where the host
@@ -187,24 +187,76 @@ through a `miragon.*` test input in `build.gradle.kts`.
   which `MarketplaceRouterTest` compares with the `marketplaceState/read`
   reply.
 
-Unpinned, with the reason:
+Hand-written Kotlin tests, not shared rows, hold these rules a loopback
+answers by, so nothing fails when a loopback and its Kotlin test drift apart:
+
+- `DiffRouter.kt`'s routing: a core post reaches only the browser of its
+  `paneUri`, serialized by Gson, and a pane's message goes to the core under
+  its URI (`DiffRouterTest`).
+- What `DeploymentRouter` and `IntellijDeploymentState` store: the seed holds
+  only what the project stores, a save keeps every patched field, and ledger
+  rows are removed before they are put (`DeploymentRouterTest`). That a write
+  which throws answers with its message is the channel's rule for every
+  handler (`RpcChannelTest`).
+- `SettingsRouter`'s lint choice: stored, pushed to every bridge, then acked
+  (`SettingsRouterTest`, `SettingsBroadcastTest`).
+- The marketplace add form: `MarketplaceRouter` reads the question from the
+  params and answers the form as entered, or `null` on cancel
+  (`MarketplaceRouterTest`); `AddMarketplaceDialog` offers a radio button per
+  scope and starts from the core's scope (`MarketplaceAddFormTest`).
+- The marketplace lists: the merge the settings loopback applies
+  (`ProjectMarketplacesStore.merged()`, `ModelerSettingsStoreTest`) and the
+  push of a saved or reduced list before the ack (`MarketplaceRouterTest`).
+- `PluginApprovalRouter`: a change pushed to the bridges before it answers,
+  both at its revision, no revision for a change that keeps every row, and a
+  row another writer stored kept (`PluginApprovalRouterTest`). The merge
+  itself runs the core's `codeApprovalChange.cases.json` rows
+  (`PluginApprovalStoreTest`).
+- `TemplatePreferenceRouter`: a project change pushed to this bridge and an
+  all-projects change to every bridge before the answer, no revision for a
+  change that keeps every switch, and an error for a switch named twice
+  (`TemplatePreferenceRouterTest`). The merge runs the core's
+  `templatePreferenceChange.cases.json` rows (`TemplatePreferenceStoreTest`).
+- `AddOnsRouter`: `addOns/reveal` answers whether the Add-ons tab is shown, or
+  an error when the tool window throws (`AddOnsRouterTest`).
+- The prompts `intellijPromptHost.ts` answers: a `PickManyDialog` reports its
+  checked rows in list order (`PickManyDialogTest`); an action notice answers
+  the chosen index, or `{}` when dismissed (`HostUiRouterTest`); the token
+  prompt answers the text as typed, or `null` on cancel
+  (`MarketplaceRouterTest`).
+- `tokenStore/*`: a token round-trips, an unknown host reads `null`, and a
+  read that blocks does not hold up the next frame (`MarketplaceRouterTest`).
+  Replies keep request order because both routers answer on one credential
+  thread, which `SecretStoreRouterTest` checks for `secretStore/*`.
+- The refusal of a write without a revision while a host change has not
+  reached the webview, which the document loopbacks leave out because they
+  have no webview (`EditorSessionRouterTest`).
+
+No Kotlin test holds these, with the reason:
 
 - What an OS keychain does with an empty secret. In unit-test mode
   PasswordSafe is an in-memory store, so no test reaches a keychain, and the
   suite accepts both answers. An empty name reads back as absent on every
   backend: `Credentials` drops it before any store sees it.
-- How `DiffRouter.kt` hands a post to a pane's browser, and the pane URIs
-  `BpmnDiffViewer.uriFor` builds. Both need a diff viewer showing JCEF
-  browsers; the router tests run headless without one.
+- The pane URIs `BpmnDiffViewer.uriFor` builds. It is a member of a diff
+  viewer showing JCEF browsers, which the headless tests do not create.
 - The clipboard loopback's order of reads and writes and its empty text for a
   clipboard without text. No Kotlin test drives `clipboard/read` or
   `clipboard/write`, and whether the headless test application's
   `CopyPasteManager` keeps text as the system clipboard does is not checked.
-- The marketplaces merge the settings loopback applies
-  (`ProjectMarketplacesStore.merged()`) and the refusal of a write without a
-  revision while a host change has not reached the webview: hand-written
-  Kotlin tests hold them (`ModelerSettingsStoreTest`,
-  `EditorSessionRouterTest`), not shared rows.
+- A `picker/show` that picks one item, and `confirm/show`: `HostPicker` opens a
+  `JBPopup` and `handleConfirm` a modal `Messages` dialog, and `HostUiRouter`
+  has no seam for either. A dismissed pick goes out as `{}` by the same Gson
+  rule the action notice test checks.
+- The `fsPath` IntelliJ sends for a file on a network share (#2186). The
+  document loopbacks pass their path through, so the suites pin only that
+  the bridge keeps the host's `fsPath`. That IntelliJ sends `VirtualFile.path`
+  as `//server/share/…` is what the bridge's specs assume; no Kotlin test opens
+  a file on a share, and it was not checked in IntelliJ.
+- The error text a loopback answers for a missing or mistyped param (`Param
+  '…' is missing or not of the expected type`). `RpcChannelTest` holds that a
+  handler which throws answers with its message, but no Kotlin test checks
+  `RpcParams`' text.
 
 Real browser tests are necessary for SVG geometry, viewbox transforms and
 ResizeObserver delivery. Mocks can test viewport-latch decisions but cannot

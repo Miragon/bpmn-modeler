@@ -16,8 +16,11 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Named
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.io.TempDir
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
+import java.nio.file.Files
+import java.nio.file.Path
 
 /**
  * Covers the [ScriptRouter] Tools-menu notification over the real [RpcChannel] +
@@ -73,7 +76,10 @@ class ScriptRouterTest {
 
     @ParameterizedTest
     @MethodSource("scriptTabsCases")
-    fun `opens and closes the tabs the script loopback does`(case: JsonObject) {
+    fun `opens and closes the tabs the script loopback does`(
+        case: JsonObject,
+        @TempDir workspace: Path,
+    ) {
         val wired = wireChannel().also { this.wired = it }
         val project = projectFixture.get()
         ScriptRouter(bridgeDeps(project, wired.channel, wired.handlers)).register()
@@ -85,9 +91,9 @@ class ScriptRouterTest {
             if (step.get("by").asString == "user") {
                 application.invokeAndWait { editors.closeFile(editors.openFiles.single { it.scriptId == scriptId }) }
             } else {
-                // A path no file sits at opens an in-memory tab, which needs no disk.
+                val scriptFile = scriptFileWrittenByTheCore(workspace, scriptId)
                 val params =
-                    obj("scriptId" to scriptId, "fileName" to "$scriptId.js", "filePath" to "/missing/$scriptId.js", "content" to "")
+                    obj("scriptId" to scriptId, "fileName" to "$scriptId.js", "filePath" to scriptFile.toString(), "content" to "")
                 wired.handlers.dispatch(step.get("method").asString, params, null)
             }
             // Runs the EDT turn the router deferred the step to, the close ack included.
@@ -100,6 +106,13 @@ class ScriptRouterTest {
     }
 
     private val VirtualFile.scriptId: String? get() = getUserData(SCRIPT_ID_KEY)
+
+    private fun scriptFileWrittenByTheCore(workspace: Path, scriptId: String): Path {
+        val scriptFile = workspace.resolve(".camunda/tmp/scripting/h/$scriptId.js")
+        Files.createDirectories(scriptFile.parent)
+        if (Files.notExists(scriptFile)) Files.writeString(scriptFile, "")
+        return scriptFile
+    }
 
     private fun obj(vararg entries: Pair<String, String>): JsonObject =
         JsonObject().apply { entries.forEach { (key, value) -> addProperty(key, value) } }

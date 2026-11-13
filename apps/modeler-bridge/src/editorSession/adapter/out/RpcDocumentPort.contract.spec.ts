@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import { describeDocumentContract } from "@miragon/bpmn-modeler-core/testing";
 import { describe, expect, it } from "vitest";
 
-import { intellijDocumentWrite } from "../../../__fixtures__/intellijDocumentWrite";
+import { addressesSession, intellijDocumentWrite } from "../../../__fixtures__/intellijDocumentWrite";
 import { METHODS } from "../../../protocol/domain/descriptor";
 import {
     DocumentSaveParams,
@@ -142,14 +142,12 @@ class IntelliJDocuments {
 
     private save(params: DocumentSaveParams): DocumentSaveResult {
         const document = this.documents.get(params.editorId);
-        if (!document || !this.addresses(document, params)) return { saved: false };
+        if (!document || !addressesSession(params.sessionId, document.meta.sessionId)) {
+            return { saved: false };
+        }
         // A veto or a conflict with the file on disk leaves the Document unsaved.
         if (!document.savesFail) document.unsaved = false;
         return { saved: !document.unsaved };
-    }
-
-    private addresses(document: IntelliJDocument, { sessionId }: { sessionId?: number }): boolean {
-        return sessionId === undefined || sessionId === document.meta.sessionId;
     }
 
     private documentOf(editorId: string): IntelliJDocument {

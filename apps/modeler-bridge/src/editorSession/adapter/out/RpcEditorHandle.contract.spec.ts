@@ -1,6 +1,6 @@
 import { describeEditorHandleContract } from "@miragon/bpmn-modeler-core/testing";
 
-import { intellijDocumentWrite } from "../../../__fixtures__/intellijDocumentWrite";
+import { addressesSession, intellijDocumentWrite } from "../../../__fixtures__/intellijDocumentWrite";
 import { BridgeSettings } from "../../../kernel/adapter/out/BridgeSettings";
 import { METHODS } from "../../../protocol/domain/descriptor";
 import {
@@ -87,7 +87,7 @@ class IntelliJEditorSession {
     }
 
     private addresses({ sessionId }: { sessionId?: number }): boolean {
-        return sessionId === undefined || sessionId === this.meta.sessionId;
+        return addressesSession(sessionId, this.meta.sessionId);
     }
 }
 
