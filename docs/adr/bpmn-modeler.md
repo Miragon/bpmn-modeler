@@ -1740,7 +1740,10 @@ Code widget colours where a webview has them. `diffLegend.css` holds it as the
 defaults of the `--diff-legend-*` custom properties, with its dark values under
 `[data-bpmn-theme="dark"]` and `[data-dmn-theme="dark"]` and its high-contrast
 values under VS Code's `body.vscode-high-contrast`, since the theme attributes
-resolve high contrast to dark. Neither the BPMN package nor the DMN pane sets a
+resolve high contrast to dark; `body.vscode-light` keeps the light surface
+white. These VS Code tokens and body classes are optional fallbacks, so the
+stylesheet stays host-agnostic: outside a VS Code webview none is set and the
+defaults apply. Neither the BPMN package nor the DMN pane sets a
 `--diff-legend-*` property, and a spec in each keeps it so; the properties stay
 the theming hook for consumers. `.diff-legend-theme` lends them to a host's own
 chrome beside the legend, the DMN pane's "Not in this version" card. The

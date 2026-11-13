@@ -1,6 +1,7 @@
 import "../../styles/diffView.css";
 
 import { afterEach, describe, expect, it } from "vitest";
+import { userEvent } from "vitest/browser";
 
 import { DiffLegend } from "./DiffLegend";
 
@@ -12,23 +13,35 @@ const mountedRoots: HTMLElement[] = [];
 afterEach(() => {
     mountedRoots.forEach((root) => root.remove());
     mountedRoots.length = 0;
-    document.body.classList.remove("vscode-high-contrast");
+    document.body.classList.remove("vscode-high-contrast", "vscode-light");
 });
 
-function mountLegend(theme?: "light" | "dark") {
+function mountLegend(theme?: "light" | "dark", vscodeThemeVariables = "") {
     const themeRoot = document.createElement("div");
     if (theme) themeRoot.setAttribute("data-bpmn-theme", theme);
+    themeRoot.style.cssText = vscodeThemeVariables;
     document.body.append(themeRoot);
     mountedRoots.push(themeRoot);
     new DiffLegend(themeRoot, { onPrevious: () => undefined, onNext: () => undefined }).update({
         counts: { added: 1, removed: 0, changed: 2, layoutChanged: 0 },
     });
     const chip = themeRoot.querySelector<HTMLElement>(".diff-legend")!;
+    const prevButton = chip.querySelector<HTMLButtonElement>(".diff-legend__prev-btn")!;
+    const nextButton = chip.querySelector<HTMLButtonElement>(".diff-legend__next-btn")!;
     return {
         chip: getComputedStyle(chip),
-        prev: getComputedStyle(chip.querySelector(".diff-legend__prev-btn")!),
-        next: getComputedStyle(chip.querySelector(".diff-legend__next-btn")!),
+        prev: getComputedStyle(prevButton),
+        next: getComputedStyle(nextButton),
+        prevButton,
+        nextButton,
     };
+}
+
+async function focusByKeyboard(button: HTMLButtonElement) {
+    for (let step = 0; step < 10 && document.activeElement !== button; step++) {
+        await userEvent.tab();
+    }
+    expect(document.activeElement).toBe(button);
 }
 
 function toSrgbChannels(cssColor: string): [number, number, number] {
@@ -82,6 +95,28 @@ describe("the published diff legend's look", () => {
         );
     });
 
+    it("takes its surface from the VS Code widget colours its text comes from", () => {
+        const { chip } = mountLegend(
+            undefined,
+            "--vscode-editorWidget-background: rgb(30, 30, 30); --vscode-editorWidget-foreground: rgb(204, 204, 204);",
+        );
+
+        expect(chip.backgroundColor).toBe("rgb(30, 30, 30)");
+        expect(contrastRatio(chip.color, chip.backgroundColor)).toBeGreaterThanOrEqual(
+            WCAG_AA_NORMAL_TEXT_CONTRAST,
+        );
+    });
+
+    it("stays white in VS Code's light theme", () => {
+        document.body.classList.add("vscode-light");
+        const { chip } = mountLegend(
+            undefined,
+            "--vscode-editorWidget-background: rgb(243, 243, 243);",
+        );
+
+        expect(chip.backgroundColor).toBe("rgb(255, 255, 255)");
+    });
+
     it("turns dark under the instance's dark theme and keeps the blue Next button", () => {
         const { chip, next } = mountLegend("dark");
 
@@ -96,5 +131,48 @@ describe("the published diff legend's look", () => {
         expect(chip.boxShadow).toBe("none");
         expect(next.backgroundColor).toBe("rgba(0, 0, 0, 0)");
         expect(next.color).toBe(chip.color);
+    });
+
+    it("keeps the keyboard focus ring on a button the pointer rests on", async () => {
+        const { next, nextButton } = mountLegend();
+
+        await focusByKeyboard(nextButton);
+        await userEvent.hover(nextButton);
+
+        expect(next.outlineStyle).toBe("solid");
+        expect(next.outlineOffset).toBe("2px");
+    });
+
+    it("shows no hover outline outside high contrast", async () => {
+        const { prev, prevButton } = mountLegend();
+
+        await userEvent.hover(prevButton);
+
+        expect(prev.outlineStyle).toBe("none");
+    });
+
+    it.each(["prev", "next"] as const)(
+        "outlines the hovered %s button, dashed and unfilled, in VS Code's high contrast",
+        async (which) => {
+            document.body.classList.add("vscode-high-contrast");
+            const legend = mountLegend("dark");
+            const button = which === "prev" ? legend.prevButton : legend.nextButton;
+            const style = which === "prev" ? legend.prev : legend.next;
+
+            await userEvent.hover(button);
+
+            expect(style.outlineStyle).toBe("dashed");
+            expect(style.backgroundColor).toBe("rgba(0, 0, 0, 0)");
+        },
+    );
+
+    it("keeps the focus ring over the hover outline in VS Code's high contrast", async () => {
+        document.body.classList.add("vscode-high-contrast");
+        const { next, nextButton } = mountLegend("dark");
+
+        await focusByKeyboard(nextButton);
+        await userEvent.hover(nextButton);
+
+        expect(next.outlineStyle).toBe("solid");
     });
 });

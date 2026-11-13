@@ -3,8 +3,9 @@
  * floating legend chip, whose layout and themes are the shared `diffLegend.css`
  * of modeler-types. Shared by both `styles.css` (via `diff.css`'s @import) and
  * the readonly `viewer.css`, so a `/viewer` consumer gets markers + a themed
- * legend without pulling in the editor chrome. Host-specific rules (VS Code seam,
- * `body.viewer-mode`, `body.vscode-*`) stay in `diff.css`.
+ * legend without pulling in the editor chrome. The legend brings VS Code token
+ * fallbacks and its `body.vscode-light`/`body.vscode-high-contrast` variants with
+ * it; the VS Code seam and `body.viewer-mode` stay in `diff.css`.
  *
  * Element marker colours intentionally match the bpmn.io/diff demo so users
  * familiar with that UI see the same visual cues.

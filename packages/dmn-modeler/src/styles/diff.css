@@ -62,7 +62,10 @@
     padding: 1px 8px;
     border: 1.5px solid var(--dmn-diff-changed);
     border-radius: 999px;
-    font: 600 11px/16px var(--dmn-diff-font, inherit);
+    font:
+        600 11px/16px "Geist Variable",
+        "Geist",
+        var(--vscode-font-family, ui-sans-serif, system-ui, sans-serif);
     white-space: nowrap;
     color: var(--dt-surface-a70, #1d1d1d);
     background: var(--dt-surface-a10, #fff);

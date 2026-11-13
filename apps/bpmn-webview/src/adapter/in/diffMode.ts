@@ -1,5 +1,3 @@
-// The diff legend is set in Geist; the browser fetches it only where a legend shows.
-import "@fontsource-variable/geist/wght.css";
 import {
     ApplyDiffHighlightsQuery,
     asProtocolMessage,
