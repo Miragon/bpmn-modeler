@@ -65,6 +65,26 @@ describe("declaration roll-up guard", () => {
         expect(() => checkDts({ distDir })).toThrow(/leaked private symbols: HostApi/);
     });
 
+    it("rejects a leaked dmn-js import", () => {
+        const distDir = distWithIndexDts('import type { Y } from "dmn-js/lib/Modeler";\n');
+
+        expect(() => checkDts({ distDir })).toThrow(/leaked private symbols: from "dmn-js/);
+    });
+
+    it("rejects a leaked private-lib import", () => {
+        const distDir = distWithIndexDts('import type { X } from "@miragon/bpmn-modeler-types";\n');
+
+        expect(() => checkDts({ distDir })).toThrow(
+            /leaked private-lib import: @miragon\/bpmn-modeler-types/,
+        );
+    });
+
+    it("rejects an ambient function declaration with a body", () => {
+        const distDir = distWithIndexDts("export declare function f() { return 1; }\n");
+
+        expect(() => checkDts({ distDir })).toThrow(/invalid ambient declaration/);
+    });
+
     it("rejects a missing build output", () => {
         const root = mkdtempSync(join(tmpdir(), "dmn-modeler-guard-"));
         temporaryDirectories.push(root);
