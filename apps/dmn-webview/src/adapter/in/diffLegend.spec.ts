@@ -61,6 +61,7 @@ describe("DiffLegend", () => {
 
         i18n.setLanguage("de");
 
+        expect(parent.textContent).toContain("Hinzugefügt 2");
         expect(button(".diff-legend__next-btn").textContent).toBe("Nächste Änderung ›");
     });
 

@@ -28,9 +28,8 @@ const DMN_BEFORE_FILE = "shipping.dmn";
 const DMN_AFTER_FILE = "shipping-v2.dmn";
 const BPMN_BEFORE_FILE = "example.bpmn";
 const BPMN_AFTER_FILE = "example-v2.bpmn";
-/** The slots of the legend both diffs share, in their order. */
+/** The count slots of the legend both diffs share, in their order. */
 const DIFF_LEGEND_SLOTS = [
-    "diff-legend__slot diff-legend__slot--status",
     "diff-legend__slot diff-legend__slot--added",
     "diff-legend__slot diff-legend__slot--removed",
     "diff-legend__slot diff-legend__slot--changed",
@@ -571,10 +570,18 @@ describe("the packaged extension in a real VS Code", () => {
         await expectMarked(after, "Activity_review", "diff-added");
         await expect
             .poll(() => after.locator(".diff-legend").textContent(), { timeout: TIMEOUT_MS })
-            .toContain("Added");
+            .toContain("Added 2");
 
-        expect(await before.locator(".diff-legend__filename").textContent()).toBe(BPMN_BEFORE_FILE);
-        expect(await after.locator(".diff-legend__filename").textContent()).toBe(BPMN_AFTER_FILE);
+        await expect
+            .poll(() => before.locator(".diff-legend__filename").textContent(), {
+                timeout: TIMEOUT_MS,
+            })
+            .toBe(BPMN_BEFORE_FILE);
+        await expect
+            .poll(() => after.locator(".diff-legend__filename").textContent(), {
+                timeout: TIMEOUT_MS,
+            })
+            .toBe(BPMN_AFTER_FILE);
         expect(await legendSlots(after)).toEqual(DIFF_LEGEND_SLOTS);
         expect(await after.locator(".diff-legend__swap-btn").isVisible()).toBe(true);
 
@@ -620,8 +627,16 @@ describe("the packaged extension in a real VS Code", () => {
         );
         const before = await vscode().editorWebview('body[data-diff-side="before"]');
         const after = await vscode().editorWebview('body[data-diff-side="after"]');
-        expect(await before.locator(".diff-legend__filename").textContent()).toBe(DMN_BEFORE_FILE);
-        expect(await after.locator(".diff-legend__filename").textContent()).toBe(DMN_AFTER_FILE);
+        await expect
+            .poll(() => before.locator(".diff-legend__filename").textContent(), {
+                timeout: TIMEOUT_MS,
+            })
+            .toBe(DMN_BEFORE_FILE);
+        await expect
+            .poll(() => after.locator(".diff-legend__filename").textContent(), {
+                timeout: TIMEOUT_MS,
+            })
+            .toBe(DMN_AFTER_FILE);
         expect(await legendSlots(after)).toEqual(DIFF_LEGEND_SLOTS);
 
         await expectMarked(before, "Decision_Surcharge", "diff-removed");

@@ -258,7 +258,9 @@ describe("DiffMode", () => {
         const card = chrome.querySelector<HTMLElement>(".dmn-diff-empty");
         expect(card?.hidden).toBe(false);
         expect(card?.textContent).toContain("It was removed.");
-        expect(legendText()).toContain("Removed");
+        const status = chrome.querySelector<HTMLElement>(".diff-legend__slot--status");
+        expect(status?.hidden).toBe(false);
+        expect(status?.textContent).toBe("Removed");
         expect(chrome.querySelector<HTMLButtonElement>(".diff-legend__next-btn")?.disabled).toBe(
             true,
         );
@@ -279,6 +281,8 @@ describe("DiffMode", () => {
         expect(
             chrome.querySelector(".diff-legend__slot--status .diff-legend__swatch--added"),
         ).not.toBeNull();
+        expect(chrome.querySelector<HTMLElement>(".diff-legend__slot--status")?.hidden).toBe(false);
+        expect(chrome.querySelector<HTMLElement>(".diff-legend__slot--added")?.hidden).toBe(true);
         expect(legendText()).not.toContain("Added 1");
     });
 

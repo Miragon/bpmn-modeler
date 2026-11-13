@@ -172,6 +172,19 @@ describe("DiffLegendView", () => {
         expect(visibleSlotTexts()).toEqual(["Removed"]);
     });
 
+    it("adds the status chip first in the row, and only once a status needs it", () => {
+        const { view } = mount();
+
+        view.update(SHOWN);
+        const slotBeforeStatus = parent.querySelector(".diff-legend__slot--status");
+        view.update({ status: "added", showSwap: false, canStep: false });
+
+        expect(slotBeforeStatus).toBeNull();
+        expect(find(".diff-legend__counts").firstElementChild).toBe(
+            find(".diff-legend__slot--status"),
+        );
+    });
+
     it("hides the status chip when it shows counts", () => {
         const { view } = mount();
 

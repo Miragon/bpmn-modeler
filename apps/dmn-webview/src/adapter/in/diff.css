@@ -68,7 +68,7 @@ body.dmn-diff-page[data-diff-side="after"] {
     border-left: 1px dashed var(--vscode-editorGroup-border, #d0d0d0);
 }
 
-/* ─── Legend: the layout is the BPMN diff's (diffLegend.css) ────────── */
+/* ─── Legend: theme values only; the layout is the shared diffLegend.css ─── */
 
 .dmn-diff-page .diff-legend {
     --diff-legend-font-family: var(--dmn-diff-font);

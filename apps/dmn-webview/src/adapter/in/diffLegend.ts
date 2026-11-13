@@ -1,15 +1,14 @@
 import { i18n } from "@miragon/bpmn-modeler-i18n";
-import { DiffLegendView } from "@miragon/bpmn-modeler-types";
+import {
+    type DiffLegendActions as SharedDiffLegendActions,
+    DiffLegendView,
+} from "@miragon/bpmn-modeler-types";
 
 import type { DiffLegendState } from "../../domain/diffPaneState";
 import type { DmnMissingStatus } from "../../domain/diffSteps";
 import { DMN_DIFF_TEXTS } from "../../domain/diffTexts";
 
-export interface DiffLegendActions {
-    readonly onPrevious: () => void;
-    readonly onNext: () => void;
-    readonly onSwap: () => void;
-}
+export type DiffLegendActions = Required<SharedDiffLegendActions>;
 
 const MISSING_TEXTS: Readonly<Record<DmnMissingStatus, string>> = {
     removed: DMN_DIFF_TEXTS.removedHere,

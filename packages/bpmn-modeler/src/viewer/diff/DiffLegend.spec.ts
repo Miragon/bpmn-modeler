@@ -40,6 +40,32 @@ describe("DiffLegend", () => {
         expect(q(".diff-legend__slot--changed").textContent).toBe("Changed 2");
     });
 
+    it("keeps the published styling hooks", () => {
+        const { legend, q } = mount({ onSwap: () => undefined });
+
+        legend.update({ counts: SOME_CHANGES, showSwap: true });
+
+        for (const hook of [
+            ".diff-legend__filename",
+            ".diff-legend__counts",
+            ".diff-legend__nav",
+            ".diff-legend__swap-group",
+        ]) {
+            expect(q(hook), hook).not.toBeNull();
+        }
+        expect(
+            q(".diff-legend__slot--layout .diff-legend__label .diff-legend__count"),
+        ).not.toBeNull();
+        for (const button of [
+            ".diff-legend__prev-btn",
+            ".diff-legend__next-btn",
+            ".diff-legend__swap-btn",
+        ]) {
+            expect(q(button).classList.contains("diff-legend__nav-btn"), button).toBe(true);
+        }
+        expect(q(".diff-legend__slot--status")).toBeNull();
+    });
+
     it("steps by the callbacks and as far as the consumer says it can", () => {
         const onPrevious = vi.fn();
         const onNext = vi.fn();

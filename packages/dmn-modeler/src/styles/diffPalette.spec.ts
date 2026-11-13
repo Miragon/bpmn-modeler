@@ -51,3 +51,12 @@ describe("the DMN diff palette", () => {
         },
     );
 });
+
+describe("the shared diff legend's stylesheet", () => {
+    // The legend hides its parts with the hidden attribute, which any author `display` rule overrides.
+    it("hides the legend and every part it marks hidden", () => {
+        expect(legendCss).toMatch(
+            /\.diff-legend\[hidden\],\s*\.diff-legend \[hidden\]\s*\{\s*display: none;/,
+        );
+    });
+});

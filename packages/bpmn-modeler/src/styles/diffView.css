@@ -1,10 +1,10 @@
 /*
- * Neutral BPMN diff-view styles — host-agnostic canvas markers and the floating
- * legend chip, whose layout is the DMN diff's too (`diffLegend.css`). Shared by
- * both `styles.css` (via `diff.css`'s @import) and the readonly `viewer.css`, so
- * a `/viewer` consumer gets markers + a themed legend without pulling in the
- * editor chrome. Host-specific rules (VS Code seam, `body.viewer-mode`,
- * `body.vscode-*`) stay in `diff.css`.
+ * Neutral BPMN diff-view styles — host-agnostic canvas markers and the theme
+ * of the floating legend chip, whose layout is the shared `diffLegend.css` of
+ * modeler-types. Shared by both `styles.css` (via `diff.css`'s @import) and the
+ * readonly `viewer.css`, so a `/viewer` consumer gets markers + a themed legend
+ * without pulling in the editor chrome. Host-specific rules (VS Code seam,
+ * `body.viewer-mode`, `body.vscode-*`) stay in `diff.css`.
  *
  * Element marker colours intentionally match the bpmn.io/diff demo so users
  * familiar with that UI see the same visual cues.

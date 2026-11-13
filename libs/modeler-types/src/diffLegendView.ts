@@ -58,7 +58,9 @@ export class DiffLegendView {
     readonly element: HTMLElement;
 
     private readonly filename: HTMLElement;
-    private readonly status: StatusSlot;
+    private readonly countsRow: HTMLElement;
+    // Created on the first status, so a legend that only ever counts keeps its published DOM.
+    private status?: StatusSlot;
     private readonly countSlots: readonly CountSlot[];
     private readonly previousButton: HTMLButtonElement;
     private readonly nextButton: HTMLButtonElement;
@@ -77,12 +79,11 @@ export class DiffLegendView {
         this.element.hidden = true;
 
         this.filename = element("div", "diff-legend__filename");
-        const row = element("div", "diff-legend__counts");
-        this.element.append(this.filename, row);
+        this.countsRow = element("div", "diff-legend__counts");
+        this.element.append(this.filename, this.countsRow);
 
-        this.status = statusSlot();
         this.countSlots = DIFF_CATEGORIES.map(countSlot);
-        row.append(this.status.slot, ...this.countSlots.map(({ slot }) => slot));
+        this.countsRow.append(...this.countSlots.map(({ slot }) => slot));
 
         this.previousButton = button(
             "diff-legend__nav-btn diff-legend__prev-btn",
@@ -100,7 +101,7 @@ export class DiffLegendView {
         this.swapGroup = element("div", "diff-legend__swap-group");
         this.swapGroup.hidden = true;
         this.swapGroup.append(this.swapButton);
-        row.append(nav, this.swapGroup);
+        this.countsRow.append(nav, this.swapGroup);
 
         parent.append(this.element);
         this.renderWords();
@@ -115,9 +116,12 @@ export class DiffLegendView {
         this.swapGroup.hidden = !(state.showSwap && this.actions.onSwap);
         this.filename.hidden = !state.filename;
         this.filename.textContent = state.filename ?? "";
-        this.status.slot.hidden = !state.status;
         if (state.status) {
+            this.status ??= this.prependStatusSlot();
             this.status.swatch.className = swatchClass(state.status);
+        }
+        if (this.status) {
+            this.status.slot.hidden = !state.status;
         }
         for (const { category, slot, count } of this.countSlots) {
             slot.hidden = !state.counts;
@@ -131,6 +135,12 @@ export class DiffLegendView {
         this.element.remove();
     }
 
+    private prependStatusSlot(): StatusSlot {
+        const status = statusSlot();
+        this.countsRow.prepend(status.slot);
+        return status;
+    }
+
     private renderWords(): void {
         const translate = (key: string) => this.translator.translate(key);
         this.element.setAttribute("aria-label", translate(DIFF_LEGEND_TEXTS.changes));
@@ -138,7 +148,9 @@ export class DiffLegendView {
             label.data = `${translate(DIFF_CATEGORY_LABELS[category])} `;
         }
         const status = this.state?.status;
-        this.status.label.data = status ? translate(DIFF_CATEGORY_LABELS[status]) : "";
+        if (this.status) {
+            this.status.label.data = status ? translate(DIFF_CATEGORY_LABELS[status]) : "";
+        }
         this.previousButton.textContent = `‹ ${translate(DIFF_LEGEND_TEXTS.previous)}`;
         this.nextButton.textContent = `${translate(DIFF_LEGEND_TEXTS.next)} ›`;
         const swapLabel = translate(DIFF_LEGEND_TEXTS.swap);
@@ -159,7 +171,6 @@ function countSlot(category: DiffCategory): CountSlot {
 
 function statusSlot(): StatusSlot {
     const slot = element("div", "diff-legend__slot diff-legend__slot--status");
-    slot.hidden = true;
     const swatch = element("span", "diff-legend__swatch");
     const text = element("span", "diff-legend__label");
     const label = document.createTextNode("");
