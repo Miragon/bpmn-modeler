@@ -34,7 +34,7 @@ function scriptTask(fields: Partial<InlineScript> = {}): InlineScript {
     };
 }
 
-function createService({ flushEditsOnEditorClose = false } = {}) {
+function createService() {
     const languageAnswers: Record<string, unknown> = {};
     const host = createTestHost({ folders: ["/work"], promptAnswers: languageAnswers });
     const diagram = host.openEditor(DIAGRAM);
@@ -55,7 +55,6 @@ function createService({ flushEditsOnEditorClose = false } = {}) {
         new ScriptTargetResolver(host.store, host.picker, host.notifier),
         scriptFiles,
         host.notifier,
-        { flushEditsOnEditorClose },
     );
     const taskFile = `${BASE_DIR}/${ScriptUri.hashEditorId(diagram.id)}/Task_1/script-task/Task_1.groovy`;
     return { host, diagram, otherDiagram, scriptEditor, scriptTabs, languageAnswers, taskFile };
@@ -467,27 +466,15 @@ describe("ScriptTabService", () => {
             });
         });
 
-        it.each([
-            { host: "whose webview is gone by then", flushEditsOnEditorClose: false, streamed: [] },
-            {
-                host: "whose webview still takes the last edit",
-                flushEditsOnEditorClose: true,
-                streamed: ["last"],
-            },
-        ])(
-            "drops or streams the edit still waiting, for a host $host",
-            async ({ flushEditsOnEditorClose, streamed }) => {
-                const { diagram, scriptEditor, scriptTabs, taskFile } = createService({
-                    flushEditsOnEditorClose,
-                });
-                await scriptTabs.open(diagram.id, scriptTask());
-                scriptEditor.typeByUser(taskFile, "last");
+        it("drops the edit still waiting to stream", async () => {
+            const { diagram, scriptEditor, scriptTabs, taskFile } = createService();
+            await scriptTabs.open(diagram.id, scriptTask());
+            scriptEditor.typeByUser(taskFile, "last");
 
-                scriptTabs.disposeEditor(diagram.id);
-                await vi.advanceTimersByTimeAsync(SCRIPT_STREAM_DEBOUNCE_MS);
+            scriptTabs.disposeEditor(diagram.id);
+            await vi.advanceTimersByTimeAsync(SCRIPT_STREAM_DEBOUNCE_MS);
 
-                expect(streamedContents(diagram)).toEqual(streamed);
-            },
-        );
+            expect(streamedContents(diagram)).toEqual([]);
+        });
     });
 });

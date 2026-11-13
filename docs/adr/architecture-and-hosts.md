@@ -804,8 +804,9 @@ moved between groups is no close), its own-write echo guard and the
 write-back into the diagram of a closed hidden editor. The bridge keeps
 IntelliJ's close acknowledgement and deletes a script's file only once the host
 has flush-saved it. An edit still waiting to stream when its editor closes is
-sent only where the webview still takes it, the bridge's; VS Code's webview is
-gone by then, and the write-back covers the edit.
+dropped on both hosts: the store forgets the session before the participants
+dispose, so no webview takes it. VS Code's write-back into the diagram covers
+the edit there.
 Script identity is `modeler-types`'
 `isSameScript`, where an absent listener index is index 0, because the
 webview's lock applies it too. What the webview's script commands mean is the core

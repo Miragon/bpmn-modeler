@@ -52,8 +52,6 @@ export function register(deps: BridgeSharedDeps): {
         variables,
         scriptFiles,
         notifier: deps.notifier,
-        // An RPC webview still takes messages while its editor closes.
-        options: { flushEditsOnEditorClose: true },
     });
     return { editorContribution };
 }

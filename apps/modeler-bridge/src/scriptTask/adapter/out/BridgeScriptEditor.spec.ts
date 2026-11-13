@@ -44,7 +44,6 @@ function scriptTabsOver(
         new ScriptTargetResolver(host.store, host.picker, host.notifier),
         scriptFiles,
         host.notifier,
-        { flushEditsOnEditorClose: true },
     );
 }
 

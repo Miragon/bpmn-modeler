@@ -14,11 +14,6 @@ import { ScriptContentStream } from "./ScriptContentStream";
 import { ScriptFileStore } from "./ScriptFileStore";
 import { ScriptTargetResolver } from "./ScriptTargetResolver";
 
-export interface ScriptTabServiceOptions {
-    /** The host's webview still takes messages while its editor closes, so the edit waiting to stream is sent. */
-    readonly flushEditsOnEditorClose?: boolean;
-}
-
 /**
  * Keeps the host's inline-script tabs in step with the model: which scripts
  * have a tab, the open-script list the webview locks, the edits each tab
@@ -42,7 +37,6 @@ export class ScriptTabService {
         private readonly targets: ScriptTargetResolver,
         private readonly scriptFiles: ScriptFileStore,
         private readonly logger: LoggerPort,
-        private readonly options: ScriptTabServiceOptions = {},
     ) {
         this.contentStream = new ScriptContentStream(store, logger, (editorId) =>
             this.missedEdits.add(editorId),
@@ -137,14 +131,15 @@ export class ScriptTabService {
         this.scriptEditor.updateTabVariables(editorId, tabPaths);
     }
 
-    /** The editor closed: forgets its tabs and has the host close them. */
+    /**
+     * The editor closed: forgets its tabs and has the host close them. An edit
+     * still waiting to stream is dropped, because the store has already forgotten
+     * the session and no webview takes it.
+     */
     disposeEditor(editorId: string): void {
         const closing = this.tabs.ofEditor(editorId);
         for (const [tabPath] of closing) {
             this.tabs.untrack(tabPath);
-            if (this.options.flushEditsOnEditorClose) {
-                void this.contentStream.flush(tabPath);
-            }
             this.contentStream.stop(tabPath);
         }
         this.missedEdits.delete(editorId);

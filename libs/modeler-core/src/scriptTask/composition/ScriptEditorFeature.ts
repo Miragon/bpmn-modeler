@@ -12,7 +12,7 @@ import {
 } from "../adapter/in/scriptMessageHandlers";
 import { ScriptFileStore } from "../service/ScriptFileStore";
 import { ScriptEditorParticipant } from "../service/ScriptEditorParticipant";
-import { ScriptTabService, ScriptTabServiceOptions } from "../service/ScriptTabService";
+import { ScriptTabService } from "../service/ScriptTabService";
 import { ScriptTargetResolver } from "../service/ScriptTargetResolver";
 
 export interface ScriptEditorHostPorts {
@@ -25,7 +25,6 @@ export interface ScriptEditorHostPorts {
     /** The store the host's script editor writes through; it names the folder of a batch. */
     readonly scriptFiles: ScriptFileStore;
     readonly notifier: NotifierPort & LoggerPort;
-    readonly options?: ScriptTabServiceOptions;
 }
 
 /**
@@ -51,7 +50,6 @@ export class ScriptEditorFeature {
         variables,
         scriptFiles,
         notifier,
-        options,
     }: ScriptEditorHostPorts) {
         const scriptTabs = new ScriptTabService(
             store,
@@ -59,7 +57,6 @@ export class ScriptEditorFeature {
             new ScriptTargetResolver(store, picker, notifier),
             scriptFiles,
             notifier,
-            options,
         );
         this.scriptTabs = scriptTabs;
         this.editorContribution = {
