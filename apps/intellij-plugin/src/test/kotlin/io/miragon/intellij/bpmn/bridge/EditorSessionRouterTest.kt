@@ -658,6 +658,26 @@ class EditorSessionRouterTest {
     }
 
     @Test
+    fun `a save writes the sync the page sent while its clean reply is of the sync's revision`() {
+        val f = setUpRouter(INITIAL_XML)
+        f.openPageSyncingDuringSave(EDITED_XML, syncRevision = 0, cleanReplyRevision = 0)
+
+        FileDocumentManager.getInstance().saveAllDocuments()
+
+        assertEquals(EDITED_XML, f.bpmn.document.text, "the Document may lack the sync the page sent")
+    }
+
+    @Test
+    fun `a save keeps the Document when the page's clean reply is newer than the sync it sent`() {
+        val f = setUpRouter(INITIAL_XML)
+        f.openPageSyncingDuringSave(EDITED_XML, syncRevision = 0, cleanReplyRevision = 1)
+
+        FileDocumentManager.getInstance().saveAllDocuments()
+
+        assertEquals(INITIAL_XML, f.bpmn.document.text, "the page imported a newer host revision after its sync")
+    }
+
+    @Test
     fun `a recovered page edit is not rendered back as an external edit`() {
         val f = setUpRouter(INITIAL_XML)
         val page = f.openPageShowing(EDITED_XML)
@@ -1166,6 +1186,21 @@ class EditorSessionRouterTest {
         router.registerSession(page.session)
         page.sessionId = parse(wired.fake.nextFrame()).getAsJsonObject("params").get("sessionId").asLong
         return page
+    }
+
+    /** Opens a page that sends a sync of [content] at [syncRevision] during a flush, then answers `clean` at [cleanReplyRevision]. */
+    private fun Fixture.openPageSyncingDuringSave(content: String, syncRevision: Long, cleanReplyRevision: Long) {
+        lateinit var page: FakePage
+        page =
+            openPageShowing(content, editedSinceRender = false) { _ ->
+                router.forwardWebviewMessage(page.session, syncCommand(content, syncRevision))
+                val token = page.flushQueries.last().get("token").asLong
+                router.forwardWebviewMessage(
+                    page.session,
+                    "{\"type\":\"DocumentFlushedCommand\",\"token\":$token,\"status\":\"clean\"," +
+                        "\"documentRevision\":$cleanReplyRevision}",
+                )
+            }
     }
 
     /** [received] lists the type of every message the host posted into the page, [flushQueries] each flush query. */

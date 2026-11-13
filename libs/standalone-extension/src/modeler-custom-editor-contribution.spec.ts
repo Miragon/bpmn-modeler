@@ -31,7 +31,9 @@ interface TestWidgetOptions {
 }
 
 function failedSyncLog(): LogErrorCommand {
-    return new LogErrorCommand("Failed to sync diagram changes: export failed", undefined, true);
+    return new LogErrorCommand("Failed to sync diagram changes: export failed", undefined, {
+        documentSyncFailed: true,
+    });
 }
 
 function customEditorWidget(options: TestWidgetOptions = {}) {
@@ -346,6 +348,37 @@ describe("ModelerCustomEditorContribution", () => {
         await expect(flushing).resolves.toBe(true);
         expect(candidate.pushEditOperations).not.toHaveBeenCalled();
         expect(candidate.getContent()).toBe("<outside/>");
+    });
+
+    it("goes ahead without writing when the page could not flush and sent no sync", async () => {
+        vi.useFakeTimers();
+        const candidate = customEditorWidget({ flushedStatus: "unavailable" });
+        const { command } = setup(candidate.widget);
+
+        const flushing = command();
+        await vi.runAllTimersAsync();
+
+        await expect(flushing).resolves.toBe(true);
+        expect(candidate.pushEditOperations).not.toHaveBeenCalled();
+        expect(candidate.getContent()).toBe("<before/>");
+    });
+
+    it("writes the observed sync when the page could not flush", async () => {
+        vi.useFakeTimers();
+        const candidate = customEditorWidget({
+            applyNormalSyncToHost: false,
+            flushedStatus: "unavailable",
+            normalSyncContent: "<page/>",
+            normalSyncRevision: 1,
+        });
+        const { command } = setup(candidate.widget);
+
+        const flushing = command();
+        await vi.runAllTimersAsync();
+
+        await expect(flushing).resolves.toBe(true);
+        expect(candidate.pushEditOperations).toHaveBeenCalledOnce();
+        expect(candidate.getContent()).toBe("<page/>");
     });
 
     it("keeps an outside change the page imported after the sync the core dropped", async () => {

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { FlushableDebounceInput } from "@miragon/bpmn-modeler-types";
 
-import { FlushableDebounceInputModule } from "./flushableDebounceInput";
+import { FlushableDebounceInputModule, PANEL_INPUT_DEBOUNCE_MS } from "./flushableDebounceInput";
 
 function panelDebounceInput(): FlushableDebounceInput {
     const [, createService] = FlushableDebounceInputModule.debounceInput;
@@ -31,6 +31,7 @@ describe("FlushableDebounceInputModule", () => {
         vi.advanceTimersByTime(1);
         expect(appliedNames).toEqual(["Approve invoice"]);
         expect(debounceInput.hasPending()).toBe(false);
+        expect(PANEL_INPUT_DEBOUNCE_MS).toBe(600);
     });
 
     it("gives each modeler its own service", () => {

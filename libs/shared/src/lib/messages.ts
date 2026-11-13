@@ -160,9 +160,9 @@ export class LogErrorCommand extends LogMessageCommand<"LogErrorCommand"> {
     /** Set when the page could not post its document sync, so a host need not match the log text. */
     public readonly documentSyncFailed?: true;
 
-    constructor(log: string, stack?: string, documentSyncFailed = false) {
+    constructor(log: string, stack?: string, options: { readonly documentSyncFailed?: true } = {}) {
         super("LogErrorCommand", log, stack);
-        if (documentSyncFailed) {
+        if (options.documentSyncFailed) {
             this.documentSyncFailed = true;
         }
     }

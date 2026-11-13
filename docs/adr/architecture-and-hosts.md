@@ -1221,7 +1221,9 @@ so a save proceeds best-effort and a destructive caller refuses; for
 `awaitSentSyncs` it drains the editor queue and checks that the latest sync
 was applied. IntelliJ observes the syncs it captures while the EDT waits,
 whose core write would land after the save, and writes an export or an
-observed sync into the Document only while its revision still matches. Before
+observed sync into the Document only while its revision still matches. It
+drops a captured sync when a `clean` reply to a save, or an `unavailable`
+reply, carries a newer revision than the sync's. Before
 the standalone app shuts down or moves a diagram into or out of a secondary
 window (which reloads the webview), the Theia frontend flushes the page into
 Theia's text model itself, past the core, with a non-destructive flush. It

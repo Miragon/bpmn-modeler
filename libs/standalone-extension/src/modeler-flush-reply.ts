@@ -1,7 +1,7 @@
 // A copy of the flush reply table in libs/shared/src/lib/documentFlush.ts, which this
 // package's build cannot import; the spec runs the shared rows and pins the types to it.
 
-export const FLUSH_REPLY_STATUSES = ["clean", "flushed", "host-updated", "unavailable"] as const;
+const FLUSH_REPLY_STATUSES = ["clean", "flushed", "host-updated", "unavailable"] as const;
 
 export type FlushReplyStatus = (typeof FLUSH_REPLY_STATUSES)[number];
 
