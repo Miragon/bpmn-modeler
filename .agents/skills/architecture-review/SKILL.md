@@ -98,7 +98,7 @@ else
     { git -C "$TREE" diff --name-only --no-renames "$REV" "$(head -n 1 "$OUT/merge.txt")"; git -C "$TREE" diff --name-only --no-renames HEAD; } | sort -u > "$OUT/touched.txt"
     echo "merge base $BASE is not $REV: touched.txt lists the change as it would land on $REV"
   else
-    LAST_MERGE=$(git -C "$TREE" log --first-parent --merges -n 1 --format=%H HEAD)
+    LAST_MERGE=$(git -C "$TREE" log --first-parent --merges -n 1 --format=%H "$BASE..HEAD")
     OWN_FROM="$BASE"; [ -n "$LAST_MERGE" ] && OWN_FROM=$(git -C "$TREE" rev-parse "$LAST_MERGE^2")
     git -C "$TREE" diff --name-only --no-renames "$OWN_FROM" > "$OUT/touched.txt"
     awk 'NR > 1 && /^$/ { exit } NR > 1' "$OUT/merge.txt" | while IFS= read -r file; do
@@ -117,13 +117,14 @@ an ancestor. When the head lags `<rev>`, the diff from the merge base also
 holds changes that reached `<rev>` another way, such as a stacked PR squashed
 into it, so the block lists the change as it would land on `<rev>` instead.
 When the head conflicts with `<rev>`, that merged tree would hold files the
-PR never changed, so the block lists the PR's own change: from the commit the
-head's newest merge took in (`git log --first-parent --merges`) to the
-working tree. Check in the printed line that this merge took in the PR's
-base; without a merge the list starts at the merge base and holds a stacked
-parent's commits too. `conflicts.txt` labels each conflicted file as changed
-or not changed by the PR: one the PR did not change conflicts through what
-reached `<rev>` after that merge. `--no-renames` lists a renamed file under
+PR never changed, so the block lists the PR's own change: from the commit
+that the head's newest merge after the merge base took in to the working
+tree. Only merges after the merge base count, because the base's own history
+holds old merges the PR never made. Check in the printed line that this
+merge took in the PR's base; without a merge the list starts at the merge
+base and holds a stacked parent's commits too. `conflicts.txt` labels each
+conflicted file as changed or not changed by the PR: one the PR did not
+change conflicts through what reached `<rev>` after that merge. `--no-renames` lists a renamed file under
 both paths, so deleted and renamed files are in `touched.txt` too.
 Findings keep their status against the merge base: a `new` finding outside
 `touched.txt` may have come with such a change; check the function's
@@ -402,7 +403,7 @@ that can drift, then placement and naming.
 ## Architecture review: <branch | #PR | commit> at `<head>` against `<merge base>` (`<base ref>`)
 
 Measured: <ids>. Not measured: `<id>` (<reason>).
-<When the merge base is not the base ref: touched files are the change as it would land on it, or, on a conflict, the change since `<commit>`, which `<merge>` took in; conflicted files the PR did not change: <paths>.>
+<When the merge base is not the base ref: touched files are the change as it would land on it, or, on a conflict, the change since `<commit>`, which `<merge>` took in, or, on a conflict without a merge, the change since the merge base, which may hold a stacked parent's commits; conflicted files the PR did not change: <paths>.>
 <For a whole tree: walked: <areas and ports>; not covered: <areas and ports>; unchecked rows: <count per function>.>
 
 ### Findings

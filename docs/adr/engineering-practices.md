@@ -1788,12 +1788,13 @@ fitness function the findings with their status (new, existing, resolved),
 the trend of the declared values and the limits a review needs (misses and
 false reports) from the same output, so no second document drifts from the
 code. When a PR's head conflicts with its base, as a stacked PR's often
-does, its touched files are the change since the commit the head's newest
-merge took in, and each conflicted file is labelled as changed or not
-changed by the PR. It searches for copies of a rule with one `git grep` over
-the tracked TypeScript, Kotlin, build scripts, CI workflows, docs and JSON,
-searches a touched list, union or enum by two or three of its members to
-find copies with other names and members, looks for an existing home by
+does, its touched files are the change since the commit that the head's
+newest merge after the merge base took in, or since the merge base when the
+head has no such merge, and each conflicted file is labelled as changed or
+not changed by the PR. It searches for copies of a rule with one `git grep`
+over the tracked TypeScript, Kotlin, build scripts, CI workflows, docs and
+JSON, searches a touched list, union or enum by two or three of its members
+to find copies with other names and members, looks for an existing home by
 concept, compares the other callers of each function the change calls, and
 takes the `change-coupling` and `missed-partner` findings of the touched
 files as the search for copies whose spelling is unknown. It reviews what no
@@ -1821,14 +1822,15 @@ other trial is a lead. Before it calls a false alarm undeclared, it quotes
 the nearest `reportsWrongly` entry, or the collapsed group that sets the row
 aside, and says why it does not fit; before it proposes a `reportsWrongly`
 entry, it checks that the row is not one rule held in two places. For each
-false alarm no `reportsWrongly` entry declares, and each erosion a function's
-`measures` covers but it missed, it proposes, apart from its findings, a
-narrower rule, an exclusion derived from types, folders, imports or
-configuration, or at least a `reportsWrongly` or `misses` entry. For a row an entry already declares, it proposes a narrower
-rule or an exclusion only when the code can decide the case. It says whether
-each proposal is a fix in the PR or an issue for a maintainer to check before
-it is filed. A proposal that changes a function's rule bumps its version and
-needs a measured trial.
+false alarm no `reportsWrongly` entry declares, and each erosion a
+function's `measures` covers but it missed, it proposes, apart from its
+findings, a narrower rule, an exclusion derived from types, folders, imports
+or configuration, or at least a `reportsWrongly` or `misses` entry. For a
+row an entry already declares, it proposes a narrower rule or an exclusion
+only when the code can decide the case. It says whether each proposal is a
+fix in the PR or an issue for a maintainer to check before it is filed. A
+proposal that changes a function's rule bumps its version and needs a
+measured trial.
 
 It is not a fitness function: a model's judgement is not deterministic, and
 two runs on one tree differ. It comments and never blocks.
@@ -1963,7 +1965,8 @@ round-3 judge scored three findings as support for S1 and S2, not as added.
   The limits of `change-coupling` and `repeated-value-sets` name a structural
   cause and a defect of #1799 and parts of #2047; round-2 runs quoted them,
   and the round-3 run on #1799 flagged them. This section now names the
-  answers of all three cases, so a further measurement needs held-out PRs.
+  answers of all three cases, so if recall is ever measured again, it needs
+  PRs whose answers the tree does not name.
 
 **The trial (#2238).** From 2026-11-07 to 2026-11-12 the skill ran on 16
 feature PRs and made about 75 findings, eight of them behaviour bugs. From
@@ -1980,18 +1983,19 @@ or add a workspace: the shape of #2040 and #2047, where it scored best. It
 gets no CI pilot. Only two trial runs were timed (379 s and 287 s), the first
 two reviews needed a skeptic to filter their findings, and runs differ, so
 the comment would change from push to push. A job would also need a
-workflow, an API secret and possibly a dependency. The held-out measurement
-this section proposed is dropped. Instead, one finished review is repeated
-without the fitness report, to measure what the report adds to the skill
-(#2231). The review's fitness function proposals go to a maintainer, who
-files the ones that hold.
+workflow, an API secret and possibly a dependency. A run on 3 to 5 held-out
+merged PRs, with a CI pilot if it matched most architectural items at a
+false rate under 10 %, was proposed and is dropped. Instead, one finished
+review is repeated without the fitness report, to measure what the report
+adds to the skill (#2231). The review's fitness function proposals go to a
+maintainer, who files the ones that hold.
 
-The changes the measurement above proposed are in the skill (#2231): the
-bash note, the stacked PR's own change and its labelled conflicts, the
-whole-tree areas with their port and row budget, the search by members, each
-function's `base.unmeasurable` in the summary, and the two checks before a
-false alarm is declared undeclared or a `reportsWrongly` entry proposed. No
-run has measured them.
+The skill changes proposed with that run are in (#2231): the bash note, the
+stacked PR's own change and its labelled conflicts, the whole-tree areas
+with their port and row budget, the search by members, each function's
+`base.unmeasurable` in the summary, and the two checks before it calls a
+false alarm undeclared or proposes a `reportsWrongly` entry. No run has
+measured them.
 
 Alternatives considered:
 
@@ -2143,8 +2147,8 @@ little until rules move from services into `domain/`.
 Reported fitness functions never block a merge, so reviewers and the review
 agent read their new findings; the report is as complete as the functions
 plugged into it. The review's findings vary between runs and about half its
-additions are arguable, so the PR's author triages them, and it runs by hand
-until a held-out measurement shows more. The data branch is one
+additions are arguable, so the PR's author triages them, and it runs by hand,
+with no CI job. The data branch is one
 more ref to keep: deleting it costs a backfill, and nothing but convention
 keeps people from pushing to it.
 Rules move into `domain/` before or together with the feature that needs
