@@ -67,6 +67,17 @@ bus stops the event before later listeners see it. Subscribing after `destroy()`
 throws `NoModelerError`, as every other member does. Hosts therefore need no event names (`commandStack.changed`,
 `layout.formatted`), which stay unstable internals.
 
+A host that holds any of the three surfaces narrows it with the two published
+guards, `isModelerSurface` and `isEditableSurface`, from the root and `/mode`,
+never with its own `"member" in handle` check. The capabilities follow the two
+handle types: only the modeler toggles Design↔Implement and carries the engine
+members; both editable handles carry the edit event, a new diagram, format and
+clean-up, lint results and the panel's pending input. One guard per handle type
+keeps a capability from being checked through different members in different
+hosts. Both are generic, so a host's own subtype of a handle (the IDE webview
+holds the `BpmnModeler` class) stays narrowed to it. They live in `/mode`'s own
+folder and import only types, so `/mode` stays free of surface code.
+
 The navigation port's optional `isReferenceAvailable(reference)` is synchronous
 because context-pad construction is synchronous. Hosts with asynchronous
 discovery maintain a cache and emit `onReferenceAvailabilityChanged`; the
@@ -1785,7 +1796,8 @@ Tagged Design/Implement switches toggle live, so panel input still waiting in
 its debounce lands on the same surface. Recreate transitions apply the old
 surface's pending properties-panel input, capture view state, export XML,
 deliver the old surface's pending `onContentSaved` (internal
-`flushContentSaved()`, `PendingSaveHandle`), await `beforeDestroy` (host
+`flushContentSaved()`, `PendingSaveHandle`, the one capability that stays
+internal: only the session needs it), await `beforeDestroy` (host
 flush), destroy the old surface, construct/load the new one and restore plane,
 viewport and selection. The save is delivered here because the destroy would
 drop it and the new surface's import fires no change that saves the edit again.
@@ -1796,6 +1808,15 @@ before loading carried XML. The surface fits a fresh open
 itself; the host only restores its persisted plane and viewport, on first open
 and after a fallback, which carries no snapshot. Recreation loses instance undo
 and simulation state.
+
+The session also offers what every host would otherwise rebuild on
+`onSurfaceCreated`. `onContentChanged(listener)` reports each command stack
+change of whichever editable surface is live, subscribed again on every
+recreate and fallback, and returns its unsubscribe function; the name matches
+the `@miragon/modeler-api` contract the BPMN adapter (#2008) implements.
+`flushPendingInput()` applies the live surface's pending panel input, which a
+host that saves needs as much as a switch does. Both are silent on the viewer
+and after `destroy()`.
 
 A session owns at most one live surface. Failed preparation retains the old
 surface; failed construction/load disposes the candidate before trying a
@@ -1853,10 +1874,10 @@ flushable service from `modeler-types` (the DMN modeler and the Form webview
 use the same one). It keeps the library's 600 ms delay and tracks the input
 still waiting in it; a flush also runs input a flushed call debounces again,
 such as a number field inside a FEEL field. The modeler and designer handles
-reach it through the internal `hasPendingInput()` and `flushPendingInput()`
-(`PendingInputHandle`), which the IDE webview's flush and a recreating mode
-switch use to apply a typed value before they export. They are not public API
-yet.
+reach it through the public `hasPendingInput()` and `flushPendingInput()`
+(`PendingInputHandle`, which both handle interfaces extend), which the IDE
+webview's flush, the Orca plugin's save and a recreating mode switch use to
+apply a typed value before they export.
 
 ## Consequences and enforcement
 

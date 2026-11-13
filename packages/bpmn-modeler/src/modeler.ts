@@ -380,12 +380,12 @@ export class BpmnModeler {
         return subscribeFormatted(this.core, listener);
     }
 
-    /** @internal See {@link PendingInputHandle.hasPendingInput}. */
+    /** @see PendingInputHandle.hasPendingInput */
     hasPendingInput(): boolean {
         return this.core.hasPendingInput();
     }
 
-    /** @internal See {@link PendingInputHandle.flushPendingInput}. */
+    /** @see PendingInputHandle.flushPendingInput */
     flushPendingInput(): void {
         this.core.flushPendingInput();
     }

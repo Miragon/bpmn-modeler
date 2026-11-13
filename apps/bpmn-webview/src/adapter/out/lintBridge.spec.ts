@@ -30,6 +30,7 @@ function createHost() {
 
 function lintingSurface() {
     return {
+        newDiagram: vi.fn(),
         applyLintResults: vi.fn(),
         applyLintingDisabled: vi.fn(),
         startInPageLinting: vi.fn(),

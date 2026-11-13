@@ -21,9 +21,10 @@ import {
     extractProcessVariables,
     referenceKindSupports,
 } from "@miragon/bpmn-modeler-types";
+import { isModelerSurface } from "@miragon/bpmn-modeler/mode";
 
 import { FormReferenceAvailability } from "../../domain/formReferenceAvailability";
-import { isModelerHandle, type SurfaceHandle } from "../../domain/surface";
+import type { SurfaceHandle } from "../../domain/surface";
 import type { HostChannel } from "../../port/hostChannel";
 import { createFormPreview } from "./formPreview";
 
@@ -145,7 +146,7 @@ export function createProtocolCapabilities(
                             event.content,
                             // Scripting is a modeler-only cluster (C7), but the
                             // port closes over the polymorphic surface.
-                            isModelerHandle(surface)
+                            isModelerSurface(surface)
                                 ? extractProcessVariables(surface.getDefinitions())
                                 : [],
                         ),

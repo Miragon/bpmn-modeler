@@ -27,6 +27,7 @@ import {
     takeFocus,
 } from "@miragon/bpmn-modeler-shared";
 import type { LintRunEvent } from "@miragon/bpmn-modeler-types";
+import { isEditableSurface } from "@miragon/bpmn-modeler/mode";
 import { installHostEditorActions } from "../adapter/in/hostEditorActions";
 import { HostModelerState } from "../domain/hostModelerState";
 import { BpmnDocumentSession } from "../service/documentSession";
@@ -49,7 +50,6 @@ import { createSurfaceFactories } from "../adapter/out/surfaceFactories";
 import { loadSurfacePlugins, pluginsWithoutHostAnswer } from "../adapter/out/surfacePlugins";
 import { createSurfaceRequests } from "../adapter/in/surfaceRequests";
 import { readSavedMode } from "../service/state";
-import { isEditableHandle } from "../domain/surface";
 import { prefetchSurfaceModules } from "../adapter/out/surfaceModules";
 import type { WebviewState } from "../port/webviewState";
 import "../../../../packages/bpmn-modeler/src/styles/mode.css";
@@ -317,7 +317,7 @@ export function bootstrap(
         // so the trigger is guarded.
         installHostEditorActions((action) => {
             const surface = getSurface();
-            if (isEditableHandle(surface)) {
+            if (isEditableSurface(surface)) {
                 surface
                     .getService<{ trigger(action: string): void }>("editorActions")
                     .trigger(action);

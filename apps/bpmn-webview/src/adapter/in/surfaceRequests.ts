@@ -19,14 +19,10 @@ import {
     DEFAULT_FORM_PREVIEW_AUTOMATIC,
     extractProcessVariables,
 } from "@miragon/bpmn-modeler-types";
+import { isEditableSurface, isModelerSurface } from "@miragon/bpmn-modeler/mode";
 
 import type { HostModelerState } from "../../domain/hostModelerState";
-import {
-    isEditableHandle,
-    isFormattableHandle,
-    isModelerHandle,
-    type SurfaceHandle,
-} from "../../domain/surface";
+import type { SurfaceHandle } from "../../domain/surface";
 import { receiveErrorPrefix } from "../../domain/receiveErrorPrefix";
 import type { HostChannel } from "../../port/hostChannel";
 
@@ -87,7 +83,7 @@ export function createSurfaceRequests(
                 // One bulk reply so the host opens the scripts sequentially; the
                 // variable model is the same for every script, so it is extracted once.
                 const surface = getSurface();
-                if (isModelerHandle(surface)) {
+                if (isModelerSurface(surface)) {
                     const scripts = surface.collectInlineScriptTasks();
                     host.postMessage(
                         new OpenScriptEditorsCommand(
@@ -100,7 +96,7 @@ export function createSurfaceRequests(
             FormatDiagramQuery: async () => {
                 try {
                     const surface = getSurface();
-                    if (isFormattableHandle(surface)) {
+                    if (isEditableSurface(surface)) {
                         // The outcome is reported by the `onFormatted`
                         // subscription in `bindSurface`, so the keyboard
                         // shortcut and this command report through one path.
@@ -129,7 +125,7 @@ export function createSurfaceRequests(
                     // A surface without the capability is a failure to report,
                     // not a clean diagram — an empty report would be shown as
                     // "nothing to clean up".
-                    const outcome: CleanupOutcome = isFormattableHandle(surface)
+                    const outcome: CleanupOutcome = isEditableSurface(surface)
                         ? surface.cleanupDiagram({ apply })
                         : {
                               status: "failed",
@@ -152,7 +148,7 @@ export function createSurfaceRequests(
             },
             UpdateScriptContentQuery: (query) => {
                 const surface = getSurface();
-                if (isModelerHandle(surface)) {
+                if (isModelerSurface(surface)) {
                     surface.updateScriptContent(
                         query.elementId,
                         query.kind,
@@ -163,7 +159,7 @@ export function createSurfaceRequests(
             },
             UpdateScriptFormatQuery: (query) => {
                 const surface = getSurface();
-                if (isModelerHandle(surface)) {
+                if (isModelerSurface(surface)) {
                     surface.updateScriptFormat(
                         query.elementId,
                         query.kind,
@@ -175,13 +171,13 @@ export function createSurfaceRequests(
             UpdateOpenScriptEditorsQuery: (query) => {
                 hostModelerState.rememberOpenScripts(query.openScripts);
                 const surface = getSurface();
-                if (isModelerHandle(surface)) {
+                if (isModelerSurface(surface)) {
                     surface.applyOpenScriptEditors(query.openScripts);
                 }
             },
             ImplementationStatusQuery: (query) => {
                 const surface = getSurface();
-                if (isModelerHandle(surface)) {
+                if (isModelerSurface(surface)) {
                     surface.applyImplementationStatus(query.resolved);
                 }
             },
@@ -189,7 +185,7 @@ export function createSurfaceRequests(
                 try {
                     console.debug("Received element templates: ", query.elementTemplates);
                     const surface = getSurface();
-                    if (isModelerHandle(surface)) {
+                    if (isModelerSurface(surface)) {
                         surface.setHiddenElementTemplates(query.hiddenTemplates);
                         surface.setElementTemplates(query.elementTemplates);
                     }
@@ -202,7 +198,7 @@ export function createSurfaceRequests(
             HiddenElementTemplatesQuery: (query) => {
                 // Another surface needs nothing: a modeler built later asks for both.
                 const surface = getSurface();
-                if (isModelerHandle(surface)) {
+                if (isModelerSurface(surface)) {
                     surface.setHiddenElementTemplates(query.hiddenTemplates);
                 }
             },
@@ -219,9 +215,9 @@ export function createSurfaceRequests(
                     // the viewer nothing.
                     const surface = getSurface();
                     const favourites = query.setting.favouriteBpmnElements;
-                    if (isModelerHandle(surface)) {
+                    if (isModelerSurface(surface)) {
                         surface.setSettings(query.setting);
-                    } else if (isEditableHandle(surface) && favourites) {
+                    } else if (isEditableSurface(surface) && favourites) {
                         surface.setFavouriteBpmnElements(favourites);
                     }
                 } finally {

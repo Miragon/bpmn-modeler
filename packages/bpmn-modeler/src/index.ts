@@ -33,7 +33,9 @@ export type {
     CreateModeler,
     StableModelerSurface,
 } from "./publicApi";
-export type { BpmnSurfaceHandle } from "./surfaceHandle";
+export type { BpmnSurfaceHandle, PendingInputHandle } from "./surfaceHandle";
+export { isEditableSurface, isModelerSurface } from "./modeSession/surfaceCapabilities";
+export type { EditableSurfaceHandle } from "./modeSession/surfaceCapabilities";
 export type { ModelerCapabilities } from "./capabilities";
 export type { DefinitionSearchPort } from "@miragon/bpmn-modeler-definition-search";
 export type {
@@ -121,5 +123,3 @@ export type DiffPaneCoordinator = DiffPaneCoordinatorImpl;
 export { BpmnModeler } from "./modeler";
 /** @internal */
 export type { CreateModelerOptions } from "./publicApi";
-/** @internal */
-export type { PendingInputHandle } from "./surfaceHandle";

@@ -90,6 +90,17 @@ const views = modeler.getViews();
 await modeler.openView( views.find( ( v ) => v.type === "decisionTable" )! );
 ```
 
+## Saving typed input
+
+The properties panel and the table editors debounce typed input, so a value typed a moment ago is
+not in the document yet. Call `flushPendingInput()` before you export for a save;
+`hasPendingInput()` says whether anything waits.
+
+```ts
+modeler.flushPendingInput();
+const xml = await modeler.exportDiagram();
+```
+
 ## Escape hatch
 
 `modeler.getService(name)` reaches into the **active** dmn-js viewer's dependency-injection graph by

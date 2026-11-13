@@ -6,8 +6,9 @@ import {
     UpdateLintResultsCommand,
 } from "@miragon/bpmn-modeler-shared";
 import type { LintRunEvent } from "@miragon/bpmn-modeler-types";
+import { isEditableSurface } from "@miragon/bpmn-modeler/mode";
 
-import { isLintingHandle, type SurfaceHandle } from "../../domain/surface";
+import type { SurfaceHandle } from "../../domain/surface";
 import { loadLintModule } from "./surfaceModules";
 import type { HostChannel } from "../../port/hostChannel";
 
@@ -64,13 +65,13 @@ export function createLintBridge(
         handlers: {
             BpmnlintResultsQuery: (query) => {
                 const surface = getSurface();
-                if (isLintingHandle(surface)) {
+                if (isEditableSurface(surface)) {
                     surface.applyLintResults(query.results);
                 }
             },
             BpmnLintDisabledQuery: () => {
                 const surface = getSurface();
-                if (isLintingHandle(surface)) {
+                if (isEditableSurface(surface)) {
                     surface.applyLintingDisabled();
                 }
             },
@@ -83,7 +84,7 @@ export function createLintBridge(
                 // in Implement, engine-neutral in Design); a covered config →
                 // lint it in-page.
                 const surface = getSurface();
-                if (isLintingHandle(surface)) {
+                if (isEditableSurface(surface)) {
                     surface.startInPageLinting(query.config, query.configToken);
                 }
             },

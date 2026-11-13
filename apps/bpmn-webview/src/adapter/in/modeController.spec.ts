@@ -54,6 +54,9 @@ function fakeModeler(initialMode: "design" | "implement", overrides: Record<stri
     const modeler = {
         ...fakeViewer(),
         newDiagram: vi.fn(),
+        onCommandStackChanged: vi.fn(() => () => undefined),
+        hasPendingInput: () => false,
+        flushPendingInput: vi.fn(),
         setMode: vi.fn((next: "design" | "implement") => {
             mode = next;
         }),

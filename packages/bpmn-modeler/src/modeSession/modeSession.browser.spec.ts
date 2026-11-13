@@ -14,6 +14,7 @@ import {
     settleObserver,
     type SurfaceMount,
 } from "../__fixtures__/surfaceMount";
+import { isEditableSurface, isModelerSurface } from "./surfaceCapabilities";
 import { createModeSession } from "./modeSession";
 import type { ContentSavedEvent } from "../publicApi";
 import type { ViewportData } from "../viewport";
@@ -112,7 +113,7 @@ describe("createModeSession over the real surfaces", () => {
 
         const modeler = tagged.getHandle();
         expect(onModeChanged).toHaveBeenCalledExactlyOnceWith("design", "recreate");
-        expect("getMode" in modeler && modeler.getMode()).toBe("design");
+        expect(isModelerSurface(modeler) && modeler.getMode()).toBe("design");
         expect(mount.container.dataset.bpmnMode).toBe("design");
         expectDrilledInViewState(modeler);
     });
@@ -148,7 +149,7 @@ describe("createModeSession over the real surfaces", () => {
         await untagged.requestMode("design");
         await settleObserver();
         const designer = untagged.getHandle();
-        expect("setMode" in designer).toBe(false);
+        expect(isModelerSurface(designer)).toBe(false);
         expectDrilledInViewState(designer);
 
         await untagged.requestMode("view");
@@ -179,7 +180,7 @@ async function openInDesign(
 
 async function renameTaskInDesign(designSession: ModeSession): Promise<void> {
     const handle = designSession.getHandle();
-    if (!("newDiagram" in handle)) {
+    if (!isEditableSurface(handle)) {
         throw new Error(`Design is served by a readonly surface (${designSession.getMode()})`);
     }
     const task = handle.getService("elementRegistry").get("Task_1") as Element;
@@ -237,7 +238,7 @@ describe("createModeSession hands a value the panel still debounces to the next 
                 surfaces: realSurfaces(mount.panel),
                 initialMode: "design",
                 onSurfaceCreated: (handle) => {
-                    if ("onCommandStackChanged" in handle) {
+                    if (isEditableSurface(handle)) {
                         handle.onCommandStackChanged(() => {
                             events.push("commandStack.changed");
                         });
@@ -330,6 +331,70 @@ describe("createModeSession delivers the outgoing surface's pending content save
             expect(opened.onContentSaved.mock.calls[0][0].xml).toContain(
                 'name="Typed in the panel"',
             );
+        },
+    );
+});
+
+describe("createModeSession reports a real surface's edit across switches", () => {
+    it.each([
+        {
+            switches: "Design → Implement → Design",
+            engine: "c7" as const,
+            xml: tagAsCamunda7(FAR_FROM_ORIGIN_XML),
+            via: "implement" as const,
+        },
+        {
+            switches: "Design → View → Design",
+            engine: undefined,
+            xml: FAR_FROM_ORIGIN_XML,
+            via: "view" as const,
+        },
+    ])("fires the edit event once for an edit after $switches", async ({ engine, xml, via }) => {
+        const onError = vi.fn();
+        const onContentChanged = vi.fn();
+        const opened = await openInDesign(engine, xml, onError);
+        opened.onContentChanged(onContentChanged);
+
+        await opened.requestMode(via);
+        await opened.requestMode("design");
+        await afterPaint();
+        onContentChanged.mockClear();
+        await renameTaskInDesign(opened);
+
+        expect(onError).not.toHaveBeenCalled();
+        expect(opened.getMode()).toBe("design");
+        expect(onContentChanged).toHaveBeenCalledOnce();
+    });
+});
+
+describe("createModeSession applies a value the panel still debounces on request", () => {
+    it.each([
+        { model: "a tagged", engine: "c7" as const, xml: tagAsCamunda7(FAR_FROM_ORIGIN_XML) },
+        { model: "an untagged", engine: undefined, xml: FAR_FROM_ORIGIN_XML },
+    ])(
+        "finds $model model's typed name in the export after flushPendingInput",
+        async ({ engine, xml }) => {
+            const mount = mountWithPanel();
+            session = await createModeSession({
+                container: mount.container,
+                engine,
+                surfaces: realSurfaces(mount.panel),
+                initialMode: "design",
+            });
+            const editable = session.getHandle();
+            await editable.loadDiagram(xml);
+            await afterPaint();
+            editable.selection.selectElementsByIds(["Task_1"]);
+            const nameField = () =>
+                mount.panel.querySelector<HTMLTextAreaElement>("#bio-properties-panel-name");
+            await expect.poll(() => nameField()?.value).toBe("A");
+            nameField()!.value = "Typed in the panel";
+            nameField()!.dispatchEvent(new Event("input", { bubbles: true }));
+            await afterPaint();
+
+            session.flushPendingInput();
+
+            await expect(editable.exportDiagram()).resolves.toContain('name="Typed in the panel"');
         },
     );
 });

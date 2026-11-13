@@ -808,7 +808,7 @@ viewerOnly.availableModes(); // ["view"] — mountModeStrip renders no chip
 | `surfaces`             | `SurfaceFactories`                 | The per-mode factories you inject; the present set decides the available modes.            |
 | `initialMode`          | `string \| null`                   | Requested start mode (saved / host default / `?mode=`), vetted by `resolveInitialMode`.    |
 | `theme`                | `"light" \| "dark" \| "automatic"` | Forwarded to every surface and to `setTheme`. Default `"automatic"`.                       |
-| `onSurfaceCreated`     | `(handle, mode) => void`           | After each factory returns, before `loadDiagram` — rebind per-instance subscriptions here. |
+| `onSurfaceCreated`     | `(handle, mode) => void`           | After each factory returns, before `loadDiagram` — rebind per-instance subscriptions here; edit events need none (`ModeSession.onContentChanged`). |
 | `onModeChanged`        | `(mode, transition) => void`       | Once per applied change; `transition` is `"toggle"` / `"recreate"` / `"fallback"`.         |
 | `onSwitchStateChanged` | `(busy: boolean) => void`          | Enters/leaves a recreate's handle-less window (drive `aria-busy` / `inert`).               |
 | `beforeDestroy`        | `() => void \| Promise<void>`      | Runs before `destroy()` on a recreate, once the outgoing surface's pending properties-panel input is applied, the diagram exported and the surface's pending `onContentSaved` delivered — flush pending host sync here. |
@@ -820,6 +820,36 @@ viewerOnly.availableModes(); // ["view"] — mountModeStrip renders no chip
 `requestMode(mode)` (ignored when unavailable / a no-op / mid-switch / after `destroy()`; resolves when applied),
 `setTheme(theme)`, and `destroy(): Promise<void>` (idempotent; awaits an in-flight switch and
 tears down whichever surface that transaction owns, so no callbacks fire after it).
+
+`onContentChanged(listener)` reports each edit on whichever editable surface is live, across every
+switch, and returns its unsubscribe function, so a host saves on edits without rebinding in
+`onSurfaceCreated`. `flushPendingInput()` applies a value the properties panel still debounces;
+call it before `getHandle().exportDiagram()` for a save. Both do nothing on the viewer.
+
+```ts
+session.onContentChanged( () => scheduleSave() );
+
+async function save(): Promise<void> {
+    session.flushPendingInput();
+    await write( await session.getHandle().exportDiagram() );
+}
+```
+
+### Narrowing the live surface
+
+`getHandle()` returns the viewer, designer or modeler. Narrow it with `isEditableSurface` (designer
+or modeler: `newDiagram`, `formatDiagram`, `cleanupDiagram`, `applyLintResults`, `onCommandStackChanged`,
+`flushPendingInput`) and `isModelerSurface` (the modeler: `setMode`, engine members), exported from
+both `@miragon/bpmn-modeler` and `/mode`, instead of checking for a member:
+
+```ts
+import { isEditableSurface } from "@miragon/bpmn-modeler/mode";
+
+const surface = session.getHandle();
+if ( xml.trim() === "" && isEditableSurface( surface ) ) {
+    await surface.newDiagram();
+}
+```
 
 ### `mountModeStrip`
 

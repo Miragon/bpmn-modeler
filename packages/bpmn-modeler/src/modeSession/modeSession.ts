@@ -8,24 +8,9 @@ import {
     type SurfaceMode,
 } from "@miragon/bpmn-modeler-types";
 import type { ModelerMode, ThemeMode } from "../publicApi";
-import type { PendingInputHandle, PendingSaveHandle } from "../surfaceHandle";
+import { holdsPendingSave, isEditableSurface, isModelerSurface } from "./surfaceCapabilities";
 import type { ModeSession, ModeSessionOptions, SurfaceHandle } from "./publicApi";
 import { servingSurfaces } from "./servingSurfaces";
-
-function canToggleMode(handle: SurfaceHandle): handle is SurfaceHandle & {
-    setMode(mode: ModelerMode): void;
-    getMode(): ModelerMode;
-} {
-    return "setMode" in handle;
-}
-
-function holdsPanelInput(handle: SurfaceHandle): handle is SurfaceHandle & PendingInputHandle {
-    return "flushPendingInput" in handle;
-}
-
-function holdsPendingSave(handle: SurfaceHandle): handle is SurfaceHandle & PendingSaveHandle {
-    return "flushContentSaved" in handle;
-}
 
 /**
  * Owns the single live surface for a BPMN page and switches it between modes. A
@@ -50,17 +35,35 @@ export async function createModeSession(options: ModeSessionOptions): Promise<Mo
         );
     }
 
+    let busy = false;
+    let disposed = false;
+    const contentListeners = new Set<() => void>();
+    let stopForwardingEdits = (): void => undefined;
+
+    // Each surface has its own command stack, so a recreated one is subscribed again.
+    function forwardEdits(surface: SurfaceHandle): void {
+        stopForwardingEdits();
+        stopForwardingEdits = isEditableSurface(surface)
+            ? surface.onCommandStackChanged(() => {
+                  if (!disposed) contentListeners.forEach((listener) => listener());
+              })
+            : () => undefined;
+    }
+
+    function bindSurface(surface: SurfaceHandle, mode: SurfaceMode): void {
+        forwardEdits(surface);
+        options.onSurfaceCreated?.(surface, mode);
+    }
+
     let currentMode = resolveInitialMode(options.initialMode ?? null, engine, available);
     let handle = await buildSurface(currentMode);
     try {
-        options.onSurfaceCreated?.(handle, currentMode);
+        bindSurface(handle, currentMode);
     } catch (error) {
+        stopForwardingEdits();
         handle.destroy();
         throw error;
     }
-
-    let busy = false;
-    let disposed = false;
     // The in-flight recreate transaction, or null when idle. `busy` already drops
     // concurrent requests, so at most one exists; `disposed` is terminal. Should
     // #1499 change drop-while-busy to supersede, a per-op token would be needed.
@@ -93,7 +96,7 @@ export async function createModeSession(options: ModeSessionOptions): Promise<Mo
         if (kind === "none") {
             return;
         }
-        if (kind === "toggle" && canToggleMode(handle)) {
+        if (kind === "toggle" && isModelerSurface(handle)) {
             handle.setMode(target as ModelerMode);
             // The handle is the single source of truth for the applied mode.
             currentMode = handle.getMode();
@@ -129,7 +132,7 @@ export async function createModeSession(options: ModeSessionOptions): Promise<Mo
             // The panel's debounced input is not in the diagram yet; applied now, it
             // reaches the snapshot, the export and a sync the host flushes in
             // `beforeDestroy`.
-            if (holdsPanelInput(original)) {
+            if (isEditableSurface(original)) {
                 original.flushPendingInput();
             }
             snapshot = original.captureViewState();
@@ -162,6 +165,7 @@ export async function createModeSession(options: ModeSessionOptions): Promise<Mo
         }
 
         // Phase 2 — point of no return: the original is gone from here on.
+        stopForwardingEdits();
         original.destroy();
 
         // Phase 3 — stand up the candidate; any failure destroys it and falls back.
@@ -176,7 +180,7 @@ export async function createModeSession(options: ModeSessionOptions): Promise<Mo
             currentMode = target;
             // A setTheme during the build reached only the destroyed original.
             handle.setTheme(theme);
-            options.onSurfaceCreated?.(handle, target);
+            bindSurface(handle, target);
             await handle.loadDiagram(xml);
             if (disposed) {
                 safeDestroy(candidate);
@@ -206,7 +210,7 @@ export async function createModeSession(options: ModeSessionOptions): Promise<Mo
             handle = surface;
             currentMode = fallback;
             handle.setTheme(theme);
-            options.onSurfaceCreated?.(handle, fallback);
+            bindSurface(handle, fallback);
             await handle.loadDiagram(xml);
             if (disposed) {
                 safeDestroy(surface);
@@ -229,6 +233,17 @@ export async function createModeSession(options: ModeSessionOptions): Promise<Mo
         availableModes: () => available,
         isAvailable,
         requestMode,
+        flushPendingInput: () => {
+            if (!disposed && isEditableSurface(handle)) {
+                handle.flushPendingInput();
+            }
+        },
+        onContentChanged: (listener: () => void) => {
+            contentListeners.add(listener);
+            return () => {
+                contentListeners.delete(listener);
+            };
+        },
         setTheme: (next: ThemeMode) => {
             if (disposed) {
                 return;
@@ -241,6 +256,7 @@ export async function createModeSession(options: ModeSessionOptions): Promise<Mo
                 return;
             }
             disposed = true;
+            stopForwardingEdits();
             if (inFlight) {
                 // The transaction destroys whichever surface it owns at its next checkpoint.
                 await inFlight;

@@ -185,7 +185,10 @@ function makeModeler(overrides: Record<string, unknown> = {}) {
         exportDiagram: vi.fn(async () => "<exported />"),
         alignElementsToOrigin: vi.fn(),
         newDiagram: vi.fn(async () => ({ warnings: [] })),
-        onCommandStackChanged: vi.fn(),
+        onCommandStackChanged: vi.fn(() => () => undefined),
+        hasPendingInput: vi.fn(() => false),
+        flushPendingInput: vi.fn(),
+        onFormatted: vi.fn(() => () => undefined),
         setElementTemplates: vi.fn(),
         setHiddenElementTemplates: vi.fn(),
         setSettings: vi.fn(),
@@ -229,7 +232,10 @@ function makeDesigner() {
         loadDiagram: vi.fn(async () => ({ warnings: [] })),
         exportDiagram: vi.fn(async () => "<exported />"),
         newDiagram: vi.fn(async () => ({ warnings: [] })),
-        onCommandStackChanged: vi.fn(),
+        onCommandStackChanged: vi.fn(() => () => undefined),
+        hasPendingInput: vi.fn(() => false),
+        flushPendingInput: vi.fn(),
+        onFormatted: vi.fn(() => () => undefined),
         getDiagramSvg: vi.fn(),
         setFavouriteBpmnElements: vi.fn(),
         captureViewState: vi.fn(() => ({})),
@@ -829,6 +835,7 @@ describe("bootstrap", () => {
             makeModeler({
                 onCommandStackChanged: vi.fn((listener: () => void) => {
                     commandStackChanged = listener;
+                    return () => undefined;
                 }),
             }),
         );

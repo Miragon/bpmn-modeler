@@ -128,7 +128,7 @@ export interface DmnModelerOptions {
 }
 
 /** The independent instance handle returned by {@link createModeler}. */
-export interface DmnModelerHandle {
+export interface DmnModelerHandle extends DmnPendingInputHandle {
     /** Load DMN XML, replacing any currently loaded document. */
     loadDiagram(xml: string): Promise<DmnOperationResult>;
 
@@ -184,8 +184,8 @@ export interface DmnModelerHandle {
 }
 
 /**
- * @internal Input a view editor holds in its input debounce, so it is not in
- * the document or an export yet.
+ * Input a view editor holds in its input debounce, so it is not in the
+ * document or an export yet. A host applies it before it exports for a save.
  */
 export interface DmnPendingInputHandle {
     /** Whether such input waits; `false` once destroyed. */

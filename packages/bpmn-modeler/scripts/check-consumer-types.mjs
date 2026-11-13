@@ -92,7 +92,7 @@ const CONSUMER_FIXTURES = {
         }
     `,
     "mode.ts": `
-        import { createModeSession } from "${PKG}/mode";
+        import { createModeSession, isEditableSurface } from "${PKG}/mode";
         import { createModeler, detectEngine } from "${PKG}";
         import { createViewer } from "${PKG}/viewer";
         import { createDesigner } from "${PKG}/design";
@@ -120,6 +120,10 @@ const CONSUMER_FIXTURES = {
                 },
             });
             await session.getHandle().loadDiagram(xml);
+            const handle = session.getHandle();
+            if (isEditableSurface(handle)) {
+                handle.flushPendingInput();
+            }
             return session.availableModes();
         }
     `,

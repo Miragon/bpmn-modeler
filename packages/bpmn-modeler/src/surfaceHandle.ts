@@ -7,8 +7,9 @@ import type { ViewState } from "./viewState";
 import type { ViewportManager } from "./viewport";
 
 /**
- * @internal The editable surfaces' properties-panel input that still waits in
- * the panel's 600 ms input debounce, so it is not in the diagram or an export.
+ * The editable surfaces' properties-panel input that still waits in the
+ * panel's 600 ms input debounce, so it is not in the diagram or an export yet.
+ * A host applies it before it exports for a save.
  */
 export interface PendingInputHandle {
     /** Whether the properties panel holds such input; `false` once destroyed. */
