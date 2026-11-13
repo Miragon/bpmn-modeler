@@ -5,6 +5,7 @@ import { notifiedErrorLogText } from "../../kernel/domain/errorLogText";
 import { FileNotFound } from "../../kernel/domain/errors";
 import { LoggerPort, SettingsPort, WorkspacePort } from "../../kernel/port/hostPorts";
 import { isWithinRoot } from "../../kernel/domain/rootContainment";
+import { joinWorkspacePath } from "../../kernel/domain/workspacePath";
 import { ArtifactService } from "../../kernel/service/ArtifactService";
 import {
     editorScriptDir,
@@ -102,6 +103,11 @@ export class ScriptFileStore {
         await this.sweepOnce(baseDir);
         await this.ensureGitignore(baseDir);
         return scriptFilePath(baseDir, script);
+    }
+
+    /** Where the file of the script `scriptId` names lies in the editor's base directory. */
+    async pathOf(editorId: string, scriptId: string): Promise<string> {
+        return joinWorkspacePath(await this.baseDirFor(editorId), scriptId);
     }
 
     /**

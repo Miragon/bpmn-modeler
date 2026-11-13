@@ -58,7 +58,6 @@ import {
     QuestionQueue,
     ScriptEditorFeature,
     ScriptFileStore,
-    ScriptTargetResolver,
     ScriptVariableStore,
 } from "@miragon/bpmn-modeler-core";
 import { RecordingScriptEditor } from "@miragon/bpmn-modeler-core/testing";
@@ -121,11 +120,9 @@ function createVsCodeBpmnEditor(context = createExtensionContext()) {
         deploymentStatusParticipant: deploymentStatus,
         reviews,
         scriptEditor: new ScriptEditorFeature({
-            scriptEditor: new RecordingScriptEditor(
-                deps.editorStore,
-                scriptFiles,
-                new ScriptTargetResolver(deps.editorStore, deps.picker, deps.notifier),
-            ),
+            store: deps.editorStore,
+            scriptEditor: new RecordingScriptEditor(scriptFiles),
+            picker: deps.picker,
             variables: new ScriptVariableStore(),
             scriptFiles,
             notifier: deps.notifier,

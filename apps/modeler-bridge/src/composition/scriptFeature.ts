@@ -5,7 +5,6 @@ import {
     BpmnEditorContributions,
     ScriptEditorFeature,
     ScriptFileStore,
-    ScriptTargetResolver,
     ScriptVariableStore,
 } from "@miragon/bpmn-modeler-core";
 
@@ -17,8 +16,8 @@ import { BridgeSharedDeps } from "./sharedDeps";
 /**
  * The inline-script-editor feature owns the {@link BridgeScriptEditor}, the
  * host's script tabs behind the core's `ScriptEditorPort`. The core
- * `ScriptEditorFeature` turns it into the BPMN editor's script commands and the
- * participant that closes an editor's tabs on dispose.
+ * `ScriptEditorFeature` keeps them in step with the BPMN editor's script
+ * commands and closes an editor's tabs on dispose.
  */
 export function register(deps: BridgeSharedDeps): {
     editorContribution: BpmnEditorContributions["scriptEditor"];
@@ -34,8 +33,6 @@ export function register(deps: BridgeSharedDeps): {
     );
     const variables = new ScriptVariableStore();
     const scriptEditor = new BridgeScriptEditor(
-        deps.store,
-        new ScriptTargetResolver(deps.store, deps.picker, deps.notifier),
         deps.rpc,
         deps.notifier,
         deps.settings,
@@ -49,7 +46,9 @@ export function register(deps: BridgeSharedDeps): {
     );
 
     const { editorContribution } = new ScriptEditorFeature({
+        store: deps.store,
         scriptEditor,
+        picker: deps.picker,
         variables,
         scriptFiles,
         notifier: deps.notifier,

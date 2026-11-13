@@ -1,43 +1,33 @@
 /**
- * Bridge-only orchestrator for the "Edit Script" feature on a remote host.
- * JCEF webviews are never "hidden" the way VS Code editor panels are, so
- * unlike `ScriptTaskService` it needs no resync machinery.
- *
- * The bridge writes each script as a real file into the core
+ * The IntelliJ host's script tabs behind the core's `ScriptEditorPort`. The
+ * bridge writes each script as a real file into the core
  * {@link ScriptFileStore}'s base directory and hands the host its absolute
  * path; a real `VirtualFile` (rather than an in-memory `LightVirtualFile`) is
- * what re-enables IdeaVim and file-based AI tooling in the IntelliJ tab. The
- * store owns where the files go and their hygiene; this class decides when a
- * script file is deleted.
+ * what re-enables IdeaVim and file-based AI tooling in the IntelliJ tab.
  *
- * This class owns all BPMN/element knowledge: it addresses scripts by a stable
- * `ScriptUri` and hands the host an opaque `scriptId`; the host is a dumb
- * editor surface keyed by that id, and host-reported edits map back to the
- * right webview here.
+ * A tab is addressed by an opaque `scriptId`, the script's `ScriptUri` path,
+ * which is also the tab path the core tracks it under; the host is a dumb
+ * editor surface keyed by that id. What the bridge keeps itself is the host's
+ * side of a close: the file to delete once the host acknowledged it.
  */
 
 import {
     beansFor,
     COMPLEX_TYPES,
-    EditorSessionStore,
     globalFunctionsFor,
     InlineScript,
-    matchScriptFile,
+    MatchedScriptFile,
     methodsForBean,
     NotifierPort,
-    OpenScriptTabs,
-    ScriptContentStream,
+    OpenScriptTab,
     ScriptEditorPort,
     ScriptFileStore,
-    ScriptMaterialization,
-    ScriptSourceChange,
-    ScriptTarget,
-    ScriptTargetResolver,
+    ScriptTabListener,
+    ScriptTabTarget,
     ScriptVariableStore,
     SettingsPort,
     toWorkspacePath,
 } from "@miragon/bpmn-modeler-core";
-import { UpdateOpenScriptEditorsQuery } from "@miragon/bpmn-modeler-shared";
 import { ScriptKind } from "@miragon/bpmn-modeler-types";
 
 import { Rpc } from "../../../transport/adapter/out/Rpc";
@@ -45,15 +35,7 @@ import { METHODS } from "../../../protocol/domain/descriptor";
 import { ScriptOpenParams } from "../../../protocol/domain/types";
 import { ScriptTabEvents } from "../../port/ScriptTabEvents";
 
-/**
- * Per-script tracking lives here, never on the host: re-opening the same script
- * resolves to the same `scriptId`, so the host can reveal an existing tab
- * instead of duplicating it, and `didChange` can be mapped back to the element
- * without the host knowing anything about BPMN.
- */
 export class BridgeScriptEditor implements ScriptEditorPort, ScriptTabEvents {
-    private readonly scripts = new OpenScriptTabs();
-
     // Absolute file path per open script, retained for deletion on close.
     private readonly filePathByScript = new Map<string, string>();
 
@@ -71,39 +53,46 @@ export class BridgeScriptEditor implements ScriptEditorPort, ScriptTabEvents {
      * scriptIds whose *next* `script/didClose` must be ignored. Armed when a
      * re-open cancels an in-flight close-ack: the host still emits exactly one
      * `didClose` for the pre-empted close (single-shot host contract — one
-     * `didClose` per `close`), and letting it run would delete the freshly
-     * re-tracked entry and broadcast a lock set missing the re-opened tab.
+     * `didClose` per `close`), and letting it run would untrack the freshly
+     * re-opened script and unlock its field.
      */
     private readonly swallowNextDidClose = new Set<string>();
 
-    /** Keyed by `scriptId`. JCEF webviews never hide, so no edit waits for a resync. */
-    private readonly contentStream: ScriptContentStream;
+    private listener: ScriptTabListener | undefined;
 
     constructor(
-        private readonly store: EditorSessionStore,
-        private readonly targets: ScriptTargetResolver,
         private readonly rpc: Rpc,
         private readonly notifier: NotifierPort,
         private readonly settings: SettingsPort,
         private readonly scriptFiles: ScriptFileStore,
         private readonly scriptVariables: ScriptVariableStore,
-    ) {
-        this.contentStream = new ScriptContentStream(store, notifier);
+    ) {}
+
+    listen(listener: ScriptTabListener): void {
+        this.listener = listener;
+    }
+
+    async tabPathOf(_editorId: string, scriptId: string): Promise<string> {
+        return scriptId;
+    }
+
+    async openTab(target: ScriptTabTarget, script: InlineScript): Promise<void> {
+        this.cancelPendingClose(target.tabPath);
+        await this.notifyOpen(target, script);
+    }
+
+    /** `script/open` again: the host reveals the tab of a known `scriptId` and ignores the content. */
+    async revealTab(target: ScriptTabTarget, script: InlineScript): Promise<void> {
+        await this.notifyOpen(target, script);
     }
 
     /**
-     * Opens (or reveals) an inline script in a host text editor.
-     *
      * `script/open` always carries the content; the host ignores it when the
      * `scriptId` is already tracked and just reveals the existing tab (so a
      * re-open never clobbers in-flight edits).
      */
-    async open(editorId: string, script: InlineScript): Promise<void> {
-        const target = await this.resolveScriptTarget(script, editorId);
-        if (!target) {
-            return; // language picker cancelled
-        }
-        const { scriptId, uri, language } = target;
+    private async notifyOpen(target: ScriptTabTarget, script: InlineScript): Promise<void> {
+        const { tabPath: scriptId, editorId, uri, language } = target;
 
         // Write the real file only on first open: a re-open just reveals the
         // existing tab, and rewriting the file underneath IntelliJ's (possibly
@@ -123,13 +112,6 @@ export class BridgeScriptEditor implements ScriptEditorPort, ScriptTabEvents {
             }
         }
 
-        this.scripts.track(scriptId, {
-            editorId,
-            elementId: script.elementId,
-            kind: script.kind,
-            listenerIndex: script.listenerIndex,
-        });
-
         // `fileName` carries the extension so the host infers the FileType for
         // highlighting; `content` is honoured only on first open (see above).
         this.rpc.notify(METHODS.scriptOpen, {
@@ -140,9 +122,6 @@ export class BridgeScriptEditor implements ScriptEditorPort, ScriptTabEvents {
             content: script.content,
             completion: this.completionPayloadFor(script.kind, editorId),
         } satisfies ScriptOpenParams);
-
-        // A tab now owns this script — lock the matching webview panel field.
-        this.broadcastOpenScripts(editorId);
     }
 
     /**
@@ -178,162 +157,57 @@ export class BridgeScriptEditor implements ScriptEditorPort, ScriptTabEvents {
     }
 
     /**
-     * Writes a script file to disk *without* opening a host tab, tracking it, or
-     * locking the panel — the "Generate Script Files" command's whole job. Live
-     * sync starts only when the user opens the file (see {@link adoptExternalOpen}).
-     * A failed write rejects.
-     *
-     * Deliberately does **not** record `filePathByScript`: a later panel-button
-     * open then sees no path and rewrites the file from the current model, keeping
-     * the panel button's rewrite-from-model semantics. A script already owned by
-     * an open tab is left untouched (`alreadyOpen`) — its buffer is authoritative.
+     * Writes a script file to disk *without* opening a host tab, the
+     * "Generate Script Files" command's whole job. Deliberately does **not**
+     * record `filePathByScript`: a later panel-button open then sees no path
+     * and rewrites the file from the current model.
      */
-    async materialize(editorId: string, script: InlineScript): Promise<ScriptMaterialization> {
-        const target = await this.resolveScriptTarget(script, editorId);
-        if (!target) {
-            return { kind: "cancelled" };
-        }
-
-        const plan = this.scripts.materializationOf(target.scriptId);
-        if (plan.kind === "alreadyOpen") {
-            return plan;
-        }
-
-        const filePath = await this.scriptFiles.prepareScriptFile(editorId, target.uri);
+    async writeScript(target: ScriptTabTarget, script: InlineScript): Promise<void> {
+        this.cancelPendingClose(target.tabPath);
+        const filePath = await this.scriptFiles.prepareScriptFile(target.editorId, target.uri);
         await this.scriptFiles.writeFile(filePath, script.content);
-        return { kind: "written" };
     }
 
     /**
-     * The core's target for a script, keyed by its `scriptId`, for
-     * {@link open} and {@link materialize}. `undefined` when the language
-     * prompt was dismissed.
-     *
-     * Also cancels a pending close-ack deletion for the same script: the caller
-     * is about to (re)write or reveal the file, so a late `script/didClose` ack
-     * must not tear it down; dropping the `filePathByScript` entry forces a
-     * rewrite because the bytes on disk are only the last save, which may trail
-     * the model content we were just handed.
+     * The caller is about to (re)write or reveal the script's file, so a late
+     * `script/didClose` ack must not tear it down; dropping the
+     * `filePathByScript` entry forces a rewrite because the bytes on disk are
+     * only the last save, which may trail the model content we were just
+     * handed.
      */
-    private async resolveScriptTarget(
-        script: InlineScript,
-        editorId: string,
-    ): Promise<(ScriptTarget & { scriptId: string }) | undefined> {
-        const target = await this.targets.resolve(editorId, script);
-        if (!target) {
-            return undefined;
-        }
-        const scriptId = target.uri.toString();
-
+    private cancelPendingClose(scriptId: string): void {
         if (this.pendingCloseAcks.delete(scriptId)) {
             this.filePathByScript.delete(scriptId);
-            // The close we just pre-empted still yields one host `didClose`;
-            // swallow it so it can't tear down this re-tracked script.
             this.swallowNextDidClose.add(scriptId);
         }
-        return { ...target, scriptId };
     }
 
     /**
-     * Adopts a script file the host reports opened *outside* our own flow (Project
-     * view, or the properties-panel button on an untracked file) so live sync into
-     * the BPMN model starts from that moment. Without it, host keystrokes would be
-     * dropped: {@link didChange} filters strictly by the tracking map.
-     *
-     * Adoption is track + notify `script/open` + lock only — the host attaches its
-     * document listener to the already-open tab. No content is pushed toward the
-     * model at adopt time: disk becomes truth on the first edit after opening. A
-     * file whose editor session isn't live, that sits outside the base directory,
-     * or that is an ambient sibling (`camunda.d.ts`/`jsconfig.json`) is ignored.
+     * Shows a script file the host reported opened outside our own flow
+     * (Project view, or the properties-panel button on an untracked file).
+     * The host attaches its document listener to the already-open tab; the
+     * read only fills `script/open`, and a failed read rejects.
      */
-    async adoptExternalOpen(filePath: string): Promise<void> {
-        const normalized = toWorkspacePath(filePath);
-        const match = matchScriptFile(normalized, this.store.getEditorIds());
-        if (!match) {
-            return;
-        }
-
-        if (!(await this.scriptFiles.adopt(match.editorId, normalized))) {
-            return;
-        }
-
-        // scriptId is the ScriptUri relative path — identical to what open() keys
-        // by, so a subsequent didChange/close maps to the same tracked entry.
-        const scriptId = match.scriptId;
-        if (this.scripts.isOpen(scriptId)) {
-            return;
-        }
-
-        let content: string;
-        try {
-            content = await this.scriptFiles.readFile(normalized);
-        } catch (error) {
-            this.notifier.logError(error as Error);
-            return;
-        }
-
-        this.filePathByScript.set(scriptId, normalized);
-        this.scripts.track(scriptId, {
-            editorId: match.editorId,
-            elementId: match.elementId,
-            kind: match.kind,
-            listenerIndex: match.listenerIndex,
-        });
-
+    async adoptTab(scriptId: string, file: MatchedScriptFile, filePath: string): Promise<void> {
+        const content = await this.scriptFiles.readFile(filePath);
+        this.filePathByScript.set(scriptId, filePath);
         this.rpc.notify(METHODS.scriptOpen, {
             scriptId,
-            fileName: match.filename,
-            languageId: match.language.languageId,
-            filePath: normalized,
+            fileName: file.filename,
+            languageId: file.language.languageId,
+            filePath,
             content,
-            completion: this.completionPayloadFor(match.kind, match.editorId),
+            completion: this.completionPayloadFor(file.kind, file.editorId),
         } satisfies ScriptOpenParams);
-
-        // A tab now owns this script — lock the matching webview panel field.
-        this.broadcastOpenScripts(match.editorId);
     }
 
-    /**
-     * Re-broadcasts the open-script set for an editor so the webview's
-     * properties-panel lock is restored after a reload. Called on the
-     * `GetBpmnModelerSettingCommand` handshake, the same signal the webview
-     * sends whenever it (re)initialises.
-     */
-    resync(editorId: string): void {
-        this.broadcastOpenScripts(editorId);
+    /** The host overwrites the open document, echo-guarded; the file follows IntelliJ's own save cycle. */
+    async updateTabContent(scriptId: string, content: string): Promise<void> {
+        this.rpc.notify(METHODS.scriptUpdateContent, { scriptId, content });
     }
 
-    /**
-     * Applies a *model-originated* content change (canvas undo/redo, document
-     * reload, element deletion) reported by the webview to the owning tab.
-     *
-     * `content === undefined` means the script surface no longer exists: the
-     * tab is closed and its file deleted. Otherwise the host overwrites the
-     * open document via `script/updateContent` (echo-guarded on the host);
-     * the file on disk follows through IntelliJ's own save cycle.
-     */
-    applyModelChange(editorId: string, change: ScriptSourceChange): void {
-        const found = this.scripts.find(editorId, change);
-        if (!found) {
-            return;
-        }
-        const [scriptId] = found;
-        if (change.content === undefined) {
-            // Surface gone: stop the tab's stream so a pending keystroke can't
-            // fire against a deleted element.
-            this.contentStream.stop(scriptId);
-            this.scripts.untrack(scriptId);
-            this.requestClose(scriptId);
-            this.broadcastOpenScripts(editorId);
-        } else {
-            // Canvas undo/redo overwrites the tab; cancel any pending
-            // keystroke so it can't fire afterwards and clobber the undo.
-            this.contentStream.cancel(scriptId);
-            this.rpc.notify(METHODS.scriptUpdateContent, {
-                scriptId,
-                content: change.content,
-            });
-        }
+    async closeTab(scriptId: string): Promise<void> {
+        this.requestClose(scriptId);
     }
 
     /**
@@ -359,98 +233,76 @@ export class BridgeScriptEditor implements ScriptEditorPort, ScriptTabEvents {
     }
 
     /**
-     * Posts the full set of open inline-script editors for `editorId` so the
-     * webview locks the matching panel fields (single-writer arbitration). The
-     * `scriptId` is the tab path: the `ScriptUri` already ends in the
-     * human-facing filename, so no extra tracking is needed.
+     * Re-pushes an editor's webview-extracted model to its open script tabs
+     * via `script/updateVariables`, so completion goes live without
+     * reopening.
      */
-    private broadcastOpenScripts(editorId: string): void {
-        this.store
-            .postMessage(
-                editorId,
-                new UpdateOpenScriptEditorsQuery(this.scripts.openScriptsOf(editorId)),
-            )
-            .catch((error) => this.notifier.logError(error as Error));
-    }
-
-    /**
-     * Re-pushes an editor's webview-extracted model to every open script tab of
-     * that editor via `script/updateVariables`, so completion goes live without
-     * reopening. Scoped to the originating editor's scripts only.
-     */
-    variablesChanged(editorId: string): void {
+    updateTabVariables(editorId: string, scriptIds: readonly string[]): void {
         const variables = this.scriptVariables.variablesFor(editorId);
-        for (const [scriptId] of this.scripts.ofEditor(editorId)) {
+        for (const scriptId of scriptIds) {
             this.rpc.notify(METHODS.scriptUpdateVariables, { scriptId, variables });
         }
     }
 
-    /** Host reported an edit in the script editor → push it into the owning webview. */
-    didChange(scriptId: string, content: string): void {
-        const entry = this.scripts.get(scriptId);
-        if (!entry) {
-            return;
+    /** The file is the only copy the bridge can read; IntelliJ's buffer stays in IntelliJ. */
+    async readTabContent(scriptId: string): Promise<string | undefined> {
+        const filePath = this.filePathByScript.get(scriptId);
+        if (filePath === undefined) {
+            return undefined;
         }
-        this.contentStream.push(scriptId, entry, content);
+        return this.scriptFiles.readFile(filePath).catch(() => undefined);
+    }
+
+    /** IntelliJ reports every closed tab, so a tracked script still has one. */
+    isTabShown(): boolean {
+        return true;
+    }
+
+    /** Host reported an edit in the script editor. */
+    didChange(scriptId: string, content: string): void {
+        this.listener?.didChange(scriptId, content);
     }
 
     /**
      * Host reported a script tab is closed. For a close *we* requested this is
-     * the ack that the host's flush-save finished — run the deferred deletion
-     * (tracking and the lock broadcast were already handled at request time).
-     * For a user-initiated close, drop tracking and release the lock but leave
-     * the file on disk: a re-open must succeed, and dropping the
-     * `filePathByScript` entry forces `open` to rewrite the file with the
-     * current model content (IntelliJ reads it from disk, so a stale entry
-     * would show stale bytes). The file is deleted only on element deletion or
-     * editor dispose.
+     * the ack that the host's flush-save finished — run the deferred deletion.
+     * For a user-initiated close, the core forgets the tab but the file stays
+     * on disk: a re-open must succeed, and dropping the `filePathByScript`
+     * entry forces it to rewrite the file with the current model content
+     * (IntelliJ reads it from disk, so a stale entry would show stale bytes).
+     * The file is deleted only on element deletion or editor dispose.
      */
     async didClose(scriptId: string): Promise<void> {
         // A re-open cancelled the pending close-ack, but the host still emits one
-        // `didClose` for that pre-empted close. Swallow it *before* touching the
-        // stream so the re-opened tab's live stream and tracking are preserved.
+        // `didClose` for that pre-empted close; it must not reach the re-opened tab.
         if (this.swallowNextDidClose.delete(scriptId)) {
             return;
         }
-        // Force the typing still in the debounce window into the model before
-        // tearing the script down, then stop the tab's stream. On the ack branch
-        // the stream was already stopped by applyModelChange/disposeEditor, so
-        // this is a no-op there.
-        await this.contentStream.flush(scriptId);
-        this.contentStream.stop(scriptId);
-
         const pendingAck = this.pendingCloseAcks.get(scriptId);
         if (pendingAck) {
             this.pendingCloseAcks.delete(scriptId);
             pendingAck();
             return;
         }
-        // Capture the owner before removing so the lock release reflects it.
-        const editorId = this.scripts.untrack(scriptId)?.editorId;
-        // Drop the path entry (not the file) so a re-open rewrites fresh content
-        // rather than revealing a stale tab; the file survives the close.
         this.filePathByScript.delete(scriptId);
-        if (editorId !== undefined) {
-            this.broadcastOpenScripts(editorId);
-        }
+        await this.listener?.didClose(scriptId);
+    }
+
+    async adoptExternalOpen(filePath: string): Promise<void> {
+        await this.listener?.didOpenFile(toWorkspacePath(filePath));
     }
 
     /**
      * The BPMN editor was disposed: tell the host to close every script tab it
-     * opened for that editor and drop their tracking.
+     * opened for that editor.
      *
      * The editor's whole hash directory is swept too — it catches leftovers
      * whose per-script deletion failed (e.g. a file still locked). With tabs
      * still open the sweep must wait for the host's last close ack, or it
      * would race the host's flush-saves exactly like a per-script delete.
      */
-    disposeEditor(editorId: string): void {
-        const closing = new Set<string>();
-        for (const [scriptId] of this.scripts.ofEditor(editorId)) {
-            this.scripts.untrack(scriptId);
-            closing.add(scriptId);
-        }
-
+    closeEditorTabs(editorId: string, tabs: ReadonlyArray<readonly [string, OpenScriptTab]>): void {
+        const closing = tabs.map(([scriptId]) => scriptId);
         const editorScriptDir = this.scriptFiles.releaseEditor(editorId);
         const sweepHashDir = (): void => {
             if (editorScriptDir !== undefined) {
@@ -458,18 +310,11 @@ export class BridgeScriptEditor implements ScriptEditorPort, ScriptTabEvents {
             }
         };
 
-        if (closing.size === 0) {
+        if (closing.length === 0) {
             sweepHashDir();
         } else {
-            let remaining = closing.size;
+            let remaining = closing.length;
             for (const scriptId of closing) {
-                // Best-effort: push the typing still in the debounce window into
-                // the model before asking the host to close. The stream logs its
-                // own errors so this never rejects; if the webview is already
-                // unreachable the keystroke is lost — accepted trade-off, there
-                // is no host-side XML fallback on this platform.
-                void this.contentStream.flush(scriptId);
-                this.contentStream.stop(scriptId);
                 this.requestClose(scriptId, () => {
                     remaining -= 1;
                     if (remaining === 0) {

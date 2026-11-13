@@ -79,8 +79,8 @@ function storeWith(...variables: VariableDef[]): ScriptVariableStore {
 function buildProvider(
     store: ScriptVariableStore,
     spinEnabled = true,
-    openScripts: { getEditorIdForScriptUri(path: string): string | undefined } = {
-        getEditorIdForScriptUri: () => EDITOR,
+    openScripts: { editorOfTab(tabPath: string): string | undefined } = {
+        editorOfTab: () => EDITOR,
     },
 ): ScriptCompletionProvider {
     const settings = { getScriptingSpin: () => spinEnabled } as SettingsPort;
@@ -89,6 +89,8 @@ function buildProvider(
 
 interface CompleteOptions {
     path?: string;
+    /** The UNC server of a file on a share. */
+    authority?: string;
     triggerCharacter?: string;
     languageId?: string;
     /** Full document text for the local-declaration scan; defaults to the line prefix. */
@@ -104,7 +106,7 @@ function completeItems(
 ): ReturnType<ScriptCompletionProvider["provideCompletionItems"]> {
     const path = options.path ?? SCRIPT_PATH;
     const document = {
-        uri: { path },
+        uri: { scheme: "file", authority: options.authority ?? "", path },
         languageId: options.languageId ?? "groovy",
         lineAt: () => ({ text: linePrefix }),
         getText: () => options.scriptText ?? linePrefix,
@@ -177,10 +179,34 @@ describe("ScriptCompletionProvider modes", () => {
 
     it("returns nothing for a path the service does not track as an open script", () => {
         const provider = buildProvider(storeWith(variable("amount")), true, {
-            getEditorIdForScriptUri: () => undefined,
+            editorOfTab: () => undefined,
         });
         expect(complete(provider, "am")).toEqual([]);
     });
+
+    it.each([
+        {
+            spelling: "an uppercase drive letter",
+            path: `/C:/work/.camunda/tmp/scripting/${HASH}/Task_1/script-task/Task_1.groovy`,
+            authority: "",
+            tabPath: `/c:/work/.camunda/tmp/scripting/${HASH}/Task_1/script-task/Task_1.groovy`,
+        },
+        {
+            spelling: "a UNC server",
+            path: `/share/.camunda/tmp/scripting/${HASH}/Task_1/script-task/Task_1.groovy`,
+            authority: "server",
+            tabPath: `//server/share/.camunda/tmp/scripting/${HASH}/Task_1/script-task/Task_1.groovy`,
+        },
+    ])(
+        "asks for the tab under its canonical path for a file with $spelling",
+        ({ path, authority, tabPath }) => {
+            const provider = buildProvider(storeWith(variable("amount")), true, {
+                editorOfTab: (askedTabPath) => (askedTabPath === tabPath ? EDITOR : undefined),
+            });
+
+            expect(complete(provider, "am", { path, authority })).toContain("amount");
+        },
+    );
 
     it("member access on a known bean returns its methods, not variables", () => {
         const provider = buildProvider(storeWith(variable("amount")));

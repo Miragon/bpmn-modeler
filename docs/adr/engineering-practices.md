@@ -136,7 +136,7 @@ each loopback to the Kotlin side.
   VS Code's `PropertiesPanelStateRepository` over an in-memory `Memento`. The
   bridge has no adapter of this port.
 - `describeScriptEditorContract`: `RecordingScriptEditor`, VS Code's
-  `ScriptTaskService` over a fake of the editor tabs
+  `VsCodeScriptEditor` over a fake of the editor tabs
   (`vscodeEditorTabsFake.ts`) and the bridge's `BridgeScriptEditor` over a
   loopback that answers as `ScriptRouter` and `ScriptEditorManager` do.
 - `describeSecretStoreContract`: `InMemorySecretStore`, `VsCodeSecretStore`

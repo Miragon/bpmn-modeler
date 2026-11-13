@@ -275,6 +275,7 @@ export * from "./scriptTask/domain/scriptLanguage";
 // ── scriptTask: service ──────────────────────────────────────────────────────
 export * from "./scriptTask/service/ScriptContentStream";
 export * from "./scriptTask/service/ScriptFileStore";
+export * from "./scriptTask/service/ScriptTabService";
 export * from "./scriptTask/service/ScriptTargetResolver";
 export * from "./scriptTask/service/ScriptXmlService";
 export * from "./scriptTask/service/scriptBatch";

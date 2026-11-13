@@ -12,7 +12,7 @@ import {
     openFileByUser,
     resetVscodeEditorTabs,
 } from "../../../__fixtures__/vscodeEditorTabsFake";
-import { ScriptTaskService } from "./ScriptTaskService";
+import { VsCodeScriptEditor } from "./VsCodeScriptEditor";
 
 /** The diagram already holds every script, so closing its editor writes nothing back. */
 class DiagramHoldingEveryScript extends ScriptXmlService {
@@ -22,22 +22,20 @@ class DiagramHoldingEveryScript extends ScriptXmlService {
 }
 
 describeScriptEditorContract(
-    "ScriptTaskService",
-    async ({ store, scriptFiles, settings, notifier, targets }) => {
+    "VsCodeScriptEditor",
+    async ({ scriptFiles, settings, notifier }) => {
         resetVscodeEditorTabs((path) => scriptFiles.readFile(path));
-        const service = new ScriptTaskService(
-            store,
+        const scriptEditor = new VsCodeScriptEditor(
             scriptFiles,
             settings,
             notifier,
-            targets,
             new DiagramHoldingEveryScript(),
         );
-        service.register({ subscriptions: [] } as unknown as ExtensionContext);
+        scriptEditor.register({ subscriptions: [] } as unknown as ExtensionContext);
         return {
-            scriptEditor: service,
+            scriptEditor,
             openFileByUser,
-            closeTab: async (filePath) => closeTabByUser(filePath),
+            closeTabByUser: async (filePath) => closeTabByUser(filePath),
         };
     },
 );

@@ -104,7 +104,7 @@ Each editor instance gets its own disposable list managed by `EditorSessionStore
 
 1. `WebviewPanel.onDidDispose` fires the lifecycle's single aggregated dispose subscription
 2. `EditorSessionStore.disposeEditor()` disposes all per-editor subscriptions and removes the entry. If the closed editor was the command target, `CommandTarget` hands it back to the open editor that held it before (the newest remaining editor when none did) until the host reports the next focused one, or clears it
-3. Each participant's `onDispose` callback runs (e.g. `service.disposeSession(editorId)`, `scriptEditor.disposeEditor(editorId)`). The lifecycle collects them and runs them **once**, after the store's bookkeeping, so the target has already moved
+3. Each participant's `onDispose` callback runs (e.g. `service.disposeSession(editorId)`, `scriptTabs.disposeEditor(editorId)`). The lifecycle collects them and runs them **once**, after the store's bookkeeping, so the target has already moved
 
 This per-editor cleanup prevents memory leaks when editors are opened and closed repeatedly.
 
@@ -125,7 +125,7 @@ Services operate on the active editor by default. The echo-prevention guard is p
 - **Session lifecycle + participant contract**: `libs/modeler-core/src/editorSession/service/EditorSessionLifecycle.ts`, `libs/modeler-core/src/editorSession/domain/EditorSessionParticipant.ts`
 - **BPMN editor**: `libs/modeler-core/src/modeler/bpmn/composition/BpmnEditorFeature.ts` (services, router table, participant order); the contributing features' `composition/` modules `NavigationFeature`, `DefinitionSearchFeature`, `CodeLinkFeature`, `ScriptEditorFeature`
 - **Shared participants / handlers**: `libs/modeler-core/src/<feature>/service/*Participant.ts`, `libs/modeler-core/src/modeler/bpmn/adapter/in/bpmnMessageHandlers.ts` (and `navigation`/`codeLink`/`definitionSearch`/`scriptTask` `adapter/in/*MessageHandlers.ts`)
-- **VS Code-only participants / handlers**: `apps/vscode-plugin/src/modeler/form/adapter/in/editor-participants/`, `…/webview-handlers/formMessageHandlers.ts` (form values); the BPMN editor's VS Code adapters are `VsCodeLintingPreference`, `PropertiesPanelStateRepository` and the script tabs `scriptTask/adapter/out/ScriptTaskService.ts`
+- **VS Code-only participants / handlers**: `apps/vscode-plugin/src/modeler/form/adapter/in/editor-participants/`, `…/webview-handlers/formMessageHandlers.ts` (form values); the BPMN editor's VS Code adapters are `VsCodeLintingPreference`, `PropertiesPanelStateRepository` and the script tabs `scriptTask/adapter/out/VsCodeScriptEditor.ts`
 - **Message router**: `libs/modeler-core/src/editorSession/service/WebviewMessageRouter.ts` (host-agnostic)
 - **Command Controller**: `apps/vscode-plugin/src/modeler/bpmn/adapter/in/CommandController.ts`
 - **Deployment Controller**: `apps/vscode-plugin/src/deployment/adapter/in/DeploymentController.ts`

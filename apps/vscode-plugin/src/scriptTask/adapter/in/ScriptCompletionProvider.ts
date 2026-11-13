@@ -39,13 +39,14 @@ import {
 } from "@miragon/bpmn-modeler-core";
 import { VariableDef } from "@miragon/bpmn-modeler-types";
 
+import { canonicalPath } from "../../../shared/domain/canonicalPath";
+
 /**
- * Narrow view on {@link ScriptTaskService}: the provider only needs to know
- * whether a document is one of the service's open scripts. Keeps the
- * dependency injectable in tests without constructing the whole service.
+ * Narrow view on the core's `ScriptTabService`: the provider only needs to
+ * know whether a document is one of the open script tabs.
  */
 export interface OpenScriptRegistry {
-    getEditorIdForScriptUri(uriPath: string): string | undefined;
+    editorOfTab(tabPath: string): string | undefined;
 }
 
 /**
@@ -67,7 +68,7 @@ export interface OpenScriptRegistry {
  *
  * The provider derives the script's *kind* (script task / execution
  * listener / task listener) from the path slug — written by
- * {@link ScriptTaskService} when it opens the document — and uses
+ * {@link VsCodeScriptEditor} when it opens the document — and uses
  * {@link beansFor} to determine which globals are in scope. This keeps
  * suggestions accurate per surface (e.g. `task` only appears in task
  * listeners; `eventName` only in listener kinds).
@@ -140,8 +141,8 @@ export class ScriptCompletionProvider implements CompletionItemProvider {
         context: CompletionContext,
     ): CompletionItem[] {
         // The glob is a heuristic any same-named user directory satisfies;
-        // only documents the service tracks as open scripts get suggestions.
-        if (!this.openScripts.getEditorIdForScriptUri(document.uri.path)) {
+        // only documents the core tracks as open script tabs get suggestions.
+        if (!this.openScripts.editorOfTab(canonicalPath(document.uri))) {
             return [];
         }
         const kind = parseKindFromUri(document.uri.path);
