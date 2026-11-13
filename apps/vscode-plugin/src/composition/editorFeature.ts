@@ -118,14 +118,7 @@ export function register(
             new DocumentRenderParticipant(dmnService, ".dmn", deps.notifier),
             new DmnSettingsParticipant(dmnSettingsBroadcaster),
         ],
-        // A DMN diff pane belongs to the DMN diff controller, which starts no editor session.
-        delegateResolve: (document, panel) => {
-            if (!handles.dmnDiffController.shouldResolveAsDiff(document.uri)) {
-                return false;
-            }
-            handles.dmnDiffController.resolveDiffPane(panel, document);
-            return true;
-        },
+        delegateResolve: handles.dmnDiffController.resolveWhenDiffPane,
         initialPanelVisible: () => dmnPanelSvc.getPersistedPanelVisibility(),
     }).register(context);
     new ModelerEditorController(deps.editorStore, deps.notifier, deps.createEditorHandle, {

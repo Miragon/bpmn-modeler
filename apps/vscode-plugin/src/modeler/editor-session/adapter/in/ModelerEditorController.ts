@@ -93,7 +93,7 @@ export class ModelerEditorController implements CustomTextEditorProvider {
         _token: CancellationToken,
     ): Promise<void> {
         try {
-            // Diff branch (BPMN only): the diff controller owns this pane, so no
+            // Diff branch: the diff controller owns this pane, so no
             // editor session is created. One provider per viewType makes the
             // entry point the only place that can decide diff-pane vs. editor.
             if (this.options.delegateResolve?.(document, webviewPanel)) {

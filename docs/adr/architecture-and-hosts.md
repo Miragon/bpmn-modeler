@@ -198,8 +198,10 @@ forwards a message. The preview host's spec posts every command of the editor
 and diff-pane lists.
 
 A DMN diff pane posts through its own list, `DMN_DIFF_PANE_COMMAND_TYPES`,
-routed by `createDmnDiffPaneRouter`. It has no handshake: the DMN bootstrap
-creates its modeler before the file arrives, so VS Code names the page a diff
+routed by `createDmnDiffPaneRouter`. The list spreads `DIFF_PANE_COMMAND_TYPES`,
+the commands every diff pane posts in a diff session (ready, viewport, cursor,
+swap and log), and adds the DMN pane's own. The DMN pane has no handshake:
+its bootstrap creates its modeler before the file arrives, so VS Code names the page a diff
 pane in its HTML (`<body data-surface="dmnDiffPane">`) and the page loads the
 diff bootstrap instead of the editor. VS Code's `bootstrapWebview(panel, page)`
 takes a `WebviewPage`: an editor page (`viewType`, `initialPanelVisible`) or a

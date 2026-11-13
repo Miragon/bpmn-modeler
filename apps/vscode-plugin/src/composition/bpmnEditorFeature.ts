@@ -119,15 +119,7 @@ export function register(
         viewType: BPMN_VIEW_TYPE,
         messageRouter: editor.router,
         participants: editor.participants,
-        // Diff routing: when the URI resolves as a diff pane the diff controller
-        // owns it, so signal "handled" and skip editor-session creation.
-        delegateResolve: (document, panel) => {
-            if (!handles.diffController.shouldResolveAsDiff(document.uri)) {
-                return false;
-            }
-            handles.diffController.resolveDiffPane(panel, document);
-            return true;
-        },
+        delegateResolve: handles.diffController.resolveWhenDiffPane,
         initialPanelVisible: () => editor.initialPanelVisible(),
     }).register(context);
 
