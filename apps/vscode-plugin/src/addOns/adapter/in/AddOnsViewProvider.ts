@@ -66,6 +66,8 @@ export class AddOnsViewProvider implements WebviewViewProvider {
             this.extensionUri,
             this.createNonce(),
             this.brandMode.current(),
+            // A row opens its details in an editor tab, so the view shows only the list.
+            "listWithTab",
         );
 
         const panel = this.addOns.attachPanel(

@@ -932,6 +932,15 @@ button.av-head:hover .av-head-count {
 
 /* --- Wide (a bottom tool window): list and detail side by side, each scrolling --- */
 
+/* --- Pages: a list whose rows open a tab shows no detail; a tab's page shows only its add-on --- */
+
+.av-app[data-page="listWithTab"] .av-detail,
+.av-app[data-page="detail"] .av-toolbar,
+.av-app[data-page="detail"] .av-list,
+.av-app[data-page="detail"] .av-back {
+    display: none;
+}
+
 @container view (min-width: 640px) {
     .av-app {
         height: 100vh;
@@ -1021,5 +1030,16 @@ button.av-head:hover .av-head-count {
 
     .av-revealed {
         outline-color: Highlight;
+    }
+}
+
+@container view (min-width: 640px) {
+    .av-app[data-page="listWithTab"] .av-body,
+    .av-app[data-page="detail"] .av-body {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .av-app[data-page="detail"] .av-detail {
+        border-left: 0;
     }
 }

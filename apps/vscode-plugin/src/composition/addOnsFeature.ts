@@ -10,9 +10,11 @@ import {
     RouteLookup,
     ViewReview,
 } from "@miragon/bpmn-modeler-core";
+import { AddOnDetailTab } from "../addOns/adapter/in/AddOnDetailTab";
 import { AddOnsViewProvider } from "../addOns/adapter/in/AddOnsViewProvider";
 import { ReviewAddOnsCommand } from "../addOns/adapter/in/ReviewAddOnsCommand";
 import { VsCodeBrandModeSignal } from "../addOns/adapter/in/VsCodeBrandModeSignal";
+import { VsCodeAddOnDetail } from "../addOns/adapter/out/VsCodeAddOnDetail";
 import { VsCodeAddOnsViewReveal } from "../addOns/adapter/out/VsCodeAddOnsViewReveal";
 import { createWebviewNonce } from "../shared/adapter/out/webviewNonce";
 import { SharedDeps } from "./sharedDeps";
@@ -54,6 +56,8 @@ export function register(
         reviews: AddOnsViewReviews;
     },
 ): { addOns: AddOnsFeature; addOnsViewRoutes: RouteLookup } {
+    // The catalog opens the tab, and the tab attaches its page to the catalog.
+    const detail = new VsCodeAddOnDetail();
     const addOns = new AddOnsFeature({
         workspace: deps.vsWorkspace,
         settings: deps.vsSettings,
@@ -70,6 +74,7 @@ export function register(
         marketplaces: handles.marketplaces,
         templatePreferences: deps.templatePreferences,
         workspaceTrust: deps.workspaceTrust,
+        detail,
     });
     context.subscriptions.push(addOns);
     const brandMode = new VsCodeBrandModeSignal(
@@ -83,6 +88,9 @@ export function register(
         brandMode,
     );
     view.register(context);
+    detail.connect(
+        new AddOnDetailTab(context, addOns, context.extensionUri, createWebviewNonce, brandMode),
+    );
     new ReviewAddOnsCommand(view, addOns, deps.notifier).register(context);
     handles.reviews.reveal.connect(addOns, view);
     return { addOns, addOnsViewRoutes: addOns.panelRoutes };

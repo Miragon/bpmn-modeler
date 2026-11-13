@@ -24,6 +24,9 @@ export function routeHostMessage(
         case "RevealAddOnsQuery":
             dispatch({ kind: "revealArrived", reveal: query.reveal });
             break;
+        case "ShowAddOnQuery":
+            dispatch({ kind: "addOnShown", addOnId: query.addOnId });
+            break;
         case "BrandModeQuery":
             showBrandMode(query.mode);
             break;

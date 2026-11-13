@@ -214,36 +214,22 @@ function isFocused(element: Locator): Promise<boolean> {
         .catch(() => false);
 }
 
-/** The add-on's row in the Add-ons list; a click selects it and shows its detail. */
+/** The add-on's row in the Add-ons list; a click selects it and opens its details in the editor tab. */
 function addOnRow(addOns: FrameLocator, name: string): Locator {
     return addOns.locator(".av-row", { has: addOns.locator(".av-row-title", { hasText: name }) });
 }
 
-/** The add-on's detail; a view under 640px wide shows it in place of the list, with Back. */
-function addOnDetail(addOns: FrameLocator, name: string): Locator {
-    return addOns.getByRole("article", { name });
+/** The add-on's details in the editor tab "Add-on: …". */
+function addOnDetail(detailPage: FrameLocator, name: string): Locator {
+    return detailPage.getByRole("article", { name });
 }
 
-/** Back shows only while a view under 640px wide shows a detail in place of the list. */
-function showsDrillDownDetail(addOns: FrameLocator): Promise<boolean> {
-    return addOns.locator(".av-back").isVisible();
-}
-
-/** A row hidden behind the drill-down's detail leaves focus with the detail's heading. */
-async function addOnFocusTarget(addOns: FrameLocator, name: string): Promise<Locator> {
-    return (await showsDrillDownDetail(addOns))
-        ? addOnDetail(addOns, name).locator(".av-detail-name")
-        : addOnRow(addOns, name);
-}
-
-async function showAddOnDetail(addOns: FrameLocator, name: string): Promise<Locator> {
-    const detail = addOnDetail(addOns, name);
-    if (!(await detail.isVisible())) {
-        if (await showsDrillDownDetail(addOns)) await addOns.locator(".av-back").click();
-        await addOnRow(addOns, name).click();
-    }
-    await detail.waitFor({ timeout: TIMEOUT_MS });
-    return detail;
+/** Whether the frame's own document holds the keyboard focus. */
+function hasFocus(frame: FrameLocator): Promise<boolean> {
+    return frame
+        .locator("body")
+        .evaluate(() => document.hasFocus())
+        .catch(() => false);
 }
 
 async function cachedPluginScripts(globalStorageDirectory: string): Promise<string[]> {
@@ -1718,15 +1704,18 @@ describe("the packaged extension in a real VS Code", () => {
                 .filter({ hasText: PLUGIN_NOTICE });
             await notice.getByRole("button", { name: "Review…" }).click();
 
-            // Review… opens the Add-ons view on the plugin's detail with its review open, not a list.
+            // Review… marks the plugin in the Add-ons list and opens its details in an editor tab, with the review open.
             const addOns = await vscode().viewWebview(ADD_ONS_VIEW);
-            const detail = addOnDetail(addOns, PLUGIN_NAME);
+            const detailPage = await vscode().editorWebview(ADD_ONS_VIEW);
+            const detail = addOnDetail(detailPage, PLUGIN_NAME);
             await detail.waitFor({ timeout: TIMEOUT_MS });
-            log(
-                `the Add-ons view shows ${(await showsDrillDownDetail(addOns)) ? "the drill-down" : "two panes"}`,
-            );
-            const revealed = await addOnFocusTarget(addOns, PLUGIN_NAME);
-            await expect.poll(() => isFocused(revealed), { timeout: TIMEOUT_MS }).toBe(true);
+            expect(
+                await page()
+                    .locator(".tab", { hasText: `Add-on: ${PLUGIN_NAME}` })
+                    .count(),
+            ).toBe(1);
+            expect(await addOns.locator(".av-back").isVisible()).toBe(false);
+            await expect.poll(() => hasFocus(detailPage), { timeout: TIMEOUT_MS }).toBe(true);
             expect(await addOnRow(addOns, PLUGIN_NAME).getAttribute("aria-current")).toBe("true");
             expect(await page().locator(".quick-input-widget").isVisible()).toBe(false);
             expect(await detail.locator(".av-state-line").textContent()).toContain(
@@ -1739,7 +1728,7 @@ describe("the packaged extension in a real VS Code", () => {
                 expect.arrayContaining(REVIEW_FACTS),
             );
 
-            // Allow ends the review, so Tab reaches it from the row or the detail.
+            // Allow ends the review, so Tab reaches it within the tab's page.
             const allow = detail
                 .locator(".av-review-end")
                 .getByRole("button", { name: "Allow", exact: true });
@@ -1749,11 +1738,10 @@ describe("the packaged extension in a real VS Code", () => {
             expect(await isFocused(allow)).toBe(true);
             await page().keyboard.press("Enter");
             await expect
-                .poll(() => addOns.getByRole("status").textContent(), { timeout: TIMEOUT_MS })
+                .poll(() => detailPage.getByRole("status").textContent(), { timeout: TIMEOUT_MS })
                 .toBe(`Allowed ${PLUGIN_NAME}. Open editors reload with it.`);
-            await expect
-                .poll(async () => isFocused(await addOnFocusTarget(addOns, PLUGIN_NAME)))
-                .toBe(true);
+            // The tab's page has no row, so focus goes to the heading of its details.
+            await expect.poll(() => isFocused(detail.locator(".av-detail-name"))).toBe(true);
 
             await vscode().showInCustomEditor(PLUGIN_BPMN_FILE, diagramWithPluginRendered);
             const webview = vscode().webview();
@@ -1817,12 +1805,17 @@ describe("the packaged extension in a real VS Code", () => {
 
             await vscode().runCommand("Focus on Add-ons View");
             const addOns = await vscode().viewWebview(ADD_ONS_VIEW);
-            const detail = await showAddOnDetail(addOns, PLUGIN_NAME);
+            await addOnRow(addOns, PLUGIN_NAME).click();
+            const detailPage = await vscode().editorWebview(ADD_ONS_VIEW);
+            const detail = addOnDetail(detailPage, PLUGIN_NAME);
+            await detail.waitFor({ timeout: TIMEOUT_MS });
             await detail.getByRole("button", { name: "Revoke" }).click();
 
             await expect
-                .poll(() => addOns.getByRole("status").textContent(), { timeout: TIMEOUT_MS })
+                .poll(() => detailPage.getByRole("status").textContent(), { timeout: TIMEOUT_MS })
                 .toBe(`Revoked ${PLUGIN_NAME}. Open editors reload without it.`);
+            await settle(detailPage);
+            await vscode().screenshot(join(RESULTS_DIRECTORY, "add-ons-view.png"));
             await vscode().showInCustomEditor(
                 PLUGIN_BPMN_FILE,
                 async (webview) =>
@@ -1831,8 +1824,6 @@ describe("the packaged extension in a real VS Code", () => {
             // A revoke from the view is an answer: no notice asks about the plugin again.
             await expectAbsentFor(notice, NOTICE_WINDOW_MS);
 
-            await settle(addOns);
-            await vscode().screenshot(join(RESULTS_DIRECTORY, "add-ons-view.png"));
             expectNoCspViolations();
             await vscode().runCommand("View: Show Explorer");
         });
@@ -1845,8 +1836,6 @@ describe("the packaged extension in a real VS Code", () => {
                 addOns.getByRole("radio", { name: /^All,/ });
             await vscode().runCommand("Focus on Add-ons View");
             const filtered = await vscode().viewWebview(ADD_ONS_VIEW);
-            // The drill-down hides the toolbar behind the revoked plugin's detail.
-            if (await showsDrillDownDetail(filtered)) await filtered.locator(".av-back").click();
             await filtered.getByRole("button", { name: "Search add-ons" }).click();
             await searchOf(filtered).fill("zzz");
             await filtered.getByRole("radio", { name: /^Templates,/ }).click();
@@ -1871,7 +1860,7 @@ describe("the packaged extension in a real VS Code", () => {
                 )
                 .toEqual({ allKinds: "true", search: "", attention: 1, current: "true" });
             await expect
-                .poll(async () => isFocused(await addOnFocusTarget(addOns, PLUGIN_NAME)), {
+                .poll(() => isFocused(addOnRow(addOns, PLUGIN_NAME)), {
                     timeout: TIMEOUT_MS,
                 })
                 .toBe(true);

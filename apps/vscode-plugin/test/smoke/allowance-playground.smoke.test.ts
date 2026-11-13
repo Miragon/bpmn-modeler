@@ -112,21 +112,32 @@ function addOnDetail(addOns: FrameLocator, name: string | RegExp): Locator {
     return addOns.getByRole("article", { name });
 }
 
-/** The view re-renders its list after an action, so a click can land on a row it replaced. */
-async function showAddOnDetail(addOns: FrameLocator, name: string | RegExp): Promise<Locator> {
-    const detail = addOnDetail(addOns, name);
+/**
+ * A row opens its details in the editor tab "Add-on: …". The view re-renders
+ * its list after an action, so a click can land on a row it replaced.
+ */
+async function showAddOnDetail(
+    addOns: FrameLocator,
+    name: string | RegExp,
+    detailPage: () => Promise<FrameLocator>,
+): Promise<{ detail: Locator; page: FrameLocator }> {
     const deadline = Date.now() + TIMEOUT_MS;
-    while (!(await detail.isVisible()) && Date.now() < deadline) {
-        const back = addOns.locator(".av-back");
-        if (await back.isVisible()) await back.click().catch(() => undefined);
+    for (;;) {
         await addOnRow(addOns, name)
             .first()
             .click({ timeout: 5_000 })
             .catch(() => undefined);
-        await detail.waitFor({ timeout: 1_000 }).catch(() => undefined);
+        const page = await detailPage();
+        const detail = addOnDetail(page, name);
+        const shown = await detail
+            .waitFor({ timeout: 1_000 })
+            .then(() => true)
+            .catch(() => false);
+        if (shown || Date.now() > deadline) {
+            await detail.waitFor({ timeout: 1_000 });
+            return { detail, page };
+        }
     }
-    await detail.waitFor({ timeout: 1_000 });
-    return detail;
 }
 
 async function factsOf(detail: Locator): Promise<Record<string, string>> {
@@ -350,6 +361,9 @@ describe("the allowance playground in a real VS Code, one profile for every wind
             .toMatch(line);
     }
 
+    /** The editor tab "Add-on: …", where a row or Review… shows an add-on's details. */
+    const detailPage = () => vscode().editorWebview(ADD_ONS_VIEW);
+
     /**
      * Both notices, one after the other: the second may not show before the
      * first is answered. Review… is the answer each time; it opens the Add-ons
@@ -373,14 +387,15 @@ describe("the allowance playground in a real VS Code, one profile for every wind
         }
         expect(await toast(NOTICE_TEXT[first]).count()).toBe(1);
         await toast(NOTICE_TEXT[first]).getByRole("button", { name: "Review…" }).click();
-        const firstView = await vscode().viewWebview(ADD_ONS_VIEW);
-        await addOnDetail(firstView, nameOf(first)).waitFor({ timeout: TIMEOUT_MS });
+        // Review… opens the add-on's details in the editor tab.
+        await addOnDetail(await detailPage(), nameOf(first)).waitFor({ timeout: TIMEOUT_MS });
 
         await toast(NOTICE_TEXT[second]).waitFor({ state: "visible", timeout: TIMEOUT_MS });
         log(`${folder}: second notice after Review… on the first: ${NOTICE_TEXT[second]}`);
         await toast(NOTICE_TEXT[second]).getByRole("button", { name: "Review…" }).click();
+        // The second Review… shows its add-on in the same tab.
+        await addOnDetail(await detailPage(), nameOf(second)).waitFor({ timeout: TIMEOUT_MS });
         const addOns = await vscode().viewWebview(ADD_ONS_VIEW);
-        await addOnDetail(addOns, nameOf(second)).waitFor({ timeout: TIMEOUT_MS });
         return { order: [first, second], addOns };
     }
 
@@ -388,7 +403,7 @@ describe("the allowance playground in a real VS Code, one profile for every wind
         addOns: FrameLocator,
         name: string | RegExp,
     ): Promise<{ state: string; facts: Record<string, string>; title: string }> {
-        const detail = await showAddOnDetail(addOns, name);
+        const { detail } = await showAddOnDetail(addOns, name, detailPage);
         return {
             title: (await detail.locator(".av-detail-name").textContent()) ?? "",
             state: (await detail.locator(".av-state-line").textContent()) ?? "",
@@ -400,11 +415,11 @@ describe("the allowance playground in a real VS Code, one profile for every wind
         addOns: FrameLocator,
         name: string | RegExp,
     ): Promise<{ status: string; facts: Record<string, string>; title: string; review: string }> {
-        const detail = await showAddOnDetail(addOns, name);
+        const { detail, page } = await showAddOnDetail(addOns, name, detailPage);
         const title = (await detail.locator(".av-detail-name").textContent()) ?? "";
         const facts = await factsOf(detail);
         const review = (await detail.locator(".av-review-body").textContent()) ?? "";
-        const status = addOns.getByRole("status");
+        const status = page.getByRole("status");
         const allowed = new RegExp(`^Allowed ${escapeRegExp(title)}[ .]`);
         const allow = detail
             .locator(".av-review-end")
@@ -439,9 +454,9 @@ describe("the allowance playground in a real VS Code, one profile for every wind
     }
 
     async function revokeInView(addOns: FrameLocator, name: string | RegExp): Promise<string> {
-        const detail = await showAddOnDetail(addOns, name);
+        const { detail, page } = await showAddOnDetail(addOns, name, detailPage);
         const title = (await detail.locator(".av-detail-name").textContent()) ?? "";
-        const status = addOns.getByRole("status");
+        const status = page.getByRole("status");
         await detail.getByRole("button", { name: "Revoke", exact: true }).click();
         await expect
             .poll(() => status.textContent(), { timeout: TIMEOUT_MS })
@@ -463,7 +478,7 @@ describe("the allowance playground in a real VS Code, one profile for every wind
             })),
         );
         for (const name of [PLUGIN_NAME, RULE_PACKAGE_ROW]) {
-            const detail = await showAddOnDetail(addOns, name);
+            const { detail } = await showAddOnDetail(addOns, name, detailPage);
             const facts = await factsOf(detail);
             log(`Add-ons detail of ${String(name)}: ${(await detail.textContent()) ?? ""}`);
             // The review, and with it "Allowed in", shows only for an add-on not allowed yet.

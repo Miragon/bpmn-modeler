@@ -18,6 +18,11 @@ export class FakeLayout implements Layout {
         if (app === null) return element.isConnected;
         const inToolbar = element.closest(".av-toolbar") !== null;
         const inDetail = element.closest(".av-detail") !== null;
+        const inList = element.closest(".av-list") !== null;
+        if (app.dataset.page === "listWithTab" && inDetail) return false;
+        if (app.dataset.page === "detail") {
+            return !inToolbar && !inList && !element.classList.contains("av-back");
+        }
         if (app.dataset.phase !== "ready" && (inToolbar || inDetail)) return false;
         if (!this.narrow) return !element.classList.contains("av-back");
         const detailPane = app.dataset.pane === "detail";

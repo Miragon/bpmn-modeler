@@ -69,7 +69,7 @@ export class AddOnsView {
             onMenu: (menuId) => this.toggleMenu(menuId),
             onSearchToggle: () => this.toggleSearch(),
         });
-        this.focus = new FocusKeeper(root, this.list, layout, () => this.toolbar.focusStart());
+        this.focus = new FocusKeeper(root, this.list, layout, () => this.focusStart());
         this.list.setAttribute("aria-label", CHROME_TEXT.title);
         this.announcer.setAttribute("aria-live", "polite");
         const body = el("div", "av-body");
@@ -134,6 +134,7 @@ export class AddOnsView {
         const phase = catalogPhaseOf(model);
         this.app.dataset.phase = phase;
         this.app.dataset.pane = state.pane;
+        this.app.dataset.page = state.page;
         setBusy(this.list, model === undefined);
         this.banner.show(state.banner);
         if (model === undefined) {
@@ -216,7 +217,7 @@ export class AddOnsView {
         this.detail.replaceChildren(
             back,
             placement === undefined
-                ? hintOf()
+                ? hintOf(state.page === "detail" && selectedId !== undefined)
                 : detailOf(placement, state, placement.addOn.id === this.revealedId),
         );
         if (this.shownDetailId !== selectedId) {
@@ -228,6 +229,8 @@ export class AddOnsView {
     /** A second Review Add-ons that finds as many is said again, though its words did not change. */
     private announce(content: ListContent, state: ViewState): void {
         const review = state.reviewCount !== undefined;
+        // A detail tab's page has no list to count.
+        if (state.page === "detail") return;
         const text = review
             ? reviewCountText(state.reviewCount!)
             : announcementOf(content, state.filter);
@@ -284,6 +287,15 @@ export class AddOnsView {
         const selected = this.state && selectedIdOf(this.state);
         if (selected === undefined || !this.focus.first([{ kind: "row", id: selected }])) {
             this.focus.listStart();
+        }
+    }
+
+    /** A detail tab's page has no toolbar: focus goes to its heading. */
+    private focusStart(): void {
+        if (this.state?.page === "detail") {
+            this.detail.querySelector<HTMLElement>(".av-detail-name")?.focus();
+        } else {
+            this.toolbar.focusStart();
         }
     }
 

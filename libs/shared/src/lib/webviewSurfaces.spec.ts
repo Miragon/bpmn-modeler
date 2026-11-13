@@ -42,6 +42,7 @@ describe("WEBVIEW_SURFACE_COMMAND_TYPES", () => {
             "LogErrorCommand",
             "GetAddOnCatalogCommand",
             "AddOnRequestCommand",
+            "OpenAddOnDetailCommand",
         ]);
     });
 

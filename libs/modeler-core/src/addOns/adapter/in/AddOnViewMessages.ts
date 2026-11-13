@@ -5,8 +5,10 @@ import {
     AddOnsViewCommandType,
     Command,
     ProtocolCommandType,
+    OpenAddOnDetailCommand,
     Query,
     RevealAddOnsQuery,
+    ShowAddOnQuery,
 } from "@miragon/bpmn-modeler-shared";
 
 import { LoggerPort } from "../../../kernel/port/hostPorts";
@@ -35,19 +37,37 @@ export class AddOnViewMessages implements RouteLookup {
         LogErrorCommand: [(command) => this.log(command)],
         GetAddOnCatalogCommand: [() => this.repost()],
         AddOnRequestCommand: [(command) => this.request(command)],
+        OpenAddOnDetailCommand: [(command) => this.openDetail(command)],
     });
     private model?: AddOnCatalogModel;
     /** Held only until a listening page has it, so a page loaded later lands on no old rows. */
     private reveal?: AddOnReveal;
     private pageListening = false;
     private disposed = false;
+    /** A detail page's one add-on; a list page has none. */
+    private shownId?: string;
 
-    /** @param actOn the core's answer to a request the page made, in a shape it knows */
+    /**
+     * @param actOn the core's answer to a request the page made, in a shape it knows
+     * @param panel what the page opens in a tab, and the add-on a detail page shows
+     */
     constructor(
         private readonly actOn: (request: AddOnRequest) => Promise<AddOnActionResult>,
         private readonly logger: LoggerPort,
         private readonly post: (message: Query) => void,
-    ) {}
+        private readonly panel: {
+            readonly openDetail?: (addOnId: string, model?: AddOnCatalogModel) => void;
+            readonly shows?: string;
+        } = {},
+    ) {
+        if (panel.shows !== undefined) this.show(panel.shows);
+    }
+
+    /** A detail page's add-on; it goes before any catalog, so the page never shows another first. */
+    show(addOnId: string): void {
+        this.shownId = addOnId;
+        this.send(new ShowAddOnQuery(addOnId));
+    }
 
     modelBuilt(model: AddOnCatalogModel): void {
         this.model = model;
@@ -86,9 +106,14 @@ export class AddOnViewMessages implements RouteLookup {
      */
     private repost(): void {
         this.pageListening = true;
+        if (this.shownId !== undefined) this.send(new ShowAddOnQuery(this.shownId));
         if (this.model !== undefined) this.send(new AddOnCatalogQuery(this.model));
         if (this.reveal !== undefined) this.send(new RevealAddOnsQuery(this.reveal));
         this.reveal = undefined;
+    }
+
+    private openDetail({ addOnId }: OpenAddOnDetailCommand): void {
+        this.panel.openDetail?.(addOnId, this.model);
     }
 
     private async request({ requestId, request }: AddOnRequestCommand): Promise<void> {

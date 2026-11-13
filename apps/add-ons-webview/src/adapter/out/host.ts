@@ -1,4 +1,6 @@
 import {
+    ADD_ONS_PAGE_ATTRIBUTE,
+    addOnsPageOf,
     AddOnActionResultQuery,
     AddOnCatalogQuery,
     AddOnsViewCommand,
@@ -11,6 +13,7 @@ import {
     MockHostApi,
     Query,
     RevealAddOnsQuery,
+    ShowAddOnQuery,
 } from "@miragon/bpmn-modeler-shared";
 
 import type { PersistedChoices } from "../../domain/viewState";
@@ -36,16 +39,24 @@ const PREVIEW_HOST_THEMES: Readonly<Record<string, HostColorThemeKind>> = {
  * Answers the view's commands from {@link MockCatalog}. Query flags:
  * `state=loading|empty|noFolder|onlyMarketplaces|noMarketplace|marketplacesFailed|rereadFailed|failed|allReviewed`,
  * `reveal=<add-on id or name>`, `preset=needsReview` (Review Add-ons, after any reveal),
- * `stale=1` (the first allow is refused as stale) and `theme=dark|hc`.
+ * `stale=1` (the first allow is refused as stale), `theme=dark|hc`,
+ * `page=listWithTab|detail` (which page a host serves) and `show=<add-on id or name>` (a detail page's add-on).
  */
 class MockHost extends MockHostApi<PersistedChoices, AddOnsViewCommand> {
     private readonly catalog: MockCatalog;
     private readonly revealed?: string;
     private readonly reviewPreset: boolean;
     private readonly brandMode: BrandMode;
+    private readonly shown?: string;
 
     constructor(flags: URLSearchParams) {
         super();
+        // A host writes the page into its shell; the preview has none, so it writes it before the bootstrap reads it.
+        document.documentElement.setAttribute(
+            ADD_ONS_PAGE_ATTRIBUTE,
+            addOnsPageOf(flags.get("page") ?? undefined),
+        );
+        this.shown = flags.get("show") ?? undefined;
         this.catalog = new MockCatalog(previewStateOf(flags.get("state")), { stale: flags.get("stale") === "1" });
         this.revealed = flags.get("reveal") ?? undefined;
         this.reviewPreset = flags.get("preset") === "needsReview";
@@ -63,8 +74,12 @@ class MockHost extends MockHostApi<PersistedChoices, AddOnsViewCommand> {
             case "GetAddOnCatalogCommand":
                 // The preview has no host shell to carry the mode, so it arrives as a theme change would.
                 dispatch(new BrandModeQuery(this.brandMode));
+                this.postShown();
                 this.postModel();
                 this.postReveal();
+                return;
+            case "OpenAddOnDetailCommand":
+                console.debug("[add-ons preview] a host would open the detail tab of", command.addOnId);
                 return;
             case "AddOnRequestCommand": {
                 const { result, changed } = this.catalog.act(command.request);
@@ -75,6 +90,11 @@ class MockHost extends MockHostApi<PersistedChoices, AddOnsViewCommand> {
             default:
                 throw new Error(`Unknown message type: ${message.type}`);
         }
+    }
+
+    private postShown(): void {
+        const id = this.shown === undefined ? undefined : this.catalog.idOf(this.shown);
+        if (id !== undefined) dispatch(new ShowAddOnQuery(id));
     }
 
     private postModel(): void {

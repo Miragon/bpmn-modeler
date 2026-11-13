@@ -102,3 +102,10 @@ export function templateVersionText(version: number): string {
 export function cannotBeReadText(reason: string): string {
     return `Cannot be read: ${reason}.`;
 }
+
+export function addOnDetailTitle(name: string): string {
+    return `Add-on: ${name}`;
+}
+
+export const UNLISTED_DETAIL_TEXT =
+    "Opened no add-on details: the list no longer holds the add-on.";

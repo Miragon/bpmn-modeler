@@ -130,6 +130,26 @@ export class GetAddOnCatalogCommand extends Command<"GetAddOnCatalogCommand"> {
     }
 }
 
+/** The list asks the host to show this add-on's details in an editor tab. */
+export class OpenAddOnDetailCommand extends Command<"OpenAddOnDetailCommand"> {
+    public readonly addOnId: string;
+
+    constructor(addOnId: string) {
+        super("OpenAddOnDetailCommand");
+        this.addOnId = addOnId;
+    }
+}
+
+/** Which add-on a detail page shows; it comes before the catalog, so the page never shows another first. */
+export class ShowAddOnQuery extends Query<"ShowAddOnQuery"> {
+    public readonly addOnId: string;
+
+    constructor(addOnId: string) {
+        super("ShowAddOnQuery");
+        this.addOnId = addOnId;
+    }
+}
+
 /** What the user chose in the add-ons view; the host answers with an {@link AddOnActionResultQuery} of the same id. */
 export class AddOnRequestCommand extends Command<"AddOnRequestCommand"> {
     public readonly requestId: number;

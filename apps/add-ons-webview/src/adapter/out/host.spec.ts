@@ -13,6 +13,7 @@ import {
     LogInfoCommand,
     MessageOfType,
     MockHostApi,
+    OpenAddOnDetailCommand,
     RevealAddOnsQuery,
 } from "@miragon/bpmn-modeler-shared";
 
@@ -23,6 +24,7 @@ const COMMANDS: { [Type in AddOnsViewCommandType]: MessageOfType<Type> } = {
     LogErrorCommand: new LogErrorCommand("error"),
     GetAddOnCatalogCommand: new GetAddOnCatalogCommand(),
     AddOnRequestCommand: new AddOnRequestCommand(1, { kind: "refresh" }),
+    OpenAddOnDetailCommand: new OpenAddOnDetailCommand("plugin:/work/x"),
 };
 
 type Reply = AddOnCatalogQuery | AddOnActionResultQuery | RevealAddOnsQuery | BrandModeQuery;

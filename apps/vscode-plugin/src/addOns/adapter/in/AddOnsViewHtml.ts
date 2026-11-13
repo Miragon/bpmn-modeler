@@ -1,22 +1,28 @@
 import { Uri, Webview } from "vscode";
 
-import { type BrandMode, brandModeAttributes } from "@miragon/bpmn-modeler-shared";
+import {
+    addOnsPageAttributes,
+    type AddOnsPage,
+    type BrandMode,
+    brandModeAttributes,
+} from "@miragon/bpmn-modeler-shared";
 
 import { webviewContentSecurityPolicy } from "../../../shared/domain/webviewContentSecurityPolicy";
 
 const ADD_ONS_WEBVIEW_PATH = "add-ons-webview";
 
 /**
- * The HTML shell of the Add-ons view: its policy, its stylesheet and its
+ * The HTML shell of an add-ons page: its policy, its stylesheet and its
  * nonced entry script around an empty `#app`, which the bundle fills from the
  * core's catalog. `<html>` carries the brand mode, so the first frame paints
- * in it.
+ * in it, and which page this shell serves: the view's list or a tab's detail.
  */
 export function addOnsViewHtml(
     webview: Webview,
     extensionUri: Uri,
     nonce: string,
     mode: BrandMode,
+    page: AddOnsPage,
 ): string {
     const baseUri = Uri.joinPath(extensionUri, ADD_ONS_WEBVIEW_PATH);
 
@@ -27,7 +33,10 @@ export function addOnsViewHtml(
         cspSource: webview.cspSource,
         nonce,
     });
-    const modeAttributes = Object.entries(brandModeAttributes(mode))
+    const modeAttributes = Object.entries({
+        ...brandModeAttributes(mode),
+        ...addOnsPageAttributes(page),
+    })
         .map(([name, value]) => ` ${name}="${value}"`)
         .join("");
 

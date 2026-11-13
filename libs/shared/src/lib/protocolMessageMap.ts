@@ -4,7 +4,9 @@ import type {
     AddOnRequestCommand,
     BrandModeQuery,
     GetAddOnCatalogCommand,
+    OpenAddOnDetailCommand,
     RevealAddOnsQuery,
+    ShowAddOnQuery,
 } from "./addOnsView";
 import type {
     ApplyDmnDiffHighlightsQuery,
@@ -166,6 +168,7 @@ export type ProtocolQuery =
     | AddOnCatalogQuery
     | AddOnActionResultQuery
     | RevealAddOnsQuery
+    | ShowAddOnQuery
     | BrandModeQuery;
 
 export type ProtocolCommand =
@@ -227,7 +230,8 @@ export type ProtocolCommand =
     | DmnDiffViewChangedCommand
     | DmnDiffScrollChangedCommand
     | GetAddOnCatalogCommand
-    | AddOnRequestCommand;
+    | AddOnRequestCommand
+    | OpenAddOnDetailCommand;
 
 export type ProtocolMessage = ProtocolQuery | ProtocolCommand;
 
