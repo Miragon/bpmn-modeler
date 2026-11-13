@@ -8,7 +8,7 @@ description: Reviews a branch, a pull request or a past commit for architecture 
 The fitness functions of `corepack yarn fitness` are computational sensors:
 deterministic, and blind to what their `misses` name. This review is the
 inferential sensor next to them
-([ADR](../../../docs/adr/engineering-practices.md#architecture-review)). It is
+([ADR](../../../docs/adr/architecture-enforcement.md#architecture-review)). It is
 not deterministic, so it comments and never blocks.
 
 ## 1. Measure the tree
@@ -17,7 +17,7 @@ On a pull request the Fitness report workflow already lists the new and
 resolved rows per function: the job summary holds every row, and a PR from
 this repository, unless Dependabot opened it, has at most one comment with a
 capped copy, posted once there is a change
-([ADR](../../../docs/adr/engineering-practices.md#fitness-function-report)).
+([ADR](../../../docs/adr/architecture-enforcement.md#fitness-function-report)).
 For `size-and-complexity` it lists the existing files that grew and only
 counts the new ones; `missed-partner` and `mutation-score` are in the full
 report only, so the comment never shows their rows.

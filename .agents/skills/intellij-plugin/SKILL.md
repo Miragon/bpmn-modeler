@@ -19,10 +19,10 @@ apps/modeler-bridge/       Bun binary: stdio JSON-RPC server wrapping the TS cor
 
 Read the two developer guides first — they are authoritative and kept current:
 `apps/intellij-plugin/CONTRIBUTING.md`, `apps/modeler-bridge/README.md`. Deeper
-rationale lives in the architecture-and-hosts ADR:
-[runtime and transport](../../../docs/adr/architecture-and-hosts.md#runtime-and-transport),
-[process lifecycle](../../../docs/adr/architecture-and-hosts.md#process-lifecycle), and
-[state mirrors](../../../docs/adr/architecture-and-hosts.md#host-replicated-state).
+rationale lives in the intellij-bridge and architecture-and-hosts ADRs:
+[runtime and transport](../../../docs/adr/intellij-bridge.md#runtime-and-transport),
+[process lifecycle](../../../docs/adr/intellij-bridge.md#process-lifecycle), and
+[state mirrors](../../../docs/adr/intellij-bridge.md#host-replicated-state).
 For the engine those two consume, use the `architecture` skill.
 
 ## Two design decisions (know these)
@@ -192,9 +192,9 @@ deployment state. **The `document/write` reply is the causation signal**: the
 host sends no `document/didChange` echo for the bridge's own writes, so every
 `didChange` is external and re-renders, and `documentRevision` rejects a stale
 write. See the ADR's
-[Document causation and session identity](../../../docs/adr/architecture-and-hosts.md#document-causation-and-session-identity).
+[Document causation and session identity](../../../docs/adr/intellij-bridge.md#document-causation-and-session-identity).
 To add a new synchronous port, follow
-[Host-replicated state](../../../docs/adr/architecture-and-hosts.md#host-replicated-state).
+[Host-replicated state](../../../docs/adr/intellij-bridge.md#host-replicated-state).
 
 ## plugin.xml extension points
 

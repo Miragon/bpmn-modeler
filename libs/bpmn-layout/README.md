@@ -19,7 +19,7 @@ Internal workspace, not published on its own.
   engine's output.
 
 The full decision, outcome codes included, is in the
-[Formatting and cleanup ADR](../../docs/adr/bpmn-modeler.md#formatting-and-cleanup).
+[Formatting and cleanup ADR](../../docs/adr/bpmn-modeler-features.md#formatting-and-cleanup).
 
 ## Layers
 

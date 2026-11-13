@@ -257,7 +257,7 @@ module.exports = [
         },
     },
     // Escalate no-explicit-any to `error` on the Miragon-authored publishable
-    // paths (see docs/adr/engineering-practices.md#private-upstream-apis).
+    // paths (see docs/adr/dependencies.md#private-upstream-apis).
     // Last matching block wins per rule, overriding the repo-wide `warn` above.
     // The vendored bpmn-js-properties-panel fork
     // (libs/properties-panel/src outside modeFilter/) is deliberately excluded —
@@ -291,7 +291,7 @@ module.exports = [
         },
     },
     // A guarded type's rules live in its home module; elsewhere code asks the home
-    // instead of comparing the value (docs/adr/engineering-practices.md).
+    // instead of comparing the value (docs/adr/architecture-enforcement.md#architecture-tests).
     {
         files: ["**/*.ts", "**/*.tsx"],
         plugins: {

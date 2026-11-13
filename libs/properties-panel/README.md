@@ -18,7 +18,7 @@ Internal workspace, not published on its own.
 | `CustomGroupsModule` | The `customPropertiesGroups` slot for host group ids that survive Design mode. |
 
 Why it is a fork and how the filter treats engine groups is in the
-[Properties panel ADR](../../docs/adr/bpmn-modeler.md#properties-panel).
+[Properties panel ADR](../../docs/adr/bpmn-modeler-features.md#properties-panel).
 
 ## Usage
 

@@ -22,22 +22,26 @@ rationale you inferred so the user can correct it during review.
 
 ## Choose the owning topic
 
-- [Architecture and hosts](../../../docs/adr/architecture-and-hosts.md): shared
-  boundaries, host facilities, bridge/runtime and state ownership.
-- [BPMN modeler](../../../docs/adr/bpmn-modeler.md): BPMN API, surfaces, modes,
-  capabilities, rendering and lifecycle.
-- [DMN modeler](../../../docs/adr/dmn-modeler.md): DMN package, API, theme and locale.
-- [Deployment](../../../docs/adr/deployment.md): destinations, credentials,
-  execution, ledger and verification.
-- [Release and publishing](../../../docs/adr/release-and-publishing.md): release
-  routing, markers, packaging and publishing.
-- [Engineering practices](../../../docs/adr/engineering-practices.md): test
-  environments, upstream internals and dependency compatibility/security.
+The topic table in the [README](../../../docs/adr/README.md#topics) names every
+record and what it owns. Read it first; it is the only list of topics, so this skill
+keeps no copy that could drift.
 
 Update the relevant section, or add a section within that topic. A feature that
 spans layers can still have one owning topic; link to shared rules rather than
-copying them. Create another descriptive `<topic>.md` only for a distinct area
-that has no coherent home, then update the README index. Do not number records.
+copying them. Create another descriptive `<topic>.md` for a distinct area that has
+no coherent home, or when the owning topic is over its size budget (about 300
+lines) after you cut what the code already says; then update the README index. Do
+not number records.
+
+## Write the decision, not the code
+
+Agents read these records often, so every line has to earn its place. Keep the
+decision, the constraint it puts on future changes, the reason, the alternatives
+someone would otherwise re-propose, accepted costs and the test or check that
+enforces it. Leave out how the code works, inventories of classes, methods or
+messages, step-by-step flows, measurements and trial tables, per-PR history,
+user-guide content and lists of future work (use an issue). Before adding a
+paragraph, ask what an agent would get wrong without it.
 
 ## Keep the current decision coherent
 
