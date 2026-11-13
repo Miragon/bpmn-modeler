@@ -1,4 +1,5 @@
-import type { DiagramElementLike, ModdleElementLike } from "./candidates";
+import type { DiagramElementLike } from "./candidates";
+import type { ModdleElementLike } from "./moddleElement";
 import { keepsIdUnlessAsked } from "./elementKinds";
 import type { ElementIdsService } from "./ElementIdsService";
 import { followsChange } from "./followName";

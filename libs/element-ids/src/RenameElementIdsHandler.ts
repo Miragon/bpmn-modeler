@@ -1,9 +1,5 @@
-import type {
-    DiagramElementLike,
-    ElementRegistryLike,
-    ModdleElementLike,
-    RenameTarget,
-} from "./candidates";
+import type { DiagramElementLike, ElementRegistryLike, RenameTarget } from "./candidates";
+import type { ModdleElementLike } from "./moddleElement";
 import { dropBlockedRenames, orderRenames, type Rename } from "./renameOrder";
 
 export const RENAME_ELEMENT_IDS_COMMAND = "elementIds.rename";

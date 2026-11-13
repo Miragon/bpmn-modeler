@@ -1,6 +1,6 @@
 import type { ElementIdRowStatus } from "@miragon/bpmn-modeler-types";
 
-import type { ModdleElementLike } from "./candidates";
+import type { ModdleElementLike } from "./moddleElement";
 import type { IdConvention } from "./convention";
 import { counterSeparatorOf, technicalIdFor } from "./technicalId";
 

@@ -1,4 +1,4 @@
-import type { ModdleElementLike } from "./candidates";
+import type { ModdleElementLike } from "./moddleElement";
 import { keepsIdUnlessAsked, localType } from "./elementKinds";
 
 /**

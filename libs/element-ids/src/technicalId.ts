@@ -1,4 +1,4 @@
-import type { ModdleElementLike } from "./candidates";
+import type { ModdleElementLike } from "./moddleElement";
 import type { IdConvention } from "./convention";
 
 // Letters NFD does not take apart, spelled the way German and Nordic users would write them in ASCII.
