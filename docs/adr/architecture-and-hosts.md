@@ -125,7 +125,7 @@ of `addOns/`: `PluginAddOnSource` by `PluginInventory` in
 the host's `MarketplaceCommands`. The host compositions hand one to the other,
 as they hand `CachedTemplateProvider` to the BPMN editor. The values both
 sides name live in `kernel/domain/`: `ListedPresence` in `listedCode.ts`,
-`ApprovableCodeTexts` in `codeApproval.ts`, the template file listing in
+`ApprovableCodeTexts` in `approvableCodeTexts.ts`, the template file listing in
 `templateListing.ts` and the marketplace listing in `marketplaceListing.ts`,
 from which the catalog derives its own view with the templates read. The context is
 named `addOns` after the view it serves, **Add-ons**; the `Artifact` prefix

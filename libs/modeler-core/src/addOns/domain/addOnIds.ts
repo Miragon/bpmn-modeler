@@ -22,6 +22,9 @@ export const TEMPLATE_STATES = ["enabled", "disabled"] as const;
 
 export type TemplateState = (typeof TEMPLATE_STATES)[number];
 
+/** The state the add-ons view shows a code add-on in. */
+export type CodeState = "approved" | "new" | "declined";
+
 export const ADD_ON_ACTION_KINDS = ["allow", "revoke", "enable", "disable"] as const;
 
 export type AddOnActionKind = (typeof ADD_ON_ACTION_KINDS)[number];

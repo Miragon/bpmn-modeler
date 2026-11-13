@@ -1,10 +1,8 @@
 import { ActionNotice } from "../../kernel/domain/actionNotice";
 import { ALLOWANCE_COVERS_TEXT, ApprovableArtifact } from "../../kernel/domain/allowance";
-import {
-    ApprovableCodeTexts,
-    ApprovalNoticeAction,
-    CodeApproval,
-} from "../../kernel/domain/codeApproval";
+import { ApprovableCodeTexts } from "../../kernel/domain/approvableCodeTexts";
+import { ApprovalNoticeAction } from "../../kernel/domain/approvalAnswer";
+import { CodeApproval } from "../../kernel/domain/codeApproval";
 import { DirectoryEntryKind } from "../../kernel/domain/directoryEntry";
 import { escapeRegExpLiteral } from "../../kernel/domain/escapeRegExpLiteral";
 import { ChoicePrompt } from "../../kernel/domain/prompts";

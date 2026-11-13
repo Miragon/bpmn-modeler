@@ -1,5 +1,5 @@
 import { AllowableCode } from "../../kernel/domain/allowance";
-import { SessionAnswer } from "../../kernel/domain/codeApproval";
+import { SessionAnswer } from "../../kernel/domain/approvalAnswer";
 import { ListedPresence } from "../../kernel/domain/listedCode";
 import { lastWorkspacePathSegment } from "../../kernel/domain/workspacePath";
 import { PLUGIN_CODE_TEXTS } from "../domain/pluginApproval";

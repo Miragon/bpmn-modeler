@@ -616,11 +616,11 @@ the one list of what to ask about, one entry per allowance key with the first
 place first, so two worktrees or a hoisted and a nested copy count and list
 once. `kernel/domain/listedCode.ts` holds what an owner found for the view
 (`ListedPresence`: found, unreadable with its allowance, or gone).
-`PROCESS_RESTARTS` in `codeApproval.ts` names, as a typed host fact, how the
+`PROCESS_RESTARTS` in `approvableCodeTexts.ts` names, as a typed host fact, how the
 user unloads code that already ran (reload the window, restart the IDE), and
 `RulePackageCatalog` keeps the packages revoked this session. The view
 protocol names a code add-on's state as `CodeState` (`approved`, `new`,
-`declined`), the three an allowance state maps to.
+`declined`) in `addOns/domain/addOnIds.ts`, the three an allowance state maps to.
 
 **Prompt flow.** Per the
 [VS Code UX guidelines](../../.agents/skills/vscode-ux-guidelines/SKILL.md), a
@@ -656,7 +656,8 @@ tab of its BPMN Modeler tool window. **Review…** opens the view unless an
 item lies outside every folder or the view cannot open. The feature's
 `review` port is still optional; making it required and removing
 `reviewOrChecklist` is a follow-up now that both hosts pass one. The catalogs keep these session answers
-by allowance key (`SESSION_ANSWERS`). A catalog that would ask first waits
+by allowance key (`SESSION_ANSWERS` in `kernel/domain/approvalAnswer.ts`,
+with `ReviewAnswer`). A catalog that would ask first waits
 for the start-up migration of content rows (`ContentRowMigration.whenSettled`,
 capped at `CONTENT_ROW_MIGRATION_WAIT_MS`, 10 s), so a second worktree the
 migration is about to cover is not asked about; when nothing is pending it

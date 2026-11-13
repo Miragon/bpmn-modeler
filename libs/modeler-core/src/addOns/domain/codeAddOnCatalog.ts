@@ -4,14 +4,9 @@ import {
     AllowanceState,
     allowanceStateOf,
 } from "../../kernel/domain/allowance";
-import {
-    ApprovableCodeTexts,
-    CodeApproval,
-    CodeState,
-    declinedKeys,
-    ProcessRestart,
-    SessionAnswer,
-} from "../../kernel/domain/codeApproval";
+import { ApprovableCodeTexts, ProcessRestart } from "../../kernel/domain/approvableCodeTexts";
+import { declinedKeys, SessionAnswer } from "../../kernel/domain/approvalAnswer";
+import { CodeApproval } from "../../kernel/domain/codeApproval";
 import { ListedCode, ListedPresence, presenceIdOf } from "../../kernel/domain/listedCode";
 import { offersAllowInWorkspace } from "../../kernel/domain/workspaceTrust";
 import {
@@ -20,7 +15,7 @@ import {
     relativeToWorkspace,
 } from "../../kernel/domain/rootContainment";
 import type { ActionView, AddOnReview, CodeAddOnView } from "./addOnCatalogModel";
-import { AddOnActionKind, addOnIdOf, CodeAddOnKind } from "./addOnIds";
+import { AddOnActionKind, addOnIdOf, CodeAddOnKind, CodeState } from "./addOnIds";
 import { FolderFacts, PlacedAddOn, SOURCE_PLACE, SourcePlace } from "./addOnSourcePlaces";
 import {
     ACTION_LABEL,

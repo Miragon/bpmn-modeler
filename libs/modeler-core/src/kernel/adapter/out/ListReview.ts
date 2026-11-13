@@ -1,4 +1,4 @@
-import { ReviewAnswer } from "../../domain/codeApproval";
+import { ReviewAnswer } from "../../domain/approvalAnswer";
 import { ApprovalReviewPort, ApprovalReviewRequest } from "../../port/approvalPorts";
 import { PickerPort } from "../../port/hostPorts";
 

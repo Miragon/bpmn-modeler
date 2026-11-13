@@ -8,15 +8,17 @@ import {
 } from "../../../kernel/domain/allowance";
 import {
     ApprovalNoticeAction,
-    approvalChangeBetween,
-    CodeApproval,
-    CodeApprovalChange,
     declinedKeys,
     notAskedAgain,
     ReviewAnswer,
     SessionAnswer,
-} from "../../../kernel/domain/codeApproval";
+} from "../../../kernel/domain/approvalAnswer";
 import { approvalRowsOf } from "../../../kernel/domain/approvalRowKind";
+import {
+    approvalChangeBetween,
+    CodeApproval,
+    CodeApprovalChange,
+} from "../../../kernel/domain/codeApproval";
 import { ChoicePrompt } from "../../../kernel/domain/prompts";
 import { parentWorkspacePath } from "../../../kernel/domain/workspacePath";
 import { askedInWorkspace } from "../../../kernel/domain/workspaceTrust";

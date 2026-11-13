@@ -1,4 +1,4 @@
-import { ProcessRestart } from "../../kernel/domain/codeApproval";
+import { ProcessRestart } from "../../kernel/domain/approvableCodeTexts";
 import { relativeToRoot } from "../../kernel/domain/rootContainment";
 import { lastWorkspacePathSegment } from "../../kernel/domain/workspacePath";
 import type {

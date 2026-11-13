@@ -19,13 +19,13 @@ export {
     allowingAllowances,
     LOCAL_HOST,
 } from "./kernel/domain/allowance";
+export type { ReviewAnswer } from "./kernel/domain/approvalAnswer";
 export type { AllowanceKind } from "./kernel/domain/approvalRowKind";
 export {
     approvalsAfter,
     approvalsKey,
     codeApprovalChange,
     type CodeApprovalChange,
-    type ReviewAnswer,
     revoking,
 } from "./kernel/domain/codeApproval";
 export * from "./kernel/domain/engineVersions";

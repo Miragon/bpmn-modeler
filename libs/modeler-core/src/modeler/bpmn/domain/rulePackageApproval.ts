@@ -8,14 +8,16 @@ import {
     AllowanceState,
     ApprovableArtifact,
 } from "../../../kernel/domain/allowance";
-import { approvalRowsOf } from "../../../kernel/domain/approvalRowKind";
 import {
     ApprovableCodeTexts,
-    ApprovalNoticeAction,
+    PROCESS_RESTART_TEXT,
+} from "../../../kernel/domain/approvableCodeTexts";
+import { ApprovalNoticeAction } from "../../../kernel/domain/approvalAnswer";
+import { approvalRowsOf } from "../../../kernel/domain/approvalRowKind";
+import {
     approvalsKey,
     CodeApproval,
     CodeApprovalChange,
-    PROCESS_RESTART_TEXT,
 } from "../../../kernel/domain/codeApproval";
 import { installedPackageNameOf, NODE_MODULES } from "../../../kernel/domain/installedPackagePath";
 import { ChoicePrompt } from "../../../kernel/domain/prompts";

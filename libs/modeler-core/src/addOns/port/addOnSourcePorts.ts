@@ -1,5 +1,6 @@
 import { AllowableCode } from "../../kernel/domain/allowance";
-import { ApprovableCodeTexts, SessionAnswer } from "../../kernel/domain/codeApproval";
+import { ApprovableCodeTexts } from "../../kernel/domain/approvableCodeTexts";
+import { SessionAnswer } from "../../kernel/domain/approvalAnswer";
 import { ListedPresence } from "../../kernel/domain/listedCode";
 import { SettingChange } from "../../editorSession/domain/EditorSession";
 import { MarketplacesListing } from "../../kernel/domain/marketplaceListing";

@@ -6,13 +6,10 @@ import {
     allowanceOf,
     allowanceRowOf,
 } from "../../kernel/domain/allowance";
+import { ApprovableCodeTexts, PROCESS_RESTARTS } from "../../kernel/domain/approvableCodeTexts";
+import { SessionAnswer } from "../../kernel/domain/approvalAnswer";
 import { AllowanceKind, approvalRowsOf } from "../../kernel/domain/approvalRowKind";
-import {
-    ApprovableCodeTexts,
-    CodeApproval,
-    PROCESS_RESTARTS,
-    SessionAnswer,
-} from "../../kernel/domain/codeApproval";
+import { CodeApproval } from "../../kernel/domain/codeApproval";
 import { ListedPresence, presenceIdOf } from "../../kernel/domain/listedCode";
 import { FolderTemplateFileListing } from "../../kernel/domain/templateListing";
 import {

@@ -1,4 +1,4 @@
-import type { CodeState } from "../../kernel/domain/codeApproval";
+import type { CodeState } from "./addOnIds";
 import type {
     AddOnActionKind,
     CatalogActionKind,

@@ -1,4 +1,4 @@
-import { ReviewAnswer } from "../../../kernel/domain/codeApproval";
+import { ReviewAnswer } from "../../../kernel/domain/approvalAnswer";
 import { ApprovalReviewPort, ApprovalReviewRequest } from "../../../kernel/port/approvalPorts";
 import { addOnIdOf, CodeAddOnKind } from "../../domain/addOnIds";
 import { leavesToView } from "../../domain/addOnScope";

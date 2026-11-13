@@ -25,13 +25,13 @@ import {
     TemplateStatePayload,
 } from "@miragon/bpmn-modeler-shared";
 
-import type { CodeState } from "../../../kernel/domain/codeApproval";
 import { RecordingNotifier } from "../../../testing/RecordingNotifier";
 import type { AddOnCatalogModel, AddOnReveal } from "../../domain/addOnCatalogModel";
 import type {
     AddOnActionKind,
     CatalogActionKind,
     CodeAddOnKind,
+    CodeState,
     GroupKind,
     SourceActionKind,
     SourceKind,
