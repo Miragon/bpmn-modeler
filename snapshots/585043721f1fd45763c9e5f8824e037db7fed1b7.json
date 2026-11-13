@@ -1719,7 +1719,7 @@
       "unmeasurable": "none of the 0 stored mutation runs measured a commit on this first-parent chain"
     },
     "repeated-value-sets": {
-      "version": 1,
+      "version": 2,
       "findings": [
         {
           "key": "apps/deployment-webview/src/adapter/in/form.ts — [\" \",\"Enter\"]",
@@ -1738,30 +1738,6 @@
           "path": "apps/modeler-bridge/src/kernel/adapter/out/NodeWorkspace.ts",
           "line": 212,
           "message": "`directory` · `file`, also at `apps/modeler-bridge/src/kernel/adapter/out/NodeWorkspace.ts:201`, `apps/vscode-plugin/src/shared/adapter/out/VsCodeWorkspace.ts:70`, `libs/modeler-core/src/kernel/port/hostPorts.ts:165`, `libs/modeler-core/src/kernel/service/ArtifactService.ts:236`, `libs/modeler-core/src/kernel/service/workspaceFileSearch.ts:156`, `libs/modeler-core/src/kernel/service/workspaceFileSearch.ts:158`, `libs/modeler-core/src/modeler/bpmn/service/BpmnLintConfigLocator.ts:91`, `libs/modeler-core/src/template-marketplace/adapter/out/LocalFileSource.ts:34`, `libs/modeler-core/src/template-marketplace/service/MarketplaceCache.ts:213`, `libs/modeler-core/src/template-marketplace/service/MarketplaceCache.ts:232`, `libs/modeler-core/src/testing/InMemoryWorkspace.ts:95`, `libs/modeler-core/src/testing/InMemoryWorkspace.ts:97`, `libs/modeler-core/src/testing/InMemoryWorkspace.ts:98`"
-        },
-        {
-          "key": "apps/orca-plugin/src/composition/editorLayout.ts — [\"bpmn\",\"dmn\"]",
-          "path": "apps/orca-plugin/src/composition/editorLayout.ts",
-          "line": 21,
-          "message": "`bpmn` · `dmn`, also at `apps/orca-plugin/test/e2e/orcaEditorPage.ts:16`"
-        },
-        {
-          "key": "apps/orca-plugin/test/e2e/orcaEditorPage.ts — [\"bpmn\",\"dmn\"]",
-          "path": "apps/orca-plugin/test/e2e/orcaEditorPage.ts",
-          "line": 16,
-          "message": "`bpmn` · `dmn`, also at `apps/orca-plugin/src/composition/editorLayout.ts:21`"
-        },
-        {
-          "key": "apps/orca-plugin/test/e2e/orcaEditorPage.ts — [\"dark\",\"light\"]",
-          "path": "apps/orca-plugin/test/e2e/orcaEditorPage.ts",
-          "line": 19,
-          "message": "`dark` · `light`, also at `apps/orca-plugin/test/e2e/orcaEditorPage.ts:94`, `libs/modeler-types/src/surfaceThemeMode.ts:12`"
-        },
-        {
-          "key": "apps/orca-plugin/test/e2e/orcaEditorPage.ts — [\"dark\",\"light\"]",
-          "path": "apps/orca-plugin/test/e2e/orcaEditorPage.ts",
-          "line": 94,
-          "message": "`dark` · `light`, also at `apps/orca-plugin/test/e2e/orcaEditorPage.ts:19`, `libs/modeler-types/src/surfaceThemeMode.ts:12`"
         },
         {
           "key": "apps/vscode-plugin/src/scriptTask/adapter/in/ScriptCompletionProvider.ts — [\"\\\"\",\"'\"]",
@@ -1857,13 +1833,13 @@
           "key": "libs/element-template-builder/src/domain/json.ts — [\"boolean\",\"number\"]",
           "path": "libs/element-template-builder/src/domain/json.ts",
           "line": 19,
-          "message": "`boolean` · `number`, also at `libs/element-template-builder/src/domain/transforms.ts:245`"
+          "message": "`boolean` · `number`, also at `libs/element-template-builder/src/domain/transforms.ts:245`; in another order at `libs/element-template-builder/src/domain/transforms.ts:245`: pin the copy to the home's type, and derive it from the home only where the order is the same concern"
         },
         {
           "key": "libs/element-template-builder/src/domain/transforms.ts — [\"boolean\",\"number\"]",
           "path": "libs/element-template-builder/src/domain/transforms.ts",
           "line": 245,
-          "message": "`boolean` · `number`, also at `libs/element-template-builder/src/domain/json.ts:19`"
+          "message": "`boolean` · `number`, also at `libs/element-template-builder/src/domain/json.ts:19`; in another order at `libs/element-template-builder/src/domain/json.ts:19`: pin the copy to the home's type, and derive it from the home only where the order is the same concern"
         },
         {
           "key": "libs/inline-scripting/src/scriptLockPropertiesProvider.ts — [\" \",\"Enter\"]",
@@ -2022,12 +1998,6 @@
           "message": "`name` · `value`, also at `libs/element-template-builder/src/adapter/in/entries.tsx:74`, `libs/element-template-builder/src/adapter/in/settingEntries.ts:479`"
         },
         {
-          "key": "libs/modeler-types/src/surfaceThemeMode.ts — [\"dark\",\"light\"]",
-          "path": "libs/modeler-types/src/surfaceThemeMode.ts",
-          "line": 12,
-          "message": "`dark` · `light`, also at `apps/orca-plugin/test/e2e/orcaEditorPage.ts:19`, `apps/orca-plugin/test/e2e/orcaEditorPage.ts:94`"
-        },
-        {
           "key": "libs/properties-panel/src/cmd/index.ts — [\"eventBus\",\"injector\"]",
           "path": "libs/properties-panel/src/cmd/index.ts",
           "line": 33,
@@ -2073,13 +2043,13 @@
           "key": "packages/bpmn-modeler/src/mode/modeModules.ts — [\"bpmn-append\",\"bpmn-create\",\"bpmn-replace\"]",
           "path": "packages/bpmn-modeler/src/mode/modeModules.ts",
           "line": 8,
-          "message": "`bpmn-append` · `bpmn-create` · `bpmn-replace`, also at `packages/bpmn-modeler/src/popupMenuAnnotations/PopupMenuAnnotationProvider.ts:22`"
+          "message": "`bpmn-append` · `bpmn-create` · `bpmn-replace`, also at `packages/bpmn-modeler/src/popupMenuAnnotations/PopupMenuAnnotationProvider.ts:22`; in another order at `packages/bpmn-modeler/src/popupMenuAnnotations/PopupMenuAnnotationProvider.ts:22`: pin the copy to the home's type, and derive it from the home only where the order is the same concern"
         },
         {
           "key": "packages/bpmn-modeler/src/popupMenuAnnotations/PopupMenuAnnotationProvider.ts — [\"bpmn-append\",\"bpmn-create\",\"bpmn-replace\"]",
           "path": "packages/bpmn-modeler/src/popupMenuAnnotations/PopupMenuAnnotationProvider.ts",
           "line": 22,
-          "message": "`bpmn-append` · `bpmn-create` · `bpmn-replace`, also at `packages/bpmn-modeler/src/mode/modeModules.ts:8`"
+          "message": "`bpmn-append` · `bpmn-create` · `bpmn-replace`, also at `packages/bpmn-modeler/src/mode/modeModules.ts:8`; in another order at `packages/bpmn-modeler/src/mode/modeModules.ts:8`: pin the copy to the home's type, and derive it from the home only where the order is the same concern"
         },
         {
           "key": "packages/bpmn-modeler/src/viewState.ts — [\"eventBus\",\"injector\"]",
