@@ -12,6 +12,7 @@ import {
     GetBpmnModelerSettingCommand,
     GetClipboardCommand,
     GetDiagramAsSVGCommand,
+    GetElementTemplateFileCommand,
     GetBpmnPluginsCommand,
     GetElementTemplatesCommand,
     GetFormPreviewCommand,
@@ -335,4 +336,13 @@ describe("development preview host", () => {
             expect(() => host.postMessage(query)).toThrow(`Unknown message type: ${query.type}`);
         },
     );
+
+    it("rejects a command of another surface", () => {
+        const host = previewHost();
+
+        // @ts-expect-error The webview's channel takes no template-editor command.
+        expect(() => host.postMessage(new GetElementTemplateFileCommand())).toThrow(
+            "Unknown message type: GetElementTemplateFileCommand",
+        );
+    });
 });
