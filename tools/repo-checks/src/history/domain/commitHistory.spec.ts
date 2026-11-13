@@ -7,6 +7,7 @@ import {
     HISTORY_WINDOW,
     historyWindow,
     isMechanicalCommit,
+    withBranchAsOneChange,
 } from "./commitHistory";
 
 function commit(name: string, ...changes: FileChange[]): CommitRecord {
@@ -130,6 +131,33 @@ describe("a mechanical commit", () => {
         { subject: "styles: not a type", mechanical: false },
     ])("is $subject: $mechanical", ({ subject, mechanical }) => {
         expect(isMechanicalCommit(subject)).toBe(mechanical);
+    });
+});
+
+describe("a branch as one change", () => {
+    const baseWindow = [commit("c1", modified("a.ts")), commit("c0", modified("b.ts"))];
+
+    it("goes in front of the base's window as one record, keeping every base commit", () => {
+        expect(
+            withBranchAsOneChange(baseWindow, [modified("a.ts"), renamed("b.ts", "c.ts")]),
+        ).toEqual([
+            {
+                commit: "branch",
+                subject: "branch",
+                changes: [modified("a.ts"), renamed("b.ts", "c.ts")],
+            },
+            ...baseWindow,
+        ]);
+    });
+
+    it("adds no record when the branch changed nothing", () => {
+        expect(withBranchAsOneChange(baseWindow, [])).toEqual(baseWindow);
+    });
+
+    it("counts like any other commit, as its subject is not mechanical", () => {
+        const [branchRecord] = withBranchAsOneChange(baseWindow, [modified("a.ts")]);
+
+        expect(isMechanicalCommit(branchRecord.subject)).toBe(false);
     });
 });
 

@@ -7,6 +7,7 @@ import {
     HISTORY_WINDOW,
     HISTORY_WINDOW_READ_DEPTH,
     historyWindow,
+    withBranchAsOneChange,
 } from "../../history/domain/commitHistory";
 import type { CommitHistory } from "../../history/port/CommitHistory";
 import type { SourceMeasures } from "../../sourceFiles/port/SourceMeasures";
@@ -64,14 +65,18 @@ export function createHotspotsFitnessFunction({
                     "The 428 stored snapshots with version 1 findings, 0966e35f (2026-09-30) to eb4fe899 (2026-11-06): version 1 recomputed on each tree matched its stored top 20. Version 2 drops libs/modeler-core/src/index.ts, the only barrel in any top 20 (15 to 23 barrels per tree), from 197 of them, where it ranked 8th to 20th; every file below it moves up one place, and the next file enters 20th: DeploymentService.ts 59 times, ArtifactService.ts 38, BpmnLintConfigService.ts 32, AppendMenuOverlay.tsx 24, six others 44. Nothing else changes",
             },
         ],
-        findFindings: ({ repoRoot, commit }) => {
+        findFindings: ({ repoRoot, changeBase }) => {
             const window = historyWindow(
-                history.firstParentCommits(repoRoot, commit, HISTORY_WINDOW_READ_DEPTH),
+                history.firstParentCommits(repoRoot, changeBase, HISTORY_WINDOW_READ_DEPTH),
             );
             if (window.kind === "tooShort") {
                 throw new InsufficientHistory(window.reason);
             }
-            return hotspotFindings(rankHotspots(window.commits, sources.read(repoRoot)));
+            const commits = withBranchAsOneChange(
+                window.commits,
+                history.changesSince(repoRoot, changeBase),
+            );
+            return hotspotFindings(rankHotspots(commits, sources.read(repoRoot)));
         },
     });
 }

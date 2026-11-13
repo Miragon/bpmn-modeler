@@ -4,6 +4,7 @@ import {
     changesetsAtTodaysPaths,
     type CommitRecord,
     type FileChange,
+    withBranchAsOneChange,
 } from "../../history/domain/commitHistory";
 import { CODE_MAAT_THRESHOLDS, countedChangesets } from "./changeCoupling";
 import { measuredFiles, type SourceLayout } from "./sourceLayout";
@@ -99,16 +100,17 @@ export function missedPartners({
         .filter((pair) => meetsThresholds(pair, thresholds));
 }
 
-const BRANCH_CHANGE = "branch";
-
 /** The change goes first, so its renames are followed into the window and its deletions drop out. */
 export function missedPartnersOfChange(
     layout: SourceLayout,
     change: readonly FileChange[],
     windowNewestFirst: readonly CommitRecord[],
 ): MissedPartner[] {
+    if (change.length === 0) {
+        return [];
+    }
     const [branchChange, ...history] = changesetsAtTodaysPaths(
-        [{ commit: BRANCH_CHANGE, subject: BRANCH_CHANGE, changes: change }, ...windowNewestFirst],
+        withBranchAsOneChange(windowNewestFirst, change),
         layout.files,
     );
     return missedPartners({

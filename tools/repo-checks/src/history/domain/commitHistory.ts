@@ -68,6 +68,26 @@ export function historyWindow(commitsNewestFirst: readonly CommitRecord[]): Hist
     return { kind: "window", commits: commitsNewestFirst.slice(0, HISTORY_WINDOW) };
 }
 
+// Not the PR title, which only CI knows, so a branch always counts, even one whose squash would not.
+const BRANCH_CHANGE = "branch";
+
+/**
+ * The branch counts as the one squashed commit it lands as. Every base commit stays, so no row
+ * moves because the window slid.
+ */
+export function withBranchAsOneChange(
+    baseWindowNewestFirst: readonly CommitRecord[],
+    branchChange: readonly FileChange[],
+): readonly CommitRecord[] {
+    if (branchChange.length === 0) {
+        return baseWindowNewestFirst;
+    }
+    return [
+        { commit: BRANCH_CHANGE, subject: BRANCH_CHANGE, changes: branchChange },
+        ...baseWindowNewestFirst,
+    ];
+}
+
 // Release, dependency and formatting commits touch many files for no shared reason.
 const MECHANICAL_SUBJECT = /^(chore\((deps|main|format)\)|style(\([^)]*\))?)!?:/;
 

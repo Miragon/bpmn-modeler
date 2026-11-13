@@ -194,6 +194,11 @@ describe("missed partners of the branch's change", () => {
             change: [{ kind: "added", path: A }],
             files: [A, B, FILLER],
         },
+        {
+            case: "everything for an empty change, whose newest record is no branch",
+            change: [],
+            files: [A, B, FILLER],
+        },
     ] satisfies { case: string; change: FileChange[]; files: string[] }[])(
         "drops $case",
         ({ change, files }) => {

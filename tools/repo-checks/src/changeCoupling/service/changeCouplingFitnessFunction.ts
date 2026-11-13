@@ -7,6 +7,7 @@ import {
     HISTORY_WINDOW,
     HISTORY_WINDOW_READ_DEPTH,
     historyWindow,
+    withBranchAsOneChange,
 } from "../../history/domain/commitHistory";
 import type { CommitHistory } from "../../history/port/CommitHistory";
 import { changeCouplingInTree, CODE_MAAT_THRESHOLDS } from "../domain/changeCoupling";
@@ -92,15 +93,19 @@ export function createChangeCouplingFitnessFunction({
             },
         ],
         groups: CHANGE_COUPLING_GROUPS,
-        findFindings: ({ repoRoot, commit }) => {
+        findFindings: ({ repoRoot, changeBase }) => {
             const window = historyWindow(
-                history.firstParentCommits(repoRoot, commit, HISTORY_WINDOW_READ_DEPTH),
+                history.firstParentCommits(repoRoot, changeBase, HISTORY_WINDOW_READ_DEPTH),
             );
             if (window.kind === "tooShort") {
                 throw new InsufficientHistory(window.reason);
             }
+            const commits = withBranchAsOneChange(
+                window.commits,
+                history.changesSince(repoRoot, changeBase),
+            );
             return changeCouplingFindings(
-                changeCouplingInTree(sources.read(repoRoot), window.commits),
+                changeCouplingInTree(sources.read(repoRoot), commits),
             );
         },
     });
