@@ -2,28 +2,30 @@
 
 Turn random IDs like `Activity_0x1y2z3` into IDs that read like the element's type and name, such as `serviceTask_checkStock`, for one element or the whole diagram.
 
-<figure class="shot"><img src="./images/ei-review.png" alt="The order fulfilment diagram with the panel Generate IDs from names along the bottom of the canvas: 11 of 11 IDs will change, grouped into Processes, Activities, Events and Gateways, each row with its current ID struck through next to the new one, such as Activity_1x9f2ab next to ServiceTask_CheckStock, and the second Notify customer marked same name as another element"><figcaption>The review lists every ID a name would change; one Apply renames them all.</figcaption></figure>
+<figure class="shot"><img src="./images/ei-review.png" alt="A BPMN diagram in VS Code with the Element IDs tab open in the Panel beside Problems, Output, Debug Console, Terminal and Ports. The line above the list reads 3 of 4 IDs will change; the groups are Processes, with Smoke as Process_Smoke → smoke unticked, Activities, with Check order as Task_Check → task_checkOrder, and Events, with Order received and Order checked ticked; No name, skipped is collapsed, and the check mark and the cross for Apply and Discard sit in the tab's title bar"><figcaption>The Element IDs tab lists every ID a name would change; Apply ID Changes renames the ticked ones in one step.</figcaption></figure>
 
 ## Review every ID
 
 1. Open a BPMN diagram in Design or Implement mode.
 2. Run **Miragon BPMN Modeler: Generate IDs from Names** from the Command Palette, or pick it from the **…** menu in the editor title bar.
-3. A panel opens along the bottom of the canvas. It lists every ID a name would change, grouped by kind, with the current ID struck through next to the new one. Click a row to select its element on the diagram.
-4. Untick the IDs you want to keep, and click **Apply**. Processes start unticked: a process ID is the key that deployments, call activities and tests use, so tick its group only when you mean to change it.
+3. The **Element IDs** tab opens in the Panel, beside Problems and Output. It lists every ID a name would change, grouped by kind, as `current ID → new ID`. Click a row to show its element on the diagram.
+4. Untick the IDs you want to keep, and click **Apply ID Changes** (the check mark) in the tab's title bar. Processes start unticked: a process ID is the key that deployments, call activities and tests use, so tick its group only when you mean to change it.
 
-**Apply** renames every ticked element as one change, so one undo puts all IDs back. **Discard**, the close button and <kbd>Esc</kbd> close the panel without changing anything. The panel follows edits you make while it is open.
+**Apply ID Changes** renames every ticked element as one change, so one undo puts all IDs back. **Discard ID Changes** (the cross) closes the tab without changing anything. The list follows edits you make while it is open. The review belongs to one diagram, and closing that diagram ends it.
 
-| Part of the panel | What it shows |
+| Part of the tab | What it shows |
 |---|---|
-| Summary | How many IDs will change. |
+| The line above the list | How many IDs will change, and that IDs in other files keep the old ones. |
 | Groups | Processes, pools, lanes, activities, events, gateways, flows and other elements. A group's checkbox ticks or unticks all its rows. |
-| *same name as another element* | Two elements share a name and would get the same ID, so this one gets a counter, such as `sendTask_notifyCustomer2`. |
+| A counter, such as `sendTask_notifyCustomer2` | Two elements share a name and would get the same ID, so this one gets a counter. The row's tooltip says so. |
 | Already match | Elements whose ID already follows their name, with or without a counter. They keep their ID. |
 | No name, skipped | Elements without a name, or with a name that has no letter or digit to build an ID from. |
 
+The Element IDs tab needs VS Code 1.80 or later. In an older VS Code the same review opens as a panel along the bottom of the canvas, with **Apply** and **Discard** buttons.
+
 ## One element
 
-Select an element. Under its **ID** field in the properties panel, **Generate from name** renames this one ID, and **Review all IDs…** opens the panel for the whole diagram. The link is greyed out when the element has no name or its ID already follows the name.
+Select an element. Under its **ID** field in the properties panel, **Generate from name** renames this one ID, and **Review all IDs…** opens the review of the whole diagram in the Element IDs tab. The link is greyed out when the element has no name or its ID already follows the name.
 
 <figure class="shot"><img src="./images/ei-id-field.png" alt="The properties panel of the service task Check stock: the Name field, the ID field with Activity_1x9f2ab, and below it the links Generate from name and Review all IDs…"><figcaption>The links under the ID field.</figcaption></figure>
 
@@ -79,12 +81,12 @@ It can be set per workspace, in `.vscode/settings.json`. The spelling has no set
 ## Limits
 
 - IDs in other files are not updated: call activities that start this process, a Camunda 8 process ID (which deployments and process instances use), process tests such as `hasPassed("…")`, and job workers or listeners that name an element. Rename a process before its first deployment, or update those references yourself.
-- View mode cannot change IDs. The command then asks you to switch to Design or Implement.
+- View mode cannot change IDs. The command then asks you to switch to Design or Implement; an open review says so until you switch back.
 - An [inline script](/vscode/features/inline-scripting) editor that is open while its element is renamed keeps the old ID. Close it and open it again.
 
 ## IntelliJ
 
-The same review opens from **Tools ▸ Miragon BPMN Modeler ▸ Generate IDs from Names**. The links under the ID field are the same. The setting is under **Settings ▸ Tools ▸ Miragon BPMN Modeler** as **IDs follow names**, for all your projects.
+**Tools ▸ Miragon BPMN Modeler ▸ Generate IDs from Names** opens the review in the **Element IDs** tool window along the bottom of the IDE. It shows the same groups and rows: tick or untick rows, select a row to show its element, and use **Apply ID Changes** or **Discard ID Changes** in the window's toolbar. The tool window is there only while a review is open. The links under the ID field are the same. The setting is under **Settings ▸ Tools ▸ Miragon BPMN Modeler** as **IDs follow names**, for all your projects.
 
 ## Next steps
 
