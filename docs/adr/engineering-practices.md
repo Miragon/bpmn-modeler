@@ -145,7 +145,7 @@ each loopback to the Kotlin side.
   `SecretStoreRouter` does.
 - `describeSettingsContract`: `InMemorySettings`, `VsCodeSettings` over a
   `vscode` configuration mock and the bridge's `BridgeSettings`, which a
-  loopback feeds `settings/didChange` as `EditorSessionRouter.pushSettings`
+  loopback feeds `settings/didChange` as `SettingsRouter.push`
   does. Each also runs the shared normalization rows
   ([test-first for rules](#test-first-for-rules)).
 - `describeTokenPromptContract`: `ScriptedTokenPrompt`, `VsCodeTokenPrompt`

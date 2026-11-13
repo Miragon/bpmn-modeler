@@ -98,6 +98,18 @@ class BridgeRoutersTest {
     }
 
     @Test
+    fun `a push by kind reaches the state of that kind`() {
+        val (wired, routers) = registeredRouters()
+
+        routers.replicatedStates.forEach { state ->
+            state.push()
+            val ownPush = parse(wired.fake.nextFrame()).get("method").asString
+            routers.pushReplicatedState(state.kind)
+            assertEquals(ownPush, parse(wired.fake.nextFrame()).get("method").asString, state.kind.name)
+        }
+    }
+
+    @Test
     fun `a register seeds the plugin approvals the IDE stores with their revision`() {
         val store = PluginApprovalStore.getInstance()
         store.replaceAll(listOf(PluginApproval(PLUGIN_ID, HASH)))
@@ -195,7 +207,9 @@ class BridgeRoutersTest {
         routers.seedAfterSpawn()
 
         val methods = wired.fake.framesUntilQuiet().map { parse(it).get("method").asString }
-        assertEquals(true, methods.indexOf("settings/didChange") in 0 until methods.indexOf("addOns/open"), methods.toString())
+        val opened = methods.indexOf("addOns/open")
+        assertEquals(true, methods.indexOf("settings/didChange") in 0 until opened, methods.toString())
+        assertEquals(true, methods.indexOf("workspaceTrust/didChange") in 0 until opened, methods.toString())
     }
 
     @Test
@@ -209,11 +223,14 @@ class BridgeRoutersTest {
 
         routers.seedAfterSpawn()
 
+        val frames = wired.fake.framesUntilQuiet().map(::parse)
+        val methods = frames.map { it.get("method").asString }
         val opens =
-            wired.fake.framesUntilQuiet().map(::parse)
+            frames
                 .filter { it.get("method").asString == "deployment/open" }
                 .map { it.getAsJsonObject("params").get("open").asBoolean }
         assertEquals(listOf(true), opens)
+        assertEquals(true, methods.indexOf("deploymentState/seed") in 0 until methods.indexOf("deployment/open"), methods.toString())
     }
 
     @Test

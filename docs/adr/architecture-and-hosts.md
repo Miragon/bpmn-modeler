@@ -1490,10 +1490,12 @@ before its first consumer, and re-seed on process restart; mirrors do not
 survive the subprocess.
 
 The IntelliJ host registers each mirror it owns once, as a `ReplicatedState`
-(its `session/register` entries, its push to one bridge, and whether a change
-reaches every bridge or only its own) in the list `BridgeRouters.replicatedStates`.
+(its `session/register` entries, its push to one bridge, and whether any of
+its changes may reach every bridge) in the list `BridgeRouters.replicatedStates`.
 The register frame, the seed after a spawn and the fan-out walk that list, and
-`BridgeRoutersTest` fails on a router that mirrors a state outside it.
+`BridgeRoutersTest` fails on a router that mirrors a state outside it. The router
+picks the reach of each change by its scope, such as a template switch for one
+project or for all; the fan-out only refuses a state that is the project's own.
 
 A mirror fed from more than one frame cannot rely on the host's send order.
 The bridge runs each inbound call on a queue keyed by its editor or its method

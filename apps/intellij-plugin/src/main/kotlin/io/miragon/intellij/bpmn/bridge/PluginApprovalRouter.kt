@@ -2,7 +2,6 @@ package io.miragon.intellij.bpmn.bridge
 
 import io.miragon.intellij.bpmn.PluginApproval
 import io.miragon.intellij.bpmn.PluginApprovalChange
-import io.miragon.intellij.bpmn.PluginApprovalSnapshot
 import io.miragon.intellij.bpmn.PluginApprovalStore
 import io.miragon.intellij.bpmn.pushToRunningBridges
 
@@ -61,14 +60,13 @@ internal class PluginApprovalRouter(
         return linkedMapOf("pluginApprovals" to snapshot.approvals, "pluginApprovalsRevision" to snapshot.revision)
     }
 
-    override fun push() = push(store.snapshot())
-
     /**
      * Not coalesced: changes push from each project's reader thread, so a frame queued
      * later can carry an older revision and must not replace the newer one.
      */
-    fun push(snapshot: PluginApprovalSnapshot) {
+    override fun push() {
         if (!deps.isProcessAlive()) return
+        val snapshot = store.snapshot()
         deps.channel.notify(
             HostToCoreMethod.PLUGIN_APPROVALS_DID_CHANGE,
             linkedMapOf("approvals" to snapshot.approvals, "revision" to snapshot.revision),

@@ -3,6 +3,7 @@ package io.miragon.intellij.bpmn
 import com.intellij.openapi.components.service
 import com.intellij.testFramework.junit5.TestApplication
 import io.miragon.intellij.bpmn.bridge.ReplicatedStateKind
+import org.junit.jupiter.api.Assertions.assertDoesNotThrow
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
@@ -25,6 +26,17 @@ class ReplicatedStateFanOutTest {
 
         assertEquals(bridges, running)
         assertNull(untouched.getServiceIfCreated(CoreProcess::class.java))
+    }
+
+    @Test
+    fun `the states an application-level store feeds fan out to a running bridge`() {
+        val project = withBridge.get().also { it.service<CoreProcess>() }
+        val fannedOutByTheHost =
+            listOf(ReplicatedStateKind.SETTINGS, ReplicatedStateKind.TEMPLATE_PREFERENCES, ReplicatedStateKind.PLUGIN_APPROVALS)
+
+        fannedOutByTheHost.forEach { kind ->
+            assertDoesNotThrow({ pushToRunningBridges(kind, listOf(project)) }, kind.name)
+        }
     }
 
     @Test

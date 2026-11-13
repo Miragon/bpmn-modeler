@@ -1,8 +1,12 @@
 package io.miragon.intellij.bpmn.bridge
 
-/** Which running bridges a change of a replicated state reaches. */
+/**
+ * Which running bridges a change of a replicated state may reach. The router
+ * still picks the reach of each change by its scope; this only stops a state
+ * of one project from fanning out.
+ */
 internal enum class ChangeReach {
-    /** The state reads an application-level store, so a change in one project window reaches every bridge. */
+    /** The state reads an application-level store, so some of its changes reach every bridge. */
     EVERY_BRIDGE,
 
     /** The state is the project's own, so only its bridge reads it. */
