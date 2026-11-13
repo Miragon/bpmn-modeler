@@ -22,7 +22,8 @@ export type PopupMenuEntryAction =
  * A single entry returned by a diagram-js popup menu provider.
  *
  * Standard BPMN element entries carry a `className` for the bpmn-font icon.
- * Element template entries carry an `imageUrl` (base64 SVG) instead.
+ * Template and plugin entries may carry an `imageUrl` instead;
+ * `isTemplatePopupEntry` decides which entries are templates.
  */
 export interface PopupMenuEntry {
     label: string;

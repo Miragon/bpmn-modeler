@@ -202,6 +202,39 @@ describe("classifyEntries", () => {
         });
     });
 
+    it("flattens a plugin category in the templates group into template entries", () => {
+        const { templates, bpmnGroups } = classifyEntries({
+            "my-plugin.rest": {
+                label: "REST",
+                group: { id: "templates", name: "Templates" },
+                entries: { "step-0": { label: "GET", action: noop } },
+            },
+        });
+
+        expect(bpmnGroups).toHaveLength(0);
+        expect(templates.map((t) => [t.id, t.entry.label])).toEqual([
+            ["my-plugin.rest/step-0", "REST › GET"],
+        ]);
+    });
+
+    it("keeps a plugin entry that only has an icon among the BPMN elements", () => {
+        const { templates, bpmnGroups } = classifyEntries({
+            "my-plugin.icon-task": {
+                ...leaf("Icon Task", { id: "my-plugin", name: "My Plugin" }),
+                imageUrl: "data:image/svg+xml;base64,PHN2Zy8+",
+            },
+        });
+
+        expect(templates).toHaveLength(0);
+        expect(bpmnGroups).toEqual([
+            {
+                id: "my-plugin",
+                name: "My Plugin",
+                entries: [expect.objectContaining({ id: "my-plugin.icon-task" })],
+            },
+        ]);
+    });
+
     it("drops entries that have neither an action nor children", () => {
         const { bpmnGroups, templates } = classifyEntries({
             "append.custom": { label: "Custom" },
