@@ -77,7 +77,7 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
 
     constructor(
         private readonly editorStore: EditorSessionStore,
-        private readonly vsDocument: EditorSessionDocuments,
+        private readonly documents: EditorSessionDocuments,
         private readonly locator: BpmnLintConfigLocator,
         private readonly lintRunner: LintRunnerPort,
         private readonly diagnostics: DiagnosticsPort,
@@ -127,7 +127,7 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
         unresolved: readonly string[],
         configToken?: string,
     ): void {
-        const xml = this.vsDocument.getContent(editorId);
+        const xml = this.documents.getContent(editorId);
         void this.dispatch(editorId, {
             type: "webviewLinted",
             output: { xml, results, unresolved, blocked: [] },
@@ -154,7 +154,7 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
         }
 
         try {
-            const dir = posix.dirname(this.vsDocument.getFilePath(editorId));
+            const dir = posix.dirname(this.documents.getFilePath(editorId));
             const configPath = await this.locator.findNearestConfig(dir);
             if (this.isSuperseded(editorId, run)) return this.dropSupersededRun();
             if (!configPath) {
@@ -184,7 +184,7 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
         const run = this.latestRuns.get(editorId);
         const { configPath, config, token } = negotiation;
         try {
-            const xml = this.vsDocument.getContent(editorId);
+            const xml = this.documents.getContent(editorId);
             const lintRun = await this.lintRunner.lint(
                 xml,
                 configPath,
@@ -248,7 +248,7 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
                     this.diagnostics.clear(editorId);
                     this.showStatusIfFocused(editorId, {
                         state: "default",
-                        platform: this.detectPlatform(this.vsDocument.getContent(editorId)),
+                        platform: this.detectPlatform(this.documents.getContent(editorId)),
                     });
                 }
                 return this.postInPageInstruction(editorId);

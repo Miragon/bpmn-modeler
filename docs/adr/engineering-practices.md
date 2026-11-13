@@ -96,7 +96,10 @@ each loopback to the Kotlin side.
   `EditorHandle`: the kit's `FakeEditorHandle` as `createTestHost` composes
   it, `VsCodeEditorHandle` on a fake `vscode` text document, and the bridge's
   `RpcEditorHandle` over a loopback that answers as `EditorSessionRouter.kt`
-  does.
+  does. Its fixture holds `EditorSessionDocuments`, a core service and not a
+  port, so `contract-suites` does not guard it: a host that drops its
+  `*.documents.contract.spec.ts` is not reported. Each `EditorHandle` adapter
+  stays guarded through `describeEditorHandleContract`.
 - `describeEditorHandleContract`: `FakeEditorHandle`, `VsCodeEditorHandle`
   over a fake panel, text document and `workspace` events, and the bridge's
   `RpcEditorHandle` over a loopback that answers as `EditorSessionRouter.kt`
@@ -248,10 +251,11 @@ No Kotlin test holds these, with the reason:
   `JBPopup` and `handleConfirm` a modal `Messages` dialog, and `HostUiRouter`
   has no seam for either. A dismissed pick goes out as `{}` by the same Gson
   rule the action notice test checks.
-- The `fsPath` IntelliJ sends for a file on a network share (#2186). The
+- The path IntelliJ sends for a file on a network share (#2186). The
   document loopbacks pass their path through, so the suites pin only that
-  the bridge keeps the host's `fsPath`. That IntelliJ sends `VirtualFile.path`
-  as `//server/share/…` is what the bridge's specs assume; no Kotlin test opens
+  the bridge keeps the host's `path` (`RpcEditorHandle.documentPath`).
+  IntelliJ sends `VirtualFile.path` there, the same value as `fsPath`. That it
+  is `//server/share/…` is what the bridge's specs assume; no Kotlin test opens
   a file on a share, and it was not checked in IntelliJ.
 - The error text a loopback answers for a missing or mistyped param (`Param
   '…' is missing or not of the expected type`). `RpcChannelTest` holds that a

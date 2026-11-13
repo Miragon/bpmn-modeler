@@ -30,7 +30,7 @@ import { EnvValueResolver } from "./EnvValueResolver";
 export class DeploymentVerificationService {
     constructor(
         private readonly editorStore: EditorSessionStore,
-        private readonly documentPort: EditorSessionDocuments,
+        private readonly documents: EditorSessionDocuments,
         private readonly deploymentTargetService: DeploymentTargetService,
         private readonly deploymentStatusService: DeploymentStatusService,
         private readonly inspection: EngineInspectionPort,
@@ -54,8 +54,8 @@ export class DeploymentVerificationService {
             this.notifier.showInfo("Open a BPMN diagram to verify its deployment.");
             return;
         }
-        const filePath = this.documentPort.getFilePath(editorId);
-        const content = this.documentPort.getContent(editorId);
+        const filePath = this.documents.getFilePath(editorId);
+        const content = this.documents.getContent(editorId);
 
         const dir = documentDir ?? posix.dirname(filePath);
         const destination = await this.deploymentTargetService.getActiveDestination(dir);

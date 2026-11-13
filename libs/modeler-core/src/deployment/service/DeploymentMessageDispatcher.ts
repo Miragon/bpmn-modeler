@@ -89,7 +89,7 @@ export class DeploymentMessageDispatcher implements RouteLookup {
     private targetsPushDue = false;
     /**
      * @param editorStore Active-editor registry; resolves which document to act on.
-     * @param documentPort Document path/content access for the trusted main file.
+     * @param documents Document path/content access for the trusted main file.
      * @param deploymentService Deployment orchestration logic.
      * @param startInstanceService Start-instance orchestration logic.
      * @param notifier User-facing message and logging helper.
@@ -97,7 +97,7 @@ export class DeploymentMessageDispatcher implements RouteLookup {
      */
     constructor(
         private readonly editorStore: EditorSessionStore,
-        private readonly documentPort: EditorSessionDocuments,
+        private readonly documents: EditorSessionDocuments,
         private readonly deploymentService: DeploymentService,
         private readonly startInstanceService: StartInstanceService,
         private readonly deploymentTargetService: DeploymentTargetService,
@@ -333,7 +333,7 @@ export class DeploymentMessageDispatcher implements RouteLookup {
     private activeDocumentDir(): string | undefined {
         try {
             const activeEditorId = this.editorStore.getActiveEditorId();
-            return posix.dirname(this.documentPort.getFilePath(activeEditorId));
+            return posix.dirname(this.documents.getFilePath(activeEditorId));
         } catch {
             return undefined;
         }
@@ -460,7 +460,7 @@ export class DeploymentMessageDispatcher implements RouteLookup {
             // Trust only the active editor's document for the file being deployed,
             // never the webview payload's mainFilePath.
             const activeEditorId = this.editorStore.getActiveEditorId();
-            const mainFilePath = this.documentPort.getFilePath(activeEditorId);
+            const mainFilePath = this.documents.getFilePath(activeEditorId);
 
             const config = new DeploymentConfigBuilder()
                 .withDeploymentName(configPayload.deploymentName)

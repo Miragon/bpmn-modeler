@@ -54,7 +54,7 @@ export class BpmnElementTemplatesService implements ArtifactChangeTarget {
      */
     constructor(
         private readonly editorStore: EditorSessionStore,
-        private readonly vsDocument: EditorSessionDocuments,
+        private readonly documents: EditorSessionDocuments,
         private readonly artifactSvc: ArtifactService,
         private readonly statusBar: StatusBarPort,
         private readonly notifier: NotifierPort,
@@ -78,7 +78,7 @@ export class BpmnElementTemplatesService implements ArtifactChangeTarget {
         const isSuperseded = () => this.latestRequests.get(editorId) !== request;
 
         try {
-            const documentDir = posix.dirname(this.vsDocument.getFilePath(editorId));
+            const documentDir = posix.dirname(this.documents.getFilePath(editorId));
             const templateDirs = await this.artifactSvc.getTemplateDirs(documentDir);
             if (isSuperseded()) {
                 return false;

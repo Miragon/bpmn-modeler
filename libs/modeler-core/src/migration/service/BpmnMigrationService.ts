@@ -50,7 +50,7 @@ interface CandidateReads {
 export class BpmnMigrationService {
     constructor(
         private readonly editorStore: EditorSessionStore,
-        private readonly vsDocument: EditorSessionDocuments,
+        private readonly documents: EditorSessionDocuments,
         private readonly vsWorkspace: WorkspacePort,
         private readonly picker: PickerPort,
         private readonly notifier: NotifierPort,
@@ -178,7 +178,7 @@ export class BpmnMigrationService {
         if (current.editorId !== undefined) {
             // No revision: with one, IntelliJ skips its guard against external
             // edits not yet sent to the webview.
-            if (!(await this.vsDocument.write(current.editorId, diagramWrite.xml))) {
+            if (!(await this.documents.write(current.editorId, diagramWrite.xml))) {
                 this.notifier.logWarning(
                     `Skipped a diagram whose editor rejected the update: ${path}`,
                 );
@@ -200,7 +200,7 @@ export class BpmnMigrationService {
         const editorId = this.editorStore.findEditorIdByPath(path);
         const content =
             editorId !== undefined
-                ? this.vsDocument.getContent(editorId)
+                ? this.documents.getContent(editorId)
                 : await this.vsWorkspace.readFile(path);
         return { document: new BpmnDocument(content), editorId };
     }

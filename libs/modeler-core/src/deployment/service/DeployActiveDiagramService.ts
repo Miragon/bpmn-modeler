@@ -19,7 +19,7 @@ import { SaveBeforeDeploy } from "./SaveBeforeDeploy";
 export class DeployActiveDiagramService {
     constructor(
         private readonly editorStore: EditorSessionStore,
-        private readonly documentPort: EditorSessionDocuments,
+        private readonly documents: EditorSessionDocuments,
         private readonly deploymentTargetService: DeploymentTargetService,
         private readonly deploymentService: DeploymentService,
         private readonly notifier: NotifierPort,
@@ -40,7 +40,7 @@ export class DeployActiveDiagramService {
             return;
         }
 
-        const filePath = this.documentPort.getFilePath(editorId);
+        const filePath = this.documents.getFilePath(editorId);
         if (!isDeployableFile(filePath)) {
             this.notifier.showInfo("Open a BPMN or DMN diagram to deploy it.");
             return;

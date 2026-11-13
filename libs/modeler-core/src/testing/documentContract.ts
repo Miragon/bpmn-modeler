@@ -153,6 +153,14 @@ export function describeDocumentContract(
                     invoice: { content: INVOICE.content, hostContent: INVOICE.content },
                 });
             });
+
+            it("throws on reading the text or the path of an editor that is not open", () => {
+                const { documents } = fixture;
+                fixture.open(ORDER.path, ORDER.content);
+
+                expect(() => documents.getContent("file:///never-opened.bpmn")).toThrow();
+                expect(() => documents.getFilePath("file:///never-opened.bpmn")).toThrow();
+            });
         });
 
         describe("writing", () => {

@@ -6,7 +6,7 @@ export type SaveBeforeDeployResult = { saved: true } | { saved: false; message: 
 /** A deploy reads the file from disk, so what the editor shows must be persisted first. */
 export class SaveBeforeDeploy {
     constructor(
-        private readonly documentPort: EditorSessionDocuments,
+        private readonly documents: EditorSessionDocuments,
         private readonly pendingEdits: Pick<PendingEditsFlush, "flushIntoDocument">,
     ) {}
 
@@ -17,7 +17,7 @@ export class SaveBeforeDeploy {
 
         let saved: boolean;
         try {
-            saved = await this.documentPort.save(editorId);
+            saved = await this.documents.save(editorId);
         } catch (error) {
             return {
                 saved: false,

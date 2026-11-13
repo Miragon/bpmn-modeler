@@ -39,7 +39,7 @@ export class DeploymentStatusService {
 
     constructor(
         private readonly editorStore: EditorSessionStore,
-        private readonly documentPort: EditorSessionDocuments,
+        private readonly documents: EditorSessionDocuments,
         private readonly deploymentTargetService: DeploymentTargetService,
         private readonly deploymentState: DeploymentStatePort,
         private readonly statusBar: StatusBarPort,
@@ -173,7 +173,7 @@ export class DeploymentStatusService {
         if (!this.editorStore.isFocused(editorId)) return;
         const generation = ++this.refreshGeneration;
         try {
-            const filePath = this.documentPort.getFilePath(editorId);
+            const filePath = this.documents.getFilePath(editorId);
             const documentDir = posix.dirname(filePath);
             const destination =
                 await this.deploymentTargetService.getActiveDestination(documentDir);
@@ -188,7 +188,7 @@ export class DeploymentStatusService {
                 deploymentStatusView(
                     {
                         connection: destination.statusConnection,
-                        freshness: freshnessFor(revision, this.documentPort.getContent(editorId)),
+                        freshness: freshnessFor(revision, this.documents.getContent(editorId)),
                         deployedAt: revision?.deployedAt,
                         verifiedAt: revision?.verifiedAt,
                     },

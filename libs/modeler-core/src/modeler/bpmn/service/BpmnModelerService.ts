@@ -29,13 +29,13 @@ export class BpmnModelerService {
 
     constructor(
         private readonly editorStore: EditorSessionStore,
-        private readonly vsDocument: EditorSessionDocuments,
+        document: EditorSessionDocuments,
         private readonly picker: PickerPort,
         private readonly statusBar: StatusBarPort,
         private readonly notifier: NotifierPort,
         private readonly settings: SettingsPort,
     ) {
-        this.documents = new EditorDocumentSync(editorStore, vsDocument);
+        this.documents = new EditorDocumentSync(editorStore, document);
     }
 
     registerSession(editorId: string): void {
