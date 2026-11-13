@@ -16,15 +16,15 @@ class NewDmnModelAction : DumbAwareAction() {
     override fun actionPerformed(event: AnActionEvent) {
         NewModelSupport.createModelFile(
             event,
-            dialogTitle = "New DMN Model",
-            dialogDescription = "Create a new empty DMN decision",
-            extension = "dmn",
+            FILE_DIALOG,
             defaultName = "decision.dmn",
             content = EMPTY_DMN_DIAGRAM,
         )
     }
 
     internal companion object {
+        val FILE_DIALOG = NewModelFileDialog("New DMN Model", "Create a new empty DMN decision", "dmn")
+
         // A copy of EMPTY_DMN_DIAGRAM in libs/modeler-types/src/emptyDmn.ts;
         // EmptyDmnDiagramTest holds it to that file byte for byte.
         val EMPTY_DMN_DIAGRAM =

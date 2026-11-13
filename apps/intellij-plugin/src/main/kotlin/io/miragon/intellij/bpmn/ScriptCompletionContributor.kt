@@ -154,7 +154,7 @@ class ScriptCompletionContributor : CompletionContributor() {
         private fun variableLookup(variable: VariableInfo) =
             LookupElementBuilder.create(variable, variable.name)
                 .withIcon(AllIcons.Nodes.Variable)
-                .withTypeText(variable.typeHint ?: "process variable")
+                .withTypeText(variable.detail)
                 .appendTailText(variable.origin?.let { "  $it" }.orEmpty(), true)
 
         /**

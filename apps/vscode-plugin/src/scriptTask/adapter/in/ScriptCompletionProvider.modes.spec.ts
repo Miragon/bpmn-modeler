@@ -49,7 +49,12 @@ vi.mock("vscode", () => {
     };
 });
 
-import { ScriptUri, ScriptVariableStore, SettingsPort } from "@miragon/bpmn-modeler-core";
+import {
+    ScriptUri,
+    ScriptVariableStore,
+    SettingsPort,
+    UNTYPED_PROCESS_VARIABLE_DETAIL,
+} from "@miragon/bpmn-modeler-core";
 import { VariableDef } from "@miragon/bpmn-modeler-types";
 
 import { ScriptCompletionProvider } from "./ScriptCompletionProvider";
@@ -132,6 +137,12 @@ describe("ScriptCompletionProvider modes", () => {
         expect(labels).toContain("JSON");
         expect(labels).toContain("execution");
         expect(labels).toContain("amount");
+    });
+
+    it("root mode labels a process variable without a typeHint with the core's untyped detail", () => {
+        const provider = buildProvider(storeWith(variable("amount")));
+        const amount = completeItems(provider, "am").find((item) => item.label === "amount");
+        expect(amount?.detail).toBe(UNTYPED_PROCESS_VARIABLE_DETAIL);
     });
 
     it("root mode omits SPIN globals when the setting is off", () => {

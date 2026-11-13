@@ -88,6 +88,9 @@ val modeLabels = layout.projectDirectory.file("../../packages/bpmn-modeler/src/m
 val emptyDmn = layout.projectDirectory.file("../../libs/modeler-types/src/emptyDmn.ts")
 val scriptCompletionCases =
     layout.projectDirectory.file("../../libs/modeler-core/src/scriptTask/domain/scriptCompletion.cases.json")
+val scriptCompletionDetail =
+    layout.projectDirectory.file("../../libs/modeler-core/src/scriptTask/domain/scriptCompletionDetail.ts")
+val newModelFilePrompt = layout.projectDirectory.file("../../libs/modeler-core/src/modeler/domain/newModelFilePrompt.ts")
 val pluginAssetUrlCases =
     layout.projectDirectory.file("../../apps/modeler-bridge/src/editorSession/domain/pluginAssetUrl.cases.json")
 val actionNoticeTypes = layout.projectDirectory.file("../../libs/modeler-core/src/kernel/domain/actionNotice.ts")
@@ -117,9 +120,11 @@ tasks.test {
     // mode strip's labels, StatusSlotPlacementTest the core's status slots and view values,
     // ElementTemplateFilesTest the rows the TypeScript template rule runs,
     // ElementTemplatePreviewMessagesTest the preview page's messages, EmptyDmnDiagramTest the
-    // shared DMN scaffold, ScriptCompletionMatchersTest the rows the core's script-completion
-    // matchers run, WebviewRouteTest the plugin asset urls the bridge builds, ActionNoticeToneTest
-    // the core's notice tones, PluginApprovalStoreTest the rows the core merges approval changes
+    // shared DMN scaffold, NewModelFileDialogTest the core's new-file dialog texts,
+    // ScriptCompletionMatchersTest the rows the core's script-completion matchers run,
+    // ScriptCompletionDetailTest the core's label for an untyped variable, WebviewRouteTest the
+    // plugin asset urls the bridge builds, ActionNoticeToneTest the core's notice tones,
+    // PluginApprovalStoreTest the rows the core merges approval changes
     // by, TemplatePreferenceStoreTest the rows it merges template switch changes by, ProjectScopeTest
     // the core's project scopes, BrandModeTest the rows the shared brand mode rule runs, and
     // SecretStoreRouterTest, EditorSessionRouterTest, ScriptRouterTest, HostUiRouterTest and
@@ -137,7 +142,9 @@ tasks.test {
         "colorThemes" to colorThemes,
         "modeLabels" to modeLabels,
         "emptyDmn" to emptyDmn,
+        "newModelFilePrompt" to newModelFilePrompt,
         "scriptCompletionCases" to scriptCompletionCases,
+        "scriptCompletionDetail" to scriptCompletionDetail,
         "pluginAssetUrlCases" to pluginAssetUrlCases,
         "actionNoticeTypes" to actionNoticeTypes,
         "codeApprovalChangeCases" to codeApprovalChangeCases,

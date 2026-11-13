@@ -28,10 +28,12 @@ import {
     collectLocalDeclarations,
     groovyImportInsertionLine,
     LocalDeclaration,
+    localDeclarationDetail,
     matchMemberAccess,
     matchVariableStringArg,
     parseEditorHashFromUri,
     parseKindFromUri,
+    processVariableDetail,
     ScriptVariableStore,
     SettingsPort,
 } from "@miragon/bpmn-modeler-core";
@@ -302,14 +304,13 @@ function localToCompletion(decl: LocalDeclaration): CompletionItem {
         decl.name,
         decl.kind === "function" ? CompletionItemKind.Function : CompletionItemKind.Variable,
     );
-    // A cast-typed local reads like a typed process variable at root.
-    item.detail = decl.kind === "function" ? "local function" : (decl.typeHint ?? "local variable");
+    item.detail = localDeclarationDetail(decl);
     return item;
 }
 
 function variableToCompletion(variable: VariableDef): CompletionItem {
     const item = new CompletionItem(variable.name, CompletionItemKind.Variable);
-    item.detail = variable.typeHint ?? "process variable";
+    item.detail = processVariableDetail(variable);
     item.documentation = new MarkdownString(variable.origin);
     return item;
 }

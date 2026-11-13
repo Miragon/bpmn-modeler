@@ -11,6 +11,7 @@ describe("new model file prompts", () => {
             newBpmnModelFilePrompt,
             {
                 title: "New BPMN Model",
+                description: "Create a new empty BPMN diagram",
                 filterLabel: "BPMN",
                 extension: "bpmn",
                 defaultFileName: "new-diagram.bpmn",
@@ -20,6 +21,7 @@ describe("new model file prompts", () => {
             newDmnModelFilePrompt,
             {
                 title: "New DMN Model",
+                description: "Create a new empty DMN decision",
                 filterLabel: "DMN",
                 extension: "dmn",
                 defaultFileName: "new-diagram.dmn",
@@ -29,6 +31,7 @@ describe("new model file prompts", () => {
             newFormModelFilePrompt,
             {
                 title: "New Camunda Form",
+                description: "Create a new empty Camunda form",
                 filterLabel: "Camunda Form",
                 extension: "form",
                 defaultFileName: "new-form.form",

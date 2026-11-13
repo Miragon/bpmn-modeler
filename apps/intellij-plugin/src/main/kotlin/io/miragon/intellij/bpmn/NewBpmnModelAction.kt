@@ -20,11 +20,13 @@ class NewBpmnModelAction : DumbAwareAction() {
     override fun actionPerformed(event: AnActionEvent) {
         NewModelSupport.createModelFile(
             event,
-            dialogTitle = "New BPMN Model",
-            dialogDescription = "Create a new empty BPMN diagram",
-            extension = "bpmn",
+            FILE_DIALOG,
             defaultName = "diagram.bpmn",
             content = "", // empty → the core scaffolds it via the engine picker
         )
+    }
+
+    internal companion object {
+        val FILE_DIALOG = NewModelFileDialog("New BPMN Model", "Create a new empty BPMN diagram", "bpmn")
     }
 }

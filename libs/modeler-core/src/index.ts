@@ -266,6 +266,7 @@ export * from "./scriptTask/domain/scriptApi";
 export * from "./scriptTask/domain/scriptBaseDir";
 export * from "./scriptTask/domain/scriptBatchSummary";
 export * from "./scriptTask/domain/scriptCompletion";
+export * from "./scriptTask/domain/scriptCompletionDetail";
 export * from "./scriptTask/domain/scriptFileMatching";
 export * from "./scriptTask/domain/scriptLanguage";
 

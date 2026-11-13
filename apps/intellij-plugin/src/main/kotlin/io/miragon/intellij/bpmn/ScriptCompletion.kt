@@ -46,7 +46,15 @@ data class VariableInfo(
     val name: String,
     val origin: String?,
     val typeHint: String?,
-)
+) {
+    /** The type completion and quick doc show beside the variable, as the core's `processVariableDetail` builds it. */
+    val detail: String get() = typeHint ?: UNTYPED_DETAIL
+
+    internal companion object {
+        // ScriptCompletionDetailTest holds it to the core's UNTYPED_PROCESS_VARIABLE_DETAIL.
+        const val UNTYPED_DETAIL = "process variable"
+    }
+}
 
 /**
  * A global bean injected into the script context (e.g. `execution`). [methods]
