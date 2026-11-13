@@ -31,6 +31,18 @@ in the checkout would count as a change. Two reviews at once need their own
 `TMPDIR`. A shell keeps no variables from one tool call to the next, so every
 block starts with the line that reads `OUT` (and `TREE`, `REV`, `R`) back.
 
+The blocks run under bash and zsh. Run the commands you write yourself under
+bash (`bash -c`, or a script file run with `bash`): zsh and the BSD tools of
+macOS break them, often without an error.
+
+- zsh ties `path` to `PATH`, so a loop variable named `path` leaves `jq` and
+  `git` unfound (exit 127); name it `file`.
+- zsh reads `echo ====` as a command lookup; quote it.
+- zsh reads `$REV:libs/…` as `$REV` with the history modifier `:l`; write
+  `"${REV}:libs/…"`.
+- zsh has no `PIPESTATUS`, only `pipestatus`.
+- `git grep -E` on macOS matches nothing for `\b` or `\<`; use `-w`.
+
 | Review                   | `TREE`                    | `<rev>`                                                                         |
 | ------------------------ | ------------------------- | ------------------------------------------------------------------------------- |
 | The current branch       | this checkout             | `origin/main`                                                                   |
@@ -77,11 +89,25 @@ Then measure:
 OUT="${TMPDIR:-/tmp}/architecture-review"; TREE=$(cat "$OUT/tree.txt"); REV=$(cat "$OUT/rev.txt"); R="$OUT/report.json"
 corepack yarn fitness --format json --repo "$TREE" --base "$REV" > "$R"
 BASE=$(jq -r .base.commit "$R")
-git -C "$TREE" diff --name-only "$BASE" > "$OUT/touched.txt"
-if [ "$BASE" != "$(git -C "$TREE" rev-parse "$REV")" ]; then
-  MERGED=$(git -C "$TREE" merge-tree --write-tree "$REV" HEAD | head -n 1)   # exits 1 on a conflict, still writes the tree
-  { git -C "$TREE" diff --name-only "$REV" "$MERGED"; git -C "$TREE" diff --name-only HEAD; } | sort -u > "$OUT/touched.txt"
-  echo "merge base $BASE is not $REV: touched.txt lists the change as it would land on $REV"
+: > "$OUT/conflicts.txt"
+if [ "$BASE" = "$(git -C "$TREE" rev-parse "$REV")" ]; then
+  git -C "$TREE" diff --name-only --no-renames "$BASE" > "$OUT/touched.txt"
+else
+  git -C "$TREE" merge-tree --write-tree --name-only "$REV" HEAD > "$OUT/merge.txt"; MERGE_STATUS=$?
+  if [ "$MERGE_STATUS" -eq 0 ]; then
+    { git -C "$TREE" diff --name-only --no-renames "$REV" "$(head -n 1 "$OUT/merge.txt")"; git -C "$TREE" diff --name-only --no-renames HEAD; } | sort -u > "$OUT/touched.txt"
+    echo "merge base $BASE is not $REV: touched.txt lists the change as it would land on $REV"
+  else
+    LAST_MERGE=$(git -C "$TREE" log --first-parent --merges -n 1 --format=%H "$BASE..HEAD")
+    OWN_FROM="$BASE"; [ -n "$LAST_MERGE" ] && OWN_FROM=$(git -C "$TREE" rev-parse "$LAST_MERGE^2")
+    git -C "$TREE" diff --name-only --no-renames "$OWN_FROM" > "$OUT/touched.txt"
+    awk 'NR > 1 && /^$/ { exit } NR > 1' "$OUT/merge.txt" | while IFS= read -r file; do
+      if grep -qxF "$file" "$OUT/touched.txt"; then printf '%s\tchanged by the PR\n' "$file"; else printf '%s\tnot changed by the PR\n' "$file"; fi
+    done > "$OUT/conflicts.txt"
+    echo "merge-tree exit $MERGE_STATUS, $(grep -c . "$OUT/conflicts.txt") conflicted files in conflicts.txt"
+    if [ -n "$LAST_MERGE" ]; then echo "touched.txt lists the change since $OWN_FROM, merged in $(git -C "$TREE" log -1 --format='%h %s' "$LAST_MERGE")"
+    else echo "the head has no merge: touched.txt lists the change since the merge base $BASE"; fi
+  fi
 fi
 ```
 
@@ -90,6 +116,16 @@ install. It compares with `git merge-base HEAD <rev>`, so `<rev>` need not be
 an ancestor. When the head lags `<rev>`, the diff from the merge base also
 holds changes that reached `<rev>` another way, such as a stacked PR squashed
 into it, so the block lists the change as it would land on `<rev>` instead.
+When the head conflicts with `<rev>`, that merged tree would hold files the
+PR never changed, so the block lists the PR's own change: from the commit
+that the head's newest merge after the merge base took in to the working
+tree. Only merges after the merge base count, because the base's own history
+holds old merges the PR never made. Check in the printed line that this
+merge took in the PR's base; without a merge the list starts at the merge
+base and holds a stacked parent's commits too. `conflicts.txt` labels each
+conflicted file as changed or not changed by the PR: one the PR did not
+change conflicts through what reached `<rev>` after that merge. `--no-renames` lists a renamed file under
+both paths, so deleted and renamed files are in `touched.txt` too.
 Findings keep their status against the merge base: a `new` finding outside
 `touched.txt` may have come with such a change; check the function's
 `reportsWrongly` first. Say so in the review's header. Run
@@ -121,7 +157,8 @@ the registry grows, so never assume which functions exist.
 
 ```sh
 OUT="${TMPDIR:-/tmp}/architecture-review"; TREE=$(cat "$OUT/tree.txt"); R="$OUT/report.json"
-jq -r '.functions[] | [.id, .version, .outcome.kind, ([.outcome.findings[]? | select(.status == "new")] | length), (.outcome.resolved // [] | length), (.outcome.reason // "")] | @tsv' "$R"
+# id, version, outcome, new, resolved, why unmeasurable, why unmeasurable at the merge base
+jq -r '.functions[] | [.id, .version, .outcome.kind, ([.outcome.findings[]? | select(.status == "new")] | length), (.outcome.resolved // [] | length), (.outcome.reason // ""), (.base.unmeasurable // "")] | @tsv' "$R"
 jq '.functions[] | {id, version, misses, reportsWrongly}' "$R"
 jq -r --arg id '<id>' '.functions[] | select(.id == $id) | .measures' "$R"
 # new and resolved findings, and every finding whose key names a touched file
@@ -139,7 +176,8 @@ says. A row that matches a `reportsWrongly` entry, proves wrong or is
 harmless goes under **Marked, no action** in the output, never under Findings.
 
 A whole tree has no new findings and no touched files: count the findings per
-function and group, then list those under each area step 4 walks.
+function and group, then list those under each area step 4 walks. The rows
+outside those areas stay unchecked; the header counts them per function.
 
 ```sh
 OUT="${TMPDIR:-/tmp}/architecture-review"; TREE=$(cat "$OUT/tree.txt"); R="$OUT/report.json"
@@ -161,6 +199,21 @@ git -C "$TREE" grep -n -E '<regex>' -- '*.ts' '*.tsx' '*.mts' '*.mjs' '*.kt' '*.
 Use `-F` instead of `-E` for a literal, such as a text with dots or brackets.
 It reads tracked files only, so the same tree gives the same hits, across
 TypeScript, Kotlin, build scripts, CI workflows, docs and JSON.
+
+A list, union or enum the change touches has copies under other names and
+with other members, which a literal of the whole set misses. Grep two or
+three of its most distinctive members one by one, bare so that either quote
+style matches; a file that holds two or more of them is a candidate:
+
+```sh
+OUT="${TMPDIR:-/tmp}/architecture-review"; TREE=$(cat "$OUT/tree.txt")
+for member in '<member 1>' '<member 2>' '<member 3>'; do
+  git -C "$TREE" grep -l -F -e "$member" -- '*.ts' '*.tsx' '*.mts' '*.kt' '*.kts' '*.json' ':!*.spec.ts' ':!*.spec.tsx' ':!*Test.kt'
+done | sort | uniq -c | sort -rn
+```
+
+Open each candidate and diff its list with the touched one, including a list
+with extra or missing members: the difference is the finding.
 
 A literal finds only copies spelled alike. Before proposing a home, look for
 an existing one by concept: a rule that decides the same thing in another
@@ -188,7 +241,8 @@ Erosion recurs as:
   or one text worded twice.
 - **Copies that already disagree**: two lists, enums, type declarations or
   parsers of one concept. Diff their contents or behaviour: the difference is
-  the finding, ahead of the duplication itself.
+  the finding, ahead of the duplication itself. Find them by their members
+  (step 3), not only through the diff or a report row.
 - **Adapters of one port that disagree**: for each port the change calls,
   open every adapter (each host, the bridge, the in-memory fake) and compare
   what each returns on failure or cancel, its path format, order and limits,
@@ -222,10 +276,14 @@ Erosion recurs as:
 - **Silently ignored commands**: a router, `switch` default or `catch` that
   drops a message without a reason; a command one host never handles.
 
-A whole tree gives no touched files to start from, so do not sample it. Walk
-every port with all its adapters, every composition root, and the `domain/`
-of every workspace, in hotspot order, and apply step 3 and these checks to
-each. The review names what it did not cover.
+A whole tree gives no touched files to start from and is more than one run
+can walk: whole-tree runs compared about half of 15 ports and left hundreds
+of rows unchecked. Review one area per run: a port family, the hosts'
+composition roots or one workspace's `domain/`, as the request names it.
+Without one, take the ports in hotspot order, at most five per run. Walk each
+port with all its adapters, and each composition root and `domain/` file of
+the area, and apply step 3 and these checks to each. The header names the
+areas and ports not covered, so the next run can take them.
 
 ```sh
 OUT="${TMPDIR:-/tmp}/architecture-review"; TREE=$(cat "$OUT/tree.txt"); R="$OUT/report.json"
@@ -269,7 +327,8 @@ what it learns back.
 - Before you report a row as erosion or drop it, read the function's
   `reportsWrongly` and `misses`, then open the row's `path:line` and check
   that the code is what its `message` claims. Never drop a row unchecked: a
-  true finding dismissed is as bad as a false one reported.
+  true finding dismissed is as bad as a false one reported. On a whole tree,
+  check every row in the areas walked and count the rest as unchecked.
 - Before you mark a row false or propose a `reportsWrongly` entry, look up
   the function's trials that name the row's files. A trial ran on a commit of
   this repository, so it can name a row that is still in the tree. A trial
@@ -287,6 +346,15 @@ what it learns back.
 - A row the code disproves is a false alarm. List it under Marked, no action
   with the evidence: the code that disproves it, and the `reportsWrongly`
   entry it matches, if any.
+- Before you call a false alarm undeclared, quote the function's nearest
+  `reportsWrongly` entry and say why it does not fit. A row in a group the
+  function declares `collapsed` is set aside already; quote that group's
+  title instead. If either fits, the row is a declared false alarm.
+- Before you propose a `reportsWrongly` entry, check that the row is not one
+  rule held in two places. Two halves of one protocol, a writer and its
+  reader, or a host and the core can each spell the same rule: if changing
+  the rule means editing both files, the row is true. Report it and propose
+  a home or a pin, not an entry.
 - Propose a correction for each false alarm no `reportsWrongly` entry
   describes, and for each erosion you found that a function's `measures`
   covers but it did not report and its `misses` do not name. Prefer a
@@ -335,8 +403,8 @@ that can drift, then placement and naming.
 ## Architecture review: <branch | #PR | commit> at `<head>` against `<merge base>` (`<base ref>`)
 
 Measured: <ids>. Not measured: `<id>` (<reason>).
-<When the merge base is not the base ref: touched files are the change as it would land on it.>
-<For a whole tree: not covered: <areas>.>
+<When the merge base is not the base ref: touched files are the change as it would land on it, or, on a conflict, the change since `<commit>`, which `<merge>` took in, or, on a conflict without a merge, the change since the merge base, which may hold a stacked parent's commits; conflicted files the PR did not change: <paths>.>
+<For a whole tree: walked: <areas and ports>; not covered: <areas and ports>; unchecked rows: <count per function>.>
 
 ### Findings
 
@@ -355,7 +423,7 @@ Measured: <ids>. Not measured: `<id>` (<reason>).
 
 ### Fitness function feedback
 
-- `<id>` v<version>, `<key>` or the missed `<path:line>`: <false alarm | declared false alarm | missed erosion>, <the case and its evidence>.
+- `<id>` v<version>, `<key>` or the missed `<path:line>`: <false alarm, nearest entry "<quote>" and why it does not fit | declared false alarm | missed erosion>, <the case and its evidence>.
   Proposal: <narrower rule | exclusion derived from types, folders, imports or configuration | `reportsWrongly` or `misses` entry>; <fix in this PR | issue for a maintainer>.
 
 Comments only; this review does not block.

@@ -17,6 +17,7 @@ class InMemorySourceStructure implements SourceStructure {
         return {
             files: [FILE],
             barrels: [],
+            generatedFiles: [],
             links: [],
             workspaces: [
                 {

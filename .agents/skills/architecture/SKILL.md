@@ -76,6 +76,18 @@ file in `src/main/kotlin` that imports `com.intellij`, so IntelliJ's dialogs,
 actions and settings page count too. A text a branch adds shows as new. It also
 lists host chrome and technical strings (CSS classes, scripts; tags and HTML
 shells count no words); judge each, and leave the host's own text where it is.
+Log and error text is not read: TypeScript logs through the `log…` members of
+the core's `LoggerPort`, Kotlin through a value declared from IntelliJ's
+`Logger.getInstance(…)`, `logger<T>()` or `fileLogger()`, or through an
+imported `thisLogger()`, and a developer message goes in `new Error(…)`. A
+text handed to a logger named any other way, such as `console` or an object
+named `logger`, is reported.
+
+A generated file is marked `linguist-generated` in the root `.gitattributes`.
+`change-coupling` and `missed-partner` do not read it, and GitHub collapses it
+in a diff; a pattern that matches no tracked file fails
+`generatedFiles.spec.ts`. Without the mark, a generated file and its generator
+show as coupled pairs.
 The add-ons webview is not host code, so the fitness function does not read it:
 its chrome (tab and chip labels, empty texts, screen-reader summaries) has one
 home, `apps/add-ons-webview/src/domain/chromeTexts.ts`, and every other text
@@ -91,12 +103,17 @@ exported from
 a fixture that holds it, and runs the rules the core relies on (sorting, path
 spelling, the dismissal value), not one adapter's quirks;
 `describeWorkspaceContract` is the model. A port whose methods only return
-`void` or `Promise<void>` renders and needs none, and neither does a strategy
-the core chooses between, such as the engine clients. The `contract-suites`
+`void` or `Promise<void>` renders and needs none, unless the core reads its
+value back through another port: then the suite's fixture pairs it with that
+reader, as `describeLintingPreferenceContract` pairs `LintingPreferencePort`
+with `SettingsPort.getLintingEnabled`. A strategy the core chooses between,
+such as the engine clients, needs none either. The `contract-suites`
 fitness function lists every adapter of a core port whose specs do not import
 it and call a suite of that port; it sets ports with one adapter and
 render-only ports aside in collapsed groups, and a new adapter of a port with a
-suite shows as new until its spec runs the suite.
+suite shows as new until its spec runs the suite. It reads only types, so it
+sets a port read back through another port aside as render-only until that
+port has a suite.
 
 ## Preserve the boundaries
 
@@ -146,8 +163,9 @@ A webview posts only the commands of its surface list in `libs/shared`, and
 narrows its host channel to that list. A new webview surface registers in
 `WEBVIEW_SURFACE_COMMAND_TYPES` (`webviewSurfaces.ts`) and gets a row in each
 host's surface coverage. `tools/repo-checks/src/webviewCommands.spec.ts`
-type-checks every `apps/*-webview` program and fails on a constructed command
-that is on no list.
+type-checks every app program (`tsconfig.app.json`) that constructs
+`HostApiImpl`, whatever its directory is called, and fails on a constructed
+command that is on no list.
 
 ## Put each file in its role folder
 

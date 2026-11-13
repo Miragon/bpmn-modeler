@@ -1,0 +1,3 @@
+# Generated files: GitHub collapses them in a diff, and change-coupling and
+# missed-partner skip them. Each pattern must match a tracked file.
+libs/bpmn-i18n-extras/src/languages/*.ts linguist-generated

@@ -16,6 +16,8 @@ export type { DeclarationEdge, DeclarationGraphOptions } from "./declarationGrap
 export { filesReaching, isHostModule } from "./hostReach";
 export { readCodeLines, readFunctionComplexities } from "./functionComplexity";
 export { readKotlinImports } from "./kotlinImports";
+export { readKotlinInitializedValues } from "./kotlinInitializedValues";
+export type { KotlinInitializedValue } from "./kotlinInitializedValues";
 export { readKotlinTextLiterals } from "./kotlinTextLiterals";
 export type { FunctionComplexity } from "./functionComplexity";
 export { FLAT_RULES } from "./flatRules";
@@ -49,7 +51,7 @@ export { isEntry, roleOf } from "./roleFolders";
 export type { Role, RoleLocation } from "./roleFolders";
 export { readSourceTree } from "./sourceTree";
 export type { SourceFile, SourceTreeOptions } from "./sourceTree";
-export { findSubclassConstructions } from "./subclassConstructions";
+export { constructsClass, findSubclassConstructions } from "./subclassConstructions";
 export type { BaseClass, SubclassConstruction } from "./subclassConstructions";
 export {
     describeDependency,

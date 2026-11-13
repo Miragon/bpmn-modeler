@@ -1,7 +1,7 @@
 import * as ts from "typescript";
 import { describe, expect, it } from "vitest";
 
-import { findSubclassConstructions } from "./subclassConstructions";
+import { constructsClass, findSubclassConstructions } from "./subclassConstructions";
 
 const MESSAGES = "/repo/libs/shared/messages.ts";
 const MAIN = "/repo/apps/x-webview/src/main.ts";
@@ -30,6 +30,7 @@ export class LooseCommand extends Command<string> {
 export class FooCommand {
     public readonly type = "FooCommand";
 }
+export class Unconstructed {}
 `;
 
 // Interpolated, so the trigger-path check does not read the fixture imports as the spec's own.
@@ -143,5 +144,54 @@ describe("findSubclassConstructions", () => {
         expect(() =>
             findSubclassConstructions(program, { fileName, className }, "type", outsideNodeModules),
         ).toThrow(`${className} is not declared in ${fileName}`);
+    });
+});
+
+describe("constructsClass", () => {
+    it.each([
+        { case: "the class itself", className: "PingCommand", isScanned: outsideNodeModules },
+        { case: "a subclass", className: "LogMessageCommand", isScanned: outsideNodeModules },
+        {
+            case: "the class in a scanned file only",
+            className: "PingCommand",
+            isScanned: (fileName: string) => fileName === VENDOR,
+        },
+    ])("is true when a scanned file constructs $case", ({ className, isScanned }) => {
+        expect(constructsClass(program, { fileName: MESSAGES, className }, isScanned)).toBe(true);
+    });
+
+    it.each([
+        {
+            case: "no file constructs the class",
+            className: "Unconstructed",
+            isScanned: outsideNodeModules,
+        },
+        {
+            case: "only a file it is told not to scan constructs it",
+            className: "Heartbeat",
+            isScanned: (fileName: string) => fileName === VENDOR,
+        },
+    ])("is false when $case", ({ className, isScanned }) => {
+        expect(constructsClass(program, { fileName: MESSAGES, className }, isScanned)).toBe(false);
+    });
+
+    it("is false for a program without the class's file, which cannot construct it", () => {
+        expect(
+            constructsClass(
+                programOf({ [VENDOR]: "export const vendored = 1;" }),
+                { fileName: MESSAGES, className: "PingCommand" },
+                outsideNodeModules,
+            ),
+        ).toBe(false);
+    });
+
+    it("throws when the class's file declares no such class", () => {
+        expect(() =>
+            constructsClass(
+                program,
+                { fileName: MESSAGES, className: "Message" },
+                outsideNodeModules,
+            ),
+        ).toThrow(`Message is not declared in ${MESSAGES}`);
     });
 });

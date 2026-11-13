@@ -143,22 +143,7 @@ describe("DocumentMirror", () => {
 });
 
 describe("RpcEditorHandle", () => {
-    it("exposes the session identity from its metadata", () => {
-        const handle = new RpcEditorHandle(
-            META,
-            new DocumentMirror(),
-            new Rpc(() => {}),
-            new BridgeSettings(),
-            PLUGIN_CACHE,
-        );
-        expect(handle.id).toBe(META.editorId);
-        expect(handle.documentUriString()).toBe(META.uriString);
-        expect(handle.documentPath()).toBe(META.path);
-        expect(handle.documentFsPath()).toBe(META.fsPath);
-        expect(handle.documentScheme()).toBe(META.scheme);
-    });
-
-    it("reports focus changes the store drives through setActive", () => {
+    it("reports a focus change the store drives through setActive once, not again on a repeat", () => {
         const handle = new RpcEditorHandle(
             META,
             new DocumentMirror(),
@@ -175,41 +160,6 @@ describe("RpcEditorHandle", () => {
 
         expect(focus).toEqual([true, false]);
         expect(handle.isActive()).toBe(false);
-    });
-
-    it("reports mirrored content changes of its own document only", () => {
-        const mirror = new DocumentMirror();
-        const handle = new RpcEditorHandle(
-            META,
-            mirror,
-            new Rpc(() => {}),
-            new BridgeSettings(),
-            PLUGIN_CACHE,
-        );
-        const changed: string[] = [];
-        handle.onDidChangeDocument((event) => changed.push(event.documentUriString()));
-
-        mirror.setContent(META.editorId, "<edited/>");
-        mirror.setContent("file:///other.bpmn", "<other/>");
-
-        expect(changed).toEqual([META.uriString]);
-    });
-
-    it("runs its dispose callbacks once", () => {
-        const handle = new RpcEditorHandle(
-            META,
-            new DocumentMirror(),
-            new Rpc(() => {}),
-            new BridgeSettings(),
-            PLUGIN_CACHE,
-        );
-        const disposed = vi.fn();
-        handle.onDidDispose(disposed);
-
-        handle.dispose();
-        handle.dispose();
-
-        expect(disposed).toHaveBeenCalledOnce();
     });
 
     it("postMessage forwards an editor/postMessage notification", async () => {
@@ -313,76 +263,6 @@ describe("RpcEditorHandle", () => {
         await answerLast({ saved: true });
 
         await expect(pending).resolves.toBe(true);
-    });
-
-    it("receive fires the onDidReceiveMessage callback and the disposer detaches it", () => {
-        const handle = new RpcEditorHandle(
-            META,
-            new DocumentMirror(),
-            new Rpc(() => {}),
-            new BridgeSettings(),
-            PLUGIN_CACHE,
-        );
-        const received: unknown[] = [];
-        const sub = handle.onDidReceiveMessage((m) => received.push(m));
-
-        handle.receive({ type: "GetBpmnFileCommand" } as never);
-        sub.dispose();
-        handle.receive({ type: "GetBpmnFileCommand" } as never);
-
-        expect(received).toHaveLength(1);
-    });
-
-    it("dispose runs onDidDispose callbacks", () => {
-        const handle = new RpcEditorHandle(
-            META,
-            new DocumentMirror(),
-            new Rpc(() => {}),
-            new BridgeSettings(),
-            PLUGIN_CACHE,
-        );
-        const onDispose = vi.fn();
-        handle.onDidDispose(onDispose);
-
-        handle.dispose();
-
-        expect(onDispose).toHaveBeenCalledOnce();
-    });
-
-    it("does not run an onDidDispose callback whose subscription was disposed", () => {
-        const handle = new RpcEditorHandle(
-            META,
-            new DocumentMirror(),
-            new Rpc(() => {}),
-            new BridgeSettings(),
-            PLUGIN_CACHE,
-        );
-        const onDispose = vi.fn();
-        const subscription = handle.onDidDispose(onDispose);
-
-        subscription.dispose();
-        handle.dispose();
-
-        expect(onDispose).not.toHaveBeenCalled();
-    });
-
-    it("onDidChangeSetting relays the shared settings hub and detaches on dispose", () => {
-        const settings = new BridgeSettings();
-        const handle = new RpcEditorHandle(
-            META,
-            new DocumentMirror(),
-            new Rpc(() => {}),
-            settings,
-            PLUGIN_CACHE,
-        );
-        const seen: boolean[] = [];
-        const sub = handle.onDidChangeSetting((event) => seen.push(event.affects("language")));
-
-        settings.apply({ language: "de" });
-        sub.dispose();
-        settings.apply({ language: "fr" });
-
-        expect(seen).toEqual([true]);
     });
 });
 

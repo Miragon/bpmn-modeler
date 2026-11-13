@@ -157,7 +157,7 @@ describe("BpmnLintConfigService.setBpmnlintConfig — escalated workspace config
             bpmnlintStatusView({ state: "active", configPath: CONFIG_PATH }),
         );
         expect(host.notifier.logged("info")).toContain(`bpmnlint applied from ${CONFIG_PATH}`);
-        expect(service.getLintMode(editor.id)).toBe("external");
+        expect(service.lintsInPage(editor.id)).toBe(false);
         expect(editor.postedOfType("BpmnlintInPageQuery")).toHaveLength(0);
         const [msg] = editor.postedOfType<BpmnlintResultsQuery>("BpmnlintResultsQuery");
         expect(msg.results).toEqual(RESULTS);
@@ -203,7 +203,7 @@ describe("BpmnLintConfigService.setBpmnlintConfig — escalated workspace config
         ]);
         expect(host.statusBar.views.bpmnlint).toEqual(FAILED_VIEW);
         expect(host.diagnostics.published.has(editor.id)).toBe(false);
-        expect(service.getLintMode(editor.id)).toBe("external");
+        expect(service.lintsInPage(editor.id)).toBe(false);
         const [msg] = editor.postedOfType<BpmnlintResultsQuery>("BpmnlintResultsQuery");
         expect(msg.results).toBeNull();
     });
@@ -246,7 +246,7 @@ describe("BpmnLintConfigService.setBpmnlintConfig — covered workspace config (
 
         expect(result).toBe(true);
         expect(lintRunner.lint).not.toHaveBeenCalled();
-        expect(service.getLintMode(editor.id)).toBe("in-page");
+        expect(service.lintsInPage(editor.id)).toBe(true);
         // Provisional Active (not the zero-config default) while the first webview
         // run is in flight.
         expect(host.diagnostics.published.has(editor.id)).toBe(false);
@@ -299,7 +299,7 @@ describe("BpmnLintConfigService.setBpmnlintConfig — covered workspace config (
         expect(lintRunner.lint).toHaveBeenCalledWith(XML, CONFIG_PATH, COVERED_CONFIG);
         // …publishing the Node results, never the partial in-page findings.
         expect(host.diagnostics.published.get(editor.id)).toEqual(RESULTS);
-        expect(service.getLintMode(editor.id)).toBe("external");
+        expect(service.lintsInPage(editor.id)).toBe(false);
     });
 
     it("drops a second same-token in-page event while the escalation Node run is in flight", async () => {
@@ -318,7 +318,7 @@ describe("BpmnLintConfigService.setBpmnlintConfig — covered workspace config (
 
         expect(host.diagnostics.published.has(editor.id)).toBe(false);
         expect(lintRunner.lint).toHaveBeenCalledTimes(1);
-        expect(service.getLintMode(editor.id)).toBe("in-page");
+        expect(service.lintsInPage(editor.id)).toBe(true);
         release?.();
         await flush();
     });
@@ -333,7 +333,7 @@ describe("BpmnLintConfigService.setBpmnlintConfig — no config (in-page default
 
         expect(result).toBe(true);
         expect(lintRunner.lint).not.toHaveBeenCalled();
-        expect(service.getLintMode(editor.id)).toBe("in-page");
+        expect(service.lintsInPage(editor.id)).toBe(true);
         // Provisional: clear stale diagnostics + a default status while the
         // webview's first run is in flight (no cached event yet).
         expect(host.diagnostics.published.has(editor.id)).toBe(false);
@@ -457,7 +457,7 @@ describe("BpmnLintConfigService.setBpmnlintConfig — disabled", () => {
         expect(lintRunner.lint).not.toHaveBeenCalled();
         expect(host.diagnostics.published.has(editor.id)).toBe(false);
         expect(host.statusBar.views.bpmnlint).toEqual(bpmnlintStatusView({ state: "disabled" }));
-        expect(service.getLintMode(editor.id)).toBe("external");
+        expect(service.lintsInPage(editor.id)).toBe(false);
         expect(editor.postedOfType<BpmnLintDisabledQuery>("BpmnLintDisabledQuery")).toHaveLength(1);
     });
 
@@ -522,7 +522,7 @@ describe("BpmnLintConfigService — a host lint that lands after its session mov
         finishLint(hostRun(RESULTS));
         await linting;
 
-        expect(service.getLintMode(editor.id)).toBe("in-page");
+        expect(service.lintsInPage(editor.id)).toBe(true);
         expect(host.statusBar.views.bpmnlint).toEqual(
             bpmnlintStatusView({ state: "default", platform: undefined }),
         );
@@ -551,7 +551,7 @@ describe("BpmnLintConfigService — a host lint that lands after its session mov
         await linting;
 
         expect(host.notifier.logged("error")).toEqual([expect.stringContaining("plugin crashed")]);
-        expect(service.getLintMode(editor.id)).toBe("in-page");
+        expect(service.lintsInPage(editor.id)).toBe(true);
         expect(host.statusBar.views.bpmnlint).toEqual(
             bpmnlintStatusView({ state: "active", configPath: CONFIG_PATH }),
         );
@@ -674,7 +674,7 @@ describe("BpmnLintConfigService — an older config run that finishes after a ne
 
             await run[settle]();
 
-            expect(service.getLintMode(editor.id)).toBe("in-page");
+            expect(service.lintsInPage(editor.id)).toBe(true);
             expect(
                 lastPosted<BpmnlintInPageQuery>(editor, "BpmnlintInPageQuery")?.config,
             ).toBeUndefined();
@@ -783,7 +783,7 @@ describe("BpmnLintConfigService — a diagram that closes while its lint config 
             answerRead();
             await discovery;
 
-            expect(service.getLintMode(editor.id)).toBe("external");
+            expect(service.lintsInPage(editor.id)).toBe(false);
             expect(lintRunner.lint).not.toHaveBeenCalled();
             expect(host.notifier.logged("error")).toEqual([]);
             expect(host.notifier.logged("warning")).toEqual([]);
@@ -798,7 +798,7 @@ describe("BpmnLintConfigService — a diagram that closes while its lint config 
         editor.dispose();
         await reseeding;
 
-        expect(service.getLintMode(editor.id)).toBe("external");
+        expect(service.lintsInPage(editor.id)).toBe(false);
         expect(host.notifier.logged("error")).toEqual([]);
     });
 });

@@ -1,6 +1,7 @@
 import {
     findImplementations,
     readKotlinImports,
+    readKotlinInitializedValues,
     readKotlinTextLiterals,
     readModuleImports,
     readPathAliases,
@@ -12,10 +13,10 @@ import { join } from "node:path";
 
 import { trackedFiles } from "../../../fitness/adapter/out/git";
 import {
+    type HostFileSource,
     isKotlinSource,
     isScannedSource,
     type SourceDependencies,
-    type WrittenText,
 } from "../../domain/hostText";
 import type { HostTextSources } from "../../port/HostTextSources";
 
@@ -61,8 +62,10 @@ export class EngineHostTextSources implements HostTextSources {
         }));
     }
 
-    readTexts(repoRoot: string, path: string): readonly WrittenText[] {
+    readSource(repoRoot: string, path: string): HostFileSource {
         const text = readSource(repoRoot, path);
-        return isKotlinSource(path) ? readKotlinTextLiterals(text) : readTextLiterals(path, text);
+        return isKotlinSource(path)
+            ? { texts: readKotlinTextLiterals(text), initializedValues: readKotlinInitializedValues(text) }
+            : { texts: readTextLiterals(path, text), initializedValues: [] };
     }
 }

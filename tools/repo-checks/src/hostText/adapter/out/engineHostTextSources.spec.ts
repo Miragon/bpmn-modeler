@@ -38,6 +38,7 @@ beforeEach(() => {
             "import com.intellij.openapi.ui.Messages",
             "",
             'fun ask(name: String) = Messages.showInfoMessage(null, "Could not save $name", "Save")',
+            "private val log = Logger.getInstance(Action::class.java)",
         ].join("\n"),
         "apps/intellij/src/test/kotlin/x/ActionTest.kt": "import com.intellij.testFramework.X",
         "apps/host/scripts/package.mjs": 'import { window } from "vscode";',
@@ -89,41 +90,49 @@ describe("the engine host text sources", () => {
 
     it("read the texts written in one file", () => {
         expect(
-            new EngineHostTextSources().readTexts(
+            new EngineHostTextSources().readSource(
                 repository.root,
                 "apps/host/src/adapter/in/Controller.ts",
             ),
-        ).toEqual([
-            {
-                line: 3,
-                parts: ["Could not save"],
-                argumentOf: [{ construct: false, callee: "showErrorMessage", receiver: "window" }],
-            },
-        ]);
+        ).toEqual({
+            texts: [
+                {
+                    line: 3,
+                    parts: ["Could not save"],
+                    argumentOf: [
+                        { construct: false, callee: "showErrorMessage", receiver: "window" },
+                    ],
+                },
+            ],
+            initializedValues: [],
+        });
     });
 
-    it("read the texts written in one Kotlin file", () => {
+    it("read the texts written in one Kotlin file and the values it initializes with a call", () => {
         expect(
-            new EngineHostTextSources().readTexts(
+            new EngineHostTextSources().readSource(
                 repository.root,
                 "apps/intellij/src/main/kotlin/x/Action.kt",
             ),
-        ).toEqual([
-            {
-                line: 6,
-                parts: ["Could not save ", ""],
-                argumentOf: [
-                    { construct: false, callee: "showInfoMessage", receiver: "Messages" },
-                ],
-            },
-            {
-                line: 6,
-                parts: ["Save"],
-                argumentOf: [
-                    { construct: false, callee: "showInfoMessage", receiver: "Messages" },
-                ],
-            },
-        ]);
+        ).toEqual({
+            texts: [
+                {
+                    line: 6,
+                    parts: ["Could not save ", ""],
+                    argumentOf: [
+                        { construct: false, callee: "showInfoMessage", receiver: "Messages" },
+                    ],
+                },
+                {
+                    line: 6,
+                    parts: ["Save"],
+                    argumentOf: [
+                        { construct: false, callee: "showInfoMessage", receiver: "Messages" },
+                    ],
+                },
+            ],
+            initializedValues: [{ name: "log", initializer: "Logger.getInstance" }],
+        });
     });
 
     it("read a tree without tsconfig.base.json without resolving aliases", () => {

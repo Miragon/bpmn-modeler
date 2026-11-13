@@ -19,17 +19,22 @@ export interface SourceLayout {
     /** Today's tracked files. */
     readonly files: readonly string[];
     readonly barrels: readonly string[];
+    /** Tracked files the repository declares generated: `linguist-generated` in `.gitattributes`. */
+    readonly generatedFiles: readonly string[];
     readonly links: readonly ImportLink[];
     readonly workspaces: readonly WorkspaceLayout[];
 }
 
-const SKIPPED_FOLDERS: ReadonlySet<string> = new Set([...TEST_FOLDERS, "languages"]);
-const DATA_FILE = /\.(schema|cases)\.json$/;
 const TYPESCRIPT_FILE = /\.tsx?$/;
 
-export function measuredFiles({ files, barrels, workspaces }: SourceLayout): Set<string> {
-    const barrelFiles = new Set(barrels);
-    return new Set(files.filter((path) => !barrelFiles.has(path) && isMeasured(path, workspaces)));
+export function measuredFiles({
+    files,
+    barrels,
+    generatedFiles,
+    workspaces,
+}: SourceLayout): Set<string> {
+    const unread = new Set([...barrels, ...generatedFiles]);
+    return new Set(files.filter((path) => !unread.has(path) && isMeasured(path, workspaces)));
 }
 
 export function compositionRoots({ workspaces }: SourceLayout): Set<string> {
@@ -57,11 +62,11 @@ function isMeasured(path: string, workspaces: readonly WorkspaceLayout[]): boole
     }
     const segments = inWorkspace.split("/");
     const name = segments.pop() as string;
-    if (segments.some((folder) => SKIPPED_FOLDERS.has(folder)) || SPEC_FILE.test(name)) {
+    if (segments.some((folder) => TEST_FOLDERS.has(folder)) || SPEC_FILE.test(name)) {
         return false;
     }
-    if (DATA_FILE.test(name)) {
-        return true;
+    if (name.endsWith(".json")) {
+        return inWorkspace.startsWith("src/");
     }
     // Build configs are read only for the entries they name, see `namedPaths`.
     if (name.endsWith(".mjs")) {

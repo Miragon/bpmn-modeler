@@ -13,15 +13,15 @@ const LINT_STATUS: StatusView = { text: "BPMNlint", icon: "check", tone: "neutra
 
 // The lint service needs a lint runner and diagnostics the kit does not fake;
 // casting through a `Pick` keeps the stubbed methods type-checked.
-function createServices(lintMode: "external" | "in-page" = "external") {
+function createServices({ lintsInPage = false } = {}) {
     const host = createTestHost();
     const lintSvc = {
         setBpmnlintConfig: vi.fn(),
         clearDiagnostics: vi.fn(),
-        getLintMode: vi.fn().mockReturnValue(lintMode),
+        lintsInPage: vi.fn().mockReturnValue(lintsInPage),
     } as Pick<
         BpmnLintConfigService,
-        "setBpmnlintConfig" | "clearDiagnostics" | "getLintMode"
+        "setBpmnlintConfig" | "clearDiagnostics" | "lintsInPage"
     > as BpmnLintConfigService;
     const locator = new BpmnLintConfigLocator(
         host.workspace,
@@ -103,7 +103,7 @@ describe("BpmnlintParticipant", () => {
         expect(lintSvc.setBpmnlintConfig).toHaveBeenCalledExactlyOnceWith(editor.id);
     });
 
-    describe("document-change re-lint (debounced), gated by lint mode", () => {
+    describe("document-change re-lint (debounced), skipped while the editor lints in the page", () => {
         beforeEach(() => {
             vi.useFakeTimers();
         });
@@ -112,7 +112,7 @@ describe("BpmnlintParticipant", () => {
         });
 
         it("re-lints after the debounce when the editor is on the external path", async () => {
-            const { host, lintSvc, participant } = createServices("external");
+            const { host, lintSvc, participant } = createServices({ lintsInPage: false });
             const editor = await host.openSession(PATH, [participant], { focused: false });
 
             editor.changeDocument("<bpmn:definitions />");
@@ -123,7 +123,7 @@ describe("BpmnlintParticipant", () => {
         });
 
         it("re-lints only the editor whose document changed", async () => {
-            const { host, lintSvc, participant } = createServices("external");
+            const { host, lintSvc, participant } = createServices({ lintsInPage: false });
             await host.openSession(PATH, [participant], { focused: false });
             const other = await host.openSession("/work/other.bpmn", [participant], {
                 focused: false,
@@ -136,7 +136,7 @@ describe("BpmnlintParticipant", () => {
         });
 
         it("does not re-lint on document change when the editor is in-page", async () => {
-            const { host, lintSvc, participant } = createServices("in-page");
+            const { host, lintSvc, participant } = createServices({ lintsInPage: true });
             const editor = await host.openSession(PATH, [participant]);
 
             editor.changeDocument("<bpmn:definitions />");

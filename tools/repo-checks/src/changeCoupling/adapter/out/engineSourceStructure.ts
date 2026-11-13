@@ -10,10 +10,11 @@ import {
 import { existsSync, readFileSync } from "node:fs";
 import { join, posix } from "node:path";
 
-import { trackedFiles } from "../../../fitness/adapter/out/git";
+import { git, trackedFiles } from "../../../fitness/adapter/out/git";
 import type { SourceLayout, WorkspaceLayout } from "../../domain/sourceLayout";
 import type { SourceStructure } from "../../port/SourceStructure";
 
+const GENERATED_ATTRIBUTE = "linguist-generated";
 const SCRIPT_FILE = /\.[cm]?[jt]sx?$/;
 const UNPARSED_SCRIPT = /\.(spec|test)\.[cm]?[jt]sx?$|\.d\.ts$/;
 const BUILD_CONFIG = /^[^/]+\.config\.[cm]?[jt]s$/;
@@ -33,6 +34,7 @@ export class EngineSourceStructure implements SourceStructure {
             barrels: tree
                 .filter(({ path, text }) => readModuleSymbols(path, text).declaresNothing)
                 .map(({ path }) => path),
+            generatedFiles: generatedFiles(repoRoot, files),
             links: buildDeclarationGraph(tree, {
                 aliases,
                 dataFiles: files.filter((path) => !SCRIPT_FILE.test(path)),
@@ -42,6 +44,21 @@ export class EngineSourceStructure implements SourceStructure {
             ),
         };
     }
+}
+
+// GitHub reads `linguist-generated=true` as the bare attribute, so both count.
+function generatedFiles(repoRoot: string, files: readonly string[]): string[] {
+    const fields = git(repoRoot, ["check-attr", "-z", "--stdin", GENERATED_ATTRIBUTE], {
+        input: files.map((path) => `${path}\0`).join(""),
+    }).split("\0");
+    const generated: string[] = [];
+    for (let index = 0; index + 2 < fields.length; index += 3) {
+        const value = fields[index + 2];
+        if (value === "set" || value === "true") {
+            generated.push(fields[index]);
+        }
+    }
+    return generated;
 }
 
 function workspaceLayout(
