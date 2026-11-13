@@ -5,7 +5,7 @@
  * set — fails CI here rather than at runtime on a different host.
  *
  * The compile-time half (each fixture `satisfies` its named param/result type)
- * lives in `descriptor.ts` and is enforced by `tsc`; this file covers the
+ * lives in the feature `*Protocol.ts` modules and is enforced by `tsc`; this file covers the
  * runtime half: internal consistency, JSON round-trippability, snapshot
  * equality, and the rendered doc table.
  */

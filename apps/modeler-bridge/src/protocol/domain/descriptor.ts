@@ -1,253 +1,100 @@
 /**
- * The single literal source of truth for the host↔core RPC surface: one flat
+ * The aggregate of the host↔core RPC surface: {@link METHODS} and the flat
  * {@link PROTOCOL} array pairing every method with its direction, kind, and a
- * representative param (and, for requests, result) fixture. The TS side owns
- * this contract; the IntelliJ Kotlin host verifies against the derived
- * {@link protocolSnapshot} (committed as `protocol.json`).
+ * representative param (and, for requests, result) fixture. Each feature owns
+ * its methods and fixtures in its own `<feature>Protocol.ts` module; this file
+ * only puts their groups in the wire order. The TS side owns this contract;
+ * the IntelliJ Kotlin host verifies against the derived {@link protocolSnapshot}
+ * (committed as `protocol.json`).
  *
  * Drift is caught two ways. Compile-time: each fixture is checked against its
  * named param/result type via `satisfies`, so renaming a field in `types.ts`
  * without updating the fixture is a build error. Runtime: `protocol.spec.ts`
  * pins the method set, directions, and per-method key sets against the snapshot.
  *
- * Adding a method = add a {@link METHODS} entry + a {@link PROTOCOL} entry +
- * refresh `protocol.json`; the contract test fails until all three agree. The
+ * Adding a method = add it to its feature's `*_METHODS` constant and to one of
+ * that feature's entry groups (a new group also goes into {@link PROTOCOL}),
+ * then refresh `protocol.json`; the contract test fails until all agree. The
  * IntelliJ `ProtocolHandlerCoverageTest` reads `protocol.json` too: a Core→Host
  * method needs its Kotlin handler, a Host→Core method a Kotlin sender, both
  * must use the param keys listed here, and a Kotlin reply the result keys.
  */
 
-import { Command, Query } from "@miragon/bpmn-modeler-shared";
-
 import {
-    ActionNoticeShowParams,
-    ActionNoticeShowResult,
-    AddOnsOpenParams,
-    AddOnsPostMessageParams,
-    AddOnsRevealResult,
-    AddOnsWebviewMessageParams,
-    BasicAuthCredentials,
-    ClipboardReadResult,
-    ClipboardWriteParams,
-    DeploymentOpenParams,
-    DeploymentPostMessageParams,
-    DeploymentSaveParams,
-    DeploymentSeedParams,
-    DeploymentWebviewMessageParams,
-    DeploymentWorkspaceRootParams,
-    DiffDisposeParams,
-    DiffOpenParams,
-    DiffPostMessageParams,
-    DiffWebviewMessageParams,
-    DocumentDidChangeParams,
-    DocumentSaveParams,
-    DocumentSaveResult,
-    DocumentWriteParams,
-    DocumentWriteResult,
-    EditorPostMessageParams,
-    EditorRefParams,
-    EmptyParams,
-    MarketplaceCommandParams,
-    MarketplacePromptShowParams,
-    MarketplacePromptShowResult,
-    MarketplaceStateReadResult,
-    MarketplaceStateRemoveParams,
-    MarketplaceStateSaveParams,
-    MigrateAllParams,
-    NotifierLogParams,
-    NotifierMessageParams,
-    NotifierOpenDocumentParams,
-    NotifierProgressParams,
-    OAuth2Credentials,
-    ConfirmShowParams,
-    ConfirmShowResult,
-    PickerShowParams,
-    PickerShowResult,
-    PluginApprovalsChangeParams,
-    PluginApprovalsSnapshot,
-    RegisterParams,
-    SecretApprovedDestinations,
-    SecretDeleteParams,
-    SecretGetApprovedDestinationsParams,
-    SecretGetParams,
-    SecretSaveApprovedDestinationsParams,
-    SecretSaveBasicAuthParams,
-    SecretSaveOAuth2Params,
-    ScriptCloseNotifyParams,
-    ScriptCloseParams,
-    ScriptDidChangeParams,
-    ScriptDidOpenExternalParams,
-    ScriptOpenParams,
-    ScriptUpdateContentParams,
-    ScriptUpdateVariablesParams,
-    SettingsDidChangeParams,
-    SettingsSetLintingEnabledParams,
-    SettingsSetLanguageParams,
-    StatusBarUpdateParams,
-    TemplatePreferencesChangeParams,
-    TemplatePreferencesSnapshot,
-    TokenPromptShowParams,
-    TokenPromptShowResult,
-    TokenStoreGetParams,
-    TokenStoreGetResult,
-    TokenStoreSetParams,
-    WebviewMessageParams,
-    WorkspaceTrustSnapshot,
-} from "./types";
-
-/** Which peer initiates the call. Requests are only ever Core→Host (see the contract test). */
-type Direction = "hostToCore" | "coreToHost";
-
-/** Whether a reply is expected. */
-type Kind = "notification" | "request";
+    ADD_ONS_CORE_TO_HOST_NOTIFICATIONS,
+    ADD_ONS_CORE_TO_HOST_REQUESTS,
+    ADD_ONS_HOST_TO_CORE_NOTIFICATIONS,
+    ADD_ONS_METHODS,
+} from "./addOnsProtocol";
+import {
+    BPMN_PLUGINS_CORE_TO_HOST_REQUESTS,
+    BPMN_PLUGINS_HOST_TO_CORE_NOTIFICATIONS,
+    BPMN_PLUGINS_METHODS,
+} from "./bpmnPluginsProtocol";
+import {
+    DEPLOYMENT_COMMAND_NOTIFICATIONS,
+    DEPLOYMENT_CORE_TO_HOST_NOTIFICATIONS,
+    DEPLOYMENT_CORE_TO_HOST_REQUESTS,
+    DEPLOYMENT_HOST_TO_CORE_NOTIFICATIONS,
+    DEPLOYMENT_METHODS,
+} from "./deploymentProtocol";
+import {
+    DIFF_CORE_TO_HOST_NOTIFICATIONS,
+    DIFF_HOST_TO_CORE_NOTIFICATIONS,
+    DIFF_METHODS,
+} from "./diffProtocol";
+import {
+    EDITOR_SESSION_CORE_TO_HOST_NOTIFICATIONS,
+    EDITOR_SESSION_CORE_TO_HOST_REQUESTS,
+    EDITOR_SESSION_HOST_TO_CORE_NOTIFICATIONS,
+    EDITOR_SESSION_METHODS,
+} from "./editorSessionProtocol";
+import {
+    KERNEL_ACTION_NOTICE_REQUESTS,
+    KERNEL_CORE_TO_HOST_NOTIFICATIONS,
+    KERNEL_HOST_INPUT_REQUESTS,
+    KERNEL_HOST_TO_CORE_NOTIFICATIONS,
+    KERNEL_METHODS,
+    KERNEL_TEMPLATE_PREFERENCE_REQUESTS,
+} from "./kernelProtocol";
+import {
+    MODELER_COMMAND_NOTIFICATIONS,
+    MODELER_CORE_TO_HOST_REQUESTS,
+    MODELER_HOST_TO_CORE_NOTIFICATIONS,
+    MODELER_METHODS,
+} from "./modelerProtocol";
+import {
+    MODELER_SETTINGS_CORE_TO_HOST_REQUESTS,
+    MODELER_SETTINGS_METHODS,
+} from "./modelerSettingsProtocol";
+import { Direction, Kind, ProtocolEntry, ReplyWait } from "./protocolEntry";
+import {
+    SCRIPT_TASK_CORE_TO_HOST_NOTIFICATIONS,
+    SCRIPT_TASK_HOST_TO_CORE_NOTIFICATIONS,
+    SCRIPT_TASK_METHODS,
+} from "./scriptTaskProtocol";
+import {
+    TEMPLATE_MARKETPLACE_CORE_TO_HOST_REQUESTS,
+    TEMPLATE_MARKETPLACE_HOST_TO_CORE_NOTIFICATIONS,
+    TEMPLATE_MARKETPLACE_METHODS,
+} from "./templateMarketplaceProtocol";
 
 /**
- * How long the core waits for the host's reply to a request:
- * - `prompt`: the host asks the user, who takes as long as they need.
- * - `syncedWrite`: the core keeps its own state in step with the reply (a
- *   bridge mirror it updates on acceptance, a fetched cache it drops on
- *   failure), so giving up on a write the host still applies would leave that
- *   state out of step with the host.
- * - `hostWork`: fails after {@link HOST_WORK_REPLY_DEADLINE_MS}, so a reply the
- *   host never sends cannot hold the caller's editor queue.
- * - `hostShow`: fails after {@link HOST_SHOW_REPLY_DEADLINE_MS}; the host shows
- *   one of its views, and the caller offers another surface once it gives up.
- */
-type ReplyWait = "prompt" | "syncedWrite" | "hostWork" | "hostShow";
-
-interface ProtocolEntryShape {
-    readonly method: string;
-    readonly direction: Direction;
-    readonly paramsFixture: object;
-}
-
-type ProtocolEntry =
-    | (ProtocolEntryShape & { readonly kind: "notification" })
-    | (ProtocolEntryShape & {
-          readonly kind: "request";
-          readonly replyWait: ReplyWait;
-          readonly resultFixture?: object;
-      });
-
-/**
- * Ergonomic name constants for call-sites (`METHODS.sessionRegister`). Hand-kept
- * in lockstep with {@link PROTOCOL}: the contract test asserts the two method
- * sets are identical, so neither can gain a method the other lacks.
+ * Ergonomic name constants for call-sites (`METHODS.sessionRegister`). The
+ * contract test asserts that they name exactly the methods of {@link PROTOCOL}.
  */
 export const METHODS = {
-    // Host → Core notifications
-    sessionRegister: "session/register",
-    webviewMessage: "webview/message",
-    documentDidChange: "document/didChange",
-    sessionSetActive: "session/setActive",
-    sessionDispose: "session/dispose",
-    settingsDidChange: "settings/didChange",
-    diffOpen: "diff/open",
-    diffWebviewMessage: "diff/webviewMessage",
-    diffDispose: "diff/dispose",
-    deploymentStateSeed: "deploymentState/seed",
-    deploymentWebviewMessage: "deployment/webviewMessage",
-    deploymentOpen: "deployment/open",
-    scriptDidChange: "script/didChange",
-    scriptDidClose: "script/didClose",
-    scriptOpenAll: "script/openAll",
-    scriptDidOpenExternal: "script/didOpenExternal",
-    marketplaceAdd: "marketplace/add",
-    marketplaceUpdate: "marketplace/update",
-    marketplaceRemove: "marketplace/remove",
-    modelerChangeEngineVersion: "modeler/changeEngineVersion",
-    modelerChangeLanguage: "modeler/changeLanguage",
-    lintingToggle: "linting/toggle",
-    migrationMigrateAll: "migration/migrateAll",
-    layoutFormat: "layout/format",
-    layoutCleanup: "layout/cleanup",
-    deploymentSwitchTarget: "deployment/switchTarget",
-    deploymentDeployFiles: "deployment/deployFiles",
-    deploymentDeployActive: "deployment/deployActive",
-    deploymentVerify: "deployment/verify",
-    deploymentStatusBarMenu: "deployment/statusBarMenu",
-    pluginApprovalsDidChange: "pluginApprovals/didChange",
-    templatePreferencesDidChange: "templatePreferences/didChange",
-    workspaceTrustDidChange: "workspaceTrust/didChange",
-    addOnsWebviewMessage: "addOns/webviewMessage",
-    addOnsOpen: "addOns/open",
-    addOnsRefresh: "addOns/refresh",
-    addOnsReview: "addOns/review",
-
-    // Core → Host requests
-    documentWrite: "document/write",
-    documentSave: "document/save",
-    pickerShow: "picker/show",
-    confirmShow: "confirm/show",
-    clipboardRead: "clipboard/read",
-    secretStoreSaveBasicAuth: "secretStore/saveBasicAuth",
-    secretStoreGetBasicAuth: "secretStore/getBasicAuth",
-    secretStoreSaveOAuth2: "secretStore/saveOAuth2",
-    secretStoreGetOAuth2: "secretStore/getOAuth2",
-    secretStoreGetApprovedDestinations: "secretStore/getApprovedDestinations",
-    secretStoreSaveApprovedDestinations: "secretStore/saveApprovedDestinations",
-    secretStoreDelete: "secretStore/delete",
-    deploymentStateSave: "deploymentState/save",
-    marketplaceStateRead: "marketplaceState/read",
-    marketplaceStateSave: "marketplaceState/save",
-    marketplaceStateRemove: "marketplaceState/remove",
-    marketplacePromptShow: "marketplacePrompt/show",
-    tokenStoreGet: "tokenStore/get",
-    tokenStoreSet: "tokenStore/set",
-    tokenPromptShow: "tokenPrompt/show",
-    settingsSetLintingEnabled: "settings/setLintingEnabled",
-    settingsSetLanguage: "settings/setLanguage",
-    actionNoticeShow: "actionNotice/show",
-    pluginApprovalsChange: "pluginApprovals/change",
-    pluginApprovalsRead: "pluginApprovals/read",
-    templatePreferencesChange: "templatePreferences/change",
-    templatePreferencesRead: "templatePreferences/read",
-    addOnsReveal: "addOns/reveal",
-
-    // Core → Host notifications
-    editorPostMessage: "editor/postMessage",
-    editorReload: "editor/reload",
-    clipboardWrite: "clipboard/write",
-    notifierShowInfo: "notifier/showInfo",
-    notifierShowWarning: "notifier/showWarning",
-    notifierShowError: "notifier/showError",
-    notifierOpenConsole: "notifier/openConsole",
-    notifierOpenDocument: "notifier/openDocument",
-    notifierLog: "notifier/log",
-    notifierProgressStart: "notifier/progressStart",
-    notifierProgressEnd: "notifier/progressEnd",
-    statusBarUpdate: "statusBar/update",
-    diffPostMessage: "diff/postMessage",
-    deploymentPostMessage: "deployment/postMessage",
-    scriptOpen: "script/open",
-    scriptUpdateVariables: "script/updateVariables",
-    scriptUpdateContent: "script/updateContent",
-    scriptClose: "script/close",
-    addOnsPostMessage: "addOns/postMessage",
+    ...EDITOR_SESSION_METHODS,
+    ...KERNEL_METHODS,
+    ...MODELER_METHODS,
+    ...MODELER_SETTINGS_METHODS,
+    ...DIFF_METHODS,
+    ...DEPLOYMENT_METHODS,
+    ...SCRIPT_TASK_METHODS,
+    ...TEMPLATE_MARKETPLACE_METHODS,
+    ...BPMN_PLUGINS_METHODS,
+    ...ADD_ONS_METHODS,
 } as const;
-
-// Plain-object stand-ins for the opaque message payloads. The snapshot only
-// records top-level param keys, so the message body's shape is irrelevant — but
-// it must be a structural `Command`/`Query` (just `{ type: string }`) and a JSON
-// round-trippable plain object (no class instance), which these are.
-const SAMPLE_COMMAND: Command = { type: "GetBpmnFileCommand" };
-const SAMPLE_QUERY: Query = { type: "FormDefaultsQuery" };
-
-const PLUGIN_APPROVAL_SAMPLE = {
-    pluginId: "/ws/.camunda/plugins/resize-tasks",
-    contentHash: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-};
-
-const TEMPLATE_PREFERENCES_SAMPLE = {
-    project: {
-        disabled: [{ source: "configFolder:shop/.camunda", templateId: 'mail#2@"v"' }],
-        revision: 3,
-    },
-    allProjects: {
-        disabled: [{ source: "marketplace:github:github.com/acme/templates" }],
-        revision: 7,
-    },
-} satisfies TemplatePreferencesSnapshot;
 
 /**
  * Every RPC method, in a fixed order. `paramsFixture`/`resultFixture` are bound
@@ -257,768 +104,37 @@ const TEMPLATE_PREFERENCES_SAMPLE = {
  */
 export const PROTOCOL = [
     // ── Host → Core notifications ────────────────────────────────────────────
-    {
-        method: METHODS.sessionRegister,
-        direction: "hostToCore",
-        kind: "notification",
-        paramsFixture: {
-            editorId: "file:///a.bpmn",
-            sessionId: 1,
-            documentRevision: 2,
-            uriString: "file:///a.bpmn",
-            path: "/a.bpmn",
-            fsPath: "/a.bpmn",
-            scheme: "file",
-            workspaceRoot: "/repo",
-            content: "<bpmn/>",
-            settings: {},
-            pluginApprovals: [PLUGIN_APPROVAL_SAMPLE],
-            pluginApprovalsRevision: 7,
-            templatePreferences: TEMPLATE_PREFERENCES_SAMPLE,
-            workspaceTrust: { trusted: true, revision: 4 },
-        } satisfies RegisterParams,
-    },
-    {
-        method: METHODS.webviewMessage,
-        direction: "hostToCore",
-        kind: "notification",
-        paramsFixture: {
-            editorId: "e1",
-            sessionId: 1,
-            message: SAMPLE_COMMAND,
-        } satisfies WebviewMessageParams,
-    },
-    {
-        method: METHODS.documentDidChange,
-        direction: "hostToCore",
-        kind: "notification",
-        paramsFixture: {
-            editorId: "e1",
-            sessionId: 1,
-            content: "<bpmn/>",
-            documentRevision: 2,
-        } satisfies DocumentDidChangeParams,
-    },
-    {
-        method: METHODS.sessionSetActive,
-        direction: "hostToCore",
-        kind: "notification",
-        paramsFixture: { editorId: "e1", sessionId: 1 } satisfies EditorRefParams,
-    },
-    {
-        method: METHODS.sessionDispose,
-        direction: "hostToCore",
-        kind: "notification",
-        paramsFixture: { editorId: "e1", sessionId: 1 } satisfies EditorRefParams,
-    },
-    {
-        method: METHODS.settingsDidChange,
-        direction: "hostToCore",
-        kind: "notification",
-        paramsFixture: { settings: {} } satisfies SettingsDidChangeParams,
-    },
-    {
-        method: METHODS.diffOpen,
-        direction: "hostToCore",
-        kind: "notification",
-        paramsFixture: {
-            diffId: "d1",
-            origin: "scm",
-            before: { uri: "u#d1-before", content: "<bpmn/>" },
-            after: { uri: "u#d1-after", content: "<bpmn/>" },
-        } satisfies DiffOpenParams,
-    },
-    {
-        method: METHODS.diffWebviewMessage,
-        direction: "hostToCore",
-        kind: "notification",
-        paramsFixture: {
-            paneUri: "u#d1-before",
-            message: SAMPLE_COMMAND,
-        } satisfies DiffWebviewMessageParams,
-    },
-    {
-        method: METHODS.diffDispose,
-        direction: "hostToCore",
-        kind: "notification",
-        paramsFixture: { diffId: "d1" } satisfies DiffDisposeParams,
-    },
-    {
-        method: METHODS.deploymentStateSeed,
-        direction: "hostToCore",
-        kind: "notification",
-        paramsFixture: { state: {} } satisfies DeploymentSeedParams,
-    },
-    {
-        method: METHODS.deploymentWebviewMessage,
-        direction: "hostToCore",
-        kind: "notification",
-        paramsFixture: { message: SAMPLE_COMMAND } satisfies DeploymentWebviewMessageParams,
-    },
-    {
-        method: METHODS.deploymentOpen,
-        direction: "hostToCore",
-        kind: "notification",
-        paramsFixture: { open: true } satisfies DeploymentOpenParams,
-    },
-    {
-        method: METHODS.scriptDidChange,
-        direction: "hostToCore",
-        kind: "notification",
-        paramsFixture: { scriptId: "s1", content: "x" } satisfies ScriptDidChangeParams,
-    },
-    {
-        method: METHODS.scriptDidClose,
-        direction: "hostToCore",
-        kind: "notification",
-        paramsFixture: { scriptId: "s1" } satisfies ScriptCloseParams,
-    },
-    {
-        method: METHODS.scriptOpenAll,
-        direction: "hostToCore",
-        kind: "notification",
-        paramsFixture: {} satisfies EmptyParams,
-    },
-    {
-        method: METHODS.scriptDidOpenExternal,
-        direction: "hostToCore",
-        kind: "notification",
-        paramsFixture: {
-            filePath: "/ws/.camunda/tmp/scripting/h/e/script-task/e.js",
-        } satisfies ScriptDidOpenExternalParams,
-    },
-    {
-        method: METHODS.marketplaceAdd,
-        direction: "hostToCore",
-        kind: "notification",
-        paramsFixture: { settings: {} } satisfies MarketplaceCommandParams,
-    },
-    {
-        method: METHODS.marketplaceUpdate,
-        direction: "hostToCore",
-        kind: "notification",
-        paramsFixture: { settings: {} } satisfies MarketplaceCommandParams,
-    },
-    {
-        method: METHODS.marketplaceRemove,
-        direction: "hostToCore",
-        kind: "notification",
-        paramsFixture: { settings: {} } satisfies MarketplaceCommandParams,
-    },
-    {
-        method: METHODS.modelerChangeEngineVersion,
-        direction: "hostToCore",
-        kind: "notification",
-        paramsFixture: { editorId: "e1" } satisfies EditorRefParams,
-    },
-    {
-        method: METHODS.modelerChangeLanguage,
-        direction: "hostToCore",
-        kind: "notification",
-        paramsFixture: {} satisfies EmptyParams,
-    },
-    {
-        method: METHODS.lintingToggle,
-        direction: "hostToCore",
-        kind: "notification",
-        paramsFixture: {} satisfies EmptyParams,
-    },
-    {
-        method: METHODS.migrationMigrateAll,
-        direction: "hostToCore",
-        kind: "notification",
-        paramsFixture: { workspaceRoot: "/repo" } satisfies MigrateAllParams,
-    },
-    {
-        method: METHODS.layoutFormat,
-        direction: "hostToCore",
-        kind: "notification",
-        paramsFixture: {} satisfies EmptyParams,
-    },
-    {
-        method: METHODS.layoutCleanup,
-        direction: "hostToCore",
-        kind: "notification",
-        paramsFixture: {} satisfies EmptyParams,
-    },
-    {
-        method: METHODS.deploymentSwitchTarget,
-        direction: "hostToCore",
-        kind: "notification",
-        paramsFixture: { workspaceRoot: "/repo" } satisfies DeploymentWorkspaceRootParams,
-    },
-    {
-        method: METHODS.deploymentDeployFiles,
-        direction: "hostToCore",
-        kind: "notification",
-        paramsFixture: { workspaceRoot: "/repo" } satisfies DeploymentWorkspaceRootParams,
-    },
-    {
-        method: METHODS.deploymentDeployActive,
-        direction: "hostToCore",
-        kind: "notification",
-        paramsFixture: { workspaceRoot: "/repo" } satisfies DeploymentWorkspaceRootParams,
-    },
-    {
-        method: METHODS.deploymentVerify,
-        direction: "hostToCore",
-        kind: "notification",
-        paramsFixture: { workspaceRoot: "/repo" } satisfies DeploymentWorkspaceRootParams,
-    },
-    {
-        method: METHODS.deploymentStatusBarMenu,
-        direction: "hostToCore",
-        kind: "notification",
-        paramsFixture: { workspaceRoot: "/repo" } satisfies DeploymentWorkspaceRootParams,
-    },
-    {
-        method: METHODS.pluginApprovalsDidChange,
-        direction: "hostToCore",
-        kind: "notification",
-        paramsFixture: {
-            approvals: [PLUGIN_APPROVAL_SAMPLE],
-            revision: 7,
-        } satisfies PluginApprovalsSnapshot,
-    },
-    // An allProjects change goes to every running bridge of the IDE, a project
-    // change to the project's own; each carries both scopes of that project.
-    {
-        method: METHODS.templatePreferencesDidChange,
-        direction: "hostToCore",
-        kind: "notification",
-        paramsFixture: TEMPLATE_PREFERENCES_SAMPLE,
-    },
-    {
-        method: METHODS.workspaceTrustDidChange,
-        direction: "hostToCore",
-        kind: "notification",
-        paramsFixture: { trusted: false, revision: 5 } satisfies WorkspaceTrustSnapshot,
-    },
-    {
-        method: METHODS.addOnsWebviewMessage,
-        direction: "hostToCore",
-        kind: "notification",
-        paramsFixture: { message: SAMPLE_COMMAND } satisfies AddOnsWebviewMessageParams,
-    },
-    {
-        method: METHODS.addOnsOpen,
-        direction: "hostToCore",
-        kind: "notification",
-        paramsFixture: {
-            open: true,
-            workspaceRoot: "/repo",
-            settings: { configFolder: ".camunda" },
-        } satisfies AddOnsOpenParams,
-    },
-    {
-        method: METHODS.addOnsRefresh,
-        direction: "hostToCore",
-        kind: "notification",
-        paramsFixture: {} satisfies EmptyParams,
-    },
-    {
-        method: METHODS.addOnsReview,
-        direction: "hostToCore",
-        kind: "notification",
-        paramsFixture: {} satisfies EmptyParams,
-    },
+    ...EDITOR_SESSION_HOST_TO_CORE_NOTIFICATIONS,
+    ...MODELER_HOST_TO_CORE_NOTIFICATIONS,
+    ...DIFF_HOST_TO_CORE_NOTIFICATIONS,
+    ...DEPLOYMENT_HOST_TO_CORE_NOTIFICATIONS,
+    ...SCRIPT_TASK_HOST_TO_CORE_NOTIFICATIONS,
+    ...TEMPLATE_MARKETPLACE_HOST_TO_CORE_NOTIFICATIONS,
+    ...MODELER_COMMAND_NOTIFICATIONS,
+    ...DEPLOYMENT_COMMAND_NOTIFICATIONS,
+    ...BPMN_PLUGINS_HOST_TO_CORE_NOTIFICATIONS,
+    ...KERNEL_HOST_TO_CORE_NOTIFICATIONS,
+    ...ADD_ONS_HOST_TO_CORE_NOTIFICATIONS,
 
     // ── Core → Host requests ─────────────────────────────────────────────────
-    {
-        method: METHODS.documentWrite,
-        direction: "coreToHost",
-        kind: "request",
-        replyWait: "syncedWrite",
-        paramsFixture: {
-            editorId: "e1",
-            sessionId: 1,
-            content: "<bpmn/>",
-            expectedDocumentRevision: 2,
-        } satisfies DocumentWriteParams,
-        resultFixture: {
-            changed: true,
-            accepted: true,
-            normalizedContent: "<bpmn/>",
-        } satisfies DocumentWriteResult,
-    },
-    {
-        method: METHODS.documentSave,
-        direction: "coreToHost",
-        kind: "request",
-        replyWait: "hostWork",
-        paramsFixture: { editorId: "e1", sessionId: 1 } satisfies DocumentSaveParams,
-        resultFixture: { saved: true } satisfies DocumentSaveResult,
-    },
-    {
-        method: METHODS.pickerShow,
-        direction: "coreToHost",
-        kind: "request",
-        replyWait: "prompt",
-        paramsFixture: {
-            title: "Pick",
-            placeholder: "Pick one",
-            canPickMany: false,
-            items: [{ label: "a", description: "/a" }],
-        } satisfies PickerShowParams,
-        resultFixture: { selected: [0] } satisfies PickerShowResult,
-    },
-    {
-        method: METHODS.confirmShow,
-        direction: "coreToHost",
-        kind: "request",
-        replyWait: "prompt",
-        paramsFixture: {
-            title: "Remove 2 leftover item(s)?",
-            confirmLabel: "Clean Up",
-            details: ["bpmndi:BPMNShape without a model element"],
-        } satisfies ConfirmShowParams,
-        resultFixture: { confirmed: true } satisfies ConfirmShowResult,
-    },
-    {
-        method: METHODS.clipboardRead,
-        direction: "coreToHost",
-        kind: "request",
-        replyWait: "hostWork",
-        paramsFixture: {} satisfies EmptyParams,
-        resultFixture: { text: "copied" } satisfies ClipboardReadResult,
-    },
-    {
-        method: METHODS.secretStoreSaveBasicAuth,
-        direction: "coreToHost",
-        kind: "request",
-        replyWait: "hostWork",
-        paramsFixture: {
-            username: "u",
-            password: "p",
-            slot: "/ws/.camunda/deployment-targets.json::dev",
-        } satisfies SecretSaveBasicAuthParams,
-        // No result: the host acks an empty reply; the core awaits only the round-trip.
-    },
-    {
-        method: METHODS.secretStoreGetBasicAuth,
-        direction: "coreToHost",
-        kind: "request",
-        replyWait: "hostWork",
-        paramsFixture: {
-            slot: "/ws/.camunda/deployment-targets.json::dev",
-        } satisfies SecretGetParams,
-        resultFixture: { username: "u", password: "p" } satisfies BasicAuthCredentials,
-    },
-    {
-        method: METHODS.secretStoreSaveOAuth2,
-        direction: "coreToHost",
-        kind: "request",
-        replyWait: "hostWork",
-        paramsFixture: {
-            clientId: "id",
-            clientSecret: "secret",
-            slot: "/ws/.camunda/deployment-targets.json::dev",
-        } satisfies SecretSaveOAuth2Params,
-    },
-    {
-        method: METHODS.secretStoreGetOAuth2,
-        direction: "coreToHost",
-        kind: "request",
-        replyWait: "hostWork",
-        paramsFixture: {
-            slot: "/ws/.camunda/deployment-targets.json::dev",
-        } satisfies SecretGetParams,
-        resultFixture: { clientId: "id", clientSecret: "secret" } satisfies OAuth2Credentials,
-    },
-    {
-        method: METHODS.secretStoreGetApprovedDestinations,
-        direction: "coreToHost",
-        kind: "request",
-        replyWait: "hostWork",
-        paramsFixture: {
-            slot: "/ws/.camunda/deployment-targets.json::dev",
-        } satisfies SecretGetApprovedDestinationsParams,
-        resultFixture: { origins: ["https://engine.example"] } satisfies SecretApprovedDestinations,
-    },
-    {
-        method: METHODS.secretStoreSaveApprovedDestinations,
-        direction: "coreToHost",
-        kind: "request",
-        replyWait: "hostWork",
-        paramsFixture: {
-            slot: "/ws/.camunda/deployment-targets.json::dev",
-            origins: ["https://engine.example"],
-        } satisfies SecretSaveApprovedDestinationsParams,
-    },
-    {
-        method: METHODS.secretStoreDelete,
-        direction: "coreToHost",
-        kind: "request",
-        replyWait: "hostWork",
-        paramsFixture: {
-            slot: "/ws/.camunda/deployment-targets.json::dev",
-        } satisfies SecretDeleteParams,
-    },
-    // Acknowledged persist (a request, not a notification): the bridge awaits the
-    // host's empty ack so a persist failure rejects the core's write instead of
-    // diverging silently. No resultFixture (empty ack).
-    {
-        method: METHODS.deploymentStateSave,
-        direction: "coreToHost",
-        kind: "request",
-        replyWait: "syncedWrite",
-        paramsFixture: {
-            patch: {
-                endpoint: "https://engine",
-                tenantId: "t1",
-                authType: "oauth2",
-                tokenEndpoint: "https://token",
-                audience: "aud",
-                activeTargetName: "dev",
-                ledger: {
-                    put: {
-                        "target:dev@localhost:8080::/work/order.bpmn": {
-                            fingerprint: "0123456789abcdef",
-                            deployedAt: "2026-09-17T14:32:00.000Z",
-                            deploymentId: "dep-1",
-                            origin: "engine",
-                            verifiedAt: "2026-09-17T15:00:00.000Z",
-                        },
-                    },
-                    remove: ["target:prod@localhost:8080::/work/order.bpmn"],
-                },
-            },
-        } satisfies DeploymentSaveParams,
-    },
-    {
-        method: METHODS.marketplaceStateRead,
-        direction: "coreToHost",
-        kind: "request",
-        replyWait: "hostWork",
-        paramsFixture: {} satisfies EmptyParams,
-        resultFixture: {
-            registered: { project: [], allProjects: ["https://github.com/owner/repo"] },
-            writable: [
-                { scope: "project", savedIn: { kind: "file", path: [".idea", "workspace.xml"] } },
-                {
-                    scope: "allProjects",
-                    savedIn: {
-                        kind: "settingsPage",
-                        path: [
-                            "Settings",
-                            "Tools",
-                            "Miragon BPMN Modeler",
-                            "Template Marketplaces",
-                        ],
-                    },
-                },
-            ],
-        } satisfies MarketplaceStateReadResult,
-    },
-    // Acknowledged writes: the host writes its store, pushes the fresh snapshot
-    // to every affected bridge, then acks an empty reply, so the prune that
-    // follows reads the list as the host now holds it.
-    {
-        method: METHODS.marketplaceStateSave,
-        direction: "coreToHost",
-        kind: "request",
-        replyWait: "syncedWrite",
-        paramsFixture: {
-            location: "https://github.com/owner/repo",
-            scope: "project",
-        } satisfies MarketplaceStateSaveParams,
-    },
-    {
-        method: METHODS.marketplaceStateRemove,
-        direction: "coreToHost",
-        kind: "request",
-        replyWait: "syncedWrite",
-        paramsFixture: {
-            entries: ["https://github.com/owner/repo"],
-        } satisfies MarketplaceStateRemoveParams,
-    },
-    {
-        method: METHODS.marketplacePromptShow,
-        direction: "coreToHost",
-        kind: "request",
-        replyWait: "prompt",
-        paramsFixture: {
-            title: "Add Template Marketplace",
-            prompt: "GitHub or GitLab repository, or a local folder, holding a marketplace.json",
-            placeholder: "https://github.com/owner/repo  or  ~/path/to/folder",
-            location: "acme",
-            invalidLocation: "Enter a GitHub or GitLab repository URL.",
-            scopes: [
-                {
-                    scope: "project",
-                    label: "Register for this project",
-                    description: "Saved in .idea/workspace.xml",
-                },
-                {
-                    scope: "allProjects",
-                    label: "Register for all my projects",
-                    description:
-                        "Saved in Settings ▸ Tools ▸ Miragon BPMN Modeler ▸ Template Marketplaces",
-                },
-            ],
-            scope: "project",
-        } satisfies MarketplacePromptShowParams,
-        resultFixture: {
-            location: "https://github.com/owner/repo",
-            scope: "allProjects",
-        } satisfies MarketplacePromptShowResult,
-    },
-    {
-        method: METHODS.tokenStoreGet,
-        direction: "coreToHost",
-        kind: "request",
-        replyWait: "hostWork",
-        paramsFixture: { host: "github.com" } satisfies TokenStoreGetParams,
-        resultFixture: { token: "ghp_example" } satisfies TokenStoreGetResult,
-    },
-    {
-        method: METHODS.tokenStoreSet,
-        direction: "coreToHost",
-        kind: "request",
-        replyWait: "hostWork",
-        paramsFixture: {
-            host: "github.com",
-            token: "ghp_example",
-        } satisfies TokenStoreSetParams,
-    },
-    {
-        method: METHODS.tokenPromptShow,
-        direction: "coreToHost",
-        kind: "request",
-        replyWait: "prompt",
-        paramsFixture: {
-            title: "Personal Access Token for github.com",
-            prompt: "github.com denied access; enter a personal access token.",
-        } satisfies TokenPromptShowParams,
-        resultFixture: { token: "ghp_example" } satisfies TokenPromptShowResult,
-    },
-    {
-        method: METHODS.settingsSetLanguage,
-        direction: "coreToHost",
-        kind: "request",
-        replyWait: "hostWork",
-        paramsFixture: { locale: "de" } satisfies SettingsSetLanguageParams,
-    },
-    {
-        method: METHODS.settingsSetLintingEnabled,
-        direction: "coreToHost",
-        kind: "request",
-        replyWait: "hostWork",
-        paramsFixture: { enabled: false } satisfies SettingsSetLintingEnabledParams,
-    },
-    {
-        method: METHODS.actionNoticeShow,
-        direction: "coreToHost",
-        kind: "request",
-        replyWait: "prompt",
-        paramsFixture: {
-            tone: "info",
-            message: "1 BPMN plugin in this workspace is not allowed yet.",
-            labels: ["Review…"],
-        } satisfies ActionNoticeShowParams,
-        // `chosen` is absent when the user dismissed the notification.
-        resultFixture: { chosen: 0 } satisfies ActionNoticeShowResult,
-    },
-    // The host merges the change into the list it stores, pushes that list to
-    // every running bridge in `pluginApprovals/didChange`, then answers with it.
-    {
-        method: METHODS.pluginApprovalsChange,
-        direction: "coreToHost",
-        kind: "request",
-        replyWait: "syncedWrite",
-        paramsFixture: {
-            allow: [PLUGIN_APPROVAL_SAMPLE],
-            revoke: ["/ws/.camunda/plugins/reduced-palette"],
-        } satisfies PluginApprovalsChangeParams,
-        resultFixture: {
-            approvals: [PLUGIN_APPROVAL_SAMPLE],
-            revision: 7,
-        } satisfies PluginApprovalsSnapshot,
-    },
-    // The host's stored list, never a mirror; a read, so under the host-work deadline.
-    {
-        method: METHODS.pluginApprovalsRead,
-        direction: "coreToHost",
-        kind: "request",
-        replyWait: "hostWork",
-        paramsFixture: {} satisfies EmptyParams,
-        resultFixture: {
-            approvals: [PLUGIN_APPROVAL_SAMPLE],
-            revision: 7,
-        } satisfies PluginApprovalsSnapshot,
-    },
-    // The host merges the change into the scope's stored list, pushes the
-    // lists in `templatePreferences/didChange`, then answers with both.
-    {
-        method: METHODS.templatePreferencesChange,
-        direction: "coreToHost",
-        kind: "request",
-        replyWait: "syncedWrite",
-        paramsFixture: {
-            scope: "project",
-            disable: [{ source: "configFolder:shop/.camunda", templateId: 'mail#2@"v"' }],
-            enable: [{ source: "configFolder:shop/.camunda" }],
-        } satisfies TemplatePreferencesChangeParams,
-        resultFixture: TEMPLATE_PREFERENCES_SAMPLE,
-    },
-    // Both scopes as the host stores them, never a mirror; a read, so under the host-work deadline.
-    {
-        method: METHODS.templatePreferencesRead,
-        direction: "coreToHost",
-        kind: "request",
-        replyWait: "hostWork",
-        paramsFixture: {} satisfies EmptyParams,
-        resultFixture: TEMPLATE_PREFERENCES_SAMPLE,
-    },
-    // Without the rows: the core delivers them to the view it attached, once shown.
-    {
-        method: METHODS.addOnsReveal,
-        direction: "coreToHost",
-        kind: "request",
-        replyWait: "hostShow",
-        paramsFixture: {} satisfies EmptyParams,
-        resultFixture: { shown: true } satisfies AddOnsRevealResult,
-    },
+    ...EDITOR_SESSION_CORE_TO_HOST_REQUESTS,
+    ...KERNEL_HOST_INPUT_REQUESTS,
+    ...DEPLOYMENT_CORE_TO_HOST_REQUESTS,
+    ...TEMPLATE_MARKETPLACE_CORE_TO_HOST_REQUESTS,
+    ...MODELER_SETTINGS_CORE_TO_HOST_REQUESTS,
+    ...MODELER_CORE_TO_HOST_REQUESTS,
+    ...KERNEL_ACTION_NOTICE_REQUESTS,
+    ...BPMN_PLUGINS_CORE_TO_HOST_REQUESTS,
+    ...KERNEL_TEMPLATE_PREFERENCE_REQUESTS,
+    ...ADD_ONS_CORE_TO_HOST_REQUESTS,
 
     // ── Core → Host notifications ────────────────────────────────────────────
-    {
-        method: METHODS.editorPostMessage,
-        direction: "coreToHost",
-        kind: "notification",
-        paramsFixture: {
-            editorId: "e1",
-            sessionId: 1,
-            message: SAMPLE_QUERY,
-        } satisfies EditorPostMessageParams,
-    },
-    {
-        method: METHODS.editorReload,
-        direction: "coreToHost",
-        kind: "notification",
-        paramsFixture: { editorId: "e1", sessionId: 1 } satisfies EditorRefParams,
-    },
-    {
-        method: METHODS.clipboardWrite,
-        direction: "coreToHost",
-        kind: "notification",
-        paramsFixture: { text: "copied" } satisfies ClipboardWriteParams,
-    },
-    {
-        method: METHODS.notifierShowInfo,
-        direction: "coreToHost",
-        kind: "notification",
-        paramsFixture: { message: "ready" } satisfies NotifierMessageParams,
-    },
-    {
-        method: METHODS.notifierShowWarning,
-        direction: "coreToHost",
-        kind: "notification",
-        paramsFixture: { message: "careful" } satisfies NotifierMessageParams,
-    },
-    {
-        method: METHODS.notifierShowError,
-        direction: "coreToHost",
-        kind: "notification",
-        paramsFixture: { message: "boom" } satisfies NotifierMessageParams,
-    },
-    {
-        method: METHODS.notifierOpenConsole,
-        direction: "coreToHost",
-        kind: "notification",
-        paramsFixture: {} satisfies EmptyParams,
-    },
-    {
-        method: METHODS.notifierOpenDocument,
-        direction: "coreToHost",
-        kind: "notification",
-        paramsFixture: { path: "/a.bpmn" } satisfies NotifierOpenDocumentParams,
-    },
-    {
-        method: METHODS.notifierLog,
-        direction: "coreToHost",
-        kind: "notification",
-        paramsFixture: { level: "info", message: "hi" } satisfies NotifierLogParams,
-    },
-    {
-        method: METHODS.notifierProgressStart,
-        direction: "coreToHost",
-        kind: "notification",
-        paramsFixture: { title: "Working" } satisfies NotifierProgressParams,
-    },
-    {
-        method: METHODS.notifierProgressEnd,
-        direction: "coreToHost",
-        kind: "notification",
-        paramsFixture: { title: "Working" } satisfies NotifierProgressParams,
-    },
-    {
-        method: METHODS.statusBarUpdate,
-        direction: "coreToHost",
-        kind: "notification",
-        paramsFixture: {
-            slot: "engineVersion",
-            view: {
-                text: "Camunda 7 (7.20)",
-                icon: "engine",
-                tooltip: "Click to change engine version",
-                tone: "neutral",
-                action: "changeEngineVersion",
-                transient: false,
-            },
-        } satisfies StatusBarUpdateParams,
-    },
-    {
-        method: METHODS.diffPostMessage,
-        direction: "coreToHost",
-        kind: "notification",
-        paramsFixture: {
-            paneUri: "u#d1-before",
-            message: SAMPLE_COMMAND,
-        } satisfies DiffPostMessageParams,
-    },
-    {
-        method: METHODS.deploymentPostMessage,
-        direction: "coreToHost",
-        kind: "notification",
-        paramsFixture: { message: SAMPLE_QUERY } satisfies DeploymentPostMessageParams,
-    },
-    {
-        method: METHODS.scriptOpen,
-        direction: "coreToHost",
-        kind: "notification",
-        paramsFixture: {
-            scriptId: "s1",
-            fileName: "script.js",
-            languageId: "javascript",
-            filePath: "/ws/.camunda/tmp/scripting/h/e/script-task/script.js",
-            content: "x",
-            completion: { beans: [], variables: [], globals: [], types: {} },
-        } satisfies ScriptOpenParams,
-    },
-    {
-        method: METHODS.scriptUpdateVariables,
-        direction: "coreToHost",
-        kind: "notification",
-        paramsFixture: { scriptId: "s1", variables: [] } satisfies ScriptUpdateVariablesParams,
-    },
-    {
-        method: METHODS.scriptUpdateContent,
-        direction: "coreToHost",
-        kind: "notification",
-        paramsFixture: { scriptId: "s1", content: "x" } satisfies ScriptUpdateContentParams,
-    },
-    {
-        method: METHODS.scriptClose,
-        direction: "coreToHost",
-        kind: "notification",
-        paramsFixture: { scriptId: "s1" } satisfies ScriptCloseNotifyParams,
-    },
-    {
-        method: METHODS.addOnsPostMessage,
-        direction: "coreToHost",
-        kind: "notification",
-        paramsFixture: { message: SAMPLE_QUERY } satisfies AddOnsPostMessageParams,
-    },
+    ...EDITOR_SESSION_CORE_TO_HOST_NOTIFICATIONS,
+    ...KERNEL_CORE_TO_HOST_NOTIFICATIONS,
+    ...DIFF_CORE_TO_HOST_NOTIFICATIONS,
+    ...DEPLOYMENT_CORE_TO_HOST_NOTIFICATIONS,
+    ...SCRIPT_TASK_CORE_TO_HOST_NOTIFICATIONS,
+    ...ADD_ONS_CORE_TO_HOST_NOTIFICATIONS,
 ] as const satisfies readonly ProtocolEntry[];
 
 /** Short, because the caller falls back to another surface once it passes. */
