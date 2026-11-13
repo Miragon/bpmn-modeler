@@ -24,7 +24,7 @@ import io.miragon.intellij.bpmn.ProjectTemplatePreferenceStore
 import io.miragon.intellij.bpmn.TemplatePreferenceStore
 import io.miragon.intellij.bpmn.TemplateSwitch
 import io.miragon.intellij.bpmn.projectFixtureWithoutServicePreload
-import io.miragon.intellij.bpmn.readTypeScriptJson
+import io.miragon.intellij.bpmn.readTypeScriptCases
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -1600,11 +1600,7 @@ class EditorSessionRouterTest {
     companion object {
         /** `intellijDocumentWrite.cases.json`, which the bridge's document loopbacks answer too. */
         @JvmStatic
-        fun documentWriteCases(): List<Named<JsonObject>> =
-            readTypeScriptJson("miragon.intellijDocumentWriteCases").asJsonObject.getAsJsonArray("cases").map {
-                val case = it.asJsonObject
-                Named.of(case.get("name").asString, case)
-            }
+        fun documentWriteCases(): List<Named<JsonObject>> = readTypeScriptCases("miragon.intellijDocumentWriteCases")
 
         const val INITIAL_XML = "<bpmn:definitions id=\"a\"/>\n"
         const val EDITED_XML = "<bpmn:definitions id=\"b\"/>\n"

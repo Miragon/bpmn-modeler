@@ -14,7 +14,7 @@ import io.miragon.intellij.bpmn.StatusSlots
 import io.miragon.intellij.bpmn.StatusTone
 import io.miragon.intellij.bpmn.StatusView
 import io.miragon.intellij.bpmn.projectFixtureWithoutServicePreload
-import io.miragon.intellij.bpmn.readTypeScriptJson
+import io.miragon.intellij.bpmn.readTypeScriptCases
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -352,10 +352,6 @@ class HostUiRouterTest {
     companion object {
         /** `intellijProgress.cases.json`, which the bridge's progress loopback answers too. */
         @JvmStatic
-        fun progressCases(): List<Named<JsonObject>> =
-            readTypeScriptJson("miragon.intellijProgressCases").asJsonObject.getAsJsonArray("cases").map {
-                val case = it.asJsonObject
-                Named.of(case.get("name").asString, case)
-            }
+        fun progressCases(): List<Named<JsonObject>> = readTypeScriptCases("miragon.intellijProgressCases")
     }
 }
