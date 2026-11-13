@@ -1,5 +1,5 @@
 import { DmnFileQuery } from "@miragon/bpmn-modeler-shared";
-import { EMPTY_DMN_DIAGRAM } from "@miragon/bpmn-modeler-types";
+import { EMPTY_DMN_DIAGRAM, isBlankDocument } from "@miragon/bpmn-modeler-types";
 
 import { UserCancelledError } from "../../../kernel/domain/errors";
 import { DocumentPort, NotifierPort } from "../../../kernel/port/hostPorts";
@@ -30,7 +30,7 @@ export class DmnModelerService {
             const snapshot = this.documents.read(editorId, hostUpdated);
             if (!snapshot) return false;
             let content: string | undefined = snapshot.content;
-            if (content === "") {
+            if (isBlankDocument(content)) {
                 content = await this.documents.initializeEmpty(
                     editorId,
                     snapshot,

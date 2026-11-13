@@ -15,6 +15,7 @@ import {
     ENGINE_LABEL,
     ExecutionPlatformAttributeNames,
     executionPlatformAttributeNames,
+    isBlankDocument,
     MODELER_NAMESPACE_URI,
     readDefinitionsStartTag,
     readStartTag,
@@ -127,10 +128,10 @@ export class BpmnDocument {
     }
 
     /**
-     * Returns `true` when the document holds no XML (new, unsaved file).
+     * Returns `true` when the document holds no XML yet (a new or whitespace-only file).
      */
     isEmpty(): boolean {
-        return this.xml === "";
+        return isBlankDocument(this.xml);
     }
 
     /**

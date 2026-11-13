@@ -11,7 +11,7 @@ import {
 } from "@miragon/bpmn-modeler/mode";
 import { i18n } from "@miragon/bpmn-modeler-i18n";
 import type { HostThemeKind } from "@miragon/bpmn-modeler-shared";
-import { detectEngine } from "@miragon/bpmn-modeler-types";
+import { detectEngine, isBlankDocument } from "@miragon/bpmn-modeler-types";
 
 import type { ModelCanvas } from "../../port/modelCanvas";
 import { memoryClipboard } from "./memoryClipboard";
@@ -129,7 +129,7 @@ export function createBpmnCanvas(options: BpmnCanvasOptions): BpmnCanvas {
         const kept = session !== undefined && nextEngine === engine;
         const live = kept ? session! : await startSession(nextEngine);
         const surface = live.getHandle();
-        if (!text.trim() && "newDiagram" in surface) {
+        if (isBlankDocument(text) && "newDiagram" in surface) {
             await surface.newDiagram();
             return;
         }

@@ -1,5 +1,5 @@
 import { LogWarningCommand } from "@miragon/bpmn-modeler-shared";
-import { formatErrors } from "@miragon/bpmn-modeler-types";
+import { formatErrors, isBlankDocument } from "@miragon/bpmn-modeler-types";
 
 import {
     isEditableHandle,
@@ -34,7 +34,7 @@ export function createSurfaceDocument(
         const surface = getSurface();
         // The readonly viewer cannot start a blank diagram, so it always loads the host XML.
         const result =
-            !content && isEditableHandle(surface)
+            isBlankDocument(content) && isEditableHandle(surface)
                 ? await surface.newDiagram()
                 : await surface.loadDiagram(content ?? "");
         if (result.warnings.length > 0) {

@@ -64,6 +64,16 @@ describe("FormModelerService", () => {
         expect(editor.posted).toEqual([new FormFileQuery(editor.content)]);
     });
 
+    it("seeds a whitespace-only document like an empty one", async () => {
+        const { service, editor } = createService("\n");
+
+        expect(await service.display(editor.id)).toBe(true);
+        expect(JSON.parse(editor.content)).toEqual(
+            expect.objectContaining({ id: expect.stringMatching(/^Form_[A-Za-z0-9]{8}$/) }),
+        );
+        expect(editor.saveCount).toBe(1);
+    });
+
     it("does not render or save a fallback form when its host write is rejected", async () => {
         const { service, host, editor } = createService("");
         vi.spyOn(host.documents, "write").mockResolvedValueOnce(false);

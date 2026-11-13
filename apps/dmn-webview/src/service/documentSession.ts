@@ -6,7 +6,7 @@ import {
     LogErrorCommand,
     WebviewDocumentSync,
 } from "@miragon/bpmn-modeler-shared";
-import { NoModelerError } from "@miragon/bpmn-modeler-types";
+import { isBlankDocument, NoModelerError } from "@miragon/bpmn-modeler-types";
 import type { DmnModelerHandle, DmnPendingInputHandle } from "@miragon/dmn-modeler";
 
 import type { DmnHost } from "../port/dmnHost";
@@ -37,7 +37,7 @@ export class DmnDocumentSession {
         this.document = new WebviewDocumentSync(host, {
             surface: {
                 importDocument: async (content) => {
-                    if (content) {
+                    if (content !== undefined && !isBlankDocument(content)) {
                         await this.requireModeler().loadDiagram(content);
                     }
                 },

@@ -130,3 +130,32 @@ describe("DmnDocumentSession input an editor still holds", () => {
         expect(context.modeler.flushPendingInput).not.toHaveBeenCalled();
     });
 });
+
+describe("DmnDocumentSession initial host file", () => {
+    it.each([
+        ["empty", ""],
+        ["whitespace-only", "\n"],
+    ])("leaves the modeler alone for %s content", async (_case, content) => {
+        const context = setup();
+        context.session.attachModeler(context.modeler as unknown as DmnModelerHandle);
+        const opened = context.session.openInitialDocument();
+
+        await context.session.receiveHostFile(new DmnFileQuery(content, 1));
+        await opened;
+
+        expect(context.modeler.loadDiagram).not.toHaveBeenCalled();
+        context.session.dispose();
+    });
+
+    it("loads non-blank content unchanged", async () => {
+        const context = setup();
+        context.session.attachModeler(context.modeler as unknown as DmnModelerHandle);
+        const opened = context.session.openInitialDocument();
+
+        await context.session.receiveHostFile(new DmnFileQuery("  <definitions />\n", 1));
+        await opened;
+
+        expect(context.modeler.loadDiagram).toHaveBeenCalledWith("  <definitions />\n");
+        context.session.dispose();
+    });
+});
