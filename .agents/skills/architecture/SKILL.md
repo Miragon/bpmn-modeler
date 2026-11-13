@@ -91,12 +91,17 @@ exported from
 a fixture that holds it, and runs the rules the core relies on (sorting, path
 spelling, the dismissal value), not one adapter's quirks;
 `describeWorkspaceContract` is the model. A port whose methods only return
-`void` or `Promise<void>` renders and needs none, and neither does a strategy
-the core chooses between, such as the engine clients. The `contract-suites`
+`void` or `Promise<void>` renders and needs none, unless the core reads its
+value back through another port: then the suite's fixture pairs it with that
+reader, as `describeLintingPreferenceContract` pairs `LintingPreferencePort`
+with `SettingsPort.getLintingEnabled`. A strategy the core chooses between,
+such as the engine clients, needs none either. The `contract-suites`
 fitness function lists every adapter of a core port whose specs do not import
 it and call a suite of that port; it sets ports with one adapter and
 render-only ports aside in collapsed groups, and a new adapter of a port with a
-suite shows as new until its spec runs the suite.
+suite shows as new until its spec runs the suite. It reads only types, so it
+sets a port read back through another port aside as render-only until that
+port has a suite.
 
 ## Preserve the boundaries
 

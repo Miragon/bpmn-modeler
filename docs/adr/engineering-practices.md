@@ -1597,7 +1597,10 @@ contract suite in the core's test kit once a second adapter meets it, and
 every adapter of the port runs it, the in-memory fake included. A port that
 only renders and a strategy the core chooses between are correct without one,
 so a rule over every port would fire on correct code; the function reports and
-never blocks. The pure measure
+never blocks. A port whose methods return `void` but whose value the core
+reads back through another port does not only render, though its types say
+so: it needs a suite whose fixture pairs it with the reader, as `describeLintingPreferenceContract` pairs
+`LintingPreferencePort` with `SettingsPort.getLintingEnabled`. The pure measure
 lives in `tools/repo-checks/src/contractSuites/domain`.
 
 - **Ports.** An interface declared in a `port/` folder of the hexagonal
@@ -1674,9 +1677,13 @@ lives in `tools/repo-checks/src/contractSuites/domain`.
   `describeNotifierContract`, while its base `LoggerPort` is render-only. That
   suite clears the `LoggerPort` pairs too, because a `NotifierPort` fixture
   holds a `LoggerPort`, though it calls no logging member.
-  `LintingPreferencePort.setLintingEnabled` returns `void | Promise<void>`, so
-  that port is marked render-only although the core reads the value back
-  through `SettingsPort.getLintingEnabled`.
+  The types cannot see a value the core reads back through another port.
+  `LintingPreferencePort.setLintingEnabled` returns `void | Promise<void>`,
+  and the core reads the choice back through `SettingsPort.getLintingEnabled`;
+  the port has `describeLintingPreferenceContract`, so an adapter that skips
+  it is listed. `LanguagePreferencePort.setLanguage`, read back through
+  `SettingsPort.getLanguage`, has no suite, and its two pairs stay
+  render-only.
 - **One adapter.** A port the core reads back from with one adapter and no
   suite has nothing to drift from yet: the kit has no fake of it, and a fake
   written inside a spec is no adapter. Its pair is set aside in a collapsed
