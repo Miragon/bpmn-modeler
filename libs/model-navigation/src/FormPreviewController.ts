@@ -1,5 +1,9 @@
 import { extractReference, referenceKindOf } from "./extractReference";
-import { DEFAULT_FORM_PREVIEW_AUTOMATIC, referenceKindSupports } from "@miragon/bpmn-modeler-types";
+import {
+    DEFAULT_FORM_PREVIEW_AUTOMATIC,
+    referenceKindSupports,
+    type ReferenceKind,
+} from "@miragon/bpmn-modeler-types";
 import type { FormPreviewHandle, ModelNavigationPort, PreviewRect } from "./ModelNavigationPort";
 import type { FormReferenceStatusClient } from "./FormReferenceStatusClient";
 import type { BusinessObjectLike } from "./extractReference";
@@ -108,10 +112,10 @@ export class FormPreviewController {
 
     private update(): void {
         if (this.disposed || !this.port.formPreview) return;
-        const elements = this.selection.get();
-        const kind = elements.length === 1 ? referenceKindOf(elements[0]) : undefined;
-        const target = kind && referenceKindSupports(kind, "preview") ? elements[0] : undefined;
-        const reference = target && kind && extractReference(target.businessObject, kind);
+        const selected = this.selectedPreviewTarget();
+        const target = selected?.element;
+        const reference =
+            selected && extractReference(selected.element.businessObject, selected.kind);
         this.transition({
             kind: "selection",
             automatic:
@@ -124,6 +128,15 @@ export class FormPreviewController {
                     : !!reference && this.status.isResolved(reference),
             visible: this.visible,
         });
+    }
+
+    private selectedPreviewTarget(): { element: PreviewElement; kind: ReferenceKind } | undefined {
+        const elements = this.selection.get();
+        if (elements.length !== 1) return undefined;
+        const kind = referenceKindOf(elements[0]);
+        return kind && referenceKindSupports(kind, "preview")
+            ? { element: elements[0], kind }
+            : undefined;
     }
 
     private transition(event: FormPreviewEvent<PreviewElement>): void {
