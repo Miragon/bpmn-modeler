@@ -458,6 +458,7 @@ describe("the allowance playground in a real VS Code, one profile for every wind
         const rows = await addOns.locator(".av-row").evaluateAll((elements) =>
             elements.map((row) => ({
                 title: row.querySelector(".av-row-title")?.textContent ?? "",
+                // An allowed row is settled, so it shows no status at all.
                 state: row.querySelector(".av-row-status")?.textContent ?? "",
             })),
         );
@@ -711,8 +712,8 @@ describe("the allowance playground in a real VS Code, one profile for every wind
             const rows = await addOnsViewRows();
             log(`feature: Add-ons rows ${JSON.stringify(rows)}`);
             expect(rows).toEqual([
-                { title: PLUGIN_NAME, state: "Allowed" },
-                { title: `${RULE_PACKAGE}@1.0.0`, state: "Allowed" },
+                { title: PLUGIN_NAME, state: "" },
+                { title: `${RULE_PACKAGE}@1.0.0`, state: "" },
             ]);
         },
         SCENARIO_TIMEOUT_MS,
@@ -726,8 +727,8 @@ describe("the allowance playground in a real VS Code, one profile for every wind
             const rows = await addOnsViewRows();
             log(`upgrade: Add-ons rows ${JSON.stringify(rows)}`);
             expect(rows).toEqual([
-                { title: PLUGIN_NAME, state: "Allowed" },
-                { title: `${RULE_PACKAGE}@2.0.0`, state: "Allowed" },
+                { title: PLUGIN_NAME, state: "" },
+                { title: `${RULE_PACKAGE}@2.0.0`, state: "" },
             ]);
         },
         SCENARIO_TIMEOUT_MS,
@@ -786,8 +787,8 @@ describe("the allowance playground in a real VS Code, one profile for every wind
             const rows = await addOnsViewRows();
             log(`pnpm: Add-ons rows after Refresh Add-ons ${JSON.stringify(rows)}`);
             expect(rows).toEqual([
-                { title: PLUGIN_NAME, state: "Allowed" },
-                { title: `${RULE_PACKAGE}@${removed.pnpm.to}`, state: "Allowed" },
+                { title: PLUGIN_NAME, state: "" },
+                { title: `${RULE_PACKAGE}@${removed.pnpm.to}`, state: "" },
             ]);
         },
         SCENARIO_TIMEOUT_MS,
