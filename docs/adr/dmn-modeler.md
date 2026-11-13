@@ -60,7 +60,10 @@ literal-expression and boxed-expression views share a second instance with
 dmn-js's 300 ms delay, registered after the facade's other modules of each
 view, so annotations, names, descriptions and simple-mode popups are flushed
 too. The modeler holds both instances instead of reading them from the active
-viewer, so it sees the input of every view. The handle reaches them through the
+viewer, so it sees the input of every view. The DRD panel's FEEL pop-up keeps
+its typed draft out of that service; the modeler tracks it with a third piece,
+`createPopupDraftInput`, as the [BPMN surfaces](bpmn-modeler.md#mode-session-and-lifecycle)
+do. The handle reaches them through the
 internal `hasPendingInput()` and `flushPendingInput()`
 (`DmnPendingInputHandle`), which answer `false` and do nothing once destroyed.
 The IDE webview's flush uses them to apply a typed value before it exports, as

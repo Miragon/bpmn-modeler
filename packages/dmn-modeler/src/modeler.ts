@@ -9,11 +9,14 @@ import camundaModdleDescriptor from "camunda-dmn-moddle/resources/camunda.json";
 
 import {
     createFlushableDebounceInput,
+    createPopupDraftInput,
     DisposableStore,
     fitCanvasToContent,
     type FittableCanvas,
     type FlushableDebounceInput,
     installFitViewportButton,
+    type PopupDraftInput,
+    type PopupEventBus,
     MutableDisposable,
     NoModelerError,
     observeCanvasSize,
@@ -104,6 +107,7 @@ export class DmnModeler implements DmnModelerHandle, DmnPendingInputHandle {
         PROPERTIES_PANEL_INPUT_DEBOUNCE_MS,
     );
     private readonly viewEditorInput = createFlushableDebounceInput(VIEW_EDITOR_INPUT_DEBOUNCE_MS);
+    private readonly propertiesPanelPopupDrafts = createPopupDraftInput();
     private activeEventBus?: EventBus;
     private themeController?: ThemeController;
 
@@ -130,6 +134,7 @@ export class DmnModeler implements DmnModelerHandle, DmnPendingInputHandle {
                     DmnSimulationModule.decisionRequirementsDiagram,
                     // After the panel, so its `debounceInput` is the flushable one.
                     debounceInputModule(this.propertiesPanelInput),
+                    popupDraftInputModule(this.propertiesPanelPopupDrafts),
                     ...(additionalModules.drd ?? []),
                 ],
             },
@@ -299,7 +304,9 @@ export class DmnModeler implements DmnModelerHandle, DmnPendingInputHandle {
     hasPendingInput(): boolean {
         return (
             !this.store.isDisposed &&
-            (this.propertiesPanelInput.hasPending() || this.viewEditorInput.hasPending())
+            (this.propertiesPanelPopupDrafts.hasPending() ||
+                this.propertiesPanelInput.hasPending() ||
+                this.viewEditorInput.hasPending())
         );
     }
 
@@ -309,9 +316,13 @@ export class DmnModeler implements DmnModelerHandle, DmnPendingInputHandle {
             return;
         }
         try {
-            this.propertiesPanelInput.flush();
+            this.propertiesPanelPopupDrafts.flush();
         } finally {
-            this.viewEditorInput.flush();
+            try {
+                this.propertiesPanelInput.flush();
+            } finally {
+                this.viewEditorInput.flush();
+            }
         }
     }
 
@@ -415,6 +426,15 @@ export class DmnModeler implements DmnModelerHandle, DmnPendingInputHandle {
 
 function debounceInputModule(debounceInput: FlushableDebounceInput) {
     return { debounceInput: ["value", debounceInput] };
+}
+
+function popupDraftInputModule(popupDrafts: PopupDraftInput) {
+    const trackPopup = (eventBus: PopupEventBus) => {
+        popupDrafts.track(eventBus);
+        return popupDrafts;
+    };
+    trackPopup.$inject = ["eventBus"];
+    return { __init__: ["popupDraftInput"], popupDraftInput: ["factory", trackPopup] };
 }
 
 function enhanceOperationError(context: string, error: unknown): Error {

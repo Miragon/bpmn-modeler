@@ -1857,6 +1857,14 @@ reach it through the internal `hasPendingInput()` and `flushPendingInput()`
 switch use to apply a typed value before they export. They are not public API
 yet.
 
+The FEEL pop-up bypasses that service: since `@bpmn-io/properties-panel` 3.58
+it keeps what is typed in a draft and applies it once, when the pop-up closes.
+`PopupDraftInputModule` (`createPopupDraftInput` from `modeler-types`) wraps the
+pop-up's `onInput` ahead of the pop-up service, so `hasPendingInput()` also
+answers `true` for an open pop-up that holds typed input, and
+`flushPendingInput()` closes that pop-up, which applies the draft through the
+library's own path. A pop-up nothing was typed into stays open on a save.
+
 ## Consequences and enforcement
 
 The public facade, signatures and declared subpaths require compatibility

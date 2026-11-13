@@ -4,6 +4,7 @@ import {
     type FlushableDebounceInput,
     installFitViewportButton,
     NoModelerError,
+    type PopupDraftInput,
     ThemeController,
 } from "@miragon/bpmn-modeler-types";
 
@@ -134,12 +135,16 @@ export class SurfaceCore<T extends SurfaceInstance> implements SurfaceServices {
 
     /** `false` once destroyed: a torn-down panel holds no input. */
     hasPendingInput(): boolean {
-        return this.panelInput()?.hasPending() ?? false;
+        return (this.panelInput()?.hasPending() ?? false) || (this.popupDrafts()?.hasPending() ?? false);
     }
 
     /** A no-op once destroyed. */
     flushPendingInput(): void {
-        this.panelInput()?.flush();
+        try {
+            this.popupDrafts()?.flush();
+        } finally {
+            this.panelInput()?.flush();
+        }
     }
 
     /** Arms the one-time initial fit for the diagram that was just imported. */
@@ -165,6 +170,10 @@ export class SurfaceCore<T extends SurfaceInstance> implements SurfaceServices {
 
     private panelInput(): FlushableDebounceInput | undefined {
         return this.liveInstance?.get<FlushableDebounceInput>("debounceInput", false) ?? undefined;
+    }
+
+    private popupDrafts(): PopupDraftInput | undefined {
+        return this.liveInstance?.get<PopupDraftInput>("popupDraftInput", false) ?? undefined;
     }
 
     private liveView(): SurfaceView {

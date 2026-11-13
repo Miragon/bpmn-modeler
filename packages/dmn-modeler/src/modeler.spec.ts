@@ -174,6 +174,44 @@ function viewDebounceInput(additionalModules: unknown[]): DebounceInputService {
     return service as DebounceInputService;
 }
 
+type BusListener = (event: unknown, context?: unknown) => unknown;
+
+/**
+ * Starts the DRD view's pop-up tracking on a bus that stands in for the panel's pop-up
+ * service: opening hands the tracker the pop-up's context, closing fires the close event.
+ */
+function drdFeelPopup(vendor: MockVendor) {
+    const tracking = vendor.options.drd.additionalModules.find(
+        (module) => (module as { popupDraftInput?: unknown }).popupDraftInput,
+    ) as { __init__: string[]; popupDraftInput: [string, (eventBus: unknown) => unknown] };
+    expect(tracking.__init__).toEqual(["popupDraftInput"]);
+    const listeners = new Map<string, BusListener[]>();
+    let closeRequests = 0;
+    const eventBus = {
+        on(event: string, _priority: number, callback: BusListener) {
+            listeners.set(event, [...(listeners.get(event) ?? []), callback]);
+        },
+        fire(event: string, context?: unknown) {
+            if (event === "propertiesPanel.closePopup") {
+                closeRequests++;
+                event = "propertiesPanelPopup.close";
+            }
+            (listeners.get(event) ?? []).forEach((listener) => listener({ type: event }, context));
+        },
+    };
+    const [kind, factory] = tracking.popupDraftInput;
+    expect(kind).toBe("factory");
+    factory(eventBus);
+    return {
+        open() {
+            const context = { onInput: (_value: string) => {} };
+            eventBus.fire("propertiesPanel.openPopup", context);
+            return context;
+        },
+        closeRequests: () => closeRequests,
+    };
+}
+
 function typeInto(debounceInput: DebounceInputService, typed: string): string[] {
     const applied: string[] = [];
     const setValue = debounceInput((value: string) => {
@@ -237,6 +275,7 @@ describe("DmnModeler", () => {
             mocks.camundaProvider,
             mocks.drdSimulation,
             { debounceInput: ["value", expect.any(Function)] },
+            { __init__: ["popupDraftInput"], popupDraftInput: ["factory", expect.any(Function)] },
             drdModule,
         ]);
         const viewEditorInputModule = { debounceInput: ["value", expect.any(Function)] };
@@ -669,6 +708,19 @@ describe("DmnModeler", () => {
 
             expect(() => handle.flushPendingInput()).toThrow(panelFailure);
             expect(applied).toEqual(["Checks the amount"]);
+            expect(handle.hasPendingInput()).toBe(false);
+        });
+
+        it("reports and applies what is typed into the DRD panel's FEEL pop-up", () => {
+            const handle = createModeler();
+            const popup = drdFeelPopup(mocks.vendors[0]);
+
+            popup.open().onInput("amount > 100");
+
+            expect(handle.hasPendingInput()).toBe(true);
+            handle.flushPendingInput();
+
+            expect(popup.closeRequests()).toBe(1);
             expect(handle.hasPendingInput()).toBe(false);
         });
 
