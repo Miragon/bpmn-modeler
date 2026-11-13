@@ -232,8 +232,11 @@ libraries included, by base type rather than by name. A construction whose
 `path:line`. A new surface therefore registers in
 `WEBVIEW_SURFACE_COMMAND_TYPES` before its webview can post anything. The scan
 misses a message posted without a construction, such as an object literal or a
-command the page echoes back, and a webview whose program is not a
-`tsconfig.app.json`. The anchor class is resolved like the `Command` base: a
+command the page echoes back, a webview whose program is not a
+`tsconfig.app.json`, and a webview whose program never constructs
+`HostApiImpl`, such as one that calls `acquireVsCodeApi()` itself or only
+uses a mock. Such a webview drops out without a sign; the spec fails only when
+no webview is left. The anchor class is resolved like the `Command` base: a
 renamed class fails the spec, a moved one leaves no webview and fails it as
 well. Building the three app programs that are no webview (the VS Code host,
 the bridge, the Orca plugin) takes the spec file from 3.2 s to 7.1 s; the

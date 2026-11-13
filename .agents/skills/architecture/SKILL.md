@@ -77,10 +77,11 @@ actions and settings page count too. A text a branch adds shows as new. It also
 lists host chrome and technical strings (CSS classes, scripts; tags and HTML
 shells count no words); judge each, and leave the host's own text where it is.
 Log and error text is not read: TypeScript logs through the `log…` members of
-the core's `LoggerPort` or `console`, Kotlin through a value declared from
-IntelliJ's `Logger.getInstance(…)` or `thisLogger()`, and a developer message
-goes in `new Error(…)`. A text handed to a logger named any other way, such as
-an object named `logger`, is reported.
+the core's `LoggerPort`, Kotlin through a value declared from IntelliJ's
+`Logger.getInstance(…)`, `logger<T>()` or `fileLogger()`, or through an
+imported `thisLogger()`, and a developer message goes in `new Error(…)`. A
+text handed to a logger named any other way, such as `console` or an object
+named `logger`, is reported.
 
 A generated file is marked `linguist-generated` in the root `.gitattributes`.
 `change-coupling` and `missed-partner` do not read it, and GitHub collapses it

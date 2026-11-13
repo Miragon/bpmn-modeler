@@ -1003,13 +1003,17 @@ history reader and the window in `tools/repo-checks/src/history`, which
   the issue's "outside `src/`" exclusion would have read no `.mjs` file at
   all, such as the `check-*.mjs` scripts or
   `libs/bpmn-i18n-extras/tools/build-overlay.mjs`.
-- **Generated files.** Not read: the tracked files the root `.gitattributes`
-  marks `linguist-generated`, bare or `=true` as GitHub reads it, today the 13
-  translation overlays in `libs/bpmn-i18n-extras/src/languages/`. The
-  `SourceStructure` adapter asks `git check-attr` once for every tracked file,
-  so `sourceLayout.ts` stays pure and a checkout of another commit reads that
-  commit's `.gitattributes`. `generatedFiles.spec.ts` fails when a
-  `linguist-generated` pattern matches no tracked file, so a stale entry
+- **Generated files.** Not read: the tracked files git marks
+  `linguist-generated`, bare or `=true` as GitHub reads it, today the 13
+  translation overlays in `libs/bpmn-i18n-extras/src/languages/`, marked in
+  the root `.gitattributes`. The `SourceStructure` adapter asks `git
+  check-attr` once for every tracked file, so `sourceLayout.ts` stays pure and
+  a checkout of another commit reads that commit's `.gitattributes`. git also
+  reads a nested `.gitattributes`, `.git/info/attributes` and
+  `core.attributesFile`; the last two are local, so a mark there changes a
+  local run but not CI's. `generatedFiles.spec.ts` fails when a
+  `linguist-generated` pattern of any tracked `.gitattributes` matches no
+  tracked file, so a stale entry
   cannot let its files be read again unnoticed. GitHub collapses the same
   files in a pull request's diff. Unmarked, the overlays and their generator
   turn 53 findings into 130 at `c001a82f`.
@@ -1363,7 +1367,11 @@ history (Zimmermann et al., ROSE, ICSE 2004 / TSE 2005) and lives in the
 `changeCoupling` context, reusing its read files, counted commits and history
 reader. Version 2 (#2218) follows change-coupling version 3: every `.json`
 under `src/`, generated files skipped by their `linguist-generated` mark; the
-replay is in [Change coupling](#change-coupling).
+replay is in [Change coupling](#change-coupling). On main it finds 0 warnings
+in both versions, as the base and every snapshot measure no change and return
+at once (0.01 s). A branch run, this PR's tree against `c001a82f`, takes 0.38
+to 0.50 s warm, version 1 0.37 to 0.39 s in the same session; the difference
+is the one `git check-attr` it shares with change-coupling.
 
 - **The change.** `git diff --name-status -M -l0 -z --no-ext-diff
   --no-relative <changeBase>`: the working tree against the merge base,
@@ -1504,22 +1512,27 @@ recomputes from git.
 - **Not read.** A literal inside the arguments of `new Error(…)`, of a call a
   Kotlin `throw` raises (Kotlin constructs without `new`), of a TypeScript
   call to `log` or a `log` + capital function (`logError`, not `login`), the
-  members of the core's `LoggerPort`, of a TypeScript call on `console`, the
-  global `Console`, or of a Kotlin call on an IntelliJ logger, up to the
-  nearest function or lambda. Version 4 (#2218) derives the Kotlin loggers
-  from their declarations instead of the variable names `log`, `LOG`,
-  `logger`, `thisLogger` and `console`: a value the file declares from
-  `Logger.getInstance(…)`, as a property, a top-level value or a constructor
-  property's default (`HostNotifications.kt`), read by
-  `readKotlinInitializedValues` of the engine, and `thisLogger()`, each
-  imported from `com.intellij.openapi.diagnostic` or called fully qualified.
-  `thisLogger()` is the logger IntelliJ recommends, so new Kotlin host code
-  logs through `thisLogger().warn(…)`; the tree holds none yet. The `log…`
-  pattern no longer applies to Kotlin, where it matched no call. `log…` is the
-  one product name left: the core's `LoggerPort` names its members so, and
-  `hostTextNames.spec.ts` fails when it no longer matches a text in host
-  code. `Error` and `console` are the platform's globals, which no product
-  rename touches. Version 1 read through functions, so it skipped every text inside
+  members of the core's `LoggerPort`, or of a Kotlin call on an IntelliJ
+  logger, up to the nearest function or lambda. Version 4 (#2218) derives the
+  Kotlin loggers from their declarations instead of the variable names `log`,
+  `LOG`, `logger`, `thisLogger` and `console`: a value the file declares from
+  `Logger.getInstance(…)`, `logger<T>()` or `fileLogger()`, as a property, a
+  top-level value or a constructor property's default
+  (`HostNotifications.kt`), read by `readKotlinInitializedValues` of the
+  engine, each factory imported from `com.intellij.openapi.diagnostic` or
+  called fully qualified, and `thisLogger()`, imported from there. A call
+  site names only its receiver's callee, so a fully qualified
+  `thisLogger().warn(…)` cannot be told from another `thisLogger` and is
+  read. `thisLogger()` is the logger IntelliJ recommends, so new Kotlin host
+  code logs through `thisLogger().warn(…)`; the tree holds none yet. The
+  `log…` pattern no longer applies to Kotlin, where it matched no call. In
+  TypeScript, `console` is no logger any more: it matched no call, and host
+  code logs through `LoggerPort`, so a text on `console` is reported. Two
+  names stay, each declared in the function's limits and guarded by
+  `hostTextNames.spec.ts`, which fails when one no longer takes a text in
+  host code: `log…`, the members of the core's `LoggerPort`, and the global
+  `Error`. The guard does not tell which functions a name covers: a private
+  `logError` helper alone would keep `log…` green. Version 1 read through functions, so it skipped every text inside
   `logAndRethrow(async () => …)`: 5 texts of `CommandController.ts` at
   `cd48f2cd`. The lambda after the parentheses of Kotlin's `require(…)`,
   `check(…)`, `requireNotNull(…)` and `checkNotNull(…)` is their message, so
@@ -1606,11 +1619,12 @@ shell lines of #2310 are gone; #2310's other 6 stay.
 Version 4 at `c001a82f`: 112 findings, the same keys as version 3. 17 Kotlin
 host files declare a logger from `Logger.getInstance(…)`, all named `log`, and
 41 two-word texts in 16 of them stay unread; no host file calls
-`thisLogger()`. TypeScript leaves 7 texts in 5 files unread through `log…`, 9
-through `new Error`, none through `console`; dropping `log`, `LOG` and
-`logger` adds no finding, as the one text on `this.logger` goes to
-`logWarning(…)`. 0.20 to 0.41 s per tree warm, version 3 0.17 to 0.19 s in
-the same runs; the Kotlin host files are lexed a second time.
+`thisLogger()`, `logger<T>()` or `fileLogger()`. TypeScript leaves 7 texts in
+5 files unread through `log…` and 9 through `new Error`; dropping `console`,
+which took none, and `log`, `LOG` and `logger` adds no finding, as the one
+text on `this.logger` goes to `logWarning(…)`. 0.20 to 0.41 s per tree warm,
+version 3 0.17 to 0.19 s in the same runs; the Kotlin host files are lexed a
+second time.
 
 Alternatives considered:
 
@@ -1624,7 +1638,11 @@ Alternatives considered:
   subclass with a text, and every log call goes through `LoggerPort`. It also
   needs the `LoggerPort` anchor by path, a product name of its own. The
   function keeps `log…` and `Error`, names both in its limits and guards
-  `log…` with `hostTextNames.spec.ts`.
+  both with `hostTextNames.spec.ts`.
+- **Keeping `console` as a platform global, unguarded.** No rename removes
+  it, but it took no text at `c001a82f`, so a guard on it would fail at once,
+  and #2218 asks that every name left takes a text. Host code logs through
+  `LoggerPort`, so a text on `console` is worth a row.
 - **An ESLint rule with an allowlist.** Host chrome is correct, so the rule
   fires on correct code and its allowlist is work in every PR that adds a
   button; the delta shows what is new without one.

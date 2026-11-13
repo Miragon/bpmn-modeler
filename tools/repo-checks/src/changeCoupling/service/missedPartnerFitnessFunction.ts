@@ -29,7 +29,7 @@ export function createMissedPartnerFitnessFunction({
         id: "missed-partner",
         version: 2,
         categories: { scope: "atomic", cadence: "triggered", result: "dynamic" },
-        measures: `Files the branch changed (the working tree against the merge base, renames followed) without a partner they usually change with. A rule file → partner is mined from the ${HISTORY_WINDOW} first-parent commits up to the merge base and warns when the partner did not change: at least ${minSharedChanges} shared changes, confidence (shared ÷ the file's revisions) of at least ${minConfidencePercent} % and lift (confidence ÷ the partner's share of counted changesets) of at least ${minLift}. Counted and read as change-coupling: no chore(deps), chore(main), chore(format) or style commits, none with more than ${maxChangesetSize} read files, none without a read file; generated files, the tracked files the root .gitattributes marks linguist-generated, are never read. The base and every snapshot measure no change and hold no warning, so each warning is new.`,
+        measures: `Files the branch changed (the working tree against the merge base, renames followed) without a partner they usually change with. A rule file → partner is mined from the ${HISTORY_WINDOW} first-parent commits up to the merge base and warns when the partner did not change: at least ${minSharedChanges} shared changes, confidence (shared ÷ the file's revisions) of at least ${minConfidencePercent} % and lift (confidence ÷ the partner's share of counted changesets) of at least ${minLift}. Counted and read as change-coupling: no chore(deps), chore(main), chore(format) or style commits, none with more than ${maxChangesetSize} read files, none without a read file; generated files, the tracked files git check-attr marks linguist-generated, such as the translation overlays the root .gitattributes marks, are never read. The base and every snapshot measure no change and hold no warning, so each warning is new.`,
         reliesOn: {
             skill: "tdd",
             rule: "files that changed together in the past are likely to need a change together again (Zimmermann et al.)",
@@ -70,7 +70,7 @@ export function createMissedPartnerFitnessFunction({
             {
                 kind: "trial",
                 commit: "c001a82f",
-                outcome: `version 2, which reads every .json file under src/ and skips declared generated files, against version 1 in fitness missed-partner replay, 192 of ${REPLAYED_COMMITS} commits not mechanical: at the chosen thresholds 103 to 107 warnings, 27 to 28 hits, precision 26.2 % both, chance 20.1 % to 20.8 %, margin 6.1 to 5.4 points; lift 8 85 to 89 warnings, margin 8.6 to 8.8. No change on main, so no warning in either version`,
+                outcome: `version 2, which reads every .json file under src/ and skips declared generated files, against version 1 in fitness missed-partner replay, 192 of ${REPLAYED_COMMITS} commits not mechanical: at the chosen thresholds 103 to 107 warnings, 27 to 28 hits, precision 26.2 % both, chance 20.1 % to 20.8 %, margin 6.1 to 5.4 points; lift 8 85 to 89 warnings, margin 8.6 to 8.8. No change on main, so 0 warnings in either version and a return in 0.01 s; a branch run, the PR's tree against c001a82f, 0.38 to 0.50 s warm, version 1 0.37 to 0.39 s in the same session`,
             },
         ],
         // The review reads its warnings and judges them; on a pull request most were false.
