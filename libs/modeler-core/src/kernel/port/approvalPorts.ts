@@ -1,4 +1,5 @@
-import { CodeApproval, CodeApprovalChange, ReviewAnswer } from "../domain/codeApproval";
+import { ReviewAnswer } from "../domain/approvalAnswer";
+import { CodeApproval, CodeApprovalChange } from "../domain/codeApproval";
 import { ChoicePrompt } from "../domain/prompts";
 
 /**

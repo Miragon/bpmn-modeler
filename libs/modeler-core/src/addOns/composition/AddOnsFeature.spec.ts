@@ -26,8 +26,9 @@ import {
     allowanceRowOf,
     LOCAL_HOST,
 } from "../../kernel/domain/allowance";
+import { ProcessRestart } from "../../kernel/domain/approvableCodeTexts";
 import { AllowanceKind } from "../../kernel/domain/approvalRowKind";
-import { ProcessRestart, revoking } from "../../kernel/domain/codeApproval";
+import { revoking } from "../../kernel/domain/codeApproval";
 import { AllowanceLocator } from "../../kernel/service/AllowanceLocator";
 import { ArtifactService } from "../../kernel/service/ArtifactService";
 import { ApprovalQuestion } from "../../kernel/service/ApprovalQuestion";

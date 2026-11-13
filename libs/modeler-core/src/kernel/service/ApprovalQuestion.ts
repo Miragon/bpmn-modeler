@@ -1,5 +1,5 @@
 import { ActionNotice } from "../domain/actionNotice";
-import { ApprovalNoticeAction, ReviewAnswer } from "../domain/codeApproval";
+import { ApprovalNoticeAction, ReviewAnswer } from "../domain/approvalAnswer";
 import { ChoicePrompt } from "../domain/prompts";
 import { ApprovalReviewPort } from "../port/approvalPorts";
 import { ActionNotifierPort, WorkspacePort } from "../port/hostPorts";

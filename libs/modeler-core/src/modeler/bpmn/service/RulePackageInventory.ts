@@ -1,5 +1,5 @@
 import { AllowableCode } from "../../../kernel/domain/allowance";
-import { SessionAnswer } from "../../../kernel/domain/codeApproval";
+import { SessionAnswer } from "../../../kernel/domain/approvalAnswer";
 import { installedPackageNameOf } from "../../../kernel/domain/installedPackagePath";
 import { ListedPresence } from "../../../kernel/domain/listedCode";
 import { joinWorkspacePath } from "../../../kernel/domain/workspacePath";

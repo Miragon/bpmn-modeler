@@ -1,5 +1,5 @@
 import { revokingAllowance } from "../../kernel/domain/allowance";
-import { ProcessRestart } from "../../kernel/domain/codeApproval";
+import { ProcessRestart } from "../../kernel/domain/approvableCodeTexts";
 import { ListedPresence } from "../../kernel/domain/listedCode";
 import { PluginApprovalStorePort } from "../../kernel/port/approvalPorts";
 import { LoggerPort } from "../../kernel/port/hostPorts";

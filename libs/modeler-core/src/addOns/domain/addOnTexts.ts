@@ -1,6 +1,5 @@
 import { Allowance, LOCAL_HOST, repositoryFolderOf } from "../../kernel/domain/allowance";
-import type { CodeState } from "../../kernel/domain/codeApproval";
-import { AddOnKind, TemplateState } from "./addOnIds";
+import { AddOnKind, CodeState, TemplateState } from "./addOnIds";
 
 export const ADD_ON_KIND_TEXT: Record<AddOnKind, string> = {
     plugin: "BPMN plugin",

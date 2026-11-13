@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-import { describe, expect, expectTypeOf, it } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import {
     approvalChangeBetween,
@@ -10,13 +10,7 @@ import {
     type CodeApproval,
     codeApprovalChange,
     type CodeApprovalChange,
-    declinedKeys,
-    notAskedAgain,
-    PROCESS_RESTART_TEXT,
-    PROCESS_RESTARTS,
     revoking,
-    SESSION_ANSWERS,
-    type SessionAnswer,
 } from "./codeApproval";
 
 type CaseRow = [pluginId: string, contentHash: string];
@@ -193,33 +187,5 @@ describe("approvalsKey", () => {
         expect(approvalsKey([{ ...resizeRow, version: "1" } as CodeApproval])).toBe(
             approvalsKey([resizeRow]),
         );
-    });
-});
-
-describe("session answers", () => {
-    const resizeKey = '["plugin","","folder","/repo/.camunda/plugins/resize-tasks",""]';
-    const paletteKey = '["plugin","","folder","/repo/.camunda/plugins/reduced-palette",""]';
-    const answers = new Map<string, SessionAnswer>([
-        [resizeKey, "declined"],
-        [paletteKey, "leftForView"],
-    ]);
-
-    it("asks no notice again about an allowance declined or left to the view", () => {
-        expect(notAskedAgain(answers)).toEqual(new Set([resizeKey, paletteKey]));
-    });
-
-    it("tells the gate only of declined allowances", () => {
-        expect(declinedKeys(answers)).toEqual(new Set([resizeKey]));
-    });
-
-    it("names each answer a session can hold", () => {
-        expectTypeOf<SessionAnswer>().toEqualTypeOf<(typeof SESSION_ANSWERS)[number]>();
-        expect(SESSION_ANSWERS).toEqual(["declined", "leftForView"]);
-    });
-});
-
-describe("process restarts", () => {
-    it.each(PROCESS_RESTARTS)("names how to %s", (restart) => {
-        expect(PROCESS_RESTART_TEXT[restart]).toMatch(/^[a-z]+ the \w+$/);
     });
 });

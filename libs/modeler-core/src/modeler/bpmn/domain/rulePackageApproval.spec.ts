@@ -6,12 +6,12 @@ import {
     allowanceRowOf,
     type AllowanceState,
 } from "../../../kernel/domain/allowance";
+import { type ProcessRestart } from "../../../kernel/domain/approvableCodeTexts";
 import { RULE_PACKAGE_CONTENT_HASH_PREFIX } from "../../../kernel/domain/approvalRowKind";
 import {
     type CodeApproval,
     type CodeApprovalChange,
     codeApprovalChange,
-    type ProcessRestart,
 } from "../../../kernel/domain/codeApproval";
 import {
     type BlockedRulePackage,

@@ -9,30 +9,6 @@ export interface CodeApproval {
     readonly contentHash: string;
 }
 
-/** The state the add-ons view shows a code add-on in. */
-export type CodeState = "approved" | "new" | "declined";
-
-/** What a host makes the user do before code it already ran is unloaded; a typed fact, never host prose. */
-export const PROCESS_RESTARTS = ["reloadWindow", "restartIde"] as const;
-
-export type ProcessRestart = (typeof PROCESS_RESTARTS)[number];
-
-export const PROCESS_RESTART_TEXT: Record<ProcessRestart, string> = {
-    reloadWindow: "reload the window",
-    restartIde: "restart the IDE",
-};
-
-/** What an owner says of its code: what it can do once allowed, and what follows an allow or a revoke. */
-export interface ApprovableCodeTexts {
-    readonly risk: string;
-    readonly allowedFollowUp: string;
-    /** Also the note of a row whose code its owner says stays loaded after a revoke. */
-    readonly revokedFollowUp: (restart: ProcessRestart) => string;
-}
-
-/** Every approval notice offers only this; the list opens from it. */
-export type ApprovalNoticeAction = "review";
-
 /**
  * One write to the one list, merged by the host into the list it stores, so
  * a writer never drops a row it had not read. Built only through
@@ -120,24 +96,4 @@ function firstRowById(approvals: readonly CodeApproval[]): Map<string, CodeAppro
         if (!byId.has(row.pluginId)) byId.set(row.pluginId, rowOf(row));
     }
     return byId;
-}
-
-/** What a session remembers of an answer about one allowance: `allowanceKeyOf` keys it. */
-export const SESSION_ANSWERS = ["declined", "leftForView"] as const;
-
-export type SessionAnswer = (typeof SESSION_ANSWERS)[number];
-
-/** What "Review…" answered: the ids the user checked, or the pending code left to a view. */
-export type ReviewAnswer =
-    | { readonly kind: "checked"; readonly ids: readonly string[] }
-    | { readonly kind: "leftForView" };
-
-/** No notice asks again about an allowance the user declined or left to a view. */
-export function notAskedAgain(answers: ReadonlyMap<string, SessionAnswer>): ReadonlySet<string> {
-    return new Set(answers.keys());
-}
-
-/** An allowance left to a view keeps its state, so only a decline changes what the gate reports. */
-export function declinedKeys(answers: ReadonlyMap<string, SessionAnswer>): ReadonlySet<string> {
-    return new Set([...answers].filter(([, answer]) => answer === "declined").map(([key]) => key));
 }

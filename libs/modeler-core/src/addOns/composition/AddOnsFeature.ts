@@ -1,6 +1,6 @@
 import { Command, Query } from "@miragon/bpmn-modeler-shared";
 
-import { ProcessRestart } from "../../kernel/domain/codeApproval";
+import { ProcessRestart } from "../../kernel/domain/approvableCodeTexts";
 import { PluginApprovalStorePort } from "../../kernel/port/approvalPorts";
 import { trustOrTrusted } from "../../kernel/adapter/out/TrustedWorkspace";
 import {

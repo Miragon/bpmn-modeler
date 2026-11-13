@@ -6,7 +6,7 @@ import {
     allowingAllowances,
     pendingAllowances,
 } from "../../kernel/domain/allowance";
-import { notAskedAgain, ReviewAnswer, SessionAnswer } from "../../kernel/domain/codeApproval";
+import { notAskedAgain, ReviewAnswer, SessionAnswer } from "../../kernel/domain/approvalAnswer";
 import { ChoicePrompt } from "../../kernel/domain/prompts";
 import { askedInWorkspace, runsInWorkspace } from "../../kernel/domain/workspaceTrust";
 import { LoggerPort, WorkspaceTrustPort } from "../../kernel/port/hostPorts";

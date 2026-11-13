@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import { type Allowance, allowanceRowOf } from "../../kernel/domain/allowance";
+import { PROCESS_RESTARTS } from "../../kernel/domain/approvableCodeTexts";
 import { RULE_PACKAGE_CONTENT_HASH_PREFIX } from "../../kernel/domain/approvalRowKind";
-import { type CodeApproval, PROCESS_RESTARTS } from "../../kernel/domain/codeApproval";
+import { type CodeApproval } from "../../kernel/domain/codeApproval";
 import { type DirectoryEntryKind } from "../../kernel/domain/directoryEntry";
 import {
     approvedContent,

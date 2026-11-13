@@ -1,11 +1,6 @@
+import { ReviewAnswer, SessionAnswer } from "./approvalAnswer";
 import { allowanceMarkerOf, AllowanceKind, approvalRowReadingOf } from "./approvalRowKind";
-import {
-    CodeApproval,
-    codeApprovalChange,
-    CodeApprovalChange,
-    ReviewAnswer,
-    SessionAnswer,
-} from "./codeApproval";
+import { CodeApproval, codeApprovalChange, CodeApprovalChange } from "./codeApproval";
 import { installedPackageNameOf, NODE_MODULES } from "./installedPackagePath";
 import { CodeOrigin } from "./repositoryIdentity";
 import { relativeToRoot } from "./rootContainment";

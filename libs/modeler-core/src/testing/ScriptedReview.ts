@@ -1,4 +1,4 @@
-import { ReviewAnswer } from "../kernel/domain/codeApproval";
+import { ReviewAnswer } from "../kernel/domain/approvalAnswer";
 import { ApprovalReviewPort, ApprovalReviewRequest } from "../kernel/port/approvalPorts";
 
 /** Scripted review answers keyed by prompt id: the checked ids, or the code left to a view. */
