@@ -5,7 +5,6 @@ const vscodeFake = vi.hoisted(() => {
     return {
         registered,
         module: {
-            TreeItemCheckboxState: { Unchecked: 0, Checked: 1 },
             commands: {
                 registerCommand: (id: string, callback: (...args: unknown[]) => unknown) => {
                     registered.set(id, callback);
@@ -18,33 +17,22 @@ const vscodeFake = vi.hoisted(() => {
 
 vi.mock("vscode", () => vscodeFake.module);
 
-import type { ElementIdReviewRowView, ElementIdsService } from "@miragon/bpmn-modeler-core";
+import type { ElementIdsService } from "@miragon/bpmn-modeler-core";
 import type { ExtensionContext } from "vscode";
 
-import type { ElementIdReviewNode, VsCodeElementIdReview } from "../out/VsCodeElementIdReview";
 import {
     APPLY_ELEMENT_IDS_CMD,
     DISCARD_ELEMENT_IDS_CMD,
     ElementIdReviewController,
+    REVEAL_ELEMENT_ID_ROW_CMD,
 } from "./ElementIdReviewController";
 
-const rowView = (id: string): ElementIdReviewRowView => ({
-    id,
-    label: id,
-    description: id,
-    tooltip: id,
-    checked: true,
-    revealId: `${id}_shown`,
-});
-
 function setUp() {
-    let onCheckboxChange: (event: { items: [ElementIdReviewNode, number][] }) => void = () => {};
+    let reportChecks: (ids: string[], checked: boolean) => void = () => {};
     const review = {
-        treeView: {
-            onDidChangeCheckboxState: (listener: typeof onCheckboxChange) => {
-                onCheckboxChange = listener;
-                return { dispose: vi.fn() };
-            },
+        onDidChangeChecks: (listener: typeof reportChecks) => {
+            reportChecks = listener;
+            return { dispose: vi.fn() };
         },
         dispose: vi.fn(),
     };
@@ -57,7 +45,7 @@ function setUp() {
     const logger = { logError: vi.fn() };
     const context = { subscriptions: [] as { dispose(): void }[] };
     new ElementIdReviewController(
-        review as unknown as VsCodeElementIdReview,
+        review,
         elementIds as unknown as ElementIdsService,
         logger,
     ).register(context as unknown as ExtensionContext);
@@ -67,7 +55,7 @@ function setUp() {
         context,
         review,
         run: (id: string, ...args: unknown[]) => vscodeFake.registered.get(id)!(...args),
-        changeCheckboxes: (items: [ElementIdReviewNode, number][]) => onCheckboxChange({ items }),
+        reportChecks: (ids: string[], checked: boolean) => reportChecks(ids, checked),
     };
 }
 
@@ -89,26 +77,16 @@ describe("ElementIdReviewController", () => {
     it("reveals the element of a clicked row", async () => {
         const { elementIds, run } = setUp();
 
-        await run("bpmn-modeler.elementIdReview.reveal", "Participant_1");
+        await run(REVEAL_ELEMENT_ID_ROW_CMD, "Participant_1");
 
         expect(elementIds.reveal).toHaveBeenCalledExactlyOnceWith("Participant_1");
     });
 
-    it("hands each checkbox change to the core, a group's as its rows", async () => {
-        const { elementIds, changeCheckboxes } = setUp();
-        const group = {
-            id: "activity",
-            label: "Activities",
-            collapsed: false,
-            rows: [rowView("Activity_1"), rowView("Activity_2")],
-        };
+    it("hands each checkbox change the panel reports to the core", async () => {
+        const { elementIds, reportChecks } = setUp();
 
-        changeCheckboxes([
-            [{ group }, 0],
-            [{ row: group.rows[0]! }, 0],
-            [{ row: group.rows[1]! }, 0],
-        ]);
-        changeCheckboxes([[{ row: rowView("Event_1") }, 1]]);
+        reportChecks(["Activity_1", "Activity_2"], false);
+        reportChecks(["Event_1"], true);
         await vi.waitFor(() => expect(elementIds.setChecked).toHaveBeenCalledTimes(2));
 
         expect(elementIds.setChecked.mock.calls).toEqual([

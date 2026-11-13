@@ -7,6 +7,7 @@ import {
     TreeItem,
     TreeItemCheckboxState,
     TreeItemCollapsibleState,
+    type TreeCheckboxChangeEvent,
     type TreeView,
     window,
 } from "vscode";
@@ -19,7 +20,6 @@ import type {
 } from "@miragon/bpmn-modeler-core";
 
 export const ELEMENT_ID_REVIEW_VIEW = "bpmn-modeler.elementIdReview";
-export const REVEAL_ELEMENT_ID_ROW_CMD = "bpmn-modeler.elementIdReview.reveal";
 const REVIEW_OPEN_KEY = "bpmn-modeler.elementIdReviewOpen";
 const REVIEW_CAN_APPLY_KEY = "bpmn-modeler.elementIdReviewCanApply";
 
@@ -28,8 +28,25 @@ export type ElementIdReviewNode =
     | { readonly row: ElementIdReviewRowView };
 
 /** The rows a node stands for: the row itself, or every row of a group. */
-export function rowIdsOf(node: ElementIdReviewNode): string[] {
+function rowIdsOf(node: ElementIdReviewNode): string[] {
     return "row" in node ? [node.row.id] : node.group.rows.map((row) => row.id);
+}
+
+function rowChanges(
+    event: TreeCheckboxChangeEvent<ElementIdReviewNode>,
+): [string[], boolean][] {
+    const checked = new Set<string>();
+    const unchecked = new Set<string>();
+    for (const [node, state] of event.items) {
+        const ids = state === TreeItemCheckboxState.Checked ? checked : unchecked;
+        rowIdsOf(node).forEach((id) => ids.add(id));
+    }
+    return (
+        [
+            [[...unchecked], false],
+            [[...checked], true],
+        ] as [string[], boolean][]
+    ).filter(([ids]) => ids.length > 0);
 }
 
 function checkboxOf(checked: boolean | undefined): TreeItemCheckboxState | undefined {
@@ -54,8 +71,20 @@ export class VsCodeElementIdReview
         return "TreeItemCheckboxState" in api;
     }
 
-    constructor() {
-        this.treeView = window.createTreeView(ELEMENT_ID_REVIEW_VIEW, { treeDataProvider: this });
+    /** @param revealCommand what a click on a row runs, with the element to reveal */
+    constructor(private readonly revealCommand: string) {
+        // The core's next view sets every checkbox; VS Code would untick a group with a row of it.
+        this.treeView = window.createTreeView(ELEMENT_ID_REVIEW_VIEW, {
+            treeDataProvider: this,
+            manageCheckboxStateManually: true,
+        });
+    }
+
+    /** Reports each checkbox change as the rows it ticks or unticks; a group's checkbox stands for its rows. */
+    onDidChangeChecks(listener: (ids: string[], checked: boolean) => void): Disposable {
+        return this.treeView.onDidChangeCheckboxState((event) => {
+            for (const [ids, checked] of rowChanges(event)) listener(ids, checked);
+        });
     }
 
     show(view: ElementIdReviewView): void {
@@ -104,7 +133,7 @@ export class VsCodeElementIdReview
         item.tooltip = row.tooltip;
         item.checkboxState = checkboxOf(row.checked);
         item.command = {
-            command: REVEAL_ELEMENT_ID_ROW_CMD,
+            command: this.revealCommand,
             title: row.tooltip,
             arguments: [row.revealId],
         };

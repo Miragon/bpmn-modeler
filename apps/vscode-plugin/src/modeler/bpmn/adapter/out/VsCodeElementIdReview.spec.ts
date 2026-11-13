@@ -4,10 +4,14 @@ const vscodeFake = vi.hoisted(() => {
     const executed: unknown[][] = [];
     const treeViews: {
         id: string;
-        options: { treeDataProvider: unknown };
+        options: { treeDataProvider: unknown; manageCheckboxStateManually?: boolean };
         message: string | undefined;
         description: string | undefined;
         dispose: () => void;
+        changeCheckboxes: (items: [unknown, number][]) => void;
+        onDidChangeCheckboxState: (
+            listener: (event: { items: [unknown, number][] }) => void,
+        ) => { dispose(): void };
     }[] = [];
 
     class EventEmitter<T> {
@@ -45,13 +49,24 @@ const vscodeFake = vi.hoisted(() => {
             TreeItemCheckboxState: { Unchecked: 0, Checked: 1 },
             TreeItemCollapsibleState: { None: 0, Collapsed: 1, Expanded: 2 },
             window: {
-                createTreeView: (id: string, options: { treeDataProvider: unknown }) => {
+                createTreeView: (
+                    id: string,
+                    options: { treeDataProvider: unknown; manageCheckboxStateManually?: boolean },
+                ) => {
+                    let onChange = (_event: { items: [unknown, number][] }) => {};
                     const view = {
                         id,
                         options,
                         message: undefined,
                         description: undefined,
                         dispose: vi.fn(),
+                        changeCheckboxes: (items: [unknown, number][]) => onChange({ items }),
+                        onDidChangeCheckboxState: (
+                            listener: (event: { items: [unknown, number][] }) => void,
+                        ) => {
+                            onChange = listener;
+                            return { dispose: () => undefined };
+                        },
                     };
                     treeViews.push(view);
                     return view;
@@ -70,13 +85,9 @@ vi.mock("vscode", () => vscodeFake.module);
 
 import type { ElementIdReviewView } from "@miragon/bpmn-modeler-core";
 
-import {
-    ELEMENT_ID_REVIEW_VIEW,
-    type ElementIdReviewNode,
-    REVEAL_ELEMENT_ID_ROW_CMD,
-    rowIdsOf,
-    VsCodeElementIdReview,
-} from "./VsCodeElementIdReview";
+import { ELEMENT_ID_REVIEW_VIEW, VsCodeElementIdReview } from "./VsCodeElementIdReview";
+
+const REVEAL_ROW = "test.revealRow";
 
 const VIEW: ElementIdReviewView = {
     title: "order.bpmn",
@@ -125,7 +136,7 @@ const VIEW: ElementIdReviewView = {
 };
 
 function setUp() {
-    const review = new VsCodeElementIdReview();
+    const review = new VsCodeElementIdReview(REVEAL_ROW);
     const [treeView] = vscodeFake.treeViews;
     const provider = treeView!.options.treeDataProvider as VsCodeElementIdReview;
     return { review, treeView: treeView!, provider };
@@ -147,6 +158,13 @@ describe("VsCodeElementIdReview", () => {
 
         expect(treeView.id).toBe(ELEMENT_ID_REVIEW_VIEW);
         expect(provider.getChildren()).toEqual([]);
+    });
+
+    // VS Code would otherwise untick a group with one of its rows and report the group too.
+    it("leaves the checkboxes to the core's views instead of ticking groups and rows itself", () => {
+        const { treeView } = setUp();
+
+        expect(treeView.options.manageCheckboxStateManually).toBe(true);
     });
 
     it("shows the view's groups and rows with the core's texts and checkboxes", () => {
@@ -174,7 +192,7 @@ describe("VsCodeElementIdReview", () => {
             tooltip: "Check stock: Activity_1 becomes serviceTask_checkStock",
             checkboxState: 1,
             collapsibleState: 0,
-            command: { command: REVEAL_ELEMENT_ID_ROW_CMD, arguments: ["Activity_1"] },
+            command: { command: REVEAL_ROW, arguments: ["Activity_1"] },
         });
         expect(provider.getTreeItem(unchecked!).checkboxState).toBe(0);
         expect(provider.getChildren(checked)).toEqual([]);
@@ -235,11 +253,36 @@ describe("VsCodeElementIdReview", () => {
     });
 });
 
-describe("rowIdsOf", () => {
-    it("names a row's own ID, and every row of a group", () => {
+describe("VsCodeElementIdReview.onDidChangeChecks", () => {
+    it("reports a row's checkbox as that row, and a group's as all of its rows", () => {
+        const { review, treeView } = setUp();
         const [group] = VIEW.groups;
-        const nodes: ElementIdReviewNode[] = [{ row: group!.rows[0]! }, { group: group! }];
+        const changes: [string[], boolean][] = [];
+        review.onDidChangeChecks((ids, checked) => changes.push([ids, checked]));
 
-        expect(nodes.map(rowIdsOf)).toEqual([["Activity_1"], ["Activity_1", "Activity_2"]]);
+        treeView.changeCheckboxes([[{ row: group!.rows[1]! }, 0]]);
+        treeView.changeCheckboxes([[{ group: group! }, 1]]);
+
+        expect(changes).toEqual([
+            [["Activity_2"], false],
+            [["Activity_1", "Activity_2"], true],
+        ]);
+    });
+
+    it("sends the unticks of one change before its ticks", () => {
+        const { review, treeView } = setUp();
+        const [group] = VIEW.groups;
+        const changes: [string[], boolean][] = [];
+        review.onDidChangeChecks((ids, checked) => changes.push([ids, checked]));
+
+        treeView.changeCheckboxes([
+            [{ row: group!.rows[0]! }, 1],
+            [{ row: group!.rows[1]! }, 0],
+        ]);
+
+        expect(changes).toEqual([
+            [["Activity_2"], false],
+            [["Activity_1"], true],
+        ]);
     });
 });
