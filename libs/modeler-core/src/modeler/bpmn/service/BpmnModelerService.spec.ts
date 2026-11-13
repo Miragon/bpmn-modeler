@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { BpmnFileQuery } from "@miragon/bpmn-modeler-shared";
 
 import { BpmnModelerService } from "./BpmnModelerService";
+import { EngineVersionStatusBarParticipant } from "./EngineVersionStatusBarParticipant";
 import { BpmnDocument } from "../../../kernel/domain/BpmnDocument";
 import { engineVersionPrompt } from "../../../kernel/domain/engineVersions";
 import { newModelEnginePrompt } from "../../../kernel/domain/newModelEngine";
@@ -12,6 +13,7 @@ const PATH = "/work/diagram.bpmn";
 
 // Real, valid documents so detection/version extraction run the production code.
 const C8_DOC = BpmnDocument.empty("c8", "8.8.0").xml;
+const C7_DOC = BpmnDocument.empty("c7", "7.22.0").xml;
 // Non-empty but carries no platform signal → `detectPlatform` throws.
 const NO_PLATFORM_DOC =
     '<?xml version="1.0"?><bpmn:definitions xmlns:bpmn="http://x" id="d"><bpmn:process id="P"/></bpmn:definitions>';
@@ -24,10 +26,8 @@ const CUSTOM_PREFIX_C8_DOC =
 const VERSION_NOT_CHANGED =
     "The diagram changed while you picked a version, so its engine version was not changed. Try again.";
 
-function createService(content: string, promptAnswers: PromptAnswers = {}) {
-    const host = createTestHost({ settings: { language: "de" }, promptAnswers });
-    const editor = host.openEditor(PATH, content);
-    const service = new BpmnModelerService(
+function createServiceFor(host: TestHost): BpmnModelerService {
+    return new BpmnModelerService(
         host.store,
         host.documents,
         host.picker,
@@ -35,6 +35,12 @@ function createService(content: string, promptAnswers: PromptAnswers = {}) {
         host.notifier,
         host.settings,
     );
+}
+
+function createService(content: string, promptAnswers: PromptAnswers = {}) {
+    const host = createTestHost({ settings: { language: "de" }, promptAnswers });
+    const editor = host.openEditor(PATH, content);
+    const service = createServiceFor(host);
     service.registerSession(editor.id);
     return { service, host, editor };
 }
@@ -140,6 +146,41 @@ describe("BpmnModelerService.display", () => {
         expect(rendered).toBe(true);
         expect(host.notifier.errors).toEqual([]);
         expect(engineVersionShown(host)).toBeUndefined();
+    });
+
+    it("keeps a newly focused editor's first render through the previous owner's late blur", async () => {
+        const host = createTestHost();
+        const participant = new EngineVersionStatusBarParticipant(host.statusBar, host.documents);
+        const service = createServiceFor(host);
+        const previous = await host.openSession("/work/previous.bpmn", [participant], {
+            content: C7_DOC,
+        });
+        const next = host.openEditor(PATH, C8_DOC);
+        service.registerSession(next.id);
+
+        // The next editor's participants have not run yet when its first render lands.
+        next.becomeActive();
+        await service.display(next.id);
+        previous.loseFocus();
+
+        expect(engineVersionShown(host)).toBe("Camunda 8 (8.8.0)");
+    });
+
+    it("does not show a replaced session's version over its same-uri replacement", async () => {
+        const { service, host, editor } = createService(C7_DOC);
+        editor.active = true;
+        let finishPost: (sent: boolean) => void = () => {};
+        vi.spyOn(editor, "postMessage").mockReturnValueOnce(
+            new Promise<boolean>((resolve) => (finishPost = resolve)),
+        );
+        const staleRender = service.display(editor.id);
+
+        const replacement = host.openEditor(PATH, C8_DOC, { focused: true });
+        await service.display(replacement.id);
+        finishPost(true);
+        await staleRender;
+
+        expect(engineVersionShown(host)).toBe("Camunda 8 (8.8.0)");
     });
 
     it("scaffolds an engine-neutral document when the neutral choice is picked", async () => {

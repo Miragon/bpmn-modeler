@@ -138,6 +138,40 @@ describe("EditorSessionLifecycle", () => {
         expect(next.onResolve).not.toHaveBeenCalled();
     });
 
+    describe("status slots", () => {
+        function capturingParticipant(contexts: EditorSessionContext[]): EditorSessionParticipant {
+            return { onResolve: (session) => void contexts.push(session) };
+        }
+
+        it("keeps a same-uri replacement's slot through the closed session's late release and claim", async () => {
+            const host = createTestHost();
+            const contexts: EditorSessionContext[] = [];
+            await host.openSession(PATH, [capturingParticipant(contexts)]);
+            const [closed] = contexts;
+            closed.claimStatusSlot("engineVersion");
+            await host.openSession(PATH, [capturingParticipant(contexts)]);
+            const replacement = contexts[1];
+            replacement.claimStatusSlot("engineVersion");
+
+            expect(closed.claimStatusSlot("engineVersion")).toBe(false);
+            expect(closed.releaseStatusSlot("engineVersion")).toBe("keep");
+            expect(replacement.releaseStatusSlot("engineVersion")).toBe("hide");
+        });
+
+        it("keeps the slots of two session stores apart", async () => {
+            const contexts: EditorSessionContext[] = [];
+            for (const host of [createTestHost(), createTestHost()]) {
+                await host.openSession(PATH, [capturingParticipant(contexts)]);
+            }
+            contexts.forEach((context) => context.claimStatusSlot("engineVersion"));
+
+            expect(contexts.map((context) => context.releaseStatusSlot("engineVersion"))).toEqual([
+                "hide",
+                "hide",
+            ]);
+        });
+    });
+
     describe("webview messages", () => {
         it("dispatches them through the router with the session's editor id", async () => {
             const host = createTestHost();

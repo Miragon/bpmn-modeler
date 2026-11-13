@@ -877,11 +877,20 @@ version, bpmnlint, deployment) show an editor's state only if it is focused
 when the item is written. A ledger write or a
 [target change](deployment.md#targets-and-credentials) refreshes the
 deployment item for the focused editor (`refreshFocused`), not the editor it
-acted on. Each item's participant hides it on blur and close, and
-`StatusItemOwnership` decides only that hide. BPMN and Form participants share
-one engine-version owner from VS Code's composition, so a late blur or close
-from either format cannot hide the other's newly focused status. The BPMN-only
-bridge keeps a default owner. Only BPMN sessions run the deployment and lint
+acted on. Each `EditorSessionStore` owns who holds each `StatusSlot`
+(`StatusSlotOwnership`): a writer claims the slot for one exact session
+before it shows the item, and the store refuses the claim of a closed,
+replaced or unfocused session. Participants claim and release through the
+session context (`claimStatusSlot`, `releaseStatusSlot`); each hides its item
+on blur and close only while its session still owns the slot. The owner is
+the session, not its editor URI, so a late blur or close of one editor,
+another format's or a same-URI predecessor's, cannot hide the newly focused
+editor's item. No host wires an owner: BPMN and Form share the engine slot
+because they share the store, and two stores never share one. A write that
+can land before the session's participants run claims the slot itself: the
+BPMN render's engine version and the lint service's status. The first show
+never waits for a participant's claim. Element-template discovery status is
+transient and claims nothing. Only BPMN sessions run the deployment and lint
 participants, so `refreshFocused` hides the deployment item when no BPMN
 editor is focused (a DMN or Form editor, or none) instead of showing an item
 nothing would hide. The store's command target (`CommandTarget`, read as
