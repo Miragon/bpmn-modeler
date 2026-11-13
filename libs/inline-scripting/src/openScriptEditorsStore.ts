@@ -1,3 +1,4 @@
+import { scriptIdentityKey } from "@miragon/bpmn-modeler-types";
 import type { OpenScriptEditorRef, ScriptKind } from "@miragon/bpmn-modeler-types";
 
 /**
@@ -9,22 +10,8 @@ import type { OpenScriptEditorRef, ScriptKind } from "@miragon/bpmn-modeler-type
 export const OPEN_SCRIPT_EDITORS_CHANGED_EVENT = "openScriptEditors.changed";
 
 /**
- * Builds the lock key for a script identity. `listenerIndex` is folded in with
- * a `0` default so a script task (no index) and a first-listener share no key,
- * because their `kind` already differs — the default only normalises the
- * `undefined`/`0` ambiguity within a single kind.
- */
-export function openScriptKey(
-    elementId: string,
-    kind: ScriptKind,
-    listenerIndex: number | undefined,
-): string {
-    return `${elementId}::${kind}::${listenerIndex ?? 0}`;
-}
-
-/**
  * bpmn-js DI service holding the host's current set of open inline-script
- * editors, keyed by {@link openScriptKey}. It is the single source of truth the
+ * editors, keyed by {@link scriptIdentityKey}. It is the single source of truth the
  * {@link ScriptLockPropertiesProvider} consults to decide whether a
  * properties-panel script field must be locked.
  *
@@ -54,7 +41,7 @@ export class OpenScriptEditorsStore {
     set(refs: OpenScriptEditorRef[]): void {
         this.openByKey.clear();
         for (const ref of refs) {
-            this.openByKey.set(openScriptKey(ref.elementId, ref.kind, ref.listenerIndex), ref);
+            this.openByKey.set(scriptIdentityKey(ref), ref);
         }
         this.eventBus.fire(OPEN_SCRIPT_EDITORS_CHANGED_EVENT);
         this.eventBus.fire("propertiesPanel.providersChanged");
@@ -71,7 +58,7 @@ export class OpenScriptEditorsStore {
         kind: ScriptKind,
         listenerIndex: number | undefined,
     ): OpenScriptEditorRef | undefined {
-        return this.openByKey.get(openScriptKey(elementId, kind, listenerIndex));
+        return this.openByKey.get(scriptIdentityKey({ elementId, kind, listenerIndex }));
     }
 }
 

@@ -97,6 +97,7 @@ import { TabInputText, Uri } from "vscode";
 import { ScriptTaskService } from "./ScriptTaskService";
 import {
     ArtifactService,
+    OpenScriptTabs,
     ScriptFileStore,
     ScriptLanguage,
     scriptLanguagePrompt,
@@ -449,10 +450,10 @@ describe("ScriptTaskService.open", () => {
         }
         // …and both scripts remain tracked (a preview replacement would have
         // arrived as a close and evicted Task_1).
-        const openDocuments = (service as never as { openDocuments: Map<string, unknown> })
+        const openDocuments = (service as never as { openDocuments: OpenScriptTabs })
             .openDocuments;
-        expect(openDocuments.has(scriptPath("groovy"))).toBe(true);
-        expect(openDocuments.has(scriptPath("groovy", "Task_2"))).toBe(true);
+        expect(openDocuments.isOpen(scriptPath("groovy"))).toBe(true);
+        expect(openDocuments.isOpen(scriptPath("groovy", "Task_2"))).toBe(true);
     });
 });
 
@@ -655,6 +656,33 @@ describe("ScriptTaskService.resyncOpenDocuments", () => {
         expect(notifier.logged("error")).toEqual([]);
     });
 
+    it("skips a document untracked while an earlier one replays", async () => {
+        const { service, editor, scriptFiles } = createService();
+        await openCanonicalScript(service, "groovy");
+        await service.open(EDITOR_ID, {
+            elementId: "Task_2",
+            kind: KIND,
+            listenerIndex: undefined,
+            eventName: undefined,
+            scriptFormat: "groovy",
+            content: "b",
+        });
+        setOpenTabs([scriptPath("groovy"), scriptPath("groovy", "Task_2")]);
+        const openDocuments = (service as never as { openDocuments: OpenScriptTabs })
+            .openDocuments;
+        scriptFiles.readFile.mockImplementationOnce(async () => {
+            openDocuments.untrack(scriptPath("groovy", "Task_2"));
+            return "first";
+        });
+        scriptFiles.readFile.mockResolvedValue("second");
+        clearPosted(editor);
+
+        (service as never as { pendingResync: Set<string> }).pendingResync.add(EDITOR_ID);
+        await service.resyncOpenDocuments(EDITOR_ID);
+
+        expect(contentQueries(editor).map((query) => query.content)).toEqual(["first"]);
+    });
+
     it("finishes a deferred cleanup when the replayed tab is no longer open anywhere", async () => {
         const { service, editor, scriptFiles } = createService();
         await openCanonicalScript(service, "groovy");
@@ -672,7 +700,7 @@ describe("ScriptTaskService.resyncOpenDocuments", () => {
         // on disk (deletion is reserved for element deletion / editor dispose).
         expect(scriptFiles.deleteFolder).not.toHaveBeenCalled();
         expect(
-            (service as never as { openDocuments: Map<string, unknown> }).openDocuments.has(path),
+            (service as never as { openDocuments: OpenScriptTabs }).openDocuments.isOpen(path),
         ).toBe(false);
     });
 
@@ -707,7 +735,7 @@ describe("ScriptTaskService.onTabsChanged", () => {
         // A plain tab close must not delete the file — reopening it has to work.
         expect(scriptFiles.deleteFolder).not.toHaveBeenCalled();
         expect(
-            (service as never as { openDocuments: Map<string, unknown> }).openDocuments.has(path),
+            (service as never as { openDocuments: OpenScriptTabs }).openDocuments.isOpen(path),
         ).toBe(false);
     });
 
@@ -721,7 +749,7 @@ describe("ScriptTaskService.onTabsChanged", () => {
 
         expect(scriptFiles.deleteFolder).not.toHaveBeenCalled();
         expect(
-            (service as never as { openDocuments: Map<string, unknown> }).openDocuments.has(
+            (service as never as { openDocuments: OpenScriptTabs }).openDocuments.isOpen(
                 scriptPath("groovy"),
             ),
         ).toBe(true);
@@ -740,7 +768,7 @@ describe("ScriptTaskService.onTabsChanged", () => {
         // The `openDocuments` entry is the deferred replay's payload now, so it
         // must survive until `resyncOpenDocuments` finishes the cleanup.
         expect(
-            (service as never as { openDocuments: Map<string, unknown> }).openDocuments.has(
+            (service as never as { openDocuments: OpenScriptTabs }).openDocuments.isOpen(
                 scriptPath("groovy"),
             ),
         ).toBe(true);
@@ -894,9 +922,8 @@ describe("ScriptTaskService.applyModelChange", () => {
             path.substring(0, path.lastIndexOf("/")),
         );
         expect(lastBroadcastRefs(editor)).toEqual([]);
-        expect(
-            (service as never as { openDocuments: Map<string, unknown> }).openDocuments.size,
-        ).toBe(0);
+        expect(openDocumentsOf(service).ofEditor(EDITOR_ID)).toEqual([]);
+        expect(openDocumentsOf(service).isOpen(path)).toBe(false);
     });
 });
 
@@ -1003,9 +1030,8 @@ describe("ScriptTaskService.disposeEditor", () => {
         expect(scriptFiles.deleteFolder).toHaveBeenCalledWith(
             `${BASE_DIR}/${ScriptUri.hashEditorId(EDITOR_ID)}`,
         );
-        expect(
-            (service as never as { openDocuments: Map<string, unknown> }).openDocuments.size,
-        ).toBe(0);
+        expect(openDocumentsOf(service).ofEditor(EDITOR_ID)).toEqual([]);
+        expect(openDocumentsOf(service).isOpen(scriptPath("groovy"))).toBe(false);
     });
 
     it("saves a dirty script buffer before closing its tab", async () => {
@@ -1107,7 +1133,7 @@ describe("ScriptTaskService keystroke debounce", () => {
         ).toBe(true);
         expect(scriptFiles.deleteFolder).not.toHaveBeenCalled();
         expect(
-            (service as never as { openDocuments: Map<string, unknown> }).openDocuments.has(
+            (service as never as { openDocuments: OpenScriptTabs }).openDocuments.isOpen(
                 scriptPath("groovy"),
             ),
         ).toBe(true);
@@ -1289,8 +1315,8 @@ describe("ScriptTaskService revert tracking", () => {
 });
 
 /** Reads the private tracking map for direct assertions. */
-function openDocumentsOf(service: ScriptTaskService): Map<string, unknown> {
-    return (service as never as { openDocuments: Map<string, unknown> }).openDocuments;
+function openDocumentsOf(service: ScriptTaskService): OpenScriptTabs {
+    return (service as never as { openDocuments: OpenScriptTabs }).openDocuments;
 }
 
 /** The slug directory holding the canonical script and its JS ambient siblings. */
@@ -1321,7 +1347,8 @@ describe("ScriptTaskService.materialize", () => {
         // broadcast, and nothing is tracked — live sync starts only on adoption.
         expect(showTextDocumentMock).not.toHaveBeenCalled();
         expect(editor.posted).toEqual([]);
-        expect(openDocumentsOf(service).size).toBe(0);
+        expect(openDocumentsOf(service).ofEditor(EDITOR_ID)).toEqual([]);
+        expect(openDocumentsOf(service).isOpen(scriptPath())).toBe(false);
     });
 
     it("writes no ambient files for a non-JavaScript script", async () => {
@@ -1433,7 +1460,7 @@ describe("ScriptTaskService adoption", () => {
 
         await fireOpen(fireTabsChange, scriptPath());
 
-        expect(openDocumentsOf(service).has(scriptPath())).toBe(true);
+        expect(openDocumentsOf(service).isOpen(scriptPath())).toBe(true);
         expect(setTextDocumentLanguageMock).toHaveBeenCalledWith(expect.anything(), "javascript");
         const refs = lastBroadcastRefs(editor);
         expect(refs).toHaveLength(1);
@@ -1479,7 +1506,7 @@ describe("ScriptTaskService adoption", () => {
 
         await fireOpen(fireTabsChange, scriptPath("groovy"));
 
-        expect(openDocumentsOf(service).size).toBe(1);
+        expect(openDocumentsOf(service).ofEditor(EDITOR_ID)).toHaveLength(1);
         expect(lastBroadcastRefs(editor)).toBeUndefined();
     });
 
@@ -1490,7 +1517,7 @@ describe("ScriptTaskService adoption", () => {
 
         await fireOpen(fireTabsChange, orphanPath);
 
-        expect(openDocumentsOf(service).has(orphanPath)).toBe(false);
+        expect(openDocumentsOf(service).isOpen(orphanPath)).toBe(false);
         expect(lastBroadcastRefs(editor)).toBeUndefined();
     });
 
@@ -1503,7 +1530,7 @@ describe("ScriptTaskService adoption", () => {
 
         await fireOpen(fireTabsChange, outsidePath);
 
-        expect(openDocumentsOf(service).has(outsidePath)).toBe(false);
+        expect(openDocumentsOf(service).isOpen(outsidePath)).toBe(false);
         expect(lastBroadcastRefs(editor)).toBeUndefined();
     });
 
@@ -1513,7 +1540,7 @@ describe("ScriptTaskService adoption", () => {
 
         await fireOpen(fireTabsChange, dtsPath);
 
-        expect(openDocumentsOf(service).has(dtsPath)).toBe(false);
+        expect(openDocumentsOf(service).isOpen(dtsPath)).toBe(false);
         expect(lastBroadcastRefs(editor)).toBeUndefined();
     });
 
@@ -1528,7 +1555,7 @@ describe("ScriptTaskService adoption", () => {
         fireTabsChange({ closed: [makeTab(scriptPath())], opened: [], changed: [] });
         await flushAsync();
 
-        expect(openDocumentsOf(service).has(scriptPath())).toBe(false);
+        expect(openDocumentsOf(service).isOpen(scriptPath())).toBe(false);
         expect(lastBroadcastRefs(editor)).toEqual([]);
         expect(scriptFiles.deleteFolder).not.toHaveBeenCalled();
     });

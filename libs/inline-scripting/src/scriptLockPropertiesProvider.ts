@@ -1,5 +1,5 @@
 import { Fragment, jsx, jsxs } from "@bpmn-io/properties-panel/preact/jsx-runtime";
-import { findListenerAt } from "@miragon/bpmn-modeler-types";
+import { findListenerAt, listenerPosition } from "@miragon/bpmn-modeler-types";
 import type { ScriptKind } from "@miragon/bpmn-modeler-types";
 
 import type { Element, ScriptModdle } from "./bpmnTypes";
@@ -333,7 +333,7 @@ export class ScriptLockPropertiesProvider {
             return scriptTaskOpenEvent(element.id, bo);
         }
 
-        const listener = findListenerAt(bo, kind, listenerIndex ?? 0);
+        const listener = findListenerAt(bo, kind, listenerPosition(listenerIndex));
         if (!listener?.script) {
             return undefined;
         }

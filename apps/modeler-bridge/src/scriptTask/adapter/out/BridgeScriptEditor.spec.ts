@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
     ArtifactService,
     InlineScript,
+    OpenScriptTabs,
     ScriptFileStore,
     scriptLanguagePrompt,
     ScriptUri,
@@ -45,7 +46,7 @@ const ELEMENT_ID = "Task_1";
 const SCRIPT_FILE = "/base/hash/Task_1/slug/Task_1.js";
 
 interface Internals {
-    scripts: Map<string, unknown>;
+    scripts: OpenScriptTabs;
     filePathByScript: Map<string, string>;
 }
 
@@ -66,7 +67,7 @@ function createEditor() {
 
     // Seed a tracked script so didChange/applyModelChange/dispose resolve it.
     const internals = editor as unknown as Internals;
-    internals.scripts.set(SCRIPT_ID, {
+    internals.scripts.track(SCRIPT_ID, {
         editorId: EDITOR_ID,
         elementId: ELEMENT_ID,
         kind: "script-task",
@@ -216,7 +217,7 @@ describe("BridgeScriptEditor materialise + adopt-on-open", () => {
     const BASE_DIR = "/repo/.camunda/tmp/scripting";
 
     interface FullInternals {
-        scripts: Map<string, unknown>;
+        scripts: OpenScriptTabs;
         filePathByScript: Map<string, string>;
     }
 
@@ -267,7 +268,7 @@ describe("BridgeScriptEditor materialise + adopt-on-open", () => {
             // (an untracked panel-button open then rewrites from the model).
             expect(scriptOpenCall(rpc)).toBeUndefined();
             expect(modelerEditor.posted).toEqual([]);
-            expect(internals.scripts.size).toBe(0);
+            expect(internals.scripts.openScriptsOf(FULL_EDITOR)).toEqual([]);
             expect(internals.filePathByScript.size).toBe(0);
         });
 
@@ -281,7 +282,7 @@ describe("BridgeScriptEditor materialise + adopt-on-open", () => {
                 undefined,
                 "groovy",
             ).toString();
-            internals.scripts.set(scriptId, {
+            internals.scripts.track(scriptId, {
                 editorId: FULL_EDITOR,
                 elementId: "Task_1",
                 kind: "script-task",
@@ -338,7 +339,7 @@ describe("BridgeScriptEditor materialise + adopt-on-open", () => {
                 undefined,
                 "groovy",
             ).toString();
-            expect(internals.scripts.has(scriptId)).toBe(true);
+            expect(internals.scripts.isOpen(scriptId)).toBe(true);
             expect(internals.filePathByScript.get(scriptId)).toBe(filePath);
             expect(scriptOpenCall(rpc)).toMatchObject({
                 scriptId,
@@ -364,7 +365,8 @@ describe("BridgeScriptEditor materialise + adopt-on-open", () => {
 
             expect(scriptOpenCall(rpc)).toBeUndefined();
             expect(readFile).not.toHaveBeenCalled();
-            expect(internals.scripts.size).toBe(0);
+            expect(internals.scripts.openScriptsOf(FULL_EDITOR)).toEqual([]);
+            expect(internals.filePathByScript.size).toBe(0);
         });
 
         it("ignores a path whose editor hash matches no live session", async () => {
@@ -373,7 +375,8 @@ describe("BridgeScriptEditor materialise + adopt-on-open", () => {
             await editor.adoptExternalOpen(`${BASE_DIR}/deadbeef/Task_1/script-task/Task_1.groovy`);
 
             expect(scriptOpenCall(rpc)).toBeUndefined();
-            expect(internals.scripts.size).toBe(0);
+            expect(internals.scripts.openScriptsOf(FULL_EDITOR)).toEqual([]);
+            expect(internals.filePathByScript.size).toBe(0);
         });
 
         it("ignores a script path outside the editor's resolved base dir", async () => {
@@ -385,7 +388,8 @@ describe("BridgeScriptEditor materialise + adopt-on-open", () => {
             );
 
             expect(scriptOpenCall(rpc)).toBeUndefined();
-            expect(internals.scripts.size).toBe(0);
+            expect(internals.scripts.openScriptsOf(FULL_EDITOR)).toEqual([]);
+            expect(internals.filePathByScript.size).toBe(0);
         });
 
         it("is a no-op for an already-tracked script", async () => {
@@ -399,7 +403,7 @@ describe("BridgeScriptEditor materialise + adopt-on-open", () => {
                 undefined,
                 "groovy",
             ).toString();
-            internals.scripts.set(scriptId, {
+            internals.scripts.track(scriptId, {
                 editorId: FULL_EDITOR,
                 elementId: "Task_1",
                 kind: "script-task",
@@ -451,7 +455,7 @@ describe("BridgeScriptEditor materialise + adopt-on-open", () => {
 
             // 1. Open the script (tracks + writes + locks).
             await editor.open(FULL_EDITOR, openCommand("groovy", "v1"));
-            expect(internals.scripts.has(scriptId)).toBe(true);
+            expect(internals.scripts.isOpen(scriptId)).toBe(true);
 
             // 2. Element deletion requests a close — the file deletion is deferred
             //    to the host's didClose ack.
@@ -459,12 +463,12 @@ describe("BridgeScriptEditor materialise + adopt-on-open", () => {
                 FULL_EDITOR,
                 new UpdateScriptSourceCommand("Task_1", "script-task", undefined, undefined),
             );
-            expect(internals.scripts.has(scriptId)).toBe(false);
+            expect(internals.scripts.isOpen(scriptId)).toBe(false);
 
             // 3. The script re-opens inside that window: the pending ack is
             //    cancelled and the next didClose is armed to be swallowed.
             await editor.open(FULL_EDITOR, openCommand("groovy", "v2"));
-            expect(internals.scripts.has(scriptId)).toBe(true);
+            expect(internals.scripts.isOpen(scriptId)).toBe(true);
             const filesBeforeLateClose = new Map(host.workspace.files);
 
             // 4. The host still emits one late didClose for the pre-empted close.
@@ -472,7 +476,7 @@ describe("BridgeScriptEditor materialise + adopt-on-open", () => {
 
             // The re-tracked entry, its file path, and the lock all survive; no
             // deferred deletion ran.
-            expect(internals.scripts.has(scriptId)).toBe(true);
+            expect(internals.scripts.isOpen(scriptId)).toBe(true);
             expect(internals.filePathByScript.has(scriptId)).toBe(true);
             expect(host.workspace.files).toEqual(filesBeforeLateClose);
             expect(lastLockRefs(modelerEditor)).toHaveLength(1);

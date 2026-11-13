@@ -1,9 +1,9 @@
+import { scriptIdentityKey } from "@miragon/bpmn-modeler-types";
 import type { OpenScriptEditorRef, ScriptKind } from "@miragon/bpmn-modeler-types";
 
 import type { ElementLookup } from "./bpmnTypes";
 import {
     OPEN_SCRIPT_EDITORS_CHANGED_EVENT,
-    openScriptKey,
     OpenScriptEditorsStore,
 } from "./openScriptEditorsStore";
 import { readScriptContent } from "./scriptModel";
@@ -89,7 +89,7 @@ export class ScriptSourceWatcher {
         listenerIndex: number | undefined,
         content: string,
     ): void {
-        const key = openScriptKey(elementId, kind, listenerIndex);
+        const key = scriptIdentityKey({ elementId, kind, listenerIndex });
         if (this.lastKnown.has(key)) {
             this.lastKnown.set(key, content);
         }
@@ -98,7 +98,7 @@ export class ScriptSourceWatcher {
     private rebaseline(): void {
         const stillOpen = new Map<string, string | undefined>();
         for (const ref of this.store.all()) {
-            const key = openScriptKey(ref.elementId, ref.kind, ref.listenerIndex);
+            const key = scriptIdentityKey(ref);
             if (this.lastKnown.has(key)) {
                 stillOpen.set(key, this.lastKnown.get(key));
             }
@@ -111,7 +111,7 @@ export class ScriptSourceWatcher {
     // webview was hidden) is reported, or nothing would ever close its tab.
     private baselineNewlyOpened(): void {
         for (const ref of this.store.all()) {
-            const key = openScriptKey(ref.elementId, ref.kind, ref.listenerIndex);
+            const key = scriptIdentityKey(ref);
             if (this.lastKnown.has(key)) {
                 continue;
             }
@@ -129,7 +129,7 @@ export class ScriptSourceWatcher {
     private detectChanges(): void {
         this.baselineNewlyOpened();
         for (const ref of this.store.all()) {
-            const key = openScriptKey(ref.elementId, ref.kind, ref.listenerIndex);
+            const key = scriptIdentityKey(ref);
             const current = this.read(ref);
             if (!this.lastKnown.has(key) || this.lastKnown.get(key) === current) {
                 continue;

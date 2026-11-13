@@ -9,19 +9,41 @@
  */
 export type ScriptKind = "script-task" | "execution-listener" | "task-listener";
 
+/** Which inline script of a diagram: a listener also has its position among the element's listeners of its kind. */
+export interface ScriptIdentity {
+    readonly elementId: string;
+    readonly kind: ScriptKind;
+    readonly listenerIndex: number | undefined;
+}
+
+/** A missing listener index is the first listener's, so `undefined` and `0` address one script. */
+export function listenerPosition(listenerIndex: number | undefined): number {
+    return listenerIndex ?? 0;
+}
+
+/** Equal for two identities exactly when {@link isSameScript} holds. */
+export function scriptIdentityKey({ elementId, kind, listenerIndex }: ScriptIdentity): string {
+    return `${elementId}::${kind}::${listenerPosition(listenerIndex)}`;
+}
+
+export function isSameScript(first: ScriptIdentity, second: ScriptIdentity): boolean {
+    return (
+        first.elementId === second.elementId &&
+        first.kind === second.kind &&
+        listenerPosition(first.listenerIndex) === listenerPosition(second.listenerIndex)
+    );
+}
+
 /**
  * Identifies a single inline script that currently has an editor tab open on
  * the host, so the webview can lock the matching properties-panel field.
  *
  * `fileName` is the host editor's tab name (last URI/path segment) — shown in
  * the "being edited in …" hint so the user knows which tab owns the write.
- * The `(elementId, kind, listenerIndex)` triple is the same addressing scheme
+ * Its {@link ScriptIdentity} is the same addressing scheme
  * `UpdateScriptContentQuery` uses, so the webview can key the lock on it.
  */
-export interface OpenScriptEditorRef {
-    readonly elementId: string;
-    readonly kind: ScriptKind;
-    readonly listenerIndex: number | undefined;
+export interface OpenScriptEditorRef extends ScriptIdentity {
     readonly fileName: string;
 }
 

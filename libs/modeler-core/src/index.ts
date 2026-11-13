@@ -256,6 +256,7 @@ export * from "./template-marketplace/composition/MarketplaceFeature";
 export * from "./scriptTask/domain/inlineScript";
 export * from "./scriptTask/port/ScriptEditorPort";
 export * from "./scriptTask/domain/ScriptUri";
+export * from "./scriptTask/domain/OpenScriptTabs";
 export * from "./scriptTask/domain/ScriptVariableStore";
 export * from "./scriptTask/domain/camundaDts";
 export * from "./scriptTask/domain/groovyImports";

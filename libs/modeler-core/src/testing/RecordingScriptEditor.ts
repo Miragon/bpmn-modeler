@@ -1,6 +1,9 @@
+import { isSameScript } from "@miragon/bpmn-modeler-types";
+
 import { EditorSessionStore } from "../editorSession/service/EditorSessionStore";
 import { PickerPort } from "../kernel/port/hostPorts";
-import { InlineScript, ScriptAddress, ScriptSourceChange } from "../scriptTask/domain/inlineScript";
+import { InlineScript, ScriptSourceChange } from "../scriptTask/domain/inlineScript";
+import { OpenScriptTab, OpenScriptTabs } from "../scriptTask/domain/OpenScriptTabs";
 import { ScriptMaterialization } from "../scriptTask/domain/scriptBatchSummary";
 import { matchScriptFile } from "../scriptTask/domain/scriptFileMatching";
 import { ScriptLanguage, scriptLanguagePrompt } from "../scriptTask/domain/scriptLanguage";
@@ -11,10 +14,6 @@ import { ScriptFileStore } from "../scriptTask/service/ScriptFileStore";
 export interface ScriptEditorCall<TScript> {
     readonly editorId: string;
     readonly script: TScript;
-}
-
-interface OpenTab extends ScriptAddress {
-    readonly editorId: string;
 }
 
 /**
@@ -41,7 +40,7 @@ export class RecordingScriptEditor implements ScriptEditorPort {
     resyncFailure: Error | undefined;
 
     /** Open tabs by the path of the file each shows. */
-    private readonly openTabs = new Map<string, OpenTab>();
+    private readonly openTabs = new OpenScriptTabs();
 
     constructor(
         private readonly store: EditorSessionStore,
@@ -55,10 +54,10 @@ export class RecordingScriptEditor implements ScriptEditorPort {
         const uri = await this.scriptUriOf(editorId, script);
         if (uri === undefined) return;
         const filePath = await this.scriptFiles.prepareScriptFile(editorId, uri);
-        if (this.openTabs.has(filePath)) return;
+        if (this.openTabs.isOpen(filePath)) return;
         await this.scriptFiles.writeFile(filePath, script.content);
         const { elementId, kind, listenerIndex } = script;
-        this.openTabs.set(filePath, { editorId, elementId, kind, listenerIndex });
+        this.openTabs.track(filePath, { editorId, elementId, kind, listenerIndex });
     }
 
     async materialize(editorId: string, script: InlineScript): Promise<ScriptMaterialization> {
@@ -70,7 +69,8 @@ export class RecordingScriptEditor implements ScriptEditorPort {
         const uri = await this.scriptUriOf(editorId, script);
         if (uri === undefined) return { kind: "cancelled" };
         const filePath = await this.scriptFiles.prepareScriptFile(editorId, uri);
-        if (this.openTabs.has(filePath)) return { kind: "alreadyOpen" };
+        const plan = this.openTabs.materializationOf(filePath);
+        if (plan.kind === "alreadyOpen") return plan;
         await this.scriptFiles.writeFile(filePath, script.content);
         return { kind: "written" };
     }
@@ -79,13 +79,7 @@ export class RecordingScriptEditor implements ScriptEditorPort {
         const { elementId, kind, listenerIndex, content } = change;
         this.modelChanges.push({ editorId, script: { elementId, kind, listenerIndex, content } });
         if (content !== undefined) return;
-        this.closeTabsWhere(
-            (tab) =>
-                tab.editorId === editorId &&
-                tab.elementId === elementId &&
-                tab.kind === kind &&
-                (tab.listenerIndex ?? 0) === (listenerIndex ?? 0),
-        );
+        this.closeTabsWhere(editorId, (tab) => isSameScript(tab, change));
     }
 
     async resync(editorId: string): Promise<void> {
@@ -99,7 +93,7 @@ export class RecordingScriptEditor implements ScriptEditorPort {
 
     disposeEditor(editorId: string): void {
         this.disposedEditors.push(editorId);
-        this.closeTabsWhere((tab) => tab.editorId === editorId);
+        this.closeTabsWhere(editorId, () => true);
         const editorScriptDir = this.scriptFiles.releaseEditor(editorId);
         if (editorScriptDir !== undefined) void this.scriptFiles.deleteFolder(editorScriptDir);
     }
@@ -110,17 +104,17 @@ export class RecordingScriptEditor implements ScriptEditorPort {
         if (match === undefined) return;
         if (!(await this.scriptFiles.adopt(match.editorId, filePath))) return;
         const { editorId, elementId, kind, listenerIndex } = match;
-        this.openTabs.set(filePath, { editorId, elementId, kind, listenerIndex });
+        this.openTabs.track(filePath, { editorId, elementId, kind, listenerIndex });
     }
 
     /** The user closed the tab of the script file at `filePath`. */
     closeTab(filePath: string): void {
-        this.openTabs.delete(filePath);
+        this.openTabs.untrack(filePath);
     }
 
-    private closeTabsWhere(closes: (tab: OpenTab) => boolean): void {
-        for (const [filePath, tab] of this.openTabs) {
-            if (closes(tab)) this.openTabs.delete(filePath);
+    private closeTabsWhere(editorId: string, closes: (tab: OpenScriptTab) => boolean): void {
+        for (const [filePath, tab] of this.openTabs.ofEditor(editorId)) {
+            if (closes(tab)) this.openTabs.untrack(filePath);
         }
     }
 
