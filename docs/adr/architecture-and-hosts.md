@@ -782,9 +782,9 @@ handling is host API. The record of which scripts have a tab is not: both
 adapters track their tabs in the core's `OpenScriptTabs`, which finds a
 script's tab, builds the open-script list the webview locks, named after the
 last segment of each tab's path, and decides that materialising a script an
-open tab owns leaves it alone. Script identity is
-`modeler-types`' `isSameScript`, where an absent listener index is index 0,
-because the webview's lock applies it too. What the webview's script commands mean is the core
+open tab owns leaves it alone. Script identity is `modeler-types`'
+`isSameScript`, where an absent listener index is index 0, because the
+webview's lock applies it too. What the webview's script commands mean is the core
 `ScriptEditorFeature`'s on both: it stores the process variables the webview
 extracts, writes a "Generate Script Files" batch one script at a time and names
 its folder in the toast, logs a failed open with its element, resyncs after a
