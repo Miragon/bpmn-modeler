@@ -24,3 +24,18 @@ export function templateIdOfEntryKey(key: string): string | undefined {
     const id = key.slice(at + TEMPLATE_MARKER.length);
     return id === "" ? undefined : id;
 }
+
+const TEMPLATES_GROUP_ID = "templates";
+
+/**
+ * Whether a popup menu entry offers an element template: its key names one,
+ * or it sits in the group create-append-anything gives template entries, as a
+ * plugin's own template entries may. An `imageUrl` does not count: any
+ * provider may give a plain element entry an icon.
+ */
+export function isTemplatePopupEntry(
+    key: string,
+    entry: { group?: { id?: string } } | undefined,
+): boolean {
+    return templateIdOfEntryKey(key) !== undefined || entry?.group?.id === TEMPLATES_GROUP_ID;
+}

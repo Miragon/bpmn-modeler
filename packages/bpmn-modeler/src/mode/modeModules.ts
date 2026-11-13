@@ -1,4 +1,4 @@
-import { templateIdOfEntryKey } from "@miragon/bpmn-modeler-append-menu";
+import { isTemplatePopupEntry } from "@miragon/bpmn-modeler-append-menu";
 import { surfaceModeSupports } from "@miragon/bpmn-modeler-types";
 
 import { ELEMENT_POPUP_MENUS } from "../popupMenus";
@@ -32,13 +32,9 @@ export function stripTemplateEntries<T extends PopupEntry>(
 ): Record<string, T> {
     const nonTemplateEntries: Record<string, T> = {};
     for (const [key, entry] of Object.entries(entries)) {
-        if (templateIdOfEntryKey(key) !== undefined) {
-            continue;
+        if (!isTemplatePopupEntry(key, entry)) {
+            nonTemplateEntries[key] = entry;
         }
-        if (entry?.group?.id === "templates") {
-            continue;
-        }
-        nonTemplateEntries[key] = entry;
     }
     return nonTemplateEntries;
 }
