@@ -57,6 +57,9 @@ export class ElementIdReview {
     }
 
     open(): void {
+        if (this.elementIds.openHostReview()) {
+            return;
+        }
         if (!this.container) {
             const container = document.createElement("div");
             container.className = "eid-root";

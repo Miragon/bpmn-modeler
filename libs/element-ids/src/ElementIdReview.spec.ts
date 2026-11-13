@@ -22,7 +22,9 @@ const proposal: ElementIdProposal = {
 
 let page: HTMLElement;
 
-function setUp(options: { directEditing?: boolean; initiallyUnchecked?: string[] } = {}) {
+function setUp(
+    options: { directEditing?: boolean; initiallyUnchecked?: string[]; hostReview?: boolean } = {},
+) {
     const themed = document.createElement("div");
     themed.setAttribute("data-bpmn-theme", "dark");
     const bjs = document.createElement("div");
@@ -54,6 +56,7 @@ function setUp(options: { directEditing?: boolean; initiallyUnchecked?: string[]
         propose: vi.fn(() => [proposal]),
         rename: vi.fn(() => 1),
         initiallyUnchecked: vi.fn(() => new Set(options.initiallyUnchecked ?? [])),
+        openHostReview: vi.fn(() => options.hostReview ?? false),
     };
     const review = new ElementIdReview(
         elementIds as unknown as ElementIdsService,
@@ -87,6 +90,16 @@ describe("ElementIdReview", () => {
         expect(roots[0]?.getAttribute("data-bpmn-theme")).toBe("dark");
         expect(roots[0]?.querySelector(".eid-panel")).not.toBeNull();
         expect(review.isOpen()).toBe(true);
+    });
+
+    it("hands the review to the host's own panel when the host has one", () => {
+        const { review, bjs, elementIds } = setUp({ hostReview: true });
+
+        act(() => review.open());
+
+        expect(elementIds.openHostReview).toHaveBeenCalledOnce();
+        expect(bjs.querySelector(".eid-root")).toBeNull();
+        expect(review.isOpen()).toBe(false);
     });
 
     it("proposes again after every diagram change while open, and not while closed", () => {

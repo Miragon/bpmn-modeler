@@ -1,5 +1,7 @@
 import {
     DEFAULT_ELEMENT_IDS_FOLLOW_NAME,
+    type ElementIdProposals,
+    type ElementIdRow,
     type ElementIdSettings,
 } from "@miragon/bpmn-modeler-types";
 
@@ -26,7 +28,20 @@ export interface ElementIdOptions {
     readonly followName?: boolean;
     /** The lint rule's convention, which the lint stack builds and hands in. */
     readonly convention?: IdConvention;
+    /** Opens the host's own review panel in place of the canvas panel. */
+    readonly openReview?: () => void;
 }
+
+const rowOf = ({ candidate, status, newId, clash }: ElementIdProposal): ElementIdRow => ({
+    id: candidate.id,
+    name: candidate.name,
+    type: candidate.type,
+    kind: candidate.kind,
+    status,
+    ...(newId === undefined ? {} : { newId }),
+    clash,
+    shownId: candidate.shown.id,
+});
 
 /**
  * Proposes IDs from names and applies them. Everything recomputes from the live
@@ -38,6 +53,7 @@ export class ElementIdsService {
 
     private settings: ElementIdSettings = { followName: DEFAULT_ELEMENT_IDS_FOLLOW_NAME };
     private convention: IdConvention = FALLBACK_CONVENTION;
+    private openReview: (() => void) | undefined;
 
     constructor(
         private readonly elementRegistry: ElementRegistryLike,
@@ -48,6 +64,13 @@ export class ElementIdsService {
     configure(options: ElementIdOptions): void {
         this.settings = { followName: options.followName ?? this.settings.followName };
         this.convention = options.convention ?? this.convention;
+        this.openReview = options.openReview ?? this.openReview;
+    }
+
+    /** Whether the host took the review into its own panel. */
+    openHostReview(): boolean {
+        this.openReview?.();
+        return this.openReview !== undefined;
     }
 
     getSettings(): ElementIdSettings {
@@ -65,6 +88,11 @@ export class ElementIdsService {
             unchecked,
             isTakenElsewhere: this.takenOutside(candidates),
         });
+    }
+
+    /** The review's rows for a host's own panel; without `unchecked`, the rows it starts with. */
+    list(unchecked: ReadonlySet<string> = this.initiallyUnchecked()): ElementIdProposals {
+        return { rows: this.propose(unchecked).map(rowOf), unchecked: [...unchecked] };
     }
 
     /** The IDs the review starts with unchecked. */

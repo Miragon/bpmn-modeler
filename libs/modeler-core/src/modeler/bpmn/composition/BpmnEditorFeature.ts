@@ -35,6 +35,7 @@ import {
 import { DocumentRenderParticipant } from "../../../editorSession/service/DocumentRenderParticipant";
 import {
     DiagnosticsPort,
+    ElementIdReviewPort,
     LintingPreferencePort,
     PropertiesPanelStatePort,
 } from "../port/bpmnPorts";
@@ -43,13 +44,17 @@ import {
     answerWithoutPluginsHandler,
     cleanupReportHandler,
     diagramFormattedHandler,
+    elementIdProposalsHandler,
     elementIdReviewHandler,
+    elementIdsAppliedHandler,
     getBpmnlintConfigHandler,
     getBpmnModelerSettingHandler,
     getClipboardHandler,
     getElementTemplatesHandler,
     getPropertiesPanelStateHandler,
     getTextClipboardHandler,
+    openElementIdReviewHandler,
+    resumeElementIdReviewHandler,
     setClipboardHandler,
     setLintingEnabledHandler,
     setPropertiesPanelStateHandler,
@@ -69,6 +74,7 @@ import { BpmnPropertiesPanelService } from "../service/BpmnPropertiesPanelServic
 import { BpmnSettingsBroadcaster } from "../service/BpmnSettingsBroadcaster";
 import { BpmnlintParticipant } from "../service/BpmnlintParticipant";
 import { BpmnSettingsParticipant } from "../service/BpmnSettingsParticipant";
+import { ElementIdReviewParticipant } from "../service/ElementIdReviewParticipant";
 import { ElementIdsService } from "../service/ElementIdsService";
 import { ElementTemplatesParticipant } from "../service/ElementTemplatesParticipant";
 import { EngineVersionStatusBarParticipant } from "../service/EngineVersionStatusBarParticipant";
@@ -106,6 +112,8 @@ export interface BpmnEditorHostPorts {
     readonly templatePreferences?: TemplatePreferenceStorePort;
     /** Absent: bpmnlint runs no workspace rule package, only the bundled rules. */
     readonly rulePackages?: BpmnRulePackagePorts;
+    /** Absent: the element ID review opens in the canvas. */
+    readonly elementIdReview?: ElementIdReviewPort;
 }
 
 /** The core's document services behind {@link DOCUMENT_SYNC_COMMAND_TYPES}. */
@@ -192,6 +200,7 @@ export class BpmnEditorFeature {
             ports.statusBar,
             ports.notifier,
             ports.settings,
+            { hostElementIdReview: ports.elementIdReview !== undefined },
         );
         const loadedTemplateDirs = new LoadedTemplateDirs();
         this.templates = new BpmnElementTemplatesService(
@@ -212,7 +221,7 @@ export class BpmnEditorFeature {
         });
         this.templateInventory = new TemplateInventory(loadedTemplateDirs, ports.artifacts);
         this.layout = new BpmnLayoutService(ports.store, ports.notifier, ports.picker);
-        this.elementIds = new ElementIdsService(ports.store, ports.notifier);
+        this.elementIds = new ElementIdsService(ports.store, ports.notifier, ports.elementIdReview);
         const lintConfigLocator = new BpmnLintConfigLocator(
             ports.workspace,
             ports.settings,
@@ -287,6 +296,9 @@ export class BpmnEditorFeature {
             DiagramFormattedCommand: [diagramFormattedHandler(this.layout)],
             CleanupReportCommand: [cleanupReportHandler(this.layout)],
             ElementIdReviewCommand: [elementIdReviewHandler(this.elementIds)],
+            ElementIdProposalsCommand: [elementIdProposalsHandler(this.elementIds)],
+            ElementIdsAppliedCommand: [elementIdsAppliedHandler(this.elementIds)],
+            OpenElementIdReviewCommand: [openElementIdReviewHandler(this.elementIds)],
             NavigateToReferencedModelCommand: [
                 navigation.commandHandlers.NavigateToReferencedModelCommand,
             ],
@@ -321,6 +333,7 @@ export class BpmnEditorFeature {
             contributions.deploymentStatus,
             scriptEditor.participant,
             codeLink.participant,
+            new ElementIdReviewParticipant(this.elementIds),
             ...(contributions.plugins ? [contributions.plugins.participant] : []),
         ];
     }
@@ -369,6 +382,7 @@ export class BpmnEditorFeature {
                     this.ports.notifier,
                     "Bpmn modeler is ready",
                 ),
+                resumeElementIdReviewHandler(this.elementIds),
             ],
             SyncDocumentCommand: [syncDocumentHandler(this.bpmnService)],
             DocumentFlushedCommand: [documentFlushedHandler(documentSync.flushes)],

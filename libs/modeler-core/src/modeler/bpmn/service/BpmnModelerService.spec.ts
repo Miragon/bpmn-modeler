@@ -26,7 +26,10 @@ const CUSTOM_PREFIX_C8_DOC =
 const VERSION_NOT_CHANGED =
     "The diagram changed while you picked a version, so its engine version was not changed. Try again.";
 
-function createServiceFor(host: TestHost): BpmnModelerService {
+function createServiceFor(
+    host: TestHost,
+    options: { hostElementIdReview?: boolean } = {},
+): BpmnModelerService {
     return new BpmnModelerService(
         host.store,
         host.documents,
@@ -34,13 +37,18 @@ function createServiceFor(host: TestHost): BpmnModelerService {
         host.statusBar,
         host.notifier,
         host.settings,
+        options,
     );
 }
 
-function createService(content: string, promptAnswers: PromptAnswers = {}) {
+function createService(
+    content: string,
+    promptAnswers: PromptAnswers = {},
+    options: { hostElementIdReview?: boolean } = {},
+) {
     const host = createTestHost({ settings: { language: "de" }, promptAnswers });
     const editor = host.openEditor(PATH, content);
-    const service = createServiceFor(host);
+    const service = createServiceFor(host, options);
     service.registerSession(editor.id);
     return { service, host, editor };
 }
@@ -89,6 +97,18 @@ describe("BpmnModelerService.display", () => {
         expect(msg.locale).toBe("de");
         expect(engineVersionShown(host)).toBe("Camunda 8 (8.8.0)");
     });
+
+    it.each([true, false])(
+        "tells the editor whether the host shows the element ID review itself (%s)",
+        async (hostElementIdReview) => {
+            const { service, editor } = createService(C8_DOC, {}, { hostElementIdReview });
+
+            await service.display(editor.id);
+
+            const [msg] = editor.postedOfType<BpmnFileQuery>("BpmnFileQuery");
+            expect(msg.hostElementIdReview).toBe(hostElementIdReview);
+        },
+    );
 
     it("seeds an empty document with the picked platform before rendering", async () => {
         const { service, editor } = createService("", { newModelEngine: "c7" });

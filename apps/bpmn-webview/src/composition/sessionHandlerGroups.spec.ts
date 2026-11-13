@@ -4,6 +4,7 @@ import { createInertLockGroup } from "@miragon/bpmn-modeler-shared";
 
 import type { SurfaceHandle } from "../domain/surface";
 import { BpmnDocumentSession } from "../service/documentSession";
+import { createHostElementIdReview } from "../service/hostElementIdReview";
 import { createLintBridge } from "../adapter/out/lintBridge";
 import { createProtocolCapabilities } from "../adapter/out/protocolCapabilities";
 import { resolveClipboard } from "../adapter/out/protocolClipboard";
@@ -37,7 +38,11 @@ function sessionHandlerGroups(): Record<string, object> {
             pageInertLocks: createInertLockGroup(document.body),
         }).handlers,
         surfaceRequests: createSurfaceRequests(host, getSurface, {
-            hostModelerState: { rememberSettings: vi.fn(), rememberOpenScripts: vi.fn() },
+            hostModelerState: {
+                rememberSettings: vi.fn(),
+                rememberOpenScripts: vi.fn(),
+                rememberElementIdConvention: vi.fn(),
+            },
             theme: { setMode: vi.fn() },
             replies: { elementTemplates: { done: vi.fn() }, settings: { done: vi.fn() } },
             setFormPreviewAutomatic: vi.fn(),
@@ -49,6 +54,7 @@ function sessionHandlerGroups(): Record<string, object> {
         ).handlers,
         clipboard: resolveClipboard(undefined, { isDevelopment: false, host }).handlers,
         protocolCapabilities: createProtocolCapabilities(host, getSurface).handlers,
+        elementIdReview: createHostElementIdReview(host, getSurface).handlers,
     };
 }
 

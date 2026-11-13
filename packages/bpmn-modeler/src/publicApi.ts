@@ -6,6 +6,7 @@ import type {
     BpmnlintConfig,
     BpmnModelerSetting,
     CleanupOutcome,
+    ElementIdProposals,
     ElementIdReviewOutcome,
     ElementTemplateRef,
     Engine,
@@ -43,6 +44,14 @@ export interface ElementIdOptions {
     /** Rename an ID that is still random or generated whenever its element's name or type changes. */
     readonly followName?: boolean;
     readonly convention?: ElementIdConvention;
+    /**
+     * Open the host's own review panel in place of the one along the canvas,
+     * for {@link BpmnModelerHandle.openElementIdReview} and "Review all IDs…"
+     * under the ID field. The host lists the review with
+     * {@link BpmnModelerHandle.proposeElementIds} and applies it with
+     * {@link BpmnModelerHandle.renameElementIds}.
+     */
+    readonly openReview?: () => void;
 }
 
 /**
@@ -339,6 +348,21 @@ export interface BpmnModelerHandle extends BpmnSurfaceHandle, PendingInputHandle
      * files are not updated.
      */
     openElementIdReview(): ElementIdReviewOutcome;
+
+    /**
+     * [A] The rows of that review, for a host that shows it in its own panel:
+     * every named element with the ID its name yields and whether it changes,
+     * and the IDs left `unchecked`, which keep their ID. Without `unchecked`,
+     * the rows the review starts with: process IDs unchecked. Recomputed from
+     * the live diagram on each call.
+     */
+    proposeElementIds(unchecked?: readonly string[]): ElementIdProposals;
+
+    /**
+     * [A] Rename every element {@link proposeElementIds} lists as changing,
+     * except the `unchecked` IDs, in one undo step; returns how many changed.
+     */
+    renameElementIds(unchecked: readonly string[]): number;
 
     /** [A] Push a new set of element templates (data, never a path). */
     setElementTemplates(templates: object[]): void;

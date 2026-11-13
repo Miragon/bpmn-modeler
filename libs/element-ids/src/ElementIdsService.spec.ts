@@ -106,6 +106,81 @@ describe("ElementIdsService", () => {
         expect(stepsOf(executed[0]!.context)).toEqual(["Activity_1>userTask_process_data"]);
     });
 
+    describe("rows for a host's own panel", () => {
+        it("lists each row with its kind and the element to reveal, processes unchecked", () => {
+            const pool = shape("bpmn:Participant", "Participant_1", "Order handling");
+            pool.businessObject.processRef = moddle("bpmn:Process", "Process_1");
+            const task = shape("bpmn:ServiceTask", "Activity_1", "Check stock");
+            const { service } = setUp([pool, task]);
+
+            expect(service.list()).toEqual({
+                rows: [
+                    {
+                        id: "Participant_1",
+                        name: "Order handling",
+                        type: "bpmn:Participant",
+                        kind: "participant",
+                        status: "rename",
+                        newId: "participant_orderHandling",
+                        clash: false,
+                        shownId: "Participant_1",
+                    },
+                    {
+                        id: "Process_1",
+                        name: "Order handling",
+                        type: "bpmn:Process",
+                        kind: "process",
+                        status: "unchecked",
+                        newId: "orderHandling",
+                        clash: false,
+                        shownId: "Participant_1",
+                    },
+                    {
+                        id: "Activity_1",
+                        name: "Check stock",
+                        type: "bpmn:ServiceTask",
+                        kind: "activity",
+                        status: "rename",
+                        newId: "serviceTask_checkStock",
+                        clash: false,
+                        shownId: "Activity_1",
+                    },
+                ],
+                unchecked: ["Process_1"],
+            });
+        });
+
+        it("keeps the IDs the host unchecked and leaves out the ID of a skipped row", () => {
+            const { service } = setUp([
+                shape("bpmn:Task", "Activity_1", "Notify"),
+                shape("bpmn:Task", "Activity_2", ""),
+            ]);
+
+            const { rows, unchecked } = service.list(new Set(["Activity_1"]));
+
+            expect(unchecked).toEqual(["Activity_1"]);
+            expect(rows.map((row) => [row.status, row.newId])).toEqual([
+                ["unchecked", "task_notify"],
+                ["skipped", undefined],
+            ]);
+            expect(rows[1]).not.toHaveProperty("newId");
+        });
+    });
+
+    describe("the host's own review", () => {
+        it("opens it when the host handed one in", () => {
+            const { service } = setUp([]);
+            let opened = 0;
+
+            expect(service.openHostReview()).toBe(false);
+            service.configure({ openReview: () => opened++ });
+            service.configure({ followName: true });
+
+            expect(service.openHostReview()).toBe(true);
+            expect(opened).toBe(1);
+        });
+    });
+
     describe("one element", () => {
         it("proposes against every other ID in the diagram, from the element or its label", () => {
             const event = shape("bpmn:StartEvent", "Event_1", "Start");

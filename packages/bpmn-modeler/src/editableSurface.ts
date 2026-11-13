@@ -10,6 +10,7 @@ import {
     type BpmnModelerSetting,
     type CleanupOutcome,
     type Disposer,
+    type ElementIdProposals,
     type ElementIdReviewOutcome,
     type DisposableStore,
     type MinimalEventBus,
@@ -118,6 +119,28 @@ export function openSurfaceElementIdReview(surface: SurfaceServices): ElementIdR
     }
     review.open();
     return { status: "opened" };
+}
+
+const NO_ELEMENT_IDS: ElementIdProposals = { rows: [], unchecked: [] };
+
+export function proposeSurfaceElementIds(
+    surface: SurfaceServices,
+    unchecked: readonly string[] | undefined,
+): ElementIdProposals {
+    return (
+        surface
+            .optionalService<ElementIdsService>("elementIds")
+            ?.list(unchecked && new Set(unchecked)) ?? NO_ELEMENT_IDS
+    );
+}
+
+export function renameSurfaceElementIds(
+    surface: SurfaceServices,
+    unchecked: readonly string[],
+): number {
+    return (
+        surface.optionalService<ElementIdsService>("elementIds")?.rename(new Set(unchecked)) ?? 0
+    );
 }
 
 export function applyElementIdSettings(surface: SurfaceServices, options: ElementIdOptions): void {

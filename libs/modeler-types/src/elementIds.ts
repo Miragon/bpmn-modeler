@@ -20,6 +20,57 @@ export interface ElementIdSettings {
     readonly followName: boolean;
 }
 
+/** The kinds the review groups IDs by. */
+export type ElementIdKind =
+    "process" | "participant" | "lane" | "activity" | "event" | "gateway" | "flow" | "other";
+
+/**
+ * The review's groups in the order it lists them, with their labels; the
+ * webview translates a label, a host panel shows it as it is.
+ */
+export const ELEMENT_ID_GROUPS: readonly {
+    readonly kind: ElementIdKind;
+    readonly label: string;
+}[] = [
+    { kind: "process", label: "Processes" },
+    { kind: "participant", label: "Pools" },
+    { kind: "lane", label: "Lanes" },
+    { kind: "activity", label: "Activities" },
+    { kind: "event", label: "Events" },
+    { kind: "gateway", label: "Gateways" },
+    { kind: "flow", label: "Flows" },
+    { kind: "other", label: "Other elements" },
+];
+
+/**
+ * `matches`: the ID already follows the name. `unchecked`: the user keeps the
+ * current ID. `skipped`: the name yields no ID.
+ */
+export type ElementIdRowStatus = "rename" | "matches" | "unchecked" | "skipped";
+
+/** One row of the review, for a host that shows the review in its own panel. */
+export interface ElementIdRow {
+    /** The current ID, which also identifies the row. */
+    readonly id: string;
+    readonly name: string;
+    /** The BPMN type, such as `bpmn:ServiceTask`. */
+    readonly type: string;
+    readonly kind: ElementIdKind;
+    readonly status: ElementIdRowStatus;
+    /** The ID the element gets, or would get if checked; absent when skipped. */
+    readonly newId?: string;
+    /** A counter was added because another element claims the plain ID. */
+    readonly clash: boolean;
+    /** The diagram element to reveal for the row: a pool for its process. */
+    readonly shownId: string;
+}
+
+/** The review's rows and the IDs it leaves unchecked. */
+export interface ElementIdProposals {
+    readonly rows: readonly ElementIdRow[];
+    readonly unchecked: readonly string[];
+}
+
 /** `unsupported` comes from a surface that cannot change IDs, such as View mode. */
 export type ElementIdReviewStatus = "opened" | "unsupported";
 

@@ -1095,6 +1095,9 @@ describe("BpmnLintConfigService — workspace rule packages the user has not all
                     refused,
                 };
             }),
+            elementIdConventionOptions: vi.fn<LintRunnerPort["elementIdConventionOptions"]>(
+                async () => ({}),
+            ),
         };
         const service = new BpmnLintConfigService(
             host.store,
