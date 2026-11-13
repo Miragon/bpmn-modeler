@@ -124,6 +124,21 @@ describe("BpmnDiffService", () => {
         expect(afterHighlights?.added).toContain("Task_1");
     });
 
+    it("names each side's file in its highlights, the git ref ignored", async () => {
+        const { service, store } = createService();
+        const { before, after } = attachedPair(store, beforeBpmn, afterBpmn);
+
+        await service.markReady(before);
+        await service.markReady(after);
+
+        const paneFilenameOf = (handle: FakeDiffPaneHandle) =>
+            handle.posted
+                .map((m) => m as { type: string; paneFilename?: string })
+                .find((m) => m.type === "ApplyDiffHighlightsQuery")?.paneFilename;
+        expect(paneFilenameOf(before)).toBe("diagram.bpmn");
+        expect(paneFilenameOf(after)).toBe("diagram.bpmn");
+    });
+
     it("logs and posts no highlights when computeDiff rejects on invalid XML", async () => {
         const { service, store, notifier } = createService();
         const { before, after } = attachedPair(store, "not valid bpmn xml", afterBpmn);

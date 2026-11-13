@@ -41,8 +41,8 @@ import {
     DirectoryNotFound,
     FileNotFound,
     globToRegExp,
+    innermostFolderOf,
     isIgnoredWatchDirName,
-    isWithinRoot,
     joinWorkspacePath,
     NoWorkspaceFolderFoundError,
     relativeToRoot,
@@ -185,15 +185,10 @@ export class NodeWorkspace implements WorkspacePort, WorkspaceRoots {
      */
     private enclosingRoot(document: string): string | undefined {
         const hadScheme = document.startsWith("file://");
-        const documentPath = withoutFileScheme(document);
-        let innermostRoot: string | undefined;
-        for (const root of this.roots.keys()) {
-            const rootPath = withoutFileScheme(root);
-            const encloses = isWithinRoot(documentPath, rootPath);
-            if (encloses && rootPath.length > (innermostRoot?.length ?? -1)) {
-                innermostRoot = rootPath;
-            }
-        }
+        const innermostRoot = innermostFolderOf(
+            withoutFileScheme(document),
+            [...this.roots.keys()].map(withoutFileScheme),
+        );
         if (innermostRoot === undefined) {
             return undefined;
         }

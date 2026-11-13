@@ -8,7 +8,7 @@ import {
 } from "../kernel/domain/errors";
 import { globToRegExp } from "../kernel/domain/globToRegExp";
 import { WorkspacePort } from "../kernel/port/hostPorts";
-import { isWithinRoot, relativeToRoot } from "../kernel/domain/rootContainment";
+import { innermostFolderOf, isWithinRoot, relativeToRoot } from "../kernel/domain/rootContainment";
 import { withoutFileScheme } from "../kernel/domain/workspacePath";
 
 export interface WatcherHandlers {
@@ -78,10 +78,7 @@ export class InMemoryWorkspace implements WorkspacePort {
 
     findWorkspaceFolderForDocument(document: string): string | undefined {
         const documentPath = withoutFileScheme(document);
-        const folder = this.folders
-            .map((known) => withoutFileScheme(known))
-            .filter((known) => isWithinRoot(documentPath, known))
-            .sort((a, b) => b.length - a.length)[0];
+        const folder = innermostFolderOf(documentPath, this.folders.map(withoutFileScheme));
         return folder !== undefined && document !== documentPath ? `file://${folder}` : folder;
     }
 

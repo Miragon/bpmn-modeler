@@ -3,6 +3,7 @@ import { commands, ExtensionContext, Uri, window } from "vscode";
 import {
     COMPARE_WITH_ITSELF_TEXT,
     CompareFormat,
+    lastWorkspacePathSegment,
     NotifierPort,
     nothingSelectedForCompareText,
     selectedForCompareText,
@@ -117,7 +118,7 @@ export class CompareController {
         }
         await this.selection.set(uri);
         window.setStatusBarMessage(
-            selectedForCompareText(basenameOf(uri)),
+            selectedForCompareText(lastWorkspacePathSegment(uri.path)),
             STATUS_MESSAGE_TIMEOUT_MS,
         );
     }
@@ -192,9 +193,4 @@ export class CompareController {
     private isOfFormat(uri: Uri | undefined): uri is Uri {
         return uri !== undefined && uri.path.endsWith(this.diffController.extension);
     }
-}
-
-function basenameOf(uri: Uri): string {
-    const parts = uri.path.split("/");
-    return parts[parts.length - 1] ?? uri.path;
 }

@@ -6,10 +6,10 @@ import {
     DiffPaneHandle,
     DiffPaneHostExtensions,
     DiffSession,
-    basenameOfUriString,
     compareTabLabel,
     DiffFileExtension,
     diffTabLabelNamesFile,
+    lastWorkspacePathSegment,
     SettingChange,
     WebviewMessageRouter,
 } from "@miragon/bpmn-modeler-core";
@@ -121,8 +121,8 @@ export class DiffController {
     async openCompareFilesDiff(leftUri: Uri, rightUri: Uri): Promise<void> {
         this.store.registerCompareFiles(leftUri.toString(), rightUri.toString());
         const title = compareTabLabel(
-            basenameOfUriString(leftUri.toString()),
-            basenameOfUriString(rightUri.toString()),
+            lastWorkspacePathSegment(leftUri.path),
+            lastWorkspacePathSegment(rightUri.path),
         );
         try {
             await commands.executeCommand("vscode.diff", leftUri, rightUri, title, {
@@ -233,7 +233,7 @@ export class DiffController {
      * files must not turn every file opened afterwards into a diff pane.
      */
     private isPartOfDiff(uri: Uri): boolean {
-        const basename = basenameOfUriString(uri.toString());
+        const basename = lastWorkspacePathSegment(uri.path);
         if (!basename.endsWith(this.format.extension)) {
             return false;
         }

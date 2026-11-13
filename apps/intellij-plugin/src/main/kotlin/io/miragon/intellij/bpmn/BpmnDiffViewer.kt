@@ -41,7 +41,7 @@ import javax.swing.SwingConstants
  * is appended to each side's file URL so that (a) the two sides stay distinct
  * even when both VCS contents point at the same working-tree file, and (b) two
  * simultaneous diffs of the *same* file never collide in the core's routing
- * tables. `basenameOfUriString` in the core strips the fragment, so the legend
+ * tables. `uriDisplayName` in the core ignores the fragment, so the legend
  * still shows the real filename.
  *
  * **Crash recovery note:** diff panes are host-originated and their XML is held

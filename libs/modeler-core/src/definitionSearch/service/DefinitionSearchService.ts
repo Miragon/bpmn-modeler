@@ -11,7 +11,7 @@ import {
 } from "@miragon/bpmn-modeler-types";
 
 import type { DocumentPort, NotifierPort, WorkspacePort } from "../../kernel/port/hostPorts";
-import { toWorkspacePath } from "../../kernel/domain/workspacePath";
+import { lastWorkspacePathSegment, toWorkspacePath } from "../../kernel/domain/workspacePath";
 import type { EditorSessionStore } from "../../editorSession/service/EditorSessionStore";
 import type { WorkspaceDefinitionIndex } from "./WorkspaceDefinitionIndex";
 
@@ -66,7 +66,7 @@ export class DefinitionSearchService {
             .flatMap(({ path, definitions }) => {
                 const source = {
                     path: this.relativePath(path),
-                    label: posix.basename(toWorkspacePath(path)),
+                    label: lastWorkspacePathSegment(toWorkspacePath(path)),
                 };
                 return definitions
                     .filter((definition) => matchesDefinitionQuery(definition, query))

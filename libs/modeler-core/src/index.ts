@@ -160,7 +160,6 @@ export { ViewReview } from "./addOns/adapter/out/ViewReview";
 export * from "./addOns/composition/AddOnsFeature";
 
 // ── diff ─────────────────────────────────────────────────────────────────────
-export * from "./diff/domain/basenameOfUriString";
 export * from "./diff/domain/compareTexts";
 export * from "./diff/domain/diffTabLabel";
 export * from "./diff/domain/diffFileExtension";

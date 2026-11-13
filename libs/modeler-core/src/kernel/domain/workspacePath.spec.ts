@@ -7,6 +7,7 @@ import {
     lastWorkspacePathSegment,
     parentWorkspacePath,
     toWorkspacePath,
+    uriDisplayName,
     withLowerCaseDrive,
     withoutFileScheme,
 } from "./workspacePath";
@@ -299,8 +300,32 @@ describe("lastWorkspacePathSegment", () => {
         { path: "/work/.camunda/plugins/resize", segment: "resize" },
         { path: "/work/orders/", segment: "orders" },
         { path: "/", segment: "/" },
+        { path: "C:/work/order.bpmn", segment: "order.bpmn" },
+        { path: "//server/share", segment: "share" },
+        { path: "file:///repo/sub/diagram.bpmn", segment: "diagram.bpmn" },
+        { path: "file://C:/work/", segment: "work" },
+        { path: "/repo/100%.bpmn", segment: "100%.bpmn" },
+        { path: "/repo/a#b?.bpmn", segment: "a#b?.bpmn" },
     ])("names $path by $segment", ({ path, segment }) => {
         expect(lastWorkspacePathSegment(path)).toBe(segment);
+    });
+});
+
+describe("uriDisplayName", () => {
+    it.each([
+        { uri: "file:///repo/sub/diagram.bpmn", name: "diagram.bpmn" },
+        { uri: "file:///repo/diagram.bpmn?ref=HEAD", name: "diagram.bpmn" },
+        { uri: "file:///repo/diagram.bpmn#section", name: "diagram.bpmn" },
+        { uri: "file:///repo/my%20diagram.bpmn", name: "my diagram.bpmn" },
+        { uri: "file:///c%3A/repo/diagram.bpmn", name: "diagram.bpmn" },
+        { uri: "file:///c%3A", name: "c:" },
+        { uri: "file:///repo/100%.bpmn#diff-1-before", name: "100%.bpmn" },
+        { uri: "file:///repo/a%23b.bpmn", name: "a#b.bpmn" },
+        { uri: "git:/repo/diagram.bpmn?%7B%22ref%22%3A%22HEAD%22%7D", name: "diagram.bpmn" },
+        { uri: "diff:///pane#diff-1-after", name: "pane" },
+        { uri: "file:///repo/orders/", name: "orders" },
+    ])("names $uri by $name", ({ uri, name }) => {
+        expect(uriDisplayName(uri)).toBe(name);
     });
 });
 

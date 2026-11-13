@@ -1,4 +1,4 @@
-import { posix } from "path";
+import { lastWorkspacePathSegment } from "./workspacePath";
 
 /**
  * `path` below the folder `root`: `""` for the root itself, `undefined` outside
@@ -55,7 +55,12 @@ export function relativeToWorkspace(path: string, folders: readonly string[]): s
         return path;
     }
     const { folder, belowFolder } = innermost;
-    return folders.length > 1 ? `${posix.basename(folder)}/${belowFolder}` : belowFolder;
+    return folders.length > 1 ? `${workspaceFolderName(folder)}/${belowFolder}` : belowFolder;
+}
+
+// VS Code names the filesystem root "", where lastWorkspacePathSegment names it "/".
+function workspaceFolderName(folder: string): string {
+    return folder === "/" ? "" : lastWorkspacePathSegment(folder);
 }
 
 function withTrailingSlash(path: string): string {

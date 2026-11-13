@@ -47,6 +47,21 @@ export function lastWorkspacePathSegment(path: string): string {
     return path.split("/").filter(Boolean).pop() ?? path;
 }
 
+/** The file or folder name a URI string shows, its query and fragment ignored. */
+export function uriDisplayName(uri: string): string {
+    return lastWorkspacePathSegment(decodedUriBeforeQueryOrFragment(uri));
+}
+
+// IntelliJ's file URLs are not percent-encoded, so a `%` that starts no escape stays as written.
+function decodedUriBeforeQueryOrFragment(uri: string): string {
+    const [beforeQueryOrFragment] = uri.split(/[?#]/);
+    try {
+        return decodeURIComponent(beforeQueryOrFragment);
+    } catch {
+        return beforeQueryOrFragment;
+    }
+}
+
 /** The path a `file://` URI names, for the hosts that accept both spellings. */
 export function withoutFileScheme(path: string): string {
     return path.startsWith(FILE_SCHEME) ? path.slice(FILE_SCHEME.length) : path;

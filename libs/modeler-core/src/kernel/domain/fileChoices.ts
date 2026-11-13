@@ -1,11 +1,10 @@
-import { posix } from "path";
-
 import { ChoiceItem } from "./prompts";
 import { relativeToWorkspace } from "./rootContainment";
+import { lastWorkspacePathSegment } from "./workspacePath";
 
 /** A file offered by its name; its path tells files of the same name apart. */
 export function fileChoice(path: string): ChoiceItem<string> {
-    return { label: posix.basename(path), path, value: path };
+    return { label: lastWorkspacePathSegment(path), path, value: path };
 }
 
 /** Ordered as VS Code shows the paths, so both hosts list the files alike. */

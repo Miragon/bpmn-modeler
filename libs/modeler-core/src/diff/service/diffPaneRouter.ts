@@ -11,7 +11,7 @@ import {
 } from "../../editorSession/service/WebviewMessageRouter";
 import { LoggerPort } from "../../kernel/port/hostPorts";
 import { DiffPaneHandle } from "../port/DiffPaneHandle";
-import { basenameOfUriString } from "../domain/basenameOfUriString";
+import { uriDisplayName } from "../../kernel/domain/workspacePath";
 import { BpmnDiffService } from "./BpmnDiffService";
 import { DmnDiffService } from "./DmnDiffService";
 
@@ -88,7 +88,7 @@ function hostRoutes({
         LogErrorCommand: paneLog
             ? [
                   (command, pane) => {
-                      routeWebviewLogCommand(paneLog, command, basenameOfUriString(pane.uri));
+                      routeWebviewLogCommand(paneLog, command, uriDisplayName(pane.uri));
                   },
               ]
             : { ignored: "the host keeps no log of its diff panes" },
