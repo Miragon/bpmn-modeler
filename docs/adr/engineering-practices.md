@@ -1347,8 +1347,9 @@ the host's own failure belong to the host
 ([Host integrations](architecture-and-hosts.md#host-integrations)), and a rule
 over host text would fire on them, so the function reports and never blocks.
 The pure measure lives in `tools/repo-checks/src/hostText/domain`. Version 2
-reads Kotlin; a new version restarts the series, which the engine recomputes
-from git.
+reads Kotlin, and version 3 (#2372) leaves markup and the messages of Kotlin's
+preconditions unread; a new version restarts the series, which the engine
+recomputes from git.
 
 - **Host code.** Every tracked `.ts`, `.tsx`, `.mts` and `.cts` file, without
   specs, tests, `__fixtures__/` folders and declaration files, that imports
@@ -1378,7 +1379,9 @@ from git.
   `readKotlinImports` reads the imports with the same lexer; a line break, a
   `;` or `as` ends one. Neither reads types. In both languages the calls
   around a literal end at the nearest function or lambda (in Kotlin, the
-  nearest brace): code a callee runs is no argument it is handed.
+  nearest brace): code a callee runs is no argument it is handed. For a brace
+  right after a call's `)` the Kotlin reader names that call as the one the
+  lambda trails (`require` in `require(ok) { "…" }`).
 - **A text** is a literal one of whose stretches holds two words: two
   whitespace-separated tokens that each hold a letter or a digit. A placeholder
   is no word, so formats such as `${a}: ${b}` and `$(${icon}) ${label}` hold no
@@ -1387,6 +1390,13 @@ from git.
   either: at `cd48f2cd` requiring a letter or a digit on both sides dropped 9
   findings, 3 CSS selector lines such as `:root {`, 4 scripts
   `window.postMessage(${…}, '*');` and 2 Markdown formats, and no text.
+  Markup is no word (version 3): a tag, from a `<` before a letter, `!` or `/`
+  to the next `>` or the end of the literal, placeholders inside included, and
+  the content of a `title`, `style` or `script` element, which a page does not
+  show. An HTML shell of structure, title, style and script holds no text, and
+  a text in its body or after a tag (`<code>marketplace.json</code>, one per
+  line`) does. An attribute a user sees, such as `title` or `aria-label`, is
+  missed, and an XML declaration is no tag, so the DMN template stays read.
 - **Not read.** A literal inside the arguments of `new Error(…)`, of a call a
   Kotlin `throw` raises (Kotlin constructs without `new`), of `log` or a
   `log` + capital function (`logError`, not `login`), or of a call on `log`,
@@ -1395,9 +1405,11 @@ from git.
   host code logs through `thisLogger().warn(…)`; the tree holds none yet.
   Version 1 read through functions, so it skipped every text inside
   `logAndRethrow(async () => …)`: 5 texts of `CommandController.ts` at
-  `cd48f2cd`. Kotlin's `error(…)`, `require(…)` and `check(…)` throw, but the
-  UI DSL's validation `error(…)` shows its text, and a callee name cannot tell
-  them apart, so they are read. An exception Kotlin constructs without
+  `cd48f2cd`. The lambda after the parentheses of Kotlin's `require(…)`,
+  `check(…)`, `requireNotNull(…)` and `checkNotNull(…)` is their message, so
+  it is not read (version 3). Kotlin's `error(…)` throws too, but the UI DSL's
+  validation `error(…)` shows its text, and a callee name cannot tell them
+  apart, so it is read. An exception Kotlin constructs without
   throwing it, as in `completeExceptionally(IllegalStateException(…))` or
   `Result.failure(IOException(…))`, is read too: without `new` a constructor
   cannot be told from a call. A Kotlin log message built in a lambda or in a
@@ -1460,6 +1472,20 @@ and the folder-pick placeholder; version 2 finds 205 findings there, 58
 TypeScript and 147 Kotlin. Reading and measuring takes 0.46 to 0.70 s per
 tree on a loaded machine; version 1 took 0.40 to 0.68 s in the same runs, so
 Kotlin adds less than 0.1 s.
+
+Version 3 at `fe75e584` (the same counts at `862b8a02`): 156 to 112 findings,
+44 dropped and none added. 41 are markup: the 33 rows of `WebviewServer.kt`'s
+three shells, written one line per literal (tags, two document titles, a style
+element), the 7 TypeScript shells (structure, a title and a script each) and a
+log redaction marker. 3 are `require(…)` invariants. No dropped row is a text a
+user sees. The 6 literals that start with a tag and hold text stay: two
+JCEF-unavailable labels, the out-of-process notice (2) and two settings
+comments. "Starts with `<!DOCTYPE`" (#2309's proposal) dropped 9 and left 30
+lines of the Kotlin shells; "starts with a tag" dropped 47, those 6 user texts
+among them; tags without the element content dropped 33 and left 5 TypeScript
+shells for their two-word titles. Of the 17 new rows of the trial (#2238), at
+each PR's final head, the 6 shell rows, the 3 `require(…)` rows and 2 moved
+shell lines of #2310 are gone; #2310's other 6 stay.
 
 Alternatives considered:
 

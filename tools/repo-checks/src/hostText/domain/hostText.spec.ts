@@ -145,6 +145,66 @@ describe("hostTextFindings", () => {
     });
 
     it.each([
+        { form: "a doctype", parts: ["<!DOCTYPE html>"] },
+        {
+            form: "a tag with attributes",
+            parts: ['<meta name="viewport" content="width=device-width, initial-scale=1.0"/>'],
+        },
+        { form: "a tag around a placeholder", parts: ['<html lang="en" data-bpmn-theme="', '">'] },
+        {
+            form: "tags around placeholders",
+            parts: ['<div id="js-panel-resizer" class="', '"></div> <div class="', '"></div>'],
+        },
+        { form: "a tag the literal leaves open", parts: ['<meta name="viewport" '] },
+        { form: "a document's title", parts: ["<title>BPMN Modeler</title>"] },
+        {
+            form: "a style element",
+            parts: ["<style>html, body { margin: 0; height: 100%; }</style>"],
+        },
+        {
+            form: "a script element",
+            parts: ['<script nonce="', '">window.postMessage({ type: "ready" }, "*");</script>'],
+        },
+        {
+            form: "an HTML shell of structure, title, style and script",
+            parts: [
+                '<!DOCTYPE html>\n<html lang="en">\n<head>\n  <meta charset="UTF-8"/>\n' +
+                    "  <title>Element Template Editor</title>\n  <style>#app { height: 100vh; }</style>\n" +
+                    '</head>\n<body>\n  <div id="app"></div>\n  <script nonce="',
+                '" src="',
+                '"></script>\n</body>\n</html>',
+            ],
+        },
+    ])("skips markup: $form", ({ parts }) => {
+        expect(messagesOf(written(parts))).toEqual([]);
+    });
+
+    it.each([
+        { form: "words after a tag", parts: ["<code>marketplace.json</code>, one per line"] },
+        {
+            form: "words inside a tag's element",
+            parts: ['<b>Help → Find Action → "Registry…"</b>, disable'],
+        },
+        {
+            form: "a label wrapped in markup",
+            parts: ["<html><center>JCEF (embedded Chromium) is not available.<br>"],
+        },
+        {
+            form: "words in a shell's body",
+            parts: ["<!DOCTYPE html><body><p>Loading the modeler…</p>"],
+        },
+        { form: "words beside a comparison", parts: ["Use fewer than < 5 or more than > 9 items"] },
+    ])("reports text in markup: $form", ({ parts }) => {
+        expect(messagesOf(written(parts))).toHaveLength(1);
+    });
+
+    it("keeps the markup of a reported text in its message", () => {
+        expect(messagesOf(written(["<code>marketplace.json</code>, one per line"]))).toEqual([
+            "`<code>marketplace.json</code>, one per line`",
+        ]);
+    });
+
+    it.each([
         { call: "log(…)", site: { construct: false, callee: "log" } },
         { call: "logError(…)", site: { construct: false, callee: "logError" } },
         {
@@ -172,6 +232,54 @@ describe("hostTextFindings", () => {
         },
     ])("does not read an argument of $call", ({ site }) => {
         expect(messagesOf(written(["Could not save"], site))).toEqual([]);
+    });
+
+    it.each(["require", "check", "requireNotNull", "checkNotNull"])(
+        "does not read the message lambda of Kotlin's %s(…)",
+        (callee) => {
+            const precondition: CallSite = { construct: false, callee };
+            const format: CallSite = { construct: false, callee: "format" };
+
+            expect(
+                messagesOf(
+                    {
+                        ...written(["A change names a switch twice"]),
+                        trailingLambdaOf: precondition,
+                    },
+                    {
+                        ...written(["A ", " change reached"], format),
+                        trailingLambdaOf: precondition,
+                    },
+                ),
+            ).toEqual([]);
+        },
+    );
+
+    it.each([
+        {
+            call: "the lambda of another call, logAndRethrow(log) { … }",
+            text: {
+                ...written(["Could not save"]),
+                trailingLambdaOf: { construct: false, callee: "logAndRethrow" },
+            },
+        },
+        {
+            call: "the lambda of a method named require, rules.require(…) { … }",
+            text: {
+                ...written(["Could not save"]),
+                trailingLambdaOf: { construct: false, callee: "require", receiver: "rules" },
+            },
+        },
+        {
+            call: "the parentheses of require(…)",
+            text: written(["Could not save"], { construct: false, callee: "require" }),
+        },
+        {
+            call: "Kotlin's error(…), which the UI DSL's validation shows",
+            text: written(["Could not save"], { construct: false, callee: "error" }),
+        },
+    ])("reads a text in $call", ({ text }) => {
+        expect(messagesOf(text)).toHaveLength(1);
     });
 
     it("does not read a text nested anywhere inside a logging call", () => {
