@@ -1527,17 +1527,20 @@ lives in `tools/repo-checks/src/contractSuites/domain`.
 - **Structural adapters (version 2, #2370).** A class without an
   `implements` clause is an adapter when a production file of a hexagonal
   workspace hands it over where the port is expected: an argument, an
-  assignment, a return value, an initializer, a property, an array element or
-  a branch of a conditional, as the type checker's contextual type shows. An
-  interface handed over as the port passes it on to what meets that
-  interface: VS Code's `vsCodeModelerPreferences` is typed by the host's
+  assignment (`??=`, `||=` and `&&=` too), a return value, an initializer, a
+  property, an array element or a branch of a conditional, as the type
+  checker's contextual type shows. Of a union only the parts the value meets
+  count, and a class passed as its constructor meets what the constructor
+  returns. An interface handed over as the port passes it on to what meets
+  that interface: VS Code's `vsCodeModelerPreferences` is typed by the host's
   `ModelerPreferences`, which the composition hands to
   `ModelerLanguageService` as `LanguagePreferencePort`. Outside the core's
-  workspace, a variable or function that names an object literal handed over
-  that way is an adapter too, and a spec covers it by importing it. What a
-  spec hands over counts for nothing, a class reached only as its own type or
-  through a type parameter bounded by the port is not seen, and an interface
-  none of whose members is a function holds data and lists no pair.
+  workspace, a module-scope variable or function that names an object literal
+  handed over that way is an adapter too, and a spec covers it by importing
+  it; a literal named inside a function is missed, as no spec can import it.
+  What a spec hands over counts for nothing, a class reached only as its own
+  type or through a type parameter bounded by the port is not seen, and an
+  interface none of whose members is a function holds data and lists no pair.
 - **Inside the core (#2355).** An implementer inside the core counts like a
   host's. The add-on inventories meet the add-on source ports, and
   `PluginInventory` and `RulePackageInventory` both meet `CodeAddOnSource`,

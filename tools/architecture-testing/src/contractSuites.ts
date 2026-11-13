@@ -152,11 +152,12 @@ class ContractSuiteReader {
             if (handed.isLiteral) {
                 literalOwners.add(handed.symbol);
             }
+            const met = this.expectedTypesMet(handed.type, expectedType);
             const known = expected.get(handed.symbol);
             if (known === undefined) {
-                expected.set(handed.symbol, [expectedType]);
+                expected.set(handed.symbol, met);
             } else {
-                known.push(expectedType);
+                known.push(...met);
             }
         }
         return { expected, literalOwners };
@@ -325,23 +326,42 @@ class ContractSuiteReader {
         return [type];
     }
 
+    /**
+     * Only the parts of a union the handed type meets, so a class passed as `A | B` meets only the
+     * ports it fits; a class handed over as its constructor meets what the construct signature returns.
+     */
+    private expectedTypesMet(handed: ts.Type, expected: ts.Type): ts.Type[] {
+        const met = constituents(expected).filter((part) =>
+            this.checker.isTypeAssignableTo(handed, part),
+        );
+        return handed.getConstructSignatures().length === 0
+            ? met
+            : met.flatMap((part) =>
+                  part.getConstructSignatures().map((signature) => signature.getReturnType()),
+              );
+    }
+
     /** What production code hands over, as the declaration whose symbol the expected type is recorded under. */
     private handedOver(
         expression: ts.Expression,
-    ): { readonly symbol: ts.Symbol; readonly isLiteral: boolean } | undefined {
+    ):
+        | { readonly symbol: ts.Symbol; readonly type: ts.Type; readonly isLiteral: boolean }
+        | undefined {
         const type = this.checker.getNonNullableType(this.checker.getTypeAtLocation(expression));
         const symbol = (isTypeReference(type) ? type.target : type).getSymbol();
         if (symbol === undefined) {
             return undefined;
         }
         if ((symbol.flags & (ts.SymbolFlags.Class | ts.SymbolFlags.Interface)) !== 0) {
-            return { symbol, isLiteral: false };
+            return { symbol, type, isLiteral: false };
         }
         const literal = symbol.declarations?.find(ts.isObjectLiteralExpression);
         const owner = literal === undefined ? undefined : literalOwnerName(literal);
         const ownerSymbol =
             owner === undefined ? undefined : this.checker.getSymbolAtLocation(owner);
-        return ownerSymbol === undefined ? undefined : { symbol: ownerSymbol, isLiteral: true };
+        return ownerSymbol === undefined
+            ? undefined
+            : { symbol: ownerSymbol, type, isLiteral: true };
     }
 
     /** The type's own symbol and those of every interface or class it extends. */
@@ -406,7 +426,10 @@ interface AdapterCandidate {
     readonly implemented: readonly ts.ExpressionWithTypeArguments[];
 }
 
-/** Named classes, and the variables and functions that may name an object literal, in source order. */
+/**
+ * Named classes, and the module-scope variables and functions that may name an object literal, in
+ * source order. A local name is left out: no spec can import it, and two may share it in one file.
+ */
 function adapterCandidates(sourceFile: ts.SourceFile): AdapterCandidate[] {
     const candidates: AdapterCandidate[] = [];
     const visit = (node: ts.Node): void => {
@@ -419,7 +442,8 @@ function adapterCandidates(sourceFile: ts.SourceFile): AdapterCandidate[] {
         } else if (
             (ts.isVariableDeclaration(node) || ts.isFunctionDeclaration(node)) &&
             node.name !== undefined &&
-            ts.isIdentifier(node.name)
+            ts.isIdentifier(node.name) &&
+            isModuleScope(node)
         ) {
             candidates.push({ declaration: node, name: node.name, implemented: [] });
         }
@@ -427,6 +451,13 @@ function adapterCandidates(sourceFile: ts.SourceFile): AdapterCandidate[] {
     };
     visit(sourceFile);
     return candidates;
+}
+
+function isModuleScope(declaration: ts.VariableDeclaration | ts.FunctionDeclaration): boolean {
+    const statement = ts.isVariableDeclaration(declaration)
+        ? declaration.parent.parent
+        : declaration;
+    return ts.isSourceFile(statement.parent);
 }
 
 /** Where a value meets a type the code expects: an argument, an assignment, a return value, an initializer, a property, an element or a branch. */
@@ -440,12 +471,19 @@ function handedOverExpressions(sourceFile: ts.SourceFile): ts.Expression[] {
     return found;
 }
 
+const ASSIGNMENTS: ReadonlySet<ts.SyntaxKind> = new Set([
+    ts.SyntaxKind.EqualsToken,
+    ts.SyntaxKind.QuestionQuestionEqualsToken,
+    ts.SyntaxKind.BarBarEqualsToken,
+    ts.SyntaxKind.AmpersandAmpersandEqualsToken,
+]);
+
 function handedOverBy(node: ts.Node): readonly ts.Expression[] {
     if (ts.isCallExpression(node) || ts.isNewExpression(node)) {
         return node.arguments ?? [];
     }
     if (ts.isBinaryExpression(node)) {
-        return node.operatorToken.kind === ts.SyntaxKind.EqualsToken ? [node.right] : [];
+        return ASSIGNMENTS.has(node.operatorToken.kind) ? [node.right] : [];
     }
     if (ts.isReturnStatement(node) || ts.isSatisfiesExpression(node)) {
         return node.expression === undefined ? [] : [node.expression];

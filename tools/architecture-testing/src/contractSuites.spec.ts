@@ -252,6 +252,8 @@ export function render(renderer: Renderer): void { void renderer; }
 export function dispose(disposable: { dispose(): void }): void { void disposable; }
 export class Holder { read(): string { return "held"; } }
 export function keep(holder: Holder): void { void holder; }
+export function either(target: Foo | Renderer): void { void target; }
+export function register(create: new () => Foo): void { void create; }
 
 export interface Wiring {
     readonly foo?: Foo;
@@ -306,6 +308,9 @@ export class ExtendsArgumentFoo extends ArgumentFoo {}
 export class NeverHandedOver { async read(): Promise<string> { return "never"; } }
 export class DisposableThing { dispose(): void { return; } }
 export class SpecialHolder extends Holder {}
+export class OnlyFoo { async read(): Promise<string> { return "only"; } }
+export class LaterFoo { async read(): Promise<string> { return "later"; } }
+export class ConstructedFoo { async read(): Promise<string> { return "constructed"; } }
 
 export const typedFoo: Foo = { read: async () => "typed" };
 export const untypedFoo = { read: async () => "untyped" };
@@ -323,8 +328,10 @@ import {
     consume,
     consumeBound,
     dispose,
+    either,
     keep,
     maybeConsume,
+    register,
     render,
     type Wiring,
 } from "${consumerFromWiring}";
@@ -336,9 +343,12 @@ import {
     BothWays,
     BoundFoo,
     ConditionalFoo,
+    ConstructedFoo,
     DefaultFoo,
     DisposableThing,
     FieldFoo,
+    LaterFoo,
+    OnlyFoo,
     OptionalFoo,
     ReturnedFoo,
     ShorthandFoo,
@@ -357,6 +367,24 @@ consume({ read: async () => "inline" });
 
 let assigned: Foo | undefined;
 assigned = new AssignedFoo();
+either(new OnlyFoo());
+register(ConstructedFoo);
+let later: Foo | undefined;
+later ??= new LaterFoo();
+
+export function first(): void {
+    const settings: Foo = { read: async () => "first" };
+    consume(settings);
+}
+
+export function second(): void {
+    const settings: Foo = { read: async () => "second" };
+    consume(settings);
+    function nested(): Foo {
+        return { read: async () => "nested" };
+    }
+    consume(nested());
+}
 
 export function provide(): Foo {
     return new ReturnedFoo();
@@ -574,7 +602,7 @@ describe("findContractSuites", () => {
         });
 
         // BoundFoo meets a type parameter bounded by the port, which the checker infers as the class itself.
-        it("lists a named class a production file hands over where a port is expected, also through a host interface", () => {
+        it("lists a named class a production file hands over where a port is expected, also through a host interface, a union part it meets, a compound assignment or as its constructor", () => {
             expect(structural.adapters.filter(({ name }) => /^[A-Z]/.test(name))).toEqual([
                 adapter("ArgumentFoo", 5),
                 adapter("AssignedFoo", 6),
@@ -587,18 +615,21 @@ describe("findContractSuites", () => {
                 adapter("HostPreferencesClass", 25),
                 adapter("DefaultFoo", 29),
                 adapter("ConditionalFoo", 30),
+                adapter("OnlyFoo", 35),
+                adapter("LaterFoo", 36),
+                adapter("ConstructedFoo", 37),
             ]);
         });
 
-        it("lists an object literal by the variable or function that names it", () => {
+        it("lists an object literal by the module-scope variable or function that names it, not by a local one", () => {
             expect(structural.adapters.filter(({ name }) => /^[a-z]/.test(name))).toEqual([
-                adapter("typedFoo", 36),
-                adapter("untypedFoo", 37),
-                adapter("satisfyingFoo", 38),
-                adapter("hostPreferences", 39),
-                adapter("mirrored", 40),
-                adapter("createFoo", 42),
-                adapter("arrowFoo", 45),
+                adapter("typedFoo", 39),
+                adapter("untypedFoo", 40),
+                adapter("satisfyingFoo", 41),
+                adapter("hostPreferences", 42),
+                adapter("mirrored", 43),
+                adapter("createFoo", 45),
+                adapter("arrowFoo", 48),
             ]);
         });
 
