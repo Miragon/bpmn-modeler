@@ -27,7 +27,7 @@ import {
     REVEAL_ELEMENT_ID_ROW_CMD,
 } from "./ElementIdReviewController";
 
-function setUp() {
+function setUp({ panel = true }: { panel?: boolean } = {}) {
     let reportChecks: (ids: string[], checked: boolean) => void = () => {};
     const review = {
         onDidChangeChecks: (listener: typeof reportChecks) => {
@@ -45,7 +45,7 @@ function setUp() {
     const logger = { logError: vi.fn() };
     const context = { subscriptions: [] as { dispose(): void }[] };
     new ElementIdReviewController(
-        review,
+        panel ? review : undefined,
         elementIds as unknown as ElementIdsService,
         logger,
     ).register(context as unknown as ExtensionContext);
@@ -103,6 +103,17 @@ describe("ElementIdReviewController", () => {
         await run(APPLY_ELEMENT_IDS_CMD);
 
         expect(logger.logError).toHaveBeenCalledExactlyOnceWith(failure);
+    });
+
+    // The manifest declares them for every VS Code; without a panel the core finds no review.
+    it("registers the review's commands on a VS Code without the panel too", async () => {
+        const { elementIds, run } = setUp({ panel: false });
+
+        expect([...vscodeFake.registered.keys()].sort()).toEqual(
+            [APPLY_ELEMENT_IDS_CMD, DISCARD_ELEMENT_IDS_CMD, REVEAL_ELEMENT_ID_ROW_CMD].sort(),
+        );
+        await run(APPLY_ELEMENT_IDS_CMD);
+        expect(elementIds.apply).toHaveBeenCalledOnce();
     });
 
     it("disposes its commands, its listener and the panel with the extension", () => {

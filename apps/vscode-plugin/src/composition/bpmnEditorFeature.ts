@@ -131,11 +131,9 @@ export function register(
         initialPanelVisible: () => editor.initialPanelVisible(),
     }).register(context);
 
-    if (elementIdReview) {
-        new ElementIdReviewController(elementIdReview, editor.elementIds, deps.notifier).register(
-            context,
-        );
-    }
+    new ElementIdReviewController(elementIdReview, editor.elementIds, deps.notifier).register(
+        context,
+    );
 
     // Turns each element-specific bpmnlint diagnostic into a click-to-centre
     // action; the diagnostics carry a command link to this controller.
