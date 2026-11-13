@@ -277,10 +277,10 @@
                 ".agents/skills/**",
                 "{apps,libs,packages,tools}/*/src/**",
                 "{apps,libs,packages,tools}/*/package.json",
+                "docs/package.json",
                 "{apps,libs,packages,tools}/*/tsconfig*.json",
                 "tsconfig.base.json",
                 ".gitattributes",
-                "docs/package.json",
                 ".github/workflows/sync-release-markers.yml",
                 ".github/workflows/publish-vscode-modeler.yml",
                 ".github/workflows/publish-open-vsx-modeler.yml",
@@ -292,7 +292,8 @@
                 "apps/vscode-plugin/webpack.config.js",
                 "apps/intellij-plugin/build.gradle.kts",
                 "eslint.config.cjs",
-                "**/eslint.config.cjs"
+                "**/eslint.config.cjs",
+                ".github/scripts/vitest-target-reads.{mjs,d.mts}"
             ],
             "typecheck": "typecheck"
         },
@@ -392,7 +393,8 @@
             "paths": [
                 "libs/element-template-builder/**",
                 "libs/modeler-types/**",
-                "tools/architecture-testing/**"
+                "tools/architecture-testing/**",
+                "yarn.lock"
             ],
             "typecheck": "build"
         },
