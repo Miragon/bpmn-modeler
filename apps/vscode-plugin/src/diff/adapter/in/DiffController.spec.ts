@@ -3,12 +3,20 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // `window.tabGroups.all` is the only vscode value `shouldResolveAsDiff` reads;
 // a mutable `tabs` array lets each test stage the label heuristic. `vi.hoisted`
 // keeps it usable inside the (hoisted) `vi.mock` factory.
-const { tabs } = vi.hoisted(() => ({ tabs: [] as { input: unknown; label: string }[] }));
+const { tabs, parsedUri } = vi.hoisted(() => ({
+    tabs: [] as { input: unknown; label: string }[],
+    /** A vscode `Uri` stand-in for an unencoded URI string, with the three fields the controller reads. */
+    parsedUri: (value: string) => ({
+        scheme: value.split(":")[0],
+        path: value.replace(/^[a-z]+:(\/\/[^/]*)?/, ""),
+        toString: () => value,
+    }),
+}));
 vi.mock("vscode", () => ({
     window: { tabGroups: { all: [{ tabs }] } },
     workspace: { onDidChangeConfiguration: vi.fn() },
     commands: { executeCommand: vi.fn() },
-    Uri: { parse: (value: string) => ({ scheme: value.split(":")[0], toString: () => value }) },
+    Uri: { parse: parsedUri },
 }));
 
 import { commands, workspace } from "vscode";
@@ -30,9 +38,8 @@ function fakePane(
     });
 }
 
-/** Minimal vscode `Uri` stand-in carrying the two fields the controller reads. */
 function uri(scheme: string, value: string) {
-    return { scheme, toString: () => value } as never;
+    return { ...parsedUri(value), scheme } as never;
 }
 
 /** A `TextDocument` stand-in: only its `uri` (path + stringification) is read. */

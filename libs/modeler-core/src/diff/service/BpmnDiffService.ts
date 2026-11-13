@@ -10,7 +10,7 @@ import { DiffResult, computeDiff, sideView } from "@miragon/bpmn-modeler-diff";
 import { BpmnDocument } from "../../kernel/domain/BpmnDocument";
 import { DiffPaneHandle } from "../port/DiffPaneHandle";
 import { DiffSession } from "./DiffSession";
-import { basenameOfUriString } from "../domain/basenameOfUriString";
+import { decodedUriPathOf, lastWorkspacePathSegment } from "../../kernel/domain/workspacePath";
 import { NotifierPort, SettingsPort } from "../../kernel/port/hostPorts";
 import { DiffPaneStore } from "./DiffPaneStore";
 import { DiffPaneRelay } from "./DiffPaneRelay";
@@ -138,7 +138,7 @@ export class BpmnDiffService {
                 result.counts,
                 result.navigationOrder,
                 session.origin,
-                basenameOfUriString(before.uri),
+                lastWorkspacePathSegment(decodedUriPathOf(before.uri)),
             ),
         );
         await this.postHighlights(
@@ -152,7 +152,7 @@ export class BpmnDiffService {
                 result.counts,
                 result.navigationOrder,
                 session.origin,
-                basenameOfUriString(after.uri),
+                lastWorkspacePathSegment(decodedUriPathOf(after.uri)),
             ),
         );
     }

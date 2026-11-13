@@ -8,11 +8,12 @@ import {
 } from "vscode";
 
 import {
-    basenameOfUriString,
+    decodedUriPathOf,
     EditorHandle,
     EditorSessionLifecycle,
     EditorSessionParticipant,
     EditorSessionStore,
+    lastWorkspacePathSegment,
     NotifierPort,
     WebviewMessageRouter,
 } from "@miragon/bpmn-modeler-core";
@@ -112,7 +113,7 @@ export class ModelerEditorController implements CustomTextEditorProvider {
             // Reproduction breadcrumb: the open/close pair frames a session in the
             // channel so a bug report reads as a sequence of user steps.
             this.notifier.logInfo(
-                `Editor opened: ${basenameOfUriString(editorId)} (${this.options.viewType})`,
+                `Editor opened: ${lastWorkspacePathSegment(decodedUriPathOf(editorId))} (${this.options.viewType})`,
             );
 
             // Participant order still matters for behaviour: the render
@@ -120,7 +121,7 @@ export class ModelerEditorController implements CustomTextEditorProvider {
             // participants broadcast settings/engine state against it.
             await this.lifecycle.open(editorId, () =>
                 this.notifier.logInfo(
-                    `Editor closed: ${basenameOfUriString(editorId)} (${this.options.viewType})`,
+                    `Editor closed: ${lastWorkspacePathSegment(decodedUriPathOf(editorId))} (${this.options.viewType})`,
                 ),
             );
         } catch (error) {

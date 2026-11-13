@@ -1,4 +1,4 @@
-import { posix } from "path";
+import { lastWorkspacePathSegment } from "./workspacePath";
 
 /**
  * `path` below the folder `root`: `""` for the root itself, `undefined` outside
@@ -55,7 +55,7 @@ export function relativeToWorkspace(path: string, folders: readonly string[]): s
         return path;
     }
     const { folder, belowFolder } = innermost;
-    return folders.length > 1 ? `${posix.basename(folder)}/${belowFolder}` : belowFolder;
+    return folders.length > 1 ? `${lastWorkspacePathSegment(folder)}/${belowFolder}` : belowFolder;
 }
 
 function withTrailingSlash(path: string): string {
