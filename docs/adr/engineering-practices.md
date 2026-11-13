@@ -564,22 +564,23 @@ The read pass
 ([`vitest-target-reads.mjs`](../../.github/scripts/vitest-target-reads.mjs),
 specified by `tools/repo-checks/src/vitestTargetReads.spec.ts`) parses every
 file the import pass scans, production files included, with the TypeScript 6
-compiler API (the root
-`typescript`, not `@typescript/native`). It resolves paths anchored at
-`__dirname`, `__filename` or `import.meta.{dirname,filename,url}` through
-`join`, `resolve`, `normalize`, `dirname`, `fileURLToPath`, `new URL`, `const`
-bindings, `+` and template literals of them. In a file that binds the
-repository root, every string that names a repository path counts as a read,
-so a helper such as `readRepoFile("…")` defined in that file is seen; strings
-that are only compared count too. A path not in the git index is test data and
-is skipped (an untracked file is never pushed, so pre-push and CI agree), a query such as `?raw` is dropped (in the import pass as well), and a
-path inside the target's own workspace needs no trigger. A read file must
-match a trigger. A read directory needs only one listed file under it that a
-trigger matches: the strict rule (`<dir>/**` covered) fails on correct code,
-such as the architecture tests' `libs/` scan, whose `vitest.config.ts` files
-no target needs. A gate, not a fitness row, because coverage is a yes/no
-property; runtime tracing of `node:fs` would see more, but needs a full test
-run and misses browser specs that read through Vite.
+compiler API (the root `typescript`, not `@typescript/native`). It resolves
+paths anchored at `__dirname`, `__filename` or
+`import.meta.{dirname,filename,url}` through `join`, `resolve`, `normalize`,
+`dirname`, `fileURLToPath`, `new URL`, `const` bindings, `+` and template
+literals of them. In a file that binds the repository root, every string that
+names a repository path counts as a read, so a helper such as
+`readRepoFile("…")` defined in that file is seen; strings that are only
+compared count too. A path not in the git index is test data and is skipped
+(an untracked file is never pushed, so pre-push and CI agree), a query such as
+`?raw` is dropped (in the import pass as well), and a path inside the target's
+own workspace needs no trigger. A read file must match a trigger. A read
+directory needs only one listed file under it that a trigger matches: the
+strict rule (`<dir>/**` covered) fails on correct code, such as the
+architecture tests' `libs/` scan, whose `vitest.config.ts` files no target
+needs. A gate, not a fitness row, because coverage is a yes/no property;
+runtime tracing of `node:fs` would see more, but needs a full test run and
+misses browser specs that read through Vite.
 
 The pass cannot see a path computed from a parameter or from data
 (`package.json` workspaces, `.gitattributes` patterns, the entries of
