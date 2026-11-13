@@ -4,7 +4,9 @@ import { describe, expect, it } from "vitest";
 
 import { EngineHostTextSources } from "./hostText/adapter/out/engineHostTextSources";
 import {
+    type CallSite,
     type HostFileTexts,
+    isErrorConstruction,
     isHostFile,
     isKotlinSource,
     isTypeScriptLogCall,
@@ -12,10 +14,11 @@ import {
 } from "./hostText/domain/hostText";
 
 /**
- * host-text leaves the arguments of TypeScript calls to a function named
- * log… unread: the members of the core's LoggerPort. A rename would let every
- * log line in host code be reported without a sign, so the name must still
- * match a text there. Kotlin's loggers are derived from their declarations.
+ * host-text leaves unread the arguments of TypeScript calls to a function
+ * named log… (the members of the core's LoggerPort) and of new Error(…).
+ * Each case fails when its name no longer takes any text in host code; it
+ * does not tell which functions the name still covers. Kotlin's loggers are
+ * derived from their declarations, so their case guards the reader.
  */
 const REPO_ROOT = normalize(join(__dirname, "../../.."));
 
@@ -29,14 +32,21 @@ const hostFiles: HostFileTexts[] = sources
         ...sources.readSource(REPO_ROOT, path),
     }));
 
-describe("the names host-text reads", () => {
-    it("a TypeScript function named log… still takes a text in host code", () => {
-        const logCalls = hostFiles
-            .filter(({ path }) => !isKotlinSource(path))
-            .flatMap(({ texts }) => texts)
-            .filter(({ argumentOf }) => argumentOf.some(isTypeScriptLogCall));
+function typeScriptTextsIn(isUnreadCall: (site: CallSite) => boolean) {
+    return hostFiles
+        .filter(({ path }) => !isKotlinSource(path))
+        .flatMap(({ texts }) => texts)
+        .filter(({ argumentOf }) => argumentOf.some(isUnreadCall));
+}
 
-        expect(() => requireMatches("TypeScript log… calls with a text", logCalls)).not.toThrow();
+describe("the names host-text reads", () => {
+    it.each([
+        { name: "TypeScript log… calls", isUnreadCall: isTypeScriptLogCall },
+        { name: "TypeScript new Error(…)", isUnreadCall: isErrorConstruction },
+    ])("$name still take a text in host code", ({ name, isUnreadCall }) => {
+        expect(() =>
+            requireMatches(`${name} with a text`, typeScriptTextsIn(isUnreadCall)),
+        ).not.toThrow();
     });
 
     it("Kotlin host code declares an IntelliJ logger", () => {

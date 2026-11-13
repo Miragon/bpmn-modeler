@@ -26,7 +26,7 @@ export interface WrittenText {
 }
 
 /** A Kotlin `val` or `var`, a constructor property's default included, whose value is a call: `log` from `Logger.getInstance`. */
-export interface InitializedValue {
+interface InitializedValue {
     readonly name: string;
     /** The called name with its qualifiers. */
     readonly initializer: string;
@@ -55,10 +55,10 @@ const WORD = /[\p{L}\p{N}]/u;
 const WHITESPACE = /\s+/;
 // The members of the core's LoggerPort: logInfo, logWarning, logError, logDebug.
 const TYPESCRIPT_LOGGING_CALLEE = /^log(?![a-z])/;
-const TYPESCRIPT_CONSOLE = "console";
+const TYPESCRIPT_ERROR = "Error";
 const INTELLIJ_DIAGNOSTIC_PACKAGE = "com.intellij.openapi.diagnostic";
-const INTELLIJ_LOGGER = "Logger";
-const INTELLIJ_LOGGER_FACTORY = `${INTELLIJ_LOGGER}.getInstance`;
+// A file imports each by its first name: `Logger` for `Logger.getInstance`.
+const INTELLIJ_LOGGER_FACTORIES: readonly string[] = ["Logger.getInstance", "logger", "fileLogger"];
 const INTELLIJ_THIS_LOGGER = "thisLogger";
 // Kotlin's preconditions throw what their lambda returns, a message for developers.
 const KOTLIN_PRECONDITIONS: ReadonlySet<string> = new Set([
@@ -109,6 +109,10 @@ export function isTypeScriptLogCall({ construct, callee = "" }: CallSite): boole
     return !construct && TYPESCRIPT_LOGGING_CALLEE.test(callee);
 }
 
+export function isErrorConstruction({ construct, callee }: CallSite): boolean {
+    return construct && callee === TYPESCRIPT_ERROR;
+}
+
 function importsFromDiagnostics(importedSpecifiers: readonly string[], name: string): boolean {
     return importedSpecifiers.some(
         (specifier) =>
@@ -117,18 +121,22 @@ function importsFromDiagnostics(importedSpecifiers: readonly string[], name: str
     );
 }
 
-/** IntelliJ's loggers in a Kotlin file: values it declares from `Logger.getInstance(…)`, and `thisLogger()`. */
+function isLoggerFactory(initializer: string, importedSpecifiers: readonly string[]): boolean {
+    return INTELLIJ_LOGGER_FACTORIES.some(
+        (factory) =>
+            initializer === `${INTELLIJ_DIAGNOSTIC_PACKAGE}.${factory}` ||
+            (initializer === factory &&
+                importsFromDiagnostics(importedSpecifiers, factory.split(".")[0])),
+    );
+}
+
+/** IntelliJ's loggers in a Kotlin file: values it declares from `Logger.getInstance(…)`, `logger<T>()` or `fileLogger()`, and `thisLogger()`. */
 export function kotlinLoggers({
     importedSpecifiers,
     initializedValues,
 }: Pick<HostFileTexts, "importedSpecifiers" | "initializedValues">): Set<string> {
-    const factoryImported = importsFromDiagnostics(importedSpecifiers, INTELLIJ_LOGGER);
     const loggers = initializedValues
-        .filter(
-            ({ initializer }) =>
-                initializer === `${INTELLIJ_DIAGNOSTIC_PACKAGE}.${INTELLIJ_LOGGER_FACTORY}` ||
-                (factoryImported && initializer === INTELLIJ_LOGGER_FACTORY),
-        )
+        .filter(({ initializer }) => isLoggerFactory(initializer, importedSpecifiers))
         .map(({ name }) => name);
     if (importsFromDiagnostics(importedSpecifiers, INTELLIJ_THIS_LOGGER)) {
         loggers.push(INTELLIJ_THIS_LOGGER);
@@ -138,17 +146,11 @@ export function kotlinLoggers({
 
 // A log line and an error's message are read by developers; the core does not word them.
 function unreadArgumentRule(file: HostFileTexts): (site: CallSite) => boolean {
-    const kotlin = isKotlinSource(file.path);
-    const loggers = kotlin ? kotlinLoggers(file) : new Set([TYPESCRIPT_CONSOLE]);
-    return (site) => {
-        if (site.thrown === true) {
-            return true;
-        }
-        if (site.construct) {
-            return site.callee === "Error";
-        }
-        return loggers.has(site.receiver ?? "") || (!kotlin && isTypeScriptLogCall(site));
-    };
+    if (!isKotlinSource(file.path)) {
+        return (site) => isErrorConstruction(site) || isTypeScriptLogCall(site);
+    }
+    const loggers = kotlinLoggers(file);
+    return (site) => site.thrown === true || loggers.has(site.receiver ?? "");
 }
 
 function isPreconditionMessage(lambdaOf: CallSite | undefined): boolean {

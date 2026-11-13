@@ -218,20 +218,22 @@ describe("the host text fitness function on a hand-built tree", () => {
         ]);
     });
 
-    it.each(["this.notifier.logInfo", "console.warn"])(
-        "does not read the same text logged through %s",
+    it("does not read the same text logged through the core's LoggerPort", () => {
+        expect(
+            findingsOf({
+                [CONTROLLER]: controller("this.notifier.logInfo(`Token for ${host}`);"),
+            }),
+        ).toEqual([]);
+    });
+
+    it.each(["this.logger.info", "console.warn"])(
+        "reads a text logged through %s: no name makes a logger",
         (logCall) => {
             expect(
                 findingsOf({ [CONTROLLER]: controller(`${logCall}(\`Token for \${host}\`);`) }),
-            ).toEqual([]);
+            ).toHaveLength(1);
         },
     );
-
-    it("reads a text logged through a value named logger: no name makes a logger", () => {
-        expect(
-            findingsOf({ [CONTROLLER]: controller("this.logger.info(`Token for ${host}`);") }),
-        ).toHaveLength(1);
-    });
 
     it("reports a text shown inside a callback that a log-named wrapper runs", () => {
         expect(

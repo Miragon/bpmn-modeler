@@ -222,10 +222,6 @@ describe("hostTextFindings", () => {
             call: "notifier.logInfo(…)",
             site: { construct: false, callee: "logInfo", receiver: "notifier" },
         },
-        {
-            call: "console.error(…), the global Console",
-            site: { construct: false, callee: "error", receiver: "console" },
-        },
         { call: "new Error(…)", site: { construct: true, callee: "Error" } },
     ])("does not read an argument of $call", ({ site }) => {
         expect(messagesOf(written(["Could not save"], site))).toEqual([]);
@@ -284,6 +280,23 @@ describe("hostTextFindings", () => {
                 },
             },
             {
+                logger: "a value the file declares from IntelliJ's logger<T>()",
+                site: logWarn,
+                declarations: {
+                    importedSpecifiers: ["com.intellij.openapi.diagnostic.logger"],
+                    initializedValues: [{ name: "log", initializer: "logger" }],
+                },
+            },
+            {
+                logger: "a value from the fully qualified fileLogger()",
+                site: logWarn,
+                declarations: {
+                    initializedValues: [
+                        { name: "log", initializer: "com.intellij.openapi.diagnostic.fileLogger" },
+                    ],
+                },
+            },
+            {
                 logger: "IntelliJ's thisLogger()",
                 site: { construct: false, callee: "warn", receiver: "thisLogger" },
                 declarations: {
@@ -309,7 +322,15 @@ describe("hostTextFindings", () => {
                 },
             },
             {
-                logger: "a thisLogger() not imported from IntelliJ",
+                logger: "a log from a logger<T>() not imported from IntelliJ",
+                site: logWarn,
+                declarations: {
+                    importedSpecifiers: [INTELLIJ_LOGGER],
+                    initializedValues: [{ name: "log", initializer: "logger" }],
+                },
+            },
+            {
+                logger: "a thisLogger() not imported from IntelliJ, called fully qualified or not",
                 site: { construct: false, callee: "warn", receiver: "thisLogger" },
                 declarations: {},
             },
@@ -393,6 +414,10 @@ describe("hostTextFindings", () => {
             site: { construct: false, callee: "showErrorMessage", receiver: "window" },
         },
         { call: "new TypeError(…)", site: { construct: true, callee: "TypeError" } },
+        {
+            call: "console.error(…): host code logs through the core's LoggerPort",
+            site: { construct: false, callee: "error", receiver: "console" },
+        },
         { call: "a call without a name", site: { construct: false } },
     ])("reads an argument of $call", ({ site }) => {
         expect(messagesOf(written(["Could not save"], site))).toHaveLength(1);
