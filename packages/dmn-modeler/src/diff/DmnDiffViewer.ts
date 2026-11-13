@@ -32,6 +32,7 @@ import {
 
 export type { DmnDiffMarks } from "./diffMarks";
 
+/** @internal */
 export interface DmnDiffMarkOptions {
     /** Puts each changed table's counts on its decision in the DRD. */
     readonly countBadges?: boolean;
@@ -40,6 +41,7 @@ export interface DmnDiffMarkOptions {
 /**
  * A read-only DMN view of one side of a diff: the DRD with pan and zoom, and
  * the decision tables and expressions dmn-js opens from it.
+ * @internal
  */
 export interface DmnDiffViewerHandle {
     importXML(xml: string): Promise<void>;
@@ -522,13 +524,17 @@ class DmnDiffViewer implements DmnDiffViewerHandle {
     }
 }
 
+/** @internal */
 export interface DmnDiffViewerOptions {
     readonly theme?: DmnThemeMode;
     /** Pixels at the top of the pane the first DRD fit leaves free, for chrome floating there. */
     readonly topInset?: number;
 }
 
-/** Stand up one read-only DMN diff pane in `container`. */
+/**
+ * Stand up one read-only DMN diff pane in `container`.
+ * @internal
+ */
 export function createDiffViewer(
     container: HTMLElement,
     options: DmnDiffViewerOptions = {},

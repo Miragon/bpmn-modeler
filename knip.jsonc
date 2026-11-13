@@ -48,6 +48,7 @@
         "packages/bpmn-modeler/scripts/check-consumer-types.d.mts",
         "packages/bpmn-modeler/scripts/check-plugins-free-entry.d.mts",
         "packages/dmn-modeler/scripts/postcss-strip-theme-scope.d.mts",
+        "packages/dmn-modeler/scripts/check-dts.d.mts",
         "scripts/perf/largeBpmnModel.d.mts",
         ".github/scripts/vitest-target-reads.d.mts",
         // Types the shared rule rows for the spec that imports them; a JSON
