@@ -16,6 +16,19 @@ export interface KotlinCodeToken {
 
 export type KotlinToken = KotlinCodeToken | KotlinString;
 
+export interface BracketPair {
+    readonly opener: string;
+    readonly closer: string;
+}
+
+export const ANGLE_BRACKETS: BracketPair = { opener: "<", closer: ">" };
+export const PARENTHESES: BracketPair = { opener: "(", closer: ")" };
+export const BRACKET_CLOSERS: ReadonlyMap<string, string> = new Map([
+    ["(", ")"],
+    ["[", "]"],
+    ["{", "}"],
+]);
+
 const IDENTIFIER_START = /[\p{L}_]/u;
 const IDENTIFIER_PART = /[\p{L}\p{Nd}_]/u;
 const DIGIT = /[0-9]/;

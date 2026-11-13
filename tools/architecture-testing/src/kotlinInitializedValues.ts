@@ -1,4 +1,11 @@
-import { type KotlinToken, lexKotlin } from "./kotlinLexer";
+import {
+    ANGLE_BRACKETS,
+    BRACKET_CLOSERS,
+    type BracketPair,
+    type KotlinToken,
+    lexKotlin,
+    PARENTHESES,
+} from "./kotlinLexer";
 
 export interface KotlinInitializedValue {
     readonly name: string;
@@ -9,11 +16,15 @@ export interface KotlinInitializedValue {
 const DECLARES_VALUE: ReadonlySet<string> = new Set(["val", "var"]);
 // A parenthesis after these opens a condition, never a call.
 const EXPRESSION_KEYWORDS: ReadonlySet<string> = new Set(["if", "when", "try", "object"]);
-const OPENERS: ReadonlySet<string> = new Set(["(", "[", "{", "<"]);
-const CLOSERS: ReadonlySet<string> = new Set([")", "]", "}", ">"]);
+const TYPE_OPENERS: ReadonlySet<string> = new Set([
+    ...BRACKET_CLOSERS.keys(),
+    ANGLE_BRACKETS.opener,
+]);
+const TYPE_CLOSERS: ReadonlySet<string> = new Set([
+    ...BRACKET_CLOSERS.values(),
+    ANGLE_BRACKETS.closer,
+]);
 const ENDS_DECLARATION: ReadonlySet<string> = new Set([",", ";"]);
-const PARENTHESES = ["(", ")"] as const;
-const ANGLE_BRACKETS = ["<", ">"] as const;
 
 function isSymbol(token: KotlinToken | undefined, text: string): boolean {
     return token?.kind === "symbol" && token.text === text;
@@ -28,54 +39,52 @@ function nameAt(tokens: readonly KotlinToken[], index: number): string | undefin
 function pastClosing(
     tokens: readonly KotlinToken[],
     openIndex: number,
-    [opener, closer]: readonly [string, string],
+    { opener, closer }: BracketPair,
 ): number | undefined {
     let depth = 0;
     for (let index = openIndex; index < tokens.length; index += 1) {
-        if (isSymbol(tokens[index], opener)) {
-            depth += 1;
-        } else if (isSymbol(tokens[index], closer)) {
-            depth -= 1;
-            if (depth === 0) {
-                return index + 1;
-            }
+        depth += isSymbol(tokens[index], opener) ? 1 : isSymbol(tokens[index], closer) ? -1 : 0;
+        if (depth === 0) {
+            return index + 1;
         }
     }
     return undefined;
 }
 
-/** The `=` after a declared name, past its type; a type with no `=` on its line declares no value. */
-function assignmentAfter(tokens: readonly KotlinToken[], start: number): number | undefined {
-    if (isSymbol(tokens[start], "=")) {
-        return start;
+function typeDepthChange(token: KotlinToken): number {
+    if (token.kind !== "symbol") {
+        return 0;
     }
-    if (!isSymbol(tokens[start], ":")) {
-        return undefined;
-    }
-    const line = tokens[start].line;
+    return TYPE_OPENERS.has(token.text) ? 1 : TYPE_CLOSERS.has(token.text) ? -1 : 0;
+}
+
+/** The `=` after a type; outside its brackets a type ends at its line, a `,` or `;`, or a bracket it did not open. */
+function assignmentAfterType(tokens: readonly KotlinToken[], start: number): number | undefined {
+    const line = tokens[start - 1].line;
     let depth = 0;
-    for (let index = start + 1; index < tokens.length; index += 1) {
+    for (let index = start; index < tokens.length; index += 1) {
         const token = tokens[index];
-        if (depth === 0 && token.line !== line) {
-            return undefined;
-        }
-        if (token.kind !== "symbol") {
-            continue;
-        }
-        if (OPENERS.has(token.text)) {
-            depth += 1;
-        } else if (CLOSERS.has(token.text)) {
-            if (depth === 0) {
-                return undefined;
-            }
-            depth -= 1;
-        } else if (depth === 0 && token.text === "=") {
+        const outside = depth === 0;
+        if (outside && isSymbol(token, "=")) {
             return index;
-        } else if (depth === 0 && ENDS_DECLARATION.has(token.text)) {
+        }
+        depth += typeDepthChange(token);
+        const endsType =
+            token.line !== line ||
+            depth < 0 ||
+            (token.kind === "symbol" && ENDS_DECLARATION.has(token.text));
+        if (outside && endsType) {
             return undefined;
         }
     }
     return undefined;
+}
+
+function assignmentAfter(tokens: readonly KotlinToken[], start: number): number | undefined {
+    if (isSymbol(tokens[start], "=")) {
+        return start;
+    }
+    return isSymbol(tokens[start], ":") ? assignmentAfterType(tokens, start + 1) : undefined;
 }
 
 /** `a.b.c` when the expression at `start` is the call `a.b.c(…)` and nothing more. */
@@ -92,10 +101,10 @@ function calledChain(tokens: readonly KotlinToken[], start: number): string | un
     if (names.length === 0 || EXPRESSION_KEYWORDS.has(names[0])) {
         return undefined;
     }
-    const open = isSymbol(tokens[index + 1], "<")
+    const open = isSymbol(tokens[index + 1], ANGLE_BRACKETS.opener)
         ? pastClosing(tokens, index + 1, ANGLE_BRACKETS)
         : index + 1;
-    if (open === undefined || !isSymbol(tokens[open], "(")) {
+    if (open === undefined || !isSymbol(tokens[open], PARENTHESES.opener)) {
         return undefined;
     }
     const end = pastClosing(tokens, open, PARENTHESES);

@@ -1,4 +1,11 @@
-import { type KotlinToken, lexKotlin } from "./kotlinLexer";
+import {
+    ANGLE_BRACKETS,
+    BRACKET_CLOSERS as CLOSERS,
+    type BracketPair,
+    type KotlinToken,
+    lexKotlin,
+    PARENTHESES,
+} from "./kotlinLexer";
 import type { CallSite, TextLiteral } from "./textLiterals";
 
 // A parenthesis after these is a condition, a parameter list or a grouping, never a call.
@@ -20,18 +27,6 @@ const NOT_CALLED: ReadonlySet<string> = new Set([
 const NOT_RECEIVERS: ReadonlySet<string> = new Set(["this", "super"]);
 const DECLARES_PARAMETERS: ReadonlySet<string> = new Set(["fun", "class"]);
 const TYPE_ARGUMENT_SYMBOLS: ReadonlySet<string> = new Set([",", ".", "?", "*"]);
-interface BracketPair {
-    readonly opener: string;
-    readonly closer: string;
-}
-
-const ANGLE_BRACKETS: BracketPair = { opener: "<", closer: ">" };
-const PARENTHESES: BracketPair = { opener: "(", closer: ")" };
-const CLOSERS: ReadonlyMap<string, string> = new Map([
-    ["(", ")"],
-    ["[", "]"],
-    ["{", "}"],
-]);
 
 function isSymbol(token: KotlinToken | undefined, text: string): boolean {
     return token?.kind === "symbol" && token.text === text;
