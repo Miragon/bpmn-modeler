@@ -364,6 +364,9 @@ describe("the allowance playground in a real VS Code, one profile for every wind
     /** The editor tab "Add-on: …", where a row or Review… shows an add-on's details. */
     const detailPage = () => vscode().editorWebview(ADD_ONS_VIEW);
 
+    /** The tab sits in front of the diagram, whose webview the checks read next; a click opens it again. */
+    const closeDetailTab = () => vscode().runCommand("View: Close Editor");
+
     /**
      * Both notices, one after the other: the second may not show before the
      * first is answered. Review… is the answer each time; it opens the Add-ons
@@ -395,6 +398,7 @@ describe("the allowance playground in a real VS Code, one profile for every wind
         await toast(NOTICE_TEXT[second]).getByRole("button", { name: "Review…" }).click();
         // The second Review… shows its add-on in the same tab.
         await addOnDetail(await detailPage(), nameOf(second)).waitFor({ timeout: TIMEOUT_MS });
+        await closeDetailTab();
         const addOns = await vscode().viewWebview(ADD_ONS_VIEW);
         return { order: [first, second], addOns };
     }
@@ -404,11 +408,13 @@ describe("the allowance playground in a real VS Code, one profile for every wind
         name: string | RegExp,
     ): Promise<{ state: string; facts: Record<string, string>; title: string }> {
         const { detail } = await showAddOnDetail(addOns, name, detailPage);
-        return {
+        const facts = {
             title: (await detail.locator(".av-detail-name").textContent()) ?? "",
             state: (await detail.locator(".av-state-line").textContent()) ?? "",
             facts: await factsOf(detail),
         };
+        await closeDetailTab();
+        return facts;
     }
 
     async function allowInView(
@@ -450,7 +456,9 @@ describe("the allowance playground in a real VS Code, one profile for every wind
                 message: `${title}: the detail never showed Allowed after the allow landed`,
             })
             .toMatch(/^Allowed/);
-        return { status: (await status.textContent()) ?? "", facts, title, review };
+        const allowedStatus = (await status.textContent()) ?? "";
+        await closeDetailTab();
+        return { status: allowedStatus, facts, title, review };
     }
 
     async function revokeInView(addOns: FrameLocator, name: string | RegExp): Promise<string> {
@@ -461,7 +469,9 @@ describe("the allowance playground in a real VS Code, one profile for every wind
         await expect
             .poll(() => status.textContent(), { timeout: TIMEOUT_MS })
             .toMatch(new RegExp(`^Revoked ${escapeRegExp(title)}[ .]`));
-        return (await status.textContent()) ?? "";
+        const revokedStatus = (await status.textContent()) ?? "";
+        await closeDetailTab();
+        return revokedStatus;
     }
 
     /** The view's rows, sorted by title, and what an allowed detail offers. */
@@ -487,6 +497,7 @@ describe("the allowance playground in a real VS Code, one profile for every wind
                 await detail.getByRole("button", { name: "Revoke", exact: true }).count(),
                 `${String(name)} offers no Revoke although it is allowed`,
             ).toBe(1);
+            await closeDetailTab();
         }
         await vscode().runCommand("View: Show Explorer");
         return rows.sort((left, right) => (left.title < right.title ? -1 : 1));

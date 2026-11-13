@@ -873,10 +873,14 @@ attached hidden when the bridge starts; IntelliJ's watchers follow the folders
 known whenever the views change or the catalog refreshes, so they follow the
 project root from the first `addOns/open` on
 ([host integrations](architecture-and-hosts.md#host-integrations)).
-`AddOnsFeature.attachPanel(post, visible)` serves the add-ons view protocol
-of `libs/shared` (`addOnsView.ts`) for one page through `AddOnViewMessages`
-in `addOns/adapter/in/`, so a host only passes a `post` and the page's
-commands; `panelRoutes` answer the surface coverage before any page attaches.
+`AddOnsFeature.attachPanel(post, visible, { shows })` serves the add-ons view
+protocol of `libs/shared` (`addOnsView.ts`) for one page through
+`AddOnViewMessages` in `addOns/adapter/in/`, so a host only passes a `post`
+and the page's commands; with `shows` the page is a detail tab's, which shows
+that add-on (`show()` moves it to another) and takes no reveal, so a reveal
+reaches only lists. `OpenAddOnDetailCommand` from a list calls the host's
+optional `AddOnDetailPort` with the add-on's id and its tab title, for an add-on
+the last model lists; a host without the port never serves a page that posts it; `panelRoutes` answer the surface coverage before any page attaches.
 A page asks for the last model when it loads, as a push can land before it
 listens. A reveal names its target: the rows a **Review…** left to the view
 (`AddOnsFeature.reveal(addOnIds)`), or every add-on that needs review
