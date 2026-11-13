@@ -17,11 +17,14 @@ import {
 } from "../domain/rulePackageLog";
 import { LintRun } from "../port/bpmnPorts";
 import { RulePackageCatalog } from "./RulePackageCatalog";
+import { RulePackageInventory } from "./RulePackageInventory";
 
 /** Absent: no workspace rule package runs, so there is nothing to ask about. */
 export interface RulePackageApprovals {
     readonly catalog: RulePackageCatalog;
     readonly question: ApprovalQuestion<BlockedRulePackage, BlockedRulePackage, RulePackage>;
+    /** Keeps the lint configs read and the packages the gate reported, which the add-on catalog lists. */
+    readonly inventory: Pick<RulePackageInventory, "noteLintConfig" | "noteSeen">;
     /** A question waits for it, so the start-up migration is not asked about. */
     readonly contentRows: ContentRows;
     /** The linter reads it too: a change lints every host-linted editor again. */
@@ -71,7 +74,7 @@ export class RulePackageFollowUp {
     }
 
     log(negotiation: Negotiation, { blocked, refused }: LintRun): void {
-        this.approvals?.catalog.noteLintConfig(negotiation.configPath);
+        this.approvals?.inventory.noteLintConfig(negotiation.configPath);
         neededRulePackageLogLines(blocked).forEach((line) => this.notifier.logWarning(line));
         const configVersion = `${negotiation.configPath}\0${negotiation.rawConfig}`;
         const logOnce = (line: string, log: (line: string) => void) => {
@@ -97,12 +100,12 @@ export class RulePackageFollowUp {
      */
     ask(editorId: string, blocked: readonly BlockedRulePackage[]): void {
         if (this.approvals === undefined) return;
-        const { catalog, question, contentRows } = this.approvals;
+        const { inventory, question, contentRows } = this.approvals;
         this.blockedByEditor.set(
             editorId,
             blocked.map(({ id }) => id),
         );
-        catalog.noteSeen(blocked);
+        inventory.noteSeen(blocked);
         const toAsk = rulePackagesToAsk(blocked, this.queuedAllowanceKeys);
         if (toAsk.length === 0) return;
         const keys = toAsk.map(({ allowance }) => allowanceKeyOf(allowance));

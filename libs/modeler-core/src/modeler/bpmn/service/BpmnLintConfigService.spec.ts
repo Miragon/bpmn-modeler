@@ -31,6 +31,8 @@ import {
     createTestHost,
     FakeEditorHandle,
     fingerprintHasher,
+    folderOriginAllowances,
+    InMemoryInstalledPackages,
     InMemoryPluginApprovals,
     TestHost,
     TestHostOptions,
@@ -42,6 +44,7 @@ import {
 } from "../domain/rulePackageApproval";
 import { RefusedRuleModule } from "../domain/rulePackageRefusal";
 import { RulePackageCatalog } from "./RulePackageCatalog";
+import { RulePackageInventory } from "./RulePackageInventory";
 import { bpmnlintStatusView } from "../domain/bpmnlintStatusView";
 import { LintRun, LintRunnerPort } from "../port/bpmnPorts";
 import { BpmnlintParticipant } from "./BpmnlintParticipant";
@@ -969,6 +972,11 @@ describe("BpmnLintConfigService — workspace rule packages the user has not all
         });
         const approvals = options.approvals ?? host.pluginApprovals;
         const catalog = new RulePackageCatalog(approvals, host.workspaceTrust, host.notifier);
+        const inventory = new RulePackageInventory(
+            catalog,
+            new InMemoryInstalledPackages(),
+            folderOriginAllowances(),
+        );
         const question = new ApprovalQuestion(
             catalog,
             new ListReview(host.picker),
@@ -1013,13 +1021,24 @@ describe("BpmnLintConfigService — workspace rule packages the user has not all
             {
                 catalog,
                 question,
+                inventory,
                 contentRows: options.contentRows ?? host.contentRows,
                 trust: host.workspaceTrust,
             },
         );
         const hostResults = (editor: FakeEditorHandle) =>
             editor.postedOfType<BpmnlintResultsQuery>("BpmnlintResultsQuery").map((m) => m.results);
-        return { host, approvals, catalog, lintRunner, blocks, refused, service, hostResults };
+        return {
+            host,
+            approvals,
+            catalog,
+            inventory,
+            lintRunner,
+            blocks,
+            refused,
+            service,
+            hostResults,
+        };
     }
 
     const blockedOnAcme = bpmnlintStatusView({
@@ -1199,7 +1218,7 @@ describe("BpmnLintConfigService — workspace rule packages the user has not all
     });
 
     it("never asks about a package the bundle stood in for, and logs it once per config", async () => {
-        const { host, blocks, catalog, service } = createRulePackageHost({
+        const { host, blocks, inventory, service } = createRulePackageHost({
             noticeAnswers: REVIEW,
             promptAnswers: ALLOW_ACME,
         });
@@ -1217,7 +1236,7 @@ describe("BpmnLintConfigService — workspace rule packages the user has not all
         expect(host.notifier.logged("info").filter((line) => line.includes("stand in"))).toEqual([
             `bpmnlint: bundled rules stand in for a rule package that is not allowed yet: bpmnlint-plugin-acme@1.0.0 (${ACME})`,
         ]);
-        expect(catalog.seenPackages()).toEqual([blocked(ACME, false)]);
+        expect(inventory.seenPackages()).toEqual([blocked(ACME, false)]);
     });
 
     it("logs each package not allowed yet on every run, and why workspace code was refused once", async () => {

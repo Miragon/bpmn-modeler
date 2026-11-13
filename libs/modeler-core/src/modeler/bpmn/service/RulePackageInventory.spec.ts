@@ -95,18 +95,18 @@ describe("RulePackageInventory", () => {
     });
 
     it("reads the config's own package as the gate reported it", () => {
-        const { install, catalog, inventory } = setUp();
+        const { install, inventory } = setUp();
         install(WORK, "bpmnlint-plugin-self");
-        catalog.noteSeen([blocked(WORK, "selfPackage")]);
+        inventory.noteSeen([blocked(WORK, "selfPackage")]);
 
         expect(inventory.currentRulePackage(WORK).kind).toBe("found");
     });
 
     it("reads a config's own package once a lint read its config", () => {
-        const { disk, install, catalog, inventory } = setUp();
+        const { disk, install, inventory } = setUp();
         install(STORE, "bpmnlint-plugin-self");
         disk.createSymbolicLink(`${WORK}/linked-config`, STORE);
-        catalog.noteLintConfig(`${WORK}/linked-config/.bpmnlintrc`);
+        inventory.noteLintConfig(`${WORK}/linked-config/.bpmnlintrc`);
 
         expect(inventory.currentRulePackage(STORE).kind).toBe("found");
     });
@@ -132,11 +132,11 @@ describe("RulePackageInventory", () => {
     });
 
     it("cannot allow a linked folder that holds a lint config, as the gate refuses it, and names its allowance", () => {
-        const { catalog, disk, install, inventory, allowanceAt } = setUp();
+        const { disk, install, inventory, allowanceAt } = setUp();
         install("/repo", "bpmnlint-plugin-repo");
         disk.createSymbolicLink(`${NODE_MODULES}/bpmnlint-plugin-repo`, "/repo");
         inventory.installedIn([WORK]);
-        catalog.noteLintConfig("/repo/modeling/.bpmnlintrc");
+        inventory.noteLintConfig("/repo/modeling/.bpmnlintrc");
 
         expect(inventory.currentRulePackage("/repo")).toEqual({
             kind: "unreadable",
@@ -177,12 +177,24 @@ describe("RulePackageInventory", () => {
         expect(await inventory.current(ACME)).toEqual(inventory.currentRulePackage(ACME));
     });
 
-    it("knows the packages the gate reported and the lint configs it read", () => {
-        const { catalog, inventory } = setUp();
+    it("remembers every package it saw blocked, the ones the bundle stood in for too", () => {
+        const { inventory } = setUp();
 
-        catalog.noteSeen([blocked(ACME), blocked(SCOPED)]);
-        catalog.noteLintConfig("/work/orders/.bpmnlintrc");
-        catalog.noteLintConfig("/work/orders/.bpmnlintrc");
+        inventory.noteSeen([{ ...blocked(ACME, "selfPackage"), needed: false }]);
+        inventory.noteSeen([blocked(SCOPED), blocked(ACME, "package", "declined")]);
+
+        expect(inventory.seenPackages()).toEqual([
+            blocked(ACME, "package", "declined"),
+            blocked(SCOPED),
+        ]);
+    });
+
+    it("knows the packages the gate reported and the lint configs it read", () => {
+        const { inventory } = setUp();
+
+        inventory.noteSeen([blocked(ACME), blocked(SCOPED)]);
+        inventory.noteLintConfig("/work/orders/.bpmnlintrc");
+        inventory.noteLintConfig("/work/orders/.bpmnlintrc");
 
         expect(inventory.seenPackageIds()).toEqual([ACME, SCOPED]);
         expect(inventory.lintConfigDirs()).toEqual(["/work/orders"]);
@@ -193,18 +205,34 @@ describe("RulePackageInventory", () => {
         let changes = 0;
         inventory.onDidChange(() => changes++);
 
-        catalog.noteSeen([blocked(ACME)]);
-        catalog.noteSeen([blocked(ACME)]);
+        inventory.noteSeen([blocked(ACME)]);
+        inventory.noteSeen([blocked(ACME)]);
         await catalog.applyAnswer(catalog.stillPendingOf([blocked(ACME)]), {
             kind: "checked",
             ids: [],
         });
-        catalog.noteSeen([blocked(ACME, "package", "declined")]);
+        inventory.noteSeen([blocked(ACME, "package", "declined")]);
         inventory.leaveForView({ id: ACME, allowance: allowanceAt(ACME) });
-        catalog.noteLintConfig("/work/orders/.bpmnlintrc");
-        catalog.noteLintConfig("/work/orders/.bpmnlintrc");
+        inventory.noteLintConfig("/work/orders/.bpmnlintrc");
+        inventory.noteLintConfig("/work/orders/.bpmnlintrc");
 
         expect(changes).toBe(5);
+    });
+
+    it("announces nothing once its listener is disposed, neither a listing change nor an answer", async () => {
+        const { catalog, inventory, allowanceAt } = setUp();
+        let changes = 0;
+        inventory.onDidChange(() => changes++).dispose();
+
+        inventory.noteSeen([blocked(ACME)]);
+        inventory.noteLintConfig("/work/orders/.bpmnlintrc");
+        await catalog.applyAnswer(catalog.stillPendingOf([blocked(ACME)]), {
+            kind: "checked",
+            ids: [],
+        });
+        inventory.leaveForView({ id: SCOPED, allowance: allowanceAt(SCOPED) });
+
+        expect(changes).toBe(0);
     });
 
     it.each([

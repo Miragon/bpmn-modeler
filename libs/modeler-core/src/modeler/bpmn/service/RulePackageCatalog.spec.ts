@@ -181,16 +181,4 @@ describe("RulePackageCatalog", () => {
 
         expect(changes).toEqual([]);
     });
-
-    it("remembers every package it saw blocked, the ones the bundle stood in for too", () => {
-        const { catalog } = setUp();
-
-        catalog.noteSeen([blocked(ACME, false)]);
-        catalog.noteSeen([blocked(OTHER, true), blocked(ACME, true, "declined")]);
-
-        expect(catalog.seenPackages()).toEqual([
-            blocked(ACME, true, "declined"),
-            blocked(OTHER, true),
-        ]);
-    });
 });

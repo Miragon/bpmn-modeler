@@ -185,6 +185,7 @@ function setUp({
         host.workspaceTrust,
         host.notifier,
     );
+    const rulePackageInventory = new RulePackageInventory(rulePackageCatalog, disk, allowances);
     const settingChanges = new ScriptedSettingChanges();
     const loadedTemplateDirs = new LoadedTemplateDirs();
     const templatesService = new BpmnElementTemplatesService(
@@ -224,7 +225,7 @@ function setUp({
         contentRows,
         ...(trustUnwired ? {} : { workspaceTrust: host.workspaceTrust }),
         plugins: plugins.inventory,
-        rulePackages: new RulePackageInventory(rulePackageCatalog, disk, allowances),
+        rulePackages: rulePackageInventory,
         templates: new TemplateInventory(loadedTemplateDirs, artifacts),
         ...(keepsSwitches && { templatePreferences: host.templatePreferences }),
         ...(listsMarketplaces && {
@@ -254,6 +255,7 @@ function setUp({
         layOutWorktrees,
         contentRows,
         rulePackageCatalog,
+        rulePackageInventory,
         settingChanges,
         addOns,
         view,
@@ -384,9 +386,9 @@ describe("AddOnsFeature", () => {
         const ORDERS = "/work/orders";
 
         it("lists a rule package installed only below a lint config's folder", async () => {
-            const { install, rulePackageCatalog, addOns, view } = setUp({ files: {} });
+            const { install, rulePackageInventory, addOns, view } = setUp({ files: {} });
             install(`${ORDERS}/node_modules/bpmnlint-plugin-orders`, "bpmnlint-plugin-orders");
-            rulePackageCatalog.noteLintConfig(`${ORDERS}/.bpmnlintrc`);
+            rulePackageInventory.noteLintConfig(`${ORDERS}/.bpmnlintrc`);
 
             view.attachTo(addOns);
             await shown(addOns);
@@ -395,11 +397,11 @@ describe("AddOnsFeature", () => {
         });
 
         it("lists a config's own package the gate reported, and allows it", async () => {
-            const { host, install, rulePackageCatalog, addOns, view, blockedPackageOf } = setUp({
+            const { host, install, rulePackageInventory, addOns, view, blockedPackageOf } = setUp({
                 files: {},
             });
             install(ORDERS, "bpmnlint-plugin-orders", { "order.bpmn": "<definitions/>" });
-            rulePackageCatalog.noteSeen([blockedPackageOf(ORDERS, "selfPackage")]);
+            rulePackageInventory.noteSeen([blockedPackageOf(ORDERS, "selfPackage")]);
             view.attachTo(addOns);
             await shown(addOns);
             const listed = view.addOns().map(({ name, state }) => [name, state]);
@@ -547,12 +549,18 @@ describe("AddOnsFeature", () => {
         });
 
         it("offers Allow at once for a rule package a notice left to the view", async () => {
-            const { host, install, rulePackageCatalog, addOns, view, blockedPackageOf } = setUp({
-                files: {},
-            });
+            const {
+                host,
+                install,
+                rulePackageCatalog,
+                rulePackageInventory,
+                addOns,
+                view,
+                blockedPackageOf,
+            } = setUp({ files: {} });
             install(ACME, "bpmnlint-plugin-acme");
             const found = [blockedPackageOf(ACME)];
-            rulePackageCatalog.noteSeen(found);
+            rulePackageInventory.noteSeen(found);
             host.actionNotifier.noticeAnswers[RULE_PACKAGE_APPROVAL_NOTICE_ID] = "review";
             await new ApprovalQuestion(
                 rulePackageCatalog,
