@@ -9,6 +9,8 @@
  * Camunda 8 linked forms use `zeebe:formDefinition formId`.
  */
 
+import { is } from "bpmn-js/lib/util/ModelUtil";
+
 import type { ReferenceKind } from "@miragon/bpmn-modeler-types";
 
 import type { ModelReference } from "./ModelNavigationPort";
@@ -31,8 +33,10 @@ interface ExtensionElementLike {
     formId?: string;
 }
 
-/** Where an element writes a reference of one kind. */
+/** Which element holds a reference of one kind, and where it writes it. */
 interface ReferenceSource {
+    /** The BPMN type of the element that holds the reference. */
+    readonly elementType: string;
     /** The Camunda 7 attribute on the element itself. */
     readonly attribute?: string;
     /** The Camunda 8 extension element and its property that holds the id. */
@@ -46,20 +50,30 @@ interface ReferenceSource {
 
 const REFERENCE_SOURCES: Readonly<Record<ReferenceKind, ReferenceSource>> = {
     process: {
+        elementType: "bpmn:CallActivity",
         attribute: "calledElement",
         extensionElement: { type: "zeebe:CalledElement", property: "processId" },
         qualifiedName: true,
     },
     decision: {
+        elementType: "bpmn:BusinessRuleTask",
         attribute: "camunda:decisionRef",
         extensionElement: { type: "zeebe:CalledDecision", property: "decisionId" },
         qualifiedName: false,
     },
     form: {
+        elementType: "bpmn:UserTask",
         extensionElement: { type: "zeebe:FormDefinition", property: "formId" },
         qualifiedName: false,
     },
 };
+
+const REFERENCE_KINDS = Object.keys(REFERENCE_SOURCES) as ReferenceKind[];
+
+/** The kind of model the element references, or `undefined` for an element that holds none. */
+export function referenceKindOf(element: Parameters<typeof is>[0]): ReferenceKind | undefined {
+    return REFERENCE_KINDS.find((kind) => is(element, REFERENCE_SOURCES[kind].elementType));
+}
 
 /**
  * Looks up the first extension element whose `$type` matches `type`.

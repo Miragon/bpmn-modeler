@@ -1,11 +1,6 @@
 import { DiffCounts } from "@miragon/bpmn-modeler-diff";
 import { i18n } from "@miragon/bpmn-modeler-i18n";
-import {
-    DIFF_CATEGORIES,
-    DIFF_CATEGORY_LABELS,
-    DIFF_LEGEND_TEXTS,
-    type DiffCategory,
-} from "@miragon/bpmn-modeler-types";
+import { DIFF_CATEGORIES, DiffLegendView } from "@miragon/bpmn-modeler-types";
 
 export interface DiffLegendCallbacks {
     onPrevious: () => void;
@@ -17,20 +12,6 @@ export interface DiffLegendCallbacks {
      * the consumer, not this primitive.
      */
     onSwap?: () => void;
-}
-
-// Public styling hooks: consumers select the swatches by these modifiers.
-const SLOT_MODIFIERS: Readonly<Record<DiffCategory, string>> = {
-    added: "added",
-    removed: "removed",
-    changed: "changed",
-    layoutChanged: "layout",
-};
-
-interface CountSlot {
-    readonly category: DiffCategory;
-    readonly label: Text;
-    readonly count: HTMLElement;
 }
 
 /**
@@ -76,144 +57,23 @@ export interface DiffLegendContext {
  * automatically when the active language changes.
  */
 export class DiffLegend {
-    private readonly root: HTMLElement;
-
-    private readonly filenameEl: HTMLElement;
-
-    private readonly slots: readonly CountSlot[];
-
-    private readonly prevButton: HTMLButtonElement;
-
-    private readonly nextButton: HTMLButtonElement;
-
-    private readonly swapButton: HTMLButtonElement;
-
-    /** Whether an `onSwap` callback was supplied — gates the swap button. */
-    private readonly hasSwap: boolean;
-
-    /** Unsubscribes the {@link i18n} language-change listener on {@link destroy}. */
-    private readonly disposeI18n: () => void;
-
-    // Latest context passed to {@link update}, kept so {@link renderLabels} can redraw on language change.
-    private context: DiffLegendContext = {
-        counts: { added: 0, removed: 0, changed: 0, layoutChanged: 0 },
-    };
+    private readonly view: DiffLegendView;
 
     constructor(parent: HTMLElement, callbacks: DiffLegendCallbacks) {
-        this.hasSwap = callbacks.onSwap !== undefined;
-
-        this.root = document.createElement("div");
-        this.root.className = "diff-legend";
-        this.root.setAttribute("role", "toolbar");
-        this.root.style.display = "none";
-
-        // Filename subtitle — rendered above the counts row.  Hidden until a
-        // filename is supplied; an empty textContent would still occupy layout,
-        // so toggling `display` is cleaner than only blanking the text.
-        this.filenameEl = document.createElement("div");
-        this.filenameEl.className = "diff-legend__filename";
-        this.filenameEl.style.display = "none";
-        this.root.append(this.filenameEl);
-
-        const countsRow = document.createElement("div");
-        countsRow.className = "diff-legend__counts";
-        this.root.append(countsRow);
-
-        this.slots = DIFF_CATEGORIES.map((category) => this.makeCountSlot(countsRow, category));
-
-        this.prevButton = this.makeNavButton(callbacks.onPrevious);
-        this.nextButton = this.makeNavButton(callbacks.onNext);
-        this.swapButton = this.makeSwapButton(callbacks.onSwap);
-
-        const nav = document.createElement("div");
-        nav.className = "diff-legend__nav";
-        nav.append(this.prevButton, this.nextButton);
-        countsRow.append(nav);
-
-        const swapGroup = document.createElement("div");
-        swapGroup.className = "diff-legend__swap-group";
-        swapGroup.append(this.swapButton);
-        countsRow.append(swapGroup);
-
-        parent.append(this.root);
-
-        this.renderLabels();
-        this.disposeI18n = i18n.onChange(() => this.renderLabels());
+        this.view = new DiffLegendView(parent, callbacks, i18n);
     }
 
     update(context: DiffLegendContext): void {
-        this.context = context;
-        this.renderLabels();
-
-        const { counts, filename, showSwap } = context;
-        const canStep = context.canStep ?? DIFF_CATEGORIES.some((category) => counts[category] > 0);
-        this.prevButton.disabled = !canStep;
-        this.nextButton.disabled = !canStep;
-
-        this.filenameEl.style.display = filename ? "block" : "none";
-        this.swapButton.style.display = this.hasSwap && showSwap ? "inline-flex" : "none";
-
-        this.root.style.display = "flex";
-    }
-
-    private makeCountSlot(parent: HTMLElement, category: DiffCategory): CountSlot {
-        const modifier = SLOT_MODIFIERS[category];
-        const slot = document.createElement("div");
-        slot.className = `diff-legend__slot diff-legend__slot--${modifier}`;
-
-        const swatch = document.createElement("span");
-        swatch.className = `diff-legend__swatch diff-legend__swatch--${modifier}`;
-
-        const text = document.createElement("span");
-        text.className = "diff-legend__label";
-        const label = document.createTextNode("");
-        const count = document.createElement("b");
-        count.className = "diff-legend__count";
-        text.append(label, count);
-
-        slot.append(swatch, text);
-        parent.append(slot);
-        return { category, label, count };
-    }
-
-    private makeNavButton(onClick: () => void): HTMLButtonElement {
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.className = "diff-legend__nav-btn";
-        btn.addEventListener("click", onClick);
-        return btn;
-    }
-
-    private makeSwapButton(onClick?: () => void): HTMLButtonElement {
-        const btn = document.createElement("button");
-        btn.type = "button";
-        // Shares the nav buttons' class so both groups align and theme alike.
-        btn.className = "diff-legend__nav-btn diff-legend__swap-btn";
-        btn.textContent = "⇄";
-        btn.style.display = "none";
-        if (onClick) {
-            btn.addEventListener("click", onClick);
-        }
-        return btn;
-    }
-
-    private renderLabels(): void {
-        const { counts, filename } = this.context;
-        this.root.setAttribute("aria-label", i18n.translate(DIFF_LEGEND_TEXTS.changes));
-        for (const { category, label, count } of this.slots) {
-            label.data = `${i18n.translate(DIFF_CATEGORY_LABELS[category])} `;
-            count.textContent = String(counts[category]);
-        }
-        this.prevButton.textContent = `‹ ${i18n.translate(DIFF_LEGEND_TEXTS.previous)}`;
-        this.nextButton.textContent = `${i18n.translate(DIFF_LEGEND_TEXTS.next)} ›`;
-        const swapLabel = i18n.translate(DIFF_LEGEND_TEXTS.swap);
-        this.swapButton.title = swapLabel;
-        this.swapButton.setAttribute("aria-label", swapLabel);
-        this.filenameEl.textContent = filename ?? "";
+        const { counts, filename, showSwap, canStep } = context;
+        this.view.update({
+            counts,
+            filename,
+            showSwap: showSwap ?? false,
+            canStep: canStep ?? DIFF_CATEGORIES.some((category) => counts[category] > 0),
+        });
     }
 
     destroy(): void {
-        this.disposeI18n();
-        this.root.remove();
+        this.view.destroy();
     }
 }

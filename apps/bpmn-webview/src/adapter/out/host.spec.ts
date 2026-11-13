@@ -12,6 +12,7 @@ import {
     GetBpmnModelerSettingCommand,
     GetClipboardCommand,
     GetDiagramAsSVGCommand,
+    GetElementTemplateFileCommand,
     GetBpmnPluginsCommand,
     GetElementTemplatesCommand,
     GetFormPreviewCommand,
@@ -46,7 +47,6 @@ import {
     ViewportChangedCommand,
     WorkspaceDefinitionsQuery,
     type BpmnEditorCommandType,
-    type Command,
     type DiffPaneCommandType,
     type MessageOfType,
     type Query,
@@ -55,6 +55,7 @@ import { computeDiff } from "@miragon/bpmn-modeler/diff";
 
 import { MOCK_BPMN_XML, MOCK_NEUTRAL_BPMN_XML } from "../../__fixtures__/mock-bpmn";
 import { MOCK_DIFF_AFTER_XML, MOCK_DIFF_BEFORE_XML } from "../../__fixtures__/mock-diff";
+import type { BpmnWebviewCommand } from "../../port/hostChannel";
 import { getHostApi } from "./host";
 
 vi.mock("@miragon/bpmn-modeler/diff", async (importOriginal) => {
@@ -215,7 +216,7 @@ describe("development preview host", () => {
         });
     });
 
-    it.each<[Command, string]>([
+    it.each<[BpmnWebviewCommand, string]>([
         [new GetElementTemplatesCommand(), "ElementTemplatesQuery"],
         [new GetBpmnPluginsCommand(), "BpmnPluginsQuery"],
         [new GetBpmnModelerSettingCommand(), "BpmnModelerSettingQuery"],
@@ -315,7 +316,7 @@ describe("development preview host", () => {
         });
     });
 
-    it.each<Command>(Object.values({ ...BPMN_EDITOR_COMMANDS, ...DIFF_PANE_COMMANDS }))(
+    it.each<BpmnWebviewCommand>(Object.values({ ...BPMN_EDITOR_COMMANDS, ...DIFF_PANE_COMMANDS }))(
         "takes a $type from the webview without throwing",
         (command) => {
             vi.spyOn(console, "warn").mockImplementation(() => undefined);
@@ -331,7 +332,17 @@ describe("development preview host", () => {
         (query) => {
             const host = previewHost();
 
+            // @ts-expect-error The webview's channel takes no query.
             expect(() => host.postMessage(query)).toThrow(`Unknown message type: ${query.type}`);
         },
     );
+
+    it("rejects a command of another surface", () => {
+        const host = previewHost();
+
+        // @ts-expect-error The webview's channel takes no template-editor command.
+        expect(() => host.postMessage(new GetElementTemplateFileCommand())).toThrow(
+            "Unknown message type: GetElementTemplateFileCommand",
+        );
+    });
 });

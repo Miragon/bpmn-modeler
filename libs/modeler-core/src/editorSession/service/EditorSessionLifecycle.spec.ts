@@ -153,8 +153,7 @@ describe("EditorSessionLifecycle", () => {
             const replacement = contexts[1];
             replacement.claimStatusSlot("engineVersion");
 
-            closed.claimStatusSlot("engineVersion");
-
+            expect(closed.claimStatusSlot("engineVersion")).toBe(false);
             expect(closed.releaseStatusSlot("engineVersion")).toBe("keep");
             expect(replacement.releaseStatusSlot("engineVersion")).toBe("hide");
         });

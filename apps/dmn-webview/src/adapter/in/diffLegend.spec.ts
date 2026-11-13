@@ -28,50 +28,31 @@ function legend() {
 
 const button = (selector: string) => parent.querySelector<HTMLButtonElement>(selector)!;
 
+// The shared DiffLegendView's spec covers the layout; this one covers the pane's wiring.
 describe("DiffLegend", () => {
-    it("stays hidden until it has something to show", () => {
-        legend();
-
-        expect(parent.querySelector<HTMLElement>(".dmn-diff-legend")?.hidden).toBe(true);
-    });
-
-    it("counts the changes and steps through them", () => {
+    it("renders the shared legend with the pane's state and actions", () => {
         const { legend: chip, actions } = legend();
 
-        chip.update({ counts: COUNTS, showSwap: false, canStep: true });
-        button(".dmn-diff-legend__previous").click();
-        button(".dmn-diff-legend__next").click();
+        chip.update({ counts: COUNTS, filename: "shipping-v2.dmn", showSwap: true, canStep: true });
+        button(".diff-legend__prev-btn").click();
+        button(".diff-legend__next-btn").click();
+        button(".diff-legend__swap-btn").click();
 
+        expect(parent.querySelector<HTMLElement>(".diff-legend")?.hidden).toBe(false);
+        expect(parent.querySelector(".diff-legend__filename")?.textContent).toBe("shipping-v2.dmn");
         expect(parent.textContent).toContain("Added 2");
-        expect(parent.textContent).toContain("Moved 1");
         expect(actions.onPrevious).toHaveBeenCalledOnce();
         expect(actions.onNext).toHaveBeenCalledOnce();
-        expect(parent.querySelector(".dmn-diff-legend")?.getAttribute("aria-label")).toBe(
-            "Changes",
-        );
+        expect(actions.onSwap).toHaveBeenCalledOnce();
     });
 
-    it("names an element's change instead of counts and cannot step without changes", () => {
+    it("names an element's change in the status chip", () => {
         const { legend: chip } = legend();
 
         chip.update({ status: "removed", showSwap: false, canStep: false });
 
-        expect(
-            parent.querySelector('.dmn-diff-legend__swatch[data-kind="removed"]'),
-        ).not.toBeNull();
-        expect(parent.textContent).not.toContain("Added");
-        expect(button(".dmn-diff-legend__next").disabled).toBe(true);
-    });
-
-    it("names the file and swaps the sides of a compare-files diff", () => {
-        const { legend: chip, actions } = legend();
-
-        chip.update({ counts: COUNTS, filename: "shipping-v2.dmn", showSwap: true, canStep: true });
-        button(".dmn-diff-legend__swap").click();
-
-        expect(parent.querySelector(".dmn-diff-legend__file")?.textContent).toBe("shipping-v2.dmn");
-        expect(button(".dmn-diff-legend__swap").title).toBe("Swap sides");
-        expect(actions.onSwap).toHaveBeenCalledOnce();
+        expect(parent.querySelector(".diff-legend__slot--status")?.textContent).toBe("Removed");
+        expect(button(".diff-legend__next-btn").disabled).toBe(true);
     });
 
     it("speaks the user's language", () => {
@@ -81,7 +62,7 @@ describe("DiffLegend", () => {
         i18n.setLanguage("de");
 
         expect(parent.textContent).toContain("Hinzugefügt 2");
-        expect(button(".dmn-diff-legend__next").textContent).toBe("Nächste Änderung ›");
+        expect(button(".diff-legend__next-btn").textContent).toBe("Nächste Änderung ›");
     });
 
     it("tells the views below how much room it takes", () => {
@@ -97,7 +78,7 @@ describe("DiffLegend", () => {
             },
         );
         const { legend: chip } = legend();
-        const root = parent.querySelector<HTMLElement>(".dmn-diff-legend")!;
+        const root = parent.querySelector<HTMLElement>(".diff-legend")!;
         Object.defineProperty(root, "offsetHeight", { value: 88 });
         const room = () => document.body.style.getPropertyValue("--dmn-diff-chrome-height");
 
@@ -117,7 +98,7 @@ describe("DiffLegend", () => {
 
         chip.dispose();
 
-        expect(parent.querySelector(".dmn-diff-legend")).toBeNull();
+        expect(parent.querySelector(".diff-legend")).toBeNull();
     });
 });
 

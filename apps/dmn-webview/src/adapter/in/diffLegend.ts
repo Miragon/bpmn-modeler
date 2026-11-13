@@ -1,19 +1,14 @@
 import { i18n } from "@miragon/bpmn-modeler-i18n";
 import {
-    DIFF_CATEGORIES,
-    DIFF_CATEGORY_LABELS,
-    DIFF_LEGEND_TEXTS,
+    type DiffLegendActions as SharedDiffLegendActions,
+    DiffLegendView,
 } from "@miragon/bpmn-modeler-types";
 
 import type { DiffLegendState } from "../../domain/diffPaneState";
 import type { DmnMissingStatus } from "../../domain/diffSteps";
 import { DMN_DIFF_TEXTS } from "../../domain/diffTexts";
 
-export interface DiffLegendActions {
-    readonly onPrevious: () => void;
-    readonly onNext: () => void;
-    readonly onSwap: () => void;
-}
+export type DiffLegendActions = Required<SharedDiffLegendActions>;
 
 const MISSING_TEXTS: Readonly<Record<DmnMissingStatus, string>> = {
     removed: DMN_DIFF_TEXTS.removedHere,
@@ -21,97 +16,33 @@ const MISSING_TEXTS: Readonly<Record<DmnMissingStatus, string>> = {
 };
 
 /**
- * The floating chip above a DMN diff pane: the open view's counts, Previous
- * and Next, and on compare-files panes the file name and a swap button. It
- * re-renders in the user's language.
+ * The shared diff legend over a DMN diff pane, which also tells the views
+ * below how much room it takes.
  */
 export class DiffLegend {
-    private readonly root: HTMLElement;
-    private state?: DiffLegendState;
-    private readonly stopTranslating: () => void;
+    private readonly view: DiffLegendView;
     private readonly sizeObserver?: ResizeObserver;
 
-    constructor(
-        parent: HTMLElement,
-        private readonly actions: DiffLegendActions,
-    ) {
-        this.root = element("div", "dmn-diff dmn-diff-legend");
-        this.root.setAttribute("role", "toolbar");
-        this.root.hidden = true;
-        parent.append(this.root);
-        this.stopTranslating = i18n.onChange(() => this.render());
+    constructor(parent: HTMLElement, actions: DiffLegendActions) {
+        this.view = new DiffLegendView(parent, actions, i18n);
         // The views below leave room for the chip, which wraps on a narrow pane.
         if (typeof ResizeObserver !== "undefined") {
+            const chip = this.view.element;
             this.sizeObserver = new ResizeObserver(() => {
-                const height = this.root.hidden ? 0 : this.root.offsetHeight;
+                const height = chip.hidden ? 0 : chip.offsetHeight;
                 document.body.style.setProperty("--dmn-diff-chrome-height", `${height}px`);
             });
-            this.sizeObserver.observe(this.root);
+            this.sizeObserver.observe(chip);
         }
     }
 
     update(state: DiffLegendState): void {
-        this.state = state;
-        this.render();
+        this.view.update(state);
     }
 
     dispose(): void {
-        this.stopTranslating();
         this.sizeObserver?.disconnect();
-        this.root.remove();
-    }
-
-    private render(): void {
-        const state = this.state;
-        if (!state) return;
-        this.root.hidden = false;
-        this.root.setAttribute("aria-label", i18n.translate(DIFF_LEGEND_TEXTS.changes));
-        const row = element("div", "dmn-diff-legend__row");
-        if (state.status) {
-            row.append(
-                swatchLabel(state.status, i18n.translate(DIFF_CATEGORY_LABELS[state.status])),
-            );
-        }
-        if (state.counts) {
-            for (const category of DIFF_CATEGORIES) {
-                const slot = swatchLabel(
-                    category,
-                    `${i18n.translate(DIFF_CATEGORY_LABELS[category])} `,
-                );
-                slot.append(element("b", "", String(state.counts[category])));
-                row.append(slot);
-            }
-        }
-        const nav = element("span", "dmn-diff-legend__group");
-        nav.append(
-            button(
-                "dmn-diff-legend__previous",
-                `‹ ${i18n.translate(DIFF_LEGEND_TEXTS.previous)}`,
-                !state.canStep,
-                this.actions.onPrevious,
-            ),
-            button(
-                "dmn-diff-legend__next",
-                `${i18n.translate(DIFF_LEGEND_TEXTS.next)} ›`,
-                !state.canStep,
-                this.actions.onNext,
-            ),
-        );
-        row.append(nav);
-        if (state.showSwap) {
-            const swap = element("span", "dmn-diff-legend__group");
-            const swapButton = button("dmn-diff-legend__swap", "⇄", false, this.actions.onSwap);
-            swapButton.title = i18n.translate(DIFF_LEGEND_TEXTS.swap);
-            swapButton.setAttribute("aria-label", swapButton.title);
-            swap.append(swapButton);
-            row.append(swap);
-        }
-        const children: HTMLElement[] = [];
-        if (state.filename) {
-            children.push(element("div", "dmn-diff-legend__file", state.filename));
-        }
-        children.push(row);
-        this.root.replaceChildren(...children);
+        this.view.destroy();
     }
 }
 
@@ -157,9 +88,8 @@ export class DiffEmptyState {
             element("div", "dmn-diff-empty__title", i18n.translate(DMN_DIFF_TEXTS.notInVersion)),
             element("div", "dmn-diff-empty__text", i18n.translate(MISSING_TEXTS[status])),
             button(
-                "dmn-diff-legend__next",
+                "dmn-diff-empty__action",
                 i18n.translate(DMN_DIFF_TEXTS.viewDrd),
-                false,
                 this.onViewDrd,
             ),
         );
@@ -178,23 +108,9 @@ function element<K extends keyof HTMLElementTagNameMap>(
     return node;
 }
 
-function swatchLabel(kind: string, label: string): HTMLElement {
-    const slot = element("span", "dmn-diff-legend__slot");
-    const swatch = element("i", "dmn-diff-legend__swatch");
-    swatch.dataset.kind = kind;
-    slot.append(swatch, label);
-    return slot;
-}
-
-function button(
-    className: string,
-    label: string,
-    disabled: boolean,
-    onClick: () => void,
-): HTMLButtonElement {
+function button(className: string, label: string, onClick: () => void): HTMLButtonElement {
     const node = element("button", className, label);
     node.type = "button";
-    node.disabled = disabled;
     node.addEventListener("click", onClick);
     return node;
 }
