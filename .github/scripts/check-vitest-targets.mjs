@@ -2,11 +2,14 @@
 // Fails when a Vitest workspace would silently drop out of CI: every
 // apps|libs|packages|tools workspace with a Vitest config must be a target in
 // .github/vitest-targets.json, its focused install must provide Vitest, its
-// trigger paths must cover every workspace and file its tests import, and its
-// typecheck must cover its specs.
+// trigger paths must cover every workspace and file its tests import or read,
+// and its typecheck must cover its specs.
+import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+
+import { readPathCandidates, uncoveredReads, withoutQuery } from "./vitest-target-reads.mjs";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const registry = readJson(".github/vitest-targets.json");
@@ -21,6 +24,7 @@ const TYPE_ONLY_STATEMENT =
 const SUPPORTED_GLOB = /^(?:[^*?[\]!]|\*(?!\*)|(?<=^|\/)\*\*(?=\/|$))+$/;
 const TSC_PROJECT = /\btsc\b[^&|;]*?(?:-p|--project)\s+(\S+)/g;
 const EXCLUDES_SPECS = /"exclude"\s*:\s*\[[^\]]*\.spec\./;
+const PATH_ANCHOR = /__dirname|__filename|import\.meta\.(?:dirname|filename|url)/;
 
 const problems = [];
 const targets = Object.entries(registry.targets);
@@ -28,6 +32,13 @@ const targetIdByDir = new Map(targets.map(([id, target]) => [target.dir, id]));
 const manifestDirByName = new Map(
     [".", ...workspaceDirs()].map((dir) => [readJson(join(dir, "package.json")).name, dir]),
 );
+const repoFiles = execFileSync("git", ["ls-files", "--cached", "--others", "--exclude-standard"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+})
+    .split("\n")
+    .filter((path) => path !== "");
+const readPathsByFile = new Map();
 
 for (const glob of registry.global) {
     if (!SUPPORTED_GLOB.test(glob)) problems.push(`global: unsupported glob "${glob}"`);
@@ -93,11 +104,32 @@ function checkTarget(id, target) {
     }
     const triggers = [...target.paths, ...registry.global].map(globToRegExp);
     const isTriggered = (path) => triggers.some((trigger) => trigger.test(path));
-    for (const reachable of reachablePaths(target.dir)) {
-        if (!isTriggered(reachable)) {
-            problems.push(`${id}: tests reach ${reachable}, which no trigger path covers`);
+    const { reachable, scannedFiles } = reachablePaths(target.dir);
+    for (const path of reachable) {
+        if (!isTriggered(path)) {
+            problems.push(`${id}: tests reach ${path}, which no trigger path covers`);
         }
     }
+    const readPaths = [...new Set([...scannedFiles].flatMap(readPathsOf))];
+    for (const { path, kind } of uncoveredReads(readPaths, {
+        targetDir: target.dir,
+        repoFiles,
+        isTriggered,
+    })) {
+        problems.push(
+            kind === "file"
+                ? `${id}: tests read ${path}, which no trigger path covers`
+                : `${id}: tests read ${path}/, under which no trigger path covers a file`,
+        );
+    }
+}
+
+function readPathsOf(file) {
+    if (!readPathsByFile.has(file)) {
+        const source = readFileSync(join(repoRoot, file), "utf8");
+        readPathsByFile.set(file, PATH_ANCHOR.test(source) ? readPathCandidates(source, file) : []);
+    }
+    return readPathsByFile.get(file);
 }
 
 // Vitest strips types without checking them; only this script fails CI on a
@@ -147,7 +179,7 @@ function reachablePaths(targetDir) {
         const file = pendingFiles.pop();
         if (scannedFiles.has(file)) continue;
         scannedFiles.add(file);
-        for (const specifier of importSpecifiers(file)) {
+        for (const specifier of importSpecifiers(file).map(withoutQuery)) {
             if (specifier.startsWith(".")) {
                 const importedPath = relative(
                     repoRoot,
@@ -165,7 +197,7 @@ function reachablePaths(targetDir) {
             }
         }
     }
-    return reachable;
+    return { reachable, scannedFiles };
 }
 
 function existingSourceFile(path) {

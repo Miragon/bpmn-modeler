@@ -277,6 +277,7 @@
                 ".agents/skills/**",
                 "{apps,libs,packages,tools}/*/src/**",
                 "{apps,libs,packages,tools}/*/package.json",
+                "docs/package.json",
                 "{apps,libs,packages,tools}/*/tsconfig*.json",
                 "tsconfig.base.json",
                 ".gitattributes",
@@ -285,7 +286,8 @@
                 "packages/dmn-modeler/vite.config.mts",
                 "apps/intellij-plugin/build.gradle.kts",
                 "eslint.config.cjs",
-                "**/eslint.config.cjs"
+                "**/eslint.config.cjs",
+                ".github/scripts/vitest-target-reads.{mjs,d.mts}"
             ],
             "typecheck": "typecheck"
         },
@@ -385,7 +387,8 @@
             "paths": [
                 "libs/element-template-builder/**",
                 "libs/modeler-types/**",
-                "tools/architecture-testing/**"
+                "tools/architecture-testing/**",
+                "yarn.lock"
             ],
             "typecheck": "build"
         },

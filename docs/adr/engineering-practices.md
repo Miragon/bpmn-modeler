@@ -536,9 +536,8 @@ Alternatives considered:
 [`.github/vitest-targets.json`](../../.github/vitest-targets.json) lists every
 Vitest workspace with its focused install and the paths that should re-run it:
 its own directory, every workspace its code imports, and files its specs import
-by relative path. Specs that read files instead of importing them list those
-paths by hand; the packages' architecture tests scan every `libs/*/src`, so
-both packages trigger on it. The [build workflow](../../.github/workflows/build.yml)
+by relative path or read; the packages' architecture tests scan every
+`libs/*/src`, so both packages trigger on it. The [build workflow](../../.github/workflows/build.yml)
 turns each entry into an `<id>` path filter, plus the shared `global` paths
 (registry, workflow, preset, root manifest), and an `<id>-src` filter of its
 own code files. One `test` matrix job runs every affected target: tests with
@@ -555,11 +554,41 @@ the same target ids.
 runs in the lint job and pre-push. It fails when a workspace with a Vitest
 config is not a target, when a target does not declare the Vitest packages its
 focused install needs (including Vitest's `vite` peer), when its trigger
-paths miss a workspace or file its tests import, or when its specs escape the
-typecheck: the target names no `typecheck`, the script skips an existing
-`tsconfig.spec.json`, or the tsconfig it checks excludes `*.spec.*`. Before
-the registry, each workspace needed a hand-written job, filter and `ci.needs`
-entry, and twelve workspaces' specs never ran in CI.
+paths miss a workspace or file its tests import or read, or when its specs
+escape the typecheck: the target names no `typecheck`, the script skips an
+existing `tsconfig.spec.json`, or the tsconfig it checks excludes `*.spec.*`.
+Before the registry, each workspace needed a hand-written job, filter and
+`ci.needs` entry, and twelve workspaces' specs never ran in CI.
+
+The read pass
+([`vitest-target-reads.mjs`](../../.github/scripts/vitest-target-reads.mjs),
+specified by `tools/repo-checks/src/vitestTargetReads.spec.ts`) parses every
+file the import pass scans with the TypeScript 6 compiler API (the root
+`typescript`, not `@typescript/native`). It resolves paths anchored at
+`__dirname`, `__filename` or `import.meta.{dirname,filename,url}` through
+`join`, `resolve`, `normalize`, `dirname`, `fileURLToPath`, `new URL`, `const`
+bindings, `+` and template literals of them. In a file that binds the
+repository root, every string that names a repository path counts as a read,
+so helpers such as `readRepoFile("…")` are seen; strings that are only
+compared count too. A path that git does not list is test data and is
+skipped, a query such as `?raw` is dropped (in the import pass as well), and a
+path inside the target's own workspace needs no trigger. A read file must
+match a trigger. A read directory needs only one listed file under it that a
+trigger matches: the strict rule (`<dir>/**` covered) fails on correct code,
+such as the architecture tests' `libs/` scan, whose `vitest.config.ts` files
+no target needs. A gate, not a fitness row, because coverage is a yes/no
+property; runtime tracing of `node:fs` would see more, but needs a full test
+run and misses browser specs that read through Vite.
+
+The pass cannot see a path computed from a parameter or from data
+(`package.json` workspaces, `.gitattributes` patterns, the entries of
+`orca-plugin.json`), `git ls-files` sweeps, config files a tool loads on its
+own (ESLint's `eslint.config.cjs`), `node_modules` reads through
+`require.resolve`, `process.cwd()`-relative paths, or a production file that
+reads at test time. Those stay hand-listed: `repo-checks` lists
+`docs/package.json`, `.gitattributes` and the ESLint configs, and
+`element-template-builder` lists `yarn.lock` for the upstream schemas its
+catalog spec reads.
 
 Only a leg whose `<id>-src` filter matches reports coverage, so the
 release-please PR (changelogs, manifests) gets none. A manual
