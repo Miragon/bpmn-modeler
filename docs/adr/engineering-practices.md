@@ -723,13 +723,11 @@ blocks a merge, and findings never fail it.
   Trend column holds them.
 - **Measured commit.** The default checkout of `pull_request`, GitHub's test
   merge of the head into the base, with `--base "origin/<base branch>"`. Its
-  first parent is the base tip, which is the merge base, and the history
-  reader follows first parents, so the whole PR counts as one change, as after
-  the squash merge. That differs from a local `corepack yarn fitness` on the
-  branch head, where each branch commit counts as one change for
-  change-coupling and hotspots. The merge commit takes one place in the
-  history windows, so the head's window reaches one commit less far back on
-  the main side than the base's: a one-commit slide. `--head-label` names the
+  first parent is the base tip, which is the merge base. Change-coupling and
+  hotspots read the base's window and put the working tree's change against
+  the merge base in front of it, so the whole PR counts as one change, as
+  after the squash merge, both here and in a local `corepack yarn fitness` on
+  the branch head, and no base commit leaves the window. `--head-label` names the
   PR head and the base it was merged into, so the summary does not leave a
   reader with only the merge commit's SHA. A conflicting PR has no test merge,
   and GitHub runs no `pull_request` workflow for it.
@@ -784,7 +782,8 @@ blocks a merge, and findings never fail it.
 Alternatives considered:
 
 - **Measuring the PR head** (`github.event.pull_request.head.sha`) matches a
-  local run, but counts each branch commit as one change until the squash.
+  local run, but compares with the branch point, not the base tip the PR
+  lands on.
 - **The full report in a comment**: about 240,600 characters on main
   (`8bfb20fc`), almost four times the limit.
 - **Running the report twice**, once capped, doubles the measurement, a base
@@ -950,8 +949,18 @@ The pure measure lives in `tools/repo-checks/src/changeCoupling/domain`, the
 history reader and the window in `tools/repo-checks/src/history`, which
 `hotspots` and #2095 reuse.
 
-- **Window.** The 924 most recent first-parent commits, one squash-merged PR
-  each. A commit count, not a date: the dates of the older history were
+- **Window.** The 924 first-parent commits up to the merge base, one
+  squash-merged PR each, with the branch's change in front as one more record
+  (version 2, #2228): the working tree against the merge base, the one PR its
+  squash will land as. `withBranchAsOneChange` in `history/domain` builds it
+  for this function, `hotspots` and `missed-partner`. Every base commit stays,
+  so a row moves only through the branch's own change; the head's 925 records
+  against main's 924 after the squash cost nothing, while dropping the oldest
+  base commit brought back 7 new rows on untouched files in 6 of 28 PRs. The
+  record's subject is `branch`, not the PR title, which only CI knows, so a
+  `chore(deps)` PR counts as a change, as GitHub's test merge did in version 1.
+  The base run and every snapshot measure no change and keep their window. A
+  commit count, not a date: the dates of the older history were
   rewritten on 2026-03-09. The function reads one commit more, which proves
   the oldest has a parent; fewer in a full clone throw `InsufficientHistory`
   and end the series there (378 commits are measurable today). A shallow clone
@@ -1005,6 +1014,18 @@ skipped commit type changes no pair in this window; the types stay skipped
 because a release or formatting commit under 30 read files would otherwise add
 pairs for no shared reason. A run on this checkout, HEAD and the merge-base
 worktree, takes 2.3 s; one backfill step takes about 1 s.
+
+Trial of version 2, rows new/resolved before → after. At each PR head against
+its `baseRefOid`: #2047 at `3d1b19b3` against `452b6440` (38 commits, 3
+merges) 10/15 → 0/0, and 46/79 → 3/8 over 28 PRs, of them on files the
+branch did not touch 92 → 1. On GitHub's test merge of 27 PRs: 10/8 → 3/8;
+#2255, #2256 and #2257 no longer show `BridgeScriptEditor.ts` ↔
+`apps/vscode-plugin/src/main.ts`, #2332 and #2333 no longer
+`ModelerSettingsConfigurable.kt` ↔ `apps/vscode-plugin/package.json`. The
+one row left on untouched files: #2180 deletes and re-adds a `bootstrap.ts`,
+so a past commit falls from 31 to 30 read files and counts, which the function
+names as a false report. The 28 merge-base trees and 28 stored snapshots
+(every 20th of 558) keep their findings.
 
 Alternatives considered:
 
@@ -1198,7 +1219,11 @@ in the wrong home (Tornhill, Your Code as a Crime Scene, 2015, 2nd ed. 2024).
 - **Revisions.** The counted first-parent commits among the 924 of the history
   window (`HISTORY_WINDOW` in `history/domain`, the one home for both this and
   change coupling) that changed the file, renames followed through every
-  commit. Mechanical commits (`isMechanicalCommit`) are not counted. There is
+  commit. The window ends at the merge base, and a branch adds one revision to
+  each file it changed, as its squash will (version 3, #2228, the same record
+  as in [change coupling](#change-coupling)). Version 2 read the window from
+  the head, so each branch commit was a revision and a merge of main one
+  revision for all its PRs. Mechanical commits (`isMechanicalCommit`) are not counted. There is
   no changeset-size cut: code-maat applies `max-changeset-size` to coupling
   only, so a file's revisions here can exceed its count in `change-coupling`.
   Fewer than 925 commits reaching back throw `InsufficientHistory`.
@@ -1250,6 +1275,14 @@ next file enters 20th: `DeploymentService.ts` 59 times, `ArtifactService.ts`
 38, `BpmnLintConfigService.ts` 32, `AppendMenuOverlay.tsx` 24 and six other
 files 44. Nothing else changes. A version bump restarts the series, which the
 backfill recomputes from git.
+
+Trial of version 3, rows new/resolved before → after. #2047 at `3d1b19b3`
+against `452b6440`: 1/1 → 0/0; `TemplateBuilder.tsx` had entered at 5 branch
+commits × 1,284 code lines = 6,420 and stays out as one revision. 12/12 → 4/4
+over 28 PR heads. On GitHub's test merge of the 6 trial PRs whose comment
+showed hotspot rows: 6/6 → 4/4; in each of the 4 left a file the PR touched
+enters and pushes the 20th out, which the function names as a false report.
+The 28 merge-base trees and 28 stored snapshots keep their findings.
 
 ### Missed partner
 
