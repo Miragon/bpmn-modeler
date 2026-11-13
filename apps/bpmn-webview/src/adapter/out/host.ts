@@ -11,10 +11,8 @@ import {
     BpmnModelerSettingQuery,
     BpmnPluginsQuery,
     ClipboardQuery,
-    Command,
     ElementTemplatesQuery,
     FormPreviewQuery,
-    HostApi,
     HostApiImpl,
     MockHostApi,
     PropertiesPanelStateQuery,
@@ -32,13 +30,10 @@ import { MOCK_BPMN_XML, MOCK_NEUTRAL_BPMN_XML } from "../../__fixtures__/mock-bp
 import { MOCK_DIFF_AFTER_XML, MOCK_DIFF_BEFORE_XML } from "../../__fixtures__/mock-diff";
 import { MOCK_WORKSPACE_DEFINITIONS } from "../../__fixtures__/mock-workspace-definitions";
 import { mockPluginAssets } from "../../__fixtures__/mock-plugins";
+import type { BpmnWebviewCommand, BpmnWebviewHost } from "../../port/hostChannel";
 import type { WebviewState } from "../../port/webviewState";
 
 declare const process: { env: { NODE_ENV: string } };
-
-type StateType = WebviewState;
-
-type MessageType = Command | Query;
 
 /**
  * Returns the channel to the host application embedding this webview. In
@@ -47,11 +42,11 @@ type MessageType = Command | Query;
  * the desktop app all inject the same `acquireVsCodeApi()` shim, so they share
  * this path).
  */
-export function getHostApi(): HostApi<StateType, MessageType> {
+export function getHostApi(): BpmnWebviewHost {
     if (process.env.NODE_ENV === "development") {
         return new MockHost();
     }
-    return new HostApiImpl<StateType, MessageType>();
+    return new HostApiImpl<WebviewState, BpmnWebviewCommand>();
 }
 
 /**
@@ -90,7 +85,7 @@ function readDevMode(): DevMode {
  * production bundle (dead-code-eliminated along with the whole class when
  * `NODE_ENV` is production).
  */
-class MockHost extends MockHostApi<StateType, MessageType> {
+class MockHost extends MockHostApi<WebviewState, BpmnWebviewCommand> {
     private readonly devMode: DevMode = readDevMode();
 
     private cachedDiff: DiffResult | undefined;
@@ -110,7 +105,7 @@ class MockHost extends MockHostApi<StateType, MessageType> {
      *
      * @param message The outbound command sent by the webview.
      */
-    override postMessage(message: MessageType): void {
+    override postMessage(message: BpmnWebviewCommand): void {
         const command = asProtocolMessage(message);
         switch (command.type) {
             case "GetBpmnFileCommand": {
@@ -308,7 +303,7 @@ class MockHost extends MockHostApi<StateType, MessageType> {
             }
         }
 
-        function dispatchEvent(event: MessageType) {
+        function dispatchEvent(event: Query) {
             window.dispatchEvent(
                 new MessageEvent("message", {
                     data: event,
@@ -390,6 +385,6 @@ class MockHost extends MockHostApi<StateType, MessageType> {
     }
 }
 
-function dispatch(event: MessageType): void {
+function dispatch(event: Query): void {
     window.dispatchEvent(new MessageEvent("message", { data: event }));
 }

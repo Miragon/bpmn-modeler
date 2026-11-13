@@ -7,6 +7,11 @@ import type {
 
 import type { WebviewState } from "./webviewState";
 
+/** Everything the BPMN webview posts: the editor's commands and the diff pane's. */
+export type BpmnWebviewCommand = BpmnEditorCommand | DiffPaneCommand;
+
+export type BpmnWebviewHost = HostApi<WebviewState, BpmnWebviewCommand>;
+
 export type HostChannel = Pick<HostApi<WebviewState, BpmnEditorCommand>, "postMessage">;
 
 export type DiffPaneChannel = Pick<HostApi<WebviewState, DiffPaneCommand>, "postMessage">;

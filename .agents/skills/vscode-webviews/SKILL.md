@@ -163,13 +163,15 @@ webviewPanel.webview.postMessage(query);
 const host = getHostApi();
 host.postMessage(command);
 ```
-The BPMN webview's bootstrap, adapters and services post through `HostChannel`
-(`apps/bpmn-webview/src/port/hostChannel.ts`), which takes only the commands
-in `BPMN_EDITOR_COMMAND_TYPES` (`libs/shared/src/lib/bpmnEditorCommands.ts`).
-`bootstrap` narrows its host to it once. `DiffMode` posts through
-`DiffPaneChannel` (same file), which takes only `DIFF_PANE_COMMAND_TYPES`
-(`libs/shared/src/lib/diffPaneCommands.ts`). A new BPMN editor or diff-pane
-command goes into its list, or it does not compile.
+The BPMN webview's entry types its host as `BpmnWebviewHost`
+(`apps/bpmn-webview/src/port/hostChannel.ts`), which takes only the commands in
+`BPMN_EDITOR_COMMAND_TYPES` (`libs/shared/src/lib/bpmnEditorCommands.ts`) and
+`DIFF_PANE_COMMAND_TYPES` (`libs/shared/src/lib/diffPaneCommands.ts`);
+`getHostApi` returns it and `bootstrap` takes it. The editor's adapters and
+services post through `HostChannel` (same file), which takes only the editor's
+list; `bootstrap` narrows its host to it once. `DiffMode` posts through
+`DiffPaneChannel` (same file), which takes only the diff pane's list. A new
+BPMN editor or diff-pane command goes into its list, or it does not compile.
 Declare a channel's `postMessage` as a property (`postMessage: (message: M) => void`),
 as `HostApi` does: a method signature compares its parameter bivariantly, so a
 narrowed channel would fit a helper that posts any message.
@@ -287,11 +289,11 @@ IntelliJ, or a plain browser. Two implementations back it:
 
 ```typescript
 // apps/bpmn-webview/src/adapter/out/host.ts
-export function getHostApi(): HostApi<StateType, MessageType> {
+export function getHostApi(): BpmnWebviewHost {
   if (process.env.NODE_ENV === "development") {
     return new MockHost();               // standalone browser
   }
-  return new HostApiImpl<StateType, MessageType>();  // VS Code
+  return new HostApiImpl<WebviewState, BpmnWebviewCommand>();  // VS Code
 }
 ```
 
