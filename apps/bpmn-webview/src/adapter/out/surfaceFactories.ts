@@ -3,7 +3,7 @@ import type { SurfaceFactories } from "@miragon/bpmn-modeler/mode";
 import { LogWarningCommand, ShowInfoCommand } from "@miragon/bpmn-modeler-shared";
 
 import { elementTemplateRejectionReport } from "../../domain/elementTemplateRejectionReport";
-import type { HostModelerState } from "../../domain/hostModelerState";
+import { elementIdSettingsOf, type HostModelerState } from "../../domain/hostModelerState";
 import { loadDesignerModule, loadModelerModule, loadViewerModule } from "./surfaceModules";
 import type { HostChannel } from "../../port/hostChannel";
 import type { LintBridge } from "./lintBridge";
@@ -23,7 +23,7 @@ interface SurfaceFactoryPorts {
     lintBridge: Pick<LintBridge, "surfaceOptions">;
     hostModelerState: Pick<
         HostModelerState,
-        "settings" | "applySettingsPushedSince" | "applyFavouritesPushedSince"
+        "settings" | "applySettingsPushedSince" | "applyDesignerSettingsPushedSince"
     >;
     onModelerModeChanged(mode: ModelerMode): void;
 }
@@ -72,6 +72,7 @@ export function createSurfaceFactories(
                 createDesigner(container, {
                     theme,
                     favouriteBpmnElements: settingsAtCreation?.favouriteBpmnElements,
+                    elementIdSettings: elementIdSettingsOf(settingsAtCreation),
                     propertiesPanel: { parent: propertiesPanelParent },
                     clipboard: ports.clipboard,
                     capabilities: {
@@ -84,7 +85,7 @@ export function createSurfaceFactories(
                 }),
             );
             // A push during the async init only reached the previous surface.
-            hostModelerState.applyFavouritesPushedSince(settingsAtCreation, designer);
+            hostModelerState.applyDesignerSettingsPushedSince(settingsAtCreation, designer);
             return designer;
         },
         implement: async ({ container, theme, mode, engine }) => {

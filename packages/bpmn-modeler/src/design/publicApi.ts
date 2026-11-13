@@ -104,6 +104,14 @@ export interface DesignerOptions {
      */
     favouriteBpmnElements?: string[];
 
+    /**
+     * How IDs generated from names are spelled and whether they follow names:
+     * the counterpart of the modeler settings `elementIdStyle` and
+     * `elementIdsFollowName`. Change them live with
+     * {@link BpmnDesignerHandle.setElementIdSettings}.
+     */
+    elementIdSettings?: Partial<ElementIdSettings>;
+
     /** Clipboard override — omit for the native browser clipboard. */
     clipboard?: ClipboardOptions;
 
