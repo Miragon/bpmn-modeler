@@ -49,6 +49,8 @@ export type { PathAlias } from "./pathAliases";
 export { requireMatches } from "./requireMatches";
 export { isEntry, roleOf } from "./roleFolders";
 export type { Role, RoleLocation } from "./roleFolders";
+export { readRuntimeDeclarations } from "./runtimeDeclarations";
+export type { RuntimeDeclaration } from "./runtimeDeclarations";
 export { readSourceTree } from "./sourceTree";
 export type { SourceFile, SourceTreeOptions } from "./sourceTree";
 export { constructsClass, findSubclassConstructions } from "./subclassConstructions";

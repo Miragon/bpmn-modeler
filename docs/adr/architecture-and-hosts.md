@@ -133,10 +133,11 @@ in the core belongs to `ArtifactService`.
 
 The shared role-folder rules keep services off adapters, outbound adapters off
 services, and every import away from the package entry and the test kit; the
-core has no import cycles. A port file holds only interfaces: the value types,
-errors and pure functions a port names stay in `domain/`, so the domain never
-imports a port. A port, prompt or error one feature owns lives in that
-feature's `port/` or `domain/`, so `kernel/` names no feature.
+core has no import cycles. A port file holds only types: interfaces, type
+aliases and type-only re-exports. The value types, errors and pure functions a
+port names stay in `domain/`, so the domain never imports a port. A port,
+prompt or error one feature owns lives in that feature's `port/` or `domain/`,
+so `kernel/` names no feature.
 `EditorSessionParticipant` stays in `editorSession/domain/`: it is an in-core
 extension point the lifecycle drives, not a port a host implements.
 A store that holds application state and reaches the host, if at all, only
@@ -427,7 +428,7 @@ layout below a role folder is free.
 | Folder | Holds |
 | --- | --- |
 | `domain/` | rules as pure functions and values |
-| `port/` | interfaces the services and inbound adapters call, which outbound adapters implement (driven ports) |
+| `port/` | types only: interfaces the services and inbound adapters call, which outbound adapters implement (driven ports) |
 | `service/` | orchestration, including the core's editor-session participants |
 | `adapter/in/` | calls into the workspace: commands, webview and RPC message handlers, UI |
 | `adapter/out/` | implementations of a port: VS Code, Node, HTTP clients |
@@ -436,8 +437,8 @@ layout below a role folder is free.
 
 A file directly in `src/` is an entry (`index.ts`, `main.ts`, `server.ts`);
 that is a folder depth, not a name. Technology gets no role folder; it shows in
-the imports. Every rule below blocks, because each is static and reads only
-folders and imports:
+the imports. Every rule below blocks, because each is static: rules 1 to 9 read
+only folders and imports, rule 10 the top-level statements of a `port/` file:
 
 1. Every file sits in a role folder or is an entry.
 2. `domain/` imports only `domain/`, so the domain decides and does not call
@@ -452,6 +453,18 @@ folders and imports:
    (`isHostModule`: `vscode`, `node:*`, `fs`, `http`).
 8. Only `composition/` and entries import `composition/`.
 9. Only `testing/` imports `testing/`, and nothing imports an entry.
+10. A `port/` file declares only types: `import … from` with an import
+    clause, interfaces, type aliases and type-only exports. A `const`, `let`
+    or `var`, function, class, enum, namespace, `export default`, `export =`,
+    value export, `export *`, side-effect import or export, `import … =` or
+    any other statement fails. The check reads syntax and resolves no
+    re-export, so a re-exported interface says `export type`.
+
+Rule 10 is not an entry of `HEXAGONAL_RULES`: an `ArchitectureRule` sees only
+the import graph, and `convention-coverage` reads every entry as an import
+rule. A factory is a function type, so it stays a port
+(`RepositorySourceFactory`). An interfaces-only rule would move the webview
+channel types below out of `port/`.
 
 A `diagram-js` or `flat` workspace holds no role folder, so no folder there
 reads as a role nothing checks. Package imports stay out of the shared set:

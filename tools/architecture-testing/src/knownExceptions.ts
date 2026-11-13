@@ -5,7 +5,8 @@ export interface Violation {
 
 /**
  * A violation the code still needs, named with the issue that removes it.
- * `from` and `to` name a file, a folder or a feature; `*` matches anything.
+ * `from` and `to` name a file, a folder, a feature or a declaration
+ * (`<form> <name>`); `*` matches anything.
  */
 export interface KnownException extends Violation {
     readonly until: string;
