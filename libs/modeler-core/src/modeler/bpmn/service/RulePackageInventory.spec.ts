@@ -120,6 +120,17 @@ describe("RulePackageInventory", () => {
         expect(inventory.currentRulePackage("/work/packages/rules").kind).toBe("found");
     });
 
+    it("no longer reads a folder as a package once the listing finds its link removed", () => {
+        const { disk, install, inventory } = setUp();
+        install("/work/packages/rules", "bpmnlint-plugin-rules");
+        disk.createSymbolicLink(`${NODE_MODULES}/bpmnlint-plugin-rules`, "/work/packages/rules");
+        inventory.installedIn([WORK]);
+        disk.remove(`${NODE_MODULES}/bpmnlint-plugin-rules`);
+
+        expect(inventory.installedIn([WORK])).toEqual([]);
+        expect(inventory.currentRulePackage("/work/packages/rules").kind).toBe("unreadable");
+    });
+
     it("cannot allow a linked folder that holds a lint config, as the gate refuses it, and names its allowance", () => {
         const { catalog, disk, install, inventory, allowanceAt } = setUp();
         install("/repo", "bpmnlint-plugin-repo");

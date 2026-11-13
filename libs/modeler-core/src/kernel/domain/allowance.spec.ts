@@ -86,6 +86,17 @@ describe("allowanceOf", () => {
             },
         },
         {
+            behaviour:
+                "places a folder below a node_modules that names no package by its whole path",
+            kind: "rulePackage",
+            folder: "/work/repo/node_modules/.store/bpmnlint-plugin-acme-npm-1.2.0-0a1b/package",
+            origin: MAIN,
+            allowance: {
+                origin: { kind: "repository", path: "/work/repo/.git" },
+                addOn: "node_modules/.store/bpmnlint-plugin-acme-npm-1.2.0-0a1b/package",
+            },
+        },
+        {
             behaviour: "places a nested copy of a rule package as the hoisted one",
             kind: "rulePackage",
             folder: "/work/repo/node_modules/a/node_modules/@acme/bpmnlint-plugin",

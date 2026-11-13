@@ -1,6 +1,10 @@
 import { AllowableCode } from "../../../kernel/domain/allowance";
 import { SessionAnswer } from "../../../kernel/domain/approvalAnswer";
-import { installedPackageNameOf } from "../../../kernel/domain/installedPackagePath";
+import {
+    installedPackageNameOf,
+    installedSourceDirOf,
+    nodeModulesDirOf,
+} from "../../../kernel/domain/installedPackagePath";
 import { ListedPresence } from "../../../kernel/domain/listedCode";
 import { joinWorkspacePath } from "../../../kernel/domain/workspacePath";
 import { AllowanceLocator } from "../../../kernel/service/AllowanceLocator";
@@ -11,8 +15,6 @@ import {
     rulePackageScopesToList,
 } from "../domain/installedPackage";
 import {
-    installedPackagesDirOf,
-    nodeModulesDirOf,
     RULE_PACKAGE_CODE_TEXTS,
     rootKindOf,
     rulePackageLabelOf,
@@ -30,8 +32,8 @@ import { RulePackageCatalog } from "./RulePackageCatalog";
 export class RulePackageInventory {
     readonly texts = RULE_PACKAGE_CODE_TEXTS;
 
-    /** Real folders a `node_modules` entry linked to, so a linked folder reads as a package. */
-    private readonly linkedFolders = new Set<string>();
+    /** Real folders a `node_modules` entry linked to in the last listing, so a linked folder reads as a package. */
+    private linkedFolders: ReadonlySet<string> = new Set();
 
     constructor(
         private readonly catalog: RulePackageCatalog,
@@ -50,10 +52,10 @@ export class RulePackageInventory {
                 const realPath = this.packages.realPath(joinWorkspacePath(nodeModules, name));
                 if (realPath !== undefined) {
                     found.add(realPath);
-                    this.linkedFolders.add(realPath);
                 }
             }
         }
+        this.linkedFolders = found;
         return [...found];
     }
 
@@ -84,9 +86,8 @@ export class RulePackageInventory {
         return { kind: "found", artifact, name: rulePackageLabelOf(artifact) };
     }
 
-    /** The `node_modules` a package is installed in, or its own folder when it is installed elsewhere. */
     sourceDirOf(id: string): string {
-        return installedPackagesDirOf(id) ?? id;
+        return installedSourceDirOf(id);
     }
 
     async current(id: string): Promise<ListedPresence> {

@@ -1,7 +1,7 @@
 import { ReviewAnswer, SessionAnswer } from "./approvalAnswer";
 import { allowanceMarkerOf, AllowanceKind, approvalRowReadingOf } from "./approvalRowKind";
 import { CodeApproval, codeApprovalChange, CodeApprovalChange } from "./codeApproval";
-import { installedPackageNameOf, NODE_MODULES } from "./installedPackagePath";
+import { installedPlaceOf, NODE_MODULES } from "./installedPackagePath";
 import { CodeOrigin } from "./repositoryIdentity";
 import { relativeToRoot } from "./rootContainment";
 import { lastWorkspacePathSegment, parentWorkspacePath, withLowerCaseDrive } from "./workspacePath";
@@ -77,16 +77,19 @@ export function allowanceOf(
 /**
  * A package manager may install a package deeper, as pnpm does below
  * `.pnpm/<name>@<version>`, so the place is the first `node_modules` and the
- * name: an update keeps it, and a nested copy shares the hoisted one's.
+ * path below the last: an update keeps it, and a nested copy shares the
+ * hoisted one's. That path is the whole rest, not the name, so a folder that
+ * is no package root, such as a Yarn store's `.store/<slug>/package`, shares
+ * its place with no other.
  */
 function installedAddOnPlaceOf(belowWorktree: string): string {
+    const place = installedPlaceOf(belowWorktree);
+    if (place === undefined) {
+        return belowWorktree;
+    }
     const segments = belowWorktree.split("/");
-    const firstNodeModules = segments.indexOf(NODE_MODULES);
-    return firstNodeModules === -1
-        ? belowWorktree
-        : [...segments.slice(0, firstNodeModules + 1), installedPackageNameOf(belowWorktree)].join(
-              "/",
-          );
+    const firstNodeModulesDir = segments.slice(0, segments.indexOf(NODE_MODULES) + 1).join("/");
+    return `${firstNodeModulesDir}/${belowWorktree.slice(place.dir.length + 1)}`;
 }
 
 /** A linked worktree's origin comes from git's files, its main worktree's from the host's spelling. */

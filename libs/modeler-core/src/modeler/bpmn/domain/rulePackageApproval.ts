@@ -19,7 +19,12 @@ import {
     CodeApproval,
     CodeApprovalChange,
 } from "../../../kernel/domain/codeApproval";
-import { installedPackageNameOf, NODE_MODULES } from "../../../kernel/domain/installedPackagePath";
+import {
+    installedPackageNameOf,
+    installedPlaceOf,
+    installedSourceDirOf,
+    packageNamePartsOf,
+} from "../../../kernel/domain/installedPackagePath";
 import { ChoicePrompt } from "../../../kernel/domain/prompts";
 import {
     isRootedPath,
@@ -71,8 +76,6 @@ export interface BlockedRulePackage extends RulePackage {
 
 export type RulePackageApprovalNoticeAction = ApprovalNoticeAction;
 
-const SCOPE_PREFIX = "@";
-
 /**
  * Npm allows none of these: joined under `node_modules`, a `.`-led part or a
  * backslash, which Windows reads as a separator, would leave it.
@@ -84,9 +87,8 @@ export function requestedPackageNameOf(request: string): string | undefined {
     if (isRootedPath(request)) {
         return undefined;
     }
-    const nameLength = request.startsWith(SCOPE_PREFIX) ? 2 : 1;
-    const nameParts = request.split("/").slice(0, nameLength);
-    return nameParts.length < nameLength || nameParts.some(isUnsafeNamePart)
+    const nameParts = packageNamePartsOf(request.split("/"));
+    return nameParts === undefined || nameParts.some(isUnsafeNamePart)
         ? undefined
         : nameParts.join("/");
 }
@@ -146,7 +148,7 @@ export function currentResolutionOf(
 }
 
 function storeNameOf(root: string): string | undefined {
-    return installedPackagesDirOf(root) === undefined ? undefined : installedPackageNameOf(root);
+    return installedPlaceOf(root)?.name;
 }
 
 /**
@@ -211,20 +213,18 @@ function linkedPackageRoot(linked: string, configDirs: readonly string[]): RuleM
         : { kind: "package", id: linked };
 }
 
-/** By the last `node_modules`, so a nested copy is its own root for stamps and ids; `undefined` outside every one. */
+/** By its installed place, so a nested copy is its own root for stamps and ids; `undefined` outside every `node_modules`. */
 function installedPackageRootOf(file: string): RuleModuleRoot | undefined {
-    const segments = file.split("/");
-    const nodeModules = segments.lastIndexOf(NODE_MODULES);
-    if (nodeModules === -1) {
+    const place = installedPlaceOf(file);
+    if (place === undefined) {
         return undefined;
     }
-    const scoped = segments[nodeModules + 1]?.startsWith(SCOPE_PREFIX) === true;
-    const nameEnd = nodeModules + (scoped ? 2 : 1);
-    const nameSegments = segments.slice(nodeModules + 1, nameEnd + 1);
-    if (nameEnd >= segments.length - 1 || nameSegments.some((each) => each.startsWith("."))) {
-        return { kind: "refused", reason: "noPackageFolder" };
-    }
-    return { kind: "package", id: segments.slice(0, nameEnd + 1).join("/") };
+    const root = `${place.dir}/${place.name}`;
+    const namesPackageFolder =
+        place.name !== "" && !place.name.split("/").some((part) => part.startsWith("."));
+    return namesPackageFolder && file.startsWith(`${root}/`)
+        ? { kind: "package", id: root }
+        : { kind: "refused", reason: "noPackageFolder" };
 }
 
 export function rulePackageOf(
@@ -304,7 +304,7 @@ export function rootStampPathsOf(rootId: string, lookupDir: string | undefined):
  * dependency. The config's own package and a linked one keep theirs inside.
  */
 export function evictionScopeOf(rootId: string): string {
-    return installedPackagesDirOf(rootId) ?? rootId;
+    return installedSourceDirOf(rootId);
 }
 
 /**
@@ -379,17 +379,6 @@ export function loadsWithoutApproval(resolved: string): boolean {
     return !isRootedPath(resolved) || isParsedAsJson(resolved);
 }
 
-export function nodeModulesDirOf(dir: string): string {
-    return joinWorkspacePath(dir, NODE_MODULES);
-}
-
-/** The last `node_modules` a package folder is installed in; `undefined` for a folder outside every one. */
-export function installedPackagesDirOf(id: string): string | undefined {
-    const segments = id.split("/");
-    const nodeModules = segments.lastIndexOf(NODE_MODULES);
-    return nodeModules === -1 ? undefined : segments.slice(0, nodeModules + 1).join("/");
-}
-
 export interface RootKindFacts {
     /** The kind the gate reported, when it blocked the folder this session. */
     readonly reported?: BlockedRulePackage["kind"];
@@ -412,7 +401,7 @@ export function rootKindOf(id: string, facts: RootKindFacts): RuleModuleRoot | u
     if (facts.realConfigDirs.includes(id)) {
         return { kind: "selfPackage", id };
     }
-    if (installedPackagesDirOf(id) !== undefined) {
+    if (installedPlaceOf(id) !== undefined) {
         return { kind: "package", id };
     }
     return facts.linkedFromNodeModules ? linkedPackageRoot(id, facts.realConfigDirs) : undefined;

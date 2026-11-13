@@ -22,8 +22,6 @@ import {
     currentResolutionOf,
     editorsToRelint,
     evictionScopeOf,
-    installedPackagesDirOf,
-    nodeModulesDirOf,
     isParsedAsJson,
     loadsWithoutApproval,
     requestedPackageNameOf,
@@ -868,26 +866,6 @@ describe("rule package approval question", () => {
         expect(rulePackageApprovalPrompt([linked], ["/repo"]).items[0]?.description).toBe(
             "/work/acme-rules",
         );
-    });
-});
-
-describe("nodeModulesDirOf", () => {
-    it("names the node_modules a folder installs its packages in", () => {
-        expect(nodeModulesDirOf("/work/orders")).toBe("/work/orders/node_modules");
-    });
-});
-
-describe("installedPackagesDirOf", () => {
-    it.each([
-        { id: "/work/node_modules/bpmnlint-plugin-acme", dir: "/work/node_modules" },
-        { id: "/work/node_modules/@acme/bpmnlint-plugin", dir: "/work/node_modules" },
-        {
-            id: "/work/node_modules/a/node_modules/bpmnlint-plugin-b",
-            dir: "/work/node_modules/a/node_modules",
-        },
-        { id: "/work/packages/rules", dir: undefined },
-    ])("puts $id in $dir", ({ id, dir }) => {
-        expect(installedPackagesDirOf(id)).toBe(dir);
     });
 });
 
