@@ -16,6 +16,8 @@ export type { DeclarationEdge, DeclarationGraphOptions } from "./declarationGrap
 export { filesReaching, isHostModule } from "./hostReach";
 export { readCodeLines, readFunctionComplexities } from "./functionComplexity";
 export { readKotlinImports } from "./kotlinImports";
+export { readKotlinInitializedValues } from "./kotlinInitializedValues";
+export type { KotlinInitializedValue } from "./kotlinInitializedValues";
 export { readKotlinTextLiterals } from "./kotlinTextLiterals";
 export type { FunctionComplexity } from "./functionComplexity";
 export { FLAT_RULES } from "./flatRules";

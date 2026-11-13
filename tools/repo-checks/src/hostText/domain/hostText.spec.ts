@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
     type CallSite,
+    type HostFileTexts,
     hostTextFindings,
     isHostFile,
     isKotlinSource,
@@ -10,13 +11,23 @@ import {
 } from "./hostText";
 
 const HOST = "apps/vscode-plugin/src/x/adapter/in/Controller.ts";
+const KOTLIN_HOST = "apps/intellij-plugin/src/main/kotlin/io/x/Router.kt";
+const INTELLIJ_LOGGER = "com.intellij.openapi.diagnostic.Logger";
 
 function written(parts: string[], ...argumentOf: CallSite[]): WrittenText {
     return { line: 3, parts, argumentOf };
 }
 
+function fileOf(
+    path: string,
+    texts: readonly WrittenText[],
+    declarations: Partial<Pick<HostFileTexts, "importedSpecifiers" | "initializedValues">> = {},
+): HostFileTexts {
+    return { path, texts, importedSpecifiers: [], initializedValues: [], ...declarations };
+}
+
 function messagesOf(...texts: WrittenText[]): string[] {
-    return hostTextFindings([{ path: HOST, texts }]).map(({ message }) => message);
+    return hostTextFindings([fileOf(HOST, texts)]).map(({ message }) => message);
 }
 
 describe("isScannedSource", () => {
@@ -212,26 +223,110 @@ describe("hostTextFindings", () => {
             site: { construct: false, callee: "logInfo", receiver: "notifier" },
         },
         {
-            call: "this.logger.warn(…)",
-            site: { construct: false, callee: "warn", receiver: "logger" },
-        },
-        {
-            call: "console.error(…)",
+            call: "console.error(…), the global Console",
             site: { construct: false, callee: "error", receiver: "console" },
         },
         { call: "new Error(…)", site: { construct: true, callee: "Error" } },
-        { call: "log.warn(…)", site: { construct: false, callee: "warn", receiver: "log" } },
-        { call: "LOG.info(…)", site: { construct: false, callee: "info", receiver: "LOG" } },
-        {
-            call: "thisLogger().warn(…), IntelliJ's logger",
-            site: { construct: false, callee: "warn", receiver: "thisLogger" },
-        },
-        {
-            call: "throw IOException(…), a Kotlin constructor",
-            site: { construct: false, callee: "IOException", thrown: true },
-        },
     ])("does not read an argument of $call", ({ site }) => {
         expect(messagesOf(written(["Could not save"], site))).toEqual([]);
+    });
+
+    it.each([
+        {
+            call: "this.logger.warn(…)",
+            site: { construct: false, callee: "warn", receiver: "logger" },
+        },
+        { call: "log.warn(…)", site: { construct: false, callee: "warn", receiver: "log" } },
+        { call: "LOG.info(…)", site: { construct: false, callee: "info", receiver: "LOG" } },
+    ])("reads a TypeScript argument of $call: no variable name makes a logger", ({ site }) => {
+        expect(messagesOf(written(["Could not save"], site))).toHaveLength(1);
+    });
+
+    describe("in Kotlin", () => {
+        const logWarn: CallSite = { construct: false, callee: "warn", receiver: "log" };
+
+        function kotlinMessages(
+            site: CallSite,
+            declarations: Parameters<typeof fileOf>[2],
+        ): string[] {
+            return hostTextFindings([
+                fileOf(KOTLIN_HOST, [written(["Could not save"], site)], declarations),
+            ]).map(({ message }) => message);
+        }
+
+        it.each([
+            {
+                logger: "a value the file declares from IntelliJ's Logger.getInstance(…)",
+                site: logWarn,
+                declarations: {
+                    importedSpecifiers: [INTELLIJ_LOGGER],
+                    initializedValues: [{ name: "log", initializer: "Logger.getInstance" }],
+                },
+            },
+            {
+                logger: "a companion's LOG from Logger.getInstance(…), the package imported whole",
+                site: { construct: false, callee: "info", receiver: "LOG" },
+                declarations: {
+                    importedSpecifiers: ["com.intellij.openapi.diagnostic.*"],
+                    initializedValues: [{ name: "LOG", initializer: "Logger.getInstance" }],
+                },
+            },
+            {
+                logger: "a value from the fully qualified Logger.getInstance(…)",
+                site: logWarn,
+                declarations: {
+                    initializedValues: [
+                        {
+                            name: "log",
+                            initializer: "com.intellij.openapi.diagnostic.Logger.getInstance",
+                        },
+                    ],
+                },
+            },
+            {
+                logger: "IntelliJ's thisLogger()",
+                site: { construct: false, callee: "warn", receiver: "thisLogger" },
+                declarations: {
+                    importedSpecifiers: ["com.intellij.openapi.diagnostic.thisLogger"],
+                },
+            },
+        ])("does not read a call on $logger", ({ site, declarations }) => {
+            expect(kotlinMessages(site, declarations)).toEqual([]);
+        });
+
+        it.each([
+            {
+                logger: "a log the file does not declare from Logger.getInstance(…)",
+                site: logWarn,
+                declarations: { importedSpecifiers: [INTELLIJ_LOGGER] },
+            },
+            {
+                logger: "a log from another Logger.getInstance(…) than IntelliJ's",
+                site: logWarn,
+                declarations: {
+                    importedSpecifiers: ["org.example.Logger"],
+                    initializedValues: [{ name: "log", initializer: "Logger.getInstance" }],
+                },
+            },
+            {
+                logger: "a thisLogger() not imported from IntelliJ",
+                site: { construct: false, callee: "warn", receiver: "thisLogger" },
+                declarations: {},
+            },
+            {
+                logger: "a function whose name starts with log, which only TypeScript's LoggerPort names",
+                site: { construct: false, callee: "logInfo", receiver: "notifier" },
+                declarations: {},
+            },
+        ])("reads a call on $logger", ({ site, declarations }) => {
+            expect(kotlinMessages(site, declarations)).toHaveLength(1);
+        });
+
+        it("does not read the arguments of a call a throw raises", () => {
+            expect(
+                kotlinMessages({ construct: false, callee: "IOException", thrown: true }, {}),
+            ).toEqual([]);
+        });
     });
 
     it.each(["require", "check", "requireNotNull", "checkNotNull"])(
@@ -284,7 +379,7 @@ describe("hostTextFindings", () => {
 
     it("does not read a text nested anywhere inside a logging call", () => {
         const showCall: CallSite = { construct: false, callee: "format" };
-        const logCall: CallSite = { construct: false, callee: "info", receiver: "logger" };
+        const logCall: CallSite = { construct: false, callee: "logInfo", receiver: "notifier" };
 
         expect(messagesOf(written(["Could not save"], logCall, showCall))).toEqual([]);
     });
@@ -304,9 +399,9 @@ describe("hostTextFindings", () => {
     });
 
     it("keys a finding by its path and its text, not its line, so moved code keeps its identity", () => {
-        const [atLine3] = hostTextFindings([{ path: HOST, texts: [written(["Token for ", ""])] }]);
+        const [atLine3] = hostTextFindings([fileOf(HOST, [written(["Token for ", ""])])]);
         const [atLine9] = hostTextFindings([
-            { path: HOST, texts: [{ ...written(["Token for ", ""]), line: 9 }] },
+            fileOf(HOST, [{ ...written(["Token for ", ""]), line: 9 }]),
         ]);
 
         expect(atLine3).toEqual({
@@ -335,7 +430,7 @@ describe("hostTextFindings", () => {
     it("shortens a long text in the message but keys the whole text", () => {
         const text = `Saved ${"x".repeat(200)}`;
 
-        const [finding] = hostTextFindings([{ path: HOST, texts: [written([text])] }]);
+        const [finding] = hostTextFindings([fileOf(HOST, [written([text])])]);
 
         expect(finding.message).toBe(`\`${text.slice(0, 99)}…\``);
         expect(finding.key).toBe(`${HOST} — ${text}`);
@@ -343,14 +438,11 @@ describe("hostTextFindings", () => {
 
     it("lists the findings of every file in path and line order", () => {
         const findings = hostTextFindings([
-            { path: "b/Second.ts", texts: [{ ...written(["Second file"]), line: 1 }] },
-            {
-                path: "a/First.ts",
-                texts: [
-                    { ...written(["Later text"]), line: 8 },
-                    { ...written(["Earlier text"]), line: 2 },
-                ],
-            },
+            fileOf("b/Second.ts", [{ ...written(["Second file"]), line: 1 }]),
+            fileOf("a/First.ts", [
+                { ...written(["Later text"]), line: 8 },
+                { ...written(["Earlier text"]), line: 2 },
+            ]),
         ]);
 
         expect(findings.map(({ path, line }) => `${path}:${line}`)).toEqual([

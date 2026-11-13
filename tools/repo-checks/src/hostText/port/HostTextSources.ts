@@ -1,6 +1,6 @@
-import type { SourceDependencies, WrittenText } from "../domain/hostText";
+import type { HostFileSource, SourceDependencies } from "../domain/hostText";
 
 export interface HostTextSources {
     readDependencies(repoRoot: string): readonly SourceDependencies[];
-    readTexts(repoRoot: string, path: string): readonly WrittenText[];
+    readSource(repoRoot: string, path: string): HostFileSource;
 }

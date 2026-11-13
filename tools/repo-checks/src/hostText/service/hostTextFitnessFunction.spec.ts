@@ -85,14 +85,39 @@ describe("the host text fitness function on a hand-built Kotlin tree", () => {
         ]);
     });
 
-    it.each(["log.info", "thisLogger().warn"])(
-        "does not read the same text logged through %s",
-        (logCall) => {
-            expect(
-                findingsOf({ [ACTION]: action(`${logCall}("Add Template Marketplace")`) }),
-            ).toEqual([]);
+    function loggingAction(logger: string, logCall: string): string {
+        return [
+            "package x",
+            "",
+            "import com.intellij.openapi.diagnostic.Logger",
+            "import com.intellij.openapi.diagnostic.thisLogger",
+            "",
+            `class FakeAction(${logger}) {`,
+            `    fun ask() = ${logCall}("Add Template Marketplace")`,
+            "}",
+        ].join("\n");
+    }
+
+    it.each([
+        {
+            logger: "a constructor property from Logger.getInstance(…)",
+            source: loggingAction(
+                "private val log: Logger = Logger.getInstance(FakeAction::class.java)",
+                "log.info",
+            ),
         },
-    );
+        { logger: "thisLogger()", source: loggingAction("", "thisLogger().warn") },
+    ])("does not read the same text logged through $logger", ({ source }) => {
+        expect(findingsOf({ [ACTION]: source })).toEqual([]);
+    });
+
+    it("reads a text handed to a log that is no IntelliJ logger", () => {
+        expect(
+            findingsOf({
+                [ACTION]: loggingAction("private val log: Journal", "log.info"),
+            }),
+        ).toHaveLength(1);
+    });
 
     it("reports a template and a raw string around a placeholder, but not a format of placeholders", () => {
         expect(
@@ -193,10 +218,19 @@ describe("the host text fitness function on a hand-built tree", () => {
         ]);
     });
 
-    it("does not read the same text logged through logger.info", () => {
+    it.each(["this.notifier.logInfo", "console.warn"])(
+        "does not read the same text logged through %s",
+        (logCall) => {
+            expect(
+                findingsOf({ [CONTROLLER]: controller(`${logCall}(\`Token for \${host}\`);`) }),
+            ).toEqual([]);
+        },
+    );
+
+    it("reads a text logged through a value named logger: no name makes a logger", () => {
         expect(
             findingsOf({ [CONTROLLER]: controller("this.logger.info(`Token for ${host}`);") }),
-        ).toEqual([]);
+        ).toHaveLength(1);
     });
 
     it("reports a text shown inside a callback that a log-named wrapper runs", () => {

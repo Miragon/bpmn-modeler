@@ -25,10 +25,22 @@ export interface WrittenText {
     readonly trailingLambdaOf?: CallSite;
 }
 
+/** A Kotlin `val` or `var`, a constructor property's default included, whose value is a call: `log` from `Logger.getInstance`. */
+export interface InitializedValue {
+    readonly name: string;
+    /** The called name with its qualifiers. */
+    readonly initializer: string;
+}
+
 export interface HostFileTexts {
     readonly path: string;
     readonly texts: readonly WrittenText[];
+    readonly importedSpecifiers: readonly string[];
+    readonly initializedValues: readonly InitializedValue[];
 }
+
+/** What a host file holds beyond its imports. */
+export type HostFileSource = Pick<HostFileTexts, "texts" | "initializedValues">;
 
 const TYPESCRIPT_SOURCE = /\.([mc]?ts|tsx)$/;
 // Specs and fixtures are inputs of tests, and a declaration file only types code; none of them is host code.
@@ -41,14 +53,13 @@ const CORE_DIR = "libs/modeler-core/";
 // A word holds a letter or a digit, so punctuation around whitespace, such as `:root {` or `, '*');`, is none.
 const WORD = /[\p{L}\p{N}]/u;
 const WHITESPACE = /\s+/;
-const LOGGING_CALLEE = /^log(?![a-z])/;
-const LOGGING_RECEIVERS: ReadonlySet<string> = new Set([
-    "log",
-    "LOG",
-    "logger",
-    "thisLogger",
-    "console",
-]);
+// The members of the core's LoggerPort: logInfo, logWarning, logError, logDebug.
+const TYPESCRIPT_LOGGING_CALLEE = /^log(?![a-z])/;
+const TYPESCRIPT_CONSOLE = "console";
+const INTELLIJ_DIAGNOSTIC_PACKAGE = "com.intellij.openapi.diagnostic";
+const INTELLIJ_LOGGER = "Logger";
+const INTELLIJ_LOGGER_FACTORY = `${INTELLIJ_LOGGER}.getInstance`;
+const INTELLIJ_THIS_LOGGER = "thisLogger";
 // Kotlin's preconditions throw what their lambda returns, a message for developers.
 const KOTLIN_PRECONDITIONS: ReadonlySet<string> = new Set([
     "require",
@@ -94,15 +105,50 @@ export function isHostFile({
     );
 }
 
+export function isTypeScriptLogCall({ construct, callee = "" }: CallSite): boolean {
+    return !construct && TYPESCRIPT_LOGGING_CALLEE.test(callee);
+}
+
+function importsFromDiagnostics(importedSpecifiers: readonly string[], name: string): boolean {
+    return importedSpecifiers.some(
+        (specifier) =>
+            specifier === `${INTELLIJ_DIAGNOSTIC_PACKAGE}.${name}` ||
+            specifier === `${INTELLIJ_DIAGNOSTIC_PACKAGE}.*`,
+    );
+}
+
+/** IntelliJ's loggers in a Kotlin file: values it declares from `Logger.getInstance(…)`, and `thisLogger()`. */
+export function kotlinLoggers({
+    importedSpecifiers,
+    initializedValues,
+}: Pick<HostFileTexts, "importedSpecifiers" | "initializedValues">): Set<string> {
+    const factoryImported = importsFromDiagnostics(importedSpecifiers, INTELLIJ_LOGGER);
+    const loggers = initializedValues
+        .filter(
+            ({ initializer }) =>
+                initializer === `${INTELLIJ_DIAGNOSTIC_PACKAGE}.${INTELLIJ_LOGGER_FACTORY}` ||
+                (factoryImported && initializer === INTELLIJ_LOGGER_FACTORY),
+        )
+        .map(({ name }) => name);
+    if (importsFromDiagnostics(importedSpecifiers, INTELLIJ_THIS_LOGGER)) {
+        loggers.push(INTELLIJ_THIS_LOGGER);
+    }
+    return new Set(loggers);
+}
+
 // A log line and an error's message are read by developers; the core does not word them.
-function isUnreadArgument({ construct, callee = "", receiver = "", thrown }: CallSite): boolean {
-    if (thrown === true) {
-        return true;
-    }
-    if (construct) {
-        return callee === "Error";
-    }
-    return LOGGING_CALLEE.test(callee) || LOGGING_RECEIVERS.has(receiver);
+function unreadArgumentRule(file: HostFileTexts): (site: CallSite) => boolean {
+    const kotlin = isKotlinSource(file.path);
+    const loggers = kotlin ? kotlinLoggers(file) : new Set([TYPESCRIPT_CONSOLE]);
+    return (site) => {
+        if (site.thrown === true) {
+            return true;
+        }
+        if (site.construct) {
+            return site.callee === "Error";
+        }
+        return loggers.has(site.receiver ?? "") || (!kotlin && isTypeScriptLogCall(site));
+    };
 }
 
 function isPreconditionMessage(lambdaOf: CallSite | undefined): boolean {
@@ -122,7 +168,10 @@ function withoutMarkup(parts: readonly string[]): string[] {
 }
 
 // Each stretch on its own: a placeholder is no word, so a format such as `${a}: ${b}` holds no text.
-function isShownText({ parts, argumentOf, trailingLambdaOf }: WrittenText): boolean {
+function isShownText(
+    { parts, argumentOf, trailingLambdaOf }: WrittenText,
+    isUnreadArgument: (site: CallSite) => boolean,
+): boolean {
     return (
         withoutMarkup(parts).some(holdsTwoWords) &&
         !argumentOf.some(isUnreadArgument) &&
@@ -148,17 +197,21 @@ function codeSpan(text: string): string {
 // Keyed without the line: moved code stays existing, and the same text twice in a file counts twice.
 export function hostTextFindings(files: readonly HostFileTexts[]): Finding[] {
     return sortFindings(
-        files.flatMap(({ path, texts }) =>
-            texts.filter(isShownText).map(({ line, parts }): Finding => {
-                const text = shownText(parts);
-                return {
-                    key: `${path} — ${text}`,
-                    path,
-                    paths: [path],
-                    line,
-                    message: codeSpan(excerpt(text)),
-                };
-            }),
-        ),
+        files.flatMap((file) => {
+            const { path, texts } = file;
+            const isUnreadArgument = unreadArgumentRule(file);
+            return texts
+                .filter((text) => isShownText(text, isUnreadArgument))
+                .map(({ line, parts }): Finding => {
+                    const text = shownText(parts);
+                    return {
+                        key: `${path} — ${text}`,
+                        path,
+                        paths: [path],
+                        line,
+                        message: codeSpan(excerpt(text)),
+                    };
+                });
+        }),
     );
 }
