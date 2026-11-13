@@ -236,6 +236,39 @@ describe("readKotlinTextLiterals", () => {
         ]);
     });
 
+    it("names the call whose parentheses the nearest lambda follows, inside placeholders too", () => {
+        const literals = readKotlinTextLiterals(
+            'require(ok) { "A ${b.name} reached ${format("the text")}" }\n' +
+                'checkNotNull(x) { describe("other text") }',
+        );
+
+        expect(literals.map(({ trailingLambdaOf }) => trailingLambdaOf)).toEqual([
+            { construct: false, callee: "require" },
+            { construct: false, callee: "require" },
+            { construct: false, callee: "checkNotNull" },
+        ]);
+        expect(literals.map(({ argumentOf }) => argumentOf)).toEqual([
+            [],
+            [{ construct: false, callee: "format" }],
+            [{ construct: false, callee: "describe" }],
+        ]);
+    });
+
+    it.each([
+        { form: "no lambda", source: 'show("the text")' },
+        { form: "a lambda after a name", source: 'log.debug { "the text" }' },
+        { form: "a function body", source: 'fun f(a: Int) { b = "the text" }' },
+        { form: "a condition's block", source: 'if (a) { "the text" }' },
+        { form: "a lambda inside a parenthesized argument", source: 'require(ok, { "the text" })' },
+        {
+            form: "a nearer lambda inside a trailing lambda",
+            source: 'require(ok) { items.map { "the text" } }',
+        },
+        { form: "an unmatched parenthesis", source: ') { "the text" }' },
+    ])("names no trailed call for a literal in $form", ({ source }) => {
+        expect(readKotlinTextLiterals(source)[0]).not.toHaveProperty("trailingLambdaOf");
+    });
+
     it("ends the calls of a placeholder's lambda at its brace, not at the string", () => {
         expect(callsAround('log.info("Saved ${names.map { "inner text" }}")')).toEqual([
             [{ construct: false, callee: "info", receiver: "log" }],

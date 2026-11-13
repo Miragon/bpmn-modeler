@@ -74,12 +74,12 @@ function reports every literal with two words in host code: a file that imports
 `vscode`, a class outside the core that implements a core interface, or a Kotlin
 file in `src/main/kotlin` that imports `com.intellij`, so IntelliJ's dialogs,
 actions and settings page count too. A text a branch adds shows as new. It also
-lists host chrome and technical strings (HTML, CSS classes, scripts); judge
-each, and leave the host's own text where it is. The add-ons webview is not
-host code, so the fitness function does not read it: its chrome (tab and chip
-labels, empty texts, screen-reader summaries) has one home,
-`apps/add-ons-webview/src/domain/chromeTexts.ts`, and every other text comes
-from the core's model.
+lists host chrome and technical strings (CSS classes, scripts; tags and HTML
+shells count no words); judge each, and leave the host's own text where it is.
+The add-ons webview is not host code, so the fitness function does not read it:
+its chrome (tab and chip labels, empty texts, screen-reader summaries) has one
+home, `apps/add-ons-webview/src/domain/chromeTexts.ts`, and every other text
+comes from the core's model.
 
 A port the core reads back from has a contract suite in the core's test kit
 once a second class implements it, and every adapter of the port runs it, the

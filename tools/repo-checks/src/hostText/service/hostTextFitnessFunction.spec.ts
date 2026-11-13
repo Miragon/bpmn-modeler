@@ -114,6 +114,51 @@ describe("the host text fitness function on a hand-built Kotlin tree", () => {
         ).toEqual(["`Saved ${…} files to disk`"]);
     });
 
+    it("does not read the message of require(…) or check(…), but reads error(…)", () => {
+        expect(
+            messagesOf({
+                [ACTION]: action(
+                    'require(names.size == names.toSet().size) { "A change names a switch twice" }',
+                    'check(a != b) { "A ${a} change reached the ${b} switches" }',
+                    'val text = a.ifEmpty { error("Enter a marketplace URL") }',
+                ),
+            }),
+        ).toEqual(["`Enter a marketplace URL`"]);
+    });
+
+    it("adds no row for a page shell built line by line, nor for an edit to it", () => {
+        const shell = (...head: string[]) =>
+            action(
+                "val page = listOf(",
+                '    "<!DOCTYPE html>",',
+                '    "<html lang=\\"en\\" data-bpmn-theme=\\"$a\\">",',
+                '    "<head>",',
+                ...head.map((line) => `    ${line}`),
+                '    "  <title>Element Template Preview</title>",',
+                '    "  <style>html, body { margin: 0; height: 100%; }</style>",',
+                '    "</head>",',
+                '    "<body class=\\"$b\\">",',
+                '    "  <div class=\\"content with-diagram\\" id=\\"js-drop-zone\\"></div>",',
+                '    "  <script type=\\"module\\" src=\\"/index.js\\"></script>",',
+                '    "</body></html>",',
+                ').joinToString("\\n")',
+            );
+        commitFiles({ [ACTION]: shell() });
+        const base = measureTree("base");
+
+        commitFiles({
+            [ACTION]: shell(
+                '"  <meta name=\\"viewport\\" content=\\"width=device-width, initial-scale=1.0\\"/>",',
+            ),
+        });
+        const report = functionReport(hostText, measureTree("head"), {
+            source: "checkout",
+            measurement: base,
+        });
+
+        expect(report.outcome).toEqual({ kind: "measured", findings: [], resolved: [] });
+    });
+
     it("does not read the same text in a file that does not import com.intellij", () => {
         expect(
             findingsOf({
@@ -164,6 +209,20 @@ describe("the host text fitness function on a hand-built tree", () => {
                 ),
             }),
         ).toEqual([expect.objectContaining({ line: 8, message: "`Select the modeler language`" })]);
+    });
+
+    it("adds no row for a new webview shell, but reports a text in its body", () => {
+        const shell = (body: string) =>
+            controller(
+                "panel.webview.html = `<!DOCTYPE html>",
+                '<html lang="en">',
+                '<head><meta charset="UTF-8"/><title>Form Editor</title></head>',
+                `<body>${body}<div id="app"></div><script nonce="\${host}" src="\${host}"></script></body>`,
+                "</html>`;",
+            );
+
+        expect(findingsOf({ [CONTROLLER]: shell("") })).toEqual([]);
+        expect(messagesOf({ [CONTROLLER]: shell("<p>Loading the editor…</p>") })).toHaveLength(1);
     });
 
     it("does not read a union of literal types", () => {

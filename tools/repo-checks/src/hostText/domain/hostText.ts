@@ -21,6 +21,8 @@ export interface WrittenText {
     /** One for a plain literal; a template's literal stretches around its placeholders. */
     readonly parts: readonly string[];
     readonly argumentOf: readonly CallSite[];
+    /** Kotlin: the call whose parentheses the nearest lambda around the text follows. */
+    readonly trailingLambdaOf?: CallSite;
 }
 
 export interface HostFileTexts {
@@ -47,6 +49,19 @@ const LOGGING_RECEIVERS: ReadonlySet<string> = new Set([
     "thisLogger",
     "console",
 ]);
+// Kotlin's preconditions throw what their lambda returns, a message for developers.
+const KOTLIN_PRECONDITIONS: ReadonlySet<string> = new Set([
+    "require",
+    "check",
+    "requireNotNull",
+    "checkNotNull",
+]);
+// A character no source text holds, so the stretches split again where they were joined.
+const STRETCH_SEPARATOR = "\u0000";
+// A tag spans the placeholders inside it; one the literal leaves open runs to its end.
+const TAG = /<[!/]?[A-Za-z][^<>]*(>|$)/g;
+// A page shows none of these elements' content as text.
+const UNSHOWN_ELEMENT = /<(title|style|script)\b[^>]*>[\s\S]*?(<\/\1\s*>|$)/gi;
 const PLACEHOLDER = "${…}";
 const MESSAGE_LENGTH = 100;
 
@@ -90,13 +105,29 @@ function isUnreadArgument({ construct, callee = "", receiver = "", thrown }: Cal
     return LOGGING_CALLEE.test(callee) || LOGGING_RECEIVERS.has(receiver);
 }
 
+function isPreconditionMessage(lambdaOf: CallSite | undefined): boolean {
+    return lambdaOf?.receiver === undefined && KOTLIN_PRECONDITIONS.has(lambdaOf?.callee ?? "");
+}
+
 function holdsTwoWords(part: string): boolean {
     return part.split(WHITESPACE).filter((token) => WORD.test(token)).length >= 2;
 }
 
+function withoutMarkup(parts: readonly string[]): string[] {
+    return parts
+        .join(STRETCH_SEPARATOR)
+        .replace(UNSHOWN_ELEMENT, " ")
+        .replace(TAG, " ")
+        .split(STRETCH_SEPARATOR);
+}
+
 // Each stretch on its own: a placeholder is no word, so a format such as `${a}: ${b}` holds no text.
-function isShownText({ parts, argumentOf }: WrittenText): boolean {
-    return parts.some(holdsTwoWords) && !argumentOf.some(isUnreadArgument);
+function isShownText({ parts, argumentOf, trailingLambdaOf }: WrittenText): boolean {
+    return (
+        withoutMarkup(parts).some(holdsTwoWords) &&
+        !argumentOf.some(isUnreadArgument) &&
+        !isPreconditionMessage(trailingLambdaOf)
+    );
 }
 
 function shownText(parts: readonly string[]): string {
