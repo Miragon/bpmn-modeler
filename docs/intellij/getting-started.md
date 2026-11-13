@@ -65,8 +65,8 @@ templates and the template marketplaces. It lists this project only. It is the s
 [Add-ons view in VS Code](/vscode/features/add-ons), which describes it in full.
 
 - One list holds **Needs attention** (what waits for you to allow it or does not load), **Installed** with the
-  project's config folders and packages, and **Marketplaces**. The search button and the kind filter in the top line
-  narrow the list.
+  project's config folders and packages, and **Marketplaces**. The search button and the kinds below the top line
+  (**All**, **Plugins**, **Lint**, **Templates**) narrow the list.
 - Click a row to see its details. A tool window wide enough shows the list and the details side by side; a narrow one
   opens the details in place of the list, with **Back**.
 - Each plugin and rule package shows its state: **Allowed**, **Not allowed yet** or **Declined this session**. The

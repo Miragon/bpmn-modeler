@@ -1841,16 +1841,15 @@ describe("the packaged extension in a real VS Code", () => {
         it("opens the Add-ons view on what needs review from Review Add-ons", async () => {
             const searchOf = (addOns: FrameLocator) =>
                 addOns.getByRole("searchbox", { name: "Search add-ons" });
-            const filterOf = (addOns: FrameLocator) =>
-                addOns.getByRole("button", { name: /^Filter add-ons/ });
+            const allKindsOf = (addOns: FrameLocator) =>
+                addOns.getByRole("radio", { name: /^All,/ });
             await vscode().runCommand("Focus on Add-ons View");
             const filtered = await vscode().viewWebview(ADD_ONS_VIEW);
             // The drill-down hides the toolbar behind the revoked plugin's detail.
             if (await showsDrillDownDetail(filtered)) await filtered.locator(".av-back").click();
             await filtered.getByRole("button", { name: "Search add-ons" }).click();
             await searchOf(filtered).fill("zzz");
-            await filterOf(filtered).click();
-            await filtered.getByRole("menuitemcheckbox", { name: /^Templates/ }).click();
+            await filtered.getByRole("radio", { name: /^Templates,/ }).click();
             await vscode().runCommand("View: Show Explorer");
 
             await vscode().runCommand("Review Add-ons");
@@ -1859,7 +1858,7 @@ describe("the packaged extension in a real VS Code", () => {
             await expect
                 .poll(
                     async () => ({
-                        filter: await filterOf(addOns).getAttribute("aria-label"),
+                        allKinds: await allKindsOf(addOns).getAttribute("aria-checked"),
                         // The field may be closed by now; its value is what counts.
                         search: await addOns.locator('input[type="search"]').inputValue(),
                         attention: await addOns
@@ -1870,7 +1869,7 @@ describe("the packaged extension in a real VS Code", () => {
                     }),
                     { timeout: TIMEOUT_MS },
                 )
-                .toEqual({ filter: "Filter add-ons", search: "", attention: 1, current: "true" });
+                .toEqual({ allKinds: "true", search: "", attention: 1, current: "true" });
             await expect
                 .poll(async () => isFocused(await addOnFocusTarget(addOns, PLUGIN_NAME)), {
                     timeout: TIMEOUT_MS,

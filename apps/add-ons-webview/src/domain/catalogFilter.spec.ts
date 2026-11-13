@@ -13,7 +13,6 @@ import {
     isFilterActive,
     needsReview,
     NO_FILTER,
-    withKindToggled,
 } from "./catalogFilter";
 
 const ALLOW = { kind: "allow", label: "Allow" } as const;
@@ -130,23 +129,14 @@ describe("filteredGroups", () => {
             { query: "work" },
             ["Palette", "Resize Tasks", "Mail Task", "bpmnlint-plugin-acme"],
         ],
-        ["a kind", { kinds: new Set(["plugin"]) }, ["Palette", "Resize Tasks"]],
-        [
-            "several kinds",
-            { kinds: new Set(["rulePackage", "elementTemplate"]) },
-            ["Mail Task", "bpmnlint-plugin-acme"],
-        ],
-        [
-            "a query and a kind at once",
-            { query: "resize", kinds: new Set(["plugin"]) },
-            ["Resize Tasks"],
-        ],
+        ["a kind", { kind: "plugin" }, ["Palette", "Resize Tasks"]],
+        ["a query and a kind at once", { query: "resize", kind: "plugin" }, ["Resize Tasks"]],
     ])("keeps the add-ons that match %s", (_, change, expected) => {
         expect(namesOf(filteredGroups(model, filter(change)))).toEqual(expected);
     });
 
     it("drops the sources and groups a filter leaves empty", () => {
-        const shown = filteredGroups(model, filter({ kinds: new Set(["rulePackage"]) }));
+        const shown = filteredGroups(model, filter({ kind: "rulePackage" }));
 
         expect(shown.map(({ id }) => id)).toEqual(["folder:/work"]);
         expect(shown[0]?.sources.map(({ id }) => id)).toEqual(["packages:/work/node_modules"]);
@@ -162,25 +152,21 @@ describe("isFilterActive", () => {
         ["no filter", {}, false],
         ["a blank query", { query: "  " }, false],
         ["a query", { query: "x" }, true],
-        ["a kind", { kinds: new Set(["plugin"]) }, true],
+        ["a kind", { kind: "plugin" }, true],
     ])("is %s: %s", (_, change, expected) => {
         expect(isFilterActive(filter(change))).toBe(expected);
     });
 });
 
-describe("withKindToggled", () => {
-    it.each<[string, AddOnPayload["kind"][], AddOnPayload["kind"], AddOnPayload["kind"][]]>([
-        ["adds a kind", [], "plugin", ["plugin"]],
-        ["adds a second kind", ["plugin"], "rulePackage", ["plugin", "rulePackage"]],
-        ["removes a chosen kind", ["plugin", "rulePackage"], "plugin", ["rulePackage"]],
-    ])("%s", (_, before, kind, after) => {
-        const toggled = withKindToggled(filter({ kinds: new Set(before), query: "x" }), kind);
-
-        expect([[...toggled.kinds], toggled.query]).toEqual([after, "x"]);
-    });
-});
-
 describe("catalogCounts", () => {
+    it("counts what waits and what has a problem only of the chosen kind", () => {
+        expect(catalogCounts(model, "rulePackage")).toMatchObject({
+            total: 4,
+            needsReview: 1,
+            problems: 0,
+        });
+    });
+
     it("counts the add-ons by kind, those that need review and those with a problem", () => {
         const broken = { ...palette, id: "plugin:/work/broken", problem: "Cannot be read." };
         const withBroken: AddOnCatalogPayload = {
@@ -189,6 +175,7 @@ describe("catalogCounts", () => {
         };
 
         expect(catalogCounts(withBroken)).toEqual({
+            total: 5,
             byKind: { plugin: 3, rulePackage: 1, elementTemplate: 1 },
             needsReview: 2,
             problems: 1,

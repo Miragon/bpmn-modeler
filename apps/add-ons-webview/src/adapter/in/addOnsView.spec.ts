@@ -282,44 +282,52 @@ describe("AddOnsView", () => {
     });
 
     describe("search and filters", () => {
-        it("count each kind in the filter menu and keep it open while the user picks", () => {
-            const { filterButton, kindItem, chooseKind } = mountedView(CATALOG);
-            filterButton().click();
-            const before = ["Plugins", "Rule packages", "Templates"].map((name) => [
-                text(kindItem(name).querySelector(".ds-count")),
-                kindItem(name).getAttribute("aria-checked"),
-            ]);
+        it("show All and each kind as segments with their counts, All chosen first", () => {
+            const { segment } = mountedView(CATALOG);
 
-            chooseKind("Plugins");
-
-            expect([
-                before,
-                kindItem("Plugins").getAttribute("aria-checked"),
-                filterButton().getAttribute("aria-expanded"),
-                document.activeElement,
-            ]).toEqual([
-                [
-                    ["2", "false"],
-                    ["1", "false"],
-                    ["1", "false"],
-                ],
-                "true",
-                "true",
-                kindItem("Plugins"),
+            expect(
+                ["All", "Plugins", "Rule packages", "Templates"].map((name) => [
+                    text(segment(name).querySelector(".av-kind-label")),
+                    text(segment(name).querySelector(".av-kind-count")),
+                    segment(name).getAttribute("aria-checked"),
+                    segment(name).tabIndex,
+                ]),
+            ).toEqual([
+                ["All", "4", "true", 0],
+                ["Plugins", "2", "false", -1],
+                ["Lint", "1", "false", -1],
+                ["Templates", "1", "false", -1],
             ]);
         });
 
-        it("keep the matches of a chosen kind, mark the filter and announce how many", () => {
-            const { chooseKind, rowNames, filterButton, root } = mountedView(CATALOG);
+        it("keep the matches of a chosen kind, count what waits of it and announce how many", () => {
+            const { chooseKind, rowNames, segment, root } = mountedView(CATALOG);
 
-            chooseKind("Plugins");
+            chooseKind("Rule packages");
 
             expect([
                 rowNames(),
-                filterButton().getAttribute("aria-label"),
-                filterButton().querySelectorAll(".av-trigger-dot").length,
+                segment("Rule packages").getAttribute("aria-checked"),
+                segment("All").getAttribute("aria-checked"),
+                text(root.querySelector(".av-summary")),
                 text(root.querySelector("[aria-live=polite].av-vh")),
-            ]).toEqual([[RESIZE.name, PALETTE.name], "Filter add-ons, 1 on", 1, "2 add-ons shown"]);
+            ]).toEqual([[ACME.name], "true", "false", "1 waiting", "1 add-on shown"]);
+        });
+
+        it("move through the segments with the arrow keys, Home and End, choosing as focus moves", () => {
+            const { segment, press, events } = mountedView(CATALOG);
+            segment("All").focus();
+            const visited: (string | null)[] = [];
+
+            for (const key of ["ArrowRight", "ArrowRight", "ArrowLeft", "End", "Home"]) {
+                press(key);
+                visited.push(document.activeElement?.getAttribute("title") ?? null);
+            }
+
+            expect([visited, events.at(-1)]).toEqual([
+                ["Plugins", "Rule packages", "Plugins", "Templates", "All"],
+                { kind: "kindChosen" },
+            ]);
         });
 
         it("let the user close a source while filtering, summed up over its matches", () => {
@@ -467,27 +475,24 @@ describe("AddOnsView", () => {
         });
 
         it("say when nothing matches and clear every filter on request", () => {
-            const { type, chooseKind, kindItem, filterButton, root, button, rowNames, row } =
-                mountedView(CATALOG);
+            const { type, chooseKind, segment, root, button, rowNames, row } = mountedView(CATALOG);
             chooseKind("Templates");
-            filterButton().click();
             type("nothing like this");
 
             const said = text(root.querySelector(".av-empty-text"));
             const announced = text(root.querySelector("[aria-live=polite].av-vh"));
             button("Clear search and filters").click();
-            filterButton().click();
 
             expect([
                 said,
                 announced,
                 rowNames().length,
-                kindItem("Templates").getAttribute("aria-checked"),
+                segment("All").getAttribute("aria-checked"),
             ]).toEqual([
                 "No add-ons match your search and filters.",
                 "No add-ons match your search and filters.",
                 3,
-                "false",
+                "true",
             ]);
             expect(row(RESIZE.name)).toBeDefined();
         });
@@ -701,24 +706,6 @@ describe("AddOnsView", () => {
             }
 
             expect(visited).toEqual([items[1], items[0], items[1], items[1], items[0], items[0]]);
-        });
-
-        it("move through the filter's checkbox items too, and close it with Escape back to its button", () => {
-            const { filterButton, kindItem, press, root } = mountedView(CATALOG);
-            filterButton().click();
-            const items = [kindItem("Plugins"), kindItem("Rule packages")];
-            const first = document.activeElement;
-
-            press("ArrowDown");
-            const second = document.activeElement;
-            press("Escape");
-
-            expect([
-                first,
-                second,
-                root.querySelector("[role=menu]"),
-                document.activeElement,
-            ]).toEqual([...items, null, filterButton()]);
         });
 
         it("keep their items out of the Tab order", () => {
@@ -999,20 +986,19 @@ describe("AddOnsView", () => {
         const SETTLED = without(ACME.id, without(RESIZE.id));
 
         it("clears the search and filter, focuses the first add-on to review and says how many wait", () => {
-            const { session, root, chooseKind, filterButton, row, search, type } =
-                mountedView(CATALOG);
+            const { session, root, chooseKind, segment, row, search, type } = mountedView(CATALOG);
             type("mail");
             chooseKind("Plugins");
 
             session.dispatch(review);
 
             expect([
-                filterButton().getAttribute("aria-label"),
+                segment("All").getAttribute("aria-checked"),
                 search().value,
                 row(RESIZE.name).getAttribute("aria-current"),
                 document.activeElement,
                 text(root.querySelector("[aria-live=polite].av-vh")),
-            ]).toEqual(["Filter add-ons", "", "true", row(RESIZE.name), "2 add-ons need review"]);
+            ]).toEqual(["true", "", "true", row(RESIZE.name), "2 add-ons need review"]);
         });
 
         it("says nothing needs review and focuses the list's first control", () => {
@@ -1123,12 +1109,12 @@ describe("AddOnsView", () => {
         });
 
         it("stays where it is inside the view", () => {
-            const { view, filterButton } = mountedView(CATALOG);
-            filterButton().focus();
+            const { view, segment } = mountedView(CATALOG);
+            segment("Plugins").focus();
 
             view.focusFromOutside();
 
-            expect(document.activeElement).toBe(filterButton());
+            expect(document.activeElement).toBe(segment("Plugins"));
         });
 
         it("goes nowhere in an empty catalog", () => {

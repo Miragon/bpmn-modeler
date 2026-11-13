@@ -432,7 +432,7 @@ describe("nextViewState", () => {
                 case: "a search and a kind",
                 before: [
                     { kind: "queryChanged", query: "mail" },
-                    { kind: "kindToggled", addOnKind: "elementTemplate" },
+                    { kind: "kindChosen", addOnKind: "elementTemplate" },
                 ],
             },
             { case: "the detail pane", before: [{ kind: "addOnSelected", addOnId: MAIL.id }] },
@@ -562,7 +562,7 @@ describe("nextViewState", () => {
             const { state } = after([
                 shown(),
                 { kind: "addOnSelected", addOnId: RESIZE.id },
-                { kind: "kindToggled", addOnKind: "rulePackage" },
+                { kind: "kindChosen", addOnKind: "rulePackage" },
             ]);
 
             expect(selectedIdOf(state)).toBe(ACME.id);
@@ -610,19 +610,30 @@ describe("nextViewState", () => {
     });
 
     describe("the filter", () => {
-        it("takes the query, toggles kinds and clears them all", () => {
+        it("takes the query, one kind, and clears them all", () => {
             const steps = after([
                 shown(),
                 { kind: "queryChanged", query: "re" },
-                { kind: "kindToggled", addOnKind: "plugin" },
+                { kind: "kindChosen", addOnKind: "rulePackage" },
+                { kind: "kindChosen", addOnKind: "plugin" },
             ]);
             const cleared = nextViewState(steps.state, { kind: "filtersCleared" });
 
             expect([
                 steps.state.filter.query,
-                [...steps.state.filter.kinds],
+                steps.state.filter.kind,
                 cleared.state.filter,
-            ]).toEqual(["re", ["plugin"], NO_FILTER]);
+            ]).toEqual(["re", "plugin", NO_FILTER]);
+        });
+
+        it("shows every kind again on All", () => {
+            const { state } = after([
+                shown(),
+                { kind: "kindChosen", addOnKind: "plugin" },
+                { kind: "kindChosen" },
+            ]);
+
+            expect(state.filter.kind).toBeUndefined();
         });
     });
 
@@ -672,7 +683,7 @@ describe("nextViewState", () => {
 
         it.each<{ case: string; refined: ViewEvent }>([
             { case: "a refined query", refined: { kind: "queryChanged", query: "re" } },
-            { case: "a kind", refined: { kind: "kindToggled", addOnKind: "plugin" } },
+            { case: "a kind", refined: { kind: "kindChosen", addOnKind: "plugin" } },
         ])("keeps what the user closed while filtering across $case", ({ refined }) => {
             const { state } = after([
                 shown(),
@@ -687,7 +698,7 @@ describe("nextViewState", () => {
         it.each<{ case: string; filterOn: ViewEvent; filterOff: ViewEvent }>([
             {
                 case: "the filters are cleared",
-                filterOn: { kind: "kindToggled", addOnKind: "plugin" },
+                filterOn: { kind: "kindChosen", addOnKind: "plugin" },
                 filterOff: { kind: "filtersCleared" },
             },
             {
@@ -696,9 +707,9 @@ describe("nextViewState", () => {
                 filterOff: { kind: "queryChanged", query: " " },
             },
             {
-                case: "the last kind goes off",
-                filterOn: { kind: "kindToggled", addOnKind: "plugin" },
-                filterOff: { kind: "kindToggled", addOnKind: "plugin" },
+                case: "All is chosen again",
+                filterOn: { kind: "kindChosen", addOnKind: "plugin" },
+                filterOff: { kind: "kindChosen" },
             },
         ])(
             "forgets what the user toggled while filtering once $case",

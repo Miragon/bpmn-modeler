@@ -13,6 +13,8 @@ export const CHROME_TEXT = {
     loading: "Loading…",
     dismiss: "Dismiss",
     search: "Search add-ons",
+    kinds: "Show add-ons of kind",
+    allKinds: "All",
     clearSearch: "Clear search",
     needsAttention: "Needs attention",
     installed: "Installed",
@@ -25,12 +27,16 @@ export const CHROME_TEXT = {
     moreActions: "More actions",
 } as const;
 
+/** `short` names a kind's segment, where four must fit in a side bar; `plural` is its full name. */
 export const KIND_TEXT: Readonly<
-    Record<AddOnKind, { readonly singular: string; readonly plural: string }>
+    Record<
+        AddOnKind,
+        { readonly singular: string; readonly plural: string; readonly short: string }
+    >
 > = {
-    plugin: { singular: "Plugin", plural: "Plugins" },
-    rulePackage: { singular: "Rule package", plural: "Rule packages" },
-    elementTemplate: { singular: "Template", plural: "Templates" },
+    plugin: { singular: "Plugin", plural: "Plugins", short: "Plugins" },
+    rulePackage: { singular: "Rule package", plural: "Rule packages", short: "Lint" },
+    elementTemplate: { singular: "Template", plural: "Templates", short: "Templates" },
 };
 
 export function sourceActionsText(sourceLabel: string): string {
@@ -49,11 +55,6 @@ export function summaryText(waiting: number, notLoaded: number): string {
         ...(waiting > 0 ? [`${waiting} waiting`] : []),
         ...(notLoaded > 0 ? [`${notLoaded} not loaded`] : []),
     ].join(" · ");
-}
-
-/** The filter button's name says how many kinds it narrows to, as its dot is hidden from a screen reader. */
-export function filterLabelText(chosenKinds: number): string {
-    return chosenKinds === 0 ? "Filter add-ons" : `Filter add-ons, ${chosenKinds} on`;
 }
 
 /** What a search or filter left, announced as the list changes. */

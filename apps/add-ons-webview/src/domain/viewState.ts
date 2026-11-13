@@ -14,7 +14,6 @@ import {
     isFilterActive,
     needsReview,
     NO_FILTER,
-    withKindToggled,
 } from "./catalogFilter";
 import { addOnsOf, placementOf, sourceOf } from "./catalogQueries";
 import { settledSelection } from "./catalogSelection";
@@ -87,7 +86,8 @@ export type ViewEvent =
     | { readonly kind: "addOnSelected"; readonly addOnId: string }
     | { readonly kind: "backChosen" }
     | { readonly kind: "queryChanged"; readonly query: string }
-    | { readonly kind: "kindToggled"; readonly addOnKind: AddOnKind }
+    /** No kind: All. */
+    | { readonly kind: "kindChosen"; readonly addOnKind?: AddOnKind }
     | { readonly kind: "filtersCleared" };
 
 export interface Transition {
@@ -175,14 +175,19 @@ function changedBy(state: ViewState, event: ViewEvent): Change {
             return { state: { ...state, pane: "list" } };
         case "queryChanged":
             return filtered(state, { ...state.filter, query: event.query });
-        case "kindToggled":
-            return filtered(state, withKindToggled(state.filter, event.addOnKind));
+        case "kindChosen":
+            return filtered(state, withKind(state.filter, event.addOnKind));
         case "filtersCleared":
             return filtered(state, NO_FILTER);
     }
 }
 
 /** A search or filter speaks for itself, so what Review Add-ons found stops being said; so does an action. */
+function withKind(filter: CatalogFilter, kind: AddOnKind | undefined): CatalogFilter {
+    const { kind: _replaced, ...rest } = filter;
+    return kind === undefined ? rest : { ...rest, kind };
+}
+
 function filtered(state: ViewState, filter: CatalogFilter): Change {
     return { state: { ...unsaid(state), filter } };
 }

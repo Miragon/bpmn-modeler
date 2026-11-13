@@ -36,7 +36,7 @@ The details show each plugin's and rule package's full state:
 
 The search button opens a field that narrows the list to the add-ons whose name, path or version, kind, state, engine, source or folder contains every word you type. `Escape` in the field clears it; in an empty field it closes it.
 
-The filter button opens a menu of kinds (**Plugins**, **Rule packages**, **Templates**), each with its count. Check several kinds to see all of them; a dot on the button shows that a filter is on. While a search or filter is on, every folder and source with a match opens, so no match stays hidden; you can still close one, and it stays closed while you refine the search or change the kinds. When you clear the search and the kinds, the folders and sources show as you left them before. When nothing matches, **Clear search and filters** removes both.
+Below the top line, **All**, **Plugins**, **Lint** (rule packages) and **Templates** show one kind, each with its count; **All** is the default. The line above then counts what waits and what is not loaded of that kind. While a search or a kind is on, every folder and source with a match opens, so no match stays hidden; you can still close one, and it stays closed while you refine the search or change the kinds. When you clear the search and the kinds, the folders and sources show as you left them before. When nothing matches, **Clear search and filters** removes both.
 
 ## Details
 
@@ -90,12 +90,12 @@ The view wears the Miragon look, with its own colours, fonts and text sizes, in 
 
 ## Keyboard
 
-`Tab` reaches every control: the search button and field, the filter, **More actions**, the folders and sources, the rows and the buttons in the details. `Enter` or `Space` presses the focused control.
+`Tab` reaches every control: the search button and field, **More actions**, the chosen kind, the folders and sources, the rows and the buttons in the details. `Enter` or `Space` presses the focused control.
 
 | Where | Key | What it does |
 |---|---|---|
 | Search field | `Escape` | Clear the search; in an empty field, close it and return to its button |
-| The filter menu | `Enter` / `Space` | Check or uncheck a kind; the menu stays open |
+| The kinds | `←` / `→`, `Home` / `End` | Show the next, previous, first or last kind |
 | An open menu | `↓` / `↑`, `Home` / `End` | Move through its items |
 | An open menu | `Escape` | Close it and return to its button |
 | An open menu | `Tab` / `Shift+Tab` | Close it and move on from its button |

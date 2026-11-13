@@ -82,113 +82,63 @@ html {
     display: none;
 }
 
-/* A filter that narrows the list marks its button. */
-.av-menu-trigger {
-    position: relative;
+/* All and one segment per kind, below the line: one choice, its count beside it. */
+.av-kinds {
+    display: flex;
+    gap: 2px;
+    margin-top: 6px;
+    padding: 2px;
+    border: 1px solid var(--cd-ui-linie);
+    border-radius: 8px;
+    background: var(--cd-ui-flaeche);
 }
 
-.av-trigger-dot {
-    position: absolute;
-    top: 5px;
-    right: 5px;
-}
-
-.av-menu .av-kind-item {
-    gap: 8px;
-}
-
-.av-kind-item .ds-count {
-    margin-left: auto;
-}
-
-.av-kind-check {
-    visibility: hidden;
-}
-
-.av-kind-item[aria-checked="true"] .av-kind-check {
-    visibility: visible;
-}
-
-.av-kind-glyph {
-    color: var(--cd-ui-text-leise);
-}
-
-.av-search {
-    flex: 1;
-    min-width: 0;
-}
-
-.av-toolbar-busy {
-    position: absolute;
-    right: 0;
-    bottom: -1px;
-    left: 0;
-}
-
-.av-banner-slot .ds-banner:not([data-empty]) {
-    margin: 8px 12px 0;
-}
-
-/* --- Kind tiles and status marks --- */
-
-.av-mark {
-    flex: none;
-}
-
-.av-dot,
-.av-ring {
-    flex: none;
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-}
-
-.av-dot {
-    background: var(--cd-ui-warning);
-}
-
-/* Amber holds no 3:1 on white: a black edge carries the dot (as brand §8 for variant dots). */
-:root:not([data-cd-theme="dark"]) .av-dot {
-    border: 1px solid var(--cd-schwarz);
-}
-
-.av-ring {
-    border: 1.5px solid var(--cd-ui-kontur);
-}
-
-.av-status {
-    flex: none;
+.av-kind {
+    flex: 1 0 auto;
     display: inline-flex;
-    align-items: center;
-    gap: 5px;
+    align-items: baseline;
+    justify-content: center;
+    gap: 3px;
+    height: 26px;
+    padding: 4px 5px 0;
+    border: 0;
+    border-radius: 6px;
+    color: var(--cd-ui-text-leise);
+    background: transparent;
     font-size: 12px;
-    color: var(--cd-ui-text-leise);
-    white-space: nowrap;
-}
-
-.av-tone-warning .av-status-word,
-.av-tone-danger .av-status-word {
-    color: var(--cd-ui-text);
     font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
 }
 
-.av-tone-danger .av-mark {
-    color: var(--cd-ui-danger);
+.av-kind:hover {
+    color: var(--cd-ui-text);
+    background: var(--cd-ui-hover);
 }
 
-.av-tone-success .av-mark {
+.av-kind[aria-checked="true"] {
+    color: var(--cd-ui-text);
+    background: var(--cd-ui-hover);
+    font-weight: 600;
+    box-shadow: inset 0 0 0 1px var(--cd-ui-interaktion);
+}
+
+.av-kind:focus-visible {
+    outline-offset: -2px;
+}
+
+.av-kind-count {
     color: var(--cd-ui-text-leise);
+    font-family: var(--ds-mono);
+    font-size: 11px;
+    font-weight: 400;
 }
 
-[data-cd-theme="dark"] .av-tone-success .av-mark {
-    color: var(--cd-ui-success);
-}
-
-/* --- List --- */
-
-.av-list {
-    container: list / inline-size;
-    padding: 4px 8px 16px;
+/* A side bar this narrow keeps the words; each count stays in the segment's name for a screen reader. */
+@container view (max-width: 279.98px) {
+    .av-kind-count {
+        display: none;
+    }
 }
 
 /* --- Sections: Needs attention, Installed --- */
@@ -1026,6 +976,11 @@ button.av-head:hover .av-head-count {
     }
 
     .av-row[aria-current="true"] {
+        outline: 2px solid Highlight;
+        outline-offset: -2px;
+    }
+
+    .av-kind[aria-checked="true"] {
         outline: 2px solid Highlight;
         outline-offset: -2px;
     }

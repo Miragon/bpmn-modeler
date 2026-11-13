@@ -41,18 +41,10 @@ export function mountedView(
         )!;
     const head = (id: string) =>
         root.querySelector<HTMLElement>(`[data-focus="head"][data-focus-id="${CSS.escape(id)}"]`);
-    const filterButton = () =>
-        all<HTMLButtonElement>(".av-menu-trigger").find((each) =>
-            each.getAttribute("aria-label")?.startsWith("Filter add-ons"),
-        )!;
-    const kindItem = (name: string) =>
-        all<HTMLButtonElement>("[role=menuitemcheckbox]").find((each) =>
-            each.textContent?.startsWith(name),
-        )!;
-    const chooseKind = (name: string) => {
-        if (filterButton().getAttribute("aria-expanded") !== "true") filterButton().click();
-        kindItem(name).click();
-    };
+    /** A kind's segment by its full name, "All" included. */
+    const segment = (name: string) =>
+        all<HTMLButtonElement>("[role=radio]").find((each) => each.title === name)!;
+    const chooseKind = (name: string) => segment(name).click();
     const sectionLabels = () => all(".av-section-label").map((each) => each.textContent);
     const rowNames = () => all(".av-row .av-row-title").map((each) => each.textContent);
     const detailName = () => root.querySelector(".av-detail-name")?.textContent;
@@ -78,8 +70,7 @@ export function mountedView(
         button,
         row,
         head,
-        filterButton,
-        kindItem,
+        segment,
         chooseKind,
         sectionLabels,
         rowNames,

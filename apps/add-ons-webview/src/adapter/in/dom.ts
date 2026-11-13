@@ -39,7 +39,7 @@ export function hiddenText(text: string): HTMLSpanElement {
 /** The places focus can return to after a render rebuilt the element that held it. */
 export type FocusKind =
     | "searchToggle"
-    | "filterKind"
+    | "kindSegment"
     | "menu"
     | "head"
     | "row"

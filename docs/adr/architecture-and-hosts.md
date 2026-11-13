@@ -290,7 +290,9 @@ so its id names one row and one focus target. With one folder group its
 header is left out and its sources stand under Installed; such a group never
 closes (`flatGroupIds`), whatever an older page saved. A header line counts
 what waits and what is not loaded, a search button opens the search field,
-a filter menu narrows by kind, and the detail shows the selected add-on with
+a row of segments below it shows All or one kind with its count (a radio
+group, so the kinds stay in sight without the chips' rows), and the detail
+shows the selected add-on with
 its actions as buttons. From 640px of the view's own width the panes stand
 side by side, below that the detail replaces the list with a Back button;
 container queries decide, so the layout follows a resized sidebar or tool
@@ -324,8 +326,8 @@ which `verifyReleaseBundles` checks for a release.
 Every control is reached with Tab, and the list has no roving tree (see
 [Alternatives](#alternatives-and-consequences)). The menus keep the keys of
 the menu pattern, with Escape back to their button and Tab on from it, as a
-role promises its keys; the filter's kinds are `menuitemcheckbox` items that
-keep the menu open. When the host focuses the page (VS Code's view focus,
+role promises its keys; the kind segments keep the radio group's arrow keys,
+choosing as focus moves, with only the chosen one in the Tab order. When the host focuses the page (VS Code's view focus,
 IntelliJ's tool window activation), focus goes to the selected add-on, its row or, in the
 drill-down, its detail heading, else to the header line's first button. The
 view's own words, its section, menu and empty-state labels, "Waiting" and
@@ -1823,6 +1825,10 @@ a cached result must equal an uncached run.
   Needs attention first shows what needs the user without a filter; it costs
   the marketplaces a place at the end of a long workspace list, behind a
   header the user can close.
+- A filter menu behind an icon in the header line held the kinds for a
+  while. It hid that the view lists three kinds, and choosing one took two
+  clicks; the row of segments costs one short line and shows the kinds and
+  their counts at all times.
 - The core could send the view's own words (section and menu labels,
   "Waiting", the empty and no-match texts) in the catalog model. They name
   controls and filters of one page, not the catalog, so each would be a

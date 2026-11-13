@@ -1,29 +1,36 @@
 import type { AddOnCatalogPayload } from "@miragon/bpmn-modeler-shared";
-import { Check, ListFilter, Search, X } from "lucide";
+import { Search, X } from "lucide";
 
-import { AddOnKind, catalogCounts, KIND_ORDER } from "../../domain/catalogFilter";
-import { CHROME_TEXT, filterLabelText, KIND_TEXT, summaryText } from "../../domain/chromeTexts";
+import { AddOnKind, CatalogCounts, catalogCounts, KIND_ORDER } from "../../domain/catalogFilter";
+import { CHROME_TEXT, KIND_TEXT, summaryText } from "../../domain/chromeTexts";
 import { CATALOG_TARGET, isBusy, ViewState } from "../../domain/viewState";
 import { actionButton, button, el, icon, markFocus, setBusy } from "./dom";
-import { CATALOG_ACTION_ICON, KIND_ICON } from "./icons";
+import { CATALOG_ACTION_ICON } from "./icons";
 import { CATALOG_MENU, menuAnchor } from "./menu";
 
-/** The id of the kind filter's menu. */
-export const FILTER_MENU = "filters";
+/** All, then each kind: a segment's place in the radio group's arrow order. */
+const SEGMENTS: readonly (AddOnKind | undefined)[] = [undefined, ...KIND_ORDER];
+
+interface Segment {
+    readonly button: HTMLButtonElement;
+    readonly count: HTMLElement;
+}
 
 const SEARCH_ID = "av-search";
 
 export interface ToolbarHandlers {
     readonly onQuery: (query: string) => void;
-    readonly onKind: (kind: AddOnKind) => void;
+    /** No kind: All. */
+    readonly onKind: (kind: AddOnKind | undefined) => void;
     readonly onMenu: (menuId: string) => void;
     readonly onSearchToggle: () => void;
 }
 
 /**
- * One line: what needs attention, a search button, the kind filter and the
- * "More actions" menu; the search field opens below it. The search keeps its
- * elements across renders, so typing never loses focus.
+ * One line: what needs attention, a search button and the "More actions"
+ * menu; the search field opens below it, and below that one segment per kind
+ * after All. The search and the segments keep their elements across renders,
+ * so typing and arrowing never lose focus.
  */
 export class Toolbar {
     readonly element = el("header", "av-toolbar");
@@ -37,6 +44,7 @@ export class Toolbar {
     private readonly clear = button("ds-search-clear", CHROME_TEXT.clearSearch);
     private readonly menus = el("div", "av-toolbar-menus");
     private readonly busyBar = el("div", "ds-busy-bar");
+    private readonly segments = new Map<AddOnKind | undefined, Segment>();
 
     constructor(private readonly handlers: ToolbarHandlers) {
         this.searchToggle.append(icon(Search, 16));
@@ -46,9 +54,19 @@ export class Toolbar {
         line.append(this.summary, this.searchToggle, this.menus);
         this.searchRow.append(this.searchField());
         this.searchRow.id = SEARCH_ID;
+        const kinds = el("div", "av-kinds");
+        kinds.setAttribute("role", "radiogroup");
+        kinds.setAttribute("aria-label", CHROME_TEXT.kinds);
+        SEGMENTS.forEach((kind) => {
+            const segment = segmentOf(kind);
+            segment.button.addEventListener("click", () => handlers.onKind(kind));
+            this.segments.set(kind, segment);
+            kinds.append(segment.button);
+        });
+        kinds.addEventListener("keydown", (event) => this.moveInKinds(event));
         const busy = el("div", "av-toolbar-busy");
         busy.append(this.busyBar);
-        this.element.append(line, this.searchRow, busy);
+        this.element.append(line, this.searchRow, kinds, busy);
     }
 
     update(
@@ -58,7 +76,7 @@ export class Toolbar {
         searchOpen: boolean,
     ): void {
         const { filter } = state;
-        const counts = catalogCounts(model);
+        const counts = catalogCounts(model, filter.kind);
         const summary = summaryText(counts.needsReview, counts.problems);
         if (this.summary.textContent !== summary) this.summary.textContent = summary;
         const shown = searchOpen || filter.query !== "";
@@ -69,10 +87,8 @@ export class Toolbar {
         const busy = isBusy(state, CATALOG_TARGET);
         setBusy(this.element, busy);
         this.busyBar.hidden = !busy;
-        this.menus.replaceChildren(
-            this.filterMenu(counts.byKind, state, openMenu),
-            ...this.catalogMenu(model, busy, openMenu),
-        );
+        this.updateSegments(counts, filter.kind);
+        this.menus.replaceChildren(...this.catalogMenu(model, busy, openMenu));
     }
 
     focusSearch(): void {
@@ -84,35 +100,28 @@ export class Toolbar {
         this.searchToggle.focus();
     }
 
-    private filterMenu(
-        counts: Readonly<Record<AddOnKind, number>>,
-        state: ViewState,
-        openMenu: string | undefined,
-    ): HTMLElement {
-        const { kinds } = state.filter;
-        const items = KIND_ORDER.map((kind) => this.kindItem(kind, kinds.has(kind), counts[kind]));
-        return menuAnchor(
-            FILTER_MENU,
-            filterLabelText(kinds.size),
-            openMenu === FILTER_MENU,
-            items,
-            this.handlers.onMenu,
-            { icon: ListFilter, marked: kinds.size > 0 },
-        );
+    /** A radio group: only the chosen segment takes Tab, the arrows choose another. */
+    private updateSegments(counts: CatalogCounts, chosen: AddOnKind | undefined): void {
+        this.segments.forEach((segment, kind) => {
+            const checked = kind === chosen;
+            const count = String(kind === undefined ? counts.total : counts.byKind[kind]);
+            segment.button.setAttribute("aria-checked", String(checked));
+            segment.button.tabIndex = checked ? 0 : -1;
+            if (segment.count.textContent !== count) segment.count.textContent = count;
+            segment.button.setAttribute("aria-label", `${segmentName(kind)}, ${count}`);
+        });
     }
 
-    private kindItem(kind: AddOnKind, chosen: boolean, count: number): HTMLButtonElement {
-        const item = markFocus(button("ds-btn ds-btn-ghost av-kind-item"), "filterKind", kind);
-        item.setAttribute("role", "menuitemcheckbox");
-        item.setAttribute("aria-checked", String(chosen));
-        item.append(
-            icon(Check, 14, "av-kind-check"),
-            icon(KIND_ICON[kind], 14, "av-kind-glyph"),
-            el("span", "av-kind-label", KIND_TEXT[kind].plural),
-            el("span", "ds-count", String(count)),
+    private moveInKinds(event: KeyboardEvent): void {
+        const index = SEGMENTS.findIndex(
+            (kind) => this.segments.get(kind)?.button === event.target,
         );
-        item.addEventListener("click", () => this.handlers.onKind(kind));
-        return item;
+        const step = KIND_STEP[event.key];
+        if (index === -1 || step === undefined) return;
+        event.preventDefault();
+        const next = SEGMENTS[step(index, SEGMENTS.length)];
+        this.handlers.onKind(next);
+        this.segments.get(next)?.button.focus();
     }
 
     private catalogMenu(
@@ -160,4 +169,28 @@ export class Toolbar {
         box.append(icon(Search, 16, "ds-search-icon"), this.input, this.clear);
         return box;
     }
+}
+
+const KIND_STEP: Readonly<Record<string, (index: number, count: number) => number>> = {
+    ArrowRight: (index, count) => (index + 1) % count,
+    ArrowDown: (index, count) => (index + 1) % count,
+    ArrowLeft: (index, count) => (index - 1 + count) % count,
+    ArrowUp: (index, count) => (index - 1 + count) % count,
+    Home: () => 0,
+    End: (_, count) => count - 1,
+};
+
+function segmentName(kind: AddOnKind | undefined): string {
+    return kind === undefined ? CHROME_TEXT.allKinds : KIND_TEXT[kind].plural;
+}
+
+function segmentOf(kind: AddOnKind | undefined): Segment {
+    const segment = markFocus(button("av-kind"), "kindSegment", kind ?? "all");
+    segment.setAttribute("role", "radio");
+    segment.title = segmentName(kind);
+    const label = kind === undefined ? CHROME_TEXT.allKinds : KIND_TEXT[kind].short;
+    const count = el("span", "av-kind-count");
+    count.setAttribute("aria-hidden", "true");
+    segment.append(el("span", "av-kind-label", label), count);
+    return { button: segment, count };
 }

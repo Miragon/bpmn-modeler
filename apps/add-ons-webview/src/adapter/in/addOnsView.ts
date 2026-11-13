@@ -64,7 +64,8 @@ export class AddOnsView {
                 if (query !== "") this.searchOpen = true;
                 dispatch({ kind: "queryChanged", query });
             },
-            onKind: (addOnKind) => dispatch({ kind: "kindToggled", addOnKind }),
+            onKind: (addOnKind) =>
+                dispatch({ kind: "kindChosen", ...(addOnKind !== undefined && { addOnKind }) }),
             onMenu: (menuId) => this.toggleMenu(menuId),
             onSearchToggle: () => this.toggleSearch(),
         });

@@ -11,14 +11,14 @@ export type AddOnKind = AddOnPayload["kind"];
 
 export const KIND_ORDER: readonly AddOnKind[] = ["plugin", "rulePackage", "elementTemplate"];
 
-/** The user's search and kind filter; they apply to every section of the list. */
+/** The user's search and kind; they apply to every section of the list. */
 export interface CatalogFilter {
     readonly query: string;
-    /** Empty: every kind. */
-    readonly kinds: ReadonlySet<AddOnKind>;
+    /** Absent: every kind. */
+    readonly kind?: AddOnKind;
 }
 
-export const NO_FILTER: CatalogFilter = { query: "", kinds: new Set() };
+export const NO_FILTER: CatalogFilter = { query: "" };
 
 /** Read from what the core offers, so the view never repeats the core's approval rule. */
 export function needsReview(addOn: AddOnPayload): boolean {
@@ -26,13 +26,7 @@ export function needsReview(addOn: AddOnPayload): boolean {
 }
 
 export function isFilterActive(filter: CatalogFilter): boolean {
-    return termsOf(filter.query).length > 0 || filter.kinds.size > 0;
-}
-
-export function withKindToggled(filter: CatalogFilter, kind: AddOnKind): CatalogFilter {
-    const kinds = new Set(filter.kinds);
-    if (!kinds.delete(kind)) kinds.add(kind);
-    return { ...filter, kinds };
+    return termsOf(filter.query).length > 0 || filter.kind !== undefined;
 }
 
 /** Without a filter the catalog as it came, so a source with only a problem still shows. */
@@ -57,20 +51,24 @@ export function filteredGroups(
         .filter(({ sources }) => sources.length > 0);
 }
 
+/** `total` and `byKind` count every add-on; what waits and what has a problem only those of the chosen kind. */
 export interface CatalogCounts {
+    readonly total: number;
     readonly byKind: Readonly<Record<AddOnKind, number>>;
     readonly needsReview: number;
     readonly problems: number;
 }
 
-export function catalogCounts(model: AddOnCatalogPayload): CatalogCounts {
+export function catalogCounts(model: AddOnCatalogPayload, kind?: AddOnKind): CatalogCounts {
     const addOns = addOnsOf(model.groups);
     const byKind: Record<AddOnKind, number> = { plugin: 0, rulePackage: 0, elementTemplate: 0 };
-    addOns.forEach(({ kind }) => byKind[kind]++);
+    addOns.forEach((addOn) => byKind[addOn.kind]++);
+    const ofKind = addOns.filter((addOn) => kind === undefined || addOn.kind === kind);
     return {
+        total: addOns.length,
         byKind,
-        needsReview: addOns.filter(needsReview).length,
-        problems: addOns.filter(({ problem }) => problem !== undefined).length,
+        needsReview: ofKind.filter(needsReview).length,
+        problems: ofKind.filter(({ problem }) => problem !== undefined).length,
     };
 }
 
@@ -85,7 +83,7 @@ function matches(
     filter: CatalogFilter,
     terms: readonly string[],
 ): boolean {
-    if (filter.kinds.size > 0 && !filter.kinds.has(addOn.kind)) return false;
+    if (filter.kind !== undefined && addOn.kind !== filter.kind) return false;
     const haystack = [
         addOn.name,
         addOn.detail,

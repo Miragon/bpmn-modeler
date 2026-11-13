@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import { CatalogFilter, NO_FILTER } from "./catalogFilter";
 import {
     announcementOf,
-    filterLabelText,
     headSummaryText,
     matchCountText,
     reviewCountText,
@@ -33,16 +32,6 @@ describe("summaryText", () => {
         [3, 2, "3 waiting · 2 not loaded"],
     ])("says %i waiting and %i not loaded as '%s'", (waiting, notLoaded, text) => {
         expect(summaryText(waiting, notLoaded)).toBe(text);
-    });
-});
-
-describe("filterLabelText", () => {
-    it.each([
-        [0, "Filter add-ons"],
-        [1, "Filter add-ons, 1 on"],
-        [2, "Filter add-ons, 2 on"],
-    ])("names %i chosen kinds as %s", (chosen, text) => {
-        expect(filterLabelText(chosen)).toBe(text);
     });
 });
 
