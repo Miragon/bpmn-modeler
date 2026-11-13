@@ -77,7 +77,7 @@ describe("the BPMN editor in Orca", () => {
         await editor.page.getByRole("button", { name: "Generate from name" }).click();
         await editor.save();
         expect((await editor.stub()).disk).toContain(
-            '<bpmn:serviceTask id="ServiceTask_PlaceOrder" name="Place Order">',
+            '<bpmn:serviceTask id="serviceTask_placeOrder" name="Place Order">',
         );
 
         await editor.page.getByRole("button", { name: "Review all IDs…" }).click();
@@ -85,10 +85,10 @@ describe("the BPMN editor in Orca", () => {
         await editor.save();
         const state = await editor.stub();
         expect(state.disk).toContain(
-            '<bpmn:serviceTask id="ServiceTask_ShipOrder" name="Ship Order">',
+            '<bpmn:serviceTask id="serviceTask_shipOrder" name="Ship Order">',
         );
         expect(state.disk).toContain(
-            'sourceRef="StartEvent_OrderReceived" targetRef="ServiceTask_PlaceOrder"',
+            'sourceRef="startEvent_orderReceived" targetRef="serviceTask_placeOrder"',
         );
         expect(state.cspViolations).toBe(0);
         expect(state.errors).toEqual([]);
