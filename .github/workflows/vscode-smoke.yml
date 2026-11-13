@@ -23,6 +23,7 @@ on:
       - 'yarn.lock'
       - '.yarnrc.yml'
       - 'tsconfig.base.json'
+      - 'vite.shared.ts'
       - '.github/workflows/vscode-smoke.yml'
   schedule:
     - cron: '23 4 * * 1'

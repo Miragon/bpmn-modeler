@@ -71,6 +71,7 @@
             ],
             "paths": [
                 "apps/bpmn-webview/**",
+                "vite.shared.ts",
                 "libs/shared/**",
                 "packages/bpmn-modeler/**",
                 "scripts/perf/**",
@@ -103,6 +104,7 @@
             ],
             "paths": [
                 "apps/dmn-webview/**",
+                "vite.shared.ts",
                 "packages/dmn-modeler/**",
                 "libs/shared/**",
                 "libs/modeler-types/**",
@@ -128,6 +130,7 @@
             ],
             "paths": [
                 "apps/orca-plugin/**",
+                "vite.shared.ts",
                 "release-please-config.json",
                 "packages/bpmn-modeler/**",
                 "packages/dmn-modeler/**",
@@ -192,6 +195,7 @@
             ],
             "paths": [
                 "packages/bpmn-modeler/**",
+                "vite.shared.ts",
                 "tools/architecture-testing/**",
                 "libs/*/src/**",
                 "scripts/perf/**",
