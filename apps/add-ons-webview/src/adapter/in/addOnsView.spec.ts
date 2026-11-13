@@ -187,14 +187,31 @@ describe("AddOnsView", () => {
             ).toContain(PACKAGES_SOURCE.label);
         });
 
-        it("names a folder's path in its tooltip and to a screen reader", () => {
+        it("names a folder's and a source's path in their tooltip only", () => {
             const { head } = mountedView(TWO_FOLDERS);
 
             expect([
                 head(FOLDER.id)?.title,
-                text(head(FOLDER.id)?.querySelector(".av-group-text .av-vh")),
+                head(FOLDER.id)?.querySelector(".av-group-text .av-vh"),
                 head(CONFIG_SOURCE.id)?.title,
-            ]).toEqual([FOLDER.description, `, ${FOLDER.description}`, CONFIG_SOURCE.description]);
+            ]).toEqual([FOLDER.description, null, CONFIG_SOURCE.description]);
+        });
+
+        it.each([
+            { case: "one folder", model: CATALOG, levels: ["H2", "H2", "H3", "H3", "H2", "H3"] },
+            {
+                case: "two folders",
+                model: TWO_FOLDERS,
+                levels: ["H2", "H2", "H3", "H4", "H4", "H3", "H4", "H2", "H3"],
+            },
+        ])("nests its headings by section with $case", ({ model, levels }) => {
+            const { root } = mountedView(model);
+
+            expect(
+                [...root.querySelectorAll(".av-list h2, .av-list h3, .av-list h4")].map(
+                    ({ tagName }) => tagName,
+                ),
+            ).toEqual(levels);
         });
 
         it("shows a header per folder once there are two, and closes a folder with all of its sources", () => {
@@ -385,6 +402,19 @@ describe("AddOnsView", () => {
                 true,
                 toggle,
             ]);
+        });
+
+        it("close the field and drop its query from the search button", () => {
+            const { root, type, button, search } = mountedView(CATALOG);
+            type("acme");
+
+            button("Search add-ons").click();
+
+            expect([
+                root.querySelector<HTMLElement>(".av-search-row")!.hidden,
+                search().value,
+                document.activeElement,
+            ]).toEqual([true, "", button("Search add-ons")]);
         });
 
         it("keep the field open while it holds a query", () => {

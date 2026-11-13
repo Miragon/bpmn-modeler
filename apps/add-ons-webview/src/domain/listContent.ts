@@ -39,7 +39,7 @@ export function listContentOf(model: AddOnCatalogPayload, filter: CatalogFilter)
     }
     const groups = filteredGroups(model, filter);
     if (isFilterActive(filter) && groups.length === 0) return { kind: "noMatch" };
-    const sections = sectionsOf(groups);
+    const sections = sectionsOf(groups, { filtering: isFilterActive(filter), all: model.groups });
     const installedEmpty = !isFilterActive(filter) && sections.installed.length === 0;
     return {
         kind: "sections",

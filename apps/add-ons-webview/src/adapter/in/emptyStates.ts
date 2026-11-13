@@ -39,12 +39,12 @@ export function catalogEmptyOf(
     return [emptyBox(Package, text, buttons, busy)];
 }
 
-export function noMatchOf(text: string, onClear: () => void): HTMLElement {
+export function noMatchOf(onClear: () => void): HTMLElement {
     const box = el("div", "av-empty");
     const clear = markFocus(button("ds-btn ds-btn-secondary"), "clearFilters");
     clear.append(el("span", "ds-btn-label", CHROME_TEXT.clearFilters));
     clear.addEventListener("click", onClear);
-    box.append(el("p", "av-empty-text", text), clear);
+    box.append(el("p", "av-empty-text", CHROME_TEXT.noMatch), clear);
     return box;
 }
 

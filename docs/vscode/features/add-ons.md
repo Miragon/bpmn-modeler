@@ -60,7 +60,7 @@ Select a plugin or rule package that needs a review, check what its review says,
 
 **Review…** on a notification opens the view at the waiting plugins or rule packages when every one of them lies inside an open folder: it clears a search or filter that hides the first of them, selects it and opens its review. The notification then counts as answered for this window. Otherwise, for example when a rule package is linked from outside the workspace, **Review…** shows the list to check, as in [BPMN plugins](/vscode/features/bpmn-plugins#allow-a-plugin).
 
-**Review Add-ons** in the Command Palette opens the view on the whole list. It clears the search and the filter, keeps your selection when it waits for a review, else selects the first add-on in **Needs attention** that does, and moves focus to it. A screen reader hears how many add-ons need review, or *No add-ons need review.*
+**Review Add-ons** in the Command Palette opens the view on the whole list. It clears the search and the filter, keeps your selection when it waits for a review, else selects the first add-on in **Needs attention** that does, and moves focus to it. When nothing waits, your selection stays and focus goes to the top of the list. A screen reader hears how many add-ons need review, or *No add-ons need review.*
 
 ## Revoke
 
@@ -76,7 +76,7 @@ Each template with an id offers **Disable** or **Enable** in its details. Each c
 
 **Marketplaces** follows **Installed** once a marketplace is registered; when the registrations cannot be read, it says why. Each marketplace's **⋯** menu offers **Remove**, which asks before it unregisters the marketplace. The [marketplace commands](/vscode/features/template-marketplace#add-a-marketplace) work as before.
 
-**More actions** (**⋯**, at the end of the top line) holds **Add marketplace…**, **Update marketplaces** and **Remove unused plugin copies**. A workspace without any add-on offers **Add marketplace…** in the empty list too. **Remove unused plugin copies** deletes every plugin copy in VS Code's global storage that no open editor of this window uses. Another window that still needs a copy writes it again the next time an editor there opens.
+**More actions** (**⋯**, at the end of the top line) holds **Add marketplace…**, **Update marketplaces** and **Remove unused plugin copies**. When the view lists nothing at all, neither an add-on nor a marketplace, it offers **Add marketplace…** in the empty list too. **Remove unused plugin copies** deletes every plugin copy in VS Code's global storage that no open editor of this window uses. Another window that still needs a copy writes it again the next time an editor there opens.
 
 The result of an action shows at the top of the view; **Dismiss** closes it.
 

@@ -1,13 +1,12 @@
 import type {
     AddOnActionResultPayload,
     AddOnCatalogPayload,
+    AddOnPayload,
     AddOnRequestPayload,
     AddOnRevealPayload,
 } from "@miragon/bpmn-modeler-shared";
 
 import { ActionKindPayload, actionRequestOf, isActionKind } from "./actionRequest";
-import type { AddOnPayload } from "@miragon/bpmn-modeler-shared";
-
 import {
     AddOnKind,
     CatalogFilter,
@@ -69,7 +68,7 @@ export interface ViewState {
 export interface PersistedChoices {
     readonly expansion?: readonly (readonly [string, boolean])[];
     readonly selectedId?: string;
-    /** An older page kept a selection per tab; its workspace one carries over once. */
+    /** An older page kept a selection per scope; its workspace one carries over once. */
     readonly selection?: { readonly workspace?: unknown };
     readonly lastRevealId?: number;
 }
@@ -185,14 +184,20 @@ function changedBy(state: ViewState, event: ViewEvent): Change {
 
 /** A search or filter speaks for itself, so what Review Add-ons found stops being said. */
 function filtered(state: ViewState, filter: CatalogFilter): Change {
-    const { reviewCount: _said, ...rest } = state;
-    return { state: { ...rest, filter } };
+    return { state: { ...unsaid(state), filter } };
 }
 
+function unsaid(state: ViewState): ViewState {
+    const { reviewCount: _said, ...rest } = state;
+    return rest;
+}
+
+/** A newer model can change what waits, so what Review Add-ons found stops being said. */
 function modelArrived(state: ViewState, model: AddOnCatalogPayload): Change {
     if (state.model !== undefined && model.revision < state.model.revision) return { state };
+    const newer = state.model !== undefined && model.revision > state.model.revision;
     return revealed({
-        ...state,
+        ...(newer ? unsaid(state) : state),
         model,
         expansion: prunedExpansion(model, state.expansion),
     });
@@ -211,7 +216,7 @@ function revealed(state: ViewState): Change {
 }
 
 /**
- * Lands on the first of the rows a "Review…" left, in model order, once the
+ * Lands on the first of the rows a "Review…" left, as the list orders them, once the
  * model holds one: its open review and its detail, past any filter that hid
  * it. A row Needs attention lists sits under no header, so none opens for it.
  */
@@ -221,7 +226,8 @@ function rowsRevealed(
     reveal: Extract<AddOnRevealPayload, { kind: "rows" }>,
 ): Change {
     const heads = headsOf(model);
-    const addOn = addOnsOf(model.groups).find(({ id }) => reveal.addOnIds.includes(id));
+    const ordered = shownListOf(model, { ...state, filter: NO_FILTER }).addOns;
+    const addOn = ordered.find(({ id }) => reveal.addOnIds.includes(id));
     if (addOn === undefined) return { state };
     const expansion = new Map(state.expansion);
     const filterExpansion = new Map(state.filterExpansion);
@@ -253,7 +259,7 @@ function rowsRevealed(
  * Review Add-ons: the whole list, unfiltered, with an add-on that waits for a
  * review selected and focused: the selected one if it waits, else the first
  * of Needs attention that does. A row whose problem keeps Allow away is
- * passed over.
+ * passed over; when nothing waits, the selection stays.
  */
 function reviewRevealed(state: ViewState, model: AddOnCatalogPayload, revealId: number): Change {
     const waiting = sectionsOf(model.groups)
@@ -261,11 +267,10 @@ function reviewRevealed(state: ViewState, model: AddOnCatalogPayload, revealId: 
         .filter(needsReview);
     const kept = waiting.find(({ id }) => id === state.selectedId);
     const selected = (kept ?? waiting[0])?.id;
-    const { selectedId: _dropped, ...rest } = state;
     return {
         state: {
-            ...rest,
-            ...(selected !== undefined ? { selectedId: selected } : {}),
+            ...state,
+            ...(selected !== undefined && { selectedId: selected }),
             reveal: undefined,
             filter: NO_FILTER,
             filterExpansion: new Map(),
@@ -352,6 +357,13 @@ function withFilterExpansionEnded(change: Change): Change {
     return { ...change, state: { ...state, filterExpansion: new Map() } };
 }
 
+function shownSectionsOf(model: AddOnCatalogPayload, filter: CatalogFilter) {
+    return sectionsOf(filteredGroups(model, filter), {
+        filtering: isFilterActive(filter),
+        all: model.groups,
+    });
+}
+
 /** The rows the list shows, in its order, and those its open headers leave in sight. */
 interface ShownList {
     readonly addOns: readonly AddOnPayload[];
@@ -360,7 +372,7 @@ interface ShownList {
 
 /** Needs attention sits under no header, so its rows are always in sight. */
 function shownListOf(model: AddOnCatalogPayload, state: ViewState): ShownList {
-    const sections = sectionsOf(filteredGroups(model, state.filter));
+    const sections = shownSectionsOf(model, state.filter);
     const attention = sections.attention.map(({ addOn }) => addOn);
     const below = sectionGroupsOf(sections);
     const underHeads = rowsInSight(below, listExpansionOf(state), sections.flatGroupIds);
@@ -383,7 +395,7 @@ function withSelection(change: Change, before: ViewState): Change {
     const orderBefore =
         before.model === undefined
             ? []
-            : displayOrderOf(sectionsOf(filteredGroups(before.model, before.filter)));
+            : displayOrderOf(shownSectionsOf(before.model, before.filter));
     const remembered = state.selectedId;
     const selected = settledSelection(remembered, shown.addOns, orderBefore, shown.inSight);
     if (selected === remembered) return change;
@@ -398,7 +410,7 @@ function withSelection(change: Change, before: ViewState): Change {
 /**
  * Names a waiting focus target as the transition's focus once the model holds
  * it. A model without it ends the wait: focus goes to what is left of its
- * add-on or source, else to the tab's selection.
+ * add-on or source, else to the list's selection.
  */
 function withFocus(change: Change, modelChanged: boolean): Transition {
     const { state } = change;

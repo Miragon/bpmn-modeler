@@ -396,9 +396,9 @@ describe("nextViewState", () => {
             ]);
         });
 
-        it("lands on the first revealed row in model order", () => {
-            expect(selectedIdOf(after([shown(), reveal(1, [RESIZE.id, PALETTE.id])]).state)).toBe(
-                PALETTE.id,
+        it("lands on the first revealed row in the order the list shows them", () => {
+            expect(selectedIdOf(after([shown(), reveal(1, [PALETTE.id, RESIZE.id])]).state)).toBe(
+                RESIZE.id,
             );
         });
 
@@ -473,11 +473,26 @@ describe("nextViewState", () => {
             expect(selectedIdOf(state)).toBe(RESIZE.id);
         });
 
-        it("selects nothing and focuses the list's start when nothing waits", () => {
+        it("keeps the selection and focuses the list's start when nothing waits", () => {
             const settled = without(RESIZE.id, without(ACME.id));
-            const { state, focus } = after([shown(settled), review(1)]);
+            const { state, focus } = after([
+                shown(settled),
+                { kind: "toggled", key: MARKETPLACE_SOURCE.id },
+                { kind: "addOnSelected", addOnId: MAIL.id },
+                review(1),
+            ]);
 
-            expect([state.reviewCount, focus]).toEqual([0, { kind: "listStart", requested: true }]);
+            expect([selectedIdOf(state), state.reviewCount, focus]).toEqual([
+                MAIL.id,
+                0,
+                { kind: "listStart", requested: true },
+            ]);
+        });
+
+        it("stops saying what it found once a newer model arrives", () => {
+            const { state } = after([shown(), review(1), shown(withRevision(11))]);
+
+            expect(state.reviewCount).toBeUndefined();
         });
 
         it("stops saying what it found once the user searches", () => {

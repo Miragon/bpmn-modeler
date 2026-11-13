@@ -50,7 +50,7 @@ describe("settledSelection", () => {
             expected: MAIL.id,
         },
         {
-            case: "starts a tab on the first add-on to review",
+            case: "starts the list on the first add-on to review",
             remembered: undefined,
             shown: ALL,
             before: [],
@@ -116,7 +116,7 @@ describe("settledSelection", () => {
             expected: undefined,
         },
         {
-            case: "starts a tab on the first in sight to review",
+            case: "starts the list on the first in sight to review",
             remembered: undefined,
             shown: ALL,
             before: [],

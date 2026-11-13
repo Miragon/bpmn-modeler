@@ -29,24 +29,49 @@ export function needsAttention(addOn: AddOnPayload): boolean {
     return needsReview(addOn) || addOn.problem !== undefined;
 }
 
-export function sectionsOf(groups: readonly AddOnGroupPayload[]): ListSections {
+/**
+ * `filtering`: the groups are a search's matches, so a source the split
+ * leaves empty goes with them. `all`: every group of the model, as a folder's
+ * header must not come and go with a query.
+ */
+export interface SectionOptions {
+    readonly filtering?: boolean;
+    readonly all?: readonly AddOnGroupPayload[];
+}
+
+export function sectionsOf(
+    groups: readonly AddOnGroupPayload[],
+    { filtering = false, all = groups }: SectionOptions = {},
+): ListSections {
     const attention = groups.flatMap((group) =>
         group.sources.flatMap((source) =>
             source.addOns.filter(needsAttention).map((addOn) => ({ group, source, addOn })),
         ),
     );
-    const rest = groups.map(withoutAttention);
-    const installed = rest.filter(({ kind }) => SECTION_OF_GROUP[kind] === "installed");
+    const rest = groups
+        .map(withoutAttention)
+        .map((group) => (filtering ? withoutEmptySources(group) : group))
+        .filter((group) => !filtering || group.sources.length > 0);
+    const installed = rest.filter(isInstalled);
     const marketplaces = rest.find(({ kind }) => SECTION_OF_GROUP[kind] === "marketplaces");
     const listsSomething =
         marketplaces !== undefined &&
         (marketplaces.sources.length > 0 || marketplaces.problem !== undefined);
+    const folders = all.filter(isInstalled);
     return {
         attention,
         installed,
-        flatGroupIds: new Set(installed.length === 1 ? [installed[0]!.id] : []),
+        flatGroupIds: new Set(folders.length === 1 ? [folders[0]!.id] : []),
         ...(listsSomething && { marketplaces }),
     };
+}
+
+function isInstalled(group: AddOnGroupPayload): boolean {
+    return SECTION_OF_GROUP[group.kind] === "installed";
+}
+
+function withoutEmptySources(group: AddOnGroupPayload): AddOnGroupPayload {
+    return { ...group, sources: group.sources.filter(({ addOns }) => addOns.length > 0) };
 }
 
 export function displayOrderOf(sections: ListSections): string[] {

@@ -1860,7 +1860,8 @@ describe("the packaged extension in a real VS Code", () => {
                 .poll(
                     async () => ({
                         filter: await filterOf(addOns).getAttribute("aria-label"),
-                        search: await searchOf(addOns).inputValue(),
+                        // The field may be closed by now; its value is what counts.
+                        search: await addOns.locator('input[type="search"]').inputValue(),
                         attention: await addOns
                             .locator(".av-attention")
                             .getByRole("button", { name: new RegExp(PLUGIN_NAME) })

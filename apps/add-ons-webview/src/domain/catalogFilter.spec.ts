@@ -189,7 +189,6 @@ describe("catalogCounts", () => {
         };
 
         expect(catalogCounts(withBroken)).toEqual({
-            total: 5,
             byKind: { plugin: 3, rulePackage: 1, elementTemplate: 1 },
             needsReview: 2,
             problems: 1,

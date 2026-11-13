@@ -18,8 +18,8 @@ import { el, elementAt, setBusy } from "./dom";
 import { catalogEmptyOf, loadingOf, noMatchOf } from "./emptyStates";
 import { FocusKeeper } from "./focusKeeper";
 import { BROWSER_LAYOUT, Layout } from "./layout";
-import { MENU_ITEMS } from "./menu";
 import { sectionsListOf } from "./listView";
+import { MENU_ITEMS } from "./menu";
 import { ResultBanner } from "./resultBanner";
 import { statusBox } from "./statusMarks";
 import { Toolbar } from "./toolbar";
@@ -37,6 +37,7 @@ export class AddOnsView {
     private state?: ViewState;
     private openMenu?: string;
     private searchOpen = false;
+    private announcedRevealId?: number;
     private revealedId?: string;
     private revealTimer?: ReturnType<typeof setTimeout>;
     private listScroll = 0;
@@ -177,7 +178,7 @@ export class AddOnsView {
             case "catalogEmpty":
                 return catalogEmptyOf(content.text, content.buttons, busy);
             case "noMatch":
-                return [noMatchOf(CHROME_TEXT.noMatch, () => this.clearFilters())];
+                return [noMatchOf(() => this.clearFilters())];
             case "sections": {
                 const heads = new Map(headsOf(model).map((head) => [head.id, head]));
                 const shown = listExpansionOf(state);
@@ -224,11 +225,17 @@ export class AddOnsView {
         }
     }
 
+    /** A second Review Add-ons that finds as many is said again, though its words did not change. */
     private announce(content: ListContent, state: ViewState): void {
-        const text =
-            state.reviewCount === undefined
-                ? announcementOf(content, state.filter)
-                : reviewCountText(state.reviewCount);
+        const review = state.reviewCount !== undefined;
+        const text = review
+            ? reviewCountText(state.reviewCount!)
+            : announcementOf(content, state.filter);
+        const newReview = review && this.announcedRevealId !== state.lastRevealId;
+        if (newReview) {
+            this.announcedRevealId = state.lastRevealId;
+            this.announcer.textContent = "";
+        }
         if (this.announcer.textContent !== text) this.announcer.textContent = text;
     }
 
@@ -280,11 +287,15 @@ export class AddOnsView {
         }
     }
 
-    /** Opening the search focuses its field; closing it leaves the query as it was. */
+    /** Opening the search focuses its field; closing it drops its query and returns to its button. */
     private toggleSearch(): void {
-        this.searchOpen = !this.searchOpen;
-        this.redraw();
+        const query = this.state?.filter.query ?? "";
+        const shown = this.searchOpen || query !== "";
+        this.searchOpen = !shown;
+        if (shown && query !== "") this.dispatch({ kind: "queryChanged", query: "" });
+        else this.redraw();
         if (this.searchOpen) this.toolbar.focusSearch();
+        else this.toolbar.focusStart();
     }
 
     private clearFilters(): void {

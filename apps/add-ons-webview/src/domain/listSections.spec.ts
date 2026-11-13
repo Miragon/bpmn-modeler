@@ -105,6 +105,24 @@ describe("sectionsOf", () => {
     });
 });
 
+describe("sectionsOf while a filter is on", () => {
+    it("drops a source and a folder the split leaves without a match", () => {
+        const filtered: AddOnGroupPayload[] = [
+            { ...FOLDER, sources: [{ ...CONFIG_SOURCE, addOns: [RESIZE] }] },
+        ];
+
+        expect(sectionsOf(filtered, { filtering: true, all: CATALOG.groups }).installed).toEqual(
+            [],
+        );
+    });
+
+    it("decides a folder's header from every folder, not only the matching ones", () => {
+        const all = [FOLDER, SECOND_FOLDER, MARKETPLACES];
+
+        expect([...sectionsOf([FOLDER], { filtering: true, all }).flatGroupIds]).toEqual([]);
+    });
+});
+
 describe("displayOrderOf", () => {
     it("orders the rows as the list shows them: Needs attention, Installed, Marketplaces", () => {
         expect(displayOrderOf(sectionsOf(CATALOG.groups))).toEqual([

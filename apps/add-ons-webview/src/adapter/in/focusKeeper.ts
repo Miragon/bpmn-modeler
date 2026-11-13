@@ -60,7 +60,7 @@ export class FocusKeeper {
 
     /**
      * A render removed the focused control, as a chosen menu item or a removed
-     * row: the nearest one left, else the add-on the tab selected in its place.
+     * row: the nearest one left, else the add-on the list selected in its place.
      */
     recover(lost: HeldFocus, selectedId: string | undefined): void {
         if (this.root.contains(document.activeElement) || this.first([lost])) return;

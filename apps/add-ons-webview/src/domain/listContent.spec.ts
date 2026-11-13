@@ -78,7 +78,7 @@ describe("listContentOf", () => {
             filter: { ...NO_FILTER, query: "mail" },
             content: {
                 kind: "sections",
-                sections: sectionsOf([{ ...MARKETPLACES }]),
+                sections: sectionsOf([MARKETPLACES], { filtering: true, all: full.groups }),
             },
         },
         {

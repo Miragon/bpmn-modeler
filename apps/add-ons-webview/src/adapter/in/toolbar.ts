@@ -70,7 +70,7 @@ export class Toolbar {
         setBusy(this.element, busy);
         this.busyBar.hidden = !busy;
         this.menus.replaceChildren(
-            this.filterMenu(model, state, openMenu),
+            this.filterMenu(counts.byKind, state, openMenu),
             ...this.catalogMenu(model, busy, openMenu),
         );
     }
@@ -85,12 +85,11 @@ export class Toolbar {
     }
 
     private filterMenu(
-        model: AddOnCatalogPayload,
+        counts: Readonly<Record<AddOnKind, number>>,
         state: ViewState,
         openMenu: string | undefined,
     ): HTMLElement {
         const { kinds } = state.filter;
-        const counts = catalogCounts(model).byKind;
         const items = KIND_ORDER.map((kind) => this.kindItem(kind, kinds.has(kind), counts[kind]));
         return menuAnchor(
             FILTER_MENU,

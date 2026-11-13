@@ -14,7 +14,6 @@ export const CHROME_TEXT = {
     dismiss: "Dismiss",
     search: "Search add-ons",
     clearSearch: "Clear search",
-    filterKinds: "Show kinds",
     needsAttention: "Needs attention",
     installed: "Installed",
     waiting: "Waiting",

@@ -49,12 +49,14 @@ export function sectionsListOf(
             ...sections.installed.map((group) =>
                 sections.flatGroupIds.has(group.id)
                     ? flatGroupOf(group, context)
-                    : groupOf(group, context),
+                    : groupOf(group, context, 3),
             ),
         );
         parts.push(installed);
     }
-    if (sections.marketplaces !== undefined) parts.push(groupOf(sections.marketplaces, context));
+    if (sections.marketplaces !== undefined) {
+        parts.push(groupOf(sections.marketplaces, context, 2));
+    }
     return parts;
 }
 
@@ -77,38 +79,50 @@ function attentionOf(placements: readonly Placement[], context: ListContext): HT
     block.classList.add("av-attention");
     const rows = el("div", "av-rows");
     rows.setAttribute("role", "list");
-    rows.setAttribute("aria-label", CHROME_TEXT.needsAttention);
     rows.append(...placements.map(({ addOn, source }) => rowOf(addOn, context, source.label)));
     block.append(rows);
     return block;
 }
 
-function groupOf(group: AddOnGroupPayload, context: ListContext): HTMLElement {
+type HeadingLevel = 2 | 3 | 4;
+
+/** The marketplaces head a section of their own; a folder heads its sources under Installed. */
+function groupOf(group: AddOnGroupPayload, context: ListContext, level: 2 | 3): HTMLElement {
     const open = context.isOpen(group.id);
     const block = el("section", "av-group");
     block.setAttribute("aria-label", group.label);
     const control = headControl(group.id, open, "av-group-head");
     control.title = group.description;
     const text = el("span", "av-group-text");
-    text.append(el("span", "av-group-label", group.label), hiddenText(`, ${group.description}`));
+    text.append(el("span", "av-group-label", group.label));
     control.append(chevron(), text, ...summaryOf(addOnsOf([group]), open));
-    const heading = el("h3", "av-group-name");
+    const heading = el(`h${level}`, "av-group-name");
     heading.append(control);
     block.append(heading);
     if (group.problem !== undefined) block.append(problemLine(group.problem, "av-group-problem"));
-    if (open) block.append(...group.sources.map((source) => sourceOf(source, context)));
+    if (open) {
+        block.append(...group.sources.map((source) => sourceOf(source, context, nextLevel(level))));
+    }
     return block;
+}
+
+function nextLevel(level: 2 | 3): HeadingLevel {
+    return level === 2 ? 3 : 4;
 }
 
 /** The only folder: its sources stand directly under Installed, its path in their tooltip. */
 function flatGroupOf(group: AddOnGroupPayload, context: ListContext): HTMLElement {
     const block = el("div", "av-group av-group-flat");
     if (group.problem !== undefined) block.append(problemLine(group.problem, "av-group-problem"));
-    block.append(...group.sources.map((source) => sourceOf(source, context)));
+    block.append(...group.sources.map((source) => sourceOf(source, context, 3)));
     return block;
 }
 
-function sourceOf(source: AddOnSourcePayload, context: ListContext): HTMLElement {
+function sourceOf(
+    source: AddOnSourcePayload,
+    context: ListContext,
+    level: HeadingLevel,
+): HTMLElement {
     const busy = isBusy(context.state, source.id);
     const hasRows = source.addOns.length > 0;
     const open = hasRows && context.isOpen(source.id);
@@ -123,7 +137,7 @@ function sourceOf(source: AddOnSourcePayload, context: ListContext): HTMLElement
     titleLine.append(el("span", "av-source-label", source.label));
     if (source.stateText !== undefined) titleLine.append(el("span", "av-badge", source.stateText));
     const text = el("span", "av-source-text");
-    text.append(titleLine, hiddenText(`, ${source.description}`));
+    text.append(titleLine);
     control.title = source.description;
     control.append(
         hasRows ? chevron() : el("span", "av-head-chevron"),
@@ -131,7 +145,7 @@ function sourceOf(source: AddOnSourcePayload, context: ListContext): HTMLElement
         text,
         ...summaryOf(source.addOns, open || !hasRows),
     );
-    const heading = el("h4", "av-source-heading");
+    const heading = el(`h${level}`, "av-source-heading");
     heading.append(control);
     head.append(heading);
     if (source.actions.length > 0) {
@@ -181,18 +195,18 @@ function chevron(): SVGElement {
 /** A closed header still says what it holds, and whether any of it waits for a review. */
 function summaryOf(addOns: readonly AddOnPayload[], open: boolean): HTMLElement[] {
     if (open) return [];
-    const { total, needingReview } = headSummaryOf(addOns);
+    const { total, waiting } = headSummaryOf(addOns);
     const summary = el("span", "av-head-summary");
     const count = el("span", "ds-count av-head-count", String(total));
     count.setAttribute("aria-hidden", "true");
     summary.append(count);
-    if (needingReview > 0) {
+    if (waiting > 0) {
         const dot = el("span", "av-dot av-head-dot");
         dot.setAttribute("aria-hidden", "true");
         dot.title = CHROME_TEXT.waiting;
         summary.append(dot);
     }
-    summary.append(hiddenText(`, ${headSummaryText(total, needingReview)}`));
+    summary.append(hiddenText(`, ${headSummaryText(total, waiting)}`));
     return [summary];
 }
 

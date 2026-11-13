@@ -58,7 +58,6 @@ export function filteredGroups(
 }
 
 export interface CatalogCounts {
-    readonly total: number;
     readonly byKind: Readonly<Record<AddOnKind, number>>;
     readonly needsReview: number;
     readonly problems: number;
@@ -69,7 +68,6 @@ export function catalogCounts(model: AddOnCatalogPayload): CatalogCounts {
     const byKind: Record<AddOnKind, number> = { plugin: 0, rulePackage: 0, elementTemplate: 0 };
     addOns.forEach(({ kind }) => byKind[kind]++);
     return {
-        total: addOns.length,
         byKind,
         needsReview: addOns.filter(needsReview).length,
         problems: addOns.filter(({ problem }) => problem !== undefined).length,
