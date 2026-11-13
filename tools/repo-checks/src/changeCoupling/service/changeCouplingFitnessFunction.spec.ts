@@ -29,6 +29,7 @@ class InMemorySourceStructure implements SourceStructure {
 const LAYOUT: SourceLayout = {
     files: [PORT, STATUS_BAR, LINT_CONFIG, CORE_LINT_CONFIG],
     barrels: [],
+    generatedFiles: [],
     links: [
         { from: STATUS_BAR, to: PORT },
         { from: LINT_CONFIG, to: PORT },
