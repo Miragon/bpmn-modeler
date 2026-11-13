@@ -10,7 +10,7 @@ import type { TableScroll, Viewport } from "@miragon/bpmn-modeler-types";
 import { DmnDiffResult, computeDmnDiff, dmnSideView } from "@miragon/dmn-modeler-diff";
 
 import { NotifierPort, SettingsPort } from "../../kernel/port/hostPorts";
-import { decodedUriPathOf, lastWorkspacePathSegment } from "../../kernel/domain/workspacePath";
+import { uriDisplayName } from "../../kernel/domain/workspacePath";
 import { DiffPaneHandle } from "../port/DiffPaneHandle";
 import { DiffPaneRelay } from "./DiffPaneRelay";
 import { DiffPaneStore } from "./DiffPaneStore";
@@ -62,7 +62,7 @@ export class DmnDiffService {
                 side,
                 dmnSideView(result, side),
                 armed.session.origin,
-                lastWorkspacePathSegment(decodedUriPathOf(pane.uri)),
+                uriDisplayName(pane.uri),
             );
             await this.relay.post(pane, query, "ApplyDmnDiffHighlights");
         }

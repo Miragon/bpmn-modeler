@@ -2,12 +2,12 @@ import { win32 } from "path";
 import { describe, expect, it } from "vitest";
 
 import {
-    decodedUriPathOf,
     fileSystemPathOf,
     joinWorkspacePath,
     lastWorkspacePathSegment,
     parentWorkspacePath,
     toWorkspacePath,
+    uriDisplayName,
     withLowerCaseDrive,
     withoutFileScheme,
 } from "./workspacePath";
@@ -311,51 +311,21 @@ describe("lastWorkspacePathSegment", () => {
     });
 });
 
-describe("decodedUriPathOf", () => {
-    it.each([
-        {
-            behaviour: "keeps a plain file URI",
-            uri: "file:///repo/sub/diagram.bpmn",
-            path: "file:///repo/sub/diagram.bpmn",
-        },
-        {
-            behaviour: "drops a query",
-            uri: "file:///repo/diagram.bpmn?ref=HEAD",
-            path: "file:///repo/diagram.bpmn",
-        },
-        {
-            behaviour: "drops a fragment",
-            uri: "file:///repo/diagram.bpmn#section",
-            path: "file:///repo/diagram.bpmn",
-        },
-        {
-            behaviour: "decodes percent-encoded characters",
-            uri: "file:///repo/my%20diagram.bpmn",
-            path: "file:///repo/my diagram.bpmn",
-        },
-        {
-            behaviour: "decodes an encoded drive colon",
-            uri: "file:///c%3A/repo/diagram.bpmn",
-            path: "file:///c:/repo/diagram.bpmn",
-        },
-        {
-            behaviour: "keeps a stray % of a URL that is not percent-encoded",
-            uri: "file:///repo/100%.bpmn#diff-1-before",
-            path: "file:///repo/100%.bpmn",
-        },
-    ])("$behaviour", ({ uri, path }) => {
-        expect(decodedUriPathOf(uri)).toBe(path);
-    });
-
+describe("uriDisplayName", () => {
     it.each([
         { uri: "file:///repo/sub/diagram.bpmn", name: "diagram.bpmn" },
         { uri: "file:///repo/diagram.bpmn?ref=HEAD", name: "diagram.bpmn" },
         { uri: "file:///repo/diagram.bpmn#section", name: "diagram.bpmn" },
         { uri: "file:///repo/my%20diagram.bpmn", name: "my diagram.bpmn" },
+        { uri: "file:///c%3A/repo/diagram.bpmn", name: "diagram.bpmn" },
+        { uri: "file:///c%3A", name: "c:" },
+        { uri: "file:///repo/100%.bpmn#diff-1-before", name: "100%.bpmn" },
+        { uri: "file:///repo/a%23b.bpmn", name: "a#b.bpmn" },
         { uri: "git:/repo/diagram.bpmn?%7B%22ref%22%3A%22HEAD%22%7D", name: "diagram.bpmn" },
         { uri: "diff:///pane#diff-1-after", name: "pane" },
-    ])("names $uri by $name with lastWorkspacePathSegment", ({ uri, name }) => {
-        expect(lastWorkspacePathSegment(decodedUriPathOf(uri))).toBe(name);
+        { uri: "file:///repo/orders/", name: "orders" },
+    ])("names $uri by $name", ({ uri, name }) => {
+        expect(uriDisplayName(uri)).toBe(name);
     });
 });
 

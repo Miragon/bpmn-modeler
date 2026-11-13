@@ -47,17 +47,18 @@ export function lastWorkspacePathSegment(path: string): string {
     return path.split("/").filter(Boolean).pop() ?? path;
 }
 
-/**
- * A URI string up to its query or fragment, percent-decoded, for
- * {@link lastWorkspacePathSegment} to name. IntelliJ's file URLs are not
- * percent-encoded, so a `%` that starts no escape stays as written.
- */
-export function decodedUriPathOf(uri: string): string {
-    const [beforeQueryAndFragment] = uri.split(/[?#]/);
+/** The file or folder name a URI string shows, its query and fragment ignored. */
+export function uriDisplayName(uri: string): string {
+    return lastWorkspacePathSegment(decodedUriBeforeQueryOrFragment(uri));
+}
+
+// IntelliJ's file URLs are not percent-encoded, so a `%` that starts no escape stays as written.
+function decodedUriBeforeQueryOrFragment(uri: string): string {
+    const [beforeQueryOrFragment] = uri.split(/[?#]/);
     try {
-        return decodeURIComponent(beforeQueryAndFragment);
+        return decodeURIComponent(beforeQueryOrFragment);
     } catch {
-        return beforeQueryAndFragment;
+        return beforeQueryOrFragment;
     }
 }
 

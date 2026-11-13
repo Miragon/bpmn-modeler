@@ -159,6 +159,12 @@ describe("relativeToWorkspace", () => {
             relative: "work2/order.bpmn",
         },
         {
+            behaviour: "leads with no name below the filesystem root among several folders",
+            path: "/etc/x",
+            folders: ["/", "/work"],
+            relative: "/etc/x",
+        },
+        {
             behaviour: "keeps a path outside every folder",
             path: "/elsewhere/order.bpmn",
             folders: ["/work"],

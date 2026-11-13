@@ -8,7 +8,7 @@ const { tabs, parsedUri } = vi.hoisted(() => ({
     /** A vscode `Uri` stand-in for an unencoded URI string, with the three fields the controller reads. */
     parsedUri: (value: string) => ({
         scheme: value.split(":")[0],
-        path: value.replace(/^[a-z]+:(\/\/[^/]*)?/, ""),
+        path: value.replace(/^[a-z]+:(\/\/[^/]*)?/, "").split(/[?#]/)[0],
         toString: () => value,
     }),
 }));
@@ -21,7 +21,12 @@ vi.mock("vscode", () => ({
 
 import { commands, workspace } from "vscode";
 
-import { createDiffPaneRouter, DiffPaneStore, DiffFileExtension } from "@miragon/bpmn-modeler-core";
+import {
+    compareTabLabel,
+    createDiffPaneRouter,
+    DiffPaneStore,
+    DiffFileExtension,
+} from "@miragon/bpmn-modeler-core";
 import { FakeDiffPaneHandle, RecordingNotifier } from "@miragon/bpmn-modeler-core/testing";
 import { vsCodeModelerPreferences } from "../../../shared/adapter/out/modelerConfiguration";
 import { BootstrappableDiffPane, DiffController } from "./DiffController";
@@ -176,7 +181,7 @@ describe("DiffController.openCompareFilesDiff", () => {
             "vscode.diff",
             expect.anything(),
             expect.anything(),
-            expect.any(String),
+            compareTabLabel("a.bpmn", "b.bpmn"),
             { preview: false },
         );
     });
