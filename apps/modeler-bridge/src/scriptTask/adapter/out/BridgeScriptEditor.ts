@@ -1,10 +1,7 @@
 /**
  * Bridge-only orchestrator for the "Edit Script" feature on a remote host.
- *
- * The VS Code `ScriptTaskService` was deliberately *not* extracted to core: its
- * guts (resync-on-hidden-webview, `tabGroups` tracking) are VS Code accidental
- * complexity that doesn't port — JCEF webviews are never "hidden" the way VS
- * Code editor panels are, so no resync machinery is needed here.
+ * JCEF webviews are never "hidden" the way VS Code editor panels are, so
+ * unlike `ScriptTaskService` it needs no resync machinery.
  *
  * The bridge writes each script as a real file into the core
  * {@link ScriptFileStore}'s base directory and hands the host its absolute
@@ -28,6 +25,8 @@ import {
     matchScriptFile,
     methodsForBean,
     NotifierPort,
+    OpenScriptTab,
+    OpenScriptTabs,
     PickerPort,
     ScriptEditorPort,
     ScriptFileStore,
@@ -45,25 +44,12 @@ import {
     UpdateScriptContentQuery,
     UpdateScriptFormatQuery,
 } from "@miragon/bpmn-modeler-shared";
-import {
-    AsyncDebounced,
-    asyncDebounce,
-    OpenScriptEditorRef,
-    ScriptKind,
-} from "@miragon/bpmn-modeler-types";
+import { AsyncDebounced, asyncDebounce, ScriptKind } from "@miragon/bpmn-modeler-types";
 
 import { Rpc } from "../../../transport/adapter/out/Rpc";
 import { METHODS } from "../../../protocol/domain/descriptor";
 import { ScriptOpenParams } from "../../../protocol/domain/types";
 import { ScriptTabEvents } from "../../port/ScriptTabEvents";
-
-/** The element-addressing fields needed to route a host edit back to the webview. */
-interface TrackedScript {
-    readonly editorId: string;
-    readonly elementId: string;
-    readonly kind: ScriptKind;
-    readonly listenerIndex: number | undefined;
-}
 
 /**
  * Per-script tracking lives here, never on the host: re-opening the same script
@@ -72,7 +58,7 @@ interface TrackedScript {
  * without the host knowing anything about BPMN.
  */
 export class BridgeScriptEditor implements ScriptEditorPort, ScriptTabEvents {
-    private readonly scripts = new Map<string, TrackedScript>();
+    private readonly scripts = new OpenScriptTabs();
 
     // Absolute file path per open script, retained for deletion on close.
     private readonly filePathByScript = new Map<string, string>();
@@ -156,7 +142,7 @@ export class BridgeScriptEditor implements ScriptEditorPort, ScriptTabEvents {
             }
         }
 
-        this.scripts.set(scriptId, {
+        this.scripts.track(scriptId, {
             editorId,
             elementId: script.elementId,
             kind: script.kind,
@@ -227,8 +213,9 @@ export class BridgeScriptEditor implements ScriptEditorPort, ScriptTabEvents {
             return { kind: "cancelled" };
         }
 
-        if (this.scripts.has(target.scriptId)) {
-            return { kind: "alreadyOpen" };
+        const plan = this.scripts.materializationOf(target.scriptId);
+        if (plan.kind === "alreadyOpen") {
+            return plan;
         }
 
         const filePath = await this.scriptFiles.prepareScriptFile(editorId, target.uri);
@@ -309,7 +296,7 @@ export class BridgeScriptEditor implements ScriptEditorPort, ScriptTabEvents {
         // scriptId is the ScriptUri relative path — identical to what open() keys
         // by, so a subsequent didChange/close maps to the same tracked entry.
         const scriptId = match.scriptId;
-        if (this.scripts.has(scriptId)) {
+        if (this.scripts.isOpen(scriptId)) {
             return;
         }
 
@@ -322,7 +309,7 @@ export class BridgeScriptEditor implements ScriptEditorPort, ScriptTabEvents {
         }
 
         this.filePathByScript.set(scriptId, normalized);
-        this.scripts.set(scriptId, {
+        this.scripts.track(scriptId, {
             editorId: match.editorId,
             elementId: match.elementId,
             kind: match.kind,
@@ -362,32 +349,26 @@ export class BridgeScriptEditor implements ScriptEditorPort, ScriptTabEvents {
      * the file on disk follows through IntelliJ's own save cycle.
      */
     applyModelChange(editorId: string, change: ScriptSourceChange): void {
-        for (const [scriptId, entry] of this.scripts) {
-            if (
-                entry.editorId !== editorId ||
-                entry.elementId !== change.elementId ||
-                entry.kind !== change.kind ||
-                (entry.listenerIndex ?? 0) !== (change.listenerIndex ?? 0)
-            ) {
-                continue;
-            }
-            if (change.content === undefined) {
-                // Surface gone: drop the sender so a pending keystroke can't
-                // fire against a deleted element.
-                this.dropSender(scriptId);
-                this.scripts.delete(scriptId);
-                this.requestClose(scriptId);
-                this.broadcastOpenScripts(editorId);
-            } else {
-                // Canvas undo/redo overwrites the tab; cancel any pending
-                // keystroke so it can't fire afterwards and clobber the undo.
-                this.contentSenders.get(scriptId)?.cancel();
-                this.rpc.notify(METHODS.scriptUpdateContent, {
-                    scriptId,
-                    content: change.content,
-                });
-            }
+        const found = this.scripts.find(editorId, change);
+        if (!found) {
             return;
+        }
+        const [scriptId] = found;
+        if (change.content === undefined) {
+            // Surface gone: drop the sender so a pending keystroke can't
+            // fire against a deleted element.
+            this.dropSender(scriptId);
+            this.scripts.untrack(scriptId);
+            this.requestClose(scriptId);
+            this.broadcastOpenScripts(editorId);
+        } else {
+            // Canvas undo/redo overwrites the tab; cancel any pending
+            // keystroke so it can't fire afterwards and clobber the undo.
+            this.contentSenders.get(scriptId)?.cancel();
+            this.rpc.notify(METHODS.scriptUpdateContent, {
+                scriptId,
+                content: change.content,
+            });
         }
     }
 
@@ -416,24 +397,15 @@ export class BridgeScriptEditor implements ScriptEditorPort, ScriptTabEvents {
     /**
      * Posts the full set of open inline-script editors for `editorId` so the
      * webview locks the matching panel fields (single-writer arbitration). The
-     * tab's file name is the last `scriptId` path segment — the `ScriptUri`
-     * already ends in the human-facing filename, so no extra tracking is needed.
+     * `scriptId` is the tab path: the `ScriptUri` already ends in the
+     * human-facing filename, so no extra tracking is needed.
      */
     private broadcastOpenScripts(editorId: string): void {
-        const openScripts: OpenScriptEditorRef[] = [];
-        for (const [scriptId, entry] of this.scripts) {
-            if (entry.editorId !== editorId) {
-                continue;
-            }
-            openScripts.push({
-                elementId: entry.elementId,
-                kind: entry.kind,
-                listenerIndex: entry.listenerIndex,
-                fileName: scriptId.substring(scriptId.lastIndexOf("/") + 1),
-            });
-        }
         this.store
-            .postMessage(editorId, new UpdateOpenScriptEditorsQuery(openScripts))
+            .postMessage(
+                editorId,
+                new UpdateOpenScriptEditorsQuery(this.scripts.openScriptsOf(editorId)),
+            )
             .catch((error) => this.notifier.logError(error as Error));
     }
 
@@ -444,10 +416,8 @@ export class BridgeScriptEditor implements ScriptEditorPort, ScriptTabEvents {
      */
     variablesChanged(editorId: string): void {
         const variables = this.scriptVariables.variablesFor(editorId);
-        for (const [scriptId, entry] of this.scripts) {
-            if (entry.editorId === editorId) {
-                this.rpc.notify(METHODS.scriptUpdateVariables, { scriptId, variables });
-            }
+        for (const [scriptId] of this.scripts.ofEditor(editorId)) {
+            this.rpc.notify(METHODS.scriptUpdateVariables, { scriptId, variables });
         }
     }
 
@@ -470,7 +440,7 @@ export class BridgeScriptEditor implements ScriptEditorPort, ScriptTabEvents {
      */
     private getSender(
         scriptId: string,
-        entry: TrackedScript,
+        entry: OpenScriptTab,
     ): AsyncDebounced<(content: string) => Promise<void>> {
         let sender = this.contentSenders.get(scriptId);
         if (!sender) {
@@ -532,8 +502,7 @@ export class BridgeScriptEditor implements ScriptEditorPort, ScriptTabEvents {
             return;
         }
         // Capture the owner before removing so the lock release reflects it.
-        const editorId = this.scripts.get(scriptId)?.editorId;
-        this.scripts.delete(scriptId);
+        const editorId = this.scripts.untrack(scriptId)?.editorId;
         // Drop the path entry (not the file) so a re-open rewrites fresh content
         // rather than revealing a stale tab; the file survives the close.
         this.filePathByScript.delete(scriptId);
@@ -544,8 +513,7 @@ export class BridgeScriptEditor implements ScriptEditorPort, ScriptTabEvents {
 
     /**
      * The BPMN editor was disposed: tell the host to close every script tab it
-     * opened for that editor and drop their tracking. Iterating while deleting is
-     * safe for a `Map` — only already-visited or current entries are removed.
+     * opened for that editor and drop their tracking.
      *
      * The editor's whole hash directory is swept too — it catches leftovers
      * whose per-script deletion failed (e.g. a file still locked). With tabs
@@ -554,11 +522,9 @@ export class BridgeScriptEditor implements ScriptEditorPort, ScriptTabEvents {
      */
     disposeEditor(editorId: string): void {
         const closing = new Set<string>();
-        for (const [scriptId, entry] of this.scripts) {
-            if (entry.editorId === editorId) {
-                this.scripts.delete(scriptId);
-                closing.add(scriptId);
-            }
+        for (const [scriptId] of this.scripts.ofEditor(editorId)) {
+            this.scripts.untrack(scriptId);
+            closing.add(scriptId);
         }
 
         const editorScriptDir = this.scriptFiles.releaseEditor(editorId);

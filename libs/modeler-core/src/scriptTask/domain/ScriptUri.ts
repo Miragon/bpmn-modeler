@@ -1,4 +1,4 @@
-import { ScriptKind } from "@miragon/bpmn-modeler-types";
+import { listenerPosition, ScriptKind } from "@miragon/bpmn-modeler-types";
 
 /**
  * Directory (relative to the config folder) that holds all on-disk inline
@@ -58,8 +58,7 @@ export class ScriptUri {
             return "script-task";
         }
         const event = this.eventName ? `-${this.eventName}` : "";
-        const idx = this.listenerIndex ?? 0;
-        return `${this.kind}-${idx}${event}`;
+        return `${this.kind}-${listenerPosition(this.listenerIndex)}${event}`;
     }
 
     /**
@@ -84,9 +83,9 @@ export class ScriptUri {
         if (this.eventName) {
             parts.push(this.eventName);
         }
-        const idx = this.listenerIndex ?? 0;
-        if (idx > 0) {
-            parts.push(String(idx));
+        const position = listenerPosition(this.listenerIndex);
+        if (position > 0) {
+            parts.push(String(position));
         }
         return `${safeId}.${parts.join("-")}.${this.languageExtension}`;
     }

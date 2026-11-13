@@ -1,11 +1,7 @@
-import { ScriptKind } from "@miragon/bpmn-modeler-types";
+import { ScriptIdentity } from "@miragon/bpmn-modeler-types";
 
 /** Where an inline script sits in its diagram; a listener also has its position. */
-export interface ScriptAddress {
-    readonly elementId: string;
-    readonly kind: ScriptKind;
-    readonly listenerIndex: number | undefined;
-}
+export type ScriptAddress = ScriptIdentity;
 
 /** An inline script as the webview hands it over for a host tab. */
 export interface InlineScript extends ScriptAddress {

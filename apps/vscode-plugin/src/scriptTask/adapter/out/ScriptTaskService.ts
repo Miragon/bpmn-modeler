@@ -20,12 +20,7 @@ import {
     UpdateScriptContentQuery,
     UpdateScriptFormatQuery,
 } from "@miragon/bpmn-modeler-shared";
-import {
-    AsyncDebounced,
-    asyncDebounce,
-    OpenScriptEditorRef,
-    ScriptKind,
-} from "@miragon/bpmn-modeler-types";
+import { AsyncDebounced, asyncDebounce, ScriptKind } from "@miragon/bpmn-modeler-types";
 
 import {
     EditorSessionStore,
@@ -33,6 +28,8 @@ import {
     InlineScript,
     joinWorkspacePath,
     matchScriptFile,
+    OpenScriptTab,
+    OpenScriptTabs,
     SCRIPT_JSCONFIG,
     ScriptContentUpdate,
     ScriptEditorPort,
@@ -49,14 +46,8 @@ import { NotifierPort, PickerPort } from "@miragon/bpmn-modeler-core";
 import { canonicalPath } from "../../../shared/domain/canonicalPath";
 import { toUri } from "../../../shared/adapter/out/uriPath";
 
-/**
- * Tracks an open script document.
- */
-interface OpenDocument {
-    readonly editorId: string;
-    readonly elementId: string;
-    readonly kind: ScriptKind;
-    readonly listenerIndex: number | undefined;
+/** An open script document; tracked by its `uri.path`. */
+interface OpenDocument extends OpenScriptTab {
     readonly uri: Uri;
 }
 
@@ -99,8 +90,7 @@ function fullReplaceEdit(uri: Uri, doc: TextDocument, content: string): Workspac
  * buffer.
  */
 export class ScriptTaskService implements ScriptEditorPort {
-    // Open script documents keyed by `uri.path`.
-    private readonly openDocuments = new Map<string, OpenDocument>();
+    private readonly openDocuments = new OpenScriptTabs<OpenDocument>();
 
     // URI paths currently being written by us — used for echo prevention.
     private readonly writingGuard = new Set<string>();
@@ -226,7 +216,7 @@ export class ScriptTaskService implements ScriptEditorPort {
         /**
          * Already open: just reveal the existing editor.
          */
-        if (this.openDocuments.has(scriptUri.path)) {
+        if (this.openDocuments.isOpen(scriptUri.path)) {
             const doc = await workspace.openTextDocument(scriptUri);
             await window.showTextDocument(doc, ScriptTaskService.REVEAL_BESIDE);
             return;
@@ -241,7 +231,7 @@ export class ScriptTaskService implements ScriptEditorPort {
         // that the adoption listener reacts to. Its own-open guard keys off
         // openDocuments, so setting the entry first is what stops us from
         // re-adopting (and re-broadcasting) our own open.
-        this.openDocuments.set(scriptUri.path, {
+        this.openDocuments.track(scriptUri.path, {
             editorId,
             elementId,
             kind,
@@ -281,8 +271,9 @@ export class ScriptTaskService implements ScriptEditorPort {
             return { kind: "cancelled" };
         }
 
-        if (this.openDocuments.has(target.scriptUri.path)) {
-            return { kind: "alreadyOpen" };
+        const plan = this.openDocuments.materializationOf(target.scriptUri.path);
+        if (plan.kind === "alreadyOpen") {
+            return plan;
         }
 
         await this.writeScriptToDisk(target.scriptUri, content, target.lang, kind);
@@ -376,7 +367,7 @@ export class ScriptTaskService implements ScriptEditorPort {
     private async adoptExternallyOpenedScript(uri: Uri): Promise<void> {
         // Our own opens set openDocuments *before* showTextDocument, so a
         // tracked path here is our own tab — nothing to adopt.
-        if (this.openDocuments.has(uri.path)) {
+        if (this.openDocuments.isOpen(uri.path)) {
             return;
         }
 
@@ -391,11 +382,11 @@ export class ScriptTaskService implements ScriptEditorPort {
 
         // Re-check after the awaits: our own open of the same path could have
         // raced in and tracked it already.
-        if (this.openDocuments.has(uri.path)) {
+        if (this.openDocuments.isOpen(uri.path)) {
             return;
         }
 
-        this.openDocuments.set(uri.path, {
+        this.openDocuments.track(uri.path, {
             editorId: match.editorId,
             elementId: match.elementId,
             kind: match.kind,
@@ -467,20 +458,7 @@ export class ScriptTaskService implements ScriptEditorPort {
      * relies on for content.
      */
     private broadcastOpenScripts(editorId: string): void {
-        const openScripts: OpenScriptEditorRef[] = [];
-        for (const entry of this.openDocuments.values()) {
-            if (entry.editorId !== editorId) {
-                continue;
-            }
-            const path = entry.uri.path;
-            openScripts.push({
-                elementId: entry.elementId,
-                kind: entry.kind,
-                listenerIndex: entry.listenerIndex,
-                fileName: path.substring(path.lastIndexOf("/") + 1),
-            });
-        }
-
+        const openScripts = this.openDocuments.openScriptsOf(editorId);
         this.editorStore
             .postUnlessHidden(editorId, new UpdateOpenScriptEditorsQuery(openScripts))
             .catch((error: unknown) => {
@@ -512,10 +490,11 @@ export class ScriptTaskService implements ScriptEditorPort {
         editorId: string,
         { elementId, kind, listenerIndex, content }: ScriptSourceChange,
     ): Promise<void> {
-        const entry = this.findOpenDocument(editorId, elementId, kind, listenerIndex);
-        if (!entry) {
+        const found = this.openDocuments.find(editorId, { elementId, kind, listenerIndex });
+        if (!found) {
             return;
         }
+        const [, entry] = found;
 
         if (content === undefined) {
             // The script surface is gone: drop the sender entirely so a pending
@@ -524,7 +503,7 @@ export class ScriptTaskService implements ScriptEditorPort {
             // suppress the dirty prompt (the bytes are already gone from the
             // model; the file is deleted right after).
             this.dropSender(entry.uri.path);
-            this.openDocuments.delete(entry.uri.path);
+            this.openDocuments.untrack(entry.uri.path);
             this.broadcastOpenScripts(editorId);
             await this.saveIfDirty(entry.uri);
             await this.closeTabsFor(new Set([entry.uri.path]));
@@ -575,10 +554,7 @@ export class ScriptTaskService implements ScriptEditorPort {
         this.pendingResync.delete(editorId);
 
         const deferredCleanups: Uri[] = [];
-        for (const entry of this.openDocuments.values()) {
-            if (entry.editorId !== editorId) {
-                continue;
-            }
+        for (const [, entry] of this.openDocuments.ofEditor(editorId)) {
             const content = await this.readBufferOrDisk(entry);
             if (content === undefined) {
                 continue;
@@ -641,14 +617,9 @@ export class ScriptTaskService implements ScriptEditorPort {
     disposeEditor(editorId: string): void {
         // Keep the full entries (not just URIs): the dispose-time write-back
         // needs each script's elementId/kind/listenerIndex to address the XML.
-        const orphaned = new Map<string, OpenDocument>();
-        for (const [path, entry] of this.openDocuments) {
-            if (entry.editorId === editorId) {
-                orphaned.set(path, entry);
-            }
-        }
+        const orphaned = new Map(this.openDocuments.ofEditor(editorId));
         for (const path of orphaned.keys()) {
-            this.openDocuments.delete(path);
+            this.openDocuments.untrack(path);
             // The handle is already gone (dispose ordering), so a pending
             // keystroke can never reach the webview. Cancel it — never flush;
             // any divergence is covered by the compare-and-write below.
@@ -787,7 +758,7 @@ export class ScriptTaskService implements ScriptEditorPort {
             }
         }
         for (const tab of event.closed) {
-            if (tab.input instanceof TabInputText && this.openDocuments.has(tab.input.uri.path)) {
+            if (tab.input instanceof TabInputText && this.openDocuments.isOpen(tab.input.uri.path)) {
                 // Cleanup is async (it flushes the pending keystroke before
                 // releasing tracking); fire-and-forget with its own error sink
                 // since the tab handler can't be awaited.
@@ -902,8 +873,7 @@ export class ScriptTaskService implements ScriptEditorPort {
     private performCleanup(uri: Uri): void {
         // Capture the owning editor before removing so the lock broadcast below
         // reflects the removal — the entry is gone by the time we post.
-        const editorId = this.openDocuments.get(uri.path)?.editorId;
-        this.openDocuments.delete(uri.path);
+        const editorId = this.openDocuments.untrack(uri.path)?.editorId;
         this.dropSender(uri.path);
 
         if (editorId !== undefined) {
@@ -1009,25 +979,6 @@ export class ScriptTaskService implements ScriptEditorPort {
     private dropSender(path: string): void {
         this.contentSenders.get(path)?.cancel();
         this.contentSenders.delete(path);
-    }
-
-    private findOpenDocument(
-        editorId: string,
-        elementId: string,
-        kind: ScriptKind,
-        listenerIndex: number | undefined,
-    ): OpenDocument | undefined {
-        for (const entry of this.openDocuments.values()) {
-            if (
-                entry.editorId === editorId &&
-                entry.elementId === elementId &&
-                entry.kind === kind &&
-                (entry.listenerIndex ?? 0) === (listenerIndex ?? 0)
-            ) {
-                return entry;
-            }
-        }
-        return undefined;
     }
 
     /**
