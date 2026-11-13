@@ -138,7 +138,7 @@ async function readyPane(
 }
 
 const postedTypes = () => posted.map((message) => message.type);
-const legendText = () => chrome.querySelector(".dmn-diff-legend")?.textContent ?? "";
+const legendText = () => chrome.querySelector(".diff-legend")?.textContent ?? "";
 const click = (selector: string) => chrome.querySelector<HTMLButtonElement>(selector)?.click();
 
 beforeEach(() => {
@@ -205,16 +205,16 @@ describe("DiffMode", () => {
 
         expect(legendText()).toContain("Added 1");
         expect(legendText()).toContain("Removed 1");
-        expect(chrome.querySelector(".dmn-diff-legend__file")).toBeNull();
-        expect(chrome.querySelector(".dmn-diff-legend__swap")).toBeNull();
+        expect(chrome.querySelector<HTMLElement>(".diff-legend__filename")?.hidden).toBe(true);
+        expect(chrome.querySelector<HTMLElement>(".diff-legend__swap-group")?.hidden).toBe(true);
     });
 
     it("names the file and swaps the sides on a compare-files pane", async () => {
         await readyPane("after", "compare-files");
 
-        click(".dmn-diff-legend__swap");
+        click(".diff-legend__swap-btn");
 
-        expect(chrome.querySelector(".dmn-diff-legend__file")?.textContent).toBe("shipping.dmn");
+        expect(chrome.querySelector(".diff-legend__filename")?.textContent).toBe("shipping.dmn");
         expect(postedTypes()).toContain("SwapCompareSidesCommand");
     });
 
@@ -259,7 +259,7 @@ describe("DiffMode", () => {
         expect(card?.hidden).toBe(false);
         expect(card?.textContent).toContain("It was removed.");
         expect(legendText()).toContain("Removed");
-        expect(chrome.querySelector<HTMLButtonElement>(".dmn-diff-legend__next")?.disabled).toBe(
+        expect(chrome.querySelector<HTMLButtonElement>(".diff-legend__next-btn")?.disabled).toBe(
             true,
         );
 
@@ -276,7 +276,9 @@ describe("DiffMode", () => {
 
         viewer.views.forEach((listener) => listener("Decision_New"));
 
-        expect(chrome.querySelector('.dmn-diff-legend__swatch[data-kind="added"]')).not.toBeNull();
+        expect(
+            chrome.querySelector(".diff-legend__slot--status .diff-legend__swatch--added"),
+        ).not.toBeNull();
         expect(legendText()).not.toContain("Added 1");
     });
 
@@ -320,7 +322,7 @@ describe("DiffMode", () => {
         const mode = await readyPane();
         await mode.handle(new SyncDmnDiffViewQuery("Decision_Shipping"));
 
-        click(".dmn-diff-legend__next");
+        click(".diff-legend__next-btn");
 
         expect(viewer.called("focus").at(-1)).toEqual(["Rule_3"]);
         expect(posted.at(-1)).toMatchObject({ type: "CursorChangedCommand", index: 0 });
@@ -330,8 +332,8 @@ describe("DiffMode", () => {
         const mode = await readyPane();
         await mode.handle(new SyncDmnDiffViewQuery("Decision_Shipping"));
 
-        click(".dmn-diff-legend__next");
-        click(".dmn-diff-legend__next");
+        click(".diff-legend__next-btn");
+        click(".diff-legend__next-btn");
 
         expect(viewer.called("focus").at(-1)).toEqual([undefined]);
         expect(viewer.called("reveal").at(-1)).toEqual(["Rule_10"]);
@@ -340,7 +342,7 @@ describe("DiffMode", () => {
     it("steps back from the start to the last change", async () => {
         await readyPane();
 
-        click(".dmn-diff-legend__previous");
+        click(".diff-legend__prev-btn");
 
         expect(viewer.called("focus").at(-1)).toEqual(["Input_Insured"]);
         expect(posted.at(-1)).toMatchObject({ type: "CursorChangedCommand", index: 2 });
@@ -364,7 +366,7 @@ describe("DiffMode", () => {
         await mode.handle(new ApplyDmnDiffHighlightsQuery("after", VIEW, "scm", "shipping.dmn"));
         await mode.handle(new SyncDmnDiffViewQuery("Decision_Other"));
 
-        click(".dmn-diff-legend__next");
+        click(".diff-legend__next-btn");
 
         expect(viewer.called("focus")).toEqual([[undefined]]);
         expect(postedTypes()).not.toContain("CursorChangedCommand");

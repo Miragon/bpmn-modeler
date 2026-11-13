@@ -7,6 +7,14 @@ const bpmnCss = readFileSync(
     join(__dirname, "../../../bpmn-modeler/src/styles/diffView.css"),
     "utf8",
 );
+const legendCss = readFileSync(
+    join(__dirname, "../../../../libs/modeler-types/src/diffLegend.css"),
+    "utf8",
+);
+
+function legendColor(name: string): string | undefined {
+    return new RegExp(`--diff-legend-${name}: (#[0-9a-f]+);`, "i").exec(legendCss)?.[1];
+}
 
 function dmnColor(name: string): string | undefined {
     return new RegExp(`--dmn-diff-${name}: (#[0-9a-f]+);`, "i").exec(dmnCss)?.[1];
@@ -31,8 +39,15 @@ describe("the DMN diff palette", () => {
                 bpmnCss,
             )?.[1],
         );
-        expect(dmnColor("moved")).toBe(
-            /\.diff-legend__swatch--layout \{[^}]*?(#[0-9a-f]+)/i.exec(bpmnCss)?.[1],
-        );
+        expect(dmnColor("moved")).toBeDefined();
+        expect(dmnColor("moved")).toBe(legendColor("moved"));
     });
+
+    it.each(["added", "removed", "changed"])(
+        "gives the legend's %s swatch the marker's colour",
+        (kind) => {
+            expect(legendColor(kind)).toBeDefined();
+            expect(legendColor(kind)).toBe(bpmnStroke(kind));
+        },
+    );
 });

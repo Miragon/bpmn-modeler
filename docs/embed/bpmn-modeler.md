@@ -396,6 +396,11 @@ steps on its own uses `DiffNavigator`: `setChanges( result.navigationOrder )` ta
 `setChanges( view, navigationOrder )` form is deprecated; it still skips the view's connections whose
 only change is layout.
 
+The legend's `diff-legend__*` classes are styling hooks. To recolour the chip, set its
+`--diff-legend-*` custom properties on `.diff-legend` (for example `--diff-legend-surface`,
+`--diff-legend-border`, `--diff-legend-text`, `--diff-legend-radius` or
+`--diff-legend-primary-surface` for **Next**).
+
 Call `coordinator.destroy()` to unhook the viewport subscriptions and `viewer.destroy()` to tear each
 pane down.
 
