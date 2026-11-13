@@ -72,7 +72,6 @@ export function createBpmnCanvas(options: BpmnCanvasOptions): BpmnCanvas {
     let engine: DetectedEngine;
     let session: ModeSession | undefined;
     let strip: ModeStrip | undefined;
-    let shownOnce = false;
 
     const renderStrip = (busy: boolean): void => {
         if (session) strip?.render({ mode: session.getMode(), engine, busy });
@@ -113,16 +112,13 @@ export function createBpmnCanvas(options: BpmnCanvasOptions): BpmnCanvas {
             await surface.newDiagram();
             return;
         }
-        const view = shownOnce && kept ? surface.captureViewState() : undefined;
-        await surface.loadDiagram(text);
-        if (view) surface.applyViewState(view);
+        await surface.reloadDiagram(text);
     }
 
     return {
         async importText(text) {
             try {
                 await show(text);
-                shownOnce = true;
                 return true;
             } catch (error) {
                 console.warn("Unable to open the BPMN diagram", error);

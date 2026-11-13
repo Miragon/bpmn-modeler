@@ -20,18 +20,10 @@ function setup(savedState: unknown, applied = true) {
     const onSelectionChanged = vi.fn();
     const getSelectedElementIds = vi.fn().mockReturnValue([]);
     const selectElementsByIds = vi.fn();
-    const captureViewState = vi.fn().mockReturnValue({
-        rootElementId: undefined,
-        viewport: { x: 0, y: 0, width: 1, height: 1 },
-        selectedElementIds: [],
-    });
-    const applyViewState = vi.fn();
     const modeler = {
         viewport: { setViewport, getViewport, onViewportChanged },
         rootElement: { setRootElementById, getRootElementId, onRootChanged },
         selection: { getSelectedElementIds, selectElementsByIds, onSelectionChanged },
-        captureViewState,
-        applyViewState,
     } as any;
     return {
         manager: new WebviewStateManager(stateStore, modeler, panelUiState),
@@ -42,8 +34,6 @@ function setup(savedState: unknown, applied = true) {
         getViewport,
         getSelectedElementIds,
         selectElementsByIds,
-        captureViewState,
-        applyViewState,
         merge: stateStore.merge,
         onRootChanged,
         onViewportChanged,
@@ -127,37 +117,6 @@ describe("WebviewStateManager.restoreViewport", () => {
 
         expect(setRootElementById).toHaveBeenCalledWith("removed_plane");
         expect(setViewport).toHaveBeenCalledWith(viewport);
-    });
-});
-
-describe("WebviewStateManager.captureViewState / applyViewState", () => {
-    // The composition (root → viewport → selection ordering, implicit-root
-    // handling) now lives in the package handle and is unit-tested there
-    // (`viewState.spec.ts`); the manager only delegates.
-    it("delegates capture to the modeler handle", () => {
-        const { manager, captureViewState } = setup(undefined);
-        const snapshot = {
-            rootElementId: "SubProcess_1_plane",
-            viewport: { x: 100, y: 200, width: 500, height: 300 },
-            selectedElementIds: ["Task_1", "Task_2"],
-        };
-        captureViewState.mockReturnValue(snapshot);
-
-        expect(manager.captureViewState()).toBe(snapshot);
-        expect(captureViewState).toHaveBeenCalledOnce();
-    });
-
-    it("delegates apply to the modeler handle", () => {
-        const { manager, applyViewState } = setup(undefined);
-        const snapshot = {
-            rootElementId: "SubProcess_1_plane",
-            viewport: { x: 0, y: 0, width: 1000, height: 800 },
-            selectedElementIds: ["Task_1"],
-        };
-
-        manager.applyViewState(snapshot);
-
-        expect(applyViewState).toHaveBeenCalledWith(snapshot);
     });
 });
 

@@ -5,26 +5,18 @@ import { isEditableSurface, isModelerSurface } from "@miragon/bpmn-modeler/mode"
 import type { SurfaceHandle } from "../../domain/surface";
 import type { BpmnDocumentSurface } from "../../port/documentSessionPorts";
 import type { HostChannel } from "../../port/hostChannel";
-import type { CanvasViewState } from "../../port/webviewState";
-
-interface ViewStateKeeper {
-    captureViewState(): CanvasViewState;
-    applyViewState(snapshot: CanvasViewState): void;
-}
 
 interface SurfaceDocumentPorts {
     getSurface(): SurfaceHandle;
-    /** `undefined` until the surface is bound after its first import. */
-    getViewState(): ViewStateKeeper | undefined;
 }
 
 /**
- * Backs the document session with whichever surface is live, keeping the
- * user's plane, viewbox and selection across re-imports.
+ * Backs the document session with whichever surface is live; the surface's
+ * `reloadDiagram` keeps the user's plane, viewbox and selection across re-imports.
  */
 export function createSurfaceDocument(
     host: HostChannel,
-    { getSurface, getViewState }: SurfaceDocumentPorts,
+    { getSurface }: SurfaceDocumentPorts,
 ): BpmnDocumentSurface {
     async function openDocument(content: string | undefined): Promise<void> {
         const surface = getSurface();
@@ -32,7 +24,7 @@ export function createSurfaceDocument(
         const result =
             isBlankDocument(content) && isEditableSurface(surface)
                 ? await surface.newDiagram()
-                : await surface.loadDiagram(content ?? "");
+                : await surface.reloadDiagram(content ?? "");
         if (result.warnings.length > 0) {
             host.postMessage(
                 new LogWarningCommand(
@@ -42,22 +34,9 @@ export function createSurfaceDocument(
         }
     }
 
-    async function reimportPreservingView(reimport: () => Promise<void>): Promise<void> {
-        const snapshot = getViewState()?.captureViewState();
-        try {
-            await reimport();
-        } finally {
-            // The import already reset the canvas to the top-level plane, so a
-            // post-import throw must not strand the user there.
-            if (snapshot) {
-                getViewState()?.applyViewState(snapshot);
-            }
-        }
-    }
-
     return {
         // The session calls this inside its debounced queue, so a burst of pushes captures once.
-        importDocument: (content) => reimportPreservingView(() => openDocument(content)),
+        importDocument: openDocument,
         exportDocument: () => getSurface().exportDiagram(),
         afterSync: () => {
             const surface = getSurface();
@@ -78,9 +57,7 @@ export function createSurfaceDocument(
         // bpmn-js re-invokes `translate()` for rendered elements only on a re-import.
         refreshDiagram: async () => {
             const xml = await getSurface().exportDiagram();
-            await reimportPreservingView(async () => {
-                await getSurface().loadDiagram(xml);
-            });
+            await getSurface().reloadDiagram(xml);
         },
         centerOnElement: (elementId) => getSurface().viewport.centerOnElement(elementId),
     };

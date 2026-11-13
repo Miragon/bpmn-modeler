@@ -44,6 +44,10 @@ export class SurfaceView {
 
     private readonly initialFitObserver = new MutableDisposable();
 
+    private shown = false;
+
+    private disposed = false;
+
     constructor(private readonly getService: CoreServiceAccessor) {
         this.viewport = new CanvasViewportManager(getService);
         this.selection = new ElementSelectionManager(getService);
@@ -52,6 +56,7 @@ export class SurfaceView {
 
     /** Arms the one-time initial fit for the diagram that was just imported. */
     diagramLoaded(): void {
+        this.shown = true;
         this.initialFitObserver.set(
             armInitialViewportPolicy(this.getService("canvas"), this.viewport),
         );
@@ -73,7 +78,24 @@ export class SurfaceView {
         this.selection.selectElementsByIds(state.selectedElementIds);
     }
 
+    /**
+     * Runs `reimport` and puts the plane, viewbox and selection back as far as
+     * they still exist. The first import has nothing to keep and fits instead.
+     */
+    async keepAcross<R>(reimport: () => Promise<R>): Promise<R> {
+        const snapshot = this.shown ? this.capture() : undefined;
+        try {
+            return await reimport();
+        } finally {
+            // A failed import may already have reset the canvas to the top-level plane.
+            if (snapshot && !this.disposed) {
+                this.apply(snapshot);
+            }
+        }
+    }
+
     dispose(): void {
+        this.disposed = true;
         this.initialFitObserver.dispose();
     }
 }

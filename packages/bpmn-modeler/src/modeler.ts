@@ -422,6 +422,11 @@ export class BpmnModeler {
         return result;
     }
 
+    /** @see BpmnSurfaceHandle.reloadDiagram */
+    reloadDiagram(xml: string): Promise<ImportXMLResult> {
+        return this.core.keepViewAcross(() => this.loadDiagram(xml));
+    }
+
     private refreshAfterImport(): void {
         this.showTransactionBoundariesIfEnabled();
         this.applyEnginesFromDefinitions();

@@ -90,6 +90,10 @@ const views = modeler.getViews();
 await modeler.openView( views.find( ( v ) => v.type === "decisionTable" )! );
 ```
 
+`loadDiagram` keeps the open view when the text changed outside the modeler (a text editor, Git, an
+agent writing the file): a decision's table stays open while the new text still holds the decision,
+matched by its id. Otherwise the first view opens, the DRD when the document has one.
+
 ## Saving typed input
 
 The properties panel and the table editors debounce typed input, so a value typed a moment ago is

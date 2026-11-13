@@ -203,6 +203,11 @@ export class BpmnDesigner {
         return result;
     }
 
+    /** @see BpmnSurfaceHandle.reloadDiagram */
+    reloadDiagram(xml: string): Promise<ImportXMLResult> {
+        return this.core.keepViewAcross(() => this.loadDiagram(xml));
+    }
+
     async exportDiagram(): Promise<string> {
         return exportFormattedXml(this.core.instance);
     }
