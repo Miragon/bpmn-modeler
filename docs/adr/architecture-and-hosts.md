@@ -1344,6 +1344,11 @@ separate loopback asset server serves static resources, not per-document state.
 
 Keep protocol methods, parameter types and directions in the
 [protocol descriptor](../../apps/modeler-bridge/src/protocol/domain/descriptor.ts).
+Each bridge feature owns its methods and fixtures in its own
+`protocol/domain/<feature>Protocol.ts` module, so a feature's protocol change
+edits that module; the descriptor only orders the features' entry groups into
+`PROTOCOL` and spreads their method names into `METHODS`, the one import for
+call sites.
 Update its committed snapshot when the private wire contract changes; the
 [contract tests](../../apps/modeler-bridge/src/protocol/domain/protocol.spec.ts) guard
 descriptor/snapshot agreement. The IntelliJ

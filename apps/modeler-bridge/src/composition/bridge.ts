@@ -20,9 +20,10 @@
  * `BpmnEditorFeature`'s, so the bridge routes them exactly as VS Code does.
  *
  * The full RPC surface — method names, direction, and param/result shapes — is
- * the single source of truth in `protocol/descriptor.ts` (with `METHODS.*`
+ * the single source of truth in `protocol/domain/descriptor.ts`, which gathers
+ * the feature-owned `protocol/domain/*Protocol.ts` modules (with `METHODS.*`
  * constants consumed at every call-site), kept honest by `protocol.spec.ts` and
- * the checked-in `protocol/protocol.json` snapshot. `protocolTable()` renders
+ * the checked-in `protocol/domain/protocol.json` snapshot. `protocolTable()` renders
  * the canonical, un-rottable method index that used to live in this comment.
  *
  * DMN is deliberately out of scope here — it has no IntelliJ editor yet; this

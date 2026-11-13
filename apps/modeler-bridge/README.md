@@ -13,8 +13,10 @@ It imports only the public entry of `@miragon/bpmn-modeler-core`, never deep pat
   only, `stderr` diagnostics. The host implements the core's host-capability ports as RPC handlers,
   and relays the webview's messages over the same pipe, so the core never knows it is not in VS Code.
   Why not a WebSocket between webview and bridge: [Architecture and hosts: process lifecycle](../../docs/adr/architecture-and-hosts.md#process-lifecycle).
-- **One protocol descriptor.** Every method is declared once in `PROTOCOL` in
-  `src/protocol/domain/descriptor.ts`. Its snapshot, with each method's direction, kind and the keys
+- **One protocol descriptor.** Every method is declared once, with its fixtures, in its feature's
+  `src/protocol/domain/<feature>Protocol.ts` (`editorSessionProtocol.ts`, `deploymentProtocol.ts`,
+  …); `src/protocol/domain/descriptor.ts` gathers them into `METHODS` and `PROTOCOL` in wire order.
+  Its snapshot, with each method's direction, kind and the keys
   of its frames and results, is checked in as
   [`src/protocol/domain/protocol.json`](src/protocol/domain/protocol.json) and pinned by
   `protocol.spec.ts`. `hostToCore` entries are what the IDE sends (lifecycle, document changes,
