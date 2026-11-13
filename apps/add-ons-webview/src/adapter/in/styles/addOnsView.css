@@ -85,7 +85,7 @@ html {
 /* All and one segment per kind, below the line: one choice, its count beside it. */
 .av-kinds {
     display: flex;
-    gap: 2px;
+    gap: 0;
     margin-top: 6px;
     padding: 2px;
     border: 1px solid var(--cd-ui-linie);
@@ -100,7 +100,7 @@ html {
     justify-content: center;
     gap: 3px;
     height: 26px;
-    padding: 4px 5px 0;
+    padding: 4px 4px 0;
     border: 0;
     border-radius: 6px;
     color: var(--cd-ui-text-leise);
@@ -135,10 +135,89 @@ html {
 }
 
 /* A side bar this narrow keeps the words; each count stays in the segment's name for a screen reader. */
-@container view (max-width: 279.98px) {
+@container view (max-width: 309.98px) {
     .av-kind-count {
         display: none;
     }
+}
+
+
+.av-search {
+    flex: 1;
+    min-width: 0;
+}
+
+.av-toolbar-busy {
+    position: absolute;
+    right: 0;
+    bottom: -1px;
+    left: 0;
+}
+
+.av-banner-slot .ds-banner:not([data-empty]) {
+    margin: 8px 12px 0;
+}
+
+/* --- Kind tiles and status marks --- */
+
+.av-mark {
+    flex: none;
+}
+
+.av-dot,
+.av-ring {
+    flex: none;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.av-dot {
+    background: var(--cd-ui-warning);
+}
+
+/* Amber holds no 3:1 on white: a black edge carries the dot (as brand §8 for variant dots). */
+:root:not([data-cd-theme="dark"]) .av-dot {
+    border: 1px solid var(--cd-schwarz);
+}
+
+.av-ring {
+    border: 1.5px solid var(--cd-ui-kontur);
+}
+
+.av-status {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    color: var(--cd-ui-text-leise);
+    white-space: nowrap;
+}
+
+.av-tone-warning .av-status-word,
+.av-tone-danger .av-status-word {
+    color: var(--cd-ui-text);
+    font-weight: 500;
+}
+
+.av-tone-danger .av-mark {
+    color: var(--cd-ui-danger);
+}
+
+.av-tone-success .av-mark {
+    color: var(--cd-ui-text-leise);
+}
+
+[data-cd-theme="dark"] .av-tone-success .av-mark {
+    color: var(--cd-ui-success);
+}
+
+/* --- List --- */
+
+.av-list {
+    container: list / inline-size;
+    padding: 4px 8px 16px;
 }
 
 /* --- Sections: Needs attention, Installed --- */
