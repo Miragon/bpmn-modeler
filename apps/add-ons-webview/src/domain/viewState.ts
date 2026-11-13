@@ -182,7 +182,7 @@ function changedBy(state: ViewState, event: ViewEvent): Change {
     }
 }
 
-/** A search or filter speaks for itself, so what Review Add-ons found stops being said. */
+/** A search or filter speaks for itself, so what Review Add-ons found stops being said; so does an action. */
 function filtered(state: ViewState, filter: CatalogFilter): Change {
     return { state: { ...unsaid(state), filter } };
 }
@@ -192,12 +192,10 @@ function unsaid(state: ViewState): ViewState {
     return rest;
 }
 
-/** A newer model can change what waits, so what Review Add-ons found stops being said. */
 function modelArrived(state: ViewState, model: AddOnCatalogPayload): Change {
     if (state.model !== undefined && model.revision < state.model.revision) return { state };
-    const newer = state.model !== undefined && model.revision > state.model.revision;
     return revealed({
-        ...(newer ? unsaid(state) : state),
+        ...state,
         model,
         expansion: prunedExpansion(model, state.expansion),
     });
@@ -294,7 +292,7 @@ function actionChosen(state: ViewState, actionKind: string, targetId: string | u
     const requestId = state.nextRequestId;
     const pending = new Map(state.pending).set(requestId, { targetId: target, actionKind, slot });
     return {
-        state: { ...state, banner: undefined, pending, nextRequestId: requestId + 1 },
+        state: { ...unsaid(state), banner: undefined, pending, nextRequestId: requestId + 1 },
         send: { requestId, request: actionRequestOf(actionKind, target, model.revision) },
     };
 }

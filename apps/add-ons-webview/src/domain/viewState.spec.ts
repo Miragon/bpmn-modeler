@@ -489,8 +489,18 @@ describe("nextViewState", () => {
             ]);
         });
 
-        it("stops saying what it found once a newer model arrives", () => {
+        it("keeps saying what it found across the refresh that follows it", () => {
             const { state } = after([shown(), review(1), shown(withRevision(11))]);
+
+            expect(state.reviewCount).toBe(2);
+        });
+
+        it("stops saying what it found once the user acts on a row", () => {
+            const { state } = after([
+                shown(),
+                review(1),
+                { kind: "actionChosen", actionKind: "allow", targetId: RESIZE.id },
+            ]);
 
             expect(state.reviewCount).toBeUndefined();
         });
