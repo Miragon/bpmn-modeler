@@ -1,5 +1,6 @@
 import { posix } from "path";
 
+import { NODE_MODULES, nodeModulesDirOf } from "../../../kernel/domain/installedPackagePath";
 import { FileEntryKind } from "../../../kernel/domain/repositoryIdentity";
 import { joinWorkspacePath, parentWorkspacePath } from "../../../kernel/domain/workspacePath";
 
@@ -35,7 +36,6 @@ export interface DependencyCandidate {
     readonly packageDir: string;
 }
 
-const NODE_MODULES = "node_modules";
 const MANIFEST_FILE = "package.json";
 
 export function samePathStamp(a: PathStamp | undefined, b: PathStamp | undefined): boolean {
@@ -78,7 +78,7 @@ export function dependencyCandidates(fromDir: string, name: string): DependencyC
     const candidates: DependencyCandidate[] = [];
     for (let dir: string | undefined = fromDir; dir !== undefined; dir = parentWorkspacePath(dir)) {
         if (posix.basename(dir) !== NODE_MODULES) {
-            candidates.push({ packageDir: joinWorkspacePath(dir, NODE_MODULES, name) });
+            candidates.push({ packageDir: joinWorkspacePath(nodeModulesDirOf(dir), name) });
         }
     }
     return candidates;
