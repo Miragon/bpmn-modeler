@@ -3,7 +3,8 @@ import {
     EditorSessionContext,
     EditorSessionParticipant,
 } from "../../../editorSession/domain/EditorSessionParticipant";
-import { DocumentPort, StatusBarPort } from "../../../kernel/port/hostPorts";
+import { StatusBarPort } from "../../../kernel/port/hostPorts";
+import { EditorSessionDocuments } from "../../../editorSession/service/EditorSessionDocuments";
 import { updateStatusSlot } from "../../../kernel/service/updateStatusSlot";
 import { engineVersionStatusView } from "../domain/engineVersionStatusView";
 
@@ -14,7 +15,7 @@ import { engineVersionStatusView } from "../domain/engineVersionStatusView";
 export class EngineVersionStatusBarParticipant implements EditorSessionParticipant {
     constructor(
         private readonly statusBar: StatusBarPort,
-        private readonly documents: DocumentPort,
+        private readonly documents: EditorSessionDocuments,
     ) {}
 
     onResolve(session: EditorSessionContext): void {

@@ -2,7 +2,8 @@ import { posix } from "path";
 
 import { StartInstanceConfig, StartInstanceResult } from "../domain/startInstance";
 import { AuthConfig } from "../domain/deployment";
-import { DocumentPort, NotifierPort, PickerPort, WorkspacePort } from "../../kernel/port/hostPorts";
+import { NotifierPort, PickerPort, WorkspacePort } from "../../kernel/port/hostPorts";
+import { EditorSessionDocuments } from "../../editorSession/service/EditorSessionDocuments";
 import { CamundaEnginePort } from "../port/deploymentPorts";
 import { payloadFilePrompt } from "../domain/deploymentPrompts";
 import { ArtifactService } from "../../kernel/service/ArtifactService";
@@ -24,7 +25,7 @@ import { Engine } from "@miragon/bpmn-modeler-types";
  */
 export class StartInstanceService {
     /**
-     * @param vsDocument Active-document path and content helper.
+     * @param documents Active-document path and content helper.
      * @param vsWorkspace Filesystem and workspace-folder helper.
      * @param restClient HTTP client for the Camunda REST API.
      * @param notifier User-facing message and logging helper.
@@ -32,7 +33,7 @@ export class StartInstanceService {
      * @param artifactService Convention-based file discovery service.
      */
     constructor(
-        private readonly vsDocument: DocumentPort,
+        private readonly documents: EditorSessionDocuments,
         private readonly vsWorkspace: WorkspacePort,
         private readonly restClient: CamundaEnginePort,
         private readonly notifier: NotifierPort,
@@ -50,7 +51,7 @@ export class StartInstanceService {
      * @throws {Error} If no process element is found or the editor is not available.
      */
     getProcessDefinitionKey(editorId: string): string {
-        return new BpmnDocument(this.vsDocument.getContent(editorId)).extractProcessId();
+        return new BpmnDocument(this.documents.getContent(editorId)).extractProcessId();
     }
 
     /**
@@ -62,7 +63,7 @@ export class StartInstanceService {
      *   or no payload files are found.
      */
     async selectPayloadFile(editorId: string): Promise<{ filePath: string; label: string } | null> {
-        const filePath = this.vsDocument.getFilePath(editorId);
+        const filePath = this.documents.getFilePath(editorId);
         const documentDir = posix.dirname(filePath);
 
         const payloadPaths = await this.artifactService.getPayloadPaths(documentDir);

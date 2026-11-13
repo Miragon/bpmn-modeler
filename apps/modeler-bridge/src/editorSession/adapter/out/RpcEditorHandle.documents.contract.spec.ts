@@ -1,10 +1,12 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
+import { EditorSessionDocuments, EditorSessionStore } from "@miragon/bpmn-modeler-core";
 import { describeDocumentContract } from "@miragon/bpmn-modeler-core/testing";
 import { describe, expect, it } from "vitest";
 
 import { addressesSession, intellijDocumentWrite } from "../../../__fixtures__/intellijDocumentWrite";
+import { BridgeSettings } from "../../../kernel/adapter/out/BridgeSettings";
 import { METHODS } from "../../../protocol/domain/descriptor";
 import {
     DocumentSaveParams,
@@ -15,7 +17,7 @@ import {
 } from "../../../protocol/domain/types";
 import { Rpc } from "../../../transport/adapter/out/Rpc";
 import { DocumentMirror } from "../../domain/DocumentMirror";
-import { RpcDocumentPort } from "./RpcDocumentPort";
+import { RpcEditorHandle } from "./RpcEditorHandle";
 
 interface Frame {
     readonly id?: number;
@@ -157,25 +159,27 @@ class IntelliJDocuments {
     }
 }
 
-describeDocumentContract("RpcDocumentPort", () => {
+describeDocumentContract("EditorSessionDocuments over RpcEditorHandle", () => {
     const host = new IntelliJDocuments();
     const mirror = new DocumentMirror();
-    const revisions = new Map<string, number>();
+    const store = new EditorSessionStore(() => undefined);
 
     // Each control does what the bridge's handler for the host's notification does.
     return {
-        documents: new RpcDocumentPort(host.rpc, mirror),
+        documents: new EditorSessionDocuments(store),
         open: (path, content) => {
             const meta = host.open(path, content);
             mirror.register(meta, content);
-            revisions.set(meta.editorId, 0);
+            store.register(
+                new RpcEditorHandle(meta, mirror, host.rpc, new BridgeSettings(), "/plugin-cache"),
+            );
             return meta.editorId;
         },
         editElsewhere: (editorId, content) => {
-            revisions.set(editorId, host.edit(editorId, content));
+            store.setHostDocumentRevision(editorId, host.edit(editorId, content));
             mirror.setContent(editorId, content);
         },
-        revision: (editorId) => revisions.get(editorId) ?? 0,
+        revision: (editorId) => store.currentHostDocumentRevision(editorId),
         hostContent: (editorId) => host.text(editorId),
         failEdits: (editorId) => host.failEdits(editorId),
         failSaves: (editorId) => host.failSaves(editorId),

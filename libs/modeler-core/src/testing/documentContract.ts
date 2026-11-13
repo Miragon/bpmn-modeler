@@ -1,11 +1,15 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
+import { EditorSessionDocuments } from "../editorSession/service/EditorSessionDocuments";
 import { normalizeLineEndings } from "../kernel/domain/lineEndings";
-import { DocumentPort } from "../kernel/port/hostPorts";
 
-/** One {@link DocumentPort} adapter under the {@link describeDocumentContract} scenarios. */
+/**
+ * One host's `EditorHandle` under the {@link describeDocumentContract}
+ * scenarios, read and written through the {@link EditorSessionDocuments} over
+ * its editors.
+ */
 export interface DocumentContractFixture {
-    readonly documents: DocumentPort;
+    readonly documents: EditorSessionDocuments;
     /**
      * The user opens the file at `path`, absolute and `/`-separated
      * (`//server/share/…` on a Windows share), in an editor whose document
@@ -78,10 +82,10 @@ const APPLIED_WRITES: readonly WriteBasis[] = [
 ];
 
 /**
- * The rules of {@link DocumentPort} the core relies on, run against one
- * adapter: what the document sync, the migration, the deployment and the
- * features that read the open file's path or text read back. Where the hosts
- * differ, VS Code is the reference.
+ * The rules of the open editors' documents the core relies on, run against
+ * one host's editor handle: what the document sync, the migration, the
+ * deployment and the features that read the open file's path or text read
+ * back. Where the hosts differ, VS Code is the reference.
  *
  * Left out, because the hosts differ and the core relies on neither:
  * - A write without a revision while a host change has not reached the
@@ -93,9 +97,6 @@ const APPLIED_WRITES: readonly WriteBasis[] = [
  *   result check the session again (`DocumentSnapshot.isCurrent`,
  *   `PendingEditsFlush`); the webview sync ignores the result, and the
  *   migration counts a refused write as skipped.
- * - The text of an editor that is not open: the bridge reads an empty text,
- *   `EditorSessionDocuments` throws. The core reads only editors the store
- *   holds or catches the throw.
  * - The path of a file on a Windows drive: each host spells it as its file
  *   system does (VS Code `/c:/…`, IntelliJ `C:/…`).
  *
@@ -106,7 +107,7 @@ export function describeDocumentContract(
     adapter: string,
     createFixture: () => DocumentContractFixture,
 ): void {
-    describe(`${adapter} keeps the DocumentPort contract`, () => {
+    describe(`${adapter} keeps the document contract`, () => {
         let fixture: DocumentContractFixture;
 
         beforeEach(() => {
@@ -151,6 +152,14 @@ export function describeDocumentContract(
                     order: { content: CHANGED_ELSEWHERE, hostContent: CHANGED_ELSEWHERE },
                     invoice: { content: INVOICE.content, hostContent: INVOICE.content },
                 });
+            });
+
+            it("throws on reading the text or the path of an editor that is not open", () => {
+                const { documents } = fixture;
+                fixture.open(ORDER.path, ORDER.content);
+
+                expect(() => documents.getContent("file:///never-opened.bpmn")).toThrow();
+                expect(() => documents.getFilePath("file:///never-opened.bpmn")).toThrow();
             });
         });
 

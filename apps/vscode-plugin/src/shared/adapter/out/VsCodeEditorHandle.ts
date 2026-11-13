@@ -23,8 +23,8 @@ import { canonicalPath } from "../../domain/canonicalPath";
  *
  * Document mutation (`writeContent`/`save`) lives here rather than in a separate
  * helper because only the holder of the concrete `TextDocument` can build the
- * `WorkspaceEdit`; the `DocumentPort` adapter just routes an `editorId` to this
- * handle.
+ * `WorkspaceEdit`; the core's `EditorSessionDocuments` just routes an
+ * `editorId` to this handle.
  */
 export class VsCodeEditorHandle implements EditorHandle {
     private readonly subscriptions: Disposable[] = [];

@@ -2,7 +2,8 @@ import { posix } from "path";
 
 import { ElementTemplatesQuery, HiddenElementTemplatesQuery } from "@miragon/bpmn-modeler-shared";
 
-import { DocumentPort, NotifierPort, StatusBarPort } from "../../../kernel/port/hostPorts";
+import { NotifierPort, StatusBarPort } from "../../../kernel/port/hostPorts";
+import { EditorSessionDocuments } from "../../../editorSession/service/EditorSessionDocuments";
 import { EditorSessionStore } from "../../../editorSession/service/EditorSessionStore";
 import { ArtifactChangeTarget, ArtifactService } from "../../../kernel/service/ArtifactService";
 import { updateStatusSlot } from "../../../kernel/service/updateStatusSlot";
@@ -53,7 +54,7 @@ export class BpmnElementTemplatesService implements ArtifactChangeTarget {
      */
     constructor(
         private readonly editorStore: EditorSessionStore,
-        private readonly vsDocument: DocumentPort,
+        private readonly documents: EditorSessionDocuments,
         private readonly artifactSvc: ArtifactService,
         private readonly statusBar: StatusBarPort,
         private readonly notifier: NotifierPort,
@@ -77,7 +78,7 @@ export class BpmnElementTemplatesService implements ArtifactChangeTarget {
         const isSuperseded = () => this.latestRequests.get(editorId) !== request;
 
         try {
-            const documentDir = posix.dirname(this.vsDocument.getFilePath(editorId));
+            const documentDir = posix.dirname(this.documents.getFilePath(editorId));
             const templateDirs = await this.artifactSvc.getTemplateDirs(documentDir);
             if (isSuperseded()) {
                 return false;

@@ -16,12 +16,13 @@ import {
     nothingToMigrateSummary,
 } from "../domain/migrationSummary";
 import { migrationScopePrompt } from "../domain/migrationScopePrompt";
-import { DocumentPort, NotifierPort, PickerPort, WorkspacePort } from "../../kernel/port/hostPorts";
+import { NotifierPort, PickerPort, WorkspacePort } from "../../kernel/port/hostPorts";
+import { EditorSessionDocuments } from "../../editorSession/service/EditorSessionDocuments";
 import { EditorSessionStore } from "../../editorSession/service/EditorSessionStore";
 
 /**
  * Shows what the migration wrote into an open editor, where the host does not
- * on its own. Expects an unguarded {@link DocumentPort.write}: a host that
+ * on its own. Expects an unguarded {@link EditorSessionDocuments.write}: a host that
  * reports the change renders it from that report.
  */
 export interface CoreWriteRenderer {
@@ -49,7 +50,7 @@ interface CandidateReads {
 export class BpmnMigrationService {
     constructor(
         private readonly editorStore: EditorSessionStore,
-        private readonly vsDocument: DocumentPort,
+        private readonly documents: EditorSessionDocuments,
         private readonly vsWorkspace: WorkspacePort,
         private readonly picker: PickerPort,
         private readonly notifier: NotifierPort,
@@ -152,7 +153,7 @@ export class BpmnMigrationService {
     }
 
     /**
-     * Files open in an editor are updated via {@link DocumentPort.write};
+     * Files open in an editor are updated via {@link EditorSessionDocuments.write};
      * files only on disk are written via {@link WorkspacePort.writeFile}.
      */
     private async write(plannedWrite: PlannedWrite): Promise<MigrationResult> {
@@ -177,7 +178,7 @@ export class BpmnMigrationService {
         if (current.editorId !== undefined) {
             // No revision: with one, IntelliJ skips its guard against external
             // edits not yet sent to the webview.
-            if (!(await this.vsDocument.write(current.editorId, diagramWrite.xml))) {
+            if (!(await this.documents.write(current.editorId, diagramWrite.xml))) {
                 this.notifier.logWarning(
                     `Skipped a diagram whose editor rejected the update: ${path}`,
                 );
@@ -199,7 +200,7 @@ export class BpmnMigrationService {
         const editorId = this.editorStore.findEditorIdByPath(path);
         const content =
             editorId !== undefined
-                ? this.vsDocument.getContent(editorId)
+                ? this.documents.getContent(editorId)
                 : await this.vsWorkspace.readFile(path);
         return { document: new BpmnDocument(content), editorId };
     }

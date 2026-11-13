@@ -1,5 +1,5 @@
 import type { ModelerFileExtension } from "../../kernel/domain/modelerFileExtension";
-import { DocumentPort } from "../../kernel/port/hostPorts";
+import { EditorSessionDocuments } from "./EditorSessionDocuments";
 import { EditorSessionStore } from "./EditorSessionStore";
 
 type EngineSelector = (editorId: string) => Promise<boolean>;
@@ -7,7 +7,7 @@ type EngineSelector = (editorId: string) => Promise<boolean>;
 export class EngineVersionSelectionService {
     constructor(
         private readonly store: EditorSessionStore,
-        private readonly document: DocumentPort,
+        private readonly document: EditorSessionDocuments,
         private readonly selectors: Partial<Record<ModelerFileExtension, EngineSelector>>,
     ) {}
 

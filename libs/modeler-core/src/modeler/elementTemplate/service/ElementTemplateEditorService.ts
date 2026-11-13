@@ -2,7 +2,8 @@ import { basename } from "path";
 
 import { ElementTemplateFileQuery } from "@miragon/bpmn-modeler-shared";
 
-import { DocumentPort, NotifierPort, SettingsPort } from "../../../kernel/port/hostPorts";
+import { NotifierPort, SettingsPort } from "../../../kernel/port/hostPorts";
+import { EditorSessionDocuments } from "../../../editorSession/service/EditorSessionDocuments";
 import {
     EditorDocumentSync,
     ModelerDocumentService,
@@ -19,7 +20,7 @@ export class ElementTemplateEditorService implements ModelerDocumentService {
 
     constructor(
         private readonly editorStore: EditorSessionStore,
-        private readonly document: DocumentPort,
+        private readonly document: EditorSessionDocuments,
         private readonly settings: Pick<SettingsPort, "getLanguage">,
         private readonly notifier: NotifierPort,
     ) {

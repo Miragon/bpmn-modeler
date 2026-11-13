@@ -4,7 +4,7 @@ import { describeDocumentContract, FakeEditorHandle } from "../../testing";
 import { EditorSessionDocuments } from "./EditorSessionDocuments";
 import { EditorSessionStore } from "./EditorSessionStore";
 
-// The documents of `createTestHost`, the DocumentPort core specs run against.
+// The documents of `createTestHost`, which the core specs run against.
 describeDocumentContract("EditorSessionDocuments over FakeEditorHandle", () => {
     const store = new EditorSessionStore(() => undefined);
     const handles = new Map<string, FakeEditorHandle>();

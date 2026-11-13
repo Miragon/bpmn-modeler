@@ -22,13 +22,8 @@ import { ConventionalRoutes } from "../domain/engineRoutes";
 import { EnvLookup } from "../domain/envRef";
 import { UserCancelledError } from "../../kernel/domain/errors";
 import { loggableHost } from "../../kernel/domain/http";
-import {
-    DocumentPort,
-    NotifierPort,
-    PickerPort,
-    SettingsPort,
-    WorkspacePort,
-} from "../../kernel/port/hostPorts";
+import { NotifierPort, PickerPort, SettingsPort, WorkspacePort } from "../../kernel/port/hostPorts";
+import { EditorSessionDocuments } from "../../editorSession/service/EditorSessionDocuments";
 import { CamundaEnginePort, DeploymentStatePort, SecretStorePort } from "../port/deploymentPorts";
 import { BpmnDocument } from "../../kernel/domain/BpmnDocument";
 import { CredentialApprovalService } from "./CredentialApprovalService";
@@ -53,7 +48,7 @@ const LOCAL_ENGINE_ENDPOINT = "http://localhost:8080/engine-rest";
  */
 export class DeploymentService {
     /**
-     * @param vsDocument Active-document path and content helper.
+     * @param documents Active-document path and content helper.
      * @param vsWorkspace Filesystem and workspace-folder helper.
      * @param deploymentState Persists/restores the ad-hoc connection.
      * @param restClient HTTP client for the Camunda REST API.
@@ -65,7 +60,7 @@ export class DeploymentService {
      *   the form shows where a target has no override.
      */
     constructor(
-        private readonly vsDocument: DocumentPort,
+        private readonly documents: EditorSessionDocuments,
         private readonly vsWorkspace: WorkspacePort,
         private readonly deploymentState: DeploymentStatePort,
         private readonly restClient: CamundaEnginePort,
@@ -95,7 +90,7 @@ export class DeploymentService {
         let engine: Engine = "c7";
 
         try {
-            const filePath = this.vsDocument.getFilePath(activeEditorId);
+            const filePath = this.documents.getFilePath(activeEditorId);
             // Derive the deployment name from the filename without extension.
             deploymentName = path.basename(filePath, path.extname(filePath));
             engine = this.detectEngine(activeEditorId);
@@ -358,7 +353,7 @@ export class DeploymentService {
      *   be detected from the document content.
      */
     private detectEngine(editorId: string): Engine {
-        return new BpmnDocument(this.vsDocument.getContent(editorId)).detectPlatform();
+        return new BpmnDocument(this.documents.getContent(editorId)).detectPlatform();
     }
 
     /**

@@ -1,4 +1,5 @@
-import { DocumentPort, NotifierPort, WorkspacePort } from "../../kernel/port/hostPorts";
+import { NotifierPort, WorkspacePort } from "../../kernel/port/hostPorts";
+import { EditorSessionDocuments } from "../../editorSession/service/EditorSessionDocuments";
 import { EditorContribution } from "../../editorSession/service/EditorContribution";
 import { EditorSessionStore } from "../../editorSession/service/EditorSessionStore";
 import { searchWorkspaceDefinitionsHandler } from "../adapter/in/definitionSearchMessageHandlers";
@@ -8,7 +9,7 @@ import { DefinitionSearchParticipant } from "../service/DefinitionSearchParticip
 
 export interface DefinitionSearchHostPorts {
     readonly store: EditorSessionStore;
-    readonly documents: DocumentPort;
+    readonly documents: EditorSessionDocuments;
     readonly workspace: WorkspacePort;
     readonly notifier: NotifierPort;
 }

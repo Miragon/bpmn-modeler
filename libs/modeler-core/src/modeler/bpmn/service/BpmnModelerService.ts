@@ -4,12 +4,12 @@ import { UserCancelledError } from "../../../kernel/domain/errors";
 import { engineVersionPrompt } from "../../../kernel/domain/engineVersions";
 import { BpmnDocument } from "../../../kernel/domain/BpmnDocument";
 import {
-    DocumentPort,
     NotifierPort,
     PickerPort,
     SettingsPort,
     StatusBarPort,
 } from "../../../kernel/port/hostPorts";
+import { EditorSessionDocuments } from "../../../editorSession/service/EditorSessionDocuments";
 import { newModelEnginePrompt } from "../../../kernel/domain/newModelEngine";
 import { updateStatusSlot } from "../../../kernel/service/updateStatusSlot";
 import { EditorDocumentSync } from "../../../editorSession/service/EditorDocumentSync";
@@ -29,13 +29,13 @@ export class BpmnModelerService {
 
     constructor(
         private readonly editorStore: EditorSessionStore,
-        private readonly vsDocument: DocumentPort,
+        document: EditorSessionDocuments,
         private readonly picker: PickerPort,
         private readonly statusBar: StatusBarPort,
         private readonly notifier: NotifierPort,
         private readonly settings: SettingsPort,
     ) {
-        this.documents = new EditorDocumentSync(editorStore, vsDocument);
+        this.documents = new EditorDocumentSync(editorStore, document);
     }
 
     registerSession(editorId: string): void {

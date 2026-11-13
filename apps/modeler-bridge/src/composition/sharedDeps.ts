@@ -3,6 +3,7 @@ import {
     ArtifactService,
     ContentRowMigration,
     DocumentFlushService,
+    EditorSessionDocuments,
     EditorSessionStore,
     LOCAL_HOST,
     PendingEditsFlush,
@@ -11,7 +12,6 @@ import {
 
 import { RpcPluginApprovalStore } from "../bpmnPlugins/adapter/out/RpcPluginApprovalStore";
 import { DocumentMirror } from "../editorSession/domain/DocumentMirror";
-import { RpcDocumentPort } from "../editorSession/adapter/out/RpcDocumentPort";
 import { RpcActionNotifier } from "../kernel/adapter/out/RpcActionNotifier";
 import { RpcNotifier } from "../kernel/adapter/out/RpcNotifier";
 import { RpcPicker } from "../kernel/adapter/out/RpcPicker";
@@ -38,7 +38,7 @@ export interface BridgeSharedDeps {
     mirror: DocumentMirror;
     notifier: RpcNotifier;
     statusBar: RpcStatusBar;
-    documentPort: RpcDocumentPort;
+    documents: EditorSessionDocuments;
     nodeWorkspace: NodeWorkspace;
     settings: BridgeSettings;
     picker: RpcPicker;
@@ -87,7 +87,6 @@ export function buildSharedDeps(
     const mirror = new DocumentMirror();
     const notifier = new RpcNotifier(rpc);
     const statusBar = new RpcStatusBar(rpc);
-    const documentPort = new RpcDocumentPort(rpc, mirror);
 
     // The element-templates pipeline is the *real* production stack: the only new
     // code is the two pure-fs/host-fed port adapters (NodeWorkspace/BridgeSettings).
@@ -114,7 +113,7 @@ export function buildSharedDeps(
         mirror,
         notifier,
         statusBar,
-        documentPort,
+        documents: new EditorSessionDocuments(store),
         nodeWorkspace,
         settings,
         picker,

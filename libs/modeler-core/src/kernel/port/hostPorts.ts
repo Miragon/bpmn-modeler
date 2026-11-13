@@ -243,26 +243,6 @@ export interface WorkspacePort {
 }
 
 /**
- * Read/write access to an open editor's document, addressed by `editorId` so
- * operations always route to the right document when editors are side-by-side.
- */
-export interface DocumentPort {
-    getContent(editorId: string): string;
-    getFilePath(editorId: string): string;
-    /**
-     * @returns `true` if applied; `false` if the content was unchanged or the
-     * host refused the write (a stale revision, a replaced session, a failed
-     * edit). Only {@link getContent} tells the two apart.
-     */
-    write(editorId: string, content: string, expectedDocumentRevision?: number): Promise<boolean>;
-    /**
-     * @returns `true` when the document is saved or had nothing to save; `false`
-     * when the host could not save it.
-     */
-    save(editorId: string): Promise<boolean>;
-}
-
-/**
  * Whether the user trusts the open workspace with its own code, as the host's
  * trust feature decides: VS Code's Workspace Trust, IntelliJ's trusted
  * projects. A host without one wires none and counts as trusted.

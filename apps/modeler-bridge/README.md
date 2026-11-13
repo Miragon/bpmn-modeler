@@ -24,7 +24,7 @@ It imports only the public entry of `@miragon/bpmn-modeler-core`, never deep pat
   writes, notifications, status bar, password safe, stores and prompts). IntelliJ's
   `ProtocolHandlerCoverageTest` reads the same file and fails on a method or key without its
   counterpart on the Kotlin side.
-- **Synchronous reads hit a mirror.** The core reads `DocumentPort.getContent()` synchronously, which
+- **Synchronous reads hit a mirror.** The core reads `EditorHandle.getContent()` synchronously, which
   RPC cannot answer. `src/editorSession/domain/DocumentMirror.ts` holds the text the host seeds on
   `session/register` and keeps current with `document/didChange` and the replies to
   `document/write`. Settings, plugin approvals, template switches and deployment state use mirrors

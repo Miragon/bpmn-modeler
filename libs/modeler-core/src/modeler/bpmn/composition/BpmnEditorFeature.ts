@@ -5,13 +5,13 @@ import { BpmnEditorCommandType } from "@miragon/bpmn-modeler-shared";
 import { TemplatePreferenceStorePort } from "../../../kernel/port/templatePreferencePorts";
 import {
     ClipboardPort,
-    DocumentPort,
     NotifierPort,
     PickerPort,
     SettingsPort,
     StatusBarPort,
     WorkspacePort,
 } from "../../../kernel/port/hostPorts";
+import { EditorSessionDocuments } from "../../../editorSession/service/EditorSessionDocuments";
 import { ArtifactService } from "../../../kernel/service/ArtifactService";
 import { EditorSessionParticipant } from "../../../editorSession/domain/EditorSessionParticipant";
 import {
@@ -88,7 +88,7 @@ export type DocumentSyncCommandType = (typeof DOCUMENT_SYNC_COMMAND_TYPES)[numbe
 
 export interface BpmnEditorHostPorts {
     readonly store: EditorSessionStore;
-    readonly documents: DocumentPort;
+    readonly documents: EditorSessionDocuments;
     readonly workspace: WorkspacePort;
     readonly settings: SettingsPort;
     readonly notifier: NotifierPort;
@@ -326,7 +326,7 @@ export class BpmnEditorFeature {
 
     /**
      * Shows content the core wrote into an open editor through an unguarded
-     * {@link DocumentPort.write}. Only a `host-driven` host needs this: it reports
+     * {@link EditorSessionDocuments.write}. Only a `host-driven` host needs this: it reports
      * no change for the core's own write. On the other hosts that change renders,
      * which a guarded write would suppress.
      */

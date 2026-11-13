@@ -1,5 +1,5 @@
 import { ModelerSession } from "../domain/session";
-import { DocumentPort } from "../../kernel/port/hostPorts";
+import { EditorSessionDocuments } from "./EditorSessionDocuments";
 import { EditorSessionStore } from "./EditorSessionStore";
 
 /** The document as one display call found it; async work re-checks it before acting. */
@@ -34,7 +34,7 @@ export class EditorDocumentSync {
 
     constructor(
         private readonly store: EditorSessionStore,
-        private readonly document: DocumentPort,
+        private readonly document: EditorSessionDocuments,
     ) {}
 
     register(editorId: string): void {
