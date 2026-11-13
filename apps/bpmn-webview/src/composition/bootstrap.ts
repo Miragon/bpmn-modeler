@@ -4,16 +4,13 @@ import { extras as i18nExtras } from "@miragon/bpmn-modeler-i18n-extras";
 import {
     type BpmnModelerSettingQuery,
     type BpmnPluginsQuery,
-    type Command,
     type ElementTemplatesQuery,
     GetBpmnFileCommand,
     GetBpmnModelerSettingCommand,
     GetBpmnPluginsCommand,
     GetPropertiesPanelStateCommand,
     HOST_REPLY_TIMEOUT_MS,
-    type HostApi,
     type PropertiesPanelStateQuery,
-    type Query,
     RequestFocusCommand,
     type WebviewStateHost,
     applyPageThemeScope,
@@ -33,7 +30,7 @@ import { HostModelerState } from "../domain/hostModelerState";
 import { BpmnDocumentSession } from "../service/documentSession";
 import { mountEditorChrome } from "../adapter/in/editorChrome";
 import type { Translator } from "../port/documentSessionPorts";
-import type { HostChannel } from "../port/hostChannel";
+import type { BpmnWebviewHost, HostChannel } from "../port/hostChannel";
 import { createLintBridge } from "../adapter/out/lintBridge";
 import {
     createHostMessageRouter,
@@ -92,10 +89,7 @@ interface BootstrapOptions {
  * prerequisite for hosting more than one modeler on a page. Single-instance
  * hosts (VS Code, IntelliJ, Theia) call it exactly once.
  */
-export function bootstrap(
-    host: HostApi<WebviewState, Command | Query>,
-    opts: BootstrapOptions = {},
-): void {
+export function bootstrap(host: BpmnWebviewHost, opts: BootstrapOptions = {}): void {
     // Only the diff pane posts outside the BPMN editor's command list.
     const editorHost: HostChannel & WebviewStateHost<WebviewState> = host;
     const translator: Translator = {
