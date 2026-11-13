@@ -10,6 +10,15 @@
  * title whenever it differs. This registry gives every part whose original
  * container is a registered plugin view container that container's current
  * title first, also when the part was moved into another container.
+ *
+ * A view a newer version contributes to another container would also stay
+ * where the stored layout keeps it: Theia leaves an existing view widget in
+ * its current container, and closes the new container as it has no part. So
+ * a view the old version put into another plugin container (its part's
+ * original container is that container) is removed from it first, which
+ * disposes the widget, and Theia builds it anew in its own container. A
+ * plugin container left without a visible view closes; Theia opens it again
+ * once its view shows. A view the user dragged elsewhere keeps their place.
  */
 import type {
     ViewContainer,
@@ -19,8 +28,10 @@ import { Disposable, DisposableCollection } from "@theia/core/lib/common/disposa
 import { injectable } from "@theia/core/shared/inversify";
 import {
     PLUGIN_VIEW_CONTAINER_FACTORY_ID,
+    PLUGIN_VIEW_FACTORY_ID,
     PluginViewRegistry,
 } from "@theia/plugin-ext/lib/main/browser/view/plugin-view-registry";
+import type { PluginViewWidget } from "@theia/plugin-ext/lib/main/browser/view/plugin-view-widget";
 
 const PLUGIN_VIEW_CONTAINER_WIDGET_ID_PREFIX = `${PLUGIN_VIEW_CONTAINER_FACTORY_ID}:`;
 
@@ -51,7 +62,35 @@ export class CurrentTitlePluginViewRegistry extends PluginViewRegistry {
                 refreshOriginalContainerTitle(part, currentTitle);
             }
         }
+        await this.releaseViewsLeftBehind(viewContainerId);
         await super.prepareViewContainer(viewContainerId, containerWidget);
+    }
+
+    private async releaseViewsLeftBehind(viewContainerId: string): Promise<void> {
+        for (const viewId of this.getContainerViews(viewContainerId)) {
+            const leftBehind = await this.placedElsewhereByOldVersion(viewId, viewContainerId);
+            if (leftBehind) {
+                releaseView(leftBehind.container, leftBehind.widget);
+            }
+        }
+    }
+
+    private async placedElsewhereByOldVersion(
+        viewId: string,
+        viewContainerId: string,
+    ): Promise<{ container: ViewContainer; widget: PluginViewWidget } | undefined> {
+        const widget = this.widgetManager.tryGetWidget<PluginViewWidget>(
+            PLUGIN_VIEW_FACTORY_ID,
+            this.toPluginViewWidgetIdentifier(viewId),
+        );
+        const currentId = widget?.currentViewContainerId;
+        if (widget === undefined || currentId === undefined || currentId === viewContainerId) {
+            return undefined;
+        }
+        const container = await this.getPluginViewContainer(currentId);
+        return container && wasPlacedByOldVersion(container, widget)
+            ? { container, widget }
+            : undefined;
     }
 
     private currentTitleOfWidget(containerWidgetId: string): ViewContainerTitleOptions | undefined {
@@ -61,6 +100,18 @@ export class CurrentTitlePluginViewRegistry extends PluginViewRegistry {
         return this.currentTitleByContainerId.get(
             containerWidgetId.slice(PLUGIN_VIEW_CONTAINER_WIDGET_ID_PREFIX.length),
         );
+    }
+}
+
+function wasPlacedByOldVersion(container: ViewContainer, widget: PluginViewWidget): boolean {
+    return container.getPartFor(widget)?.originalContainerId === container.id;
+}
+
+function releaseView(container: ViewContainer, widget: PluginViewWidget): void {
+    container.removeWidget(widget);
+    const isPluginContainer = container.id.startsWith(PLUGIN_VIEW_CONTAINER_WIDGET_ID_PREFIX);
+    if (isPluginContainer && container.getParts().every(({ isHidden }) => isHidden)) {
+        container.dispose();
     }
 }
 

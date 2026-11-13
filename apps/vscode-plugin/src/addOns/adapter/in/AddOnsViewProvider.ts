@@ -20,7 +20,7 @@ export const ADD_ONS_VIEW_ID = "bpmn-modeler.addOnsView";
 export const REFRESH_ADD_ONS_CMD = "bpmn-modeler.refreshAddOns";
 
 /**
- * The Add-ons view in the BPMN Modeler container and its title bar's
+ * The Add-ons view in its own activity bar container and its title bar's
  * refresh. Host glue only: the core's {@link AddOnsFeature} builds the
  * catalog, answers the page and refreshes when the view is shown again.
  */

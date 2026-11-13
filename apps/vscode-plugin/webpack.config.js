@@ -89,8 +89,8 @@ module.exports = (env, argv) => {
                         to: "assets",
                     },
                     {
-                        // File-explorer icons referenced by contributes.languages[].icon,
-                        // resolved relative to the packaged extension root.
+                        // Icons referenced by contributes.languages[].icon and the activity
+                        // bar containers, resolved relative to the packaged extension root.
                         from: path.resolve(__dirname, "icons"),
                         to: "icons",
                     },

@@ -148,7 +148,7 @@
 
         <!-- The BPMN Modeler tool window: a Deploy tab with the Camunda 7/8 deployment webview and an
              Add-ons tab with the project's add-ons, each driven by the shared core over the bridge
-             (the IntelliJ counterpart of the VS Code BPMN Modeler container). The id is the old
+             (the IntelliJ counterpart of VS Code's Add-ons and Deploy containers). The id is the old
              deployment tool window's, so the layout a user saved still applies; the factory sets the
              stripe title. -->
         <toolWindow

@@ -6,7 +6,7 @@ See and manage everything your workspace adds to the BPMN editor in one place: [
 
 ## Open the view
 
-Click the Miragon comet in the activity bar to open the **BPMN Modeler** container. **Add-ons** shows there whenever a folder is open; **Deploy** shows above it while a diagram is open. **Review…** on a plugin or rule package notification opens the view too (see [Allow code](#allow-code)). **Miragon BPMN Modeler: Review Add-ons** in the Command Palette opens it on the add-ons that need your review.
+Click the puzzle icon in the activity bar to open **Add-ons**. It shows whenever a folder is open and has the whole side bar to itself; **Deploy** has its own rocket icon while a diagram is open. **Review…** on a plugin or rule package notification opens the view too (see [Allow code](#allow-code)). **Miragon BPMN Modeler: Review Add-ons** in the Command Palette opens it on the add-ons that need your review.
 
 ## What it lists
 

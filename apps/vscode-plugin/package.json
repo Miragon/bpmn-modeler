@@ -265,25 +265,32 @@
         "viewsContainers": {
             "activitybar": [
                 {
+                    "id": "bpmn-modeler-add-ons",
+                    "title": "Add-ons",
+                    "icon": "./icons/puzzle.svg"
+                },
+                {
                     "id": "bpmn-modeler-deploy",
-                    "title": "BPMN Modeler",
-                    "icon": "./icons/komet.svg"
+                    "title": "Deploy",
+                    "icon": "$(rocket)"
                 }
             ]
         },
         "views": {
+            "bpmn-modeler-add-ons": [
+                {
+                    "type": "webview",
+                    "id": "bpmn-modeler.addOnsView",
+                    "name": "Add-ons",
+                    "when": "workspaceFolderCount > 0"
+                }
+            ],
             "bpmn-modeler-deploy": [
                 {
                     "type": "webview",
                     "id": "bpmn-modeler.deploymentView",
                     "name": "Deploy",
                     "when": "bpmn-modeler.openCustomEditors > 0"
-                },
-                {
-                    "type": "webview",
-                    "id": "bpmn-modeler.addOnsView",
-                    "name": "Add-ons",
-                    "when": "workspaceFolderCount > 0"
                 }
             ]
         },
