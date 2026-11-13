@@ -1,4 +1,5 @@
 import { compareText, type Finding, sortFindings } from "../../fitness/domain/finding";
+import { TEST_FOLDERS } from "../../sourceFiles/domain/sourceFiles";
 
 export interface ValueSetOccurrence {
     /** POSIX path relative to the repo root. */
@@ -24,19 +25,29 @@ interface ValueSet {
 }
 
 const SCRIPT_FILE = /\.([mc]?[jt]s|[jt]sx)$/;
-// Specs and fixtures are inputs of tests; a declaration file repeats third-party typings per workspace;
-// a build config is configuration, as change coupling treats it.
-const UNREAD_SCRIPT_FILE =
-    /\.(spec|test)\.[^/]+$|(^|\/)__fixtures__\/|\.d\.[mc]?ts$|(^|\/)[^/]*\.config\.[^/]+$/;
+// Specs and test folders are tests and their inputs; a declaration file repeats third-party typings
+// per workspace; a build config is configuration, as change coupling treats it.
+const UNREAD_SCRIPT_FILE = /\.(spec|test)\.[^/]+$|\.d\.[mc]?ts$|(^|\/)[^/]*\.config\.[^/]+$/;
 const MIN_DISTINCT_VALUES = 2;
 const MIN_FILE_GROUPS = 2;
+const TYPE_PIN_REMEDY =
+    "pin the copy to the home's type, and derive it from the home only where the order is the same concern";
 
 export function isValueSetSource(path: string): boolean {
-    return SCRIPT_FILE.test(path) && !UNREAD_SCRIPT_FILE.test(path);
+    const folders = path.split("/").slice(0, -1);
+    return (
+        SCRIPT_FILE.test(path) &&
+        !UNREAD_SCRIPT_FILE.test(path) &&
+        !folders.some((folder) => TEST_FOLDERS.has(folder))
+    );
 }
 
 function canonicalValues(values: readonly string[]): string[] {
     return [...new Set(values)].sort(compareText);
+}
+
+function writtenOrder(values: readonly string[]): string {
+    return JSON.stringify([...new Set(values)]);
 }
 
 function compareOccurrences(left: ValueSetOccurrence, right: ValueSetOccurrence): number {
@@ -94,12 +105,23 @@ export function repeatedValueSetFindings({ occurrences, pins }: ValueSetInventor
                 path: occurrence.path,
                 paths: [occurrence.path],
                 line: occurrence.line,
-                message: `${valueList}, also at ${sorted
-                    .filter((other) => other !== occurrence)
-                    .map(location)
-                    .join(", ")}`,
+                message: `${valueList}, also at ${othersText(occurrence, sorted)}`,
             }));
         },
     );
     return sortFindings(findings);
+}
+
+// Deriving a copy from its home (reversed, sorted) ties its order to the home's; a pin keeps it its own.
+function othersText(
+    occurrence: ValueSetOccurrence,
+    sameSet: readonly ValueSetOccurrence[],
+): string {
+    const others = sameSet.filter((other) => other !== occurrence);
+    const order = writtenOrder(occurrence.values);
+    const reordered = others.filter((other) => writtenOrder(other.values) !== order);
+    const othersList = others.map(location).join(", ");
+    return reordered.length === 0
+        ? othersList
+        : `${othersList}; in another order at ${reordered.map(location).join(", ")}: ${TYPE_PIN_REMEDY}`;
 }
