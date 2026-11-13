@@ -35,6 +35,8 @@ interface SurfaceFactoryPorts {
         | "applyDesignerSettingsPushedSince"
         | "elementIdConventionOptions"
     >;
+    /** Present when the host shows the element ID review in its own panel. */
+    openElementIdReview?: () => void;
     onModelerModeChanged(mode: ModelerMode): void;
 }
 
@@ -94,7 +96,11 @@ export function createSurfaceFactories(
                 createDesigner(container, {
                     theme,
                     favouriteBpmnElements: settingsAtCreation?.favouriteBpmnElements,
-                    elementIdSettings: { ...elementIdSettingsOf(settingsAtCreation), convention },
+                    elementIdSettings: {
+                        ...elementIdSettingsOf(settingsAtCreation),
+                        convention,
+                        openReview: ports.openElementIdReview,
+                    },
                     propertiesPanel: { parent: propertiesPanelParent },
                     clipboard: ports.clipboard,
                     capabilities: {
@@ -148,7 +154,7 @@ export function createSurfaceFactories(
                     handleGlobalEscape: true,
                 }),
             );
-            modeler.setElementIdSettings({ convention });
+            modeler.setElementIdSettings({ convention, openReview: ports.openElementIdReview });
             // A push during the async init only reached the previous surface.
             hostModelerState.applySettingsPushedSince(settingsAtCreation, modeler);
             await applyConventionPushedSince(conventionAtCreation, modeler);

@@ -3,7 +3,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
     BpmnPluginsQuery,
     Command,
+    ElementIdProposalsCommand,
+    ElementIdProposalsQuery,
     ElementIdReviewCommand,
+    ElementIdsAppliedCommand,
+    GetBpmnFileCommand,
+    OpenElementIdReviewCommand,
     SetClipboardCommand,
     SetPropertiesPanelStateCommand,
     SetTextClipboardCommand,
@@ -14,13 +19,17 @@ import { createTestHost } from "../../../../testing";
 import { ElementIdsService } from "../../service/ElementIdsService";
 import {
     answerWithoutPluginsHandler,
+    elementIdProposalsHandler,
     elementIdReviewHandler,
+    elementIdsAppliedHandler,
     getBpmnlintConfigHandler,
     getBpmnModelerSettingHandler,
     getClipboardHandler,
     getElementTemplatesHandler,
     getPropertiesPanelStateHandler,
     getTextClipboardHandler,
+    openElementIdReviewHandler,
+    resumeElementIdReviewHandler,
     setClipboardHandler,
     setPropertiesPanelStateHandler,
     setTextClipboardHandler,
@@ -202,5 +211,40 @@ describe("elementIdReviewHandler", () => {
         );
 
         expect(host.notifier.infos).toEqual(infos);
+    });
+});
+
+describe("the host's own element ID review", () => {
+    function setUp() {
+        const host = createTestHost();
+        const editor = host.openEditor("/work/order.bpmn");
+        const panel = { show: vi.fn(), close: vi.fn() };
+        const service = new ElementIdsService(host.store, host.notifier, panel);
+        return { editor, panel, service };
+    }
+
+    it("opens the review from the editor's own link and shows the rows it lists", async () => {
+        const { editor, panel, service } = setUp();
+
+        await openElementIdReviewHandler(service)(new OpenElementIdReviewCommand(), editor.id);
+        await elementIdProposalsHandler(service)(
+            new ElementIdProposalsCommand("listed", [], []),
+            editor.id,
+        );
+
+        expect(editor.posted).toEqual([new ElementIdProposalsQuery(null)]);
+        expect(panel.show).toHaveBeenCalledOnce();
+    });
+
+    it("asks a restarted page for the rows again and closes the panel once applied", async () => {
+        const { editor, panel, service } = setUp();
+        await service.generate(editor.id);
+        service.reportProposals(editor.id, new ElementIdProposalsCommand("listed", [], ["P"]));
+
+        await resumeElementIdReviewHandler(service)(new GetBpmnFileCommand(), editor.id);
+        await elementIdsAppliedHandler(service)(new ElementIdsAppliedCommand(0), editor.id);
+
+        expect(editor.posted.at(-1)).toEqual(new ElementIdProposalsQuery(["P"]));
+        expect(panel.close).toHaveBeenCalledOnce();
     });
 });

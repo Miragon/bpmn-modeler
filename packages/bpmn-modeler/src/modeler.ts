@@ -21,6 +21,7 @@ import {
     BpmnModelerSetting,
     describeScriptSurface,
     DisposableStore,
+    type ElementIdProposals,
     type ElementIdReviewOutcome,
     type ElementTemplateRef,
     Engine,
@@ -59,6 +60,8 @@ import {
     formatSurfaceDiagram,
     installClipboardSupport,
     openSurfaceElementIdReview,
+    proposeSurfaceElementIds,
+    renameSurfaceElementIds,
     subscribeCommandStackChanged,
     subscribeFormatted,
 } from "./editableSurface";
@@ -538,18 +541,26 @@ export class BpmnModeler {
     }
 
     /** @see BpmnModelerHandle.setElementIdSettings */
-    setElementIdSettings(options: ElementIdOptions): void {
-        if (options.followName !== undefined) {
-            this.setSettings({ elementIdsFollowName: options.followName });
+    setElementIdSettings({ followName, ...options }: ElementIdOptions): void {
+        if (followName !== undefined) {
+            this.setSettings({ elementIdsFollowName: followName });
         }
-        if (options.convention) {
-            applyElementIdSettings(this.core, { convention: options.convention });
-        }
+        applyElementIdSettings(this.core, options);
     }
 
     /** @see BpmnModelerHandle.openElementIdReview */
     openElementIdReview(): ElementIdReviewOutcome {
         return openSurfaceElementIdReview(this.core);
+    }
+
+    /** @see BpmnModelerHandle.proposeElementIds */
+    proposeElementIds(unchecked?: readonly string[]): ElementIdProposals {
+        return proposeSurfaceElementIds(this.core, unchecked);
+    }
+
+    /** @see BpmnModelerHandle.renameElementIds */
+    renameElementIds(unchecked: readonly string[]): number {
+        return renameSurfaceElementIds(this.core, unchecked);
     }
 
     /** @internal */

@@ -1,6 +1,4 @@
-/** The kinds the review groups elements by. */
-export type ElementKind =
-    "process" | "participant" | "lane" | "activity" | "event" | "gateway" | "flow" | "other";
+import type { ElementIdKind } from "@miragon/bpmn-modeler-types";
 
 const TASKS = [
     "Task",
@@ -13,7 +11,7 @@ const TASKS = [
     "ScriptTask",
 ];
 
-const KIND_OF_TYPE: Readonly<Record<string, ElementKind>> = {
+const KIND_OF_TYPE: Readonly<Record<string, ElementIdKind>> = {
     Process: "process",
     Participant: "participant",
     Lane: "lane",
@@ -50,7 +48,7 @@ export function localType(bpmnType: string): string {
     return bpmnType.replace(/^[^:]*:/, "");
 }
 
-export function elementKindOf(bpmnType: string): ElementKind {
+export function elementKindOf(bpmnType: string): ElementIdKind {
     return KIND_OF_TYPE[localType(bpmnType)] ?? "other";
 }
 
@@ -63,7 +61,7 @@ export function keepsIdUnlessAsked(bpmnType: string): boolean {
 }
 
 // bpmn-js names a new ID after the element's kind since v7, and after its type before and in templates.
-const SHARED_PREFIX: Partial<Record<ElementKind, string>> = {
+const SHARED_PREFIX: Partial<Record<ElementIdKind, string>> = {
     activity: "Activity",
     event: "Event",
     gateway: "Gateway",

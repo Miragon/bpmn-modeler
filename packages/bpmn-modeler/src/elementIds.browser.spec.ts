@@ -461,6 +461,80 @@ describe("generating element IDs from names", () => {
         );
     });
 
+    describe("a host's own review panel", () => {
+        it("lists the rows for the host's panel, with process IDs unchecked", async () => {
+            const { handle } = await openModeler();
+
+            const { rows, unchecked } = handle.proposeElementIds();
+
+            expect(unchecked).toEqual(["Process_0d1e2f3"]);
+            expect(rows.map((row) => [row.id, row.status, row.newId])).toEqual([
+                ["Process_0d1e2f3", "unchecked", "orderFulfilment"],
+                ["Event_0k3j1vq", "rename", "startEvent_orderReceived"],
+                ["Activity_1x9f2ab", "rename", "serviceTask_checkStock"],
+                ["Activity_0h7g6f5", "rename", "task_shipOrder"],
+                ["Flow_0aaaaaa", "skipped", undefined],
+                ["Flow_1m2n3b4", "rename", "flow_inStock"],
+            ]);
+        });
+
+        it("renames the rows the host left checked in one undo step", async () => {
+            const { handle, services } = await openModeler();
+
+            expect(handle.renameElementIds(["Process_0d1e2f3", "Activity_0h7g6f5"])).toBe(3);
+            expect(ids(services)).toEqual([
+                "Activity_0h7g6f5",
+                "Flow_0aaaaaa",
+                "Process_0d1e2f3",
+                "flow_inStock",
+                "serviceTask_checkStock",
+                "startEvent_orderReceived",
+            ]);
+
+            services.commandStack.undo();
+
+            expect(services.elementRegistry.get("Activity_1x9f2ab")).toBeDefined();
+            expect(services.elementRegistry.get("Event_0k3j1vq")).toBeDefined();
+        });
+
+        it("opens the host's panel from the link under the ID field instead of the canvas panel", async () => {
+            const { handle, panel, services } = await openModeler();
+            let opened = 0;
+            handle.setElementIdSettings({ openReview: () => opened++ });
+            services.selection.select(services.elementRegistry.get("Activity_1x9f2ab")!);
+            await afterPaint();
+            if (!panel.querySelector(".eid-id-actions")) {
+                panel
+                    .querySelector<HTMLElement>(
+                        '[data-group-id="group-general"] .bio-properties-panel-group-header',
+                    )
+                    ?.click();
+                await afterPaint();
+            }
+
+            panel.querySelectorAll<HTMLButtonElement>(".eid-id-actions .eid-link")[1]!.click();
+            await afterPaint();
+
+            expect(opened).toBe(1);
+            expect(panelRoot()).toBeNull();
+        });
+
+        it("lists and renames on the designer too", async () => {
+            const { container, panel } = mountWithPanel(1200, 800);
+            const designer = (await createDesigner(container, {
+                propertiesPanel: { parent: panel },
+                elementIdSettings: { convention: miragon },
+            })) as BpmnDesigner;
+            handles.push(designer);
+            await designer.loadDiagram(ORDER_PROCESS);
+
+            expect(designer.proposeElementIds(["Activity_1x9f2ab"]).rows[2]?.status).toBe(
+                "unchecked",
+            );
+            expect(designer.renameElementIds(["Process_0d1e2f3"])).toBe(4);
+        });
+    });
+
     it("works on the engine-neutral designer too", async () => {
         const { container, panel } = mountWithPanel(1200, 800);
         const designer = (await createDesigner(container, {

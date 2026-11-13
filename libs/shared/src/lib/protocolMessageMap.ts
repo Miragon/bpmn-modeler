@@ -66,6 +66,12 @@ import type {
     GetFormPreviewCommand,
     FormatDiagramQuery,
     ElementIdConventionQuery,
+    ElementIdProposalsQuery,
+    ApplyElementIdsQuery,
+    CloseElementIdReviewQuery,
+    ElementIdProposalsCommand,
+    ElementIdsAppliedCommand,
+    OpenElementIdReviewCommand,
     GenerateElementIdsQuery,
     GetBpmnFileCommand,
     GetBpmnModelerSettingCommand,
@@ -162,6 +168,9 @@ export type ProtocolQuery =
     | CleanupDiagramQuery
     | GenerateElementIdsQuery
     | ElementIdConventionQuery
+    | ElementIdProposalsQuery
+    | ApplyElementIdsQuery
+    | CloseElementIdReviewQuery
     | FormDefaultsQuery
     | DeploymentResultQuery
     | StoredCredentialsQuery
@@ -225,6 +234,9 @@ export type ProtocolCommand =
     | DiagramFormattedCommand
     | CleanupReportCommand
     | ElementIdReviewCommand
+    | ElementIdProposalsCommand
+    | ElementIdsAppliedCommand
+    | OpenElementIdReviewCommand
     | OpenScriptEditorsCommand
     | UpdateScriptSourceCommand
     | UpdateScriptVariablesCommand

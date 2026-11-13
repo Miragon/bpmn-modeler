@@ -19,6 +19,9 @@ export type SessionMessageType =
     | "CleanupDiagramQuery"
     | "GenerateElementIdsQuery"
     | "ElementIdConventionQuery"
+    | "ElementIdProposalsQuery"
+    | "ApplyElementIdsQuery"
+    | "CloseElementIdReviewQuery"
     | "UpdateScriptContentQuery"
     | "UpdateScriptFormatQuery"
     | "UpdateOpenScriptEditorsQuery"
@@ -48,6 +51,10 @@ const IMPORT_BOUND_MESSAGE_TYPES: ReadonlySet<string> = new Set([
     "HiddenElementTemplatesQuery",
     "BpmnModelerSettingQuery",
     "ElementIdConventionQuery",
+    // A host's review asks again as soon as a restarted page loads; the rows need the diagram.
+    "ElementIdProposalsQuery",
+    "ApplyElementIdsQuery",
+    "CloseElementIdReviewQuery",
     "BpmnlintResultsQuery",
     "BpmnLintDisabledQuery",
     "BpmnlintInPageQuery",

@@ -31,8 +31,12 @@ export type {
 } from "@miragon/bpmn-modeler-types";
 export type {
     ElementIdConventionOptions,
+    ElementIdKind,
+    ElementIdProposals,
     ElementIdReviewOutcome,
     ElementIdReviewStatus,
+    ElementIdRow,
+    ElementIdRowStatus,
     ElementIdSettings,
 } from "@miragon/bpmn-modeler-types";
 

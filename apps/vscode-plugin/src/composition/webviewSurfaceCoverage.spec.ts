@@ -66,6 +66,9 @@ const VSCODE_SURFACES: HostSurfaceCoverage = {
         DiagramFormattedCommand: HANDLED,
         CleanupReportCommand: HANDLED,
         ElementIdReviewCommand: HANDLED,
+        ElementIdProposalsCommand: HANDLED,
+        ElementIdsAppliedCommand: HANDLED,
+        OpenElementIdReviewCommand: HANDLED,
     },
     bpmnDiffPane: {
         GetBpmnFileCommand: HANDLED,

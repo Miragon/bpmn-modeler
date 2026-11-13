@@ -89,6 +89,11 @@ export * from "./editorSession/adapter/in/webviewNotificationMessageHandlers";
 export * from "./modeler/bpmn/composition/BpmnEditorFeature";
 export * from "./modeler/bpmn/domain/model";
 export * from "./modeler/bpmn/domain/elementIdTexts";
+export type {
+    ElementIdReviewGroupView,
+    ElementIdReviewRowView,
+    ElementIdReviewView,
+} from "./modeler/bpmn/domain/elementIdReviewView";
 export * from "./modeler/bpmn/port/bpmnPorts";
 export * from "./modeler/bpmn/port/installedPackagesPort";
 export * from "./modeler/bpmn/service/BpmnModelerService";

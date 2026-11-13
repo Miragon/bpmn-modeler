@@ -48,6 +48,7 @@ const clipboard = { bridge: {} } as unknown as ClipboardOptions;
 function factoriesWith(
     hostModelerState = new HostModelerState(),
     plugins: Promise<SurfacePlugins> | undefined = undefined,
+    openElementIdReview: (() => void) | undefined = undefined,
 ) {
     const posted: (Command | Query)[] = [];
     const propertiesPanelParent = document.createElement("div");
@@ -63,6 +64,7 @@ function factoriesWith(
             clipboard,
             lintBridge: { surfaceOptions: async () => lintOptions },
             hostModelerState,
+            openElementIdReview,
             onModelerModeChanged,
         },
     );
@@ -233,6 +235,27 @@ describe("createSurfaceFactories", () => {
         expect(modeler.setElementIdSettings).toHaveBeenCalledExactlyOnceWith({
             convention: { convention: undefined },
         });
+    });
+
+    it("hands the designer and the modeler the host's own element ID review", async () => {
+        const openElementIdReview = vi.fn();
+        const modeler = { setSettings: vi.fn(), setElementIdSettings: vi.fn() };
+        mocks.createModeler.mockResolvedValue(modeler);
+        mocks.createDesigner.mockResolvedValue({
+            setFavouriteBpmnElements: vi.fn(),
+            setElementIdSettings: vi.fn(),
+        });
+        const { surfaces } = factoriesWith(undefined, undefined, openElementIdReview);
+
+        await surfaces.design!({ container, engine: undefined, theme: "light" });
+        await surfaces.implement!({ container, engine: "c7", theme: "light", mode: "implement" });
+
+        expect(mocks.createDesigner.mock.calls[0]![1].elementIdSettings.openReview).toBe(
+            openElementIdReview,
+        );
+        expect(modeler.setElementIdSettings).toHaveBeenCalledExactlyOnceWith(
+            expect.objectContaining({ openReview: openElementIdReview }),
+        );
     });
 
     it("routes the modeler's warnings and mode toggles", async () => {

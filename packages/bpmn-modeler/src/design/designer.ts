@@ -36,6 +36,8 @@ import {
     formatSurfaceDiagram,
     installClipboardSupport,
     openSurfaceElementIdReview,
+    proposeSurfaceElementIds,
+    renameSurfaceElementIds,
     subscribeCommandStackChanged,
     subscribeFormatted,
 } from "../editableSurface";
@@ -44,6 +46,7 @@ import { createReporter, type SurfaceReporter } from "../reporting/reporting";
 import type {
     BpmnlintConfig,
     CleanupOutcome,
+    ElementIdProposals,
     ElementIdReviewOutcome,
     LintResults,
 } from "@miragon/bpmn-modeler-types";
@@ -252,6 +255,16 @@ export class BpmnDesigner {
     /** @see BpmnDesignerHandle.openElementIdReview */
     openElementIdReview(): ElementIdReviewOutcome {
         return openSurfaceElementIdReview(this.core);
+    }
+
+    /** @see BpmnDesignerHandle.proposeElementIds */
+    proposeElementIds(unchecked?: readonly string[]): ElementIdProposals {
+        return proposeSurfaceElementIds(this.core, unchecked);
+    }
+
+    /** @see BpmnDesignerHandle.renameElementIds */
+    renameElementIds(unchecked: readonly string[]): number {
+        return renameSurfaceElementIds(this.core, unchecked);
     }
 
     /**

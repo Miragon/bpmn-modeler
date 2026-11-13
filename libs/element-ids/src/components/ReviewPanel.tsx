@@ -1,7 +1,7 @@
+import { ELEMENT_ID_GROUPS } from "@miragon/bpmn-modeler-types";
 import type { ComponentChildren } from "preact";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 
-import type { ElementKind } from "../elementKinds";
 import type { ElementIdProposal } from "../ElementIdsService";
 import type { Translate } from "../translate";
 import { iconClassOf } from "../typeIcons";
@@ -17,17 +17,6 @@ export interface ReviewPanelProps {
     readonly onReveal: (proposal: ElementIdProposal) => void;
     readonly translate: Translate;
 }
-
-const GROUPS: readonly { readonly kind: ElementKind; readonly label: string }[] = [
-    { kind: "process", label: "Processes" },
-    { kind: "participant", label: "Pools" },
-    { kind: "lane", label: "Lanes" },
-    { kind: "activity", label: "Activities" },
-    { kind: "event", label: "Events" },
-    { kind: "gateway", label: "Gateways" },
-    { kind: "flow", label: "Flows" },
-    { kind: "other", label: "Other elements" },
-];
 
 const MATCHES = "matches";
 const SKIPPED = "skipped";
@@ -262,7 +251,7 @@ export function ReviewPanel(props: ReviewPanelProps) {
             </header>
             <div class="eid-tree">
                 {changing.length === 0 && <p class="eid-empty">{translate(emptyText)}</p>}
-                {GROUPS.map(({ kind, label }) => {
+                {ELEMENT_ID_GROUPS.map(({ kind, label }) => {
                     const rows = changing.filter((p) => p.candidate.kind === kind);
                     if (rows.length === 0) {
                         return null;

@@ -26,6 +26,9 @@
  * - {@link CleanupDiagramQuery}           — report, or on confirmation remove, diagram garbage
  * - {@link GenerateElementIdsQuery}       — open the review of IDs generated from element names
  * - {@link ElementIdConventionQuery}      — deliver the lint rule's convention for IDs generated from names
+ * - {@link ElementIdProposalsQuery}       — list the review's rows for the host's panel, and keep it posted
+ * - {@link ApplyElementIdsQuery}          — rename the rows the host's panel left checked
+ * - {@link CloseElementIdReviewQuery}     — stop posting the review's rows
  * - {@link WorkspaceDefinitionsQuery}     — answer a definition search with matches from other models
  *
  * Commands (webview → extension host):
@@ -41,6 +44,9 @@
  * - {@link DiagramFormattedCommand}           — outcome of a format attempt, successful or not
  * - {@link CleanupReportCommand}              — what a cleanup found, and whether it was applied
  * - {@link ElementIdReviewCommand}            — whether the element ID review opened
+ * - {@link ElementIdProposalsCommand}         — the review's rows for the host's panel
+ * - {@link ElementIdsAppliedCommand}          — how many IDs the host's review renamed
+ * - {@link OpenElementIdReviewCommand}        — the ID field's link asks for the host's review
  * - {@link GetBpmnModelerSettingCommand}      — request current modeler settings
  * - {@link GetDmnModelerSettingCommand}       — request current DMN modeler settings
  * - {@link GetPropertiesPanelStateCommand}    — request the global properties-panel visibility default
@@ -74,6 +80,7 @@ import type {
     DmnModelerSetting,
     ElementIdConventionOptions,
     ElementIdReviewStatus,
+    ElementIdRow,
     ElementTemplateRef,
     Engine,
     ImplementationEntry,
@@ -123,6 +130,9 @@ export class BpmnFileQuery extends Query<"BpmnFileQuery"> {
      */
     public readonly locale?: string;
 
+    /** The host shows the element ID review in its own panel, so the ID field's link asks it to. */
+    public readonly hostElementIdReview?: boolean;
+
     constructor(
         content: string,
         engine: DetectedEngine,
@@ -130,6 +140,7 @@ export class BpmnFileQuery extends Query<"BpmnFileQuery"> {
         documentRevision = 0,
         defaultMode?: SurfaceMode,
         locale?: string,
+        hostElementIdReview?: boolean,
     ) {
         super("BpmnFileQuery");
         this.content = content;
@@ -138,6 +149,7 @@ export class BpmnFileQuery extends Query<"BpmnFileQuery"> {
         this.documentRevision = documentRevision;
         this.defaultMode = defaultMode;
         this.locale = locale;
+        this.hostElementIdReview = hostElementIdReview;
     }
 }
 
@@ -1001,6 +1013,60 @@ export class GenerateElementIdsQuery extends Query<"GenerateElementIdsQuery"> {
 export class ElementIdConventionQuery extends Query<"ElementIdConventionQuery"> {
     constructor(public readonly options: ElementIdConventionOptions) {
         super("ElementIdConventionQuery");
+    }
+}
+
+/**
+ * Host → webview: list the element ID review's rows for the host's own panel,
+ * and post them again after every diagram change until the review closes.
+ * `null` asks for the rows the review starts with, processes unchecked.
+ * Answered with an {@link ElementIdProposalsCommand}.
+ */
+export class ElementIdProposalsQuery extends Query<"ElementIdProposalsQuery"> {
+    constructor(public readonly unchecked: readonly string[] | null) {
+        super("ElementIdProposalsQuery");
+    }
+}
+
+/**
+ * Webview → host: the review's rows and the IDs it left unchecked;
+ * `unsupported` from a surface that cannot change IDs, such as View mode.
+ */
+export class ElementIdProposalsCommand extends Command<"ElementIdProposalsCommand"> {
+    constructor(
+        public readonly status: "listed" | "unsupported",
+        public readonly rows: readonly ElementIdRow[],
+        public readonly unchecked: readonly string[],
+    ) {
+        super("ElementIdProposalsCommand");
+    }
+}
+
+/** Host → webview: rename the rows the host's panel left checked, in one undo step. */
+export class ApplyElementIdsQuery extends Query<"ApplyElementIdsQuery"> {
+    constructor(public readonly unchecked: readonly string[]) {
+        super("ApplyElementIdsQuery");
+    }
+}
+
+/** Webview → host: how many IDs {@link ApplyElementIdsQuery} renamed; the review is over. */
+export class ElementIdsAppliedCommand extends Command<"ElementIdsAppliedCommand"> {
+    constructor(public readonly renamed: number) {
+        super("ElementIdsAppliedCommand");
+    }
+}
+
+/** Host → webview: the host's panel closed, so the rows stop coming. */
+export class CloseElementIdReviewQuery extends Query<"CloseElementIdReviewQuery"> {
+    constructor() {
+        super("CloseElementIdReviewQuery");
+    }
+}
+
+/** Webview → host: the ID field's "Review all IDs…" asks for the host's own review. */
+export class OpenElementIdReviewCommand extends Command<"OpenElementIdReviewCommand"> {
+    constructor() {
+        super("OpenElementIdReviewCommand");
     }
 }
 

@@ -2,7 +2,11 @@ import {
     CleanupReportCommand,
     Command,
     DiagramFormattedCommand,
+    ElementIdProposalsCommand,
     ElementIdReviewCommand,
+    ElementIdsAppliedCommand,
+    GetBpmnFileCommand,
+    OpenElementIdReviewCommand,
     SetClipboardCommand,
     SetLintingEnabledCommand,
     SetPropertiesPanelStateCommand,
@@ -176,6 +180,38 @@ export function cleanupReportHandler(
     return async (message, editorId) => {
         await layoutSvc.reportCleanup(message, editorId);
     };
+}
+
+/** `ElementIdProposalsCommand` → the host's review panel shows the rows. */
+export function elementIdProposalsHandler(
+    elementIdsSvc: ElementIdsService,
+): MessageHandler<ElementIdProposalsCommand> {
+    return (message, editorId) => {
+        elementIdsSvc.reportProposals(editorId, message);
+    };
+}
+
+/** `ElementIdsAppliedCommand` → the host's review is over. */
+export function elementIdsAppliedHandler(
+    elementIdsSvc: ElementIdsService,
+): MessageHandler<ElementIdsAppliedCommand> {
+    return (message, editorId) => {
+        elementIdsSvc.reportApplied(editorId, message);
+    };
+}
+
+/** `OpenElementIdReviewCommand` → "Review all IDs…" opens the host's review of this diagram. */
+export function openElementIdReviewHandler(
+    elementIdsSvc: ElementIdsService,
+): MessageHandler<OpenElementIdReviewCommand> {
+    return (_message, editorId) => elementIdsSvc.generate(editorId);
+}
+
+/** `GetBpmnFileCommand` → a restarted page lists the open review's rows again. */
+export function resumeElementIdReviewHandler(
+    elementIdsSvc: ElementIdsService,
+): MessageHandler<GetBpmnFileCommand> {
+    return (_message, editorId) => elementIdsSvc.resume(editorId);
 }
 
 /** `ElementIdReviewCommand` → tell the user when the review could not open. */

@@ -4,6 +4,7 @@ import type { DefinitionSearchPort } from "@miragon/bpmn-modeler-definition-sear
 import type {
     BpmnlintConfig,
     CleanupOutcome,
+    ElementIdProposals,
     ElementIdReviewOutcome,
     LintResults,
     LintRunEvent,
@@ -197,6 +198,15 @@ export interface BpmnDesignerHandle extends BpmnSurfaceHandle, PendingInputHandl
      * the checked elements in one undo step. Engine-neutral like formatting.
      */
     openElementIdReview(): ElementIdReviewOutcome;
+
+    /**
+     * The rows of that review for a host's own panel, as
+     * {@link BpmnModelerHandle.proposeElementIds} lists them.
+     */
+    proposeElementIds(unchecked?: readonly string[]): ElementIdProposals;
+
+    /** Rename the checked rows in one undo step, as {@link BpmnModelerHandle.renameElementIds} does. */
+    renameElementIds(unchecked: readonly string[]): number;
 
     /**
      * Set how IDs generated from names are spelled, and whether a still random

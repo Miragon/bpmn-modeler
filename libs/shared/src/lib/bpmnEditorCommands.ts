@@ -41,6 +41,9 @@ export const BPMN_EDITOR_COMMAND_TYPES = [
     "DiagramFormattedCommand",
     "CleanupReportCommand",
     "ElementIdReviewCommand",
+    "ElementIdProposalsCommand",
+    "ElementIdsAppliedCommand",
+    "OpenElementIdReviewCommand",
 ] as const satisfies readonly ProtocolCommandType[];
 
 export type BpmnEditorCommandType = (typeof BPMN_EDITOR_COMMAND_TYPES)[number];

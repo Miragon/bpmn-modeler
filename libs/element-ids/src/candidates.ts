@@ -1,4 +1,6 @@
-import { elementKindOf, type ElementKind } from "./elementKinds";
+import type { ElementIdKind } from "@miragon/bpmn-modeler-types";
+
+import { elementKindOf } from "./elementKinds";
 import type { IdCandidate } from "./proposals";
 
 /** The slice of a moddle element the review reads. */
@@ -37,7 +39,7 @@ export type RenameTarget =
       };
 
 export interface ElementIdCandidate extends IdCandidate {
-    readonly kind: ElementKind;
+    readonly kind: ElementIdKind;
     readonly target: RenameTarget;
     /** The element to select when the row is picked. */
     readonly shown: DiagramElementLike;
