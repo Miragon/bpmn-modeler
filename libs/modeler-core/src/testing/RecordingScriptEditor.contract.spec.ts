@@ -6,6 +6,6 @@ describeScriptEditorContract("RecordingScriptEditor", async ({ scriptFiles }) =>
     return {
         scriptEditor,
         openFileByUser: (filePath) => scriptEditor.openFileByUser(filePath),
-        closeTab: (filePath) => scriptEditor.closeTabByUser(filePath),
+        closeTabByUser: (filePath) => scriptEditor.closeTabByUser(filePath),
     };
 });

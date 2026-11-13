@@ -182,6 +182,19 @@ describe("ScriptTabService", () => {
             expect(lockedScripts(diagram)).toEqual([]);
         });
 
+        it("streams no edit the host reported while the open it then failed was in flight", async () => {
+            const { diagram, scriptEditor, scriptTabs, taskFile } = createService();
+            vi.spyOn(scriptEditor, "openTab").mockImplementation(async () => {
+                scriptEditor.typeByUser(taskFile, "typed while opening");
+                throw new Error("EACCES");
+            });
+
+            await expect(scriptTabs.open(diagram.id, scriptTask())).rejects.toThrow("EACCES");
+            await vi.advanceTimersByTimeAsync(SCRIPT_STREAM_DEBOUNCE_MS);
+
+            expect(streamedContents(diagram)).toEqual([]);
+        });
+
         it("counts the tab as open while the host still opens it, so its report is no user open", async () => {
             const { diagram, scriptEditor, scriptTabs, taskFile } = createService();
             let reportedOpen: Promise<void> = Promise.resolve();
@@ -368,6 +381,20 @@ describe("ScriptTabService", () => {
             expect(lockedScripts(diagram)).toEqual([["Task_1.groovy"]]);
         });
 
+        it("streams no edit the host reported while the adoption it then failed was in flight", async () => {
+            const { diagram, scriptEditor, scriptTabs, taskFile } = createService();
+            await scriptTabs.materialize(diagram.id, scriptTask());
+            vi.spyOn(scriptEditor, "adoptTab").mockImplementation(async () => {
+                scriptEditor.typeByUser(taskFile, "typed while adopting");
+                throw new Error("unreadable");
+            });
+
+            await scriptEditor.openFileByUser(taskFile);
+            await vi.advanceTimersByTimeAsync(SCRIPT_STREAM_DEBOUNCE_MS);
+
+            expect(streamedContents(diagram)).toEqual([]);
+        });
+
         it("logs a file the host cannot adopt and tracks nothing", async () => {
             const { diagram, scriptEditor, scriptTabs, host, taskFile } = createService();
             await scriptTabs.materialize(diagram.id, scriptTask());
@@ -441,6 +468,16 @@ describe("ScriptTabService", () => {
 
             expect(streamedContents(diagram)).toEqual(["typed"]);
             expect(scriptTabs.editorOfTab(taskFile)).toBeUndefined();
+        });
+
+        it("sends no duplicate of an edit still waiting to stream when the replay carried it", async () => {
+            const { diagram, scriptEditor, scriptTabs, taskFile } = await typeWhileHidden();
+            scriptEditor.typeByUser(taskFile, "pending");
+
+            await scriptTabs.resync(diagram.id);
+            await vi.advanceTimersByTimeAsync(SCRIPT_STREAM_DEBOUNCE_MS);
+
+            expect(streamedContents(diagram)).toEqual(["pending"]);
         });
 
         it("replays again on the next reload when it hid again before the replay", async () => {

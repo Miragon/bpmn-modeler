@@ -82,7 +82,7 @@ export class ScriptTabService {
         try {
             await this.scriptEditor.openTab(target, script);
         } catch (error) {
-            this.tabs.untrack(target.tabPath);
+            this.forget(target.tabPath);
             throw error;
         }
         this.broadcastOpenScripts(editorId);
@@ -110,8 +110,7 @@ export class ScriptTabService {
         }
         const [tabPath] = found;
         if (change.content === undefined) {
-            this.contentStream.stop(tabPath);
-            this.tabs.untrack(tabPath);
+            this.forget(tabPath);
             this.broadcastOpenScripts(editorId);
             await this.scriptEditor.closeTab(tabPath);
             return;
@@ -139,8 +138,7 @@ export class ScriptTabService {
     disposeEditor(editorId: string): void {
         const closing = this.tabs.ofEditor(editorId);
         for (const [tabPath] of closing) {
-            this.tabs.untrack(tabPath);
-            this.contentStream.stop(tabPath);
+            this.forget(tabPath);
         }
         this.missedEdits.delete(editorId);
         this.scriptEditor.closeEditorTabs(editorId, closing);
@@ -203,7 +201,7 @@ export class ScriptTabService {
         try {
             await this.scriptEditor.adoptTab(tabPath, match, filePath);
         } catch (error) {
-            this.tabs.untrack(tabPath);
+            this.forget(tabPath);
             this.logger.logError(error as Error);
             return;
         }
@@ -267,11 +265,16 @@ export class ScriptTabService {
     }
 
     private release(tabPath: string): void {
-        const editorId = this.tabs.untrack(tabPath)?.editorId;
-        this.contentStream.stop(tabPath);
+        const editorId = this.forget(tabPath);
         if (editorId !== undefined) {
             this.broadcastOpenScripts(editorId);
         }
+    }
+
+    /** Untracks the tab and drops its waiting edit; returns the editor it belonged to. */
+    private forget(tabPath: string): string | undefined {
+        this.contentStream.stop(tabPath);
+        return this.tabs.untrack(tabPath)?.editorId;
     }
 
     /** A hidden webview misses the list; its reload asks for it again. */

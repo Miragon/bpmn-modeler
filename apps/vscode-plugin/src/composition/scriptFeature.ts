@@ -11,13 +11,13 @@ import {
 } from "@miragon/bpmn-modeler-core";
 import { canonicalPath } from "../shared/domain/canonicalPath";
 import { ScriptCompletionProvider } from "../scriptTask/adapter/in/ScriptCompletionProvider";
-import { ScriptTaskService } from "../scriptTask/adapter/out/ScriptTaskService";
+import { VsCodeScriptEditor } from "../scriptTask/adapter/out/VsCodeScriptEditor";
 import { ScriptTaskCommandController } from "../scriptTask/adapter/in/ScriptTaskCommandController";
 import { SharedDeps } from "./sharedDeps";
 
 /**
  * The inline-script-editor feature owns the on-disk script store, the script
- * tabs ({@link ScriptTaskService}), the completion provider and the
+ * tabs ({@link VsCodeScriptEditor}), the completion provider and the
  * process-variable store. The core `ScriptEditorFeature` keeps the tabs in step
  * with the BPMN editor's script commands and tears them down, which the BPMN
  * editor feature routes.
@@ -39,13 +39,13 @@ export function register(
         (path) => Uri.file(path).fsPath,
     );
 
-    const scriptTaskSvc = new ScriptTaskService(
+    const vsCodeScriptEditor = new VsCodeScriptEditor(
         scriptFiles,
         deps.vsSettings,
         deps.notifier,
         new ScriptXmlService(),
     );
-    scriptTaskSvc.register(context);
+    vsCodeScriptEditor.register(context);
 
     // The "Generate Script Files for Script Tasks" palette command only posts the query;
     // the reply is handled by the BPMN editor's router.
@@ -54,7 +54,7 @@ export function register(
     const scriptVariableStore = new ScriptVariableStore();
     const { editorContribution, scriptTabs } = new ScriptEditorFeature({
         store: deps.editorStore,
-        scriptEditor: scriptTaskSvc,
+        scriptEditor: vsCodeScriptEditor,
         picker: deps.picker,
         variables: scriptVariableStore,
         scriptFiles,

@@ -6,7 +6,7 @@ import {
 } from "@miragon/bpmn-modeler-shared";
 import { OpenScriptEditorRef, ScriptKind } from "@miragon/bpmn-modeler-types";
 
-// `ScriptTaskService` reaches into vscode directly (`Uri`, `languages`,
+// `VsCodeScriptEditor` reaches into vscode directly (`Uri`, `languages`,
 // `window`, `workspace`, `ViewColumn`, `TabInputText`, `WorkspaceEdit`), so
 // the factory must supply runtime surface, not just types. The hoisted-spy
 // pattern lets the (hoisted) `vi.mock` factory close over these consts while
@@ -94,7 +94,7 @@ vi.mock("vscode", () => {
 
 import { TabInputText, Uri } from "vscode";
 
-import { ScriptTaskService } from "./ScriptTaskService";
+import { VsCodeScriptEditor } from "./VsCodeScriptEditor";
 import {
     ArtifactService,
     SCRIPT_STREAM_DEBOUNCE_MS,
@@ -206,7 +206,7 @@ function createService(
     setTextDocumentLanguageMock.mockResolvedValue(undefined);
     applyEditMock.mockResolvedValue(true);
 
-    const adapter = new ScriptTaskService(
+    const adapter = new VsCodeScriptEditor(
         scriptFileStore,
         host.settings,
         host.notifier,
@@ -334,7 +334,7 @@ afterEach(() => {
     vi.useRealTimers();
 });
 
-describe("ScriptTaskService under ScriptTabService: openTab/revealTab", () => {
+describe("VsCodeScriptEditor under ScriptTabService: openTab/revealTab", () => {
     it("writes content, ensures the gitignore, and reveals the editor for a new script", async () => {
         const { scriptTabs, host } = createService();
 
@@ -451,7 +451,7 @@ describe("ScriptTaskService under ScriptTabService: openTab/revealTab", () => {
     });
 });
 
-describe("ScriptTaskService document changes reported to ScriptTabService", () => {
+describe("VsCodeScriptEditor document changes reported to ScriptTabService", () => {
     it("ignores documents outside the file scheme", async () => {
         const { fireDocChange, editor } = createService();
 
@@ -731,7 +731,7 @@ describe("ScriptTabService.resync over VS Code tabs (readTabContent, isTabShown)
     });
 });
 
-describe("ScriptTaskService tab closes reported to ScriptTabService", () => {
+describe("VsCodeScriptEditor tab closes reported to ScriptTabService", () => {
     it("releases tracking but keeps the file when a tab is closed for good", async () => {
         const { scriptTabs, fireTabsChange, scriptFiles } = createService();
         await openCanonicalScript(scriptTabs, "groovy");
@@ -794,7 +794,7 @@ describe("ScriptTaskService tab closes reported to ScriptTabService", () => {
     });
 });
 
-describe("ScriptTaskService reopen after close", () => {
+describe("VsCodeScriptEditor reopen after close", () => {
     it("rewrites the file with fresh model content when a closed script is reopened", async () => {
         const { scriptTabs, fireTabsChange, scriptFiles } = createService();
         await openCanonicalScript(scriptTabs, "groovy", "old");
@@ -833,7 +833,7 @@ describe("ScriptTaskService reopen after close", () => {
     });
 });
 
-describe("ScriptTaskService under ScriptTabService: updateTabContent/closeTab", () => {
+describe("VsCodeScriptEditor under ScriptTabService: updateTabContent/closeTab", () => {
     it("overwrites the open buffer through a workspace edit under the writing guard", async () => {
         const { scriptTabs, editor } = createService();
         await openCanonicalScript(scriptTabs, "groovy", "old");
@@ -925,7 +925,7 @@ describe("ScriptTaskService under ScriptTabService: updateTabContent/closeTab", 
     });
 });
 
-describe("ScriptTaskService lock broadcast", () => {
+describe("VsCodeScriptEditor lock broadcast", () => {
     it("broadcasts the open script (fileName + addressing) when a tab opens", async () => {
         const { scriptTabs, editor } = createService();
 
@@ -1015,7 +1015,7 @@ describe("ScriptTaskService lock broadcast", () => {
     });
 });
 
-describe("ScriptTaskService under ScriptTabService: closeEditorTabs", () => {
+describe("VsCodeScriptEditor under ScriptTabService: closeEditorTabs", () => {
     it("clears state, closes orphaned tabs, and deletes the editor's script directory", async () => {
         const { scriptTabs, scriptFiles } = createService();
         await openCanonicalScript(scriptTabs, "groovy");
@@ -1071,7 +1071,7 @@ describe("ScriptTaskService under ScriptTabService: closeEditorTabs", () => {
     });
 });
 
-describe("ScriptTaskService keystroke debounce", () => {
+describe("VsCodeScriptEditor keystroke debounce", () => {
     it("cancels a pending keystroke when a model change overwrites the buffer", async () => {
         const { scriptTabs, fireDocChange, editor } = createService();
         await openCanonicalScript(scriptTabs, "groovy", "a");
@@ -1115,7 +1115,7 @@ describe("ScriptTaskService keystroke debounce", () => {
 
 });
 
-describe("ScriptTaskService dispose write-back", () => {
+describe("VsCodeScriptEditor dispose write-back", () => {
     it("writes the buffered script into the diagram and saves before deleting", async () => {
         const { scriptTabs, scriptFiles, scriptXml } = createService();
         await openCanonicalScript(scriptTabs, "groovy", "edited");
@@ -1218,9 +1218,9 @@ describe("ScriptTaskService dispose write-back", () => {
     });
 });
 
-describe("ScriptTaskService revert tracking", () => {
+describe("VsCodeScriptEditor revert tracking", () => {
     /** The private revert set, read for assertions. */
-    function reverted(adapter: ScriptTaskService): Set<string> {
+    function reverted(adapter: VsCodeScriptEditor): Set<string> {
         return (adapter as never as { revertedEditors: Set<string> }).revertedEditors;
     }
 
@@ -1266,7 +1266,7 @@ function slugDirOf(path: string): string {
     return path.substring(0, path.lastIndexOf("/"));
 }
 
-describe("ScriptTaskService under ScriptTabService: writeScript", () => {
+describe("VsCodeScriptEditor under ScriptTabService: writeScript", () => {
     it("writes the script and its JS ambient files without opening, tracking, or locking", async () => {
         const { scriptTabs, scriptFiles, editor } = createService();
 
@@ -1351,7 +1351,7 @@ describe("ScriptTaskService under ScriptTabService: writeScript", () => {
     });
 });
 
-describe("ScriptTaskService adoption", () => {
+describe("VsCodeScriptEditor adoption", () => {
     /** Fires an opened-tab event for a file URI and drains the fire-and-forget tail. */
     async function fireOpen(
         fireTabsChange: (event: unknown) => unknown,
@@ -1467,7 +1467,7 @@ describe("ScriptTaskService adoption", () => {
     });
 });
 
-describe("ScriptTaskService for a diagram on a UNC share", () => {
+describe("VsCodeScriptEditor for a diagram on a UNC share", () => {
     function createServiceOnShare() {
         return createService(
             {},
@@ -1563,7 +1563,7 @@ describe("ScriptTaskService for a diagram on a UNC share", () => {
     });
 });
 
-describe("ScriptTaskService for a script tab opened under an uppercase drive letter", () => {
+describe("VsCodeScriptEditor for a script tab opened under an uppercase drive letter", () => {
     const DRIVE_EDITOR_PATH = "/c:/repo/process.bpmn";
 
     function createServiceOnDrive() {

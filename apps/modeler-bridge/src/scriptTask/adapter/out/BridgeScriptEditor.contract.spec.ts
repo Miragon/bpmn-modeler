@@ -99,7 +99,7 @@ describeScriptEditorContract(
         return {
             scriptEditor: editor,
             openFileByUser: (filePath) => intellij.openByUser(filePath),
-            closeTab: (filePath) => intellij.closeByUser(filePath),
+            closeTabByUser: (filePath) => intellij.closeByUser(filePath),
         };
     },
 );

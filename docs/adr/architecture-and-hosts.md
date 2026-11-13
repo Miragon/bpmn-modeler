@@ -796,7 +796,7 @@ the model, and the result is a `ScriptUri`. It streams each tab's edits through
 the core's `ScriptContentStream`, one model update per pause in typing, closes
 the tab of a script the model removed, and replays the edits a hidden webview
 missed once it reloads. Only tab handling is host API, so the host's
-`ScriptEditorPort` (`ScriptTaskService`, `BridgeScriptEditor`) holds tab
+`ScriptEditorPort` (`VsCodeScriptEditor`, `BridgeScriptEditor`) holds tab
 operations and host events: it names the path a script's tab is tracked under,
 writes, opens, reveals, updates and closes tabs, and reports an edit, a closed
 tab and a file the user opened. VS Code keeps its `tabGroups` tracking (a tab

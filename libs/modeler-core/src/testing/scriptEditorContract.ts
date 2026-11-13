@@ -26,10 +26,10 @@ export interface ScriptEditorContractHost {
 /** One {@link ScriptEditorPort} adapter under the {@link describeScriptEditorContract} scenarios. */
 export interface ScriptEditorContractFixture {
     readonly scriptEditor: ScriptEditorPort;
-    /** Opens the file at `filePath` the way the user would, outside `open`: from the Explorer or the Project view. */
+    /** Opens the file at `filePath` the way the user would, outside `openTab`: from the Explorer or the Project view. */
     openFileByUser(filePath: string): Promise<void>;
     /** Closes the tab of the script file at `filePath` the way the user would. */
-    closeTab(filePath: string): Promise<void>;
+    closeTabByUser(filePath: string): Promise<void>;
 }
 
 const ROOT = "/work";
@@ -331,8 +331,8 @@ export function describeScriptEditorContract(
                 },
                 {
                     after: "the user closed its tab",
-                    change: async ({ closeTab }) => {
-                        await closeTab(TASK_FILE);
+                    change: async ({ closeTabByUser }) => {
+                        await closeTabByUser(TASK_FILE);
                         await settle();
                     },
                     answer: "written",

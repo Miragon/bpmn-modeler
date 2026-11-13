@@ -68,7 +68,7 @@ export interface OpenScriptRegistry {
  *
  * The provider derives the script's *kind* (script task / execution
  * listener / task listener) from the path slug — written by
- * {@link ScriptTaskService} when it opens the document — and uses
+ * {@link VsCodeScriptEditor} when it opens the document — and uses
  * {@link beansFor} to determine which globals are in scope. This keeps
  * suggestions accurate per surface (e.g. `task` only appears in task
  * listeners; `eventName` only in listener kinds).

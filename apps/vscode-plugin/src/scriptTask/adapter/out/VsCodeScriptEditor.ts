@@ -82,7 +82,7 @@ function fullReplaceEdit(uri: Uri, doc: TextDocument, content: string): Workspac
  * change (canvas undo/redo, external document reload) delivered through
  * {@link updateTabContent}, which overwrites the buffer.
  */
-export class ScriptTaskService implements ScriptEditorPort {
+export class VsCodeScriptEditor implements ScriptEditorPort {
     // Canonical paths currently being written by us — used for echo prevention.
     private readonly writingGuard = new Set<string>();
 
@@ -164,12 +164,12 @@ export class ScriptTaskService implements ScriptEditorPort {
         const scriptUri = await this.writeScriptFile(target, script);
         const doc = await workspace.openTextDocument(scriptUri);
         await languages.setTextDocumentLanguage(doc, target.language.languageId);
-        await window.showTextDocument(doc, ScriptTaskService.REVEAL_BESIDE);
+        await window.showTextDocument(doc, VsCodeScriptEditor.REVEAL_BESIDE);
     }
 
     async revealTab(target: ScriptTabTarget): Promise<void> {
         const doc = await workspace.openTextDocument(toUri(target.tabPath));
-        await window.showTextDocument(doc, ScriptTaskService.REVEAL_BESIDE);
+        await window.showTextDocument(doc, VsCodeScriptEditor.REVEAL_BESIDE);
     }
 
     /**

@@ -1,4 +1,4 @@
-import { LoggerPort, NotifierPort, PickerPort } from "../../kernel/port/hostPorts";
+import { NotifierPort, PickerPort } from "../../kernel/port/hostPorts";
 import { EditorContribution } from "../../editorSession/service/EditorContribution";
 import { EditorSessionStore } from "../../editorSession/service/EditorSessionStore";
 import { ScriptEditorPort } from "../port/ScriptEditorPort";
@@ -24,7 +24,7 @@ export interface ScriptEditorHostPorts {
     readonly variables: ScriptVariableStore;
     /** The store the host's script editor writes through; it names the folder of a batch. */
     readonly scriptFiles: ScriptFileStore;
-    readonly notifier: NotifierPort & LoggerPort;
+    readonly notifier: NotifierPort;
 }
 
 /**
