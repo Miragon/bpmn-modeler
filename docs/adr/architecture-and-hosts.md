@@ -174,10 +174,13 @@ the same `type` strings and fields, which the IntelliJ host matches.
 
 The commands the BPMN editor webview may post are a closed set, kept as a value
 so a host can iterate it: `BPMN_EDITOR_COMMAND_TYPES` in
-`libs/shared/src/lib/bpmnEditorCommands.ts`. The webview's `HostChannel` takes
-only those, and the bootstrap narrows its host to it once, so neither the
-bootstrap nor an adapter or service it hands that channel can post another
-surface's command or a query.
+`libs/shared/src/lib/bpmnEditorCommands.ts`. The webview's host is a
+`BpmnWebviewHost` (`apps/bpmn-webview/src/port/hostChannel.ts`), which takes
+only those and the diff pane's commands (below): `getHostApi` returns it and
+`bootstrap` takes it. The bootstrap narrows it once more to `HostChannel`,
+which takes only the editor's list, for the editor's adapters and services. So
+neither the entry, the bootstrap nor an adapter or service it hands a channel
+can post another surface's command or a query.
 `HostApi` declares its members as properties, not methods, because TypeScript
 compares a method's parameters bivariantly: the narrowed channel could
 otherwise be handed to a helper typed for every message. The shared
@@ -727,7 +730,9 @@ value, because the file only holds its normal form (`1` for `1.`). A template in
 an array file is selected by its place in the file, since an edit can change its
 id; a host's text can also move it, so that one is followed by id and version.
 The page's state is one `EditorPage` value in the library's domain, with pure
-transitions, which the page's bootstrap renders.
+transitions. A controller, `templateEditor/adapter/in/templatePage.ts`, applies
+them and renders the page, and the page's bootstrap only wires it to the view,
+the document session, the builder and the preview.
 
 Its page is a second entry
 of the BPMN webview bundle and parses the file itself: a host pushes the raw
