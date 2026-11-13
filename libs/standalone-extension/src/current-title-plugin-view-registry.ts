@@ -68,23 +68,29 @@ export class CurrentTitlePluginViewRegistry extends PluginViewRegistry {
 
     private async releaseViewsLeftBehind(viewContainerId: string): Promise<void> {
         for (const viewId of this.getContainerViews(viewContainerId)) {
-            const widget = this.widgetManager.tryGetWidget<PluginViewWidget>(
-                PLUGIN_VIEW_FACTORY_ID,
-                this.toPluginViewWidgetIdentifier(viewId),
-            );
-            const currentId = widget?.currentViewContainerId;
-            if (widget === undefined || currentId === undefined || currentId === viewContainerId) {
-                continue;
-            }
-            const current = await this.getPluginViewContainer(currentId);
-            if (current === undefined) continue;
-            if (current.getPartFor(widget)?.originalContainerId !== current.id) continue;
-            current.removeWidget(widget);
-            const isPluginContainer = current.id.startsWith(PLUGIN_VIEW_CONTAINER_WIDGET_ID_PREFIX);
-            if (isPluginContainer && current.getParts().every(({ isHidden }) => isHidden)) {
-                current.dispose();
+            const leftBehind = await this.placedElsewhereByOldVersion(viewId, viewContainerId);
+            if (leftBehind) {
+                releaseView(leftBehind.container, leftBehind.widget);
             }
         }
+    }
+
+    private async placedElsewhereByOldVersion(
+        viewId: string,
+        viewContainerId: string,
+    ): Promise<{ container: ViewContainer; widget: PluginViewWidget } | undefined> {
+        const widget = this.widgetManager.tryGetWidget<PluginViewWidget>(
+            PLUGIN_VIEW_FACTORY_ID,
+            this.toPluginViewWidgetIdentifier(viewId),
+        );
+        const currentId = widget?.currentViewContainerId;
+        if (widget === undefined || currentId === undefined || currentId === viewContainerId) {
+            return undefined;
+        }
+        const container = await this.getPluginViewContainer(currentId);
+        return container && wasPlacedByOldVersion(container, widget)
+            ? { container, widget }
+            : undefined;
     }
 
     private currentTitleOfWidget(containerWidgetId: string): ViewContainerTitleOptions | undefined {
@@ -94,6 +100,18 @@ export class CurrentTitlePluginViewRegistry extends PluginViewRegistry {
         return this.currentTitleByContainerId.get(
             containerWidgetId.slice(PLUGIN_VIEW_CONTAINER_WIDGET_ID_PREFIX.length),
         );
+    }
+}
+
+function wasPlacedByOldVersion(container: ViewContainer, widget: PluginViewWidget): boolean {
+    return container.getPartFor(widget)?.originalContainerId === container.id;
+}
+
+function releaseView(container: ViewContainer, widget: PluginViewWidget): void {
+    container.removeWidget(widget);
+    const isPluginContainer = container.id.startsWith(PLUGIN_VIEW_CONTAINER_WIDGET_ID_PREFIX);
+    if (isPluginContainer && container.getParts().every(({ isHidden }) => isHidden)) {
+        container.dispose();
     }
 }
 
