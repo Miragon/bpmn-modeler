@@ -140,6 +140,9 @@ export class BpmnDesigner {
         if (this.options.favouriteBpmnElements) {
             this.setFavouriteBpmnElements(this.options.favouriteBpmnElements);
         }
+        if (this.options.elementIdSettings) {
+            this.setElementIdSettings(this.options.elementIdSettings);
+        }
 
         const onContentSaved = this.options.onContentSaved;
         if (onContentSaved) {

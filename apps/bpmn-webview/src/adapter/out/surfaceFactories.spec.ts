@@ -105,11 +105,15 @@ describe("createSurfaceFactories", () => {
         });
     });
 
-    it("builds the designer with the host favourites, the clipboard and the lint options", async () => {
-        const designer = { setFavouriteBpmnElements: vi.fn() };
+    it("builds the designer with the host favourites, ID settings, clipboard and lint options", async () => {
+        const designer = { setFavouriteBpmnElements: vi.fn(), setElementIdSettings: vi.fn() };
         mocks.createDesigner.mockResolvedValue(designer);
         const hostModelerState = new HostModelerState();
-        hostModelerState.rememberSettings(settings(["bpmn:UserTask"]));
+        hostModelerState.rememberSettings({
+            ...settings(["bpmn:UserTask"]),
+            elementIdStyle: "snakeCase",
+            elementIdsFollowName: true,
+        });
         const { surfaces, propertiesPanelParent, extraModules } = factoriesWith(hostModelerState);
 
         await surfaces.design!({ container, engine: undefined, theme: "light" });
@@ -117,6 +121,7 @@ describe("createSurfaceFactories", () => {
         expect(mocks.createDesigner).toHaveBeenCalledExactlyOnceWith(container, {
             theme: "light",
             favouriteBpmnElements: ["bpmn:UserTask"],
+            elementIdSettings: { style: "snakeCase", followName: true },
             propertiesPanel: { parent: propertiesPanelParent },
             clipboard,
             capabilities: {
@@ -128,23 +133,31 @@ describe("createSurfaceFactories", () => {
             ...lintOptions,
         });
         expect(designer.setFavouriteBpmnElements).not.toHaveBeenCalled();
+        expect(designer.setElementIdSettings).not.toHaveBeenCalled();
     });
 
-    it("hands the designer favourites the host pushed while it initialised", async () => {
-        const designer = { setFavouriteBpmnElements: vi.fn() };
+    it("hands the designer settings the host pushed while it initialised", async () => {
+        const designer = { setFavouriteBpmnElements: vi.fn(), setElementIdSettings: vi.fn() };
         const creation = deferred<typeof designer>();
         mocks.createDesigner.mockReturnValue(creation.promise);
         const { surfaces, hostModelerState } = factoriesWith();
 
         const built = surfaces.design!({ container, engine: undefined, theme: "light" });
         await vi.waitFor(() => expect(mocks.createDesigner).toHaveBeenCalled());
-        hostModelerState.rememberSettings(settings(["bpmn:ServiceTask"]));
+        hostModelerState.rememberSettings({
+            ...settings(["bpmn:ServiceTask"]),
+            elementIdStyle: "typeSuffix",
+        });
         creation.resolve(designer);
         await built;
 
         expect(designer.setFavouriteBpmnElements).toHaveBeenCalledExactlyOnceWith([
             "bpmn:ServiceTask",
         ]);
+        expect(designer.setElementIdSettings).toHaveBeenCalledExactlyOnceWith({
+            style: "typeSuffix",
+            followName: undefined,
+        });
     });
 
     it("refuses to build the modeler for an untagged model", async () => {

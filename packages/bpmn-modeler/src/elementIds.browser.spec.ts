@@ -439,4 +439,20 @@ describe("generating element IDs from names", () => {
 
         expect(servicesOf(designer).elementRegistry.get("ServiceTask_CheckStock")).toBeDefined();
     });
+
+    it("takes the element ID settings the designer is created with", async () => {
+        const { container, panel } = mountWithPanel(1200, 800);
+        const designer = (await createDesigner(container, {
+            propertiesPanel: { parent: panel },
+            elementIdSettings: { style: "snakeCase" },
+        })) as BpmnDesigner;
+        handles.push(designer);
+        await designer.loadDiagram(ORDER_PROCESS);
+        await afterPaint();
+
+        designer.openElementIdReview();
+        await afterPaint();
+
+        expect(proposedIds()).toContain("service_task_check_stock");
+    });
 });
