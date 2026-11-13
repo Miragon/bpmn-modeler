@@ -3622,6 +3622,7 @@ __metadata:
     "@bpmn-io/form-js-viewer": "npm:2.1.1"
     "@bpmn-io/properties-panel": "npm:3.57.0"
     "@bpmn-io/svg-to-image": "npm:1.0.1"
+    "@fontsource-variable/geist": "npm:5.3.0"
     "@miragon/bpmn-modeler": "workspace:*"
     "@miragon/bpmn-modeler-element-template-builder": "workspace:*"
     "@miragon/bpmn-modeler-i18n": "npm:0.2.0"

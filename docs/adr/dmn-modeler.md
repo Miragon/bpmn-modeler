@@ -168,10 +168,11 @@ diff's, and `diffPalette.spec.ts` keeps both stylesheets equal. The categories,
 markers, selected marker and legend words come from the vocabulary both diffs
 share ([BPMN modeler](bpmn-modeler.md#diff)); `DMN_DIFF_TEXTS` in the webview
 holds only the pane's own words. The legend is the BPMN diff's
-`DiffLegendView` and stylesheet ([BPMN modeler](bpmn-modeler.md#diff)); the
-pane sets its `--diff-legend-*` properties to its Miragon chrome and keeps
-only the observer that publishes the chip's height for the views below and
-the "Not in this version" card. The viewer decides once how the open element
+`DiffLegendView` and stylesheet ([BPMN modeler](bpmn-modeler.md#diff)), in
+the one Miragon look both diffs share; the pane sets none of its
+`--diff-legend-*` properties and keeps only the observer that publishes the
+chip's height for the views below and the "Not in this version" card, which
+takes the legend's look through `.diff-legend-theme`. The viewer decides once how the open element
 differs, `DmnDiffStatus` (`Exclude<DiffCategory, "layoutChanged">`, exported
 `@internal`), and both marks its view and answers `getViewStatus()` with it:
 undefined for the DRD, a changed table, an unchanged element or before marks

@@ -1,30 +1,65 @@
 /*
- * The legend chip both diffs float over a pane (`DiffLegendView`). A host
- * themes it by setting the `--diff-legend-*` properties on `.diff-legend`;
- * the `diff-legend__*` classes are published styling hooks of the BPMN viewer.
+ * The legend chip both diffs float over a pane (`DiffLegendView`), in the
+ * Miragon look: Geist, a blue Next button, 12px chip and 8px button radii. It
+ * takes the VS Code widget colours where a webview has them. A host retheming it
+ * sets the `--diff-legend-*` properties on `.diff-legend`; the `diff-legend__*`
+ * classes are published styling hooks of the BPMN viewer. `.diff-legend-theme`
+ * lends the same properties to a host's own chrome beside the legend.
  */
 
-/* Centred with left/right: a chip at left: 50% would wrap at half the pane's width. */
-.diff-legend {
-    --diff-legend-surface: rgba(255, 255, 255, 0.96);
-    --diff-legend-border: #d0d0d0;
-    --diff-legend-text: #1f1f1f;
-    --diff-legend-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
-    --diff-legend-radius: 6px;
-    --diff-legend-button-surface: #fafafa;
-    --diff-legend-button-border: #c0c0c0;
-    --diff-legend-button-hover: #eee;
-    --diff-legend-button-radius: 4px;
-    --diff-legend-primary-surface: var(--diff-legend-button-surface);
-    --diff-legend-primary-border: var(--diff-legend-button-border);
-    --diff-legend-primary-text: var(--diff-legend-text);
-    --diff-legend-primary-hover: var(--diff-legend-button-hover);
-    --diff-legend-focus: currentColor;
+.diff-legend,
+.diff-legend-theme {
+    --diff-legend-font-family:
+        "Geist Variable", "Geist", var(--vscode-font-family, ui-sans-serif, system-ui, sans-serif);
+    --diff-legend-font-weight: 500;
+    --diff-legend-surface: #fff;
+    --diff-legend-border: var(--vscode-editorWidget-border, #d0d0d0);
+    --diff-legend-text: var(--vscode-editorWidget-foreground, var(--vscode-foreground, #1d1d1d));
+    --diff-legend-shadow: 0 6px 20px rgba(29, 29, 29, 0.1), 0 1px 2px rgba(29, 29, 29, 0.06);
+    --diff-legend-radius: 12px;
+    --diff-legend-button-surface: transparent;
+    --diff-legend-button-border: var(--diff-legend-border);
+    --diff-legend-button-hover: var(--vscode-toolbar-hoverBackground, rgba(29, 29, 29, 0.06));
+    --diff-legend-button-hover-outline: none;
+    --diff-legend-button-radius: 8px;
+    --diff-legend-primary-surface: #335de5;
+    --diff-legend-primary-border: #335de5;
+    --diff-legend-primary-text: #fff;
+    --diff-legend-primary-hover: #2b50d4;
+    --diff-legend-focus: var(--vscode-focusBorder, #335de5);
     --diff-legend-added: #52b415;
     --diff-legend-removed: #cc0000;
     --diff-legend-changed: #316fbe;
     --diff-legend-moved: #888;
+}
 
+[data-bpmn-theme="dark"] :is(.diff-legend, .diff-legend-theme),
+[data-dmn-theme="dark"] :is(.diff-legend, .diff-legend-theme) {
+    --diff-legend-surface: var(--vscode-editorWidget-background, #252526);
+    --diff-legend-border: var(--vscode-editorWidget-border, #454545);
+    --diff-legend-text: var(--vscode-editorWidget-foreground, var(--vscode-foreground, #e8e8e8));
+    --diff-legend-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+    --diff-legend-button-hover: var(--vscode-toolbar-hoverBackground, #383838);
+}
+
+/*
+ * The theme attributes resolve VS Code's high-contrast themes to dark, so its body
+ * class is the only high-contrast signal. Its themes paint no fills: hover is an
+ * outline in the contrast colour, as on VS Code's own toolbar buttons.
+ */
+body.vscode-high-contrast :is(.diff-legend, .diff-legend-theme) {
+    --diff-legend-border: var(--vscode-contrastBorder, #6fc3df);
+    --diff-legend-shadow: none;
+    --diff-legend-button-hover: transparent;
+    --diff-legend-button-hover-outline: 1px dashed var(--vscode-contrastActiveBorder, #f38518);
+    --diff-legend-primary-surface: transparent;
+    --diff-legend-primary-border: var(--diff-legend-border);
+    --diff-legend-primary-text: var(--diff-legend-text);
+    --diff-legend-primary-hover: transparent;
+}
+
+/* Centred with left/right: a chip at left: 50% would wrap at half the pane's width. */
+.diff-legend {
     position: absolute;
     top: 12px;
     right: 12px;
@@ -135,6 +170,8 @@
 
 .diff-legend__nav-btn:hover:not(:disabled) {
     background: var(--diff-legend-button-hover);
+    outline: var(--diff-legend-button-hover-outline);
+    outline-offset: -1px;
 }
 
 .diff-legend__next-btn {

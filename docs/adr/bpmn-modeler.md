@@ -1734,10 +1734,19 @@ a `role="toolbar"` labelled "Changes", each count as swatch, label and bold
 icon-only swap button (⇄) named by its `title` and `aria-label`, and the file
 name above on compare-files panes. It takes a translator (`translate` and
 `onChange`, which `i18n` meets) instead of importing one, so the library stays
-free of the i18n package. A host themes it through the `--diff-legend-*`
-custom properties on `.diff-legend`: the BPMN package sets its dark values
-under `[data-bpmn-theme="dark"]` and the VS Code `body.vscode-*` classes, the
-DMN pane maps its Miragon chrome onto them. The public `DiffLegend` wraps it
+free of the i18n package. Both legends wear one look, the Miragon one:
+Geist, a blue `#335de5` Next button, a 12px chip and 8px buttons, on the VS
+Code widget colours where a webview has them. `diffLegend.css` holds it as the
+defaults of the `--diff-legend-*` custom properties, with its dark values under
+`[data-bpmn-theme="dark"]` and `[data-dmn-theme="dark"]` and its high-contrast
+values under VS Code's `body.vscode-high-contrast`, since the theme attributes
+resolve high contrast to dark. Neither the BPMN package nor the DMN pane sets a
+`--diff-legend-*` property, and a spec in each keeps it so; the properties stay
+the theming hook for consumers. `.diff-legend-theme` lends them to a host's own
+chrome beside the legend, the DMN pane's "Not in this version" card. The
+published package adds no font: the stack falls back to the VS Code font and
+then `system-ui`, and the BPMN and DMN webviews bundle Geist for their diff
+panes. The public `DiffLegend` wraps it
 and keeps `DiffLegendCallbacks`, `DiffLegendContext` (with its counts fallback
 for a missing `canStep`) and the `diff-legend__*` classes; the DMN pane's
 wrapper adds only the observer that publishes the chip's height. The public `DiffMarkerClass` keeps its literals, pinned to

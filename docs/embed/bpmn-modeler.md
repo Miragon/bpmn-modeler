@@ -406,10 +406,18 @@ steps on its own uses `DiffNavigator`: `setChanges( result.navigationOrder )` ta
 `setChanges( view, navigationOrder )` form is deprecated; it still skips the view's connections whose
 only change is layout.
 
+The legend wears the Miragon look of the modeler's own diff panes: Geist, a blue **Next** button,
+a 12px chip and 8px buttons. Before, it was a neutral grey chip with a grey **Next** button and
+smaller radii. The package ships no font: load Geist yourself (for example from
+`@fontsource-variable/geist`), otherwise the chip uses the system UI font. Its dark values follow
+the instance's dark theme, and inside a VS Code webview it takes the editor widget colours and drops
+its fills in high contrast.
+
 The legend's `diff-legend__*` classes are styling hooks. To recolour the chip, set its
 `--diff-legend-*` custom properties on `.diff-legend` (for example `--diff-legend-surface`,
 `--diff-legend-border`, `--diff-legend-text`, `--diff-legend-radius` or
-`--diff-legend-primary-surface` for **Next**). The chip hides itself, the file name and the swap
+`--diff-legend-primary-surface` for **Next**); for the dark theme, set them under
+`[data-bpmn-theme="dark"] .diff-legend`. The chip hides itself, the file name and the swap
 button's group with the `hidden` attribute, and the stylesheet's `.diff-legend [hidden]` rule keeps
 them hidden. A rule of yours that sets `display` on one of these hooks must not override it.
 

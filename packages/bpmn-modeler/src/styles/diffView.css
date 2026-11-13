@@ -1,9 +1,9 @@
 /*
- * Neutral BPMN diff-view styles — host-agnostic canvas markers and the theme
- * of the floating legend chip, whose layout is the shared `diffLegend.css` of
- * modeler-types. Shared by both `styles.css` (via `diff.css`'s @import) and the
- * readonly `viewer.css`, so a `/viewer` consumer gets markers + a themed legend
- * without pulling in the editor chrome. Host-specific rules (VS Code seam,
+ * Neutral BPMN diff-view styles — host-agnostic canvas markers and the
+ * floating legend chip, whose layout and themes are the shared `diffLegend.css`
+ * of modeler-types. Shared by both `styles.css` (via `diff.css`'s @import) and
+ * the readonly `viewer.css`, so a `/viewer` consumer gets markers + a themed
+ * legend without pulling in the editor chrome. Host-specific rules (VS Code seam,
  * `body.viewer-mode`, `body.vscode-*`) stay in `diff.css`.
  *
  * Element marker colours intentionally match the bpmn.io/diff demo so users
@@ -50,18 +50,4 @@
    stroke intact so both shapes and edges light up uniformly. */
 .djs-element.diff-selected .djs-visual {
     filter: drop-shadow(0 0 6px #ffbe00) drop-shadow(0 0 3px #ffbe00);
-}
-
-/* ─── Legend dark theme ────────────────────────────────────────────────────
-   Keyed off the package's per-instance `[data-bpmn-theme="dark"]` attribute
-   (set on the document element by the host) so the legend themes on `/viewer`
-   consumers. VS Code webview panes get the equivalent `body.vscode-*` copies
-   from `diff.css`; both scopes co-exist harmlessly. */
-[data-bpmn-theme="dark"] .diff-legend {
-    --diff-legend-surface: rgba(40, 40, 40, 0.96);
-    --diff-legend-border: #555;
-    --diff-legend-text: #e8e8e8;
-    --diff-legend-button-surface: #2b2b2b;
-    --diff-legend-button-border: #555;
-    --diff-legend-button-hover: #3a3a3a;
 }

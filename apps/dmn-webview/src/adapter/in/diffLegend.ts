@@ -81,7 +81,7 @@ export class DiffEmptyState {
         this.root.hidden = status === undefined;
         document.body.classList.toggle("dmn-diff-page--missing", status !== undefined);
         if (status === undefined) return;
-        const card = element("div", "dmn-diff-empty__card");
+        const card = element("div", "dmn-diff-empty__card diff-legend-theme");
         card.dataset.kind = status;
         card.append(
             element("div", "dmn-diff-empty__mark"),

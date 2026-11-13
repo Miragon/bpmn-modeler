@@ -2,44 +2,16 @@
 
 /*
  * A page loaded as one side of a DMN diff: the floating legend and the card
- * for a decision the version lacks. Miragon chrome (Geist, blue #335de5 leads,
- * 12px radius) on VS Code's theme colours, which theme the shared legend too.
- * The card's change colours come from the package's `.dmn-diff` palette.
+ * for a decision the version lacks. The card wears the legend's look through
+ * `.diff-legend-theme`; its change colours come from the package's `.dmn-diff`
+ * palette.
  */
 .dmn-diff-page {
-    --dmn-diff-font: "Geist Variable", "Geist", var(--vscode-font-family, sans-serif);
-    --dmn-diff-surface: var(--vscode-editorWidget-background, #fff);
-    --dmn-diff-border: var(--vscode-editorWidget-border, #d0d0d0);
-    --dmn-diff-text: var(--vscode-editorWidget-foreground, var(--vscode-foreground, #1d1d1d));
     --dmn-diff-muted: var(--vscode-descriptionForeground, #606060);
-    --dmn-diff-shadow: 0 6px 20px rgba(29, 29, 29, 0.1), 0 1px 2px rgba(29, 29, 29, 0.06);
-    --dmn-diff-hover: var(--vscode-toolbar-hoverBackground, rgba(29, 29, 29, 0.06));
-    --dmn-diff-primary: #335de5;
-    --dmn-diff-primary-border: #335de5;
-    --dmn-diff-primary-hover: #2b50d4;
-    --dmn-diff-primary-text: #fff;
-    --dmn-diff-focus: var(--vscode-focusBorder, #335de5);
 }
 
 :root[data-dmn-theme="dark"] .dmn-diff-page {
-    --dmn-diff-surface: var(--vscode-editorWidget-background, #252526);
-    --dmn-diff-border: var(--vscode-editorWidget-border, #454545);
-    --dmn-diff-text: var(--vscode-editorWidget-foreground, var(--vscode-foreground, #e8e8e8));
     --dmn-diff-muted: var(--vscode-descriptionForeground, #9d9d9d);
-    --dmn-diff-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
-}
-
-body.vscode-light.dmn-diff-page {
-    --dmn-diff-surface: #fff;
-}
-
-body.vscode-high-contrast.dmn-diff-page {
-    --dmn-diff-border: var(--vscode-contrastBorder, #6fc3df);
-    --dmn-diff-shadow: none;
-    --dmn-diff-primary: transparent;
-    --dmn-diff-primary-border: var(--vscode-contrastBorder, #6fc3df);
-    --dmn-diff-primary-hover: transparent;
-    --dmn-diff-primary-text: var(--dmn-diff-text);
 }
 
 /* The preview shell carries the editor's properties panel; a diff pane has none. */
@@ -68,27 +40,6 @@ body.dmn-diff-page[data-diff-side="after"] {
     border-left: 1px dashed var(--vscode-editorGroup-border, #d0d0d0);
 }
 
-/* ─── Legend: theme values only; the layout is the shared diffLegend.css ─── */
-
-.dmn-diff-page .diff-legend {
-    --diff-legend-font-family: var(--dmn-diff-font);
-    --diff-legend-font-weight: 500;
-    --diff-legend-surface: var(--dmn-diff-surface);
-    --diff-legend-border: var(--dmn-diff-border);
-    --diff-legend-text: var(--dmn-diff-text);
-    --diff-legend-shadow: var(--dmn-diff-shadow);
-    --diff-legend-radius: 12px;
-    --diff-legend-button-surface: transparent;
-    --diff-legend-button-border: var(--dmn-diff-border);
-    --diff-legend-button-hover: var(--dmn-diff-hover);
-    --diff-legend-button-radius: 8px;
-    --diff-legend-primary-surface: var(--dmn-diff-primary);
-    --diff-legend-primary-border: var(--dmn-diff-primary-border);
-    --diff-legend-primary-text: var(--dmn-diff-primary-text);
-    --diff-legend-primary-hover: var(--dmn-diff-primary-hover);
-    --diff-legend-focus: var(--dmn-diff-focus);
-}
-
 /* ─── A decision the version lacks ────────────────────────────────────── */
 
 .dmn-diff-empty {
@@ -107,13 +58,13 @@ body.dmn-diff-page[data-diff-side="after"] {
     width: 320px;
     max-width: calc(100% - 32px);
     padding: 24px;
-    font: 400 13px/1.45 var(--dmn-diff-font);
-    color: var(--dmn-diff-text);
+    font: 400 13px/1.45 var(--diff-legend-font-family);
+    color: var(--diff-legend-text);
     text-align: center;
-    background: var(--dmn-diff-surface);
-    border: 1px solid var(--dmn-diff-border);
-    border-radius: 12px;
-    box-shadow: var(--dmn-diff-shadow);
+    background: var(--diff-legend-surface);
+    border: 1px solid var(--diff-legend-border);
+    border-radius: var(--diff-legend-radius);
+    box-shadow: var(--diff-legend-shadow);
 }
 
 .dmn-diff-empty__mark {
@@ -153,19 +104,21 @@ body.dmn-diff-page[data-diff-side="after"] {
 .dmn-diff-empty__action {
     padding: 6px 10px;
     font: inherit;
-    color: var(--dmn-diff-primary-text);
+    color: var(--diff-legend-primary-text);
     white-space: nowrap;
-    background: var(--dmn-diff-primary);
-    border: 1px solid var(--dmn-diff-primary-border);
-    border-radius: 8px;
+    background: var(--diff-legend-primary-surface);
+    border: 1px solid var(--diff-legend-primary-border);
+    border-radius: var(--diff-legend-button-radius);
     cursor: pointer;
 }
 
 .dmn-diff-empty__action:hover {
-    background: var(--dmn-diff-primary-hover);
+    background: var(--diff-legend-primary-hover);
+    outline: var(--diff-legend-button-hover-outline);
+    outline-offset: -1px;
 }
 
 .dmn-diff-empty__action:focus-visible {
-    outline: 1px solid var(--dmn-diff-focus);
+    outline: 1px solid var(--diff-legend-focus);
     outline-offset: 2px;
 }
