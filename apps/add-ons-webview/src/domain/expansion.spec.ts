@@ -183,7 +183,7 @@ describe("rowsInSight", () => {
         expansion?: Expansion;
         filterExpansion?: Expansion;
         filterActive?: boolean;
-        flat?: boolean;
+        flatGroupIds?: ReadonlySet<string>;
         rows: string[];
     }>([
         {
@@ -204,23 +204,23 @@ describe("rowsInSight", () => {
             rows: [],
         },
         {
-            case: "not the rows of a closed marketplace in the flat tab",
+            case: "not the rows of a closed marketplace in a group without its header",
             groups: [MARKETPLACES],
-            flat: true,
+            flatGroupIds: new Set(["marketplaces"]),
             rows: [],
         },
         {
-            case: "the rows of an open marketplace in the flat tab, whose group never closes",
+            case: "the rows of an open source in a group without its header, which a kept choice cannot close",
             groups: [MARKETPLACES],
             expansion: new Map([
                 ["marketplaces", false],
                 [MARKETPLACE_SOURCE.id, true],
             ]),
-            flat: true,
+            flatGroupIds: new Set(["marketplaces"]),
             rows: [MAIL.id],
         },
         {
-            case: "not the rows under a closed group outside the flat tab",
+            case: "not the rows under a closed group that shows its header",
             groups: [MARKETPLACES],
             expansion: new Map([
                 ["marketplaces", false],
@@ -252,11 +252,11 @@ describe("rowsInSight", () => {
             expansion = NONE,
             filterExpansion = NONE,
             filterActive = false,
-            flat = false,
+            flatGroupIds = new Set<string>(),
             rows,
         }) => {
             expect([
-                ...rowsInSight(groups, { expansion, filterExpansion, filterActive }, flat),
+                ...rowsInSight(groups, { expansion, filterExpansion, filterActive }, flatGroupIds),
             ]).toEqual(rows);
         },
     );

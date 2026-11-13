@@ -15,7 +15,7 @@ export class FocusKeeper {
         private readonly root: HTMLElement,
         private readonly list: HTMLElement,
         private readonly layout: Layout,
-        private readonly focusTab: () => void,
+        private readonly focusStart: () => void,
     ) {}
 
     held(): HeldFocus | undefined {
@@ -50,10 +50,7 @@ export class FocusKeeper {
                 return;
             }
             case "toolbar":
-                this.first([
-                    { kind: "scopeAction", id: `${CATALOG_OWNER}|${focus.actionKind}` },
-                    { kind: "menu", id: CATALOG_OWNER },
-                ]);
+                if (!this.first([{ kind: "menu", id: CATALOG_OWNER }])) this.listStart();
                 return;
             case "listStart":
                 this.listStart();
@@ -85,13 +82,13 @@ export class FocusKeeper {
         return this.first(placesOfAddOn(addOnId));
     }
 
-    /** Focus must not fall to the page: the list's first control, else the active tab. */
+    /** Focus must not fall to the page: the list's first control, else the toolbar's first. */
     listStart(): void {
         const first = [...this.list.querySelectorAll<HTMLElement>("[data-focus]")].find((each) =>
             this.layout.isShown(each),
         );
         if (first !== undefined) first.focus();
-        else this.focusTab();
+        else this.focusStart();
     }
 
     first(places: readonly FocusPlace[]): boolean {

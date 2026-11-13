@@ -34,15 +34,14 @@ describe("AddOnsViewSession", () => {
         const { host, session } = setUp();
         session.dispatch({ kind: "modelArrived", model: CATALOG });
         session.dispatch({ kind: "toggled", key: MARKETPLACE_SOURCE.id });
-        session.dispatch({ kind: "scopeChosen", scope: "marketplaces" });
+        session.dispatch({ kind: "addOnSelected", addOnId: MAIL.id });
 
         const reloaded = setUp(new RecordingHost(host.state)).session;
 
         expect([
             reloaded.state.expansion.get(MARKETPLACE_SOURCE.id),
-            reloaded.state.scope,
             selectedIdOf(reloaded.state),
-        ]).toEqual([true, "marketplaces", MAIL.id]);
+        ]).toEqual([true, MAIL.id]);
     });
 
     it("ends on the newest state when the host answers a request at once", () => {

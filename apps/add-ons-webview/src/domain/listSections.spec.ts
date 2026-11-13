@@ -15,7 +15,12 @@ import { displayOrderOf, needsAttention, sectionsOf } from "./listSections";
 
 const [FOLDER, MARKETPLACES] = CATALOG.groups as [AddOnGroupPayload, AddOnGroupPayload];
 
-const BROKEN = { ...PALETTE, id: "plugin:/work/.camunda/plugins/broken", name: "broken", problem: "Cannot be read: no manifest." };
+const BROKEN = {
+    ...PALETTE,
+    id: "plugin:/work/.camunda/plugins/broken",
+    name: "broken",
+    problem: "Cannot be read: no manifest.",
+};
 
 const SECOND_FOLDER: AddOnGroupPayload = {
     id: "folder:/other",
@@ -46,10 +51,9 @@ describe("sectionsOf", () => {
 
         expect(sections.attention.map(({ addOn }) => addOn.id)).toEqual([RESIZE.id, ACME.id]);
         expect(sections.attention[0]?.source).toBe(CONFIG_SOURCE);
-        expect(sections.installed[0]?.sources.map(({ addOns }) => addOns.map(({ id }) => id))).toEqual([
-            [PALETTE.id],
-            [],
-        ]);
+        expect(
+            sections.installed[0]?.sources.map(({ addOns }) => addOns.map(({ id }) => id)),
+        ).toEqual([[PALETTE.id], []]);
     });
 
     it("keeps a source whose rows all moved up, so its header and actions stay", () => {
@@ -68,7 +72,11 @@ describe("sectionsOf", () => {
 
     it.each([
         { case: "lists a marketplace", group: MARKETPLACES, shown: true },
-        { case: "has a problem only", group: { ...MARKETPLACES, sources: [], problem: "Unreadable." }, shown: true },
+        {
+            case: "has a problem only",
+            group: { ...MARKETPLACES, sources: [], problem: "Unreadable." },
+            shown: true,
+        },
         { case: "lists nothing", group: { ...MARKETPLACES, sources: [] }, shown: false },
     ])("shows the marketplaces section when it $case: $shown", ({ group, shown }) => {
         expect(sectionsOf([FOLDER, group]).marketplaces !== undefined).toBe(shown);

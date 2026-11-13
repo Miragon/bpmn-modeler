@@ -281,21 +281,25 @@ the page's router hands to `applyBrandMode` outside the view state, and
 IntelliJ sets both attributes through `executeJavaScript`. IntelliJ's copy,
 `BrandMode.kt`, runs `brandMode.cases.json` in `BrandModeTest`.
 
-The page is a list beside a detail pane. Two tabs split the catalog by the
-group's `kind`, the workspace's folders and the marketplaces; inside a tab a
-search and filter chips narrow the list, grouped by folder and source, and the
-detail shows the selected add-on with its actions as buttons. From 640px of
-the view's own width the panes stand side by side, below that the detail
-replaces the list with a Back button; container queries decide, so the layout
-follows a resized sidebar or tool window without a reload. The reducer
-(`src/domain/viewState.ts`) holds the tab, each tab's selection, the filter
-and the pane, and keeps the tab the user chose (`chosenScope`), the selections
-and the open or closed headers in the host's saved state, so a reload, which
-IntelliJ does after a bridge restart, lands where the user was; the search
-stays with the page. Until the user chooses a tab, the first model that lists
-something opens Marketplaces when the Workspace tab lists nothing and a
-marketplace is listed, else Workspace (`openingScopeOf`). A tab selects on its
-own only a row its open headers show (`rowsInSight`). A search or
+The page is a list beside a detail pane. One list holds three sections
+(`src/domain/listSections.ts`): Needs attention, every add-on that offers
+Allow or carries a problem, read from the model and in model order; Installed,
+the folder groups without those rows; and Marketplaces, the marketplaces
+group once it lists a source or a problem. An add-on shows in one place only,
+so its id names one row and one focus target. With one folder group its
+header is left out and its sources stand under Installed; such a group never
+closes (`flatGroupIds`), whatever an older page saved. A header line counts
+what waits and what is not loaded, a search button opens the search field,
+a filter menu narrows by kind, and the detail shows the selected add-on with
+its actions as buttons. From 640px of the view's own width the panes stand
+side by side, below that the detail replaces the list with a Back button;
+container queries decide, so the layout follows a resized sidebar or tool
+window without a reload. The reducer (`src/domain/viewState.ts`) holds the
+selection, the filter and the pane, and keeps the selection and the open or
+closed headers in the host's saved state, so a reload, which IntelliJ does
+after a bridge restart, lands where the user was; the search and the filter
+stay with the page. The list selects on its own only a row the list shows in
+sight, in the order it shows them (`rowsInSight`, `displayOrderOf`). A search or
 filter opens every header with a match, and what the user opens or closes
 while it is on goes into `filterExpansion`, which stays with the page and ends
 with the filter, so the saved headers never change while filtering and show
@@ -318,20 +322,21 @@ carry their licenses. The add-ons build emits them beside the bundle
 which `verifyReleaseBundles` checks for a release.
 
 Every control is reached with Tab, and the list has no roving tree (see
-[Alternatives](#alternatives-and-consequences)). The tabs keep the arrow,
-Home and End keys of the tab pattern and the "…" menus those of the menu
-pattern, with Escape back to their button and Tab on from it, as a role
-promises its keys. When the host focuses the page (VS Code's view focus,
+[Alternatives](#alternatives-and-consequences)). The menus keep the keys of
+the menu pattern, with Escape back to their button and Tab on from it, as a
+role promises its keys; the filter's kinds are `menuitemcheckbox` items that
+keep the menu open. When the host focuses the page (VS Code's view focus,
 IntelliJ's tool window activation), focus goes to the selected add-on, its row or, in the
-drill-down, its detail heading, else to the active tab. The view's own words,
-its tab, chip and empty-state labels, "Needs review" and "Problem" on a row,
+drill-down, its detail heading, else to the header line's first button. The
+view's own words, its section, menu and empty-state labels, "Waiting" and
+"Not loaded" on a row,
 the hint of an empty detail and its screen-reader summaries, live in one
 module, `src/domain/chromeTexts.ts`: they name the view's controls and
 summaries, which the core's model does not have, as "Loading…" does, and one
 module keeps them from scattering into adapters where a reviewer cannot tell
-them from model text. A row's "Needs review" is read from what the core
-offers (Allow), never from a rule of its own, and the detail shows
-the core's state text. Every other text comes from the core, which also sends
+them from model text. A row's "Waiting" is read from what the core offers
+(Allow) and "Not loaded" from its problem, never from a rule of their own; a
+settled row shows no status, and the detail shows the core's state text. Every other text comes from the core, which also sends
 `emptyText`, why no folder lists an add-on, whenever the workspace has none,
 marketplaces or not.
 
@@ -1812,8 +1817,14 @@ a cached result must equal an uncached run.
   still looked different in each host. The brand look costs the view its
   match with the IDE's colours and font size; the host keeps only light, dark
   and high contrast.
-- The core could send the view's own words (tab and chip labels, "Needs
-  review", the empty and no-match texts) in the catalog model. They name
+- Two tabs, Workspace and Marketplaces, with four filter chips, split the
+  list before. In a sidebar under Deploy they took most of the height before
+  the first row, and a waiting add-on hid among settled ones. One list with
+  Needs attention first shows what needs the user without a filter; it costs
+  the marketplaces a place at the end of a long workspace list, behind a
+  header the user can close.
+- The core could send the view's own words (section and menu labels,
+  "Waiting", the empty and no-match texts) in the catalog model. They name
   controls and filters of one page, not the catalog, so each would be a
   protocol field no other view reads. Keeping them in `chromeTexts.ts` costs a
   second home for words beside the core's, so a review checks that a new word
@@ -1823,7 +1834,8 @@ a cached result must equal an uncached run.
   [#2321](https://github.com/Miragon/bpmn-modeler/issues/2321) puts each row's
   actions in the detail pane, and the product decision put that layout before
   the tree model. Dropping it costs keyboard users one Tab per shown row and
-  header; closing a folder, the search and the chips shorten the way.
+  header; Needs attention at the top, closing a folder, the search and the
+  kind filter shorten the way.
 - The marketplace's free-text location could have come through a generic
   text-input port beside `TokenPromptPort`, with the scope through
   `PickerPort.choose`. That costs the same protocol as the add question (one

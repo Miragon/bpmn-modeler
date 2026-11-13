@@ -7,7 +7,7 @@ import { ChevronRight } from "lucide";
 
 import { sourceActionEmphasis } from "../../domain/actionEmphasis";
 import { rowStatusOf } from "../../domain/addOnStatus";
-import { addOnsOf } from "../../domain/catalogQueries";
+import { addOnsOf, Placement } from "../../domain/catalogQueries";
 import {
     CHROME_TEXT,
     headSummaryText,
@@ -15,11 +15,12 @@ import {
     sourceActionsText,
 } from "../../domain/chromeTexts";
 import { headSummaryOf } from "../../domain/headSummary";
+import type { ListSections } from "../../domain/listSections";
 import { isBusy, ViewState } from "../../domain/viewState";
 import { actionButton, el, hiddenText, icon, markFocus, setBusy, toggleButton } from "./dom";
-import { SOURCE_ACTION_ICON, SOURCE_ICON } from "./icons";
+import { KIND_ICON, SOURCE_ACTION_ICON, SOURCE_ICON } from "./icons";
 import { menuAnchor } from "./menu";
-import { kindTile, problemLine, statusBadge } from "./statusMarks";
+import { problemLine, statusBadge } from "./statusMarks";
 
 export interface ListContext {
     readonly state: ViewState;
@@ -32,40 +33,79 @@ export interface ListContext {
     readonly onMenu: (menuId: string) => void;
 }
 
-export function groupsOf(
-    groups: readonly AddOnGroupPayload[],
-    flat: boolean,
+/** Needs attention, Installed and Marketplaces, from top to bottom; a section with nothing to show is left out. */
+export function sectionsListOf(
+    sections: ListSections,
+    installedText: string | undefined,
     context: ListContext,
 ): HTMLElement[] {
-    return groups.map((group) => (flat ? flatGroupOf(group, context) : groupOf(group, context)));
+    const parts: HTMLElement[] = [];
+    if (sections.attention.length > 0) parts.push(attentionOf(sections.attention, context));
+    if (sections.installed.length > 0 || installedText !== undefined) {
+        const installed = section(CHROME_TEXT.installed);
+        if (installedText !== undefined)
+            installed.append(el("p", "av-section-text", installedText));
+        installed.append(
+            ...sections.installed.map((group) =>
+                sections.flatGroupIds.has(group.id)
+                    ? flatGroupOf(group, context)
+                    : groupOf(group, context),
+            ),
+        );
+        parts.push(installed);
+    }
+    if (sections.marketplaces !== undefined) parts.push(groupOf(sections.marketplaces, context));
+    return parts;
+}
+
+function section(label: string, count?: number): HTMLElement {
+    const block = el("section", "av-section");
+    block.setAttribute("aria-label", label);
+    const heading = el("h2", "av-section-head");
+    heading.append(el("span", "av-section-label", label));
+    if (count !== undefined) {
+        const pill = el("span", "ds-count av-section-count", String(count));
+        pill.setAttribute("aria-hidden", "true");
+        heading.append(pill);
+    }
+    block.append(heading);
+    return block;
+}
+
+function attentionOf(placements: readonly Placement[], context: ListContext): HTMLElement {
+    const block = section(CHROME_TEXT.needsAttention, placements.length);
+    block.classList.add("av-attention");
+    const rows = el("div", "av-rows");
+    rows.setAttribute("role", "list");
+    rows.setAttribute("aria-label", CHROME_TEXT.needsAttention);
+    rows.append(...placements.map(({ addOn, source }) => rowOf(addOn, context, source.label)));
+    block.append(rows);
+    return block;
 }
 
 function groupOf(group: AddOnGroupPayload, context: ListContext): HTMLElement {
     const open = context.isOpen(group.id);
-    const section = el("section", "av-group");
-    section.setAttribute("aria-label", group.label);
+    const block = el("section", "av-group");
+    block.setAttribute("aria-label", group.label);
     const control = headControl(group.id, open, "av-group-head");
+    control.title = group.description;
     const text = el("span", "av-group-text");
-    text.append(
-        el("span", "av-group-label", group.label),
-        el("span", "av-group-path", group.description),
-    );
+    text.append(el("span", "av-group-label", group.label), hiddenText(`, ${group.description}`));
     control.append(chevron(), text, ...summaryOf(addOnsOf([group]), open));
-    const heading = el("h2", "av-group-name");
+    const heading = el("h3", "av-group-name");
     heading.append(control);
-    section.append(heading);
-    if (group.problem !== undefined) section.append(problemLine(group.problem, "av-group-problem"));
-    if (open) section.append(...group.sources.map((source) => sourceOf(source, context)));
-    return section;
+    block.append(heading);
+    if (group.problem !== undefined) block.append(problemLine(group.problem, "av-group-problem"));
+    if (open) block.append(...group.sources.map((source) => sourceOf(source, context)));
+    return block;
 }
 
+/** The only folder: its sources stand directly under Installed, its path in their tooltip. */
 function flatGroupOf(group: AddOnGroupPayload, context: ListContext): HTMLElement {
-    const section = el("section", "av-group av-group-flat");
-    section.setAttribute("aria-label", group.label);
-    section.append(el("p", "av-group-intro", group.description));
-    if (group.problem !== undefined) section.append(problemLine(group.problem, "av-group-problem"));
-    section.append(...group.sources.map((source) => sourceOf(source, context)));
-    return section;
+    const block = el("div", "av-group av-group-flat");
+    if (group.problem !== undefined) block.append(problemLine(group.problem, "av-group-problem"));
+    block.append(...group.sources.map((source) => sourceOf(source, context)));
+    return block;
 }
 
 function sourceOf(source: AddOnSourcePayload, context: ListContext): HTMLElement {
@@ -83,14 +123,15 @@ function sourceOf(source: AddOnSourcePayload, context: ListContext): HTMLElement
     titleLine.append(el("span", "av-source-label", source.label));
     if (source.stateText !== undefined) titleLine.append(el("span", "av-badge", source.stateText));
     const text = el("span", "av-source-text");
-    text.append(titleLine, el("span", "av-source-description", source.description));
+    text.append(titleLine, hiddenText(`, ${source.description}`));
+    control.title = source.description;
     control.append(
         hasRows ? chevron() : el("span", "av-head-chevron"),
         icon(SOURCE_ICON[source.kind], 16, "av-source-icon"),
         text,
         ...summaryOf(source.addOns, open || !hasRows),
     );
-    const heading = el("h3", "av-source-heading");
+    const heading = el("h4", "av-source-heading");
     heading.append(control);
     head.append(heading);
     if (source.actions.length > 0) {
@@ -148,14 +189,15 @@ function summaryOf(addOns: readonly AddOnPayload[], open: boolean): HTMLElement[
     if (needingReview > 0) {
         const dot = el("span", "av-dot av-head-dot");
         dot.setAttribute("aria-hidden", "true");
-        dot.title = CHROME_TEXT.needsReview;
+        dot.title = CHROME_TEXT.waiting;
         summary.append(dot);
     }
     summary.append(hiddenText(`, ${headSummaryText(total, needingReview)}`));
     return [summary];
 }
 
-function rowOf(addOn: AddOnPayload, context: ListContext): HTMLElement {
+/** A row says its kind by a quiet glyph, and its status only when it is not settled. */
+function rowOf(addOn: AddOnPayload, context: ListContext, sourceLabel?: string): HTMLElement {
     const item = el("div", "av-row-item");
     item.setAttribute("role", "listitem");
     setBusy(item, isBusy(context.state, addOn.id));
@@ -165,13 +207,15 @@ function rowOf(addOn: AddOnPayload, context: ListContext): HTMLElement {
     if (addOn.id === context.revealedId) row.classList.add("av-revealed");
     const name = el("span", "av-row-name");
     name.append(el("span", "av-row-title", addOn.name));
-    if (addOn.detail !== undefined) name.append(el("span", "av-row-detail", addOn.detail));
+    const detail = [addOn.detail, sourceLabel].filter((part) => part !== undefined).join(" · ");
+    if (detail !== "") name.append(el("span", "av-row-detail", detail));
     row.append(
-        kindTile(addOn.kind),
+        icon(KIND_ICON[addOn.kind], 16, "av-row-kind"),
         hiddenText(`${KIND_TEXT[addOn.kind].singular}, `),
         name,
-        statusBadge(rowStatusOf(addOn), "av-row-status"),
     );
+    const status = rowStatusOf(addOn);
+    if (status !== undefined) row.append(statusBadge(status, "av-row-status"));
     if (isBusy(context.state, addOn.id)) row.append(el("span", "ds-busy-bar av-row-busy"));
     row.addEventListener("click", () => context.onSelect(addOn.id));
     item.append(row);

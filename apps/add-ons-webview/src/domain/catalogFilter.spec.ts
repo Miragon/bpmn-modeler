@@ -11,9 +11,7 @@ import {
     CatalogFilter,
     filteredGroups,
     isFilterActive,
-    isOnlyNeedsReview,
     needsReview,
-    NEEDS_REVIEW_ONLY,
     NO_FILTER,
     withKindToggled,
 } from "./catalogFilter";
@@ -138,10 +136,9 @@ describe("filteredGroups", () => {
             { kinds: new Set(["rulePackage", "elementTemplate"]) },
             ["Mail Task", "bpmnlint-plugin-acme"],
         ],
-        ["what needs review", { onlyNeedsReview: true }, ["Resize Tasks", "bpmnlint-plugin-acme"]],
         [
-            "all of them at once",
-            { query: "resize", kinds: new Set(["plugin"]), onlyNeedsReview: true },
+            "a query and a kind at once",
+            { query: "resize", kinds: new Set(["plugin"]) },
             ["Resize Tasks"],
         ],
     ])("keeps the add-ons that match %s", (_, change, expected) => {
@@ -166,29 +163,8 @@ describe("isFilterActive", () => {
         ["a blank query", { query: "  " }, false],
         ["a query", { query: "x" }, true],
         ["a kind", { kinds: new Set(["plugin"]) }, true],
-        ["only what needs review", { onlyNeedsReview: true }, true],
     ])("is %s: %s", (_, change, expected) => {
         expect(isFilterActive(filter(change))).toBe(expected);
-    });
-});
-
-describe("isOnlyNeedsReview", () => {
-    it.each<[string, Partial<CatalogFilter>, boolean]>([
-        ["not without a filter", {}, false],
-        ["only the review chip", { onlyNeedsReview: true }, true],
-        ["not the review chip with a query", { onlyNeedsReview: true, query: "x" }, false],
-        [
-            "not the review chip with a kind",
-            { onlyNeedsReview: true, kinds: new Set(["plugin"]) },
-            false,
-        ],
-        ["the review chip with a blank query", { onlyNeedsReview: true, query: "  " }, true],
-    ])("is %s", (_, change, expected) => {
-        expect(isOnlyNeedsReview(filter(change))).toBe(expected);
-    });
-
-    it("is what the review preset filters by", () => {
-        expect(NEEDS_REVIEW_ONLY).toEqual({ ...NO_FILTER, onlyNeedsReview: true });
     });
 });
 
@@ -205,11 +181,18 @@ describe("withKindToggled", () => {
 });
 
 describe("catalogCounts", () => {
-    it("counts the add-ons by kind and those that need review", () => {
-        expect(catalogCounts(model)).toEqual({
-            total: 4,
-            byKind: { plugin: 2, rulePackage: 1, elementTemplate: 1 },
+    it("counts the add-ons by kind, those that need review and those with a problem", () => {
+        const broken = { ...palette, id: "plugin:/work/broken", problem: "Cannot be read." };
+        const withBroken: AddOnCatalogPayload = {
+            ...model,
+            groups: [{ ...groups[0]!, sources: [source("s", "s", [broken])] }, ...groups],
+        };
+
+        expect(catalogCounts(withBroken)).toEqual({
+            total: 5,
+            byKind: { plugin: 3, rulePackage: 1, elementTemplate: 1 },
             needsReview: 2,
+            problems: 1,
         });
     });
 });

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { ACME, CATALOG, MAIL, PALETTE, RESIZE, without } from "../__fixtures__/catalogs";
 import { firstToShow, settledSelection } from "./catalogSelection";
+import { addOnsOf } from "./catalogQueries";
 
 const ALL = CATALOG.groups;
 const SETTLED: readonly AddOnGroupPayload[] = without(RESIZE.id, without(ACME.id)).groups;
@@ -24,7 +25,11 @@ describe("firstToShow", () => {
         ],
         ["nothing while every head is closed", ALL, new Set(), undefined],
     ])("is %s", (_, groups, inSight, expected) => {
-        expect(firstToShow(groups, inSight)).toBe(expected);
+        expect(firstToShow(addOnsOf(groups), inSight)).toBe(expected);
+    });
+
+    it("follows the order it is given, as the list shows it", () => {
+        expect(firstToShow([MAIL, PALETTE], ALL_IN_SIGHT)).toBe(MAIL.id);
     });
 });
 
@@ -119,6 +124,6 @@ describe("settledSelection", () => {
             expected: ACME.id,
         },
     ])("$case", ({ remembered, shown, before, inSight = ALL_IN_SIGHT, expected }) => {
-        expect(settledSelection(remembered, shown, before, inSight)).toBe(expected);
+        expect(settledSelection(remembered, addOnsOf(shown), before, inSight)).toBe(expected);
     });
 });

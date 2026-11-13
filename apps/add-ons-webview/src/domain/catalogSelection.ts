@@ -1,33 +1,33 @@
-import type { AddOnGroupPayload } from "@miragon/bpmn-modeler-shared";
+import type { AddOnPayload } from "@miragon/bpmn-modeler-shared";
 
 import { needsReview } from "./catalogFilter";
-import { addOnsOf } from "./catalogQueries";
 
-/** What a tab selects on its own: the first add-on to review the list shows, else its first shown add-on. */
+/** What the list selects on its own: the first add-on to review it shows, else its first shown add-on. */
 export function firstToShow(
-    groups: readonly AddOnGroupPayload[],
+    shown: readonly AddOnPayload[],
     inSight: ReadonlySet<string>,
 ): string | undefined {
-    const visible = addOnsOf(groups).filter(({ id }) => inSight.has(id));
+    const visible = shown.filter(({ id }) => inSight.has(id));
     return (visible.find(needsReview) ?? visible[0])?.id;
 }
 
 /**
- * The tab's selection once the list changed: the remembered add-on while the
+ * The list's selection once it changed: the remembered add-on while the
  * list holds it, even under a closed header; when a filter or a new model
  * removes it, the nearest add-on after it the list still shows, else before
  * it; else {@link firstToShow}. It never picks a row a closed header hides.
  *
- * @param before the ids the tab's list held before the change
+ * @param shown the add-ons the list holds, in the order it shows them
+ * @param before the ids the list held before the change, in that order
  * @param inSight the rows the list shows under open headers
  */
 export function settledSelection(
     remembered: string | undefined,
-    shown: readonly AddOnGroupPayload[],
+    shown: readonly AddOnPayload[],
     before: readonly string[],
     inSight: ReadonlySet<string>,
 ): string | undefined {
-    const shownIds = new Set(addOnsOf(shown).map(({ id }) => id));
+    const shownIds = new Set(shown.map(({ id }) => id));
     if (remembered !== undefined && shownIds.has(remembered)) return remembered;
     const index = remembered === undefined ? -1 : before.indexOf(remembered);
     if (index === -1) return firstToShow(shown, inSight);

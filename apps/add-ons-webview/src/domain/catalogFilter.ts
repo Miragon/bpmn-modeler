@@ -11,21 +11,14 @@ export type AddOnKind = AddOnPayload["kind"];
 
 export const KIND_ORDER: readonly AddOnKind[] = ["plugin", "rulePackage", "elementTemplate"];
 
-/** The user's search and filter chips; they apply inside the chosen tab. */
+/** The user's search and kind filter; they apply to every section of the list. */
 export interface CatalogFilter {
     readonly query: string;
     /** Empty: every kind. */
     readonly kinds: ReadonlySet<AddOnKind>;
-    readonly onlyNeedsReview: boolean;
 }
 
-export const NO_FILTER: CatalogFilter = { query: "", kinds: new Set(), onlyNeedsReview: false };
-export const NEEDS_REVIEW_ONLY: CatalogFilter = { ...NO_FILTER, onlyNeedsReview: true };
-
-/** Only the review chip is on: no search, no kind. */
-export function isOnlyNeedsReview(filter: CatalogFilter): boolean {
-    return filter.onlyNeedsReview && filter.kinds.size === 0 && termsOf(filter.query).length === 0;
-}
+export const NO_FILTER: CatalogFilter = { query: "", kinds: new Set() };
 
 /** Read from what the core offers, so the view never repeats the core's approval rule. */
 export function needsReview(addOn: AddOnPayload): boolean {
@@ -33,7 +26,7 @@ export function needsReview(addOn: AddOnPayload): boolean {
 }
 
 export function isFilterActive(filter: CatalogFilter): boolean {
-    return termsOf(filter.query).length > 0 || filter.kinds.size > 0 || filter.onlyNeedsReview;
+    return termsOf(filter.query).length > 0 || filter.kinds.size > 0;
 }
 
 export function withKindToggled(filter: CatalogFilter, kind: AddOnKind): CatalogFilter {
@@ -68,13 +61,19 @@ export interface CatalogCounts {
     readonly total: number;
     readonly byKind: Readonly<Record<AddOnKind, number>>;
     readonly needsReview: number;
+    readonly problems: number;
 }
 
 export function catalogCounts(model: AddOnCatalogPayload): CatalogCounts {
     const addOns = addOnsOf(model.groups);
     const byKind: Record<AddOnKind, number> = { plugin: 0, rulePackage: 0, elementTemplate: 0 };
     addOns.forEach(({ kind }) => byKind[kind]++);
-    return { total: addOns.length, byKind, needsReview: addOns.filter(needsReview).length };
+    return {
+        total: addOns.length,
+        byKind,
+        needsReview: addOns.filter(needsReview).length,
+        problems: addOns.filter(({ problem }) => problem !== undefined).length,
+    };
 }
 
 function termsOf(query: string): string[] {
@@ -89,7 +88,6 @@ function matches(
     terms: readonly string[],
 ): boolean {
     if (filter.kinds.size > 0 && !filter.kinds.has(addOn.kind)) return false;
-    if (filter.onlyNeedsReview && !needsReview(addOn)) return false;
     const haystack = [
         addOn.name,
         addOn.detail,

@@ -1,8 +1,7 @@
 import type { AddOnCatalogPayload } from "@miragon/bpmn-modeler-shared";
 
 import { placementOf } from "../../domain/catalogQueries";
-import type { CatalogScope } from "../../domain/catalogScope";
-import { announcementOf, CHROME_TEXT, NO_MATCH_TEXT } from "../../domain/chromeTexts";
+import { announcementOf, CHROME_TEXT, reviewCountText } from "../../domain/chromeTexts";
 import { headsOf, isShownOpen } from "../../domain/expansion";
 import { FocusTarget, isRequestedByHost } from "../../domain/focusAfter";
 import { catalogPhaseOf, ListContent, listContentOf } from "../../domain/listContent";
@@ -16,34 +15,28 @@ import {
 } from "../../domain/viewState";
 import { backButton, detailOf, hintOf } from "./detailView";
 import { el, elementAt, setBusy } from "./dom";
-import {
-    catalogEmptyOf,
-    loadingOf,
-    noMarketplaceOf,
-    noMatchOf,
-    scopeActionsOf,
-    workspaceEmptyOf,
-} from "./emptyStates";
+import { catalogEmptyOf, loadingOf, noMatchOf } from "./emptyStates";
 import { FocusKeeper } from "./focusKeeper";
 import { BROWSER_LAYOUT, Layout } from "./layout";
-import { groupsOf } from "./listView";
+import { MENU_ITEMS } from "./menu";
+import { sectionsListOf } from "./listView";
 import { ResultBanner } from "./resultBanner";
 import { statusBox } from "./statusMarks";
-import { tabIdOf, Toolbar } from "./toolbar";
+import { Toolbar } from "./toolbar";
 
-const LIST_PANEL_ID = "av-list-panel";
 const REVEAL_MS = 2400;
 
 /**
- * The Add-ons view: a list grouped by folder and source beside the detail of
- * the selected add-on, or, in a narrow view, a drill-down from one to the
- * other. It builds its DOM with the DOM API from the state; the reducer
+ * The Add-ons view: a list of what needs attention, then what is installed by
+ * folder and source, then the marketplaces, beside the detail of the selected
+ * add-on, or, in a narrow view, a drill-down from one to the other. It builds its DOM with the DOM API from the state; the reducer
  * decides everything else. A part is only rebuilt when what it shows changed,
  * and focus returns to the place it held.
  */
 export class AddOnsView {
     private state?: ViewState;
     private openMenu?: string;
+    private searchOpen = false;
     private revealedId?: string;
     private revealTimer?: ReturnType<typeof setTimeout>;
     private listScroll = 0;
@@ -64,17 +57,18 @@ export class AddOnsView {
         private readonly dispatch: (event: ViewEvent) => void,
         private readonly layout: Layout = BROWSER_LAYOUT,
     ) {
-        this.toolbar = new Toolbar(LIST_PANEL_ID, {
-            onScope: (scope, byKey) => this.chooseScope(scope, byKey),
-            onQuery: (query) => dispatch({ kind: "queryChanged", query }),
+        this.toolbar = new Toolbar({
+            onQuery: (query) => {
+                // A field that took a query stays open once it is cleared, so focus stays in it.
+                if (query !== "") this.searchOpen = true;
+                dispatch({ kind: "queryChanged", query });
+            },
             onKind: (addOnKind) => dispatch({ kind: "kindToggled", addOnKind }),
-            onNeedsReview: () => dispatch({ kind: "needsReviewToggled" }),
             onMenu: (menuId) => this.toggleMenu(menuId),
+            onSearchToggle: () => this.toggleSearch(),
         });
-        this.focus = new FocusKeeper(root, this.list, layout, () => {
-            if (this.state !== undefined) this.toolbar.focusTab(this.state.scope);
-        });
-        this.list.id = LIST_PANEL_ID;
+        this.focus = new FocusKeeper(root, this.list, layout, () => this.toolbar.focusStart());
+        this.list.setAttribute("aria-label", CHROME_TEXT.title);
         this.announcer.setAttribute("aria-live", "polite");
         const body = el("div", "av-body");
         body.append(this.list, this.detail);
@@ -100,13 +94,13 @@ export class AddOnsView {
         if (reveal !== undefined) this.finishReveal(reveal);
     }
 
-    /** The host focused the view: focus goes to the selected add-on, else to the tab. */
+    /** The host focused the view: focus goes to the selected add-on, else to the toolbar. */
     focusFromOutside(): void {
         const state = this.state;
         if (state === undefined || this.root.contains(document.activeElement)) return;
         const selected = selectedIdOf(state);
         if (selected !== undefined && this.focus.addOn(selected)) return;
-        if (catalogPhaseOf(state.model) === "ready") this.toolbar.focusTab(state.scope);
+        if (catalogPhaseOf(state.model) === "ready") this.toolbar.focusStart();
     }
 
     /**
@@ -140,36 +134,21 @@ export class AddOnsView {
         this.app.dataset.pane = state.pane;
         setBusy(this.list, model === undefined);
         this.banner.show(state.banner);
-        this.labelList(phase === "ready" ? state.scope : undefined);
         if (model === undefined) {
             this.list.replaceChildren(loadingOf());
             return;
         }
-        this.toolbar.update(model, state, this.openMenu);
-        const content = listContentOf(model, state.scope, state.filter);
+        this.toolbar.update(model, state, this.openMenu, this.searchOpen);
+        const content = listContentOf(model, state.filter);
         this.drawList(content, model, state);
         this.drawDetail(model, state);
         this.announce(content, state);
-    }
-
-    /** The list is the tab's panel while the tabs show, else the view's one region. */
-    private labelList(scope: CatalogScope | undefined): void {
-        if (scope === undefined) {
-            this.list.removeAttribute("role");
-            this.list.removeAttribute("aria-labelledby");
-            this.list.setAttribute("aria-label", CHROME_TEXT.title);
-            return;
-        }
-        this.list.setAttribute("role", "tabpanel");
-        this.list.setAttribute("aria-labelledby", tabIdOf(scope));
-        this.list.removeAttribute("aria-label");
     }
 
     private drawList(content: ListContent, model: AddOnCatalogPayload, state: ViewState): void {
         const selectedId = selectedIdOf(state);
         const inputs = [
             model,
-            state.scope,
             state.filter,
             state.expansion,
             state.filterExpansion,
@@ -197,19 +176,12 @@ export class AddOnsView {
         switch (content.kind) {
             case "catalogEmpty":
                 return catalogEmptyOf(content.text, content.buttons, busy);
-            case "noMarketplace":
-                return [noMarketplaceOf(content.buttons, busy)];
-            case "workspaceEmpty":
-                return [workspaceEmptyOf(content.text)];
             case "noMatch":
-                return [
-                    ...scopeActionsOf(content.buttons, busy),
-                    noMatchOf(NO_MATCH_TEXT[content.reason], () => this.clearFilters()),
-                ];
-            case "groups": {
+                return [noMatchOf(CHROME_TEXT.noMatch, () => this.clearFilters())];
+            case "sections": {
                 const heads = new Map(headsOf(model).map((head) => [head.id, head]));
                 const shown = listExpansionOf(state);
-                const groups = groupsOf(content.groups, content.flat, {
+                return sectionsListOf(content.sections, content.installedText, {
                     state,
                     isOpen: (id) => {
                         const head = heads.get(id);
@@ -221,7 +193,6 @@ export class AddOnsView {
                     onSelect: (addOnId) => this.select(addOnId),
                     onMenu: (menuId) => this.toggleMenu(menuId),
                 });
-                return [...scopeActionsOf(content.buttons, busy), ...groups];
             }
         }
     }
@@ -254,7 +225,10 @@ export class AddOnsView {
     }
 
     private announce(content: ListContent, state: ViewState): void {
-        const text = announcementOf(content, state.filter);
+        const text =
+            state.reviewCount === undefined
+                ? announcementOf(content, state.filter)
+                : reviewCountText(state.reviewCount);
         if (this.announcer.textContent !== text) this.announcer.textContent = text;
     }
 
@@ -306,24 +280,24 @@ export class AddOnsView {
         }
     }
 
-    private chooseScope(scope: CatalogScope, byKey: boolean): void {
-        this.openMenu = undefined;
-        this.dispatch({ kind: "scopeChosen", scope });
-        this.list.scrollTop = 0;
-        this.layout.scrollPageTo(0);
-        if (byKey) this.toolbar.focusTab(scope);
+    /** Opening the search focuses its field; closing it leaves the query as it was. */
+    private toggleSearch(): void {
+        this.searchOpen = !this.searchOpen;
+        this.redraw();
+        if (this.searchOpen) this.toolbar.focusSearch();
     }
 
     private clearFilters(): void {
+        this.searchOpen = false;
         this.dispatch({ kind: "filtersCleared" });
-        this.toolbar.focusSearch();
+        this.focus.listStart();
     }
 
     private toggleMenu(menuId: string): void {
         this.openMenu = this.openMenu === menuId ? undefined : menuId;
         this.redraw();
         if (this.openMenu !== undefined) {
-            this.root.querySelector<HTMLElement>(".av-menu [role=menuitem]")?.focus();
+            this.root.querySelector<HTMLElement>(`.av-menu ${MENU_ITEMS}`)?.focus();
         }
     }
 

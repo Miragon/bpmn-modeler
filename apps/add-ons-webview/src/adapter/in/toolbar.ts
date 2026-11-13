@@ -1,111 +1,119 @@
 import type { AddOnCatalogPayload } from "@miragon/bpmn-modeler-shared";
-import { Search, X } from "lucide";
+import { Check, ListFilter, Search, X } from "lucide";
 
 import { AddOnKind, catalogCounts, KIND_ORDER } from "../../domain/catalogFilter";
-import { CatalogScope, scopeAfterKey, scopedCatalog, SCOPE_ORDER } from "../../domain/catalogScope";
-import { CHROME_TEXT, KIND_TEXT, SCOPE_TEXT } from "../../domain/chromeTexts";
+import { CHROME_TEXT, filterLabelText, KIND_TEXT, summaryText } from "../../domain/chromeTexts";
 import { CATALOG_TARGET, isBusy, ViewState } from "../../domain/viewState";
 import { actionButton, button, el, icon, markFocus, setBusy } from "./dom";
-import { CATALOG_ACTION_ICON } from "./icons";
+import { CATALOG_ACTION_ICON, KIND_ICON } from "./icons";
 import { CATALOG_MENU, menuAnchor } from "./menu";
-import { kindTile } from "./statusMarks";
+
+/** The id of the kind filter's menu. */
+export const FILTER_MENU = "filters";
+
+const SEARCH_ID = "av-search";
 
 export interface ToolbarHandlers {
-    readonly onScope: (scope: CatalogScope, byKey: boolean) => void;
     readonly onQuery: (query: string) => void;
     readonly onKind: (kind: AddOnKind) => void;
-    readonly onNeedsReview: () => void;
     readonly onMenu: (menuId: string) => void;
-}
-
-interface Chip {
-    readonly button: HTMLButtonElement;
-    readonly count: HTMLElement;
-}
-
-export function tabIdOf(scope: CatalogScope): string {
-    return `av-tab-${scope}`;
+    readonly onSearchToggle: () => void;
 }
 
 /**
- * The tabs, the search, the filter chips and the "More actions" menu. Every
- * control but the menu keeps its element across renders, so typing and
- * arrowing never lose focus.
+ * One line: what needs attention, a search button, the kind filter and the
+ * "More actions" menu; the search field opens below it. The search keeps its
+ * elements across renders, so typing never loses focus.
  */
 export class Toolbar {
     readonly element = el("header", "av-toolbar");
-    private readonly tabs = new Map<CatalogScope, Chip>();
+    private readonly summary = el("p", "av-summary");
+    private readonly searchToggle = markFocus(
+        button("ds-icon-btn av-search-toggle", CHROME_TEXT.search),
+        "searchToggle",
+    );
+    private readonly searchRow = el("div", "av-search-row");
     private readonly input = el("input", "ds-search-input");
     private readonly clear = button("ds-search-clear", CHROME_TEXT.clearSearch);
-    private readonly needsReview: Chip;
-    private readonly kinds = new Map<AddOnKind, Chip>();
-    private readonly menuSlot = el("div", "av-toolbar-menu");
+    private readonly menus = el("div", "av-toolbar-menus");
     private readonly busyBar = el("div", "ds-busy-bar");
 
-    constructor(
-        listPanelId: string,
-        private readonly handlers: ToolbarHandlers,
-    ) {
-        const tablist = el("div", "av-tabs");
-        tablist.setAttribute("role", "tablist");
-        tablist.setAttribute("aria-label", CHROME_TEXT.scopes);
-        SCOPE_ORDER.forEach((scope) => {
-            const tab = tabOf(scope, listPanelId, () => handlers.onScope(scope, false));
-            this.tabs.set(scope, tab);
-            tablist.append(tab.button);
-        });
-        tablist.addEventListener("keydown", (event) => this.moveInTabs(event));
-        const searchRow = el("div", "av-search-row");
-        searchRow.append(this.searchField(), this.menuSlot);
-        const chips = el("div", "av-chips");
-        chips.setAttribute("role", "group");
-        chips.setAttribute("aria-label", CHROME_TEXT.filters);
-        this.needsReview = chipOf("review", CHROME_TEXT.needsReview, el("span", "av-dot"));
-        this.needsReview.button.classList.add("av-chip-review");
-        this.needsReview.button.addEventListener("click", () => handlers.onNeedsReview());
-        chips.append(this.needsReview.button);
-        KIND_ORDER.forEach((kind) => {
-            const chip = chipOf(kind, KIND_TEXT[kind].plural, kindTile(kind, true));
-            chip.button.addEventListener("click", () => handlers.onKind(kind));
-            this.kinds.set(kind, chip);
-            chips.append(chip.button);
-        });
-        chips.addEventListener("wheel", (event) => scrollSideways(chips, event), {
-            passive: false,
-        });
+    constructor(private readonly handlers: ToolbarHandlers) {
+        this.searchToggle.append(icon(Search, 16));
+        this.searchToggle.setAttribute("aria-controls", SEARCH_ID);
+        this.searchToggle.addEventListener("click", () => handlers.onSearchToggle());
+        const line = el("div", "av-toolbar-line");
+        line.append(this.summary, this.searchToggle, this.menus);
+        this.searchRow.append(this.searchField());
+        this.searchRow.id = SEARCH_ID;
         const busy = el("div", "av-toolbar-busy");
         busy.append(this.busyBar);
-        this.element.append(tablist, searchRow, chips, busy);
+        this.element.append(line, this.searchRow, busy);
     }
 
-    /** Counts and actions of the active tab: the scope comes first, the filter applies inside it. */
-    update(model: AddOnCatalogPayload, state: ViewState, openMenu: string | undefined): void {
+    update(
+        model: AddOnCatalogPayload,
+        state: ViewState,
+        openMenu: string | undefined,
+        searchOpen: boolean,
+    ): void {
         const { filter } = state;
-        this.tabs.forEach((tab, scope) => {
-            const selected = scope === state.scope;
-            tab.button.setAttribute("aria-selected", String(selected));
-            tab.button.tabIndex = selected ? 0 : -1;
-            setCount(tab, catalogCounts(scopedCatalog(model, scope)).total);
-        });
+        const counts = catalogCounts(model);
+        const summary = summaryText(counts.needsReview, counts.problems);
+        if (this.summary.textContent !== summary) this.summary.textContent = summary;
+        const shown = searchOpen || filter.query !== "";
+        this.searchRow.hidden = !shown;
+        this.searchToggle.setAttribute("aria-expanded", String(shown));
         if (this.input.value !== filter.query) this.input.value = filter.query;
         this.clear.hidden = filter.query === "";
-        const counts = catalogCounts(scopedCatalog(model, state.scope));
-        setPressed(this.needsReview, filter.onlyNeedsReview, counts.needsReview);
-        this.kinds.forEach((chip, kind) =>
-            setPressed(chip, filter.kinds.has(kind), counts.byKind[kind]),
-        );
         const busy = isBusy(state, CATALOG_TARGET);
         setBusy(this.element, busy);
         this.busyBar.hidden = !busy;
-        this.menuSlot.replaceChildren(...this.catalogMenu(model, busy, openMenu));
+        this.menus.replaceChildren(
+            this.filterMenu(model, state, openMenu),
+            ...this.catalogMenu(model, busy, openMenu),
+        );
     }
 
     focusSearch(): void {
         this.input.focus();
     }
 
-    focusTab(scope: CatalogScope): void {
-        this.tabs.get(scope)?.button.focus();
+    /** Where focus goes when the list has no control: the line's first button. */
+    focusStart(): void {
+        this.searchToggle.focus();
+    }
+
+    private filterMenu(
+        model: AddOnCatalogPayload,
+        state: ViewState,
+        openMenu: string | undefined,
+    ): HTMLElement {
+        const { kinds } = state.filter;
+        const counts = catalogCounts(model).byKind;
+        const items = KIND_ORDER.map((kind) => this.kindItem(kind, kinds.has(kind), counts[kind]));
+        return menuAnchor(
+            FILTER_MENU,
+            filterLabelText(kinds.size),
+            openMenu === FILTER_MENU,
+            items,
+            this.handlers.onMenu,
+            { icon: ListFilter, marked: kinds.size > 0 },
+        );
+    }
+
+    private kindItem(kind: AddOnKind, chosen: boolean, count: number): HTMLButtonElement {
+        const item = markFocus(button("ds-btn ds-btn-ghost av-kind-item"), "filterKind", kind);
+        item.setAttribute("role", "menuitemcheckbox");
+        item.setAttribute("aria-checked", String(chosen));
+        item.append(
+            icon(Check, 14, "av-kind-check"),
+            icon(KIND_ICON[kind], 14, "av-kind-glyph"),
+            el("span", "av-kind-label", KIND_TEXT[kind].plural),
+            el("span", "ds-count", String(count)),
+        );
+        item.addEventListener("click", () => this.handlers.onKind(kind));
+        return item;
     }
 
     private catalogMenu(
@@ -137,9 +145,14 @@ export class Toolbar {
         this.clear.append(icon(X, 14));
         this.input.addEventListener("input", () => this.handlers.onQuery(this.input.value));
         this.input.addEventListener("keydown", (event) => {
-            if (event.key !== "Escape" || this.input.value === "") return;
+            if (event.key !== "Escape") return;
             event.preventDefault();
-            this.handlers.onQuery("");
+            if (this.input.value !== "") {
+                this.handlers.onQuery("");
+                return;
+            }
+            this.handlers.onSearchToggle();
+            this.searchToggle.focus();
         });
         this.clear.addEventListener("click", () => {
             this.handlers.onQuery("");
@@ -148,51 +161,4 @@ export class Toolbar {
         box.append(icon(Search, 16, "ds-search-icon"), this.input, this.clear);
         return box;
     }
-
-    private moveInTabs(event: KeyboardEvent): void {
-        const current = [...this.tabs].find(([, tab]) => tab.button === event.target)?.[0];
-        const next = current && scopeAfterKey(event.key, current);
-        if (next === undefined) return;
-        event.preventDefault();
-        this.handlers.onScope(next, true);
-    }
-}
-
-function tabOf(scope: CatalogScope, listPanelId: string, onPick: () => void): Chip {
-    const tab = markFocus(button("av-tab"), "tab", scope);
-    tab.id = tabIdOf(scope);
-    tab.setAttribute("role", "tab");
-    tab.setAttribute("aria-controls", listPanelId);
-    const label = el("span", "av-tab-label", SCOPE_TEXT[scope]);
-    // Reserves the selected weight, so choosing a tab never shifts the toolbar.
-    label.dataset.label = SCOPE_TEXT[scope];
-    const count = el("span", "ds-count");
-    tab.append(label, count);
-    tab.addEventListener("click", onPick);
-    return { button: tab, count };
-}
-
-function chipOf(id: string, label: string, lead: HTMLElement): Chip {
-    const chip = markFocus(button("ds-chip av-chip"), "chip", id);
-    const count = el("span", "ds-count");
-    chip.append(lead, el("span", "av-chip-label", label), count);
-    return { button: chip, count };
-}
-
-function setCount(chip: Chip, count: number): void {
-    const text = String(count);
-    if (chip.count.textContent !== text) chip.count.textContent = text;
-}
-
-function setPressed(chip: Chip, pressed: boolean, count: number): void {
-    chip.button.setAttribute("aria-pressed", String(pressed));
-    setCount(chip, count);
-}
-
-/** A mouse wheel has no horizontal axis: it scrolls the chip row when that overflows. */
-function scrollSideways(chips: HTMLElement, event: WheelEvent): void {
-    const overflows = chips.scrollWidth > chips.clientWidth;
-    if (!overflows || Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
-    event.preventDefault();
-    chips.scrollLeft += event.deltaY;
 }

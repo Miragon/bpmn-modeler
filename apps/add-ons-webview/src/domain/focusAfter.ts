@@ -18,7 +18,7 @@ export type FocusTarget =
     /** The button at this place among its add-on's or source's actions. */
     | { readonly kind: "action"; readonly targetId: string; readonly slot: number }
     | { readonly kind: "toolbar"; readonly actionKind: CatalogActionKindPayload }
-    /** The list's first control, else the tab: a review that found nothing selects none. */
+    /** The list's first control, else the toolbar's: a review that found nothing selects none. */
     | { readonly kind: "listStart"; readonly requested?: true };
 
 type AfterDone = (targetId: string, slot: number) => FocusTarget;
