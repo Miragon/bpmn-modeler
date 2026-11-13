@@ -785,18 +785,27 @@ because a template folder does not tell C7 from C8. This relies on how the
 client works rather than on documented API, so the VS Code smoke test pins it,
 with a version-pinned URL as the control that must still warn.
 
-Inline scripts still open and sync their tabs per host, behind the core
-`ScriptEditorPort` (`ScriptTaskService`, `BridgeScriptEditor`), because tab
-handling is host API. The record of which scripts have a tab is not: both
-adapters track their tabs in the core's `OpenScriptTabs`, which finds a
-script's tab, builds the open-script list the webview locks, named after the
-last segment of each tab's path, and decides that materialising a script an
-open tab owns leaves it alone. Which file a script gets is the core's
-`ScriptTargetResolver`'s: it asks for a language only when the model's is
-missing or unsupported, writes the pick back to the model and builds the
-`ScriptUri`. The core's `ScriptContentStream` debounces a tab's edits into one
-model update per pause in typing and reports an editor whose hidden webview
-missed one, which VS Code replays once shown.
+Which inline scripts have a host tab, and what happens to those tabs, is the
+core `ScriptTabService`'s on both hosts. It tracks the tabs in the core's
+`OpenScriptTabs`, which finds a script's tab, builds the open-script list the
+webview locks, named after the last segment of each tab's path, and decides
+that materialising a script an open tab owns leaves it alone. It asks the
+core's `ScriptTargetResolver` which file a script gets: a language is asked for
+only when the model's is missing or unsupported, the pick is written back to
+the model, and the result is a `ScriptUri`. It streams each tab's edits through
+the core's `ScriptContentStream`, one model update per pause in typing, closes
+the tab of a script the model removed, and replays the edits a hidden webview
+missed once it reloads. Only tab handling is host API, so the host's
+`ScriptEditorPort` (`ScriptTaskService`, `BridgeScriptEditor`) holds tab
+operations and host events: it names the path a script's tab is tracked under,
+writes, opens, reveals, updates and closes tabs, and reports an edit, a closed
+tab and a file the user opened. VS Code keeps its `tabGroups` tracking (a tab
+moved between groups is no close), its own-write echo guard and the
+write-back into the diagram of a closed hidden editor. The bridge keeps
+IntelliJ's close acknowledgement and deletes a script's file only once the host
+has flush-saved it. An edit still waiting to stream when its editor closes is
+sent only where the webview still takes it, the bridge's; VS Code's webview is
+gone by then, and the write-back covers the edit.
 Script identity is `modeler-types`'
 `isSameScript`, where an absent listener index is index 0, because the
 webview's lock applies it too. What the webview's script commands mean is the core

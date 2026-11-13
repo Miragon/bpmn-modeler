@@ -2,8 +2,8 @@ import {
     EditorSessionContext,
     EditorSessionParticipant,
 } from "../../editorSession/domain/EditorSessionParticipant";
-import { ScriptEditorPort } from "../port/ScriptEditorPort";
 import { ScriptVariableStore } from "../domain/ScriptVariableStore";
+import { ScriptTabService } from "./ScriptTabService";
 
 /**
  * A closed editor takes its script tabs, its script files and its process
@@ -13,13 +13,13 @@ import { ScriptVariableStore } from "../domain/ScriptVariableStore";
  */
 export class ScriptEditorParticipant implements EditorSessionParticipant {
     constructor(
-        private readonly scriptEditor: ScriptEditorPort,
+        private readonly scriptTabs: ScriptTabService,
         private readonly variables: ScriptVariableStore,
     ) {}
 
     onResolve(session: EditorSessionContext): void {
         session.onDispose(() => {
-            this.scriptEditor.disposeEditor(session.editorId);
+            this.scriptTabs.disposeEditor(session.editorId);
             this.variables.clear(session.editorId);
         });
     }

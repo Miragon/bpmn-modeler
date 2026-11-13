@@ -15,36 +15,32 @@ import {
     WorkspaceEdit,
 } from "vscode";
 
-import { UpdateOpenScriptEditorsQuery, UpdateScriptContentQuery } from "@miragon/bpmn-modeler-shared";
 import { ScriptKind } from "@miragon/bpmn-modeler-types";
 
 import {
-    EditorSessionStore,
     generateCamundaDts,
     InlineScript,
     joinWorkspacePath,
-    matchScriptFile,
+    MatchedScriptFile,
     OpenScriptTab,
-    OpenScriptTabs,
     SCRIPT_JSCONFIG,
-    ScriptContentStream,
     ScriptContentUpdate,
     ScriptEditorPort,
     ScriptFileStore,
     ScriptLanguage,
-    ScriptMaterialization,
-    ScriptSourceChange,
-    ScriptTargetResolver,
+    ScriptTabListener,
+    ScriptTabTarget,
     ScriptXmlService,
     SettingsPort,
+    TMP_SCRIPTING_SEGMENT,
 } from "@miragon/bpmn-modeler-core";
 import { NotifierPort } from "@miragon/bpmn-modeler-core";
 import { canonicalPath } from "../../../shared/domain/canonicalPath";
 import { toUri } from "../../../shared/adapter/out/uriPath";
 
-/** An open script document; tracked by its `uri.path`. */
-interface OpenDocument extends OpenScriptTab {
-    readonly uri: Uri;
+/** Only a file below a `tmp/scripting` folder can be a script tab; the core decides which is. */
+function mayBeScriptTab(uri: Uri): boolean {
+    return uri.scheme === "file" && uri.path.includes(`/${TMP_SCRIPTING_SEGMENT}/`);
 }
 
 /** A `WorkspaceEdit` replacing the whole of `doc` with `content`. */
@@ -55,7 +51,10 @@ function fullReplaceEdit(uri: Uri, doc: TextDocument, content: string): Workspac
 }
 
 /**
- * Manages on-disk script documents for BPMN script tasks and listener scripts.
+ * VS Code's script tabs behind the core's `ScriptEditorPort`: on-disk script
+ * documents for BPMN script tasks and listener scripts. Which scripts have a
+ * tab is the core `ScriptTabService`'s; each tab is tracked under the
+ * canonical path of its file.
  *
  * Materialises inline scripts as real files in the editor's script folder,
  * which {@link ScriptFileStore} resolves.
@@ -63,11 +62,10 @@ function fullReplaceEdit(uri: Uri, doc: TextDocument, content: string): Workspac
  * participate: tsserver and language-server extensions hard-code `scheme: "file"`
  * selectors, and coding agents can only read/write bytes that exist on disk.
  *
- * A file can enter live sync two ways: {@link open} writes it and
- * opens a tab in one step (the panel-field button), while
- * {@link adoptExternallyOpenedScript} starts sync for a file opened any other way
- * (Explorer, Quick Open, or the "Generate Script Files" command's output). Three
- * surfaces are supported:
+ * A file can enter live sync two ways: {@link openTab} writes it and opens a
+ * tab in one step (the panel-field button), while {@link adoptTab} starts sync
+ * for a file opened any other way (Explorer, Quick Open, or the "Generate
+ * Script Files" command's output). Three surfaces are supported:
  *
  * 1. `bpmn:ScriptTask` — `script` direct property.
  * 2. `camunda:ExecutionListener` — nested `script` element on any flow node.
@@ -79,30 +77,14 @@ function fullReplaceEdit(uri: Uri, doc: TextDocument, content: string): Workspac
  * in scope for completions.
  *
  * The open buffer — not the file on disk — is the authoritative copy: edits
- * stream into the BPMN model per keystroke via {@link UpdateScriptContentQuery},
- * while disk freshness follows the user's own save/auto-save behaviour. The
- * one exception is a *model-side* change (canvas undo/redo, external document
- * reload) delivered through {@link applyModelChange}, which overwrites the
- * buffer.
+ * stream into the BPMN model per keystroke, while disk freshness follows the
+ * user's own save/auto-save behaviour. The one exception is a *model-side*
+ * change (canvas undo/redo, external document reload) delivered through
+ * {@link updateTabContent}, which overwrites the buffer.
  */
 export class ScriptTaskService implements ScriptEditorPort {
-    private readonly openDocuments = new OpenScriptTabs<OpenDocument>();
-
     // URI paths currently being written by us — used for echo prevention.
     private readonly writingGuard = new Set<string>();
-
-    /**
-     * Editor IDs whose webview was hidden when a script change occurred.
-     *
-     * VS Code hides a webview when its editor tab is not visible (e.g. the
-     * user has switched to another tab); `editorStore.postMessage` then
-     * throws "The active editor is hidden." — we'd silently drop the edit
-     * if we just logged that error. Instead we mark the editor here and
-     * replay all open script documents the next time the webview comes
-     * back (signalled by it sending `GetBpmnModelerSettingCommand` after a
-     * reload, which reaches {@link resync}).
-     */
-    private readonly pendingResync = new Set<string>();
 
     /**
      * Reveal options for script tabs. `preview: false` pins the tab so a batch
@@ -116,9 +98,6 @@ export class ScriptTaskService implements ScriptEditorPort {
         preview: false,
     } as const;
 
-    /** Keyed by `uri.path`; an edit a hidden webview missed marks its editor for {@link resync}. */
-    private readonly contentStream: ScriptContentStream;
-
     /**
      * Editor IDs whose diagram was discarded via "Don't Save" (or, indistinctly,
      * undone back to its saved state). Script edits buffered while the webview
@@ -131,25 +110,24 @@ export class ScriptTaskService implements ScriptEditorPort {
      */
     private readonly revertedEditors = new Set<string>();
 
+    private listener: ScriptTabListener | undefined;
+
     constructor(
-        private readonly editorStore: EditorSessionStore,
         private readonly scriptFiles: ScriptFileStore,
         private readonly settings: SettingsPort,
         private readonly notifier: NotifierPort,
-        private readonly targets: ScriptTargetResolver,
         private readonly scriptXml: ScriptXmlService,
-    ) {
-        this.contentStream = new ScriptContentStream(editorStore, notifier, (editorId) =>
-            this.pendingResync.add(editorId),
-        );
+    ) {}
+
+    listen(listener: ScriptTabListener): void {
+        this.listener = listener;
     }
 
     /**
      * Registers the workspace listeners that drive the script lifecycle:
-     * edits in a script tab are propagated back to the BPMN modeler, and tab
-     * closures release tracking state (the file stays on disk — it is deleted
-     * only on element deletion or editor dispose) so a re-open rewrites the
-     * current BPMN content over it.
+     * edits in a script tab are reported to the core, and so are opened and
+     * closed tabs (the file of a closed tab stays on disk — it is deleted only
+     * on element deletion or editor dispose).
      */
     register(context: ExtensionContext): void {
         context.subscriptions.push(
@@ -171,99 +149,42 @@ export class ScriptTaskService implements ScriptEditorPort {
         );
     }
 
+    /** The canonical path of the script's file, the spelling the tab events below report. */
+    async tabPathOf(editorId: string, scriptId: string): Promise<string> {
+        return canonicalPath(toUri(await this.scriptFiles.pathOf(editorId, scriptId)));
+    }
+
     /**
-     * Opens an inline script in a VS Code editor tab.
-     *
      * Writes the current script content to its file in the editor's script
-     * base directory and opens it beside the BPMN modeler.
-     * For JavaScript, a kind-scoped `camunda.d.ts` + `jsconfig.json` are
-     * placed next to the script so tsserver serves typed bean/SPIN completion.
-     *
-     * `elementId` is the parent element for listener kinds; `listenerIndex` is
-     * the position within the parent's filtered list of listeners of that type
-     * (undefined for `script-task`); `eventName` is the listener's `event`
-     * attribute, used for the editor tab title.
+     * base directory and opens it beside the BPMN modeler. For JavaScript, a
+     * kind-scoped `camunda.d.ts` + `jsconfig.json` are placed next to the
+     * script so tsserver serves typed bean/SPIN completion.
      */
-    async open(editorId: string, script: InlineScript): Promise<void> {
-        const { elementId, kind, listenerIndex, content } = script;
-        const target = await this.resolveScriptTarget(editorId, script);
-        if (!target) {
-            return; // language picker cancelled
-        }
-        const { scriptUri, lang } = target;
-
-        /**
-         * Already open: just reveal the existing editor.
-         */
-        if (this.openDocuments.isOpen(scriptUri.path)) {
-            const doc = await workspace.openTextDocument(scriptUri);
-            await window.showTextDocument(doc, ScriptTaskService.REVEAL_BESIDE);
-            return;
-        }
-
-        await this.writeScriptToDisk(scriptUri, content, lang, kind);
-
+    async openTab(target: ScriptTabTarget, script: InlineScript): Promise<void> {
+        const scriptUri = await this.writeScriptFile(target, script);
         const doc = await workspace.openTextDocument(scriptUri);
-        await languages.setTextDocumentLanguage(doc, lang.languageId);
-
-        // Track before revealing: showTextDocument fires an opened-tab event
-        // that the adoption listener reacts to. Its own-open guard keys off
-        // openDocuments, so setting the entry first is what stops us from
-        // re-adopting (and re-broadcasting) our own open.
-        this.openDocuments.track(scriptUri.path, {
-            editorId,
-            elementId,
-            kind,
-            listenerIndex,
-            uri: scriptUri,
-        });
-
+        await languages.setTextDocumentLanguage(doc, target.language.languageId);
         await window.showTextDocument(doc, ScriptTaskService.REVEAL_BESIDE);
+    }
 
-        // Tell the webview a tab now owns this script so the panel field locks.
-        this.broadcastOpenScripts(editorId);
+    async revealTab(target: ScriptTabTarget): Promise<void> {
+        const doc = await workspace.openTextDocument(toUri(target.tabPath));
+        await window.showTextDocument(doc, ScriptTaskService.REVEAL_BESIDE);
     }
 
     /**
-     * Writes an inline script to disk *without* opening a tab, tracking it, or
-     * locking the panel — the "Generate Script Files" command's whole job.
-     * Live sync starts only once the user opens the file (adoption), so a
-     * generated-but-unopened file stays a plain file. A failed write rejects.
-     *
-     * A script already owned by an open tab is left untouched (`alreadyOpen`):
-     * that tab's buffer is the authoritative copy, so overwriting it from the
-     * model would clobber unsaved edits.
+     * Writes an inline script to disk *without* opening a tab — the "Generate
+     * Script Files" command's whole job. A failed write rejects.
      */
-    async materialize(editorId: string, script: InlineScript): Promise<ScriptMaterialization> {
-        const target = await this.resolveScriptTarget(editorId, script);
-        if (!target) {
-            return { kind: "cancelled" };
-        }
-
-        const plan = this.openDocuments.materializationOf(target.scriptUri.path);
-        if (plan.kind === "alreadyOpen") {
-            return plan;
-        }
-
-        await this.writeScriptToDisk(target.scriptUri, script.content, target.lang, script.kind);
-        return { kind: "written" };
+    async writeScript(target: ScriptTabTarget, script: InlineScript): Promise<void> {
+        await this.writeScriptFile(target, script);
     }
 
-    /**
-     * The core's target for a script, with its file path taken from the store
-     * and prepared for the write. `undefined` when the language prompt is
-     * dismissed.
-     */
-    private async resolveScriptTarget(
-        editorId: string,
-        script: InlineScript,
-    ): Promise<{ scriptUri: Uri; lang: ScriptLanguage } | undefined> {
-        const target = await this.targets.resolve(editorId, script);
-        if (!target) {
-            return undefined;
-        }
-        const filePath = await this.scriptFiles.prepareScriptFile(editorId, target.uri);
-        return { scriptUri: toUri(filePath), lang: target.language };
+    private async writeScriptFile(target: ScriptTabTarget, script: InlineScript): Promise<Uri> {
+        const filePath = await this.scriptFiles.prepareScriptFile(target.editorId, target.uri);
+        const scriptUri = toUri(filePath);
+        await this.writeScriptToDisk(scriptUri, script.content, target.language, script.kind);
+        return scriptUri;
     }
 
     /**
@@ -300,59 +221,19 @@ export class ScriptTaskService implements ScriptEditorPort {
     }
 
     /**
-     * Adopts a script file opened *outside* our own open flow — via Explorer,
-     * Quick Open, or the properties-panel button on an untracked file — so live
-     * sync into the BPMN model starts from that moment. Without adoption,
-     * keystrokes would be silently dropped: {@link onScriptDocumentChanged}
-     * filters strictly by {@link openDocuments}, so an untracked path never
-     * streams.
-     *
-     * Adoption is track + set-language + lock only: no content is pushed either
-     * way. The file on disk becomes the source of truth on the first edit after
-     * opening (keystroke streaming sends the whole buffer), so a file that went
-     * stale between materialise and open catches the model up on the first edit.
+     * Sets the language of a script file the user opened outside our own open
+     * flow, so highlighting and completion engage. No content is pushed
+     * either way: the file on disk becomes the source of truth on the first
+     * edit after opening, which streams the whole buffer. A missing language
+     * contribution must not stop the sync the core already started.
      */
-    private async adoptExternallyOpenedScript(uri: Uri): Promise<void> {
-        // Our own opens set openDocuments *before* showTextDocument, so a
-        // tracked path here is our own tab — nothing to adopt.
-        if (this.openDocuments.isOpen(uri.path)) {
-            return;
-        }
-
-        const match = matchScriptFile(canonicalPath(uri), this.editorStore.getEditorIds());
-        if (!match) {
-            return;
-        }
-
-        if (!(await this.scriptFiles.adopt(match.editorId, canonicalPath(uri)))) {
-            return;
-        }
-
-        // Re-check after the awaits: our own open of the same path could have
-        // raced in and tracked it already.
-        if (this.openDocuments.isOpen(uri.path)) {
-            return;
-        }
-
-        this.openDocuments.track(uri.path, {
-            editorId: match.editorId,
-            elementId: match.elementId,
-            kind: match.kind,
-            listenerIndex: match.listenerIndex,
-            uri,
-        });
-
-        // Set the language so highlighting/completion engage. A missing language
-        // contribution must not abort adoption — the tracking above is what makes
-        // keystroke sync work, and it is already in place.
+    async adoptTab(tabPath: string, file: MatchedScriptFile): Promise<void> {
         try {
-            const doc = await workspace.openTextDocument(uri);
-            await languages.setTextDocumentLanguage(doc, match.language.languageId);
+            const doc = await workspace.openTextDocument(toUri(tabPath));
+            await languages.setTextDocumentLanguage(doc, file.language.languageId);
         } catch (error) {
             this.notifier.logError(error as Error);
         }
-
-        this.broadcastOpenScripts(match.editorId);
     }
 
     /**
@@ -369,107 +250,19 @@ export class ScriptTaskService implements ScriptEditorPort {
     }
 
     /**
-     * Re-broadcasts the current open-script set for the given editor so the
-     * webview's properties-panel lock is restored after a reload.
-     *
-     * Kept separate from {@link resyncOpenDocuments}: that method's
-     * `pendingResync` early-return must stay content-only (it replays edits
-     * buffered while hidden), whereas the lock must refresh on *every*
-     * reload handshake regardless of whether a hidden edit occurred.
-     */
-    syncLockState(editorId: string): void {
-        this.broadcastOpenScripts(editorId);
-    }
-
-    /**
-     * The reload handshake: replays the edits made while the webview was
-     * hidden, then refreshes the lock it dropped.
-     */
-    async resync(editorId: string): Promise<void> {
-        await this.resyncOpenDocuments(editorId);
-        this.syncLockState(editorId);
-    }
-
-    variablesChanged(): void {
-        // Completion reads the variable store on every request; no tab holds a copy.
-    }
-
-    /**
-     * Posts the full set of open inline-script editors for `editorId` so the
-     * webview can lock the matching panel fields. Called on every open/close
-     * and on the reload handshake — a full-set broadcast is idempotent, so a
-     * redundant one after a reload does no harm.
-     *
-     * A hidden webview makes `postMessage` throw; that is swallowed because the
-     * `GetBpmnModelerSettingCommand` reload handshake re-broadcasts once the
-     * webview is visible again — the same invariant {@link resyncOpenDocuments}
-     * relies on for content.
-     */
-    private broadcastOpenScripts(editorId: string): void {
-        const openScripts = this.openDocuments.openScriptsOf(editorId);
-        this.editorStore
-            .postUnlessHidden(editorId, new UpdateOpenScriptEditorsQuery(openScripts))
-            .catch((error: unknown) => {
-                this.notifier.logError(error instanceof Error ? error : new Error(String(error)));
-            });
-    }
-
-    /**
-     * Maps an open script URI path back to its owning BPMN editor id, or
-     * `undefined` if no script is tracked at that path. Doubles as the "is
-     * this one of ours" guard for the completion provider — its
-     * `tmp/scripting` glob selector is a heuristic that any same-named user
-     * directory could satisfy, whereas this map is exact.
-     */
-    getEditorIdForScriptUri(uriPath: string): string | undefined {
-        return this.openDocuments.get(uriPath)?.editorId;
-    }
-
-    /**
      * Applies a *model-originated* content change (canvas undo/redo, external
-     * document reload, element deletion) to the open script tab.
-     *
-     * `content === undefined` means the element or its script no longer
-     * exists: the tab is closed and its file deleted. Otherwise the whole
-     * buffer is overwritten — the user asked for the undo, so the model side
-     * wins over whatever the tab held; no merge is attempted by design.
+     * document reload) to the open script tab. The whole buffer is
+     * overwritten — the user asked for the undo, so the model side wins over
+     * whatever the tab held; no merge is attempted by design.
      */
-    async applyModelChange(
-        editorId: string,
-        { elementId, kind, listenerIndex, content }: ScriptSourceChange,
-    ): Promise<void> {
-        const found = this.openDocuments.find(editorId, { elementId, kind, listenerIndex });
-        if (!found) {
-            return;
-        }
-        const [, entry] = found;
-
-        if (content === undefined) {
-            // The script surface is gone: stop the tab's stream so a pending
-            // keystroke can't fire against a deleted element. Clear tracking
-            // first so the tab-close event is a no-op, then save-before-close to
-            // suppress the dirty prompt (the bytes are already gone from the
-            // model; the file is deleted right after).
-            this.contentStream.stop(entry.uri.path);
-            this.openDocuments.untrack(entry.uri.path);
-            this.broadcastOpenScripts(editorId);
-            await this.saveIfDirty(entry.uri);
-            await this.closeTabsFor(new Set([entry.uri.path]));
-            void this.scriptFiles.deleteScript(canonicalPath(entry.uri));
-            return;
-        }
-
-        // Canvas undo/redo (or a document reload) overwrites the buffer; cancel
-        // any pending keystroke so it can't fire afterwards and clobber the
-        // model-side content the user actually asked for.
-        this.contentStream.cancel(entry.uri.path);
-
-        const doc = this.findOpenTextDocument(entry.uri);
+    async updateTabContent(tabPath: string, content: string): Promise<void> {
+        const uri = toUri(tabPath);
+        const doc = this.findOpenTextDocument(uri);
         if (!doc) {
             // Tab open but document not yet materialised (or already
             // disposed): the file is the only copy to refresh.
-            await this.withWritingGuard(entry.uri.path, () =>
-                this.scriptFiles.writeFile(canonicalPath(entry.uri), content),
+            await this.withWritingGuard(uri.path, () =>
+                this.scriptFiles.writeFile(canonicalPath(uri), content),
             );
             return;
         }
@@ -477,109 +270,41 @@ export class ScriptTaskService implements ScriptEditorPort {
             return;
         }
 
-        await this.withWritingGuard(entry.uri.path, async () => {
-            await workspace.applyEdit(fullReplaceEdit(entry.uri, doc, content));
+        await this.withWritingGuard(uri.path, async () => {
+            await workspace.applyEdit(fullReplaceEdit(uri, doc, content));
         });
     }
 
     /**
-     * Re-sends the current content of every open script document for the
-     * given editor as `UpdateScriptContentQuery` messages.
-     *
-     * Called through {@link resync} when the webview reloads (which happens
-     * implicitly whenever VS Code hides and re-shows it — e.g. tab
-     * switching or window restore). Without this, edits made while the
-     * webview was hidden would be lost: `postMessage` to a hidden webview
-     * throws and the queue is not buffered.
-     *
-     * No-op when the editor isn't in the pending-resync set, so reloads
-     * unrelated to a hidden-edit cycle don't trigger redundant work.
+     * The script surface is gone: saves before closing to suppress the dirty
+     * prompt (the bytes are already gone from the model), then deletes the file.
      */
-    async resyncOpenDocuments(editorId: string): Promise<void> {
-        if (!this.pendingResync.has(editorId)) {
-            return;
-        }
-        this.pendingResync.delete(editorId);
+    async closeTab(tabPath: string): Promise<void> {
+        const uri = toUri(tabPath);
+        await this.saveIfDirty(uri);
+        await this.closeTabsFor(new Set([uri.path]));
+        void this.scriptFiles.deleteScript(canonicalPath(uri));
+    }
 
-        const deferredCleanups: Uri[] = [];
-        for (const [, entry] of this.openDocuments.ofEditor(editorId)) {
-            // Each pass awaits, so a later entry may have been closed or deleted meanwhile.
-            if (this.openDocuments.get(entry.uri.path) !== entry) {
-                continue;
-            }
-            const content = await this.readBufferOrDisk(entry);
-            if (content === undefined) {
-                continue;
-            }
-            try {
-                const outcome = await this.editorStore.postUnlessHidden(
-                    editorId,
-                    new UpdateScriptContentQuery(
-                        entry.elementId,
-                        entry.kind,
-                        entry.listenerIndex,
-                        content,
-                    ),
-                );
-                /**
-                 * The webview can transition back to hidden between the
-                 * reload signal and our replay (e.g. user clicks another
-                 * tab mid-resync). Re-arm pendingResync so the next reload
-                 * tries again rather than dropping the edit permanently.
-                 */
-                if (outcome === "hidden") {
-                    this.pendingResync.add(editorId);
-                    continue;
-                }
-                // The replay just carried the live buffer, so any keystroke
-                // still pending in this path's stream is redundant — cancel it
-                // to avoid a duplicate post landing right after.
-                this.contentStream.cancel(entry.uri.path);
-                /**
-                 * The user may have closed the script tab while the BPMN
-                 * webview was hidden — `cleanupClosedScript` deferred the
-                 * cleanup until we replayed. Now that we have, finish it.
-                 */
-                if (!this.isUriOpenInAnyTab(entry.uri)) {
-                    deferredCleanups.push(entry.uri);
-                }
-            } catch (error) {
-                this.notifier.logError(error as Error);
-            }
-        }
-        for (const uri of deferredCleanups) {
-            this.performCleanup(uri);
-        }
+    updateTabVariables(): void {
+        // Completion reads the variable store on every request; no tab holds a copy.
+    }
 
-        // A hidden-edit replay may have closed tabs (handled above) or left the
-        // set unchanged; either way refresh the lock now that the webview — which
-        // dropped its lock state on reload — is visible again.
-        this.broadcastOpenScripts(editorId);
+    async readTabContent(tabPath: string): Promise<string | undefined> {
+        return this.readBufferOrDisk(toUri(tabPath));
+    }
+
+    isTabShown(tabPath: string): boolean {
+        return this.isUriOpenInAnyTab(toUri(tabPath));
     }
 
     /**
-     * Cleans up all script documents associated with a BPMN editor: closes
-     * any orphaned script tabs and deletes the editor's script directory.
-     *
-     * Called when the BPMN editor panel is disposed. Internal state is
-     * cleared synchronously before tabs are closed so the {@link onTabsChanged}
-     * handler is a no-op for these URIs; the save/close/delete tail is
-     * fire-and-forget because the participant's dispose path is synchronous.
+     * Closes the script tabs of a disposed BPMN editor and deletes the
+     * editor's script directory. The save/close/delete tail is
+     * fire-and-forget because the participant's dispose path is synchronous;
+     * the core forgot the tabs first, so their close events are no-ops.
      */
-    disposeEditor(editorId: string): void {
-        // Keep the full entries (not just URIs): the dispose-time write-back
-        // needs each script's elementId/kind/listenerIndex to address the XML.
-        const orphaned = new Map(this.openDocuments.ofEditor(editorId));
-        for (const path of orphaned.keys()) {
-            this.openDocuments.untrack(path);
-            // The handle is already gone (dispose ordering), so a pending
-            // keystroke can never reach the webview. Cancel it — never flush;
-            // any divergence is covered by the compare-and-write below.
-            this.contentStream.stop(path);
-        }
-
-        this.pendingResync.delete(editorId);
-
+    closeEditorTabs(editorId: string, tabs: ReadonlyArray<readonly [string, OpenScriptTab]>): void {
         // Read the revert mark before clearing it: a diagram discarded via
         // "Don't Save" must not have its buffered script edits written back.
         const wasReverted = this.revertedEditors.has(editorId);
@@ -595,13 +320,14 @@ export class ScriptTaskService implements ScriptEditorPort {
             // a no-op when nothing diverged); this also covers the debounce
             // window where the last keystroke hadn't streamed yet.
             if (!wasReverted) {
-                const updates = await this.collectScriptUpdates(orphaned);
+                const updates = await this.collectScriptUpdates(tabs);
                 await this.persistScriptsToDocument(editorId, updates);
             }
-            for (const entry of orphaned.values()) {
-                await this.saveIfDirty(entry.uri);
+            const uris = tabs.map(([tabPath]) => toUri(tabPath));
+            for (const uri of uris) {
+                await this.saveIfDirty(uri);
             }
-            await this.closeTabsFor(new Set(orphaned.keys()));
+            await this.closeTabsFor(new Set(uris.map((uri) => uri.path)));
             if (editorScriptDir !== undefined) {
                 await this.scriptFiles.deleteFolder(editorScriptDir);
             }
@@ -614,20 +340,15 @@ export class ScriptTaskService implements ScriptEditorPort {
      * is skipped.
      */
     private async collectScriptUpdates(
-        orphaned: Map<string, OpenDocument>,
+        tabs: ReadonlyArray<readonly [string, OpenScriptTab]>,
     ): Promise<ScriptContentUpdate[]> {
         const updates: ScriptContentUpdate[] = [];
-        for (const entry of orphaned.values()) {
-            const content = await this.readBufferOrDisk(entry);
+        for (const [tabPath, { elementId, kind, listenerIndex }] of tabs) {
+            const content = await this.readBufferOrDisk(toUri(tabPath));
             if (content === undefined) {
                 continue;
             }
-            updates.push({
-                elementId: entry.elementId,
-                kind: entry.kind,
-                listenerIndex: entry.listenerIndex,
-                content,
-            });
+            updates.push({ elementId, kind, listenerIndex, content });
         }
         return updates;
     }
@@ -638,13 +359,13 @@ export class ScriptTaskService implements ScriptEditorPort {
      * back to the file for the closed-while-hidden case where the buffer is
      * already gone. `undefined` when neither can be read.
      */
-    private async readBufferOrDisk(entry: OpenDocument): Promise<string | undefined> {
-        const buffered = this.findOpenTextDocument(entry.uri)?.getText();
+    private async readBufferOrDisk(uri: Uri): Promise<string | undefined> {
+        const buffered = this.findOpenTextDocument(uri)?.getText();
         if (buffered !== undefined) {
             return buffered;
         }
         try {
-            return await this.scriptFiles.readFile(canonicalPath(entry.uri));
+            return await this.scriptFiles.readFile(canonicalPath(uri));
         } catch {
             return undefined;
         }
@@ -658,8 +379,8 @@ export class ScriptTaskService implements ScriptEditorPort {
      *
      * Echo-safe by construction: the session's own listeners are disposed by
      * the time dispose runs, and this service's doc-change listener ignores the
-     * `.bpmn` (it isn't in {@link openDocuments}, and the sync head released the
-     * editor's base directory so it can't read as a revert either). The
+     * `.bpmn` (it is no script tab, and the sync head released the editor's
+     * base directory so it can't read as a revert either). The
      * `WorkspaceEdit` is followed by an explicit save because no editor remains
      * to own the resulting dirty buffer.
      */
@@ -690,31 +411,27 @@ export class ScriptTaskService implements ScriptEditorPort {
      * because the latter fires only when VS Code actually disposes the
      * `TextDocument` — disposal is debounced so the doc lingers in an
      * internal cache after the tab closes (so quick reopens are cheap).
-     * While the doc lingers, our `openDocuments` map would keep the stale
-     * entry and the next `open` call for the same URI would hit
-     * the "already open" branch and reveal the cached doc with outdated
+     * While the doc lingers, the core would keep the stale tab and the next
+     * open of the same script would reveal the cached doc with outdated
      * content (e.g. switching language groovy → js → groovy and reopening).
-     *
-     * Safe no-op when {@link disposeEditor} has already removed the
-     * entry — it clears state before programmatically closing tabs.
      */
     private onTabsChanged(event: TabChangeEvent): void {
-        // Adoption: a script file opened outside our own flow (Explorer, Quick
-        // Open, the panel button) starts live sync from now on. The listener
-        // itself decides what's a script; own opens are guarded by openDocuments.
+        // A script file opened outside our own flow (Explorer, Quick Open, the
+        // panel button) starts live sync from now on; the core tracks our own
+        // opens before revealing them, so it adopts no own tab.
         for (const tab of event.opened) {
-            if (tab.input instanceof TabInputText && tab.input.uri.scheme === "file") {
-                void this.adoptExternallyOpenedScript(tab.input.uri).catch((error) =>
-                    this.notifier.logError(error as Error),
-                );
+            if (tab.input instanceof TabInputText && mayBeScriptTab(tab.input.uri)) {
+                void this.listener
+                    ?.didOpenFile(canonicalPath(tab.input.uri))
+                    .catch((error) => this.notifier.logError(error as Error));
             }
         }
         for (const tab of event.closed) {
-            if (tab.input instanceof TabInputText && this.openDocuments.isOpen(tab.input.uri.path)) {
-                // Cleanup is async (it flushes the pending keystroke before
-                // releasing tracking); fire-and-forget with its own error sink
-                // since the tab handler can't be awaited.
-                void this.cleanupClosedScript(tab.input.uri).catch((error) =>
+            if (tab.input instanceof TabInputText && mayBeScriptTab(tab.input.uri)) {
+                // The core flushes the pending keystroke before releasing the
+                // tab; fire-and-forget with its own error sink since the tab
+                // handler can't be awaited.
+                void this.reportClosedScript(tab.input.uri).catch((error) =>
                     this.notifier.logError(error as Error),
                 );
             }
@@ -778,59 +495,16 @@ export class ScriptTaskService implements ScriptEditorPort {
         }
     }
 
-    private async cleanupClosedScript(uri: Uri): Promise<void> {
-        const entry = this.openDocuments.get(uri.path);
-        if (!entry) {
-            return;
-        }
-
+    private async reportClosedScript(uri: Uri): Promise<void> {
         /**
          * Tab moves between groups arrive as a close + open pair for the
          * same URI; if the URI is still open in another tab, this was a
-         * move and the entry must stay alive for keystroke tracking.
+         * move and the script's tab must stay alive for keystroke tracking.
          */
         if (this.isUriOpenInAnyTab(uri)) {
             return;
         }
-
-        // The typing still in the debounce window sits in the tab's stream;
-        // force it into the model before dropping tracking. A flush against a
-        // hidden webview arms `pendingResync` *asynchronously*, so the
-        // pendingResync re-check below MUST run after the await — a pre-await
-        // check would race past it and drop the still-unreplayed buffer.
-        await this.contentStream.flush(uri.path);
-
-        /**
-         * Real close, but the BPMN webview was hidden when the user typed
-         * — `pendingResync` carries the buffered edit, and the buffer (or
-         * its last save) is the only copy. Defer cleanup until the resync
-         * runs so it can replay before we forget the entry.
-         */
-        if (this.pendingResync.has(entry.editorId)) {
-            return;
-        }
-
-        this.performCleanup(uri);
-    }
-
-    /**
-     * Releases tracking for a closed script tab without touching the file on
-     * disk. The file survives a tab close on purpose: reopening the same script
-     * must succeed, and its content is refreshed from the current model on
-     * reopen ({@link open} rewrites through the rewrite branch once
-     * the path is gone from {@link openDocuments}). Deletion happens only on
-     * element deletion, editor dispose, and the first-write-per-base-dir orphan
-     * sweep ({@link ScriptFileStore.prepareScriptFile}).
-     */
-    private performCleanup(uri: Uri): void {
-        // Capture the owning editor before removing so the lock broadcast below
-        // reflects the removal — the entry is gone by the time we post.
-        const editorId = this.openDocuments.untrack(uri.path)?.editorId;
-        this.contentStream.stop(uri.path);
-
-        if (editorId !== undefined) {
-            this.broadcastOpenScripts(editorId);
-        }
+        await this.listener?.didClose(canonicalPath(uri));
     }
 
     private async onScriptDocumentChanged(event: TextDocumentChangeEvent): Promise<void> {
@@ -850,12 +524,7 @@ export class ScriptTaskService implements ScriptEditorPort {
             return;
         }
 
-        if (this.writingGuard.has(uri.path)) {
-            return;
-        }
-
-        const entry = this.openDocuments.get(uri.path);
-        if (!entry) {
+        if (this.writingGuard.has(uri.path) || !mayBeScriptTab(uri)) {
             return;
         }
 
@@ -863,9 +532,7 @@ export class ScriptTaskService implements ScriptEditorPort {
         // write (a coding agent editing the file on disk): VS Code refreshes
         // non-dirty buffers automatically, so agent edits stream into the
         // model through the same path as keystrokes.
-        const updatedContent = event.document.getText();
-
-        this.contentStream.push(uri.path, entry, updatedContent);
+        this.listener?.didChange(canonicalPath(uri), event.document.getText());
     }
 
     /**

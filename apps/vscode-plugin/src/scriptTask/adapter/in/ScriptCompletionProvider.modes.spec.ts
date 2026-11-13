@@ -79,8 +79,8 @@ function storeWith(...variables: VariableDef[]): ScriptVariableStore {
 function buildProvider(
     store: ScriptVariableStore,
     spinEnabled = true,
-    openScripts: { getEditorIdForScriptUri(path: string): string | undefined } = {
-        getEditorIdForScriptUri: () => EDITOR,
+    openScripts: { editorOfTab(tabPath: string): string | undefined } = {
+        editorOfTab: () => EDITOR,
     },
 ): ScriptCompletionProvider {
     const settings = { getScriptingSpin: () => spinEnabled } as SettingsPort;
@@ -177,7 +177,7 @@ describe("ScriptCompletionProvider modes", () => {
 
     it("returns nothing for a path the service does not track as an open script", () => {
         const provider = buildProvider(storeWith(variable("amount")), true, {
-            getEditorIdForScriptUri: () => undefined,
+            editorOfTab: () => undefined,
         });
         expect(complete(provider, "am")).toEqual([]);
     });

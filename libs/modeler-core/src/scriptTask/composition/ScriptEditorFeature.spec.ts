@@ -14,7 +14,6 @@ import { createTestHost, RecordingScriptEditor } from "../../testing";
 import { ScriptVariableStore } from "../domain/ScriptVariableStore";
 import { ScriptEditorFeature } from "./ScriptEditorFeature";
 import { ScriptFileStore } from "../service/ScriptFileStore";
-import { ScriptTargetResolver } from "../service/ScriptTargetResolver";
 
 const DIAGRAM = "/work/order.bpmn";
 const VARIABLES: VariableDef[] = [
@@ -32,14 +31,12 @@ function createFeature() {
         "/tmp",
         (path) => path,
     );
-    const scriptEditor = new RecordingScriptEditor(
-        host.store,
-        scriptFiles,
-        new ScriptTargetResolver(host.store, host.picker, host.notifier),
-    );
+    const scriptEditor = new RecordingScriptEditor(scriptFiles);
     const variables = new ScriptVariableStore();
     const { editorContribution } = new ScriptEditorFeature({
+        store: host.store,
         scriptEditor,
+        picker: host.picker,
         variables,
         scriptFiles,
         notifier: host.notifier,
@@ -83,15 +80,15 @@ describe("ScriptEditorFeature", () => {
         expect({
             opened: scriptEditor.opened.map(({ script }) => script.elementId),
             written: scriptEditor.written.map(({ script }) => script.elementId),
-            modelChanges: scriptEditor.modelChanges.map(({ script }) => script.elementId),
-            variablePushes: scriptEditor.variablePushes,
-            resynced: scriptEditor.resynced,
+            contentUpdates: scriptEditor.contentUpdates.map(({ content }) => content),
+            variablePushes: scriptEditor.variablePushes.map(({ editorId }) => editorId),
+            locks: editor.postedOfType("UpdateOpenScriptEditorsQuery").length,
         }).toEqual({
             opened: ["Task_1"],
             written: ["Task_2"],
-            modelChanges: ["Task_1"],
+            contentUpdates: ["x"],
             variablePushes: [editor.id],
-            resynced: [editor.id],
+            locks: 2,
         });
     });
 
@@ -99,11 +96,11 @@ describe("ScriptEditorFeature", () => {
         const { host, scriptEditor, variables, editorContribution } = createFeature();
         const editor = await host.openSession(DIAGRAM, [editorContribution.participant]);
         variables.setExtracted(editor.id, VARIABLES);
-        expect(scriptEditor.disposedEditors).toEqual([]);
+        expect(scriptEditor.closedEditors).toEqual([]);
 
         editor.dispose();
 
-        expect(scriptEditor.disposedEditors).toEqual([editor.id]);
+        expect(scriptEditor.closedEditors).toEqual([editor.id]);
         expect(variables.variablesFor(editor.id)).toEqual([]);
     });
 });

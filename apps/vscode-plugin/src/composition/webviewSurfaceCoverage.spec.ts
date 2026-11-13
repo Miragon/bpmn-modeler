@@ -7,7 +7,6 @@ import { ExtensionContext, Uri } from "vscode";
 import {
     ScriptEditorFeature,
     ScriptFileStore,
-    ScriptTargetResolver,
     ScriptVariableStore,
 } from "@miragon/bpmn-modeler-core";
 import {
@@ -173,11 +172,9 @@ function registerVsCodeSurfaces() {
         deploymentStatusParticipant,
         reviews,
         scriptEditor: new ScriptEditorFeature({
-            scriptEditor: new RecordingScriptEditor(
-                deps.editorStore,
-                scriptFiles,
-                new ScriptTargetResolver(deps.editorStore, deps.picker, deps.notifier),
-            ),
+            store: deps.editorStore,
+            scriptEditor: new RecordingScriptEditor(scriptFiles),
+            picker: deps.picker,
             variables: new ScriptVariableStore(),
             scriptFiles,
             notifier: deps.notifier,

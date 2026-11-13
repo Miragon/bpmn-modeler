@@ -1,11 +1,11 @@
 import { RecordingScriptEditor } from "./RecordingScriptEditor";
 import { describeScriptEditorContract } from "./scriptEditorContract";
 
-describeScriptEditorContract("RecordingScriptEditor", async ({ store, scriptFiles, targets }) => {
-    const scriptEditor = new RecordingScriptEditor(store, scriptFiles, targets);
+describeScriptEditorContract("RecordingScriptEditor", async ({ scriptFiles }) => {
+    const scriptEditor = new RecordingScriptEditor(scriptFiles);
     return {
         scriptEditor,
         openFileByUser: (filePath) => scriptEditor.openFileByUser(filePath),
-        closeTab: async (filePath) => scriptEditor.closeTab(filePath),
+        closeTab: (filePath) => scriptEditor.closeTabByUser(filePath),
     };
 });

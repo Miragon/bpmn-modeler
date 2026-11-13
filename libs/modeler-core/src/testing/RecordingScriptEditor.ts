@@ -1,119 +1,140 @@
-import { isSameScript } from "@miragon/bpmn-modeler-types";
-
-import { EditorSessionStore } from "../editorSession/service/EditorSessionStore";
-import { InlineScript, ScriptSourceChange } from "../scriptTask/domain/inlineScript";
-import { OpenScriptTab, OpenScriptTabs } from "../scriptTask/domain/OpenScriptTabs";
-import { ScriptMaterialization } from "../scriptTask/domain/scriptBatchSummary";
-import { matchScriptFile } from "../scriptTask/domain/scriptFileMatching";
-import { ScriptEditorPort } from "../scriptTask/port/ScriptEditorPort";
+import { InlineScript } from "../scriptTask/domain/inlineScript";
+import { OpenScriptTab } from "../scriptTask/domain/OpenScriptTabs";
+import { MatchedScriptFile } from "../scriptTask/domain/scriptFileMatching";
+import {
+    ScriptEditorPort,
+    ScriptTabListener,
+    ScriptTabTarget,
+} from "../scriptTask/port/ScriptEditorPort";
 import { ScriptFileStore } from "../scriptTask/service/ScriptFileStore";
-import { ScriptTargetResolver } from "../scriptTask/service/ScriptTargetResolver";
 
 export interface ScriptEditorCall<TScript> {
     readonly editorId: string;
     readonly script: TScript;
 }
 
+export interface TabContentUpdate {
+    readonly tabPath: string;
+    readonly content: string;
+}
+
 /**
- * A host's script tabs in memory: holds what was opened, written, changed,
- * resynced and closed, and keeps the `ScriptEditorPort` contract
- * (`describeScriptEditorContract`). It resolves each script's file with
- * `targets`, writes through `scriptFiles`, adopts a script file the user opens
- * from its editor's script folder and answers `alreadyOpen` for a script whose
- * tab is open. A spec steers it only to inject a failure or a hang:
- * `writeInterruptions` fails or holds the next writes in order (an `Error`
- * rejects that write; a `Promise` holds it until it settles, then the write
- * goes on), and `openFailure` and `resyncFailure` reject `open` and `resync`
- * while set.
+ * A host's script tabs in memory: holds what was opened, revealed, written,
+ * updated and closed, and keeps the `ScriptEditorPort` contract
+ * (`describeScriptEditorContract`). Each tab is tracked under its file's path,
+ * which it writes through `scriptFiles`. A spec plays the user with
+ * `openFileByUser`, `closeTabByUser` and `typeByUser`, and steers it only to inject a
+ * failure or a hang: `writeInterruptions` fails or holds the next writes in
+ * order (an `Error` rejects that write; a `Promise` holds it until it settles,
+ * then the write goes on), and `openFailure` and `adoptFailure` reject
+ * `openTab` and `adoptTab` while set.
  */
 export class RecordingScriptEditor implements ScriptEditorPort {
     readonly opened: ScriptEditorCall<InlineScript>[] = [];
+    readonly revealed: string[] = [];
+    readonly adopted: string[] = [];
     readonly written: ScriptEditorCall<InlineScript>[] = [];
-    readonly modelChanges: ScriptEditorCall<ScriptSourceChange>[] = [];
-    readonly resynced: string[] = [];
-    readonly variablePushes: string[] = [];
-    readonly disposedEditors: string[] = [];
+    readonly contentUpdates: TabContentUpdate[] = [];
+    readonly closedTabs: string[] = [];
+    readonly variablePushes: ScriptEditorCall<readonly string[]>[] = [];
+    readonly closedEditors: string[] = [];
     readonly writeInterruptions: (Error | Promise<void>)[] = [];
     openFailure: Error | undefined;
-    resyncFailure: Error | undefined;
+    adoptFailure: Error | undefined;
 
-    /** Open tabs by the path of the file each shows. */
-    private readonly openTabs = new OpenScriptTabs();
+    /** What each shown tab holds, by its path. */
+    private readonly shownTabs = new Map<string, string>();
+    private listener: ScriptTabListener | undefined;
 
-    constructor(
-        private readonly store: EditorSessionStore,
-        private readonly scriptFiles: ScriptFileStore,
-        private readonly targets: ScriptTargetResolver,
-    ) {}
+    constructor(private readonly scriptFiles: ScriptFileStore) {}
 
-    async open(editorId: string, script: InlineScript): Promise<void> {
-        this.opened.push({ editorId, script: inlineScriptOf(script) });
-        if (this.openFailure) throw this.openFailure;
-        const target = await this.targets.resolve(editorId, script);
-        if (target === undefined) return;
-        const filePath = await this.scriptFiles.prepareScriptFile(editorId, target.uri);
-        if (this.openTabs.isOpen(filePath)) return;
-        await this.scriptFiles.writeFile(filePath, script.content);
-        const { elementId, kind, listenerIndex } = script;
-        this.openTabs.track(filePath, { editorId, elementId, kind, listenerIndex });
+    listen(listener: ScriptTabListener): void {
+        this.listener = listener;
     }
 
-    async materialize(editorId: string, script: InlineScript): Promise<ScriptMaterialization> {
-        this.written.push({ editorId, script: inlineScriptOf(script) });
+    tabPathOf(editorId: string, scriptId: string): Promise<string> {
+        return this.scriptFiles.pathOf(editorId, scriptId);
+    }
+
+    async openTab(target: ScriptTabTarget, script: InlineScript): Promise<void> {
+        this.opened.push({ editorId: target.editorId, script: inlineScriptOf(script) });
+        if (this.openFailure) throw this.openFailure;
+        await this.write(target, script);
+        this.shownTabs.set(target.tabPath, script.content);
+    }
+
+    async revealTab(target: ScriptTabTarget): Promise<void> {
+        this.revealed.push(target.tabPath);
+    }
+
+    async adoptTab(tabPath: string, _file: MatchedScriptFile, filePath: string): Promise<void> {
+        this.adopted.push(tabPath);
+        if (this.adoptFailure) throw this.adoptFailure;
+        this.shownTabs.set(tabPath, await this.scriptFiles.readFile(filePath));
+    }
+
+    async writeScript(target: ScriptTabTarget, script: InlineScript): Promise<void> {
+        this.written.push({ editorId: target.editorId, script: inlineScriptOf(script) });
         const interruption = this.writeInterruptions.shift();
         if (interruption instanceof Error) throw interruption;
         await interruption;
-
-        const target = await this.targets.resolve(editorId, script);
-        if (target === undefined) return { kind: "cancelled" };
-        const filePath = await this.scriptFiles.prepareScriptFile(editorId, target.uri);
-        const plan = this.openTabs.materializationOf(filePath);
-        if (plan.kind === "alreadyOpen") return plan;
-        await this.scriptFiles.writeFile(filePath, script.content);
-        return { kind: "written" };
+        await this.write(target, script);
     }
 
-    applyModelChange(editorId: string, change: ScriptSourceChange): void {
-        const { elementId, kind, listenerIndex, content } = change;
-        this.modelChanges.push({ editorId, script: { elementId, kind, listenerIndex, content } });
-        if (content !== undefined) return;
-        this.closeTabsWhere(editorId, (tab) => isSameScript(tab, change));
+    async updateTabContent(tabPath: string, content: string): Promise<void> {
+        this.contentUpdates.push({ tabPath, content });
+        this.shownTabs.set(tabPath, content);
     }
 
-    async resync(editorId: string): Promise<void> {
-        this.resynced.push(editorId);
-        if (this.resyncFailure) throw this.resyncFailure;
+    async closeTab(tabPath: string): Promise<void> {
+        this.closedTabs.push(tabPath);
+        this.shownTabs.delete(tabPath);
+        await this.scriptFiles.deleteScript(tabPath);
     }
 
-    variablesChanged(editorId: string): void {
-        this.variablePushes.push(editorId);
+    updateTabVariables(editorId: string, tabPaths: readonly string[]): void {
+        this.variablePushes.push({ editorId, script: tabPaths });
     }
 
-    disposeEditor(editorId: string): void {
-        this.disposedEditors.push(editorId);
-        this.closeTabsWhere(editorId, () => true);
+    closeEditorTabs(editorId: string, tabs: ReadonlyArray<readonly [string, OpenScriptTab]>): void {
+        this.closedEditors.push(editorId);
+        for (const [tabPath] of tabs) this.shownTabs.delete(tabPath);
         const editorScriptDir = this.scriptFiles.releaseEditor(editorId);
         if (editorScriptDir !== undefined) void this.scriptFiles.deleteFolder(editorScriptDir);
     }
 
-    /** The user opened the file at `filePath` outside `open`; a script file in its editor's script folder gets a tab. */
+    async readTabContent(tabPath: string): Promise<string | undefined> {
+        const shown = this.shownTabs.get(tabPath);
+        if (shown !== undefined) return shown;
+        return this.scriptFiles.readFile(tabPath).catch(() => undefined);
+    }
+
+    isTabShown(tabPath: string): boolean {
+        return this.shownTabs.has(tabPath);
+    }
+
+    /** The user opened the file at `filePath` outside the modeler. */
     async openFileByUser(filePath: string): Promise<void> {
-        const match = matchScriptFile(filePath, this.store.getEditorIds());
-        if (match === undefined) return;
-        if (!(await this.scriptFiles.adopt(match.editorId, filePath))) return;
-        const { editorId, elementId, kind, listenerIndex } = match;
-        this.openTabs.track(filePath, { editorId, elementId, kind, listenerIndex });
+        await this.listener?.didOpenFile(filePath);
     }
 
-    /** The user closed the tab of the script file at `filePath`. */
-    closeTab(filePath: string): void {
-        this.openTabs.untrack(filePath);
+    /** The user closed the tab of the file at `filePath`, which saves what it holds. */
+    async closeTabByUser(filePath: string): Promise<void> {
+        const content = this.shownTabs.get(filePath);
+        this.shownTabs.delete(filePath);
+        if (content !== undefined) await this.scriptFiles.writeFile(filePath, content);
+        await this.listener?.didClose(filePath);
     }
 
-    private closeTabsWhere(editorId: string, closes: (tab: OpenScriptTab) => boolean): void {
-        for (const [filePath, tab] of this.openTabs.ofEditor(editorId)) {
-            if (closes(tab)) this.openTabs.untrack(filePath);
-        }
+    /** The user typed `content` into the tab at `tabPath`. */
+    typeByUser(tabPath: string, content: string): void {
+        this.shownTabs.set(tabPath, content);
+        this.listener?.didChange(tabPath, content);
+    }
+
+    private async write(target: ScriptTabTarget, script: InlineScript): Promise<void> {
+        const filePath = await this.scriptFiles.prepareScriptFile(target.editorId, target.uri);
+        await this.scriptFiles.writeFile(filePath, script.content);
     }
 }
 

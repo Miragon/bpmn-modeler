@@ -8,20 +8,20 @@ import {
 import { notifiedErrorLogText } from "../../../kernel/domain/errorLogText";
 import { NotifierPort } from "../../../kernel/port/hostPorts";
 import { MessageHandler } from "../../../editorSession/service/WebviewMessageRouter";
-import { ScriptEditorPort } from "../../port/ScriptEditorPort";
 import { NO_INLINE_SCRIPTS_MESSAGE, scriptBatchSummary } from "../../domain/scriptBatchSummary";
 import { ScriptVariableStore } from "../../domain/ScriptVariableStore";
 import { materializeScriptBatch } from "../../service/scriptBatch";
 import { ScriptFileStore } from "../../service/ScriptFileStore";
+import { ScriptTabService } from "../../service/ScriptTabService";
 
 /**
  * Second handler for `GetBpmnModelerSettingCommand`, which the webview sends on
  * every (re)load: it drops its field locks then, and may have missed edits made
  * while it was hidden.
  */
-export function resyncScriptEditorsHandler(scriptEditor: ScriptEditorPort): MessageHandler {
+export function resyncScriptEditorsHandler(scriptTabs: ScriptTabService): MessageHandler {
     return async (_message, editorId) => {
-        await scriptEditor.resync(editorId);
+        await scriptTabs.resync(editorId);
     };
 }
 
@@ -31,14 +31,14 @@ export function resyncScriptEditorsHandler(scriptEditor: ScriptEditorPort): Mess
  * first live `UpdateScriptVariablesCommand` arrives.
  */
 export function openScriptEditorHandler(
-    scriptEditor: ScriptEditorPort,
+    scriptTabs: ScriptTabService,
     variables: ScriptVariableStore,
     notifier: NotifierPort,
 ): MessageHandler<OpenScriptEditorCommand> {
     return async (command, editorId) => {
         variables.setExtracted(editorId, command.variables ?? []);
         try {
-            await scriptEditor.open(editorId, command);
+            await scriptTabs.open(editorId, command);
         } catch (error) {
             notifier.logError(
                 notifiedErrorLogText(
@@ -57,7 +57,7 @@ export function openScriptEditorHandler(
  * {@link scriptBatchSummary} names the folder the files went to.
  */
 export function openScriptEditorsHandler(
-    scriptEditor: ScriptEditorPort,
+    scriptTabs: ScriptTabService,
     variables: ScriptVariableStore,
     scriptFiles: ScriptFileStore,
     notifier: NotifierPort,
@@ -72,7 +72,7 @@ export function openScriptEditorsHandler(
         const outcome = await materializeScriptBatch(
             command.scripts,
             (script) =>
-                scriptEditor.materialize(editorId, {
+                scriptTabs.materialize(editorId, {
                     elementId: script.elementId,
                     kind: "script-task",
                     listenerIndex: undefined,
@@ -89,12 +89,12 @@ export function openScriptEditorsHandler(
 
 /** `UpdateScriptVariablesCommand` → replace the editor's process variables for live completion. */
 export function updateScriptVariablesHandler(
-    scriptEditor: ScriptEditorPort,
+    scriptTabs: ScriptTabService,
     variables: ScriptVariableStore,
 ): MessageHandler<UpdateScriptVariablesCommand> {
     return (command, editorId) => {
         variables.setExtracted(editorId, command.variables);
-        scriptEditor.variablesChanged(editorId);
+        scriptTabs.variablesChanged(editorId);
     };
 }
 
@@ -103,9 +103,9 @@ export function updateScriptVariablesHandler(
  * element changed a script that a tab owns; the model side wins.
  */
 export function updateScriptSourceHandler(
-    scriptEditor: ScriptEditorPort,
+    scriptTabs: ScriptTabService,
 ): MessageHandler<UpdateScriptSourceCommand> {
     return async (command, editorId) => {
-        await scriptEditor.applyModelChange(editorId, command);
+        await scriptTabs.applyModelChange(editorId, command);
     };
 }

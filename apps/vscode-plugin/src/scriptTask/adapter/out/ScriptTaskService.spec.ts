@@ -103,6 +103,7 @@ import {
     ScriptFileStore,
     ScriptLanguage,
     scriptLanguagePrompt,
+    ScriptTabService,
     ScriptTargetResolver,
     ScriptUri,
 } from "@miragon/bpmn-modeler-core";
@@ -208,15 +209,20 @@ function createService(
     setTextDocumentLanguageMock.mockResolvedValue(undefined);
     applyEditMock.mockResolvedValue(true);
 
-    const service = new ScriptTaskService(
-        host.store,
+    const adapter = new ScriptTaskService(
         scriptFileStore,
         host.settings,
         host.notifier,
-        new ScriptTargetResolver(host.store, host.picker, host.notifier),
         scriptXml as never,
     );
-    service.register({ subscriptions: [] } as never);
+    adapter.register({ subscriptions: [] } as never);
+    const service = new ScriptTabService(
+        host.store,
+        adapter,
+        new ScriptTargetResolver(host.store, host.picker, host.notifier),
+        scriptFileStore,
+        host.notifier,
+    );
 
     const fireDocChange = onDidChangeTextDocumentMock.mock.calls[0][0] as (
         event: unknown,
@@ -226,6 +232,7 @@ function createService(
 
     return {
         service,
+        adapter,
         host,
         editor,
         scriptFiles,
@@ -292,7 +299,7 @@ function clearPosted(editor: FakeEditorHandle): void {
 }
 
 async function openCanonicalScript(
-    service: ScriptTaskService,
+    service: ScriptTabService,
     format = "javascript",
     content = "a",
 ): Promise<void> {
@@ -450,8 +457,7 @@ describe("ScriptTaskService.open", () => {
         }
         // …and both scripts remain tracked (a preview replacement would have
         // arrived as a close and evicted Task_1).
-        const openDocuments = (service as never as { openDocuments: OpenScriptTabs })
-            .openDocuments;
+        const openDocuments = (service as never as { tabs: OpenScriptTabs }).tabs;
         expect(openDocuments.isOpen(scriptPath("groovy"))).toBe(true);
         expect(openDocuments.isOpen(scriptPath("groovy", "Task_2"))).toBe(true);
     });
@@ -487,12 +493,12 @@ describe("ScriptTaskService.onScriptDocumentChanged", () => {
     });
 
     it("skips the echo of our own write while the path is in the writing guard", async () => {
-        const { service, fireDocChange, editor } = createService();
+        const { service, fireDocChange, editor, adapter } = createService();
         await openCanonicalScript(service);
         clearPosted(editor);
 
         // Pre-seed the guard so the change looks like the echo of our own write.
-        (service as never as { writingGuard: Set<string> }).writingGuard.add(scriptPath());
+        (adapter as never as { writingGuard: Set<string> }).writingGuard.add(scriptPath());
 
         await fireDocChange(docChangeEvent(scriptPath(), "next"));
 
@@ -534,7 +540,7 @@ describe("ScriptTaskService.onScriptDocumentChanged", () => {
 
         // The editor is now armed: a resync replays the buffered edit.
         editor.hidden = false;
-        await service.resyncOpenDocuments(EDITOR_ID);
+        await service.resync(EDITOR_ID);
         // The lock re-broadcast is posted last; assert the content replay landed.
         expect(editor.posted).toContainEqual(
             new UpdateScriptContentQuery(ELEMENT_ID, KIND, undefined, "buffered"),
@@ -551,7 +557,7 @@ describe("ScriptTaskService.onScriptDocumentChanged", () => {
 
         expect(notifier.logged("error")).toEqual([failure.stack]);
         expect(
-            (service as never as { pendingResync: Set<string> }).pendingResync.has(EDITOR_ID),
+            (service as never as { missedEdits: Set<string> }).missedEdits.has(EDITOR_ID),
         ).toBe(false);
     });
 
@@ -574,15 +580,15 @@ describe("ScriptTaskService.onScriptDocumentChanged", () => {
 });
 
 describe("ScriptTaskService.resyncOpenDocuments", () => {
-    it("is a no-op when the editor is not pending resync", async () => {
+    it("replays nothing when the webview missed no edit", async () => {
         const { service, editor, scriptFiles } = createService();
         await openCanonicalScript(service, "groovy");
         clearPosted(editor);
 
-        await service.resyncOpenDocuments(EDITOR_ID);
+        await service.resync(EDITOR_ID);
 
         expect(scriptFiles.readFile).not.toHaveBeenCalled();
-        expect(editor.posted).toEqual([]);
+        expect(contentQueries(editor)).toEqual([]);
     });
 
     it("replays from the open buffer, preferring it over the (possibly stale) file", async () => {
@@ -593,8 +599,8 @@ describe("ScriptTaskService.resyncOpenDocuments", () => {
         scriptFiles.readFile.mockResolvedValue("stale-disk-content");
         clearPosted(editor);
 
-        (service as never as { pendingResync: Set<string> }).pendingResync.add(EDITOR_ID);
-        await service.resyncOpenDocuments(EDITOR_ID);
+        (service as never as { missedEdits: Set<string> }).missedEdits.add(EDITOR_ID);
+        await service.resync(EDITOR_ID);
 
         expect(editor.posted).toContainEqual(
             new UpdateScriptContentQuery(ELEMENT_ID, KIND, undefined, "buffer-content"),
@@ -620,8 +626,8 @@ describe("ScriptTaskService.resyncOpenDocuments", () => {
         clearPosted(editor);
         clearPosted(otherEditor);
 
-        (service as never as { pendingResync: Set<string> }).pendingResync.add(EDITOR_ID);
-        await service.resyncOpenDocuments(EDITOR_ID);
+        (service as never as { missedEdits: Set<string> }).missedEdits.add(EDITOR_ID);
+        await service.resync(EDITOR_ID);
 
         expect(contentQueries(editor)).toHaveLength(1);
         expect(contentQueries(otherEditor)).toEqual([]);
@@ -629,7 +635,7 @@ describe("ScriptTaskService.resyncOpenDocuments", () => {
             new UpdateScriptContentQuery(ELEMENT_ID, KIND, undefined, "decoded"),
         );
         expect(
-            (service as never as { pendingResync: Set<string> }).pendingResync.has(EDITOR_ID),
+            (service as never as { missedEdits: Set<string> }).missedEdits.has(EDITOR_ID),
         ).toBe(false);
     });
 
@@ -649,8 +655,8 @@ describe("ScriptTaskService.resyncOpenDocuments", () => {
         scriptFiles.readFile.mockResolvedValue("ok");
         clearPosted(editor);
 
-        (service as never as { pendingResync: Set<string> }).pendingResync.add(EDITOR_ID);
-        await service.resyncOpenDocuments(EDITOR_ID);
+        (service as never as { missedEdits: Set<string> }).missedEdits.add(EDITOR_ID);
+        await service.resync(EDITOR_ID);
 
         expect(contentQueries(editor)).toHaveLength(1);
         expect(notifier.logged("error")).toEqual([]);
@@ -668,8 +674,7 @@ describe("ScriptTaskService.resyncOpenDocuments", () => {
             content: "b",
         });
         setOpenTabs([scriptPath("groovy"), scriptPath("groovy", "Task_2")]);
-        const openDocuments = (service as never as { openDocuments: OpenScriptTabs })
-            .openDocuments;
+        const openDocuments = (service as never as { tabs: OpenScriptTabs }).tabs;
         scriptFiles.readFile.mockImplementationOnce(async () => {
             openDocuments.untrack(scriptPath("groovy", "Task_2"));
             return "first";
@@ -677,8 +682,8 @@ describe("ScriptTaskService.resyncOpenDocuments", () => {
         scriptFiles.readFile.mockResolvedValue("second");
         clearPosted(editor);
 
-        (service as never as { pendingResync: Set<string> }).pendingResync.add(EDITOR_ID);
-        await service.resyncOpenDocuments(EDITOR_ID);
+        (service as never as { missedEdits: Set<string> }).missedEdits.add(EDITOR_ID);
+        await service.resync(EDITOR_ID);
 
         expect(contentQueries(editor).map((query) => query.content)).toEqual(["first"]);
     });
@@ -691,8 +696,8 @@ describe("ScriptTaskService.resyncOpenDocuments", () => {
         setOpenTabs([]);
         clearPosted(editor);
 
-        (service as never as { pendingResync: Set<string> }).pendingResync.add(EDITOR_ID);
-        await service.resyncOpenDocuments(EDITOR_ID);
+        (service as never as { missedEdits: Set<string> }).missedEdits.add(EDITOR_ID);
+        await service.resync(EDITOR_ID);
         await flushAsync();
 
         const path = scriptPath("groovy");
@@ -700,7 +705,7 @@ describe("ScriptTaskService.resyncOpenDocuments", () => {
         // on disk (deletion is reserved for element deletion / editor dispose).
         expect(scriptFiles.deleteFolder).not.toHaveBeenCalled();
         expect(
-            (service as never as { openDocuments: OpenScriptTabs }).openDocuments.isOpen(path),
+            (service as never as { tabs: OpenScriptTabs }).tabs.isOpen(path),
         ).toBe(false);
     });
 
@@ -713,11 +718,11 @@ describe("ScriptTaskService.resyncOpenDocuments", () => {
             new Error("The active editor is hidden."),
         );
 
-        (service as never as { pendingResync: Set<string> }).pendingResync.add(EDITOR_ID);
-        await service.resyncOpenDocuments(EDITOR_ID);
+        (service as never as { missedEdits: Set<string> }).missedEdits.add(EDITOR_ID);
+        await service.resync(EDITOR_ID);
 
         expect(
-            (service as never as { pendingResync: Set<string> }).pendingResync.has(EDITOR_ID),
+            (service as never as { missedEdits: Set<string> }).missedEdits.has(EDITOR_ID),
         ).toBe(true);
     });
 });
@@ -735,7 +740,7 @@ describe("ScriptTaskService.onTabsChanged", () => {
         // A plain tab close must not delete the file — reopening it has to work.
         expect(scriptFiles.deleteFolder).not.toHaveBeenCalled();
         expect(
-            (service as never as { openDocuments: OpenScriptTabs }).openDocuments.isOpen(path),
+            (service as never as { tabs: OpenScriptTabs }).tabs.isOpen(path),
         ).toBe(false);
     });
 
@@ -749,7 +754,7 @@ describe("ScriptTaskService.onTabsChanged", () => {
 
         expect(scriptFiles.deleteFolder).not.toHaveBeenCalled();
         expect(
-            (service as never as { openDocuments: OpenScriptTabs }).openDocuments.isOpen(
+            (service as never as { tabs: OpenScriptTabs }).tabs.isOpen(
                 scriptPath("groovy"),
             ),
         ).toBe(true);
@@ -759,7 +764,7 @@ describe("ScriptTaskService.onTabsChanged", () => {
         const { service, fireTabsChange, scriptFiles } = createService();
         await openCanonicalScript(service, "groovy");
         setOpenTabs([]);
-        (service as never as { pendingResync: Set<string> }).pendingResync.add(EDITOR_ID);
+        (service as never as { missedEdits: Set<string> }).missedEdits.add(EDITOR_ID);
 
         fireTabsChange({ closed: [makeTab(scriptPath("groovy"))], opened: [], changed: [] });
         await flushAsync();
@@ -768,7 +773,7 @@ describe("ScriptTaskService.onTabsChanged", () => {
         // The `openDocuments` entry is the deferred replay's payload now, so it
         // must survive until `resyncOpenDocuments` finishes the cleanup.
         expect(
-            (service as never as { openDocuments: OpenScriptTabs }).openDocuments.isOpen(
+            (service as never as { tabs: OpenScriptTabs }).tabs.isOpen(
                 scriptPath("groovy"),
             ),
         ).toBe(true);
@@ -993,12 +998,12 @@ describe("ScriptTaskService lock broadcast", () => {
         ]);
     });
 
-    it("re-broadcasts the current open set on the reload handshake (syncLockState)", async () => {
+    it("re-broadcasts the current open set on the reload handshake", async () => {
         const { service, editor } = createService();
         await openCanonicalScript(service, "groovy");
         clearPosted(editor);
 
-        service.syncLockState(EDITOR_ID);
+        await service.resync(EDITOR_ID);
 
         const refs = lastBroadcastRefs(editor);
         expect(refs).toHaveLength(1);
@@ -1129,11 +1134,11 @@ describe("ScriptTaskService keystroke debounce", () => {
         // The buffered edit still needs replaying, so cleanup is deferred: the
         // tracking entry (the replay payload) is retained and nothing is deleted.
         expect(
-            (service as never as { pendingResync: Set<string> }).pendingResync.has(EDITOR_ID),
+            (service as never as { missedEdits: Set<string> }).missedEdits.has(EDITOR_ID),
         ).toBe(true);
         expect(scriptFiles.deleteFolder).not.toHaveBeenCalled();
         expect(
-            (service as never as { openDocuments: OpenScriptTabs }).openDocuments.isOpen(
+            (service as never as { tabs: OpenScriptTabs }).tabs.isOpen(
                 scriptPath("groovy"),
             ),
         ).toBe(true);
@@ -1256,11 +1261,11 @@ describe("ScriptTaskService dispose write-back", () => {
     });
 
     it("skips the write-back entirely when the diagram was reverted", async () => {
-        const { service, scriptXml } = createService();
+        const { service, scriptXml, adapter } = createService();
         await openCanonicalScript(service, "groovy", "edited");
         stageDocument(scriptPath("groovy"), "edited");
         stageDocument("/repo/process.bpmn", "<xml/>");
-        (service as never as { revertedEditors: Set<string> }).revertedEditors.add(EDITOR_ID);
+        (adapter as never as { revertedEditors: Set<string> }).revertedEditors.add(EDITOR_ID);
 
         service.disposeEditor(EDITOR_ID);
         await flushAsync();
@@ -1272,49 +1277,49 @@ describe("ScriptTaskService dispose write-back", () => {
 
 describe("ScriptTaskService revert tracking", () => {
     /** The private revert set, read for assertions. */
-    function reverted(service: ScriptTaskService): Set<string> {
-        return (service as never as { revertedEditors: Set<string> }).revertedEditors;
+    function reverted(adapter: ScriptTaskService): Set<string> {
+        return (adapter as never as { revertedEditors: Set<string> }).revertedEditors;
     }
 
     it("marks the editor on a clean diagram change and clears it on save", async () => {
-        const { service, fireDocChange, fireSave } = createService();
+        const { service, fireDocChange, fireSave, adapter } = createService();
         // Open a script so the editor has a script base directory.
         await openCanonicalScript(service, "groovy");
 
         // A change landing on an already-clean diagram is a "Don't Save" revert.
         await fireDocChange(diagramChangeEvent(false));
-        expect(reverted(service).has(EDITOR_ID)).toBe(true);
+        expect(reverted(adapter).has(EDITOR_ID)).toBe(true);
 
         // Saving the diagram at the prompt is not a revert — clear the mark.
         fireSave({ uri: { toString: () => EDITOR_ID } });
-        expect(reverted(service).has(EDITOR_ID)).toBe(false);
+        expect(reverted(adapter).has(EDITOR_ID)).toBe(false);
     });
 
     it("unmarks the editor when the diagram becomes dirty again", async () => {
-        const { service, fireDocChange } = createService();
+        const { service, fireDocChange, adapter } = createService();
         await openCanonicalScript(service, "groovy");
 
         await fireDocChange(diagramChangeEvent(false));
-        expect(reverted(service).has(EDITOR_ID)).toBe(true);
+        expect(reverted(adapter).has(EDITOR_ID)).toBe(true);
 
         // The user resumed editing: a dirty change clears the revert mark.
         await fireDocChange(diagramChangeEvent(true));
-        expect(reverted(service).has(EDITOR_ID)).toBe(false);
+        expect(reverted(adapter).has(EDITOR_ID)).toBe(false);
     });
 
     it("ignores diagram changes for editors that never opened a script", async () => {
-        const { service, fireDocChange } = createService();
+        const { fireDocChange, adapter } = createService();
 
         // No script opened → no script base directory → not tracked.
         await fireDocChange(diagramChangeEvent(false));
 
-        expect(reverted(service).has(EDITOR_ID)).toBe(false);
+        expect(reverted(adapter).has(EDITOR_ID)).toBe(false);
     });
 });
 
 /** Reads the private tracking map for direct assertions. */
-function openDocumentsOf(service: ScriptTaskService): OpenScriptTabs {
-    return (service as never as { openDocuments: OpenScriptTabs }).openDocuments;
+function openDocumentsOf(service: ScriptTabService): OpenScriptTabs {
+    return (service as never as { tabs: OpenScriptTabs }).tabs;
 }
 
 /** The slug directory holding the canonical script and its JS ambient siblings. */
@@ -1579,7 +1584,7 @@ describe("ScriptTaskService for a diagram on a UNC share", () => {
         return `//server/share/repo/.camunda/tmp/scripting/${rel}`;
     }
 
-    async function openScript(service: ScriptTaskService, editorId: string): Promise<void> {
+    async function openScript(service: ScriptTabService, editorId: string): Promise<void> {
         await service.open(editorId, {
             elementId: ELEMENT_ID,
             kind: KIND,

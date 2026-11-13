@@ -253,6 +253,17 @@ describe("ScriptFileStore.prepareScriptFile", () => {
     });
 });
 
+describe("ScriptFileStore.pathOf", () => {
+    it("names the path prepareScriptFile writes the script to, and touches no file", async () => {
+        const { host, store, diagram } = createStore();
+        const script = groovyScript(diagram.id);
+
+        expect(await store.pathOf(diagram.id, script.toString())).toBe(scriptPath(diagram.id));
+        expect(host.workspace.files.size).toBe(0);
+        expect(await store.prepareScriptFile(diagram.id, script)).toBe(scriptPath(diagram.id));
+    });
+});
+
 describe("ScriptFileStore.adopt", () => {
     it.each([
         {

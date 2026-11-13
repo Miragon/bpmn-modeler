@@ -1,15 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { EditorSessionStore } from "../editorSession/service/EditorSessionStore";
-import { NotifierPort, PickerPort, SettingsPort } from "../kernel/port/hostPorts";
+import { NotifierPort, SettingsPort } from "../kernel/port/hostPorts";
 import { ArtifactService } from "../kernel/service/ArtifactService";
 import { InlineScript } from "../scriptTask/domain/inlineScript";
 import { ScriptMaterialization } from "../scriptTask/domain/scriptBatchSummary";
-import { scriptLanguagePrompt } from "../scriptTask/domain/scriptLanguage";
 import { ScriptUri, TMP_SCRIPTING_SEGMENT } from "../scriptTask/domain/ScriptUri";
 import { ScriptVariableStore } from "../scriptTask/domain/ScriptVariableStore";
 import { ScriptEditorPort } from "../scriptTask/port/ScriptEditorPort";
 import { ScriptFileStore } from "../scriptTask/service/ScriptFileStore";
+import { ScriptTabService } from "../scriptTask/service/ScriptTabService";
 import { ScriptTargetResolver } from "../scriptTask/service/ScriptTargetResolver";
 import { createTestHost } from "./createTestHost";
 import { FakeEditorHandle } from "./FakeEditorHandle";
@@ -18,9 +18,6 @@ import { FakeEditorHandle } from "./FakeEditorHandle";
 export interface ScriptEditorContractHost {
     readonly store: EditorSessionStore;
     readonly scriptFiles: ScriptFileStore;
-    readonly picker: PickerPort;
-    /** Asks `picker` for a language the model lacks. */
-    readonly targets: ScriptTargetResolver;
     readonly notifier: NotifierPort;
     readonly settings: SettingsPort;
     readonly variables: ScriptVariableStore;
@@ -51,7 +48,6 @@ const HASH = ScriptUri.hashEditorId(EDITOR);
 const OTHER_HASH = ScriptUri.hashEditorId(OTHER_EDITOR);
 const TASK_FILE = `${BASE_DIR}/${HASH}/Task_1/script-task/Task_1.groovy`;
 const TASK_FILE_OUTSIDE = `${ROOT}/docs/tmp/scripting/${HASH}/Task_1/script-task/Task_1.groovy`;
-const LANGUAGE_PROMPT = scriptLanguagePrompt("").id;
 
 function scriptTask(fields: Partial<InlineScript> = {}): InlineScript {
     return {
@@ -79,11 +75,9 @@ function settle(): Promise<void> {
 
 function createContractHost() {
     const diagrams = [`${ROOT}/order.bpmn`, `${ROOT}/invoice.bpmn`, `${SHARE_ROOT}/order.bpmn`];
-    const languageAnswers: Record<string, unknown> = {};
     const testHost = createTestHost({
         folders: [ROOT, SHARE_ROOT],
         files: Object.fromEntries(diagrams.map((diagram) => [diagram, ""])),
-        promptAnswers: languageAnswers,
     });
     diagrams.forEach((diagram) => testHost.openEditor(diagram));
     testHost.store.register(new FakeEditorHandle("Untitled-1", { scheme: "untitled" }));
@@ -98,45 +92,45 @@ function createContractHost() {
             OS_TEMP,
             (path) => path,
         ),
-        picker: testHost.picker,
-        targets: new ScriptTargetResolver(testHost.store, testHost.picker, testHost.notifier),
         notifier: testHost.notifier,
         settings: testHost.settings,
         variables: new ScriptVariableStore(),
     };
-    return { ...testHost, ports, languageAnswers };
+    const targets = new ScriptTargetResolver(testHost.store, testHost.picker, testHost.notifier);
+    return { ...testHost, ports, targets };
 }
 
 /**
  * The rules of {@link ScriptEditorPort} the core relies on, run against one
- * adapter. The core reads back `materialize`: "Generate Script Files" counts
- * its answers, names the folder the shared {@link ScriptFileStore} resolved,
+ * adapter under the core's {@link ScriptTabService}. The service reads back the
+ * tab path each script's tab is tracked under and the host's tab events, and
+ * answers "Generate Script Files" from them: it counts the answers of
+ * `materialize`, names the folder the shared {@link ScriptFileStore} resolved,
  * and asks the user to open the files; a file the user opens from that folder
- * then owns its script. Of `open` it reads only a rejection, which it logs
- * with the element. So the scenarios pin where a file goes and how its path is
- * spelled, when an open tab owns a script, the dismissal value and that a
- * failed write in `materialize` rejects. `open`, `applyModelChange`, a file the
- * user opens or closes and `disposeEditor` take part as far as they change
- * those answers or the files: `open` writes the script's file, a reveal leaves
- * it to the tab, and a removal in the model and `disposeEditor` close tabs of
- * their own editor only. The editor id is the diagram's URI, so a diagram the
- * user closes and reopens keeps its id.
+ * then owns its script. So the scenarios pin where `openTab` and `writeScript`
+ * put a file and how its path is spelled, that a file the user opens or a tab
+ * the user closes reaches the service under the tab path of its script, that a
+ * failed write in `writeScript` rejects, and that `closeTab` and
+ * `closeEditorTabs` close tabs and files of their own script and editor only.
+ * The language prompt, its dismissal and the `alreadyOpen` decision are the
+ * service's, pinned in `ScriptTabService.spec.ts`. The editor id is the
+ * diagram's URI, so a diagram the user closes and reopens keeps its id.
  * Where the hosts differ, VS Code is the reference.
  *
- * Left out, as the core reads none of it back: `resync` and `variablesChanged`,
- * where the hosts differ by design (VS Code replays the edits its hidden
- * webview missed and completes from the variable store; a JCEF webview never
- * hides, and the bridge pushes the variables to its tabs); what a tab shows
- * and streams back, VS Code's JavaScript typings beside a script included; the
- * language pick sent back to the webview; and the file of a script the model
- * removed, which both hosts delete once its tab has closed, while the port
- * promises deleted files only from `disposeEditor`. Windows drive-letter and
+ * Left out, as the service reads none of it back: `updateTabVariables`, where
+ * the hosts differ by design (VS Code completes from the variable store, and
+ * the bridge pushes the variables to its tabs); `readTabContent` and
+ * `isTabShown`, which only a webview that hides needs, and a JCEF webview never
+ * hides; what a tab shows and streams back, VS Code's JavaScript typings beside
+ * a script included; and the file of a script the model removed, which both
+ * hosts delete once its tab has closed, while the service relies on deleted
+ * files only from `closeEditorTabs`. Windows drive-letter and
  * backslash spellings are left to each host's own spec (VS Code's
  * `canonicalPath.spec.ts` and `uriPath.spec.ts`, the bridge's `win32` block in
  * `BridgeScriptEditor.spec.ts`), as the shared in-memory workspace speaks POSIX.
  *
  * Also left out, though the core logs a rejected `open`: a failed write in
- * `open`. VS Code rejects, and the core logs it with the element; the bridge
+ * `openTab`. VS Code rejects, and the core logs it with the element; the bridge
  * logs the error itself and has IntelliJ open the tab from the content without
  * a file. That fallback is deliberate, and pinning VS Code's rejection would
  * remove it.
@@ -151,10 +145,18 @@ export function describeScriptEditorContract(
     describe(`${adapter} keeps the ScriptEditorPort contract`, () => {
         let host: ReturnType<typeof createContractHost>;
         let fixture: ScriptEditorContractFixture;
+        let scriptTabs: ScriptTabService;
 
         beforeEach(async () => {
             host = createContractHost();
             fixture = await createFixture(host.ports);
+            scriptTabs = new ScriptTabService(
+                host.store,
+                fixture.scriptEditor,
+                host.targets,
+                host.ports.scriptFiles,
+                host.notifier,
+            );
         });
 
         const scriptFilesOnDisk = () =>
@@ -208,68 +210,35 @@ export function describeScriptEditorContract(
             ])(
                 "writes $script at its path without asking, in the folder the store names",
                 async ({ editorId, written, path, folder }) => {
-                    await expect(
-                        fixture.scriptEditor.materialize(editorId, written),
-                    ).resolves.toEqual({ kind: "written" });
+                    await expect(scriptTabs.materialize(editorId, written)).resolves.toEqual({
+                        kind: "written",
+                    });
 
                     expect(host.workspace.files.get(path)).toBe(written.content);
                     expect(host.ports.scriptFiles.displayNameFor(editorId)).toBe(folder);
-                    expect(host.picker.prompts).toEqual([]);
                 },
             );
 
             it("writes the model's content again on the next run, as writing opens no tab", async () => {
-                await fixture.scriptEditor.materialize(EDITOR, scriptTask({ content: "first" }));
+                await scriptTabs.materialize(EDITOR, scriptTask({ content: "first" }));
 
                 await expect(
-                    fixture.scriptEditor.materialize(EDITOR, scriptTask({ content: "second" })),
+                    scriptTabs.materialize(EDITOR, scriptTask({ content: "second" })),
                 ).resolves.toEqual({ kind: "written" });
                 expect(host.workspace.files.get(TASK_FILE)).toBe("second");
             });
         });
 
-        describe("a script whose language the model lacks", () => {
-            it("asks for one with the core's prompt and writes the file in the language picked", async () => {
-                host.languageAnswers[LANGUAGE_PROMPT] = "python";
-
-                await expect(
-                    fixture.scriptEditor.materialize(
-                        EDITOR,
-                        scriptTask({ scriptFormat: "kotlin" }),
-                    ),
-                ).resolves.toEqual({ kind: "written" });
-
-                expect(host.picker.prompts).toEqual([
-                    { method: "choose", args: [scriptLanguagePrompt("kotlin")] },
-                ]);
-                expect(scriptFilesOnDisk()).toEqual([
-                    `${BASE_DIR}/${HASH}/Task_1/script-task/Task_1.py`,
-                ]);
-            });
-
-            it("answers cancelled when the prompt is dismissed, and writes and names no folder", async () => {
-                await expect(
-                    fixture.scriptEditor.materialize(EDITOR, scriptTask({ scriptFormat: "" })),
-                ).resolves.toEqual({ kind: "cancelled" });
-
-                expect(scriptFilesOnDisk()).toEqual([]);
-                expect(host.ports.scriptFiles.displayNameFor(EDITOR)).toBeUndefined();
-            });
-        });
-
         describe("a script an open tab owns", () => {
             it("writes the file on open, then leaves it to the tab on a reveal and on a run that answers alreadyOpen", async () => {
-                await fixture.scriptEditor.open(EDITOR, scriptTask({ content: "in the tab" }));
+                await scriptTabs.open(EDITOR, scriptTask({ content: "in the tab" }));
                 expect(host.workspace.files.get(TASK_FILE)).toBe("in the tab");
-                await fixture.scriptEditor.open(EDITOR, scriptTask({ content: "revealed" }));
+                await scriptTabs.open(EDITOR, scriptTask({ content: "revealed" }));
                 expect(host.workspace.files.get(TASK_FILE)).toBe("in the tab");
                 const filesBefore = new Map(host.workspace.files);
 
                 await expect(
-                    fixture.scriptEditor.materialize(
-                        EDITOR,
-                        scriptTask({ content: "in the model" }),
-                    ),
+                    scriptTabs.materialize(EDITOR, scriptTask({ content: "in the model" })),
                 ).resolves.toEqual({ kind: "alreadyOpen" });
                 expect(host.workspace.files).toEqual(filesBefore);
             });
@@ -294,10 +263,10 @@ export function describeScriptEditorContract(
                     path: `${BASE_DIR}/${OTHER_HASH}/Task_1/script-task/Task_1.groovy`,
                 },
             ])("writes $written", async ({ opened, generated, path }) => {
-                await fixture.scriptEditor.open(opened.editorId, opened.script);
+                await scriptTabs.open(opened.editorId, opened.script);
 
                 await expect(
-                    fixture.scriptEditor.materialize(generated.editorId, {
+                    scriptTabs.materialize(generated.editorId, {
                         ...generated.script,
                         content: "generated",
                     }),
@@ -329,18 +298,12 @@ export function describeScriptEditorContract(
             ])(
                 "answers $answer on the next run once the user opened $opened",
                 async ({ openByUser, answer }) => {
-                    await fixture.scriptEditor.materialize(
-                        EDITOR,
-                        scriptTask({ content: "generated" }),
-                    );
+                    await scriptTabs.materialize(EDITOR, scriptTask({ content: "generated" }));
                     await openByUser(fixture, host.workspace);
                     await settle();
 
                     await expect(
-                        fixture.scriptEditor.materialize(
-                            EDITOR,
-                            scriptTask({ content: "regenerated" }),
-                        ),
+                        scriptTabs.materialize(EDITOR, scriptTask({ content: "regenerated" })),
                     ).resolves.toEqual({ kind: answer });
                     expect(host.workspace.files.get(TASK_FILE)).toBe(
                         answer === "written" ? "regenerated" : "generated",
@@ -350,13 +313,15 @@ export function describeScriptEditorContract(
 
             it.each<{
                 after: string;
-                change: (fixture: ScriptEditorContractFixture) => Promise<void>;
+                change: (
+                    steps: ScriptEditorContractFixture & { scriptTabs: ScriptTabService },
+                ) => Promise<void>;
                 answer: ScriptMaterialization["kind"];
             }>([
                 {
                     after: "the model changed the script",
-                    change: async ({ scriptEditor }) => {
-                        await scriptEditor.applyModelChange(EDITOR, {
+                    change: async ({ scriptTabs: tabs }) => {
+                        await tabs.applyModelChange(EDITOR, {
                             ...scriptTask(),
                             content: "undone",
                         });
@@ -374,8 +339,8 @@ export function describeScriptEditorContract(
                 },
                 {
                     after: "the model removed the script",
-                    change: async ({ scriptEditor }) => {
-                        await scriptEditor.applyModelChange(EDITOR, {
+                    change: async ({ scriptTabs: tabs }) => {
+                        await tabs.applyModelChange(EDITOR, {
                             ...scriptTask(),
                             content: undefined,
                         });
@@ -385,8 +350,8 @@ export function describeScriptEditorContract(
                 },
                 {
                     after: "the model removed the script, while the host still closes its tab",
-                    change: async ({ scriptEditor }) => {
-                        await scriptEditor.applyModelChange(EDITOR, {
+                    change: async ({ scriptTabs: tabs }) => {
+                        await tabs.applyModelChange(EDITOR, {
                             ...scriptTask(),
                             content: undefined,
                         });
@@ -395,20 +360,20 @@ export function describeScriptEditorContract(
                 },
                 {
                     after: "the user reopened the script the model removed, while the host still closes its tab",
-                    change: async ({ scriptEditor }) => {
-                        await scriptEditor.applyModelChange(EDITOR, {
+                    change: async ({ scriptTabs: tabs }) => {
+                        await tabs.applyModelChange(EDITOR, {
                             ...scriptTask(),
                             content: undefined,
                         });
-                        await scriptEditor.open(EDITOR, scriptTask({ content: "reopened" }));
+                        await tabs.open(EDITOR, scriptTask({ content: "reopened" }));
                         await settle();
                     },
                     answer: "alreadyOpen",
                 },
                 {
                     after: "the model removed the same script in another diagram",
-                    change: async ({ scriptEditor }) => {
-                        await scriptEditor.applyModelChange(OTHER_EDITOR, {
+                    change: async ({ scriptTabs: tabs }) => {
+                        await tabs.applyModelChange(OTHER_EDITOR, {
                             ...scriptTask(),
                             content: undefined,
                         });
@@ -418,9 +383,9 @@ export function describeScriptEditorContract(
                 },
                 {
                     after: "the model removed another script of the element",
-                    change: async ({ scriptEditor }) => {
-                        await scriptEditor.open(EDITOR, startListener);
-                        await scriptEditor.applyModelChange(EDITOR, {
+                    change: async ({ scriptTabs: tabs }) => {
+                        await tabs.open(EDITOR, startListener);
+                        await tabs.applyModelChange(EDITOR, {
                             ...startListener,
                             content: undefined,
                         });
@@ -429,11 +394,11 @@ export function describeScriptEditorContract(
                     answer: "alreadyOpen",
                 },
             ])("answers $answer once $after", async ({ change, answer }) => {
-                await fixture.scriptEditor.open(EDITOR, scriptTask({ content: "in the tab" }));
-                await change(fixture);
+                await scriptTabs.open(EDITOR, scriptTask({ content: "in the tab" }));
+                await change({ ...fixture, scriptTabs });
                 const fileBefore = host.workspace.files.get(TASK_FILE);
 
-                const materialized = await fixture.scriptEditor.materialize(
+                const materialized = await scriptTabs.materialize(
                     EDITOR,
                     scriptTask({ content: "regenerated" }),
                 );
@@ -466,18 +431,16 @@ export function describeScriptEditorContract(
         ])("rejects when $failure, and writes no script file", async ({ fail, error }) => {
             fail(host.workspace);
 
-            await expect(fixture.scriptEditor.materialize(EDITOR, scriptTask())).rejects.toThrow(
-                error,
-            );
+            await expect(scriptTabs.materialize(EDITOR, scriptTask())).rejects.toThrow(error);
             expect(scriptFilesOnDisk()).toEqual([]);
         });
 
         it("takes a closed editor's script files with it, opened and written alike, and keeps another editor's", async () => {
-            await fixture.scriptEditor.open(EDITOR, scriptTask());
-            await fixture.scriptEditor.materialize(EDITOR, scriptTask({ elementId: "Task_2" }));
-            await fixture.scriptEditor.materialize(OTHER_EDITOR, scriptTask());
+            await scriptTabs.open(EDITOR, scriptTask());
+            await scriptTabs.materialize(EDITOR, scriptTask({ elementId: "Task_2" }));
+            await scriptTabs.materialize(OTHER_EDITOR, scriptTask());
 
-            fixture.scriptEditor.disposeEditor(EDITOR);
+            scriptTabs.disposeEditor(EDITOR);
             await settle();
 
             expect(scriptFilesOnDisk()).toEqual([
@@ -486,24 +449,18 @@ export function describeScriptEditorContract(
         });
 
         it("closes only the closed editor's tabs: its scripts are written on the next run, another editor's open script stays open", async () => {
-            await fixture.scriptEditor.open(EDITOR, scriptTask());
-            await fixture.scriptEditor.open(OTHER_EDITOR, scriptTask());
+            await scriptTabs.open(EDITOR, scriptTask());
+            await scriptTabs.open(OTHER_EDITOR, scriptTask());
 
-            fixture.scriptEditor.disposeEditor(EDITOR);
+            scriptTabs.disposeEditor(EDITOR);
             await settle();
 
             await expect(
-                fixture.scriptEditor.materialize(
-                    EDITOR,
-                    scriptTask({ content: "reopened diagram" }),
-                ),
+                scriptTabs.materialize(EDITOR, scriptTask({ content: "reopened diagram" })),
             ).resolves.toEqual({ kind: "written" });
             expect(host.workspace.files.get(TASK_FILE)).toBe("reopened diagram");
             await expect(
-                fixture.scriptEditor.materialize(
-                    OTHER_EDITOR,
-                    scriptTask({ content: "regenerated" }),
-                ),
+                scriptTabs.materialize(OTHER_EDITOR, scriptTask({ content: "regenerated" })),
             ).resolves.toEqual({ kind: "alreadyOpen" });
         });
     });

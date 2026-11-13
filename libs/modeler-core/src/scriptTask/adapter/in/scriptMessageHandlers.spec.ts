@@ -1,7 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
     GetBpmnModelerSettingCommand,
+    UpdateOpenScriptEditorsQuery,
     OpenScriptEditorCommand,
     OpenScriptEditorsCommand,
     UpdateScriptSourceCommand,
@@ -14,6 +15,7 @@ import { createTestHost, FakeEditorHandle, RecordingScriptEditor } from "../../.
 import { InlineScript } from "../../domain/inlineScript";
 import { ScriptVariableStore } from "../../domain/ScriptVariableStore";
 import { ScriptFileStore } from "../../service/ScriptFileStore";
+import { ScriptTabService } from "../../service/ScriptTabService";
 import { ScriptTargetResolver } from "../../service/ScriptTargetResolver";
 import {
     openScriptEditorHandler,
@@ -30,10 +32,10 @@ const VARIABLES: VariableDef[] = [
     { name: "amount", origin: "form field", confidence: "declared" } as VariableDef,
 ];
 
-/** The script editor, the variables and the file store the handlers use. */
+/** The script tabs, the variables and the file store the handlers use. */
 function createHandlers() {
     const host = createTestHost({ folders: ["/work"] });
-    host.openEditor("/work/diagram.bpmn");
+    const diagram = host.openEditor("/work/diagram.bpmn");
     host.store.register(new FakeEditorHandle("Untitled-1", { scheme: "untitled" }));
     const scriptFiles = new ScriptFileStore(
         host.store,
@@ -44,13 +46,16 @@ function createHandlers() {
         "/tmp",
         (path) => path,
     );
-    const scriptEditor = new RecordingScriptEditor(
+    const scriptEditor = new RecordingScriptEditor(scriptFiles);
+    const scriptTabs = new ScriptTabService(
         host.store,
-        scriptFiles,
+        scriptEditor,
         new ScriptTargetResolver(host.store, host.picker, host.notifier),
+        scriptFiles,
+        host.notifier,
     );
     const variables = new ScriptVariableStore();
-    return { notifier: host.notifier, scriptEditor, variables, scriptFiles };
+    return { notifier: host.notifier, diagram, scriptEditor, scriptTabs, variables, scriptFiles };
 }
 
 const scriptTask = (
@@ -77,30 +82,27 @@ const writtenScriptTask = (
 });
 
 describe("resyncScriptEditorsHandler", () => {
-    it("resyncs the editor's script tabs when the webview asks for its settings", async () => {
-        const { scriptEditor } = createHandlers();
+    it("locks the editor's open scripts again when the webview asks for its settings", async () => {
+        const { diagram, scriptTabs } = createHandlers();
+        await scriptTabs.open(EDITOR, writtenScriptTask("Task_1", "groovy", ""));
+        diagram.posted.length = 0;
 
-        await resyncScriptEditorsHandler(scriptEditor)(new GetBpmnModelerSettingCommand(), EDITOR);
+        await resyncScriptEditorsHandler(scriptTabs)(new GetBpmnModelerSettingCommand(), EDITOR);
 
-        expect(scriptEditor.resynced).toEqual([EDITOR]);
-    });
-
-    it("hands a failed resync to the router, which logs it", async () => {
-        const { scriptEditor } = createHandlers();
-        scriptEditor.resyncFailure = new Error("webview hidden again");
-
-        await expect(
-            resyncScriptEditorsHandler(scriptEditor)(new GetBpmnModelerSettingCommand(), EDITOR),
-        ).rejects.toThrow("webview hidden again");
+        expect(
+            diagram
+                .postedOfType<UpdateOpenScriptEditorsQuery>("UpdateOpenScriptEditorsQuery")
+                .map(({ openScripts }) => openScripts.map(({ elementId }) => elementId)),
+        ).toEqual([["Task_1"]]);
     });
 });
 
 describe("openScriptEditorHandler", () => {
     it("opens the script with every field of the command", async () => {
-        const { scriptEditor, variables, notifier } = createHandlers();
+        const { scriptEditor, scriptTabs, variables, notifier } = createHandlers();
 
         await openScriptEditorHandler(
-            scriptEditor,
+            scriptTabs,
             variables,
             notifier,
         )(
@@ -131,10 +133,10 @@ describe("openScriptEditorHandler", () => {
     });
 
     it("stores the command's variables for completion", async () => {
-        const { scriptEditor, variables, notifier } = createHandlers();
+        const { scriptTabs, variables, notifier } = createHandlers();
 
         await openScriptEditorHandler(
-            scriptEditor,
+            scriptTabs,
             variables,
             notifier,
         )(
@@ -154,16 +156,23 @@ describe("openScriptEditorHandler", () => {
     });
 
     it("logs a failed open with the element it was for", async () => {
-        const { scriptEditor, variables, notifier } = createHandlers();
+        const { scriptEditor, scriptTabs, variables, notifier } = createHandlers();
         scriptEditor.openFailure = new Error("host went away");
 
         await expect(
             openScriptEditorHandler(
-                scriptEditor,
+                scriptTabs,
                 variables,
                 notifier,
             )(
-                new OpenScriptEditorCommand("Task_1", "script-task", undefined, undefined, "", ""),
+                new OpenScriptEditorCommand(
+                    "Task_1",
+                    "script-task",
+                    undefined,
+                    undefined,
+                    "groovy",
+                    "",
+                ),
                 EDITOR,
             ),
         ).resolves.toBeUndefined();
@@ -177,14 +186,14 @@ describe("openScriptEditorHandler", () => {
 describe("openScriptEditorsHandler", () => {
     it("writes the scripts one after another, never two at once", async () => {
         // Each write may ask for a language; writes in parallel would stack the prompts.
-        const { scriptEditor, variables, scriptFiles, notifier } = createHandlers();
+        const { scriptEditor, scriptTabs, variables, scriptFiles, notifier } = createHandlers();
         let finishFirst!: () => void;
         scriptEditor.writeInterruptions.push(
             new Promise<void>((resolve) => (finishFirst = resolve)),
         );
 
         const done = openScriptEditorsHandler(
-            scriptEditor,
+            scriptTabs,
             variables,
             scriptFiles,
             notifier,
@@ -197,6 +206,8 @@ describe("openScriptEditorsHandler", () => {
         );
 
         expect(variables.variablesFor(EDITOR)).toEqual(VARIABLES);
+        await vi.waitFor(() => expect(scriptEditor.written).toHaveLength(1));
+        await new Promise((settle) => setTimeout(settle, 0));
         expect(scriptEditor.written).toEqual([
             { editorId: EDITOR, script: writtenScriptTask("A", "javascript", "a=1") },
         ]);
@@ -214,10 +225,10 @@ describe("openScriptEditorsHandler", () => {
     });
 
     it("shows an info message and writes nothing for an empty batch", async () => {
-        const { scriptEditor, variables, scriptFiles, notifier } = createHandlers();
+        const { scriptEditor, scriptTabs, variables, scriptFiles, notifier } = createHandlers();
 
         await openScriptEditorsHandler(
-            scriptEditor,
+            scriptTabs,
             variables,
             scriptFiles,
             notifier,
@@ -233,14 +244,17 @@ describe("openScriptEditorsHandler", () => {
     it.each<{
         case: string;
         formatOfA: string;
-        before: (scriptEditor: RecordingScriptEditor) => Promise<void>;
+        before: (setup: {
+            scriptEditor: RecordingScriptEditor;
+            scriptTabs: ScriptTabService;
+        }) => Promise<void>;
         summary: string;
     }>([
         {
             case: "the already-open count when a script was left untouched",
             formatOfA: "groovy",
-            before: (scriptEditor) =>
-                scriptEditor.open(EDITOR, writtenScriptTask("B", "groovy", "b=2")),
+            before: ({ scriptTabs }) =>
+                scriptTabs.open(EDITOR, writtenScriptTask("B", "groovy", "b=2")),
             summary: `Generated 1 script file(s) in ${FOLDER} (1 already open, left untouched) — open a file to edit it with live sync into the diagram.`,
         },
         {
@@ -252,17 +266,17 @@ describe("openScriptEditorsHandler", () => {
         {
             case: "a failed write, and still writes the rest",
             formatOfA: "groovy",
-            before: async (scriptEditor) => {
+            before: async ({ scriptEditor }) => {
                 scriptEditor.writeInterruptions.push(new Error("EACCES: permission denied"));
             },
             summary: `Generated 1 script file(s) in ${FOLDER} — open a file to edit it with live sync into the diagram. Could not write 1 script file(s); see the log for details.`,
         },
     ])("counts $case", async ({ formatOfA, before, summary }) => {
-        const { scriptEditor, variables, scriptFiles, notifier } = createHandlers();
-        await before(scriptEditor);
+        const { scriptEditor, scriptTabs, variables, scriptFiles, notifier } = createHandlers();
+        await before({ scriptEditor, scriptTabs });
 
         await openScriptEditorsHandler(
-            scriptEditor,
+            scriptTabs,
             variables,
             scriptFiles,
             notifier,
@@ -274,16 +288,15 @@ describe("openScriptEditorsHandler", () => {
             EDITOR,
         );
 
-        expect(scriptEditor.written).toHaveLength(2);
         expect(notifier.infos).toEqual([summary]);
     });
 
     it("logs a failed write with the element it was for", async () => {
-        const { scriptEditor, variables, scriptFiles, notifier } = createHandlers();
+        const { scriptEditor, scriptTabs, variables, scriptFiles, notifier } = createHandlers();
         scriptEditor.writeInterruptions.push(new Error("EACCES: permission denied"));
 
         await openScriptEditorsHandler(
-            scriptEditor,
+            scriptTabs,
             variables,
             scriptFiles,
             notifier,
@@ -311,10 +324,10 @@ describe("openScriptEditorsHandler", () => {
             summary: "No script files generated.",
         },
     ])("names $case", async ({ editorId, scriptFormat, summary }) => {
-        const { scriptEditor, variables, scriptFiles, notifier } = createHandlers();
+        const { scriptTabs, variables, scriptFiles, notifier } = createHandlers();
 
         await openScriptEditorsHandler(
-            scriptEditor,
+            scriptTabs,
             variables,
             scriptFiles,
             notifier,
@@ -326,43 +339,47 @@ describe("openScriptEditorsHandler", () => {
 
 describe("updateScriptVariablesHandler", () => {
     it("replaces the editor's variables and tells the script editor", async () => {
-        const { scriptEditor, variables } = createHandlers();
+        const { scriptEditor, scriptTabs, variables } = createHandlers();
         variables.setExtracted(EDITOR, [
             { name: "stale", origin: "output mapping", confidence: "declared" } as VariableDef,
         ]);
 
-        await updateScriptVariablesHandler(scriptEditor, variables)(
+        await updateScriptVariablesHandler(scriptTabs, variables)(
             new UpdateScriptVariablesCommand(VARIABLES),
             EDITOR,
         );
 
         expect(variables.variablesFor(EDITOR)).toEqual(VARIABLES);
-        expect(scriptEditor.variablePushes).toEqual([EDITOR]);
+        expect(scriptEditor.variablePushes).toEqual([{ editorId: EDITOR, script: [] }]);
     });
 });
 
 describe("updateScriptSourceHandler", () => {
-    it.each([
-        { case: "a model-side content change", content: "undone" },
-        { case: "the deletion signal (no content)", content: undefined },
-    ])("hands $case to the script editor unchanged", async ({ content }) => {
-        const { scriptEditor } = createHandlers();
+    const TAB = "/work/.camunda/tmp/scripting";
 
-        await updateScriptSourceHandler(scriptEditor)(
-            new UpdateScriptSourceCommand("Task_1", "script-task", undefined, content),
+    it("replaces what the script's tab holds with the model's content", async () => {
+        const { scriptEditor, scriptTabs } = createHandlers();
+        await scriptTabs.open(EDITOR, writtenScriptTask("Task_1", "groovy", "x"));
+
+        await updateScriptSourceHandler(scriptTabs)(
+            new UpdateScriptSourceCommand("Task_1", "script-task", undefined, "undone"),
             EDITOR,
         );
 
-        expect(scriptEditor.modelChanges).toEqual([
-            {
-                editorId: EDITOR,
-                script: {
-                    elementId: "Task_1",
-                    kind: "script-task",
-                    listenerIndex: undefined,
-                    content,
-                },
-            },
+        expect(scriptEditor.contentUpdates).toEqual([
+            { tabPath: expect.stringContaining(TAB), content: "undone" },
         ]);
+    });
+
+    it("closes the tab of a script the model removed", async () => {
+        const { scriptEditor, scriptTabs } = createHandlers();
+        await scriptTabs.open(EDITOR, writtenScriptTask("Task_1", "groovy", "x"));
+
+        await updateScriptSourceHandler(scriptTabs)(
+            new UpdateScriptSourceCommand("Task_1", "script-task", undefined, undefined),
+            EDITOR,
+        );
+
+        expect(scriptEditor.closedTabs).toEqual([expect.stringContaining(TAB)]);
     });
 });
