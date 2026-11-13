@@ -12,8 +12,8 @@
  */
 
 /* `overflow:hidden` lets the collapsed `width:0` win over the flex
- * `min-width:auto` default. The compound selectors out-specify default.css
- * (`.content .properties-panel-parent { display:none }`,
+ * `min-width:auto` default. The compound selectors out-specify the editor
+ * page's sheet (`.content .properties-panel-parent { display:none }`,
  * `.properties-panel-parent { overflow:auto }`) because a lazily loaded package
  * chunk can land its sheet after this one; bare `.panel-host` stays for
  * consumers embedding without the `.content` shell. */
@@ -42,7 +42,7 @@
     overflow: auto;
 }
 
-/* Parity with default.css `.properties-panel-parent > .djs-properties-panel`,
+/* Parity with the former `.properties-panel-parent > .djs-properties-panel`,
  * which no longer matches now that the panel is a grandchild of the host. */
 .panel-mount > .djs-properties-panel {
     padding-bottom: 70px;

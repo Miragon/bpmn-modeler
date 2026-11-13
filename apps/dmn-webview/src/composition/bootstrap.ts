@@ -1,12 +1,9 @@
-// css — webview page chrome first, then the package's own light base + scoped
-// dark theme (folded into the bundle via `@miragon/dmn-modeler`'s styles import),
-// matching the previous `styles.css`-then-`#theme-link` cascade order.
-import "../adapter/in/styles.css";
+// The page chrome first, then the package's own light base and scoped dark theme
+// (folded into the bundle via `@miragon/dmn-modeler`'s styles import).
+import "../../../../libs/shared/src/lib/panelChrome.css";
 
 import {
     applyPageThemeScope,
-    bindPanelVisibility,
-    bindPanelWidth,
     Command,
     createHostThemeAdapter,
     createInertLock,
@@ -18,11 +15,10 @@ import {
     GetPropertiesPanelStateCommand,
     HOST_REPLY_TIMEOUT_MS,
     type HostThemeMode,
-    initResizer,
     installCanvasAutoFocus,
     installGlobalErrorForwarding,
-    installPanelShortcuts,
     LogWarningCommand,
+    mountPanelChrome,
     PropertiesPanelStateQuery,
     PropertiesPanelUiStateAdapter,
     Query,
@@ -104,11 +100,24 @@ async function run(
     session: DmnDocumentSession,
     stopSignal: AbortSignal,
 ): Promise<void> {
-    const canvas = requireElement("#js-canvas");
-    const propertiesPanel = requireElement("#js-properties-panel");
-    const panelResizer = requireElement("#js-panel-resizer");
     const panelStateStore = createWebviewStateStore(host);
-    const panelUiState = new PropertiesPanelUiStateAdapter(panelStateStore, propertiesPanel);
+    // Bound before the modeler, so the saved visibility shows without waiting on the
+    // host and a toggle while the editor opens is already remembered and reported.
+    const chrome = mountPanelChrome(requireElement("#app"), {
+        store: panelStateStore,
+        onVisibilityChosen: (visible) =>
+            host.postMessage(new SetPropertiesPanelStateCommand(visible)),
+        translate: (key) => i18n.translate(key),
+        onLanguageChange: (apply) => i18n.onChange(apply),
+        focusCanvas: () => session.focusCanvas(),
+        isCanvasFocused: () => session.requireModeler().isCanvasFocused(),
+        // Gated to the DRD view so the shortcuts stay inert in decision-table and
+        // literal-expression views, where Escape must not steal focus from cell editing.
+        isEnabled: () => session.modeler?.isDrdViewActive() ?? false,
+        escapeToCanvas: true,
+    });
+    stopSignal.addEventListener("abort", () => chrome.dispose());
+    const panelUiState = new PropertiesPanelUiStateAdapter(panelStateStore, chrome.panelMount);
     const panelStateReply = createResolver<PropertiesPanelStateQuery>();
     const settingsReply = createResolver<DmnModelerSettingQuery>();
 
@@ -139,17 +148,13 @@ async function run(
         i18n.setLanguage(opts.locale);
     }
 
-    const modeler = await createModeler(canvas, {
-        propertiesPanel: { parent: propertiesPanel },
+    const modeler = await createModeler(chrome.canvas, {
+        propertiesPanel: { parent: chrome.panelMount },
         theme: resolveHostThemeKind(),
         additionalModules: opts.additionalModules,
         onContentChanged: () => session.scheduleSync(),
         // dmn-js-properties-panel renders only for the DRD.
-        onViewChanged: ({ activeView }) => {
-            const panelIsEmpty = activeView?.type !== "drd";
-            propertiesPanel.hidden = panelIsEmpty;
-            panelResizer.hidden = panelIsEmpty;
-        },
+        onViewChanged: ({ activeView }) => chrome.hidePanel(activeView?.type !== "drd"),
         onWarning: (message) => host.postMessage(new LogWarningCommand(message)),
     });
     if (stopSignal.aborted) {
@@ -164,24 +169,6 @@ async function run(
     // behaviour and installs the live `<body>`-class observer.
     themeAdapter.setMode(opts.theme ?? "automatic");
 
-    // Resizer labels reuse the shared i18n keys and follow the locale live via
-    // `i18n.onChange` (the dmn-js UI itself re-translates on a view re-open).
-    const propertiesPanelHandle = initResizer({
-        getToggleLabel: (state) =>
-            i18n.translate(
-                state === "collapsed" ? "Open properties panel" : "Close properties panel",
-            ) + " (Shift+P)",
-        onLabelChange: (apply) => i18n.onChange(apply),
-    });
-    stopSignal.addEventListener("abort", () => propertiesPanelHandle.dispose());
-
-    bindPanelWidth(propertiesPanelHandle, panelStateStore);
-    // Bound with the resizer, so the saved visibility shows without waiting on the
-    // host and a toggle while the editor opens is already remembered and reported.
-    const panelVisibility = bindPanelVisibility(propertiesPanelHandle, panelStateStore, (visible) =>
-        host.postMessage(new SetPropertiesPanelStateCommand(visible)),
-    );
-
     host.postMessage(new GetDmnFileCommand());
     host.postMessage(new GetPropertiesPanelStateCommand());
     host.postMessage(new GetDmnModelerSettingCommand());
@@ -193,23 +180,12 @@ async function run(
     // reply can't stall the restore chain below.
     await settingsReply.wait(HOST_REPLY_TIMEOUT_MS);
 
-    if (!panelVisibility.isDecided()) {
+    if (!chrome.visibility.isDecided()) {
         const panelState = await panelStateReply.wait(HOST_REPLY_TIMEOUT_MS);
-        panelVisibility.hostDefaultSettled(panelState?.visible);
+        chrome.visibility.hostDefaultSettled(panelState?.visible);
     }
     if (stopSignal.aborted) return;
 
-    // `p` / `Shift+P` / Escape shortcuts for the properties panel, gated to
-    // the DRD view so they stay inert in decision-table and literal-expression
-    // views (where Escape must not steal focus from cell editing).
-    installPanelShortcuts({
-        handle: propertiesPanelHandle,
-        focusCanvas: () => session.focusCanvas(),
-        isCanvasFocused: () => session.requireModeler().isCanvasFocused(),
-        // The shortcut listener cannot be removed, so a stopped session disables it here.
-        isEnabled: () => session.modeler?.isDrdViewActive() ?? false,
-        escapeToCanvas: true,
-    });
     // Ungated, unlike the shortcuts: the handle's focusCanvas already ignores non-DRD views.
     const removeCanvasAutoFocus = installCanvasAutoFocus({
         focusCanvas: () => session.focusCanvas(),

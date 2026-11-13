@@ -35,7 +35,7 @@ const host = {
 
 beforeEach(() => {
     posted = [];
-    document.body.innerHTML = '<div id="js-drop-zone"><div id="js-canvas"></div></div>';
+    document.body.innerHTML = '<div id="app"></div>';
 });
 
 afterEach(() => {
@@ -90,11 +90,9 @@ describe("bootstrapDiffPane", () => {
         expect(document.querySelector(".dmn-diff-legend")).toBeNull();
     });
 
-    it("refuses a page without the canvas", () => {
+    it("refuses a page without its root", () => {
         document.body.innerHTML = "";
 
-        expect(() => bootstrapDiffPane(host)).toThrow(
-            "Missing required DMN diff element <#js-canvas>",
-        );
+        expect(() => bootstrapDiffPane(host)).toThrow("Missing required DMN diff element <#app>");
     });
 });

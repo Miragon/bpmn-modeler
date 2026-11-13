@@ -123,6 +123,18 @@ describe("the BPMN editor in Orca", () => {
         expect((await editor.stub()).edits).toBe(0);
     });
 
+    it("closes and reopens the properties panel with Shift+P", async () => {
+        const editor = await open();
+        await editor.page.mouse.click(...BLANK_POINT);
+        const panel = editor.page.locator("#js-properties-panel");
+
+        await editor.page.keyboard.press("Shift+P");
+        await expect.poll(() => panel.getAttribute("class")).toContain("collapsed");
+
+        await editor.page.keyboard.press("Shift+P");
+        await expect.poll(() => panel.getAttribute("class")).not.toContain("collapsed");
+    });
+
     it("starts an empty file with a new diagram and writes nothing until an edit", async () => {
         const editor = await open({ text: "" });
         await editor.settle();

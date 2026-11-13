@@ -70,6 +70,18 @@ describe("the DMN editor in Orca", () => {
         await editor.page.locator(".bio-properties-panel").waitFor({ state: "visible" });
     });
 
+    it("closes and reopens the properties panel with Shift+P in the DRD", async () => {
+        const editor = await open();
+        await editor.page.mouse.click(...BLANK_POINT);
+        const panel = editor.page.locator("#js-properties-panel");
+
+        await editor.page.keyboard.press("Shift+P");
+        await expect.poll(() => panel.getAttribute("class")).toContain("collapsed");
+
+        await editor.page.keyboard.press("Shift+P");
+        await expect.poll(() => panel.getAttribute("class")).not.toContain("collapsed");
+    });
+
     it("saves a rule still typed into a decision table", async () => {
         const editor = await open();
         await openApproveOrderTable(editor);

@@ -108,31 +108,42 @@ export interface PanelShortcutDeps {
  * `p` (focus panel), `Shift+P` (toggle panel), and optionally Escape
  * (return to canvas). The same handler serves both BPMN and DMN; host-
  * specific gating is injected via {@link PanelShortcutDeps}.
+ *
+ * @returns Removes the listener.
  */
-export function installPanelShortcuts(deps: PanelShortcutDeps, opts?: PanelFocusOptions): void {
-    document.addEventListener("keydown", (e: KeyboardEvent) => {
-        if (deps.isEnabled && !deps.isEnabled()) return;
+export function installPanelShortcuts(
+    deps: PanelShortcutDeps,
+    opts?: PanelFocusOptions,
+): () => void {
+    const listenerScope = new AbortController();
+    document.addEventListener(
+        "keydown",
+        (e: KeyboardEvent) => {
+            if (deps.isEnabled && !deps.isEnabled()) return;
 
-        if (e.key === "Escape" && deps.escapeToCanvas) {
+            if (e.key === "Escape" && deps.escapeToCanvas) {
+                if (e.defaultPrevented) return;
+                focusCanvasFromKeystroke(deps.focusCanvas);
+                return;
+            }
+
             if (e.defaultPrevented) return;
-            focusCanvasFromKeystroke(deps.focusCanvas);
-            return;
-        }
+            if (e.metaKey || e.ctrlKey || e.altKey) return;
 
-        if (e.defaultPrevented) return;
-        if (e.metaKey || e.ctrlKey || e.altKey) return;
+            if (e.shiftKey && e.key === "P") {
+                if (isTextEditingSurface(document.activeElement)) return;
+                togglePropertiesPanel(deps.handle, deps.focusCanvas, opts);
+                e.preventDefault();
+                return;
+            }
 
-        if (e.shiftKey && e.key === "P") {
-            if (isTextEditingSurface(document.activeElement)) return;
-            togglePropertiesPanel(deps.handle, deps.focusCanvas, opts);
-            e.preventDefault();
-            return;
-        }
-
-        if (!e.shiftKey && e.key === "p") {
-            if (!deps.isCanvasFocused()) return;
-            focusPropertiesPanel(deps.handle, opts);
-            e.preventDefault();
-        }
-    });
+            if (!e.shiftKey && e.key === "p") {
+                if (!deps.isCanvasFocused()) return;
+                focusPropertiesPanel(deps.handle, opts);
+                e.preventDefault();
+            }
+        },
+        { signal: listenerScope.signal },
+    );
+    return () => listenerScope.abort();
 }

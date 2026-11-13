@@ -107,7 +107,11 @@ describe("bindPanelVisibility", () => {
             <div id="js-properties-panel"><input /></div>
             <div id="js-panel-resizer"></div>
         `;
-        const handle = initResizer({ getToggleLabel: (state) => state });
+        const handle = initResizer({
+            resizer: document.getElementById("js-panel-resizer")!,
+            panel: document.getElementById("js-properties-panel")!,
+            getToggleLabel: (state) => state,
+        });
         liveHandles.push(handle);
         const store = memoryStore(saved);
         const report = vi.fn();

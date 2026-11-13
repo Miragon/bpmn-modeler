@@ -118,3 +118,6 @@ IntelliJ's `WebviewServer.kt`) ship an empty `<div id="app"></div>`. Edit form
 markup only in `formTemplate.ts`. The add-ons webview's shells ship an empty
 `#app` too; its DOM is built from the core's model in
 `apps/add-ons-webview/src/adapter/in/addOnsView.ts`.
+The BPMN and DMN editor shells ship an empty `#app` as well;
+`mountPanelChrome` (`libs/shared/src/lib/panelChrome.ts`) builds the canvas,
+divider and properties panel, styled by `panelChrome.css` beside it.

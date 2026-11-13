@@ -30,12 +30,6 @@ body.vscode-high-contrast.dmn-diff-page {
     --dmn-diff-shadow: none;
 }
 
-/* The preview shell carries the editor's properties panel; a diff pane has none. */
-.dmn-diff-page #js-panel-resizer,
-.dmn-diff-page #js-properties-panel {
-    display: none;
-}
-
 .dmn-diff-page--missing #js-canvas {
     visibility: hidden;
 }

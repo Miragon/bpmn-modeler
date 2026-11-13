@@ -252,7 +252,7 @@
  * — not the per-instance container attribute. `.properties-panel-parent` is both
  * an instance scope root and page chrome, so it carries the attribute directly.
  *
- * default.css paints html/body white and the panel dividers light grey.
+ * The editor page's sheet paints html/body white and the panel dividers light grey.
  * Any 1-px rounding gap in the flex layout (e.g. when the properties panel
  * is collapsed to width 0) lets the white body show through, producing the
  * bright vertical strip that was reported on the dark theme. */
@@ -271,7 +271,7 @@
     border-left-color: var(--dt-primary-a10);
 }
 
-/* Dark-theme counterpart of the open-state halo suppression in default.css:
+/* Dark-theme counterpart of the open-state halo suppression in the page sheet:
  * restore the resting divider colour while the button is hovered. */
 :root[data-bpmn-theme="dark"] .panel-resizer:has(.panel-resizer-toggle:hover) {
     background-color: transparent;
@@ -279,7 +279,7 @@
 }
 
 /* Override the accent colors used by the collapsed resizer's pseudo-element
- * line segments. default.css exposes `--panel-resizer-accent-color` and
+ * line segments. The page sheet exposes `--panel-resizer-accent-color` and
  * `--panel-resizer-accent-hover-color`, so overriding the custom properties
  * here wins regardless of stylesheet load order. */
 :root[data-bpmn-theme="dark"] .panel-resizer.collapsed {

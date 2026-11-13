@@ -79,6 +79,8 @@ export async function bootstrapTemplateEditor(
     const previewPane = previewOnly
         ? undefined
         : initResizer({
+              resizer: view.previewDivider,
+              panel: view.previewPane,
               getToggleLabel: (state) =>
                   translate(state === "collapsed" ? "Show preview" : "Hide preview"),
               onLabelChange: (apply) => i18n.onChange(apply),

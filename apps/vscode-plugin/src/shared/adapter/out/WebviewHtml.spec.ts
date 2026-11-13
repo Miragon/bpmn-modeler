@@ -10,6 +10,8 @@ import {
     stylesheetsOf,
     tagsOf,
 } from "../../../__fixtures__/webviewShell";
+import { INITIALLY_COLLAPSED_PANEL_ATTRIBUTE } from "@miragon/bpmn-modeler-shared";
+
 import {
     bpmnEditorUi,
     dmnModelerHtml,
@@ -24,14 +26,6 @@ const renderBpmn: ShellBuilder = (initialPanelVisible) =>
 const renderDmn: ShellBuilder = (initialPanelVisible) =>
     dmnModelerHtml(shellWebview, shellExtensionUri, { surface: "dmnEditor", initialPanelVisible });
 const renderForm: ShellBuilder = () => formEditorHtml(shellWebview, shellExtensionUri);
-
-function elementById(html: string, id: string): Record<string, string> {
-    const element = tagsOf(html, "div").find((attributes) => attributes.id === id);
-    if (element === undefined) {
-        throw new Error(`The shell has no #${id}.`);
-    }
-    return element;
-}
 
 describe("bpmnEditorUi", () => {
     describeShellPolicy("bpmn", renderBpmn);
@@ -102,14 +96,11 @@ describe("dmnModelerHtml for a diff pane", () => {
 
     describeShellPolicy("dmn", renderDiffPane);
 
-    it("names the page a DMN diff pane and leaves out the properties panel", () => {
+    it("names the page a DMN diff pane with an empty root for the bundle", () => {
         const html = renderDiffPane();
 
         expect(tagsOf(html, "body")).toEqual([{ "data-surface": "dmnDiffPane" }]);
-        expect(tagsOf(html, "div").map((attributes) => attributes.id)).toEqual([
-            "js-drop-zone",
-            "js-canvas",
-        ]);
+        expect(tagsOf(html, "div")).toEqual([{ id: "app" }]);
     });
 
     it("names the editor page a DMN editor", () => {
@@ -121,40 +112,18 @@ describe.each([
     ["bpmnEditorUi", renderBpmn],
     ["dmnModelerHtml", renderDmn],
 ])("%s properties panel", (_shell, render) => {
-    it("lays out the drop zone, canvas, resizer and panel the bundle mounts into", () => {
-        const ids = tagsOf(render(), "div").map((attributes) => attributes.id);
-
-        expect(ids).toEqual([
-            "js-drop-zone",
-            "js-canvas",
-            "js-panel-resizer",
-            "js-properties-panel",
-        ]);
-    });
-
     it.each([
         ["by default", undefined],
         ["when the host shows it", true],
-    ])("renders the panel expanded %s", (_case, initialPanelVisible) => {
-        const html = render(initialPanelVisible);
-
-        expect(elementById(html, "js-properties-panel")).toEqual({
-            class: "properties-panel-parent",
-            id: "js-properties-panel",
-        });
-        expect(elementById(html, "js-panel-resizer").class).toBe("panel-resizer");
+    ])("ships an empty root the bundle mounts the page into %s", (_case, initialPanelVisible) => {
+        expect(tagsOf(render(initialPanelVisible), "div")).toEqual([{ id: "app" }]);
     });
 
-    // Collapsed in the markup, so the panel cannot flash open before the bundle applies its state.
-    it("renders the panel and its resizer collapsed when the host hides it", () => {
-        const html = render(false);
-
-        expect(elementById(html, "js-properties-panel")).toEqual({
-            class: "properties-panel-parent collapsed",
-            id: "js-properties-panel",
-            style: "width: 0",
-        });
-        expect(elementById(html, "js-panel-resizer").class).toBe("panel-resizer collapsed");
+    // Marked on the root, so the bundle mounts the panel collapsed and it cannot flash open.
+    it("marks the root to mount the panel collapsed when the host hides it", () => {
+        expect(tagsOf(render(false), "div")).toEqual([
+            { id: "app", [INITIALLY_COLLAPSED_PANEL_ATTRIBUTE]: "" },
+        ]);
     });
 });
 

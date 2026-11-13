@@ -10,6 +10,7 @@ import {
     GetDiagramAsSVGCommand,
     HOST_REPLY_TIMEOUT_MS,
     HOST_UPDATE_DEBOUNCE_MS,
+    INITIALLY_COLLAPSED_PANEL_ATTRIBUTE,
     installCanvasAutoFocus,
     LanguageQuery,
     PropertiesPanelStateQuery,
@@ -297,12 +298,7 @@ describe("bootstrap", () => {
         windowAddEventListener = vi.spyOn(window, "addEventListener");
         documentAddEventListener = vi.spyOn(document, "addEventListener");
         vi.useFakeTimers();
-        document.body.innerHTML = `
-            <div id="js-canvas"></div>
-            <div id="js-panel-resizer"></div>
-            <div id="js-properties-panel"></div>
-            <div id="js-drop-zone"></div>
-        `;
+        document.body.innerHTML = `<div id="app"></div>`;
         Object.defineProperty(document, "readyState", { configurable: true, value: "complete" });
     });
 
@@ -903,7 +899,7 @@ describe("bootstrap", () => {
         });
 
         it("opens a pre-collapsed panel without reporting it when the host never answers", async () => {
-            panelHost().classList.add("collapsed");
+            document.getElementById("app")!.setAttribute(INITIALLY_COLLAPSED_PANEL_ATTRIBUTE, "");
             mocks.createModeler.mockResolvedValue(makeModeler());
             const host = makeHost({
                 file: tagged(),
@@ -1151,7 +1147,7 @@ describe("bootstrap", () => {
         });
 
         it("ignores session messages even when the diff view cannot start", async () => {
-            document.getElementById("js-drop-zone")!.remove();
+            document.getElementById("app")!.remove();
             const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
             onTestFinished(() => consoleError.mockRestore());
             const host = makeHost({ file: leftPane() });
@@ -1160,9 +1156,7 @@ describe("bootstrap", () => {
 
             await deliverToSession(new GetDiagramAsSVGCommand());
 
-            expect(consoleError).toHaveBeenCalledWith(
-                "Diff mode: missing #js-canvas or #js-drop-zone",
-            );
+            expect(consoleError).toHaveBeenCalledWith("Diff mode: missing #app");
             expect(sentOfType(host, "LogErrorCommand")).toEqual([]);
         });
 

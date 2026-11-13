@@ -6,7 +6,7 @@ import {
     FlushDocumentQuery,
     HOST_REPLY_TIMEOUT_MS,
     HOST_UPDATE_DEBOUNCE_MS,
-    initResizer,
+    INITIALLY_COLLAPSED_PANEL_ATTRIBUTE,
     LanguageQuery,
     PropertiesPanelStateQuery,
     ReleaseDocumentFlushQuery,
@@ -40,7 +40,6 @@ const mocks = vi.hoisted(() => {
         createModeler: vi.fn(
             async (_container: HTMLElement, _options: DmnModelerOptions) => handle,
         ),
-        installPanelShortcuts: vi.fn(),
         installCanvasAutoFocus: vi.fn((_options: { focusCanvas(): void }) => () => undefined),
         setLanguage: vi.fn(),
         getLocale: vi.fn(() => "en"),
@@ -64,8 +63,6 @@ vi.mock("@miragon/bpmn-modeler-shared", async () => {
     );
     return {
         ...actual,
-        initResizer: vi.fn(actual.initResizer),
-        installPanelShortcuts: mocks.installPanelShortcuts,
         installCanvasAutoFocus: mocks.installCanvasAutoFocus,
     };
 });
@@ -101,12 +98,30 @@ function dispatch(data: unknown): void {
     window.dispatchEvent(new MessageEvent("message", { data }));
 }
 
-function renderShell(panelContent = ""): void {
-    document.body.innerHTML = `
-        <main id="js-canvas"></main>
-        <div id="js-panel-resizer"></div>
-        <aside id="js-properties-panel">${panelContent}</aside>
-    `;
+function renderShell(): void {
+    document.body.innerHTML = `<div id="app"></div>`;
+}
+
+const press = (key: string, shiftKey = false) =>
+    document.dispatchEvent(new KeyboardEvent("keydown", { key, shiftKey }));
+
+/** Renders one panel group into the properties panel's parent as the modeler is created. */
+function renderPanelGroupOnCreate(open: boolean): () => HTMLElement {
+    let header: HTMLElement | undefined;
+    mocks.createModeler.mockImplementationOnce(async (_container, options) => {
+        const parent = options.propertiesPanel!.parent as HTMLElement;
+        parent.innerHTML = `
+            <div class="bio-properties-panel-scroll-container">
+                <div class="bio-properties-panel-group">
+                    <div class="bio-properties-panel-group-header${open ? " open" : ""}"></div>
+                </div>
+            </div>
+        `;
+        header = parent.querySelector<HTMLElement>(".bio-properties-panel-group-header")!;
+        header.addEventListener("click", () => header!.classList.toggle("open"));
+        return mocks.handle;
+    });
+    return () => header!;
 }
 
 async function startBootstrap({
@@ -185,40 +200,35 @@ describe("DMN bootstrap", () => {
         await settle();
 
         expect(mocks.handle.loadDiagram).toHaveBeenCalledWith("<initial />");
-        const canvas = document.querySelector("#js-canvas");
-        const panel = document.querySelector("#js-properties-panel");
+        const canvas = document.querySelector("#app #js-canvas");
+        const panelMount = document.querySelector("#js-properties-panel > .panel-mount");
         expect(mocks.createModeler).toHaveBeenCalledWith(
             canvas,
-            expect.objectContaining({ propertiesPanel: { parent: panel }, theme: "light" }),
+            expect.objectContaining({ propertiesPanel: { parent: panelMount }, theme: "light" }),
         );
         // The host adapter scoped the page on `<html>` off the (light) VS Code signal.
         expect(document.documentElement.getAttribute("data-dmn-theme")).toBe("light");
-        expect(mocks.createModeler.mock.invocationCallOrder[0]).toBeLessThan(
-            vi.mocked(initResizer).mock.invocationCallOrder[0],
-        );
 
         options().onWarning?.("recovered warning");
         expect(posted).toContainEqual(
             expect.objectContaining({ type: "LogWarningCommand", message: "recovered warning" }),
         );
 
-        expect(mocks.installPanelShortcuts).toHaveBeenCalledOnce();
-        const shortcutOptions = mocks.installPanelShortcuts.mock.calls[0][0];
-        shortcutOptions.focusCanvas();
-        expect(shortcutOptions.isCanvasFocused()).toBe(true);
-        expect(shortcutOptions.isEnabled()).toBe(true);
-        expect(mocks.handle.focusCanvas).toHaveBeenCalledOnce();
+        press("p");
         expect(mocks.handle.isCanvasFocused).toHaveBeenCalledOnce();
-        expect(mocks.handle.isDrdViewActive).toHaveBeenCalledOnce();
+        press("P", true);
+        expect(document.getElementById("js-properties-panel")!.classList).toContain("collapsed");
+        press("P", true);
+        expect(mocks.handle.isDrdViewActive).toHaveBeenCalledTimes(3);
 
         expect(mocks.installCanvasAutoFocus).toHaveBeenCalledOnce();
         mocks.installCanvasAutoFocus.mock.calls[0][0].focusCanvas();
-        expect(mocks.handle.focusCanvas).toHaveBeenCalledTimes(2);
+        expect(mocks.handle.focusCanvas).toHaveBeenCalledOnce();
 
         expect(posted).toContainEqual(expect.objectContaining({ type: "RequestFocusCommand" }));
         dispatch({ type: "TakeFocusQuery" });
         await settle();
-        expect(mocks.handle.focusCanvas).toHaveBeenCalledTimes(3);
+        expect(mocks.handle.focusCanvas).toHaveBeenCalledTimes(2);
 
         options().onContentChanged?.();
         dispatch({ type: "DmnFileQuery", content: "<host-update />", documentRevision: 8 });
@@ -414,7 +424,10 @@ describe("DMN bootstrap", () => {
             expect(document.querySelector(".panel-resizer-toggle")).toBeNull();
             expect(document.body.inert).toBe(false);
             expect(removeCanvasAutoFocus).toHaveBeenCalledOnce();
-            expect(mocks.installPanelShortcuts.mock.calls[0][0].isEnabled()).toBe(false);
+            press("P", true);
+            expect(document.getElementById("js-properties-panel")!.classList).not.toContain(
+                "collapsed",
+            );
         });
 
         it("drops an export that finishes after the stop", async () => {
@@ -461,7 +474,7 @@ describe("DMN bootstrap", () => {
             await vi.advanceTimersByTimeAsync(HOST_REPLY_TIMEOUT_MS);
 
             expect(ofType("RequestFocusCommand")).toHaveLength(0);
-            expect(mocks.installPanelShortcuts).not.toHaveBeenCalled();
+            expect(mocks.installCanvasAutoFocus).not.toHaveBeenCalled();
         });
 
         it("never starts when stopped before the page loaded", async () => {
@@ -710,7 +723,7 @@ describe("DMN bootstrap", () => {
         });
 
         it("opens a pre-collapsed panel without reporting it when the host never answers", async () => {
-            panel().classList.add("collapsed");
+            document.getElementById("app")!.setAttribute(INITIALLY_COLLAPSED_PANEL_ATTRIBUTE, "");
             const { GetPropertiesPanelStateCommand: _, ...withoutPanelState } = defaultReplies;
             const { ofType } = await startBootstrap({ replies: withoutPanelState });
             await settle();
@@ -781,41 +794,21 @@ describe("DMN bootstrap", () => {
         });
 
         it("restores the saved group expansion inside its own panel", async () => {
-            renderShell(`
-                <div class="bio-properties-panel-scroll-container">
-                    <div class="bio-properties-panel-group">
-                        <div class="bio-properties-panel-group-header"></div>
-                    </div>
-                </div>
-            `);
-            const header = document.querySelector<HTMLElement>(
-                ".bio-properties-panel-group-header",
-            )!;
-            header.addEventListener("click", () => header.classList.toggle("open"));
+            const header = renderPanelGroupOnCreate(false);
 
             await startReady({ savedState: { expandedGroupIndexes: [0] } });
             vi.advanceTimersToNextFrame();
 
-            expect(header.classList.contains("open")).toBe(true);
+            expect(header().classList.contains("open")).toBe(true);
         });
 
         it("collapses a default-open group when every group was saved collapsed", async () => {
-            renderShell(`
-                <div class="bio-properties-panel-scroll-container">
-                    <div class="bio-properties-panel-group">
-                        <div class="bio-properties-panel-group-header open"></div>
-                    </div>
-                </div>
-            `);
-            const header = document.querySelector<HTMLElement>(
-                ".bio-properties-panel-group-header",
-            )!;
-            header.addEventListener("click", () => header.classList.toggle("open"));
+            const header = renderPanelGroupOnCreate(true);
 
             await startReady({ savedState: { expandedGroupIndexes: [] } });
             vi.advanceTimersToNextFrame();
 
-            expect(header.classList.contains("open")).toBe(false);
+            expect(header().classList.contains("open")).toBe(false);
         });
     });
 });
