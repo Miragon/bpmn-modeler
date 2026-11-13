@@ -781,10 +781,6 @@ button.av-head:hover .av-head-count {
     padding-top: 4px;
 }
 
-.av-review-end .ds-btn {
-    flex: 1;
-}
-
 .av-hint {
     display: flex;
     align-items: center;
@@ -980,14 +976,6 @@ button.av-head:hover .av-head-count {
 
     .av-hint {
         height: 100%;
-    }
-
-    .av-review-end {
-        justify-content: flex-end;
-    }
-
-    .av-review-end .ds-btn {
-        flex: none;
     }
 }
 
