@@ -19,7 +19,7 @@ import {
     createResolver,
     installCanvasAutoFocus,
     installGlobalErrorForwarding,
-    installPanelShortcuts,
+    mountEditorCanvas,
     resolveHostThemeKind,
     takeFocus,
 } from "@miragon/bpmn-modeler-shared";
@@ -49,6 +49,7 @@ import { createSurfaceRequests } from "../adapter/in/surfaceRequests";
 import { readSavedMode } from "../service/state";
 import { prefetchSurfaceModules } from "../adapter/out/surfaceModules";
 import type { WebviewState } from "../port/webviewState";
+import "../../../../libs/shared/src/lib/panelChrome.css";
 import "../../../../packages/bpmn-modeler/src/styles/mode.css";
 
 interface BootstrapOptions {
@@ -200,11 +201,6 @@ export function bootstrap(host: BpmnWebviewHost, opts: BootstrapOptions = {}): v
         // below, so this mainly covers the page chrome and later live theme switches.
         themeAdapter.setMode("automatic");
 
-        // Viewer mode (one side of a diff view) skips the resizer + properties
-        // panel + palette, so we don't call initResizer() here — the chrome is
-        // hidden by .viewer-mode CSS once we confirm the mode below. For the
-        // modeler path, mountEditorChrome() calls it after the branch check.
-
         editorHost.postMessage(new GetBpmnFileCommand());
         editorHost.postMessage(new GetBpmnModelerSettingCommand());
         editorHost.postMessage(new GetPropertiesPanelStateCommand());
@@ -232,12 +228,13 @@ export function bootstrap(host: BpmnWebviewHost, opts: BootstrapOptions = {}): v
                 LanguageQuery: (query) => translator.setLanguage(query.locale),
             });
             document.body.classList.add("viewer-mode");
-            const canvas = document.getElementById("js-canvas");
-            const dropZone = document.getElementById("js-drop-zone");
-            if (!canvas || !dropZone) {
-                console.error("Diff mode: missing #js-canvas or #js-drop-zone");
+            const root = document.getElementById("app");
+            if (!root) {
+                console.error("Diff mode: missing #app");
                 return;
             }
+            // One side of a diff has no properties panel.
+            const { canvas, dropZone } = mountEditorCanvas(root);
             const { DiffMode } = await import("../adapter/in/diffMode");
             const diffMode = new DiffMode(canvas, dropZone, host);
             await diffMode.startWith(bpmnFileQuery.content);
@@ -255,7 +252,11 @@ export function bootstrap(host: BpmnWebviewHost, opts: BootstrapOptions = {}): v
                     : pluginsWithoutHostAnswer(editorHost),
             );
 
-        const chrome = mountEditorChrome(editorHost);
+        const chrome = mountEditorChrome(editorHost, {
+            focusCanvas,
+            isCanvasFocused: () =>
+                getSurface().getService<{ isFocused(): boolean }>("canvas").isFocused(),
+        });
         if (!chrome) return;
 
         // The engine may be undefined here — an untagged (engine-neutral) model
@@ -333,23 +334,15 @@ export function bootstrap(host: BpmnWebviewHost, opts: BootstrapOptions = {}): v
 
         // Not gated on templates/settings, so a slow or dropped templates reply
         // cannot leave the panel stuck at the pre-rendered default.
-        if (!chrome.panelVisibility.isDecided()) {
+        if (!chrome.visibility.isDecided()) {
             const panelStateQuery = await panelStateResolver.wait(HOST_REPLY_TIMEOUT_MS);
             if (session.isReloadingForEngine) return;
-            chrome.panelVisibility.hostDefaultSettled(panelStateQuery?.visible);
+            chrome.visibility.hostDefaultSettled(panelStateQuery?.visible);
         }
 
         // `p` focuses the panel mount (expanding it first if collapsed); `Shift+P`
-        // toggles panel visibility. Installed once, over the polymorphic surface.
-        installPanelShortcuts(
-            {
-                handle: chrome.panel,
-                focusCanvas,
-                isCanvasFocused: () =>
-                    getSurface().getService<{ isFocused(): boolean }>("canvas").isFocused(),
-            },
-            { getPanelRoot: () => chrome.panelMount },
-        );
+        // toggles panel visibility.
+        chrome.enableShortcuts();
         installCanvasAutoFocus({ focusCanvas });
         editorHost.postMessage(new RequestFocusCommand());
 

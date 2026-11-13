@@ -1,3 +1,9 @@
+/*
+ * The editor page `mountPanelChrome` and `mountEditorCanvas` build: the canvas,
+ * the divider and the properties panel. Each page that mounts them imports this
+ * sheet; the modeler packages' dark themes recolour it.
+ */
+
 * {
     box-sizing: border-box;
 }
@@ -14,12 +20,16 @@ html {
     margin: 0;
 }
 
-#js-properties-panel {
-    width: 400px;
-}
-
 a:link {
     text-decoration: none;
+}
+
+.editor-page {
+    height: 100%;
+}
+
+#js-properties-panel {
+    width: 400px;
 }
 
 .content {
@@ -27,42 +37,6 @@ a:link {
     width: 100%;
     height: 100%;
     display: flex;
-}
-
-.content > .message {
-    width: 100%;
-    height: 100%;
-    text-align: center;
-    display: table;
-    font-size: 16px;
-    color: #111;
-}
-
-.content > .message .note {
-    vertical-align: middle;
-    text-align: center;
-    display: table-cell;
-}
-
-.content > .message.error .details {
-    max-width: 500px;
-    font-size: 12px;
-    margin: 20px auto;
-    text-align: left;
-    color: #BD2828;
-}
-
-.content > .message.error pre {
-    border: solid 1px #BD2828;
-    background: #fefafa;
-    padding: 10px;
-    color: #BD2828;
-}
-
-.content:not(.with-error) .error,
-.content.with-error .intro,
-.content.with-diagram .intro {
-    display: none;
 }
 
 .content .canvas {
@@ -81,10 +55,11 @@ a:link {
 
 .content.with-diagram .canvas,
 .content.with-diagram .panel-resizer,
-.content.with-diagram .properties-panel-parent {
+.content.with-diagram .properties-panel-parent:not(.panel-host) {
     display: block;
 }
 
+/* A DMN view the properties panel does not serve leaves the panel and its divider out. */
 .content.with-diagram .panel-resizer[hidden],
 .content.with-diagram .properties-panel-parent[hidden] {
     display: none;
@@ -98,6 +73,8 @@ a:link {
     border-left: 1px solid #e0e0e0;
     transition: background-color 0.15s ease, width 0.15s ease;
     position: relative;
+    /* Declared here (0,1,0) so a theme override on `.panel-resizer.collapsed`
+     * (0,2,0) wins whatever the stylesheet order. */
     --panel-resizer-accent-color: rgba(0, 120, 212, 0.4);
     --panel-resizer-accent-hover-color: rgba(0, 120, 212, 0.8);
 }
@@ -114,12 +91,16 @@ a:link {
     border-left-color: #e0e0e0;
 }
 
+/* The accent line is two pseudo-element segments around the toggle button
+ * instead of `border-left`: Chromium can paint a border above the button's
+ * background. The width is zeroed, not made transparent, so no hover rule can
+ * recolour a border back into view. */
 .panel-resizer.collapsed {
     width: 8px;
     border-left-width: 0;
 }
 
-/* Two segments around the button; gap from its 40px height (20px half + 2px). */
+/* The gap comes from the button's 40px height: 20px half-height plus 2px. */
 .panel-resizer.collapsed::before,
 .panel-resizer.collapsed::after {
     content: "";
@@ -158,11 +139,14 @@ a:link {
     background-color: var(--panel-resizer-accent-color);
 }
 
-/* Always visible: "open" affordance while collapsed, "close" while open
- * (chevron flipped from JS). Protrudes slightly left over the canvas. */
+/* Always visible: "open" while collapsed, "close" while open (the chevron is
+ * flipped from JavaScript). It juts slightly left over the canvas. */
 .panel-resizer-toggle {
     display: flex;
     position: absolute;
+    /* Not `transform: translateY(-50%)`: a transform gives the button its own
+     * compositor layer, and Chromium then paints the resizer's border through
+     * the button's background. */
     top: 50%;
     margin-top: -20px;
     right: 0;
@@ -195,6 +179,13 @@ a:link {
     flex-shrink: 0;
     border-left: 1px solid #ccc;
     overflow: auto;
+    user-select: none;
+}
+
+/* dmn-js-properties-panel's `height:100%` container needs a definite height to
+ * scroll inside itself; a `.panel-host` flex column sizes the mount instead. */
+.properties-panel-parent:not(.panel-host) > .panel-mount {
+    height: 100%;
 }
 
 .properties-panel-parent.collapsed {
@@ -202,16 +193,13 @@ a:link {
     border-left-width: 0;
 }
 
-.properties-panel-parent:empty {
-    display: none;
+.properties-panel-parent input,
+.properties-panel-parent textarea,
+.properties-panel-parent [contenteditable="true"] {
+    user-select: text;
 }
 
-.properties-panel-parent > .djs-properties-panel {
-    padding-bottom: 70px;
-    min-height: 100%;
-}
-
-/* see issue https://github.com/microsoft/vscode/issues/213045 */
+/* VS Code webviews inherit a scrollbar-color that hides the native scrollbar. */
 @supports selector(::-webkit-scrollbar) {
     html {
         scrollbar-color: unset;

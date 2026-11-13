@@ -73,9 +73,20 @@ still compiles ships without a failing check. A shared rule adds nothing to the
 npm surface while no public type references its types. A rule there keeps its
 module free of top-level side effects, so a bundle that does not use it leaves
 it out. A rule only the core applies stays in the core's `domain/`.
-DOM-id-coupled panel resizers, focus/shortcut bindings and the VS Code
-body-class theme adapter belong in `shared`. This deliberately mixes private
-browser chrome with the protocol to avoid another workspace for a few helpers.
+The editor page chrome and the VS Code body-class theme adapter belong in
+`shared`. `mountPanelChrome` builds the canvas, the divider and the properties
+panel into an empty root, binds the panel's width, visibility, toggle label and
+shortcuts, and its look is `panelChrome.css` beside it; `mountEditorCanvas`
+builds the canvas alone for a diff pane. Every editor page mounts it: the BPMN
+and DMN webviews and the Orca editors. Host shells (VS Code, IntelliJ, the
+webview previews, the perf bench) ship only an empty `#app`, marked when the
+host hides the panel by default so it mounts collapsed. The modeler packages'
+stylesheets do not lay out the page; each package's dark theme still recolours
+the divider and the panel border, and BPMN's `mode.css` lays out its
+`.panel-host` column. The chrome
+keeps its state behind `PanelStateStore`, which the webview state and Orca's
+local storage implement. This deliberately mixes private browser chrome with
+the protocol to avoid another workspace for a few helpers.
 
 `modeler-core` owns domain/services, the editor-session core
 (`EditorSessionStore`, `WebviewMessageRouter`, `EditorSessionLifecycle`) and

@@ -1,5 +1,6 @@
 // The modeler's sheets load with the page: the viewer brings none, and a read-only tab loads only it.
 import "../../../../packages/bpmn-modeler/src/styles/default.css";
+import "../../../../libs/shared/src/lib/panelChrome.css";
 import "../../../../packages/bpmn-modeler/src/styles/diff.css";
 import "../../../../libs/modeler-types/src/canvasOverlays.css";
 import "../../../../packages/bpmn-modeler/src/styles/themes.css";
@@ -10,7 +11,7 @@ import { i18n, type SupportedLocale } from "@miragon/bpmn-modeler-i18n";
 import { extras } from "@miragon/bpmn-modeler-i18n-extras";
 import { applyPageThemeScope } from "@miragon/bpmn-modeler-shared";
 
-import { createBpmnCanvas } from "../adapter/out/bpmnCanvas";
+import { type BpmnCanvas, createBpmnCanvas } from "../adapter/out/bpmnCanvas";
 import {
     currentOrcaTheme,
     followOrcaTheme,
@@ -25,7 +26,12 @@ export async function startBpmnEditor(root: HTMLElement): Promise<DocumentSync> 
     i18n.extend(extras);
     i18n.setLanguage(orcaLanguage() as SupportedLocale);
     const session = await openOrcaSession();
-    const layout = mountEditorLayout(root, "bpmn");
+    // The shortcuts can fire before the canvas exists.
+    const shortcuts: { target?: BpmnCanvas } = {};
+    const layout = mountEditorLayout(root, "bpmn", {
+        focusCanvas: () => shortcuts.target?.focusCanvas(),
+        isCanvasFocused: () => shortcuts.target?.isCanvasFocused() ?? false,
+    });
     layout.panelHost.classList.add("panel-host");
     const strip = document.createElement("div");
     strip.className = "mode-strip";
@@ -42,5 +48,6 @@ export async function startBpmnEditor(root: HTMLElement): Promise<DocumentSync> 
         applyPageThemeScope("data-bpmn-theme", theme);
         canvas.setTheme(theme);
     });
+    shortcuts.target = canvas;
     return syncDocument(session, canvas);
 }

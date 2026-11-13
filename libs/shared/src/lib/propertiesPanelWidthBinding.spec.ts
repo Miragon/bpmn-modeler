@@ -33,7 +33,7 @@ describe("bindPanelWidth", () => {
         `;
         const panel = document.getElementById("js-properties-panel")!;
         const resizer = document.getElementById("js-panel-resizer")!;
-        const handle = initResizer({ getToggleLabel: (state) => state });
+        const handle = initResizer({ resizer, panel, getToggleLabel: (state) => state });
         liveHandles.push(handle);
         const store = memoryStore(saved);
         bindPanelWidth(handle, store);

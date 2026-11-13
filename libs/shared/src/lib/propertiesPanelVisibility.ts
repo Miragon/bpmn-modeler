@@ -1,6 +1,5 @@
 import type { PropertiesPanelHandle } from "./propertiesPanelResizer";
-import type { PropertiesPanelUiState } from "./propertiesPanelUiState";
-import type { WebviewStateStore } from "./webviewStateStore";
+import type { PanelStateStore } from "./propertiesPanelUiState";
 
 export type PanelVisibility =
     { readonly decided: false } | { readonly decided: true; readonly visible: boolean };
@@ -57,7 +56,7 @@ export interface PanelVisibilityBinding {
  */
 export function bindPanelVisibility(
     handle: PropertiesPanelHandle,
-    store: WebviewStateStore<PropertiesPanelUiState>,
+    store: PanelStateStore,
     report: (visible: boolean) => void,
 ): PanelVisibilityBinding {
     let applying = false;

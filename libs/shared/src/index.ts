@@ -20,6 +20,7 @@ export * from "./lib/addOnsViewCommands";
 export * from "./lib/addOnsPage";
 export * from "./lib/webviewSurfaces";
 export * from "./lib/propertiesPanelResizer";
+export * from "./lib/panelChrome";
 export * from "./lib/propertiesPanelFocus";
 export * from "./lib/canvasAutoFocus";
 export * from "./lib/hostTheme";

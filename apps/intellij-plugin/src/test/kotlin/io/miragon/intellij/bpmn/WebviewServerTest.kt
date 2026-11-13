@@ -89,6 +89,9 @@ class WebviewServerTest {
         assertTrue(response.body.contains("""<body class="vscode-light">"""))
         assertTrue(response.body.contains("""<style id="ide-theme-vars">:root {"""))
         assertTrue(response.body.contains("window.acquireVsCodeApi"))
+        assertTrue(response.body.contains("""<div id="app"></div>"""))
+        assertFalse(response.body.contains("js-panel-resizer"))
+        assertFalse(response.body.contains("js-properties-panel"))
         assertTrue(response.body.contains("""<script type="module" src="/index.js"></script>"""))
     }
 

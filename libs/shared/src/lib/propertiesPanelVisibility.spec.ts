@@ -107,7 +107,11 @@ describe("bindPanelVisibility", () => {
             <div id="js-properties-panel"><input /></div>
             <div id="js-panel-resizer"></div>
         `;
-        const handle = initResizer({ getToggleLabel: (state) => state });
+        const handle = initResizer({
+            resizer: document.getElementById("js-panel-resizer")!,
+            panel: document.getElementById("js-properties-panel")!,
+            getToggleLabel: (state) => state,
+        });
         liveHandles.push(handle);
         const store = memoryStore(saved);
         const report = vi.fn();
@@ -153,9 +157,23 @@ describe("bindPanelVisibility", () => {
         expect(report).toHaveBeenCalledExactlyOnceWith(false);
     });
 
+    const panelRoot = () => document.getElementById("js-properties-panel");
+
     it.each<[string, boolean, (handle: PropertiesPanelHandle) => void]>([
-        ["Shift+P", false, (handle) => togglePropertiesPanel(handle, () => undefined)],
-        ["p", true, (handle) => focusPropertiesPanel(handle, { schedule: () => undefined })],
+        [
+            "Shift+P",
+            false,
+            (handle) => togglePropertiesPanel(handle, () => undefined, { getPanelRoot: panelRoot }),
+        ],
+        [
+            "p",
+            true,
+            (handle) =>
+                focusPropertiesPanel(handle, {
+                    getPanelRoot: panelRoot,
+                    schedule: () => undefined,
+                }),
+        ],
     ])("remembers a %s toggle after boot", (_, toggledTo, pressShortcut) => {
         const { handle, store, report, binding } = bind();
         binding.hostDefaultSettled(!toggledTo);

@@ -27,6 +27,13 @@ export interface BpmnCanvasOptions {
 
 export interface BpmnCanvas extends ModelCanvas {
     setTheme(theme: HostThemeKind): void;
+    focusCanvas(): void;
+    isCanvasFocused(): boolean;
+}
+
+interface CanvasFocus {
+    focus(): void;
+    isFocused(): boolean;
 }
 
 function surfaceFactories(panelParent: HTMLElement, clipboard: ClipboardOptions): SurfaceFactories {
@@ -73,6 +80,8 @@ export function createBpmnCanvas(options: BpmnCanvasOptions): BpmnCanvas {
     let session: ModeSession | undefined;
     let strip: ModeStrip | undefined;
 
+    const canvasFocus = (): CanvasFocus | undefined =>
+        session?.getHandle().getService<CanvasFocus>("canvas");
     const renderStrip = (busy: boolean): void => {
         if (session) strip?.render({ mode: session.getMode(), engine, busy });
     };
@@ -135,5 +144,7 @@ export function createBpmnCanvas(options: BpmnCanvasOptions): BpmnCanvas {
             theme = next;
             session?.setTheme(next);
         },
+        focusCanvas: () => canvasFocus()?.focus(),
+        isCanvasFocused: () => canvasFocus()?.isFocused() ?? false,
     };
 }

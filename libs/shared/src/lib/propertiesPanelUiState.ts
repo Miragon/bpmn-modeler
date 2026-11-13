@@ -1,5 +1,3 @@
-import type { WebviewStateStore } from "./webviewStateStore";
-
 /** Per-editor properties-panel UI state that survives a tab-switch rebuild. */
 export interface PropertiesPanelUiState {
     panelScroll?: number;
@@ -12,6 +10,15 @@ export interface PropertiesPanelUiState {
     panelVisible?: boolean;
     /** The width (px) the panel opens at; absent until the user first drags it. */
     panelWidth?: number;
+}
+
+/**
+ * Where a page keeps its panel's UI state: the webview state in an IDE, the
+ * frame's local storage in Orca.
+ */
+export interface PanelStateStore {
+    read(): PropertiesPanelUiState | undefined;
+    merge(partial: Partial<PropertiesPanelUiState>): void;
 }
 
 export function hasGroupsOrScrollToRestore(
@@ -62,7 +69,7 @@ function isGroupOpen(group: HTMLElement): boolean {
  */
 export class PropertiesPanelUiStateAdapter {
     constructor(
-        private readonly store: WebviewStateStore<PropertiesPanelUiState>,
+        private readonly store: PanelStateStore,
         private readonly panelRoot: HTMLElement,
         private readonly scheduleFrame: (callback: () => void) => void = (callback) =>
             requestAnimationFrame(callback),

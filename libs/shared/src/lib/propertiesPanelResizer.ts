@@ -1,7 +1,6 @@
 /**
- * @internal Page-level webview chrome bound to hard-coded DOM ids
- * (`js-panel-resizer`, `js-properties-panel`). Not part of the modeler public
- * API; the multi-instance facade owns its own panel host instead.
+ * @internal Page-level webview chrome. Not part of the modeler public API; the
+ * multi-instance facade owns its own panel host instead.
  */
 
 import { DEFAULT_OPEN_PANEL_WIDTH, MAX_PANEL_WIDTH, MIN_PANEL_WIDTH } from "./propertiesPanelWidth";
@@ -32,6 +31,11 @@ const CHEVRON_RIGHT_SVG = `
  * it with its own i18n.
  */
 export interface PropertiesPanelResizerOptions {
+    /** The divider the user drags; the toggle button is appended to it. */
+    resizer: HTMLElement;
+    /** The panel whose width the divider sets. */
+    panel: HTMLElement;
+
     /** Toggle-button label per state. Applied to both `aria-label` and `title`. */
     getToggleLabel: (state: "open" | "collapsed") => string;
 
@@ -92,22 +96,7 @@ export interface PropertiesPanelHandle {
 }
 
 /**
- * Returned when the resizer cannot find its DOM targets. All operations on this
- * handle are no-ops so the rest of the webview can call
- * {@link PropertiesPanelHandle.setVisible} or subscribe without extra null
- * checks.
- */
-const NOOP_HANDLE: PropertiesPanelHandle = {
-    isVisible: () => true,
-    setVisible: () => undefined,
-    onVisibilityChanged: () => undefined,
-    setOpenWidth: () => undefined,
-    onOpenWidthChanged: () => undefined,
-    dispose: () => undefined,
-};
-
-/**
- * Attaches mouse-drag listeners to the `.panel-resizer` element so the user
+ * Attaches mouse-drag listeners to the resizer element so the user
  * can resize the properties panel by dragging the divider, and returns a
  * {@link PropertiesPanelHandle} that exposes the panel's visibility as
  * observable state.
@@ -127,17 +116,7 @@ const NOOP_HANDLE: PropertiesPanelHandle = {
  * immediately visible with no dead zone.
  */
 export function initResizer(opts: PropertiesPanelResizerOptions): PropertiesPanelHandle {
-    const resizerEl = document.getElementById("js-panel-resizer");
-    const panelEl = document.getElementById("js-properties-panel");
-
-    if (!resizerEl || !panelEl) {
-        console.warn("[resizer] Required DOM elements not found — skipping resizer init.");
-        return NOOP_HANDLE;
-    }
-
-    // Re-assign after the null guard so TypeScript narrows the type for closures.
-    const resizer: HTMLElement = resizerEl;
-    const panel: HTMLElement = panelEl;
+    const { resizer, panel } = opts;
 
     let isResizing = false;
     let lastX = 0;
