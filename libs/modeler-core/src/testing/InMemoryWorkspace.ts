@@ -1,5 +1,6 @@
 import { posix } from "path";
 
+import { DirectoryEntryKind } from "../kernel/domain/directoryEntry";
 import {
     DirectoryNotFound,
     FileNotFound,
@@ -92,10 +93,10 @@ export class InMemoryWorkspace implements WorkspacePort {
         return posix.dirname(document);
     }
 
-    async readDirectory(path: string): Promise<[string, "file" | "directory"][]> {
+    async readDirectory(path: string): Promise<[string, DirectoryEntryKind][]> {
         const directory = withoutFileScheme(path);
-        const entries = new Map<string, "file" | "directory">();
-        const addEntryFor = (known: string, type: "file" | "directory") => {
+        const entries = new Map<string, DirectoryEntryKind>();
+        const addEntryFor = (known: string, type: DirectoryEntryKind) => {
             const below = relativeToRoot(known, directory);
             if (!below) return;
             const [name, ...deeper] = below.split("/");

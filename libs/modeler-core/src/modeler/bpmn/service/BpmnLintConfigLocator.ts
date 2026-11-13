@@ -1,6 +1,7 @@
 import { ancestorsUpTo } from "../../../kernel/domain/ancestorsUpTo";
 import { configFolderPath } from "../../../kernel/domain/configArtifacts";
 import { changesConfigLookup } from "../../../kernel/domain/configLookup";
+import { DirectoryEntryKind } from "../../../kernel/domain/directoryEntry";
 import { DirectoryNotFound } from "../../../kernel/domain/errors";
 import { SettingsPort, WorkspacePort } from "../../../kernel/port/hostPorts";
 import { EVERY_PATH_GLOB } from "../../../kernel/domain/watchedFiles";
@@ -88,7 +89,7 @@ export class BpmnLintConfigLocator {
      * is not an error here — it simply means the file is absent.
      */
     private async hasFile(dir: string, name: string): Promise<boolean> {
-        let entries: [string, "file" | "directory"][];
+        let entries: [string, DirectoryEntryKind][];
         try {
             entries = await this.vsWorkspace.readDirectory(dir);
         } catch (error) {

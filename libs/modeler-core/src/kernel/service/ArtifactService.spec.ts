@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { createTestHost, TestHostOptions } from "../../testing";
+import { DirectoryEntryKind } from "../domain/directoryEntry";
 import { ArtifactService } from "./ArtifactService";
 
 function createService(options: TestHostOptions = {}) {
@@ -130,9 +131,7 @@ describe("ArtifactService.findConfigBaseDir", () => {
 describe("ArtifactService.getWorkspaceRoot", () => {
     // Listing any other directory is denied, as in a tree of execute-only
     // directories, so the walk only succeeds by probing `.git` itself.
-    function createServiceOutsideWorkspaceFolders(
-        gitEntries: Record<string, "directory" | "file">,
-    ) {
+    function createServiceOutsideWorkspaceFolders(gitEntries: Record<string, DirectoryEntryKind>) {
         const files = Object.fromEntries(
             Object.entries(gitEntries).map(([path, type]) =>
                 type === "directory"

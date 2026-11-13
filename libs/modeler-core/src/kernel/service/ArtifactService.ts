@@ -3,6 +3,7 @@ import { ELEMENT_TEMPLATE_FOLDER_NAME, elementTemplateFolder } from "@miragon/bp
 import { ancestorsUpTo } from "../domain/ancestorsUpTo";
 import { configFolderPath } from "../domain/configArtifacts";
 import { changesConfigLookup, ConfigLookup } from "../domain/configLookup";
+import { DirectoryEntryKind } from "../domain/directoryEntry";
 import { DirectoryNotFound, FileNotFound, NoWorkspaceFolderFoundError } from "../domain/errors";
 import { LoggerPort, SettingsPort, WorkspacePort } from "../port/hostPorts";
 import { EVERY_PATH_GLOB } from "../domain/watchedFiles";
@@ -236,7 +237,7 @@ export class ArtifactService {
     }
 
     async readDirectory(folder: string, extension: string): Promise<string[]> {
-        let entries: [string, "file" | "directory"][];
+        let entries: [string, DirectoryEntryKind][];
         try {
             entries = await this.vsWorkspace.readDirectory(folder);
         } catch (error) {

@@ -28,6 +28,7 @@ export {
     type CodeApprovalChange,
     revoking,
 } from "./kernel/domain/codeApproval";
+export type { DirectoryEntryKind } from "./kernel/domain/directoryEntry";
 export * from "./kernel/domain/engineVersions";
 export * from "./kernel/domain/errorLogText";
 export * from "./kernel/domain/errors";

@@ -3,11 +3,12 @@ import { posix } from "path";
 import { FileSystemError, FileType, RelativePattern, workspace } from "vscode";
 
 import {
+    DirectoryEntryKind,
     DirectoryNotFound,
     FileNotFound,
     NoWorkspaceFolderFoundError,
+    WorkspacePort,
 } from "@miragon/bpmn-modeler-core";
-import { WorkspacePort } from "@miragon/bpmn-modeler-core";
 import { canonicalPath } from "../../domain/canonicalPath";
 import { toUri } from "./uriPath";
 
@@ -67,7 +68,7 @@ export class VsCodeWorkspace implements WorkspacePort {
      * Lists the direct children of a directory as `[name, type]` tuples;
      * symbolic links and other non-file/directory entries are excluded.
      */
-    async readDirectory(path: string): Promise<[string, "file" | "directory"][]> {
+    async readDirectory(path: string): Promise<[string, DirectoryEntryKind][]> {
         let dir: [string, FileType][];
         try {
             dir = await fs.readDirectory(toUri(path));

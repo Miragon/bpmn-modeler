@@ -1,4 +1,5 @@
 import { trimTrailingSeparators } from "../../domain/marketplace";
+import { DirectoryEntryKind } from "../../../kernel/domain/directoryEntry";
 import { DirectoryNotFound } from "../../../kernel/domain/errors";
 import { WorkspacePort } from "../../../kernel/port/hostPorts";
 import { LocalSourceConfig } from "../../domain/repositorySourceConfig";
@@ -31,7 +32,7 @@ export class LocalFileSource implements RepositorySource {
      * warns-and-skips instead of failing the whole add.
      */
     private async listJsonRecursive(relDir: string): Promise<string[]> {
-        let entries: [string, "file" | "directory"][];
+        let entries: [string, DirectoryEntryKind][];
         try {
             entries = await this.workspace.readDirectory(this.absolute(relDir));
         } catch (error) {
