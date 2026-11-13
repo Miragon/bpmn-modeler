@@ -82,6 +82,45 @@ describe("the DMN editor in Orca", () => {
         await expect.poll(() => panel.getAttribute("class")).not.toContain("collapsed");
     });
 
+    it("leaves Shift+P to a decision table", async () => {
+        const editor = await open();
+        await openApproveOrderTable(editor);
+        await editor.page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+
+        await editor.page.keyboard.press("Shift+P");
+
+        expect(
+            await editor.page.locator("#js-properties-panel").getAttribute("class"),
+        ).not.toContain("collapsed");
+    });
+
+    it("moves focus from the canvas into the properties panel with p", async () => {
+        const editor = await open();
+        await editor.page.mouse.click(...BLANK_POINT);
+
+        await editor.page.keyboard.press("p");
+
+        await expect.poll(() => editor.focusIsIn("#js-properties-panel-mount")).toBe(true);
+    });
+
+    it("scrolls the properties panel inside its own scroll container", async () => {
+        const editor = await open();
+        await editor.page.locator(".bio-properties-panel").waitFor({ state: "visible" });
+
+        const layout = await editor.page.evaluate(() => {
+            const host = document.getElementById("js-properties-panel")!;
+            const panel = host.querySelector<HTMLElement>(".bio-properties-panel")!;
+            return {
+                hostHeight: host.clientHeight,
+                panelHeight: panel.offsetHeight,
+                hostScrolls: host.scrollHeight > host.clientHeight,
+            };
+        });
+
+        expect(layout.panelHeight).toBe(layout.hostHeight);
+        expect(layout.hostScrolls).toBe(false);
+    });
+
     it("saves a rule still typed into a decision table", async () => {
         const editor = await open();
         await openApproveOrderTable(editor);

@@ -80,7 +80,9 @@ builds the canvas alone for a diff pane. Every editor page mounts it: the BPMN
 and DMN webviews and the Orca editors. Host shells (VS Code, IntelliJ, the
 webview previews, the perf bench) ship only an empty `#app`, marked when the
 host hides the panel by default so it mounts collapsed. The modeler packages'
-stylesheets carry no page chrome; their dark themes recolour it. The chrome
+stylesheets do not lay out the page; each package's dark theme still recolours
+the divider and the panel border, and BPMN's `mode.css` lays out its
+`.panel-host` column. The chrome
 keeps its state behind `PanelStateStore`, which the webview state and Orca's
 local storage implement. This deliberately mixes private browser chrome with
 the protocol to avoid another workspace for a few helpers.

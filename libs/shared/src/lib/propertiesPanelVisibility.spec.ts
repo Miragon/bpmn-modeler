@@ -157,9 +157,23 @@ describe("bindPanelVisibility", () => {
         expect(report).toHaveBeenCalledExactlyOnceWith(false);
     });
 
+    const panelRoot = () => document.getElementById("js-properties-panel");
+
     it.each<[string, boolean, (handle: PropertiesPanelHandle) => void]>([
-        ["Shift+P", false, (handle) => togglePropertiesPanel(handle, () => undefined)],
-        ["p", true, (handle) => focusPropertiesPanel(handle, { schedule: () => undefined })],
+        [
+            "Shift+P",
+            false,
+            (handle) => togglePropertiesPanel(handle, () => undefined, { getPanelRoot: panelRoot }),
+        ],
+        [
+            "p",
+            true,
+            (handle) =>
+                focusPropertiesPanel(handle, {
+                    getPanelRoot: panelRoot,
+                    schedule: () => undefined,
+                }),
+        ],
     ])("remembers a %s toggle after boot", (_, toggledTo, pressShortcut) => {
         const { handle, store, report, binding } = bind();
         binding.hostDefaultSettled(!toggledTo);

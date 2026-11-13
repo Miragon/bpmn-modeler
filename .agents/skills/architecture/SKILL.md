@@ -125,7 +125,8 @@ port has a suite.
   adaptation in webview bootstraps. `modeler-types` holds publishable concepts
   and the pure rules browser code shares with the core, such as script-surface
   addressing, the XML comment and CDATA scan and process-variable extraction;
-  DOM-id-coupled panel chrome and host-theme adaptation belong in `shared`.
+  the editor page chrome (`mountPanelChrome`) and host-theme adaptation belong
+  in `shared`.
 - Add host-independent logic to the core's feature-oriented `domain/` and
   `service/` folders. Reach host facilities through ports and editor handles.
   Cross-cutting host ports live in the core's `kernel/port/hostPorts.ts`; a

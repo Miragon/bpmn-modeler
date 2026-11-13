@@ -43,6 +43,13 @@ export class EditorPage {
         return new EditorPage(page);
     }
 
+    focusIsIn(selector: string): Promise<boolean> {
+        return this.page.evaluate(
+            (container) => document.activeElement?.closest(container) != null,
+            selector,
+        );
+    }
+
     stub(): Promise<StubState> {
         return this.page.evaluate(() => {
             const stub = (window as unknown as { __modelerShellOrcaStub: OrcaEditorStub })

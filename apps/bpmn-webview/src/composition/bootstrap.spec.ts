@@ -56,7 +56,6 @@ vi.mock("@miragon/bpmn-modeler-shared", async (importOriginal) => {
     const actual = await importOriginal<typeof import("@miragon/bpmn-modeler-shared")>();
     return {
         ...actual,
-        installPanelShortcuts: vi.fn(),
         installCanvasAutoFocus: vi.fn(),
     };
 });
@@ -896,6 +895,36 @@ describe("bootstrap", () => {
             expect(sentOfType(host, "SetPropertiesPanelStateCommand")).toEqual([
                 expect.objectContaining({ visible: false }),
             ]);
+        });
+
+        const pressShiftP = () =>
+            document.body.dispatchEvent(
+                new KeyboardEvent("keydown", { key: "P", shiftKey: true, bubbles: true }),
+            );
+
+        it("toggles the panel with Shift+P once the editor restored it", async () => {
+            mocks.createModeler.mockResolvedValue(makeModeler());
+            boot(makeHost({ file: tagged() }));
+            await settle();
+
+            pressShiftP();
+
+            expect(isCollapsed()).toBe(true);
+        });
+
+        it("leaves Shift+P inert while the host's panel default is pending", async () => {
+            mocks.createModeler.mockResolvedValue(makeModeler());
+            boot(
+                makeHost({
+                    file: tagged(),
+                    replies: { GetPropertiesPanelStateCommand: unanswered },
+                }),
+            );
+            await settle();
+
+            pressShiftP();
+
+            expect(isCollapsed()).toBe(false);
         });
 
         it("opens a pre-collapsed panel without reporting it when the host never answers", async () => {

@@ -131,13 +131,16 @@ describe("mountPanelChrome", () => {
         expect(chrome.panel.isVisible()).toBe(true);
     });
 
-    it("moves focus to the canvas on Escape only when asked to", () => {
+    it.each([
+        ["moves focus to the canvas on Escape when asked to", { escapeToCanvas: true }, 1],
+        ["leaves Escape alone by default", {}, 0],
+    ])("%s", (_, escapeOption, canvasFocusCount) => {
         const focusCanvas = vi.fn();
-        mount({ focusCanvas, escapeToCanvas: true });
+        mount({ focusCanvas, ...escapeOption });
 
         press("Escape");
 
-        expect(focusCanvas).toHaveBeenCalledOnce();
+        expect(focusCanvas).toHaveBeenCalledTimes(canvasFocusCount);
     });
 
     it("opens at the saved width and visibility", () => {

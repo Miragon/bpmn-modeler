@@ -1,14 +1,14 @@
 /**
- * Page-level webview chrome coupled to the `js-properties-panel` DOM id and
- * the panel shortcuts. Not part of the modeler public API.
+ * The properties-panel focus and toggle shortcuts of the editor page chrome.
+ * Not part of the modeler public API.
  */
 import { focusCanvasFromKeystroke, isTextEditingSurface } from "@miragon/bpmn-modeler-types";
 
 import type { PropertiesPanelHandle } from "./propertiesPanelResizer";
 
 export interface PanelFocusOptions {
-    /** Override the panel root lookup (default: `getElementById("js-properties-panel")`). */
-    getPanelRoot?: () => HTMLElement | null;
+    /** The element the properties panel renders into; `p` focuses its first field. */
+    getPanelRoot: () => HTMLElement | null;
     /**
      * Scheduling primitive injected for testability.
      * Default: `requestAnimationFrame`. Pass a synchronous thunk runner in specs.
@@ -25,14 +25,8 @@ const FOCUSABLE =
     'input:not([disabled]):not([type="hidden"]), select:not([disabled]), ' +
     'textarea:not([disabled]), [contenteditable="true"], button:not([disabled])';
 
-function getPanelRoot(opts?: PanelFocusOptions): HTMLElement | null {
-    return opts?.getPanelRoot
-        ? opts.getPanelRoot()
-        : document.getElementById("js-properties-panel");
-}
-
-function schedule(cb: () => void, opts?: PanelFocusOptions): void {
-    (opts?.schedule ?? requestAnimationFrame)(cb);
+function schedule(cb: () => void, opts: PanelFocusOptions): void {
+    (opts.schedule ?? requestAnimationFrame)(cb);
 }
 
 /**
@@ -42,11 +36,8 @@ function schedule(cb: () => void, opts?: PanelFocusOptions): void {
  * after expand has settled — the same timing trick
  * `WebviewStateManager.restorePanelUiState` uses.
  */
-export function focusPropertiesPanel(
-    handle: PropertiesPanelHandle,
-    opts?: PanelFocusOptions,
-): void {
-    const panel = getPanelRoot(opts);
+export function focusPropertiesPanel(handle: PropertiesPanelHandle, opts: PanelFocusOptions): void {
+    const panel = opts.getPanelRoot();
     if (!panel || panel.childElementCount === 0) return;
 
     if (!handle.isVisible()) {
@@ -81,10 +72,10 @@ export function focusPropertiesPanel(
 export function togglePropertiesPanel(
     handle: PropertiesPanelHandle,
     focusCanvas: () => void,
-    opts?: PanelFocusOptions,
+    opts: PanelFocusOptions,
 ): void {
     if (handle.isVisible()) {
-        const panel = getPanelRoot(opts);
+        const panel = opts.getPanelRoot();
         const hadFocusInside = panel?.contains(document.activeElement) ?? false;
         handle.setVisible(false);
         if (hadFocusInside) focusCanvas();
@@ -113,7 +104,7 @@ export interface PanelShortcutDeps {
  */
 export function installPanelShortcuts(
     deps: PanelShortcutDeps,
-    opts?: PanelFocusOptions,
+    opts: PanelFocusOptions,
 ): () => void {
     const listenerScope = new AbortController();
     document.addEventListener(

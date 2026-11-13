@@ -182,6 +182,12 @@ a:link {
     user-select: none;
 }
 
+/* dmn-js-properties-panel's `height:100%` container needs a definite height to
+ * scroll inside itself; a `.panel-host` flex column sizes the mount instead. */
+.properties-panel-parent:not(.panel-host) > .panel-mount {
+    height: 100%;
+}
+
 .properties-panel-parent.collapsed {
     overflow: hidden;
     border-left-width: 0;
@@ -193,7 +199,7 @@ a:link {
     user-select: text;
 }
 
-/* see issue https://github.com/microsoft/vscode/issues/213045 */
+/* VS Code webviews inherit a scrollbar-color that hides the native scrollbar. */
 @supports selector(::-webkit-scrollbar) {
     html {
         scrollbar-color: unset;

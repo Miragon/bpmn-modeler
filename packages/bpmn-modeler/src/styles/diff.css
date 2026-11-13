@@ -4,21 +4,11 @@
  * The neutral canvas markers and legend chip live in `diffView.css` (shared with
  * the readonly `viewer.css`) and are pulled in via the @import below, so
  * `styles.css` consumers (bpmn-webview) see the full diff styling unchanged.
- * What remains here is only what depends on the host chrome: the `body.viewer-mode`
- * editor-chrome hiding, the VS Code split-seam borders keyed off `[data-diff-side]`,
- * and the `body.vscode-*` legend dark-mode tweaks.
+ * What remains here is only what depends on the host chrome: the VS Code
+ * split-seam borders keyed off `[data-diff-side]` and the `body.vscode-*` legend
+ * dark-mode tweaks.
  */
 @import "./diffView.css";
-
-/* Hide editor chrome that only makes sense when editing. */
-body.viewer-mode #js-panel-resizer,
-body.viewer-mode .properties-panel-parent {
-    display: none !important;
-}
-
-body.viewer-mode #js-canvas {
-    width: 100%;
-}
 
 /* ─── Split divider ────────────────────────────────────────────────────
    VS Code's diff sash sits between the two webviews but renders no

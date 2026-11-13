@@ -42,8 +42,7 @@
     overflow: auto;
 }
 
-/* Parity with the former `.properties-panel-parent > .djs-properties-panel`,
- * which no longer matches now that the panel is a grandchild of the host. */
+/* Leaves room below the last group so it can scroll above the host's bottom edge. */
 .panel-mount > .djs-properties-panel {
     padding-bottom: 70px;
     min-height: 100%;

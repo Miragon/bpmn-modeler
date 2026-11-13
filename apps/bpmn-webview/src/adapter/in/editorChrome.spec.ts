@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { i18n } from "@miragon/bpmn-modeler-i18n";
 import type { Command, Query } from "@miragon/bpmn-modeler-shared";
 
 import type { WebviewState } from "../../port/webviewState";
@@ -34,6 +35,7 @@ describe("mountEditorChrome", () => {
     afterEach(() => {
         mounted.splice(0).forEach((chrome) => chrome.dispose());
         document.body.innerHTML = "";
+        vi.restoreAllMocks();
     });
 
     it("reports a host page without its root", () => {
@@ -57,6 +59,23 @@ describe("mountEditorChrome", () => {
         expect(chrome.stripEl.className).toBe("mode-strip");
         expect(chrome.panelHost.classList).toContain("panel-host");
         expect(chrome.panelMount.id).toBe("js-properties-panel-mount");
+    });
+
+    it("relabels the panel toggle in the language the page switches to", () => {
+        const languageListeners: (() => void)[] = [];
+        vi.spyOn(i18n, "onChange").mockImplementation((listener) => {
+            languageListeners.push(listener);
+            return () => undefined;
+        });
+        const translate = vi.spyOn(i18n, "translate");
+        mount();
+        const toggle = document.querySelector<HTMLButtonElement>(".panel-resizer-toggle")!;
+        expect(toggle.title).toBe("Close properties panel (Shift+P)");
+
+        translate.mockImplementation((key: string) => `Übersetzt: ${key}`);
+        languageListeners.forEach((listener) => listener());
+
+        expect(toggle.title).toBe("Übersetzt: Close properties panel (Shift+P)");
     });
 
     it("applies this editor's saved panel visibility at once", () => {
