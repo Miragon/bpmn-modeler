@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
 
 import { allowanceOf, LOCAL_HOST } from "../../kernel/domain/allowance";
-import { createTestHost, TestHost } from "../../testing";
+import { createTestHost, holdListings, holdNext, TestHost } from "../../testing";
 import { approvedContent } from "../domain/pluginApproval";
 import { PluginCache } from "./PluginCache";
 import { DiscoveredPlugin } from "./WorkspacePluginLocator";
@@ -82,61 +82,6 @@ function recordCacheWrites(host: TestHost): string[] {
         onChange: (path) => writes.push(path),
     });
     return writes;
-}
-
-interface Hold {
-    readonly reached: Promise<void>;
-    release(): void;
-}
-
-/** Holds the next call to a method until the test releases it; `reached` resolves once it is called. */
-function holdNext<T extends object, K extends keyof T>(target: T, method: K): Hold {
-    const original = (target[method] as (...args: unknown[]) => Promise<unknown>).bind(target);
-    let release: () => void = () => undefined;
-    let reach: () => void = () => undefined;
-    const held = new Promise<void>((resolve) => {
-        release = resolve;
-    });
-    const reached = new Promise<void>((resolve) => {
-        reach = resolve;
-    });
-    const spy = vi.spyOn(target, method as never) as unknown as {
-        mockImplementationOnce(impl: (...args: unknown[]) => Promise<unknown>): void;
-    };
-    spy.mockImplementationOnce(async (...args: unknown[]) => {
-        reach();
-        await held;
-        return original(...args);
-    });
-    return { reached, release };
-}
-
-/** Holds the first listing of each path until the test releases it, in the order of `paths`. */
-function holdListings(host: TestHost, paths: readonly string[]): Hold[] {
-    const holds = new Map<string, Hold & { reach(): void; readonly held: Promise<void> }>();
-    for (const path of paths) {
-        let release: () => void = () => undefined;
-        let reach: () => void = () => undefined;
-        const held = new Promise<void>((resolve) => {
-            release = resolve;
-        });
-        const reached = new Promise<void>((resolve) => {
-            reach = resolve;
-        });
-        holds.set(path, { held, reached, reach: () => reach(), release: () => release() });
-    }
-    const listed = [...holds.values()];
-    const readDirectory = host.workspace.readDirectory.bind(host.workspace);
-    vi.spyOn(host.workspace, "readDirectory").mockImplementation(async (path) => {
-        const hold = holds.get(path);
-        if (hold !== undefined) {
-            holds.delete(path);
-            hold.reach();
-            await hold.held;
-        }
-        return readDirectory(path);
-    });
-    return listed;
 }
 
 describe("PluginCache", () => {
@@ -469,7 +414,7 @@ describe("PluginCache", () => {
             const { host, cache } = setUp({}, { now: clock.now });
             await cache.servedCopyOf(RESIZE);
             clock.ms = NOW + 31 * DAY;
-            const [checkingCopy, listingCache] = holdListings(host, [
+            const [checkingCopy, listingCache] = holdListings(host.workspace, [
                 `${CACHE}/${RESIZE_HASH}`,
                 CACHE,
             ]);
@@ -491,7 +436,7 @@ describe("PluginCache", () => {
             const { host, cache, inUse } = setUp({
                 [`${CACHE}/${RESIZE_HASH}/plugin.js`]: "registerResize();",
             });
-            const [listingCache] = holdListings(host, [CACHE]);
+            const [listingCache] = holdListings(host.workspace, [CACHE]);
             const pruning = cache.pruneIdleCopies();
             await listingCache.reached;
 
@@ -512,7 +457,7 @@ describe("PluginCache", () => {
             const { host, cache } = setUp();
             await cache.servedCopyOf(RESIZE);
             await host.workspace.deleteDirectory(`${CACHE}/${RESIZE_HASH}`);
-            const [checkingCopy, listingCache] = holdListings(host, [
+            const [checkingCopy, listingCache] = holdListings(host.workspace, [
                 `${CACHE}/${RESIZE_HASH}`,
                 CACHE,
             ]);

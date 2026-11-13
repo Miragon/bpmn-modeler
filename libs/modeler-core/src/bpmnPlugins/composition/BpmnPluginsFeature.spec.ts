@@ -24,6 +24,8 @@ import {
     createTestHost,
     FakeEditorHandle,
     fingerprintHasher,
+    holdListings,
+    holdNext,
     InMemoryInstalledPackages,
     InMemoryPluginApprovals,
     RecordingAddOnViewReveal,
@@ -178,64 +180,6 @@ class LaggingPluginApprovals extends InMemoryPluginApprovals {
         await new Promise((resolve) => setTimeout(resolve, 0));
         await super.change(change);
     }
-}
-
-/** Holds the next call to a method until the test releases it; `reached` resolves once it is called. */
-function holdNext<T extends object, K extends keyof T>(
-    target: T,
-    method: K,
-): { readonly reached: Promise<void>; release(): void } {
-    const original = (target[method] as (...args: unknown[]) => Promise<unknown>).bind(target);
-    let release: () => void = () => undefined;
-    let reach: () => void = () => undefined;
-    const held = new Promise<void>((resolve) => {
-        release = resolve;
-    });
-    const reached = new Promise<void>((resolve) => {
-        reach = resolve;
-    });
-    const spy = vi.spyOn(target, method as never) as unknown as {
-        mockImplementationOnce(impl: (...args: unknown[]) => Promise<unknown>): void;
-    };
-    spy.mockImplementationOnce(async (...args: unknown[]) => {
-        reach();
-        await held;
-        return original(...args);
-    });
-    return { reached, release };
-}
-
-interface Hold {
-    readonly reached: Promise<void>;
-    release(): void;
-}
-
-/** Holds the first listing of each path until the test releases it, in the order of `paths`. */
-function holdListings(host: ReturnType<typeof createTestHost>, paths: readonly string[]): Hold[] {
-    const holds = new Map<string, Hold & { reach(): void; readonly held: Promise<void> }>();
-    for (const path of paths) {
-        let release: () => void = () => undefined;
-        let reach: () => void = () => undefined;
-        const held = new Promise<void>((resolve) => {
-            release = resolve;
-        });
-        const reached = new Promise<void>((resolve) => {
-            reach = resolve;
-        });
-        holds.set(path, { held, reached, reach: () => reach(), release: () => release() });
-    }
-    const listed = [...holds.values()];
-    const readDirectory = host.workspace.readDirectory.bind(host.workspace);
-    vi.spyOn(host.workspace, "readDirectory").mockImplementation(async (path) => {
-        const hold = holds.get(path);
-        if (hold !== undefined) {
-            holds.delete(path);
-            hold.reach();
-            await hold.held;
-        }
-        return readDirectory(path);
-    });
-    return listed;
 }
 
 const cachePaths = (host: ReturnType<typeof createTestHost>) =>
@@ -1038,7 +982,7 @@ describe("BpmnPluginsFeature", () => {
             );
             host.pluginApprovals.approvals = [{ pluginId: RESIZE, contentHash: RESIZE_SHA }];
             const editor = await openEditor();
-            const [listingCache] = holdListings(host, [CACHE]);
+            const [listingCache] = holdListings(host.workspace, [CACHE]);
             const pruning = feature.cache.pruneIdleCopies();
             await listingCache.reached;
 
