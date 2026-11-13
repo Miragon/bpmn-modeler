@@ -87,7 +87,7 @@ const STALE_TITLE: ViewContainerTitleOptions = {
     closeable: true,
 };
 const CURRENT_TITLE: ViewContainerTitleOptions = {
-    label: "BPMN Modeler",
+    label: "Deploy",
     iconClass: "theia-plugin-view-container plugin-view-container-icon-0",
     closeable: true,
 };
@@ -101,6 +101,12 @@ class RestoredViewContainer extends ViewContainer {
 
     override getPartFor(widget: object): ViewContainerPart | undefined {
         return this.parts.find((part) => part.wrapped === widget);
+    }
+
+    disposedByRegistry = false;
+
+    override dispose(): void {
+        this.disposedByRegistry = true;
     }
 
     override removeWidget(widget: object): boolean {
@@ -169,8 +175,8 @@ function registryWithDeployContainer() {
     const registry = new CurrentTitlePluginViewRegistry();
     const registration = registry.registerViewContainer("left", {
         id: "bpmn-modeler-deploy",
-        title: "BPMN Modeler",
-        iconUrl: "/hostedPlugin/miragon/icons/komet.svg",
+        title: "Deploy",
+        iconUrl: "/hostedPlugin/miragon/icons/rocket.svg",
     });
     return { registry, registration };
 }
@@ -225,12 +231,12 @@ describe("CurrentTitlePluginViewRegistry", () => {
         const otherContainerWidgetId = "plugin-view-container:workbench.view.extension.other";
         const otherTitle = { label: "Other", iconClass: "other-icon" };
         const other = restoredContainer(otherContainerWidgetId, otherTitle, [
-            viewPart("Deploy", DEPLOY_CONTAINER_WIDGET_ID, STALE_TITLE),
+            viewPart("Targets", DEPLOY_CONTAINER_WIDGET_ID, STALE_TITLE),
         ]);
 
         await registry["prepareViewContainer"]("workbench.view.extension.other", other);
 
-        expect(other.title.label).toBe(`${CURRENT_TITLE.label}: Deploy`);
+        expect(other.title.label).toBe(`${CURRENT_TITLE.label}: Targets`);
         expect(other.title.iconClass).toBe(CURRENT_TITLE.iconClass);
     });
 
@@ -310,7 +316,7 @@ describe("CurrentTitlePluginViewRegistry", () => {
             return { registry, deploy };
         }
 
-        it("leaves the container an older version placed it in, so its own container takes it", async () => {
+        it("is taken out of the container an older version placed it in, which keeps its visible view", async () => {
             const { registry, deploy } = restoredLayoutWithAddOnsUnderDeploy(
                 DEPLOY_CONTAINER_WIDGET_ID,
             );
@@ -322,7 +328,26 @@ describe("CurrentTitlePluginViewRegistry", () => {
 
             await registry["prepareViewContainer"](ADD_ONS_CONTAINER_ID, addOns);
 
-            expect(deploy.getParts().map((part) => part.wrapped.title.label)).toEqual(["Deploy"]);
+            expect([
+                deploy.getParts().map((part) => part.wrapped.title.label),
+                deploy.disposedByRegistry,
+            ]).toEqual([["Deploy"], false]);
+        });
+
+        it("closes the container it left when no visible view is left there", async () => {
+            const { registry, deploy } = restoredLayoutWithAddOnsUnderDeploy(
+                DEPLOY_CONTAINER_WIDGET_ID,
+            );
+            (deploy.parts[0] as { isHidden: boolean }).isHidden = true;
+            const addOns = restoredContainer(
+                `plugin-view-container:${ADD_ONS_CONTAINER_ID}`,
+                CURRENT_TITLE,
+                [],
+            );
+
+            await registry["prepareViewContainer"](ADD_ONS_CONTAINER_ID, addOns);
+
+            expect(deploy.disposedByRegistry).toBe(true);
         });
 
         it("stays where the user dragged it", async () => {
@@ -341,20 +366,6 @@ describe("CurrentTitlePluginViewRegistry", () => {
                 "Deploy",
                 "Add-ons",
             ]);
-        });
-
-        it("stays in a container that still lists it", async () => {
-            const { registry, deploy } = restoredLayoutWithAddOnsUnderDeploy(
-                DEPLOY_CONTAINER_WIDGET_ID,
-            );
-            fakeOf(registry).viewsByContainer.set(DEPLOY_CONTAINER_ID, [
-                "bpmn-modeler.deploymentView",
-                ADD_ONS_VIEW,
-            ]);
-
-            await registry["prepareViewContainer"](ADD_ONS_CONTAINER_ID, deploy);
-
-            expect(deploy.getParts()).toHaveLength(2);
         });
     });
 });

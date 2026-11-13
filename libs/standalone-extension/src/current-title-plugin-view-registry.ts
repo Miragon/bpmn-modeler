@@ -14,9 +14,11 @@
  * A view a newer version contributes to another container would also stay
  * where the stored layout keeps it: Theia leaves an existing view widget in
  * its current container, and closes the new container as it has no part. So
- * a view whose current container no longer lists it, and which the old
- * version put there (its part's original container is that container), leaves
- * it first; a view the user dragged elsewhere keeps their place.
+ * a view the old version put into another plugin container (its part's
+ * original container is that container) is removed from it first, which
+ * disposes the widget, and Theia builds it anew in its own container. A
+ * plugin container left without a visible view closes; Theia opens it again
+ * once its view shows. A view the user dragged elsewhere keeps their place.
  */
 import type {
     ViewContainer,
@@ -74,11 +76,14 @@ export class CurrentTitlePluginViewRegistry extends PluginViewRegistry {
             if (widget === undefined || currentId === undefined || currentId === viewContainerId) {
                 continue;
             }
-            if (this.getContainerViews(currentId).includes(viewId)) continue;
             const current = await this.getPluginViewContainer(currentId);
-            const placedByOldVersion =
-                current?.getPartFor(widget)?.originalContainerId === current?.id;
-            if (current !== undefined && placedByOldVersion) current.removeWidget(widget);
+            if (current === undefined) continue;
+            if (current.getPartFor(widget)?.originalContainerId !== current.id) continue;
+            current.removeWidget(widget);
+            const isPluginContainer = current.id.startsWith(PLUGIN_VIEW_CONTAINER_WIDGET_ID_PREFIX);
+            if (isPluginContainer && current.getParts().every(({ isHidden }) => isHidden)) {
+                current.dispose();
+            }
         }
     }
 

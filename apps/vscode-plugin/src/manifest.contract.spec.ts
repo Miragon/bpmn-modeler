@@ -264,10 +264,8 @@ describe("package.json ↔ code contract", () => {
     it("draws the Add-ons icon as an outline in the host's colour", () => {
         const icon = readFileSync(resolve(__dirname, "../icons/puzzle.svg"), "utf-8");
 
-        expect([icon.includes('stroke="currentColor"'), icon.includes('fill="none"')]).toEqual([
-            true,
-            true,
-        ]);
+        expect(icon).toContain('stroke="currentColor"');
+        expect(icon).toContain('fill="none"');
     });
 
     it("offers the refresh in the Add-ons view's title bar and while a folder is open", () => {

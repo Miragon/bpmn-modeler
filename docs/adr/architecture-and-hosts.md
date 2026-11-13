@@ -351,8 +351,9 @@ marketplaces or not.
 IntelliJ shows the add-ons view as the **Add-ons** tab of its BPMN Modeler
 tool window, next to the **Deploy** tab; a tool window tab already has the
 window's full height, so IntelliJ keeps one tool window where VS Code gives
-each view its own container. The tool window keeps the id of the former deployment tool
-window (`Miragon Deployment`), so a layout a user saved still applies; its
+each view its own container. The tool window keeps the id of the former
+deployment tool window (`Miragon Deployment`), so a layout a user saved still
+applies; its
 factory sets the stripe title. Each tab is one `JcefRelayPanel`, a JCEF page
 that relays its messages verbatim, and counts as open only while the tool
 window is visible and the tab selected (`VisibilityLatch`), so Deploy refreshes
@@ -663,8 +664,10 @@ newly contributed container as empty. The standalone app rebinds its
 `PluginViewRegistry` in `libs/standalone-extension` to give a restored
 container the current title and icon and, before it fills a container, to
 take a view out of a container that no longer lists it when the older
-version put it there (its part's original container), so Add-ons moves to
-its own container after an update; a view the user dragged keeps its place.
+version put it there (its part's original container). Removing it disposes
+the view widget, so Theia builds Add-ons anew in its own container after an
+update, and a plugin container left without a visible view closes until its
+view shows again; a view the user dragged keeps its place.
 Both views set `retainContextWhenHidden`: the core posts nothing to a hidden view, so
 keeping its page costs memory only, and a page shown again keeps its banners
 and the results of requests in flight. The Add-ons view's shell
