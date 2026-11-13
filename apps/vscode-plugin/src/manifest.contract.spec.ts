@@ -236,15 +236,20 @@ describe("package.json ↔ code contract", () => {
         expect(undeclared).toEqual([]);
     });
 
-    // The container keeps its id, so a user's layout survives, and shows whenever a folder is open.
-    it("shows Deploy and Add-ons in one BPMN Modeler container", () => {
+    // Add-ons comes first: Deploy's container shows only while an editor is open, so it would push Add-ons around.
+    it("gives Add-ons and Deploy each their own container, titled as their one view", () => {
         expect(manifest.contributes.viewsContainers.activitybar).toEqual([
-            { id: "bpmn-modeler-deploy", title: "BPMN Modeler", icon: "./icons/komet.svg" },
+            { id: "bpmn-modeler-add-ons", title: "Add-ons", icon: "./icons/puzzle.svg" },
+            { id: "bpmn-modeler-deploy", title: "Deploy", icon: "$(rocket)" },
         ]);
-        // VS Code draws an activity bar icon as a mask in its own colour.
-        expect(readFileSync(resolve(__dirname, "../icons/komet.svg"), "utf-8")).toContain(
-            'fill="currentColor"',
-        );
+        expect(manifest.contributes.views["bpmn-modeler-add-ons"]).toEqual([
+            {
+                type: "webview",
+                id: ADD_ONS_VIEW_ID,
+                name: "Add-ons",
+                when: "workspaceFolderCount > 0",
+            },
+        ]);
         expect(manifest.contributes.views["bpmn-modeler-deploy"]).toEqual([
             {
                 type: "webview",
@@ -252,12 +257,16 @@ describe("package.json ↔ code contract", () => {
                 name: "Deploy",
                 when: "bpmn-modeler.openCustomEditors > 0",
             },
-            {
-                type: "webview",
-                id: ADD_ONS_VIEW_ID,
-                name: "Add-ons",
-                when: "workspaceFolderCount > 0",
-            },
+        ]);
+    });
+
+    // VS Code and Theia draw an activity bar icon as a mask, so only its outline counts.
+    it("draws the Add-ons icon as an outline in the host's colour", () => {
+        const icon = readFileSync(resolve(__dirname, "../icons/puzzle.svg"), "utf-8");
+
+        expect([icon.includes('stroke="currentColor"'), icon.includes('fill="none"')]).toEqual([
+            true,
+            true,
         ]);
     });
 

@@ -192,7 +192,7 @@ export class VsCodeSession {
 
     /**
      * The extension's visible side bar view whose page holds `shows`. The
-     * frames carry no view id, and the Deploy view can show beside Add-ons.
+     * frames carry no view id, and the Deploy view's page may be loaded too.
      */
     async viewWebview(shows: string): Promise<FrameLocator> {
         const frames = this.page.locator(

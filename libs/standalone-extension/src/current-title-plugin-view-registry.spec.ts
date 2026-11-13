@@ -8,12 +8,33 @@ vi.hoisted(() => {
 });
 
 // Mirrors the parts of Theia's registry the subclass builds on: registration
-// stores the title options, prepareViewContainer applies them to the widget.
+// stores the title options, prepareViewContainer applies them to the widget,
+// and the view widgets and containers it looks up by id.
 vi.mock("@theia/plugin-ext/lib/main/browser/view/plugin-view-registry", () => ({
     PLUGIN_VIEW_CONTAINER_FACTORY_ID: "plugin-view-container",
+    PLUGIN_VIEW_FACTORY_ID: "plugin-view",
     PluginViewRegistry: class {
         private readonly titleOptionsByContainer = new Map<string, ViewContainerTitleOptions>();
         private nextIconId = 0;
+        readonly viewsByContainer = new Map<string, string[]>();
+        readonly widgetsByView = new Map<string, object>();
+        readonly containersById = new Map<string, object>();
+        protected readonly widgetManager = {
+            tryGetWidget: (_factoryId: string, identifier: { id: string }) =>
+                this.widgetsByView.get(identifier.id),
+        };
+
+        getContainerViews(viewContainerId: string): string[] {
+            return this.viewsByContainer.get(viewContainerId) ?? [];
+        }
+
+        protected toPluginViewWidgetIdentifier(viewId: string) {
+            return { id: viewId };
+        }
+
+        protected async getPluginViewContainer(viewContainerId: string) {
+            return this.containersById.get(viewContainerId);
+        }
 
         registerViewContainer(location: string, viewContainer: { id: string; title: string }) {
             return this.doRegisterViewContainer(
@@ -78,6 +99,16 @@ class RestoredViewContainer extends ViewContainer {
         return this.parts;
     }
 
+    override getPartFor(widget: object): ViewContainerPart | undefined {
+        return this.parts.find((part) => part.wrapped === widget);
+    }
+
+    override removeWidget(widget: object): boolean {
+        const before = this.parts.length;
+        this.parts = this.parts.filter((part) => part.wrapped !== widget);
+        return this.parts.length < before;
+    }
+
     protected override updateToolbarItems(): void {
         // The parts menu needs Theia's menu services; the title rule does not.
     }
@@ -121,6 +152,17 @@ function restoredDeployContainer(): RestoredViewContainer {
         viewPart("Deploy", DEPLOY_CONTAINER_WIDGET_ID, STALE_TITLE),
         viewPart("Add-ons", DEPLOY_CONTAINER_WIDGET_ID, STALE_TITLE),
     ]);
+}
+
+/** The lookups the mocked registry holds, which Theia's real one keeps elsewhere. */
+interface FakeLookups {
+    readonly viewsByContainer: Map<string, string[]>;
+    readonly widgetsByView: Map<string, object>;
+    readonly containersById: Map<string, object>;
+}
+
+function fakeOf(registry: CurrentTitlePluginViewRegistry): FakeLookups {
+    return registry as unknown as FakeLookups;
 }
 
 function registryWithDeployContainer() {
@@ -236,5 +278,83 @@ describe("CurrentTitlePluginViewRegistry", () => {
             STALE_TITLE,
             STALE_TITLE,
         ]);
+    });
+
+    describe("a view a newer version contributes to another container", () => {
+        const ADD_ONS_CONTAINER_ID = "workbench.view.extension.bpmn-modeler-add-ons";
+        const ADD_ONS_VIEW = "bpmn-modeler.addOnsView";
+
+        function restoredLayoutWithAddOnsUnderDeploy(addOnsOriginalContainerId: string) {
+            const { registry } = registryWithDeployContainer();
+            registry.registerViewContainer("left", {
+                id: "bpmn-modeler-add-ons",
+                title: "Add-ons",
+                iconUrl: "/hostedPlugin/miragon/icons/puzzle.svg",
+            });
+            fakeOf(registry).viewsByContainer.set(DEPLOY_CONTAINER_ID, [
+                "bpmn-modeler.deploymentView",
+            ]);
+            fakeOf(registry).viewsByContainer.set(ADD_ONS_CONTAINER_ID, [ADD_ONS_VIEW]);
+            const addOnsPart = viewPart("Add-ons", addOnsOriginalContainerId, STALE_TITLE);
+            const deploy = restoredContainer(DEPLOY_CONTAINER_WIDGET_ID, STALE_TITLE, [
+                viewPart("Deploy", DEPLOY_CONTAINER_WIDGET_ID, STALE_TITLE),
+                addOnsPart,
+            ]);
+            fakeOf(registry).widgetsByView.set(ADD_ONS_VIEW, {
+                ...addOnsPart.wrapped,
+                currentViewContainerId: DEPLOY_CONTAINER_ID,
+            });
+            const widget = fakeOf(registry).widgetsByView.get(ADD_ONS_VIEW)!;
+            (addOnsPart as { wrapped: object }).wrapped = widget;
+            fakeOf(registry).containersById.set(DEPLOY_CONTAINER_ID, deploy);
+            return { registry, deploy };
+        }
+
+        it("leaves the container an older version placed it in, so its own container takes it", async () => {
+            const { registry, deploy } = restoredLayoutWithAddOnsUnderDeploy(
+                DEPLOY_CONTAINER_WIDGET_ID,
+            );
+            const addOns = restoredContainer(
+                `plugin-view-container:${ADD_ONS_CONTAINER_ID}`,
+                CURRENT_TITLE,
+                [],
+            );
+
+            await registry["prepareViewContainer"](ADD_ONS_CONTAINER_ID, addOns);
+
+            expect(deploy.getParts().map((part) => part.wrapped.title.label)).toEqual(["Deploy"]);
+        });
+
+        it("stays where the user dragged it", async () => {
+            const { registry, deploy } = restoredLayoutWithAddOnsUnderDeploy(
+                "plugin-view-container:workbench.view.extension.elsewhere",
+            );
+            const addOns = restoredContainer(
+                `plugin-view-container:${ADD_ONS_CONTAINER_ID}`,
+                CURRENT_TITLE,
+                [],
+            );
+
+            await registry["prepareViewContainer"](ADD_ONS_CONTAINER_ID, addOns);
+
+            expect(deploy.getParts().map((part) => part.wrapped.title.label)).toEqual([
+                "Deploy",
+                "Add-ons",
+            ]);
+        });
+
+        it("stays in a container that still lists it", async () => {
+            const { registry, deploy } = restoredLayoutWithAddOnsUnderDeploy(
+                DEPLOY_CONTAINER_WIDGET_ID,
+            );
+            fakeOf(registry).viewsByContainer.set(DEPLOY_CONTAINER_ID, [
+                "bpmn-modeler.deploymentView",
+                ADD_ONS_VIEW,
+            ]);
+
+            await registry["prepareViewContainer"](ADD_ONS_CONTAINER_ID, deploy);
+
+            expect(deploy.getParts()).toHaveLength(2);
+        });
     });
 });

@@ -349,8 +349,9 @@ rejected for that reason. Every other text comes from the core, which also sends
 marketplaces or not.
 
 IntelliJ shows the add-ons view as the **Add-ons** tab of its BPMN Modeler
-tool window, next to the **Deploy** tab, as VS Code holds Deploy and Add-ons
-in one container. The tool window keeps the id of the former deployment tool
+tool window, next to the **Deploy** tab; a tool window tab already has the
+window's full height, so IntelliJ keeps one tool window where VS Code gives
+each view its own container. The tool window keeps the id of the former deployment tool
 window (`Miragon Deployment`), so a layout a user saved still applies; its
 factory sets the stripe title. Each tab is one `JcefRelayPanel`, a JCEF page
 that relays its messages verbatim, and counts as open only while the tool
@@ -640,19 +641,31 @@ composition root, and a helper both directions use is pure and sits in
 VS Code host reaches another only through `shared/`, which the VS Code
 architecture test checks.
 
-VS Code's side bar has one activity bar container, `bpmn-modeler-deploy`,
-titled **BPMN Modeler** with the Miragon comet, the brand's sign for
-Miragon itself (IntelliJ's tool window stripe shows it too); the rocket stays
-on the deploy action. It kept the id of the
-deployment-only container, so a user's layout survives. Theia stores a plugin
-view container's title and icon in that layout and restores them over the ones
-the extension contributes now, so the standalone app rebinds its
+VS Code's activity bar has two containers, one view each, so each view has
+the side bar's full height and VS Code draws no second pane header over the
+add-ons page's own sections: **Add-ons** (`bpmn-modeler-add-ons`, the Lucide
+puzzle as `icons/puzzle.svg`, an outline in `currentColor` because VS Code
+and Theia draw it as a mask) with `bpmn-modeler.addOnsView`, shown whenever a
+folder is open, and **Deploy** (`bpmn-modeler-deploy`, `$(rocket)`, the
+deploy action's own glyph) with `bpmn-modeler.deploymentView`, shown while a
+custom editor is open. Add-ons comes first, as Deploy's container comes and
+goes with the editors and would otherwise move the Add-ons icon. Each
+container's title equals its view's name, so the single-view header reads
+the name once. The Miragon comet stays on IntelliJ's tool window stripe; in
+VS Code a function's container wears a Lucide sign, as the brand gives the
+comet to Miragon itself. Deploy kept its container's id and the views kept
+theirs, so a user's layout, `<id>.focus` and keybindings survive; VS Code
+places a view in its contributed container unless the user dragged it.
+Theia stores a plugin view container's title and icon in that layout and
+restores them over the ones the extension contributes now, and it leaves an
+existing view widget in the container the layout kept it in, closing the
+newly contributed container as empty. The standalone app rebinds its
 `PluginViewRegistry` in `libs/standalone-extension` to give a restored
-container the current title and icon. The container holds two webview
-views: **Deploy** (`bpmn-modeler.deploymentView`), shown while a custom editor
-is open, and **Add-ons** (`bpmn-modeler.addOnsView`), shown whenever a
-folder is open, so the container now shows whenever a folder is open. Both
-set `retainContextWhenHidden`: the core posts nothing to a hidden view, so
+container the current title and icon and, before it fills a container, to
+take a view out of a container that no longer lists it when the older
+version put it there (its part's original container), so Add-ons moves to
+its own container after an update; a view the user dragged keeps its place.
+Both views set `retainContextWhenHidden`: the core posts nothing to a hidden view, so
 keeping its page costs memory only, and a page shown again keeps its banners
 and the results of requests in flight. The Add-ons view's shell
 (`AddOnsViewHtml`, CSP shell `addOns`) allows its nonced script, its linked
