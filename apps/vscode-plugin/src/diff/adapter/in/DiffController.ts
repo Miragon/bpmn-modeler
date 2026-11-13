@@ -7,7 +7,9 @@ import {
     DiffPaneHostExtensions,
     DiffSession,
     basenameOfUriString,
+    compareTabLabel,
     DiffFileExtension,
+    diffTabLabelNamesFile,
     SettingChange,
     WebviewMessageRouter,
 } from "@miragon/bpmn-modeler-core";
@@ -118,7 +120,10 @@ export class DiffController {
      */
     async openCompareFilesDiff(leftUri: Uri, rightUri: Uri): Promise<void> {
         this.store.registerCompareFiles(leftUri.toString(), rightUri.toString());
-        const title = `${basenameOfUriString(leftUri.toString())} ↔ ${basenameOfUriString(rightUri.toString())}`;
+        const title = compareTabLabel(
+            basenameOfUriString(leftUri.toString()),
+            basenameOfUriString(rightUri.toString()),
+        );
         try {
             await commands.executeCommand("vscode.diff", leftUri, rightUri, title, {
                 preview: false,
@@ -211,7 +216,8 @@ export class DiffController {
      * which every diff annotates with a parenthetical (e.g.
      * `"my-bpmn.bpmn (Working Tree)"`, `"… (HEAD)"`, `"… (HEAD~1 ↔ HEAD)"`)
      * or the `↔` separator used by `vscode.diff(a, b)` when the two basenames
-     * differ.
+     * differ.  The label must name this file: a compare tab of two other
+     * files must not turn every file opened afterwards into a diff pane.
      */
     private isPartOfDiff(uri: Uri): boolean {
         const basename = basenameOfUriString(uri.toString());
@@ -223,7 +229,7 @@ export class DiffController {
                 if (tab.input !== undefined) {
                     continue;
                 }
-                if (tab.label.startsWith(`${basename} (`) || tab.label.includes(` ↔ `)) {
+                if (diffTabLabelNamesFile(tab.label, basename)) {
                     return true;
                 }
             }
