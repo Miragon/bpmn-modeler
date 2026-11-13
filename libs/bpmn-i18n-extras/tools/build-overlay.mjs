@@ -1,7 +1,7 @@
 /**
- * Prunes the overlay of every language the modeler offers against runtime
- * truth. Run with bun: it imports the TS sources, whose extensionless imports
- * Node cannot resolve, and the shared library directly.
+ * Prunes every registered overlay dictionary against runtime truth. Run with
+ * bun: it imports the TS sources, whose extensionless imports Node cannot
+ * resolve, and the shared library directly.
  *
  *   bun libs/bpmn-i18n-extras/tools/build-overlay.mjs           # report only
  *   bun libs/bpmn-i18n-extras/tools/build-overlay.mjs --write   # rewrite files
@@ -25,55 +25,38 @@
  * the SOURCE_ONLY allowlist in src/sourceOnlyKeys.ts — strings our own webview
  * passes to translate() that the harvest driver structurally can't reach.
  *
- * Normalization mirrors the plugin repo's drift tooling: lowercase, collapse
- * whitespace, drop the word "the", strip trailing "." / spaces.
+ * The key normalization lives in src/normalizeKey.ts and the harvest union in
+ * src/harvestedKeys.ts, shared with the guard specs.
  */
 /* global console, process */
-import { readFileSync, writeFileSync } from "node:fs";
+import { writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 import { dictionaries as shared } from "@miragon/bpmn-modeler-i18n";
 
-import { extras, supportedModelerLanguages } from "../src/index.ts";
+import { readHarvestedKeys } from "../src/harvestedKeys.ts";
+import { extras } from "../src/index.ts";
+import { normalizeKey } from "../src/normalizeKey.ts";
 import { SOURCE_ONLY } from "../src/sourceOnlyKeys.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const LANG_DIR = join(HERE, "..", "src", "languages");
 const write = process.argv.includes("--write");
 
-const norm = (s) =>
-    s
-        .toLowerCase()
-        .replace(/\bthe\b/g, " ")
-        .replace(/\s+/g, " ")
-        .trim()
-        .replace(/[.\s]+$/, "");
-
-// The needed-key set is the union of the harvests: the C7 modeler
-// (harvest-drain.js), the dmn-js views (harvest-drain-dmn.js) and the element
-// template editor (harvest-drain-template-editor.js) request mostly disjoint
-// strings, and all must survive pruning.
-const readKeys = (file) => JSON.parse(readFileSync(join(HERE, file), "utf8")).keys;
-const harvested = [
-    ...new Set([
-        ...readKeys("harvested.json"),
-        ...readKeys("harvested-dmn.json"),
-        ...readKeys("harvested-template-editor.json"),
-    ]),
-];
-const harvestedByNorm = new Set(harvested.map(norm));
-const sharedByNorm = new Set(Object.keys(shared.en).map(norm));
+const harvestedByNorm = new Set(readHarvestedKeys().map(normalizeKey));
+const sharedByNorm = new Set(Object.keys(shared.en).map(normalizeKey));
 
 const en = extras.en;
 
 const keep = (k) =>
-    SOURCE_ONLY.has(k) || (!sharedByNorm.has(norm(k)) && harvestedByNorm.has(norm(k)));
+    SOURCE_ONLY.has(k) ||
+    (!sharedByNorm.has(normalizeKey(k)) && harvestedByNorm.has(normalizeKey(k)));
 
 const dead = Object.keys(en).filter((k) => !keep(k));
 const deadSet = new Set(dead);
-const sharedCovered = dead.filter((k) => sharedByNorm.has(norm(k)));
-const notRequested = dead.filter((k) => !sharedByNorm.has(norm(k)));
+const sharedCovered = dead.filter((k) => sharedByNorm.has(normalizeKey(k)));
+const notRequested = dead.filter((k) => !sharedByNorm.has(normalizeKey(k)));
 
 console.log(
     `overlay: ${Object.keys(en).length} | dead: ${dead.length} (shared-covered ${sharedCovered.length}, not-requested ${notRequested.length}) | kept: ${Object.keys(en).length - dead.length}`,
@@ -97,10 +80,11 @@ const HEADER = `/*
  * keys; overlayNeeded fails if a key here is never requested at runtime.
  */`;
 
-for (const { locale } of supportedModelerLanguages) {
+const registeredLocales = Object.keys(extras);
+for (const locale of registeredLocales) {
     const dict = extras[locale];
     const pruned = Object.fromEntries(Object.entries(dict).filter(([k]) => !deadSet.has(k)));
     const body = `${HEADER}\nconst dictionary: Record<string, string> = ${JSON.stringify(pruned, null, 4)};\n\nexport default dictionary;\n`;
     writeFileSync(join(LANG_DIR, `${locale}.ts`), body);
 }
-console.log(`\nrewrote ${supportedModelerLanguages.length} locale files.`);
+console.log(`\nrewrote ${registeredLocales.length} locale files.`);

@@ -19,43 +19,23 @@
  * string no harvest has exercised yet — refresh the harvest when the modeler
  * grows new surfaces (see tools/README.md).
  */
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
-
 import { describe, expect, it } from "vitest";
 
 import { dictionaries } from "@miragon/bpmn-modeler-i18n";
 
+import { readHarvestedKeys } from "./harvestedKeys";
 import { extras } from "./languages";
+import { normalizeKey } from "./normalizeKey";
 
-// Mirrors tools/build-overlay.mjs and the plugin repo's drift tooling.
-const norm = (value: string): string =>
-    value
-        .toLowerCase()
-        .replace(/\bthe\b/g, " ")
-        .replace(/\s+/g, " ")
-        .trim()
-        .replace(/[.\s]+$/, "");
+const harvested = readHarvestedKeys();
 
-const HERE = dirname(fileURLToPath(import.meta.url));
-const readHarvest = (file: string): string[] =>
-    (JSON.parse(readFileSync(join(HERE, "..", "tools", file), "utf8")) as { keys: string[] }).keys;
-const harvested = [
-    ...new Set([
-        ...readHarvest("harvested.json"),
-        ...readHarvest("harvested-dmn.json"),
-        ...readHarvest("harvested-template-editor.json"),
-    ]),
-];
-
-const sharedByNorm = new Set(Object.keys(dictionaries.en).map(norm));
+const sharedByNorm = new Set(Object.keys(dictionaries.en).map(normalizeKey));
 const overlayKeys = new Set(Object.keys(extras.en ?? {}));
 
 describe("every string the modeler requests is translated (shared ∪ overlay)", () => {
     it("has no harvested key that neither the shared library nor the overlay covers", () => {
         const gaps = harvested.filter(
-            (key) => !sharedByNorm.has(norm(key)) && !overlayKeys.has(key),
+            (key) => !sharedByNorm.has(normalizeKey(key)) && !overlayKeys.has(key),
         );
 
         expect(

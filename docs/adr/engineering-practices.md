@@ -1386,7 +1386,7 @@ graph of every script file and adds about 0.5 s, so a tree without
 `toEqualTypeOf` skips it. Leaving out the test folders (v2) took `fe75e584`
 from 66 to 61 findings: the 5 gone are an e2e page object's editor kinds and
 theme modes and their product copies. A copy whose other half sits in a spec
-or a test folder, such as `SOURCE_ONLY` before #2236, gives no finding.
+or a test folder, such as `SOURCE_ONLY` before #2359, gives no finding.
 
 Alternatives considered:
 
