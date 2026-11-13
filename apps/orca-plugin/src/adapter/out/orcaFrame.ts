@@ -1,5 +1,6 @@
 import type { HostThemeKind } from "@miragon/bpmn-modeler-shared";
 
+import type { DiffSides } from "../../port/diffSides";
 import type { DocumentSession } from "../../port/documentSession";
 
 interface OrcaDisposable {
@@ -15,10 +16,25 @@ interface OrcaSession {
     dispose(): void;
 }
 
+interface OrcaTextContent {
+    readonly kind: "text";
+    readonly text: string;
+}
+
+interface OrcaDocument {
+    readonly content: OrcaTextContent;
+    /** Only in a diff tab: the side the change started from. */
+    readonly diff?: { readonly original: OrcaTextContent };
+}
+
 /** The part of the frozen `window.orca` of a custom editor frame (plugin API 1) this plugin uses. */
 interface OrcaFrameApi {
     readonly locale?: string;
-    readonly document: { session(): Promise<OrcaSession> };
+    readonly document: {
+        session(): Promise<OrcaSession>;
+        get(): Promise<OrcaDocument>;
+        onDidChange(listener: (document: OrcaDocument) => void): OrcaDisposable;
+    };
     on(event: "theme", listener: (theme: { colorScheme: string }) => void): OrcaDisposable;
     on(event: "editor.flush", listener: () => Promise<void>): OrcaDisposable;
 }
@@ -57,6 +73,22 @@ export async function openOrcaSession(): Promise<DocumentSession> {
         },
         dispose: () => session.dispose(),
     };
+}
+
+/** Whether Orca opened this frame in a diff tab rather than an editor tab. */
+export async function opensOrcaDiff(): Promise<boolean> {
+    const document = await orcaFrame().document.get();
+    return document.diff !== undefined;
+}
+
+/** Each pair of sides Orca sends while the diff tab is open, starting with the current one. */
+export function followOrcaDiff(apply: (sides: DiffSides) => void): () => void {
+    const subscription = orcaFrame().document.onDidChange((document) => {
+        if (document.diff) {
+            apply({ before: document.diff.original.text, after: document.content.text });
+        }
+    });
+    return () => subscription.dispose();
 }
 
 /** Orca's UI language, else the system's, as the dictionaries name it: `de` for `de-DE`. */

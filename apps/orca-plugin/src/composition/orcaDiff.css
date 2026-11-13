@@ -1,0 +1,23 @@
+html,
+body,
+#app {
+    height: 100%;
+    margin: 0;
+}
+
+.orca-diff {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    height: 100%;
+}
+
+.orca-diff-pane {
+    position: relative;
+    min-width: 0;
+    overflow: hidden;
+    border-left: 1px solid var(--orca-border, #ddd);
+}
+
+.orca-diff-pane:first-child {
+    border-left: none;
+}
