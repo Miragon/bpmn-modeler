@@ -204,7 +204,7 @@ through `@miragon/dmn-modeler` with a `data-dmn-theme` attribute — [DMN modele
 - **Host surface requests** (SVG, format, cleanup, scripts, element templates, settings): `apps/bpmn-webview/src/adapter/in/surfaceRequests.ts`
 - **Host message routing** (type-keyed handler table, held import-bound replies): `apps/bpmn-webview/src/adapter/in/messageRouter.ts`; which messages an engine reload drops and which wait for the import: `apps/bpmn-webview/src/domain/sessionMessageAdmission.ts`
 - **Surface factories and binding** (View/Design/Implement factories; per-surface sync, format reports, C7 variable publisher, state manager): `apps/bpmn-webview/src/adapter/out/surfaceFactories.ts`, `apps/bpmn-webview/src/adapter/in/surfaceBinding.ts`
-- **Editor chrome** (mode strip and panel mount, resizer, saved panel visibility): `apps/bpmn-webview/src/adapter/in/editorChrome.ts`
+- **Editor chrome** (canvas, resizer, panel mount, saved panel width and visibility, panel shortcuts): `libs/shared/src/lib/panelChrome.ts`; the BPMN page's mode strip and the shortcut gate that opens after the restore: `apps/bpmn-webview/src/adapter/in/editorChrome.ts`
 - **Element clipboard module** (priority 2051, `createReviver`): `libs/bpmn-clipboard/src/BridgedClipboardModule.ts` (built via `createClipboardModules`)
 - **Label overlay clipboard module**: `libs/bpmn-clipboard/src/LabelClipboardModule.ts`
 - **FEEL editor + Ctrl+A polyfill** (per-instance root registry + disposer): `packages/bpmn-modeler/src/propertiesPanelClipboard.ts`

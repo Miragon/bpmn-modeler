@@ -146,11 +146,7 @@ const SHELL_HTML = `<!DOCTYPE html>
         <title>BPMN Modeler perf harness</title>
     </head>
     <body>
-        <div class="content with-diagram" id="js-drop-zone">
-            <div class="canvas" id="js-canvas"></div>
-            <div id="js-panel-resizer" class="panel-resizer"></div>
-            <div class="properties-panel-parent" id="js-properties-panel"></div>
-        </div>
+        <div id="app"></div>
         <script type="module" src="/index.js"></script>
     </body>
 </html>`;

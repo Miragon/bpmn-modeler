@@ -10,6 +10,7 @@ import {
     GetDiagramAsSVGCommand,
     HOST_REPLY_TIMEOUT_MS,
     HOST_UPDATE_DEBOUNCE_MS,
+    INITIALLY_COLLAPSED_PANEL_ATTRIBUTE,
     installCanvasAutoFocus,
     LanguageQuery,
     PropertiesPanelStateQuery,
@@ -55,7 +56,6 @@ vi.mock("@miragon/bpmn-modeler-shared", async (importOriginal) => {
     const actual = await importOriginal<typeof import("@miragon/bpmn-modeler-shared")>();
     return {
         ...actual,
-        installPanelShortcuts: vi.fn(),
         installCanvasAutoFocus: vi.fn(),
     };
 });
@@ -297,12 +297,7 @@ describe("bootstrap", () => {
         windowAddEventListener = vi.spyOn(window, "addEventListener");
         documentAddEventListener = vi.spyOn(document, "addEventListener");
         vi.useFakeTimers();
-        document.body.innerHTML = `
-            <div id="js-canvas"></div>
-            <div id="js-panel-resizer"></div>
-            <div id="js-properties-panel"></div>
-            <div id="js-drop-zone"></div>
-        `;
+        document.body.innerHTML = `<div id="app"></div>`;
         Object.defineProperty(document, "readyState", { configurable: true, value: "complete" });
     });
 
@@ -902,8 +897,38 @@ describe("bootstrap", () => {
             ]);
         });
 
+        const pressShiftP = () =>
+            document.body.dispatchEvent(
+                new KeyboardEvent("keydown", { key: "P", shiftKey: true, bubbles: true }),
+            );
+
+        it("toggles the panel with Shift+P once the editor restored it", async () => {
+            mocks.createModeler.mockResolvedValue(makeModeler());
+            boot(makeHost({ file: tagged() }));
+            await settle();
+
+            pressShiftP();
+
+            expect(isCollapsed()).toBe(true);
+        });
+
+        it("leaves Shift+P inert while the host's panel default is pending", async () => {
+            mocks.createModeler.mockResolvedValue(makeModeler());
+            boot(
+                makeHost({
+                    file: tagged(),
+                    replies: { GetPropertiesPanelStateCommand: unanswered },
+                }),
+            );
+            await settle();
+
+            pressShiftP();
+
+            expect(isCollapsed()).toBe(false);
+        });
+
         it("opens a pre-collapsed panel without reporting it when the host never answers", async () => {
-            panelHost().classList.add("collapsed");
+            document.getElementById("app")!.setAttribute(INITIALLY_COLLAPSED_PANEL_ATTRIBUTE, "");
             mocks.createModeler.mockResolvedValue(makeModeler());
             const host = makeHost({
                 file: tagged(),
@@ -1151,7 +1176,7 @@ describe("bootstrap", () => {
         });
 
         it("ignores session messages even when the diff view cannot start", async () => {
-            document.getElementById("js-drop-zone")!.remove();
+            document.getElementById("app")!.remove();
             const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
             onTestFinished(() => consoleError.mockRestore());
             const host = makeHost({ file: leftPane() });
@@ -1160,9 +1185,7 @@ describe("bootstrap", () => {
 
             await deliverToSession(new GetDiagramAsSVGCommand());
 
-            expect(consoleError).toHaveBeenCalledWith(
-                "Diff mode: missing #js-canvas or #js-drop-zone",
-            );
+            expect(consoleError).toHaveBeenCalledWith("Diff mode: missing #app");
             expect(sentOfType(host, "LogErrorCommand")).toEqual([]);
         });
 

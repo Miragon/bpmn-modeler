@@ -1,6 +1,9 @@
 import { Uri, Webview } from "vscode";
 
-import type { WebviewSurface } from "@miragon/bpmn-modeler-shared";
+import {
+    INITIALLY_COLLAPSED_PANEL_ATTRIBUTE,
+    type WebviewSurface,
+} from "@miragon/bpmn-modeler-shared";
 
 import { webviewContentSecurityPolicy } from "../../domain/webviewContentSecurityPolicy";
 import { createWebviewNonce } from "./webviewNonce";
@@ -17,11 +20,10 @@ const FORM_WEBVIEW_PATH = "form-webview";
  * `data-bpmn-theme` from VS Code's body CSS classes — no `#theme-link` here.
  *
  * `initialPanelVisible` is the host's global properties-panel default seeding a
- * first-ever open: when `false`, the panel and its resizer render with the
- * `collapsed` class (and `width: 0`) so the panel never flashes visible before
- * the webview's JavaScript applies state. A webview carrying its own per-editor
- * `panelVisible` entry overrides this hint at runtime. Defaults to `true` for
- * safety (e.g. diff panes that hide the panel via CSS anyway).
+ * first-ever open: when `false`, the empty `#app` carries the attribute that
+ * mounts the panel collapsed, so it never flashes visible before the webview
+ * applies its state. A webview carrying its own per-editor `panelVisible` entry
+ * overrides this hint at runtime. Defaults to `true` (a diff pane has no panel).
  */
 export function bpmnEditorUi(
     webview: Webview,
@@ -35,12 +37,6 @@ export function bpmnEditorUi(
 
     const nonce = createWebviewNonce();
     const policy = webviewContentSecurityPolicy("bpmn", { cspSource: webview.cspSource, nonce });
-    const panelClass = initialPanelVisible
-        ? "properties-panel-parent"
-        : "properties-panel-parent collapsed";
-    const resizerClass = initialPanelVisible ? "panel-resizer" : "panel-resizer collapsed";
-    const panelStyle = initialPanelVisible ? "" : ` style="width: 0"`;
-
     // The script must load as a module: the bundle code-splits its surfaces,
     // engine stacks and the lint stack into chunks whose URLs are resolved via
     // import.meta.url — a syntax error in a classic script. Matches the IntelliJ host.
@@ -55,11 +51,7 @@ export function bpmnEditorUi(
                 <title>BPMN Modeler</title>
             </head>
             <body>
-                <div class="content with-diagram" id="js-drop-zone">
-                    <div class="canvas" id="js-canvas"></div>
-                    <div id="js-panel-resizer" class="${resizerClass}"></div>
-                    <div class="${panelClass}" id="js-properties-panel"${panelStyle}></div>
-                </div>
+                ${editorRoot(initialPanelVisible)}
                 <script type="module" nonce="${nonce}" src="${scriptUri}"></script>
             </body>
         </html>
@@ -82,8 +74,8 @@ export type DmnPage =
  * lazy chunks whose URL is resolved via import.meta.url (a syntax error in a
  * classic script); matches `bpmnEditorUi`.
  *
- * `page.surface` names the page on `<body data-surface>`: a diff pane gets no
- * properties panel and boots the read-only diff instead of the modeler.
+ * `page.surface` names the page on `<body data-surface>`: a diff pane boots the
+ * read-only diff instead of the modeler and its properties panel.
  */
 export function dmnModelerHtml(webview: Webview, extensionUri: Uri, page: DmnPage): string {
     const baseUri = Uri.joinPath(extensionUri, DMN_WEBVIEW_PATH);
@@ -94,10 +86,8 @@ export function dmnModelerHtml(webview: Webview, extensionUri: Uri, page: DmnPag
 
     const nonce = createWebviewNonce();
     const policy = webviewContentSecurityPolicy("dmn", { cspSource: webview.cspSource, nonce });
-    const panelMarkup =
-        page.surface === "dmnDiffPane"
-            ? ""
-            : dmnPropertiesPanelMarkup(page.initialPanelVisible ?? true);
+    const initialPanelVisible =
+        page.surface === "dmnDiffPane" ? true : (page.initialPanelVisible ?? true);
 
     return `
             <!DOCTYPE html>
@@ -113,24 +103,17 @@ export function dmnModelerHtml(webview: Webview, extensionUri: Uri, page: DmnPag
                 <title>DMN Modeler</title>
             </head>
             <body data-surface="${page.surface}">
-                <div class="content with-diagram" id="js-drop-zone">
-                    <div class="canvas" id="js-canvas"></div>${panelMarkup}
-                </div>
+                ${editorRoot(initialPanelVisible)}
                 <script type="module" nonce="${nonce}" src="${scriptUri}"></script>
             </body>
             </html>
         `;
 }
 
-function dmnPropertiesPanelMarkup(initialPanelVisible: boolean): string {
-    const panelClass = initialPanelVisible
-        ? "properties-panel-parent"
-        : "properties-panel-parent collapsed";
-    const resizerClass = initialPanelVisible ? "panel-resizer" : "panel-resizer collapsed";
-    const panelStyle = initialPanelVisible ? "" : ` style="width: 0"`;
-    return `
-                    <div id="js-panel-resizer" class="${resizerClass}"></div>
-                    <div class="${panelClass}" id="js-properties-panel"${panelStyle}></div>`;
+/** The empty root the webview mounts its page into. */
+function editorRoot(initialPanelVisible: boolean): string {
+    const collapsed = initialPanelVisible ? "" : ` ${INITIALLY_COLLAPSED_PANEL_ATTRIBUTE}=""`;
+    return `<div id="app"${collapsed}></div>`;
 }
 
 /**

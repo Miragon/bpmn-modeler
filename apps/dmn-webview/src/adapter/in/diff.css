@@ -14,12 +14,6 @@
     --dmn-diff-muted: var(--vscode-descriptionForeground, #9d9d9d);
 }
 
-/* The preview shell carries the editor's properties panel; a diff pane has none. */
-.dmn-diff-page #js-panel-resizer,
-.dmn-diff-page #js-properties-panel {
-    display: none;
-}
-
 .dmn-diff-page--missing #js-canvas {
     visibility: hidden;
 }

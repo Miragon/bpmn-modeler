@@ -123,6 +123,32 @@ describe("the BPMN editor in Orca", () => {
         expect((await editor.stub()).edits).toBe(0);
     });
 
+    it("draws no focus ring and selects no text on the canvas of a read-only tab", async () => {
+        const editor = await open({ readOnly: true });
+        expect(await editor.canvasSvgStyle()).toEqual({ outlineStyle: "none", userSelect: "none" });
+    });
+
+    it("closes and reopens the properties panel with Shift+P", async () => {
+        const editor = await open();
+        await editor.page.mouse.click(...BLANK_POINT);
+        const panel = editor.page.locator("#js-properties-panel");
+
+        await editor.page.keyboard.press("Shift+P");
+        await expect.poll(() => panel.getAttribute("class")).toContain("collapsed");
+
+        await editor.page.keyboard.press("Shift+P");
+        await expect.poll(() => panel.getAttribute("class")).not.toContain("collapsed");
+    });
+
+    it("moves focus from the canvas into the properties panel with p", async () => {
+        const editor = await open();
+        await editor.page.mouse.click(...BLANK_POINT);
+
+        await editor.page.keyboard.press("p");
+
+        await expect.poll(() => editor.focusIsIn("#js-properties-panel-mount")).toBe(true);
+    });
+
     it("starts an empty file with a new diagram and writes nothing until an edit", async () => {
         const editor = await open({ text: "" });
         await editor.settle();

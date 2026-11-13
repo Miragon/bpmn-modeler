@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { INITIALLY_COLLAPSED_PANEL_ATTRIBUTE } from "@miragon/bpmn-modeler-shared";
+
 interface MockUri {
     scheme: string;
     path: string;
@@ -119,7 +121,7 @@ describe("bootstrapWebview", () => {
         bootstrapWebview(panel as never, { diffPane: "bpmnDiffPane" });
 
         expect(panel.webview.html).toContain("webview:extension/bpmn-webview/index.js");
-        expect(panel.webview.html).not.toContain("collapsed");
+        expect(panel.webview.html).not.toContain(INITIALLY_COLLAPSED_PANEL_ATTRIBUTE);
     });
 
     it("renders an editor's properties panel collapsed when the host hides it", () => {
@@ -127,7 +129,7 @@ describe("bootstrapWebview", () => {
 
         bootstrapWebview(panel as never, { viewType: DMN_VIEW_TYPE, initialPanelVisible: false });
 
-        expect(panel.webview.html).toContain("properties-panel-parent collapsed");
+        expect(panel.webview.html).toContain(INITIALLY_COLLAPSED_PANEL_ATTRIBUTE);
     });
 
     it("rejects an unknown view type before touching the webview", () => {

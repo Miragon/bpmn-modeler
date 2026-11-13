@@ -1,11 +1,12 @@
 import "@fontsource-variable/geist/wght.css";
-import "../adapter/in/styles.css";
+import "../../../../libs/shared/src/lib/panelChrome.css";
 import "../adapter/in/diff.css";
 
 import {
     applyPageThemeScope,
     createHostThemeAdapter,
     installGlobalErrorForwarding,
+    mountEditorCanvas,
     resolveHostThemeKind,
 } from "@miragon/bpmn-modeler-shared";
 import { createDiffViewer } from "@miragon/dmn-modeler";
@@ -14,14 +15,13 @@ import { DiffMode } from "../adapter/in/diffMode";
 import type { DmnDiffPaneHost } from "../port/dmnHost";
 
 /**
- * Starts the page as one side of a DMN diff: a read-only viewer in
- * `#js-canvas`, the legend over it, and the theme following the IDE.
+ * Starts the page as one side of a DMN diff in the shell's empty `#app`: a
+ * read-only viewer, the legend over it, and the theme following the IDE.
  *
  * @returns Stops the pane and destroys its viewer.
  */
 export function bootstrapDiffPane(host: DmnDiffPaneHost): () => void {
-    const canvas = requireElement("#js-canvas");
-    const chrome = requireElement("#js-drop-zone");
+    const { canvas, dropZone } = mountEditorCanvas(requireElement("#app"));
     document.body.classList.add("dmn-diff-page");
     const stopErrorForwarding = installGlobalErrorForwarding((command) =>
         host.postMessage(command),
@@ -38,7 +38,7 @@ export function bootstrapDiffPane(host: DmnDiffPaneHost): () => void {
     });
     themeAdapter.setMode("automatic");
 
-    const stopMode = new DiffMode(viewer, chrome, host).start();
+    const stopMode = new DiffMode(viewer, dropZone, host).start();
     return () => {
         stopMode();
         themeAdapter.dispose();

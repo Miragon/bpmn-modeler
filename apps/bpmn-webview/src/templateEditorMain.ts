@@ -2,6 +2,7 @@ import { installGlobalErrorForwarding } from "@miragon/bpmn-modeler-shared";
 
 import { bootstrapTemplateEditor } from "./templateEditor/composition/bootstrap";
 import { getTemplateEditorHostApi } from "./templateEditor/adapter/out/host";
+import "../../../libs/shared/src/lib/panelChrome.css";
 import "./templateEditor/adapter/in/templateEditor.css";
 
 const host = getTemplateEditorHostApi();

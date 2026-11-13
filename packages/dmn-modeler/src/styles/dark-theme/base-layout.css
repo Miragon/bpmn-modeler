@@ -8,10 +8,6 @@
     color: var(--dt-surface-a70);
 }
 
-:root[data-dmn-theme="dark"] .content > .message {
-    color: var(--dt-surface-a70);
-}
-
 .properties-panel-parent[data-dmn-theme="dark"],
 :root[data-dmn-theme="dark"] .properties-panel-parent {
     border-left-color: var(--dt-surface-a30);

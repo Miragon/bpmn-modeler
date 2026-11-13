@@ -13,6 +13,10 @@ export interface DmnCanvasOptions {
 
 export interface DmnCanvas extends ModelCanvas {
     setTheme(theme: HostThemeKind): void;
+    /** The DRD is the one view with a canvas to focus and a properties panel. */
+    isDrdViewActive(): boolean;
+    focusCanvas(): void;
+    isCanvasFocused(): boolean;
 }
 
 /**
@@ -46,5 +50,8 @@ export async function createDmnCanvas(options: DmnCanvasOptions): Promise<DmnCan
             return () => editListeners.delete(listener);
         },
         setTheme: (theme) => modeler.setTheme(theme),
+        isDrdViewActive: () => modeler.isDrdViewActive(),
+        focusCanvas: () => modeler.focusCanvas(),
+        isCanvasFocused: () => modeler.isCanvasFocused(),
     };
 }

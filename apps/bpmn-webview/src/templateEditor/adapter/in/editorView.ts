@@ -17,6 +17,9 @@ type Translate = (template: string, replacements?: Record<string, string>) => st
 /** The template editor's page: toolbar, messages, the builder and the preview on the right. */
 export interface EditorView {
     readonly previewPanel: HTMLElement;
+    /** The column the preview renders in, and the divider that resizes and hides it. */
+    readonly previewPane: HTMLElement;
+    readonly previewDivider: HTMLElement;
     readonly builderRoot: HTMLElement;
     showEngine(engine: Engine | undefined): void;
     showChoices(choices: readonly TemplateChoice[], selected: number | undefined): void;
@@ -80,7 +83,7 @@ export function mountEditorView(
     messages.setAttribute("role", "status");
 
     const body = element("div", "template-editor__body");
-    // The ids and classes of the modelers' properties panel, so the shared resizer and its look apply.
+    // The classes of the modelers' properties panel, so the divider looks like theirs.
     const resizer = element("div", "panel-resizer");
     resizer.id = "js-panel-resizer";
     const previewPane = element("aside", "properties-panel-parent template-editor__preview");
@@ -213,6 +216,8 @@ export function mountEditorView(
 
     return {
         previewPanel,
+        previewPane,
+        previewDivider: resizer,
         builderRoot,
         showEngine(engine) {
             engineBadge.textContent = engine ? ENGINE_LABEL[engine] : "";

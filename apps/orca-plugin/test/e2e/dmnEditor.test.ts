@@ -70,6 +70,57 @@ describe("the DMN editor in Orca", () => {
         await editor.page.locator(".bio-properties-panel").waitFor({ state: "visible" });
     });
 
+    it("closes and reopens the properties panel with Shift+P in the DRD", async () => {
+        const editor = await open();
+        await editor.page.mouse.click(...BLANK_POINT);
+        const panel = editor.page.locator("#js-properties-panel");
+
+        await editor.page.keyboard.press("Shift+P");
+        await expect.poll(() => panel.getAttribute("class")).toContain("collapsed");
+
+        await editor.page.keyboard.press("Shift+P");
+        await expect.poll(() => panel.getAttribute("class")).not.toContain("collapsed");
+    });
+
+    it("leaves Shift+P to a decision table", async () => {
+        const editor = await open();
+        await openApproveOrderTable(editor);
+        await editor.page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+
+        await editor.page.keyboard.press("Shift+P");
+
+        expect(
+            await editor.page.locator("#js-properties-panel").getAttribute("class"),
+        ).not.toContain("collapsed");
+    });
+
+    it("moves focus from the canvas into the properties panel with p", async () => {
+        const editor = await open();
+        await editor.page.mouse.click(...BLANK_POINT);
+
+        await editor.page.keyboard.press("p");
+
+        await expect.poll(() => editor.focusIsIn("#js-properties-panel-mount")).toBe(true);
+    });
+
+    it("scrolls the properties panel inside its own scroll container", async () => {
+        const editor = await open();
+        await editor.page.locator(".bio-properties-panel").waitFor({ state: "visible" });
+
+        const layout = await editor.page.evaluate(() => {
+            const host = document.getElementById("js-properties-panel")!;
+            const panel = host.querySelector<HTMLElement>(".bio-properties-panel")!;
+            return {
+                hostHeight: host.clientHeight,
+                panelHeight: panel.offsetHeight,
+                hostScrolls: host.scrollHeight > host.clientHeight,
+            };
+        });
+
+        expect(layout.panelHeight).toBe(layout.hostHeight);
+        expect(layout.hostScrolls).toBe(false);
+    });
+
     it("saves a rule still typed into a decision table", async () => {
         const editor = await open();
         await openApproveOrderTable(editor);
@@ -117,6 +168,11 @@ describe("the DMN editor in Orca", () => {
         await editor.settle();
         expect(await editor.page.locator('[data-element-id="Decision_Credit"]').count()).toBe(1);
         expect((await editor.stub()).edits).toBe(0);
+    });
+
+    it("draws no focus ring and selects no text on the DRD canvas", async () => {
+        const editor = await open();
+        expect(await editor.canvasSvgStyle()).toEqual({ outlineStyle: "none", userSelect: "none" });
     });
 
     it("starts an empty file with a new decision and writes nothing until an edit", async () => {

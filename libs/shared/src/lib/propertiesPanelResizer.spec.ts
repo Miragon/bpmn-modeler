@@ -33,10 +33,16 @@ function renderPanelMarkup({ width = 300, collapsed = false } = {}): {
 
 const liveHandles: PropertiesPanelHandle[] = [];
 
+type LabelOptions = Omit<PropertiesPanelResizerOptions, "resizer" | "panel">;
+
 function createResizer(
-    options: PropertiesPanelResizerOptions = { getToggleLabel: toggleLabels },
+    options: LabelOptions = { getToggleLabel: toggleLabels },
 ): PropertiesPanelHandle {
-    const handle = initResizer(options);
+    const handle = initResizer({
+        resizer: document.getElementById("js-panel-resizer")!,
+        panel: document.getElementById("js-properties-panel")!,
+        ...options,
+    });
     liveHandles.push(handle);
     return handle;
 }
@@ -81,22 +87,6 @@ afterEach(() => {
 });
 
 describe("initResizer", () => {
-    it("returns an inert, always-visible handle when the panel markup is missing", () => {
-        const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-        const listener = vi.fn();
-
-        const handle = createResizer();
-        handle.onVisibilityChanged(listener);
-        handle.onOpenWidthChanged(listener);
-        handle.setVisible(false);
-        handle.setOpenWidth(720);
-
-        expect(handle.isVisible()).toBe(true);
-        expect(listener).not.toHaveBeenCalled();
-        expect(warn).toHaveBeenCalledTimes(1);
-        expect(() => handle.dispose()).not.toThrow();
-    });
-
     it("adopts a host pre-rendered collapsed panel without a spurious notification", () => {
         const { panel, handle, visibilityChanges, toggleButton } = setUp({ collapsed: true });
 

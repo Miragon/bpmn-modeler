@@ -1,25 +1,10 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { i18n } from "@miragon/bpmn-modeler-i18n";
 import type { Command, Query } from "@miragon/bpmn-modeler-shared";
 
 import type { WebviewState } from "../../port/webviewState";
-import { mountEditorChrome } from "./editorChrome";
-
-const mocks = vi.hoisted(() => ({
-    panel: {
-        setVisible: vi.fn(),
-        onVisibilityChanged: vi.fn(),
-        setOpenWidth: vi.fn(),
-        onOpenWidthChanged: vi.fn(),
-    },
-    initResizer: vi.fn(),
-}));
-
-vi.mock("@miragon/bpmn-modeler-shared", async (importOriginal) => {
-    const actual = await importOriginal<typeof import("@miragon/bpmn-modeler-shared")>();
-    return { ...actual, initResizer: mocks.initResizer };
-});
+import { type EditorChrome, mountEditorChrome } from "./editorChrome";
 
 function createHost(state: WebviewState | undefined = undefined) {
     const posted: (Command | Query)[] = [];
@@ -33,106 +18,78 @@ function createHost(state: WebviewState | undefined = undefined) {
     };
 }
 
-const editorShell = `
-    <div id="js-canvas"><svg></svg></div>
-    <div id="js-panel-resizer"></div>
-    <div id="js-properties-panel"></div>
-`;
+const focus = { focusCanvas: () => undefined, isCanvasFocused: () => false };
+const mounted: EditorChrome[] = [];
+
+function mount(host = createHost()): EditorChrome {
+    document.body.innerHTML = `<div id="app"></div>`;
+    const chrome = mountEditorChrome(host, focus)!;
+    mounted.push(chrome);
+    return chrome;
+}
+
+const pressShiftP = () =>
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "P", shiftKey: true }));
 
 describe("mountEditorChrome", () => {
-    beforeEach(() => {
-        mocks.initResizer.mockReturnValue(mocks.panel);
-    });
-
     afterEach(() => {
+        mounted.splice(0).forEach((chrome) => chrome.dispose());
         document.body.innerHTML = "";
-        vi.clearAllMocks();
+        vi.restoreAllMocks();
     });
 
-    it.each([
-        ["canvas", `<div id="js-properties-panel"></div>`],
-        ["properties panel", `<div id="js-canvas"></div>`],
-    ])("reports a host page without the %s", (_missing, shell) => {
-        document.body.innerHTML = shell;
+    it("reports a host page without its root", () => {
         const host = createHost();
 
-        expect(mountEditorChrome(host)).toBeUndefined();
+        expect(mountEditorChrome(host, focus)).toBeUndefined();
 
         expect(host.posted).toEqual([
             expect.objectContaining({
                 type: "LogErrorCommand",
-                message: "Missing #js-canvas or #js-properties-panel in host HTML",
+                message: "Missing #app in host HTML",
             }),
         ]);
-        expect(mocks.initResizer).not.toHaveBeenCalled();
-        expect(document.getElementById("js-mode-strip")).toBeNull();
     });
 
-    it("puts the mode strip on the canvas and the panel mount into the panel host", () => {
-        document.body.innerHTML = editorShell;
+    it("puts the mode strip on the canvas and marks the panel as its host", () => {
+        const chrome = mount();
 
-        const chrome = mountEditorChrome(createHost())!;
-
-        const canvas = document.getElementById("js-canvas")!;
-        const panelHost = document.getElementById("js-properties-panel")!;
-        expect(chrome.canvas).toBe(canvas);
-        expect(chrome.panelHost).toBe(panelHost);
-        expect(panelHost.classList.contains("panel-host")).toBe(true);
-        expect(canvas.firstElementChild).toBe(chrome.stripEl);
+        expect(chrome.canvas.firstElementChild).toBe(chrome.stripEl);
         expect(chrome.stripEl.id).toBe("js-mode-strip");
         expect(chrome.stripEl.className).toBe("mode-strip");
-        expect(panelHost.lastElementChild).toBe(chrome.panelMount);
+        expect(chrome.panelHost.classList).toContain("panel-host");
         expect(chrome.panelMount.id).toBe("js-properties-panel-mount");
-        expect(chrome.panelMount.className).toBe("panel-mount");
-        expect(chrome.panel).toBe(mocks.panel);
     });
 
-    it("labels the panel toggle with its shortcut and relabels it on a language change", () => {
-        document.body.innerHTML = editorShell;
-        const onLanguageChange = vi.spyOn(i18n, "onChange");
+    it("relabels the panel toggle in the language the page switches to", () => {
+        const languageListeners: (() => void)[] = [];
+        vi.spyOn(i18n, "onChange").mockImplementation((listener) => {
+            languageListeners.push(listener);
+            return () => undefined;
+        });
+        const translate = vi.spyOn(i18n, "translate");
+        mount();
+        const toggle = document.querySelector<HTMLButtonElement>(".panel-resizer-toggle")!;
+        expect(toggle.title).toBe("Close properties panel (Shift+P)");
 
-        mountEditorChrome(createHost());
+        translate.mockImplementation((key: string) => `Übersetzt: ${key}`);
+        languageListeners.forEach((listener) => listener());
 
-        const { getToggleLabel, onLabelChange } = mocks.initResizer.mock.calls[0][0];
-        expect(getToggleLabel("collapsed")).toBe("Open properties panel (Shift+P)");
-        expect(getToggleLabel("open")).toBe("Close properties panel (Shift+P)");
-        const relabel = vi.fn();
-        onLabelChange(relabel);
-        expect(onLanguageChange).toHaveBeenCalledExactlyOnceWith(relabel);
-        onLanguageChange.mockRestore();
+        expect(toggle.title).toBe("Übersetzt: Close properties panel (Shift+P)");
     });
 
-    it.each([false, true])(
-        "applies this editor's saved panel visibility (%s) at once",
-        (visible) => {
-            document.body.innerHTML = editorShell;
+    it("applies this editor's saved panel visibility at once", () => {
+        const chrome = mount(createHost({ panelVisible: false }));
 
-            const chrome = mountEditorChrome(createHost({ panelVisible: visible }))!;
-
-            expect(chrome.panelVisibility.isDecided()).toBe(true);
-            expect(mocks.panel.setVisible).toHaveBeenCalledExactlyOnceWith(visible);
-        },
-    );
-
-    it.each([
-        ["no webview state yet", undefined],
-        ["no saved panel entry", {}],
-    ])("leaves the panel to the host default with %s", (_label, state) => {
-        document.body.innerHTML = editorShell;
-
-        const chrome = mountEditorChrome(createHost(state))!;
-
-        expect(chrome.panelVisibility.isDecided()).toBe(false);
-        expect(mocks.panel.setVisible).not.toHaveBeenCalled();
+        expect(chrome.visibility.isDecided()).toBe(true);
+        expect(chrome.panel.isVisible()).toBe(false);
     });
 
     it("saves and reports a panel toggle as this editor's choice", () => {
-        document.body.innerHTML = editorShell;
         const host = createHost();
-        mountEditorChrome(host);
+        const chrome = mount(host);
 
-        const reportVisibilityChange = mocks.panel.onVisibilityChanged.mock.calls[0][0];
-        reportVisibilityChange(false);
+        chrome.panel.setVisible(false);
 
         expect(host.updateState).toHaveBeenCalledExactlyOnceWith({ panelVisible: false });
         expect(host.posted).toEqual([
@@ -140,26 +97,14 @@ describe("mountEditorChrome", () => {
         ]);
     });
 
-    it("opens the panel at this editor's saved width before applying its visibility", () => {
-        document.body.innerHTML = editorShell;
+    it("leaves Shift+P alone until the editor opens the shortcuts", () => {
+        const chrome = mount();
 
-        mountEditorChrome(createHost({ panelVisible: true, panelWidth: 720 }));
+        pressShiftP();
+        expect(chrome.panel.isVisible()).toBe(true);
 
-        expect(mocks.panel.setOpenWidth).toHaveBeenCalledExactlyOnceWith(720);
-        expect(mocks.panel.setOpenWidth.mock.invocationCallOrder[0]).toBeLessThan(
-            mocks.panel.setVisible.mock.invocationCallOrder[0],
-        );
-    });
-
-    it("saves a dragged width as this editor's choice without reporting it to the host", () => {
-        document.body.innerHTML = editorShell;
-        const host = createHost();
-        mountEditorChrome(host);
-
-        const reportOpenWidthChange = mocks.panel.onOpenWidthChanged.mock.calls[0][0];
-        reportOpenWidthChange(640);
-
-        expect(host.updateState).toHaveBeenCalledExactlyOnceWith({ panelWidth: 640 });
-        expect(host.posted).toEqual([]);
+        chrome.enableShortcuts();
+        pressShiftP();
+        expect(chrome.panel.isVisible()).toBe(false);
     });
 });
