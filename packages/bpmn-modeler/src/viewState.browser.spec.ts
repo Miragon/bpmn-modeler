@@ -8,6 +8,7 @@ import { createViewer } from "./viewer/createViewer";
 import type { BpmnDesignerHandle } from "./design/publicApi";
 import type { ViewState } from "./viewState";
 import { FAR_FROM_ORIGIN_XML } from "./__fixtures__/bpmnXml";
+import { COLLAPSED_SUBPROCESS_BEFORE_XML } from "./viewer/diff/__fixtures__/collapsedSubprocessDiff";
 import {
     mountWithPanel,
     removeMounts,
@@ -31,6 +32,7 @@ type ViewStateSurface = Pick<
     | "applyViewState"
     | "viewport"
     | "selection"
+    | "rootElement"
     | "destroy"
 >;
 
@@ -189,6 +191,21 @@ describe.each(SURFACES)("$name view-state restore (real ResizeObserver)", (descr
 
         expectViewportMatches(handle.viewport.getViewport());
         expect(handle.selection.getSelectedElementIds()).toEqual(["Task_1"]);
+    });
+
+    it("keeps the open sub-process plane across an outside re-import", async () => {
+        const mount = mountWithPanel(800, 600);
+        const handle = await descriptor.create(mount);
+        surface = handle;
+        await handle.loadDiagram(COLLAPSED_SUBPROCESS_BEFORE_XML);
+        handle.rootElement.setRootElementById("Main_Subprocess_plane");
+
+        await handle.reloadDiagram(
+            COLLAPSED_SUBPROCESS_BEFORE_XML.replace("Before inner", "Edited inner"),
+        );
+        await settleObserver();
+
+        expect(handle.rootElement.getRootElementId()).toBe("Main_Subprocess_plane");
     });
 
     it("drops a selected element the re-imported text no longer holds", async () => {

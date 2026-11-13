@@ -35,7 +35,7 @@ export function createSurfaceDocument(
     }
 
     return {
-        // The session calls this inside its debounced queue, so a burst of pushes captures once.
+        // The session calls this inside its debounced queue, so a burst of pushes imports once.
         importDocument: openDocument,
         exportDocument: () => getSurface().exportDiagram(),
         afterSync: () => {

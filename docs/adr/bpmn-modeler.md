@@ -1853,6 +1853,7 @@ capturing and applying the view themselves. It keeps the selection; the
 contract view state of the `@miragon/modeler-api` adapter (#2008) leaves the
 selection out, because restoring it commits an open label editor, so that
 adapter decides its own re-import.
+
 After `destroy()`, every surface (modeler, designer, viewer, DiffViewer) throws
 `NoModelerError` from each member that reaches the diagram or its services,
 host pushes included; `setTheme` is the one exception and becomes a no-op.

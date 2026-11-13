@@ -59,4 +59,11 @@ describe("createViewer (rendered round trip)", () => {
 
         await expect(viewer.loadDiagram(START_EVENT_XML)).rejects.toBeInstanceOf(NoModelerError);
     });
+
+    it("rejects a reload on a destroyed viewer with NoModelerError", async () => {
+        viewer = await createViewer(mountCanvas());
+        viewer.destroy();
+
+        await expect(viewer.reloadDiagram(START_EVENT_XML)).rejects.toBeInstanceOf(NoModelerError);
+    });
 });

@@ -132,8 +132,8 @@ export class SurfaceCore<T extends SurfaceInstance> implements SurfaceServices {
         this.liveView().apply(state);
     }
 
-    /** @see SurfaceView.keepAcross */
-    keepViewAcross<R>(reimport: () => Promise<R>): Promise<R> {
+    /** @see SurfaceView.keepAcross. Async so a destroyed surface rejects, as `loadDiagram` does. */
+    async keepViewAcross<R>(reimport: () => Promise<R>): Promise<R> {
         return this.liveView().keepAcross(reimport);
     }
 
