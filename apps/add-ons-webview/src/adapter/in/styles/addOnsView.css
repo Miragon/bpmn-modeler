@@ -728,37 +728,13 @@ button.av-head:hover .av-head-count {
     color: var(--cd-ui-info);
 }
 
+/* The review sits flat in the detail, set off by a divider like a properties-panel group. */
 .av-review {
-    border: 1px solid var(--cd-ui-linie);
-    border-radius: var(--cd-radius-md);
-    background: var(--cd-ui-flaeche);
-}
-
-.av-review-toggle {
     display: flex;
-    align-items: center;
-    gap: 8px;
-    width: 100%;
-    min-height: 40px;
-    padding: 8px 12px;
-    border: 0;
-    border-radius: var(--cd-radius-md);
-    background: transparent;
-    font-weight: 600;
-    text-align: left;
-    cursor: pointer;
-}
-
-.av-review[data-open="true"] .av-review-toggle {
-    border-radius: var(--cd-radius-md) var(--cd-radius-md) 0 0;
-}
-
-.av-review-toggle:hover {
-    background: var(--cd-ui-hover);
-}
-
-.av-review-toggle:focus-visible {
-    outline-offset: -2px;
+    flex-direction: column;
+    gap: 10px;
+    padding-top: 14px;
+    border-top: 1px solid var(--cd-ui-linie);
 }
 
 .av-chevron {
@@ -766,12 +742,10 @@ button.av-head:hover .av-head-count {
     transition: transform 150ms var(--ds-ease);
 }
 
-.av-review-toggle[aria-expanded="true"] .av-chevron {
-    transform: rotate(90deg);
-}
-
 .av-review-heading {
-    min-width: 0;
+    margin: 0;
+    font-size: 13px;
+    font-weight: 600;
     overflow-wrap: anywhere;
 }
 
@@ -779,7 +753,6 @@ button.av-head:hover .av-head-count {
     display: flex;
     flex-direction: column;
     gap: 12px;
-    padding: 0 12px 12px;
 }
 
 .av-facts {
@@ -805,12 +778,7 @@ button.av-head:hover .av-head-count {
 
 .av-review-end {
     display: flex;
-    padding-top: 12px;
-    border-top: 1px solid var(--cd-ui-linie);
-}
-
-.av-review-end .ds-btn {
-    flex: 1;
+    padding-top: 4px;
 }
 
 .av-hint {
@@ -1009,18 +977,6 @@ button.av-head:hover .av-head-count {
     .av-hint {
         height: 100%;
     }
-
-    .av-review {
-        background: var(--cd-ui-flaeche-hoch);
-    }
-
-    .av-review-end {
-        justify-content: flex-end;
-    }
-
-    .av-review-end .ds-btn {
-        flex: none;
-    }
 }
 
 @container view (min-width: 800px) {
@@ -1049,8 +1005,7 @@ button.av-head:hover .av-head-count {
 
 @media (forced-colors: active) {
     .av-dot,
-    .av-menu,
-    .av-review {
+    .av-menu {
         border: 1px solid CanvasText;
     }
 

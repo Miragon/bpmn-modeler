@@ -44,7 +44,6 @@ export type FocusKind =
     | "head"
     | "row"
     | "name"
-    | "review"
     | "action"
     | "back"
     | "clearFilters";

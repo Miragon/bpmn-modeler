@@ -16,10 +16,8 @@ import {
     Expansion,
     isOpen,
     headsOf,
-    isReviewOpen,
     isShownOpen,
     prunedExpansion,
-    reviewKeyOf,
     rowsInSight,
 } from "./expansion";
 
@@ -275,36 +273,16 @@ describe("ancestorsOf", () => {
     });
 });
 
-describe("the review disclosure", () => {
-    it.each<{ case: string; expansion: Expansion; open: boolean }>([
-        { case: "is open by default", expansion: new Map(), open: true },
-        {
-            case: "stays closed once closed",
-            expansion: new Map([[reviewKeyOf(RESIZE.id), false]]),
-            open: false,
-        },
-        {
-            case: "does not follow its row's own key",
-            expansion: new Map([[RESIZE.id, false]]),
-            open: true,
-        },
-    ])("$case", ({ expansion, open }) => {
-        expect(isReviewOpen(RESIZE.id, expansion)).toBe(open);
-    });
-});
-
 describe("prunedExpansion", () => {
-    it("keeps the choices about heads and reviews the model still has, and drops the rest", () => {
+    it("keeps the choices about heads the model still has, and drops the rest, an older page's review keys too", () => {
         const expansion: Expansion = new Map([
             ["folder:/work", false],
             ["folder:/gone", true],
-            [reviewKeyOf(RESIZE.id), false],
-            [reviewKeyOf(PALETTE.id), false],
+            [`review:${RESIZE.id}`, false],
         ]);
 
         expect([...prunedExpansion(without(ACME.id), expansion)]).toEqual([
             ["folder:/work", false],
-            [reviewKeyOf(RESIZE.id), false],
         ]);
     });
 });

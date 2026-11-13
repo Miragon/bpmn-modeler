@@ -338,7 +338,13 @@ summaries, which the core's model does not have, as "Loading…" does, and one
 module keeps them from scattering into adapters where a reviewer cannot tell
 them from model text. A row's "Waiting" is read from what the core offers
 (Allow) and "Not loaded" from its problem, never from a rule of their own; a
-settled row shows no status, and the detail shows the core's state text. Every other text comes from the core, which also sends
+settled row shows no status, and the detail shows the core's state text,
+led by "Not loaded" when the add-on carries a problem: every problem the core
+sends means the code or template does not run here, so the view reads it
+from the problem alone (`detailStatusOf`). The review is always open, with
+Allow at its end after the warning, which Allow names as its description, so
+Allow is never on screen without the review above it; a sticky Allow was
+rejected for that reason. Every other text comes from the core, which also sends
 `emptyText`, why no folder lists an add-on, whenever the workspace has none,
 marketplaces or not.
 
