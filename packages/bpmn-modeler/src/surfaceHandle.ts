@@ -40,6 +40,14 @@ export interface BpmnSurfaceHandle {
     /** Load BPMN 2.0 XML, replacing any current diagram, and fit it to view. */
     loadDiagram(xml: string): Promise<ImportXMLResult>;
 
+    /**
+     * Load BPMN 2.0 XML that replaces the shown diagram from outside, such as
+     * a text editor, Git or an agent writing the file, and keep the user's
+     * plane, viewbox and selection as far as they still exist. Before the
+     * first load it fits like {@link loadDiagram}.
+     */
+    reloadDiagram(xml: string): Promise<ImportXMLResult>;
+
     /** Serialise the current diagram to formatted XML. */
     exportDiagram(): Promise<string>;
 

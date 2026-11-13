@@ -1,19 +1,16 @@
 import type { WebviewStateHost, WebviewStateStore } from "@miragon/bpmn-modeler-shared";
 import { isUsableViewbox, type SurfaceMode } from "@miragon/bpmn-modeler-types";
 import type { PanelUiStateKeeper } from "../port/panelUiStateKeeper";
-import { CanvasViewState, WebviewState } from "../port/webviewState";
+import type { WebviewState } from "../port/webviewState";
 import type { BpmnModelerHandle } from "@miragon/bpmn-modeler";
 
 /**
- * The structural subset of a surface handle {@link WebviewStateManager} drives —
- * viewport/selection/plane accessors and the view-state composition. Every
- * surface (modeler, designer, viewer) satisfies it, so the manager binds to any
- * of them without knowing which is live.
+ * The structural subset of a surface handle {@link WebviewStateManager} drives:
+ * the viewport, selection and plane accessors. Every surface (modeler, designer,
+ * viewer) satisfies it, so the manager binds to any of them without knowing
+ * which is live.
  */
-type StatefulSurface = Pick<
-    BpmnModelerHandle,
-    "viewport" | "selection" | "rootElement" | "captureViewState" | "applyViewState"
->;
+type StatefulSurface = Pick<BpmnModelerHandle, "viewport" | "selection" | "rootElement">;
 
 /**
  * Reads this editor's persisted surface mode without a full
@@ -32,9 +29,8 @@ export function readSavedMode(host: WebviewStateHost<WebviewState>): SurfaceMode
  * 3. {@link restorePanelUiState}   — after properties panel is rendered
  * 4. {@link startPersisting}       — subscribes to change events
  *
- * For mid-session re-imports (undo/redo, XML push, language switch), use
- * {@link captureViewState} / {@link applyViewState} to snapshot and
- * restore the drill-down plane, viewbox, and selection.
+ * A mid-session re-import (undo/redo, XML push, language switch) keeps the
+ * drill-down plane, viewbox and selection through the surface's `reloadDiagram`.
  */
 export class WebviewStateManager {
     constructor(
@@ -129,24 +125,5 @@ export class WebviewStateManager {
         });
 
         this.panelUiState.startPersisting();
-    }
-
-    /**
-     * Snapshots the live canvas state — drill-down plane, viewbox, and
-     * selection — so it can be re-applied after a destructive re-import
-     * (undo/redo host push, language switch). Delegates to the package handle,
-     * which owns the composition (root → viewport → selection ordering).
-     */
-    captureViewState(): CanvasViewState {
-        return this.modeler.captureViewState();
-    }
-
-    /**
-     * Re-applies a previously captured view state after a re-import. The handle
-     * enforces the required order: root first (viewbox coordinates are
-     * plane-relative), then viewbox, then selection.
-     */
-    applyViewState(snapshot: CanvasViewState): void {
-        this.modeler.applyViewState(snapshot);
     }
 }

@@ -8,6 +8,7 @@ import { createViewer } from "./viewer/createViewer";
 import type { BpmnDesignerHandle } from "./design/publicApi";
 import type { ViewState } from "./viewState";
 import { FAR_FROM_ORIGIN_XML } from "./__fixtures__/bpmnXml";
+import { COLLAPSED_SUBPROCESS_BEFORE_XML } from "./viewer/diff/__fixtures__/collapsedSubprocessDiff";
 import {
     mountWithPanel,
     removeMounts,
@@ -25,7 +26,14 @@ import {
 
 type ViewStateSurface = Pick<
     BpmnDesignerHandle,
-    "loadDiagram" | "captureViewState" | "applyViewState" | "viewport" | "selection" | "destroy"
+    | "loadDiagram"
+    | "reloadDiagram"
+    | "captureViewState"
+    | "applyViewState"
+    | "viewport"
+    | "selection"
+    | "rootElement"
+    | "destroy"
 >;
 
 const SURFACES: Array<{
@@ -171,6 +179,53 @@ describe.each(SURFACES)("$name view-state restore (real ResizeObserver)", (descr
         expect(captured.selectedElementIds).toEqual(["Task_1"]);
         expectViewportMatches(successor.viewport.getViewport());
         expect(successor.captureViewState()).toEqual(captured);
+    });
+
+    it("keeps the viewport and the selection across an outside re-import", async () => {
+        const { handle } = await openSized(800, 600);
+        handle.applyViewState(SNAPSHOT);
+        await settleObserver();
+
+        await handle.reloadDiagram(FAR_FROM_ORIGIN_XML.replace('name="B"', 'name="B2"'));
+        await settleObserver();
+
+        expectViewportMatches(handle.viewport.getViewport());
+        expect(handle.selection.getSelectedElementIds()).toEqual(["Task_1"]);
+    });
+
+    it("keeps the open sub-process plane across an outside re-import", async () => {
+        const mount = mountWithPanel(800, 600);
+        const handle = await descriptor.create(mount);
+        surface = handle;
+        await handle.loadDiagram(COLLAPSED_SUBPROCESS_BEFORE_XML);
+        handle.rootElement.setRootElementById("Main_Subprocess_plane");
+
+        await handle.reloadDiagram(
+            COLLAPSED_SUBPROCESS_BEFORE_XML.replace("Before inner", "Edited inner"),
+        );
+        await settleObserver();
+
+        expect(handle.rootElement.getRootElementId()).toBe("Main_Subprocess_plane");
+    });
+
+    it("drops a selected element the re-imported text no longer holds", async () => {
+        const { handle } = await openSized(800, 600);
+        handle.applyViewState(SNAPSHOT);
+
+        await handle.reloadDiagram(FAR_FROM_ORIGIN_XML.replaceAll("Task_1", "Task_9"));
+
+        expect(handle.selection.getSelectedElementIds()).toEqual([]);
+    });
+
+    it("fits a first reload like a fresh open", async () => {
+        const mount = mountWithPanel(800, 600);
+        const handle = await descriptor.create(mount);
+        surface = handle;
+
+        await handle.reloadDiagram(FAR_FROM_ORIGIN_XML);
+        await settleObserver();
+
+        expect(handle.viewport.getViewport().x).toBeGreaterThan(4000);
     });
 
     it("clears the selection when the snapshot has none", async () => {

@@ -289,6 +289,16 @@ next.applyViewState( state );                    // same plane, viewbox, selecti
 The [`@miragon/bpmn-modeler/mode`](#mode-session) session automates exactly this hand-off (plus
 export-before-destroy and a post-destroy fallback), so most hosts never write the switch by hand.
 
+A **re-import on the same instance**, when the text changed outside the modeler (a text editor, Git,
+an agent writing the file), goes through `reloadDiagram(xml)` instead of `loadDiagram(xml)`. It
+captures the view state, loads the new text and applies the snapshot again, also when the import
+fails after it already reset the canvas. Before the first load there is nothing to keep, so it fits
+like `loadDiagram`.
+
+```ts
+await handle.reloadDiagram( textFromDisk );  // same plane, viewbox and selection, as far as they exist
+```
+
 Semantics:
 
 - **Apply order is fixed: root → viewport → selection.** Viewbox coordinates are plane-relative, so
@@ -488,6 +498,7 @@ abort — the factory rejects with the thrown error and nothing is left mounted.
 | Method                                                                                         | Meaning                                                                               |
 |------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------|
 | `loadDiagram(xml)` / `exportDiagram()` / `getDiagramSvg()`                                     | Load / serialise the diagram; a load [fits it to view](#view-state-capture--restore). |
+| `reloadDiagram(xml)`                                                                           | Load text that changed outside the modeler and [keep the view](#view-state-capture--restore). |
 | `newDiagram()`                                                                                 | Replace the diagram with a fresh empty one stamped for `engine`/`engineVersion`, so it reopens in the same engine and mode; fits it to view like a load. |
 | `formatDiagram()`                                                                              | Lay the diagram out left to right as one undoable step; resolves a `LayoutOutcome`.   |
 | `cleanupDiagram({ apply? })`                                                                   | Report orphan DI and other leftovers as a `CleanupOutcome`; `apply` removes them.     |
@@ -569,7 +580,7 @@ viewer.selection.onSelectionChanged( ( ids ) => console.log( "selected", ids ) )
 
 ### `BpmnViewerHandle`
 
-`loadDiagram`, `exportDiagram`, `getDiagramSvg`, `viewport`, `selection`,
+`loadDiagram`, `reloadDiagram`, `exportDiagram`, `getDiagramSvg`, `viewport`, `selection`,
 `captureViewState`, `applyViewState`, `setTheme`, `getService`, and `destroy` — each
 **signature-identical** to its `BpmnModelerHandle` counterpart, so a modeler handle narrows to a
 viewer handle with no adapter (a compile-time acceptance criterion). `captureViewState` /
@@ -700,7 +711,7 @@ compile time. Unlike the root `ModelerCapabilities`, the design
 
 ### `BpmnDesignerHandle`
 
-`loadDiagram`, `exportDiagram`, `newDiagram`, `formatDiagram`,
+`loadDiagram`, `reloadDiagram`, `exportDiagram`, `newDiagram`, `formatDiagram`,
 `cleanupDiagram`, `getDiagramSvg`, `viewport`, `selection`,
 `captureViewState`, `applyViewState`, `setTheme`, `getService`,
 `applyLintResults`, `applyLintingDisabled`, `startInPageLinting`,

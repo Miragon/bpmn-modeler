@@ -129,7 +129,12 @@ export interface DmnModelerOptions {
 
 /** The independent instance handle returned by {@link createModeler}. */
 export interface DmnModelerHandle extends DmnPendingInputHandle {
-    /** Load DMN XML, replacing any currently loaded document. */
+    /**
+     * Load DMN XML, replacing any currently loaded document. An outside write
+     * keeps the open view, such as a decision's table, while the new document
+     * still holds its element (matched by id); otherwise the first view opens,
+     * the decision requirements diagram when the document has one.
+     */
     loadDiagram(xml: string): Promise<DmnOperationResult>;
 
     /** Serialise the current document as formatted DMN XML. */

@@ -9,7 +9,6 @@ import {
 } from "@miragon/bpmn-modeler-shared";
 
 import type { SurfaceHandle } from "../../domain/surface";
-import type { CanvasViewState } from "../../port/webviewState";
 import { createSurfaceDocument } from "./surfaceDocument";
 
 const imported = { warnings: [] as unknown[] };
@@ -18,7 +17,7 @@ function modelerSurface() {
     return {
         setMode: vi.fn(),
         newDiagram: vi.fn(async () => imported),
-        loadDiagram: vi.fn(async (_xml: string) => imported),
+        reloadDiagram: vi.fn(async (_xml: string) => imported),
         exportDiagram: vi.fn(async () => "<exported />"),
         alignElementsToOrigin: vi.fn(),
         hasPendingInput: vi.fn(() => false),
@@ -30,7 +29,7 @@ function modelerSurface() {
 function designerSurface() {
     return {
         newDiagram: vi.fn(async () => imported),
-        loadDiagram: vi.fn(async (_xml: string) => imported),
+        reloadDiagram: vi.fn(async (_xml: string) => imported),
         exportDiagram: vi.fn(async () => "<designed />"),
         hasPendingInput: vi.fn(() => false),
         flushPendingInput: vi.fn(),
@@ -40,39 +39,24 @@ function designerSurface() {
 
 function viewerSurface() {
     return {
-        loadDiagram: vi.fn(async (_xml: string) => imported),
+        reloadDiagram: vi.fn(async (_xml: string) => imported),
         exportDiagram: vi.fn(async () => "<viewed />"),
         viewport: { centerOnElement: vi.fn() },
     };
 }
 
-const viewSnapshot: CanvasViewState = {
-    rootElementId: "SubProcess_1_plane",
-    viewport: { x: 40, y: 20, width: 800, height: 600, scale: 1.5 },
-    selectedElementIds: ["Task_1"],
-};
-
 function surfaceDocumentOn(initialSurface: object) {
     const posted: (Command | Query)[] = [];
-    const viewState = { captureViewState: vi.fn(() => viewSnapshot), applyViewState: vi.fn() };
     let surface = initialSurface;
-    let boundViewState: typeof viewState | undefined = viewState;
     const surfaceDocument = createSurfaceDocument(
         { postMessage: (message) => posted.push(message) },
-        {
-            getSurface: () => surface as unknown as SurfaceHandle,
-            getViewState: () => boundViewState,
-        },
+        { getSurface: () => surface as unknown as SurfaceHandle },
     );
     return {
         surfaceDocument,
         posted,
-        viewState,
         replaceSurface: (next: object) => {
             surface = next;
-        },
-        unbindViewState: () => {
-            boundViewState = undefined;
         },
     };
 }
@@ -82,18 +66,15 @@ const postedOfType = <TType extends ProtocolMessageType>(
     type: TType,
 ) => posted.filter((message): message is MessageOfType<TType> => isMessageOfType(message, type));
 
-const callOrder = (fn: { mock: { invocationCallOrder: number[] } }, call = 0) =>
-    fn.mock.invocationCallOrder[call];
-
 describe("createSurfaceDocument", () => {
     describe("host document import", () => {
-        it("loads the host XML into the surface", async () => {
+        it("reloads the host XML into the surface, which keeps the user's view", async () => {
             const surface = modelerSurface();
             const { surfaceDocument } = surfaceDocumentOn(surface);
 
             await surfaceDocument.importDocument("<definitions />");
 
-            expect(surface.loadDiagram).toHaveBeenCalledExactlyOnceWith("<definitions />");
+            expect(surface.reloadDiagram).toHaveBeenCalledExactlyOnceWith("<definitions />");
             expect(surface.newDiagram).not.toHaveBeenCalled();
         });
 
@@ -110,7 +91,7 @@ describe("createSurfaceDocument", () => {
                 await surfaceDocument.importDocument(content);
 
                 expect(surface.newDiagram).toHaveBeenCalledOnce();
-                expect(surface.loadDiagram).not.toHaveBeenCalled();
+                expect(surface.reloadDiagram).not.toHaveBeenCalled();
             },
         );
 
@@ -120,12 +101,12 @@ describe("createSurfaceDocument", () => {
 
             await surfaceDocument.importDocument(undefined);
 
-            expect(surface.loadDiagram).toHaveBeenCalledExactlyOnceWith("");
+            expect(surface.reloadDiagram).toHaveBeenCalledExactlyOnceWith("");
         });
 
         it("logs the import warnings to the host", async () => {
             const surface = modelerSurface();
-            surface.loadDiagram.mockResolvedValueOnce({
+            surface.reloadDiagram.mockResolvedValueOnce({
                 warnings: [new Error("unknown attribute")],
             });
             const { surfaceDocument, posted } = surfaceDocumentOn(surface);
@@ -147,43 +128,6 @@ describe("createSurfaceDocument", () => {
             await surfaceDocument.importDocument("<definitions />");
 
             expect(posted).toEqual([]);
-        });
-
-        it("restores the view captured before the import once it finished", async () => {
-            const surface = modelerSurface();
-            const { surfaceDocument, viewState } = surfaceDocumentOn(surface);
-
-            await surfaceDocument.importDocument("<definitions />");
-
-            expect(viewState.applyViewState).toHaveBeenCalledExactlyOnceWith(viewSnapshot);
-            expect(callOrder(viewState.captureViewState)).toBeLessThan(
-                callOrder(surface.loadDiagram),
-            );
-            expect(callOrder(surface.loadDiagram)).toBeLessThan(
-                callOrder(viewState.applyViewState),
-            );
-        });
-
-        it("restores the view even when the import fails", async () => {
-            const surface = modelerSurface();
-            surface.loadDiagram.mockRejectedValueOnce(new Error("not BPMN"));
-            const { surfaceDocument, viewState } = surfaceDocumentOn(surface);
-
-            await expect(surfaceDocument.importDocument("<broken />")).rejects.toThrow("not BPMN");
-
-            expect(viewState.applyViewState).toHaveBeenCalledExactlyOnceWith(viewSnapshot);
-        });
-
-        it("keeps no view state before the surface is bound", async () => {
-            const surface = modelerSurface();
-            const { surfaceDocument, viewState, unbindViewState } = surfaceDocumentOn(surface);
-            unbindViewState();
-
-            await surfaceDocument.importDocument("<definitions />");
-
-            expect(surface.loadDiagram).toHaveBeenCalledOnce();
-            expect(viewState.captureViewState).not.toHaveBeenCalled();
-            expect(viewState.applyViewState).not.toHaveBeenCalled();
         });
     });
 
@@ -249,35 +193,13 @@ describe("createSurfaceDocument", () => {
         });
     });
 
-    describe("diagram refresh", () => {
-        it("re-imports the exported XML and restores the view around it", async () => {
-            const surface = modelerSurface();
-            const { surfaceDocument, viewState } = surfaceDocumentOn(surface);
+    it("re-imports the exported XML for a diagram refresh", async () => {
+        const surface = modelerSurface();
+        const { surfaceDocument } = surfaceDocumentOn(surface);
 
-            await surfaceDocument.refreshDiagram();
+        await surfaceDocument.refreshDiagram();
 
-            expect(surface.loadDiagram).toHaveBeenCalledExactlyOnceWith("<exported />");
-            expect(viewState.applyViewState).toHaveBeenCalledExactlyOnceWith(viewSnapshot);
-            expect(callOrder(surface.exportDiagram)).toBeLessThan(
-                callOrder(viewState.captureViewState),
-            );
-            expect(callOrder(viewState.captureViewState)).toBeLessThan(
-                callOrder(surface.loadDiagram),
-            );
-            expect(callOrder(surface.loadDiagram)).toBeLessThan(
-                callOrder(viewState.applyViewState),
-            );
-        });
-
-        it("restores the view even when the re-import fails", async () => {
-            const surface = modelerSurface();
-            surface.loadDiagram.mockRejectedValueOnce(new Error("broken refresh"));
-            const { surfaceDocument, viewState } = surfaceDocumentOn(surface);
-
-            await expect(surfaceDocument.refreshDiagram()).rejects.toThrow("broken refresh");
-
-            expect(viewState.applyViewState).toHaveBeenCalledExactlyOnceWith(viewSnapshot);
-        });
+        expect(surface.reloadDiagram).toHaveBeenCalledExactlyOnceWith("<exported />");
     });
 
     it("centres the element on the live surface's viewport", () => {

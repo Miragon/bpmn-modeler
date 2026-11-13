@@ -348,6 +348,15 @@ describe.each(EDITABLE_SURFACES)("$name editable-surface contract", (descriptor)
         );
     });
 
+    it("rejects a reload on a destroyed surface with NoModelerError", async () => {
+        const handle = await open();
+        handle.destroy();
+
+        await expect(handle.reloadDiagram(FAR_FROM_ORIGIN_XML)).rejects.toBeInstanceOf(
+            NoModelerError,
+        );
+    });
+
     it("rejects an unparsable import with the parser warnings as the cause", async () => {
         const handle = await open();
 

@@ -84,8 +84,6 @@ vi.mock("../service/state", () => ({
         constructor() {
             mocks.stateManagerCreated(this);
         }
-        captureViewState = vi.fn(() => ({}));
-        applyViewState = vi.fn();
         restoreViewport = vi.fn();
         restoreSelection = vi.fn();
         restorePanelUiState = vi.fn();
@@ -182,6 +180,10 @@ function makeModeler(overrides: Record<string, unknown> = {}) {
     const canvas = makeCanvas();
     return {
         loadDiagram: vi.fn(async (_xml: string) => ({ warnings: [] as unknown[] })),
+        // The real surface keeps the view around this same load.
+        reloadDiagram(xml: string) {
+            return this.loadDiagram(xml);
+        },
         exportDiagram: vi.fn(async () => "<exported />"),
         alignElementsToOrigin: vi.fn(),
         newDiagram: vi.fn(async () => ({ warnings: [] })),
@@ -213,7 +215,10 @@ function makeViewer() {
     const canvas = makeCanvas();
     // No setMode, no newDiagram → the readonly viewer surface.
     return {
-        loadDiagram: vi.fn(async () => ({ warnings: [] })),
+        loadDiagram: vi.fn(async (_xml: string) => ({ warnings: [] })),
+        reloadDiagram(xml: string) {
+            return this.loadDiagram(xml);
+        },
         exportDiagram: vi.fn(async () => "<exported />"),
         getDiagramSvg: vi.fn(),
         captureViewState: vi.fn(() => ({})),
@@ -229,7 +234,10 @@ function makeDesigner() {
     const canvas = makeCanvas();
     // Has newDiagram (editable) but no setMode → the designer surface.
     return {
-        loadDiagram: vi.fn(async () => ({ warnings: [] })),
+        loadDiagram: vi.fn(async (_xml: string) => ({ warnings: [] })),
+        reloadDiagram(xml: string) {
+            return this.loadDiagram(xml);
+        },
         exportDiagram: vi.fn(async () => "<exported />"),
         newDiagram: vi.fn(async () => ({ warnings: [] })),
         onCommandStackChanged: vi.fn(() => () => undefined),

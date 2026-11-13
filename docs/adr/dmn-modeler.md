@@ -53,6 +53,13 @@ idempotent; afterwards every member throws `NoModelerError` (async members
 reject with it), which the package exports, except `setTheme`, which becomes a
 no-op.
 
+An outside write re-imports through `loadDiagram`. dmn-js's `importXML` opens
+the view whose element id the new document still holds, and otherwise the
+first view, the DRD when the document has diagram interchange, so the handle
+adds no restore of its own. `reimport.browser.spec.ts` pins this against real
+dmn-js, so an upgrade that drops it fails there. The IDE webview and the Orca
+plugin rely on it instead of restoring the view themselves.
+
 The DRD properties panel's `debounceInput` service is the flushable one from
 `modeler-types`, with the panel library's 600 ms delay, registered after the
 panel module so it replaces the library's. The decision-table,

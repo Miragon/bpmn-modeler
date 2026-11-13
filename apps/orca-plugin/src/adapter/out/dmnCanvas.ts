@@ -15,12 +15,9 @@ export interface DmnCanvas extends ModelCanvas {
     setTheme(theme: HostThemeKind): void;
 }
 
-const sameView = (view: DmnView, other: DmnView): boolean =>
-    view.type === other.type && view.element.id === other.element.id;
-
 /**
- * The DMN modeler as a canvas. An outside write keeps the person on the view
- * they were looking at, such as a decision's table, while it still exists.
+ * The DMN modeler as a canvas. Its `loadDiagram` keeps the person on the view
+ * they were looking at across an outside write, such as a decision's table.
  */
 export async function createDmnCanvas(options: DmnCanvasOptions): Promise<DmnCanvas> {
     const editListeners = new Set<() => void>();
@@ -32,17 +29,10 @@ export async function createDmnCanvas(options: DmnCanvasOptions): Promise<DmnCan
         onWarning: (message) => console.warn(message),
     });
 
-    async function show(text: string): Promise<void> {
-        const viewed = modeler.getActiveView();
-        await modeler.loadDiagram(isBlankDocument(text) ? EMPTY_DMN_DIAGRAM : text);
-        const again = viewed && modeler.getViews().find((view) => sameView(view, viewed));
-        if (again && !sameView(again, modeler.getActiveView()!)) await modeler.openView(again);
-    }
-
     return {
         async importText(text) {
             try {
-                await show(text);
+                await modeler.loadDiagram(isBlankDocument(text) ? EMPTY_DMN_DIAGRAM : text);
                 return true;
             } catch (error) {
                 console.warn("Unable to open the DMN diagram", error);

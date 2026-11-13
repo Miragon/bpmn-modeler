@@ -1840,6 +1840,19 @@ a size and keeps the cached canvas box in sync on resize. An explicit
 settles it, so the delayed fit never overwrites restored state; hosts need no
 initial fit of their own. Lifecycle primitives live in `modeler-types` so the
 restricted `/mode` graph and inlined feature libraries can reuse them.
+
+A re-import on the same instance, after a text editor, Git or an agent changed
+the file, goes through `reloadDiagram(xml)`, which `BpmnSurfaceHandle` declares
+for all three handles. `SurfaceView.keepAcross` is the one home of the rule: it
+captures plane, viewbox and selection, loads, and applies them again, also when
+the import throws after it reset the canvas. Before the first load it keeps
+nothing, so the initial fit runs, and on a surface destroyed during the import
+it applies nothing. The IDE webview and the Orca plugin call it instead of
+capturing and applying the view themselves. It keeps the selection; the
+contract view state of the `@miragon/modeler-api` adapter (#2008) leaves the
+selection out, because restoring it commits an open label editor, so that
+adapter decides its own re-import.
+
 After `destroy()`, every surface (modeler, designer, viewer, DiffViewer) throws
 `NoModelerError` from each member that reaches the diagram or its services,
 host pushes included; `setTheme` is the one exception and becomes a no-op.

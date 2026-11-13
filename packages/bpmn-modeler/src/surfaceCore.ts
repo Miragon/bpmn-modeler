@@ -132,6 +132,11 @@ export class SurfaceCore<T extends SurfaceInstance> implements SurfaceServices {
         this.liveView().apply(state);
     }
 
+    /** @see SurfaceView.keepAcross. Async so a destroyed surface rejects, as `loadDiagram` does. */
+    async keepViewAcross<R>(reimport: () => Promise<R>): Promise<R> {
+        return this.liveView().keepAcross(reimport);
+    }
+
     /** `false` once destroyed: a torn-down panel holds no input. */
     hasPendingInput(): boolean {
         return this.panelInput()?.hasPending() ?? false;

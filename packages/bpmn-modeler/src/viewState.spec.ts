@@ -4,8 +4,15 @@ import type { CoreServiceAccessor } from "./coreServices";
 import { CanvasViewportManager } from "./viewport";
 import { DrilldownFit, DrilldownFitModule, SurfaceView } from "./viewState";
 
+vi.mock("./initialViewport", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("./initialViewport")>()),
+    armInitialViewportPolicy: () => () => undefined,
+}));
+
 function surfaceView() {
-    const view = new SurfaceView((() => {
+    const view = new SurfaceView(((name: string) => {
+        // The initial fit is mocked out; it only needs a canvas to hand over.
+        if (name === "canvas") return {};
         throw new Error("services are faked per manager");
     }) as unknown as CoreServiceAccessor);
     const getViewport = vi
@@ -82,6 +89,55 @@ describe("SurfaceView", () => {
         view.apply(view.capture());
 
         expect(setRootElementById).toHaveBeenCalledWith(undefined);
+    });
+});
+
+describe("SurfaceView across a re-import", () => {
+    it("puts the plane, viewbox and selection back after the re-import", async () => {
+        const { view, setRootElementById, setViewport, selectElementsByIds } = surfaceView();
+        view.diagramLoaded();
+        const reimport = vi.fn(async () => "imported");
+
+        await expect(view.keepAcross(reimport)).resolves.toBe("imported");
+
+        expect(setRootElementById).toHaveBeenCalledWith("SubProcess_1_plane");
+        expect(setViewport).toHaveBeenCalledWith({ x: 10, y: 20, width: 800, height: 600 });
+        expect(selectElementsByIds).toHaveBeenCalledWith(["Task_1", "Task_2"]);
+        expect(reimport.mock.invocationCallOrder[0]!).toBeLessThan(
+            setViewport.mock.invocationCallOrder[0]!,
+        );
+    });
+
+    it("leaves the first import to the initial fit, since nothing was shown before it", async () => {
+        const { view, getViewport, setViewport } = surfaceView();
+
+        await view.keepAcross(async () => undefined);
+
+        expect(getViewport).not.toHaveBeenCalled();
+        expect(setViewport).not.toHaveBeenCalled();
+    });
+
+    it("puts the view back when the re-import fails after it reset the canvas", async () => {
+        const { view, setViewport } = surfaceView();
+        view.diagramLoaded();
+        const failure = new Error("broken document");
+
+        await expect(
+            view.keepAcross(async () => {
+                throw failure;
+            }),
+        ).rejects.toBe(failure);
+
+        expect(setViewport).toHaveBeenCalledOnce();
+    });
+
+    it("restores nothing on a surface destroyed during the re-import", async () => {
+        const { view, setViewport } = surfaceView();
+        view.diagramLoaded();
+
+        await view.keepAcross(async () => view.dispose());
+
+        expect(setViewport).not.toHaveBeenCalled();
     });
 });
 
