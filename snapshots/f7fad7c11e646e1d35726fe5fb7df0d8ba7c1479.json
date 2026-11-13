@@ -421,8 +421,16 @@
       ]
     },
     "contract-suites": {
-      "version": 1,
+      "version": 2,
       "findings": [
+        {
+          "key": "apps/modeler-bridge/src/kernel/adapter/out/BridgeSettings.ts#BridgeSettings → libs/modeler-core/src/addOns/port/addOnSourcePorts.ts#SettingChanges",
+          "path": "apps/modeler-bridge/src/kernel/adapter/out/BridgeSettings.ts",
+          "line": 28,
+          "message": "`BridgeSettings`: `SettingChanges` has no suite (its only adapter); the core reads back `onDidChange`",
+          "group": "one-adapter",
+          "rank": 34
+        },
         {
           "key": "apps/modeler-bridge/src/kernel/adapter/out/RpcStatusBar.ts#RpcStatusBar → libs/modeler-core/src/kernel/port/hostPorts.ts#StatusBarPort",
           "path": "apps/modeler-bridge/src/kernel/adapter/out/RpcStatusBar.ts",
@@ -448,6 +456,22 @@
           "rank": 15
         },
         {
+          "key": "libs/modeler-core/src/bpmnPlugins/service/PluginInventory.ts#PluginInventory → libs/modeler-core/src/addOns/port/addOnSourcePorts.ts#CodeAddOnSource",
+          "path": "libs/modeler-core/src/bpmnPlugins/service/PluginInventory.ts",
+          "line": 22,
+          "message": "`PluginInventory`: `CodeAddOnSource` has no suite (1 of 2 adapters); the core reads back `texts`, `ownsApproval`, `sessionAnswers` and 3 more",
+          "group": "no-suite",
+          "rank": 27
+        },
+        {
+          "key": "libs/modeler-core/src/bpmnPlugins/service/PluginInventory.ts#PluginInventory → libs/modeler-core/src/addOns/port/addOnSourcePorts.ts#PluginAddOnSource",
+          "path": "libs/modeler-core/src/bpmnPlugins/service/PluginInventory.ts",
+          "line": 22,
+          "message": "`PluginInventory`: `PluginAddOnSource` has no suite (its only adapter); the core reads back `pluginsIn`, `knownPluginDirs`, `pluginsDirOf` and 8 more",
+          "group": "one-adapter",
+          "rank": 32
+        },
+        {
           "key": "libs/modeler-core/src/deployment/adapter/out/camunda/Camunda7RestClient.ts#Camunda7RestClient → libs/modeler-core/src/deployment/port/deploymentPorts.ts#CamundaEnginePort",
           "path": "libs/modeler-core/src/deployment/adapter/out/camunda/Camunda7RestClient.ts",
           "line": 26,
@@ -461,7 +485,7 @@
           "line": 26,
           "message": "`Camunda7RestClient`: `EngineInspectionPort` has no suite (its only adapter); the core reads back `fetchLatestDefinition`",
           "group": "one-adapter",
-          "rank": 30
+          "rank": 36
         },
         {
           "key": "libs/modeler-core/src/deployment/adapter/out/camunda/Camunda8RestClient.ts#Camunda8RestClient → libs/modeler-core/src/deployment/port/deploymentPorts.ts#CamundaEnginePort",
@@ -485,7 +509,7 @@
           "line": 10,
           "message": "`FetchHttpClient`: `HttpClient` has no suite (its only adapter); the core reads back `getText`, `getJson`, `postJson` and 2 more",
           "group": "one-adapter",
-          "rank": 31
+          "rank": 37
         },
         {
           "key": "libs/modeler-core/src/modeler/bpmn/adapter/out/bpmnlint/NodeBpmnLinter.ts#NodeBpmnLinter → libs/modeler-core/src/modeler/bpmn/port/bpmnPorts.ts#LintRunnerPort",
@@ -493,7 +517,7 @@
           "line": 68,
           "message": "`NodeBpmnLinter`: `LintRunnerPort` has no suite (its only adapter); the core reads back `lint`",
           "group": "one-adapter",
-          "rank": 32
+          "rank": 38
         },
         {
           "key": "libs/modeler-core/src/modeler/bpmn/adapter/out/bpmnlint/NoopDiagnostics.ts#NoopDiagnostics → libs/modeler-core/src/modeler/bpmn/port/bpmnPorts.ts#DiagnosticsPort",
@@ -502,6 +526,30 @@
           "message": "`NoopDiagnostics`: `DiagnosticsPort` only renders (1 of 3 adapters); every member returns nothing: `publish` and `clear`",
           "group": "render-only",
           "rank": 18
+        },
+        {
+          "key": "libs/modeler-core/src/modeler/bpmn/service/RulePackageInventory.ts#RulePackageInventory → libs/modeler-core/src/addOns/port/addOnSourcePorts.ts#CodeAddOnSource",
+          "path": "libs/modeler-core/src/modeler/bpmn/service/RulePackageInventory.ts",
+          "line": 35,
+          "message": "`RulePackageInventory`: `CodeAddOnSource` has no suite (1 of 2 adapters); the core reads back `texts`, `ownsApproval`, `sessionAnswers` and 3 more",
+          "group": "no-suite",
+          "rank": 27
+        },
+        {
+          "key": "libs/modeler-core/src/modeler/bpmn/service/RulePackageInventory.ts#RulePackageInventory → libs/modeler-core/src/addOns/port/addOnSourcePorts.ts#RulePackageAddOnSource",
+          "path": "libs/modeler-core/src/modeler/bpmn/service/RulePackageInventory.ts",
+          "line": 35,
+          "message": "`RulePackageInventory`: `RulePackageAddOnSource` has no suite (its only adapter); the core reads back `installedIn`, `sourceDirOf`, `seenPackageIds` and 8 more",
+          "group": "one-adapter",
+          "rank": 33
+        },
+        {
+          "key": "libs/modeler-core/src/modeler/bpmn/service/TemplateInventory.ts#TemplateInventory → libs/modeler-core/src/addOns/port/addOnSourcePorts.ts#TemplateAddOnSource",
+          "path": "libs/modeler-core/src/modeler/bpmn/service/TemplateInventory.ts",
+          "line": 15,
+          "message": "`TemplateInventory`: `TemplateAddOnSource` has no suite (its only adapter); the core reads back `knownTemplateDirs`, `templatesDirOf`, `templatesIn` and 2 more",
+          "group": "one-adapter",
+          "rank": 35
         },
         {
           "key": "libs/modeler-core/src/template-marketplace/adapter/out/GitHubSource.ts#GitHubSource → libs/modeler-core/src/template-marketplace/port/marketplacePorts.ts#RepositorySource",
@@ -526,6 +574,14 @@
           "message": "`LocalFileSource`: `RepositorySource` has no suite (1 of 3 adapters); the core reads back `listTemplateFiles` and `fetchFile`",
           "group": "no-suite",
           "rank": 24
+        },
+        {
+          "key": "libs/modeler-core/src/template-marketplace/service/MarketplaceInventory.ts#MarketplaceInventory → libs/modeler-core/src/addOns/port/addOnSourcePorts.ts#MarketplaceAddOnSource",
+          "path": "libs/modeler-core/src/template-marketplace/service/MarketplaceInventory.ts",
+          "line": 19,
+          "message": "`MarketplaceInventory`: `MarketplaceAddOnSource` has no suite (its only adapter); the core reads back `listMarketplaces` and `onDidChange`",
+          "group": "one-adapter",
+          "rank": 31
         },
         {
           "key": "libs/modeler-core/src/testing/RecordingStatusBar.ts#RecordingStatusBar → libs/modeler-core/src/kernel/port/hostPorts.ts#StatusBarPort",
@@ -558,7 +614,7 @@
       ]
     },
     "host-text": {
-      "version": 2,
+      "version": 3,
       "findings": [
         {
           "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/BpmnDiffTool.kt — BPMN Diagram Diff",
@@ -981,12 +1037,6 @@
           "message": "`<?xml version=\"1.0\" encoding=\"UTF-8\"?> <definitions xmlns=\"https://www.omg.org/spec/DMN/20191111/MO…`"
         },
         {
-          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/PluginApprovalStore.kt — An approval change names an id twice",
-          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/PluginApprovalStore.kt",
-          "line": 29,
-          "message": "`An approval change names an id twice`"
-        },
-        {
           "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/SaveDiagramAsSvgAction.kt — Save Diagram as SVG",
           "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/SaveDiagramAsSvgAction.kt",
           "line": 39,
@@ -1029,18 +1079,6 @@
           "message": "`Miragon BPMN Modeler — Deployment Target`"
         },
         {
-          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/TemplatePreferences.kt — A template preference change names a switch twice",
-          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/TemplatePreferences.kt",
-          "line": 41,
-          "message": "`A template preference change names a switch twice`"
-        },
-        {
-          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/TemplatePreferences.kt — A ${…} change reached the ${…} template switches",
-          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/TemplatePreferences.kt",
-          "line": 94,
-          "message": "`A ${…} change reached the ${…} template switches`"
-        },
-        {
           "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/TextInputClipboardShortcuts.kt — (function () { function report(el) { var focused = el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement ? \"1\" : \"0\"; ${…} } document.addEventListener(\"focusin\", function (e) { report(e.target); }, true); document.addEventListener(\"focusout\", function (e) { report(e.relatedTarget); }, true); report(document.activeElement); })();",
           "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/TextInputClipboardShortcuts.kt",
           "line": 53,
@@ -1059,208 +1097,10 @@
           "message": "`text/plain; charset=utf-8`"
         },
         {
-          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <!DOCTYPE html>",
-          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
-          "line": 148,
-          "message": "`<!DOCTYPE html>`"
-        },
-        {
-          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <html lang=\"en\" data-bpmn-theme=\"${…}\">",
-          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
-          "line": 149,
-          "message": "`<html lang=\"en\" data-bpmn-theme=\"${…}\">`"
-        },
-        {
-          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <meta charset=\"UTF-8\"/>",
-          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
-          "line": 151,
-          "message": "`<meta charset=\"UTF-8\"/>`"
-        },
-        {
-          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"/>",
-          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
-          "line": 152,
-          "message": "`<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"/>`"
-        },
-        {
-          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <link href=\"/index.css\" rel=\"stylesheet\"/>",
-          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
-          "line": 153,
-          "message": "`<link href=\"/index.css\" rel=\"stylesheet\"/>`"
-        },
-        {
-          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <title>BPMN Modeler</title>",
-          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
-          "line": 154,
-          "message": "`<title>BPMN Modeler</title>`"
-        },
-        {
-          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <style>html, body { margin: 0; height: 100%; } #app { height: 100vh; }</style>",
-          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
-          "line": 155,
-          "message": "`<style>html, body { margin: 0; height: 100%; } #app { height: 100vh; }</style>`"
-        },
-        {
-          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <style id=\"ide-theme-vars\">${…}</style>",
-          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
-          "line": 156,
-          "message": "`<style id=\"ide-theme-vars\">${…}</style>`"
-        },
-        {
-          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <body class=\"${…}\">",
-          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
-          "line": 159,
-          "message": "`<body class=\"${…}\">`"
-        },
-        {
-          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <div id=\"app\">",
-          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
-          "line": 160,
-          "message": "`<div id=\"app\">`"
-        },
-        {
-          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <div class=\"content with-diagram\" id=\"js-drop-zone\">",
-          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
-          "line": 161,
-          "message": "`<div class=\"content with-diagram\" id=\"js-drop-zone\">`"
-        },
-        {
-          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <div class=\"canvas\" id=\"js-canvas\"></div>",
-          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
-          "line": 162,
-          "message": "`<div class=\"canvas\" id=\"js-canvas\"></div>`"
-        },
-        {
-          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <div id=\"js-panel-resizer\" class=\"panel-resizer\"></div>",
-          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
-          "line": 163,
-          "message": "`<div id=\"js-panel-resizer\" class=\"panel-resizer\"></div>`"
-        },
-        {
-          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <div class=\"properties-panel-parent\" id=\"js-properties-panel\"></div>",
-          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
-          "line": 164,
-          "message": "`<div class=\"properties-panel-parent\" id=\"js-properties-panel\"></div>`"
-        },
-        {
-          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <script type=\"module\" src=\"/index.js\"></script>",
-          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
-          "line": 167,
-          "message": "`<script type=\"module\" src=\"/index.js\"></script>`"
-        },
-        {
           "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — Deploy Diagram",
           "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
           "line": 188,
           "message": "`Deploy Diagram`"
-        },
-        {
-          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <!DOCTYPE html>",
-          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
-          "line": 212,
-          "message": "`<!DOCTYPE html>`"
-        },
-        {
-          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <html lang=\"en\"${…}>",
-          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
-          "line": 213,
-          "message": "`<html lang=\"en\"${…}>`"
-        },
-        {
-          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <meta charset=\"UTF-8\"/>",
-          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
-          "line": 215,
-          "message": "`<meta charset=\"UTF-8\"/>`"
-        },
-        {
-          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"/>",
-          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
-          "line": 216,
-          "message": "`<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"/>`"
-        },
-        {
-          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <link href=\"${…}/index.css\" rel=\"stylesheet\"/>",
-          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
-          "line": 217,
-          "message": "`<link href=\"${…}/index.css\" rel=\"stylesheet\"/>`"
-        },
-        {
-          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <style id=\"ide-theme-vars\">${…}</style>",
-          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
-          "line": 219,
-          "message": "`<style id=\"ide-theme-vars\">${…}</style>`"
-        },
-        {
-          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <div id=\"app\"></div>",
-          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
-          "line": 223,
-          "message": "`<div id=\"app\"></div>`"
-        },
-        {
-          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <script type=\"module\" src=\"${…}/index.js\"></script>",
-          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
-          "line": 224,
-          "message": "`<script type=\"module\" src=\"${…}/index.js\"></script>`"
-        },
-        {
-          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <!DOCTYPE html>",
-          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
-          "line": 234,
-          "message": "`<!DOCTYPE html>`"
-        },
-        {
-          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <html lang=\"en\" data-bpmn-theme=\"${…}\">",
-          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
-          "line": 235,
-          "message": "`<html lang=\"en\" data-bpmn-theme=\"${…}\">`"
-        },
-        {
-          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <meta charset=\"UTF-8\"/>",
-          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
-          "line": 237,
-          "message": "`<meta charset=\"UTF-8\"/>`"
-        },
-        {
-          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"/>",
-          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
-          "line": 238,
-          "message": "`<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"/>`"
-        },
-        {
-          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <link href=\"/index.css\" rel=\"stylesheet\"/>",
-          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
-          "line": 239,
-          "message": "`<link href=\"/index.css\" rel=\"stylesheet\"/>`"
-        },
-        {
-          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <title>Element Template Preview</title>",
-          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
-          "line": 240,
-          "message": "`<title>Element Template Preview</title>`"
-        },
-        {
-          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <style id=\"ide-theme-vars\">${…}</style>",
-          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
-          "line": 241,
-          "message": "`<style id=\"ide-theme-vars\">${…}</style>`"
-        },
-        {
-          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <body class=\"${…}\">",
-          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
-          "line": 244,
-          "message": "`<body class=\"${…}\">`"
-        },
-        {
-          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <div id=\"app\" data-view=\"preview\"></div>",
-          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
-          "line": 245,
-          "message": "`<div id=\"app\" data-view=\"preview\"></div>`"
-        },
-        {
-          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — <script type=\"module\" src=\"/templateEditor.js\"></script>",
-          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt",
-          "line": 246,
-          "message": "`<script type=\"module\" src=\"/templateEditor.js\"></script>`"
         },
         {
           "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/WebviewServer.kt — Not found: ${…}",
@@ -1335,18 +1175,6 @@
           "message": "`host handler failed`"
         },
         {
-          "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/bridge/RpcChannel.kt — <redacted: credential-bearing frame>",
-          "path": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/bridge/RpcChannel.kt",
-          "line": 378,
-          "message": "`<redacted: credential-bearing frame>`"
-        },
-        {
-          "key": "apps/vscode-plugin/src/addOns/adapter/in/AddOnsViewHtml.ts — <!DOCTYPE html> <html lang=\"en\"${…}> <head> <meta charset=\"UTF-8\"/> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"/> <meta http-equiv=\"Content-Security-Policy\" content=\"${…}\"/> <link href=\"${…}\" rel=\"stylesheet\"/> <title>Add-ons</title> </head> <body> <div id=\"app\"></div> <script nonce=\"${…}\" src=\"${…}\"></script> </body> </html>",
-          "path": "apps/vscode-plugin/src/addOns/adapter/in/AddOnsViewHtml.ts",
-          "line": 34,
-          "message": "`<!DOCTYPE html> <html lang=\"en\"${…}> <head> <meta charset=\"UTF-8\"/> <meta name=\"viewport\" content=\"…`"
-        },
-        {
           "key": "apps/vscode-plugin/src/composition/editorFeature.ts — Dmn modeler is ready",
           "path": "apps/vscode-plugin/src/composition/editorFeature.ts",
           "line": 81,
@@ -1357,12 +1185,6 @@
           "path": "apps/vscode-plugin/src/composition/editorFeature.ts",
           "line": 94,
           "message": "`Form editor is ready`"
-        },
-        {
-          "key": "apps/vscode-plugin/src/deployment/adapter/in/DeploymentWebviewHtml.ts — <!DOCTYPE html> <html lang=\"en\"> <head> <meta charset=\"UTF-8\"/> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"/> <meta http-equiv=\"Content-Security-Policy\" content=\"${…}\"/> <link href=\"${…}\" rel=\"stylesheet\"/> <title>Deploy Diagram</title> </head> <body> <div id=\"app\"></div> <script nonce=\"${…}\" src=\"${…}\"></script> </body> </html>",
-          "path": "apps/vscode-plugin/src/deployment/adapter/in/DeploymentWebviewHtml.ts",
-          "line": 26,
-          "message": "`<!DOCTYPE html> <html lang=\"en\"> <head> <meta charset=\"UTF-8\"/> <meta name=\"viewport\" content=\"widt…`"
         },
         {
           "key": "apps/vscode-plugin/src/diff/adapter/in/BpmnCompareController.ts — BPMN Modeler: ${…} selected for compare",
@@ -1491,12 +1313,6 @@
           "message": "`style=\"width: 0\"`"
         },
         {
-          "key": "apps/vscode-plugin/src/shared/adapter/out/WebviewHtml.ts — <!DOCTYPE html> <html lang=\"en\"> <head> <meta charset=\"UTF-8\"/> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"/> <meta http-equiv=\"Content-Security-Policy\" content=\"${…}\"/> <link href=\"${…}\" rel=\"stylesheet\"/> <title>BPMN Modeler</title> </head> <body> <div class=\"content with-diagram\" id=\"js-drop-zone\"> <div class=\"canvas\" id=\"js-canvas\"></div> <div id=\"js-panel-resizer\" class=\"${…}\"></div> <div class=\"${…}\" id=\"js-properties-panel\"${…}></div> </div> <script type=\"module\" nonce=\"${…}\" src=\"${…}\"></script> </body> </html>",
-          "path": "apps/vscode-plugin/src/shared/adapter/out/WebviewHtml.ts",
-          "line": 45,
-          "message": "`<!DOCTYPE html> <html lang=\"en\"> <head> <meta charset=\"UTF-8\"/> <meta name=\"viewport\" content=\"widt…`"
-        },
-        {
           "key": "apps/vscode-plugin/src/shared/adapter/out/WebviewHtml.ts — properties-panel-parent collapsed",
           "path": "apps/vscode-plugin/src/shared/adapter/out/WebviewHtml.ts",
           "line": 90,
@@ -1513,24 +1329,6 @@
           "path": "apps/vscode-plugin/src/shared/adapter/out/WebviewHtml.ts",
           "line": 92,
           "message": "`style=\"width: 0\"`"
-        },
-        {
-          "key": "apps/vscode-plugin/src/shared/adapter/out/WebviewHtml.ts — <!DOCTYPE html> <html lang=\"en\"> <head> <meta charset=\"utf-8\" /> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"/> <meta http-equiv=\"Content-Security-Policy\" content=\"${…}\"/> <link href=\"${…}\" rel=\"stylesheet\"> <link href=\"${…}\" rel=\"stylesheet\" type=\"text/css\" /> <title>DMN Modeler</title> </head> <body> <div class=\"content with-diagram\" id=\"js-drop-zone\"> <div class=\"canvas\" id=\"js-canvas\"></div> <div id=\"js-panel-resizer\" class=\"${…}\"></div> <div class=\"${…}\" id=\"js-properties-panel\"${…}></div> </div> <script type=\"module\" nonce=\"${…}\" src=\"${…}\"></script> </body> </html>",
-          "path": "apps/vscode-plugin/src/shared/adapter/out/WebviewHtml.ts",
-          "line": 94,
-          "message": "`<!DOCTYPE html> <html lang=\"en\"> <head> <meta charset=\"utf-8\" /> <meta name=\"viewport\" content=\"wid…`"
-        },
-        {
-          "key": "apps/vscode-plugin/src/shared/adapter/out/WebviewHtml.ts — <!DOCTYPE html> <html lang=\"en\"> <head> <meta charset=\"UTF-8\"/> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"/> <meta http-equiv=\"Content-Security-Policy\" content=\"${…}\"/> <link href=\"${…}\" rel=\"stylesheet\"/> <title>Element Template Editor</title> </head> <body> <div id=\"app\"></div> <script type=\"module\" nonce=\"${…}\" src=\"${…}\"></script> </body> </html>",
-          "path": "apps/vscode-plugin/src/shared/adapter/out/WebviewHtml.ts",
-          "line": 130,
-          "message": "`<!DOCTYPE html> <html lang=\"en\"> <head> <meta charset=\"UTF-8\"/> <meta name=\"viewport\" content=\"widt…`"
-        },
-        {
-          "key": "apps/vscode-plugin/src/shared/adapter/out/WebviewHtml.ts — <!DOCTYPE html> <html lang=\"en\"> <head> <meta charset=\"UTF-8\" /> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" /> <meta http-equiv=\"Content-Security-Policy\" content=\"${…}\"/> <link href=\"${…}\" rel=\"stylesheet\" /> <title>Form Editor</title> </head> <body> <div id=\"app\"></div> <script nonce=\"${…}\" src=\"${…}\"></script> </body> </html>",
-          "path": "apps/vscode-plugin/src/shared/adapter/out/WebviewHtml.ts",
-          "line": 156,
-          "message": "`<!DOCTYPE html> <html lang=\"en\"> <head> <meta charset=\"UTF-8\" /> <meta name=\"viewport\" content=\"wid…`"
         },
         {
           "key": "apps/vscode-plugin/src/shared/adapter/out/releaseNotes.ts — View Release Notes",
