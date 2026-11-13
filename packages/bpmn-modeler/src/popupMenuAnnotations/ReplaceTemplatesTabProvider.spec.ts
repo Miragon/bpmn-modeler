@@ -40,4 +40,28 @@ describe("ReplaceTemplatesTabProvider", () => {
             "replace.template-payment",
         ]);
     });
+
+    it("moves a plugin's entry in the templates group into the Templates tab", () => {
+        const { provider } = registeredProvider();
+
+        const entries = provider.getPopupMenuEntries()({
+            "my-plugin.rest": { label: "REST", group: { id: "templates" } },
+            "my-plugin.custom-task": {
+                label: "Custom",
+                imageUrl: "data:image/svg+xml;base64,PHN2Zy8+",
+            },
+        });
+
+        expect(entries).toEqual({
+            "my-plugin.rest": {
+                label: "REST",
+                group: { id: "templates" },
+                tab: { id: "templates", label: "de:Templates" },
+            },
+            "my-plugin.custom-task": {
+                label: "Custom",
+                imageUrl: "data:image/svg+xml;base64,PHN2Zy8+",
+            },
+        });
+    });
 });

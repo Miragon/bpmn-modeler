@@ -4,7 +4,7 @@
  */
 import type { ElementTemplate, TemplateStep } from "@miragon/bpmn-modeler-element-template-chooser";
 
-import { templateIdOfEntryKey } from "./templateEntryKey";
+import { isTemplatePopupEntry, templateIdOfEntryKey } from "./templatePopupEntry";
 
 export type { Translate } from "@miragon/bpmn-modeler-element-template-chooser/types";
 
@@ -22,7 +22,8 @@ export type PopupMenuEntryAction =
  * A single entry returned by a diagram-js popup menu provider.
  *
  * Standard BPMN element entries carry a `className` for the bpmn-font icon.
- * Element template entries carry an `imageUrl` (base64 SVG) instead.
+ * Template and plugin entries may carry an `imageUrl` instead;
+ * `isTemplatePopupEntry` decides which entries are templates.
  */
 export interface PopupMenuEntry {
     label: string;
@@ -69,20 +70,6 @@ export interface BpmnElementGroup {
 export interface ClassifiedEntries {
     templates: EnrichedTemplateEntry[];
     bpmnGroups: BpmnElementGroup[];
-}
-
-/**
- * Determines whether a popup menu entry represents an element template.
- *
- * Template entries are identified by their key naming a template
- * or by having an `imageUrl` (which standard BPMN entries never have).
- */
-function isTemplateEntry(key: string, entry: PopupMenuEntry): boolean {
-    return isTemplateKey(key) || !!entry.imageUrl;
-}
-
-function isTemplateKey(key: string): boolean {
-    return templateIdOfEntryKey(key) !== undefined;
 }
 
 // Step keys (`step-0`, …) repeat across templates, so ids carry the parent path.
@@ -137,7 +124,7 @@ export function classifyEntries(
         entry: PopupMenuEntry,
         inheritedGroup?: { id: string; name: string },
     ): void => {
-        if (entry.entries && !isTemplateKey(key)) {
+        if (entry.entries && !isTemplatePopupEntry(key, entry)) {
             const categoryGroup = { id: key, name: entry.label };
             for (const [childKey, child] of Object.entries(entry.entries)) {
                 classify(childKey, child, categoryGroup);
@@ -145,7 +132,7 @@ export function classifyEntries(
             return;
         }
 
-        if (isTemplateEntry(key, entry)) {
+        if (isTemplatePopupEntry(key, entry)) {
             const templateId = templateIdOfEntryKey(key);
             const template = templateId ? templateIndex.get(templateId) : undefined;
             templates.push(...flattenTemplateEntry(key, entry, template));

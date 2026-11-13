@@ -140,6 +140,31 @@ async function openDesignerAppendMenu(): Promise<void> {
     openAppendMenuOn(designer);
 }
 
+interface PopupMenuRegistry {
+    registerProvider(id: string, provider: object): void;
+}
+
+const NOOP_ACTION = () => undefined;
+
+// A bpmn-io plugin's provider: one entry in the templates group without a template key, one with its own icon.
+function registerPluginAppendEntries(handle: BpmnModeler): void {
+    handle.getService<PopupMenuRegistry>("popupMenu").registerProvider("bpmn-append", {
+        getPopupMenuEntries: () => ({
+            "my-plugin.rest": {
+                label: "Plugin REST",
+                group: { id: "templates", name: "Templates" },
+                action: NOOP_ACTION,
+            },
+            "my-plugin.custom-task": {
+                label: "Plugin custom task",
+                imageUrl: "data:image/svg+xml;base64,PHN2Zy8+",
+                group: { id: "custom", name: "Custom" },
+                action: NOOP_ACTION,
+            },
+        }),
+    });
+}
+
 function openAppendMenuOn(
     handle: BpmnModeler | BpmnDesigner,
     position: MenuPosition = { x: 320, y: 200 },
@@ -282,6 +307,28 @@ describe("append menu", () => {
             expect(templateCardNames()).toEqual([offered.name]);
         },
     );
+
+    it("lists a plugin's templates-group entry as a template and its icon entry as an element", async () => {
+        const handle = await openModeler({ engine: "c7", locale: "en" });
+        registerPluginAppendEntries(handle);
+
+        openAppendMenuOn(handle);
+
+        expect(templateCardNames()).toEqual(["Plugin REST"]);
+        expect(navKeys(".am-bpmn-group")).toContain("grp:custom:my-plugin.custom-task");
+    });
+
+    it("strips a plugin's templates-group entry in Design mode and keeps its icon entry", async () => {
+        const handle = await openModeler({ engine: "c7", locale: "en" });
+        registerPluginAppendEntries(handle);
+        handle.setMode("design");
+
+        openAppendMenuOn(handle);
+
+        expect(templateCardNames()).toEqual([]);
+        expect(navKeys(".am-panel").filter((key) => key?.endsWith("my-plugin.rest"))).toEqual([]);
+        expect(navKeys(".am-bpmn-group")).toContain("grp:custom:my-plugin.custom-task");
+    });
 
     it.each([
         [

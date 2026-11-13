@@ -1,4 +1,4 @@
-import { templateIdOfEntryKey } from "@miragon/bpmn-modeler-append-menu";
+import { isTemplatePopupEntry } from "@miragon/bpmn-modeler-append-menu";
 
 interface PopupMenuRegistry {
     registerProvider(menuId: string, priority: number, provider: object): void;
@@ -26,10 +26,9 @@ export class ReplaceTemplatesTabProvider {
             const templatesTab = { id: TEMPLATES_TAB_ID, label: this.translate("Templates") };
             const tabbedEntries: Record<string, object> = {};
             for (const [entryId, entry] of Object.entries(entries)) {
-                tabbedEntries[entryId] =
-                    templateIdOfEntryKey(entryId) !== undefined
-                        ? { ...entry, tab: templatesTab }
-                        : entry;
+                tabbedEntries[entryId] = isTemplatePopupEntry(entryId, entry)
+                    ? { ...entry, tab: templatesTab }
+                    : entry;
             }
             return tabbedEntries as Entries;
         };
