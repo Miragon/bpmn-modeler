@@ -5,6 +5,7 @@ import {
     BpmnEditorContributions,
     ScriptEditorFeature,
     ScriptFileStore,
+    ScriptTargetResolver,
     ScriptVariableStore,
 } from "@miragon/bpmn-modeler-core";
 
@@ -22,10 +23,6 @@ import { BridgeSharedDeps } from "./sharedDeps";
 export function register(deps: BridgeSharedDeps): {
     editorContribution: BpmnEditorContributions["scriptEditor"];
 } {
-    // The script tabs have no in-core service — the VS Code original was never
-    // extracted (its guts are VS Code-specific accidental complexity) — so the
-    // portable slice lives here, writing through the core's file store, and the
-    // Kotlin host is a dumb editor surface keyed by an opaque scriptId.
     const scriptFiles = new ScriptFileStore(
         deps.store,
         deps.nodeWorkspace,
@@ -38,7 +35,7 @@ export function register(deps: BridgeSharedDeps): {
     const variables = new ScriptVariableStore();
     const scriptEditor = new BridgeScriptEditor(
         deps.store,
-        deps.picker,
+        new ScriptTargetResolver(deps.store, deps.picker, deps.notifier),
         deps.rpc,
         deps.notifier,
         deps.settings,

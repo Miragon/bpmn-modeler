@@ -10,6 +10,7 @@ import { ScriptUri, TMP_SCRIPTING_SEGMENT } from "../scriptTask/domain/ScriptUri
 import { ScriptVariableStore } from "../scriptTask/domain/ScriptVariableStore";
 import { ScriptEditorPort } from "../scriptTask/port/ScriptEditorPort";
 import { ScriptFileStore } from "../scriptTask/service/ScriptFileStore";
+import { ScriptTargetResolver } from "../scriptTask/service/ScriptTargetResolver";
 import { createTestHost } from "./createTestHost";
 import { FakeEditorHandle } from "./FakeEditorHandle";
 
@@ -18,6 +19,8 @@ export interface ScriptEditorContractHost {
     readonly store: EditorSessionStore;
     readonly scriptFiles: ScriptFileStore;
     readonly picker: PickerPort;
+    /** Asks `picker` for a language the model lacks. */
+    readonly targets: ScriptTargetResolver;
     readonly notifier: NotifierPort;
     readonly settings: SettingsPort;
     readonly variables: ScriptVariableStore;
@@ -96,6 +99,7 @@ function createContractHost() {
             (path) => path,
         ),
         picker: testHost.picker,
+        targets: new ScriptTargetResolver(testHost.store, testHost.picker, testHost.notifier),
         notifier: testHost.notifier,
         settings: testHost.settings,
         variables: new ScriptVariableStore(),

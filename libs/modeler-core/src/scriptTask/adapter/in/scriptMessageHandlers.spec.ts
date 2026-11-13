@@ -14,6 +14,7 @@ import { createTestHost, FakeEditorHandle, RecordingScriptEditor } from "../../.
 import { InlineScript } from "../../domain/inlineScript";
 import { ScriptVariableStore } from "../../domain/ScriptVariableStore";
 import { ScriptFileStore } from "../../service/ScriptFileStore";
+import { ScriptTargetResolver } from "../../service/ScriptTargetResolver";
 import {
     openScriptEditorHandler,
     openScriptEditorsHandler,
@@ -43,7 +44,11 @@ function createHandlers() {
         "/tmp",
         (path) => path,
     );
-    const scriptEditor = new RecordingScriptEditor(host.store, scriptFiles, host.picker);
+    const scriptEditor = new RecordingScriptEditor(
+        host.store,
+        scriptFiles,
+        new ScriptTargetResolver(host.store, host.picker, host.notifier),
+    );
     const variables = new ScriptVariableStore();
     return { notifier: host.notifier, scriptEditor, variables, scriptFiles };
 }
