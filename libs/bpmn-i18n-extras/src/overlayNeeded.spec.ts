@@ -7,15 +7,13 @@
  * overlay could hoard legacy spellings, unwired dmn-js labels, or diagram/test
  * junk the editor never requests, silently shadowing nothing.
  *
- * Runtime truth is the union of `tools/harvested.json` (the C7 modeler),
- * `tools/harvested-dmn.json` (the dmn-js views) and
- * `tools/harvested-template-editor.json` (the element template editor): every
- * template those pages passed to translate(), captured by the harvest drivers (see
- * tools/README.md). A key is legitimate iff a harvest recorded it (exact or
- * normalized) — or it is on the SOURCE_ONLY allowlist in sourceOnlyKeys.ts,
- * shared with tools/build-overlay.mjs: strings our own webview passes to
- * translate() from a feature the harvest driver does not exercise, so they
- * cannot appear in the harvest yet are genuinely needed.
+ * Runtime truth is the union of the harvests (`readHarvestedKeys` in
+ * harvestedKeys.ts): every template the harvested pages passed to translate(),
+ * captured by the harvest drivers (see tools/README.md). A key is legitimate iff a
+ * harvest recorded it (exact or normalized) — or it is on the SOURCE_ONLY
+ * allowlist in sourceOnlyKeys.ts, shared with tools/build-overlay.mjs: strings
+ * our own webview passes to translate() from a feature the harvest driver does
+ * not exercise, so they cannot appear in the harvest yet are genuinely needed.
  */
 import { describe, expect, it } from "vitest";
 

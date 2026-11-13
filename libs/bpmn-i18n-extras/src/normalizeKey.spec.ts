@@ -8,6 +8,8 @@ describe("normalizeKey", () => {
         ["Open  the   form", "open form"],
         ["Element actions.", "element actions"],
         ["Read-only ", "read-only"],
+        ["The form", "Form"],
+        ["Element actions .", "element actions"],
     ])("treats %j as a variant of %j", (variant, modern) => {
         expect(normalizeKey(variant)).toBe(normalizeKey(modern));
     });

@@ -7,13 +7,12 @@
  * falls back without error). `overlayScope` / `overlayNeeded` keep the overlay
  * *minimal*; this keeps coverage *complete*.
  *
- * Runtime truth is the union of `tools/harvested.json` (the C7 modeler),
- * `tools/harvested-dmn.json` (the dmn-js views) and
- * `tools/harvested-template-editor.json` (the element template editor): every
- * template those pages asked to translate, captured by the harvest drivers. Every one of
- * those must resolve via the shared library (exact or normalized) or via the
- * overlay. When this fails, the named keys are genuine gaps — cover them upstream
- * in the shared library, or add them to the overlay (src/languages/*).
+ * Runtime truth is the union of the harvests (`readHarvestedKeys` in
+ * harvestedKeys.ts): every template the harvested pages asked to translate,
+ * captured by the harvest drivers. Every one of those must resolve via the shared library
+ * (exact or normalized) or via the overlay. When this fails, the named keys are
+ * genuine gaps — cover them upstream in the shared library, or add them to the
+ * overlay (src/languages/*).
  *
  * Caveat: this is only as complete as the harvest snapshots. It cannot see a UI
  * string no harvest has exercised yet — refresh the harvest when the modeler
