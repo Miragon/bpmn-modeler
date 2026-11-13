@@ -1,7 +1,7 @@
 import type { UserConfig } from "vite";
 
 /**
- * JSX transform and module resolution for every bundle that ships a modeler.
+ * JSX transform and module resolution for every bundle that ships the BPMN or DMN modeler.
  * A bundle spreads it into its config; one with resolve entries of its own spreads
  * `modelerBundlePreset.resolve` into them, or its `resolve` would replace the preset's.
  */

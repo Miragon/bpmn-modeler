@@ -19,6 +19,7 @@ on:
       - 'yarn.lock'
       - '.yarnrc.yml'
       - 'tsconfig.base.json'
+      - 'vite.shared.ts'
       - '.github/workflows/orca-smoke.yml'
   schedule:
     - cron: '41 4 * * 1'

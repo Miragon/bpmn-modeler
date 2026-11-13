@@ -179,8 +179,8 @@ exact pins moving with their dependents, [Dependabot](../../.github/dependabot.y
 groups the bpmn-io stack across all update types instead of splitting it into
 the minor/patch and major groups; a major there holds back the stack's minors
 until it lands or is closed. As a second line of defence, every bundle that
-ships a modeler (both modeler webviews, the Orca editors and the BPMN package)
-spreads `modelerBundlePreset` from the root
+ships the BPMN or DMN modeler (both modeler webviews, the Orca editors and the
+BPMN package) spreads `modelerBundlePreset` from the root
 [`vite.shared.ts`](../../vite.shared.ts): one dedupe list of the
 identity-sensitive set, the panel's `jsx-dev-runtime` alias and the preact JSX
 transform. The transform uses Vite 8's `oxc` option. Vite still converts an

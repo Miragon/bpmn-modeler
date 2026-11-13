@@ -152,7 +152,9 @@ definition / Job type** fields exist in the default C7 preview.
   The DMN preview's MockHost sends `automatic`, so `?theme=dark` applies there.
 - Record console errors and failed requests. A blank preview with an unresolved
   `@bpmn-io/properties-panel/preact/jsx-dev-runtime` import means the
-  `jsx-dev-runtime` → `jsx-runtime` alias is missing from that app's Vite config.
+  `jsx-dev-runtime` → `jsx-runtime` alias is missing: the app's Vite config does
+  not spread `modelerBundlePreset` from the root `vite.shared.ts`, or sets its own
+  `resolve` without spreading `modelerBundlePreset.resolve`.
   Missing theme-link errors are not an expected baseline for current theming.
   Rejected-template warnings for the C8 samples on the C7 fixture are expected.
 - Browser previews use native clipboard behavior. MockHost logs document sync
