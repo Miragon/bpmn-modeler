@@ -55,7 +55,7 @@ export class BpmnlintParticipant implements EditorSessionParticipant {
                 event.hasContentChanges() &&
                 event.documentPath().endsWith(".bpmn") &&
                 session.editorId === event.documentUriString() &&
-                this.lintSvc.getLintMode(session.editorId) !== "in-page"
+                !this.lintSvc.lintsInPage(session.editorId)
             ) {
                 this.scheduleRelint(session);
             }

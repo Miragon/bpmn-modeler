@@ -113,8 +113,8 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
         return this.lintAndPush(editorId);
     }
 
-    getLintMode(editorId: string): "external" | "in-page" {
-        return lintsInPage(this.sessionOf(editorId)) ? "in-page" : "external";
+    lintsInPage(editorId: string): boolean {
+        return lintsInPage(this.sessionOf(editorId));
     }
 
     /** The teardown entry point for a closing editor. */

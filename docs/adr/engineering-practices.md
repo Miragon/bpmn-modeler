@@ -1,7 +1,7 @@
 # Engineering practices
 
 - Status: accepted
-- Last reviewed: 2026-11-10
+- Last reviewed: 2026-11-13
 
 ## Context
 
@@ -288,6 +288,30 @@ copy does not follow this yet:
 `ModelerLocalesTest` pins the languages to the VS Code manifest, which
 `manifest.contract.spec.ts` pins to the shipped catalogue, so the Kotlin list
 holds only through that chain.
+
+When the core and the webview each keep a state machine for one protocol on
+purpose, because each side holds state the other does not need, one spec in
+the core drives both through the wire. The BPMN lint tier is the case:
+`LintSession` tracks negotiation and escalation, the package's
+`lintTierMachine` a user's switch-off.
+[`lintTierAgreement.spec.ts`](../../libs/modeler-core/src/modeler/bpmn/domain/lintTierAgreement.spec.ts)
+feeds both reducers the same sequences, posts each core action the way
+`BpmnLintConfigService` and the webview's lint bridge do, and fails when the
+two sides, with no message in flight, disagree on whether the page lints, when
+the token and config the page lints with differ from the core's negotiation,
+when the core drops the page's next run, or when it applies a run under any
+other token. It imports the package reducer by relative
+path, as `lintParity.spec.ts` imports the browser linter; the core's CI target
+lists `packages/bpmn-modeler/src/bpmnlint/**`, so a change on either side runs
+it. A test-only workspace would need its own manifest, CI target and install
+for one spec. `tools/repo-checks` holds repository rules, not product
+behaviour. Case rows each side runs alone would have to restate the other
+side's answers, so they could not catch the two drifting apart. While a host
+lint or a webview request is in flight, the sides may differ by design: the
+page keeps its tier until the host's results land. The spec does not check
+those windows, so a session outside the page that wrongly escalates to
+`escalating` goes unseen. #2227 ran 32 sequences on `6a37988a` and found no
+disagreement.
 
 ### Coverage gates
 
