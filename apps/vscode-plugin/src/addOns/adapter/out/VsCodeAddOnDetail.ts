@@ -1,7 +1,7 @@
 import type { AddOnDetailPort, AddOnDetailTarget } from "@miragon/bpmn-modeler-core";
 
 /** Shows an add-on's details in the editor tab, opening it when none is open. */
-export interface AddOnDetailTab {
+export interface DetailTabShow {
     show(target: AddOnDetailTarget): void;
 }
 
@@ -10,9 +10,9 @@ export interface AddOnDetailTab {
  * calls it, and connected once the tab, which attaches to that catalog, exists.
  */
 export class VsCodeAddOnDetail implements AddOnDetailPort {
-    private tab?: AddOnDetailTab;
+    private tab?: DetailTabShow;
 
-    connect(tab: AddOnDetailTab): void {
+    connect(tab: DetailTabShow): void {
         this.tab = tab;
     }
 

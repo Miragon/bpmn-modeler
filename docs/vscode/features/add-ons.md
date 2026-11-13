@@ -40,7 +40,7 @@ Below the top line, **All**, **Plugins**, **Lint** (rule packages) and **Templat
 
 ## Details
 
-Click a row to open its details in an editor tab, **Add-on:** and its name, in the editor group you work in. The tab is reused for the next add-on you click, as VS Code shows an extension's details; close it like any editor. The side bar keeps the list, with the row marked. The details show:
+Click a row to open its details in an editor tab, **Add-on:** and its name, in the editor group you work in. The tab is reused for the next add-on you click and stays where you moved it; close it like any editor. The side bar keeps the list, with the row marked. The details show:
 
 - the kind, the state, the name, then what it is, its path or version and its engine;
 - where it lies: the folder and the source;

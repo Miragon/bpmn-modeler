@@ -846,6 +846,25 @@ describe("nextViewState", () => {
             expect([selectedIdOf(state), state.banner]).toEqual([PALETTE.id, undefined]);
         });
 
+        it("keeps the banner when the host names the add-on it already shows", () => {
+            const { state } = after(
+                [
+                    showsMail,
+                    shown(),
+                    { kind: "actionChosen", actionKind: "disable", targetId: MAIL.id },
+                    {
+                        kind: "resultArrived",
+                        requestId: 1,
+                        result: { kind: "done", message: "Disabled Mail." },
+                    },
+                    showsMail,
+                ],
+                page(),
+            );
+
+            expect(state.banner).toBeDefined();
+        });
+
         it("keeps no selection of its own across a reload", () => {
             const { state } = after([showsMail, shown()], page());
 

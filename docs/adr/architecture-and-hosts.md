@@ -293,7 +293,9 @@ click or a rows reveal selects the row, keeps the list and posts
 `OpenAddOnDetailCommand`; the core resolves the id in its last model, builds
 the tab's title ("Add-on: <name>", `addOnDetailTitle`) and calls the host's
 `AddOnDetailPort`. A host capability is no catalog data, so it rides in the
-shell, not in the model; a model flag was rejected for that. One list holds three sections
+shell, not in the model; a model flag was rejected for that.
+
+One list holds three sections
 (`src/domain/listSections.ts`): Needs attention, every add-on that offers
 Allow or carries a problem, read from the model and in model order; Installed,
 the folder groups without those rows; and Marketplaces, the marketplaces
@@ -683,13 +685,14 @@ update, and a plugin container left without a visible view closes until its
 view shows again; a view the user dragged keeps its place.
 The add-on's details open in one editor tab (`AddOnDetailTab`, view type
 `bpmn-modeler.addOnDetail`, the extension's first `WebviewPanel`), reused for
-the next add-on as VS Code shows an extension's details, in the active editor
-group; the side bar then holds only the list, which a sidebar under 640px
+the next add-on, first in the active editor group and then where the user
+left it; the side bar then holds only the list, which a sidebar under 640px
 could not show beside a detail. `VsCodeAddOnDetail` in `adapter/out/` is the
 port; built before the catalog, it is connected to the tab in `adapter/in/`
 once the tab, which attaches its page to that catalog, exists, as the reveal
 is. The tab's page is a panel attached with `shows`, which takes no reveal:
-Review… and Review Add-ons land in the list, which opens the tab. It follows
+Review… lands in the list, which selects the row and opens the tab; Review
+Add-ons lands in the list and opens none. It follows
 the tab's visibility, posts the brand mode on a theme change, takes focus
 again once its page runs, and lets go of its panel when the user closes it.
 No serializer restores it, so a window reload closes it.

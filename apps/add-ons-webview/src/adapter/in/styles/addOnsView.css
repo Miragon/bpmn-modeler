@@ -930,16 +930,20 @@ button.av-head:hover .av-head-count {
     }
 }
 
-/* --- Wide (a bottom tool window): list and detail side by side, each scrolling --- */
-
-/* --- Pages: a list whose rows open a tab shows no detail; a tab's page shows only its add-on --- */
+/*
+ * --- Pages: a list whose rows open a tab shows no detail; a tab's page shows
+ * only its add-on, and the list's loading, empty or failed state until the
+ * catalog is ready ---
+ */
 
 .av-app[data-page="listWithTab"] .av-detail,
 .av-app[data-page="detail"] .av-toolbar,
-.av-app[data-page="detail"] .av-list,
+.av-app[data-page="detail"][data-phase="ready"] .av-list,
 .av-app[data-page="detail"] .av-back {
     display: none;
 }
+
+/* --- Wide (a bottom tool window): list and detail side by side, each scrolling --- */
 
 @container view (min-width: 640px) {
     .av-app {

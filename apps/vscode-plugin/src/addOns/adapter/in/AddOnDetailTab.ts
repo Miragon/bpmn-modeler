@@ -1,9 +1,9 @@
 import { ExtensionContext, Uri, ViewColumn, WebviewPanel, window } from "vscode";
 
 import type { AddOnDetailTarget, AddOnsFeature, AddOnsPanel } from "@miragon/bpmn-modeler-core";
-import { BrandModeQuery, Command, Query } from "@miragon/bpmn-modeler-shared";
+import { Query } from "@miragon/bpmn-modeler-shared";
+import { connectAddOnsPage, type BrandModeSource } from "./addOnsPageConnection";
 import { addOnsViewHtml } from "./AddOnsViewHtml";
-import type { VsCodeBrandModeSignal } from "./VsCodeBrandModeSignal";
 
 /** The tab's type; no serializer restores it, so a window reload closes it. */
 export const ADD_ON_DETAIL_VIEW_TYPE = "bpmn-modeler.addOnDetail";
@@ -22,7 +22,7 @@ export class AddOnDetailTab {
         private readonly addOns: Pick<AddOnsFeature, "attachPanel">,
         private readonly extensionUri: Uri,
         private readonly createNonce: () => string,
-        private readonly brandMode: Pick<VsCodeBrandModeSignal, "current" | "onDidChange">,
+        private readonly brandMode: BrandModeSource,
     ) {}
 
     show(target: AddOnDetailTarget): void {
@@ -59,26 +59,19 @@ export class AddOnDetailTab {
             webviewPanel.visible,
             { shows: addOnId },
         );
-        const postBrandMode = (mode = this.brandMode.current()) =>
-            void webviewPanel.webview.postMessage(new BrandModeQuery(mode));
-        // The shell keeps the mode of its first render, so the page follows a theme change by message.
-        const brandModeChanges = this.brandMode.onDidChange(postBrandMode);
         // A page still loading loses the focus the new tab takes, so the tab takes it again once the page runs.
         this.focusOnLoad = true;
-        webviewPanel.webview.onDidReceiveMessage((message: Command) => {
-            // The page asks once it listens; a change posted while it loaded may be lost.
-            if (message.type === "GetAddOnCatalogCommand") postBrandMode();
+        const connection = connectAddOnsPage(webviewPanel.webview, panel, this.brandMode, () => {
             if (this.focusOnLoad) {
                 this.focusOnLoad = false;
                 webviewPanel.reveal(undefined, false);
             }
-            return panel.handle(message);
         });
         webviewPanel.onDidChangeViewState(() => panel.setVisible(webviewPanel.visible));
         webviewPanel.onDidDispose(() => {
             this.open = undefined;
             this.focusOnLoad = false;
-            brandModeChanges.dispose();
+            connection.dispose();
             panel.dispose();
         });
         this.context.subscriptions.push(webviewPanel);

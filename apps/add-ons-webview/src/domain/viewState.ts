@@ -182,9 +182,7 @@ function changedBy(state: ViewState, event: ViewEvent): Change {
         case "addOnSelected":
             return selected(state, event.addOnId);
         case "addOnShown":
-            return {
-                state: { ...state, selectedId: event.addOnId, pane: "detail", banner: undefined },
-            };
+            return { state: shown(state, event.addOnId) };
         case "backChosen":
             return { state: { ...state, pane: "list" } };
         case "queryChanged":
@@ -194,6 +192,12 @@ function changedBy(state: ViewState, event: ViewEvent): Change {
         case "filtersCleared":
             return filtered(state, NO_FILTER);
     }
+}
+
+/** A tab that shows another add-on drops the last one's result; the same one keeps it. */
+function shown(state: ViewState, addOnId: string): ViewState {
+    const banner = addOnId === state.selectedId ? state.banner : undefined;
+    return { ...state, selectedId: addOnId, pane: "detail", banner };
 }
 
 /** A list whose rows open a tab keeps showing the list and asks the host for the tab. */

@@ -1285,6 +1285,18 @@ describe("AddOnsView", () => {
             ]).toEqual([MAIL.name, false, false, false, ""]);
         });
 
+        it("shows the list's own word while the catalog is empty or failed", () => {
+            const { root, layout } = mountedView(
+                { revision: 1, groups: [], actions: [], problem: "Could not list the add-ons." },
+                { page: "detail", shows: MAIL.id },
+            );
+
+            expect([
+                text(root.querySelector(".av-catalog-problem")),
+                layout.isShown(root.querySelector(".av-catalog-problem")!),
+            ]).toEqual(["Could not list the add-ons.", true]);
+        });
+
         it("says when the list no longer holds its add-on", () => {
             const { root } = mountedView(CATALOG, { page: "detail", shows: "plugin:/gone" });
 

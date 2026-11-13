@@ -102,7 +102,7 @@ export class AddOnsView {
         if (state === undefined || this.root.contains(document.activeElement)) return;
         const selected = selectedIdOf(state);
         if (selected !== undefined && this.focus.addOn(selected)) return;
-        if (catalogPhaseOf(state.model) === "ready") this.toolbar.focusStart();
+        if (catalogPhaseOf(state.model) === "ready") this.focusStart();
     }
 
     /**
@@ -141,9 +141,11 @@ export class AddOnsView {
             this.list.replaceChildren(loadingOf());
             return;
         }
-        this.toolbar.update(model, state, this.openMenu, this.searchOpen);
         const content = listContentOf(model, state.filter);
-        this.drawList(content, model, state);
+        // A detail tab's page shows the list only for its loading, empty or failed state.
+        if (state.page !== "detail")
+            this.toolbar.update(model, state, this.openMenu, this.searchOpen);
+        if (state.page !== "detail" || phase !== "ready") this.drawList(content, model, state);
         this.drawDetail(model, state);
         this.announce(content, state);
     }

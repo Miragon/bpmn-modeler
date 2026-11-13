@@ -121,23 +121,23 @@ async function showAddOnDetail(
     name: string | RegExp,
     detailPage: () => Promise<FrameLocator>,
 ): Promise<{ detail: Locator; page: FrameLocator }> {
-    const deadline = Date.now() + TIMEOUT_MS;
-    for (;;) {
-        await addOnRow(addOns, name)
+    const click = () =>
+        addOnRow(addOns, name)
             .first()
             .click({ timeout: 5_000 })
             .catch(() => undefined);
-        const page = await detailPage();
-        const detail = addOnDetail(page, name);
-        const shown = await detail
-            .waitFor({ timeout: 1_000 })
-            .then(() => true)
-            .catch(() => false);
-        if (shown || Date.now() > deadline) {
-            await detail.waitFor({ timeout: 1_000 });
-            return { detail, page };
-        }
+    await click();
+    const page = await detailPage();
+    const detail = addOnDetail(page, name);
+    const shown = await detail
+        .waitFor({ timeout: 5_000 })
+        .then(() => true)
+        .catch(() => false);
+    if (!shown) {
+        await click();
+        await detail.waitFor({ timeout: TIMEOUT_MS });
     }
+    return { detail, page };
 }
 
 async function factsOf(detail: Locator): Promise<Record<string, string>> {
@@ -365,7 +365,7 @@ describe("the allowance playground in a real VS Code, one profile for every wind
     const detailPage = () => vscode().editorWebview(ADD_ONS_VIEW);
 
     /** The tab sits in front of the diagram, whose webview the checks read next; a click opens it again. */
-    const closeDetailTab = () => vscode().runCommand("View: Close Editor");
+    const closeDetailTab = () => vscode().closeEditorTab(/^Add-on: /);
 
     /**
      * Both notices, one after the other: the second may not show before the

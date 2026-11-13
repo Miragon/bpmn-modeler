@@ -1744,7 +1744,7 @@ describe("the packaged extension in a real VS Code", () => {
             await expect.poll(() => isFocused(detail.locator(".av-detail-name"))).toBe(true);
 
             // The details tab sits in the diagram's group, in front of it.
-            await vscode().runCommand("View: Close Editor");
+            await vscode().closeEditorTab(/^Add-on: /);
             await vscode().showInCustomEditor(PLUGIN_BPMN_FILE, diagramWithPluginRendered);
             const webview = vscode().webview();
             expect(
@@ -1818,7 +1818,7 @@ describe("the packaged extension in a real VS Code", () => {
                 .toBe(`Revoked ${PLUGIN_NAME}. Open editors reload without it.`);
             await settle(detailPage);
             await vscode().screenshot(join(RESULTS_DIRECTORY, "add-ons-view.png"));
-            await vscode().runCommand("View: Close Editor");
+            await vscode().closeEditorTab(/^Add-on: /);
             await vscode().showInCustomEditor(
                 PLUGIN_BPMN_FILE,
                 async (webview) =>
