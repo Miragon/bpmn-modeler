@@ -69,8 +69,9 @@ function firstFree(base: string, style: ElementIdStyle, isFree: (id: string) => 
 
 /**
  * The ID each candidate gets from its name, unique among the candidates and
- * against every ID they do not give up. Elements that already follow their name
- * and unchecked elements keep their IDs first, so the others steer around them.
+ * against every ID they do not give up. Every element that keeps its ID (it
+ * already follows its name, is unchecked or has no name) holds it first, so the
+ * others steer around it.
  */
 export function proposeIds<C extends IdCandidate>(
     candidates: readonly C[],
@@ -85,8 +86,9 @@ export function proposeIds<C extends IdCandidate>(
     candidates.forEach((candidate, index) => {
         const base = bases[index];
         if (
-            base !== undefined &&
-            (followsName(candidate.id, base, style) || unchecked.has(candidate.id))
+            base === undefined ||
+            followsName(candidate.id, base, style) ||
+            unchecked.has(candidate.id)
         ) {
             kept.add(candidate.id);
         }
