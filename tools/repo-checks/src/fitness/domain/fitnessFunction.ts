@@ -32,6 +32,15 @@ export interface FindingValue {
     readonly title: string;
 }
 
+/**
+ * What the changes report, a pull request's comment, shows of a function's delta instead of its new
+ * and resolved rows: only the existing findings whose values grew, or nothing. The full report
+ * shows every row either way.
+ */
+export type ChangesView = "grown-values" | "full-report-only";
+
+const CHANGES_VIEWS: readonly ChangesView[] = ["grown-values", "full-report-only"];
+
 export interface FitnessFunction {
     readonly id: string;
     /** Bumped on every change to what the function finds; another version's snapshot is not compared. */
@@ -45,6 +54,7 @@ export interface FitnessFunction {
     /** The report prints one table per group, in this order. */
     readonly groups?: NonEmptyList<FindingGroup>;
     readonly values?: NonEmptyList<FindingValue>;
+    readonly changesView?: ChangesView;
     /** Throws `InsufficientHistory` when git cannot recompute it at this commit. */
     findFindings(context: MeasurementContext): readonly Finding[];
 }
@@ -101,6 +111,18 @@ function declaredListProblem(declared: unknown): boolean {
     );
 }
 
+function changesViewProblems({ changesView, values }: FitnessFunction): string[] {
+    if (changesView === undefined) {
+        return [];
+    }
+    if (!CHANGES_VIEWS.includes(changesView)) {
+        return ["changesView is unknown"];
+    }
+    return changesView === "grown-values" && values === undefined
+        ? ["changesView grown-values needs declared values"]
+        : [];
+}
+
 function contractProblems(definition: FitnessFunction): string[] {
     const { categories, reliesOn, evidence } = definition;
     return [
@@ -128,6 +150,7 @@ function contractProblems(definition: FitnessFunction): string[] {
         ...(declaredListProblem(definition.values)
             ? ["values are empty, blank or repeat an id"]
             : []),
+        ...changesViewProblems(definition),
         ...(typeof definition.findFindings === "function" ? [] : ["findFindings is missing"]),
     ];
 }

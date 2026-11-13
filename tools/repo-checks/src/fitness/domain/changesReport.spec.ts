@@ -4,8 +4,10 @@ import { fakeFitnessFunction, finding } from "../__fixtures__/inMemoryPorts";
 import { changesReport } from "./changesReport";
 import type { Finding } from "./finding";
 import type { FitnessFunction } from "./fitnessFunction";
+import { markdownReport } from "./markdownReport";
 import { type FitnessReport, functionReport } from "./report";
 import type { Measurement } from "./snapshot";
+import type { TrendHistory } from "./trend";
 
 const HEAD = "1111111111112222";
 const BASE = "3333333333334444";
@@ -18,14 +20,20 @@ interface Measured {
     readonly fitnessFunction: FitnessFunction;
     readonly head: Measurement;
     readonly base: Measurement;
+    readonly history?: TrendHistory;
 }
 
 function reportOf(measured: readonly Measured[], uncommittedChanges = false): FitnessReport {
     return {
         head: { commit: HEAD, uncommittedChanges },
         base: { commit: BASE, ref: "origin/main" },
-        functions: measured.map(({ fitnessFunction, head, base }) =>
-            functionReport(fitnessFunction, head, { source: "snapshot", measurement: base }),
+        functions: measured.map(({ fitnessFunction, head, base, history }) =>
+            functionReport(
+                fitnessFunction,
+                head,
+                { source: "snapshot", measurement: base },
+                history,
+            ),
         ),
     };
 }
@@ -68,7 +76,7 @@ describe("the changes report", () => {
         const markdown = changesReport(reportOf([unchanged]));
 
         expect(markdown.split("\n")[0]).toBe("<!-- fitness-changes: none -->");
-        expect(markdown).toContain("No fitness function has a new or resolved finding.");
+        expect(markdown).toContain("No fitness function shows a new, resolved or grown finding.");
         expect(markdown).toContain("- **No change:** `quiet-one`");
         expect(markdown).not.toContain("quiet things");
         expect(markdown).not.toContain("| existing |");
@@ -313,6 +321,230 @@ describe("the changes report", () => {
                 reportOf([{ fitnessFunction: sized, head: { findings: [] }, base: changed.base }]),
             ),
         ).toContain("| resolved | `src/C.ts:1` | C breaks the rule | no trend |");
+    });
+});
+
+describe("the changes of a function that shows grown values", () => {
+    const sizedFiles = fakeFitnessFunction(
+        {},
+        {
+            id: "sized-files",
+            values: [
+                { id: "codeLines", title: "code lines" },
+                { id: "complexity", title: "highest complexity" },
+            ],
+            groups: [{ id: "files", title: "Every measured file", collapsed: true }],
+            changesView: "grown-values",
+        },
+    );
+
+    function file(name: string, codeLines: number, complexity?: number): Finding {
+        return {
+            key: `src/${name}.ts`,
+            path: `src/${name}.ts`,
+            line: 1,
+            message: `${codeLines} code lines`,
+            values: complexity === undefined ? { codeLines } : { codeLines, complexity },
+            group: "files",
+        };
+    }
+
+    function sized(head: readonly Finding[], base: readonly Finding[]): Measured {
+        return { fitnessFunction: sizedFiles, head: { findings: head }, base: { findings: base } };
+    }
+
+    function tableRows(markdown: string): string[] {
+        return markdown
+            .split("\n")
+            .filter((line) => /^\| (new|existing|grown|resolved) \|/.test(line));
+    }
+
+    it("lists no file a pull request only adds, and folds them into their count and the largest", () => {
+        const markdown = changesReport(
+            reportOf([
+                sized(
+                    [file("kept", 50), file("added", 12), file("larger", 40, 3)],
+                    [file("kept", 50)],
+                ),
+                unchanged,
+            ]),
+        );
+
+        expect(markdown.split("\n")[0]).toBe("<!-- fitness-changes: none -->");
+        expect(tableRows(markdown)).toEqual([]);
+        expect(markdown).not.toContain("src/added.ts");
+        expect(markdown).toContain("**2 new, 1 existing, 0 resolved**");
+        expect(markdown).toContain(
+            "- **New, not listed:** 2 rows; the largest is `src/larger.ts:1` (40 code lines)",
+        );
+    });
+
+    it("shows a grown file with its trend outside any collapsed section", () => {
+        const markdown = changesReport(
+            reportOf([
+                sized(
+                    [file("grown", 348, 8), file("shrunk", 90), file("same", 10)],
+                    [file("grown", 272, 8), file("shrunk", 100), file("same", 10)],
+                ),
+            ]),
+        );
+        const lines = markdown.split("\n");
+
+        expect(lines[0]).toBe("<!-- fitness-changes: some -->");
+        expect(markdown).toContain(
+            [
+                "#### Grown since the merge base",
+                "",
+                "| Status | Location | Message | Trend |",
+                "| --- | --- | --- | --- |",
+                "| grown | `src/grown.ts:1` | 348 code lines | code lines 272 → 348 |",
+            ].join("\n"),
+        );
+        expect(tableRows(markdown)).toHaveLength(1);
+        expect(lines.indexOf("#### Grown since the merge base")).toBeGreaterThan(
+            lines.lastIndexOf("</details>"),
+        );
+        expect(markdown).not.toContain("<summary>Every measured file");
+    });
+
+    it("shows a grown file's trend over the stored snapshots", () => {
+        const history: TrendHistory = {
+            headCommit: HEAD,
+            commitsNewestFirst: [BASE, "older"],
+            snapshots: new Map(
+                [
+                    { commit: BASE, findings: [file("grown", 272)] },
+                    { commit: "older", findings: [file("grown", 98)] },
+                ].map(({ commit, findings }) => [
+                    commit,
+                    {
+                        schemaVersion: 1,
+                        commit,
+                        entries: { "sized-files": { version: 2, findings } },
+                    },
+                ]),
+            ),
+        };
+
+        expect(
+            changesReport(
+                reportOf([{ ...sized([file("grown", 348)], [file("grown", 272)]), history }]),
+            ),
+        ).toContain("| grown | `src/grown.ts:1` | 348 code lines | code lines 98 → 272 → 348 |");
+    });
+
+    it("names a single new file and counts the removed ones", () => {
+        const markdown = changesReport(
+            reportOf([
+                sized(
+                    [file("grown", 20), file("added", 12)],
+                    [file("grown", 10), file("gone", 5), file("also-gone", 7)],
+                ),
+            ]),
+        );
+
+        expect(markdown).toContain(
+            [
+                "- **New, not listed:** 1 row, `src/added.ts:1` (12 code lines)",
+                "- **Resolved, not listed:** 2 rows",
+            ].join("\n"),
+        );
+        expect(markdown).not.toContain("src/gone.ts");
+    });
+
+    it("counts removed files alone as no change", () => {
+        expect(changesReport(reportOf([sized([], [file("gone", 5)])])).split("\n")[0]).toBe(
+            "<!-- fitness-changes: none -->",
+        );
+    });
+
+    it("caps the grown rows with a pointer to the job summary", () => {
+        const names = Array.from(
+            { length: 40 },
+            (_, index) => `grown${String(index).padStart(2, "0")}`,
+        );
+        const report = reportOf([
+            sized(
+                names.map((name) => file(name, 200)),
+                names.map((name) => file(name, 100)),
+            ),
+        ]);
+        const maxCharacters = changesReport(report).length - 500;
+
+        const markdown = changesReport(report, { maxCharacters });
+        const shown = tableRows(markdown).length;
+
+        expect(markdown.length).toBeLessThanOrEqual(maxCharacters);
+        expect(shown).toBeLessThan(40);
+        expect(markdown).toContain(
+            `${40 - shown} more rows (${40 - shown} grown) are left out to fit; the job summary lists every row.`,
+        );
+    });
+});
+
+describe("the changes of a function shown in the full report only", () => {
+    const missedPartner = fakeFitnessFunction(
+        {},
+        { id: "missed-partner", changesView: "full-report-only" },
+    );
+    const storedMutationRuns = fakeFitnessFunction(
+        {},
+        { id: "mutation-score", changesView: "full-report-only" },
+    );
+
+    it("adds no row for a stored mutation run to an unrelated pull request", () => {
+        const markdown = changesReport(
+            reportOf([
+                unchanged,
+                {
+                    fitnessFunction: storedMutationRuns,
+                    head: { findings: [finding("domain/a"), finding("total")] },
+                    base: { unmeasurable: "no mutation run" },
+                },
+            ]),
+        );
+
+        expect(markdown.split("\n")[0]).toBe("<!-- fitness-changes: none -->");
+        expect(markdown).not.toContain("### `mutation-score`");
+        expect(markdown).not.toContain("| new |");
+        expect(markdown).toContain(
+            [
+                "- **No change:** `quiet-one`",
+                "- **In the full report only:** `mutation-score`",
+            ].join("\n"),
+        );
+    });
+
+    it("adds no row for a missed-partner warning, which the full report still holds", () => {
+        const report = reportOf([
+            changed,
+            {
+                fitnessFunction: missedPartner,
+                head: { findings: [finding("F")] },
+                base: { findings: [] },
+            },
+        ]);
+
+        const markdown = changesReport(report);
+
+        expect(markdown).not.toContain("src/F.ts");
+        expect(markdown).toContain("- **In the full report only:** `missed-partner`");
+        expect(markdownReport(report)).toContain("| new | `src/F.ts:1` | F breaks the rule |");
+    });
+
+    it("counts no change when it is measured at the merge base and not at HEAD", () => {
+        const markdown = changesReport(
+            reportOf([
+                {
+                    fitnessFunction: missedPartner,
+                    head: { unmeasurable: "shallow clone" },
+                    base: { findings: [finding("F")] },
+                },
+            ]),
+        );
+
+        expect(markdown.split("\n")[0]).toBe("<!-- fitness-changes: none -->");
+        expect(markdown).not.toContain("shallow clone");
     });
 });
 

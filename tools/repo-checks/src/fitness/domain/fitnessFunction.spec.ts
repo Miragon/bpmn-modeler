@@ -45,6 +45,15 @@ describe("the fitness function contract", () => {
         expect(defineFitnessFunction(measured)).toBe(measured);
     });
 
+    it.each([
+        { changesView: "full-report-only" },
+        { changesView: "grown-values", values: [{ id: "codeLines", title: "code lines" }] },
+    ] as const)("accepts the changes view $changesView", (declared) => {
+        const viewed = { ...valid, ...declared } as const;
+
+        expect(defineFitnessFunction(viewed)).toBe(viewed);
+    });
+
     // Each case is a type error (checked by `typecheck`) and throws for callers that bypass the types.
     it.each([
         {
@@ -192,6 +201,16 @@ describe("the fitness function contract", () => {
                 ],
             },
             problem: "values are empty, blank or repeat an id",
+        },
+        {
+            case: "an unknown changes view",
+            override: { changesView: "everything" },
+            problem: "changesView is unknown",
+        },
+        {
+            case: "grown values without declared values",
+            override: { changesView: "grown-values" },
+            problem: "changesView grown-values needs declared values",
         },
     ])("rejects $case at run time", ({ override, problem }) => {
         expect(() => defineFitnessFunction({ ...valid, ...override } as never)).toThrow(

@@ -1,6 +1,28 @@
-import { compareText, type Finding, findingFields, keyAroundPaths, sortFindings } from "./finding";
+import {
+    compareText,
+    type Finding,
+    findingFields,
+    keyAroundPaths,
+    sameValues,
+    sortedValues,
+    sortFindings,
+} from "./finding";
 
-export type MarkedFinding = Finding & { readonly status: "new" | "existing" };
+export type MarkedFinding = Finding & {
+    readonly status: "new" | "existing";
+    /** On an existing finding, the values of the base finding it matched when they differ. */
+    readonly valuesAtBase?: Readonly<Record<string, number>>;
+};
+
+/** A value counts as grown when it is higher than at the merge base or the base lacked it. */
+export function grewSinceBase({ values = {}, valuesAtBase }: MarkedFinding): boolean {
+    if (valuesAtBase === undefined) {
+        return false;
+    }
+    return Object.entries(values).some(
+        ([id, value]) => !Object.hasOwn(valuesAtBase, id) || value > valuesAtBase[id],
+    );
+}
 
 export interface Delta {
     readonly findings: readonly MarkedFinding[];
@@ -15,12 +37,29 @@ export interface Rename {
     readonly path: string;
 }
 
-function countByKey(findings: readonly Finding[]): Map<string, number> {
-    const counts = new Map<string, number>();
-    for (const { key } of findings) {
-        counts.set(key, (counts.get(key) ?? 0) + 1);
+function groupByKey(findings: readonly Finding[]): Map<string, Finding[]> {
+    const byKey = new Map<string, Finding[]>();
+    for (const finding of findings) {
+        const sameKey = byKey.get(finding.key);
+        if (sameKey === undefined) {
+            byKey.set(finding.key, [finding]);
+        } else {
+            sameKey.push(finding);
+        }
     }
-    return counts;
+    return byKey;
+}
+
+function changedValuesAtBase(
+    { values }: Finding,
+    baseFinding: Finding,
+): { readonly valuesAtBase?: Readonly<Record<string, number>> } {
+    if (values === undefined || baseFinding.values === undefined) {
+        return {};
+    }
+    return sameValues(values, baseFinding.values)
+        ? {}
+        : { valuesAtBase: sortedValues(baseFinding.values) };
 }
 
 /** The key a head finding had at the merge base, before the files it names were renamed. */
@@ -49,28 +88,31 @@ export function markDelta(
     renames: readonly Rename[] = [],
 ): Delta {
     const previousPathOf = new Map(renames.map(({ previousPath, path }) => [path, previousPath]));
-    const unmatchedBase = countByKey(base);
+    const sortedBase = sortFindings(base);
+    const baseByKey = groupByKey(sortedBase);
+    const matchedCount = new Map<string, number>();
     const sortedHead = sortFindings(head);
     const keysAtBase = sortedHead.map((finding) => keyAtBase(finding, previousPathOf));
     const findings = sortedHead.map((finding, index): MarkedFinding => {
         const key = keysAtBase[index];
-        const unmatched = unmatchedBase.get(key) ?? 0;
-        if (unmatched === 0) {
+        const matched = matchedCount.get(key) ?? 0;
+        const baseFinding = baseByKey.get(key)?.[matched];
+        if (baseFinding === undefined) {
             return { ...findingFields(finding), status: "new" };
         }
-        unmatchedBase.set(key, unmatched - 1);
-        return { ...findingFields(finding), status: "existing" };
+        matchedCount.set(key, matched + 1);
+        return {
+            ...findingFields(finding),
+            status: "existing",
+            ...changedValuesAtBase(finding, baseFinding),
+        };
     });
 
-    const resolvedCount = new Map(unmatchedBase);
-    const resolved = sortFindings(base)
-        .reverse()
-        .filter(({ key }) => {
-            const remaining = resolvedCount.get(key) ?? 0;
-            resolvedCount.set(key, remaining - 1);
-            return remaining > 0;
+    const resolved = sortedBase
+        .filter((finding) => {
+            const sameKey = baseByKey.get(finding.key) ?? [];
+            return sameKey.indexOf(finding) >= (matchedCount.get(finding.key) ?? 0);
         })
-        .reverse()
         .map(findingFields);
     return { findings, keysAtBase, resolved };
 }

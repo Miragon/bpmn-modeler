@@ -3,9 +3,12 @@ import type { Evidence, FindingGroup, FindingValue } from "./fitnessFunction";
 import type { FitnessReport, FunctionReport } from "./report";
 import type { TrendPoint } from "./trend";
 
-/** A table row of the Markdown reports: a finding at HEAD, or one the merge base held and HEAD lacks. */
+/**
+ * A table row of the Markdown reports: a finding at HEAD, or one the merge base held and HEAD lacks.
+ * `grown` is an existing finding whose values grew, as the changes report names it.
+ */
 export type FindingRow = Finding & {
-    readonly status: "new" | "existing" | "resolved";
+    readonly status: "new" | "existing" | "grown" | "resolved";
     readonly trend?: readonly TrendPoint[];
 };
 

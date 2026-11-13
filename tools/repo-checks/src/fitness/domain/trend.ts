@@ -1,4 +1,4 @@
-import type { Finding } from "./finding";
+import { type Finding, sameValues } from "./finding";
 import { isMeasured, type Snapshot, usableEntry, type VersionedFunction } from "./snapshot";
 
 const TREND_MAX_CHANGES = 5;
@@ -50,17 +50,6 @@ function indexByKey(commit: string, findings: readonly Finding[]): IndexedFindin
         byKey.set(finding.key, finding);
     }
     return { commit, byKey, repeatedKeys };
-}
-
-function sameValues(
-    left: Readonly<Record<string, number>>,
-    right: Readonly<Record<string, number>>,
-): boolean {
-    const leftIds = Object.keys(left);
-    return (
-        leftIds.length === Object.keys(right).length &&
-        leftIds.every((id) => Object.hasOwn(right, id) && left[id] === right[id])
-    );
 }
 
 function heldOnce({ byKey, repeatedKeys }: IndexedFindings, key: string): Finding | undefined {

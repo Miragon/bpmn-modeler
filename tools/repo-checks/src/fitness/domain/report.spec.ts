@@ -202,6 +202,7 @@ describe("a report of a function that declares values", () => {
                 {
                     ...file("src/b.ts", 348),
                     status: "existing",
+                    valuesAtBase: { codeLines: 330, complexity: 4 },
                     trend: [
                         { commit: "c1", values: { codeLines: 300, complexity: 4 } },
                         { commit: BASE, values: { codeLines: 330, complexity: 4 } },

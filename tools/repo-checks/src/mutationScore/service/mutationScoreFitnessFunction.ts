@@ -48,6 +48,8 @@ export function createMutationScoreFitnessFunction({ runs }: MutationScorePorts)
                     "the weekly run of 2026-11-02 (41384596015): 94.3 % over 4,502 mutants (4,247 detected, 255 undetected), template-marketplace lowest at 85.3 %, modeler/dmn without mutants; the summary matches the replaced mutation-summary.mjs in every context",
             },
         ],
+        // Its rows come from a stored run, not from the pull request the next report measures.
+        changesView: "full-report-only",
         findFindings: ({ repoRoot, commit }) => {
             const outcome = mutationScoreOnChain(
                 runs.firstParentChain(repoRoot, commit),
