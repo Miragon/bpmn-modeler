@@ -3,6 +3,7 @@ import { i18n } from "@miragon/bpmn-modeler-i18n";
 import {
     SURFACE_MODES,
     createModeSession,
+    isModelerSurface,
     mountModeStrip,
     type ModeSession,
     type ModeStrip,
@@ -23,7 +24,7 @@ import {
 
 import type { HostModelerState } from "../../domain/hostModelerState";
 import type { WebviewStateManager } from "../../service/state";
-import { isModelerHandle, type SurfaceHandle } from "../../domain/surface";
+import type { SurfaceHandle } from "../../domain/surface";
 import type { BpmnDocumentSession } from "../../service/documentSession";
 import type { HostChannel } from "../../port/hostChannel";
 import type { SurfaceBinder, SurfaceBinding } from "./surfaceBinding";
@@ -116,7 +117,7 @@ export function createModeController(
         }
         // After the import: the script-source watcher baselines the locked
         // scripts from the loaded model.
-        if (isModelerHandle(surface)) {
+        if (isModelerSurface(surface)) {
             hostModelerState.restoreOpenScripts(surface);
         }
         viewState.restorePanelUiState();

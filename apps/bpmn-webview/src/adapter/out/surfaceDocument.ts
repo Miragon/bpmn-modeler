@@ -1,12 +1,8 @@
 import { LogWarningCommand } from "@miragon/bpmn-modeler-shared";
 import { formatErrors, isBlankDocument } from "@miragon/bpmn-modeler-types";
+import { isEditableSurface, isModelerSurface } from "@miragon/bpmn-modeler/mode";
 
-import {
-    isEditableHandle,
-    isModelerHandle,
-    isPendingInputHandle,
-    type SurfaceHandle,
-} from "../../domain/surface";
+import type { SurfaceHandle } from "../../domain/surface";
 import type { BpmnDocumentSurface } from "../../port/documentSessionPorts";
 import type { HostChannel } from "../../port/hostChannel";
 import type { CanvasViewState } from "../../port/webviewState";
@@ -34,7 +30,7 @@ export function createSurfaceDocument(
         const surface = getSurface();
         // The readonly viewer cannot start a blank diagram, so it always loads the host XML.
         const result =
-            isBlankDocument(content) && isEditableHandle(surface)
+            isBlankDocument(content) && isEditableSurface(surface)
                 ? await surface.newDiagram()
                 : await surface.loadDiagram(content ?? "");
         if (result.warnings.length > 0) {
@@ -65,17 +61,17 @@ export function createSurfaceDocument(
         exportDocument: () => getSurface().exportDiagram(),
         afterSync: () => {
             const surface = getSurface();
-            if (isModelerHandle(surface)) {
+            if (isModelerSurface(surface)) {
                 surface.alignElementsToOrigin();
             }
         },
         hasPendingInput: () => {
             const surface = getSurface();
-            return isPendingInputHandle(surface) && surface.hasPendingInput();
+            return isEditableSurface(surface) && surface.hasPendingInput();
         },
         flushPendingInput: () => {
             const surface = getSurface();
-            if (isPendingInputHandle(surface)) {
+            if (isEditableSurface(surface)) {
                 surface.flushPendingInput();
             }
         },

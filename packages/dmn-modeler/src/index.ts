@@ -22,7 +22,6 @@ export type {
     DmnModelerHandle,
     CreateDmnModeler,
 } from "./publicApi";
-/** @internal */
 export type { DmnPendingInputHandle } from "./publicApi";
 /** @internal The IDE's DMN diff panes; not public API yet. */
 export { createDiffViewer } from "./diff/DmnDiffViewer";

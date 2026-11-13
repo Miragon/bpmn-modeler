@@ -1,13 +1,13 @@
 import type { ClipboardOptions } from "@miragon/bpmn-modeler";
 import {
     createModeSession,
+    isEditableSurface,
     mountModeStrip,
     SURFACE_MODES,
     type DetectedEngine,
     type ModeSession,
     type ModeStrip,
     type SurfaceFactories,
-    type SurfaceHandle,
 } from "@miragon/bpmn-modeler/mode";
 import { i18n } from "@miragon/bpmn-modeler-i18n";
 import type { HostThemeKind } from "@miragon/bpmn-modeler-shared";
@@ -59,18 +59,6 @@ function surfaceFactories(panelParent: HTMLElement, clipboard: ClipboardOptions)
     };
 }
 
-function hasCommandStack(
-    handle: SurfaceHandle,
-): handle is SurfaceHandle & { onCommandStackChanged(listener: () => void): () => void } {
-    return "onCommandStackChanged" in handle;
-}
-
-function holdsPendingInput(
-    handle: SurfaceHandle,
-): handle is SurfaceHandle & { flushPendingInput(): void } {
-    return "flushPendingInput" in handle;
-}
-
 /**
  * The BPMN mode session (View, Design, Implement) as a canvas. The engine is
  * read from each text Orca hands over; a text for another engine rebuilds the
@@ -84,19 +72,11 @@ export function createBpmnCanvas(options: BpmnCanvasOptions): BpmnCanvas {
     let engine: DetectedEngine;
     let session: ModeSession | undefined;
     let strip: ModeStrip | undefined;
-    let stopListening = (): void => undefined;
     let shownOnce = false;
 
     const renderStrip = (busy: boolean): void => {
         if (session) strip?.render({ mode: session.getMode(), engine, busy });
     };
-
-    function listenTo(handle: SurfaceHandle): void {
-        stopListening();
-        stopListening = hasCommandStack(handle)
-            ? handle.onCommandStackChanged(() => editListeners.forEach((listener) => listener()))
-            : () => undefined;
-    }
 
     async function startSession(nextEngine: DetectedEngine): Promise<ModeSession> {
         await session?.destroy();
@@ -106,12 +86,12 @@ export function createBpmnCanvas(options: BpmnCanvasOptions): BpmnCanvas {
             engine,
             surfaces,
             theme,
-            onSurfaceCreated: listenTo,
             onModeChanged: () => renderStrip(false),
             onSwitchStateChanged: renderStrip,
             onError: (error) => console.warn("Unable to switch the BPMN mode", error),
         });
         const liveSession = session;
+        liveSession.onContentChanged(() => editListeners.forEach((listener) => listener()));
         strip ??= mountModeStrip({
             host: options.strip.host,
             stripEl: options.strip.el,
@@ -129,7 +109,7 @@ export function createBpmnCanvas(options: BpmnCanvasOptions): BpmnCanvas {
         const kept = session !== undefined && nextEngine === engine;
         const live = kept ? session! : await startSession(nextEngine);
         const surface = live.getHandle();
-        if (isBlankDocument(text) && "newDiagram" in surface) {
+        if (isBlankDocument(text) && isEditableSurface(surface)) {
             await surface.newDiagram();
             return;
         }
@@ -150,10 +130,7 @@ export function createBpmnCanvas(options: BpmnCanvasOptions): BpmnCanvas {
             }
         },
         exportText: () => session!.getHandle().exportDiagram(),
-        applyPendingInput: () => {
-            const surface = session?.getHandle();
-            if (surface && holdsPendingInput(surface)) surface.flushPendingInput();
-        },
+        applyPendingInput: () => session?.flushPendingInput(),
         onEdit: (listener) => {
             editListeners.add(listener);
             return () => editListeners.delete(listener);

@@ -9,15 +9,10 @@ import {
     type WebviewStateHost,
 } from "@miragon/bpmn-modeler-shared";
 import { type DetectedEngine, engineSupports } from "@miragon/bpmn-modeler-types";
+import { isEditableSurface, isModelerSurface } from "@miragon/bpmn-modeler/mode";
 
 import { WebviewStateManager } from "../../service/state";
-import {
-    isEditableHandle,
-    isFormattableHandle,
-    isLintingHandle,
-    isModelerHandle,
-    type SurfaceHandle,
-} from "../../domain/surface";
+import type { SurfaceHandle } from "../../domain/surface";
 import type { WebviewState } from "../../port/webviewState";
 import type { BpmnDocumentSession } from "../../service/documentSession";
 import type { HostChannel } from "../../port/hostChannel";
@@ -51,13 +46,13 @@ export function createSurfaceBinder(
 
     function bindSurface(handle: SurfaceHandle): SurfaceBinding {
         // The readonly viewer never schedules a sync, so a host flush finds nothing pending.
-        if (isEditableHandle(handle)) {
+        if (isEditableSurface(handle)) {
             handle.onCommandStackChanged(() => session.scheduleSync());
         }
 
         // One report per format, whether the host command, the palette or the
         // canvas shortcut started it; only the host command has a caller.
-        if (isFormattableHandle(handle)) {
+        if (isEditableSurface(handle)) {
             handle.onFormatted((outcome) => {
                 host.postMessage(
                     new DiagramFormattedCommand(
@@ -74,7 +69,7 @@ export function createSurfaceBinder(
             // Only a scripting modeler publishes variables, so nothing else has a publish to cancel.
         };
         if (
-            isModelerHandle(handle) &&
+            isModelerSurface(handle) &&
             engineSupports(engine, "inlineScripting") &&
             capabilities.scripting
         ) {
@@ -99,12 +94,12 @@ export function createSurfaceBinder(
     // A viewer or designer never receives templates, so the restore chain would
     // stall on a reply that never comes; the designer still lints.
     function requestSurfaceResources(handle: SurfaceHandle): void {
-        if (isModelerHandle(handle)) {
+        if (isModelerSurface(handle)) {
             host.postMessage(new GetElementTemplatesCommand());
         } else {
             elementTemplatesReply.done(undefined);
         }
-        if (isLintingHandle(handle)) {
+        if (isEditableSurface(handle)) {
             host.postMessage(new GetBpmnlintConfigCommand());
         }
     }

@@ -19,6 +19,7 @@ import type {
 } from "./publicApi";
 import type { ViewState } from "./viewState";
 import type { PendingInputHandle, PendingSaveHandle } from "./surfaceHandle";
+import { isEditableSurface, isModelerSurface } from "./modeSession/surfaceCapabilities";
 import type {
     BpmnViewerHandle,
     CoreViewerServices,
@@ -79,11 +80,22 @@ void _viewerConformance;
 const _designerConformance = (d: BpmnDesigner): BpmnDesignerHandle => d;
 void _designerConformance;
 
-// The editable surfaces carry the internal pending-input members the IDE webview flushes.
-const _modelerPendingInput = (modeler: BpmnModeler): PendingInputHandle => modeler;
+// A host flushes the editable handles' pending panel input before it exports for a save.
+const _modelerPendingInput = (modeler: BpmnModelerHandle): PendingInputHandle => modeler;
 void _modelerPendingInput;
-const _designerPendingInput = (designer: BpmnDesigner): PendingInputHandle => designer;
+const _designerPendingInput = (designer: BpmnDesignerHandle): PendingInputHandle => designer;
 void _designerPendingInput;
+
+// The capability guards keep a host's own subtype of a handle, such as the class, narrowed to it.
+const _guardNarrowing = (hostSurface: BpmnModeler | BpmnViewerHandle | BpmnDesignerHandle) => {
+    if (isModelerSurface(hostSurface)) {
+        expectTypeOf(hostSurface).toEqualTypeOf<BpmnModeler>();
+    }
+    if (isEditableSurface(hostSurface)) {
+        expectTypeOf(hostSurface).toEqualTypeOf<BpmnModeler | BpmnDesignerHandle>();
+    }
+};
+void _guardNarrowing;
 // A recreating mode switch delivers their pending content save before it destroys them.
 const _modelerPendingSave = (modeler: BpmnModeler): PendingSaveHandle => modeler;
 void _modelerPendingSave;

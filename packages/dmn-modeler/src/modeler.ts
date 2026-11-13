@@ -26,7 +26,6 @@ import type {
     DmnModelerHandle,
     DmnModelerOptions,
     DmnOperationResult,
-    DmnPendingInputHandle,
     DmnThemeMode,
     DmnView,
     DmnViewChangedEvent,
@@ -93,7 +92,7 @@ interface ViewboxCanvas extends ResizableCanvas {
 }
 
 /** @internal */
-export class DmnModeler implements DmnModelerHandle, DmnPendingInputHandle {
+export class DmnModeler implements DmnModelerHandle {
     private readonly modeler: VendorDmnModeler;
     private readonly store = new DisposableStore();
     private readonly canvasOverlays = new MutableDisposable();
@@ -295,7 +294,7 @@ export class DmnModeler implements DmnModelerHandle, DmnPendingInputHandle {
         return viewer.get<T>(name);
     }
 
-    /** @internal See {@link DmnPendingInputHandle.hasPendingInput}. */
+    /** @see DmnPendingInputHandle.hasPendingInput */
     hasPendingInput(): boolean {
         return (
             !this.store.isDisposed &&
@@ -303,7 +302,7 @@ export class DmnModeler implements DmnModelerHandle, DmnPendingInputHandle {
         );
     }
 
-    /** @internal See {@link DmnPendingInputHandle.flushPendingInput}. */
+    /** @see DmnPendingInputHandle.flushPendingInput */
     flushPendingInput(): void {
         if (this.store.isDisposed) {
             return;

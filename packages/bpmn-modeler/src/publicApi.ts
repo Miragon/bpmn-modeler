@@ -17,7 +17,7 @@ import type { LintCallbacks, LintTierInit } from "./bpmnlint/LintConfigService";
 import type { LintConfigOption } from "./bpmnlint/lintConfigResolution";
 import type { ModelerCapabilities } from "./capabilities";
 import type { ModelerMode } from "./mode/mode";
-import type { BpmnSurfaceHandle } from "./surfaceHandle";
+import type { BpmnSurfaceHandle, PendingInputHandle } from "./surfaceHandle";
 import type { ThemeMode } from "./themeMode";
 
 export type { ModelerMode } from "./mode/mode";
@@ -272,7 +272,7 @@ export interface CreateModelerOptions extends ModelerOptions {
  * {@link BpmnSurfaceHandle} members are engine-intrinsic [A], except the
  * opinionated `setTheme` [B].
  */
-export interface BpmnModelerHandle extends BpmnSurfaceHandle {
+export interface BpmnModelerHandle extends BpmnSurfaceHandle, PendingInputHandle {
     // ── [A] Engine-intrinsic ────────────────────────────────────────────────
     /**
      * [A] Replace the diagram with a fresh empty one and fit it to view. The new

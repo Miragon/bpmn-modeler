@@ -20,7 +20,8 @@ import type {
  * captured selection names whichever ID was applied. `flushShouldThrow` makes
  * that flush throw. `pendingSave` gives it a content save still waiting in its
  * debounce: `flushContentSaved` delivers it, logged with the XML it carries, and
- * `destroy` drops it.
+ * `destroy` drops it. `editable` makes it an editable surface without either;
+ * {@link editOn} fires its command stack change.
  */
 function makeSurface(opts: {
     id: string;
@@ -34,6 +35,7 @@ function makeSurface(opts: {
     pendingIdInput?: string;
     flushShouldThrow?: boolean;
     pendingSave?: boolean;
+    editable?: boolean;
     log: string[];
 }): BpmnModelerHandle {
     let mode = opts.initialMode ?? "implement";
@@ -42,10 +44,17 @@ function makeSurface(opts: {
     let pendingIdInput = opts.pendingIdInput;
     let appliedInput = "";
     let selectedElementId = "Task_1";
+    const editListeners = new Set<() => void>();
     const panel =
-        opts.pendingInput === undefined && opts.pendingIdInput === undefined
+        !opts.editable && opts.pendingInput === undefined && opts.pendingIdInput === undefined
             ? {}
             : {
+                  newDiagram: vi.fn(async () => ({ warnings: [] })),
+                  onCommandStackChanged: (listener: () => void) => {
+                      editListeners.add(listener);
+                      return () => editListeners.delete(listener);
+                  },
+                  edit: () => editListeners.forEach((listener) => listener()),
                   hasPendingInput: () => pendingInput !== undefined || pendingIdInput !== undefined,
                   flushPendingInput: () => {
                       if (opts.flushShouldThrow) {
@@ -123,6 +132,10 @@ function makeSurface(opts: {
 }
 
 const container = () => document.createElement("div");
+
+function editOn(surface: SurfaceHandle): void {
+    (surface as unknown as { edit(): void }).edit();
+}
 
 const gate = () => {
     let release!: () => void;
@@ -1173,5 +1186,106 @@ describe("createModeSession — disposed guards", () => {
             }),
         ).rejects.toThrow("initial onSurfaceCreated boom");
         expect(log).toContain("view:destroy");
+    });
+});
+
+describe("createModeSession — content changes and pending input", () => {
+    let log: string[];
+    let surfaces: SurfaceFactories;
+
+    beforeEach(() => {
+        log = [];
+        surfaces = {
+            view: async () => makeSurface({ id: "view", hasSetMode: false, log }),
+            design: async () =>
+                makeSurface({ id: "designer", hasSetMode: false, editable: true, log }),
+        };
+    });
+
+    it("reports an edit on the surface a recreate built, once", async () => {
+        const onContentChanged = vi.fn();
+        const session = await createModeSession({
+            container: container(),
+            engine: undefined,
+            surfaces,
+            initialMode: "design",
+        });
+        session.onContentChanged(onContentChanged);
+        const firstDesigner = session.getHandle();
+
+        await session.requestMode("view");
+        await session.requestMode("design");
+        editOn(session.getHandle());
+        editOn(firstDesigner);
+
+        expect(session.getHandle()).not.toBe(firstDesigner);
+        expect(onContentChanged).toHaveBeenCalledOnce();
+    });
+
+    it("stops reporting edits to a listener whose subscription is disposed", async () => {
+        const onContentChanged = vi.fn();
+        const session = await createModeSession({
+            container: container(),
+            engine: undefined,
+            surfaces,
+            initialMode: "design",
+        });
+        const unsubscribe = session.onContentChanged(onContentChanged);
+
+        unsubscribe();
+        editOn(session.getHandle());
+
+        expect(onContentChanged).not.toHaveBeenCalled();
+    });
+
+    it("reports no edit once destroyed", async () => {
+        const onContentChanged = vi.fn();
+        const session = await createModeSession({
+            container: container(),
+            engine: undefined,
+            surfaces,
+            initialMode: "design",
+        });
+        session.onContentChanged(onContentChanged);
+        const designer = session.getHandle();
+
+        await session.destroy();
+        editOn(designer);
+
+        expect(onContentChanged).not.toHaveBeenCalled();
+    });
+
+    it("applies the live surface's pending panel input on flushPendingInput", async () => {
+        const session = await createModeSession({
+            container: container(),
+            engine: undefined,
+            surfaces: {
+                design: async () =>
+                    makeSurface({
+                        id: "designer",
+                        hasSetMode: false,
+                        pendingInput: "Typed name",
+                        log,
+                    }),
+            },
+            initialMode: "design",
+        });
+
+        session.flushPendingInput();
+
+        await expect(session.getHandle().exportDiagram()).resolves.toBe(
+            '<xml id="designer" name="Typed name"/>',
+        );
+    });
+
+    it("ignores flushPendingInput on the readonly viewer", async () => {
+        const session = await createModeSession({
+            container: container(),
+            engine: undefined,
+            surfaces,
+            initialMode: "view",
+        });
+
+        expect(() => session.flushPendingInput()).not.toThrow();
     });
 });

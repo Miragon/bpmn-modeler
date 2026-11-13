@@ -1,9 +1,4 @@
-import {
-    createModeler,
-    type DmnModelerHandle,
-    type DmnPendingInputHandle,
-    type DmnView,
-} from "@miragon/dmn-modeler";
+import { createModeler, type DmnModelerHandle, type DmnView } from "@miragon/dmn-modeler";
 import type { HostThemeKind } from "@miragon/bpmn-modeler-shared";
 import { EMPTY_DMN_DIAGRAM, isBlankDocument } from "@miragon/bpmn-modeler-types";
 
@@ -19,10 +14,6 @@ export interface DmnCanvasOptions {
 export interface DmnCanvas extends ModelCanvas {
     setTheme(theme: HostThemeKind): void;
 }
-
-const holdsPendingInput = (
-    modeler: DmnModelerHandle,
-): modeler is DmnModelerHandle & DmnPendingInputHandle => "flushPendingInput" in modeler;
 
 const sameView = (view: DmnView, other: DmnView): boolean =>
     view.type === other.type && view.element.id === other.element.id;
@@ -59,9 +50,7 @@ export async function createDmnCanvas(options: DmnCanvasOptions): Promise<DmnCan
             }
         },
         exportText: () => modeler.exportDiagram(),
-        applyPendingInput: () => {
-            if (holdsPendingInput(modeler)) modeler.flushPendingInput();
-        },
+        applyPendingInput: () => modeler.flushPendingInput(),
         onEdit: (listener) => {
             editListeners.add(listener);
             return () => editListeners.delete(listener);

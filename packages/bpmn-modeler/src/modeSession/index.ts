@@ -4,6 +4,8 @@
  */
 
 export { createModeSession } from "./modeSession";
+export { isEditableSurface, isModelerSurface } from "./surfaceCapabilities";
+export type { EditableSurfaceHandle } from "./surfaceCapabilities";
 export {
     mountModeStrip,
     MODE_LABEL,

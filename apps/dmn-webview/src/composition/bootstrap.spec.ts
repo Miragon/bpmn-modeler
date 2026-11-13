@@ -30,6 +30,8 @@ const mocks = vi.hoisted(() => {
         isCanvasFocused: vi.fn(() => true),
         setTheme: vi.fn(),
         setLocale: vi.fn(async (_locale: string) => undefined),
+        hasPendingInput: vi.fn(() => false),
+        flushPendingInput: vi.fn(),
         destroy: vi.fn(),
         getService: vi.fn(),
     };

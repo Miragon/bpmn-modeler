@@ -75,7 +75,8 @@ export interface ModeSessionOptions {
     theme?: ThemeMode;
     /**
      * Fires after each factory returns (initial, recreate, fallback) and before
-     * `loadDiagram` — the place to rebind per-instance subscriptions.
+     * `loadDiagram` — the place to rebind per-instance subscriptions. Edit
+     * events need none: {@link ModeSession.onContentChanged} follows the switch.
      */
     onSurfaceCreated?: (handle: SurfaceHandle, mode: SurfaceMode) => void;
     /**
@@ -116,6 +117,18 @@ export interface ModeSession {
      * resolves once applied.
      */
     requestMode(mode: SurfaceMode): Promise<void>;
+    /**
+     * Applies the live surface's properties-panel input that still waits in its
+     * debounce, so the next export carries it. A no-op on the readonly viewer
+     * and once destroyed.
+     */
+    flushPendingInput(): void;
+    /**
+     * Subscribes to each edit on the live surface's command stack, on whichever
+     * surface a switch builds, until the returned function is called. Silent on
+     * the readonly viewer and once destroyed.
+     */
+    onContentChanged(listener: () => void): () => void;
     /** Switches the colour theme on the live surface (and future ones). */
     setTheme(theme: ThemeMode): void;
     /**

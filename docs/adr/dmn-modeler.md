@@ -60,12 +60,12 @@ literal-expression and boxed-expression views share a second instance with
 dmn-js's 300 ms delay, registered after the facade's other modules of each
 view, so annotations, names, descriptions and simple-mode popups are flushed
 too. The modeler holds both instances instead of reading them from the active
-viewer, so it sees the input of every view. The handle reaches them through the
-internal `hasPendingInput()` and `flushPendingInput()`
-(`DmnPendingInputHandle`), which answer `false` and do nothing once destroyed.
-The IDE webview's flush uses them to apply a typed value before it exports, as
-it does for the [BPMN surfaces](bpmn-modeler.md#mode-session-and-lifecycle).
-They are not public API yet. The decision table also sends one UI-only call
+viewer, so it sees the input of every view. The handle reaches them through
+`hasPendingInput()` and `flushPendingInput()`, public members of
+`DmnModelerHandle` (declared in `DmnPendingInputHandle`, which it extends),
+which answer `false` and do nothing once destroyed. The IDE webview's flush and
+the Orca plugin's save use them to apply a typed value before they export, as
+they do for the [BPMN surfaces](bpmn-modeler.md#mode-session-and-lifecycle). The decision table also sends one UI-only call
 through the service: after a sheet scroll it shows the simple-mode button
 again 300 ms later. A save of an unedited table in that window answers
 `flushed` with dmn-js's serialization instead of `clean`, which the host

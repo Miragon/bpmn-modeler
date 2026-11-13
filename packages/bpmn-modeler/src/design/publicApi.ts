@@ -15,7 +15,7 @@ import type {
     LintingOptions,
     ThemeMode,
 } from "../publicApi";
-import type { BpmnSurfaceHandle } from "../surfaceHandle";
+import type { BpmnSurfaceHandle, PendingInputHandle } from "../surfaceHandle";
 
 /**
  * The public TypeScript surface of `@miragon/bpmn-modeler/design`: an
@@ -163,7 +163,7 @@ export interface DesignerOptions {
  * signature-identical to its modeler counterpart (subset compatibility is
  * asserted in `publicApi.spec.ts`).
  */
-export interface BpmnDesignerHandle extends BpmnSurfaceHandle {
+export interface BpmnDesignerHandle extends BpmnSurfaceHandle, PendingInputHandle {
     /**
      * Replace the diagram with a new empty one and fit it to view. The base
      * bpmn-js template carries no `modeler:executionPlatform`, so a fresh Design
