@@ -19,8 +19,11 @@ const WORKSPACES: SourceLayout["workspaces"] = [
     { dir: "libs/shared", compositionFiles: [], namedPaths: [], contributesToHost: false },
 ];
 
-function layoutOf(files: readonly string[], barrels: readonly string[] = []): SourceLayout {
-    return { files, barrels, links: [], workspaces: WORKSPACES };
+function layoutOf(
+    files: readonly string[],
+    { barrels = [], generatedFiles = [] }: Partial<SourceLayout> = {},
+): SourceLayout {
+    return { files, barrels, generatedFiles, links: [], workspaces: WORKSPACES };
 }
 
 describe("the files change coupling reads", () => {
@@ -31,6 +34,9 @@ describe("the files change coupling reads", () => {
         { path: "libs/i18n/tools/build-overlay.mjs", read: true },
         { path: "libs/shared/src/lib/targets.schema.json", read: true },
         { path: "libs/shared/src/lib/messages.cases.json", read: true },
+        { path: "apps/vscode-plugin/src/protocol/protocol.json", read: true },
+        { path: "libs/shared/src/themes/dark.json", read: true },
+        { path: "libs/i18n/src/languages/de.ts", read: true },
         { path: "apps/vscode-plugin/package.json", read: true },
         { path: "libs/shared/package.json", read: false },
         { path: "apps/vscode-plugin/src/feature/Service.spec.ts", read: false },
@@ -38,13 +44,14 @@ describe("the files change coupling reads", () => {
         { path: "apps/vscode-plugin/scripts/check.test.mjs", read: false },
         { path: "apps/vscode-plugin/src/__fixtures__/fakeHost.ts", read: false },
         { path: "apps/intellij-plugin/src/test/kotlin/io/x/EditorTest.kt", read: false },
-        { path: "libs/i18n/src/languages/de.ts", read: false },
+        { path: "apps/vscode-plugin/src/__fixtures__/settings.json", read: false },
+        { path: "apps/vscode-plugin/tsconfig.json", read: false },
+        { path: "libs/i18n/tools/harvested.json", read: false },
         { path: "apps/vscode-plugin/test/smoke/run-in-container.mjs", read: false },
         { path: "libs/shared/stryker.config.mjs", read: false },
         { path: "apps/vscode-plugin/vitest.config.ts", read: false },
         { path: "apps/vscode-plugin/src/types.d.ts", read: false },
         { path: "apps/vscode-plugin/scripts/bundle.ts", read: false },
-        { path: "apps/vscode-plugin/src/protocol/protocol.json", read: false },
         { path: "scripts/perf/bench-webview.mjs", read: false },
     ])("$path: $read", ({ path, read }) => {
         expect(measuredFiles(layoutOf([path])).has(path)).toBe(read);
@@ -53,7 +60,17 @@ describe("the files change coupling reads", () => {
     it("leaves a barrel out, wherever it sits", () => {
         const barrel = "libs/shared/src/lib/index.ts";
 
-        expect(measuredFiles(layoutOf([barrel], [barrel])).has(barrel)).toBe(false);
+        expect(measuredFiles(layoutOf([barrel], { barrels: [barrel] })).has(barrel)).toBe(false);
+    });
+
+    it.each([
+        "libs/i18n/src/languages/de.ts",
+        "libs/shared/src/lib/generated.schema.json",
+        "apps/intellij-plugin/src/main/kotlin/io/x/Generated.kt",
+    ])("leaves %s out when it is declared generated", (generated) => {
+        expect(
+            measuredFiles(layoutOf([generated], { generatedFiles: [generated] })).has(generated),
+        ).toBe(false);
     });
 });
 

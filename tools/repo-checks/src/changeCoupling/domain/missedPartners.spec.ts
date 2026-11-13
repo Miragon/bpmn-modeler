@@ -146,6 +146,7 @@ describe("missed partners", () => {
 const LAYOUT: SourceLayout = {
     files: [A, B, FILLER],
     barrels: [],
+    generatedFiles: [],
     links: [],
     workspaces: [
         { dir: "libs/core", compositionFiles: [], namedPaths: [], contributesToHost: false },

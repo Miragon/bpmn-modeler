@@ -1017,16 +1017,30 @@ history reader and the window in `tools/repo-checks/src/history`, which
   the result. Each historical path maps to today's path, newest commit first,
   through every commit, the uncounted ones included: the 12 commits with more
   than 30 read files carry 285 renames. Files that no longer exist drop out.
-- **Read files.** Non-spec `.ts`/`.tsx` under a workspace's `src/`, Kotlin
-  under `src/main/`, `.mjs` anywhere in a workspace except build configs
-  (`*.config.*`) and test folders, `*.schema.json`, `*.cases.json` and a
-  manifest that declares `contributes` (today `apps/vscode-plugin/package.json`).
-  Specs, `__fixtures__`, `test/`, `languages/` and barrels are not read.
+- **Read files.** Non-spec `.ts`/`.tsx` and every `.json` file under a
+  workspace's `src/`, Kotlin under `src/main/`, `.mjs` anywhere in a workspace
+  except build configs (`*.config.*`), and a manifest that declares
+  `contributes` (today `apps/vscode-plugin/package.json`). Specs, test folders
+  (`__fixtures__`, `__tests__`, `test/`, `tests/`) and barrels are not read.
   Workspaces are the dirs the root `workspaces` entries match, with or without
   a `package.json`, so the Gradle-built IntelliJ plugin is read. Read literally,
   the issue's "outside `src/`" exclusion would have read no `.mjs` file at
   all, such as the `check-*.mjs` scripts or
   `libs/bpmn-i18n-extras/tools/build-overlay.mjs`.
+- **Generated files.** Not read: the tracked files git marks
+  `linguist-generated`, bare or `=true` as GitHub reads it, today the 13
+  translation overlays in `libs/bpmn-i18n-extras/src/languages/`, marked in
+  the root `.gitattributes`. The `SourceStructure` adapter asks `git
+  check-attr` once for every tracked file, so `sourceLayout.ts` stays pure and
+  a checkout of another commit reads that commit's `.gitattributes`. git also
+  reads a nested `.gitattributes`, `.git/info/attributes` and
+  `core.attributesFile`; the last two are local, so a mark there changes a
+  local run but not CI's. `generatedFiles.spec.ts` fails when a
+  `linguist-generated` pattern of any tracked `.gitattributes` matches no
+  tracked file, so a stale entry
+  cannot let its files be read again unnoticed. GitHub collapses the same
+  files in a pull request's diff. Unmarked, the overlays and their generator
+  turn 53 findings into 130 at `c001a82f`.
 - **Counted commits.** `chore(deps)`, `chore(main)`, `chore(format)` and
   `style` commits and commits with more than 30 read files are not counted.
   The size counts read files, as code-maat counts the entities of its log;
@@ -1072,8 +1086,34 @@ so a past commit falls from 31 to 30 read files and counts, which the function
 names as a false report. The 28 merge-base trees and 28 stored snapshots
 (every 20th of 558) keep their findings.
 
+Version 3 (#2218) reads files by extension and declaration instead of by
+name: every `.json` under `src/` instead of `*.schema.json` and
+`*.cases.json`, and generated files by their `linguist-generated` mark instead
+of skipping every folder named `languages`. A JSON contract named any other
+way, such as the bridge's `protocol.json`, was invisible to change-coupling
+and missed-partner. At `c001a82f`, 50 → 53 findings: 6 across-languages pairs
+with `protocol.json` come in, `descriptor.ts` (87 %) and `types.ts` (71 %),
+the snapshot's sources, `CoreProcess.kt`, `HostUiRouter.kt` and
+`EditorSessionRouter.kt`, the protocol's Kotlin half that no spec pins
+(#2223), and the composition root `editorSessionFeature.ts`. The two theme
+files of `libs/standalone-extension` add none. 3 pairs leave:
+`ModelerSettingsConfigurable.kt` and `ModelerSettingsStore.kt` ↔
+`VsCodeSettings.ts`, and `CoreProcess.kt` ↔ `RpcResults.kt`, each at 5 shared
+changes: #2172 also changes `protocol.json`, now holds 31 read files and is no
+longer counted. The mark skips the same 13 files the folder name did. 0.61 to
+0.65 s per tree warm, version 2 0.56 to 0.57 s in the same runs; the
+difference is the one `git check-attr`. missed-partner version 2 reads the
+same files; in its replay at the chosen thresholds 103 → 107 warnings, 27 →
+28 hits, precision 26.2 % both, margin over chance 6.1 → 5.4 points. The base
+of the pull request that adds `.gitattributes` has no mark, so its base run
+reads the overlays and shows their pairs as resolved once.
+
 Alternatives considered:
 
+- **The generator's header** (`GENERATED from a runtime harvest`), which all
+  13 files carry. It needs no new file and reads the same on every commit, but
+  it is a text convention a generator may word differently, while the
+  attribute is a declaration GitHub honours too.
 - **A failing gate with an exception list.** A replay of 200 PRs had 50 edit
   the list and 9 fail on files they did not touch, because the window slid.
 - **code-maat itself** needs a JVM and reads no imports, so it cannot tell a
@@ -1349,7 +1389,13 @@ drifted copy is one that changed without the other, so its co-change stays
 low (1 of 9 known copies listed). It mines association rules F → P from the
 history (Zimmermann et al., ROSE, ICSE 2004 / TSE 2005) and lives in the
 `changeCoupling` context, reusing its read files, counted commits and history
-reader.
+reader. Version 2 (#2218) follows change-coupling version 3: every `.json`
+under `src/`, generated files skipped by their `linguist-generated` mark; the
+replay is in [Change coupling](#change-coupling). On main it finds 0 warnings
+in both versions, as the base and every snapshot measure no change and return
+at once (0.01 s). A branch run, this PR's tree against `c001a82f`, takes 0.38
+to 0.50 s warm, version 1 0.37 to 0.39 s in the same session; the difference
+is the one `git check-attr` it shares with change-coupling.
 
 - **The change.** `git diff --name-status -M -l0 -z --no-ext-diff
   --no-relative <changeBase>`: the working tree against the merge base,
@@ -1436,8 +1482,9 @@ the host's own failure belong to the host
 ([Host integrations](architecture-and-hosts.md#host-integrations)), and a rule
 over host text would fire on them, so the function reports and never blocks.
 The pure measure lives in `tools/repo-checks/src/hostText/domain`. Version 2
-reads Kotlin, and version 3 (#2372) leaves markup and the messages of Kotlin's
-preconditions unread; a new version restarts the series, which the engine
+reads Kotlin, version 3 (#2372) leaves markup and the messages of Kotlin's
+preconditions unread, and version 4 (#2218) derives the Kotlin loggers from
+their declarations; a new version restarts the series, which the engine
 recomputes from git.
 
 - **Host code.** Every tracked `.ts`, `.tsx`, `.mts` and `.cts` file, without
@@ -1487,12 +1534,29 @@ recomputes from git.
   line`) does. An attribute a user sees, such as `title` or `aria-label`, is
   missed, and an XML declaration is no tag, so the DMN template stays read.
 - **Not read.** A literal inside the arguments of `new Error(…)`, of a call a
-  Kotlin `throw` raises (Kotlin constructs without `new`), of `log` or a
-  `log` + capital function (`logError`, not `login`), or of a call on `log`,
-  `LOG`, `logger`, `thisLogger` or `console`, up to the nearest function or
-  lambda. `thisLogger()` is the logger IntelliJ recommends, so new Kotlin
-  host code logs through `thisLogger().warn(…)`; the tree holds none yet.
-  Version 1 read through functions, so it skipped every text inside
+  Kotlin `throw` raises (Kotlin constructs without `new`), of a TypeScript
+  call to `log` or a `log` + capital function (`logError`, not `login`), the
+  members of the core's `LoggerPort`, or of a Kotlin call on an IntelliJ
+  logger, up to the nearest function or lambda. Version 4 (#2218) derives the
+  Kotlin loggers from their declarations instead of the variable names `log`,
+  `LOG`, `logger`, `thisLogger` and `console`: a value the file declares from
+  `Logger.getInstance(…)`, `logger<T>()` or `fileLogger()`, as a property, a
+  top-level value or a constructor property's default
+  (`HostNotifications.kt`), read by `readKotlinInitializedValues` of the
+  engine, each factory imported from `com.intellij.openapi.diagnostic` or
+  called fully qualified, and `thisLogger()`, imported from there. A call
+  site names only its receiver's callee, so a fully qualified
+  `thisLogger().warn(…)` cannot be told from another `thisLogger` and is
+  read. `thisLogger()` is the logger IntelliJ recommends, so new Kotlin host
+  code logs through `thisLogger().warn(…)`; the tree holds none yet. The
+  `log…` pattern no longer applies to Kotlin, where it matched no call. In
+  TypeScript, `console` is no logger any more: it matched no call, and host
+  code logs through `LoggerPort`, so a text on `console` is reported. Two
+  names stay, each declared in the function's limits and guarded by
+  `hostTextNames.spec.ts`, which fails when one no longer takes a text in
+  host code: `log…`, the members of the core's `LoggerPort`, and the global
+  `Error`. The guard does not tell which functions a name covers: a private
+  `logError` helper alone would keep `log…` green. Version 1 read through functions, so it skipped every text inside
   `logAndRethrow(async () => …)`: 5 texts of `CommandController.ts` at
   `cd48f2cd`. The lambda after the parentheses of Kotlin's `require(…)`,
   `check(…)`, `requireNotNull(…)` and `checkNotNull(…)` is their message, so
@@ -1576,8 +1640,33 @@ shells for their two-word titles. Of the 17 new rows of the trial (#2238), at
 each PR's final head, the 6 shell rows, the 3 `require(…)` rows and 2 moved
 shell lines of #2310 are gone; #2310's other 6 stay.
 
+Version 4 at `c001a82f`: 112 findings, the same keys as version 3. 17 Kotlin
+host files declare a logger from `Logger.getInstance(…)`, all named `log`, and
+41 two-word texts in 16 of them stay unread; no host file calls
+`thisLogger()`, `logger<T>()` or `fileLogger()`. TypeScript leaves 7 texts in
+5 files unread through `log…` and 9 through `new Error`; dropping `console`,
+which took none, and `log`, `LOG` and `logger` adds no finding, as the one
+text on `this.logger` goes to `logWarning(…)`. 0.20 to 0.41 s per tree warm,
+version 3 0.17 to 0.19 s in the same runs; the Kotlin host files are lexed a
+second time.
+
 Alternatives considered:
 
+- **Log calls and `Error` subclasses decided by type** (#2218's first
+  proposal): a call whose callee resolves to a member of `LoggerPort` or of
+  the global `Console`, a construction that derives from the global `Error`.
+  The two type programs over `apps/vscode-plugin` and `apps/modeler-bridge`
+  and the resolution of the 257 calls that hold a literal took 1.5 to 2.1 s
+  on a working tree with node_modules, ten times the function, and change no
+  finding at `c001a82f`: host code constructs no `TypeError` or `Error`
+  subclass with a text, and every log call goes through `LoggerPort`. It also
+  needs the `LoggerPort` anchor by path, a product name of its own. The
+  function keeps `log…` and `Error`, names both in its limits and guards
+  both with `hostTextNames.spec.ts`.
+- **Keeping `console` as a platform global, unguarded.** No rename removes
+  it, but it took no text at `c001a82f`, so a guard on it would fail at once,
+  and #2218 asks that every name left takes a text. Host code logs through
+  `LoggerPort`, so a text on `console` is worth a row.
 - **An ESLint rule with an allowlist.** Host chrome is correct, so the rule
   fires on correct code and its allowlist is work in every PR that adds a
   button; the delta shows what is new without one.

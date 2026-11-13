@@ -222,14 +222,27 @@ handshake plus the pane list, the DMN diff pane's its list alone. A spec in
 webview posts is deleted, not kept routed. A
 command may be on several surfaces: the log commands and the document sync
 are. A repo-level spec ties the lists to the code: it type-checks each
-`apps/*-webview` program from its `tsconfig.app.json` and finds every
+workspace's `tsconfig.app.json` program, keeps those that construct
+`HostApiImpl` (`libs/shared/src/lib/host.ts`, the one class that calls
+`acquireVsCodeApi()`), so a webview counts whatever its directory is called
+(#2218), and in each finds every
 construction of a `Command` subclass in a workspace source of that program, its
 libraries included, by base type rather than by name. A construction whose
 `type` is not a string literal, or whose type is on no surface, fails with its
 `path:line`. A new surface therefore registers in
 `WEBVIEW_SURFACE_COMMAND_TYPES` before its webview can post anything. The scan
 misses a message posted without a construction, such as an object literal or a
-command the page echoes back.
+command the page echoes back, a webview whose program is not a
+`tsconfig.app.json`, and a webview whose program never constructs
+`HostApiImpl`, such as one that calls `acquireVsCodeApi()` itself or only
+uses a mock. Such a webview drops out without a sign; the spec fails only when
+no webview is left. The anchor class is resolved like the `Command` base: a
+renamed class fails the spec, a moved one leaves no webview and fails it as
+well. Building the three app programs that are no webview (the VS Code host,
+the bridge, the Orca plugin) takes the spec file from 3.2 s to 7.1 s; the
+manifest dependency `@types/vscode-webview`, which today only the webviews and
+`libs/shared` declare, would cost nothing but misses a webview that gets its
+types through `libs/shared`.
 
 The deployment sidebar's commands reach the core's `DeploymentMessageDispatcher`
 through a `CommandTable` over its list, as the editor's and the diff pane's do;

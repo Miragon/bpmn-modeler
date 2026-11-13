@@ -24,6 +24,7 @@ class InMemorySourceStructure implements SourceStructure {
         return {
             files: [LINT_CONFIG, CORE_LINT_CONFIG, FILLER],
             barrels: [],
+            generatedFiles: [],
             links: [],
             workspaces: [
                 {

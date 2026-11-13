@@ -90,6 +90,31 @@ describe("the engine source structure", () => {
         ]);
     });
 
+    it("lists the tracked files .gitattributes marks linguist-generated, set or true", () => {
+        repository.write(
+            ".gitattributes",
+            [
+                "apps/host/src/languages/** linguist-generated",
+                "libs/core/src/generated.ts linguist-generated=true",
+                "libs/core/src/port/** linguist-generated=false",
+            ].join("\n"),
+        );
+        repository.write("apps/host/src/languages/de.ts", "export default {};");
+        repository.write("libs/core/src/generated.ts", "export const generated = 1;");
+        repository.git("add", "--all");
+        repository.git("commit", "--quiet", "-m", "generated");
+        repository.write("apps/host/src/languages/untracked.ts", "export default {};");
+
+        expect(new EngineSourceStructure().read(repository.root).generatedFiles).toEqual([
+            "apps/host/src/languages/de.ts",
+            "libs/core/src/generated.ts",
+        ]);
+    });
+
+    it("lists no generated file in a tree without .gitattributes", () => {
+        expect(new EngineSourceStructure().read(repository.root).generatedFiles).toEqual([]);
+    });
+
     it("reads a tree without path aliases", () => {
         repository.git("rm", "--quiet", "tsconfig.base.json");
 

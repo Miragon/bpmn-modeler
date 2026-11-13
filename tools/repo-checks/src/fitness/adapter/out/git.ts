@@ -2,13 +2,18 @@ import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 
-export function git(repoRoot: string, args: readonly string[]): string {
+export function git(
+    repoRoot: string,
+    args: readonly string[],
+    { input }: { readonly input?: string } = {},
+): string {
     return execFileSync("git", args, {
         cwd: repoRoot,
         encoding: "utf8",
         env: { ...process.env, LC_ALL: "C" },
+        input,
         maxBuffer: 256 * 1024 * 1024,
-        stdio: ["ignore", "pipe", "pipe"],
+        stdio: [input === undefined ? "ignore" : "pipe", "pipe", "pipe"],
     });
 }
 
