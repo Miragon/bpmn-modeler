@@ -3,8 +3,10 @@ import { Command, LanguageQuery, Query } from "@miragon/bpmn-modeler-shared";
 import { isHiddenEditorError } from "../../kernel/domain/errors";
 import { LoggerPort } from "../../kernel/port/hostPorts";
 import { normalizeLineEndings } from "../../kernel/domain/lineEndings";
+import { StatusSlot } from "../../kernel/domain/statusView";
 import { CommandTarget } from "../domain/CommandTarget";
 import { DocumentChangeEvent, EditorSubscription, SettingChange } from "../domain/EditorSession";
+import { StatusSlotOwnership, StatusSlotRelease } from "../domain/StatusSlotOwnership";
 import { EditorHandle } from "../port/EditorHandle";
 
 /** What became of a message: delivered, kept back from a hidden editor, or dropped by the host. */
@@ -35,6 +37,7 @@ export class EditorSessionStore {
     private readonly hostDocumentRevisions: Map<EditorHandle, number> = new Map();
 
     private readonly commandTarget = new CommandTarget();
+    private readonly statusSlots = new StatusSlotOwnership();
 
     private readonly activeEditorListeners: Set<(id: string) => void> = new Set();
 
@@ -94,6 +97,23 @@ export class EditorSessionStore {
     /** Guards async work against a close-and-reopen of the same document URI. */
     isCurrentEditorSession(editorId: string, session: object): boolean {
         return this.editors.get(editorId) === session;
+    }
+
+    /**
+     * Claims a status slot every editor of this store shares for one exact
+     * session while it holds focus; a background, closed or replaced session
+     * claims nothing. A caller shows the slot's item only after a claim.
+     */
+    claimStatusSlot(slot: StatusSlot, editorId: string, session: object): boolean {
+        const handle = this.editors.get(editorId);
+        if (handle !== session || !handle.isActive()) return false;
+        this.statusSlots.claim(slot, session);
+        return true;
+    }
+
+    /** `hide` only while this exact session still owns the slot, so its item is the one shown. */
+    releaseStatusSlot(slot: StatusSlot, session: object): StatusSlotRelease {
+        return this.statusSlots.release(slot, session);
     }
 
     /** Advances the causation revision for a genuine host-side document update. */

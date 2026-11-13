@@ -5,7 +5,6 @@ import {
 } from "../../../editorSession/domain/EditorSessionParticipant";
 import { DocumentPort, StatusBarPort } from "../../../kernel/port/hostPorts";
 import { updateStatusSlot } from "../../../kernel/service/updateStatusSlot";
-import { StatusItemOwnership } from "../../../editorSession/domain/StatusItemOwnership";
 import { engineVersionStatusView } from "../domain/engineVersionStatusView";
 
 /**
@@ -16,25 +15,24 @@ export class EngineVersionStatusBarParticipant implements EditorSessionParticipa
     constructor(
         private readonly statusBar: StatusBarPort,
         private readonly documents: DocumentPort,
-        private readonly statusOwnership = new StatusItemOwnership(),
     ) {}
 
     onResolve(session: EditorSessionContext): void {
-        if (session.isFocused()) this.statusOwnership.claim(session.editorId);
+        session.claimStatusSlot("engineVersion");
         session.onFocusChange((focused) => {
-            if (focused) {
-                this.statusOwnership.claim(session.editorId);
+            if (!focused) {
+                this.releaseStatusItem(session);
+            } else if (session.claimStatusSlot("engineVersion")) {
                 this.updateEngineVersionStatusBar(session.editorId);
-            } else {
-                this.releaseStatusItem(session.editorId);
             }
         });
 
-        session.onDispose(() => this.releaseStatusItem(session.editorId));
+        session.onDispose(() => this.releaseStatusItem(session));
     }
 
-    private releaseStatusItem(editorId: string): void {
-        if (this.statusOwnership.release(editorId) === "hide") this.statusBar.hide("engineVersion");
+    private releaseStatusItem(session: EditorSessionContext): void {
+        if (session.releaseStatusSlot("engineVersion") === "hide")
+            this.statusBar.hide("engineVersion");
     }
 
     // The claimant must also hide: the previous owner's late blur no longer does.

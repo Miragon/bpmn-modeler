@@ -41,7 +41,8 @@ would defeat those goals.
 The [architecture tests](../../packages/dmn-modeler/src/architecture.spec.ts)
 enforce package boundaries and theme isolation.
 [Declaration checks](../../packages/dmn-modeler/scripts/check-dts.mjs) reject
-leaked private protocol symbols and dmn-js imports in the public declarations;
+leaked private protocol symbols, dmn-js imports and declarations of the internal
+diff viewer in the public declarations;
 [external dependency checks](../../packages/dmn-modeler/scripts/check-externals.mjs)
 guard declared runtime dependencies. Version alignment and the bundled consumer
 smoke test follow [Release and publishing](release-and-publishing.md).
@@ -158,9 +159,8 @@ so inserted or removed rows do not shift the partner. The pane messages
 sit in a feature file of their own, `libs/shared/src/lib/dmnDiffMessages.ts`, as
 the add-ons view's do, and the shared index exports them.
 
-The panes render through `createDiffViewer`, internal to
-`packages/dmn-modeler` and not public API: dmn-js's `Viewer`, the DRD with pan
-and zoom, marked as in the BPMN diff. Table highlights are one scoped
+The panes render through `createDiffViewer`: dmn-js's `Viewer`, the DRD with
+pan and zoom, marked as in the BPMN diff. Table highlights are one scoped
 stylesheet per pane whose attribute selectors (`data-row-id`, `data-col-id`,
 `data-element-id`) survive every re-render of the table; output headers carry
 no column id, so they are selected by position. The colours are the BPMN
@@ -172,12 +172,29 @@ holds only the pane's own words. The legend is the BPMN diff's
 the one Miragon look both diffs share; the pane sets none of its
 `--diff-legend-*` properties and keeps only the observer that publishes the
 chip's height for the views below and the "Not in this version" card, which
-takes the legend's look through `.diff-legend-theme`. The viewer decides once how the open element
-differs, `DmnDiffStatus` (`Exclude<DiffCategory, "layoutChanged">`, exported
-`@internal`), and both marks its view and answers `getViewStatus()` with it:
+takes the legend's look through `.diff-legend-theme`. The viewer decides once
+how the open element differs, `DmnDiffStatus`
+(`Exclude<DiffCategory, "layoutChanged">`), and both marks its view and
+answers `getViewStatus()` with it:
 undefined for the DRD, a changed table, an unchanged element or before marks
 are set. Its table focus
 is the attributes step when the focused id equals `attributesStep`.
+
+The viewer is not public API. It stays a runtime export of the main entry
+`.`, which the webview imports lazily, but `@internal` on each declaration
+(`createDiffViewer`, `DmnDiffViewerHandle`, `DmnDiffViewerOptions`,
+`DmnDiffMarkOptions`, `DmnDiffMarks`, `DmnTableMarks`, `DmnDiffStatus`) trims
+it from the published declarations; API Extractor ignores the tag on a
+re-export. `check-dts` fails when the roll-up declares one of them. It is not
+on a subpath because it costs a consumer of `.` almost nothing: a bundle that
+imports only `createModeler` keeps none of its code (esbuild, every dependency
+external), its three extra dmn-js and diagram-js imports add under 1 KB
+minified to a Modeler bundle, and its 3.3 KB of CSS in `styles.css` is scoped
+under `.dmn-diff`. A subpath would need its own lib entry, declaration roll-up
+and CSS build (BPMN needed `vite.viewer-css.config.mts`), and would make the
+viewer look public. Should it become public, it gets its own subpath with its
+own CSS, named after BPMN's split: `./viewer` for browser rendering, while
+`./diff` stays reserved for a Node-safe `computeDmnDiff`.
 
 The pane's state is a pure reducer in the webview's domain,
 `nextDiffPaneState` in `apps/dmn-webview/src/domain/diffPaneState.ts`, as the

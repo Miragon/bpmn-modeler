@@ -4,7 +4,6 @@ import {
     AllowanceLocator,
     ContentRowMigration,
     EditorSessionStore,
-    StatusItemOwnership,
 } from "@miragon/bpmn-modeler-core";
 import { EditorSessionDocuments } from "@miragon/bpmn-modeler-core";
 import { VsCodeWorkspace } from "../shared/adapter/out/VsCodeWorkspace";
@@ -37,7 +36,6 @@ import { originHostOf } from "../shared/domain/originHost";
  */
 export interface SharedDeps {
     editorStore: EditorSessionStore;
-    engineVersionOwnership: StatusItemOwnership;
     vsDocument: EditorSessionDocuments;
     vsWorkspace: VsCodeWorkspace;
     vsSettings: VsCodeSettings;
@@ -97,7 +95,6 @@ export function buildSharedDeps(context: ExtensionContext): SharedDeps {
 
     return {
         editorStore,
-        engineVersionOwnership: new StatusItemOwnership(),
         vsDocument: new EditorSessionDocuments(editorStore),
         vsWorkspace,
         vsSettings,

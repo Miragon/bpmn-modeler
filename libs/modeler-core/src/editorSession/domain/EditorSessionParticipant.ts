@@ -1,4 +1,6 @@
+import { StatusSlot } from "../../kernel/domain/statusView";
 import { DocumentChangeEvent, EditorSubscription, SettingChange } from "./EditorSession";
+import { StatusSlotRelease } from "./StatusSlotOwnership";
 
 /**
  * One participant's view of an open editor session: its identity plus the
@@ -15,6 +17,15 @@ export interface EditorSessionContext {
     isFocused(): boolean;
 
     onFocusChange(callback: (focused: boolean) => void): void;
+
+    /**
+     * Makes this session the owner of a status slot every editor shares, while it
+     * is current and focused; otherwise `false`, and the caller shows nothing.
+     */
+    claimStatusSlot(slot: StatusSlot): boolean;
+
+    /** Gives the slot up; `hide` when this session still owned it, so the caller hides the item. */
+    releaseStatusSlot(slot: StatusSlot): StatusSlotRelease;
 
     /**
      * Fires on content changes of this session's document, including the core's

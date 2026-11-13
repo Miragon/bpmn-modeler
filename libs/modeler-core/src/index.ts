@@ -116,7 +116,6 @@ export * from "./modeler/form/service/FormModelerService";
 export type { FormEngineSelectionPorts } from "./modeler/form/service/FormEngineSelectionService";
 export * from "./modeler/form/service/FormEngineStatusBarParticipant";
 export * from "./modeler/form/adapter/out/JsonFormTextEdits";
-export * from "./editorSession/domain/StatusItemOwnership";
 export * from "./modeler/elementTemplate/domain/newTemplateFile";
 export * from "./modeler/elementTemplate/composition/ElementTemplateEditorFeature";
 

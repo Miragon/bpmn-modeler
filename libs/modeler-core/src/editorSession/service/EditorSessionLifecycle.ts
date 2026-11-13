@@ -1,7 +1,9 @@
 import { Command } from "@miragon/bpmn-modeler-shared";
 
+import { StatusSlot } from "../../kernel/domain/statusView";
 import { DocumentChangeEvent, EditorSubscription, SettingChange } from "../domain/EditorSession";
 import { EditorSessionContext, EditorSessionParticipant } from "../domain/EditorSessionParticipant";
+import { StatusSlotRelease } from "../domain/StatusSlotOwnership";
 import { LoggerPort, NotifierPort } from "../../kernel/port/hostPorts";
 import { EditorSessionStore } from "./EditorSessionStore";
 import { dispatchInDocumentOrder } from "./orderedDocumentDispatch";
@@ -124,6 +126,14 @@ class SessionContext implements EditorSessionContext {
     onFocusChange(callback: (focused: boolean) => void): void {
         if (!this.isCurrent()) return;
         this.store.subscribeToFocusChangeEvent(this.editorId, callback);
+    }
+
+    claimStatusSlot(slot: StatusSlot): boolean {
+        return this.isCurrent() && this.store.claimStatusSlot(slot, this.editorId, this.session);
+    }
+
+    releaseStatusSlot(slot: StatusSlot): StatusSlotRelease {
+        return this.store.releaseStatusSlot(slot, this.session);
     }
 
     onDocumentChange(callback: (event: DocumentChangeEvent) => void): void {

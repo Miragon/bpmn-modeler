@@ -71,7 +71,6 @@ import { BpmnSettingsParticipant } from "../service/BpmnSettingsParticipant";
 import { ElementTemplatesParticipant } from "../service/ElementTemplatesParticipant";
 import { EngineVersionStatusBarParticipant } from "../service/EngineVersionStatusBarParticipant";
 import { LoadedTemplateDirs } from "../service/LoadedTemplateDirs";
-import { StatusItemOwnership } from "../../../editorSession/domain/StatusItemOwnership";
 import { RulePackageInventory } from "../service/RulePackageInventory";
 import { TemplateInventory } from "../service/TemplateInventory";
 import { BpmnRulePackagePorts, RulePackageLinting, rulePackageLinting } from "./rulePackageLinting";
@@ -115,7 +114,6 @@ export interface BpmnDocumentSync {
 
 /** What differs between hosts; an absent capability ignores its commands with one reason. */
 export interface BpmnEditorHostExtensions {
-    readonly engineVersionOwnership?: StatusItemOwnership;
     /** `host-driven`: the host re-renders on its own document change, so the editor does not. */
     readonly rendering: "on-host-document-change" | "host-driven";
     /** Absent: the host's own plumbing owns the document. */
@@ -314,11 +312,7 @@ export class BpmnEditorFeature {
             new ElementTemplatesParticipant(this.templates, ports.artifacts, ports.notifier),
             new BpmnlintParticipant(lintConfig, lintConfigLocator, ports.statusBar, ports.notifier),
             new BpmnSettingsParticipant(settingsBroadcaster),
-            new EngineVersionStatusBarParticipant(
-                ports.statusBar,
-                ports.documents,
-                extensions.engineVersionOwnership,
-            ),
+            new EngineVersionStatusBarParticipant(ports.statusBar, ports.documents),
             contributions.deploymentStatus,
             scriptEditor.participant,
             codeLink.participant,

@@ -870,6 +870,21 @@ describe("BpmnLintConfigService — the status item follows the focused editor",
         );
     });
 
+    it("keeps a newly focused diagram's first lint status through the previous owner's late blur", async () => {
+        const { host, service, openDiagram } = createSessionHost();
+        const previous = await openDiagram(PATH, true, XML_C7);
+        const next = host.openEditor("/work/next.bpmn", XML_C8);
+
+        // The next diagram's participant has not run yet when its webview asks for the config.
+        next.becomeActive();
+        await service.setBpmnlintConfig(next.id);
+        previous.loseFocus();
+
+        expect(host.statusBar.views.bpmnlint).toEqual(
+            bpmnlintStatusView({ state: "default", platform: "c8" }),
+        );
+    });
+
     it("keeps the newly focused diagram's status when the previous one's host lint finishes late", async () => {
         const { host, lintRunner, openDiagram } = createSessionHost({
             [CONFIG_PATH]: ESCALATING_RAW,

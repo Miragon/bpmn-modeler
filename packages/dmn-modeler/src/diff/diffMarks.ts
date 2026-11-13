@@ -1,9 +1,15 @@
 import type { DiffCategory, DiffCounts } from "@miragon/bpmn-modeler-types";
 
-/** How an element a diff pane shows differs; a move is a DRD layout change only. */
+/**
+ * How an element a diff pane shows differs; a move is a DRD layout change only.
+ * @internal
+ */
 export type DmnDiffStatus = Exclude<DiffCategory, "layoutChanged">;
 
-/** One decision table's changes, as one diff pane marks them. */
+/**
+ * One decision table's changes, as one diff pane marks them.
+ * @internal
+ */
 export interface DmnTableMarks {
     readonly columns: {
         readonly added: readonly string[];
@@ -24,7 +30,10 @@ export interface DmnTableMarks {
     readonly attributesStep?: string;
 }
 
-/** What one DMN diff pane marks: the DRD's changes, each changed table's and the changed expressions. */
+/**
+ * What one DMN diff pane marks: the DRD's changes, each changed table's and the changed expressions.
+ * @internal
+ */
 export interface DmnDiffMarks {
     readonly added: readonly string[];
     readonly removed: readonly string[];

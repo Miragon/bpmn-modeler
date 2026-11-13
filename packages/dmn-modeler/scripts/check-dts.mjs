@@ -1,9 +1,9 @@
 // Consumers cannot resolve private workspace imports or our local dmn-js ambient types.
 import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, resolve } from "node:path";
 
-const distDir = resolve(dirname(fileURLToPath(import.meta.url)), "../dist");
+const DIST_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "../dist");
 const ENTRY_DTS = ["index.d.ts"];
 
 const FORBIDDEN_CONTENT =
@@ -16,14 +16,36 @@ const PRIVATE_LIBS = [
     "@miragon/bpmn-modeler-diff",
 ];
 
-function checkEntry(fileName) {
+// `@internal` on a re-export does nothing; these must stay trimmed by the tag on their declaration.
+const INTERNAL_DECLARATIONS = [
+    "createDiffViewer",
+    "DmnDiffMarkOptions",
+    "DmnDiffMarks",
+    "DmnDiffViewerHandle",
+    "DmnDiffViewerOptions",
+    "DmnDiffStatus",
+    "DmnTableMarks",
+];
+
+const INTERNAL_DECLARATION = new RegExp(
+    `\\bdeclare\\s+(?:function|interface|type|const|class)\\s+(${INTERNAL_DECLARATIONS.join("|")})\\b`,
+    "g",
+);
+
+export function checkDts({ distDir = DIST_DIR, entries = ENTRY_DTS } = {}) {
+    for (const entry of entries) {
+        checkEntry(distDir, entry);
+    }
+    return { checkedEntries: entries.length };
+}
+
+function checkEntry(distDir, fileName) {
     const dtsPath = resolve(distDir, fileName);
     let dts;
     try {
         dts = readFileSync(dtsPath, "utf8");
     } catch {
-        console.error(`check-dts: ${dtsPath} not found — run the lib build first.`);
-        process.exit(1);
+        throw new Error(`${dtsPath} not found — run the lib build first.`);
     }
 
     const failures = [];
@@ -51,16 +73,29 @@ function checkEntry(fileName) {
         }
     }
 
-    if (failures.length > 0) {
-        console.error(
-            `check-dts: dist/${fileName} leaks private surface:\n  ` + failures.join("\n  "),
+    const internalHits = [...dts.matchAll(INTERNAL_DECLARATION)].map((m) => m[1]);
+    if (internalHits.length > 0) {
+        failures.push(
+            `declares internal: ${[...new Set(internalHits)].join(", ")} ` +
+                "(tag the declaration itself `@internal`)",
         );
-        process.exit(1);
     }
 
-    console.log(`check-dts: dist/${fileName} is clean.`);
+    if (failures.length > 0) {
+        throw new Error(`dist/${fileName} leaks private surface:\n  ` + failures.join("\n  "));
+    }
 }
 
-for (const entry of ENTRY_DTS) {
-    checkEntry(entry);
+function isMain() {
+    return process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href;
+}
+
+if (isMain()) {
+    try {
+        const { checkedEntries } = checkDts();
+        console.log(`check-dts: ${checkedEntries} entries are clean.`);
+    } catch (error) {
+        console.error(`check-dts: ${error.message}`);
+        process.exitCode = 1;
+    }
 }
