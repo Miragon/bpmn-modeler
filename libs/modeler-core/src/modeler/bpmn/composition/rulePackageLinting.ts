@@ -36,8 +36,8 @@ export interface BpmnRulePackagePorts {
     readonly workspaceTrust?: WorkspaceTrustPort;
 }
 
-/** The host ports the rule package question shares with the rest of the BPMN editor. */
-export interface RulePackageQuestionHost {
+/** The host ports rule package linting shares with the rest of the BPMN editor. */
+export interface RulePackageLintingHost {
     readonly notifier: NotifierPort;
     readonly picker: PickerPort;
     readonly workspace: WorkspacePort;
@@ -57,7 +57,7 @@ export interface RulePackageLinting {
 /** Without {@link BpmnRulePackagePorts}, the linter builds no workspace resolver and runs only the bundled rules. */
 export function rulePackageLinting(
     rulePackages: BpmnRulePackagePorts | undefined,
-    host: RulePackageQuestionHost,
+    host: RulePackageLintingHost,
 ): RulePackageLinting {
     if (rulePackages === undefined) {
         return { linter: new NodeBpmnLinter(), dispose: () => undefined };

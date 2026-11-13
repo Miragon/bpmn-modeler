@@ -180,7 +180,7 @@ describe("RulePackageInventory", () => {
     it("remembers every package it saw blocked, the ones the bundle stood in for too", () => {
         const { inventory } = setUp();
 
-        inventory.noteSeen([blocked(ACME, "selfPackage")]);
+        inventory.noteSeen([{ ...blocked(ACME, "selfPackage"), needed: false }]);
         inventory.noteSeen([blocked(SCOPED), blocked(ACME, "package", "declined")]);
 
         expect(inventory.seenPackages()).toEqual([
@@ -217,6 +217,22 @@ describe("RulePackageInventory", () => {
         inventory.noteLintConfig("/work/orders/.bpmnlintrc");
 
         expect(changes).toBe(5);
+    });
+
+    it("announces nothing once its listener is disposed, neither a listing change nor an answer", async () => {
+        const { catalog, inventory, allowanceAt } = setUp();
+        let changes = 0;
+        inventory.onDidChange(() => changes++).dispose();
+
+        inventory.noteSeen([blocked(ACME)]);
+        inventory.noteLintConfig("/work/orders/.bpmnlintrc");
+        await catalog.applyAnswer(catalog.stillPendingOf([blocked(ACME)]), {
+            kind: "checked",
+            ids: [],
+        });
+        inventory.leaveForView({ id: SCOPED, allowance: allowanceAt(SCOPED) });
+
+        expect(changes).toBe(0);
     });
 
     it.each([
