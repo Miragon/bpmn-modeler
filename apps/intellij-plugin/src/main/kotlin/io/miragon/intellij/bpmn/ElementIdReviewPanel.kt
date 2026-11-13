@@ -50,7 +50,7 @@ internal class ElementIdReviewPanel(
         private set
 
     internal val applyAction: AnAction =
-        object : DumbAwareAction("Apply ID Changes", "Rename the checked elements in one undo step", AllIcons.Actions.Commit) {
+        object : DumbAwareAction("Apply ID Changes", null, AllIcons.Actions.Commit) {
             override fun getActionUpdateThread() = ActionUpdateThread.EDT
 
             override fun update(event: AnActionEvent) {
@@ -61,7 +61,7 @@ internal class ElementIdReviewPanel(
         }
 
     internal val discardAction: AnAction =
-        object : DumbAwareAction("Discard ID Changes", "Close the review and keep every ID", AllIcons.Actions.Cancel) {
+        object : DumbAwareAction("Discard ID Changes", null, AllIcons.Actions.Cancel) {
             override fun getActionUpdateThread() = ActionUpdateThread.EDT
 
             override fun update(event: AnActionEvent) {
