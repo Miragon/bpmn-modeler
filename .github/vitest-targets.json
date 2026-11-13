@@ -281,7 +281,6 @@
                 "{apps,libs,packages,tools}/*/tsconfig*.json",
                 "tsconfig.base.json",
                 ".gitattributes",
-                "docs/package.json",
                 ".github/workflows/sync-release-markers.yml",
                 ".github/workflows/publish-vscode-modeler.yml",
                 ".github/workflows/publish-open-vsx-modeler.yml",
