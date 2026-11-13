@@ -645,26 +645,120 @@ describe("bridge modeler commands (real core over a fake transport)", () => {
     });
 
     describe("generate IDs from names", () => {
-        it("asks the focused editor to open the review of IDs generated from names", async () => {
+        const LISTED = {
+            type: "ElementIdProposalsCommand",
+            status: "listed",
+            rows: [
+                {
+                    id: "Activity_1",
+                    name: "Check stock",
+                    type: "bpmn:ServiceTask",
+                    kind: "activity",
+                    status: "rename",
+                    newId: "serviceTask_checkStock",
+                    clash: false,
+                    shownId: "Activity_1",
+                },
+            ],
+            unchecked: ["Process_1"],
+        };
+
+        async function openReview() {
+            const context = await setupWithOpenEditor();
+            await context.rpc.handleLine(hostNotification("elementIds/generate", {}));
+            await context.rpc.handleLine(
+                hostNotification("webview/message", {
+                    editorId: context.editorId,
+                    message: LISTED,
+                }),
+            );
+            return context;
+        }
+
+        it("asks the focused editor for the review's rows, which IntelliJ shows in a tool window", async () => {
             const { rpc, frames, editorId } = await setupWithOpenEditor();
 
             await rpc.handleLine(hostNotification("elementIds/generate", {}));
 
-            const queries = postedQueries(frames, "GenerateElementIdsQuery");
-            expect(queries.map((f) => f.params.editorId)).toEqual([editorId]);
+            const queries = postedQueries(frames, "ElementIdProposalsQuery");
+            expect(queries.map((f) => [f.params.editorId, f.params.message.unchecked])).toEqual([
+                [editorId, null],
+            ]);
+            expect(postedQueries(frames, "GenerateElementIdsQuery")).toEqual([]);
+        });
+
+        it("shows the rows the editor lists in the tool window, under the file's name", async () => {
+            const { frames } = await openReview();
+
+            const shown = await waitForFrame(frames, (f) => f.method === "elementIdReview/show");
+            expect(shown.params.view).toMatchObject({
+                title: "process.bpmn",
+                renameCount: 1,
+                groups: [{ id: "activity", rows: [{ id: "Activity_1", checked: true }] }],
+            });
+        });
+
+        it("hands the tool window's checkboxes, row clicks and Apply to the core", async () => {
+            const { rpc, frames, editorId } = await openReview();
+
+            await rpc.handleLine(
+                hostNotification("elementIdReview/setChecked", {
+                    ids: ["Activity_1"],
+                    checked: false,
+                }),
+            );
+            await rpc.handleLine(
+                hostNotification("elementIdReview/reveal", { elementId: "Activity_1" }),
+            );
+            await rpc.handleLine(hostNotification("elementIdReview/apply", {}));
+            await rpc.handleLine(
+                hostNotification("webview/message", {
+                    editorId,
+                    message: { type: "ElementIdsAppliedCommand", renamed: 0 },
+                }),
+            );
+
+            expect(
+                postedQueries(frames, "ElementIdProposalsQuery").map(
+                    (f) => f.params.message.unchecked,
+                ),
+            ).toEqual([null, ["Process_1", "Activity_1"]]);
+            expect(postedQueries(frames, "FocusElementQuery")[0]?.params.message.elementId).toBe(
+                "Activity_1",
+            );
+            expect(
+                postedQueries(frames, "ApplyElementIdsQuery")[0]?.params.message.unchecked,
+            ).toEqual(["Process_1", "Activity_1"]);
+            await waitForFrame(frames, (f) => f.method === "elementIdReview/close");
+        });
+
+        it("closes the tool window when the user discards the review", async () => {
+            const { rpc, frames } = await openReview();
+
+            await rpc.handleLine(hostNotification("elementIdReview/discard", {}));
+
+            expect(postedQueries(frames, "CloseElementIdReviewQuery")).toHaveLength(1);
+            await waitForFrame(frames, (f) => f.method === "elementIdReview/close");
         });
 
         it("tells the user to switch modes when the editor cannot change IDs", async () => {
             const { rpc, frames, editorId } = await setupWithOpenEditor();
+            await rpc.handleLine(hostNotification("elementIds/generate", {}));
 
             await rpc.handleLine(
                 hostNotification("webview/message", {
                     editorId,
-                    message: { type: "ElementIdReviewCommand", status: "unsupported" },
+                    message: {
+                        type: "ElementIdProposalsCommand",
+                        status: "unsupported",
+                        rows: [],
+                        unchecked: [],
+                    },
                 }),
             );
 
             await waitForFrame(frames, isShowInfo(SWITCH_MODE_TO_GENERATE_IDS));
+            expect(frames.some((f) => f.method === "elementIdReview/show")).toBe(false);
         });
 
         it("stays quiet when the review opened", async () => {

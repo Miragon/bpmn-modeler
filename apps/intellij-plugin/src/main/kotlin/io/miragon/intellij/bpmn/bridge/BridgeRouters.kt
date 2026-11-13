@@ -17,6 +17,7 @@ internal class BridgeRouters(deps: BridgeDeps) {
     val templatePreferences = TemplatePreferenceRouter(deps)
     val workspaceTrust = WorkspaceTrustRouter(deps)
     val addOns = AddOnsRouter(deps)
+    val elementIdReview = ElementIdReviewRouter(deps)
 
     // Outbound only: it sends host→core notifications and handles no method.
     val modelerCommands = ModelerCommandsRouter(deps)
@@ -38,6 +39,7 @@ internal class BridgeRouters(deps: BridgeDeps) {
         templatePreferences.register()
         workspaceTrust.register()
         addOns.register()
+        elementIdReview.register()
         hostUi.register()
     }
 

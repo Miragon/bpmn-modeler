@@ -26,6 +26,7 @@ import {
     RawModelerSettings,
     StatusSlot,
     StatusView,
+    type ElementIdReviewView,
     TemplateSwitch,
 } from "@miragon/bpmn-modeler-core";
 import { Command, Query } from "@miragon/bpmn-modeler-shared";
@@ -490,6 +491,22 @@ export interface NotifierProgressParams {
 export interface StatusBarUpdateParams {
     slot: StatusSlot;
     view: StatusView | null;
+}
+
+/** `elementIdReview/show` — what the host's element ID review panel shows. */
+export interface ElementIdReviewShowParams {
+    view: ElementIdReviewView;
+}
+
+/** `elementIdReview/setChecked` — the user ticked or cleared these rows in the host's panel. */
+export interface ElementIdReviewSetCheckedParams {
+    ids: string[];
+    checked: boolean;
+}
+
+/** `elementIdReview/reveal` — the user clicked a row; the core centres its element. */
+export interface ElementIdReviewRevealParams {
+    elementId: string;
 }
 
 /** `diff/postMessage` — the core drives one diff pane's host browser. */
