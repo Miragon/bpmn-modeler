@@ -9,7 +9,9 @@ import io.miragon.intellij.bpmn.IntellijDeploymentState
  * per project) plus the deployment-state mirror the core's synchronous `load()`
  * reads. The mirror is (re-)seeded on every spawn and on window registration.
  */
-internal class DeploymentRouter(private val deps: BridgeDeps) {
+internal class DeploymentRouter(private val deps: BridgeDeps) : ReplicatedState {
+    override val kind = ReplicatedStateKind.DEPLOYMENT_STATE
+
     private val log = Logger.getInstance(DeploymentRouter::class.java)
 
     private val deploymentState by lazy { IntellijDeploymentState.getInstance(deps.project) }
@@ -51,7 +53,7 @@ internal class DeploymentRouter(private val deps: BridgeDeps) {
         deploymentSink = sink
         // Seed now if the bridge is already up; otherwise spawn() re-seeds on start.
         // Spawning runs off the EDT so the tool window opens without blocking.
-        sendSeed()
+        push()
         deps.ensureStartedAsync()
     }
 
@@ -92,7 +94,9 @@ internal class DeploymentRouter(private val deps: BridgeDeps) {
         deps.channel.notify(HostToCoreMethod.DEPLOYMENT_OPEN, linkedMapOf("open" to open))
     }
 
-    fun sendSeed() {
+    override fun registerSeed(): Map<String, Any?> = emptyMap()
+
+    override fun push() {
         if (!deps.isProcessAlive()) return
         deps.channel.notify(HostToCoreMethod.DEPLOYMENT_STATE_SEED, linkedMapOf("state" to deploymentState.snapshotMap()))
     }

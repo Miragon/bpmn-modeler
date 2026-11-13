@@ -11,7 +11,9 @@ import com.intellij.openapi.project.Project
  * whenever the IDE announces a trust change, so open editors reload or lint
  * again without a restart.
  */
-internal class WorkspaceTrustRouter(private val deps: BridgeDeps) {
+internal class WorkspaceTrustRouter(private val deps: BridgeDeps) : ReplicatedState {
+    override val kind = ReplicatedStateKind.WORKSPACE_TRUST
+
     fun register() {
         // Any project's change re-reads this one's: trusting a parent folder trusts the projects below it.
         ApplicationManager.getApplication().messageBus.connect(deps.parentDisposable).subscribe(
@@ -26,8 +28,10 @@ internal class WorkspaceTrustRouter(private val deps: BridgeDeps) {
         )
     }
 
-    /** No-ops when no bridge is alive: the trust is seeded again on the next spawn and `session/register`. */
-    fun push() {
+    // The bridge counts the project as untrusted until told, so its first plugin request needs it.
+    override fun registerSeed(): Map<String, Any?> = mapOf("workspaceTrust" to deps.projectTrust.snapshot().toParams())
+
+    override fun push() {
         if (!deps.isProcessAlive()) return
         deps.channel.notify(
             HostToCoreMethod.WORKSPACE_TRUST_DID_CHANGE,

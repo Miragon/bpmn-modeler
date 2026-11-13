@@ -4,7 +4,7 @@ import com.google.gson.JsonArray
 import io.miragon.intellij.bpmn.ProjectScope
 import io.miragon.intellij.bpmn.TemplatePreferenceChange
 import io.miragon.intellij.bpmn.TemplateSwitch
-import io.miragon.intellij.bpmn.pushTemplatePreferencesToRunningBridges
+import io.miragon.intellij.bpmn.pushToRunningBridges
 import io.miragon.intellij.bpmn.templatePreferenceListOf
 
 /**
@@ -16,8 +16,10 @@ import io.miragon.intellij.bpmn.templatePreferenceListOf
 internal class TemplatePreferenceRouter(
     private val deps: BridgeDeps,
     // No CoreProcess runs under the test fixture, so a test observes the fan-out here.
-    private val pushToRunningBridges: () -> Unit = ::pushTemplatePreferencesToRunningBridges,
-) {
+    private val pushToRunningBridges: () -> Unit = { pushToRunningBridges(ReplicatedStateKind.TEMPLATE_PREFERENCES) },
+) : ReplicatedState {
+    override val kind = ReplicatedStateKind.TEMPLATE_PREFERENCES
+
     fun register() {
         deps.handlers.on("templatePreferences/change") { params ->
             val scope = params.string("scope")
@@ -46,12 +48,14 @@ internal class TemplatePreferenceRouter(
         id?.let { deps.channel.reply(it, TemplatePreferencesResult.of(deps.project)) }
     }
 
+    // Seeds the mirror the editor reads when it first sends its templates.
+    override fun registerSeed(): Map<String, Any?> = mapOf("templatePreferences" to TemplatePreferencesResult.of(deps.project))
+
     /**
-     * No-ops when no bridge is alive: the switches are seeded again on the next spawn and `session/register`.
      * Not coalesced: all-projects changes push from each project's reader thread, so a frame
      * queued later can carry an older revision and must not replace the newer one.
      */
-    fun push() {
+    override fun push() {
         if (!deps.isProcessAlive()) return
         val pair = TemplatePreferencesResult.of(deps.project)
         deps.channel.notify(

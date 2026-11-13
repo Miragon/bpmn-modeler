@@ -3,7 +3,6 @@ package io.miragon.intellij.bpmn.bridge
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import io.miragon.intellij.bpmn.PluginApproval
-import io.miragon.intellij.bpmn.PluginApprovalSnapshot
 import io.miragon.intellij.bpmn.PluginApprovalStore
 import io.miragon.intellij.bpmn.projectFixtureWithoutServicePreload
 import com.intellij.testFramework.junit5.TestApplication
@@ -41,7 +40,7 @@ class PluginApprovalRouterTest {
         router =
             PluginApprovalRouter(
                 bridgeDeps(projectFixture.get(), wired.channel, wired.handlers),
-                pushToRunningBridges = { router.push(it) },
+                pushToRunningBridges = { router.push() },
             )
         router.register()
         return wired
@@ -124,23 +123,27 @@ class PluginApprovalRouterTest {
 
     /**
      * Two projects' changes push from their own reader threads, so an older
-     * revision can be queued after a newer one. Queuing both before the channel
-     * attaches makes that order deterministic.
+     * revision can be queued after a newer one; a later frame must not replace
+     * an earlier one. Queuing both before the channel attaches keeps them queued together.
      */
     @Test
-    fun `an older push queued after a newer one still delivers the newer list`() {
+    fun `a push queued after another does not replace it`() {
         val handlers = RpcHandlerRegistry()
         val channel = RpcChannel { method, params, requestId -> handlers.dispatch(method, params, requestId) }
         val fake = FakeProcess()
         wired = WiredBridge(fake, channel, handlers, generation = 1)
         val router = PluginApprovalRouter(bridgeDeps(projectFixture.get(), channel, handlers), pushToRunningBridges = {})
+        val store = PluginApprovalStore.getInstance()
 
-        router.push(PluginApprovalSnapshot(listOf(PluginApproval(OLD_ID, HASH), PluginApproval(OTHER_ID, HASH)), 3))
-        router.push(PluginApprovalSnapshot(listOf(PluginApproval(OLD_ID, HASH)), 2))
+        store.replaceAll(listOf(PluginApproval(OLD_ID, HASH), PluginApproval(OTHER_ID, HASH)))
+        val first = store.snapshot().revision
+        router.push()
+        store.replaceAll(listOf(PluginApproval(OLD_ID, HASH)))
+        router.push()
         channel.attach(fake.outputStream, fake.inputStream)
 
         val revisions = fake.framesUntilQuiet().map { parse(it).getAsJsonObject("params").get("revision").asLong }
-        assertTrue(3L in revisions, "delivered revisions $revisions")
+        assertTrue(first in revisions, "delivered revisions $revisions")
     }
 
     @Test

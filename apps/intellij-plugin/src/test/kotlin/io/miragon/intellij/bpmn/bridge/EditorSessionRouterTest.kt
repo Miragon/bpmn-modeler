@@ -18,11 +18,6 @@ import com.intellij.testFramework.junit5.RunInEdt
 import com.intellij.testFramework.junit5.TestApplication
 import com.intellij.testFramework.junit5.fixture.tempPathFixture
 import io.miragon.intellij.bpmn.CoreSession
-import io.miragon.intellij.bpmn.PluginApproval
-import io.miragon.intellij.bpmn.PluginApprovalStore
-import io.miragon.intellij.bpmn.ProjectTemplatePreferenceStore
-import io.miragon.intellij.bpmn.TemplatePreferenceStore
-import io.miragon.intellij.bpmn.TemplateSwitch
 import io.miragon.intellij.bpmn.projectFixtureWithoutServicePreload
 import io.miragon.intellij.bpmn.readTypeScriptCases
 import org.junit.jupiter.api.AfterEach
@@ -93,6 +88,7 @@ class EditorSessionRouterTest {
         val router =
             EditorSessionRouter(
                 bridgeDeps(project, wired.channel, wired.handlers),
+                NO_REPLICATED_STATE,
                 scheduler,
                 readDocumentText,
                 reloadExecutor = Executor(Runnable::run),
@@ -1290,59 +1286,6 @@ class EditorSessionRouterTest {
         }.map { it.frameLabel() }
 
     @Test
-    fun `a register seeds the plugin approvals the IDE stores with their revision`() {
-        val store = PluginApprovalStore.getInstance()
-        val storedBefore = store.read()
-        try {
-            store.replaceAll(listOf(PluginApproval(PLUGIN_ID, PLUGIN_HASH)))
-            val f = setUpRouter(INITIAL_XML)
-
-            val second = createSecondBpmnFile()
-
-            f.router.registerSession(CoreSession(second.file.url, second.file, f.session.project) {})
-
-            val register = parse(f.wired.fake.nextFrame())
-            assertEquals(
-                parse("""{"approvals": [{"pluginId": "$PLUGIN_ID", "contentHash": "$PLUGIN_HASH"}]}""").get("approvals"),
-                register.getAsJsonObject("params").get("pluginApprovals"),
-            )
-            assertEquals(store.snapshot().revision, register.getAsJsonObject("params").get("pluginApprovalsRevision").asLong)
-        } finally {
-            store.replaceAll(storedBefore)
-        }
-    }
-
-    @Test
-    fun `a register seeds both scopes' template switches with their revisions`() {
-        val appStore = TemplatePreferenceStore.getInstance()
-        val appStoredBefore = appStore.snapshot().disabled
-        try {
-            appStore.replaceAll(listOf(TemplateSwitch("marketplace:github:github.com/acme/templates")))
-            val f = setUpRouter(INITIAL_XML)
-            val projectStore = ProjectTemplatePreferenceStore.getInstance(f.session.project)
-            projectStore.replaceAll(listOf(TemplateSwitch("configFolder:shop/.camunda", "mail")))
-
-            val second = createSecondBpmnFile()
-
-            f.router.registerSession(CoreSession(second.file.url, second.file, f.session.project) {})
-
-            val register = parse(f.wired.fake.nextFrame())
-            assertEquals(
-                parse(
-                    """{
-                        "project": {"disabled": [{"source": "configFolder:shop/.camunda", "templateId": "mail"}], "revision": ${projectStore.snapshot().revision}},
-                        "allProjects": {"disabled": [{"source": "marketplace:github:github.com/acme/templates"}], "revision": ${appStore.snapshot().revision}}
-                    }""",
-                ),
-                register.getAsJsonObject("params").getAsJsonObject("templatePreferences"),
-            )
-            projectStore.replaceAll(emptyList())
-        } finally {
-            appStore.replaceAll(appStoredBefore)
-        }
-    }
-
-    @Test
     fun `a page reload writes the page's edit, reseeds the bridge with it and then reloads the page once`() {
         val f = setUpRouter(INITIAL_XML)
         val framesAtReload = mutableListOf<JsonObject>()
@@ -1462,7 +1405,7 @@ class EditorSessionRouterTest {
         val handlers = RpcHandlerRegistry()
         val channel = RpcChannel { method, params, requestId -> handlers.dispatch(method, params, requestId) }
         val fake = FakeProcess()
-        val router = EditorSessionRouter(bridgeDeps(project, channel, handlers), DeterministicScheduler())
+        val router = EditorSessionRouter(bridgeDeps(project, channel, handlers), NO_REPLICATED_STATE, DeterministicScheduler())
         router.register()
         val editorId = bpmn.file.url
         val session = CoreSession(editorId, bpmn.file, project) {}
@@ -1565,7 +1508,7 @@ class EditorSessionRouterTest {
         val project = projectFixture.get()
         val bpmn = createBpmnFile(tempDirFixture.get(), "svg.bpmn", INITIAL_XML)
         val wired = wireChannel()
-        val router = EditorSessionRouter(bridgeDeps(project, wired.channel, wired.handlers), DeterministicScheduler())
+        val router = EditorSessionRouter(bridgeDeps(project, wired.channel, wired.handlers), NO_REPLICATED_STATE, DeterministicScheduler())
         router.register()
         val posted = mutableListOf<String>()
         val session = CoreSession(bpmn.file.url, bpmn.file, project) { posted.add(it) }
@@ -1647,8 +1590,5 @@ class EditorSessionRouterTest {
         val SESSION_LIFECYCLE_METHODS = setOf("session/register", "session/dispose")
 
         const val TEXT_TAB_EDITOR_ID = "file:///notes.txt"
-
-        const val PLUGIN_ID = "/ws/.camunda/plugins/resize-tasks"
-        const val PLUGIN_HASH = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     }
 }

@@ -12,6 +12,7 @@ import io.miragon.intellij.bpmn.bridge.BridgeErrorNotifier
 import io.miragon.intellij.bpmn.bridge.BridgeRouters
 import io.miragon.intellij.bpmn.bridge.DefaultBridgeProcessLauncher
 import io.miragon.intellij.bpmn.bridge.ProcessSupervisor
+import io.miragon.intellij.bpmn.bridge.ReplicatedStateKind
 import io.miragon.intellij.bpmn.bridge.RpcChannel
 import io.miragon.intellij.bpmn.bridge.RpcHandlerRegistry
 import io.miragon.intellij.bpmn.bridge.orderedCredentialStoreExecutor
@@ -156,14 +157,8 @@ class CoreProcess(private val project: Project) : Disposable {
      */
     fun flushBeforeClose(editorId: String) = routers.editor.flushBeforeClose(editorId)
 
-    /** Pushes the current settings snapshot to the running core so an open editor reacts live. */
-    fun pushSettings() = routers.editor.pushSettings()
-
-    /** Mirrors the stored plugin approvals into the running core. */
-    fun pushPluginApprovals(snapshot: PluginApprovalSnapshot) = routers.pluginApprovals.push(snapshot)
-
-    /** Mirrors this project's and the application's template switches into the running core. */
-    fun pushTemplatePreferences() = routers.templatePreferences.push()
+    /** Mirrors the stored state of [kind] into the running core. */
+    internal fun pushReplicatedState(kind: ReplicatedStateKind) = routers.pushReplicatedState(kind)
 
     /**
      * Soft-reloads every open modeler by re-registering its live session (re-seeds

@@ -5,12 +5,14 @@ import io.miragon.intellij.bpmn.pushSettingsToRunningBridges
 
 /**
  * Stores the user's language and lint choices across projects and restarts,
- * as VS Code's User settings do.
+ * as VS Code's User settings do, and mirrors the settings snapshot into the bridge.
  */
 internal class SettingsRouter(
     private val deps: BridgeDeps,
     private val pushToRunningBridges: () -> Unit = ::pushSettingsToRunningBridges,
-) {
+) : ReplicatedState {
+    override val kind = ReplicatedStateKind.SETTINGS
+
     fun register() {
         deps.handlers.on("settings/setLanguage") { params ->
             val locale = params.string("locale")
@@ -31,4 +33,15 @@ internal class SettingsRouter(
         pushToRunningBridges()
         id?.let { deps.channel.reply(it, null) }
     }
+
+    // Seeds the core's SettingsPort before it scans templates, so the very first discovery uses the configured folder.
+    override fun registerSeed(): Map<String, Any?> = mapOf("settings" to snapshot())
+
+    /** Lets an open editor react live: a language re-render, a config folder template reload. */
+    override fun push() {
+        if (!deps.isProcessAlive()) return
+        deps.channel.notify(HostToCoreMethod.SETTINGS_DID_CHANGE, linkedMapOf("settings" to snapshot()))
+    }
+
+    private fun snapshot() = ModelerSettingsStore.getInstance().snapshotMap(deps.project)
 }

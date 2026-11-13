@@ -13,7 +13,7 @@ import { Rpc } from "../../../transport/adapter/out/Rpc";
 import { BridgeSettings } from "./BridgeSettings";
 
 /**
- * Pushes settings as IntelliJ's `EditorSessionRouter.pushSettings` does after
+ * Pushes settings as IntelliJ's `SettingsRouter.push` does after
  * the user stores them: one `settings/didChange` carrying every key of
  * `ModelerSettingsStore.snapshotMap`, a key the user left unset at its default,
  * and `marketplaces` merged as `ProjectMarketplacesStore.merged()` merges them.
