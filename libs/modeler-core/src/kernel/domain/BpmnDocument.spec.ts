@@ -50,6 +50,10 @@ describe("BpmnDocument.isEmpty", () => {
         expect(new BpmnDocument("").isEmpty()).toBe(true);
     });
 
+    it("should return true for a whitespace-only file", () => {
+        expect(new BpmnDocument("\n").isEmpty()).toBe(true);
+    });
+
     it("should return false for non-empty XML", () => {
         expect(new BpmnDocument(c7Xml).isEmpty()).toBe(false);
     });

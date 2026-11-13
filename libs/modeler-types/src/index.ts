@@ -37,5 +37,6 @@ export * from "./workspaceDefinitions";
 export * from "./xmlMarkup";
 export * from "./formPreview";
 export * from "./formRuntimeCompatibility";
+export * from "./blankDocument";
 export * from "./emptyDmn";
 export * from "./pluginLoadReport";

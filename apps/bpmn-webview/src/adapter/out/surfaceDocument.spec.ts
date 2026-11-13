@@ -99,6 +99,7 @@ describe("createSurfaceDocument", () => {
 
         it.each([
             ["empty", ""],
+            ["whitespace-only", "\n"],
             ["missing", undefined],
         ])(
             "starts a blank diagram for %s content on an editable surface",

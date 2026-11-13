@@ -53,6 +53,13 @@ describe("DmnModelerService.display", () => {
         expect(msg.content).toBe(editor.content);
     });
 
+    it("seeds a whitespace-only document like an empty one", async () => {
+        const { service, editor } = createService("\n");
+
+        expect(await service.display(editor.id)).toBe(true);
+        expect(editor.content).toContain("DMN/20191111/MODEL");
+    });
+
     it("seeds one diagram when two displays of an empty document overlap", async () => {
         const { service, host, editor } = createService("");
         const finishWrite = holdNextWrite(host);

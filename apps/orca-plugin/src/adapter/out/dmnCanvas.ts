@@ -5,7 +5,7 @@ import {
     type DmnView,
 } from "@miragon/dmn-modeler";
 import type { HostThemeKind } from "@miragon/bpmn-modeler-shared";
-import { EMPTY_DMN_DIAGRAM } from "@miragon/bpmn-modeler-types";
+import { EMPTY_DMN_DIAGRAM, isBlankDocument } from "@miragon/bpmn-modeler-types";
 
 import type { ModelCanvas } from "../../port/modelCanvas";
 
@@ -43,7 +43,7 @@ export async function createDmnCanvas(options: DmnCanvasOptions): Promise<DmnCan
 
     async function show(text: string): Promise<void> {
         const viewed = modeler.getActiveView();
-        await modeler.loadDiagram(text.trim() ? text : EMPTY_DMN_DIAGRAM);
+        await modeler.loadDiagram(isBlankDocument(text) ? EMPTY_DMN_DIAGRAM : text);
         const again = viewed && modeler.getViews().find((view) => sameView(view, viewed));
         if (again && !sameView(again, modeler.getActiveView()!)) await modeler.openView(again);
     }
