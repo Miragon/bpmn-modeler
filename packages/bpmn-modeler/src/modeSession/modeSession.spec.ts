@@ -1222,6 +1222,41 @@ describe("createModeSession — content changes and pending input", () => {
         expect(onContentChanged).toHaveBeenCalledOnce();
     });
 
+    it("reports an edit on the fallback surface, once, and none on the failed candidate", async () => {
+        const onContentChanged = vi.fn();
+        const designers: SurfaceHandle[] = [];
+        const session = await createModeSession({
+            container: container(),
+            engine: undefined,
+            surfaces: {
+                view: async () => makeSurface({ id: "view", hasSetMode: false, log }),
+                design: async () => {
+                    const designer = makeSurface({
+                        id: `designer#${designers.length + 1}`,
+                        hasSetMode: false,
+                        editable: true,
+                        loadShouldThrow: designers.length === 0,
+                        log,
+                    });
+                    designers.push(designer);
+                    return designer;
+                },
+            },
+            initialMode: "view",
+            onError: vi.fn(),
+        });
+        session.onContentChanged(onContentChanged);
+
+        await session.requestMode("design");
+        const [failedCandidate, fallback] = designers;
+        editOn(session.getHandle());
+        editOn(failedCandidate);
+
+        expect(session.getMode()).toBe("design");
+        expect(session.getHandle()).toBe(fallback);
+        expect(onContentChanged).toHaveBeenCalledOnce();
+    });
+
     it("stops reporting edits to a listener whose subscription is disposed", async () => {
         const onContentChanged = vi.fn();
         const session = await createModeSession({

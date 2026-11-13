@@ -19,7 +19,7 @@ import type {
 } from "./publicApi";
 import type { ViewState } from "./viewState";
 import type { PendingInputHandle, PendingSaveHandle } from "./surfaceHandle";
-import { isEditableSurface, isModelerSurface } from "./modeSession/surfaceCapabilities";
+import { isEditableSurface, isModelerSurface } from "./modeSession";
 import type {
     BpmnViewerHandle,
     CoreViewerServices,
@@ -658,8 +658,17 @@ const _modeBarrelExports = (b: _ModeBarrel) => {
     void b.resolveInitialMode;
     void b.planTransition;
     void b.isModeAvailable;
+    void b.isEditableSurface;
+    void b.isModelerSurface;
 };
 void _modeBarrelExports;
+
+type _RootEntry = typeof import("./index");
+const _rootSurfaceGuardExports = (root: _RootEntry) => {
+    void root.isEditableSurface;
+    void root.isModelerSurface;
+};
+void _rootSurfaceGuardExports;
 
 describe("public API conformance", () => {
     it("is a type-only conformance spec; the guarantee is the tsc pass", () => {

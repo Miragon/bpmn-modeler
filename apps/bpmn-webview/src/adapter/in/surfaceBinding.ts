@@ -48,11 +48,9 @@ export function createSurfaceBinder(
         // The readonly viewer never schedules a sync, so a host flush finds nothing pending.
         if (isEditableSurface(handle)) {
             handle.onCommandStackChanged(() => session.scheduleSync());
-        }
 
-        // One report per format, whether the host command, the palette or the
-        // canvas shortcut started it; only the host command has a caller.
-        if (isEditableSurface(handle)) {
+            // One report per format, whether the host command, the palette or the
+            // canvas shortcut started it; only the host command has a caller.
             handle.onFormatted((outcome) => {
                 host.postMessage(
                     new DiagramFormattedCommand(
