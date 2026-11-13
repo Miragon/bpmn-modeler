@@ -2,7 +2,7 @@ import type { AddOnPayload } from "@miragon/bpmn-modeler-shared";
 import { describe, expect, it } from "vitest";
 
 import { ACME, MAIL, PALETTE, RESIZE } from "../__fixtures__/catalogs";
-import { rowStatusOf, stateToneOf, StatusTone } from "./addOnStatus";
+import { detailStatusOf, rowStatusOf, stateToneOf, StatusTone } from "./addOnStatus";
 
 const UNREADABLE: AddOnPayload = {
     ...RESIZE,
@@ -35,5 +35,28 @@ describe("rowStatusOf", () => {
         ["a neutral state says the core's text", DISABLED, { tone: "neutral", word: "Disabled" }],
     ])("%s", (_, addOn, status) => {
         expect(rowStatusOf(addOn)).toEqual(status);
+    });
+});
+
+describe("detailStatusOf", () => {
+    it.each<[string, AddOnPayload, { tone: StatusTone; words: string[] }]>([
+        [
+            "a problem leads with Not loaded and keeps the core's state",
+            { ...PALETTE, problem: "Broken." },
+            { tone: "danger", words: ["Not loaded", "Allowed"] },
+        ],
+        [
+            "code that offers Allow says the core's state",
+            RESIZE,
+            { tone: "warning", words: ["Not allowed yet"] },
+        ],
+        ["allowed code says the core's state", PALETTE, { tone: "success", words: ["Allowed"] }],
+        [
+            "a disabled template says the core's state",
+            DISABLED,
+            { tone: "neutral", words: ["Disabled"] },
+        ],
+    ])("%s", (_, addOn, status) => {
+        expect(detailStatusOf(addOn)).toEqual(status);
     });
 });

@@ -207,7 +207,6 @@ export class AddOnsView {
             placement?.addOn,
             placement?.source,
             placement?.group,
-            state.expansion,
             state.pending,
             this.revealedId,
         ];

@@ -46,7 +46,9 @@ Click a row to see its details:
 - where it lies: the folder and the source;
 - a problem or a note, if the add-on has one;
 - what you can do with it, as buttons: **Revoke**, **Disable** or **Enable**;
-- for code you can allow, the review: what the code can do and how far an allowance reaches, its folder, its version (rule packages) and **Allowed in**: every worktree of its repository, or this folder only outside a repository, with **Allow** at its end.
+- for code you can allow, the review, always open: what the code can do and how far an allowance reaches, its folder, its version (rule packages) and **Allowed in**: every worktree of its repository, or this folder only outside a repository, with **Allow** at its end.
+
+When an add-on cannot be read or is not trusted to run, its state reads **Not loaded** before its own state, for example *Not loaded · Allowed*, and the problem says why.
 
 The view selects the first add-on that waits for a review, else the first add-on, among the rows it shows, so a closed marketplace selects none of its templates until you open it. Your selection stays when you close its folder or source. When the view reloads, it keeps the selection and the folders and sources you opened or closed; the search and the filter start empty.
 
@@ -58,7 +60,7 @@ The view selects the first add-on that waits for a review, else the first add-on
 
 Select a plugin or rule package that needs a review, check what its review says, then click **Allow**. The allowance covers the add-on in every worktree of its repository, later changes included, so a pull, an update or an edit runs without asking; outside a git repository it covers the add-on's folder only. Its rows in other worktrees of the repository show as *Allowed* too. A second clone, another repository and a new add-on ask once. Every open BPMN editor that offered an allowed plugin reloads with it. When the add-on's folder moved into or out of a repository since the view showed it, **Allow** asks you to check the list again.
 
-**Review…** on a notification opens the view at the waiting plugins or rule packages when every one of them lies inside an open folder: it clears a search or filter that hides the first of them, selects it and opens its review. The notification then counts as answered for this window. Otherwise, for example when a rule package is linked from outside the workspace, **Review…** shows the list to check, as in [BPMN plugins](/vscode/features/bpmn-plugins#allow-a-plugin).
+**Review…** on a notification opens the view at the waiting plugins or rule packages when every one of them lies inside an open folder: it clears a search or filter that hides the first of them, selects it and shows its details with the review. The notification then counts as answered for this window. Otherwise, for example when a rule package is linked from outside the workspace, **Review…** shows the list to check, as in [BPMN plugins](/vscode/features/bpmn-plugins#allow-a-plugin).
 
 **Review Add-ons** in the Command Palette opens the view on the whole list. It clears the search and the filter, keeps your selection when it waits for a review, else selects the first add-on in **Needs attention** that does, and moves focus to it. When nothing waits, your selection stays and focus goes to the top of the list. A screen reader hears how many add-ons need review, or *No add-ons need review.*
 

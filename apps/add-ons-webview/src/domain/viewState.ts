@@ -21,16 +21,14 @@ import {
     ancestorsOf,
     Expansion,
     headsOf,
-    isReviewKeyOpen,
     isShownOpen,
     ListExpansion,
     prunedExpansion,
-    reviewKeyOf,
     rowsInSight,
 } from "./expansion";
 import { focusAfterDone, FocusTarget, isFocusable, isListed } from "./focusAfter";
 import { displayOrderOf, needsAttention, sectionGroupsOf, sectionsOf } from "./listSections";
-import { placedActions, reviewOf } from "./placedActions";
+import { placedActions } from "./placedActions";
 import { Banner, resultBannerOf } from "./resultBanner";
 
 interface PendingRequest {
@@ -220,7 +218,7 @@ function revealed(state: ViewState): Change {
 
 /**
  * Lands on the first of the rows a "Review…" left, as the list orders them, once the
- * model holds one: its open review and its detail, past any filter that hid
+ * model holds one: its detail with its review, past any filter that hid
  * it. A row Needs attention lists sits under no header, so none opens for it.
  */
 function rowsRevealed(
@@ -240,7 +238,6 @@ function rowsRevealed(
             filterExpansion.set(id, true);
         });
     }
-    if (reviewOf(addOn) !== undefined) expansion.set(reviewKeyOf(addOn.id), true);
     const shown = filteredGroups(model, state.filter);
     const filter = placementOf(shown, addOn.id) === undefined ? NO_FILTER : state.filter;
     return {
@@ -337,15 +334,12 @@ function resultArrived(
     return { state: { ...state, pending, banner: resultBannerOf(result), awaitingFocus } };
 }
 
-/** A head toggled while a filter is on changes only the filter's own choices; a review keeps its choice in either case. */
+/** A head toggled while a filter is on changes only the filter's own choices. */
 function toggled(state: ViewState, key: string): Change {
     const { model } = state;
     if (model === undefined) return { state };
     const head = headsOf(model).find(({ id }) => id === key);
-    if (head === undefined) {
-        const open = isReviewKeyOpen(key, state.expansion);
-        return { state: { ...state, expansion: new Map(state.expansion).set(key, !open) } };
-    }
+    if (head === undefined) return { state };
     const shown = listExpansionOf(state);
     const open = isShownOpen(head, shown);
     return shown.filterActive

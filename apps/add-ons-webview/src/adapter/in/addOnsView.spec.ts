@@ -541,40 +541,52 @@ describe("AddOnsView", () => {
             ]);
         });
 
-        it("shows the review open, with its warning, facts and Allow at its end", () => {
+        it("shows the review open, with its heading, warning, facts and Allow at its end", () => {
             const { root } = mountedView(changed(RESIZE.id, reviewed));
             const review = root.querySelector(".av-review")!;
+            const allow = review.querySelector<HTMLElement>(".av-review-end button")!;
+            const warning = review.querySelector(".av-box-warning .av-box-text")!;
 
             expect([
-                review.querySelector(".av-review-toggle")?.getAttribute("aria-expanded"),
-                text(review.querySelector(".av-box-warning")),
+                review.querySelector("button[aria-expanded]"),
+                text(review.querySelector("h3")),
+                text(warning),
                 [...review.querySelectorAll("dt")].map(text),
                 [...review.querySelectorAll("dd")].map(text),
-                text(review.querySelector(".av-review-end button")),
+                text(allow),
+                allow.getAttribute("aria-describedby"),
+                warning.compareDocumentPosition(allow) & Node.DOCUMENT_POSITION_FOLLOWING,
             ]).toEqual([
-                "true",
+                null,
+                RESIZE.review!.heading,
                 RESIZE.review!.warning,
                 ["Folder", "Allowed in"],
                 [".camunda/plugins/resize", "every worktree of /work"],
                 "Allow",
+                warning.id,
+                Node.DOCUMENT_POSITION_FOLLOWING,
             ]);
         });
 
-        it("closes the review", () => {
-            const { root, events } = mountedView(CATALOG);
-            root.querySelector<HTMLElement>(".av-review-toggle")!.focus();
-
-            root.querySelector<HTMLElement>(".av-review-toggle")!.click();
+        it("leads the state line with Not loaded when a problem keeps the add-on from running", () => {
+            const { root, row } = mountedView(changed(PALETTE.id, { problem: "Broken." }));
+            row(PALETTE.name).click();
+            const line = root.querySelector(".av-state-line")!;
 
             expect([
-                root.querySelector(".av-review-body"),
-                events.at(-1),
-                document.activeElement,
-            ]).toEqual([
-                null,
-                { kind: "toggled", key: `review:${RESIZE.id}` },
-                root.querySelector(".av-review-toggle"),
-            ]);
+                [...line.querySelectorAll(".av-state-word")].map(text),
+                line.querySelector(".av-sep")?.getAttribute("aria-hidden"),
+                line.classList.contains("av-tone-danger"),
+            ]).toEqual([["Not loaded", PALETTE.stateText], "true", true]);
+        });
+
+        it("rebuilds no detail when a header in the list opens or closes", () => {
+            const { root, head } = mountedView(CATALOG);
+            const card = root.querySelector(".av-detail-card");
+
+            head(CONFIG_SOURCE.id)!.click();
+
+            expect(root.querySelector(".av-detail-card")).toBe(card);
         });
 
         it("shows a problem and the row's actions as buttons", () => {

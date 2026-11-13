@@ -14,7 +14,6 @@ import {
     withRevision,
 } from "../__fixtures__/catalogs";
 import { NO_FILTER } from "./catalogFilter";
-import { reviewKeyOf } from "./expansion";
 import {
     CATALOG_TARGET,
     initialViewState,
@@ -107,7 +106,6 @@ describe("nextViewState", () => {
             const { state } = after([
                 shown(),
                 { kind: "toggled", key: CONFIG_SOURCE.id },
-                { kind: "toggled", key: reviewKeyOf(RESIZE.id) },
                 shown({ ...without(RESIZE.id), revision: 11 }),
             ]);
 
@@ -351,20 +349,10 @@ describe("nextViewState", () => {
             ]);
         });
 
-        it("opens no header for a row Needs attention lists, and opens its review", () => {
+        it("opens no header for a row Needs attention lists, and lands on its detail", () => {
             const { state } = after([reveal(3, [RESIZE.id]), shown()]);
 
-            expect([...state.expansion]).toEqual([[reviewKeyOf(RESIZE.id), true]]);
-        });
-
-        it("opens a review the user closed", () => {
-            const { state } = after([
-                shown(),
-                { kind: "toggled", key: reviewKeyOf(RESIZE.id) },
-                reveal(1, [RESIZE.id]),
-            ]);
-
-            expect(state.expansion.get(reviewKeyOf(RESIZE.id))).toBe(true);
+            expect([[...state.expansion], state.pane]).toEqual([[], "detail"]);
         });
 
         it("clears a filter that hides the row, and keeps one that shows it", () => {
@@ -648,17 +636,10 @@ describe("nextViewState", () => {
             ]).toEqual([false, true]);
         });
 
-        it("closes a row's review and opens it again", () => {
-            const closed = after([shown(), { kind: "toggled", key: reviewKeyOf(RESIZE.id) }]);
-            const opened = nextViewState(closed.state, {
-                kind: "toggled",
-                key: reviewKeyOf(RESIZE.id),
-            });
+        it("keeps no choice about a key that names no header", () => {
+            const { state } = after([shown(), { kind: "toggled", key: `review:${RESIZE.id}` }]);
 
-            expect([
-                closed.state.expansion.get(reviewKeyOf(RESIZE.id)),
-                opened.state.expansion.get(reviewKeyOf(RESIZE.id)),
-            ]).toEqual([false, true]);
+            expect(state.expansion.size).toBe(0);
         });
 
         it("keeps a head the user toggles while filtering apart from their kept choices", () => {

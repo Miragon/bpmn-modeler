@@ -4,16 +4,15 @@ import type {
     AddOnPayload,
     AddOnReviewPayload,
 } from "@miragon/bpmn-modeler-shared";
-import { ArrowLeft, ChevronRight, Info } from "lucide";
+import { ArrowLeft, Info } from "lucide";
 
 import { addOnActionEmphasis } from "../../domain/actionEmphasis";
-import { stateToneOf } from "../../domain/addOnStatus";
+import { detailStatusOf } from "../../domain/addOnStatus";
 import type { Placement } from "../../domain/catalogQueries";
 import { CHROME_TEXT } from "../../domain/chromeTexts";
-import { isReviewOpen, reviewKeyOf } from "../../domain/expansion";
 import { placedActions, reviewOf } from "../../domain/placedActions";
 import { isBusy, ViewState } from "../../domain/viewState";
-import { actionButton, button, el, icon, markFocus, setBusy, toggleButton } from "./dom";
+import { actionButton, button, el, icon, markFocus, setBusy } from "./dom";
 import { ADD_ON_ACTION_ICON, SOURCE_ICON } from "./icons";
 import { kindTag, statusBox, statusMark } from "./statusMarks";
 
@@ -49,10 +48,7 @@ export function detailOf(placement: Placement, state: ViewState, revealed: boole
     }
     const review = reviewOf(addOn);
     if (review !== undefined) {
-        const open = isReviewOpen(addOn.id, state.expansion);
-        detail.append(
-            reviewSection(addOn.id, review, open, allow && addOnButton(allow, addOn, busy)),
-        );
+        detail.append(reviewSection(review, allow && addOnButton(allow, addOn, busy)));
     }
     return detail;
 }
@@ -83,9 +79,13 @@ function headOf({ group, source, addOn }: Placement, revealed: boolean): HTMLEle
             if (index > 0) metaLine.append(separator("·"));
             metaLine.append(el("span", "", part));
         });
-    const tone = stateToneOf(addOn);
-    const stateLine = el("p", `av-state-line av-tone-${tone}`);
-    stateLine.append(statusMark(tone), el("span", "", addOn.stateText));
+    const status = detailStatusOf(addOn);
+    const stateLine = el("p", `av-state-line av-tone-${status.tone}`);
+    stateLine.append(statusMark(status.tone));
+    status.words.forEach((word, index) => {
+        if (index > 0) stateLine.append(separator("·"));
+        stateLine.append(el("span", "av-state-word", word));
+    });
     const top = el("div", "av-detail-top");
     top.append(kindTag(addOn.kind), stateLine);
     const where = el("p", "av-location");
@@ -111,26 +111,19 @@ function noteOf(note: string): HTMLElement {
     return line;
 }
 
-/** The review the core wrote: its warning, its facts and Allow at its end. */
+let warningIds = 0;
+
+/**
+ * The review the core wrote, always open: its warning and facts, with Allow at
+ * its end, so Allow is never on screen without the review above it. Allow names
+ * the warning as its description.
+ */
 function reviewSection(
-    addOnId: string,
     review: AddOnReviewPayload,
-    open: boolean,
     allow: HTMLButtonElement | undefined,
 ): HTMLElement {
     const section = el("section", "av-review");
-    section.dataset.open = String(open);
-    const toggle = markFocus(
-        toggleButton(reviewKeyOf(addOnId), open, "av-review-toggle"),
-        "review",
-        addOnId,
-    );
-    toggle.append(
-        icon(ChevronRight, 16, "av-chevron"),
-        el("span", "av-review-heading", review.heading),
-    );
-    section.append(toggle);
-    if (!open) return section;
+    const warningId = `av-review-warning-${++warningIds}`;
     const body = el("div", "av-review-body");
     const facts = el("dl", "av-facts");
     review.facts.forEach(({ label, value }) => {
@@ -138,12 +131,13 @@ function reviewSection(
         fact.append(el("dt", "av-fact-label", label), el("dd", "av-fact-value", value));
         facts.append(fact);
     });
-    body.append(statusBox("warning", review.warning), facts);
+    body.append(statusBox("warning", review.warning, "", warningId), facts);
     if (allow !== undefined) {
+        allow.setAttribute("aria-describedby", warningId);
         const end = el("div", "av-review-end");
         end.append(allow);
         body.append(end);
     }
-    section.append(body);
+    section.append(el("h3", "av-review-heading", review.heading), body);
     return section;
 }

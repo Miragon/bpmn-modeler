@@ -5,8 +5,6 @@ import type {
     SourceKindPayload,
 } from "@miragon/bpmn-modeler-shared";
 
-import { reviewOf } from "./placedActions";
-
 /** A group or source header, which opens and closes, or an add-on's row, which sits in one. */
 export interface Head {
     readonly id: string;
@@ -15,7 +13,7 @@ export interface Head {
     readonly openByDefault?: boolean;
 }
 
-/** The user's own open or closed choices, by head id or {@link reviewKeyOf}. */
+/** The user's own open or closed choices, by head id. */
 export type Expansion = ReadonlyMap<string, boolean>;
 
 /** A marketplace can hold many templates, so it starts closed. */
@@ -87,28 +85,8 @@ export function ancestorsOf(heads: readonly Head[], id: string): string[] {
     return parentId === undefined ? [] : [...ancestorsOf(heads, parentId), parentId];
 }
 
-/** A row's review has a key of its own, as no head id starts with "review:". */
-export function reviewKeyOf(addOnId: string): string {
-    return `review:${addOnId}`;
-}
-
-export function isReviewOpen(addOnId: string, expansion: Expansion): boolean {
-    return isReviewKeyOpen(reviewKeyOf(addOnId), expansion);
-}
-
-/** Open until the user closes it: Allow sits at its end. */
-export function isReviewKeyOpen(key: string, expansion: Expansion): boolean {
-    return expansion.get(key) ?? true;
-}
-
+/** An older page's keys for a row's review drop out too: no head has that id. */
 export function prunedExpansion(model: AddOnCatalogPayload, expansion: Expansion): Expansion {
     const kept = new Set(headsOf(model).map(({ id }) => id));
-    for (const { sources } of model.groups) {
-        for (const { addOns } of sources) {
-            for (const addOn of addOns) {
-                if (reviewOf(addOn) !== undefined) kept.add(reviewKeyOf(addOn.id));
-            }
-        }
-    }
     return new Map([...expansion].filter(([key]) => kept.has(key)));
 }
