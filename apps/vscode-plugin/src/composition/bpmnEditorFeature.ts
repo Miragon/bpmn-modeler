@@ -17,7 +17,9 @@ import {
     FocusLintElementController,
     FOCUS_LINT_ELEMENT_CMD,
 } from "../modeler/bpmn/adapter/in/FocusLintElementController";
+import { ElementIdReviewController } from "../modeler/bpmn/adapter/in/ElementIdReviewController";
 import { PropertiesPanelStateRepository } from "../modeler/bpmn/adapter/out/PropertiesPanelStateRepository";
+import { VsCodeElementIdReview } from "../modeler/bpmn/adapter/out/VsCodeElementIdReview";
 import { NodeContentHasher } from "../modeler/bpmn/adapter/out/NodeContentHasher";
 import { bpmnPluginCacheUri } from "../shared/adapter/out/bootstrapWebview";
 import { VsCodeLintingPreference } from "../modeler/bpmn/adapter/out/VsCodeLintingPreference";
@@ -78,6 +80,9 @@ export function register(
     void plugins.pruneIdleCopies();
     // Before any editor resolves, so the first request already finds the rows it rewrites.
     void deps.contentRows.run();
+    const elementIdReview = VsCodeElementIdReview.isSupported()
+        ? new VsCodeElementIdReview()
+        : undefined;
     const editor = new BpmnEditorFeature(
         {
             ...ports,
@@ -96,6 +101,7 @@ export function register(
                 review: handles.reviews.rulePackage,
                 workspaceTrust: deps.workspaceTrust,
             },
+            elementIdReview,
         },
         {
             rendering: "on-host-document-change",
@@ -121,6 +127,12 @@ export function register(
         delegateResolve: handles.diffController.resolveWhenDiffPane,
         initialPanelVisible: () => editor.initialPanelVisible(),
     }).register(context);
+
+    if (elementIdReview) {
+        new ElementIdReviewController(elementIdReview, editor.elementIds, deps.notifier).register(
+            context,
+        );
+    }
 
     // Turns each element-specific bpmnlint diagnostic into a click-to-centre
     // action; the diagnostics carry a command link to this controller.

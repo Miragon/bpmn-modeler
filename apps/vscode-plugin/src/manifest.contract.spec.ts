@@ -47,6 +47,14 @@ import {
 import { OPEN_ALL_SCRIPT_TASKS_CMD } from "./scriptTask/adapter/in/ScriptTaskCommandController";
 import { FOCUS_LINT_ELEMENT_CMD } from "./modeler/bpmn/adapter/in/FocusLintElementController";
 import {
+    APPLY_ELEMENT_IDS_CMD,
+    DISCARD_ELEMENT_IDS_CMD,
+} from "./modeler/bpmn/adapter/in/ElementIdReviewController";
+import {
+    ELEMENT_ID_REVIEW_VIEW,
+    REVEAL_ELEMENT_ID_ROW_CMD,
+} from "./modeler/bpmn/adapter/out/VsCodeElementIdReview";
+import {
     NEW_ELEMENT_TEMPLATE_CMD,
     OPEN_ELEMENT_TEMPLATE_EDITOR_CMD,
     TOGGLE_ELEMENT_TEMPLATE_JSON_CMD,
@@ -95,7 +103,7 @@ interface Manifest {
         keybindings: { command: string; key?: string }[];
         menus: Record<string, { command: string; when?: string; group?: string }[]>;
         viewsContainers: Record<string, { id: string; title: string; icon: string }[]>;
-        views: Record<string, { type: string; id: string; name: string; when?: string }[]>;
+        views: Record<string, { type?: string; id: string; name: string; when?: string }[]>;
         customEditors: {
             viewType: string;
             priority: string | { textEditor: string; diffEditor?: string };
@@ -144,6 +152,9 @@ const CODE_COMMAND_IDS = [
     FORMAT_DIAGRAM_CMD,
     CLEANUP_DIAGRAM_CMD,
     GENERATE_ELEMENT_IDS_CMD,
+    APPLY_ELEMENT_IDS_CMD,
+    DISCARD_ELEMENT_IDS_CMD,
+    REVEAL_ELEMENT_ID_ROW_CMD,
     BPMN_COMPARE.selectForCompare,
     BPMN_COMPARE.compareWithSelected,
     BPMN_COMPARE.compareSelected,
@@ -226,6 +237,44 @@ describe("package.json ↔ code contract", () => {
                 ({ command }) => command === GENERATE_ELEMENT_IDS_CMD,
             ),
         ).toEqual([]);
+    });
+
+    // A tab beside Problems and Output, there only while a review is open.
+    it("shows the element ID review in its own Panel tab while a review is open", () => {
+        expect(manifest.contributes.viewsContainers.panel).toEqual([
+            { id: "bpmn-modeler-element-ids", title: "Element IDs", icon: "./icons/komet.svg" },
+        ]);
+        expect(manifest.contributes.views["bpmn-modeler-element-ids"]).toEqual([
+            {
+                id: ELEMENT_ID_REVIEW_VIEW,
+                name: "Element IDs",
+                when: "bpmn-modeler.elementIdReviewOpen",
+            },
+        ]);
+    });
+
+    it("offers Apply and Discard in the review's title bar and the palette while it is open", () => {
+        expect(manifest.contributes.menus["view/title"]).toEqual(
+            expect.arrayContaining([
+                {
+                    command: APPLY_ELEMENT_IDS_CMD,
+                    when: `view == ${ELEMENT_ID_REVIEW_VIEW} && bpmn-modeler.elementIdReviewCanApply`,
+                    group: "navigation@1",
+                },
+                {
+                    command: DISCARD_ELEMENT_IDS_CMD,
+                    when: `view == ${ELEMENT_ID_REVIEW_VIEW}`,
+                    group: "navigation@2",
+                },
+            ]),
+        );
+        expect(manifest.contributes.menus.commandPalette).toEqual(
+            expect.arrayContaining([
+                { command: APPLY_ELEMENT_IDS_CMD, when: "bpmn-modeler.elementIdReviewCanApply" },
+                { command: DISCARD_ELEMENT_IDS_CMD, when: "bpmn-modeler.elementIdReviewOpen" },
+                { command: REVEAL_ELEMENT_ID_ROW_CMD, when: "false" },
+            ]),
+        );
     });
 
     // No `scope`: a workspace can share whether its IDs follow names. The spelling has no
@@ -664,6 +713,8 @@ describe("package.json ↔ code contract", () => {
             "bpmn-modeler.dmnCompareSelectionActive",
             "bpmn-modeler.isElementTemplate",
             "bpmn-modeler.templateEditorShowsFile",
+            "bpmn-modeler.elementIdReviewOpen",
+            "bpmn-modeler.elementIdReviewCanApply",
         ];
 
         const sources = productionSourceFiles(SRC_DIR).map((file) => readFileSync(file, "utf-8"));
