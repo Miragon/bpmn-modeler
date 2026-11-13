@@ -700,7 +700,8 @@ It exits non-zero only on broken input: a base that names no commit (no
 `origin/main` before a fetch), no merge base (a shallow clone), a `--repo`
 that is no checkout root, a corrupt snapshot, or a fitness function that
 throws or returns a malformed finding. `--changes-only` prints only the new
-and resolved rows; every pull request shows them (see **On a pull request**).
+and resolved rows, or what a function's `changesView` shows instead; every
+pull request shows them (see **On a pull request**).
 
 **On a pull request.** `.github/workflows/fitness-report.yml` runs on every
 `pull_request`, with no branch filter, as `codeql.yml` does for stacked PRs.
@@ -709,18 +710,36 @@ blocks a merge, and findings never fail it.
 
 - **What it shows.** Per function with a new or resolved row: its counts, the
   new rows and then the resolved ones in the function's groups (a collapsed
-  group, such as size-and-complexity's every measured file, inside
-  `<details>`), and its measures, misses, false reports and evidence in a
+  group inside `<details>`), and its measures, misses, false reports and evidence in a
   collapsed `<details>`, since a reader judges a row by them. Functions with no
   change share one line, and a PR without a change says so. A function
   measured at the merge base but not at HEAD gets a line with its reason and
   counts as a change, since its findings at the base drop out without being
-  resolved; one unmeasurable on both sides, such as mutation-score until a
-  run is stored, goes on another line and does not. The first line,
+  resolved; one unmeasurable on both sides, such as convention-coverage before
+  a workspace declared a kind, goes on another line and does not. The first line,
   `<!-- fitness-changes: some -->` or `<!-- fitness-changes: none -->`, tells
-  the workflow whether anything changed; a spec pins it. Existing rows whose
-  values changed, such as a file that grew, are not shown; the full report's
-  Trend column holds them.
+  the workflow whether anything changed; a spec pins it.
+- **What a function shows instead** (`changesView`, #2371). After the trial
+  in #2238 three functions declare one; the full report and the JSON keep
+  every row of all of them. `size-and-complexity` is `grown-values`: under
+  "Grown since the merge base", outside any `<details>`, it lists the
+  existing files whose code lines or highest complexity are higher than at
+  the merge base or new there, each with its trend (from the base to HEAD
+  when no stored series exists). Its new files fold into one line with their
+  count and the largest by code lines, its deleted files into a count. Only
+  grown rows count as a change, so a PR that only adds or deletes files gets
+  `fitness-changes: none` and no new comment: 259 of the trial's 341 new rows
+  were such files, and none led to a change. `missed-partner` and
+  `mutation-score` are `full-report-only`: they share a line naming them and
+  never count as a change, unmeasurable ones included. A mutation score
+  comes from a stored run, so it landed on whichever PR came next, and the
+  missed-partner warnings left on PRs were judged false 10 times and never
+  judged 7 times; the review reads both in the full report. The delta carries
+  an existing finding's `valuesAtBase` when its values changed, so no
+  finding or key changes and no version is bumped. On ten trial PRs (#2274
+  to #2360, each squash commit against its first parent) the comment went
+  from 100 size rows, 5 missed-partner rows and 1 mutation-score row to 143
+  grown rows; 65 of them grew by 1 to 5 code lines, 23 by more than 20.
 - **Measured commit.** The default checkout of `pull_request`, GitHub's test
   merge of the head into the base, with `--base "origin/<base branch>"`. Its
   first parent is the base tip, which is the merge base, and the history
@@ -828,7 +847,9 @@ finite number per declared id and leave out one that does not apply, such as
 the complexity of a file without a function. An undeclared id, or a value from
 a function that declares none, is broken input. Both fields are stored in the
 snapshot; old snapshots without them still parse, so `schemaVersion` stays 1.
-`findFindings` gets the tree, its commit and a `changeBase`: the merge base when
+A function may declare a `changesView` (see **On a pull request**);
+`grown-values` needs declared values, and the field changes no finding, so
+setting it bumps no version. `findFindings` gets the tree, its commit and a `changeBase`: the merge base when
 it measures HEAD, the commit itself for the base and every snapshot, so a
 function that measures the branch's change finds nothing there by construction.
 The rule it relies on

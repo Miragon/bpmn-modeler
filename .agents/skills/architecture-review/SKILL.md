@@ -18,9 +18,13 @@ resolved rows per function: the job summary holds every row, and a PR from
 this repository, unless Dependabot opened it, has at most one comment with a
 capped copy, posted once there is a change
 ([ADR](../../../docs/adr/engineering-practices.md#fitness-function-report)).
+For `size-and-complexity` it lists the existing files that grew and only
+counts the new ones; `missed-partner` and `mutation-score` are in the full
+report only, so the comment never shows their rows.
 It measures GitHub's test merge, so the whole PR counts as one change, which
 the PR row below does not. Read it for an overview; the review still measures
-here, because only the JSON holds the existing findings and the trends.
+here, because only the JSON holds the existing findings, the trends and those
+two functions.
 
 Run every block from this checkout. `OUT` lies outside it: an untracked file
 in the checkout would count as a change. Two reviews at once need their own
@@ -109,7 +113,8 @@ the registry grows, so never assume which functions exist.
   (`reason`). An unmeasurable function says nothing about this tree.
 - A finding: `key` (what it is about, never the line), `path`, `line`,
   `message`, `status` (`new` or `existing`), and optionally `group` (one of
-  the function's `groups`), `rank`, `values` and `trend`: points
+  the function's `groups`), `rank`, `values`, `valuesAtBase` (on an existing
+  finding whose values changed since the merge base) and `trend`: points
   `{ commit, values }`, oldest first, HEAD's values last. `resolved` lists
   base findings HEAD lacks; check `reportsWrongly` before calling one a fix.
 

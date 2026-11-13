@@ -1,4 +1,6 @@
-import type { FindingGroup } from "./fitnessFunction";
+import { grewSinceBase } from "./delta";
+import type { Finding } from "./finding";
+import type { FindingGroup, FindingValue } from "./fitnessFunction";
 import {
     baseLine,
     countsLine,
@@ -8,7 +10,9 @@ import {
     headLine,
     inTableOrder,
     limitLines,
+    location,
     measuresLine,
+    tableCell,
 } from "./markdownBlocks";
 import type { FitnessReport, FunctionReport } from "./report";
 
@@ -22,25 +26,38 @@ export interface ChangesReportOptions {
     readonly maxCharacters?: number;
 }
 
+function inFullReportOnly({ changesView }: FunctionReport): boolean {
+    return changesView === "full-report-only";
+}
+
 /** Its findings at the merge base drop out of the delta without being resolved. */
 function measuredOnlyAtBase({ base, outcome }: FunctionReport): boolean {
     return outcome.kind === "unmeasurable" && base.unmeasurable === undefined;
 }
 
-/** A CI job reads whether anything changed from this first line, so it stays fixed. */
+/**
+ * A CI job reads whether anything changed from this first line, so it stays fixed. Rows that are
+ * only counted, such as added files, are no change: they alone would post a comment.
+ */
 function changesMarker(report: FitnessReport, changed: readonly FunctionChanges[]): string {
-    return changed.length === 0 && !report.functions.some(measuredOnlyAtBase)
-        ? "<!-- fitness-changes: none -->"
-        : "<!-- fitness-changes: some -->";
+    const listsRows = changed.some(({ rows }) => rows.length > 0);
+    const blinded = report.functions.some(
+        (functionReport) => !inFullReportOnly(functionReport) && measuredOnlyAtBase(functionReport),
+    );
+    return listsRows || blinded
+        ? "<!-- fitness-changes: some -->"
+        : "<!-- fitness-changes: none -->";
 }
 
 const TITLE = "## Fitness function changes";
 
 interface FunctionChanges {
     readonly report: FunctionReport;
-    readonly existingCount: number;
-    /** New rows first, then resolved ones, each in group and table order: the order they are kept in. */
+    readonly counts: { readonly new: number; readonly existing: number; readonly resolved: number };
+    /** In the order they are kept: new rows first, then resolved ones, each in group and table order. */
     readonly rows: readonly FindingRow[];
+    /** Lines that count the rows the view does not list. */
+    readonly notListed: readonly string[];
 }
 
 interface Limits {
@@ -65,27 +82,98 @@ function inGroupOrder(
     return [...ordered].sort((left, right) => groupIndex(left) - groupIndex(right));
 }
 
-function changesOf(report: FunctionReport): FunctionChanges | undefined {
-    const { outcome } = report;
-    if (outcome.kind === "unmeasurable") {
-        return undefined;
+function rowCount(count: number): string {
+    return count === 1 ? "1 row" : `${count} rows`;
+}
+
+function largestOf(findings: readonly Finding[], { id }: FindingValue): Finding {
+    const valueOf = ({ values }: Finding) => values?.[id] ?? Number.NEGATIVE_INFINITY;
+    return findings.reduce((largest, finding) =>
+        valueOf(finding) > valueOf(largest) ? finding : largest,
+    );
+}
+
+function notListedLines(
+    added: readonly Finding[],
+    resolvedCount: number,
+    largestBy: FindingValue,
+): string[] {
+    const lines: string[] = [];
+    if (added.length > 0) {
+        const largest = largestOf(added, largestBy);
+        const named = `${location(largest)} (${tableCell(largest.message)})`;
+        lines.push(
+            added.length === 1
+                ? `- **New, not listed:** 1 row, ${named}`
+                : `- **New, not listed:** ${added.length} rows; the largest is ${named}`,
+        );
     }
+    if (resolvedCount > 0) {
+        lines.push(`- **Resolved, not listed:** ${rowCount(resolvedCount)}`);
+    }
+    return lines;
+}
+
+type MeasuredOutcome = Extract<FunctionReport["outcome"], { kind: "measured" }>;
+
+interface Commits {
+    readonly base: string;
+    readonly head: string;
+}
+
+/** Without a stored series a grown row's trend is the step from the merge base to HEAD. */
+function grownRows(outcome: MeasuredOutcome, commits: Commits): readonly FindingRow[] {
+    return inTableOrder(
+        outcome.findings
+            .filter(grewSinceBase)
+            .map(({ valuesAtBase = {}, trend, ...finding }): FindingRow => ({
+                ...finding,
+                status: "grown",
+                trend: trend ?? [
+                    { commit: commits.base, values: valuesAtBase },
+                    { commit: commits.head, values: finding.values ?? {} },
+                ],
+            })),
+    );
+}
+
+function newAndResolvedRows(report: FunctionReport, outcome: MeasuredOutcome): FindingRow[] {
     const added = outcome.findings.filter(({ status }) => status === "new");
-    if (added.length === 0 && outcome.resolved.length === 0) {
-        return undefined;
-    }
     const resolved = outcome.resolved.map((finding): FindingRow => ({
         ...finding,
         status: "resolved",
     }));
-    return {
-        report,
-        existingCount: outcome.findings.length - added.length,
-        rows: [...inGroupOrder(added, report.groups), ...inGroupOrder(resolved, report.groups)],
+    return [...inGroupOrder(added, report.groups), ...inGroupOrder(resolved, report.groups)];
+}
+
+function changesOf(report: FunctionReport, commits: Commits): FunctionChanges | undefined {
+    const { outcome } = report;
+    if (outcome.kind === "unmeasurable" || inFullReportOnly(report)) {
+        return undefined;
+    }
+    const added = outcome.findings.filter(({ status }) => status === "new");
+    const counts = {
+        new: added.length,
+        existing: outcome.findings.length - added.length,
+        resolved: outcome.resolved.length,
     };
+    if (report.changesView === "grown-values" && report.values !== undefined) {
+        const notListed = notListedLines(added, outcome.resolved.length, report.values[0]);
+        const rows = grownRows(outcome, commits);
+        return rows.length === 0 && notListed.length === 0
+            ? undefined
+            : { report, counts, rows, notListed };
+    }
+    const rows = newAndResolvedRows(report, outcome);
+    return rows.length === 0 ? undefined : { report, counts, rows, notListed: [] };
 }
 
 function rowTables(report: FunctionReport, rows: readonly FindingRow[]): string[] {
+    if (report.changesView === "grown-values") {
+        return rows.length === 0
+            ? []
+            : ["", "#### Grown since the merge base", ...findingTable(rows, report.values)];
+    }
     if (report.groups === undefined) {
         return findingTable(rows, report.values);
     }
@@ -99,31 +187,32 @@ function rowTables(report: FunctionReport, rows: readonly FindingRow[]): string[
     ];
 }
 
+function statusCounts(rows: readonly FindingRow[]): string {
+    const count = (status: FindingRow["status"]) =>
+        rows.filter((row) => row.status === status).length;
+    const grown = count("grown");
+    return grown > 0 ? `${grown} grown` : `${count("new")} new, ${count("resolved")} resolved`;
+}
+
 function leftOutLine(leftOut: readonly FindingRow[]): string[] {
     if (leftOut.length === 0) {
         return [];
     }
-    const newCount = leftOut.filter(({ status }) => status === "new").length;
     const rows = leftOut.length === 1 ? "1 more row" : `${leftOut.length} more rows`;
     const verb = leftOut.length === 1 ? "is" : "are";
     return [
         "",
-        `${rows} (${newCount} new, ${leftOut.length - newCount} resolved) ${verb} left out to fit; the job summary lists every row.`,
+        `${rows} (${statusCounts(leftOut)}) ${verb} left out to fit; the job summary lists every row.`,
     ];
 }
 
 function functionSection(changes: FunctionChanges, limits: Limits): string[] {
-    const { report, rows } = changes;
+    const { report, rows, notListed } = changes;
     const kept = rows.slice(0, limits.rowsPerFunction);
-    const newCount = rows.filter(({ status }) => status === "new").length;
     return [
         `### \`${report.id}\` version ${report.version}`,
         "",
-        countsLine({
-            new: newCount,
-            existing: changes.existingCount,
-            resolved: rows.length - newCount,
-        }),
+        countsLine(changes.counts),
         "",
         baseLine(report),
         ...(limits.withDeclarations
@@ -140,16 +229,23 @@ function functionSection(changes: FunctionChanges, limits: Limits): string[] {
             : []),
         ...rowTables(report, kept),
         ...leftOutLine(rows.slice(kept.length)),
+        ...(notListed.length === 0 ? [] : ["", ...notListed]),
     ];
+}
+
+function idList(reports: readonly FunctionReport[]): string {
+    return reports.map(({ id }) => `\`${id}\``).join(", ");
 }
 
 function summaryLines(report: FitnessReport, changed: readonly FunctionChanges[]): string[] {
     const changedIds = new Set(changed.map(({ report: { id } }) => id));
-    const unchanged = report.functions.filter(
+    const shown = report.functions.filter((functionReport) => !inFullReportOnly(functionReport));
+    const fullReportOnly = report.functions.filter(inFullReportOnly);
+    const unchanged = shown.filter(
         ({ id, outcome }) => outcome.kind === "measured" && !changedIds.has(id),
     );
     const unmeasurableWhere = (atBase: boolean) =>
-        report.functions.flatMap((functionReport) =>
+        shown.flatMap((functionReport) =>
             functionReport.outcome.kind === "unmeasurable" &&
             measuredOnlyAtBase(functionReport) === atBase
                 ? [`\`${functionReport.id}\` (${functionReport.outcome.reason})`]
@@ -158,9 +254,10 @@ function summaryLines(report: FitnessReport, changed: readonly FunctionChanges[]
     const blinded = unmeasurableWhere(true);
     const unmeasurable = unmeasurableWhere(false);
     return [
-        ...(unchanged.length === 0
+        ...(unchanged.length === 0 ? [] : [`- **No change:** ${idList(unchanged)}`]),
+        ...(fullReportOnly.length === 0
             ? []
-            : [`- **No change:** ${unchanged.map(({ id }) => `\`${id}\``).join(", ")}`]),
+            : [`- **In the full report only:** ${idList(fullReportOnly)}`]),
         ...(blinded.length === 0
             ? []
             : [`- **Measured at the merge base, not at HEAD:** ${blinded.join("; ")}`]),
@@ -181,7 +278,7 @@ function render(
     if (report.functions.length === 0) {
         lines.push("", "No fitness function is registered.");
     } else if (changed.length === 0) {
-        lines.push("", "No fitness function has a new or resolved finding.");
+        lines.push("", "No fitness function shows a new, resolved or grown finding.");
     }
     if (!limits.withDeclarations) {
         lines.push(
@@ -214,10 +311,16 @@ function largestFittingRowCap(
     return undefined;
 }
 
-/** Only the new and resolved rows per fitness function; the full report holds the existing ones. */
+/**
+ * Per fitness function its new and resolved rows, or what its `changesView` shows instead; the
+ * full report holds every row.
+ */
 export function changesReport(report: FitnessReport, options: ChangesReportOptions = {}): string {
     const changed = report.functions.flatMap((functionReport) => {
-        const changes = changesOf(functionReport);
+        const changes = changesOf(functionReport, {
+            base: report.base.commit,
+            head: report.head.commit,
+        });
         return changes === undefined ? [] : [changes];
     });
     const { maxCharacters } = options;

@@ -1,6 +1,7 @@
 import { type Delta, markDelta, type MarkedFinding, type Rename } from "./delta";
 import type { Finding } from "./finding";
 import {
+    type ChangesView,
     declaresValues,
     type Evidence,
     type FindingGroup,
@@ -34,6 +35,7 @@ export interface FunctionReport {
     readonly evidence: readonly Evidence[];
     readonly groups?: readonly FindingGroup[];
     readonly values?: readonly FindingValue[];
+    readonly changesView?: ChangesView;
     readonly base: { readonly source: BaseSource; readonly unmeasurable?: string };
     readonly outcome: FunctionOutcome;
 }
@@ -103,6 +105,9 @@ export function functionReport(
         evidence: fitnessFunction.evidence,
         ...(fitnessFunction.groups === undefined ? {} : { groups: fitnessFunction.groups }),
         ...(fitnessFunction.values === undefined ? {} : { values: fitnessFunction.values }),
+        ...(fitnessFunction.changesView === undefined
+            ? {}
+            : { changesView: fitnessFunction.changesView }),
         base: isMeasured(base.measurement)
             ? { source: base.source }
             : { source: base.source, unmeasurable: base.measurement.unmeasurable },

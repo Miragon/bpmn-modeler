@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { markDelta, type Rename } from "./delta";
+import { grewSinceBase, type MarkedFinding, markDelta, type Rename } from "./delta";
 import type { Finding } from "./finding";
 
 function at(key: string, line: number, path = `src/${key}.ts`): Finding {
@@ -64,6 +64,102 @@ describe("the delta against the merge base", () => {
             findings: ["new:A@2", "new:A@9", "new:B@1"],
             resolved: [],
         });
+    });
+});
+
+describe("the values a finding had at the merge base", () => {
+    const sized = (key: string, values: Record<string, number>, line = 1): Finding => ({
+        ...at(key, line),
+        values,
+    });
+
+    it("keeps them on an existing finding whose values changed", () => {
+        const { findings } = markDelta(
+            [sized("A", { codeLines: 30, complexity: 2 })],
+            [sized("A", { codeLines: 20, complexity: 2 })],
+        );
+
+        expect(findings).toEqual([
+            {
+                ...sized("A", { codeLines: 30, complexity: 2 }),
+                status: "existing",
+                valuesAtBase: { codeLines: 20, complexity: 2 },
+            },
+        ]);
+    });
+
+    it.each([
+        {
+            case: "an existing finding with the same values",
+            head: [sized("A", { codeLines: 20 })],
+            base: [sized("A", { codeLines: 20 }, 9)],
+        },
+        { case: "a new finding", head: [sized("A", { codeLines: 20 })], base: [] },
+        { case: "an existing finding without values", head: [at("A", 1)], base: [at("A", 2)] },
+    ])("leaves them out for $case", ({ head, base }) => {
+        const [finding] = markDelta(head, base).findings;
+
+        expect(finding).not.toHaveProperty("valuesAtBase");
+    });
+
+    it("takes them from the base finding the head finding was matched with", () => {
+        const { findings } = markDelta(
+            [sized("A", { codeLines: 5 }, 1), sized("A", { codeLines: 7 }, 2)],
+            [sized("A", { codeLines: 3 }, 1), sized("A", { codeLines: 7 }, 2)],
+        );
+
+        expect(findings.map(({ valuesAtBase }) => valuesAtBase)).toEqual([
+            { codeLines: 3 },
+            undefined,
+        ]);
+    });
+
+    it.each<{
+        case: string;
+        values: Record<string, number>;
+        valuesAtBase: Record<string, number> | undefined;
+        grew: boolean;
+    }>([
+        { case: "a higher value", values: { lines: 9 }, valuesAtBase: { lines: 8 }, grew: true },
+        {
+            case: "a value the base lacked",
+            values: { lines: 8, depth: 1 },
+            valuesAtBase: { lines: 8 },
+            grew: true,
+        },
+        {
+            case: "one value higher and one lower",
+            values: { lines: 7, depth: 3 },
+            valuesAtBase: { lines: 8, depth: 2 },
+            grew: true,
+        },
+        {
+            case: "only lower values",
+            values: { lines: 7 },
+            valuesAtBase: { lines: 8 },
+            grew: false,
+        },
+        {
+            case: "a value HEAD no longer has",
+            values: { lines: 8 },
+            valuesAtBase: { lines: 8, depth: 2 },
+            grew: false,
+        },
+        {
+            case: "no values at the base",
+            values: { lines: 8 },
+            valuesAtBase: undefined,
+            grew: false,
+        },
+    ])("calls $case grown: $grew", ({ values, valuesAtBase, grew }) => {
+        const finding: MarkedFinding = {
+            ...at("A", 1),
+            status: "existing",
+            values,
+            ...(valuesAtBase === undefined ? {} : { valuesAtBase }),
+        };
+
+        expect(grewSinceBase(finding)).toBe(grew);
     });
 });
 

@@ -1,8 +1,10 @@
 name: Fitness report
 
 # Shows on every pull request the rows the reported fitness functions newly
-# find and no longer find: every row in the job summary, and a capped copy in
-# one comment once there is a change. It is not a required check and not in
+# find and no longer find, or what a function's changesView shows instead (the
+# files that grew; nothing for the two in the full report only): every row in
+# the job summary, and a capped copy in one comment once there is a change.
+# It is not a required check and not in
 # build.yml's ci.needs, so it never blocks a merge. Findings never fail it;
 # only broken input does.
 #

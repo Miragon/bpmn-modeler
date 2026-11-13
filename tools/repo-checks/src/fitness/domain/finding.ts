@@ -185,9 +185,20 @@ export function parseFindings(
 }
 
 // Sorted so a snapshot's text does not depend on the order a function filled the record in.
-function sortedValues(values: Readonly<Record<string, number>>): Record<string, number> {
+export function sortedValues(values: Readonly<Record<string, number>>): Record<string, number> {
     return Object.fromEntries(
         Object.entries(values).sort(([left], [right]) => compareText(left, right)),
+    );
+}
+
+export function sameValues(
+    left: Readonly<Record<string, number>>,
+    right: Readonly<Record<string, number>>,
+): boolean {
+    const leftIds = Object.keys(left);
+    return (
+        leftIds.length === Object.keys(right).length &&
+        leftIds.every((id) => Object.hasOwn(right, id) && left[id] === right[id])
     );
 }
 

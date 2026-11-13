@@ -63,6 +63,7 @@ export function createSizeAndComplexityFitnessFunction({
         ],
         groups: SIZE_AND_COMPLEXITY_GROUPS,
         values: SIZE_AND_COMPLEXITY_VALUES,
+        changesView: "grown-values",
         findFindings: ({ repoRoot }) => sizeAndComplexityFindings(sources.read(repoRoot)),
     });
 }
