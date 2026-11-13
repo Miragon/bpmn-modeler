@@ -1,4 +1,4 @@
-/** The template folders each open editor loaded, which the add-on catalog lists. */
+/** The template folders each open editor loaded. */
 export class LoadedTemplateDirs {
     private readonly dirsByEditor = new Map<string, readonly string[]>();
     private readonly listeners = new Set<() => void>();
