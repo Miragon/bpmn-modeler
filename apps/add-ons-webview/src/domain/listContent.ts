@@ -1,38 +1,30 @@
 import type {
     ActionViewPayload,
     AddOnCatalogPayload,
-    AddOnGroupPayload,
     CatalogActionKindPayload,
 } from "@miragon/bpmn-modeler-shared";
 
-import { CatalogFilter, filteredGroups, isOnlyNeedsReview, NO_FILTER } from "./catalogFilter";
-import { CatalogScope, listsFlat, scopedCatalog } from "./catalogScope";
+import { CatalogFilter, filteredGroups, isFilterActive } from "./catalogFilter";
+import { ListSections, sectionsOf } from "./listSections";
 
-/** `ready`: the tabs, the list and the detail show; otherwise only what the catalog says. */
+/** `ready`: the toolbar, the list and the detail show; otherwise only what the catalog says. */
 export type CatalogPhase = "loading" | "ready" | "empty" | "failed";
 
 type CatalogButtons = readonly ActionViewPayload<CatalogActionKindPayload>[];
 
-export type NoMatchReason = "filters" | "nothingToReview";
-
-/** What the tab's list shows, with the catalog actions it offers as visible buttons. */
+/** What the list shows. */
 export type ListContent =
     | { readonly kind: "catalogEmpty"; readonly text?: string; readonly buttons: CatalogButtons }
-    | { readonly kind: "noMarketplace"; readonly buttons: CatalogButtons }
-    | { readonly kind: "workspaceEmpty"; readonly text?: string }
-    | { readonly kind: "noMatch"; readonly reason: NoMatchReason; readonly buttons: CatalogButtons }
+    | { readonly kind: "noMatch" }
     | {
-          readonly kind: "groups";
-          readonly groups: readonly AddOnGroupPayload[];
-          /** See {@link listsFlat}. */
-          readonly flat: boolean;
-          readonly buttons: CatalogButtons;
+          readonly kind: "sections";
+          readonly sections: ListSections;
+          /** No folder lists anything: the core's text says why, where Installed would be. */
+          readonly installedText?: string;
       };
 
-const MARKETPLACE_BUTTONS: readonly CatalogActionKindPayload[] = [
-    "addMarketplace",
-    "updateMarketplaces",
-];
+/** An empty catalog offers only the step that brings something in; housekeeping waits in the menu. */
+const EMPTY_BUTTONS: readonly CatalogActionKindPayload[] = ["addMarketplace"];
 
 export function catalogPhaseOf(model: AddOnCatalogPayload | undefined): CatalogPhase {
     if (model === undefined) return "loading";
@@ -40,44 +32,18 @@ export function catalogPhaseOf(model: AddOnCatalogPayload | undefined): CatalogP
     return model.problem === undefined ? "empty" : "failed";
 }
 
-export function listContentOf(
-    model: AddOnCatalogPayload,
-    scope: CatalogScope,
-    filter: CatalogFilter,
-): ListContent {
+export function listContentOf(model: AddOnCatalogPayload, filter: CatalogFilter): ListContent {
     if (model.groups.length === 0) {
-        return { kind: "catalogEmpty", text: model.emptyText, buttons: model.actions };
+        const buttons = model.actions.filter(({ kind }) => EMPTY_BUTTONS.includes(kind));
+        return { kind: "catalogEmpty", text: model.emptyText, buttons };
     }
-    const scoped = scopedCatalog(model, scope);
-    if (scope === "workspace" && scoped.groups.length === 0) {
-        // The core's text says why: no folder is open, or none holds an add-on.
-        return { kind: "workspaceEmpty", text: model.emptyText };
-    }
-    const holdsMarketplace = scoped.groups.some(
-        ({ sources, problem }) => sources.length > 0 || problem !== undefined,
-    );
-    if (scope === "marketplaces" && !holdsMarketplace) {
-        return { kind: "noMarketplace", buttons: buttonsOf(model, ["addMarketplace"]) };
-    }
-    const buttons = scope === "marketplaces" ? buttonsOf(model, MARKETPLACE_BUTTONS) : [];
-    const groups = filteredGroups(scoped, filter);
-    if (groups.length === 0) {
-        const reason = isOnlyNeedsReview(filter) ? "nothingToReview" : "filters";
-        return { kind: "noMatch", reason, buttons };
-    }
-    return { kind: "groups", groups, flat: listsFlat(scope), buttons };
-}
-
-/** The tab a view opens on until the user chooses one: Marketplaces while the workspace lists nothing and a marketplace is listed. */
-export function openingScopeOf(model: AddOnCatalogPayload): CatalogScope {
-    const workspaceEmpty = listContentOf(model, "workspace", NO_FILTER).kind === "workspaceEmpty";
-    const marketplaceListed = listContentOf(model, "marketplaces", NO_FILTER).kind === "groups";
-    return workspaceEmpty && marketplaceListed ? "marketplaces" : "workspace";
-}
-
-function buttonsOf(
-    model: AddOnCatalogPayload,
-    kinds: readonly CatalogActionKindPayload[],
-): CatalogButtons {
-    return model.actions.filter(({ kind }) => kinds.includes(kind));
+    const groups = filteredGroups(model, filter);
+    if (isFilterActive(filter) && groups.length === 0) return { kind: "noMatch" };
+    const sections = sectionsOf(groups, { filtering: isFilterActive(filter), all: model.groups });
+    const installedEmpty = !isFilterActive(filter) && sections.installed.length === 0;
+    return {
+        kind: "sections",
+        sections,
+        ...(installedEmpty && model.emptyText !== undefined && { installedText: model.emptyText }),
+    };
 }

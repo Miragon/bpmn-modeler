@@ -43,13 +43,6 @@ export function problemLine(text: string, className: string): HTMLElement {
     return line;
 }
 
-/** The kind as a coloured square with its icon; the word goes beside it or to a screen reader. */
-export function kindTile(kind: AddOnKind, small = false): HTMLElement {
-    const tile = el("span", `av-tile${small ? " av-tile-small" : ""} ds-kind-${kind}`);
-    tile.append(icon(KIND_ICON[kind], small ? 12 : 14));
-    return tile;
-}
-
 /** The kind as a small coloured tag: icon and word, so colour is never the only signal. */
 export function kindTag(kind: AddOnKind): HTMLElement {
     const tag = el("span", `ds-kind-tag ds-kind-${kind}`);

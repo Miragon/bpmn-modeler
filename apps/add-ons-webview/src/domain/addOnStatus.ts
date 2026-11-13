@@ -18,9 +18,10 @@ export function stateToneOf(addOn: AddOnPayload): Exclude<StatusTone, "danger"> 
     return SETTLED_STATES.has(addOn.state) ? "success" : "neutral";
 }
 
-/** What a list row shows on its right: a problem outranks the state. */
-export function rowStatusOf(addOn: AddOnPayload): RowStatus {
-    if (addOn.problem !== undefined) return { tone: "danger", word: CHROME_TEXT.problem };
+/** What a list row shows on its right: a problem outranks the state, and a settled row says nothing. */
+export function rowStatusOf(addOn: AddOnPayload): RowStatus | undefined {
+    if (addOn.problem !== undefined) return { tone: "danger", word: CHROME_TEXT.notLoaded };
     const tone = stateToneOf(addOn);
-    return { tone, word: tone === "warning" ? CHROME_TEXT.needsReview : addOn.stateText };
+    if (tone === "success") return undefined;
+    return { tone, word: tone === "warning" ? CHROME_TEXT.waiting : addOn.stateText };
 }

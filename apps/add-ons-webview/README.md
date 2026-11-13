@@ -13,10 +13,14 @@ the desktop app and IntelliJ load it. Internal workspace, not published on its o
   (`data-cd-theme`, `data-cd-kontrast`) on `<html>`; `src/adapter/in/addOnsView.ts` builds the DOM
   with the DOM API, never `innerHTML`, because names and paths are workspace text.
 - **One reducer.** `src/domain/viewState.ts` decides what a model, a reveal, a result or a user
-  choice changes, which add-on each tab selects, what to ask the host and where focus goes. Actions
-  resolve from the model, never from the markup. Tab, selections and open headers survive a reload;
-  the search does not.
-- **The view's own words** (tabs, chips, empty states, screen-reader summaries) live in
+  choice changes, which add-on the list selects, what to ask the host and where focus goes. Actions
+  resolve from the model, never from the markup. The selection and open headers survive a reload;
+  the search and the filter do not.
+- **One list, three sections.** `src/domain/listSections.ts` splits the catalog into Needs attention
+  (what offers Allow or has a problem), Installed (the folder groups, without those rows) and
+  Marketplaces; an add-on shows in one place only.
+- **The view's own words** (sections, row status words, the header line, empty states,
+  screen-reader summaries) live in
   `src/domain/chromeTexts.ts`; every other text comes from the core.
 - **Layout by container width.** From 640px of the view's own width, list and detail sit side by
   side; below, the detail replaces the list with **Back**. `src/adapter/in/layout.ts` is the seam

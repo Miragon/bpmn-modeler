@@ -64,13 +64,15 @@ export function isShownOpen(head: Head, shown: ListExpansion): boolean {
     return head.openByDefault !== undefined && (shown.filterExpansion.get(head.id) ?? true);
 }
 
-/** The rows the list shows: under open headers, or, while a filter is on, until the user closes theirs; a flat tab's group never closes. */
+/** The rows the list shows: under open headers, or, while a filter is on, until the user closes theirs; a group without its header never closes. */
 export function rowsInSight(
     groups: readonly AddOnGroupPayload[],
     shown: ListExpansion,
-    flat: boolean,
+    flatGroupIds: ReadonlySet<string>,
 ): ReadonlySet<string> {
-    const openGroups = groups.filter((group) => flat || isShownOpen(groupHead(group), shown));
+    const openGroups = groups.filter(
+        (group) => flatGroupIds.has(group.id) || isShownOpen(groupHead(group), shown),
+    );
     return new Set(
         openGroups.flatMap((group) =>
             group.sources

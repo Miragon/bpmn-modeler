@@ -1,5 +1,5 @@
 import type { ActionViewPayload, CatalogActionKindPayload } from "@miragon/bpmn-modeler-shared";
-import { Package, Store } from "lucide";
+import { Package } from "lucide";
 
 import { CHROME_TEXT } from "../../domain/chromeTexts";
 import { actionButton, button, el, icon, markFocus } from "./dom";
@@ -24,17 +24,9 @@ function catalogButtonsOf(buttons: CatalogButtons, busy: boolean): HTMLButtonEle
             busy,
             emphasis: "secondary",
             icon: CATALOG_ACTION_ICON[action.kind],
-            focus: "scopeAction",
+            focus: "action",
         }),
     );
-}
-
-/** "Add marketplace…" and "Update marketplaces" above the marketplaces. */
-export function scopeActionsOf(buttons: CatalogButtons, busy: boolean): HTMLElement[] {
-    if (buttons.length === 0) return [];
-    const bar = el("div", "av-scope-actions");
-    bar.append(...catalogButtonsOf(buttons, busy));
-    return [bar];
 }
 
 /** A failed catalog with nothing to offer leaves the word to its problem. */
@@ -47,20 +39,12 @@ export function catalogEmptyOf(
     return [emptyBox(Package, text, buttons, busy)];
 }
 
-export function noMarketplaceOf(buttons: CatalogButtons, busy: boolean): HTMLElement {
-    return emptyBox(Store, CHROME_TEXT.noMarketplace, buttons, busy);
-}
-
-export function workspaceEmptyOf(text: string | undefined): HTMLElement {
-    return emptyBox(Package, text, [], false);
-}
-
-export function noMatchOf(text: string, onClear: () => void): HTMLElement {
+export function noMatchOf(onClear: () => void): HTMLElement {
     const box = el("div", "av-empty");
     const clear = markFocus(button("ds-btn ds-btn-secondary"), "clearFilters");
     clear.append(el("span", "ds-btn-label", CHROME_TEXT.clearFilters));
     clear.addEventListener("click", onClear);
-    box.append(el("p", "av-empty-text", text), clear);
+    box.append(el("p", "av-empty-text", CHROME_TEXT.noMatch), clear);
     return box;
 }
 

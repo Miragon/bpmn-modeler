@@ -221,33 +221,6 @@ body {
     background: var(--cd-ui-hover);
 }
 
-/* --- Chips (filter toggles) --- */
-
-.ds-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    min-height: 28px;
-    padding: 0 10px;
-    border: 1px solid var(--cd-ui-linie);
-    border-radius: var(--cd-radius-pill);
-    color: var(--cd-ui-text);
-    background: var(--cd-ui-flaeche);
-    font-weight: 500;
-    cursor: pointer;
-    transition: border-color 150ms var(--ds-ease), background-color 150ms var(--ds-ease);
-}
-
-.ds-chip:hover {
-    border-color: var(--cd-ui-interaktion);
-}
-
-.ds-chip[aria-pressed="true"] {
-    border-color: var(--cd-ui-interaktion);
-    background: var(--cd-ui-hover);
-    box-shadow: inset 0 0 0 1px var(--cd-ui-interaktion);
-}
-
 .ds-count {
     min-width: 18px;
     padding: 0 5px;
@@ -373,14 +346,9 @@ body {
 
 @media (forced-colors: active) {
     .ds-btn,
-    .ds-chip,
     .ds-kind-tag,
     .ds-banner:not([data-empty]) {
         border: 1px solid ButtonText;
-    }
-
-    .ds-chip[aria-pressed="true"] {
-        outline: 2px solid Highlight;
     }
 
     :focus-visible {

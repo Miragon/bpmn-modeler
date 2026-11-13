@@ -42,43 +42,109 @@ html {
     border-bottom: 1px solid var(--cd-ui-linie);
 }
 
+/* One line: what needs attention leads, the buttons sit at its end. */
+.av-toolbar-line {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    min-height: 32px;
+}
+
+.av-summary {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    color: var(--cd-ui-text-leise);
+    font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.av-toolbar-menus {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.av-search-toggle[aria-expanded="true"] {
+    color: var(--cd-ui-interaktion);
+    background: var(--cd-ui-hover);
+}
+
 .av-search-row {
     display: flex;
     align-items: center;
     gap: 4px;
 }
 
-.av-search {
-    flex: 1;
-    min-width: 0;
-}
-
-/* Narrow: the chips wrap, so no filter hides beyond the edge of a sidebar. */
-.av-chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    padding: 2px 0;
-}
-
-.av-chips::-webkit-scrollbar {
+.av-search-row[hidden] {
     display: none;
 }
 
-.av-chip {
-    flex: none;
-    min-height: 26px;
-    padding: 0 4px 0 6px;
-    font-size: 12px;
+/* All and one segment per kind, below the line: one choice, its count beside it. */
+.av-kinds {
+    display: flex;
+    gap: 0;
+    margin-top: 6px;
+    padding: 2px;
+    border: 1px solid var(--cd-ui-linie);
+    border-radius: 8px;
+    background: var(--cd-ui-flaeche);
 }
 
-.av-chip .ds-count {
+.av-kind {
+    flex: 1 0 auto;
+    display: inline-flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 3px;
+    height: 26px;
+    padding: 4px 4px 0;
+    border: 0;
+    border-radius: 6px;
+    color: var(--cd-ui-text-leise);
+    background: transparent;
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.av-kind:hover {
+    color: var(--cd-ui-text);
     background: var(--cd-ui-hover);
 }
 
-.av-chip[aria-pressed="true"] .ds-count {
+.av-kind[aria-checked="true"] {
     color: var(--cd-ui-text);
-    background: var(--cd-ui-flaeche);
+    background: var(--cd-ui-hover);
+    font-weight: 600;
+    box-shadow: inset 0 0 0 1px var(--cd-ui-interaktion);
+}
+
+.av-kind:focus-visible {
+    outline-offset: -2px;
+}
+
+.av-kind-count {
+    color: var(--cd-ui-text-leise);
+    font-family: var(--ds-mono);
+    font-size: 11px;
+    font-weight: 400;
+}
+
+/* A side bar this narrow keeps the words; each count stays in the segment's name for a screen reader. */
+@container view (max-width: 309.98px) {
+    .av-kind-count {
+        display: none;
+    }
+}
+
+
+.av-search {
+    flex: 1;
+    min-width: 0;
 }
 
 .av-toolbar-busy {
@@ -88,127 +154,11 @@ html {
     left: 0;
 }
 
-/* --- Tabs: Workspace and Marketplaces; the selected one has the hover surface and a 2px bar --- */
-
-/* Narrow: a full-width strip flush with the top of the toolbar. */
-.av-tabs {
-    display: flex;
-    margin: -10px -12px 4px;
-    border-bottom: 1px solid var(--cd-ui-linie);
-}
-
-.av-tabs:empty {
-    display: none;
-}
-
-.av-tab {
-    position: relative;
-    flex: 1 1 0;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    min-width: 0;
-    min-height: 36px;
-    padding: 0 8px;
-    border: 0;
-    color: var(--cd-ui-text-leise);
-    background: transparent;
-    font-weight: 500;
-    white-space: nowrap;
-    cursor: pointer;
-    transition: background-color 120ms var(--ds-ease), color 120ms var(--ds-ease);
-}
-
-.av-tab:hover {
-    color: var(--cd-ui-text);
-    background: var(--cd-ui-hover);
-}
-
-.av-tab[aria-selected="true"] {
-    color: var(--cd-ui-text);
-    background: var(--cd-ui-hover);
-    font-weight: 600;
-}
-
-.av-tab[aria-selected="true"]::after {
-    content: "";
-    position: absolute;
-    right: 8px;
-    bottom: -1px;
-    left: 8px;
-    height: 2px;
-    border-radius: 2px 2px 0 0;
-    background: var(--cd-ui-interaktion);
-}
-
-.av-tab:focus-visible {
-    outline-offset: -2px;
-}
-
-.av-tab-label {
-    display: inline-flex;
-    flex-direction: column;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.av-tab-label::after {
-    content: attr(data-label);
-    height: 0;
-    font-weight: 600;
-    visibility: hidden;
-    overflow: hidden;
-}
-
-.av-tab .ds-count {
-    flex: none;
-    background: var(--cd-ui-hover);
-}
-
-.av-tab:hover .ds-count,
-.av-tab[aria-selected="true"] .ds-count {
-    color: var(--cd-ui-text);
-    background: var(--cd-ui-flaeche);
-}
-
-/* --- Marketplaces tab: its two catalog actions as visible buttons --- */
-
-.av-scope-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    padding: 8px 8px 4px;
-}
-
-.av-scope-actions .ds-btn {
-    flex: 1 1 auto;
-}
-
 .av-banner-slot .ds-banner:not([data-empty]) {
     margin: 8px 12px 0;
 }
 
 /* --- Kind tiles and status marks --- */
-
-.av-tile {
-    flex: none;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 20px;
-    height: 20px;
-    border-radius: var(--cd-radius-sm);
-    color: var(--ds-kind-fg);
-    background: var(--ds-kind-bg);
-}
-
-.av-tile-small {
-    width: 16px;
-    height: 16px;
-    border-radius: 4px;
-}
 
 .av-mark {
     flex: none;
@@ -268,6 +218,54 @@ html {
 .av-list {
     container: list / inline-size;
     padding: 4px 8px 16px;
+}
+
+/* --- Sections: Needs attention, Installed --- */
+
+.av-section + .av-section,
+.av-section + .av-group {
+    border-top: 1px solid var(--cd-ui-linie);
+}
+
+.av-section-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    padding: 10px 12px 4px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.av-section-text {
+    margin: 0 12px 8px;
+    color: var(--cd-ui-text-leise);
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.av-attention .av-rows {
+    padding: 0 0 8px;
+}
+
+.av-attention .av-row {
+    padding-left: 12px;
+}
+
+/* Needs attention mixes folders, so a row says where it sits on a line of its own. */
+.av-attention .av-row-name {
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.av-attention .av-row-detail {
+    max-width: 100%;
+    padding-left: 0;
+}
+
+.av-row-kind {
+    flex: none;
+    color: var(--cd-ui-text-leise);
 }
 
 .av-group {
@@ -362,24 +360,8 @@ button.av-head:hover .av-head-count {
     overflow-wrap: anywhere;
 }
 
-.av-group-path {
-    min-width: 0;
-    color: var(--cd-ui-text-leise);
-    font-size: 12px;
-    font-weight: 400;
-    overflow-wrap: anywhere;
-}
-
 .av-group-flat {
     padding-top: 0;
-}
-
-.av-group-intro {
-    margin: 4px 8px 2px;
-    color: var(--cd-ui-text-leise);
-    font-size: 12px;
-    line-height: 1.4;
-    overflow-wrap: anywhere;
 }
 
 .av-problem {
@@ -459,14 +441,6 @@ button.av-head:hover .av-head-count {
     font-weight: 500;
     line-height: 18px;
     white-space: nowrap;
-}
-
-.av-source-description {
-    color: var(--cd-ui-text-leise);
-    font-size: 12px;
-    font-weight: 400;
-    line-height: 1.4;
-    overflow-wrap: anywhere;
 }
 
 .av-source-busy {
@@ -982,16 +956,9 @@ button.av-head:hover .av-head-count {
     .av-row-detail {
         display: none;
     }
-}
 
-@container view (max-width: 419.98px) {
-    .av-row-status.av-tone-success .av-status-word {
-        position: absolute;
-        width: 1px;
-        height: 1px;
-        overflow: hidden;
-        clip-path: inset(50%);
-        white-space: nowrap;
+    .av-attention .av-row-detail {
+        display: block;
     }
 }
 
@@ -1006,65 +973,6 @@ button.av-head:hover .av-head-count {
 
     .av-toolbar {
         position: relative;
-        flex-direction: row;
-        align-items: center;
-        gap: 8px;
-        padding: 8px 12px;
-    }
-
-    .av-search-row {
-        display: contents;
-    }
-
-    /* Wide enough for the whole placeholder. */
-    .av-search {
-        flex: 0 1000 240px;
-        min-width: 176px;
-    }
-
-    /* One row beside the search, which gives way first; it scrolls sideways (wheel included) when the window is tight. */
-    .av-chips {
-        flex: 1 1 auto;
-        flex-wrap: nowrap;
-        order: 1;
-        min-width: 0;
-        margin: -4px 0;
-        padding: 4px 2px;
-        overflow-x: auto;
-        scrollbar-width: none;
-    }
-
-    .av-toolbar-menu {
-        order: 2;
-    }
-
-    /* Wide: the tabs lead the one-row toolbar; tabs and chips run compact so 960 px holds one row. */
-    .av-tabs {
-        flex: none;
-        gap: 2px;
-        margin: 0;
-        border-bottom: 0;
-    }
-
-    .av-tab {
-        flex: none;
-        gap: 4px;
-        padding: 0 6px 0 8px;
-        border-radius: var(--cd-radius-sm);
-        font-size: 12px;
-    }
-
-    .av-chip {
-        gap: 4px;
-        padding: 0 3px 0 5px;
-    }
-
-    .av-tab[aria-selected="true"]::after {
-        bottom: 0;
-    }
-
-    .av-scope-actions .ds-btn {
-        flex: none;
     }
 
     .av-body {
@@ -1124,7 +1032,6 @@ button.av-head:hover .av-head-count {
 
 /* --- High contrast and forced colours --- */
 
-[data-cd-kontrast="hoch"] .av-tile,
 [data-cd-kontrast="hoch"] .av-badge {
     outline: 1px solid var(--cd-ui-kontur);
 }
@@ -1133,7 +1040,6 @@ button.av-head:hover .av-head-count {
     width: 3px;
 }
 
-[data-cd-kontrast="hoch"] .av-tabs,
 [data-cd-kontrast="hoch"] .av-review,
 [data-cd-kontrast="hoch"] .av-menu,
 [data-cd-kontrast="hoch"] .av-toolbar,
@@ -1142,18 +1048,18 @@ button.av-head:hover .av-head-count {
 }
 
 @media (forced-colors: active) {
-    .av-tile,
     .av-dot,
     .av-menu,
     .av-review {
         border: 1px solid CanvasText;
     }
 
-    .av-tab[aria-selected="true"]::after {
-        background: Highlight;
+    .av-row[aria-current="true"] {
+        outline: 2px solid Highlight;
+        outline-offset: -2px;
     }
 
-    .av-row[aria-current="true"] {
+    .av-kind[aria-checked="true"] {
         outline: 2px solid Highlight;
         outline-offset: -2px;
     }

@@ -1,6 +1,7 @@
 import type {
     AddOnActionResultPayload,
     AddOnCatalogPayload,
+    AddOnPayload,
     AddOnRequestPayload,
     AddOnRevealPayload,
 } from "@miragon/bpmn-modeler-shared";
@@ -11,20 +12,10 @@ import {
     CatalogFilter,
     filteredGroups,
     isFilterActive,
-    NEEDS_REVIEW_ONLY,
+    needsReview,
     NO_FILTER,
-    withKindToggled,
 } from "./catalogFilter";
 import { addOnsOf, placementOf, sourceOf } from "./catalogQueries";
-import {
-    CatalogScope,
-    isCatalogScope,
-    listsFlat,
-    REVIEW_SCOPE,
-    scopedCatalog,
-    scopeOfAddOn,
-    SCOPE_ORDER,
-} from "./catalogScope";
 import { settledSelection } from "./catalogSelection";
 import {
     ancestorsOf,
@@ -38,7 +29,7 @@ import {
     rowsInSight,
 } from "./expansion";
 import { focusAfterDone, FocusTarget, isFocusable, isListed } from "./focusAfter";
-import { catalogPhaseOf, openingScopeOf } from "./listContent";
+import { displayOrderOf, needsAttention, sectionGroupsOf, sectionsOf } from "./listSections";
 import { placedActions, reviewOf } from "./placedActions";
 import { Banner, resultBannerOf } from "./resultBanner";
 
@@ -48,9 +39,6 @@ interface PendingRequest {
     readonly slot: number;
 }
 
-/** Each tab's own selected add-on. */
-type Selection = Readonly<Partial<Record<CatalogScope, string>>>;
-
 /** Which pane a narrow view shows; a wide one shows both. */
 type Pane = "list" | "detail";
 
@@ -59,12 +47,7 @@ export interface ViewState {
     readonly expansion: Expansion;
     /** What the user opened or closed while a filter is on: kept with the page, and only while the filter stays on. */
     readonly filterExpansion: Expansion;
-    readonly scope: CatalogScope;
-    /** The tab the user chose; only it is kept. */
-    readonly chosenScope?: CatalogScope;
-    /** The tab is decided: by the user, a reveal, or the first model that lists something. */
-    readonly scopeSettled: boolean;
-    readonly selection: Selection;
+    readonly selectedId?: string;
     readonly filter: CatalogFilter;
     readonly pane: Pane;
     readonly pending: ReadonlyMap<number, PendingRequest>;
@@ -73,17 +56,19 @@ export interface ViewState {
     readonly lastRevealId: number;
     readonly awaitingFocus?: FocusTarget;
     readonly nextRequestId: number;
+    /** What Review Add-ons found, for a screen reader, until the user searches or filters. */
+    readonly reviewCount?: number;
 }
 
 /**
  * What the view keeps across a reload of its page: the user's own choices,
- * never a request or a tab the view opened on by itself. The search and the
- * filter chips stay with the page.
+ * never a request. The search and the filter stay with the page.
  */
 export interface PersistedChoices {
     readonly expansion?: readonly (readonly [string, boolean])[];
-    readonly chosenScope?: CatalogScope;
-    readonly selection?: Selection;
+    readonly selectedId?: string;
+    /** An older page kept a selection per scope; its workspace one carries over once. */
+    readonly selection?: { readonly workspace?: unknown };
     readonly lastRevealId?: number;
 }
 
@@ -98,12 +83,11 @@ export type ViewEvent =
       }
     | { readonly kind: "toggled"; readonly key: string }
     | { readonly kind: "bannerDismissed" }
-    | { readonly kind: "scopeChosen"; readonly scope: CatalogScope }
     | { readonly kind: "addOnSelected"; readonly addOnId: string }
     | { readonly kind: "backChosen" }
     | { readonly kind: "queryChanged"; readonly query: string }
-    | { readonly kind: "kindToggled"; readonly addOnKind: AddOnKind }
-    | { readonly kind: "needsReviewToggled" }
+    /** No kind: All. */
+    | { readonly kind: "kindChosen"; readonly addOnKind?: AddOnKind }
     | { readonly kind: "filtersCleared" };
 
 export interface Transition {
@@ -116,14 +100,11 @@ export interface Transition {
 export const CATALOG_TARGET = "catalog";
 
 export function initialViewState(persisted?: PersistedChoices): ViewState {
-    const chosenScope = isCatalogScope(persisted?.chosenScope) ? persisted.chosenScope : undefined;
+    const selectedId = selectedIdIn(persisted);
     return {
         expansion: new Map(persisted?.expansion ?? []),
         filterExpansion: new Map(),
-        scope: chosenScope ?? "workspace",
-        ...(chosenScope && { chosenScope }),
-        scopeSettled: chosenScope !== undefined,
-        selection: selectionOf(persisted?.selection),
+        ...(selectedId !== undefined && { selectedId }),
         filter: NO_FILTER,
         pane: "list",
         pending: new Map(),
@@ -135,8 +116,7 @@ export function initialViewState(persisted?: PersistedChoices): ViewState {
 export function persistedChoicesOf(state: ViewState): PersistedChoices {
     return {
         expansion: [...state.expansion],
-        ...(state.chosenScope && { chosenScope: state.chosenScope }),
-        selection: state.selection,
+        ...(state.selectedId !== undefined && { selectedId: state.selectedId }),
         lastRevealId: state.lastRevealId,
     };
 }
@@ -146,7 +126,7 @@ export function isBusy(state: ViewState, targetId: string): boolean {
 }
 
 export function selectedIdOf(state: ViewState): string | undefined {
-    return state.selection[state.scope];
+    return state.selectedId;
 }
 
 export function listExpansionOf(state: ViewState): ListExpansion {
@@ -159,7 +139,7 @@ export function listExpansionOf(state: ViewState): ListExpansion {
 
 /**
  * The view's one decision: what an event from the host or the user changes,
- * what to ask the host, which add-on each tab selects and where focus goes.
+ * what to ask the host, which add-on the list selects and where focus goes.
  * Focus is only named once the model holds its target.
  */
 export function nextViewState(state: ViewState, event: ViewEvent): Transition {
@@ -189,51 +169,38 @@ function changedBy(state: ViewState, event: ViewEvent): Change {
             return toggled(state, event.key);
         case "bannerDismissed":
             return { state: { ...state, banner: undefined } };
-        case "scopeChosen":
-            return {
-                state: {
-                    ...state,
-                    scope: event.scope,
-                    chosenScope: event.scope,
-                    scopeSettled: true,
-                },
-            };
         case "addOnSelected":
-            return {
-                state: {
-                    ...state,
-                    selection: { ...state.selection, [state.scope]: event.addOnId },
-                    pane: "detail",
-                },
-            };
+            return { state: { ...state, selectedId: event.addOnId, pane: "detail" } };
         case "backChosen":
             return { state: { ...state, pane: "list" } };
         case "queryChanged":
-            return { state: { ...state, filter: { ...state.filter, query: event.query } } };
-        case "kindToggled":
-            return { state: { ...state, filter: withKindToggled(state.filter, event.addOnKind) } };
-        case "needsReviewToggled":
-            return {
-                state: {
-                    ...state,
-                    filter: { ...state.filter, onlyNeedsReview: !state.filter.onlyNeedsReview },
-                },
-            };
+            return filtered(state, { ...state.filter, query: event.query });
+        case "kindChosen":
+            return filtered(state, withKind(state.filter, event.addOnKind));
         case "filtersCleared":
-            return { state: { ...state, filter: NO_FILTER } };
+            return filtered(state, NO_FILTER);
     }
 }
 
-/** The first model that lists something decides the tab the user did not choose, before a waiting reveal applies. */
+/** A search or filter speaks for itself, so what Review Add-ons found stops being said; so does an action. */
+function withKind(filter: CatalogFilter, kind: AddOnKind | undefined): CatalogFilter {
+    const { kind: _replaced, ...rest } = filter;
+    return kind === undefined ? rest : { ...rest, kind };
+}
+
+function filtered(state: ViewState, filter: CatalogFilter): Change {
+    return { state: { ...unsaid(state), filter } };
+}
+
+function unsaid(state: ViewState): ViewState {
+    const { reviewCount: _said, ...rest } = state;
+    return rest;
+}
+
 function modelArrived(state: ViewState, model: AddOnCatalogPayload): Change {
     if (state.model !== undefined && model.revision < state.model.revision) return { state };
-    const opening =
-        !state.scopeSettled && catalogPhaseOf(model) === "ready"
-            ? { scope: openingScopeOf(model), scopeSettled: true }
-            : {};
     return revealed({
         ...state,
-        ...opening,
         model,
         expansion: prunedExpansion(model, state.expansion),
     });
@@ -252,9 +219,9 @@ function revealed(state: ViewState): Change {
 }
 
 /**
- * Lands on the first of the rows a "Review…" left, in model order, once the
- * model holds one: its tab, its open review and its detail, past any filter
- * that hid it.
+ * Lands on the first of the rows a "Review…" left, as the list orders them, once the
+ * model holds one: its open review and its detail, past any filter that hid
+ * it. A row Needs attention lists sits under no header, so none opens for it.
  */
 function rowsRevealed(
     state: ViewState,
@@ -262,61 +229,57 @@ function rowsRevealed(
     reveal: Extract<AddOnRevealPayload, { kind: "rows" }>,
 ): Change {
     const heads = headsOf(model);
-    const target = heads.find(({ id }) => reveal.addOnIds.includes(id));
-    const scope = target && scopeOfAddOn(model, target.id);
-    if (target === undefined || scope === undefined) return { state };
+    const ordered = shownListOf(model, { ...state, filter: NO_FILTER }).addOns;
+    const addOn = ordered.find(({ id }) => reveal.addOnIds.includes(id));
+    if (addOn === undefined) return { state };
     const expansion = new Map(state.expansion);
     const filterExpansion = new Map(state.filterExpansion);
-    ancestorsOf(heads, target.id).forEach((id) => {
-        expansion.set(id, true);
-        filterExpansion.set(id, true);
-    });
-    const addOn = placementOf(model.groups, target.id)?.addOn;
-    if (addOn !== undefined && reviewOf(addOn) !== undefined) {
-        expansion.set(reviewKeyOf(target.id), true);
+    if (!needsAttention(addOn)) {
+        ancestorsOf(heads, addOn.id).forEach((id) => {
+            expansion.set(id, true);
+            filterExpansion.set(id, true);
+        });
     }
-    const shown = filteredGroups(scopedCatalog(model, scope), state.filter);
-    const filter = placementOf(shown, target.id) === undefined ? NO_FILTER : state.filter;
+    if (reviewOf(addOn) !== undefined) expansion.set(reviewKeyOf(addOn.id), true);
+    const shown = filteredGroups(model, state.filter);
+    const filter = placementOf(shown, addOn.id) === undefined ? NO_FILTER : state.filter;
     return {
         state: {
             ...state,
             reveal: undefined,
             expansion,
             filterExpansion,
-            scope,
-            scopeSettled: true,
             filter,
-            selection: { ...state.selection, [scope]: target.id },
+            selectedId: addOn.id,
             pane: "detail",
             lastRevealId: reveal.revealId,
         },
-        focus: { kind: "head", headId: target.id, reveal: true },
+        focus: { kind: "head", headId: addOn.id, reveal: true },
     };
 }
 
 /**
- * Review Add-ons: the workspace with only the review chip, every head open,
- * its add-on to review selected and focused.
+ * Review Add-ons: the whole list, unfiltered, with an add-on that waits for a
+ * review selected and focused: the selected one if it waits, else the first
+ * of Needs attention that does. A row whose problem keeps Allow away is
+ * passed over; when nothing waits, the selection stays.
  */
 function reviewRevealed(state: ViewState, model: AddOnCatalogPayload, revealId: number): Change {
-    const reviewing: ViewState = {
-        ...state,
-        reveal: undefined,
-        scope: REVIEW_SCOPE,
-        scopeSettled: true,
-        filter: NEEDS_REVIEW_ONLY,
-        filterExpansion: new Map(),
-        pane: "list",
-        lastRevealId: revealId,
-    };
-    const shown = filteredGroups(scopedCatalog(model, REVIEW_SCOPE), NEEDS_REVIEW_ONLY);
-    const inSight = rowsInSight(shown, listExpansionOf(reviewing), listsFlat(REVIEW_SCOPE));
-    const selected = settledSelection(state.selection[REVIEW_SCOPE], shown, [], inSight);
-    const { [REVIEW_SCOPE]: _dropped, ...others } = state.selection;
+    const waiting = sectionsOf(model.groups)
+        .attention.map(({ addOn }) => addOn)
+        .filter(needsReview);
+    const kept = waiting.find(({ id }) => id === state.selectedId);
+    const selected = (kept ?? waiting[0])?.id;
     return {
         state: {
-            ...reviewing,
-            selection: selected === undefined ? others : { ...others, [REVIEW_SCOPE]: selected },
+            ...state,
+            ...(selected !== undefined && { selectedId: selected }),
+            reveal: undefined,
+            filter: NO_FILTER,
+            filterExpansion: new Map(),
+            pane: "list",
+            lastRevealId: revealId,
+            reviewCount: waiting.length,
         },
         focus:
             selected === undefined
@@ -334,7 +297,7 @@ function actionChosen(state: ViewState, actionKind: string, targetId: string | u
     const requestId = state.nextRequestId;
     const pending = new Map(state.pending).set(requestId, { targetId: target, actionKind, slot });
     return {
-        state: { ...state, banner: undefined, pending, nextRequestId: requestId + 1 },
+        state: { ...unsaid(state), banner: undefined, pending, nextRequestId: requestId + 1 },
         send: { requestId, request: actionRequestOf(actionKind, target, model.revision) },
     };
 }
@@ -397,37 +360,60 @@ function withFilterExpansionEnded(change: Change): Change {
     return { ...change, state: { ...state, filterExpansion: new Map() } };
 }
 
+function shownSectionsOf(model: AddOnCatalogPayload, filter: CatalogFilter) {
+    return sectionsOf(filteredGroups(model, filter), {
+        filtering: isFilterActive(filter),
+        all: model.groups,
+    });
+}
+
+/** The rows the list shows, in its order, and those its open headers leave in sight. */
+interface ShownList {
+    readonly addOns: readonly AddOnPayload[];
+    readonly inSight: ReadonlySet<string>;
+}
+
+/** Needs attention sits under no header, so its rows are always in sight. */
+function shownListOf(model: AddOnCatalogPayload, state: ViewState): ShownList {
+    const sections = shownSectionsOf(model, state.filter);
+    const attention = sections.attention.map(({ addOn }) => addOn);
+    const below = sectionGroupsOf(sections);
+    const underHeads = rowsInSight(below, listExpansionOf(state), sections.flatGroupIds);
+    return {
+        addOns: [...attention, ...addOnsOf(below)],
+        inSight: new Set([...attention.map(({ id }) => id), ...underHeads]),
+    };
+}
+
 /**
- * Settles the tab's selection after the list changed. A narrow view that
- * showed the detail of an add-on the list lost goes back to the list.
+ * Settles the selection after the list changed, by the order the list shows.
+ * A narrow view that showed the detail of an add-on the list lost goes back
+ * to the list.
  */
 function withSelection(change: Change, before: ViewState): Change {
     const { state } = change;
-    const { model, scope } = state;
+    const { model } = state;
     if (model === undefined) return change;
-    const shown = filteredGroups(scopedCatalog(model, scope), state.filter);
-    const shownBefore =
+    const shown = shownListOf(model, state);
+    const orderBefore =
         before.model === undefined
             ? []
-            : addOnsOf(filteredGroups(scopedCatalog(before.model, scope), before.filter));
-    const remembered = state.selection[scope];
-    const selected = settledSelection(
-        remembered,
-        shown,
-        shownBefore.map(({ id }) => id),
-        rowsInSight(shown, listExpansionOf(state), listsFlat(scope)),
-    );
+            : displayOrderOf(shownSectionsOf(before.model, before.filter));
+    const remembered = state.selectedId;
+    const selected = settledSelection(remembered, shown.addOns, orderBefore, shown.inSight);
     if (selected === remembered) return change;
-    const { [scope]: _dropped, ...others } = state.selection;
-    const selection = selected === undefined ? others : { ...others, [scope]: selected };
+    const { selectedId: _dropped, ...rest } = state;
     const pane = remembered === undefined ? state.pane : "list";
-    return { ...change, state: { ...state, selection, pane } };
+    return {
+        ...change,
+        state: { ...rest, ...(selected !== undefined && { selectedId: selected }), pane },
+    };
 }
 
 /**
  * Names a waiting focus target as the transition's focus once the model holds
  * it. A model without it ends the wait: focus goes to what is left of its
- * add-on or source, else to the tab's selection.
+ * add-on or source, else to the list's selection.
  */
 function withFocus(change: Change, modelChanged: boolean): Transition {
     const { state } = change;
@@ -456,12 +442,12 @@ function fallbackFocus(
     return selected === undefined ? undefined : { kind: "head", headId: selected };
 }
 
-function selectionOf(persisted: Selection | undefined): Selection {
-    if (typeof persisted !== "object" || persisted === null) return {};
-    return Object.fromEntries(
-        SCOPE_ORDER.flatMap((scope) => {
-            const id: unknown = persisted[scope];
-            return typeof id === "string" ? [[scope, id]] : [];
-        }),
-    );
+function selectedIdIn(persisted: PersistedChoices | undefined): string | undefined {
+    const kept: unknown = persisted?.selectedId;
+    if (typeof kept === "string") return kept;
+    const older: unknown =
+        typeof persisted?.selection === "object" && persisted.selection !== null
+            ? persisted.selection.workspace
+            : undefined;
+    return typeof older === "string" ? older : undefined;
 }

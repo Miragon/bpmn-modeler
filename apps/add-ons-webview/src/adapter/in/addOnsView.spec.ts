@@ -23,6 +23,24 @@ const PRUNE = { kind: "pruneCache", label: "Remove unused plugin copies" } as co
 const FOLDER = CATALOG.groups[0]!;
 const MARKETPLACES = CATALOG.groups[1]!;
 
+const OTHER_PALETTE = {
+    ...PALETTE,
+    id: "plugin:/other/.camunda/plugins/palette",
+    name: "Other Palette",
+};
+const OTHER_FOLDER = {
+    id: "folder:/other",
+    kind: "folder" as const,
+    label: "other",
+    description: "/other",
+    sources: [{ ...CONFIG_SOURCE, id: "config:/other/.camunda", addOns: [OTHER_PALETTE] }],
+};
+/** Two folders: each shows its own header under Installed. */
+const TWO_FOLDERS: AddOnCatalogPayload = {
+    ...CATALOG,
+    groups: [FOLDER, OTHER_FOLDER, MARKETPLACES],
+};
+
 /** The catalog with these changes to one add-on. */
 function changed(addOnId: string, change: object, model = CATALOG): AddOnCatalogPayload {
     return {
@@ -71,42 +89,55 @@ describe("AddOnsView", () => {
     });
 
     describe("the list", () => {
-        it("groups the workspace by folder and source and selects the first add-on to review", () => {
-            const { root, rowNames, row, detailName } = mountedView(CATALOG);
+        it("lists Needs attention first, then Installed, and selects the first add-on to review", () => {
+            const { root, rowNames, row, detailName, sectionLabels, head } = mountedView(CATALOG);
             const list = root.querySelector(".av-list")!;
 
             expect([
+                sectionLabels(),
                 rowNames(),
                 row(RESIZE.name).getAttribute("aria-current"),
                 detailName(),
-                list.getAttribute("role"),
-                list.getAttribute("aria-labelledby"),
+                list.getAttribute("aria-label"),
                 list.getAttribute("aria-busy"),
+                head(FOLDER.id),
             ]).toEqual([
-                [PALETTE.name, RESIZE.name, ACME.name],
+                ["Needs attention", "Installed"],
+                [RESIZE.name, ACME.name, PALETTE.name],
                 "true",
                 RESIZE.name,
-                "tabpanel",
-                "av-tab-workspace",
+                "Add-ons",
+                null,
                 null,
             ]);
         });
 
-        it("names each row's kind for a screen reader and its status by word", () => {
+        it("says in the header line what waits and what is not loaded", () => {
+            const { root } = mountedView(changed(PALETTE.id, { problem: "Broken." }));
+
+            expect(text(root.querySelector(".av-summary"))).toBe("2 waiting · 1 not loaded");
+        });
+
+        it("names each row's kind for a screen reader, its status by word, and stays quiet when settled", () => {
             const { row } = mountedView(changed(PALETTE.id, { problem: "Broken." }));
+            const settled = mountedView(CATALOG).row(PALETTE.name);
 
             expect([
                 text(row(RESIZE.name).querySelector(".av-vh")),
                 text(row(RESIZE.name).querySelector(".av-status-word")),
                 text(row(PALETTE.name).querySelector(".av-status-word")),
                 text(row(ACME.name).querySelector(".av-vh")),
-            ]).toEqual(["Plugin, ", "Needs review", "Problem", "Rule package, "]);
+                settled.querySelector(".av-status"),
+            ]).toEqual(["Plugin, ", "Waiting", "Not loaded", "Rule package, ", null]);
         });
 
-        it("shows a row's detail beside its name", () => {
+        it("says where a row of Needs attention sits, and only its detail below", () => {
             const { row } = mountedView(CATALOG);
 
-            expect(text(row(RESIZE.name).querySelector(".av-row-detail"))).toBe(RESIZE.detail);
+            expect([
+                text(row(RESIZE.name).querySelector(".av-row-detail")),
+                row(PALETTE.name).querySelector(".av-row-detail"),
+            ]).toEqual([`${RESIZE.detail} · ${CONFIG_SOURCE.label}`, null]);
         });
 
         it("selects a clicked row and shows its detail", () => {
@@ -121,7 +152,7 @@ describe("AddOnsView", () => {
             ]).toEqual([PALETTE.name, "true", { kind: "addOnSelected", addOnId: PALETTE.id }]);
         });
 
-        it("closes a source and keeps its count, review dot and summary in its header", () => {
+        it("closes a source and keeps its count and summary in its header", () => {
             const { head, rowNames, events } = mountedView(CATALOG);
             head(CONFIG_SOURCE.id)!.focus();
 
@@ -133,32 +164,71 @@ describe("AddOnsView", () => {
                 rowNames(),
                 text(closed.querySelector(".ds-count")),
                 closed.querySelectorAll(".av-dot").length,
-                text(closed.querySelector(".av-vh")),
+                text(closed.querySelector(".av-head-summary .av-vh")),
                 events.at(-1),
                 document.activeElement,
             ]).toEqual([
                 "false",
-                [ACME.name],
-                "2",
-                1,
-                ", 2 add-ons, 1 needs review",
+                [RESIZE.name, ACME.name],
+                "1",
+                0,
+                ", 1 add-on",
                 { kind: "toggled", key: CONFIG_SOURCE.id },
                 closed,
             ]);
         });
 
-        it("closes a folder with all of its sources", () => {
-            const { head, rowNames, root } = mountedView(CATALOG);
+        it("keeps a source whose rows all wait above, with its header", () => {
+            const { head } = mountedView(CATALOG);
+
+            expect(head(PACKAGES_SOURCE.id)).toBeNull();
+            expect(
+                [...document.querySelectorAll(".av-source-label")].map((each) => each.textContent),
+            ).toContain(PACKAGES_SOURCE.label);
+        });
+
+        it("names a folder's and a source's path in their tooltip only", () => {
+            const { head } = mountedView(TWO_FOLDERS);
+
+            expect([
+                head(FOLDER.id)?.title,
+                head(FOLDER.id)?.querySelector(".av-group-text .av-vh"),
+                head(CONFIG_SOURCE.id)?.title,
+            ]).toEqual([FOLDER.description, null, CONFIG_SOURCE.description]);
+        });
+
+        it.each([
+            { case: "one folder", model: CATALOG, levels: ["H2", "H2", "H3", "H3", "H2", "H3"] },
+            {
+                case: "two folders",
+                model: TWO_FOLDERS,
+                levels: ["H2", "H2", "H3", "H4", "H4", "H3", "H4", "H2", "H3"],
+            },
+        ])("nests its headings by section with $case", ({ model, levels }) => {
+            const { root } = mountedView(model);
+
+            expect(
+                [...root.querySelectorAll(".av-list h2, .av-list h3, .av-list h4")].map(
+                    ({ tagName }) => tagName,
+                ),
+            ).toEqual(levels);
+        });
+
+        it("shows a header per folder once there are two, and closes a folder with all of its sources", () => {
+            const { head, rowNames } = mountedView(TWO_FOLDERS);
 
             head(FOLDER.id)!.click();
 
-            expect([rowNames(), root.querySelectorAll(".av-source").length]).toEqual([[], 0]);
+            expect(rowNames()).toEqual([RESIZE.name, ACME.name, OTHER_PALETTE.name]);
         });
 
         it("keeps a folder's problem in sight while the folder is closed", () => {
             const model = {
-                ...CATALOG,
-                groups: [{ ...FOLDER, problem: "Could not read the folder." }, MARKETPLACES],
+                ...TWO_FOLDERS,
+                groups: [
+                    { ...FOLDER, problem: "Could not read the folder." },
+                    ...TWO_FOLDERS.groups.slice(1),
+                ],
             };
             const { root, head } = mountedView(model);
 
@@ -169,7 +239,7 @@ describe("AddOnsView", () => {
             );
         });
 
-        it("shows the catalog's problem above its folders", () => {
+        it("shows the catalog's problem above its sections", () => {
             const { root } = mountedView({ ...CATALOG, problem: "Could not read it again." });
 
             expect(text(root.querySelector(".av-catalog-problem"))).toBe(
@@ -178,190 +248,132 @@ describe("AddOnsView", () => {
         });
     });
 
-    describe("the tabs", () => {
-        it("count each tab's add-ons and mark the chosen one", () => {
-            const { tab } = mountedView(CATALOG);
-
-            expect([
-                text(tab("Workspace").querySelector(".ds-count")),
-                text(tab("Marketplaces").querySelector(".ds-count")),
-                tab("Workspace").getAttribute("aria-selected"),
-                tab("Workspace").tabIndex,
-                tab("Marketplaces").tabIndex,
-            ]).toEqual(["3", "1", "true", 0, -1]);
-        });
-
-        it("list the marketplaces flat, closed, under Add marketplace…", () => {
-            const { tab, root, head, button } = mountedView({
+    describe("the marketplaces", () => {
+        it("follow Installed as a group whose marketplaces start closed, with their actions only in the menu", () => {
+            const { root, head, button } = mountedView({
                 ...CATALOG,
                 actions: [ADD, UPDATE, PRUNE],
             });
 
-            tab("Marketplaces").click();
-
             expect([
-                tab("Marketplaces").getAttribute("aria-selected"),
-                text(root.querySelector(".av-group-intro")),
-                root.querySelector(".av-group-head"),
+                text(head(MARKETPLACES.id)?.querySelector(".av-group-label")),
                 head(MARKETPLACE_SOURCE.id)?.getAttribute("aria-expanded"),
-                [...root.querySelectorAll(".av-scope-actions .ds-btn")].map(text),
+                root.querySelectorAll(".av-list .ds-btn-secondary").length,
                 button("More actions") !== undefined,
-            ]).toEqual([
-                "true",
-                MARKETPLACES.description,
-                null,
-                "false",
-                [ADD.label, UPDATE.label],
-                true,
-            ]);
+            ]).toEqual([MARKETPLACES.label, "false", 0, true]);
         });
 
-        it("keep each tab's own selection", () => {
-            const { tab, row, head, detailName } = mountedView(CATALOG);
-            row(PALETTE.name).click();
+        it("are left out while none is registered", () => {
+            const { head } = mountedView({
+                ...CATALOG,
+                groups: [FOLDER, { ...MARKETPLACES, sources: [] }],
+            });
 
-            tab("Marketplaces").click();
+            expect(head(MARKETPLACES.id)).toBeNull();
+        });
+
+        it("show a marketplace's template once the user opens it", () => {
+            const { head, rowNames } = mountedView(CATALOG);
+
             head(MARKETPLACE_SOURCE.id)!.click();
-            const marketplaces = detailName();
-            tab("Workspace").click();
 
-            expect([marketplaces, detailName()]).toEqual([MAIL.name, PALETTE.name]);
-        });
-
-        it("select nothing in a wide marketplaces tab while its sources are closed", () => {
-            const { tab, root, detailName } = mountedView(CATALOG);
-
-            tab("Marketplaces").click();
-
-            expect([
-                detailName(),
-                text(root.querySelector(".av-hint")),
-                root.querySelector(".av-row[aria-current]"),
-            ]).toEqual([undefined, "No add-on selected.", null]);
-        });
-
-        it.each([
-            ["ArrowRight", "Workspace", "Marketplaces"],
-            ["ArrowLeft", "Workspace", "Marketplaces"],
-            ["End", "Workspace", "Marketplaces"],
-            ["Home", "Marketplaces", "Workspace"],
-        ])("move with %s from %s to %s and take focus", (key, from, to) => {
-            const { tab, press } = mountedView(CATALOG);
-            tab(from).click();
-            tab(from).focus();
-
-            press(key);
-
-            expect([tab(to).getAttribute("aria-selected"), document.activeElement]).toEqual([
-                "true",
-                tab(to),
-            ]);
-        });
-
-        it("ignore other keys", () => {
-            const { tab, press, events } = mountedView(CATALOG);
-            const before = events.length;
-
-            press("ArrowDown", tab("Workspace"));
-
-            expect(events.length).toBe(before);
+            expect(rowNames()).toEqual([RESIZE.name, ACME.name, PALETTE.name, MAIL.name]);
         });
     });
 
     describe("search and filters", () => {
-        it("count each kind and what needs review in the tab", () => {
-            const { chip } = mountedView(CATALOG);
+        it("show All and each kind as segments with their counts, All chosen first", () => {
+            const { segment } = mountedView(CATALOG);
 
             expect(
-                ["Needs review", "Plugins", "Rule packages", "Templates"].map((name) => [
-                    text(chip(name).querySelector(".ds-count")),
-                    chip(name).getAttribute("aria-pressed"),
+                ["All", "Plugins", "Rule packages", "Templates"].map((name) => [
+                    text(segment(name).querySelector(".av-kind-label")),
+                    text(segment(name).querySelector(".av-kind-count")),
+                    segment(name).getAttribute("aria-checked"),
+                    segment(name).tabIndex,
                 ]),
             ).toEqual([
-                ["2", "false"],
-                ["2", "false"],
-                ["1", "false"],
-                ["0", "false"],
+                ["All", "4", "true", 0],
+                ["Plugins", "2", "false", -1],
+                ["Lint", "1", "false", -1],
+                ["Templates", "1", "false", -1],
             ]);
         });
 
-        it("keep the matches of a chosen kind, under open headers, and announce how many", () => {
-            const { chip, rowNames, head, root } = mountedView(CATALOG);
+        it("keep the matches of a chosen kind, count what waits of it and announce how many", () => {
+            const { chooseKind, rowNames, segment, root } = mountedView(CATALOG);
 
-            chip("Plugins").click();
+            chooseKind("Rule packages");
 
             expect([
-                chip("Plugins").getAttribute("aria-pressed"),
                 rowNames(),
-                head(CONFIG_SOURCE.id)?.getAttribute("aria-expanded"),
+                segment("Rule packages").getAttribute("aria-checked"),
+                segment("All").getAttribute("aria-checked"),
+                text(root.querySelector(".av-summary")),
                 text(root.querySelector("[aria-live=polite].av-vh")),
-            ]).toEqual(["true", [PALETTE.name, RESIZE.name], "true", "2 add-ons shown"]);
+            ]).toEqual([[ACME.name], "true", "false", "1 waiting", "1 add-on shown"]);
+        });
+
+        it("move through the segments with the arrow keys, Home and End, choosing as focus moves", () => {
+            const { segment, press, events } = mountedView(CATALOG);
+            segment("All").focus();
+            const visited: (string | null)[] = [];
+
+            for (const key of ["ArrowRight", "ArrowRight", "ArrowLeft", "End", "Home"]) {
+                press(key);
+                visited.push(document.activeElement?.getAttribute("title") ?? null);
+            }
+
+            expect([visited, events.at(-1)]).toEqual([
+                ["Plugins", "Rule packages", "Plugins", "Templates", "All"],
+                { kind: "kindChosen" },
+            ]);
         });
 
         it("let the user close a source while filtering, summed up over its matches", () => {
             const { type, head, rowNames, search } = mountedView(CATALOG);
-            type("resize");
+            type("palette");
             head(CONFIG_SOURCE.id)!.focus();
 
             head(CONFIG_SOURCE.id)!.click();
             const closed = head(CONFIG_SOURCE.id)!;
 
             expect([
-                closed.tagName,
                 closed.getAttribute("aria-expanded"),
                 rowNames(),
                 text(closed.querySelector(".ds-count")),
-                closed.querySelectorAll(".av-dot").length,
-                text(closed.querySelector(".av-vh")),
                 search().value,
                 document.activeElement,
-            ]).toEqual([
-                "BUTTON",
-                "false",
-                [],
-                "1",
-                1,
-                ", 1 add-on, 1 needs review",
-                "resize",
-                closed,
-            ]);
+            ]).toEqual(["false", [], "1", "palette", closed]);
         });
 
         it("let the user close a folder while filtering, and keep it closed as the query grows", () => {
-            const { type, head, rowNames } = mountedView(CATALOG);
-            type("re");
+            const { type, head, rowNames } = mountedView(TWO_FOLDERS);
+            type("pa");
 
             head(FOLDER.id)!.click();
-            type("res");
+            type("pal");
 
             expect([head(FOLDER.id)?.getAttribute("aria-expanded"), rowNames()]).toEqual([
                 "false",
-                [],
+                [OTHER_PALETTE.name],
             ]);
         });
 
         it("restore the user's own layout once the filter is cleared", () => {
-            const { type, head, chip, button, rowNames } = mountedView(CATALOG);
-            head(PACKAGES_SOURCE.id)!.click();
-            chip("Plugins").click();
+            const { type, head, button, rowNames } = mountedView(CATALOG);
+            head(MARKETPLACE_SOURCE.id)!.click();
+            type("palette");
             head(CONFIG_SOURCE.id)!.click();
             type("nothing like this");
 
-            button("Clear filters").click();
+            button("Clear search and filters").click();
 
             expect([
                 head(CONFIG_SOURCE.id)?.getAttribute("aria-expanded"),
-                head(PACKAGES_SOURCE.id)?.getAttribute("aria-expanded"),
+                head(MARKETPLACE_SOURCE.id)?.getAttribute("aria-expanded"),
                 rowNames(),
-            ]).toEqual(["true", "false", [PALETTE.name, RESIZE.name]]);
-        });
-
-        it("keep only what needs review", () => {
-            const { chip, rowNames } = mountedView(CATALOG);
-
-            chip("Needs review").click();
-
-            expect(rowNames()).toEqual([RESIZE.name, ACME.name]);
+            ]).toEqual(["true", "true", [RESIZE.name, ACME.name, PALETTE.name, MAIL.name]]);
         });
 
         it("find rows inside a closed source and leave it closed", () => {
@@ -376,6 +388,49 @@ describe("AddOnsView", () => {
                 [PALETTE.name],
                 "false",
             ]);
+        });
+
+        it("open the search field from its button, focus it, and close it with Escape when empty", () => {
+            const { root, button, search, press } = mountedView(CATALOG);
+            const toggle = button("Search add-ons");
+            const row = root.querySelector<HTMLElement>(".av-search-row")!;
+            const closedAtFirst = [row.hidden, toggle.getAttribute("aria-expanded")];
+
+            toggle.click();
+            const opened = [
+                row.hidden,
+                toggle.getAttribute("aria-expanded"),
+                document.activeElement,
+            ];
+            press("Escape", search());
+
+            expect([closedAtFirst, opened, row.hidden, document.activeElement]).toEqual([
+                [true, "false"],
+                [false, "true", search()],
+                true,
+                toggle,
+            ]);
+        });
+
+        it("close the field and drop its query from the search button", () => {
+            const { root, type, button, search } = mountedView(CATALOG);
+            type("acme");
+
+            button("Search add-ons").click();
+
+            expect([
+                root.querySelector<HTMLElement>(".av-search-row")!.hidden,
+                search().value,
+                document.activeElement,
+            ]).toEqual([true, "", button("Search add-ons")]);
+        });
+
+        it("keep the field open while it holds a query", () => {
+            const { root, type } = mountedView(CATALOG);
+
+            type("acme");
+
+            expect(root.querySelector<HTMLElement>(".av-search-row")!.hidden).toBe(false);
         });
 
         it("show the clear button only with a query and clear the field with it", () => {
@@ -397,7 +452,7 @@ describe("AddOnsView", () => {
             ]).toEqual([true, true, true, "", search(), 3]);
         });
 
-        it("clear the query with Escape and leave an empty field alone", () => {
+        it("clear the query with Escape before closing the field", () => {
             const { type, search, press, events } = mountedView(CATALOG);
             type("acme");
 
@@ -420,41 +475,35 @@ describe("AddOnsView", () => {
         });
 
         it("say when nothing matches and clear every filter on request", () => {
-            const { type, chip, root, button, search, rowNames } = mountedView(CATALOG);
-            chip("Templates").click();
+            const { type, chooseKind, segment, root, button, rowNames, row } = mountedView(CATALOG);
+            chooseKind("Templates");
             type("nothing like this");
 
             const said = text(root.querySelector(".av-empty-text"));
             const announced = text(root.querySelector("[aria-live=polite].av-vh"));
-            button("Clear filters").click();
+            button("Clear search and filters").click();
 
             expect([
                 said,
                 announced,
                 rowNames().length,
-                chip("Templates").getAttribute("aria-pressed"),
-                document.activeElement,
+                segment("All").getAttribute("aria-checked"),
             ]).toEqual([
                 "No add-ons match your search and filters.",
                 "No add-ons match your search and filters.",
                 3,
-                "false",
-                search(),
+                "true",
             ]);
+            expect(row(RESIZE.name)).toBeDefined();
         });
 
-        it("scroll the chip row sideways with a wheel when it overflows", () => {
-            const { root } = mountedView(CATALOG);
-            const chips = root.querySelector<HTMLElement>(".av-chips")!;
-            Object.defineProperty(chips, "scrollWidth", { value: 400 });
-            Object.defineProperty(chips, "clientWidth", { value: 200 });
+        it("focus the list's first row after clearing", () => {
+            const { type, button, row } = mountedView(CATALOG);
+            type("nothing like this");
 
-            chips.dispatchEvent(new WheelEvent("wheel", { deltaY: 40, cancelable: true }));
-            chips.dispatchEvent(
-                new WheelEvent("wheel", { deltaX: 40, deltaY: 1, cancelable: true }),
-            );
+            button("Clear search and filters").click();
 
-            expect(chips.scrollLeft).toBe(40);
+            expect(document.activeElement).toBe(row(RESIZE.name));
         });
     });
 
@@ -633,8 +682,7 @@ describe("AddOnsView", () => {
 
     describe("menus", () => {
         it("open a source's actions and focus the first", () => {
-            const { tab, button, root } = mountedView(CATALOG);
-            tab("Marketplaces").click();
+            const { button, root } = mountedView(CATALOG);
 
             button("Source actions: /shared").click();
             const items = [...root.querySelectorAll<HTMLElement>("[role=menu] [role=menuitem]")];
@@ -647,8 +695,7 @@ describe("AddOnsView", () => {
         });
 
         it("move through their items with the arrow keys, Home and End", () => {
-            const { tab, button, root, press } = mountedView(CATALOG);
-            tab("Marketplaces").click();
+            const { button, root, press } = mountedView(CATALOG);
             button("Source actions: /shared").click();
             const items = [...root.querySelectorAll<HTMLElement>("[role=menuitem]")];
             const visited: (Element | null)[] = [];
@@ -673,8 +720,7 @@ describe("AddOnsView", () => {
         });
 
         it("close when Tab leaves them, from their button, so Tab moves on from there", () => {
-            const { tab, button, root, press } = mountedView(CATALOG);
-            tab("Marketplaces").click();
+            const { button, root, press } = mountedView(CATALOG);
             button("Source actions: /shared").click();
             press("ArrowDown");
 
@@ -688,8 +734,7 @@ describe("AddOnsView", () => {
         });
 
         it("close with Escape and return focus to their button", () => {
-            const { tab, button, root, press } = mountedView(CATALOG);
-            tab("Marketplaces").click();
+            const { button, root, press } = mountedView(CATALOG);
             button("Source actions: /shared").click();
 
             press("Escape");
@@ -703,7 +748,7 @@ describe("AddOnsView", () => {
         it("close on a click outside them and on their button", () => {
             const { button, root } = mountedView(CATALOG);
             button("More actions").click();
-            root.querySelector<HTMLElement>(".av-group-path")!.click();
+            root.querySelector<HTMLElement>(".av-section-label")!.click();
             const afterOutside = root.querySelector("[role=menu]");
             button("More actions").click();
             button("More actions").click();
@@ -750,7 +795,7 @@ describe("AddOnsView", () => {
     });
 
     describe("empty and failed catalogs", () => {
-        it("say the core's text with every catalog action and hide the toolbar", () => {
+        it("say the core's text, offer only Add marketplace… and hide the toolbar", () => {
             const { root } = mountedView({
                 revision: 1,
                 groups: [],
@@ -762,21 +807,7 @@ describe("AddOnsView", () => {
                 root.querySelector<HTMLElement>(".av-app")?.dataset.phase,
                 text(root.querySelector(".av-empty-text")),
                 [...root.querySelectorAll(".av-empty-actions button")].map(text),
-                root.querySelector(".av-list")?.getAttribute("role"),
-            ]).toEqual(["empty", "Nothing here.", [ADD.label, PRUNE.label], null]);
-        });
-
-        it("drop the tab panel's role when a catalog empties", () => {
-            const { root, arrive } = mountedView(CATALOG);
-
-            arrive({ revision: 11, groups: [], actions: [], emptyText: "Nothing here." });
-            const list = root.querySelector(".av-list")!;
-
-            expect([
-                list.getAttribute("role"),
-                list.getAttribute("aria-labelledby"),
-                list.getAttribute("aria-label"),
-            ]).toEqual([null, null, "Add-ons"]);
+            ]).toEqual(["empty", "Nothing here.", [ADD.label]]);
         });
 
         it("leave the word to the problem of a catalog that could not be read", () => {
@@ -794,47 +825,27 @@ describe("AddOnsView", () => {
             ]).toEqual(["failed", "Could not list the add-ons.", null]);
         });
 
-        it("open on the marketplaces without folders, and say the core's text in the workspace tab", () => {
-            const { root, tab } = mountedView({
+        it("say the core's text under Installed without a folder, above the marketplaces", () => {
+            const { root, head } = mountedView({
                 ...CATALOG,
                 groups: [MARKETPLACES],
                 emptyText: "Open a folder.",
             });
-            const opened = tab("Marketplaces").getAttribute("aria-selected");
-
-            tab("Workspace").click();
-
-            expect([opened, text(root.querySelector(".av-empty-text"))]).toEqual([
-                "true",
-                "Open a folder.",
-            ]);
-        });
-
-        it("offer Add marketplace… in a marketplaces tab without one", () => {
-            const { root, tab } = mountedView({
-                ...CATALOG,
-                groups: [FOLDER],
-                actions: [ADD, UPDATE, PRUNE],
-            });
-
-            tab("Marketplaces").click();
 
             expect([
-                text(root.querySelector(".av-empty-text")),
-                [...root.querySelectorAll(".av-empty-actions button")].map(text),
-            ]).toEqual(["No marketplaces registered yet.", [ADD.label]]);
+                text(root.querySelector(".av-section-text")),
+                head(MARKETPLACES.id) !== null,
+            ]).toEqual(["Open a folder.", true]);
         });
 
-        it("show unreadable marketplaces' problem in their own tab", () => {
-            const { root, tab } = mountedView({
+        it("show unreadable marketplaces' problem in their group", () => {
+            const { root } = mountedView({
                 ...CATALOG,
                 groups: [
                     FOLDER,
                     { ...MARKETPLACES, problem: "Could not read the marketplaces.", sources: [] },
                 ],
             });
-
-            tab("Marketplaces").click();
 
             expect(text(root.querySelector(".av-group-problem"))).toBe(
                 "Could not read the marketplaces.",
@@ -849,12 +860,10 @@ describe("AddOnsView", () => {
                 problem: "404.",
                 addOns: [],
             };
-            const { root, tab, head } = mountedView({
+            const { root, head } = mountedView({
                 ...CATALOG,
                 groups: [FOLDER, { ...MARKETPLACES, sources: [MARKETPLACE_SOURCE, broken] }],
             });
-
-            tab("Marketplaces").click();
 
             expect([
                 head("marketplace:broken"),
@@ -926,7 +935,7 @@ describe("AddOnsView", () => {
             reveal: { kind: "rows" as const, revealId, addOnIds: [addOnId] },
         });
 
-        it("switches the tab, clears a hiding filter, rings and focuses the row", () => {
+        it("clears a hiding filter, opens the row's source, rings and focuses the row", () => {
             vi.useFakeTimers();
             vi.spyOn(document, "hasFocus").mockReturnValue(true);
             const { session, root, row, type, head, layout, search } = mountedView(CATALOG);
@@ -937,14 +946,13 @@ describe("AddOnsView", () => {
             vi.advanceTimersByTime(2400);
 
             expect([
-                root.querySelector("[aria-selected=true]")?.textContent?.startsWith("Marketplaces"),
                 search().value,
                 head(MARKETPLACE_SOURCE.id)?.getAttribute("aria-expanded"),
                 ringed,
                 document.activeElement,
                 layout.scrolledIntoView,
                 root.querySelectorAll(".av-revealed").length,
-            ]).toEqual([true, "", "true", true, row(MAIL.name), [row(MAIL.name)], 0]);
+            ]).toEqual(["", "true", true, row(MAIL.name), [row(MAIL.name)], 0]);
         });
 
         it("focuses the detail's heading in a narrow view", () => {
@@ -970,61 +978,44 @@ describe("AddOnsView", () => {
         });
     });
 
-    describe("the review preset", () => {
+    describe("Review Add-ons", () => {
         const review = {
             kind: "revealArrived" as const,
             reveal: { kind: "needsReview" as const, revealId: 1 },
         };
+        const SETTLED = without(ACME.id, without(RESIZE.id));
 
-        it("shows the workspace with only Needs review on and focuses the first add-on to review", () => {
-            const { session, root, tab, chip, row, search, type } = mountedView(CATALOG);
-            tab("Marketplaces").click();
+        it("clears the search and filter, focuses the first add-on to review and says how many wait", () => {
+            const { session, root, chooseKind, segment, row, search, type } = mountedView(CATALOG);
             type("mail");
-            chip("Plugins").click();
+            chooseKind("Plugins");
 
             session.dispatch(review);
 
             expect([
-                tab("Workspace").getAttribute("aria-selected"),
-                ["Needs review", "Plugins", "Rule packages", "Templates"].map((name) =>
-                    chip(name).getAttribute("aria-pressed"),
-                ),
+                segment("All").getAttribute("aria-checked"),
                 search().value,
                 row(RESIZE.name).getAttribute("aria-current"),
                 document.activeElement,
                 text(root.querySelector("[aria-live=polite].av-vh")),
-            ]).toEqual([
-                "true",
-                ["true", "false", "false", "false"],
-                "",
-                "true",
-                row(RESIZE.name),
-                "2 add-ons need review",
-            ]);
+            ]).toEqual(["true", "", "true", row(RESIZE.name), "2 add-ons need review"]);
         });
 
-        it("says nothing needs review and focuses Clear filters", () => {
-            const { session, root, button } = mountedView(without(ACME.id, without(RESIZE.id)));
+        it("says nothing needs review and focuses the list's first control", () => {
+            const { session, root, head } = mountedView(SETTLED);
 
             session.dispatch(review);
 
             expect([
-                text(root.querySelector(".av-empty-text")),
                 document.activeElement,
                 text(root.querySelector("[aria-live=polite].av-vh")),
-                text(root.querySelector(".av-hint")),
-            ]).toEqual([
-                "No add-ons need review.",
-                button("Clear filters"),
-                "No add-ons need review.",
-                "No add-on selected.",
-            ]);
+            ]).toEqual([head(CONFIG_SOURCE.id), "No add-ons need review."]);
         });
 
         it.each<{
             case: string;
             model: AddOnCatalogPayload;
-            focused: (view: ReturnType<typeof mountedView>) => Element;
+            focused: (view: ReturnType<typeof mountedView>) => Element | null;
         }>([
             {
                 case: "the first add-on to review",
@@ -1032,14 +1023,14 @@ describe("AddOnsView", () => {
                 focused: ({ row }) => row(RESIZE.name),
             },
             {
-                case: "Clear filters when nothing needs review",
-                model: without(ACME.id, without(RESIZE.id)),
-                focused: ({ button }) => button("Clear filters"),
+                case: "the list's first control when nothing needs review",
+                model: SETTLED,
+                focused: ({ head }) => head(CONFIG_SOURCE.id),
             },
         ])("moves focus from the search box to $case", ({ model, focused }) => {
             const view = mountedView(model);
-            view.search().focus();
             view.type("zzz");
+            view.search().focus();
 
             view.session.dispatch(review);
 
@@ -1059,7 +1050,7 @@ describe("AddOnsView", () => {
             ]).toEqual([0, "false", row(RESIZE.name)]);
         });
 
-        it("announces no count where the workspace shows its own empty text", () => {
+        it("says nothing waits where no folder is open, beside the core's own text", () => {
             const emptyText = "Open a folder to see its add-ons.";
             const { session, root } = mountedView({
                 ...CATALOG,
@@ -1070,9 +1061,9 @@ describe("AddOnsView", () => {
             session.dispatch(review);
 
             expect([
-                text(root.querySelector(".av-empty-text")),
+                text(root.querySelector(".av-section-text")),
                 text(root.querySelector("[aria-live=polite].av-vh")),
-            ]).toEqual([emptyText, ""]);
+            ]).toEqual([emptyText, "No add-ons need review."]);
         });
     });
 
@@ -1107,23 +1098,23 @@ describe("AddOnsView", () => {
             expect(document.activeElement).toBe(root.querySelector(".av-detail-name"));
         });
 
-        it("goes to the tab when nothing is selected", () => {
-            const { view, type, tab } = mountedView(CATALOG);
+        it("goes to the toolbar's first button when nothing is selected", () => {
+            const { view, type, button } = mountedView(CATALOG);
             type("nothing like this");
             document.querySelector<HTMLElement>("#outside")!.focus();
 
             view.focusFromOutside();
 
-            expect(document.activeElement).toBe(tab("Workspace"));
+            expect(document.activeElement).toBe(button("Search add-ons"));
         });
 
         it("stays where it is inside the view", () => {
-            const { view, chip } = mountedView(CATALOG);
-            chip("Plugins").focus();
+            const { view, segment } = mountedView(CATALOG);
+            segment("Plugins").focus();
 
             view.focusFromOutside();
 
-            expect(document.activeElement).toBe(chip("Plugins"));
+            expect(document.activeElement).toBe(segment("Plugins"));
         });
 
         it("goes nowhere in an empty catalog", () => {
@@ -1156,8 +1147,7 @@ describe("AddOnsView", () => {
         });
 
         it("stays on a switch that takes its own place", () => {
-            const { tab, head, row, button, session, arrive } = mountedView(CATALOG);
-            tab("Marketplaces").click();
+            const { head, row, button, session, arrive } = mountedView(CATALOG);
             head(MARKETPLACE_SOURCE.id)!.click();
             row(MAIL.name).click();
             button("Disable").focus();
@@ -1178,8 +1168,7 @@ describe("AddOnsView", () => {
         });
 
         it("returns to a source's menu button after a switch from its menu", () => {
-            const { tab, button, session } = mountedView(CATALOG);
-            tab("Marketplaces").click();
+            const { button, session } = mountedView(CATALOG);
             button("Source actions: /shared").click();
             button("Disable templates").click();
 
@@ -1188,14 +1177,14 @@ describe("AddOnsView", () => {
             expect(document.activeElement).toBe(button("Source actions: /shared"));
         });
 
-        it("returns to a marketplaces button after its catalog action", () => {
-            const { tab, button, session } = mountedView({ ...CATALOG, actions: [ADD, UPDATE] });
-            tab("Marketplaces").click();
+        it("returns to the More actions button after a catalog action", () => {
+            const { button, session } = mountedView({ ...CATALOG, actions: [ADD, UPDATE] });
+            button("More actions").click();
             button(UPDATE.label).click();
 
             session.dispatch({ kind: "resultArrived", requestId: 1, result: { kind: "done" } });
 
-            expect(document.activeElement).toBe(button(UPDATE.label));
+            expect(document.activeElement).toBe(button("More actions"));
         });
 
         it("goes to the list's first control when the forgotten row leaves nothing to select", () => {
@@ -1224,7 +1213,7 @@ describe("AddOnsView", () => {
 
             arrive(withRevision(11, without(PALETTE.id)));
 
-            expect(document.activeElement).toBe(row(RESIZE.name));
+            expect(document.activeElement).toBe(row(ACME.name));
         });
 
         it("moves to the add-on selected in its place when a revoke's answer comes before the push", () => {
@@ -1235,16 +1224,21 @@ describe("AddOnsView", () => {
             session.dispatch({ kind: "resultArrived", requestId: 1, result: { kind: "done" } });
             arrive(withRevision(11, without(PALETTE.id)));
 
-            expect([document.activeElement, detailName()]).toEqual([row(RESIZE.name), RESIZE.name]);
+            expect([document.activeElement, detailName()]).toEqual([row(ACME.name), ACME.name]);
         });
 
-        it("moves to the tab when the list has no control left", () => {
-            const { row, arrive, tab } = mountedView(CATALOG);
+        it("moves to the toolbar's first button when the list has no control left", () => {
+            const { row, arrive, button } = mountedView(CATALOG);
             row(PALETTE.name).focus();
 
-            arrive({ ...CATALOG, revision: 11, groups: [MARKETPLACES] });
+            arrive({
+                ...CATALOG,
+                revision: 11,
+                groups: [{ ...MARKETPLACES, sources: [] }],
+                emptyText: "Open a folder.",
+            });
 
-            expect(document.activeElement).toBe(tab("Workspace"));
+            expect(document.activeElement).toBe(button("Search add-ons"));
         });
     });
 });

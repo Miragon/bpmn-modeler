@@ -64,8 +64,9 @@ plugins under the config folder, the bpmnlint rule packages your `.bpmnlintrc` t
 templates and the template marketplaces. It lists this project only. It is the same page as the
 [Add-ons view in VS Code](/vscode/features/add-ons), which describes it in full.
 
-- Two tabs split it: **Workspace** with the project's config folders and packages, and **Marketplaces**. A search
-  field and the chips **Needs review**, **Plugins**, **Rule packages** and **Templates** narrow the list.
+- One list holds **Needs attention** (what waits for you to allow it or does not load), **Installed** with the
+  project's config folders and packages, and **Marketplaces**. The search button and the kinds below the top line
+  (**All**, **Plugins**, **Lint**, **Templates**) narrow the list.
 - Click a row to see its details. A tool window wide enough shows the list and the details side by side; a narrow one
   opens the details in place of the list, with **Back**.
 - Each plugin and rule package shows its state: **Allowed**, **Not allowed yet** or **Declined this session**. The
@@ -76,7 +77,8 @@ templates and the template marketplaces. It lists this project only. It is the s
   you restart the IDE.
 - **Disable** and **Enable** switch an element template off and on; a source's **⋯** menu does it for all of its
   templates. A switch holds for this project, which the IDE keeps in `.idea/workspace.xml`, or for all your projects.
-- The **Marketplaces** tab adds, updates and removes [template marketplaces](/vscode/features/template-marketplace).
+- **More actions** (**⋯**) adds and updates [template marketplaces](/vscode/features/template-marketplace); a
+  marketplace's own **⋯** menu removes it.
 - The **Refresh** button in the tab's title reads everything again, for example after you installed a rule package.
 - The page wears the Miragon look in light, dark and high contrast. It follows whether your IDE theme is light, dark
   or high contrast, and the colour theme setting under **Settings ▸ Tools ▸ Miragon BPMN Modeler**; it does not take
@@ -85,8 +87,8 @@ templates and the template marketplaces. It lists this project only. It is the s
 **Review…** in the notification about a new plugin or rule package opens this tab with it selected when everything
 the notification names lies inside the project. Otherwise, or when the tab cannot open, the list appears as before.
 
-**Tools ▸ Miragon BPMN Modeler ▸ Review Add-ons**, also in Find Action, opens this tab on **Workspace** with only
-**Needs review** on.
+**Tools ▸ Miragon BPMN Modeler ▸ Review Add-ons**, also in Find Action, opens this tab on the first add-on that
+waits for your review.
 
 ## Actions
 

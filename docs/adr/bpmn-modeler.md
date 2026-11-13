@@ -891,17 +891,16 @@ again to the page that asks once it loads, until a page that listens has it,
 and again after the panel was hidden, as a host may load a hidden page anew; a
 page loaded later gets no old reveal. Reveal ids start from the clock, as
 revisions do, so a page that outlives a core process still applies the next
-reveal. The core knows no tabs: the page maps `needsReview` to the Workspace
-tab with only the Needs review chip, every header open, its selection kept
-when it needs review, else the first add-on that does. **Review Add-ons** is
+reveal. The core knows no sections: the page maps `needsReview` to the whole
+list, its search and filter cleared, its selection kept when it waits for a
+review, else the first add-on of Needs attention that does, and says how many
+wait to a screen reader. **Review Add-ons** is
 host-first, the host shows its view and then asks the core, because the
 IntelliJ tab must open at once while a cold bridge still starts; **Review…**
 stays core-first through `AddOnViewRevealPort`, because there the core decides
-whether a view can show the rows. The page keeps only a tab the user chose
-(`chosenScope`); until then the first model that lists something opens
-Marketplaces when the Workspace tab lists nothing and a marketplace is listed.
-A tab selects on its own only a row the list shows, never one a closed header
-hides ([the page](architecture-and-hosts.md#package-boundaries)).
+whether a view can show the rows. The list selects on its own only a row it
+shows, never one a closed header hides
+([the page](architecture-and-hosts.md#package-boundaries)).
 
 - *Scope.* It lists the open workspace only: the root config folder's
   `plugins/` and `element-templates/` of every workspace folder, the nested

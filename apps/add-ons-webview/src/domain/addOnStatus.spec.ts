@@ -27,10 +27,11 @@ describe("stateToneOf", () => {
 });
 
 describe("rowStatusOf", () => {
-    it.each<[string, AddOnPayload, { tone: StatusTone; word: string }]>([
-        ["a problem outranks the state", BROKEN, { tone: "danger", word: "Problem" }],
-        ["a review names itself", RESIZE, { tone: "warning", word: "Needs review" }],
-        ["a settled state says the core's text", PALETTE, { tone: "success", word: "Allowed" }],
+    it.each<[string, AddOnPayload, { tone: StatusTone; word: string } | undefined]>([
+        ["a problem outranks the state", BROKEN, { tone: "danger", word: "Not loaded" }],
+        ["code that offers Allow waits", RESIZE, { tone: "warning", word: "Waiting" }],
+        ["allowed code stays silent", PALETTE, undefined],
+        ["an enabled template stays silent", MAIL, undefined],
         ["a neutral state says the core's text", DISABLED, { tone: "neutral", word: "Disabled" }],
     ])("%s", (_, addOn, status) => {
         expect(rowStatusOf(addOn)).toEqual(status);

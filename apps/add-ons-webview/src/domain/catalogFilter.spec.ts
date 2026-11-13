@@ -11,11 +11,8 @@ import {
     CatalogFilter,
     filteredGroups,
     isFilterActive,
-    isOnlyNeedsReview,
     needsReview,
-    NEEDS_REVIEW_ONLY,
     NO_FILTER,
-    withKindToggled,
 } from "./catalogFilter";
 
 const ALLOW = { kind: "allow", label: "Allow" } as const;
@@ -132,24 +129,14 @@ describe("filteredGroups", () => {
             { query: "work" },
             ["Palette", "Resize Tasks", "Mail Task", "bpmnlint-plugin-acme"],
         ],
-        ["a kind", { kinds: new Set(["plugin"]) }, ["Palette", "Resize Tasks"]],
-        [
-            "several kinds",
-            { kinds: new Set(["rulePackage", "elementTemplate"]) },
-            ["Mail Task", "bpmnlint-plugin-acme"],
-        ],
-        ["what needs review", { onlyNeedsReview: true }, ["Resize Tasks", "bpmnlint-plugin-acme"]],
-        [
-            "all of them at once",
-            { query: "resize", kinds: new Set(["plugin"]), onlyNeedsReview: true },
-            ["Resize Tasks"],
-        ],
+        ["a kind", { kind: "plugin" }, ["Palette", "Resize Tasks"]],
+        ["a query and a kind at once", { query: "resize", kind: "plugin" }, ["Resize Tasks"]],
     ])("keeps the add-ons that match %s", (_, change, expected) => {
         expect(namesOf(filteredGroups(model, filter(change)))).toEqual(expected);
     });
 
     it("drops the sources and groups a filter leaves empty", () => {
-        const shown = filteredGroups(model, filter({ kinds: new Set(["rulePackage"]) }));
+        const shown = filteredGroups(model, filter({ kind: "rulePackage" }));
 
         expect(shown.map(({ id }) => id)).toEqual(["folder:/work"]);
         expect(shown[0]?.sources.map(({ id }) => id)).toEqual(["packages:/work/node_modules"]);
@@ -165,51 +152,33 @@ describe("isFilterActive", () => {
         ["no filter", {}, false],
         ["a blank query", { query: "  " }, false],
         ["a query", { query: "x" }, true],
-        ["a kind", { kinds: new Set(["plugin"]) }, true],
-        ["only what needs review", { onlyNeedsReview: true }, true],
+        ["a kind", { kind: "plugin" }, true],
     ])("is %s: %s", (_, change, expected) => {
         expect(isFilterActive(filter(change))).toBe(expected);
     });
 });
 
-describe("isOnlyNeedsReview", () => {
-    it.each<[string, Partial<CatalogFilter>, boolean]>([
-        ["not without a filter", {}, false],
-        ["only the review chip", { onlyNeedsReview: true }, true],
-        ["not the review chip with a query", { onlyNeedsReview: true, query: "x" }, false],
-        [
-            "not the review chip with a kind",
-            { onlyNeedsReview: true, kinds: new Set(["plugin"]) },
-            false,
-        ],
-        ["the review chip with a blank query", { onlyNeedsReview: true, query: "  " }, true],
-    ])("is %s", (_, change, expected) => {
-        expect(isOnlyNeedsReview(filter(change))).toBe(expected);
-    });
-
-    it("is what the review preset filters by", () => {
-        expect(NEEDS_REVIEW_ONLY).toEqual({ ...NO_FILTER, onlyNeedsReview: true });
-    });
-});
-
-describe("withKindToggled", () => {
-    it.each<[string, AddOnPayload["kind"][], AddOnPayload["kind"], AddOnPayload["kind"][]]>([
-        ["adds a kind", [], "plugin", ["plugin"]],
-        ["adds a second kind", ["plugin"], "rulePackage", ["plugin", "rulePackage"]],
-        ["removes a chosen kind", ["plugin", "rulePackage"], "plugin", ["rulePackage"]],
-    ])("%s", (_, before, kind, after) => {
-        const toggled = withKindToggled(filter({ kinds: new Set(before), query: "x" }), kind);
-
-        expect([[...toggled.kinds], toggled.query]).toEqual([after, "x"]);
-    });
-});
-
 describe("catalogCounts", () => {
-    it("counts the add-ons by kind and those that need review", () => {
-        expect(catalogCounts(model)).toEqual({
+    it("counts what waits and what has a problem only of the chosen kind", () => {
+        expect(catalogCounts(model, "rulePackage")).toMatchObject({
             total: 4,
-            byKind: { plugin: 2, rulePackage: 1, elementTemplate: 1 },
+            needsReview: 1,
+            problems: 0,
+        });
+    });
+
+    it("counts the add-ons by kind, those that need review and those with a problem", () => {
+        const broken = { ...palette, id: "plugin:/work/broken", problem: "Cannot be read." };
+        const withBroken: AddOnCatalogPayload = {
+            ...model,
+            groups: [{ ...groups[0]!, sources: [source("s", "s", [broken])] }, ...groups],
+        };
+
+        expect(catalogCounts(withBroken)).toEqual({
+            total: 5,
+            byKind: { plugin: 3, rulePackage: 1, elementTemplate: 1 },
             needsReview: 2,
+            problems: 1,
         });
     });
 });

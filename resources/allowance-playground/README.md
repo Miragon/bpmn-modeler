@@ -104,8 +104,8 @@ do not appear, look in the IDE log first.
 Go top to bottom in one profile: the rows below `acme/` assume you allowed both add-ons there. The
 notices are *1 BPMN plugin in this workspace is not allowed yet.* and *1 bpmnlint rule package in this
 workspace is not allowed yet, so rules from it are skipped.*, each with **Review…**. In the view the
-states read **Allowed**, **Not allowed yet** and **Declined this session**, and the list marks a
-waiting add-on **Needs review**. The rule package is listed as `bpmnlint-plugin-acme@<version>`.
+states read **Allowed**, **Not allowed yet** and **Declined this session**, and the list shows a
+waiting add-on under **Needs attention**, marked **Waiting**. The rule package is listed as `bpmnlint-plugin-acme@<version>`.
 
 | # | Open | Do | You should see (VS Code) | IntelliJ differs |
 | --- | --- | --- | --- | --- |

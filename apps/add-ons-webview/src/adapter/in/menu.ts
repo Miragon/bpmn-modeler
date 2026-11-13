@@ -7,8 +7,8 @@ export const CATALOG_MENU = CATALOG_OWNER;
 
 /**
  * A "…" button with its menu. The view keeps which menu is open; the items
- * are action buttons, so the view's click handler sends them. A menu keeps
- * the arrow keys its role asks for.
+ * are action buttons, so the view's click handler sends them and closes the
+ * menu. A menu keeps the arrow keys its role asks for.
  */
 export function menuAnchor(
     menuId: string,
@@ -18,12 +18,12 @@ export function menuAnchor(
     onToggle: (menuId: string) => void,
 ): HTMLElement {
     const anchor = el("div", "av-menu-anchor");
-    const trigger = markFocus(button("ds-icon-btn av-menu-trigger", label), "menu", menuId);
-    trigger.setAttribute("aria-haspopup", "menu");
-    trigger.setAttribute("aria-expanded", String(open));
-    trigger.append(icon(Ellipsis, 16));
-    trigger.addEventListener("click", () => onToggle(menuId));
-    anchor.append(trigger);
+    const opener = markFocus(button("ds-icon-btn av-menu-trigger", label), "menu", menuId);
+    opener.setAttribute("aria-haspopup", "menu");
+    opener.setAttribute("aria-expanded", String(open));
+    opener.append(icon(Ellipsis, 16));
+    opener.addEventListener("click", () => onToggle(menuId));
+    anchor.append(opener);
     if (!open) return anchor;
     const menu = el("div", "av-menu");
     menu.setAttribute("role", "menu");
@@ -50,7 +50,9 @@ function moveInMenu(menu: HTMLElement, event: KeyboardEvent): void {
     const step = STEP[event.key];
     if (step === undefined) return;
     event.preventDefault();
-    const items = [...menu.querySelectorAll<HTMLElement>("[role=menuitem]")];
+    const items = [...menu.querySelectorAll<HTMLElement>(MENU_ITEMS)];
     const index = items.indexOf(document.activeElement as HTMLElement);
     items[step(index, items.length)]?.focus();
 }
+
+export const MENU_ITEMS = "[role=menuitem]";
