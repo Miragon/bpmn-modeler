@@ -99,7 +99,7 @@ Find every action with **Find Action** (`Ctrl+Shift+A` / `Cmd+Shift+A`) or under
 | New BPMN Model… / New DMN Model… | Create a model (also in the project view under **New**) |
 | Format Diagram (`Ctrl+Alt+L`) | Lay out the focused diagram |
 | Clean Up Diagram | List leftovers in the diagram and remove them after you confirm |
-| Generate IDs from Names | Review the IDs the element names give, and rename the ones you keep ticked in one undo step ([IDs from names](/vscode/features/element-ids)) |
+| Generate IDs from Names | Review the IDs the element names give in the Element IDs tool window, and rename the ones you keep ticked in one undo step ([IDs from names](/vscode/features/element-ids)) |
 | Change Engine Version… | Change the engine version of the focused diagram |
 | Migrate All Diagrams… | Change the engine version of every BPMN diagram in the project, except copies in `node_modules`, build output or folders whose name starts with a dot |
 | Change Modeler Language… | Switch the modeler UI language |
