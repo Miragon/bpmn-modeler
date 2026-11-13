@@ -37,6 +37,7 @@ import { join, posix, relative } from "node:path";
 import {
     coalesceWatcherEvents,
     coveredFolderRegExp,
+    DirectoryEntryKind,
     DirectoryNotFound,
     FileNotFound,
     globToRegExp,
@@ -220,7 +221,7 @@ export class NodeWorkspace implements WorkspacePort, WorkspaceRoots {
      *   here, keep walking" — hence the import from the package so the class
      *   identity survives bundling.
      */
-    async readDirectory(path: string): Promise<[string, "file" | "directory"][]> {
+    async readDirectory(path: string): Promise<[string, DirectoryEntryKind][]> {
         let dirents;
         try {
             dirents = await fs.readdir(withoutFileScheme(path), { withFileTypes: true });
@@ -231,7 +232,7 @@ export class NodeWorkspace implements WorkspacePort, WorkspaceRoots {
             }
             throw error;
         }
-        return dirents.flatMap((entry): [string, "file" | "directory"][] => {
+        return dirents.flatMap((entry): [string, DirectoryEntryKind][] => {
             if (entry.isFile()) {
                 return [[entry.name, "file"]];
             }

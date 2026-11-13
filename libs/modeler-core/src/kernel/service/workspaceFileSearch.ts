@@ -1,5 +1,6 @@
 import { matchesOutsideCommentsAndCdata } from "@miragon/bpmn-modeler-types";
 
+import { DirectoryEntryKind } from "../domain/directoryEntry";
 import { excludedDirsGlob, isExcludedDirName } from "../domain/excludedDirs";
 import { WorkspacePort } from "../port/hostPorts";
 import { LocateResult, outcomeAfterReading, SearchOutcome } from "../domain/locateResult";
@@ -148,18 +149,15 @@ export async function findFilesBelow(
     let level: string[] = [directory];
     while (level.length > 0) {
         const reads = await Promise.all(
-            level.map((dir) =>
-                ws
+            level.map(async (dir) => ({
+                dir,
+                entries: await ws
                     .readDirectory(dir)
-                    .then(
-                        (entries) =>
-                            [dir, entries] as [string, Array<[string, "file" | "directory"]>],
-                    )
-                    .catch(() => [dir, []] as [string, Array<[string, "file" | "directory"]>]),
-            ),
+                    .catch((): [string, DirectoryEntryKind][] => []),
+            })),
         );
         const nextLevel: string[] = [];
-        for (const [dir, entries] of reads) {
+        for (const { dir, entries } of reads) {
             for (const [name, type] of entries) {
                 const full = joinWorkspacePath(dir, name);
                 if (type === "directory") {

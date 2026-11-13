@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { DirectoryEntryKind } from "../../../kernel/domain/directoryEntry";
 import { DirectoryNotFound } from "../../../kernel/domain/errors";
 import { WorkspacePort } from "../../../kernel/port/hostPorts";
 import { LocalFileSource } from "./LocalFileSource";
@@ -20,7 +21,7 @@ function fakeWorkspace(files: Record<string, string>): WorkspacePort {
 
     const readDirectory = vi.fn(async (dir: string) => {
         const root = dir.replace(/\/+$/, "");
-        const children = new Map<string, "file" | "directory">();
+        const children = new Map<string, DirectoryEntryKind>();
         for (const path of Object.keys(files)) {
             if (!path.startsWith(`${root}/`)) {
                 continue;

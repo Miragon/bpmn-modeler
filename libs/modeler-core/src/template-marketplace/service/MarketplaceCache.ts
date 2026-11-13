@@ -7,6 +7,7 @@ import {
     parseSourceSlotRecord,
     SourceSlotRecord,
 } from "../domain/sourceCacheRefresh";
+import { DirectoryEntryKind } from "../../kernel/domain/directoryEntry";
 import { DirectoryNotFound, FileNotFound } from "../../kernel/domain/errors";
 import { staysInsideFolder } from "../../kernel/domain/rootContainment";
 import { WorkspacePort } from "../../kernel/port/hostPorts";
@@ -216,7 +217,7 @@ export class MarketplaceCache {
      * recursive scan uses.
      */
     private async listSubdirectories(folder: string): Promise<string[]> {
-        let entries: [string, "file" | "directory"][];
+        let entries: [string, DirectoryEntryKind][];
         try {
             entries = await this.workspace.readDirectory(folder);
         } catch (error) {
@@ -235,7 +236,7 @@ export class MarketplaceCache {
      * an error, so it maps to `[]`.
      */
     private async listJsonRecursive(folder: string): Promise<string[]> {
-        let entries: [string, "file" | "directory"][];
+        let entries: [string, DirectoryEntryKind][];
         try {
             entries = await this.workspace.readDirectory(folder);
         } catch (error) {
