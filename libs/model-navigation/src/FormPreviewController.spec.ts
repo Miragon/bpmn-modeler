@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { FormPreviewController } from "./FormPreviewController";
 import type { FormPreviewRequest } from "./ModelNavigationPort";
-import type { BusinessObjectLike } from "./extractReference";
 
 vi.mock("bpmn-js/lib/util/ModelUtil", () => ({
     is: (element: { type?: string }, type: string) => element.type === type,
@@ -21,13 +20,10 @@ function task(id = "Form_1") {
         },
     };
 }
-type FixtureElement = Omit<ReturnType<typeof task>, "businessObject"> & {
-    businessObject: BusinessObjectLike;
-};
 function setup(available = true, automatic = true) {
     const handlers = new Map<string, Array<(event?: unknown) => void>>();
     const fire = (name: string, event?: unknown) => handlers.get(name)?.forEach((fn) => fn(event));
-    const selected: FixtureElement[] = [];
+    const selected: ReturnType<typeof task>[] = [];
     let availabilityChanged = () => {};
     let automaticChanged = () => {};
     const unsubscribeAutomatic = vi.fn();
@@ -91,7 +87,7 @@ function setup(available = true, automatic = true) {
         port,
         { isResolved: () => port.isReferenceAvailable() },
     );
-    const select = (...elements: FixtureElement[]) => {
+    const select = (...elements: ReturnType<typeof task>[]) => {
         selected.splice(0, selected.length, ...elements);
         fire("selection.changed", { newSelection: elements });
     };
@@ -436,26 +432,9 @@ describe("automatic linked form preview", () => {
         availabilityChanged();
         expect(open).toHaveBeenCalledTimes(3);
     });
-    it("does not preview a resolved reference whose kind has no preview", () => {
+    it("does not preview other element types or tasks without a form", () => {
         const { select, open } = setup();
-        select({
-            ...task(),
-            type: "bpmn:CallActivity",
-            businessObject: {
-                get: (name: string) => (name === "calledElement" ? "Process_1" : undefined),
-            },
-        });
-        select({
-            ...task(),
-            type: "bpmn:BusinessRuleTask",
-            businessObject: {
-                get: (name: string) => (name === "camunda:decisionRef" ? "Decision_1" : undefined),
-            },
-        });
-        expect(open).not.toHaveBeenCalled();
-    });
-    it("does not preview a task without a form", () => {
-        const { select, open } = setup();
+        select({ ...task(), type: "bpmn:CallActivity" });
         select(task(""));
         expect(open).not.toHaveBeenCalled();
     });

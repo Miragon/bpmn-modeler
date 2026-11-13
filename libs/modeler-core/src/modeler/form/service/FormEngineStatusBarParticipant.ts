@@ -2,7 +2,6 @@ import {
     EditorSessionContext,
     EditorSessionParticipant,
 } from "../../../editorSession/domain/EditorSessionParticipant";
-import { StatusItemOwnership } from "../../../editorSession/domain/StatusItemOwnership";
 import { DocumentPort, StatusBarPort } from "../../../kernel/port/hostPorts";
 import { formEngineStatusView, readFormEngineMetadata } from "../domain/formEngine";
 
@@ -10,13 +9,11 @@ export class FormEngineStatusBarParticipant implements EditorSessionParticipant 
     constructor(
         private readonly statusBar: StatusBarPort,
         private readonly documents: DocumentPort,
-        private readonly ownership: StatusItemOwnership,
     ) {}
 
     onResolve(session: EditorSessionContext): void {
         const show = () => {
-            if (!session.isCurrent() || !session.isFocused()) return;
-            this.ownership.claim(session.editorId);
+            if (!session.claimStatusSlot("engineVersion")) return;
             this.statusBar.show(
                 "engineVersion",
                 formEngineStatusView(
@@ -25,7 +22,7 @@ export class FormEngineStatusBarParticipant implements EditorSessionParticipant 
             );
         };
         const release = () => {
-            if (this.ownership.release(session.editorId) === "hide")
+            if (session.releaseStatusSlot("engineVersion") === "hide")
                 this.statusBar.hide("engineVersion");
         };
         show();

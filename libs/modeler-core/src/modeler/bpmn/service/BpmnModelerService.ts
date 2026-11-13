@@ -47,6 +47,7 @@ export class BpmnModelerService {
     }
 
     async display(editorId: string, hostUpdated = false): Promise<boolean> {
+        const session = this.editorStore.captureEditorSession(editorId);
         try {
             const snapshot = this.documents.read(editorId, hostUpdated);
             if (!snapshot) return false;
@@ -84,7 +85,7 @@ export class BpmnModelerService {
                     return false;
                 }
 
-                this.showEngineVersionIfFocused(editorId, doc);
+                if (session) this.showEngineVersionIfFocused(editorId, session, doc);
                 return outcome === "sent";
             } catch (error) {
                 return this.handleError(error as Error);
@@ -159,9 +160,10 @@ export class BpmnModelerService {
 
     // Every editor shares the engine item: a background render (external edit, split
     // view) or a command run while a text editor is focused must not write it, and
-    // the editor can also close mid-post.
-    private showEngineVersionIfFocused(editorId: string, doc: BpmnDocument): void {
-        if (!this.editorStore.isFocused(editorId)) return;
+    // the editor can also close or be replaced mid-post. The render claims the item
+    // itself because it can land before the session's participants have run.
+    private showEngineVersionIfFocused(editorId: string, session: object, doc: BpmnDocument): void {
+        if (!this.editorStore.claimStatusSlot("engineVersion", editorId, session)) return;
         updateStatusSlot(
             this.statusBar,
             "engineVersion",

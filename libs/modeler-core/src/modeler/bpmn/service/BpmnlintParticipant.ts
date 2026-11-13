@@ -3,7 +3,6 @@ import {
     EditorSessionParticipant,
 } from "../../../editorSession/domain/EditorSessionParticipant";
 import { NotifierPort, StatusBarPort } from "../../../kernel/port/hostPorts";
-import { StatusItemOwnership } from "../../../editorSession/domain/StatusItemOwnership";
 import { BpmnLintConfigLocator } from "./BpmnLintConfigLocator";
 import { BpmnLintConfigService } from "./BpmnLintConfigService";
 
@@ -29,7 +28,6 @@ const RELINT_DEBOUNCE_MS = 400;
  */
 export class BpmnlintParticipant implements EditorSessionParticipant {
     private readonly relintTimers = new Map<string, ReturnType<typeof setTimeout>>();
-    private readonly statusOwnership = new StatusItemOwnership();
 
     constructor(
         private readonly lintSvc: BpmnLintConfigService,
@@ -61,13 +59,13 @@ export class BpmnlintParticipant implements EditorSessionParticipant {
             }
         });
 
-        if (session.isFocused()) this.statusOwnership.claim(session.editorId);
+        session.claimStatusSlot("bpmnlint");
         session.onFocusChange((focused) => {
             if (focused) {
-                this.statusOwnership.claim(session.editorId);
+                session.claimStatusSlot("bpmnlint");
                 this.lintSvc.setBpmnlintConfig(session.editorId);
             } else {
-                this.releaseStatusItem(session.editorId);
+                this.releaseStatusItem(session);
             }
         });
 
@@ -79,7 +77,7 @@ export class BpmnlintParticipant implements EditorSessionParticipant {
                 this.relintTimers.delete(session.editorId);
             }
             watchers.forEach((watcher) => watcher.dispose());
-            this.releaseStatusItem(session.editorId);
+            this.releaseStatusItem(session);
             this.lintSvc.clearDiagnostics(session.editorId);
         });
 
@@ -108,8 +106,8 @@ export class BpmnlintParticipant implements EditorSessionParticipant {
         await armWatchers();
     }
 
-    private releaseStatusItem(editorId: string): void {
-        if (this.statusOwnership.release(editorId) === "hide") this.statusBar.hide("bpmnlint");
+    private releaseStatusItem(session: EditorSessionContext): void {
+        if (session.releaseStatusSlot("bpmnlint") === "hide") this.statusBar.hide("bpmnlint");
     }
 
     private scheduleRelint(session: EditorSessionContext): void {

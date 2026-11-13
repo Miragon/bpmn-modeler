@@ -1,7 +1,7 @@
 import type { DmnDiffView } from "@miragon/bpmn-modeler-shared";
 import {
     canStep,
-    type DiffLegendState as SharedDiffLegendState,
+    type DiffCounts,
     type DiffOrigin,
     type DiffSide,
     stepCursor,
@@ -61,10 +61,16 @@ export interface DiffPaneTransition {
     readonly viewToOpen?: ViewRequest;
 }
 
-/** What the legend over a DMN diff pane shows; a view without a changed table shows `status`. */
-export type DiffLegendState = Omit<SharedDiffLegendState, "status"> & {
+/** What the legend over a DMN diff pane shows. */
+export interface DiffLegendState {
+    /** The open view's counts; a view without a changed table shows `status` instead. */
+    readonly counts?: DiffCounts;
     readonly status?: DmnDiffStatus;
-};
+    /** Shown above the counts on compare-files panes, where the tab names both files. */
+    readonly filename?: string;
+    readonly showSwap: boolean;
+    readonly canStep: boolean;
+}
 
 export const INITIAL_DIFF_PANE_STATE: DiffPaneState = {
     imported: false,

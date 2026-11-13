@@ -21,7 +21,6 @@ export * from "./processVariables";
 export * from "./implementation";
 export * from "./referenceKind";
 export * from "./diff";
-export * from "./diffLegendView";
 export * from "./diffStepper";
 export * from "./diffVocabulary";
 export * from "./layout";

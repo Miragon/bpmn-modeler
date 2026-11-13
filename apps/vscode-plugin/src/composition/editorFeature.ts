@@ -126,11 +126,7 @@ export function register(
         messageRouter: formMessageRouter,
         participants: [
             new DocumentRenderParticipant(formService, ".form", deps.notifier),
-            new FormEngineStatusBarParticipant(
-                deps.statusBar,
-                deps.vsDocument,
-                deps.engineVersionOwnership,
-            ),
+            new FormEngineStatusBarParticipant(deps.statusBar, deps.vsDocument),
             new FormValuesParticipant(formValues),
         ],
     }).register(context);

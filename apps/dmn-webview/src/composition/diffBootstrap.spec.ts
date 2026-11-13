@@ -87,7 +87,7 @@ describe("bootstrapDiffPane", () => {
         stop();
 
         expect(viewer.destroy).toHaveBeenCalledOnce();
-        expect(document.querySelector(".diff-legend")).toBeNull();
+        expect(document.querySelector(".dmn-diff-legend")).toBeNull();
     });
 
     it("refuses a page without the canvas", () => {

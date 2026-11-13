@@ -344,10 +344,12 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
 
     /**
      * The service's only status write. Discovery and host lints are async, so focus
-     * is checked when the item is written, not when the run starts.
+     * is checked when the item is written, not when the run starts. The write claims
+     * the item itself because the webview can ask before the participant has run.
      */
     private showStatusIfFocused(editorId: string, indicator: BpmnlintIndicator): void {
-        if (this.editorStore.isFocused(editorId)) {
+        const session = this.editorStore.captureEditorSession(editorId);
+        if (session && this.editorStore.claimStatusSlot("bpmnlint", editorId, session)) {
             this.statusBar.show("bpmnlint", bpmnlintStatusView(indicator));
         }
     }

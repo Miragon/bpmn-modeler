@@ -174,13 +174,10 @@ the same `type` strings and fields, which the IntelliJ host matches.
 
 The commands the BPMN editor webview may post are a closed set, kept as a value
 so a host can iterate it: `BPMN_EDITOR_COMMAND_TYPES` in
-`libs/shared/src/lib/bpmnEditorCommands.ts`. The webview's host is a
-`BpmnWebviewHost` (`apps/bpmn-webview/src/port/hostChannel.ts`), which takes
-only those and the diff pane's commands (below): `getHostApi` returns it and
-`bootstrap` takes it. The bootstrap narrows it once more to `HostChannel`,
-which takes only the editor's list, for the editor's adapters and services. So
-neither the entry, the bootstrap nor an adapter or service it hands a channel
-can post another surface's command or a query.
+`libs/shared/src/lib/bpmnEditorCommands.ts`. The webview's `HostChannel` takes
+only those, and the bootstrap narrows its host to it once, so neither the
+bootstrap nor an adapter or service it hands that channel can post another
+surface's command or a query.
 `HostApi` declares its members as properties, not methods, because TypeScript
 compares a method's parameters bivariantly: the narrowed channel could
 otherwise be handed to a helper typed for every message. The shared
@@ -773,9 +770,7 @@ value, because the file only holds its normal form (`1` for `1.`). A template in
 an array file is selected by its place in the file, since an edit can change its
 id; a host's text can also move it, so that one is followed by id and version.
 The page's state is one `EditorPage` value in the library's domain, with pure
-transitions. A controller, `templateEditor/adapter/in/templatePage.ts`, applies
-them and renders the page, and the page's bootstrap only wires it to the view,
-the document session, the builder and the preview.
+transitions, which the page's bootstrap renders.
 
 Its page is a second entry
 of the BPMN webview bundle and parses the file itself: a host pushes the raw
@@ -876,11 +871,20 @@ version, bpmnlint, deployment) show an editor's state only if it is focused
 when the item is written. A ledger write or a
 [target change](deployment.md#targets-and-credentials) refreshes the
 deployment item for the focused editor (`refreshFocused`), not the editor it
-acted on. Each item's participant hides it on blur and close, and
-`StatusItemOwnership` decides only that hide. BPMN and Form participants share
-one engine-version owner from VS Code's composition, so a late blur or close
-from either format cannot hide the other's newly focused status. The BPMN-only
-bridge keeps a default owner. Only BPMN sessions run the deployment and lint
+acted on. Each `EditorSessionStore` owns who holds each `StatusSlot`
+(`StatusSlotOwnership`): a writer claims the slot for one exact session
+before it shows the item, and the store refuses the claim of a closed,
+replaced or unfocused session. Participants claim and release through the
+session context (`claimStatusSlot`, `releaseStatusSlot`); each hides its item
+on blur and close only while its session still owns the slot. The owner is
+the session, not its editor URI, so a late blur or close of one editor,
+another format's or a same-URI predecessor's, cannot hide the newly focused
+editor's item. No host wires an owner: BPMN and Form share the engine slot
+because they share the store, and two stores never share one. A write that
+can land before the session's participants run claims the slot itself: the
+BPMN render's engine version and the lint service's status. The first show
+never waits for a participant's claim. Element-template discovery status is
+transient and claims nothing. Only BPMN sessions run the deployment and lint
 participants, so `refreshFocused` hides the deployment item when no BPMN
 editor is focused (a DMN or Form editor, or none) instead of showing an item
 nothing would hide. The store's command target (`CommandTarget`, read as

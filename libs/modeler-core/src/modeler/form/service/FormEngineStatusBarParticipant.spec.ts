@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import { createTestHost } from "../../../testing";
-import { StatusItemOwnership } from "../../../editorSession/domain/StatusItemOwnership";
 import { EngineVersionStatusBarParticipant } from "../../bpmn/service/EngineVersionStatusBarParticipant";
 import { FormEngineStatusBarParticipant } from "./FormEngineStatusBarParticipant";
 
@@ -11,11 +10,10 @@ const BPMN =
 
 function setup() {
     const host = createTestHost();
-    const ownership = new StatusItemOwnership();
     return {
         host,
-        form: new FormEngineStatusBarParticipant(host.statusBar, host.documents, ownership),
-        bpmn: new EngineVersionStatusBarParticipant(host.statusBar, host.documents, ownership),
+        form: new FormEngineStatusBarParticipant(host.statusBar, host.documents),
+        bpmn: new EngineVersionStatusBarParticipant(host.statusBar, host.documents),
     };
 }
 
