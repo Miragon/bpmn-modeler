@@ -21,7 +21,7 @@ const proposal: ElementIdProposal = {
 
 let page: HTMLElement;
 
-function setUp(options: { directEditing?: boolean } = {}) {
+function setUp(options: { directEditing?: boolean; initiallyUnchecked?: string[] } = {}) {
     const themed = document.createElement("div");
     themed.setAttribute("data-bpmn-theme", "dark");
     const bjs = document.createElement("div");
@@ -52,6 +52,7 @@ function setUp(options: { directEditing?: boolean } = {}) {
         getSettings: () => ({ style: "typePrefix" as const, followName: false }),
         propose: vi.fn(() => [proposal]),
         rename: vi.fn(() => 1),
+        initiallyUnchecked: vi.fn(() => new Set(options.initiallyUnchecked ?? [])),
     };
     const review = new ElementIdReview(
         elementIds as unknown as ElementIdsService,
@@ -97,6 +98,15 @@ describe("ElementIdReview", () => {
         fire("commandStack.changed");
 
         expect(elementIds.propose).toHaveBeenCalledTimes(2);
+    });
+
+    it("starts with the rows the service leaves unchecked, asked once on opening", () => {
+        const { review, elementIds, fire } = setUp({ initiallyUnchecked: ["Activity_1"] });
+        act(() => review.open());
+        fire("commandStack.changed");
+
+        expect(elementIds.propose).toHaveBeenLastCalledWith("typePrefix", new Set(["Activity_1"]));
+        expect(elementIds.initiallyUnchecked).toHaveBeenCalledTimes(1);
     });
 
     it.each(["import.done", "diagram.clear", "diagram.destroy"])("closes on %s", (event) => {

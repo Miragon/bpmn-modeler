@@ -1,4 +1,5 @@
 import type { DiagramElementLike } from "./candidates";
+import { keepsIdUnlessAsked } from "./elementKinds";
 import type { ElementIdsService } from "./ElementIdsService";
 import { followsChange } from "./followName";
 
@@ -62,7 +63,11 @@ export class FollowNameBehavior {
         const { followName, style } = this.elementIds.getSettings();
         const target = (element.labelTarget as DiagramElementLike | undefined) ?? element;
         const businessObject = target.businessObject;
-        if (!followName || businessObject?.id === undefined) {
+        if (
+            !followName ||
+            businessObject?.id === undefined ||
+            keepsIdUnlessAsked(businessObject.$type)
+        ) {
             return;
         }
         const change = {

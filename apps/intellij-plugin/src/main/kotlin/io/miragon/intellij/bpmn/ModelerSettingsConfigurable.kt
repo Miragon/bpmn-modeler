@@ -145,9 +145,10 @@ class ModelerSettingsConfigurable : Configurable {
                     checkBox("IDs follow names")
                         .bindSelected({ state.elementIdsFollowName }, { state.elementIdsFollowName = it })
                         .comment(
-                            "Rename an element's ID as you change its name or type while the ID is still " +
-                                "random (<code>Activity_0x1y2z3</code>) or was generated from the old name and " +
-                                "type. IDs you typed yourself never change.",
+                            "Rename an element's ID as you change its name or type while the ID is still one " +
+                                "the modeler made (<code>Activity_0x1y2z3</code>, <code>StartEvent_1</code>) or " +
+                                "was generated from the old name and type. IDs you typed yourself and process " +
+                                "IDs never change.",
                         )
                 }
                 row {

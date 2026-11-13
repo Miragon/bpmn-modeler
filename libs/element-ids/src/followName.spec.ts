@@ -11,19 +11,35 @@ const follows = (
 ) => followsChange({ id, oldName, oldType, style });
 
 describe("followsChange", () => {
-    it.each(["Activity_0x1y2z3", "Flow_1m2n3b4", "SequenceFlow_0h21x7r", "Gateway_1q2w3e4"])(
-        "follows the random ID %s bpmn-js generated",
-        (id) => {
-            expect(follows(id, undefined)).toBe(true);
-        },
-    );
+    it.each<[string, string]>([
+        ["Activity_0x1y2z3", "bpmn:UserTask"],
+        ["Flow_1m2n3b4", "bpmn:SequenceFlow"],
+        ["SequenceFlow_0h21x7r", "bpmn:SequenceFlow"],
+        ["Gateway_1q2w3e4", "bpmn:ExclusiveGateway"],
+        ["Task_1hcentk", "bpmn:UserTask"],
+        ["Participant_0p1q2r3", "bpmn:Participant"],
+    ])("follows the random ID %s bpmn-js generated for a %s", (id, oldType) => {
+        expect(follows(id, undefined, "typePrefix", oldType)).toBe(true);
+    });
 
-    it.each(["StartEvent_1", "Task_12", "Process_1"])(
-        "follows the numbered placeholder %s",
-        (id) => {
-            expect(follows(id, "Anything")).toBe(true);
-        },
-    );
+    it.each<[string, string]>([
+        ["StartEvent_1", "bpmn:StartEvent"],
+        ["Task_12", "bpmn:ServiceTask"],
+        ["Process_1", "bpmn:Process"],
+        ["DataObjectReference_2", "bpmn:DataObjectReference"],
+    ])("follows the numbered placeholder %s on a %s", (id, oldType) => {
+        expect(follows(id, "Anything", "typePrefix", oldType)).toBe(true);
+    });
+
+    it.each<[string, string]>([
+        ["Invoice_1", "bpmn:Task"],
+        ["Invoice_1", "bpmn:DataObjectReference"],
+        ["Order_2024q1a", "bpmn:Task"],
+        ["Flow_12", "bpmn:Task"],
+        ["Activity_1", "bpmn:StartEvent"],
+    ])("leaves %s on a %s, a number after a prefix bpmn-js never gives it", (id, oldType) => {
+        expect(follows(id, undefined, "typePrefix", oldType)).toBe(false);
+    });
 
     it.each<[string, string, ElementIdStyle]>([
         ["Task_CheckStock", "Check stock", "typePrefix"],

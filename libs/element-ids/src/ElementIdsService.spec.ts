@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { ElementIdsService } from "./ElementIdsService";
 import { RENAME_ELEMENT_IDS_COMMAND, type RenameContext } from "./RenameElementIdsHandler";
-import { fakeDiagram, labelOf, shape, type FakeElement } from "./__fixtures__/diagram";
+import { fakeDiagram, labelOf, moddle, shape, type FakeElement } from "./__fixtures__/diagram";
 
 function setUp(elements: FakeElement[], extraIds: Record<string, unknown> = {}) {
     const { registry, moddle } = fakeDiagram(elements, extraIds);
@@ -79,6 +79,15 @@ describe("ElementIdsService", () => {
 
         expect(service.rename()).toBe(0);
         expect(executed).toEqual([]);
+    });
+
+    it("leaves process IDs unchecked at first, the root process's and a pool's", () => {
+        const root = shape("bpmn:Process", "Process_1", "Order fulfilment");
+        const pool = shape("bpmn:Participant", "Participant_1", "Order handling");
+        pool.businessObject.processRef = moddle("bpmn:Process", "Process_2");
+        const { service } = setUp([root, pool, shape("bpmn:Task", "Activity_1", "Check")]);
+
+        expect([...service.initiallyUnchecked()]).toEqual(["Process_1", "Process_2"]);
     });
 
     it("renames in the style the review picked rather than the setting", () => {

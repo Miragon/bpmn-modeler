@@ -838,7 +838,7 @@
                 "miragon.bpmnModeler.elementIds.followName": {
                     "type": "boolean",
                     "default": false,
-                    "markdownDescription": "Rename an element's ID as you change its name or type while the ID is still random (`Activity_0x1y2z3`) or was generated from the old name and type. IDs you typed yourself never change."
+                    "markdownDescription": "Rename an element's ID as you change its name or type while the ID is still one the modeler made for that kind of element (`Activity_0x1y2z3`, `StartEvent_1`) or was generated from the old name and type. IDs you typed yourself, such as `Invoice_1`, and process IDs never change."
                 },
                 "miragon.bpmnModeler.favouriteBpmnElements": {
                     "type": "array",

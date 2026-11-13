@@ -9,7 +9,7 @@ Turn random IDs like `Activity_0x1y2z3` into IDs that read like the element's ty
 1. Open a BPMN diagram in Design or Implement mode.
 2. Run **Miragon BPMN Modeler: Generate IDs from Names** from the Command Palette, or pick it from the **…** menu in the editor title bar.
 3. A panel opens along the bottom of the canvas. It lists every ID a name would change, grouped by kind, with the current ID struck through next to the new one. Click a row to select its element on the diagram.
-4. Untick the IDs you want to keep, and click **Apply**.
+4. Untick the IDs you want to keep, and click **Apply**. Processes start unticked: a process ID is the key that deployments, call activities and tests use, so tick its group only when you mean to change it.
 
 **Apply** renames every ticked element as one change, so one undo puts all IDs back. **Discard**, the close button and <kbd>Esc</kbd> close the panel without changing anything. The panel follows edits you make while it is open.
 
@@ -44,7 +44,7 @@ Select an element. Under its **ID** field in the properties panel, **Generate fr
 
 ## IDs that follow names
 
-With `miragon.bpmnModeler.elementIds.followName` on, an element's ID changes as you change its name, on the canvas or in the properties panel, or its type, while the ID is still random (`Activity_0x1y2z3`), a numbered placeholder (`Task_1`), or was generated from the old name and type. An ID you typed yourself never changes. One undo reverts the change and the ID together.
+With `miragon.bpmnModeler.elementIds.followName` on, an element's ID changes as you change its name, on the canvas or in the properties panel, or its type, while the ID is still one the modeler made for that kind of element, random (`Activity_0x1y2z3`) or numbered (`StartEvent_1`), or was generated from the old name and type. An ID you typed yourself, such as `Invoice_1`, never changes, and neither does a process ID. One undo reverts the change and the ID together.
 
 ## Settings
 
