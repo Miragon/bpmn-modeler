@@ -51,7 +51,7 @@ export { isEntry, roleOf } from "./roleFolders";
 export type { Role, RoleLocation } from "./roleFolders";
 export { readSourceTree } from "./sourceTree";
 export type { SourceFile, SourceTreeOptions } from "./sourceTree";
-export { findSubclassConstructions } from "./subclassConstructions";
+export { constructsClass, findSubclassConstructions } from "./subclassConstructions";
 export type { BaseClass, SubclassConstruction } from "./subclassConstructions";
 export {
     describeDependency,

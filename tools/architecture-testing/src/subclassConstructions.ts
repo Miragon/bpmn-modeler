@@ -19,11 +19,7 @@ export function findSubclassConstructions(
     isScanned: (fileName: string) => boolean,
 ): SubclassConstruction[] {
     const checker = program.getTypeChecker();
-    const baseSymbol = baseClassSymbol(program, checker, baseClass);
-    const derivesFromBase = (type: ts.Type): boolean =>
-        baseTypesOf(checker, type).some(
-            (base) => classOf(base).symbol === baseSymbol || derivesFromBase(base),
-        );
+    const derivesFromBase = derivesFrom(checker, baseClassSymbol(program, checker, baseClass));
 
     return program
         .getSourceFiles()
@@ -45,6 +41,38 @@ export function findSubclassConstructions(
                     ),
                 })),
         );
+}
+
+/** Whether a scanned file constructs the class or a subclass; a program without the class's file cannot. */
+export function constructsClass(
+    program: ts.Program,
+    constructedClass: BaseClass,
+    isScanned: (fileName: string) => boolean,
+): boolean {
+    if (program.getSourceFile(constructedClass.fileName) === undefined) {
+        return false;
+    }
+    const checker = program.getTypeChecker();
+    const classSymbol = baseClassSymbol(program, checker, constructedClass);
+    const derivesFromClass = derivesFrom(checker, classSymbol);
+    const isClassOrSubclass = (type: ts.Type): boolean =>
+        classOf(type).symbol === classSymbol || derivesFromClass(type);
+    return program
+        .getSourceFiles()
+        .filter(({ fileName }) => isScanned(fileName))
+        .some((sourceFile) =>
+            newExpressionsIn(sourceFile).some((expression) =>
+                isClassOrSubclass(checker.getTypeAtLocation(expression)),
+            ),
+        );
+}
+
+function derivesFrom(checker: ts.TypeChecker, baseSymbol: ts.Symbol): (type: ts.Type) => boolean {
+    const derives = (type: ts.Type): boolean =>
+        baseTypesOf(checker, type).some(
+            (base) => classOf(base).symbol === baseSymbol || derives(base),
+        );
+    return derives;
 }
 
 function baseClassSymbol(

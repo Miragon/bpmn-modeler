@@ -76,6 +76,17 @@ file in `src/main/kotlin` that imports `com.intellij`, so IntelliJ's dialogs,
 actions and settings page count too. A text a branch adds shows as new. It also
 lists host chrome and technical strings (CSS classes, scripts; tags and HTML
 shells count no words); judge each, and leave the host's own text where it is.
+Log and error text is not read: TypeScript logs through the `log…` members of
+the core's `LoggerPort` or `console`, Kotlin through a value declared from
+IntelliJ's `Logger.getInstance(…)` or `thisLogger()`, and a developer message
+goes in `new Error(…)`. A text handed to a logger named any other way, such as
+an object named `logger`, is reported.
+
+A generated file is marked `linguist-generated` in the root `.gitattributes`.
+`change-coupling` and `missed-partner` do not read it, and GitHub collapses it
+in a diff; a pattern that matches no tracked file fails
+`generatedFiles.spec.ts`. Without the mark, a generated file and its generator
+show as coupled pairs.
 The add-ons webview is not host code, so the fitness function does not read it:
 its chrome (tab and chip labels, empty texts, screen-reader summaries) has one
 home, `apps/add-ons-webview/src/domain/chromeTexts.ts`, and every other text
@@ -146,8 +157,9 @@ A webview posts only the commands of its surface list in `libs/shared`, and
 narrows its host channel to that list. A new webview surface registers in
 `WEBVIEW_SURFACE_COMMAND_TYPES` (`webviewSurfaces.ts`) and gets a row in each
 host's surface coverage. `tools/repo-checks/src/webviewCommands.spec.ts`
-type-checks every `apps/*-webview` program and fails on a constructed command
-that is on no list.
+type-checks every app program (`tsconfig.app.json`) that constructs
+`HostApiImpl`, whatever its directory is called, and fails on a constructed
+command that is on no list.
 
 ## Put each file in its role folder
 
