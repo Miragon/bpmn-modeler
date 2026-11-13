@@ -1,3 +1,5 @@
+import { isDeepStrictEqual } from "node:util";
+
 import { describe, expect, it } from "vitest";
 
 import { BpmnlintConfig } from "@miragon/bpmn-modeler-types";
@@ -12,7 +14,7 @@ import {
     reduceLintSession,
     UNTRACKED_LINT_SESSION,
 } from "./LintSession";
-// Spec-only relative import: no workspace may depend on both halves of the protocol.
+// modeler-core does not depend on @miragon/bpmn-modeler, so the webview half comes in by path.
 import {
     type LintTierEvent,
     type LintTierState,
@@ -20,12 +22,6 @@ import {
     reduceLintTier,
     startLintTier,
 } from "../../../../../../packages/bpmn-modeler/src/bpmnlint/lintTierMachine";
-
-/**
- * `deliver` mirrors how the host posts each core action and the webview turns
- * the message into a tier event. While a host lint or a webview request is in
- * flight the page keeps its tier by design, so only settled steps are checked.
- */
 
 function version(config: BpmnlintConfig, configPath = "/work/.bpmnlintrc"): LintConfigVersion {
     return { configPath, rawConfig: JSON.stringify(config), config };
@@ -223,6 +219,7 @@ function toWebview(protocol: Protocol, event: LintTierEvent): Protocol {
     return { ...protocol, webview: reduceLintTier(protocol.webview, event, true).state };
 }
 
+// Mirrors how BpmnLintConfigService posts each action and the webview turns the message into a tier event.
 function deliver(protocol: Protocol, action: LintAction): Protocol {
     switch (action.kind) {
         case "disable":
@@ -254,27 +251,47 @@ function deliver(protocol: Protocol, action: LintAction): Protocol {
     }
 }
 
+// While a host lint or a webview request is in flight the page keeps its tier by design.
 function isSettled(protocol: Protocol): boolean {
     return protocol.hostLintToken === undefined && protocol.unansweredRequests === 0;
 }
 
-function disagreement({ core, webview, echoedToken }: Protocol): string | undefined {
-    const coreLintsInPage = lintsInPage(core);
-    if (webviewLintsInPage(webview) !== coreLintsInPage) {
-        return `the core (${core.tier}) and the webview (${webview.tier}) disagree on who lints`;
-    }
-    if (!coreLintsInPage) return undefined;
-    const { action } = reduceLintSession(core, webviewRun(echoedToken, []));
-    return action.kind === "applyInPageFindings"
-        ? undefined
-        : `the core (${core.tier}) drops the webview's run under ${String(echoedToken)}`;
+// No row's config is ever read under this token.
+const SUPERSEDED_TOKEN = "superseded";
+
+function appliesRun(core: LintSession, configToken: string | undefined): boolean {
+    return (
+        reduceLintSession(core, webviewRun(configToken, [])).action.kind === "applyInPageFindings"
+    );
 }
 
-function settledView({ core, webview, echoedToken }: Protocol): SettledView {
+// The bridge echoes the token of the last push, which a page that kept an old config does not lint with.
+function disagreement({ core, webview, echoedToken }: Protocol): string | undefined {
+    if (webviewLintsInPage(webview) !== lintsInPage(core)) {
+        return `the core (${core.tier}) and the webview (${webview.tier}) disagree on who lints`;
+    }
+    if (!lintsInPage(core)) return undefined;
+    const expected = core.tier === "default" ? undefined : core.negotiation;
+    if (webview.configToken !== expected?.token) {
+        return `the webview lints ${String(webview.configToken)} but the core expects ${String(expected?.token)}`;
+    }
+    if (!isDeepStrictEqual(webview.hostConfig, expected?.config)) {
+        return `the webview lints another config than the core's ${String(expected?.token)}`;
+    }
+    if (!appliesRun(core, echoedToken)) {
+        return `the core (${core.tier}) drops the webview's run under ${String(echoedToken)}`;
+    }
+    if (appliesRun(core, SUPERSEDED_TOKEN)) {
+        return `the core (${core.tier}) applies a run under a token the webview does not lint with`;
+    }
+    return undefined;
+}
+
+function settledView({ core, webview }: Protocol): SettledView {
     return {
         core: core.tier,
         webview: webview.tier,
-        liveToken: webviewLintsInPage(webview) ? echoedToken : undefined,
+        liveToken: webviewLintsInPage(webview) ? webview.configToken : undefined,
     };
 }
 
