@@ -488,7 +488,8 @@ module that imports it. The host channel's type and the state it persists are
 `port/`, so the UI and the host adapter share them without importing each
 other. A document session that keeps the modeler in sync with the host
 through injected handles is `service/` (the DMN webview's
-`DmnDocumentSession`, the BPMN webview's `BpmnDocumentSession`).
+`DmnDocumentSession`, the BPMN webview's `BpmnDocumentSession`, the Form
+webview's `FormDocumentSession`).
 
 The BPMN webview splits its adapters on the live surface by direction: the
 host's requests on the surface, the mode strip and the binding of a surface's
@@ -1258,9 +1259,11 @@ its way to the page without a revision check; only a flush through the core's
 On the webview side the BPMN and DMN webviews share `WebviewDocumentSync` in
 `libs/shared` (host revisions, the serialized import queue, debounced host
 import and outbound sync, the flush protocol); BPMN adds its engine reload and
-deferred actions on top. The Form webview shares the revisions, flush lock and
-serialized import, but keeps posting each change at once instead of
-debouncing: its JSON export is synchronous and cheap.
+deferred actions on top. The Form webview's `FormDocumentSession` shares the
+revisions, flush lock and serialized import, but keeps posting each change at
+once instead of debouncing: its JSON export is synchronous and cheap. The
+session holds the document; `FormEditorApp` keeps the modes, the error box and
+the preview, and learns from each load whether it imported or failed.
 
 The BPMN webview ships an `index.js` entry, one `index.css` and lazily loaded
 `chunks/**` that resolve relative to the entry (`base: "./"`), so every host
