@@ -16,6 +16,7 @@ import {
     type CoreScope,
     type Declared,
     isAdapterSource,
+    isLiteralAdapterSource,
     isPortSource,
     isProgramSource,
     isSpecSource,
@@ -64,6 +65,7 @@ export class EngineContractSuiteSources implements ContractSuiteSources {
             {
                 isPortFile: accepts((path) => isPortSource(path, scope)),
                 isAdapterFile: accepts((path) => isAdapterSource(path, scope)),
+                isLiteralAdapterFile: accepts((path) => isLiteralAdapterSource(path, scope)),
                 isSpecFile: accepts(isSpecSource),
                 helperModule: join(root, scope.helperModule),
             },

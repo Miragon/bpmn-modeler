@@ -226,9 +226,225 @@ describeFoo("literal", async () => ({ foo: { read: async () => "literal" } }));
     "/repo/script.ts": "const local = 1;\n",
 };
 
+const CONSUMER = "/repo/core/service/consumer.ts";
+const HOST_PREFERENCES = "/repo/host/HostPreferences.ts";
+const STRUCTURAL = "/repo/host/structural.ts";
+const WIRING = "/repo/host/composition/wiring.ts";
+const STRUCTURAL_SPEC = "/repo/host/structural.spec.ts";
+
+const consumerFromHost = "../core/service/consumer";
+const consumerFromWiring = "../../core/service/consumer";
+const portsFromWiring = "../../core/port/ports";
+const corePortsFromService = "../port/ports";
+
+const STRUCTURAL_FILES: Readonly<Record<string, string>> = {
+    [PORTS]: FILES[PORTS],
+    [VALUES]: FILES[VALUES],
+    [KIT]: FILES[KIT],
+    [MORE_KIT]: FILES[MORE_KIT],
+    [RE_EXPORTED_KIT]: FILES[RE_EXPORTED_KIT],
+    [CONSUMER]: `import type { Foo, Renderer } from "${corePortsFromService}";
+
+export function consume(foo: Foo): void { void foo; }
+export function maybeConsume(foo?: Foo): void { void foo; }
+export function consumeBound<F extends Foo>(foo: F): void { void foo; }
+export function render(renderer: Renderer): void { void renderer; }
+export function dispose(disposable: { dispose(): void }): void { void disposable; }
+export class Holder { read(): string { return "held"; } }
+export function keep(holder: Holder): void { void holder; }
+export function either(target: Foo | Renderer): void { void target; }
+export function register(create: new () => Foo): void { void create; }
+
+export interface Wiring {
+    readonly foo?: Foo;
+    readonly renderers: readonly Renderer[];
+}
+`,
+    [HOST_PREFERENCES]: `export interface HostPreferences {
+    read(): Promise<string>;
+    extra(): boolean;
+}
+
+export interface Mirror {
+    read(): Promise<string>;
+    extra(): boolean;
+}
+
+export interface Unrelated {
+    read(): Promise<string>;
+}
+`,
+    [STRUCTURAL]: `import type { Foo } from "${corePorts}";
+import { Holder } from "${consumerFromHost}";
+import type { HostPreferences, Mirror, Unrelated } from "./HostPreferences";
+
+export class ArgumentFoo { async read(): Promise<string> { return "argument"; } }
+export class AssignedFoo { async read(): Promise<string> { return "assigned"; } }
+export class ReturnedFoo { async read(): Promise<string> { return "returned"; } }
+export class FieldFoo { async read(): Promise<string> { return "field"; } }
+export class BoundFoo { async read(): Promise<string> { return "bound"; } }
+export class OptionalFoo { async read(): Promise<string> { return "optional"; } }
+export class ShorthandFoo { async read(): Promise<string> { return "shorthand"; } }
+export class ArrayRenderer {
+    show(): void { return; }
+    async hide(): Promise<void> { return; }
+    flush(): void { return; }
+    async settle(): Promise<void> { return; }
+}
+export class BothWays implements Foo {
+    async read(): Promise<string> { return "both"; }
+    show(): void { return; }
+    async hide(): Promise<void> { return; }
+    flush(): void { return; }
+    async settle(): Promise<void> { return; }
+}
+export class HostPreferencesClass implements HostPreferences {
+    async read(): Promise<string> { return "host class"; }
+    extra(): boolean { return true; }
+}
+export class DefaultFoo { async read(): Promise<string> { return "default"; } }
+export class ConditionalFoo { async read(): Promise<string> { return "conditional"; } }
+export class ExtendsArgumentFoo extends ArgumentFoo {}
+export class NeverHandedOver { async read(): Promise<string> { return "never"; } }
+export class DisposableThing { dispose(): void { return; } }
+export class SpecialHolder extends Holder {}
+export class OnlyFoo { async read(): Promise<string> { return "only"; } }
+export class LaterFoo { async read(): Promise<string> { return "later"; } }
+export class ConstructedFoo { async read(): Promise<string> { return "constructed"; } }
+
+export const typedFoo: Foo = { read: async () => "typed" };
+export const untypedFoo = { read: async () => "untyped" };
+export const satisfyingFoo = { read: async () => "satisfying" } satisfies Foo;
+export const hostPreferences: HostPreferences = { read: async () => "host", extra: () => true };
+export const mirrored: Mirror = { read: async () => "mirror", extra: () => false };
+export const unrelated: Unrelated = { read: async () => "unrelated" };
+export function createFoo(): Foo {
+    return { read: async () => "created" };
+}
+export const arrowFoo = (): Foo => ({ read: async () => "arrow" });
+`,
+    [WIRING]: `import type { Foo } from "${portsFromWiring}";
+import {
+    consume,
+    consumeBound,
+    dispose,
+    either,
+    keep,
+    maybeConsume,
+    register,
+    render,
+    type Wiring,
+} from "${consumerFromWiring}";
+import type { HostPreferences, Mirror } from "../HostPreferences";
+import {
+    ArgumentFoo,
+    ArrayRenderer,
+    AssignedFoo,
+    BothWays,
+    BoundFoo,
+    ConditionalFoo,
+    ConstructedFoo,
+    DefaultFoo,
+    DisposableThing,
+    FieldFoo,
+    LaterFoo,
+    OnlyFoo,
+    OptionalFoo,
+    ReturnedFoo,
+    ShorthandFoo,
+    SpecialHolder,
+    untypedFoo,
+} from "../structural";
+
+consume(new ArgumentFoo());
+consume(untypedFoo);
+maybeConsume(new OptionalFoo());
+consumeBound(new BoundFoo());
+render(new BothWays());
+dispose(new DisposableThing());
+keep(new SpecialHolder());
+consume({ read: async () => "inline" });
+
+let assigned: Foo | undefined;
+assigned = new AssignedFoo();
+either(new OnlyFoo());
+register(ConstructedFoo);
+let later: Foo | undefined;
+later ??= new LaterFoo();
+
+export function first(): void {
+    const settings: Foo = { read: async () => "first" };
+    consume(settings);
+}
+
+export function second(): void {
+    const settings: Foo = { read: async () => "second" };
+    consume(settings);
+    function nested(): Foo {
+        return { read: async () => "nested" };
+    }
+    consume(nested());
+}
+
+export function provide(): Foo {
+    return new ReturnedFoo();
+}
+
+export class Composer {
+    private readonly foo: Foo = new FieldFoo();
+
+    build(): Foo {
+        return { read: async () => "method" };
+    }
+}
+
+export function withDefault(given: Foo = new DefaultFoo()): Foo {
+    return given;
+}
+
+export const chosen: Foo = Math.random() > 0.5 ? new ArgumentFoo() : new ConditionalFoo();
+export const mapped = [1].map((): Foo => ({ read: async () => "callback" }));
+export const { read: destructured }: Foo = { read: async () => "destructured" };
+export const blockArrow = (): Foo => {
+    return new ReturnedFoo();
+};
+export const bare = new Composer;
+let counter = 0;
+counter += 1;
+
+export function nothing(): void {
+    return;
+}
+
+const foo = new ShorthandFoo();
+export const wiring: Wiring = { foo, renderers: [new ArrayRenderer()] };
+
+export function hostAsFoo(preferences: HostPreferences): void {
+    consume(preferences);
+}
+
+export function mirror(preferences: HostPreferences): Mirror {
+    return preferences;
+}
+
+export function back(mirrored: Mirror): HostPreferences {
+    return mirrored;
+}
+`,
+    [STRUCTURAL_SPEC]: `import { describeFoo } from "${kit}";
+import { consume } from "${consumerFromHost}";
+import { ArgumentFoo, NeverHandedOver, typedFoo } from "./structural";
+
+consume(new NeverHandedOver());
+describeFoo("argument", async () => ({ foo: new ArgumentFoo() }));
+describeFoo("typed", async () => ({ foo: typedFoo }));
+`,
+};
+
 const SCOPE: ContractSuiteScope = {
     isPortFile: (fileName) => fileName.includes("/port/"),
     isAdapterFile: (fileName) => !fileName.includes(".spec."),
+    isLiteralAdapterFile: (fileName) => !fileName.includes(".spec."),
     isSpecFile: (fileName) => fileName.includes(".spec."),
     helperModule: KIT,
 };
@@ -276,48 +492,51 @@ const BOX = { fileName: PORTS, name: "Box" };
 const MERGED = { fileName: PORTS, name: "Merged" };
 const DESCRIBE_FOO = { fileName: KIT, name: "describeFoo" };
 const RENDERER_MEMBERS = [
-    { name: "show", returnsNothing: true },
-    { name: "hide", returnsNothing: true },
-    { name: "flush", returnsNothing: true },
-    { name: "settle", returnsNothing: true },
-    { name: "reload", returnsNothing: true },
+    { name: "show", returnsNothing: true, callable: true },
+    { name: "hide", returnsNothing: true, callable: true },
+    { name: "flush", returnsNothing: true, callable: true },
+    { name: "settle", returnsNothing: true, callable: true },
+    { name: "reload", returnsNothing: true, callable: true },
 ];
 
 describe("findContractSuites", () => {
-    it("lists each interface of a port file once, with whether each member returns nothing", () => {
+    it("lists each interface of a port file once, with whether each member can be called and returns nothing", () => {
         expect(suites.ports).toEqual([
-            { ...FOO, line: 3, members: [{ name: "read", returnsNothing: false }] },
+            { ...FOO, line: 3, members: [{ name: "read", returnsNothing: false, callable: true }] },
             { ...RENDERER, line: 7, members: RENDERER_MEMBERS },
             {
                 fileName: PORTS,
                 name: "Reader",
                 line: 15,
                 members: [
-                    { name: "id", returnsNothing: false },
-                    { name: "withProgress", returnsNothing: false },
-                    { name: "pick", returnsNothing: false },
+                    { name: "id", returnsNothing: false, callable: false },
+                    { name: "withProgress", returnsNothing: false, callable: true },
+                    { name: "pick", returnsNothing: false, callable: true },
                 ],
             },
             {
                 ...HANDLE,
                 line: 22,
-                members: [{ name: "isActive", returnsNothing: false }, ...RENDERER_MEMBERS],
+                members: [
+                    { name: "isActive", returnsNothing: false, callable: true },
+                    ...RENDERER_MEMBERS,
+                ],
             },
             {
                 fileName: PORTS,
                 name: "Merged",
                 line: 26,
                 members: [
-                    { name: "first", returnsNothing: true },
-                    { name: "second", returnsNothing: false },
+                    { name: "first", returnsNothing: true, callable: true },
+                    { name: "second", returnsNothing: false, callable: true },
                 ],
             },
             {
                 ...BOX,
                 line: 34,
                 members: [
-                    { name: "get", returnsNothing: false },
-                    { name: "odd", returnsNothing: false },
+                    { name: "get", returnsNothing: false, callable: true },
+                    { name: "odd", returnsNothing: false, callable: true },
                 ],
             },
         ]);
@@ -371,5 +590,73 @@ describe("findContractSuites", () => {
         expect(() =>
             findContractSuites(programOf(FILES), { ...SCOPE, helperModule: "/repo/moved.ts" }),
         ).toThrow("/repo/moved.ts is not in the program");
+    });
+
+    describe("an adapter without an implements clause", () => {
+        const structural = findContractSuites(programOf(STRUCTURAL_FILES), SCOPE);
+        const adapter = (name: string, line: number, ports = [FOO]) => ({
+            fileName: STRUCTURAL,
+            name,
+            line,
+            ports,
+        });
+
+        // BoundFoo meets a type parameter bounded by the port, which the checker infers as the class itself.
+        it("lists a named class a production file hands over where a port is expected, also through a host interface, a union part it meets, a compound assignment or as its constructor", () => {
+            expect(structural.adapters.filter(({ name }) => /^[A-Z]/.test(name))).toEqual([
+                adapter("ArgumentFoo", 5),
+                adapter("AssignedFoo", 6),
+                adapter("ReturnedFoo", 7),
+                adapter("FieldFoo", 8),
+                adapter("OptionalFoo", 10),
+                adapter("ShorthandFoo", 11),
+                adapter("ArrayRenderer", 12, [RENDERER]),
+                adapter("BothWays", 18, [FOO, RENDERER]),
+                adapter("HostPreferencesClass", 25),
+                adapter("DefaultFoo", 29),
+                adapter("ConditionalFoo", 30),
+                adapter("OnlyFoo", 35),
+                adapter("LaterFoo", 36),
+                adapter("ConstructedFoo", 37),
+            ]);
+        });
+
+        it("lists an object literal by the module-scope variable or function that names it, not by a local one", () => {
+            expect(structural.adapters.filter(({ name }) => /^[a-z]/.test(name))).toEqual([
+                adapter("typedFoo", 39),
+                adapter("untypedFoo", 40),
+                adapter("satisfyingFoo", 41),
+                adapter("hostPreferences", 42),
+                adapter("mirrored", 43),
+                adapter("createFoo", 45),
+                adapter("arrowFoo", 48),
+            ]);
+        });
+
+        it("lists no object literal in a file the scope keeps literals out of, but still follows its handovers", () => {
+            const classesOnly = findContractSuites(programOf(STRUCTURAL_FILES), {
+                ...SCOPE,
+                isLiteralAdapterFile: (fileName) => fileName !== STRUCTURAL,
+            });
+
+            expect(classesOnly.adapters.map(({ name }) => name)).toEqual(
+                structural.adapters
+                    .filter(({ name }) => /^[A-Z]/.test(name))
+                    .map(({ name }) => name),
+            );
+        });
+
+        it("covers an object literal adapter a spec imports as a value, and ignores what a spec hands over", () => {
+            expect(structural.specs).toEqual([
+                {
+                    fileName: STRUCTURAL_SPEC,
+                    adapters: [
+                        { fileName: STRUCTURAL, name: "ArgumentFoo" },
+                        { fileName: STRUCTURAL, name: "typedFoo" },
+                    ],
+                    helpers: [DESCRIBE_FOO],
+                },
+            ]);
+        });
     });
 });

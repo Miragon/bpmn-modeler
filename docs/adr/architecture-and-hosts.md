@@ -573,7 +573,7 @@ IntelliJ's application and project stores) and VS Code's reload hint; the
 bridge's workspace-root registration and rendering on `document/didChange`,
 because the host owns the document revision there. Host classes depend on the
 core ports, not on concrete adapters, so the in-memory test kit fits every one
-of them. Once a second class implements a port the core reads back from, the
+of them. Once a second adapter meets a port the core reads back from, the
 port has one contract suite in the test kit that every adapter runs, the
 in-memory fake included, as `describeWorkspaceContract` runs against
 `InMemoryWorkspace`, `NodeWorkspace` and `VsCodeWorkspace`; a port that only

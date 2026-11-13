@@ -37,6 +37,7 @@ interface PortMember {
     readonly name: string;
     /** Every signature returns `void` or a promise of it, so the core reads nothing back. */
     readonly returnsNothing: boolean;
+    readonly callable: boolean;
 }
 
 export interface Port extends Declared {
@@ -159,6 +160,11 @@ export function isAdapterSource(path: string, scope: CoreScope): boolean {
     return inHexagonalWorkspace(path, scope) && isProductionSource(path);
 }
 
+// In the core, a literal typed by its own port was in every trial case a default or a kit stub that drops the port's behaviour by design.
+export function isLiteralAdapterSource(path: string, scope: CoreScope): boolean {
+    return isAdapterSource(path, scope) && !path.startsWith(scope.coreSourceRoot);
+}
+
 function idOf({ path, name }: Declared): string {
     return `${path}#${name}`;
 }
@@ -169,6 +175,11 @@ function sameDeclaration(left: Declared): (right: Declared) => boolean {
 
 function isRenderOnly({ members }: Port): boolean {
     return members.every(({ returnsNothing }) => returnsNothing);
+}
+
+// A literal typed by such an interface is a value passed through a port, not an implementation of one.
+function holdsDataOnly({ members }: Port): boolean {
+    return members.length > 0 && members.every(({ callable }) => !callable);
 }
 
 function code(name: string): string {
@@ -257,7 +268,7 @@ function compareRisk(left: PortSuites, right: PortSuites): number {
 export function contractSuiteFindings(inventory: ContractSuiteInventory): Finding[] {
     const ranked = inventory.ports
         .map((port) => suitesOf(port, inventory))
-        .filter(({ adapters }) => adapters.length > 0)
+        .filter(({ port, adapters }) => adapters.length > 0 && !holdsDataOnly(port))
         .sort(compareRisk);
     return sortFindings(
         ranked.flatMap((suites, index) => {

@@ -11,6 +11,7 @@ import {
     coreScopeOf,
     type Declared,
     isAdapterSource,
+    isLiteralAdapterSource,
     isPortSource,
     isProductionSource,
     isProgramSource,
@@ -27,11 +28,15 @@ const SCOPE: CoreScope = {
 };
 const PORTS = "libs/modeler-core/src/kernel/port/hostPorts.ts";
 
-function port(name: string, ...members: [string, boolean][]): Port {
+function port(name: string, ...members: [string, boolean, boolean?][]): Port {
     return {
         path: PORTS,
         name,
-        members: members.map(([member, returnsNothing]) => ({ name: member, returnsNothing })),
+        members: members.map(([member, returnsNothing, callable = true]) => ({
+            name: member,
+            returnsNothing,
+            callable,
+        })),
     };
 }
 
@@ -199,6 +204,53 @@ describe("contractSuiteFindings", () => {
                 (finding) => finding.group,
             ),
         ).toEqual(statusBars.map(() => group));
+    });
+
+    it("lists nothing for a port whose members are all values: it holds data, and a literal of it is no adapter", () => {
+        const request = port("ReviewRequest", ["prompt", false, false], ["ids", false, false]);
+
+        expect(
+            contractSuiteFindings({
+                ports: [request],
+                adapters: [
+                    adapter("a/request.ts", "request", request),
+                    adapter("b/r.ts", "r", request),
+                ],
+                helpers: [],
+                specs: [],
+            }),
+        ).toEqual([]);
+    });
+
+    describe("a core-local implementer counts like a host adapter", () => {
+        const edits = port("FormTextEditsPort", ["edit", false]);
+        const coreLocal = adapter(
+            "libs/modeler-core/src/modeler/form/adapter/out/JsonEdits.ts",
+            "JsonEdits",
+            edits,
+        );
+
+        it.each([
+            { case: "alone, it is set aside", others: [], group: "one-adapter" },
+            {
+                case: "next to a host adapter, both are listed",
+                others: [adapter("apps/x/src/adapter/out/HostEdits.ts", "HostEdits", edits)],
+                group: "no-suite",
+            },
+            {
+                case: "next to a second core-local implementation, both are listed",
+                others: [adapter("libs/modeler-core/src/x/service/Edits.ts", "Edits", edits)],
+                group: "no-suite",
+            },
+        ])("$case", ({ others, group }) => {
+            const adapters = [coreLocal, ...others];
+
+            expect(
+                contractSuiteFindings({ ports: [edits], adapters, helpers: [], specs: [] }).map(
+                    (finding) => finding.group,
+                ),
+            ).toEqual(adapters.map(() => group));
+        });
     });
 
     it("lists nothing for a port no class implements", () => {
@@ -376,6 +428,16 @@ describe("the source kinds", () => {
         ["apps/modeler-bridge/src/kernel/adapter/out/NodeWorkspace.spec.ts", false],
     ])("an adapter may be declared in %s: %s", (path, accepted) => {
         expect(isAdapterSource(path, SCOPE)).toBe(accepted);
+    });
+
+    it.each([
+        ["apps/modeler-bridge/src/composition/wiring.ts", true],
+        ["libs/modeler-core/src/kernel/adapter/out/TrustedWorkspace.ts", false],
+        ["libs/modeler-core/src/testing/fakeHasher.ts", false],
+        ["apps/flat/src/flatWorkspace.ts", false],
+        ["apps/modeler-bridge/src/composition/wiring.spec.ts", false],
+    ])("an object literal adapter may be declared in %s: %s", (path, accepted) => {
+        expect(isLiteralAdapterSource(path, SCOPE)).toBe(accepted);
     });
 
     it.each([

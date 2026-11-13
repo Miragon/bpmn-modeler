@@ -3,8 +3,13 @@ import * as ts from "typescript";
 export interface ContractSuiteScope {
     /** A port is an interface declared at the top level of a file this accepts. */
     readonly isPortFile: (fileName: string) => boolean;
-    /** An adapter is a named class in a file this accepts whose `implements` clause reaches a port. */
+    /**
+     * An adapter is a named class in a file this accepts that reaches a port: by its `implements`
+     * clause, or because such a file hands it over where the port is expected.
+     */
     readonly isAdapterFile: (fileName: string) => boolean;
+    /** An adapter file this accepts may also hold an object literal adapter, named by its variable or function. */
+    readonly isLiteralAdapterFile: (fileName: string) => boolean;
     readonly isSpecFile: (fileName: string) => boolean;
     /** The module whose exported functions are the contract helpers. */
     readonly helperModule: string;
@@ -20,6 +25,8 @@ export interface PortMember {
     readonly name: string;
     /** Every call signature returns `void` or a promise of it; a property that is no function returns a value. */
     readonly returnsNothing: boolean;
+    /** A method, or a property typed by a function. */
+    readonly callable: boolean;
 }
 
 export interface PortDeclaration extends DeclarationName {
@@ -30,9 +37,18 @@ export interface PortDeclaration extends DeclarationName {
 
 export interface PortAdapter extends DeclarationName {
     readonly line: number;
-    /** Through the interfaces its implemented interfaces extend, and the parts of an implemented intersection. */
+    /** Through the interfaces its implemented or expected interfaces extend, the parts of an intersection, and the ports an interface it meets is handed over as. */
     readonly ports: readonly DeclarationName[];
 }
+
+/** Every type a production file expects where it hands over a class, an interface or a named object literal, by that declaration's symbol. */
+interface Handovers {
+    readonly expected: ReadonlyMap<ts.Symbol, readonly ts.Type[]>;
+    /** The variables and functions that name a handed-over object literal. */
+    readonly literalOwners: ReadonlySet<ts.Symbol>;
+}
+
+const NO_HANDOVERS: Handovers = { expected: new Map(), literalOwners: new Set() };
 
 export interface ContractHelper extends DeclarationName {
     /** The ports a parameter produces: a factory returning the port, or returning an object one of whose properties holds it; a type parameter counts as its constraint. */
@@ -69,10 +85,17 @@ export function findContractSuites(program: ts.Program, scope: ContractSuiteScop
             }
         }
     }
+    const adapterFiles = sourceFiles.filter(({ fileName }) => scope.isAdapterFile(fileName));
+    const handovers = reader.handoversIn(adapterFiles);
     const adapters = new Map<ts.Symbol, PortAdapter>(
-        sourceFiles
-            .filter(({ fileName }) => scope.isAdapterFile(fileName))
-            .flatMap((sourceFile) => reader.adaptersIn(sourceFile, ports)),
+        adapterFiles.flatMap((sourceFile) =>
+            reader.adaptersIn(
+                sourceFile,
+                ports,
+                handovers,
+                scope.isLiteralAdapterFile(sourceFile.fileName),
+            ),
+        ),
     );
     const helpers = reader.helpersExportedBy(helperModule, ports);
     return {
@@ -93,10 +116,18 @@ class ContractSuiteReader {
             const symbol = this.checker.getSymbolAtLocation(declaration.name) as ts.Symbol;
             const members = this.checker
                 .getPropertiesOfType(this.checker.getDeclaredTypeOfSymbol(symbol))
-                .map((member) => ({
-                    name: member.name,
-                    returnsNothing: this.returnsNothing(member),
-                }));
+                .map((member) => {
+                    const signatures = this.callSignaturesOf(member);
+                    return {
+                        name: member.name,
+                        returnsNothing:
+                            signatures.length > 0 &&
+                            signatures.every((signature) =>
+                                isVoid(this.awaited(signature.getReturnType())),
+                            ),
+                        callable: signatures.length > 0,
+                    };
+                });
             return [
                 symbol,
                 {
@@ -109,26 +140,60 @@ class ContractSuiteReader {
         });
     }
 
+    handoversIn(sourceFiles: readonly ts.SourceFile[]): Handovers {
+        const expected = new Map<ts.Symbol, ts.Type[]>();
+        const literalOwners = new Set<ts.Symbol>();
+        for (const expression of sourceFiles.flatMap(handedOverExpressions)) {
+            const expectedType = this.checker.getContextualType(expression);
+            const handed = expectedType === undefined ? undefined : this.handedOver(expression);
+            if (expectedType === undefined || handed === undefined) {
+                continue;
+            }
+            if (handed.isLiteral) {
+                literalOwners.add(handed.symbol);
+            }
+            const met = this.expectedTypesMet(handed.type, expectedType);
+            const known = expected.get(handed.symbol);
+            if (known === undefined) {
+                expected.set(handed.symbol, met);
+            } else {
+                known.push(...met);
+            }
+        }
+        return { expected, literalOwners };
+    }
+
     adaptersIn(
         sourceFile: ts.SourceFile,
         ports: ReadonlyMap<ts.Symbol, PortDeclaration>,
+        handovers: Handovers,
+        acceptsLiterals: boolean,
     ): [ts.Symbol, PortAdapter][] {
-        return namedImplementingClasses(sourceFile).flatMap((declaration) => {
-            const implemented = implementedTypes(declaration).flatMap((expression) =>
-                this.portsReachedBy(this.checker.getTypeAtLocation(expression), ports),
-            );
-            if (implemented.length === 0) {
+        return adapterCandidates(sourceFile).flatMap(({ declaration, name, implemented }) => {
+            const symbol = this.checker.getSymbolAtLocation(name) as ts.Symbol;
+            const isLiteralOwner = acceptsLiterals && handovers.literalOwners.has(symbol);
+            if (!ts.isClassLike(declaration) && !isLiteralOwner) {
                 return [];
             }
-            const symbol = this.checker.getSymbolAtLocation(declaration.name) as ts.Symbol;
+            const reached = this.portsReachedFrom(
+                [
+                    ...implemented.map((expression) => this.checker.getTypeAtLocation(expression)),
+                    ...(handovers.expected.get(symbol) ?? []),
+                ],
+                ports,
+                handovers,
+            );
+            if (reached.length === 0) {
+                return [];
+            }
             return [
                 [
                     symbol,
                     {
                         fileName: sourceFile.fileName,
-                        name: declaration.name.text,
+                        name: name.text,
                         line: lineOf(sourceFile, declaration),
-                        ports: [...new Set(implemented)].map(nameOf),
+                        ports: reached.map(nameOf),
                     },
                 ],
             ];
@@ -192,14 +257,10 @@ class ContractSuiteReader {
         ];
     }
 
-    private returnsNothing(member: ts.Symbol): boolean {
-        const signatures = this.checker
+    private callSignaturesOf(member: ts.Symbol): readonly ts.Signature[] {
+        return this.checker
             .getNonNullableType(this.checker.getTypeOfSymbol(member))
             .getCallSignatures();
-        return (
-            signatures.length > 0 &&
-            signatures.every((signature) => isVoid(this.awaited(signature.getReturnType())))
-        );
     }
 
     private producedPorts(
@@ -220,25 +281,87 @@ class ContractSuiteReader {
                         ),
                     ),
             ])
-            .flatMap((type) => this.portsReachedBy(type, ports));
+            .flatMap((type) => this.portsReachedFrom([type], ports, NO_HANDOVERS));
     }
 
-    private portsReachedBy(
-        type: ts.Type,
+    /** A class reached here is not followed further: what a class is handed over as says nothing about the values typed by it. */
+    private portsReachedFrom(
+        start: readonly ts.Type[],
         ports: ReadonlyMap<ts.Symbol, PortDeclaration>,
+        { expected }: Handovers,
     ): PortDeclaration[] {
+        const visited = new Set<ts.Symbol>();
+        const reached: PortDeclaration[] = [];
+        const pending = start.flatMap((type) => this.parts(type));
+        for (let type = pending.shift(); type !== undefined; type = pending.shift()) {
+            for (const symbol of this.declaredTypes(type)) {
+                if (visited.has(symbol)) {
+                    continue;
+                }
+                visited.add(symbol);
+                const port = ports.get(symbol);
+                if (port !== undefined) {
+                    reached.push(port);
+                }
+                if ((symbol.flags & ts.SymbolFlags.Interface) !== 0) {
+                    pending.push(
+                        ...(expected.get(symbol) ?? []).flatMap((next) => this.parts(next)),
+                    );
+                }
+            }
+        }
+        return reached;
+    }
+
+    /** A type parameter stands for its constraint, and a union or an intersection for each part. */
+    private parts(type: ts.Type): ts.Type[] {
         // A flag test, as the type guard isTypeParameter() narrows every other type to never.
         if ((type.flags & ts.TypeFlags.TypeParameter) !== 0) {
             const constraint = this.checker.getBaseConstraintOfType(type);
-            return constraint === undefined ? [] : this.portsReachedBy(constraint, ports);
+            return constraint === undefined ? [] : this.parts(constraint);
         }
-        if (type.isIntersection()) {
-            return type.types.flatMap((part) => this.portsReachedBy(part, ports));
+        if (type.isUnionOrIntersection()) {
+            return type.types.flatMap((part) => this.parts(part));
         }
-        return [...this.declaredTypes(type)].flatMap((symbol) => {
-            const port = ports.get(symbol);
-            return port === undefined ? [] : [port];
-        });
+        return [type];
+    }
+
+    /**
+     * Only the parts of a union the handed type meets, so a class passed as `A | B` meets only the
+     * ports it fits; a class handed over as its constructor meets what the construct signature returns.
+     */
+    private expectedTypesMet(handed: ts.Type, expected: ts.Type): ts.Type[] {
+        const met = constituents(expected).filter((part) =>
+            this.checker.isTypeAssignableTo(handed, part),
+        );
+        return handed.getConstructSignatures().length === 0
+            ? met
+            : met.flatMap((part) =>
+                  part.getConstructSignatures().map((signature) => signature.getReturnType()),
+              );
+    }
+
+    /** What production code hands over, as the declaration whose symbol the expected type is recorded under. */
+    private handedOver(
+        expression: ts.Expression,
+    ):
+        | { readonly symbol: ts.Symbol; readonly type: ts.Type; readonly isLiteral: boolean }
+        | undefined {
+        const type = this.checker.getNonNullableType(this.checker.getTypeAtLocation(expression));
+        const symbol = (isTypeReference(type) ? type.target : type).getSymbol();
+        if (symbol === undefined) {
+            return undefined;
+        }
+        if ((symbol.flags & (ts.SymbolFlags.Class | ts.SymbolFlags.Interface)) !== 0) {
+            return { symbol, type, isLiteral: false };
+        }
+        const literal = symbol.declarations?.find(ts.isObjectLiteralExpression);
+        const owner = literal === undefined ? undefined : literalOwnerName(literal);
+        const ownerSymbol =
+            owner === undefined ? undefined : this.checker.getSymbolAtLocation(owner);
+        return ownerSymbol === undefined
+            ? undefined
+            : { symbol: ownerSymbol, type, isLiteral: true };
     }
 
     /** The type's own symbol and those of every interface or class it extends. */
@@ -297,18 +420,123 @@ function isTypeReference(type: ts.Type): type is ts.TypeReference {
     return isObjectType(type) && (type.objectFlags & ts.ObjectFlags.Reference) !== 0;
 }
 
-type NamedClass = ts.ClassLikeDeclaration & { readonly name: ts.Identifier };
+interface AdapterCandidate {
+    readonly declaration: ts.ClassLikeDeclaration | ts.VariableDeclaration | ts.FunctionDeclaration;
+    readonly name: ts.Identifier;
+    readonly implemented: readonly ts.ExpressionWithTypeArguments[];
+}
 
-function namedImplementingClasses(sourceFile: ts.SourceFile): NamedClass[] {
-    const classes: NamedClass[] = [];
+/**
+ * Named classes, and the module-scope variables and functions that may name an object literal, in
+ * source order. A local name is left out: no spec can import it, and two may share it in one file.
+ */
+function adapterCandidates(sourceFile: ts.SourceFile): AdapterCandidate[] {
+    const candidates: AdapterCandidate[] = [];
     const visit = (node: ts.Node): void => {
-        if (ts.isClassLike(node) && node.name !== undefined && implementedTypes(node).length > 0) {
-            classes.push(node as NamedClass);
+        if (ts.isClassLike(node) && node.name !== undefined) {
+            candidates.push({
+                declaration: node,
+                name: node.name,
+                implemented: implementedTypes(node),
+            });
+        } else if (
+            (ts.isVariableDeclaration(node) || ts.isFunctionDeclaration(node)) &&
+            node.name !== undefined &&
+            ts.isIdentifier(node.name) &&
+            isModuleScope(node)
+        ) {
+            candidates.push({ declaration: node, name: node.name, implemented: [] });
         }
         ts.forEachChild(node, visit);
     };
     visit(sourceFile);
-    return classes;
+    return candidates;
+}
+
+function isModuleScope(declaration: ts.VariableDeclaration | ts.FunctionDeclaration): boolean {
+    const statement = ts.isVariableDeclaration(declaration)
+        ? declaration.parent.parent
+        : declaration;
+    return ts.isSourceFile(statement.parent);
+}
+
+/** Where a value meets a type the code expects: an argument, an assignment, a return value, an initializer, a property, an element or a branch. */
+function handedOverExpressions(sourceFile: ts.SourceFile): ts.Expression[] {
+    const found: ts.Expression[] = [];
+    const visit = (node: ts.Node): void => {
+        found.push(...handedOverBy(node));
+        ts.forEachChild(node, visit);
+    };
+    visit(sourceFile);
+    return found;
+}
+
+const ASSIGNMENTS: ReadonlySet<ts.SyntaxKind> = new Set([
+    ts.SyntaxKind.EqualsToken,
+    ts.SyntaxKind.QuestionQuestionEqualsToken,
+    ts.SyntaxKind.BarBarEqualsToken,
+    ts.SyntaxKind.AmpersandAmpersandEqualsToken,
+]);
+
+function handedOverBy(node: ts.Node): readonly ts.Expression[] {
+    if (ts.isCallExpression(node) || ts.isNewExpression(node)) {
+        return node.arguments ?? [];
+    }
+    if (ts.isBinaryExpression(node)) {
+        return ASSIGNMENTS.has(node.operatorToken.kind) ? [node.right] : [];
+    }
+    if (ts.isReturnStatement(node) || ts.isSatisfiesExpression(node)) {
+        return node.expression === undefined ? [] : [node.expression];
+    }
+    if (ts.isArrowFunction(node)) {
+        return ts.isBlock(node.body) ? [] : [node.body];
+    }
+    if (
+        ts.isVariableDeclaration(node) ||
+        ts.isPropertyDeclaration(node) ||
+        ts.isParameter(node) ||
+        ts.isPropertyAssignment(node)
+    ) {
+        return node.initializer === undefined ? [] : [node.initializer];
+    }
+    if (ts.isShorthandPropertyAssignment(node)) {
+        return [node.name];
+    }
+    if (ts.isArrayLiteralExpression(node)) {
+        return node.elements;
+    }
+    return ts.isConditionalExpression(node) ? [node.whenTrue, node.whenFalse] : [];
+}
+
+/** The variable it initialises, or the named function that returns it; a method or an inline literal has none. */
+function literalOwnerName(literal: ts.ObjectLiteralExpression): ts.Identifier | undefined {
+    let node: ts.Node = literal;
+    while (ts.isParenthesizedExpression(node.parent) || ts.isSatisfiesExpression(node.parent)) {
+        node = node.parent;
+    }
+    const { parent } = node;
+    if (ts.isVariableDeclaration(parent)) {
+        return variableName(parent);
+    }
+    if (ts.isArrowFunction(parent)) {
+        return functionName(parent);
+    }
+    return ts.isReturnStatement(parent)
+        ? functionName(ts.findAncestor(parent, ts.isFunctionLike))
+        : undefined;
+}
+
+function functionName(declaration: ts.SignatureDeclaration | undefined): ts.Identifier | undefined {
+    if (declaration !== undefined && ts.isFunctionDeclaration(declaration)) {
+        return declaration.name;
+    }
+    return declaration !== undefined && ts.isVariableDeclaration(declaration.parent)
+        ? variableName(declaration.parent)
+        : undefined;
+}
+
+function variableName({ name }: ts.VariableDeclaration): ts.Identifier | undefined {
+    return ts.isIdentifier(name) ? name : undefined;
 }
 
 function implementedTypes(declaration: ts.ClassLikeDeclaration): ts.ExpressionWithTypeArguments[] {
