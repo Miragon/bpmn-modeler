@@ -24,12 +24,16 @@ import io.miragon.intellij.bpmn.ProjectTemplatePreferenceStore
 import io.miragon.intellij.bpmn.TemplatePreferenceStore
 import io.miragon.intellij.bpmn.TemplateSwitch
 import io.miragon.intellij.bpmn.projectFixtureWithoutServicePreload
+import io.miragon.intellij.bpmn.readTypeScriptCases
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Named
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.MethodSource
 import java.nio.file.Files
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
@@ -288,6 +292,39 @@ class EditorSessionRouterTest {
         assertEquals(EDITED_XML, result.get("normalizedContent").asString)
         assertEquals(EDITED_XML, f.bpmn.document.text)
         f.wired.fake.expectNoFrame()
+    }
+
+    @ParameterizedTest
+    @MethodSource("documentWriteCases")
+    fun `answers a core write as the document loopbacks do`(case: JsonObject) {
+        val document = case.getAsJsonObject("document")
+        val revision = document.get("revision").asInt
+        val f = setUpRouter(if (revision == 0) document.get("text").asString else INITIAL_XML)
+        f.attachEditorEcho()
+        repeat(revision) { edit ->
+            val editedText = if (edit == revision - 1) document.get("text").asString else "<edit id=\"$edit\"/>\n"
+            WriteCommandAction.runWriteCommandAction(f.session.project) { f.bpmn.document.setText(editedText) }
+            f.scheduler.runPending()
+            PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
+            assertEquals("document/didChange", parse(f.wired.fake.nextFrame()).get("method").asString)
+        }
+        val write = case.getAsJsonObject("write")
+        val params =
+            JsonObject().apply {
+                addProperty("editorId", f.session.editorId)
+                when (write.get("session").asString) {
+                    "own" -> addProperty("sessionId", f.sessionId)
+                    "other" -> addProperty("sessionId", f.sessionId + 1)
+                }
+                add("content", write.get("content"))
+                write.get("expectedDocumentRevision")?.let { add("expectedDocumentRevision", it) }
+            }
+
+        f.wired.handlers.dispatch("document/write", params, f.wired.requestId(1))
+        PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
+
+        assertEquals(case.getAsJsonObject("result"), parse(f.wired.fake.nextFrame()).getAsJsonObject("result"))
+        assertEquals(case.get("text").asString, f.bpmn.document.text)
     }
 
     @Test
@@ -1560,7 +1597,11 @@ class EditorSessionRouterTest {
     private fun unavailableFlushReply(token: Long) =
         "{\"type\":\"DocumentFlushedCommand\",\"token\":$token,\"status\":\"unavailable\"}"
 
-    private companion object {
+    companion object {
+        /** `intellijDocumentWrite.cases.json`, which the bridge's document loopbacks answer too. */
+        @JvmStatic
+        fun documentWriteCases(): List<Named<JsonObject>> = readTypeScriptCases("miragon.intellijDocumentWriteCases")
+
         const val INITIAL_XML = "<bpmn:definitions id=\"a\"/>\n"
         const val EDITED_XML = "<bpmn:definitions id=\"b\"/>\n"
         const val SECOND_EDIT_XML = "<bpmn:definitions id=\"c\"/>\n"

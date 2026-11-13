@@ -243,7 +243,8 @@ function expectOfferedValues(chosen: readonly unknown[], offered: readonly unkno
  *   reveals a busy list after 150 ms, the bridge brackets the search with
  *   status-bar progress. Neither reaches the core.
  * - A host that cannot ask, such as a disposed IntelliJ project, which answers
- *   as a dismissal: that is the Kotlin half of the bridge.
+ *   as a dismissal: the Kotlin host gives that answer itself, and to an
+ *   adapter it reads as any dismissal does.
  */
 export function describePickerContract(
     adapter: string,

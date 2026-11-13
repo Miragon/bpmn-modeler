@@ -1,0 +1,79 @@
+{
+    "$comment": "A document/write to an open Document the host has counted `revision` outside edits for, each delivered to the core, and what the host replies and keeps. `session` addresses the editor's session, another session, or none. RpcDocumentPort.contract.spec.ts runs these rows against intellijDocumentWrite, which both loopbacks answer writes with; EditorSessionRouterTest against EditorSessionRouter on a real Document.",
+    "cases": [
+        {
+            "name": "a write of new text is stored and reports a change",
+            "document": { "text": "<a/>\n", "revision": 0 },
+            "write": { "session": "own", "content": "<b/>\n", "expectedDocumentRevision": 0 },
+            "result": { "accepted": true, "changed": true },
+            "text": "<b/>\n"
+        },
+        {
+            "name": "CRLF line endings are stored as LF and the stored text comes back",
+            "document": { "text": "<a/>\n", "revision": 0 },
+            "write": {
+                "session": "own",
+                "content": "<b>\r\n</b>\r\n",
+                "expectedDocumentRevision": 0
+            },
+            "result": { "accepted": true, "changed": true, "normalizedContent": "<b>\n</b>\n" },
+            "text": "<b>\n</b>\n"
+        },
+        {
+            "name": "a lone CR is stored as LF and the stored text comes back",
+            "document": { "text": "<a/>\n", "revision": 0 },
+            "write": { "session": "own", "content": "<b/>\r", "expectedDocumentRevision": 0 },
+            "result": { "accepted": true, "changed": true, "normalizedContent": "<b/>\n" },
+            "text": "<b/>\n"
+        },
+        {
+            "name": "a write of the Document's text reports no change",
+            "document": { "text": "<a/>\n", "revision": 0 },
+            "write": { "session": "own", "content": "<a/>\n", "expectedDocumentRevision": 0 },
+            "result": { "accepted": true, "changed": false },
+            "text": "<a/>\n"
+        },
+        {
+            "name": "a write that differs only in line endings reports no change and no stored text",
+            "document": { "text": "<a/>\n", "revision": 0 },
+            "write": { "session": "own", "content": "<a/>\r\n", "expectedDocumentRevision": 0 },
+            "result": { "accepted": true, "changed": false },
+            "text": "<a/>\n"
+        },
+        {
+            "name": "a write at the revision of the latest outside edit is accepted",
+            "document": { "text": "<a/>\n", "revision": 1 },
+            "write": { "session": "own", "content": "<b/>\n", "expectedDocumentRevision": 1 },
+            "result": { "accepted": true, "changed": true },
+            "text": "<b/>\n"
+        },
+        {
+            "name": "a write at a revision before the latest outside edit is refused",
+            "document": { "text": "<a/>\n", "revision": 1 },
+            "write": { "session": "own", "content": "<b/>\n", "expectedDocumentRevision": 0 },
+            "result": { "accepted": false, "changed": false },
+            "text": "<a/>\n"
+        },
+        {
+            "name": "a write at a revision the host never counted is refused",
+            "document": { "text": "<a/>\n", "revision": 0 },
+            "write": { "session": "own", "content": "<b/>\n", "expectedDocumentRevision": 1 },
+            "result": { "accepted": false, "changed": false },
+            "text": "<a/>\n"
+        },
+        {
+            "name": "a write for another session of the editor is refused",
+            "document": { "text": "<a/>\n", "revision": 0 },
+            "write": { "session": "other", "content": "<b/>\n", "expectedDocumentRevision": 0 },
+            "result": { "accepted": false, "changed": false },
+            "text": "<a/>\n"
+        },
+        {
+            "name": "a write without a session or revision is stored",
+            "document": { "text": "<a/>\n", "revision": 0 },
+            "write": { "session": "none", "content": "<b/>\n" },
+            "result": { "accepted": true, "changed": true },
+            "text": "<b/>\n"
+        }
+    ]
+}

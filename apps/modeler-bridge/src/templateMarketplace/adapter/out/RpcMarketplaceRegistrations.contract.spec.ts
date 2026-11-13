@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
 import { MarketplaceSettingsEntry, RegistrationsByScope } from "@miragon/bpmn-modeler-core";
 import { describeMarketplaceRegistrationsContract } from "@miragon/bpmn-modeler-core/testing";
 
@@ -15,17 +18,10 @@ import {
 import { Rpc } from "../../../transport/adapter/out/Rpc";
 import { RpcMarketplaceRegistrations } from "./RpcMarketplaceRegistrations";
 
-/** `MarketplaceRouter.WRITABLE_SCOPES`. */
-const INTELLIJ_WRITABLE: MarketplaceStateReadResult["writable"] = [
-    { scope: "project", savedIn: { kind: "file", path: [".idea", "workspace.xml"] } },
-    {
-        scope: "allProjects",
-        savedIn: {
-            kind: "settingsPage",
-            path: ["Settings", "Tools", "Miragon BPMN Modeler", "Template Marketplaces"],
-        },
-    },
-];
+/** `MarketplaceRouter.WRITABLE_SCOPES`, which `MarketplaceRouterTest` holds to this file. */
+const INTELLIJ_WRITABLE = JSON.parse(
+    readFileSync(resolve(__dirname, "../../../__fixtures__/intellijWritableScopes.json"), "utf8"),
+) as MarketplaceStateReadResult["writable"];
 
 interface CoreFrame {
     readonly id: number;

@@ -1,0 +1,57 @@
+{
+    "$comment": "Progress frames the core sends, and the spinners the IntelliJ host shows afterwards. RpcNotifier.contract.spec.ts runs these rows against its loopback host, HostUiRouterTest against HostUiRouter.",
+    "cases": [
+        {
+            "name": "a start shows a spinner titled by the frame",
+            "frames": [{ "method": "notifier/progressStart", "params": { "title": "Deploying" } }],
+            "spinners": ["Deploying"]
+        },
+        {
+            "name": "an end removes its title's spinner",
+            "frames": [
+                { "method": "notifier/progressStart", "params": { "title": "Deploying" } },
+                { "method": "notifier/progressEnd", "params": { "title": "Deploying" } }
+            ],
+            "spinners": []
+        },
+        {
+            "name": "a second start of a title replaces its spinner",
+            "frames": [
+                { "method": "notifier/progressStart", "params": { "title": "Deploying" } },
+                { "method": "notifier/progressStart", "params": { "title": "Deploying" } }
+            ],
+            "spinners": ["Deploying"]
+        },
+        {
+            "name": "one end after two starts of a title leaves no spinner",
+            "frames": [
+                { "method": "notifier/progressStart", "params": { "title": "Deploying" } },
+                { "method": "notifier/progressStart", "params": { "title": "Deploying" } },
+                { "method": "notifier/progressEnd", "params": { "title": "Deploying" } }
+            ],
+            "spinners": []
+        },
+        {
+            "name": "an end leaves the spinner of another title",
+            "frames": [
+                { "method": "notifier/progressStart", "params": { "title": "Deploying" } },
+                { "method": "notifier/progressStart", "params": { "title": "Validating" } },
+                { "method": "notifier/progressEnd", "params": { "title": "Deploying" } }
+            ],
+            "spinners": ["Validating"]
+        },
+        {
+            "name": "an end of a title never started changes nothing",
+            "frames": [
+                { "method": "notifier/progressStart", "params": { "title": "Deploying" } },
+                { "method": "notifier/progressEnd", "params": { "title": "Validating" } }
+            ],
+            "spinners": ["Deploying"]
+        },
+        {
+            "name": "a frame without a title keys the empty title",
+            "frames": [{ "method": "notifier/progressStart", "params": {} }],
+            "spinners": [""]
+        }
+    ]
+}

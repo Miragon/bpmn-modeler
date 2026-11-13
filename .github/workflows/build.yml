@@ -67,6 +67,12 @@ jobs:
               - 'libs/modeler-core/src/kernel/domain/projectScopes.ts'
               # BrandModeTest runs these rows against the Kotlin brand mode.
               - 'libs/shared/src/lib/brandMode.cases.json'
+              # The router tests run the rows and values the bridge's IntelliJ loopbacks answer with.
+              - 'apps/modeler-bridge/src/__fixtures__/intellijPasswordSafe.cases.json'
+              - 'apps/modeler-bridge/src/__fixtures__/intellijDocumentWrite.cases.json'
+              - 'apps/modeler-bridge/src/__fixtures__/intellijScriptTabs.cases.json'
+              - 'apps/modeler-bridge/src/__fixtures__/intellijProgress.cases.json'
+              - 'apps/modeler-bridge/src/__fixtures__/intellijWritableScopes.json'
             standalone:
               - 'apps/standalone/**'
               - 'libs/standalone-extension/**'

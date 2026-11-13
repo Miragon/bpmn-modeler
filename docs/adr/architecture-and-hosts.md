@@ -1102,7 +1102,9 @@ an in-place update, and the `not a registered configuration` match that
 triggers it, stay in its `TemplateMarketplaceController`.
 `describeMarketplaceRegistrationsContract` runs these rules against the test
 fake, VS Code's adapter over its settings and the bridge's adapter over a
-loopback that answers as `MarketplaceRouter` does; the Kotlin half is #2056.
+loopback that answers as `MarketplaceRouter` does. The places that loopback
+names come from `intellijWritableScopes.json`, which `MarketplaceRouterTest`
+holds `MarketplaceRouter` to (#2223).
 
 Adapters render core prompt text, except for the remaining IntelliJ creation
 prompts tracked in #2222. A new choice or confirmation needs a builder and

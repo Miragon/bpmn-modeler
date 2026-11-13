@@ -14,12 +14,17 @@ import io.miragon.intellij.bpmn.StatusSlots
 import io.miragon.intellij.bpmn.StatusTone
 import io.miragon.intellij.bpmn.StatusView
 import io.miragon.intellij.bpmn.projectFixtureWithoutServicePreload
+import io.miragon.intellij.bpmn.readTypeScriptCases
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Named
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.MethodSource
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 
@@ -319,5 +324,34 @@ class HostUiRouterTest {
         )
 
         assertEquals(mapOf(StatusSlot.DEPLOYMENT_TARGET to StatusView(text = "dev", transient = true)), slots.views)
+    }
+
+    private class Spinner(val title: String, val ended: CompletableFuture<Void>)
+
+    @ParameterizedTest
+    @MethodSource("progressCases")
+    fun `keeps the spinners the progress loopback keeps`(case: JsonObject) {
+        val wired = wireChannel().also { this.wired = it }
+        val spinners = mutableListOf<Spinner>()
+        HostUiRouter(
+            bridgeDeps(projectFixture.get(), wired.channel, wired.handlers),
+            RecordingStatusSlots(),
+            showSpinner = { title, ended -> spinners += Spinner(title, ended) },
+        ).register()
+
+        case.getAsJsonArray("frames").map { it.asJsonObject }.forEach { frame ->
+            wired.handlers.dispatch(frame.get("method").asString, frame.getAsJsonObject("params"), null)
+        }
+
+        assertEquals(
+            case.getAsJsonArray("spinners").map { it.asString },
+            spinners.filterNot { it.ended.isDone }.map { it.title },
+        )
+    }
+
+    companion object {
+        /** `intellijProgress.cases.json`, which the bridge's progress loopback answers too. */
+        @JvmStatic
+        fun progressCases(): List<Named<JsonObject>> = readTypeScriptCases("miragon.intellijProgressCases")
     }
 }

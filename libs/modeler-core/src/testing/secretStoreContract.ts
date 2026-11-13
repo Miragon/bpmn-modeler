@@ -37,7 +37,7 @@ const sorted = (origins: readonly string[]) => [...origins].sort();
  * it, and nothing saved for one slot, the unnamed ad-hoc one included, is
  * returned for another or removed with it. A pair with an empty half replaces
  * the earlier one too: it may come back as saved, as in VS Code, or not at all,
- * as IntelliJ's PasswordSafe reads an empty half back as absent; the core
+ * as IntelliJ reads a pair with an empty name back as absent; the core
  * stores a target's env references beside its literals to cope with the
  * second, so both pass. The earlier pair or a part never does: a password the
  * user cleared would still be sent on the next deploy.

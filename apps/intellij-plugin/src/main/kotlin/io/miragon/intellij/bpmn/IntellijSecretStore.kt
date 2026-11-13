@@ -45,7 +45,7 @@ class IntellijSecretStore {
             .getOrElse { emptyList() }
     }
 
-    // The user half is a fixed label: PasswordSafe reads an entry with an empty half back as absent.
+    // The user half is a fixed label: `Credentials` keeps an empty user name as none.
     fun saveApprovedDestinations(slot: String, origins: List<String>) =
         passwordSafe.set(
             attributesFor(APPROVED_DESTINATIONS, slot),

@@ -16,8 +16,8 @@ interface CoreFrame {
  * does: both run on the event dispatch thread in the order they arrive, a
  * write puts its text (empty when it has none) on the clipboard, and a read
  * replies with the clipboard's text, empty when it holds none. A string stands
- * in for `CopyPasteManager`; what the system clipboard does with it is the
- * Kotlin half.
+ * in for `CopyPasteManager`; what the system clipboard does with it is not
+ * pinned (engineering-practices ADR).
  */
 class IntellijClipboardHost {
     private clipboardText: string | undefined;

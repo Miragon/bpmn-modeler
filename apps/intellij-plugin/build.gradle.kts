@@ -97,6 +97,16 @@ val templatePreferenceChangeCases =
     layout.projectDirectory.file("../../libs/modeler-core/src/kernel/domain/templatePreferenceChange.cases.json")
 val projectScopes = layout.projectDirectory.file("../../libs/modeler-core/src/kernel/domain/projectScopes.ts")
 val brandModeCases = layout.projectDirectory.file("../../libs/shared/src/lib/brandMode.cases.json")
+val intellijPasswordSafeCases =
+    layout.projectDirectory.file("../modeler-bridge/src/__fixtures__/intellijPasswordSafe.cases.json")
+val intellijDocumentWriteCases =
+    layout.projectDirectory.file("../modeler-bridge/src/__fixtures__/intellijDocumentWrite.cases.json")
+val intellijScriptTabsCases =
+    layout.projectDirectory.file("../modeler-bridge/src/__fixtures__/intellijScriptTabs.cases.json")
+val intellijProgressCases =
+    layout.projectDirectory.file("../modeler-bridge/src/__fixtures__/intellijProgress.cases.json")
+val intellijWritableScopes =
+    layout.projectDirectory.file("../modeler-bridge/src/__fixtures__/intellijWritableScopes.json")
 
 tasks.test {
     useJUnitPlatform()
@@ -111,7 +121,9 @@ tasks.test {
     // matchers run, WebviewRouteTest the plugin asset urls the bridge builds, ActionNoticeToneTest
     // the core's notice tones, PluginApprovalStoreTest the rows the core merges approval changes
     // by, TemplatePreferenceStoreTest the rows it merges template switch changes by, ProjectScopeTest
-    // the core's project scopes, BrandModeTest the rows the shared brand mode rule runs. As
+    // the core's project scopes, BrandModeTest the rows the shared brand mode rule runs, and
+    // SecretStoreRouterTest, EditorSessionRouterTest, ScriptRouterTest, HostUiRouterTest and
+    // MarketplaceRouterTest the rows and values the bridge's IntelliJ loopbacks answer with. As
     // declared inputs, a change on the TypeScript side alone reruns the tests instead of restoring
     // them from the build cache.
     mapOf(
@@ -132,6 +144,11 @@ tasks.test {
         "templatePreferenceChangeCases" to templatePreferenceChangeCases,
         "projectScopes" to projectScopes,
         "brandModeCases" to brandModeCases,
+        "intellijPasswordSafeCases" to intellijPasswordSafeCases,
+        "intellijDocumentWriteCases" to intellijDocumentWriteCases,
+        "intellijScriptTabsCases" to intellijScriptTabsCases,
+        "intellijProgressCases" to intellijProgressCases,
+        "intellijWritableScopes" to intellijWritableScopes,
     ).forEach { (name, file) ->
         inputs.file(file).withPropertyName(name).withPathSensitivity(PathSensitivity.RELATIVE)
         systemProperty("miragon.$name", file.asFile.absolutePath)

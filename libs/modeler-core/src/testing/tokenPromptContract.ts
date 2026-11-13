@@ -31,7 +31,8 @@ const GITLAB = tokenPromptFor("git.acme.io:8443", "declaredPrivate");
  *   Code's `ignoreFocusOut`. The core builds the words; each adapter's own spec
  *   pins that it shows them.
  * - A host that cannot ask, such as a disposed IntelliJ project, which answers
- *   as a dismissal: that is the Kotlin half of the bridge.
+ *   as a dismissal: the Kotlin host gives that answer itself, and to an
+ *   adapter it reads as any dismissal does.
  * - The port's "never throws" for an ask that fails rather than being
  *   dismissed: an error reply or an ended bridge input rejects `RpcTokenPrompt`,
  *   and a rejected input box rejects `VsCodeTokenPrompt`. Answering `undefined`

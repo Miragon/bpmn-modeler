@@ -72,7 +72,8 @@ differ, VS Code is the reference. A VS Code adapter runs over a fake of the
 `vscode` API that behaves as VS Code does, and a bridge adapter that calls
 IntelliJ runs over an RPC loopback that answers as the Kotlin side does. So a
 run pins each adapter's own mapping, not the host itself: where a fake and its
-host part, the suite cannot tell, and the Kotlin half is #2056.
+host part, the suite cannot tell. The lists after the suites name what holds
+each loopback to the Kotlin side.
 
 - `describeAddOnViewRevealContract`: `RecordingAddOnViewReveal` and
   `VsCodeAddOnsViewReveal` over a view focus that rejects where the host
@@ -160,6 +161,102 @@ host part, the suite cannot tell, and the Kotlin half is #2056.
   `VsCodeWorkspace` runs over `vscodeWorkspaceFake.ts`, which serves
   `workspace.fs` and `findFiles` from the disk and delivers watcher events in
   coalesced batches, as VS Code does.
+
+A rule of the Kotlin side that a loopback answers by is held to Kotlin by
+shared rows (#2223), as `settingsNormalization.cases.json` holds a core rule:
+a file in `apps/modeler-bridge/src/__fixtures__/` that the bridge's spec runs
+against the loopback and a Kotlin test against the router behind it, read
+through a `miragon.*` test input in `build.gradle.kts`.
+
+- `intellijPasswordSafe.cases.json`: a pair saved with an empty name reads
+  back as absent, one with an empty secret as saved. `SecretStoreRouterTest`
+  runs it on the platform's unit-test PasswordSafe.
+- `intellijDocumentWrite.cases.json`: a write stores LF line endings and
+  replies with the stored text when it differs from the written one, reports a
+  change only when the text differs, and is refused (`accepted: false`) for
+  another session or at another revision. `EditorSessionRouterTest` runs it on
+  a real Document; both document loopbacks answer with `intellijDocumentWrite`.
+- `intellijScriptTabs.cases.json`: `script/close` closes the tab and acks with
+  `script/didClose`, also for a tab it never opened, and a tab the user closes
+  reports `script/didClose`. `ScriptRouterTest` runs it over the platform's
+  editor manager.
+- `intellijProgress.cases.json`: one spinner per progress title, which a
+  second start replaces. `HostUiRouterTest` runs it; the spinner itself is a
+  seam of the router.
+- `intellijWritableScopes.json`: where IntelliJ saves each marketplace scope,
+  which `MarketplaceRouterTest` compares with the `marketplaceState/read`
+  reply.
+
+Hand-written Kotlin tests, not shared rows, hold these rules a loopback
+answers by, so nothing fails when a loopback and its Kotlin test drift apart:
+
+- `DiffRouter.kt`'s routing: a core post reaches only the browser of its
+  `paneUri`, serialized by Gson, and a pane's message goes to the core under
+  its URI (`DiffRouterTest`).
+- What `DeploymentRouter` and `IntellijDeploymentState` store: the seed holds
+  only what the project stores, a save keeps every patched field, and ledger
+  rows are removed before they are put (`DeploymentRouterTest`). That a write
+  which throws answers with its message is the channel's rule for every
+  handler (`RpcChannelTest`).
+- `SettingsRouter`'s lint choice: stored, pushed to every bridge, then acked
+  (`SettingsRouterTest`, `SettingsBroadcastTest`).
+- The marketplace add form: `MarketplaceRouter` reads the question from the
+  params and answers the form as entered, or `null` on cancel
+  (`MarketplaceRouterTest`); `AddMarketplaceDialog` offers a radio button per
+  scope and starts from the core's scope (`MarketplaceAddFormTest`).
+- The marketplace lists: the merge the settings loopback applies
+  (`ProjectMarketplacesStore.merged()`, `ModelerSettingsStoreTest`) and the
+  push of a saved or reduced list before the ack (`MarketplaceRouterTest`).
+- `PluginApprovalRouter`: a change pushed to the bridges before it answers,
+  both at its revision, no revision for a change that keeps every row, and a
+  row another writer stored kept (`PluginApprovalRouterTest`). The merge
+  itself runs the core's `codeApprovalChange.cases.json` rows
+  (`PluginApprovalStoreTest`).
+- `TemplatePreferenceRouter`: a project change pushed to this bridge and an
+  all-projects change to every bridge before the answer, no revision for a
+  change that keeps every switch, and an error for a switch named twice
+  (`TemplatePreferenceRouterTest`). The merge runs the core's
+  `templatePreferenceChange.cases.json` rows (`TemplatePreferenceStoreTest`).
+- `AddOnsRouter`: `addOns/reveal` answers whether the Add-ons tab is shown, or
+  an error when the tool window throws (`AddOnsRouterTest`).
+- The prompts `intellijPromptHost.ts` answers: a `PickManyDialog` reports its
+  checked rows in list order (`PickManyDialogTest`); an action notice answers
+  the chosen index, or `{}` when dismissed (`HostUiRouterTest`); the token
+  prompt answers the text as typed, or `null` on cancel
+  (`MarketplaceRouterTest`).
+- `tokenStore/*`: a token round-trips, an unknown host reads `null`, and a
+  read that blocks does not hold up the next frame (`MarketplaceRouterTest`).
+  Replies keep request order because both routers answer on one credential
+  thread, which `SecretStoreRouterTest` checks for `secretStore/*`.
+- The refusal of a write without a revision while a host change has not
+  reached the webview, which the document loopbacks leave out because they
+  have no webview (`EditorSessionRouterTest`).
+
+No Kotlin test holds these, with the reason:
+
+- What an OS keychain does with an empty secret. In unit-test mode
+  PasswordSafe is an in-memory store, so no test reaches a keychain, and the
+  suite accepts both answers. An empty name reads back as absent on every
+  backend: `Credentials` drops it before any store sees it.
+- The pane URIs `BpmnDiffViewer.uriFor` builds. It is a member of a diff
+  viewer showing JCEF browsers, which the headless tests do not create.
+- The clipboard loopback's order of reads and writes and its empty text for a
+  clipboard without text. No Kotlin test drives `clipboard/read` or
+  `clipboard/write`, and whether the headless test application's
+  `CopyPasteManager` keeps text as the system clipboard does is not checked.
+- A `picker/show` that picks one item, and `confirm/show`: `HostPicker` opens a
+  `JBPopup` and `handleConfirm` a modal `Messages` dialog, and `HostUiRouter`
+  has no seam for either. A dismissed pick goes out as `{}` by the same Gson
+  rule the action notice test checks.
+- The `fsPath` IntelliJ sends for a file on a network share (#2186). The
+  document loopbacks pass their path through, so the suites pin only that
+  the bridge keeps the host's `fsPath`. That IntelliJ sends `VirtualFile.path`
+  as `//server/share/…` is what the bridge's specs assume; no Kotlin test opens
+  a file on a share, and it was not checked in IntelliJ.
+- The error text a loopback answers for a missing or mistyped param (`Param
+  '…' is missing or not of the expected type`). `RpcChannelTest` holds that a
+  handler which throws answers with its message, but no Kotlin test checks
+  `RpcParams`' text.
 
 Real browser tests are necessary for SVG geometry, viewbox transforms and
 ResizeObserver delivery. Mocks can test viewport-latch decisions but cannot

@@ -1,0 +1,10 @@
+[
+    { "scope": "project", "savedIn": { "kind": "file", "path": [".idea", "workspace.xml"] } },
+    {
+        "scope": "allProjects",
+        "savedIn": {
+            "kind": "settingsPage",
+            "path": ["Settings", "Tools", "Miragon BPMN Modeler", "Template Marketplaces"]
+        }
+    }
+]
