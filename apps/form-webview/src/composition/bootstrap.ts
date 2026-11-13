@@ -36,11 +36,12 @@ export function bootstrap(host: FormHost): void {
         container: editorElement,
         additionalModules: [{ debounce: ["value", editorInput] }, numericValidationModule],
     });
-    const pageLocks = createInertLockGroup(document.body);
-    const session = new FormDocumentSession(formEditor, editorInput, host, {
-        flush: pageLocks.createLock(),
-        hostImport: pageLocks.createLock(),
-    });
+    const session = new FormDocumentSession(
+        formEditor,
+        editorInput,
+        host,
+        createInertLockGroup(document.body),
+    );
     const app = new FormEditorApp(
         formEditor,
         new Form({ container: previewElement }),

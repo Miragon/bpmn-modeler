@@ -4,10 +4,12 @@ import {
     type FlushSource,
     HostDocumentRevisions,
     type InertLock,
+    type InertLockGroup,
     SyncDocumentCommand,
 } from "@miragon/bpmn-modeler-shared";
 import { serializeAsync } from "@miragon/bpmn-modeler-types";
 
+import { ImportedFormDocument } from "../domain/importedFormDocument";
 import type {
     FormDocumentLoadListener,
     FormSchema,
@@ -19,12 +21,6 @@ const SYNC_DELIVERY_GRACE_MS = 200;
 
 interface SyncChannel {
     postMessage(message: SyncDocumentCommand): void;
-}
-
-/** Locks from one group on the page, so a destructive flush and a host import never unlock each other. */
-export interface FormDocumentLocks {
-    flush: InertLock;
-    hostImport: InertLock;
 }
 
 function serialize(schema: FormSchema): string {
@@ -42,20 +38,20 @@ export class FormDocumentSession implements FlushSource {
         this.editor.importSchema(schema),
     );
     private readonly revisions = new HostDocumentRevisions();
-    private sourceContent = "";
-    private baseline = "";
+    private imported: ImportedFormDocument | undefined;
     private lastPostedContent = "";
     private syncDeliveryTimer: ReturnType<typeof setTimeout> | undefined;
+    private readonly flushLock: InertLock;
+    private readonly hostImportLock: InertLock;
 
     constructor(
         private readonly editor: FormSchemaEditor,
         private readonly editorInput: PendingEditorInput,
         private readonly host: SyncChannel,
-        private readonly locks: FormDocumentLocks,
-    ) {}
-
-    get holdsDocument(): boolean {
-        return this.baseline !== "";
+        pageInertLocks: InertLockGroup,
+    ) {
+        this.flushLock = pageInertLocks.createLock();
+        this.hostImportLock = pageInertLocks.createLock();
     }
 
     async load(
@@ -66,7 +62,7 @@ export class FormDocumentSession implements FlushSource {
         if (this.revisions.receive(documentRevision) === "stale") return;
         const version = this.revisions.version;
         this.cancelPendingSync();
-        listener.onArrived(this.holdsDocument);
+        listener.onArrived(this.isReady());
 
         let schema: FormSchema;
         try {
@@ -77,14 +73,13 @@ export class FormDocumentSession implements FlushSource {
         }
 
         this.activeHostUpdates++;
-        this.locks.hostImport.acquire();
+        this.hostImportLock.acquire();
         try {
             const result = await this.importSchemaInOrder(schema);
             if (!this.revisions.isCurrent(version)) return;
 
             this.revisions.markImported(documentRevision);
-            this.sourceContent = content;
-            this.baseline = serialize(this.editor.saveSchema());
+            this.imported = new ImportedFormDocument(content, serialize(this.editor.saveSchema()));
             this.lastPostedContent = content;
             await listener.onImported(result.warnings ?? []);
         } catch (error) {
@@ -93,7 +88,7 @@ export class FormDocumentSession implements FlushSource {
             }
         } finally {
             this.activeHostUpdates--;
-            if (this.activeHostUpdates === 0) this.locks.hostImport.release();
+            if (this.activeHostUpdates === 0) this.hostImportLock.release();
         }
     }
 
@@ -107,7 +102,7 @@ export class FormDocumentSession implements FlushSource {
     }
 
     isReady(): boolean {
-        return this.holdsDocument;
+        return this.imported !== undefined;
     }
 
     hasPendingSync(): boolean {
@@ -145,11 +140,11 @@ export class FormDocumentSession implements FlushSource {
     }
 
     beginDestructiveFlush(): void {
-        this.locks.flush.acquire();
+        this.flushLock.acquire();
     }
 
     endDestructiveFlush(): void {
-        this.locks.flush.release();
+        this.flushLock.release();
     }
 
     async exportContent(): Promise<string> {
@@ -159,12 +154,12 @@ export class FormDocumentSession implements FlushSource {
 
     private fail(listener: FormDocumentLoadListener, message: string, cause: unknown): void {
         this.cancelPendingSync();
-        this.baseline = "";
+        this.imported = undefined;
         listener.onFailed(message, cause);
     }
 
     private syncCurrentContent(force = false): boolean {
-        if (this.activeHostUpdates > 0 || !this.holdsDocument) return false;
+        if (this.activeHostUpdates > 0 || !this.isReady()) return false;
         const content = this.currentContent();
         if (!force && content === this.lastPostedContent) return false;
         this.lastPostedContent = content;
@@ -175,6 +170,6 @@ export class FormDocumentSession implements FlushSource {
 
     private currentContent(): string {
         const serialized = serialize(this.editor.saveSchema());
-        return serialized === this.baseline ? this.sourceContent : serialized;
+        return this.imported?.contentFor(serialized) ?? serialized;
     }
 }

@@ -72,11 +72,7 @@ function setup() {
     const editorInput = new EditorInput();
     const host = { postMessage: vi.fn() };
     const page = { inert: false };
-    const locks = createInertLockGroup(page);
-    const session = new FormDocumentSession(editor, editorInput, host, {
-        flush: locks.createLock(),
-        hostImport: locks.createLock(),
-    });
+    const session = new FormDocumentSession(editor, editorInput, host, createInertLockGroup(page));
     editor.changed = () => session.syncChangedContent();
     const listener = {
         onArrived: vi.fn<FormDocumentLoadListener["onArrived"]>(),
@@ -104,7 +100,6 @@ describe("FormDocumentSession", () => {
 
             expect(listener.onArrived).toHaveBeenCalledWith(false);
             expect(listener.onImported).toHaveBeenCalledWith(["unknown field"]);
-            expect(session.holdsDocument).toBe(true);
             expect(session.isReady()).toBe(true);
         });
 
@@ -128,7 +123,7 @@ describe("FormDocumentSession", () => {
                 FORM_INVALID_JSON_MESSAGE,
                 expect.any(SyntaxError),
             );
-            expect(session.holdsDocument).toBe(false);
+            expect(session.isReady()).toBe(false);
             expect(host.postMessage).not.toHaveBeenCalled();
         });
 
@@ -140,7 +135,7 @@ describe("FormDocumentSession", () => {
             await load(ORIGINAL, 1);
 
             expect(listener.onFailed).toHaveBeenCalledWith(FORM_SCHEMA_IMPORT_ERROR_MESSAGE, cause);
-            expect(session.holdsDocument).toBe(false);
+            expect(session.isReady()).toBe(false);
             expect(page.inert).toBe(false);
         });
 
@@ -192,16 +187,20 @@ describe("FormDocumentSession", () => {
             expect(session.hasPendingHostUpdate()).toBe(false);
         });
 
-        it("counts the page's own import step as part of the host update", async () => {
-            const { session, load, listener } = setup();
+        it("counts the page's own import step as part of the locked host update", async () => {
+            const { session, page, load, listener } = setup();
             let pendingDuringImportStep: boolean | undefined;
+            let inertDuringImportStep: boolean | undefined;
             listener.onImported.mockImplementationOnce(async () => {
                 pendingDuringImportStep = session.hasPendingHostUpdate();
+                inertDuringImportStep = page.inert;
             });
 
             await load(ORIGINAL);
 
             expect(pendingDuringImportStep).toBe(true);
+            expect(inertDuringImportStep).toBe(true);
+            expect(page.inert).toBe(false);
         });
 
         it("serializes overlapping host imports and stays pending until both settle", async () => {

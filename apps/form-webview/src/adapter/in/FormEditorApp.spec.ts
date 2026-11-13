@@ -64,12 +64,11 @@ function setup() {
         updateState: vi.fn(),
         postMessage: vi.fn(),
     };
-    const locks = createInertLockGroup(document.body);
     const session = new FormDocumentSession(
         editor,
         { hasPending: () => false, flush: () => undefined },
         host,
-        { flush: locks.createLock(), hostImport: locks.createLock() },
+        createInertLockGroup(document.body),
     );
     const app = new FormEditorApp(
         editor,
@@ -302,7 +301,7 @@ describe("FormEditorApp", () => {
         expect(document.getElementById("error")?.textContent).toBe(
             "The form contains invalid JSON. Open the raw JSON editor to fix it.",
         );
-        expect(session.holdsDocument).toBe(false);
+        expect(session.isReady()).toBe(false);
         expect(host.postMessage).not.toHaveBeenCalledWith(expect.any(SyncDocumentCommand));
     });
 
@@ -316,7 +315,7 @@ describe("FormEditorApp", () => {
         expect(document.getElementById("error")?.hidden).toBe(false);
         expect(document.getElementById("editor")?.hidden).toBe(false);
         expect(document.getElementById("preview")?.hidden).toBe(true);
-        expect(session.holdsDocument).toBe(true);
+        expect(session.isReady()).toBe(true);
         expect(host.updateState).toHaveBeenLastCalledWith({ mode: "edit" });
     });
 

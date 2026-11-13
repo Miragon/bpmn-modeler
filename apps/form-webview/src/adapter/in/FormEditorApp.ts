@@ -35,7 +35,7 @@ export interface FormEditorElements {
     previewButton: HTMLButtonElement;
 }
 
-type FormDocument = Pick<FormDocumentSession, "holdsDocument" | "load" | "syncChangedContent">;
+type FormDocument = Pick<FormDocumentSession, "isReady" | "load" | "syncChangedContent">;
 
 export class FormEditorApp {
     private mode: WebviewState["mode"] = "edit";
@@ -88,12 +88,12 @@ export class FormEditorApp {
     }
 
     async setMode(mode: WebviewState["mode"]): Promise<void> {
-        if (this.formDocument.holdsDocument) this.hideError();
+        if (this.formDocument.isReady()) this.hideError();
         this.mode = mode;
         if (mode === "edit") this.previewOutputActive = false;
         this.host.updateState({ mode });
         this.showCurrentSurface();
-        if (mode === "preview" && this.formDocument.holdsDocument) await this.refreshPreview();
+        if (mode === "preview" && this.formDocument.isReady()) await this.refreshPreview();
     }
 
     async setInputValues(content: string): Promise<void> {
@@ -113,7 +113,7 @@ export class FormEditorApp {
         if (serialized === this.inputValuesContent) return;
         this.inputValues = inputValues as FormSchema;
         this.inputValuesContent = serialized;
-        if (this.mode === "preview" && this.formDocument.holdsDocument) {
+        if (this.mode === "preview" && this.formDocument.isReady()) {
             await this.refreshPreview();
         }
     }
@@ -191,7 +191,7 @@ export class FormEditorApp {
     }
 
     private showCurrentSurface(): void {
-        if (!this.elements.error.hidden && !this.formDocument.holdsDocument) return;
+        if (!this.elements.error.hidden && !this.formDocument.isReady()) return;
         const preview = this.mode === "preview";
         this.elements.editor.hidden = preview;
         this.elements.preview.hidden = !preview;
