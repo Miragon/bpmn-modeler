@@ -34,7 +34,7 @@ export function createContractSuitesFitnessFunction({
             "An object literal in the core's own workspace. In the trial each was a default for a host without the feature or a kit stub that drops the port's behaviour by design (TRUSTED_WORKSPACE, PANEL_ALWAYS_VISIBLE, fingerprintHasher, NO_GIT_FILES), so a kit fake written as a literal is missed with them.",
             "Ports outside the core's port/ folders (the bridge's HostSettingsMirror and WorkspaceRoots, the VS Code host's ModelerPreferences, the ports of tools/repo-checks), whose adapters no kit helper can cover, and adapters in a workspace that declares no hexagonal architecture.",
             "The Kotlin half of the bridge's Rpc adapters, which a TypeScript suite reaches only through a loopback.",
-            "A port the core writes to and reads back through another port, such as LintingPreferencePort, whose value comes back through SettingsPort.getLintingEnabled, and a void method whose callback the host calls with a value: both count as render-only.",
+            "A port without a suite that the core writes to and reads back through another port, such as LanguagePreferencePort, whose value comes back through SettingsPort.getLanguage, and a void method whose callback the host calls with a value: both count as render-only.",
             "A spec that reaches the adapter through a namespace import, a dynamic import or a fixture module.",
             "A spec that imports two adapters of a port and runs the suite against one of them: coverage is decided per spec, not per call, so it clears both pairs.",
             "A helper whose fixture holds several ports counts as a suite of each of them, though it may exercise only one.",

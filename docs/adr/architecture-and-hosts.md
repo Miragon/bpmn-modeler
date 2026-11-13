@@ -577,7 +577,10 @@ of them. Once a second adapter meets a port the core reads back from, the
 port has one contract suite in the test kit that every adapter runs, the
 in-memory fake included, as `describeWorkspaceContract` runs against
 `InMemoryWorkspace`, `NodeWorkspace` and `VsCodeWorkspace`; a port that only
-renders and a strategy the core chooses between need none. The
+renders and a strategy the core chooses between need none. A port whose
+methods return `void` but whose value the core reads back through another
+port does not only render: it needs one whose fixture pairs it with that
+reader. The
 [`contract-suites`](engineering-practices.md#contract-suites) report lists the
 adapters that run no suite of their port. Each host process builds one
 `NodeInstalledPackages`, one `AllowanceLocator` and one `ContentRowMigration`
