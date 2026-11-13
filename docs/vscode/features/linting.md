@@ -60,7 +60,7 @@ If a referenced rule or plugin is not installed, only that entry is skipped. The
 
 When a lint needs a rule package you have not allowed yet, the diagram is linted without it right away, and a notification says how many are waiting, for example *1 bpmnlint rule package in this workspace is not allowed yet, so rules from it are skipped.*
 
-1. Click **Review…**. The [Add-ons view](/vscode/features/add-ons) opens with the first waiting package selected and shows its folder, its version and where an allowance would hold (**Allowed in**); the others carry **Needs review** in the list.
+1. Click **Review…**. The [Add-ons view](/vscode/features/add-ons) opens with the first waiting package selected and shows its folder, its version and where an allowance would hold (**Allowed in**); the others carry **Waiting** under **Needs attention** at the top of the list.
 2. For each package you trust, select it and click **Allow** at the end of its review. Every open diagram that was linted without it lints again with it.
 
 **Review…** shows a list to check instead when a waiting package lies outside every open folder, for example when the config links to it. Each entry shows the package's name and version and its folder; the package the `.bpmnlintrc` sits in says so. Check the packages you trust and confirm.

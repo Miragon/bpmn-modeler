@@ -82,7 +82,7 @@ When you open a diagram and its workspace holds plugins you have not allowed yet
 
 <figure class="shot"><img src="./images/bp-notification.png" alt="The diagram order-fulfilment.bpmn open in the BPMN editor without plugins, and the notification 2 BPMN plugins in this workspace are not allowed yet, with a Review… button"><figcaption>The editor opens right away; the notification counts the plugins that wait for you.</figcaption></figure>
 
-1. Click **Review…**. The [Add-ons view](/vscode/features/add-ons) opens with the first waiting plugin selected and shows its folder and where an allowance would hold (**Allowed in**); the others carry **Needs review** in the list.
+1. Click **Review…**. The [Add-ons view](/vscode/features/add-ons) opens with the first waiting plugin selected and shows its folder and where an allowance would hold (**Allowed in**); the others carry **Waiting** under **Needs attention** at the top of the list.
 2. For each plugin you trust, select it and click **Allow** at the end of its review. Every open BPMN editor that offered it reloads with it.
 
 <figure class="shot"><img src="./images/bp-review.png" alt="The Add-ons view in the BPMN Modeler side bar, opened by Review… on the plugin BPMN Resize Tasks: Not allowed yet, a warning that a plugin runs its own code in the BPMN editor, its folder .camunda/plugins/resize-tasks, where the allowance would hold and the button Allow, next to the diagram"><figcaption>Review… opens the Add-ons view on the first waiting plugin, with its folder and where an allowance would hold.</figcaption></figure>
