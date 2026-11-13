@@ -14,10 +14,10 @@ name: Sync release markers
 #               app (versioned in lockstep), libs/modeler-core, libs/shared,
 #               libs/standalone-extension and the npm-package sphere. Its
 #               BUNDLED_WEBVIEW marker records bundled webviews into a host.
-#   - intellij  (apps/intellij-plugin): ships the bpmn/deployment webviews,
-#               apps/modeler-bridge, libs/modeler-core, libs/shared and the
-#               npm-package sphere. DMN/form webviews are not bundled.
-#               BUNDLED_WEBVIEW marker, as vscode.
+#   - intellij  (apps/intellij-plugin): ships the bpmn, deployment and
+#               add-ons webviews, apps/modeler-bridge, libs/modeler-core,
+#               libs/shared and the npm-package sphere. DMN/form webviews are
+#               not bundled. BUNDLED_WEBVIEW marker, as vscode.
 #   - orca      (apps/orca-plugin): the Orca plugin bundles both npm
 #               packages from source, with the libs they inline and
 #               libs/shared. BUNDLED_WEBVIEW marker, as the other hosts,

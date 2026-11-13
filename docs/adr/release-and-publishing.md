@@ -72,7 +72,15 @@ not receive DMN-only markers. Exclude marker files from trigger paths where
 necessary, particularly DMN's marker, to prevent recursive marker commits.
 The [release-marker spec](../../tools/repo-checks/src/releaseMarkers.spec.ts)
 fails when a library either package inlines is missing from the workflow's
-trigger paths or from its routing pattern.
+trigger paths or from its routing pattern. The
+[host webview spec](../../tools/repo-checks/src/hostWebviews.spec.ts) takes
+the webviews each host ships from its build (the staging folders that
+`apps/vscode-plugin/webpack.config.js` and `apps/intellij-plugin/build.gradle.kts`
+copy, mapped to apps through their Vite `outDir`) and fails when the trigger
+paths or a host's routing pattern misses one of them, or when a pattern
+matches a webview that host does not ship. It also checks the publish
+workflows' focused installs and build steps, the root `intellij:build` script
+and the VS Code smoke and e2e triggers against the same lists.
 
 Keeping VS Code as root would leave the npm package's inlined-library changes
 under-versioned and could major-release VS Code for package-only breaks.
