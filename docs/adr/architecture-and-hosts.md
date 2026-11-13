@@ -1342,13 +1342,12 @@ JVM and then stdio; replies return through the JVM's JavaScript message relay.
 The bridge embeds no HTTP/WebSocket server and opens no TCP port. The JVM's
 separate loopback asset server serves static resources, not per-document state.
 
-Keep protocol methods, parameter types and directions in the
-[protocol descriptor](../../apps/modeler-bridge/src/protocol/domain/descriptor.ts).
-Each bridge feature owns its methods and fixtures in its own
-`protocol/domain/<feature>Protocol.ts` module, so a feature's protocol change
-edits that module; the descriptor only orders the features' entry groups into
-`PROTOCOL` and spreads their method names into `METHODS`, the one import for
-call sites.
+Each bridge feature keeps its protocol methods, directions and fixtures in its
+own `protocol/domain/<feature>Protocol.ts` module, so a feature's protocol
+change edits that module; parameter types stay in the bridge's `types.ts`. The
+[protocol descriptor](../../apps/modeler-bridge/src/protocol/domain/descriptor.ts)
+aggregates them: it orders the features' entry groups into `PROTOCOL` and
+spreads their method names into `METHODS`, the one import for call sites.
 Update its committed snapshot when the private wire contract changes; the
 [contract tests](../../apps/modeler-bridge/src/protocol/domain/protocol.spec.ts) guard
 descriptor/snapshot agreement. The IntelliJ
@@ -1440,9 +1439,9 @@ The host answers every core request exactly once: with its result, or with an
 error when its handler throws, also when the handler leaves the reader thread
 for the EDT or a background thread (`RpcChannel.replyFrom`, pinned by the
 [channel tests](../../apps/intellij-plugin/src/test/kotlin/io/miragon/intellij/bpmn/bridge/RpcChannelTest.kt)).
-How long the bridge's `Rpc.request` waits is data on each request in the
-[protocol descriptor](../../apps/modeler-bridge/src/protocol/domain/descriptor.ts)
-(`replyWait`). Host work, such as a save, a clipboard read or a secret, fails
+How long the bridge's `Rpc.request` waits is data on each request entry
+(`replyWait`) in its feature's protocol module; the deadlines it maps to live in
+the [protocol descriptor](../../apps/modeler-bridge/src/protocol/domain/descriptor.ts). Host work, such as a save, a clipboard read or a secret, fails
 after two minutes, so a reply the host never sends cannot hold the caller's
 per-editor queue; the caller's own error handling runs. The limit is generous
 because host work can queue behind a modal dialog or a keychain prompt. Prompts

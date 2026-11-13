@@ -58,7 +58,7 @@ export const KERNEL_HOST_TO_CORE_NOTIFICATIONS = [
 ] as const satisfies readonly ProtocolEntry[];
 
 /** The requests that ask the host for an answer: a pick, a confirmation, the clipboard's text. */
-export const HOST_INPUT_REQUESTS = [
+export const KERNEL_HOST_INPUT_REQUESTS = [
     {
         method: KERNEL_METHODS.pickerShow,
         direction: "coreToHost",
@@ -94,7 +94,7 @@ export const HOST_INPUT_REQUESTS = [
     },
 ] as const satisfies readonly ProtocolEntry[];
 
-export const ACTION_NOTICE_REQUESTS = [
+export const KERNEL_ACTION_NOTICE_REQUESTS = [
     {
         method: KERNEL_METHODS.actionNoticeShow,
         direction: "coreToHost",
@@ -110,7 +110,7 @@ export const ACTION_NOTICE_REQUESTS = [
     },
 ] as const satisfies readonly ProtocolEntry[];
 
-export const TEMPLATE_PREFERENCE_REQUESTS = [
+export const KERNEL_TEMPLATE_PREFERENCE_REQUESTS = [
     // The host merges the change into the scope's stored list, pushes the
     // lists in `templatePreferences/didChange`, then answers with both.
     {
