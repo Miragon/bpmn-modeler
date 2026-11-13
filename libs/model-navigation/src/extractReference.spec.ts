@@ -2,7 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import type { ReferenceKind } from "@miragon/bpmn-modeler-types";
 
-import { BusinessObjectLike, extractModelReference, extractReference } from "./extractReference";
+import {
+    BusinessObjectLike,
+    extractModelReference,
+    extractReference,
+    referenceKindOf,
+} from "./extractReference";
 
 function businessObject(attrs: Record<string, unknown>): BusinessObjectLike {
     return {
@@ -21,6 +26,24 @@ function businessObject(attrs: Record<string, unknown>): BusinessObjectLike {
             | undefined,
     };
 }
+
+function elementOfType(...types: string[]) {
+    return { businessObject: { $instanceOf: (type: string) => types.includes(type) } };
+}
+
+describe("referenceKindOf", () => {
+    it.each([
+        ["bpmn:CallActivity", "process"],
+        ["bpmn:BusinessRuleTask", "decision"],
+        ["bpmn:UserTask", "form"],
+    ])("maps a %s to a %s reference", (type, kind) => {
+        expect(referenceKindOf(elementOfType("bpmn:Task", type))).toBe(kind);
+    });
+
+    it("maps an element that holds no reference to no kind", () => {
+        expect(referenceKindOf(elementOfType("bpmn:Task", "bpmn:ServiceTask"))).toBe(undefined);
+    });
+});
 
 describe("extractReference", () => {
     it("reads C7 calledElement on Call Activity", () => {

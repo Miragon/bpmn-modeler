@@ -435,6 +435,7 @@ describe("automatic linked form preview", () => {
     it("does not preview other element types or tasks without a form", () => {
         const { select, open } = setup();
         select({ ...task(), type: "bpmn:CallActivity" });
+        select({ ...task(), type: "bpmn:BusinessRuleTask" });
         select(task(""));
         expect(open).not.toHaveBeenCalled();
     });

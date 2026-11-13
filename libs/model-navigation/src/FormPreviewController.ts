@@ -1,6 +1,5 @@
-import { extractReference } from "./extractReference";
-import { is } from "bpmn-js/lib/util/ModelUtil";
-import { DEFAULT_FORM_PREVIEW_AUTOMATIC } from "@miragon/bpmn-modeler-types";
+import { extractReference, referenceKindOf } from "./extractReference";
+import { DEFAULT_FORM_PREVIEW_AUTOMATIC, referenceKindSupports } from "@miragon/bpmn-modeler-types";
 import type { FormPreviewHandle, ModelNavigationPort, PreviewRect } from "./ModelNavigationPort";
 import type { FormReferenceStatusClient } from "./FormReferenceStatusClient";
 import type { BusinessObjectLike } from "./extractReference";
@@ -110,9 +109,9 @@ export class FormPreviewController {
     private update(): void {
         if (this.disposed || !this.port.formPreview) return;
         const elements = this.selection.get();
-        const target =
-            elements.length === 1 && is(elements[0], "bpmn:UserTask") ? elements[0] : undefined;
-        const reference = target && extractReference(target.businessObject, "form");
+        const kind = elements.length === 1 ? referenceKindOf(elements[0]) : undefined;
+        const target = kind && referenceKindSupports(kind, "preview") ? elements[0] : undefined;
+        const reference = target && kind && extractReference(target.businessObject, kind);
         this.transition({
             kind: "selection",
             automatic:
