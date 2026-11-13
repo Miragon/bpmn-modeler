@@ -445,7 +445,7 @@ export class ScriptTaskService implements ScriptEditorPort {
         const [, entry] = found;
 
         if (content === undefined) {
-            // The script surface is gone: drop the sender entirely so a pending
+            // The script surface is gone: stop the tab's stream so a pending
             // keystroke can't fire against a deleted element. Clear tracking
             // first so the tab-close event is a no-op, then save-before-close to
             // suppress the dirty prompt (the bytes are already gone from the
@@ -532,7 +532,7 @@ export class ScriptTaskService implements ScriptEditorPort {
                     continue;
                 }
                 // The replay just carried the live buffer, so any keystroke
-                // still pending in this path's sender is redundant — cancel it
+                // still pending in this path's stream is redundant — cancel it
                 // to avoid a duplicate post landing right after.
                 this.contentStream.cancel(entry.uri.path);
                 /**
@@ -592,8 +592,8 @@ export class ScriptTaskService implements ScriptEditorPort {
             // straight into the `.bpmn` XML before the files are deleted —
             // otherwise a close of a hidden diagram silently drops edits that
             // never reached the webview model. Run always (compare-and-write is
-            // a no-op when nothing diverged); this also covers the sub-300 ms
-            // debounce window where the last keystroke hadn't streamed yet.
+            // a no-op when nothing diverged); this also covers the debounce
+            // window where the last keystroke hadn't streamed yet.
             if (!wasReverted) {
                 const updates = await this.collectScriptUpdates(orphaned);
                 await this.persistScriptsToDocument(editorId, updates);
@@ -793,7 +793,7 @@ export class ScriptTaskService implements ScriptEditorPort {
             return;
         }
 
-        // The last <300 ms of typing is still sitting in the debounced sender;
+        // The typing still in the debounce window sits in the tab's stream;
         // force it into the model before dropping tracking. A flush against a
         // hidden webview arms `pendingResync` *asynchronously*, so the
         // pendingResync re-check below MUST run after the await — a pre-await

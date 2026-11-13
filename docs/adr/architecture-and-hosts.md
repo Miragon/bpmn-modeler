@@ -787,9 +787,9 @@ last segment of each tab's path, and decides that materialising a script an
 open tab owns leaves it alone. Which file a script gets is the core's
 `ScriptTargetResolver`'s: it asks for a language only when the model's is
 missing or unsupported, writes the pick back to the model and builds the
-`ScriptUri`. The core's `ScriptContentStream` streams a tab's edits into the
-model, one update per 300 ms pause in typing, and tells VS Code which editor's
-hidden webview missed one, so VS Code can replay it once shown.
+`ScriptUri`. The core's `ScriptContentStream` debounces a tab's edits into one
+model update per pause in typing and reports an editor whose hidden webview
+missed one, which VS Code replays once shown.
 Script identity is `modeler-types`'
 `isSameScript`, where an absent listener index is index 0, because the
 webview's lock applies it too. What the webview's script commands mean is the core

@@ -99,6 +99,7 @@ import {
     ArtifactService,
     OpenScriptTabs,
     SCRIPT_STREAM_DEBOUNCE_MS,
+    ScriptContentStream,
     ScriptFileStore,
     ScriptLanguage,
     scriptLanguagePrompt,
@@ -307,7 +308,7 @@ async function openCanonicalScript(
 
 beforeEach(() => {
     vi.clearAllMocks();
-    // Fake timers make the 300 ms keystroke debounce deterministic; each test
+    // Fake timers make the keystroke debounce deterministic; each test
     // advances time explicitly instead of sleeping.
     vi.useFakeTimers();
     openTabGroups = [];
@@ -1138,7 +1139,8 @@ describe("ScriptTaskService keystroke debounce", () => {
         ).toBe(true);
     });
 
-    it("drops the content sender when a script tab is cleaned up", async () => {
+    it("stops the tab's content stream when a script tab is cleaned up", async () => {
+        const stop = vi.spyOn(ScriptContentStream.prototype, "stop");
         const { service, fireDocChange, fireTabsChange } = createService();
         await openCanonicalScript(service, "groovy", "a");
         await fireDocChange(docChangeEvent(scriptPath("groovy"), "typed"));
@@ -1147,11 +1149,8 @@ describe("ScriptTaskService keystroke debounce", () => {
         fireTabsChange({ closed: [makeTab(scriptPath("groovy"))], opened: [], changed: [] });
         await flushAsync();
 
-        expect(
-            (
-                service as never as { contentStream: { senders: Map<string, unknown> } }
-            ).contentStream.senders.has(scriptPath("groovy")),
-        ).toBe(false);
+        expect(stop).toHaveBeenCalledWith(scriptPath("groovy"));
+        stop.mockRestore();
     });
 
     it("cancels pending keystrokes on dispose without posting or logging", async () => {

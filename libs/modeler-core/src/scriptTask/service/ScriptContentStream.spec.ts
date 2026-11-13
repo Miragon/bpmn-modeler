@@ -115,6 +115,10 @@ describe("ScriptContentStream", () => {
         stream.stop(TASK_PATH);
         await stream.flush(TASK_PATH);
         expect(diagram.posted).toEqual([]);
+        // A cancelled sender would stream the same; only the map shows a stopped tab leaking.
+        expect((stream as never as { senders: Map<string, unknown> }).senders.has(TASK_PATH)).toBe(
+            false,
+        );
 
         stream.push(TASK_PATH, task, "reopened");
         await vi.advanceTimersByTimeAsync(SCRIPT_STREAM_DEBOUNCE_MS);
@@ -130,6 +134,16 @@ describe("ScriptContentStream", () => {
 
         expect(hiddenEditors).toEqual([diagram.id]);
         expect(host.notifier.loggedErrors).toEqual([]);
+    });
+
+    it("reports a hidden webview's missed edit before flush resolves", async () => {
+        const { diagram, stream, hiddenEditors, task } = createStream();
+        diagram.hidden = true;
+
+        stream.push(TASK_PATH, task, "typed while hidden");
+        await stream.flush(TASK_PATH);
+
+        expect(hiddenEditors).toEqual([diagram.id]);
     });
 
     it("logs an edit the webview cannot take and keeps streaming", async () => {

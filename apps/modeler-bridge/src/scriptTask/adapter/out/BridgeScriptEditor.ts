@@ -319,7 +319,7 @@ export class BridgeScriptEditor implements ScriptEditorPort, ScriptTabEvents {
         }
         const [scriptId] = found;
         if (change.content === undefined) {
-            // Surface gone: drop the sender so a pending keystroke can't
+            // Surface gone: stop the tab's stream so a pending keystroke can't
             // fire against a deleted element.
             this.contentStream.stop(scriptId);
             this.scripts.untrack(scriptId);
@@ -408,14 +408,14 @@ export class BridgeScriptEditor implements ScriptEditorPort, ScriptTabEvents {
     async didClose(scriptId: string): Promise<void> {
         // A re-open cancelled the pending close-ack, but the host still emits one
         // `didClose` for that pre-empted close. Swallow it *before* touching the
-        // sender so the re-opened tab's live sender and tracking are preserved.
+        // stream so the re-opened tab's live stream and tracking are preserved.
         if (this.swallowNextDidClose.delete(scriptId)) {
             return;
         }
-        // Force the last <300 ms of typing into the model before tearing the
-        // script down, then drop the sender. On the ack branch the sender was
-        // already cancelled by applyModelChange/disposeEditor, so this is a
-        // no-op there.
+        // Force the typing still in the debounce window into the model before
+        // tearing the script down, then stop the tab's stream. On the ack branch
+        // the stream was already stopped by applyModelChange/disposeEditor, so
+        // this is a no-op there.
         await this.contentStream.flush(scriptId);
         this.contentStream.stop(scriptId);
 
@@ -463,8 +463,8 @@ export class BridgeScriptEditor implements ScriptEditorPort, ScriptTabEvents {
         } else {
             let remaining = closing.size;
             for (const scriptId of closing) {
-                // Best-effort: push the last <300 ms of typing into the model
-                // before asking the host to close. The sender body swallows its
+                // Best-effort: push the typing still in the debounce window into
+                // the model before asking the host to close. The stream logs its
                 // own errors so this never rejects; if the webview is already
                 // unreachable the keystroke is lost — accepted trade-off, there
                 // is no host-side XML fallback on this platform.
