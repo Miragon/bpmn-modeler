@@ -9,6 +9,7 @@ describe("readRuntimeDeclarations", () => {
         { form: "a default import", source: 'import A from "./a";' },
         { form: "a namespace import", source: 'import * as a from "./a";' },
         { form: "an interface", source: "export interface A { b(): void }" },
+        { form: "a stray semicolon after an interface", source: "export interface A {};" },
         { form: "a declared interface", source: "declare interface A {}" },
         { form: "a type alias", source: "export type A = (b: string) => void;" },
         { form: "a type re-export", source: 'export type { A, B as C } from "./a";' },
@@ -16,6 +17,7 @@ describe("readRuntimeDeclarations", () => {
         { form: "a type star re-export", source: 'export type * from "./a";' },
         { form: "a type namespace re-export", source: 'export type * as a from "./a";' },
         { form: "a type export list", source: "interface A {}\nexport type { A };" },
+        { form: "an empty export list", source: "export {};" },
         { form: "an empty file", source: "" },
     ])("allows $form", ({ source }) => {
         expect(readRuntimeDeclarations("port.ts", source)).toEqual([]);
@@ -47,9 +49,11 @@ describe("readRuntimeDeclarations", () => {
         { form: "export *", source: 'export * from "./a";', name: "./a" },
         { form: "export *", source: 'export * as a from "./a";', name: "./a" },
         { form: "side-effect import", source: 'import "./a";', name: "./a" },
+        { form: "side-effect export", source: 'export {} from "./a";', name: "./a" },
         { form: "import =", source: 'import a = require("./a");', name: "a" },
         { form: "import =", source: "import a = B.c;", name: "a" },
         { form: "statement", source: "register();", name: "register();" },
+        { form: "statement", source: "register(\n    1,\n);", name: "register(" },
     ])("reports a $form in `$source`", ({ form, source, name }) => {
         expect(readRuntimeDeclarations("port.ts", source)).toEqual([{ form, name, line: 1 }]);
     });

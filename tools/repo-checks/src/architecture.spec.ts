@@ -164,7 +164,8 @@ describe("role folders", () => {
         it("a port/ file declares only types", () => {
             expect(
                 unexcusedViolations(portValues, PORT_VALUE_EXCEPTIONS).map(
-                    ({ from, to, line }) => `${from}:${line} declares ${to}, not a type`,
+                    ({ from, to, line }) =>
+                        `${from}:${line} declares ${to}; a port/ file holds only interfaces, type aliases and type-only exports`,
                 ),
             ).toEqual([]);
         });

@@ -453,11 +453,12 @@ only folders and imports, rule 10 the top-level statements of a `port/` file:
    (`isHostModule`: `vscode`, `node:*`, `fs`, `http`).
 8. Only `composition/` and entries import `composition/`.
 9. Only `testing/` imports `testing/`, and nothing imports an entry.
-10. A `port/` file declares only types: imports with bindings, interfaces,
-    type aliases and type-only exports. A `const`, `let` or `var`, function,
-    class, enum, namespace, `export default`, `export =`, value re-export,
-    `export *` or side-effect import fails. The check reads syntax and
-    resolves no re-export, so a re-exported interface says `export type`.
+10. A `port/` file declares only types: `import … from` with an import
+    clause, interfaces, type aliases and type-only exports. A `const`, `let`
+    or `var`, function, class, enum, namespace, `export default`, `export =`,
+    value export, `export *`, side-effect import or export, `import … =` or
+    any other statement fails. The check reads syntax and resolves no
+    re-export, so a re-exported interface says `export type`.
 
 Rule 10 is not an entry of `HEXAGONAL_RULES`: an `ArchitectureRule` sees only
 the import graph, and `convention-coverage` reads every entry as an import

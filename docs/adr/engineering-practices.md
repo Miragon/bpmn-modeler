@@ -640,9 +640,10 @@ over role folders that `roleOf` reads from the path, so no rule reads a file or
 type name (see
 [Workspace kinds and role folders](architecture-and-hosts.md#workspace-kinds-and-role-folders)).
 `readRuntimeDeclarations` lists the top-level statements of a file that are
-not types, against an allowlist: imports with bindings, interfaces, type
-aliases and type-only exports (`export type { … }`, every element `type`,
-`export type *`). It reads syntax only and resolves no re-export, so
+not types, against an allowlist: `import … from` with an import clause,
+interfaces, type aliases and type-only exports (`export type { … }`, every
+element `type`, `export type *`), with the type-only export test
+`readModuleImports` uses. It reads syntax only and resolves no re-export, so
 `export { SomeInterface } from` fails. A value inside a namespace fails with
 its namespace.
 `readValueSets` reads the value sets a file writes out, from syntax only: an

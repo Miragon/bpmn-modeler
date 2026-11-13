@@ -72,7 +72,7 @@ function isTypeOnlyImport(clause: ts.ImportClause | undefined): boolean {
     );
 }
 
-function isTypeOnlyExport(declaration: ts.ExportDeclaration): boolean {
+export function isTypeOnlyExport(declaration: ts.ExportDeclaration): boolean {
     if (declaration.isTypeOnly) {
         return true;
     }

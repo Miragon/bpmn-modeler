@@ -204,8 +204,10 @@ file or type name:
 8. Only `composition/` and entries import `composition/`.
 9. Only `testing/` imports `testing/`; nothing imports an entry.
 10. A `port/` file declares only types: no `const`, function, class, enum,
-    namespace, `export default` or value re-export. Re-export an interface
-    with `export type`.
+    namespace, `export default`, value export, `import … =` or other
+    statement. Re-export an interface with `export type`. Rule 10 keeps its
+    own exception list in the same spec; neither a blanket role exception
+    nor `convention-coverage` covers it.
 
 In a webview the UI, its markup and the router for the host's queries are
 `adapter/in/`, the host channel and the modeler-library wrappers
@@ -220,7 +222,7 @@ has one blanket exception in the repo-level spec naming its migration issue.
 
 A class that implements a port sits in `adapter/out/` or `testing/`. No spec
 blocks this; the `convention-coverage` fitness function reports it, and runs
-the rules above without exceptions, so the files of a workspace not yet
+rules 1 to 9 without exceptions, so the files of a workspace not yet
 moved show as remaining work. The rules and the reasons are in the
 [ADR](../../../docs/adr/architecture-and-hosts.md#workspace-kinds-and-role-folders).
 

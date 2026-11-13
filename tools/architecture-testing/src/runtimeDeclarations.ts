@@ -1,5 +1,6 @@
 import * as ts from "typescript";
 
+import { isTypeOnlyExport } from "./moduleImports";
 import { parseSource } from "./parseSource";
 
 export interface RuntimeDeclaration {
@@ -20,9 +21,9 @@ const DECLARATION_FORMS: ReadonlyMap<ts.SyntaxKind, string> = new Map([
 ]);
 
 /**
- * The top-level statements that are not types: an allowlist of imports with
- * bindings, interfaces, type aliases and type-only exports. Syntax only, so a
- * re-export of an interface must say `export type` to pass.
+ * The top-level statements that are not types: an allowlist of `import … from`
+ * with an import clause, interfaces, type aliases and type-only exports. Syntax
+ * only, so a re-export of an interface must say `export type` to pass.
  */
 export function readRuntimeDeclarations(fileName: string, text: string): RuntimeDeclaration[] {
     const sourceFile = parseSource(fileName, text);
@@ -54,7 +55,11 @@ function runtimeFormOf(
     if (isDefaultExport(statement)) {
         return { form: "export default", name: declaredName(statement) ?? "default" };
     }
-    if (ts.isInterfaceDeclaration(statement) || ts.isTypeAliasDeclaration(statement)) {
+    if (
+        ts.isInterfaceDeclaration(statement) ||
+        ts.isTypeAliasDeclaration(statement) ||
+        ts.isEmptyStatement(statement)
+    ) {
         return undefined;
     }
     if (ts.isVariableStatement(statement)) {
@@ -62,24 +67,27 @@ function runtimeFormOf(
     }
     return {
         form: DECLARATION_FORMS.get(statement.kind) ?? "statement",
-        name: declaredName(statement) ?? statement.getText(sourceFile),
+        name: declaredName(statement) ?? firstLineOf(statement.getText(sourceFile)),
     };
 }
 
 function valueExportOf(statement: ts.ExportDeclaration): RuntimeForm | undefined {
-    if (statement.isTypeOnly) {
+    if (isTypeOnlyExport(statement)) {
         return undefined;
     }
     const clause = statement.exportClause;
     if (clause === undefined || ts.isNamespaceExport(clause)) {
         return { form: "export *", name: specifierOf(statement.moduleSpecifier) };
     }
+    if (clause.elements.length === 0) {
+        return statement.moduleSpecifier === undefined
+            ? undefined
+            : { form: "side-effect export", name: specifierOf(statement.moduleSpecifier) };
+    }
     const valueNames = clause.elements
         .filter((element) => !element.isTypeOnly)
         .map((element) => element.name.text);
-    return valueNames.length === 0
-        ? undefined
-        : { form: "value export", name: valueNames.join(", ") };
+    return { form: "value export", name: valueNames.join(", ") };
 }
 
 // The keyword is read from the source: `await using` is two tokens.
@@ -113,6 +121,10 @@ function declaredName(statement: ts.Statement): string | undefined {
         return statement.name.text;
     }
     return undefined;
+}
+
+function firstLineOf(text: string): string {
+    return text.split("\n", 1)[0];
 }
 
 function specifierOf(specifier: ts.Expression | undefined): string {
