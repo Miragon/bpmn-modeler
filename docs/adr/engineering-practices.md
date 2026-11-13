@@ -639,6 +639,12 @@ also holds one rule set per workspace kind (`HEXAGONAL_RULES`, `FLAT_RULES`)
 over role folders that `roleOf` reads from the path, so no rule reads a file or
 type name (see
 [Workspace kinds and role folders](architecture-and-hosts.md#workspace-kinds-and-role-folders)).
+`readRuntimeDeclarations` lists the top-level statements of a file that are
+not types, against an allowlist: imports with bindings, interfaces, type
+aliases and type-only exports (`export type { … }`, every element `type`,
+`export type *`). It reads syntax only and resolves no re-export, so
+`export { SomeInterface } from` fails. A value inside a namespace fails with
+its namespace.
 `readValueSets` reads the value sets a file writes out, from syntax only: an
 array of string literals, a union of string literal types and a maximal `||`
 chain of `===` comparisons of one subject with string literals.
@@ -681,7 +687,10 @@ the `"architecture"` field of its `package.json`; a missing or unknown kind
 fails. The role rules read the default source tree, so `__fixtures__` stay out:
 they are test inputs, not code with a role. A workspace not yet moved into its
 role folders has one blanket `KnownException` (`from: <dir>, to: "*"`) naming
-the issue that moves it.
+the issue that moves it. The spec also reads every `port/` file of a
+`hexagonal` workspace with `readRuntimeDeclarations` and fails on any runtime
+value. That guard keeps its own exception list, so a blanket role exception
+does not excuse it: a port file placed during a migration is checked at once.
 
 ESLint bans an empty function (`() => {}`) in an adapter, outside specs: a
 port adapter stubbed that way passes every spec that never calls it, so an

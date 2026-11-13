@@ -48,6 +48,8 @@ export { readPathAliases, resolveAliasImport } from "./pathAliases";
 export type { PathAlias } from "./pathAliases";
 export { requireMatches } from "./requireMatches";
 export { isEntry, roleOf } from "./roleFolders";
+export { readRuntimeDeclarations } from "./runtimeDeclarations";
+export type { RuntimeDeclaration } from "./runtimeDeclarations";
 export type { Role, RoleLocation } from "./roleFolders";
 export { readSourceTree } from "./sourceTree";
 export type { SourceFile, SourceTreeOptions } from "./sourceTree";
