@@ -1128,8 +1128,9 @@ loopback that answers as `MarketplaceRouter` does. The places that loopback
 names come from `intellijWritableScopes.json`, which `MarketplaceRouterTest`
 holds `MarketplaceRouter` to (#2223).
 
-Adapters render core prompt text, except for the remaining IntelliJ creation
-prompts tracked in #2222. A new choice or confirmation needs a builder and
+Adapters render core prompt text. IntelliJ's New BPMN/DMN Model dialog keeps a
+Kotlin copy, which `NewModelFileDialogTest` holds to the core's, as the
+new-file paragraph above describes. A new choice or confirmation needs a builder and
 an id, and no new port method, RPC or Kotlin handler. A new kind of input, such
 as the masked token or the marketplace's free-text location, needs its own port
 method, RPC and Kotlin handler, as those two have.
@@ -1137,8 +1138,9 @@ method, RPC and Kotlin handler, as those two have.
 Two kinds of text belong to the host and are written there: its chrome, such as
 VS Code's "Reload Window" button, and messages about its own failure, such as
 the bridge process dying (`ProcessSupervisor.kt`) or VS Code failing to open a
-compare view. Outside the tracked IntelliJ creation exception, the core builds
-every other user-visible text. The `host-text`
+compare view. The core builds every other user-visible text; where IntelliJ
+keeps a Kotlin copy, a test holds it to the core's.
+The `host-text`
 fitness function reports the texts host code writes
 ([Host text](engineering-practices.md#host-text)).
 
