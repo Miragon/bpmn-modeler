@@ -4,7 +4,7 @@ import { ListedPresence } from "../../kernel/domain/listedCode";
 import { lastWorkspacePathSegment } from "../../kernel/domain/workspacePath";
 import { PLUGIN_CODE_TEXTS } from "../domain/pluginApproval";
 import { configFolderOfPlugin, pluginsDirOf } from "../domain/pluginFolders";
-import { BpmnPluginService } from "./BpmnPluginService";
+import { PluginCache } from "./PluginCache";
 import { PluginCatalog } from "./PluginCatalog";
 import { PluginReading, WorkspacePluginLocator } from "./WorkspacePluginLocator";
 
@@ -20,7 +20,7 @@ export class PluginInventory {
     constructor(
         private readonly locator: WorkspacePluginLocator,
         private readonly catalog: PluginCatalog,
-        private readonly service: BpmnPluginService,
+        private readonly cache: PluginCache,
     ) {}
 
     async pluginsIn(pluginDirs: readonly string[]): Promise<readonly ListedPresence[]> {
@@ -63,7 +63,7 @@ export class PluginInventory {
     }
 
     pruneCache(): Promise<{ readonly removed: number }> {
-        return this.service.pruneUnusedCopies();
+        return this.cache.pruneUnusedCopies();
     }
 
     onDidChange(listener: () => void): { dispose(): void } {

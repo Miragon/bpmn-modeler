@@ -19,7 +19,7 @@ vi.mock("@miragon/bpmn-modeler-core", async (importOriginal) => {
         constructor(ports: BpmnPluginsHostPorts) {
             super(ports);
             injectedPorts.plugins.push(ports);
-            this.service.pruneIdleCopies = async () => {
+            this.cache.pruneIdleCopies = async () => {
                 injectedPorts.prunes.push(ports.cacheRoot);
                 return { removed: 0 };
             };

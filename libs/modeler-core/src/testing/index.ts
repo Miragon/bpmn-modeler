@@ -13,6 +13,7 @@ export * from "./FakeEditorHandle";
 export * from "./fingerprintHasher";
 export * from "./folderOriginAllowances";
 export * from "./gitLayout";
+export * from "./holdCalls";
 export * from "./InMemoryCredentials";
 export * from "./InMemoryDeploymentState";
 export * from "./InMemoryInstalledPackages";
