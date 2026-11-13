@@ -98,6 +98,19 @@ describe("WebviewDocumentSync", () => {
         );
     });
 
+    it("marks the failed sync for a host that flushes past the core", async () => {
+        const { sync, posted } = createSync({
+            exportDocument: () => Promise.reject(new Error("export broke")),
+        });
+
+        sync.scheduleSync();
+        await vi.advanceTimersByTimeAsync(300);
+
+        expect(posted).toEqual([
+            expect.objectContaining({ type: "LogErrorCommand", documentSyncFailed: true }),
+        ]);
+    });
+
     it("keeps the represented revision when a newer push overtook an import", async () => {
         const { sync } = createSync();
         sync.receive(1);

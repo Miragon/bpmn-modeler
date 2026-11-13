@@ -4,7 +4,14 @@ vi.mock("@theia/core/lib/browser/widget-manager", () => ({
     WidgetManager: class {},
 }));
 
-import { ModelerCustomEditorContribution } from "./modeler-custom-editor-contribution";
+import { LogErrorCommand, SYNC_DEBOUNCE_MS } from "@miragon/bpmn-modeler-shared";
+import { PANEL_INPUT_DEBOUNCE_MS } from "@miragon/bpmn-modeler-properties-panel/debounceInput/flushableDebounceInput";
+
+import {
+    DOCUMENT_SYNC_DEBOUNCE_MS,
+    ModelerCustomEditorContribution,
+    PROPERTIES_PANEL_INPUT_DEBOUNCE_MS,
+} from "./modeler-custom-editor-contribution";
 import { FLUSH_DOCUMENT_COMMAND } from "./modeler-widget-flush";
 
 interface TestWidgetOptions {
@@ -21,6 +28,10 @@ interface TestWidgetOptions {
     replyDelay?: number;
     syncFailure?: boolean;
     viewType?: string;
+}
+
+function failedSyncLog(): LogErrorCommand {
+    return new LogErrorCommand("Failed to sync diagram changes: export failed", undefined, true);
 }
 
 function customEditorWidget(options: TestWidgetOptions = {}) {
@@ -65,13 +76,7 @@ function customEditorWidget(options: TestWidgetOptions = {}) {
                 scheduleHostContent(options.normalSyncContent, options.normalSyncDelay);
             }
         } else if (options.syncFailure) {
-            scheduleMessage(
-                {
-                    type: "LogErrorCommand",
-                    message: "Failed to sync diagram changes: export failed",
-                },
-                options.normalSyncDelay,
-            );
+            scheduleMessage(failedSyncLog(), options.normalSyncDelay);
         }
     });
     const focus = vi.fn();
@@ -246,6 +251,30 @@ describe("ModelerCustomEditorContribution", () => {
         expect(candidate.pushEditOperations).not.toHaveBeenCalled();
     });
 
+    it("reads only a marked error log as a failed sync", async () => {
+        vi.useFakeTimers();
+        const candidate = customEditorWidget({ flushedContent: "<after/>" });
+        const { command } = setup(candidate.widget);
+        setTimeout(
+            () =>
+                candidate.emitMessage(
+                    new LogErrorCommand("Failed to sync diagram changes: export failed"),
+                ),
+            100,
+        );
+
+        const flushing = command();
+        await vi.runAllTimersAsync();
+
+        await expect(flushing).resolves.toBe(true);
+        expect(candidate.getContent()).toBe("<after/>");
+    });
+
+    it("waits as long as the webview's own debounces", () => {
+        expect(PROPERTIES_PANEL_INPUT_DEBOUNCE_MS).toBe(PANEL_INPUT_DEBOUNCE_MS);
+        expect(DOCUMENT_SYNC_DEBOUNCE_MS).toBe(SYNC_DEBOUNCE_MS);
+    });
+
     it("accepts a guarded host sync observed while draining the debounce", async () => {
         const candidate = customEditorWidget({ normalSyncContent: "<after/>" });
         const { command } = setup(candidate.widget);
@@ -405,14 +434,7 @@ describe("ModelerCustomEditorContribution", () => {
                 }),
             1_050,
         );
-        setTimeout(
-            () =>
-                candidate.emitMessage({
-                    type: "LogErrorCommand",
-                    message: "Failed to sync diagram changes: export failed",
-                }),
-            1_150,
-        );
+        setTimeout(() => candidate.emitMessage(failedSyncLog()), 1_150);
 
         await vi.runAllTimersAsync();
 

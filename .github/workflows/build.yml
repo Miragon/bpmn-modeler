@@ -67,6 +67,8 @@ jobs:
               - 'libs/modeler-core/src/kernel/domain/projectScopes.ts'
               # BrandModeTest runs these rows against the Kotlin brand mode.
               - 'libs/shared/src/lib/brandMode.cases.json'
+              # DocumentFlushedReplyParseTest runs these rows against the Kotlin flush reply table.
+              - 'libs/shared/src/lib/documentFlushReply.cases.json'
               # The router tests run the rows and values the bridge's IntelliJ loopbacks answer with.
               - 'apps/modeler-bridge/src/__fixtures__/intellijPasswordSafe.cases.json'
               - 'apps/modeler-bridge/src/__fixtures__/intellijDocumentWrite.cases.json'

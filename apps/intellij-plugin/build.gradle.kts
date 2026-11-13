@@ -97,6 +97,8 @@ val templatePreferenceChangeCases =
     layout.projectDirectory.file("../../libs/modeler-core/src/kernel/domain/templatePreferenceChange.cases.json")
 val projectScopes = layout.projectDirectory.file("../../libs/modeler-core/src/kernel/domain/projectScopes.ts")
 val brandModeCases = layout.projectDirectory.file("../../libs/shared/src/lib/brandMode.cases.json")
+val documentFlushReplyCases =
+    layout.projectDirectory.file("../../libs/shared/src/lib/documentFlushReply.cases.json")
 val intellijPasswordSafeCases =
     layout.projectDirectory.file("../modeler-bridge/src/__fixtures__/intellijPasswordSafe.cases.json")
 val intellijDocumentWriteCases =
@@ -121,7 +123,8 @@ tasks.test {
     // matchers run, WebviewRouteTest the plugin asset urls the bridge builds, ActionNoticeToneTest
     // the core's notice tones, PluginApprovalStoreTest the rows the core merges approval changes
     // by, TemplatePreferenceStoreTest the rows it merges template switch changes by, ProjectScopeTest
-    // the core's project scopes, BrandModeTest the rows the shared brand mode rule runs, and
+    // the core's project scopes, BrandModeTest the rows the shared brand mode rule runs,
+    // DocumentFlushedReplyParseTest the rows the shared flush reply table runs, and
     // SecretStoreRouterTest, EditorSessionRouterTest, ScriptRouterTest, HostUiRouterTest and
     // MarketplaceRouterTest the rows and values the bridge's IntelliJ loopbacks answer with. As
     // declared inputs, a change on the TypeScript side alone reruns the tests instead of restoring
@@ -144,6 +147,7 @@ tasks.test {
         "templatePreferenceChangeCases" to templatePreferenceChangeCases,
         "projectScopes" to projectScopes,
         "brandModeCases" to brandModeCases,
+        "documentFlushReplyCases" to documentFlushReplyCases,
         "intellijPasswordSafeCases" to intellijPasswordSafeCases,
         "intellijDocumentWriteCases" to intellijDocumentWriteCases,
         "intellijScriptTabsCases" to intellijScriptTabsCases,

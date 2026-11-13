@@ -1185,19 +1185,54 @@ Accepted residual: a sync the page posted before the host asked, whose core
 write has not reached the EDT yet, lands after the save; and a save of one
 Document (`saveDocument`), which neither Ctrl+S nor autosave makes, does not
 flush.
-Before the standalone app shuts down or moves a diagram into or out of a
-secondary window (which reloads the webview), the Theia frontend in
-`libs/standalone-extension` flushes the page into Theia's text model itself,
-past the core. Every `clean` and `host-updated` reply carries the revision the
-page represents; the core and IntelliJ read a reply's revision only on a
-`flushed` export, so the field is additive. The frontend writes a `flushed`
-export, and nothing for `host-updated`. For `clean` or `unavailable` it falls
-back to the last sync it saw, once the text model has not taken it within
-500 ms, unless the reply's revision is newer than the sync's: the page has
-then imported an outside change newer than the document its sync was made
-against, and the host document already holds it. `decideFlushWrite` holds this rule. Accepted residual: a
-`flushed` export that races a host update still on its way to the page is
-written without a revision check; only a flush through the core's
+Every host reads a page's flush reply, and decides what to write from it,
+with one table: `parseFlushReply` and `decideFlushWrite` in
+`libs/shared/src/lib/documentFlush.ts`, whose rows are
+`documentFlushReply.cases.json`. The core's `DocumentFlushService` and
+`PendingEditsFlush` import it. The Theia frontend keeps a copy in
+`libs/standalone-extension/src/modeler-flush-reply.ts`, because that package's
+build imports no workspace package; its spec runs the rows and pins the copy's
+types to the shared ones. IntelliJ's Kotlin twin, `DocumentFlushReply.kt`,
+runs the rows in `DocumentFlushedReplyParseTest`. A reply without a status
+reads as `clean`, or as `flushed` when it carries content. A status the host
+does not know, a status that is not text and a `flushed` reply without content
+read as `unavailable`: a page newer than its host gets the cautious reading.
+Content that is not text is no reply. The table takes the reply, the newest
+sync the host saw the page post during the flush (or that posting it failed),
+and whether the flush was destructive:
+
+- `flushed`: write the export.
+- After a failed sync: refuse (`syncFailed`).
+- `host-updated`: keep the host document.
+- No observed sync: `clean` waits for the syncs the page already sent
+  (`awaitSentSyncs`); `unavailable` stays `unavailable`.
+- `clean` on a destructive flush: keep the host document. The page drained its
+  own sync and answers `clean` only when unedited since its last host import,
+  which the observed sync predates.
+- Otherwise (`clean` on a non-destructive flush, or `unavailable`): write the
+  observed sync, unless the reply's revision is newer than the sync's. The
+  page has then imported an outside change newer than the document its sync
+  was made against, and the host document already holds it.
+
+The hosts differ only in what they observe and how they act on the decision.
+The core observes no sync, because every sync reaches the document through its
+own sync path. For `unavailable` it writes nothing and answers `unavailable`,
+so a save proceeds best-effort and a destructive caller refuses; for
+`awaitSentSyncs` it drains the editor queue and checks that the latest sync
+was applied. IntelliJ observes the syncs it captures while the EDT waits,
+whose core write would land after the save, and writes an export or an
+observed sync into the Document only while its revision still matches. Before
+the standalone app shuts down or moves a diagram into or out of a secondary
+window (which reloads the webview), the Theia frontend flushes the page into
+Theia's text model itself, past the core, with a non-destructive flush. It
+writes an observed sync only when the text model has not taken it within
+500 ms, refuses after a failed sync, and proceeds on `unavailable`: it saw no
+sync to recover, and refusing would block the shutdown for a page that could
+not flush. The page marks a failed sync with `documentSyncFailed` on its
+`LogErrorCommand`, so no host reads the log text. Every `clean` and
+`host-updated` reply carries the revision the page represents. Accepted
+residual: Theia writes a `flushed` export that races a host update still on
+its way to the page without a revision check; only a flush through the core's
 `PendingEditsFlush` would close that.
 On the webview side the BPMN and DMN webviews share `WebviewDocumentSync` in
 `libs/shared` (host revisions, the serialized import queue, debounced host

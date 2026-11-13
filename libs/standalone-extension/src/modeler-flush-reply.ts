@@ -1,6 +1,9 @@
-const FLUSH_REPLY_STATUSES = ["clean", "flushed", "host-updated", "unavailable"] as const;
+// A copy of the flush reply table in libs/shared/src/lib/documentFlush.ts, which this
+// package's build cannot import; the spec runs the shared rows and pins the types to it.
 
-type FlushReplyStatus = (typeof FLUSH_REPLY_STATUSES)[number];
+export const FLUSH_REPLY_STATUSES = ["clean", "flushed", "host-updated", "unavailable"] as const;
+
+export type FlushReplyStatus = (typeof FLUSH_REPLY_STATUSES)[number];
 
 export type FlushReply =
     | { readonly status: "flushed"; readonly content: string; readonly documentRevision?: number }
@@ -9,22 +12,32 @@ export type FlushReply =
           readonly documentRevision?: number;
       };
 
-export type PendingSyncObservation =
+export type ObservedPageSync =
     | { readonly status: "failed" }
     | { readonly status: "synced"; readonly content: string; readonly documentRevision: number };
 
 export type FlushWriteDecision =
-    | { readonly kind: "syncFailed" }
+    | { readonly kind: "writeExport"; readonly content: string; readonly documentRevision?: number }
+    | {
+          readonly kind: "writeObservedSync";
+          readonly content: string;
+          readonly documentRevision: number;
+      }
+    | { readonly kind: "awaitSentSyncs" }
     | { readonly kind: "keepHostDocument" }
-    | { readonly kind: "writeExport"; readonly content: string }
-    | { readonly kind: "writeObservedSync"; readonly content: string };
+    | { readonly kind: "syncFailed" }
+    | { readonly kind: "unavailable" };
 
-export function parseFlushReply(message: Record<PropertyKey, unknown>): FlushReply | undefined {
-    const rawContent = message.content ?? undefined;
-    if (rawContent !== undefined && typeof rawContent !== "string") {
+export function parseFlushReply(message: {
+    readonly content?: unknown;
+    readonly status?: unknown;
+    readonly documentRevision?: unknown;
+}): FlushReply | undefined {
+    const content = message.content ?? undefined;
+    if (content !== undefined && typeof content !== "string") {
         return undefined;
     }
-    const rawStatus = message.status ?? (rawContent === undefined ? "clean" : "flushed");
+    const rawStatus = message.status ?? (content === undefined ? "clean" : "flushed");
     const status = FLUSH_REPLY_STATUSES.find((known) => known === rawStatus) ?? "unavailable";
     const revision =
         typeof message.documentRevision === "number"
@@ -34,29 +47,45 @@ export function parseFlushReply(message: Record<PropertyKey, unknown>): FlushRep
     if (status !== "flushed") {
         return { status, ...revision };
     }
-    return rawContent === undefined
+    return content === undefined
         ? { status: "unavailable", ...revision }
-        : { status, content: rawContent, ...revision };
+        : { status, content, ...revision };
 }
 
 export function decideFlushWrite(
     reply: FlushReply,
-    observation: PendingSyncObservation | undefined,
+    observedSync: ObservedPageSync | undefined,
+    destructive: boolean,
 ): FlushWriteDecision {
     if (reply.status === "flushed") {
-        return { kind: "writeExport", content: reply.content };
+        return reply.documentRevision === undefined
+            ? { kind: "writeExport", content: reply.content }
+            : {
+                  kind: "writeExport",
+                  content: reply.content,
+                  documentRevision: reply.documentRevision,
+              };
     }
-    if (observation?.status === "failed") {
+    if (observedSync?.status === "failed") {
         return { kind: "syncFailed" };
     }
-    if (reply.status === "host-updated" || observation === undefined) {
+    if (reply.status === "host-updated") {
         return { kind: "keepHostDocument" };
     }
-    // The core rejects a sync made against an older host document; this write must not land it.
+    if (observedSync === undefined) {
+        return reply.status === "clean" ? { kind: "awaitSentSyncs" } : { kind: "unavailable" };
+    }
+    if (reply.status === "clean" && destructive) {
+        return { kind: "keepHostDocument" };
+    }
     const pageImportedNewerHostDocument =
         reply.documentRevision !== undefined &&
-        reply.documentRevision > observation.documentRevision;
+        reply.documentRevision > observedSync.documentRevision;
     return pageImportedNewerHostDocument
         ? { kind: "keepHostDocument" }
-        : { kind: "writeObservedSync", content: observation.content };
+        : {
+              kind: "writeObservedSync",
+              content: observedSync.content,
+              documentRevision: observedSync.documentRevision,
+          };
 }
