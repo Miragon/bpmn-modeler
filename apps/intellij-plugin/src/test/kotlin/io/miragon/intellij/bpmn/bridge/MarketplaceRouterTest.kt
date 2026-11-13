@@ -10,6 +10,7 @@ import io.miragon.intellij.bpmn.MarketplaceScopeChoice
 import io.miragon.intellij.bpmn.ModelerSettingsStore
 import io.miragon.intellij.bpmn.ProjectMarketplacesStore
 import io.miragon.intellij.bpmn.projectFixtureWithoutServicePreload
+import io.miragon.intellij.bpmn.readTypeScriptJson
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -273,17 +274,7 @@ class MarketplaceRouterTest {
             assertEquals(projectStore.list(), entriesOf(registered, "project"))
             assertTrue(entriesOf(registered, "allProjects").contains(shared))
             assertTrue(entriesOf(registered, "project").contains(projectOnly))
-            assertEquals(
-                parse(
-                    """[
-                    {"scope":"project","savedIn":{"kind":"file","path":[".idea","workspace.xml"]}},
-                    {"scope":"allProjects","savedIn":{"kind":"settingsPage",
-                     "path":["Settings","Tools","Miragon BPMN Modeler","Template Marketplaces"]}}
-                    ]""",
-                    com.google.gson.JsonArray::class.java,
-                ),
-                result.getAsJsonArray("writable"),
-            )
+            assertEquals(readTypeScriptJson("miragon.intellijWritableScopes"), result.getAsJsonArray("writable"))
             assertFalse(result.has("selfHostedIn"), "IntelliJ has no place for a self-hosted marketplace")
         } finally {
             store.update { before }

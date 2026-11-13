@@ -1,5 +1,6 @@
 import { describeEditorHandleContract } from "@miragon/bpmn-modeler-core/testing";
 
+import { intellijDocumentWrite } from "../../../__fixtures__/intellijDocumentWrite";
 import { BridgeSettings } from "../../../kernel/adapter/out/BridgeSettings";
 import { METHODS } from "../../../protocol/domain/descriptor";
 import {
@@ -24,10 +25,9 @@ interface Frame {
 
 /**
  * The IntelliJ host's side of one editor session, answering the core as
- * `EditorSessionRouter.kt` does: a write stores LF line endings and, with no
- * page flush in flight, reports a change only when the Document's text
- * differs; a save reports whether the Document is left saved; a post reaches
- * the session's webview.
+ * `EditorSessionRouter.kt` does: a write, with no page flush in flight, as
+ * {@link intellijDocumentWrite} answers it; a save reports whether the
+ * Document is left saved; a post reaches the session's webview.
  */
 class IntelliJEditorSession {
     readonly rpc = new Rpc((line) => this.answer(JSON.parse(line) as Frame));
@@ -69,20 +69,16 @@ class IntelliJEditorSession {
     }
 
     private write(params: DocumentWriteParams): DocumentWriteResult {
-        const content = params.content.replace(/\r\n?/g, "\n");
-        const staleRevision =
-            params.expectedDocumentRevision !== undefined &&
-            params.expectedDocumentRevision !== this.documentRevision;
-        if (!this.addresses(params) || staleRevision || this.refusesWrites) {
-            return { changed: false, accepted: false };
-        }
-        const changed = this.text !== content;
-        if (changed) {
-            this.text = content;
+        if (this.refusesWrites) return { changed: false, accepted: false };
+        const { result, text } = intellijDocumentWrite(
+            { sessionId: this.meta.sessionId, text: this.text, documentRevision: this.documentRevision },
+            params,
+        );
+        if (result.changed) {
+            this.text = text;
             this.unsaved = true;
         }
-        const normalizedContent = changed && content !== params.content ? content : undefined;
-        return { changed, accepted: true, normalizedContent };
+        return result;
     }
 
     private save(params: DocumentSaveParams): DocumentSaveResult {

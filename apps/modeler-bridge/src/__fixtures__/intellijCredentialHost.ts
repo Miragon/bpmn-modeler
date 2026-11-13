@@ -15,11 +15,20 @@ import {
 } from "../protocol/domain/types";
 import { Rpc } from "../transport/adapter/out/Rpc";
 
-/** A PasswordSafe entry, Kotlin's `Credentials(user, password)`. */
+/** A PasswordSafe entry, Kotlin's `Credentials(user, password)`, which keeps an empty user name as none. */
 interface Credentials {
-    readonly user: string;
+    readonly user: string | null;
     readonly password: string;
 }
+
+const credentials = (user: string, password: string): Credentials => ({
+    user: user === "" ? null : user,
+    password,
+});
+
+/** `SecretStoreRouter` answers a pair only when both halves are there. */
+const pairOf = <Pair>(toPair: (user: string, password: string) => Pair) =>
+    ({ user, password }: Credentials): Pair | null => (user === null ? null : toPair(user, password));
 
 const DEPLOYMENT = "Miragon BPMN Modeler Deployment";
 const MARKETPLACE = "Miragon BPMN Modeler Marketplace";
@@ -68,14 +77,17 @@ function replyTo(id: number, answer: () => unknown): string {
  * for nothing stored, an error reply for a required param that is missing
  * (a slotless approvals read or delete included), and one reply per request
  * in request order, as the host's single credential-store thread sends them.
- * A map stands in for PasswordSafe and returns every entry as set; what
- * PasswordSafe does with an entry is the Kotlin half.
+ * A map stands in for PasswordSafe: a pair saved with an empty name comes back
+ * absent, one with an empty secret as saved. `SecretStoreRouterTest` runs
+ * `intellijPasswordSafe.cases.json`, which this host answers too, on the
+ * platform's in-memory PasswordSafe; what an OS keychain does with an empty
+ * secret is not pinned.
  */
 export function intellijCredentialHost(): Rpc {
     const passwordSafe = new Map<string, Credentials>();
-    const read = <Result>(entry: string, toResult: (credentials: Credentials) => Result) => {
-        const credentials = passwordSafe.get(entry);
-        return credentials === undefined ? null : toResult(credentials);
+    const read = <Result>(entry: string, toResult: (stored: Credentials) => Result | null) => {
+        const stored = passwordSafe.get(entry);
+        return stored === undefined ? null : toResult(stored);
     };
 
     const handlers: Readonly<Record<string, (params: never) => unknown>> = {
@@ -84,28 +96,25 @@ export function intellijCredentialHost(): Rpc {
             password,
             slot,
         }: SecretSaveBasicAuthParams) => {
-            passwordSafe.set(deploymentEntry("basicAuth", slot), { user: username, password });
+            passwordSafe.set(deploymentEntry("basicAuth", slot), credentials(username, password));
         },
         [METHODS.secretStoreGetBasicAuth]: ({ slot }: SecretGetParams) =>
             read(
                 deploymentEntry("basicAuth", slot),
-                ({ user, password }): BasicAuthCredentials => ({ username: user, password }),
+                pairOf((username, password): BasicAuthCredentials => ({ username, password })),
             ),
         [METHODS.secretStoreSaveOAuth2]: ({
             clientId,
             clientSecret,
             slot,
         }: SecretSaveOAuth2Params) => {
-            passwordSafe.set(deploymentEntry("oauth2", slot), {
-                user: clientId,
-                password: clientSecret,
-            });
+            passwordSafe.set(deploymentEntry("oauth2", slot), credentials(clientId, clientSecret));
         },
         [METHODS.secretStoreGetOAuth2]: ({ slot }: SecretGetParams) =>
-            read(deploymentEntry("oauth2", slot), ({ user, password }): OAuth2Credentials => ({
-                clientId: user,
-                clientSecret: password,
-            })),
+            read(
+                deploymentEntry("oauth2", slot),
+                pairOf((clientId, clientSecret): OAuth2Credentials => ({ clientId, clientSecret })),
+            ),
         [METHODS.secretStoreGetApprovedDestinations]: ({
             slot,
         }: SecretGetApprovedDestinationsParams) =>
@@ -119,10 +128,10 @@ export function intellijCredentialHost(): Rpc {
             slot,
             origins,
         }: SecretSaveApprovedDestinationsParams) => {
-            passwordSafe.set(deploymentEntry(APPROVED_DESTINATIONS, slot), {
-                user: APPROVED_DESTINATIONS,
-                password: JSON.stringify(origins),
-            });
+            passwordSafe.set(
+                deploymentEntry(APPROVED_DESTINATIONS, slot),
+                credentials(APPROVED_DESTINATIONS, JSON.stringify(origins)),
+            );
         },
         [METHODS.secretStoreDelete]: ({ slot }: SecretDeleteParams) => {
             for (const kind of ["basicAuth", "oauth2", APPROVED_DESTINATIONS]) {
@@ -134,7 +143,7 @@ export function intellijCredentialHost(): Rpc {
                 token: password,
             })),
         [METHODS.tokenStoreSet]: ({ host, token }: TokenStoreSetParams) => {
-            passwordSafe.set(serviceName(MARKETPLACE, host), { user: host, password: token });
+            passwordSafe.set(serviceName(MARKETPLACE, host), credentials(host, token));
         },
     };
 

@@ -7,6 +7,7 @@ import com.intellij.openapi.ide.CopyPasteManager
 import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.progress.Task
+import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
 import com.intellij.util.concurrency.AppExecutorUtil
 import io.miragon.intellij.bpmn.ActionNoticeTone
@@ -36,6 +37,9 @@ internal class HostUiRouter(
     private val deps: BridgeDeps,
     private val statusSlots: StatusSlots =
         AutoHidingStatusSlots(StatusBarSlots(deps.project), AppExecutorUtil.getAppScheduledExecutorService()),
+    // A seam for tests: a headless test runs the background task on the EDT, which it blocks until the end.
+    private val showSpinner: (title: String, ended: CompletableFuture<Void>) -> Unit =
+        { title, ended -> showBackgroundSpinner(deps.project, title, ended) },
     // A seam for tests: the real notice waits for a click no headless test can make.
     private val offerNotice: (ActionNoticeTone, String, List<String>, (Int?) -> Unit) -> () -> Unit =
         { tone, message, labels, answer -> deps.notifications.value.offer(tone, message, labels, answer) },
@@ -116,22 +120,7 @@ internal class HostUiRouter(
         log.debug("notifier/progressStart: $title")
         val future = CompletableFuture<Void>()
         progressTasks.put(title, future)?.complete(null)
-        ApplicationManager.getApplication().invokeLater {
-            if (project.isDisposed) {
-                future.complete(null)
-                return@invokeLater
-            }
-            ProgressManager.getInstance().run(
-                object : Task.Backgroundable(project, title, false) {
-                    override fun run(indicator: ProgressIndicator) {
-                        indicator.isIndeterminate = true
-                        // Blocks until progressEnd completes the future; the work
-                        // itself runs core-side, so the host only holds the spinner.
-                        runCatching { future.get() }
-                    }
-                },
-            )
-        }
+        showSpinner(title, future)
     }
 
     private fun handleProgressEnd(title: String) {
@@ -334,4 +323,23 @@ internal class HostUiRouter(
     private fun JsonObject.optionalString(key: String): String? = get(key)?.takeIf { !it.isJsonNull }?.asString
 
     private fun JsonObject.optionalBoolean(key: String): Boolean? = get(key)?.takeIf { !it.isJsonNull }?.asBoolean
+}
+
+/** An indeterminate background task titled [title] that runs until [ended] completes. */
+private fun showBackgroundSpinner(project: Project, title: String, ended: CompletableFuture<Void>) {
+    ApplicationManager.getApplication().invokeLater {
+        if (project.isDisposed) {
+            ended.complete(null)
+            return@invokeLater
+        }
+        ProgressManager.getInstance().run(
+            object : Task.Backgroundable(project, title, false) {
+                override fun run(indicator: ProgressIndicator) {
+                    indicator.isIndeterminate = true
+                    // The work runs core-side, so the host only holds the spinner.
+                    runCatching { ended.get() }
+                }
+            },
+        )
+    }
 }

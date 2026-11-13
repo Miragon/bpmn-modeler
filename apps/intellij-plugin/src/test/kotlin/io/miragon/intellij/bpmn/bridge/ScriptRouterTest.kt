@@ -1,13 +1,23 @@
 package io.miragon.intellij.bpmn.bridge
 
 import com.google.gson.Gson
+import com.google.gson.JsonArray
 import com.google.gson.JsonObject
+import com.google.gson.JsonParser
+import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.fileEditor.FileEditorManager
+import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.testFramework.junit5.TestApplication
+import io.miragon.intellij.bpmn.SCRIPT_ID_KEY
 import io.miragon.intellij.bpmn.projectFixtureWithoutServicePreload
+import io.miragon.intellij.bpmn.readTypeScriptJson
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Named
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.MethodSource
 
 /**
  * Covers the [ScriptRouter] Tools-menu notification over the real [RpcChannel] +
@@ -59,5 +69,48 @@ class ScriptRouterTest {
             "/ws/.camunda/tmp/scripting/h/Task_1/script-task/Task_1.js",
             frame.getAsJsonObject("params").get("filePath").asString,
         )
+    }
+
+    @ParameterizedTest
+    @MethodSource("scriptTabsCases")
+    fun `opens and closes the tabs the script loopback does`(case: JsonObject) {
+        val wired = wireChannel().also { this.wired = it }
+        val project = projectFixture.get()
+        ScriptRouter(bridgeDeps(project, wired.channel, wired.handlers)).register()
+        val editors = FileEditorManager.getInstance(project)
+        val application = ApplicationManager.getApplication()
+
+        case.getAsJsonArray("steps").map { it.asJsonObject }.forEach { step ->
+            val scriptId = step.get("scriptId").asString
+            if (step.get("by").asString == "user") {
+                application.invokeAndWait { editors.closeFile(editors.openFiles.single { it.scriptId == scriptId }) }
+            } else {
+                // A path no file sits at opens an in-memory tab, which needs no disk.
+                val params =
+                    obj("scriptId" to scriptId, "fileName" to "$scriptId.js", "filePath" to "/missing/$scriptId.js", "content" to "")
+                wired.handlers.dispatch(step.get("method").asString, params, null)
+            }
+            // Runs the EDT turn the router deferred the step to, the close ack included.
+            application.invokeAndWait {}
+        }
+
+        val sent = JsonArray().apply { wired.fake.framesUntilQuiet().forEach { add(JsonParser.parseString(it)) } }
+        assertEquals(case.getAsJsonArray("sentToBridge"), sent)
+        assertEquals(case.getAsJsonArray("openTabs").map { it.asString }, editors.openFiles.mapNotNull { it.scriptId })
+    }
+
+    private val VirtualFile.scriptId: String? get() = getUserData(SCRIPT_ID_KEY)
+
+    private fun obj(vararg entries: Pair<String, String>): JsonObject =
+        JsonObject().apply { entries.forEach { (key, value) -> addProperty(key, value) } }
+
+    companion object {
+        /** `intellijScriptTabs.cases.json`, which the bridge's script tab loopback answers too. */
+        @JvmStatic
+        fun scriptTabsCases(): List<Named<JsonObject>> =
+            readTypeScriptJson("miragon.intellijScriptTabsCases").asJsonObject.getAsJsonArray("cases").map {
+                val case = it.asJsonObject
+                Named.of(case.get("name").asString, case)
+            }
     }
 }

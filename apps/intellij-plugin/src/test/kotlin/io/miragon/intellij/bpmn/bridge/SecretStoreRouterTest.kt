@@ -8,10 +8,14 @@ import com.intellij.credentialStore.CredentialStore
 import com.intellij.credentialStore.Credentials
 import com.intellij.testFramework.junit5.TestApplication
 import io.miragon.intellij.bpmn.projectFixtureWithoutServicePreload
+import io.miragon.intellij.bpmn.readTypeScriptJson
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Named
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.MethodSource
 
 // PasswordSafe runs on an in-memory store in unit-test mode, so nothing reaches the OS keychain.
 @TestApplication
@@ -41,9 +45,12 @@ class SecretStoreRouterTest {
         return wired
     }
 
-    private fun request(wired: WiredBridge, method: String, params: Map<String, Any?>): JsonElement? {
+    private fun request(wired: WiredBridge, method: String, params: Map<String, Any?>): JsonElement? =
+        request(wired, method, gson.toJsonTree(params).asJsonObject)
+
+    private fun request(wired: WiredBridge, method: String, params: JsonObject): JsonElement? {
         val requestId = nextRequestId++
-        wired.handlers.dispatch(method, gson.toJsonTree(params).asJsonObject, wired.requestId(requestId))
+        wired.handlers.dispatch(method, params, wired.requestId(requestId))
         val reply = gson.fromJson(wired.fake.nextFrame(), JsonObject::class.java)
         assertEquals(requestId, reply.get("id").asInt, "$method must answer its own request id")
         return reply.get("result")?.takeUnless { it.isJsonNull }
@@ -116,6 +123,19 @@ class SecretStoreRouterTest {
         assertNull(request(wired, "secretStore/getBasicAuth", mapOf("slot" to SLOT)))
     }
 
+    @ParameterizedTest
+    @MethodSource("passwordSafeCases")
+    fun `reads a saved pair back as the credential loopback does`(case: JsonObject) {
+        val wired = registeredRouter()
+        val save = case.getAsJsonObject("save")
+        val saveParams = save.getAsJsonObject("params").deepCopy().apply { addProperty("slot", SLOT) }
+
+        request(wired, save.get("method").asString, saveParams)
+
+        val result = request(wired, case.get("read").asString, mapOf("slot" to SLOT))
+        assertEquals(case.get("result").takeUnless { it.isJsonNull }, result)
+    }
+
     @Test
     fun `dispatches the next frame while a secret read is still blocked`() {
         val wired = registeredRouter()
@@ -165,8 +185,16 @@ class SecretStoreRouterTest {
         }
     }
 
-    private companion object {
-        const val SLOT = "/ws/.camunda/deployment-targets.json::dev"
-        const val OTHER_SLOT = "/ws/.camunda/deployment-targets.json::prod"
+    companion object {
+        private const val SLOT = "/ws/.camunda/deployment-targets.json::dev"
+        private const val OTHER_SLOT = "/ws/.camunda/deployment-targets.json::prod"
+
+        /** `intellijPasswordSafe.cases.json`, which the bridge's credential loopback answers too. */
+        @JvmStatic
+        fun passwordSafeCases(): List<Named<JsonObject>> =
+            readTypeScriptJson("miragon.intellijPasswordSafeCases").asJsonObject.getAsJsonArray("cases").map {
+                val case = it.asJsonObject
+                Named.of(case.get("name").asString, case)
+            }
     }
 }

@@ -1,0 +1,48 @@
+{
+    "$comment": "Script tab steps, by the core (a frame it sends) or by the user, then the frames the IntelliJ host sent back and the scripts whose tabs stay open. BridgeScriptEditor.contract.spec.ts runs these rows against its loopback tabs, ScriptRouterTest against ScriptRouter and ScriptEditorManager.",
+    "cases": [
+        {
+            "name": "script/close closes the open tab and acks with script/didClose",
+            "steps": [
+                { "by": "core", "method": "script/open", "scriptId": "Task_1" },
+                { "by": "core", "method": "script/close", "scriptId": "Task_1" }
+            ],
+            "sentToBridge": [{ "method": "script/didClose", "params": { "scriptId": "Task_1" } }],
+            "openTabs": []
+        },
+        {
+            "name": "script/close of a tab never opened still acks with script/didClose",
+            "steps": [{ "by": "core", "method": "script/close", "scriptId": "Task_1" }],
+            "sentToBridge": [{ "method": "script/didClose", "params": { "scriptId": "Task_1" } }],
+            "openTabs": []
+        },
+        {
+            "name": "script/close leaves the tab of another script open",
+            "steps": [
+                { "by": "core", "method": "script/open", "scriptId": "Task_1" },
+                { "by": "core", "method": "script/open", "scriptId": "Task_2" },
+                { "by": "core", "method": "script/close", "scriptId": "Task_1" }
+            ],
+            "sentToBridge": [{ "method": "script/didClose", "params": { "scriptId": "Task_1" } }],
+            "openTabs": ["Task_2"]
+        },
+        {
+            "name": "a second script/open of a script keeps its one tab",
+            "steps": [
+                { "by": "core", "method": "script/open", "scriptId": "Task_1" },
+                { "by": "core", "method": "script/open", "scriptId": "Task_1" }
+            ],
+            "sentToBridge": [],
+            "openTabs": ["Task_1"]
+        },
+        {
+            "name": "a tab the user closes reports script/didClose",
+            "steps": [
+                { "by": "core", "method": "script/open", "scriptId": "Task_1" },
+                { "by": "user", "method": "close", "scriptId": "Task_1" }
+            ],
+            "sentToBridge": [{ "method": "script/didClose", "params": { "scriptId": "Task_1" } }],
+            "openTabs": []
+        }
+    ]
+}
