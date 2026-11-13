@@ -817,8 +817,8 @@ internal class EditorSessionRouter(
             return
         }
         if (!trimmedMessage.contains(FLUSH_COMMAND_MARKER)) return
-        val reply = parseDocumentFlushedReply(trimmedMessage, deps.gson) ?: return
-        inFlight[reply.token]?.resolve(reply)
+        val flushed = parseDocumentFlushedReply(trimmedMessage, deps.gson) ?: return
+        inFlight[flushed.token]?.resolve(flushed.reply)
     }
 
     /** Writes the page's [rawContent] into the Document unless byte-identical (line-normalised). */
@@ -856,13 +856,6 @@ internal class EditorSessionRouter(
 
         // The page stays editable and its sync stays armed, so the core still gets the edit.
         SAVE(destructive = false, exportWhenEdited = false),
-        ;
-
-        // A non-destructive flush answers `clean` once the page's sync went out,
-        // so a sync caught during the wait is the page's newest edit. A
-        // destructive one drains its own sync and answers `clean` only for a page
-        // unedited since its last host import, which a caught sync predates.
-        val cleanReplyKeepsCapturedSync: Boolean get() = !destructive
     }
 
     /** One in-flight page-flush round-trip: its session, token, latch, and the reply. */
@@ -884,15 +877,26 @@ internal class EditorSessionRouter(
         var contentRevision: Long? = null
             private set
 
-        /** Keeps a sync the page sent during the wait, which [pageFlushContent] may fall back to. */
+        /** Keeps a sync the page sent during the wait, which [resolve] may fall back to. */
         fun captureSync(sync: SyncDocumentReply) {
             content = sync.content
             contentRevision = sync.documentRevision
         }
 
-        fun resolve(reply: DocumentFlushedReply) {
-            content = pageFlushContent(content, reply, purpose.cleanReplyKeepsCapturedSync)
-            if (reply.status == "flushed") contentRevision = reply.documentRevision
+        fun resolve(reply: FlushReply) {
+            // Until the reply, [content] holds the sync captured during the wait.
+            val observedSync = content?.let { ObservedPageSync.Synced(it, contentRevision ?: 0L) }
+            when (val decision = decideFlushWrite(reply, observedSync, purpose.destructive)) {
+                is FlushWriteDecision.WriteExport -> {
+                    content = decision.content
+                    contentRevision = decision.documentRevision
+                }
+                is FlushWriteDecision.WriteObservedSync -> {
+                    content = decision.content
+                    contentRevision = decision.documentRevision
+                }
+                else -> content = null
+            }
             latch.countDown()
         }
     }
@@ -962,44 +966,7 @@ internal fun selectedEditorIdsOf(project: Project): List<String> {
     return selected
 }
 
-/** Parsed `DocumentFlushedCommand`; status defaults support an older staged webview. */
-internal data class DocumentFlushedReply(
-    val token: Long,
-    val content: String?,
-    val status: String,
-    val documentRevision: Long? = null,
-)
-
 internal data class SyncDocumentReply(val content: String, val documentRevision: Long?)
-
-/**
- * Parses a webview message as a `DocumentFlushedCommand`, or returns null if it
- * is not one / is malformed. Extracted as a pure function so the page-flush
- * reply handling is unit-testable without a running bridge or EDT.
- */
-internal fun parseDocumentFlushedReply(raw: String, gson: Gson): DocumentFlushedReply? =
-    try {
-        val obj = gson.fromJson(raw, JsonObject::class.java)
-        val token = obj?.get("token")
-        when {
-            obj?.get("type")?.asString != "DocumentFlushedCommand" -> null
-            token == null || token.isJsonNull -> null
-            else -> {
-                val content = obj.get("content")?.takeIf { !it.isJsonNull }?.asString
-                val status =
-                    obj.get("status")?.takeIf { !it.isJsonNull }?.asString
-                        ?: if (content == null) "clean" else "flushed"
-                DocumentFlushedReply(
-                    token.asLong,
-                    content,
-                    status,
-                    obj.get("documentRevision")?.takeIf { !it.isJsonNull }?.asLong,
-                )
-            }
-        }
-    } catch (_: Exception) {
-        null
-    }
 
 internal fun parseSyncDocumentReply(raw: String, gson: Gson): SyncDocumentReply? =
     try {
@@ -1046,18 +1013,6 @@ private fun JsonElement.asStringOrNull(): String? = takeIf { !it.isJsonNull }?.a
 
 internal fun parseSyncDocumentContent(raw: String, gson: Gson): String? =
     parseSyncDocumentReply(raw, gson)?.content
-
-internal fun pageFlushContent(
-    capturedSync: String?,
-    reply: DocumentFlushedReply,
-    cleanReplyKeepsCapturedSync: Boolean,
-): String? =
-    when (reply.status) {
-        "flushed" -> reply.content
-        "unavailable" -> capturedSync
-        "clean" -> capturedSync.takeIf { cleanReplyKeepsCapturedSync }
-        else -> null
-    }
 
 internal fun pageFlushRevisionMatches(expected: Long, actual: Long?): Boolean =
     (actual ?: 0L) == expected

@@ -86,7 +86,9 @@ export class ReleaseDocumentFlushQuery extends Query<"ReleaseDocumentFlushQuery"
     }
 }
 
-export type DocumentFlushStatus = "clean" | "flushed" | "host-updated" | "unavailable";
+export const DOCUMENT_FLUSH_STATUSES = ["clean", "flushed", "host-updated", "unavailable"] as const;
+
+export type DocumentFlushStatus = (typeof DOCUMENT_FLUSH_STATUSES)[number];
 
 /**
  * Webview → host reply to a {@link FlushDocumentQuery}. `status` distinguishes a
@@ -155,8 +157,14 @@ export class LogWarningCommand extends LogMessageCommand<"LogWarningCommand"> {
 }
 
 export class LogErrorCommand extends LogMessageCommand<"LogErrorCommand"> {
-    constructor(log: string, stack?: string) {
+    /** Set when the page could not post its document sync, so a host need not match the log text. */
+    public readonly documentSyncFailed?: true;
+
+    constructor(log: string, stack?: string, options: { readonly documentSyncFailed?: true } = {}) {
         super("LogErrorCommand", log, stack);
+        if (options.documentSyncFailed) {
+            this.documentSyncFailed = true;
+        }
     }
 }
 

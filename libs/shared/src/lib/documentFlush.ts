@@ -1,4 +1,10 @@
-import { DocumentFlushedCommand, FlushDocumentQuery, ReleaseDocumentFlushQuery } from "./messages";
+import {
+    DOCUMENT_FLUSH_STATUSES,
+    DocumentFlushedCommand,
+    type DocumentFlushStatus,
+    FlushDocumentQuery,
+    ReleaseDocumentFlushQuery,
+} from "./messages";
 
 /** The queries {@link createFlushResponder} answers. */
 export type FlushQuery = FlushDocumentQuery | ReleaseDocumentFlushQuery;
@@ -154,4 +160,104 @@ export function createFlushResponder(
             post(new DocumentFlushedCommand(flush.token, undefined, "unavailable"));
         }
     };
+}
+
+/** A page's {@link DocumentFlushedCommand} as a host acts on it. */
+export type FlushReply =
+    | { readonly status: "flushed"; readonly content: string; readonly documentRevision?: number }
+    | {
+          readonly status: Exclude<DocumentFlushStatus, "flushed">;
+          readonly documentRevision?: number;
+      };
+
+/**
+ * The newest sync a host saw the page post during a flush and must write itself,
+ * or that posting it failed. A host whose own sync path writes every sync observes none.
+ */
+export type ObservedPageSync =
+    | { readonly status: "failed" }
+    | { readonly status: "synced"; readonly content: string; readonly documentRevision: number };
+
+export type FlushWriteDecision =
+    | { readonly kind: "writeExport"; readonly content: string; readonly documentRevision?: number }
+    | {
+          readonly kind: "writeObservedSync";
+          readonly content: string;
+          readonly documentRevision: number;
+      }
+    /** The host document holds the page once the syncs the page already sent are applied. */
+    | { readonly kind: "awaitSentSyncs" }
+    | { readonly kind: "keepHostDocument" }
+    | { readonly kind: "syncFailed" }
+    /** The page could not flush and the host saw no sync to fall back on. */
+    | { readonly kind: "unavailable" };
+
+/**
+ * Reads a reply the host has not validated, as an older page sends it too. An
+ * unknown status reads as `unavailable`; content that is not text is no reply.
+ */
+export function parseFlushReply(message: {
+    readonly content?: unknown;
+    readonly status?: unknown;
+    readonly documentRevision?: unknown;
+}): FlushReply | undefined {
+    const content = message.content ?? undefined;
+    if (content !== undefined && typeof content !== "string") {
+        return undefined;
+    }
+    const rawStatus = message.status ?? (content === undefined ? "clean" : "flushed");
+    const status = DOCUMENT_FLUSH_STATUSES.find((known) => known === rawStatus) ?? "unavailable";
+    const revision =
+        typeof message.documentRevision === "number"
+            ? { documentRevision: message.documentRevision }
+            : {};
+
+    if (status !== "flushed") {
+        return { status, ...revision };
+    }
+    return content === undefined
+        ? { status: "unavailable", ...revision }
+        : { status, content, ...revision };
+}
+
+/** What a host writes into its document for a flush reply. */
+export function decideFlushWrite(
+    reply: FlushReply,
+    observedSync: ObservedPageSync | undefined,
+    destructive: boolean,
+): FlushWriteDecision {
+    if (reply.status === "flushed") {
+        return reply.documentRevision === undefined
+            ? { kind: "writeExport", content: reply.content }
+            : {
+                  kind: "writeExport",
+                  content: reply.content,
+                  documentRevision: reply.documentRevision,
+              };
+    }
+    if (observedSync?.status === "failed") {
+        return { kind: "syncFailed" };
+    }
+    if (reply.status === "host-updated") {
+        return { kind: "keepHostDocument" };
+    }
+    if (observedSync === undefined) {
+        return reply.status === "clean" ? { kind: "awaitSentSyncs" } : { kind: "unavailable" };
+    }
+    // A destructive flush drains its own sync and answers clean only for a page
+    // unedited since its last host import, which the observed sync predates.
+    if (reply.status === "clean" && destructive) {
+        return { kind: "keepHostDocument" };
+    }
+    // The page imported a host document newer than its sync was made against; the host already holds it.
+    const pageImportedNewerHostDocument =
+        reply.documentRevision !== undefined &&
+        reply.documentRevision > observedSync.documentRevision;
+    return pageImportedNewerHostDocument
+        ? { kind: "keepHostDocument" }
+        : {
+              kind: "writeObservedSync",
+              content: observedSync.content,
+              documentRevision: observedSync.documentRevision,
+          };
 }

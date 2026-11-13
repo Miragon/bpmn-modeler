@@ -193,7 +193,11 @@ export class WebviewDocumentSync implements FlushSource {
             this.surface.afterSync?.();
         } catch (error) {
             const e = error instanceof Error ? error : new Error(String(error));
-            this.post(new LogErrorCommand(`Failed to sync diagram changes: ${e.message}`, e.stack));
+            this.post(
+                new LogErrorCommand(`Failed to sync diagram changes: ${e.message}`, e.stack, {
+                    documentSyncFailed: true,
+                }),
+            );
         }
     }
 

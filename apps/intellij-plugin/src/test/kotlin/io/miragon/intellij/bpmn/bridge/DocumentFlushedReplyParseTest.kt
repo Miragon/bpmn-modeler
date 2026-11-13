@@ -1,61 +1,58 @@
 package io.miragon.intellij.bpmn.bridge
 
 import com.google.gson.Gson
+import com.google.gson.JsonElement
+import com.google.gson.JsonObject
+import io.miragon.intellij.bpmn.readTypeScriptJson
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Named
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.MethodSource
 
 /**
- * Pure-parse coverage for the page-flush reply that a save, a close and a
- * respawn act on: turning the webview's raw JSON into a token+content pair,
- * and rejecting everything else. `EditorSessionRouterTest` covers the round
- * trip around it.
+ * Runs `documentFlushReply.cases.json`, which `libs/shared` runs against its
+ * flush reply table, plus the page-flush parsing only the IntelliJ host does.
+ * `EditorSessionRouterTest` covers the round trip around it.
  */
 class DocumentFlushedReplyParseTest {
     private val gson = Gson()
 
-    @Test
-    fun `parses token and content`() {
-        val reply = parseDocumentFlushedReply(
-            """{"type":"DocumentFlushedCommand","token":7,"content":"<xml/>","documentRevision":4}""",
-            gson,
-        )
-        assertEquals(7L, reply?.token)
-        assertEquals("<xml/>", reply?.content)
-        assertEquals("flushed", reply?.status)
-        assertEquals(4L, reply?.documentRevision)
+    @ParameterizedTest
+    @MethodSource("parseCases")
+    fun `reads a reply like the TypeScript table`(case: JsonObject) {
+        val message = case.getAsJsonObject("message").deepCopy()
+        message.addProperty("type", "DocumentFlushedCommand")
+        message.addProperty("token", 7)
+
+        val parsed = parseDocumentFlushedReply(message.toString(), gson)
+
+        assertEquals(case.get("reply").toFlushReply(), parsed?.reply)
+        parsed?.let { assertEquals(7L, it.token) }
+    }
+
+    @ParameterizedTest
+    @MethodSource("decideCases")
+    fun `decides the write like the TypeScript table`(case: JsonObject) {
+        val decision =
+            decideFlushWrite(
+                case.get("reply").toFlushReply()!!,
+                case.get("observedSync").toObservedPageSync(),
+                case.get("destructive").asBoolean,
+            )
+
+        assertEquals(case.getAsJsonObject("decision").toFlushWriteDecision(), decision)
     }
 
     @Test
-    fun `null content is preserved as nothing-to-flush`() {
-        val reply = parseDocumentFlushedReply(
-            """{"type":"DocumentFlushedCommand","token":3}""",
-            gson,
-        )
-        assertEquals(3L, reply?.token)
-        assertNull(reply?.content)
-        assertEquals("clean", reply?.status)
-    }
+    fun `every status of the TypeScript table has a Kotlin twin`() {
+        val statuses =
+            parseCases().mapNotNull { case ->
+                case.payload.get("reply").takeIf { it.isJsonObject }?.asJsonObject?.get("status")?.asString
+            }
 
-    @Test
-    fun `explicit json null content parses to null`() {
-        val reply = parseDocumentFlushedReply(
-            """{"type":"DocumentFlushedCommand","token":3,"content":null}""",
-            gson,
-        )
-        assertEquals(3L, reply?.token)
-        assertNull(reply?.content)
-    }
-
-    @Test
-    fun `parses explicit unavailable status`() {
-        val reply = parseDocumentFlushedReply(
-            """{"type":"DocumentFlushedCommand","token":4,"status":"unavailable"}""",
-            gson,
-        )
-        assertEquals(4L, reply?.token)
-        assertEquals("unavailable", reply?.status)
-        assertNull(reply?.content)
+        assertEquals(FlushReplyStatus.entries.map { it.wire }.toSet(), statuses.toSet())
     }
 
     @Test
@@ -87,41 +84,6 @@ class DocumentFlushedReplyParseTest {
         assertEquals(false, pageFlushRevisionMatches(2, 1))
         assertEquals(false, pageFlushRevisionMatches(2, null))
         assertEquals(true, pageFlushRevisionMatches(0, null))
-    }
-
-    @Test
-    fun `unavailable reply preserves captured sync fallback`() {
-        val reply = DocumentFlushedReply(4L, null, "unavailable")
-
-        assertEquals("<latest/>", pageFlushContent("<latest/>", reply, cleanReplyKeepsCapturedSync = false))
-    }
-
-    @Test
-    fun `flushed reply replaces captured sync fallback`() {
-        val reply = DocumentFlushedReply(4L, "<exported/>", "flushed")
-
-        assertEquals("<exported/>", pageFlushContent("<latest/>", reply, cleanReplyKeepsCapturedSync = true))
-    }
-
-    @Test
-    fun `a destructive flush's clean reply discards an older captured sync`() {
-        val reply = DocumentFlushedReply(4L, null, "clean")
-
-        assertNull(pageFlushContent("<stale/>", reply, cleanReplyKeepsCapturedSync = false))
-    }
-
-    @Test
-    fun `a save flush's clean reply keeps the sync the page sent during the wait`() {
-        val reply = DocumentFlushedReply(4L, null, "clean")
-
-        assertEquals("<latest/>", pageFlushContent("<latest/>", reply, cleanReplyKeepsCapturedSync = true))
-    }
-
-    @Test
-    fun `host update reply discards an older captured sync`() {
-        val reply = DocumentFlushedReply(4L, null, "host-updated")
-
-        assertNull(pageFlushContent("<stale/>", reply, cleanReplyKeepsCapturedSync = true))
     }
 
     @Test
@@ -161,5 +123,51 @@ class DocumentFlushedReplyParseTest {
         assertNull(readTopLevelLong("""{"documentRevision":"3"}""", "documentRevision", gson))
         assertNull(readTopLevelLong("""{"documentRevision":""", "documentRevision", gson))
         assertNull(readTopLevelLong("[1,2]", "documentRevision", gson))
+    }
+
+    companion object {
+        private val cases by lazy { readTypeScriptJson("miragon.documentFlushReplyCases").asJsonObject }
+
+        @JvmStatic
+        fun parseCases(): List<Named<JsonObject>> = rows("parse")
+
+        @JvmStatic
+        fun decideCases(): List<Named<JsonObject>> = rows("decide")
+
+        private fun rows(table: String): List<Named<JsonObject>> =
+            cases.getAsJsonArray(table).map { row ->
+                val case = row.asJsonObject
+                Named.of(case.get("case").asString, case)
+            }
+
+        private fun JsonElement.toFlushReply(): FlushReply? =
+            takeIf { !it.isJsonNull }?.asJsonObject?.let { reply ->
+                FlushReply(
+                    FlushReplyStatus.of(reply.get("status").asString),
+                    reply.get("content")?.asString,
+                    reply.get("documentRevision")?.asLong,
+                )
+            }
+
+        private fun JsonElement.toObservedPageSync(): ObservedPageSync? =
+            takeIf { !it.isJsonNull }?.asJsonObject?.let { sync ->
+                if (sync.get("status").asString == "failed") {
+                    ObservedPageSync.Failed
+                } else {
+                    ObservedPageSync.Synced(sync.get("content").asString, sync.get("documentRevision").asLong)
+                }
+            }
+
+        private fun JsonObject.toFlushWriteDecision(): FlushWriteDecision =
+            when (val kind = get("kind").asString) {
+                "writeExport" -> FlushWriteDecision.WriteExport(get("content").asString, get("documentRevision")?.asLong)
+                "writeObservedSync" ->
+                    FlushWriteDecision.WriteObservedSync(get("content").asString, get("documentRevision").asLong)
+                "awaitSentSyncs" -> FlushWriteDecision.AwaitSentSyncs
+                "keepHostDocument" -> FlushWriteDecision.KeepHostDocument
+                "syncFailed" -> FlushWriteDecision.SyncFailed
+                "unavailable" -> FlushWriteDecision.Unavailable
+                else -> error("Unknown flush write decision $kind")
+            }
     }
 }

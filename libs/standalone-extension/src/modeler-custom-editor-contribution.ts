@@ -6,8 +6,8 @@ import { inject, injectable } from "@theia/core/shared/inversify";
 import {
     decideFlushWrite,
     type FlushReply,
+    type ObservedPageSync,
     parseFlushReply,
-    type PendingSyncObservation,
 } from "./modeler-flush-reply";
 import {
     FLUSH_DOCUMENT_COMMAND,
@@ -17,12 +17,11 @@ import {
 } from "./modeler-widget-flush";
 
 const FLUSH_TIMEOUT_MS = 500;
-const PROPERTIES_PANEL_INPUT_DEBOUNCE_MS = 600;
-const DOCUMENT_SYNC_DEBOUNCE_MS = 300;
+export const PROPERTIES_PANEL_INPUT_DEBOUNCE_MS = 600;
+export const DOCUMENT_SYNC_DEBOUNCE_MS = 300;
 const PENDING_SYNC_GRACE_MS = PROPERTIES_PANEL_INPUT_DEBOUNCE_MS + DOCUMENT_SYNC_DEBOUNCE_MS + 100;
 const SYNC_QUIET_MS = DOCUMENT_SYNC_DEBOUNCE_MS + 100;
 const HOST_SYNC_POLL_MS = 10;
-const SYNC_FAILURE_PREFIX = "Failed to sync diagram changes:";
 
 interface KeybindingDispatcher {
     dispatchKeyDown(input: unknown, target?: EventTarget): void;
@@ -54,7 +53,7 @@ interface ModelerCustomEditorWidget extends Widget {
 }
 
 interface PendingSyncObserver {
-    current(): PendingSyncObservation | undefined;
+    current(): ObservedPageSync | undefined;
     dispose(): void;
     waitForDrain(): Promise<void>;
 }
@@ -155,16 +154,20 @@ export class ModelerCustomEditorContribution
                 return false;
             }
 
-            let decision = decideFlushWrite(reply, pendingSync.current());
+            // The page's flush is not destructive: it stays editable and its sync stays armed.
+            let decision = decideFlushWrite(reply, pendingSync.current(), false);
             if (decision.kind === "writeObservedSync") {
                 if (await this.waitForHostContent(widget, pendingSync)) {
                     return true;
                 }
-                decision = decideFlushWrite(reply, pendingSync.current());
+                decision = decideFlushWrite(reply, pendingSync.current(), false);
             }
             switch (decision.kind) {
                 case "syncFailed":
                     return false;
+                // No sync reached the observer, so refusing would only block the shutdown or the move.
+                case "unavailable":
+                case "awaitSentSyncs":
                 case "keepHostDocument":
                     return true;
                 case "writeExport":
@@ -182,7 +185,7 @@ export class ModelerCustomEditorContribution
             subscription?: Disposable;
             timer?: ReturnType<typeof setTimeout>;
         } = {};
-        let observation: PendingSyncObservation | undefined;
+        let observation: ObservedPageSync | undefined;
         let drainDeadline = Date.now() + PENDING_SYNC_GRACE_MS;
         let resolveDrain: () => void = () => undefined;
         let drainSettled = false;
@@ -223,8 +226,7 @@ export class ModelerCustomEditorContribution
                     scheduleDrain(Date.now() + SYNC_QUIET_MS);
                 } else if (
                     message.type === "LogErrorCommand" &&
-                    typeof message.message === "string" &&
-                    message.message.startsWith(SYNC_FAILURE_PREFIX)
+                    message.documentSyncFailed === true
                 ) {
                     observation = { status: "failed" };
                     settleDrain();

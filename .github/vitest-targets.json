@@ -446,8 +446,16 @@
         "standalone-extension": {
             "dir": "libs/standalone-extension",
             "package": "@miragon/bpmn-modeler-standalone-extension",
+            "focus": [
+                "@miragon/bpmn-modeler-shared",
+                "@miragon/bpmn-modeler-types",
+                "@miragon/bpmn-modeler-properties-panel"
+            ],
             "paths": [
                 "libs/standalone-extension/**",
+                "libs/shared/**",
+                "libs/modeler-types/**",
+                "libs/properties-panel/**",
                 "apps/standalone/package.json",
                 "yarn.lock"
             ],

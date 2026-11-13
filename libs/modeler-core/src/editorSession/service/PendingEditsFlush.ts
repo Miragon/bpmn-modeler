@@ -1,3 +1,5 @@
+import { decideFlushWrite } from "@miragon/bpmn-modeler-shared";
+
 import type { ModelerFileExtension } from "../../kernel/domain/modelerFileExtension";
 import { LoggerPort } from "../../kernel/port/hostPorts";
 import { ModelerDocumentService } from "./EditorDocumentSync";
@@ -54,15 +56,17 @@ export class PendingEditsFlush {
                 if (destructive) this.flushes.releaseFlush(editorId, session);
                 return { status: "closed" };
             }
-            if (result.status === "unavailable") {
+            // Every sync the page sends reaches the document through the core's own sync path.
+            const decision = decideFlushWrite(result, undefined, destructive);
+            if (decision.kind === "unavailable" || decision.kind === "syncFailed") {
                 await this.editorStore.waitForEditorQueue(editorId);
                 if (destructive) this.flushes.releaseFlush(editorId, session);
-                return result;
+                return { status: "unavailable" };
             }
-            if (result.status === "host-updated") {
+            if (decision.kind === "keepHostDocument") {
                 return { status: "safe", session };
             }
-            if (result.status === "clean") {
+            if (decision.kind === "awaitSentSyncs") {
                 await this.editorStore.waitForEditorQueue(editorId);
                 if (!this.editorStore.isCurrentEditorSession(editorId, session)) {
                     if (destructive) this.flushes.releaseFlush(editorId, session);
@@ -76,17 +80,17 @@ export class PendingEditsFlush {
             }
 
             await this.editorStore.runInEditorQueue(editorId, () =>
-                modeler.sync(editorId, result.content, result.documentRevision),
+                modeler.sync(editorId, decision.content, decision.documentRevision),
             );
             if (!this.editorStore.isCurrentEditorSession(editorId, session)) {
                 if (destructive) this.flushes.releaseFlush(editorId, session);
                 return { status: "closed" };
             }
-            if (!this.editorStore.documentMatches(editorId, session, result.content)) {
+            if (!this.editorStore.documentMatches(editorId, session, decision.content)) {
                 if (destructive) this.flushes.releaseFlush(editorId, session);
                 return { status: "unavailable" };
             }
-            this.editorStore.recordDocumentSync(editorId, session, result.content);
+            this.editorStore.recordDocumentSync(editorId, session, decision.content);
             return { status: "safe", session };
         } catch (error) {
             if (destructive) this.flushes.releaseFlush(editorId, session);

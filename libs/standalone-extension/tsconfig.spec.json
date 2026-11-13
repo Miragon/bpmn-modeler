@@ -2,7 +2,13 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "noEmit": true,
-    "lib": ["ES2022", "DOM"]
+    "rootDir": "../..",
+    "lib": ["ES2022", "DOM"],
+    "paths": {
+      "@miragon/bpmn-modeler-shared": ["../shared/src/index.ts"],
+      "@miragon/bpmn-modeler-types": ["../modeler-types/src/index.ts"],
+      "@miragon/bpmn-modeler-properties-panel/*": ["../properties-panel/src/*"]
+    }
   },
   "include": ["src/**/*.ts"],
   "exclude": []

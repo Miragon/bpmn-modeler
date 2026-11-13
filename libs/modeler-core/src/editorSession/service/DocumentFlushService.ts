@@ -1,6 +1,8 @@
 import {
     DocumentFlushedCommand,
     FlushDocumentQuery,
+    type FlushReply,
+    parseFlushReply,
     ReleaseDocumentFlushQuery,
 } from "@miragon/bpmn-modeler-shared";
 
@@ -8,18 +10,12 @@ import { NotifierPort } from "../../kernel/port/hostPorts";
 import { EditorSessionStore } from "./EditorSessionStore";
 import { MessageHandler } from "./WebviewMessageRouter";
 
-export type DocumentFlushResult =
-    | { status: "clean" }
-    | { status: "flushed"; content: string; documentRevision?: number }
-    | { status: "host-updated" }
-    | { status: "unavailable" };
-
 type PendingFlush = {
     token: number;
     session: object;
     destructive: boolean;
-    promise: Promise<DocumentFlushResult>;
-    settle(result: DocumentFlushResult): void;
+    promise: Promise<FlushReply>;
+    settle(result: FlushReply): void;
 };
 
 export interface DocumentFlushOptions {
@@ -62,10 +58,7 @@ export class DocumentFlushService {
      * same session share one promise. A destructive request supersedes a normal
      * one because only the former establishes the mutation lock reload requires.
      */
-    requestFlush(
-        editorId: string,
-        options: DocumentFlushOptions = {},
-    ): Promise<DocumentFlushResult> {
+    requestFlush(editorId: string, options: DocumentFlushOptions = {}): Promise<FlushReply> {
         const { timeoutMs = 500, destructive = false } = options;
         const session = this.editorStore.captureEditorSession(editorId);
         if (!session) {
@@ -83,13 +76,13 @@ export class DocumentFlushService {
         }
         existing?.settle({ status: "unavailable" });
 
-        let resolveRequest!: (result: DocumentFlushResult) => void;
+        let resolveRequest!: (result: FlushReply) => void;
         let settled = false;
         const token = this.nextToken++;
-        const promise = new Promise<DocumentFlushResult>((resolve) => {
+        const promise = new Promise<FlushReply>((resolve) => {
             resolveRequest = resolve;
         });
-        const settle = (result: DocumentFlushResult): void => {
+        const settle = (result: FlushReply): void => {
             if (settled) return;
             settled = true;
             clearTimeout(timer);
@@ -139,23 +132,7 @@ export class DocumentFlushService {
             );
             return;
         }
-        const status = command.status ?? (command.content === undefined ? "clean" : "flushed");
-        const result: DocumentFlushResult =
-            status === "unavailable"
-                ? { status: "unavailable" }
-                : status === "flushed" && command.content !== undefined
-                  ? command.documentRevision === undefined
-                      ? { status: "flushed", content: command.content }
-                      : {
-                            status: "flushed",
-                            content: command.content,
-                            documentRevision: command.documentRevision,
-                        }
-                  : status === "host-updated"
-                    ? { status: "host-updated" }
-                    : status === "clean"
-                      ? { status: "clean" }
-                      : { status: "unavailable" };
+        const result: FlushReply = parseFlushReply(command) ?? { status: "unavailable" };
         if (entry.destructive && result.status !== "unavailable") {
             this.locked.set(editorId, { token: entry.token, session: entry.session });
         }
