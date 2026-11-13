@@ -199,7 +199,7 @@ answers by, so nothing fails when a loopback and its Kotlin test drift apart:
   which throws answers with its message is the channel's rule for every
   handler (`RpcChannelTest`).
 - `SettingsRouter`'s lint choice: stored, pushed to every bridge, then acked
-  (`SettingsRouterTest`, `SettingsBroadcastTest`).
+  (`SettingsRouterTest`, `ReplicatedStateFanOutTest`).
 - The marketplace add form: `MarketplaceRouter` reads the question from the
   params and answers the form as entered, or `null` on cancel
   (`MarketplaceRouterTest`); `AddMarketplaceDialog` offers a radio button per

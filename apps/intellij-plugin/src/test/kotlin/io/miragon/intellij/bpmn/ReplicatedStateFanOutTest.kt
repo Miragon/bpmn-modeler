@@ -2,12 +2,14 @@ package io.miragon.intellij.bpmn
 
 import com.intellij.openapi.components.service
 import com.intellij.testFramework.junit5.TestApplication
+import io.miragon.intellij.bpmn.bridge.ReplicatedStateKind
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 
 @TestApplication
-class SettingsBroadcastTest {
+class ReplicatedStateFanOutTest {
     private val withBridge = projectFixtureWithoutServicePreload()
 
     private val alsoWithBridge = projectFixtureWithoutServicePreload()
@@ -23,5 +25,12 @@ class SettingsBroadcastTest {
 
         assertEquals(bridges, running)
         assertNull(untouched.getServiceIfCreated(CoreProcess::class.java))
+    }
+
+    @Test
+    fun `a state mirrored only into its own project's bridge does not fan out`() {
+        assertThrows(IllegalArgumentException::class.java) {
+            pushToRunningBridges(ReplicatedStateKind.WORKSPACE_TRUST, emptyList())
+        }
     }
 }

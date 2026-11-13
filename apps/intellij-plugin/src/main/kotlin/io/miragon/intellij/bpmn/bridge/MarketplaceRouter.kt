@@ -2,7 +2,6 @@ package io.miragon.intellij.bpmn.bridge
 
 import com.intellij.openapi.ui.Messages
 import io.miragon.intellij.bpmn.AddMarketplaceDialog
-import io.miragon.intellij.bpmn.CoreProcess
 import io.miragon.intellij.bpmn.IntellijMarketplaceTokenStore
 import io.miragon.intellij.bpmn.MarketplaceAddAnswer
 import io.miragon.intellij.bpmn.MarketplaceAddQuestion
@@ -35,9 +34,7 @@ internal class MarketplaceRouter(
     },
     // No CoreProcess runs under the test fixture, so a test observes the pushes here.
     private val pushToRunningBridges: () -> Unit = ::pushSettingsToRunningBridges,
-    private val pushToOwnBridge: () -> Unit = {
-        deps.project.getServiceIfCreated(CoreProcess::class.java)?.pushSettings()
-    },
+    private val pushToOwnBridge: () -> Unit,
 ) {
     private val tokenStore by lazy { IntellijMarketplaceTokenStore() }
 

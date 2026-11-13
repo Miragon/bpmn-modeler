@@ -103,7 +103,7 @@ class EditorSessionRouterSaveFlushTest {
         val wired = wireChannel()
         val routerLifetime = Disposer.newDisposable("save-flush-router")
         val router =
-            EditorSessionRouter(bridgeDeps(project, wired.channel, wired.handlers, routerLifetime), DeterministicScheduler())
+            EditorSessionRouter(bridgeDeps(project, wired.channel, wired.handlers, routerLifetime), NO_REPLICATED_STATE, DeterministicScheduler())
         router.register()
 
         val webview = FakeWebview(unsyncedWebviewXml, messagesBeforeAnswer)

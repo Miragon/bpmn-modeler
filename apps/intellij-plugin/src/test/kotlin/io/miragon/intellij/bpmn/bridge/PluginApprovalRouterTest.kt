@@ -41,7 +41,7 @@ class PluginApprovalRouterTest {
         router =
             PluginApprovalRouter(
                 bridgeDeps(projectFixture.get(), wired.channel, wired.handlers),
-                pushToRunningBridges = { router.push(it) },
+                pushToRunningBridges = { router.push() },
             )
         router.register()
         return wired

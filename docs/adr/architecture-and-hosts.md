@@ -1489,6 +1489,12 @@ Apply settings before initial artifact discovery. Seed every synchronous mirror
 before its first consumer, and re-seed on process restart; mirrors do not
 survive the subprocess.
 
+The IntelliJ host registers each mirror it owns once, as a `ReplicatedState`
+(its `session/register` entries, its push to one bridge, and whether a change
+reaches every bridge or only its own) in the list `BridgeRouters.replicatedStates`.
+The register frame, the seed after a spawn and the fan-out walk that list, and
+`BridgeRoutersTest` fails on a router that mirrors a state outside it.
+
 A mirror fed from more than one frame cannot rely on the host's send order.
 The bridge runs each inbound call on a queue keyed by its editor or its method
 (`Rpc.handleLine`), so a `session/register` waits behind its editor's earlier

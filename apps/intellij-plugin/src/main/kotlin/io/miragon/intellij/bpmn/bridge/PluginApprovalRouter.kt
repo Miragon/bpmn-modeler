@@ -4,7 +4,7 @@ import io.miragon.intellij.bpmn.PluginApproval
 import io.miragon.intellij.bpmn.PluginApprovalChange
 import io.miragon.intellij.bpmn.PluginApprovalSnapshot
 import io.miragon.intellij.bpmn.PluginApprovalStore
-import io.miragon.intellij.bpmn.pushPluginApprovalsToRunningBridges
+import io.miragon.intellij.bpmn.pushToRunningBridges
 
 /**
  * Merges the approval changes a bridge sends into the IDE's store and mirrors
@@ -14,8 +14,10 @@ import io.miragon.intellij.bpmn.pushPluginApprovalsToRunningBridges
 internal class PluginApprovalRouter(
     private val deps: BridgeDeps,
     // No CoreProcess runs under the test fixture, so a test observes the pushes here.
-    private val pushToRunningBridges: (PluginApprovalSnapshot) -> Unit = ::pushPluginApprovalsToRunningBridges,
-) {
+    private val pushToRunningBridges: () -> Unit = { pushToRunningBridges(ReplicatedStateKind.PLUGIN_APPROVALS) },
+) : ReplicatedState {
+    override val kind = ReplicatedStateKind.PLUGIN_APPROVALS
+
     private val store get() = PluginApprovalStore.getInstance()
 
     fun register() {
@@ -40,19 +42,28 @@ internal class PluginApprovalRouter(
 
     /**
      * Pushes before it answers, so the changing bridge's mirror never lags its
-     * own change. Both carry the revision the change was stored at, and no lock
-     * is held while they are queued: the bridge keeps the newest revision.
+     * own change. Each carries the revision it read, at least the change's, and
+     * no lock is held while they are queued: the bridge keeps the newest revision.
      */
     private fun handleChange(change: PluginApprovalChange, id: CoreRequestId?) {
         val outcome = store.change(change)
-        if (outcome.changed) pushToRunningBridges(outcome.snapshot)
+        if (outcome.changed) pushToRunningBridges()
         id?.let { deps.channel.reply(it, PluginApprovalsResult(outcome.snapshot)) }
     }
 
-    fun pushStored() = push(store.snapshot())
+    /**
+     * Rides on the register, so the page's first plugin query never races a
+     * separate seed and reads approved plugins as new. Read with its revision,
+     * so a register the bridge applies after a newer push cannot roll its mirror back.
+     */
+    override fun registerSeed(): Map<String, Any?> {
+        val snapshot = store.snapshot()
+        return linkedMapOf("pluginApprovals" to snapshot.approvals, "pluginApprovalsRevision" to snapshot.revision)
+    }
+
+    override fun push() = push(store.snapshot())
 
     /**
-     * No-ops when no bridge is alive: the approvals are seeded again on the next spawn and `session/register`.
      * Not coalesced: changes push from each project's reader thread, so a frame queued
      * later can carry an older revision and must not replace the newer one.
      */

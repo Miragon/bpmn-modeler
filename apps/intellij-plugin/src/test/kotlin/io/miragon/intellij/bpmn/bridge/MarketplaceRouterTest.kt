@@ -60,7 +60,7 @@ class MarketplaceRouterTest {
     }
 
     /**
-     * A router whose pushes send the snapshot as `EditorSessionRouter.pushSettings`
+     * A router whose pushes send the snapshot as `SettingsRouter.push`
      * does, recording whether a push went to every running bridge or only to this
      * project's.
      */

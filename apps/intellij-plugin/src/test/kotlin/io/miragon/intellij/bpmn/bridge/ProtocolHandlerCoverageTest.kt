@@ -8,7 +8,6 @@ import com.intellij.testFramework.LightVirtualFile
 import com.intellij.testFramework.junit5.TestApplication
 import io.miragon.intellij.bpmn.CoreSession
 import io.miragon.intellij.bpmn.PluginApproval
-import io.miragon.intellij.bpmn.PluginApprovalStore
 import io.miragon.intellij.bpmn.TemplatePreferenceSnapshot
 import io.miragon.intellij.bpmn.TemplateSwitch
 import io.miragon.intellij.bpmn.projectFixtureWithoutServicePreload
@@ -149,14 +148,14 @@ class ProtocolHandlerCoverageTest {
                 HostToCoreMethod.WEBVIEW_MESSAGE to { editor.forwardWebviewMessage(session, """{"type":"GetBpmnFileCommand"}""") },
                 HostToCoreMethod.DOCUMENT_DID_CHANGE to { editor.notifyDocumentChanged(session) { "<definitions />" } },
                 HostToCoreMethod.SESSION_SET_ACTIVE to { editor.setActiveEditor(session.editorId) },
-                HostToCoreMethod.SETTINGS_DID_CHANGE to { editor.pushSettings() },
+                HostToCoreMethod.SETTINGS_DID_CHANGE to { settings.push() },
                 HostToCoreMethod.SESSION_DISPOSE to { editor.disposeSession(session) },
                 HostToCoreMethod.DIFF_OPEN to {
                     diff.openDiff("diff-1", "vcs", BEFORE_URI, "<before/>", {}, AFTER_URI, "<after/>", {})
                 },
                 HostToCoreMethod.DIFF_WEBVIEW_MESSAGE to { diff.forwardDiffMessage(BEFORE_URI, """{"type":"GetDiffCommand"}""") },
                 HostToCoreMethod.DIFF_DISPOSE to { diff.disposeDiff("diff-1") },
-                HostToCoreMethod.DEPLOYMENT_STATE_SEED to { deployment.sendSeed() },
+                HostToCoreMethod.DEPLOYMENT_STATE_SEED to { deployment.push() },
                 HostToCoreMethod.DEPLOYMENT_WEBVIEW_MESSAGE to { deployment.forwardDeploymentMessage("""{"type":"DeployCommand"}""") },
                 HostToCoreMethod.DEPLOYMENT_OPEN to { deployment.setDeploymentOpen(true) },
                 HostToCoreMethod.SCRIPT_DID_CHANGE to { script.notifyScriptChanged("script-1", "x") },
@@ -177,7 +176,7 @@ class ProtocolHandlerCoverageTest {
                 HostToCoreMethod.DEPLOYMENT_DEPLOY_ACTIVE to { modelerCommands.deployDiagram() },
                 HostToCoreMethod.DEPLOYMENT_VERIFY to { modelerCommands.verifyDeployment() },
                 HostToCoreMethod.DEPLOYMENT_STATUS_BAR_MENU to { modelerCommands.deploymentStatusMenu() },
-                HostToCoreMethod.PLUGIN_APPROVALS_DID_CHANGE to { pluginApprovals.push(PluginApprovalStore.getInstance().snapshot()) },
+                HostToCoreMethod.PLUGIN_APPROVALS_DID_CHANGE to { pluginApprovals.push() },
                 HostToCoreMethod.TEMPLATE_PREFERENCES_DID_CHANGE to { templatePreferences.push() },
                 HostToCoreMethod.WORKSPACE_TRUST_DID_CHANGE to { workspaceTrust.push() },
                 HostToCoreMethod.ADD_ONS_WEBVIEW_MESSAGE to { addOns.forwardMessage("""{"type":"GetAddOnCatalogCommand"}""") },

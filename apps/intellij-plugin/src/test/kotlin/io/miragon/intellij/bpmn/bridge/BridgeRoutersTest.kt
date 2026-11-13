@@ -3,7 +3,9 @@ package io.miragon.intellij.bpmn.bridge
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import com.intellij.ide.util.PropertiesComponent
+import com.intellij.testFramework.LightVirtualFile
 import com.intellij.testFramework.junit5.TestApplication
+import io.miragon.intellij.bpmn.CoreSession
 import io.miragon.intellij.bpmn.ModelerSettingsStore
 import io.miragon.intellij.bpmn.PluginApproval
 import io.miragon.intellij.bpmn.PluginApprovalStore
@@ -13,6 +15,7 @@ import io.miragon.intellij.bpmn.TemplateSwitch
 import io.miragon.intellij.bpmn.projectFixtureWithoutServicePreload
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
@@ -42,6 +45,94 @@ class BridgeRoutersTest {
 
     private fun parse(line: String): JsonObject = JsonParser.parseString(line).asJsonObject
 
+    private fun registeredRouters(isProcessAlive: () -> Boolean = { true }): Pair<WiredBridge, BridgeRouters> {
+        val wired = wireChannel().also { this.wired = it }
+        val routers = BridgeRouters(bridgeDeps(projectFixture.get(), wired.channel, wired.handlers, isProcessAlive = isProcessAlive))
+        routers.register()
+        return wired to routers
+    }
+
+    private fun BridgeRouters.registerFrameParams(wired: WiredBridge): JsonObject {
+        val file = LightVirtualFile("process.bpmn", "<definitions/>")
+        editor.registerSession(CoreSession(file.url, file, projectFixture.get()) {})
+        val register = wired.fake.framesUntilQuiet().map(::parse).single { it.get("method").asString == "session/register" }
+        return register.getAsJsonObject("params")
+    }
+
+    @Test
+    fun `every router that mirrors a state is in the list, one per kind`() {
+        val (_, routers) = registeredRouters()
+
+        val routersMirroringAState =
+            BridgeRouters::class.java.declaredFields
+                .filter { ReplicatedState::class.java.isAssignableFrom(it.type) }
+                .map { field -> field.apply { isAccessible = true }.get(routers) }
+
+        assertEquals(routersMirroringAState.toSet(), routers.replicatedStates.toSet())
+        assertEquals(ReplicatedStateKind.entries.toList(), routers.replicatedStates.map { it.kind }.sorted())
+    }
+
+    @Test
+    fun `a register carries the seed of every replicated state`() {
+        val (wired, routers) = registeredRouters()
+
+        val params = routers.registerFrameParams(wired)
+
+        val seedKeys = routers.replicatedStates.flatMap { it.registerSeed().keys }
+        assertTrue(params.keySet().containsAll(seedKeys), "$seedKeys in ${params.keySet()}")
+    }
+
+    @Test
+    fun `a spawn pushes every replicated state`() {
+        val (wired, routers) = registeredRouters()
+        val methodOfEachPush =
+            routers.replicatedStates.associate { state ->
+                state.push()
+                state.kind to parse(wired.fake.nextFrame()).get("method").asString
+            }
+
+        routers.seedAfterSpawn()
+
+        val sentBySpawn = wired.fake.framesUntilQuiet().map { parse(it).get("method").asString }
+        assertEquals(methodOfEachPush, methodOfEachPush.filterValues { it in sentBySpawn })
+    }
+
+    @Test
+    fun `a register seeds the plugin approvals the IDE stores with their revision`() {
+        val store = PluginApprovalStore.getInstance()
+        store.replaceAll(listOf(PluginApproval(PLUGIN_ID, HASH)))
+        val (wired, routers) = registeredRouters()
+
+        val params = routers.registerFrameParams(wired)
+
+        assertEquals(
+            parse("""{"approvals": [{"pluginId": "$PLUGIN_ID", "contentHash": "$HASH"}]}""").get("approvals"),
+            params.get("pluginApprovals"),
+        )
+        assertEquals(store.snapshot().revision, params.get("pluginApprovalsRevision").asLong)
+    }
+
+    @Test
+    fun `a register seeds both scopes' template switches with their revisions`() {
+        val appStore = TemplatePreferenceStore.getInstance()
+        val projectStore = ProjectTemplatePreferenceStore.getInstance(projectFixture.get())
+        appStore.replaceAll(listOf(TemplateSwitch(ACME)))
+        projectStore.replaceAll(listOf(TemplateSwitch("configFolder:shop/.camunda", "mail")))
+        val (wired, routers) = registeredRouters()
+
+        val params = routers.registerFrameParams(wired)
+
+        assertEquals(
+            parse(
+                """{
+                    "project": {"disabled": [{"source": "configFolder:shop/.camunda", "templateId": "mail"}], "revision": ${projectStore.snapshot().revision}},
+                    "allProjects": {"disabled": [{"source": "$ACME"}], "revision": ${appStore.snapshot().revision}}
+                }""",
+            ),
+            params.getAsJsonObject("templatePreferences"),
+        )
+    }
+
     @Test
     fun `a spawn mirrors the switches and approvals another project stored while this bridge was still starting`() {
         val wired = wireChannel().also { this.wired = it }
@@ -55,7 +146,7 @@ class BridgeRoutersTest {
         appSwitches.replaceAll(listOf(TemplateSwitch(ACME)))
         PluginApprovalStore.getInstance().replaceAll(listOf(PluginApproval(PLUGIN_ID, HASH)))
         routers.templatePreferences.push()
-        routers.pluginApprovals.push(PluginApprovalStore.getInstance().snapshot())
+        routers.pluginApprovals.push()
         alive = true
         routers.seedAfterSpawn()
 
@@ -80,7 +171,7 @@ class BridgeRoutersTest {
         try {
             // Changed after a queued register read the settings; the push finds no live bridge.
             settings.setLintingEnabled(!lintingBefore)
-            routers.editor.pushSettings()
+            routers.settings.push()
             alive = true
             routers.seedAfterSpawn()
 

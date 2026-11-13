@@ -19,8 +19,6 @@ import com.intellij.openapi.util.text.StringUtil
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.util.concurrency.AppExecutorUtil
 import io.miragon.intellij.bpmn.CoreSession
-import io.miragon.intellij.bpmn.ModelerSettingsStore
-import io.miragon.intellij.bpmn.PluginApprovalStore
 import java.io.StringReader
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CountDownLatch
@@ -37,6 +35,7 @@ import java.util.concurrent.atomic.AtomicReference
  * `Document`, and core→webview message delivery. Sessions are keyed by editor id
  * so messages reach the right JCEF browser when several `.bpmn` files are open.
  *
+ * @param replicatedStateSeed The entries every replicated state adds to a `session/register` frame.
  * @param scheduler Debounces external `document/didChange` frames. Injectable so
  *   tests step time deterministically instead of waiting on the shared pool.
  * @param readDocumentText Reads the content a `session/register` frame seeds.
@@ -48,6 +47,7 @@ import java.util.concurrent.atomic.AtomicReference
  */
 internal class EditorSessionRouter(
     private val deps: BridgeDeps,
+    private val replicatedStateSeed: () -> Map<String, Any?>,
     private val scheduler: ScheduledExecutorService = AppExecutorUtil.getAppScheduledExecutorService(),
     private val readDocumentText: (VirtualFile) -> String = ::readDocumentTextInReadAction,
     private val reloadExecutor: Executor = AppExecutorUtil.getAppExecutorService(),
@@ -201,10 +201,9 @@ internal class EditorSessionRouter(
         // before the read, so a page write the read misses keeps its claim.
         entry.forgetUnmirroredContent()
         val content = readDocumentText(session.file)
-        val approvals = PluginApprovalStore.getInstance().snapshot()
         deps.channel.notify(
             HostToCoreMethod.SESSION_REGISTER,
-            linkedMapOf(
+            linkedMapOf<String, Any?>(
                 "editorId" to session.editorId,
                 "sessionId" to entry.sessionId,
                 "documentRevision" to entry.documentRevision.get(),
@@ -216,32 +215,11 @@ internal class EditorSessionRouter(
                 // discovery; falls back to the file's dir for light-edit
                 // projects where basePath is null.
                 "workspaceRoot" to (deps.project.basePath ?: session.file.parent?.path),
-                // Seed the core's SettingsPort before it scans templates, so the
-                // very first discovery uses the configured folder, not the default.
-                "settings" to ModelerSettingsStore.getInstance().snapshotMap(deps.project),
-                // Rides on the register, so the page's first plugin query never
-                // races a separate seed and reads approved plugins as new. Read
-                // with its revision, so a register the bridge applies after a
-                // newer push cannot roll its mirror back.
-                "pluginApprovals" to approvals.approvals,
-                "pluginApprovalsRevision" to approvals.revision,
-                // Seeds the mirror the editor reads when it first sends its templates.
-                "templatePreferences" to TemplatePreferencesResult.of(deps.project),
-                // The bridge counts the project as untrusted until told, so its first plugin request needs it.
-                "workspaceTrust" to deps.projectTrust.snapshot().toParams(),
-                "content" to content,
-            ),
+            ).apply {
+                putAll(replicatedStateSeed())
+                put("content", content)
+            },
         )
-    }
-
-    /**
-     * Pushes the current settings snapshot to the running core so an open editor
-     * reacts live (language re-render, configFolder template reload). No-ops when
-     * no bridge is alive: the snapshot is seeded again after the next spawn and [sendRegister].
-     */
-    fun pushSettings() {
-        if (!deps.isProcessAlive()) return
-        deps.channel.notify(HostToCoreMethod.SETTINGS_DID_CHANGE, linkedMapOf("settings" to ModelerSettingsStore.getInstance().snapshotMap(deps.project)))
     }
 
     /**

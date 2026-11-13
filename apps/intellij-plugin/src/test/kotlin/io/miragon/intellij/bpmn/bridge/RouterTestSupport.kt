@@ -93,6 +93,9 @@ internal fun bridgeDeps(
         projectTrust = projectTrust,
     )
 
+/** A register seed for an [EditorSessionRouter] tested without the replicated states of [BridgeRouters]. */
+internal val NO_REPLICATED_STATE: () -> Map<String, Any?> = { emptyMap() }
+
 /**
  * Throws [failure] from the next command's `commandFinished`, i.e. after the
  * write's `setText` already changed the Document.
