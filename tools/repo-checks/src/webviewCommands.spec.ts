@@ -61,21 +61,20 @@ function webviewPrograms(root: string, hostBridge: BaseClass): WebviewProgram[] 
 }
 
 // Built at module level so the type check stays out of the test timeout.
-const webviews = requireMatches(
-    "webview workspaces",
-    webviewPrograms(REPO_ROOT, HOST_BRIDGE),
-).map(({ name, program }) => ({
-    name,
-    constructions: findSubclassConstructions(
-        program,
-        COMMAND_BASE,
-        "type",
-        isSourceUnder(REPO_ROOT),
-    ).map(({ fileName, line, discriminant }) => ({
-        site: `${relative(REPO_ROOT, fileName)}:${line}`,
-        discriminant,
-    })),
-}));
+const webviews = requireMatches("webview workspaces", webviewPrograms(REPO_ROOT, HOST_BRIDGE)).map(
+    ({ name, program }) => ({
+        name,
+        constructions: findSubclassConstructions(
+            program,
+            COMMAND_BASE,
+            "type",
+            isSourceUnder(REPO_ROOT),
+        ).map(({ fileName, line, discriminant }) => ({
+            site: `${relative(REPO_ROOT, fileName)}:${line}`,
+            discriminant,
+        })),
+    }),
+);
 
 describe("webview commands", () => {
     it("picks a webview by the host bridge it constructs, whatever its directory is called", () => {

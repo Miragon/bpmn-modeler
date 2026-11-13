@@ -19,7 +19,12 @@ function generatedPatterns(): string[] {
     return readFileSync(ATTRIBUTES, "utf8")
         .split("\n")
         .map((line) => line.trim().split(/\s+/))
-        .filter(([pattern, ...attributes]) => pattern !== "" && !pattern.startsWith("#") && attributes.some((attribute) => SETS_GENERATED.test(attribute)))
+        .filter(
+            ([pattern, ...attributes]) =>
+                pattern !== "" &&
+                !pattern.startsWith("#") &&
+                attributes.some((attribute) => SETS_GENERATED.test(attribute)),
+        )
         .map(([pattern]) => pattern);
 }
 

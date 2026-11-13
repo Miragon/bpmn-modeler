@@ -161,7 +161,11 @@ describe("constructsClass", () => {
     });
 
     it.each([
-        { case: "no file constructs the class", className: "Unconstructed", isScanned: outsideNodeModules },
+        {
+            case: "no file constructs the class",
+            className: "Unconstructed",
+            isScanned: outsideNodeModules,
+        },
         {
             case: "only a file it is told not to scan constructs it",
             className: "Heartbeat",
@@ -183,7 +187,11 @@ describe("constructsClass", () => {
 
     it("throws when the class's file declares no such class", () => {
         expect(() =>
-            constructsClass(program, { fileName: MESSAGES, className: "Message" }, outsideNodeModules),
+            constructsClass(
+                program,
+                { fileName: MESSAGES, className: "Message" },
+                outsideNodeModules,
+            ),
         ).toThrow(`Message is not declared in ${MESSAGES}`);
     });
 });

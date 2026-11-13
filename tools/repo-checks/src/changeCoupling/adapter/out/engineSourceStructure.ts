@@ -48,9 +48,6 @@ export class EngineSourceStructure implements SourceStructure {
 
 // GitHub reads `linguist-generated=true` as the bare attribute, so both count.
 function generatedFiles(repoRoot: string, files: readonly string[]): string[] {
-    if (files.length === 0) {
-        return [];
-    }
     const fields = git(repoRoot, ["check-attr", "-z", "--stdin", GENERATED_ATTRIBUTE], {
         input: files.map((path) => `${path}\0`).join(""),
     }).split("\0");
