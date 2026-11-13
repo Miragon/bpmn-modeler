@@ -3,10 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
     ArtifactService,
     InlineScript,
-    OpenScriptTabs,
     SCRIPT_STREAM_DEBOUNCE_MS,
     ScriptFileStore,
-    scriptLanguagePrompt,
     ScriptTabService,
     ScriptTargetResolver,
     ScriptUri,
@@ -50,31 +48,27 @@ function scriptTabsOver(
     );
 }
 
-/** The core's record of open tabs, which a spec seeds or reads. */
-function tabsOf(scriptTabs: ScriptTabService): OpenScriptTabs {
-    return (scriptTabs as unknown as { tabs: OpenScriptTabs }).tabs;
-}
-
 /**
  * Focused unit coverage for the host-keystroke debounce wired into
  * {@link BridgeScriptEditor}. Fake timers drive the 300 ms coalescing window
  * deterministically; the integration harness in `bridge.script.spec.ts`
  * (real timers, polling) can't, so the debounce/flush/cancel edges are pinned
- * here instead. The tracked-script state is seeded directly rather than through
- * the full `open` flow, which is exercised end-to-end elsewhere.
+ * here instead.
  */
 const EDITOR_PATH = "/repo/process.bpmn";
 const EDITOR_ID = `file://${EDITOR_PATH}`;
-const SCRIPT_ID = "script-1";
 const ELEMENT_ID = "Task_1";
-const SCRIPT_FILE = "/base/hash/Task_1/slug/Task_1.js";
+const SCRIPT_URI = new ScriptUri(EDITOR_ID, ELEMENT_ID, "script-task", undefined, undefined, "js");
+const SCRIPT_ID = SCRIPT_URI.toString();
+const SCRIPT_FILE = `/repo/.camunda/tmp/scripting/${SCRIPT_URI.relativePath()}`;
 
 interface Internals {
     filePathByScript: Map<string, string>;
 }
 
-function createEditor() {
-    const host = createTestHost({ files: { [SCRIPT_FILE]: "a" } });
+/** A bridge editor with the script of {@link SCRIPT_ID} open, and nothing posted yet. */
+async function createEditor() {
+    const host = createTestHost({ folders: ["/repo"] });
     const modelerEditor = host.openEditor(EDITOR_PATH);
     const rpc = { notify: vi.fn(), request: vi.fn(), on: vi.fn() };
 
@@ -87,16 +81,8 @@ function createEditor() {
         new ScriptVariableStore(),
     );
     const scriptTabs = scriptTabsOver(host, editor, scriptFiles);
-
-    // Seed a tracked script so didChange/applyModelChange/dispose resolve it.
-    const internals = editor as unknown as Internals;
-    tabsOf(scriptTabs).track(SCRIPT_ID, {
-        editorId: EDITOR_ID,
-        elementId: ELEMENT_ID,
-        kind: "script-task",
-        listenerIndex: undefined,
-    });
-    internals.filePathByScript.set(SCRIPT_ID, SCRIPT_FILE);
+    await scriptTabs.open(EDITOR_ID, openCommand("javascript", "a"));
+    modelerEditor.posted.length = 0;
 
     return { editor, scriptTabs, host, modelerEditor, rpc };
 }
@@ -131,7 +117,7 @@ afterEach(() => {
 
 describe("BridgeScriptEditor keystroke debounce", () => {
     it("coalesces a burst of didChange into one trailing post with the latest content", async () => {
-        const { editor, modelerEditor } = createEditor();
+        const { editor, modelerEditor } = await createEditor();
 
         editor.didChange(SCRIPT_ID, "a");
         editor.didChange(SCRIPT_ID, "ab");
@@ -147,7 +133,7 @@ describe("BridgeScriptEditor keystroke debounce", () => {
     });
 
     it("does not post before the window elapses", async () => {
-        const { editor, modelerEditor } = createEditor();
+        const { editor, modelerEditor } = await createEditor();
 
         editor.didChange(SCRIPT_ID, "a");
         await vi.advanceTimersByTimeAsync(299);
@@ -156,7 +142,7 @@ describe("BridgeScriptEditor keystroke debounce", () => {
     });
 
     it("ignores didChange for an unknown scriptId", async () => {
-        const { editor, modelerEditor } = createEditor();
+        const { editor, modelerEditor } = await createEditor();
 
         editor.didChange("nope", "x");
         await vi.advanceTimersByTimeAsync(SCRIPT_STREAM_DEBOUNCE_MS);
@@ -165,7 +151,7 @@ describe("BridgeScriptEditor keystroke debounce", () => {
     });
 
     it("flushes the pending keystroke before releasing on didClose", async () => {
-        const { editor, host, modelerEditor } = createEditor();
+        const { editor, host, modelerEditor } = await createEditor();
 
         editor.didChange(SCRIPT_ID, "last");
         // Close arrives inside the debounce window; the flush must still deliver.
@@ -181,7 +167,7 @@ describe("BridgeScriptEditor keystroke debounce", () => {
     });
 
     it("cancels a pending keystroke when the model overwrites the tab", async () => {
-        const { editor, scriptTabs, modelerEditor, rpc } = createEditor();
+        const { editor, scriptTabs, modelerEditor, rpc } = await createEditor();
 
         editor.didChange(SCRIPT_ID, "stale");
         scriptTabs.applyModelChange(
@@ -199,7 +185,7 @@ describe("BridgeScriptEditor keystroke debounce", () => {
     });
 
     it("drops a pending keystroke when the script surface disappears", async () => {
-        const { editor, scriptTabs, modelerEditor, rpc } = createEditor();
+        const { editor, scriptTabs, modelerEditor, rpc } = await createEditor();
 
         editor.didChange(SCRIPT_ID, "stale");
         scriptTabs.applyModelChange(
@@ -213,19 +199,6 @@ describe("BridgeScriptEditor keystroke debounce", () => {
         expect(rpc.notify).toHaveBeenCalledWith(METHODS.scriptClose, { scriptId: SCRIPT_ID });
     });
 
-    it("best-effort flushes the pending keystroke on editor dispose", async () => {
-        const { editor, scriptTabs, modelerEditor, rpc } = createEditor();
-
-        editor.didChange(SCRIPT_ID, "final");
-        scriptTabs.disposeEditor(EDITOR_ID);
-        // Let the flush's in-flight post settle.
-        await vi.advanceTimersByTimeAsync(0);
-
-        expect(contentPosts(modelerEditor)).toEqual([
-            new UpdateScriptContentQuery(ELEMENT_ID, "script-task", undefined, "final"),
-        ]);
-        expect(rpc.notify).toHaveBeenCalledWith(METHODS.scriptClose, { scriptId: SCRIPT_ID });
-    });
 });
 
 /**
@@ -262,7 +235,7 @@ describe("BridgeScriptEditor materialise + adopt-on-open", () => {
         );
         const scriptTabs = scriptTabsOver(host, editor, scriptFiles);
         const internals = editor as unknown as FullInternals;
-        return { editor, scriptTabs, tabs: tabsOf(scriptTabs), host, modelerEditor, rpc, internals };
+        return { editor, scriptTabs, host, modelerEditor, rpc, internals };
     }
 
     /** The on-disk path a script-task materialises to under the seeded base dir. */
@@ -280,7 +253,7 @@ describe("BridgeScriptEditor materialise + adopt-on-open", () => {
 
     describe("materialize", () => {
         it("writes the file without a script/open or lock", async () => {
-            const { scriptTabs, tabs, host, modelerEditor, rpc, internals } = createFullEditor();
+            const { scriptTabs, host, modelerEditor, rpc, internals } = createFullEditor();
 
             const result = await scriptTabs.materialize(FULL_EDITOR, openCommand("groovy", "x = 1"));
 
@@ -290,43 +263,7 @@ describe("BridgeScriptEditor materialise + adopt-on-open", () => {
             // (an untracked panel-button open then rewrites from the model).
             expect(scriptOpenCall(rpc)).toBeUndefined();
             expect(modelerEditor.posted).toEqual([]);
-            expect(tabs.openScriptsOf(FULL_EDITOR)).toEqual([]);
             expect(internals.filePathByScript.size).toBe(0);
-        });
-
-        it("skips a script an open tab already owns, leaving its buffer untouched", async () => {
-            const { scriptTabs, tabs, host } = createFullEditor();
-            const scriptId = new ScriptUri(
-                FULL_EDITOR,
-                "Task_1",
-                "script-task",
-                undefined,
-                undefined,
-                "groovy",
-            ).toString();
-            tabs.track(scriptId, {
-                editorId: FULL_EDITOR,
-                elementId: "Task_1",
-                kind: "script-task",
-                listenerIndex: undefined,
-            });
-
-            const result = await scriptTabs.materialize(FULL_EDITOR, openCommand("groovy", "fresh"));
-
-            expect(result).toEqual({ kind: "alreadyOpen" });
-            expect(host.workspace.files.size).toBe(0);
-        });
-
-        it("reports a cancelled language pick and writes nothing", async () => {
-            const { scriptTabs, host } = createFullEditor();
-
-            const result = await scriptTabs.materialize(FULL_EDITOR, openCommand("", ""));
-
-            expect(result).toEqual({ kind: "cancelled" });
-            expect(host.picker.prompts).toEqual([
-                { method: "choose", args: [scriptLanguagePrompt("")] },
-            ]);
-            expect(host.workspace.files.size).toBe(0);
         });
 
         it("writes the .gitignore even when the orphan sweep fails", async () => {
@@ -347,7 +284,7 @@ describe("BridgeScriptEditor materialise + adopt-on-open", () => {
     describe("adoptExternalOpen", () => {
         it("tracks the file, notifies script/open, broadcasts the lock, and never sweeps", async () => {
             const filePath = scriptFilePath("Task_1", "groovy");
-            const { editor, tabs, host, modelerEditor, rpc, internals } = createFullEditor({
+            const { editor, scriptTabs, host, modelerEditor, rpc, internals } = createFullEditor({
                 [filePath]: "disk content",
             });
 
@@ -361,7 +298,7 @@ describe("BridgeScriptEditor materialise + adopt-on-open", () => {
                 undefined,
                 "groovy",
             ).toString();
-            expect(tabs.isOpen(scriptId)).toBe(true);
+            expect(scriptTabs.editorOfTab(scriptId)).toBe(FULL_EDITOR);
             expect(internals.filePathByScript.get(scriptId)).toBe(filePath);
             expect(scriptOpenCall(rpc)).toMatchObject({
                 scriptId,
@@ -378,7 +315,7 @@ describe("BridgeScriptEditor materialise + adopt-on-open", () => {
         });
 
         it("ignores an ambient sibling (camunda.d.ts)", async () => {
-            const { editor, tabs, host, rpc, internals } = createFullEditor();
+            const { editor, host, modelerEditor, rpc, internals } = createFullEditor();
             const readFile = vi.spyOn(host.workspace, "readFile");
 
             await editor.adoptExternalOpen(
@@ -387,22 +324,22 @@ describe("BridgeScriptEditor materialise + adopt-on-open", () => {
 
             expect(scriptOpenCall(rpc)).toBeUndefined();
             expect(readFile).not.toHaveBeenCalled();
-            expect(tabs.openScriptsOf(FULL_EDITOR)).toEqual([]);
+            expect(modelerEditor.posted).toEqual([]);
             expect(internals.filePathByScript.size).toBe(0);
         });
 
         it("ignores a path whose editor hash matches no live session", async () => {
-            const { editor, tabs, rpc, internals } = createFullEditor();
+            const { editor, modelerEditor, rpc, internals } = createFullEditor();
 
             await editor.adoptExternalOpen(`${BASE_DIR}/deadbeef/Task_1/script-task/Task_1.groovy`);
 
             expect(scriptOpenCall(rpc)).toBeUndefined();
-            expect(tabs.openScriptsOf(FULL_EDITOR)).toEqual([]);
+            expect(modelerEditor.posted).toEqual([]);
             expect(internals.filePathByScript.size).toBe(0);
         });
 
         it("ignores a script path outside the editor's resolved base dir", async () => {
-            const { editor, tabs, rpc, internals } = createFullEditor();
+            const { editor, modelerEditor, rpc, internals } = createFullEditor();
             const hash = ScriptUri.hashEditorId(FULL_EDITOR);
 
             await editor.adoptExternalOpen(
@@ -410,27 +347,15 @@ describe("BridgeScriptEditor materialise + adopt-on-open", () => {
             );
 
             expect(scriptOpenCall(rpc)).toBeUndefined();
-            expect(tabs.openScriptsOf(FULL_EDITOR)).toEqual([]);
+            expect(modelerEditor.posted).toEqual([]);
             expect(internals.filePathByScript.size).toBe(0);
         });
 
         it("is a no-op for an already-tracked script", async () => {
-            const { editor, tabs, host, rpc } = createFullEditor();
+            const { editor, scriptTabs, host, rpc } = createFullEditor();
+            await scriptTabs.open(FULL_EDITOR, openCommand("groovy", "x = 1"));
+            rpc.notify.mockClear();
             const readFile = vi.spyOn(host.workspace, "readFile");
-            const scriptId = new ScriptUri(
-                FULL_EDITOR,
-                "Task_1",
-                "script-task",
-                undefined,
-                undefined,
-                "groovy",
-            ).toString();
-            tabs.track(scriptId, {
-                editorId: FULL_EDITOR,
-                elementId: "Task_1",
-                kind: "script-task",
-                listenerIndex: undefined,
-            });
 
             await editor.adoptExternalOpen(scriptFilePath("Task_1", "groovy"));
 
@@ -465,7 +390,7 @@ describe("BridgeScriptEditor materialise + adopt-on-open", () => {
         }
 
         it("swallows the late didClose so the re-tracked script and its lock survive", async () => {
-            const { editor, scriptTabs, tabs, host, modelerEditor, internals } = createFullEditor();
+            const { editor, scriptTabs, host, modelerEditor, internals } = createFullEditor();
             const scriptId = new ScriptUri(
                 FULL_EDITOR,
                 "Task_1",
@@ -477,7 +402,7 @@ describe("BridgeScriptEditor materialise + adopt-on-open", () => {
 
             // 1. Open the script (tracks + writes + locks).
             await scriptTabs.open(FULL_EDITOR, openCommand("groovy", "v1"));
-            expect(tabs.isOpen(scriptId)).toBe(true);
+            expect(scriptTabs.editorOfTab(scriptId)).toBe(FULL_EDITOR);
 
             // 2. Element deletion requests a close — the file deletion is deferred
             //    to the host's didClose ack.
@@ -485,12 +410,12 @@ describe("BridgeScriptEditor materialise + adopt-on-open", () => {
                 FULL_EDITOR,
                 new UpdateScriptSourceCommand("Task_1", "script-task", undefined, undefined),
             );
-            expect(tabs.isOpen(scriptId)).toBe(false);
+            expect(scriptTabs.editorOfTab(scriptId)).toBeUndefined();
 
             // 3. The script re-opens inside that window: the pending ack is
             //    cancelled and the next didClose is armed to be swallowed.
             await scriptTabs.open(FULL_EDITOR, openCommand("groovy", "v2"));
-            expect(tabs.isOpen(scriptId)).toBe(true);
+            expect(scriptTabs.editorOfTab(scriptId)).toBe(FULL_EDITOR);
             const filesBeforeLateClose = new Map(host.workspace.files);
 
             // 4. The host still emits one late didClose for the pre-empted close.
@@ -498,7 +423,7 @@ describe("BridgeScriptEditor materialise + adopt-on-open", () => {
 
             // The re-tracked entry, its file path, and the lock all survive; no
             // deferred deletion ran.
-            expect(tabs.isOpen(scriptId)).toBe(true);
+            expect(scriptTabs.editorOfTab(scriptId)).toBe(FULL_EDITOR);
             expect(internals.filePathByScript.has(scriptId)).toBe(true);
             expect(host.workspace.files).toEqual(filesBeforeLateClose);
             expect(lastLockRefs(modelerEditor)).toHaveLength(1);

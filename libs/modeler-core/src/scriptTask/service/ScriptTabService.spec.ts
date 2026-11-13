@@ -130,6 +130,49 @@ describe("ScriptTabService", () => {
             expect(lockedScripts(diagram)).toEqual([]);
         });
 
+        it("reveals a script opened again only once the host has opened its tab", async () => {
+            const { diagram, scriptEditor, scriptTabs, taskFile } = createService();
+            let showTab = (): void => undefined;
+            const tabShown = new Promise<void>((resolve) => (showTab = resolve));
+            const steps: string[] = [];
+            vi.spyOn(scriptEditor, "openTab").mockImplementation(async () => {
+                await tabShown;
+                steps.push("opened");
+            });
+            vi.spyOn(scriptEditor, "revealTab").mockImplementation(async () => {
+                steps.push("revealed");
+            });
+
+            const firstOpen = scriptTabs.open(diagram.id, scriptTask());
+            const secondOpen = scriptTabs.open(diagram.id, scriptTask());
+            await vi.advanceTimersByTimeAsync(0);
+            showTab();
+            await Promise.all([firstOpen, secondOpen]);
+
+            expect(steps).toEqual(["opened", "revealed"]);
+            expect(scriptTabs.editorOfTab(taskFile)).toBe(diagram.id);
+        });
+
+        it("opens a script opened again itself when the host failed the first open", async () => {
+            const { diagram, scriptEditor, scriptTabs, taskFile } = createService();
+            let failFirstOpen = (_error: Error): void => undefined;
+            const firstOpenFails = new Promise<void>((_, reject) => (failFirstOpen = reject));
+            vi.spyOn(scriptEditor, "openTab")
+                .mockImplementationOnce(() => firstOpenFails)
+                .mockImplementationOnce(async () => undefined);
+
+            const firstOpen = scriptTabs.open(diagram.id, scriptTask());
+            const secondOpen = scriptTabs.open(diagram.id, scriptTask());
+            await vi.advanceTimersByTimeAsync(0);
+            failFirstOpen(new Error("EACCES"));
+
+            await expect(firstOpen).rejects.toThrow("EACCES");
+            await secondOpen;
+            expect(scriptEditor.openTab).toHaveBeenCalledTimes(2);
+            expect(scriptEditor.revealed).toEqual([]);
+            expect(scriptTabs.editorOfTab(taskFile)).toBe(diagram.id);
+        });
+
         it("rejects, tracks nothing and locks nothing when the host cannot open the tab", async () => {
             const { diagram, scriptEditor, scriptTabs, taskFile } = createService();
             scriptEditor.openFailure = new Error("EACCES");
@@ -404,7 +447,9 @@ describe("ScriptTabService", () => {
 
         scriptTabs.variablesChanged(diagram.id);
 
-        expect(scriptEditor.variablePushes).toEqual([{ editorId: diagram.id, script: [taskFile] }]);
+        expect(scriptEditor.variablePushes).toEqual([
+            { editorId: diagram.id, tabPaths: [taskFile] },
+        ]);
     });
 
     describe("a closed editor", () => {

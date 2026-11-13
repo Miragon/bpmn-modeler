@@ -124,7 +124,7 @@ export class BridgeScriptEditor implements ScriptEditorPort, ScriptTabEvents {
         } satisfies ScriptOpenParams);
     }
 
-/**
+    /**
      * Builds the kind-scoped completion catalog shipped in `script/open` so the
      * thin Kotlin host never needs to know which beans belong to which kind — it
      * just renders what it is handed (VS Code's `registerCompletionItemProvider`

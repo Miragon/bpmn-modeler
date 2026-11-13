@@ -13,6 +13,11 @@ export interface ScriptEditorCall<TScript> {
     readonly script: TScript;
 }
 
+export interface VariablePush {
+    readonly editorId: string;
+    readonly tabPaths: readonly string[];
+}
+
 export interface TabContentUpdate {
     readonly tabPath: string;
     readonly content: string;
@@ -36,7 +41,7 @@ export class RecordingScriptEditor implements ScriptEditorPort {
     readonly written: ScriptEditorCall<InlineScript>[] = [];
     readonly contentUpdates: TabContentUpdate[] = [];
     readonly closedTabs: string[] = [];
-    readonly variablePushes: ScriptEditorCall<readonly string[]>[] = [];
+    readonly variablePushes: VariablePush[] = [];
     readonly closedEditors: string[] = [];
     readonly writeInterruptions: (Error | Promise<void>)[] = [];
     openFailure: Error | undefined;
@@ -93,7 +98,7 @@ export class RecordingScriptEditor implements ScriptEditorPort {
     }
 
     updateTabVariables(editorId: string, tabPaths: readonly string[]): void {
-        this.variablePushes.push({ editorId, script: tabPaths });
+        this.variablePushes.push({ editorId, tabPaths });
     }
 
     closeEditorTabs(editorId: string, tabs: ReadonlyArray<readonly [string, OpenScriptTab]>): void {

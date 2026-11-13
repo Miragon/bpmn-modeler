@@ -83,7 +83,7 @@ function fullReplaceEdit(uri: Uri, doc: TextDocument, content: string): Workspac
  * {@link updateTabContent}, which overwrites the buffer.
  */
 export class ScriptTaskService implements ScriptEditorPort {
-    // URI paths currently being written by us — used for echo prevention.
+    // Canonical paths currently being written by us — used for echo prevention.
     private readonly writingGuard = new Set<string>();
 
     /**
@@ -197,7 +197,7 @@ export class ScriptTaskService implements ScriptEditorPort {
         lang: ScriptLanguage,
         kind: ScriptKind,
     ): Promise<void> {
-        await this.withWritingGuard(scriptUri.path, async () => {
+        await this.withWritingGuard(canonicalPath(scriptUri), async () => {
             await this.scriptFiles.writeFile(canonicalPath(scriptUri), content);
             if (lang.languageId === "javascript") {
                 await this.writeJsAmbientFiles(canonicalPath(scriptUri), kind);
@@ -261,8 +261,8 @@ export class ScriptTaskService implements ScriptEditorPort {
         if (!doc) {
             // Tab open but document not yet materialised (or already
             // disposed): the file is the only copy to refresh.
-            await this.withWritingGuard(uri.path, () =>
-                this.scriptFiles.writeFile(canonicalPath(uri), content),
+            await this.withWritingGuard(tabPath, () =>
+                this.scriptFiles.writeFile(tabPath, content),
             );
             return;
         }
@@ -270,8 +270,8 @@ export class ScriptTaskService implements ScriptEditorPort {
             return;
         }
 
-        await this.withWritingGuard(uri.path, async () => {
-            await workspace.applyEdit(fullReplaceEdit(uri, doc, content));
+        await this.withWritingGuard(tabPath, async () => {
+            await workspace.applyEdit(fullReplaceEdit(doc.uri, doc, content));
         });
     }
 
@@ -282,7 +282,7 @@ export class ScriptTaskService implements ScriptEditorPort {
     async closeTab(tabPath: string): Promise<void> {
         const uri = toUri(tabPath);
         await this.saveIfDirty(uri);
-        await this.closeTabsFor(new Set([uri.path]));
+        await this.closeTabsFor(new Set([tabPath]));
         void this.scriptFiles.deleteScript(canonicalPath(uri));
     }
 
@@ -327,7 +327,7 @@ export class ScriptTaskService implements ScriptEditorPort {
             for (const uri of uris) {
                 await this.saveIfDirty(uri);
             }
-            await this.closeTabsFor(new Set(uris.map((uri) => uri.path)));
+            await this.closeTabsFor(new Set(tabs.map(([tabPath]) => tabPath)));
             if (editorScriptDir !== undefined) {
                 await this.scriptFiles.deleteFolder(editorScriptDir);
             }
@@ -439,10 +439,14 @@ export class ScriptTaskService implements ScriptEditorPort {
     }
 
     private isUriOpenInAnyTab(uri: Uri): boolean {
-        const target = uri.toString();
+        const target = canonicalPath(uri);
         for (const group of window.tabGroups.all) {
             for (const tab of group.tabs) {
-                if (tab.input instanceof TabInputText && tab.input.uri.toString() === target) {
+                if (
+                    tab.input instanceof TabInputText &&
+                    tab.input.uri.scheme === "file" &&
+                    canonicalPath(tab.input.uri) === target
+                ) {
                     return true;
                 }
             }
@@ -454,9 +458,11 @@ export class ScriptTaskService implements ScriptEditorPort {
         // Guard the scheme: a `git:` diff view of the same path would otherwise
         // match, and a dispose-time write-back against it reads HEAD content
         // (wrong range) then throws on `save()` (the doc is readonly). Aligns
-        // with `EditorSessionStore.findEditorIdByPath`.
+        // with `EditorSessionStore.findEditorIdByPath`. Canonical paths, because
+        // a file opened from the Explorer can carry an uppercase drive letter.
+        const wanted = canonicalPath(uri);
         return workspace.textDocuments.find(
-            (doc) => doc.uri.path === uri.path && doc.uri.scheme === "file",
+            (doc) => doc.uri.scheme === "file" && canonicalPath(doc.uri) === wanted,
         );
     }
 
@@ -477,13 +483,13 @@ export class ScriptTaskService implements ScriptEditorPort {
         }
     }
 
-    private async closeTabsFor(paths: Set<string>): Promise<void> {
+    private async closeTabsFor(tabPaths: Set<string>): Promise<void> {
         for (const group of window.tabGroups.all) {
             for (const tab of group.tabs) {
                 if (
                     tab.input instanceof TabInputText &&
                     tab.input.uri.scheme === "file" &&
-                    paths.has(tab.input.uri.path)
+                    tabPaths.has(canonicalPath(tab.input.uri))
                 ) {
                     try {
                         await window.tabGroups.close(tab);
@@ -524,7 +530,8 @@ export class ScriptTaskService implements ScriptEditorPort {
             return;
         }
 
-        if (this.writingGuard.has(uri.path) || !mayBeScriptTab(uri)) {
+        const tabPath = canonicalPath(uri);
+        if (this.writingGuard.has(tabPath) || !mayBeScriptTab(uri)) {
             return;
         }
 
@@ -532,7 +539,7 @@ export class ScriptTaskService implements ScriptEditorPort {
         // write (a coding agent editing the file on disk): VS Code refreshes
         // non-dirty buffers automatically, so agent edits stream into the
         // model through the same path as keystrokes.
-        this.listener?.didChange(canonicalPath(uri), event.document.getText());
+        this.listener?.didChange(tabPath, event.document.getText());
     }
 
     /**

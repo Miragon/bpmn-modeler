@@ -350,7 +350,7 @@ describe("updateScriptVariablesHandler", () => {
         );
 
         expect(variables.variablesFor(EDITOR)).toEqual(VARIABLES);
-        expect(scriptEditor.variablePushes).toEqual([{ editorId: EDITOR, script: [] }]);
+        expect(scriptEditor.variablePushes).toEqual([{ editorId: EDITOR, tabPaths: [] }]);
     });
 });
 

@@ -33,6 +33,9 @@ export class ScriptTabService {
     /** Editors whose hidden webview missed an edit; their reload replays every tab. */
     private readonly missedEdits = new Set<string>();
 
+    /** Tabs the host is still opening; a second open of the script reveals only once the tab is there. */
+    private readonly pendingOpens = new Map<string, Promise<void>>();
+
     constructor(
         private readonly store: EditorSessionStore,
         private readonly scriptEditor: ScriptEditorPort,
@@ -53,10 +56,32 @@ export class ScriptTabService {
         if (!target) {
             return;
         }
-        if (this.tabs.isOpen(target.tabPath)) {
+        const { tabPath } = target;
+        // No await when idle, and re-read after each wait: two waiting opens never both open.
+        let pending = this.pendingOpens.get(tabPath);
+        while (pending) {
+            // A failed open is its own caller's to handle; this one then opens the tab.
+            await pending.catch(() => undefined);
+            pending = this.pendingOpens.get(tabPath);
+        }
+        if (this.tabs.isOpen(tabPath)) {
             await this.scriptEditor.revealTab(target, script);
             return;
         }
+        const opening = this.openTab(editorId, target, script);
+        this.pendingOpens.set(tabPath, opening);
+        try {
+            await opening;
+        } finally {
+            this.pendingOpens.delete(tabPath);
+        }
+    }
+
+    private async openTab(
+        editorId: string,
+        target: ScriptTabTarget,
+        script: InlineScript,
+    ): Promise<void> {
         const { elementId, kind, listenerIndex } = script;
         // Tracked before the host shows the tab, so the host's report of that tab is no user open.
         this.tabs.track(target.tabPath, { editorId, elementId, kind, listenerIndex });

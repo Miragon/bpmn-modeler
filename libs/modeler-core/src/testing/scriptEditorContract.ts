@@ -208,7 +208,7 @@ export function describeScriptEditorContract(
                     folder: OS_TEMP_FOLDER,
                 },
             ])(
-                "writes $script at its path without asking, in the folder the store names",
+                "writes $script at its path, in the folder the store names",
                 async ({ editorId, written, path, folder }) => {
                     await expect(scriptTabs.materialize(editorId, written)).resolves.toEqual({
                         kind: "written",
