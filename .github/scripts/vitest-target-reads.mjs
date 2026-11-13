@@ -11,13 +11,16 @@ const VIRTUAL_ROOT_URL = `file://${VIRTUAL_ROOT}`;
 const PATH_MODULES = new Set(["path", "node:path"]);
 const URL_MODULES = new Set(["url", "node:url"]);
 const PATH_FUNCTIONS = new Set(["join", "resolve", "normalize", "dirname"]);
-const QUERY_OR_HASH = /[?#].*$/;
+const QUERY = /\?.*$/;
+// Every anchor the evaluator resolves; a file that mentions none cannot read a path.
+const PATH_ANCHOR = /__dirname|__filename|import\.meta\.(?:dirname|filename|url)/;
 
 export function withoutQuery(specifier) {
-    return specifier.replace(QUERY_OR_HASH, "");
+    return specifier.replace(QUERY, "");
 }
 
 export function readPathCandidates(sourceText, filePath) {
+    if (!PATH_ANCHOR.test(sourceText)) return [];
     const sourceFile = ts.createSourceFile(filePath, sourceText, ts.ScriptTarget.Latest, true);
     const evaluator = createEvaluator(sourceFile, `${VIRTUAL_ROOT}/${filePath}`);
     const anchoredPaths = [];

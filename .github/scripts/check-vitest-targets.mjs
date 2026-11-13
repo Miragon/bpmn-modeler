@@ -24,7 +24,6 @@ const TYPE_ONLY_STATEMENT =
 const SUPPORTED_GLOB = /^(?:[^*?[\]!]|\*(?!\*)|(?<=^|\/)\*\*(?=\/|$))+$/;
 const TSC_PROJECT = /\btsc\b[^&|;]*?(?:-p|--project)\s+(\S+)/g;
 const EXCLUDES_SPECS = /"exclude"\s*:\s*\[[^\]]*\.spec\./;
-const PATH_ANCHOR = /__dirname|__filename|import\.meta\.(?:dirname|filename|url)/;
 
 const problems = [];
 const targets = Object.entries(registry.targets);
@@ -32,7 +31,8 @@ const targetIdByDir = new Map(targets.map(([id, target]) => [target.dir, id]));
 const manifestDirByName = new Map(
     [".", ...workspaceDirs()].map((dir) => [readJson(join(dir, "package.json")).name, dir]),
 );
-const repoFiles = execFileSync("git", ["ls-files", "--cached", "--others", "--exclude-standard"], {
+// Index only: an untracked file is never pushed, so pre-push must not see it either.
+const repoFiles = execFileSync("git", ["ls-files", "--cached"], {
     cwd: repoRoot,
     encoding: "utf8",
 })
@@ -126,8 +126,10 @@ function checkTarget(id, target) {
 
 function readPathsOf(file) {
     if (!readPathsByFile.has(file)) {
-        const source = readFileSync(join(repoRoot, file), "utf8");
-        readPathsByFile.set(file, PATH_ANCHOR.test(source) ? readPathCandidates(source, file) : []);
+        readPathsByFile.set(
+            file,
+            readPathCandidates(readFileSync(join(repoRoot, file), "utf8"), file),
+        );
     }
     return readPathsByFile.get(file);
 }

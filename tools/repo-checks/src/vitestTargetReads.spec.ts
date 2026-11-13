@@ -202,6 +202,7 @@ describe("an import specifier", () => {
         },
         { specifier: "./a.svg?url#icon", path: "./a.svg" },
         { specifier: "./a", path: "./a" },
+        { specifier: "#internal/x", path: "#internal/x" },
     ])("names $path without its query", ({ specifier, path }) => {
         expect(withoutQuery(specifier)).toBe(path);
     });

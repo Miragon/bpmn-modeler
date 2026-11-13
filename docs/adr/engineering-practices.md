@@ -563,15 +563,16 @@ Before the registry, each workspace needed a hand-written job, filter and
 The read pass
 ([`vitest-target-reads.mjs`](../../.github/scripts/vitest-target-reads.mjs),
 specified by `tools/repo-checks/src/vitestTargetReads.spec.ts`) parses every
-file the import pass scans with the TypeScript 6 compiler API (the root
+file the import pass scans, production files included, with the TypeScript 6
+compiler API (the root
 `typescript`, not `@typescript/native`). It resolves paths anchored at
 `__dirname`, `__filename` or `import.meta.{dirname,filename,url}` through
 `join`, `resolve`, `normalize`, `dirname`, `fileURLToPath`, `new URL`, `const`
 bindings, `+` and template literals of them. In a file that binds the
 repository root, every string that names a repository path counts as a read,
-so helpers such as `readRepoFile("…")` are seen; strings that are only
-compared count too. A path that git does not list is test data and is
-skipped, a query such as `?raw` is dropped (in the import pass as well), and a
+so a helper such as `readRepoFile("…")` defined in that file is seen; strings
+that are only compared count too. A path not in the git index is test data and
+is skipped (an untracked file is never pushed, so pre-push and CI agree), a query such as `?raw` is dropped (in the import pass as well), and a
 path inside the target's own workspace needs no trigger. A read file must
 match a trigger. A read directory needs only one listed file under it that a
 trigger matches: the strict rule (`<dir>/**` covered) fails on correct code,
@@ -584,11 +585,16 @@ The pass cannot see a path computed from a parameter or from data
 (`package.json` workspaces, `.gitattributes` patterns, the entries of
 `orca-plugin.json`), `git ls-files` sweeps, config files a tool loads on its
 own (ESLint's `eslint.config.cjs`), `node_modules` reads through
-`require.resolve`, `process.cwd()`-relative paths, or a production file that
-reads at test time. Those stay hand-listed: `repo-checks` lists
+`require.resolve`, `process.cwd()`-relative paths, or a read helper imported
+from another module (only the file that binds the root has its strings
+taken). Some of these are hand-listed: `repo-checks` lists
 `docs/package.json`, `.gitattributes` and the ESLint configs, and
 `element-template-builder` lists `yarn.lock` for the upstream schemas its
-catalog spec reads.
+catalog spec reads. The rest stay uncovered: the `git ls-files` sweeps in
+`guardedValueComparison.spec.ts` and `hostTextNames.spec.ts` read the
+TypeScript files outside `{apps,libs,packages,tools}/*/src/**`, and no trigger
+lists them, so a change to one of those files does not run the two specs. The
+`orca-plugin.json` entries resolve inside the workspace today.
 
 Only a leg whose `<id>-src` filter matches reports coverage, so the
 release-please PR (changelogs, manifests) gets none. A manual
