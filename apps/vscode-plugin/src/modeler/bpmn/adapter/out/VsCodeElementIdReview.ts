@@ -67,8 +67,10 @@ export class VsCodeElementIdReview
     readonly onDidChangeTreeData = this.changed.event;
     private view: ElementIdReviewView | undefined;
 
-    static isSupported(api: object = vscode): boolean {
-        return "TreeItemCheckboxState" in api;
+    // 1.76 to 1.79 already export the checkbox API, as a proposal an extension may not use.
+    static isSupported(version: string = vscode.version): boolean {
+        const [major = 0, minor = 0] = version.split(".").map(Number);
+        return major > 1 || (major === 1 && minor >= 80);
     }
 
     /** @param revealCommand what a click on a row runs, with the element to reveal */
