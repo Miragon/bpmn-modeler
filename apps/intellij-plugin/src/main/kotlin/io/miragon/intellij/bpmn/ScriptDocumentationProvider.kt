@@ -53,7 +53,7 @@ class ScriptDocumentationProvider : AbstractDocumentationProvider() {
 
     private fun renderVariable(variable: VariableInfo): String =
         buildDoc(
-            definition = "${variable.name}: ${variable.typeHint ?: "process variable"}",
+            definition = "${variable.name}: ${variable.detail}",
             content = variable.origin,
         )
 

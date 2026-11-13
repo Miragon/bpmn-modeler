@@ -937,14 +937,23 @@ catalogues and prompt ids in their thin `engineVersionPrompt` and
 `formVersionPrompt` wrappers.
 
 The core's `newModelFilePrompt` builders own the BPMN, DMN and Form creation
-titles, filter labels, extensions and full default filenames. VS Code computes
-the default URI from the first workspace folder and renders the native save
-dialog; overwrite confirmation and appending a missing extension remain host
-concerns. `newModelFilePrompt.spec.ts` and `CommandController.spec.ts` pin these
-contents and cancellation behavior. IntelliJ creation titles, descriptions,
-defaults and cancellation flow remain host-owned in `NewBpmnModelAction`,
-`NewDmnModelAction` and `NewModelSupport`; their different defaults and empty-BPMN
-creation behavior are not migrated here ([#2222](https://github.com/Miragon/bpmn-modeler/issues/2222)).
+titles, descriptions, filter labels, extensions and full default filenames. VS
+Code computes the default URI from the first workspace folder and renders the
+native save dialog, which has no place for the description; overwrite
+confirmation and appending a missing extension remain host concerns.
+`newModelFilePrompt.spec.ts` and `CommandController.spec.ts` pin these contents
+and cancellation behavior. IntelliJ shows its save dialog without a bridge
+session, so `NewBpmnModelAction` and `NewDmnModelAction` keep their title,
+description and extension in Kotlin, and `NewModelFileDialogTest` reads
+`newModelFilePrompt.ts` and holds them to the core's. Starting the bridge only to
+fetch static text would cost a process start before the dialog opens. The
+IntelliJ default filenames (`diagram.bpmn`, `decision.dmn`), the empty-BPMN
+creation and the cancellation flow stay host-owned in `NewModelSupport`.
+
+The script completion's type label for a process variable without a type hint,
+and for a local declaration, comes from the core's `scriptCompletionDetail`.
+IntelliJ completes no local declarations; its copy of the untyped label is held
+to `UNTYPED_PROCESS_VARIABLE_DETAIL` by `ScriptCompletionDetailTest`.
 
 The modeler UI language command also uses `PickerPort`: `modelerSettings` owns
 the pure `modelerLanguagePrompt` and `ModelerLanguageService`. The service reads

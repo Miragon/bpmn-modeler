@@ -12,6 +12,13 @@ import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.vfs.VirtualFile
 import java.io.IOException
 
+/** The save dialog's text; NewModelFileDialogTest holds each action's to the core's `newModelFilePrompt`. */
+internal data class NewModelFileDialog(
+    val title: String,
+    val description: String,
+    val extension: String,
+)
+
 /**
  * Shared "create a new model file and open it" flow behind the New BPMN / New DMN
  * actions. Both prompt for a save target the same way and only differ in the seed
@@ -29,14 +36,13 @@ internal object NewModelSupport {
      */
     fun createModelFile(
         event: AnActionEvent,
-        dialogTitle: String,
-        dialogDescription: String,
-        extension: String,
+        dialog: NewModelFileDialog,
         defaultName: String,
         content: String,
     ) {
         val project = event.project ?: return
-        val descriptor = FileSaverDescriptor(dialogTitle, dialogDescription, extension)
+        val extension = dialog.extension
+        val descriptor = FileSaverDescriptor(dialog.title, dialog.description, extension)
         val wrapper =
             FileChooserFactory.getInstance()
                 .createSaveFileDialog(descriptor, project)
