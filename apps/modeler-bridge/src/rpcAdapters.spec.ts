@@ -17,7 +17,6 @@ import { DocumentMirror } from "./editorSession/domain/DocumentMirror";
 import { RpcActionNotifier } from "./kernel/adapter/out/RpcActionNotifier";
 import { RpcClipboard } from "./kernel/adapter/out/RpcClipboard";
 import { RpcDeploymentState } from "./deployment/adapter/out/RpcDeploymentState";
-import { RpcDocumentPort } from "./editorSession/adapter/out/RpcDocumentPort";
 import { RpcEditorHandle } from "./editorSession/adapter/out/RpcEditorHandle";
 import { RpcLintingPreference } from "./modeler/bpmn/adapter/out/RpcLintingPreference";
 import { RpcNotifier } from "./kernel/adapter/out/RpcNotifier";
@@ -248,6 +247,33 @@ describe("RpcEditorHandle", () => {
         expect(mirror.content(META.editorId)).toBe("replacement");
     });
 
+    // Only the host's error reply reads as a refused write.
+    it("answers a write the host fails with an error reply with false and keeps the mirror", async () => {
+        const { frames, rpc } = harness();
+        const mirror = new DocumentMirror();
+        mirror.register(META, "host");
+        const handle = new RpcEditorHandle(META, mirror, rpc, new BridgeSettings(), PLUGIN_CACHE);
+
+        const pending = handle.writeContent("next", 1);
+        await rpc.handleLine(JSON.stringify({ id: last(frames).id, error: "edit failed" }));
+
+        await expect(pending).resolves.toBe(false);
+        expect(mirror.content(META.editorId)).toBe("host");
+    });
+
+    it("rejects a write the host can no longer answer", async () => {
+        const { rpc } = harness();
+        const mirror = new DocumentMirror();
+        mirror.register(META, "host");
+        const handle = new RpcEditorHandle(META, mirror, rpc, new BridgeSettings(), PLUGIN_CACHE);
+
+        const pending = handle.writeContent("next", 1);
+        rpc.handleEnd();
+
+        await expect(pending).rejects.toThrow("No reply to document/write: the input ended");
+        expect(mirror.content(META.editorId)).toBe("host");
+    });
+
     it("save requests document/save and returns the saved flag", async () => {
         const { frames, rpc, answerLast } = harness();
         const handle = new RpcEditorHandle(
@@ -365,61 +391,6 @@ describe("RpcLintingPreference", () => {
         await rpc.handleLine(JSON.stringify({ id: last(frames).id, error: "store failed" }));
 
         await expect(stored).rejects.toThrow("store failed");
-    });
-});
-
-describe("RpcDocumentPort", () => {
-    it("reads through the mirror and routes writes/saves over RPC", async () => {
-        const { frames, rpc, answerLast } = harness();
-        const mirror = new DocumentMirror();
-        mirror.register(META, "seed");
-        const port = new RpcDocumentPort(rpc, mirror);
-
-        expect(port.getContent(META.editorId)).toBe("seed");
-        expect(port.getFilePath(META.editorId)).toBe(META.fsPath);
-
-        const write = port.write(META.editorId, "next", 3);
-        expect(last(frames)).toMatchObject({
-            params: {
-                editorId: META.editorId,
-                sessionId: META.sessionId,
-                expectedDocumentRevision: 3,
-            },
-        });
-        await answerLast({ changed: true });
-        await expect(write).resolves.toBe(true);
-        expect(mirror.content(META.editorId)).toBe("next");
-
-        const save = port.save(META.editorId);
-        await answerLast({ saved: true });
-        await expect(save).resolves.toBe(true);
-    });
-
-    it("does not update the mirror when the host rejects a stale write", async () => {
-        const { rpc, answerLast } = harness();
-        const mirror = new DocumentMirror();
-        mirror.register(META, "host");
-        const port = new RpcDocumentPort(rpc, mirror);
-
-        const write = port.write(META.editorId, "stale", 1);
-        await answerLast({ changed: false, accepted: false });
-
-        await expect(write).resolves.toBe(false);
-        expect(mirror.content(META.editorId)).toBe("host");
-    });
-
-    // Only the host's error reply reads as a refused write.
-    it("rejects a write the host can no longer answer", async () => {
-        const { rpc } = harness();
-        const mirror = new DocumentMirror();
-        mirror.register(META, "host");
-        const port = new RpcDocumentPort(rpc, mirror);
-
-        const write = port.write(META.editorId, "next", 1);
-        rpc.handleEnd();
-
-        await expect(write).rejects.toThrow("No reply to document/write: the input ended");
-        expect(mirror.content(META.editorId)).toBe("host");
     });
 });
 

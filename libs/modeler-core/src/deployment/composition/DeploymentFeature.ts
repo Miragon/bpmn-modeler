@@ -3,13 +3,13 @@ import { posix } from "path";
 import { Command, Query } from "@miragon/bpmn-modeler-shared";
 
 import {
-    DocumentPort,
     NotifierPort,
     PickerPort,
     SettingsPort,
     StatusBarPort,
     WorkspacePort,
 } from "../../kernel/port/hostPorts";
+import { EditorSessionDocuments } from "../../editorSession/service/EditorSessionDocuments";
 import { UserCancelledError } from "../../kernel/domain/errors";
 import { EditorSessionStore } from "../../editorSession/service/EditorSessionStore";
 import { ArtifactService } from "../../kernel/service/ArtifactService";
@@ -38,7 +38,7 @@ import { DeploymentStatusParticipant } from "../service/DeploymentStatusParticip
 
 export interface DeploymentHostPorts {
     store: EditorSessionStore;
-    documents: DocumentPort;
+    documents: EditorSessionDocuments;
     workspace: WorkspacePort;
     settings: SettingsPort;
     notifier: NotifierPort;

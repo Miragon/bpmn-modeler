@@ -12,8 +12,8 @@
  * Path-space contract (the one subtlety):
  * `editorId` is a `file://` URI on both hosts. Two call paths reach this
  * adapter with *different* string spaces:
- *  - `setElementTemplates` resolves dirs via `DocumentPort.getFilePath` → a
- *    clean OS path (`fsPath`, no scheme).
+ *  - `setElementTemplates` resolves dirs via
+ *    `EditorSessionDocuments.getFilePath` → the session's clean path (no scheme).
  *  - The element-template and `.bpmnlintrc` watchers resolve dirs via
  *    `getDocumentDirectory(editorId)`, which here keeps the URI form
  *    (`file:///…`), and watch the folder resolved for it.

@@ -1,4 +1,4 @@
-import { DocumentPort } from "../../kernel/port/hostPorts";
+import { EditorSessionDocuments } from "../../editorSession/service/EditorSessionDocuments";
 import { PendingEditsFlush } from "../../editorSession/service/PendingEditsFlush";
 
 export type SaveBeforeDeployResult = { saved: true } | { saved: false; message: string };
@@ -6,7 +6,7 @@ export type SaveBeforeDeployResult = { saved: true } | { saved: false; message: 
 /** A deploy reads the file from disk, so what the editor shows must be persisted first. */
 export class SaveBeforeDeploy {
     constructor(
-        private readonly documentPort: DocumentPort,
+        private readonly documentPort: EditorSessionDocuments,
         private readonly pendingEdits: Pick<PendingEditsFlush, "flushIntoDocument">,
     ) {}
 

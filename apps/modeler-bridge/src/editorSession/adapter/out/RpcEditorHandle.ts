@@ -1,7 +1,7 @@
 import { Command, Query } from "@miragon/bpmn-modeler-shared";
 import { DocumentChangeEvent, EditorSubscription, SettingChange } from "@miragon/bpmn-modeler-core";
 import { BridgeSettings } from "../../../kernel/adapter/out/BridgeSettings";
-import { Rpc } from "../../../transport/adapter/out/Rpc";
+import { Rpc, RpcErrorReply } from "../../../transport/adapter/out/Rpc";
 import { METHODS } from "../../../protocol/domain/descriptor";
 import {
     DocumentSaveResult,
@@ -64,12 +64,19 @@ export class RpcEditorHandle implements HostEditorHandle {
     }
 
     async writeContent(content: string, expectedDocumentRevision?: number): Promise<boolean> {
-        const result = (await this.rpc.request(METHODS.documentWrite, {
-            editorId: this.id,
-            sessionId: this.meta.sessionId,
-            content,
-            expectedDocumentRevision,
-        })) as DocumentWriteResult | null;
+        let result: DocumentWriteResult | null;
+        try {
+            result = (await this.rpc.request(METHODS.documentWrite, {
+                editorId: this.id,
+                sessionId: this.meta.sessionId,
+                content,
+                expectedDocumentRevision,
+            })) as DocumentWriteResult | null;
+        } catch (error) {
+            // The host answers an edit its Document failed with an error and logs it.
+            if (error instanceof RpcErrorReply) return false;
+            throw error;
+        }
         return this.mirror.completeWrite(this.id, this.meta.sessionId, content, result);
     }
 

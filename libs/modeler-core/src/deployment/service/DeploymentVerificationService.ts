@@ -4,7 +4,8 @@ import { ENGINE_LABEL } from "@miragon/bpmn-modeler-types";
 
 import { BpmnDocument } from "../../kernel/domain/BpmnDocument";
 import { UserCancelledError } from "../../kernel/domain/errors";
-import { DocumentPort, NotifierPort } from "../../kernel/port/hostPorts";
+import { NotifierPort } from "../../kernel/port/hostPorts";
+import { EditorSessionDocuments } from "../../editorSession/service/EditorSessionDocuments";
 import { EditorSessionStore } from "../../editorSession/service/EditorSessionStore";
 import {
     reconcile,
@@ -29,7 +30,7 @@ import { EnvValueResolver } from "./EnvValueResolver";
 export class DeploymentVerificationService {
     constructor(
         private readonly editorStore: EditorSessionStore,
-        private readonly documentPort: DocumentPort,
+        private readonly documentPort: EditorSessionDocuments,
         private readonly deploymentTargetService: DeploymentTargetService,
         private readonly deploymentStatusService: DeploymentStatusService,
         private readonly inspection: EngineInspectionPort,

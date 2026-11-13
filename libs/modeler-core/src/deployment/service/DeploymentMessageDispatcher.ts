@@ -31,7 +31,8 @@ import {
 import { TargetRequest } from "../domain/deploymentTarget";
 import { DeploymentTargetChangedError, InvalidDeploymentConfigError } from "../domain/errors";
 import { UserCancelledError } from "../../kernel/domain/errors";
-import { DocumentPort, NotifierPort } from "../../kernel/port/hostPorts";
+import { NotifierPort } from "../../kernel/port/hostPorts";
+import { EditorSessionDocuments } from "../../editorSession/service/EditorSessionDocuments";
 import { EditorSessionStore } from "../../editorSession/service/EditorSessionStore";
 import {
     isWebviewLogCommand,
@@ -96,7 +97,7 @@ export class DeploymentMessageDispatcher implements RouteLookup {
      */
     constructor(
         private readonly editorStore: EditorSessionStore,
-        private readonly documentPort: DocumentPort,
+        private readonly documentPort: EditorSessionDocuments,
         private readonly deploymentService: DeploymentService,
         private readonly startInstanceService: StartInstanceService,
         private readonly deploymentTargetService: DeploymentTargetService,

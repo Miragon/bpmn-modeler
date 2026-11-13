@@ -1,4 +1,5 @@
-import { DocumentPort, NotifierPort, PickerPort, WorkspacePort } from "../../kernel/port/hostPorts";
+import { NotifierPort, PickerPort, WorkspacePort } from "../../kernel/port/hostPorts";
+import { EditorSessionDocuments } from "../../editorSession/service/EditorSessionDocuments";
 import { EditorContribution } from "../../editorSession/service/EditorContribution";
 import { EditorSessionStore } from "../../editorSession/service/EditorSessionStore";
 import {
@@ -14,7 +15,7 @@ import { FormReferenceStatusParticipant } from "../service/FormReferenceStatusPa
 
 export interface NavigationHostPorts {
     readonly store: EditorSessionStore;
-    readonly documents: DocumentPort;
+    readonly documents: EditorSessionDocuments;
     readonly workspace: WorkspacePort;
     readonly notifier: NotifierPort;
     readonly picker: PickerPort;

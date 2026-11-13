@@ -2,7 +2,8 @@ import { posix } from "path";
 
 import { StartInstanceConfig, StartInstanceResult } from "../domain/startInstance";
 import { AuthConfig } from "../domain/deployment";
-import { DocumentPort, NotifierPort, PickerPort, WorkspacePort } from "../../kernel/port/hostPorts";
+import { NotifierPort, PickerPort, WorkspacePort } from "../../kernel/port/hostPorts";
+import { EditorSessionDocuments } from "../../editorSession/service/EditorSessionDocuments";
 import { CamundaEnginePort } from "../port/deploymentPorts";
 import { payloadFilePrompt } from "../domain/deploymentPrompts";
 import { ArtifactService } from "../../kernel/service/ArtifactService";
@@ -32,7 +33,7 @@ export class StartInstanceService {
      * @param artifactService Convention-based file discovery service.
      */
     constructor(
-        private readonly vsDocument: DocumentPort,
+        private readonly vsDocument: EditorSessionDocuments,
         private readonly vsWorkspace: WorkspacePort,
         private readonly restClient: CamundaEnginePort,
         private readonly notifier: NotifierPort,

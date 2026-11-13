@@ -9,12 +9,8 @@ import { BpmnlintConfig, Engine, LintResults } from "@miragon/bpmn-modeler-types
 
 import { BpmnDocument } from "../../../kernel/domain/BpmnDocument";
 import { ExecutionPlatformNotDetectedError } from "../../../kernel/domain/errors";
-import {
-    DocumentPort,
-    NotifierPort,
-    SettingsPort,
-    StatusBarPort,
-} from "../../../kernel/port/hostPorts";
+import { NotifierPort, SettingsPort, StatusBarPort } from "../../../kernel/port/hostPorts";
+import { EditorSessionDocuments } from "../../../editorSession/service/EditorSessionDocuments";
 import { EditorSessionStore } from "../../../editorSession/service/EditorSessionStore";
 import { BpmnLintConfigLocator, BpmnlintChangeTarget } from "./BpmnLintConfigLocator";
 import { BpmnlintIndicator, indicatorForFindings } from "../domain/bpmnlintIndicator";
@@ -81,7 +77,7 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
 
     constructor(
         private readonly editorStore: EditorSessionStore,
-        private readonly vsDocument: DocumentPort,
+        private readonly vsDocument: EditorSessionDocuments,
         private readonly locator: BpmnLintConfigLocator,
         private readonly lintRunner: LintRunnerPort,
         private readonly diagnostics: DiagnosticsPort,

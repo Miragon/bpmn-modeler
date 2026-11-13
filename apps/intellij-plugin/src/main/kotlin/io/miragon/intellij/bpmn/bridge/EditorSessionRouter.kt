@@ -548,7 +548,7 @@ internal class EditorSessionRouter(
 
     /**
      * Writes core-supplied XML into the in-memory Document on the EDT, then replies
-     * with whether the content actually changed (the `DocumentPort.write` contract).
+     * with whether the content actually changed (the `EditorHandle.writeContent` contract).
      * IntelliJ Documents require `\n`; webview XML may carry `\r\n`, in which case
      * the reply returns the normalised bytes so the bridge's mirror stays exact.
      *

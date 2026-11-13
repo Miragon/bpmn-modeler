@@ -10,7 +10,8 @@ import {
     type WorkspaceDefinition,
 } from "@miragon/bpmn-modeler-types";
 
-import type { DocumentPort, NotifierPort, WorkspacePort } from "../../kernel/port/hostPorts";
+import type { NotifierPort, WorkspacePort } from "../../kernel/port/hostPorts";
+import { EditorSessionDocuments } from "../../editorSession/service/EditorSessionDocuments";
 import { lastWorkspacePathSegment, toWorkspacePath } from "../../kernel/domain/workspacePath";
 import type { EditorSessionStore } from "../../editorSession/service/EditorSessionStore";
 import type { WorkspaceDefinitionIndex } from "./WorkspaceDefinitionIndex";
@@ -24,7 +25,7 @@ const MAX_RESULTS = 50;
 export class DefinitionSearchService {
     constructor(
         private readonly editorStore: EditorSessionStore,
-        private readonly document: DocumentPort,
+        private readonly document: EditorSessionDocuments,
         private readonly workspace: WorkspacePort,
         private readonly index: WorkspaceDefinitionIndex,
         private readonly notifier: NotifierPort,

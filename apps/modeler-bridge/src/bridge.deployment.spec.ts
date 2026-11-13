@@ -177,8 +177,8 @@ describe("deployment commands over the bridge", () => {
         await c.targets(nested, "https://nested.test", ["dev", "nested-only"]);
         c.deps.nodeWorkspace.registerRoot(c.root);
         vi.spyOn(c.deps.store, "getActiveEditorId").mockReturnValue("editor");
-        vi.spyOn(c.deps.documentPort, "getFilePath").mockReturnValue(join(nested, "nested.bpmn"));
-        vi.spyOn(c.deps.documentPort, "getContent").mockReturnValue("<process/>");
+        vi.spyOn(c.deps.documents, "getFilePath").mockReturnValue(join(nested, "nested.bpmn"));
+        vi.spyOn(c.deps.documents, "getContent").mockReturnValue("<process/>");
         await c.seed("dev");
         await c.command(METHODS.deploymentDeployFiles);
         expect(c.post.mock.calls[0][0]).toBe("https://nested.test/deployment/create");
@@ -217,8 +217,8 @@ describe("deployment commands over the bridge", () => {
     /** Focuses a fake editor on `<root>/order.bpmn` with a parseable diagram. */
     function focusEditor(c: Awaited<ReturnType<typeof setup>>) {
         vi.spyOn(c.deps.store, "getActiveEditorId").mockReturnValue("editor");
-        vi.spyOn(c.deps.documentPort, "getFilePath").mockReturnValue(join(c.root, "order.bpmn"));
-        vi.spyOn(c.deps.documentPort, "getContent").mockReturnValue(DIAGRAM);
+        vi.spyOn(c.deps.documents, "getFilePath").mockReturnValue(join(c.root, "order.bpmn"));
+        vi.spyOn(c.deps.documents, "getContent").mockReturnValue(DIAGRAM);
     }
 
     function mockEngineLookup() {
@@ -306,7 +306,7 @@ describe("deployment commands over the bridge", () => {
         const c = await setup();
         await c.seed("dev");
         focusEditor(c);
-        const save = vi.spyOn(c.deps.documentPort, "save").mockResolvedValue(true);
+        const save = vi.spyOn(c.deps.documents, "save").mockResolvedValue(true);
 
         await c.command(METHODS.deploymentDeployActive);
 
@@ -438,7 +438,7 @@ describe("deployment commands over the bridge", () => {
         c.failHostRequest(METHODS.secretStoreSaveBasicAuth, "PasswordSafe unavailable");
         await c.seed("dev");
         focusEditor(c);
-        vi.spyOn(c.deps.documentPort, "save").mockResolvedValue(true);
+        vi.spyOn(c.deps.documents, "save").mockResolvedValue(true);
         const deploy = new DeployCommand({
             deploymentName: "order",
             tenantId: "",

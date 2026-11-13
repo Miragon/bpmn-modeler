@@ -131,7 +131,7 @@ Services operate on the active editor by default. The echo-prevention guard is p
 - **Deployment Controller**: `apps/vscode-plugin/src/deployment/adapter/in/DeploymentController.ts`
 - **Editor session store**: `libs/modeler-core/src/editorSession/service/EditorSessionStore.ts` (`vscode`-free registry)
 - **Editor handle**: contract `libs/modeler-core/src/editorSession/port/EditorHandle.ts`; VS Code adapter `apps/vscode-plugin/src/shared/adapter/out/VsCodeEditorHandle.ts`
-- **Session documents**: `libs/modeler-core/src/editorSession/service/EditorSessionDocuments.ts` (host-agnostic `DocumentPort` over the session store)
+- **Session documents**: `libs/modeler-core/src/editorSession/service/EditorSessionDocuments.ts` (routes an `editorId` to its `EditorHandle` through the session store)
 - **Message Types**: `libs/shared/src/lib/modeler.ts` (modeler `Command`/`Query` classes) + `messages.ts` (base + cross-cutting)
 - **Registration**: `apps/vscode-plugin/package.json` → `contributes.customEditors`
 - **Editor wiring**: `apps/vscode-plugin/src/composition/bpmnEditorFeature.ts` (BPMN), `apps/vscode-plugin/src/composition/editorFeature.ts` (DMN, Form, save flush); **activation**: `apps/vscode-plugin/src/main.ts`

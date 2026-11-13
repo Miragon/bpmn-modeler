@@ -253,7 +253,7 @@ describe("migrateAllDiagrams", () => {
         expect(notifier.infos).toEqual(["Updated 1 diagram(s) to Camunda 8 (8.8.0)."]);
     });
 
-    it("should use DocumentPort.write for files open in an editor", async () => {
+    it("should write files open in an editor through their documents", async () => {
         const { service, openEditor, workspace, writtenPaths } = createHost(
             { "/work/open.bpmn": c8Bpmn("8.5.0") },
             { c8EngineVersion: "8.8.0" },

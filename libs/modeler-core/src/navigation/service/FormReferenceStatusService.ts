@@ -1,6 +1,7 @@
 import { FormReferenceStatusQuery } from "@miragon/bpmn-modeler-shared";
 
-import { DocumentPort, NotifierPort, WorkspacePort } from "../../kernel/port/hostPorts";
+import { NotifierPort, WorkspacePort } from "../../kernel/port/hostPorts";
+import { EditorSessionDocuments } from "../../editorSession/service/EditorSessionDocuments";
 import { isWithinRoot } from "../../kernel/domain/rootContainment";
 import { searchScopeKey, searchScopeRoots } from "../../kernel/domain/searchScope";
 import { EVERY_PATH_GLOB, watchedChangeOf } from "../../kernel/domain/watchedFiles";
@@ -43,7 +44,7 @@ export class FormReferenceStatusService {
 
     constructor(
         private readonly editorStore: EditorSessionStore,
-        private readonly document: DocumentPort,
+        private readonly document: EditorSessionDocuments,
         private readonly workspace: WorkspacePort,
         private readonly locator: ReferencedModelLocator,
         private readonly notifier: NotifierPort,

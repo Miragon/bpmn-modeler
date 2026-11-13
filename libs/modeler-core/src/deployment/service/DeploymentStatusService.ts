@@ -1,12 +1,7 @@
 import { posix } from "path";
 
-import {
-    DocumentPort,
-    NotifierPort,
-    PickerPort,
-    SettingsPort,
-    StatusBarPort,
-} from "../../kernel/port/hostPorts";
+import { NotifierPort, PickerPort, SettingsPort, StatusBarPort } from "../../kernel/port/hostPorts";
+import { EditorSessionDocuments } from "../../editorSession/service/EditorSessionDocuments";
 import { UnreadableDotEnvError } from "../domain/errors";
 import { EditorSessionStore } from "../../editorSession/service/EditorSessionStore";
 import {
@@ -44,7 +39,7 @@ export class DeploymentStatusService {
 
     constructor(
         private readonly editorStore: EditorSessionStore,
-        private readonly documentPort: DocumentPort,
+        private readonly documentPort: EditorSessionDocuments,
         private readonly deploymentTargetService: DeploymentTargetService,
         private readonly deploymentState: DeploymentStatePort,
         private readonly statusBar: StatusBarPort,

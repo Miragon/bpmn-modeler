@@ -22,13 +22,8 @@ import { ConventionalRoutes } from "../domain/engineRoutes";
 import { EnvLookup } from "../domain/envRef";
 import { UserCancelledError } from "../../kernel/domain/errors";
 import { loggableHost } from "../../kernel/domain/http";
-import {
-    DocumentPort,
-    NotifierPort,
-    PickerPort,
-    SettingsPort,
-    WorkspacePort,
-} from "../../kernel/port/hostPorts";
+import { NotifierPort, PickerPort, SettingsPort, WorkspacePort } from "../../kernel/port/hostPorts";
+import { EditorSessionDocuments } from "../../editorSession/service/EditorSessionDocuments";
 import { CamundaEnginePort, DeploymentStatePort, SecretStorePort } from "../port/deploymentPorts";
 import { BpmnDocument } from "../../kernel/domain/BpmnDocument";
 import { CredentialApprovalService } from "./CredentialApprovalService";
@@ -65,7 +60,7 @@ export class DeploymentService {
      *   the form shows where a target has no override.
      */
     constructor(
-        private readonly vsDocument: DocumentPort,
+        private readonly vsDocument: EditorSessionDocuments,
         private readonly vsWorkspace: WorkspacePort,
         private readonly deploymentState: DeploymentStatePort,
         private readonly restClient: CamundaEnginePort,

@@ -35,7 +35,7 @@ export function register(
     // that direction.
     const migration = new BpmnMigrationService(
         deps.store,
-        deps.documentPort,
+        deps.documents,
         deps.nodeWorkspace,
         deps.picker,
         deps.notifier,
@@ -49,7 +49,7 @@ export function register(
                 new RpcLanguagePreference(deps.rpc),
                 deps.notifier,
             ),
-            engineSelection: new EngineVersionSelectionService(deps.store, deps.documentPort, {
+            engineSelection: new EngineVersionSelectionService(deps.store, deps.documents, {
                 ".bpmn": (id) => handles.bpmnService.changeEngineVersion(id),
             }),
             layout: handles.layout,

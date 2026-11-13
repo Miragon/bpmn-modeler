@@ -25,7 +25,7 @@ export function register(deps: BridgeSharedDeps): {
     const deploymentState = new RpcDeploymentState(deps.rpc);
     const deployment = new DeploymentFeature({
         store: deps.store,
-        documents: deps.documentPort,
+        documents: deps.documents,
         workspace: deps.nodeWorkspace,
         settings: deps.settings,
         notifier: deps.notifier,

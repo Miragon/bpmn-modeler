@@ -2,7 +2,8 @@ import { FormFileQuery } from "@miragon/bpmn-modeler-shared";
 import { isBlankDocument } from "@miragon/bpmn-modeler-types";
 
 import { UserCancelledError } from "../../../kernel/domain/errors";
-import { DocumentPort, NotifierPort } from "../../../kernel/port/hostPorts";
+import { NotifierPort } from "../../../kernel/port/hostPorts";
+import { EditorSessionDocuments } from "../../../editorSession/service/EditorSessionDocuments";
 import { EditorDocumentSync } from "../../../editorSession/service/EditorDocumentSync";
 import { EditorSessionStore } from "../../../editorSession/service/EditorSessionStore";
 import { createEmptyForm } from "../domain/emptyForm";
@@ -14,7 +15,7 @@ export class FormModelerService {
 
     constructor(
         private readonly editorStore: EditorSessionStore,
-        document: DocumentPort,
+        document: EditorSessionDocuments,
         private readonly notifier: NotifierPort,
         selection: FormEngineSelectionPorts,
     ) {

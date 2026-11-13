@@ -129,11 +129,11 @@ in `apps/modeler-bridge/src/protocol/domain/protocol.json`):
 
 | Direction   | Method(s)                                      | Port / handle                                                                                                                    |
 | ----------- | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| host → core | `session/register`, `session/dispose`          | editor lifecycle (seeds the `DocumentPort` mirror)                                                                               |
+| host → core | `session/register`, `session/dispose`          | editor lifecycle (seeds the `DocumentMirror`)                                                                                    |
 | host → core | `document/didChange`                           | external edit → re-render, own-write echo → no-op                                                                                |
 | host → core | `session/setActive`                            | focused tab → active-editor pointer                                                                                              |
 | host → core | `webview/message`                              | inbound `Command` → `WebviewMessageRouter`                                                                                       |
-| core → host | `document/write`, `document/save`              | `DocumentPort`                                                                                                                   |
+| core → host | `document/write`, `document/save`              | `EditorHandle`                                                                                                                   |
 | core → host | `editor/postMessage`                           | Query/Command → webview                                                                                                          |
 | core → host | `notifier/*`, `statusBar/update`               | `Notifications.Bus`, one `StatusSlotWidget` per status slot                                                                      |
 | host → core | `linting/toggle`                               | the BPMNlint widget's click flips the user's lint choice                                                                         |
@@ -185,7 +185,7 @@ order, and its labels to `MODE_LABEL` in
 `packages/bpmn-modeler/src/modeSession/modeStrip.ts`.
 
 **Host-replicated mirrors.** `BpmnModelerService.display()` reads
-`DocumentPort.getContent()` _synchronously_ — impossible over async RPC. The host
+`EditorHandle.getContent()` _synchronously_ — impossible over async RPC. The host
 seeds a local `DocumentMirror` on `session/register` and keeps it current via
 `document/didChange`, so reads hit a cache. Same pattern for settings and
 deployment state. **The `document/write` reply is the causation signal**: the

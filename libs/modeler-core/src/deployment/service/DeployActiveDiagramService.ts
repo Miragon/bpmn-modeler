@@ -1,6 +1,7 @@
 import { posix } from "path";
 
-import { DocumentPort, NotifierPort } from "../../kernel/port/hostPorts";
+import { NotifierPort } from "../../kernel/port/hostPorts";
+import { EditorSessionDocuments } from "../../editorSession/service/EditorSessionDocuments";
 import { EditorSessionStore } from "../../editorSession/service/EditorSessionStore";
 import { isDeployableFile } from "../domain/deployableFiles";
 import { DeploymentService } from "./DeploymentService";
@@ -18,7 +19,7 @@ import { SaveBeforeDeploy } from "./SaveBeforeDeploy";
 export class DeployActiveDiagramService {
     constructor(
         private readonly editorStore: EditorSessionStore,
-        private readonly documentPort: DocumentPort,
+        private readonly documentPort: EditorSessionDocuments,
         private readonly deploymentTargetService: DeploymentTargetService,
         private readonly deploymentService: DeploymentService,
         private readonly notifier: NotifierPort,

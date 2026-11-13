@@ -1,5 +1,5 @@
 {
-    "$comment": "A document/write to an open Document the host has counted `revision` outside edits for, each delivered to the core, and what the host replies and keeps. `session` addresses the editor's session, another session, or none. RpcDocumentPort.contract.spec.ts runs these rows against intellijDocumentWrite, which both loopbacks answer writes with; EditorSessionRouterTest against EditorSessionRouter on a real Document.",
+    "$comment": "A document/write to an open Document the host has counted `revision` outside edits for, each delivered to the core, and what the host replies and keeps. `session` addresses the editor's session, another session, or none. RpcEditorHandle.documents.contract.spec.ts runs these rows against intellijDocumentWrite, which both loopbacks answer writes with; EditorSessionRouterTest against EditorSessionRouter on a real Document.",
     "cases": [
         {
             "name": "a write of new text is stored and reports a change",

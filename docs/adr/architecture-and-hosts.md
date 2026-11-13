@@ -120,10 +120,13 @@ and the `domain/` of `kernel/` and `editorSession/`.
   and `adapter/in/` the inbound document, focus, log and notification
   handlers. Its `domain/` keeps the session events, the participant contract,
   the echo guard and status-item ownership. `EditorHandle` is a port: the host
-  implements it, and its `postMessage` speaks the private protocol.
-  `EditorSessionDocuments` implements `DocumentPort` on top of the store, so
-  it is a service, not an adapter. `editorSession/` imports only `kernel/`,
-  which the cross-feature rule already implies.
+  implements it, and its `postMessage` speaks the private protocol. It is the
+  only port for an editor's document. `EditorSessionDocuments` routes an
+  `editorId` to that editor's handle through the store, so it is a service
+  that every host wires and the core's services depend on, not a port with
+  an adapter per host. Its `getFilePath` is the handle's `documentPath`, the
+  `/`-separated path the core takes `posix.dirname` of. `editorSession/`
+  imports only `kernel/`, which the cross-feature rule already implies.
 
 A context that lists what other contexts own declares structural ports in its
 own `port/` and leaves the rules with the owners. `addOns/` (the add-on
@@ -1793,10 +1796,11 @@ Reject stale writes with `accepted: false` and retain host content. Registration
 re-seeds the revision so restart cannot reset this protection.
 
 When the Document fails an edit, the host answers the write with an error. The
-bridge reads that error reply as a refused write, so `DocumentPort.write`
-answers `false` as on VS Code, and the mirror keeps its text. Accepted cost: on
-both hosts a failed edit is not reported as such. The page sync shows nothing,
-and Change Engine Version blames a change made while the user picked a version.
+bridge reads that error reply as a refused write, so
+`RpcEditorHandle.writeContent` answers `false` as on VS Code, and the mirror
+keeps its text. Accepted cost: on both hosts a failed edit is not reported as
+such. The page sync shows nothing, and Change Engine Version blames a change
+made while the user picked a version.
 
 Host-owned `sessionId` distinguishes successive editors for the same URI. Both
 peers reject mismatched identities, including stale disposal. For existing

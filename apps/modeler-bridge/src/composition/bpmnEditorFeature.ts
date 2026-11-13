@@ -42,7 +42,7 @@ export function register(
 ): BpmnEditorFeature {
     const ports = {
         store: deps.store,
-        documents: deps.documentPort,
+        documents: deps.documents,
         workspace: deps.nodeWorkspace,
         settings: deps.settings,
         notifier: deps.notifier,

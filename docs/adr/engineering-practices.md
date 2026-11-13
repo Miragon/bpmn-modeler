@@ -92,11 +92,11 @@ each loopback to the Kotlin side.
   `WebviewPaneHandle` over a fake panel and document, and the bridge's
   `RpcDiffPaneHandle` over a loopback that routes posts as `DiffRouter.kt`
   does.
-- `describeDocumentContract`: `EditorSessionDocuments` twice, over the kit's
-  `FakeEditorHandle` as `createTestHost` composes it and over
-  `VsCodeEditorHandle` on a fake `vscode` text document, and the bridge's
-  `RpcDocumentPort` over a loopback that answers as `EditorSessionRouter.kt`
-  does. The kit has no `DocumentPort` fake of its own.
+- `describeDocumentContract`: `EditorSessionDocuments` over each host's
+  `EditorHandle`: the kit's `FakeEditorHandle` as `createTestHost` composes
+  it, `VsCodeEditorHandle` on a fake `vscode` text document, and the bridge's
+  `RpcEditorHandle` over a loopback that answers as `EditorSessionRouter.kt`
+  does.
 - `describeEditorHandleContract`: `FakeEditorHandle`, `VsCodeEditorHandle`
   over a fake panel, text document and `workspace` events, and the bridge's
   `RpcEditorHandle` over a loopback that answers as `EditorSessionRouter.kt`
