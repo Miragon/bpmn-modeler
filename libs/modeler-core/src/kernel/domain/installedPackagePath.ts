@@ -11,9 +11,13 @@ export interface InstalledPlace {
     readonly name: string;
 }
 
+export function isScopeFolderName(name: string): boolean {
+    return name.startsWith(SCOPE_PREFIX);
+}
+
 /** A scoped name, `@scope/name`, spans two parts; `undefined` when fewer follow. */
 export function packageNamePartsOf(parts: readonly string[]): readonly string[] | undefined {
-    const nameLength = parts[0]?.startsWith(SCOPE_PREFIX) === true ? 2 : 1;
+    const nameLength = parts[0] !== undefined && isScopeFolderName(parts[0]) ? 2 : 1;
     return parts.length < nameLength ? undefined : parts.slice(0, nameLength);
 }
 
@@ -32,7 +36,12 @@ export function installedPlaceOf(path: string): InstalledPlace | undefined {
 
 /** A package's name as its installed place spells it, else the folder's own name. */
 export function installedPackageNameOf(id: string): string {
-    return installedPlaceOf(id)?.name ?? id.slice(id.lastIndexOf("/") + 1);
+    return installedPlaceOf(id)?.name || id.slice(id.lastIndexOf("/") + 1);
+}
+
+/** The `node_modules` a package folder is installed in, or the folder itself outside every one. */
+export function installedSourceDirOf(id: string): string {
+    return installedPlaceOf(id)?.dir ?? id;
 }
 
 export function nodeModulesDirOf(dir: string): string {

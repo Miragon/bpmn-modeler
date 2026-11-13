@@ -22,6 +22,7 @@ import {
 import {
     installedPackageNameOf,
     installedPlaceOf,
+    installedSourceDirOf,
     packageNamePartsOf,
 } from "../../../kernel/domain/installedPackagePath";
 import { ChoicePrompt } from "../../../kernel/domain/prompts";
@@ -303,7 +304,7 @@ export function rootStampPathsOf(rootId: string, lookupDir: string | undefined):
  * dependency. The config's own package and a linked one keep theirs inside.
  */
 export function evictionScopeOf(rootId: string): string {
-    return installedPlaceOf(rootId)?.dir ?? rootId;
+    return installedSourceDirOf(rootId);
 }
 
 /**

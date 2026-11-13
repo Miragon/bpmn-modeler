@@ -1,6 +1,10 @@
 import { posix } from "path";
 
-import { NODE_MODULES, nodeModulesDirOf } from "../../../kernel/domain/installedPackagePath";
+import {
+    isScopeFolderName,
+    NODE_MODULES,
+    nodeModulesDirOf,
+} from "../../../kernel/domain/installedPackagePath";
 import { FileEntryKind } from "../../../kernel/domain/repositoryIdentity";
 import { joinWorkspacePath, parentWorkspacePath } from "../../../kernel/domain/workspacePath";
 
@@ -110,7 +114,7 @@ const isPackageFolder = ({ kind }: InstalledEntry) =>
 /** The scope folders of a `node_modules` listing, each listed for the rule packages inside it. */
 export function rulePackageScopesToList(entries: readonly InstalledEntry[]): string[] {
     return entries
-        .filter((entry) => isPackageFolder(entry) && entry.name.startsWith("@"))
+        .filter((entry) => isPackageFolder(entry) && isScopeFolderName(entry.name))
         .map(({ name }) => name);
 }
 

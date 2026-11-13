@@ -2,7 +2,7 @@ import { AllowableCode } from "../../../kernel/domain/allowance";
 import { SessionAnswer } from "../../../kernel/domain/approvalAnswer";
 import {
     installedPackageNameOf,
-    installedPlaceOf,
+    installedSourceDirOf,
     nodeModulesDirOf,
 } from "../../../kernel/domain/installedPackagePath";
 import { ListedPresence } from "../../../kernel/domain/listedCode";
@@ -86,9 +86,8 @@ export class RulePackageInventory {
         return { kind: "found", artifact, name: rulePackageLabelOf(artifact) };
     }
 
-    /** The `node_modules` a package is installed in, or its own folder when it is installed elsewhere. */
     sourceDirOf(id: string): string {
-        return installedPlaceOf(id)?.dir ?? id;
+        return installedSourceDirOf(id);
     }
 
     async current(id: string): Promise<ListedPresence> {

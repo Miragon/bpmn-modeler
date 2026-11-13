@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
     installedPackageNameOf,
     installedPlaceOf,
+    installedSourceDirOf,
     nodeModulesDirOf,
     packageNamePartsOf,
 } from "./installedPackagePath";
@@ -49,9 +50,23 @@ describe("installedPackageNameOf", () => {
         { id: "/work/node_modules/bpmnlint-plugin-acme", name: "bpmnlint-plugin-acme" },
         { id: "/work/node_modules/@acme/bpmnlint-plugin", name: "@acme/bpmnlint-plugin" },
         { id: "node_modules/@acme/rules", name: "@acme/rules" },
+        {
+            id: "/work/node_modules/@acme/bpmnlint-plugin/lib/index.js",
+            name: "@acme/bpmnlint-plugin",
+        },
+        { id: "/work/node_modules/@acme", name: "@acme" },
         { id: "/work/packages/rules", name: "rules" },
     ])("names $id $name", ({ id, name }) => {
         expect(installedPackageNameOf(id)).toBe(name);
+    });
+});
+
+describe("installedSourceDirOf", () => {
+    it.each([
+        { id: "/work/node_modules/@acme/bpmnlint-plugin", dir: "/work/node_modules" },
+        { id: "/work/packages/rules", dir: "/work/packages/rules" },
+    ])("takes $dir for $id", ({ id, dir }) => {
+        expect(installedSourceDirOf(id)).toBe(dir);
     });
 });
 
