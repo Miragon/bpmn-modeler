@@ -22,11 +22,9 @@
  * a 7th entry in `model` or a 4th in `edit` leaves an orphan row of 1, so we
  * use `connect` (1 + 1 = 2) to avoid the lonely row.
  */
-import { is } from "bpmn-js/lib/util/ModelUtil";
+import { referenceKindSupports } from "@miragon/bpmn-modeler-types";
 
-import { referenceKindSupports, type ReferenceKind } from "@miragon/bpmn-modeler-types";
-
-import { extractModelReference, extractReference } from "./extractReference";
+import { extractModelReference, extractReference, referenceKindOf } from "./extractReference";
 import type { BusinessObjectLike } from "./extractReference";
 import type { FormReferenceStatusClient } from "./FormReferenceStatusClient";
 import type { ModelNavigationPort, ModelReference } from "./ModelNavigationPort";
@@ -107,7 +105,7 @@ export class NavigateContextPadProvider {
      * @param element The currently selected element.
      */
     getContextPadEntries(element: Element): ContextPadEntries {
-        const kind = this.detectKind(element);
+        const kind = referenceKindOf(element);
         if (!kind) {
             return {};
         }
@@ -162,18 +160,5 @@ export class NavigateContextPadProvider {
             !referenceKindSupports(reference.kind, "availabilityStatus") ||
             this.formReferenceStatusClient.isResolved(reference.id)
         );
-    }
-
-    private detectKind(element: Element): ReferenceKind | undefined {
-        if (is(element, "bpmn:CallActivity")) {
-            return "process";
-        }
-        if (is(element, "bpmn:BusinessRuleTask")) {
-            return "decision";
-        }
-        if (is(element, "bpmn:UserTask")) {
-            return "form";
-        }
-        return undefined;
     }
 }
