@@ -46,5 +46,10 @@ Light and dark follow Orca's theme, and the language follows Orca's.
 
 The plugin runs in Orca's sandbox, without file or network access. Everything that needs the rest of your workspace is
 left out: jumping to the code or the models a task refers to, workspace element templates, form previews, inline
-script editing, deployment, the BPMN diff and the Form editor. Copy and paste work within one editor tab only. Use the
+script editing, deployment and the Form editor. Copy and paste work within one editor tab only. Use the
 [VS Code extension](/vscode/getting-started) for those.
+
+A `.bpmn` or `.dmn` file opened from Orca's changes list shows Orca's text diff, not a diagram diff. As of
+13 November 2026, Orca does not hand a diff tab to a plugin editor
+([stablyai/orca#39928](https://github.com/stablyai/orca/issues/39928)), so the plugin cannot show the BPMN or DMN diff
+yet.

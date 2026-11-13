@@ -43,7 +43,7 @@ Needs the Orca desktop app 1.4.248 or later.
 2. Ask your agent to change the process and watch the canvas follow.
 3. To start a new file, use **+** in the tab bar and pick **New BPMN process from example** or **New DMN decision from example**.
 
-A read-only tab, such as an agent transcript, opens in View mode. The [Orca guide](https://miragon.github.io/bpmn-modeler/orca/getting-started) lists what the plugin leaves out; the [VS Code extension](../vscode-plugin/README.md), [IntelliJ plugin](../intellij-plugin/README.md) and [desktop app](../standalone/README.md) have the rest.
+A read-only tab, such as an agent transcript, opens in View mode. A file opened from Orca's changes list shows Orca's text diff: as of 13 November 2026, Orca does not hand a diff tab to a plugin editor ([stablyai/orca#39928](https://github.com/stablyai/orca/issues/39928)), so there is no diagram diff yet. The [Orca guide](https://miragon.github.io/bpmn-modeler/orca/getting-started) lists what the plugin leaves out; the [VS Code extension](../vscode-plugin/README.md), [IntelliJ plugin](../intellij-plugin/README.md) and [desktop app](../standalone/README.md) have the rest.
 
 ## Help and feedback
 
