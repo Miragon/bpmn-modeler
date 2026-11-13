@@ -762,10 +762,11 @@ home:
 - **`ReferenceKind`:** a capability in the `Record<ReferenceKind, …>` table of
   `libs/modeler-types/src/referenceKind.ts` (`referenceKindSupports`: only a
   form reference has an availability status and a preview), or a
-  `Record<ReferenceKind, …>` lookup where the knowledge lives: where an element
-  writes each kind and whether it is a QName
-  (`libs/model-navigation/src/extractReference.ts`), and which file declares
-  each kind, its extension and what in its content declares it (the core's
+  `Record<ReferenceKind, …>` lookup where the knowledge lives: which element
+  holds each kind, where it writes it and whether it is a QName
+  (`referenceKindOf`, `libs/model-navigation/src/extractReference.ts`), and
+  which file declares each kind, its extension and what in its content
+  declares it (the core's
   `navigation/domain/modelDeclaration.ts`: `declaringFileExtension`,
   `declaresReferencedModel`). Only the capabilities live in `modeler-types`:
   two packages read them, the webview's navigation port (`apps/bpmn-webview`)
