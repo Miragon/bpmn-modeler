@@ -722,7 +722,7 @@ marker up to a day ahead counts as used now, since another process can write
 one after this one read the clock or run on a clock a little ahead; one further
 ahead counts as unreadable, so a marker from a clock that ran far ahead does
 not keep its copy for years, and serving writes the marker again once the
-clock went back. `BpmnPluginService.pruneIdleCopies` runs at
+clock went back. `PluginCache.pruneIdleCopies` runs at
 start-up with an idle limit of 30 days: VS Code at activation, and the bridge
 once `server.ts` has bound its streams, which sends no frame. The Add-ons
 action "Remove unused plugin copies" runs `pruneUnusedCopies`, whose idle
@@ -732,7 +732,7 @@ its memo checks the copy on disk. A revoke prunes nothing: a copy is served
 only for an allowed plugin, so a revoked plugin's copy ages out. A prune
 waits for the copies and marker writes in flight, and neither starts while a
 prune runs; a marker write skips a copy this process's prune removed, so a
-marker alone never makes an empty folder look used. The service takes its
+marker alone never makes an empty folder look used. `PluginCache` takes its
 clock as `now` (default `Date.now`), and the domain takes the time as a number.
 Pruning on every approval change was rejected: until then the next start's
 prune covers the shared cache, and N bridges pruning at once only adds noise.

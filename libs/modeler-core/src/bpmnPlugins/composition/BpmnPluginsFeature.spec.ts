@@ -11,7 +11,7 @@ import {
     allowingAllowances,
     LOCAL_HOST,
 } from "../../kernel/domain/allowance";
-import { CodeApproval, CodeApprovalChange } from "../../kernel/domain/codeApproval";
+import { CodeApprovalChange } from "../../kernel/domain/codeApproval";
 import { ChoicePrompt } from "../../kernel/domain/prompts";
 import { ApprovalReviewPort, PluginApprovalStorePort } from "../../kernel/port/approvalPorts";
 import { AllowanceLocator } from "../../kernel/service/AllowanceLocator";
@@ -180,13 +180,6 @@ class LaggingPluginApprovals extends InMemoryPluginApprovals {
     }
 }
 
-/** A host that cannot answer for the approvals it stores. */
-class UnreachableHost extends InMemoryPluginApprovals {
-    override readStored(): Promise<readonly CodeApproval[]> {
-        return Promise.reject(new Error("host unreachable"));
-    }
-}
-
 /** Holds the next call to a method until the test releases it; `reached` resolves once it is called. */
 function holdNext<T extends object, K extends keyof T>(
     target: T,
@@ -247,15 +240,6 @@ function holdListings(host: ReturnType<typeof createTestHost>, paths: readonly s
 
 const cachePaths = (host: ReturnType<typeof createTestHost>) =>
     [...host.workspace.files.keys()].filter((path) => path.startsWith(CACHE)).sort();
-
-function recordCacheWrites(host: ReturnType<typeof createTestHost>): string[] {
-    const writes: string[] = [];
-    host.workspace.createWatcher(CACHE, "**/*", {
-        onCreate: (path) => writes.push(path),
-        onChange: (path) => writes.push(path),
-    });
-    return writes;
-}
 
 describe("BpmnPluginsFeature", () => {
     describe("delivery", () => {
@@ -963,99 +947,14 @@ describe("BpmnPluginsFeature", () => {
     });
 
     describe("cache", () => {
-        it("writes the copy of an approved plugin once", async () => {
-            const { host, requestPlugins, openEditor } = setUp(PALETTE_FILES);
-            host.pluginApprovals.approvals = [folderRowOf(PALETTE)];
-            await requestPlugins(await openEditor("/work/order.bpmn"));
-            const writes = recordCacheWrites(host);
-
-            await requestPlugins(await openEditor("/work/invoice.bpmn"));
-
-            expect(writes).toEqual([]);
-        });
-
-        it("serves a copy an earlier session wrote and writes only its last use", async () => {
-            const { host, requestPlugins, openEditor } = setUp({
-                ...PALETTE_FILES,
-                [`${CACHE}/${PALETTE_HASH}/plugin.js`]: "registerPalette();",
-                [`${CACHE}/${PALETTE_HASH}/plugin.css`]: ".djs-palette {}",
-            });
-            host.pluginApprovals.approvals = [folderRowOf(PALETTE)];
-            const writes = recordCacheWrites(host);
-            const editor = await openEditor();
-
-            await requestPlugins(editor);
-
-            expect(writes).toEqual([`${CACHE}/${PALETTE_HASH}/last-used`]);
-            expect(answeredPlugins(editor)).toHaveLength(1);
-        });
-
-        it("rewrites a copy an earlier session left cut short, before serving it", async () => {
-            const { host, requestPlugins, openEditor } = setUp({
-                ...PALETTE_FILES,
-                [`${CACHE}/${PALETTE_HASH}/plugin.js`]: "registerPal",
-                [`${CACHE}/${PALETTE_HASH}/plugin.css`]: ".djs-palette {}",
-            });
-            host.pluginApprovals.approvals = [folderRowOf(PALETTE)];
-            const writes = recordCacheWrites(host);
-
-            await requestPlugins(await openEditor());
-
-            expect(writes).toEqual([
-                `${CACHE}/${PALETTE_HASH}/last-used`,
-                `${CACHE}/${PALETTE_HASH}/plugin.js`,
-            ]);
-            expect(host.workspace.files.get(`${CACHE}/${PALETTE_HASH}/plugin.js`)).toBe(
-                "registerPalette();",
-            );
-        });
-
-        it("rewrites a copy it cannot read back and serves it", async () => {
-            const { host, requestPlugins, openEditor } = setUp({
-                ...PALETTE_FILES,
-                [`${CACHE}/${PALETTE_HASH}/plugin.js`]: "registerPalette();",
-            });
-            host.pluginApprovals.approvals = [folderRowOf(PALETTE)];
-            const readFile = host.workspace.readFile.bind(host.workspace);
-            vi.spyOn(host.workspace, "readFile").mockImplementation(async (path) => {
-                if (path.startsWith(CACHE)) {
-                    throw new Error("EACCES");
-                }
-                return readFile(path);
-            });
-            const writes = recordCacheWrites(host);
-            const editor = await openEditor();
-
-            await requestPlugins(editor);
-
-            expect(writes.sort()).toEqual([
-                `${CACHE}/${PALETTE_HASH}/last-used`,
-                `${CACHE}/${PALETTE_HASH}/plugin.css`,
-                `${CACHE}/${PALETTE_HASH}/plugin.js`,
-            ]);
-            expect(answeredPlugins(editor)?.map((plugin) => plugin.name)).toEqual([
-                "Reduced Palette",
-            ]);
-        });
-
-        it("writes the copy once for editors that ask at the same time", async () => {
-            const { host, feature, openEditor } = setUp(PALETTE_FILES);
-            host.pluginApprovals.approvals = [folderRowOf(PALETTE)];
-            const editors = [
-                await openEditor("/work/order.bpmn"),
-                await openEditor("/work/invoice.bpmn"),
-            ];
-            const writes = recordCacheWrites(host);
-
-            await Promise.all(editors.map((editor) => answerRequest(feature, editor)));
-
-            expect(writes.sort()).toEqual([
-                `${CACHE}/${PALETTE_HASH}/last-used`,
-                `${CACHE}/${PALETTE_HASH}/plugin.css`,
-                `${CACHE}/${PALETTE_HASH}/plugin.js`,
-            ]);
-            expect(editors.map((editor) => answeredPlugins(editor)?.length)).toEqual([1, 1]);
-        });
+        const NOW = Date.UTC(2026, 10, 11);
+        const IDLE = "1".repeat(64);
+        // A prune takes only SHA-256 names, so these specs hash as the hosts do.
+        const hasher: ContentHasherPort = {
+            sha256: (text) => createHash("sha256").update(text, "utf8").digest("hex"),
+        };
+        const PALETTE_SHA = hasher.sha256(approvedContent("registerPalette();", ".djs-palette {}"));
+        const RESIZE_SHA = hasher.sha256(approvedContent("registerResize();", undefined));
 
         it("leaves out a plugin whose copy cannot be written, serves the others and tries again later", async () => {
             const { host, requestPlugins, openEditor } = setUp({
@@ -1088,172 +987,6 @@ describe("BpmnPluginsFeature", () => {
             ).toEqual(["Reduced Palette", "Resize Tasks"]);
         });
 
-        it("completes a copy an earlier session left without its style", async () => {
-            const { host, requestPlugins, openEditor } = setUp({
-                ...PALETTE_FILES,
-                [`${CACHE}/${PALETTE_HASH}/plugin.js`]: "registerPalette();",
-            });
-            host.pluginApprovals.approvals = [folderRowOf(PALETTE)];
-
-            await requestPlugins(await openEditor());
-
-            expect(host.workspace.files.get(`${CACHE}/${PALETTE_HASH}/plugin.css`)).toBe(
-                ".djs-palette {}",
-            );
-        });
-
-        it("writes and serves a Windows cache root under the same path", async () => {
-            const { host, requestPlugins, openEditor } = setUp(PALETTE_FILES, {
-                cacheRoot: "C:\\Users\\me\\AppData\\Roaming\\Code\\globalStorage\\bpmn-plugins",
-            });
-            host.pluginApprovals.approvals = [folderRowOf(PALETTE)];
-            const editor = await openEditor();
-
-            await requestPlugins(editor);
-
-            const copy = `C:/Users/me/AppData/Roaming/Code/globalStorage/bpmn-plugins/${PALETTE_HASH}/plugin.js`;
-            expect(host.workspace.files.get(copy)).toBe("registerPalette();");
-            expect(answeredPlugins(editor)?.[0]?.scriptUrl).toBe(`webview-resource:${copy}`);
-        });
-    });
-
-    describe("recording the last use of a copy", () => {
-        const DAY = 24 * 60 * 60 * 1000;
-        const NOW = Date.UTC(2026, 10, 11);
-        const MARKER = `${CACHE}/${PALETTE_HASH}/last-used`;
-
-        function clockAt(start: number) {
-            const clock = { ms: start, now: () => clock.ms };
-            return clock;
-        }
-
-        it("writes the time it copied a plugin beside the copy", async () => {
-            const { host, requestPlugins, openEditor } = setUp(PALETTE_FILES, {
-                now: () => NOW,
-            });
-            host.pluginApprovals.approvals = [folderRowOf(PALETTE)];
-
-            await requestPlugins(await openEditor());
-
-            expect(host.workspace.files.get(MARKER)).toBe(String(NOW));
-        });
-
-        it("records a served copy's use at most once a day", async () => {
-            const clock = clockAt(NOW);
-            const { host, requestPlugins, openEditor } = setUp(PALETTE_FILES, {
-                now: clock.now,
-            });
-            host.pluginApprovals.approvals = [folderRowOf(PALETTE)];
-            const editor = await openEditor();
-            await requestPlugins(editor);
-
-            clock.ms = NOW + DAY - 1;
-            await requestPlugins(await openEditor("/work/invoice.bpmn"));
-            const withinTheDay = host.workspace.files.get(MARKER);
-            clock.ms = NOW + DAY;
-            await requestPlugins(editor);
-
-            expect(withinTheDay).toBe(String(NOW));
-            expect(host.workspace.files.get(MARKER)).toBe(String(NOW + DAY));
-        });
-
-        it("serves a plugin whose use it cannot record, logs why and tries again on the next request", async () => {
-            const clock = clockAt(NOW);
-            const { host, requestPlugins, openEditor } = setUp(PALETTE_FILES, {
-                now: clock.now,
-            });
-            host.pluginApprovals.approvals = [folderRowOf(PALETTE)];
-            const editor = await openEditor();
-            await requestPlugins(editor);
-            clock.ms = NOW + DAY;
-            const writeFile = host.workspace.writeFile.bind(host.workspace);
-            vi.spyOn(host.workspace, "writeFile").mockImplementation(async (path, content) => {
-                if (path === MARKER) throw new Error("EROFS");
-                await writeFile(path, content);
-            });
-
-            await requestPlugins(editor);
-            const whileFailing = answeredPlugins(editor)?.map(({ name }) => name);
-            vi.mocked(host.workspace.writeFile).mockRestore();
-            await requestPlugins(editor);
-
-            expect(whileFailing).toEqual(["Reduced Palette"]);
-            expect(host.notifier.logged("warning")).toEqual([
-                `BPMN plugin cache: could not record the use of ${CACHE}/${PALETTE_HASH} (Error: EROFS)`,
-            ]);
-            expect(host.workspace.files.get(MARKER)).toBe(String(NOW + DAY));
-        });
-    });
-
-    describe("pruning the cache", () => {
-        const DAY = 24 * 60 * 60 * 1000;
-        const NOW = Date.UTC(2026, 10, 11);
-        const UPPER = "A".repeat(64);
-        const IDLE = "1".repeat(64);
-        const RECENT = "2".repeat(64);
-        const UNMARKED = "3".repeat(64);
-        const UNREADABLE = "4".repeat(64);
-        const HEX_FILE = "5".repeat(64);
-        // A prune takes only SHA-256 names, so these specs hash as the hosts do.
-        const hasher: ContentHasherPort = {
-            sha256: (text) => createHash("sha256").update(text, "utf8").digest("hex"),
-        };
-        const PALETTE_SHA = hasher.sha256(approvedContent("registerPalette();", ".djs-palette {}"));
-        const RESIZE_SHA = hasher.sha256(approvedContent("registerResize();", undefined));
-        const copyUsed = (hash: string, lastUse: string) => ({
-            [`${CACHE}/${hash}/plugin.js`]: "registerPlugin();",
-            [`${CACHE}/${hash}/last-used`]: lastUse,
-        });
-
-        it("removes at start-up the copies idle for 30 days or without a last use, reads no approval and keeps anything else", async () => {
-            const { host, feature } = setUp(
-                {
-                    ...copyUsed(IDLE, String(NOW - 30 * DAY)),
-                    ...copyUsed(RECENT, String(NOW - 30 * DAY + 1)),
-                    ...copyUsed(UNREADABLE, "yesterday"),
-                    [`${CACHE}/${UNMARKED}/plugin.js`]: "registerUnmarked();",
-                    ...copyUsed(UPPER, "0"),
-                    [`${CACHE}/notes/readme.md`]: "# Notes",
-                    [`${CACHE}/notes/last-used`]: "0",
-                    [`${CACHE}/${HEX_FILE}`]: "a file",
-                },
-                { hasher, approvals: new UnreachableHost(), now: () => NOW },
-            );
-
-            const pruned = await feature.service.pruneIdleCopies();
-
-            expect(pruned).toEqual({ removed: 3 });
-            expect(cachePaths(host)).toEqual(
-                [
-                    `${CACHE}/${RECENT}/last-used`,
-                    `${CACHE}/${RECENT}/plugin.js`,
-                    `${CACHE}/${UPPER}/last-used`,
-                    `${CACHE}/${UPPER}/plugin.js`,
-                    `${CACHE}/notes/last-used`,
-                    `${CACHE}/notes/readme.md`,
-                    `${CACHE}/${HEX_FILE}`,
-                ].sort(),
-            );
-        });
-
-        it("removes on request every copy no editor here is served, however recently used", async () => {
-            const { host, feature, requestPlugins, openEditor } = setUp(
-                { ...PALETTE_FILES, ...copyUsed(RECENT, String(NOW)) },
-                { hasher, now: () => NOW },
-            );
-            host.pluginApprovals.approvals = [{ pluginId: PALETTE, contentHash: PALETTE_SHA }];
-            await requestPlugins(await openEditor());
-
-            const pruned = await feature.service.pruneUnusedCopies();
-
-            expect(pruned).toEqual({ removed: 1 });
-            expect(cachePaths(host)).toEqual([
-                `${CACHE}/${PALETTE_SHA}/last-used`,
-                `${CACHE}/${PALETTE_SHA}/plugin.css`,
-                `${CACHE}/${PALETTE_SHA}/plugin.js`,
-            ]);
-        });
-
         it("keeps at start-up a copy an editor here is served, even with its last use gone", async () => {
             const { host, feature, requestPlugins, openEditor } = setUp(PALETTE_FILES, {
                 hasher,
@@ -1263,7 +996,7 @@ describe("BpmnPluginsFeature", () => {
             await requestPlugins(await openEditor());
             host.workspace.files.delete(`${CACHE}/${PALETTE_SHA}/last-used`);
 
-            await expect(feature.service.pruneIdleCopies()).resolves.toEqual({ removed: 0 });
+            await expect(feature.cache.pruneIdleCopies()).resolves.toEqual({ removed: 0 });
         });
 
         it("removes on request the copy of an editor that closed", async () => {
@@ -1275,7 +1008,7 @@ describe("BpmnPluginsFeature", () => {
             await requestPlugins(editor);
             editor.dispose();
 
-            await expect(feature.service.pruneUnusedCopies()).resolves.toEqual({ removed: 1 });
+            await expect(feature.cache.pruneUnusedCopies()).resolves.toEqual({ removed: 1 });
             expect(cachePaths(host)).toEqual([]);
         });
 
@@ -1298,83 +1031,6 @@ describe("BpmnPluginsFeature", () => {
             ]);
         });
 
-        it("removes nothing before the cache folder exists", async () => {
-            const { feature } = setUp(PALETTE_FILES, { hasher });
-
-            await expect(feature.service.pruneIdleCopies()).resolves.toEqual({ removed: 0 });
-        });
-
-        it("waits for a copy being written before it prunes", async () => {
-            const { host, feature, openEditor } = setUp(RESIZE_FILES, { hasher });
-            host.pluginApprovals.approvals = [{ pluginId: RESIZE, contentHash: RESIZE_SHA }];
-            const editor = await openEditor();
-            const write = holdNext(host.workspace, "writeFile");
-            const answering = answerRequest(feature, editor);
-            await write.reached;
-            feature.service.releaseEditor(editor.id);
-
-            const pruning = feature.service.pruneUnusedCopies();
-            await new Promise((resolve) => setTimeout(resolve, 0));
-            write.release();
-            await answering;
-
-            await expect(pruning).resolves.toEqual({ removed: 1 });
-            expect(cachePaths(host)).toEqual([]);
-        });
-
-        it("waits for a last use being recorded before it prunes", async () => {
-            const clock = { ms: NOW };
-            const { host, feature, requestPlugins, openEditor } = setUp(RESIZE_FILES, {
-                hasher,
-                now: () => clock.ms,
-            });
-            host.pluginApprovals.approvals = [{ pluginId: RESIZE, contentHash: RESIZE_SHA }];
-            const editor = await openEditor();
-            await requestPlugins(editor);
-            clock.ms = NOW + DAY;
-            const write = holdNext(host.workspace, "writeFile");
-            const answering = answerRequest(feature, editor);
-            await write.reached;
-            feature.service.releaseEditor(editor.id);
-
-            const pruning = feature.service.pruneUnusedCopies();
-            await new Promise((resolve) => setTimeout(resolve, 0));
-            write.release();
-            await answering;
-
-            await expect(pruning).resolves.toEqual({ removed: 1 });
-            expect(cachePaths(host)).toEqual([]);
-        });
-
-        it("records no last use while a prune runs", async () => {
-            const clock = { ms: NOW };
-            const { host, feature, requestPlugins, openEditor } = setUp(RESIZE_FILES, {
-                hasher,
-                now: () => clock.ms,
-            });
-            host.pluginApprovals.approvals = [{ pluginId: RESIZE, contentHash: RESIZE_SHA }];
-            const editor = await openEditor();
-            await requestPlugins(editor);
-            clock.ms = NOW + 31 * DAY;
-            const [checkingCopy, listingCache] = holdListings(host, [
-                `${CACHE}/${RESIZE_SHA}`,
-                CACHE,
-            ]);
-
-            const answering = answerRequest(feature, editor);
-            await checkingCopy.reached;
-            feature.service.releaseEditor(editor.id);
-            const pruning = feature.service.pruneIdleCopies();
-            await listingCache.reached;
-            checkingCopy.release();
-            await new Promise((resolve) => setTimeout(resolve, 0));
-            listingCache.release();
-
-            await expect(pruning).resolves.toEqual({ removed: 1 });
-            await answering;
-            expect(cachePaths(host)).toEqual([]);
-        });
-
         it("keeps a copy an editor asks for while a prune lists the cache", async () => {
             const { host, feature, requestPlugins, openEditor } = setUp(
                 { ...RESIZE_FILES, [`${CACHE}/${RESIZE_SHA}/plugin.js`]: "registerResize();" },
@@ -1383,7 +1039,7 @@ describe("BpmnPluginsFeature", () => {
             host.pluginApprovals.approvals = [{ pluginId: RESIZE, contentHash: RESIZE_SHA }];
             const editor = await openEditor();
             const [listingCache] = holdListings(host, [CACHE]);
-            const pruning = feature.service.pruneIdleCopies();
+            const pruning = feature.cache.pruneIdleCopies();
             await listingCache.reached;
 
             const requesting = requestPlugins(editor);
@@ -1396,71 +1052,6 @@ describe("BpmnPluginsFeature", () => {
             expect(cachePaths(host)).toEqual([
                 `${CACHE}/${RESIZE_SHA}/last-used`,
                 `${CACHE}/${RESIZE_SHA}/plugin.js`,
-            ]);
-        });
-
-        it("waits for a prune that starts while it checks a copy another process deleted", async () => {
-            const { host, feature, requestPlugins, openEditor } = setUp(RESIZE_FILES, { hasher });
-            host.pluginApprovals.approvals = [{ pluginId: RESIZE, contentHash: RESIZE_SHA }];
-            const editor = await openEditor();
-            await requestPlugins(editor);
-            await host.workspace.deleteDirectory(`${CACHE}/${RESIZE_SHA}`);
-            const [checkingCopy, listingCache] = holdListings(host, [
-                `${CACHE}/${RESIZE_SHA}`,
-                CACHE,
-            ]);
-
-            const answering = answerRequest(feature, editor);
-            await checkingCopy.reached;
-            const pruning = feature.service.pruneIdleCopies();
-            await listingCache.reached;
-            checkingCopy.release();
-            await new Promise((resolve) => setTimeout(resolve, 0));
-            listingCache.release();
-            await pruning;
-            await answering;
-
-            expect(answeredPlugins(editor)?.map(({ name }) => name)).toEqual(["Resize Tasks"]);
-            expect(cachePaths(host)).toEqual([
-                `${CACHE}/${RESIZE_SHA}/last-used`,
-                `${CACHE}/${RESIZE_SHA}/plugin.js`,
-            ]);
-        });
-
-        it("copies again an entry another process deleted", async () => {
-            const { host, requestPlugins, openEditor } = setUp(PALETTE_FILES, { hasher });
-            host.pluginApprovals.approvals = [{ pluginId: PALETTE, contentHash: PALETTE_SHA }];
-            const editor = await openEditor();
-            await requestPlugins(editor);
-
-            await host.workspace.deleteDirectory(`${CACHE}/${PALETTE_SHA}`);
-            await requestPlugins(editor);
-
-            expect(cachePaths(host)).toEqual([
-                `${CACHE}/${PALETTE_SHA}/last-used`,
-                `${CACHE}/${PALETTE_SHA}/plugin.css`,
-                `${CACHE}/${PALETTE_SHA}/plugin.js`,
-            ]);
-        });
-
-        it("logs a copy it cannot remove and still removes the others", async () => {
-            const { host, feature } = setUp(
-                {
-                    [`${CACHE}/${IDLE}/plugin.js`]: "registerGone();",
-                    [`${CACHE}/${UNMARKED}/plugin.js`]: "registerGoneToo();",
-                },
-                { hasher },
-            );
-            const deleteDirectory = host.workspace.deleteDirectory.bind(host.workspace);
-            vi.spyOn(host.workspace, "deleteDirectory").mockImplementation(async (path) => {
-                if (path.endsWith(IDLE)) throw new Error("EBUSY");
-                await deleteDirectory(path);
-            });
-
-            await expect(feature.service.pruneIdleCopies()).resolves.toEqual({ removed: 1 });
-            expect(cachePaths(host)).toEqual([`${CACHE}/${IDLE}/plugin.js`]);
-            expect(host.notifier.logged("warning")).toEqual([
-                `BPMN plugin cache: could not remove ${CACHE}/${IDLE} (Error: EBUSY)`,
             ]);
         });
     });

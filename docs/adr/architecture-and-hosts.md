@@ -1659,7 +1659,7 @@ a cached result must equal an uncached run.
   still watches, because a change there would otherwise go unnoticed.
   Accepted cost: a marketplace update made by another window is not seen while
   editors of this process stay open.
-- **BPMN plugin copies.** `BpmnPluginService` copies the bytes of an allowed plugin into
+- **BPMN plugin copies.** `PluginCache` copies the bytes of an allowed plugin into
   a content-addressed folder on disk, which every process of the host shares
   (IntelliJ: one per machine; VS Code: the extension's global storage), and
   keeps each copy per process once written. Last use owns the folder: each

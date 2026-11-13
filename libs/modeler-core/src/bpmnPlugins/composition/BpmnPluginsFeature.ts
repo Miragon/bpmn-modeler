@@ -19,6 +19,7 @@ import { getBpmnPluginsHandler } from "../adapter/in/pluginMessageHandlers";
 import { ContentHasherPort, PluginApprovalStorePort } from "../port/pluginPorts";
 import { BpmnPluginService } from "../service/BpmnPluginService";
 import { BpmnPluginsParticipant } from "../service/BpmnPluginsParticipant";
+import { PluginCache } from "../service/PluginCache";
 import { PluginCatalog } from "../service/PluginCatalog";
 import { PluginInventory } from "../service/PluginInventory";
 import { WorkspacePluginLocator } from "../service/WorkspacePluginLocator";
@@ -58,6 +59,7 @@ export class BpmnPluginsFeature {
     readonly editorContribution: EditorContribution<"GetBpmnPluginsCommand">;
     readonly catalog: PluginCatalog;
     readonly service: BpmnPluginService;
+    readonly cache: PluginCache;
     /** What the add-on catalog lists of the plugins. */
     readonly inventory: PluginInventory;
 
@@ -82,9 +84,15 @@ export class BpmnPluginsFeature {
             trust,
             ports.notifier,
         );
+        this.cache = new PluginCache(
+            ports.workspace,
+            ports.notifier,
+            ports.cacheRoot,
+            () => this.service.servedContent(),
+            ports.now,
+        );
         this.service = new BpmnPluginService(
             ports.store,
-            ports.workspace,
             this.catalog,
             new ApprovalQuestion(
                 this.catalog,
@@ -93,11 +101,10 @@ export class BpmnPluginsFeature {
                 ports.workspace,
                 ports.questions,
             ),
+            this.cache,
             ports.notifier,
-            ports.cacheRoot,
-            ports.now,
         );
-        this.inventory = new PluginInventory(this.locator, this.catalog, this.service);
+        this.inventory = new PluginInventory(this.locator, this.catalog, this.cache);
         this.runnableChanges = [
             ports.approvals.onDidChange(() =>
                 this.service.runnablePluginsChanged(ports.approvals.read(), trust.isTrusted()),
@@ -115,7 +122,7 @@ export class BpmnPluginsFeature {
     /** For a host's start-up; never rejects, so a host can run it without awaiting it. */
     async pruneIdleCopies(): Promise<void> {
         try {
-            await this.service.pruneIdleCopies();
+            await this.cache.pruneIdleCopies();
         } catch (error) {
             this.notifier.logError(error instanceof Error ? error : new Error(String(error)));
         }
