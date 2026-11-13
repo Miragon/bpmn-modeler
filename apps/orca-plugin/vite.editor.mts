@@ -2,6 +2,8 @@ import { resolve } from "node:path";
 import { defineConfig, type Plugin } from "vite";
 import tsconfigPaths from "vite-tsconfig-paths";
 
+import { modelerBundlePreset } from "../../vite.shared";
+
 /**
  * Orca's `plugin check` warns on any `eval`/`Function(` call in an editor's code,
  * and the smoke test fails on a warning. None of these runs in the editor; each
@@ -68,33 +70,7 @@ export default defineConfig({
     cacheDir: "../../node_modules/.vite/orca-plugin",
     plugins: [tsconfigPaths(), evalFree()],
     css: { postcss: { plugins: [webFontsOnly()] } },
-    oxc: { jsx: { runtime: "automatic", importSource: "preact" } },
-    resolve: {
-        alias: {
-            "@bpmn-io/properties-panel/preact/jsx-dev-runtime":
-                "@bpmn-io/properties-panel/preact/jsx-runtime",
-        },
-        dedupe: [
-            "preact",
-            "inferno",
-            "bpmn-js",
-            "diagram-js",
-            "bpmn-moddle",
-            "moddle",
-            "bpmn-js-create-append-anything",
-            "@bpmn-io/properties-panel",
-            "@codemirror/state",
-            "@codemirror/view",
-            "@codemirror/language",
-            "@codemirror/autocomplete",
-            "@codemirror/commands",
-            "@codemirror/lint",
-            "@codemirror/search",
-            "@lezer/common",
-            "@lezer/highlight",
-            "@lezer/lr",
-        ],
-    },
+    ...modelerBundlePreset,
     build: {
         target: "es2021",
         minify: false,

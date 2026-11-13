@@ -1,17 +1,11 @@
 import { defineConfig } from "vitest/config";
 
+import { modelerBundlePreset } from "../../vite.shared";
 import { coveragePreset, workspaceAliases } from "../../vitest.shared";
 
 export default defineConfig({
     resolve: {
-        alias: [
-            ...workspaceAliases,
-            // As in vite.config.mts: the panel's vendored preact has no jsx-dev-runtime.
-            {
-                find: "@bpmn-io/properties-panel/preact/jsx-dev-runtime",
-                replacement: "@bpmn-io/properties-panel/preact/jsx-runtime",
-            },
-        ],
+        alias: [...workspaceAliases, ...modelerBundlePreset.resolve.alias],
     },
     test: {
         name: "bpmn-webview",

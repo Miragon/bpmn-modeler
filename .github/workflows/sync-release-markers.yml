@@ -83,6 +83,7 @@ on:
       - 'libs/properties-panel/**'
       - 'libs/shared/**'
       - 'libs/standalone-extension/**'
+      - 'vite.shared.ts'
   workflow_dispatch: {}
 
 permissions:
@@ -122,9 +123,12 @@ jobs:
           # both hosts.
           SPHERE='^packages/bpmn-modeler/|^libs/(append-menu|bpmn-clipboard|bpmn-diff|bpmn-i18n-extras|bpmn-layout|code-link|definition-search|element-template-chooser|flow-navigation|inline-scripting|model-navigation|modeler-types|properties-panel)/'
 
-          VSC_RELEVANT="^apps/(bpmn-webview|dmn-webview|form-webview|deployment-webview|add-ons-webview|standalone)/|^libs/(modeler-core|shared|standalone-extension)/|^packages/dmn-modeler/|${SPHERE}"
-          IJ_RELEVANT="^apps/(bpmn-webview|deployment-webview|add-ons-webview|modeler-bridge)/|^libs/(modeler-core|shared)/|${SPHERE}"
-          ORCA_RELEVANT="^packages/dmn-modeler/|^libs/shared/|${SPHERE}"
+          # The Vite preset every modeler bundle spreads, so all three hosts ship it.
+          PRESET='^vite\.shared\.ts$'
+
+          VSC_RELEVANT="^apps/(bpmn-webview|dmn-webview|form-webview|deployment-webview|add-ons-webview|standalone)/|^libs/(modeler-core|shared|standalone-extension)/|^packages/dmn-modeler/|${SPHERE}|${PRESET}"
+          IJ_RELEVANT="^apps/(bpmn-webview|deployment-webview|add-ons-webview|modeler-bridge)/|^libs/(modeler-core|shared)/|${SPHERE}|${PRESET}"
+          ORCA_RELEVANT="^packages/dmn-modeler/|^libs/shared/|${SPHERE}|${PRESET}"
           VSC_NATIVE='^apps/vscode-plugin/'
           IJ_NATIVE='^apps/intellij-plugin/'
           ORCA_NATIVE='^apps/orca-plugin/'

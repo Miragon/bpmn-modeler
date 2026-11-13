@@ -3,6 +3,8 @@ import { defineConfig } from "vite";
 import tsconfigPaths from "vite-tsconfig-paths";
 import { resolve } from "path";
 
+import { modelerBundlePreset } from "../../vite.shared";
+
 // Asset-bundle build embedded by the VS Code / IntelliJ / desktop hosts.
 export default defineConfig({
     root: __dirname,
@@ -12,25 +14,7 @@ export default defineConfig({
     base: "./",
     cacheDir: "../../node_modules/.vite/dmn-webview",
     plugins: [tsconfigPaths()],
-    resolve: {
-        dedupe: [
-            "preact",
-            "inferno",
-            "diagram-js",
-            "moddle",
-            "@bpmn-io/properties-panel",
-            "@codemirror/state",
-            "@codemirror/view",
-            "@codemirror/language",
-            "@codemirror/autocomplete",
-            "@codemirror/commands",
-            "@codemirror/lint",
-            "@codemirror/search",
-            "@lezer/common",
-            "@lezer/highlight",
-            "@lezer/lr",
-        ],
-    },
+    ...modelerBundlePreset,
     build: {
         target: "es2021",
         // The host shell links one `index.css`; the diff chunk's own sheet would load late.

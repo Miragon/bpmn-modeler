@@ -5,6 +5,8 @@ import ts from "typescript";
 import tsconfigPaths from "vite-tsconfig-paths";
 import dts from "unplugin-dts/vite";
 
+import { modelerBundlePreset } from "../../vite.shared";
+
 // Share the inventory with the peer guard to keep bundled libraries and runtime requirements aligned.
 const inlinedLibraries = JSON.parse(
     readFileSync(new URL("./inlined-libraries.json", import.meta.url), "utf8"),
@@ -51,10 +53,7 @@ export default defineConfig({
             },
         }),
     ],
-    esbuild: {
-        jsx: "automatic",
-        jsxImportSource: "preact",
-    },
+    ...modelerBundlePreset,
     build: {
         target: "es2021",
         // Viewer, design, and mode CSS are built separately to avoid merging them into the editor sheet.

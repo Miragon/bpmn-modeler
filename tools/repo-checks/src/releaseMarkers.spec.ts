@@ -94,3 +94,13 @@ describe("release markers for inlined libraries", () => {
         },
     );
 });
+
+describe("release markers for the modeler bundle preset", () => {
+    it.each(["VSC_RELEVANT", "IJ_RELEVANT", "ORCA_RELEVANT"])(
+        "routes a fix in vite.shared.ts to the %s host line",
+        (variable) => {
+            expect(pushTriggerPaths).toContain("vite.shared.ts");
+            expect(workflowPattern(markerWorkflow, variable).test("vite.shared.ts")).toBe(true);
+        },
+    );
+});

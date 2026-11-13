@@ -178,9 +178,16 @@ lifecycle script of a bumped package runs next to the write token. To keep the
 exact pins moving with their dependents, [Dependabot](../../.github/dependabot.yml)
 groups the bpmn-io stack across all update types instead of splitting it into
 the minor/patch and major groups; a major there holds back the stack's minors
-until it lands or is closed. The webview
-Vite configs dedupe the core of the identity-sensitive set as a second line of
-defence. Immutable CI installs additionally catch lockfile drift. Package build/declaration checks and the consumer smoke scripts
+until it lands or is closed. As a second line of defence, every bundle that
+ships the BPMN or DMN modeler (both modeler webviews, the Orca editors and the
+BPMN package) spreads `modelerBundlePreset` from the root
+[`vite.shared.ts`](../../vite.shared.ts): one dedupe list of the
+identity-sensitive set, the panel's `jsx-dev-runtime` alias and the preact JSX
+transform. The transform uses Vite 8's `oxc` option. Vite still converts an
+`esbuild` option to it, but types that option from esbuild, an optional peer
+the focused CI installs lack. A root file, like `vitest.shared.ts`, needs no
+workspace of its own; it is in the trigger paths of those bundles' CI targets.
+Immutable CI installs additionally catch lockfile drift. Package build/declaration checks and the consumer smoke scripts
 enforce the distribution boundary.
 
 Published packages keep exact pins even where an upstream regular dependency

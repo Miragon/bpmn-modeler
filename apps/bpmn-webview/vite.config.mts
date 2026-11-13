@@ -3,6 +3,8 @@ import { defineConfig, type Plugin } from "vite";
 import tsconfigPaths from "vite-tsconfig-paths";
 import { resolve } from "path";
 
+import { modelerBundlePreset } from "../../vite.shared";
+
 const LAZY_SVG_TO_IMAGE_SHIM = resolve(__dirname, "src/adapter/out/lazySvgToImage.ts");
 
 // The package exposes no deep path to the real module, so the shim's own import
@@ -30,40 +32,9 @@ export default defineConfig({
     base: "./",
     cacheDir: "../../node_modules/.vite/bpmn-webview",
     plugins: [tsconfigPaths(), lazySvgToImage()],
-    esbuild: {
-        jsx: "automatic",
-        jsxImportSource: "preact",
-    },
+    ...modelerBundlePreset,
     optimizeDeps: {
         include: ["bpmnlint", "bpmn-js-bpmnlint", "@miragon/bpmnlint-plugin-rules"],
-    },
-    resolve: {
-        alias: {
-            // The dev server emits jsx-dev-runtime for libs/properties-panel TSX,
-            // but @bpmn-io/properties-panel has no exports map to redirect it
-            // to its vendored preact's jsx-runtime (which exports jsxDEV too).
-            "@bpmn-io/properties-panel/preact/jsx-dev-runtime":
-                "@bpmn-io/properties-panel/preact/jsx-runtime",
-        },
-        dedupe: [
-            "preact",
-            "bpmn-js",
-            "diagram-js",
-            "bpmn-moddle",
-            "moddle",
-            "bpmn-js-create-append-anything",
-            "@bpmn-io/properties-panel",
-            "@codemirror/state",
-            "@codemirror/view",
-            "@codemirror/language",
-            "@codemirror/autocomplete",
-            "@codemirror/commands",
-            "@codemirror/lint",
-            "@codemirror/search",
-            "@lezer/common",
-            "@lezer/highlight",
-            "@lezer/lr",
-        ],
     },
     build: {
         target: "es2021",

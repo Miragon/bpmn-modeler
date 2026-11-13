@@ -1,6 +1,7 @@
 import { defineConfig } from "vitest/config";
 import { playwright } from "@vitest/browser-playwright";
 
+import { modelerBundlePreset } from "../../vite.shared";
 import { bpmnModelerTestAliases } from "./vitest.aliases";
 
 /**
@@ -20,24 +21,10 @@ export default defineConfig({
     },
     // Standing up the full modeler pulls in the FEEL editor; without deduping
     // these singletons the runner loads two @codemirror/state copies and their
-    // instanceof checks break ("Unrecognized extension value"). Mirrors the
-    // webview's dedupe list.
+    // instanceof checks break ("Unrecognized extension value").
     resolve: {
         alias: bpmnModelerTestAliases,
-        dedupe: [
-            "preact",
-            "@bpmn-io/properties-panel",
-            "@codemirror/state",
-            "@codemirror/view",
-            "@codemirror/language",
-            "@codemirror/autocomplete",
-            "@codemirror/commands",
-            "@codemirror/lint",
-            "@codemirror/search",
-            "@lezer/common",
-            "@lezer/highlight",
-            "@lezer/lr",
-        ],
+        dedupe: modelerBundlePreset.resolve.dedupe,
     },
     test: {
         name: "bpmn-modeler-browser",
