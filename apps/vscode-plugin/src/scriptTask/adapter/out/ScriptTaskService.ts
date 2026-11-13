@@ -555,6 +555,10 @@ export class ScriptTaskService implements ScriptEditorPort {
 
         const deferredCleanups: Uri[] = [];
         for (const [, entry] of this.openDocuments.ofEditor(editorId)) {
+            // Each pass awaits, so a later entry may have been closed or deleted meanwhile.
+            if (this.openDocuments.get(entry.uri.path) !== entry) {
+                continue;
+            }
             const content = await this.readBufferOrDisk(entry);
             if (content === undefined) {
                 continue;

@@ -1,9 +1,7 @@
-import { isSameScript, OpenScriptEditorRef } from "@miragon/bpmn-modeler-types";
-
-import { ScriptAddress } from "./inlineScript";
+import { isSameScript, OpenScriptEditorRef, ScriptIdentity } from "@miragon/bpmn-modeler-types";
 
 /** A host tab showing one inline script of one editor. */
-export interface OpenScriptTab extends ScriptAddress {
+export interface OpenScriptTab extends ScriptIdentity {
     readonly editorId: string;
 }
 
@@ -37,7 +35,7 @@ export class OpenScriptTabs<Tab extends OpenScriptTab = OpenScriptTab> {
     }
 
     /** The path and tab of `editorId` that shows `script`. */
-    find(editorId: string, script: ScriptAddress): readonly [string, Tab] | undefined {
+    find(editorId: string, script: ScriptIdentity): readonly [string, Tab] | undefined {
         return this.ofEditor(editorId).find(([, tab]) => isSameScript(tab, script));
     }
 

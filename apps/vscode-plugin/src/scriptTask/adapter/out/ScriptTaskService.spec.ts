@@ -656,6 +656,33 @@ describe("ScriptTaskService.resyncOpenDocuments", () => {
         expect(notifier.logged("error")).toEqual([]);
     });
 
+    it("skips a document untracked while an earlier one replays", async () => {
+        const { service, editor, scriptFiles } = createService();
+        await openCanonicalScript(service, "groovy");
+        await service.open(EDITOR_ID, {
+            elementId: "Task_2",
+            kind: KIND,
+            listenerIndex: undefined,
+            eventName: undefined,
+            scriptFormat: "groovy",
+            content: "b",
+        });
+        setOpenTabs([scriptPath("groovy"), scriptPath("groovy", "Task_2")]);
+        const openDocuments = (service as never as { openDocuments: OpenScriptTabs })
+            .openDocuments;
+        scriptFiles.readFile.mockImplementationOnce(async () => {
+            openDocuments.untrack(scriptPath("groovy", "Task_2"));
+            return "first";
+        });
+        scriptFiles.readFile.mockResolvedValue("second");
+        clearPosted(editor);
+
+        (service as never as { pendingResync: Set<string> }).pendingResync.add(EDITOR_ID);
+        await service.resyncOpenDocuments(EDITOR_ID);
+
+        expect(contentQueries(editor).map((query) => query.content)).toEqual(["first"]);
+    });
+
     it("finishes a deferred cleanup when the replayed tab is no longer open anywhere", async () => {
         const { service, editor, scriptFiles } = createService();
         await openCanonicalScript(service, "groovy");
@@ -896,6 +923,7 @@ describe("ScriptTaskService.applyModelChange", () => {
         );
         expect(lastBroadcastRefs(editor)).toEqual([]);
         expect(openDocumentsOf(service).ofEditor(EDITOR_ID)).toEqual([]);
+        expect(openDocumentsOf(service).isOpen(path)).toBe(false);
     });
 });
 
@@ -1003,6 +1031,7 @@ describe("ScriptTaskService.disposeEditor", () => {
             `${BASE_DIR}/${ScriptUri.hashEditorId(EDITOR_ID)}`,
         );
         expect(openDocumentsOf(service).ofEditor(EDITOR_ID)).toEqual([]);
+        expect(openDocumentsOf(service).isOpen(scriptPath("groovy"))).toBe(false);
     });
 
     it("saves a dirty script buffer before closing its tab", async () => {
@@ -1319,6 +1348,7 @@ describe("ScriptTaskService.materialize", () => {
         expect(showTextDocumentMock).not.toHaveBeenCalled();
         expect(editor.posted).toEqual([]);
         expect(openDocumentsOf(service).ofEditor(EDITOR_ID)).toEqual([]);
+        expect(openDocumentsOf(service).isOpen(scriptPath())).toBe(false);
     });
 
     it("writes no ambient files for a non-JavaScript script", async () => {

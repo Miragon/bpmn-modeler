@@ -65,6 +65,13 @@ describe("OpenScriptTabs", () => {
         expect(found?.[0]).toBe(expectedPath);
     });
 
+    it("finds the tab that opened first when two show the same script", () => {
+        const tabs = new OpenScriptTabs();
+        tabs.track(SCRIPT_TASK_PATH, scriptTaskTab);
+        tabs.track("/base/abc/Task_1/script-task/Task_1.js", scriptTaskTab);
+        expect(tabs.find(EDITOR, scriptTaskTab)?.[0]).toBe(SCRIPT_TASK_PATH);
+    });
+
     it("finds a script only among its own editor's tabs", () => {
         const tabs = new OpenScriptTabs();
         tabs.track(OTHER_EDITOR_PATH, otherEditorTab);

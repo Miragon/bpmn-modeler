@@ -366,6 +366,7 @@ describe("BridgeScriptEditor materialise + adopt-on-open", () => {
             expect(scriptOpenCall(rpc)).toBeUndefined();
             expect(readFile).not.toHaveBeenCalled();
             expect(internals.scripts.openScriptsOf(FULL_EDITOR)).toEqual([]);
+            expect(internals.filePathByScript.size).toBe(0);
         });
 
         it("ignores a path whose editor hash matches no live session", async () => {
@@ -375,6 +376,7 @@ describe("BridgeScriptEditor materialise + adopt-on-open", () => {
 
             expect(scriptOpenCall(rpc)).toBeUndefined();
             expect(internals.scripts.openScriptsOf(FULL_EDITOR)).toEqual([]);
+            expect(internals.filePathByScript.size).toBe(0);
         });
 
         it("ignores a script path outside the editor's resolved base dir", async () => {
@@ -387,6 +389,7 @@ describe("BridgeScriptEditor materialise + adopt-on-open", () => {
 
             expect(scriptOpenCall(rpc)).toBeUndefined();
             expect(internals.scripts.openScriptsOf(FULL_EDITOR)).toEqual([]);
+            expect(internals.filePathByScript.size).toBe(0);
         });
 
         it("is a no-op for an already-tracked script", async () => {
