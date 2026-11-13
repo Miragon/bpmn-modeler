@@ -32,11 +32,11 @@ The single generic controller has a `register(context)` instance method that cal
 
 ### Controller Implementation
 
-A single generic controller — `ModelerEditorController` (`src/modeler/editor-session/adapter/in/`) — serves both `.bpmn` and `.dmn`. Everything that differs between them is passed as `options` (the `viewType`, the per-editor `WebviewMessageRouter`, the participant list, the BPMN-only diff `delegateResolve` hook). It implements `CustomTextEditorProvider` with the single method `resolveCustomTextEditor(document, webviewPanel, _token)`.
+A single generic controller — `ModelerEditorController` (`src/modeler/editor-session/adapter/in/`) — serves both `.bpmn` and `.dmn`. Everything that differs between them is passed as `options` (the `viewType`, the per-editor `WebviewMessageRouter`, the participant list, the diff `delegateResolve` hook, `DiffController.resolveWhenDiffPane`). It implements `CustomTextEditorProvider` with the single method `resolveCustomTextEditor(document, webviewPanel, _token)`.
 
 VS Code calls this each time a file matching the selector is opened. The `editorId` is the **full URI string** (`document.uri.toString()`, not just the path — so a `git:` diff ref and the `file:` working tree resolve to distinct ids). Inside, the controller:
 
-1. **Diff branch (BPMN only)** — if `options.delegateResolve` returns true the diff controller owns the pane and no session is created.
+1. **Diff branch** — if `options.delegateResolve` returns true the diff controller owns the pane and no session is created.
 2. **Registers the editor** — `editorStore.register(VsCodeEditorHandle.create(...))`, which sets webview HTML. The session becomes the command target only if its panel is active or no session holds the target, so a replacement that opens in the background leaves the target where it is. Theia resolves every panel as active, so in the standalone app a diagram that resolves behind the focused one takes the target until Theia blurs its panel. Theia can drop that blur, so such a panel may keep reporting active.
 3. **Hands the session to `EditorSessionLifecycle.open`** (`libs/modeler-core`, the same lifecycle the IntelliJ bridge runs). It wires dispatch/focus/dispose synchronously (before participants run, since the webview is already loading): message dispatch into the router in document order, tab-change tracking, and a single aggregated dispose subscription. Then it runs every participant in isolation — a throw in one is shown and logged, and the rest still run.
 
