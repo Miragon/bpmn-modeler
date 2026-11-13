@@ -319,6 +319,9 @@ These proposals go under Fitness function feedback, never among the findings.
 - Before calling two declarations of one value set unpinned, check what pins
   them already: a type equality assertion, a spec that compares them, or code
   that assigns each to the other, which the compiler checks both ways.
+- A `repeated-value-sets` row that names another order: propose the type pin
+  on the copy, not deriving it from the home, unless the order is the same
+  concern.
 - Comment; never block or request changes.
 
 ## Output

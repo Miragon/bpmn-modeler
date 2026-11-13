@@ -1116,8 +1116,9 @@ TypeScript by a spec. The pure measure lives in
 `tools/repo-checks/src/repeatedValueSets/domain`.
 
 - **Read files.** Every tracked `.ts`, `.tsx`, `.mts`, `.cts`, `.js`, `.jsx`,
-  `.mjs` and `.cjs` file, without specs, tests and `__fixtures__/` folders
-  (inputs of tests, as convention coverage leaves them out), declaration files
+  `.mjs` and `.cjs` file, without specs, tests and the test folders
+  `__fixtures__/`, `__tests__/`, `test/` and `tests/` (tests and their inputs,
+  as contract suites leave them out; v2, #2294), declaration files
   (third-party typings repeated per workspace) and build configs
   (`*.config.*`). No home is declared. Kotlin and JSON are not read, and
   neither are dependencies: a set whose home is a package, such as the 12
@@ -1145,9 +1146,16 @@ TypeScript by a spec. The pure measure lives in
   every other occurrence. A copy a branch adds is new, and so is the home of
   a set that was in one file only at the base; removing one of three copies
   resolves it and leaves the other two existing. Two occurrences in one file
-  are the same key twice. A copy that drifts, a value added to or removed from
-  one copy only, shows as resolved, not new: the head no longer holds the set
-  in two files, and nothing at the head relates the two now different sets.
+  are the same key twice. A finding also names the occurrences that list the
+  values in another order, compared by first appearance, and the remedy: pin
+  the copy to the home's type. In #2304 a reversed home replaced such a copy
+  and tied the marketplace fetch order to the add prompt's; deriving a copy
+  from its home fits only where the order is the same concern. The order of a
+  union or an `||` chain is compared too, although it means nothing; the
+  message is not part of the key. A copy that drifts, a value added to or
+  removed from one copy only, shows as resolved, not new: the head no longer
+  holds the set in two files, and nothing at the head relates the two now
+  different sets.
   The report reads the drift, #1983's failure, as a fix. The function's
   `reportsWrongly` and the `architecture` skill say so: a resolved set is a
   fix only where its copies are gone, import their home or are pinned to it.
@@ -1168,7 +1176,10 @@ barrel) to `TargetAuthType` cleared the auth types' 2 findings. On `3d1b19b3`
 types, the placeholder types and the condition operators. Reading and
 measuring takes about 0.5 s per tree; resolving a pin builds the declaration
 graph of every script file and adds about 0.5 s, so a tree without
-`toEqualTypeOf` skips it.
+`toEqualTypeOf` skips it. Leaving out the test folders (v2) took `fe75e584`
+from 66 to 61 findings: the 5 gone are an e2e page object's editor kinds and
+theme modes and their product copies. A copy whose other half sits in a spec
+or a test folder, such as `SOURCE_ONLY` before #2236, gives no finding.
 
 Alternatives considered:
 

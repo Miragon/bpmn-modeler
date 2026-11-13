@@ -32,6 +32,7 @@ beforeEach(() => {
         "a/domain/auth.spec.ts": 'const cases = ["none", "basic", "oauth2"];',
         "a/types/moddle.d.ts": 'type Kind = "none" | "basic";',
         "a/__fixtures__/authFake.ts": 'const fake = ["none", "basic"];',
+        "a/test/e2e/authPage.ts": 'export const shown = ["none", "basic", "oauth2"];',
         "a/vite.config.ts": 'export default { formats: ["es", "cjs"] };',
         "a/package.json": JSON.stringify({ files: ["dist", "src"] }),
         "a/deleted.ts": 'const gone = ["x", "y"];',

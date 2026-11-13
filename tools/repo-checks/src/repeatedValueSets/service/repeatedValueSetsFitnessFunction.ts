@@ -11,25 +11,29 @@ export function createRepeatedValueSetsFitnessFunction({
 }: RepeatedValueSetsPorts): FitnessFunction {
     return defineFitnessFunction({
         id: "repeated-value-sets",
-        version: 1,
+        version: 2,
         categories: { scope: "atomic", cadence: "triggered", result: "static" },
         measures:
-            "Sets of allowed string values written in two or more files: an array literal of string literals only, a union type of string literal types only, and a maximal || chain of === comparisons of one subject with string literals. A set has at least 2 distinct values; the order and repeats of its values do not matter. Files that a type equality assertion, expectTypeOf<Copy>().toEqualTypeOf<Home>() or its value form, pins to each other count as one place for every set they share. One finding per occurrence, naming every other occurrence of the set: a copy a branch adds is new, and so is the home of a set that was in one file only at the base. Read: every tracked .ts, .tsx, .mts, .cts, .js, .jsx, .mjs and .cjs file, without specs, tests, __fixtures__ folders, declaration files and build configs (*.config.*); a pin is read from any tracked script file and resolved through barrels and the tsconfig.base.json paths. No home is declared.",
+            "Sets of allowed string values written in two or more files: an array literal of string literals only, a union type of string literal types only, and a maximal || chain of === comparisons of one subject with string literals. A set has at least 2 distinct values; the order and repeats of its values do not matter. Files that a type equality assertion, expectTypeOf<Copy>().toEqualTypeOf<Home>() or its value form, pins to each other count as one place for every set they share. One finding per occurrence, naming every other occurrence of the set: a copy a branch adds is new, and so is the home of a set that was in one file only at the base. A finding also names the occurrences whose values, in the order of their first appearance, differ in order from its own, and the remedy for such a copy: pin it to the home's type. Read: every tracked .ts, .tsx, .mts, .cts, .js, .jsx, .mjs and .cjs file, without specs and tests (*.spec.*, *.test.*), test folders (__fixtures__, __tests__, test, tests), declaration files and build configs (*.config.*); a pin is read from any tracked script file and resolved through barrels and the tsconfig.base.json paths. No home is declared.",
         reliesOn: {
             skill: "architecture",
             rule: "a value set has one home; every other use imports it, a TypeScript copy that cannot is pinned to it by expectTypeOf<Copy>().toEqualTypeOf<Home>(), and a copy outside TypeScript by a spec",
         },
         misses: [
             "Partial and extended copies: 9 of the 12 modeler languages (issue 1983), and at add816a2 IGNORED_WATCH_DIRS as EXCLUDED_DIRS plus six folders.",
-            "Copies that live in logic, such as the allMatch parsing of the element template builder.",
+            "Copies that live in logic, such as the allMatch parsing of the element template builder, and before PR 2341's fix the Form's default version in emptyForm.ts, taken from the BPMN registry while formEngine.ts defined the Form versions.",
             "Sets with another member: `| undefined`, a spread, an enum, object keys, switch cases, and !== or && chains.",
+            "Equal value maps: an object whose values repeat another object's, such as the pending-state texts of three domain files in PR 2274; object values are no set.",
+            "Nested sets: a tuple of tuples, such as COUNT_KINDS of the DMN diff legend in PR 2359, whose kinds are a column, not one array of strings.",
+            "A copy whose other occurrence is in a spec or a test folder, which are not read: SOURCE_ONLY in overlayNeeded.spec.ts and tools/build-overlay.mjs (PR 2359) gave no finding.",
             'Sets spelled inside one string, such as the braces of the glob `**/*.{bpmn,dmn}` in DeployFilesService.ts, which repeat the deployable extensions `[".bpmn", ".dmn"]` of DeployActiveDiagramService.ts.',
             "Kotlin and JSON, such as the enum arrays of a package.json or a JSON schema.",
             "A copy of a set whose home is a dependency, outside the tracked files, such as the 12 locales of @miragon/bpmn-modeler-i18n: one tracked copy is the set's only occurrence.",
         ],
         reportsWrongly: [
             "A copy that drifts from its home, a value added to or removed from one copy only, shows as resolved, not new: each tree is measured alone, so the report reads the drift as a fix. A resolved set is a fix only where its copies are gone, import their home or are pinned to it.",
-            "Sets equal by coincidence: didi `$inject` lists, the npm dependency field names, git arguments, typeof chains and name|value unions.",
+            "Sets equal by coincidence: didi `$inject` lists, the npm dependency field names, git arguments and child-process stdio values such as ignore|pipe (PR 2358), typeof chains and name|value unions.",
+            "The order of a union or an || chain means nothing, yet it is compared as written: at fe75e584 the only rows naming another order are the typeof chains of the element template builder's json.ts and transforms.ts.",
             "A copy pinned by a runtime spec, such as expect(copy).toEqual(home), stays listed: only the type equality assertion is read.",
             "A pin links two files, not two declarations: it also clears any other set the two files share.",
             "A set moved to another file shows as new and its old place as resolved, because the key names the file.",
@@ -57,6 +61,18 @@ export function createRepeatedValueSetsFitnessFunction({
                 commit: "bed5599f",
                 outcome:
                     "573 sets in 822 files, 36 of them in two or more files (13 with 3 or more values), 106 findings; the auth types, the theme modes and the bpmn-js popup ids among them, about 0.5 s per tree. A scratch pin of AuthTypePayload to TargetAuthType through the @miragon/bpmn-modeler-shared barrel cleared the auth types' 2 findings; resolving it added about 0.5 s",
+            },
+            {
+                kind: "trial",
+                commit: "4c11ae32",
+                outcome:
+                    'PR 2304: the marketplace listing order ["allProjects", "project"] (marketplaceRegistrations.ts:65) and its home ["project", "allProjects"] (projectScopes.ts:5) each name the other as in another order, with the type pin. The first fix reversed the home, tying the fetch order to the add prompt\'s; the final one, fd01b993, keeps the literal with satisfies and an expectTypeOf pin and gives no finding',
+            },
+            {
+                kind: "trial",
+                commit: "fe75e584",
+                outcome:
+                    "v1 to v2: 759 to 745 sets read, 22 to 20 sets in two or more files, 66 to 61 findings; nothing new. The 14 sets no longer read sit in 5 files of test folders; the 5 rows gone are the editor kinds and theme modes of an e2e page object (orcaEditorPage.ts, PR 2210) and their product copies. 2 rows name another order, both a typeof chain",
             },
         ],
         findFindings: ({ repoRoot }) => repeatedValueSetFindings(sources.read(repoRoot)),

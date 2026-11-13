@@ -15,8 +15,14 @@ const AUTH_HOME: ValueSetOccurrence = {
 const AUTH_COPY: ValueSetOccurrence = {
     path: "b/service/x.ts",
     line: 3,
+    values: ["none", "basic", "oauth2"],
+};
+const AUTH_REORDERED: ValueSetOccurrence = {
+    ...AUTH_COPY,
     values: ["oauth2", "none", "basic"],
 };
+const TYPE_PIN_REMEDY =
+    "pin the copy to the home's type, and derive it from the home only where the order is the same concern";
 const AUTH_CHAIN: ValueSetOccurrence = {
     path: "c/adapter/in/check.ts",
     line: 7,
@@ -29,7 +35,7 @@ function findingsOf(occurrences: readonly ValueSetOccurrence[], pins: readonly F
 }
 
 describe("the repeated value set findings", () => {
-    it("report each occurrence of a set that spans two files, in any order, naming the others", () => {
+    it("report each occurrence of a set that spans two files, naming the others", () => {
         expect(findingsOf([AUTH_HOME, AUTH_COPY])).toEqual([
             {
                 key: `a/domain/auth.ts — ${AUTH_KEY}`,
@@ -45,6 +51,37 @@ describe("the repeated value set findings", () => {
                 line: 3,
                 message: "`basic` · `none` · `oauth2`, also at `a/domain/auth.ts:1`",
             },
+        ]);
+    });
+
+    it("report a copy in another order as the same set, keyed alike", () => {
+        expect(findingsOf([AUTH_HOME, AUTH_REORDERED]).map(({ key }) => key)).toEqual([
+            `a/domain/auth.ts — ${AUTH_KEY}`,
+            `b/service/x.ts — ${AUTH_KEY}`,
+        ]);
+    });
+
+    it("name the other occurrences in another order and the type pin as the remedy", () => {
+        expect(
+            findingsOf([AUTH_HOME, AUTH_REORDERED, AUTH_CHAIN]).map(
+                ({ path, line, message }) => `${path}:${line} ${message}`,
+            ),
+        ).toEqual([
+            `a/domain/auth.ts:1 \`basic\` · \`none\` · \`oauth2\`, also at \`b/service/x.ts:3\`, \`c/adapter/in/check.ts:7\`; in another order at \`b/service/x.ts:3\`: ${TYPE_PIN_REMEDY}`,
+            `b/service/x.ts:3 \`basic\` · \`none\` · \`oauth2\`, also at \`a/domain/auth.ts:1\`, \`c/adapter/in/check.ts:7\`; in another order at \`a/domain/auth.ts:1\`, \`c/adapter/in/check.ts:7\`: ${TYPE_PIN_REMEDY}`,
+            `c/adapter/in/check.ts:7 \`basic\` · \`none\` · \`oauth2\`, also at \`a/domain/auth.ts:1\`, \`b/service/x.ts:3\`; in another order at \`b/service/x.ts:3\`: ${TYPE_PIN_REMEDY}`,
+        ]);
+    });
+
+    it("compare the order of first appearances, so a repeated value does not reorder a copy", () => {
+        const withRepeat: ValueSetOccurrence = {
+            ...AUTH_COPY,
+            values: ["none", "basic", "none", "oauth2", "basic"],
+        };
+
+        expect(findingsOf([AUTH_HOME, withRepeat]).map(({ message }) => message)).toEqual([
+            "`basic` · `none` · `oauth2`, also at `b/service/x.ts:3`",
+            "`basic` · `none` · `oauth2`, also at `a/domain/auth.ts:1`",
         ]);
     });
 
@@ -132,6 +169,9 @@ describe("a value set source", () => {
         "a/src/App.jsx",
         "a/src/module.mts",
         "a/src/module.cts",
+        "a/src/testing/inMemoryStore.ts",
+        "a/src/contest/rules.ts",
+        "a/src/latest.ts",
     ])("is the script file %s", (path) => {
         expect(isValueSetSource(path)).toBe(true);
     });
@@ -144,6 +184,10 @@ describe("a value set source", () => {
         "a/types/module.d.mts",
         "a/src/__fixtures__/vscodeWindowFake.ts",
         "__fixtures__/harness.mjs",
+        "apps/x/test/e2e/editorPage.ts",
+        "apps/x/tests/helpers.mjs",
+        "a/src/__tests__/render.tsx",
+        "test/setup.js",
         "a/vite.config.ts",
         "a/eslint.config.mjs",
         "a/package.json",
