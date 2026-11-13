@@ -204,8 +204,10 @@ export class VsCodeSession {
     /** Closes the editor tab whose title matches, by its own close button, whichever editor is active. */
     async closeEditorTab(title: RegExp): Promise<void> {
         const tab = this.page.locator(".tabs-container .tab").filter({ hasText: title }).first();
-        await tab.hover();
-        await tab.locator(".codicon-close").first().click();
+        await tab.click();
+        const close = tab.getByRole("button", { name: /^Close/ });
+        if (await close.count()) await close.first().click();
+        else await this.page.keyboard.press(`${COMMAND_KEY}+w`);
         await tab.waitFor({ state: "detached", timeout: this.options.timeoutMs });
     }
 
