@@ -1,15 +1,8 @@
 import type { ElementIdKind } from "@miragon/bpmn-modeler-types";
 
 import { elementKindOf } from "./elementKinds";
+import type { ModdleElementLike } from "./moddleElement";
 import type { IdCandidate } from "./proposals";
-
-/** The slice of a moddle element the review reads. */
-export interface ModdleElementLike {
-    readonly $type: string;
-    readonly id?: string;
-    readonly name?: string;
-    readonly processRef?: ModdleElementLike;
-}
 
 /** The slice of a diagram-js element the review reads. */
 export interface DiagramElementLike {

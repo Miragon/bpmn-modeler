@@ -1,4 +1,4 @@
-import type { ModdleElementLike } from "./candidates";
+import type { ModdleElementLike } from "./moddleElement";
 import type { IdConvention } from "./convention";
 import { defaultIdPrefixesOf } from "./elementKinds";
 import { idFollowsName } from "./proposals";

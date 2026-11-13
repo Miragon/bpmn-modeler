@@ -1,4 +1,5 @@
-import type { DiagramElementLike, ElementRegistryLike, ModdleElementLike } from "../candidates";
+import type { DiagramElementLike, ElementRegistryLike } from "../candidates";
+import type { ModdleElementLike } from "../moddleElement";
 import { bpmn } from "./moddle";
 
 /** A moddle element as bpmn-moddle would hand it over, minus everything the review never reads. */

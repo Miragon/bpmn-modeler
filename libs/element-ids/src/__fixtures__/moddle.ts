@@ -1,6 +1,6 @@
 import * as bpmnModdle from "bpmn-moddle";
 
-import type { ModdleElementLike } from "../candidates";
+import type { ModdleElementLike } from "../moddleElement";
 
 /** A business object as bpmn-moddle creates it, with what the specs read. */
 type BusinessObject = ModdleElementLike & {
