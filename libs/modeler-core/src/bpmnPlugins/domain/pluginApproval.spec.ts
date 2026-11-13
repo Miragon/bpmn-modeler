@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { type Allowance, allowanceRowOf } from "../../kernel/domain/allowance";
+import { RULE_PACKAGE_CONTENT_HASH_PREFIX } from "../../kernel/domain/approvalRowKind";
 import { type CodeApproval, PROCESS_RESTARTS } from "../../kernel/domain/codeApproval";
 import { type DirectoryEntryKind } from "../../kernel/domain/directoryEntry";
 import {
@@ -235,6 +236,23 @@ describe("editorsToReload", () => {
                     ...palette.allowance,
                     origin: { kind: "repository", path: "/clone/.git" },
                 }),
+            ],
+            editors: [],
+        },
+        {
+            case: "the editors that load a revoked plugin whose place and add-on only rule package rows name",
+            approvals: [
+                { pluginId: resize.id, contentHash: `${RULE_PACKAGE_CONTENT_HASH_PREFIX}abc` },
+                allowanceRowOf({ ...resize.allowance, kind: "rulePackage" }),
+            ],
+            editors: ["file:///repo/a.bpmn", "file:///repo/c.bpmn"],
+        },
+        {
+            case: "none for a withheld plugin whose place and add-on only rule package rows name",
+            approvals: [
+                allowanceOfPlugin(resize),
+                { pluginId: palette.id, contentHash: `${RULE_PACKAGE_CONTENT_HASH_PREFIX}abc` },
+                allowanceRowOf({ ...palette.allowance, kind: "rulePackage" }),
             ],
             editors: [],
         },
