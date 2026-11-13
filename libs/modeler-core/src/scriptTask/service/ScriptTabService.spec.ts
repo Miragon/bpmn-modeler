@@ -427,6 +427,22 @@ describe("ScriptTabService", () => {
             expect(lockedScripts(diagram).at(-1)).toEqual([]);
         });
 
+        it("keeps a tab whose closing flush found it hidden until the reload replayed it", async () => {
+            const { diagram, scriptEditor, scriptTabs, taskFile } = createService();
+            await scriptTabs.open(diagram.id, scriptTask());
+            diagram.hidden = true;
+            scriptEditor.typeByUser(taskFile, "typed");
+
+            await scriptEditor.closeTabByUser(taskFile);
+            expect(scriptTabs.editorOfTab(taskFile)).toBe(diagram.id);
+            diagram.hidden = false;
+            diagram.posted.length = 0;
+            await scriptTabs.resync(diagram.id);
+
+            expect(streamedContents(diagram)).toEqual(["typed"]);
+            expect(scriptTabs.editorOfTab(taskFile)).toBeUndefined();
+        });
+
         it("replays again on the next reload when it hid again before the replay", async () => {
             const { diagram, scriptTabs } = await typeWhileHidden();
             diagram.hidden = true;
