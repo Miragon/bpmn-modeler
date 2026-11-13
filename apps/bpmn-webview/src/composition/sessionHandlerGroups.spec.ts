@@ -46,6 +46,7 @@ function sessionHandlerGroups(): Record<string, object> {
             theme: { setMode: vi.fn() },
             replies: { elementTemplates: { done: vi.fn() }, settings: { done: vi.fn() } },
             setFormPreviewAutomatic: vi.fn(),
+            loadElementIdConvention: vi.fn(),
         }).handlers,
         lintBridge: createLintBridge(
             host,

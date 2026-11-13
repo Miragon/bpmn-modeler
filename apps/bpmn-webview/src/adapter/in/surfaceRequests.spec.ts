@@ -22,8 +22,6 @@ const conventions = vi.hoisted(() => ({
     load: vi.fn(async (options?: object) => ({ convention: options })),
 }));
 
-vi.mock("../out/elementIdConvention", () => ({ loadElementIdConvention: conventions.load }));
-
 const scriptTaskDefinitions = {
     rootElements: [
         {
@@ -96,6 +94,7 @@ function surfaceRequestsOn<Surface extends object>(surface: Surface) {
         theme,
         replies,
         setFormPreviewAutomatic,
+        loadElementIdConvention: conventions.load as never,
     });
     return {
         host,

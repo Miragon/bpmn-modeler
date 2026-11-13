@@ -1,3 +1,4 @@
+import type { ElementIdConvention } from "@miragon/bpmn-modeler";
 import {
     type BpmnModelerSettingQuery,
     type CleanupDiagramQuery,
@@ -20,12 +21,12 @@ import {
 import {
     type CleanupOutcome,
     DEFAULT_FORM_PREVIEW_AUTOMATIC,
+    type ElementIdConventionOptions,
     extractProcessVariables,
 } from "@miragon/bpmn-modeler-types";
 import { isEditableSurface, isModelerSurface } from "@miragon/bpmn-modeler/mode";
 
 import { applyDesignerSettings, type HostModelerState } from "../../domain/hostModelerState";
-import { loadElementIdConvention } from "../out/elementIdConvention";
 import type { SurfaceHandle } from "../../domain/surface";
 import { receiveErrorPrefix } from "../../domain/receiveErrorPrefix";
 import type { HostChannel } from "../../port/hostChannel";
@@ -72,6 +73,7 @@ export function createSurfaceRequests(
         theme,
         replies,
         setFormPreviewAutomatic,
+        loadElementIdConvention,
     }: {
         hostModelerState: Pick<
             HostModelerState,
@@ -80,6 +82,10 @@ export function createSurfaceRequests(
         theme: Pick<HostThemeAdapter, "setMode">;
         replies: SurfaceRequestReplies;
         setFormPreviewAutomatic: (enabled: boolean) => void;
+        /** Builds the lint rule's convention, which lives behind the lazily loaded `/lint`. */
+        loadElementIdConvention: (
+            options: ElementIdConventionOptions,
+        ) => Promise<ElementIdConvention>;
     },
 ): SurfaceRequests {
     return {

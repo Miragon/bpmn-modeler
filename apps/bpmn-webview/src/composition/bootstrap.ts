@@ -44,6 +44,7 @@ import { createModeController } from "../adapter/in/modeController";
 import { createProtocolCapabilities } from "../adapter/out/protocolCapabilities";
 import { resolveClipboard } from "../adapter/out/protocolClipboard";
 import { createSurfaceBinder } from "../adapter/in/surfaceBinding";
+import { loadElementIdConvention } from "../adapter/out/elementIdConvention";
 import { createSurfaceDocument } from "../adapter/out/surfaceDocument";
 import { createSurfaceFactories } from "../adapter/out/surfaceFactories";
 import { loadSurfacePlugins, pluginsWithoutHostAnswer } from "../adapter/out/surfacePlugins";
@@ -138,6 +139,7 @@ export function bootstrap(host: BpmnWebviewHost, opts: BootstrapOptions = {}): v
     const elementIdReview = createHostElementIdReview(editorHost, getSurface);
 
     const surfaceRequests = createSurfaceRequests(editorHost, getSurface, {
+        loadElementIdConvention,
         setFormPreviewAutomatic: protocolCapabilities.setFormPreviewAutomatic,
         hostModelerState,
         theme: themeAdapter,
