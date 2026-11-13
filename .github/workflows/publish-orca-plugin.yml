@@ -60,7 +60,7 @@ jobs:
       - run: yarn workspace @miragon/bpmn-modeler-orca build
 
       - id: orca
-        uses: Miragon/orca-plugin-kit/setup-orca@6b56b4938c9352a8be5c666019b2f43e557235aa # v1.0.0
+        uses: Miragon/orca-plugin-kit/actions/setup-orca@245eb67fd57c4aeb5c163fce5553be0a27b1311c # v2.0.0
         with:
           channel: latest
       - name: Smoke-test exactly this plugin folder in Orca
@@ -94,7 +94,7 @@ jobs:
           owner: miragon
           repositories: orca-plugins
       - if: env.EFFECTIVE_DRY_RUN == 'false'
-        uses: Miragon/orca-plugin-kit/publish-plugin@6b56b4938c9352a8be5c666019b2f43e557235aa # v1.0.0
+        uses: Miragon/orca-plugin-kit/actions/publish-plugin@245eb67fd57c4aeb5c163fce5553be0a27b1311c # v2.0.0
         with:
           token: ${{ steps.app-token.outputs.token }}
           plugins-dir: orca-plugins
