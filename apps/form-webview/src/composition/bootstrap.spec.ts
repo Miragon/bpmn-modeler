@@ -4,6 +4,7 @@ import {
     FlushDocumentQuery,
     FormFileQuery,
     HostApiImpl,
+    ReleaseDocumentFlushQuery,
     type Command,
     type Query,
 } from "@miragon/bpmn-modeler-shared";
@@ -71,6 +72,23 @@ const sentOfType = (host: { postMessage: ReturnType<typeof vi.fn> }, type: strin
 
 const pressed = (id: string) => document.getElementById(id)!.getAttribute("aria-pressed");
 
+const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+function deferredImport() {
+    let finish!: () => void;
+    const result = new Promise<{ warnings: unknown[] }>((resolve) => {
+        finish = () => resolve({ warnings: [] });
+    });
+    return { result, finish };
+}
+
+async function bootWithLoadedForm(): Promise<void> {
+    bootstrap(fakeHost() as never);
+    dispatch(new FormFileQuery('{"components":[]}', 1));
+    await vi.waitFor(() => expect(mocks.editor.importSchema).toHaveBeenCalledTimes(1));
+    await settle();
+}
+
 describe("form webview bootstrap", () => {
     let windowAddEventListener: ReturnType<typeof vi.spyOn>;
     let documentAddEventListener: ReturnType<typeof vi.spyOn>;
@@ -97,6 +115,7 @@ describe("form webview bootstrap", () => {
             configurable: true,
         });
         document.body.innerHTML = "";
+        document.body.inert = false;
     });
 
     it("declares the editor and viewer packages directly", () => {
@@ -209,6 +228,44 @@ describe("form webview bootstrap", () => {
                     documentRevision: 3,
                 }),
             ]);
+        });
+    });
+
+    describe("page inert lock", () => {
+        it("keeps the page locked through a host import that outlasts a destructive flush", async () => {
+            await bootWithLoadedForm();
+            const hostImport = deferredImport();
+            mocks.editor.importSchema.mockReturnValueOnce(hostImport.result);
+
+            dispatch(new FlushDocumentQuery(8, true));
+            await settle();
+            dispatch(new FormFileQuery('{"components":[{"type":"textfield"}]}', 2));
+            await vi.waitFor(() => expect(mocks.editor.importSchema).toHaveBeenCalledTimes(2));
+            dispatch(new ReleaseDocumentFlushQuery(8));
+            await settle();
+            expect(document.body.inert).toBe(true);
+
+            hostImport.finish();
+            await settle();
+            expect(document.body.inert).toBe(false);
+        });
+
+        it("keeps the page locked through a destructive flush that outlasts a host import", async () => {
+            await bootWithLoadedForm();
+            const hostImport = deferredImport();
+            mocks.editor.importSchema.mockReturnValueOnce(hostImport.result);
+
+            dispatch(new FormFileQuery('{"components":[{"type":"textfield"}]}', 2));
+            await vi.waitFor(() => expect(mocks.editor.importSchema).toHaveBeenCalledTimes(2));
+            dispatch(new FlushDocumentQuery(8, true));
+            await settle();
+            hostImport.finish();
+            await settle();
+            expect(document.body.inert).toBe(true);
+
+            dispatch(new ReleaseDocumentFlushQuery(8));
+            await settle();
+            expect(document.body.inert).toBe(false);
         });
     });
 

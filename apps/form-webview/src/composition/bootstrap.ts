@@ -3,6 +3,7 @@ import { Form } from "@bpmn-io/form-js-viewer";
 import {
     Command,
     createFlushResponder,
+    createInertLockGroup,
     GetFormFileCommand,
     GetFormInputValuesCommand,
     Query,
@@ -14,6 +15,7 @@ import { numericValidationModule } from "../adapter/in/numericValidationModule";
 import { FORM_TEMPLATE } from "../adapter/in/formTemplate";
 import { routeFormHostMessage } from "../adapter/in/hostMessageRouter";
 import type { FormHost } from "../port/formHost";
+import { FormDocumentSession } from "../service/documentSession";
 
 const FORM_JS_DEFAULT_DEBOUNCE_MS = 300;
 
@@ -30,11 +32,18 @@ export function bootstrap(host: FormHost): void {
     const editorElement = requiredElement<HTMLElement>("form-editor");
     const previewElement = requiredElement<HTMLElement>("form-preview");
     const editorInput = createFlushableDebounceInput(FORM_JS_DEFAULT_DEBOUNCE_MS);
+    const formEditor = new FormEditor({
+        container: editorElement,
+        additionalModules: [{ debounce: ["value", editorInput] }, numericValidationModule],
+    });
+    const session = new FormDocumentSession(
+        formEditor,
+        editorInput,
+        host,
+        createInertLockGroup(document.body),
+    );
     const app = new FormEditorApp(
-        new FormEditor({
-            container: editorElement,
-            additionalModules: [{ debounce: ["value", editorInput] }, numericValidationModule],
-        }),
+        formEditor,
         new Form({ container: previewElement }),
         host,
         {
@@ -44,13 +53,13 @@ export function bootstrap(host: FormHost): void {
             editButton: requiredElement("edit-view"),
             previewButton: requiredElement("preview-view"),
         },
-        editorInput,
+        session,
         host.getState()?.mode,
     );
 
-    const respondToFlush = createFlushResponder(app, (message) => host.postMessage(message));
+    const respondToFlush = createFlushResponder(session, (message) => host.postMessage(message));
     document.addEventListener("visibilitychange", () => {
-        if (document.visibilityState === "hidden") void app.flushPendingSync();
+        if (document.visibilityState === "hidden") void session.flushPendingSync();
     });
     window.addEventListener("message", (event: MessageEvent<Query | Command>) =>
         routeFormHostMessage(event, app, respondToFlush),

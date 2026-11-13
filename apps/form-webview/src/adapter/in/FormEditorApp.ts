@@ -1,39 +1,30 @@
 import {
-    createInertLockGroup,
-    FORM_INVALID_JSON_MESSAGE,
-    FORM_SCHEMA_IMPORT_ERROR_MESSAGE,
-    HostDocumentRevisions,
     LogErrorCommand,
     LogWarningCommand,
-    SyncDocumentCommand,
     UpdateFormOutputValuesCommand,
 } from "@miragon/bpmn-modeler-shared";
 import { serializeAsync } from "@miragon/bpmn-modeler-types";
 
+import type {
+    FormDocumentLoadListener,
+    FormSchema,
+    FormSchemaEditor,
+    FormSchemaImportResult,
+} from "../../port/formDocument";
 import type { FormHost, WebviewState } from "../../port/formHost";
+import type { FormDocumentSession } from "../../service/documentSession";
 
-type Schema = Record<string, unknown>;
-type ImportResult = { warnings?: unknown[] };
-const SYNC_DELIVERY_GRACE_MS = 200;
-
-export interface FormEditorLike {
-    importSchema(schema: Schema): Promise<ImportResult>;
-    saveSchema(): Schema;
+export interface FormEditorLike extends Pick<FormSchemaEditor, "saveSchema"> {
     on(event: "changed", handler: () => void): void;
 }
 
 export interface FormViewerLike {
-    importSchema(schema: Schema, data?: Schema): Promise<ImportResult>;
+    importSchema(schema: FormSchema, data?: FormSchema): Promise<FormSchemaImportResult>;
     on(
         event: "changed" | "formFieldInstance.added" | "formFieldInstance.removed",
         handler: () => void,
     ): void;
-    _getSubmitData(): Schema;
-}
-
-export interface PendingEditorInput {
-    hasPending(): boolean;
-    flush(): void;
+    _getSubmitData(): FormSchema;
 }
 
 export interface FormEditorElements {
@@ -44,40 +35,40 @@ export interface FormEditorElements {
     previewButton: HTMLButtonElement;
 }
 
+type FormDocument = Pick<FormDocumentSession, "isReady" | "load" | "syncChangedContent">;
+
 export class FormEditorApp {
     private mode: WebviewState["mode"] = "edit";
-    private activeHostUpdates = 0;
-    private readonly importSchema = serializeAsync((schema: Schema) =>
-        this.formEditor.importSchema(schema),
-    );
     private readonly importPreviewInOrder = serializeAsync((version: number) =>
         this.importPreview(version),
     );
-    private readonly locks = createInertLockGroup(document.body);
-    private readonly flushLock = this.locks.createLock();
-    private readonly importLock = this.locks.createLock();
-    private readonly revisions = new HostDocumentRevisions();
     private previewRefreshVersion = 0;
-    private sourceContent = "";
-    private baseline = "";
-    private lastPostedContent = "";
     private previewSchema = "";
-    private inputValues: Schema = {};
+    private inputValues: FormSchema = {};
     private inputValuesContent = this.serialize(this.inputValues);
     private previewInputValues = "";
     private outputValuesContent: string | undefined;
     private previewOutputActive = false;
-    private syncDeliveryTimer: ReturnType<typeof setTimeout> | undefined;
+    private readonly hostDocumentLoad: FormDocumentLoadListener = {
+        onArrived: (replacesDocument) => this.invalidatePreview(replacesDocument),
+        onImported: async (warnings) => {
+            this.logWarnings("Form editor", warnings);
+            this.hideError();
+            this.showCurrentSurface();
+            if (this.mode === "preview") await this.refreshPreview();
+        },
+        onFailed: (message, cause) => this.showError(message, cause),
+    };
 
     constructor(
         private readonly formEditor: FormEditorLike,
         private readonly formViewer: FormViewerLike,
         private readonly host: FormHost,
         private readonly elements: FormEditorElements,
-        private readonly editorInput: PendingEditorInput,
+        private readonly formDocument: FormDocument,
         initialMode: WebviewState["mode"] = "edit",
     ) {
-        this.formEditor.on("changed", () => this.syncChangedContent());
+        this.formEditor.on("changed", () => this.formDocument.syncChangedContent());
         for (const event of [
             "changed",
             "formFieldInstance.added",
@@ -92,102 +83,17 @@ export class FormEditorApp {
         void this.setMode(initialMode);
     }
 
-    async load(content: string, documentRevision = 0): Promise<void> {
-        if (this.revisions.receive(documentRevision) === "stale") return;
-        const version = this.revisions.version;
-        this.cancelPendingSync();
-        this.invalidatePreview(this.baseline !== "");
-
-        let schema: Schema;
-        try {
-            schema = JSON.parse(content) as Schema;
-        } catch (error) {
-            this.showError(FORM_INVALID_JSON_MESSAGE, error);
-            return;
-        }
-
-        this.activeHostUpdates++;
-        this.importLock.acquire();
-        try {
-            const result = await this.importSchema(schema);
-            if (!this.revisions.isCurrent(version)) return;
-
-            this.revisions.markImported(documentRevision);
-            this.logWarnings("Form editor", result.warnings);
-            this.sourceContent = content;
-            this.baseline = this.serialize(this.formEditor.saveSchema());
-            this.lastPostedContent = content;
-            this.hideError();
-            this.showCurrentSurface();
-            if (this.mode === "preview") await this.refreshPreview();
-        } catch (error) {
-            if (this.revisions.isCurrent(version)) {
-                this.showError(FORM_SCHEMA_IMPORT_ERROR_MESSAGE, error);
-            }
-        } finally {
-            this.activeHostUpdates--;
-            if (this.activeHostUpdates === 0) this.importLock.release();
-        }
-    }
-
-    hasPendingSync(): boolean {
-        return this.syncDeliveryTimer !== undefined || this.editorInput.hasPending();
-    }
-
-    hasPendingHostUpdate(): boolean {
-        return this.activeHostUpdates > 0;
-    }
-
-    isEditedSinceHostImport(): boolean {
-        return this.revisions.isEditedSinceImport;
-    }
-
-    hostUpdateVersion(): number {
-        return this.revisions.version;
-    }
-
-    documentRevision(): number {
-        return this.revisions.representedRevision;
-    }
-
-    cancelPendingSync(): void {
-        if (this.syncDeliveryTimer !== undefined) clearTimeout(this.syncDeliveryTimer);
-        this.syncDeliveryTimer = undefined;
-    }
-
-    flushPendingSync(): Promise<void> {
-        this.editorInput.flush();
-        if (this.hasPendingSync()) {
-            this.cancelPendingSync();
-            this.syncCurrentContent(true);
-        }
-        return Promise.resolve();
-    }
-
-    beginDestructiveFlush(): void {
-        this.flushLock.acquire();
-    }
-
-    endDestructiveFlush(): void {
-        this.flushLock.release();
-    }
-
-    async exportContent(): Promise<string> {
-        this.editorInput.flush();
-        return this.currentContent();
-    }
-
-    isReady(): boolean {
-        return this.baseline !== "";
+    load(content: string, documentRevision = 0): Promise<void> {
+        return this.formDocument.load(content, documentRevision, this.hostDocumentLoad);
     }
 
     async setMode(mode: WebviewState["mode"]): Promise<void> {
-        if (this.baseline) this.hideError();
+        if (this.formDocument.isReady()) this.hideError();
         this.mode = mode;
         if (mode === "edit") this.previewOutputActive = false;
         this.host.updateState({ mode });
         this.showCurrentSurface();
-        if (mode === "preview" && this.baseline) await this.refreshPreview();
+        if (mode === "preview" && this.formDocument.isReady()) await this.refreshPreview();
     }
 
     async setInputValues(content: string): Promise<void> {
@@ -203,34 +109,13 @@ export class FormEditorApp {
             return;
         }
 
-        const serialized = this.serialize(inputValues as Schema);
+        const serialized = this.serialize(inputValues as FormSchema);
         if (serialized === this.inputValuesContent) return;
-        this.inputValues = inputValues as Schema;
+        this.inputValues = inputValues as FormSchema;
         this.inputValuesContent = serialized;
-        if (this.mode === "preview" && this.baseline) await this.refreshPreview();
-    }
-
-    private syncChangedContent(): void {
-        if (!this.syncCurrentContent()) return;
-        if (this.syncDeliveryTimer !== undefined) clearTimeout(this.syncDeliveryTimer);
-        this.syncDeliveryTimer = setTimeout(() => {
-            this.syncDeliveryTimer = undefined;
-        }, SYNC_DELIVERY_GRACE_MS);
-    }
-
-    private syncCurrentContent(force = false): boolean {
-        if (this.activeHostUpdates > 0 || !this.baseline) return false;
-        const content = this.currentContent();
-        if (!force && content === this.lastPostedContent) return false;
-        this.lastPostedContent = content;
-        this.revisions.markEdited();
-        this.host.postMessage(new SyncDocumentCommand(content, this.revisions.representedRevision));
-        return true;
-    }
-
-    private currentContent(): string {
-        const serialized = this.serialize(this.formEditor.saveSchema());
-        return serialized === this.baseline ? this.sourceContent : serialized;
+        if (this.mode === "preview" && this.formDocument.isReady()) {
+            await this.refreshPreview();
+        }
     }
 
     private async refreshPreview(): Promise<void> {
@@ -306,7 +191,7 @@ export class FormEditorApp {
     }
 
     private showCurrentSurface(): void {
-        if (!this.elements.error.hidden && !this.baseline) return;
+        if (!this.elements.error.hidden && !this.formDocument.isReady()) return;
         const preview = this.mode === "preview";
         this.elements.editor.hidden = preview;
         this.elements.preview.hidden = !preview;
@@ -317,9 +202,7 @@ export class FormEditorApp {
     }
 
     private showError(message: string, cause: unknown): void {
-        this.cancelPendingSync();
         this.clearOutputValues();
-        this.baseline = "";
         this.elements.editor.hidden = true;
         this.elements.preview.hidden = true;
         this.elements.error.textContent = message;
@@ -347,7 +230,7 @@ export class FormEditorApp {
         }
     }
 
-    private serialize(schema: Schema): string {
+    private serialize(schema: FormSchema): string {
         return JSON.stringify(schema, null, 2);
     }
 }
