@@ -94,8 +94,9 @@ export class BridgeScriptEditor implements ScriptEditorPort, ScriptTabEvents {
     /**
      * Opens (or reveals) an inline script in a host text editor.
      *
-     * `script/open` always carries the content; the host ignores it when the `scriptId` is already tracked and
-     * just reveals the existing tab (so a re-open never clobbers in-flight edits).
+     * `script/open` always carries the content; the host ignores it when the
+     * `scriptId` is already tracked and just reveals the existing tab (so a
+     * re-open never clobbers in-flight edits).
      */
     async open(editorId: string, script: InlineScript): Promise<void> {
         const target = await this.resolveScriptTarget(script, editorId);

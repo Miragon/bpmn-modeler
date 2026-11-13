@@ -43,7 +43,7 @@ describe("ScriptContentStream", () => {
     });
 
     it("streams a burst of edits as one update with the last content once typing pauses", async () => {
-        const { diagram, stream, task } = createStream();
+        const { diagram, stream, hiddenEditors, task } = createStream();
 
         stream.push(TASK_PATH, task, "a");
         stream.push(TASK_PATH, task, "ab");
@@ -52,6 +52,7 @@ describe("ScriptContentStream", () => {
 
         await vi.advanceTimersByTimeAsync(1);
         expect(diagram.posted).toEqual([contentOf(task, "ab")]);
+        expect(hiddenEditors).toEqual([]);
     });
 
     it("waits 300 ms for a pause", () => {
@@ -96,6 +97,15 @@ describe("ScriptContentStream", () => {
         await stream.flush(TASK_PATH);
 
         expect(diagram.posted).toEqual([]);
+    });
+
+    it("cancels and stops a tab that never streamed", () => {
+        const { stream } = createStream();
+
+        expect(() => {
+            stream.cancel(TASK_PATH);
+            stream.stop(TASK_PATH);
+        }).not.toThrow();
     });
 
     it("drops a pending edit on stop, and a tab opened again streams afresh", async () => {
