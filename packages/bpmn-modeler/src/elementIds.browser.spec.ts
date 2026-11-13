@@ -257,6 +257,24 @@ describe("generating element IDs from names", () => {
         expect(services.elementRegistry.get("ServiceTask_CheckStock")).toBeDefined();
     });
 
+    it("steers around the ID an element without a name keeps", async () => {
+        const { handle, services } = await openModeler();
+        services.modeling.updateProperties(services.elementRegistry.get("Flow_0aaaaaa")!, {
+            id: "SequenceFlow_InStock",
+        });
+        handle.openElementIdReview();
+        await afterPaint();
+
+        await apply();
+
+        expect(services.elementRegistry.get("SequenceFlow_InStock")?.businessObject.name).toBe(
+            undefined,
+        );
+        expect(services.elementRegistry.get("SequenceFlow_InStock_2")?.businessObject.name).toBe(
+            "in stock",
+        );
+    });
+
     it("swaps the IDs, and the DI IDs, of two elements whose names ask for it", async () => {
         const { handle, services } = await openModeler(SWAPPED_NAMES);
         handle.openElementIdReview();

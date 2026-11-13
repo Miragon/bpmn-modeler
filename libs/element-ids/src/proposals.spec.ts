@@ -114,6 +114,18 @@ describe("proposeIds", () => {
         ]);
     });
 
+    it("never proposes the ID an element without a name keeps", () => {
+        const proposals = propose([
+            task("SequenceFlow_Yes", "", "bpmn:SequenceFlow"),
+            task("Flow_1", "Yes", "bpmn:SequenceFlow"),
+        ]);
+
+        expect(summary(proposals)).toEqual([
+            ["SequenceFlow_Yes", "skipped", undefined, false],
+            ["Flow_1", "rename", "SequenceFlow_Yes_2", true],
+        ]);
+    });
+
     it("skips an element whose name yields no ID", () => {
         const proposals = propose([task("a", ""), task("b", "???")]);
 
