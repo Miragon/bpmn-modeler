@@ -24,9 +24,9 @@ export function createHotspotsFitnessFunction({
 }: HotspotsPorts): FitnessFunction {
     return defineFitnessFunction({
         id: "hotspots",
-        version: 2,
+        version: 3,
         categories: { scope: "holistic", cadence: "triggered", result: "dynamic" },
-        measures: `The ${HOTSPOT_LIMIT} files with the highest score = revisions × code lines among the files size-and-complexity measures, ranked descending; ties go by revisions, then code lines, then path. Barrels are not ranked: files with no statement other than imports and re-exports, the test that keeps them out of change-coupling. Revisions: the commits among the ${HISTORY_WINDOW} most recent first-parent commits (one squash-merged PR each) that changed the file, renames followed; chore(deps), chore(main), chore(format) and style commits are not counted. Unlike change-coupling's revisions, a commit with many files counts: code-maat cuts changeset size for coupling only. The product is this function's, not Tornhill's script's: maat-scripts' merge_comp_freqs.py sorts by revisions only, and his hotspot view draws code lines as circle area and revisions as fill opacity; the score multiplies the two. No trend of its own: the per-file trend is size-and-complexity's, joined by path.`,
+        measures: `The ${HOTSPOT_LIMIT} files with the highest score = revisions × code lines among the files size-and-complexity measures, ranked descending; ties go by revisions, then code lines, then path. Barrels are not ranked: files with no statement other than imports and re-exports, the test that keeps them out of change-coupling. Revisions: the commits among the ${HISTORY_WINDOW} first-parent commits up to the merge base (one squash-merged PR each) that changed the file, renames followed, and one more when the branch changed it: the branch counts as the one revision its squash will land as, the working tree against the merge base, uncommitted edits included. chore(deps), chore(main), chore(format) and style commits are not counted. Unlike change-coupling's revisions, a commit with many files counts: code-maat cuts changeset size for coupling only. The product is this function's, not Tornhill's script's: maat-scripts' merge_comp_freqs.py sorts by revisions only, and his hotspot view draws code lines as circle area and revisions as fill opacity; the score multiplies the two. No trend of its own: the per-file trend is size-and-complexity's, joined by path.`,
         reliesOn: {
             skill: "architecture",
             rule: "a service orchestrates; a rule lives in domain/, named after the rule",
@@ -39,8 +39,8 @@ export function createHotspotsFitnessFunction({
             "Hotspots are heuristics: config-like files change often and hold no rules.",
             "Type-only protocol files (libs/shared/src/lib/modeler.ts) rank high and hold no rules.",
             "A file that re-exports through declarations of its own, such as packages/bpmn-modeler/src/index.ts (`export const DiffViewer = DiffViewerImpl`), is no barrel to the test and is ranked.",
-            "Each commit on a branch counts as one revision until it is squash-merged, so a branch with many commits raises its files' revisions.",
-            `Files that enter or leave the top ${HOTSPOT_LIMIT} for a reason other than their own change: the window slid, or a file the branch touched moved past them, up or down, or was deleted. Every file that enters pushes the last one out, which shows as resolved, and every file that leaves pulls the next one in, which shows as new.`,
+            `Files that enter or leave the top ${HOTSPOT_LIMIT} because a file the branch touched moved past them, up or down, or was deleted. Every file that enters pushes the last one out, which shows as resolved, and every file that leaves pulls the next one in, which shows as new.`,
+            "The branch's change counts even when its squash would not: it carries no PR title, so a chore(deps), chore(main), chore(format) or style PR adds a revision.",
         ],
         evidence: [
             {
@@ -63,6 +63,12 @@ export function createHotspotsFitnessFunction({
                 commit: "eb4fe899",
                 outcome:
                     "The 428 stored snapshots with version 1 findings, 0966e35f (2026-09-30) to eb4fe899 (2026-11-06): version 1 recomputed on each tree matched its stored top 20. Version 2 drops libs/modeler-core/src/index.ts, the only barrel in any top 20 (15 to 23 barrels per tree), from 197 of them, where it ranked 8th to 20th; every file below it moves up one place, and the next file enters 20th: DeploymentService.ts 59 times, ArtifactService.ts 38, BpmnLintConfigService.ts 32, AppendMenuOverlay.tsx 24, six others 44. Nothing else changes",
+            },
+            {
+                kind: "trial",
+                commit: "fe75e584",
+                outcome:
+                    "version 3, rows new/resolved before → after. Each PR head (pull/<n>/head) against its baseRefOid: PR 2047 at 3d1b19b3 against 452b6440 1/1 → 0/0 (TemplateBuilder.tsx entered at 5 branch commits × 1,284 code lines = 6,420; as one revision it stays out); PRs 2170 to 2188 0/0 → 0/0, 2190 1/1 → 0/0; over 28 PRs 12/12 → 4/4. GitHub's test merge of the 6 trial PRs whose comment showed hotspot rows (2251, 2296, 2302, 2304, 2326, 2361): 6/6 → 4/4; PRs 2302 and 2326 lose packages/dmn-modeler/src/modeler.ts, which they did not touch; in the 4 left a file the PR touched enters and pushes the 20th out. The 28 merge-base trees and 28 stored snapshots (every 20th of 558, 8c726cbd to fe75e584) keep their findings",
             },
         ],
         findFindings: ({ repoRoot, changeBase }) => {

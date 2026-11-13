@@ -26,9 +26,9 @@ export function createChangeCouplingFitnessFunction({
     const { minSharedChanges, minDegreePercent, maxChangesetSize } = CODE_MAAT_THRESHOLDS;
     return defineFitnessFunction({
         id: "change-coupling",
-        version: 1,
+        version: 2,
         categories: { scope: "holistic", cadence: "triggered", result: "dynamic" },
-        measures: `Pairs of files that changed together in the ${HISTORY_WINDOW} most recent first-parent commits (one squash-merged PR each) without an import between them. A pair is listed with at least ${minSharedChanges} shared changes and a degree (shared changes ÷ the mean of both files' revisions × 100) of at least ${minDegreePercent} %, so each file has at least ${minSharedChanges} revisions. Not counted: chore(deps), chore(main), chore(format) and style commits, and commits with more than ${maxChangesetSize} read files; renames are followed through every commit. Read: non-spec TypeScript under a workspace's src/, Kotlin under src/main/, .mjs scripts outside build configs and test folders, *.schema.json, *.cases.json and a manifest that contributes to its host. Barrels are not read; an import through an alias or a barrel links to the file that declares the name.`,
+        measures: `Pairs of files that changed together in the ${HISTORY_WINDOW} first-parent commits up to the merge base (one squash-merged PR each) and the branch's change in front of them, without an import between them. The branch counts as the one PR its squash will land as: the working tree against the merge base, uncommitted edits included, untracked files not. A pair is listed with at least ${minSharedChanges} shared changes and a degree (shared changes ÷ the mean of both files' revisions × 100) of at least ${minDegreePercent} %, so each file has at least ${minSharedChanges} revisions. Not counted: chore(deps), chore(main), chore(format) and style commits, and commits with more than ${maxChangesetSize} read files, the branch's change included, as its squash would not count; renames are followed through every commit. Read: non-spec TypeScript under a workspace's src/, Kotlin under src/main/, .mjs scripts outside build configs and test folders, *.schema.json, *.cases.json and a manifest that contributes to its host. Barrels are not read; an import through an alias or a barrel links to the file that declares the name.`,
         reliesOn: {
             skill: "tdd",
             rule: "a rule has one home; things that change for the same reason at the same time belong together (Common Closure Principle)",
@@ -43,9 +43,8 @@ export function createChangeCouplingFitnessFunction({
             "Pairs around composition roots, which couple by design; they are marked, not dropped.",
             "Kotlin pairs: Kotlin files carry no import edges, so a Kotlin pair is never linked.",
             "A pair explained by a shared import can still hide a copy (VsCodeStatusBar.ts ↔ BpmnLintConfigService.ts, the structural cause of issue 1799); it is listed under explained, not dropped.",
-            "Each commit on a branch counts as one PR until it is squash-merged, so a branch with many commits raises its pairs' shared changes.",
-            `A branch that merges main instead of rebasing: main's PRs since the branch point reach the branch's first-parent chain only through its merge commits, each counted as one change, or not at all above ${maxChangesetSize} read files, so they leave the head's window. The pairs they held show as resolved, and a pair whose files lose revisions can reach the degree and show as new.`,
-            "Pairs that enter or leave the delta because the window slid, not because the branch touched them.",
+            "The branch's change counts even when its squash would not: it carries no PR title, so a chore(deps), chore(main), chore(format) or style PR counts as a change.",
+            `A pair the branch did not touch can enter or leave when the branch deletes, adds or renames a file, or makes a barrel of one: a past commit then holds a different number of read files and can cross the ${maxChangesetSize}-file limit.`,
         ],
         evidence: [
             {
@@ -91,6 +90,12 @@ export function createChangeCouplingFitnessFunction({
                 outcome:
                     "recount with this function: 129 coupled pairs, 64 linked, 32 explained, 33 hidden; the lint-config copy listed, no port and adapter linked through hostPorts.ts hidden; 6 shared changes or a degree of 35 % lose the copy, counting changeset size over all files loses it too",
             },
+            {
+                kind: "trial",
+                commit: "fe75e584",
+                outcome:
+                    "version 2, rows new/resolved before → after. Each PR head (pull/<n>/head) against its baseRefOid: PR 2047 at 3d1b19b3 against 452b6440 (38 commits, 3 merges) 10/15 → 0/0; PRs 2170 2/3 → 0/0, 2172 3/2 → 0/0, 2173 2/3 → 0/0, 2174 2/3 → 0/0, 2177 2/3 → 0/0, 2178 0/1 → 0/1, 2179 0/0 → 0/0, 2180 3/2 → 3/2, 2181 0/5 → 0/0, 2184 1/6 → 0/0, 2188 1/2 → 0/0, 2190 2/6 → 0/0; over 28 PRs 46/79 → 3/8, of them on files the branch did not touch 92 → 1. GitHub's test merge of 27 PRs: 10/8 → 3/8, on untouched files 8 → 1; PRs 2255, 2256 and 2257 lose BridgeScriptEditor.ts ↔ apps/vscode-plugin/src/main.ts, PRs 2332 and 2333 ModelerSettingsConfigurable.kt ↔ apps/vscode-plugin/package.json. The one row left: PR 2180 deletes and re-adds a bootstrap.ts, so a past commit falls from 31 to 30 read files and counts. Dropping the oldest base commit, for a window of 924, brings back 7 new rows on untouched files in 6 PRs. The 28 merge-base trees and 28 stored snapshots (every 20th of 558, 8c726cbd to fe75e584) keep their findings",
+            },
         ],
         groups: CHANGE_COUPLING_GROUPS,
         findFindings: ({ repoRoot, changeBase }) => {
@@ -104,9 +109,7 @@ export function createChangeCouplingFitnessFunction({
                 window.commits,
                 history.changesSince(repoRoot, changeBase),
             );
-            return changeCouplingFindings(
-                changeCouplingInTree(sources.read(repoRoot), commits),
-            );
+            return changeCouplingFindings(changeCouplingInTree(sources.read(repoRoot), commits));
         },
     });
 }

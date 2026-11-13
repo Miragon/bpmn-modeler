@@ -52,9 +52,10 @@ echo "$OUT/worktree" > "$OUT/tree.txt"
 gh pr view <n> --json baseRefOid --jq .baseRefOid > "$OUT/rev.txt"
 ```
 
-A commit on main; for a merged PR, prefer its squash commit
-(`gh pr view <n> --json mergeCommit --jq .mergeCommit.oid`): on an unsquashed
-head each branch commit counts as a PR for `change-coupling` and `hotspots`.
+A commit on main, such as a merged PR's squash commit
+(`gh pr view <n> --json mergeCommit --jq .mergeCommit.oid`). `change-coupling`
+and `hotspots` count a branch as one change, its squash, so a PR's head gives
+the same rows.
 
 ```sh
 OUT="${TMPDIR:-/tmp}/architecture-review"; mkdir -p "$OUT"
@@ -249,8 +250,8 @@ jq -r --arg path '<path>' '.functions[] | select(.values) | .id as $id | .outcom
   while IFS=$'\t' read -r id commit values; do printf '%s\t%s\t%s\n' "$id" "$(git -C "$TREE" log -1 --format='%h %s' "$commit")" "$values"; done
 ```
 
-A hotspot's `rank` counts each branch commit as a revision until the PR is
-squash-merged, so read a hotspot's growth from its size trend, not its rank.
+A hotspot's `rank` counts the branch as one revision, so it shows where the
+file stands, not how it grew; read its growth from its size trend.
 
 ## 6. Improve the fitness functions
 

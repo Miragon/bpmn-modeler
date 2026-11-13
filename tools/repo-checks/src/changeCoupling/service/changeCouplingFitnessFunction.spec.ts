@@ -59,10 +59,7 @@ function record(commit: string, ...paths: string[]): CommitRecord {
 // The pair changed together in the 4 newest PRs up to the merge base, one short of being listed.
 const MAIN_UP_TO_BASE = history(Array(4).fill([LINT_CONFIG, CORE_LINT_CONFIG]));
 
-function findingsOf(
-    graph: InMemoryCommitGraph,
-    context: { commit: string; changeBase: string },
-) {
+function findingsOf(graph: InMemoryCommitGraph, context: { commit: string; changeBase: string }) {
     return measure(
         createChangeCouplingFitnessFunction({
             history: graph,
@@ -181,7 +178,10 @@ describe("the change coupling fitness function", () => {
         );
         const fitnessFunction = createChangeCouplingFitnessFunction({
             history: graph,
-            sources: new InMemorySourceStructure({ ...LAYOUT, files: [...LAYOUT.files, ...manyFiles] }),
+            sources: new InMemorySourceStructure({
+                ...LAYOUT,
+                files: [...LAYOUT.files, ...manyFiles],
+            }),
         });
 
         expect(

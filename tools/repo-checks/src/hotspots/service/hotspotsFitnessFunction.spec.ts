@@ -92,7 +92,9 @@ describe("the hotspots fitness function", () => {
         const graph = new InMemoryCommitGraph(
             {
                 base: MAIN_UP_TO_BASE,
-                head: [1, 2, 3, 4, 5].map((index) => record(`branch${index}`, OFTEN)).concat(MAIN_UP_TO_BASE),
+                head: [1, 2, 3, 4, 5]
+                    .map((index) => record(`branch${index}`, OFTEN))
+                    .concat(MAIN_UP_TO_BASE),
                 squash: [record("squash", OFTEN), ...MAIN_UP_TO_BASE],
             },
             { base: modified(OFTEN) },
@@ -102,7 +104,12 @@ describe("the hotspots fitness function", () => {
 
         expect(atHead).toEqual(findingsOf(graph, { commit: "squash", changeBase: "squash" }));
         expect(atHead).toEqual({
-            findings: [expect.objectContaining({ key: OFTEN, message: expect.stringMatching(/^4 revisions/) })],
+            findings: [
+                expect.objectContaining({
+                    key: OFTEN,
+                    message: expect.stringMatching(/^4 revisions/),
+                }),
+            ],
         });
     });
 
@@ -127,8 +134,14 @@ describe("the hotspots fitness function", () => {
         expect(atHead).toEqual(findingsOf(graph, { commit: "squash", changeBase: "squash" }));
         expect(atHead).toEqual({
             findings: [
-                expect.objectContaining({ key: OFTEN, message: expect.stringMatching(/^4 revisions/) }),
-                expect.objectContaining({ key: OTHER, message: expect.stringMatching(/^2 revisions/) }),
+                expect.objectContaining({
+                    key: OFTEN,
+                    message: expect.stringMatching(/^4 revisions/),
+                }),
+                expect.objectContaining({
+                    key: OTHER,
+                    message: expect.stringMatching(/^2 revisions/),
+                }),
             ],
         });
     });
@@ -145,7 +158,10 @@ describe("the hotspots fitness function", () => {
         const atBase = findingsOf(graph, { commit: "base", changeBase: "base" });
 
         expect(atBase).toEqual({
-            findings: [expect.objectContaining({ key: OFTEN }), expect.objectContaining({ key: OTHER })],
+            findings: [
+                expect.objectContaining({ key: OFTEN }),
+                expect.objectContaining({ key: OTHER }),
+            ],
         });
         expect(findingsOf(graph, { commit: "testMerge", changeBase: "base" })).toEqual(atBase);
     });
