@@ -62,6 +62,18 @@ describe("FollowNameBehavior", () => {
         expect(renamed).toEqual(["Task_CheckStock"]);
     });
 
+    it("leaves a process ID when the process is renamed, since it is the deployment key", () => {
+        const { fire, renamed } = setUp(true);
+
+        fire("element.updateProperties", {
+            element: shape("bpmn:Process", "Process_0d1e2f3", "Order fulfilment"),
+            properties: { name: "Order fulfilment" },
+            oldProperties: { name: "" },
+        });
+
+        expect(renamed).toEqual([]);
+    });
+
     it("follows a type change, since the ID spells the type", () => {
         const { replace, renamed } = setUp(true);
 

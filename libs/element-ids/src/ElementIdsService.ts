@@ -11,6 +11,7 @@ import {
     type ElementIdCandidate,
     type ElementRegistryLike,
 } from "./candidates";
+import { keepsIdUnlessAsked } from "./elementKinds";
 import { proposeIds, type IdProposal } from "./proposals";
 import {
     RENAME_ELEMENT_IDS_COMMAND,
@@ -61,6 +62,15 @@ export class ElementIdsService {
             unchecked,
             isTakenElsewhere: this.takenOutside(candidates),
         });
+    }
+
+    /** The IDs the review starts with unchecked. */
+    initiallyUnchecked(): ReadonlySet<string> {
+        return new Set(
+            collectCandidates(this.elementRegistry)
+                .filter((candidate) => keepsIdUnlessAsked(candidate.type))
+                .map((candidate) => candidate.id),
+        );
     }
 
     /** Renames every checked element in one undo step and says how many changed. */

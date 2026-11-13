@@ -9,6 +9,8 @@ import { iconClassOf } from "../typeIcons";
 
 export interface ReviewPanelProps {
     readonly initialStyle: ElementIdStyle;
+    /** The rows that start unchecked; later changes to it are ignored. */
+    readonly initialUnchecked: ReadonlySet<string>;
     /** Bumped on every diagram change, so the proposals follow edits made while the panel is open. */
     readonly revision: number;
     readonly propose: (
@@ -97,7 +99,7 @@ function GroupCheckbox({
 export function ReviewPanel(props: ReviewPanelProps) {
     const { revision, propose, onApply, onClose, onReveal, translate } = props;
     const [style, setStyle] = useState(props.initialStyle);
-    const [unchecked, setUnchecked] = useState<ReadonlySet<string>>(new Set());
+    const [unchecked, setUnchecked] = useState(props.initialUnchecked);
     const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set([MATCHES, SKIPPED]));
     const root = useRef<HTMLElement>(null);
     const firstAction = useRef<HTMLButtonElement>(null);

@@ -157,6 +157,13 @@ const proposedIds = () =>
         (n) => n.textContent,
     );
 
+async function tickProcesses(): Promise<void> {
+    panelRoot()!
+        .querySelector<HTMLInputElement>('input[aria-label="Rename all Processes"]')!
+        .click();
+    await afterPaint();
+}
+
 async function apply(): Promise<void> {
     panelRoot()!.querySelector<HTMLButtonElement>(".eid-primary")!.click();
     await afterPaint();
@@ -190,10 +197,14 @@ describe("generating element IDs from names", () => {
             "StartEvent_OrderReceived",
             "SequenceFlow_InStock",
         ]);
-        expect(root.querySelector(".eid-summary")?.textContent).toBe("5 of 5 IDs will change");
+        expect(root.querySelector(".eid-summary")?.textContent).toBe("4 of 5 IDs will change");
+        expect(
+            root.querySelector<HTMLInputElement>('input[aria-label="Rename Order fulfilment"]')!
+                .checked,
+        ).toBe(false);
     });
 
-    it("renames the elements, their references, DI and labels, and leaves unnamed ones alone", async () => {
+    it("renames the elements, their references, DI and labels, and leaves unnamed ones and the process alone", async () => {
         const { handle, services } = await openModeler();
         handle.openElementIdReview();
         await afterPaint();
@@ -201,7 +212,7 @@ describe("generating element IDs from names", () => {
         await apply();
 
         const xml = await handle.exportDiagram();
-        expect(xml).toContain('<bpmn:process id="Process_OrderFulfilment"');
+        expect(xml).toContain('<bpmn:process id="Process_0d1e2f3"');
         expect(xml).toContain(
             '<bpmn:sequenceFlow id="Flow_0aaaaaa" sourceRef="StartEvent_OrderReceived" targetRef="ServiceTask_CheckStock"',
         );
@@ -214,13 +225,43 @@ describe("generating element IDs from names", () => {
         expect(xml).toContain(
             '<bpmndi:BPMNEdge id="SequenceFlow_InStock_di" bpmnElement="SequenceFlow_InStock">',
         );
-        expect(xml).toContain(
-            '<bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_OrderFulfilment">',
-        );
         expect(services.elementRegistry.get("StartEvent_OrderReceived")?.label?.id).toBe(
             "StartEvent_OrderReceived_label",
         );
         expect(panelRoot()).toBeNull();
+    });
+
+    it("renames the process and its plane once its group is ticked", async () => {
+        const { handle } = await openModeler();
+        handle.openElementIdReview();
+        await afterPaint();
+
+        await tickProcesses();
+        await apply();
+
+        const xml = await handle.exportDiagram();
+        expect(xml).toContain('<bpmn:process id="Process_OrderFulfilment"');
+        expect(xml).toContain(
+            '<bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_OrderFulfilment">',
+        );
+    });
+
+    it("steers around the ID an element without a name keeps", async () => {
+        const { handle, services } = await openModeler();
+        services.modeling.updateProperties(services.elementRegistry.get("Flow_0aaaaaa")!, {
+            id: "SequenceFlow_InStock",
+        });
+        handle.openElementIdReview();
+        await afterPaint();
+
+        await apply();
+
+        expect(services.elementRegistry.get("SequenceFlow_InStock")?.businessObject.name).toBe(
+            undefined,
+        );
+        expect(services.elementRegistry.get("SequenceFlow_InStock_2")?.businessObject.name).toBe(
+            "in stock",
+        );
     });
 
     it("puts everything back with one undo, and redoes it in one step", async () => {
@@ -257,24 +298,6 @@ describe("generating element IDs from names", () => {
         expect(services.elementRegistry.get("ServiceTask_CheckStock")).toBeDefined();
     });
 
-    it("steers around the ID an element without a name keeps", async () => {
-        const { handle, services } = await openModeler();
-        services.modeling.updateProperties(services.elementRegistry.get("Flow_0aaaaaa")!, {
-            id: "SequenceFlow_InStock",
-        });
-        handle.openElementIdReview();
-        await afterPaint();
-
-        await apply();
-
-        expect(services.elementRegistry.get("SequenceFlow_InStock")?.businessObject.name).toBe(
-            undefined,
-        );
-        expect(services.elementRegistry.get("SequenceFlow_InStock_2")?.businessObject.name).toBe(
-            "in stock",
-        );
-    });
-
     it("swaps the IDs, and the DI IDs, of two elements whose names ask for it", async () => {
         const { handle, services } = await openModeler(SWAPPED_NAMES);
         handle.openElementIdReview();
@@ -297,6 +320,7 @@ describe("generating element IDs from names", () => {
         handle.openElementIdReview();
         await afterPaint();
 
+        await tickProcesses();
         await apply();
 
         const xml = await handle.exportDiagram();
@@ -324,7 +348,7 @@ describe("generating element IDs from names", () => {
         await apply();
 
         expect(services.elementRegistry.get("CheckStockTask")).toBeDefined();
-        expect(services.elementRegistry.get("OrderFulfilmentProcess")).toBeDefined();
+        expect(services.elementRegistry.get("ShipOrderTask")).toBeDefined();
     });
 
     describe("IDs following names", () => {

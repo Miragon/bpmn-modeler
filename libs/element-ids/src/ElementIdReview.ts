@@ -33,6 +33,7 @@ export class ElementIdReview {
 
     private container: HTMLElement | undefined;
     private revision = 0;
+    private initialUnchecked: ReadonlySet<string> = new Set();
     private readonly translate: Translate;
 
     constructor(
@@ -61,6 +62,7 @@ export class ElementIdReview {
             container.className = "eid-root";
             this.canvas.getContainer().parentElement!.appendChild(container);
             this.container = container;
+            this.initialUnchecked = this.elementIds.initiallyUnchecked();
         }
         this.render();
     }
@@ -87,6 +89,7 @@ export class ElementIdReview {
         render(
             h(ReviewPanel, {
                 initialStyle: this.elementIds.getSettings().style,
+                initialUnchecked: this.initialUnchecked,
                 revision: this.revision,
                 propose: this.propose,
                 onApply: this.apply,

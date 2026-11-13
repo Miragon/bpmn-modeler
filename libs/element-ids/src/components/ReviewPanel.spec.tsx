@@ -58,6 +58,7 @@ let props: ReviewPanelProps;
 function mount(overrides: Partial<ReviewPanelProps> = {}) {
     props = {
         initialStyle: "typePrefix",
+        initialUnchecked: new Set(),
         revision: 0,
         propose,
         onApply: vi.fn(),
@@ -111,6 +112,13 @@ describe("ReviewPanel", () => {
             "Task_Ship",
             "Task_Yes",
         ]);
+    });
+
+    it("starts with the rows it is handed unchecked", () => {
+        mount({ initialUnchecked: new Set(["Activity_2"]) });
+
+        expect($<HTMLInputElement>('input[aria-label="Rename Ship"]').checked).toBe(false);
+        expect(text(".eid-summary")).toEqual(["2 of 3 IDs will change"]);
     });
 
     it("marks a counter added for a name clash", () => {
