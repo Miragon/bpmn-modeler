@@ -325,7 +325,7 @@ export class AddOnsView {
 
     // --- Focus and reveal ---
 
-    /** A host "Review…": the reducer selected the add-on and opened its review; the view rings it. */
+    /** A host "Review…": the reducer selected the add-on and showed its detail; the view rings it. */
     private startReveal(addOnId: string): void {
         this.revealedId = addOnId;
         clearTimeout(this.revealTimer);

@@ -743,7 +743,6 @@ button.av-head:hover .av-head-count {
 }
 
 .av-review-heading {
-    min-width: 0;
     margin: 0;
     font-size: 13px;
     font-weight: 600;
@@ -779,8 +778,7 @@ button.av-head:hover .av-head-count {
 
 .av-review-end {
     display: flex;
-    padding-top: 12px;
-    border-top: 1px solid var(--cd-ui-linie);
+    padding-top: 4px;
 }
 
 .av-review-end .ds-btn {
@@ -1021,10 +1019,6 @@ button.av-head:hover .av-head-count {
     .av-dot,
     .av-menu {
         border: 1px solid CanvasText;
-    }
-
-    .av-review {
-        border-top-color: CanvasText;
     }
 
     .av-row[aria-current="true"] {

@@ -1739,7 +1739,7 @@ describe("the packaged extension in a real VS Code", () => {
                 expect.arrayContaining(REVIEW_FACTS),
             );
 
-            // Allow ends the review, so Tab reaches it from the heading or the row.
+            // Allow ends the review, so Tab reaches it from the row or the detail.
             const allow = detail
                 .locator(".av-review-end")
                 .getByRole("button", { name: "Allow", exact: true });

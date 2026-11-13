@@ -27,16 +27,12 @@ export function statusBadge(status: RowStatus, className: string): HTMLElement {
 }
 
 /** A status box after brand §8: a tinted surface, a 4px edge and an icon in the status role. */
-export function statusBox(
-    tone: "danger" | "warning",
-    text: string,
-    className = "",
-    textId?: string,
-): HTMLElement {
+export function statusBox(tone: "danger" | "warning", text: string, className = ""): HTMLElement {
     const box = el("div", `av-box av-box-${tone} ${className}`.trim());
-    const paragraph = el("p", "av-box-text", text);
-    if (textId !== undefined) paragraph.id = textId;
-    box.append(icon(tone === "danger" ? CircleAlert : TriangleAlert, 16, "av-box-icon"), paragraph);
+    box.append(
+        icon(tone === "danger" ? CircleAlert : TriangleAlert, 16, "av-box-icon"),
+        el("p", "av-box-text", text),
+    );
     return box;
 }
 

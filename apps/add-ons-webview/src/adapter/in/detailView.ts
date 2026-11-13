@@ -12,7 +12,7 @@ import type { Placement } from "../../domain/catalogQueries";
 import { CHROME_TEXT } from "../../domain/chromeTexts";
 import { placedActions, reviewOf } from "../../domain/placedActions";
 import { isBusy, ViewState } from "../../domain/viewState";
-import { actionButton, button, el, icon, markFocus, setBusy } from "./dom";
+import { actionButton, button, el, hiddenText, icon, markFocus, setBusy } from "./dom";
 import { ADD_ON_ACTION_ICON, SOURCE_ICON } from "./icons";
 import { kindTag, statusBox, statusMark } from "./statusMarks";
 
@@ -83,7 +83,8 @@ function headOf({ group, source, addOn }: Placement, revealed: boolean): HTMLEle
     const stateLine = el("p", `av-state-line av-tone-${status.tone}`);
     stateLine.append(statusMark(status.tone));
     status.words.forEach((word, index) => {
-        if (index > 0) stateLine.append(separator("·"));
+        // A screen reader pauses between the words; the dot is only for the eye.
+        if (index > 0) stateLine.append(separator("·"), hiddenText(", "));
         stateLine.append(el("span", "av-state-word", word));
     });
     const top = el("div", "av-detail-top");
@@ -111,7 +112,8 @@ function noteOf(note: string): HTMLElement {
     return line;
 }
 
-let warningIds = 0;
+/** One detail shows at a time, so one id names its warning. */
+const WARNING_ID = "av-review-warning";
 
 /**
  * The review the core wrote, always open: its warning and facts, with Allow at
@@ -123,7 +125,6 @@ function reviewSection(
     allow: HTMLButtonElement | undefined,
 ): HTMLElement {
     const section = el("section", "av-review");
-    const warningId = `av-review-warning-${++warningIds}`;
     const body = el("div", "av-review-body");
     const facts = el("dl", "av-facts");
     review.facts.forEach(({ label, value }) => {
@@ -131,9 +132,11 @@ function reviewSection(
         fact.append(el("dt", "av-fact-label", label), el("dd", "av-fact-value", value));
         facts.append(fact);
     });
-    body.append(statusBox("warning", review.warning, "", warningId), facts);
+    const warning = statusBox("warning", review.warning);
+    warning.querySelector(".av-box-text")!.id = WARNING_ID;
+    body.append(warning, facts);
     if (allow !== undefined) {
-        allow.setAttribute("aria-describedby", warningId);
+        allow.setAttribute("aria-describedby", WARNING_ID);
         const end = el("div", "av-review-end");
         end.append(allow);
         body.append(end);
