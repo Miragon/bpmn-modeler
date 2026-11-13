@@ -14,7 +14,7 @@ import {
     SettingsPort,
     withoutMarketplaceEntries,
 } from "@miragon/bpmn-modeler-core";
-import { ColorThemeSetting, ElementIdStyle, SurfaceMode } from "@miragon/bpmn-modeler-types";
+import { ColorThemeSetting, SurfaceMode } from "@miragon/bpmn-modeler-types";
 
 import { lintingEnabled, ModelerConfiguration, modelerConfiguration } from "./modelerConfiguration";
 
@@ -87,9 +87,6 @@ export class VsCodeSettings implements SettingsPort {
         return readSetting("scriptingSpin");
     }
 
-    getElementIdStyle(): ElementIdStyle {
-        return readSetting("elementIdStyle");
-    }
 
     getElementIdsFollowName(): boolean {
         return readSetting("elementIdsFollowName");

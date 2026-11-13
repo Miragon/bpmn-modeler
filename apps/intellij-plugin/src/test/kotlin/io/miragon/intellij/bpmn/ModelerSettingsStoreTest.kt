@@ -67,22 +67,12 @@ class ModelerSettingsStoreTest {
     }
 
     @Test
-    fun `offers and keeps exactly the ID styles the core reads, in its order`() {
-        assertEquals(coreElementIdStyles(), ModelerSettingsStore.ELEMENT_ID_STYLES)
-    }
+    fun `the follow-name choice survives a new store under the shared persisted key`() {
+        store.update { it.copy(elementIdsFollowName = true) }
 
-    @Test
-    fun `the ID style and follow-name choice survive a new store under the shared persisted keys`() {
-        store.update { it.copy(elementIdStyle = "typeSuffix", elementIdsFollowName = true) }
-
-        assertEquals("typeSuffix", appProperties.getValue("${NAMESPACE}elementIds.style"))
         assertEquals("true", appProperties.getValue("${NAMESPACE}elementIds.followName"))
-        val reread = ModelerSettingsStore().current()
-        assertEquals("typeSuffix", reread.elementIdStyle)
-        assertEquals(true, reread.elementIdsFollowName)
-        val snapshot = store.snapshotMap(projectFixture.get())
-        assertEquals("typeSuffix", snapshot["elementIdStyle"])
-        assertEquals(true, snapshot["elementIdsFollowName"])
+        assertEquals(true, ModelerSettingsStore().current().elementIdsFollowName)
+        assertEquals(true, store.snapshotMap(projectFixture.get())["elementIdsFollowName"])
     }
 
     @Test
@@ -172,7 +162,6 @@ class ModelerSettingsStoreTest {
                 "scriptingSpin",
                 "lintingEnabled",
                 "formPreviewAutomatic",
-                "elementIdStyle",
                 "elementIdsFollowName",
                 "marketplaces",
             ),
@@ -215,7 +204,6 @@ class ModelerSettingsStoreTest {
                 "scripting.spin",
                 "linting.enabled",
                 "formPreview.automatic",
-                "elementIds.style",
                 "elementIds.followName",
             ).map { NAMESPACE + it }
 
@@ -288,10 +276,6 @@ class ModelerSettingsStoreTest {
         /** `COLOR_THEMES` in the types' `settings.ts`, the themes the core's `normalizeSettings` keeps. */
         private fun coreColorThemes(): List<String> =
             readTypeScriptStringArray("miragon.colorThemes", "COLOR_THEMES")
-
-        /** `ELEMENT_ID_STYLES` in the types' `elementIds.ts`, the styles the core's `normalizeSettings` keeps. */
-        private fun coreElementIdStyles(): List<String> =
-            readTypeScriptStringArray("miragon.elementIdStyles", "ELEMENT_ID_STYLES")
 
         /** `SETTING_KEY_OF_SNAPSHOT_KEY` in the core's `modelerSettings.ts`, read backwards: `scripting.spin` → `scriptingSpin`. */
         private fun coreSnapshotNames(): Map<String, String> {

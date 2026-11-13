@@ -83,19 +83,3 @@ export function defaultIdPrefixesOf(bpmnType: string): string[] {
     }
     return [shared, ...Object.keys(KIND_OF_TYPE).filter((type) => KIND_OF_TYPE[type] === kind)];
 }
-
-const SUFFIX_OF_TYPE: Readonly<Record<string, string>> = {
-    ...Object.fromEntries(TASKS.filter((type) => type !== "Task").map((type) => [type, "Task"])),
-    IntermediateCatchEvent: "Event",
-    IntermediateThrowEvent: "Event",
-    ExclusiveGateway: "Gateway",
-    ParallelGateway: "Gateway",
-    ComplexGateway: "Gateway",
-    EventBasedGateway: "Gateway",
-};
-
-/** The suffix the Camunda Modeler plugin rename-technical-ids appends; it keeps an inclusive gateway's full name. */
-export function idSuffixOf(bpmnType: string): string {
-    const type = localType(bpmnType);
-    return SUFFIX_OF_TYPE[type] ?? type;
-}

@@ -11,7 +11,6 @@ import {
     type CleanupOutcome,
     type Disposer,
     type ElementIdReviewOutcome,
-    type ElementIdSettings,
     type DisposableStore,
     type MinimalEventBus,
     subscribe,
@@ -20,7 +19,7 @@ import {
 import type { LintConfigService } from "./bpmnlint/LintConfigService";
 import { createLintHandleMethods, type LintHandleMethods } from "./lintHandle";
 import { installContentEditableClipboardPolyfill } from "./propertiesPanelClipboard";
-import type { ClipboardOptions } from "./publicApi";
+import type { ClipboardOptions, ElementIdOptions } from "./publicApi";
 import type { SurfaceReporter } from "./reporting/reporting";
 import type { SurfaceServices } from "./surfaceCore";
 
@@ -121,23 +120,15 @@ export function openSurfaceElementIdReview(surface: SurfaceServices): ElementIdR
     return { status: "opened" };
 }
 
-export function applyElementIdSettings(
-    surface: SurfaceServices,
-    settings: Partial<ElementIdSettings>,
-): void {
-    surface.optionalService<ElementIdsService>("elementIds")?.configure(settings);
+export function applyElementIdSettings(surface: SurfaceServices, options: ElementIdOptions): void {
+    surface.optionalService<ElementIdsService>("elementIds")?.configure(options);
 }
 
-/** The element ID options among the modeler settings, as the element ID module takes them. */
-export function elementIdSettingsOf(
-    settings: Partial<BpmnModelerSetting>,
-): Partial<ElementIdSettings> {
-    return {
-        ...(settings.elementIdStyle === undefined ? {} : { style: settings.elementIdStyle }),
-        ...(settings.elementIdsFollowName === undefined
-            ? {}
-            : { followName: settings.elementIdsFollowName }),
-    };
+/** The element ID option among the modeler settings, as the element ID module takes it. */
+export function elementIdSettingsOf(settings: Partial<BpmnModelerSetting>): ElementIdOptions {
+    return settings.elementIdsFollowName === undefined
+        ? {}
+        : { followName: settings.elementIdsFollowName };
 }
 
 export function createSurfaceLintHandle(

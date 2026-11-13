@@ -15,7 +15,7 @@
  * built in its `domain/`.
  */
 
-import { ColorThemeSetting, ElementIdStyle, SurfaceMode } from "@miragon/bpmn-modeler-types";
+import { ColorThemeSetting, SurfaceMode } from "@miragon/bpmn-modeler-types";
 
 import { ActionNotice } from "../domain/actionNotice";
 import { DirectoryEntryKind } from "../domain/directoryEntry";
@@ -140,8 +140,6 @@ export interface SettingsPort {
     getPersistCodeLinkMap(): boolean;
     /** Whether Camunda SPIN globals (`S`/`JSON`) and SpinJsonNode members are offered in C7 scripts. */
     getScriptingSpin(): boolean;
-    /** How Generate IDs from Names and the ID field's Generate from name spell an ID. */
-    getElementIdStyle(): ElementIdStyle;
     /** Whether a still-generated ID follows its element's name and type. Defaults to `false`. */
     getElementIdsFollowName(): boolean;
     getMarketplaces(): MarketplaceSettingsEntry[];

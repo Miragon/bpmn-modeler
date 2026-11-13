@@ -40,7 +40,6 @@ export class BpmnSettingsBroadcaster {
                             showTransactionBoundaries: settings.showTransactionBoundaries,
                             colorTheme: settings.colorTheme,
                             favouriteBpmnElements: settings.favouriteBpmnElements,
-                            elementIdStyle: this.settings.getElementIdStyle(),
                             elementIdsFollowName: this.settings.getElementIdsFollowName(),
                         },
                         this.settings.getFormPreviewAutomatic(),
@@ -78,7 +77,6 @@ export class BpmnSettingsBroadcaster {
                 event.affects("showTransactionBoundaries") ||
                 event.affects("colorTheme") ||
                 event.affects("formPreview.automatic") ||
-                event.affects("elementIds.style") ||
                 event.affects("elementIds.followName") ||
                 event.affects("favouriteBpmnElements")
             ) {

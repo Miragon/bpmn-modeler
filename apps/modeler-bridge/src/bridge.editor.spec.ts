@@ -10,7 +10,7 @@ import { hostNotification, registerParams, waitForFrame } from "./__fixtures__/b
 import { createBridge } from "./composition/bridge";
 
 describe("the bridge's BPMN editor", () => {
-    it("delivers the host's ID style and follow-name choice, and pushes a changed one", async () => {
+    it("delivers the host's follow-name choice, and pushes a changed one", async () => {
         const root = await fs.mkdtemp(join(tmpdir(), "bridge-element-ids-"));
         roots.push(root);
         const frames: Array<{
@@ -19,7 +19,7 @@ describe("the bridge's BPMN editor", () => {
                 editorId?: string;
                 message?: {
                     type: string;
-                    setting?: { elementIdStyle?: string; elementIdsFollowName?: boolean };
+                    setting?: { elementIdsFollowName?: boolean };
                 };
             };
         }> = [];
@@ -37,7 +37,7 @@ describe("the bridge's BPMN editor", () => {
             hostNotification(
                 "session/register",
                 registerParams(editorId, root, editorId.slice(7), "", {
-                    settings: { elementIdStyle: "typeSuffix" },
+                    settings: { elementIdsFollowName: false },
                 }),
             ),
         );
@@ -48,9 +48,7 @@ describe("the bridge's BPMN editor", () => {
             }),
         );
 
-        expect(settingQueries()).toMatchObject([
-            { elementIdStyle: "typeSuffix", elementIdsFollowName: false },
-        ]);
+        expect(settingQueries()).toMatchObject([{ elementIdsFollowName: false }]);
 
         await rpc.handleLine(
             hostNotification("settings/didChange", { settings: { elementIdsFollowName: true } }),
@@ -62,10 +60,7 @@ describe("the bridge's BPMN editor", () => {
                 frame.params.message?.setting?.elementIdsFollowName === true,
         );
 
-        expect(settingQueries().slice(-1)[0]).toMatchObject({
-            elementIdStyle: "typeSuffix",
-            elementIdsFollowName: true,
-        });
+        expect(settingQueries().slice(-1)[0]).toMatchObject({ elementIdsFollowName: true });
         await rpc.handleLine(hostNotification("session/dispose", { editorId }));
     });
 

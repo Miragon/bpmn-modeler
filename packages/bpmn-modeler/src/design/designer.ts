@@ -45,10 +45,9 @@ import type {
     BpmnlintConfig,
     CleanupOutcome,
     ElementIdReviewOutcome,
-    ElementIdSettings,
     LintResults,
 } from "@miragon/bpmn-modeler-types";
-import type { ThemeMode } from "../publicApi";
+import type { ElementIdOptions, ThemeMode } from "../publicApi";
 import type { CoreDesignerServices, DesignerOptions } from "./publicApi";
 
 /**
@@ -246,8 +245,8 @@ export class BpmnDesigner {
     }
 
     /** @see BpmnDesignerHandle.setElementIdSettings */
-    setElementIdSettings(settings: Partial<ElementIdSettings>): void {
-        applyElementIdSettings(this.core, settings);
+    setElementIdSettings(options: ElementIdOptions): void {
+        applyElementIdSettings(this.core, options);
     }
 
     /** @see BpmnDesignerHandle.openElementIdReview */

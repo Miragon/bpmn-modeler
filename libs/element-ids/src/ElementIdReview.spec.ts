@@ -10,12 +10,13 @@ const proposal: ElementIdProposal = {
         id: "Activity_1",
         name: "Check",
         type: "bpmn:Task",
+        element: { $type: "bpmn:Task", id: "Activity_1", name: "Check" },
         kind: "activity",
         target: { kind: "element", element: task },
         shown: task,
     },
     status: "rename",
-    newId: "Task_Check",
+    newId: "task_check",
     clash: false,
 };
 
@@ -49,7 +50,7 @@ function setUp(options: { directEditing?: boolean; initiallyUnchecked?: string[]
     };
     const injector = { get: <T>(name: string) => (services[name] ?? null) as T | null };
     const elementIds = {
-        getSettings: () => ({ style: "typePrefix" as const, followName: false }),
+        getSettings: () => ({ followName: false }),
         propose: vi.fn(() => [proposal]),
         rename: vi.fn(() => 1),
         initiallyUnchecked: vi.fn(() => new Set(options.initiallyUnchecked ?? [])),
@@ -105,7 +106,7 @@ describe("ElementIdReview", () => {
         act(() => review.open());
         fire("commandStack.changed");
 
-        expect(elementIds.propose).toHaveBeenLastCalledWith("typePrefix", new Set(["Activity_1"]));
+        expect(elementIds.propose).toHaveBeenLastCalledWith(new Set(["Activity_1"]));
         expect(elementIds.initiallyUnchecked).toHaveBeenCalledTimes(1);
     });
 
@@ -126,7 +127,7 @@ describe("ElementIdReview", () => {
         act(() => bjs.querySelector<HTMLButtonElement>(".eid-primary")!.click());
         await flushMicrotasks();
 
-        expect(elementIds.rename).toHaveBeenCalledWith("typePrefix", new Set());
+        expect(elementIds.rename).toHaveBeenCalledWith(new Set());
         expect(review.isOpen()).toBe(false);
         expect(canvas.focus).toHaveBeenCalled();
     });

@@ -25,6 +25,7 @@
  * - {@link FormatDiagramQuery}            — rearrange the diagram (DI only), one undo step
  * - {@link CleanupDiagramQuery}           — report, or on confirmation remove, diagram garbage
  * - {@link GenerateElementIdsQuery}       — open the review of IDs generated from element names
+ * - {@link ElementIdConventionQuery}      — deliver the lint rule's convention for IDs generated from names
  * - {@link WorkspaceDefinitionsQuery}     — answer a definition search with matches from other models
  *
  * Commands (webview → extension host):
@@ -71,6 +72,7 @@ import type {
     DiffOrigin,
     DiffSide,
     DmnModelerSetting,
+    ElementIdConventionOptions,
     ElementIdReviewStatus,
     ElementTemplateRef,
     Engine,
@@ -987,6 +989,18 @@ export class CleanupReportCommand extends Command<"CleanupReportCommand"> {
 export class GenerateElementIdsQuery extends Query<"GenerateElementIdsQuery"> {
     constructor() {
         super("GenerateElementIdsQuery");
+    }
+}
+
+/**
+ * Host → webview: the options the document's lint config gives the rule
+ * `@miragon/rules/element-id-naming`, so IDs generated from names follow it.
+ * Empty options mean the rule's Miragon defaults. Sent whenever the lint
+ * config is read and the options changed.
+ */
+export class ElementIdConventionQuery extends Query<"ElementIdConventionQuery"> {
+    constructor(public readonly options: ElementIdConventionOptions) {
+        super("ElementIdConventionQuery");
     }
 }
 

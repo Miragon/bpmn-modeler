@@ -1,5 +1,3 @@
-import type { ElementIdStyle } from "./elementIds";
-
 /** Follow the host's theme, or keep the modeler light. */
 export type ColorThemeSetting = "automatic" | "light";
 
@@ -16,8 +14,6 @@ export interface BpmnModelerSetting {
     readonly colorTheme: ColorThemeSetting;
     // BPMN type strings to pin at the top of the append menu palette (max 6).
     readonly favouriteBpmnElements?: string[];
-    /** Spelling of IDs generated from names; `typePrefix` when absent. */
-    readonly elementIdStyle?: ElementIdStyle;
     /** Rename a still-generated ID whenever its element's name or type changes; off when absent. */
     readonly elementIdsFollowName?: boolean;
 }

@@ -1,11 +1,8 @@
 import {
     COLOR_THEMES,
     ColorThemeSetting,
-    DEFAULT_ELEMENT_ID_STYLE,
     DEFAULT_ELEMENT_IDS_FOLLOW_NAME,
     DEFAULT_FORM_PREVIEW_AUTOMATIC,
-    ELEMENT_ID_STYLES,
-    ElementIdStyle,
     SURFACE_MODES,
     SurfaceMode,
 } from "@miragon/bpmn-modeler-types";
@@ -55,7 +52,6 @@ export interface ModelerSettingsSnapshot {
     scriptingSpin: boolean;
     lintingEnabled: boolean;
     formPreviewAutomatic: boolean;
-    elementIdStyle: ElementIdStyle;
     elementIdsFollowName: boolean;
     marketplaces: MarketplaceSettingsEntry[];
 }
@@ -73,7 +69,6 @@ const SETTING_KEY_OF_SNAPSHOT_KEY = {
     scriptingSpin: "scripting.spin",
     lintingEnabled: "linting.enabled",
     formPreviewAutomatic: "formPreview.automatic",
-    elementIdStyle: "elementIds.style",
     elementIdsFollowName: "elementIds.followName",
     marketplaces: "marketplaces",
 } as const satisfies Record<keyof ModelerSettingsSnapshot, string>;
@@ -119,7 +114,6 @@ export const DEFAULT_MODELER_SETTINGS: FrozenModelerSettings = Object.freeze({
     scriptingSpin: true,
     lintingEnabled: true,
     formPreviewAutomatic: DEFAULT_FORM_PREVIEW_AUTOMATIC,
-    elementIdStyle: DEFAULT_ELEMENT_ID_STYLE,
     elementIdsFollowName: DEFAULT_ELEMENT_IDS_FOLLOW_NAME,
     marketplaces: Object.freeze([]),
 });
@@ -145,7 +139,6 @@ const SETTING_PARSERS: {
     scriptingSpin: (raw) => booleanOr(raw, DEFAULT_MODELER_SETTINGS.scriptingSpin),
     lintingEnabled: (raw) => booleanOr(raw, DEFAULT_MODELER_SETTINGS.lintingEnabled),
     formPreviewAutomatic: (raw) => booleanOr(raw, DEFAULT_MODELER_SETTINGS.formPreviewAutomatic),
-    elementIdStyle: (raw) => oneOf(raw, ELEMENT_ID_STYLES, DEFAULT_MODELER_SETTINGS.elementIdStyle),
     elementIdsFollowName: (raw) => booleanOr(raw, DEFAULT_MODELER_SETTINGS.elementIdsFollowName),
     // Each entry is validated where it becomes a registration.
     marketplaces: (raw) => (Array.isArray(raw) ? raw : []),
@@ -179,7 +172,6 @@ export function normalizeSettings(raw: RawModelerSettings): ModelerSettingsSnaps
         scriptingSpin: parseSetting("scriptingSpin", raw.scriptingSpin),
         lintingEnabled: parseSetting("lintingEnabled", raw.lintingEnabled),
         formPreviewAutomatic: parseSetting("formPreviewAutomatic", raw.formPreviewAutomatic),
-        elementIdStyle: parseSetting("elementIdStyle", raw.elementIdStyle),
         elementIdsFollowName: parseSetting("elementIdsFollowName", raw.elementIdsFollowName),
         marketplaces: parseSetting("marketplaces", raw.marketplaces),
     };

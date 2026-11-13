@@ -1,6 +1,5 @@
-import type { ElementIdStyle } from "@miragon/bpmn-modeler-types";
-
-import { idSuffixOf, localType } from "./elementKinds";
+import type { ModdleElementLike } from "./candidates";
+import type { IdConvention } from "./convention";
 
 // Letters NFD does not take apart, spelled the way German and Nordic users would write them in ASCII.
 const TRANSLITERATIONS: Readonly<Record<string, string>> = {
@@ -36,8 +35,6 @@ function nameWords(name: string): string[] {
         .filter((word) => word !== "");
 }
 
-const capitalize = (word: string) => word.charAt(0).toUpperCase() + word.slice(1);
-
 /** `orderID` → `order`, `ID`; `IDNumber` → `ID`, `Number`. */
 const humps = (word: string) =>
     word
@@ -45,24 +42,52 @@ const humps = (word: string) =>
         .replace(/([A-Z])([A-Z][a-z])/g, "$1 $2")
         .split(" ");
 
-const snake = (words: readonly string[]) => words.flatMap(humps).join("_").toLowerCase();
+const capitalize = (part: string) => part.charAt(0).toUpperCase() + part.slice(1);
 
-const SPELLINGS: Readonly<Record<ElementIdStyle, (words: string[], bpmnType: string) => string>> = {
-    typePrefix: (words, bpmnType) => `${localType(bpmnType)}_${words.map(capitalize).join("")}`,
-    typeSuffix: (words, bpmnType) => {
-        const pascal = words.map(capitalize).join("");
-        // An ID may not start with a digit; the plugin masks one with an `N`.
-        return `${/^\d/.test(pascal) ? "N" : ""}${pascal}${idSuffixOf(bpmnType)}`;
-    },
-    snakeCase: (words, bpmnType) => `${snake([localType(bpmnType)])}_${snake(words)}`,
+// `any` accepts every shape, so it is spelled as the rule's default, camelCase.
+const CASE_SPELLINGS: Readonly<Record<string, (parts: readonly string[]) => string>> = {
+    "camelCase": (parts) =>
+        parts.map((part, index) => (index === 0 ? part : capitalize(part))).join(""),
+    "PascalCase": (parts) => parts.map(capitalize).join(""),
+    "snake_case": (parts) => parts.join("_"),
+    "kebab-case": (parts) => parts.join("-"),
 };
+
+const COUNTER_SEPARATORS: Readonly<Record<string, string>> = {
+    "snake_case": "_",
+    "kebab-case": "-",
+};
+
+/** What joins a counter to a name so the name stays in its case: `checkOrder2`, `check_order_2`. */
+export function counterSeparatorOf(convention: IdConvention): string {
+    return COUNTER_SEPARATORS[convention.case.label] ?? "";
+}
+
+/** Masks a leading digit the case or an XML ID forbids, as the Camunda plugin does with `N`. */
+const digitMask = (convention: IdConvention) =>
+    convention.case.label === "PascalCase" ? "N" : "n";
+
+function nameInCase(name: string, convention: IdConvention): string | undefined {
+    const parts = nameWords(name)
+        .flatMap(humps)
+        .map((part) => part.toLowerCase());
+    if (parts.length === 0) {
+        return undefined;
+    }
+    const spelled = (CASE_SPELLINGS[convention.case.label] ?? CASE_SPELLINGS.camelCase)(parts);
+    return convention.case.pattern.test(spelled) ? spelled : `${digitMask(convention)}${spelled}`;
+}
 
 /** The ID an element of this type and name gets, or none when no letter or digit survives. */
 export function technicalIdFor(
     name: string,
-    bpmnType: string,
-    style: ElementIdStyle,
+    element: ModdleElementLike,
+    convention: IdConvention,
 ): string | undefined {
-    const words = nameWords(name);
-    return words.length === 0 ? undefined : SPELLINGS[style](words, bpmnType);
+    const spelled = nameInCase(name, convention);
+    if (spelled === undefined) {
+        return undefined;
+    }
+    const id = `${convention.prefixesFor(element)[0] ?? ""}${spelled}`;
+    return /^\d/.test(id) ? `${digitMask(convention)}${id}` : id;
 }

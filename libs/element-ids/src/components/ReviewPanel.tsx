@@ -1,4 +1,3 @@
-import { ELEMENT_ID_STYLES, type ElementIdStyle } from "@miragon/bpmn-modeler-types";
 import type { ComponentChildren } from "preact";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 
@@ -8,26 +7,16 @@ import type { Translate } from "../translate";
 import { iconClassOf } from "../typeIcons";
 
 export interface ReviewPanelProps {
-    readonly initialStyle: ElementIdStyle;
     /** The rows that start unchecked; later changes to it are ignored. */
     readonly initialUnchecked: ReadonlySet<string>;
     /** Bumped on every diagram change, so the proposals follow edits made while the panel is open. */
     readonly revision: number;
-    readonly propose: (
-        style: ElementIdStyle,
-        unchecked: ReadonlySet<string>,
-    ) => ElementIdProposal[];
-    readonly onApply: (style: ElementIdStyle, unchecked: ReadonlySet<string>) => void;
+    readonly propose: (unchecked: ReadonlySet<string>) => ElementIdProposal[];
+    readonly onApply: (unchecked: ReadonlySet<string>) => void;
     readonly onClose: () => void;
     readonly onReveal: (proposal: ElementIdProposal) => void;
     readonly translate: Translate;
 }
-
-const STYLE_EXAMPLES: Readonly<Record<ElementIdStyle, string>> = {
-    typePrefix: "UserTask_ProcessData",
-    typeSuffix: "ProcessDataTask",
-    snakeCase: "user_task_process_data",
-};
 
 const GROUPS: readonly { readonly kind: ElementKind; readonly label: string }[] = [
     { kind: "process", label: "Processes" },
@@ -98,17 +87,13 @@ function GroupCheckbox({
  */
 export function ReviewPanel(props: ReviewPanelProps) {
     const { revision, propose, onApply, onClose, onReveal, translate } = props;
-    const [style, setStyle] = useState(props.initialStyle);
     const [unchecked, setUnchecked] = useState(props.initialUnchecked);
     const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set([MATCHES, SKIPPED]));
     const root = useRef<HTMLElement>(null);
     const firstAction = useRef<HTMLButtonElement>(null);
 
     // `revision` is a dependency on purpose: the diagram changed under the same inputs.
-    const proposals = useMemo(
-        () => propose(style, unchecked),
-        [propose, style, unchecked, revision],
-    );
+    const proposals = useMemo(() => propose(unchecked), [propose, unchecked, revision]);
     const changing = proposals.filter((p) => p.status === "rename" || p.status === "unchecked");
     const renamed = changing.filter((p) => p.status === "rename").length;
     const matches = proposals.filter((p) => p.status === "matches");
@@ -245,29 +230,12 @@ export function ReviewPanel(props: ReviewPanelProps) {
                     })}
                 </span>
                 <div class="eid-tools">
-                    <select
-                        class="eid-select"
-                        aria-label={translate("ID style")}
-                        title={translate("ID style")}
-                        value={style}
-                        onChange={(event) =>
-                            setStyle(
-                                (event.currentTarget as HTMLSelectElement).value as ElementIdStyle,
-                            )
-                        }
-                    >
-                        {ELEMENT_ID_STYLES.map((option) => (
-                            <option key={option} value={option}>
-                                {STYLE_EXAMPLES[option]}
-                            </option>
-                        ))}
-                    </select>
                     <button
                         ref={firstAction}
                         type="button"
                         class="eid-btn eid-primary"
                         disabled={renamed === 0}
-                        onClick={() => onApply(style, unchecked)}
+                        onClick={() => onApply(unchecked)}
                     >
                         {translate("Apply")}
                     </button>

@@ -1,3 +1,4 @@
+import { naming } from "@miragon/bpmnlint-plugin-rules";
 import { describe, expect, it } from "vitest";
 
 import type { DiagramElementLike } from "./candidates";
@@ -5,13 +6,16 @@ import type { ElementIdsService } from "./ElementIdsService";
 import { FollowNameBehavior } from "./FollowNameBehavior";
 import { labelOf, shape, type FakeElement } from "./__fixtures__/diagram";
 
+const miragon = new naming.ElementIdConvention();
+
 type Listener = (event: { context: Record<string, unknown> }) => void;
 
 function setUp(followName: boolean) {
     const listeners = new Map<string, Listener>();
     const renamed: string[] = [];
     const elementIds = {
-        getSettings: () => ({ style: "typePrefix" as const, followName }),
+        getSettings: () => ({ followName }),
+        getConvention: () => miragon,
         renameFromName: (element: DiagramElementLike) => {
             renamed.push(element.id);
             return true;
@@ -54,12 +58,12 @@ describe("FollowNameBehavior", () => {
         const { fire, renamed } = setUp(true);
 
         fire("element.updateProperties", {
-            element: shape("bpmn:Task", "Task_CheckStock", "Check inventory"),
+            element: shape("bpmn:Task", "task_checkStock", "Check inventory"),
             properties: { name: "Check inventory" },
             oldProperties: { name: "Check stock" },
         });
 
-        expect(renamed).toEqual(["Task_CheckStock"]);
+        expect(renamed).toEqual(["task_checkStock"]);
     });
 
     it("leaves a process ID when the process is renamed, since it is the deployment key", () => {
@@ -78,11 +82,11 @@ describe("FollowNameBehavior", () => {
         const { replace, renamed } = setUp(true);
 
         replace(
-            shape("bpmn:Task", "Task_CheckOrder", "Check order"),
-            shape("bpmn:ServiceTask", "Task_CheckOrder", "Check order"),
+            shape("bpmn:Task", "task_checkOrder", "Check order"),
+            shape("bpmn:ServiceTask", "task_checkOrder", "Check order"),
         );
 
-        expect(renamed).toEqual(["Task_CheckOrder"]);
+        expect(renamed).toEqual(["task_checkOrder"]);
     });
 
     it("leaves an ID someone wrote when the type changes", () => {
@@ -142,8 +146,8 @@ describe("FollowNameBehavior", () => {
 
         fire("element.updateLabel", { element: shape("bpmn:Task", "Activity_0x1y2z3", "Check") });
         replace(
-            shape("bpmn:Task", "Task_Check", "Check"),
-            shape("bpmn:ServiceTask", "Task_Check", "Check"),
+            shape("bpmn:Task", "task_check", "Check"),
+            shape("bpmn:ServiceTask", "task_check", "Check"),
         );
 
         expect(renamed).toEqual([]);

@@ -1,9 +1,16 @@
-import type { ClipboardOptions, ModelerCapabilities, ModelerMode } from "@miragon/bpmn-modeler";
+import type {
+    BpmnModelerHandle,
+    ClipboardOptions,
+    ModelerCapabilities,
+    ModelerMode,
+} from "@miragon/bpmn-modeler";
 import type { SurfaceFactories } from "@miragon/bpmn-modeler/mode";
 import { LogWarningCommand, ShowInfoCommand } from "@miragon/bpmn-modeler-shared";
+import type { ElementIdConventionOptions } from "@miragon/bpmn-modeler-types";
 
 import { elementTemplateRejectionReport } from "../../domain/elementTemplateRejectionReport";
 import { elementIdSettingsOf, type HostModelerState } from "../../domain/hostModelerState";
+import { loadElementIdConvention } from "./elementIdConvention";
 import { loadDesignerModule, loadModelerModule, loadViewerModule } from "./surfaceModules";
 import type { HostChannel } from "../../port/hostChannel";
 import type { LintBridge } from "./lintBridge";
@@ -23,7 +30,10 @@ interface SurfaceFactoryPorts {
     lintBridge: Pick<LintBridge, "surfaceOptions">;
     hostModelerState: Pick<
         HostModelerState,
-        "settings" | "applySettingsPushedSince" | "applyDesignerSettingsPushedSince"
+        | "settings"
+        | "applySettingsPushedSince"
+        | "applyDesignerSettingsPushedSince"
+        | "elementIdConventionOptions"
     >;
     onModelerModeChanged(mode: ModelerMode): void;
 }
@@ -51,6 +61,16 @@ export function createSurfaceFactories(
 
     const pluginsLoaded = ports.plugins ?? Promise.resolve(NO_PLUGINS);
 
+    async function applyConventionPushedSince(
+        builtWith: ElementIdConventionOptions | undefined,
+        surface: Pick<BpmnModelerHandle, "setElementIdSettings">,
+    ): Promise<void> {
+        const latest = hostModelerState.elementIdConventionOptions;
+        if (latest !== builtWith) {
+            surface.setElementIdSettings({ convention: await loadElementIdConvention(latest) });
+        }
+    }
+
     return {
         view: async ({ container, theme }) => {
             const { createViewer } = await loadViewerModule();
@@ -62,17 +82,19 @@ export function createSurfaceFactories(
             });
         },
         design: async ({ container, theme }) => {
-            const [{ createDesigner }, linting, plugins] = await Promise.all([
+            const conventionAtCreation = hostModelerState.elementIdConventionOptions;
+            const [{ createDesigner }, linting, plugins, convention] = await Promise.all([
                 loadDesignerModule(),
                 ports.lintBridge.surfaceOptions(),
                 pluginsLoaded,
+                loadElementIdConvention(conventionAtCreation),
             ]);
             const settingsAtCreation = hostModelerState.settings;
             const designer = await plugins.build(undefined, (pluginModules) =>
                 createDesigner(container, {
                     theme,
                     favouriteBpmnElements: settingsAtCreation?.favouriteBpmnElements,
-                    elementIdSettings: elementIdSettingsOf(settingsAtCreation),
+                    elementIdSettings: { ...elementIdSettingsOf(settingsAtCreation), convention },
                     propertiesPanel: { parent: propertiesPanelParent },
                     clipboard: ports.clipboard,
                     capabilities: {
@@ -86,6 +108,7 @@ export function createSurfaceFactories(
             );
             // A push during the async init only reached the previous surface.
             hostModelerState.applyDesignerSettingsPushedSince(settingsAtCreation, designer);
+            await applyConventionPushedSince(conventionAtCreation, designer);
             return designer;
         },
         implement: async ({ container, theme, mode, engine }) => {
@@ -94,10 +117,12 @@ export function createSurfaceFactories(
                 // and createModeler's `engine` must not be faked.
                 throw new Error("implement surface requires a tagged model");
             }
-            const [{ createModeler }, linting, plugins] = await Promise.all([
+            const conventionAtCreation = hostModelerState.elementIdConventionOptions;
+            const [{ createModeler }, linting, plugins, convention] = await Promise.all([
                 loadModelerModule(),
                 ports.lintBridge.surfaceOptions(),
                 pluginsLoaded,
+                loadElementIdConvention(conventionAtCreation),
             ]);
             const settingsAtCreation = hostModelerState.settings;
             // A tagged model keeps one instance across Design and Implement, so
@@ -123,8 +148,10 @@ export function createSurfaceFactories(
                     handleGlobalEscape: true,
                 }),
             );
+            modeler.setElementIdSettings({ convention });
             // A push during the async init only reached the previous surface.
             hostModelerState.applySettingsPushedSince(settingsAtCreation, modeler);
+            await applyConventionPushedSince(conventionAtCreation, modeler);
             return modeler;
         },
     };

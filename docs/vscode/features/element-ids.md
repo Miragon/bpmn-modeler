@@ -1,6 +1,6 @@
 # IDs from names
 
-Turn random IDs like `Activity_0x1y2z3` into IDs that read like the element's type and name, such as `ServiceTask_CheckStock`, for one element or the whole diagram.
+Turn random IDs like `Activity_0x1y2z3` into IDs that read like the element's type and name, such as `serviceTask_checkStock`, for one element or the whole diagram.
 
 <figure class="shot"><img src="./images/ei-review.png" alt="The order fulfilment diagram with the panel Generate IDs from names along the bottom of the canvas: 11 of 11 IDs will change, grouped into Processes, Activities, Events and Gateways, each row with its current ID struck through next to the new one, such as Activity_1x9f2ab next to ServiceTask_CheckStock, and the second Notify customer marked same name as another element"><figcaption>The review lists every ID a name would change; one Apply renames them all.</figcaption></figure>
 
@@ -16,9 +16,8 @@ Turn random IDs like `Activity_0x1y2z3` into IDs that read like the element's ty
 | Part of the panel | What it shows |
 |---|---|
 | Summary | How many IDs will change. |
-| ID style | The spelling for this run. It starts at `miragon.bpmnModeler.elementIds.style`. |
 | Groups | Processes, pools, lanes, activities, events, gateways, flows and other elements. A group's checkbox ticks or unticks all its rows. |
-| *same name as another element* | Two elements share a name and would get the same ID, so this one gets a counter, such as `SendTask_NotifyCustomer_2`. |
+| *same name as another element* | Two elements share a name and would get the same ID, so this one gets a counter, such as `sendTask_notifyCustomer2`. |
 | Already match | Elements whose ID already follows their name, with or without a counter. They keep their ID. |
 | No name, skipped | Elements without a name, or with a name that has no letter or digit to build an ID from. |
 
@@ -30,16 +29,39 @@ Select an element. Under its **ID** field in the properties panel, **Generate fr
 
 ## How IDs are spelled
 
-| `miragon.bpmnModeler.elementIds.style` | *Process data* (user task) | *Payment received* (start event) | *10 days* (boundary timer event) |
-|---|---|---|---|
-| `typePrefix` (default) | `UserTask_ProcessData` | `StartEvent_PaymentReceived` | `BoundaryEvent_10Days` |
-| `typeSuffix` | `ProcessDataTask` | `PaymentReceivedStartEvent` | `N10DaysBoundaryEvent` |
-| `snakeCase` | `user_task_process_data` | `start_event_payment_received` | `boundary_event_10_days` |
+IDs follow the bpmnlint rule [`@miragon/rules/element-id-naming`](https://github.com/Miragon/bpmnlint-rules/blob/main/docs/rules/element-id-naming.md), so a generated ID never breaks it, whether or not linting is on. Without a configuration the rule's Miragon convention applies: the element's type in camelCase, an underscore, then the name in camelCase.
 
-- `typePrefix` and `snakeCase` start with the element's own type, such as `ServiceTask_`, `StartEvent_`, `ExclusiveGateway_`, `SequenceFlow_`, `Process_` or `Participant_`, so the ID says what the element is. After you turn a task into a service task, its ID `Task_CheckStock` no longer follows: the review and **Generate from name** offer `ServiceTask_CheckStock`.
-- `typeSuffix` spells IDs the way the Camunda Modeler plugin [rename-technical-ids](https://github.com/camunda-community-hub/camunda-modeler-plugin-rename-technical-ids) does, so a model that plugin renamed already matches.
-- `ä`, `ö`, `ü` become `ae`, `oe`, `ue`, and `ß` becomes `ss`; other accents are dropped (`Café` becomes `Cafe`). Punctuation separates words, apostrophes do not. A name in a script other than Latin has nothing to build an ID from and is skipped.
-- A pool's process takes its own name, or the pool's name when it has none: the pool *Order handling* gives `Participant_OrderHandling` and `Process_OrderHandling`.
+| Element | Name | ID |
+|---|---|---|
+| User task | *Process data* | `userTask_processData` |
+| Service task | *Check stock* | `serviceTask_checkStock` |
+| Start event | *Payment received* | `startEvent_paymentReceived` |
+| Boundary or intermediate event | *10 days* | `event_n10Days` |
+| Gateway of any kind | *Order valid?* | `gateway_orderValid` |
+| Sequence flow | *yes* | `flow_yes` |
+| Data object | *Invoice* | `dataObject_invoice` |
+| Process | *Order fulfilment* | `orderFulfilment` |
+
+- A process ID gets no type prefix: it is the deployment key that call activities and tests name, and the rule leaves it to the business.
+- camelCase starts with a letter, so a name that starts with a digit gets an `n` in front: *10 days* becomes `event_n10Days`.
+- When your `.bpmnlintrc` configures the rule, generated IDs follow your convention, including a configuration the rule takes from a config you extend:
+
+  ```json
+  {
+    "extends": "plugin:@miragon/rules/recommended-for-automation",
+    "rules": {
+      "@miragon/rules/element-id-naming": [
+        "warn",
+        { "case": "snake_case", "prefixes": { "bpmn:SequenceFlow": "Flow_" } }
+      ]
+    }
+  }
+  ```
+
+  `prefixes` changes the prefix of a type (`false` leaves a type without one), `case` sets the case of the name (`camelCase`, `PascalCase`, `snake_case` or `kebab-case`), and `"eventDefinitionQualifier": "required"` makes an event's ID name its definition, such as `messageStartEvent_orderReceived`. A second element with the same name gets a counter in the same case: `task_notify2`, `task_notify_2`.
+- After you turn a task into a service task, its ID `task_checkStock` no longer follows: the review and **Generate from name** offer `serviceTask_checkStock`.
+- `ä`, `ö`, `ü` become `ae`, `oe`, `ue`, and `ß` becomes `ss`; other accents are dropped (`Café` becomes `cafe`). Punctuation separates words, apostrophes do not. A name in a script other than Latin has nothing to build an ID from and is skipped.
+- A pool's process takes its own name, or the pool's name when it has none: the pool *Order handling* gives `participant_orderHandling` and `orderHandling`.
 - An ID in the diagram interchange that follows the element's ID, such as `Activity_1x9f2ab_di`, follows the new ID too.
 
 ## IDs that follow names
@@ -50,10 +72,9 @@ With `miragon.bpmnModeler.elementIds.followName` on, an element's ID changes as 
 
 | Setting | Default | What it does |
 |---|---|---|
-| `miragon.bpmnModeler.elementIds.style` | `typePrefix` | How generated IDs are spelled (see above). |
 | `miragon.bpmnModeler.elementIds.followName` | `false` | Rename an ID along with its element's name and type, as described above. |
 
-Both can be set per workspace, so a repository can share its ID convention in `.vscode/settings.json`.
+It can be set per workspace, in `.vscode/settings.json`. The spelling has no setting: it comes from the lint rule (see above).
 
 ## Limits
 
@@ -63,7 +84,7 @@ Both can be set per workspace, so a repository can share its ID convention in `.
 
 ## IntelliJ
 
-The same review opens from **Tools ▸ Miragon BPMN Modeler ▸ Generate IDs from Names**. The links under the ID field are the same. The two settings are under **Settings ▸ Tools ▸ Miragon BPMN Modeler** as **ID style** and **IDs follow names**, for all your projects.
+The same review opens from **Tools ▸ Miragon BPMN Modeler ▸ Generate IDs from Names**. The links under the ID field are the same. The setting is under **Settings ▸ Tools ▸ Miragon BPMN Modeler** as **IDs follow names**, for all your projects.
 
 ## Next steps
 

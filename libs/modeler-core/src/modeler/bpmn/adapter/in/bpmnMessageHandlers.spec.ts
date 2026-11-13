@@ -145,8 +145,8 @@ describe("a rejecting service promise propagates through the handler", () => {
         await expect(getElementTemplatesHandler(svc as never)(ANY, EDITOR)).rejects.toThrow(boom);
     });
 
-    it("getBpmnlintConfigHandler rejects when setBpmnlintConfig rejects", async () => {
-        const svc = { setBpmnlintConfig: vi.fn().mockRejectedValue(boom) };
+    it("getBpmnlintConfigHandler rejects when answering the lint config request rejects", async () => {
+        const svc = { answerLintConfigRequest: vi.fn().mockRejectedValue(boom) };
         await expect(getBpmnlintConfigHandler(svc as never)(ANY, EDITOR)).rejects.toThrow(boom);
     });
 

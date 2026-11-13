@@ -44,7 +44,12 @@ vi.mock("../adapter/out/surfaceModules", () => ({
     loadModelerModule: vi.fn(async () => ({ createModeler: mocks.createModeler })),
     loadViewerModule: vi.fn(async () => ({ createViewer: mocks.createViewer })),
     loadDesignerModule: vi.fn(async () => ({ createDesigner: mocks.createDesigner })),
-    loadLintModule: vi.fn(async () => ({})),
+    loadLintModule: vi.fn(async () => ({
+        createElementIdConvention: () => ({
+            prefixesFor: () => [],
+            case: { label: "", pattern: /./ },
+        }),
+    })),
     prefetchSurfaceModules: mocks.prefetchSurfaceModules,
 }));
 
@@ -194,6 +199,7 @@ function makeModeler(overrides: Record<string, unknown> = {}) {
         setElementTemplates: vi.fn(),
         setHiddenElementTemplates: vi.fn(),
         setSettings: vi.fn(),
+        setElementIdSettings: vi.fn(),
         setTheme: vi.fn(),
         setMode: vi.fn(),
         getMode: vi.fn(() => "implement"),
@@ -246,6 +252,7 @@ function makeDesigner() {
         onFormatted: vi.fn(() => () => undefined),
         getDiagramSvg: vi.fn(),
         setFavouriteBpmnElements: vi.fn(),
+        setElementIdSettings: vi.fn(),
         captureViewState: vi.fn(() => ({})),
         applyViewState: vi.fn(),
         setTheme: vi.fn(),
