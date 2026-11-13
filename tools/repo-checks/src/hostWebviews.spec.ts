@@ -17,6 +17,7 @@ import {
  * Only the host builds decide which webviews ship; every other list of a
  * host's webviews must agree with them, or a webview fix misses a release line,
  * a publish job installs or builds the wrong set, or a test skips a change.
+ * A publish job's focused install must also name only existing workspaces.
  */
 const REPO_ROOT = normalize(join(__dirname, "../../.."));
 
@@ -57,11 +58,11 @@ const rootManifest = JSON.parse(readRepoFile("package.json").text) as {
 };
 const markerWorkflow = readWorkflow("sync-release-markers.yml");
 
-function hostBuild(host: string, buildFilePath: string) {
+function readHostBuild(name: string, buildFilePath: string) {
     const buildFile = readRepoFile(buildFilePath);
     const folders = stagingFolders(buildFile);
     return {
-        host,
+        name,
         buildFile: buildFile.path,
         unwrittenFolders: folders.filter(
             (folder) => !webviewApps.some((app) => app.stagingFolder === folder),
@@ -72,34 +73,38 @@ function hostBuild(host: string, buildFilePath: string) {
 }
 
 const vsCode = {
-    ...hostBuild("VS Code", "apps/vscode-plugin/webpack.config.js"),
+    ...readHostBuild("VS Code", "apps/vscode-plugin/webpack.config.js"),
     markerVariable: "VSC_RELEVANT",
     publishWorkflows: ["publish-vscode-modeler.yml", "publish-open-vsx-modeler.yml"],
     // `yarn build` is also the repo-wide build, so it may build a webview another host ships.
     publishBuildsOnlyItsWebviews: false,
 };
 const intellij = {
-    ...hostBuild("IntelliJ", "apps/intellij-plugin/build.gradle.kts"),
+    ...readHostBuild("IntelliJ", "apps/intellij-plugin/build.gradle.kts"),
     markerVariable: "IJ_RELEVANT",
     publishWorkflows: ["publish-intellij.yml"],
     publishBuildsOnlyItsWebviews: true,
 };
 const hosts = [vsCode, intellij];
 
-type HostBuild = (typeof hosts)[number];
+type Host = (typeof hosts)[number];
 
-function shippedCases(hostBuilds: readonly HostBuild[]) {
+function shippedCases(selectedHosts: readonly Host[]) {
     return requireMatches(
         "webviews a host ships",
-        hostBuilds.flatMap((hostBuild) =>
-            hostBuild.shipped.map((app) => ({ ...app, hostBuild, host: hostBuild.host })),
+        selectedHosts.flatMap((selectedHost) =>
+            selectedHost.shipped.map((app) => ({
+                ...app,
+                selectedHost,
+                host: selectedHost.name,
+            })),
         ),
     );
 }
 
 function publishCases() {
     return shippedCases(hosts).flatMap((shipped) =>
-        shipped.hostBuild.publishWorkflows.map((workflow) => ({ ...shipped, workflow })),
+        shipped.selectedHost.publishWorkflows.map((workflow) => ({ ...shipped, workflow })),
     );
 }
 
@@ -116,10 +121,10 @@ function workspacesBuiltByWorkflow(workflow: SourceFile): string[] {
 }
 
 describe("the webviews each host build packages", () => {
-    it.each(hosts)("$host copies only staging folders a webview app writes", (hostBuild) => {
+    it.each(hosts)("$name copies only staging folders a webview app writes", (host) => {
         expect(
-            hostBuild.unwrittenFolders,
-            `${hostBuild.host} copies ${hostBuild.unwrittenFolders.map((folder) => `dist/webview-staging/${folder}`).join(", ")} in ${hostBuild.buildFile}, which no apps/*/vite.config.mts outDir writes`,
+            host.unwrittenFolders,
+            `${host.name} copies ${host.unwrittenFolders.map((folder) => `dist/webview-staging/${folder}`).join(", ")} in ${host.buildFile}, which no apps/*/vite.config.mts outDir writes`,
         ).toEqual([]);
     });
 });
@@ -127,34 +132,34 @@ describe("the webviews each host build packages", () => {
 describe("release markers for the webviews a host ships", () => {
     it.each(shippedCases(hosts))(
         "routes a fix in $webview to the $host release line",
-        ({ webview, host, hostBuild }) => {
+        ({ webview, host, selectedHost }) => {
             expect(
                 triggerPaths(markerWorkflow, "push"),
                 `${host} ships ${webview}, but the push paths of ${markerWorkflow.path} lack apps/${webview}/**`,
             ).toContain(`apps/${webview}/**`);
             expect(
-                workflowPattern(markerWorkflow, hostBuild.markerVariable).test(fixIn(webview)),
-                `${host} ships ${webview}, but ${hostBuild.markerVariable} in ${markerWorkflow.path} does not match ${fixIn(webview)}`,
+                workflowPattern(markerWorkflow, selectedHost.markerVariable).test(fixIn(webview)),
+                `${host} ships ${webview}, but ${selectedHost.markerVariable} in ${markerWorkflow.path} does not match ${fixIn(webview)}`,
             ).toBe(true);
         },
     );
 
-    it.each(hosts)("keeps a fix in a webview $host does not ship off its line", (hostBuild) => {
-        const pattern = workflowPattern(markerWorkflow, hostBuild.markerVariable);
-        const routed = hostBuild.notShipped
+    it.each(hosts)("keeps a fix in a webview $name does not ship off its line", (host) => {
+        const pattern = workflowPattern(markerWorkflow, host.markerVariable);
+        const routed = host.notShipped
             .map(({ webview }) => webview)
             .filter((webview) => pattern.test(fixIn(webview)));
 
         expect(
             routed,
-            `${hostBuild.host} ships no ${routed.join(", ")}, but ${hostBuild.markerVariable} in ${markerWorkflow.path} matches it`,
+            `${host.name} ships no ${routed.join(", ")}, but ${host.markerVariable} in ${markerWorkflow.path} matches it`,
         ).toEqual([]);
     });
 
     it("triggers on no webview that no host ships", () => {
         const pushPaths = triggerPaths(markerWorkflow, "push");
         const unshipped = webviewApps
-            .filter((app) => !hosts.some((hostBuild) => hostBuild.shipped.includes(app)))
+            .filter((app) => !hosts.some((host) => host.shipped.includes(app)))
             .map(({ webview }) => webview)
             .filter((webview) => pushPaths.includes(`apps/${webview}/**`));
 
@@ -185,30 +190,30 @@ describe("publish workflows for the webviews a host ships", () => {
     it.each(
         hosts
             .filter(({ publishBuildsOnlyItsWebviews }) => publishBuildsOnlyItsWebviews)
-            .flatMap((hostBuild) =>
-                hostBuild.publishWorkflows.map((workflow) => ({ ...hostBuild, workflow })),
-            ),
-    )("$workflow installs and builds no webview $host does not ship", (hostBuild) => {
-        const workflowFile = readWorkflow(hostBuild.workflow);
+            .flatMap((host) => host.publishWorkflows.map((workflow) => ({ ...host, workflow }))),
+    )("$workflow installs and builds no webview $name does not ship", (host) => {
+        const workflowFile = readWorkflow(host.workflow);
         const focused = focusedWorkspaces(workflowFile);
         const built = workspacesBuiltByWorkflow(workflowFile);
-        const focusedNotShipped = hostBuild.notShipped.filter(({ packageName }) =>
+        const focusedNotShipped = host.notShipped.filter(({ packageName }) =>
             focused.includes(packageName),
         );
-        const builtNotShipped = hostBuild.notShipped.filter(({ packageName }) =>
+        const builtNotShipped = host.notShipped.filter(({ packageName }) =>
             built.includes(packageName),
         );
 
         expect(
             focusedNotShipped,
-            `${hostBuild.host} ships no ${webviewNames(focusedNotShipped)}, but the \`yarn workspaces focus\` line of ${workflowFile.path} names it`,
+            `${host.name} ships no ${webviewNames(focusedNotShipped)}, but the \`yarn workspaces focus\` line of ${workflowFile.path} names it`,
         ).toEqual([]);
         expect(
             builtNotShipped,
-            `${hostBuild.host} ships no ${webviewNames(builtNotShipped)}, but a \`run: yarn …\` step of ${workflowFile.path} builds it`,
+            `${host.name} ships no ${webviewNames(builtNotShipped)}, but a \`run: yarn …\` step of ${workflowFile.path} builds it`,
         ).toEqual([]);
     });
+});
 
+describe("the focused installs of the publish workflows", () => {
     // A focus argument that names no workspace fails only at release time.
     it.each(hosts.flatMap(({ publishWorkflows }) => publishWorkflows))(
         "%s focuses only existing workspaces",
@@ -217,13 +222,14 @@ describe("publish workflows for the webviews a host ships", () => {
                 rootManifest.name,
                 ...workspaces.map(({ name }) => name),
             ]);
-            const unknown = focusedWorkspaces(readWorkflow(workflow)).filter(
+            const workflowFile = readWorkflow(workflow);
+            const unknown = focusedWorkspaces(workflowFile).filter(
                 (name) => !workspaceNames.has(name),
             );
 
             expect(
                 unknown,
-                `the \`yarn workspaces focus\` line of .github/workflows/${workflow} names ${unknown.join(", ")}, which is no workspace`,
+                `the \`yarn workspaces focus\` line of ${workflowFile.path} names ${unknown.join(", ")}, which is no workspace`,
             ).toEqual([]);
         },
     );

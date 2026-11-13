@@ -80,7 +80,12 @@ copy, mapped to apps through their Vite `outDir`) and fails when the trigger
 paths or a host's routing pattern misses one of them, or when a pattern
 matches a webview that host does not ship. It also checks the publish
 workflows' focused installs and build steps, the root `intellij:build` script
-and the VS Code smoke and e2e triggers against the same lists.
+and the VS Code smoke and e2e triggers against the same lists. The publish
+checks run both ways only for IntelliJ: VS Code publishes with `yarn build`,
+the repo-wide build, so its focus line and build may name a webview only
+another host ships. The spec also fails when a publish workflow's focus line
+names a package that is no workspace, which otherwise surfaces only at release
+time.
 
 Keeping VS Code as root would leave the npm package's inlined-library changes
 under-versioned and could major-release VS Code for package-only breaks.

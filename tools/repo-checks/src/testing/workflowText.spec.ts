@@ -31,7 +31,7 @@ jobs:
       - run: corepack yarn workspace @scope/two build
       - name: Many lines
         run: |
-          yarn build:ignored
+          echo "no yarn here"
   e2e:
     needs: detect-changes
     if: >-
@@ -40,12 +40,18 @@ jobs:
     steps:
       - run: |
           SHARED='^libs/shared/'
-          RELEVANT="^apps/(one|two)/|\${SHARED}"
+          EXTRA='^apps/extra/'
+          RELEVANT="^apps/(one|two)/|\${SHARED}|\${EXTRA}"
+          LITERAL='^apps/\${SHARED}'
   other:
     if: always()
 `,
 };
 const empty = { path: ".github/workflows/empty.yml", text: "on: {}\n" };
+
+function workflowWith(text: string) {
+    return { path: ".github/workflows/other.yml", text };
+}
 
 describe("workflow parsers", () => {
     it("read the trigger paths of one event", () => {
@@ -53,10 +59,67 @@ describe("workflow parsers", () => {
         expect(triggerPaths(workflow, "pull_request")).toEqual(["apps/two/**"]);
     });
 
-    it("expand a shell variable a double-quoted pattern names", () => {
+    it("read commented, double-quoted and bare trigger paths", () => {
+        const commented = workflowWith(`on:
+  pull_request:
+    paths:
+      - 'apps/one/**'
+      # The webviews it bundles.
+      - "apps/two/**"
+
+      - apps/three/** # bare
+  schedule:
+    - cron: '23 4 * * 1'
+`);
+
+        expect(triggerPaths(commented, "pull_request")).toEqual([
+            "apps/one/**",
+            "apps/two/**",
+            "apps/three/**",
+        ]);
+    });
+
+    it("fails on a trigger path line it cannot read", () => {
+        const unreadable = workflowWith(`on:
+  push:
+    paths:
+      - 'apps/one/**'
+      [apps/two/**]
+`);
+
+        expect(() => triggerPaths(unreadable, "push")).toThrow(
+            ".github/workflows/other.yml: cannot read the push path line `      [apps/two/**]`",
+        );
+    });
+
+    it("expand every shell variable a double-quoted pattern names", () => {
         expect(workflowAssignment(workflow, "SHARED")).toBe("^libs/shared/");
         expect(workflowPattern(workflow, "RELEVANT").test("libs/shared/src/x.ts")).toBe(true);
+        expect(workflowPattern(workflow, "RELEVANT").test("apps/extra/src/x.ts")).toBe(true);
         expect(workflowPattern(workflow, "RELEVANT").test("apps/three/src/x.ts")).toBe(false);
+    });
+
+    it("leave a single-quoted pattern unexpanded, as the shell does", () => {
+        expect(workflowPattern(workflow, "LITERAL").source).toBe("^apps\\/${SHARED}");
+    });
+
+    it.each([
+        ["|", "yarn build:extra"],
+        [">-", "corepack yarn workspace @scope/extra build"],
+    ])("fail on a yarn command folded into a run: %s block", (indicator, command) => {
+        const mixed = workflowWith(`jobs:
+  publish:
+    steps:
+      - run: yarn workspaces focus root
+      - run: yarn build:one
+      - run: ${indicator}
+          echo building
+          ${command}
+`);
+        const message = `.github/workflows/other.yml runs \`${command}\` in a \`run: ${indicator}\` block; give it a one-line \`run:\``;
+
+        expect(() => focusedWorkspaces(mixed)).toThrow(message);
+        expect(() => yarnRunSteps(mixed)).toThrow(message);
     });
 
     it("read the focused workspaces and the one-line yarn steps", () => {

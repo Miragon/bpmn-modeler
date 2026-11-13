@@ -1,3 +1,4 @@
+import type { SourceFile } from "@miragon/architecture-testing";
 import { readFileSync } from "node:fs";
 import { join, normalize } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -6,14 +7,11 @@ import { triggerPaths, workflowPattern } from "./testing/workflowText";
 
 const REPO_ROOT = normalize(join(__dirname, "../../.."));
 
-function readRepoFile(path: string): string {
-    return readFileSync(join(REPO_ROOT, path), "utf8");
+function readRepoFile(path: string): SourceFile {
+    return { path, text: readFileSync(join(REPO_ROOT, path), "utf8") };
 }
 
-const markerWorkflow = {
-    path: ".github/workflows/sync-release-markers.yml",
-    text: readRepoFile(".github/workflows/sync-release-markers.yml"),
-};
+const markerWorkflow = readRepoFile(".github/workflows/sync-release-markers.yml");
 
 const pushTriggerPaths = triggerPaths(markerWorkflow, "push");
 
@@ -28,7 +26,7 @@ function libraryDirectories(sourceRoots: string[]): string[] {
 }
 
 const bpmnInlinedSourceRoots = (
-    JSON.parse(readRepoFile("packages/bpmn-modeler/inlined-libraries.json")) as {
+    JSON.parse(readRepoFile("packages/bpmn-modeler/inlined-libraries.json").text) as {
         sourceRoot: string;
     }[]
 ).map((library) => library.sourceRoot);
@@ -37,7 +35,7 @@ const bpmnInlinedLibraries = libraryDirectories(bpmnInlinedSourceRoots);
 
 const dmnInlinedSourceRoots =
     /INLINED_LIB_SRC = \[([^\]]*)\]/.exec(
-        readRepoFile("packages/dmn-modeler/vite.config.mts"),
+        readRepoFile("packages/dmn-modeler/vite.config.mts").text,
     )?.[1] ?? "";
 
 const dmnInlinedLibraries = libraryDirectories(
