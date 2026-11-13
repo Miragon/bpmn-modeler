@@ -230,6 +230,37 @@ describe("DiffController.resolveDiffPane", () => {
     });
 });
 
+describe("DiffController.resolveWhenDiffPane", () => {
+    it("takes a diff pane over from the editor and bootstraps it", () => {
+        const { controller, store } = createController();
+        store.registerCompareFiles("file:///a.bpmn", "file:///b.bpmn");
+        const { resolveWhenDiffPane } = controller;
+
+        const handled = resolveWhenDiffPane(
+            fakeDoc("file", "/a.bpmn", "file:///a.bpmn"),
+            fakePanel().panel,
+        );
+
+        expect(handled).toBe(true);
+        expect(store.hasPaneForUri("file:///a.bpmn")).toBe(true);
+        expect(bootstrapSpy).toHaveBeenCalled();
+    });
+
+    it("leaves a file outside any diff to the editor", () => {
+        const { controller, store } = createController();
+        const { resolveWhenDiffPane } = controller;
+
+        const handled = resolveWhenDiffPane(
+            fakeDoc("file", "/c.bpmn", "file:///c.bpmn"),
+            fakePanel().panel,
+        );
+
+        expect(handled).toBe(false);
+        expect(store.hasPaneForUri("file:///c.bpmn")).toBe(false);
+        expect(bootstrapSpy).not.toHaveBeenCalled();
+    });
+});
+
 describe("DiffController message dispatch", () => {
     /** Resolves a pane and returns the captured webview message handler. */
     function paneWithMessageHandler() {

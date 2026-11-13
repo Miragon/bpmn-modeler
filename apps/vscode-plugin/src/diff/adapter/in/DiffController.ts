@@ -167,6 +167,19 @@ export class DiffController {
     }
 
     /**
+     * Resolves `panel` as a diff pane when its document belongs to a diff, so
+     * the editor opens no session for it. An arrow property, so it keeps `this`
+     * when handed over as a callback.
+     */
+    readonly resolveWhenDiffPane = (document: TextDocument, panel: WebviewPanel): boolean => {
+        if (!this.shouldResolveAsDiff(document.uri)) {
+            return false;
+        }
+        this.resolveDiffPane(panel, document);
+        return true;
+    };
+
+    /**
      * Bootstraps a freshly-resolved diff pane.
      *
      * Resolution paths:
