@@ -12,7 +12,7 @@ import {
     reduceLintSession,
     UNTRACKED_LINT_SESSION,
 } from "./LintSession";
-// Spec-only relative import, as in lintParity.spec.ts: no workspace depends on both halves.
+// Spec-only relative import: no workspace may depend on both halves of the protocol.
 import {
     type LintTierEvent,
     type LintTierState,
@@ -22,11 +22,9 @@ import {
 } from "../../../../../../packages/bpmn-modeler/src/bpmnlint/lintTierMachine";
 
 /**
- * Feeds the same message sequences to the core's {@link reduceLintSession} and
- * the webview's `reduceLintTier`, wired the way `BpmnLintConfigService` posts
- * its actions and the webview's lint bridge turns them into tier events.
- * Whenever no message is in flight, both must agree on who lints in the page
- * and the core must take the webview's next run under the token it echoes.
+ * `deliver` mirrors how the host posts each core action and the webview turns
+ * the message into a tier event. While a host lint or a webview request is in
+ * flight the page keeps its tier by design, so only settled steps are checked.
  */
 
 function version(config: BpmnlintConfig, configPath = "/work/.bpmnlintrc"): LintConfigVersion {
@@ -140,7 +138,11 @@ function coreEventOf(decision: HostDecision): LintSessionEvent {
         case "noConfig":
             return { type: "noConfigFound" };
         case "config":
-            return { type: "configRead", version: decision.version, freshToken: decision.freshToken };
+            return {
+                type: "configRead",
+                version: decision.version,
+                freshToken: decision.freshToken,
+            };
         case "configFails":
             return { type: "configFailed" };
         case "lintingOff":
@@ -170,7 +172,11 @@ function advance(protocol: Protocol, step: Step): Protocol {
                 { type: "hostLintFailed", token: hostLintInFlight(protocol) },
             );
         case "staleHostLintFinishes":
-            return toCore(protocol, { type: "hostLintFinished", token: step.token, output: OUTPUT });
+            return toCore(protocol, {
+                type: "hostLintFinished",
+                token: step.token,
+                output: OUTPUT,
+            });
         case "webviewLints":
             if (!webviewLintsInPage(protocol.webview)) return protocol;
             return toCore(protocol, webviewRun(protocol.echoedToken, step.unresolved));
@@ -325,7 +331,12 @@ const ROWS: AgreementRow[] = [
     },
     {
         behaviour: "hands a covered config to the host once an in-page run skipped rules",
-        steps: [config(COVERED, "t1"), webviewLints(SKIPPED_RULES), webviewLints(), hostLintFinishes],
+        steps: [
+            config(COVERED, "t1"),
+            webviewLints(SKIPPED_RULES),
+            webviewLints(),
+            hostLintFinishes,
+        ],
         settles: HOST_LINTED,
     },
     {
@@ -339,7 +350,8 @@ const ROWS: AgreementRow[] = [
         settles: coveredInPage("t1"),
     },
     {
-        behaviour: "keeps the page on the old version until the host lint of a Node-only edit lands",
+        behaviour:
+            "keeps the page on the old version until the host lint of a Node-only edit lands",
         steps: [config(COVERED, "t1"), config(NODE_ONLY, "t2"), webviewLints(), hostLintFinishes],
         settles: HOST_LINTED,
     },
@@ -376,7 +388,12 @@ const ROWS: AgreementRow[] = [
     },
     {
         behaviour: "ignores a host lint that finishes after linting was turned off",
-        steps: [config(COVERED, "t1"), webviewLints(SKIPPED_RULES), lintingOff, staleHostLintFinishes("t1")],
+        steps: [
+            config(COVERED, "t1"),
+            webviewLints(SKIPPED_RULES),
+            lintingOff,
+            staleHostLintFinishes("t1"),
+        ],
         settles: OFF,
     },
     {
@@ -396,7 +413,8 @@ const ROWS: AgreementRow[] = [
         settles: HOST_LINTED,
     },
     {
-        behaviour: "keeps a version an in-page run escalated on the host when linting is turned back on",
+        behaviour:
+            "keeps a version an in-page run escalated on the host when linting is turned back on",
         steps: [
             config(COVERED, "t1"),
             webviewLints(SKIPPED_RULES),
@@ -461,7 +479,12 @@ const ROWS: AgreementRow[] = [
     },
     {
         behaviour: "restores the covered token in a reloaded page",
-        steps: [config(COVERED, "t1"), webviewReloads, hostAnswers(config(COVERED, "t2")), webviewLints()],
+        steps: [
+            config(COVERED, "t1"),
+            webviewReloads,
+            hostAnswers(config(COVERED, "t2")),
+            webviewLints(),
+        ],
         settles: coveredInPage("t1"),
     },
     {
