@@ -5,6 +5,7 @@ import {
     DiffReadyCommand,
     LogErrorCommand,
     Query,
+    SHOW_ALL_CURSOR,
     SwapCompareSidesCommand,
     ViewportChangedCommand,
 } from "@miragon/bpmn-modeler-shared";
@@ -18,9 +19,6 @@ import {
     DiffViewer,
 } from "@miragon/bpmn-modeler/viewer";
 import type { DiffPaneChannel } from "../../port/hostChannel";
-
-/** The cursor of a stepper that is on no change, which a partner reads as Show all. */
-const BEFORE_THE_FIRST_CHANGE = -1;
 
 /**
  * Entry point for a webview running as one side of a BPMN diff view.
@@ -76,7 +74,8 @@ export class DiffMode {
             onShowAll: () => this.showAll(),
         });
 
-        this.reserveRoomForBar(legendParent);
+        // diff.css starts the canvas below the bar.
+        this.legend.reserveRoomOn(document.body);
 
         this.viewer.onViewportChanged((viewport) => {
             this.host.postMessage(new ViewportChangedCommand(viewport));
@@ -111,7 +110,7 @@ export class DiffMode {
                 this.viewer.setViewport(query.viewport);
                 break;
             case "SyncCursorQuery":
-                if (query.index === BEFORE_THE_FIRST_CHANGE) {
+                if (query.index === SHOW_ALL_CURSOR) {
                     this.backToWholeDiagram();
                 } else {
                     this.navigator.applyCursor(query.index);
@@ -158,17 +157,6 @@ export class DiffMode {
         this.updateLegend(query);
     }
 
-    /** diff.css starts the canvas below the bar, which grows when its counts wrap on a narrow pane. */
-    private reserveRoomForBar(legendParent: HTMLElement): void {
-        const bar = legendParent.querySelector<HTMLElement>(".diff-legend");
-        if (!bar || typeof ResizeObserver === "undefined") return;
-        new ResizeObserver(() => {
-            if (bar.offsetHeight > 0) {
-                document.body.style.setProperty("--diff-legend-height", `${bar.offsetHeight}px`);
-            }
-        }).observe(bar);
-    }
-
     /** Names the pane's side, or on compare-files panes its file, which the tab title does not tell apart. */
     private label(query: ApplyDiffHighlightsQuery): void {
         this.sideLabel ??= new DiffSideLabel(this.canvas, query.side);
@@ -195,7 +183,7 @@ export class DiffMode {
     /** Show all: both panes go back to the whole diagram, the partner through the host. */
     private showAll(): void {
         this.backToWholeDiagram();
-        this.host.postMessage(new CursorChangedCommand(BEFORE_THE_FIRST_CHANGE));
+        this.host.postMessage(new CursorChangedCommand(SHOW_ALL_CURSOR));
     }
 
     private backToWholeDiagram(): void {

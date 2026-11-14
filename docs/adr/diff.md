@@ -50,21 +50,33 @@ ordering heuristics are not. Failures throw and hosts own their error reporting.
   connections that only moved. The legend takes a translator instead of importing one,
   so the library stays free of the i18n package.
 - Both legends wear one look, the Miragon one of Diagit's diff panel: a bar along the
-  pane's top edge with only the categories that changed, icon buttons for stepping and
-  the position, and markers in the CI status colours (tinted fills with a dark contour
-  in light mode, the status colour on the stroke in dark mode). Where two webviews hold
-  the panes, both draw the bar and only the after pane's half carries the changes, so
-  the halves read as one across the sash; this holds for the DMN diff too, whose
-  before pane still shows the card for a view it lacks. `DiffSideLabelView` names
-  each pane's version, or its file on a compare-files pane, in both diffs. The bar covers its parent's top edge, so a
-  consumer starts the canvas `--diff-legend-height` (40px unless it measures the bar)
-  lower, as the webviews do. The look is held as defaults of the
-  `--diff-legend-*` custom properties, which stay the theming hook for consumers. The VS Code tokens and
+  pane's top edge with only the categories that changed, icon buttons for stepping with
+  the position and Show all, and markers in the CI status colours (tinted fills with a
+  dark contour in light mode, the status colour on the stroke in dark mode; an added
+  connection is dark with a green glow). Where two webviews hold the panes, both draw
+  the bar and only the after pane's half carries the changes, so the halves read as one
+  across the sash; this holds for the DMN diff too, whose before pane still shows the
+  card for a view it lacks. `DiffSideLabelView` names each pane's version, or its file
+  on a compare-files pane, in both diffs.
+- The bar covers its parent's top edge. `DiffLegendView.reserveRoomOn` keeps its
+  height in `--diff-legend-height` on a target, and a consumer starts its canvas that
+  much lower (40px before the bar shows), as both webviews do. That one property is
+  set at runtime; the look itself is held as defaults of the other `--diff-legend-*`
+  custom properties, which stay the theming hook for consumers. The VS Code tokens and
   body classes it reads are optional fallbacks, so the stylesheet stays host-agnostic.
-  Neither the BPMN package nor the DMN pane sets a `--diff-legend-*` property, and a spec
-  in each keeps it so. The published package adds no font; the webviews bundle Geist for
-  their diff panes. The public `DiffMarkerClass` literals are pinned to the shared
-  markers by a spec.
+  Neither the BPMN package nor the DMN pane sets a look property in its stylesheet, and
+  a spec in each keeps it so. The published package adds no font; the webviews bundle
+  Geist for their diff panes. The public `DiffMarkerClass` literals are pinned to the
+  shared markers by a spec.
+- Show all takes both panes back to how they opened, out of a collapsed subprocess
+  too: `DiffViewer.fitDiagram`, `DiffNavigator.reset` and `DiffPaneCoordinator.reset`
+  in-page, and across webviews a `CursorChangedCommand` with `SHOW_ALL_CURSOR` (-1),
+  which the partner reads as Show all. `DiffLegendCallbacks.onShowAll`,
+  `DiffLegendContext.showChanges` and `position`, and
+  `DiffPaneCoordinator.cycleLength` carry the bar's state.
+- Each pane fits its own diagram when it opens and tells its partner nothing: an
+  opening fit sent as a viewport could reach the partner while VS Code still laid one
+  pane out and leave it off-centre. The panes sync from the user's first pan or zoom.
 
 The [Node import check](../../packages/bpmn-modeler/scripts/check-diff-node.mjs) and the
 [data-library tests](../../libs/bpmn-diff/src) guard the data/browser split.

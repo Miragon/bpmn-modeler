@@ -81,13 +81,13 @@ describe("DMN diff pane (real dmn-js)", () => {
         expect(badge.fontFamily).toMatch(/^"Geist Variable", Geist, .*sans-serif$/);
     });
 
-    it("colours a requirement at its own width, so its arrowhead keeps its size", async () => {
+    it("marks a requirement at its own width, so its arrowhead keeps its size", async () => {
         const { viewer, container } = await pane();
         const edge = '.djs-element[data-element-id="IR_1"] .djs-visual path';
         const ownWidth = styleOf(container, edge).strokeWidth;
 
         viewer.setMarks({ ...MARKS, added: ["Input_1", "IR_1"], layoutChanged: [] });
-        const { stroke, strokeWidth: addedWidth } = styleOf(container, edge);
+        const { stroke, strokeWidth: addedWidth, filter } = styleOf(container, edge);
         const shapeWidth = styleOf(
             container,
             '.djs-element[data-element-id="Input_1"] .djs-visual > :nth-child(1)',
@@ -95,7 +95,8 @@ describe("DMN diff pane (real dmn-js)", () => {
         viewer.setMarks(MARKS);
         const { strokeWidth: movedWidth, strokeDasharray } = styleOf(container, edge);
 
-        expect(stroke).toBe(ADDED);
+        expect(stroke).toBe("rgb(29, 29, 29)");
+        expect(filter).toContain(ADDED);
         expect(addedWidth).toBe(ownWidth);
         expect(shapeWidth).toBe("2px");
         expect(movedWidth).toBe(ownWidth);

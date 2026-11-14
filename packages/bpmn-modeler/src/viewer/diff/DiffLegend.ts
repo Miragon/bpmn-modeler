@@ -82,6 +82,14 @@ export class DiffLegend {
         });
     }
 
+    /**
+     * Keeps `--diff-legend-height` on `target` at the bar's height once it
+     * shows, so the canvas below can start under it even when its counts wrap.
+     */
+    reserveRoomOn(target: HTMLElement): void {
+        this.view.reserveRoomOn(target);
+    }
+
     destroy(): void {
         this.view.destroy();
     }

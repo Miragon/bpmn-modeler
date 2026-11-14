@@ -282,6 +282,17 @@ describe("legendOf", () => {
         });
     });
 
+    it("shows which change the stepper is on, once it is on one", () => {
+        const before = legendOf(stateAfter(imported(), highlighted()), undefined);
+        const stepped = legendOf(
+            stateAfter(imported(), highlighted(), { kind: "stepped", direction: 1 }),
+            undefined,
+        );
+
+        expect(before?.position).toBeUndefined();
+        expect(stepped?.position).toEqual({ index: 0, total: expect.any(Number) });
+    });
+
     it("offers the swap on a compare-files pane", () => {
         const state = stateAfter(imported(), highlighted("after", "compare-files"));
 

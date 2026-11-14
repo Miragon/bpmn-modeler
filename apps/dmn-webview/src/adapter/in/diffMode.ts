@@ -7,6 +7,7 @@ import {
     GetDmnFileCommand,
     LogErrorCommand,
     type Query,
+    SHOW_ALL_CURSOR,
     SwapCompareSidesCommand,
     ViewportChangedCommand,
 } from "@miragon/bpmn-modeler-shared";
@@ -28,9 +29,6 @@ import {
 import type { StepTarget } from "../../domain/diffSteps";
 import type { DmnDiffPaneHost } from "../../port/dmnHost";
 import { DiffEmptyState, DiffLegend } from "./diffLegend";
-
-/** The cursor of a stepper that is on no change, which a partner reads as Show all. */
-const BEFORE_THE_FIRST_CHANGE = -1;
 
 /**
  * One side of a DMN diff: translates between the host's queries and the
@@ -111,7 +109,7 @@ export class DiffMode {
                 this.viewer.setTableScroll(query.scroll);
                 break;
             case "SyncCursorQuery": {
-                if (query.index === BEFORE_THE_FIRST_CHANGE) {
+                if (query.index === SHOW_ALL_CURSOR) {
                     this.showWholeView();
                     break;
                 }
@@ -199,7 +197,7 @@ export class DiffMode {
     /** Show all: both panes show their open view whole, the partner through the host. */
     private showAll(): void {
         this.showWholeView();
-        this.host.postMessage(new CursorChangedCommand(BEFORE_THE_FIRST_CHANGE));
+        this.host.postMessage(new CursorChangedCommand(SHOW_ALL_CURSOR));
     }
 
     private showWholeView(): void {

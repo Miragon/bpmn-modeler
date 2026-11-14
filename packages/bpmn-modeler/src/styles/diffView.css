@@ -77,6 +77,11 @@
     stroke-width: 2px !important;
 }
 
+/* An added connection is dark like any other; a green glow tells it apart. */
+.djs-connection.diff-added:not([data-bpmn-theme="dark"] *) .djs-visual > path {
+    filter: drop-shadow(0 0 1.5px #00e676) drop-shadow(0 0 1.5px #00e676);
+}
+
 .djs-connection.diff-layout-changed .djs-visual > path {
     stroke-dasharray: 6 4 !important;
 }

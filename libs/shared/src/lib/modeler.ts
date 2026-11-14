@@ -1547,10 +1547,17 @@ export class ViewportChangedCommand extends Command<"ViewportChangedCommand"> {
 }
 
 /**
+ * The cursor index of a stepper that is on no change: a pane posts it on Show
+ * all, and its partner then shows its whole diagram too.
+ */
+export const SHOW_ALL_CURSOR = -1;
+
+/**
  * Sent from a viewer pane after the user advances the diff stepper.  The host
  * forwards the new cursor index to the partner pane via {@link SyncCursorQuery}
  * so both panes' steppers stay in lockstep.  The index refers to a position in
- * the shared `navigationOrder` array carried on {@link ApplyDiffHighlightsQuery}.
+ * the shared `navigationOrder` array carried on {@link ApplyDiffHighlightsQuery},
+ * or is {@link SHOW_ALL_CURSOR} after Show all.
  */
 export class CursorChangedCommand extends Command<"CursorChangedCommand"> {
     public readonly index: number;
@@ -1564,7 +1571,8 @@ export class CursorChangedCommand extends Command<"CursorChangedCommand"> {
 /**
  * Sent from the host to a pane to apply the partner pane's stepper cursor.
  * The receiving pane focuses (or anchors) the element at the given index in
- * its local `navigationOrder` and must NOT re-emit `CursorChangedCommand`,
+ * its local `navigationOrder`, or shows its whole diagram for
+ * {@link SHOW_ALL_CURSOR}, and must NOT re-emit `CursorChangedCommand`,
  * otherwise the two panes would ping-pong indefinitely.
  */
 export class SyncCursorQuery extends Query<"SyncCursorQuery"> {

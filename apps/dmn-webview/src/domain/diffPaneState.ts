@@ -145,6 +145,10 @@ export function legendOf(
         showSwap: isCompareFiles && isAfter,
         canStep: canStep(stepsInView(state)),
         showChanges: isAfter,
+        position:
+            state.cursor < 0
+                ? undefined
+                : { index: state.cursor, total: stepsInView(state).length },
     };
 }
 

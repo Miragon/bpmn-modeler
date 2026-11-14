@@ -84,6 +84,7 @@ export class DiffLegendView {
     private readonly swapButton: HTMLButtonElement;
     private readonly stopTranslating: () => void;
     private state?: DiffLegendState;
+    private sizeObserver?: ResizeObserver;
 
     constructor(
         parent: HTMLElement,
@@ -128,8 +129,23 @@ export class DiffLegendView {
         this.renderWords();
     }
 
+    /**
+     * Keeps `--diff-legend-height` on `target` at the bar's height once it
+     * shows, so the views below start under it even when its counts wrap.
+     */
+    reserveRoomOn(target: HTMLElement): void {
+        if (typeof ResizeObserver === "undefined") return;
+        this.sizeObserver?.disconnect();
+        this.sizeObserver = new ResizeObserver(() => {
+            const height = this.element.offsetHeight;
+            if (height > 0) target.style.setProperty("--diff-legend-height", `${height}px`);
+        });
+        this.sizeObserver.observe(this.element);
+    }
+
     destroy(): void {
         this.stopTranslating();
+        this.sizeObserver?.disconnect();
         this.element.remove();
     }
 

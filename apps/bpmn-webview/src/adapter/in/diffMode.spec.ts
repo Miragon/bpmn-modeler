@@ -48,6 +48,7 @@ const fakes = vi.hoisted(() => {
     class FakeDiffLegend {
         static last: FakeDiffLegend;
         update = vi.fn();
+        reserveRoomOn = vi.fn();
         constructor(
             readonly parent: HTMLElement,
             readonly callbacks: {

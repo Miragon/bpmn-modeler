@@ -22,12 +22,12 @@
 .dmn-diff-page .dmn-decision-table-container,
 .dmn-diff-page .dmn-literal-expression-container,
 .dmn-diff-page .dmn-boxed-expression-container {
-    padding-top: calc(var(--dmn-diff-chrome-height, 64px) + 24px);
+    padding-top: calc(var(--diff-legend-height, 40px) + 24px);
 }
 
 /* The side label sits below the bar, which the views below leave room for. */
 .dmn-diff-page .diff-side-label {
-    top: calc(var(--dmn-diff-chrome-height, 40px) + 8px);
+    top: calc(var(--diff-legend-height, 40px) + 8px);
 }
 
 /* The two panes' edges meet at VS Code's sash: a dashed line shows where to drag. */

@@ -96,13 +96,21 @@
 }
 
 /* Requirement edges keep their width, since dmn-js scales an arrowhead with its
-   edge: an added one keeps the status green, its only mark. */
+   edge. In light mode an added one is dark with a green glow, as in the BPMN diff. */
 .dmn-diff .djs-connection.diff-layout-changed .djs-visual path {
     stroke: #1d1d1d !important;
+    stroke-dasharray: 6 4 !important;
 }
 
 .dmn-diff .djs-connection.diff-added .djs-visual path {
-    stroke: var(--dmn-diff-added) !important;
+    stroke: #1d1d1d !important;
+}
+
+.dmn-diff:not([data-dmn-theme="dark"], [data-dmn-theme="dark"] *)
+    .djs-connection.diff-added
+    .djs-visual
+    path {
+    filter: drop-shadow(0 0 1.5px #00e676) drop-shadow(0 0 1.5px #00e676);
 }
 
 .dmn-diff .djs-connection.diff-removed .djs-visual path {
@@ -111,10 +119,6 @@
 
 .dmn-diff .djs-connection.diff-changed .djs-visual path {
     stroke: var(--dmn-diff-changed) !important;
-}
-
-.dmn-diff .djs-connection.diff-layout-changed .djs-visual path {
-    stroke-dasharray: 6 4 !important;
 }
 
 .dmn-diff:is([data-dmn-theme="dark"], [data-dmn-theme="dark"] *)
@@ -175,8 +179,10 @@
     border-radius: 50%;
 }
 
+/* The status green stays below 3:1 on white: a dark contour carries the dot. */
 .dmn-diff .dmn-diff-counts__added::before {
     background: var(--dmn-diff-added);
+    box-shadow: 0 0 0 1px #1d1d1d;
 }
 
 .dmn-diff .dmn-diff-counts__removed::before {

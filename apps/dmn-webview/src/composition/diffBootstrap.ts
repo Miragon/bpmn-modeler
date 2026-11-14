@@ -29,8 +29,8 @@ export function bootstrapDiffPane(host: DmnDiffPaneHost): () => void {
 
     const viewer = createDiffViewer(canvas, {
         theme: resolveHostThemeKind(),
-        // The legend floats there: the file name and one row on a pane of usual width.
-        topInset: 96,
+        // The bar and the side label below it sit there.
+        topInset: 72,
     });
     const themeAdapter = createHostThemeAdapter((kind) => {
         applyPageThemeScope("data-dmn-theme", kind);

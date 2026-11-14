@@ -304,6 +304,35 @@ describe("DiffLegendView", () => {
         expect(find(".diff-legend__swap-btn").title).toBe("Seiten tauschen");
     });
 
+    it("keeps the bar's height on its target once it shows, and stops when destroyed", () => {
+        const observer = { callback: () => undefined as void, disconnect: vi.fn() };
+        vi.stubGlobal(
+            "ResizeObserver",
+            class {
+                readonly observe = vi.fn();
+                readonly disconnect = observer.disconnect;
+                constructor(callback: () => void) {
+                    observer.callback = callback;
+                }
+            },
+        );
+        const { view } = mount();
+        const target = document.createElement("div");
+        view.reserveRoomOn(target);
+        const room = () => target.style.getPropertyValue("--diff-legend-height");
+
+        observer.callback();
+        const whileHidden = room();
+        Object.defineProperty(view.element, "offsetHeight", { value: 64 });
+        observer.callback();
+        view.destroy();
+        vi.unstubAllGlobals();
+
+        expect(whileHidden).toBe("");
+        expect(room()).toBe("64px");
+        expect(observer.disconnect).toHaveBeenCalledOnce();
+    });
+
     it("goes away and stops listening for language changes when destroyed", () => {
         const { view } = mount();
 

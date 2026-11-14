@@ -23,19 +23,11 @@ const MISSING_TEXTS: Readonly<Record<DmnMissingStatus, string>> = {
  */
 export class DiffLegend {
     private readonly view: DiffLegendView;
-    private readonly sizeObserver?: ResizeObserver;
 
     constructor(parent: HTMLElement, actions: DiffLegendActions) {
         this.view = new DiffLegendView(parent, actions, i18n);
-        // The views below leave room for the chip, which wraps on a narrow pane.
-        if (typeof ResizeObserver !== "undefined") {
-            const chip = this.view.element;
-            this.sizeObserver = new ResizeObserver(() => {
-                const height = chip.hidden ? 0 : chip.offsetHeight;
-                document.body.style.setProperty("--dmn-diff-chrome-height", `${height}px`);
-            });
-            this.sizeObserver.observe(chip);
-        }
+        // The views below leave room for the bar, which wraps on a narrow pane.
+        this.view.reserveRoomOn(document.body);
     }
 
     update(state: DiffLegendState): void {
@@ -43,7 +35,6 @@ export class DiffLegend {
     }
 
     dispose(): void {
-        this.sizeObserver?.disconnect();
         this.view.destroy();
     }
 }
