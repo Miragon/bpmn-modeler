@@ -91,6 +91,44 @@ ordering heuristics are not. Failures throw and hosts own their error reporting.
 The [Node import check](../../packages/bpmn-modeler/scripts/check-diff-node.mjs) and the
 [data-library tests](../../libs/bpmn-diff/src) guard the data/browser split.
 
+### Element XML diff
+
+In VS Code's BPMN diff, the context pad of an element opens a text diff of that
+element's XML from both versions, in an editor group below the diagram diff. While it is
+open, it follows the selection, which both panes share. It is the first step toward
+resolving merge conflicts on the diagram (#2459).
+
+- *What an element's XML holds.* `elementXml(xml, elementId)` in `libs/bpmn-diff`
+  returns the element's own attributes and configuration children, without `bpmndi` and
+  without the children the diff reports under their own id; `incoming` and `outgoing`
+  stay. Which elements the diff tracks, and that a pool's process counts for the first
+  participant referencing it, is one rule, `trackedElementOf`, which `computeDiff` and
+  `elementXml` share; a spec pins it to bpmn-js-differ's `ChangeHandler._isTracked`, so
+  a process no participant references is untracked, as upstream has it. The text is
+  re-serialized, not cut from the file: no engine descriptor is loaded (one parse, no
+  `modelerTemplate` collision, extensions round-trip as generic elements), attributes
+  without a descriptor are sorted, and each namespace gets one prefix shared by both
+  versions, built from both documents' declarations, of which the snippet declares the
+  ones it uses. Formatting, attribute order, comments and a renamed prefix therefore
+  never show as changes; the cost is text that is not the file's bytes. It is not exported from `@miragon/bpmn-modeler/diff`.
+- *No silent loss.* The declarations are read with saxen, the parser's own tokenizer,
+  so comments, CDATA and text declare nothing and URIs are decoded as the parser decodes
+  them. The prefixes go to the parser as moddle-xml's `nsMap`, set when the moddle
+  instance is created and never changed. A guard still rejects a snippet that uses a
+  prefix it cannot declare, and skipped content rejects as in `computeDiff`, since a
+  dropped attribute would show a wrong diff. `nsMap` is undocumented, so the guard and
+  the namespace specs are what turns an upgrade that drops it into a failing build. A
+  call builds two moddle instances and parses the whole document: about 50 ms at
+  0.8 MB, two calls per selection.
+- *One bpmn-moddle loader.* `loadBpmnModdle` in `libs/bpmn-diff` is the only place that
+  resolves bpmn-moddle's factory; `libs/bpmn-layout`, the Node linter and the script
+  task service use it, so `bpmn-layout` depends on `bpmn-diff`. The parser, saxen, the
+  engine descriptors and bpmn-js-differ load lazily, so a bundle that imports the
+  library for the loader loads none of them; a spec holds this. saxen is a direct
+  dependency of `bpmn-diff` at moddle-xml's version and so a runtime dependency of
+  `@miragon/bpmn-modeler`, which inlines the library. `computeDiff` reads the Camunda 7 and
+  8 prefixes and URIs from the descriptors; `BpmnDocument`'s copy is #2464.
+
 
 ### DMN diff
 

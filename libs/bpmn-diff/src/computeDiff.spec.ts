@@ -111,6 +111,20 @@ describe("computeDiff", () => {
             /unparsable content/i,
         );
     });
+
+    it("reports a changed custom attribute whose prefix a comment declares for an engine namespace", async () => {
+        const withOwner = (owner: string) => `<?xml version="1.0" encoding="UTF-8"?>
+<!-- xmlns:custom="http://camunda.org/schema/zeebe/1.0" -->
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:custom="urn:miragon:custom" id="Definitions_1">
+  <bpmn:process id="Process_1">
+    <bpmn:task id="Task_1" custom:owner="${owner}" />
+  </bpmn:process>
+</bpmn:definitions>`;
+
+        const { changed } = await computeDiff(withOwner("billing"), withOwner("shipping"));
+
+        expect(changed).toContain("Task_1");
+    });
 });
 
 describe("sideView", () => {
