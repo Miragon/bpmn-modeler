@@ -1,3 +1,5 @@
+import type { ExecutionEngine } from "@miragon/bpmn-modeler-diff";
+
 /**
  * The webview can either host the full editable modeler or a readonly viewer
  * used for side-by-side diff rendering.
@@ -132,7 +134,10 @@ export function detectEngine(xml: string): DetectedEngine {
 }
 
 /** The extension namespace of each engine, under the prefix the Camunda Modeler binds it to. */
-export const ENGINE_NAMESPACE: Record<Engine, { readonly prefix: string; readonly uri: string }> = {
+export const ENGINE_NAMESPACE: Record<
+    Engine,
+    { readonly prefix: ExecutionEngine; readonly uri: string }
+> = {
     c7: { prefix: "camunda", uri: "http://camunda.org/schema/1.0/bpmn" },
     c8: { prefix: "zeebe", uri: "http://camunda.org/schema/zeebe/1.0" },
 };

@@ -1,10 +1,16 @@
+/// <reference types="vite/client" />
+
+import { loadExecutionPackage } from "@miragon/bpmn-modeler-diff";
 import { describe, expect, it } from "vitest";
+
+import engineSource from "./engine.ts?raw";
 
 import {
     detectEngine,
     detectEngineWithNamespaceFallback,
     ENGINE_EXECUTION_PLATFORM,
     ENGINE_LABEL,
+    ENGINE_NAMESPACE,
     ENGINES,
     engineSupports,
     executionPlatformAttributeNames,
@@ -24,6 +30,23 @@ describe("ENGINES", () => {
     it("names the engines every per-engine table has an entry for", () => {
         expect([...ENGINES].sort()).toEqual(Object.keys(ENGINE_LABEL).sort());
         expect([...ENGINES].sort()).toEqual(Object.keys(ENGINE_EXECUTION_PLATFORM).sort());
+    });
+});
+
+describe("ENGINE_NAMESPACE", () => {
+    it.each(ENGINES)("names the prefix and URI of the %s moddle descriptor", async (engine) => {
+        const { prefix, uri } = ENGINE_NAMESPACE[engine];
+
+        await expect(loadExecutionPackage(prefix)).resolves.toMatchObject({ prefix, uri });
+    });
+});
+
+describe("engine.ts", () => {
+    // The `/engine` entry point exists so that DOM-free code can read the engine rule.
+    it("imports nothing at runtime, so its entry point loads no other module", () => {
+        const runtimeImport = /^(?:import|export)\s(?!type\s)(?:[^;]*from\s+)?["']/m;
+
+        expect(engineSource).not.toMatch(runtimeImport);
     });
 });
 

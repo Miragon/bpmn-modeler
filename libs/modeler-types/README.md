@@ -29,3 +29,18 @@ document flush) stays private in [`@miragon/bpmn-modeler-shared`](../shared/READ
 ```ts
 import { type Engine, isTextEditingSurface, observeCanvasSize } from "@miragon/bpmn-modeler-types";
 ```
+
+### The `/engine` entry point
+
+```ts
+import {
+    detectEngineWithNamespaceFallback,
+    ENGINE_NAMESPACE,
+} from "@miragon/bpmn-modeler-types/engine";
+```
+
+`@miragon/bpmn-modeler-types/engine` (a path in `tsconfig.base.json`) is `src/engine.ts` alone: the
+engine vocabulary and its detection. It exists because the barrel also exports DOM helpers (`dom.ts`,
+`canvasResize.ts`, …), which a workspace compiled without the DOM lib, such as the merge (#2450), cannot
+type-check. `engine.spec.ts` therefore fails on any runtime import in `engine.ts`; `import type` is
+erased and stays allowed.

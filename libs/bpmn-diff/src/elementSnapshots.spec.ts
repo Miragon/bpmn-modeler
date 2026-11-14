@@ -286,6 +286,28 @@ describe("elementSnapshots", () => {
             expect(snapshotOf(after, "Sub_1").xml).not.toBe(snapshotOf(before, "Sub_1").xml);
             expect(snapshotOf(after, "Sub_1").content).toBe(snapshotOf(before, "Sub_1").content);
         });
+
+        it("does not change when an extension's namespace is the default instead of a prefix", async () => {
+            const taskContentOf = async (task: string) =>
+                snapshotOf(
+                    await elementSnapshots(
+                        `<bpmn:definitions xmlns:bpmn="${BPMN}" xmlns:x="urn:x" id="Definitions_1"><bpmn:process id="Process_1">${task}</bpmn:process></bpmn:definitions>`,
+                    ),
+                    "Task_1",
+                ).content;
+            const prefixed = await taskContentOf(
+                '<bpmn:task id="Task_1"><bpmn:extensionElements><x:note /></bpmn:extensionElements></bpmn:task>',
+            );
+
+            await expect(
+                taskContentOf(
+                    '<bpmn:task id="Task_1" xmlns="urn:x"><bpmn:extensionElements><note /></bpmn:extensionElements></bpmn:task>',
+                ),
+            ).resolves.toBe(prefixed);
+            await expect(taskContentOf('<bpmn:task id="Task_1" xmlns="urn:x" />')).resolves.toBe(
+                await taskContentOf('<bpmn:task id="Task_1" />'),
+            );
+        });
     });
 
     describe("on the kitchen sink with merge-like units", () => {
@@ -538,6 +560,22 @@ describe("elementSnapshots", () => {
 
             expect(original).toContain('"custom:a":"1"');
             expect(respelled).toBe(original);
+        });
+
+        it("does not change when an extension's namespace is the default instead of a prefix", async () => {
+            const prefixed = await layoutOf(
+                drawn(shape(`<di:extension><custom:note /></di:extension>${BOUNDS}`)),
+            );
+
+            await expect(
+                layoutOf(
+                    drawn(
+                        shape(
+                            `<di:extension><note xmlns="urn:miragon:custom" /></di:extension>${BOUNDS}`,
+                        ),
+                    ),
+                ),
+            ).resolves.toBe(prefixed);
         });
 
         it.each([

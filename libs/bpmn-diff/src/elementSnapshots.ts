@@ -4,7 +4,7 @@ import { createDocumentModdle } from "./documentModdle";
 import {
     type UnitRule,
     isDiffUnit,
-    isSemanticElement,
+    isNameableElement,
     prefixSourcesWith,
     serialiseSnippet,
     snippetRootsOf,
@@ -225,8 +225,7 @@ function partsOf(unit: ModdleElement, roots: readonly ModdleElement[]): string[]
     const parts: string[] = [];
     for (const root of roots) {
         walkContainment(root, (element) => {
-            if (element !== unit && isSemanticElement(element) && typeof element.id === "string")
-                parts.push(element.id);
+            if (element !== unit && isNameableElement(element)) parts.push(element.id);
         });
     }
     return parts;

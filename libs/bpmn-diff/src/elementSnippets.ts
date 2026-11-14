@@ -1,6 +1,6 @@
 import { containmentProperties, walkContainment } from "./moddleContainment";
 import { type ModdleElement, isModdleElement, isType } from "./moddleElement";
-import { XMLNS_PREFIX, namePrefix } from "./namespaceDeclarations";
+import { XMLNS_PREFIX, isNamespaceDeclaration, namePrefix } from "./namespaceDeclarations";
 import { trackedElementOf } from "./trackedElements";
 import type { PrefixedModdle } from "./upstreamInternals/moddleNamespaces";
 
@@ -15,13 +15,19 @@ export function isDiffUnit(element: ModdleElement): boolean {
     return trackedElementOf(element) === element;
 }
 
+/** What a unit or a part can be: nothing can name an element without an id. */
+export function isNameableElement(
+    element: ModdleElement,
+): element is ModdleElement & { id: string } {
+    return isSemanticElement(element) && typeof element.id === "string";
+}
+
 /**
- * Nothing can name an element without an id, so whatever `isUnit` says it
- * stays part of its enclosing unit instead of vanishing from every snapshot.
+ * Whatever `isUnit` says, an element without an id stays part of its
+ * enclosing unit instead of vanishing from every snapshot.
  */
 export function unitRuleRequiringId(isUnit: UnitRule): UnitRule {
-    return (element) =>
-        isSemanticElement(element) && typeof element.id === "string" && isUnit(element);
+    return (element) => isNameableElement(element) && isUnit(element);
 }
 
 /** Declaring sources first, then the document, so its own prefixes fill the gaps. */
@@ -83,14 +89,14 @@ export async function serialiseSnippet(
 /**
  * The serializer writes attributes without a descriptor in source order, so
  * two files that order them differently would give different text.
- * Declarations inside the snippet are dropped, since the parser has already
- * renamed their prefixes to the document's.
+ * Declarations inside the snippet are dropped, the default one too, since the
+ * parser has already renamed every namespace to its document prefix.
  */
 function sortAttributesWithoutDescriptor(root: ModdleElement): void {
     walkContainment(root, (element) => {
         const attributes = attributesWithoutDescriptor(element);
         const sortedEntries = Object.entries(attributes)
-            .filter(([name]) => !name.startsWith("$") && !name.startsWith(XMLNS_PREFIX))
+            .filter(([name]) => !name.startsWith("$") && !isNamespaceDeclaration(name))
             .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0));
         for (const name of Object.keys(attributes)) {
             if (!name.startsWith("$")) delete attributes[name];
