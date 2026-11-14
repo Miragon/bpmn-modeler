@@ -19,6 +19,9 @@ import {
 } from "@miragon/bpmn-modeler/viewer";
 import type { DiffPaneChannel } from "../../port/hostChannel";
 
+/** The cursor of a stepper that is on no change, which a partner reads as Show all. */
+const BEFORE_THE_FIRST_CHANGE = -1;
+
 /**
  * Entry point for a webview running as one side of a BPMN diff view.
  *
@@ -70,6 +73,7 @@ export class DiffMode {
             // `showSwap` is set (compare-files only).  The host still validates
             // origin defensively before acting on the command.
             onSwap: () => this.host.postMessage(new SwapCompareSidesCommand()),
+            onShowAll: () => this.showAll(),
         });
 
         this.reserveRoomForBar(legendParent);
@@ -107,8 +111,12 @@ export class DiffMode {
                 this.viewer.setViewport(query.viewport);
                 break;
             case "SyncCursorQuery":
-                this.navigator.applyCursor(query.index);
-                this.showPosition(query.index);
+                if (query.index === BEFORE_THE_FIRST_CHANGE) {
+                    this.backToWholeDiagram();
+                } else {
+                    this.navigator.applyCursor(query.index);
+                    this.showPosition(query.index);
+                }
                 break;
         }
     }
@@ -182,6 +190,19 @@ export class DiffMode {
             showChanges: isAfter,
         };
         this.legend.update(this.legendContext);
+    }
+
+    /** Show all: both panes go back to the whole diagram, the partner through the host. */
+    private showAll(): void {
+        this.backToWholeDiagram();
+        this.host.postMessage(new CursorChangedCommand(BEFORE_THE_FIRST_CHANGE));
+    }
+
+    private backToWholeDiagram(): void {
+        this.navigator.reset();
+        if (this.legendContext) {
+            this.legend.update(this.legendContext);
+        }
     }
 
     private showPosition(index: number): void {

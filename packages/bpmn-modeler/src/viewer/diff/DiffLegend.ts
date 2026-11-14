@@ -12,6 +12,8 @@ export interface DiffLegendCallbacks {
      * the consumer, not this primitive.
      */
     onSwap?: () => void;
+    /** Invoked by Show all, which goes back to the whole diagram. Omit it to drop the button. */
+    onShowAll?: () => void;
 }
 
 /**

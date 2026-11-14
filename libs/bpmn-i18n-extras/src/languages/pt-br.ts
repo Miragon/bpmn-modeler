@@ -33,6 +33,7 @@ const dictionary: Record<string, string> = {
         "Não foi possível carregar a prévia do formulário. Atualize para tentar novamente.",
     "Changes": "Alterações",
     "No changes": "Nenhuma alteração",
+    "Show all": "Mostrar tudo",
     "Old version": "Versão antiga",
     "New version": "Versão nova",
     "Not in this version": "Não está nesta versão",

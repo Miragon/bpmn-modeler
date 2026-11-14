@@ -32,6 +32,7 @@ const dictionary: Record<string, string> = {
         "양식 미리보기를 불러올 수 없습니다. 새로 고침하여 다시 시도하세요.",
     "Changes": "변경 사항",
     "No changes": "변경 사항 없음",
+    "Show all": "모두 표시",
     "Old version": "이전 버전",
     "New version": "새 버전",
     "Not in this version": "이 버전에 없음",

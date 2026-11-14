@@ -30,6 +30,7 @@ const dictionary: Record<string, string> = {
         "無法載入表單預覽。請重新整理後再試。",
     "Changes": "變更",
     "No changes": "無變更",
+    "Show all": "顯示全部",
     "Old version": "舊版本",
     "New version": "新版本",
     "Not in this version": "此版本中不存在",

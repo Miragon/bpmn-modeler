@@ -33,6 +33,7 @@ const dictionary: Record<string, string> = {
         "Не удалось загрузить предпросмотр формы. Обновите для повторной попытки.",
     "Changes": "Изменения",
     "No changes": "Нет изменений",
+    "Show all": "Показать все",
     "Old version": "Старая версия",
     "New version": "Новая версия",
     "Not in this version": "Нет в этой версии",

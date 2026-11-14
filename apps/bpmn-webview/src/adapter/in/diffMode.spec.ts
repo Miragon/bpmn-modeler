@@ -38,6 +38,7 @@ const fakes = vi.hoisted(() => {
         setChanges = vi.fn();
         cycleLength = 3;
         applyCursor = vi.fn();
+        reset = vi.fn();
         advance = vi.fn((_direction: 1 | -1): number | undefined => undefined);
         constructor() {
             FakeDiffNavigator.last = this;
@@ -49,7 +50,12 @@ const fakes = vi.hoisted(() => {
         update = vi.fn();
         constructor(
             readonly parent: HTMLElement,
-            readonly callbacks: { onPrevious(): void; onNext(): void; onSwap?(): void },
+            readonly callbacks: {
+                onPrevious(): void;
+                onNext(): void;
+                onSwap?(): void;
+                onShowAll?(): void;
+            },
         ) {
             FakeDiffLegend.last = this;
         }
@@ -320,6 +326,17 @@ describe("DiffMode", () => {
             expect(host.postMessage).not.toHaveBeenCalled();
         });
 
+        it("goes back to the whole diagram when the partner does, without echoing it", async () => {
+            await startDiffPane();
+            host.postMessage.mockClear();
+
+            dispatch(new SyncCursorQuery(-1));
+
+            expect(navigator().reset).toHaveBeenCalledOnce();
+            expect(navigator().applyCursor).not.toHaveBeenCalled();
+            expect(host.postMessage).not.toHaveBeenCalled();
+        });
+
         it("shows the position of the change the partner stepped to", async () => {
             await startDiffPane();
             dispatch(highlights("scm"));
@@ -381,6 +398,22 @@ describe("DiffMode", () => {
             legend().callbacks.onNext();
 
             expect(host.postMessage).not.toHaveBeenCalled();
+        });
+
+        it("goes back to the whole diagram with Show all, and takes the partner along", async () => {
+            await startDiffPane();
+            dispatch(highlights("scm"));
+            host.postMessage.mockClear();
+
+            legend().callbacks.onShowAll?.();
+
+            expect(navigator().reset).toHaveBeenCalledOnce();
+            expect(legend().update).toHaveBeenLastCalledWith(
+                expect.not.objectContaining({ position: expect.anything() }),
+            );
+            expect(posted()).toEqual([
+                expect.objectContaining({ type: "CursorChangedCommand", index: -1 }),
+            ]);
         });
 
         it("asks the host to swap the compared files", async () => {

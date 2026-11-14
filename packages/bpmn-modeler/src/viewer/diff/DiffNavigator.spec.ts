@@ -12,7 +12,7 @@ import { DiffViewer } from "./DiffViewer";
 function stubViewer(opts: { present?: string[]; connections?: string[] } = {}) {
     const present = new Set(opts.present ?? []);
     const connections = new Set(opts.connections ?? []);
-    const calls = { focus: [] as string[], center: [] as string[], clearSelection: 0 };
+    const calls = { focus: [] as string[], center: [] as string[], clearSelection: 0, fits: 0 };
     const viewer = {
         isConnection: (id: string) => connections.has(id),
         hasElement: (id: string) => present.has(id),
@@ -26,6 +26,9 @@ function stubViewer(opts: { present?: string[]; connections?: string[] } = {}) {
         },
         clearSelectionMarker: () => {
             calls.clearSelection++;
+        },
+        fitDiagram: () => {
+            calls.fits++;
         },
     } as unknown as DiffViewer;
     return { viewer, calls };
@@ -167,6 +170,19 @@ describe("DiffNavigator", () => {
         expect(nav.applyCursor(0, 1)).toBe(false);
         expect(calls.center).toEqual(["B"]);
         expect(calls.clearSelection).toBe(1);
+    });
+
+    it("goes back to the whole diagram, before the first change", () => {
+        const { viewer, calls } = stubViewer({ present: ["A", "B"] });
+        const nav = new DiffNavigator(viewer);
+        nav.setChanges(["A", "B"]);
+        nav.advance(1);
+
+        nav.reset();
+        nav.advance(1);
+
+        expect(calls.fits).toBe(1);
+        expect(calls.focus).toEqual(["A", "A"]);
     });
 
     it("is a no-op on an empty cycle", () => {

@@ -16,6 +16,7 @@ const GERMAN: Readonly<Record<string, string>> = {
     "Next change": "Nächste Änderung",
     "Swap sides": "Seiten tauschen",
     "No changes": "Keine Änderungen",
+    "Show all": "Alle anzeigen",
 };
 
 class SwitchableTranslator implements DiffLegendTranslator {
@@ -54,11 +55,12 @@ afterEach(() => {
     parent.remove();
 });
 
-function mount(withSwap = true) {
+function mount(withSwap = true, withShowAll = true) {
     const actions = {
         onPrevious: vi.fn(),
         onNext: vi.fn(),
         onSwap: withSwap ? vi.fn() : undefined,
+        onShowAll: withShowAll ? vi.fn() : undefined,
     };
     const view = new DiffLegendView(parent, actions, translator);
     return { view, actions };
@@ -172,6 +174,29 @@ describe("DiffLegendView", () => {
         expect(shownBeforeStepping).toBe(false);
         expect(visible(".diff-legend__position")).toBe(true);
         expect(find(".diff-legend__position").textContent).toBe("3/8");
+    });
+
+    it("goes back to the whole diagram with Show all, once there is a change to step to", () => {
+        const { view, actions } = mount();
+        const showAll = find<HTMLButtonElement>(".diff-legend__show-all-btn");
+
+        view.update({ ...SHOWN, canStep: false });
+        const disabledWithoutStep = showAll.disabled;
+        view.update(SHOWN);
+        showAll.click();
+        translator.speakGerman();
+
+        expect(disabledWithoutStep).toBe(true);
+        expect(actions.onShowAll).toHaveBeenCalledOnce();
+        expect(showAll.textContent).toBe("Alle anzeigen");
+    });
+
+    it("offers no Show all without its action", () => {
+        const { view } = mount(true, false);
+
+        view.update(SHOWN);
+
+        expect(visible(".diff-legend__show-all-btn")).toBe(false);
     });
 
     it("can stay an empty bar, for a pane whose partner's bar shows the changes", () => {

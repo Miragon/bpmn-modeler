@@ -33,6 +33,7 @@ const dictionary: Record<string, string> = {
         "Die Formularvorschau konnte nicht geladen werden. Aktualisieren Sie die Vorschau.",
     "Changes": "Änderungen",
     "No changes": "Keine Änderungen",
+    "Show all": "Alle anzeigen",
     "Old version": "Alte Version",
     "New version": "Neue Version",
     "Not in this version": "Nicht in dieser Version",

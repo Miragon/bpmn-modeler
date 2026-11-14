@@ -191,6 +191,11 @@ body.vscode-high-contrast :is(.diff-legend, .diff-legend-theme) {
     cursor: pointer;
 }
 
+.diff-legend__show-all-btn {
+    margin-left: 4px;
+    padding: 0 8px;
+}
+
 .diff-legend__icon {
     width: 16px;
     height: 16px;

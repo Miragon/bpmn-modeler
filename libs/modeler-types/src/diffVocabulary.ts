@@ -37,6 +37,8 @@ export interface DiffLegendTexts {
     readonly swap: string;
     /** Stands in for the counts when nothing changed. */
     readonly none: string;
+    /** Goes back from the stepped-to change to the whole diagram. */
+    readonly showAll: string;
 }
 
 export const DIFF_LEGEND_TEXTS: DiffLegendTexts = {
@@ -49,6 +51,7 @@ export const DIFF_LEGEND_TEXTS: DiffLegendTexts = {
     next: "Next change",
     swap: "Swap sides",
     none: "No changes",
+    showAll: "Show all",
 };
 
 /** The i18n key of each side's label, shown when the pane names no file. */

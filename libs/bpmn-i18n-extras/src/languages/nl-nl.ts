@@ -33,6 +33,7 @@ const dictionary: Record<string, string> = {
         "Het formuliervoorbeeld kon niet worden geladen. Vernieuw om opnieuw te proberen.",
     "Changes": "Wijzigingen",
     "No changes": "Geen wijzigingen",
+    "Show all": "Alles tonen",
     "Old version": "Oude versie",
     "New version": "Nieuwe versie",
     "Not in this version": "Niet in deze versie",

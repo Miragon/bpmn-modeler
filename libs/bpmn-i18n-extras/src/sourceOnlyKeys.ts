@@ -32,6 +32,7 @@ export const SOURCE_ONLY: ReadonlySet<string> = new Set([
     // The BPMN and DMN diff legends: the harvest driver opens no diff pane.
     "Changes",
     "No changes",
+    "Show all",
     "Old version",
     "New version",
     "Not in this version",

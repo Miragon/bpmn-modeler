@@ -13,6 +13,8 @@ export interface DiffLegendActions {
     readonly onNext: () => void;
     /** Without it the legend never shows the swap button. */
     readonly onSwap?: () => void;
+    /** Without it the legend never shows Show all. */
+    readonly onShowAll?: () => void;
 }
 
 /** What one diff legend shows. */
@@ -68,6 +70,7 @@ export class DiffLegendView {
     private readonly countSlots: readonly CountSlot[];
     private readonly none: HTMLElement;
     private readonly position: HTMLElement;
+    private readonly showAllButton: HTMLButtonElement;
     private readonly previousButton: HTMLButtonElement;
     private readonly nextButton: HTMLButtonElement;
     private readonly swapGroup: HTMLElement;
@@ -102,8 +105,12 @@ export class DiffLegendView {
         this.nextButton.append(chevron(CHEVRON_RIGHT));
         this.position = element("span", "diff-legend__position");
         this.position.hidden = true;
+        this.showAllButton = button("diff-legend__nav-btn diff-legend__show-all-btn", () =>
+            this.actions.onShowAll?.(),
+        );
+        this.showAllButton.hidden = !actions.onShowAll;
         const nav = element("div", "diff-legend__nav");
-        nav.append(this.previousButton, this.nextButton, this.position);
+        nav.append(this.previousButton, this.nextButton, this.position, this.showAllButton);
 
         // Shares the nav buttons' class so both groups align and theme alike.
         this.swapButton = button("diff-legend__nav-btn diff-legend__swap-btn", () =>
@@ -126,6 +133,7 @@ export class DiffLegendView {
         this.countsRow.hidden = state.showChanges === false;
         this.previousButton.disabled = !state.canStep;
         this.nextButton.disabled = !state.canStep;
+        this.showAllButton.disabled = !state.canStep;
         this.swapGroup.hidden = !(state.showSwap && this.actions.onSwap);
         this.filename.hidden = !state.filename;
         this.filename.textContent = state.filename ?? "";
@@ -171,6 +179,7 @@ export class DiffLegendView {
             this.status.label.data = status ? translate(DIFF_CATEGORY_LABELS[status]) : "";
         }
         this.none.textContent = translate(DIFF_LEGEND_TEXTS.none);
+        this.showAllButton.textContent = translate(DIFF_LEGEND_TEXTS.showAll);
         name(this.previousButton, translate(DIFF_LEGEND_TEXTS.previous));
         name(this.nextButton, translate(DIFF_LEGEND_TEXTS.next));
         name(this.swapButton, translate(DIFF_LEGEND_TEXTS.swap));

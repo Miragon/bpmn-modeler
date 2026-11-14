@@ -76,6 +76,12 @@ export class DiffNavigator {
         return this._cursor;
     }
 
+    /** Goes back to the whole diagram; the next step starts at the first change again. */
+    reset(): void {
+        this._cursor = -1;
+        this.viewer.fitDiagram();
+    }
+
     /**
      * Moves the cursor to `index` and either focuses the target (it exists on
      * this canvas) or anchors on the nearest surviving neighbour (the target is

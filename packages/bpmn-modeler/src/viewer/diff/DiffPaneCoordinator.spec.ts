@@ -19,6 +19,7 @@ function stubViewer(present: string[] = []) {
         focus: [] as string[],
         disposed: false,
         disposeCount: 0,
+        fits: 0,
     };
     const viewer = {
         onViewportChanged: (cb: (v: Viewport) => void) => {
@@ -41,6 +42,9 @@ function stubViewer(present: string[] = []) {
         },
         centerOnElement: () => true,
         clearSelectionMarker: () => undefined,
+        fitDiagram: () => {
+            calls.fits++;
+        },
     } as unknown as DiffViewer;
     return { viewer, calls, fireViewport: (v: Viewport) => vpCb?.(v) };
 }
@@ -147,6 +151,22 @@ describe("DiffPaneCoordinator", () => {
 
         expect(beforeAnyDiff).toBe(0);
         expect(coord.cycleLength).toBe(4);
+    });
+
+    it("takes both panes back to the whole diagram, before the first change", () => {
+        const before = stubViewer(["S1", "U", "G", "S2"]);
+        const after = stubViewer(["S1", "U", "G", "S2"]);
+        const coord = new DiffPaneCoordinator(before.viewer, after.viewer);
+        coord.apply(RESULT);
+        coord.next();
+        coord.next();
+
+        coord.reset();
+
+        expect(coord.cursor).toBe(-1);
+        expect([before.calls.fits, after.calls.fits]).toEqual([1, 1]);
+        coord.next();
+        expect(coord.cursor).toBe(0);
     });
 
     it("ignores navigation before any diff is applied", () => {

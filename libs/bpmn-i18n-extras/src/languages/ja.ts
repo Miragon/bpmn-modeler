@@ -33,6 +33,7 @@ const dictionary: Record<string, string> = {
         "フォームのプレビューを読み込めませんでした。更新して再試行してください。",
     "Changes": "変更",
     "No changes": "変更なし",
+    "Show all": "すべて表示",
     "Old version": "旧バージョン",
     "New version": "新バージョン",
     "Not in this version": "このバージョンにはありません",

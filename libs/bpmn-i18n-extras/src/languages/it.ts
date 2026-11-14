@@ -33,6 +33,7 @@ const dictionary: Record<string, string> = {
         "Impossibile caricare l’anteprima del modulo. Aggiorna per riprovare.",
     "Changes": "Modifiche",
     "No changes": "Nessuna modifica",
+    "Show all": "Mostra tutto",
     "Old version": "Versione precedente",
     "New version": "Nuova versione",
     "Not in this version": "Non presente in questa versione",

@@ -87,6 +87,13 @@ export class DiffPaneCoordinator {
         return this.beforeNav.canStep;
     }
 
+    /** Takes both panes back to the whole diagram, before the first change. */
+    reset(): void {
+        this._cursor = -1;
+        this.beforeNav.reset();
+        this.afterNav.reset();
+    }
+
     /** How many changes Next and Previous cycle through; pass it to a legend's `position`. */
     get cycleLength(): number {
         return this.beforeNav.cycleLength;
