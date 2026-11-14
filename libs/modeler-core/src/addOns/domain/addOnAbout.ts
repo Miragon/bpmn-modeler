@@ -23,7 +23,7 @@ export interface LicenseView {
     readonly label: string;
 }
 
-export interface StarsView {
+interface StarsView {
     readonly text: string;
     readonly label: string;
 }
@@ -71,7 +71,7 @@ const HOST_NAME: Record<MarketplaceProvider, string> = { github: "GitHub", gitla
 const PACKAGE_LICENSE_MAX = 24;
 
 /** How a repository host's license detection reads on a badge. */
-export function repositoryLicenseViewOf(
+function repositoryLicenseViewOf(
     host: MarketplaceProvider,
     license: RepositoryLicense,
 ): LicenseView {
@@ -107,7 +107,7 @@ export function packageLicenseViewOf(license: string): LicenseView {
     };
 }
 
-export function starsViewOf(host: MarketplaceProvider, stars: number): StarsView {
+function starsViewOf(host: MarketplaceProvider, stars: number): StarsView {
     const counted = stars === 1 ? "1 star" : `${stars.toLocaleString("en-US")} stars`;
     return {
         text: compactCountText(stars),

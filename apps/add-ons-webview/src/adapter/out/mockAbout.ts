@@ -85,7 +85,7 @@ const packageLicense = (text: string, declared = text): AddOnLicensePayload => (
 });
 
 /* The texts copy the core's so the preview reads like a host; the core stays their home. */
-export const MOCK_ABOUT: Readonly<Record<string, AddOnAboutPayload>> = {
+const MOCK_ABOUT: Readonly<Record<string, AddOnAboutPayload>> = {
     "plugin:/work/.camunda/plugins/resize": { readme: shown(RESIZE_TASKS), license: packageLicense("MIT") },
     "plugin:/work/.camunda/plugins/palette": { readme: shown(PALETTE), license: packageLicense("Apache-2.0") },
     "rulePackage:/work/node_modules/@acme/bpmnlint-plugin-rules": {
