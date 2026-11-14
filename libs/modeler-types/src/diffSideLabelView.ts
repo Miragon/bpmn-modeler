@@ -1,5 +1,6 @@
 import type { DiffLegendTranslator } from "./diffLegendView";
 import { DIFF_SIDE_TEXTS } from "./diffVocabulary";
+import { createElement } from "./dom";
 
 /**
  * The label in a diff pane's top left corner, styled with the legend by
@@ -7,7 +8,8 @@ import { DIFF_SIDE_TEXTS } from "./diffVocabulary";
  * that compares two files. Re-renders its words when the language changes.
  */
 export class DiffSideLabelView {
-    readonly element = document.createElement("span");
+    // `diff-legend-theme` lends it the bar's font and colours.
+    readonly element = createElement("span", "diff-side-label diff-legend-theme");
 
     private filename: string | undefined;
 
@@ -18,8 +20,6 @@ export class DiffSideLabelView {
         private readonly side: keyof typeof DIFF_SIDE_TEXTS,
         private readonly translator: DiffLegendTranslator,
     ) {
-        // `diff-legend-theme` lends it the bar's font and colours.
-        this.element.className = "diff-side-label diff-legend-theme";
         parent.append(this.element);
         this.render();
         this.stopTranslating = translator.onChange(() => this.render());

@@ -1,5 +1,7 @@
 import { i18n } from "@miragon/bpmn-modeler-i18n";
 import {
+    createButton,
+    createElement,
     type DiffLegendActions as SharedDiffLegendActions,
     DiffLegendView,
 } from "@miragon/bpmn-modeler-types";
@@ -60,7 +62,7 @@ export class DiffEmptyState {
         parent: HTMLElement,
         private readonly onViewDrd: () => void,
     ) {
-        this.root = element("div", "dmn-diff dmn-diff-empty");
+        this.root = createElement("div", "dmn-diff dmn-diff-empty");
         this.root.hidden = true;
         parent.append(this.root);
         this.stopTranslating = i18n.onChange(() => this.render());
@@ -82,36 +84,22 @@ export class DiffEmptyState {
         this.root.hidden = status === undefined;
         document.body.classList.toggle("dmn-diff-page--missing", status !== undefined);
         if (status === undefined) return;
-        const card = element("div", "dmn-diff-empty__card diff-legend-theme");
+        const card = createElement("div", "dmn-diff-empty__card diff-legend-theme");
         card.dataset.kind = status;
         card.append(
-            element("div", "dmn-diff-empty__mark"),
-            element("div", "dmn-diff-empty__title", i18n.translate(DMN_DIFF_TEXTS.notInVersion)),
-            element("div", "dmn-diff-empty__text", i18n.translate(MISSING_TEXTS[status])),
-            button(
+            createElement("div", "dmn-diff-empty__mark"),
+            createElement(
+                "div",
+                "dmn-diff-empty__title",
+                i18n.translate(DMN_DIFF_TEXTS.notInVersion),
+            ),
+            createElement("div", "dmn-diff-empty__text", i18n.translate(MISSING_TEXTS[status])),
+            createButton(
                 "dmn-diff-empty__action",
-                i18n.translate(DMN_DIFF_TEXTS.viewDrd),
                 this.onViewDrd,
+                i18n.translate(DMN_DIFF_TEXTS.viewDrd),
             ),
         );
         this.root.replaceChildren(card);
     }
-}
-
-function element<K extends keyof HTMLElementTagNameMap>(
-    tag: K,
-    className: string,
-    text?: string,
-): HTMLElementTagNameMap[K] {
-    const node = document.createElement(tag);
-    if (className) node.className = className;
-    if (text !== undefined) node.textContent = text;
-    return node;
-}
-
-function button(className: string, label: string, onClick: () => void): HTMLButtonElement {
-    const node = element("button", className, label);
-    node.type = "button";
-    node.addEventListener("click", onClick);
-    return node;
 }
