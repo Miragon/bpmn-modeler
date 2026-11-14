@@ -29,6 +29,7 @@ import {
 } from "@miragon/bpmn-modeler-core";
 import { FakeDiffPaneHandle, RecordingNotifier } from "@miragon/bpmn-modeler-core/testing";
 import { vsCodeModelerPreferences } from "../../../shared/adapter/out/modelerConfiguration";
+import { revisionOfDocument } from "../out/documentRevision";
 import { BootstrappableDiffPane, DiffController } from "./DiffController";
 
 const bootstrapSpy = vi.fn();
@@ -36,9 +37,11 @@ const bootstrapSpy = vi.fn();
 /** Mirrors the real pane's shape, `uri` derived from the document, so the store's lookups match. */
 function fakePane(
     _panel: unknown,
-    document: { uri: { toString(): string } },
+    document: { uri: { scheme: string; query?: string; toString(): string } },
 ): BootstrappableDiffPane {
-    return Object.assign(new FakeDiffPaneHandle(document.uri.toString()), {
+    const { uri } = document;
+    const revision = revisionOfDocument({ scheme: uri.scheme, query: uri.query ?? "" });
+    return Object.assign(new FakeDiffPaneHandle(uri.toString(), "", revision), {
         bootstrap: bootstrapSpy,
     });
 }
@@ -54,7 +57,7 @@ function fakeDoc(scheme: string, path: string, value: string) {
 
 /**
  * A `WebviewPanel` stand-in that captures the message and dispose callbacks the
- * controller registers, so tests can drive `onMessage` / `disposePane` directly.
+ * controller registers, so tests can drive `onMessage` and the dispose directly.
  */
 function fakePanel() {
     const cbs: { message?: (m: unknown) => unknown; dispose?: () => void } = {};
@@ -72,7 +75,11 @@ function fakePanel() {
 }
 
 function createController(extension: DiffFileExtension = ".bpmn") {
+    const closedDiagramDiffs: string[] = [];
     const store = new DiffPaneStore();
+    store.onSessionClosed((session) => {
+        closedDiagramDiffs.push(`${session.beforeUri} ↔ ${session.afterUri}`);
+    });
     const diffService = {
         sendViewerFile: vi.fn().mockResolvedValue(undefined),
         markReady: vi.fn().mockResolvedValue(undefined),
@@ -86,7 +93,7 @@ function createController(extension: DiffFileExtension = ".bpmn") {
         createRouter: (extensions) => createDiffPaneRouter(diffService as never, extensions),
         rebroadcastLanguage: diffService.rebroadcastLanguage,
     });
-    return { controller, store, diffService, notifier };
+    return { controller, store, diffService, notifier, closedDiagramDiffs };
 }
 
 beforeEach(() => {
@@ -239,6 +246,16 @@ describe("DiffController.resolveDiffPane", () => {
         expect(store.findByUri("git:/x.bpmn")).toBeDefined();
     });
 
+    it("puts the working tree after when its pane resolves first", () => {
+        const { controller, store } = createController();
+
+        controller.resolveDiffPane(fakePanel().panel, fakeDoc("file", "/x.bpmn", "file:///x.bpmn"));
+        controller.resolveDiffPane(fakePanel().panel, fakeDoc("git", "/x.bpmn", "git:/x.bpmn"));
+
+        const [session] = store.allSessions();
+        expect([session?.beforeUri, session?.afterUri]).toEqual(["git:/x.bpmn", "file:///x.bpmn"]);
+    });
+
     it("gives a second diff tab of the same file a session of its own", () => {
         const { controller, store } = createController();
         const open = () => {
@@ -314,6 +331,32 @@ describe("DiffController.resolveDiffPane", () => {
         cbs.dispose?.();
 
         expect(store.findByUri("file:///a.bpmn")).toBeUndefined();
+    });
+
+    it("closes the diagram diff in the core once both of its panes went", () => {
+        const { controller, store, closedDiagramDiffs } = createController();
+        store.registerCompareFiles("file:///a.bpmn", "file:///b.bpmn");
+        const before = fakePanel();
+        const after = fakePanel();
+        controller.resolveDiffPane(before.panel, fakeDoc("file", "/a.bpmn", "file:///a.bpmn"));
+        controller.resolveDiffPane(after.panel, fakeDoc("file", "/b.bpmn", "file:///b.bpmn"));
+
+        before.cbs.dispose?.();
+        const closedWithOnePaneLeft = [...closedDiagramDiffs];
+        after.cbs.dispose?.();
+
+        expect(closedWithOnePaneLeft).toStrictEqual([]);
+        expect(closedDiagramDiffs).toStrictEqual(["file:///a.bpmn ↔ file:///b.bpmn"]);
+    });
+
+    it("closes no diagram diff when a pane that never paired goes", () => {
+        const { controller, closedDiagramDiffs } = createController();
+        const { panel, cbs } = fakePanel();
+        controller.resolveDiffPane(panel, fakeDoc("git", "/x.bpmn", "git:/x.bpmn"));
+
+        cbs.dispose?.();
+
+        expect(closedDiagramDiffs).toStrictEqual([]);
     });
 });
 

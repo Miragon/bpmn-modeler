@@ -28,6 +28,7 @@ import {
 } from "./modeler/bpmn/adapter/in/CommandController";
 import { BPMN_COMPARE, DMN_COMPARE } from "./diff/adapter/in/CompareController";
 import { bpmnDiffFormat, dmnDiffFormat } from "./composition/diffFeature";
+import { ELEMENT_XML_SCHEME } from "./diff/adapter/out/VsCodeElementXmlDiffView";
 import {
     DEPLOY_CMD,
     DEPLOY_FILES_CMD,
@@ -206,6 +207,10 @@ describe("package.json ↔ code contract", () => {
                 `onFileSystem:${FORM_OUTPUT_VALUES_SCHEME}`,
             ]),
         );
+    });
+
+    it("activates to close restored element XML diffs", () => {
+        expect(manifest.activationEvents).toContain(`onFileSystem:${ELEMENT_XML_SCHEME}`);
     });
 
     // The preview opens on its own only once the extension runs. A glob cannot read the

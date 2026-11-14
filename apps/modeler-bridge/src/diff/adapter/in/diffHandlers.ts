@@ -74,10 +74,9 @@ export function diffHandlers({
             }
             for (const pane of session.attachedPanes()) {
                 diffPanes.delete(pane.uri);
-                session.detachPane(pane);
+                diffStore.detach(pane);
                 pane.dispose();
             }
-            diffStore.remove(session);
             diffSessions.delete(params.diffId);
             log(`diff disposed: ${params.diffId}`);
         },
