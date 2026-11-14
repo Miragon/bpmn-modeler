@@ -27,6 +27,7 @@ const row: ElementIdRow = {
 function setUp() {
     const posted: (Command | Query)[] = [];
     const editable = {
+        newDiagram: vi.fn(),
         proposeElementIds: vi.fn((unchecked?: readonly string[]): ElementIdProposals => ({
             rows: [row],
             unchecked: unchecked ?? ["Process_1"],

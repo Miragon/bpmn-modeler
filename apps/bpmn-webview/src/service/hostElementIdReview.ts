@@ -4,8 +4,9 @@ import {
     type ElementIdProposalsQuery,
     ElementIdsAppliedCommand,
 } from "@miragon/bpmn-modeler-shared";
+import { isEditableSurface } from "@miragon/bpmn-modeler/mode";
 
-import { isElementIdHandle, type SurfaceHandle } from "../domain/surface";
+import type { SurfaceHandle } from "../domain/surface";
 import type { HostChannel } from "../port/hostChannel";
 
 interface HostElementIdReviewHandlers {
@@ -37,7 +38,7 @@ export function createHostElementIdReview(
 
     function list(): void {
         const surface = getSurface();
-        if (!isElementIdHandle(surface)) {
+        if (!isEditableSurface(surface)) {
             host.postMessage(UNSUPPORTED);
             return;
         }
@@ -57,7 +58,7 @@ export function createHostElementIdReview(
             },
             ApplyElementIdsQuery: (query) => {
                 const surface = getSurface();
-                if (!isElementIdHandle(surface)) {
+                if (!isEditableSurface(surface)) {
                     host.postMessage(UNSUPPORTED);
                     return;
                 }
