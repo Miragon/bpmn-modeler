@@ -140,7 +140,7 @@ resolving merge conflicts on the diagram (#2459).
   entry to `loadExecutionPackage` (#2464).
 - *The merge builds on the diff's primitives.* Besides `elementSnapshots`, `bpmn-diff`
   exports its moddle walk (`walkContainment`, `containmentProperties`, `isType`,
-  `isModdleElement`), the unit rule `trackedElementOf`, `namespaceDeclarations`,
+  `isModdleElement`, `moddleElements`, `idOf`, `idsOf`), the unit rule `trackedElementOf`, `namespaceDeclarations`,
   `createDocumentModdle` and `loadExecutionPackage` with their types, so the three-way
   merge (#2450) applies the diff's unit rule and parse instead of copying them. The cost
   is a wider workspace API: a change to one of them is a change to the merge.

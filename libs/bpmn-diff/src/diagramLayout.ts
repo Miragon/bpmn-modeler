@@ -1,4 +1,4 @@
-import { type ModdleElement, isModdleElement } from "./moddleElement";
+import { type ModdleElement, isModdleElement, moddleElements } from "./moddleElement";
 import { isNamespaceDeclaration } from "./namespaceDeclarations";
 
 type CanonicalValue = string | number | boolean | CanonicalObject | CanonicalValue[] | undefined;
@@ -101,9 +101,4 @@ function sortedKeys(object: CanonicalObject): CanonicalObject {
             left < right ? -1 : left > right ? 1 : 0,
         ),
     );
-}
-
-function moddleElements(value: unknown): ModdleElement[] {
-    if (Array.isArray(value)) return value.filter(isModdleElement);
-    return [];
 }

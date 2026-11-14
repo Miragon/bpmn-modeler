@@ -31,7 +31,7 @@ export type {
     ElementSnapshotOptions,
     SnapshotReference,
 } from "./elementSnapshots";
-export { isModdleElement, isType } from "./moddleElement";
+export { idOf, idsOf, isModdleElement, isType, moddleElements } from "./moddleElement";
 export type { ModdleElement } from "./moddleElement";
 export { trackedElementOf } from "./trackedElements";
 export { containmentProperties, walkContainment } from "./moddleContainment";
