@@ -96,6 +96,23 @@ export class GitHubSource implements RepositorySource {
         return response.body;
     }
 
+    async listRootFiles(): Promise<string[]> {
+        const { owner, repo } = this.config;
+        const ref = await this.resolveRef();
+        const url = `${this.apiRoot()}/repos/${owner}/${repo}/contents?ref=${encodeURIComponent(ref)}`;
+        const response = await this.http.getJson(url, this.apiHeaders());
+        if (response.status !== 200) {
+            this.throwFor(response, `Failed to list the root of ${owner}/${repo}@${ref}`);
+        }
+        const entries: unknown = JSON.parse(response.body);
+        if (!Array.isArray(entries)) {
+            throw new Error(`Unexpected GitHub contents response for ${owner}/${repo}@${ref}`);
+        }
+        return entries
+            .filter((entry) => entry?.type === "file" && typeof entry.name === "string")
+            .map((entry) => entry.name as string);
+    }
+
     /**
      * Reads one blob through the authenticated Contents API. Path segments are
      * encoded individually so the `/` separators survive; `Accept: raw+json`

@@ -1,8 +1,5 @@
-import {
-    RepositoryFacts,
-    RepositoryHost,
-    RepositoryLicense,
-} from "../../kernel/domain/repositoryFacts";
+import { isMarketplaceProvider, MarketplaceProvider } from "../../kernel/domain/modelerSettings";
+import { RepositoryFacts, RepositoryLicense } from "../../kernel/domain/repositoryFacts";
 
 /** GitLab names a license by its licensee key, the SPDX id in lower case. */
 const SPDX_ID_OF_GITLAB_KEY: Readonly<Record<string, string>> = {
@@ -21,8 +18,6 @@ const SPDX_ID_OF_GITLAB_KEY: Readonly<Record<string, string>> = {
     "unlicense": "Unlicense",
     "cc0-1.0": "CC0-1.0",
 };
-
-const HOSTS: readonly RepositoryHost[] = ["github", "gitlab"];
 
 /** `GET /repos/{owner}/{repo}`: `stargazers_count` and the `license` GitHub detected. */
 export function githubRepositoryFactsOf(json: unknown): RepositoryFacts {
@@ -48,13 +43,12 @@ export function parseRepositoryFacts(text: string): RepositoryFacts | undefined 
     } catch {
         return undefined;
     }
-    const host = HOSTS.find((each) => each === parsed?.host);
-    if (host === undefined) return undefined;
-    return factsOf(host, parsed?.stars, cachedLicenseOf(parsed?.license));
+    if (parsed === undefined || !isMarketplaceProvider(parsed.host)) return undefined;
+    return factsOf(parsed.host, parsed.stars, cachedLicenseOf(parsed.license));
 }
 
 function factsOf(
-    host: RepositoryHost,
+    host: MarketplaceProvider,
     stars: unknown,
     license: RepositoryLicense | undefined,
 ): RepositoryFacts {

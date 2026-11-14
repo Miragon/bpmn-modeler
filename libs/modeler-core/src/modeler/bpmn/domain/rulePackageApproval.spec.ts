@@ -42,7 +42,7 @@ import {
     rootStampPathsOf,
     type ResolvedRuleModule,
 } from "./rulePackageApproval";
-import { type PackageManifest } from "./installedPackage";
+import { type PackageManifest } from "../../../kernel/domain/packageManifest";
 
 const repositoryAllowance = (addOn: string, path = "/repo/.git"): Allowance => ({
     kind: "rulePackage",

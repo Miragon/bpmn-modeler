@@ -17,6 +17,7 @@ import {
     needsReview,
     NO_FILTER,
 } from "./catalogFilter";
+import { AboutAsked, aboutOnArrival, aboutRequestOf, AboutShown } from "./aboutRequest";
 import { addOnsOf, isDetailSource, placementOf, sourceOf } from "./catalogQueries";
 import { settledSelection } from "./catalogSelection";
 import {
@@ -61,9 +62,8 @@ export interface ViewState {
     /** What Review Add-ons found, for a screen reader, until the user searches or filters. */
     readonly reviewCount?: number;
     /** The README and license of the add-on or marketplace the detail shows, once the host answered. */
-    readonly about?: { readonly targetId: string; readonly about: AddOnAboutPayload };
-    /** What the view last asked about, so it asks again only for another target or model. */
-    readonly aboutAsked?: { readonly targetId: string; readonly revision: number };
+    readonly about?: AboutShown;
+    readonly aboutAsked?: AboutAsked;
 }
 
 /**
@@ -196,10 +196,15 @@ function changedBy(state: ViewState, event: ViewEvent): Change {
             return selected(state, event.addOnId);
         case "addOnShown":
             return { state: shown(state, event.addOnId) };
-        case "aboutArrived":
-            return event.targetId === state.selectedId
-                ? { state: { ...state, about: { targetId: event.targetId, about: event.about } } }
-                : { state };
+        case "aboutArrived": {
+            const { targetId, about } = event;
+            return {
+                state: {
+                    ...state,
+                    about: aboutOnArrival(state.selectedId, state.about, { targetId, about }),
+                },
+            };
+        }
         case "backChosen":
             return { state: { ...state, pane: "list" } };
         case "queryChanged":
@@ -473,26 +478,19 @@ function withFocus(change: Change, modelChanged: boolean): Transition {
     return { ...change, state: { ...state, awaitingFocus: undefined }, focus };
 }
 
-/**
- * Asks the host for the README and license of what the detail shows, again once a new
- * model lists it, as a rebuild follows a change in its folder. A list whose
- * rows open a tab shows no detail, so it asks for none.
- */
+/** A list whose rows open a tab shows no detail. */
 function withAboutAsked(transition: Transition): Transition {
     const { state } = transition;
-    const { model, selectedId, aboutAsked } = state;
-    if (model === undefined || selectedId === undefined || state.page === "listWithTab") {
-        return transition;
-    }
-    if (aboutAsked?.targetId === selectedId && aboutAsked.revision === model.revision) {
-        return transition;
-    }
-    const about = state.about?.targetId === selectedId ? state.about : undefined;
-    return {
-        ...transition,
-        state: { ...state, about, aboutAsked: { targetId: selectedId, revision: model.revision } },
-        askAbout: selectedId,
-    };
+    const request = aboutRequestOf({
+        revision: state.model?.revision,
+        selectedId: state.selectedId,
+        showsDetail: state.page !== "listWithTab",
+        about: state.about,
+        aboutAsked: state.aboutAsked,
+    });
+    if (request === undefined) return transition;
+    const { askAbout, aboutAsked, about } = request;
+    return { ...transition, state: { ...state, about, aboutAsked }, askAbout };
 }
 
 function fallbackFocus(

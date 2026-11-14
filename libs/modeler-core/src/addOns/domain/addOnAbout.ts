@@ -1,8 +1,5 @@
-import {
-    RepositoryFacts,
-    RepositoryHost,
-    RepositoryLicense,
-} from "../../kernel/domain/repositoryFacts";
+import { MarketplaceProvider } from "../../kernel/domain/modelerSettings";
+import { RepositoryFacts, RepositoryLicense } from "../../kernel/domain/repositoryFacts";
 import { AddOnReadme, NO_README } from "./addOnReadme";
 import { ShownCode } from "./codeAddOnCatalog";
 
@@ -68,14 +65,14 @@ export function aboutPlacesOf(
     return places;
 }
 
-const HOST_NAME: Record<RepositoryHost, string> = { github: "GitHub", gitlab: "GitLab" };
+const HOST_NAME: Record<MarketplaceProvider, string> = { github: "GitHub", gitlab: "GitLab" };
 
 /** A package's own word for its license is long only when it points at a file. */
 const PACKAGE_LICENSE_MAX = 24;
 
 /** How a repository host's license detection reads on a badge. */
 export function repositoryLicenseViewOf(
-    host: RepositoryHost,
+    host: MarketplaceProvider,
     license: RepositoryLicense,
 ): LicenseView {
     switch (license.kind) {
@@ -100,32 +97,17 @@ export function repositoryLicenseViewOf(
     }
 }
 
-/**
- * The `license` of a folder's `package.json`, as npm writes it: an SPDX
- * expression, or a legacy `{ type }`. Anything else is no license said.
- */
-export function packageLicenseViewOf(manifestText: string): LicenseView | undefined {
-    let license: unknown;
-    try {
-        license = (JSON.parse(manifestText) as { license?: unknown })?.license;
-    } catch {
-        return undefined;
-    }
-    const declared =
-        typeof license === "object" && license !== null
-            ? (license as { type?: unknown }).type
-            : license;
-    if (typeof declared !== "string" || declared.trim() === "") return undefined;
-    const value = declared.trim();
-    const short = value.length <= PACKAGE_LICENSE_MAX && !/^SEE LICENSE IN /i.test(value);
+/** The license a folder's `package.json` declares. */
+export function packageLicenseViewOf(license: string): LicenseView {
+    const short = license.length <= PACKAGE_LICENSE_MAX && !/^SEE LICENSE IN /i.test(license);
     return {
         kind: short ? "known" : "other",
-        text: short ? value : "Custom license",
-        label: `License: ${value}, as its package.json says`,
+        text: short ? license : "Custom license",
+        label: `License: ${license}, as its package.json says`,
     };
 }
 
-export function starsViewOf(host: RepositoryHost, stars: number): StarsView {
+export function starsViewOf(host: MarketplaceProvider, stars: number): StarsView {
     const counted = stars === 1 ? "1 star" : `${stars.toLocaleString("en-US")} stars`;
     return {
         text: compactCountText(stars),

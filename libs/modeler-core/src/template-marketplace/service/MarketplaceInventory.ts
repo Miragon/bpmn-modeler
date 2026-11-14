@@ -8,7 +8,7 @@ import {
 } from "../domain/marketplaceSources";
 import { RegistrationsByScope } from "../domain/marketplaceRegistrations";
 import { MarketplaceRegistrationsPort } from "../port/marketplacePorts";
-import { CachedMarketplaceAbout } from "./MarketplaceCache";
+import { CachedMarketplaceAbout } from "./MarketplaceAboutCache";
 import { MarketplaceCommands } from "./MarketplaceCommands";
 import { TemplateMarketplaceService } from "./TemplateMarketplaceService";
 

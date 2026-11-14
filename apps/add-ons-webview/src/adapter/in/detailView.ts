@@ -3,20 +3,20 @@ import type {
     AddOnActionKindPayload,
     AddOnPayload,
     AddOnAboutPayload,
-    AddOnReadmePayload,
     AddOnReviewPayload,
 } from "@miragon/bpmn-modeler-shared";
-import { ArrowLeft, BookOpen, Info, Scale, Star, Store } from "lucide";
+import { ArrowLeft } from "lucide";
 
-import { addOnActionEmphasis, sourceActionEmphasis } from "../../domain/actionEmphasis";
+import { addOnActionEmphasis } from "../../domain/actionEmphasis";
 import { detailStatusOf } from "../../domain/addOnStatus";
-import type { Placement, SourcePlacement } from "../../domain/catalogQueries";
-import { CHROME_TEXT, templateCountText } from "../../domain/chromeTexts";
+import type { Placement } from "../../domain/catalogQueries";
+import { CHROME_TEXT } from "../../domain/chromeTexts";
 import { placedActions, reviewOf } from "../../domain/placedActions";
 import { isBusy, ViewState } from "../../domain/viewState";
+import { aboutBadgesOf, aboutFor, readmeSection } from "./aboutView";
+import { noteOf, separator } from "./detailParts";
 import { actionButton, button, el, hiddenText, icon, markFocus, setBusy } from "./dom";
-import { ADD_ON_ACTION_ICON, SOURCE_ACTION_ICON, SOURCE_ICON } from "./icons";
-import { markdownOf } from "./markdownView";
+import { ADD_ON_ACTION_ICON, SOURCE_ICON } from "./icons";
 import { kindTag, statusBox, statusMark } from "./statusMarks";
 
 export function backButton(onBack: () => void): HTMLButtonElement {
@@ -57,101 +57,6 @@ export function detailOf(placement: Placement, state: ViewState, revealed: boole
     }
     detail.append(...readmeSection(about?.readme));
     return detail;
-}
-
-/** A marketplace: what the core says of it, its actions as real buttons, and its README. */
-export function sourceDetailOf({ group, source }: SourcePlacement, state: ViewState): HTMLElement {
-    const busy = isBusy(state, source.id);
-    const detail = el("article", "av-detail-card");
-    detail.setAttribute("aria-label", source.label);
-    setBusy(detail, busy);
-    if (busy) detail.append(el("div", "ds-busy-bar av-detail-busy"));
-    const head = el("header", "av-detail-head");
-    const top = el("div", "av-detail-top");
-    const tag = el("span", "ds-kind-tag ds-kind-marketplace");
-    tag.append(icon(Store, 14), el("span", "", CHROME_TEXT.marketplace));
-    top.append(tag);
-    if (source.stateText !== undefined) top.append(el("span", "av-badge", source.stateText));
-    const about = aboutFor(state, source.id);
-    top.append(...aboutBadgesOf(about));
-    const name = markFocus(el("h2", "av-detail-name", source.label), "name", source.id);
-    name.tabIndex = -1;
-    const metaLine = el("p", "av-detail-meta");
-    metaLine.append(
-        el("span", "", source.description),
-        separator("·"),
-        el("span", "", templateCountText(source.addOns.length)),
-    );
-    const where = el("p", "av-location");
-    where.append(icon(SOURCE_ICON[source.kind], 14, "av-location-icon"), el("span", "", group.label));
-    head.append(top, name, metaLine, where);
-    detail.append(head);
-    if (source.problem !== undefined) detail.append(statusBox("danger", source.problem));
-    if (source.actions.length > 0) {
-        const bar = el("div", "av-actions");
-        bar.append(
-            ...source.actions.map((action) =>
-                actionButton(action, {
-                    targetId: source.id,
-                    busy,
-                    emphasis: sourceActionEmphasis(action.kind),
-                    icon: SOURCE_ACTION_ICON[action.kind],
-                    focus: "action",
-                }),
-            ),
-        );
-        detail.append(bar);
-    }
-    detail.append(...readmeSection(about?.readme));
-    return detail;
-}
-
-function aboutFor(state: ViewState, targetId: string): AddOnAboutPayload | undefined {
-    return state.about?.targetId === targetId ? state.about.about : undefined;
-}
-
-/**
- * Stars, then the license, at the end of the detail's top row: short on the
- * badge, the core's whole sentence for a screen reader and the tooltip.
- */
-function aboutBadgesOf(about: AddOnAboutPayload | undefined): HTMLElement[] {
-    const badges = el("span", "av-about-badges");
-    if (about?.stars !== undefined) {
-        badges.append(aboutBadge("av-stars", Star, about.stars.text, about.stars.label));
-    }
-    if (about?.license !== undefined) {
-        const { kind, text, label } = about.license;
-        badges.append(aboutBadge(`av-license av-license-${kind}`, Scale, text, label));
-    }
-    return badges.childElementCount === 0 ? [] : [badges];
-}
-
-function aboutBadge(
-    className: string,
-    glyph: typeof Star,
-    text: string,
-    label: string,
-): HTMLElement {
-    const badge = el("span", `av-about-badge ${className}`);
-    badge.title = label;
-    badge.append(icon(glyph, 14, "av-about-icon"), el("span", "", text), hiddenText(`, ${label}`));
-    return badge;
-}
-
-/** Nothing until the host answered, and nothing for none, so a detail never flashes an empty section. */
-function readmeSection(readme: AddOnReadmePayload | undefined): HTMLElement[] {
-    if (readme === undefined || readme.kind === "none") return [];
-    const section = el("section", "av-readme");
-    const heading = el("h3", "av-readme-heading");
-    heading.append(icon(BookOpen, 14, "av-readme-icon"), el("span", "", CHROME_TEXT.readme));
-    section.append(heading);
-    if (readme.kind === "unreadable") {
-        section.append(el("p", "av-readme-problem", readme.text));
-        return [section];
-    }
-    section.append(markdownOf(readme.markdown));
-    if (readme.truncated) section.append(noteOf(CHROME_TEXT.readmeTruncated));
-    return [section];
 }
 
 function addOnButton(
@@ -203,18 +108,6 @@ function headOf(
     );
     head.append(top, name, metaLine, where);
     return head;
-}
-
-function separator(glyph: string): HTMLElement {
-    const sep = el("span", "av-sep", glyph);
-    sep.setAttribute("aria-hidden", "true");
-    return sep;
-}
-
-function noteOf(note: string): HTMLElement {
-    const line = el("p", "av-note");
-    line.append(icon(Info, 16, "av-note-icon"), el("span", "", note));
-    return line;
 }
 
 /** One detail shows at a time, so one id names its warning. */

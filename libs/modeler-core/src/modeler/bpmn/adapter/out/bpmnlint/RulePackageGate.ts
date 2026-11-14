@@ -5,13 +5,8 @@ import { isRootedPath, isWithinRoot } from "../../../../../kernel/domain/rootCon
 import { fileSystemPathOf, toWorkspacePath } from "../../../../../kernel/domain/workspacePath";
 import { PluginApprovalStorePort } from "../../../../../kernel/port/approvalPorts";
 import { WorkspaceTrustPort } from "../../../../../kernel/port/hostPorts";
-import {
-    dependencyCandidates,
-    manifestPathOf,
-    packageManifestOf,
-    PathStamp,
-    samePathStamp,
-} from "../../../domain/installedPackage";
+import { manifestPathOf, packageManifestOf } from "../../../../../kernel/domain/packageManifest";
+import { dependencyCandidates, PathStamp, samePathStamp } from "../../../domain/installedPackage";
 import {
     AllowableRoot,
     BlockedRulePackage,

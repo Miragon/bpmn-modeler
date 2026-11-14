@@ -1,4 +1,6 @@
 import { DirectoryNotFound, FileNotFound } from "../../kernel/domain/errors";
+import { manifestPathOf, packageManifestOf } from "../../kernel/domain/packageManifest";
+import { readmeFileNameIn } from "../../kernel/domain/readmeFile";
 import { joinWorkspacePath } from "../../kernel/domain/workspacePath";
 import { LoggerPort, WorkspacePort } from "../../kernel/port/hostPorts";
 import {
@@ -9,7 +11,7 @@ import {
     packageLicenseViewOf,
     repositoryAboutOf,
 } from "../domain/addOnAbout";
-import { AddOnReadme, NO_README, readmeFileNameIn, readmeOf } from "../domain/addOnReadme";
+import { AddOnReadme, NO_README, readmeOf } from "../domain/addOnReadme";
 import { README_UNREADABLE_TEXT } from "../domain/addOnTexts";
 
 /** Reads what a detail shows below the core's facts, at the place the catalog recorded for it. */
@@ -27,11 +29,8 @@ export class AddOnAboutReader {
                 ...repositoryAboutOf(place.repository),
             };
         }
-        const entries = await this.entriesOf(place.dir);
-        const readmeName = readmeFileNameIn(entries);
-        const license = entries.some(([name, kind]) => name === "package.json" && kind === "file")
-            ? await this.packageLicenseOf(joinWorkspacePath(place.dir, "package.json"))
-            : undefined;
+        const readmeName = readmeFileNameIn(await this.fileNamesIn(place.dir));
+        const license = await this.packageLicenseOf(place.dir);
         return {
             readme: await this.readmeAt(
                 readmeName === undefined ? undefined : joinWorkspacePath(place.dir, readmeName),
@@ -40,9 +39,10 @@ export class AddOnAboutReader {
         };
     }
 
-    private async entriesOf(dir: string) {
+    private async fileNamesIn(dir: string): Promise<string[]> {
         try {
-            return await this.workspace.readDirectory(dir);
+            const entries = await this.workspace.readDirectory(dir);
+            return entries.filter(([, kind]) => kind === "file").map(([name]) => name);
         } catch (error) {
             if (!(error instanceof DirectoryNotFound)) this.logError(error);
             return [];
@@ -61,9 +61,12 @@ export class AddOnAboutReader {
     }
 
     /** A license only adds to a detail, so an unreadable manifest shows none. */
-    private async packageLicenseOf(path: string): Promise<LicenseView | undefined> {
+    private async packageLicenseOf(dir: string): Promise<LicenseView | undefined> {
         try {
-            return packageLicenseViewOf(await this.workspace.readFile(path));
+            const license = packageManifestOf(
+                await this.workspace.readFile(manifestPathOf(dir)),
+            )?.license;
+            return license === undefined ? undefined : packageLicenseViewOf(license);
         } catch (error) {
             if (!(error instanceof FileNotFound)) this.logError(error);
             return undefined;

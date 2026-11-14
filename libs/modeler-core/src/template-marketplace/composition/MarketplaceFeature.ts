@@ -6,10 +6,12 @@ import { RepositorySourceConfig } from "../domain/repositorySourceConfig";
 import { GitHubSource } from "../adapter/out/GitHubSource";
 import { GitLabSource } from "../adapter/out/GitLabSource";
 import { LocalFileSource } from "../adapter/out/LocalFileSource";
+import { MarketplaceAboutCache } from "../service/MarketplaceAboutCache";
 import { MarketplaceCache } from "../service/MarketplaceCache";
 import { MarketplaceCommandPorts, MarketplaceCommands } from "../service/MarketplaceCommands";
 import { MarketplaceInventory } from "../service/MarketplaceInventory";
 import { TemplateMarketplaceService } from "../service/TemplateMarketplaceService";
+import { WriteQueue } from "../service/WriteQueue";
 
 export interface MarketplaceHostPorts {
     workspace: WorkspacePort;
@@ -38,9 +40,11 @@ export function createTemplateMarketplaceService(
                 return new LocalFileSource(ports.workspace, config);
         }
     };
+    const writes = new WriteQueue();
     return new TemplateMarketplaceService(
         sourceFor,
-        new MarketplaceCache(ports.cacheRoot, ports.workspace),
+        new MarketplaceCache(ports.cacheRoot, ports.workspace, writes),
+        new MarketplaceAboutCache(ports.cacheRoot, ports.workspace, ports.notifier, writes),
         ports.settings,
         ports.notifier,
         ports.tokens,

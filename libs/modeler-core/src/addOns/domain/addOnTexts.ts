@@ -1,5 +1,5 @@
 import { Allowance, LOCAL_HOST, repositoryFolderOf } from "../../kernel/domain/allowance";
-import { AddOnKind, CodeState, TemplateState } from "./addOnIds";
+import { AddOnKind, CodeState, SourceKind, TemplateState } from "./addOnIds";
 
 export const ADD_ON_KIND_TEXT: Record<AddOnKind, string> = {
     plugin: "BPMN plugin",
@@ -105,6 +105,16 @@ export function cannotBeReadText(reason: string): string {
 
 export function addOnDetailTitle(name: string): string {
     return `Add-on: ${name}`;
+}
+
+const SOURCE_KIND_NOUN: Readonly<Record<SourceKind, string>> = {
+    configFolder: "Config folder",
+    installedPackages: "Packages",
+    marketplace: "Marketplace",
+};
+
+export function sourceDetailTitle(kind: SourceKind, label: string): string {
+    return `${SOURCE_KIND_NOUN[kind]}: ${label}`;
 }
 
 export const UNLISTED_DETAIL_TEXT =

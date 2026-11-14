@@ -114,3 +114,16 @@ describe("LocalFileSource.fetchFile", () => {
         expect(await source.fetchFile("marketplace.json")).toBe('{"sources":[]}');
     });
 });
+
+describe("LocalFileSource.listRootFiles", () => {
+    it("lists the files of the marketplace folder itself, not its subfolders", async () => {
+        const workspace = fakeWorkspace({
+            "/root/README.md": "# Acme",
+            "/root/marketplace.json": "{}",
+            "/root/templates/a.json": "{}",
+        });
+        const source = new LocalFileSource(workspace, { kind: "local", rootDir: "/root/", path: "" });
+
+        expect(await source.listRootFiles()).toEqual(["README.md", "marketplace.json"]);
+    });
+});

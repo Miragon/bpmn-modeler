@@ -24,12 +24,22 @@ const ENABLE = { kind: "enable", label: "Enable" } as const;
 const DISABLE = { kind: "disable", label: "Disable" } as const;
 const ENABLE_TEMPLATES = { kind: "enableTemplates", label: "Enable templates" } as const;
 const DISABLE_TEMPLATES = { kind: "disableTemplates", label: "Disable templates" } as const;
-const TEMPLATE_SWITCHES: readonly ActionViewPayload<string>[] = [ENABLE_TEMPLATES, DISABLE_TEMPLATES];
+const TEMPLATE_SWITCHES: readonly ActionViewPayload<string>[] = [
+    ENABLE_TEMPLATES,
+    DISABLE_TEMPLATES,
+];
 const SOURCE_DISABLED_NOTE = "Its source is disabled.";
 const PLUGIN_RISK = "A plugin runs its own code in the BPMN editor.";
-const RULE_RISK = "A rule package runs as a program with your user's rights, not only inside the editor.";
-const RISK: Record<CodeAddOnPayload["kind"], string> = { plugin: PLUGIN_RISK, rulePackage: RULE_RISK };
-const FOLLOW_UP: Record<CodeAddOnPayload["kind"], { readonly allowed: string; readonly revoked: string }> = {
+const RULE_RISK =
+    "A rule package runs as a program with your user's rights, not only inside the editor.";
+const RISK: Record<CodeAddOnPayload["kind"], string> = {
+    plugin: PLUGIN_RISK,
+    rulePackage: RULE_RISK,
+};
+const FOLLOW_UP: Record<
+    CodeAddOnPayload["kind"],
+    { readonly allowed: string; readonly revoked: string }
+> = {
     plugin: { allowed: "Open editors reload with it.", revoked: "Open editors reload without it." },
     rulePackage: {
         allowed: "Open editors lint again with it.",
@@ -42,7 +52,8 @@ const IN_REPOSITORY = " in every worktree of its repository";
 // A rule package's name carries its version, as the core labels it.
 const VERSION_OF: Record<CodeAddOnPayload["kind"], (name: string) => string | undefined> = {
     plugin: () => undefined,
-    rulePackage: (name) => (name.lastIndexOf("@") > 0 ? name.slice(name.lastIndexOf("@") + 1) : undefined),
+    rulePackage: (name) =>
+        name.lastIndexOf("@") > 0 ? name.slice(name.lastIndexOf("@") + 1) : undefined,
 };
 
 // A revoked plugin unloads at once; code a revoked rule package ran stays loaded.
@@ -51,7 +62,12 @@ const NOTE_AFTER_REVOKE: Record<CodeAddOnPayload["kind"], string | undefined> = 
     rulePackage: FOLLOW_UP.rulePackage.revoked,
 };
 
-function reviewOf(name: string, risk: string, folder: string, version?: string): AddOnReviewPayload {
+function reviewOf(
+    name: string,
+    risk: string,
+    folder: string,
+    version?: string,
+): AddOnReviewPayload {
     return {
         heading: `Review ${name} before you allow it`,
         warning: `${risk} Allowing it covers it in every worktree of this repository, later changes included. Allow it only if you trust it.`,
@@ -153,10 +169,15 @@ function fullCatalog(): AddOnGroupPayload[] {
                     stateText: "Templates disabled",
                     actions: [ENABLE_TEMPLATES],
                     addOns: [
-                        template("Order Task", "config:/work/orders/.camunda|order.json", "disabled", {
-                            note: SOURCE_DISABLED_NOTE,
-                            actions: [],
-                        }),
+                        template(
+                            "Order Task",
+                            "config:/work/orders/.camunda|order.json",
+                            "disabled",
+                            {
+                                note: SOURCE_DISABLED_NOTE,
+                                actions: [],
+                            },
+                        ),
                     ],
                 },
                 {
@@ -207,7 +228,9 @@ function fullCatalog(): AddOnGroupPayload[] {
                     label: ".camunda",
                     description: "Applies to every diagram in this folder",
                     actions: [],
-                    addOns: [plugin("Billing Palette", ".camunda/plugins/billing-palette", "approved")],
+                    addOns: [
+                        plugin("Billing Palette", ".camunda/plugins/billing-palette", "approved"),
+                    ],
                 },
             ],
         },
@@ -222,6 +245,7 @@ function fullCatalog(): AddOnGroupPayload[] {
                     kind: "marketplace",
                     label: "/shared",
                     description: "Registered for all projects",
+                    hasDetail: true,
                     actions: [{ kind: "removeMarketplace", label: "Remove" }, DISABLE_TEMPLATES],
                     addOns: [template("Shared Mail", "marketplace:shared|mail.json", "enabled")],
                 },
@@ -230,6 +254,7 @@ function fullCatalog(): AddOnGroupPayload[] {
                     kind: "marketplace",
                     label: "https://example.com/broken",
                     description: "Registered for this project",
+                    hasDetail: true,
                     problem: "Could not fetch the marketplace: 404 Not Found.",
                     actions: [{ kind: "removeMarketplace", label: "Remove" }],
                     addOns: [],
@@ -266,7 +291,14 @@ export function previewStateOf(name: string | null): PreviewState {
 }
 
 function allowed(row: CodeAddOnPayload): CodeAddOnPayload {
-    return { ...row, state: "approved", stateText: STATE_TEXT.approved, review: undefined, note: undefined, actions: [REVOKE] };
+    return {
+        ...row,
+        state: "approved",
+        stateText: STATE_TEXT.approved,
+        review: undefined,
+        note: undefined,
+        actions: [REVOKE],
+    };
 }
 
 function everyCodeAllowed(groups: AddOnGroupPayload[]): AddOnGroupPayload[] {
@@ -274,13 +306,17 @@ function everyCodeAllowed(groups: AddOnGroupPayload[]): AddOnGroupPayload[] {
         ...group,
         sources: group.sources.map((source) => ({
             ...source,
-            addOns: source.addOns.map((row) => (row.kind !== "elementTemplate" && needsReview(row) ? allowed(row) : row)),
+            addOns: source.addOns.map((row) =>
+                row.kind !== "elementTemplate" && needsReview(row) ? allowed(row) : row,
+            ),
         })),
     }));
 }
 
-const NO_ADD_ON_TEXT = "No BPMN plugins, bpmnlint rule packages or element templates in this workspace.";
-const NO_FOLDER_TEXT = "Open a folder to see the plugins, rule packages and element templates it brings.";
+const NO_ADD_ON_TEXT =
+    "No BPMN plugins, bpmnlint rule packages or element templates in this workspace.";
+const NO_FOLDER_TEXT =
+    "Open a folder to see the plugins, rule packages and element templates it brings.";
 
 const folderGroups = () => fullCatalog().filter(({ kind }) => kind === "folder");
 const marketplacesGroup = () => fullCatalog().filter(({ kind }) => kind === "marketplaces");
@@ -296,14 +332,23 @@ const GROUPS_OF: Record<PreviewState, () => Partial<AddOnCatalogPayload> | undef
     marketplacesFailed: () => ({
         groups: [
             ...folderGroups(),
-            { ...marketplacesGroup()[0]!, problem: "Could not read the registered marketplaces.", sources: [] },
+            {
+                ...marketplacesGroup()[0]!,
+                problem: "Could not read the registered marketplaces.",
+                sources: [],
+            },
         ],
     }),
     rereadFailed: () => ({
         groups: fullCatalog(),
-        problem: "Could not list the add-ons again. The list shows what it read before; the log says why.",
+        problem:
+            "Could not list the add-ons again. The list shows what it read before; the log says why.",
     }),
-    failed: () => ({ groups: [], actions: [], problem: "Could not list the add-ons. The log says why." }),
+    failed: () => ({
+        groups: [],
+        actions: [],
+        problem: "Could not list the add-ons. The log says why.",
+    }),
 };
 
 type Done = { readonly result: AddOnActionResultPayload; readonly changed: boolean };
@@ -324,7 +369,12 @@ export class MockCatalog {
     /** `undefined` while the preview shows a catalog that never arrives. */
     model(): AddOnCatalogPayload | undefined {
         if (this.parts === undefined) return undefined;
-        return { actions: CATALOG_ACTIONS, ...this.parts, revision: this.revision, groups: this.groups };
+        return {
+            actions: CATALOG_ACTIONS,
+            ...this.parts,
+            revision: this.revision,
+            groups: this.groups,
+        };
     }
 
     idOf(nameOrId: string): string | undefined {
@@ -346,7 +396,12 @@ export class MockCatalog {
             case "enable":
             case "disable":
                 return this.changeRow<TemplateAddOnPayload>(request.addOnId, (row) =>
-                    template(row.name, row.id.slice("template:".length).split("#")[0], request.kind === "enable" ? "enabled" : "disabled", { id: row.id }),
+                    template(
+                        row.name,
+                        row.id.slice("template:".length).split("#")[0],
+                        request.kind === "enable" ? "enabled" : "disabled",
+                        { id: row.id },
+                    ),
                 );
             case "enableTemplates":
             case "disableTemplates":
@@ -361,7 +416,10 @@ export class MockCatalog {
             case "updateMarketplaces":
                 return { result: { kind: "reportedByFlow" }, changed: false };
             case "pruneCache":
-                return { result: { kind: "done", message: "Removed 2 unused plugin copies." }, changed: false };
+                return {
+                    result: { kind: "done", message: "Removed 2 unused plugin copies." },
+                    changed: false,
+                };
             case "refresh":
                 return { result: { kind: "done" }, changed: true };
         }
@@ -393,7 +451,9 @@ export class MockCatalog {
                 ...each,
                 state: "new",
                 stateText: STATE_TEXT.new,
-                ...(NOTE_AFTER_REVOKE[each.kind] !== undefined && { note: NOTE_AFTER_REVOKE[each.kind] }),
+                ...(NOTE_AFTER_REVOKE[each.kind] !== undefined && {
+                    note: NOTE_AFTER_REVOKE[each.kind],
+                }),
                 ...(each.problem === undefined && {
                     review: reviewOf(
                         each.name,
@@ -418,14 +478,23 @@ export class MockCatalog {
                     ...rest,
                     ...(disable && { stateText: "Templates disabled" }),
                     actions: source.actions.map((action) =>
-                        TEMPLATE_SWITCHES.includes(action) ? (disable ? ENABLE_TEMPLATES : DISABLE_TEMPLATES) : action,
+                        TEMPLATE_SWITCHES.includes(action)
+                            ? disable
+                                ? ENABLE_TEMPLATES
+                                : DISABLE_TEMPLATES
+                            : action,
                     ),
                     addOns: source.addOns.map((addOn) =>
                         addOn.kind !== "elementTemplate"
                             ? addOn
                             : disable
                               ? { ...addOn, note: SOURCE_DISABLED_NOTE, actions: [] }
-                              : template(addOn.name, addOn.id.slice("template:".length).split("#")[0], addOn.state, { id: addOn.id }),
+                              : template(
+                                    addOn.name,
+                                    addOn.id.slice("template:".length).split("#")[0],
+                                    addOn.state,
+                                    { id: addOn.id },
+                                ),
                     ),
                 };
             }),
@@ -441,7 +510,11 @@ export class MockCatalog {
         const row = this.rows().find(({ id }) => id === addOnId) as R | undefined;
         if (row === undefined) {
             return {
-                result: { kind: "refused", reason: "unknownAddOn", message: "This add-on is no longer listed." },
+                result: {
+                    kind: "refused",
+                    reason: "unknownAddOn",
+                    message: "This add-on is no longer listed.",
+                },
                 changed: false,
             };
         }
@@ -449,10 +522,15 @@ export class MockCatalog {
             ...group,
             sources: group.sources.map((source) => ({
                 ...source,
-                addOns: source.addOns.map((each) => (each.id === addOnId ? change(each as R) : each)),
+                addOns: source.addOns.map((each) =>
+                    each.id === addOnId ? change(each as R) : each,
+                ),
             })),
         }));
-        return { result: { kind: "done", ...(message && { message: message(row) }) }, changed: true };
+        return {
+            result: { kind: "done", ...(message && { message: message(row) }) },
+            changed: true,
+        };
     }
 
     private rows(): AddOnPayload[] {

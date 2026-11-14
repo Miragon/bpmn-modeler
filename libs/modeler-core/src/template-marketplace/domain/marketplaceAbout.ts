@@ -2,9 +2,6 @@ import { FileNotFound } from "../../kernel/domain/errors";
 import { RepositoryFacts } from "../../kernel/domain/repositoryFacts";
 import { RepositoryAccessError } from "./repositoryAccessError";
 
-/** Beside `marketplace.json`, where repository hosts show a repository's description. */
-export const MARKETPLACE_README = "README.md";
-
 /** What fetching one thing about a marketplace brought: its cached copy is replaced, removed or kept. */
 export type AboutFetch<T> =
     | { readonly kind: "found"; readonly value: T }

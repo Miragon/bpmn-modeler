@@ -29,18 +29,9 @@ export interface PathStamp {
     readonly ctimeNs: bigint;
 }
 
-export interface PackageManifest {
-    readonly name: string;
-    readonly version: string;
-    /** Node then reaches the package's files only through its `exports`. */
-    readonly hasExports: boolean;
-}
-
 export interface DependencyCandidate {
     readonly packageDir: string;
 }
-
-const MANIFEST_FILE = "package.json";
 
 export function samePathStamp(a: PathStamp | undefined, b: PathStamp | undefined): boolean {
     if (a === undefined || b === undefined) {
@@ -54,22 +45,6 @@ export function samePathStamp(a: PathStamp | undefined, b: PathStamp | undefined
         a.mtimeNs === b.mtimeNs &&
         a.ctimeNs === b.ctimeNs
     );
-}
-
-export function packageManifestOf(text: string): PackageManifest | undefined {
-    const manifest = parsedObject(text);
-    if (manifest === undefined) {
-        return undefined;
-    }
-    return {
-        name: stringOrEmpty(manifest.name),
-        version: stringOrEmpty(manifest.version),
-        hasExports: manifest.exports !== undefined && manifest.exports !== null,
-    };
-}
-
-export function manifestPathOf(dir: string): string {
-    return joinWorkspacePath(dir, MANIFEST_FILE);
 }
 
 /**
@@ -86,23 +61,6 @@ export function dependencyCandidates(fromDir: string, name: string): DependencyC
         }
     }
     return candidates;
-}
-
-function parsedObject(text: string): Record<string, unknown> | undefined {
-    try {
-        const parsed: unknown = JSON.parse(text);
-        return isPlainObject(parsed) ? parsed : undefined;
-    } catch {
-        return undefined;
-    }
-}
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-    return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function stringOrEmpty(value: unknown): string {
-    return typeof value === "string" ? value : "";
 }
 
 /** bpmnlint resolves plugin `acme` to `bpmnlint-plugin-acme`, and `@scope` or `@scope/acme` inside the scope. */

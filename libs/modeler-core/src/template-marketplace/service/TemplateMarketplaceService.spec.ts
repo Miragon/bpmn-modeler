@@ -7,7 +7,9 @@ import { RepositoryAccessError } from "../domain/repositoryAccessError";
 import { RepositorySource, RepositorySourceFactory } from "../port/marketplacePorts";
 import { RepositorySourceConfig } from "../domain/repositorySourceConfig";
 import { RepositoryFacts } from "../../kernel/domain/repositoryFacts";
+import { MarketplaceAboutCache } from "./MarketplaceAboutCache";
 import { MarketplaceCache } from "./MarketplaceCache";
+import { WriteQueue } from "./WriteQueue";
 import { TemplateMarketplaceService } from "./TemplateMarketplaceService";
 
 const MANIFEST = JSON.stringify({
@@ -16,8 +18,6 @@ const MANIFEST = JSON.stringify({
         { provider: "github", repo: "camunda/camunda-modeler", ref: "develop", path: "resources" },
     ],
 });
-
-const NO_README = new RepositoryAccessError("github.com", 404, "acme/templates", false);
 
 /**
  * Builds a service over `factory` and the in-memory host, caching into a real
@@ -41,9 +41,11 @@ function serviceOver(
     for (const [tokenHost, token] of Object.entries(storedTokens)) {
         host.tokens.tokens.set(tokenHost, token);
     }
+    const writes = new WriteQueue();
     const service = new TemplateMarketplaceService(
         factory,
-        new MarketplaceCache("/cache", host.workspace),
+        new MarketplaceCache("/cache", host.workspace, writes),
+        new MarketplaceAboutCache("/cache", host.workspace, host.notifier, writes),
         host.settings,
         host.notifier,
         host.tokens,
@@ -54,7 +56,8 @@ function serviceOver(
         service,
         cachedPaths: () =>
             [...host.workspace.files.keys()].filter(
-                (path) => !path.endsWith("/slot.json") &&
+                (path) =>
+                    !path.endsWith("/slot.json") &&
                     !path.includes("/readme/") &&
                     !path.includes("/repository/"),
             ),
@@ -82,12 +85,15 @@ function createService(
         if (config.path === "") {
             return {
                 listTemplateFiles: vi.fn().mockResolvedValue([]),
+                listRootFiles: vi.fn(async () =>
+                    opts.readme === undefined
+                        ? ["marketplace.json"]
+                        : ["marketplace.json", "readme.md"],
+                ),
                 fetchFile: vi.fn(async (repoPath: string) => {
-                    if (repoPath === "README.md") {
-                        if (opts.readme === undefined || opts.readme instanceof Error) {
-                            throw opts.readme ?? NO_README;
-                        }
-                        return opts.readme;
+                    if (repoPath === "readme.md") {
+                        if (opts.readme instanceof Error) throw opts.readme;
+                        return opts.readme!;
                     }
                     if (opts.manifest instanceof Error) {
                         throw opts.manifest;
@@ -104,6 +110,7 @@ function createService(
         }
         return {
             listTemplateFiles: vi.fn().mockResolvedValue([`${config.path}/t.json`]),
+            listRootFiles: vi.fn().mockResolvedValue(["marketplace.json"]),
             fetchFile: vi.fn().mockResolvedValue(`{"from":"${config.path}"}`),
         };
     });
@@ -129,8 +136,9 @@ function tokenGatedFactory({
             const denied = expectedToken === undefined || token !== expectedToken;
             return {
                 listTemplateFiles: vi.fn().mockResolvedValue([]),
-                fetchFile: vi.fn(async (repoPath: string) => {
-                    if (denied || repoPath === "README.md") {
+                listRootFiles: vi.fn().mockResolvedValue(["marketplace.json"]),
+                fetchFile: vi.fn(async () => {
+                    if (denied) {
                         throw new RepositoryAccessError("github.com", 404, "acme/templates", false);
                     }
                     return manifest;
@@ -139,6 +147,7 @@ function tokenGatedFactory({
         }
         return {
             listTemplateFiles: vi.fn().mockResolvedValue([`${config.path}/t.json`]),
+            listRootFiles: vi.fn().mockResolvedValue(["marketplace.json"]),
             fetchFile: vi.fn().mockResolvedValue("{}"),
         };
     });
@@ -183,7 +192,7 @@ describe("TemplateMarketplaceService, a marketplace's README", () => {
 
         expect(workspace.files.get(README_PATH)).toBe("old");
         expect(notifier.logged("warning")).toContain(
-            'Kept the cached README.md of "https://github.com/acme/templates": socket hang up',
+            'Kept the cached README of "https://github.com/acme/templates": socket hang up',
         );
     });
 });
@@ -283,10 +292,12 @@ describe("TemplateMarketplaceService.addMarketplace", () => {
             config.kind === "github" && config.path === ""
                 ? {
                       listTemplateFiles: vi.fn().mockResolvedValue([]),
+                      listRootFiles: vi.fn().mockResolvedValue(["marketplace.json"]),
                       fetchFile: vi.fn().mockResolvedValue(manifest),
                   }
                 : {
                       listTemplateFiles: vi.fn().mockResolvedValue(["connector.json"]),
+                      listRootFiles: vi.fn().mockResolvedValue(["marketplace.json"]),
                       fetchFile: vi.fn().mockResolvedValue("{}"),
                   },
         );
@@ -334,17 +345,20 @@ describe("TemplateMarketplaceService.addMarketplace", () => {
             if (config.path === "") {
                 return {
                     listTemplateFiles: vi.fn().mockResolvedValue([]),
+                    listRootFiles: vi.fn().mockResolvedValue(["marketplace.json"]),
                     fetchFile: vi.fn().mockResolvedValue(MANIFEST),
                 };
             }
             if (config.path === "resources") {
                 return {
                     listTemplateFiles: vi.fn().mockRejectedValue(new Error("rate limited")),
+                    listRootFiles: vi.fn().mockResolvedValue(["marketplace.json"]),
                     fetchFile: vi.fn(),
                 };
             }
             return {
                 listTemplateFiles: vi.fn().mockResolvedValue(["element-templates/t.json"]),
+                listRootFiles: vi.fn().mockResolvedValue(["marketplace.json"]),
                 fetchFile: vi.fn().mockResolvedValue("{}"),
             };
         });
@@ -363,10 +377,12 @@ describe("TemplateMarketplaceService.addMarketplace", () => {
             if (config.path === "") {
                 return {
                     listTemplateFiles: vi.fn().mockResolvedValue([]),
+                    listRootFiles: vi.fn().mockResolvedValue(["marketplace.json"]),
                     fetchFile: vi.fn().mockResolvedValue(MANIFEST),
                 };
             }
             return {
+                listRootFiles: vi.fn().mockResolvedValue([]),
                 listTemplateFiles:
                     config.path === "resources"
                         ? vi.fn().mockRejectedValue(new Error("rate limited"))
@@ -440,10 +456,12 @@ describe("TemplateMarketplaceService.addMarketplace", () => {
             config.path === ""
                 ? {
                       listTemplateFiles: vi.fn().mockResolvedValue([]),
+                      listRootFiles: vi.fn().mockResolvedValue(["marketplace.json"]),
                       fetchFile: vi.fn().mockResolvedValue(manifest),
                   }
                 : {
                       listTemplateFiles: vi.fn().mockResolvedValue([]),
+                      listRootFiles: vi.fn().mockResolvedValue(["marketplace.json"]),
                       fetchFile: vi.fn(),
                   },
         );
@@ -464,10 +482,12 @@ describe("TemplateMarketplaceService.addMarketplace", () => {
             config.path === ""
                 ? {
                       listTemplateFiles: vi.fn().mockResolvedValue([]),
+                      listRootFiles: vi.fn().mockResolvedValue(["marketplace.json"]),
                       fetchFile: vi.fn().mockResolvedValue(manifest),
                   }
                 : {
                       listTemplateFiles: vi.fn().mockRejectedValue(new Error("unreadable")),
+                      listRootFiles: vi.fn().mockResolvedValue(["marketplace.json"]),
                       fetchFile: vi.fn(),
                   },
         );
@@ -526,11 +546,13 @@ describe("TemplateMarketplaceService.updateAll", () => {
             if (config.path === "") {
                 return {
                     listTemplateFiles: vi.fn().mockResolvedValue([]),
+                    listRootFiles: vi.fn().mockResolvedValue(["marketplace.json"]),
                     fetchFile: vi.fn().mockResolvedValue(manifest),
                 };
             }
             const unreachable = config.kind === "github" && config.repo === "one";
             return {
+                listRootFiles: vi.fn().mockResolvedValue([]),
                 listTemplateFiles: unreachable
                     ? vi.fn().mockRejectedValue(new Error("offline"))
                     : vi.fn().mockResolvedValue(["element-templates/t.json"]),
@@ -564,11 +586,13 @@ describe("TemplateMarketplaceService.updateAll", () => {
             if (config.kind === "github" && config.owner === "acme" && config.repo === "one") {
                 return {
                     listTemplateFiles: vi.fn().mockResolvedValue([]),
+                    listRootFiles: vi.fn().mockResolvedValue(["marketplace.json"]),
                     fetchFile: vi.fn().mockRejectedValue(new Error("offline")),
                 };
             }
             return {
                 listTemplateFiles: vi.fn().mockResolvedValue(["t.json"]),
+                listRootFiles: vi.fn().mockResolvedValue(["marketplace.json"]),
                 fetchFile: vi
                     .fn()
                     .mockResolvedValue(
@@ -732,10 +756,12 @@ describe("TemplateMarketplaceService include filtering", () => {
             config.path === ""
                 ? {
                       listTemplateFiles: vi.fn().mockResolvedValue([]),
+                      listRootFiles: vi.fn().mockResolvedValue(["marketplace.json"]),
                       fetchFile: vi.fn().mockResolvedValue(manifest),
                   }
                 : {
                       listTemplateFiles: vi.fn().mockResolvedValue(listing),
+                      listRootFiles: vi.fn().mockResolvedValue(["marketplace.json"]),
                       fetchFile: vi.fn().mockResolvedValue("{}"),
                   },
         );
@@ -795,11 +821,13 @@ describe("TemplateMarketplaceService include filtering", () => {
             if (config.kind === "github" && config.path === "") {
                 return {
                     listTemplateFiles: vi.fn().mockResolvedValue([]),
+                    listRootFiles: vi.fn().mockResolvedValue(["marketplace.json"]),
                     fetchFile: vi.fn().mockResolvedValue(manifest),
                 };
             }
             return {
                 listTemplateFiles: vi.fn().mockResolvedValue(["a.json", "sub/b.json"]),
+                listRootFiles: vi.fn().mockResolvedValue(["marketplace.json"]),
                 fetchFile: vi.fn().mockResolvedValue("{}"),
             };
         });
@@ -909,10 +937,12 @@ describe("TemplateMarketplaceService private-repo auth", () => {
             config.path === ""
                 ? {
                       listTemplateFiles: vi.fn().mockResolvedValue([]),
+                      listRootFiles: vi.fn().mockResolvedValue(["marketplace.json"]),
                       fetchFile: vi.fn().mockResolvedValue(manifest),
                   }
                 : {
                       listTemplateFiles: vi.fn().mockResolvedValue([`${config.path}/t.json`]),
+                      listRootFiles: vi.fn().mockResolvedValue(["marketplace.json"]),
                       fetchFile: vi.fn().mockResolvedValue("{}"),
                   },
         );
@@ -993,6 +1023,7 @@ describe("TemplateMarketplaceService slice 3 (gitlab / self-hosted)", () => {
     it("names a failing object entry by its host/repo label", async () => {
         const factory = vi.fn((): RepositorySource => ({
             listTemplateFiles: vi.fn().mockResolvedValue([]),
+            listRootFiles: vi.fn().mockResolvedValue(["marketplace.json"]),
             fetchFile: vi.fn(async () => {
                 throw new Error("offline");
             }),
@@ -1024,10 +1055,12 @@ describe("TemplateMarketplaceService cache retention", () => {
             if (config.path === "") {
                 return {
                     listTemplateFiles: vi.fn().mockResolvedValue([]),
+                    listRootFiles: vi.fn().mockResolvedValue(["marketplace.json"]),
                     fetchFile: vi.fn(async () => JSON.stringify({ sources: upstream.sources })),
                 };
             }
             return {
+                listRootFiles: vi.fn().mockResolvedValue([]),
                 listTemplateFiles: vi.fn(async () => {
                     if (upstream.unreachablePaths.has(config.path)) {
                         throw new Error("offline");

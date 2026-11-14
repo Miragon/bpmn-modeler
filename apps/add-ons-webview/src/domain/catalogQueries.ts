@@ -11,7 +11,7 @@ export interface Placement {
     readonly addOn: AddOnPayload;
 }
 
-/** Where a marketplace sits: its detail names it, its scope and its templates. */
+/** Where a source with a detail sits: its detail names it, its scope and its add-ons. */
 export interface SourcePlacement {
     readonly group: AddOnGroupPayload;
     readonly source: AddOnSourcePayload;
@@ -42,14 +42,14 @@ export function sourceOf(
     return groups.flatMap(({ sources }) => sources).find(({ id }) => id === sourceId);
 }
 
-/** A marketplace has a detail of its own: what it is, its actions, its stars, license and README. */
+/** Only a source the core gave a detail of its own. */
 export function sourcePlacementOf(
     groups: readonly AddOnGroupPayload[],
     sourceId: string,
 ): SourcePlacement | undefined {
     for (const group of groups) {
         const source = group.sources.find(({ id }) => id === sourceId);
-        if (source !== undefined && source.kind === "marketplace") return { group, source };
+        if (source?.hasDetail === true) return { group, source };
     }
     return undefined;
 }

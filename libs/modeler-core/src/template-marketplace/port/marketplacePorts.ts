@@ -21,6 +21,9 @@ export interface RepositorySource {
 
     fetchFile(repoPath: string): Promise<string>;
 
+    /** The names of the files at the repository's root, to find what describes it. */
+    listRootFiles(): Promise<string[]>;
+
     /** Stars and license as the host reports them; absent for a folder without a host. */
     repositoryFacts?(): Promise<RepositoryFacts>;
 }

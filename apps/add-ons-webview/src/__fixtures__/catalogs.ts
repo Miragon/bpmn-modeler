@@ -86,6 +86,7 @@ export const MARKETPLACE_SOURCE: AddOnSourcePayload = {
     kind: "marketplace",
     label: "/shared",
     description: "Registered for all projects",
+    hasDetail: true,
     actions: [
         { kind: "removeMarketplace", label: "Remove" },
         { kind: "disableTemplates", label: "Disable templates" },

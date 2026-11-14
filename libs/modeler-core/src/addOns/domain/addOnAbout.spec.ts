@@ -34,7 +34,11 @@ describe("aboutPlacesOf", () => {
     it("takes a marketplace's README and facts from its cache, and nothing it has none of", () => {
         const repository = { host: "github", stars: 3 } as const;
         const places = aboutPlacesOf(new Map(), [
-            { sourceId: "marketplace:acme", readmeFile: "/cache/acme/readme/README.md", repository },
+            {
+                sourceId: "marketplace:acme",
+                readmeFile: "/cache/acme/readme/README.md",
+                repository,
+            },
             { sourceId: "marketplace:none" },
         ]);
 
@@ -76,31 +80,31 @@ describe("repositoryAboutOf", () => {
                 label: "GitLab found no license file in the repository.",
             },
         });
-        expect(repositoryAboutOf({ host: "github", license: { kind: "other" } }).license?.text).toBe(
-            "Custom license",
-        );
+        expect(
+            repositoryAboutOf({ host: "github", license: { kind: "other" } }).license?.text,
+        ).toBe("Custom license");
         expect(repositoryAboutOf(undefined)).toEqual({});
     });
 });
 
 describe("packageLicenseViewOf", () => {
-    it("reads an SPDX expression and a legacy type", () => {
-        expect(packageLicenseViewOf('{"license":"Apache-2.0 OR MIT"}')).toEqual({
+    it("shows an SPDX expression as it is", () => {
+        expect(packageLicenseViewOf("Apache-2.0 OR MIT")).toEqual({
             kind: "known",
             text: "Apache-2.0 OR MIT",
             label: "License: Apache-2.0 OR MIT, as its package.json says",
         });
-        expect(packageLicenseViewOf('{"license":{"type":"ISC"}}')?.text).toBe("ISC");
     });
 
-    it("shortens a pointer at a file, and reads nothing from a package without one", () => {
-        expect(packageLicenseViewOf('{"license":"SEE LICENSE IN LICENSE.txt"}')).toEqual({
+    it("shortens a pointer at a file and a long text", () => {
+        expect(packageLicenseViewOf("SEE LICENSE IN LICENSE.txt")).toEqual({
             kind: "other",
             text: "Custom license",
             label: "License: SEE LICENSE IN LICENSE.txt, as its package.json says",
         });
-        expect(packageLicenseViewOf('{"name":"x"}')).toBeUndefined();
-        expect(packageLicenseViewOf("{")).toBeUndefined();
+        expect(packageLicenseViewOf("Proprietary, see the contract of 2024").text).toBe(
+            "Custom license",
+        );
     });
 });
 

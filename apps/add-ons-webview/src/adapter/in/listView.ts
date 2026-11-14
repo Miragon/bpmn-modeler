@@ -158,7 +158,7 @@ function sourceOf(
     const heading = el(`h${level}`, "av-source-heading");
     heading.append(control);
     head.append(heading);
-    if (source.kind === "marketplace") head.append(detailsButton(source, context));
+    if (source.hasDetail === true) head.append(detailsButton(source, context));
     if (source.actions.length > 0) {
         const items = source.actions.map((action) =>
             actionButton(action, {

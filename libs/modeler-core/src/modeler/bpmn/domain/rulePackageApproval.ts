@@ -33,7 +33,11 @@ import {
     staysInsideFolder,
 } from "../../../kernel/domain/rootContainment";
 import { joinWorkspacePath } from "../../../kernel/domain/workspacePath";
-import { manifestPathOf, PackageManifest, packageManifestOf } from "./installedPackage";
+import {
+    manifestPathOf,
+    PackageManifest,
+    packageManifestOf,
+} from "../../../kernel/domain/packageManifest";
 
 export const RULE_PACKAGE_APPROVAL_NOTICE_ID = "bpmnlintPackageApprovalNotice";
 

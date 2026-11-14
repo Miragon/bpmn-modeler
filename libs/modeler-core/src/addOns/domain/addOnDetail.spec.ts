@@ -38,6 +38,7 @@ const MODEL: AddOnCatalogModel = {
                     kind: "marketplace",
                     label: "github.com/acme/templates",
                     description: "",
+                    hasDetail: true,
                     actions: [],
                     addOns: [],
                 },
@@ -55,12 +56,19 @@ describe("detailTargetOf", () => {
             target: { addOnId: RESIZE.id, title: "Add-on: Resize Tasks" },
         },
         {
-            case: "a marketplace the catalog lists, titled by its label",
+            case: "a marketplace the catalog lists, titled as one",
             addOnId: "marketplace:acme",
-            target: { addOnId: "marketplace:acme", title: "Add-on: github.com/acme/templates" },
+            target: {
+                addOnId: "marketplace:acme",
+                title: "Marketplace: github.com/acme/templates",
+            },
         },
         { case: "nothing for an id it does not list", addOnId: "plugin:/gone", target: undefined },
-        { case: "nothing for a folder source", addOnId: "config:/work/.camunda", target: undefined },
+        {
+            case: "nothing for a folder source",
+            addOnId: "config:/work/.camunda",
+            target: undefined,
+        },
     ])("is $case", ({ addOnId, target }) => {
         expect(detailTargetOf(MODEL, addOnId)).toEqual(target);
     });

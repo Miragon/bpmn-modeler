@@ -61,6 +61,7 @@ export interface AddOnSourcePayload {
     readonly description: string;
     readonly problem?: string;
     readonly stateText?: string;
+    readonly hasDetail?: true;
     readonly actions: readonly ActionViewPayload<SourceActionKindPayload>[];
     readonly addOns: readonly AddOnPayload[];
 }

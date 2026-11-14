@@ -9,13 +9,7 @@ import {
     parseMarketplaceUrl,
     TemplateSource,
 } from "../domain/marketplace";
-import {
-    AboutFetch,
-    aboutFetchFailureOf,
-    MARKETPLACE_README,
-    MarketplaceAboutFetch,
-} from "../domain/marketplaceAbout";
-import { RepositoryFacts } from "../../kernel/domain/repositoryFacts";
+import { MarketplaceAboutFetch } from "../domain/marketplaceAbout";
 import { CachePrune, MarketplaceRegistry } from "../domain/marketplaceRegistry";
 import { registeredTemplateFiles } from "../domain/marketplaceSources";
 import { notFetchedMarketplaces } from "../domain/notFetchedMarketplaces";
@@ -41,7 +35,9 @@ import {
     SourceSlotAction,
 } from "../domain/sourceCacheRefresh";
 import { HostTokenSession } from "./HostTokenSession";
-import { CachedMarketplaceAbout, MarketplaceCache } from "./MarketplaceCache";
+import { fetchMarketplaceAbout } from "./fetchMarketplaceAbout";
+import { CachedMarketplaceAbout, MarketplaceAboutCache } from "./MarketplaceAboutCache";
+import { MarketplaceCache } from "./MarketplaceCache";
 
 // The pointer file every registered marketplace repo must hold at its root.
 const MARKETPLACE_MANIFEST = "marketplace.json";
@@ -73,6 +69,7 @@ export class TemplateMarketplaceService {
     constructor(
         private readonly sourceFactory: RepositorySourceFactory,
         private readonly cache: MarketplaceCache,
+        private readonly aboutCache: MarketplaceAboutCache,
         private readonly settings: SettingsPort,
         private readonly notifier: NotifierPort,
         private readonly tokens: TokenStorePort,
@@ -237,7 +234,7 @@ export class TemplateMarketplaceService {
 
     /** The README and repository facts a marketplace's detail shows. */
     cachedAboutByRegistration(): Promise<ReadonlyMap<string, CachedMarketplaceAbout>> {
-        return this.cache.cachedAboutByRegistration();
+        return this.aboutCache.cachedAboutByRegistration();
     }
 
     /**
@@ -311,7 +308,7 @@ export class TemplateMarketplaceService {
                 }
             }
         }
-        await this.cacheAbout(registration, about);
+        await this.aboutCache.store(registration, about);
         return FetchReport.of({
             usableSources: sources.length,
             cached,
@@ -348,48 +345,6 @@ export class TemplateMarketplaceService {
                 return 0;
             case "keep":
                 return 0;
-        }
-    }
-
-    /** Never fails the fetch: a README and the repository facts only describe the marketplace. */
-    private async cacheAbout(
-        registration: MarketplaceRegistration,
-        { readme, repository }: MarketplaceAboutFetch,
-    ): Promise<void> {
-        await this.cacheAboutPart(registration, MARKETPLACE_README, readme, {
-            replace: (content) => this.cache.replaceReadme(registration.id, content),
-            remove: () => this.cache.removeReadme(registration.id),
-        });
-        await this.cacheAboutPart(registration, "repository facts", repository, {
-            replace: (facts) => this.cache.replaceRepositoryFacts(registration.id, facts),
-            remove: () => this.cache.removeRepositoryFacts(registration.id),
-        });
-    }
-
-    private async cacheAboutPart<T>(
-        registration: MarketplaceRegistration,
-        what: string,
-        fetched: AboutFetch<T>,
-        cached: { replace(value: T): Promise<void>; remove(): Promise<void> },
-    ): Promise<void> {
-        try {
-            switch (fetched.kind) {
-                case "found":
-                    await cached.replace(fetched.value);
-                    return;
-                case "absent":
-                    await cached.remove();
-                    return;
-                case "failed":
-                    this.notifier.logWarning(
-                        `Kept the cached ${what} of "${registration.url}": ${fetched.reason}`,
-                    );
-                    return;
-            }
-        } catch (error) {
-            this.notifier.logWarning(
-                `Could not cache the ${what} of "${registration.url}": ${(error as Error).message}`,
-            );
         }
     }
 
@@ -444,18 +399,7 @@ export class TemplateMarketplaceService {
         repository: RepositorySource,
     ): Promise<{ readonly manifest: string; readonly about: MarketplaceAboutFetch }> {
         const manifest = await repository.fetchFile(MARKETPLACE_MANIFEST);
-        const readme = await repository.fetchFile(MARKETPLACE_README).then(
-            (value): AboutFetch<string> => ({ kind: "found", value }),
-            (error) => aboutFetchFailureOf<string>(error),
-        );
-        const facts: AboutFetch<RepositoryFacts> =
-            repository.repositoryFacts === undefined
-                ? { kind: "absent" }
-                : await repository.repositoryFacts().then(
-                      (value): AboutFetch<RepositoryFacts> => ({ kind: "found", value }),
-                      (error) => aboutFetchFailureOf<RepositoryFacts>(error),
-                  );
-        return { manifest, about: { readme, repository: facts } };
+        return { manifest, about: await fetchMarketplaceAbout(repository) };
     }
 
     /**

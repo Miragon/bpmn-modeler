@@ -231,3 +231,38 @@ describe("GitLabSource.repositoryFacts", () => {
         await expect(source({}, http).repositoryFacts()).rejects.toBeInstanceOf(RepositoryAccessError);
     });
 });
+
+describe("GitLabSource.listRootFiles", () => {
+    it("lists the files at the project's root, of the configured ref, not its folders", async () => {
+        const http = createHttp();
+        http.getJson.mockResolvedValue(
+            ok(
+                JSON.stringify([
+                    { name: "templates", type: "tree", path: "templates" },
+                    { name: "README.markdown", type: "blob", path: "README.markdown" },
+                ]),
+            ),
+        );
+
+        const files = await source({ ref: "v1", path: "templates" }, http).listRootFiles();
+
+        expect(files).toEqual(["README.markdown"]);
+        expect(http.getJson.mock.calls.map(([url]) => url)).toEqual([
+            "https://gitlab.com/api/v4/projects/group%2Fsub%2Fproject/repository/tree?per_page=100&ref=v1",
+        ]);
+    });
+
+    it("maps a denied listing to an access error and an odd answer to an error", async () => {
+        const http = createHttp();
+        http.getJson
+            .mockResolvedValueOnce({ status: 404, body: "" })
+            .mockResolvedValueOnce(ok("{}"));
+
+        await expect(source({}, http).listRootFiles()).rejects.toBeInstanceOf(
+            RepositoryAccessError,
+        );
+        await expect(source({}, http).listRootFiles()).rejects.toThrow(
+            "Unexpected GitLab tree response for group/sub/project",
+        );
+    });
+});

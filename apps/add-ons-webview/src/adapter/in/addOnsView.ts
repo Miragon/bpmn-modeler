@@ -13,7 +13,8 @@ import {
     ViewEvent,
     ViewState,
 } from "../../domain/viewState";
-import { backButton, detailOf, hintOf, sourceDetailOf } from "./detailView";
+import { backButton, detailOf, hintOf } from "./detailView";
+import { sourceDetailOf } from "./sourceDetailView";
 import { el, elementAt, setBusy } from "./dom";
 import { catalogEmptyOf, loadingOf, noMatchOf } from "./emptyStates";
 import { FocusKeeper } from "./focusKeeper";
