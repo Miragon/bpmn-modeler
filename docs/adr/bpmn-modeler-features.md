@@ -1,7 +1,7 @@
 # BPMN modeler features
 
 - Status: accepted
-- Last reviewed: 2026-11-13
+- Last reviewed: 2026-11-14
 
 ## Context
 
@@ -15,6 +15,7 @@ lifecycle contract, which are in [BPMN modeler](bpmn-modeler.md).
 - [Linked form previews](#linked-form-previews)
 - [Transaction boundaries](#transaction-boundaries)
 - [Formatting and cleanup](#formatting-and-cleanup)
+- [IDs from names](#ids-from-names)
 
 ## Decision
 
@@ -150,3 +151,52 @@ work on the webview's main thread, visible on large diagrams.
 The [real-model integration suite](../../libs/bpmn-layout/src/apply/integration.spec.ts) checks
 semantic preservation and undo with a headless DOM that uses real matrix arithmetic and positive
 text metrics, not inert layout stubs.
+
+### IDs from names
+
+Users want technical IDs that read like the element names. The Camunda Modeler plugin
+rename-technical-ids runs as a [workspace plugin](bpmn-plugins.md), but no host can trigger it, it
+renames with one undo step per element and it offers no review (#2339). The `libs/element-ids`
+diagram-js library, inlined like the layout library, proposes and applies the IDs on the modeler and
+the designer: names and IDs are engine-neutral.
+
+- Spell an ID as the bundled rule `@miragon/rules/element-id-naming` checks it (by default
+  `serviceTask_checkStock`; a process keeps its name only), so a generated ID never breaks the rule; a
+  style setting would let IDs and lint drift apart. The library takes the rule's
+  `ElementIdConvention` through a narrow `IdConvention` port, because the package keeps lint code out
+  of its root and design entries; `createElementIdConvention` on the `/lint` subpath builds it. The
+  core resolves the rule's options from the document's `.bpmnlintrc`, with what it extends, through
+  the resolver `NodeBpmnLinter` lints with ([BPMN linting](bpmn-linting.md#linting)), and sends them
+  as `ElementIdConventionQuery` whether or not linting runs.
+- `proposeIds` keeps every proposal unique against all IDs the candidates do not give up (other model
+  elements, DI, labels, planes) and counts an ID with a counter as following its name, so a second run
+  changes nothing; a candidate that keeps its ID, an unnamed one too, holds it first. `orderRenames`
+  orders the steps so none claims an ID still held, sending a cycle through one temporary ID; DI and
+  label IDs follow through the same ordering.
+- One `elementIds.rename` handler with only `preExecute`, like `layout.apply`, makes the rename one
+  undo step. Element IDs change through `updateProperties`, a pool's process through
+  `updateModdleProperties` plus `id.updateClaim`; a DI ID that still reads `<element ID>_di` and a
+  label's registry ID follow. An empty selection runs no command, since it would still leave an undo
+  step.
+- The review belongs to the hosts, not the module: a panel in the canvas sits in the area bpmn-io
+  owns, while each host has a native place for a list of pending changes. The module offers only a
+  contract and no review UI, not even as a fallback. `proposeElementIds(unchecked?)` lists the rows
+  (`ElementIdRow`: the current and new ID, kind, status, a counter flag and the element to reveal) for
+  an unchecked set the host keeps, recomputed from the live diagram on every call;
+  `renameElementIds(unchecked)` applies the checked ones; `setElementIdSettings({ followName?,
+  convention?, openReview? })` hands "Review all IDs…" under the ID field to the host's panel, and
+  without one the link is not offered. VS Code and IntelliJ draw the rows natively
+  ([host integrations](architecture-and-hosts.md#host-integrations)).
+- IDs follow names and types only when a host opts in (`elementIdsFollowName`, and
+  `DesignerOptions.elementIdSettings` for a designer a mode switch builds): in the name change's
+  `postExecute` and in `shape.replace`'s `postExecuted` below bpmn-js' priority 1500, one undo for
+  both. Only an ID that bpmn-js or a template gave the element's kind, or one generated from the old
+  name and type, follows; `Invoice_1` was typed by someone. A process ID is the deployment key, which
+  the rule leaves out for the same reason: it never follows and starts unchecked in a review.
+
+IDs in other files do not follow (call activities, a Camunda 8 process ID, tests, workers), and an open
+inline-script editor keeps the old ID; both are documented, not detected. Naming IDs at creation from
+lint rules (#1648) is complementary. The library's table-driven
+[rule specs](../../libs/element-ids/src/proposals.spec.ts) and the
+[browser spec](../../packages/bpmn-modeler/src/elementIds.browser.spec.ts), which checks references,
+DI, labels, one undo, swaps, pools, collapsed sub-processes and the designer, enforce it.
