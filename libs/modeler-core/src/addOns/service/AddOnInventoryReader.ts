@@ -1,5 +1,4 @@
 import { approvalRowsOf } from "../../kernel/domain/approvalRowKind";
-import { unwatchedDirsGlob } from "../../kernel/domain/excludedDirs";
 import { presenceIdOf } from "../../kernel/domain/listedCode";
 import { PluginApprovalStorePort } from "../../kernel/port/approvalPorts";
 import { FolderTemplateFileListing } from "../../kernel/domain/templateListing";
@@ -10,8 +9,6 @@ import { OwnedPresence } from "../domain/codeAddOnCatalog";
 import { ListedMarketplace, ListedMarketplaces } from "../domain/templateAddOnViews";
 import {
     configAreaDirsToList,
-    configFolderFilesGlob,
-    configFolderHoldersIn,
     rulePackageDirsToList,
     rulePackageIdsToList,
 } from "../domain/addOnScope";
@@ -21,6 +18,7 @@ import {
     RulePackageAddOnSource,
     TemplateAddOnSource,
 } from "../port/addOnSourcePorts";
+import { AddOnPlaces, AddOnPlaceSearch } from "./AddOnPlaceSearch";
 
 export interface AddOnInventoryPorts {
     readonly workspace: WorkspacePort;
@@ -34,16 +32,15 @@ export interface AddOnInventoryPorts {
     readonly workspaceTrust: Pick<WorkspaceTrustPort, "isTrusted">;
 }
 
-interface ListingFacts extends Pick<AddOnFacts, "folders" | "configFolder"> {
-    /** Each workspace folder and each folder below one that holds a config folder. */
-    readonly holders: readonly string[];
-    /** The folders of the lint configs a search found. */
-    readonly foundLintConfigDirs: readonly string[];
-}
+type ListingFacts = Pick<AddOnFacts, "folders" | "configFolder"> & AddOnPlaces;
 
 /** Collects what the owners find in the open workspace folders, nested projects included. */
 export class AddOnInventoryReader {
-    constructor(private readonly ports: AddOnInventoryPorts) {}
+    private readonly places: AddOnPlaceSearch;
+
+    constructor(private readonly ports: AddOnInventoryPorts) {
+        this.places = new AddOnPlaceSearch(ports.workspace, ports.rulePackages);
+    }
 
     async read(): Promise<AddOnFacts> {
         // From the host, so a mirror not yet seeded never makes every row look new.
@@ -55,7 +52,7 @@ export class AddOnInventoryReader {
         const templatePreferences = await this.ports.templatePreferences?.readStored();
         const folders = this.ports.workspace.getWorkspaceFolderPaths();
         const configFolder = this.ports.settings.getConfigFolder();
-        const facts = { folders, configFolder, ...(await this.places(folders, configFolder)) };
+        const facts = { folders, configFolder, ...(await this.places.find(folders, configFolder)) };
         return {
             folders,
             configFolder,
@@ -66,28 +63,6 @@ export class AddOnInventoryReader {
             templates: await this.templates(facts),
             ...(await this.marketplaces()),
             ...(templatePreferences && { templatePreferences }),
-        };
-    }
-
-    /** Searched on every build, so a project added below a workspace folder is listed without an editor opening there. */
-    private async places(
-        folders: readonly string[],
-        configFolder: string,
-    ): Promise<Pick<ListingFacts, "holders" | "foundLintConfigDirs">> {
-        if (folders.length === 0) {
-            return { holders: [], foundLintConfigDirs: [] };
-        }
-        const { workspace, rulePackages } = this.ports;
-        const exclude = unwatchedDirsGlob();
-        const [configFiles, lintConfigs] = await Promise.all([
-            workspace.findFiles(configFolderFilesGlob(configFolder), exclude),
-            rulePackages ? workspace.findFiles(rulePackages.lintConfigFiles, exclude) : [],
-        ]);
-        return {
-            holders: configFolderHoldersIn(configFiles, folders, configFolder),
-            foundLintConfigDirs: lintConfigs.flatMap(
-                (path) => rulePackages?.lintConfigDirOf(path) ?? [],
-            ),
         };
     }
 
@@ -148,7 +123,7 @@ export class AddOnInventoryReader {
         }));
     }
 
-    private rulePackages({ folders, foundLintConfigDirs }: ListingFacts): OwnedPresence[] {
+    private rulePackages({ folders, lintConfigDirs }: ListingFacts): OwnedPresence[] {
         const { rulePackages } = this.ports;
         if (rulePackages === undefined) {
             return [];
@@ -157,7 +132,7 @@ export class AddOnInventoryReader {
             installed: rulePackages.installedIn(
                 rulePackageDirsToList(folders, [
                     ...rulePackages.lintConfigDirs(),
-                    ...foundLintConfigDirs,
+                    ...lintConfigDirs,
                 ]),
             ),
             seen: rulePackages.seenPackageIds(),
