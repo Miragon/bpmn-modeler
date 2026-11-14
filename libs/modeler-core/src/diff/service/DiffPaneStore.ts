@@ -15,7 +15,7 @@ const COMPARE_FILES_TTL_MS = 30_000;
  * Registry for every live BPMN diff session and the panes attached to them.
  *
  * Pure in-memory state with no diff orchestration: it answers "which session
- * owns this URI?", holds SCM panes waiting for their partner, and arms the
+ * holds this pane?", holds SCM panes waiting for their partner, and arms the
  * TTL sweeper that drops orphaned `compare-files` sessions. Deciding *when*
  * to pair, broadcast, or open a diff lives in the controller and service.
  *
@@ -24,15 +24,8 @@ const COMPARE_FILES_TTL_MS = 30_000;
  * host can clear any armed TTL timers on deactivate.
  */
 export class DiffPaneStore implements EditorSubscription {
-    // Every live session, keyed by `${beforeUri}|${afterUri}`.
-    private readonly sessions = new Map<string, DiffSession>();
-
-    /**
-     * Lookup index: URI string → session it belongs to.  Populated as soon as
-     * a session is created, whether pre-registered (`compare-files`) or
-     * lazily formed (`scm`).
-     */
-    private readonly sessionByUri = new Map<string, DiffSession>();
+    // Every live session. One file can sit in several, one per open diff tab of it.
+    private readonly sessions = new Set<DiffSession>();
 
     /**
      * SCM panes awaiting their partner, keyed by pairing key (the shared
@@ -40,7 +33,7 @@ export class DiffPaneStore implements EditorSubscription {
      * Theia) and the working-tree `file:` URI meet here before the controller
      * promotes them into a session.
      */
-    private readonly pendingScm = new Map<string, DiffPaneHandle>();
+    private readonly pendingScm = new Map<string, DiffPaneHandle[]>();
 
     /**
      * TTL sweepers for pre-registered `compare-files` sessions.  Cleared
@@ -67,52 +60,55 @@ export class DiffPaneStore implements EditorSubscription {
         return session;
     }
 
-    /**
-     * Adds `session` to the `sessions` map and the per-URI lookup index.
-     *
-     * Both session-creation paths (eager `compare-files` and lazy `scm`)
-     * funnel through here so the two maps never drift out of sync.
-     */
+    /** Adds `session`; both the eager `compare-files` and the lazy `scm` path funnel through here. */
     index(session: DiffSession): void {
-        this.sessions.set(this.sessionIdOf(session), session);
-        this.sessionByUri.set(session.beforeUri, session);
-        this.sessionByUri.set(session.afterUri, session);
+        this.sessions.add(session);
     }
 
     /**
-     * Returns the session this URI belongs to, or `undefined` when none
-     * exists yet.  Covers both pre-registered `compare-files` sessions and
-     * `scm` sessions that have already been promoted from a pending pane.
+     * Returns a session this URI belongs to, one with panes first, or
+     * `undefined` when none exists yet.
      */
     findByUri(uri: string): DiffSession | undefined {
-        return this.sessionByUri.get(uri);
+        const sessions = [...this.sessions].filter((session) => session.sideFor(uri) !== undefined);
+        return sessions.find((session) => !session.isEmpty()) ?? sessions[0];
+    }
+
+    /** The session `handle` is attached to, among several sessions of the same file. */
+    sessionOf(handle: DiffPaneHandle): DiffSession | undefined {
+        return [...this.sessions].find((session) => session.attachedPanes().includes(handle));
     }
 
     /**
-     * Removes `session` from both indexes and disarms its TTL timer.
+     * The newest session that still waits for a pane on `uri`'s side: a
+     * pre-registered `compare-files` session, or one whose pane on that side
+     * closed. The newest, because an older one may belong to a compare that
+     * VS Code answered by focusing an existing tab.
+     */
+    awaitingPaneFor(uri: string): DiffSession | undefined {
+        return [...this.sessions]
+            .reverse()
+            .find((session) => session.sideFor(uri) !== undefined && !session.hasPaneFor(uri));
+    }
+
+    /**
+     * Removes `session` and disarms its TTL timer.
      */
     remove(session: DiffSession): void {
-        this.sessions.delete(this.sessionIdOf(session));
-        this.sessionByUri.delete(session.beforeUri);
-        this.sessionByUri.delete(session.afterUri);
+        this.sessions.delete(session);
         this.cancelTtl(session);
     }
 
     /**
-     * Returns `true` when any pane — attached to a session or still pending
-     * SCM pairing — currently renders `uri`.
+     * How many diff panes, attached to a session or still pending SCM pairing,
+     * currently render `uri`.
      */
-    hasPaneForUri(uri: string): boolean {
-        const session = this.sessionByUri.get(uri);
-        if (session?.hasPaneFor(uri)) {
-            return true;
-        }
-        for (const handle of this.pendingScm.values()) {
-            if (handle.uri === uri) {
-                return true;
-            }
-        }
-        return false;
+    paneCountFor(uri: string): number {
+        const attached = [...this.sessions].filter((session) => session.hasPaneFor(uri)).length;
+        const pending = [...this.pendingScm.values()]
+            .flat()
+            .filter((handle) => handle.uri === uri).length;
+        return attached + pending;
     }
 
     /**
@@ -126,16 +122,25 @@ export class DiffPaneStore implements EditorSubscription {
         }
     }
 
-    getPendingScm(key: string): DiffPaneHandle | undefined {
-        return this.pendingScm.get(key);
+    /**
+     * Takes the pending SCM pane that pairs with `handle`: same key, other
+     * URI. Two diffs of one file opening interleaved then pair each Git side
+     * with a working-tree side, never two of a kind.
+     */
+    takePendingPartner(key: string, handle: DiffPaneHandle): DiffPaneHandle | undefined {
+        const pending = this.pendingScm.get(key) ?? [];
+        const partner = pending.find((candidate) => candidate.uri !== handle.uri);
+        if (partner) {
+            this.setPending(
+                key,
+                pending.filter((candidate) => candidate !== partner),
+            );
+        }
+        return partner;
     }
 
     addPendingScm(key: string, handle: DiffPaneHandle): void {
-        this.pendingScm.set(key, handle);
-    }
-
-    deletePendingScm(key: string): void {
-        this.pendingScm.delete(key);
+        this.setPending(key, [...(this.pendingScm.get(key) ?? []), handle]);
     }
 
     /**
@@ -144,8 +149,11 @@ export class DiffPaneStore implements EditorSubscription {
      */
     removePendingByHandle(handle: DiffPaneHandle): boolean {
         for (const [key, pending] of this.pendingScm) {
-            if (pending === handle) {
-                this.pendingScm.delete(key);
+            if (pending.includes(handle)) {
+                this.setPending(
+                    key,
+                    pending.filter((candidate) => candidate !== handle),
+                );
                 return true;
             }
         }
@@ -167,8 +175,12 @@ export class DiffPaneStore implements EditorSubscription {
         this.ttlTimers.clear();
     }
 
-    private sessionIdOf(session: DiffSession): string {
-        return `${session.beforeUri}|${session.afterUri}`;
+    private setPending(key: string, handles: DiffPaneHandle[]): void {
+        if (handles.length > 0) {
+            this.pendingScm.set(key, handles);
+        } else {
+            this.pendingScm.delete(key);
+        }
     }
 
     /**
