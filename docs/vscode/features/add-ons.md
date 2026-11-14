@@ -13,7 +13,7 @@ Click the puzzle icon in the activity bar to open **Add-ons**. It shows whenever
 The view lists the open workspace only, never other projects. One list holds three parts, from top to bottom:
 
 - **Needs attention**: every plugin and rule package that waits for you to allow it, and every add-on that cannot be read or used, with the source it comes from. It shows only while something needs you.
-- **Installed**: your workspace folders, in the order they are open. Under each folder, one source per config folder (the root's `.camunda/`, and nested config folders whose diagrams you opened) and per package folder, then the add-ons of that source by name. With one folder open, its sources stand directly under **Installed**. An add-on Needs attention lists does not show here again.
+- **Installed**: your workspace folders, in the order they are open. Under each folder, one source per config folder (the root's `.camunda/`, and every nested one, such as a project's in a monorepo, whether or not you opened one of its diagrams) and per package folder, then the add-ons of that source by name. With one folder open, its sources stand directly under **Installed**. An add-on Needs attention lists does not show here again.
 - **Marketplaces**: one source per registered marketplace, with its cached templates. It shows once a marketplace is registered.
 
 The line at the top counts what waits and what is not loaded. Click a folder, source or **Marketplaces** to close or open it; a marketplace starts closed, as it can hold many templates. A closed one shows how many add-ons it holds, and an amber dot when one of them waits. Hover a folder or source to see its path.
