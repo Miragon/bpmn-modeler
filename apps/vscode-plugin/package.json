@@ -94,6 +94,7 @@
     "activationEvents": [
         "onFileSystem:bpmn-form-input-values",
         "onFileSystem:bpmn-form-output-values",
+        "onFileSystem:bpmn-element-xml",
         "workspaceContains:**/element-templates/**/*.json"
     ],
     "contributes": {

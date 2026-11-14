@@ -76,7 +76,7 @@ const VSCODE_SURFACES: HostSurfaceCoverage = {
         DiffPlaneChangedCommand: HANDLED,
         SwapCompareSidesCommand: HANDLED,
         LogErrorCommand: HANDLED,
-        ShowElementXmlChangesCommand: ignored("the host shows no element XML diff"),
+        ShowElementXmlChangesCommand: HANDLED,
         DiffSelectionChangedCommand: HANDLED,
     },
     dmnDiffPane: {
