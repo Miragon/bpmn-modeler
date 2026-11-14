@@ -181,10 +181,12 @@ resolving merge conflicts on the diagram (#2459).
   (`DiffRevision`), and the core titles the XML diff as the VS Code Git extension titles
   its own diffs: both files of a compare, `order.bpmn (Working Tree)` against HEAD or
   `~` (the index, or HEAD when nothing is staged), `order.bpmn (Index)` against HEAD, and
-  otherwise `order.bpmn (3f2a1b4) ↔ order.bpmn (HEAD)` with commit hashes cut to the
-  extension's default seven characters; the file name alone when a version is unknown.
-  VS Code reads the version from the Git extension's URIs, so the title depends on that
-  format and ignores a changed `git.commitShortHashLength`; the bridge reports unknown.
+  otherwise `order.bpmn (3f2a1b4) ↔ order.bpmn (HEAD)`; the file name alone when a
+  version is unknown. The core shows a ref as the host names it: VS Code's
+  `documentRevision`, the one home of what the plugin knows about Git URIs, reads the
+  version from the Git extension's URIs and cuts commit hashes to the extension's
+  default seven characters, so the title depends on that format and ignores a changed
+  `git.commitShortHashLength`. Theia's `gitfs:` panes and the bridge report unknown.
   The core also orders the sides of an SCM diff by version (a commit, the index, the
   working tree); two commits keep the order their panes resolved in.
 - *An editor group, not the panel.* The panel cannot hold a text diff editor, and a

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { elementXml } from "@miragon/bpmn-modeler-diff";
+import { NO_DIFF_SELECTION } from "@miragon/bpmn-modeler-shared";
 
 import {
     createTestHost,
@@ -161,6 +162,18 @@ describe("ElementXmlDiffService", () => {
 
         expect(view.shown(DIFF_KEY)?.elementId).toBe("Ship");
         expect(view.openedCount).toBe(1);
+    });
+
+    it("keeps the open XML diff on its element when the selection is cleared", async () => {
+        const { service, view, after, parsedElements } = diagramDiff();
+        await service.show(after, "Review");
+        parsedElements.length = 0;
+
+        await service.show(after, NO_DIFF_SELECTION);
+        await service.follow(after, NO_DIFF_SELECTION);
+
+        expect(view.shown(DIFF_KEY)?.elementId).toBe("Review");
+        expect(parsedElements).toStrictEqual([]);
     });
 
     it("opens nothing on a selection when no XML diff is open", async () => {

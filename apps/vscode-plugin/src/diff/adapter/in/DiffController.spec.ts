@@ -29,7 +29,7 @@ import {
 } from "@miragon/bpmn-modeler-core";
 import { FakeDiffPaneHandle, RecordingNotifier } from "@miragon/bpmn-modeler-core/testing";
 import { vsCodeModelerPreferences } from "../../../shared/adapter/out/modelerConfiguration";
-import { revisionOfDocument } from "../out/documentRevision";
+import { revisionOfDocument } from "../../domain/documentRevision";
 import { BootstrappableDiffPane, DiffController } from "./DiffController";
 
 const bootstrapSpy = vi.fn();

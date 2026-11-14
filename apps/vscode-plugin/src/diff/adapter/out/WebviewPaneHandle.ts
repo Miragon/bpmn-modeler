@@ -5,7 +5,7 @@ import {
     bootstrapWebview,
     DiffPaneSurface,
 } from "../../../shared/adapter/out/bootstrapWebview";
-import { revisionOfDocument } from "./documentRevision";
+import { revisionOfDocument } from "../../domain/documentRevision";
 
 /**
  * Outbound adapter that wraps a real `WebviewPanel` + `TextDocument`

@@ -78,7 +78,6 @@ describe("ElementXmlRequests", () => {
             [show("A"), { settle: 0 }, show("A"), { settle: 1 }],
             [0, "show", 1, "show"],
         ],
-        ["skips a cleared selection", [show(""), follow("")], ["skipped", "skipped"]],
         [
             "drops a request a newer one overtook",
             [show("S"), { settle: 0 }, follow("A"), follow("B"), { settle: 2 }, { settle: 1 }],
