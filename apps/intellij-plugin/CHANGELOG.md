@@ -3,6 +3,10 @@
 ## [1.17.0](https://github.com/Miragon/bpmn-modeler/compare/intellij-v1.16.0...intellij-v1.17.0) (2026-11-12)
 
 
+### ⚠️ Allowing plugins and rule packages
+
+You now allow a bpmn-js plugin or a bpmnlint rule package once per repository. The allowance covers it in every worktree of that repository, later changes included, so a pull, a branch switch or an update no longer asks again. Outside a git repository it covers the add-on's folder. A new add-on, another repository and a second clone ask once. Approvals from earlier versions are kept as allowances; going back to an earlier version asks again. Revoke an add-on before you check out code you do not trust. In a project you did not trust in the IDE, no plugin loads and no rule package runs; the bundled lint rules still do. The IDE counts a project it never asked you about as not trusted. See [Project trust](https://miragon.github.io/bpmn-modeler/intellij/getting-started#project-trust).
+
 ### 🎉 New Features
 
 * **add-ons-webview:** render the add-on catalog in a host-neutral webview ([#2308](https://github.com/Miragon/bpmn-modeler/issues/2308)) [sync aace17c] ([799a005](https://github.com/Miragon/bpmn-modeler/commit/799a00522f925d9ee58d6f54f01c30a3b90c47db))
@@ -15,7 +19,6 @@
 * **intellij-plugin:** manage add-ons in the artifacts tab of the bpmn modeler tool window ([#2310](https://github.com/Miragon/bpmn-modeler/issues/2310)) ([e3d0b8c](https://github.com/Miragon/bpmn-modeler/commit/e3d0b8cd32b4e831747c228b7fce828ab295f172))
 * **intellij-plugin:** run no workspace code in a project you did not trust ([#2361](https://github.com/Miragon/bpmn-modeler/issues/2361)) ([781d9bb](https://github.com/Miragon/bpmn-modeler/commit/781d9bb6b38c3a9ea253a7dbd386e9897cde3516))
 * **modeler-core:** add form engine and shared language selection ([#2341](https://github.com/Miragon/bpmn-modeler/issues/2341)) ([c28a403](https://github.com/Miragon/bpmn-modeler/commit/c28a403a9b3e887169b9773062a2da0889604525))
-* **modeler-core:** allow code whose content you allowed in another folder ([#2337](https://github.com/Miragon/bpmn-modeler/issues/2337)) [sync 9b3dc90] ([687770e](https://github.com/Miragon/bpmn-modeler/commit/687770e80d927fcd8c51cdfac89a6471bae0514b))
 * **modeler-core:** allow workspace code per repository and add-on ([#2358](https://github.com/Miragon/bpmn-modeler/issues/2358)) [sync 192d740] ([9c038a7](https://github.com/Miragon/bpmn-modeler/commit/9c038a7d1a00765fb3dbc041115a0752884c5029))
 * **modeler-core:** follow approval changes everywhere and prune the plugin cache ([#2286](https://github.com/Miragon/bpmn-modeler/issues/2286)) [sync a49ab82] ([2df7b5f](https://github.com/Miragon/bpmn-modeler/commit/2df7b5f8d2697042a192b46f780f35ecb86c8bf9))
 * **modeler-core:** host-neutral add-on catalog for the artifacts view ([#2289](https://github.com/Miragon/bpmn-modeler/issues/2289)) [sync 68770b6] ([0d8ae72](https://github.com/Miragon/bpmn-modeler/commit/0d8ae722f85e58db2a38d89c56310b47ef16b24b))

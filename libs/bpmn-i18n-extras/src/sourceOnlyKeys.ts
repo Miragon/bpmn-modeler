@@ -38,6 +38,8 @@ export const SOURCE_ONLY: ReadonlySet<string> = new Set([
     "Not in this version",
     "It was removed. The version on the left shows it.",
     "It is new. The version on the right shows it.",
+    // The BPMN diff pane's context-pad entry, for the same reason.
+    "Show XML changes",
     // Mode-strip labels the webview emits before any surface exists, so the
     // harvest driver (which drives a live modeler) never records them.
     "View",

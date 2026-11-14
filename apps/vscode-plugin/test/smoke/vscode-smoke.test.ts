@@ -1,10 +1,12 @@
+import { execFile } from "node:child_process";
 import { cp, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
-import { homedir, tmpdir } from "node:os";
+import { devNull, homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
 
 import { BpmnModdle } from "bpmn-moddle";
-import type { FrameLocator, Locator } from "playwright-core";
+import type { FrameLocator, Locator, Page } from "playwright-core";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import {
@@ -28,6 +30,19 @@ const DMN_BEFORE_FILE = "shipping.dmn";
 const DMN_AFTER_FILE = "shipping-v2.dmn";
 const BPMN_BEFORE_FILE = "example.bpmn";
 const BPMN_AFTER_FILE = "example-v2.bpmn";
+/** A Camunda 8 process whose two tasks change only in their zeebe extension elements. */
+const XML_DIFF_BEFORE_FILE = "invoice.bpmn";
+const XML_DIFF_AFTER_FILE = "invoice-v2.bpmn";
+const CHECK_INVOICE_TASK_ID = "Activity_check_invoice";
+const APPROVE_INVOICE_TASK_ID = "Activity_approve_invoice";
+const SHOW_XML_CHANGES_ENTRY = '.djs-context-pad [data-action="element-xml-changes"]';
+/** Rounding of fractional zoom offsets apart, the two panes of a synchronised viewport place an element alike. */
+const PANE_ALIGNMENT_TOLERANCE_PX = 2;
+/** A Git repository in the workspace whose committed process has a change in the working tree. */
+const SCM_REPOSITORY_FOLDER = "scm-repository";
+const SCM_DIFF_FILE = "order.bpmn";
+/** VS Code names a working-tree change in Source Control by its newer side only. */
+const SCM_XML_DIFF_VERSIONS = `${SCM_DIFF_FILE} (Working Tree)`;
 /** The count slots of the legend both diffs share, in their order. */
 const DIFF_LEGEND_SLOTS = [
     "diff-legend__slot diff-legend__slot--added",
@@ -184,8 +199,8 @@ function legendSlots(webview: FrameLocator): Promise<(string | null)[]> {
         .evaluateAll((slots) => slots.map((slot) => slot.getAttribute("class")));
 }
 
-async function settle(webview: FrameLocator): Promise<void> {
-    await webview
+async function settle(view: { locator(selector: string): Locator }): Promise<void> {
+    await view
         .locator("html")
         .evaluate(
             () =>
@@ -193,6 +208,116 @@ async function settle(webview: FrameLocator): Promise<void> {
                     requestAnimationFrame(() => requestAnimationFrame(() => done())),
                 ),
         );
+}
+
+interface EditorGroupInWorkbench {
+    top: number;
+    bottom: number;
+    tabs: string;
+}
+
+/** The workbench's editor groups from top to bottom, each with the text of its tabs. */
+function editorGroupsTopToBottom(page: Page): Promise<EditorGroupInWorkbench[]> {
+    return page.locator(".part.editor .editor-group-container").evaluateAll((groups) =>
+        groups
+            .map((group) => {
+                const box = group.getBoundingClientRect();
+                const tabs = [...group.querySelectorAll(".tabs-container .tab")];
+                return {
+                    top: box.top,
+                    bottom: box.bottom,
+                    tabs: tabs.map((tab) => tab.textContent ?? "").join(" | "),
+                };
+            })
+            .sort((upper, lower) => upper.top - lower.top),
+    );
+}
+
+interface ElementInPane {
+    inView: boolean;
+    left: number;
+    top: number;
+}
+
+/** Where the element sits in the pane's canvas, relative to its top-left corner. */
+function elementInPane(webview: FrameLocator, elementId: string): Promise<ElementInPane> {
+    return webview.locator(".djs-container").evaluate((container, id) => {
+        const view = container.getBoundingClientRect();
+        const shape = container.querySelector(`.djs-shape[data-element-id="${id}"]`);
+        if (!shape) throw new Error(`no shape ${id} on the canvas`);
+        const box = shape.getBoundingClientRect();
+        return {
+            inView:
+                box.left >= view.left &&
+                box.right <= view.right &&
+                box.top >= view.top &&
+                box.bottom <= view.bottom,
+            left: box.left - view.left,
+            top: box.top - view.top,
+        };
+    }, elementId);
+}
+
+async function paneAlignment(
+    before: FrameLocator,
+    after: FrameLocator,
+    elementId: string,
+): Promise<{ inViewBefore: boolean; inViewAfter: boolean; aligned: boolean }> {
+    const [inBefore, inAfter] = await Promise.all([
+        elementInPane(before, elementId),
+        elementInPane(after, elementId),
+    ]);
+    return {
+        inViewBefore: inBefore.inView,
+        inViewAfter: inAfter.inView,
+        aligned:
+            Math.abs(inBefore.left - inAfter.left) <= PANE_ALIGNMENT_TOLERANCE_PX &&
+            Math.abs(inBefore.top - inAfter.top) <= PANE_ALIGNMENT_TOLERANCE_PX,
+    };
+}
+
+const runFile = promisify(execFile);
+
+/** Commits as a throwaway identity, without the user's signing or hooks. */
+function runGit(repository: string, ...args: string[]): Promise<unknown> {
+    return runFile(
+        "git",
+        [
+            "-c",
+            "user.name=VS Code smoke",
+            "-c",
+            "user.email=vscode-smoke@example.invalid",
+            "-c",
+            "commit.gpgsign=false",
+            "-c",
+            "init.defaultBranch=main",
+            ...args,
+        ],
+        // A caller's GIT_DIR would point every command at another repository; the
+        // user's global config could add hooks or templates.
+        {
+            cwd: repository,
+            env: {
+                ...environmentWithoutGitVariables(),
+                GIT_CONFIG_GLOBAL: devNull,
+                GIT_CONFIG_NOSYSTEM: "1",
+            },
+        },
+    );
+}
+
+function environmentWithoutGitVariables(): NodeJS.ProcessEnv {
+    return Object.fromEntries(
+        Object.entries(process.env).filter(([name]) => !name.startsWith("GIT_")),
+    );
+}
+
+/** Monaco renders each space as a no-break space. */
+async function textDiffLines(page: Page): Promise<string> {
+    const sides = await page
+        .locator(".part.editor .monaco-diff-editor .view-lines")
+        .allTextContents();
+    return sides.join("\n").replaceAll("\u00a0", " ");
 }
 
 function templateIconOnCanvas(webview: FrameLocator, elementId: string): Promise<string | null> {
@@ -580,6 +705,142 @@ describe("the packaged extension in a real VS Code", () => {
             .toBeGreaterThan(0);
         await settle(after);
         await vscode().screenshot(join(RESULTS_DIRECTORY, "bpmn-diff.png"));
+        expectNoCspViolations();
+    });
+
+    it("shows an element's XML changes in a text diff below the BPMN diff that follows the selection", async ({
+        onTestFinished,
+    }) => {
+        // Only while this test runs: one more Explorer row moves the rows the plugin scenarios click.
+        await cp(
+            join(COMPARE_FIXTURES, "invoice.bpmn"),
+            join(workspaceDirectory, XML_DIFF_BEFORE_FILE),
+        );
+        await cp(
+            join(COMPARE_FIXTURES, "invoice-b.bpmn"),
+            join(workspaceDirectory, XML_DIFF_AFTER_FILE),
+        );
+        onTestFinished(async () => {
+            try {
+                await vscode().page.keyboard.press("Escape");
+                await vscode().runCommand("View: Close All Editors");
+            } finally {
+                await rm(join(workspaceDirectory, XML_DIFF_BEFORE_FILE), { force: true });
+                await rm(join(workspaceDirectory, XML_DIFF_AFTER_FILE), { force: true });
+            }
+        });
+        const page = vscode().page;
+
+        // Its webview takes the focus once it loads, which would close the context menu.
+        await vscode().openFromExplorer(XML_DIFF_BEFORE_FILE);
+        await vscode().showInCustomEditor(XML_DIFF_BEFORE_FILE, diagramRendered);
+        await vscode().runExplorerCommand(
+            [XML_DIFF_BEFORE_FILE, XML_DIFF_AFTER_FILE],
+            "Compare Selected (BPMN)",
+        );
+        const before = await vscode().editorWebview('body[data-diff-side="before"]');
+        const after = await vscode().editorWebview('body[data-diff-side="after"]');
+        await expectMarked(after, CHECK_INVOICE_TASK_ID, "diff-changed");
+        await expectMarked(after, APPROVE_INVOICE_TASK_ID, "diff-changed");
+        expect(await editorGroupsTopToBottom(page)).toHaveLength(1);
+
+        await selectElement(after, CHECK_INVOICE_TASK_ID);
+        await after.locator(SHOW_XML_CHANGES_ENTRY).click();
+
+        await expect
+            .poll(async () => (await editorGroupsTopToBottom(page))[1]?.tabs ?? "", {
+                timeout: TIMEOUT_MS,
+            })
+            .toContain(CHECK_INVOICE_TASK_ID);
+        const [diagramGroup, xmlGroup] = await editorGroupsTopToBottom(page);
+        expect(diagramGroup.tabs).toContain(XML_DIFF_BEFORE_FILE);
+        expect(diagramGroup.tabs).not.toContain(CHECK_INVOICE_TASK_ID);
+        expect(xmlGroup.top).toBeGreaterThanOrEqual(diagramGroup.bottom - 1);
+        await expect
+            .poll(() => textDiffLines(page), { timeout: TIMEOUT_MS })
+            .toContain("=invoice.totalAmount");
+        const checkInvoiceDiff = await textDiffLines(page);
+        expect(checkInvoiceDiff).toContain("=invoice.amount");
+        expect(checkInvoiceDiff).toContain("rejectionReason");
+        expect(checkInvoiceDiff).not.toContain("candidateGroups");
+        // The group below shrinks both diagram panes; the selection stays in sight in both, alike.
+        await expect
+            .poll(() => paneAlignment(before, after, CHECK_INVOICE_TASK_ID), {
+                timeout: TIMEOUT_MS,
+            })
+            .toEqual({ inViewBefore: true, inViewAfter: true, aligned: true });
+        await settle(after);
+        await settle(page);
+        await vscode().screenshot(join(RESULTS_DIRECTORY, "bpmn-diff-element-xml.png"));
+
+        await selectElement(after, APPROVE_INVOICE_TASK_ID);
+
+        await expect
+            .poll(async () => (await editorGroupsTopToBottom(page))[1]?.tabs ?? "", {
+                timeout: TIMEOUT_MS,
+            })
+            .toContain(APPROVE_INVOICE_TASK_ID);
+        await expect
+            .poll(() => textDiffLines(page), { timeout: TIMEOUT_MS })
+            .toContain("accounting, management");
+        expect(await textDiffLines(page)).not.toContain("=invoice.totalAmount");
+        const groups = await editorGroupsTopToBottom(page);
+        expect(groups).toHaveLength(2);
+        expect(groups[1].tabs).not.toContain(CHECK_INVOICE_TASK_ID);
+        await settle(after);
+        await settle(page);
+        await vscode().screenshot(join(RESULTS_DIRECTORY, "bpmn-diff-element-xml-follow.png"));
+        expectNoCspViolations();
+    });
+
+    it("shows an element's XML changes from a Source Control diff under a title that names both versions", async ({
+        onTestFinished,
+    }) => {
+        const repository = join(workspaceDirectory, SCM_REPOSITORY_FOLDER);
+        await mkdir(repository);
+        onTestFinished(async () => {
+            try {
+                await vscode().page.keyboard.press("Escape");
+                await vscode().runCommand("View: Close All Editors");
+                await vscode().setGitEnabled(false);
+                await vscode().runCommand("View: Show Explorer");
+            } finally {
+                // Only while this test runs: one more Explorer row moves the rows the plugin scenarios click.
+                await rm(repository, { recursive: true, force: true });
+            }
+        });
+        await cp(join(COMPARE_FIXTURES, "invoice.bpmn"), join(repository, SCM_DIFF_FILE));
+        await runGit(repository, "init", "-q");
+        await runGit(repository, "add", SCM_DIFF_FILE);
+        await runGit(repository, "commit", "-q", "--no-verify", "-m", "Add the order process");
+        await cp(join(COMPARE_FIXTURES, "invoice-b.bpmn"), join(repository, SCM_DIFF_FILE));
+        const page = vscode().page;
+
+        await vscode().setGitEnabled(true);
+        await vscode().openSourceControlChange(SCM_DIFF_FILE);
+        const after = await vscode().editorWebview('body[data-diff-side="after"]');
+        await expectMarked(after, CHECK_INVOICE_TASK_ID, "diff-changed");
+
+        await selectElement(after, CHECK_INVOICE_TASK_ID);
+        await after.locator(SHOW_XML_CHANGES_ENTRY).click();
+
+        await expect
+            .poll(async () => (await editorGroupsTopToBottom(page))[1]?.tabs ?? "", {
+                timeout: TIMEOUT_MS,
+            })
+            .toContain(CHECK_INVOICE_TASK_ID);
+        const [diagramGroup, xmlGroup] = await editorGroupsTopToBottom(page);
+        expect(diagramGroup.tabs).toContain(SCM_DIFF_FILE);
+        expect(xmlGroup.tabs).toContain("(XML)");
+        expect(xmlGroup.tabs).toContain(SCM_DIFF_FILE);
+        expect(xmlGroup.tabs).toContain(SCM_XML_DIFF_VERSIONS);
+        await expect
+            .poll(() => textDiffLines(page), { timeout: TIMEOUT_MS })
+            .toContain("=invoice.totalAmount");
+        expect(await textDiffLines(page)).toContain("=invoice.amount");
+        await settle(after);
+        await settle(page);
+        await vscode().screenshot(join(RESULTS_DIRECTORY, "bpmn-scm-diff-element-xml.png"));
         expectNoCspViolations();
     });
 

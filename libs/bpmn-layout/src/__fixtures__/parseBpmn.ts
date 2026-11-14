@@ -4,20 +4,12 @@
  * carries — object literals cannot stand in for those, and getting them wrong
  * is what makes this module delete valid model content.
  */
+import { loadBpmnModdle } from "@miragon/bpmn-modeler-diff";
+
 import type { ModdleNode } from "../cleanup/rules";
 
-type ParseResult = { rootElement: unknown; warnings: unknown[] };
-type ModdleFactory = () => { fromXML: (xml: string) => Promise<ParseResult> };
-
-/** Mirrors the interop dance in `engine/autoLayoutEngine.ts`. */
 async function createModdle() {
-    const mod = (await import("bpmn-moddle")) as unknown as {
-        default?: ModdleFactory;
-        BpmnModdle?: ModdleFactory;
-    };
-    const factory = mod.default ?? mod.BpmnModdle;
-    if (!factory) throw new Error("bpmn-moddle exposes no factory");
-    return factory();
+    return (await loadBpmnModdle())();
 }
 
 /**
@@ -29,7 +21,7 @@ async function createModdle() {
  *   very garbage it is meant to exclude.
  */
 export async function parseDefinitions(xml: string): Promise<ModdleNode> {
-    const { rootElement, warnings } = await (await createModdle()).fromXML(xml);
+    const { rootElement, warnings = [] } = await (await createModdle()).fromXML(xml);
     if (warnings.length > 0) {
         throw new Error(`fixture parsed with warnings: ${JSON.stringify(warnings)}`);
     }

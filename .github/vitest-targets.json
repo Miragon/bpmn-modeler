@@ -362,7 +362,8 @@
             "package": "@miragon/bpmn-modeler-layout",
             "paths": [
                 "libs/bpmn-layout/**",
-                "libs/modeler-types/**"
+                "libs/modeler-types/**",
+                "libs/bpmn-diff/src/**"
             ],
             "typecheck": "build"
         },

@@ -2,6 +2,7 @@ import { resolve } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { loadBpmnModdle } from "@miragon/bpmn-modeler-diff";
 import { BpmnlintConfig, Engine, LintResults } from "@miragon/bpmn-modeler-types";
 
 import { DefaultBpmnlintConfigService } from "../../../service/DefaultBpmnlintConfigService";
@@ -50,19 +51,8 @@ async function parseModdleRoot(
     xml: string,
     moddleExtensions: Record<string, unknown> | undefined,
 ): Promise<unknown> {
-    const mod = (await import("bpmn-moddle")) as unknown as {
-        default?: (ext?: Record<string, unknown>) => {
-            fromXML: (x: string) => Promise<{ rootElement: unknown }>;
-        };
-        BpmnModdle?: (ext?: Record<string, unknown>) => {
-            fromXML: (x: string) => Promise<{ rootElement: unknown }>;
-        };
-    };
-    const factory = mod.default ?? mod.BpmnModdle;
-    if (typeof factory !== "function") {
-        throw new Error("bpmn-moddle did not expose a factory.");
-    }
-    const { rootElement } = await factory(moddleExtensions ?? {}).fromXML(xml);
+    const createBpmnModdle = await loadBpmnModdle();
+    const { rootElement } = await createBpmnModdle(moddleExtensions ?? {}).fromXML(xml);
     return rootElement;
 }
 

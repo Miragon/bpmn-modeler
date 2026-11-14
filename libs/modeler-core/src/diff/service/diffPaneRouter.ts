@@ -27,8 +27,8 @@ export interface DiffPaneHostExtensions {
 }
 
 /**
- * Routes every command a diff pane posts, so each host serves its panes from
- * one table and a coverage spec can read the routes.
+ * Routes every command a BPMN diff pane posts, so each host serves its panes
+ * from one table and a coverage spec can read the routes.
  */
 export function createDiffPaneRouter(
     diffService: BpmnDiffService,
@@ -51,6 +51,13 @@ export function createDiffPaneRouter(
         DiffPlaneChangedCommand: [
             (command, pane) => diffService.forwardPlane(pane, command.planeId),
         ],
+        DiffSelectionChangedCommand: [
+            (command, pane) => diffService.forwardSelection(pane, command.elementId),
+            (command, pane) => diffService.followSelectionWithElementXml(pane, command.elementId),
+        ],
+        ShowElementXmlChangesCommand: diffService.showsElementXmlChanges
+            ? [(command, pane) => diffService.showElementXmlChanges(pane, command.elementId)]
+            : { ignored: "the host shows no element XML diff" },
         ...hostRoutes(extensions),
     });
 }

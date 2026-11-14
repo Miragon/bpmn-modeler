@@ -53,12 +53,8 @@ export class DiffSession {
     }
 
     /**
-     * Builds an `scm` session from the two panes the caller has already
-     * sorted into before/after roles. The SCM side-assignment rule (working
-     * tree `file:` → `after`; ref-vs-ref → resolution order) lives in the
-     * caller because it needs the URI scheme, which a string-typed handle
-     * exposes only by parsing — cleaner to do it once where vscode `Uri` is
-     * still in scope.
+     * Builds an `scm` session from two panes already sorted into before and
+     * after, by `scmSides` where the host pairs them itself.
      */
     static forScm(before: DiffPaneHandle, after: DiffPaneHandle): DiffSession {
         return new DiffSession("scm", before.uri, after.uri);

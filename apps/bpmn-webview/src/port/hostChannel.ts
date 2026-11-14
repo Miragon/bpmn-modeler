@@ -1,6 +1,6 @@
 import type {
-    BpmnEditorCommand,
     BpmnDiffPaneCommand,
+    BpmnEditorCommand,
     HostApi,
     LogErrorCommand,
 } from "@miragon/bpmn-modeler-shared";

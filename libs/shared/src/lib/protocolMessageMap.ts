@@ -45,6 +45,7 @@ import type {
     CreateTargetCommand,
     CursorChangedCommand,
     DiffPlaneChangedCommand,
+    DiffSelectionChangedCommand,
     DeleteTargetCommand,
     DeployCommand,
     DeploymentResultQuery,
@@ -101,6 +102,7 @@ import type {
     SetLintingEnabledCommand,
     SetPropertiesPanelStateCommand,
     SetTextClipboardCommand,
+    ShowElementXmlChangesCommand,
     StartInstanceCommand,
     StartInstanceResultQuery,
     StoredCredentialsQuery,
@@ -108,6 +110,7 @@ import type {
     SyncActivitiesCommand,
     SyncCursorQuery,
     SyncDiffPlaneQuery,
+    SyncDiffSelectionQuery,
     SyncViewportQuery,
     TargetSavedQuery,
     TextClipboardQuery,
@@ -167,6 +170,7 @@ export type ProtocolQuery =
     | SyncViewportQuery
     | SyncCursorQuery
     | SyncDiffPlaneQuery
+    | SyncDiffSelectionQuery
     | ApplyDmnDiffHighlightsQuery
     | SyncDmnDiffViewQuery
     | SyncDmnDiffScrollQuery
@@ -232,6 +236,8 @@ export type ProtocolCommand =
     | ViewportChangedCommand
     | CursorChangedCommand
     | DiffPlaneChangedCommand
+    | DiffSelectionChangedCommand
+    | ShowElementXmlChangesCommand
     | DiffReadyCommand
     | SwapCompareSidesCommand
     | DmnDiffViewChangedCommand

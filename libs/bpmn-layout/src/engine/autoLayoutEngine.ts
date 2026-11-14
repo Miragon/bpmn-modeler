@@ -1,13 +1,12 @@
-// Bundler and consumer tsc programs do not pick up this lib's ambient shims
-// from its own tsconfig `include`, so both are pulled in explicitly via
-// triple-slash references, which every program honours.
+// Bundler and consumer tsc programs do not pick up this lib's ambient shim
+// from its own tsconfig `include`, so it is pulled in explicitly via a
+// triple-slash reference, which every program honours.
 // eslint-disable-next-line @typescript-eslint/triple-slash-reference
 /// <reference path="../types/bpmn-auto-layout.d.ts" />
-// eslint-disable-next-line @typescript-eslint/triple-slash-reference
-/// <reference path="../types/bpmn-moddle.d.ts" />
 
 import type { LayoutError } from "bpmn-auto-layout";
 
+import { loadBpmnModdle } from "@miragon/bpmn-modeler-diff";
 import type { LayoutDiagnostic } from "@miragon/bpmn-modeler-types";
 
 import { LayoutEngineError } from "../port";
@@ -37,24 +36,9 @@ function toNumber(value: unknown): number | undefined {
     return typeof value === "number" && Number.isFinite(value) ? value : undefined;
 }
 
-/**
- * `bpmn-moddle` has no `default` export — its ESM dist only re-exports the
- * factory as `BpmnModdle`. Webpack's ESM→CJS interop does not synthesize
- * `.default` while Vite's dep optimizer exposes the named binding, so both
- * shapes are accepted.
- */
-type ModdleFactory = () => { fromXML: (xml: string) => Promise<{ rootElement: unknown }> };
-
 async function parse(xml: string): Promise<ParsedNode> {
-    const moddleMod = (await import("bpmn-moddle")) as unknown as {
-        default?: ModdleFactory;
-        BpmnModdle?: ModdleFactory;
-    };
-    const createModdle = moddleMod.default ?? moddleMod.BpmnModdle;
-    if (!createModdle) throw new Error("bpmn-moddle exposes no factory");
-
-    const { rootElement } = await createModdle().fromXML(xml);
-    return rootElement as ParsedNode;
+    const { rootElement } = await (await loadBpmnModdle())().fromXML(xml);
+    return rootElement;
 }
 
 /**

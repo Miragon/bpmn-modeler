@@ -7,17 +7,24 @@ import {
     DIFF_PANE_HANDSHAKE_COMMAND_TYPES,
     DMN_DIFF_PANE_COMMAND_TYPES,
     DiffReadyCommand,
+    DiffSelectionChangedCommand,
     DmnDiffScrollChangedCommand,
     DmnDiffViewChangedCommand,
     GetBpmnFileCommand,
     GetDmnFileCommand,
     LogErrorCommand,
+    ShowElementXmlChangesCommand,
     SwapCompareSidesCommand,
     ViewportChangedCommand,
 } from "@miragon/bpmn-modeler-shared";
 
-import { createTestHost, FakeDiffPaneHandle, RecordingNotifier } from "../../testing";
-import { BpmnDiffService } from "./BpmnDiffService";
+import {
+    createTestHost,
+    FakeDiffPaneHandle,
+    RecordingElementXmlDiffView,
+    RecordingNotifier,
+} from "../../testing";
+import { BpmnDiffService, ElementXmlChanges } from "./BpmnDiffService";
 import {
     DiffPaneHostExtensions,
     createDiffPaneRouter,
@@ -25,15 +32,22 @@ import {
 } from "./diffPaneRouter";
 import { DmnDiffService } from "./DmnDiffService";
 import { DiffPaneStore } from "./DiffPaneStore";
+import { ElementXmlDiffService } from "./ElementXmlDiffService";
 
 const BEFORE = "git:/repo/order.bpmn?ref=HEAD";
 const AFTER = "file:///repo/order.bpmn";
 const XML = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" id="Defs_1" targetNamespace="http://bpmn.io/schema/bpmn">
-  <bpmn:process id="Process_1" isExecutable="false" />
+  <bpmn:process id="Process_1" isExecutable="false">
+    <bpmn:task id="Task_1" />
+  </bpmn:process>
 </bpmn:definitions>`;
+const DIFF_KEY = "element-xml-1";
 
-function diffPanes(extensions: DiffPaneHostExtensions = {}) {
+function diffPanes(
+    extensions: DiffPaneHostExtensions = {},
+    elementXml?: ElementXmlChanges | RecordingElementXmlDiffView,
+) {
     const { notifier, settings } = createTestHost();
     const store = new DiffPaneStore();
     const session = store.registerCompareFiles(BEFORE, AFTER);
@@ -41,15 +55,25 @@ function diffPanes(extensions: DiffPaneHostExtensions = {}) {
     const after = new FakeDiffPaneHandle(AFTER, XML);
     session.attachPane(before);
     session.attachPane(after);
-    const router = createDiffPaneRouter(new BpmnDiffService(notifier, settings, store), extensions);
+    const elementXmlChanges =
+        elementXml instanceof RecordingElementXmlDiffView
+            ? new ElementXmlDiffService(store, elementXml, notifier)
+            : elementXml;
+    const router = createDiffPaneRouter(
+        new BpmnDiffService(notifier, settings, store, elementXmlChanges),
+        extensions,
+    );
     return { router, before, after };
 }
 
 describe("createDiffPaneRouter", () => {
-    it.each<[string, DiffPaneHostExtensions, Record<string, string>]>([
+    it.each<
+        [string, DiffPaneHostExtensions, ElementXmlChanges | undefined, Record<string, string>]
+    >([
         [
             "a host with every extension",
             { swapSides: async () => undefined, paneLog: new RecordingNotifier() },
+            { show: async () => undefined, follow: async () => undefined },
             {
                 GetBpmnFileCommand: "handled",
                 GetBpmnModelerSettingCommand: "ignored",
@@ -60,11 +84,14 @@ describe("createDiffPaneRouter", () => {
                 DiffPlaneChangedCommand: "handled",
                 SwapCompareSidesCommand: "handled",
                 LogErrorCommand: "handled",
+                ShowElementXmlChangesCommand: "handled",
+                DiffSelectionChangedCommand: "handled",
             },
         ],
         [
             "a bare host",
             {},
+            undefined,
             {
                 GetBpmnFileCommand: "handled",
                 GetBpmnModelerSettingCommand: "ignored",
@@ -75,20 +102,24 @@ describe("createDiffPaneRouter", () => {
                 DiffPlaneChangedCommand: "handled",
                 SwapCompareSidesCommand: "ignored",
                 LogErrorCommand: "ignored",
+                ShowElementXmlChangesCommand: "ignored",
+                DiffSelectionChangedCommand: "handled",
             },
         ],
-    ])("routes every command a diff pane posts for %s", (_host, extensions, expected) => {
-        const { router } = diffPanes(extensions);
+    ])(
+        "routes every command a diff pane posts for %s",
+        (_host, extensions, elementXml, expected) => {
+            const { router } = diffPanes(extensions, elementXml);
 
-        const routes = Object.fromEntries(
-            [...DIFF_PANE_HANDSHAKE_COMMAND_TYPES, ...BPMN_DIFF_PANE_COMMAND_TYPES].map((type) => [
-                type,
-                router.routeOf(type).kind,
-            ]),
-        );
+            const routes = Object.fromEntries(
+                [...DIFF_PANE_HANDSHAKE_COMMAND_TYPES, ...BPMN_DIFF_PANE_COMMAND_TYPES].map(
+                    (type) => [type, router.routeOf(type).kind],
+                ),
+            );
 
-        expect(routes).toStrictEqual(expected);
-    });
+            expect(routes).toStrictEqual(expected);
+        },
+    );
 
     it("answers the file request a pane sends before it knows it is a diff pane", async () => {
         const { router, after } = diffPanes();
@@ -145,6 +176,33 @@ describe("createDiffPaneRouter", () => {
         expect(first.after.posted).toStrictEqual([]);
         expect(second.after.posted).toStrictEqual([
             expect.objectContaining({ type: "SyncCursorQuery", index: 1 }),
+        ]);
+    });
+
+    it("selects a pane's selection in its partner on a host without element XML diffs", async () => {
+        const { router, before, after } = diffPanes();
+
+        await router.dispatch(new DiffSelectionChangedCommand("Task_1"), after);
+
+        expect(after.posted).toStrictEqual([]);
+        expect(before.posted).toStrictEqual([
+            expect.objectContaining({ type: "SyncDiffSelectionQuery", elementId: "Task_1" }),
+        ]);
+    });
+
+    it("opens an element's XML diff and moves it with the selection", async () => {
+        const view = new RecordingElementXmlDiffView();
+        const { router, before, after } = diffPanes({}, view);
+        before.setReady();
+        after.setReady();
+
+        await router.dispatch(new ShowElementXmlChangesCommand("Process_1"), after);
+        await router.dispatch(new DiffSelectionChangedCommand("Task_1"), after);
+
+        expect(view.shown(DIFF_KEY)?.elementId).toBe("Task_1");
+        expect(view.openedCount).toBe(1);
+        expect(before.posted).toStrictEqual([
+            expect.objectContaining({ type: "SyncDiffSelectionQuery", elementId: "Task_1" }),
         ]);
     });
 

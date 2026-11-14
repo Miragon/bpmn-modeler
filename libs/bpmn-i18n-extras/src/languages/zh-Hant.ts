@@ -31,6 +31,7 @@ const dictionary: Record<string, string> = {
     "Changes": "變更",
     "No changes": "無變更",
     "Show all": "顯示全部",
+    "Show XML changes": "顯示 XML 變更",
     "Old version": "舊版本",
     "New version": "新版本",
     "Not in this version": "此版本中不存在",

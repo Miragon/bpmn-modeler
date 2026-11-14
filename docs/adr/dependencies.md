@@ -32,6 +32,7 @@ Callers use narrow public concepts, never private member names.
 | --- | --- |
 | Clipboard `directEditingInternals` | `_textbox.content`; installed shape tested in Chromium |
 | Diff `differResult` | Private differ category keys; real differ-result test |
+| Diff `moddleNamespaces` | moddle-xml's `nsMap` option and its private `DEFAULT_NS_MAP` prefixes; real parser and serializer test |
 | Append-menu `popupMenuInternals` | `_getContext`; installed shape tested in Chromium |
 | Properties-panel `engineGroupData` | Copied engine group/entry IDs; real providers in Chromium and a template-prefix test in the library |
 | Lint `lintingInternals` | The vendor's private formatting and overlay helpers; the upstream-shape test |
@@ -43,7 +44,8 @@ Callers use narrow public concepts, never private member names.
 - Installed-package tests make a dependency bump fail where its shape changed:
   [upstream shapes](../../packages/bpmn-modeler/src/upstreamShape.browser.spec.ts),
   [engine groups](../../packages/bpmn-modeler/src/engineGroupData.upstream.browser.spec.ts),
-  [differ results](../../libs/bpmn-diff/src/upstreamInternals/differResult.spec.ts)
+  [differ results](../../libs/bpmn-diff/src/upstreamInternals/differResult.spec.ts),
+  [moddle namespaces](../../libs/bpmn-diff/src/upstreamInternals/moddleNamespaces.spec.ts)
   and [template prefixes](../../libs/properties-panel/src/modeFilter/engineGroupData.upstream.spec.ts).
   The `bpmn-diff` and `properties-panel` targets list `yarn.lock` among their
   trigger paths so a lockfile-only bump re-runs the pins. The clipboard catches a

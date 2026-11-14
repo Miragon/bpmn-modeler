@@ -6,8 +6,10 @@ import {
     createDmnDiffPaneRouter,
     DiffPaneStore,
     DmnDiffService,
+    ElementXmlDiffService,
 } from "@miragon/bpmn-modeler-core";
 import { DiffController, DiffPaneFormat } from "../diff/adapter/in/DiffController";
+import { VsCodeElementXmlDiffView } from "../diff/adapter/out/VsCodeElementXmlDiffView";
 import { WebviewPaneHandle } from "../diff/adapter/out/WebviewPaneHandle";
 import { SharedDeps } from "./sharedDeps";
 
@@ -35,7 +37,14 @@ export function register(
         deps.notifier,
         (panel, document) => new WebviewPaneHandle(panel, document, "bpmnDiffPane"),
         deps.preferences,
-        bpmnDiffFormat(new BpmnDiffService(deps.notifier, deps.vsSettings, diffStore)),
+        bpmnDiffFormat(
+            new BpmnDiffService(
+                deps.notifier,
+                deps.vsSettings,
+                diffStore,
+                elementXmlDiffs(context, diffStore, deps),
+            ),
+        ),
     );
     const dmnDiffController = new DiffController(
         dmnDiffStore,
@@ -48,6 +57,22 @@ export function register(
     dmnDiffController.register(context);
 
     return { diffController, diffStore, dmnDiffController, dmnDiffStore };
+}
+
+/** The element XML diffs below the diagram diffs, or `undefined` where the host cannot show them. */
+function elementXmlDiffs(
+    context: ExtensionContext,
+    diffStore: DiffPaneStore,
+    deps: SharedDeps,
+): ElementXmlDiffService | undefined {
+    if (!VsCodeElementXmlDiffView.isSupportedByHost()) {
+        return undefined;
+    }
+    let service: ElementXmlDiffService | undefined = undefined;
+    const view = new VsCodeElementXmlDiffView((diffKey) => service?.closedByUser(diffKey));
+    view.register(context);
+    service = new ElementXmlDiffService(diffStore, view, deps.notifier);
+    return service;
 }
 
 export function bpmnDiffFormat(service: BpmnDiffService): DiffPaneFormat {

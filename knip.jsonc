@@ -104,7 +104,7 @@
                 "src/plugins/index.ts"
             ],
             // minisearch (via model-navigation), lodash (via modeler-types'
-            // asyncDebounce), bpmn-js-differ (via the inlined bpmn-diff lib) and
+            // asyncDebounce), bpmn-js-differ and saxen (via the inlined bpmn-diff lib) and
             // bpmn-auto-layout (via the inlined bpmn-layout lib) are pulled in
             // only through inlined workspace libs; the Vite lib build
             // externalises them, so the published package must declare them even
@@ -113,6 +113,7 @@
                 "minisearch",
                 "lodash",
                 "bpmn-js-differ",
+                "saxen",
                 "bpmn-auto-layout",
                 // Temporary upstream manifest workarounds, verified by the
                 // nested packed-consumer smoke rather than package imports.

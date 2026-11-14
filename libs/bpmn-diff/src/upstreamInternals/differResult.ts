@@ -11,7 +11,7 @@
  * a dependency bump into a loud, located failure. Callers speak the public
  * category names below and never touch the underscore keys.
  */
-import { diff, type DiffResult } from "bpmn-js-differ";
+import type { DiffResult } from "bpmn-js-differ";
 
 import type { DiffCategory } from "../diffResult";
 
@@ -42,7 +42,9 @@ export function assertDiffResultShape(result: unknown): asserts result is DiffRe
     }
 }
 
-export function runDiff(before: unknown, after: unknown): DiffResult {
+/** Loads the differ lazily, as the parser is, so importing the library loads neither. */
+export async function runDiff(before: unknown, after: unknown): Promise<DiffResult> {
+    const { diff } = await import("bpmn-js-differ");
     const result = diff(before as Parameters<typeof diff>[0], after as Parameters<typeof diff>[1]);
     assertDiffResultShape(result);
     return result;

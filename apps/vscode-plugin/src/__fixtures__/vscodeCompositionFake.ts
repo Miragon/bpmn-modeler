@@ -23,6 +23,9 @@ export class EventEmitter<T> {
     }
 }
 
+/** Present, as in VS Code; Theia's API may lack it. */
+export class TabInputTextDiff {}
+
 export const env = { remoteName: undefined as string | undefined };
 
 export const workspace = {
@@ -40,6 +43,7 @@ export const workspace = {
     onDidChangeTextDocument: () => disposable,
     onWillSaveTextDocument: () => disposable,
     registerFileSystemProvider: () => disposable,
+    registerTextDocumentContentProvider: () => disposable,
     createFileSystemWatcher: () => ({
         onDidCreate: () => disposable,
         onDidChange: () => disposable,

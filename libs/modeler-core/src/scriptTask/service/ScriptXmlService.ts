@@ -1,3 +1,4 @@
+import { loadBpmnModdle, moddleDescriptor } from "@miragon/bpmn-modeler-diff";
 import { resolveScriptWriteTarget, type ScriptKind } from "@miragon/bpmn-modeler-types";
 
 /**
@@ -26,12 +27,10 @@ interface ScriptHolder extends ScriptProperties {
     extensionElements?: { values?: { $type: string; script?: ScriptProperties }[] };
 }
 
-type BpmnModdleFactory = (additionalPackages?: Record<string, unknown>) => ModdleInstance;
-
 interface ModdleInstance {
     fromXML(xml: string): Promise<{
         rootElement: unknown;
-        elementsById: Record<string, ScriptHolder>;
+        elementsById: Record<string, ScriptHolder | undefined>;
     }>;
     toXML(element: unknown, options?: { format?: boolean }): Promise<{ xml: string }>;
 }
@@ -91,7 +90,7 @@ export class ScriptXmlService {
 
     /** Applies one update in place; returns whether it actually changed a value. */
     private applyOne(
-        elementsById: Record<string, ScriptHolder>,
+        elementsById: Record<string, ScriptHolder | undefined>,
         update: ScriptContentUpdate,
     ): boolean {
         const element = elementsById[update.elementId];
@@ -122,28 +121,12 @@ export class ScriptXmlService {
      * Constructs a moddle with the Camunda 7 descriptor set — the same
      * extension package the C7 webview registers — via dynamic import so the
      * ~200 KB of moddle/descriptors stay off the eager module graph.
-     * Both `bpmn-moddle` and the descriptor JSON are accessed through a
-     * `default`-interop fallback so the code compiles under either the
-     * bundler's ESM→CJS shape or a native ESM namespace.
      */
     private async createModdle(): Promise<ModdleInstance> {
-        const moddleMod = (await import("bpmn-moddle")) as unknown as {
-            default?: BpmnModdleFactory;
-            BpmnModdle?: BpmnModdleFactory;
-        };
-        const createBpmnModdle = moddleMod.default ?? moddleMod.BpmnModdle;
-        if (typeof createBpmnModdle !== "function") {
-            throw new Error(
-                "bpmn-moddle did not expose a factory under `default` or `BpmnModdle`.",
-            );
-        }
-
-        const camundaMod =
-            (await import("camunda-bpmn-moddle/resources/camunda.json")) as unknown as {
-                default?: unknown;
-            };
-        const camunda = camundaMod.default ?? camundaMod;
-
+        const createBpmnModdle = await loadBpmnModdle();
+        const camunda = moddleDescriptor(
+            await import("camunda-bpmn-moddle/resources/camunda.json"),
+        );
         return createBpmnModdle({ camunda });
     }
 }

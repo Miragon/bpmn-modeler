@@ -59,6 +59,8 @@ const INTELLIJ_SURFACES: HostSurfaceCoverage = {
         // IntelliJ's diff viewer swaps the sides itself and never forwards the command.
         SwapCompareSidesCommand: ignored("the host does not swap diff sides through the core"),
         LogErrorCommand: HANDLED,
+        ShowElementXmlChangesCommand: ignored("the host shows no element XML diff"),
+        DiffSelectionChangedCommand: HANDLED,
     },
     dmnEditor: absent("IntelliJ has no DMN editor"),
     dmnDiffPane: absent("IntelliJ has no DMN editor"),
