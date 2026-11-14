@@ -27,6 +27,8 @@ internal class JcefRelayPanel(
 
     init {
         Disposer.register(parent, browser)
+        // A README's link would otherwise replace the page, or open a popup off-screen rendering drops.
+        browser.setOpenLinksInExternalBrowser(true)
         service<IdeThemeSignal>().follow(parent, browser.cefBrowser, applyThemeJs)
 
         val jsQuery = JBCefJSQuery.create(browser as JBCefBrowserBase)
