@@ -96,7 +96,8 @@ The [Node import check](../../packages/bpmn-modeler/scripts/check-diff-node.mjs)
 In VS Code's BPMN diff, the context pad of an element opens a text diff of that
 element's XML from both versions, in an editor group below the diagram diff. While it is
 open, it follows the selection, which both panes share. It is the first step toward
-resolving merge conflicts on the diagram (#2459).
+resolving merge conflicts on the diagram (#2459), whose library is in
+[Merge](merge.md).
 
 - *What an element's XML holds.* `elementXml(xml, elementId)` in `libs/bpmn-diff`
   returns the element's own attributes and configuration children, without `bpmndi` and
