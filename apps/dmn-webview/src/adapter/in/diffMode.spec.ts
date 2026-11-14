@@ -205,7 +205,7 @@ describe("DiffMode", () => {
 
         expect(legendText()).toContain("Added 1");
         expect(legendText()).toContain("Removed 1");
-        expect(chrome.querySelector<HTMLElement>(".diff-legend__filename")?.hidden).toBe(true);
+        expect(chrome.querySelector(".diff-side-label")?.textContent).toBe("New version");
         expect(chrome.querySelector<HTMLElement>(".diff-legend__swap-group")?.hidden).toBe(true);
     });
 
@@ -214,7 +214,7 @@ describe("DiffMode", () => {
 
         click(".diff-legend__swap-btn");
 
-        expect(chrome.querySelector(".diff-legend__filename")?.textContent).toBe("shipping.dmn");
+        expect(chrome.querySelector(".diff-side-label")?.textContent).toBe("shipping.dmn");
         expect(postedTypes()).toContain("SwapCompareSidesCommand");
     });
 

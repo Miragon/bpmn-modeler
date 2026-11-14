@@ -54,7 +54,9 @@ ordering heuristics are not. Failures throw and hosts own their error reporting.
   the position, and markers in the CI status colours (tinted fills with a dark contour
   in light mode, the status colour on the stroke in dark mode). Where two webviews hold
   the panes, both draw the bar and only the after pane's half carries the changes, so
-  the halves read as one across the sash. The bar covers its parent's top edge, so a
+  the halves read as one across the sash; this holds for the DMN diff too, whose
+  before pane still shows the card for a view it lacks. `DiffSideLabelView` names
+  each pane's version, or its file on a compare-files pane, in both diffs. The bar covers its parent's top edge, so a
   consumer starts the canvas `--diff-legend-height` (40px unless it measures the bar)
   lower, as the webviews do. The look is held as defaults of the
   `--diff-legend-*` custom properties, which stay the theming hook for consumers. The VS Code tokens and

@@ -2,7 +2,7 @@
 
 See what changed between two versions of a `.bpmn` file as two diagrams side by side, not as an XML diff.
 
-<figure class="shot"><img src="/shots/bpmn-diff.png" alt="Two BPMN diagrams side by side with added, removed, changed and moved elements highlighted and a change counter above each pane"><figcaption>Before on the left, after on the right. Pan and zoom in one pane and the other follows.</figcaption></figure>
+<figure class="shot"><img src="/shots/bpmn-diff.png" alt="Two BPMN diagrams side by side with added, removed, changed and moved elements highlighted, each pane labelled with its version, and one bar of change counts and stepping arrows across the top"><figcaption>Before on the left, after on the right. Pan and zoom in one pane and the other follows.</figcaption></figure>
 
 ## Open a diff
 

@@ -242,9 +242,9 @@ describe("legendOf", () => {
         expect(legendOf(stateAfter(imported(), highlighted()), "changed")).toEqual({
             counts: VIEW.counts,
             status: undefined,
-            filename: undefined,
             showSwap: false,
             canStep: true,
+            showChanges: true,
         });
     });
 
@@ -272,12 +272,18 @@ describe("legendOf", () => {
         });
     });
 
-    it("names the file and offers the swap on a compare-files pane", () => {
-        const state = stateAfter(imported(), highlighted("after", "compare-files"));
+    it("leaves the changes to the after pane's bar, so both bars read as one", () => {
+        const state = stateAfter(imported(), highlighted("before", "compare-files"));
 
         expect(legendOf(state, undefined)).toMatchObject({
-            filename: "shipping.dmn",
-            showSwap: true,
+            showSwap: false,
+            showChanges: false,
         });
+    });
+
+    it("offers the swap on a compare-files pane", () => {
+        const state = stateAfter(imported(), highlighted("after", "compare-files"));
+
+        expect(legendOf(state, undefined)).toMatchObject({ showSwap: true });
     });
 });

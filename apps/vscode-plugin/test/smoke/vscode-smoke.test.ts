@@ -614,12 +614,12 @@ describe("the packaged extension in a real VS Code", () => {
         const before = await vscode().editorWebview('body[data-diff-side="before"]');
         const after = await vscode().editorWebview('body[data-diff-side="after"]');
         await expect
-            .poll(() => before.locator(".diff-legend__filename").textContent(), {
+            .poll(() => before.locator(".diff-side-label").textContent(), {
                 timeout: TIMEOUT_MS,
             })
             .toBe(DMN_BEFORE_FILE);
         await expect
-            .poll(() => after.locator(".diff-legend__filename").textContent(), {
+            .poll(() => after.locator(".diff-side-label").textContent(), {
                 timeout: TIMEOUT_MS,
             })
             .toBe(DMN_AFTER_FILE);

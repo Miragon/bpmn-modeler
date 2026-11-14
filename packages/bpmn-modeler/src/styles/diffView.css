@@ -123,26 +123,3 @@
 .djs-element.diff-selected .djs-visual {
     filter: drop-shadow(0 0 6px #335de5) drop-shadow(0 0 3px #335de5);
 }
-
-/* ─── Side label ───────────────────────────────────────────────────────── */
-
-/* Its parent, the pane's canvas container, positions it. */
-.diff-side-label {
-    position: absolute;
-    top: 8px;
-    left: 12px;
-    z-index: 10;
-    max-width: calc(100% - 24px);
-    overflow: hidden;
-    padding: 2px 8px;
-    font-family: var(--diff-legend-font-family);
-    font-size: 12px;
-    font-weight: var(--diff-legend-font-weight);
-    line-height: 1.5;
-    color: var(--diff-legend-muted);
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    background: var(--diff-legend-button-hover);
-    border-radius: 6px;
-    pointer-events: none;
-}

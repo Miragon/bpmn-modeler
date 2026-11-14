@@ -10,6 +10,8 @@ import {
     SwapCompareSidesCommand,
     ViewportChangedCommand,
 } from "@miragon/bpmn-modeler-shared";
+import { i18n } from "@miragon/bpmn-modeler-i18n";
+import { DiffSideLabelView } from "@miragon/bpmn-modeler-types";
 import type { DmnDiffViewerHandle } from "@miragon/dmn-modeler";
 
 import {
@@ -42,12 +44,13 @@ import { DiffEmptyState, DiffLegend } from "./diffLegend";
 export class DiffMode {
     private readonly legend: DiffLegend;
     private readonly emptyState: DiffEmptyState;
+    private sideLabel?: DiffSideLabelView;
     /** Changes only through {@link nextDiffPaneState}; this class renders it. */
     private state: DiffPaneState = INITIAL_DIFF_PANE_STATE;
 
     constructor(
         private readonly viewer: DmnDiffViewerHandle,
-        chromeParent: HTMLElement,
+        private readonly chromeParent: HTMLElement,
         private readonly host: DmnDiffPaneHost,
     ) {
         this.legend = new DiffLegend(chromeParent, {
@@ -75,6 +78,7 @@ export class DiffMode {
             window.removeEventListener("message", listener);
             this.legend.dispose();
             this.emptyState.dispose();
+            this.sideLabel?.destroy();
         };
     }
 
@@ -143,6 +147,15 @@ export class DiffMode {
         // diff.css draws the divider on the edge that faces the partner pane.
         document.body.dataset.diffSide = highlights.side;
         this.viewer.setMarks(highlights.view, { countBadges: highlights.side === "after" });
+        this.label(highlights);
+    }
+
+    /** Names the pane's side, or on compare-files panes its file, which the tab title does not tell apart. */
+    private label(highlights: PaneHighlights): void {
+        this.sideLabel ??= new DiffSideLabelView(this.chromeParent, highlights.side, i18n);
+        this.sideLabel.showFilename(
+            highlights.origin === "compare-files" ? highlights.paneFilename : undefined,
+        );
     }
 
     private enterView(elementId: string | null, found: boolean): void {
