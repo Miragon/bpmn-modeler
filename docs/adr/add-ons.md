@@ -39,9 +39,13 @@ the view; the `Artifact` prefix in the core belongs to `ArtifactService`.
 - *The core builds everything a row says*: its text, its state and the actions it offers
   (`catalogModelOf`). The state is the same reading the notices use
   ([asking](code-allowance.md#asking)).
-- *Scope.* The catalog lists the open workspace only: each workspace folder's root config folder,
-  the nested config folders an editor or a listing already looked in, each folder's `node_modules`
-  and the packages the lint gate reported. Allowance rows are not listed. An allowance names an
+- *Scope.* The catalog lists the open workspace only: every config folder at any depth below a
+  workspace folder, each workspace folder's and each lint config's `node_modules`, and the packages
+  the lint gate reported. The view manages the whole repository, so a nested project's add-ons are
+  listed before an editor opens there. Each build searches the workspace for config folder files
+  and `.bpmnlintrc` files, outside the folders a watcher ignores (`node_modules`, build output,
+  tool state): the cost is one search per build, a full walk on the bridge, whose `findFiles` has
+  no index. Allowance rows are not listed. An allowance names an
   add-on, not a folder, so an add-on that only one branch has is missing from the other worktrees,
   and a Revoke there would take it from the worktree that has it.
 - *Builds* run only while a view is visible, one at a time. Each reads the host's stored lists, not
@@ -245,6 +249,9 @@ The standalone app's handling of restored view containers is in
   on each rebuild and resends every README to every view. **Stars asked live** on each detail would
   be current, but spend the anonymous rate limit the template fetch needs. **`innerHTML` behind a sanitizer** would show
   more of a README, but puts one library between workspace text and the page's DOM.
+- **Listing a nested config folder only once an editor looked in it**, as the editors find their
+  add-ons between a document and its workspace root. No search per build, but in a monorepo a
+  project's plugins and templates were missing from the view until one of its diagrams was opened.
 - **A roving tree** kept the list one tab stop. The list-and-detail layout of #2321 puts each row's
   actions in the detail pane, and the product decision put that layout before the tree model.
   Dropping it costs keyboard users one Tab per shown row and header.

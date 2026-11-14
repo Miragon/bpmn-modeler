@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
     leavesToView,
     configAreaDirsToList,
+    configFolderFilesGlob,
+    configFolderHoldersIn,
     rulePackageDirsToList,
     rulePackageIdsToList,
 } from "./addOnScope";
@@ -34,10 +36,85 @@ describe("configAreaDirsToList", () => {
         expect(
             configAreaDirsToList({
                 folders: FOLDERS,
-                rootDirs: ["/work/.camunda/plugins", "/other/.camunda/plugins"],
+                holderDirs: ["/work/.camunda/plugins", "/other/.camunda/plugins"],
                 knownDirs,
             }),
         ).toEqual(dirs);
+    });
+});
+
+describe("configFolderFilesGlob", () => {
+    it.each([
+        { configFolder: ".camunda", glob: "**/.camunda/**" },
+        { configFolder: ".camunda/", glob: "**/.camunda/**" },
+        { configFolder: ".camunda//", glob: "**/.camunda/**" },
+        { configFolder: "config/camunda", glob: "**/config/camunda/**" },
+    ])("lists every file of $configFolder at any depth", ({ configFolder, glob }) => {
+        expect(configFolderFilesGlob(configFolder)).toBe(glob);
+    });
+});
+
+describe("configFolderHoldersIn", () => {
+    it.each<{
+        case: string;
+        files: string[];
+        configFolder?: string;
+        folders?: string[];
+        holders: string[];
+    }>([
+        { case: "each workspace folder, with nothing found", files: [], holders: FOLDERS },
+        {
+            case: "a folder below a workspace folder whose config folder holds a file",
+            files: ["/work/project-a/.camunda/plugins/local/plugin.json"],
+            holders: [...FOLDERS, "/work/project-a"],
+        },
+        {
+            case: "each holder once, however many files its config folder holds",
+            files: [
+                "/work/project-a/.camunda/plugins/local/plugin.json",
+                "/work/project-a/.camunda/element-templates/mail.json",
+                "/work/.camunda/plugins/global/plugin.json",
+            ],
+            holders: [...FOLDERS, "/work/project-a"],
+        },
+        {
+            case: "a config folder setting with a trailing slash",
+            files: ["/other/billing/.camunda/plugins/local/plugin.json"],
+            configFolder: ".camunda/",
+            holders: [...FOLDERS, "/other/billing"],
+        },
+        {
+            case: "a config folder setting of two segments",
+            files: ["/work/project-a/config/camunda/plugins/local/plugin.json"],
+            configFolder: "config/camunda",
+            holders: [...FOLDERS, "/work/project-a"],
+        },
+        {
+            case: "no folder whose name only ends like the config folder",
+            files: ["/work/project-a/my.camunda/plugins/local/plugin.json"],
+            holders: FOLDERS,
+        },
+        {
+            case: "no config folder inside an installed package or a build output",
+            files: [
+                "/work/node_modules/some-lib/.camunda/plugins/x/plugin.json",
+                "/work/project-a/build/.camunda/element-templates/mail.json",
+            ],
+            holders: FOLDERS,
+        },
+        {
+            case: "no config folder outside every workspace folder",
+            files: ["/elsewhere/.camunda/plugins/x/plugin.json"],
+            holders: FOLDERS,
+        },
+        {
+            case: "no folder above a workspace folder that is a config folder itself",
+            files: ["/work/.camunda/plugins/x/plugin.json"],
+            folders: ["/work/.camunda"],
+            holders: ["/work/.camunda"],
+        },
+    ])("finds $case", ({ files, configFolder = ".camunda", folders = FOLDERS, holders }) => {
+        expect(configFolderHoldersIn(files, folders, configFolder)).toEqual(holders);
     });
 });
 

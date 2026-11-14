@@ -7,6 +7,7 @@ import { SettingsPort, WorkspacePort } from "../../../kernel/port/hostPorts";
 import { EVERY_PATH_GLOB } from "../../../kernel/domain/watchedFiles";
 import { joinWorkspacePath } from "../../../kernel/domain/workspacePath";
 import { ArtifactService, WatcherResult } from "../../../kernel/service/ArtifactService";
+import { LINT_CONFIG_FILE } from "../domain/lintConfigFile";
 
 export interface BpmnlintChangeTarget {
     setBpmnlintConfig(editorId: string): Promise<boolean>;
@@ -41,12 +42,12 @@ export class BpmnLintConfigLocator {
         const workspaceRoot = await this.artifacts.getWorkspaceRoot(documentDir);
 
         for (const directory of ancestorsUpTo(documentDir, workspaceRoot)) {
-            if (await this.hasFile(directory, ".bpmnlintrc")) {
-                return joinWorkspacePath(directory, ".bpmnlintrc");
+            if (await this.hasFile(directory, LINT_CONFIG_FILE)) {
+                return joinWorkspacePath(directory, LINT_CONFIG_FILE);
             }
             const configDir = configFolderPath(directory, configFolder);
-            if (await this.hasFile(configDir, ".bpmnlintrc")) {
-                return joinWorkspacePath(configDir, ".bpmnlintrc");
+            if (await this.hasFile(configDir, LINT_CONFIG_FILE)) {
+                return joinWorkspacePath(configDir, LINT_CONFIG_FILE);
             }
         }
 
@@ -69,7 +70,7 @@ export class BpmnLintConfigLocator {
             const lintConfigLookup = {
                 documentDirectory,
                 workspaceRoot,
-                entries: [".bpmnlintrc", configFolderPath("", configFolder, ".bpmnlintrc")],
+                entries: [LINT_CONFIG_FILE, configFolderPath("", configFolder, LINT_CONFIG_FILE)],
             };
             if (changesConfigLookup(path, lintConfigLookup)) {
                 void target.setBpmnlintConfig(editorId);

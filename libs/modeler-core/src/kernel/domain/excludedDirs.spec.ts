@@ -6,6 +6,7 @@ import {
     isExcludedDirBelow,
     isIgnoredWatchDirName,
     isInsideExcludedDirBelow,
+    unwatchedDirsGlob,
 } from "./excludedDirs";
 import { globToRegExp } from "./globToRegExp";
 
@@ -179,5 +180,18 @@ describe("excludedDirsGlob", () => {
         expect(excluded.test("config/element-templates/task.json")).toBe(true);
         expect(excluded.test("node_modules/pkg/package.json")).toBe(true);
         expect(excluded.test("payloads/vars.json")).toBe(false);
+    });
+});
+
+describe("unwatchedDirsGlob", () => {
+    it.each([
+        { path: "web/node_modules/pkg/.camunda/plugins/x/plugin.json", excluded: true },
+        { path: "build/.camunda/element-templates/mail.json", excluded: true },
+        { path: ".git/.camunda/plugins/x/plugin.json", excluded: true },
+        { path: ".camunda/plugins/x/plugin.json", excluded: false },
+        { path: "project-a/.camunda/element-templates/mail.json", excluded: false },
+        { path: "project-a/.bpmnlintrc", excluded: false },
+    ])("leaves out $path: $excluded", ({ path, excluded }) => {
+        expect(globToRegExp(unwatchedDirsGlob()).test(path)).toBe(excluded);
     });
 });

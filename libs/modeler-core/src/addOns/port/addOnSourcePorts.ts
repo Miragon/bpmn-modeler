@@ -48,6 +48,10 @@ export interface RulePackageAddOnSource extends CodeAddOnSource {
     /** The packages a lint reported, the config's own package included. */
     seenPackageIds(): readonly string[];
     lintConfigDirs(): readonly string[];
+    /** The glob a workspace search lists every lint config with. */
+    readonly lintConfigFiles: string;
+    /** The folder whose `node_modules` a lint config's packages are installed in. */
+    lintConfigDirOf(configPath: string): string | undefined;
     currentRulePackage(id: string): ListedPresence;
 }
 
