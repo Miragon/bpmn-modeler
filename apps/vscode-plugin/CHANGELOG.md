@@ -10,6 +10,10 @@
 ## [1.22.0](https://github.com/Miragon/bpmn-modeler/compare/vscode-v1.21.0...vscode-v1.22.0) (2026-11-12)
 
 
+### ⚠️ Allowing plugins and rule packages
+
+You now allow a bpmn-js plugin or a bpmnlint rule package once per repository. The allowance covers it in every worktree of that repository, later changes included, so a pull, a branch switch or an update no longer asks again. Outside a git repository it covers the add-on's folder. A new add-on, another repository and a second clone ask once. Approvals from earlier versions are kept as allowances; going back to an earlier version asks again. Revoke an add-on before you check out code you do not trust. See [Allow code](https://miragon.github.io/bpmn-modeler/vscode/features/add-ons#allow-code).
+
 ### 🎉 New Features
 
 * **add-ons-webview:** render the add-on catalog in a host-neutral webview ([#2308](https://github.com/Miragon/bpmn-modeler/issues/2308)) ([aace17c](https://github.com/Miragon/bpmn-modeler/commit/aace17c9d9ed6755da15cfd9413c34fe76e2f3d5))
@@ -21,7 +25,6 @@
 * **intellij-plugin:** keep element template switches per user in intellij ([#2307](https://github.com/Miragon/bpmn-modeler/issues/2307)) [sync cb671dd] ([a2b54f0](https://github.com/Miragon/bpmn-modeler/commit/a2b54f0ced6ca3e8b9160f6475f2f831245ad7f7))
 * **intellij-plugin:** run no workspace code in a project you did not trust ([#2361](https://github.com/Miragon/bpmn-modeler/issues/2361)) ([781d9bb](https://github.com/Miragon/bpmn-modeler/commit/781d9bb6b38c3a9ea253a7dbd386e9897cde3516))
 * **modeler-core:** add form engine and shared language selection ([#2341](https://github.com/Miragon/bpmn-modeler/issues/2341)) ([c28a403](https://github.com/Miragon/bpmn-modeler/commit/c28a403a9b3e887169b9773062a2da0889604525))
-* **modeler-core:** allow code whose content you allowed in another folder ([#2337](https://github.com/Miragon/bpmn-modeler/issues/2337)) [sync 9b3dc90] ([687770e](https://github.com/Miragon/bpmn-modeler/commit/687770e80d927fcd8c51cdfac89a6471bae0514b))
 * **modeler-core:** allow workspace code per repository and add-on ([#2358](https://github.com/Miragon/bpmn-modeler/issues/2358)) ([192d740](https://github.com/Miragon/bpmn-modeler/commit/192d74074fb05ffd5f675fb12bb93e15b688fd32))
 * **modeler-core:** follow approval changes everywhere and prune the plugin cache ([#2286](https://github.com/Miragon/bpmn-modeler/issues/2286)) ([a49ab82](https://github.com/Miragon/bpmn-modeler/commit/a49ab82d1715927a7652547c03f90bbc73c2af39))
 * **modeler-core:** host-neutral add-on catalog for the artifacts view ([#2289](https://github.com/Miragon/bpmn-modeler/issues/2289)) ([68770b6](https://github.com/Miragon/bpmn-modeler/commit/68770b6a57eb8d1657b84886286f737597f2b650))
