@@ -1,5 +1,41 @@
 # Changelog
 
+## [0.4.0](https://github.com/Miragon/bpmn-modeler/compare/orca-v0.3.1...orca-v0.4.0) (2026-11-14)
+
+
+### 🎉 New Features
+
+* **bpmn-diff:** return one element's XML without its children and diagram data ([#2461](https://github.com/Miragon/bpmn-modeler/issues/2461)) [sync 93096fa] ([73dfe03](https://github.com/Miragon/bpmn-modeler/commit/73dfe030192cd30b4924658bccb1b3ba32b5b9d3))
+* **bpmn-modeler:** add reloadDiagram that keeps the view across a re-import ([#2427](https://github.com/Miragon/bpmn-modeler/issues/2427)) ([f6ff334](https://github.com/Miragon/bpmn-modeler/commit/f6ff334f5b58d396f1b3335710799bf6d3c17177))
+* **bpmn-modeler:** give the diff legend the miragon look ([#2436](https://github.com/Miragon/bpmn-modeler/issues/2436)) [sync 291a060] ([22b9fb2](https://github.com/Miragon/bpmn-modeler/commit/22b9fb29502e4bd506631a78cd0a73e06718bc1e))
+* **bpmn-modeler:** keep both diff panes on the same subprocess plane ([#2443](https://github.com/Miragon/bpmn-modeler/issues/2443)) [sync 378c141] ([ed31c8d](https://github.com/Miragon/bpmn-modeler/commit/ed31c8d3e199115d1b75bc86904379d99a8ad89f))
+* **bpmn-modeler:** publish the surface checks hosts duck-type ([#2420](https://github.com/Miragon/bpmn-modeler/issues/2420)) ([0109615](https://github.com/Miragon/bpmn-modeler/commit/01096152c1e9b00affcedd63751abfeb4c7af5bd))
+* **bpmn-modeler:** restyle the diff view after Diagit's diff panel ([#2442](https://github.com/Miragon/bpmn-modeler/issues/2442)) [sync c4f0e69] ([408237a](https://github.com/Miragon/bpmn-modeler/commit/408237a175ed62d21fa02dd4ac267538c644d3f4))
+* **model-navigation:** open and preview a start event's linked form ([#2460](https://github.com/Miragon/bpmn-modeler/issues/2460)) [sync f1dd92f] ([6414d46](https://github.com/Miragon/bpmn-modeler/commit/6414d464c797688f13f543dc058b9ab9b3a3c5f3))
+* **modeler-core:** open an add-on's details in an editor tab ([#2382](https://github.com/Miragon/bpmn-modeler/issues/2382)) [sync 63b09b6] ([7c28a72](https://github.com/Miragon/bpmn-modeler/commit/7c28a7204d9d75bdcb6a8d3226a048f2a1a2bf8c))
+
+
+### 🐞 Bug Fixes
+
+* **append-menu:** one rule for what counts as a template popup entry ([#2425](https://github.com/Miragon/bpmn-modeler/issues/2425)) [sync 59f7b92] ([858d1c6](https://github.com/Miragon/bpmn-modeler/commit/858d1c6db6208ea53c86cd8ed60875caa5ad6b36))
+
+
+### 🔨 Refactoring
+
+* **modeler-types:** decide once whether a document is blank ([#2410](https://github.com/Miragon/bpmn-modeler/issues/2410)) ([b382775](https://github.com/Miragon/bpmn-modeler/commit/b382775c4d87aab8bd4391c1a104ea0850c06e4c))
+* **shared:** build the properties-panel chrome once for every editor page ([#2435](https://github.com/Miragon/bpmn-modeler/issues/2435)) ([bc04fd8](https://github.com/Miragon/bpmn-modeler/commit/bc04fd85038752abe4136a7d9b95e33b12ee63d7))
+
+
+### 📔 Documentation
+
+* **orca-plugin:** explain why the plugin shows no diagram diff ([#2399](https://github.com/Miragon/bpmn-modeler/issues/2399)) ([44d6254](https://github.com/Miragon/bpmn-modeler/commit/44d6254c36b8e0b8a4e68f028d2cf1c1a07b89fc))
+
+
+### 🛠️ Misc
+
+* **build:** share one vite preset across the modeler bundles ([#2437](https://github.com/Miragon/bpmn-modeler/issues/2437)) ([97d5991](https://github.com/Miragon/bpmn-modeler/commit/97d5991faf8805485831bc2f6b63ecfd91a09d15))
+* **orca-plugin:** move to @miragon/modeler-shell 0.14.1 and its smaller Orca smoke ([#2376](https://github.com/Miragon/bpmn-modeler/issues/2376)) ([2158247](https://github.com/Miragon/bpmn-modeler/commit/2158247cdf7a8a54bd1493f956ebb12d8c0fd721))
+
 ## [0.3.1](https://github.com/Miragon/bpmn-modeler/compare/orca-v0.3.0...orca-v0.3.1) (2026-11-12)
 
 

@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.10.0](https://github.com/Miragon/bpmn-modeler/compare/dmn-modeler-v0.9.0...dmn-modeler-v0.10.0) (2026-11-14)
+
+
+### 🎉 New Features
+
+* **bpmn-diff:** return one element's XML without its children and diagram data ([#2461](https://github.com/Miragon/bpmn-modeler/issues/2461)) [sync 93096fa] ([73dfe03](https://github.com/Miragon/bpmn-modeler/commit/73dfe030192cd30b4924658bccb1b3ba32b5b9d3))
+* **bpmn-modeler:** add reloadDiagram that keeps the view across a re-import ([#2427](https://github.com/Miragon/bpmn-modeler/issues/2427)) ([f6ff334](https://github.com/Miragon/bpmn-modeler/commit/f6ff334f5b58d396f1b3335710799bf6d3c17177))
+* **bpmn-modeler:** give the diff legend the miragon look ([#2436](https://github.com/Miragon/bpmn-modeler/issues/2436)) ([291a060](https://github.com/Miragon/bpmn-modeler/commit/291a060fc94452031a31e65a16992404f08fb91c))
+* **bpmn-modeler:** keep both diff panes on the same subprocess plane ([#2443](https://github.com/Miragon/bpmn-modeler/issues/2443)) [sync 378c141] ([ed31c8d](https://github.com/Miragon/bpmn-modeler/commit/ed31c8d3e199115d1b75bc86904379d99a8ad89f))
+* **bpmn-modeler:** publish the surface checks hosts duck-type ([#2420](https://github.com/Miragon/bpmn-modeler/issues/2420)) ([0109615](https://github.com/Miragon/bpmn-modeler/commit/01096152c1e9b00affcedd63751abfeb4c7af5bd))
+* **bpmn-modeler:** restyle the diff view after Diagit's diff panel ([#2442](https://github.com/Miragon/bpmn-modeler/issues/2442)) ([c4f0e69](https://github.com/Miragon/bpmn-modeler/commit/c4f0e6970915672dc882d39dc6d5d791c1d24165))
+* **model-navigation:** open and preview a start event's linked form ([#2460](https://github.com/Miragon/bpmn-modeler/issues/2460)) [sync f1dd92f] ([6414d46](https://github.com/Miragon/bpmn-modeler/commit/6414d464c797688f13f543dc058b9ab9b3a3c5f3))
+
+
+### 🔨 Refactoring
+
+* **dmn-modeler:** keep the diff viewer out of the published types ([#2432](https://github.com/Miragon/bpmn-modeler/issues/2432)) ([b26b0df](https://github.com/Miragon/bpmn-modeler/commit/b26b0dfacdc1556d6063f61a383acd13c3302bd3))
+* **modeler-types:** render both diff legends from one component ([#2426](https://github.com/Miragon/bpmn-modeler/issues/2426)) ([d651f17](https://github.com/Miragon/bpmn-modeler/commit/d651f175559bf5c6968c311169a70efe1387676a))
+* **shared:** build the properties-panel chrome once for every editor page ([#2435](https://github.com/Miragon/bpmn-modeler/issues/2435)) ([bc04fd8](https://github.com/Miragon/bpmn-modeler/commit/bc04fd85038752abe4136a7d9b95e33b12ee63d7))
+
 ## [0.9.0](https://github.com/Miragon/bpmn-modeler/compare/dmn-modeler-v0.8.0...dmn-modeler-v0.9.0) (2026-11-12)
 
 

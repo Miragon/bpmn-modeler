@@ -1,5 +1,58 @@
 # Changelog
 
+## [1.9.0](https://github.com/Miragon/bpmn-modeler/compare/bpmn-modeler-v1.8.1...bpmn-modeler-v1.9.0) (2026-11-14)
+
+
+### 🎉 New Features
+
+* **bpmn-diff:** return one element's XML without its children and diagram data ([#2461](https://github.com/Miragon/bpmn-modeler/issues/2461)) ([93096fa](https://github.com/Miragon/bpmn-modeler/commit/93096fada755dd1ef773444d4bdaa36706491fb0))
+* **bpmn-modeler:** add reloadDiagram that keeps the view across a re-import ([#2427](https://github.com/Miragon/bpmn-modeler/issues/2427)) ([f6ff334](https://github.com/Miragon/bpmn-modeler/commit/f6ff334f5b58d396f1b3335710799bf6d3c17177))
+* **bpmn-modeler:** give the diff legend the miragon look ([#2436](https://github.com/Miragon/bpmn-modeler/issues/2436)) ([291a060](https://github.com/Miragon/bpmn-modeler/commit/291a060fc94452031a31e65a16992404f08fb91c))
+* **bpmn-modeler:** keep both diff panes on the same subprocess plane ([#2443](https://github.com/Miragon/bpmn-modeler/issues/2443)) ([378c141](https://github.com/Miragon/bpmn-modeler/commit/378c14146a519295c3ef3327a613513f75fc3fea))
+* **bpmn-modeler:** publish the surface checks hosts duck-type ([#2420](https://github.com/Miragon/bpmn-modeler/issues/2420)) ([0109615](https://github.com/Miragon/bpmn-modeler/commit/01096152c1e9b00affcedd63751abfeb4c7af5bd))
+* **bpmn-modeler:** restyle the diff view after Diagit's diff panel ([#2442](https://github.com/Miragon/bpmn-modeler/issues/2442)) ([c4f0e69](https://github.com/Miragon/bpmn-modeler/commit/c4f0e6970915672dc882d39dc6d5d791c1d24165))
+* **model-navigation:** open and preview a start event's linked form ([#2460](https://github.com/Miragon/bpmn-modeler/issues/2460)) ([f1dd92f](https://github.com/Miragon/bpmn-modeler/commit/f1dd92fd03507d0508cadf0e4c413e85bb5b4fac))
+
+
+### 🐞 Bug Fixes
+
+* **append-menu:** one rule for what counts as a template popup entry ([#2425](https://github.com/Miragon/bpmn-modeler/issues/2425)) ([59f7b92](https://github.com/Miragon/bpmn-modeler/commit/59f7b928a033974f539fb53cca5e6a91d51c6009))
+
+
+### 🔨 Refactoring
+
+* **dmn-modeler:** keep the diff viewer out of the published types ([#2432](https://github.com/Miragon/bpmn-modeler/issues/2432)) ([b26b0df](https://github.com/Miragon/bpmn-modeler/commit/b26b0dfacdc1556d6063f61a383acd13c3302bd3))
+* **model-navigation:** map an element to its reference kind once ([#2429](https://github.com/Miragon/bpmn-modeler/issues/2429)) ([a33b4c4](https://github.com/Miragon/bpmn-modeler/commit/a33b4c42f419a4410ef2d09fc58de6a7998fb38c))
+* **modeler-bridge:** split protocol descriptor fixtures by feature ([#2412](https://github.com/Miragon/bpmn-modeler/issues/2412)) ([fb032ba](https://github.com/Miragon/bpmn-modeler/commit/fb032baa74f2e81a4ef6e301c4ffb81c2dd839c5))
+* **modeler-core:** track open script tabs in a core domain model ([#2414](https://github.com/Miragon/bpmn-modeler/issues/2414)) ([3c72089](https://github.com/Miragon/bpmn-modeler/commit/3c720897707e6e056afbbee686a84e79861a71fe))
+* **modeler-types:** decide once whether a document is blank ([#2410](https://github.com/Miragon/bpmn-modeler/issues/2410)) ([b382775](https://github.com/Miragon/bpmn-modeler/commit/b382775c4d87aab8bd4391c1a104ea0850c06e4c))
+* **modeler-types:** render both diff legends from one component ([#2426](https://github.com/Miragon/bpmn-modeler/issues/2426)) ([d651f17](https://github.com/Miragon/bpmn-modeler/commit/d651f175559bf5c6968c311169a70efe1387676a))
+* **shared:** build the properties-panel chrome once for every editor page ([#2435](https://github.com/Miragon/bpmn-modeler/issues/2435)) ([bc04fd8](https://github.com/Miragon/bpmn-modeler/commit/bc04fd85038752abe4136a7d9b95e33b12ee63d7))
+* **shared:** give the flush reply table one home across hosts ([#2416](https://github.com/Miragon/bpmn-modeler/issues/2416)) ([cc45e75](https://github.com/Miragon/bpmn-modeler/commit/cc45e753497c67efc6dfd6a02806c90e9be5f3da))
+
+
+### 📔 Documentation
+
+* **adr:** trim and re-split the architecture decision records ([#2315](https://github.com/Miragon/bpmn-modeler/issues/2315)) ([5050def](https://github.com/Miragon/bpmn-modeler/commit/5050def57121ce86b4106bc3af64476ed5a5f737))
+
+
+### 🛠️ Misc
+
+* **architecture-testing:** allow only types in a port/ file ([#2403](https://github.com/Miragon/bpmn-modeler/issues/2403)) ([4a53aad](https://github.com/Miragon/bpmn-modeler/commit/4a53aadca2fde8d62402d196a8f5d8e74e4ce30d))
+* **bpmn-i18n-extras:** give key normalization and harvests one home ([#2421](https://github.com/Miragon/bpmn-modeler/issues/2421)) ([4605cf4](https://github.com/Miragon/bpmn-modeler/commit/4605cf49b056c00286bdc1c27dc467e58bb1c59c))
+* **build:** share one vite preset across the modeler bundles ([#2437](https://github.com/Miragon/bpmn-modeler/issues/2437)) ([97d5991](https://github.com/Miragon/bpmn-modeler/commit/97d5991faf8805485831bc2f6b63ecfd91a09d15))
+* **ci:** check that the files a spec reads are in its vitest target paths ([#2405](https://github.com/Miragon/bpmn-modeler/issues/2405)) ([349a4bd](https://github.com/Miragon/bpmn-modeler/commit/349a4bd9784465c10e827e430c09de05ebd099f0))
+* **intellij-plugin:** pin the Kotlin half of the RPC contracts ([#2392](https://github.com/Miragon/bpmn-modeler/issues/2392)) ([af28ecc](https://github.com/Miragon/bpmn-modeler/commit/af28ecc986966c75d62216de9720de24d3167c7d))
+* **orca-plugin:** move to @miragon/modeler-shell 0.14.1 and its smaller Orca smoke ([#2376](https://github.com/Miragon/bpmn-modeler/issues/2376)) ([2158247](https://github.com/Miragon/bpmn-modeler/commit/2158247cdf7a8a54bd1493f956ebb12d8c0fd721))
+* **repo-checks:** check each host's webview list against its build ([#2404](https://github.com/Miragon/bpmn-modeler/issues/2404)) ([1d15a07](https://github.com/Miragon/bpmn-modeler/commit/1d15a070a7c88755b397be1e80335f3e726f4f8a))
+* **repo-checks:** let contract-suites see adapters without implements ([#2386](https://github.com/Miragon/bpmn-modeler/issues/2386)) ([c001a82](https://github.com/Miragon/bpmn-modeler/commit/c001a82f4e26e80f67566b440ef9863c199d8127))
+* **repo-checks:** measure a branch as one squashed change ([#2387](https://github.com/Miragon/bpmn-modeler/issues/2387)) ([6a37988](https://github.com/Miragon/bpmn-modeler/commit/6a37988a70839c1a1c711c67af53b8f3f193f642))
+* **repo-checks:** name the type pin and the known misses in repeated-value-sets ([#2383](https://github.com/Miragon/bpmn-modeler/issues/2383)) ([2ccec8a](https://github.com/Miragon/bpmn-modeler/commit/2ccec8ac34087522a8b2014c590873e49e6db63a))
+* **repo-checks:** replace the name reads the audit found ([#2391](https://github.com/Miragon/bpmn-modeler/issues/2391)) ([ff600eb](https://github.com/Miragon/bpmn-modeler/commit/ff600eb8e20f89493e57b57ea566613caf58700b))
+* **repo-checks:** show grown files and hide two functions in the fitness comment ([#2385](https://github.com/Miragon/bpmn-modeler/issues/2385)) ([18461dd](https://github.com/Miragon/bpmn-modeler/commit/18461ddee078391ae450b65dc5a2bd5753f53ebe))
+* **repo-checks:** stop host-text from reading markup and require texts ([#2384](https://github.com/Miragon/bpmn-modeler/issues/2384)) ([2f7ea36](https://github.com/Miragon/bpmn-modeler/commit/2f7ea36880343d38d2b9ac82a5e876ed3ff71a32))
+* **repo-checks:** tidy the contract-suite docs and specs ([#2388](https://github.com/Miragon/bpmn-modeler/issues/2388)) ([a13d313](https://github.com/Miragon/bpmn-modeler/commit/a13d313f318158d940d23d06fa971482dcb9b3b9))
+
 ## [1.8.1](https://github.com/Miragon/bpmn-modeler/compare/bpmn-modeler-v1.8.0...bpmn-modeler-v1.8.1) (2026-11-12)
 
 

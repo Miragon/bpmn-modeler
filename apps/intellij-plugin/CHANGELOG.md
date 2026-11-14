@@ -1,5 +1,50 @@
 # Changelog
 
+## [1.18.0](https://github.com/Miragon/bpmn-modeler/compare/intellij-v1.17.0...intellij-v1.18.0) (2026-11-14)
+
+
+### 🎉 New Features
+
+* **add-ons-webview:** show the review open with Allow at its end ([#2380](https://github.com/Miragon/bpmn-modeler/issues/2380)) [sync 9d6d328] ([4f0b92f](https://github.com/Miragon/bpmn-modeler/commit/4f0b92f693602b77cc44ae5f54998fe6cd7786fe))
+* **add-ons-webview:** show what needs attention first and drop the tabs and chips ([#2379](https://github.com/Miragon/bpmn-modeler/issues/2379)) [sync d683178] ([3d8f9a4](https://github.com/Miragon/bpmn-modeler/commit/3d8f9a4dc5bd8fd81253f142d562c21883391ca6))
+* **bpmn-diff:** return one element's XML without its children and diagram data ([#2461](https://github.com/Miragon/bpmn-modeler/issues/2461)) [sync 93096fa] ([73dfe03](https://github.com/Miragon/bpmn-modeler/commit/73dfe030192cd30b4924658bccb1b3ba32b5b9d3))
+* **bpmn-modeler:** add reloadDiagram that keeps the view across a re-import ([#2427](https://github.com/Miragon/bpmn-modeler/issues/2427)) [sync f6ff334] ([8bef1be](https://github.com/Miragon/bpmn-modeler/commit/8bef1be1fd38eb7f914e89feace8d6f2bf7cab94))
+* **bpmn-modeler:** give the diff legend the miragon look ([#2436](https://github.com/Miragon/bpmn-modeler/issues/2436)) [sync 291a060] ([22b9fb2](https://github.com/Miragon/bpmn-modeler/commit/22b9fb29502e4bd506631a78cd0a73e06718bc1e))
+* **bpmn-modeler:** keep both diff panes on the same subprocess plane ([#2443](https://github.com/Miragon/bpmn-modeler/issues/2443)) [sync 378c141] ([ed31c8d](https://github.com/Miragon/bpmn-modeler/commit/ed31c8d3e199115d1b75bc86904379d99a8ad89f))
+* **bpmn-modeler:** publish the surface checks hosts duck-type ([#2420](https://github.com/Miragon/bpmn-modeler/issues/2420)) [sync 0109615] ([1f47b5a](https://github.com/Miragon/bpmn-modeler/commit/1f47b5a38278b9fff5224042fe261cf98a727f47))
+* **bpmn-modeler:** restyle the diff view after Diagit's diff panel ([#2442](https://github.com/Miragon/bpmn-modeler/issues/2442)) [sync c4f0e69] ([408237a](https://github.com/Miragon/bpmn-modeler/commit/408237a175ed62d21fa02dd4ac267538c644d3f4))
+* **model-navigation:** open and preview a start event's linked form ([#2460](https://github.com/Miragon/bpmn-modeler/issues/2460)) [sync f1dd92f] ([6414d46](https://github.com/Miragon/bpmn-modeler/commit/6414d464c797688f13f543dc058b9ab9b3a3c5f3))
+* **modeler-core:** open an add-on's details in an editor tab ([#2382](https://github.com/Miragon/bpmn-modeler/issues/2382)) [sync 63b09b6] ([7c28a72](https://github.com/Miragon/bpmn-modeler/commit/7c28a7204d9d75bdcb6a8d3226a048f2a1a2bf8c))
+* **vscode-plugin:** give Add-ons and Deploy their own activity bar containers ([#2381](https://github.com/Miragon/bpmn-modeler/issues/2381)) ([746ec23](https://github.com/Miragon/bpmn-modeler/commit/746ec23044dff4d0abf0a78786fda6bfa99e87f4))
+
+
+### 🐞 Bug Fixes
+
+* **append-menu:** one rule for what counts as a template popup entry ([#2425](https://github.com/Miragon/bpmn-modeler/issues/2425)) [sync 59f7b92] ([858d1c6](https://github.com/Miragon/bpmn-modeler/commit/858d1c6db6208ea53c86cd8ed60875caa5ad6b36))
+* **vscode-plugin:** open a file as an editor while an unrelated compare tab is open ([#2402](https://github.com/Miragon/bpmn-modeler/issues/2402)) [sync d662666] ([c3d25ed](https://github.com/Miragon/bpmn-modeler/commit/c3d25ed5c5ba8476ec3b1c063f12a7bdd80e1f4d))
+* **vscode-plugin:** open a second diff tab of the same file as a diff ([#2444](https://github.com/Miragon/bpmn-modeler/issues/2444)) [sync 98ef49e] ([690e2d5](https://github.com/Miragon/bpmn-modeler/commit/690e2d5da3c1d64a1aa9c17ba1f1df2446f1a76b))
+
+
+### 🔨 Refactoring
+
+* **intellij-plugin:** give each host-replicated state one registration ([#2415](https://github.com/Miragon/bpmn-modeler/issues/2415)) ([3642b73](https://github.com/Miragon/bpmn-modeler/commit/3642b73d099ebcfd17d66ef26fe794476eee6c97))
+* **modeler-bridge:** reuse the core's innermost root and basename ([#2418](https://github.com/Miragon/bpmn-modeler/issues/2418)) ([f674ad3](https://github.com/Miragon/bpmn-modeler/commit/f674ad33894f0f8d9b60fa3b916bee6256d8b4cb))
+* **modeler-core:** build the completion and new-file texts in the core ([#2411](https://github.com/Miragon/bpmn-modeler/issues/2411)) ([722bde7](https://github.com/Miragon/bpmn-modeler/commit/722bde71ea328bb7eec6006c7a529a9b09cddb7c))
+* **modeler-core:** make EditorHandle the only document port ([#2438](https://github.com/Miragon/bpmn-modeler/issues/2438)) ([5cae0bd](https://github.com/Miragon/bpmn-modeler/commit/5cae0bdf606534d06c4b6a3ff43c278b99c65fd5))
+* **shared:** build the properties-panel chrome once for every editor page ([#2435](https://github.com/Miragon/bpmn-modeler/issues/2435)) ([bc04fd8](https://github.com/Miragon/bpmn-modeler/commit/bc04fd85038752abe4136a7d9b95e33b12ee63d7))
+* **shared:** give the flush reply table one home across hosts ([#2416](https://github.com/Miragon/bpmn-modeler/issues/2416)) ([cc45e75](https://github.com/Miragon/bpmn-modeler/commit/cc45e753497c67efc6dfd6a02806c90e9be5f3da))
+
+
+### 📔 Documentation
+
+* **adr:** trim and re-split the architecture decision records ([#2315](https://github.com/Miragon/bpmn-modeler/issues/2315)) ([5050def](https://github.com/Miragon/bpmn-modeler/commit/5050def57121ce86b4106bc3af64476ed5a5f737))
+* **changelog:** note the allowance per repository for vs code 1.22.0 and intellij 1.17.0 ([#2465](https://github.com/Miragon/bpmn-modeler/issues/2465)) ([cc92368](https://github.com/Miragon/bpmn-modeler/commit/cc9236834db1333529dec7383e0507fb244b0a9d))
+
+
+### 🛠️ Misc
+
+* **intellij-plugin:** pin the Kotlin half of the RPC contracts ([#2392](https://github.com/Miragon/bpmn-modeler/issues/2392)) ([af28ecc](https://github.com/Miragon/bpmn-modeler/commit/af28ecc986966c75d62216de9720de24d3167c7d))
+
 ## [1.17.0](https://github.com/Miragon/bpmn-modeler/compare/intellij-v1.16.0...intellij-v1.17.0) (2026-11-12)
 
 
